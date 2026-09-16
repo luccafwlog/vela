@@ -85,6 +85,7 @@ describeLocal('comportamento efetivo da liquidação de COD no Postgres local', 
   const opsId = '63000000-0000-0000-0000-000000000002'
   const equipmentId = '63000000-0000-0000-0000-000000000003'
   const customerId = 630001
+  const portalUserId = '63000000-0000-0000-0000-000000000004'
   const carrierId = 630002
   const vesselId = 630003
   const voyageId = 630004
@@ -97,7 +98,7 @@ describeLocal('comportamento efetivo da liquidação de COD no Postgres local', 
   }
 
   function callAs(role: string, userId: string, sql: string) {
-    return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', `BEGIN; SET LOCAL ROLE ${role}; SELECT set_config('request.jwt.claims','{"sub":"${userId}"}',true); ${sql}; COMMIT;`], { encoding: 'utf8' })
+    return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', `BEGIN; SET LOCAL ROLE ${role}; SELECT set_config('request.jwt.claim.role','authenticated',true); SELECT set_config('request.jwt.claim.sub','${userId}',true); ${sql}; COMMIT;`], { encoding: 'utf8' })
   }
 
   beforeAll(() => {
@@ -105,7 +106,8 @@ describeLocal('comportamento efetivo da liquidação de COD no Postgres local', 
       INSERT INTO auth.users (id, email) VALUES
         ('${adminId}', 't7-313-admin@example.test'),
         ('${opsId}', 't7-313-ops@example.test'),
-        ('${equipmentId}', 't7-313-equipment@example.test')
+        ('${equipmentId}', 't7-313-equipment@example.test'),
+        ('${portalUserId}', 't7-313-portal@example.test')
       ON CONFLICT (id) DO NOTHING;
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
         ('${adminId}', 'T7 Financeiro', 'financeiro', true),
@@ -113,17 +115,36 @@ describeLocal('comportamento efetivo da liquidação de COD no Postgres local', 
         ('${equipmentId}', 'T7 Equipamentos', 'equipamentos', true)
       ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, active = true;
       INSERT INTO public.customers (id, cnpj_cpf, name)
-      VALUES (${customerId}, '12345678000195', 'Cliente T7 313')
+      VALUES (${customerId}, '99630001000187', 'Cliente T7 313')
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
       INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary)
       VALUES (${customerId}, 'Financeiro T7', 't7-313@example.test', 'financeiro', true)
       ON CONFLICT DO NOTHING;
+      INSERT INTO public.customer_portal_accounts (
+        customer_id, active, auth_user_id, account_situation, recovery_email, recovery_email_status
+      ) VALUES (
+        ${customerId}, true, '${portalUserId}', 'ativo', 't7-313-recovery@example.test', 'ok'
+      )
+      ON CONFLICT (customer_id) DO UPDATE SET
+        active = true,
+        auth_user_id = '${portalUserId}',
+        account_situation = 'ativo',
+        recovery_email = 't7-313-recovery@example.test',
+        recovery_email_status = 'ok';
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier T7 313') ON CONFLICT (id) DO NOTHING;
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel T7 313', ${carrierId}) ON CONFLICT (id) DO NOTHING;
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'T7-313', 'active') ON CONFLICT (id) DO NOTHING;
-      INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode, pod, financial_status)
-      VALUES ('${blId}', ${voyageId}, ${customerId}, 'container', 'BRSSA', 'invoiced')
-      ON CONFLICT (id) DO UPDATE SET pod = EXCLUDED.pod, customer_id = EXCLUDED.customer_id;
+      INSERT INTO public.bls (
+        id, voyage_id, customer_id, cargo_mode, pod, financial_status,
+        review_status, customer_reconciliation_status, ce_mercante
+      )
+      VALUES ('${blId}', ${voyageId}, ${customerId}, 'container', 'BRSSA', 'invoiced', 'ok', 'reconciled', 'T7-313-CE')
+      ON CONFLICT (id) DO UPDATE SET
+        pod = EXCLUDED.pod,
+        customer_id = EXCLUDED.customer_id,
+        ce_mercante = EXCLUDED.ce_mercante,
+        review_status = 'ok',
+        customer_reconciliation_status = 'reconciled';
       INSERT INTO public.voyage_omissions (id, voyage_id, omitted_pod, discharge_pod, reason)
       VALUES (${offsetOmissionId}, ${voyageId}, 'BRVIX', 'BRSSA', 'T7 313 offset'),
         (${refundOmissionId}, ${voyageId}, 'BRSSA', 'BRVIX', 'T7 313 refund')
@@ -142,6 +163,7 @@ describeLocal('comportamento efetivo da liquidação de COD no Postgres local', 
 
   afterAll(() => {
     psql(`
+      SET session_replication_role = replica;
       DELETE FROM public.invoice_refunds WHERE invoice_id IN (SELECT id FROM public.invoices WHERE invoice_number = 'T7-313-INV');
       DELETE FROM public.cod_adjustments WHERE bl_id = '${blId}';
       DELETE FROM public.invoice_bls WHERE bl_id = '${blId}';
@@ -152,9 +174,11 @@ describeLocal('comportamento efetivo da liquidação de COD no Postgres local', 
       DELETE FROM public.vessels WHERE id = ${vesselId};
       DELETE FROM public.carriers WHERE id = ${carrierId};
       DELETE FROM public.customer_contacts WHERE customer_id = ${customerId};
+      DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
       DELETE FROM public.audit_logs WHERE changed_by IN ('${adminId}', '${opsId}', '${equipmentId}');
       DELETE FROM public.user_profiles WHERE id IN ('${adminId}', '${opsId}', '${equipmentId}');
-      DELETE FROM auth.users WHERE id IN ('${adminId}', '${opsId}', '${equipmentId}');
+      DELETE FROM auth.users WHERE id IN ('${adminId}', '${opsId}', '${equipmentId}', '${portalUserId}');
+      SET session_replication_role = origin;
     `)
   })
 

@@ -48,10 +48,15 @@ export async function afterRotaAlterada(queryClient: QueryInvalidator, options: 
 export async function afterManifestoImportado(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
   const vId = String(options.voyageId)
   await invalidate(queryClient, [
-    ['bls'], ['containers'], ['voyages'], ['port-options'],
+    // Um manifesto CNTR pode alterar os cards do B/L, fisico (containers,
+    // veiculos), vinculos de fatura e o cliente exibido nas telas consumidoras.
+    // Este e o unico efeito pos-importacao para que cada modal nao mantenha
+    // uma lista parcial de caches.
+    ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
+    ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
     ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
     ['baplie-reconciliation', vId], ['baplie-staging', vId],
-    ['voyage-escala-schedules'], voyageTimelineKey(options.voyageId), ...LINEUP_KEYS,
+    ['voyage-pol-schedules'], ['voyage-escala-schedules'], voyageTimelineKey(options.voyageId), ...LINEUP_KEYS,
   ])
 }
 

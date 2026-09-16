@@ -84,6 +84,13 @@ const mocks = vi.hoisted(() => ({
   currentRoe: { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' } as { roe: number; updatedAt: string } | null,
 }))
 
+const portalScope = vi.hoisted(() => ({
+  mode: 'client' as 'client' | 'inspect',
+  customerId: 42 as number | null,
+  overview: null,
+  basePath: '/portal',
+}))
+
 vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({ showToast: vi.fn() }),
 }))
@@ -111,6 +118,10 @@ const portalAuth = vi.hoisted(() => ({
 vi.mock('../../hooks/usePortalAuth', async () => ({
   usePortalAuth: () => portalAuth,
   PortalAuthContext: (await vi.importActual<typeof import('react')>('react')).createContext(portalAuth),
+}))
+
+vi.mock('../../hooks/usePortalScope', () => ({
+  usePortalScope: () => portalScope,
 }))
 
 vi.mock('../../hooks/usePortalBilling', () => ({
@@ -186,6 +197,7 @@ afterEach(() => {
   mocks.detail = null
   mocks.demurrageError = null
   mocks.currentRoe = { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' }
+  portalScope.mode = 'client'
 })
 
 const consolidatedDetail = {
@@ -265,6 +277,13 @@ describe('PortalBilling', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
     expect(screen.queryByText(/ROE vigente/)).toBeNull()
+  })
+
+  it('mantem a emissão de consolidada indisponivel no Modo Inspeção', () => {
+    portalScope.mode = 'inspect'
+    renderBilling()
+
+    expect((screen.getByRole('button', { name: 'Gerar fatura consolidada' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('mostra erro da aba Demurrage em vez de estado vazio', async () => {

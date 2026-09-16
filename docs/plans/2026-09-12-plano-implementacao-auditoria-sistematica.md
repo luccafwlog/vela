@@ -158,7 +158,7 @@ Os achados da revisão sistemática estão organizados em 4 blocos de execução
   - **Ação:** Criar RPC recebendo array de clientes e executando em bloco com `SAVEPOINT` por registro, retornando sumário de sucessos e falhas em um único round-trip.
   - **Verificação:** Medir tempo de ingestão de planilha de 500 registros antes e depois.
 
-- [ ] **D5. Ajuste no orçamento de bundle `size-limit` (`ENV-02`)**
+- [x] **D5. Ajuste no orçamento de bundle `size-limit` (`ENV-02`)**
   - **Arquivo:** `package.json`.
   - **Ação:** Ajustar os globs de `size-limit` para incluir os chunks pré-carregados gerados pela compilação do Vite.
   - **Verificação:** `npm run size-limit`.

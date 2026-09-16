@@ -1,6 +1,6 @@
 # Faturamento
 
-> **Status:** ativo · **Atualizado:** 2026-09-14 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e estorno de pagamentos também são abertos por `/reconciliacao`
+> **Status:** ativo · **Atualizado:** 2026-09-16 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e estorno de pagamentos também são abertos por `/reconciliacao`
 
 ## Propósito e escopo
 
@@ -18,11 +18,20 @@ Para taxas locais, o saldo canônico é o ledger por recebível; a tabela
 - [Taxas Locais](taxas-locais.md) é dona do cálculo e do estado
   `ready_for_billing`.
 - Para B/Ls de container, carga solta e Granito, emissão automática de taxas
-  locais só nasce após o cadastro do CE Mercante (ADRs 0020 e 0042) e continua
-  respeitando reconciliação de cliente, pendências documentais e holds. Granito sem CE fica em
-  “Aguardando CE Mercante”; a exceção manual é a emissão individual “Emitir”,
-  que mantém os mesmos gates. Embarque de Vazios não emite CE nem possui
-  faturamento de cliente.
+  locais nasce na transição do CE Mercante (ADRs 0020 e 0042): o gatilho
+  server-side calcula as taxas, promove o B/L e emite a invoice/recebível na
+  mesma transação quando os dados do cliente, a reconciliação e os demais
+  critérios financeiros estão prontos. Granito sem CE fica em “Aguardando CE
+  Mercante”; a exceção manual é a emissão individual “Emitir”, que mantém os
+  mesmos gates. Embarque de Vazios não emite CE nem possui faturamento de
+  cliente.
+- A conta do Portal não é pré-requisito para essa emissão interna automática:
+  `trg_auto_bill_bl_after_ce_mercante`, criado pela migration `051`, é a fonte
+  de verdade da transição CE → cálculo → fatura. Se houver falha operacional,
+  um efeito `local_billing` é enfileirado; com ator válido ele é recuperável e,
+  sem `auth.uid()`, fica registrado como `actor_source=system` e bloqueado de
+  forma auditável, sem fabricar um usuário. A repetição é idempotente. Os
+  fluxos iniciados pelo Portal continuam protegidos pelo gate de acesso.
 - A comunicação financeira é posterior à emissão/disponibilização no Portal:
   `customer_local_charges_communication_readiness()` exige CE, revisão limpa e
   faturamento concluído em todos os B/Ls ativos do cliente na viagem. Quando
@@ -65,10 +74,15 @@ consolidada mesmo quando o B/L não tem vínculo individual. Não há vencimento
 estado `Vencida` nesse trilho: essa regra não existe para taxas locais.
 
 No backend, `047_bl_documental_gates.sql` exige CE Mercante antes de marcar o
-B/L como pronto e nas fronteiras de emissão individual e consolidada. A leitura
-de Portal do detalhe também devolve `portal_access_ready`, calculado pela
-função canônica `customer_portal_access_ready`; a entrega continua usando
-`bl_has_portal_release`, que aplica a mesma exigência aos dois modos de carga.
+B/L como pronto e nas fronteiras de emissão individual e consolidada. A
+migration `051_ce_mercante_auto_billing.sql` mantém esses gates para ações
+manuais/Portal, mas abre apenas o contexto interno temporário, verificado pelo
+owner da função, para que a transição CE emita sem depender do provisionamento
+do Portal. A leitura de
+Portal do detalhe também devolve `portal_access_ready`, calculado pela função
+canônica `customer_portal_access_ready`; a entrega continua usando
+`bl_has_portal_release`, que aplica a exigência documental aos dois modos de
+carga.
 
 ### Lista de invoices
 
@@ -106,18 +120,18 @@ foi removido junto com a coluna `invoices.due_date`.
   presente, com `recovery_email_status = 'ok'` e fora de
   `portal_suppressed_emails`). A migration `368` fechou o resto: o critério
   virou a função única `customer_portal_access_ready`, consumida também pelo
-  alerta consolidado `reconcile_customer_bl_review_alerts` (que, com a cópia
-  frouxa da `364`, resolvia justamente os alertas das contas que a emissão
-  passou a recusar); `recompute_bl_review_status` recalcula
+  alerta consolidado `reconcile_customer_bl_review_alerts`; `recompute_bl_review_status` recalcula
   `review_status`/`notes` de um B/L e passou a ser chamada pelos triggers de
   `customer_portal_accounts`/`customer_contacts` — é assim que provisionar o
-  portal libera os B/Ls do cliente sem intervenção manual — e pelo backfill que
-  alinhou os B/Ls já existentes ao critério novo. B/L faturado não é
-  recomputado. A fronteira que promove `ready_for_billing` recusa levantando
-  exceção; o `UPDATE` de `billing_hold_reason` que a antecedia morria no
-  rollback da mesma transação e saiu na `368` — o estado vivo das pendências é
-  `notes`, escrito pela `save_bl_review`, e é dele que a Validação lê. O cálculo
-  não é afetado. Na Validação o
+  portal atualiza os B/Ls do cliente sem intervenção manual — e pelo backfill
+  que alinhou os B/Ls já existentes ao critério novo. B/L faturado não é
+  recomputado. A emissão manual/consolidada continua recusando esse gate com
+  exceção; já a emissão interna automática do CE usa o contexto privado da
+  migration `051`, sem transformar a conta do Portal em pré-condição. O
+  `UPDATE` de `billing_hold_reason` que a antecedia morria no rollback da mesma
+  transação e saiu na `368` — o estado vivo das pendências é `notes`, escrito
+  pela `save_bl_review`, e é dele que a Validação lê. O cálculo não é afetado.
+  Na Validação o
   motivo deixou de aparecer como “Cálculo incompleto”: `getBillingBlock` ganhou o
   código `portal_nao_provisionado`, atrás de cliente, cálculo e CE Mercante na
   precedência, porque é o único bloqueio que se resolve no cadastro do cliente e
@@ -420,7 +434,9 @@ Não há evidência de Runtime registrada neste documento.
   automaticamente em qualquer transição para `ready_for_billing`, inclusive
   pelo botão manual, sem checar CE Mercante) — `mark_bl_ready_for_billing`
   passou a chamar `sync_local_charge_receivable` diretamente para manter o
-  ledger atualizado sem esse efeito colateral.
+  ledger atualizado sem esse efeito colateral. A emissão automática voltou a
+  existir apenas na transição explícita do CE Mercante, de forma idempotente,
+  pela migration `051`.
 - **PIX tem dois autores.** A migration
   `074_ledger_invoice_pix_payload.sql` mantém payload por trigger para
   invoices locais. `createInvoiceFromBls` ainda executa `persistPixPayload`

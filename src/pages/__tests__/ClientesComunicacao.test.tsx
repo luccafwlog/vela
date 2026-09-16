@@ -132,7 +132,7 @@ vi.mock('../../hooks/useAuth', () => ({
   }),
 }))
 
-let activeMockConference: CustomerCommunicationConference | undefined = undefined
+let activeMockConference: CustomerCommunicationConference | null | undefined = undefined
 
 vi.mock('../../hooks/useCustomerCommunications', () => ({
   useCustomerCommunicationConference: () => ({
@@ -254,6 +254,23 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByText(/Pré-visualização do Comunicado/i)).toBeTruthy()
     expect(screen.getByText(/Destinatário:/i)).toBeTruthy()
     expect(screen.getByText(/Assunto:/i)).toBeTruthy()
+  })
+
+  it('renderiza a prévia institucional sem B/Ls quando ainda não há conferência', () => {
+    activeMockConference = null
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    escolher(/^Institucional/)
+    fireEvent.change(screen.getByLabelText(/^Assunto/), { target: { value: 'Aviso importante' } })
+    fireEvent.change(screen.getByLabelText(/^Mensagem/), { target: { value: 'Mensagem institucional de teste.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ver prévia do e-mail' }))
+
+    expect(screen.getAllByText('Mensagem institucional de teste.')).toHaveLength(2)
+    expect(screen.queryByText('Não foi possível renderizar a prévia deste comunicado.')).toBeNull()
   })
 
   it('cada modo oferece apenas os modelos do seu recorte de destinatários', () => {

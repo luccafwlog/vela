@@ -280,6 +280,7 @@ export function VoyageVisaoTab({
                             </button>
                           ) : null}
                           <span className="font-semibold text-[var(--app-text-strong)]">{row.port}</span>
+                          {row.omitted ? <Badge tone="slate">OMIT</Badge> : null}
                           {atracacoes.length ? <Badge tone="slate">{atracacoes.length} atracações</Badge> : null}
                         </div>
                         {row.divergences.length ? <EscalaDivergenceWarning divergences={row.divergences} /> : null}

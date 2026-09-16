@@ -39,14 +39,15 @@ describe('cache effects', () => {
     ]))
   })
 
-  it('invalidates exactly the manifest import set, preserving port-options', async () => {
+  it('invalidates exactly the manifest import set, including B/L summary dependents', async () => {
     const { client, keys } = fakeQueryClient()
     await afterManifestoImportado(client, { voyageId: 24 })
     expect(keys()).toEqual(keySet([
-      ['bls'], ['containers'], ['voyages'], ['port-options'],
+      ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
+      ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
       ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
       ['baplie-reconciliation', '24'], ['baplie-staging', '24'],
-      ['voyage-escala-schedules'], ['voyage-timeline', '24'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
+      ['voyage-pol-schedules'], ['voyage-escala-schedules'], ['voyage-timeline', '24'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
     ]))
   })
 

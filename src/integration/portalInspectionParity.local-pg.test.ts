@@ -5,6 +5,7 @@ import {
   PORTAL_WRITE_CONTRACTS,
   REPORT_ID_RPC_VARIANTS,
 } from '../services/portalRpcContracts'
+import { syntheticCnpj } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
@@ -20,6 +21,8 @@ const vesselId = 990131
 const voyageId = 990131
 const blA = 'BL-S11-A'
 const blB = 'BL-S11-B'
+const customerACnpj = syntheticCnpj(11301)
+const customerBCnpj = syntheticCnpj(11302)
 
 function psql(sql: string) {
   return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], {
@@ -69,8 +72,8 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
         ('${inspectorId}', 'S11 Inspector', 'operacoes', true)
       ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, active = true;
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
-        (${customerA}, '12345678000195', 'Cliente S11 A'),
-        (${customerB}, '11222333000181', 'Cliente S11 B')
+        (${customerA}, '${customerACnpj}', 'Cliente S11 A'),
+        (${customerB}, '${customerBCnpj}', 'Cliente S11 B')
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
       INSERT INTO public.customer_portal_accounts (customer_id, active, auth_user_id) VALUES
         (${customerA}, true, '${portalUserA}')

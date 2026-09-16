@@ -3,6 +3,43 @@
 > Histórico curado de entregas relevantes. Sintetizado dos planos de execução (arquivados em [archive/](archive/README.md)) e do histórico git. Não substitui o `git log`.
 
 ## 2026-09
+- **QA adversarial — correções pós-caos:** o primeiro e-mail da importação de
+  clientes passa a ser principal (com reparo determinístico dos clientes
+  legados sem principal), o resumo da ficha não promove contatos adicionais,
+  e a invalidação pós-importação cobre os KPIs e leitores de B/L, físico e
+  faturamento. O salvamento da ETA/ATA na escala terminalizada agora mantém o
+  snapshot POD na mesma transação (`049_terminalized_schedule_persistence.sql`).
+  Também foram corrigidos a prévia institucional, a emissão em Modo Inspeção e
+  o marcador `OMIT` no planejamento interno. O orçamento de bundle passou a
+  medir os chunks realmente pré-carregados pelas superfícies interna e portal.
+- **QA adversarial — Portal e candidatos financeiros:** o convite do Portal
+  agora reprova e-mails inválidos antes de habilitar qualquer ação de envio;
+  a fila de provisionamento passa a listar contatos ativos do cadastro
+  canônico de caixas mesmo quando o `purpose` legado é nulo, omitindo contatos
+  desativados (`050_portal_provisioning_active_contact_candidates.sql`).
+  A validação focada cobriu os dois contratos; a execução manual usou somente
+  registros sintéticos `.test`, sem endereço real. Após confirmação explícita,
+  o convite foi enviado para `qa-financeiro-20260915@example.test` e a conta
+  ficou em `Ativação pendente`, sem caixa/token disponível para concluir a
+  ativação.
+- **QA adversarial — erro de faturamento acionável:** a falha da emissão
+  automática no botão `Pronto para faturar` deixa de virar um toast genérico.
+  O cliente agora lê `code`, `message`, `details` e `hint`, reconhece gates de
+  revisão/cliente/Portal sem depender de acentos e exibe a razão operacional
+  devolvida pelo backend (BUG-09).
+- O dispatch manual de Comunicados também preserva o corpo de erro devolvido
+  por `send-customer-communication` quando a Edge Function responde não-2xx,
+  evitando o diagnóstico genérico do cliente (BUG-10).
+- **QA adversarial — links de ativação após cutover:** overrides legados de
+  `PORTAL_URL` e `PORTAL_SUPPORT_EMAIL` agora são normalizados para o domínio e
+  suporte atuais do Portal, evitando convites com link 404 mesmo quando um
+  segredo antigo ainda estiver implantado (BUG-11).
+- **QA adversarial — Portal autenticado:** após a ativação do usuário sintético,
+  o login por CNPJ abriu o painel do cliente e as áreas de Operação, Faturas e
+  Perfil. O Portal exibiu o B/L `QABL002`, o container devolvido
+  `CSNU2049996`, a escala publicada e as notificações sintéticas; o saldo e as
+  faturas permaneceram zerados porque nenhuma emissão ou liquidação financeira
+  foi executada.
 - **B/L — trilho Documental:** detalhe do B/L passa a exibir os quatro gates de Cliente, Taxas Locais, CE Mercante e Fatura, com resumo e próxima ação sem card de Revisão, Pagamento ou vencimento. O CE agora bloqueia emissão para contêiner e carga solta também nas ligações individuais e consolidadas (`047_bl_documental_gates.sql`), e a fatura consolidada fica identificada no trilho. Verificado com testes focados, suíte completa, typecheck, lint, build, `rpc:check`, contraste e `docs:check`.
 - **Caixas de Comunicação, Salvamento Atômico e Auditoria de Contatos (Issue 609 / ADR 0064):**
   substituição do modelo legado de preferências (`customer_contact_preferences` e `purpose` como roteador)

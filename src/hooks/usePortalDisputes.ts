@@ -2,14 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePortalAuth } from './usePortalAuth'
 import { usePortalScope } from './usePortalScope'
 import { portalAddDisputeMessage, portalListDisputes, portalOpenDemurrageDispute, portalRequestDisputeReopen } from '../services/portalBilling'
+import { isPortalReadOnly } from '../services/portalScope'
 
 export function usePortalDisputes() {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
   return useQuery({
     queryKey: ['portal-disputes', scope.mode, scope.customerId],
     queryFn: () => portalListDisputes(scope),
-    enabled: isAuthenticated || scope.mode === 'inspect',
+    enabled: isAuthenticated || readOnly,
     staleTime: 30_000,
   })
 }

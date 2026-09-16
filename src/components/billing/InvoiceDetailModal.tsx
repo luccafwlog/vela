@@ -203,10 +203,15 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
 
   async function handleCancelInvoice() {
     if (!invoiceId) return
+    const reason = cancelReason.trim()
+    if (!reason) {
+      showToast('Informe a justificativa para cancelar a invoice.', 'error')
+      return
+    }
     try {
       await cancelInvoiceMutation.mutateAsync({
         invoiceId,
-        reason: cancelReason.trim() || null,
+        reason,
         actorId: user?.id ?? null,
       })
       setCancelReason('')
@@ -557,7 +562,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                     </Button>
                   </div>
                 </Card>
-                <Card><h2 className="mb-3 text-base font-semibold text-white">Cancelar invoice</h2><Field label="Motivo"><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></Field><div className="mt-4 flex justify-end"><Button variant="danger" loading={cancelInvoiceMutation.isPending} disabled={detailQuery.data.payments.length > 0} onClick={handleCancelInvoice}><Ban size={16} />Cancelar invoice</Button></div></Card>
+                <Card><h2 className="mb-3 text-base font-semibold text-white">Cancelar invoice</h2><Field label="Motivo"><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></Field><div className="mt-4 flex justify-end"><Button variant="danger" loading={cancelInvoiceMutation.isPending} disabled={detailQuery.data.payments.length > 0 || !cancelReason.trim()} onClick={handleCancelInvoice}><Ban size={16} />Cancelar invoice</Button></div></Card>
               </div>
               )}
             </>

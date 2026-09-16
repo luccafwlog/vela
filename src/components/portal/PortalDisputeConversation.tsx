@@ -10,6 +10,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card, InlineError } from '../ui/Card'
 import { Textarea } from '../ui/Input'
+import { isPortalReadOnly } from '../../services/portalScope'
 
 function stateLabel(state: PortalDispute['state']) {
   return state === 'aberta' ? 'Aberta' : state === 'resolvida' ? 'Resolvida' : 'Cancelada'
@@ -21,6 +22,7 @@ function stateTone(state: PortalDispute['state']) {
 
 export function PortalDisputeConversation({ disputes }: { disputes: PortalDispute[] }) {
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
   const addMessage = usePortalAddDisputeMessage()
   const requestReopen = usePortalRequestDisputeReopen()
   const [drafts, setDrafts] = useState<Record<number, string>>({})
@@ -88,16 +90,16 @@ export function PortalDisputeConversation({ disputes }: { disputes: PortalDisput
                   value={drafts[dispute.id] ?? ''}
                   onChange={(event) => setDrafts((current) => ({ ...current, [dispute.id]: event.target.value }))}
                   placeholder={dispute.state === 'resolvida' ? 'Explique por que a disputa deve ser reaberta...' : 'Responda à conversa...'}
-                  disabled={scope.mode === 'inspect'}
+                  disabled={readOnly}
                 />
-                {dispute.state === 'aberta' ? <input type="file" accept="application/pdf,image/jpeg,image/png,text/plain" onChange={(event) => setFiles((current) => ({ ...current, [dispute.id]: event.target.files?.[0] ?? null }))} disabled={scope.mode === 'inspect'} /> : null}
+                {dispute.state === 'aberta' ? <input type="file" accept="application/pdf,image/jpeg,image/png,text/plain" onChange={(event) => setFiles((current) => ({ ...current, [dispute.id]: event.target.files?.[0] ?? null }))} disabled={readOnly} /> : null}
                 {errors[dispute.id] ? <InlineError message={errors[dispute.id]} /> : null}
                 <div className="flex justify-end">
                   <Button
                     loading={addMessage.isPending || requestReopen.isPending}
-                    disabled={scope.mode === 'inspect'}
+                    disabled={readOnly}
                     onClick={() => void submit(dispute)}
-                    title={scope.mode === 'inspect' ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
+                    title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
                   >
                     <Send size={14} />
                     {dispute.state === 'resolvida' ? 'Solicitar reabertura' : 'Enviar mensagem'}

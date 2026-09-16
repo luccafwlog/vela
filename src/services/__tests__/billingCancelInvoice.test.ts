@@ -20,7 +20,7 @@ it('US-092: cancela a invoice chamando o RPC com motivo e ator', async () => {
   })
 })
 
-it('US-092: propaga erro do RPC ao cancelar', async () => {
-  rpcMock.mockResolvedValue({ data: null, error: new Error('nao permitido') })
-  await expect(cancelInvoice({ invoiceId: 5 })).rejects.toThrow('nao permitido')
+it('US-092: valida motivo vazio sem chamar o RPC', async () => {
+  await expect(cancelInvoice({ invoiceId: 5, reason: null })).rejects.toThrow('Informe a justificativa')
+  expect(rpcMock).not.toHaveBeenCalled()
 })

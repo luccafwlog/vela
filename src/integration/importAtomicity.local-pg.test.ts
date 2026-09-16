@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { syntheticCnpj } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
@@ -15,6 +16,7 @@ const blId = 'S04-ATOMIC-BL'
 const containerIds = [99040405, 99040406]
 const containerNumbers = ['SAAA1234567', 'SBBB1234567']
 const requestId = '00000000-0000-0000-0000-000000040499'
+const customerCnpj = syntheticCnpj(40401)
 
 function localPsql(sql: string, actor = actorId): string {
   return execFileSync('psql', [
@@ -50,7 +52,7 @@ describeLocal('S04 — datas de container como unidade atômica', () => {
         ('${actorId}', 'S04 Atomic', 'admin', true),
         ('${otherActorId}', 'S04 Other', 'admin', true);
       INSERT INTO public.customers (id, cnpj_cpf, name)
-      VALUES (${customerId}, '11444777000161', 'Cliente S04');
+      VALUES (${customerId}, '${customerCnpj}', 'Cliente S04');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier S04');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel S04', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status)

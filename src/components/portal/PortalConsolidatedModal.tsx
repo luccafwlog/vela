@@ -9,6 +9,7 @@ import { usePortalConsolidatableReceivables, usePortalCreateConsolidation } from
 import { isReceivableSelectable, summarizeConsolidation } from '../billing/consolidatedInvoiceSelection'
 import { formatBRL } from '../../lib/utils'
 import { usePortalScope } from '../../hooks/usePortalScope'
+import { isPortalReadOnly } from '../../services/portalScope'
 
 type Props = {
   open: boolean
@@ -24,6 +25,7 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
   const { data: receivables, isLoading } = usePortalConsolidatableReceivables()
   const createMutation = usePortalCreateConsolidation()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
   const [selected, setSelected] = useState<number[]>([])
 
   const rows = useMemo(() => receivables ?? [], [receivables])
@@ -89,7 +91,7 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
                           type="checkbox"
                           aria-label={`Selecionar B/L ${r.bl_id}`}
                           checked={selected.includes(r.receivable_id)}
-                          disabled={!eligible || scope.mode === 'inspect'}
+                          disabled={!eligible || readOnly}
                           onChange={() => toggle(r.receivable_id)}
                         />
                       </td>
@@ -120,7 +122,7 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
             <Button variant="ghost" onClick={close}>
               Cancelar
             </Button>
-            <Button onClick={submit} loading={createMutation.isPending} disabled={summary.selectedCount === 0 || scope.mode === 'inspect'} title={scope.mode === 'inspect' ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>
+            <Button onClick={submit} loading={createMutation.isPending} disabled={summary.selectedCount === 0 || readOnly} title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>
               <FilePlus2 size={16} />
               Consolidar e emitir
             </Button>

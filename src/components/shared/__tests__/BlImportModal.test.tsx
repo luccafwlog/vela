@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
     refusedCustomerRelinks: [] as Array<{ blNumber: string; blockers: string[] }>,
   })),
   applyLadenOnBoardAtd: vi.fn(() => Promise.resolve()),
+  afterManifestoImportado: vi.fn(() => Promise.resolve()),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -27,6 +28,9 @@ vi.mock('../../../services/blFreightImport', () => ({
 }))
 vi.mock('../../../services/ladenOnBoardAtd', () => ({
   applyLadenOnBoardAtd: mocks.applyLadenOnBoardAtd,
+}))
+vi.mock('../../../services/cacheEffects', () => ({
+  afterManifestoImportado: mocks.afterManifestoImportado,
 }))
 vi.mock('../VoyageCombobox', () => ({
   VoyageCombobox: ({
@@ -51,6 +55,7 @@ beforeEach(() => {
   mocks.invalidateQueries.mockResolvedValue(undefined)
   mocks.confirmBlFreightImport.mockResolvedValue({ result: { imported: 1 }, refusedCustomerRelinks: [] })
   mocks.applyLadenOnBoardAtd.mockResolvedValue(undefined)
+  mocks.afterManifestoImportado.mockResolvedValue(undefined)
 })
 afterEach(cleanup)
 
@@ -236,7 +241,7 @@ it('usa o voyageId escolhido pelo operador ao preparar o preview', async () => {
   }))
 })
 
-it('confirma importacao, invalida caches e fecha modal', async () => {
+it('confirma importacao, usa o efeito central de manifesto e fecha modal', async () => {
   mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU123'))
   mocks.previewBlFreightImport.mockResolvedValue(previewWithDiff)
   const { container, onClose } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N', onlyBlId: 'COSU123' })
@@ -251,11 +256,8 @@ it('confirma importacao, invalida caches e fecha modal', async () => {
 
   await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithDiff, 'user-1', false, 'bl.xlsx', false))
   expect(mocks.applyLadenOnBoardAtd).toHaveBeenCalledWith({ rows: previewWithDiff.rows, changedBy: 'user-1' })
-  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['bls'] })
-  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['bl-detail'] })
-  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyages'] })
-  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyage-pol-schedules'] })
-  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyage-timeline'] })
+  expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
+  expect(mocks.invalidateQueries).not.toHaveBeenCalled()
   expect(mocks.showToast).toHaveBeenCalledWith('Importacao de B/L concluida: 2 B/L(s), 0 bloqueado(s).', 'success')
   expect(onClose).toHaveBeenCalled()
 })
@@ -279,8 +281,7 @@ it('avisa sobre falha do ATD sem mascarar importacao ja concluida', async () => 
     'B/Ls importados; ATD do POL não pôde ser atualizado — edite manualmente.',
     'info',
   )
-  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['bls'] })
-  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyage-pol-schedules'] })
+  expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
   expect(mocks.showToast).toHaveBeenCalledWith('Importacao de B/L concluida: 2 B/L(s), 0 bloqueado(s).', 'success')
 })
 

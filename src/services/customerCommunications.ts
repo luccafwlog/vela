@@ -470,7 +470,7 @@ function nextInstitutionalAttemptDiscriminator(
   return Math.max(...matching.map((history) => history.attemptDiscriminator)) + 1
 }
 
-function makeRenderInput(
+export function makeCustomerCommunicationRenderInput(
   row: CustomerCommunicationBlCandidate,
   bls: readonly CustomerCommunicationBlCandidate[],
   institutional: boolean,
@@ -586,7 +586,7 @@ export function buildCustomerCommunicationConference(input: {
       nextAttemptDiscriminator: input.kind === 'institucional' || input.kind === 'livre'
         ? nextInstitutionalAttemptDiscriminator(input.history ?? [], first.customerId, input.kind)
         : nextAttemptDiscriminator(input.history ?? [], first, input.kind),
-      renderInput: makeRenderInput(anchorRow, candidates, institutional),
+      renderInput: makeCustomerCommunicationRenderInput(anchorRow, candidates, institutional),
     })
   }
 

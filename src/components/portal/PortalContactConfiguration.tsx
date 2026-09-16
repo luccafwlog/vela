@@ -10,6 +10,7 @@ import {
   type CommunicationBoxCode,
 } from '../../services/customerCommunicationBoxes'
 import type { PortalContactDraft } from '../../services/portalContactConfiguration'
+import { isPortalReadOnly } from '../../services/portalScope'
 
 function formatOrigin(origin?: string): string {
   if (origin === 'bl_automatico') return 'Capturado do B/L'
@@ -32,7 +33,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
   const { data, isLoading, isError, error, saveConfiguration, errorMessage } =
     usePortalContactConfiguration()
   const scope = usePortalScope()
-  const isInspect = readOnly || scope.mode === 'inspect'
+  const isInspect = readOnly || isPortalReadOnly(scope)
   const { showToast } = useToast()
 
   const [drafts, setDrafts] = useState<PortalContactDraft[]>([])

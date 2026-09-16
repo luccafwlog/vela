@@ -250,12 +250,12 @@ describeLocal('S05 — outbox duravel dos efeitos de import', () => {
     const queued = enqueue(actionIds[6], 'granite_billing', graniteBlId)
     const claimed = JSON.parse(localPsql(`
       SELECT row_to_json(e) FROM public.claim_import_effects('granite-worker', 10, 300) AS e;
-    `, '')) as Effect
+    `, graniteBlId)) as Effect
     expect(claimed.id).toBe(queued.effect.id)
 
     const processed = JSON.parse(localPsql(`
       SELECT public.process_import_effect(${queued.effect.id}, 'granite-worker');
-    `, '')) as { effect: Effect }
+    `, graniteBlId)) as { effect: Effect }
     expect(processed.effect).toMatchObject({ status: 'succeeded', effect_kind: 'granite_billing' })
     expect(localPsql(`SELECT charge_status FROM public.granite_bls WHERE id = '${graniteBlId}';`)).toBe('calculated')
     expect(localPsql(`SELECT subtotal::text FROM public.granite_bl_charges WHERE bl_id = '${graniteBlId}';`)).toBe('2000.00')

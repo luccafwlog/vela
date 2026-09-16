@@ -12,6 +12,7 @@ import {
   type BlFreightImportRow,
 } from '../../services/blFreightImport'
 import { applyLadenOnBoardAtd } from '../../services/ladenOnBoardAtd'
+import { afterManifestoImportado } from '../../services/cacheEffects'
 import { Badge, type BadgeTone } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Field, Input } from '../ui/Input'
@@ -119,6 +120,10 @@ export function BlImportModal({
 
   async function handleConfirm() {
     if (!preview || importableCount === 0) return
+    if (!selectedVoyageId) {
+      showToast('Selecione a viagem antes de confirmar a importação do B/L.', 'error')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -134,16 +139,7 @@ export function BlImportModal({
       } catch {
         showToast('B/Ls importados; ATD do POL não pôde ser atualizado — edite manualmente.', 'info')
       }
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['bls'] }),
-        queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyage-pol-schedules'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyage-timeline'] }),
-        queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation'] }),
-        queryClient.invalidateQueries({ queryKey: ['invoices'] }),
-        queryClient.invalidateQueries({ queryKey: ['customers'] }),
-      ])
+      await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
       if (refusedCustomerRelinks.length) {
         // Importou, mas o B/L continua com o cliente antigo: dizer "concluida" aqui
         // esconderia justamente o que o operador pediu para acontecer.

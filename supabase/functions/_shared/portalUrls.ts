@@ -1,5 +1,7 @@
 export const DEFAULT_PORTAL_URL = 'https://portalfwlog.com.br'
 export const DEFAULT_PORTAL_SUPPORT_EMAIL = 'suporte@portalfwlog.com.br'
+const LEGACY_PORTAL_HOSTS = new Set(['transhippingdesk.com.br', 'www.transhippingdesk.com.br', 'portal.transhippingdesk.com.br'])
+const LEGACY_PORTAL_SUPPORT_EMAIL = 'suporte@transhippingdesk.com.br'
 
 interface DenoGlobal {
   env: {
@@ -20,7 +22,15 @@ export function canonicalPortalOrigin(): string {
   const envUrl = getDenoEnv('PORTAL_URL')
   const raw = (envUrl ?? DEFAULT_PORTAL_URL).trim().replace(/\/+$/, '')
   const base = raw || DEFAULT_PORTAL_URL
-  return base.replace(/\/portal(?:\/.*)?$/, '')
+  const origin = base.replace(/\/portal(?:\/.*)?$/, '')
+  try {
+    const parsed = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(origin) ? origin : `https://${origin}`)
+    if (LEGACY_PORTAL_HOSTS.has(parsed.hostname.toLowerCase())) return DEFAULT_PORTAL_URL
+  } catch {
+    // Preserve the existing behavior for an explicitly configured custom URL;
+    // deployment validation remains responsible for rejecting malformed values.
+  }
+  return origin
 }
 
 /**
@@ -36,5 +46,6 @@ export function canonicalPortalUrl(subpath = ''): string {
 
 export function portalSupportEmail(): string {
   const email = getDenoEnv('PORTAL_SUPPORT_EMAIL')
-  return (email ?? DEFAULT_PORTAL_SUPPORT_EMAIL).trim() || DEFAULT_PORTAL_SUPPORT_EMAIL
+  const normalized = (email ?? DEFAULT_PORTAL_SUPPORT_EMAIL).trim()
+  return normalized.toLowerCase() === LEGACY_PORTAL_SUPPORT_EMAIL ? DEFAULT_PORTAL_SUPPORT_EMAIL : normalized || DEFAULT_PORTAL_SUPPORT_EMAIL
 }

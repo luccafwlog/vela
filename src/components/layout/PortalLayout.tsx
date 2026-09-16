@@ -4,7 +4,7 @@ import { Building2, FileText, LayoutDashboard, LogOut, Menu, Package, User, X } 
 import { Button } from '../ui/Button'
 import { usePortalAuth } from '../../hooks/usePortalAuth'
 import { usePortalScope } from '../../hooks/usePortalScope'
-import { portalPath } from '../../services/portalScope'
+import { isPortalReadOnly, portalPath } from '../../services/portalScope'
 import { NotificationBell } from '../portal/NotificationBell'
 import { cn, formatCnpjCpf } from '../../lib/utils'
 
@@ -12,6 +12,7 @@ export function PortalLayout() {
   const { overview: authOverview, signOut } = usePortalAuth()
   const scope = usePortalScope()
   const navigate = useNavigate()
+  const readOnly = isPortalReadOnly(scope)
   const overview = scope.overview ?? authOverview
   const portalNavItems = [
     { to: portalPath(scope), label: 'Painel', icon: LayoutDashboard, end: true },
@@ -52,7 +53,7 @@ export function PortalLayout() {
               <span className="app-user-pill__name">{overview?.customer_name ?? 'Cliente'}</span>
             </div>
 
-            <Button className="app-header__logout" variant="ghost" onClick={() => scope.mode === 'inspect' ? navigate('/clientes/portal') : void signOut()}>
+            <Button className="app-header__logout" variant="ghost" onClick={() => readOnly ? navigate('/clientes/portal') : void signOut()}>
               <LogOut size={16} />
               Sair
             </Button>

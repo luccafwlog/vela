@@ -41,6 +41,23 @@ export type CustomerCommunicationDispatchResult = {
   message?: string
 }
 
+async function readFunctionErrorMessage(error: unknown): Promise<string | null> {
+  const context = error && typeof error === 'object'
+    ? (error as { context?: unknown }).context
+    : null
+  if (!context || typeof context !== 'object' || typeof (context as { json?: unknown }).json !== 'function') return null
+
+  try {
+    const body = await (context as { json: () => Promise<unknown> }).json()
+    if (!body || typeof body !== 'object') return null
+    const message = (body as { error?: unknown; message?: unknown }).error
+      ?? (body as { error?: unknown; message?: unknown }).message
+    return typeof message === 'string' && message.trim() ? message.trim() : null
+  } catch {
+    return null
+  }
+}
+
 function makeIdempotencyKey(input: CustomerCommunicationDispatchInput): string {
   const anchor = [
     input.anchorVoyageId ?? '',
@@ -95,7 +112,11 @@ export async function dispatchCustomerCommunication(input: CustomerCommunication
   const { data, error } = await supabase.functions.invoke('send-customer-communication', {
     body: customerCommunicationDispatchPayload(input),
   })
-  if (error) throw error
+  if (error) {
+    const functionMessage = await readFunctionErrorMessage(error)
+    if (functionMessage) throw new Error(functionMessage)
+    throw error
+  }
   const result = data as CustomerCommunicationDispatchResult & { error?: string }
   if (result?.error) throw new Error(result.error)
   return result

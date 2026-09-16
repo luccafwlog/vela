@@ -305,13 +305,9 @@ describe('cancelInvoice', () => {
     expect(result).toEqual({ cancelled: true })
   })
 
-  it('usa reason vazia e omite actor por default ao propagar erro do RPC', async () => {
-    supabaseMocks.rpc.mockResolvedValueOnce({ data: null, error: new Error('cancelamento falhou') })
-    await expect(cancelInvoice({ invoiceId: 5 })).rejects.toThrow('cancelamento falhou')
-    expect(supabaseMocks.rpc).toHaveBeenCalledWith('cancel_invoice', {
-      p_invoice_id: 5,
-      p_reason: '',
-    })
+  it('recusa justificativa vazia antes de chamar o RPC', async () => {
+    await expect(cancelInvoice({ invoiceId: 5, reason: '  ' })).rejects.toThrow('Informe a justificativa')
+    expect(supabaseMocks.rpc).not.toHaveBeenCalled()
   })
 })
 

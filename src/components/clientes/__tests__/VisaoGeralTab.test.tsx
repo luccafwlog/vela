@@ -82,4 +82,36 @@ describe('VisaoGeralTab — pendencias', () => {
     expect(screen.queryByText(/invoice vencida/)).toBeNull()
     expect(screen.queryByText(/invoices vencidas/)).toBeNull()
   })
+
+  it('não apresenta um contato adicional como se fosse o principal', () => {
+    renderTab(Object.assign({}, baseData, {
+      customer_contacts: [{
+        id: 7,
+        name: 'Contato adicional',
+        email: 'adicional@cliente.com',
+        phone: null,
+        is_primary: false,
+        deactivated_at: null,
+      }],
+    }) as never)
+
+    expect(screen.getByText('Configuração pendente')).toBeTruthy()
+    expect(screen.queryByText(/Contato adicional · adicional@cliente\.com/)).toBeNull()
+  })
+
+  it('trata um principal ativo sem e-mail como configuração pendente', () => {
+    renderTab(Object.assign({}, baseData, {
+      customer_contacts: [{
+        id: 8,
+        name: 'Principal incompleto',
+        email: '   ',
+        phone: '+55 13 99999-0000',
+        is_primary: true,
+        deactivated_at: null,
+      }],
+    }) as never)
+
+    expect(screen.getByText('Configuração pendente')).toBeTruthy()
+    expect(screen.queryByText(/Principal incompleto/)).toBeNull()
+  })
 })

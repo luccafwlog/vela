@@ -27,6 +27,7 @@ type BillingAttemptBl = {
   review_status: string | null
   billing_hold_reason: string | null
   charge_status: string | null
+  financial_status: string | null
 }
 
 type CalculationBlockReason = 'review:no_table' | 'pending_review' | 'invalid_lines' | 'billing_hold_reason' | 'no_billable_value'
@@ -140,7 +141,7 @@ function calculationAlertMetadata(
 async function loadBillingAttemptBl(blId: string) {
   return supabase
     .from('bls')
-    .select('ce_mercante, cargo_mode, customer_id, customer_reconciliation_status, review_status, billing_hold_reason, charge_status')
+    .select('ce_mercante, cargo_mode, customer_id, customer_reconciliation_status, review_status, billing_hold_reason, charge_status, financial_status')
     .eq('id', blId)
     .single()
 }
@@ -174,6 +175,17 @@ export async function tryAutoIssueInvoice({
     review_status: bl.review_status ?? null,
     billing_hold_reason: bl.billing_hold_reason ?? null,
     charge_status: bl.charge_status ?? null,
+    financial_status: bl.financial_status ?? null,
+  }
+
+  // O banco agora é a autoridade do gatilho CE -> cálculo -> invoice. O
+  // callback da tela de Revisão pode chegar depois da transação e deve apenas
+  // reconhecer a emissão já concluída, sem recalcular nem criar alerta falso.
+  if (['invoiced', 'partially_paid', 'paid'].includes(attemptBl.financial_status ?? '')) {
+    return {
+      status: 'invoiced',
+      invoiceResult: { idempotent: true, financial_status: attemptBl.financial_status },
+    }
   }
   if (!customerId || !attemptBl.customer_id || !isCustomerReconciliationResolved(attemptBl.customer_reconciliation_status)) {
     return { status: 'blocked', reason: 'awaiting_flow', message: 'Aguardando vínculo e reconciliação do cliente.' }
@@ -219,6 +231,17 @@ export async function tryAutoIssueInvoice({
     review_status: persistedBl.review_status ?? attemptBl.review_status,
     billing_hold_reason: persistedBl.billing_hold_reason ?? attemptBl.billing_hold_reason,
     charge_status: persistedBl.charge_status ?? attemptBl.charge_status,
+    financial_status: persistedBl.financial_status ?? attemptBl.financial_status,
+  }
+
+  // O cálculo pode ter corrido em paralelo com o trigger server-side do CE.
+  // Reconheça a emissão observada na releitura antes de tentar qualquer RPC
+  // manual, evitando segunda invoice e alerta falso de falha.
+  if (['invoiced', 'partially_paid', 'paid'].includes(authoritativeBl.financial_status ?? '')) {
+    return {
+      status: 'invoiced',
+      invoiceResult: { idempotent: true, financial_status: authoritativeBl.financial_status },
+    }
   }
 
   if (!hasAuthoritativeCalculationState(authoritativeBl, calculation)) {

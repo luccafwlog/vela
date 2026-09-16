@@ -82,6 +82,67 @@ beforeEach(() => {
 })
 
 describe('tryAutoIssueInvoice', () => {
+  it('reconhece a invoice emitida pelo gatilho server-side sem duplicar o cálculo', async () => {
+    mockFrom.mockImplementation(() => ({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({
+            data: {
+              ce_mercante: '122605051526081',
+              cargo_mode: 'container',
+              customer_id: 99,
+              customer_reconciliation_status: 'reconciled',
+              financial_status: 'invoiced',
+            },
+            error: null,
+          }),
+        }),
+      }),
+    }))
+
+    const result = await tryAutoIssueInvoice({ blId: 'BL1', customerId: 99, actorId: 'user-1' })
+
+    expect(result).toEqual({
+      status: 'invoiced',
+      invoiceResult: { idempotent: true, financial_status: 'invoiced' },
+    })
+    expect(mockedCalculate).not.toHaveBeenCalled()
+    expect(mockedCreateInvoice).not.toHaveBeenCalled()
+  })
+
+  it('reconhece a emissão que terminou durante o recálculo antes de tentar a segunda invoice', async () => {
+    const pendingBl = {
+      ce_mercante: '122605051526081',
+      cargo_mode: 'container',
+      customer_id: 99,
+      customer_reconciliation_status: 'matched_document',
+      review_status: 'reviewed',
+      billing_hold_reason: null,
+      charge_status: 'not_calculated',
+      financial_status: 'pending',
+    }
+    const invoicedBl = { ...pendingBl, charge_status: 'ready_for_billing', financial_status: 'invoiced' }
+    const query = (data: typeof pendingBl) => ({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({ data, error: null }),
+        }),
+      }),
+    })
+    mockFrom
+      .mockImplementationOnce(() => query(pendingBl))
+      .mockImplementationOnce(() => query(invoicedBl))
+
+    const result = await tryAutoIssueInvoice({ blId: 'BL1', customerId: 99, actorId: 'user-1' })
+
+    expect(result).toEqual({
+      status: 'invoiced',
+      invoiceResult: { idempotent: true, financial_status: 'invoiced' },
+    })
+    expect(mockedCalculate).toHaveBeenCalledWith('BL1', { actorId: 'user-1', recalculate: true })
+    expect(mockedCreateInvoice).not.toHaveBeenCalled()
+  })
+
   it('calcula taxas mesmo sem CE Mercante, mas bloqueia a emissao', async () => {
     mockFrom
       .mockImplementationOnce(() => ({

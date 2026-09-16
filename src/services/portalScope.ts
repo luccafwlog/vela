@@ -18,6 +18,10 @@ export const clientPortalScope: PortalScope = {
 
 export const portalWriteRpcNames: ReadonlySet<string> = new Set<string>(PORTAL_WRITE_CONTRACTS)
 
+export function isPortalReadOnly(scope: Pick<PortalScope, 'mode'>): boolean {
+  return scope.mode === 'inspect'
+}
+
 export function portalPath(scope: PortalScope, suffix = '') {
   if (!suffix) return scope.basePath
   return `${scope.basePath}${suffix.startsWith('/') ? suffix : `/${suffix}`}`

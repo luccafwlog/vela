@@ -21,7 +21,9 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
 
   const financialDenied = data.invoices_access_denied || (demurrage?.denied ?? false)
   const balance = buildConsolidatedBalance(data.invoices ?? [], demurrage?.rows ?? [])
-  const primaryContact = data.customer_contacts?.find((contact) => contact.is_primary) ?? data.customer_contacts?.[0]
+  const primaryContact = data.customer_contacts?.find(
+    (contact) => contact.is_primary && !contact.deactivated_at && Boolean(contact.email?.trim()),
+  )
   const today = new Date().toISOString().slice(0, 10)
   // Taxa local não tem vencimento praticado (issue #605): só o Demurrage vence.
   const overdueDemurrage = (demurrage?.rows ?? []).filter((invoice) => invoice.status === 'overdue' || (invoice.status === 'issued' && invoice.due_date && invoice.due_date < today))
@@ -65,7 +67,7 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <div><dt className="text-xs text-slate-500">CNPJ</dt><dd>{formatCnpjCpf(data.cnpj_cpf)}</dd></div>
             <div><dt className="text-xs text-slate-500">Cidade/UF</dt><dd>{[data.city, data.state].filter(Boolean).join(' / ') || '—'}</dd></div>
-            <div><dt className="text-xs text-slate-500">Contato principal</dt><dd>{primaryContact ? `${primaryContact.name ?? '—'} · ${primaryContact.email ?? primaryContact.phone ?? '—'}` : 'Nenhum contato'}</dd></div>
+            <div><dt className="text-xs text-slate-500">Contato principal</dt><dd>{primaryContact ? `${primaryContact.name ?? '—'} · ${primaryContact.email ?? primaryContact.phone ?? '—'}` : 'Configuração pendente'}</dd></div>
             <div><dt className="text-xs text-slate-500">Portal</dt><dd>{portalRow ? accountSituationLabel(portalRow.account_situation) : '—'}</dd></div>
             <div><dt className="text-xs text-slate-500">B/Ls vinculados</dt><dd>{data.bls?.length ?? 0}</dd></div>
           </dl>

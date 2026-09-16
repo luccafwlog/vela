@@ -95,6 +95,47 @@ it('não mostra atracação TBC completamente vazia no planejamento', () => {
   expect(screen.queryByText('Atracações')).toBeNull()
 })
 
+it('marca a escala omitida com OMIT no planejamento interno', () => {
+  render(
+    <VoyageVisaoTab
+      voyage={{ id: 7, status: 'planning', bls: [], granite_manifests: [], vazios_manifests: [] } as never}
+      voyageLabel="NAVIO / 01N"
+      escalaRows={[{
+        voyageId: 7,
+        port: 'BRSSA',
+        eta: '2026-08-26',
+        ata: null,
+        atd: null,
+        atracacoes: [],
+        ceStatus: null,
+        podCeStatus: null,
+        exportCeStatus: null,
+        linked: null,
+        escalaNumber: null,
+        omitted: true,
+        deleted: false,
+        temImportacao: true,
+        temExportacao: false,
+        temGranito: false,
+        temVazios: false,
+        containersQty: null,
+        movementsQty: null,
+        dischargePorts: [],
+        divergences: [],
+      } as never]}
+      importBatches={[]}
+      exportSchedules={[]}
+      isAdmin={false}
+      divergenceCount={0}
+      ceCoverage={{ filled: 0, total: 0 }}
+      onEditEscala={vi.fn()}
+      onOmitPod={vi.fn()}
+    />,
+  )
+
+  expect(screen.getByText('OMIT')).toBeTruthy()
+})
+
 it('recolhe e expande o painel próprio de atracações sem perder os dados da escala', async () => {
   const user = userEvent.setup()
   const onEditEscala = vi.fn()

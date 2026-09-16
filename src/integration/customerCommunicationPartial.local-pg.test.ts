@@ -1,11 +1,13 @@
 import { execFileSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { syntheticCnpj } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 const customerId = 9701
 const communicationId = 9701
+const customerCnpj = syntheticCnpj(70101)
 
 function psql(sql: string): string {
   return execFileSync('psql', [
@@ -31,7 +33,7 @@ describeLocal('S07 — estado parcial por tentativa', () => {
     cleanup()
     psql(`
       INSERT INTO public.customers (id, cnpj_cpf, name)
-      VALUES (${customerId}, '12345678000195', 'S07 Partial QA');
+      VALUES (${customerId}, '${customerCnpj}', 'S07 Partial QA');
       INSERT INTO public.customer_communications (
         id, customer_id, kind, nature, status, dispatch_id
       ) VALUES (

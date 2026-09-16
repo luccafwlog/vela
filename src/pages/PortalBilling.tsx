@@ -34,6 +34,7 @@ import { portalListDemurrageInvoicesForExport, portalListInvoicesForExport } fro
 import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../lib/portalBillingFilters'
 import { formatBRL } from '../lib/utils'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
+import { isPortalReadOnly } from '../services/portalScope'
 
 type PortalTab = 'local' | 'demurrage'
 type Filters = PortalBillingFilters
@@ -43,6 +44,7 @@ const BILLING_PAGE_SIZE = 25
 export function PortalBilling() {
   const { overview: authOverview } = usePortalAuth()
   const portalScope = usePortalScope()
+  const readOnly = isPortalReadOnly(portalScope)
   const { overview } = portalScope
   const effectiveOverview = overview ?? authOverview
   const { showToast } = useToast()
@@ -148,7 +150,11 @@ export function PortalBilling() {
               <Download size={16} />
               Exportar Excel
             </Button>
-            <Button onClick={() => setConsolidateOpen(true)}>
+            <Button
+              onClick={() => setConsolidateOpen(true)}
+              disabled={readOnly}
+              title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
+            >
               <FilePlus2 size={16} />
               Gerar fatura consolidada
             </Button>

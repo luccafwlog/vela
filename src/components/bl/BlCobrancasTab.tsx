@@ -18,9 +18,10 @@ import {
   useMarkBlReadyForBilling,
   useUpdateManualBlCharge,
 } from '../../hooks/useLocalCharges'
-import { formatBRL, formatUSD } from '../../lib/utils'
+import { formatBRL, formatUSD, normalizeText } from '../../lib/utils'
 import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
+import { classifyDbError } from '../../lib/errors'
 import { markBlReadyAndCreateInvoice } from '../../services/billing'
 import {
   formatNumber,
@@ -189,16 +190,27 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
         showToast('B/L marcado como pronto para faturar. Sem cliente vinculado — gere a fatura manualmente em Faturamento.', 'success')
       }
     } catch (error) {
-      const msg = String((error as { message?: string }).message ?? '')
-      if (msg.includes('pendencia de revisao')) {
+      const classified = classifyDbError(error)
+      const message = classified.message
+      const normalizedMessage = normalizeText(message)
+      if (normalizedMessage.includes('pendencia de revisao')) {
         showToast('Ainda existem linhas com pendência de revisão.', 'error')
         return
       }
-      if (msg.includes('não possui cliente vinculado') || msg.includes('P0003')) {
+      if (normalizedMessage.includes('nao possui cliente vinculado') || normalizedMessage.includes('p0003')) {
         showToast('B/L sem cliente vinculado. Acesse Revisão para vincular um cliente antes de faturar.', 'error')
         return
       }
-      showToast('Falha ao marcar B/L como pronto para faturar.', 'error')
+      if (normalizedMessage.includes('faturamento bloqueado pelo portal')) {
+        showToast(message, 'error')
+        return
+      }
+      showToast(
+        message
+          ? `Falha ao marcar B/L como pronto para faturar: ${message}`
+          : 'Falha ao marcar B/L como pronto para faturar.',
+        'error',
+      )
     }
   }
 

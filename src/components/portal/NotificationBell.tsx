@@ -3,6 +3,7 @@ import { Bell, FileText, MessageSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { usePortalScope } from '../../hooks/usePortalScope'
 import { usePortalMarkAllRead, usePortalMarkRead, usePortalNotifications, usePortalUnreadCount } from '../../hooks/usePortalNotifications'
+import { isPortalReadOnly } from '../../services/portalScope'
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
@@ -13,6 +14,7 @@ export function NotificationBell() {
   const navigate = useNavigate()
   const containerRef = useRef<HTMLDivElement>(null)
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
 
   // Fecha ao clicar fora
   useEffect(() => {
@@ -79,8 +81,8 @@ export function NotificationBell() {
                 type="button"
                 className="portal-notifications__mark-all"
                 onClick={handleMarkAllRead}
-                disabled={scope.mode === 'inspect'}
-                title={scope.mode === 'inspect' ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
+                disabled={readOnly}
+                title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
               >
                 Marcar todas como lidas
               </button>
@@ -102,7 +104,7 @@ export function NotificationBell() {
                   className="portal-notifications__item"
                   onClick={async () => {
                     if (!n.read && scope.mode === 'client') await markRead.mutateAsync(n.id)
-                    if (n.link?.startsWith('/portal')) navigate(scope.mode === 'inspect' ? n.link.replace(/^\/portal/, scope.basePath) : n.link)
+                    if (n.link?.startsWith('/portal')) navigate(readOnly ? n.link.replace(/^\/portal/, scope.basePath) : n.link)
                     setOpen(false)
                   }}
                 >

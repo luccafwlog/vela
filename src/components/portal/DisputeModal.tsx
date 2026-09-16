@@ -6,6 +6,7 @@ import { Modal } from '../ui/Modal'
 import { usePortalOpenDispute } from '../../hooks/usePortalDisputes'
 import { portalErrorMessage } from '../../lib/portalErrorMessage'
 import { usePortalScope } from '../../hooks/usePortalScope'
+import { isPortalReadOnly } from '../../services/portalScope'
 
 type Props = {
   demurrageInvoiceId: number | null
@@ -30,6 +31,7 @@ function DisputeModalContent({ demurrageInvoiceId, docNumber, onClose }: { demur
   const [error, setError] = useState('')
   const openDispute = usePortalOpenDispute()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
 
   async function handleSubmit() {
     if (!reason.trim()) {
@@ -66,7 +68,7 @@ function DisputeModalContent({ demurrageInvoiceId, docNumber, onClose }: { demur
 
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button loading={openDispute.isPending} onClick={handleSubmit} disabled={scope.mode === 'inspect'} title={scope.mode === 'inspect' ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Abrir disputa</Button>
+        <Button loading={openDispute.isPending} onClick={handleSubmit} disabled={readOnly} title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Abrir disputa</Button>
       </div>
     </div>
   )
