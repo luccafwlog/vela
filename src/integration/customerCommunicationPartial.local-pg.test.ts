@@ -31,7 +31,7 @@ describeLocal('S07 — estado parcial por tentativa', () => {
     cleanup()
     psql(`
       INSERT INTO public.customers (id, cnpj_cpf, name)
-      VALUES (${customerId}, '12345678000195', 'S07 Partial QA');
+      VALUES (${customerId}, '99070100000151', 'S07 Partial QA');
       INSERT INTO public.customer_communications (
         id, customer_id, kind, nature, status, dispatch_id
       ) VALUES (

@@ -55,7 +55,7 @@ describeLocal('S08-A — invariantes monetarios de Demurrage', () => {
       INSERT INTO public.user_profiles (id, full_name, role, active)
       VALUES ('${actorId}', 'S08 Money', 'financeiro', true);
       INSERT INTO public.customers (id, cnpj_cpf, name)
-      VALUES (${customerId}, '11444777000161', 'Cliente S08');
+      VALUES (${customerId}, '99082260000110', 'Cliente S08');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier S08');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel S08', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status)

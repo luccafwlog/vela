@@ -69,8 +69,8 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
         ('${inspectorId}', 'S11 Inspector', 'operacoes', true)
       ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, active = true;
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
-        (${customerA}, '12345678000195', 'Cliente S11 A'),
-        (${customerB}, '11222333000181', 'Cliente S11 B')
+        (${customerA}, '99101310000160', 'Cliente S11 A'),
+        (${customerB}, '99101320000103', 'Cliente S11 B')
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
       INSERT INTO public.customer_portal_accounts (customer_id, active, auth_user_id) VALUES
         (${customerA}, true, '${portalUserA}')

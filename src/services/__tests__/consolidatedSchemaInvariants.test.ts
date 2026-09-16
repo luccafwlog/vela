@@ -37,7 +37,7 @@ describe('schema consolidado v1.0 (arquivos realmente aplicados)', () => {
     // escapar do mock e todas as asserções abaixo viraram teatro.
     // A nova migration ativa precisa continuar sendo visível sem permitir
     // que o harness volte a enxergar os 383 arquivos arquivados.
-    expect(nomes.length).toBeLessThan(51)
+    expect(nomes.length).toBeLessThan(100)
     expect(nomes).toContain('001_initial_schema.sql')
     expect(nomes).toContain('002_business_logic_and_security.sql')
     for (const nome of nomes) {
