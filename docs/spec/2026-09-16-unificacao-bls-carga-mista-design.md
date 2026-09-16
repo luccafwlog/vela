@@ -6,7 +6,7 @@ Unificar o conceito, o cadastro e a visualização operacional sob a entidade e 
 
 Como o sistema Vela ainda **não está em operação real** (todos os dados existentes no ambiente são provenientes de testes), **não há necessidade de preservar rotas legadas, manter shims de compatibilidade retroativa ou criar mecanismos de transição defensiva para dados históricos**. As rotas `/manifestos` e `/carga-solta` e suas páginas redundantes são integralmente removidas e substituídas pela tela unificada `Bls.tsx`.
 
-Reconhece-se nativamente a modalidade de carga **mista** (`cargo_mode = 'misto'`: contêineres e carga solta sob o mesmo B/L). A fatura de taxas locais passa por uma **remodelagem visual e estrutural** para discriminar as parcelas conteinerizadas, de carga solta e documentais. É instituída como **invariante de negócio rígida** que um B/L misto **não pode** ser descarregado em terminais diferentes — toda a sua carga descarrega obrigatoriamente no mesmo terminal portuário. O *nível* em que essa trava é aplicada depende de um ADR ainda não escrito, porque o schema atual não atribui terminal por B/L.
+Reconhece-se nativamente a modalidade de carga **mista** (`cargo_mode = 'misto'`: contêineres e carga solta sob o mesmo B/L). A fatura de taxas locais passa por uma **remodelagem visual e estrutural** para discriminar as parcelas conteinerizadas, de carga solta e documentais. É instituída como **invariante de negócio rígida** que um B/L misto **não pode** ser descarregado em terminais diferentes — toda a sua carga descarrega obrigatoriamente no mesmo terminal portuário. Como o schema não atribui terminal por B/L, a trava é viabilizada pela [ADR 0068](../adr/0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md): o terminal é herdado da Frente de Operação e o B/L ganha uma exceção individual auditada.
 
 Define-se expressamente como as cargas e BLs são apresentados na tela de **Viagens (`/viagens`)** e em todas as suas abas operacionais (Visão Geral, Importação, Manifestos/Rotas e ADR), garantindo total coerência nas contagens e sem duplicidade de indicadores.
 
@@ -31,7 +31,7 @@ O Vela encontra-se em fase pré-operacional; não existem faturas reais emitidas
 - **Ingestão/Importação:** Suporte a enriquecimento incremental do B/L. Ao importar carga solta para um B/L que já possui contêineres (ou vice-versa), o sistema unifica no mesmo registro e define `cargo_mode = 'misto'`.
 - **Motor de Taxas Locais:** Resolução **de duas tabelas** em `resolve_bl_local_charge_items` (a tabela de contêiner e a de carga solta do mesmo POD), com taxa de B/L incidindo exatamente 1 vez, THD sobre os contêineres e taxa por tonelada sobre `bb_weight_ton`. `charge_tables` **não** ganha a modalidade `'misto'`.
 - **Remodelagem da Fatura (`InvoiceDocumentLocal.tsx`):** Nova estrutura visual do documento impresso/PDF, com seções dedicadas para itens conteinerizados, itens de carga solta e taxas documentais, além de explicitar no cabeçalho os contêineres e os pesos faturados.
-- **Invariante de Terminal Único:** Trava no planejamento e na validação: um B/L misto descarrega 100% no mesmo terminal portuário. A **granularidade de aplicação** (frente do porto vs. atribuição por B/L) é decisão em aberto, dependente de ADR — ver "Onde o terminal realmente mora".
+- **Invariante de Terminal Único:** Um B/L misto descarrega 100% no mesmo terminal portuário, viabilizado pela exceção individual de terminal da **ADR 0068** (`bls.terminal_id` nulo = herança da frente). Inclui destravar o roteamento do NOB para `'misto'`.
 - **Projeção Completa na Tela `/viagens`:** Atualização dos agregadores de KPIs, da aba Visão Geral, da aba Importação (faixa de totais e blocos por POD), da aba Manifestos/Rotas e do relatório de agência ADR.
 - **Portal do Cliente:** Exibição do B/L como documento único, contendo seus contêineres e o sumário de carga solta.
 
@@ -88,6 +88,8 @@ correspondente precisa cobrir, no mínimo:
 | `IF v_cargo_mode NOT IN ('container','carga_solta')` (`016`, `031`) | Rejeita a modalidade na ingestão | Admitir `'misto'` |
 | `ensure_container_bl_charge_status_default` | Só aplica o default quando `cargo_mode = 'container'`; um B/L misto ficaria com `charge_status` NULL | Tratar `'misto'` como contêiner para efeito do default |
 | `charge_tables_cargo_mode_check` (`001`) | `ARRAY['container','carga_solta','granito']` | **Sem alteração** — não existe tabela de preços `'misto'` (ver Faturamento) |
+| `bls.terminal_id` | Coluna inexistente | **Criar** `uuid NULL` com FK para o cadastro de terminais, sem default (ADR 0068) |
+| `operationFrontKindForCargoMode` / `bl_operation_front_modalidade` (`045`) | `'misto'` cai no fallback `ELSE 'carga_cheia'` em silêncio | Tratar `'misto'` explicitamente (ADR 0068, decisão 7) |
 
 ### 2. Ingestão sem Bloqueio Cruzado
 Em `src/services/breakbulkImport.ts` e `src/services/blFreightImport.ts`:
@@ -123,29 +125,60 @@ proíbe que os demais B/Ls daquele porto distribuam carga cheia e carga solta
 entre terminais concorrentes. É uma restrição de planejamento portuário com
 efeito colateral sobre documentos que não têm relação com o B/L misto.
 
-#### Decisão em aberto (requer ADR)
+#### Decisão: herança da frente com exceção individual (ADR 0068)
 
-Esta spec **não** fecha a questão. As duas saídas são:
+A [ADR 0068](../adr/0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md)
+resolve o impasse sem amarrar a escala, aplicando ao terminal o mesmo padrão que
+Omissão de Escala já usa para COD/Transbordo — registro coletivo com exceção
+individual operada na ficha do B/L:
 
-- **(a) Manter a granularidade de frente.** Custo zero de schema; aceita-se
-  conscientemente o efeito porto-wide descrito acima.
-- **(b) Introduzir atribuição de terminal por B/L.** Resolve o efeito colateral,
-  mas cria uma segunda fonte de verdade de terminal ao lado da frente e exige
-  reconciliação com o ADR, cuja identidade terminalizada é
-  `(viagem, porto, terminal)`.
+- **Padrão (herança):** o terminal do B/L vem da Frente de Operação. Nada muda
+  para B/L puramente conteinerizado ou puramente de carga solta.
+- **Exceção:** `bls.terminal_id` (`uuid NULL`). Nulo significa *herança*, não
+  "sem terminal". Preenchido, **vence a frente em toda leitura** — ADR, NOB,
+  painéis de escala e faturamento — resolvido por uma função única compartilhada
+  entre SQL e TypeScript.
+- **Auditoria:** preencher ou limpar a exceção exige autor, data e justificativa
+  em `audit_logs`, como o COD (ADR 0051), porque a exceção muda em qual ADR a
+  carga é contada.
+- **Sem efeito no preço:** `charge_tables` é chaveada por `pod`, `carrier_id` e
+  `cargo_mode`; terminal não participa de `resolve_local_charge_table_id`. A
+  exceção é atribuição operacional pura e não gera ajuste financeiro. Premissa
+  registrada na ADR 0068 para ser revisitada se a Taxa Local passar a variar por
+  terminal.
 
-A escolha entre (a) e (b) é decisão de negócio com impacto em planejamento de
-escala e no fechamento do ADR, e deve ser registrada em um **ADR próprio antes
-da implementação**. O restante desta spec não depende dela.
+**A invariante passa a ser estrutural.** Com a exceção preenchida, o B/L tem um
+`terminal_id` e os seus contêineres e a sua carga solta seguem esse valor por
+construção — não há estado que a viole.
+
+#### Efeito colateral já existente: roteamento do NOB
+
+`operationFrontKindForCargoMode` (`src/services/escalaTerminalAllocation.ts`) e
+`public.bl_operation_front_modalidade` (migration `045`) mapeiam `cargo_mode`
+para uma modalidade única e terminam em `ELSE 'carga_cheia'`. Um B/L
+`'misto'` cai nesse fallback **em silêncio** e seria roteado no NOB da
+[ADR 0067](../adr/0067-nob-automatico-ancorado-na-frente-de-operacao.md) como se
+fosse exclusivamente conteinerizado — comunicado ao cliente endereçado pelo
+terminal da frente de carga cheia, com a carga solta fora do roteamento.
+
+As duas funções passam a tratar `'misto'` explicitamente, e a âncora de terminal
+do NOB passa a ser o terminal resolvido do B/L (exceção ou herança), não a
+modalidade inferida.
 
 #### Validação no Planejamento e na Revisão
 
-Vale sob (a) ou (b), porque opera sobre o conflito observado, não sobre a origem
-da atribuição:
+A herança de um B/L misto só é bem definida quando as duas frentes daquele porto
+apontam para o mesmo terminal. Divergindo, e **não havendo exceção** no B/L:
 
-- Se na escala a frente de carga cheia e a frente de carga solta apontarem para terminais conflitantes, o gate de validação registra a pendência de revisão:
-  `review:mixed_bl_terminal_conflict`: *"B/L misto possui frentes atribuídas a terminais diferentes. Toda a carga do B/L deve descarregar no mesmo terminal."*
-- Essa pendência bloqueia a prontidão de faturamento (`ready_for_billing`) até que o operador unifique o terminal da escala para aquele B/L.
+- O gate registra a pendência `review:mixed_bl_terminal_conflict`: *"B/L misto
+  possui frentes atribuídas a terminais diferentes. Defina o terminal deste B/L
+  ou unifique as frentes da escala."*
+- A pendência bloqueia `ready_for_billing`.
+- **A remediação é definir o terminal daquele B/L**, não replanejar a escala: um
+  clique na ficha resolve, e os demais B/Ls do porto seguem inalterados.
+
+Frente `TBC` não anula a exceção: um B/L com terminal próprio conta no ADR desse
+terminal independentemente do estado da frente (ADR 0068, decisão 8).
 
 ---
 
@@ -322,7 +355,8 @@ flowchart LR
   - Na coluna **B/Ls / CEs**, a quantidade de B/Ls daquela escala reflete a soma documental dos B/Ls cujo POD corresponde àquele porto. Um B/L misto soma exatamente 1 na contagem daquela escala.
   - O percentual de cobertura de CE Mercante considera o B/L misto como uma única unidade documental a ser coberta.
 - **Editor de Escala e Atribuição de Terminal (`EscalaModal`):**
-  - Quando a escala possuir B/Ls mistos com descarga naquele porto, o modal valida que as frentes não divirjam para terminais distintos, garantindo a invariante de terminal único.
+  - Quando a escala possuir B/Ls mistos com descarga naquele porto, o modal sinaliza frentes divergentes e lista os B/Ls mistos sem exceção de terminal, oferecendo a definição individual na ficha em vez de exigir o replanejamento da escala.
+  - O modal exibe, para consulta, quais B/Ls daquele porto têm terminal próprio (ADR 0068, decisão 3).
 
 ### 3. Aba Importação (`VoyageImportacaoTab.tsx`)
 Esta é a aba central onde o operador confere toda a carga que descarrega no navio:
@@ -401,7 +435,14 @@ Esta é a aba central onde o operador confere toda a carga que descarrega no nav
   - Rateio: contêiner compartilhado entre um B/L contêiner e um B/L misto na
     mesma viagem é cobrado **uma vez**, dividido entre os dois;
   - B/L misto **não** retorna vazio por falta de tabela de preços `'misto'`.
-- Validar trava de terminal único: flag de pendência de revisão caso frentes do B/L misto apontem para terminais diferentes. O teste segue a formulação de frente descrita em "Onde o terminal realmente mora" e deve ser escrito depois do ADR que escolher entre (a) e (b).
+- Validar a resolução de terminal do B/L (ADR 0068):
+  - `terminal_id` nulo → herda o terminal da frente correspondente;
+  - `terminal_id` preenchido → vence a frente em **todas** as leituras (ADR, NOB, escala, faturamento), inclusive com a frente em `TBC`;
+  - B/L misto com frentes divergentes e **sem** exceção → pendência `review:mixed_bl_terminal_conflict` bloqueando `ready_for_billing`;
+  - B/L misto **com** exceção → sem pendência, e contêineres e carga solta contados no mesmo terminal;
+  - preencher ou limpar a exceção grava autor, data e justificativa em `audit_logs`;
+  - mudar o terminal da frente **não** limpa a exceção.
+- Validar que `operationFrontKindForCargoMode` e `bl_operation_front_modalidade` não mapeiam `'misto'` para `'carga_cheia'` por fallback (`escalaOperationFrontKind.test.ts`), e que o NOB de um B/L misto ancora no terminal resolvido.
 
 ### 2. Testes de Interface e Agregação de Viagens
 - Testar `splitVoyageBls` e `summarizeImportByPod` com B/Ls mistos:
