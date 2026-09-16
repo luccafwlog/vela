@@ -82,6 +82,34 @@ beforeEach(() => {
 })
 
 describe('tryAutoIssueInvoice', () => {
+  it('reconhece a invoice emitida pelo gatilho server-side sem duplicar o cálculo', async () => {
+    mockFrom.mockImplementation(() => ({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({
+            data: {
+              ce_mercante: '122605051526081',
+              cargo_mode: 'container',
+              customer_id: 99,
+              customer_reconciliation_status: 'reconciled',
+              financial_status: 'invoiced',
+            },
+            error: null,
+          }),
+        }),
+      }),
+    }))
+
+    const result = await tryAutoIssueInvoice({ blId: 'BL1', customerId: 99, actorId: 'user-1' })
+
+    expect(result).toEqual({
+      status: 'invoiced',
+      invoiceResult: { idempotent: true, financial_status: 'invoiced' },
+    })
+    expect(mockedCalculate).not.toHaveBeenCalled()
+    expect(mockedCreateInvoice).not.toHaveBeenCalled()
+  })
+
   it('calcula taxas mesmo sem CE Mercante, mas bloqueia a emissao', async () => {
     mockFrom
       .mockImplementationOnce(() => ({
