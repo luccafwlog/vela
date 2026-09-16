@@ -7,11 +7,43 @@
 -- bloqueios operacionais.
 --
 -- A conta do Portal continua sendo exigida pelos fluxos originados no Portal.
--- O marcador `internal_auto` só é definido dentro da função privada abaixo e
--- permite que o faturamento interno não dependa de provisionamento do Portal.
+-- O contexto interno é representado por uma tabela temporária criada sob o
+-- owner da função privada abaixo e permite que o faturamento interno não
+-- dependa de provisionamento do Portal.
 
 -- ---------------------------------------------------------------------------
--- 1. O Portal não é pré-requisito do faturamento interno automático.
+-- 1. Contexto privado do faturamento automático.
+-- ---------------------------------------------------------------------------
+-- GUCs de sessão são ponteiros, não credenciais: o nome aponta para uma tabela
+-- temporária criada pelo SECURITY DEFINER. O owner da tabela precisa ser o
+-- mesmo owner desta função; portanto, uma sessão autenticada não consegue
+-- forjar o contexto apenas chamando set_config com um nome próprio.
+CREATE OR REPLACE FUNCTION public.is_internal_auto_billing_context()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_class AS c
+    JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+    WHERE n.oid = pg_catalog.pg_my_temp_schema()
+      AND c.relname = current_setting('vela.billing_context_table', true)
+      AND c.relpersistence = 't'
+      AND c.relkind = 'r'
+      AND c.relowner = (
+        SELECT r.oid
+        FROM pg_catalog.pg_roles AS r
+        WHERE r.rolname = current_user
+      )
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_internal_auto_billing_context() FROM PUBLIC, anon, authenticated;
+
+-- O Portal não é pré-requisito do faturamento interno automático.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.customer_billing_access_ready(p_customer_id bigint)
 RETURNS boolean
@@ -22,7 +54,7 @@ SET search_path TO 'public', 'pg_temp'
 AS $$
   SELECT p_customer_id IS NOT NULL
     AND (
-      current_setting('vela.billing_origin', true) = 'internal_auto'
+      public.is_internal_auto_billing_context()
       OR EXISTS (
         SELECT 1
         FROM public.customer_portal_accounts a
@@ -55,7 +87,7 @@ DECLARE
   v_status text;
   v_gate jsonb;
 BEGIN
-  IF current_setting('vela.billing_origin', true) = 'internal_auto' THEN
+  IF public.is_internal_auto_billing_context() THEN
     RETURN NEW;
   END IF;
 
@@ -86,7 +118,7 @@ DECLARE
   v_gate jsonb;
   v_bl record;
 BEGIN
-  IF current_setting('vela.billing_origin', true) = 'internal_auto' THEN
+  IF public.is_internal_auto_billing_context() THEN
     RETURN NEW;
   END IF;
 
@@ -120,10 +152,11 @@ $$;
 -- financeira. O e-mail continua sendo uma pendência da revisão normal; no
 -- contexto transacional do faturamento automático, somente os dados do B/L e
 -- da carga continuam governando a elegibilidade.
-CREATE OR REPLACE FUNCTION public.compute_bl_review_pendencies(
+CREATE OR REPLACE FUNCTION public._compute_bl_review_pendencies(
   p_customer_id bigint,
   p_cargo_mode text,
-  p_bb_weight_ton numeric
+  p_bb_weight_ton numeric,
+  p_skip_portal boolean
 ) RETURNS text[]
 LANGUAGE plpgsql
 STABLE
@@ -133,11 +166,10 @@ AS $$
 DECLARE
   v_reasons text[] := ARRAY[]::text[];
   v_has_email boolean := false;
-  v_internal_auto boolean := current_setting('vela.billing_origin', true) = 'internal_auto';
 BEGIN
   IF p_customer_id IS NULL THEN
     v_reasons := array_append(v_reasons, 'Cliente nao vinculado');
-  ELSIF NOT v_internal_auto THEN
+  ELSIF NOT COALESCE(p_skip_portal, false) THEN
     SELECT EXISTS (
       SELECT 1
       FROM public.customer_contacts AS c
@@ -164,16 +196,35 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public._compute_bl_review_pendencies(bigint, text, numeric, boolean) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.compute_bl_review_pendencies(
+  p_customer_id bigint,
+  p_cargo_mode text,
+  p_bb_weight_ton numeric
+) RETURNS text[]
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $$
+  SELECT public._compute_bl_review_pendencies(
+    p_customer_id,
+    p_cargo_mode,
+    p_bb_weight_ton,
+    public.is_internal_auto_billing_context()
+  );
+$$;
+
 CREATE OR REPLACE FUNCTION public.compute_bl_review_pendencies(p_bl_id text)
 RETURNS text[]
 LANGUAGE plpgsql
-VOLATILE
+STABLE
 SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
   v_bl record;
-  v_previous_origin text := current_setting('vela.billing_origin', true);
   v_reasons text[];
 BEGIN
   SELECT customer_id, cargo_mode, bb_weight_ton, financial_status
@@ -186,17 +237,15 @@ BEGIN
   END IF;
 
   -- Uma revisão posterior à emissão não reabre uma pendência de e-mail/Portal
-  -- que já não participa do faturamento interno. O marcador é local à
-  -- transação e é restaurado antes de retornar.
-  IF COALESCE(v_bl.financial_status, 'pending') <> 'pending'
-     AND current_setting('vela.billing_origin', true) IS DISTINCT FROM 'internal_auto' THEN
-    PERFORM set_config('vela.billing_origin', 'internal_auto', true);
-    v_reasons := public.compute_bl_review_pendencies(
+  -- que já não participa do faturamento interno. O booleano é argumento de
+  -- uma função privada, não um marcador que o chamador possa forjar.
+  IF COALESCE(v_bl.financial_status, 'pending') <> 'pending' THEN
+    v_reasons := public._compute_bl_review_pendencies(
       v_bl.customer_id,
       v_bl.cargo_mode,
-      v_bl.bb_weight_ton
+      v_bl.bb_weight_ton,
+      true
     );
-    PERFORM set_config('vela.billing_origin', COALESCE(v_previous_origin, ''), true);
     RETURN v_reasons;
   END IF;
 
@@ -226,7 +275,8 @@ DECLARE
   v_ready jsonb;
   v_invoice jsonb;
   v_existing_invoice_id bigint;
-  v_previous_origin text := current_setting('vela.billing_origin', true);
+  v_previous_context_table text := current_setting('vela.billing_context_table', true);
+  v_context_table text := format('vela_auto_billing_%s_%s', pg_backend_pid(), txid_current());
   v_sqlstate text;
   v_error_message text;
 BEGIN
@@ -311,16 +361,25 @@ BEGIN
     );
   END IF;
 
-  -- O marcador é transação-local e é limpo antes de devolver o resultado.
-  -- Assim, os gates do Portal continuam ativos em qualquer operação seguinte.
-  PERFORM set_config('vela.billing_origin', 'internal_auto', true);
+  -- O marcador é uma tabela temporária criada sob o owner do SECURITY
+  -- DEFINER. O GUC só carrega o nome da tabela e é limpo antes de retornar.
+  EXECUTE format(
+    'CREATE TEMP TABLE pg_temp.%I (marker boolean NOT NULL) ON COMMIT DROP',
+    v_context_table
+  );
+  EXECUTE format(
+    'INSERT INTO pg_temp.%I(marker) VALUES (true)',
+    v_context_table
+  );
+  PERFORM set_config('vela.billing_context_table', v_context_table, true);
 
   v_calculation := public.calculate_bl_local_charges(v_bl.id, v_actor, true);
 
   -- Isenção legítima não possui linha positiva para uma invoice. O CE foi
   -- processado corretamente, mas não há documento financeiro a emitir.
   IF v_calculation->>'status' = 'exempt' THEN
-    PERFORM set_config('vela.billing_origin', COALESCE(v_previous_origin, ''), true);
+    EXECUTE format('DROP TABLE IF EXISTS pg_temp.%I', v_context_table);
+    PERFORM set_config('vela.billing_context_table', COALESCE(v_previous_context_table, ''), true);
     RETURN v_calculation || jsonb_build_object('status', 'skipped', 'reason', 'exempt');
   END IF;
 
@@ -341,7 +400,8 @@ BEGIN
   END IF;
 
   PERFORM public.link_invoice_to_ledger((v_invoice->>'invoice_id')::bigint);
-  PERFORM set_config('vela.billing_origin', COALESCE(v_previous_origin, ''), true);
+  EXECUTE format('DROP TABLE IF EXISTS pg_temp.%I', v_context_table);
+  PERFORM set_config('vela.billing_context_table', COALESCE(v_previous_context_table, ''), true);
 
   RETURN jsonb_build_object(
     'status', 'invoiced',
@@ -356,7 +416,8 @@ EXCEPTION
     GET STACKED DIAGNOSTICS
       v_sqlstate = RETURNED_SQLSTATE,
       v_error_message = MESSAGE_TEXT;
-    PERFORM set_config('vela.billing_origin', COALESCE(v_previous_origin, ''), true);
+    EXECUTE format('DROP TABLE IF EXISTS pg_temp.%I', v_context_table);
+    PERFORM set_config('vela.billing_context_table', COALESCE(v_previous_context_table, ''), true);
 
     -- A atualização documental não é desfeita porque o efeito recuperável
     -- será criado pelo trigger. O worker registrará o bloqueio com o erro
@@ -440,6 +501,79 @@ WHEN (
   )
 )
 EXECUTE FUNCTION public.trg_auto_bill_bl_after_ce_mercante();
+
+-- As RPCs antigas de importação ainda registram um local_billing depois do
+-- UPDATE. Se o trigger já criou o efeito de recuperação, absorva somente essa
+-- segunda linha de mesma revisão para não deixar duas tentativas concorrentes.
+CREATE OR REPLACE FUNCTION public.suppress_duplicate_ce_auto_billing_effect()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $$
+DECLARE
+  v_existing_id bigint;
+  v_bl_financial_status text;
+BEGIN
+  IF NEW.effect_kind IS DISTINCT FROM 'local_billing'
+     OR NEW.status IS DISTINCT FROM 'pending'
+     OR COALESCE(NEW.source_snapshot, '{}'::jsonb)->>'source' = 'ce_mercante_auto_billing' THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT b.financial_status
+    INTO v_bl_financial_status
+  FROM public.bls AS b
+  WHERE b.id = NEW.entity_id;
+
+  SELECT e.id
+    INTO v_existing_id
+  FROM public.import_pending_effects AS e
+  WHERE e.entity_id = NEW.entity_id
+    AND e.effect_kind = NEW.effect_kind
+    AND e.source_revision = NEW.source_revision
+    AND e.status IN ('pending', 'running', 'retry_wait')
+    AND COALESCE(e.source_snapshot, '{}'::jsonb)->>'source' = 'ce_mercante_auto_billing'
+  ORDER BY e.id
+  LIMIT 1
+  FOR UPDATE;
+
+  IF v_existing_id IS NOT NULL THEN
+    NEW.status := 'superseded';
+    NEW.superseded_by_effect_id := v_existing_id;
+    NEW.lease_until := NULL;
+    NEW.leased_by := NULL;
+    NEW.next_attempt_at := now();
+    NEW.result := COALESCE(NEW.result, '{}'::jsonb) || jsonb_build_object(
+      'superseded_by_effect_id', v_existing_id,
+      'deduplicated', true
+    );
+    NEW.updated_at := now();
+  ELSIF COALESCE(v_bl_financial_status, 'pending') <> 'pending' THEN
+    -- Quando a emissão imediata terminou antes da RPC legada registrar seu
+    -- efeito, a linha de origem já não tem trabalho financeiro a executar.
+    NEW.status := 'superseded';
+    NEW.lease_until := NULL;
+    NEW.leased_by := NULL;
+    NEW.next_attempt_at := now();
+    NEW.result := COALESCE(NEW.result, '{}'::jsonb) || jsonb_build_object(
+      'already_invoiced', true,
+      'financial_status', v_bl_financial_status
+    );
+    NEW.updated_at := now();
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.suppress_duplicate_ce_auto_billing_effect() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_suppress_duplicate_ce_auto_billing_effect ON public.import_pending_effects;
+CREATE TRIGGER trg_suppress_duplicate_ce_auto_billing_effect
+BEFORE INSERT ON public.import_pending_effects
+FOR EACH ROW
+EXECUTE FUNCTION public.suppress_duplicate_ce_auto_billing_effect();
 
 -- ---------------------------------------------------------------------------
 -- 5. A fila antiga de local_billing passa a emitir quando o CE já existe.

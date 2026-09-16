@@ -231,6 +231,17 @@ export async function tryAutoIssueInvoice({
     review_status: persistedBl.review_status ?? attemptBl.review_status,
     billing_hold_reason: persistedBl.billing_hold_reason ?? attemptBl.billing_hold_reason,
     charge_status: persistedBl.charge_status ?? attemptBl.charge_status,
+    financial_status: persistedBl.financial_status ?? attemptBl.financial_status,
+  }
+
+  // O cálculo pode ter corrido em paralelo com o trigger server-side do CE.
+  // Reconheça a emissão observada na releitura antes de tentar qualquer RPC
+  // manual, evitando segunda invoice e alerta falso de falha.
+  if (['invoiced', 'partially_paid', 'paid'].includes(authoritativeBl.financial_status ?? '')) {
+    return {
+      status: 'invoiced',
+      invoiceResult: { idempotent: true, financial_status: authoritativeBl.financial_status },
+    }
   }
 
   if (!hasAuthoritativeCalculationState(authoritativeBl, calculation)) {

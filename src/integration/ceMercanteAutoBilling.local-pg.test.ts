@@ -14,6 +14,8 @@ const chargeTableId = 995115
 const chargeItemId = 995116
 const blId = 'CE-AUTO-051-1'
 const effectActionId = '00000000-0000-0000-0000-000000051191'
+const duplicateEffectActionId = '00000000-0000-0000-0000-000000051192'
+const postInvoiceEffectActionId = '00000000-0000-0000-0000-000000051193'
 
 function psql(sql: string, role: 'service_role' | 'authenticated' = 'service_role'): string {
   return execFileSync('psql', [
@@ -26,7 +28,9 @@ function cleanup(): void {
   psql(`
     SET session_replication_role = replica;
     DELETE FROM public.import_effect_attempts
-    WHERE effect_id IN (SELECT id FROM public.import_pending_effects WHERE source_action_id = '${effectActionId}'::uuid);
+    WHERE effect_id IN (SELECT id FROM public.import_pending_effects
+      WHERE source_action_id IN ('${effectActionId}'::uuid, '${duplicateEffectActionId}'::uuid)
+         OR entity_id = '${blId}');
     DELETE FROM public.import_pending_effects
     WHERE source_action_id = '${effectActionId}'::uuid OR entity_id = '${blId}';
     DELETE FROM public.ledger_settlements
@@ -131,10 +135,25 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
 
   it('processa efeito atrasado como no-op depois da emissão imediata', () => {
     const effectId = Number(psql(`
-      INSERT INTO public.import_pending_effects(source_action_id, effect_kind, entity_id, created_by)
-      VALUES ('${effectActionId}'::uuid, 'local_billing', '${blId}', '${actorId}'::uuid)
+      INSERT INTO public.import_pending_effects(
+        source_action_id, effect_kind, entity_id, created_by, source_snapshot
+      )
+      VALUES (
+        '${effectActionId}'::uuid, 'local_billing', '${blId}', '${actorId}'::uuid,
+        jsonb_build_object('source', 'ce_mercante_auto_billing')
+      )
       RETURNING id;
     `))
+    const duplicateEffectId = Number(psql(`
+      INSERT INTO public.import_pending_effects(source_action_id, effect_kind, entity_id, created_by)
+      VALUES (
+        '${duplicateEffectActionId}'::uuid, 'local_billing', '${blId}', '${actorId}'::uuid
+      )
+      RETURNING id;
+    `))
+
+    expect(psql(`SELECT status FROM public.import_pending_effects WHERE id = ${duplicateEffectId};`)).toBe('superseded')
+    expect(psql(`SELECT superseded_by_effect_id FROM public.import_pending_effects WHERE id = ${duplicateEffectId};`)).toBe(String(effectId))
 
     psql(`
       SET import_effects.entity_prefix = '${blId}';
@@ -146,6 +165,16 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
 
     expect(processed.effect.status).toBe('succeeded')
     expect(processed.effect.result.results[0]).toMatchObject({ status: 'already_invoiced', idempotent: true })
+
+    const postInvoiceEffectId = Number(psql(`
+      INSERT INTO public.import_pending_effects(source_action_id, effect_kind, entity_id, created_by)
+      VALUES (
+        '${postInvoiceEffectActionId}'::uuid, 'local_billing', '${blId}', '${actorId}'::uuid
+      )
+      RETURNING id;
+    `))
+    expect(psql(`SELECT status FROM public.import_pending_effects WHERE id = ${postInvoiceEffectId};`)).toBe('superseded')
+    expect(psql(`SELECT result->>'already_invoiced' FROM public.import_pending_effects WHERE id = ${postInvoiceEffectId};`)).toBe('true')
     expect(psql(`SELECT count(*) FROM public.invoices WHERE bl_id = '${blId}';`)).toBe('1')
   })
 })
