@@ -74,8 +74,9 @@ estado `Vencida` nesse trilho: essa regra não existe para taxas locais.
 No backend, `047_bl_documental_gates.sql` exige CE Mercante antes de marcar o
 B/L como pronto e nas fronteiras de emissão individual e consolidada. A
 migration `051_ce_mercante_auto_billing.sql` mantém esses gates para ações
-manuais/Portal, mas abre apenas o contexto privado `internal_auto` para que a
-transição CE emita sem depender do provisionamento do Portal. A leitura de
+manuais/Portal, mas abre apenas o contexto interno temporário, verificado pelo
+owner da função, para que a transição CE emita sem depender do provisionamento
+do Portal. A leitura de
 Portal do detalhe também devolve `portal_access_ready`, calculado pela função
 canônica `customer_portal_access_ready`; a entrega continua usando
 `bl_has_portal_release`, que aplica a exigência documental aos dois modos de
