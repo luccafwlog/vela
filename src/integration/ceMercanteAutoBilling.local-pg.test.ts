@@ -99,15 +99,23 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
 
   it('calcula, emite e cria o recebível sem conta pronta do Portal', () => {
     const result = JSON.parse(psql(`
-      UPDATE public.bls
-      SET ce_mercante = '123456789012345'
-      WHERE id = '${blId}';
+      DO $$
+      BEGIN
+        PERFORM public.apply_ce_mercante_update(
+          '${blId}', '123456789012345', '${actorId}'::uuid
+        );
+      END
+      $$;
       SELECT jsonb_build_object(
         'financial_status', (SELECT financial_status FROM public.bls WHERE id = '${blId}'),
         'charge_status', (SELECT charge_status FROM public.bls WHERE id = '${blId}'),
         'invoice_count', (SELECT count(*) FROM public.invoices WHERE bl_id = '${blId}'),
         'item_count', (SELECT count(*) FROM public.invoice_items WHERE bl_id = '${blId}'),
         'receivable_count', (SELECT count(*) FROM public.bl_receivables WHERE bl_id = '${blId}'),
+        'active_local_billing_effect_count', (SELECT count(*) FROM public.import_pending_effects
+          WHERE entity_id = '${blId}'
+            AND effect_kind = 'local_billing'
+            AND status IN ('pending', 'running', 'retry_wait')),
         'portal_account_ready_count', (SELECT count(*) FROM public.customer_portal_accounts
           WHERE customer_id = ${customerId}
             AND active = true
@@ -120,6 +128,7 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
       invoice_count: number
       item_count: number
       receivable_count: number
+      active_local_billing_effect_count: number
       portal_account_ready_count: number
     }
 
@@ -129,6 +138,7 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
       invoice_count: 1,
       item_count: 1,
       receivable_count: 1,
+      active_local_billing_effect_count: 0,
       portal_account_ready_count: 0,
     })
   })
