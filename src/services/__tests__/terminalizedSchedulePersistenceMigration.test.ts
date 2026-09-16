@@ -16,6 +16,10 @@ describe('contrato da persistência de escala terminalizada', () => {
 
     expect(sql).toMatch(/DO\s+\$\$[\s\S]*?ALTER FUNCTION public\.save_voyage_escala_terminal_state_v2\([\s\S]*?\)\s+RENAME TO save_voyage_escala_terminal_state_v2_legacy_049[\s\S]*?END\s*\$\$/i)
     expect(sql).toContain('to_regprocedure(\'public.save_voyage_escala_terminal_state_v2_legacy_049')
+    const publicFunctionStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.save_voyage_escala_terminal_state_v2(')
+    const migrationGuard = sql.slice(0, publicFunctionStart)
+    expect(migrationGuard).toMatch(/DO\s+\$\$[\s\S]*?EXECUTE\s+'REVOKE ALL ON FUNCTION public\.save_voyage_escala_terminal_state_v2_legacy_049/i)
+    expect(migrationGuard).not.toMatch(/^REVOKE ALL ON FUNCTION public\.save_voyage_escala_terminal_state_v2_legacy_049/m)
     expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.save_voyage_escala_terminal_state_v2\(/i)
     expect(sql).toMatch(/LANGUAGE plpgsql\s+SECURITY DEFINER[\s\S]*?SET search_path TO 'public', 'pg_temp'/i)
     expect(sql).toContain('public.save_voyage_escala_terminal_state_v2_legacy_049(')

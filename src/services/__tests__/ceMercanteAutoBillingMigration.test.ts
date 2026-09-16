@@ -51,7 +51,8 @@ describe('CE Mercante automatic billing migration', () => {
   it('restaura a identidade da sessão e usa marcador aleatório de curta duração', () => {
     expect(sql).toContain("current_setting('request.jwt.claim.sub', true)")
     expect(sql).toContain("replace(gen_random_uuid()::text, '-', '')")
-    expect(sql).toContain("COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid)")
+    expect(sql).toContain('v_actor uuid := auth.uid()')
+    expect(sql).not.toContain("COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid)")
     expect(sql).toContain("auth.role() IS DISTINCT FROM 'service_role'")
     expect(sql).toContain('v_previous_request_sub')
     expect(sql).toContain('v_context_created := false')

@@ -224,19 +224,46 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
     expect(psql(`SELECT count(*) FROM public.invoices WHERE bl_id = '${blockedBlId}';`)).toBe('0')
   })
 
-  it('enfileira a recuperação quando o service role não traz auth.uid()', () => {
+  it('enfileira e bloqueia a recuperação quando o service role não traz auth.uid()', () => {
     psql(`
       UPDATE public.bls
       SET customer_reconciliation_status = 'reconciled'
       WHERE id = '${blockedBlId}';
     `, 'service_role', '')
 
+    const effectId = Number(psql(`
+      SELECT id
+      FROM public.import_pending_effects
+      WHERE entity_id = '${blockedBlId}'
+        AND effect_kind = 'local_billing'
+        AND created_by IS NULL
+      ORDER BY id DESC
+      LIMIT 1;
+    `))
+    expect(effectId).toBeGreaterThan(0)
+    expect(Number(psql(`
+      SELECT count(*)
+      FROM public.claim_import_effects('ce-auto-051-system-worker', 10, 300);
+    `))).toBeGreaterThanOrEqual(1)
+    expect(psql(`
+      SELECT status || ':' || leased_by
+      FROM public.import_pending_effects
+      WHERE id = ${effectId};
+    `)).toBe('running:ce-auto-051-system-worker')
+    const processed = JSON.parse(psql(`
+      SELECT public.process_import_effect(${effectId}, 'ce-auto-051-system-worker');
+    `)) as { effect: { status: string; last_error_code: string } }
+    expect(processed.effect).toMatchObject({
+      status: 'blocked',
+      last_error_code: 'authorization_invalid',
+    })
     expect(psql(`
       SELECT count(*)
       FROM public.import_pending_effects
       WHERE entity_id = '${blockedBlId}'
         AND effect_kind = 'local_billing'
-        AND created_by = '00000000-0000-0000-0000-000000000000'::uuid;
+        AND created_by IS NULL
+        AND status = 'blocked';
     `)).toBe('1')
   })
 
@@ -254,7 +281,7 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
       FROM public.import_pending_effects
       WHERE entity_id = '${workerPeerBlId}'
         AND effect_kind = 'local_billing'
-        AND created_by = '00000000-0000-0000-0000-000000000000'::uuid
+        AND created_by IS NULL
         AND COALESCE(source_snapshot->>'reason', '') <> '';
     `)).toBe('1')
   })

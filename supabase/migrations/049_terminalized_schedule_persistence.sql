@@ -9,21 +9,26 @@
 
 DO $$
 BEGIN
-  IF to_regprocedure('public.save_voyage_escala_terminal_state_v2_legacy_049(bigint,text,integer,jsonb,jsonb,jsonb,text)') IS NULL
-     AND to_regprocedure('public.save_voyage_escala_terminal_state_v2(bigint,text,integer,jsonb,jsonb,jsonb,text)') IS NOT NULL THEN
+  IF to_regprocedure('public.save_voyage_escala_terminal_state_v2_legacy_049(bigint,text,integer,jsonb,jsonb,jsonb,text)') IS NULL THEN
+    IF to_regprocedure('public.save_voyage_escala_terminal_state_v2(bigint,text,integer,jsonb,jsonb,jsonb,text)') IS NULL THEN
+      RAISE EXCEPTION 'Migration 049 requer a função pública de persistência da escala.';
+    END IF;
+
     ALTER FUNCTION public.save_voyage_escala_terminal_state_v2(
       BIGINT, TEXT, INTEGER, JSONB, JSONB, JSONB, TEXT
     ) RENAME TO save_voyage_escala_terminal_state_v2_legacy_049;
   END IF;
+
+  IF to_regprocedure('public.save_voyage_escala_terminal_state_v2_legacy_049(bigint,text,integer,jsonb,jsonb,jsonb,text)') IS NULL THEN
+    RAISE EXCEPTION 'Migration 049 não conseguiu preservar o corpo legado da persistência da escala.';
+  END IF;
+
+  EXECUTE 'REVOKE ALL ON FUNCTION public.save_voyage_escala_terminal_state_v2_legacy_049(bigint,text,integer,jsonb,jsonb,jsonb,text) FROM PUBLIC, anon, authenticated';
 END
 $$;
 
 -- O corpo preservado só é chamado pelo wrapper abaixo; não deve continuar
 -- sendo uma segunda superfície pública de escrita.
-REVOKE ALL ON FUNCTION public.save_voyage_escala_terminal_state_v2_legacy_049(
-  BIGINT, TEXT, INTEGER, JSONB, JSONB, JSONB, TEXT
-) FROM PUBLIC, anon, authenticated;
-
 CREATE OR REPLACE FUNCTION public.save_voyage_escala_terminal_state_v2(
   p_voyage_id BIGINT,
   p_port TEXT,

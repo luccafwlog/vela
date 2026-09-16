@@ -28,8 +28,10 @@ Para taxas locais, o saldo canônico é o ledger por recebível; a tabela
 - A conta do Portal não é pré-requisito para essa emissão interna automática:
   `trg_auto_bill_bl_after_ce_mercante`, criado pela migration `051`, é a fonte
   de verdade da transição CE → cálculo → fatura. Se houver falha operacional,
-  um efeito `local_billing` recuperável é enfileirado; repetição é idempotente.
-  Os fluxos iniciados pelo Portal continuam protegidos pelo gate de acesso.
+  um efeito `local_billing` é enfileirado; com ator válido ele é recuperável e,
+  sem `auth.uid()`, fica registrado como `actor_source=system` e bloqueado de
+  forma auditável, sem fabricar um usuário. A repetição é idempotente. Os
+  fluxos iniciados pelo Portal continuam protegidos pelo gate de acesso.
 - A comunicação financeira é posterior à emissão/disponibilização no Portal:
   `customer_local_charges_communication_readiness()` exige CE, revisão limpa e
   faturamento concluído em todos os B/Ls ativos do cliente na viagem. Quando

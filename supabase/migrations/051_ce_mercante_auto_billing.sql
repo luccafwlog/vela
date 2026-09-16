@@ -454,7 +454,7 @@ SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
-  v_actor uuid := COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid);
+  v_actor uuid := auth.uid();
   v_previous_request_role text := current_setting('request.jwt.claim.role', true);
   v_role_impersonated boolean := false;
   v_result jsonb;
@@ -490,7 +490,7 @@ BEGIN
         'ce_mercante', NEW.ce_mercante,
         'reason', v_result->>'reason',
         'message', v_result->>'message',
-        'actor_source', CASE WHEN auth.uid() IS NULL THEN 'system' ELSE 'request' END
+        'actor_source', CASE WHEN v_actor IS NULL THEN 'system' ELSE 'request' END
       )
     );
 
