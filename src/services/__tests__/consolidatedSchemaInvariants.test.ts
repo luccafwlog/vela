@@ -32,12 +32,15 @@ describe('schema consolidado v1.0 (arquivos realmente aplicados)', () => {
   it('o harness de arquivo morto não escondeu o diretório ativo', async () => {
     const ativas = await lerMigrationsAtivas()
     const nomes = [...ativas.keys()]
+    const fs = await realFs()
+    const nomesNoDisco = fs
+      .readdirSync(MIGRATIONS)
+      .filter((nome) => nome.endsWith('.sql'))
+      .sort()
 
-    // Se este teste começar a ver 383 arquivos, o `vi.importActual` parou de
-    // escapar do mock e todas as asserções abaixo viraram teatro.
-    // A nova migration ativa precisa continuar sendo visível sem permitir
-    // que o harness volte a enxergar os 383 arquivos arquivados.
-    expect(nomes.length).toBeLessThan(100)
+    // A lista esperada vem do diretório ativo real, não de um limite arbitrário
+    // que poderia deixar uma migration ausente passar silenciosamente.
+    expect(nomes).toEqual(nomesNoDisco)
     expect(nomes).toContain('001_initial_schema.sql')
     expect(nomes).toContain('002_business_logic_and_security.sql')
     for (const nome of nomes) {

@@ -15,13 +15,15 @@ import {
 } from '../services/portalBilling'
 import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../lib/portalBillingFilters'
 import { queryKeys } from '../services/queryKeys'
+import { isPortalReadOnly } from '../services/portalScope'
 
 export function usePortalCurrentRoe() {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
   return useQuery({
     queryKey: queryKeys.portal.currentRoe(),
-    enabled: isAuthenticated || scope.mode === 'inspect',
+    enabled: isAuthenticated || readOnly,
     queryFn: () => portalGetCurrentRoe(scope),
     staleTime: 60 * 60 * 1000,
   })
@@ -30,10 +32,11 @@ export function usePortalCurrentRoe() {
 export function usePortalConsolidatableReceivables() {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
 
   return useQuery({
     queryKey: ['portal-consolidatable-receivables', scope.mode, scope.customerId],
-    enabled: isAuthenticated || scope.mode === 'inspect',
+    enabled: isAuthenticated || readOnly,
     queryFn: () => portalListConsolidatableReceivables(scope),
   })
 }
@@ -41,10 +44,11 @@ export function usePortalConsolidatableReceivables() {
 export function usePortalInvoices() {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
 
   return useQuery({
     queryKey: ['portal-invoices', scope.mode, scope.customerId],
-    enabled: isAuthenticated || scope.mode === 'inspect',
+    enabled: isAuthenticated || readOnly,
     queryFn: () => portalListInvoices(scope),
   })
 }
@@ -52,10 +56,11 @@ export function usePortalInvoices() {
 export function usePortalInvoicesPage(filters: PortalBillingFilters = EMPTY_PORTAL_BILLING_FILTERS, page = 0, pageSize = 25) {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
 
   return useQuery({
     queryKey: ['portal-invoices-page', scope.mode, scope.customerId, filters, page, pageSize],
-    enabled: isAuthenticated || scope.mode === 'inspect',
+    enabled: isAuthenticated || readOnly,
     queryFn: () => portalListInvoicesPage(filters, page, pageSize, scope),
     placeholderData: (previous) => previous,
   })
@@ -64,10 +69,11 @@ export function usePortalInvoicesPage(filters: PortalBillingFilters = EMPTY_PORT
 export function usePortalInvoiceDetail(invoiceId?: number | null) {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
 
   return useQuery({
     queryKey: ['portal-invoice-detail', scope.mode, scope.customerId, invoiceId],
-    enabled: Boolean((isAuthenticated || scope.mode === 'inspect') && invoiceId),
+    enabled: Boolean((isAuthenticated || readOnly) && invoiceId),
     queryFn: () => portalInvoiceDetails(Number(invoiceId), scope),
   })
 }
@@ -75,12 +81,13 @@ export function usePortalInvoiceDetail(invoiceId?: number | null) {
 export function usePortalDemurrageInvoices() {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
   // ponytail: refresh is governed by query lifecycle; re-enable Realtime only
   // after demurrage_invoices is explicitly added to supabase_realtime.
 
   return useQuery({
     queryKey: ['portal-demurrage-invoices', scope.mode, scope.customerId],
-    enabled: isAuthenticated || scope.mode === 'inspect',
+    enabled: isAuthenticated || readOnly,
     queryFn: () => portalListDemurrageInvoices(scope),
   })
 }
@@ -88,10 +95,11 @@ export function usePortalDemurrageInvoices() {
 export function usePortalDemurrageInvoicesPage(filters: PortalBillingFilters = EMPTY_PORTAL_BILLING_FILTERS, page = 0, pageSize = 25) {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
 
   return useQuery({
     queryKey: ['portal-demurrage-invoices-page', scope.mode, scope.customerId, filters, page, pageSize],
-    enabled: isAuthenticated || scope.mode === 'inspect',
+    enabled: isAuthenticated || readOnly,
     queryFn: () => portalListDemurrageInvoicesPage(filters, page, pageSize, scope),
     placeholderData: (previous) => previous,
   })
@@ -100,9 +108,10 @@ export function usePortalDemurrageInvoicesPage(filters: PortalBillingFilters = E
 export function usePortalDemurrageInvoiceDetail(invoiceId?: number | null) {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
   return useQuery({
     queryKey: ['portal-demurrage-invoice-detail', scope.mode, scope.customerId, invoiceId],
-    enabled: Boolean((isAuthenticated || scope.mode === 'inspect') && invoiceId),
+    enabled: Boolean((isAuthenticated || readOnly) && invoiceId),
     queryFn: () => portalGetDemurrageInvoiceDetail(Number(invoiceId), scope),
   })
 }

@@ -7,9 +7,16 @@
 -- da escala. O wrapper preserva o comportamento anterior e garante a parte
 -- que faltava na mesma transação.
 
-ALTER FUNCTION public.save_voyage_escala_terminal_state_v2(
-  BIGINT, TEXT, INTEGER, JSONB, JSONB, JSONB, TEXT
-) RENAME TO save_voyage_escala_terminal_state_v2_legacy_049;
+DO $$
+BEGIN
+  IF to_regprocedure('public.save_voyage_escala_terminal_state_v2_legacy_049(bigint,text,integer,jsonb,jsonb,jsonb,text)') IS NULL
+     AND to_regprocedure('public.save_voyage_escala_terminal_state_v2(bigint,text,integer,jsonb,jsonb,jsonb,text)') IS NOT NULL THEN
+    ALTER FUNCTION public.save_voyage_escala_terminal_state_v2(
+      BIGINT, TEXT, INTEGER, JSONB, JSONB, JSONB, TEXT
+    ) RENAME TO save_voyage_escala_terminal_state_v2_legacy_049;
+  END IF;
+END
+$$;
 
 -- O corpo preservado só é chamado pelo wrapper abaixo; não deve continuar
 -- sendo uma segunda superfície pública de escrita.

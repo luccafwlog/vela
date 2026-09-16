@@ -97,21 +97,23 @@ BEGIN
     v_seen := array_append(v_seen, v_norm);
 
     -- Se o endereço já existia como adicional, promovê-lo também corrige
-    -- clientes antigos que chegaram sem principal na base cadastral.
+    -- clientes antigos que chegaram sem principal na base cadastral. Um
+    -- contato desativado com o mesmo e-mail deve ser reativado; deixá-lo
+    -- fora do INSERT abaixo faria o índice único tratar a linha histórica
+    -- como duplicata sem criar um principal ativo.
     UPDATE public.customer_contacts AS cc
-    SET is_primary = true,
+    SET deactivated_at = NULL,
+        is_primary = NOT EXISTS (
+          SELECT 1
+          FROM public.customer_contacts AS primary_contact
+          WHERE primary_contact.customer_id = v_customer_id
+            AND primary_contact.is_primary = true
+            AND primary_contact.deactivated_at IS NULL
+            AND primary_contact.email_normalized IS NOT NULL
+        ),
         updated_at = now()
     WHERE cc.customer_id = v_customer_id
-      AND cc.email_normalized = v_norm
-      AND cc.deactivated_at IS NULL
-      AND NOT EXISTS (
-        SELECT 1
-        FROM public.customer_contacts AS primary_contact
-        WHERE primary_contact.customer_id = v_customer_id
-          AND primary_contact.is_primary = true
-          AND primary_contact.deactivated_at IS NULL
-          AND primary_contact.email_normalized IS NOT NULL
-      );
+      AND cc.email_normalized = v_norm;
 
     INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary)
     SELECT
@@ -130,6 +132,7 @@ BEGIN
     WHERE NOT EXISTS (
       SELECT 1 FROM public.customer_contacts AS cc
       WHERE cc.customer_id = v_customer_id
+        AND cc.deactivated_at IS NULL
         AND lower(btrim(COALESCE(cc.email, ''))) = v_norm
     );
     IF FOUND THEN
@@ -189,21 +192,20 @@ WITH missing_primary AS (
         AND p.email_normalized IS NOT NULL
     )
   ORDER BY cc.customer_id, cc.id ASC
+), promoted AS (
+  UPDATE public.customer_contacts AS cc
+  SET is_primary = true,
+      updated_at = now()
+  FROM missing_primary
+  WHERE cc.id = missing_primary.id
+  RETURNING cc.id
 )
-UPDATE public.customer_contacts AS cc
-SET is_primary = true,
-    updated_at = now()
-FROM missing_primary
-WHERE cc.id = missing_primary.id;
 
 -- O trigger de INSERT nao roda no backfill; garanta as tres caixas do novo
 -- principal sem remover vinculos adicionais existentes.
 INSERT INTO public.customer_contact_box_links (contact_id, box_code)
-SELECT cc.id, box.code
-FROM public.customer_contacts AS cc
+SELECT promoted.id, box.code
+FROM promoted
 CROSS JOIN public.customer_communication_boxes AS box
-WHERE cc.is_primary = true
-  AND cc.deactivated_at IS NULL
-  AND cc.email_normalized IS NOT NULL
-  AND box.active = true
+WHERE box.active = true
 ON CONFLICT DO NOTHING;

@@ -42,6 +42,7 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
     || assistedEmailMutation.isPending || returnToAnalysisMutation.isPending
     || releaseSuppressedMutation.isPending
   const hasValidRecoveryEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  const canUseRecoveryEmail = canProvision && hasValidRecoveryEmail && !busy
 
   async function sendInvite() {
     if (!hasValidRecoveryEmail) {
@@ -81,7 +82,7 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
   }
 
   async function assistedEmailChange() {
-    if (!email.trim() || !reason.trim()) { setError('Informe email e justificativa.'); return }
+    if (!hasValidRecoveryEmail || !reason.trim()) { setError('Informe um email de recuperação válido e a justificativa.'); return }
     try { await assistedEmailMutation.mutateAsync({ customerId: row.customer_id, email: email.trim(), reason: reason.trim() }); showToast('Email alterado por atendimento.', 'success'); onSaved?.() }
     catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível alterar o email.') }
   }
@@ -157,9 +158,9 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
         {email && !hasValidRecoveryEmail ? <p className="text-xs text-red-200">Informe um email válido.</p> : null}
         {email && hasValidRecoveryEmail && !row.candidates.some((candidate) => candidate.email === email) ? <p className="text-xs text-amber-200">Email informado manualmente; será usado apenas como Email de Recuperação.</p> : null}
         {error ? <InlineError message={error} /> : null}
-        {['sem_conta', 'convite_pendente', 'convite_expirado'].includes(row.account_situation) ? <Button onClick={sendInvite} disabled={!canProvision || !hasValidRecoveryEmail || busy}>{row.account_situation === 'convite_pendente' || row.account_situation === 'convite_expirado' ? 'Reenviar convite' : 'Enviar convite'}</Button> : null}
-        {row.account_situation === 'falha_no_envio' ? <Button onClick={sendInvite} disabled={!canProvision || !hasValidRecoveryEmail || busy}>Revisar email e reenviar</Button> : null}
-        {row.account_situation === 'ativo' ? <Button variant="secondary" onClick={() => void assistedEmailChange()} disabled={!canProvision || !hasValidRecoveryEmail || busy}>Trocar Email de Recuperação</Button> : null}
+        {['sem_conta', 'convite_pendente', 'convite_expirado'].includes(row.account_situation) ? <Button onClick={sendInvite} disabled={!canUseRecoveryEmail}>{row.account_situation === 'convite_pendente' || row.account_situation === 'convite_expirado' ? 'Reenviar convite' : 'Enviar convite'}</Button> : null}
+        {row.account_situation === 'falha_no_envio' ? <Button onClick={sendInvite} disabled={!canUseRecoveryEmail}>Revisar email e reenviar</Button> : null}
+        {row.account_situation === 'ativo' ? <Button variant="secondary" onClick={() => void assistedEmailChange()} disabled={!canUseRecoveryEmail}>Trocar Email de Recuperação</Button> : null}
       </div> : null}
 
       {isAdmin && !isOperations ? <div className="mt-5 grid gap-3 border-t border-[var(--app-border)] pt-5"><Field label="Novo CNPJ"><Input maxLength={14} value={newCnpj} onChange={(event) => setNewCnpj(normalizeCnpj(event.target.value))} /></Field><Button variant="secondary" onClick={() => void adminCnpjChange()} disabled={!newCnpj.trim() || newCnpj === row.cnpj_cpf || busy}>Alterar CNPJ auditado</Button></div> : null}

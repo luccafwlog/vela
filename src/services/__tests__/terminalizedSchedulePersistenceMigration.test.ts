@@ -14,7 +14,8 @@ describe('contrato da persistência de escala terminalizada', () => {
   it('mantém o RPC público como wrapper atômico e preserva o corpo anterior como helper privado', () => {
     const sql = readTerminalizedScheduleMigration()
 
-    expect(sql).toMatch(/ALTER FUNCTION public\.save_voyage_escala_terminal_state_v2\([\s\S]*?\)\s+RENAME TO save_voyage_escala_terminal_state_v2_legacy_049/i)
+    expect(sql).toMatch(/DO\s+\$\$[\s\S]*?ALTER FUNCTION public\.save_voyage_escala_terminal_state_v2\([\s\S]*?\)\s+RENAME TO save_voyage_escala_terminal_state_v2_legacy_049[\s\S]*?END\s*\$\$/i)
+    expect(sql).toContain('to_regprocedure(\'public.save_voyage_escala_terminal_state_v2_legacy_049')
     expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.save_voyage_escala_terminal_state_v2\(/i)
     expect(sql).toMatch(/LANGUAGE plpgsql\s+SECURITY DEFINER[\s\S]*?SET search_path TO 'public', 'pg_temp'/i)
     expect(sql).toContain('public.save_voyage_escala_terminal_state_v2_legacy_049(')

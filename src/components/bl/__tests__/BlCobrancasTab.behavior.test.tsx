@@ -49,9 +49,8 @@ afterEach(cleanup)
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.markBlReadyAndCreateInvoice.mockRejectedValue({
-    code: '42501',
-    message: '',
-    details: 'Faturamento bloqueado pelo Portal: Portal do Cliente não está ativo.',
+    code: 'P0003',
+    message: 'Faturamento bloqueado pelo Portal: Portal do Cliente não está ativo.',
   })
 })
 

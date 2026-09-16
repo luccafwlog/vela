@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { syntheticCnpj } from './localTestData'
 
 // S06 — elegibilidade de caixas e da régua no Postgres descartável.
 // Opt-in (`LOCAL_PG_INTEGRATION=1` + `LOCAL_DATABASE_URL`); sem o banco local
@@ -18,6 +19,8 @@ const carrierId = 99020603
 const vesselId = 99020604
 const voyageId = 99020605
 const invoiceIds = Array.from({ length: 12 }, (_, index) => 99220600 + index + 1)
+const customerCnpj = syntheticCnpj(20601)
+const otherCustomerCnpj = syntheticCnpj(20602)
 
 function localPsql(sql: string): string {
   return execFileSync('psql', [
@@ -68,7 +71,7 @@ describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalida�
       INSERT INTO public.user_profiles (id, full_name, role, active)
       VALUES ('${adminId}', 'S06 Elig', 'admin', true);
       INSERT INTO public.customers (id, cnpj_cpf, name)
-      VALUES (${customerId}, '99020601000123', 'Cliente S06 D11'), (${otherCustomerId}, '99020602000178', 'Outro S06');
+      VALUES (${customerId}, '${customerCnpj}', 'Cliente S06 D11'), (${otherCustomerId}, '${otherCustomerCnpj}', 'Outro S06');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier S06');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel S06', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'S06', 'active');

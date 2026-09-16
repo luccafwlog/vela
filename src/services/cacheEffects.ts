@@ -52,7 +52,7 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, opt
     // veiculos), vinculos de fatura e o cliente exibido nas telas consumidoras.
     // Este e o unico efeito pos-importacao para que cada modal nao mantenha
     // uma lista parcial de caches.
-    ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'],
+    ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
     ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
     ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
     ['baplie-reconciliation', vId], ['baplie-staging', vId],

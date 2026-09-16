@@ -120,6 +120,10 @@ export function BlImportModal({
 
   async function handleConfirm() {
     if (!preview || importableCount === 0) return
+    if (!selectedVoyageId) {
+      showToast('Selecione a viagem antes de confirmar a importação do B/L.', 'error')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -135,7 +139,7 @@ export function BlImportModal({
       } catch {
         showToast('B/Ls importados; ATD do POL não pôde ser atualizado — edite manualmente.', 'info')
       }
-      await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId! })
+      await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
       if (refusedCustomerRelinks.length) {
         // Importou, mas o B/L continua com o cliente antigo: dizer "concluida" aqui
         // esconderia justamente o que o operador pediu para acontecer.

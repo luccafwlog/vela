@@ -43,7 +43,7 @@ describe('cache effects', () => {
     const { client, keys } = fakeQueryClient()
     await afterManifestoImportado(client, { voyageId: 24 })
     expect(keys()).toEqual(keySet([
-      ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'],
+      ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
       ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
       ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
       ['baplie-reconciliation', '24'], ['baplie-staging', '24'],

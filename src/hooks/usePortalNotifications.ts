@@ -7,14 +7,16 @@ import {
   portalMarkNotificationRead,
   portalNotificationUnreadCount,
 } from '../services/portalBilling'
+import { isPortalReadOnly } from '../services/portalScope'
 
 export function usePortalUnreadCount() {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
 
   return useQuery({
     queryKey: ['portal-unread-count', scope.mode, scope.customerId],
-    enabled: Boolean(isAuthenticated || scope.mode === 'inspect'),
+    enabled: Boolean(isAuthenticated || readOnly),
     refetchInterval: 30_000,
     queryFn: () => portalNotificationUnreadCount(scope),
   })
@@ -23,10 +25,11 @@ export function usePortalUnreadCount() {
 export function usePortalNotifications(enabled = true) {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
 
   return useQuery({
     queryKey: ['portal-notifications', scope.mode, scope.customerId],
-    enabled: Boolean((isAuthenticated || scope.mode === 'inspect') && enabled),
+    enabled: Boolean((isAuthenticated || readOnly) && enabled),
     refetchInterval: 30_000,
     queryFn: () => portalListNotifications(scope),
   })

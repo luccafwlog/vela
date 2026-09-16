@@ -18,10 +18,10 @@ import {
   useMarkBlReadyForBilling,
   useUpdateManualBlCharge,
 } from '../../hooks/useLocalCharges'
-import { formatBRL, formatUSD } from '../../lib/utils'
+import { formatBRL, formatUSD, normalizeText } from '../../lib/utils'
 import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
-import { extractErrorText } from '../../lib/errors'
+import { classifyDbError } from '../../lib/errors'
 import { markBlReadyAndCreateInvoice } from '../../services/billing'
 import {
   formatNumber,
@@ -190,8 +190,9 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
         showToast('B/L marcado como pronto para faturar. Sem cliente vinculado — gere a fatura manualmente em Faturamento.', 'success')
       }
     } catch (error) {
-      const message = extractErrorText(error)
-      const normalizedMessage = message.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      const classified = classifyDbError(error)
+      const message = classified.message
+      const normalizedMessage = normalizeText(message)
       if (normalizedMessage.includes('pendencia de revisao')) {
         showToast('Ainda existem linhas com pendência de revisão.', 'error')
         return
@@ -201,9 +202,7 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
         return
       }
       if (normalizedMessage.includes('faturamento bloqueado pelo portal')) {
-        const marker = 'faturamento bloqueado pelo portal'
-        const markerIndex = message.toLowerCase().indexOf(marker)
-        showToast(markerIndex >= 0 ? message.slice(markerIndex).trim() : message, 'error')
+        showToast(message, 'error')
         return
       }
       showToast(

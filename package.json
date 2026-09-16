@@ -17,53 +17,12 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:integration": "vitest run src/integration/supabase.integration.test.ts",
-    "size-limit": "size-limit",
+    "size-limit": "node scripts/check-size-limit.mjs",
     "preview": "vite preview",
     "perf:authenticated-startup": "node scripts/perf/measure-authenticated-startup.mjs",
     "perf:operational-read-model": "node scripts/perf/measure-operational-read-model.mjs",
     "a11y:contrast": "node scripts/check-theme-contrast.mjs"
   },
-  "size-limit": [
-    {
-      "name": "internal initial-load JS (entry + preloaded chunks, gzip)",
-      "path": [
-        "dist/assets/internal-*.js",
-        "dist/assets/rolldown-runtime-*.js",
-        "dist/assets/vendor-data-*.js",
-        "dist/assets/vendor-react-*.js",
-        "dist/assets/createLucideIcon-*.js",
-        "dist/assets/ConfirmDialog-*.js",
-        "dist/assets/chevron-down-*.js",
-        "dist/assets/ship-*.js",
-        "dist/assets/demurrageKpis-*.js",
-        "dist/assets/portCode-*.js",
-        "dist/assets/voyageRouteSchedules-*.js",
-        "dist/assets/operationalLists-*.js",
-        "dist/assets/queryKeys-*.js",
-        "dist/assets/vaziosExportOperations-*.js"
-      ],
-      "limit": "250 kB"
-    },
-    {
-      "name": "portal initial-load JS (entry + preloaded chunks, gzip)",
-      "path": [
-        "dist/assets/portal-*.js",
-        "dist/assets/rolldown-runtime-*.js",
-        "dist/assets/vendor-data-*.js",
-        "dist/assets/vendor-react-*.js",
-        "dist/assets/createLucideIcon-*.js",
-        "dist/assets/ConfirmDialog-*.js",
-        "dist/assets/building-2-*.js",
-        "dist/assets/file-text-*.js",
-        "dist/assets/message-square-*.js",
-        "dist/assets/portalScope-*.js",
-        "dist/assets/usePortalScope-*.js",
-        "dist/assets/portalBilling-*.js",
-        "dist/assets/PortalLayout-*.js"
-      ],
-      "limit": "250 kB"
-    }
-  ],
   "dependencies": {
     "@e965/xlsx": "^0.20.3",
     "@sentry/react": "^10.57.0",

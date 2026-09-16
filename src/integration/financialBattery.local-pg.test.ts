@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { syntheticCnpj } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
@@ -24,6 +25,7 @@ const demurrageInvoiceIds = [99205221, 99205222]
 const demurrageContainerIds = [99205241, 99205242]
 const demurrageItemIds = [99205243, 99205244]
 const financialContactEmail = 'financial-battery@example.test'
+const customerCnpj = syntheticCnpj(52001)
 
 type ExchangeRateSnapshot = {
   ptax: number | null
@@ -173,7 +175,7 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
         ('${equipmentUserId}', 'Financial Battery Equipamentos', 'equipamentos', true)
       ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, active = true;
       INSERT INTO public.customers (id, cnpj_cpf, name)
-      VALUES (${customerId}, '99777777000124', 'Cliente Financial Battery')
+      VALUES (${customerId}, '${customerCnpj}', 'Cliente Financial Battery')
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, cnpj_cpf = EXCLUDED.cnpj_cpf;
       INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary, origin)
       VALUES (${customerId}, 'Financeiro Synthetic', '${financialContactEmail}', 'financeiro', true, 'sistema')
@@ -187,7 +189,7 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
         auth_user_id, provisioning_decision, account_situation, recovery_email,
         recovery_email_source, recovery_email_status
       ) VALUES (
-        ${customerId}, '${financialContactEmail}', '${financialContactEmail}', '99777777000124', true, '${actorId}',
+        ${customerId}, '${financialContactEmail}', '${financialContactEmail}', '${customerCnpj}', true, '${actorId}',
         '${portalUserId}', 'aprovado_para_provisionar', 'ativo', '${financialContactEmail}',
         'informado_manualmente', 'ok'
       )

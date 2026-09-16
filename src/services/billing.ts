@@ -834,9 +834,12 @@ export async function cancelInvoice(input: {
   reason?: string | null
   actorId?: string | null
 }) {
+  const reason = input.reason?.trim() ?? ''
+  if (!reason) throw new Error('Informe a justificativa para cancelar a invoice.')
+
   const { data, error } = await supabase.rpc('cancel_invoice', {
     p_invoice_id: input.invoiceId,
-    p_reason: input.reason ?? '',
+    p_reason: reason,
     ...(input.actorId == null ? {} : { p_actor: input.actorId }),
   })
 

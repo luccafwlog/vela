@@ -10,6 +10,7 @@ import { portalErrorMessage } from '../lib/portalErrorMessage'
 import type { PortalProfile as PortalProfileData } from '../services/portalBilling'
 import { supabasePortal } from '../services/supabase'
 import { PortalContactConfiguration } from '../components/portal/PortalContactConfiguration'
+import { isPortalReadOnly } from '../services/portalScope'
 
 export const RECOVERY_EMAIL_RATE_LIMIT_MESSAGE =
   'Muitas tentativas com a senha atual. Este limite é o mesmo do login do Portal, então aguarde alguns minutos antes de tentar de novo — aqui e no login.'
@@ -17,6 +18,7 @@ export const RECOVERY_EMAIL_RATE_LIMIT_MESSAGE =
 export function PortalProfile() {
   const profile = usePortalProfile()
   const scope = usePortalScope()
+  const readOnly = isPortalReadOnly(scope)
   const [searchParams, setSearchParams] = useSearchParams()
   const { showToast } = useToast()
   // Compatibilidade: a confirmacao passou a viver em /portal/confirmar-email
@@ -26,12 +28,12 @@ export function PortalProfile() {
   useEffect(() => {
     const token = searchParams.get('confirm_email')
     if (!token) return
-    if (scope.mode === 'inspect') return
+    if (readOnly) return
     void supabasePortal.functions.invoke('portal-recovery-email-change', { body: { action: 'confirm', token } }).then(({ error }) => {
       showToast(error ? 'Não foi possível confirmar o novo email.' : 'Email de Recuperação atualizado com sucesso.', error ? 'error' : 'success')
       searchParams.delete('confirm_email'); setSearchParams(searchParams, { replace: true })
     })
-  }, [searchParams, setSearchParams, showToast, scope.mode])
+  }, [searchParams, setSearchParams, showToast, readOnly])
   const loadError = profile.error
     ? portalErrorMessage(profile.error, 'Falha ao carregar perfil. Tente novamente em instantes.')
     : ''
@@ -47,7 +49,7 @@ export function PortalProfile() {
             updateProfile={profile.updateProfile.mutateAsync}
             loadError={loadError}
             loadFailed={profile.isError}
-            readOnly={scope.mode === 'inspect'}
+            readOnly={readOnly}
           />
         ) : (
           <div className="grid gap-4">

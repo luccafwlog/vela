@@ -148,10 +148,9 @@ BEGIN
 END;
 $$;
 
--- A prontidão do Portal não deve transformar um CE já validado em pendência
--- financeira. O e-mail continua sendo uma pendência da revisão normal; no
--- contexto transacional do faturamento automático, somente os dados do B/L e
--- da carga continuam governando a elegibilidade.
+-- A prontidão do Portal participa da revisão normal. O contexto interno só
+-- suprime essa parte enquanto a transação automática calcula/emite a invoice;
+-- uma leitura pública do B/L continua obedecendo ao mesmo gate.
 CREATE OR REPLACE FUNCTION public._compute_bl_review_pendencies(
   p_customer_id bigint,
   p_cargo_mode text,
@@ -174,6 +173,7 @@ BEGIN
       SELECT 1
       FROM public.customer_contacts AS c
       WHERE c.customer_id = p_customer_id
+        AND c.deactivated_at IS NULL
         AND NULLIF(btrim(c.email), '') IS NOT NULL
     )
     INTO v_has_email;
@@ -225,28 +225,14 @@ SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
   v_bl record;
-  v_reasons text[];
 BEGIN
-  SELECT customer_id, cargo_mode, bb_weight_ton, financial_status
+  SELECT customer_id, cargo_mode, bb_weight_ton
     INTO v_bl
   FROM public.bls
   WHERE id = p_bl_id;
 
   IF NOT FOUND THEN
     RETURN ARRAY[]::text[];
-  END IF;
-
-  -- Uma revisão posterior à emissão não reabre uma pendência de e-mail/Portal
-  -- que já não participa do faturamento interno. O booleano é argumento de
-  -- uma função privada, não um marcador que o chamador possa forjar.
-  IF COALESCE(v_bl.financial_status, 'pending') <> 'pending' THEN
-    v_reasons := public._compute_bl_review_pendencies(
-      v_bl.customer_id,
-      v_bl.cargo_mode,
-      v_bl.bb_weight_ton,
-      true
-    );
-    RETURN v_reasons;
   END IF;
 
   RETURN public.compute_bl_review_pendencies(
@@ -276,7 +262,10 @@ DECLARE
   v_invoice jsonb;
   v_existing_invoice_id bigint;
   v_previous_context_table text := current_setting('vela.billing_context_table', true);
-  v_context_table text := format('vela_auto_billing_%s_%s', pg_backend_pid(), txid_current());
+  v_previous_request_sub text := current_setting('request.jwt.claim.sub', true);
+  v_context_table text := format('vela_auto_billing_%s', replace(gen_random_uuid()::text, '-', ''));
+  v_impersonated boolean := false;
+  v_context_created boolean := false;
   v_sqlstate text;
   v_error_message text;
 BEGIN
@@ -287,16 +276,6 @@ BEGIN
 
   IF v_actor IS NULL THEN
     RAISE EXCEPTION 'Faturamento automatico sem ator validado.' USING ERRCODE = '42501';
-  END IF;
-
-  -- O worker carrega o iniciador no GUC antes de chamar esta função. Em uma
-  -- chamada server-side direta, o ator explícito recebe o mesmo tratamento.
-  IF auth.uid() IS DISTINCT FROM v_actor THEN
-    PERFORM set_config('request.jwt.claim.sub', v_actor::text, true);
-  END IF;
-
-  IF NOT public.is_active_user() THEN
-    RAISE EXCEPTION 'Ator inativo para faturamento automatico.' USING ERRCODE = '42501';
   END IF;
 
   SELECT *
@@ -361,12 +340,26 @@ BEGIN
     );
   END IF;
 
+  -- O worker carrega o iniciador no GUC antes de chamar esta função. Em uma
+  -- chamada server-side direta, o ator explícito recebe o mesmo tratamento.
+  -- Só altere a identidade depois das saídas idempotentes acima e restaure-a
+  -- em qualquer caminho, para não vazar o ator para o restante da sessão.
+  IF auth.uid() IS DISTINCT FROM v_actor THEN
+    PERFORM set_config('request.jwt.claim.sub', v_actor::text, true);
+    v_impersonated := true;
+  END IF;
+
+  IF NOT public.is_active_user() THEN
+    RAISE EXCEPTION 'Ator inativo para faturamento automatico.' USING ERRCODE = '42501';
+  END IF;
+
   -- O marcador é uma tabela temporária criada sob o owner do SECURITY
   -- DEFINER. O GUC só carrega o nome da tabela e é limpo antes de retornar.
   EXECUTE format(
     'CREATE TEMP TABLE pg_temp.%I (marker boolean NOT NULL) ON COMMIT DROP',
     v_context_table
   );
+  v_context_created := true;
   EXECUTE format(
     'INSERT INTO pg_temp.%I(marker) VALUES (true)',
     v_context_table
@@ -379,7 +372,11 @@ BEGIN
   -- processado corretamente, mas não há documento financeiro a emitir.
   IF v_calculation->>'status' = 'exempt' THEN
     EXECUTE format('DROP TABLE IF EXISTS pg_temp.%I', v_context_table);
+    v_context_created := false;
     PERFORM set_config('vela.billing_context_table', COALESCE(v_previous_context_table, ''), true);
+    IF v_impersonated THEN
+      PERFORM set_config('request.jwt.claim.sub', COALESCE(v_previous_request_sub, ''), true);
+    END IF;
     RETURN v_calculation || jsonb_build_object('status', 'skipped', 'reason', 'exempt');
   END IF;
 
@@ -399,9 +396,14 @@ BEGIN
       USING ERRCODE = 'P0001';
   END IF;
 
-  PERFORM public.link_invoice_to_ledger((v_invoice->>'invoice_id')::bigint);
   EXECUTE format('DROP TABLE IF EXISTS pg_temp.%I', v_context_table);
+  v_context_created := false;
   PERFORM set_config('vela.billing_context_table', COALESCE(v_previous_context_table, ''), true);
+  PERFORM public.link_invoice_to_ledger((v_invoice->>'invoice_id')::bigint);
+
+  IF v_impersonated THEN
+    PERFORM set_config('request.jwt.claim.sub', COALESCE(v_previous_request_sub, ''), true);
+  END IF;
 
   RETURN jsonb_build_object(
     'status', 'invoiced',
@@ -416,8 +418,14 @@ EXCEPTION
     GET STACKED DIAGNOSTICS
       v_sqlstate = RETURNED_SQLSTATE,
       v_error_message = MESSAGE_TEXT;
-    EXECUTE format('DROP TABLE IF EXISTS pg_temp.%I', v_context_table);
+    IF v_context_created THEN
+      EXECUTE format('DROP TABLE IF EXISTS pg_temp.%I', v_context_table);
+      v_context_created := false;
+    END IF;
     PERFORM set_config('vela.billing_context_table', COALESCE(v_previous_context_table, ''), true);
+    IF v_impersonated THEN
+      PERFORM set_config('request.jwt.claim.sub', COALESCE(v_previous_request_sub, ''), true);
+    END IF;
 
     -- A atualização documental não é desfeita porque o efeito recuperável
     -- será criado pelo trigger. O worker registrará o bloqueio com o erro
@@ -446,13 +454,13 @@ SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
-  v_actor uuid := auth.uid();
+  v_actor uuid := COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid);
   v_result jsonb;
 BEGIN
   v_result := public.auto_bill_bl_after_ce_mercante(NEW.id, v_actor);
 
   IF v_result->>'status' NOT IN ('invoiced', 'already_invoiced', 'skipped')
-     AND v_actor IS NOT NULL
+     AND (auth.uid() IS NOT NULL OR auth.role() IS NOT DISTINCT FROM 'service_role')
      AND NOT EXISTS (
        SELECT 1
        FROM public.import_pending_effects AS e
@@ -589,7 +597,8 @@ SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
-  v_bl_id text;
+  v_origin_bl_id text;
+  v_current_bl_id text;
   v_voyage_id bigint;
   v_container_numbers text[];
   v_bl_ids text[];
@@ -600,11 +609,11 @@ DECLARE
   v_one jsonb;
 BEGIN
   SELECT b.id, b.voyage_id, b.financial_status, b.ce_mercante
-    INTO v_bl_id, v_voyage_id, v_financial_status, v_ce_mercante
+    INTO v_origin_bl_id, v_voyage_id, v_financial_status, v_ce_mercante
   FROM public.bls AS b
   WHERE b.id = NULLIF(btrim(p_entity_id), '');
 
-  IF v_bl_id IS NOT NULL THEN
+  IF v_origin_bl_id IS NOT NULL THEN
     IF COALESCE(v_financial_status, 'pending') <> 'pending' THEN
       RETURN jsonb_build_object(
         'entity_id', p_entity_id,
@@ -612,7 +621,7 @@ BEGIN
         'results', jsonb_build_array(jsonb_build_object(
           'status', 'already_invoiced',
           'idempotent', true,
-          'bl_id', v_bl_id,
+          'bl_id', v_origin_bl_id,
           'financial_status', v_financial_status
         ))
       );
@@ -621,7 +630,7 @@ BEGIN
     SELECT COALESCE(array_agg(DISTINCT upper(btrim(c.container_number))), ARRAY[]::text[])
       INTO v_container_numbers
     FROM public.bl_containers AS c
-    WHERE c.bl_id = v_bl_id
+    WHERE c.bl_id = v_origin_bl_id
       AND NULLIF(btrim(c.container_number), '') IS NOT NULL;
 
     IF cardinality(v_container_numbers) = 0 THEN
@@ -665,39 +674,46 @@ BEGIN
 
   -- Um efeito criado por um B/L sem containers ainda precisa produzir um
   -- resultado de domínio (review/no_containers), em vez de desaparecer.
-  IF v_bl_id IS NOT NULL AND cardinality(v_bl_ids) = 0 THEN
-    v_bl_ids := ARRAY[v_bl_id];
+  IF v_origin_bl_id IS NOT NULL AND cardinality(v_bl_ids) = 0 THEN
+    v_bl_ids := ARRAY[v_origin_bl_id];
   END IF;
 
   IF cardinality(v_bl_ids) = 0 THEN
     RETURN jsonb_build_object('entity_id', p_entity_id, 'calculated', 0, 'results', v_result);
   END IF;
 
-  FOREACH v_bl_id IN ARRAY v_bl_ids LOOP
+  FOREACH v_current_bl_id IN ARRAY v_bl_ids LOOP
     SELECT b.financial_status, b.ce_mercante
       INTO v_financial_status, v_ce_mercante
     FROM public.bls AS b
-    WHERE b.id = v_bl_id;
+    WHERE b.id = v_current_bl_id;
 
     IF COALESCE(v_financial_status, 'pending') <> 'pending' THEN
       v_one := jsonb_build_object(
         'status', 'already_invoiced',
         'idempotent', true,
-        'bl_id', v_bl_id,
+        'bl_id', v_current_bl_id,
         'financial_status', v_financial_status
       );
-    ELSIF NULLIF(btrim(COALESCE(v_ce_mercante, '')), '') IS NOT NULL THEN
-      v_one := public.auto_bill_bl_after_ce_mercante(v_bl_id, p_actor);
-      IF v_one->>'status' = 'blocked' THEN
-        RAISE EXCEPTION 'Faturamento automatico do B/L % bloqueado: %', v_bl_id, v_one->>'message'
-          USING ERRCODE = 'P0003';
-      END IF;
+    ELSIF v_current_bl_id = v_origin_bl_id
+      AND NULLIF(btrim(COALESCE(v_ce_mercante, '')), '') IS NOT NULL THEN
+      v_one := public.auto_bill_bl_after_ce_mercante(v_current_bl_id, p_actor);
     ELSE
-      v_one := public.calculate_bl_local_charges(v_bl_id, p_actor, true);
+      v_one := public.calculate_bl_local_charges(v_current_bl_id, p_actor, true);
     END IF;
 
     v_result := v_result || jsonb_build_array(v_one);
     v_calculated := v_calculated + 1;
+
+    -- Bloqueios de domínio são resultados recuperáveis e não podem abortar os
+    -- demais B/Ls do lote. Só uma falha técnica da autoemissão deve subir para
+    -- o dispatcher, que então marca o efeito como blocked e alerta a equipe.
+    IF v_one->>'status' = 'blocked'
+       AND v_one->>'reason' = 'auto_billing_failed' THEN
+      RAISE EXCEPTION 'Faturamento automatico do B/L % bloqueado: %',
+        v_current_bl_id, COALESCE(v_one->>'message', v_one->>'reason')
+        USING ERRCODE = 'P0003';
+    END IF;
   END LOOP;
 
   RETURN jsonb_build_object(

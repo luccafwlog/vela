@@ -19,11 +19,13 @@ import {
   getCustomerCommunicationNature,
   getDefaultCustomerCommunicationKind,
   isUserWrittenCustomerCommunicationKind,
+  makeCustomerCommunicationRenderInput,
   requiresResendConfirmation,
   validateCustomerCommunicationFilters,
   fetchCustomerCommunicationConference,
   type CustomerCommunicationConferenceRow,
   type CustomerCommunicationConference,
+  type CustomerCommunicationBlCandidate,
   type CustomerCommunicationDispatchMode,
   type CustomerCommunicationFilters,
 } from '../services/customerCommunications'
@@ -118,23 +120,52 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
-function getSamplePreviewInput(subject: string, body: string, kind: CustomerCommunicationKind): CustomerCommunicationTemplateInput {
-  return {
+const SAMPLE_COMMUNICATION_CANDIDATES: CustomerCommunicationBlCandidate[] = [
+  {
+    id: 'CSC45360805C00',
     customerId: 1,
     customerName: 'ACME LOGÍSTICA & IMPORTAÇÃO LTDA',
+    customerCnpj: '99.999.999/0001-99',
+    voyageId: 1,
     vesselName: 'COSCO SHIPPING XING WANG',
     voyageNumber: '2401E',
+    pod: 'Santos (BRSSZ)',
+    pol: 'Shanghai (CNSHA)',
+    cargoMode: 'container',
+    eta: new Date().toISOString(),
+    ata: null,
+    terminalId: null,
     terminalName: 'BTP Santos',
-    port: 'Santos (BRSSZ)',
+    terminalStateId: null,
     milestoneAt: new Date().toISOString(),
-    // Institucional é deliberadamente independente de carga; incluir B/Ls no
-    // exemplo faz o renderer rejeitar a prévia antes de existir uma conferência.
-    bls: kind === 'institucional'
-      ? []
-      : [
-          { id: 'CSC45360805C00', customerId: 1 },
-          { id: 'CSC45360805D00', customerId: 1 },
-        ],
+  },
+  {
+    id: 'CSC45360805D00',
+    customerId: 1,
+    customerName: 'ACME LOGÍSTICA & IMPORTAÇÃO LTDA',
+    customerCnpj: '99.999.999/0001-99',
+    voyageId: 1,
+    vesselName: 'COSCO SHIPPING XING WANG',
+    voyageNumber: '2401E',
+    pod: 'Santos (BRSSZ)',
+    pol: 'Shanghai (CNSHA)',
+    cargoMode: 'container',
+    eta: new Date().toISOString(),
+    ata: null,
+    terminalId: null,
+    terminalName: 'BTP Santos',
+    terminalStateId: null,
+    milestoneAt: new Date().toISOString(),
+  },
+]
+
+function getSamplePreviewInput(subject: string, body: string, kind: CustomerCommunicationKind): CustomerCommunicationTemplateInput {
+  return {
+    ...makeCustomerCommunicationRenderInput(
+      SAMPLE_COMMUNICATION_CANDIDATES[0],
+      SAMPLE_COMMUNICATION_CANDIDATES,
+      kind === 'institucional',
+    ),
     subject: subject.trim() || undefined,
     body: body.trim() || undefined,
   }
