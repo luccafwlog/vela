@@ -34,6 +34,7 @@ O Vela encontra-se em fase pré-operacional; não existem faturas reais emitidas
 - **Invariante de Terminal Único:** Um B/L misto descarrega 100% no mesmo terminal portuário, viabilizado pela exceção individual de terminal da **ADR 0068** (`bls.terminal_id` nulo = herança da frente). Inclui destravar o roteamento do NOB para `'misto'`.
 - **Projeção Completa na Tela `/viagens`:** Atualização dos agregadores de KPIs, da aba Visão Geral, da aba Importação (faixa de totais e blocos por POD), da aba Manifestos/Rotas e do relatório de agência ADR.
 - **Portal do Cliente:** Exibição do B/L como documento único, contendo seus contêineres e o sumário de carga solta.
+- **Superfície de Impacto Sistêmica:** Filtros de `cargo_mode` nas RPCs de leitura, os 54 links internos para as rotas removidas, a classificação binária de modalidade no frontend e a documentação viva obrigatória — detalhados na seção "Superfície de impacto fora do motor e das telas de viagem".
 
 ### Fora de escopo
 - **Exportação de Granito:** Permanece segregada em sua própria aba/fluxo de exportação (`/granito`).
@@ -200,6 +201,23 @@ cobrança**. Para `cargo_mode = 'misto'` o motor resolve **duas** tabelas do
 mesmo POD — `'container'` e `'carga_solta'` — e itera os itens das duas. O
 `RETURNS TABLE` já expõe `charge_table_id` por linha, então a assinatura suporta
 a união sem alteração de contrato.
+
+**Resolução parcial é pendência, nunca silêncio.** Resolver duas tabelas cria um
+estado que hoje não existe: uma presente e a outra ausente. Um POD com tabela de
+contêiner e sem tabela de carga solta faturaria os contêineres e deixaria a
+tonelagem passar de graça — a mesma falha silenciosa que esta seção existe para
+eliminar. Portanto, para `cargo_mode = 'misto'`:
+
+| Tabelas do POD | Comportamento |
+|---|---|
+| Ambas presentes | Calcula normalmente, unindo os itens |
+| Apenas uma presente | Calcula a parte coberta **e** emite `review:missing_charge_table:<cargo_mode>` para a parte descoberta, bloqueando `ready_for_billing` |
+| Nenhuma presente | Sem cobrança, como hoje (`v_table_id IS NULL`) |
+
+Isso vale também para o **COD**: `apply_cod_financial_effect` reprecifica
+chamando `resolve_bl_local_charge_items` no POD novo, que pode não ter as duas
+tabelas. Como a correção está na função compartilhada, o COD herda o
+comportamento sem tratamento próprio.
 
 ##### b) Quantidade de contêiner (senão a THD some sem pendência)
 O cálculo de `v_qty_total/std/imo/oog` está sob `IF v_bl.cargo_mode = 'container'`.
@@ -396,6 +414,144 @@ Esta é a aba central onde o operador confere toda a carga que descarrega no nav
 
 ---
 
+
+## Superfície de impacto fora do motor e das telas de viagem
+
+As seções anteriores cobrem o motor de taxas, a fatura e `/viagens`. Esta cobre
+o resto do sistema, que a mudança atinge por três caminhos: leitura filtrada,
+navegação e classificação binária. Todos os números abaixo foram levantados
+contra o repositório em 2026-09-16, excluindo testes.
+
+### 1. Filtros de `cargo_mode` nas RPCs de leitura
+
+Cinco RPCs filtram por igualdade estrita:
+
+```sql
+AND (NULLIF(BTRIM(COALESCE(p_cargo_mode, '')), '') IS NULL OR b.cargo_mode = p_cargo_mode)
+```
+
+`020_operational_read_pages.sql` (três ocorrências),
+`036_operational_breakbulk_summary_metrics.sql` e
+`040_operational_breakbulk_drift_tolerance.sql`. Com a igualdade estrita, um B/L
+misto **desaparece** tanto do filtro "Contêiner" quanto do filtro "Carga Solta".
+
+**Decisão — o filtro é lente, não partição.** A semântica passa a ser
+*"contém"*, não *"é exclusivamente"*:
+
+| Filtro | Inclui |
+|---|---|
+| `container` | `'container'` **e** `'misto'` |
+| `carga_solta` | `'carga_solta'` **e** `'misto'` |
+| `misto` | somente `'misto'` |
+| vazio/nulo | todos |
+
+O operador que filtra "Contêiner" quer ver todo B/L com contêiner para
+trabalhar; esconder dele um documento que tem contêineres é perder trabalho real.
+A consequência aceita é que um B/L misto aparece em dois filtros — por isso a
+soma das listas filtradas excede o total. As contagens documentais de KPI
+continuam sendo por B/L distinto (um misto conta 1), independentes do filtro.
+
+O mesmo critério vale para os filtros equivalentes no frontend
+(`chargeOperationsService.ts:226,275`, `reviewBillingAutomation.ts:353`,
+`Relatorios.tsx:211`) e para a exportação de carga solta
+(`exports.ts:80`, hoje `.filter(row => row.cargo_mode === 'carga_solta')`, que
+omitiria a tonelagem dos B/Ls mistos do relatório).
+
+### 2. Links internos para as rotas removidas
+
+`/manifestos` e `/carga-solta` aparecem em **54 ocorrências, em 26 arquivos** de
+`src/` (fora testes) — bem além de "breadcrumbs, `BlDetalhe.tsx` e notificações".
+Remover as rotas sem varrer esta lista deixa links mortos em produção:
+
+```
+AppInterno.tsx · components/layout/appLayoutNav.ts
+components/billing/{CodAdjustmentsPanel,InvoiceDetailModal,InvoicesTable,ValidacaoOperationsTable}.tsx
+components/bl/BlVisaoGeralTab.tsx · components/review/ReviewGroupBlock.tsx
+components/clientes/{FinanceiroTab,OperacionalTab}.tsx
+components/demurrage/DemurrageContainersTab.tsx · components/lineup/LineUpTable.tsx
+components/voyages/VoyageManifestosTab.tsx
+lib/{pageTitle,telemetry,telemetryContext}.ts
+pages/{BlDetalhe,CargaSolta,Containers,Manifestos,Veiculos}.tsx
+services/{alertRulesCatalog,alerts,blFreightImport,blRails,customerFicha}.ts
+```
+
+Atenção especial a `ValidacaoOperationsTable.tsx`, que tem duas
+`<Link to={`/manifestos/${id}`}>` na tela de validação de faturamento, e a
+`alerts.ts`/`alertRulesCatalog.ts`, cujos destinos alimentam alertas já
+disparados. `pageTitle.ts` e `telemetryContext.ts` mapeiam rota → rótulo e
+precisam da entrada de `/bls`.
+
+A entrega fecha com **zero ocorrências** das duas rotas em `src/`.
+
+### 3. Classificação binária de `cargo_mode` no frontend
+
+Cerca de 26 comparações estritas sobre `bls.cargo_mode` tratam o mundo como
+contêiner-ou-carga-solta. Três padrões, com correções distintas:
+
+**(a) Rótulo binário — o misto é exibido como "Container".**
+`exports.ts:38,217,288`, `revisaoHelpers.ts:20`, `voyageSummaries.ts:771,783`,
+`Relatorios.tsx:211`, `ValidacaoOperationsTable.tsx:121`,
+`blDetalheHelpers.ts:7-8`. Todos derivam de `x === 'carga_solta' ? 'Carga Solta'
+: 'Container'`. Passam a usar **um rotulador único** que conhece as três
+modalidades, em vez de repetir o ternário.
+
+**(b) Trilho de validação que não cobre o misto.** A regra "carga solta sem
+`bb_weight_ton` é pendência" está escrita três vezes —
+`blRails.ts:67`, `revisaoHelpers.ts:208` e `BlReviewContextPanel.tsx:19` — e
+todas testam `cargo_mode === 'carga_solta'`. Um B/L misto sem `bb_weight_ton`
+não é sinalizado por nenhuma delas, e chega ao motor de taxas exatamente no
+estado que a correção de peso faturável trata como pendência. A regra passa a
+valer para `'carga_solta'` **e** `'misto'`, corrigida na função compartilhada e
+não em três guardas.
+
+**(c) Comportamento por modo.** `blRails.ts:111` (`cargo_mode !== 'container'`),
+`blFreightImport.ts:677` (`isBreakBulk`), `BlDetalhe.tsx:69`
+(`isContainerMode`), `voyageRouteSchedules.ts:728`, `voyageTimeline.ts:139`,
+`escalaTerminalAllocation.ts:385` e `voyageCardHelpers.tsx:186` (que reduz o
+badge de modalidade da rota a `container`). Cada um decide se `'misto'` se
+comporta como contêiner, como carga solta ou como ambos; nenhum pode continuar
+caindo no `else` por omissão.
+
+`VoyageScheduleModals.tsx:170,179` compara `cargoMode === 'vazios'` de
+*schedule*, não de B/L, e está fora deste escopo.
+
+### 4. Documentação viva obrigatória
+
+O `CLAUDE.md` exige atualizar a documentação viva na mesma mudança que altera
+rotas. A entrega inclui:
+
+- **`docs/RASTREABILIDADE.md`** — 14 ocorrências das rotas removidas; a rota
+  `/bls` passa a rastrear componentes, hooks, serviços, RPCs e testes.
+- **`docs/spec/<data>-behavioral-spec.csv`** — a spec comportamental canônica
+  tem uma linha por rota SPA e por `supabase.rpc(...)`; 24 linhas citam as rotas
+  removidas. Duas rotas saem, uma entra, e as linhas das RPCs de taxas locais e
+  de leitura operacional mudam de comportamento. O `.xlsx` é regerado por
+  `node scripts/build-behavioral-spec.mjs`.
+- **`docs/ARCHITECTURE.md`** — contrato de rotas.
+- **`CONTEXT.md`** — verbetes de modalidade de carga e da exceção de terminal
+  (ADR 0068), na entrega que implementar o comportamento.
+
+**Isto é gate de CI, não recomendação.** `scripts/check-docs.mjs` extrai os
+`<Route path="…">` de `AppInterno.tsx`/`AppPortal.tsx` e **falha** quando uma
+rota não está documentada em `docs/ARCHITECTURE.md` *e* em
+`docs/RASTREABILIDADE.md`. São três rotas removidas —
+`/manifestos`, `/carga-solta` e `/manifestos/:blId` — e duas criadas — `/bls` e
+`/bls/:blId`; a contagem vai de 50 para 49. Trocar as rotas sem tocar nos dois
+documentos quebra o job `Docs + Lint` na primeira execução.
+
+### 5. O que foi verificado e **não** é afetado
+
+- **COD e Transbordo:** `apply_cod_financial_effect` reprecifica pelo mesmo
+  `resolve_bl_local_charge_items`, então herda as correções do motor. A única
+  adição própria é a resolução parcial de tabela no POD novo, já tratada acima.
+- **NOA e NOR:** são por Escala (porto), não por Atracação; a exceção de
+  terminal da ADR 0068 não os alcança. Só o NOB é por terminal.
+- **Demurrage:** conta contêiner físico e não consulta `cargo_mode` nem
+  terminal para resolver tarifa ou *free time*.
+- **Granito:** modalidade de exportação, fora do escopo desta spec.
+
+---
+
 ## Portal do Cliente e Comunicações
 
 ### 1. Portal do Cliente (`PortalOperacao.tsx` e `PortalBilling.tsx`)
@@ -434,7 +590,13 @@ Esta é a aba central onde o operador confere toda a carga que descarrega no nav
     `review:weight_missing` e nenhuma linha calculada por peso;
   - Rateio: contêiner compartilhado entre um B/L contêiner e um B/L misto na
     mesma viagem é cobrado **uma vez**, dividido entre os dois;
-  - B/L misto **não** retorna vazio por falta de tabela de preços `'misto'`.
+  - B/L misto **não** retorna vazio por falta de tabela de preços `'misto'`;
+  - **Resolução parcial:** POD com tabela de contêiner e sem tabela de carga
+    solta (e o inverso) → a parte coberta calcula e a descoberta emite
+    `review:missing_charge_table:<cargo_mode>` bloqueando `ready_for_billing`;
+    nunca silêncio;
+  - COD de B/L misto para um POD que tem apenas uma das tabelas cai na mesma
+    pendência, sem tratamento próprio em `apply_cod_financial_effect`.
 - Validar a resolução de terminal do B/L (ADR 0068):
   - `terminal_id` nulo → herda o terminal da frente correspondente;
   - `terminal_id` preenchido → vence a frente em **todas** as leituras (ADR, NOB, escala, faturamento), inclusive com a frente em `TBC`;
@@ -450,4 +612,19 @@ Esta é a aba central onde o operador confere toda a carga que descarrega no nav
   - Garantir que contêineres somam no pool de contêineres e `bb_weight_ton` soma no pool de carga solta;
   - Garantir que as faixas de totais em `VoyageImportacaoTab` exibem ambas as métricas corretamente.
 - Testar rota e navegação em `VoyageManifestosTab` apontando para `/bls`.
+- **Filtros de `cargo_mode` (lente, não partição):** um B/L misto aparece no
+  filtro `container` **e** no filtro `carga_solta`, e apenas ele aparece em
+  `misto`; a contagem documental de KPI permanece 1 por B/L. Cobrir as cinco
+  RPCs (`020` ×3, `036`, `040`) e os filtros equivalentes do frontend.
+- **Exportação de carga solta** (`exports.ts`) inclui a tonelagem dos B/Ls
+  mistos.
+- **Trilho de peso:** B/L misto sem `bb_weight_ton` é sinalizado como pendência
+  — uma asserção sobre a função compartilhada, não três sobre `blRails.ts`,
+  `revisaoHelpers.ts` e `BlReviewContextPanel.tsx`.
+- **Rotulagem:** o rotulador único devolve "Misto" onde hoje o ternário devolve
+  "Container" (`exports.ts`, `revisaoHelpers.ts`, `voyageSummaries.ts`,
+  `Relatorios.tsx`, `ValidacaoOperationsTable.tsx`, `blDetalheHelpers.ts`).
+- **Guarda de rota morta:** teste que falha se `/manifestos` ou `/carga-solta`
+  aparecer em `src/` fora de testes — a varredura das 54 ocorrências precisa de
+  uma trava, não de uma revisão manual.
 - Testar componente de fatura (`InvoiceDocumentLocal.tsx`): conferir renderização dos blocos segregados (contêineres, carga solta, taxas documentais) e subtotais.
