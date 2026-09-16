@@ -47,6 +47,13 @@ function psqlAsDatabaseRole(
   ], { encoding: 'utf8' }).trim()
 }
 
+function psqlWithoutJwt(sql: string): string {
+  return execFileSync('psql', [
+    '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
+    '-c', `RESET request.jwt.claim.role; RESET request.jwt.claim.sub; ${sql}`,
+  ], { encoding: 'utf8' }).trim()
+}
+
 function cleanup(): void {
   psql(`
     SET session_replication_role = replica;
@@ -230,6 +237,25 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
       WHERE entity_id = '${blockedBlId}'
         AND effect_kind = 'local_billing'
         AND created_by = '00000000-0000-0000-0000-000000000000'::uuid;
+    `)).toBe('1')
+  })
+
+  it('enfileira a recuperação quando a conexão não traz claims JWT', () => {
+    const restoredRole = psqlWithoutJwt(`
+      UPDATE public.bls
+      SET customer_reconciliation_status = 'missing_customer'
+      WHERE id = '${workerPeerBlId}';
+      SELECT auth.role();
+    `)
+
+    expect(restoredRole).toBe('authenticated')
+    expect(psql(`
+      SELECT count(*)
+      FROM public.import_pending_effects
+      WHERE entity_id = '${workerPeerBlId}'
+        AND effect_kind = 'local_billing'
+        AND created_by = '00000000-0000-0000-0000-000000000000'::uuid
+        AND COALESCE(source_snapshot->>'reason', '') <> '';
     `)).toBe('1')
   })
 

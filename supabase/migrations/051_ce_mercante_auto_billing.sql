@@ -455,12 +455,13 @@ SET search_path TO 'public', 'pg_temp'
 AS $$
 DECLARE
   v_actor uuid := COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid);
+  v_previous_request_role text := current_setting('request.jwt.claim.role', true);
+  v_role_impersonated boolean := false;
   v_result jsonb;
 BEGIN
   v_result := public.auto_bill_bl_after_ce_mercante(NEW.id, v_actor);
 
   IF v_result->>'status' NOT IN ('invoiced', 'already_invoiced', 'skipped')
-     AND (auth.uid() IS NOT NULL OR auth.role() IS NOT DISTINCT FROM 'service_role')
      AND NOT EXISTS (
        SELECT 1
        FROM public.import_pending_effects AS e
@@ -468,6 +469,15 @@ BEGIN
          AND e.effect_kind = 'local_billing'
          AND e.status IN ('pending', 'running', 'retry_wait')
      ) THEN
+    -- A trigger disparado por uma conexão sem JWT já passou pela autorização
+    -- da operação que alterou o B/L. Para deixar a recuperação registrada sem
+    -- inventar um usuário, chama a fila como service_role e restaura o claim
+    -- imediatamente depois do insert.
+    IF auth.uid() IS NULL AND auth.role() IS DISTINCT FROM 'service_role' THEN
+      PERFORM set_config('request.jwt.claim.role', 'service_role', true);
+      v_role_impersonated := true;
+    END IF;
+
     PERFORM public.enqueue_import_effect(
       gen_random_uuid(),
       'local_billing',
@@ -479,12 +489,24 @@ BEGIN
         'source', 'ce_mercante_auto_billing',
         'ce_mercante', NEW.ce_mercante,
         'reason', v_result->>'reason',
-        'message', v_result->>'message'
+        'message', v_result->>'message',
+        'actor_source', CASE WHEN auth.uid() IS NULL THEN 'system' ELSE 'request' END
       )
     );
+
+    IF v_role_impersonated THEN
+      PERFORM set_config('request.jwt.claim.role', COALESCE(v_previous_request_role, ''), true);
+      v_role_impersonated := false;
+    END IF;
   END IF;
 
   RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    IF v_role_impersonated THEN
+      PERFORM set_config('request.jwt.claim.role', COALESCE(v_previous_request_role, ''), true);
+    END IF;
+    RAISE;
 END;
 $$;
 

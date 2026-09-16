@@ -7,7 +7,13 @@ const limitBytes = 250 * 1024
 const pages = ['index.html', 'portal.html']
 
 function pageAssets(page) {
-  const html = readFileSync(path.join(distDirectory, page), 'utf8')
+  const pagePath = path.join(distDirectory, page)
+  if (!existsSync(pagePath)) {
+    console.error(`size-limit: página ausente para ${page}: ${pagePath}. Execute npm run build antes de npm run size-limit.`)
+    return null
+  }
+
+  const html = readFileSync(pagePath, 'utf8')
   const references = [...html.matchAll(/(?:src|href)="(\/assets\/[^"']+\.js)"/g)]
     .map((match) => match[1])
   return [...new Set(references)]
@@ -17,6 +23,11 @@ let failed = false
 
 for (const page of pages) {
   const assets = pageAssets(page)
+  if (!assets) {
+    failed = true
+    continue
+  }
+
   let gzipBytes = 0
 
   for (const asset of assets) {

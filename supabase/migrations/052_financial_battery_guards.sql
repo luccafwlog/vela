@@ -155,18 +155,22 @@ REVOKE ALL ON FUNCTION public.assert_ledger_invoice_payment_allocation(bigint, n
 -- liquidação; este wrapper adiciona a guarda explícita antes de delegar.
 DO $$
 BEGIN
-  IF to_regprocedure('public.register_ledger_invoice_payment_legacy_052(bigint,numeric,text,timestamptz,text,text,text,uuid)') IS NULL
-     AND to_regprocedure('public.register_ledger_invoice_payment(bigint,numeric,text,timestamptz,text,text,text,uuid)') IS NOT NULL THEN
+  IF to_regprocedure('public.register_ledger_invoice_payment_legacy_052(bigint,numeric,text,timestamptz,text,text,text,uuid)') IS NULL THEN
+    IF to_regprocedure('public.register_ledger_invoice_payment(bigint,numeric,text,timestamptz,text,text,text,uuid)') IS NULL THEN
+      RAISE EXCEPTION 'Migration 052 requer a assinatura register_ledger_invoice_payment(bigint,numeric,text,timestamptz,text,text,text,uuid).';
+    END IF;
     ALTER FUNCTION public.register_ledger_invoice_payment(
       bigint, numeric, text, timestamptz, text, text, text, uuid
     ) RENAME TO register_ledger_invoice_payment_legacy_052;
   END IF;
+
+  IF to_regprocedure('public.register_ledger_invoice_payment_legacy_052(bigint,numeric,text,timestamptz,text,text,text,uuid)') IS NULL THEN
+    RAISE EXCEPTION 'Migration 052 nao encontrou a implementacao legada de register_ledger_invoice_payment.';
+  END IF;
+
+  EXECUTE 'REVOKE ALL ON FUNCTION public.register_ledger_invoice_payment_legacy_052(bigint,numeric,text,timestamptz,text,text,text,uuid) FROM PUBLIC, anon, authenticated';
 END
 $$;
-
-REVOKE ALL ON FUNCTION public.register_ledger_invoice_payment_legacy_052(
-  bigint, numeric, text, timestamptz, text, text, text, uuid
-) FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.register_ledger_invoice_payment(
   p_invoice_id bigint,
