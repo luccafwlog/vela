@@ -29,12 +29,12 @@ O Vela encontra-se em fase pré-operacional; não existem faturas reais emitidas
 - **Consolidação de Frontend:** As telas `Manifestos.tsx` e `CargaSolta.tsx` são consolidadas na página definitiva `Bls.tsx`.
 - **Modelo de Dados Direto:** Admissão formal de `'misto'` em **todos** os pontos que hoje enumeram as modalidades — não basta a constraint de `bls.cargo_mode`. Ver "Superfície de migração" abaixo.
 - **Ingestão/Importação:** Suporte a enriquecimento incremental do B/L. Ao importar carga solta para um B/L que já possui contêineres (ou vice-versa), o sistema unifica no mesmo registro e define `cargo_mode = 'misto'`.
-- **Motor de Taxas Locais:** Resolução **de duas tabelas** em `resolve_bl_local_charge_items` (a tabela de contêiner e a de carga solta do mesmo POD), com taxa de B/L incidindo exatamente 1 vez, THD sobre os contêineres e taxa por tonelada sobre `bb_weight_ton`. `charge_tables` **não** ganha a modalidade `'misto'`.
+- **Motor de Taxas Locais:** Resolução **de duas tabelas** (a de contêiner e a de carga solta do mesmo POD), com taxa de B/L incidindo exatamente 1 vez, THD sobre os contêineres e taxa por tonelada sobre `bb_weight_ton`. `charge_tables` **não** ganha a modalidade `'misto'`. A correção vale para `resolve_bl_local_charge_items` **e** para `calculate_bl_local_charges`, que hoje duplica a mesma lógica.
 - **Remodelagem da Fatura (`InvoiceDocumentLocal.tsx`):** Nova estrutura visual do documento impresso/PDF, com seções dedicadas para itens conteinerizados, itens de carga solta e taxas documentais, além de explicitar no cabeçalho os contêineres e os pesos faturados.
 - **Invariante de Terminal Único:** Um B/L misto descarrega 100% no mesmo terminal portuário, viabilizado pela exceção individual de terminal da **ADR 0068** (`bls.terminal_id` nulo = herança da frente). Inclui destravar o roteamento do NOB para `'misto'`.
 - **Projeção Completa na Tela `/viagens`:** Atualização dos agregadores de KPIs, da aba Visão Geral, da aba Importação (faixa de totais e blocos por POD), da aba Manifestos/Rotas e do relatório de agência ADR.
 - **Portal do Cliente:** Exibição do B/L como documento único, contendo seus contêineres e o sumário de carga solta.
-- **Superfície de Impacto Sistêmica:** Filtros de `cargo_mode` nas RPCs de leitura, os 54 links internos para as rotas removidas, a classificação binária de modalidade no frontend e a documentação viva obrigatória — detalhados na seção "Superfície de impacto fora do motor e das telas de viagem".
+- **Superfície de Impacto Sistêmica:** Filtros de `cargo_mode` nas RPCs de leitura, os 57 links internos para as rotas removidas, a classificação binária de modalidade no frontend e a documentação viva obrigatória — detalhados na seção "Superfície de impacto fora do motor e das telas de viagem".
 
 ### Fora de escopo
 - **Exportação de Granito:** Permanece segregada em sua própria aba/fluxo de exportação (`/granito`).
@@ -78,25 +78,77 @@ o devolve a `'carga_solta'` sem que nenhum call site precise lembrar disso.
 Corolário: os importadores **não** escrevem `cargo_mode` diretamente; eles
 gravam contêineres e itens de carga solta, e a modalidade é derivada.
 
+Isso é mudança de comportamento, não descrição do atual: hoje o consumidor de
+efeito de importação **grava** `'cargo_mode', 'carga_solta'` no payload
+(`031:368`). Essa escrita sai junto com a criação do trigger, senão o importador
+carimba `'carga_solta'` por cima de um B/L que o trigger acabou de derivar como
+`'misto'`, e os dois passam a disputar a mesma coluna.
+
+**A cascata precisa ser dimensionada.** Um trigger que escreve `bls.cargo_mode`
+não escreve sozinho — dispara outros cinco em `bls`:
+`trg_ensure_container_bl_charge_status_default` (BEFORE UPDATE OF `cargo_mode`),
+`trg_guard_container_bl_without_containers` (AFTER, que **grava em**
+`charge_calculations`), `trg_reconcile_bl_review_alerts` (AFTER, que reconcilia
+alertas), `audit_bls` e a reconciliação baplie por statement. Dois deles
+escrevem em outras tabelas. A entrega precisa de um teste que percorra a cascata
+inteira numa transição, não só o valor final de `cargo_mode`.
+
 #### Superfície de migração
 Ampliar apenas `bls_cargo_mode_check` deixa o sistema quebrado. A migração
 correspondente precisa cobrir, no mínimo:
 
 | Ponto | Estado atual | Ação |
 |---|---|---|
+| `validate_bl_breakbulk_item_parent` (`002`, trigger em `bl_breakbulk_items`) | `RAISE EXCEPTION` quando o B/L pai não é `'carga_solta'` — **o banco proíbe carga solta em B/L misto** | Ver "O bloqueio cruzado também está no banco" |
 | `bls_cargo_mode_check` (`001`) | `ARRAY['container','carga_solta']` | Admitir `'misto'` |
-| `import_batches_cargo_mode_check` (`001`) | `ARRAY['container','carga_solta']` | Admitir `'misto'` |
-| `IF v_cargo_mode NOT IN ('container','carga_solta')` (`016`, `031`) | Rejeita a modalidade na ingestão | Admitir `'misto'` |
-| `ensure_container_bl_charge_status_default` | Só aplica o default quando `cargo_mode = 'container'`; um B/L misto ficaria com `charge_status` NULL | Tratar `'misto'` como contêiner para efeito do default |
+| `IF v_cargo_mode NOT IN ('container','carga_solta')` (`016`, `031:489`) | Rejeita a modalidade na ingestão | Admitir `'misto'` |
+| `jsonb_build_object('cargo_mode','carga_solta')` (`031:368`) | O importador **grava** a modalidade no efeito pendente | **Remover a escrita** — a modalidade passa a ser derivada (ver "Quem escreve `cargo_mode`") |
+| `import_batches_cargo_mode_check` (`001`) | `ARRAY['container','carga_solta']` | **Sem alteração** — ver nota abaixo |
+| `ensure_container_bl_charge_status_default` (`002:6643`) | Só aplica o default quando `cargo_mode = 'container'`; um B/L misto ficaria com `charge_status` NULL | Tratar `'misto'` como contêiner para efeito do default |
+| `guard_container_bl_without_containers` (`002:7647`) | Guarda só `'container'`; grava `review:no_container` e força `charge_status = 'review_required'` | Não precisa admitir `'misto'` (misto tem contêiner por definição), **mas** precisa limpar a pendência na transição `misto → carga_solta` |
 | `charge_tables_cargo_mode_check` (`001`) | `ARRAY['container','carga_solta','granito']` | **Sem alteração** — não existe tabela de preços `'misto'` (ver Faturamento) |
-| `bls.terminal_id` | Coluna inexistente | **Criar** `uuid NULL` com FK para o cadastro de terminais, sem default (ADR 0068) |
+| `bls.terminal_id` **+ âncora de porto** | Colunas inexistentes | **Criar com FK composta**, no padrão do schema — ADR 0068, "Por que a FK não pode ser de coluna única" |
 | `operationFrontKindForCargoMode` / `bl_operation_front_modalidade` (`045`) | `'misto'` cai no fallback `ELSE 'carga_cheia'` em silêncio | Tratar `'misto'` explicitamente (ADR 0068, decisão 7) |
+
+**Por que `import_batches` não muda.** Um batch é um arquivo, e um arquivo é um
+manifesto de contêiner **ou** um manifesto de carga solta — nunca os dois. A
+modalidade mista é propriedade do **documento**, que nasce do cruzamento de dois
+batches, não de um. Ampliar `import_batches_cargo_mode_check` admitiria um
+estado que nenhum importador produz. Corolário: `voyageSummaries.ts:771,783`
+compara `batch.cargo_mode`, não `bls.cargo_mode`, e **permanece binário**.
 
 ### 2. Ingestão sem Bloqueio Cruzado
 Em `src/services/breakbulkImport.ts` e `src/services/blFreightImport.ts`:
 - O bloqueio fatal que impedia importar carga solta para um B/L com contêineres existentes é **removido**.
 - A importação adiciona os itens de carga solta em `bl_breakbulk_items` (ou preenche `bb_weight_ton`, `bb_machine_qty`, `bb_packages_qty`), preserva os `bl_containers` existentes e atualiza `bls.cargo_mode = 'misto'`.
 - De modo idêntico, a importação de arquivo com contêineres para um B/L previamente gravado como `carga_solta` associa os contêineres e atualiza o B/L para `misto`.
+
+#### O bloqueio cruzado também está no banco
+
+Remover o bloqueio de `breakbulkImport.ts` **não basta**. O trigger
+`validate_bl_breakbulk_item_parent` (`002`, BEFORE INSERT OR UPDATE em
+`bl_breakbulk_items`) recusa qualquer item cujo B/L pai não seja
+`'carga_solta'`:
+
+```sql
+IF parent_mode <> 'carga_solta' THEN
+  RAISE EXCEPTION 'BL de item de carga solta precisa ter cargo_mode = carga_solta';
+END IF;
+```
+
+Enquanto ele existir como está, **um B/L `'misto'` não consegue receber um único
+`bl_breakbulk_items`**, e a Regra de Consistência acima — ter contêiner *e* ter
+item — é insatisfazível. Nada mais desta spec é observável antes disso.
+
+**E há uma inversão de ordem a resolver.** O guard exige que a modalidade já
+esteja correta *antes* da inserção do item; o trigger derivado calcula a
+modalidade *a partir* da existência do item. Apenas admitir `'misto'` no guard
+não resolve: a primeira carga solta de um B/L contêiner continuaria rejeitada,
+porque no instante da validação o pai ainda é `'container'`. A saída é o guard
+**deixar de validar a modalidade do pai** — ela passa a ser consequência, não
+pré-condição — e validar o que de fato lhe cabe: que o B/L pai existe. A
+coerência entre carga e modalidade migra inteira para o trigger derivado, que é
+quem tem o estado completo.
 
 ### 3. Invariante de Negócio: Terminal Único para B/L Misto
 **Regra:** *Um B/L misto NÃO pode ter sua carga descarregada em diferentes terminais.*
@@ -135,10 +187,12 @@ individual operada na ficha do B/L:
 
 - **Padrão (herança):** o terminal do B/L vem da Frente de Operação. Nada muda
   para B/L puramente conteinerizado ou puramente de carga solta.
-- **Exceção:** `bls.terminal_id` (`uuid NULL`). Nulo significa *herança*, não
-  "sem terminal". Preenchido, **vence a frente em toda leitura** — ADR, NOB,
-  painéis de escala e faturamento — resolvido por uma função única compartilhada
-  entre SQL e TypeScript.
+- **Exceção:** `bls.terminal_id` (`uuid NULL`), com **FK composta** e âncora de
+  porto — o padrão que o resto do schema usa para garantir que o terminal
+  pertence ao porto e não é depósito (ADR 0068, "Por que a FK não pode ser de
+  coluna única"). Nulo significa *herança*, não "sem terminal". Preenchido,
+  **vence a frente em toda leitura** — ADR, NOB, painéis de escala e faturamento
+  — resolvido por uma função única compartilhada entre SQL e TypeScript.
 - **Auditoria:** preencher ou limpar a exceção exige autor, data e justificativa
   em `audit_logs`, como o COD (ADR 0051), porque a exceção muda em qual ADR a
   carga é contada.
@@ -181,23 +235,66 @@ apontam para o mesmo terminal. Divergindo, e **não havendo exceção** no B/L:
 Frente `TBC` não anula a exceção: um B/L com terminal próprio conta no ADR desse
 terminal independentemente do estado da frente (ADR 0068, decisão 8).
 
+**Frente inexistente é caso distinto.** A exceção pode apontar para um terminal
+que não tem frente nenhuma naquela escala — e então não há
+`voyage_escala_terminal_state`, não há ATB, não há identidade
+`(viagem, porto, terminal)` e o NOB fica sem âncora. A exceção atribui o
+documento a um terminal que **precisa estar planejado**; ela não cria escala. O
+gate registra `review:bl_terminal_sem_frente` e bloqueia `ready_for_billing`,
+pelo mesmo motivo que a frente `TBC` bloqueia o fechamento: sem atracação não há
+relatório onde a carga possa ser contada.
+
 ---
 
 ## Faturamento e Taxas Locais
 
-### 1. Resolução de Itens em B/L Misto (`resolve_bl_local_charge_items`)
-O motor hoje é **mono-tabela**: `resolve_bl_local_charge_items` faz
-`v_table_id := resolve_local_charge_table_id(v_bl.cargo_mode, p_pod, v_ref_date)`
-e depois varre `charge_table_items WHERE charge_table_id = v_table_id`. Quatro
-pontos desse motor precisam mudar para o B/L misto; **nenhum deles falha de
-forma visível se for esquecido** — todos produzem fatura a menor em silêncio.
+### 1. Resolução de Itens em B/L Misto
+
+O motor hoje é **mono-tabela**: resolve uma única `charge_tables` por
+`cargo_mode` (`v_table_id := resolve_local_charge_table_id(...)`) e depois varre
+`charge_table_items WHERE charge_table_id = v_table_id`. Quatro pontos precisam
+mudar para o B/L misto; **nenhum deles falha de forma visível se for
+esquecido** — todos produzem fatura a menor em silêncio.
+
+#### A correção é em duas funções, não em uma
+
+`calculate_bl_local_charges` **não delega** a resolução a
+`resolve_bl_local_charge_items`: repete a lógica antes de iterar os itens
+(`002:3117`). Três dos quatro defeitos existem em duas cópias:
+
+| Defeito | `resolve_bl_local_charge_items` | `calculate_bl_local_charges` |
+|---|---|---|
+| Resolução mono-tabela | `002:17274` | `002:3020` |
+| Guard `cargo_mode = 'container'` | `002:17280` | `002:3043` |
+| CTE `shares` filtrada em `'container'` | `002:17291` | `002:3062` |
+
+Corrigir só a função interna deixa a externa zerando
+`v_qty_total/std/imo/oog` para o B/L misto — a THD some pelo mecanismo descrito
+em (b), por outro caminho, e o teste que exercitar só a função interna passa
+verde.
+
+O `CLAUDE.md` manda corrigir na função compartilhada depois de verificar os
+chamadores. Aqui **não existe função compartilhada**: a lógica está duplicada
+entre chamador e chamado. A entrega escolhe explicitamente entre unificar as
+duas — extraindo resolução de tabela, quantidades e rateio para um lugar só — ou
+corrigir as duas cópias. **Unificar é a opção preferida**: duas cópias é como o
+defeito nasceu, e mantê-las é garantir a próxima divergência.
+
+Consequência para o COD: `apply_cod_financial_effect` chama
+`resolve_bl_local_charge_items` em `002:1894` e `002:1909`, mas isso é a
+**prévia** da reprecificação. O caminho que grava passa por
+`calculate_bl_local_charges`. O COD só herda a correção inteira se as duas
+cópias forem tratadas — a afirmação de herança automática vale para a função
+interna, não para o motor todo.
 
 ##### a) Resolução de duas tabelas (senão o B/L misto fatura zero)
 Não existe — e não passa a existir — tabela de preços com `cargo_mode = 'misto'`
 (`charge_tables_cargo_mode_check` permanece em `container|carga_solta|granito`).
-Chamar `resolve_local_charge_table_id('misto', …)` retorna `NULL`, e o guard
-`IF v_table_id IS NULL THEN RETURN;` faz o B/L misto **não gerar nenhuma
-cobrança**. Para `cargo_mode = 'misto'` o motor resolve **duas** tabelas do
+Chamar `resolve_local_charge_table_id('misto', …)` retorna `NULL`. Em
+`resolve_bl_local_charge_items`, o guard `IF v_table_id IS NULL THEN RETURN;`
+(`002:17276`) faz o B/L misto **não gerar nenhuma cobrança**; em
+`calculate_bl_local_charges`, o mesmo `NULL` cai em `review:no_table`
+(`002:3022`). Nenhum dos dois fatura o documento. Para `cargo_mode = 'misto'` o motor resolve **duas** tabelas do
 mesmo POD — `'container'` e `'carga_solta'` — e itera os itens das duas. O
 `RETURNS TABLE` já expõe `charge_table_id` por linha, então a assinatura suporta
 a união sem alteração de contrato.
@@ -212,7 +309,15 @@ eliminar. Portanto, para `cargo_mode = 'misto'`:
 |---|---|
 | Ambas presentes | Calcula normalmente, unindo os itens |
 | Apenas uma presente | Calcula a parte coberta **e** emite `review:missing_charge_table:<cargo_mode>` para a parte descoberta, bloqueando `ready_for_billing` |
-| Nenhuma presente | Sem cobrança, como hoje (`v_table_id IS NULL`) |
+| Nenhuma presente | Mantém a pendência `review:no_table` que `calculate_bl_local_charges` já grava hoje (`002:3022`) |
+
+**Cuidado com "como hoje": hoje são dois comportamentos.**
+`calculate_bl_local_charges` grava `review:no_table` com
+`status = 'review_required'` e liga a revisão automática (`002:3022`);
+`resolve_bl_local_charge_items` faz `RETURN;` em silêncio (`002:17276`). O mesmo
+`NULL` produz pendência ou nada, conforme o ponto de entrada. A entrega
+uniformiza no comportamento que pendencia — o silêncio é o defeito, não o padrão
+a preservar.
 
 Isso vale também para o **COD**: `apply_cod_financial_effect` reprecifica
 chamando `resolve_bl_local_charge_items` no POD novo, que pode não ter as duas
@@ -255,6 +360,29 @@ documentais vindas de tabelas distintas têm `charge_item_id` distintos, logo
 chaves distintas, logo **ambas gravam sem conflito**. A incidência única é
 invariante de negócio a ser garantida na resolução; a chave física não a
 protege.
+
+##### Transição de modalidade invalida o cálculo anterior
+Não existe hoje, em nenhuma migration, invalidação de `charge_calculations`
+quando `bl_containers` ou `bl_breakbulk_items` mudam — nenhum trigger nessas
+tabelas toca em taxas. Isso fica latente enquanto a modalidade de um B/L é fixa
+na ingestão.
+
+Esta spec abre uma porta nova e frequente: `container → misto` por ingestão
+incremental. Um B/L cujas taxas já foram calculadas como `'container'`, e que
+depois recebe carga solta, fica com o cálculo anterior **intacto e a menor** —
+falta exatamente a linha por tonelada. É a mesma classe de falha que esta seção
+existe para eliminar, chegando pela porta que a spec abre.
+
+Regra: **toda transição de `cargo_mode` invalida o cálculo do B/L.** O trigger
+derivado, ao mudar a modalidade, rebaixa `charge_status` para `'not_calculated'`
+e remove as linhas `source = 'auto'` de `charge_calculations` daquele B/L —
+nunca as manuais, que são decisão de alguém. Isso também é o que limpa a
+pendência `review:no_container` obsoleta na volta `misto → carga_solta`.
+
+Um B/L já faturado (`financial_status IN ('invoiced','paid')`) **não** é
+rebaixado em silêncio: a transição gera pendência de revisão, porque aí a
+divergência não é entre cálculo e carga, mas entre a carga e um documento já
+emitido ao cliente.
 
 ##### Demais regras
 - **Taxas de Movimentação de Contêiner (THD Standard / IMO / OOG):** Calculadas a partir dos contêineres físicos vinculados em `bl_containers`, respeitado (b) e (c).
@@ -451,6 +579,14 @@ A consequência aceita é que um B/L misto aparece em dois filtros — por isso 
 soma das listas filtradas excede o total. As contagens documentais de KPI
 continuam sendo por B/L distinto (um misto conta 1), independentes do filtro.
 
+**A consequência não é só de lista.** `operational_list_bl_summary` (`036`)
+devolve **métricas agregadas** do conjunto filtrado — máquinas, volumes, peso e
+CBM. Sob a lente, filtrar "Contêiner" faz os totais de carga solta aparecerem
+não-zerados naquela visão, e a mesma tonelagem é somada nos totais das duas
+visões. Aceito pelo mesmo motivo: o operador está olhando um recorte, não uma
+partição do universo. O que **não** pode acontecer é um KPI de viagem ou de
+escala somar os dois recortes — esses continuam por B/L distinto.
+
 O mesmo critério vale para os filtros equivalentes no frontend
 (`chargeOperationsService.ts:226,275`, `reviewBillingAutomation.ts:353`,
 `Relatorios.tsx:211`) e para a exportação de carga solta
@@ -459,8 +595,8 @@ omitiria a tonelagem dos B/Ls mistos do relatório).
 
 ### 2. Links internos para as rotas removidas
 
-`/manifestos` e `/carga-solta` aparecem em **54 ocorrências, em 26 arquivos** de
-`src/` (fora testes) — bem além de "breadcrumbs, `BlDetalhe.tsx` e notificações".
+`/manifestos` e `/carga-solta` aparecem em **57 ocorrências (54 linhas), em 26
+arquivos** de `src/` (fora testes) — bem além de "breadcrumbs, `BlDetalhe.tsx` e notificações".
 Remover as rotas sem varrer esta lista deixa links mortos em produção:
 
 ```
@@ -481,19 +617,63 @@ Atenção especial a `ValidacaoOperationsTable.tsx`, que tem duas
 disparados. `pageTitle.ts` e `telemetryContext.ts` mapeiam rota → rótulo e
 precisam da entrada de `/bls`.
 
-A entrega fecha com **zero ocorrências** das duas rotas em `src/`.
+A entrega fecha com **zero ocorrências das duas rotas** em `src/`.
+
+#### A rota morre; a palavra "manifesto" não
+
+A rota `/manifestos` ficou obsoleta porque o processo nasce do **B/L**, não do
+manifesto. O conceito *Manifesto* continua inteiramente vigente e tem verbete
+próprio no `CONTEXT.md`: manifesto Mercante, manifesto BB, vínculo de manifestos
+à escala. Os números separam os dois mundos sem ambiguidade:
+
+| | Ocorrências | Arquivos |
+|---|---|---|
+| Rota (`/manifestos`, `/carga-solta`) | 57 | 26 |
+| Palavra (`manifest*`) | 215 | 91 |
+
+São 65 arquivos com a palavra e **nenhuma** rota — entre eles
+`manifestImport.ts`, `breakbulkManifestParser.ts`, `ceMercanteEdiParser.ts`,
+`agencyDepartureReport.ts` e `baplieReconciliation.ts`. Substituição cega tocaria
+91 arquivos e destruiria vocabulário de domínio.
+
+O caso que prova o ponto está dentro de um arquivo só, `telemetryContext.ts`:
+
+```
+:59   tarefa: 'Conciliar Baplie com Manifesto'           ← fica
+:472  { prefix: '/manifestos', …, tela: 'Manifestos' }   ← muda
+```
+
+Mesma palavra, tratamento oposto. Uma é o documento; a outra é o nome da tela
+que deixa de existir. Daí as **três categorias**:
+
+1. **String de rota** → `/bls`. São as 57 ocorrências acima.
+2. **Rótulo de tela amarrado à rota removida** → `BLs`. Poucos e nominais:
+   `appLayoutNav.ts:30` (`label: 'BLs CNTR'`), `pageTitle.ts:16-17` (o rótulo
+   `'BLs CNTR'` e o padrão `/^\/manifestos\//`), `telemetryContext.ts:472`
+   (`tela: 'Manifestos'`).
+3. **Palavra de domínio** → **intocada**. Inclui `VoyageManifestosTab.tsx`, que
+   mantém o nome do componente, o nome da aba e a coluna "Nº de manifesto
+   Mercante"; ali muda **uma** linha, o `<Link>` de `:86`. A distinção que o
+   próprio componente documenta em `:172` — CE Mercante é cobertura por B/L, nº
+   de manifesto agrupa a rota, são coisas diferentes — permanece.
+
+`Manifestos.tsx` e `CargaSolta.tsx` somem por consolidação em `Bls.tsx`, não por
+renomeação de palavra.
 
 ### 3. Classificação binária de `cargo_mode` no frontend
 
-Cerca de 26 comparações estritas sobre `bls.cargo_mode` tratam o mundo como
-contêiner-ou-carga-solta. Três padrões, com correções distintas:
+Cerca de 26 comparações estritas tratam o mundo como contêiner-ou-carga-solta.
+Duas delas (`voyageSummaries.ts:771,783`) são sobre `import_batches.cargo_mode` e
+**permanecem binárias**, pelo motivo dado na Superfície de migração. As demais
+são sobre `bls.cargo_mode`. Três padrões, com correções distintas:
 
 **(a) Rótulo binário — o misto é exibido como "Container".**
-`exports.ts:38,217,288`, `revisaoHelpers.ts:20`, `voyageSummaries.ts:771,783`,
-`Relatorios.tsx:211`, `ValidacaoOperationsTable.tsx:121`,
-`blDetalheHelpers.ts:7-8`. Todos derivam de `x === 'carga_solta' ? 'Carga Solta'
-: 'Container'`. Passam a usar **um rotulador único** que conhece as três
-modalidades, em vez de repetir o ternário.
+`exports.ts:38,217,288`, `revisaoHelpers.ts:20`, `Relatorios.tsx:211`,
+`ValidacaoOperationsTable.tsx:121`, `blDetalheHelpers.ts:7-8`. Todos derivam de
+`x === 'carga_solta' ? 'Carga Solta' : 'Container'`. Passam a usar **um rotulador
+único** que conhece as três modalidades, em vez de repetir o ternário.
+`voyageSummaries.ts:771,783` tem a mesma forma, mas rotula **batch**, não B/L, e
+fica como está.
 
 **(b) Trilho de validação que não cobre o misto.** A regra "carga solta sem
 `bb_weight_ton` é pendência" está escrita três vezes —
@@ -523,9 +703,12 @@ rotas. A entrega inclui:
 - **`docs/RASTREABILIDADE.md`** — 14 ocorrências das rotas removidas; a rota
   `/bls` passa a rastrear componentes, hooks, serviços, RPCs e testes.
 - **`docs/spec/<data>-behavioral-spec.csv`** — a spec comportamental canônica
-  tem uma linha por rota SPA e por `supabase.rpc(...)`; 24 linhas citam as rotas
-  removidas. Duas rotas saem, uma entra, e as linhas das RPCs de taxas locais e
-  de leitura operacional mudam de comportamento. O `.xlsx` é regerado por
+  tem uma linha por rota SPA e por `supabase.rpc(...)`. São **3 linhas** que
+  citam as rotas removidas: `MAN-ROUTE-01` (`/manifestos`), `MAN-ROUTE-02`
+  (`/manifestos/:blId`) e `MAN-ROUTE-03` (`/carga-solta`). O rótulo de área
+  `Manifestos & EDI` **não muda** — é área funcional, não rota (ver "A rota
+  morre; a palavra não"). Além dessas 3, mudam de comportamento as linhas das
+  RPCs de taxas locais e de leitura operacional. O `.xlsx` é regerado por
   `node scripts/build-behavioral-spec.mjs`.
 - **`docs/ARCHITECTURE.md`** — contrato de rotas.
 - **`CONTEXT.md`** — verbetes de modalidade de carga e da exceção de terminal
@@ -541,9 +724,13 @@ documentos quebra o job `Docs + Lint` na primeira execução.
 
 ### 5. O que foi verificado e **não** é afetado
 
-- **COD e Transbordo:** `apply_cod_financial_effect` reprecifica pelo mesmo
-  `resolve_bl_local_charge_items`, então herda as correções do motor. A única
-  adição própria é a resolução parcial de tabela no POD novo, já tratada acima.
+- **COD e Transbordo:** `apply_cod_financial_effect` usa o mesmo
+  `resolve_bl_local_charge_items` (`002:1894`, `002:1909`), então herda as
+  correções daquela função — **mas só a prévia passa por ela**; o caminho que
+  grava é `calculate_bl_local_charges`, que tem cópia própria dos defeitos (ver
+  "A correção é em duas funções"). A herança é integral apenas se as duas cópias
+  forem tratadas. Adição própria do COD: a resolução parcial de tabela no POD
+  novo, já tratada acima.
 - **NOA e NOR:** são por Escala (porto), não por Atracação; a exceção de
   terminal da ADR 0068 não os alcança. Só o NOB é por terminal.
 - **Demurrage:** conta contêiner físico e não consulta `cargo_mode` nem
@@ -572,10 +759,23 @@ documentos quebra o job `Docs + Lint` na primeira execução.
   migração": `bls_cargo_mode_check`, `import_batches_cargo_mode_check`, os gates
   de `016`/`031` e o default de `charge_status`. Um teste por ponto — a
   constraint de `bls` passar não diz nada sobre os demais.
+- Validar que um B/L `'misto'` **aceita** `bl_breakbulk_items`: regressão direta
+  de `validate_bl_breakbulk_item_parent`. Sem ela nada mais desta spec é
+  observável, porque o banco recusa a inserção.
 - Validar que o trigger de `cargo_mode` cobre as transições de volta: remover o
   último contêiner de um B/L misto devolve `'carga_solta'`; remover toda a carga
   solta devolve `'container'`.
-- Validar cálculo em `calculate_bl_local_charges` para B/L misto:
+- Validar a **cascata** de uma transição, não só o valor final de `cargo_mode`:
+  depois de `container → misto` e de `misto → carga_solta`, conferir
+  `charge_status`, as linhas de `charge_calculations` e os alertas reconciliados.
+  Em particular, que a pendência `review:no_container` não sobrevive à volta.
+- Validar a **invalidação**: B/L contêiner com taxas já calculadas que recebe
+  carga solta volta a `'not_calculated'` e não conserva linha `source = 'auto'`
+  do cálculo antigo; linhas manuais sobrevivem; B/L já faturado gera pendência em
+  vez de rebaixamento silencioso.
+- Validar cálculo para B/L misto **pelos dois pontos de entrada** —
+  `calculate_bl_local_charges` e `resolve_bl_local_charge_items`. Um teste que
+  exercite só a função interna passa verde com a externa zerando as quantidades:
   - **Incidência única da taxa documental — assertiva semântica:** exatamente
     **1** linha resultante com `application_basis = 'bl'` para o B/L, e que ela
     veio da tabela de contêiner. **Não** basta asseverar ausência de chave
@@ -602,6 +802,11 @@ documentos quebra o job `Docs + Lint` na primeira execução.
   - `terminal_id` preenchido → vence a frente em **todas** as leituras (ADR, NOB, escala, faturamento), inclusive com a frente em `TBC`;
   - B/L misto com frentes divergentes e **sem** exceção → pendência `review:mixed_bl_terminal_conflict` bloqueando `ready_for_billing`;
   - B/L misto **com** exceção → sem pendência, e contêineres e carga solta contados no mesmo terminal;
+  - exceção apontando para terminal **sem frente** naquela escala → pendência
+    `review:bl_terminal_sem_frente` bloqueando `ready_for_billing` (distinto de
+    frente `TBC`, que a exceção supera);
+  - a FK composta recusa terminal de outro porto e recusa `depot` no lugar de
+    `terminal_portuario` (ADR 0068);
   - preencher ou limpar a exceção grava autor, data e justificativa em `audit_logs`;
   - mudar o terminal da frente **não** limpa a exceção.
 - Validar que `operationFrontKindForCargoMode` e `bl_operation_front_modalidade` não mapeiam `'misto'` para `'carga_cheia'` por fallback (`escalaOperationFrontKind.test.ts`), e que o NOB de um B/L misto ancora no terminal resolvido.
@@ -625,6 +830,9 @@ documentos quebra o job `Docs + Lint` na primeira execução.
   "Container" (`exports.ts`, `revisaoHelpers.ts`, `voyageSummaries.ts`,
   `Relatorios.tsx`, `ValidacaoOperationsTable.tsx`, `blDetalheHelpers.ts`).
 - **Guarda de rota morta:** teste que falha se `/manifestos` ou `/carga-solta`
-  aparecer em `src/` fora de testes — a varredura das 54 ocorrências precisa de
-  uma trava, não de uma revisão manual.
+  aparecer em `src/` fora de testes — a varredura das 57 ocorrências precisa de
+  uma trava, não de uma revisão manual. A guarda é **ancorada na barra**, nunca
+  na palavra: varrer `manifestos` sem a barra falharia em 65 arquivos legítimos e
+  viraria ruído que o time desliga. O comentário na guarda registra isso, para
+  que ninguém a "melhore" depois.
 - Testar componente de fatura (`InvoiceDocumentLocal.tsx`): conferir renderização dos blocos segregados (contêineres, carga solta, taxas documentais) e subtotais.

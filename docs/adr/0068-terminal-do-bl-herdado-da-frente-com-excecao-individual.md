@@ -93,6 +93,9 @@ nulo por padrão. Nulo significa herança — não "sem terminal". Preenchido, v
 a frente, **sempre e em toda leitura**: ADR, NOB, painéis de escala e faturamento
 resolvem o terminal do B/L por uma função única, e não cada um pela sua conta.
 
+A exceção entra com **FK composta**, não com uma coluna solta — ver "Por que a
+FK não pode ser de coluna única", abaixo. Custa duas colunas, não uma.
+
 A precedência é total e sem exceção porque precedência parcial produz o pior
 defeito possível neste domínio: a mesma carga contada em dois terminais
 diferentes conforme o caminho de leitura, sem sinal na tela.
@@ -150,16 +153,60 @@ B/L com exceção explícita para o terminal T, porém, conta no ADR de T
 independentemente do estado da frente: a exceção é afirmação direta sobre o
 documento, não um valor derivado da frente.
 
+**Frente inexistente, porém, é caso distinto de frente `TBC`.** Uma exceção pode
+apontar para um terminal que não tem frente nenhuma naquela escala — e então não
+existe `voyage_escala_terminal_state`, não há ATB, não há identidade
+`(viagem, porto, terminal)` e o NOB fica sem âncora. A exceção atribui o
+documento a um terminal que **precisa estar planejado**; ela não cria escala.
+Esse estado registra `review:bl_terminal_sem_frente` e bloqueia
+`ready_for_billing`, pelo mesmo motivo que `TBC` bloqueia o fechamento: sem
+atracação não há relatório onde a carga possa ser contada.
+
+A diferença prática: `TBC` é frente planejada com terminal a definir, e a
+exceção a supera; frente ausente é escala não planejada, e nenhuma exceção a
+substitui.
+
 **9. Mudança de terminal na frente não limpa a exceção.** A exceção é ato
 deliberado e sobrevive ao replanejamento da escala; quem quiser devolver o B/L à
 herança limpa a exceção explicitamente, o que também é auditado. O caminho
 inverso — a frente silenciosamente sobrescrever uma decisão registrada com
 justificativa — perderia informação que alguém deliberadamente gravou.
 
+## Por que a FK não pode ser de coluna única
+
+O cadastro de terminais é `public.depots` com `tipo = 'terminal_portuario'`, e
+**toda** referência a terminal neste schema é composta:
+
+```sql
+FOREIGN KEY (terminal_id, port_id) REFERENCES public.depots(id, port_id)
+```
+
+`agency_departure_reports`, `voyage_escala_operation_fronts` e
+`voyage_escala_terminal_state` usam essa forma. Combinada com
+`depots_tipo_port_check` — que obriga `port_id IS NULL` quando `tipo = 'depot'` —
+a FK composta garante duas coisas de uma vez: **o terminal pertence àquele
+porto** e **é terminal portuário, não depósito**.
+
+Uma `bls.terminal_id uuid NULL` com FK de coluna única perde as duas garantias.
+Seria possível fixar um terminal de Santos num B/L que descarrega em Paranaguá,
+ou um depósito no lugar de um terminal — exatamente os erros que o resto do
+schema já não admite, reintroduzidos pela porta que esta ADR abre. E o erro não
+seria visível: a carga simplesmente contaria no ADR de um terminal que não fica
+no porto de descarga.
+
+`bls` hoje só tem `pod text`; não carrega âncora de porto normalizada.
+`voyage_escala_operation_fronts` carrega `port text` **e** `port_id bigint NOT
+NULL`, e é esse o padrão a seguir. Portanto a exceção custa **duas** colunas: a
+âncora de porto do POD e o terminal, com a FK composta entre elas.
+
+Quem implementar não pode reduzir isso a uma coluna "porque é mais simples". A
+simplificação devolve ao sistema a possibilidade que o schema inteiro já gastou
+FK composta para eliminar.
+
 ## Consequências
 
-- `bls` ganha `terminal_id uuid NULL` com FK para o cadastro de terminais. Nulo
-  é herança; a coluna não recebe default.
+- `bls` ganha a exceção de terminal com **FK composta** e âncora de porto, no
+  padrão das demais tabelas. Nulo é herança; a coluna não recebe default.
 - A resolução do terminal de um B/L passa a ter **uma** implementação
   compartilhada, em SQL e em TypeScript, presas à mesma tabela de casos por
   teste — mesma convenção que a ADR 0067 adotou para `cargo_mode → modalidade`.
@@ -173,6 +220,9 @@ justificativa — perderia informação que alguém deliberadamente gravou.
   `report_id` não mudam.
 - O NOB da ADR 0067 passa a ancorar B/L misto pela exceção ou pela herança
   resolvida, encerrando o roteamento silencioso pela frente de carga cheia.
+- Nascem duas pendências de revisão: `review:mixed_bl_terminal_conflict` (frentes
+  divergentes, sem exceção) e `review:bl_terminal_sem_frente` (exceção apontando
+  para terminal não planejado na escala). As duas bloqueiam `ready_for_billing`.
 - O `CONTEXT.md` ganha o verbete correspondente **na entrega que implementar
   esta decisão**, não antes: a ADR registra a decisão, o `CONTEXT.md` descreve o
   comportamento vigente.
