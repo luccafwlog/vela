@@ -2,7 +2,9 @@
 
 ## Decisão aprovada
 
-Unificar o conceito, o cadastro e a visualização operacional sob a entidade e nomenclatura única **BLs**, eliminando a separação artificial entre "BLs CNTR" e "BLs Carga Solta". O sistema passa a tratar o B/L como entidade canônica e indivisível sob a rota canônica `/bls` (descontinuando `/manifestos`).
+Unificar o conceito, o cadastro e a visualização operacional sob a entidade e nomenclatura única **BLs**, eliminando a separação artificial entre "BLs CNTR" e "BLs Carga Solta". O sistema passa a tratar o B/L como entidade canônica e indivisível sob a rota canônica e exclusiva `/bls`.
+
+Como o sistema Vela ainda **não está em operação real** (todos os dados existentes no ambiente são provenientes de testes), **não há necessidade de preservar rotas legadas, manter shims de compatibilidade retroativa ou criar mecanismos de transição defensiva para dados históricos**. As rotas `/manifestos` e `/carga-solta` e suas páginas redundantes são integralmente removidas e substituídas pela tela unificada `Bls.tsx`.
 
 Reconhece-se nativamente a modalidade de carga **mista** (`cargo_mode = 'misto'`: contêineres e carga solta sob o mesmo B/L). A fatura de taxas locais passa por uma **remodelagem visual e estrutural** para discriminar as parcelas conteinerizadas, de carga solta e documentais. É instituída como **invariante de negócio rígida** que um B/L misto **não pode** ser descarregado em terminais diferentes — toda a sua carga descarrega obrigatoriamente no mesmo terminal portuário.
 
@@ -10,23 +12,24 @@ Reconhece-se nativamente a modalidade de carga **mista** (`cargo_mode = 'misto'`
 
 ## Propósito e escopo
 
-### Problema
-Historicamente, o sistema bifurcou a ingestão e a visualização de B/Ls em dois modos excludentes (`cargo_mode = 'container'` e `cargo_mode = 'carga_solta'`), refletidos em dois itens de menu e rotas separadas (`/manifestos` e `/carga-solta`).
+### Contexto e Premissa de Greenfield
+O Vela encontra-se em fase pré-operacional; não existem faturas reais emitidas a clientes, integrações ativas em produção ou histórico que exija retrocompatibilidade. Essa premissa permite adotar uma abordagem limpa (*clean slate*): remover código morto e rotas obsoletas em vez de manter pontes de transição temporárias.
 
-Quando um B/L marítimo da vida real traz itens conteinerizados e itens de carga solta/breakbulk:
-1. A importação de carga solta bloqueia o documento se o B/L já existir como contêiner (`breakbulkImport.ts`: *"BL ... ja existe como container e nao pode ser sobrescrito como BB"*);
-2. A existência de rotas separadas gerava o risco de duplicação do B/L no sistema, distorcendo os KPIs de contagem documental da viagem;
-3. O documento de fatura de taxas locais (`InvoiceDocumentLocal.tsx`) não foi desenhado para expor simultaneamente unidades de contêiner e peso métrico de carga solta, gerando dúvidas fiscais e contestações de clientes;
-4. No modelo de escala multiterminal, existia a brecha de tentar atribuir a frente de contêiner a um terminal e a frente de carga solta a outro para o mesmo B/L, o que é operacionalmente inviável e contratualmente vedado.
+### Problema
+1. O sistema bifurcou a ingestão e a visualização de B/Ls em dois modos excludentes (`cargo_mode = 'container'` e `cargo_mode = 'carga_solta'`), espelhados em duas rotas separadas (`/manifestos` e `/carga-solta`).
+2. A importação de carga solta bloqueia o documento se o B/L já existir como contêiner (`breakbulkImport.ts`: *"BL ... ja existe como container e nao pode ser sobrescrito como BB"*).
+3. O documento de fatura de taxas locais (`InvoiceDocumentLocal.tsx`) não foi desenhado para expor simultaneamente unidades de contêiner e peso métrico de carga solta, gerando dúvidas fiscais e falta de clareza contábil.
+4. No modelo de planejamento portuário, não havia trava explícita impedindo a fragmentação da descarga de um B/L misto entre terminais concorrentes.
 
 ### Escopo
-- **Nomenclatura e Navegação:** Adoção do nome padronizado **BLs** no menu e na aplicação. A rota oficial e canônica passa a ser `/bls`. As rotas `/manifestos` e `/carga-solta` são aposentadas como destinos diretos e passam a redirecionar para `/bls`.
-- **Modelo de dados:** Extensão do domínio de `bls.cargo_mode` para admitir `'container'`, `'carga_solta'` e `'misto'`.
-- **Ingestão/Importação:** Suporte a enriquecimento incremental do B/L. Ao importar carga solta para um B/L que já possui contêineres (ou vice-versa), o sistema unifica no mesmo registro e promove o modo para `'misto'`.
-- **Motor de Taxas Locais:** Resolução híbrida em `calculate_bl_local_charges` e `resolve_bl_local_charge_items` (aplica taxa de B/L uma única vez + THD por contêiner + taxa por tonelada sobre o peso de carga solta).
+- **Navegação e Rotas Limpas:** Adoção do nome **BLs** no menu. Substituição definitiva das rotas `/manifestos` e `/carga-solta` pela rota única `/bls`. As rotas antigas são removidas do roteador.
+- **Consolidação de Frontend:** As telas `Manifestos.tsx` e `CargaSolta.tsx` são consolidadas na página definitiva `Bls.tsx`.
+- **Modelo de Dados Direto:** Constraint em `bls.cargo_mode` admitindo formalmente `'container'`, `'carga_solta'` e `'misto'`.
+- **Ingestão/Importação:** Suporte a enriquecimento incremental do B/L. Ao importar carga solta para um B/L que já possui contêineres (ou vice-versa), o sistema unifica no mesmo registro e define `cargo_mode = 'misto'`.
+- **Motor de Taxas Locais:** Resolução híbrida em `calculate_bl_local_charges` e `resolve_bl_local_charge_items` (aplica taxa de B/L exatamente 1 vez + THD por contêiner + taxa por tonelada sobre o peso de carga solta).
 - **Remodelagem da Fatura (`InvoiceDocumentLocal.tsx`):** Nova estrutura visual do documento impresso/PDF, com seções dedicadas para itens conteinerizados, itens de carga solta e taxas documentais, além de explicitar no cabeçalho os contêineres e os pesos faturados.
-- **Invariante de Terminal Único:** Trava estrita no planejamento e na validação: um B/L misto deve descarregar 100% no mesmo terminal.
-- **Portal do Cliente:** Exibição clara e não duplicada do B/L, apresentando os contêineres e o sumário de carga solta sob o mesmo número de B/L.
+- **Invariante de Terminal Único:** Trava estrita no planejamento e na validação: um B/L misto deve descarregar 100% no mesmo terminal portuário.
+- **Portal do Cliente:** Exibição do B/L como documento único, contendo seus contêineres e o sumário de carga solta.
 
 ### Fora de escopo
 - **Exportação de Granito:** Permanece segregada em sua própria aba/fluxo de exportação (`/granito`).
@@ -37,10 +40,12 @@ Quando um B/L marítimo da vida real traz itens conteinerizados e itens de carga
 ## Modelo de domínio e banco de dados
 
 ### 1. Modalidade de Carga (`cargo_mode`)
-A coluna `bls.cargo_mode` passa a admitir formalmente três estados:
+A coluna `bls.cargo_mode` passa a ter a constraint de validação:
+`CHECK (cargo_mode IN ('container', 'carga_solta', 'misto'))`
+
 - `'container'`: B/L exclusivamente conteinerizado.
 - `'carga_solta'`: B/L exclusivamente de carga solta (breakbulk / maquinário / volumes sem contêiner).
-- `'misto'`: B/L híbrido que possui um ou mais contêineres físicos e itens/especificações de carga solta associados.
+- `'misto'`: B/L que possui um ou mais contêineres físicos e itens/especificações de carga solta associados.
 
 ```mermaid
 stateDiagram-v2
@@ -59,28 +64,27 @@ Um B/L é classificado como `'misto'` quando:
 
 ### 2. Ingestão sem Bloqueio Cruzado
 Em `src/services/breakbulkImport.ts` e `src/services/blFreightImport.ts`:
-- Quando um arquivo de carga solta contiver um B/L já existente com `cargo_mode = 'container'`, a importação **não gera erro fatal**.
-- O sistema adiciona os itens de carga solta em `bl_breakbulk_items` (ou preenche `bb_weight_ton`, `bb_machine_qty`, `bb_packages_qty`), preserva os `bl_containers` existentes e atualiza `bls.cargo_mode = 'misto'`.
-- De modo idêntico, a importação de arquivo com contêineres para um B/L previamente gravado como `carga_solta` associa os contêineres e promove o B/L a `misto`.
+- O bloqueio fatal que impedia importar carga solta para um B/L com contêineres existentes é **removido**.
+- A importação adiciona os itens de carga solta em `bl_breakbulk_items` (ou preenche `bb_weight_ton`, `bb_machine_qty`, `bb_packages_qty`), preserva os `bl_containers` existentes e atualiza `bls.cargo_mode = 'misto'`.
+- De modo idêntico, a importação de arquivo com contêineres para um B/L previamente gravado como `carga_solta` associa os contêineres e atualiza o B/L para `misto`.
 
 ### 3. Invariante de Negócio: Terminal Único para B/L Misto
 **Regra:** *Um B/L misto NÃO pode ter sua carga descarregada em diferentes terminais.*
 
-- **Fundamento Operacional:** Toda a carga consignada no B/L misto (seus contêineres e seus volumes/máquinas soltos) é desembarcada no mesmo berço e entregue no mesmo recinto alfandegado de destino.
+- **Fundamento Operacional:** Toda a carga consignada no B/L misto (contêineres e volumes/máquinas soltos) é descarregada no mesmo berço e recebida no mesmo recinto alfandegado.
 - **Validação no Planejamento e na Revisão:**
-  - Se a escala portuária do POD atribuir terminais diferentes para a frente de carga cheia e para a frente de carga solta, o sistema **não permite** que o B/L misto seja fracionado entre eles.
-  - O B/L misto herda um único `terminal_id`.
-  - Se houver divergência ou tentativa de desdobro de terminais na escala, o gate de validação registra a pendência de revisão:
+  - O B/L misto possui um único `terminal_id` de descarga no porto de destino.
+  - Se na escala a frente de carga cheia e a frente de carga solta apontarem para terminais conflitantes, o gate de validação registra a pendência de revisão:
     `review:mixed_bl_terminal_conflict`: *"B/L misto possui frentes atribuídas a terminais diferentes. Toda a carga do B/L deve descarregar no mesmo terminal."*
-  - Essa pendência bloqueia a prontidão de faturamento (`ready_for_billing`) até que o operador defina o terminal unificado de descarga.
+  - Essa pendência bloqueia a prontidão de faturamento (`ready_for_billing`) até que o operador unifique o terminal da escala para aquele B/L.
 
 ---
 
 ## Faturamento e Taxas Locais
 
 ### 1. Resolução de Itens em B/L Misto (`resolve_bl_local_charge_items`)
-O cálculo financeiro de taxas locais de um B/L misto deve respeitar:
-1. **Taxa Documental de B/L (BL Fee / Expediente):** Incide **exatamente uma vez** por B/L (precedência: vinda da tabela de contêiner do porto).
+O cálculo financeiro de taxas locais de um B/L misto respeita:
+1. **Taxa Documental de B/L (BL Fee / Expediente):** Incide **exatamente uma vez** por B/L (vinda da tabela de contêiner do porto).
 2. **Taxas de Movimentação de Contêiner (THD Standard / IMO / OOG):** Calculadas normalmente a partir dos contêineres físicos vinculados em `bl_containers`.
 3. **Taxas por Tonelada / Volume de Carga Solta:** Calculadas sobre `bb_weight_ton` da carga solta.
 4. **Demurrage:** Aplicável estritamente aos contêineres físicos (`bl_containers`), respeitando o *free time* e as devoluções. Carga solta não gera demurrage de contêiner.
@@ -104,7 +108,7 @@ O bloco de metadados ganha detalhamento específico quando houver B/L misto:
 - **Carga Solta:** Exibe o peso faturado e volumes (ex.: `Peso BB: 15,400 ton | 4 volumes`).
 
 #### B. Estrutura dos Itens de Fatura (Grid Remodelado)
-Em vez de listar as cobranças misturadas, os itens da fatura do B/L misto são divididos em três grupos visuais claros:
+Os itens da fatura de um B/L misto são divididos em três grupos visuais claros com subtotais dedicados:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -135,7 +139,7 @@ Esta remodelagem garante que o cliente e a área fiscal compreendam exatamente c
 ## Anatomia das telas e navegação
 
 ### 1. Menu de Navegação (`appLayoutNav.ts`)
-A nomenclatura no menu lateral é atualizada:
+A nomenclatura no menu lateral é simplificada e limpa:
 - **Antes:**
   - `Baplie EDI`
   - `BLs CNTR` (`/manifestos`)
@@ -143,21 +147,18 @@ A nomenclatura no menu lateral é atualizada:
   - `Containers` (`/containers`)
 - **Depois:**
   - `Baplie EDI` (`/baplie`)
-  - **`BLs`** (`/bls`) — *nome limpo e direto, sem sufixos*
-  - `Containers` (`/containers`) — *gestão física de equipamentos*
+  - **`BLs`** (`/bls`)
+  - `Containers` (`/containers`)
 
-#### Política de Rotas e Redirecionamentos:
-- A rota principal e canônica da listagem de B/Ls é **/bls**.
-- A rota antiga `/manifestos` passa a redirecionar permanentemente para `/bls`.
-- A rota antiga `/carga-solta` passa a redirecionar para `/bls?cargo_mode=carga_solta`.
+As rotas antigas `/manifestos` e `/carga-solta` são **removidas**. Todos os links internos (breadcrumbs, botões de voltar em `BlDetalhe.tsx`, links de notificações) passam a apontar diretamente para `/bls`.
 
 ### 2. Listagem de BLs (`/bls`)
-A tela de BLs passa a oferecer:
+A tela de BLs oferece:
 - **Filtro Rápido de Modalidade:** `[Todos]`, `[Contêiner]`, `[Carga Solta]`, `[Misto]`.
 - **Badges de Modalidade:**
   - `Contêiner` (ex.: `2 CNTR`);
   - `Carga Solta` (ex.: `38 ton`);
-  - `Misto` com visual distinto em dois tons (ex.: `1 CNTR + 12 ton`).
+  - `Misto` com badge composto (ex.: `1 CNTR + 12 ton`).
 - **KPI Cards no Topo:**
   - Total de BLs únicos;
   - Total de Contêineres;
@@ -170,6 +171,7 @@ A tela de BLs passa a oferecer:
   - Exibição de terminal de descarga unificado (com validação anti-conflito).
   - A aba **Carga** renderiza o painel de contêineres e o painel de carga solta em harmonia.
   - A aba **Faturamento** exibe as cobranças agrupadas conforme o novo padrão da fatura.
+  - O botão de voltar aponta sempre para `/bls`.
 
 ---
 
@@ -189,15 +191,15 @@ A tela de BLs passa a oferecer:
 ## Testes e Validação
 
 ### 1. Testes de Contrato SQL e Migrations
-- Validar enum/check constraint de `bls.cargo_mode` aceitando `'container'`, `'carga_solta'` e `'misto'`.
+- Validar check constraint de `bls.cargo_mode` aceitando `'container'`, `'carga_solta'` e `'misto'`.
 - Validar cálculo em `calculate_bl_local_charges` para B/L misto:
   - Exatamente 1 taxa fixa de B/L;
   - Cobrança de THD para os contêineres;
   - Cobrança por tonelada para a carga solta;
   - Inexistência de duplicidade de chaves em `charge_calculations`.
-- Validar trava de terminal único: rejeição ou flag de pendência de revisão caso frentes do B/L misto apontem para terminais diferentes.
+- Validar trava de terminal único: flag de pendência de revisão caso frentes do B/L misto apontem para terminais diferentes.
 
 ### 2. Testes de Interface e Ingestão
 - Testar importação sucessiva de contêiner e carga solta para o mesmo número de B/L, confirmando transição para `'misto'`.
-- Testar navegação: acesso a `/bls`, redirecionamento de `/manifestos` para `/bls`, e redirecionamento de `/carga-solta` para `/bls?cargo_mode=carga_solta`.
+- Testar acesso direto à rota `/bls` e ausência de referências a `/manifestos` ou `/carga-solta`.
 - Testar componente de fatura (`InvoiceDocumentLocal.tsx`): conferir renderização dos blocos segregados (contêineres, carga solta, taxas documentais) e subtotais.
