@@ -109,6 +109,8 @@ correspondente precisa cobrir, no mínimo:
 | `charge_tables_cargo_mode_check` (`001`) | `ARRAY['container','carga_solta','granito']` | **Sem alteração** — não existe tabela de preços `'misto'` (ver Faturamento) |
 | `bls.terminal_id` **+ âncora de porto** | Colunas inexistentes | **Criar com FK composta**, no padrão do schema — ADR 0068, "Por que a FK não pode ser de coluna única" |
 | `operationFrontKindForCargoMode` / `bl_operation_front_modalidade` (`045`) | `'misto'` cai no fallback `ELSE 'carga_cheia'` em silêncio | Tratar `'misto'` explicitamente (ADR 0068, decisão 7) |
+| `bl_receivables.cargo_mode` | Cópia desnormalizada, **sem CHECK** | Não quebra com `'misto'`, mas precisa ser ressincronizada na transição de modalidade |
+| `voyage_route_ce_master` (UNIQUE `voyage_id,pol,pod,cargo_mode`) | Chave por modalidade | **Sem alteração** — o B/L misto consulta as duas chaves existentes (ver Superfície de impacto) |
 
 **Por que `import_batches` não muda.** Um batch é um arquivo, e um arquivo é um
 manifesto de contêiner **ou** um manifesto de carga solta — nunca os dois. A
@@ -279,6 +281,16 @@ entre chamador e chamado. A entrega escolhe explicitamente entre unificar as
 duas — extraindo resolução de tabela, quantidades e rateio para um lugar só — ou
 corrigir as duas cópias. **Unificar é a opção preferida**: duas cópias é como o
 defeito nasceu, e mantê-las é garantir a próxima divergência.
+
+**A resolução vira uma função única, consumida por todos.** A varredura
+completa (secão "Superfície de impacto") encontrou mais três consumidores que
+resolvem preço por igualdade estrita de modalidade — `mark_bl_ready_for_billing`,
+`add_manual_bl_charge` e `list_manual_charge_items_for_bl`. O primeiro **levanta
+`P0004`** e torna `ready_for_billing` inalcançável para o B/L misto. Portanto a
+resolução de duas tabelas não pode viver dentro do motor: ela é uma função de
+resolução própria — "quais tabelas de preço valem para este B/L neste POD nesta
+data" — que o motor, o gate e as telas de cobrança manual consomem igualmente.
+Replicá-la em cada consumidor é repetir o defeito que esta seção documenta.
 
 Consequência para o COD: `apply_cod_financial_effect` chama
 `resolve_bl_local_charge_items` em `002:1894` e `002:1909`, mas isso é a
@@ -676,13 +688,23 @@ são sobre `bls.cargo_mode`. Três padrões, com correções distintas:
 fica como está.
 
 **(b) Trilho de validação que não cobre o misto.** A regra "carga solta sem
-`bb_weight_ton` é pendência" está escrita três vezes —
-`blRails.ts:67`, `revisaoHelpers.ts:208` e `BlReviewContextPanel.tsx:19` — e
-todas testam `cargo_mode === 'carga_solta'`. Um B/L misto sem `bb_weight_ton`
-não é sinalizado por nenhuma delas, e chega ao motor de taxas exatamente no
-estado que a correção de peso faturável trata como pendência. A regra passa a
-valer para `'carga_solta'` **e** `'misto'`, corrigida na função compartilhada e
-não em três guardas.
+`bb_weight_ton` é pendência" está escrita **cinco** vezes, não três. Em
+TypeScript: `blRails.ts:67`, `revisaoHelpers.ts:208` e
+`BlReviewContextPanel.tsx:19`. Em SQL, onde a pendência é de fato gravada:
+`_compute_bl_review_pendencies` (`051:190`, `IF p_cargo_mode = 'carga_solta'`) e
+`reconcile_customer_bl_review_alerts` (`002:14907` e `002:14965`,
+`FILTER (WHERE cargo_mode = 'carga_solta' AND ...)`).
+
+As cinco testam igualdade com `'carga_solta'`. Um B/L misto sem `bb_weight_ton`
+não é sinalizado por nenhuma, e chega ao motor de taxas exatamente no estado que
+a correção de peso faturável trata como pendência.
+
+**Não existe "a função compartilhada" aqui** — são três cópias em TS e duas em
+SQL, e a de SQL é a autoritativa: é dela que o trigger
+`trg_reconcile_bl_review_alerts` se alimenta. A correção é uma função por
+linguagem, presas à mesma tabela de casos por teste, como a ADR 0067 fez para
+`cargo_mode → modalidade`. Corrigir só o lado TS deixa a pendência real
+continuar sendo calculada errado no banco.
 
 **(c) Comportamento por modo.** `blRails.ts:111` (`cargo_mode !== 'container'`),
 `blFreightImport.ts:677` (`isBreakBulk`), `BlDetalhe.tsx:69`
@@ -722,7 +744,100 @@ rota não está documentada em `docs/ARCHITECTURE.md` *e* em
 `/bls/:blId`; a contagem vai de 50 para 49. Trocar as rotas sem tocar nos dois
 documentos quebra o job `Docs + Lint` na primeira execução.
 
-### 5. O que foi verificado e **não** é afetado
+### 5. Varredura completa da superfície SQL
+
+As seções acima nasceram de busca dirigida por identificador. Isso deixou pontos
+de fora — três bloqueadores apareceram só quando a leitura passou a ser por
+função inteira. Para fechar a lacuna, **as 35 funções SQL que referenciam
+`cargo_mode` foram lidas uma a uma**. Doze pontos novos, além dos já tratados:
+
+#### Mesma classe de defeito: preço resolvido por igualdade de modalidade
+
+Como não existe `charge_tables` com `cargo_mode = 'misto'`, toda função que
+resolve preço por igualdade estrita quebra para o B/L misto. Além das três já
+tratadas, são mais três:
+
+| Função | Ponto | Efeito no B/L misto |
+|---|---|---|
+| `mark_bl_ready_for_billing` | `002:10833`, `047:164` | `AND cargo_mode = v_bl.cargo_mode` não acha tabela e a função **levanta `P0004`**. O B/L misto **nunca alcança `ready_for_billing`** — o estado que esta spec repete que as pendências bloqueiam |
+| `add_manual_bl_charge` | `002:1032` | `AND ct.cargo_mode = v_bl.cargo_mode` — impossível lançar cobrança manual em B/L misto |
+| `list_manual_charge_items_for_bl` | `002:10546` | `AND ct.cargo_mode = bl_ctx.cargo_mode` — catálogo de itens manuais volta vazio |
+
+`mark_bl_ready_for_billing` é o mais grave dos três e muda o desenho: **a
+resolução de duas tabelas precisa estar em uma função de resolução única, usada
+também pelo gate**, e não replicada dentro de cada consumidor. Sem isso, a spec
+descreve um fluxo cujo estado final é inalcançável.
+
+#### Filtro binário que faz o misto desaparecer
+
+| Função | Ponto | Efeito |
+|---|---|---|
+| `_run_import_effect_local_charges` | `025:62`, `051:681` | `COALESCE(b.cargo_mode,'container') = 'container'` — o worker que dispara o cálculo de taxas após a importação **não enxerga o B/L misto**; ele nunca é faturado automaticamente, em silêncio |
+| `operational_list_voyage_summaries` | `035:73-74`, `037:73-74` | `COUNT(*) FILTER (WHERE cargo_mode = 'container')` e `= 'carga_solta'` — o misto **não é contado em nenhum dos dois**, e o KPI de viagem do read model perde o documento |
+
+`operational_list_voyage_summaries` é o gêmeo SQL de `splitVoyageBls`. A spec
+corrigia o agregador TypeScript e deixava o do banco intacto.
+
+#### Roteamento do NOB: onde a decisão 7 da ADR 0068 realmente cai
+
+`evaluate_and_dispatch_automatic_communications` (`045:319`) junta o B/L à
+frente por
+
+```sql
+AND f.modalidade = public.bl_operation_front_modalidade(b.cargo_mode)
+```
+
+É **este** o join que endereça o comunicado, e a spec nomeava apenas a função de
+mapeamento. Tratar `'misto'` dentro de `bl_operation_front_modalidade` não
+resolve: uma modalidade única não descreve um B/L que tem carga em duas, e o
+join continuaria escolhendo uma frente só. O join passa a usar o **terminal
+resolvido do B/L** (exceção ou herança), conforme a ADR 0068.
+
+#### CE Mercante por rota é chaveado por modalidade
+
+`voyage_route_ce_master` tem `UNIQUE (voyage_id, pol, pod, cargo_mode)`, e a
+chave é montada assim de ponta a ponta: `set_voyage_route_ce_master`
+(`002:20948`, default `'container'`, com sobrecarga que fixa `'container'`) e
+`listVoyageRouteCeMasters` (`voyageRouteSchedules.ts`, que monta a chave com
+`mode` e assume `'container'` quando nulo).
+
+Um B/L misto procuraria a chave `…|misto`, que **ninguém grava** — a rota
+apareceria sem CE Master, derrubando o percentual de cobertura que a aba Visão
+Geral exibe.
+
+**Decisão, por coerência com o filtro-lente:** o CE Master do B/L misto é
+consultado nas **duas** chaves de modalidade da rota, não numa terceira. O
+manifesto Mercante de contêiner e o de carga solta são arquivos distintos, e um
+B/L misto consta nos dois; a cobertura só é completa quando as duas chaves
+existirem. Nenhuma linha `cargo_mode = 'misto'` é criada em
+`voyage_route_ce_master`, e a constraint de unicidade não muda. *Esta é a única
+decisão nova desta varredura — vale confirmá-la com a operação antes do plano.*
+
+#### Prontidão de comunicação e cópia desnormalizada
+
+| Ponto | Efeito |
+|---|---|
+| `customer_local_charges_communication_readiness` (`019:1183`) | `CASE WHEN COALESCE(b.cargo_mode,'container') = 'carga_solta'` — o misto cai no ramo de contêiner e a prontidão é avaliada sem a parcela de carga solta |
+| `bl_receivables.cargo_mode` | Cópia desnormalizada gravada por `sync_local_charge_receivable` e `link_invoice_to_ledger`. **Não tem CHECK**, então `'misto'` não quebra a inserção — mas a modalidade agora **muda ao longo da vida do B/L**, e a cópia fica velha. A invalidação por transição de modalidade (ver Faturamento) precisa ressincronizar o recebível, não só recalcular as taxas |
+
+#### Verificado e **não** afetado
+
+- `voyage_terminal_code` (`002:22906`) — apenas mapeia `terminal_id → depots.code`.
+  Era o maior suspeito por contagem bruta; as 16 ocorrências eram dos call sites.
+- `backfill_invoice_receivable_links`, `create_local_consolidated_invoice_core`,
+  `run_billing_for_import_batch` — carregam `cargo_mode` em payload `jsonb`, sem
+  ramificar por ele.
+- `prevent_pending_review_invoice` — repassa `NEW.cargo_mode` a
+  `compute_bl_review_pendencies`; herda a correção do trilho, sem ramo próprio.
+- `import_manifest_transactional_legacy_165`,
+  `import_bl_freight_transactional_legacy_205` e `_legacy_357` — superadas pelas
+  versões vigentes e não chamadas pela aplicação (só aparecem em
+  `src/types/database.ts`, gerado, e num teste que confere o texto da migration).
+  Continuam no banco; **ficam fora do escopo desta entrega**.
+- `charge_tables`, `import_batches` e `voyage_route_ce_master` mantêm suas
+  constraints de `cargo_mode`; só `bls` admite `'misto'`.
+
+### 6. O que foi verificado e **não** é afetado
 
 - **COD e Transbordo:** `apply_cod_financial_effect` usa o mesmo
   `resolve_bl_local_charge_items` (`002:1894`, `002:1909`), então herda as
@@ -797,6 +912,25 @@ documentos quebra o job `Docs + Lint` na primeira execução.
     nunca silêncio;
   - COD de B/L misto para um POD que tem apenas uma das tabelas cai na mesma
     pendência, sem tratamento próprio em `apply_cod_financial_effect`.
+- Validar que o B/L misto **alcança `ready_for_billing`**: regressão direta do
+  `P0004` de `mark_bl_ready_for_billing`. Sem ela, todo o fluxo desta spec para
+  antes do fim.
+- Validar cobrança manual em B/L misto: `list_manual_charge_items_for_bl` devolve
+  itens das duas tabelas e `add_manual_bl_charge` aceita o lançamento.
+- Validar que o worker `_run_import_effect_local_charges` **enxerga** o B/L misto
+  e dispara o cálculo — hoje o filtro `= 'container'` o omite em silêncio.
+- Validar `operational_list_voyage_summaries`: o B/L misto entra na contagem da
+  viagem; hoje não entra em `container_bl_count` nem em `breakbulk_bl_count`.
+- Validar o trilho de peso **nos dois lados**: a mesma tabela de casos rodando em
+  `_compute_bl_review_pendencies` (SQL) e no rotulador de TypeScript. O lado SQL
+  é o que grava a pendência.
+- Validar o roteamento do NOB pelo join real
+  (`evaluate_and_dispatch_automatic_communications`), não só pela função de
+  mapeamento: B/L misto ancora no terminal resolvido.
+- Validar CE Mercante: a rota com B/L misto lê o CE Master das duas chaves de
+  modalidade e a cobertura da escala não regride.
+- Validar que a transição de modalidade **ressincroniza `bl_receivables`**, e não
+  só `charge_calculations`.
 - Validar a resolução de terminal do B/L (ADR 0068):
   - `terminal_id` nulo → herda o terminal da frente correspondente;
   - `terminal_id` preenchido → vence a frente em **todas** as leituras (ADR, NOB, escala, faturamento), inclusive com a frente em `TBC`;
