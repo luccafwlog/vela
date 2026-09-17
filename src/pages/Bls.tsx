@@ -306,7 +306,7 @@ export function Bls() {
                 </Button>
                 <Button variant="secondary" onClick={() => setBreakbulkOpen(true)}>
                   <Upload size={16} aria-hidden="true" />
-                  Manifesto Mercante
+                  Manifesto Carga solta
                 </Button>
                 <Button variant="secondary" onClick={() => setCeMercanteOpen(true)}>
                   <Upload size={16} aria-hidden="true" />

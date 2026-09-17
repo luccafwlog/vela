@@ -144,7 +144,7 @@ describe('Página Bls (unificada)', () => {
       </QueryClientProvider>,
     )
 
-    const actionLabels = ['B/L CNTR', 'B/L Carga Solta', 'Manifesto Mercante', 'CE Mercante']
+    const actionLabels = ['B/L CNTR', 'B/L Carga Solta', 'Manifesto Carga solta', 'CE Mercante']
     const actionButtons = actionLabels.map((label) => screen.getByRole('button', { name: label }))
 
     actionButtons.slice(1).forEach((button, index) => {
