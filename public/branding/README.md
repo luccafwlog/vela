@@ -23,6 +23,14 @@ Documentos fiscais, faturas e recibos mantêm a identidade e titularidade da Tra
 | `vela-icon-16.svg` | Ícone com plaquinha, geometria própria de 16px. |
 | `vela-icon-{16,32,180,192,512}.png` | Rasterizações do ícone, para favicon e ícone de app. |
 
+## Arquivos Fwlog
+
+| Arquivo | Uso |
+|---|---|
+| `fwlog-logo.png` | Logo sobre fundo claro (cards e telas de autenticação). |
+| `fwlog-logo-white.png` | Logo sobre fundo escuro ou azul (header do Portal do Cliente, topo de e-mails transacionais). **Toda vez que o fundo for azul/navy, deve ser utilizada esta logo branca**, pois a logo padrão fica ilegível. |
+
+
 ## Duas regras que não são preferência estética
 
 **O ícone de 16px é um desenho diferente, não o de 32px reduzido.** O vão entre
