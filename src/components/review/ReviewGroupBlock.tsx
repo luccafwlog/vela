@@ -209,7 +209,7 @@ export function ReviewGroupBlock({
                         Corrigir Dados
                       </Button>
                       {item.source === 'bl' ? (
-                        <Link className="app-table__action" to={`/manifestos/${item.id}`}>
+                        <Link className="app-table__action" to={`/bls/${item.id}`}>
                           Abrir B/L
                         </Link>
                       ) : (

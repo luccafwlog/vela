@@ -219,7 +219,7 @@ describe('VoyageManifestosTab', () => {
     expect(html).toContain('16/07/2026')
     expect(html).toContain('style="color:var(--app-green)"')
     expect(html).toContain('font-medium')
-    expect(html).toContain('href="/manifestos?voyage=14&amp;pol=CNTAC&amp;pod=BRVIX"')
+    expect(html).toContain('href="/bls?voyage=14&amp;pol=CNTAC&amp;pod=BRVIX"')
     expect(html).not.toContain('Rota derivada dos B/Ls')
     expect(html).not.toContain('Gerar EDI Mercante')
   })

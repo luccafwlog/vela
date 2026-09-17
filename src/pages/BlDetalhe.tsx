@@ -67,9 +67,11 @@ export function BlDetalhe() {
   })
   const cargoMode = useMemo(() => resolveCargoMode(bl), [bl])
   const isContainerMode = cargoMode === 'container'
-  const { data: reconciliation, isLoading: reconciliationLoading, isError: reconciliationError } = useVoyageReconciliation(isContainerMode ? bl?.voyage_id : null)
-  const backHref = isContainerMode ? '/manifestos' : '/carga-solta'
-  const backLabel = isContainerMode ? 'Voltar aos manifestos CNTR' : 'Voltar aos manifestos BB'
+  const isMixedMode = cargoMode === 'misto'
+  const hasContainers = isContainerMode || isMixedMode
+  const { data: reconciliation, isLoading: reconciliationLoading, isError: reconciliationError } = useVoyageReconciliation(hasContainers ? bl?.voyage_id : null)
+  const backHref = '/bls'
+  const backLabel = 'Voltar aos BLs'
   const voyageLabel = [bl?.voyage?.vessel?.name, bl?.voyage?.voyage_number].filter(Boolean).join(' / ')
 
   const { form, setField, justification, setJustification, saving, changes, handleSubmit } = useBlEditForm(bl, isContainerMode)
@@ -135,7 +137,7 @@ export function BlDetalhe() {
   if (isLoading) {
     return (
       <>
-        <Breadcrumb items={[{ label: 'Manifestos', to: '/manifestos' }, { label: 'Carregando...' }]} />
+        <Breadcrumb items={[{ label: 'BLs', to: '/bls' }, { label: 'Carregando...' }]} />
         <SkeletonCard lines={5} />
       </>
     )
@@ -146,7 +148,7 @@ export function BlDetalhe() {
       <>
         <Breadcrumb
           items={[
-            { label: 'Manifestos', to: '/manifestos' },
+            { label: 'BLs', to: '/bls' },
             { label: 'B/L não encontrado' },
           ]}
         />
@@ -154,8 +156,8 @@ export function BlDetalhe() {
           title="Detalhes do B/L"
           description="Consulta de informações do conhecimento de embarque."
           action={
-            <Link className="text-sm font-semibold text-[var(--app-link)] hover:underline" to="/manifestos">
-              <ArrowLeft className="mr-1 inline" size={16} />Voltar para manifestos
+            <Link className="text-sm font-semibold text-[var(--app-link)] hover:underline" to="/bls">
+              <ArrowLeft className="mr-1 inline" size={16} />Voltar para BLs
             </Link>
           }
         />
@@ -168,20 +170,22 @@ export function BlDetalhe() {
     <>
       <Breadcrumb
         items={[
-          { label: 'Manifestos', to: '/manifestos' },
+          { label: 'BLs', to: '/bls' },
           { label: `B/L ${bl.id}` },
         ]}
       />
       <PageHeader
         title={`B/L ${bl.id} - ${cargoModeLabel(cargoMode)}`}
         description={
-          isContainerMode
-            ? 'Edição manual com auditoria. Esta tela exibe containers e veículos vinculados a este B/L.'
-            : 'Edição manual com auditoria. Esta tela exibe o resumo operacional do manifesto BB vinculado a este B/L.'
+          isMixedMode
+            ? 'Edição manual com auditoria. Esta tela exibe containers, carga solta e veículos vinculados a este B/L misto.'
+            : isContainerMode
+              ? 'Edição manual com auditoria. Esta tela exibe containers e veículos vinculados a este B/L.'
+              : 'Edição manual com auditoria. Esta tela exibe o resumo operacional do manifesto BB vinculado a este B/L.'
         }
         action={
           <div className="flex flex-wrap justify-end gap-2">
-            {isContainerMode && canImport ? (
+            {hasContainers && canImport ? (
               <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
                 <Upload size={16} />
                 Importar B/L

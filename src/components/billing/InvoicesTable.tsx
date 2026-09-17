@@ -136,7 +136,7 @@ function renderBlLinks(bls: InvoiceListBl[]) {
           {index > 0 ? ' • ' : null}
           <Link
             className="hover:underline"
-            to={`/manifestos/${encodeURIComponent(bl.bl_id)}`}
+            to={`/bls/${encodeURIComponent(bl.bl_id)}`}
           >
             {bl.bl_id}
           </Link>

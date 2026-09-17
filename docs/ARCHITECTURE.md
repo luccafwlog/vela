@@ -630,9 +630,8 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/viagens` | Lista e seleção de viagens |
 | `/viagens/:voyageId` | Detalhe master-detail deep-linkável, incluindo a aba ADR por escala brasileira |
 | `/baplie` | Importação e conciliação Baplie |
-| `/manifestos` | Lista de B/Ls CNTR; importação documental por arquivo de B/L |
-| `/manifestos/:blId` | Detalhe do B/L |
-| `/carga-solta` | Manifestos breakbulk e importação de B/L avulso (.pdf/.docx) |
+| `/bls` | Painel unificado de B/Ls (contêiner, carga solta e misto); importação documental e CE Mercante |
+| `/bls/:blId` | Detalhe do B/L |
 | `/containers` | Containers |
 | `/veiculos` | Veículos RoRo |
 | `/vazios-importacao` | Vazios de importação |

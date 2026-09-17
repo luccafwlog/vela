@@ -115,7 +115,7 @@ export function buildOperationalRail(input: {
     pol,
     pod,
     { key: 'discharge', label: 'Descarga', detail: discharge.total === 0 ? 'Sem containers' : `${discharge.done}/${discharge.total} descarregados`, state: discharge.total === 0 || discharge.done === discharge.total ? 'done' : 'pending', href: '/containers' },
-    { key: 'return', label: 'Devolução', detail: returned.total === 0 ? 'Sem containers' : `${returned.done}/${returned.total} devolvidos`, state: returned.total === 0 || returned.done === returned.total ? 'done' : 'pending', href: `/manifestos/${bl.id}?tab=faturamento` },
+    { key: 'return', label: 'Devolução', detail: returned.total === 0 ? 'Sem containers' : `${returned.done}/${returned.total} devolvidos`, state: returned.total === 0 || returned.done === returned.total ? 'done' : 'pending', href: `/bls/${bl.id}?tab=faturamento` },
   ]
 }
 
@@ -127,8 +127,8 @@ export function buildDocumentalRail(input: {
   portalVisibility?: RailPortalVisibility | null
 }): RailStage[] {
   const { bl, latestInvoice, demurrageInvoices, reviewReasons, portalVisibility } = input
-  const fichaFat = `/manifestos/${bl.id}?tab=faturamento`
-  const fichaDet = `/manifestos/${bl.id}?tab=detalhes`
+  const fichaFat = `/bls/${bl.id}?tab=faturamento`
+  const fichaDet = `/bls/${bl.id}?tab=detalhes`
   const reasonMap = documentalReasonMap({ bl, reviewReasons, portalVisibility })
 
   const customer: RailStage = !bl.customer_id

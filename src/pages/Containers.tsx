@@ -207,10 +207,10 @@ export function Containers() {
             </Button>
             <Link
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#21262d] px-4 text-sm font-semibold text-slate-100 transition hover:bg-[#30363d]"
-              to="/manifestos"
+              to="/bls"
             >
               <Boxes size={16} />
-              Voltar aos Manifestos
+              Voltar aos BLs
             </Link>
           </div>
         }
@@ -416,7 +416,7 @@ export function Containers() {
                   ) : null}
                   <td className="px-4 py-3 font-semibold text-white">{container.container_number}</td>
                   <td className="px-4 py-3">
-                    <Link className="text-[#58a6ff] hover:underline" to={`/manifestos/${container.bl?.id}`}>
+                    <Link className="text-[#58a6ff] hover:underline" to={`/bls/${container.bl?.id}`}>
                       {container.bl?.id ?? '-'}
                     </Link>
                   </td>
@@ -449,7 +449,7 @@ export function Containers() {
                     <div className="flex items-center gap-3">
                       <Link
                         className="app-table__action"
-                        to={`/manifestos/${container.bl?.id}`}
+                        to={`/bls/${container.bl?.id}`}
                       >
                         Abrir B/L
                       </Link>

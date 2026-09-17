@@ -42,6 +42,7 @@ export function BlDetalhesTab(props: {
         active
         bl={props.bl}
         blId={props.blId}
+        cargoMode={props.cargoMode}
         isContainerMode={props.isContainerMode}
         containerSummary={props.containerSummary}
         breakbulkSummary={props.breakbulkSummary}

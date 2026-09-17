@@ -66,13 +66,35 @@ export function BlVisaoGeralTab({ active, bl, cockpit, isContainerMode, containe
             ) : '—'}
           </Item>
           <Item label="Trecho">{`${bl.pol ?? '—'} → ${bl.pod ?? '—'}`}</Item>
+          <Item label="Terminal de Descarga">
+            {bl.terminal?.name ?? (bl.terminal_id ? `Terminal #${bl.terminal_id}` : 'Padrão da Escala')}
+          </Item>
           <Item label="Saída do POL">{cockpit?.polSchedule?.atd ? `ATD ${dt(cockpit.polSchedule.atd)}` : `ETD ${dt(cockpit?.polSchedule?.etd)}`}</Item>
           <Item label="Chegada ao POD">{cockpit?.podSchedule?.ata ? `ATA ${dt(cockpit.podSchedule.ata)}` : `ETA ${dt(cockpit?.podSchedule?.eta)}`}</Item>
         </dl>
       </Card>
     <Card>
       <h3 className="mb-3 text-sm font-semibold">Carga</h3>
-      {isContainerMode ? (
+      {bl.cargo_mode === 'misto' || (containerSummary.distinct > 0 && (breakbulkSummary.weightTon > 0 || breakbulkSummary.packagesTotal > 0)) ? (
+        <div className="space-y-4">
+          <div>
+            <div className="mb-1 text-xs font-semibold text-[var(--app-muted)]">Contêineres</div>
+            <dl className="grid gap-2 text-sm sm:grid-cols-3">
+              <Item label="Containers">{String(containerSummary.distinct)}</Item>
+              <Item label="IMO">{String(containerSummary.imo)}</Item>
+              <Item label="OOG">{String(containerSummary.oog)}</Item>
+            </dl>
+          </div>
+          <div>
+            <div className="mb-1 text-xs font-semibold text-[var(--app-muted)]">Carga Solta</div>
+            <dl className="grid gap-2 text-sm sm:grid-cols-3">
+              <Item label="Máquinas">{String(breakbulkSummary.machines)}</Item>
+              <Item label="Packages">{String(breakbulkSummary.packagesTotal)}</Item>
+              <Item label="Peso (t)">{String(breakbulkSummary.weightTon)}</Item>
+            </dl>
+          </div>
+        </div>
+      ) : isContainerMode ? (
         <>
           <dl className="grid gap-2 text-sm sm:grid-cols-3">
             <Item label="Containers">{String(containerSummary.distinct)}</Item>
@@ -101,7 +123,7 @@ export function BlVisaoGeralTab({ active, bl, cockpit, isContainerMode, containe
             <div className="text-[var(--app-muted)]">{bl.customer.cnpj_cpf}</div>
           </div>
         ) : <Badge tone="yellow">Sem cliente vinculado</Badge>}
-        <Link className="mt-2 inline-block text-sm font-semibold text-[#58a6ff] hover:underline" to={`/manifestos/${bl.id}?tab=faturamento`}>Abrir Faturamento →</Link>
+        <Link className="mt-2 inline-block text-sm font-semibold text-[#58a6ff] hover:underline" to={`/bls/${bl.id}?tab=faturamento`}>Abrir Faturamento →</Link>
       </Card>
       <Card>
         <h3 className="mb-3 text-sm font-semibold">Financeiro</h3>

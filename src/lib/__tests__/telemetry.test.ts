@@ -138,9 +138,9 @@ describe('redactVercelTelemetryEvent', () => {
     })
 
     expect(redactVercelTelemetryEvent({
-      url: 'https://vela.app.br/manifestos/bl-123?modal=details',
+      url: 'https://vela.app.br/bls/bl-123?modal=details',
     })).toEqual({
-      url: 'https://vela.app.br/manifestos/:blId',
+      url: 'https://vela.app.br/bls/:blId',
     })
   })
 

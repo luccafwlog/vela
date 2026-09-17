@@ -83,7 +83,7 @@ export function VoyageManifestosTab({
                     const modeTone = row.modeLabel === 'BB' ? 'yellow' : row.modeLabel === 'VAZIOS' ? 'slate' : row.modeLabel === 'CNTR/BB' ? 'slate' : 'blue'
                     const routeTargetUrl = row.isVazios
                       ? `/vazios-importacao?voyage=${voyage.id}&pod=${encodeURIComponent(row.pod)}`
-                      : `/manifestos?voyage=${voyage.id}&pol=${encodeURIComponent(row.pol)}&pod=${encodeURIComponent(row.pod)}`
+                      : `/bls?voyage=${voyage.id}&pol=${encodeURIComponent(row.pol)}&pod=${encodeURIComponent(row.pod)}`
                     return (
                     <tr key={`${voyage.id}-manifest-${row.routeKey}`}>
                       <td className="px-3 py-2 align-middle">

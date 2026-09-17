@@ -112,7 +112,7 @@ export function ValidacaoOperationsTable({
                     <td className="px-4 py-3 font-semibold text-[var(--app-blue-btn)]">
                       <Link
                         className="hover:underline"
-                        to={row.cargo_mode === 'granito' ? '/granito' : `/manifestos/${encodeURIComponent(row.id)}`}
+                        to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${encodeURIComponent(row.id)}`}
                       >
                         {row.id}
                       </Link>
@@ -242,7 +242,7 @@ export function ValidacaoOperationsTable({
                             <div className="mt-1">
                               <Link
                                 className="app-table__action"
-                                to={row.cargo_mode === 'granito' ? '/granito' : `/manifestos/${row.id}`}
+                                to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${row.id}`}
                               >
                                 Abrir B/L →
                               </Link>
@@ -278,7 +278,7 @@ function BlockResolutionLink({ blId, code, customerCnpj }: { blId: string; code:
   }
   if (code === 'aguardando_ce') {
     return (
-      <Link className="app-table__action" to={`/manifestos/${encodeURIComponent(blId)}`}>
+      <Link className="app-table__action" to={`/bls/${encodeURIComponent(blId)}`}>
         Cadastrar CE Mercante na ficha do B/L →
       </Link>
     )

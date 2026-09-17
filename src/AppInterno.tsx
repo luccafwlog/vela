@@ -17,9 +17,8 @@ const PortalProfile = lazyPage(() => import('./pages/PortalProfile'), 'PortalPro
 const PortalInspection = lazyPage(() => import('./pages/PortalInspection'), 'PortalInspection')
 const Painel = lazyPage(() => import('./pages/Painel'), 'Painel')
 const Viagens = lazyPage(() => import('./pages/Viagens'), 'Viagens')
-const Manifestos = lazyPage(() => import('./pages/Manifestos'), 'Manifestos')
+const Bls = lazyPage(() => import('./pages/Bls'), 'Bls')
 const Containers = lazyPage(() => import('./pages/Containers'), 'Containers')
-const CargaSolta = lazyPage(() => import('./pages/CargaSolta'), 'CargaSolta')
 const Veiculos = lazyPage(() => import('./pages/Veiculos'), 'Veiculos')
 const BlDetalhe = lazyPage(() => import('./pages/BlDetalhe'), 'BlDetalhe')
 const Revisao = lazyPage(() => import('./pages/Revisao'), 'Revisao')
@@ -86,8 +85,8 @@ const routePreloads: RoutePreloadTable = [
   ['/login', Login.preload], ['/line-up-tv/display', LineUpTVDisplay.preload],
   ['/clientes/portal/inspecao/:customerId', PortalInspection.preload],
   ['/painel', Painel.preload], ['/viagens/:voyageId', Viagens.preload], ['/viagens', Viagens.preload],
-  ['/manifestos/:blId', BlDetalhe.preload], ['/manifestos', Manifestos.preload], ['/containers', Containers.preload],
-  ['/carga-solta', CargaSolta.preload], ['/veiculos', Veiculos.preload], ['/revisao', Revisao.preload],
+  ['/bls/:blId', BlDetalhe.preload], ['/bls', Bls.preload], ['/containers', Containers.preload],
+  ['/veiculos', Veiculos.preload], ['/revisao', Revisao.preload],
   ['/clientes/comunicacao', ClientesComunicacao.preload], ['/clientes/portal', ClientesPortal.preload], ['/clientes/:cnpj', ClienteFicha.preload], ['/clientes', Clientes.preload],
   ['/taxas-locais/tabelas', TaxasLocaisTabelas.preload], ['/taxas-locais', TaxasLocais.preload],
   ['/faturamento', TaxasLocais.preload], ['/alertas/regras', AlertasRegras.preload], ['/alertas', Alertas.preload],
@@ -130,11 +129,10 @@ export default function AppInterno() {
             <Route path="/painel" element={withSuspense(<Painel />)} />
             <Route path="/viagens" element={withSuspense(<Viagens />)} />
             <Route path="/viagens/:voyageId" element={withSuspense(<Viagens />)} />
-            <Route path="/manifestos" element={withSuspense(<Manifestos />)} />
+            <Route path="/bls" element={withSuspense(<Bls />)} />
+            <Route path="/bls/:blId" element={withSuspense(<BlDetalhe />)} />
             <Route path="/containers" element={withSuspense(<Containers />)} />
-            <Route path="/carga-solta" element={withSuspense(<CargaSolta />)} />
             <Route path="/veiculos" element={withSuspense(<Veiculos />)} />
-            <Route path="/manifestos/:blId" element={withSuspense(<BlDetalhe />)} />
             <Route path="/revisao" element={withSuspense(<Revisao />)} />
             <Route path="/clientes" element={withSuspense(<Clientes />)} />
             <Route path="/clientes/portal" element={withSuspense(<ClientesPortal />)} />

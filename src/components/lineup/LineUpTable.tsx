@@ -191,7 +191,7 @@ export function LineUpTable({
                           <span>{formatInteger(row.bbTotal)} TOTAL</span>
                         </div>
                       ) : (
-                        <Link to={`/carga-solta?voyage=${row.voyageId}&pod=${encodeURIComponent(row.pod)}`} className="block app-lineup-bb hover:opacity-80">
+                        <Link to={`/bls?voyage=${row.voyageId}&pod=${encodeURIComponent(row.pod)}&cargoMode=carga_solta`} className="block app-lineup-bb hover:opacity-80">
                           <span>{formatInteger(row.bbMachines)} MAQ</span>
                           <span>{formatInteger(row.bbPackages)} PACK</span>
                           <span>{formatInteger(row.bbTotal)} TOTAL</span>
@@ -200,7 +200,7 @@ export function LineUpTable({
                     </td>
                     <td className={isDisplay ? 'px-1 py-1 text-center' : 'px-3 py-3 text-center'}>
                       {isDisplay ? renderDisplayCeStatus(row.ceStatus) : (
-                        <Link to={`/manifestos?voyage=${row.voyageId}&pod=${encodeURIComponent(row.pod)}`} className="inline-block hover:opacity-80">
+                        <Link to={`/bls?voyage=${row.voyageId}&pod=${encodeURIComponent(row.pod)}`} className="inline-block hover:opacity-80">
                           {renderCeStatus(row.ceStatus)}
                         </Link>
                       )}

@@ -1,16 +1,21 @@
 // Helpers puros para estado, rótulos e formatação do detalhe de B/L.
 import type { BL, BLDetail } from '../types/database'
 
-export type CargoMode = 'container' | 'carga_solta'
+export type CargoMode = 'container' | 'carga_solta' | 'misto'
 
 export function resolveCargoMode(bl?: BLDetail | null): CargoMode {
+  if (bl?.cargo_mode === 'misto') return 'misto'
   if (bl?.cargo_mode === 'carga_solta') return 'carga_solta'
   if (bl?.cargo_mode === 'container') return 'container'
-  if ((bl?.bl_breakbulk_items?.length ?? 0) > 0) return 'carga_solta'
+  const hasCntr = (bl?.bl_containers?.length ?? 0) > 0
+  const hasBb = (bl?.bl_breakbulk_items?.length ?? 0) > 0 || Number(bl?.bb_weight_ton ?? 0) > 0
+  if (hasCntr && hasBb) return 'misto'
+  if (hasBb) return 'carga_solta'
   return 'container'
 }
 
 export function cargoModeLabel(mode: CargoMode) {
+  if (mode === 'misto') return 'Misto (CNTR + Carga Solta)'
   return mode === 'carga_solta' ? 'Carga Solta' : 'Container'
 }
 

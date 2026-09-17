@@ -189,7 +189,7 @@ it('resolve destinos pela unidade do evento e pelo identificador canônico da in
     entity_type: 'bl',
     entity_id: 'BL/77',
     metadata: { invoice_id: 42 },
-  })).toBe('/manifestos/BL%2F77?tab=faturamento')
+  })).toBe('/bls/BL%2F77?tab=faturamento')
   expect(alertEntityLink({
     type: 'invoice_overdue',
     entity_type: 'invoice',

@@ -133,7 +133,7 @@ export function buildCustomerTimeline(sources: TimelineSources): CustomerTimelin
       ...(row.billed_at ? [{ kind: 'demurrage_invoice_issued' as const, sourceId: `${row.id}:issued`, at: row.billed_at, label: `Demurrage emitida: ${row.doc_number}`, detail: null, link: '/demurrage' }] : []),
       ...(row.paid_at ? [{ kind: 'demurrage_invoice_paid' as const, sourceId: `${row.id}:paid`, at: row.paid_at, label: `Demurrage paga: ${row.doc_number}`, detail: null, link: '/demurrage' }] : []),
     ]),
-    ...sources.bls.filter((row) => row.created_at).map((row) => ({ kind: 'bl_created' as const, sourceId: row.id, at: row.created_at!, label: `B/L vinculado: ${row.id}`, detail: null, link: `/manifestos/${row.id}` })),
+    ...sources.bls.filter((row) => row.created_at).map((row) => ({ kind: 'bl_created' as const, sourceId: row.id, at: row.created_at!, label: `B/L vinculado: ${row.id}`, detail: null, link: `/bls/${row.id}` })),
     ...(sources.communications ?? []).map((row) => ({
       kind: 'communication' as const,
       sourceId: String(row.id),

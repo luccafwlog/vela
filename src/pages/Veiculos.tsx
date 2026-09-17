@@ -493,7 +493,7 @@ export function Veiculos() {
                   <td className="px-4 py-3">{row.container?.seal_number ?? '-'}</td>
                   <td className="px-4 py-3">
                     {row.bl?.id ? (
-                      <Link className="app-table__action" to={`/manifestos/${row.bl.id}`}>{row.bl.id}</Link>
+                      <Link className="app-table__action" to={`/bls/${row.bl.id}`}>{row.bl.id}</Link>
                     ) : '-'}
                   </td>
                   <td className="px-4 py-3">

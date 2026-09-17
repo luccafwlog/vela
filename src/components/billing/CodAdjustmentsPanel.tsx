@@ -86,7 +86,7 @@ export function CodAdjustmentsPanel() {
                     <td className="px-4 py-3 font-semibold text-[var(--app-blue-btn)]">
                       <Link
                         className="hover:underline"
-                        to={`/manifestos/${encodeURIComponent(row.bl_id)}`}
+                        to={`/bls/${encodeURIComponent(row.bl_id)}`}
                       >
                         {row.bl_id}
                       </Link>

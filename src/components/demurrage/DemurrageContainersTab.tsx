@@ -86,7 +86,7 @@ export function DemurrageContainersTab({
                       <td colSpan={10} className="px-4 py-2">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div className="flex flex-wrap items-baseline gap-2">
-                            <Link to={`/manifestos/${blId}`} className="font-semibold text-blue-400 hover:underline">{blId}</Link>
+                            <Link to={`/bls/${blId}`} className="font-semibold text-blue-400 hover:underline">{blId}</Link>
                             <span className="text-sm text-slate-400">{customerName}</span>
                             {voyageInfo && <span className="text-xs text-slate-500">{voyageInfo}</span>}
                           </div>

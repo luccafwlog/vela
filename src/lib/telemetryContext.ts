@@ -469,7 +469,6 @@ const ROUTE_MAP: Array<{ prefix: string; modulo: string; tela: string }> = [
   { prefix: '/demurrage', modulo: 'Demurrage', tela: 'Faturas e Acordos Demurrage' },
   { prefix: '/faturamento', modulo: 'Faturamento', tela: 'Faturamento' },
   { prefix: '/bls', modulo: 'Operações', tela: 'Painel de BLs' },
-  { prefix: '/manifestos', modulo: 'Operações', tela: 'Manifestos' },
   { prefix: '/viagens', modulo: 'Viagens', tela: 'Escalas e Viagens' },
   { prefix: '/clientes/portal', modulo: 'Portal do Cliente', tela: 'Portal de Autoatendimento' },
   { prefix: '/clientes', modulo: 'Clientes', tela: 'Gestão de Clientes' },

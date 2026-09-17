@@ -186,7 +186,7 @@ describe('links de resolução da pendência', () => {
   it('aponta o número do B/L na tabela para a ficha do B/L', () => {
     renderTable({ rows: [row] })
     const link = screen.getByRole('link', { name: 'BL-001' })
-    expect(link.getAttribute('href')).toBe('/manifestos/BL-001')
+    expect(link.getAttribute('href')).toBe('/bls/BL-001')
   })
 
   it('aponta o número do B/L de Granito para /granito', () => {
@@ -204,7 +204,7 @@ describe('links de resolução da pendência', () => {
   it('aponta o CE Mercante para a ficha do B/L', () => {
     renderTable({ rows: [{ ...row, ce_mercante: null }], expandedBlId: 'BL-001' })
     const link = screen.getByRole('link', { name: /Cadastrar CE Mercante/ })
-    expect(link.getAttribute('href')).toBe('/manifestos/BL-001')
+    expect(link.getAttribute('href')).toBe('/bls/BL-001')
   })
 
   it('aponta o portal para a ficha do cliente e nomeia o bloqueio', () => {
