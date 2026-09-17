@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useVoyageTransshipments } from '../../../hooks/useTransshipments'
+import { useManifestosMercanteByVoyage } from '../../../hooks/useManifestosMercante'
 import type { VoyageBl } from '../../../services/voyageSummaries'
 import { buildVoyagePolEntityId } from '../../../services/voyageRouteSchedules'
 import { VoyageManifestosTab } from '../VoyageManifestosTab'
@@ -13,6 +14,9 @@ import type { Voyage } from '../voyageCardTypes'
 vi.mock('../../../services/supabase', () => ({ supabase: {}, isSupabaseConfigured: true }))
 vi.mock('../../../hooks/useTransshipments', () => ({
   useVoyageTransshipments: vi.fn(() => ({ data: { omissions: [], transshipments: [] } })),
+}))
+vi.mock('../../../hooks/useManifestosMercante', () => ({
+  useManifestosMercanteByVoyage: vi.fn(() => ({ data: [] })),
 }))
 function makeBl(overrides: Partial<VoyageBl> = {}): VoyageBl {
   return {
@@ -347,6 +351,59 @@ describe('VoyageManifestosTab', () => {
       batchIds: [],
       cargoMode: 'vazios',
     })
+  })
+
+  it('renderiza multiplos manifestos mercante para a mesma rota com badges de natureza', () => {
+    const voyage = {
+      id: 14,
+      voyage_number: '001',
+      vessel: { name: 'ALPHA' },
+      bls: [makeBl({ id: 'BL-001', ce_mercante: 'CE-001', pol: 'CNTAC', pod: 'BRVIX' })],
+    } as Voyage
+
+    vi.mocked(useManifestosMercanteByVoyage).mockReturnValueOnce({
+      data: [
+        {
+          id: 'm1',
+          voyage_id: 14,
+          pol: 'CNTAC',
+          pod: 'BRVIX',
+          numero: '26BR000100',
+          natureza: 'carga',
+          created_at: '2026-07-01',
+        },
+        {
+          id: 'm2',
+          voyage_id: 14,
+          pol: 'CNTAC',
+          pod: 'BRVIX',
+          numero: '26BR000200',
+          natureza: 'vazio',
+          created_at: '2026-07-02',
+        },
+      ],
+    } as any)
+
+    render(
+      <MemoryRouter>
+        <VoyageManifestosTab
+          voyage={voyage}
+          voyageLabel="ALPHA / 001"
+          importBatches={[]}
+          polSchedules={new Map([
+            [buildVoyagePolEntityId(14, 'CNTAC'), { entityId: '14::CNTAC', voyageId: 14, pol: 'CNTAC', etd: '2026-07-15', atd: '2026-07-16', escalaNumber: null }],
+          ])}
+          routeCeMasters={undefined}
+          ceCoverage={{ filled: 1, total: 1 }}
+          onEditPol={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('26BR000100')).toBeTruthy()
+    expect(screen.getByText('carga')).toBeTruthy()
+    expect(screen.getByText('26BR000200')).toBeTruthy()
+    expect(screen.getByText('vazio')).toBeTruthy()
   })
 })
 

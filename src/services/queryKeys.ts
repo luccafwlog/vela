@@ -76,6 +76,12 @@ export const queryKeys = {
     escalaTerminal: (voyageId: number, port: string) => ['voyage-escala-terminal', voyageId, port] as const,
     escalaTerminalAll: () => ['voyage-escala-terminal'] as const,
     timeline: (voyageId: number) => ['voyage-timeline', String(voyageId)] as const,
+    manifestosMercante: (voyageId: number) => ['manifestos-mercante', voyageId] as const,
+  },
+  manifestosMercante: {
+    all: () => ['manifestos-mercante'] as const,
+    byVoyage: (voyageId: number) => ['manifestos-mercante', voyageId] as const,
+    byRota: (voyageId: number, pol: string, pod: string) => ['manifestos-mercante', voyageId, pol, pod] as const,
   },
   agencyReports: {
     all: () => ['agency-report'] as const,
