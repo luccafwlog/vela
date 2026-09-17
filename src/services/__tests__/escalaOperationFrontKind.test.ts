@@ -5,14 +5,15 @@ import { operationFrontKindForCargoMode, operationFrontKindsForCargoMode } from 
 
 // A regra que liga a carga de um cliente ao terminal onde ela foi descarregada
 // vive nos dois lados: em TypeScript (conferência manual do NOB) e em SQL
-// (produtora automática). Divergir aqui é exatamente o defeito que a migration
-// 045 corrigiu no roteamento por caixa — um lado enviando para um público que o
-// outro não enviaria. Esta tabela é a fonte comum.
-const CASOS: Array<[string | null | undefined, string]> = [
+// (produtora automática). Divergir aqui é exatamente o defeito que as migrations
+// 059/060 corrigem no roteamento por caixa — um lado enviando para um público
+// que o outro não enviaria. Esta tabela é a fonte comum.
+const CASOS: Array<[string | null | undefined, string | null]> = [
   ['container', 'carga_cheia'],
   ['CONTAINER', 'carga_cheia'],
   ['carga_solta', 'carga_solta'],
   ['  carga_solta  ', 'carga_solta'],
+  ['misto', null],
   ['veiculo', 'veiculo'],
   ['veiculos', 'veiculo'],
   ['', 'carga_cheia'],
@@ -34,7 +35,7 @@ describe('Frente de Operação derivada do cargo_mode', () => {
 
   it('o espelho SQL cobre os mesmos casos com o mesmo resultado', () => {
     const sql = readFileSync(
-      resolve(process.cwd(), 'supabase/migrations/045_comunicados_caixas_e_nob_automatico.sql'),
+      resolve(process.cwd(), 'supabase/migrations/060_pr698_claude_review_followup.sql'),
       'utf8',
     )
     const corpo = sql.slice(
@@ -50,12 +51,14 @@ describe('Frente de Operação derivada do cargo_mode', () => {
       .map(([cargoMode, esperado]) => [String(cargoMode ?? '').trim().toLowerCase(), esperado] as const)
       .filter(([cargoMode, esperado]) => cargoMode !== '' && esperado !== 'carga_cheia'))
     for (const [cargoMode, esperado] of explicitos) {
-      expect(corpo).toContain(`WHEN '${cargoMode}' THEN '${esperado}'`)
+      expect(corpo).toContain(
+        esperado == null ? `WHEN '${cargoMode}' THEN NULL` : `WHEN '${cargoMode}' THEN '${esperado}'`,
+      )
     }
     expect(corpo).toContain("ELSE 'carga_cheia'")
 
     // Nenhum WHEN a mais: um ramo sem par em CASOS é divergência silenciosa.
-    const whens = [...corpo.matchAll(/WHEN '([^']+)' THEN '([^']+)'/g)].map((m) => m[1])
+    const whens = [...corpo.matchAll(/WHEN '([^']+)' THEN (?:'[^']+'|NULL)/g)].map((m) => m[1])
     expect(new Set(whens)).toEqual(new Set(explicitos.keys()))
   })
 })

@@ -168,14 +168,15 @@ async function fetchAllRows<T>(
  */
 export function operationFrontKindForCargoMode(
   cargoMode: string | null | undefined,
-): Exclude<OperationFrontKind, 'granito'> {
+): Exclude<OperationFrontKind, 'granito'> | null {
   const normalized = (cargoMode ?? '').trim().toLowerCase()
   if (normalized === 'carga_solta') return 'carga_solta'
   if (normalized === 'veiculo' || normalized === 'veiculos') return 'veiculo'
   if (normalized === 'misto') {
-    // A assinatura legada aceita apenas uma frente; o chamador correto deve
-    // usar operationFrontKindsForCargoMode para cobrir as duas frentes.
-    return 'carga_cheia'
+    // Uma modalidade única não descreve um B/L misto. O chamador que precisa
+    // roteá-lo deve usar operationFrontKindsForCargoMode para cobrir as duas
+    // frentes explicitamente.
+    return null
   }
   // Compatibilidade para chamadores antigos que aceitam uma única frente.
   return 'carga_cheia'
@@ -191,7 +192,8 @@ export function operationFrontKindsForCargoMode(
 ): Array<Exclude<OperationFrontKind, 'granito'>> {
   const normalized = (cargoMode ?? '').trim().toLowerCase()
   if (normalized === 'misto') return ['carga_cheia', 'carga_solta']
-  return [operationFrontKindForCargoMode(cargoMode)]
+  const kind = operationFrontKindForCargoMode(cargoMode)
+  return kind == null ? [] : [kind]
 }
 
 const IMPORT_SECTION_BY_KIND: Record<Exclude<OperationFrontKind, 'granito'>, OperationFront['section']> = {
