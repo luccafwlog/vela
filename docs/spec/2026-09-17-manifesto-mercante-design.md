@@ -10,6 +10,14 @@ favor de **"Nº de Manifesto Mercante"**.
 Este documento registra o levantamento de domínio que sustenta a decisão. Ele é o
 insumo da ADR correspondente, não a ADR.
 
+**Marcas de achado.** Segue a mesma convenção da
+[spec de carga mista](2026-09-16-unificacao-bls-carga-mista-design.md), seção
+"Como ler os achados": **[defeito atual]** produz resultado errado hoje;
+**[lacuna de mapa]** funciona hoje e precisa mudar para o modelo fechar.
+Diferentemente daquela spec, aqui a maioria dos achados é **[defeito atual]** —
+os três da seção "Por que o modelo atual está errado" quebram sem nenhuma carga
+mista envolvida.
+
 ---
 
 ## A definição que organiza tudo
@@ -146,7 +154,7 @@ coisa distinta do manifesto.
 
 ## Por que o modelo atual está errado
 
-### `cargo_mode` na chave é um proxy da identidade do manifesto
+### `cargo_mode` na chave é um proxy da identidade do manifesto — **[defeito atual]**
 
 ```sql
 CREATE TABLE public.voyage_route_ce_master (
@@ -166,9 +174,11 @@ documentado não tem.**
 A coluna não é descuido: ela codifica a convenção *"normalmente um manifesto de
 contêiner e um de carga solta"*. Funciona enquanto a convenção vale e quebra em
 dois casos reais — o manifesto que contém os dois tipos, e qualquer rota que
-precise de dois manifestos do mesmo tipo.
+precise de dois manifestos do mesmo tipo. **O segundo caso não depende de carga
+mista:** uma rota de contêiner que precise de dois lançamentos já não cabe na
+chave hoje.
 
-### Defeito vivo: a chave do frontend perde manifestos
+### A chave do frontend perde manifestos — **[defeito atual]**
 
 ```ts
 // voyageRouteSchedules.ts
@@ -187,7 +197,7 @@ normal da agência — `listVoyageRouteCeMasters` grava os dois na mesma chave d
 O banco tem os dois números; a tela mostra um, sem aviso. **É independente de
 carga mista e existe hoje.**
 
-### `manifestRef` do EDI é um valor não identificado exibido como manifesto
+### `manifestRef` do EDI é um valor não identificado exibido como manifesto — **[defeito atual]**
 
 O parser do EDI de CE Mercante lê o segundo token do registro `M` e o chama de
 `manifestRef`:
@@ -249,7 +259,7 @@ O que falta é o nível do manifesto: `vazios_importacao_manifests` tem apenas
 lote são os pares distintos — e o sistema passa a **detectar sozinho** o caso do
 fato 2 (contêineres de dois portos de origem → dois manifestos).
 
-### Exportação — lacuna funcional
+### Exportação — lacuna funcional — **[lacuna de mapa]**
 
 `vazios_bookings` **não tem nenhum campo de porto**, e `vaziosExportOperations.ts`
 tampouco. O embarque de vazios precisa passar a informar porto de origem e de
@@ -257,7 +267,8 @@ destino; sem isso o manifesto de vazio de exportação não tem rota e o modelo 
 fecha.
 
 **Esta é a única lacuna funcional nova que a decisão cria.** As demais mudanças
-reorganizam dados que já existem.
+reorganizam dados que já existem. Nada está errado hoje no embarque de vazios: o
+porto simplesmente não é coletado porque nada o exigia.
 
 ---
 

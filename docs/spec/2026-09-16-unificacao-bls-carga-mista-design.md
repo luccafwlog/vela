@@ -12,6 +12,35 @@ Define-se expressamente como as cargas e BLs são apresentados na tela de **Viag
 
 ---
 
+## Como ler os achados desta spec
+
+Esta spec mistura dois tipos de afirmação: o que o sistema **deve passar a
+fazer** e o que ele **faz hoje**. Sem distinguir os dois, um ponto que apenas
+precisa mudar lê-se como bug em produção. Cada achado levantado contra o
+repositório carrega, por isso, uma destas quatro marcas:
+
+| Marca | Significado |
+|---|---|
+| **[defeito atual]** | Produz resultado errado **hoje**, sem carga mista e sem nada desta spec implementado. É a única categoria que justifica correção imediata, independentemente desta entrega. |
+| **[lacuna de mapa]** | Funciona corretamente hoje. Precisa mudar para a spec entregar o que promete, e **não constava** do mapa de impacto original — foi encontrado pelas varreduras exaustivas (§3 e §5). É a categoria da grande maioria dos achados. |
+| **[inconsistência]** | A spec se contradiz: decide uma coisa numa seção e descreve um fluxo que ela torna impossível em outra. |
+| **[fato errado — corrigido]** | Versão anterior desta spec afirmava algo falso sobre o comportamento atual. Fica registrado com a correção, para que a afirmação errada não volte. |
+
+Uma consequência do rótulo, dita de frente: **esta spec não descreve um sistema
+quebrado.** Das dezenas de pontos que as varreduras exaustivas (§3 e §5)
+levantaram, **um único** está marcado `[defeito atual]` — a divergência entre os
+dois pontos de entrada do motor de taxas quando o POD não tem tabela de preços.
+Todo o resto funciona hoje e deixaria de funcionar se a carga mista entrasse sem
+tratamento. A outra spec desta entrega concentra mais `[defeito atual]`, esses
+sim de outra natureza — ver
+[Manifesto Mercante](2026-09-17-manifesto-mercante-design.md).
+
+A palavra **bloqueador**, onde aparece, quer dizer *ponto sem o qual o
+comportamento desta spec não é observável* — não é sinônimo de defeito em
+produção.
+
+---
+
 ## Propósito e escopo
 
 ### Contexto e Premissa de Greenfield
@@ -93,8 +122,11 @@ alertas), `audit_bls` e a reconciliação baplie por statement. Dois deles
 escrevem em outras tabelas. A entrega precisa de um teste que percorra a cascata
 inteira numa transição, não só o valor final de `cargo_mode`.
 
-#### Superfície de migração
-Ampliar apenas `bls_cargo_mode_check` deixa o sistema quebrado. A migração
+#### Superfície de migração — **[lacuna de mapa]**
+Nenhuma linha desta tabela está errada hoje: todas descrevem pontos que
+enumeram corretamente as duas modalidades existentes. Cada uma vira bloqueio no
+instante em que `'misto'` passa a existir. Ampliar apenas
+`bls_cargo_mode_check` deixa o sistema quebrado. A migração
 correspondente precisa cobrir, no mínimo:
 
 | Ponto | Estado atual | Ação |
@@ -125,7 +157,7 @@ Em `src/services/breakbulkImport.ts` e `src/services/blFreightImport.ts`:
 - A importação adiciona os itens de carga solta em `bl_breakbulk_items` (ou preenche `bb_weight_ton`, `bb_machine_qty`, `bb_packages_qty`), preserva os `bl_containers` existentes e atualiza `bls.cargo_mode = 'misto'`.
 - De modo idêntico, a importação de arquivo com contêineres para um B/L previamente gravado como `carga_solta` associa os contêineres e atualiza o B/L para `misto`.
 
-#### O bloqueio cruzado também está no banco
+#### O bloqueio cruzado também está no banco — **[lacuna de mapa]**
 
 Remover o bloqueio de `breakbulkImport.ts` **não basta**. O trigger
 `validate_bl_breakbulk_item_parent` (`002`, BEFORE INSERT OR UPDATE em
@@ -208,7 +240,7 @@ individual operada na ficha do B/L:
 `terminal_id` e os seus contêineres e a sua carga solta seguem esse valor por
 construção — não há estado que a viole.
 
-#### Efeito colateral já existente: roteamento do NOB
+#### Roteamento do NOB cai no fallback silencioso — **[lacuna de mapa]**
 
 `operationFrontKindForCargoMode` (`src/services/escalaTerminalAllocation.ts`) e
 `public.bl_operation_front_modalidade` (migration `045`) mapeiam `cargo_mode`
@@ -258,7 +290,12 @@ O motor hoje é **mono-tabela**: resolve uma única `charge_tables` por
 mudar para o B/L misto; **nenhum deles falha de forma visível se for
 esquecido** — todos produzem fatura a menor em silêncio.
 
-#### A correção é em duas funções, não em uma
+Os quatro são **[lacuna de mapa]**: hoje, com modalidade binária, o motor
+resolve o preço corretamente. O silêncio descrito aqui é o que aconteceria
+*depois* de `'misto'` existir, não o que acontece agora. A única exceção está
+marcada adiante, em "Cuidado com 'como hoje'".
+
+#### A correção é em duas funções, não em uma — **[lacuna de mapa]**
 
 `calculate_bl_local_charges` **não delega** a resolução a
 `resolve_bl_local_charge_items`: repete a lógica antes de iterar os itens
@@ -323,7 +360,11 @@ eliminar. Portanto, para `cargo_mode = 'misto'`:
 | Apenas uma presente | Calcula a parte coberta **e** emite `review:missing_charge_table:<cargo_mode>` para a parte descoberta, bloqueando `ready_for_billing` |
 | Nenhuma presente | Mantém a pendência `review:no_table` que `calculate_bl_local_charges` já grava hoje (`002:3022`) |
 
-**Cuidado com "como hoje": hoje são dois comportamentos.**
+**Cuidado com "como hoje": hoje são dois comportamentos — [defeito atual].**
+Este é o único achado desta spec que já produz resultado errado sem carga
+mista: um B/L comum num POD sem tabela de preços recebe pendência ou silêncio
+conforme o ponto de entrada, e a prévia do COD é justamente o caminho
+silencioso.
 `calculate_bl_local_charges` grava `review:no_table` com
 `status = 'review_required'` e liga a revisão automática (`002:3022`);
 `resolve_bl_local_charge_items` faz `RETURN;` em silêncio (`002:17276`). O mesmo
@@ -373,7 +414,7 @@ chaves distintas, logo **ambas gravam sem conflito**. A incidência única é
 invariante de negócio a ser garantida na resolução; a chave física não a
 protege.
 
-##### Transição de modalidade invalida o cálculo anterior
+##### Transição de modalidade invalida o cálculo anterior — **[lacuna de mapa]**
 Não existe hoje, em nenhuma migration, invalidação de `charge_calculations`
 quando `bl_containers` ou `bl_breakbulk_items` mudam — nenhum trigger nessas
 tabelas toca em taxas. Isso fica latente enquanto a modalidade de um B/L é fixa
@@ -562,7 +603,7 @@ o resto do sistema, que a mudança atinge por três caminhos: leitura filtrada,
 navegação e classificação binária. Todos os números abaixo foram levantados
 contra o repositório em 2026-09-16, excluindo testes.
 
-### 1. Filtros de `cargo_mode` nas RPCs de leitura
+### 1. Filtros de `cargo_mode` nas RPCs de leitura — **[lacuna de mapa]**
 
 Cinco RPCs filtram por igualdade estrita:
 
@@ -605,7 +646,7 @@ O mesmo critério vale para os filtros equivalentes no frontend
 (`exports.ts:80`, hoje `.filter(row => row.cargo_mode === 'carga_solta')`, que
 omitiria a tonelagem dos B/Ls mistos do relatório).
 
-### 2. Links internos para as rotas removidas
+### 2. Links internos para as rotas removidas — **[lacuna de mapa]**
 
 `/manifestos` e `/carga-solta` aparecem em **57 ocorrências (54 linhas), em 26
 arquivos** de `src/` (fora testes) — bem além de "breadcrumbs, `BlDetalhe.tsx` e notificações".
@@ -680,10 +721,12 @@ perde bloqueador, **os 52 arquivos de `src/` que referenciam `cargo_mode` ou
 `cargoMode` foram lidos um a um** — 263 ocorrências, fora de testes e do
 `types/database.ts` gerado.
 
-#### Bloqueadores
+#### Pontos em que o B/L misto escaparia de um controle — **[lacuna de mapa]**
 
-Quatro pontos em que o B/L misto não é apenas exibido errado: ele **escapa de um
-controle**.
+Quatro pontos em que o B/L misto não seria apenas exibido errado: ele **escaparia
+de um controle**. Nenhum deles falha hoje — as quatro regras cobrem corretamente
+as duas modalidades que existem. Descrevem o que aconteceria com `'misto'` no
+sistema, e é por isso que constam do mapa.
 
 **a) Faturar sem CE Mercante** — `validacaoPipeline.ts:106`
 
@@ -695,8 +738,8 @@ if (!row.ce_mercante?.trim() && (mode === 'container' || mode === '' || mode ===
 ```
 
 A regra é: contêiner e granito exigem CE Mercante para emitir; carga solta não.
-Um B/L `'misto'` **tem contêineres e não cai na condição** — o bloqueio
-"Aguardando CE Mercante" não se aplica a ele, e a fatura sai sem CE.
+Um B/L `'misto'` **teria contêineres e não cairia na condição** — o bloqueio
+"Aguardando CE Mercante" não se aplicaria a ele, e a fatura sairia sem CE.
 
 O mesmo B/L também some do painel: `isAwaitingCeMercante` (`:170`) exige
 `(row.cargo_mode ?? 'container') === 'container'`, então o card "Aguardando CE"
@@ -717,7 +760,9 @@ ADR por igualdade estrita. Os contêineres do B/L misto entram (a consulta de
 O ADR sai com metade da carga do documento, e o ADR é o que o Financeiro usa para
 aprovar pagamento de fatura. A seção "Aba Relatório de Agência / ADR" desta spec
 **afirma o resultado desejado** — *"a tonelagem de carga solta do B/L misto soma
-no bloco de breakbulk do mesmo terminal"* — sem nomear o ponto que o impede.
+no bloco de breakbulk do mesmo terminal"* — sem nomear o ponto que o impediria.
+É o exemplo mais claro do que a marca **[lacuna de mapa]** significa: a promessa
+está certa, o mapa de impacto é que não continha a consulta que a sustenta.
 
 **c) Faturamento automático descarta o B/L misto** — `reviewBillingAutomation.ts:352`
 
@@ -729,9 +774,9 @@ const result = await tryAutoIssueInvoice({ blId: bl.id, ... })
 ```
 
 O `return null` acontece **antes** de `tryAutoIssueInvoice`. A chegada do CE
-Mercante nunca dispara fatura para um B/L misto — sem alerta, sem evento
-operacional, sem log. A guarda existe para excluir granito; `'misto'` cai nela
-por omissão.
+Mercante nunca dispararia fatura para um B/L misto — sem alerta, sem evento
+operacional, sem log. A guarda existe para excluir granito; `'misto'` cairia
+nela por omissão.
 
 **d) A ficha do B/L perde metade da carga, e qual metade depende da ingestão** —
 `blDetalheHelpers.ts:4`
@@ -760,7 +805,7 @@ cai na terceira, então
 `BlDetalhe.tsx:68-69` deriva `isContainerMode` daí, e ele governa título, badge e
 abas da ficha inteira.
 
-#### Gêmeos TypeScript de correções que a spec já fez em SQL
+#### Gêmeos TypeScript de correções que a spec já fez em SQL — **[lacuna de mapa]**
 
 Três pontos em que a mesma regra existe dos dois lados e a spec corrigia só um:
 
@@ -771,9 +816,10 @@ Três pontos em que a mesma regra existe dos dois lados e a spec corrigia só um
 | `blFreightImport.ts:496,539` — o importador **grava** `cargo_mode: 'container'` | `jsonb_build_object('cargo_mode','carga_solta')` (`031:368`) |
 
 O primeiro é o mais caro: com B/L misto no sistema, o rateio `1/n` calculado na
-tela diverge do calculado no banco — a tela mostra um valor e a fatura outro.
+tela divergiria do calculado no banco — a tela mostraria um valor e a fatura
+outro. Hoje as duas cópias concordam, porque ambas filtram `'container'`.
 
-#### Classe que a spec não tinha: o tipo, não a comparação
+#### Classe que a spec não tinha: o tipo, não a comparação — **[lacuna de mapa]**
 
 A versão anterior desta seção tratava de **comparações**, que são runtime.
 Existem 12 sítios em que a modalidade de B/L é um **tipo literal fechado**, onde
@@ -795,7 +841,7 @@ decide o badge de modalidade da rota.
 **tabelas de preço** e não podem ganhar `'misto'`, porque `charge_tables` não tem
 essa modalidade. Uma troca em bloco erra os dois.
 
-#### Filtros de tela sem a opção "Misto"
+#### Filtros de tela sem a opção "Misto" — **[lacuna de mapa]**
 
 `ValidacaoControls.tsx:29` e `Relatorios.tsx:168` montam o `<Select>` de
 modalidade com Todos / Container / Carga Solta / Granito. `Containers.tsx:40`
@@ -811,7 +857,7 @@ const wantBls = cargoMode === '' || cargoMode === 'container' || cargoMode === '
 Acrescentar a opção `'misto'` na tela **sem** tocar nesta linha faz `wantBls`
 virar `false` e a lista voltar vazia.
 
-#### Demais pontos afetados
+#### Demais pontos afetados — **[lacuna de mapa]**
 
 `chargeOperationsService.ts:786` e `:824` (recálculo em lote pula o misto),
 `reports.ts:81,372`, `operationalLists.ts:179`, `exports.ts:80` (exportação de
@@ -829,9 +875,9 @@ texto de ajuda em `VoyageImportacaoTab.tsx:78`, que fala em "os dois modos".
   `chargeRateService.ts` (filtro por tabela), `customerFicha.ts`. Todos operam a
   modalidade da **tabela de preços**, que permanece `container|carga_solta|granito`.
 - **Batch de importação** — `voyageTimeline.ts:139` e `voyageSummaries.ts:771,783`
-  comparam `import_batches.cargo_mode`, que permanece binário. *A versão anterior
-  desta seção classificava `voyageTimeline.ts:139` como comparação de B/L; está
-  corrigido.*
+  comparam `import_batches.cargo_mode`, que permanece binário. ***[fato errado —
+  corrigido]** a versão anterior desta seção classificava `voyageTimeline.ts:139`
+  como comparação de B/L.*
 - **Granito** — os ramos de `ValidacaoTab.tsx:55,88`,
   `validacaoPipeline.ts:71,135` e `ValidacaoOperationsTable.tsx:97,115,245,251,340`
   tratam exportação de granito e não mudam.
@@ -844,10 +890,10 @@ texto de ajuda em `VoyageImportacaoTab.tsx:78`, que fala em "os dois modos".
 - **`useBls.ts:175`** — o `?? 'container'` está dentro de `fetchAllContainers`,
   marcado `@deprecated` e usado só na exportação CSV/XLSX de contêineres, onde o
   default é legítimo. O fetch da lista (`:369`) não aplica filtro quando ele vem
-  vazio. *Registro anterior desta revisão dizia que a tela abria filtrando
-  contêiner por padrão; era leitura errada.*
+  vazio. ***[fato errado — corrigido]** registro anterior desta revisão dizia
+  que a tela abria filtrando contêiner por padrão.*
 
-#### Os três padrões originais, mantidos
+#### Os três padrões originais, mantidos — **[lacuna de mapa]**
 
 **(a) Rótulo binário — o misto é exibido como "Container".**
 `exports.ts:38,217,288`, `revisaoHelpers.ts:20`, `Relatorios.tsx:211`,
@@ -899,7 +945,8 @@ rotas. A entrega inclui:
   `/bls` passa a rastrear componentes, hooks, serviços, RPCs e testes.
 - **`docs/spec/<data>-behavioral-spec.csv`** — a spec comportamental canônica
   tem uma linha por rota SPA e por `supabase.rpc(...)`. São **3 linhas** que
-  citam as rotas removidas: `MAN-ROUTE-01` (`/manifestos`), `MAN-ROUTE-02`
+  citam as rotas removidas (***[fato errado — corrigido]*** *uma versão anterior
+  desta seção dizia 24*): `MAN-ROUTE-01` (`/manifestos`), `MAN-ROUTE-02`
   (`/manifestos/:blId`) e `MAN-ROUTE-03` (`/carga-solta`). O rótulo de área
   `Manifestos & EDI` **não muda** — é área funcional, não rota (ver "A rota
   morre; a palavra não"). Além dessas 3, mudam de comportamento as linhas das
@@ -924,10 +971,11 @@ de fora — três bloqueadores apareceram só quando a leitura passou a ser por
 função inteira. Para fechar a lacuna, **as 35 funções SQL que referenciam
 `cargo_mode` foram lidas uma a uma**. Doze pontos novos, além dos já tratados:
 
-#### Mesma classe de defeito: preço resolvido por igualdade de modalidade
+#### Preço resolvido por igualdade de modalidade — **[lacuna de mapa]**
 
-Como não existe `charge_tables` com `cargo_mode = 'misto'`, toda função que
-resolve preço por igualdade estrita quebra para o B/L misto. Além das três já
+Como não existiria `charge_tables` com `cargo_mode = 'misto'`, toda função que
+resolve preço por igualdade estrita quebraria para o B/L misto. Para as duas
+modalidades de hoje, todas resolvem corretamente. Além das três já
 tratadas, são mais três:
 
 | Função | Ponto | Efeito no B/L misto |
@@ -936,22 +984,27 @@ tratadas, são mais três:
 | `add_manual_bl_charge` | `002:1032` | `AND ct.cargo_mode = v_bl.cargo_mode` — impossível lançar cobrança manual em B/L misto |
 | `list_manual_charge_items_for_bl` | `002:10546` | `AND ct.cargo_mode = bl_ctx.cargo_mode` — catálogo de itens manuais volta vazio |
 
-`mark_bl_ready_for_billing` é o mais grave dos três e muda o desenho: **a
+`mark_bl_ready_for_billing` é o mais grave dos três, e é também
+**[inconsistência]**: esta spec decide que `charge_tables` não ganha `'misto'`
+(tabela "Superfície de migração") e, em seguida, descreve pendências que
+"bloqueiam `ready_for_billing`" — um estado que aquela decisão torna
+inalcançável para o B/L misto. Ou a decisão muda, ou o gate passa a resolver
+duas tabelas. Daí a consequência de desenho: **a
 resolução de duas tabelas precisa estar em uma função de resolução única, usada
 também pelo gate**, e não replicada dentro de cada consumidor. Sem isso, a spec
 descreve um fluxo cujo estado final é inalcançável.
 
-#### Filtro binário que faz o misto desaparecer
+#### Filtro binário que faria o misto desaparecer — **[lacuna de mapa]**
 
 | Função | Ponto | Efeito |
 |---|---|---|
-| `_run_import_effect_local_charges` | `025:62`, `051:681` | `COALESCE(b.cargo_mode,'container') = 'container'` — o worker que dispara o cálculo de taxas após a importação **não enxerga o B/L misto**; ele nunca é faturado automaticamente, em silêncio |
-| `operational_list_voyage_summaries` | `035:73-74`, `037:73-74` | `COUNT(*) FILTER (WHERE cargo_mode = 'container')` e `= 'carga_solta'` — o misto **não é contado em nenhum dos dois**, e o KPI de viagem do read model perde o documento |
+| `_run_import_effect_local_charges` | `025:62`, `051:681` | `COALESCE(b.cargo_mode,'container') = 'container'` — o worker que dispara o cálculo de taxas após a importação **não enxergaria o B/L misto**; ele nunca seria faturado automaticamente, em silêncio |
+| `operational_list_voyage_summaries` | `035:73-74`, `037:73-74` | `COUNT(*) FILTER (WHERE cargo_mode = 'container')` e `= 'carga_solta'` — o misto **não seria contado em nenhum dos dois**, e o KPI de viagem do read model perderia o documento |
 
 `operational_list_voyage_summaries` é o gêmeo SQL de `splitVoyageBls`. A spec
 corrigia o agregador TypeScript e deixava o do banco intacto.
 
-#### Roteamento do NOB: onde a decisão 7 da ADR 0068 realmente cai
+#### Roteamento do NOB: onde a decisão 7 da ADR 0068 realmente cai — **[lacuna de mapa]**
 
 `evaluate_and_dispatch_automatic_communications` (`045:319`) junta o B/L à
 frente por
@@ -966,7 +1019,7 @@ resolve: uma modalidade única não descreve um B/L que tem carga em duas, e o
 join continuaria escolhendo uma frente só. O join passa a usar o **terminal
 resolvido do B/L** (exceção ou herança), conforme a ADR 0068.
 
-#### CE Mercante por rota é chaveado por modalidade
+#### CE Mercante por rota é chaveado por modalidade — **[lacuna de mapa]**
 
 `voyage_route_ce_master` tem `UNIQUE (voyage_id, pol, pod, cargo_mode)`, e a
 chave é montada assim de ponta a ponta: `set_voyage_route_ce_master`
@@ -977,6 +1030,12 @@ chave é montada assim de ponta a ponta: `set_voyage_route_ce_master`
 Um B/L misto procuraria a chave `…|misto`, que **ninguém grava** — a rota
 apareceria sem CE Master, derrubando o percentual de cobertura que a aba Visão
 Geral exibe.
+
+**Aqui o rótulo muda no meio do caminho.** O ponto acima é `[lacuna de mapa]`.
+O levantamento que ele provocou encontrou, atrás dele, um **[defeito atual]**
+independente de carga mista — a chave do frontend que perde manifestos — e um
+erro de modelagem anterior a esta spec. Os dois estão na
+[spec do Manifesto Mercante](2026-09-17-manifesto-mercante-design.md).
 
 **Esta spec não decide isto.** A primeira versão desta seção resolvia o caso por
 analogia com o filtro-lente — o B/L misto consultaria as duas chaves de
@@ -1003,11 +1062,11 @@ manifesto de um B/L não passa por `cargo_mode`**, e nenhuma linha
 `cargo_mode = 'misto'` é criada em `voyage_route_ce_master` — que, aliás, é
 removida pela outra spec.
 
-#### Prontidão de comunicação e cópia desnormalizada
+#### Prontidão de comunicação e cópia desnormalizada — **[lacuna de mapa]**
 
 | Ponto | Efeito |
 |---|---|
-| `customer_local_charges_communication_readiness` (`019:1183`) | `CASE WHEN COALESCE(b.cargo_mode,'container') = 'carga_solta'` — o misto cai no ramo de contêiner e a prontidão é avaliada sem a parcela de carga solta |
+| `customer_local_charges_communication_readiness` (`019:1183`) | `CASE WHEN COALESCE(b.cargo_mode,'container') = 'carga_solta'` — o misto cairia no ramo de contêiner e a prontidão seria avaliada sem a parcela de carga solta |
 | `bl_receivables.cargo_mode` | Cópia desnormalizada gravada por `sync_local_charge_receivable` e `link_invoice_to_ledger`. **Não tem CHECK**, então `'misto'` não quebra a inserção — mas a modalidade agora **muda ao longo da vida do B/L**, e a cópia fica velha. A invalidação por transição de modalidade (ver Faturamento) precisa ressincronizar o recebível, não só recalcular as taxas |
 
 #### Verificado e **não** afetado
