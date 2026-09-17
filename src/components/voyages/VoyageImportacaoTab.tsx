@@ -27,7 +27,7 @@ export function VoyageImportacaoTab({ voyage, voyageLabel, vehicleStats, vaziosI
   const { containerBls, breakbulkBls } = splitVoyageBls(voyage.bls)
   const containers = containerBls.flatMap((bl) => bl.bl_containers ?? [])
   const totalWeightTon = breakbulkBls.reduce(
-    (sum, bl) => sum + Number(bl.bb_weight_ton ?? (bl.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : 0)),
+    (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
     0,
   )
   const totals = [

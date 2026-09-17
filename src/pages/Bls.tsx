@@ -42,9 +42,7 @@ import type { BLListItem } from '../types/database'
 
 function formatBlCargoBadge(bl: BLListItem): string {
   const cntrCount = countDistinctContainerNumbers(bl.bl_containers)
-  const bbWeight = bl.bb_weight_ton != null
-    ? Number(bl.bb_weight_ton)
-    : (bl.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : 0)
+  const bbWeight = Number(bl.bb_weight_ton ?? 0)
 
   if (bl.cargo_mode === 'misto') {
     const formattedWeight = bbWeight % 1 === 0 ? bbWeight : bbWeight.toFixed(1)
@@ -768,7 +766,7 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
         <PreviewBox
           label="Peso (ton)"
           value={manifest.bls.reduce(
-            (sum, bl) => sum + Number(bl.bb_weight_ton ?? (bl.total_weight_kg ? bl.total_weight_kg / 1000 : 0)),
+            (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
             0,
           )}
           variant="metric-strip"
@@ -802,7 +800,7 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
                 <td className="px-3 py-2">{formatBBNumber(bl.bb_packages_qty)}</td>
                 <td className="px-3 py-2">{formatBBNumber(bl.bb_packages_total)}</td>
                 <td className="px-3 py-2">
-                  {formatBBNumber(bl.bb_weight_ton ?? (bl.total_weight_kg ? bl.total_weight_kg / 1000 : null))}
+                  {formatBBNumber(bl.bb_weight_ton)}
                 </td>
                 <td className="px-3 py-2">{formatBBNumber(bl.total_cbm)}</td>
                 <td className="px-3 py-2">{bl.shipper ?? '-'}</td>

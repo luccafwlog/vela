@@ -1219,7 +1219,7 @@ function summarizeBreakbulk(breakbulk: BreakbulkAgencyReportBl[]) {
     machines: breakbulk.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0),
     packages: breakbulk.reduce((sum, bl) => sum + Number(bl.bb_packages_qty ?? 0), 0),
     weightTon: breakbulk.reduce(
-      (sum, bl) => sum + Number(bl.bb_weight_ton ?? (bl.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : 0)),
+      (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
       0,
     ),
     cbm: breakbulk.reduce((sum, bl) => sum + Number(bl.total_cbm ?? 0), 0),

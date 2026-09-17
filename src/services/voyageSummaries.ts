@@ -1253,7 +1253,7 @@ export function summarizeImportByPod(
         machines: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0),
         packages: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_packages_qty ?? 0), 0),
         weightTon: podBreakbulk.reduce(
-          (sum, bl) => sum + Number(bl.bb_weight_ton ?? (bl.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : 0)),
+          (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
           0,
         ),
         cbm: podBreakbulk.reduce((sum, bl) => sum + Number(bl.total_cbm ?? 0), 0),

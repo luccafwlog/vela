@@ -67,7 +67,6 @@ export type BreakbulkImportRow = {
   bb_packages_qty: number | null
   bb_packages_total: number | null
   bb_weight_ton: number | null
-  total_weight_kg: number
   total_cbm: number
   items: Array<{
     item_description: string
@@ -204,7 +203,6 @@ function parseCarrierBreakbulkRows(rawRows: (string | number | null)[][]): Parse
       bb_packages_qty: packageInfo.quantity,
       bb_packages_total: packageInfo.quantity,
       bb_weight_ton: grossWeightKg > 0 ? grossWeightKg / 1000 : null,
-      total_weight_kg: grossWeightKg,
       total_cbm: cbm,
       items: [
         {
@@ -272,7 +270,6 @@ function parseSummaryRows(rows: SheetRow[]): ParsedBreakbulkManifest {
       bb_packages_qty: packagesQty,
       bb_packages_total: packagesTotal,
       bb_weight_ton: weightTon,
-      total_weight_kg: weightTon * 1000,
       total_cbm: cbm,
       items: [],
     })
@@ -366,7 +363,6 @@ function parseLegacyRows(rows: SheetRow[]): ParsedBreakbulkManifest {
         bb_packages_qty: row.package_qty,
         bb_packages_total: row.package_qty,
         bb_weight_ton: row.gross_weight_kg / 1000,
-        total_weight_kg: row.gross_weight_kg,
         total_cbm: row.cbm,
         items: [
           {
@@ -396,11 +392,10 @@ function parseLegacyRows(rows: SheetRow[]): ParsedBreakbulkManifest {
       continue
     }
 
-    current.total_weight_kg += row.gross_weight_kg
     current.total_cbm += row.cbm
     current.bb_packages_total = Number(current.bb_packages_total ?? 0) + row.package_qty
     current.bb_packages_qty = Number(current.bb_packages_qty ?? 0) + row.package_qty
-    current.bb_weight_ton = current.total_weight_kg / 1000
+    current.bb_weight_ton = Number(current.bb_weight_ton ?? 0) + row.gross_weight_kg / 1000
     current.items.push({
       item_description: row.item_description,
       package_qty: row.package_qty,

@@ -139,7 +139,7 @@ export function BlCargaTab({
                     <td className="py-2">{formatNumber(bl.bb_machine_qty)}</td>
                     <td className="py-2">{formatNumber(bl.bb_packages_qty)}</td>
                     <td className="py-2">{formatNumber(bl.bb_packages_total ?? bl.bb_packages_qty)}</td>
-                    <td className="py-2">{formatNumber(bl.bb_weight_ton ?? (bl.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : null))}</td>
+                    <td className="py-2">{formatNumber(bl.bb_weight_ton)}</td>
                     <td className="py-2">{formatNumber(bl.total_cbm)}</td>
                   </tr>
                 </tbody>

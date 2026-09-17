@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { classifyDbError } from '../lib/errors'
+import { blTotalWeightKg } from '../lib/cargoMode'
 
 const REPORT_ROW_LIMIT = 2000
 
@@ -32,6 +33,7 @@ export type OperationalReportRow = {
   review_status: string | null
   financial_status: string | null
   total_weight_kg: number | null
+  bb_weight_ton: number | null
   total_cbm: number | null
   created_at: string | null
   voyage_id: number | null
@@ -66,7 +68,7 @@ export async function fetchOperationalReport(filters: OperationalReportFilters):
     .select(
       `
       id, pol, pod, cargo_mode, review_status, financial_status,
-      total_weight_kg, total_cbm, created_at, voyage_id,
+      total_weight_kg, bb_weight_ton, total_cbm, created_at, voyage_id,
       customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf),
       voyage:voyages(id, voyage_number, vessel:vessels(id, name, carrier:carriers(id, name))),
       bl_containers(id, container_number)
@@ -102,7 +104,7 @@ export async function fetchOperationalReport(filters: OperationalReportFilters):
   const kpis = {
     totalBls: rows.length,
     totalContainers: distinctContainers.size,
-    totalWeightKg: rows.reduce((sum, row) => sum + Number(row.total_weight_kg ?? 0), 0),
+    totalWeightKg: rows.reduce((sum, row) => sum + blTotalWeightKg(row), 0),
     totalCbm: rows.reduce((sum, row) => sum + Number(row.total_cbm ?? 0), 0),
     totalVoyages: distinctVoyages.size,
     truncated: rows.length === REPORT_ROW_LIMIT,
@@ -227,6 +229,7 @@ export async function fetchCustomerReport(filters: ReportFilters): Promise<Custo
   type BlRow = {
     customer_id: number
     total_weight_kg: number | null
+    bb_weight_ton: number | null
     total_cbm: number | null
     customer: { id: number; name: string; cnpj_cpf: string } | null
   }
@@ -234,7 +237,7 @@ export async function fetchCustomerReport(filters: ReportFilters): Promise<Custo
   let blsQuery = supabase
     .from('bls')
     .select(
-      `id, customer_id, total_weight_kg, total_cbm, created_at,
+      `id, customer_id, total_weight_kg, bb_weight_ton, total_cbm, created_at,
        customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf)`,
     )
     .not('customer_id', 'is', null)
@@ -267,7 +270,7 @@ export async function fetchCustomerReport(filters: ReportFilters): Promise<Custo
       perCustomer.set(bl.customer_id, entry)
     }
     entry.blCount++
-    entry.totalWeightKg += Number(bl.total_weight_kg ?? 0)
+    entry.totalWeightKg += blTotalWeightKg(bl)
     entry.totalCbm += Number(bl.total_cbm ?? 0)
   }
 
@@ -360,7 +363,7 @@ export async function fetchOperationalReportForExport(filters: OperationalReport
     .select(
       `
       id, pol, pod, cargo_mode, review_status, financial_status,
-      total_weight_kg, total_cbm, created_at, voyage_id,
+      total_weight_kg, bb_weight_ton, total_cbm, created_at, voyage_id,
       customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf),
       voyage:voyages(id, voyage_number, vessel:vessels(id, name, carrier:carriers(id, name))),
       bl_containers(id, container_number)
