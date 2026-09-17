@@ -940,7 +940,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
       .select(BREAKBULK_SELECT)
       .eq('voyage_id', voyageId)
       .in('pod', portCodeVariants(port))
-      .eq('cargo_mode', 'carga_solta'),
+      .in('cargo_mode', ['carga_solta', 'misto']),
     // Carga em transbordo (Task 1 do ADR 2026-07-31): mesmas três consultas,
     // agora restritas aos B/Ls de transshipmentBlIds, sem filtrar por bls.pod
     // (que continua apontando para o porto omitido). Só disparam quando há
@@ -951,7 +951,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
         )
       : Promise.resolve(emptyResult),
     transshipmentBlIds.length
-      ? supabase.from('bls').select(BREAKBULK_SELECT).in('id', transshipmentBlIds).eq('cargo_mode', 'carga_solta')
+      ? supabase.from('bls').select(BREAKBULK_SELECT).in('id', transshipmentBlIds).in('cargo_mode', ['carga_solta', 'misto'])
       : Promise.resolve(emptyResult),
     transshipmentBlIds.length
       ? fetchAllRows((from, to) =>

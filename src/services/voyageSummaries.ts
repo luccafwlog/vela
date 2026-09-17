@@ -145,6 +145,9 @@ export function splitVoyageBls(bls: VoyageBl[] | null | undefined) {
   for (const bl of bls ?? []) {
     if (bl.cargo_mode === 'carga_solta') {
       breakbulkBls.push(bl)
+    } else if (bl.cargo_mode === 'misto') {
+      containerBls.push(bl)
+      breakbulkBls.push(bl)
     } else {
       containerBls.push(bl)
     }

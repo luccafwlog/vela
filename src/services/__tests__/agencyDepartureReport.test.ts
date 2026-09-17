@@ -210,7 +210,7 @@ describe('getAgencyReportDerivedData', () => {
     })
 
     expect(breakbulkQuery.eq).toHaveBeenCalledWith('voyage_id', 7)
-    expect(breakbulkQuery.eq).toHaveBeenCalledWith('cargo_mode', 'carga_solta')
+    expect(breakbulkQuery.in).toHaveBeenCalledWith('cargo_mode', ['carga_solta', 'misto'])
     expect(breakbulkQuery.in).toHaveBeenCalledWith('pod', expect.arrayContaining(['BRSSZ']))
   })
 
