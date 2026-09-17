@@ -23,7 +23,7 @@ repositório carrega, por isso, uma destas quatro marcas:
 |---|---|
 | **[defeito atual]** | Produz resultado errado **hoje**, sem carga mista e sem nada desta spec implementado. É a única categoria que justifica correção imediata, independentemente desta entrega. |
 | **[lacuna de mapa]** | Funciona corretamente hoje. Precisa mudar para a spec entregar o que promete, e **não constava** do mapa de impacto original — foi encontrado pelas varreduras exaustivas (§3 e §5). É a categoria da grande maioria dos achados. |
-| **[inconsistência]** | A spec se contradiz: decide uma coisa numa seção e descreve um fluxo que ela torna impossível em outra. |
+| **[inconsistência]** | A spec se contradiz: decide uma coisa numa seção e descreve um fluxo que ela torna impossível em outra. A única levantada — o gate de faturamento contra a ausência de tabela `'misto'` — está resolvida pela [ADR 0069](../adr/0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md). |
 | **[fato errado — corrigido]** | Versão anterior desta spec afirmava algo falso sobre o comportamento atual. Fica registrado com a correção, para que a afirmação errada não volte. |
 
 Uma consequência do rótulo, dita de frente: **esta spec não descreve um sistema
@@ -58,7 +58,7 @@ O Vela encontra-se em fase pré-operacional; não existem faturas reais emitidas
 - **Consolidação de Frontend:** As telas `Manifestos.tsx` e `CargaSolta.tsx` são consolidadas na página definitiva `Bls.tsx`.
 - **Modelo de Dados Direto:** Admissão formal de `'misto'` em **todos** os pontos que hoje enumeram as modalidades — não basta a constraint de `bls.cargo_mode`. Ver "Superfície de migração" abaixo.
 - **Ingestão/Importação:** Suporte a enriquecimento incremental do B/L. Ao importar carga solta para um B/L que já possui contêineres (ou vice-versa), o sistema unifica no mesmo registro e define `cargo_mode = 'misto'`.
-- **Motor de Taxas Locais:** Resolução **de duas tabelas** (a de contêiner e a de carga solta do mesmo POD), com taxa de B/L incidindo exatamente 1 vez, THD sobre os contêineres e taxa por tonelada sobre `bb_weight_ton`. `charge_tables` **não** ganha a modalidade `'misto'`. A correção vale para `resolve_bl_local_charge_items` **e** para `calculate_bl_local_charges`, que hoje duplica a mesma lógica.
+- **Motor de Taxas Locais:** Resolução **de duas tabelas** (a de contêiner e a de carga solta do mesmo POD), com taxa de B/L incidindo exatamente 1 vez, THD sobre os contêineres e taxa por tonelada sobre `bb_weight_ton`. `charge_tables` **não** ganha a modalidade `'misto'`. Pela [ADR 0069](../adr/0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md), a resolução da tabela vira **função única compartilhada**, consumida pelos seis pontos que hoje resolvem preço por igualdade estrita de modalidade: as duas funções do motor (`resolve_bl_local_charge_items` e `calculate_bl_local_charges`, que duplicam a mesma lógica), o gate `mark_bl_ready_for_billing`, as duas funções de cobrança manual e o rateio exibido em `chargeOperationsService.ts`.
 - **Remodelagem da Fatura (`InvoiceDocumentLocal.tsx`):** Nova estrutura visual do documento impresso/PDF, com seções dedicadas para itens conteinerizados, itens de carga solta e taxas documentais, além de explicitar no cabeçalho os contêineres e os pesos faturados.
 - **Invariante de Terminal Único:** Um B/L misto descarrega 100% no mesmo terminal portuário, viabilizado pela exceção individual de terminal da **ADR 0068** (`bls.terminal_id` nulo = herança da frente). Inclui destravar o roteamento do NOB para `'misto'`.
 - **Projeção Completa na Tela `/viagens`:** Atualização dos agregadores de KPIs, da aba Visão Geral, da aba Importação (faixa de totais e blocos por POD), da aba Manifestos/Rotas e do relatório de agência ADR.
@@ -138,7 +138,7 @@ correspondente precisa cobrir, no mínimo:
 | `import_batches_cargo_mode_check` (`001`) | `ARRAY['container','carga_solta']` | **Sem alteração** — ver nota abaixo |
 | `ensure_container_bl_charge_status_default` (`002:6643`) | Só aplica o default quando `cargo_mode = 'container'`; um B/L misto ficaria com `charge_status` NULL | Tratar `'misto'` como contêiner para efeito do default |
 | `guard_container_bl_without_containers` (`002:7647`) | Guarda só `'container'`; grava `review:no_container` e força `charge_status = 'review_required'` | Não precisa admitir `'misto'` (misto tem contêiner por definição), **mas** precisa limpar a pendência na transição `misto → carga_solta` |
-| `charge_tables_cargo_mode_check` (`001`) | `ARRAY['container','carga_solta','granito']` | **Sem alteração** — não existe tabela de preços `'misto'` (ver Faturamento) |
+| `charge_tables_cargo_mode_check` (`001`) | `ARRAY['container','carga_solta','granito']` | **Sem alteração** — não existe tabela de preços `'misto'`; a resolução é que passa a devolver duas tabelas ([ADR 0069](../adr/0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md)) |
 | `bls.terminal_id` **+ âncora de porto** | Colunas inexistentes | **Criar com FK composta**, no padrão do schema — ADR 0068, "Por que a FK não pode ser de coluna única" |
 | `operationFrontKindForCargoMode` / `bl_operation_front_modalidade` (`045`) | `'misto'` cai no fallback `ELSE 'carga_cheia'` em silêncio | Tratar `'misto'` explicitamente (ADR 0068, decisão 7) |
 | `bl_receivables.cargo_mode` | Cópia desnormalizada, **sem CHECK** | Não quebra com `'misto'`, mas precisa ser ressincronizada na transição de modalidade |
@@ -314,20 +314,28 @@ verde.
 
 O `CLAUDE.md` manda corrigir na função compartilhada depois de verificar os
 chamadores. Aqui **não existe função compartilhada**: a lógica está duplicada
-entre chamador e chamado. A entrega escolhe explicitamente entre unificar as
-duas — extraindo resolução de tabela, quantidades e rateio para um lugar só — ou
-corrigir as duas cópias. **Unificar é a opção preferida**: duas cópias é como o
-defeito nasceu, e mantê-las é garantir a próxima divergência.
+entre chamador e chamado. A
+[ADR 0069](../adr/0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md)
+decide **unificar**, extraindo resolução de tabela, quantidades e rateio para um
+lugar só, em vez de corrigir as duas cópias: duas cópias é como o defeito
+nasceu, e mantê-las é garantir a próxima divergência.
 
-**A resolução vira uma função única, consumida por todos.** A varredura
-completa (secão "Superfície de impacto") encontrou mais três consumidores que
-resolvem preço por igualdade estrita de modalidade — `mark_bl_ready_for_billing`,
-`add_manual_bl_charge` e `list_manual_charge_items_for_bl`. O primeiro **levanta
-`P0004`** e torna `ready_for_billing` inalcançável para o B/L misto. Portanto a
-resolução de duas tabelas não pode viver dentro do motor: ela é uma função de
-resolução própria — "quais tabelas de preço valem para este B/L neste POD nesta
-data" — que o motor, o gate e as telas de cobrança manual consomem igualmente.
-Replicá-la em cada consumidor é repetir o defeito que esta seção documenta.
+**A resolução vira uma função única, consumida por todos** —
+[ADR 0069](../adr/0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md).
+A varredura completa (seção "Superfície de impacto") encontrou mais três
+consumidores que resolvem preço por igualdade estrita de modalidade —
+`mark_bl_ready_for_billing`, `add_manual_bl_charge` e
+`list_manual_charge_items_for_bl`. O primeiro **levanta `P0004`** e torna
+`ready_for_billing` inalcançável para o B/L misto. Portanto a resolução de duas
+tabelas não pode viver dentro do motor: ela é uma função de resolução própria —
+"quais tabelas de preço valem para este B/L neste POD nesta data" — que o motor,
+o gate e as telas de cobrança manual consomem igualmente. Replicá-la em cada
+consumidor é repetir o defeito que esta seção documenta.
+
+A decisão descartou explicitamente a alternativa de admitir `'misto'` em
+`charge_tables`: cadastrar uma terceira tabela por escopo duplicaria preço no
+cadastro do comercial e criaria divergência silenciosa a cada reajuste. O custo
+aceito no lugar disso é de escopo — as três funções acima entram na entrega.
 
 Consequência para o COD: `apply_cod_financial_effect` chama
 `resolve_bl_local_charge_items` em `002:1894` e `002:1909`, mas isso é a
@@ -984,12 +992,14 @@ tratadas, são mais três:
 | `add_manual_bl_charge` | `002:1032` | `AND ct.cargo_mode = v_bl.cargo_mode` — impossível lançar cobrança manual em B/L misto |
 | `list_manual_charge_items_for_bl` | `002:10546` | `AND ct.cargo_mode = bl_ctx.cargo_mode` — catálogo de itens manuais volta vazio |
 
-`mark_bl_ready_for_billing` é o mais grave dos três, e é também
-**[inconsistência]**: esta spec decide que `charge_tables` não ganha `'misto'`
-(tabela "Superfície de migração") e, em seguida, descreve pendências que
-"bloqueiam `ready_for_billing`" — um estado que aquela decisão torna
-inalcançável para o B/L misto. Ou a decisão muda, ou o gate passa a resolver
-duas tabelas. Daí a consequência de desenho: **a
+`mark_bl_ready_for_billing` é o mais grave dos três. Ele expôs uma
+**[inconsistência]** desta spec, agora **resolvida**: a spec decidia que
+`charge_tables` não ganha `'misto'` e, em seguida, descrevia pendências que
+"bloqueiam `ready_for_billing`" — estado que aquela decisão tornava
+inalcançável para o B/L misto. A [ADR 0069](../adr/0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md)
+fecha a escolha: `charge_tables` permanece sem `'misto'` e **o gate passa a
+consumir a resolução de duas tabelas**, junto com os demais consumidores. Daí a
+consequência de desenho: **a
 resolução de duas tabelas precisa estar em uma função de resolução única, usada
 também pelo gate**, e não replicada dentro de cada consumidor. Sem isso, a spec
 descreve um fluxo cujo estado final é inalcançável.
@@ -1164,6 +1174,11 @@ removida pela outra spec.
 - Validar que o B/L misto **alcança `ready_for_billing`**: regressão direta do
   `P0004` de `mark_bl_ready_for_billing`. Sem ela, todo o fluxo desta spec para
   antes do fim.
+- Validar que **os dois pontos de entrada pendenciam igual** quando não há
+  tabela de preços no escopo — regressão do único `[defeito atual]` desta spec
+  (decisão 6 da [ADR 0069](../adr/0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md)).
+  Vale para B/L de modalidade única, sem carga mista envolvida, e alcança a
+  prévia de reprecificação do COD, que hoje passa pelo ramo silencioso.
 - Validar cobrança manual em B/L misto: `list_manual_charge_items_for_bl` devolve
   itens das duas tabelas e `add_manual_bl_charge` aceita o lançamento.
 - Validar que o worker `_run_import_effect_local_charges` **enxerga** o B/L misto
