@@ -221,7 +221,15 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                         <td className="px-4 py-3">{row.voyage_number ?? '-'}</td>
                         <td className="px-4 py-3">{row.pol ?? '-'}</td>
                         <td className="px-4 py-3">{row.pod ?? '-'}</td>
-                        <td className="px-4 py-3">{row.container_count}</td>
+                        <td className="px-4 py-3">
+                          {row.cargo_mode === 'misto' || ((row.bb_weight_ton ?? 0) > 0 && row.container_count > 0) ? (
+                            <span className="font-medium">{row.container_count} CNTR + {row.bb_weight_ton ?? 0}t</span>
+                          ) : row.cargo_mode === 'carga_solta' ? (
+                            <span className="font-medium">{row.bb_weight_ton ?? 0}t</span>
+                          ) : (
+                            row.container_count
+                          )}
+                        </td>
                         <td className="px-4 py-3">{row.containers_returned}</td>
                         <td className="px-4 py-3">{noReturn > 0 ? <Badge tone="yellow">{noReturn}</Badge> : '0'}</td>
                         <td className="px-4 py-3">{row.containers_in_demurrage > 0 ? <Badge tone="red">{row.containers_in_demurrage}</Badge> : '0'}</td>
@@ -437,9 +445,40 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
 }
 
 function ContainerDetails({ row }: { row: PortalOperationBL }) {
+  const hasBreakbulk =
+    row.cargo_mode === 'misto' ||
+    row.cargo_mode === 'carga_solta' ||
+    (row.bb_weight_ton != null && row.bb_weight_ton > 0)
+
   return (
     <div className="border-t border-[var(--app-border)]">
       {row.transshipment ? <PortalTransshipmentCard transshipment={row.transshipment} /> : null}
+      {hasBreakbulk ? (
+        <section
+          className="m-4 grid gap-1 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4"
+          data-testid="portal-breakbulk-summary"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[var(--app-text-strong)]">Carga Solta (Breakbulk)</h3>
+            <Badge tone="slate">Breakbulk</Badge>
+          </div>
+          <p className="text-sm text-[var(--app-muted)]">
+            Resumo dos volumes de carga solta vinculados a este B/L.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-6 text-sm">
+            <div>
+              <span className="text-xs text-[var(--app-muted)]">Peso Total: </span>
+              <span className="font-semibold">{row.bb_weight_ton != null ? `${row.bb_weight_ton} ton` : '—'}</span>
+            </div>
+            <div>
+              <span className="text-xs text-[var(--app-muted)]">Volumes: </span>
+              <span className="font-semibold">
+                {row.bb_packages_qty != null ? `${row.bb_packages_qty} volume(s)` : '—'}
+              </span>
+            </div>
+          </div>
+        </section>
+      ) : null}
       {row.containers.length === 0 ? (
         <div className="px-5 pb-5 text-sm text-[var(--app-muted)]">Nenhum container vinculado a este B/L.</div>
       ) : <div className="app-table-scroll">

@@ -113,6 +113,34 @@ const rows: PortalOperationBL[] = [
       },
     ],
   },
+  {
+    bl_id: 'BL004',
+    ce_mercante: '555666777888999',
+    pol: 'CNSHA',
+    pod: 'BRVIX',
+    voyage_id: 13,
+    voyage_number: '004W',
+    vessel_name: 'NAVIO MISTO',
+    cargo_mode: 'misto',
+    bb_weight_ton: 12.5,
+    bb_packages_qty: 4,
+    container_count: 1,
+    containers_in_demurrage: 0,
+    containers_returned: 1,
+    containers: [
+      {
+        id: 5,
+        container_number: 'MIXU9999999',
+        type: '40HC',
+        discharge_date: '2026-06-01',
+        return_date: '2026-06-12',
+        usage_days: 11,
+        free_time_days: 15,
+        demurrage_days: 0,
+        status: 'devolvido',
+      },
+    ],
+  },
 ]
 
 vi.mock('../../hooks/usePortalOperation', () => ({
@@ -234,5 +262,25 @@ describe('PortalOperacao (BLs e Containers)', () => {
     await user.click(screen.getByRole('tab', { name: 'Containers' }))
     await user.click(screen.getByRole('button', { name: 'Exportar Excel' }))
     expect(exportPortalContainersWorkbook).toHaveBeenCalledTimes(1)
+  })
+
+  it('apresenta B/L misto como documento unico com contêineres e sumario de carga solta', async () => {
+    const user = userEvent.setup()
+    renderOperacao()
+
+    // B/L misto exibe indicador composto de contêineres e carga solta
+    expect(screen.getByText('1 CNTR + 12.5t')).toBeTruthy()
+
+    // Ao expandir o B/L misto
+    await user.click(screen.getByText('BL004'))
+
+    // Exibe sumário de carga solta (breakbulk)
+    expect(screen.getByTestId('portal-breakbulk-summary')).toBeTruthy()
+    expect(screen.getByText('12.5 ton')).toBeTruthy()
+    expect(screen.getByText('4 volume(s)')).toBeTruthy()
+
+    // Exibe contêiner e status normalmente
+    expect(screen.getByText('MIXU9999999')).toBeTruthy()
+    expect(screen.getByText('40HC')).toBeTruthy()
   })
 })
