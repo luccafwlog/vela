@@ -28,7 +28,7 @@ export function PortalLayout() {
       <header className="app-header">
         <div className="app-header__content">
           <NavLink to={portalPath(scope)} className="app-header__brand">
-            <img className="app-header__brand-logo" src="/branding/fwlog-logo.png" alt="Portal Fwlog" />
+            <img className="app-header__brand-logo" src="/branding/fwlog-logo-white.png" alt="Portal Fwlog" />
             <div className="app-header__titles">
               <div className="app-header__eyebrow">Portal do cliente</div>
               <div className="app-header__subtitle">faturas e operação</div>

@@ -42,4 +42,15 @@ describe('PortalLayout', () => {
     expect(screen.getByRole('link', { name: 'Ir para o conteúdo principal' }).getAttribute('href')).toBe('#portal-main-content')
     expect(document.querySelector('main')?.id).toBe('portal-main-content')
   })
+
+  it('exibe a logo branca da Fwlog no header sobre o fundo escuro/azul', () => {
+    render(
+      <MemoryRouter initialEntries={['/portal']}>
+        <PortalLayout />
+      </MemoryRouter>,
+    )
+
+    const brandLogo = screen.getByRole('img', { name: 'Portal Fwlog' })
+    expect(brandLogo.getAttribute('src')).toBe('/branding/fwlog-logo-white.png')
+  })
 })
