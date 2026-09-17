@@ -551,6 +551,7 @@ describe('breakbulkImport', () => {
     })
 
     const payload = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
-    expect(payload.p_bls[0]).toMatchObject({ id: 'CNTR_BL_01', cargo_mode: 'misto' })
+    expect(payload.p_bls[0]).toMatchObject({ id: 'CNTR_BL_01' })
+    expect(payload.p_bls[0]).not.toHaveProperty('cargo_mode')
   })
 })

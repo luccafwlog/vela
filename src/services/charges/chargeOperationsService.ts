@@ -60,7 +60,7 @@ export type LocalChargeCalculationResult = {
 
 export type LocalChargePendencyItem = {
   id: string
-  cargo_mode: 'container' | 'carga_solta' | 'granito' | null
+  cargo_mode: 'container' | 'carga_solta' | 'misto' | 'granito' | null
   pol: string | null
   pod: string | null
   charge_status: string | null
@@ -272,9 +272,9 @@ async function loadBlOperationalRows(
       .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1)
 
-    if (filters?.cargoMode === 'container' || filters?.cargoMode === 'carga_solta') {
-      query = query.eq('cargo_mode', filters.cargoMode)
-    }
+    if (filters?.cargoMode === 'container') query = query.in('cargo_mode', ['container', 'misto'])
+    else if (filters?.cargoMode === 'carga_solta') query = query.in('cargo_mode', ['carga_solta', 'misto'])
+    else if (filters?.cargoMode === 'misto') query = query.eq('cargo_mode', 'misto')
     if (!filters?.includeResolved) query = query.or('financial_status.is.null,financial_status.neq.invoiced')
     if (filters?.pod) {
       const pod = sanitizeLikeTerm(filters.pod)

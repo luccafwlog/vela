@@ -16,6 +16,7 @@ export function BlDetalhesTab(props: {
   justification: string
   cargoMode: CargoMode
   isContainerMode: boolean
+  hasContainers: boolean
   containerSummary: ContainerSummary
   breakbulkSummary: BreakbulkSummary
   onFieldChange: <K extends keyof BlForm>(field: K, value: BlForm[K] | string) => void
@@ -34,6 +35,7 @@ export function BlDetalhesTab(props: {
         justification={props.justification}
         cargoMode={props.cargoMode}
         isContainerMode={props.isContainerMode}
+        hasContainers={props.hasContainers}
         onFieldChange={props.onFieldChange}
         onJustificationChange={props.onJustificationChange}
         onSubmit={props.onSubmit}
@@ -47,7 +49,7 @@ export function BlDetalhesTab(props: {
         containerSummary={props.containerSummary}
         breakbulkSummary={props.breakbulkSummary}
       />
-      {props.isContainerMode ? (
+      {props.hasContainers ? (
         <BlFreightSection freightLines={(props.bl.bl_freight_lines ?? []) as BlFreightLine[]} />
       ) : null}
     </div>

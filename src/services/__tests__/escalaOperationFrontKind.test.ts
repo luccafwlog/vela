@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { operationFrontKindForCargoMode } from '../escalaTerminalAllocation'
+import { operationFrontKindForCargoMode, operationFrontKindsForCargoMode } from '../escalaTerminalAllocation'
 
 // A regra que liga a carga de um cliente ao terminal onde ela foi descarregada
 // vive nos dois lados: em TypeScript (conferência manual do NOB) e em SQL
@@ -26,6 +26,10 @@ describe('Frente de Operação derivada do cargo_mode', () => {
     for (const [cargoMode, esperado] of CASOS) {
       expect(operationFrontKindForCargoMode(cargoMode)).toBe(esperado)
     }
+  })
+
+  it('mantém as duas frentes para um B/L misto', () => {
+    expect(operationFrontKindsForCargoMode('misto')).toEqual(['carga_cheia', 'carga_solta'])
   })
 
   it('o espelho SQL cobre os mesmos casos com o mesmo resultado', () => {

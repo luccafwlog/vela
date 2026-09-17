@@ -1,6 +1,7 @@
 import type { BL } from '../types/database'
 import { INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
 import { isCustomerReconciliationResolved } from './customerReconciliation'
+import { isBreakbulkCargoMode, isContainerCargoMode } from '../lib/cargoMode'
 
 export type RailState = 'done' | 'pending' | 'blocked' | 'diverted'
 
@@ -64,7 +65,7 @@ function reasonDetail(reason: string) {
 }
 
 function documentalReasonMap(input: { bl: RailBl; reviewReasons?: string[]; portalVisibility?: RailPortalVisibility | null }) {
-  const missingLooseCargoWeight = input.bl.cargo_mode === 'carga_solta'
+  const missingLooseCargoWeight = isBreakbulkCargoMode(input.bl.cargo_mode)
     && (input.bl.bb_weight_ton == null || Number(input.bl.bb_weight_ton) <= 0)
   const reasons = [
     ...(input.reviewReasons ?? []),
@@ -108,7 +109,7 @@ export function buildOperationalRail(input: {
       ? { key: 'pod', label: 'Chegada ao POD', detail: `ATA ${fmt(podSchedule.ata)}`, state: 'done', href: voyageHref }
       : { key: 'pod', label: 'Chegada ao POD', detail: podSchedule?.eta ? `ETA ${fmt(podSchedule.eta)}` : 'Sem previsão', state: 'pending', href: voyageHref }
 
-  if (bl.cargo_mode !== 'container') return [pol, pod]
+  if (!isContainerCargoMode(bl.cargo_mode)) return [pol, pod]
   const discharge = distinct(containers, (c) => Boolean(c.discharge_date))
   const returned = distinct(containers, (c) => Boolean(c.return_date))
   return [

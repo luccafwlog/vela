@@ -1,7 +1,8 @@
 // Helpers puros para estado, rótulos e formatação do detalhe de B/L.
 import type { BL, BLDetail } from '../types/database'
+import { cargoModeLabel as formatCargoModeLabel, type BlCargoMode } from '../lib/cargoMode'
 
-export type CargoMode = 'container' | 'carga_solta' | 'misto'
+export type CargoMode = BlCargoMode
 
 export function resolveCargoMode(bl?: BLDetail | null): CargoMode {
   if (bl?.cargo_mode === 'misto') return 'misto'
@@ -16,7 +17,7 @@ export function resolveCargoMode(bl?: BLDetail | null): CargoMode {
 
 export function cargoModeLabel(mode: CargoMode) {
   if (mode === 'misto') return 'Misto (CNTR + Carga Solta)'
-  return mode === 'carga_solta' ? 'Carga Solta' : 'Container'
+  return formatCargoModeLabel(mode)
 }
 
 export function formatNumber(value: number | string | null | undefined) {

@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 export type OperationalListFilters = {
   search?: string
   voyageId?: string | number
-  cargoMode?: 'container' | 'carga_solta' | '' | null
+  cargoMode?: 'container' | 'carga_solta' | 'misto' | '' | null
   pol?: string
   pod?: string
   reviewStatus?: string

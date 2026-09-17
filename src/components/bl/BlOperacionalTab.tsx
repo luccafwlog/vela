@@ -24,6 +24,7 @@ export function BlOperacionalTab({
   justification,
   cargoMode,
   isContainerMode,
+  hasContainers,
   onFieldChange,
   onJustificationChange,
   onSubmit,
@@ -36,6 +37,7 @@ export function BlOperacionalTab({
   justification: string
   cargoMode: CargoMode
   isContainerMode: boolean
+  hasContainers: boolean
   onFieldChange: <K extends keyof BlForm>(field: K, value: BlForm[K] | string) => void
   onJustificationChange: (value: string) => void
   onSubmit: (event: FormEvent) => void
@@ -73,7 +75,7 @@ export function BlOperacionalTab({
     <form className="grid gap-5" onSubmit={onSubmit}>
       <Card>
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <StatusBadge label="Modo" value={cargoModeLabel(cargoMode)} tone={isContainerMode ? 'blue' : 'green'} />
+          <StatusBadge label="Modo" value={cargoModeLabel(cargoMode)} tone={cargoMode === 'misto' ? 'yellow' : isContainerMode ? 'blue' : 'green'} />
           <StatusBadge label="Revisão" value={REVIEW_STATUS_LABELS[bl.review_status ?? 'ok'] ?? bl.review_status ?? 'ok'} />
           {invoiceDiverges ? (
             <Badge tone="yellow">Taxas recalculadas — a fatura pode estar desatualizada</Badge>
@@ -172,7 +174,7 @@ export function BlOperacionalTab({
           <Field label="Telefone do consignatario">
             <Input disabled value={bl.consignee_phone ?? ''} />
           </Field>
-          {isContainerMode ? (
+          {hasContainers ? (
             <Field label="Peso total (kg)">
               <Input
                 type="number"

@@ -51,6 +51,7 @@ function createBlQuery(rows: unknown[]) {
       return builder
     }),
     eq: vi.fn(() => builder),
+    in: vi.fn(() => builder),
     ilike: vi.fn(() => builder),
     or: vi.fn(() => builder),
     then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>

@@ -609,7 +609,7 @@ type TimelineAuditEvent = {
 type TimelineImportBatch = {
   id: number
   filename: string
-  cargo_mode: 'container' | 'carga_solta' | null
+  cargo_mode: 'container' | 'carga_solta' | 'misto' | null
   uploaded_at: string | null
   uploaded_by?: string | null
   route_summary?: string | null

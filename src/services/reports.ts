@@ -17,7 +17,7 @@ export type ReportFilters = {
 
 export type OperationalReportFilters = ReportFilters & {
   pod: string
-  cargoMode: '' | 'container' | 'carga_solta'
+  cargoMode: '' | 'container' | 'carga_solta' | 'misto'
 }
 
 export type FinancialReportFilters = ReportFilters & {
@@ -78,7 +78,9 @@ export async function fetchOperationalReport(filters: OperationalReportFilters):
   if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom)
   if (filters.dateTo) query = query.lte('created_at', endOfDay(filters.dateTo))
   if (filters.pod) query = query.eq('pod', filters.pod.toUpperCase())
-  if (filters.cargoMode) query = query.eq('cargo_mode', filters.cargoMode)
+  if (filters.cargoMode === 'container') query = query.in('cargo_mode', ['container', 'misto'])
+  else if (filters.cargoMode === 'carga_solta') query = query.in('cargo_mode', ['carga_solta', 'misto'])
+  else if (filters.cargoMode) query = query.eq('cargo_mode', filters.cargoMode)
 
   const { data, error } = await query.overrideTypes<OperationalReportRow[], { merge: false }>()
   if (error) throw error
@@ -369,7 +371,9 @@ export async function fetchOperationalReportForExport(filters: OperationalReport
   if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom)
   if (filters.dateTo) query = query.lte('created_at', endOfDay(filters.dateTo))
   if (filters.pod) query = query.eq('pod', filters.pod.toUpperCase())
-  if (filters.cargoMode) query = query.eq('cargo_mode', filters.cargoMode)
+  if (filters.cargoMode === 'container') query = query.in('cargo_mode', ['container', 'misto'])
+  else if (filters.cargoMode === 'carga_solta') query = query.in('cargo_mode', ['carga_solta', 'misto'])
+  else if (filters.cargoMode) query = query.eq('cargo_mode', filters.cargoMode)
 
   const { data, error } = await query.overrideTypes<OperationalReportRow[], { merge: false }>()
   if (error) throw error

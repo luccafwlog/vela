@@ -1,4 +1,3 @@
-import { chunkArray } from '../lib/utils'
 import { extractNcmCodes } from '../lib/ncm'
 import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink } from './customerReconciliation'
 import { supabase } from './supabase'
@@ -37,23 +36,10 @@ export async function importBreakbulkManifest({
 
   const customerMaps = await loadCustomerMaps()
 
-  const existingModeByBl = new Map<string, 'container' | 'carga_solta' | 'misto' | null>()
-  const blIds = manifest.bls.map((bl) => bl.bl_id)
-  for (const chunk of chunkArray(blIds, 400)) {
-    const { data, error } = await supabase.from('bls').select('id, cargo_mode').in('id', chunk)
-    if (error) throw error
-    for (const row of data ?? []) {
-      existingModeByBl.set(String(row.id), (row.cargo_mode as 'container' | 'carga_solta' | 'misto' | null) ?? null)
-    }
-  }
-
   const invalidBls = new Set<string>()
   const importErrors = [...manifest.rowErrors]
 
   const blRows = manifest.bls.flatMap((bl) => {
-    const existingMode = existingModeByBl.get(bl.bl_id)
-    const targetMode = existingMode === 'container' || existingMode === 'misto' ? ('misto' as const) : ('carga_solta' as const)
-
     const customerMatch = findMatchedCustomer(
       {
         cnpjCpf: bl.cnpj_cpf,
@@ -74,7 +60,8 @@ export async function importBreakbulkManifest({
       {
         id: bl.bl_id,
         voyage_id: voyageId,
-        cargo_mode: targetMode,
+        // cargo_mode is derived by the database from containers, breakbulk
+        // items and the BB totals. Importers must never race that trigger.
         // A ausência do campo é intencional: a RPC preserva atomicamente o CE
         // existente quando o layout não é autoridade sobre esse dado.
         ...ceMercante,

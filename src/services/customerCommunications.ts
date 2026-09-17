@@ -4,7 +4,7 @@ import type {
   CustomerContactPreference,
 } from '../types/database'
 import { canonicalizeDocument } from '../lib/cnpj'
-import { operationFrontKindForCargoMode } from './escalaTerminalAllocation'
+import { operationFrontKindsForCargoMode } from './escalaTerminalAllocation'
 import { listVoyageEscalaSchedulesByVoyageIds, type VoyageEscalaSchedule } from './voyageRouteSchedules'
 import { supabase } from './supabase'
 import type { CustomerCommunicationKind, CustomerCommunicationTemplateInput } from './customerCommunicationTemplates'
@@ -715,8 +715,9 @@ function expandCandidatesForKind(
         if (!atracacao.terminalId || !atracacao.stateId || !atracacao.atb) continue
         // A Atracação só comunica a carga da Frente de Operação que ela hospeda:
         // quem descarregou no berço vizinho não entra neste NOB.
-        if (assignedFrontKeys && !assignedFrontKeys.has(
-          operationFrontKey(row.voyageId, row.pod, atracacao.terminalId, operationFrontKindForCargoMode(row.cargoMode)),
+        const terminalId = atracacao.terminalId
+        if (assignedFrontKeys && !operationFrontKindsForCargoMode(row.cargoMode).some((kind) =>
+          assignedFrontKeys.has(operationFrontKey(row.voyageId, row.pod ?? '', terminalId, kind)),
         )) continue
         expanded.push({
           ...row,

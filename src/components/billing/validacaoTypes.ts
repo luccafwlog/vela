@@ -1,6 +1,6 @@
 export type OpsFilters = {
   search: string
-  cargoMode: '' | 'container' | 'carga_solta' | 'granito'
+  cargoMode: '' | 'container' | 'carga_solta' | 'misto' | 'granito'
   pod: string
   voyageId: string
   blockCode: '' | BillingBlockCode

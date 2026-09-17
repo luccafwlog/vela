@@ -21,6 +21,7 @@ import type { PortalOperationBL } from './portalOperation'
 import type { PortalFlatContainer } from '../lib/portalOperationViews'
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
+import { cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
 
 function toSheet<T extends Record<string, unknown>>(
   XLSX: typeof import('@e965/xlsx'),
@@ -35,7 +36,7 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
   const manifestRows = rows.map((row) => ({
     BL: row.id,
     CEMercante: row.ce_mercante ?? '',
-    Modalidade: row.cargo_mode === 'carga_solta' ? 'Carga Solta' : 'Container',
+    Modalidade: cargoModeLabel(row.cargo_mode),
     Armador: row.voyage?.vessel?.carrier?.name ?? '',
     SCAC: row.voyage?.vessel?.carrier?.scac ?? '',
     Navio: row.voyage?.vessel?.name ?? '',
@@ -77,7 +78,7 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
   )
 
   const breakbulkRows = rows
-    .filter((row) => row.cargo_mode === 'carga_solta')
+    .filter((row) => isBreakbulkCargoMode(row.cargo_mode))
     .map((row) => ({
       BL: row.id,
       CE: row.ce_mercante ?? '',
@@ -214,7 +215,7 @@ export async function exportLocalChargeOperationsWorkbook(rows: LocalChargeOpera
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     BL: row.id,
-    Modalidade: row.cargo_mode === 'carga_solta' ? 'Carga Solta' : 'Container',
+    Modalidade: cargoModeLabel(row.cargo_mode),
     Navio: row.voyage?.vessel?.name ?? '',
     Viagem: row.voyage?.voyage_number ?? '',
     POL: row.pol ?? '',
@@ -285,7 +286,7 @@ export async function exportOperationalReportWorkbook(rows: OperationalReportRow
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     BL: row.id,
-    Modalidade: row.cargo_mode === 'carga_solta' ? 'Carga Solta' : 'Container',
+    Modalidade: cargoModeLabel(row.cargo_mode),
     Armador: row.voyage?.vessel?.carrier?.name ?? '',
     Navio: row.voyage?.vessel?.name ?? '',
     Viagem: row.voyage?.voyage_number ?? '',

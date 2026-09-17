@@ -172,7 +172,26 @@ export function operationFrontKindForCargoMode(
   const normalized = (cargoMode ?? '').trim().toLowerCase()
   if (normalized === 'carga_solta') return 'carga_solta'
   if (normalized === 'veiculo' || normalized === 'veiculos') return 'veiculo'
+  if (normalized === 'misto') {
+    // A assinatura legada aceita apenas uma frente; o chamador correto deve
+    // usar operationFrontKindsForCargoMode para cobrir as duas frentes.
+    return 'carga_cheia'
+  }
+  // Compatibilidade para chamadores antigos que aceitam uma única frente.
   return 'carga_cheia'
+}
+
+/**
+ * Retorna todas as frentes de importação cobertas pelo B/L.
+ * Um B/L misto ocupa simultaneamente as frentes de contêiner e carga solta;
+ * reduzi-lo a uma delas faz o NOB manual depender da primeira frente encontrada.
+ */
+export function operationFrontKindsForCargoMode(
+  cargoMode: string | null | undefined,
+): Array<Exclude<OperationFrontKind, 'granito'>> {
+  const normalized = (cargoMode ?? '').trim().toLowerCase()
+  if (normalized === 'misto') return ['carga_cheia', 'carga_solta']
+  return [operationFrontKindForCargoMode(cargoMode)]
 }
 
 const IMPORT_SECTION_BY_KIND: Record<Exclude<OperationFrontKind, 'granito'>, OperationFront['section']> = {
@@ -382,7 +401,9 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
   )
   if (bls.error) throw bls.error
   for (const row of bls.data) {
-    importKinds.add(operationFrontKindForCargoMode(typeof row.cargo_mode === 'string' ? row.cargo_mode : null))
+    for (const kind of operationFrontKindsForCargoMode(typeof row.cargo_mode === 'string' ? row.cargo_mode : null)) {
+      importKinds.add(kind)
+    }
   }
   const emptyImports = await fetchAllRows<JsonRecord>((from, to) =>
     table('vazios_importacao_containers')

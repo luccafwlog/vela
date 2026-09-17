@@ -26,7 +26,7 @@ type LineUpBlRow = {
   id: string
   voyage_id: number
   pod: string | null
-  cargo_mode: 'container' | 'carga_solta' | null
+  cargo_mode: 'container' | 'carga_solta' | 'misto' | null
   ce_mercante: string | null
   bb_machine_qty: number | null
   bb_packages_qty: number | null
