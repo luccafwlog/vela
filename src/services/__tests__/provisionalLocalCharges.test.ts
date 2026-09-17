@@ -106,4 +106,23 @@ describe('calculateProvisionalLocalCharges', () => {
     expect(result.calculated).toBe(0)
     expect(mockRpc).not.toHaveBeenCalled()
   })
+
+  it('calcula B/L misto e inclui seus irmaos de container', async () => {
+    mockTables({
+      targetBls: [{ id: 'BL-MIX', cargo_mode: 'misto', financial_status: 'pending' }],
+      targetContainers: [{ container_number: 'MSCU1234567' }],
+      siblingContainers: [
+        { bl_id: 'BL-MIX', container_number: 'MSCU1234567', bl: { voyage_id: 10, cargo_mode: 'misto', financial_status: 'pending' } },
+        { bl_id: 'BL-CNTR', container_number: 'MSCU1234567', bl: { voyage_id: 10, cargo_mode: 'container', financial_status: 'pending' } },
+      ],
+      perBlFinancialStatus: { 'BL-MIX': 'pending', 'BL-CNTR': 'pending' },
+    })
+    mockRpc.mockResolvedValue({ data: { status: 'calculated' }, error: null })
+
+    const result = await calculateProvisionalLocalCharges(10, ['BL-MIX'], 'user-1')
+
+    expect(result.calculated).toBe(2)
+    expect(mockRpc).toHaveBeenCalledWith('calculate_bl_local_charges', expect.objectContaining({ p_bl_id: 'BL-MIX' }))
+    expect(mockRpc).toHaveBeenCalledWith('calculate_bl_local_charges', expect.objectContaining({ p_bl_id: 'BL-CNTR' }))
+  })
 })

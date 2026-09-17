@@ -218,6 +218,7 @@ export function useBlDetail(blId?: string) {
           *,
           customer:customers!bls_customer_id_fkey(*),
           voyage:voyages(*, vessel:vessels(*, carrier:carriers(*))),
+          terminal:depots!bls_terminal_id_fkey(id, name),
           bl_containers(*),
           bl_freight_lines(*),
           bl_breakbulk_items(*),

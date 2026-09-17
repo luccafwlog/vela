@@ -74,7 +74,7 @@ export function BlDetalhe() {
   const backLabel = 'Voltar aos BLs'
   const voyageLabel = [bl?.voyage?.vessel?.name, bl?.voyage?.voyage_number].filter(Boolean).join(' / ')
 
-  const { form, setField, justification, setJustification, saving, changes, handleSubmit } = useBlEditForm(bl, isContainerMode)
+  const { form, setField, justification, setJustification, saving, changes, handleSubmit } = useBlEditForm(bl)
 
   const railContainers = useMemo(() => (bl?.bl_containers ?? []).map((container) => ({
     container_number: container.container_number,

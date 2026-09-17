@@ -27,4 +27,10 @@ describe('056 resolucao taxas duas tabelas migration (ADR 0069)', () => {
     expect(sql).toContain('CREATE OR REPLACE FUNCTION public.calculate_bl_local_charges(')
     expect(sql).toContain('CREATE OR REPLACE FUNCTION public.resolve_bl_local_charge_items(')
   })
+
+  it('mantem os resolvers de leitura fechados para o cliente autenticado', () => {
+    expect(sql).toMatch(/REVOKE ALL ON FUNCTION public\.resolve_bl_local_charge_table_ids\(text, date\) FROM PUBLIC, anon, authenticated/i)
+    expect(sql).toMatch(/REVOKE ALL ON FUNCTION public\.resolve_bl_local_charge_items\(text, text\) FROM PUBLIC, anon, authenticated/i)
+    expect(sql).not.toMatch(/GRANT EXECUTE ON FUNCTION public\.resolve_bl_local_charge_(?:table_ids|items)\([^;]+\) TO authenticated/i)
+  })
 })

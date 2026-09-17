@@ -92,17 +92,21 @@ export function CeMercanteImportModal({
   const ediSampleRows = useMemo(() => ediPreview?.rows.slice(0, 25) ?? [], [ediPreview?.rows])
   const ediReportErrors = ediErrors && !ediErrors.ok ? ediErrors.errors : []
 
-  function resetState() {
+  function resetPreviewState() {
     setPreview(null)
     setReport(null)
     setEdiPreview(null)
     setEdiErrors(null)
+  }
+
+  function resetState() {
+    resetPreviewState()
     setNumeroManifesto('')
   }
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const nextFile = event.target.files?.[0] ?? null
-    resetState()
+    resetPreviewState()
     try {
       const result = await readFile(nextFile)
       if (!result) return
@@ -130,7 +134,12 @@ export function CeMercanteImportModal({
 
     setSubmitting(true)
     try {
-      const result = await importCeMercanteRows(preview.rows, { changedBy: user?.id ?? null, target, voyageId: lockedVoyageId })
+      const result = await importCeMercanteRows(preview.rows, {
+        changedBy: user?.id ?? null,
+        target,
+        voyageId: lockedVoyageId,
+        manifestoNumero: target === 'bls' ? numeroManifesto.trim() || undefined : undefined,
+      })
       const totalErrors = preview.rowErrors.length + result.errorCount
       setReport(result)
 
@@ -166,7 +175,12 @@ export function CeMercanteImportModal({
             bl_id: row.bl_id,
             ce_mercante: row.ce_mercante,
           })),
-          { changedBy: user?.id ?? null, target, voyageId: lockedVoyageId },
+          {
+            changedBy: user?.id ?? null,
+            target,
+            voyageId: lockedVoyageId,
+            manifestoNumero: undefined,
+          },
         )
         if (result.errorCount > 0) {
           setEdiErrors({
@@ -183,7 +197,11 @@ export function CeMercanteImportModal({
         return
       }
 
-      const result = await importCeMercanteEdi(ediPreview.rows, { changedBy: user?.id ?? null })
+      const result = await importCeMercanteEdi(ediPreview.rows, {
+        changedBy: user?.id ?? null,
+        manifestoNumero: numeroManifesto.trim() || undefined,
+        voyageId: lockedVoyageId,
+      })
 
       if (result.ok) {
         await invalidateBls()
@@ -197,7 +215,9 @@ export function CeMercanteImportModal({
 
       setEdiErrors(result)
       showToast(
-        `Importacao bloqueada: ${result.errors.length} pendencia(s). Nada foi gravado.`,
+        result.partial
+          ? `CE Mercante gravado, mas o manifesto não foi vinculado: ${result.errors.length} pendencia(s).`
+          : `Importacao bloqueada: ${result.errors.length} pendencia(s). Nada foi gravado.`,
         'error',
       )
     } catch {
@@ -211,6 +231,7 @@ export function CeMercanteImportModal({
     const invalidations = [
       queryClient.invalidateQueries({ queryKey: ['bls'] }),
       queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.all() }),
       queryClient.invalidateQueries({ queryKey: queryKeys.customerCommunications.statusRoot() }),
     ]
     if (target === 'granite') {
@@ -264,13 +285,15 @@ export function CeMercanteImportModal({
           </div>
         </div>
 
-        <Field label="Nº de Manifesto Mercante (opcional)">
-          <Input
-            value={numeroManifesto}
-            onChange={(e) => setNumeroManifesto(e.target.value)}
-            placeholder="Ex.: 26BR000001"
-          />
-        </Field>
+        {target === 'bls' ? (
+          <Field label="Nº de Manifesto Mercante (opcional)">
+            <Input
+              value={numeroManifesto}
+              onChange={(e) => setNumeroManifesto(e.target.value)}
+              placeholder="Ex.: 26BR000001"
+            />
+          </Field>
+        ) : null}
 
         <Field label="Arquivo .xlsx, .xls, .csv ou EDI (.edi/.txt)">
           <Input accept=".xlsx,.xls,.csv,.edi,.txt" type="file" onChange={handleFile} />

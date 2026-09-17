@@ -6,10 +6,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { VoyageManifestosTab } from '../../components/voyages/VoyageManifestosTab'
 import { PolScheduleModal } from '../../components/shared/VoyageScheduleModals'
 import { buildVoyageTimeline } from '../../services/voyageSummaries'
+import type { VoyageDetail } from '../../services/voyageReadModels'
 
 describe('Nomenclatura Oficial: Manifesto Mercante em vez de CE Master', () => {
   it('garante que a aba de rotas e manifestos usa "Nº de manifesto Mercante" e nao "CE Master"', () => {
-    const dummyVoyage: any = {
+    const dummyVoyage = {
       id: 99,
       voyage_number: '001W',
       vessel_id: 1,
@@ -25,7 +26,7 @@ describe('Nomenclatura Oficial: Manifesto Mercante em vez de CE Master', () => {
           cargo_mode: 'container',
         },
       ],
-    }
+    } as unknown as VoyageDetail
 
     const queryClient = new QueryClient()
 

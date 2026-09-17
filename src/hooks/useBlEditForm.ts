@@ -85,7 +85,7 @@ export type BlForm = Omit<Pick<EditableBl, (typeof editableFields)[number]>, 'nc
 const INVALID_NUMERIC_VALUE = Symbol('INVALID_NUMERIC_VALUE')
 
 // Estado do formulário de edição manual do B/L e submissão com auditoria campo a campo.
-export function useBlEditForm(bl: BLDetail | undefined, isContainerMode: boolean) {
+export function useBlEditForm(bl: BLDetail | undefined) {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
@@ -147,7 +147,7 @@ export function useBlEditForm(bl: BLDetail | undefined, isContainerMode: boolean
         updatePayload[field] = toJsonValue(normalized)
       }
 
-      if (!isContainerMode) {
+      if (bl.cargo_mode === 'carga_solta') {
         const weightTon = normalizeFormValue('bb_weight_ton', form.bb_weight_ton)
         if (weightTon === INVALID_NUMERIC_VALUE) {
           showToast('Valor invalido para bb_weight_ton. Informe um numero valido antes de salvar.', 'error')
@@ -165,7 +165,7 @@ export function useBlEditForm(bl: BLDetail | undefined, isContainerMode: boolean
         justification,
       }))
 
-      if (!isContainerMode && changes.includes('bb_weight_ton')) {
+      if (bl.cargo_mode === 'carga_solta' && changes.includes('bb_weight_ton')) {
         auditRows.push({
           entity_type: 'bl',
           entity_id: bl.id,

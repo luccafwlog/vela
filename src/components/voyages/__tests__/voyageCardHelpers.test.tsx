@@ -382,7 +382,7 @@ describe('VoyageManifestosTab', () => {
           created_at: '2026-07-02',
         },
       ],
-    } as any)
+    } as unknown as ReturnType<typeof useManifestosMercanteByVoyage>)
 
     render(
       <MemoryRouter>

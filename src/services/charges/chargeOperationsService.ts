@@ -764,8 +764,8 @@ export async function buildLocalChargeConferenceRows(blIds: string[]): Promise<L
 // porque a quantidade de THD de um container compartilhado depende de quantos
 // B/Ls o dividem; importar um novo B/L nesse container muda a quantidade dos
 // que já estavam calculados. B/L com fatura emitida nunca é recalculado (cai
-// no aviso de container compartilhado que já existe). Só container (fronteira
-// da ADR 0020); carga solta e granito seguem seus fluxos próprios. Best-effort
+// no aviso de container compartilhado que já existe). Container e B/L misto
+// participam da fronteira da ADR 0020; carga solta e granito seguem seus fluxos próprios. Best-effort
 // e idempotente, no mesmo padrão de applyBapliePhysicalFlags — chame depois
 // dele, pois as flags IMO/OOG definem o perfil de carga usado no cálculo.
 export async function calculateProvisionalLocalCharges(
@@ -783,7 +783,7 @@ export async function calculateProvisionalLocalCharges(
   if (targetError) throw targetError
 
   const containerBlIds = (targetBls ?? [])
-    .filter((bl) => (bl.cargo_mode ?? 'container') === 'container' && !isBlFinanciallyLocked(bl.financial_status))
+    .filter((bl) => ['container', 'misto'].includes(bl.cargo_mode ?? 'container') && !isBlFinanciallyLocked(bl.financial_status))
     .map((bl) => bl.id)
   if (containerBlIds.length === 0) return { calculated: 0 }
 
@@ -821,7 +821,7 @@ export async function calculateProvisionalLocalCharges(
         // novo B/L no mesmo container reverte silenciosamente um irmao ja
         // pronto para faturar de volta para calculated/review_required.
         return (
-          (bl?.cargo_mode ?? 'container') === 'container' &&
+          ['container', 'misto'].includes(bl?.cargo_mode ?? 'container') &&
           !isBlFinanciallyLocked(bl?.financial_status) &&
           bl?.charge_status !== 'ready_for_billing'
         )

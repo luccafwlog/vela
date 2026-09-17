@@ -7,40 +7,49 @@
 --   4. Pendencias de revisao: mixed_bl_terminal_conflict e bl_terminal_sem_frente.
 
 -- 1. Colunas de terminal e ancora de porto com FK composta
-ALTER TABLE public.bls 
+ALTER TABLE public.bls
 ADD COLUMN IF NOT EXISTS pod_port_id bigint REFERENCES public.ports(id),
 ADD COLUMN IF NOT EXISTS terminal_id uuid;
 
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
+    SELECT 1 FROM pg_constraint
     WHERE conname = 'bls_terminal_pod_port_fk' AND conrelid = 'public.bls'::regclass
   ) THEN
-    ALTER TABLE public.bls 
-    ADD CONSTRAINT bls_terminal_pod_port_fk 
+    ALTER TABLE public.bls
+    ADD CONSTRAINT bls_terminal_pod_port_fk
     FOREIGN KEY (terminal_id, pod_port_id) REFERENCES public.depots(id, port_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'bls_terminal_id_fkey' AND conrelid = 'public.bls'::regclass
+  ) THEN
+    ALTER TABLE public.bls
+    ADD CONSTRAINT bls_terminal_id_fkey
+    FOREIGN KEY (terminal_id) REFERENCES public.depots(id) ON DELETE SET NULL;
   END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_bls_terminal_pod_port ON public.bls(terminal_id, pod_port_id);
 
--- 2. bl_operation_front_modalidade tratando 'misto'
+-- 2. bl_operation_front_modalidade tratando 'misto' como 'carga_cheia' para casar com frentes existentes
 CREATE OR REPLACE FUNCTION public.bl_operation_front_modalidade(p_cargo_mode text)
 RETURNS text
 LANGUAGE sql IMMUTABLE
 AS $$
   SELECT CASE lower(btrim(COALESCE(p_cargo_mode, '')))
     WHEN 'carga_solta' THEN 'carga_solta'
+    WHEN 'misto' THEN 'carga_cheia'
     WHEN 'veiculo' THEN 'veiculo'
     WHEN 'veiculos' THEN 'veiculo'
-    WHEN 'misto' THEN 'misto'
     ELSE 'carga_cheia'
   END;
 $$;
 
 -- 3. Funcao de resolucao unica de terminal do B/L
-CREATE OR REPLACE FUNCTION public.resolve_bl_terminal_id(p_bl_id bigint)
+CREATE OR REPLACE FUNCTION public.resolve_bl_terminal_id(p_bl_id text)
 RETURNS uuid
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
@@ -116,7 +125,7 @@ END;
 $$;
 
 -- 4. Verificacao de pendencias de terminal em B/L
-CREATE OR REPLACE FUNCTION public.check_bl_terminal_pendencies(p_bl_id bigint)
+CREATE OR REPLACE FUNCTION public.check_bl_terminal_pendencies(p_bl_id text)
 RETURNS text[]
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'

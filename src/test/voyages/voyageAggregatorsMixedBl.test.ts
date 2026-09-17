@@ -21,9 +21,9 @@ describe('Agregadores de Viagem com B/Ls Mistos', () => {
         is_imo: true,
         is_oog: false,
         container_type: '40HC',
-      } as any,
+      } as unknown as NonNullable<VoyageBl['bl_containers']>[number],
     ],
-  } as any
+  } as unknown as VoyageBl
 
   const containerOnlyBl: VoyageBl = {
     id: 'BL-CNTR-01',
@@ -36,9 +36,9 @@ describe('Agregadores de Viagem com B/Ls Mistos', () => {
         is_imo: false,
         is_oog: false,
         container_type: '20GP',
-      } as any,
+      } as unknown as NonNullable<VoyageBl['bl_containers']>[number],
     ],
-  } as any
+  } as unknown as VoyageBl
 
   const breakbulkOnlyBl: VoyageBl = {
     id: 'BL-BB-01',
@@ -50,7 +50,7 @@ describe('Agregadores de Viagem com B/Ls Mistos', () => {
     bb_machine_qty: 0,
     total_cbm: 20,
     bl_containers: [],
-  } as any
+  } as unknown as VoyageBl
 
   it('splitVoyageBls inclui BL misto em ambas as listas sem duplicar nas contagens globais', () => {
     const bls = [mixedBl, containerOnlyBl, breakbulkOnlyBl]

@@ -40,7 +40,7 @@ import { rowErrorsToImportIssues } from '../services/importValidation'
 import type { InvoiceLinkInfo } from '../services/billing'
 import type { BLListItem } from '../types/database'
 
-export function formatBlCargoBadge(bl: BLListItem): string {
+function formatBlCargoBadge(bl: BLListItem): string {
   const cntrCount = countDistinctContainerNumbers(bl.bl_containers)
   const bbWeight = bl.bb_weight_ton != null
     ? Number(bl.bb_weight_ton)
@@ -78,7 +78,7 @@ function InvoiceLink({ links }: { links: InvoiceLinkInfo[] }) {
         <Link
           key={link.id}
           className="text-xs text-[#58a6ff] hover:underline"
-          to={`/taxas-locais?invoiceId=${link.id}`}
+          to={`/taxas-locais?invoice=${link.id}`}
         >
           {link.invoice_number ?? `Fat #${link.id}`}
         </Link>

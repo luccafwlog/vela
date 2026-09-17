@@ -203,4 +203,62 @@ describe('ceMercanteImport', () => {
     expect(result).toMatchObject({ ok: true, batchId: 10, processed: 2 })
     expect(mockRpc).toHaveBeenCalledOnce()
   })
+
+  it('cria e vincula o manifesto Mercante informado aos BLs atualizados', async () => {
+    const bl = {
+      id: 'BL001',
+      voyage_id: 7,
+      pol: 'CNTAC',
+      pod: 'BRVIX',
+      manifesto_mercante_id: null,
+    }
+    const insertManifesto = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: { ...bl, id: 'manifesto-1', numero: '26BR000001', natureza: 'carga' },
+          error: null,
+        }),
+      })),
+    }))
+    const updateBls = vi.fn(() => ({ in: vi.fn().mockResolvedValue({ error: null }) }))
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'bls') {
+        return {
+          select: vi.fn((columns: string) => ({
+            in: vi.fn().mockResolvedValue({
+              data: columns === 'id' ? [{ id: 'BL001' }] : [bl],
+              error: null,
+            }),
+          })),
+          update: updateBls,
+        }
+      }
+      if (table === 'manifestos_mercante') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })),
+          })),
+          insert: insertManifesto,
+        }
+      }
+      throw new Error(`Tabela nao mockada: ${table}`)
+    })
+    mockRpc.mockResolvedValue({ data: 'inserted', error: null })
+
+    const result = await importCeMercanteRows(
+      [{ rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }],
+      { changedBy: 'user-1', voyageId: 7, manifestoNumero: '26BR000001' },
+    )
+
+    expect(result).toMatchObject({ updated: 1, errorCount: 0 })
+    expect(insertManifesto).toHaveBeenCalledWith({
+      voyage_id: 7,
+      pol: 'CNTAC',
+      pod: 'BRVIX',
+      numero: '26BR000001',
+      natureza: 'carga',
+    })
+    expect(updateBls).toHaveBeenCalledWith({ manifesto_mercante_id: 'manifesto-1' })
+  })
 })

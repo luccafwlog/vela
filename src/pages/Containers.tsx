@@ -37,7 +37,7 @@ export function Containers() {
   const { filters, setFilters, updateFilter } = usePageFilters<ContainerFilters>({
     search: searchParams.get('search') ?? '',
     voyageId: initialVoyage,
-    cargoMode: 'container',
+    cargoMode: '',
     pol: '',
     pod: initialPod,
     reviewStatus: '',

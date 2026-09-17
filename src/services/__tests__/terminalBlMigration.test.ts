@@ -24,7 +24,7 @@ describe('055 terminal do BL com heranca e excecao individual migration', () => 
 
   it('trata misto explicitamente em bl_operation_front_modalidade', () => {
     expect(sql).toContain('CREATE OR REPLACE FUNCTION public.bl_operation_front_modalidade(')
-    expect(sql).toContain("WHEN 'misto' THEN 'misto'")
+    expect(sql).toContain("WHEN 'misto' THEN 'carga_cheia'")
   })
 
   it('registra pendencias review:mixed_bl_terminal_conflict e review:bl_terminal_sem_frente', () => {

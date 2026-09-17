@@ -53,7 +53,7 @@ END;
 $$;
 
 -- 4. Funcao de recalculacao automatica da modalidade de carga
-CREATE OR REPLACE FUNCTION public.recalculate_bl_cargo_mode(p_bl_id bigint)
+CREATE OR REPLACE FUNCTION public.recalculate_bl_cargo_mode(p_bl_id text)
 RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
