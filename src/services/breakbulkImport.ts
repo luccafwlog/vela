@@ -52,15 +52,7 @@ export async function importBreakbulkManifest({
 
   const blRows = manifest.bls.flatMap((bl) => {
     const existingMode = existingModeByBl.get(bl.bl_id)
-    if (existingMode === 'container') {
-      importErrors.push({
-        row: bl.rowNumber,
-        message: `BL ${bl.bl_id} ja existe como container e nao pode ser sobrescrito como BB.`,
-        raw: { bl_id: bl.bl_id },
-      })
-      invalidBls.add(bl.bl_id)
-      return []
-    }
+    const targetMode = existingMode === 'container' || existingMode === 'misto' ? ('misto' as const) : ('carga_solta' as const)
 
     const customerMatch = findMatchedCustomer(
       {
@@ -82,7 +74,7 @@ export async function importBreakbulkManifest({
       {
         id: bl.bl_id,
         voyage_id: voyageId,
-        cargo_mode: 'carga_solta' as const,
+        cargo_mode: targetMode,
         // A ausência do campo é intencional: a RPC preserva atomicamente o CE
         // existente quando o layout não é autoridade sobre esse dado.
         ...ceMercante,

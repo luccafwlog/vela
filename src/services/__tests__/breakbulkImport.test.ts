@@ -491,4 +491,67 @@ describe('breakbulkImport', () => {
     expect(payload.p_bls[0]).toMatchObject({ id: 'BB009' })
     expect(payload.p_bls[0]).not.toHaveProperty('ce_mercante')
   })
+
+  it('permite importar carga solta para BL existente como container tornando-o misto sem erro', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'voyages') {
+        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 10 }, error: null })) })) })) }
+      }
+      if (table === 'customers') {
+        return {
+          select: vi.fn(() => ({
+            order: vi.fn(() => ({
+              range: vi.fn(() => Promise.resolve({ data: [], error: null })),
+            })),
+          })),
+        }
+      }
+      if (table === 'bls') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() => Promise.resolve({ data: [{ id: 'CNTR_BL_01', cargo_mode: 'container' }], error: null })),
+          })),
+        }
+      }
+      return { select: vi.fn(() => ({ in: vi.fn(() => Promise.resolve({ data: [], error: null })) })) }
+    })
+
+    mockRpc.mockImplementation(() => Promise.resolve({ data: { batch_id: 88 }, error: null }))
+
+    const manifest: ParsedBreakbulkManifest = {
+      layout: 'summary',
+      carrier: 'GENERIC',
+      rowErrors: [],
+      bls: [
+        {
+          rowNumber: 1,
+          bl_id: 'CNTR_BL_01',
+          ce_mercante: null,
+          shipper: 'SHIPPER',
+          consignee: 'CONSIGNEE',
+          notify_party: null,
+          cnpj_cpf: null,
+          pol: 'CNSHG',
+          pod: 'BRSSZ',
+          bb_machine_qty: null,
+          bb_packages_qty: 2,
+          bb_packages_total: 2,
+          bb_weight_ton: 10,
+          total_weight_kg: 10000,
+          total_cbm: 20,
+          items: [],
+        },
+      ],
+    }
+
+    await importBreakbulkManifest({
+      filename: 'mixed.xlsx',
+      voyageId: 10,
+      manifest,
+      uploadedBy: '00000000-0000-0000-0000-000000000001',
+    })
+
+    const payload = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
+    expect(payload.p_bls[0]).toMatchObject({ id: 'CNTR_BL_01', cargo_mode: 'misto' })
+  })
 })

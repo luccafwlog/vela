@@ -223,7 +223,7 @@ export async function listLocalChargeOperationalRowsWithMeta(
   filters?: LocalChargeOperationalFilters,
 ): Promise<LocalChargeOperationalRowsResult> {
   const cargoMode = filters?.cargoMode ?? ''
-  const wantBls = cargoMode === '' || cargoMode === 'container' || cargoMode === 'carga_solta'
+  const wantBls = cargoMode === '' || cargoMode === 'container' || cargoMode === 'carga_solta' || cargoMode === 'misto'
   const wantGranite = cargoMode === '' || cargoMode === 'granito'
 
   const [blRows, graniteRows] = await Promise.all([
@@ -697,7 +697,7 @@ export async function buildLocalChargeConferenceRows(blIds: string[]): Promise<L
       .from('bls')
       .select('id, voyage_id')
       .in('voyage_id', voyageIds)
-      .eq('cargo_mode', 'container')
+      .in('cargo_mode', ['container', 'misto'])
     if (voyageBlsError) throw voyageBlsError
 
     const voyageIdByBlId = new Map((voyageBls ?? []).map((bl) => [bl.id as string, bl.voyage_id as number]))

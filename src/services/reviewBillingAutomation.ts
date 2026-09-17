@@ -350,7 +350,7 @@ export async function maybeAutoBillAfterCeMercante(blId: string, actorId: string
 
   if (!bl?.customer_id || !isCustomerReconciliationResolved(bl.customer_reconciliation_status)) return null
   const cargoMode = bl.cargo_mode ?? 'container'
-  if (cargoMode !== 'container' && cargoMode !== 'carga_solta' && cargoMode !== '') return null
+  if (cargoMode !== 'container' && cargoMode !== 'carga_solta' && cargoMode !== 'misto' && cargoMode !== '') return null
 
   // Reimport de CE em B/L ja faturado e no-op benigno: create_invoice_from_bls_core
   // recusaria a segunda fatura. Registramos como info e nao tentamos refaturar.

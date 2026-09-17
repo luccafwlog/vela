@@ -29,6 +29,14 @@ describe('listLocalChargeOperationalRows', () => {
     expect(from.mock.calls.map(([table]) => table)).not.toContain('granite_bls')
   })
 
+  it('consulta B/Ls e nao consulta granito quando o filtro pede misto', async () => {
+    const { listLocalChargeOperationalRows } = await import('../chargeOperationsService')
+    from.mockImplementation(() => builder({ data: [], error: null }))
+    await listLocalChargeOperationalRows({ cargoMode: 'misto' })
+    expect(from.mock.calls.map(([table]) => table)).toContain('bls')
+    expect(from.mock.calls.map(([table]) => table)).not.toContain('granite_bls')
+  })
+
   it('propaga o erro do banco em vez de devolver lista vazia', async () => {
     const { listLocalChargeOperationalRows } = await import('../chargeOperationsService')
     from.mockImplementation(() => builder({ data: null, error: { code: '42501', message: 'permission denied' } }))
