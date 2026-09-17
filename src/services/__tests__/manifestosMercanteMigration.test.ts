@@ -31,3 +31,18 @@ describe('053 manifestos mercante dominio migration', () => {
     expect(sql).toContain('ADD COLUMN IF NOT EXISTS pod text')
   })
 })
+
+describe('057 cod manifesto pendency migration', () => {
+  const sql = readFileSync(
+    resolve(process.cwd(), 'supabase/migrations/057_cod_manifesto_pendency.sql'),
+    'utf8',
+  )
+
+  it('atualiza set_bl_cod limpando manifesto_mercante_id em bls ao marcar COD', () => {
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.set_bl_cod')
+    expect(sql).toContain('manifesto_mercante_id = NULL')
+    expect(sql).toContain('pod = v_discharge')
+    expect(sql).not.toContain('ce_mercante = NULL')
+  })
+})
+
