@@ -28,16 +28,17 @@ A spec de múltiplos terminais foi concluída na PR #550 e está arquivada em
 [`../archive/specs/`](../archive/specs/). O comportamento vigente foi promovido
 para `CONTEXT.md` e `docs/ARCHITECTURE.md`.
 
-A spec comportamental abaixo é permanente e não entra nesta tabela.
+A spec do editor de escala foi concluída e está arquivada em
+[`../archive/specs/`](../archive/specs/).
+
+A spec comportamental abaixo é histórica e suas edições arquivadas estão em `docs/archive/specs/`.
 
 ## Behavioral Specification
 
-This directory holds the **single canonical, code-derived behavioral
-specification** for Vela and the Fwlog Portal. It tracks every feature from
-specification through verification in one spreadsheet.
+This directory previously held the **single canonical, code-derived behavioral
+specification** for Vela and the Fwlog Portal tracking features across the system.
 
-This directory is the living source of truth. Dated CSV/XLSX pairs are editions:
-the newest is canonical and lives here; superseded editions move to
+Dated CSV/XLSX pairs are editions: superseded editions move to
 [`../archive/specs/`](../archive/specs/) as historical snapshots.
 
 ## Canonical files
@@ -47,8 +48,7 @@ the newest is canonical and lives here; superseded editions move to
 | `<date>-behavioral-spec.csv` | **Source of truth** (edited directly, diffable, reviewable) |
 | `<date>-behavioral-spec.xlsx` | View layer (filters + summary sheet), generated from the CSV |
 
-Current edition: **`2026-08-12-behavioral-spec.{csv,xlsx}`**. The superseded
-`2026-07-02` edition is in [`../archive/specs/`](../archive/specs/).
+Archived editions: **`2026-07-02-behavioral-spec.{csv,xlsx}`** e **`2026-08-12-behavioral-spec.{csv,xlsx}`** estão em [`../archive/specs/`](../archive/specs/).
 
 The CSV is edited by hand; the `.xlsx` is generated from it by
 [`../../scripts/build-behavioral-spec.mjs`](../../scripts/build-behavioral-spec.mjs).
