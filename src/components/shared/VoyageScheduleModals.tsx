@@ -167,7 +167,7 @@ export function PolScheduleModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={polSchedule?.cargoMode === 'vazios' ? 'Manifesto de Vazios · CE Master' : 'Editar ETD + ATD e CE Master'}>
+    <Modal open={open} onClose={onClose} title={polSchedule?.cargoMode === 'vazios' ? 'Manifesto de Vazios · Nº de Manifesto Mercante' : 'Editar ETD + ATD e Nº de Manifesto Mercante'}>
       {polSchedule ? (
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <div className="app-escala-summary">

@@ -26,7 +26,7 @@ describe('PolScheduleModal', () => {
 
   it('nao renderiza conteudo quando fechado', () => {
     render(<PolScheduleModal open={false} polSchedule={base} onClose={() => {}} onSaved={async () => {}} />)
-    expect(screen.queryByText('Editar ETD + ATD e CE Master')).toBeNull()
+    expect(screen.queryByText('Editar ETD + ATD e Nº de Manifesto Mercante')).toBeNull()
   })
 
   it('pre-preenche ETD/ATD e envia o payload correto', async () => {
@@ -94,7 +94,7 @@ describe('PolScheduleModal', () => {
       />,
     )
 
-    expect(screen.getByText('Editar ETD + ATD e CE Master')).toBeTruthy()
+    expect(screen.getByText('Editar ETD + ATD e Nº de Manifesto Mercante')).toBeTruthy()
     expect((screen.getByLabelText('Nº MANIFESTO') as HTMLInputElement).value).toBe('25BR00481')
 
     await user.click(screen.getByRole('button', { name: 'Salvar' }))

@@ -286,7 +286,7 @@ describe('VoyageManifestosTab', () => {
       </MemoryRouter>,
     )
 
-    const button = screen.getByRole('button', { name: 'Informar CE Master de TAICANG -> VITORIA' })
+    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG -> VITORIA' })
     fireEvent.click(button)
 
     expect(onEditPol).toHaveBeenCalledTimes(1)
@@ -333,7 +333,7 @@ describe('VoyageManifestosTab', () => {
     const link = screen.getByRole('link', { name: 'TAICANG -> VITORIA' })
     expect(link.getAttribute('href')).toBe('/vazios-importacao?voyage=14&pod=BRVIX')
 
-    const button = screen.getByRole('button', { name: 'Informar CE Master de TAICANG -> VITORIA' })
+    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG -> VITORIA' })
     fireEvent.click(button)
 
     expect(onEditPol).toHaveBeenCalledWith({

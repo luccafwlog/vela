@@ -749,7 +749,7 @@ function buildImportTimeline(
         id: `ce-master-batch-${batch.id}`,
         kind: 'ce-master',
         at: batch.uploaded_at,
-        title: 'CE Master definido',
+        title: 'Nº de Manifesto Mercante definido',
         detail: ceMaster,
       })
     }
@@ -1098,7 +1098,7 @@ function buildAuditTimeline(
         id: `audit-ce-master-${index}`,
         kind: 'ce-master',
         at,
-        title: oldValue ? 'CE Master alterado' : 'CE Master definido',
+        title: oldValue ? 'Nº de Manifesto Mercante alterado' : 'Nº de Manifesto Mercante definido',
         detail: appendActor(oldValue ? `${oldValue} -> ${value}` : value, row),
       })
       continue

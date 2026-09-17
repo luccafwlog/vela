@@ -129,8 +129,8 @@ export function VoyageManifestosTab({
                           <button
                             type="button"
                             className="app-badge app-badge--yellow cursor-pointer gap-1 px-2 py-0.5 text-[10px] transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
-                            aria-label={`Informar CE Master de ${row.routeLabel}`}
-                            title="Informar CE Master"
+                            aria-label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
+                            title="Informar Nº de Manifesto Mercante"
                             onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
                             disabled={!row.pol || row.pol === '-'}
                           >
@@ -145,8 +145,8 @@ export function VoyageManifestosTab({
                         <Button
                           variant="secondary"
                           className="app-voyage-icon-btn"
-                          aria-label={`Editar ETD previsto + ATD POL e CE Master de ${row.routeLabel}`}
-                          title="Editar ETD previsto + ATD POL e CE Master"
+                          aria-label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
+                          title="Editar ETD previsto + ATD POL e Nº de Manifesto Mercante"
                           onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
                           disabled={!row.pol || row.pol === '-'}
                         >
