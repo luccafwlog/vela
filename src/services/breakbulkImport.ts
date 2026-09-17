@@ -95,7 +95,6 @@ export async function importBreakbulkManifest({
             extractNcmCodes(bl.items.map((item) => item.item_description).filter(Boolean).join('\n')),
           ),
         ],
-        total_weight_kg: bl.total_weight_kg,
         total_cbm: bl.total_cbm,
         review_status: reviewReasons.size > 0 ? ('pending_review' as const) : ('ok' as const),
         financial_status: 'pending' as const,

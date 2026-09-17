@@ -22,6 +22,7 @@ const blException = 'CLAUDE060-EXC'
 const blSummary = 'CLAUDE060-SUMMARY'
 const blEmpty = 'CLAUDE060-EMPTY-LOOSE'
 const blLocked = 'CLAUDE060-LOCKED'
+const blLoosePure = 'CLAUDE061-LOOSE-PURE'
 
 function psql(sql: string): string {
   return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
@@ -48,9 +49,9 @@ describeLocal('PR 698 — revisão Claude Code no catálogo PostgreSQL', () => {
       SET session_replication_role = replica;
       DELETE FROM public.customer_communication_automation_claims WHERE claim_key LIKE 'aviso_atracacao_nob:%';
       DELETE FROM public.customer_communications WHERE customer_id IN (${mixedCustomerId}, ${exceptionCustomerId});
-      DELETE FROM public.bl_breakbulk_items WHERE bl_id LIKE 'CLAUDE060-%';
-      DELETE FROM public.bl_containers WHERE bl_id LIKE 'CLAUDE060-%';
-      DELETE FROM public.bls WHERE id LIKE 'CLAUDE060-%';
+      DELETE FROM public.bl_breakbulk_items WHERE bl_id LIKE 'CLAUDE060-%' OR bl_id LIKE 'CLAUDE061-%';
+      DELETE FROM public.bl_containers WHERE bl_id LIKE 'CLAUDE060-%' OR bl_id LIKE 'CLAUDE061-%';
+      DELETE FROM public.bls WHERE id LIKE 'CLAUDE060-%' OR id LIKE 'CLAUDE061-%';
       DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id = ${voyageId};
       DELETE FROM public.depots WHERE id IN ('${terminalA}', '${terminalB}');
@@ -117,9 +118,9 @@ describeLocal('PR 698 — revisão Claude Code no catálogo PostgreSQL', () => {
       DELETE FROM public.customer_communication_automation_claims WHERE claim_key LIKE 'aviso_atracacao_nob:%';
       DELETE FROM public.customer_communications WHERE customer_id IN (${mixedCustomerId}, ${exceptionCustomerId});
       DELETE FROM public.audit_logs WHERE changed_by = '${actorId}';
-      DELETE FROM public.bl_breakbulk_items WHERE bl_id LIKE 'CLAUDE060-%';
-      DELETE FROM public.bl_containers WHERE bl_id LIKE 'CLAUDE060-%';
-      DELETE FROM public.bls WHERE id LIKE 'CLAUDE060-%';
+      DELETE FROM public.bl_breakbulk_items WHERE bl_id LIKE 'CLAUDE060-%' OR bl_id LIKE 'CLAUDE061-%';
+      DELETE FROM public.bl_containers WHERE bl_id LIKE 'CLAUDE060-%' OR bl_id LIKE 'CLAUDE061-%';
+      DELETE FROM public.bls WHERE id LIKE 'CLAUDE060-%' OR id LIKE 'CLAUDE061-%';
       DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id = ${voyageId};
       DELETE FROM public.depots WHERE id IN ('${terminalA}', '${terminalB}');
@@ -173,6 +174,32 @@ describeLocal('PR 698 — revisão Claude Code no catálogo PostgreSQL', () => {
     expect(psql(`SELECT cargo_mode FROM public.bls WHERE id = '${blEmpty}';`)).toBe('carga_solta')
     expect(Number(psql(`SELECT public.operational_list_bl_summary(NULL, ${voyageId}, 'misto', NULL, NULL, NULL, NULL, NULL, NULL)->>'totalWeightTon';`))).toBe(23)
     psql(`DELETE FROM public.bls WHERE id = '${blEmpty}';`)
+  })
+
+  // Revisão final (B3-R): a soma aditiva da 060 só é correta porque a 061 deu
+  // um significado único a cada coluna de peso. Estes dois casos são o eixo que
+  // faltava — a carga solta pura, e o misto que chega pela ordem inversa.
+  it('não conta o peso duas vezes na carga solta pura nem no misto vindo dela', () => {
+    psql(`
+      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode, total_weight_kg, bb_weight_ton, bb_packages_qty)
+      VALUES ('${blLoosePure}', ${voyageId}, 'BRPNG', 'carga_solta', NULL, 20, 5);
+    `)
+    const pesoDe = (filtro: string | null) => Number(psql(
+      `SELECT public.operational_list_bl_summary(NULL, ${voyageId}, ${filtro === null ? 'NULL' : `'${filtro}'`}, NULL, 'BRPNG')->>'totalWeightTon';`,
+    ))
+    expect(pesoDe('carga_solta')).toBe(20)
+
+    // A carga solta vira misto quando chega um contêiner. O peso da carga solta
+    // não pode ser recontado como se fosse peso de contêiner.
+    psql(`INSERT INTO public.bl_containers (bl_id, container_number) VALUES ('${blLoosePure}', 'MSCU6980604');`)
+    expect(psql(`SELECT cargo_mode FROM public.bls WHERE id = '${blLoosePure}';`)).toBe('misto')
+    expect(pesoDe('misto')).toBe(20)
+
+    // Agora o peso de contêiner é informado: aí sim os dois componentes somam.
+    psql(`UPDATE public.bls SET total_weight_kg = 12000 WHERE id = '${blLoosePure}';`)
+    expect(pesoDe(null)).toBe(32)
+
+    psql(`DELETE FROM public.bl_containers WHERE bl_id = '${blLoosePure}'; DELETE FROM public.bls WHERE id = '${blLoosePure}';`)
   })
 
   it('permite adicionar BB a B/L pago, reabre revisão e bloqueia remoção posterior', () => {

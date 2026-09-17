@@ -640,6 +640,17 @@ participa tanto dos agregadores de contêineres quanto dos de carga solta sem
 duplicar a contagem única de B/Ls da viagem. No faturamento, gera fatura
 adaptativa modular com blocos distintos para contêiner e carga solta.
 
+**Peso do B/L (contêiner x carga solta)**
+O peso físico de um B/L vive em duas colunas **disjuntas**: `bls.total_weight_kg`
+mede somente a carga conteinerizada e `bls.bb_weight_ton` somente a carga solta.
+O peso total do documento é a soma das duas — nunca uma delas isoladamente, nem
+um desempate entre elas. Até a migration 061 os importadores de carga solta
+espelhavam o mesmo peso nas duas colunas, o que forçava os consumidores a
+escolher uma (`bb_weight_ton ?? total_weight_kg / 1000`); o desempate subcontava
+o B/L misto e a soma, sobre o espelho, contava a carga solta duas vezes. Quem
+precisa do peso total usa `blTotalWeightKg`/`blTotalWeightTon` (`src/lib/cargoMode.ts`)
+no TypeScript e a soma das duas colunas no SQL.
+
 **Painel Unificado de BLs**
 Superfície canônica em `/bls` que centraliza todos os B/Ls da agência
 independentemente do seu modo de carga (`container`, `carga_solta` ou `misto`),

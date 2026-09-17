@@ -68,7 +68,24 @@ export async function upsertDepot(input: DepotInput): Promise<void> {
 
 export async function deleteDepot(id: string): Promise<void> {
   const { error } = await supabase.from('depots').delete().eq('id', id)
-  if (error) throw error
+  if (!error) return
+  // A FK composta (terminal_id, pod_port_id) -> depots(id, port_id) e
+  // ON DELETE RESTRICT (migration 060): um local ainda apontado por B/L nao
+  // pode ser removido. Sem esta traducao o usuario ve a mensagem crua do
+  // Postgres ("violates foreign key constraint bls_terminal_pod_port_fk").
+  if ((error as { code?: string }).code === '23503') {
+    const { count } = await supabase
+      .from('bls')
+      .select('id', { count: 'exact', head: true })
+      .eq('terminal_id', id)
+    const quantos = count ?? 0
+    throw new Error(
+      quantos > 0
+        ? `Este local esta definido como terminal em ${quantos} B/L. Troque o terminal desses B/Ls antes de excluir.`
+        : 'Este local ainda esta referenciado por outros registros e nao pode ser excluido.',
+    )
+  }
+  throw error
 }
 
 export async function listDepotServices(depotId: string): Promise<DepotService[]> {

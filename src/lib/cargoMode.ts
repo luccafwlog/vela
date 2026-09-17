@@ -30,3 +30,25 @@ export function cargoModeLabel(mode: CargoModeLabel) {
   if (mode === 'granito') return 'Granito'
   return 'Container'
 }
+
+/**
+ * Peso físico total de um B/L, em quilos.
+ *
+ * `bls.total_weight_kg` mede SOMENTE a carga conteinerizada e `bls.bb_weight_ton`
+ * SOMENTE a carga solta — são componentes disjuntos, e por isso somam. Até a
+ * migration 061 os importadores de carga solta espelhavam o mesmo peso nas duas
+ * colunas, o que obrigava os consumidores a escolher uma delas (`bb_weight_ton
+ * ?? total_weight_kg / 1000`); esse desempate subcontava o B/L misto. Quem
+ * precisa do peso total do documento usa este helper, não uma das colunas.
+ */
+export function blTotalWeightKg(
+  bl: { total_weight_kg?: number | string | null; bb_weight_ton?: number | string | null },
+) {
+  return Number(bl.total_weight_kg ?? 0) + Number(bl.bb_weight_ton ?? 0) * 1000
+}
+
+export function blTotalWeightTon(
+  bl: { total_weight_kg?: number | string | null; bb_weight_ton?: number | string | null },
+) {
+  return blTotalWeightKg(bl) / 1000
+}

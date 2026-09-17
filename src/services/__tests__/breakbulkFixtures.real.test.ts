@@ -33,7 +33,6 @@ describe('breakbulkImport with real fixtures', () => {
     expect(firstBl?.bb_packages_qty).toBe(2)
     expect(firstBl?.bb_packages_total).toBe(2)
     expect(firstBl?.bb_weight_ton).toBeCloseTo(47.74)
-    expect(firstBl?.total_weight_kg).toBe(47740)
     expect(firstBl?.total_cbm).toBe(52)
     expect(firstBl?.items[0]?.item_description).toContain('FLOCRYL DADMAC 64 HST')
 

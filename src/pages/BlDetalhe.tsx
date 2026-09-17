@@ -158,7 +158,7 @@ export function BlDetalhe() {
       machines: Number(bl?.bb_machine_qty ?? 0),
       packages: Number(bl?.bb_packages_qty ?? 0),
       packagesTotal: Number(bl?.bb_packages_total ?? bl?.bb_packages_qty ?? 0),
-      weightTon: Number(bl?.bb_weight_ton ?? (bl?.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : 0)),
+      weightTon: Number(bl?.bb_weight_ton ?? 0),
       cbm: Number(bl?.total_cbm ?? 0),
     }),
     [bl],

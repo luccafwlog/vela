@@ -178,7 +178,6 @@ export function blDocumentToManifest(document: ParsedBlDocument): ParsedBreakbul
     bb_packages_qty: document.packages_qty,
     bb_packages_total: document.packages_qty,
     bb_weight_ton: weightKg > 0 ? weightKg / 1000 : null,
-    total_weight_kg: weightKg,
     total_cbm: cbm,
     items: [
       {
