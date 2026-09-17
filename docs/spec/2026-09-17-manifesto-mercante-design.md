@@ -15,8 +15,8 @@ insumo da ADR correspondente, não a ADR.
 "Como ler os achados": **[defeito atual]** produz resultado errado hoje;
 **[lacuna de mapa]** funciona hoje e precisa mudar para o modelo fechar.
 Diferentemente daquela spec, aqui a maioria dos achados é **[defeito atual]** —
-os três da seção "Por que o modelo atual está errado" quebram sem nenhuma carga
-mista envolvida.
+os três da seção "Por que o modelo atual está errado" já limitam a operação sem
+nenhuma carga mista envolvida.
 
 ---
 
@@ -178,24 +178,41 @@ precise de dois manifestos do mesmo tipo. **O segundo caso não depende de carga
 mista:** uma rota de contêiner que precise de dois lançamentos já não cabe na
 chave hoje.
 
-### A chave do frontend perde manifestos — **[defeito atual]**
+### A tela só tem um campo por rota — **[defeito atual]**
+
+O caso normal da agência é a rota com **dois** manifestos: um de contêiner e um
+de carga solta. A tela de Manifestos/Rotas oferece **um** campo.
+
+A causa está no agrupamento. A linha da tela nasce do par de portos, e só dele
+(`voyageCardHelpers.tsx:127`):
 
 ```ts
-// voyageRouteSchedules.ts
-const mode = cargoMode && cargoMode.toLowerCase() === 'vazios' ? '__VAZIOS' : ''
-return `${voyageId}::${normalizeRoutePort(pol)}__${normalizeRoutePort(pod)}${mode}`
+const routeKey = `${pol}__${pod}`
 ```
 
-A chave do frontend tem **dois baldes**: vazios e todo o resto. `container` e
-`carga_solta` caem no mesmo balde, enquanto o banco os guarda como linhas
-distintas.
+B/Ls de contêiner e de carga solta da mesma rota caem na **mesma linha** — é
+justamente o que o badge `CNTR/BB` exibe quando os dois tipos coexistem ali. Uma
+linha, um campo de Nº de Manifesto Mercante.
 
-Quando a rota tem um manifesto de contêiner **e** um de carga solta — o caso
-normal da agência — `listVoyageRouteCeMasters` grava os dois na mesma chave do
-`Map` e **o segundo sobrescreve o primeiro**, na ordem que o banco devolver.
+A gravação fecha o ciclo: para rota não-vazios, `group.cargoMode` nunca é
+preenchido, e `Viagens.tsx:536` envia `cargoMode ?? 'container'`. **Toda rota de
+carga é gravada como `'container'`**, qualquer que seja o tipo dos seus B/Ls.
 
-O banco tem os dois números; a tela mostra um, sem aviso. **É independente de
-carga mista e existe hoje.**
+O banco **aceitaria** os dois números — a `UNIQUE (voyage_id, pol, pod,
+cargo_mode)` prevê uma linha por tipo. Nada nunca grava a segunda. O número do
+manifesto de carga solta não é perdido: ele não tem onde ser digitado.
+
+Vazios são a exceção que funciona: têm linha própria (`routeKey` com sufixo
+`__vazios`) e chave própria (`__VAZIOS`), gravadas e lidas de forma coerente.
+
+> **[fato errado — corrigido]** A versão anterior desta seção afirmava que o
+> banco guarda os dois números e que `listVoyageRouteCeMasters` sobrescreve um
+> pelo outro ao montar o `Map`. A colisão de chave existe no código de leitura —
+> `container` e `carga_solta` produzem a mesma chave — mas é **latente**: nenhum
+> caminho da aplicação grava a segunda linha. O defeito vigente é a captura, não
+> a leitura. Fica o registro para quem for implementar: ao passar a gravar um
+> manifesto por lançamento, a chave do `Map` precisa mudar junto, ou a colisão
+> deixa de ser latente.
 
 ### `manifestRef` do EDI é um valor não identificado exibido como manifesto — **[defeito atual]**
 

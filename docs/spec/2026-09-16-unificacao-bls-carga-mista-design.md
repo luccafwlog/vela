@@ -1043,8 +1043,9 @@ Geral exibe.
 
 **Aqui o rótulo muda no meio do caminho.** O ponto acima é `[lacuna de mapa]`.
 O levantamento que ele provocou encontrou, atrás dele, um **[defeito atual]**
-independente de carga mista — a chave do frontend que perde manifestos — e um
-erro de modelagem anterior a esta spec. Os dois estão na
+independente de carga mista — a tela de Manifestos/Rotas oferece um campo de Nº
+de Manifesto por rota, quando o caso normal da agência tem dois — e um erro de
+modelagem anterior a esta spec. Os dois estão na
 [spec do Manifesto Mercante](2026-09-17-manifesto-mercante-design.md).
 
 **Esta spec não decide isto.** A primeira versão desta seção resolvia o caso por
