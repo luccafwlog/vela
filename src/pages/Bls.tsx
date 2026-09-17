@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Boxes, Download, Upload, MoreVertical, FileText } from 'lucide-react'
+import { Download, FileText, Loader2, MoreVertical, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { MetricCard } from '../components/ui/MetricCard'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
@@ -293,39 +293,38 @@ export function Bls() {
         title="BLs"
         description="Consulta consolidada de B/Ls de contêiner, carga solta e mistos. Cada B/L registra seu trecho POL/POD, terminal e vincula clientes pela base cadastral."
         action={
-          <div className="flex flex-wrap justify-end gap-2">
-            <Link
-              className="app-btn app-btn--secondary"
-              to={filters.voyageId ? `/containers?voyage=${filters.voyageId}` : '/containers'}
-            >
-              <Boxes size={16} />
-              Containers
-            </Link>
-            <Button variant="secondary" loading={exporting} onClick={handleExport}>
-              <Download size={16} />
-              Exportar
-            </Button>
+          <>
             {canImport ? (
-              <>
-                <Button variant="secondary" onClick={() => setCeMercanteOpen(true)}>
-                  <Upload size={16} />
-                  Importar CE Mercante
-                </Button>
+              <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
-                  <Upload size={16} />
-                  Importar B/L
-                </Button>
-                <Button variant="secondary" onClick={() => setBreakbulkOpen(true)}>
-                  <Upload size={16} />
-                  Manifesto Carga Solta
+                  <Upload size={16} aria-hidden="true" />
+                  B/L CNTR
                 </Button>
                 <Button variant="secondary" onClick={() => setBlDocumentOpen(true)}>
-                  <FileText size={16} />
-                  Importar Documento
+                  <FileText size={16} aria-hidden="true" />
+                  B/L Carga Solta
                 </Button>
-              </>
+                <Button variant="secondary" onClick={() => setBreakbulkOpen(true)}>
+                  <Upload size={16} aria-hidden="true" />
+                  Manifesto Mercante
+                </Button>
+                <Button variant="secondary" onClick={() => setCeMercanteOpen(true)}>
+                  <Upload size={16} aria-hidden="true" />
+                  CE Mercante
+                </Button>
+              </div>
             ) : null}
-          </div>
+            <button
+              type="button"
+              className="app-btn app-btn--ghost app-btn--sm h-10 w-10 shrink-0 p-0"
+              aria-label="Exportar B/Ls"
+              title="Exportar B/Ls"
+              disabled={exporting}
+              onClick={() => void handleExport()}
+            >
+              {exporting ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+            </button>
+          </>
         }
       />
 

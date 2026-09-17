@@ -134,6 +134,30 @@ describe('Página Bls (unificada)', () => {
     expect(linkMisto.getAttribute('href')).toBe('/bls/BL-MISTO')
   })
 
+  it('organiza os atalhos de importação e deixa a exportação apenas como ícone', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    const actionLabels = ['B/L CNTR', 'B/L Carga Solta', 'Manifesto Mercante', 'CE Mercante']
+    const actionButtons = actionLabels.map((label) => screen.getByRole('button', { name: label }))
+
+    actionButtons.slice(1).forEach((button, index) => {
+      expect(actionButtons[index].compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+    expect(screen.queryByRole('link', { name: 'Containers' })).toBeNull()
+
+    const exportButton = screen.getByRole('button', { name: 'Exportar B/Ls' })
+    expect(exportButton.getAttribute('title')).toBe('Exportar B/Ls')
+    expect(exportButton.textContent).toBe('')
+    expect(exportButton.querySelector('svg')).toBeTruthy()
+  })
+
   it('alterna o filtro rápido de modalidade [Todos, Contêiner, Carga Solta, Misto]', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
@@ -234,4 +258,3 @@ describe('Página Bls (unificada)', () => {
     })
   })
 })
-
