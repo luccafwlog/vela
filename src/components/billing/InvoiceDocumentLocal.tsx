@@ -3,7 +3,23 @@ import { QRCodeSVG } from 'qrcode.react'
 import type { InvoiceDetail } from '../../services/billing'
 import type { InvoiceItem } from '../../types/database'
 import { formatDate, stripBlPrefix } from '../../lib/utils'
-import { cell, dataTotalCell, dataTotalRow, describeUsdConversionNote, DOC_BORDER, DOC_GROUP, DOC_MUTED, DOC_NAVY, DOC_SUBTOTAL, documentRoot, fmtBRL, fmtCNPJ, labelCell, zebraRow } from '../shared/invoiceFormat'
+import {
+  cell,
+  classifyInvoiceItem,
+  dataTotalCell,
+  dataTotalRow,
+  describeUsdConversionNote,
+  DOC_BORDER,
+  DOC_GROUP,
+  DOC_MUTED,
+  DOC_NAVY,
+  DOC_SUBTOTAL,
+  documentRoot,
+  fmtBRL,
+  fmtCNPJ,
+  labelCell,
+  zebraRow,
+} from '../shared/invoiceFormat'
 import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle } from '../shared/InvoiceDocumentKit'
 
 type Props = { detail: InvoiceDetail; type?: 'invoice' | 'receipt' }
@@ -15,6 +31,116 @@ function displayQuantity(item: InvoiceItem): string | number {
     if (typeof sharedQuantityLabel === 'string' && sharedQuantityLabel.trim()) return sharedQuantityLabel
   }
   return item.quantity ?? 1
+}
+
+function formatContainersMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[]): string | null {
+  const list: string[] = []
+  for (const bl of bls) {
+    const raw = (bl as Record<string, unknown>).containers
+    if (Array.isArray(raw) && raw.length > 0) {
+      const formatted = raw
+        .map((c) => {
+          if (typeof c === 'string') return c
+          if (c && typeof c === 'object') {
+            const num = (c as { container_number?: string }).container_number
+            const typ = (c as { type?: string }).type
+            return typ ? `${num} (${typ})` : num
+          }
+          return String(c)
+        })
+        .filter(Boolean)
+        .join(', ')
+      if (formatted) list.push(formatted)
+    } else if (typeof (bl as Record<string, unknown>).containers_display === 'string') {
+      list.push((bl as Record<string, unknown>).containers_display as string)
+    }
+  }
+
+  if (list.length > 0) return list.join('; ')
+
+  const found: string[] = []
+  for (const item of items) {
+    const matches = item.description?.match(/[A-Z]{4}\d{7}/g)
+    if (matches) {
+      for (const m of matches) {
+        if (!found.includes(m)) found.push(m)
+      }
+    }
+  }
+  return found.length > 0 ? found.join(', ') : null
+}
+
+function formatBreakbulkMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[]): string | null {
+  const list: string[] = []
+  for (const bl of bls) {
+    const rawDisplay = (bl as Record<string, unknown>).bb_display
+    if (typeof rawDisplay === 'string' && rawDisplay.trim()) {
+      list.push(rawDisplay.trim())
+      continue
+    }
+    const weightTon = (bl as Record<string, unknown>).bb_weight_ton
+    const packagesQty = (bl as Record<string, unknown>).bb_packages_qty
+    if (weightTon != null && Number(weightTon) > 0) {
+      const wFormatted = Number(weightTon).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+      const pkgStr = packagesQty != null && Number(packagesQty) > 0 ? ` | ${packagesQty} volumes` : ''
+      list.push(`Peso BB: ${wFormatted} ton${pkgStr}`)
+    }
+  }
+
+  if (list.length > 0) return list.join('; ')
+
+  for (const item of items) {
+    if (classifyInvoiceItem(item) === 'carga_solta') {
+      const match = item.description?.match(/(\d+(?:[.,]\d+)?)\s*ton/i)
+      if (match) {
+        return `Peso BB: ${match[1]} ton`
+      }
+    }
+  }
+  return null
+}
+
+function renderCategoryBlock(
+  title: string,
+  subtotalLabel: string,
+  categoryItems: InvoiceItem[],
+  itemFlatIndex: Map<number | string, number>,
+) {
+  if (categoryItems.length === 0) return null
+
+  const subtotal = categoryItems.reduce((sum, item) => sum + Number(item.total_value_brl ?? 0), 0)
+
+  return (
+    <React.Fragment key={title}>
+      <tr style={{ background: DOC_GROUP, borderTop: '1px solid #c8d4e8' }}>
+        <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '11px', letterSpacing: '0.03em' }}>
+          {title}
+        </td>
+      </tr>
+      {categoryItems.map((item) => {
+        const usdNote = describeUsdConversionNote(item)
+        return (
+          <tr key={item.id} style={zebraRow(itemFlatIndex.get(item.id) ?? 0)}>
+            <td style={{ padding: '8px 8px 8px 16px' }}>
+              {stripBlPrefix(item.description, item.bl_id)}
+              {usdNote && <div style={{ fontSize: '10px', color: DOC_MUTED }}>{usdNote}</div>}
+            </td>
+            <td style={{ padding: '8px 7px', textAlign: 'center' }}>{displayQuantity(item)}</td>
+            <td style={{ padding: '8px 7px', textAlign: 'right' }}>{fmtBRL(item.unit_value_brl)}</td>
+            <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600 }}>{fmtBRL(item.total_value_brl)}</td>
+          </tr>
+        )
+      })}
+      <tr style={{ background: DOC_SUBTOTAL, borderBottom: '1px solid #c8d4e8' }}>
+        <td colSpan={3} style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
+          {subtotalLabel}
+        </td>
+        <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
+          {fmtBRL(subtotal)}
+        </td>
+      </tr>
+    </React.Fragment>
+  )
 }
 
 export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
@@ -41,13 +167,14 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
     ),
   ).join(', ') || '—'
 
-  // Pre-compute flat item index for zebra striping (avoids mutation during render)
+  const containersMeta = formatContainersMetadata(bls, items)
+  const breakbulkMeta = formatBreakbulkMetadata(bls, items)
+
+  // Flat item indexing for zebra striping
   const itemFlatIndex = new Map<number | string, number>()
   let flatIdx = 0
-  for (const bl of bls) {
-    for (const item of items.filter((i) => i.bl_id === bl.bl_id)) {
-      itemFlatIndex.set(item.id, flatIdx++)
-    }
+  for (const item of items) {
+    itemFlatIndex.set(item.id, flatIdx++)
   }
 
   return (
@@ -55,7 +182,6 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
       <InvoiceDocHeader logoSrc="/branding/transhipping-logo-cropped.png" docNumber={invoice.invoice_number ?? `INV-${invoice.id}`} />
 
       <InvoiceDocTitle uppercase>{title}</InvoiceDocTitle>
-
 
       {/* Metadata */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>
@@ -71,6 +197,18 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
             <td style={labelCell}>B/Ls:</td>
             <td style={{ ...cell, color: DOC_NAVY, fontWeight: 600 }}>{blIds}</td>
           </tr>
+          {containersMeta ? (
+            <tr>
+              <td style={labelCell}>Contêineres:</td>
+              <td style={cell}>{containersMeta}</td>
+            </tr>
+          ) : null}
+          {breakbulkMeta ? (
+            <tr>
+              <td style={labelCell}>Carga Solta:</td>
+              <td style={cell}>{breakbulkMeta}</td>
+            </tr>
+          ) : null}
           <tr>
             <td style={labelCell}>Navio/Voy.:</td>
             <td style={cell}>{vesselVoyages}</td>
@@ -98,28 +236,24 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                 const blId = blMeta.bl_id
                 const blItems = items.filter((item) => item.bl_id === blId)
                 const subtotal = blItems.reduce((s, i) => s + Number(i.total_value_brl ?? 0), 0)
+                const isMisto = blMeta.cargo_mode === 'misto'
                 const route = `${blMeta.pol ?? ''} → ${blMeta.pod ?? ''}`.trim().replace(/^→\s*/, '').replace(/\s*→$/, '')
+                const headerText = `B/L ${blId}${isMisto ? ' — MISTO (CNTR + CARGA SOLTA)' : route && route !== '→' ? ` — ${route}` : ''}`
+
+                const cntrItems = blItems.filter((i) => classifyInvoiceItem(i) === 'container')
+                const bbItems = blItems.filter((i) => classifyInvoiceItem(i) === 'carga_solta')
+                const docItems = blItems.filter((i) => classifyInvoiceItem(i) === 'documental')
+
                 return (
                   <React.Fragment key={blId}>
-                    <tr style={{ background: DOC_GROUP }}>
+                    <tr style={{ background: DOC_GROUP, borderTop: '2px solid #1A2744' }}>
                       <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '11px' }}>
-                        B/L {blId}{route && route !== '→' ? ` — ${route}` : ''}
+                        {headerText}
                       </td>
                     </tr>
-                    {blItems.map((item) => {
-                      const usdNote = describeUsdConversionNote(item)
-                      return (
-                        <tr key={item.id} style={zebraRow(itemFlatIndex.get(item.id) ?? 0)}>
-                          <td style={{ padding: '8px 8px 8px 16px' }}>
-                            {stripBlPrefix(item.description, item.bl_id)}
-                            {usdNote && <div style={{ fontSize: '10px', color: DOC_MUTED }}>{usdNote}</div>}
-                          </td>
-                          <td style={{ padding: '8px 7px', textAlign: 'center' }}>{displayQuantity(item)}</td>
-                          <td style={{ padding: '8px 7px', textAlign: 'right' }}>{fmtBRL(item.unit_value_brl)}</td>
-                          <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600 }}>{fmtBRL(item.total_value_brl)}</td>
-                        </tr>
-                      )
-                    })}
+                    {renderCategoryBlock('1. CARGA CONTEINERIZADA', 'Subtotal Contêineres:', cntrItems, itemFlatIndex)}
+                    {renderCategoryBlock('2. CARGA SOLTA (BREAKBULK)', 'Subtotal Carga Solta:', bbItems, itemFlatIndex)}
+                    {renderCategoryBlock('3. TAXAS ADMINISTRATIVAS E DOCUMENTAIS', 'Subtotal Taxas Documentais:', docItems, itemFlatIndex)}
                     <tr style={{ background: DOC_SUBTOTAL, borderBottom: '2px solid #c8d4e8' }}>
                       <td colSpan={3} style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
                         Subtotal {blId}:
@@ -131,20 +265,28 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                   </React.Fragment>
                 )
               })
-            : items.map((item, idx) => {
-                const usdNote = describeUsdConversionNote(item)
+            : (() => {
+                const blMeta = bls[0]
+                const isMisto = blMeta?.cargo_mode === 'misto'
+                const cntrItems = items.filter((i) => classifyInvoiceItem(i) === 'container')
+                const bbItems = items.filter((i) => classifyInvoiceItem(i) === 'carga_solta')
+                const docItems = items.filter((i) => classifyInvoiceItem(i) === 'documental')
+
                 return (
-                  <tr key={item.id} style={zebraRow(idx)}>
-                    <td style={{ padding: '8px 7px' }}>
-                      {stripBlPrefix(item.description, item.bl_id)}
-                      {usdNote && <div style={{ fontSize: '10px', color: DOC_MUTED }}>{usdNote}</div>}
-                    </td>
-                    <td style={{ padding: '8px 7px', textAlign: 'center' }}>{displayQuantity(item)}</td>
-                    <td style={{ padding: '8px 7px', textAlign: 'right' }}>{fmtBRL(item.unit_value_brl)}</td>
-                    <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600 }}>{fmtBRL(item.total_value_brl)}</td>
-                  </tr>
+                  <>
+                    {isMisto && (
+                      <tr style={{ background: DOC_GROUP }}>
+                        <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '11px' }}>
+                          B/L {blMeta?.bl_id ?? blIds} — MISTO (CNTR + CARGA SOLTA)
+                        </td>
+                      </tr>
+                    )}
+                    {renderCategoryBlock('1. CARGA CONTEINERIZADA', 'Subtotal Contêineres:', cntrItems, itemFlatIndex)}
+                    {renderCategoryBlock('2. CARGA SOLTA (BREAKBULK)', 'Subtotal Carga Solta:', bbItems, itemFlatIndex)}
+                    {renderCategoryBlock('3. TAXAS ADMINISTRATIVAS E DOCUMENTAIS', 'Subtotal Taxas Documentais:', docItems, itemFlatIndex)}
+                  </>
                 )
-              })}
+              })()}
           <tr style={dataTotalRow}>
             <td colSpan={3} style={dataTotalCell}>TOTAL:</td>
             <td style={dataTotalCell}>{fmtBRL(invoice.total_brl)}</td>
@@ -171,8 +313,6 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
               <div style={{ fontWeight: 700 }}>{fmtBRL(invoice.total_brl)}</div>
             </div>
           </div>
-          {/* Código em linha única e em largura total: a seleção (manual no PDF ou por
-              clique na tela) copia a string exata, sem quebras que corrompam o payload. */}
           <div style={{ fontSize: '10px', color: DOC_MUTED, fontWeight: 600, letterSpacing: '0.05em', margin: '10px 0 3px' }}>PIX COPIA E COLA</div>
           <span
             onClick={(event) => {

@@ -122,3 +122,74 @@ export function buildInvoiceFileBaseName(detail: InvoiceDetail): string {
   const sanitized = base.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim()
   return sanitized.length > 200 ? sanitized.slice(0, 200).trim() : sanitized
 }
+
+export type InvoiceItemCategory = 'container' | 'carga_solta' | 'documental'
+
+export function classifyInvoiceItem(item: {
+  description?: string | null
+  calculation_key?: string | null
+  snapshot_payload?: unknown
+}): InvoiceItemCategory {
+  const snapshot = (item.snapshot_payload ?? {}) as Record<string, unknown>
+
+  // 1. Explicit metadata in snapshot_payload
+  const directCategory = String(snapshot.category || snapshot.item_category || snapshot.cargo_mode || '').toLowerCase()
+  if (directCategory === 'container' || directCategory === 'cntr') return 'container'
+  if (directCategory === 'carga_solta' || directCategory === 'breakbulk' || directCategory === 'bb') return 'carga_solta'
+  if (directCategory === 'documental' || directCategory === 'bl' || directCategory === 'administrative') return 'documental'
+
+  const basis = String(snapshot.application_basis || '').toLowerCase()
+  if (basis === 'bl' || basis === 'documental') return 'documental'
+  if (['container', 'container_distinct_voyage', 'teu'].includes(basis)) return 'container'
+  if (['weight_ton', 'ton', 'weight', 'cbm', 'breakbulk'].includes(basis)) return 'carga_solta'
+
+  // 2. Calculation key patterns
+  const calcKey = String(item.calculation_key || snapshot.calculation_key || '').toLowerCase()
+  if (calcKey.includes('bl_fee') || calcKey.includes('documental') || calcKey.includes(':bl:')) return 'documental'
+  if (calcKey.includes('breakbulk') || calcKey.includes(':bb:') || calcKey.includes('weight')) return 'carga_solta'
+  if (calcKey.includes('container') || calcKey.includes(':cntr:') || calcKey.includes('thd')) return 'container'
+
+  // 3. Description heuristics
+  const desc = (item.description || '').toLowerCase()
+  if (
+    desc.includes('bl fee') ||
+    desc.includes('b/l fee') ||
+    desc.includes('expedição') ||
+    desc.includes('expedicao') ||
+    desc.includes('taxa de bl') ||
+    desc.includes('taxa documental') ||
+    desc.includes('taxas documentais') ||
+    desc.includes('administrativa') ||
+    desc.includes('correction letter') ||
+    desc.includes('carta de corre') ||
+    desc.includes('reissuing') ||
+    desc.includes('reemiss') ||
+    desc.includes('desconsolidação')
+  ) {
+    return 'documental'
+  }
+
+  if (
+    desc.includes('carga solta') ||
+    desc.includes('breakbulk') ||
+    desc.includes('peso bruto') ||
+    desc.includes('/ ton') ||
+    desc.includes('tonelada')
+  ) {
+    return 'carga_solta'
+  }
+
+  if (
+    desc.includes('thd') ||
+    desc.includes('isps') ||
+    desc.includes('drop off') ||
+    desc.includes('damage protection') ||
+    desc.includes('container') ||
+    desc.includes('cntr') ||
+    /\b(20|40)['’](hc|dc|ot|fr|rf|gp)\b/i.test(item.description || '')
+  ) {
+    return 'container'
+  }
+
+  return 'documental'
+}
