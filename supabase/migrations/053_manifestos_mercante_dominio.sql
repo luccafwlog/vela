@@ -40,7 +40,7 @@ BEGIN
     WHERE tablename = 'manifestos_mercante' AND policyname = 'manifestos_mercante_read_policy'
   ) THEN
     CREATE POLICY manifestos_mercante_read_policy ON public.manifestos_mercante
-      FOR SELECT TO authenticated, service_role USING (true);
+      FOR SELECT TO authenticated USING (public.is_active_read_user());
   END IF;
 
   IF NOT EXISTS (
@@ -48,7 +48,7 @@ BEGIN
     WHERE tablename = 'manifestos_mercante' AND policyname = 'manifestos_mercante_write_policy'
   ) THEN
     CREATE POLICY manifestos_mercante_write_policy ON public.manifestos_mercante
-      FOR ALL TO authenticated, service_role USING (true) WITH CHECK (true);
+      FOR ALL TO authenticated USING (public.is_active_user()) WITH CHECK (public.is_active_user());
   END IF;
 END $$;
 
