@@ -110,7 +110,7 @@ correspondente precisa cobrir, no mínimo:
 | `bls.terminal_id` **+ âncora de porto** | Colunas inexistentes | **Criar com FK composta**, no padrão do schema — ADR 0068, "Por que a FK não pode ser de coluna única" |
 | `operationFrontKindForCargoMode` / `bl_operation_front_modalidade` (`045`) | `'misto'` cai no fallback `ELSE 'carga_cheia'` em silêncio | Tratar `'misto'` explicitamente (ADR 0068, decisão 7) |
 | `bl_receivables.cargo_mode` | Cópia desnormalizada, **sem CHECK** | Não quebra com `'misto'`, mas precisa ser ressincronizada na transição de modalidade |
-| `voyage_route_ce_master` (UNIQUE `voyage_id,pol,pod,cargo_mode`) | Chave por modalidade | **Sem alteração** — o B/L misto consulta as duas chaves existentes (ver Superfície de impacto) |
+| `voyage_route_ce_master` (UNIQUE `voyage_id,pol,pod,cargo_mode`) | Chave por modalidade | **Fora desta spec** — a tabela é removida pelo [modelo de domínio do Manifesto Mercante](2026-09-17-manifesto-mercante-design.md); o B/L misto não ganha chave própria |
 
 **Por que `import_batches` não muda.** Um batch é um arquivo, e um arquivo é um
 manifesto de contêiner **ou** um manifesto de carga solta — nunca os dois. A
@@ -805,13 +805,30 @@ Um B/L misto procuraria a chave `…|misto`, que **ninguém grava** — a rota
 apareceria sem CE Master, derrubando o percentual de cobertura que a aba Visão
 Geral exibe.
 
-**Decisão, por coerência com o filtro-lente:** o CE Master do B/L misto é
-consultado nas **duas** chaves de modalidade da rota, não numa terceira. O
-manifesto Mercante de contêiner e o de carga solta são arquivos distintos, e um
-B/L misto consta nos dois; a cobertura só é completa quando as duas chaves
-existirem. Nenhuma linha `cargo_mode = 'misto'` é criada em
-`voyage_route_ce_master`, e a constraint de unicidade não muda. *Esta é a única
-decisão nova desta varredura — vale confirmá-la com a operação antes do plano.*
+**Esta spec não decide isto.** A primeira versão desta seção resolvia o caso por
+analogia com o filtro-lente — o B/L misto consultaria as duas chaves de
+modalidade da rota. O levantamento de domínio feito com a operação mostrou que a
+premissa por trás da analogia estava errada, e que o defeito é outro, maior e
+anterior à carga mista.
+
+Um manifesto Mercante é um **lançamento**, não um atributo da rota nem um tipo de
+carga. Uma rota tem N manifestos, um manifesto pode conter carga de tipos
+distintos, e vazios geram manifesto sem gerar CE. O `cargo_mode` na chave de
+`voyage_route_ce_master` é um **proxy** da identidade do manifesto que funciona
+enquanto a convenção "um de contêiner, um de carga solta" vale — e o B/L misto é
+só um dos casos que a quebram.
+
+A modelagem está em
+[Manifesto Mercante — modelo de domínio](2026-09-17-manifesto-mercante-design.md),
+nesta mesma entrega. Com o manifesto virando entidade e o vínculo morando no
+B/L, **o B/L misto deixa de ter caso especial**: ele aponta para o manifesto em
+que foi lançado, como qualquer outro documento. Não há chave de modalidade a
+consultar.
+
+Fica registrado aqui apenas o que esta spec precisa saber: **a resolução do
+manifesto de um B/L não passa por `cargo_mode`**, e nenhuma linha
+`cargo_mode = 'misto'` é criada em `voyage_route_ce_master` — que, aliás, é
+removida pela outra spec.
 
 #### Prontidão de comunicação e cópia desnormalizada
 
@@ -927,8 +944,10 @@ decisão nova desta varredura — vale confirmá-la com a operação antes do pl
 - Validar o roteamento do NOB pelo join real
   (`evaluate_and_dispatch_automatic_communications`), não só pela função de
   mapeamento: B/L misto ancora no terminal resolvido.
-- Validar CE Mercante: a rota com B/L misto lê o CE Master das duas chaves de
-  modalidade e a cobertura da escala não regride.
+- Validar que a resolução do manifesto de um B/L **não** consulta `cargo_mode` e
+  que o B/L misto não exige tratamento próprio — asserção que pertence à entrega
+  do [modelo de domínio do Manifesto Mercante](2026-09-17-manifesto-mercante-design.md)
+  e que esta spec apenas não pode contradizer.
 - Validar que a transição de modalidade **ressincroniza `bl_receivables`**, e não
   só `charge_calculations`.
 - Validar a resolução de terminal do B/L (ADR 0068):
