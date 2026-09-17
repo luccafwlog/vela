@@ -158,13 +158,16 @@ coisa distinta do manifesto.
 
 ```sql
 CREATE TABLE public.voyage_route_ce_master (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
     voyage_id bigint NOT NULL,
     pol text NOT NULL,
     pod text NOT NULL,
     ce_master text,
+    ...
     cargo_mode text DEFAULT 'container'::text NOT NULL   -- ← o defeito
 );
--- UNIQUE (voyage_id, pol, pod, cargo_mode)
+-- voyage_route_ce_master_voyage_pol_pod_mode_uniq
+--   UNIQUE (voyage_id, pol, pod, cargo_mode)
 ```
 
 O `CONTEXT.md` define CE Master como *"conhecimento agrupador por rota da viagem
@@ -184,7 +187,7 @@ O caso normal da agência é a rota com **dois** manifestos: um de contêiner e 
 de carga solta. A tela de Manifestos/Rotas oferece **um** campo.
 
 A causa está no agrupamento. A linha da tela nasce do par de portos, e só dele
-(`voyageCardHelpers.tsx:127`):
+(`voyageCardHelpers.tsx:128`):
 
 ```ts
 const routeKey = `${pol}__${pod}`
@@ -195,7 +198,7 @@ justamente o que o badge `CNTR/BB` exibe quando os dois tipos coexistem ali. Uma
 linha, um campo de Nº de Manifesto Mercante.
 
 A gravação fecha o ciclo: para rota não-vazios, `group.cargoMode` nunca é
-preenchido, e `Viagens.tsx:536` envia `cargoMode ?? 'container'`. **Toda rota de
+preenchido, e `Viagens.tsx:535` envia `cargoMode ?? 'container'`. **Toda rota de
 carga é gravada como `'container'`**, qualquer que seja o tipo dos seus B/Ls.
 
 O banco **aceitaria** os dois números — a `UNIQUE (voyage_id, pol, pod,
@@ -299,10 +302,10 @@ com o cadastro e de `country` estar preenchido e normalizado. Falhando o
 casamento, o sentido fica **indefinido**, não errado — mas fica indefinido, e a
 tela precisa dizer isso em vez de assumir importação.
 
-**A renomeação tem superfície.** 59 ocorrências de `ce_master`/`ceMaster` em `src/`
-fora de testes, mais rótulos de tela em `VoyageManifestosTab`, `VoyageScheduleModals`
-e `VoyageCard`, títulos de evento em `voyageSummaries`, `telemetryContext`, o
-`CONTEXT.md` e os documentos vivos.
+**A renomeação tem superfície.** 70 ocorrências de `ce_master`/`ceMaster` em 59
+linhas de `src/`, fora de testes, mais rótulos de tela em `VoyageManifestosTab`,
+`VoyageScheduleModals` e `VoyageCard`, títulos de evento em `voyageSummaries`,
+`telemetryContext`, o `CONTEXT.md` e os documentos vivos.
 
 **A palavra "manifesto" não é substituível em bloco.** Como registrado na tabela
 dos quatro sentidos, a maioria das ocorrências de "manifesto" no código se refere

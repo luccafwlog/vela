@@ -63,7 +63,7 @@ O Vela encontra-se em fase pré-operacional; não existem faturas reais emitidas
 - **Invariante de Terminal Único:** Um B/L misto descarrega 100% no mesmo terminal portuário, viabilizado pela exceção individual de terminal da **ADR 0068** (`bls.terminal_id` nulo = herança da frente). Inclui destravar o roteamento do NOB para `'misto'`.
 - **Projeção Completa na Tela `/viagens`:** Atualização dos agregadores de KPIs, da aba Visão Geral, da aba Importação (faixa de totais e blocos por POD), da aba Manifestos/Rotas e do relatório de agência ADR.
 - **Portal do Cliente:** Exibição do B/L como documento único, contendo seus contêineres e o sumário de carga solta.
-- **Superfície de Impacto Sistêmica:** Filtros de `cargo_mode` nas RPCs de leitura, os 57 links internos para as rotas removidas, a superfície TypeScript (52 arquivos lidos um a um) e a documentação viva obrigatória — detalhados na seção "Superfície de impacto fora do motor e das telas de viagem".
+- **Superfície de Impacto Sistêmica:** Filtros de `cargo_mode` nas RPCs de leitura, os 57 links internos para as rotas removidas, a superfície TypeScript (52 arquivos, 263 ocorrências) e a documentação viva obrigatória — detalhados na seção "Superfície de impacto fora do motor e das telas de viagem".
 
 ### Fora de escopo
 - **Exportação de Granito:** Permanece segregada em sua própria aba/fluxo de exportação (`/granito`).
@@ -114,13 +114,20 @@ carimba `'carga_solta'` por cima de um B/L que o trigger acabou de derivar como
 `'misto'`, e os dois passam a disputar a mesma coluna.
 
 **A cascata precisa ser dimensionada.** Um trigger que escreve `bls.cargo_mode`
-não escreve sozinho — dispara outros cinco em `bls`:
-`trg_ensure_container_bl_charge_status_default` (BEFORE UPDATE OF `cargo_mode`),
-`trg_guard_container_bl_without_containers` (AFTER, que **grava em**
-`charge_calculations`), `trg_reconcile_bl_review_alerts` (AFTER, que reconcilia
-alertas), `audit_bls` e a reconciliação baplie por statement. Dois deles
-escrevem em outras tabelas. A entrega precisa de um teste que percorra a cascata
-inteira numa transição, não só o valor final de `cargo_mode`.
+não escreve sozinho — dispara outros **seis** em `bls`:
+`trg_ensure_container_bl_charge_status_default` (BEFORE INSERT OR UPDATE OF
+`cargo_mode, charge_status`), `trg_guard_container_bl_without_containers`
+(AFTER, que **grava em** `charge_calculations`), `trg_reconcile_bl_review_alerts`
+(AFTER, que reconcilia alertas), `audit_bls`, `set_bls_updated_at` (BEFORE
+UPDATE, que dispara em qualquer UPDATE) e a reconciliação baplie por statement
+(`reconcile_baplie_coverage_on_bls_update`). Dois deles escrevem em outras
+tabelas. A entrega precisa de um teste que percorra a cascata inteira numa
+transição, não só o valor final de `cargo_mode`.
+
+***[fato errado — corrigido]** versão anterior deste parágrafo contava cinco
+triggers e omitia `set_bls_updated_at`. Ele é benigno, mas um parágrafo que
+existe para exigir dimensionamento da cascata não pode dimensioná-la pela
+metade.*
 
 #### Superfície de migração — **[lacuna de mapa]**
 Nenhuma linha desta tabela está errada hoje: todas descrevem pontos que
@@ -687,15 +694,24 @@ manifesto. O conceito *Manifesto* continua inteiramente vigente e tem verbete
 próprio no `CONTEXT.md`: manifesto Mercante, manifesto BB, vínculo de manifestos
 à escala. Os números separam os dois mundos sem ambiguidade:
 
+Os dois números saem do **mesmo critério**: ocorrências por `grep -o` em
+`src/**/*.{ts,tsx}`, fora de testes.
+
 | | Ocorrências | Arquivos |
 |---|---|---|
-| Rota (`/manifestos`, `/carga-solta`) | 57 | 26 |
-| Palavra (`manifest*`) | 215 | 91 |
+| Rota (`/(manifestos\|carga-solta)`) | 57 | 26 |
+| Palavra (`manifest` — qualquer caixa) | 967 | 90 |
 
-São 65 arquivos com a palavra e **nenhuma** rota — entre eles
-`manifestImport.ts`, `breakbulkManifestParser.ts`, `ceMercanteEdiParser.ts`,
-`agencyDepartureReport.ts` e `baplieReconciliation.ts`. Substituição cega tocaria
-91 arquivos e destruiria vocabulário de domínio.
+Os 26 arquivos de rota são subconjunto dos 90: **64** têm a palavra e **nenhuma**
+rota — entre eles `manifestImport.ts`, `breakbulkManifestParser.ts`,
+`ceMercanteEdiParser.ts`, `agencyDepartureReport.ts` e `baplieReconciliation.ts`.
+Substituição cega tocaria 90 arquivos e destruiria vocabulário de domínio.
+
+***[fato errado — corrigido]** versão anterior desta tabela dizia 215 ocorrências
+em 91 arquivos, e 65 arquivos sem rota. Os números não eram reproduzíveis por
+nenhum critério: a linha da rota fora medida e a da palavra não. Ficam agora as
+duas sob o mesmo comando, e o `64 = 90 − 26` deixa de depender de aritmética
+sobre um número não medido.*
 
 O caso que prova o ponto está dentro de um arquivo só, `telemetryContext.ts`:
 
@@ -721,13 +737,22 @@ que deixa de existir. Daí as **três categorias**:
 `Manifestos.tsx` e `CargaSolta.tsx` somem por consolidação em `Bls.tsx`, não por
 renomeação de palavra.
 
-### 3. Varredura completa da superfície TypeScript
+### 3. Superfície TypeScript
 
 A primeira versão desta seção listava "cerca de 26 comparações estritas",
 levantadas por busca dirigida. Depois que a varredura SQL mostrou que esse método
-perde bloqueador, **os 52 arquivos de `src/` que referenciam `cargo_mode` ou
-`cargoMode` foram lidos um a um** — 263 ocorrências, fora de testes e do
+perde bloqueador, a superfície foi remedida: são **263 ocorrências de
+`cargo_mode`/`cargoMode` em 52 arquivos de `src/`**, fora de testes e do
 `types/database.ts` gerado.
+
+**O que esta seção é, e o que não é.** A cobertura aqui é **dirigida por
+identificador e por classe de uso**, não a leitura função a função que a
+varredura SQL (§5) recebeu. A diferença já cobrou: a lista de tipos literais
+fechados, abaixo, nasceu errada nas duas direções até ser refeita por varredura
+de padrão sobre os 52 arquivos. Enquanto a leitura integral não for feita, trate
+esta seção como **mapa de impacto, não como inventário fechado** — foi por
+tratá-la como inventário que a versão anterior deixou passar
+`voyageSummaries.ts:77`, o tipo que alimenta `splitVoyageBls`.
 
 #### Pontos em que o B/L misto escaparia de um controle — **[lacuna de mapa]**
 
@@ -830,15 +855,30 @@ outro. Hoje as duas cópias concordam, porque ambas filtram `'container'`.
 #### Classe que a spec não tinha: o tipo, não a comparação — **[lacuna de mapa]**
 
 A versão anterior desta seção tratava de **comparações**, que são runtime.
-Existem 12 sítios em que a modalidade de B/L é um **tipo literal fechado**, onde
-`'misto'` nem compila:
+Existem **17 sítios** em que a modalidade de B/L é um **tipo literal fechado**,
+onde `'misto'` nem compila:
 
 ```
 blDetalheHelpers.ts:4 · useBls.ts:84,98 · useLocalCharges.ts:234
-validacaoTypes.ts:3 · chargeOperationsService.ts:81 · reports.ts:20
-operationalLists.ts:7 · lineup.ts:29 · voyageReadModels.ts:10
-voyageCardHelpers.tsx:44 · chargeRateService.ts:27,47
+validacaoTypes.ts:3 · reports.ts:20 · operationalLists.ts:7 · lineup.ts:29
+chargeOperationsService.ts:63,81,91 · voyageReadModels.ts:10
+voyageSummaries.ts:77 · voyageCardHelpers.tsx:44,105
+breakbulkImport.ts:40,46
 ```
+
+Dois deles sustentam seções inteiras desta spec e por isso não são detalhe de
+compilação:
+
+- **`voyageSummaries.ts:77`** é `VoyageBl.cargo_mode`, o tipo que
+  `splitVoyageBls` (`:141`) consome. A seção "Demonstração na Tela de Viagens"
+  desenha um `splitVoyageBls` com três pools, incluindo um de B/Ls mistos; o tipo
+  de entrada não admite a terceira modalidade. O diagrama daquela seção não
+  compila contra o tipo que a alimenta.
+- **`breakbulkImport.ts:40,46`** é o `Map<string, 'container' | 'carga_solta' |
+  null>` que o importador monta com o `cargo_mode` **já gravado** dos B/Ls do
+  arquivo. É o mesmo importador cujo bloqueio cruzado a seção "Ingestão sem
+  Bloqueio Cruzado" remove: assim que existir B/L misto, reimportar carga solta
+  para ele lê uma modalidade que o tipo não comporta.
 
 `voyageCardHelpers.tsx:105` é `Set<'container' | 'carga_solta'>`, a estrutura que
 decide o badge de modalidade da rota.
@@ -848,6 +888,17 @@ decide o badge de modalidade da rota.
 `useLocalChargeTables` (`:173`) e `useCustomerRateOverrides` (`:255`) filtram
 **tabelas de preço** e não podem ganhar `'misto'`, porque `charge_tables` não tem
 essa modalidade. Uma troca em bloco erra os dois.
+
+***[fato errado — corrigido]** a versão anterior desta lista dizia 12 sítios e
+continha `chargeRateService.ts:27,47`. Aquelas duas linhas são
+`charge_table.cargo_mode` — modalidade da **tabela de preços**, que a
+[ADR 0069](../adr/0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md)
+decide **não** ganhar `'misto'`; o arquivo já constava, corretamente, de
+"Verificado e não afetado", de modo que a spec se contradizia. Faltavam, na
+outra direção, `chargeOperationsService.ts:63` e `:91`, `voyageSummaries.ts:77` e
+`breakbulkImport.ts:40,46`. É exatamente o erro que a distinção
+tabela-versus-B/L do parágrafo acima existe para evitar, cometido pela própria
+lista que o enuncia.*
 
 #### Filtros de tela sem a opção "Misto" — **[lacuna de mapa]**
 
@@ -1251,7 +1302,7 @@ removida pela outra spec.
 - **Guarda de rota morta:** teste que falha se `/manifestos` ou `/carga-solta`
   aparecer em `src/` fora de testes — a varredura das 57 ocorrências precisa de
   uma trava, não de uma revisão manual. A guarda é **ancorada na barra**, nunca
-  na palavra: varrer `manifestos` sem a barra falharia em 65 arquivos legítimos e
+  na palavra: varrer `manifestos` sem a barra falharia em 64 arquivos legítimos e
   viraria ruído que o time desliga. O comentário na guarda registra isso, para
   que ninguém a "melhore" depois.
 - Testar componente de fatura (`InvoiceDocumentLocal.tsx`): conferir renderização dos blocos segregados (contêineres, carga solta, taxas documentais) e subtotais.
