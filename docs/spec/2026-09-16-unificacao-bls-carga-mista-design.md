@@ -34,7 +34,7 @@ O Vela encontra-se em fase pré-operacional; não existem faturas reais emitidas
 - **Invariante de Terminal Único:** Um B/L misto descarrega 100% no mesmo terminal portuário, viabilizado pela exceção individual de terminal da **ADR 0068** (`bls.terminal_id` nulo = herança da frente). Inclui destravar o roteamento do NOB para `'misto'`.
 - **Projeção Completa na Tela `/viagens`:** Atualização dos agregadores de KPIs, da aba Visão Geral, da aba Importação (faixa de totais e blocos por POD), da aba Manifestos/Rotas e do relatório de agência ADR.
 - **Portal do Cliente:** Exibição do B/L como documento único, contendo seus contêineres e o sumário de carga solta.
-- **Superfície de Impacto Sistêmica:** Filtros de `cargo_mode` nas RPCs de leitura, os 57 links internos para as rotas removidas, a classificação binária de modalidade no frontend e a documentação viva obrigatória — detalhados na seção "Superfície de impacto fora do motor e das telas de viagem".
+- **Superfície de Impacto Sistêmica:** Filtros de `cargo_mode` nas RPCs de leitura, os 57 links internos para as rotas removidas, a superfície TypeScript (52 arquivos lidos um a um) e a documentação viva obrigatória — detalhados na seção "Superfície de impacto fora do motor e das telas de viagem".
 
 ### Fora de escopo
 - **Exportação de Granito:** Permanece segregada em sua própria aba/fluxo de exportação (`/granito`).
@@ -672,12 +672,182 @@ que deixa de existir. Daí as **três categorias**:
 `Manifestos.tsx` e `CargaSolta.tsx` somem por consolidação em `Bls.tsx`, não por
 renomeação de palavra.
 
-### 3. Classificação binária de `cargo_mode` no frontend
+### 3. Varredura completa da superfície TypeScript
 
-Cerca de 26 comparações estritas tratam o mundo como contêiner-ou-carga-solta.
-Duas delas (`voyageSummaries.ts:771,783`) são sobre `import_batches.cargo_mode` e
-**permanecem binárias**, pelo motivo dado na Superfície de migração. As demais
-são sobre `bls.cargo_mode`. Três padrões, com correções distintas:
+A primeira versão desta seção listava "cerca de 26 comparações estritas",
+levantadas por busca dirigida. Depois que a varredura SQL mostrou que esse método
+perde bloqueador, **os 52 arquivos de `src/` que referenciam `cargo_mode` ou
+`cargoMode` foram lidos um a um** — 263 ocorrências, fora de testes e do
+`types/database.ts` gerado.
+
+#### Bloqueadores
+
+Quatro pontos em que o B/L misto não é apenas exibido errado: ele **escapa de um
+controle**.
+
+**a) Faturar sem CE Mercante** — `validacaoPipeline.ts:106`
+
+```ts
+const mode = row.cargo_mode ?? 'container'
+if (!row.ce_mercante?.trim() && (mode === 'container' || mode === '' || mode === 'granito')) {
+  return { code: 'aguardando_ce', ... }
+}
+```
+
+A regra é: contêiner e granito exigem CE Mercante para emitir; carga solta não.
+Um B/L `'misto'` **tem contêineres e não cai na condição** — o bloqueio
+"Aguardando CE Mercante" não se aplica a ele, e a fatura sai sem CE.
+
+O mesmo B/L também some do painel: `isAwaitingCeMercante` (`:170`) exige
+`(row.cargo_mode ?? 'container') === 'container'`, então o card "Aguardando CE"
+não o conta. **Não é bloqueado e não é reportado** — as duas pontas em silêncio.
+
+**b) Carga solta do B/L misto fora do ADR** — `agencyDepartureReport.ts:943` e `:954`
+
+```ts
+supabase.from('bls').select(BREAKBULK_SELECT)
+  .eq('voyage_id', voyageId).in('pod', portCodeVariants(port))
+  .eq('cargo_mode', 'carga_solta')
+```
+
+Duas consultas — a da escala e a de transbordo — montam o bloco de breakbulk do
+ADR por igualdade estrita. Os contêineres do B/L misto entram (a consulta de
+`bl_containers` é por `bl_id`, sem filtro de modalidade); **a tonelagem não**.
+
+O ADR sai com metade da carga do documento, e o ADR é o que o Financeiro usa para
+aprovar pagamento de fatura. A seção "Aba Relatório de Agência / ADR" desta spec
+**afirma o resultado desejado** — *"a tonelagem de carga solta do B/L misto soma
+no bloco de breakbulk do mesmo terminal"* — sem nomear o ponto que o impede.
+
+**c) Faturamento automático descarta o B/L misto** — `reviewBillingAutomation.ts:352`
+
+```ts
+const cargoMode = bl.cargo_mode ?? 'container'
+if (cargoMode !== 'container' && cargoMode !== 'carga_solta' && cargoMode !== '') return null
+...
+const result = await tryAutoIssueInvoice({ blId: bl.id, ... })
+```
+
+O `return null` acontece **antes** de `tryAutoIssueInvoice`. A chegada do CE
+Mercante nunca dispara fatura para um B/L misto — sem alerta, sem evento
+operacional, sem log. A guarda existe para excluir granito; `'misto'` cai nela
+por omissão.
+
+**d) A ficha do B/L perde metade da carga, e qual metade depende da ingestão** —
+`blDetalheHelpers.ts:4`
+
+```ts
+export type CargoMode = 'container' | 'carga_solta'
+
+export function resolveCargoMode(bl?: BLDetail | null): CargoMode {
+  if (bl?.cargo_mode === 'carga_solta') return 'carga_solta'
+  if (bl?.cargo_mode === 'container') return 'container'
+  if ((bl?.bl_breakbulk_items?.length ?? 0) > 0) return 'carga_solta'
+  return 'container'
+}
+```
+
+É o mesmo padrão do `ELSE 'carga_cheia'` que a ADR 0068 apontou em SQL: função
+**total** que absorve a modalidade desconhecida no fallback. Só que aqui o
+resultado é **inconsistente**: `'misto'` não casa com as duas primeiras linhas e
+cai na terceira, então
+
+| B/L misto | `resolveCargoMode` devolve | O que some da ficha |
+|---|---|---|
+| com linhas em `bl_breakbulk_items` | `'carga_solta'` | os contêineres |
+| só com `bb_weight_ton` | `'container'` | a carga solta |
+
+`BlDetalhe.tsx:68-69` deriva `isContainerMode` daí, e ele governa título, badge e
+abas da ficha inteira.
+
+#### Gêmeos TypeScript de correções que a spec já fez em SQL
+
+Três pontos em que a mesma regra existe dos dois lados e a spec corrigia só um:
+
+| Ponto TS | Gêmeo SQL já tratado |
+|---|---|
+| `chargeOperationsService.ts:700` — `.eq('cargo_mode','container')` no cálculo de `share_count`, com comentário dizendo que replica o motor | CTE `shares` (`002:17291`, `002:3062`) |
+| `customerCommunications.ts:719` — `operationFrontKey(..., operationFrontKindForCargoMode(row.cargoMode))` | join do NOB em `evaluate_and_dispatch_automatic_communications` (`045:319`) |
+| `blFreightImport.ts:496,539` — o importador **grava** `cargo_mode: 'container'` | `jsonb_build_object('cargo_mode','carga_solta')` (`031:368`) |
+
+O primeiro é o mais caro: com B/L misto no sistema, o rateio `1/n` calculado na
+tela diverge do calculado no banco — a tela mostra um valor e a fatura outro.
+
+#### Classe que a spec não tinha: o tipo, não a comparação
+
+A versão anterior desta seção tratava de **comparações**, que são runtime.
+Existem 12 sítios em que a modalidade de B/L é um **tipo literal fechado**, onde
+`'misto'` nem compila:
+
+```
+blDetalheHelpers.ts:4 · useBls.ts:84,98 · useLocalCharges.ts:234
+validacaoTypes.ts:3 · chargeOperationsService.ts:81 · reports.ts:20
+operationalLists.ts:7 · lineup.ts:29 · voyageReadModels.ts:10
+voyageCardHelpers.tsx:44 · chargeRateService.ts:27,47
+```
+
+`voyageCardHelpers.tsx:105` é `Set<'container' | 'carga_solta'>`, a estrutura que
+decide o badge de modalidade da rota.
+
+**Dentro de um mesmo arquivo a regra difere.** Em `useLocalCharges.ts`,
+`useLocalChargeOperations` (`:234`) filtra **B/Ls** e precisa de `'misto'`;
+`useLocalChargeTables` (`:173`) e `useCustomerRateOverrides` (`:255`) filtram
+**tabelas de preço** e não podem ganhar `'misto'`, porque `charge_tables` não tem
+essa modalidade. Uma troca em bloco erra os dois.
+
+#### Filtros de tela sem a opção "Misto"
+
+`ValidacaoControls.tsx:29` e `Relatorios.tsx:168` montam o `<Select>` de
+modalidade com Todos / Container / Carga Solta / Granito. `Containers.tsx:40`
+fixa `cargoMode: 'container'` — a tela de contêineres físicos deixaria de fora os
+contêineres de B/Ls mistos.
+
+`chargeOperationsService.ts:226` é o caso inverso e precisa de atenção:
+
+```ts
+const wantBls = cargoMode === '' || cargoMode === 'container' || cargoMode === 'carga_solta'
+```
+
+Acrescentar a opção `'misto'` na tela **sem** tocar nesta linha faz `wantBls`
+virar `false` e a lista voltar vazia.
+
+#### Demais pontos afetados
+
+`chargeOperationsService.ts:786` e `:824` (recálculo em lote pula o misto),
+`reports.ts:81,372`, `operationalLists.ts:179`, `exports.ts:80` (exportação de
+carga solta), `voyageCardHelpers.tsx:186` (badge da rota),
+`escalaTerminalAllocation.ts:385` (a escala não descobre que precisa de frente de
+carga solta), `blFreightImport.ts:769` (diff de `cargo_mode` vira ruído quando a
+modalidade passa a ser derivada), `BlOperacionalTab.tsx:76` (tom do badge) e o
+texto de ajuda em `VoyageImportacaoTab.tsx:78`, que fala em "os dois modos".
+
+#### Verificado e **não** afetado
+
+- **Cluster de Taxas Locais** — `ChargeTableFormCard`, `ChargeTableItemFormCard`,
+  `ChargeTablesList`, `ChargeTablesTab`, `chargeForms.ts`, `ChargeOverridesTab`,
+  `taxasLocaisHelpers.ts`, `TaxasLocaisTabelas.tsx`, `chargeTableService.ts`,
+  `chargeRateService.ts` (filtro por tabela), `customerFicha.ts`. Todos operam a
+  modalidade da **tabela de preços**, que permanece `container|carga_solta|granito`.
+- **Batch de importação** — `voyageTimeline.ts:139` e `voyageSummaries.ts:771,783`
+  comparam `import_batches.cargo_mode`, que permanece binário. *A versão anterior
+  desta seção classificava `voyageTimeline.ts:139` como comparação de B/L; está
+  corrigido.*
+- **Granito** — os ramos de `ValidacaoTab.tsx:55,88`,
+  `validacaoPipeline.ts:71,135` e `ValidacaoOperationsTable.tsx:97,115,245,251,340`
+  tratam exportação de granito e não mudam.
+- **Dados de demonstração** — `ClientesComunicacao.tsx:134,152` são fixtures.
+- **Escala e CE Master** — `VoyageScheduleModals`, `voyageCardTypes.ts`,
+  `Viagens.tsx:535` e `voyageRouteSchedules.ts` tratam modalidade de *schedule* e
+  o número de manifesto, cobertos pela
+  [spec do Manifesto Mercante](2026-09-17-manifesto-mercante-design.md).
+- **Telas que deixam de existir** — `Manifestos.tsx:46` e `CargaSolta.tsx:42`.
+- **`useBls.ts:175`** — o `?? 'container'` está dentro de `fetchAllContainers`,
+  marcado `@deprecated` e usado só na exportação CSV/XLSX de contêineres, onde o
+  default é legítimo. O fetch da lista (`:369`) não aplica filtro quando ele vem
+  vazio. *Registro anterior desta revisão dizia que a tela abria filtrando
+  contêiner por padrão; era leitura errada.*
+
+#### Os três padrões originais, mantidos
 
 **(a) Rótulo binário — o misto é exibido como "Container".**
 `exports.ts:38,217,288`, `revisaoHelpers.ts:20`, `Relatorios.tsx:211`,
@@ -708,14 +878,17 @@ continuar sendo calculada errado no banco.
 
 **(c) Comportamento por modo.** `blRails.ts:111` (`cargo_mode !== 'container'`),
 `blFreightImport.ts:677` (`isBreakBulk`), `BlDetalhe.tsx:69`
-(`isContainerMode`), `voyageRouteSchedules.ts:728`, `voyageTimeline.ts:139`,
-`escalaTerminalAllocation.ts:385` e `voyageCardHelpers.tsx:186` (que reduz o
-badge de modalidade da rota a `container`). Cada um decide se `'misto'` se
-comporta como contêiner, como carga solta ou como ambos; nenhum pode continuar
-caindo no `else` por omissão.
+(`isContainerMode`), `escalaTerminalAllocation.ts:385` e
+`voyageCardHelpers.tsx:186` (que reduz o badge de modalidade da rota a
+`container`). Cada um decide se `'misto'` se comporta como contêiner, como carga
+solta ou como ambos; nenhum pode continuar caindo no `else` por omissão.
 
-`VoyageScheduleModals.tsx:170,179` compara `cargoMode === 'vazios'` de
-*schedule*, não de B/L, e está fora deste escopo.
+A varredura tirou desta lista `voyageTimeline.ts:139` e
+`voyageRouteSchedules.ts:728`, que a versão anterior classificava como
+comparação de B/L: o primeiro compara `import_batches.cargo_mode` e o segundo
+monta a chave do Nº de Manifesto Mercante. `VoyageScheduleModals.tsx:170,179`
+compara `cargoMode === 'vazios'` de *schedule*. Os três estão em "Verificado e
+não afetado".
 
 ### 4. Documentação viva obrigatória
 
@@ -980,8 +1153,26 @@ removida pela outra spec.
   — uma asserção sobre a função compartilhada, não três sobre `blRails.ts`,
   `revisaoHelpers.ts` e `BlReviewContextPanel.tsx`.
 - **Rotulagem:** o rotulador único devolve "Misto" onde hoje o ternário devolve
-  "Container" (`exports.ts`, `revisaoHelpers.ts`, `voyageSummaries.ts`,
-  `Relatorios.tsx`, `ValidacaoOperationsTable.tsx`, `blDetalheHelpers.ts`).
+  "Container" (`exports.ts`, `revisaoHelpers.ts`, `Relatorios.tsx`,
+  `ValidacaoOperationsTable.tsx`, `blDetalheHelpers.ts`).
+- **CE Mercante obrigatório no B/L misto:** um misto sem CE fica em
+  `aguardando_ce` e aparece no card "Aguardando CE" — regressão direta de
+  `validacaoPipeline.ts:106` e `:170`, que hoje o deixam faturar sem CE **e**
+  fora do painel.
+- **ADR conta a carga solta do B/L misto**, na escala e no transbordo — regressão
+  de `agencyDepartureReport.ts:943` e `:954`.
+- **Faturamento automático por chegada de CE alcança o B/L misto** — hoje
+  `reviewBillingAutomation.ts:352` faz `return null` antes de
+  `tryAutoIssueInvoice`, sem alerta nem evento.
+- **`resolveCargoMode` devolve `'misto'`** e a ficha mostra contêineres **e**
+  carga solta, com e sem linhas em `bl_breakbulk_items` — hoje o resultado varia
+  entre `'container'` e `'carga_solta'` conforme a ingestão.
+- **Rateio de contêiner compartilhado bate entre tela e banco** para um B/L misto
+  — `chargeOperationsService.ts:700` é a terceira cópia da regra e hoje diverge
+  do motor.
+- **Filtro "Misto" na tela devolve linhas:** cobrir junto o `wantBls` de
+  `chargeOperationsService.ts:226`, que hoje zeraria a lista se a opção fosse
+  acrescentada sem tocá-lo.
 - **Guarda de rota morta:** teste que falha se `/manifestos` ou `/carga-solta`
   aparecer em `src/` fora de testes — a varredura das 57 ocorrências precisa de
   uma trava, não de uma revisão manual. A guarda é **ancorada na barra**, nunca
