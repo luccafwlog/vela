@@ -83,6 +83,7 @@ export function CeMercanteImportModal({
   const [report, setReport] = useState<CeMercanteImportResult | null>(null)
   const [ediPreview, setEdiPreview] = useState<ParsedCeMercanteEdi | null>(null)
   const [ediErrors, setEdiErrors] = useState<CeMercanteEdiImportResult | null>(null)
+  const [numeroManifesto, setNumeroManifesto] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const combinedErrorCount = (preview?.rowErrors.length ?? 0) + (report?.errorCount ?? 0)
@@ -96,6 +97,7 @@ export function CeMercanteImportModal({
     setReport(null)
     setEdiPreview(null)
     setEdiErrors(null)
+    setNumeroManifesto('')
   }
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
@@ -262,6 +264,14 @@ export function CeMercanteImportModal({
           </div>
         </div>
 
+        <Field label="Nº de Manifesto Mercante (opcional)">
+          <Input
+            value={numeroManifesto}
+            onChange={(e) => setNumeroManifesto(e.target.value)}
+            placeholder="Ex.: 26BR000001"
+          />
+        </Field>
+
         <Field label="Arquivo .xlsx, .xls, .csv ou EDI (.edi/.txt)">
           <Input accept=".xlsx,.xls,.csv,.edi,.txt" type="file" onChange={handleFile} />
         </Field>
@@ -302,12 +312,6 @@ export function CeMercanteImportModal({
               <PreviewBox label="Erros de validacao" value={ediReportErrors.length} />
             </div>
 
-            {ediPreview.manifestRef ? (
-              <div className="app-panel__meta text-sm">
-                Manifesto detectado:{' '}
-                <span className="font-semibold text-[var(--app-text-strong)]">{ediPreview.manifestRef}</span>
-              </div>
-            ) : null}
             {ediPreview.encoding ? (
               <div className="app-panel__meta text-sm">
                 Encoding detectado:{' '}
