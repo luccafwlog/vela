@@ -520,7 +520,6 @@ describe('breakbulkImport', () => {
 
     const manifest: ParsedBreakbulkManifest = {
       layout: 'summary',
-      carrier: 'GENERIC',
       rowErrors: [],
       bls: [
         {

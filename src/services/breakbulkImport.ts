@@ -37,13 +37,13 @@ export async function importBreakbulkManifest({
 
   const customerMaps = await loadCustomerMaps()
 
-  const existingModeByBl = new Map<string, 'container' | 'carga_solta' | null>()
+  const existingModeByBl = new Map<string, 'container' | 'carga_solta' | 'misto' | null>()
   const blIds = manifest.bls.map((bl) => bl.bl_id)
   for (const chunk of chunkArray(blIds, 400)) {
     const { data, error } = await supabase.from('bls').select('id, cargo_mode').in('id', chunk)
     if (error) throw error
     for (const row of data ?? []) {
-      existingModeByBl.set(String(row.id), (row.cargo_mode as 'container' | 'carga_solta' | null) ?? null)
+      existingModeByBl.set(String(row.id), (row.cargo_mode as 'container' | 'carga_solta' | 'misto' | null) ?? null)
     }
   }
 

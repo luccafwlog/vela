@@ -8,10 +8,10 @@ Quando um plano é totalmente executado, ele é movido para
 
 ## Planos ativos
 
-- [2026-09-17 — Unificação de B/Ls, carga mista e Manifesto Mercante](2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md) — plano de implementação unificado das specs de 16 e 17/09, cobrindo o modelo de domínio de manifestos, modalidade mista com trigger, motor de taxas (ADR 0069), terminal (ADR 0068), rota única /bls e fatura modular.
 - [2026-09-06 — Remediação das auditorias #654–#660](2026-09-06-plano-remediacao-auditorias-654-660.md) — execução parcial; os residuais de S03, S05, S06/S07 e a prova de runtime continuam abertos.
 - [2026-09-12 — Remediação da revisão sistemática multiagente](2026-09-12-plano-implementacao-auditoria-sistematica.md) — plano de remediação dos achados consolidados da auditoria da PR #687, cobrindo acessibilidade, UX, documentos/faturas, segurança de testes, banco de dados e performance.
 
+O plano [2026-09-17 — Unificação de B/Ls, carga mista e Manifesto Mercante](../archive/plans/2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md) foi concluído e arquivado.
 O plano [2026-09-12 — Transição de marca: Transhipping Desk → Vela](../archive/plans/2026-09-12-plano-transicao-marca-vela.md) foi concluído e arquivado (PR #688).
 O plano [2026-09-03 — Issue 609: contatos e caixas de comunicação](../archive/plans/2026-09-03-issue-609-contatos-caixas-comunicacao.md) foi concluído e arquivado.
 

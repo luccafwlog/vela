@@ -121,6 +121,17 @@ describe('manifestosMercanteService', () => {
     expect(results[1].natureza).toBe('vazio')
   })
 
+  it('lista manifestos de uma viagem inteira', async () => {
+    const orderMock = vi.fn().mockResolvedValue({ data: [{ id: 'man-1', voyage_id: 10, numero: '26BR0001' }], error: null })
+    const eqVoyageMock = vi.fn().mockReturnValue({ order: orderMock })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqVoyageMock })
+    mockFrom.mockReturnValue({ select: selectMock })
+
+    const results = await listManifestosMercanteByVoyage(10)
+    expect(mockFrom).toHaveBeenCalledWith('manifestos_mercante')
+    expect(results).toHaveLength(1)
+  })
+
   it('vincula B/L ao manifesto mercante e permite desvinculo', async () => {
     const eqMock = vi.fn().mockResolvedValue({ error: null })
     const updateMock = vi.fn().mockReturnValue({ eq: eqMock })

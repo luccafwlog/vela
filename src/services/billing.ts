@@ -84,13 +84,14 @@ export type InvoiceDetail = {
       pod?: string | null
       voyage_number?: string | null
       vessel_name?: string | null
+      cargo_mode?: string | null
     }
   >
   items: InvoiceItem[]
   payments: InvoicePayment[]
 }
 
-type InvoiceLinkInfo = {
+export type InvoiceLinkInfo = {
   id: number
   invoice_number: string | null
   status: string | null

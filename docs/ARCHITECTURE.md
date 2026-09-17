@@ -330,21 +330,15 @@ flowchart LR
 ### Importações
 
 - Baplie entra em staging por viagem e pode alimentar Vazios de Importação.
-- Arquivos de B/L alimentam os B/Ls e cargas de container; Manifestos BB mantêm
-  seu fluxo próprio. A importação de Manifesto CNTR e a geração local de EDI
-  Mercante foram removidas conforme a ADR 0025.
-- Carga solta tem duas portas de ingestão que convivem: o Manifesto BB
-  (planilha) e o B/L avulso do armador em `.pdf`/`.docx`. As duas terminam na
-  mesma RPC transacional (`import_breakbulk_manifest_transactional`); o B/L
-  avulso é lido no cliente (`blDocumentParser.ts`) e convertido em um manifesto
-  de uma linha.
+- O B/L é a entidade unificada de conhecimento de embarque (`cargo_mode IN ('container', 'carga_solta', 'misto')`), acessado pela rota canônica `/bls` (substituindo em definitivo as antigas telas e rotas separadas `/manifestos` e `/carga-solta`). B/Ls com presença simultânea de contêineres e carga solta assumem automaticamente o modo `misto` via trigger no banco (`trg_sync_bl_cargo_mode`).
+- Arquivos de B/L alimentam os B/Ls e cargas de container; Manifestos BB mantêm seu fluxo próprio. A importação de Manifesto CNTR e a geração local de EDI Mercante foram removidas conforme a ADR 0025.
+- Carga solta tem duas portas de ingestão que convivem: o Manifesto BB (planilha) e o B/L avulso do armador em `.pdf`/`.docx`. As duas terminam na mesma RPC transacional (`import_breakbulk_manifest_transactional`); o B/L avulso é lido no cliente (`blDocumentParser.ts`) e convertido em um manifesto de uma linha.
+- Manifestos aduaneiros são entidades de lançamento oficial na tabela `manifestos_mercante`, extinguindo a antiga nomenclatura "CE Master". A tabela suporta N manifestos por rota da viagem e indicação explícita de contêineres vazios (`is_empty`). Cada B/L aponta para seu manifesto via `bls.manifesto_mercante_id`. Em manobras de COD (Change of Destination), o CE Mercante (`bls.ce_mercante`) é preservado e o vínculo do manifesto é limpo (`NULL`), gerando pendência operacional.
+- Regra de terminal para Taxas Locais: a resolução tarifária consulta prioritariamente a tabela de exceções individuais `bl_terminal_exceptions`. Se inexistente, herda o terminal da atracação/escala (`voyage_port_calls.terminal_id`), ou permanece nulo.
 - Granito mantém tabelas próprias, integradas downstream.
 - Veículos são importados por planilha e vinculados a B/L/container.
 - CE Mercante e datas operacionais têm importadores específicos.
-- Arquivos de planilha usam `@e965/xlsx` e devem passar pelo limite de upload
-  antes do parsing. B/L em PDF usa `pdfjs-dist` (import dinâmico, chunk próprio)
-  e B/L em `.docx` é descompactado por `src/lib/zipEntry.ts`, sem dependência de
-  zip no bundle.
+- Arquivos de planilha usam `@e965/xlsx` e devem passar pelo limite de upload antes do parsing. B/L em PDF usa `pdfjs-dist` (import dinâmico, chunk próprio) e B/L em `.docx` é descompactado por `src/lib/zipEntry.ts`, sem dependência de zip no bundle.
 
 ### Revisão e auto-faturamento
 
@@ -519,6 +513,14 @@ seguem restritos. A mesma migration cria `can_edit_local_charges()` e alinha o
 `INSERT`/`UPDATE`/`DELETE` de `charge_tables`/`charge_table_items`/
 `customer_rate_overrides` à permissão `charge_tables`/`charge_overrides` de
 `roleHasPermission`, que já incluía Documentação sem a RLS correspondente.
+
+As migrations `053`–`058` introduzem o modelo de domínio unificado de B/Ls e manifestos aduaneiros:
+`053` cria a tabela `manifestos_mercante` por rota da viagem com suporte a N manifestos e vazios;
+`054` institui `cargo_mode = 'misto'` e trigger de sincronização automática entre contêineres e carga solta;
+`055` implementa herança de terminal da escala e tabela de exceções individuais `bl_terminal_exceptions`;
+`056` reformula a resolução tarifária (`calculate_bl_local_charges` e `recalculate_bl_charges`) para buscar tabelas de contêiner e de carga solta para o mesmo B/L;
+`057` ajusta o tratamento de COD desvinculando o manifesto (`manifesto_mercante_id = NULL`) e mantendo o CE Mercante;
+e `058` atualiza `operational_list_voyage_summaries` para que B/Ls mistos componham tanto contagens de contêineres quanto de carga solta da escala sem duplicar B/Ls únicos.
 
 ### Segurança
 

@@ -37,7 +37,8 @@ import { importBreakbulkManifest, parseBreakbulkManifestFile, type ParsedBreakbu
 import { afterManifestoImportado } from '../services/cacheEffects'
 import { inspectImportUpload } from '../services/importText'
 import { rowErrorsToImportIssues } from '../services/importValidation'
-import type { BLListItem, InvoiceLinkItem } from '../types/database'
+import type { InvoiceLinkInfo } from '../services/billing'
+import type { BLListItem } from '../types/database'
 
 export function formatBlCargoBadge(bl: BLListItem): string {
   const cntrCount = countDistinctContainerNumbers(bl.bl_containers)
@@ -69,17 +70,17 @@ export function formatBlCargoBadge(bl: BLListItem): string {
   return `${cntrCount} CNTR`
 }
 
-function InvoiceLink({ links }: { links: InvoiceLinkItem[] }) {
+function InvoiceLink({ links }: { links: InvoiceLinkInfo[] }) {
   if (!links.length) return <span>-</span>
   return (
     <div className="flex flex-col gap-0.5">
       {links.map((link) => (
         <Link
-          key={link.invoice_id}
+          key={link.id}
           className="text-xs text-[#58a6ff] hover:underline"
-          to={`/taxas-locais?invoiceId=${link.invoice_id}`}
+          to={`/taxas-locais?invoiceId=${link.id}`}
         >
-          {link.invoice?.invoice_number ?? `Fat #${link.invoice_id}`}
+          {link.invoice_number ?? `Fat #${link.id}`}
         </Link>
       ))}
     </div>
@@ -647,7 +648,7 @@ export function Bls() {
         <BlImportModal
           open={blFreightOpen}
           onClose={() => setBlFreightOpen(false)}
-          defaultVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
+          voyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
         />
       ) : null}
 
@@ -655,7 +656,7 @@ export function Bls() {
         <CeMercanteImportModal
           open={ceMercanteOpen}
           onClose={() => setCeMercanteOpen(false)}
-          defaultVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
+          lockedVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
         />
       ) : null}
 
@@ -669,9 +670,8 @@ export function Bls() {
 
       {blDocumentOpen ? (
         <BlDocumentImportModal
-          open={blDocumentOpen}
           onClose={() => setBlDocumentOpen(false)}
-          defaultVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
+          voyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
         />
       ) : null}
     </>

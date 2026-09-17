@@ -29,11 +29,12 @@ describe('Guarda contra links mortos /manifestos e /carga-solta', () => {
       const content = readFileSync(file, 'utf8')
       const lines = content.split('\n')
       lines.forEach((line, idx) => {
-        // Ignora comentários e downloads de templates
+        // Ignora comentários, imports e downloads de templates
         const trimmed = line.trim()
         if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return
+        if (trimmed.startsWith('import ') || trimmed.includes(' from \'') || trimmed.includes(' from "')) return
         if (line.includes('download="carga-solta-modelo') || line.includes('carga-solta-modelo.')) return
-        if (line.includes('/manifestos') || line.includes('/carga-solta')) {
+        if (/(?:\/manifestos|\/carga-solta)(?=[/'"`?#]|$)/.test(line)) {
           deadLinks.push({ file: file.replace(process.cwd() + '/', ''), line: idx + 1, text: line.trim() })
         }
       })

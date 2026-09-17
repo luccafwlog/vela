@@ -8,6 +8,10 @@ no [CHANGELOG](../../CHANGELOG.md); planos vivos ficam em
 
 ## Conteúdo
 
+- [`2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante`](2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md)
+  — unificação de B/Ls com suporte a carga mista, rota canônica `/bls`, fatura
+  adaptativa modular, modelo de lançamento de Manifesto Mercante (`manifestos_mercante`),
+  descontinuação do termo "CE Master", e agregação de escalas. Migrations `053`–`058`.
 - **Planos datados** (`YYYY-MM-DD-<tema>.md`) — features e correções de
   2026-06-01 a 2026-07-18, na maioria gerados pelas skills
   brainstorming/writing-plans.

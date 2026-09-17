@@ -78,7 +78,7 @@ export type LocalChargePendencyItem = {
 
 export type LocalChargeOperationalFilters = {
   search?: string
-  cargoMode?: '' | 'container' | 'carga_solta' | 'granito'
+  cargoMode?: '' | 'container' | 'carga_solta' | 'granito' | 'misto'
   pod?: string
   voyageId?: number | null
   chargeStatus?: '' | 'not_calculated' | 'calculated' | 'review_required' | 'reviewed' | 'ready_for_billing' | 'exempt'
@@ -88,7 +88,7 @@ export type LocalChargeOperationalFilters = {
 
 export type LocalChargeOperationalRow = {
   id: string
-  cargo_mode: 'container' | 'carga_solta' | 'granito' | null
+  cargo_mode: 'container' | 'carga_solta' | 'granito' | 'misto' | null
   pol: string | null
   pod: string | null
   charge_status: string | null

@@ -131,12 +131,12 @@ original vem do snapshot do documento efetivamente emitido e nunca da tabela
 atual do POD antigo. A emissão de fatura complementar, cancelamento/reemissão
 e restituição exige conclusão vinculada pelo Financeiro.
 
-O CE Mercante do B/L nunca muda. O CE Master tambem nao muda de numero, mas o
-B/L em COD deixa de constar no manifesto do porto omitido e passa a constar no
-manifesto do novo destino; se essa rota ainda nao existir na viagem, ela nasce
-sem manifesto e o pendente fica visivel ate alguem informar o numero.
+O CE Mercante do B/L nunca muda. O Manifesto Mercante do B/L muda: ao aplicar
+COD, o B/L deixa de constar no manifesto do porto omitido e seu vínculo
+(`bls.manifesto_mercante_id`) é limpo (NULL), gerando pendência operacional de
+vinculação ao manifesto do novo destino.
 
-- **Related:** Ajuste de COD, Taxas Locais, Omissao de Escala, Porto de Transbordo
+- **Related:** Ajuste de COD, Taxas Locais, Omissao de Escala, Porto de Transbordo, Manifesto Mercante
 
 **Ajuste de COD**
 Diferenca financeira apurada quando um COD reprecifica a Taxa Local de um B/L ja
@@ -633,6 +633,19 @@ Abreviação de domínio para container.
 Carga transportada sem container, representada por itens, peso e volume
 vinculados ao B/L.
 
+**B/L com Carga Mista (Misto)**
+Conhecimento de embarque unificado (`cargo_mode = 'misto'`) que contém
+simultaneamente contêineres e carga solta (breakbulk). Na apuração operacional,
+participa tanto dos agregadores de contêineres quanto dos de carga solta sem
+duplicar a contagem única de B/Ls da viagem. No faturamento, gera fatura
+adaptativa modular com blocos distintos para contêiner e carga solta.
+
+**Painel Unificado de BLs**
+Superfície canônica em `/bls` que centraliza todos os B/Ls da agência
+independentemente do seu modo de carga (`container`, `carga_solta` ou `misto`),
+substituindo em definitivo as antigas telas e rotas segregadas `/manifestos` e
+`/carga-solta`.
+
 **RoRo**
 Carga rolante, especialmente veículos importados e vinculados a B/L e, quando
 aplicável, ao container físico.
@@ -715,10 +728,13 @@ número de CE não pode ser usado por mais de um B/L. Embarque de Vazios é a ex
 operacional: não emite CE porque é módulo de custo pago pela agência ao depot,
 sem invoice ou recebível de cliente.
 
-**CE Master**
-Conhecimento agrupador por rota da viagem (POL/POD). Quando existe batch de
-manifesto, vive no batch; em viagem só-B/L, é registrado por rota. É distinto
-dos CEs individuais dos B/Ls e não entra no EDI.
+**Manifesto Mercante** (anteriormente designado "CE Master")
+Número oficial do manifesto aduaneiro registrado no sistema Mercante para uma
+determinada rota/escala portuária da viagem. A nomenclatura "CE Master" foi
+descontinuada do sistema em favor de "Nº de Manifesto Mercante". É registrado na
+tabela `manifestos_mercante`, que suporta múltiplos manifestos por rota e
+segregação de contêineres vazios (`is_empty`). É distinto dos CEs individuais dos
+B/Ls e não se confunde com o número de viagem interna da agência.
 
 **Frete & Despesas do BL**
 Linhas da seção "Freight & Charges" do conhecimento de embarque (B/L): frete
@@ -880,6 +896,20 @@ aviso, nunca exclusão.
 
 - **Synonyms / avoid:** "tabela de preços", "tarifa local"
 - **Related:** Item de Taxa, Condição de Cliente, Tarifa de Demurrage
+
+**Herança e Exceção de Terminal por B/L**
+Regra de determinação do terminal portuário para fins de tarifação de Taxas
+Locais. A precedência é rigorosamente hierárquica:
+1. Exceção explícita cadastrada para o B/L em `bl_terminal_exceptions`;
+2. Terminal padrão da atracação/escala na viagem (`voyage_port_calls.terminal_id`);
+3. Nulo / sem terminal específico (aplica regras gerais da tabela tarifária).
+
+**Fatura Adaptativa Modular**
+Modelo de fatura que organiza seus itens visual e documentalmente em blocos
+dependentes da carga do B/L: Bloco de Contêineres (itens tarifados por container,
+THC, etc.), Bloco de Carga Solta (itens tarifados por peso/tonelada ou volume/m³)
+e Bloco de Taxas Documentais e Administrativas. Em B/Ls mistos, ambos os blocos
+de carga são renderizados de forma clara e coesa.
 
 **Item de Taxa**
 Linha da Tabela de Taxas Locais: a taxa em si, com o valor unitário e a regra

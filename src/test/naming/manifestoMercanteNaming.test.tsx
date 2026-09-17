@@ -6,14 +6,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { VoyageManifestosTab } from '../../components/voyages/VoyageManifestosTab'
 import { PolScheduleModal } from '../../components/shared/VoyageScheduleModals'
 import { buildVoyageTimeline } from '../../services/voyageSummaries'
-import type { VoyageRecord } from '../../types/database'
 
 describe('Nomenclatura Oficial: Manifesto Mercante em vez de CE Master', () => {
   it('garante que a aba de rotas e manifestos usa "Nº de manifesto Mercante" e nao "CE Master"', () => {
-    const dummyVoyage: VoyageRecord = {
+    const dummyVoyage: any = {
       id: 99,
       voyage_number: '001W',
-      vessel_id: 'v1',
+      vessel_id: 1,
       created_at: '2026-01-01',
       bls: [
         {
@@ -24,7 +23,7 @@ describe('Nomenclatura Oficial: Manifesto Mercante em vez de CE Master', () => {
           bl_containers: [],
           ce_mercante: null,
           cargo_mode: 'container',
-        } as any,
+        },
       ],
     }
 
@@ -71,7 +70,7 @@ describe('Nomenclatura Oficial: Manifesto Mercante em vez de CE Master', () => {
           batchIds: [],
           cargoMode: 'container',
         }}
-        onSave={async () => {}}
+        onSaved={async () => {}}
       />,
     )
 
@@ -84,8 +83,7 @@ describe('Nomenclatura Oficial: Manifesto Mercante em vez de CE Master', () => {
       importBatches: [],
       auditEvents: [
         {
-          id: 1,
-          voyage_id: 99,
+          entity_id: '99',
           field_name: 'ce_master',
           old_value: 'BR001',
           new_value: 'BR002',

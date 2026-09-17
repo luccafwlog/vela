@@ -1150,6 +1150,7 @@ export type Database = {
           manifest_customer_cnpj_cpf: string | null
           manifest_customer_email: string | null
           manifest_customer_name: string | null
+          manifesto_mercante_id: string | null
           movement_from: string | null
           movement_to: string | null
           ncm_codes: string[]
@@ -1163,11 +1164,13 @@ export type Database = {
           place_of_delivery: string | null
           place_of_receipt: string | null
           pod: string | null
+          pod_port_id: number | null
           pol: string | null
           review_status: string | null
           shipper: string | null
           shipper_block: string | null
           suggested_customer_id: number | null
+          terminal_id: string | null
           total_cbm: number | null
           total_packages: number | null
           total_weight_kg: number | null
@@ -1211,6 +1214,7 @@ export type Database = {
           manifest_customer_cnpj_cpf?: string | null
           manifest_customer_email?: string | null
           manifest_customer_name?: string | null
+          manifesto_mercante_id?: string | null
           movement_from?: string | null
           movement_to?: string | null
           ncm_codes?: string[]
@@ -1224,11 +1228,13 @@ export type Database = {
           place_of_delivery?: string | null
           place_of_receipt?: string | null
           pod?: string | null
+          pod_port_id?: number | null
           pol?: string | null
           review_status?: string | null
           shipper?: string | null
           shipper_block?: string | null
           suggested_customer_id?: number | null
+          terminal_id?: string | null
           total_cbm?: number | null
           total_packages?: number | null
           total_weight_kg?: number | null
@@ -1272,6 +1278,7 @@ export type Database = {
           manifest_customer_cnpj_cpf?: string | null
           manifest_customer_email?: string | null
           manifest_customer_name?: string | null
+          manifesto_mercante_id?: string | null
           movement_from?: string | null
           movement_to?: string | null
           ncm_codes?: string[]
@@ -1285,11 +1292,13 @@ export type Database = {
           place_of_delivery?: string | null
           place_of_receipt?: string | null
           pod?: string | null
+          pod_port_id?: number | null
           pol?: string | null
           review_status?: string | null
           shipper?: string | null
           shipper_block?: string | null
           suggested_customer_id?: number | null
+          terminal_id?: string | null
           total_cbm?: number | null
           total_packages?: number | null
           total_weight_kg?: number | null
@@ -1297,6 +1306,13 @@ export type Database = {
           voyage_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "bls_manifesto_mercante_id_fkey"
+            columns: ["manifesto_mercante_id"]
+            isOneToOne: false
+            referencedRelation: "manifestos_mercante"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bls_batch_id_fkey"
             columns: ["batch_id"]
@@ -4547,6 +4563,47 @@ export type Database = {
             columns: ["receivable_id"]
             isOneToOne: false
             referencedRelation: "bl_receivables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manifestos_mercante: {
+        Row: {
+          created_at: string
+          id: string
+          natureza: string
+          numero: string
+          pod: string
+          pol: string
+          updated_at: string
+          voyage_id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          natureza: string
+          numero: string
+          pod: string
+          pol: string
+          updated_at?: string
+          voyage_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          natureza?: string
+          numero?: string
+          pod?: string
+          pol?: string
+          updated_at?: string
+          voyage_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manifestos_mercante_voyage_id_fkey"
+            columns: ["voyage_id"]
+            isOneToOne: false
+            referencedRelation: "voyages"
             referencedColumns: ["id"]
           },
         ]
@@ -9235,6 +9292,7 @@ export type BLDetail = BL & {
       carrier?: Carrier | null
     }) | null
   }) | null
+  terminal?: { id?: string; name?: string | null } | null
   bl_containers?: BLContainer[]
   bl_freight_lines?: BlFreightLine[] | null
   bl_breakbulk_items?: BLBreakbulkItem[]
@@ -9360,3 +9418,5 @@ export type VoyageExportSchedule = Omit<
 }
 
 export type VoyageExportCeStatus = NonNullable<VoyageExportSchedule['ce_status']>
+export type VoyageRecord = Tables<'voyages'>
+export type ManifestoMercanteRecord = Tables<'manifestos_mercante'>
