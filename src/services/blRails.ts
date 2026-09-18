@@ -1,6 +1,7 @@
 import type { BL } from '../types/database'
 import { INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
 import { isCustomerReconciliationResolved } from './customerReconciliation'
+import { isBreakbulkCargoMode, isContainerCargoMode } from '../lib/cargoMode'
 
 export type RailState = 'done' | 'pending' | 'blocked' | 'diverted'
 
@@ -64,7 +65,7 @@ function reasonDetail(reason: string) {
 }
 
 function documentalReasonMap(input: { bl: RailBl; reviewReasons?: string[]; portalVisibility?: RailPortalVisibility | null }) {
-  const missingLooseCargoWeight = input.bl.cargo_mode === 'carga_solta'
+  const missingLooseCargoWeight = isBreakbulkCargoMode(input.bl.cargo_mode)
     && (input.bl.bb_weight_ton == null || Number(input.bl.bb_weight_ton) <= 0)
   const reasons = [
     ...(input.reviewReasons ?? []),
@@ -108,14 +109,14 @@ export function buildOperationalRail(input: {
       ? { key: 'pod', label: 'Chegada ao POD', detail: `ATA ${fmt(podSchedule.ata)}`, state: 'done', href: voyageHref }
       : { key: 'pod', label: 'Chegada ao POD', detail: podSchedule?.eta ? `ETA ${fmt(podSchedule.eta)}` : 'Sem previsão', state: 'pending', href: voyageHref }
 
-  if (bl.cargo_mode !== 'container') return [pol, pod]
+  if (!isContainerCargoMode(bl.cargo_mode)) return [pol, pod]
   const discharge = distinct(containers, (c) => Boolean(c.discharge_date))
   const returned = distinct(containers, (c) => Boolean(c.return_date))
   return [
     pol,
     pod,
     { key: 'discharge', label: 'Descarga', detail: discharge.total === 0 ? 'Sem containers' : `${discharge.done}/${discharge.total} descarregados`, state: discharge.total === 0 || discharge.done === discharge.total ? 'done' : 'pending', href: '/containers' },
-    { key: 'return', label: 'Devolução', detail: returned.total === 0 ? 'Sem containers' : `${returned.done}/${returned.total} devolvidos`, state: returned.total === 0 || returned.done === returned.total ? 'done' : 'pending', href: `/manifestos/${bl.id}?tab=faturamento` },
+    { key: 'return', label: 'Devolução', detail: returned.total === 0 ? 'Sem containers' : `${returned.done}/${returned.total} devolvidos`, state: returned.total === 0 || returned.done === returned.total ? 'done' : 'pending', href: `/bls/${bl.id}?tab=faturamento` },
   ]
 }
 
@@ -127,8 +128,8 @@ export function buildDocumentalRail(input: {
   portalVisibility?: RailPortalVisibility | null
 }): RailStage[] {
   const { bl, latestInvoice, demurrageInvoices, reviewReasons, portalVisibility } = input
-  const fichaFat = `/manifestos/${bl.id}?tab=faturamento`
-  const fichaDet = `/manifestos/${bl.id}?tab=detalhes`
+  const fichaFat = `/bls/${bl.id}?tab=faturamento`
+  const fichaDet = `/bls/${bl.id}?tab=detalhes`
   const reasonMap = documentalReasonMap({ bl, reviewReasons, portalVisibility })
 
   const customer: RailStage = !bl.customer_id

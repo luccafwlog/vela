@@ -12,6 +12,7 @@
     "dev": "vite",
     "docs:check": "node scripts/check-docs.mjs",
     "rpc:check": "node scripts/check-rpc-catalog.mjs",
+    "migrations:check": "node scripts/check-destructive-migrations.mjs",
     "typecheck": "tsc -b",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

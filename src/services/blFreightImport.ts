@@ -95,7 +95,6 @@ export type BlFreightRpcPayload = {
   customer_reconciliation_status: BL['customer_reconciliation_status']
   customer_reconciliation_notes: string | null
   billing_hold_reason: string | null
-  cargo_mode: 'container'
   shipper: string | null
   consignee: string | null
   notify_party: string | null
@@ -536,7 +535,6 @@ export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | 
     customer_reconciliation_status: 'missing_customer',
     customer_reconciliation_notes: 'Cliente nao encontrado na base cadastral.',
     billing_hold_reason: CUSTOMER_RECONCILIATION_HOLD_REASON,
-    cargo_mode: 'container',
     shipper: doc.parties.shipperBlock || null,
     consignee: doc.parties.consigneeBlock ? extractConsigneeShortName(doc.parties.consigneeBlock) : null,
     notify_party: doc.parties.notifyBlock || null,
@@ -674,7 +672,7 @@ function computeBillingImpact(
     messages.push(`Veiculos (chassis): ${existingVehicleCount} -> ${payload.vehicles.length}`)
   }
 
-  const isBreakBulk = existing.cargo_mode === 'carga_solta'
+  const isBreakBulk = existing.cargo_mode === 'carga_solta' || existing.cargo_mode === 'misto'
   const weightChanged = normalizeComparable(existing.total_weight_kg) !== normalizeComparable(payload.total_weight_kg)
   const weight = isBreakBulk && weightChanged
   if (weight) {
@@ -720,7 +718,6 @@ const ROUTE_BILLING_FIELDS: Array<{
   { field: 'voyage_id', label: 'Viagem do B/L', read: (source) => source.voyage_id ?? null },
   { field: 'pol', label: 'POL', read: (source) => source.pol ?? null },
   { field: 'pod', label: 'POD', read: (source) => source.pod ?? null },
-  { field: 'cargo_mode', label: 'Modo de carga', read: (source) => source.cargo_mode ?? null },
 ]
 
 /**
@@ -730,7 +727,6 @@ const ROUTE_BILLING_FIELDS: Array<{
  */
 export const BL_FREIGHT_DIFF_LABELS: Record<string, string> = {
   voyage_id: 'Viagem do B/L',
-  cargo_mode: 'Modo de carga',
   shipper: 'Shipper',
   consignee: 'Consignatario',
   notify_party: 'Notify Party',
@@ -766,7 +762,6 @@ export const BL_FREIGHT_DIFF_LABELS: Record<string, string> = {
 function diffExistingBl(existing: ExistingBl, payload: BlFreightRpcPayload, impact: BillingImpact): BlFreightImportDiff[] {
   const diffs: BlFreightImportDiff[] = []
   addDiff(diffs, 'voyage_id', existing.voyage_id, payload.voyage_id, impact.route)
-  addDiff(diffs, 'cargo_mode', existing.cargo_mode, payload.cargo_mode, impact.route)
   addDiff(diffs, 'shipper', existing.shipper, payload.shipper, false)
   addDiff(diffs, 'consignee', existing.consignee, payload.consignee, false)
   addDiff(diffs, 'notify_party', existing.notify_party, payload.notify_party, false)

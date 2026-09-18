@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Upload } from 'lucide-react'
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../lib/containerCounts'
@@ -12,6 +12,7 @@ import { BlDetalhesTab } from '../components/bl/BlDetalhesTab'
 import { BlFaturamentoTab } from '../components/bl/BlFaturamentoTab'
 import { BlHistoricoTab } from '../components/bl/BlHistoricoTab'
 import { BlVisaoGeralTab, type BaplieStatus } from '../components/bl/BlVisaoGeralTab'
+import type { BlTerminalOverrideOption } from '../components/bl/BlTerminalOverrideCard'
 import { BlRailsPipeline } from '../components/bl/BlRailsPipeline'
 import { ImportResultPanel } from '../components/shared/ImportResultPanel'
 import { Button } from '../components/ui/Button'
@@ -23,6 +24,8 @@ import { useSetBlDisposition } from '../hooks/useTransshipments'
 import { useInvoiceLinks } from '../hooks/useBilling'
 import { extractReviewReasons } from '../hooks/useReview'
 import { listDemurrageInvoices } from '../services/demurrage/demurrageInvoices'
+import { listDepots } from '../services/depots'
+import { setBlTerminalOverride } from '../services/blTerminal'
 import { buildDocumentalRail, buildOperationalRail, pickNextAction, summarizeDocumentalRail } from '../services/blRails'
 import { getBlPortalStatus } from '../services/blPortalStatus'
 import { queryKeys } from '../services/queryKeys'
@@ -50,6 +53,7 @@ export function BlDetalhe() {
   const activeTab: BlTab = isBlTab(tabParam) ? tabParam : 'visao-geral'
   const { data: bl, isLoading, error } = useBlDetail(blId)
   const { user, profile } = useAuth()
+  const queryClient = useQueryClient()
   const canEditVoyages = Boolean(profile || user)
   const canImport = Boolean(profile || user)
   const { setTransshipment, setCod } = useSetBlDisposition(bl?.voyage_id ?? 0)
@@ -65,14 +69,42 @@ export function BlDetalhe() {
     enabled: Boolean(bl?.id),
     queryFn: () => getBlPortalStatus({ blId: bl!.id, ceMercante: bl!.ce_mercante, customerId: bl!.customer_id }),
   })
+  const { data: depots } = useQuery({
+    queryKey: ['depots', 'list'],
+    queryFn: listDepots,
+    enabled: Boolean(bl?.id),
+  })
+  const terminalOverrideMutation = useMutation({
+    mutationFn: (input: { terminalId: string | null; podPortId: number | null; justification: string }) => setBlTerminalOverride({
+      blId: bl!.id,
+      terminalId: input.terminalId,
+      podPortId: input.podPortId,
+      justification: input.justification,
+      changedBy: user?.id,
+    }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl?.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.auditLogs.detail('bl', bl?.id) }),
+      ])
+    },
+  })
   const cargoMode = useMemo(() => resolveCargoMode(bl), [bl])
   const isContainerMode = cargoMode === 'container'
-  const { data: reconciliation, isLoading: reconciliationLoading, isError: reconciliationError } = useVoyageReconciliation(isContainerMode ? bl?.voyage_id : null)
-  const backHref = isContainerMode ? '/manifestos' : '/carga-solta'
-  const backLabel = isContainerMode ? 'Voltar aos manifestos CNTR' : 'Voltar aos manifestos BB'
+  const isMixedMode = cargoMode === 'misto'
+  const hasContainers = isContainerMode || isMixedMode
+  const { data: reconciliation, isLoading: reconciliationLoading, isError: reconciliationError } = useVoyageReconciliation(hasContainers ? bl?.voyage_id : null)
+  const backHref = '/bls'
+  const backLabel = 'Voltar aos BLs'
   const voyageLabel = [bl?.voyage?.vessel?.name, bl?.voyage?.voyage_number].filter(Boolean).join(' / ')
+  const terminalOptions = useMemo<BlTerminalOverrideOption[]>(
+    () => (depots ?? [])
+      .filter((depot) => depot.tipo === 'terminal_portuario' && depot.active && depot.port_id != null)
+      .map((depot) => ({ id: depot.id, code: depot.code, name: depot.name, portId: depot.port_id })),
+    [depots],
+  )
 
-  const { form, setField, justification, setJustification, saving, changes, handleSubmit } = useBlEditForm(bl, isContainerMode)
+  const { form, setField, justification, setJustification, saving, changes, handleSubmit } = useBlEditForm(bl)
 
   const railContainers = useMemo(() => (bl?.bl_containers ?? []).map((container) => ({
     container_number: container.container_number,
@@ -103,12 +135,12 @@ export function BlDetalhe() {
   }, [reconciliation, bl])
 
   const baplieStatus = useMemo((): BaplieStatus => {
-    if (!isContainerMode) return { state: 'not_imported', divergenceCount: 0 }
+    if (!hasContainers) return { state: 'not_imported', divergenceCount: 0 }
     if (reconciliationError) return { state: 'error', divergenceCount: 0 }
     if (reconciliationLoading || !reconciliation) return { state: 'loading', divergenceCount: 0 }
     if (reconciliation.source === 'not_imported') return { state: 'not_imported', divergenceCount: 0 }
     return { state: 'reconciled', divergenceCount: blDivergenceCount }
-  }, [isContainerMode, reconciliation, reconciliationLoading, reconciliationError, blDivergenceCount])
+  }, [hasContainers, reconciliation, reconciliationLoading, reconciliationError, blDivergenceCount])
 
   const containerSummary = useMemo(
     () => ({
@@ -126,7 +158,7 @@ export function BlDetalhe() {
       machines: Number(bl?.bb_machine_qty ?? 0),
       packages: Number(bl?.bb_packages_qty ?? 0),
       packagesTotal: Number(bl?.bb_packages_total ?? bl?.bb_packages_qty ?? 0),
-      weightTon: Number(bl?.bb_weight_ton ?? (bl?.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : 0)),
+      weightTon: Number(bl?.bb_weight_ton ?? 0),
       cbm: Number(bl?.total_cbm ?? 0),
     }),
     [bl],
@@ -135,7 +167,7 @@ export function BlDetalhe() {
   if (isLoading) {
     return (
       <>
-        <Breadcrumb items={[{ label: 'Manifestos', to: '/manifestos' }, { label: 'Carregando...' }]} />
+        <Breadcrumb items={[{ label: 'BLs', to: '/bls' }, { label: 'Carregando...' }]} />
         <SkeletonCard lines={5} />
       </>
     )
@@ -146,7 +178,7 @@ export function BlDetalhe() {
       <>
         <Breadcrumb
           items={[
-            { label: 'Manifestos', to: '/manifestos' },
+            { label: 'BLs', to: '/bls' },
             { label: 'B/L não encontrado' },
           ]}
         />
@@ -154,8 +186,8 @@ export function BlDetalhe() {
           title="Detalhes do B/L"
           description="Consulta de informações do conhecimento de embarque."
           action={
-            <Link className="text-sm font-semibold text-[var(--app-link)] hover:underline" to="/manifestos">
-              <ArrowLeft className="mr-1 inline" size={16} />Voltar para manifestos
+            <Link className="text-sm font-semibold text-[var(--app-link)] hover:underline" to="/bls">
+              <ArrowLeft className="mr-1 inline" size={16} />Voltar para BLs
             </Link>
           }
         />
@@ -168,20 +200,22 @@ export function BlDetalhe() {
     <>
       <Breadcrumb
         items={[
-          { label: 'Manifestos', to: '/manifestos' },
+          { label: 'BLs', to: '/bls' },
           { label: `B/L ${bl.id}` },
         ]}
       />
       <PageHeader
         title={`B/L ${bl.id} - ${cargoModeLabel(cargoMode)}`}
         description={
-          isContainerMode
-            ? 'Edição manual com auditoria. Esta tela exibe containers e veículos vinculados a este B/L.'
-            : 'Edição manual com auditoria. Esta tela exibe o resumo operacional do manifesto BB vinculado a este B/L.'
+          isMixedMode
+            ? 'Edição manual com auditoria. Esta tela exibe containers, carga solta e veículos vinculados a este B/L misto.'
+            : isContainerMode
+              ? 'Edição manual com auditoria. Esta tela exibe containers e veículos vinculados a este B/L.'
+              : 'Edição manual com auditoria. Esta tela exibe o resumo operacional do manifesto BB vinculado a este B/L.'
         }
         action={
           <div className="flex flex-wrap justify-end gap-2">
-            {isContainerMode && canImport ? (
+            {hasContainers && canImport ? (
               <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
                 <Upload size={16} />
                 Importar B/L
@@ -201,7 +235,7 @@ export function BlDetalhe() {
 
       <div className="mb-5 grid gap-3">
         <ImportResultPanel entityId={bl.id} />
-        {isContainerMode && bl.voyage_id != null ? (
+        {hasContainers && bl.voyage_id != null ? (
           <ImportResultPanel entityId={String(bl.voyage_id)} title="Processamento físico da viagem" />
         ) : null}
       </div>
@@ -250,6 +284,11 @@ export function BlDetalhe() {
         } : undefined}
         portalStatus={portalStatus}
         baplieStatus={baplieStatus}
+        terminalOptions={terminalOptions}
+        canEditTerminal={canEditVoyages}
+        terminalOverrideSaving={terminalOverrideMutation.isPending}
+        terminalOverrideError={terminalOverrideMutation.error instanceof Error ? terminalOverrideMutation.error.message : null}
+        onSaveTerminalOverride={(input) => terminalOverrideMutation.mutate(input)}
       />
       <BlDetalhesTab
         active={activeTab === 'detalhes'}
@@ -261,6 +300,7 @@ export function BlDetalhe() {
         justification={justification}
         cargoMode={cargoMode}
         isContainerMode={isContainerMode}
+        hasContainers={hasContainers}
         containerSummary={containerSummary}
         breakbulkSummary={breakbulkSummary}
         onFieldChange={setField}

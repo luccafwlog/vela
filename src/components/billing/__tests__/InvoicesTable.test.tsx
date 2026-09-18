@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -54,7 +54,7 @@ describe('InvoicesTable', () => {
     )
 
     const link = screen.getByRole('link', { name: 'BL-INV-001' })
-    expect(link.getAttribute('href')).toBe('/manifestos/BL-INV-001')
+    expect(link.getAttribute('href')).toBe('/bls/BL-INV-001')
   })
 
   it('aponta múltiplos BLs para suas respectivas fichas de B/L', () => {
@@ -86,8 +86,8 @@ describe('InvoicesTable', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('link', { name: 'BL-A' }).getAttribute('href')).toBe('/manifestos/BL-A')
-    expect(screen.getByRole('link', { name: 'BL-B' }).getAttribute('href')).toBe('/manifestos/BL-B')
+    expect(screen.getByRole('link', { name: 'BL-A' }).getAttribute('href')).toBe('/bls/BL-A')
+    expect(screen.getByRole('link', { name: 'BL-B' }).getAttribute('href')).toBe('/bls/BL-B')
     expect(screen.getByText('+1')).toBeTruthy()
   })
 })

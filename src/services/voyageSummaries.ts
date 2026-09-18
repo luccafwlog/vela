@@ -74,7 +74,7 @@ export function normalizeVoyageStatus(status: string | null): 'active' | 'comple
 export type VoyageBl = {
   id: string
   batch_id?: number | null
-  cargo_mode: 'container' | 'carga_solta' | null
+  cargo_mode: 'container' | 'carga_solta' | 'misto' | null
   ce_mercante: string | null
   bb_machine_qty: number | null
   bb_packages_qty: number | null
@@ -144,6 +144,9 @@ export function splitVoyageBls(bls: VoyageBl[] | null | undefined) {
 
   for (const bl of bls ?? []) {
     if (bl.cargo_mode === 'carga_solta') {
+      breakbulkBls.push(bl)
+    } else if (bl.cargo_mode === 'misto') {
+      containerBls.push(bl)
       breakbulkBls.push(bl)
     } else {
       containerBls.push(bl)
@@ -606,7 +609,7 @@ type TimelineAuditEvent = {
 type TimelineImportBatch = {
   id: number
   filename: string
-  cargo_mode: 'container' | 'carga_solta' | null
+  cargo_mode: 'container' | 'carga_solta' | 'misto' | null
   uploaded_at: string | null
   uploaded_by?: string | null
   route_summary?: string | null
@@ -749,7 +752,7 @@ function buildImportTimeline(
         id: `ce-master-batch-${batch.id}`,
         kind: 'ce-master',
         at: batch.uploaded_at,
-        title: 'CE Master definido',
+        title: 'Nº de Manifesto Mercante definido',
         detail: ceMaster,
       })
     }
@@ -1098,7 +1101,7 @@ function buildAuditTimeline(
         id: `audit-ce-master-${index}`,
         kind: 'ce-master',
         at,
-        title: oldValue ? 'CE Master alterado' : 'CE Master definido',
+        title: oldValue ? 'Nº de Manifesto Mercante alterado' : 'Nº de Manifesto Mercante definido',
         detail: appendActor(oldValue ? `${oldValue} -> ${value}` : value, row),
       })
       continue
@@ -1250,7 +1253,7 @@ export function summarizeImportByPod(
         machines: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0),
         packages: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_packages_qty ?? 0), 0),
         weightTon: podBreakbulk.reduce(
-          (sum, bl) => sum + Number(bl.bb_weight_ton ?? (bl.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : 0)),
+          (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
           0,
         ),
         cbm: podBreakbulk.reduce((sum, bl) => sum + Number(bl.total_cbm ?? 0), 0),

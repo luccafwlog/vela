@@ -30,6 +30,7 @@ import {
   type ReportFilters,
 } from '../services/reports'
 import { listDemurrageInvoices } from '../services/demurrage/demurrageInvoices'
+import { blTotalWeightKg, cargoModeLabel } from '../lib/cargoMode'
 
 type ReportTab = 'operacional' | 'financeiro' | 'clientes' | 'demurrage'
 
@@ -173,6 +174,7 @@ function OperationalReportTab() {
               <option value="">Todas</option>
               <option value="container">Container</option>
               <option value="carga_solta">Carga Solta</option>
+              <option value="misto">Misto</option>
             </Select>
           </Field>
           <div className="reports-filter-action">
@@ -208,7 +210,7 @@ function OperationalReportTab() {
             { label: 'POD', value: filters.pod },
             {
               label: 'modalidade',
-              value: filters.cargoMode === 'carga_solta' ? 'Carga Solta' : filters.cargoMode ? 'Container' : '',
+              value: filters.cargoMode ? cargoModeLabel(filters.cargoMode) : '',
             },
           ]}
           sortNote="Ordenado por criação (recente)"
@@ -256,7 +258,7 @@ function OperationalReportTab() {
                   <td className="px-4 py-3 text-[var(--app-text)]">{row.customer?.name ?? '-'}</td>
                   <td className="px-4 py-3 text-right">{(row.bl_containers ?? []).length}</td>
                   <td className="px-4 py-3 text-right font-mono">
-                    {Number(row.total_weight_kg ?? 0).toLocaleString('pt-BR')}
+                    {blTotalWeightKg(row).toLocaleString('pt-BR')}
                   </td>
                   <td className="px-4 py-3 text-right font-mono">
                     {Number(row.total_cbm ?? 0).toLocaleString('pt-BR')}

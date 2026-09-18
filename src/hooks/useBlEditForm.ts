@@ -85,7 +85,7 @@ export type BlForm = Omit<Pick<EditableBl, (typeof editableFields)[number]>, 'nc
 const INVALID_NUMERIC_VALUE = Symbol('INVALID_NUMERIC_VALUE')
 
 // Estado do formulário de edição manual do B/L e submissão com auditoria campo a campo.
-export function useBlEditForm(bl: BLDetail | undefined, isContainerMode: boolean) {
+export function useBlEditForm(bl: BLDetail | undefined) {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
@@ -147,15 +147,6 @@ export function useBlEditForm(bl: BLDetail | undefined, isContainerMode: boolean
         updatePayload[field] = toJsonValue(normalized)
       }
 
-      if (!isContainerMode) {
-        const weightTon = normalizeFormValue('bb_weight_ton', form.bb_weight_ton)
-        if (weightTon === INVALID_NUMERIC_VALUE) {
-          showToast('Valor invalido para bb_weight_ton. Informe um numero valido antes de salvar.', 'error')
-          return
-        }
-        updatePayload.total_weight_kg = weightTon === null ? null : Number(weightTon) * 1000
-      }
-
       const auditRows: Json[] = changes.map((field) => ({
         entity_type: 'bl',
         entity_id: bl.id,
@@ -164,17 +155,6 @@ export function useBlEditForm(bl: BLDetail | undefined, isContainerMode: boolean
         new_value: stringifyValue(form[field]),
         justification,
       }))
-
-      if (!isContainerMode && changes.includes('bb_weight_ton')) {
-        auditRows.push({
-          entity_type: 'bl',
-          entity_id: bl.id,
-          field_name: 'total_weight_kg',
-          old_value: stringifyValue(baselineForm?.total_weight_kg),
-          new_value: stringifyValue(updatePayload.total_weight_kg),
-          justification,
-        })
-      }
 
       const { error: rpcError } = await supabase.rpc('save_bl_review', {
         p_bl_id: bl.id,
@@ -243,7 +223,7 @@ function makeForm(bl: BLDetail): BlForm {
     bb_machine_qty: bl.bb_machine_qty,
     bb_packages_qty: bl.bb_packages_qty,
     bb_packages_total: bl.bb_packages_total,
-    bb_weight_ton: bl.bb_weight_ton ?? (bl.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : null),
+    bb_weight_ton: bl.bb_weight_ton,
     pol: bl.pol,
     pod: bl.pod,
     cargo_description: bl.cargo_description,

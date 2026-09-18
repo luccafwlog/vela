@@ -78,7 +78,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
               {dem.data?.rows.length ? dem.data.rows.map((row) => (
                 <tr key={row.id}>
                   <td>{row.doc_number}</td>
-                  <td><Link className="app-table__action" to={`/manifestos/${row.bl_id}`}>{row.bl_id}</Link></td>
+                  <td><Link className="app-table__action" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></td>
                   <td>{formatDate(row.billed_at)}</td>
                   <td>{formatUSD(row.total_usd)}</td>
                   <td>{formatBRL(row.current_total_brl ?? 0)}</td>
@@ -99,7 +99,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
             <tbody>
               {rec.data?.rows.length ? rec.data.rows.map((row) => (
                 <tr key={row.id}>
-                  <td><Link className="app-table__action" to={`/manifestos/${row.bl_id}`}>{row.bl_id}</Link></td>
+                  <td><Link className="app-table__action" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></td>
                   <td>{formatBRL(row.original_amount_brl)}</td>
                   <td>{formatBRL(row.settled_amount_brl)}</td>
                   <td>{formatBRL(row.balance_brl)}</td>
@@ -196,7 +196,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
           <ul className="grid gap-2 text-sm">
             {manual.data.map((row) => (
               <li key={row.bl_id}>
-                <Link className="app-table__action" to={`/manifestos/${row.bl_id}`}>{row.bl_id}</Link>
+                <Link className="app-table__action" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link>
                 <span className="ml-2 text-slate-400">{row.manual_count} item(ns) manual(is)</span>
               </li>
             ))}

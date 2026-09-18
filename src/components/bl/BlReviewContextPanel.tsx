@@ -4,6 +4,7 @@ import { Badge } from '../ui/Badge'
 import { Card } from '../ui/Card'
 import type { BLDetail } from '../../types/database'
 import { extractReviewReasons } from '../../hooks/useReview'
+import { isBreakbulkCargoMode } from '../../lib/cargoMode'
 
 export function BlReviewContextPanel({ bl }: { bl: BLDetail }) {
   if (bl.review_status !== 'pending_review') return null
@@ -16,7 +17,7 @@ export function BlReviewContextPanel({ bl }: { bl: BLDetail }) {
   } else if (!contacts?.some((contact) => (contact.email ?? '').trim())) {
     computedReasons.push('Cliente sem e-mail cadastrado')
   }
-  if (bl.cargo_mode === 'carga_solta' && (bl.bb_weight_ton == null || Number(bl.bb_weight_ton) <= 0)) {
+  if (isBreakbulkCargoMode(bl.cargo_mode) && (bl.bb_weight_ton == null || Number(bl.bb_weight_ton) <= 0)) {
     computedReasons.push('Peso BB ausente')
   }
 

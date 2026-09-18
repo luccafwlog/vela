@@ -6,6 +6,8 @@ import { formatDate, normalizeText } from '../../lib/utils'
 import { formatNumber } from '../../pages/blDetalheHelpers'
 import type { BLDetail } from '../../types/database'
 
+import type { CargoMode } from '../../pages/blDetalheHelpers'
+
 export type ContainerSummary = {
   distinct: number
   imo: number
@@ -24,6 +26,7 @@ export type BreakbulkSummary = {
 export function BlCargaTab({
   active,
   bl,
+  cargoMode = 'container',
   isContainerMode,
   containerSummary,
   breakbulkSummary,
@@ -31,47 +34,40 @@ export function BlCargaTab({
   active: boolean
   bl: BLDetail
   blId?: string
+  cargoMode?: CargoMode
   isContainerMode: boolean
   containerSummary: ContainerSummary
   breakbulkSummary: BreakbulkSummary
 }) {
   const [vehicleSearch, setVehicleSearch] = useState('')
 
+  const showContainers = cargoMode === 'container' || cargoMode === 'misto' || isContainerMode
+  const showBreakbulk = cargoMode === 'carga_solta' || cargoMode === 'misto' || !isContainerMode
+
   const filteredVehicles = useMemo(() => {
-    if (!isContainerMode) return []
+    if (!showContainers) return []
 
     const term = normalizeText(vehicleSearch)
     if (!term) return bl.vehicles ?? []
     return (bl.vehicles ?? []).filter((vehicle) => normalizeText(vehicle.chassis).includes(term))
-  }, [bl.vehicles, isContainerMode, vehicleSearch])
+  }, [bl.vehicles, showContainers, vehicleSearch])
 
   if (!active) return null
 
   return (
     <div className="grid gap-5">
-      <Card>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-white">
-            {isContainerMode ? 'Containers vinculados' : 'Resumo da carga solta'}
-          </h2>
-          {isContainerMode ? (
+      {showContainers ? (
+        <Card>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-white">Containers vinculados</h2>
             <div className="flex flex-wrap gap-2">
               <Badge tone="blue">{containerSummary.distinct} CNTRS</Badge>
               <Badge tone="red">{containerSummary.imo} IMO</Badge>
               <Badge tone="yellow">{containerSummary.oog} OOG</Badge>
             </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              <Badge tone="green">{formatNumber(breakbulkSummary.machines)} maquinas</Badge>
-              <Badge tone="blue">{formatNumber(breakbulkSummary.packagesTotal)} volumes</Badge>
-              <Badge tone="yellow">{formatNumber(breakbulkSummary.weightTon)} ton</Badge>
-              <Badge tone="slate">{formatNumber(breakbulkSummary.cbm)} CBM</Badge>
-            </div>
-          )}
-        </div>
+          </div>
 
-        <div className="app-table-scroll">
-          {isContainerMode ? (
+          <div className="app-table-scroll">
             <table className="app-table app-table--compact min-w-[800px] text-left text-sm">
               <thead className="bg-[#0d1117] text-xs uppercase text-slate-500">
                 <tr>
@@ -108,7 +104,23 @@ export function BlCargaTab({
                 )}
               </tbody>
             </table>
-          ) : (
+          </div>
+        </Card>
+      ) : null}
+
+      {showBreakbulk ? (
+        <Card>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-white">Resumo da carga solta</h2>
+            <div className="flex flex-wrap gap-2">
+              <Badge tone="green">{formatNumber(breakbulkSummary.machines)} maquinas</Badge>
+              <Badge tone="blue">{formatNumber(breakbulkSummary.packagesTotal)} volumes</Badge>
+              <Badge tone="yellow">{formatNumber(breakbulkSummary.weightTon)} ton</Badge>
+              <Badge tone="slate">{formatNumber(breakbulkSummary.cbm)} CBM</Badge>
+            </div>
+          </div>
+
+          <div className="app-table-scroll">
             <div className="grid gap-4">
               <table className="app-table app-table--compact app-table--dense w-full table-fixed text-left text-sm">
                 <thead className="bg-[#0d1117] text-xs uppercase text-slate-500">
@@ -127,7 +139,7 @@ export function BlCargaTab({
                     <td className="py-2">{formatNumber(bl.bb_machine_qty)}</td>
                     <td className="py-2">{formatNumber(bl.bb_packages_qty)}</td>
                     <td className="py-2">{formatNumber(bl.bb_packages_total ?? bl.bb_packages_qty)}</td>
-                    <td className="py-2">{formatNumber(bl.bb_weight_ton ?? (bl.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : null))}</td>
+                    <td className="py-2">{formatNumber(bl.bb_weight_ton)}</td>
                     <td className="py-2">{formatNumber(bl.total_cbm)}</td>
                   </tr>
                 </tbody>
@@ -167,11 +179,11 @@ export function BlCargaTab({
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </Card>
+          </div>
+        </Card>
+      ) : null}
 
-      {isContainerMode ? (
+      {showContainers ? (
         <Card>
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-lg font-semibold text-white">Veículos vinculados</h2>

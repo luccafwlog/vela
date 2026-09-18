@@ -1,6 +1,7 @@
 // Predicados puros para a fila de revisão.
 import { canonicalizeValidCnpj, extractCnpjsFromText } from '../lib/cnpj'
 import type { ReviewQueueItem } from '../hooks/useReview'
+import { isBreakbulkCargoMode } from '../lib/cargoMode'
 
 export function normalizeConsignee(value?: string | null) {
   return value?.trim() || ''
@@ -17,7 +18,10 @@ export function reviewReasonLabel(reason: string) {
 }
 
 export function getReviewCargoTypeLabel(item: ReviewQueueItem) {
-  return item.source === 'bl' && item.cargo_mode === 'carga_solta' ? 'Carga solta' : 'Contêiner'
+  if (item.source !== 'bl') return 'Contêiner'
+  if (item.cargo_mode === 'misto') return 'Misto'
+  if (item.cargo_mode === 'carga_solta') return 'Carga solta'
+  return 'Contêiner'
 }
 
 // Cliente e consignatário são a mesma entidade, chaveada por CNPJ. Se o CNPJ já
@@ -205,5 +209,5 @@ export function needsWeightFix(item: ReviewQueueItem) {
   if (item.source !== 'bl') return false
   if ((item.review_reasons ?? []).some((reason) => /weight ton|peso bb/i.test(reason))) return true
   // Carga solta (BB) sem peso em toneladas: o calculo de taxas exige bb_weight_ton.
-  return item.cargo_mode === 'carga_solta' && (item.bb_weight_ton == null || Number(item.bb_weight_ton) <= 0)
+  return isBreakbulkCargoMode(item.cargo_mode) && (item.bb_weight_ton == null || Number(item.bb_weight_ton) <= 0)
 }

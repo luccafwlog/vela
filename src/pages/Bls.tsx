@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Boxes, Download, Trash2, Upload, MoreVertical } from 'lucide-react'
+import { Download, FileText, Loader2, MoreVertical, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { MetricCard } from '../components/ui/MetricCard'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
@@ -9,12 +9,17 @@ import { FilterBar } from '../components/ui/FilterBar'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { CeMercanteImportModal } from '../components/shared/CeMercanteImportModal'
 import { BlImportModal } from '../components/shared/BlImportModal'
+import { BlDocumentImportModal } from '../components/shared/BlDocumentImportModal'
+import { FileImportModal } from '../components/shared/FileImportModal'
 import { CargoProfileBadge, ChargeStatusBadge } from '../components/shared/OperationalBadges'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { Field, Input, Select } from '../components/ui/Input'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
+import { PreviewBox } from '../components/ui/PreviewBox'
+import { TruncationNote } from '../components/shared/TruncationNote'
+import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useAuth } from '../hooks/useAuth'
@@ -28,22 +33,82 @@ import { useInvoiceLinks } from '../hooks/useBilling'
 import { countDistinctContainerNumbers } from '../lib/containerCounts'
 import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
 import { formatPortDisplayName } from '../lib/voyageFormat'
+import { importBreakbulkManifest, parseBreakbulkManifestFile, type ParsedBreakbulkManifest } from '../services/breakbulkImport'
+import { afterManifestoImportado } from '../services/cacheEffects'
+import { inspectImportUpload } from '../services/importText'
+import { rowErrorsToImportIssues } from '../services/importValidation'
+import type { InvoiceLinkInfo } from '../services/billing'
+import type { BLListItem } from '../types/database'
 
-export function Manifestos() {
+function formatBlCargoBadge(bl: BLListItem): string {
+  const cntrCount = countDistinctContainerNumbers(bl.bl_containers)
+  const bbWeight = Number(bl.bb_weight_ton ?? 0)
+
+  if (bl.cargo_mode === 'misto') {
+    const formattedWeight = bbWeight % 1 === 0 ? bbWeight : bbWeight.toFixed(1)
+    if (cntrCount > 0 && bbWeight > 0) {
+      return `${cntrCount} CNTR + ${formattedWeight} ton`
+    }
+    if (cntrCount > 0) {
+      const itemsCount = bl.bl_breakbulk_items?.length ?? 0
+      return `${cntrCount} CNTR + ${itemsCount} ${itemsCount === 1 ? 'item' : 'itens'}`
+    }
+  }
+
+  if (bl.cargo_mode === 'carga_solta') {
+    if (bbWeight > 0) {
+      return `${bbWeight % 1 === 0 ? bbWeight : bbWeight.toFixed(1)} ton`
+    }
+    if (bl.bb_packages_qty) {
+      return `${bl.bb_packages_qty} vol`
+    }
+    return `${bl.bl_breakbulk_items?.length ?? 0} itens`
+  }
+
+  return `${cntrCount} CNTR`
+}
+
+function InvoiceLink({ links }: { links: InvoiceLinkInfo[] }) {
+  if (!links.length) return <span>-</span>
+  return (
+    <div className="flex flex-col gap-0.5">
+      {links.map((link) => (
+        <Link
+          key={link.id}
+          className="text-xs text-[#58a6ff] hover:underline"
+          to={`/taxas-locais?invoice=${link.id}`}
+        >
+          {link.invoice_number ?? `Fat #${link.id}`}
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+type ActionsMenuState = {
+  id: string
+  top: number
+  left: number
+} | null
+
+export function Bls() {
   const [searchParams] = useSearchParams()
   const initialVoyage = searchParams.get('voyage') ?? ''
   const initialPol = searchParams.get('pol') ?? ''
   const initialPod = searchParams.get('pod') ?? ''
+  const initialMode = (searchParams.get('cargoMode') ?? '') as BlFilters['cargoMode']
+
   const queryClient = useQueryClient()
   const confirm = useConfirm()
   const { isAdmin, user, profile } = useAuth()
   const canImport = Boolean(profile || user)
   const selection = useRowSelection<string>()
   const [deleting, setDeleting] = useState(false)
+
   const { filters, setFilters, updateFilter } = usePageFilters<BlFilters>({
     search: '',
     voyageId: initialVoyage,
-    cargoMode: 'container',
+    cargoMode: initialMode || '',
     pol: initialPol,
     pod: initialPod,
     reviewStatus: '',
@@ -53,16 +118,21 @@ export function Manifestos() {
     page: 1,
     pageSize: 20,
   })
+
   const [blFreightOpen, setBlFreightOpen] = useState(false)
   const [ceMercanteOpen, setCeMercanteOpen] = useState(false)
+  const [breakbulkOpen, setBreakbulkOpen] = useState(false)
+  const [blDocumentOpen, setBlDocumentOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const { showToast } = useToast()
+
   const debouncedSearch = useDebouncedValue(filters.search)
   const queryFilters = useMemo(() => ({
     ...filters,
     search: debouncedSearch,
     page: debouncedSearch === filters.search ? filters.page : 1,
   }), [debouncedSearch, filters])
+
   const { data, isLoading, error, fetchStatus, refetch } = useBls(queryFilters)
   const { data: summary, isLoading: isSummaryLoading } = useBlSummary(queryFilters)
   const { data: portOptions } = usePortOptions()
@@ -72,11 +142,13 @@ export function Manifestos() {
   const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / filters.pageSize))
 
   const activeFilterCount = (
-    ['search', 'voyageId', 'pol', 'pod', 'reviewStatus', 'financialStatus', 'chargeStatus', 'cargoProfile'] as (keyof BlFilters)[]
+    ['search', 'voyageId', 'cargoMode', 'pol', 'pod', 'reviewStatus', 'financialStatus', 'chargeStatus', 'cargoProfile'] as (keyof BlFilters)[]
   ).filter((key) => String(filters[key] ?? '').trim() !== '').length
+
   const filterDescription = describeActiveFilters([
     { label: 'Texto', value: filters.search },
     { label: 'Viagem', value: filters.voyageId },
+    { label: 'Modalidade', value: filters.cargoMode },
     { label: 'POL', value: filters.pol },
     { label: 'POD', value: filters.pod },
     { label: 'Revisão', value: filters.reviewStatus },
@@ -84,19 +156,15 @@ export function Manifestos() {
     { label: 'Taxas', value: filters.chargeStatus },
     { label: 'Perfil', value: filters.cargoProfile },
   ])
+
   const emptyState = describeEmptyState({
     entitySingular: 'B/L',
     entityPlural: 'B/Ls',
     hasActiveFilters: activeFilterCount > 0,
-    emptyWithoutFilters: 'Nenhum B/L importado ainda.',
+    emptyWithoutFilters: 'Nenhum B/L cadastrado ainda.',
     emptyWithFilters: 'Nenhum B/L encontrado.',
   })
 
-  type ActionsMenuState = {
-    id: string
-    top: number
-    left: number
-  } | null
   const [actionsMenu, setActionsMenu] = useState<ActionsMenuState>(null)
   const actionsTriggerRef = useRef<HTMLButtonElement | null>(null)
   const actionsItemRef = useRef<HTMLButtonElement | null>(null)
@@ -147,6 +215,7 @@ export function Manifestos() {
       ...current,
       search: '',
       voyageId: '',
+      cargoMode: '',
       pol: '',
       pod: '',
       reviewStatus: '',
@@ -162,7 +231,7 @@ export function Manifestos() {
     try {
       const rows = await fetchAllBls(filters)
       if (!rows.length) {
-        showToast('Nenhum manifesto encontrado para exportar com os filtros atuais.', 'info')
+        showToast('Nenhum B/L encontrado para exportar com os filtros atuais.', 'info')
         return
       }
 
@@ -170,7 +239,7 @@ export function Manifestos() {
       await exportManifestWorkbook(rows)
       showToast(`Exportação concluída com ${rows.length} B/L(s).`, 'success')
     } catch {
-      showToast('Falha ao exportar manifestos.', 'error')
+      showToast('Falha ao exportar B/Ls.', 'error')
     } finally {
       setExporting(false)
     }
@@ -181,12 +250,12 @@ export function Manifestos() {
     try {
       const report = await checkBlDependencies(ids)
       if (report.deletableIds.length === 0) {
-        showToast(`Nenhum B/L pode ser excluido. ${formatBlockedSummary(report.blockedIds)}`, 'error')
+        showToast(`Nenhum B/L pode ser excluído. ${formatBlockedSummary(report.blockedIds)}`, 'error')
         return
       }
 
       const parts = [
-        `Excluir ${report.deletableIds.length} B/L(s)? Containers, break-bulk e veiculos vinculados serao excluidos junto. Esta acao e irreversivel.`,
+        `Excluir ${report.deletableIds.length} B/L(s)? Containers, carga solta e veículos vinculados serão excluídos junto. Esta ação é irreversível.`,
       ]
       if (report.blockedIds.length) parts.push(formatBlockedSummary(report.blockedIds))
       const ok = await confirm({ message: parts.join('\n\n'), tone: 'danger', confirmLabel: 'Excluir' })
@@ -203,7 +272,7 @@ export function Manifestos() {
         queryClient.invalidateQueries({ queryKey: ['voyages'] }),
         queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation'] }),
       ])
-      showToast(`${report.deletableIds.length} B/L(s) excluido(s).`, 'success')
+      showToast(`${report.deletableIds.length} B/L(s) excluído(s).`, 'success')
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'erro desconhecido'
       showToast(`Falha ao excluir B/L(s): ${detail}`, 'error')
@@ -219,36 +288,72 @@ export function Manifestos() {
   return (
     <>
       <PageHeader
-        title="BLs CNTR"
-        description="Consulta paginada de B/Ls de container e importação de planilhas. Cada B/L registra seu próprio trecho POL/POD dentro da viagem e vincula clientes pela base cadastral."
+        title="BLs"
+        description="Consulta consolidada de B/Ls de contêiner, carga solta e mistos. Cada B/L registra seu trecho POL/POD, terminal e vincula clientes pela base cadastral."
         action={
-          <div className="flex flex-wrap justify-end gap-2">
-            <Link
-              className="app-btn app-btn--secondary"
-              to={filters.voyageId ? `/containers?voyage=${filters.voyageId}` : '/containers'}
-            >
-              <Boxes size={16} />
-              Containers
-            </Link>
-            <Button variant="secondary" loading={exporting} onClick={handleExport}>
-              <Download size={16} />
-              Exportar
-            </Button>
+          <>
             {canImport ? (
-              <>
-                <Button variant="secondary" onClick={() => setCeMercanteOpen(true)}>
-                  <Upload size={16} />
-                  Importar CE Mercante
-                </Button>
+              <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
-                  <Upload size={16} />
-                  Importar B/L
+                  <Upload size={16} aria-hidden="true" />
+                  B/L CNTR
                 </Button>
-              </>
+                <Button variant="secondary" onClick={() => setBlDocumentOpen(true)}>
+                  <FileText size={16} aria-hidden="true" />
+                  B/L Carga Solta
+                </Button>
+                <Button variant="secondary" onClick={() => setBreakbulkOpen(true)}>
+                  <Upload size={16} aria-hidden="true" />
+                  Manifesto Carga solta
+                </Button>
+                <Button variant="secondary" onClick={() => setCeMercanteOpen(true)}>
+                  <Upload size={16} aria-hidden="true" />
+                  CE Mercante
+                </Button>
+              </div>
             ) : null}
-          </div>
+            <button
+              type="button"
+              className="app-btn app-btn--ghost app-btn--sm h-10 w-10 shrink-0 p-0"
+              aria-label="Exportar B/Ls"
+              title="Exportar B/Ls"
+              disabled={exporting}
+              onClick={() => void handleExport()}
+            >
+              {exporting ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+            </button>
+          </>
         }
       />
+
+      {/* Filtro Rápido de Modalidade */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-[var(--app-muted)]">Modalidade:</span>
+        <div className="inline-flex rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-0.5 text-xs">
+          {[
+            { label: 'Todos', value: '' },
+            { label: 'Contêiner', value: 'container' },
+            { label: 'Carga Solta', value: 'carga_solta' },
+            { label: 'Misto', value: 'misto' },
+          ].map((mode) => {
+            const active = (filters.cargoMode ?? '') === mode.value
+            return (
+              <button
+                key={mode.value}
+                type="button"
+                className={`rounded-md px-3 py-1 font-medium transition-colors ${
+                  active
+                    ? 'bg-[#1f6feb] text-white'
+                    : 'text-[var(--app-text)] hover:bg-[var(--app-surface-hover,#21262d)]'
+                }`}
+                onClick={() => updateFilter('cargoMode', mode.value as BlFilters['cargoMode'])}
+              >
+                {mode.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
       <FilterBar activeCount={activeFilterCount} onClear={clearFilters}>
         <div className="app-filter-grid">
@@ -285,7 +390,7 @@ export function Manifestos() {
               ))}
             </Select>
           </Field>
-          <Field label="Status revisao">
+          <Field label="Status revisão">
             <Select value={filters.reviewStatus} onChange={(event) => updateFilter('reviewStatus', event.target.value)}>
               <option value="">Todos</option>
               <option value="ok">OK</option>
@@ -329,8 +434,12 @@ export function Manifestos() {
           <MetricCard label="Pendentes revisão" value={isSummaryLoading ? '...' : summary?.pendingReview ?? 0} tone="primary" />
         </div>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-          <MetricCard label="B/Ls filtrados" value={isSummaryLoading ? '...' : summary?.totalBls ?? 0} />
+          <MetricCard label="BLs filtrados" value={isSummaryLoading ? '...' : summary?.totalBls ?? 0} />
           <MetricCard label="CNTRS" value={isSummaryLoading ? '...' : summary?.totalDistinctContainers ?? 0} />
+          <MetricCard
+            label="Carga Solta"
+            value={isSummaryLoading ? '...' : `${(summary?.totalWeightTon ?? 0).toLocaleString('pt-BR')} ton`}
+          />
           <MetricCard label="Sem faturamento" value={isSummaryLoading ? '...' : summary?.pendingFinancial ?? 0} />
           <MetricCard label="Taxas pendentes" value={isSummaryLoading ? '...' : summary?.chargePending ?? 0} />
           <MetricCard label="Faturados" value={isSummaryLoading ? '...' : summary?.chargeReady ?? 0} />
@@ -358,12 +467,12 @@ export function Manifestos() {
           isError={Boolean(error)}
           isPaused={fetchStatus === 'paused'}
           hasData={data !== undefined}
-          errorMessage="Erro ao carregar manifestos."
+          errorMessage="Erro ao carregar BLs."
           onRetry={() => void refetch()}
         >
         <div className="app-table-scroll app-table-scroll--sticky">
           <table className="app-table app-table--compact app-table--sticky-actions min-w-[920px] text-left text-sm whitespace-nowrap">
-            <caption className="sr-only">B/Ls de container filtrados</caption>
+            <caption className="sr-only">Tabela de BLs filtrados</caption>
             <thead>
               <tr>
                 {isAdmin ? (
@@ -382,7 +491,7 @@ export function Manifestos() {
                 <th scope="col" className="px-3 py-3">CNEE</th>
                 <th scope="col" className="px-3 py-3">POL</th>
                 <th scope="col" className="px-3 py-3">POD</th>
-                <th scope="col" className="px-3 py-3">CNTRS</th>
+                <th scope="col" className="px-3 py-3">Carga</th>
                 <th scope="col" className="px-3 py-3">Perfil</th>
                 <th scope="col" className="px-3 py-3">Taxas locais</th>
                 <th scope="col" className="px-3 py-3">Invoice</th>
@@ -417,7 +526,7 @@ export function Manifestos() {
                     </td>
                   ) : null}
                   <td className="px-3 py-3 font-semibold">
-                    <Link className="text-[#58a6ff] hover:underline" to={`/manifestos/${bl.id}`}>
+                    <Link className="text-[#58a6ff] hover:underline" to={`/bls/${bl.id}`}>
                       {bl.id}
                     </Link>
                   </td>
@@ -440,7 +549,9 @@ export function Manifestos() {
                   </td>
                   <td className="px-3 py-3">{bl.pol ?? '-'}</td>
                   <td className="px-3 py-3">{bl.pod ?? '-'}</td>
-                  <td className="px-3 py-3">{countDistinctContainerNumbers(bl.bl_containers)}</td>
+                  <td className="px-3 py-3 font-medium text-slate-200">
+                    {formatBlCargoBadge(bl)}
+                  </td>
                   <td className="px-3 py-3">
                     <CargoProfileBadge
                       isImo={Boolean(bl.bl_containers?.some((container) => container.is_imo))}
@@ -457,7 +568,7 @@ export function Manifestos() {
                     <div className="flex items-center gap-2">
                       <Link
                         className="app-table__action"
-                        to={`/manifestos/${bl.id}`}
+                        to={`/bls/${bl.id}`}
                       >
                         Abrir B/L
                       </Link>
@@ -468,7 +579,7 @@ export function Manifestos() {
                           aria-label={`Ações para B/L ${bl.id}`}
                           aria-haspopup="menu"
                           aria-expanded={actionsMenu?.id === bl.id}
-                          aria-controls="manifestos-actions-menu"
+                          aria-controls="bls-actions-menu"
                           onClick={(e) => openActionsMenu(bl.id, e.currentTarget)}
                           onKeyDown={(e) => {
                             if (e.key === 'ArrowDown') {
@@ -505,7 +616,7 @@ export function Manifestos() {
       {actionsMenu ? (
         <div
           data-actions-menu
-          id="manifestos-actions-menu"
+          id="bls-actions-menu"
           className="app-floating-menu"
           role="menu"
           style={{ top: actionsMenu.top, left: actionsMenu.left }}
@@ -518,49 +629,197 @@ export function Manifestos() {
               className="app-floating-menu__danger"
               disabled={deleting}
               onClick={() => {
-                const id = actionsMenu.id
+                const targetId = actionsMenu.id
                 setActionsMenu(null)
-                void runBlDelete([id])
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  event.preventDefault()
-                  setActionsMenu(null)
-                }
+                void runBlDelete([targetId])
               }}
             >
-              <Trash2 size={14} />
               Excluir B/L
             </button>
           ) : null}
         </div>
       ) : null}
 
-      <BlImportModal
-        key={`bl-import-${blFreightOpen ? 'open' : 'closed'}-${filters.voyageId}`}
-        open={blFreightOpen && canImport}
-        onClose={() => setBlFreightOpen(false)}
-        voyageId={filters.voyageId ? Number(filters.voyageId) : null}
-      />
-      <CeMercanteImportModal open={ceMercanteOpen && canImport} onClose={() => setCeMercanteOpen(false)} />
+      {/* Modais de Importação */}
+      {blFreightOpen ? (
+        <BlImportModal
+          open={blFreightOpen}
+          onClose={() => setBlFreightOpen(false)}
+          voyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
+        />
+      ) : null}
+
+      {ceMercanteOpen ? (
+        <CeMercanteImportModal
+          open={ceMercanteOpen}
+          onClose={() => setCeMercanteOpen(false)}
+          lockedVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
+        />
+      ) : null}
+
+      {breakbulkOpen ? (
+        <BreakbulkManifestUploadModal
+          open={breakbulkOpen}
+          onClose={() => setBreakbulkOpen(false)}
+          defaultVoyageId={filters.voyageId}
+        />
+      ) : null}
+
+      {blDocumentOpen ? (
+        <BlDocumentImportModal
+          onClose={() => setBlDocumentOpen(false)}
+          voyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
+        />
+      ) : null}
     </>
   )
 }
 
-function InvoiceLink({
-  links,
+function BreakbulkManifestUploadModal({
+  open,
+  onClose,
+  defaultVoyageId,
 }: {
-  links: Array<{ id: number; invoice_number: string | null; status: string | null }>
+  open: boolean
+  onClose: () => void
+  defaultVoyageId?: string
 }) {
-  if (!links.length) {
-    return <span className="text-xs text-[var(--app-muted-soft)]">-</span>
-  }
+  const [voyageId, setVoyageId] = useState(defaultVoyageId ?? '')
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const { showToast } = useToast()
 
-  const latest = links[0]
-  const label = latest.invoice_number ?? `INV-${latest.id}`
+  if (!open) return null
+
   return (
-    <Link className="text-[#58a6ff] hover:underline" to={`/taxas-locais?invoice=${latest.id}`}>
-      {label}
-    </Link>
+    <FileImportModal
+      title="Importar Manifesto Breakbulk (Carga Solta)"
+      accept=".xlsx,.xls,.csv"
+      parser={parseBreakbulkManifestFile}
+      inspectFile={inspectImportUpload}
+      importer={async (nextManifest, file, override) => {
+        if (!user || !voyageId) return
+        await importBreakbulkManifest({
+          filename: file.name,
+          voyageId: Number(voyageId),
+          manifest: nextManifest,
+          uploadedBy: user.id,
+          allowRowErrors: Boolean(override),
+        })
+        await afterManifestoImportado(queryClient, { voyageId })
+        showToast('Manifesto de carga solta importado com sucesso.', 'success')
+        setVoyageId('')
+        onClose()
+      }}
+      canImport={(nextManifest, override) =>
+        nextManifest.bls.length > 0 && (nextManifest.rowErrors.length === 0 || Boolean(override))
+      }
+      getIssues={(nextManifest) => rowErrorsToImportIssues(nextManifest.rowErrors)}
+      ready={Boolean(voyageId && user)}
+      prerequisite={
+        <VoyageCombobox
+          required
+          label="Viagem de destino"
+          selectedVoyageId={voyageId}
+          onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
+        />
+      }
+      renderPreview={(nextManifest) => <BreakbulkPreview manifest={nextManifest} />}
+      helper={
+        <div className="app-panel app-panel--padded text-sm">
+          <div className="app-panel__title">Estrutura obrigatória da planilha</div>
+          <div className="mt-2">BL, CE, MAQUINAS, PACKAGES, PACKAGES TOTAL, WEIGHT (TON), CBM (M3), SHIPPER, CONSIGNEE, NOTIFY.</div>
+          <div className="app-panel__meta mt-2">Colunas opcionais: CNPJ, POL, POD.</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a className="app-btn app-btn--secondary" href="/templates/carga-solta-modelo.xlsx" download="carga-solta-modelo.xlsx">
+              <Download size={16} />Baixar modelo .xlsx
+            </a>
+            <a className="app-btn app-btn--secondary" href="/templates/carga-solta-modelo.csv" download="carga-solta-modelo.csv">
+              <Download size={16} />Baixar modelo .csv
+            </a>
+          </div>
+        </div>
+      }
+      onClose={() => {
+        setVoyageId('')
+        onClose()
+      }}
+    />
   )
 }
+
+function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+        <PreviewBox label="B/Ls válidos" value={manifest.bls.length} variant="metric-strip" />
+        <PreviewBox
+          label="Máquinas"
+          value={manifest.bls.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0)}
+          variant="metric-strip"
+        />
+        <PreviewBox
+          label="Total de volumes"
+          value={manifest.bls.reduce((sum, bl) => sum + Number(bl.bb_packages_total ?? bl.bb_packages_qty ?? 0), 0)}
+          variant="metric-strip"
+        />
+        <PreviewBox
+          label="Peso (ton)"
+          value={manifest.bls.reduce(
+            (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
+            0,
+          )}
+          variant="metric-strip"
+        />
+        <PreviewBox
+          label="CBM (M3)"
+          value={manifest.bls.reduce((sum, bl) => sum + Number(bl.total_cbm ?? 0), 0)}
+          variant="metric-strip"
+        />
+        <PreviewBox label="Erros de parser" value={manifest.rowErrors.length} variant="metric-strip" />
+      </div>
+      <div className="app-table-scroll max-h-72 rounded-xl border border-[var(--app-border)]">
+        <table className="app-table app-table--compact min-w-[1220px] text-left text-sm whitespace-nowrap">
+          <thead>
+            <tr>
+              {['BL', 'CE', 'Máquinas', 'Volumes', 'Total de volumes', 'Peso (ton)', 'CBM (M3)', 'Shipper', 'Consignee', 'Notify'].map(
+                (label) => (
+                  <th key={label} scope="col" className="px-3 py-2">
+                    {label}
+                  </th>
+                ),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {manifest.bls.slice(0, 25).map((bl) => (
+              <tr key={bl.bl_id}>
+                <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{bl.bl_id}</td>
+                <td className="px-3 py-2">{bl.ce_mercante ?? '-'}</td>
+                <td className="px-3 py-2">{formatBBNumber(bl.bb_machine_qty)}</td>
+                <td className="px-3 py-2">{formatBBNumber(bl.bb_packages_qty)}</td>
+                <td className="px-3 py-2">{formatBBNumber(bl.bb_packages_total)}</td>
+                <td className="px-3 py-2">
+                  {formatBBNumber(bl.bb_weight_ton)}
+                </td>
+                <td className="px-3 py-2">{formatBBNumber(bl.total_cbm)}</td>
+                <td className="px-3 py-2">{bl.shipper ?? '-'}</td>
+                <td className="px-3 py-2">{bl.consignee ?? '-'}</td>
+                <td className="px-3 py-2">{bl.notify_party ?? '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <TruncationNote shown={25} total={manifest.bls.length} noun="B/L" nounPlural="B/Ls" />
+      <ImportIssuesPanel issues={rowErrorsToImportIssues(manifest.rowErrors)} filename="manifesto-bb-issues.csv" />
+    </div>
+  )
+}
+
+function formatBBNumber(value: number | null | undefined) {
+  if (value === null || value === undefined) return '-'
+  return Number(value).toLocaleString('pt-BR')
+}
+
+export default Bls

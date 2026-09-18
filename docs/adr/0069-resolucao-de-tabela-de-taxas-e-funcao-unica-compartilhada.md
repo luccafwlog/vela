@@ -10,7 +10,7 @@ escopo da tabela. Não altera o congelamento do valor na emissão (decisão 2 da
 
 ## Contexto
 
-A [spec de unificação de B/Ls](../spec/2026-09-16-unificacao-bls-carga-mista-design.md)
+A [spec de unificação de B/Ls](../archive/specs/2026-09-16-unificacao-bls-carga-mista-design.md)
 institui a modalidade `cargo_mode = 'misto'`: um mesmo conhecimento de embarque
 com contêineres e carga solta. A Tabela de Taxas Locais é cadastrada por escopo
 (POD, armador, condição de cliente) **e por modalidade de carga** —

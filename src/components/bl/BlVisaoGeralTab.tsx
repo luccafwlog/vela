@@ -10,6 +10,7 @@ import type { BlDisposition, VoyageOmission } from '../../services/transshipment
 import { BlPortalCard, type BlPortalStatus } from './BlPortalCard'
 import { resolveChargeStatusLabel } from '../../pages/blDetalheHelpers'
 import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
+import { BlTerminalOverrideCard, type BlTerminalOverrideOption } from './BlTerminalOverrideCard'
 
 const dt = (value: string | null | undefined) => value ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(value)) : '—'
 
@@ -33,7 +34,7 @@ function BaplieBadge({ status }: { status: BaplieStatus }) {
   }
 }
 
-export function BlVisaoGeralTab({ active, bl, cockpit, isContainerMode, containerSummary, breakbulkSummary, onCod, onRestore, disposition, omission, savingDisposition, portalStatus, baplieStatus }: {
+export function BlVisaoGeralTab({ active, bl, cockpit, isContainerMode, containerSummary, breakbulkSummary, onCod, onRestore, disposition, omission, savingDisposition, portalStatus, baplieStatus, terminalOptions, canEditTerminal, terminalOverrideSaving, terminalOverrideError, onSaveTerminalOverride }: {
   active: boolean
   bl: BLDetail
   cockpit: ReturnType<typeof useBlCockpit>['data']
@@ -47,6 +48,11 @@ export function BlVisaoGeralTab({ active, bl, cockpit, isContainerMode, containe
   savingDisposition?: boolean
   portalStatus?: BlPortalStatus
   baplieStatus?: BaplieStatus
+  terminalOptions?: BlTerminalOverrideOption[]
+  canEditTerminal?: boolean
+  terminalOverrideSaving?: boolean
+  terminalOverrideError?: string | null
+  onSaveTerminalOverride?: (input: { terminalId: string | null; podPortId: number | null; justification: string }) => void
 }) {
   if (!active) return null
   const effectiveDisposition: BlDisposition = disposition ?? 'transshipment'
@@ -66,13 +72,40 @@ export function BlVisaoGeralTab({ active, bl, cockpit, isContainerMode, containe
             ) : '—'}
           </Item>
           <Item label="Trecho">{`${bl.pol ?? '—'} → ${bl.pod ?? '—'}`}</Item>
+          <Item label="Terminal de Descarga">
+            {bl.terminal?.name ?? (bl.terminal_id ? `Terminal #${bl.terminal_id}` : 'Padrão da Escala')}
+          </Item>
           <Item label="Saída do POL">{cockpit?.polSchedule?.atd ? `ATD ${dt(cockpit.polSchedule.atd)}` : `ETD ${dt(cockpit?.polSchedule?.etd)}`}</Item>
           <Item label="Chegada ao POD">{cockpit?.podSchedule?.ata ? `ATA ${dt(cockpit.podSchedule.ata)}` : `ETA ${dt(cockpit?.podSchedule?.eta)}`}</Item>
         </dl>
       </Card>
     <Card>
       <h3 className="mb-3 text-sm font-semibold">Carga</h3>
-      {isContainerMode ? (
+      {bl.cargo_mode === 'misto' || (containerSummary.distinct > 0 && (breakbulkSummary.weightTon > 0 || breakbulkSummary.packagesTotal > 0)) ? (
+        <div className="space-y-4">
+          <div>
+            <div className="mb-1 text-xs font-semibold text-[var(--app-muted)]">Contêineres</div>
+            <dl className="grid gap-2 text-sm sm:grid-cols-3">
+              <Item label="Containers">{String(containerSummary.distinct)}</Item>
+              <Item label="IMO">{String(containerSummary.imo)}</Item>
+              <Item label="OOG">{String(containerSummary.oog)}</Item>
+            </dl>
+            {bl.voyage_id && baplieStatus ? (
+              <Link to={`/baplie?voyage=${bl.voyage_id}`} className="mt-3 inline-block">
+                <BaplieBadge status={baplieStatus} />
+              </Link>
+            ) : null}
+          </div>
+          <div>
+            <div className="mb-1 text-xs font-semibold text-[var(--app-muted)]">Carga Solta</div>
+            <dl className="grid gap-2 text-sm sm:grid-cols-3">
+              <Item label="Máquinas">{String(breakbulkSummary.machines)}</Item>
+              <Item label="Packages">{String(breakbulkSummary.packagesTotal)}</Item>
+              <Item label="Peso (t)">{String(breakbulkSummary.weightTon)}</Item>
+            </dl>
+          </div>
+        </div>
+      ) : isContainerMode ? (
         <>
           <dl className="grid gap-2 text-sm sm:grid-cols-3">
             <Item label="Containers">{String(containerSummary.distinct)}</Item>
@@ -101,8 +134,22 @@ export function BlVisaoGeralTab({ active, bl, cockpit, isContainerMode, containe
             <div className="text-[var(--app-muted)]">{bl.customer.cnpj_cpf}</div>
           </div>
         ) : <Badge tone="yellow">Sem cliente vinculado</Badge>}
-        <Link className="mt-2 inline-block text-sm font-semibold text-[#58a6ff] hover:underline" to={`/manifestos/${bl.id}?tab=faturamento`}>Abrir Faturamento →</Link>
+        <Link className="mt-2 inline-block text-sm font-semibold text-[#58a6ff] hover:underline" to={`/bls/${bl.id}?tab=faturamento`}>Abrir Faturamento →</Link>
       </Card>
+      {terminalOptions ? (
+        <div className="lg:col-span-2">
+          <BlTerminalOverrideCard
+            key={`${bl.id}:${bl.terminal_id ?? 'inherit'}:${bl.pod_port_id ?? 'none'}`}
+            terminalId={bl.terminal_id}
+            podPortId={bl.pod_port_id}
+            options={terminalOptions}
+            canEdit={canEditTerminal ?? false}
+            saving={terminalOverrideSaving}
+            error={terminalOverrideError}
+            onSave={onSaveTerminalOverride}
+          />
+        </div>
+      ) : null}
       <Card>
         <h3 className="mb-3 text-sm font-semibold">Financeiro</h3>
         <dl className="grid gap-2 text-sm sm:grid-cols-2">

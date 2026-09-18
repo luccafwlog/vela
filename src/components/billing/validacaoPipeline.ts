@@ -1,6 +1,7 @@
 import { isCustomerReconciliationResolved } from '../../services/customerReconciliation'
 import { extractReviewReasons } from '../../hooks/useReview'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
+import { isContainerCargoMode } from '../../lib/cargoMode'
 import type { BillingBlockCode } from './validacaoTypes'
 
 // B/L reconciliado que ainda não é faturável: preso entre a conciliação de cliente
@@ -104,7 +105,7 @@ export function getBillingBlock(row: {
     return { code: 'calculo_incompleto', label: 'Cálculo incompleto', detail: row.billing_hold_reason }
   }
   const mode = row.cargo_mode ?? 'container'
-  if (!row.ce_mercante?.trim() && (mode === 'container' || mode === '' || mode === 'granito')) {
+  if (!row.ce_mercante?.trim() && (isContainerCargoMode(mode) || mode === '' || mode === 'granito')) {
     return { code: 'aguardando_ce', label: 'Aguardando CE Mercante', detail: 'Aguardando cadastro do CE Mercante para emitir a fatura.' }
   }
   if (portalOnly) {
@@ -167,7 +168,7 @@ export function isAwaitingCeMercante(row: {
   customer_reconciliation_status: string | null
 }) {
   return (
-    (row.cargo_mode ?? 'container') === 'container' &&
+    isContainerCargoMode(row.cargo_mode ?? 'container') &&
     (row.financial_status ?? 'pending') === 'pending' &&
     !row.ce_mercante?.trim() &&
     // Achado 9 da review da PR 501: sem isto o card "Aguardando CE" contava

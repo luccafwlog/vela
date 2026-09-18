@@ -36,7 +36,7 @@ O fluxo canônico detalhado está em [ARCHITECTURE.md](ARCHITECTURE.md#fluxo-ope
 | Módulo | Doc | Rotas |
 |---|---|---|
 | Viagens | [modules/viagens.md](modules/viagens.md) | `/viagens`, `/viagens/:voyageId` |
-| Manifestos & EDI (import) | [modules/manifesto-edi.md](modules/manifesto-edi.md) | `/manifestos`, `/carga-solta`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios` |
+| BLs & EDI (import) | [modules/manifesto-edi.md](modules/manifesto-edi.md) | `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios` |
 | Granito | [modules/granito.md](modules/granito.md) | `/granito`, `/granito/taxas` |
 | Chegadas/Saídas | [modules/chegadas-saidas.md](modules/chegadas-saidas.md) | `/chegadas-saidas` |
 | Clientes | [modules/clientes.md](modules/clientes.md) | `/clientes`, `/clientes/:cnpj` |

@@ -81,7 +81,7 @@ function supabaseValue<T>(data: unknown): T {
 export type BlFilters = {
   search: string
   voyageId: string
-  cargoMode?: 'container' | 'carga_solta' | ''
+  cargoMode?: 'container' | 'carga_solta' | 'misto' | ''
   pol: string
   pod: string
   reviewStatus: string
@@ -95,7 +95,7 @@ export type BlFilters = {
 export type ContainerFilters = {
   search: string
   voyageId: string
-  cargoMode?: 'container' | 'carga_solta' | ''
+  cargoMode?: 'container' | 'carga_solta' | 'misto' | ''
   pol: string
   pod: string
   reviewStatus: string
@@ -218,6 +218,7 @@ export function useBlDetail(blId?: string) {
           *,
           customer:customers!bls_customer_id_fkey(*),
           voyage:voyages(*, vessel:vessels(*, carrier:carriers(*))),
+          terminal:depots!bls_terminal_pod_port_fk(id, name),
           bl_containers(*),
           bl_freight_lines(*),
           bl_breakbulk_items(*),
@@ -366,7 +367,9 @@ function applyBlFilters(query: ReturnType<typeof supabase.from>, filters: BlFilt
   }
 
   if (filters.voyageId) nextQuery = nextQuery.eq('voyage_id', Number(filters.voyageId))
-  if (filters.cargoMode) nextQuery = nextQuery.eq('cargo_mode', filters.cargoMode)
+  if (filters.cargoMode === 'container') nextQuery = nextQuery.in('cargo_mode', ['container', 'misto'])
+  else if (filters.cargoMode === 'carga_solta') nextQuery = nextQuery.in('cargo_mode', ['carga_solta', 'misto'])
+  else if (filters.cargoMode) nextQuery = nextQuery.eq('cargo_mode', filters.cargoMode)
   if (filters.pol) {
     const pol = escapeFilterTerm(filters.pol)
     if (pol) nextQuery = nextQuery.ilike('pol', `%${pol}%`)

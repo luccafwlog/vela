@@ -199,8 +199,10 @@ describe('getAgencyReportDerivedData', () => {
 
   it('agrega a carga solta dos B/Ls Breakbulk apenas no porto da escala', async () => {
     const breakbulkQuery = queryBuilder([
+      // total_weight_kg é peso de contêiner e não entra na tonelagem de carga
+      // solta: desde a migration 061 as duas colunas são disjuntas.
       { bb_machine_qty: 2, bb_packages_qty: 8, bb_weight_ton: 3.5, total_weight_kg: 9999, total_cbm: 12.25 },
-      { bb_machine_qty: 1, bb_packages_qty: 4, bb_weight_ton: null, total_weight_kg: 2500, total_cbm: 7.75 },
+      { bb_machine_qty: 1, bb_packages_qty: 4, bb_weight_ton: 2.5, total_weight_kg: null, total_cbm: 7.75 },
     ])
     fromMock.mockImplementation((table: string) => table === 'bls' ? breakbulkQuery : queryBuilder())
     schedulesMock.mockResolvedValue(new Map())
@@ -210,7 +212,7 @@ describe('getAgencyReportDerivedData', () => {
     })
 
     expect(breakbulkQuery.eq).toHaveBeenCalledWith('voyage_id', 7)
-    expect(breakbulkQuery.eq).toHaveBeenCalledWith('cargo_mode', 'carga_solta')
+    expect(breakbulkQuery.in).toHaveBeenCalledWith('cargo_mode', ['carga_solta', 'misto'])
     expect(breakbulkQuery.in).toHaveBeenCalledWith('pod', expect.arrayContaining(['BRSSZ']))
   })
 

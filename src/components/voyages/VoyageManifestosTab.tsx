@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Pencil } from 'lucide-react'
 import { useVoyageTransshipments } from '../../hooks/useTransshipments'
+import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { formatDate } from '../../lib/utils'
@@ -29,6 +30,7 @@ export function VoyageManifestosTab({
   onEditPol: (payload: EditingPolPayload) => void
 }) {
   const { data: transshipmentData } = useVoyageTransshipments(voyage.id)
+  const { data: dbManifestos } = useManifestosMercanteByVoyage(voyage.id)
   const manifestRows = collectVoyageManifestBatchRows({
     voyageId: voyage.id,
     batches: importBatches,
@@ -40,7 +42,13 @@ export function VoyageManifestosTab({
     vaziosRoutes,
   })
   const totalBls = manifestRows.reduce((total, row) => total + row.blCount, 0)
-  const pendingManifestCount = manifestRows.filter((row) => (row.blCount > 0 || row.isVazios) && !row.ceMaster).length
+  const hasRouteManifest = (pol: string, pod: string, ceMaster: string | null) => {
+    if (ceMaster) return true
+    return (dbManifestos ?? []).some((m) => m.pol === pol && m.pod === pod)
+  }
+  const pendingManifestCount = manifestRows.filter(
+    (row) => (row.blCount > 0 || row.isVazios) && !hasRouteManifest(row.pol, row.pod, row.ceMaster),
+  ).length
 
   return (
     <>
@@ -83,7 +91,7 @@ export function VoyageManifestosTab({
                     const modeTone = row.modeLabel === 'BB' ? 'yellow' : row.modeLabel === 'VAZIOS' ? 'slate' : row.modeLabel === 'CNTR/BB' ? 'slate' : 'blue'
                     const routeTargetUrl = row.isVazios
                       ? `/vazios-importacao?voyage=${voyage.id}&pod=${encodeURIComponent(row.pod)}`
-                      : `/manifestos?voyage=${voyage.id}&pol=${encodeURIComponent(row.pol)}&pod=${encodeURIComponent(row.pod)}`
+                      : `/bls?voyage=${voyage.id}&pol=${encodeURIComponent(row.pol)}&pod=${encodeURIComponent(row.pod)}`
                     return (
                     <tr key={`${voyage.id}-manifest-${row.routeKey}`}>
                       <td className="px-3 py-2 align-middle">
@@ -123,30 +131,55 @@ export function VoyageManifestosTab({
                         )}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        {row.ceMaster ? (
-                          <span className="font-mono text-xs text-[var(--app-text-strong)]">{row.ceMaster}</span>
-                        ) : (row.blCount > 0 || row.isVazios) ? (
-                          <button
-                            type="button"
-                            className="app-badge app-badge--yellow cursor-pointer gap-1 px-2 py-0.5 text-[10px] transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
-                            aria-label={`Informar CE Master de ${row.routeLabel}`}
-                            title="Informar CE Master"
-                            onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
-                            disabled={!row.pol || row.pol === '-'}
-                          >
-                            <Pencil size={11} aria-hidden="true" />
-                            <span>Informar</span>
-                          </button>
-                        ) : (
-                          <span className="text-[var(--app-muted-soft)]">-</span>
-                        )}
+                        {(() => {
+                          const routeManifestos = (dbManifestos ?? []).filter(
+                            (m) => m.pol === row.pol && m.pod === row.pod,
+                          )
+                          if (routeManifestos.length > 0) {
+                            return (
+                              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                                {routeManifestos.map((m) => (
+                                  <span
+                                    key={m.id}
+                                    className="inline-flex items-center gap-1 rounded bg-[var(--app-surface-hover)] px-1.5 py-0.5 font-mono text-xs text-[var(--app-text-strong)]"
+                                    title={`Manifesto Mercante: ${m.numero} (${m.natureza})`}
+                                  >
+                                    <span>{m.numero}</span>
+                                    <Badge tone={m.natureza === 'vazio' ? 'slate' : 'blue'} className="px-1 py-0 text-[9px] font-sans">
+                                      {m.natureza}
+                                    </Badge>
+                                  </span>
+                                ))}
+                              </div>
+                            )
+                          }
+                          if (row.ceMaster) {
+                            return <span className="font-mono text-xs text-[var(--app-text-strong)]">{row.ceMaster}</span>
+                          }
+                          if (row.blCount > 0 || row.isVazios) {
+                            return (
+                              <button
+                                type="button"
+                                className="app-badge app-badge--yellow cursor-pointer gap-1 px-2 py-0.5 text-[10px] transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+                                aria-label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
+                                title="Informar Nº de Manifesto Mercante"
+                                onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
+                                disabled={!row.pol || row.pol === '-'}
+                              >
+                                <Pencil size={11} aria-hidden="true" />
+                                <span>Informar</span>
+                              </button>
+                            )
+                          }
+                          return <span className="text-[var(--app-muted-soft)]">-</span>
+                        })()}
                       </td>
                       <td className="px-3 py-2 text-center">
                         <Button
                           variant="secondary"
                           className="app-voyage-icon-btn"
-                          aria-label={`Editar ETD previsto + ATD POL e CE Master de ${row.routeLabel}`}
-                          title="Editar ETD previsto + ATD POL e CE Master"
+                          aria-label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
+                          title="Editar ETD previsto + ATD POL e Nº de Manifesto Mercante"
                           onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
                           disabled={!row.pol || row.pol === '-'}
                         >

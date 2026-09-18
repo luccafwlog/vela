@@ -72,3 +72,56 @@ it('invalida caches e informa parcialidade no EDI de Granito', async () => {
   await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalled())
   expect(mocks.showToast).toHaveBeenCalledWith('Importacao parcial: 1 gravado(s), 1 pendencia(s).', 'error')
 })
+
+it('oferece campo de Nº de Manifesto Mercante e nao exibe rotulo equivocado "Manifesto detectado:"', async () => {
+  mocks.parseEdi.mockResolvedValue({
+    manifestRef: 'M_TOKEN_1',
+    rows: [{ lineNumber: 1, bl_id: 'BL001', ce_mercante: '122605051526081' }],
+    rowErrors: [],
+  })
+
+  const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
+
+  // Deve haver o campo para informar o Nº de Manifesto Mercante
+  expect(screen.getByLabelText(/Nº de Manifesto Mercante/i)).toBeTruthy()
+
+  // Ao carregar EDI com manifestRef
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['edi'], 'ce.edi')] },
+  })
+
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement).disabled).toBe(false),
+  )
+
+  // NÃO deve exibir o rótulo equivocado "Manifesto detectado:"
+  expect(screen.queryByText(/Manifesto detectado:/i)).toBeNull()
+})
+
+it('envia o Nº de Manifesto Mercante junto com a importação de planilha', async () => {
+  const row = { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }
+  mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [] })
+  mocks.importRows.mockResolvedValue({
+    processed: 1,
+    updated: 1,
+    overwritten: 0,
+    unchanged: 0,
+    errorCount: 0,
+    errors: [],
+  })
+
+  const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
+  fireEvent.change(screen.getByPlaceholderText('Ex.: 26BR000001'), { target: { value: ' 26BR000001 ' } })
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'ce.xlsx')] },
+  })
+
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement).disabled).toBe(false),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar importação' }))
+
+  await waitFor(() => expect(mocks.importRows).toHaveBeenCalledWith([row], expect.objectContaining({
+    manifestoNumero: '26BR000001',
+  })))
+})

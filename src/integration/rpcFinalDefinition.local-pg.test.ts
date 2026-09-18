@@ -91,7 +91,7 @@ describeLocal('contrato SQL das definições finais das RPCs de omissão', () =>
     expect(cod).not.toContain('onward_vessel_name')
     expect(cod).not.toContain('onward_carrier')
     expect(cod).toContain('update public.bls set pod = v_discharge')
-    expect(cod).toContain('select pod, customer_id into v_old_pod, v_customer from public.bls where id = p_bl_id for update')
+    expect(cod).toContain('select pod, customer_id, terminal_id, pod_port_id into v_old_pod, v_customer, v_old_terminal, v_old_pod_port_id from public.bls where id = p_bl_id for update')
     expect(cod).toContain('insert into public.portal_notifications(customer_id, bl_id, type, title, message, link)')
     expect(cod).toContain('to_regprocedure(\'public.apply_cod_financial_effect(text,bigint,text)\')')
 

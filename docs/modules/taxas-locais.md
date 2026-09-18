@@ -1,6 +1,6 @@
 # Taxas Locais
 
-> **Status:** ativo · **Atualizado:** 2026-09-01 · **Rotas:** operação em `/taxas-locais`; cadastro em `/taxas-locais/tabelas`; ações operacionais também partem de `/revisao` e `/manifestos/:blId`
+> **Status:** ativo · **Atualizado:** 2026-09-17 · **Rotas:** operação em `/taxas-locais`; cadastro em `/taxas-locais/tabelas`; ações operacionais também partem de `/revisao` e `/bls/:blId`
 
 ## Propósito e escopo
 
@@ -70,7 +70,7 @@ Os formulários e defaults vivem em
 
 ### Superfícies operacionais fora da rota
 
-- `src/components/bl/BlCobrancasTab.tsx`, em `/manifestos/:blId`, lista linhas,
+- `src/components/bl/BlCobrancasTab.tsx`, em `/bls/:blId`, lista linhas,
   calcula/recalcula um B/L, mantém cobranças manuais e promove os estados
   `reviewed` e `ready_for_billing`.
 - `src/pages/Revisao.tsx` e

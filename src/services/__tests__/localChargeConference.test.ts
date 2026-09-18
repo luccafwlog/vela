@@ -23,7 +23,7 @@ describe('buildLocalChargeConferenceRows', () => {
               // formato de uma relacao aninhada bl_containers->bls.
               return {
                 in: vi.fn(() => ({
-                  eq: vi.fn(() =>
+                  in: vi.fn(() =>
                     Promise.resolve({
                       data: [
                         { id: 'BL1', voyage_id: 10 },

@@ -7,7 +7,7 @@ const sourceRoot = resolve(process.cwd(), 'src')
 describe('contrato de override dos importadores operacionais', () => {
   it.each([
     ['components/shared/VoyageImportActions.tsx', 'allowRowErrors: Boolean(override)'],
-    ['pages/CargaSolta.tsx', 'allowRowErrors: Boolean(override)'],
+    ['pages/Bls.tsx', 'allowRowErrors: Boolean(override)'],
     ['pages/VaziosImportacao.tsx', 'allowRowErrors: Boolean(override)'],
     ['components/shared/BlDocumentImportModal.tsx', 'allowRowErrors: Boolean(allowOverride)'],
   ])('%s encaminha confirmação explícita ao serviço', (relativePath, expected) => {

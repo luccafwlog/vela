@@ -41,9 +41,9 @@ INSERT INTO customer_contact_box_links (contact_id, box_code) VALUES
   (9902, 'financeiro'),
   (9903, 'documentacao_operacao');
 
-INSERT INTO bls (id, voyage_id, customer_id, pod, cargo_mode) VALUES
-  ('BL-ACME-1', 9901, 9901, 'BRSSZ', 'container'),
-  ('BL-BETA-1', 9901, 9902, 'BRSSZ', 'carga_solta');
+INSERT INTO bls (id, voyage_id, customer_id, pod, cargo_mode, bb_weight_ton) VALUES
+  ('BL-ACME-1', 9901, 9901, 'BRSSZ', 'container', NULL),
+  ('BL-BETA-1', 9901, 9902, 'BRSSZ', 'carga_solta', 1);
 
 -- Escala com ETA dentro da janela D-5 (fonte real: audit_logs).
 INSERT INTO audit_logs (entity_type, entity_id, field_name, new_value, changed_at) VALUES

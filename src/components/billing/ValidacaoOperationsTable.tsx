@@ -13,6 +13,7 @@ import type { LocalChargeOperationalRow } from '../../services/charges/chargeOpe
 import { ConferenciaCalculo } from './ConferenciaCalculo.tsx'
 import { getBillingBlock, isBlLockedForRecalc } from './validacaoPipeline'
 import { calloutTitle, calloutTone, describeLastEvent } from './validacaoDetalhes'
+import { cargoModeLabel } from '../../lib/cargoMode'
 
 type ReconciliationQueueItem = {
   id: number
@@ -112,13 +113,13 @@ export function ValidacaoOperationsTable({
                     <td className="px-4 py-3 font-semibold text-[var(--app-blue-btn)]">
                       <Link
                         className="hover:underline"
-                        to={row.cargo_mode === 'granito' ? '/granito' : `/manifestos/${encodeURIComponent(row.id)}`}
+                        to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${encodeURIComponent(row.id)}`}
                       >
                         {row.id}
                       </Link>
                     </td>
                     <td className="px-4 py-3"><div className="max-w-[360px] whitespace-normal"><Badge tone={blockTone(block.code)}>{block.label}</Badge>{isExpanded ? null : <div className="mt-1 text-xs text-[var(--app-muted)]">{block.detail}</div>}</div></td>
-                    <td className="px-4 py-3">{row.cargo_mode === 'carga_solta' ? 'Carga Solta' : row.cargo_mode === 'granito' ? 'Granito' : 'Container'}</td>
+                    <td className="px-4 py-3">{cargoModeLabel(row.cargo_mode)}</td>
                     <td className="px-4 py-3">{row.voyage?.vessel?.name ?? '-'} / {row.voyage?.voyage_number ?? '-'}</td>
                     <td className="px-4 py-3">{renderChargeStatus(row.charge_status, row.financial_status, row.cargo_mode)}</td>
                     <td className="px-4 py-3"><span className="app-table__truncate app-table__truncate--lg" title={row.customer?.name ?? '-'}>{row.customer?.name ?? '-'}</span></td>
@@ -242,7 +243,7 @@ export function ValidacaoOperationsTable({
                             <div className="mt-1">
                               <Link
                                 className="app-table__action"
-                                to={row.cargo_mode === 'granito' ? '/granito' : `/manifestos/${row.id}`}
+                                to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${row.id}`}
                               >
                                 Abrir B/L →
                               </Link>
@@ -278,7 +279,7 @@ function BlockResolutionLink({ blId, code, customerCnpj }: { blId: string; code:
   }
   if (code === 'aguardando_ce') {
     return (
-      <Link className="app-table__action" to={`/manifestos/${encodeURIComponent(blId)}`}>
+      <Link className="app-table__action" to={`/bls/${encodeURIComponent(blId)}`}>
         Cadastrar CE Mercante na ficha do B/L →
       </Link>
     )

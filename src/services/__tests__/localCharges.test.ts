@@ -28,8 +28,8 @@ function createBuilder(result: { data: unknown; error: unknown }) {
     select: vi.fn(() => builder),
     order: vi.fn(() => builder),
     eq: vi.fn(() => builder),
-    ilike: vi.fn(() => builder),
     in: vi.fn(() => builder),
+    ilike: vi.fn(() => builder),
     limit: vi.fn(() => builder),
     overrideTypes: vi.fn(() => builder),
     maybeSingle: vi.fn(() => Promise.resolve(result)),
@@ -269,6 +269,7 @@ describe('localCharges service', () => {
       const builder = {
         order: vi.fn(() => builder),
         eq: vi.fn(() => builder),
+        in: vi.fn(() => builder),
         ilike: vi.fn(() => builder),
         or: vi.fn(() => builder),
         overrideTypes: vi.fn(() => builder),

@@ -9,7 +9,7 @@ const stage = (key: string, label: string, state: 'done' | 'pending' | 'blocked'
 
 describe('BlRailsPipeline', () => {
   it('mostra os dois trilhos, o resumo documental e a proxima acao', () => {
-    render(<MemoryRouter><BlRailsPipeline operational={[stage('pol', 'Saída do POL', 'done'), stage('pod', 'Chegada ao POD', 'pending')]} documental={[stage('customer', 'Cliente', 'done', 'Cliente apto'), stage('ce', 'CE Mercante', 'blocked', 'Pendente · bloqueia emissão e Portal')]} documentalSummary={{ pendingCount: 1, label: '1 pendência' }} nextAction={{ key: 'ce', label: 'CE Mercante', detail: 'Pendente · bloqueia emissão e Portal', state: 'blocked', href: '/manifestos/BL1?tab=detalhes' }} /></MemoryRouter>)
+    render(<MemoryRouter><BlRailsPipeline operational={[stage('pol', 'Saída do POL', 'done'), stage('pod', 'Chegada ao POD', 'pending')]} documental={[stage('customer', 'Cliente', 'done', 'Cliente apto'), stage('ce', 'CE Mercante', 'blocked', 'Pendente · bloqueia emissão e Portal')]} documentalSummary={{ pendingCount: 1, label: '1 pendência' }} nextAction={{ key: 'ce', label: 'CE Mercante', detail: 'Pendente · bloqueia emissão e Portal', state: 'blocked', href: '/bls/BL1?tab=detalhes' }} /></MemoryRouter>)
     expect(screen.getByText('Operacional')).toBeTruthy()
     expect(screen.getByText('Documental')).toBeTruthy()
     expect(screen.getByLabelText('Pendências documentais: 1 pendência')).toBeTruthy()

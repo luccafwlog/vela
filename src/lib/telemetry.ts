@@ -65,7 +65,7 @@ const VERCEL_TELEMETRY_BASE_URL = 'https://telemetry.invalid'
 const VERCEL_DYNAMIC_ROUTE_REDACTIONS: Array<[RegExp, string]> = [
   [/^\/clientes\/portal\/inspecao\/[^/]+(?=\/|$)/, '/clientes/portal/inspecao/:customerId'],
   [/^\/clientes\/[^/]+(?=\/|$)/, '/clientes/:cnpj'],
-  [/^\/manifestos\/[^/]+(?=\/|$)/, '/manifestos/:blId'],
+  [/^\/bls\/[^/]+(?=\/|$)/, '/bls/:blId'],
   [/^\/viagens\/[^/]+(?=\/|$)/, '/viagens/:voyageId'],
 ]
 

@@ -80,8 +80,31 @@ describe('portalOperation', () => {
             status: 'devolvido',
           },
         ],
+        cargo_mode: null,
+        bb_weight_ton: null,
+        bb_packages_qty: null,
       },
     ])
+  })
+
+  it('normaliza B/Ls operacionais com dados de carga mista', () => {
+    const rows = normalizePortalOperationRows([
+      {
+        bl_id: 'BL-MISTO',
+        cargo_mode: 'misto',
+        bb_weight_ton: '15.75',
+        bb_packages_qty: '12',
+        container_count: '1',
+      },
+    ])
+
+    expect(rows[0]).toMatchObject({
+      bl_id: 'BL-MISTO',
+      cargo_mode: 'misto',
+      bb_weight_ton: 15.75,
+      bb_packages_qty: 12,
+      container_count: 1,
+    })
   })
 
   it('usa defaults quando o RPC traz containers e contadores nulos', () => {

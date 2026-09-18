@@ -1,5 +1,5 @@
 import { Suspense, useEffect, type ReactNode } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { Analytics } from '@vercel/analytics/react'
 import { routeTitle } from './lib/pageTitle'
 import { AppLayout } from './components/layout/AppLayout'
@@ -17,9 +17,8 @@ const PortalProfile = lazyPage(() => import('./pages/PortalProfile'), 'PortalPro
 const PortalInspection = lazyPage(() => import('./pages/PortalInspection'), 'PortalInspection')
 const Painel = lazyPage(() => import('./pages/Painel'), 'Painel')
 const Viagens = lazyPage(() => import('./pages/Viagens'), 'Viagens')
-const Manifestos = lazyPage(() => import('./pages/Manifestos'), 'Manifestos')
+const Bls = lazyPage(() => import('./pages/Bls'), 'Bls')
 const Containers = lazyPage(() => import('./pages/Containers'), 'Containers')
-const CargaSolta = lazyPage(() => import('./pages/CargaSolta'), 'CargaSolta')
 const Veiculos = lazyPage(() => import('./pages/Veiculos'), 'Veiculos')
 const BlDetalhe = lazyPage(() => import('./pages/BlDetalhe'), 'BlDetalhe')
 const Revisao = lazyPage(() => import('./pages/Revisao'), 'Revisao')
@@ -32,20 +31,20 @@ const TaxasLocaisTabelas = lazyPage(() => import('./pages/TaxasLocaisTabelas'), 
 const Alertas = lazyPage(() => import('./pages/Alertas'), 'Alertas')
 const AlertasRegras = lazyPage(() => import('./pages/AlertasRegras'), 'AlertasRegras')
 const Relatorios = lazyPage(() => import('./pages/Relatorios'), 'Relatorios')
-const LineUpTVDisplay = lazyPage(() => import('./pages/LineUpTVDisplay'), 'LineUpTVDisplay')
-const Admin = lazyPage(() => import('./pages/Admin'), 'Admin')
-const NaoEncontrado = lazyPage(() => import('./pages/NaoEncontrado'), 'NaoEncontrado')
 const Demurrage = lazyPage(() => import('./pages/Demurrage'), 'Demurrage')
+const DemurrageRates = lazyPage(() => import('./pages/DemurrageRates'), 'DemurrageRates')
 const Reconciliacao = lazyPage(() => import('./pages/Reconciliacao'), 'Reconciliacao')
 const Granite = lazyPage(() => import('./pages/Granite'), 'Granite')
 const GraniteRates = lazyPage(() => import('./pages/GraniteRates'), 'GraniteRates')
-const DepotCadastro = lazyPage(() => import('./pages/DepotCadastro'), 'DepotCadastro')
-const DemurrageRates = lazyPage(() => import('./pages/DemurrageRates'), 'DemurrageRates')
 const EmbarqueVazios = lazyPage(() => import('./pages/EmbarqueVazios'), 'EmbarqueVazios')
+const DepotCadastro = lazyPage(() => import('./pages/DepotCadastro'), 'DepotCadastro')
 const VaziosImportacao = lazyPage(() => import('./pages/VaziosImportacao'), 'VaziosImportacao')
 const BaplieEDI = lazyPage(() => import('./pages/Baplie'), 'Baplie')
 const ChegadasSaidas = lazyPage(() => import('./pages/ChegadasSaidas'), 'ChegadasSaidas')
+const Admin = lazyPage(() => import('./pages/Admin'), 'Admin')
 const Profile = lazyPage(() => import('./pages/Profile'), 'Profile')
+const NaoEncontrado = lazyPage(() => import('./pages/NaoEncontrado'), 'NaoEncontrado')
+const LineUpTVDisplay = lazyPage(() => import('./pages/LineUpTVDisplay'), 'LineUpTVDisplay')
 
 function RouteLoading() {
   return (
@@ -74,6 +73,11 @@ function LegacyFaturamentoRedirect() {
   return <Navigate to={toRouteTarget(resolveLegacyFaturamentoRedirect(search))} replace />
 }
 
+function LegacyCargaSoltaRedirect() {
+  const { blId } = useParams<{ blId: string }>()
+  return <Navigate to={blId ? `/bls/${blId}` : '/bls'} replace />
+}
+
 function TaxasLocaisRoute() {
   const { search } = useLocation()
   const redirect = resolveTaxasLocaisRedirect(search)
@@ -86,8 +90,8 @@ const routePreloads: RoutePreloadTable = [
   ['/login', Login.preload], ['/line-up-tv/display', LineUpTVDisplay.preload],
   ['/clientes/portal/inspecao/:customerId', PortalInspection.preload],
   ['/painel', Painel.preload], ['/viagens/:voyageId', Viagens.preload], ['/viagens', Viagens.preload],
-  ['/manifestos/:blId', BlDetalhe.preload], ['/manifestos', Manifestos.preload], ['/containers', Containers.preload],
-  ['/carga-solta', CargaSolta.preload], ['/veiculos', Veiculos.preload], ['/revisao', Revisao.preload],
+  ['/bls/:blId', BlDetalhe.preload], ['/bls', Bls.preload], ['/containers', Containers.preload],
+  ['/veiculos', Veiculos.preload], ['/revisao', Revisao.preload],
   ['/clientes/comunicacao', ClientesComunicacao.preload], ['/clientes/portal', ClientesPortal.preload], ['/clientes/:cnpj', ClienteFicha.preload], ['/clientes', Clientes.preload],
   ['/taxas-locais/tabelas', TaxasLocaisTabelas.preload], ['/taxas-locais', TaxasLocais.preload],
   ['/faturamento', TaxasLocais.preload], ['/alertas/regras', AlertasRegras.preload], ['/alertas', Alertas.preload],
@@ -130,11 +134,10 @@ export default function AppInterno() {
             <Route path="/painel" element={withSuspense(<Painel />)} />
             <Route path="/viagens" element={withSuspense(<Viagens />)} />
             <Route path="/viagens/:voyageId" element={withSuspense(<Viagens />)} />
-            <Route path="/manifestos" element={withSuspense(<Manifestos />)} />
+            <Route path="/bls" element={withSuspense(<Bls />)} />
+            <Route path="/bls/:blId" element={withSuspense(<BlDetalhe />)} />
             <Route path="/containers" element={withSuspense(<Containers />)} />
-            <Route path="/carga-solta" element={withSuspense(<CargaSolta />)} />
             <Route path="/veiculos" element={withSuspense(<Veiculos />)} />
-            <Route path="/manifestos/:blId" element={withSuspense(<BlDetalhe />)} />
             <Route path="/revisao" element={withSuspense(<Revisao />)} />
             <Route path="/clientes" element={withSuspense(<Clientes />)} />
             <Route path="/clientes/portal" element={withSuspense(<ClientesPortal />)} />
@@ -158,6 +161,9 @@ export default function AppInterno() {
             <Route path="/embarquevazios" element={withSuspense(<EmbarqueVazios />)} />
             <Route path="/embarquevazios/depots" element={withSuspense(<DepotCadastro />)} />
             <Route path="/vazios" element={<Navigate to="/embarquevazios" replace />} />
+            <Route path="/carga-solta" element={<Navigate to="/bls" replace />} />
+            <Route path="/carga-solta/:blId" element={<LegacyCargaSoltaRedirect />} />
+            <Route path="/manifestos" element={<Navigate to="/bls" replace />} />
             <Route path="/vazios-importacao" element={withSuspense(<VaziosImportacao />)} />
             <Route path="/baplie" element={withSuspense(<BaplieEDI />)} />
             <Route path="/chegadas-saidas" element={withSuspense(<ChegadasSaidas />)} />

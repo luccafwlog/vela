@@ -290,7 +290,7 @@ export function alertEntityLink(alert: {
     (effectiveType === 'portal_excecao_critica_fatura' || effectiveType === 'portal_reprocessamento_falhou')
     && alert.entity_type === 'bl'
   ) {
-    return `/manifestos/${encodeURIComponent(alert.entity_id)}?tab=faturamento`
+    return `/bls/${encodeURIComponent(alert.entity_id)}?tab=faturamento`
   }
   if (effectiveType === 'review_portal_not_ready') {
     // A 364 consolidou este alerta por cliente (`entity_type = 'customer'`), e o
@@ -329,7 +329,7 @@ export function alertEntityLink(alert: {
   }
   if (alert.entity_type === 'invoice') return invoiceLink(alert)
   if (alert.entity_type === 'container') return `/demurrage?busca=${encodeURIComponent(alert.entity_id)}`
-  if (alert.entity_type === 'bl') return `/manifestos/${encodeURIComponent(alert.entity_id)}`
+  if (alert.entity_type === 'bl') return `/bls/${encodeURIComponent(alert.entity_id)}`
   if (alert.entity_type === 'granite_bl') return '/granito'
   if (alert.entity_type === 'demurrage_invoice') return '/demurrage'
   if (alert.entity_type === 'agency_departure_report') {

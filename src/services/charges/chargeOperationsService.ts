@@ -60,7 +60,7 @@ export type LocalChargeCalculationResult = {
 
 export type LocalChargePendencyItem = {
   id: string
-  cargo_mode: 'container' | 'carga_solta' | 'granito' | null
+  cargo_mode: 'container' | 'carga_solta' | 'misto' | 'granito' | null
   pol: string | null
   pod: string | null
   charge_status: string | null
@@ -78,7 +78,7 @@ export type LocalChargePendencyItem = {
 
 export type LocalChargeOperationalFilters = {
   search?: string
-  cargoMode?: '' | 'container' | 'carga_solta' | 'granito'
+  cargoMode?: '' | 'container' | 'carga_solta' | 'granito' | 'misto'
   pod?: string
   voyageId?: number | null
   chargeStatus?: '' | 'not_calculated' | 'calculated' | 'review_required' | 'reviewed' | 'ready_for_billing' | 'exempt'
@@ -88,7 +88,7 @@ export type LocalChargeOperationalFilters = {
 
 export type LocalChargeOperationalRow = {
   id: string
-  cargo_mode: 'container' | 'carga_solta' | 'granito' | null
+  cargo_mode: 'container' | 'carga_solta' | 'granito' | 'misto' | null
   pol: string | null
   pod: string | null
   charge_status: string | null
@@ -223,7 +223,7 @@ export async function listLocalChargeOperationalRowsWithMeta(
   filters?: LocalChargeOperationalFilters,
 ): Promise<LocalChargeOperationalRowsResult> {
   const cargoMode = filters?.cargoMode ?? ''
-  const wantBls = cargoMode === '' || cargoMode === 'container' || cargoMode === 'carga_solta'
+  const wantBls = cargoMode === '' || cargoMode === 'container' || cargoMode === 'carga_solta' || cargoMode === 'misto'
   const wantGranite = cargoMode === '' || cargoMode === 'granito'
 
   const [blRows, graniteRows] = await Promise.all([
@@ -272,9 +272,9 @@ async function loadBlOperationalRows(
       .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1)
 
-    if (filters?.cargoMode === 'container' || filters?.cargoMode === 'carga_solta') {
-      query = query.eq('cargo_mode', filters.cargoMode)
-    }
+    if (filters?.cargoMode === 'container') query = query.in('cargo_mode', ['container', 'misto'])
+    else if (filters?.cargoMode === 'carga_solta') query = query.in('cargo_mode', ['carga_solta', 'misto'])
+    else if (filters?.cargoMode === 'misto') query = query.eq('cargo_mode', 'misto')
     if (!filters?.includeResolved) query = query.or('financial_status.is.null,financial_status.neq.invoiced')
     if (filters?.pod) {
       const pod = sanitizeLikeTerm(filters.pod)
@@ -697,7 +697,7 @@ export async function buildLocalChargeConferenceRows(blIds: string[]): Promise<L
       .from('bls')
       .select('id, voyage_id')
       .in('voyage_id', voyageIds)
-      .eq('cargo_mode', 'container')
+      .in('cargo_mode', ['container', 'misto'])
     if (voyageBlsError) throw voyageBlsError
 
     const voyageIdByBlId = new Map((voyageBls ?? []).map((bl) => [bl.id as string, bl.voyage_id as number]))
@@ -764,8 +764,8 @@ export async function buildLocalChargeConferenceRows(blIds: string[]): Promise<L
 // porque a quantidade de THD de um container compartilhado depende de quantos
 // B/Ls o dividem; importar um novo B/L nesse container muda a quantidade dos
 // que já estavam calculados. B/L com fatura emitida nunca é recalculado (cai
-// no aviso de container compartilhado que já existe). Só container (fronteira
-// da ADR 0020); carga solta e granito seguem seus fluxos próprios. Best-effort
+// no aviso de container compartilhado que já existe). Container e B/L misto
+// participam da fronteira da ADR 0020; carga solta e granito seguem seus fluxos próprios. Best-effort
 // e idempotente, no mesmo padrão de applyBapliePhysicalFlags — chame depois
 // dele, pois as flags IMO/OOG definem o perfil de carga usado no cálculo.
 export async function calculateProvisionalLocalCharges(
@@ -783,7 +783,7 @@ export async function calculateProvisionalLocalCharges(
   if (targetError) throw targetError
 
   const containerBlIds = (targetBls ?? [])
-    .filter((bl) => (bl.cargo_mode ?? 'container') === 'container' && !isBlFinanciallyLocked(bl.financial_status))
+    .filter((bl) => ['container', 'misto'].includes(bl.cargo_mode ?? 'container') && !isBlFinanciallyLocked(bl.financial_status))
     .map((bl) => bl.id)
   if (containerBlIds.length === 0) return { calculated: 0 }
 
@@ -821,7 +821,7 @@ export async function calculateProvisionalLocalCharges(
         // novo B/L no mesmo container reverte silenciosamente um irmao ja
         // pronto para faturar de volta para calculated/review_required.
         return (
-          (bl?.cargo_mode ?? 'container') === 'container' &&
+          ['container', 'misto'].includes(bl?.cargo_mode ?? 'container') &&
           !isBlFinanciallyLocked(bl?.financial_status) &&
           bl?.charge_status !== 'ready_for_billing'
         )

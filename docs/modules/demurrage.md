@@ -85,7 +85,7 @@ relatório são renderizados pelos modais homônimos. Sob recálculo diário (AD
   [`src/components/shared/InvoiceDocumentKit.tsx`](../../src/components/shared/InvoiceDocumentKit.tsx);
   `Imprimir` chama `window.print()`.
 
-### `/manifestos/:blId` → aba `faturamento`
+### `/bls/:blId` → aba `faturamento`
 
 [`src/components/bl/BlFaturamentoTab.tsx`](../../src/components/bl/BlFaturamentoTab.tsx)
 inclui [`BlDemurrageSection`](../../src/components/bl/BlDemurrageSection.tsx)

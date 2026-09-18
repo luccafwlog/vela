@@ -940,7 +940,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
       .select(BREAKBULK_SELECT)
       .eq('voyage_id', voyageId)
       .in('pod', portCodeVariants(port))
-      .eq('cargo_mode', 'carga_solta'),
+      .in('cargo_mode', ['carga_solta', 'misto']),
     // Carga em transbordo (Task 1 do ADR 2026-07-31): mesmas três consultas,
     // agora restritas aos B/Ls de transshipmentBlIds, sem filtrar por bls.pod
     // (que continua apontando para o porto omitido). Só disparam quando há
@@ -951,7 +951,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
         )
       : Promise.resolve(emptyResult),
     transshipmentBlIds.length
-      ? supabase.from('bls').select(BREAKBULK_SELECT).in('id', transshipmentBlIds).eq('cargo_mode', 'carga_solta')
+      ? supabase.from('bls').select(BREAKBULK_SELECT).in('id', transshipmentBlIds).in('cargo_mode', ['carga_solta', 'misto'])
       : Promise.resolve(emptyResult),
     transshipmentBlIds.length
       ? fetchAllRows((from, to) =>
@@ -1219,7 +1219,7 @@ function summarizeBreakbulk(breakbulk: BreakbulkAgencyReportBl[]) {
     machines: breakbulk.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0),
     packages: breakbulk.reduce((sum, bl) => sum + Number(bl.bb_packages_qty ?? 0), 0),
     weightTon: breakbulk.reduce(
-      (sum, bl) => sum + Number(bl.bb_weight_ton ?? (bl.total_weight_kg ? Number(bl.total_weight_kg) / 1000 : 0)),
+      (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
       0,
     ),
     cbm: breakbulk.reduce((sum, bl) => sum + Number(bl.total_cbm ?? 0), 0),

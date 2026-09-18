@@ -21,6 +21,7 @@ import type { PortalOperationBL } from './portalOperation'
 import type { PortalFlatContainer } from '../lib/portalOperationViews'
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
+import { blTotalWeightKg, cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
 
 function toSheet<T extends Record<string, unknown>>(
   XLSX: typeof import('@e965/xlsx'),
@@ -35,7 +36,7 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
   const manifestRows = rows.map((row) => ({
     BL: row.id,
     CEMercante: row.ce_mercante ?? '',
-    Modalidade: row.cargo_mode === 'carga_solta' ? 'Carga Solta' : 'Container',
+    Modalidade: cargoModeLabel(row.cargo_mode),
     Armador: row.voyage?.vessel?.carrier?.name ?? '',
     SCAC: row.voyage?.vessel?.carrier?.scac ?? '',
     Navio: row.voyage?.vessel?.name ?? '',
@@ -47,7 +48,7 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
     'Containers distintos': countDistinctContainerNumbers(row.bl_containers),
     'Containers OOG distintos': countDistinctContainerNumbersBy(row.bl_containers, (container) => Boolean(container.is_oog)),
     'Containers IMO distintos': countDistinctContainerNumbersBy(row.bl_containers, (container) => Boolean(container.is_imo)),
-    PesoKg: row.total_weight_kg ?? '',
+    PesoKg: blTotalWeightKg(row),
     CBM: row.total_cbm ?? '',
     Revisao: row.review_status ?? '',
     Financeiro: row.financial_status ?? '',
@@ -77,14 +78,14 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
   )
 
   const breakbulkRows = rows
-    .filter((row) => row.cargo_mode === 'carga_solta')
+    .filter((row) => isBreakbulkCargoMode(row.cargo_mode))
     .map((row) => ({
       BL: row.id,
       CE: row.ce_mercante ?? '',
       MAQUINAS: row.bb_machine_qty ?? '',
       PACKAGES: row.bb_packages_qty ?? '',
       'PACKAGES TOTAL': row.bb_packages_total ?? row.bb_packages_qty ?? '',
-      'WEIGHT (TON)': row.bb_weight_ton ?? (row.total_weight_kg ? Number(row.total_weight_kg) / 1000 : ''),
+      'WEIGHT (TON)': row.bb_weight_ton ?? '',
       'CBM (M3)': row.total_cbm ?? '',
       SHIPPER: row.shipper ?? '',
       CONSIGNEE: row.customer?.name ?? row.consignee ?? '',
@@ -214,7 +215,7 @@ export async function exportLocalChargeOperationsWorkbook(rows: LocalChargeOpera
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     BL: row.id,
-    Modalidade: row.cargo_mode === 'carga_solta' ? 'Carga Solta' : 'Container',
+    Modalidade: cargoModeLabel(row.cargo_mode),
     Navio: row.voyage?.vessel?.name ?? '',
     Viagem: row.voyage?.voyage_number ?? '',
     POL: row.pol ?? '',
@@ -285,7 +286,7 @@ export async function exportOperationalReportWorkbook(rows: OperationalReportRow
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     BL: row.id,
-    Modalidade: row.cargo_mode === 'carga_solta' ? 'Carga Solta' : 'Container',
+    Modalidade: cargoModeLabel(row.cargo_mode),
     Armador: row.voyage?.vessel?.carrier?.name ?? '',
     Navio: row.voyage?.vessel?.name ?? '',
     Viagem: row.voyage?.voyage_number ?? '',
@@ -294,7 +295,7 @@ export async function exportOperationalReportWorkbook(rows: OperationalReportRow
     Cliente: row.customer?.name ?? '',
     CNPJ: row.customer?.cnpj_cpf ?? '',
     Containers: (row.bl_containers ?? []).length,
-    PesoKg: Number(row.total_weight_kg ?? 0),
+    PesoKg: blTotalWeightKg(row),
     CBM: Number(row.total_cbm ?? 0),
     Revisao: row.review_status ?? '',
     Financeiro: row.financial_status ?? '',

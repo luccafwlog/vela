@@ -39,6 +39,14 @@ jobs:
       - name: Squash generator self-check
         run: node scripts/build-squash-migrations.mjs --self-check
 
+      - name: Destructive migration declaration
+        # Toda migration que reescreve ou apaga linhas depende da afirmação
+        # "Data status" do CLAUDE.md e tem de declarar isso no cabeçalho.
+        run: npm run migrations:check
+
+      - name: Destructive migration check self-test
+        run: node scripts/check-destructive-migrations.test.mjs
+
   build:
     name: Build + Bundle size
     runs-on: ubuntu-latest
@@ -169,7 +177,9 @@ jobs:
             src/integration/agencyReportAlertsFoundation.local-pg.test.ts \
             src/integration/agencyReportCloserName.local-pg.test.ts \
             src/integration/alertsReviewHardening.local-pg.test.ts \
-            src/integration/rpcFinalDefinition.local-pg.test.ts
+            src/integration/rpcFinalDefinition.local-pg.test.ts \
+            src/integration/pr698ClaudeReview.local-pg.test.ts \
+            src/integration/pr698Auditoria.local-pg.test.ts
 
       - name: Verify the executed RPC catalog
         # `npm run rpc:check` existia no package.json sem nenhum gate a executá-lo.

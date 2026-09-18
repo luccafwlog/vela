@@ -102,7 +102,7 @@ export function collectVoyageManifestBatchRows({
     pod: string
     routeLabel: string
     batchIds: number[]
-    modes: Set<'container' | 'carga_solta'>
+    modes: Set<'container' | 'carga_solta' | 'misto'>
     etd: string | null
     atd: string | null
     blCount: number
@@ -183,7 +183,7 @@ export function collectVoyageManifestBatchRows({
     group.blCount += 1
     group.ceTotal += 1
     if (String(bl.ce_mercante ?? '').trim()) group.ceFilled += 1
-    group.modes.add(bl.cargo_mode === 'carga_solta' ? 'carga_solta' : 'container')
+    group.modes.add(bl.cargo_mode === 'misto' ? 'misto' : bl.cargo_mode === 'carga_solta' ? 'carga_solta' : 'container')
 
     if (bl.batch_id !== null && bl.batch_id !== undefined) {
       const batch = batchesById.get(bl.batch_id)
@@ -244,9 +244,9 @@ export function collectVoyageManifestBatchRows({
       omission: findRouteOmission(group.pod, group.blIds),
       modeLabel: group.isVazios
         ? 'VAZIOS'
-        : group.modes.has('container') && group.modes.has('carga_solta')
+        : (group.modes.has('container') || group.modes.has('misto')) && (group.modes.has('carga_solta') || group.modes.has('misto'))
           ? 'CNTR/BB'
-          : group.modes.has('carga_solta')
+          : group.modes.has('carga_solta') || group.modes.has('misto')
             ? 'BB'
             : 'CNTR',
       cargoMode: group.cargoMode,

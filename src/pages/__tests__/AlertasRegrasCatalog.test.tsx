@@ -189,8 +189,8 @@ describe('Regras de Alertas', () => {
     expect(terminalRule.trigger).toContain('ETD')
     expect(terminalRule.trigger).toContain('ATD')
 
-    expect(reprocessRule.destination).toBe('/manifestos')
-    expect(reprocessRule.destinationNote).toContain('/manifestos/{id}?tab=faturamento')
+    expect(reprocessRule.destination).toBe('/bls')
+    expect(reprocessRule.destinationNote).toContain('/bls/{id}?tab=faturamento')
     expect(migration325).toContain("'/manifestos/' || v_bl.id || '?tab=faturamento'")
   })
 })

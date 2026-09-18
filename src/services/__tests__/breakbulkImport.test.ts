@@ -59,7 +59,7 @@ describe('breakbulkImport', () => {
     expect(manifest.bls[0]?.bb_machine_qty).toBe(8)
     expect(manifest.bls[0]?.bb_packages_total).toBe(32)
     expect(manifest.bls[0]?.bb_weight_ton).toBeCloseTo(259.312)
-    expect(manifest.bls[0]?.total_weight_kg).toBeCloseTo(259312)
+    expect(manifest.bls[0]?.bb_weight_ton).toBeCloseTo(259.312)
   })
 
   it('envia lote, BLs, itens e erros para a RPC transacional', async () => {
@@ -125,7 +125,6 @@ describe('breakbulkImport', () => {
           bb_packages_qty: 2,
           bb_packages_total: 2,
           bb_weight_ton: 10,
-          total_weight_kg: 10000,
           total_cbm: 30,
           items: [],
         },
@@ -189,7 +188,7 @@ describe('breakbulkImport', () => {
     expect(manifest.rowErrors).toHaveLength(0)
     expect(manifest.bls).toHaveLength(1)
     expect(bl?.bb_packages_total).toBe(5)
-    expect(bl?.total_weight_kg).toBe(1500)
+    expect(bl?.bb_weight_ton).toBeCloseTo(1.5)
     expect(bl?.total_cbm).toBeCloseTo(15)
     expect(bl?.items).toHaveLength(2)
   })
@@ -220,7 +219,7 @@ describe('breakbulkImport', () => {
     expect(bl?.pod).toBe('BRVIX')
     expect(bl?.bb_machine_qty).toBe(5)
     expect(bl?.bb_packages_qty).toBe(5)
-    expect(bl?.total_weight_kg).toBe(99700)
+    expect(bl?.bb_weight_ton).toBeCloseTo(99.7)
     expect(bl?.total_cbm).toBeCloseTo(393.35)
     expect(bl?.cnpj_cpf).toBe('12116971001071')
   })
@@ -261,7 +260,7 @@ describe('breakbulkImport', () => {
     expect(bl?.pol).toBe('CNTAC')
     expect(bl?.pod).toBe('BRVIX')
     expect(bl?.bb_machine_qty).toBe(8)
-    expect(bl?.total_weight_kg).toBe(175440)
+    expect(bl?.bb_weight_ton).toBeCloseTo(175.44)
     expect(bl?.total_cbm).toBeCloseTo(794.761)
   })
 
@@ -292,7 +291,7 @@ describe('breakbulkImport', () => {
     expect(bl?.cnpj_cpf).toBe('12116971001071')
     expect(bl?.bb_machine_qty).toBe(10)
     expect(bl?.bb_packages_qty).toBe(30)
-    expect(bl?.total_weight_kg).toBe(136873)
+    expect(bl?.bb_weight_ton).toBeCloseTo(136.873)
     expect(bl?.total_cbm).toBeCloseTo(614.313)
   })
 
@@ -328,7 +327,7 @@ describe('breakbulkImport', () => {
     expect(bl?.consignee).toBe('ALICAM SERVICOS ADUARNEIROS')
     expect(bl?.bb_machine_qty).toBeNull()
     expect(bl?.bb_packages_qty).toBe(75)
-    expect(bl?.total_weight_kg).toBe(3156820)
+    expect(bl?.bb_weight_ton).toBeCloseTo(3156.82)
     expect(bl?.total_cbm).toBeCloseTo(1063.89)
   })
 
@@ -473,7 +472,6 @@ describe('breakbulkImport', () => {
           bb_packages_qty: 4,
           bb_packages_total: 4,
           bb_weight_ton: 1,
-          total_weight_kg: 1000,
           total_cbm: 12.5,
           items: [],
         },
@@ -490,5 +488,67 @@ describe('breakbulkImport', () => {
     const payload = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
     expect(payload.p_bls[0]).toMatchObject({ id: 'BB009' })
     expect(payload.p_bls[0]).not.toHaveProperty('ce_mercante')
+  })
+
+  it('permite importar carga solta para BL existente como container tornando-o misto sem erro', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'voyages') {
+        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 10 }, error: null })) })) })) }
+      }
+      if (table === 'customers') {
+        return {
+          select: vi.fn(() => ({
+            order: vi.fn(() => ({
+              range: vi.fn(() => Promise.resolve({ data: [], error: null })),
+            })),
+          })),
+        }
+      }
+      if (table === 'bls') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() => Promise.resolve({ data: [{ id: 'CNTR_BL_01', cargo_mode: 'container' }], error: null })),
+          })),
+        }
+      }
+      return { select: vi.fn(() => ({ in: vi.fn(() => Promise.resolve({ data: [], error: null })) })) }
+    })
+
+    mockRpc.mockImplementation(() => Promise.resolve({ data: { batch_id: 88 }, error: null }))
+
+    const manifest: ParsedBreakbulkManifest = {
+      layout: 'summary',
+      rowErrors: [],
+      bls: [
+        {
+          rowNumber: 1,
+          bl_id: 'CNTR_BL_01',
+          ce_mercante: null,
+          shipper: 'SHIPPER',
+          consignee: 'CONSIGNEE',
+          notify_party: null,
+          cnpj_cpf: null,
+          pol: 'CNSHG',
+          pod: 'BRSSZ',
+          bb_machine_qty: null,
+          bb_packages_qty: 2,
+          bb_packages_total: 2,
+          bb_weight_ton: 10,
+          total_cbm: 20,
+          items: [],
+        },
+      ],
+    }
+
+    await importBreakbulkManifest({
+      filename: 'mixed.xlsx',
+      voyageId: 10,
+      manifest,
+      uploadedBy: '00000000-0000-0000-0000-000000000001',
+    })
+
+    const payload = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
+    expect(payload.p_bls[0]).toMatchObject({ id: 'CNTR_BL_01' })
+    expect(payload.p_bls[0]).not.toHaveProperty('cargo_mode')
   })
 })

@@ -616,7 +616,7 @@ describe('buildVoyageTimeline', () => {
     })
 
     expect(events.map((event) => event.kind)).toEqual(['ce-master', 'voyage-data'])
-    expect(events[0].title).toBe('CE Master alterado')
+    expect(events[0].title).toBe('Nº de Manifesto Mercante alterado')
     expect(events[0].detail).toBe('CE000 -> CE999')
     expect(events[1].title).toBe('Dados da viagem alterados')
     expect(events[1].detail).toBe('Nº da viagem: 001E -> 002E · por user-1')
