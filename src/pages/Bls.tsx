@@ -438,7 +438,7 @@ export function Bls() {
           <MetricCard label="CNTRS" value={isSummaryLoading ? '...' : summary?.totalDistinctContainers ?? 0} />
           <MetricCard
             label="Carga Solta"
-            value={isSummaryLoading ? '...' : `${(summary?.totalWeightTon ?? 0).toLocaleString('pt-BR')} ton`}
+            value={isSummaryLoading ? '...' : `${(summary?.breakbulkWeightTon ?? 0).toLocaleString('pt-BR')} ton`}
           />
           <MetricCard label="Sem faturamento" value={isSummaryLoading ? '...' : summary?.pendingFinancial ?? 0} />
           <MetricCard label="Taxas pendentes" value={isSummaryLoading ? '...' : summary?.chargePending ?? 0} />

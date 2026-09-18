@@ -28,6 +28,7 @@ export type OperationalBlSummary = {
   chargeExempt: number
   totalMachines: number
   totalPackages: number
+  breakbulkWeightTon: number
   totalWeightTon: number
   totalCbm: number
 }
@@ -218,6 +219,7 @@ export async function getOperationalBlSummary(filters: OperationalListFilters): 
     chargeExempt: asNumber(payload.chargeExempt),
     totalMachines: asNumber(payload.totalMachines),
     totalPackages: asNumber(payload.totalPackages),
+    breakbulkWeightTon: asNumber(payload.breakbulkWeightTon),
     totalWeightTon: asNumber(payload.totalWeightTon),
     totalCbm: asNumber(payload.totalCbm),
   }

@@ -38,7 +38,8 @@ describe('Página Bls (unificada)', () => {
       data: {
         totalBls: 3,
         totalDistinctContainers: 3,
-        totalWeightTon: 50,
+        breakbulkWeightTon: 50,
+        totalWeightTon: 95,
         pendingReview: 1,
         pendingFinancial: 1,
         chargePending: 1,
@@ -256,5 +257,35 @@ describe('Página Bls (unificada)', () => {
       pod: 'BRVIX',
       cargoMode: 'misto',
     })
+  })
+
+  it('exibe estritamente o peso de carga solta no card Carga Solta, ignorando peso de contêiner', () => {
+    useBlSummaryMock.mockReturnValue({
+      data: {
+        totalBls: 2,
+        totalDistinctContainers: 4,
+        breakbulkWeightTon: 0,
+        totalWeightTon: 85,
+        pendingReview: 0,
+        pendingFinancial: 0,
+        chargePending: 0,
+        chargeReady: 2,
+        chargeExempt: 0,
+      },
+      isLoading: false,
+    })
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    // O card Carga Solta deve exibir 0 ton (breakbulkWeightTon), não 85 ton (totalWeightTon)
+    expect(screen.getByText('0 ton')).toBeTruthy()
+    expect(screen.queryByText('85 ton')).toBeNull()
   })
 })
