@@ -21,15 +21,28 @@
 -- Com as colunas disjuntas, a soma aditiva da 060 fica correta por construcao,
 -- em qualquer ordem de chegada da carga. O lado da aplicacao para de espelhar
 -- no mesmo commit; esta migration limpa o espelhamento ja gravado.
+--
+-- ATENCAO -- esta migration APAGA dados existentes (secao 1). Ela depende da
+-- afirmacao "Data status" da secao Gotchas do CLAUDE.md: o projeto de producao
+-- nao tem dados de negocio, toda linha e fixture e pode ser descartada. Sem
+-- essa afirmacao o backfill abaixo NAO seria aceitavel: ele descarta o valor de
+-- uma coluna sem plano de preservacao. Se a afirmacao ja tiver sido revogada
+-- quando voce ler isto, trate o backfill como perda de dados e revise antes de
+-- aplicar em qualquer banco.
 
 -- ---------------------------------------------------------------------------
--- 1. Backfill: apagar o peso espelhado, preservando peso de conteiner legitimo
+-- 1. Backfill DESTRUTIVO: apagar o peso espelhado
 -- ---------------------------------------------------------------------------
 
--- Só é espelhamento quando as duas colunas medem a mesma carga (tolerancia de
--- 1 kg para o arredondamento kg->ton do parser). Um B/L misto cujo
--- total_weight_kg seja um peso de conteiner de verdade difere de bb_weight_ton
--- e fica intocado.
+-- Autorizado pela afirmacao "Data status" do CLAUDE.md (ver cabecalho): nao ha
+-- dado de negocio a preservar neste banco.
+--
+-- O criterio: so e espelhamento quando as duas colunas medem a mesma carga
+-- (tolerancia de 1 kg para o arredondamento kg->ton do parser). Um B/L misto
+-- cujo total_weight_kg seja um peso de conteiner de verdade difere de
+-- bb_weight_ton e fica intocado. Essa tolerancia nao e uma salvaguarda de
+-- dados -- com dado descartavel ela nao protege nada; ela existe para deixar
+-- explicito, para quem ler o historico, qual foi a definicao de "espelho".
 UPDATE public.bls
 SET total_weight_kg = NULL,
     updated_at = now()
