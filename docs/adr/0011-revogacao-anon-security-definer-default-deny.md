@@ -33,7 +33,7 @@ frontend — verificado por grep de call sites em `src/`.
    deve incluir, no mesmo arquivo,
    `REVOKE EXECUTE ON FUNCTION public.<fn>(<args>) FROM PUBLIC, anon;`
    (e de `authenticated`, se for trigger). Regra incorporada ao playbook
-   `.claude/skills/supabase-migration.skill`.
+   seção de migrations do `WORKFLOW.md`.
 
 ## Consequências
 

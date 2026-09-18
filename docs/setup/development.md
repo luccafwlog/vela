@@ -44,7 +44,7 @@ Aplique **todas** as migrations em ordem, no **SQL Editor** do Supabase:
 supabase/migrations/001_*.sql  →  último arquivo numerado em `supabase/migrations/`
 ```
 
-> As migrations são numeradas sequencialmente (schema + RLS + RPCs); ver ADR 0016. O CI e a Vercel **não** aplicam migrations no Supabase — ver [deploy.md](deploy.md); o job `migration-replay` do CI aplica as migrations do zero num PostgreSQL 16 descartável só para travar invariantes, sem tocar em nenhum projeto. Para criar uma nova migration, siga a skill `.claude/skills/supabase-migration.skill` e derive o próximo número do repositório com `ls supabase/migrations/ | sort | tail -1`.
+> As migrations são numeradas sequencialmente (schema + RLS + RPCs); ver ADR 0016. O CI e a Vercel **não** aplicam migrations no Supabase — ver [deploy.md](deploy.md); o job `migration-replay` do CI aplica as migrations do zero num PostgreSQL 16 descartável só para travar invariantes, sem tocar em nenhum projeto. Para criar uma nova migration, siga a seção de migrations do `WORKFLOW.md` e derive o próximo número do repositório com `ls supabase/migrations/ | sort | tail -1`.
 
 ## 4. Usuário interno
 

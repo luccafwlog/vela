@@ -1,116 +1,96 @@
 ---
 name: eli5
-description: "Explain a topic at an explicitly requested audience or knowledge level."
+description: "Use when the user asks for a clear explanation adapted to their knowledge level, especially as the Vela owner who knows the system vocabulary but not code."
 ---
 
-# Explain Like I Am... (ELI5)
+# Explicação clara para o proprietário do Vela
 
-You are an expert at taking complex topics and making them accessible to any audience. Your job is to explain the given topic in a way that perfectly matches the audience's background, vocabulary, and interests.
+Esta skill transforma assuntos complexos em explicações compreensíveis. No
+contexto do Vela, ELI5 não significa falar literalmente com uma criança de
+cinco anos. Significa remover o jargão de código sem remover a lógica, os
+impactos, as condições ou as decisões importantes.
 
-## Step 1: Identify the Audience
+## Perfil padrão no Vela
 
-Parse the user's request to determine who the explanation is for. The audience falls into one of these categories:
+Quando o assunto for o Vela, trate o usuário como proprietário e responsável
+pelas decisões do sistema:
 
-### Ages
-| Audience | Style |
-|----------|-------|
-| Age 5 | Super simple words. Use fun analogies with toys, animals, candy, playground. Short sentences. "Imagine you have a box of crayons..." |
-| Age 10 | Elementary school level. Can handle basic cause-and-effect. Use school, sports, video game analogies. |
-| Age 15 | Teenager. Can handle some abstraction. Use social media, phone, gaming references. Be slightly casual. |
-| Age 20-30 | Young adult. Clear and direct. Real-world analogies from daily life, work, money. |
-| Age 40+ | Mature adult. Respectful tone. Analogies from home ownership, career, family management. |
+- ele conhece o fluxo de trabalho e o vocabulário das áreas do Vela;
+- conhece páginas, ações e entidades como Viagens, BLs, containers, veículos,
+  faturamento, taxas e locais;
+- não precisa conhecer componentes, hooks, services, queries, RPCs ou a
+  organização interna do código;
+- precisa entender o que acontece na tela, por que acontece, quais áreas são
+  afetadas e qual decisão precisa tomar.
 
-### Grade / Education Levels
-| Audience | Style |
-|----------|-------|
-| 5th grade | Simple vocabulary, concrete examples, avoid jargon entirely. "Think of it like..." |
-| Middle school | Can introduce basic terminology with definitions. Step-by-step logic. |
-| Senior High | Can handle moderate complexity. Introduce proper terms but explain them. SAT-level vocabulary OK. |
-| College Student | Academic framing. Can use technical terms with brief context. Theory + practical application. |
-| Graduate school | Assume strong foundational knowledge. Focus on nuance, trade-offs, edge cases, and deeper implications. Be precise. |
+Não use tom infantil, analogias com brinquedos, animais ou doces, nem reduza a
+explicação a frases artificiais. Use linguagem adulta, direta, respeitosa e
+didática. O objetivo é que o proprietário consiga visualizar o sistema e
+decidir sobre ele sem precisar traduzir código.
 
-### Job Roles
-| Audience | They care about... | Frame explanations around... |
-|----------|-------------------|------------------------------|
-| Manager | Impact, timeline, risk, cost | Business outcomes, team implications, what decisions need to be made |
-| Engineer | How it works, architecture, trade-offs | Technical details, implementation, performance, maintainability |
-| Designer | User experience, visual impact, flow | How it affects the user, interaction patterns, accessibility |
-| Director | Strategy, ROI, competitive advantage | Big picture, market position, resource allocation |
-| Colleague | Practical context, shared work | How it affects their work, what they need to know to collaborate |
-| Product Manager | User value, priorities, scope | Feature impact, user stories, what to build vs. skip |
+## Vocabulário e ponto de partida
 
-### Relationships
-| Audience | Tone | Analogy style |
-|----------|------|---------------|
-| Wife / Husband / Partner | Warm, conversational, patient | Household tasks, shared experiences, daily routines |
-| Father / Mother / Parents | Respectful, clear, no condescension | Familiar technology they use, home analogies, generational bridges |
-| Kids / Children | Playful, encouraging, short | Games, cartoons, school, animals |
-| Friend | Casual, maybe humorous | Pop culture, shared interests, "you know how..." |
+Consulte CONTEXT.md e docs/agents/linguagem-do-sistema.md. Comece sempre pelo
+vocabulário visível:
 
-If the audience isn't explicitly stated, default to "Age 5" (classic ELI5).
+1. em qual página, seção ou fluxo estamos;
+2. qual botão, campo, dropdown, coluna ou mensagem participa;
+3. qual ação a pessoa realiza;
+4. qual estado ou efeito aparece em seguida;
+5. qual entidade, página ou processo relacionado recebe a consequência.
 
-## Step 2: Read the Source Material
+Use os nomes reais do Vela. Não substitua BLs por “registros”, Viagens por
+“objetos” ou faturamento por “processamento” apenas para parecer técnico ou
+genérico. Se um termo ainda não estiver no glossário, preserve o termo usado
+na tela e sinalize a incerteza em vez de inventar um nome.
 
-Before explaining, make sure you fully understand what needs to be explained. This could be:
-- **Code**: Read the relevant code files. Understand what the code does at a high level before translating.
-- **A concept**: Break it into its core components.
-- **An error message**: Understand the root cause, not just the surface text.
-- **A technical document**: Extract the key points that matter.
-- **Anything else**: Identify the essential "what" and "why."
+Quando o assunto vier de código, erro ou mudança técnica, traduza primeiro para
+o comportamento do sistema. Só depois explique o detalhe de implementação, se
+ele ajudar o usuário a decidir, validar ou acompanhar o trabalho.
 
-## Step 3: Craft the Explanation
+## Estrutura recomendada
 
-Follow these principles, scaled to the audience:
+Organize a explicação em camadas, sem obrigar o usuário a atravessar o código:
 
-### Structure
-1. **Start with the "what"** — one sentence that captures the essence
-2. **Use an analogy** — connect to something the audience already knows
-3. **Fill in details** — add layers only as appropriate for the audience level
-4. **End with the "so what"** — why does this matter to them specifically?
+1. **Resumo:** o que está acontecendo em uma ou duas frases.
+2. **Fluxo visível:** página, ação, estado e efeito seguinte.
+3. **Motivo:** por que o sistema foi construído ou alterado dessa forma.
+4. **Impacto:** o que muda para Viagens, BLs, containers, veículos,
+   faturamento, taxas, locais ou outras áreas relacionadas.
+5. **Exceções:** o que acontece quando não há dados, há erro, duplicidade,
+   cancelamento, permissão insuficiente ou informação incompleta.
+6. **Detalhe técnico opcional:** arquivo, componente, service, query, RPC,
+   teste ou comando, sempre como suporte à explicação do sistema.
+7. **Próxima decisão:** o que precisa ser confirmado, testado ou feito.
 
-### Language Calibration
+Simplifique a linguagem, não os fatos materiais. Preserve ressalvas,
+dependências, riscos, incertezas e conflitos entre documentos. Se uma analogia
+for útil, use uma analogia de operação do Vela ou de um processo de trabalho
+conhecido pelo usuário, e declare onde ela deixa de ser exata.
 
-For **simple audiences** (young ages, non-technical roles, family):
-- No jargon. Zero. If a technical term is essential, define it immediately.
-- One idea per sentence.
-- Concrete over abstract. "The server is like a waiter at a restaurant" beats "the server handles client-server communication."
-- Use "you" and "your" — make it personal.
+## Roteamento
 
-For **technical audiences** (engineers, grad students):
-- Use proper terminology — they'll feel patronized without it.
-- Focus on the *interesting* parts: trade-offs, edge cases, design decisions.
-- Compare to things they already know: "It's like a hash map but with X difference."
-- Be concise — respect their existing knowledge.
+- Se o usuário mencionar o Vela, este perfil de proprietário é o padrão,
+  mesmo que use a expressão ELI5.
+- Se o usuário pedir explicitamente uma explicação para uma criança, uma idade,
+  um papel ou um público diferente, respeite esse pedido específico.
+- Se o pedido for apenas “explique” dentro do Vela, use este perfil e não
+  force uma simplificação infantil.
+- Se a pergunta exigir leitura de código, documentação ou estado do workspace,
+  leia as fontes relevantes antes de explicar. Não invente o comportamento a
+  partir do nome de um arquivo.
+- Se a ausência de contexto mudar materialmente a resposta, faça uma pergunta
+  curta. Caso contrário, explique o que é conhecido e marque o que ainda é
+  hipótese.
 
-For **business audiences** (managers, directors):
-- Lead with impact and outcomes.
-- Quantify where possible.
-- Skip implementation details unless asked.
-- Frame in terms of decisions: "This means we should..."
+## O que evitar
 
-### Tone Matching
-- Ages 5-10: Enthusiastic, like a favorite teacher. "Oh, this is a cool one!"
-- Teenagers: Slightly casual but not cringey. No "fellow kids" energy.
-- Professionals: Confident and clear. Respect their intelligence while bridging knowledge gaps.
-- Family: Patient, warm, conversational. Like explaining over dinner.
-
-## Examples
-
-**User says**: "ELI5 what a database index is"
-**Audience**: Age 5 (default)
-**Response style**: "Imagine you have a huuuge book with thousands of pages. Now, if I asked you to find the page about dinosaurs, you could flip through every single page... or you could look at the table of contents at the front! A database index is like that table of contents. It helps the computer find things really fast without looking through everything."
-
-**User says**: "Explain this API rate limiting to my manager"
-**Audience**: Manager
-**Response style**: "The API has a speed limit — we can only make 100 requests per minute. Right now we're hitting that limit during peak hours, which means some user requests are failing. We have two options: optimize our code to make fewer calls (1-2 days of work), or pay for a higher tier ($X/month). I'd recommend..."
-
-**User says**: "Break down this React useEffect hook for a college student"
-**Audience**: College Student
-**Response style**: "useEffect is React's way of handling side effects — things that happen outside the normal render cycle, like API calls, subscriptions, or DOM manipulation. Think of it as a lifecycle hook (if you've seen class components) that combines componentDidMount, componentDidUpdate, and componentWillUnmount. The dependency array controls when it re-runs..."
-
-## Important Reminders
-
-- Never talk down to anyone. A 5-year-old explanation should feel delightful, not dumbing-down. A manager explanation should feel empowering, not dismissive of their intelligence.
-- When explaining code, always explain the *purpose* first, then the mechanism. Nobody cares about syntax until they know why it exists.
-- If the topic is genuinely complex and the audience is very non-technical, it's OK to simplify ruthlessly. Getting the core idea across at 80% accuracy is better than a 100% accurate explanation that loses the audience.
-- Match the length to the audience: short and sweet for young kids, more detailed for technical audiences who want depth.
+- começar por código, banco de dados, arquitetura ou nomes internos;
+- usar termos técnicos como substitutos de entidades do Vela;
+- tratar o usuário como criança ou presumir que ele quer uma aula de
+  programação;
+- esconder limitações para tornar a resposta mais confortável;
+- afirmar que um fluxo funciona sem verificar a implementação, o documento ou
+  o estado que sustenta a afirmação;
+- responder só com uma definição, sem dizer onde isso aparece no sistema e qual
+  consequência produz.

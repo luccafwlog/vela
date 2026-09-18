@@ -24,7 +24,7 @@ Ficam em `src/**/__tests__/*.test.ts` e `src/pages/__tests__/`. Cobrem, entre ou
 - **B/L status / review:** `blRails`, `useBlCockpit`, `blPortalStatus`.
 - **Migrations/ledger:** testes que validam o efeito de migrations específicas (ex.: `portalResolveLoginHardeningMigration`).
 
-Fixtures de regressão de parser ficam junto aos testes em `src/services/__tests__/`. Ao adicionar um parser novo, adicione fixtures (skill `.claude/skills/import-parser.skill`).
+Fixtures de regressão de parser ficam junto aos testes em `src/services/__tests__/`. Ao adicionar um parser novo, adicione fixtures e siga a seção de importações do `WORKFLOW.md`.
 
 ## Integração (opt-in)
 

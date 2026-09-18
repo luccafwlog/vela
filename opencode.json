@@ -10,109 +10,49 @@
     ]
   },
   "command": {
-    "ask-matt": {
-      "description": "Ask which skill or flow fits your situation. A router over the skills in this repo.",
-      "template": "Invoke the skill ask-matt and follow its instructions."
-    },
-    "autoreview": {
-      "description": "Auto Review closeout. Codex review is the default when no engine is set and is the recommended reviewer.",
-      "template": "Invoke the skill autoreview and follow its instructions."
-    },
     "brainstorming": {
-      "description": "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation.",
+      "description": "Use when unresolved product, domain or design choices materially change the Vela flow, scope, architecture or experience.",
       "template": "Invoke the skill brainstorming and follow its instructions."
-    },
-    "caveman": {
-      "description": "Ultra-compressed communication mode. Cuts token usage ~75% by dropping filler, articles, and pleasantries while keeping full technical accuracy. Use when user says caveman mode or talks like a caveman.",
-      "template": "Invoke the skill caveman and follow its instructions."
-    },
-    "codebase-design": {
-      "description": "Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, or decide where a seam goes.",
-      "template": "Invoke the skill codebase-design and follow its instructions."
     },
     "customize-opencode": {
       "description": "Use ONLY when the user is editing or creating opencode's own configuration.",
       "template": "Invoke the skill customize-opencode and follow its instructions."
     },
     "design-audit": {
-      "description": "Full-site UI/UX audit playbook for Vela. Boot the app, screenshot every page, audit, prioritize P0-P3, apply fixes, write report.",
+      "description": "Use when the user asks for a Vela UI audit across pages, states or viewports with evidence and prioritized findings.",
       "template": "Invoke the skill design-audit and follow its instructions."
-    },
-    "diagnosing-bugs": {
-      "description": "Diagnosis loop for hard bugs and performance regressions.",
-      "template": "Invoke the skill diagnosing-bugs and follow its instructions."
-    },
-    "dispatching-parallel-agents": {
-      "description": "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies",
-      "template": "Invoke the skill dispatching-parallel-agents and follow its instructions."
-    },
-    "domain-modeling": {
-      "description": "Build and sharpen a project's domain model. Use when the user wants to pin down domain terminology or a ubiquitous language, record an ADR, or maintain the domain model.",
-      "template": "Invoke the skill domain-modeling and follow its instructions."
-    },
-    "emil-design-eng": {
-      "description": "The skill encodes Emil Kowalski's philosophy on UI polish, component design, animation decisions, and invisible details.",
-      "template": "Invoke the skill emil-design-eng and follow its instructions."
     },
     "executing-plans": {
       "description": "Use when you have a written implementation plan to execute in a separate session with review checkpoints",
       "template": "Invoke the skill executing-plans and follow its instructions."
     },
-    "finishing-a-development-branch": {
-      "description": "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work. Presents options for merge, PR, or cleanup.",
-      "template": "Invoke the skill finishing-a-development-branch and follow its instructions."
-    },
     "frontend-design": {
-      "description": "Create distinctive, production-grade frontend interfaces with high design quality. Use when the user asks to build web components, pages, artifacts, posters, or applications.",
-      "template": "Invoke the skill frontend-design and follow its instructions."
+      "description": "Entrada canônica para criar, polir ou avaliar interfaces web com direção visual coerente, acessibilidade e comportamento pronto para produção.",
+      "template": "Invoke the skill frontend-design, determine whether the mode is criar, polir, or avaliar from the user's request, and follow its instructions."
     },
     "grill-me": {
-      "description": "A relentless interview to sharpen a plan or design.",
-      "template": "Invoke the skill grill-me and follow its instructions."
+      "description": "Alias de compatibilidade: entrevista estruturada sem persistência documental.",
+      "template": "Invoke the skill grilling in sem persistência mode and follow its instructions."
     },
     "grill-me-with-docs": {
-      "description": "A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.",
-      "template": "Invoke the skill grill-me-with-docs and follow its instructions."
+      "description": "Alias de compatibilidade: entrevista estruturada com persistência confirmada das decisões.",
+      "template": "Invoke the skill grilling in persistência confirmada mode and follow its instructions."
     },
     "grilling": {
-      "description": "Grill the user relentlessly about a plan, decision, or idea.",
+      "description": "Entrevista estruturada para estressar decisões, com persistência somente quando explicitamente confirmada.",
       "template": "Invoke the skill grilling and follow its instructions."
     },
     "handoff": {
-      "description": "Hand the current conversation off to a fresh background agent that picks up the work immediately.",
+      "description": "Gera um documento Randolph pronto para copiar e colar, contextualizando a sessão para outro agente continuar o trabalho.",
       "template": "Invoke the skill handoff and follow its instructions."
     },
-    "implement": {
-      "description": "Implement a piece of work based on a spec or set of tickets.",
-      "template": "Invoke the skill implement and follow its instructions."
-    },
-    "import-parser": {
-      "description": "Use when adding or changing CSV, XLSX, EDI, EDIFACT, fixed-width, carrier, manifesto, Baplie, vehicle, container, customer, CE Mercante, Granito, or Vazios import behavior in Vela.",
-      "template": "Invoke the skill import-parser and follow its instructions."
-    },
-    "improve": {
-      "description": "Survey any codebase as a senior advisor and produce prioritized, self-contained implementation plans for OTHER models/agents to execute. Read-only on source code.",
-      "template": "Invoke the skill improve and follow its instructions."
-    },
     "improve-codebase-architecture": {
-      "description": "Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.",
+      "description": "Use when the user asks to identify and compare architectural deepening opportunities in the Vela codebase before selecting one for investigation.",
       "template": "Invoke the skill improve-codebase-architecture and follow its instructions."
     },
-    "invoice-pdf": {
-      "description": "Use when adding or changing printable local-charge or Demurrage invoice documents, browser print behavior, invoice layout, or PIX QR rendering in Vela.",
-      "template": "Invoke the skill invoice-pdf and follow its instructions."
-    },
-    "loop-me": {
-      "description": "Grill me about specs for the workflows I want to build, within this workspace.",
-      "template": "Invoke the skill loop-me and follow its instructions."
-    },
     "make-interfaces-feel-better": {
-      "description": "Design engineering principles for making interfaces feel polished. Use when building UI components, reviewing frontend code, or implementing animations and micro-interactions.",
-      "template": "Invoke the skill make-interfaces-feel-better and follow its instructions."
-    },
-    "no-mistakes": {
-      "description": "Validate your code changes through the no-mistakes pipeline - automated code review, tests, lint, docs, push, PR, and CI - before they reach the configured push target.",
-      "template": "Invoke the skill no-mistakes and follow its instructions."
+      "description": "Alias de compatibilidade: polir uma interface existente, seus estados, movimento e detalhes visuais.",
+      "template": "Invoke the skill frontend-design in polir mode and follow its instructions."
     },
     "ponytail": {
       "description": "Forces the laziest solution that actually works. Simplest, shortest, most minimal. Use on ANY coding task.",
@@ -138,92 +78,32 @@
       "description": "Code review focused exclusively on over-engineering. Finds what to delete: reinvented stdlib, unneeded dependencies, speculative abstractions, dead flexibility.",
       "template": "Invoke the skill ponytail-review and follow its instructions."
     },
-    "prototype": {
-      "description": "Build a throwaway prototype to answer a design question.",
-      "template": "Invoke the skill prototype and follow its instructions."
-    },
-    "react-query-pattern": {
-      "description": "Use when adding or changing Supabase data access, TanStack React Query hooks, cache keys, invalidation, mutations, or page-to-service calls in Vela.",
-      "template": "Invoke the skill react-query-pattern and follow its instructions."
+    "vela-code-review": {
+      "description": "Revisão de código confrontada com decisões atuais e anteriores do Vela, fluxo do sistema, cenários adversos e qualidade estrutural.",
+      "template": "Invoke the skill vela-code-review, determine whether the mode is solicitar, receber, or rigorosa from the user's request, and follow its instructions."
     },
     "receiving-code-review": {
-      "description": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable.",
-      "template": "Invoke the skill receiving-code-review and follow its instructions."
+      "description": "Alias de compatibilidade: receber e verificar achados de uma revisão de código.",
+      "template": "Invoke the skill vela-code-review in receber mode and follow its instructions."
     },
     "requesting-code-review": {
-      "description": "Use when completing tasks, implementing major features, or before merging to verify work meets requirements",
-      "template": "Invoke the skill requesting-code-review and follow its instructions."
-    },
-    "research": {
-      "description": "Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo.",
-      "template": "Invoke the skill research and follow its instructions."
-    },
-    "resolving-merge-conflicts": {
-      "description": "Use when you need to resolve an in-progress git merge/rebase conflict.",
-      "template": "Invoke the skill resolving-merge-conflicts and follow its instructions."
+      "description": "Alias de compatibilidade: solicitar um parecer independente sobre um diff.",
+      "template": "Invoke the skill vela-code-review in solicitar mode and follow its instructions."
     },
     "security-audit-penetration-testing": {
-      "description": "Complete security audit and penetration testing framework with 6 phases, from discovery to final reporting with automated penetration tests and remediation validation.",
-      "template": "Invoke the skill Security Audit & Penetration Testing and follow its instructions."
-    },
-    "setup-matt-pocock-skills": {
-      "description": "Configure this repo for the engineering skills - set up its issue tracker, triage label vocabulary, and domain doc layout.",
-      "template": "Invoke the skill setup-matt-pocock-skills and follow its instructions."
-    },
-    "subagent-driven-development": {
-      "description": "Use when executing implementation plans with independent tasks in the current session",
-      "template": "Invoke the skill subagent-driven-development and follow its instructions."
-    },
-    "supabase-migration": {
-      "description": "Use when creating or reviewing a Vela Supabase migration involving tables, columns, indexes, constraints, foreign keys, RLS, grants, views, functions, triggers, RPCs, or generated database types.",
-      "template": "Invoke the skill supabase-migration and follow its instructions."
-    },
-    "systematic-debugging": {
-      "description": "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes",
-      "template": "Invoke the skill systematic-debugging and follow its instructions."
-    },
-    "tdd": {
-      "description": "Test-driven development. Use when the user wants to build features or fix bugs test-first, or wants integration tests.",
-      "template": "Invoke the skill tdd and follow its instructions."
-    },
-    "test-driven-development": {
-      "description": "Use when implementing any feature or bugfix, before writing implementation code",
-      "template": "Invoke the skill test-driven-development and follow its instructions."
+      "description": "Use when the user requests a scoped security audit or authorized penetration test of an accessible target.",
+      "template": "Invoke the skill security-audit-penetration-testing and follow its instructions."
     },
     "thermo-nuclear-code-quality-review": {
-      "description": "Run an extremely strict maintainability review for abstraction quality, giant files, and spaghetti-condition growth.",
-      "template": "Invoke the skill thermo-nuclear-code-quality-review and follow its instructions."
-    },
-    "to-spec": {
-      "description": "Turn the current conversation into a spec and publish it to the project issue tracker.",
-      "template": "Invoke the skill to-spec and follow its instructions."
-    },
-    "to-tickets": {
-      "description": "Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, published to the configured tracker.",
-      "template": "Invoke the skill to-tickets and follow its instructions."
-    },
-    "triage": {
-      "description": "Move issues and external PRs through a state machine of triage roles - categorise, verify, grill if needed, and write agent-ready briefs.",
-      "template": "Invoke the skill triage and follow its instructions."
+      "description": "Alias de compatibilidade: executar uma revisão rigorosa de manutenibilidade e estrutura.",
+      "template": "Invoke the skill vela-code-review in rigorosa mode and follow its instructions."
     },
     "ui-ux-pro-max": {
-      "description": "UI/UX design intelligence for web and mobile. Includes 50+ styles, 161 color palettes, 57 font pairings, 161 product types, 99 UX guidelines, and 25 chart types.",
-      "template": "Invoke the skill ui-ux-pro-max and follow its instructions."
-    },
-    "using-git-worktrees": {
-      "description": "Use when starting feature work that needs isolation from current workspace or before executing implementation plans",
-      "template": "Invoke the skill using-git-worktrees and follow its instructions."
-    },
-    "using-superpowers": {
-      "description": "Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions",
-      "template": "Invoke the skill using-superpowers and follow its instructions."
-    },
-    "verification-before-completion": {
-      "description": "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs. Requires running verification commands and confirming output before making any success claims.",
-      "template": "Invoke the skill verification-before-completion and follow its instructions."
+      "description": "Alias de compatibilidade: avaliar acessibilidade, layout, interação, fluxos e qualidade visual de uma interface.",
+      "template": "Invoke the skill frontend-design in avaliar mode and follow its instructions."
     },
     "wait-what": {
-      "description": "Stop. That last message did not land - re-pitch it.",
+      "description": "Use when the user says a previous explanation did not land and asks for a clearer re-explanation in the Vela vocabulary.",
       "template": "Invoke the skill wait-what and follow its instructions."
     },
     "wayfinder": {

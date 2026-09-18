@@ -162,22 +162,45 @@ node scripts/build-behavioral-spec.mjs
 
 ---
 
-## 7. Instalar as "skills" do projeto (`skills/install-skills`)
+## 7. Sincronizar as "skills" do projeto (`skills:sync`)
 
-**O que faz:** copia as habilidades (skills) guardadas no projeto para as pastas
-que o assistente de IA (Claude/Codex) lê ao iniciar. É o que deixa os
-"playbooks" disponíveis nas sessões.
+**O que faz:** copia a árvore completa das skills versionadas para os destinos
+locais do Vela (agentes compartilhados, Claude Code, Codex e os dois stores
+pessoais encontrados no Antigravity), registrando ownership em
+`~/.vela/skill-sync/`. Skills de sistema, plugins e o store builtin do
+Antigravity ficam fora desse ownership.
 
-**Quando usar:** normalmente roda sozinho ao abrir uma sessão; rode à mão só se
-precisar reinstalar.
+**Quando usar:** revise primeiro com `--dry-run`; aplique depois do `git pull`.
+O hook do Claude e o antigo instalador continuam funcionando como wrappers.
+Na primeira instalação limpa, use `skills:reset`: ele cria um backup dos stores
+pessoais, valida a árvore das skills e instala somente as 14 skills ativas.
+Depois disso, `skills:sync` mantém as cópias atualizadas de forma incremental.
+O ledger histórico contém as 37 remoções aprovadas e serve para auditoria e
+migrações antigas; ele não substitui o reset total.
 
 ```powershell
-# Windows (PowerShell)
-node scripts\skills\install-skills.mjs
+# Windows (PowerShell) — simular
+npm run skills:sync -- --dry-run
+# Aplicar
+npm run skills:sync
 ```
+
+Para reconstruir os stores pessoais depois de uma limpeza planejada, simule
+primeiro e aplique somente após conferir a lista:
+
 ```bash
-# macOS (Terminal)
-node scripts/skills/install-skills.mjs
+npm run skills:reset
+npm run skills:reset -- --apply
+```
+
+O reset cria backups em `~/.vela/skill-sync/backups/`. Ele não apaga as
+configurações gerais dos aplicativos, históricos de conversas, credenciais, o
+store `.system` do Codex, plugins ou o store builtin do Antigravity.
+```bash
+# macOS/Linux (Terminal) — simular
+npm run skills:sync -- --dry-run
+# Aplicar
+npm run skills:sync
 ```
 
 ---
@@ -202,27 +225,7 @@ node scripts/download-fonts.mjs
 
 ---
 
-## 9. Portão de segurança do Git (`no-mistakes/setup`)
-
-**O que faz:** instala uma proteção que verifica os comandos de Git antes de
-executá-los, para evitar erros perigosos (como apagar coisas sem querer). Ele
-baixa uma versão fixa e confere a "impressão digital" do arquivo antes de usar.
-
-**Quando usar:** para ligar essa proteção no ambiente. É "melhor esforço": se
-não conseguir baixar, simplesmente não ativa (não trava nada).
-
-```powershell
-# Windows (PowerShell) — feito para terminal .sh; no Windows use o Git Bash:
-bash scripts/no-mistakes/setup.sh
-```
-```bash
-# macOS (Terminal)
-sh scripts/no-mistakes/setup.sh
-```
-
----
-
-## 10. Ensaio da migração do Demurrage Manager (`migracao-demurrage/dry-run`)
+## 9. Ensaio da migração do Demurrage Manager (`migracao-demurrage/dry-run`)
 
 **O que faz:** lê os dados do **sistema antigo** (Demurrage Manager) junto com
 duas planilhas exportadas dele, aplica todas as regras combinadas da migração e
@@ -280,7 +283,7 @@ termina com erro de propósito — serve como portão antes da migração real.
 
 ---
 
-## 11. Usuário admin da Preview (`provision-preview-admin`)
+## 10. Usuário admin da Preview (`provision-preview-admin`)
 
 **O que faz:** cria ou atualiza o usuário `qa-admin@example.test` usando a Auth
 Admin API e garante o perfil interno `admin` na branch Supabase indicada pelas
@@ -307,7 +310,7 @@ restante do fixture sem expor ou substituir a credencial silenciosamente.
 
 ---
 
-## 12. Reconstruir o schema consolidado v1.0 (`build-squash-migrations`)
+## 11. Reconstruir o schema consolidado v1.0 (`build-squash-migrations`)
 
 **O que faz:** recorta um `pg_dump` do schema `public` em
 `supabase/migrations/001_initial_schema.sql` (estrutura) e
@@ -355,9 +358,11 @@ e não deve ser substituída pelo dump.
 | `setup-local-pg` | Banco descartável para testar migrations (macOS/Linux) |
 | `perf/measure-page-load` | Medir a leveza/velocidade das telas |
 | `build-behavioral-spec` | Gerar a planilha Excel da especificação |
-| `skills/install-skills` | Instalar as skills do assistente de IA |
+| `skills:report` | Inventariar as 14 skills nos stores pessoais |
+| `skills:usage` | Medir sinais observáveis de uso por aplicativo |
+| `skills:reset` | Simular ou reconstruir os stores pessoais com backup |
+| `skills:sync` | Sincronizar skills Vela com ownership e dry-run |
 | `download-fonts` | Rebaixar as fontes do site para `public/fonts/` |
-| `no-mistakes/setup` | Ligar a proteção contra erros de Git |
 | `migracao-demurrage/dry-run` | Ensaiar a migração do Demurrage Manager (só lê) |
 | `provision-preview-admin` | Provisionar o usuário admin da branch Preview |
 | `load-branch-env` | Decodificar o `-o env` do CLI para o `$GITHUB_ENV` (usado pelo provisionamento) |

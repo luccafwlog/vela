@@ -1,6 +1,6 @@
 # Remediação das auditorias #654–#660 — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Use `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Remediar os riscos ainda presentes após a PR #661, com fronteiras financeiras e operacionais verificáveis, sem repetir correções entregues nem revogar decisões de domínio implicitamente.
 

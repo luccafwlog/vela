@@ -1,99 +1,124 @@
 ---
 name: design-audit
-description: "Audit Vela UI across pages with screenshots and prioritized findings."
+description: "Use when the user asks for a Vela UI audit across pages, states or viewports with evidence and prioritized findings."
 ---
 
-# Design Audit Playbook
+# Auditoria de design do Vela
 
-Audit the product as a senior design lead on their first day: judge whether a
-normal user can **understand** the product, **trust** it, and **finish the
-core action** (manifesto → revisão → taxas → fatura) without docs — not
-whether the UI looks nice.
+Avalie se uma pessoa normal consegue entender o produto, confiar nos dados e
+concluir a ação principal do escopo — por exemplo, cadastrar ou atualizar uma
+Viagem, revisar um B/L, conferir Taxas Locais ou acompanhar uma fatura. Uma
+auditoria de design não é apenas uma avaliação estética.
 
-## Phase 1 — Boot the real site
+## Escopo e capacidade
 
-The remote sandbox cannot reach `*.supabase.co`, so the app runs against a
-local stack. All pieces live in `scripts/design-audit/`.
+Antes de iniciar, confirme o escopo: páginas, estados, viewports, ambiente,
+profundidade e se o usuário quer somente relatório ou também correções. Toda
+comunicação dirigida ao usuário deve ser em português do Brasil (pt-BR), salvo
+pedido explícito em contrário.
 
-1. **Postgres 16 local** (install if missing: `apt-get install -y postgresql-16
-   postgresql-contrib postgresql-16-cron`, add `shared_preload_libraries='pg_cron'`
-   and `cron.database_name='app'` to postgresql.conf, `pg_ctlcluster 16 main start`).
-2. **Create DB + Supabase scaffolding**: `su postgres -c "createdb app"` then
-   apply `scripts/design-audit/bootstrap.sql` (roles anon/authenticated/service_role,
-   schema `auth` com `auth.uid()/role()/jwt()`, extensions pgcrypto/pg_trgm/pg_cron).
-3. **Migrations**: apply every file in `supabase/migrations/*.sql` in order with
-   `ON_ERROR_STOP=1`. They must pass cleanly — a failure here is a real finding.
-4. **Grants** (Supabase faz isso automaticamente; local não):
-   `grant usage on schema public to anon, authenticated, service_role;`
-   `grant all on all tables/sequences in schema public to authenticated, service_role;`
-   `grant execute on all functions in schema public to authenticated, anon, service_role;`
-5. **Seed**: apply `supabase/seeds/validation_seed.sql` then
-   `scripts/design-audit/seed_audit.sql` (synthetic data only — **never copy
-   production rows**; that was explicitly denied once and stays denied).
-   Login user: `auditor@local.test` / `audit-local` (admin).
-6. **Shim**: `node scripts/design-audit/sb-shim.cjs &` — emulates the PostgREST
-   + GoTrue subset the app uses, on port 54321. If a page logs a 400 from
-   `/sb-proxy/rest/...`, check the shim log: it may be an unsupported PostgREST
-   feature (extend the shim) **or a real app bug** (column that doesn't exist —
-   that's how the granite_bls.updated_at production bug was found).
-7. **App**: write `.env` with `VITE_SUPABASE_URL=http://127.0.0.1:5173/sb-proxy`
-   and any anon key; the `/sb-proxy` proxy in `vite.config.ts` forwards to the
-   shim. Run `npm run dev -- --port 5173 --host 127.0.0.1`.
-8. Browser TLS in this sandbox: add the proxy CAs from
-   `/usr/local/share/ca-certificates/*.crt` to `~/.pki/nssdb` via `certutil`
-   (package `libnss3-tools`), and symlink Chromium if the Playwright MCP expects
-   `/opt/google/chrome/chrome`.
+Ao relatar um achado, use primeiro a linguagem da tela: página, seção, botão,
+campo, coluna, filtro, modal, estado e efeito para a pessoa. Conecte o problema
+à consequência em outro fluxo ou página quando houver. Só depois informe
+componente, arquivo ou CSS como detalhe técnico. Consulte `CONTEXT.md` e os
+documentos de módulo para não inventar nomes de entidades ou labels.
 
-Known environment artifacts (do NOT report as product bugs): Google Fonts and
-the BCB PTAX API are blocked by the egress proxy; realtime websockets fail
-against the shim.
+Use o stack local e os scripts de auditoria existentes quando estiverem
+disponíveis e autorizados. Consulte `WORKFLOW.md`, `CLAUDE.md` e a documentação
+de setup antes de preparar banco, servidor ou dados. Não instale pacotes, altere
+configuração global, crie credenciais ou inicialize serviços automaticamente
+sem necessidade e autorização.
 
-## Phase 2 — Screenshot every page
+Se browser, banco local, Playwright, seed ou outro recurso necessário não
+estiver disponível, faça a parte estática ou manual que for possível e registre
+exatamente o que não foi verificado. Nunca diga que uma página, screenshot,
+console ou fluxo foi auditado sem evidência.
 
-Use the Playwright MCP. Log in once, then for each route: navigate → wait 2s →
-screenshot to `docs/design-audit/assets/` (viewport 1440×900; `fullPage` for
-long list pages). Routes: `/login` (+ error state with wrong password),
-`/painel`, `/viagens` (+ Nova Viagem modal), `/manifestos`, `/containers`,
-`/carga-solta`, `/veiculos`, `/manifestos/:blId`, `/revisao`, `/clientes`,
-`/clientes/:cnpj`, `/taxas-locais`, `/taxas-locais/tabelas` (+ Detalhes modal),
-`/alertas`, `/relatorios`, `/demurrage`, `/demurrage/taxas`, `/reconciliacao`,
-`/granito`, `/granito/taxas`, `/embarquevazios`, `/vazios-importacao`,
-`/baplie`, `/line-up-tv/display`, `/admin/usuarios`, `/portal/login`.
+Use apenas dados sintéticos. Não copie dados de produção. Não execute testes
+ativos contra produção ou serviços de terceiros.
 
-Then a **mobile pass** at 390×844 for at least: login, painel, manifestos,
-faturamento — check that wide tables scroll horizontally instead of crushing.
+## Decisões e sentido do sistema
 
-After each page, check the browser console and the shim log — console errors
-and silent query failures are audit findings, often the most important ones.
+Considere CONTEXT.md, a sessão atual, os planos e as ADRs vigentes para
+entender o fluxo esperado. Uma ADR antiga ou um rótulo histórico não deve ser
+tratado como regra atual sem verificar seu status.
 
-Screenshots come out at full resolution but may render small when read back;
-crop regions with PIL to inspect dense tables.
+Se o comportamento visível da tela contrariar uma decisão anterior e não ficar
+claro que houve uma substituição consciente, registre a inconsistência como
+decisão pendente. Não corrija a semântica por conta própria. Pergunte ao usuário
+qual regra deve vigorar e use um exemplo do Vela, como: “Se a página Viagens
+permitir retirar a declaração de Exportação da Escala enquanto houver Embarque
+de Vazios, o sistema deve bloquear a ação ou descartar o planejamento?”
 
-## Phase 3 — Audit dimensions
+Em cada achado material, inclua pelo menos um exemplo hipotético com página,
+ação, entidade, estado e efeito. Deixe claro que o exemplo é uma simulação, não
+uma evidência observada.
 
-Score each page against: first impressions · navigation · visual hierarchy ·
-component consistency · loading/empty/error states · trust signals ·
-conversion paths. Watch for this product's recurring failure patterns:
+## Coleta de evidências
 
-- raw machine codes in the UI (`PENDING_REVIEW`, `Approved`, `active`)
-- PT/EN language mixing
-- silent data failures (query fails → list renders incomplete, no warning)
-- destructive actions styled like secondary actions
-- pt-BR formatting gaps (dates, thousand separators)
+Quando a auditoria visual completa for solicitada:
 
-## Phase 4 — Prioritize and fix
+1. descubra as rotas atuais no código e na documentação, em vez de confiar em
+   uma lista histórica sem conferir;
+2. faça login uma vez no ambiente local autorizado;
+3. para cada rota e estado relevante, navegue, aguarde a estabilização e salve
+   screenshot com viewport registrada; use `fullPage` apenas quando ajudar;
+4. repita o passe mínimo em viewport móvel para verificar overflow, tabelas,
+   formulários e alvos de toque;
+5. registre erros de console, falhas silenciosas de consulta e logs do backend
+   junto da evidência visual;
+6. marque artefatos conhecidos do ambiente — como fontes externas bloqueadas ou
+   websocket indisponível no shim — sem tratá-los automaticamente como bugs do
+   produto.
 
-- Tag every issue P0–P3 and which axis it hurts: Entendimento / Confiança /
-  Conversão, with the specific fix.
-- **Fix on the spot** only safe small stuff: copy, label maps, spacing, CSS
-  min-widths, button hierarchy, display-only formatting. Run `npx tsc -b`,
-  `npm run lint`, `npm test` after fixes and re-screenshot to verify.
-- **Never touch**: payment/PIX logic (`src/lib/pix.ts`), delete flows, RLS,
-  anything that mutates money or data semantics. Those become recommendations.
-- End the report with: top 5 issues hurting conversion + top 5 quick wins.
+## Critérios de análise
 
-## Phase 5 — Report
+Avalie cada página e estado por:
 
-Write/update `docs/design-audit/README.md` (date, commit, method, fixed-now
-table with before/after evidence, P0–P3 tables, dimension summary, top-5s).
-Reference screenshots by relative path. Commit, push, open PR.
+- entendimento inicial e navegação;
+- hierarquia visual, consistência e linguagem pt-BR;
+- carregamento, vazio, erro e confirmação;
+- confiança nos dados e nos estados;
+- acessibilidade, responsividade e tamanho dos alvos;
+- caminho de conversão e ação principal.
+
+Procure especialmente códigos de máquina expostos, mistura PT/EN, falhas de
+consulta sem aviso, ação destrutiva com hierarquia inadequada e formatação
+incorreta de datas ou números.
+
+Separe no relatório:
+
+- problema de entendimento da tela;
+- problema de confiança nos dados ou estados;
+- problema de conversão ou conclusão da ação;
+- defeito técnico observado;
+- decisão de produto ainda não confirmada.
+
+## Priorização e correção
+
+Classifique cada achado como P0–P3 e indique o eixo afetado: Entendimento,
+Confiança ou Conversão. Inclua evidência, localização, impacto, recomendação e
+limitação.
+
+Só aplique correções se o usuário as tiver solicitado ou autorizado. Correções
+seguras e locais podem incluir copy, label maps, espaçamento, CSS de overflow e
+formatação display-only. Não altere `src/lib/pix.ts`, fluxos de exclusão, RLS,
+dinheiro ou semântica de dados como se fossem correções de design; registre-os
+como recomendações e encaminhe para o fluxo adequado.
+
+Depois de uma correção, rode os checks afetados e refaça a evidência visual.
+Não declare melhoria sem comparação verificável.
+
+## Relatório e entrega
+
+Quando solicitado, escreva ou atualize `docs/design-audit/README.md` com data,
+commit/base, método, evidências, tabela de correções, achados P0–P3, resumo por
+dimensão, cinco maiores problemas de conversão e cinco quick wins. Use links
+relativos para screenshots.
+
+Escrever esse relatório é a entrega documental da auditoria; não crie ADR,
+altere CONTEXT.md, mude semântica ou implemente correções sem autorização
+explícita. Se o usuário pediu somente análise, entregue o relatório e pare.
+
+Uma auditoria não autoriza commit, push, abertura de PR ou deploy. Essas ações
+exigem pedido separado e evidência de que o usuário as deseja.

@@ -50,3 +50,19 @@ escaneado: `~/.claude/skills/` e `~/.codex/skills/`.
 - A cobertura do Codex depende de o usuário colar a linha na config de cada
   máquina — passo manual inevitável enquanto a config do Codex for externa ao
   repositório.
+
+## Atualização de governança — 2026-09-18
+
+O instalador original foi mantido como entrada compatível, mas agora delega ao
+`scripts/skills/skill-sync.mjs`. O sincronizador trata `~/.agents/skills`,
+`~/.claude/skills`, `~/.codex/skills`, `~/.gemini/config/skills` e
+`~/.gemini/skills` como stores pessoais gerados, grava um manifesto por destino
+em `~/.vela/skill-sync/` e oferece `--dry-run`, `--check` e `--prune-owned`.
+O reset inicial é feito por `scripts/skills/skill-reset.mjs`, que cria backup e
+reconstrói esses stores com somente as 14 skills ativas.
+
+A poda incremental remove somente nomes registrados como pertencentes ao Vela.
+O ledger versionado `scripts/skills/legacy-removed-skills-2026-09-18.json`
+registra as 37 remoções aprovadas para auditoria, mas não substitui o reset
+explícito. Configurações dos aplicativos, histórico, credenciais, plugins e o
+store builtin do Antigravity ficam fora da operação.

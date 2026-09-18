@@ -9,6 +9,12 @@
   "scripts": {
     "sync": "git fetch origin --prune && git pull --ff-only",
     "sync:hard": "git fetch origin --prune && git reset --hard origin/main && git clean -fd",
+    "skills:report": "node scripts/skills/report-skills.mjs --label local",
+    "skills:report:json": "node scripts/skills/report-skills.mjs --label local --format json",
+    "skills:usage": "node scripts/skills/report-skill-usage.mjs",
+    "skills:usage:json": "node scripts/skills/report-skill-usage.mjs --format json",
+    "skills:reset": "node scripts/skills/skill-reset.mjs",
+    "skills:sync": "node scripts/skills/skill-sync.mjs --prune-owned",
     "dev": "vite",
     "docs:check": "node scripts/check-docs.mjs",
     "rpc:check": "node scripts/check-rpc-catalog.mjs",

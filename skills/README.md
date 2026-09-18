@@ -1,6 +1,6 @@
 # Agent Skills
 
-A unified collection of 50 agent skills following the [agentskills.io](https://agentskills.io) specification. Skills provide task-specific guidance for planning, implementation and specialist workflows.
+A unified collection of 14 agent skills following the [agentskills.io](https://agentskills.io) specification. Skills provide task-specific guidance for planning, implementation and specialist workflows.
 
 Each skill is a directory containing a `SKILL.md` file (with YAML frontmatter) plus optional supporting files (prompts, references, scripts, tests).
 
@@ -21,31 +21,17 @@ These are vendored from https://github.com/mattpocock/skills/tree/release/v1.2. 
 
 | Skill | Upstream path | Description |
 |-------|----------------|-------------|
-| **grilling** | `skills/productivity/grilling` | Shared interview engine: maps the decision as a design tree, asks each round's frontier of questions together with a recommended answer, dispatches sub-agents for facts. Invoked by grill-me, grill-me-with-docs, and other grilling-flavored skills. |
-| **grill-me** | `skills/productivity/grill-me` | A relentless interview to sharpen a plan or design. Runs a `/grilling` session. |
-| **grill-me-with-docs** | `skills/engineering/grill-with-docs` (renamed locally) | A relentless interview to sharpen a plan or design, which also creates docs (ADRs and glossary) as we go. Runs `/grilling` with `/domain-modeling`. |
-| **domain-modeling** | `skills/engineering/domain-modeling` | Build and sharpen a project's domain model — challenge terms, invent edge-case scenarios, write CONTEXT.md and ADRs down as they crystallise. Invoked by grill-me-with-docs and other skills that maintain the domain model. |
-| **handoff** | `skills/in-progress/claude-handoff` (renamed locally; upstream "in-progress" = experimental) | Hand the current conversation off to a fresh background agent (`claude --bg`) that picks up the work immediately. |
-| **loop-me** | `skills/in-progress/loop-me` (upstream "in-progress" = experimental) | Grill me about specs for the workflows I want to build, within this workspace. |
+| **grilling** | `skills/productivity/grilling` | Entrada canônica para entrevista estruturada, com rounds/frontier e modos de entrevista sem persistência ou com persistência confirmada. |
+| **handoff** | `skills/in-progress/claude-handoff` (renamed locally; upstream "in-progress" = experimental) | Gera um documento Randolph, pronto para copiar e colar, com o contexto, decisões, evidências, bloqueios e próximo passo da sessão. |
 | **wayfinder** | `skills/engineering/wayfinder` | Plan a huge chunk of work as a shared map of decision tickets on the issue tracker, resolved one at a time until the way to the goal is clear. |
-| **ask-matt** | `skills/engineering/ask-matt` | Router over the mattpocock skill set — ask which skill or flow fits your situation. |
-| **codebase-design** | `skills/engineering/codebase-design` | Shared vocabulary for designing deep modules: leverage, locality, testability, where a seam goes. |
-| **diagnosing-bugs** | `skills/engineering/diagnosing-bugs` | Diagnosis loop for hard bugs and performance regressions. |
-| **implement** | `skills/engineering/implement` | Implement a piece of work based on a spec or set of tickets; uses `/tdd` at pre-agreed seams. |
-| **improve-codebase-architecture** | `skills/engineering/improve-codebase-architecture` | Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick. |
-| **prototype** | `skills/engineering/prototype` | Build a throwaway prototype to answer a design question — a state model, a UI look, a logic sanity check. |
-| **research** | `skills/engineering/research` | Investigate a question against high-trust primary sources via a background agent, capture findings as a Markdown file. |
-| **resolving-merge-conflicts** | `skills/engineering/resolving-merge-conflicts` | Resolve an in-progress git merge/rebase conflict by tracing each side's original intent. |
-| **setup-matt-pocock-skills** | `skills/engineering/setup-matt-pocock-skills` | Configure a repo for the engineering skills — issue tracker, triage label vocabulary, domain doc layout. Run once before first use of the other engineering skills. |
-| **tdd** | `skills/engineering/tdd` | Test-driven development reference: what a good test is, where tests go, anti-patterns, the rules of the red→green loop. |
-| **to-spec** | `skills/engineering/to-spec` | Turn the current conversation into a spec and publish it to the project issue tracker — synthesis, not interview. |
-| **to-tickets** | `skills/engineering/to-tickets` | Break a plan/spec/conversation into tracer-bullet tickets with blocking edges, published to the configured tracker. |
-| **triage** | `skills/engineering/triage` | Move issues and external PRs through a state machine of triage roles — categorise, verify, grill if needed, write agent-ready briefs. |
-| **wait-what** | `skills/productivity/wait-what` | Corrective for a message that didn't land — re-pitches the last message in ASD-STE100 Simplified Technical English using the `CONTEXT.md` vocabulary. |
+| **improve-codebase-architecture** | `skills/engineering/improve-codebase-architecture` | Identifica oportunidades de aprofundamento arquitetural no Vela, apresenta candidatos em relatório visual e investiga a opção escolhida sem persistência silenciosa. |
+| **wait-what** | `skills/productivity/wait-what` | Reexplica em pt-BR uma mensagem que não ficou clara, mudando a representação e usando o vocabulário de `CONTEXT.md` quando aplicável. |
 
-`tdd` and `test-driven-development` are alternative references for test-first
-work; use one appropriate to the request. Likewise choose between general
-frontend design, focused polish and a full design audit rather than loading all.
+Test-first behavior remains a repository practice, but the retained catalog no
+longer exposes separate `tdd` and `test-driven-development` commands. Use the
+project instructions and the focused tests appropriate to each change.
+Likewise choose between general frontend design, focused polish and a full
+design audit rather than loading all.
 
 ## Local adaptation and discovery
 
@@ -61,9 +47,26 @@ is not permission to change external services or global agent configuration.
 Do not bulk-load this catalog or install additional overlapping skills merely
 because they exist. Existing invocation metadata is preserved.
 
-The `emil-design-eng` and `ui-ux-pro-max` entrypoints route to topic references.
-The UI/UX copy has no upstream search script or database; its written guidance
-is usable directly. Historical provenance below remains attached to each source.
+### Idioma das interações
+
+Skills que fazem perguntas, conduzem entrevistas, solicitam decisões ou
+aguardam aprovação devem usar português do Brasil (pt-BR) em toda comunicação
+dirigida ao usuário: perguntas, recomendações, alternativas, confirmações e
+encerramentos. Preserve literalmente nomes de comandos, caminhos, labels,
+identificadores, código, citações e termos técnicos quando necessário. Use
+outro idioma apenas quando o usuário pedir explicitamente.
+
+Quando a tarefa envolver o Vela, a comunicação também deve usar o vocabulário
+do sistema: comece pela página, ação, controle, estado e efeito visível; depois
+explique arquivos, componentes, services, queries ou RPCs. Consulte o glossário
+canônico em [`CONTEXT.md`](../CONTEXT.md) e o [guia de linguagem do sistema](../docs/agents/linguagem-do-sistema.md).
+
+The `frontend-design` entrypoint has three modes: `criar`, `polir` and
+`avaliar`. It routes to focused references for accessibility, layout,
+flows/dados, revisão e polimento. The consolidated UI guidance has no upstream
+search script or database; its written guidance is usable directly. The legacy
+OpenCode commands `make-interfaces-feel-better` and `ui-ux-pro-max` remain
+compatibility aliases to the `polir` and `avaliar` modes.
 
 See the [instruction audit](../docs/archive/audits/2026-09-06-instrucoes-agentes-skills.md)
 for the changes, structural checks and remaining installation limits.
@@ -72,58 +75,35 @@ for the changes, structural checks and remaining installation limits.
 
 | Skill | Description |
 |-------|-------------|
-| **brainstorming** | Turn ideas into designs through collaborative dialogue. Resolve material choices without a mandatory gate for clear implementation requests. |
-| **dispatching-parallel-agents** | Dispatch independent agents for parallel investigation of unrelated problems. |
-| **executing-plans** | Execute an existing plan through validation and completion. |
-| **finishing-a-development-branch** | Carry out the requested integration or cleanup and preserve workspace ownership. |
-| **receiving-code-review** | Handle code review feedback with technical rigor — verify before implementing, no performative agreement. |
-| **requesting-code-review** | Arrange a focused independent review when requested or warranted by risk. |
-| **subagent-driven-development** | Coordinate authorized subagents with independent task ownership. |
-| **systematic-debugging** | Trace the reported failure with reproducible evidence and focused probes. |
-| **test-driven-development** | Test-first behavior and regression reproduction without deleting existing work. |
-| **using-git-worktrees** | Detect existing isolation, prefer native worktree tools, fall back to git worktree. |
-| **using-superpowers** | Help select relevant guidance when workflow choice is unclear. |
-| **verification-before-completion** | Match completion claims to evidence; reuse results for unchanged code. |
-| **writing-plans** | Write outcome-based plans for substantial coordination or handoff. |
-| **writing-skills** | Maintain concise descriptions, scoped guidance and progressive references. |
+| **brainstorming** | Explora decisões de produto, domínio ou design que mudam materialmente o fluxo do Vela e só persiste decisões com confirmação adequada. |
+| **executing-plans** | Executa um plano existente com validação e conclusão verificável. |
+| **writing-plans** | Escreve planos orientados a resultado para trabalho substancial, coordenação ou handoff. |
+| **writing-skills** | Cria, refina, valida e governa skills reutilizáveis, preservando proveniência, política de invocação e sincronização. |
 
 ## Project & Domain Skills
 
 | Skill | Description |
 |-------|-------------|
-| **design-audit** | Full-site UI/UX audit playbook for Vela: boot real app, screenshot every page, audit, prioritize P0-P3, apply safe fixes. |
-| **import-parser** | Add or change CSV, XLSX, EDI, EDIFACT, fixed-width, Baplie, vehicle, container, customer, CE Mercante, Granito, or Vazios import behavior. |
-| **invoice-pdf** | Add or change printable local-charge or Demurrage invoice documents, browser print behavior, layout, fiscal formatting, PIX QR rendering. |
-| **react-query-pattern** | Add or change Supabase data access, TanStack React Query hooks, cache keys, invalidation, mutations, reusable remote state. |
-| **supabase-migration** | Create or review Supabase migrations involving tables, columns, indexes, constraints, foreign keys, RLS, grants, views, functions, triggers, RPCs. |
+| **design-audit** | Audita páginas, estados e viewports do Vela com evidências, linguagem do sistema e achados P0–P3; não corrige sem autorização. |
 
 ## Design & UX Skills
 
 | Skill | Description |
 |-------|-------------|
-| **frontend-design** | Create distinctive, production-grade frontend interfaces with high design quality. Avoids generic AI aesthetics. |
-| **ui-ux-pro-max** | Written UI/UX criteria, routed by accessibility, layout, flows and review. |
+| **frontend-design** | Entrada canônica para criar, polir ou avaliar interfaces web com direção visual coerente, acessibilidade e comportamento pronto para produção. |
 
 ## Code Quality & Review Skills
 
 | Skill | Description |
 |-------|-------------|
-| **autoreview** | Auto Review closeout. Codex review is the default engine. Run structured review as a closeout check. |
-| **security-audit-penetration-testing** | Complete security audit framework with 6 phases: discovery, resources, audit, plan, testing, reporting. |
-| **thermo-nuclear-code-quality-review** | Extremely strict maintainability review for abstraction quality, giant files (1k-line threshold), and spaghetti-condition growth. Biased toward ambitious "code judo" restructuring. |
-
-## Codebase Audit & Planning Skills
-
-| Skill | Description |
-|-------|-------------|
-| **improve** | Read-only senior-advisor audit of any codebase (bugs, security, perf, tests, tech debt, deps, DX, docs, direction) that produces self-contained implementation plans for other models/agents to execute. Never edits source code itself. |
+| **vela-code-review** | Revisão orientada ao sentido do Vela: confronta decisões atuais e anteriores, fluxo visível, cenários adversos e qualidade estrutural. |
+| **security-audit-penetration-testing** | Scoped, authorized security audit or penetration test with evidence, approval gates, safe validation and explicit limitations. |
 
 ## Workflow & Communication Skills
 
 | Skill | Description |
 |-------|-------------|
-| **caveman** | Ultra-compressed communication mode. Cuts token usage ~75% by dropping filler while keeping technical accuracy. |
-| **eli5** *(Third-party)* | Explain any topic, code, concept, or error tailored to a specific audience's level of understanding (age, education level, job role, or relationship). |
+| **eli5** *(Third-party)* | Explica assuntos em pt-BR para o proprietário do Vela, usando o vocabulário das páginas e fluxos sem exigir conhecimento de código. |
 
 ## Structure
 
@@ -133,28 +113,42 @@ when the selected task needs its supporting files.
 
 ## Usage
 
-This directory is the **single source of truth**. Both harnesses discover the
-skills at session start from their user-level skill dirs, populated from here by
-`scripts/skills/install-skills.mjs` (one Node script, same on Windows/macOS/Linux):
+This directory is the **single source of truth** for the Vela-owned skills. The
+the Node scripts materialize them into the local harness directories (same on
+Windows/macOS/Linux):
 
-| Harness | Installed into | Triggered by |
+| Destination | Installed into | Triggered by |
 |---------|----------------|--------------|
-| Claude Code | `~/.claude/skills/` | `.claude/hooks/session-start.sh` (cloud + local) |
-| Codex | `~/.codex/skills/` | your Codex worktree **Script de configuração** (cloud + local) |
+| Shared agent directory | `~/.agents/skills/` | `npm run skills:sync` |
+| Claude Code | `~/.claude/skills/` | `.claude/hooks/session-start.sh` |
+| Codex | `~/.codex/skills/` | Codex worktree setup or `npm run skills:sync` |
+| Antigravity (configuração) | `~/.gemini/config/skills/` | `npm run skills:sync` |
+| Antigravity (pessoal) | `~/.gemini/skills/` | `npm run skills:sync` |
 | OpenCode | `./skills/` via `opencode.json` | `/skill-name` in the prompt |
 
-To add or edit a skill, change it here only — never hand-maintain copies in
-`~/.claude/skills`, `~/.codex/skills`, or ZIP bundles.
+To add or edit a skill, change it here only — never hand-maintain copies in the
+global directories or ZIP bundles. The first installation on a machine uses
+`npm run skills:reset -- --apply`: it backs up the personal stores and
+reconstructs them with only the active Vela skills. Depois disso, use
+`npm run skills:sync` para atualizações incrementais. O reset não apaga
+configurações dos aplicativos, histórico, o store `.system` do Codex, skills
+nativas do Antigravity ou caches de plugins.
 
 Skills vendored from `mattpocock/skills` intentionally exclude that repo's own
 `agents/*.yaml` metadata files (cross-harness routing config for the `skills.sh`
 installer) — this project's own `install-skills.mjs` is the installer here, so
 that metadata has no consumer.
 
+The external Superpowers plugin supplies `superpowers:using-superpowers`; Vela
+does not vendor a duplicate router. Its availability and behavior are managed
+by the plugin, outside Vela ownership.
+
 ### Claude Code
 
-Nothing to do: the `SessionStart` hook runs the installer, provisioning both
-`~/.claude/skills/` and `~/.codex/skills/` in every cloud and local session.
+The `SessionStart` hook runs the compatibility wrapper, which delegates to the
+safe synchronizer. It updates the Vela-owned set without touching plugin or
+system skills. A failure is reported in the session output instead of being
+silently ignored.
 
 ### Codex
 
@@ -165,13 +159,13 @@ worktree setup script (all OS tabs — Node is cross-platform):
 node scripts/skills/install-skills.mjs
 ```
 
-The installer replaces matching global skill directories for Claude Code,
-Codex and Antigravity (`~/.gemini/config/skills/`). Run it deliberately when you
-want to synchronize these copies; it is not needed to validate a repository edit.
-Existing sessions keep their already loaded catalog. New Codex sessions discover
-the installed skills from `~/.codex/skills/`. The installer does not manage
-`~/.agents/skills/` or copies supplied by plugins; overlaps there need separate
-user-level maintenance.
+Run it deliberately when you want to synchronize the global copies; use
+`npm run skills:sync -- --dry-run` first when reviewing a change. Existing
+sessions keep their already loaded catalog. New Codex sessions discover the
+installed skills from `~/.codex/skills/`. Plugin and system skills remain
+outside Vela ownership. The Antigravity builtin store under
+`~/.gemini/antigravity/builtin/skills/` is app-managed and is not a personal
+Vela store.
 In Codex/T3, use `/skills` to open the skill picker; Codex does not expose each
 skill as a separate `/skill-name` command in the main slash catalog.
 
@@ -182,14 +176,13 @@ Skills follow the agentskills.io spec. Each `SKILL.md` has YAML frontmatter with
 
 ### With Other Harnesses
 
-The `using-superpowers/references/` directory contains tool name mappings for:
-- **Gemini CLI** — `gemini-tools.md`
-- **Copilot CLI** — `copilot-tools.md`
-- **Codex** — `codex-tools.md`
+Skills supplied by external plugins retain their own harness-specific
+references. Vela only synchronizes the skills listed in this repository.
 
 ## License
 
 Mattpocock skills: see https://github.com/mattpocock/skills for licensing terms.
 Superpowers skills: see original source for licensing terms.
 Frontend Design: see `frontend-design/LICENSE.txt`.
-Improve: MIT — see `improve/SKILL.md` frontmatter (author: shadcn, source: https://github.com/shadcn/improve).
+The removed vendored skills remain documented in the dated audit report under
+`docs/skills/` for traceability; they are not part of the active catalog.

@@ -1,6 +1,6 @@
 # Remediação da Revisão Sistemática Multiagente (2026-09-12) — Plano de Implementação
 
-> **Para executores agenticos:** SUB-SKILL RECOMENDADA: `superpowers:subagent-driven-development` ou `superpowers:executing-plans`. Itens usam sintaxe de checkbox (`- [ ]`) para rastreamento contínuo.
+> **Para executores agenticos:** use `superpowers:executing-plans`. Itens usam sintaxe de checkbox (`- [ ]`) para rastreamento contínuo.
 
 **Objetivo:** Implementar de forma faseada, segura e verificável os achados consolidados no relatório histórico `docs/archive/audits/2026-09-12-revisao-sistematica-multiagente.md` (PR #687), cobrindo acessibilidade (WCAG 2.4/2.5), consistência visual/UI, integridade de documentos fiscais/operacionais, segurança de fronteira, robustez do harness de testes, índices de banco de dados e eficiência de importação.
 

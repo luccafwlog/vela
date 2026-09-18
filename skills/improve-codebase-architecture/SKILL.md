@@ -1,71 +1,153 @@
 ---
 name: improve-codebase-architecture
-description: Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
+description: "Use when the user asks to identify and compare architectural deepening opportunities in the Vela codebase and select one for further investigation."
 disable-model-invocation: true
 ---
 
-# Improve Codebase Architecture
+# Aprofundamento da arquitetura do Vela
 
-Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
+Esta skill localiza atrito arquitetural e apresenta oportunidades de
+aprofundamento: mudanças que tornam um módulo mais profundo, concentrando
+complexidade atrás de uma interface compreensível. O resultado inicial é um
+relatório de opções; a skill não implementa a refatoração automaticamente.
 
-This command is _informed_ by the project's domain model and built on a shared design vocabulary:
+Use-a quando o usuário quiser investigar a estrutura do código, comparar
+opções de arquitetura ou encontrar módulos difíceis de entender e testar. Para
+revisão de um diff específico, use vela-code-review. Para um bug sem causa
+conhecida, use o workflow de debugging. Para uma decisão ainda aberta, use
+brainstorming ou grilling.
 
-- Run the `/codebase-design` skill for the architecture vocabulary (**module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**) and its principles (the deletion test, "the interface is the test surface", "one adapter = hypothetical seam, two = real"). Use these terms exactly in every suggestion — don't drift into "component," "service," "API," or "boundary."
-- The domain language in `CONTEXT.md` gives names to good seams; ADRs in `docs/adr/` record decisions this command should not re-litigate.
+## Linguagem e contrato
 
-## Process
+Toda comunicação dirigida ao usuário deve ser em português do Brasil. Comece
+pela linguagem do sistema: página, ação, entidade, estado, efeito e conexão
+entre áreas. Só depois explique módulo, interface, seam, adapter, locality,
+leverage, depth ou outros termos arquiteturais.
 
-### 1. Explore
+Use os termos de arquitetura quando eles clarificarem a análise, mas não os
+trate como uma proibição artificial contra nomes reais do projeto. Componentes,
+services, APIs, queries e RPCs podem ser mencionados quando forem evidência
+necessária. O objetivo é explicar por que a estrutura técnica afeta o fluxo de
+Viagens, BLs, containers, veículos, faturamento, taxas, locais ou outra área do
+Vela.
 
-**Scope before you scan — YAGNI.** Deepening a module pays off by making future changes to it easier, so put extra weight on the parts of the codebase that have recently changed. Decide *where* to look before you look:
+Uma oportunidade arquitetural é uma hipótese, não uma decisão. Não transforme
+o relatório em autorização para alterar código, CONTEXT.md, ADRs, planos,
+issues, configuração global, commit ou deploy.
 
-- If the user named a direction — a module, a subsystem, a pain point — take it, and skip the inference below.
-- Otherwise, walk back a good stretch of the commit history (`git log --oneline`) to find the codebase's hot spots — the files and areas that keep coming up — and let those paths pull your attention first. If the changes are scattered with no clear hot spot, widen the net.
+## 1. Explorar com escopo
 
-Read the project's domain glossary (`CONTEXT.md`) and any ADRs in the area you're touching first.
+Antes de escanear:
 
-Then use the Agent tool with `subagent_type=Explore` to walk the codebase. Don't follow rigid heuristics — explore organically and note where you experience friction:
+1. confirme a área, módulo, página ou dor que o usuário quer investigar;
+2. leia CONTEXT.md e as ADRs ativas relacionadas;
+3. examine o histórico recente para localizar áreas que mudam repetidamente,
+   sem tratar frequência de commit como prova de defeito;
+4. defina o conjunto de arquivos que sustenta cada candidato.
 
-- Where does understanding one concept require bouncing between many small modules?
-- Where are modules **shallow** — interface nearly as complex as the implementation?
-- Where have pure functions been extracted just for testability, but the real bugs hide in how they're called (no **locality**)?
-- Where do tightly-coupled modules leak across their seams?
-- Which parts of the codebase are untested, or hard to test through their current interface?
+Se o usuário não indicar uma área, explore os pontos de maior mudança recente e
+amplie somente quando não houver concentração clara. Não faça uma varredura
+indiscriminada apenas para produzir mais candidatos.
 
-Apply the **deletion test** to anything you suspect is shallow: would deleting it concentrate complexity, or just move it? A "yes, concentrates" is the signal you want.
+Use uma capacidade independente de exploração somente quando ela existir no
+harness atual e estiver autorizada. Caso contrário, faça a inspeção na sessão
+atual. Não invoque nem prometa um tipo de subagente, ferramenta ou
+subagent_type que não esteja disponível.
 
-### 2. Present candidates as an HTML report
+Procure atrito real:
 
-Write a self-contained HTML file to the OS temp directory so nothing lands in the repo. Resolve the temp dir from `$TMPDIR`, falling back to `/tmp` (or `%TEMP%` on Windows), and write to `<tmpdir>/architecture-review-<timestamp>.html` so each run gets a fresh file. Open it for the user — `xdg-open <path>` on Linux, `open <path>` on macOS, `start <path>` on Windows — and tell them the absolute path.
+- entender uma Viagem ou B/L exige atravessar muitos módulos pequenos;
+- a interface de um módulo é quase tão complexa quanto sua implementação;
+- uma regra de faturamento ou Taxa Local vaza para páginas que não deveriam
+  conhecê-la;
+- uma alteração em uma coluna ou estado exige sincronizar várias cópias da
+  mesma decisão;
+- testes precisam conhecer detalhes internos porque não existe uma interface
+  estável;
+- módulos acoplados vazam conceitos entre seus seams.
 
-The report uses **Tailwind via CDN** for layout and styling, and **Mermaid via CDN** for diagrams where a graph/flow/sequence reliably communicates the structure. Mix Mermaid with hand-crafted CSS/SVG visuals — use Mermaid when relationships are graph-shaped (call graphs, dependencies, sequences), and hand-built divs/SVG when you want something more editorial (mass diagrams, cross-sections, collapse animations). Each candidate gets a **before/after visualisation**. Be visual.
+Aplique o teste da exclusão: remover o módulo concentraria a complexidade em
+um lugar mais claro ou apenas moveria o problema? Só proponha aprofundamento
+quando houver ganho de locality, leverage, testabilidade ou compreensão
+proporcional ao custo.
 
-For each candidate, render a card with:
+## 2. Apresentar candidatos em relatório visual
 
-- **Files** — which files/modules are involved
-- **Problem** — why the current architecture is causing friction
-- **Solution** — plain English description of what would change
-- **Benefits** — explained in terms of locality and leverage, and how tests would improve
-- **Before / After diagram** — side-by-side, custom-drawn, illustrating the shallowness and the deepening
-- **Recommendation strength** — one of `Strong`, `Worth exploring`, `Speculative`, rendered as a badge
+Escreva um único relatório HTML autocontido em um diretório temporário do
+ambiente. Use CSS e SVG inline para que ele continue legível sem internet.
+Mermaid, Tailwind ou outros recursos externos são opcionais e só podem ser
+usados com fallback que não deixe o relatório inutilizável offline.
 
-End the report with a **Top recommendation** section: which candidate you'd tackle first and why.
+Abra o relatório pelo navegador ou painel disponível no harness. Se não houver
+essa capacidade, informe o caminho absoluto e entregue uma descrição textual
+dos candidatos. Não presuma comandos específicos como xdg-open, open ou start.
 
-**Use CONTEXT.md vocabulary for the domain, and the `/codebase-design` vocabulary for the architecture.** If `CONTEXT.md` defines "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
+Leia [HTML-REPORT.md](HTML-REPORT.md) para o formato dos cartões e diagramas.
+O relatório deve conter:
 
-**ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly in the card (e.g. a warning callout: _"contradicts ADR-0007 — but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
+- contexto e escopo da análise;
+- candidatos com arquivos ou módulos envolvidos;
+- problema observável e conexão com o fluxo do Vela;
+- solução proposta em linguagem simples;
+- ganhos de locality, leverage e testabilidade;
+- diagrama antes/depois quando ele realmente esclarecer a relação;
+- força da recomendação: Forte, Vale explorar ou Especulativa;
+- ADR conflitante, quando houver, com aviso explícito;
+- limitações e evidências não verificadas;
+- uma recomendação principal e o motivo.
 
-See [HTML-REPORT.md](HTML-REPORT.md) for the full HTML scaffold, diagram patterns, and styling guidance.
+Cada candidato deve incluir um exemplo hipotético do fluxo. Por exemplo:
+“Se a página BLs precisar conhecer diretamente a regra de cálculo de uma Taxa
+Local, uma alteração no faturamento pode mudar a coluna e a fatura ao mesmo
+tempo. O aprofundamento deve concentrar a regra em uma interface que as duas
+áreas consigam consultar sem duplicação.” O exemplo não é prova; é uma forma
+de testar o sentido da proposta.
 
-Do NOT propose interfaces yet. After the file is written, ask the user: "Which of these would you like to explore?"
+Depois de escrever o relatório, pergunte em pt-BR:
 
-### 3. Grilling loop
+> Qual destas opções você gostaria de explorar?
 
-Once the user picks a candidate, run the `/grilling` skill to walk the decision tree with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
+Não escolha nem implemente um candidato sem resposta do usuário.
 
-Side effects happen inline as decisions crystallize — run the `/domain-modeling` skill to keep the domain model current as you go:
+## 3. Explorar a opção escolhida
 
-- **Naming a deepened module after a concept not in `CONTEXT.md`?** Add the term to `CONTEXT.md`. Create the file lazily if it doesn't exist.
-- **Sharpening a fuzzy term during the conversation?** Update `CONTEXT.md` right there.
-- **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer to avoid re-suggesting the same thing — skip ephemeral reasons ("not worth it right now") and self-evident ones.
-- **Want to explore alternative interfaces for the deepened module?** Run the `/codebase-design` skill and use its design-it-twice parallel sub-agent pattern.
+Quando o usuário escolher um candidato:
+
+- use grilling para investigar restrições, dependências, dados, seams,
+  contratos e testes;
+- mantenha a conversa orientada ao fluxo visível e depois traduza para a
+  estrutura técnica;
+- compare alternativas somente quando elas mudarem a decisão;
+- use design-it-twice diretamente quando duas interfaces plausíveis merecerem
+  comparação;
+- encaminhe uma decisão já fechada para writing-plans, ou um plano existente
+  para executing-plans.
+
+Persistência exige confirmação. Se a conversa sugerir alterar CONTEXT.md, uma
+ADR, uma spec, um plano ou uma issue:
+
+- apresente primeiro o texto ou a decisão que seria registrada;
+- peça confirmação, salvo quando o usuário tiver solicitado explicitamente
+  aquele documento;
+- não atualize o domínio para fazer uma hipótese parecer uma decisão;
+- se a proposta contrariar uma decisão anterior, pergunte se é uma substituição
+  consciente e mostre um exemplo no vocabulário do Vela.
+
+Se o usuário rejeitar uma opção por um motivo que futuras análises precisariam
+conhecer, ofereça registrar um ADR em português. Não registre recusas
+temporárias ou preferências autoexplicativas sem necessidade.
+
+## Limites e entrega
+
+Esta skill entrega opções arquiteturais e uma investigação orientada. Ela não
+faz a implementação, não aplica migrações, não muda semântica de dados e não
+publica nada sem autorização e workflow próprios.
+
+No encerramento, informe:
+
+- candidato escolhido ou decisão ainda aberta;
+- fluxo do Vela afetado;
+- evidências que sustentam a oportunidade;
+- trade-offs e riscos;
+- documentos que foram ou não atualizados;
+- próximo passo recomendado e condição para considerar a investigação fechada.

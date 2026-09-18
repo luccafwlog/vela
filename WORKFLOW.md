@@ -231,7 +231,8 @@ não edite migrations aplicadas.
 4. confira os ADRs de segurança e domínio relevantes;
 5. defina rollback ou reversão operacional.
 
-Use o playbook [`skills/supabase-migration/SKILL.md`](./skills/supabase-migration/SKILL.md).
+As regras desta seção são a referência operacional para migrations; mantenha
+rollback, RLS, grants, numeração sequencial e validação em banco descartável.
 
 ### Validar em banco descartável (local)
 
@@ -362,7 +363,7 @@ Há fluxos legados que importam `supabase` diretamente. Ao tocar neles:
 
 ## 7. Importações e planilhas
 
-Use [`skills/import-parser/SKILL.md`](./skills/import-parser/SKILL.md).
+As regras abaixo são a referência operacional para importações e planilhas.
 
 Regras mínimas:
 
@@ -430,8 +431,7 @@ A ação chama `window.print()`. O usuário escolhe impressora ou “Salvar como
 no navegador.
 
 Não adicione biblioteca de PDF sem requisito explícito que o diálogo de
-impressão não consiga atender. Use o playbook
-[`skills/invoice-pdf/SKILL.md`](./skills/invoice-pdf/SKILL.md).
+impressão não consiga atender; preserve o fluxo de impressão descrito acima.
 
 ## 11. Testes e validação
 

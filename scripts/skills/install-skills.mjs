@@ -1,44 +1,19 @@
 #!/usr/bin/env node
-// Install every committed skill (skills/<name>/SKILL.md) into the user-level
-// skill directories of both harnesses, so they are discovered at session start
-// in every environment:
-//   - Claude Code: ~/.claude/skills/   (called from .claude/hooks/session-start.sh)
-//   - Codex:       ~/.codex/skills/    (called from the Codex worktree setup script)
-//   - Antigravity: ~/.gemini/config/skills/
-//
-// skills/ is the single source of truth. Node (already required for npm install)
-// runs identically on Windows/macOS/Linux, avoiding a bash-vs-PowerShell split.
-//
-// ponytail: skills removed from skills/ are not purged from the global dirs — a
-// deleted skill leaves a stale copy until the user clears it. Upgrade path: track
-// installed names in a manifest and prune the diff. Not worth it for a small set.
 
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+// Compatibility entrypoint retained for Claude hooks and existing Codex setup
+// scripts. The repository's synchronizer is the only implementation so every
+// harness gets the same ownership and pruning rules.
 
-const root = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
-const source = path.join(root, 'skills')
+import { syncAll } from './skill-sync.mjs'
 
-const targets = [
-  path.join(os.homedir(), '.claude', 'skills'),
-  path.join(os.homedir(), '.codex', 'skills'),
-  path.join(os.homedir(), '.gemini', 'config', 'skills'),
-]
+const results = syncAll({ pruneOwned: true })
 
-const skills = fs
-  .readdirSync(source, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => entry.name)
-  .filter((name) => fs.existsSync(path.join(source, name, 'SKILL.md')))
-
-for (const target of targets) {
-  fs.mkdirSync(target, { recursive: true })
-  for (const name of skills) {
-    const dest = path.join(target, name)
-    fs.rmSync(dest, { recursive: true, force: true })
-    fs.cpSync(path.join(source, name), dest, { recursive: true })
-  }
-  console.log(`Installed ${skills.length} skills into ${target}`)
+for (const result of results) {
+  const summary = result.actions
+    .map(({ action, skill }) => `${action} ${skill}`)
+    .join(', ')
+  const ownershipNote = result.ownershipSource === 'legacy-ledger' ? ' [legacy ownership ledger]' : ''
+  console.log(`${result.target}${ownershipNote}: ${summary || 'no changes'}`)
 }
+
+if (results.some((result) => !result.ok)) process.exitCode = 1

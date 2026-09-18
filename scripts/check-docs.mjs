@@ -169,10 +169,6 @@ const livingFiles = [
   'docs/ROADMAP.md',
   'docs/operations/validacao.md',
   'docs/operations/reset-ambiente.md',
-  'skills/import-parser/SKILL.md',
-  'skills/react-query-pattern/SKILL.md',
-  'skills/invoice-pdf/SKILL.md',
-  'skills/supabase-migration/SKILL.md',
 ]
 
 const staleClaims = [

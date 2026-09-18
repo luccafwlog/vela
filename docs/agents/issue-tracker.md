@@ -10,11 +10,15 @@ de tickets no rastreador. Neste repositório o rastreador é o **GitHub Issues**
 Uma sessão de wayfinder que abrir aqui **usa GitHub Issues** — não o fallback de
 markdown local.
 
+Este arquivo é o contrato específico do Vela para a skill genérica
+`wayfinder`: quando houver diferença, estas operações têm precedência.
+
 ### Onde cada coisa vive
 
 - **Mapa:** uma issue com o label **`wayfinder:map`**. Corpo com as seções
-  `## Notes`, `## Decisions so far` e `## Fog` (ver a skill). O mapa é índice, não
-  armazém: cada decisão vive no seu ticket; o mapa só a resume e linka.
+  `## Destination`, `## Notes`, `## Decisions so far`, `## Not yet specified` e
+  `## Out of scope` (ver a skill). O mapa é índice, não armazém: cada decisão
+  vive no seu ticket; o mapa só a resume e linka.
 - **Tickets:** **sub-issues** do mapa (via `sub_issue_write`), uma por pergunta.
   Corpo com `## Question`. A ordem das sub-issues reflete prioridade.
 - **Tipo do ticket:** um label da família **`wayfinder:<type>`** —
@@ -52,7 +56,8 @@ reivindicadas** (`wayfinder:claimed` ausente) e **desbloqueadas** (nenhum
    ```
 
 4. Crie os tickets recém-surgidos (create → depois wire como sub-issue/bloqueio) e
-   gradue a névoa que a resposta tornou especificável, removendo-a do `## Fog`.
+   gradue a névoa que a resposta tornou especificável, removendo-a do
+   `## Not yet specified`.
 
 **Nunca resolva mais de um ticket por sessão.** Cartografar o mapa também é uma
 sessão à parte: crie mapa + tickets + arestas e pare, sem resolver tickets.

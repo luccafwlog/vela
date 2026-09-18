@@ -1,42 +1,134 @@
 ---
 name: frontend-design
-description: "Design and implement a web interface with a coherent visual direction."
+description: "Use when the user asks to create, polish, or evaluate a frontend interface with a coherent visual direction, accessible interaction and production-ready behavior."
 license: Complete terms in LICENSE.txt
 ---
 
-This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+# Design de interfaces
 
-The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
+Esta é a entrada canônica para trabalho de interface no Vela. Ela reúne três
+modos que antes ficavam distribuídos em skills diferentes:
 
-## Design Thinking
+- **criar**: desenhar e implementar uma página, seção, componente ou fluxo novo;
+- **polir**: melhorar uma interface existente, seus estados, microinterações e
+  detalhes visuais;
+- **avaliar**: analisar acessibilidade, layout, interação, fluxo e qualidade
+  visual, entregando achados priorizados sem alterar código por conta própria.
 
-Before coding, understand the context and commit to a BOLD aesthetic direction:
-- **Purpose**: What problem does this interface solve? Who uses it?
-- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
-- **Constraints**: Technical requirements (framework, performance, accessibility).
-- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+Escolha o modo pelo verbo e pelo resultado pedido. Se a pessoa pedir uma
+auditoria completa das páginas do Vela com execução do app, capturas e
+priorização P0–P3, use design-audit. Se pedir revisão de código, use
+vela-code-review. Não carregue as referências dos três modos sem necessidade.
 
-**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+## Contrato comum
 
-Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
-- Production-grade and functional
-- Visually striking and memorable
-- Cohesive with a clear aesthetic point-of-view
-- Meticulously refined in every detail
+Toda comunicação dirigida ao usuário deve ser em português do Brasil, salvo
+pedido explícito em contrário. Preserve literalmente comandos, caminhos,
+identificadores, código e termos técnicos quando forem necessários.
 
-## Frontend Aesthetics Guidelines
+Ao falar do Vela, comece pelo que a pessoa vê: página, seção, botão, campo,
+dropdown, modal, coluna, estado, mensagem e efeito no fluxo seguinte. Consulte
+CONTEXT.md e docs/agents/linguagem-do-sistema.md para usar os nomes canônicos.
+Explique o componente, token, arquivo, service, query ou RPC somente depois de
+explicar o efeito visível.
 
-Focus on:
-- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
-- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
-- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
-- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
-- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
+Antes de propor uma direção:
 
-NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
+1. Inspecione a página ou fluxo atual, o conteúdo, os componentes reutilizáveis,
+   os tokens e as restrições do produto.
+2. Identifique o objetivo da tela, a pessoa que a utiliza e a decisão ou ação
+   que ela precisa concluir.
+3. Preserve o design system existente quando ele atende ao caso. Não crie um
+   novo sistema de design para uma mudança isolada.
+4. Escolha uma direção visual proporcional ao produto. Diferenciação deve
+   melhorar compreensão, hierarquia ou confiança; novidade não é um objetivo
+   isolado.
 
-Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
+Em qualquer modo, considere teclado, foco visível, contraste, leitura por
+tecnologia assistiva, responsividade e os estados de carregamento, vazio, erro,
+desabilitado e sucesso que façam sentido para o fluxo. Não use emojis como
+ícones estruturais. Prefira ícones vetoriais já adotados pelo produto.
 
-**IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
+Não faça commit, push, deploy ou alteração de configuração global
+automaticamente. Em modo avaliar, não edite código salvo pedido explícito.
 
-Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+## Modo criar
+
+Use quando o resultado esperado é uma interface nova ou uma mudança que
+introduz um fluxo visual/funcional relevante.
+
+- Defina a finalidade, o público, a ação principal e as restrições antes de
+  codificar.
+- Escolha tipografia, cores, composição, densidade e movimento coerentes com o
+  produto. Minimalismo, densidade operacional ou uma direção mais expressiva
+  são válidos quando servem ao fluxo.
+- Implemente código funcional e integrado aos componentes, tokens e padrões
+  existentes. Não entregue apenas uma maquete estática se a tarefa pede
+  comportamento.
+- Cubra os estados necessários: inicial, carregando, vazio, erro, sucesso,
+  desabilitado, foco e interação em andamento.
+- Verifique a tela em larguras relevantes, com teclado e com movimento reduzido
+  quando houver animação.
+
+Para critérios detalhados, leia apenas as referências necessárias:
+
+- acessibilidade e controles: [accessibility-interaction.md](references/accessibility-interaction.md);
+- composição, responsividade, tipografia e desempenho:
+  [layout-style.md](references/layout-style.md);
+- formulários, navegação, dados e movimento:
+  [flows-data.md](references/flows-data.md);
+- revisão antes de entregar: [review.md](references/review.md).
+
+## Modo polir
+
+Use quando a página ou o fluxo já existe e a intenção é fazê-lo parecer mais
+claro, estável, rápido ou agradável sem descaracterizar o produto.
+
+1. Observe o comportamento atual e localize a sensação que precisa melhorar:
+   hierarquia, alinhamento, densidade, feedback, transição, legibilidade ou
+   recuperação de erro.
+2. Priorize mudanças que o usuário perceberá na página ou no fluxo seguinte.
+   Não espalhe microinterações decorativas por toda a tela.
+3. Use os princípios de [polish.md](references/polish.md) como heurísticas.
+   Duração, raio, escala, área acionável e espaçamento devem respeitar os
+   tokens, o dispositivo e a acessibilidade do produto; os valores de exemplo
+   não são dogmas.
+4. Preserve a semântica e a área de interação. Uma animação não pode bloquear
+   uma ação, causar mudança inesperada de layout ou esconder uma mensagem.
+5. Respeite prefers-reduced-motion e forneça uma versão estável quando o
+   movimento for reduzido ou desativado.
+
+Se apresentar um resumo das alterações, use uma tabela Antes/Depois somente
+quando ela facilitar a leitura. Cada linha deve apontar a página ou controle,
+o efeito percebido e, quando útil, o detalhe técnico responsável.
+
+## Modo avaliar
+
+Use quando a pessoa quer um diagnóstico, uma segunda opinião ou critérios para
+decidir uma melhoria, sem pedir implementação imediata.
+
+- Colete evidências da página, estado e viewport analisados. Não trate uma
+  preferência visual como defeito sem explicar o impacto no fluxo.
+- Avalie na ordem mais útil para o caso: compreensão da página, ação principal,
+  estados e feedback, acessibilidade, layout/responsividade, consistência
+  visual, desempenho e detalhes de polimento.
+- Priorize achados por impacto na tarefa e risco, por exemplo P0–P3 quando o
+  pedido usar essa escala. Para cada achado, informe localização visível,
+  problema, efeito para a pessoa usuária e recomendação.
+- Diferencie fato observado, risco provável e sugestão de preferência.
+- Leia progressivamente somente as referências correspondentes ao escopo:
+  acessibilidade, layout, fluxos/dados, revisão ou polimento.
+
+Se a avaliação for de todas as páginas, estados ou viewports do Vela, roteie
+para design-audit. Se for uma análise de uma tela ou fluxo específico, este
+modo é suficiente.
+
+## Critério de saída
+
+Antes de encerrar, confirme que a resposta deixa claro:
+
+- qual página, controle ou fluxo foi criado, polido ou avaliado;
+- qual efeito a pessoa usuária verá;
+- quais estados e limitações foram considerados;
+- quais verificações foram feitas e quais ainda dependem de execução visual;
+- quais decisões exigem confirmação do usuário, se houver.

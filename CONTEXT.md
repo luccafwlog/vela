@@ -6,6 +6,20 @@ aos ADRs.
 
 Verificado em 2026-08-18.
 
+## Comunicação orientada ao sistema
+
+As comunicações dos agentes devem começar pela linguagem que a pessoa vê no
+Vela: página, seção, botão, campo, coluna, filtro, dropdown, modal, aba, card e
+estado. Ao explicar uma mudança, descreva **onde** ela acontece, **qual ação**
+é executada, **qual efeito visível** ocorre e **onde o resultado aparece**. Só
+depois acrescente componente, hook, service, query, RPC ou outro detalhe de
+implementação, quando ele ajudar a validar ou decidir o trabalho.
+
+Use este arquivo como glossário canônico. Não invente sinônimos para entidades
+ou estados. Se o rótulo da tela ou o vínculo ainda não foi verificado, trate-o
+como hipótese e diga o que precisa ser confirmado. O guia operacional completo
+está em `docs/agents/linguagem-do-sistema.md`.
+
 ## Operação marítima
 
 **Viagem**

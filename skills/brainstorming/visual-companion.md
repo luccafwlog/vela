@@ -2,6 +2,14 @@
 
 Browser-based visual brainstorming companion for showing mockups, diagrams, and options.
 
+## Idioma da interação
+
+Todo texto visível ao usuário — perguntas, opções, instruções, estados de
+seleção e pedidos de feedback — deve estar em português do Brasil (pt-BR),
+salvo comandos, caminhos, identificadores, código, citações e termos técnicos
+que precisem permanecer no idioma original. Use outro idioma apenas quando o
+usuário pedir explicitamente.
+
 ## When to Use
 
 Decide per-question, not per-session. The test: **would the user understand this better by seeing it than reading it?**
@@ -16,13 +24,13 @@ Decide per-question, not per-session. The test: **would the user understand this
 
 **Use the terminal** when the content is text or tabular:
 
-- **Requirements and scope questions** — "what does X mean?", "which features are in scope?"
+- **Requirements and scope questions** — "o que X significa?", "quais funcionalidades estão no escopo?"
 - **Conceptual A/B/C choices** — picking between approaches described in words
 - **Tradeoff lists** — pros/cons, comparison tables
 - **Technical decisions** — API design, data modeling, architectural approach selection
 - **Clarifying questions** — anything where the answer is words, not a visual preference
 
-A question *about* a UI topic is not automatically a visual question. "What kind of wizard do you want?" is conceptual — use the terminal. "Which of these wizard layouts feels right?" is visual — use the browser.
+A question *about* a UI topic is not automatically a visual question. "Que tipo de assistente você quer?" is conceptual — use the terminal. "Qual destes layouts de assistente parece melhor?" is visual — use the browser.
 
 ## How It Works
 
@@ -41,7 +49,10 @@ scripts/start-server.sh --project-dir /path/to/project
 #           "state_dir":"/path/to/project/.superpowers/brainstorm/12345-1706000000/state"}
 ```
 
-Save `screen_dir` and `state_dir` from the response. Tell user to open the URL.
+Save `screen_dir` and `state_dir` from the response. Open the URL through the
+browser or panel capability available in the current harness when possible;
+otherwise provide the URL and tell the user how to open it manually. Do not
+assume that a specific browser command or MCP exists.
 
 **Finding connection info:** The server writes its startup JSON to `$STATE_DIR/server-info`. If you launched the server in the background and didn't capture stdout, read that file to get the URL and port. When using `--project-dir`, check `<project>/.superpowers/brainstorm/` for the session directory.
 
@@ -97,13 +108,14 @@ Use `--url-host` to control what hostname is printed in the returned URL JSON.
    - Before each write, check that `$STATE_DIR/server-info` exists. If it doesn't (or `$STATE_DIR/server-stopped` exists), the server has shut down — restart it with `start-server.sh` before continuing. The server auto-exits after 30 minutes of inactivity.
    - Use semantic filenames: `platform.html`, `visual-style.html`, `layout.html`
    - **Never reuse filenames** — each screen gets a fresh file
-   - Use Write tool — **never use cat/heredoc** (dumps noise into terminal)
+   - Use the file-editing capability available in the current harness —
+     **never use cat/heredoc or shell redirection** (dumps noise into terminal)
    - Server automatically serves the newest file
 
 2. **Tell user what to expect and end your turn:**
    - Remind them of the URL (every step, not just first)
    - Give a brief text summary of what's on screen (e.g., "Showing 3 layout options for the homepage")
-   - Ask them to respond in the terminal: "Take a look and let me know what you think. Click to select an option if you'd like."
+   - Ask them to respond in the terminal: "Dê uma olhada e me diga o que acha. Clique para selecionar uma opção, se quiser."
 
 3. **On your next turn** — after the user responds in the terminal:
    - Read `$STATE_DIR/events` if it exists — this contains the user's browser interactions (clicks, selections) as JSON lines
@@ -132,22 +144,22 @@ Write just the content that goes inside the page. The server wraps it in the fra
 **Minimal example:**
 
 ```html
-<h2>Which layout works better?</h2>
-<p class="subtitle">Consider readability and visual hierarchy</p>
+<h2>Qual layout funciona melhor?</h2>
+<p class="subtitle">Considere a legibilidade e a hierarquia visual</p>
 
 <div class="options">
   <div class="option" data-choice="a" onclick="toggleSelect(this)">
     <div class="letter">A</div>
     <div class="content">
-      <h3>Single Column</h3>
-      <p>Clean, focused reading experience</p>
+      <h3>Uma coluna</h3>
+      <p>Experiência de leitura limpa e focada</p>
     </div>
   </div>
   <div class="option" data-choice="b" onclick="toggleSelect(this)">
     <div class="letter">B</div>
     <div class="content">
-      <h3>Two Column</h3>
-      <p>Sidebar navigation with main content</p>
+      <h3>Duas colunas</h3>
+      <p>Navegação lateral com conteúdo principal</p>
     </div>
   </div>
 </div>
@@ -260,7 +272,7 @@ If `$STATE_DIR/events` doesn't exist, the user didn't interact with the browser 
 ## Design Tips
 
 - **Scale fidelity to the question** — wireframes for layout, polish for polish questions
-- **Explain the question on each page** — "Which layout feels more professional?" not just "Pick one"
+- **Explain the question on each page** — "Qual layout parece mais profissional?", não apenas "Escolha um"
 - **Iterate before advancing** — if feedback changes current screen, write a new version
 - **2-4 options max** per screen
 - **Use real content when it matters** — for a photography portfolio, use actual images (Unsplash). Placeholder content obscures design issues.
