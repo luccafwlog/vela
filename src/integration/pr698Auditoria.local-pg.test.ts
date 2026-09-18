@@ -15,8 +15,14 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 
 /**
  * As contraprovas exigem o schema da PR 698 (migrations 053-061). Rodar contra
- * uma base anterior produziria "function does not exist", que não é o defeito
- * sob teste. Sem o schema, o arquivo se ignora em vez de mentir sobre a causa.
+ * uma base anterior produziria "function does not exist" ou violação de CHECK,
+ * que não é o defeito sob teste. Sem o schema, o arquivo se ignora em vez de
+ * mentir sobre a causa.
+ *
+ * O marcador é `resolve_bl_local_charge_table_ids`, criado pela 056 e
+ * inexistente antes dela. NÃO use `resolve_bl_local_charge_items`: essa já
+ * existe desde a 002, com a mesma assinatura (text, text), e daria falso
+ * positivo em qualquer base anterior à PR 698.
  */
 function pr698SchemaPresent(): boolean {
   if (!enabled) return false
@@ -24,7 +30,7 @@ function pr698SchemaPresent(): boolean {
     const present = execFileSync(
       'psql',
       ['-X', '-At', '-q', '-d', databaseUrl, '-c',
-        "SELECT to_regprocedure('public.resolve_bl_local_charge_items(text,text)') IS NOT NULL"],
+        "SELECT to_regprocedure('public.resolve_bl_local_charge_table_ids(text,date)') IS NOT NULL"],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
     ).trim()
     return present === 't'
