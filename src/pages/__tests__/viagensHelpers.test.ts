@@ -332,7 +332,7 @@ describe('summarizeImportByPod', () => {
       bb_machine_qty: 4,
       bb_packages_qty: 100,
       bb_weight_ton: 12,
-      total_cbm: 30,
+      bb_cbm: 30,
     },
   ] as never
 

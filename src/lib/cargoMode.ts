@@ -52,3 +52,24 @@ export function blTotalWeightTon(
 ) {
   return blTotalWeightKg(bl) / 1000
 }
+
+/**
+ * Cubagem total de um B/L, em m³.
+ *
+ * Mesma história do peso, um degrau atrás: a migration 061 deu significado
+ * único a `total_weight_kg`/`bb_weight_ton` e deixou `total_cbm` com os dois
+ * donos que tinha — o importador de carga solta gravava a cubagem do manifesto
+ * e o de B/L de armador gravava a soma dos contêineres, um sobrescrevendo o
+ * outro em B/L misto. A migration 064 separou:
+ *
+ *   bls.total_cbm -> SOMENTE carga conteinerizada
+ *   bls.bb_cbm    -> SOMENTE carga solta
+ *
+ * Quem precisa da cubagem do documento inteiro usa este helper, não uma das
+ * colunas.
+ */
+export function blTotalCbm(
+  bl: { total_cbm?: number | string | null; bb_cbm?: number | string | null },
+) {
+  return Number(bl.total_cbm ?? 0) + Number(bl.bb_cbm ?? 0)
+}

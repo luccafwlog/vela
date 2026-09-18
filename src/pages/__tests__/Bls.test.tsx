@@ -84,8 +84,22 @@ describe('Página Bls (unificada)', () => {
             pod: 'SSZ',
             charge_status: 'ready_for_billing',
             bb_weight_ton: 12,
-            bl_containers: [{ container_number: 'CNTR-3' }],
-            bl_breakbulk_items: [{ id: 2, gross_weight_kg: 12000 }],
+            bb_machine_qty: 3,
+            bb_packages_qty: 9,
+            bb_cbm: 45,
+            bl_containers: [{
+              id: 33,
+              container_number: 'CNTR-3',
+              type: '40HC',
+              seal_number: 'SEAL-3',
+              tare_weight_kg: 3800,
+              gross_weight_kg: 24000,
+              cbm: 67,
+              is_imo: true,
+              imo_class: '3',
+              discharge_date: '2026-03-04',
+            }],
+            bl_breakbulk_items: [{ id: 2, item_description: 'Bobina', package_qty: 9, package_unit: 'PKG', gross_weight_kg: 12000, cbm: 45, marks: 'MARCA-9' }],
             voyage: { voyage_number: 'V003', vessel: { name: 'Navio C' } },
           },
         ],
@@ -287,5 +301,111 @@ describe('Página Bls (unificada)', () => {
     // O card Carga Solta deve exibir 0 ton (breakbulkWeightTon), não 85 ton (totalWeightTon)
     expect(screen.getByText('0 ton')).toBeTruthy()
     expect(screen.queryByText('85 ton')).toBeNull()
+  })
+
+  it('expande a linha e mostra contêiner e carga solta do B/L misto, sem nova consulta', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    const toggle = screen.getByRole('button', { name: 'Expandir carga do B/L BL-MISTO' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryAllByText('SEAL-3')).toHaveLength(0)
+
+    const filtersBefore = useBlsMock.mock.calls.at(-1)?.[0]
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(screen.getAllByText('SEAL-3').length).toBeGreaterThan(0))
+    // Um B/L misto satisfaz os dois predicados: as duas seções aparecem.
+    expect(screen.getAllByText('Contêineres (1)').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Carga solta').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Bobina').length).toBeGreaterThan(0)
+    // Tara é capturada e persistida desde sempre, e não era exibida em lugar nenhum.
+    expect(screen.getAllByText('3.800').length).toBeGreaterThan(0)
+    // O painel vive dos dados que a RPC já trouxe. Expandir é estado de
+    // visualização: os filtros da consulta não mudam, então não há refetch.
+    expect(useBlsMock.mock.calls.at(-1)?.[0]).toEqual(filtersBefore)
+
+    const openToggle = screen.getByRole('button', { name: 'Recolher carga do B/L BL-MISTO' })
+    expect(openToggle.getAttribute('aria-expanded')).toBe('true')
+    expect(openToggle.getAttribute('aria-controls')).toBe('bl-detail-BL-MISTO')
+  })
+
+  it('recolhe a linha e devolve o painel ao estado fechado', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir carga do B/L BL-MISTO' }))
+    await waitFor(() => expect(screen.getAllByText('SEAL-3').length).toBeGreaterThan(0))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recolher carga do B/L BL-MISTO' }))
+    await waitFor(() => expect(screen.queryAllByText('SEAL-3')).toHaveLength(0))
+  })
+
+  it('expandir uma linha não mexe na seleção em massa', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByLabelText('Selecionar B/L BL-CNTR'))
+    expect(screen.getByText('Selecionados: 1')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir carga do B/L BL-MISTO' }))
+    await waitFor(() => expect(screen.getAllByText('SEAL-3').length).toBeGreaterThan(0))
+
+    // O toggle é um botão próprio, não um clique na linha: a seleção continua.
+    expect(screen.getByText('Selecionados: 1')).toBeTruthy()
+    expect((screen.getByLabelText('Selecionar B/L BL-CNTR') as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('B/L de contêiner expande só a seção de contêineres; carga solta só a dela', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir carga do B/L BL-CNTR' }))
+    await waitFor(() => expect(screen.getAllByText('Contêineres (2)').length).toBeGreaterThan(0))
+    expect(screen.queryByText('Carga solta')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir carga do B/L BL-BB' }))
+    await waitFor(() => expect(screen.getAllByText('Carga solta').length).toBeGreaterThan(0))
+    expect(screen.queryByText(/^Contêineres \(/)).toBeNull()
+  })
+
+  it('renderiza os KPIs de carga solta que a RPC já devolvia', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    // totalMachines, totalPackages e breakbulkCbm eram buscados e descartados.
+    expect(screen.getByText('Máquinas')).toBeTruthy()
+    expect(screen.getByText('Total de volumes')).toBeTruthy()
+    expect(screen.getByText('CBM carga solta')).toBeTruthy()
   })
 })

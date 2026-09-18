@@ -1115,6 +1115,7 @@ export type Database = {
       bls: {
         Row: {
           batch_id: number | null
+          bb_cbm: number | null
           bb_machine_qty: number | null
           bb_packages_qty: number | null
           bb_packages_total: number | null
@@ -1179,6 +1180,7 @@ export type Database = {
         }
         Insert: {
           batch_id?: number | null
+          bb_cbm?: number | null
           bb_machine_qty?: number | null
           bb_packages_qty?: number | null
           bb_packages_total?: number | null
@@ -1243,6 +1245,7 @@ export type Database = {
         }
         Update: {
           batch_id?: number | null
+          bb_cbm?: number | null
           bb_machine_qty?: number | null
           bb_packages_qty?: number | null
           bb_packages_total?: number | null
@@ -9277,6 +9280,10 @@ export type BLListItem = BL & {
     | 'imo_class'
     | 'un_number'
     | 'created_at'
+    // A linha expansivel de /bls mostra a data de descarga. A RPC
+    // operational_list_bls ja projetava a coluna (to_jsonb(bc) devolve a linha
+    // inteira); quem nao a trazia era o select de export, corrigido junto.
+    | 'discharge_date'
   >[]
   bl_freight_lines?: BlFreightLine[] | null
   bl_breakbulk_items?: Pick<

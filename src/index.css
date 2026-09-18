@@ -3456,6 +3456,15 @@ textarea {
   background: var(--app-thead-bg);
 }
 
+/* A linha de detalhe é um único <td colSpan>, portanto também é :last-child e
+   herdaria a regra acima — o painel inteiro viraria uma coluna congelada à
+   direita, com sombra. Este opt-out mantém o painel no fluxo normal. */
+.app-table--sticky-actions tr[data-row-detail] > td {
+  position: static;
+  box-shadow: none;
+  background: var(--app-surface-muted);
+}
+
 @media (max-width: 640px) {
   .app-table-scroll--sticky::after {
     content: "Deslize para ver mais";

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  blTotalCbm,
   cargoModeLabel,
   isBreakbulkCargoMode,
   isContainerCargoMode,
@@ -20,5 +21,18 @@ describe('cargo_mode de B/L', () => {
     expect(matchesBlCargoModeFilter('misto', 'misto')).toBe(true)
     expect(matchesBlCargoModeFilter('container', 'misto')).toBe(false)
     expect(cargoModeLabel('misto')).toBe('Misto')
+  })
+})
+
+describe('cubagem total do B/L', () => {
+  it('soma os dois componentes disjuntos', () => {
+    // Desde a 064: total_cbm é só contêiner, bb_cbm é só carga solta.
+    expect(blTotalCbm({ total_cbm: 67, bb_cbm: 45 })).toBe(112)
+  })
+
+  it('trata carga solta pura e contêiner puro sem inventar cubagem', () => {
+    expect(blTotalCbm({ total_cbm: null, bb_cbm: 45 })).toBe(45)
+    expect(blTotalCbm({ total_cbm: 67, bb_cbm: null })).toBe(67)
+    expect(blTotalCbm({})).toBe(0)
   })
 })

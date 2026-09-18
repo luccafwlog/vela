@@ -73,28 +73,38 @@ describe('fetchAllBls', () => {
     mockRpc.mockReset()
   })
 
-  it('filtra Standard como BL sem containers IMO ou OOG', async () => {
-    const rows = [
-      makeBl('BL-STANDARD', [{ is_imo: false, is_oog: false }]),
-      makeBl('BL-IMO', [{ is_imo: true, is_oog: false }]),
-      makeBl('BL-OOG', [{ is_imo: false, is_oog: true }]),
-      makeBl('BL-DUAL', [{ is_imo: true, is_oog: true }]),
-    ]
+  it('exporta pela mesma RPC da tabela, repassando todos os filtros', async () => {
+    // O export reimplementava os filtros contra `bls`, com busca textual mais
+    // estreita que a da RPC (sem nome nem CNPJ do cliente): buscar por nome de
+    // cliente mostrava linhas na tela e exportava zero. Agora há um dialeto só,
+    // e o perfil de carga é resolvido no servidor.
+    const rows = [makeBl('BL-STANDARD', [{ is_imo: false, is_oog: false }])]
+    mockRpc.mockResolvedValue({ data: { rows, count: rows.length }, error: null })
 
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'bls') {
-        return { select: vi.fn(() => createBlQuery(rows)) }
-      }
-      throw new Error(`Tabela nao mockada: ${table}`)
-    })
-    mockRpc.mockResolvedValue({
-      data: { rows, count: rows.length },
-      error: null,
-    })
-
-    const result = await fetchAllBls({ ...baseFilters, cargoProfile: 'standard' })
+    const result = await fetchAllBls({ ...baseFilters, search: 'TIMBRO', cargoProfile: 'standard' })
 
     expect(result.map((row) => row.id)).toEqual(['BL-STANDARD'])
+    expect(mockFrom).not.toHaveBeenCalled()
+    expect(mockRpc).toHaveBeenCalledWith('operational_list_bls', expect.objectContaining({
+      p_search: 'TIMBRO',
+      p_cargo_profile: 'standard',
+      p_voyage_id: 24,
+      p_cargo_mode: 'container',
+    }))
+  })
+
+  it('pagina a RPC até completar a contagem do envelope', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => makeBl(`BL-${index}`, []))
+    const secondPage = [makeBl('BL-100', [])]
+    mockRpc
+      .mockResolvedValueOnce({ data: { rows: firstPage, count: 101 }, error: null })
+      .mockResolvedValueOnce({ data: { rows: secondPage, count: 101 }, error: null })
+
+    const result = await fetchAllBls(baseFilters)
+
+    expect(result).toHaveLength(101)
+    expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(mockRpc).toHaveBeenLastCalledWith('operational_list_bls', expect.objectContaining({ p_page: 2 }))
   })
 
   it('retorna contagem paginada filtrada quando useBls recebe perfil Standard', async () => {

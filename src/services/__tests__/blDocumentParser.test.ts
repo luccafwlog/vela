@@ -237,7 +237,7 @@ describe('blDocumentToManifest', () => {
     expect(manifest.bls[0]?.ce_mercante).toBeNull()
     expect(manifest.bls[0]?.bb_weight_ton).toBe(1)
     expect(manifest.bls[0]?.bb_weight_ton).toBe(1)
-    expect(manifest.bls[0]?.total_cbm).toBe(12.5)
+    expect(manifest.bls[0]?.bb_cbm).toBe(12.5)
     expect(manifest.bls[0]?.bb_packages_qty).toBe(4)
     expect(manifest.bls[0]?.items).toEqual([
       {

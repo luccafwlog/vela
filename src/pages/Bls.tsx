@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Download, FileText, Loader2, MoreVertical, Upload } from 'lucide-react'
+import { ChevronDown, ChevronUp, Download, FileText, Loader2, MoreVertical, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { MetricCard } from '../components/ui/MetricCard'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
@@ -30,43 +30,15 @@ import { checkBlDependencies, deleteBls } from '../services/bls'
 import { formatBlockedSummary } from '../services/deleteDependencies'
 import { type BlFilters, fetchAllBls, useBls, useBlSummary, usePortOptions } from '../hooks/useBls'
 import { useInvoiceLinks } from '../hooks/useBilling'
-import { countDistinctContainerNumbers } from '../lib/containerCounts'
+import { formatBlCargoBadge } from '../lib/blCargoBadge'
+import { BlRowDetail } from '../components/bl/BlRowDetail'
 import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
 import { formatPortDisplayName } from '../lib/voyageFormat'
-import { importBreakbulkManifest, parseBreakbulkManifestFile, type ParsedBreakbulkManifest } from '../services/breakbulkImport'
+import { hasBlockingRowErrors, importBreakbulkManifest, parseBreakbulkManifestFile, type ParsedBreakbulkManifest } from '../services/breakbulkImport'
 import { afterManifestoImportado } from '../services/cacheEffects'
 import { inspectImportUpload } from '../services/importText'
 import { rowErrorsToImportIssues } from '../services/importValidation'
 import type { InvoiceLinkInfo } from '../services/billing'
-import type { BLListItem } from '../types/database'
-
-function formatBlCargoBadge(bl: BLListItem): string {
-  const cntrCount = countDistinctContainerNumbers(bl.bl_containers)
-  const bbWeight = Number(bl.bb_weight_ton ?? 0)
-
-  if (bl.cargo_mode === 'misto') {
-    const formattedWeight = bbWeight % 1 === 0 ? bbWeight : bbWeight.toFixed(1)
-    if (cntrCount > 0 && bbWeight > 0) {
-      return `${cntrCount} CNTR + ${formattedWeight} ton`
-    }
-    if (cntrCount > 0) {
-      const itemsCount = bl.bl_breakbulk_items?.length ?? 0
-      return `${cntrCount} CNTR + ${itemsCount} ${itemsCount === 1 ? 'item' : 'itens'}`
-    }
-  }
-
-  if (bl.cargo_mode === 'carga_solta') {
-    if (bbWeight > 0) {
-      return `${bbWeight % 1 === 0 ? bbWeight : bbWeight.toFixed(1)} ton`
-    }
-    if (bl.bb_packages_qty) {
-      return `${bl.bb_packages_qty} vol`
-    }
-    return `${bl.bl_breakbulk_items?.length ?? 0} itens`
-  }
-
-  return `${cntrCount} CNTR`
-}
 
 function InvoiceLink({ links }: { links: InvoiceLinkInfo[] }) {
   if (!links.length) return <span>-</span>
@@ -83,6 +55,20 @@ function InvoiceLink({ links }: { links: InvoiceLinkInfo[] }) {
       ))}
     </div>
   )
+}
+
+// Colunas fixas da tabela (sem a caixa de seleção, que só existe para admin):
+// expandir, No. B/L, CE, Navio/Viagem, CNEE, POL, POD, Carga, Perfil, Taxas,
+// Invoice, Ações.
+const BASE_BL_COLUMNS = 12
+
+/** Identidade do conjunto de linhas: muda quando o filtro muda. */
+function activeFilterKey(filters: BlFilters) {
+  return [
+    filters.search, filters.voyageId, filters.cargoMode, filters.pol, filters.pod,
+    filters.reviewStatus, filters.financialStatus, filters.chargeStatus, filters.cargoProfile,
+    filters.pageSize,
+  ].join('|')
 }
 
 type ActionsMenuState = {
@@ -124,6 +110,10 @@ export function Bls() {
   const [breakbulkOpen, setBreakbulkOpen] = useState(false)
   const [blDocumentOpen, setBlDocumentOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  // Uma linha expandida por vez: mantém a página curta e dispensa medir altura
+  // de N painéis. É estado de visualização, não de consulta — por isso fica
+  // fora de usePageFilters e não entra na URL.
+  const [expandedBlId, setExpandedBlId] = useState<string | null>(null)
   const { showToast } = useToast()
 
   const debouncedSearch = useDebouncedValue(filters.search)
@@ -132,6 +122,15 @@ export function Bls() {
     search: debouncedSearch,
     page: debouncedSearch === filters.search ? filters.page : 1,
   }), [debouncedSearch, filters])
+
+  // Trocar de página ou de filtro troca as linhas: manter o id expandido
+  // reabriria uma linha que não está mais na tela, ou nenhuma.
+  const [expandedKey, setExpandedKey] = useState(`${filters.page}:${activeFilterKey(filters)}`)
+  const currentKey = `${filters.page}:${activeFilterKey(filters)}`
+  if (currentKey !== expandedKey) {
+    setExpandedKey(currentKey)
+    setExpandedBlId(null)
+  }
 
   const { data, isLoading, error, fetchStatus, refetch } = useBls(queryFilters)
   const { data: summary, isLoading: isSummaryLoading } = useBlSummary(queryFilters)
@@ -283,7 +282,10 @@ export function Bls() {
 
   const pageBlIds = (data?.rows ?? []).map((row) => row.id)
   const allPageSelected = pageBlIds.length > 0 && pageBlIds.every((id) => selection.isSelected(id))
-  const blColumnCount = isAdmin ? 12 : 11
+  // Uma constante só: o cabeçalho, o colSpan do estado vazio, o do skeleton e o
+  // da linha de detalhe têm de concordar, e antes o número era escrito à mão.
+  const blColumnCount = BASE_BL_COLUMNS + (isAdmin ? 1 : 0)
+  const showBreakbulkMetrics = filters.cargoMode !== 'container'
 
   return (
     <>
@@ -440,11 +442,28 @@ export function Bls() {
             label="Carga Solta"
             value={isSummaryLoading ? '...' : `${(summary?.breakbulkWeightTon ?? 0).toLocaleString('pt-BR')} ton`}
           />
+          {/* Máquinas, volumes e CBM eram calculados pela RPC e descartados sem
+              renderizar desde a unificação — eram três das colunas que a tela de
+              carga solta tinha. Só aparecem fora da lente de contêiner puro. */}
+          {showBreakbulkMetrics ? (
+            <>
+              <MetricCard label="Máquinas" value={isSummaryLoading ? '...' : (summary?.totalMachines ?? 0).toLocaleString('pt-BR')} />
+              <MetricCard label="Total de volumes" value={isSummaryLoading ? '...' : (summary?.totalPackages ?? 0).toLocaleString('pt-BR')} />
+              <MetricCard
+                label="CBM carga solta"
+                value={isSummaryLoading ? '...' : `${(summary?.breakbulkCbm ?? 0).toLocaleString('pt-BR')} m³`}
+              />
+            </>
+          ) : null}
           <MetricCard label="Sem faturamento" value={isSummaryLoading ? '...' : summary?.pendingFinancial ?? 0} />
           <MetricCard label="Taxas pendentes" value={isSummaryLoading ? '...' : summary?.chargePending ?? 0} />
           <MetricCard label="Faturados" value={isSummaryLoading ? '...' : summary?.chargeReady ?? 0} />
           <MetricCard label="Isentos" value={isSummaryLoading ? '...' : summary?.chargeExempt ?? 0} />
         </div>
+        <p className="text-xs text-[var(--app-muted)]">
+          As lentes Contêiner e Carga Solta incluem os B/Ls mistos, que participam das duas — por isso
+          um B/L misto conta uma vez em “BLs filtrados” e aparece nos dois recortes.
+        </p>
       </div>
 
       {isAdmin ? (
@@ -485,6 +504,9 @@ export function Bls() {
                     />
                   </th>
                 ) : null}
+                <th scope="col" className="w-10 px-3 py-3">
+                  <span className="sr-only">Expandir carga</span>
+                </th>
                 <th scope="col" className="px-3 py-3">No. B/L</th>
                 <th scope="col" className="px-3 py-3">CE Mercante</th>
                 <th scope="col" className="px-3 py-3">Navio/Viagem</th>
@@ -513,8 +535,12 @@ export function Bls() {
                   </td>
                 </tr>
               ) : null}
-              {data?.rows.map((bl) => (
-                <tr key={bl.id} className="hover:bg-[#21262d]/60">
+              {data?.rows.map((bl) => {
+                const isExpanded = expandedBlId === bl.id
+                const detailId = `bl-detail-${bl.id}`
+                return (
+                <Fragment key={bl.id}>
+                <tr className="hover:bg-[#21262d]/60">
                   {isAdmin ? (
                     <td className="px-3 py-3">
                       <input
@@ -525,6 +551,21 @@ export function Bls() {
                       />
                     </td>
                   ) : null}
+                  <td className="px-3 py-3">
+                    {/* Botão próprio, e não clique na linha: a seleção em massa
+                        e o link do B/L continuam intactos. */}
+                    <button
+                      type="button"
+                      className="app-table__icon-button"
+                      aria-expanded={isExpanded}
+                      aria-controls={detailId}
+                      aria-label={`${isExpanded ? 'Recolher' : 'Expandir'} carga do B/L ${bl.id}`}
+                      title={isExpanded ? 'Recolher carga' : 'Expandir carga'}
+                      onClick={() => setExpandedBlId(isExpanded ? null : bl.id)}
+                    >
+                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                  </td>
                   <td className="px-3 py-3 font-semibold">
                     <Link className="text-[#58a6ff] hover:underline" to={`/bls/${bl.id}`}>
                       {bl.id}
@@ -594,7 +635,10 @@ export function Bls() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                {isExpanded ? <BlRowDetail bl={bl} colSpan={blColumnCount} /> : null}
+                </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -712,7 +756,7 @@ function BreakbulkManifestUploadModal({
         onClose()
       }}
       canImport={(nextManifest, override) =>
-        nextManifest.bls.length > 0 && (nextManifest.rowErrors.length === 0 || Boolean(override))
+        nextManifest.bls.length > 0 && (!hasBlockingRowErrors(nextManifest.rowErrors) || Boolean(override))
       }
       getIssues={(nextManifest) => rowErrorsToImportIssues(nextManifest.rowErrors)}
       ready={Boolean(voyageId && user)}
@@ -773,7 +817,7 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
         />
         <PreviewBox
           label="CBM (M3)"
-          value={manifest.bls.reduce((sum, bl) => sum + Number(bl.total_cbm ?? 0), 0)}
+          value={manifest.bls.reduce((sum, bl) => sum + Number(bl.bb_cbm ?? 0), 0)}
           variant="metric-strip"
         />
         <PreviewBox label="Erros de parser" value={manifest.rowErrors.length} variant="metric-strip" />
@@ -802,7 +846,7 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
                 <td className="px-3 py-2">
                   {formatBBNumber(bl.bb_weight_ton)}
                 </td>
-                <td className="px-3 py-2">{formatBBNumber(bl.total_cbm)}</td>
+                <td className="px-3 py-2">{formatBBNumber(bl.bb_cbm)}</td>
                 <td className="px-3 py-2">{bl.shipper ?? '-'}</td>
                 <td className="px-3 py-2">{bl.consignee ?? '-'}</td>
                 <td className="px-3 py-2">{bl.notify_party ?? '-'}</td>

@@ -8,17 +8,29 @@ export function resolveCargoMode(bl?: BLDetail | null): CargoMode {
   if (bl?.cargo_mode === 'misto') return 'misto'
   if (bl?.cargo_mode === 'carga_solta') return 'carga_solta'
   if (bl?.cargo_mode === 'container') return 'container'
+
+  // Fallback para o B/L sem modalidade conhecida. O sinal tem de ser o mesmo
+  // que o banco usa (`_recalculate_bl_cargo_mode`, migrations 060/062/064):
+  // itens, peso, volumes, máquinas ou cubagem de carga solta. Antes ignorava
+  // volumes, máquinas e cubagem, então classificava como contêiner um B/L que
+  // o banco chama de carga solta.
   const hasCntr = (bl?.bl_containers?.length ?? 0) > 0
-  const hasBb = (bl?.bl_breakbulk_items?.length ?? 0) > 0 || Number(bl?.bb_weight_ton ?? 0) > 0
+  const hasBb = (bl?.bl_breakbulk_items?.length ?? 0) > 0
+    || Number(bl?.bb_weight_ton ?? 0) > 0
+    || Number(bl?.bb_packages_qty ?? 0) > 0
+    || Number(bl?.bb_machine_qty ?? 0) > 0
+    || Number(bl?.bb_cbm ?? 0) > 0
+
   if (hasCntr && hasBb) return 'misto'
   if (hasBb) return 'carga_solta'
   return 'container'
 }
 
-export function cargoModeLabel(mode: CargoMode) {
-  if (mode === 'misto') return 'Misto (CNTR + Carga Solta)'
-  return formatCargoModeLabel(mode)
-}
+/**
+ * Rótulo da modalidade. Há um só: a lista, o export e o detalhe escreviam
+ * 'Misto' e 'Misto (CNTR + Carga Solta)' para a mesma coisa.
+ */
+export const cargoModeLabel = formatCargoModeLabel
 
 export function formatNumber(value: number | string | null | undefined) {
   const amount = Number(value ?? 0)

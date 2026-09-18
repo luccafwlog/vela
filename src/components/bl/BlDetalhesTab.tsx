@@ -1,11 +1,12 @@
 import type { FormEvent } from 'react'
 import { BlOperacionalTab } from './BlOperacionalTab'
-import { BlCargaTab, type ContainerSummary, type BreakbulkSummary } from './BlCargaTab'
 import { BlFreightSection, type BlFreightLine } from './BlFreightSection'
 import type { BlForm } from '../../hooks/useBlEditForm'
 import type { CargoMode } from '../../pages/blDetalheHelpers'
 import type { BLDetail } from '../../types/database'
 
+// Formulário de edição manual e frete. O conteúdo de carga (contêineres, resumo
+// de carga solta, itens e veículos) saiu daqui para a aba própria `Carga`.
 export function BlDetalhesTab(props: {
   active: boolean
   bl: BLDetail
@@ -17,8 +18,6 @@ export function BlDetalhesTab(props: {
   cargoMode: CargoMode
   isContainerMode: boolean
   hasContainers: boolean
-  containerSummary: ContainerSummary
-  breakbulkSummary: BreakbulkSummary
   onFieldChange: <K extends keyof BlForm>(field: K, value: BlForm[K] | string) => void
   onJustificationChange: (value: string) => void
   onSubmit: (event: FormEvent) => void
@@ -39,15 +38,6 @@ export function BlDetalhesTab(props: {
         onFieldChange={props.onFieldChange}
         onJustificationChange={props.onJustificationChange}
         onSubmit={props.onSubmit}
-      />
-      <BlCargaTab
-        active
-        bl={props.bl}
-        blId={props.blId}
-        cargoMode={props.cargoMode}
-        isContainerMode={props.isContainerMode}
-        containerSummary={props.containerSummary}
-        breakbulkSummary={props.breakbulkSummary}
       />
       {props.hasContainers ? (
         <BlFreightSection freightLines={(props.bl.bl_freight_lines ?? []) as BlFreightLine[]} />

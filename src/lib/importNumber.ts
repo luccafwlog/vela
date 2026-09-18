@@ -146,3 +146,54 @@ export function parseImportNumber(
   }
   return parseUnknown(text)
 }
+
+/**
+ * Descobre, olhando a coluna inteira, qual separador decimal a planilha usa.
+ *
+ * Existe porque fixar um formato é o pior dos mundos: com `pt-BR` fixo, um
+ * arquivo em notação inglesa entra multiplicado por mil sem erro nenhum
+ * (`259.312` t vira 259.312 t); com `unknown` puro, toda célula da forma
+ * `123.456` vira erro, inclusive num arquivo pt-BR legítimo. A saída é decidir
+ * pela evidência do próprio arquivo, nunca por suposição:
+ *
+ * - célula com os dois separadores: o da direita é o decimal;
+ * - célula com um separador seguido de um número de dígitos diferente de 3:
+ *   aquele separador é decimal (grupo de milhar tem exatamente três).
+ *
+ * Sem evidência — toda célula é inteira ou tem a forma ambígua `123.456` — e
+ * também quando a evidência se contradiz, devolve `'unknown'`. Aí o chamador
+ * tem de transformar a ambiguidade em erro explícito; adivinhar é justamente o
+ * que esta função se recusa a fazer.
+ */
+export function inferSeparatorFormat(values: readonly unknown[]): ImportNumberFormat {
+  let decided: ImportNumberFormat | null = null
+
+  for (const value of values) {
+    if (typeof value !== 'string') continue
+    const text = value.trim()
+    if (!text || /[^0-9.,+-]/.test(text)) continue
+
+    const evidence = separatorEvidence(text)
+    if (!evidence) continue
+    if (decided && decided !== evidence) return 'unknown'
+    decided = evidence
+  }
+
+  return decided ?? 'unknown'
+}
+
+function separatorEvidence(text: string): ImportNumberFormat | null {
+  const lastDot = text.lastIndexOf('.')
+  const lastComma = text.lastIndexOf(',')
+  if (lastDot >= 0 && lastComma >= 0) return lastDot > lastComma ? 'en-US' : 'pt-BR'
+
+  const separatorIndex = Math.max(lastDot, lastComma)
+  if (separatorIndex < 0) return null
+
+  const fraction = text.slice(separatorIndex + 1)
+  // Três dígitos depois do separador é exatamente o caso ambíguo: pode ser
+  // milhar (1.234) ou decimal (259.312). Não é evidência de nada.
+  if (!/^\d+$/.test(fraction) || fraction.length === 3) return null
+
+  return lastDot >= 0 ? 'en-US' : 'pt-BR'
+}

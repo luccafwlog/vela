@@ -757,7 +757,7 @@ type BreakbulkAgencyReportBl = {
   bb_packages_qty: number | null
   bb_weight_ton: number | null
   total_weight_kg: number | null
-  total_cbm: number | null
+  bb_cbm: number | null
 }
 
 // ADR 0022/0025: bls.pod nunca é reescrito para disposição 'transshipment'
@@ -784,7 +784,7 @@ async function listTransshipmentBlIds(voyageId: number, port: string): Promise<s
 }
 
 const BL_CONTAINERS_SELECT = 'id, container_number, type, is_imo, is_oog, bl:bls!inner(voyage_id, pod, transshipments:bl_transshipments(disposition))'
-const BREAKBULK_SELECT = 'bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, total_cbm'
+const BREAKBULK_SELECT = 'bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, bb_cbm'
 const VEHICLES_SELECT = 'brand, model, bl_id, chassis, container_id, container:bl_containers(container_number, type, unpacking_location)'
 
 const SUPABASE_PAGE_SIZE = 1000
@@ -1222,6 +1222,6 @@ function summarizeBreakbulk(breakbulk: BreakbulkAgencyReportBl[]) {
       (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
       0,
     ),
-    cbm: breakbulk.reduce((sum, bl) => sum + Number(bl.total_cbm ?? 0), 0),
+    cbm: breakbulk.reduce((sum, bl) => sum + Number(bl.bb_cbm ?? 0), 0),
   }
 }

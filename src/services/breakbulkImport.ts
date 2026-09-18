@@ -4,12 +4,14 @@ import { supabase } from './supabase'
 import type { Json } from '../types/database'
 import {
   buildBreakbulkSummaryDescription,
+  hasBlockingRowErrors,
   parseBreakbulkManifestBuffer,
   parseBreakbulkManifestFile,
   type ParsedBreakbulkManifest,
 } from './breakbulkManifestParser'
 
 export {
+  hasBlockingRowErrors,
   parseBreakbulkManifestBuffer,
   parseBreakbulkManifestFile,
   type ParsedBreakbulkManifest,
@@ -29,7 +31,12 @@ export async function importBreakbulkManifest({
   /** Permite persistir as linhas válidas quando o preview tem erros de linha. */
   allowRowErrors?: boolean
 }) {
-  if (manifest.rowErrors.length && !allowRowErrors) throw new Error(formatBreakbulkRowErrors(manifest.rowErrors))
+  // Só divergência bloqueante impede a importação. Um aviso de conferência
+  // (separador decimal ambíguo, por exemplo) viaja para o lote como registro,
+  // mas não exige override do operador.
+  if (hasBlockingRowErrors(manifest.rowErrors) && !allowRowErrors) {
+    throw new Error(formatBreakbulkRowErrors(manifest.rowErrors.filter((rowError) => (rowError.severity ?? 'error') === 'error')))
+  }
 
   const { error: voyageError } = await supabase.from('voyages').select('id').eq('id', voyageId).single()
   if (voyageError) throw voyageError
@@ -95,7 +102,8 @@ export async function importBreakbulkManifest({
             extractNcmCodes(bl.items.map((item) => item.item_description).filter(Boolean).join('\n')),
           ),
         ],
-        total_cbm: bl.total_cbm,
+        // Cubagem da carga solta. `total_cbm` e do conteiner desde a 064.
+        bb_cbm: bl.bb_cbm,
         review_status: reviewReasons.size > 0 ? ('pending_review' as const) : ('ok' as const),
         financial_status: 'pending' as const,
         notes: reviewReasons.size > 0 ? `Pendencias de importacao: ${Array.from(reviewReasons).join(', ')}` : null,

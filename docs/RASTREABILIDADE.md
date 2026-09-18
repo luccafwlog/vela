@@ -27,6 +27,55 @@ no código. Levantamento e lacunas detalhadas na
 - **Runtime**: comportamento observado em navegador/API/banco controlado.
 - **Suspeita**: divergência plausível que ainda exige confirmação adicional.
 
+## Cubagem, formato numérico e linha expansível de B/Ls — 2026-09-18
+
+Remediação dos achados da auditoria de 2026-09-18
+(`docs/archive/audits/2026-09-18-auditoria-unificacao-bls-eixos-1-4.md`).
+
+**Cubagem com dono único (migration 064).** `bls.total_cbm` passou a medir
+SOMENTE carga conteinerizada e `bls.bb_cbm` (coluna nova) SOMENTE carga solta —
+a mesma cirurgia que a `061` fez no peso, aplicada à coluna que ficou de fora.
+Antes, `breakbulkImport` gravava a cubagem do manifesto e `blFreightImport`
+gravava a soma dos contêineres na MESMA coluna, uma sobrescrevendo a outra em
+B/L misto, e a ficha exibia o resultado sob o título "Resumo da carga solta".
+Quem precisa da cubagem do documento inteiro usa `blTotalCbm()`, nunca uma das
+colunas. `operational_list_bl_summary` devolve `breakbulkCbm` (só carga solta) e
+`totalCbm` (soma aditiva). A cubagem de carga solta também entrou no
+`ON CONFLICT` do importador: era a única métrica BB que uma reimportação não
+atualizava.
+
+**Sinal de carga solta completo (migration 064).** `bb_machine_qty` e `bb_cbm`
+passaram a contar como sinal de carga solta em `_recalculate_bl_cargo_mode` e
+`trg_sync_bl_weight_cargo_mode`, e o trigger observa as duas colunas no
+`UPDATE OF`. Um B/L declarado só com máquinas e cubagem sobrevivia ao INSERT mas
+era reclassificado como `container` em silêncio no primeiro UPDATE de
+`bb_weight_ton`/`bb_packages_qty`.
+
+**Formato numérico dos imports BB.** `parseNumber` do manifesto de carga solta
+não fixa mais pt-BR. `inferSeparatorFormat` (`src/lib/importNumber.ts`) decide o
+separador decimal pela evidência do próprio arquivo — uma célula com os dois
+separadores, ou com um separador seguido de um número de dígitos diferente de 3.
+Sem evidência, a leitura segue em pt-BR e cada célula ambígua (`259.312`) gera um
+`rowError` de severidade `warning` dizendo o valor exato que entrou. Antes,
+`259.312` entrava como 259.312 toneladas, sem erro nenhum, e alimentava a taxa
+local de base `weight_ton`. `ParsedBreakbulkManifest.rowErrors` ganhou
+`severity`, e `rowErrorsToImportIssues` a respeita: só divergência bloqueante
+impede a importação.
+
+**Linha expansível em `/bls`.** Cada linha expande contêineres (com tara e data
+de descarga) e carga solta (resumo e itens) em `BlRowDetail`, sem query nova — a
+RPC `operational_list_bls` já projeta `bl_containers` e `bl_breakbulk_items`
+inteiros. O toggle é um botão próprio com `aria-expanded`/`aria-controls`, então
+a seleção em massa não é afetada.
+
+**Export e tabela com um filtro só.** `fetchAllBls` pagina a mesma RPC da
+tabela. Reimplementava os filtros contra `bls` com busca textual mais estreita,
+então buscar por nome de cliente exibia linhas e exportava zero.
+
+**Ficha do B/L.** `Carga` virou aba própria (`?tab=carga`), entre Visão Geral e
+Detalhes; era uma seção no fim do formulário de edição. A modalidade aparece
+como badge no topo, com rótulo único (`cargoModeLabel`).
+
 ## Atualização do detalhe do B/L — trilho Documental — 2026-09-14
 
 `/bls/:blId` mantém o trilho Operacional e agora apresenta o antigo

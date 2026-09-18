@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { importBreakbulkManifest, parseBreakbulkManifestBuffer, type ParsedBreakbulkManifest } from '../breakbulkImport'
+import { hasBlockingRowErrors, importBreakbulkManifest, parseBreakbulkManifestBuffer, type ParsedBreakbulkManifest } from '../breakbulkImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
 // breakbulkImport importa customerReconciliation que importa supabase — mock necessário para
@@ -54,12 +54,66 @@ describe('breakbulkImport', () => {
     const manifest = await parseBreakbulkManifestBuffer(buffer)
 
     expect(manifest.layout).toBe('summary')
-    expect(manifest.rowErrors).toHaveLength(0)
     expect(manifest.bls).toHaveLength(1)
     expect(manifest.bls[0]?.bb_machine_qty).toBe(8)
     expect(manifest.bls[0]?.bb_packages_total).toBe(32)
     expect(manifest.bls[0]?.bb_weight_ton).toBeCloseTo(259.312)
+    expect(manifest.bls[0]?.bb_cbm).toBeCloseTo(1217.109)
+
+    // `259,312` e `1217,109` são lidos em pt-BR, mas nenhuma célula deste
+    // arquivo prova que a vírgula é o decimal: a importação segue e o operador
+    // é avisado. Nada aqui bloqueia.
+    expect(hasBlockingRowErrors(manifest.rowErrors)).toBe(false)
+    expect(manifest.rowErrors.map((rowError) => rowError.severity)).toEqual(['warning', 'warning'])
+  })
+
+  it('não avisa quando o próprio arquivo desempata o separador decimal', async () => {
+    const buffer = jsonToBuffer([
+      {
+        BL: 'CCSV22001',
+        CE: '122605051526081',
+        MAQUINAS: 8,
+        PACKAGES: 24,
+        'PACKAGES TOTAL': 32,
+        'WEIGHT (TON)': '259,312',
+        // Duas casas decimais: só faz sentido como decimal, nunca como milhar.
+        // Isso resolve a coluna de peso do arquivo inteiro.
+        'CBM (M3)': '1217,10',
+        SHIPPER: 'SANY INTERNATIONAL',
+        CONSIGNEE: 'TIMBRO TRADING S.A.',
+        NOTIFY: 'SANY IMPORTACAO',
+      },
+    ])
+
+    const manifest = await parseBreakbulkManifestBuffer(buffer)
+
+    expect(manifest.rowErrors).toHaveLength(0)
     expect(manifest.bls[0]?.bb_weight_ton).toBeCloseTo(259.312)
+    expect(manifest.bls[0]?.bb_cbm).toBeCloseTo(1217.1)
+  })
+
+  it('lê ponto decimal quando o arquivo prova que o ponto é decimal', async () => {
+    const buffer = jsonToBuffer([
+      {
+        BL: 'CCSV22001',
+        CE: '122605051526081',
+        MAQUINAS: 8,
+        PACKAGES: 24,
+        'PACKAGES TOTAL': 32,
+        'WEIGHT (TON)': '259.312',
+        'CBM (M3)': '1217.10',
+        SHIPPER: 'SANY INTERNATIONAL',
+        CONSIGNEE: 'TIMBRO TRADING S.A.',
+        NOTIFY: 'SANY IMPORTACAO',
+      },
+    ])
+
+    const manifest = await parseBreakbulkManifestBuffer(buffer)
+
+    // Sem a inferência, `259.312` entraria como 259 312 toneladas.
+    expect(manifest.rowErrors).toHaveLength(0)
+    expect(manifest.bls[0]?.bb_weight_ton).toBeCloseTo(259.312)
+    expect(manifest.bls[0]?.bb_cbm).toBeCloseTo(1217.1)
   })
 
   it('envia lote, BLs, itens e erros para a RPC transacional', async () => {
@@ -125,7 +179,7 @@ describe('breakbulkImport', () => {
           bb_packages_qty: 2,
           bb_packages_total: 2,
           bb_weight_ton: 10,
-          total_cbm: 30,
+          bb_cbm: 30,
           items: [],
         },
       ],
@@ -189,7 +243,7 @@ describe('breakbulkImport', () => {
     expect(manifest.bls).toHaveLength(1)
     expect(bl?.bb_packages_total).toBe(5)
     expect(bl?.bb_weight_ton).toBeCloseTo(1.5)
-    expect(bl?.total_cbm).toBeCloseTo(15)
+    expect(bl?.bb_cbm).toBeCloseTo(15)
     expect(bl?.items).toHaveLength(2)
   })
 
@@ -220,7 +274,7 @@ describe('breakbulkImport', () => {
     expect(bl?.bb_machine_qty).toBe(5)
     expect(bl?.bb_packages_qty).toBe(5)
     expect(bl?.bb_weight_ton).toBeCloseTo(99.7)
-    expect(bl?.total_cbm).toBeCloseTo(393.35)
+    expect(bl?.bb_cbm).toBeCloseTo(393.35)
     expect(bl?.cnpj_cpf).toBe('12116971001071')
   })
 
@@ -261,7 +315,7 @@ describe('breakbulkImport', () => {
     expect(bl?.pod).toBe('BRVIX')
     expect(bl?.bb_machine_qty).toBe(8)
     expect(bl?.bb_weight_ton).toBeCloseTo(175.44)
-    expect(bl?.total_cbm).toBeCloseTo(794.761)
+    expect(bl?.bb_cbm).toBeCloseTo(794.761)
   })
 
   it('parseia carrier SYSTEM MANIFEST com partes em celula combinada', async () => {
@@ -292,7 +346,7 @@ describe('breakbulkImport', () => {
     expect(bl?.bb_machine_qty).toBe(10)
     expect(bl?.bb_packages_qty).toBe(30)
     expect(bl?.bb_weight_ton).toBeCloseTo(136.873)
-    expect(bl?.total_cbm).toBeCloseTo(614.313)
+    expect(bl?.bb_cbm).toBeCloseTo(614.313)
   })
 
   it('parseia carrier ZJG com BL numerico e colunas deslocadas', async () => {
@@ -328,7 +382,7 @@ describe('breakbulkImport', () => {
     expect(bl?.bb_machine_qty).toBeNull()
     expect(bl?.bb_packages_qty).toBe(75)
     expect(bl?.bb_weight_ton).toBeCloseTo(3156.82)
-    expect(bl?.total_cbm).toBeCloseTo(1063.89)
+    expect(bl?.bb_cbm).toBeCloseTo(1063.89)
   })
 
   it('quantifica maquinas por nomenclatura de equipamento na descricao', async () => {
@@ -472,7 +526,7 @@ describe('breakbulkImport', () => {
           bb_packages_qty: 4,
           bb_packages_total: 4,
           bb_weight_ton: 1,
-          total_cbm: 12.5,
+          bb_cbm: 12.5,
           items: [],
         },
       ],
@@ -534,7 +588,7 @@ describe('breakbulkImport', () => {
           bb_packages_qty: 2,
           bb_packages_total: 2,
           bb_weight_ton: 10,
-          total_cbm: 20,
+          bb_cbm: 20,
           items: [],
         },
       ],

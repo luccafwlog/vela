@@ -5,7 +5,7 @@
 // breakbulkImport.ts.
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeDocument, extractCnpjFromText } from '../lib/cnpj'
-import { parseImportNumber, type ImportNumberFormat } from '../lib/importNumber'
+import { inferSeparatorFormat, parseImportNumber, type ImportNumberFormat } from '../lib/importNumber'
 import { asString, normalizeHeader, onlyDigits } from '../lib/utils'
 import { normalizePortCode } from './portCode'
 import {
@@ -67,7 +67,8 @@ export type BreakbulkImportRow = {
   bb_packages_qty: number | null
   bb_packages_total: number | null
   bb_weight_ton: number | null
-  total_cbm: number
+  /** Cubagem da carga solta. Vai para bls.bb_cbm; bls.total_cbm e do conteiner. */
+  bb_cbm: number
   items: Array<{
     item_description: string
     package_qty: number
@@ -81,7 +82,16 @@ export type BreakbulkImportRow = {
 export type ParsedBreakbulkManifest = {
   layout: BreakbulkLayout
   bls: BreakbulkImportRow[]
-  rowErrors: { row: number; message: string; raw: unknown }[]
+  /**
+   * Divergências por linha. `severity` ausente significa `'error'`: o legado
+   * inteiro é bloqueante e continua sendo. `'warning'` é a linha que importa,
+   * mas pede conferência — hoje só a ambiguidade de separador decimal.
+   */
+  rowErrors: { row: number; message: string; raw: unknown; severity?: 'error' | 'warning' }[]
+}
+
+export function hasBlockingRowErrors(rowErrors: ParsedBreakbulkManifest['rowErrors']) {
+  return rowErrors.some((rowError) => (rowError.severity ?? 'error') === 'error')
 }
 
 export async function parseBreakbulkManifestFile(file: File): Promise<ParsedBreakbulkManifest> {
@@ -156,9 +166,31 @@ function parseCarrierBreakbulkRows(rawRows: (string | number | null)[][]): Parse
     index += groupRows.length - 1
 
     const descriptionBlock = joinedStringsFromColumn(groupRows, colDescription >= 0 ? colDescription : 3)
-    const grossWeightKg =
-      firstNumberFromColumn(groupRows, colWeight, 'unknown') ?? findNumberBeforeUnit(groupRows, /^KGS?$/i, 'unknown') ?? 0
-    const cbm = firstNumberFromColumn(groupRows, colCbm, 'en-US') ?? findNumberBeforeUnit(groupRows, /^CBMS?$/i, 'en-US') ?? 0
+    const readWeightKg =
+      firstNumberFromColumn(groupRows, colWeight, 'unknown') ?? findNumberBeforeUnit(groupRows, /^KGS?$/i, 'unknown')
+    const readCbm = firstNumberFromColumn(groupRows, colCbm, 'en-US') ?? findNumberBeforeUnit(groupRows, /^CBMS?$/i, 'en-US')
+    const grossWeightKg = readWeightKg ?? 0
+    const cbm = readCbm ?? 0
+
+    // Os layouts resumido e legado rejeitam a linha sem peso; o carrier aceitava
+    // em silêncio e o B/L entrava sem peso nenhum, indistinguível de uma carga
+    // que realmente não tem peso declarado. O peso alimenta a taxa por tonelada,
+    // então a ausência tem de aparecer como issue, não como zero.
+    if (readWeightKg === null || readWeightKg <= 0) {
+      rowErrors.push({
+        row: index + 1,
+        message: `Peso bruto nao identificado para o BL ${candidateBl}; confira a coluna de peso do arquivo.`,
+        raw: row,
+      })
+    }
+    if (readCbm === null) {
+      rowErrors.push({
+        row: index + 1,
+        message: `Cubagem (CBM) nao identificada para o BL ${candidateBl}.`,
+        raw: row,
+        severity: 'warning',
+      })
+    }
     const packageInfo = parseCarrierPackageInfo(descriptionBlock, firstValueFromColumn(groupRows, colQty))
     const itemDescription = normalizeCarrierBreakbulkDescription(descriptionBlock)
     const splitParties = parseCarrierSplitPartyRows(groupRows)
@@ -203,7 +235,7 @@ function parseCarrierBreakbulkRows(rawRows: (string | number | null)[][]): Parse
       bb_packages_qty: packageInfo.quantity,
       bb_packages_total: packageInfo.quantity,
       bb_weight_ton: grossWeightKg > 0 ? grossWeightKg / 1000 : null,
-      total_cbm: cbm,
+      bb_cbm: cbm,
       items: [
         {
           item_description: itemDescription,
@@ -228,17 +260,27 @@ function parseSummaryRows(rows: SheetRow[]): ParsedBreakbulkManifest {
   const rowErrors: ParsedBreakbulkManifest['rowErrors'] = []
   const parsedRows: BreakbulkImportRow[] = []
 
-  rows.forEach((row) => {
-    const mapped = mapRow(row, SUMMARY_SPEC)
+  const mappedRows = rows.map((row) => ({ row, mapped: mapRow(row, SUMMARY_SPEC) }))
+  const format = inferSheetFormat(mappedRows.map((entry) => entry.mapped), SUMMARY_NUMERIC_FIELDS)
+
+  mappedRows.forEach(({ row, mapped }) => {
     const rowNumber = row.rowNumber
 
     const bl_id = normalizeKey(mapped.bl_id)
     const ce_mercante = asNullableDigits(mapped.ce_mercante)
-    const machineQty = parseNumber(mapped.machine_qty)
-    const packagesQty = parseNumber(mapped.packages_qty)
-    const packagesTotal = parseNumber(mapped.packages_total)
-    const weightTon = parseNumber(mapped.gross_weight_ton)
-    const cbm = parseNumber(mapped.cbm)
+    const numbers = readNumericColumns(mapped, SUMMARY_NUMERIC_FIELDS, format)
+    if (numbers.problems.length) {
+      rowErrors.push({ row: rowNumber, message: numbers.problems.join(' '), raw: row })
+      return
+    }
+    for (const warning of numbers.warnings) {
+      rowErrors.push({ row: rowNumber, message: warning, raw: row, severity: 'warning' })
+    }
+    const machineQty = numbers.values.machine_qty
+    const packagesQty = numbers.values.packages_qty
+    const packagesTotal = numbers.values.packages_total
+    const weightTon = numbers.values.gross_weight_ton
+    const cbm = numbers.values.cbm
     const shipper = asNullableString(mapped.shipper)
     const consignee = asString(mapped.consignee)
     const notifyParty = asNullableString(mapped.notify_party)
@@ -246,7 +288,7 @@ function parseSummaryRows(rows: SheetRow[]): ParsedBreakbulkManifest {
     const pol = nullableKey(mapped.pol)
     const pod = nullableKey(mapped.pod)
 
-    if (!bl_id || machineQty === null || packagesQty === null || packagesTotal === null || weightTon === null || cbm === null || !shipper || !consignee || !notifyParty) {
+    if (!bl_id || !shipper || !consignee || !notifyParty) {
       rowErrors.push({ row: rowNumber, message: 'Colunas obrigatorias ausentes ou invalidas para o layout BB.', raw: row })
       return
     }
@@ -270,7 +312,7 @@ function parseSummaryRows(rows: SheetRow[]): ParsedBreakbulkManifest {
       bb_packages_qty: packagesQty,
       bb_packages_total: packagesTotal,
       bb_weight_ton: weightTon,
-      total_cbm: cbm,
+      bb_cbm: cbm,
       items: [],
     })
   })
@@ -300,8 +342,10 @@ function parseLegacyRows(rows: SheetRow[]): ParsedBreakbulkManifest {
     shipper: string | null
   }> = []
 
-  rows.forEach((row) => {
-    const mapped = mapRow(row, LEGACY_SPEC)
+  const sheetRows = rows.map((row) => ({ row, mapped: mapRow(row, LEGACY_SPEC) }))
+  const format = inferSheetFormat(sheetRows.map((entry) => entry.mapped), LEGACY_NUMERIC_FIELDS)
+
+  sheetRows.forEach(({ row, mapped }) => {
     const rowNumber = row.rowNumber
 
     const bl_id = normalizeKey(mapped.bl_id)
@@ -310,14 +354,22 @@ function parseLegacyRows(rows: SheetRow[]): ParsedBreakbulkManifest {
     const pol = normalizeKey(mapped.pol)
     const pod = normalizeKey(mapped.pod)
     const item_description = asString(mapped.item_description)
-    const package_qty = parseNumber(mapped.package_qty)
-    const gross_weight_kg = parseNumber(mapped.gross_weight_kg)
-    const cbm = parseNumber(mapped.cbm)
+    const numbers = readNumericColumns(mapped, LEGACY_NUMERIC_FIELDS, format)
+    if (numbers.problems.length) {
+      rowErrors.push({ row: rowNumber, message: numbers.problems.join(' '), raw: row })
+      return
+    }
+    for (const warning of numbers.warnings) {
+      rowErrors.push({ row: rowNumber, message: warning, raw: row, severity: 'warning' })
+    }
+    const package_qty = numbers.values.package_qty
+    const gross_weight_kg = numbers.values.gross_weight_kg
+    const cbm = numbers.values.cbm
     const package_unit = asNullableString(mapped.package_unit)
     const marks = asNullableString(mapped.marks)
     const shipper = asNullableString(mapped.shipper)
 
-    if (!bl_id || !consignee || !cnpj_cpf || !pol || !pod || !item_description || package_qty === null || gross_weight_kg === null || cbm === null) {
+    if (!bl_id || !consignee || !cnpj_cpf || !pol || !pod || !item_description) {
       rowErrors.push({ row: rowNumber, message: 'Colunas obrigatorias ausentes ou invalidas.', raw: row })
       return
     }
@@ -363,7 +415,7 @@ function parseLegacyRows(rows: SheetRow[]): ParsedBreakbulkManifest {
         bb_packages_qty: row.package_qty,
         bb_packages_total: row.package_qty,
         bb_weight_ton: row.gross_weight_kg / 1000,
-        total_cbm: row.cbm,
+        bb_cbm: row.cbm,
         items: [
           {
             item_description: row.item_description,
@@ -392,7 +444,7 @@ function parseLegacyRows(rows: SheetRow[]): ParsedBreakbulkManifest {
       continue
     }
 
-    current.total_cbm += row.cbm
+    current.bb_cbm += row.cbm
     current.bb_packages_total = Number(current.bb_packages_total ?? 0) + row.package_qty
     current.bb_packages_qty = Number(current.bb_packages_qty ?? 0) + row.package_qty
     current.bb_weight_ton = Number(current.bb_weight_ton ?? 0) + row.gross_weight_kg / 1000
@@ -695,7 +747,117 @@ function nullableKey(value: unknown) {
   return normalized || null
 }
 
-function parseNumber(value: unknown, format: ImportNumberFormat = 'pt-BR') {
+const SUMMARY_NUMERIC_FIELDS = ['machine_qty', 'packages_qty', 'packages_total', 'gross_weight_ton', 'cbm'] as const
+const LEGACY_NUMERIC_FIELDS = ['package_qty', 'gross_weight_kg', 'cbm'] as const
+
+/** Nome da coluna como o operador a vê na planilha, para a mensagem de erro. */
+const NUMERIC_COLUMN_LABELS: Record<string, string> = {
+  machine_qty: 'MAQUINAS',
+  packages_qty: 'PACKAGES',
+  packages_total: 'PACKAGES TOTAL',
+  gross_weight_ton: 'WEIGHT (TON)',
+  package_qty: 'VOLUMES',
+  gross_weight_kg: 'PESO_KG',
+  cbm: 'CBM',
+}
+
+/**
+ * Formato decidido uma vez para o arquivo inteiro, com a evidência de todas as
+ * colunas numéricas. Ler célula a célula não resolveria: `259.312` sozinho é
+ * ambíguo, mas a planilha que em qualquer outra célula traz `12,5` já disse
+ * qual é o separador decimal dela. Uma planilha usa um locale só.
+ *
+ * `'unknown'` significa que o arquivo não desempata — ver `readNumericColumns`,
+ * que lê em pt-BR (o formato que a tela documenta e o modelo usa) e avisa o
+ * operador célula a célula, em vez de escolher em silêncio.
+ */
+function inferSheetFormat<TField extends DestinationField>(
+  rows: Partial<Record<DestinationField, unknown>>[],
+  fields: readonly TField[],
+): ImportNumberFormat {
+  return inferSeparatorFormat(rows.flatMap((row) => fields.map((field) => row[field])))
+}
+
+type NumericCell = { ok: true; value: number } | { ok: false; reason: 'empty' | 'ambiguous' | 'syntax' }
+
+function readNumericCell(value: unknown, format: ImportNumberFormat): NumericCell {
+  const text = typeof value === 'string'
+    ? value.trim().match(/^[+-]?\d[\d.,]*/)?.[0] ?? value.trim()
+    : value
+  const parsed = parseImportNumber(text, format)
+  if (parsed.kind === 'value') {
+    const numeric = Number(parsed.decimal)
+    return Number.isFinite(numeric) ? { ok: true, value: numeric } : { ok: false, reason: 'syntax' }
+  }
+  if (parsed.kind === 'empty') return { ok: false, reason: 'empty' }
+  return { ok: false, reason: parsed.reason === 'ambiguous' ? 'ambiguous' : 'syntax' }
+}
+
+/**
+ * Lê as colunas numéricas de uma linha, separando o que impede a importação do
+ * que só pede conferência.
+ *
+ * `problems` (erro) é coluna vazia ou valor que não é número. `warnings` é o
+ * caso em que o arquivo não disse qual é o separador decimal e a célula tem a
+ * forma ambígua `259.312`: aí a leitura segue em pt-BR — o formato que a tela
+ * documenta e que os modelos usam — e o operador é avisado do valor exato que
+ * entrou, com o número já formatado. Era esse o buraco: `259.312` virava
+ * 259.312 toneladas sem nenhum sinal, e daí ia para a taxa por tonelada.
+ *
+ * ponytail: o desempate definitivo é o operador declarar o formato no próprio
+ * modal de importação (um seletor pt-BR/en-US ao lado da viagem de destino).
+ * Enquanto não existe, o teto é este: arquivos sem evidência nenhuma são lidos
+ * em pt-BR e o aviso é o que impede o erro de passar despercebido.
+ */
+function readNumericColumns<TField extends DestinationField>(
+  mapped: Partial<Record<DestinationField, unknown>>,
+  fields: readonly TField[],
+  format: ImportNumberFormat,
+) {
+  const readAs: ImportNumberFormat = format === 'unknown' ? 'pt-BR' : format
+  const values = {} as Record<TField, number>
+  const problems: string[] = []
+  const warnings: string[] = []
+
+  for (const field of fields) {
+    const cell = readNumericCell(mapped[field], readAs)
+    if (cell.ok) {
+      values[field] = cell.value
+      if (format === 'unknown' && isAmbiguousCell(mapped[field])) {
+        warnings.push(describeAmbiguity(field, mapped[field], cell.value))
+      }
+      continue
+    }
+    problems.push(describeNumericProblem(field, mapped[field], cell.reason))
+  }
+
+  return { values, problems, warnings }
+}
+
+/** `259.312` e `259,312`: um separador só, seguido de exatamente três dígitos. */
+function isAmbiguousCell(raw: unknown) {
+  return typeof raw === 'string' && /^[+-]?\d+[.,]\d{3}$/.test(raw.trim())
+}
+
+function describeAmbiguity(field: string, raw: unknown, readValue: number) {
+  const label = NUMERIC_COLUMN_LABELS[field] ?? field
+  const shown = String(raw ?? '').trim()
+  return `Coluna ${label}: "${shown}" foi lido como ${readValue.toLocaleString('pt-BR')}. `
+    + 'Nenhuma celula do arquivo desempata se o separador e milhar ou decimal. '
+    + 'Se o arquivo usa ponto decimal, troque por virgula e reimporte.'
+}
+
+function describeNumericProblem(field: string, raw: unknown, reason: 'empty' | 'ambiguous' | 'syntax') {
+  const label = NUMERIC_COLUMN_LABELS[field] ?? field
+  const shown = String(raw ?? '').trim()
+  if (reason === 'empty') return `Coluna ${label}: valor obrigatorio ausente.`
+  if (reason === 'ambiguous') {
+    return `Coluna ${label}: "${shown}" e ambiguo — use virgula no decimal (ex.: ${shown.replace(/\./g, ',')}).`
+  }
+  return `Coluna ${label}: "${shown}" nao e um numero valido.`
+}
+
+function parseNumber(value: unknown, format: ImportNumberFormat = 'unknown') {
   const text = typeof value === 'string'
     ? value.trim().match(/^[+-]?\d[\d.,]*/)?.[0] ?? value.trim()
     : value

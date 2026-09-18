@@ -21,7 +21,7 @@ export type ImportIssue = {
   message: string
 }
 
-type RowErrorLike = { row: number; message: string; raw?: unknown }
+type RowErrorLike = { row: number; message: string; raw?: unknown; severity?: 'error' | 'warning' }
 
 /** Converte o legado `{ row, message, raw }` sem carregar o payload bruto. */
 export function rowErrorsToImportIssues(rowErrors: readonly RowErrorLike[]): ImportIssue[] {
@@ -47,7 +47,10 @@ export function rowErrorsToImportIssues(rowErrors: readonly RowErrorLike[]): Imp
           : code === 'invalid_number'
             ? 'value'
             : 'row'
-    return { row: error.row, field, code, severity: 'error', message: error.message }
+    // O parser é quem sabe se a divergência impede a importação. Antes daqui
+    // tudo virava 'error', então um aviso de conferência bloqueava o import e
+    // o painel mandava "corrija os problemas" para algo que não era problema.
+    return { row: error.row, field, code, severity: error.severity ?? 'error', message: error.message }
   })
 }
 
