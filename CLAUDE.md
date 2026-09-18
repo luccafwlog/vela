@@ -79,6 +79,15 @@ planos e specs"):
   `docs/operations/reset-ambiente.md` for the safe alternative.
 - Project playbooks live in `skills/`. Hooks in `.claude/hooks/` also guard
   destructive commands and lint edited TypeScript.
+- **Data status — asserted 2026-09-18, revocable by the repository owner.** The
+  production Supabase project carries no real business data: every row is test
+  fixture and may be discarded. A migration may therefore rewrite or delete
+  existing rows without a preservation plan. This is the ONLY thing that makes
+  such a migration acceptable, so any migration that rewrites or deletes
+  existing rows must say in its header comment that it relies on this line.
+  When the system takes real data, replace this bullet with the opposite
+  assertion in the same change that opens it to real users — until then a
+  reviewer may assume the data is disposable, and after then they must not.
 
 ## Verification
 
