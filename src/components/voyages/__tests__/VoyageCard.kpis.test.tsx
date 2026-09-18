@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 
 vi.mock('../../../services/supabase', () => ({ supabase: {}, isSupabaseConfigured: true }))
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: false, user: null, profile: null }) }))
 vi.mock('../../../hooks/useVoyageReconciliation', () => ({ useVoyageReconciliation: () => ({ data: { items: [] } }) }))
 vi.mock('../../../hooks/useAgencyReport', () => ({ useClosedAgencyReportPorts: () => ({ data: [] }) }))
+let mockManifestos: Array<{ pol: string; pod: string; numero: string }> = []
+vi.mock('../../../hooks/useManifestosMercante', () => ({
+  useManifestosMercanteByVoyage: () => ({ data: mockManifestos }),
+}))
 vi.mock('../VoyageVisaoTab', () => ({ VoyageVisaoTab: () => <div /> }))
 vi.mock('../VoyageImportacaoTab', () => ({ VoyageImportacaoTab: () => <div /> }))
 vi.mock('../VoyageExportacaoTab', () => ({ VoyageExportacaoTab: () => <div /> }))
@@ -16,6 +20,9 @@ vi.mock('../OmitEscalaModal', () => ({ OmitEscalaModal: () => <div /> }))
 import { VoyageCard, type Voyage } from '../VoyageCard'
 
 afterEach(cleanup)
+beforeEach(() => {
+  mockManifestos = []
+})
 
 function renderCard(voyage: Partial<Voyage>, routeCeMasters?: Map<string, string>) {
   render(
@@ -87,6 +94,15 @@ describe('KPIs do cabeçalho da viagem', () => {
       { bls: [{ id: 'bl-1', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [] }] } as unknown as Partial<Voyage>,
       new Map([['7::CNSHA__BRVIX', 'CE-999']]),
     )
+
+    expect(kpiValue('Manifestos Mercante')).toBe('1/1')
+  })
+
+  it('conta Manifestos Mercante registrados na tabela manifestos_mercante', () => {
+    mockManifestos = [{ pol: 'CNSHA', pod: 'BRVIX', numero: 'MAN-555' }]
+    renderCard({
+      bls: [{ id: 'bl-1', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [] }],
+    } as unknown as Partial<Voyage>)
 
     expect(kpiValue('Manifestos Mercante')).toBe('1/1')
   })

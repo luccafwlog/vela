@@ -26,4 +26,14 @@ describe('contrato CSS de impressão de invoice', () => {
     expect(css).toMatch(/\.app-main > \*:not\(:has\(\.app-modal-backdrop\)\):not\(\.app-modal-backdrop\)/)
     expect(css).toMatch(/\.app-main > \.app-modal-backdrop\s*\{[^}]*display:\s*block\s*!important/s)
   })
+
+  it('InvoiceDocumentLocal emite as classes e testids protegidos contra quebra de página', () => {
+    const tsx = fs.readFileSync('src/components/billing/InvoiceDocumentLocal.tsx', 'utf8')
+    expect(tsx).toContain('data-testid="invoice-totals"')
+    expect(tsx).toContain('className="invoice-document__totals"')
+    expect(tsx).toContain('data-testid="invoice-pix-box"')
+    expect(tsx).toContain('className="invoice-document__pix-box"')
+    expect(tsx).toContain('className="invoice-document__group-bar"')
+    expect(tsx).toContain("wordBreak: 'break-all'")
+  })
 })

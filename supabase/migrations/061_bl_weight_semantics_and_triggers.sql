@@ -43,6 +43,13 @@
 -- bb_weight_ton e fica intocado. Essa tolerancia nao e uma salvaguarda de
 -- dados -- com dado descartavel ela nao protege nada; ela existe para deixar
 -- explicito, para quem ler o historico, qual foi a definicao de "espelho".
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.bls WHERE financial_status IN ('invoiced','paid','partially_paid')) THEN
+    RAISE EXCEPTION 'A 061 apaga total_weight_kg. Ha B/L faturado neste banco: a afirmacao "Data status" do CLAUDE.md nao se aplica aqui. Revise antes de aplicar.';
+  END IF;
+END $$;
+
 UPDATE public.bls
 SET total_weight_kg = NULL,
     updated_at = now()

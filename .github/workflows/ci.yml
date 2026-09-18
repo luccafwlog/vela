@@ -178,7 +178,8 @@ jobs:
             src/integration/agencyReportCloserName.local-pg.test.ts \
             src/integration/alertsReviewHardening.local-pg.test.ts \
             src/integration/rpcFinalDefinition.local-pg.test.ts \
-            src/integration/pr698ClaudeReview.local-pg.test.ts
+            src/integration/pr698ClaudeReview.local-pg.test.ts \
+            src/integration/pr698Auditoria.local-pg.test.ts
 
       - name: Verify the executed RPC catalog
         # `npm run rpc:check` existia no package.json sem nenhum gate a executá-lo.

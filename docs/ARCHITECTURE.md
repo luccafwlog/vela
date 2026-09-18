@@ -634,6 +634,9 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/baplie` | Importação e conciliação Baplie |
 | `/bls` | Painel unificado de B/Ls (contêiner, carga solta e misto); importação documental e CE Mercante |
 | `/bls/:blId` | Detalhe do B/L |
+| `/carga-solta` | Redirect legado para `/bls?tipo=carga_solta` |
+| `/carga-solta/:blId` | Redirect legado para `/bls/:blId` |
+| `/manifestos` | Redirect legado para `/viagens` |
 | `/containers` | Containers |
 | `/veiculos` | Veículos RoRo |
 | `/vazios-importacao` | Vazios de importação |

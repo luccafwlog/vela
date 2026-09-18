@@ -134,7 +134,7 @@ e restituição exige conclusão vinculada pelo Financeiro.
 O CE Mercante do B/L nunca muda. O Manifesto Mercante do B/L muda: ao aplicar
 COD, o B/L deixa de constar no manifesto do porto omitido e seu vínculo
 (`bls.manifesto_mercante_id`) é limpo (NULL), gerando pendência operacional de
-vinculação ao manifesto do novo destino.
+vinculação ao manifesto do novo destino (monitorada via o filtro "Sem manifesto" no LineUp).
 
 - **Related:** Ajuste de COD, Taxas Locais, Omissao de Escala, Porto de Transbordo, Manifesto Mercante
 
@@ -744,7 +744,9 @@ Número oficial do manifesto aduaneiro registrado no sistema Mercante para uma
 determinada rota/escala portuária da viagem. A nomenclatura "CE Master" foi
 descontinuada do sistema em favor de "Nº de Manifesto Mercante". É registrado na
 tabela `manifestos_mercante`, que suporta múltiplos manifestos por rota e
-segregação de contêineres vazios (`is_empty`). É distinto dos CEs individuais dos
+segregação por natureza de carga (`natureza IN ('carga', 'vazio')`). Convive com
+a tabela legada `voyage_route_ce_master`, preservada para compatibilidade retroativa
+com importadores existentes. É distinto dos CEs individuais dos
 B/Ls e não se confunde com o número de viagem interna da agência.
 
 **Frete & Despesas do BL**

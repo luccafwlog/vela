@@ -30,7 +30,7 @@ import {
   type ReportFilters,
 } from '../services/reports'
 import { listDemurrageInvoices } from '../services/demurrage/demurrageInvoices'
-import { cargoModeLabel } from '../lib/cargoMode'
+import { blTotalWeightKg, cargoModeLabel } from '../lib/cargoMode'
 
 type ReportTab = 'operacional' | 'financeiro' | 'clientes' | 'demurrage'
 
@@ -258,7 +258,7 @@ function OperationalReportTab() {
                   <td className="px-4 py-3 text-[var(--app-text)]">{row.customer?.name ?? '-'}</td>
                   <td className="px-4 py-3 text-right">{(row.bl_containers ?? []).length}</td>
                   <td className="px-4 py-3 text-right font-mono">
-                    {Number(row.total_weight_kg ?? 0).toLocaleString('pt-BR')}
+                    {blTotalWeightKg(row).toLocaleString('pt-BR')}
                   </td>
                   <td className="px-4 py-3 text-right font-mono">
                     {Number(row.total_cbm ?? 0).toLocaleString('pt-BR')}

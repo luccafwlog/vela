@@ -1,5 +1,5 @@
 import { Suspense, useEffect, type ReactNode } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { Analytics } from '@vercel/analytics/react'
 import { routeTitle } from './lib/pageTitle'
 import { AppLayout } from './components/layout/AppLayout'
@@ -31,20 +31,20 @@ const TaxasLocaisTabelas = lazyPage(() => import('./pages/TaxasLocaisTabelas'), 
 const Alertas = lazyPage(() => import('./pages/Alertas'), 'Alertas')
 const AlertasRegras = lazyPage(() => import('./pages/AlertasRegras'), 'AlertasRegras')
 const Relatorios = lazyPage(() => import('./pages/Relatorios'), 'Relatorios')
-const LineUpTVDisplay = lazyPage(() => import('./pages/LineUpTVDisplay'), 'LineUpTVDisplay')
-const Admin = lazyPage(() => import('./pages/Admin'), 'Admin')
-const NaoEncontrado = lazyPage(() => import('./pages/NaoEncontrado'), 'NaoEncontrado')
 const Demurrage = lazyPage(() => import('./pages/Demurrage'), 'Demurrage')
+const DemurrageRates = lazyPage(() => import('./pages/DemurrageRates'), 'DemurrageRates')
 const Reconciliacao = lazyPage(() => import('./pages/Reconciliacao'), 'Reconciliacao')
 const Granite = lazyPage(() => import('./pages/Granite'), 'Granite')
 const GraniteRates = lazyPage(() => import('./pages/GraniteRates'), 'GraniteRates')
-const DepotCadastro = lazyPage(() => import('./pages/DepotCadastro'), 'DepotCadastro')
-const DemurrageRates = lazyPage(() => import('./pages/DemurrageRates'), 'DemurrageRates')
 const EmbarqueVazios = lazyPage(() => import('./pages/EmbarqueVazios'), 'EmbarqueVazios')
+const DepotCadastro = lazyPage(() => import('./pages/DepotCadastro'), 'DepotCadastro')
 const VaziosImportacao = lazyPage(() => import('./pages/VaziosImportacao'), 'VaziosImportacao')
 const BaplieEDI = lazyPage(() => import('./pages/Baplie'), 'Baplie')
 const ChegadasSaidas = lazyPage(() => import('./pages/ChegadasSaidas'), 'ChegadasSaidas')
+const Admin = lazyPage(() => import('./pages/Admin'), 'Admin')
 const Profile = lazyPage(() => import('./pages/Profile'), 'Profile')
+const NaoEncontrado = lazyPage(() => import('./pages/NaoEncontrado'), 'NaoEncontrado')
+const LineUpTVDisplay = lazyPage(() => import('./pages/LineUpTVDisplay'), 'LineUpTVDisplay')
 
 function RouteLoading() {
   return (
@@ -71,6 +71,11 @@ function DocumentTitle() {
 function LegacyFaturamentoRedirect() {
   const { search } = useLocation()
   return <Navigate to={toRouteTarget(resolveLegacyFaturamentoRedirect(search))} replace />
+}
+
+function LegacyCargaSoltaRedirect() {
+  const { blId } = useParams<{ blId: string }>()
+  return <Navigate to={blId ? `/bls/${blId}` : '/bls'} replace />
 }
 
 function TaxasLocaisRoute() {
@@ -156,6 +161,9 @@ export default function AppInterno() {
             <Route path="/embarquevazios" element={withSuspense(<EmbarqueVazios />)} />
             <Route path="/embarquevazios/depots" element={withSuspense(<DepotCadastro />)} />
             <Route path="/vazios" element={<Navigate to="/embarquevazios" replace />} />
+            <Route path="/carga-solta" element={<Navigate to="/bls" replace />} />
+            <Route path="/carga-solta/:blId" element={<LegacyCargaSoltaRedirect />} />
+            <Route path="/manifestos" element={<Navigate to="/bls" replace />} />
             <Route path="/vazios-importacao" element={withSuspense(<VaziosImportacao />)} />
             <Route path="/baplie" element={withSuspense(<BaplieEDI />)} />
             <Route path="/chegadas-saidas" element={withSuspense(<ChegadasSaidas />)} />

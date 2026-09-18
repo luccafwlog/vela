@@ -275,7 +275,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                 return (
                   <>
                     {isMisto && (
-                      <tr style={{ background: DOC_GROUP }}>
+                      <tr style={{ background: DOC_GROUP }} className="invoice-document__group-bar">
                         <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '11px' }}>
                           B/L {blMeta?.bl_id ?? blIds} — MISTO (CNTR + CARGA SOLTA)
                         </td>
@@ -287,7 +287,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                   </>
                 )
               })()}
-          <tr style={dataTotalRow}>
+          <tr style={dataTotalRow} data-testid="invoice-totals" className="invoice-document__totals">
             <td colSpan={3} style={dataTotalCell}>TOTAL:</td>
             <td style={dataTotalCell}>{fmtBRL(invoice.total_brl)}</td>
           </tr>
@@ -301,7 +301,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
 
       {/* PIX */}
       {type === 'invoice' && invoice.pix_payload && (
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${DOC_BORDER}` }}>
+        <div data-testid="invoice-pix-box" className="invoice-document__pix-box" style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${DOC_BORDER}` }}>
           <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
             <div style={{ flexShrink: 0 }}>
               <QRCodeSVG value={invoice.pix_payload} size={90} level="M" />
@@ -324,7 +324,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
               selection.addRange(range)
             }}
             title="Clique para selecionar o código inteiro"
-            style={{ display: 'block', fontFamily: 'monospace', fontSize: '6.5px', background: '#f3f4f6', padding: '5px 8px', borderRadius: 3, whiteSpace: 'nowrap', color: '#374151', cursor: 'pointer', userSelect: 'all', WebkitUserSelect: 'all' }}
+            style={{ display: 'block', fontFamily: 'monospace', fontSize: '6.5px', background: '#f3f4f6', padding: '5px 8px', borderRadius: 3, wordBreak: 'break-all', color: '#374151', cursor: 'pointer', userSelect: 'all', WebkitUserSelect: 'all' }}
           >
             {invoice.pix_payload}
           </span>

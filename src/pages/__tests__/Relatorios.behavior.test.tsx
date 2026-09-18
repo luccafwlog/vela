@@ -11,7 +11,7 @@ vi.mock('@tanstack/react-query', () => ({
           kpis: { totalBls: 5, totalContainers: 8, totalVoyages: 2, totalWeightKg: 1000, totalCbm: 50, truncated: false },
           rows: [{
             id: 'BL-OP-1', voyage: { vessel: { name: 'NAV' }, voyage_number: 'V9' }, pol: 'BRSSZ', pod: 'BRVIT',
-            customer: { name: 'Cliente Op' }, bl_containers: [], total_weight_kg: 1000, total_cbm: 50,
+            customer: { name: 'Cliente Op' }, bl_containers: [], total_weight_kg: 1000, bb_weight_ton: 2.5, total_cbm: 50,
             review_status: 'reviewed', financial_status: 'pending',
           }],
         },
@@ -53,6 +53,7 @@ it('US-139: consulta operacional exibe KPIs e linhas do relatorio', () => {
   expect(screen.getByText('Containers distintos')).toBeTruthy()
   expect(screen.getByText('BL-OP-1')).toBeTruthy()
   expect(screen.getByText('Cliente Op')).toBeTruthy()
+  expect(screen.getByText('3.500')).toBeTruthy()
 })
 
 it('US-142: consulta demurrage lista as invoices do periodo', () => {

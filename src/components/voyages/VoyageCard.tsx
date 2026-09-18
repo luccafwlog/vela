@@ -6,6 +6,7 @@ import { Badge } from '../ui/Badge'
 import { useAuth } from '../../hooks/useAuth'
 import { useVoyageReconciliation } from '../../hooks/useVoyageReconciliation'
 import { useClosedAgencyReportPorts } from '../../hooks/useAgencyReport'
+import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante'
 import type { VoyageVehicleStat } from '../../hooks/useVehicles'
 import type { VoyageVaziosImportacaoStat } from '../../hooks/useVaziosImportacaoStats'
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../../lib/containerCounts'
@@ -274,12 +275,13 @@ export function VoyageCard({
   const { data: reconciliation } = useVoyageReconciliation(voyage.id)
   const divergenceCount = reconciliation?.items.length ?? 0
   const ceCoverage = voyageCeCoverage(voyage.bls)
-  // Uma rota tem CE Master quando o manifesto importado traz `ce_master` OU
-  // quando a rota recebeu o número avulso (#322). Contar só `routeCeMasters`
-  // aqui zerava o KPI de viagens cujo CE Master veio do arquivo, contradizendo
-  // a coluna "Nº de manifesto Mercante" da aba Rotas e Manifestos — que já lê
-  // as duas fontes por `collectVoyageManifestBatchRows`.
-  const ceMasterCount = manifestRows.filter((row) => String(row.ceMaster ?? '').trim().length > 0).length
+  const { data: dbManifestos } = useManifestosMercanteByVoyage(voyage.id)
+  // Uma rota tem manifesto quando o lote traz `ce_master`, quando a rota recebeu
+  // número avulso (#322) OU quando há lançamento em `manifestos_mercante` (aba Rotas e Manifestos).
+  const ceMasterCount = manifestRows.filter((row) => {
+    if (String(row.ceMaster ?? '').trim().length > 0) return true
+    return (dbManifestos ?? []).some((m) => m.pol === row.pol && m.pod === row.pod)
+  }).length
   const ceMasterTotal = manifestRows.length
   const proximaEscala = getProximaEscala(podRows)
   const reconciliationState = deriveEstadoConciliacao({

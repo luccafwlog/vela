@@ -34,6 +34,8 @@ describe('Guarda contra links mortos /manifestos e /carga-solta', () => {
         if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return
         if (trimmed.startsWith('import ') || trimmed.includes(' from \'') || trimmed.includes(' from "')) return
         if (line.includes('download="carga-solta-modelo') || line.includes('carga-solta-modelo.')) return
+        // Permite definições de redirecionamento canônico (<Route path=...) para absorver links externos e favoritos
+        if (line.includes('<Route path="/carga-solta') || line.includes('<Route path="/manifestos')) return
         if (/(?:\/manifestos|\/carga-solta)(?=[/'"`?#]|$)/.test(line)) {
           deadLinks.push({ file: file.replace(process.cwd() + '/', ''), line: idx + 1, text: line.trim() })
         }
