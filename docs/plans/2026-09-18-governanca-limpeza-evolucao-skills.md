@@ -154,7 +154,7 @@ npm run skills:sync
 - [x] Manter no frontmatter `name` válido e uma `description` curta, iniciada por `Use when...`, contendo gatilhos discriminantes e sem resumir o workflow.
 - [x] Manter no corpo apenas decisões que mudam o comportamento do agente; mover referências pesadas para arquivos ligados e carregados progressivamente.
 - [x] Rodar os mesmos cenários com a skill revisada e verificar o comportamento observável.
-- [ ] Executar o validador oficial em cada skill revisada:
+- [x] Executar o validador oficial em cada skill revisada:
 
 ```bash
 python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/<nome>
@@ -332,7 +332,7 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
 
 - [x] Rodar inventário e reset no Mac; o inventário confirmou 14 skills em cada store pessoal.
 - [ ] Abrir novas sessões e confirmar a descoberta das 14 skills no Claude Code, Codex, harness e Antigravity.
-- [ ] Fazer commit e push somente dos arquivos aprovados.
+- [x] Fazer commit e push somente dos arquivos aprovados. Commit: `8bc8d976`.
 - [ ] No Alienware, executar `git pull --ff-only` na branch aprovada.
 - [ ] Executar o mesmo reset no Alienware, revisar a simulação e então aplicar a reconstrução.
 - [ ] Repetir o inventário e comparar os resultados das duas máquinas.
