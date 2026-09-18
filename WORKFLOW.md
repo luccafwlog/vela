@@ -100,6 +100,9 @@ src/
 
 scripts/
   check-docs.mjs          verificação de documentação (`npm run docs:check`)
+  check-destructive-migrations.mjs
+                          declaração exigida em migration destrutiva
+                          (`npm run migrations:check`)
   provision-preview-admin.mjs  fixture autenticada da Preview Supabase
   perf/                   harness de orçamento de carga das rotas
   design-audit/           bootstrap e seed da auditoria de design
@@ -251,6 +254,24 @@ Use o próximo número sequencial disponível — derive-o do repositório com
 `ls supabase/migrations/ | sort | tail -1` e some 1 — com três dígitos e zero
 à esquerda. Em caso de branches paralelos, reconcilie os números antes do
 merge para preservar a ordem lexicográfica = ordem de aplicação.
+
+### Migration que reescreve ou apaga dados
+
+Uma migration que faz `UPDATE`, `DELETE`, `TRUNCATE`, `DROP TABLE` ou
+`DROP COLUMN` fora de um corpo de função só é aceitável enquanto valer a
+afirmação **"Data status"** da seção Gotchas do `CLAUDE.md` — hoje: o projeto de
+produção não tem dados de negócio. Declare essa dependência no cabeçalho do
+arquivo, citando o nome da afirmação e o `CLAUDE.md`; veja
+`supabase/migrations/061_bl_weight_semantics_and_triggers.sql` como exemplo.
+
+`npm run migrations:check` verifica isso e roda no gate `quality`. Ele ignora
+`UPDATE`/`DELETE` dentro de `CREATE FUNCTION` (código que roda depois, a pedido
+da aplicação) mas não dentro de blocos `DO` (executam durante o deploy), e não
+cobra declaração das migrations anteriores à 061, que são histórico já
+aplicado — o relatório conta quantas são.
+
+Se a afirmação tiver sido revogada, declarar dependência não basta: escreva um
+plano de preservação.
 
 ### Segurança
 
@@ -489,7 +510,8 @@ resultado e evidência conforme
 pushes para `main`, usando Node.js 24 e instalação reproduzível própria (`npm ci
 --legacy-peer-deps`):
 
-1. `quality` — verificação documental e lint;
+1. `quality` — verificação documental, lint e a declaração exigida em migration
+   destrutiva (`npm run migrations:check`);
 2. `build` — build (`tsc` + `vite`) e orçamento de bundle;
 3. `test` — suíte Vitest dividida em 3 shards (`--shard=N/3`);
 4. `security-audit` — replay estático de autorização (`verificar_guardas.py`);

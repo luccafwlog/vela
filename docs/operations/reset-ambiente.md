@@ -7,13 +7,27 @@ mas não declara a limpeza e a ordem de dependência de ledger, Demurrage,
 Granito, Vazios, notificações/disputas do Portal e outras tabelas recentes.
 Executá-lo pode falhar por FKs ou produzir um ambiente parcialmente limpo.
 
+## Status dos dados
+
+Este documento foi escrito quando se supunha haver dado a preservar. Desde
+2026-09-18 o `CLAUDE.md`, na seção Gotchas, afirma o contrário: o projeto de
+produção **não tem dados de negócio** — toda linha é fixture e pode ser
+descartada. Quem lê este arquivo deve conferir aquela afirmação antes de
+tratar qualquer limpeza como arriscada.
+
+O que continua valendo, independentemente do status dos dados, é o motivo pelo
+qual o script está suspenso: ele **não funciona**. Cobre o modelo antigo, não
+declara a ordem de dependência das tabelas recentes e pode deixar o ambiente
+parcialmente limpo. A suspensão é técnica, não uma medida de proteção de dados.
+
 ## Alternativa segura
 
 - Use um projeto Supabase descartável ou uma branch de banco.
 - Identifique os dados pelo prefixo e pela viagem de QA.
 - Registre os IDs criados durante a validação.
 - Remova-os pelos fluxos do produto ou por SQL revisado para aquela fixture.
-- Nunca execute limpeza ampla em produção.
+- Limpeza ampla em produção depende da afirmação "Data status" do `CLAUDE.md`
+  estar vigente; se ela tiver sido revogada, trate produção como intocável.
 
 ## Consultas de diagnóstico
 
@@ -59,7 +73,7 @@ FROM public.audit_logs;
 ```
 
 Para localizar uma fixture, prefira filtros por viagem, B/L, cliente ou prefixo
-de arquivo em vez de interpretar a contagem global como dado descartável.
+de arquivo: a contagem global diz quanto existe, não o que cada linha significa.
 
 ## Reativação
 

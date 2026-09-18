@@ -85,6 +85,9 @@ planos e specs"):
   existing rows without a preservation plan. This is the ONLY thing that makes
   such a migration acceptable, so any migration that rewrites or deletes
   existing rows must say in its header comment that it relies on this line.
+  `npm run migrations:check` enforces that declaration in CI, so the question
+  "is this still true?" surfaces when such a migration is written, not only
+  when someone remembers this bullet.
   When the system takes real data, replace this bullet with the opposite
   assertion in the same change that opens it to real users — until then a
   reviewer may assume the data is disposable, and after then they must not.
