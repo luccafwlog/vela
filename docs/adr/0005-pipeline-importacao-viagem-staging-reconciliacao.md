@@ -1,6 +1,10 @@
 # 0005 — Pipeline de importação por viagem, staging e reconciliação
 
-Status: aceito — 2026-06-09
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Manifesto CNTR deixou de ser a entrada documental; cálculo provisório e efeitos recuperáveis substituem a descrição original de billing no import. Contatos usam caixas.
+> Rastreabilidade: [ADR 0025](./0025-bl-fonte-documental-unica-container-atd-pol.md), [ADR 0038](./0038-taxa-local-valor-congelado-ancorado-na-escala.md), [ADR 0064](./0064-caixas-de-comunicacao-e-auditoria-de-contatos.md), [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 031](../../supabase/migrations/031_import_effect_consumers.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-06-09
 
 ## Contexto
 

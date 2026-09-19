@@ -1,6 +1,10 @@
 # ADR 0058 — Canal de Comunicado ao Cliente, separado do email transacional do Portal
 
-Status: aceito — 2026-08-27
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Canal separado permanece; destinatários usam Caixas de Comunicação e eventos de entrega entram em inbox durável. notify-invoice-issued não existe mais na árvore de Edge Functions.
+> Rastreabilidade: [ADR 0064](./0064-caixas-de-comunicacao-e-auditoria-de-contatos.md), [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 022](../../supabase/migrations/022_email_inbox_and_dispatch_state.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-08-27
 
 ## Contexto
 

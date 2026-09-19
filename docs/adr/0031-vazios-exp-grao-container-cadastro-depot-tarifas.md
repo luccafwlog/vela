@@ -1,6 +1,10 @@
 # 0031 — VAZIOS EXP: grão-container substitui booking; Cadastro de Depot é a fonte de tarifas
 
-Status: aceito — 2026-07-23
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Modelo atual separa unidades importadas e linhas manuais de serviço; grão-container e tarifas automáticas descritos originalmente não governam o custo atual.
+> Rastreabilidade: [ADR 0032](./0032-cadastro-depot-servicos-precificados-por-tipo-de-calculo.md), [ADR 0033](./0033-embarque-vazios-unidades-importadas-servicos-lancados.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-07-23
 
 ## Contexto
 

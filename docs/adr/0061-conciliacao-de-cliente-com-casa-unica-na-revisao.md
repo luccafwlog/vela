@@ -1,6 +1,10 @@
 # ADR 0061 — Conciliação de cliente tem casa única: a Revisão
 
-Status: aceito — 2026-08-31
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** A Revisão permanece dona da conciliação; captura de contato usa ensure_customer_contact_email e caixas, sem reintroduzir purpose como roteador.
+> Rastreabilidade: [ADR 0064](./0064-caixas-de-comunicacao-e-auditoria-de-contatos.md); [migration ativa 008](../../supabase/migrations/008_portal_contact_boxes.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-08-31
 
 ## Contexto
 

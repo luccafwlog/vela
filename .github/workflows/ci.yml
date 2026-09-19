@@ -31,7 +31,10 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Documentation
-        run: npm run docs:check
+        run: |
+          node scripts/lib/docs-routes.test.mjs
+          node scripts/check-docs.test.mjs
+          npm run docs:check
 
       - name: Lint
         run: npm run lint
@@ -41,7 +44,7 @@ jobs:
 
       - name: Destructive migration declaration
         # Toda migration que reescreve ou apaga linhas depende da afirmação
-        # "Data status" do CLAUDE.md e tem de declarar isso no cabeçalho.
+        # "Data status" do AGENTS.md e tem de declarar isso no cabeçalho.
         run: npm run migrations:check
 
       - name: Destructive migration check self-test

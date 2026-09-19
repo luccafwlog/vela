@@ -1,7 +1,7 @@
 # WORKFLOW.md — Vela
 
 Manual vivo para desenvolver, testar, migrar e publicar o Vela e o Portal Fwlog.
-Verificado contra o repositório em 2026-06-24.
+Stack, comandos e contratos documentais revisados em 2026-09-19; deploy remoto não revalidado nesta revisão.
 
 Use este documento para procedimentos técnicos. Consulte:
 
@@ -75,9 +75,9 @@ CNPJ e senha. A Edge Function `portal-login` resolve a identidade técnica no
 servidor e devolve somente os tokens de sessão; `portal_resolve_login(text)`
 não é um contrato de frontend.
 
-Não existe sessão alternativa por senha armazenada em tabela. A exceção
-pré-autenticação para o resolver está documentada na
-[ADR 0013](./docs/adr/0013-portal-auth-identificador-resolvido-e-excecao-anon.md).
+Não existe sessão alternativa por senha armazenada em tabela. O acesso anônimo ao resolver da ADR 0013 foi revogado; a
+[ADR 0047](./docs/adr/0047-grants-de-funcao-fechados-por-padrao.md) registra
+a exceção pública remanescente: `portal_ship_schedule()`.
 
 ## 3. Estrutura do repositório
 
@@ -126,7 +126,7 @@ docs/
   setup/                  desenvolvimento, testes e deploy
   modules/                documentação por módulo
   CONVENCOES.md           convenções de documentação
-  spec/                   specs vivas + matriz de verificação comportamental (canônica)
+  spec/                   specs ainda sem implementação concluída
   plans/                  planos de implementação vivos
   archive/                histórico: planos executados, specs concluídas, auditorias, relatórios
 ```
@@ -140,6 +140,8 @@ Para obter contagens atuais, derive-as do repositório. Exemplo:
 ## 4. Preparação local
 
 ### Dependências
+
+Use Node.js 24.x, conforme `package.json#engines` e o CI.
 
 ```powershell
 npm ci --legacy-peer-deps
@@ -260,9 +262,9 @@ merge para preservar a ordem lexicográfica = ordem de aplicação.
 
 Uma migration que faz `UPDATE`, `DELETE`, `TRUNCATE`, `DROP TABLE` ou
 `DROP COLUMN` fora de um corpo de função só é aceitável enquanto valer a
-afirmação **"Data status"** da seção Gotchas do `CLAUDE.md` — hoje: o projeto de
+afirmação **"Data status"** da seção Gotchas do `AGENTS.md` — hoje: o projeto de
 produção não tem dados de negócio. Declare essa dependência no cabeçalho do
-arquivo, citando o nome da afirmação e o `CLAUDE.md`; veja
+arquivo, citando o nome da afirmação e o `AGENTS.md`; veja
 `supabase/migrations/061_bl_weight_semantics_and_triggers.sql` como exemplo.
 
 `npm run migrations:check` verifica isso e roda no gate `quality`. Ele ignora

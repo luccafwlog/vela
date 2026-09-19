@@ -1,6 +1,10 @@
 # 0006 — Revisão operacional e reconciliação de cliente como gate de faturamento
 
-Status: aceito — 2026-06-09
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Revisão resolve pendências e vínculo de cliente; Validação está em Taxas Locais. CE confirma/emite com a exceção server-side da 051 ao gate de Portal.
+> Rastreabilidade: [ADR 0038](./0038-taxa-local-valor-congelado-ancorado-na-escala.md), [ADR 0041](./0041-validacao-fila-de-bloqueios-ce-como-confirmacao.md), [ADR 0050](./0050-financeiro-segregado-por-processo-faturavel.md), [ADR 0054](./0054-portal-como-gate-de-faturamento.md), [ADR 0061](./0061-conciliacao-de-cliente-com-casa-unica-na-revisao.md); [migration ativa 051](../../supabase/migrations/051_ce_mercante_auto_billing.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-06-09
 
 ## Contexto
 

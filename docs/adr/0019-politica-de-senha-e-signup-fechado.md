@@ -1,6 +1,10 @@
 # 0019 — Politica de senha e signup fechado
 
-Status: aceito — 2026-07-07
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Usuário interno é provisionado pelo admin via admin-users com senha definida; a exigência de provisionamento controlado e signup fechado permanece.
+> Rastreabilidade: [ADR 0037](./0037-usuario-interno-criado-pelo-admin-com-senha-definida.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-07-07
 
 ## Contexto
 

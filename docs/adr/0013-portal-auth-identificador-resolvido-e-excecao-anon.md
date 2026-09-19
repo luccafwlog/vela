@@ -1,6 +1,10 @@
 # 0013 — Portal via Supabase Auth com identificador resolvido antes do login
 
-Status: aceito — 2026-06-18
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** CNPJ e senha entram pela Edge Function portal-login. portal_resolve_login é server-only; a allowlist anon e os identificadores descritos originalmente não são o contrato de frontend atual.
+> Rastreabilidade: [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md), [ADR 0048](./0048-confirmacao-de-email-do-portal-em-rota-publica.md), [ADR 0049](./0049-rate-limit-do-portal-chaveado-somente-por-cnpj.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-06-18
 
 Supersede parcialmente:
 

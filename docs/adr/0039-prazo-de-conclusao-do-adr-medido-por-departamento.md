@@ -1,6 +1,10 @@
 # 0039 — Prazo de Conclusão do ADR: contagem a partir do ATD real, medida por departamento
 
-Status: aceito — 2026-08-06
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** No ADR terminalizado o prazo usa ATD da Atracação; o caminho legado por escala permanece. O agregado administrativo está na aba prazo-adr.
+> Rastreabilidade: [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-08-06
 
 > **Nota editorial — 2026-08-24.** Esta decisão fixou o T0 como "o ATD da escala
 > unificada — a saída do navio do porto brasileiro". A nota de 2026-08-24 da ADR

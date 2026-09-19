@@ -46,10 +46,14 @@ bash scripts/sync-git.sh
 ## 2. Conferir a documentação (`check-docs`)
 
 **O que faz:** varre a documentação do projeto procurando problemas — como links
-que apontam para arquivos que não existem mais. É um "corretor" dos documentos.
+que apontam para arquivos que não existem mais. Também exige `AGENTS.md`,
+indexa ADRs, extrai rotas JSX por AST (incluindo índices e subrotas) e valida
+as sete seções e oito colunas dos módulos. Requer `npm ci --legacy-peer-deps`.
+Testes do gate: `node scripts/check-docs.test.mjs` e
+`node scripts/lib/docs-routes.test.mjs`.
 
 **Quando usar:** depois de mexer em textos, rotas, ADRs ou playbooks (o próprio
-projeto pede isso no `CLAUDE.md`).
+projeto pede isso no `AGENTS.md`).
 
 ```powershell
 # Windows (PowerShell)

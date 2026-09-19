@@ -1,6 +1,10 @@
 # 0008 — Demurrage integrado sem unificar persistência
 
-Status: aceito — 2026-06-09
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Persistência própria permanece; o banco calcula a emissão e snapshots de Demurrage. A operação financeira fica em /demurrage, não numa faixa de /faturamento.
+> Rastreabilidade: [ADR 0014](./0014-demurrage-recalculo-diario-substitui-roe-congelado.md), [ADR 0050](./0050-financeiro-segregado-por-processo-faturavel.md), [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 023](../../supabase/migrations/023_demurrage_calculation_snapshot.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-06-09
 
 ## Contexto
 

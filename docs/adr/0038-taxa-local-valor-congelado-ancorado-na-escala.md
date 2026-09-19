@@ -1,6 +1,10 @@
 # 0038 — Taxa Local é valor congelado na emissão, ancorado na escala do POD
 
-Status: aceito — 2026-08-06 (decisão 3 supersedida parcialmente pela
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Vigência da tabela é informativa; COD reprecifica no destino final; B/L misto resolve duas tabelas. Congelamento na emissão permanece.
+> Rastreabilidade: [ADR 0040](./0040-vigencia-da-tabela-de-taxas-e-informativa.md), [ADR 0051](./0051-cod-reprecifica-no-destino-final.md), [ADR 0069](./0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md); [migration ativa 062](../../supabase/migrations/062_pr698_audit_remediations.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-08-06 (decisão 3 supersedida parcialmente pela
 [ADR 0040](./0040-vigencia-da-tabela-de-taxas-e-informativa.md) em 2026-08-07;
 decisão 1 supersedida parcialmente pela
 [ADR 0051](./0051-cod-reprecifica-no-destino-final.md) em 2026-08-18;

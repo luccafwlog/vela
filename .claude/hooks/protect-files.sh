@@ -1,5 +1,5 @@
 #!/bin/bash
-# Block edits to files marked as "do not touch" in CLAUDE.md unless explicit override.
+# Block edits to files marked as "do not touch" in AGENTS.md unless explicit override.
 # Override by setting env CLAUDE_ALLOW_PROTECTED=1 for the session.
 set -euo pipefail
 
@@ -16,7 +16,7 @@ fi
 
 case "$file_path" in
   */src/types/database.ts|*/src/lib/pix.ts|*/supabase/migrations/*|*/supabase/migrations_archive/*)
-    echo "BLOCKED: $file_path is in CLAUDE.md protected list (generated/spec/migrations)." >&2
+    echo "BLOCKED: $file_path is in AGENTS.md protected list (generated/spec/migrations)." >&2
     echo "If intentional, set CLAUDE_ALLOW_PROTECTED=1 and retry." >&2
     exit 2
     ;;

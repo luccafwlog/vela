@@ -1,6 +1,6 @@
 # Documentação do Vela e do Portal Fwlog
 
-Verificado contra o repositório em 2026-06-20.
+Índice documental revisado em 2026-09-19. Diretrizes canônicas em [AGENTS.md](../AGENTS.md).
 
 ## Por onde começar
 
@@ -21,13 +21,13 @@ Verificado contra o repositório em 2026-06-20.
 
 ```mermaid
 flowchart LR
-    Op["Operação<br/>viagens · manifestos · EDI · vazios"] --> Rev["Revisão<br/>manual"]
+    Op["Operação<br/>viagens · B/Ls · Baplie · vazios"] --> Rev["Revisão<br/>pendências derivadas"]
     Rev --> Fin["Financeiro<br/>taxas locais · faturamento · demurrage"]
     Fin --> Rec["Conciliação PIX"]
     Fin --> Portal["Portal do Cliente"]
 ```
 
-Ciclo completo: **Operação** (viagens, B/Ls CNTR, manifestos break-bulk/granito, containers, veículos, Baplie EDI, vazios) → **Revisão** (aprovação manual de B/Ls antes do faturamento) → **Comercial** (clientes, taxas locais, overrides) → **Financeiro** (faturamento, demurrage, conciliação PIX) → **Portal do Cliente** (consulta de faturas, pagamento, disputas).
+Ciclo completo: **Operação** (viagens, B/Ls CNTR, carga solta e mistos, manifestos de granito, containers, veículos, Baplie EDI, vazios) → **Revisão** (resolução de pendências derivadas antes da emissão elegível) → **Comercial** (clientes, taxas locais, overrides) → **Financeiro** (faturamento, demurrage, conciliação PIX) → **Portal do Cliente** (consulta de faturas, pagamento, disputas).
 
 O fluxo canônico detalhado está em [ARCHITECTURE.md](ARCHITECTURE.md#fluxo-operacional-e-financeiro).
 
@@ -45,7 +45,7 @@ O fluxo canônico detalhado está em [ARCHITECTURE.md](ARCHITECTURE.md#fluxo-ope
 | Demurrage | [modules/demurrage.md](modules/demurrage.md) | `/demurrage`, `/demurrage/taxas` |
 | Conciliação PIX | [modules/reconciliacao-pix.md](modules/reconciliacao-pix.md) | `/reconciliacao` |
 | Portal do Cliente | [modules/portal-cliente.md](modules/portal-cliente.md) | `/portal/*` |
-| Operação & Suporte | [modules/operacao-suporte.md](modules/operacao-suporte.md) | `/painel`, `/revisao`, `/alertas`, `/alertas/regras`, `/relatorios`, `/line-up-tv`, `/admin` |
+| Operação & Suporte | [modules/operacao-suporte.md](modules/operacao-suporte.md) | `/painel`, `/revisao`, `/alertas`, `/alertas/regras`, `/relatorios`, `/line-up-tv/display`, `/admin` |
 
 ## Referência transversal
 
@@ -57,11 +57,17 @@ O fluxo canônico detalhado está em [ARCHITECTURE.md](ARCHITECTURE.md#fluxo-ope
 - [operations/](operations/regras-de-negocio.md) — regras de negócio, segurança, validação, reset, [segredos dos jobs `pg_cron`](operations/segredos-cron.md).
 - [setup/](setup/development.md) — desenvolvimento, deploy, testes.
 - [plans/](plans/README.md) — planos de implementação vivos (ainda não executados).
-- [spec/](spec/README.md) — specs vivas: a spec comportamental canônica e specs funcionais ainda sem plano executado.
+- [spec/](spec/README.md) — specs funcionais ainda sem implementação concluída.
 - [archive/](archive/README.md) — histórico: planos executados, specs concluídas, auditorias, QA e relatórios.
 
 O ciclo de vida plano/spec → archive está definido em
 [CONVENCOES.md](CONVENCOES.md#ciclo-de-vida-de-planos-e-specs).
+
+## Auditoria documental
+
+A [revisão de 2026-09-19](archive/audits/2026-09-19-overhaul-documental.md)
+registra os contratos encontrados, as 69 decisões revisadas, o inventário da
+cadeia ativa e os limites de evidência. É um snapshot, não substitui os módulos.
 
 ## Convenções da documentação
 

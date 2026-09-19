@@ -1,24 +1,20 @@
 # Rastreabilidade Técnica
 
-Verificado contra o repositório em 2026-09-16.
+Revisado estaticamente contra o checkout em 2026-09-19; sem revalidação remota.
 
 Este índice liga cada rota e ação relevante aos chamadores do frontend, aos
 contratos executáveis do Supabase e ao documento do módulo proprietário. Ele é
 um mapa de navegação; regras completas continuam nos módulos e ADRs. A definição
 vigente é a última definição aplicável por assinatura e ordem de migration;
 snapshots e planos datados servem apenas como histórico.
-Nesta etapa foram inventariados 130 nomes literais de RPC, 60 tabelas acessadas
-diretamente pelo frontend e 2 buckets de Storage usados pelos serviços, além
-dos diretórios de `supabase/functions` (hoje 17 Edge Functions além de
-`_shared`). O índice cobre a superfície navegável, não a
-totalidade: o replay local atual expõe 219 funções SQL de aplicação a
-`authenticated`/`anon`; 168 nomes chamados pela produção resolvem no catálogo
-executado e as funções auxiliares restantes são acompanhadas por família abaixo,
-sem fingir que um helper interno é uma rota. O par cliente/inspeção deriva do mapa literal
-`src/services/portalRpcContracts.ts` (dispatcher em `src/services/portalScope.ts`,
-teste de completude e índice), então os nomes `portal_inspect_*` têm fonte única
-no código. Levantamento e lacunas detalhadas na
-[auditoria consolidada das PRs #654–#660](archive/audits/2026-09-06-auditoria-consolidada-prs-654-660.md).
+O [inventário de contratos e migrations](archive/audits/2026-09-19-overhaul-documental.md)
+cobre os arquivos atuais de services/hooks e toda a cadeia ativa. As contagens
+de replay citadas nas auditorias datadas são resultados daqueles ambientes,
+não uma afirmação sobre o banco remoto atual. O par cliente/inspeção deriva de
+`src/services/portalRpcContracts.ts` e `src/services/portalScope.ts`.
+Referências numéricas anteriores à consolidação pertencem a
+`supabase/migrations_archive/`; a cadeia ativa em `supabase/migrations/`
+prevalece quando uma definição posterior a altera.
 
 ## Evidência
 
@@ -27,382 +23,15 @@ no código. Levantamento e lacunas detalhadas na
 - **Runtime**: comportamento observado em navegador/API/banco controlado.
 - **Suspeita**: divergência plausível que ainda exige confirmação adicional.
 
-## Cubagem, formato numérico e linha expansível de B/Ls — 2026-09-18
+## Escopo atual e histórico
 
-Remediação dos achados da auditoria de 2026-09-18
-(`docs/archive/audits/2026-09-18-auditoria-unificacao-bls-eixos-1-4.md`).
-
-**Cubagem com dono único (migration 064).** `bls.total_cbm` passou a medir
-SOMENTE carga conteinerizada e `bls.bb_cbm` (coluna nova) SOMENTE carga solta —
-a mesma cirurgia que a `061` fez no peso, aplicada à coluna que ficou de fora.
-Antes, `breakbulkImport` gravava a cubagem do manifesto e `blFreightImport`
-gravava a soma dos contêineres na MESMA coluna, uma sobrescrevendo a outra em
-B/L misto, e a ficha exibia o resultado sob o título "Resumo da carga solta".
-Quem precisa da cubagem do documento inteiro usa `blTotalCbm()`, nunca uma das
-colunas. `operational_list_bl_summary` devolve `breakbulkCbm` (só carga solta) e
-`totalCbm` (soma aditiva). A cubagem de carga solta também entrou no
-`ON CONFLICT` do importador: era a única métrica BB que uma reimportação não
-atualizava.
-
-**Sinal de carga solta completo (migration 064).** `bb_machine_qty` e `bb_cbm`
-passaram a contar como sinal de carga solta em `_recalculate_bl_cargo_mode` e
-`trg_sync_bl_weight_cargo_mode`, e o trigger observa as duas colunas no
-`UPDATE OF`. Um B/L declarado só com máquinas e cubagem sobrevivia ao INSERT mas
-era reclassificado como `container` em silêncio no primeiro UPDATE de
-`bb_weight_ton`/`bb_packages_qty`.
-
-**Formato numérico dos imports BB.** O manifesto de carga solta não fixa mais
-pt-BR, e também não adivinha. Três camadas, nesta ordem:
-
-1. **Declaração do operador** — o modal de importação tem um seletor
-   `Detectar pelo arquivo` / `Vírgula decimal (pt-BR)` / `Ponto decimal (en-US)`
-   (`ParseBreakbulkOptions.numberFormat`). Trocar o formato relê os arquivos já
-   escolhidos (`FileImportModal.reparseKey`). Formato declarado que o arquivo
-   contradiz é **recusado**, não corrigido em silêncio.
-2. **Evidência do arquivo** — `inferSeparatorFormat` (`src/lib/importNumber.ts`)
-   decide pelo que o próprio arquivo mostra: célula com os dois separadores, ou
-   com um separador seguido de um número de dígitos diferente de 3.
-3. **Ambiguidade residual** — `isThousandsGroupShape` marca a célula que sobrou
-   na forma `259.312` (separador de milhar seguido de exatamente três dígitos).
-   Sem declaração do operador ela é **erro bloqueante**; com declaração, aviso
-   de conferência, e a mensagem mostra as DUAS leituras possíveis.
-
-`normalizeNumericText` é a normalização única: a mesma leitura vale para a
-evidência, para a detecção de ambiguidade e para o parse. Antes, a ambiguidade
-era testada no valor cru e o número parseado no valor sem a unidade, então
-`"259.312 TON"` escapava das duas checagens e entrava como 259 312 toneladas, na
-taxa local de base `weight_ton`. `NUMERIC_CEILINGS` acrescenta um teto de
-absurdo por coluna, que não depende de heurística nenhuma. O layout do armador
-usa a mesma resolução — lia peso sem formato e cubagem em `en-US` fixo.
-
-`ParsedBreakbulkManifest.rowErrors` ganhou `severity`, e
-`rowErrorsToImportIssues` a respeita: só divergência bloqueante impede a
-importação.
-
-**Linha expansível em `/bls`.** Cada linha expande contêineres (com tara e data
-de descarga) e carga solta (resumo e itens) em `BlRowDetail`, sem query nova — a
-RPC `operational_list_bls` já projeta `bl_containers` e `bl_breakbulk_items`
-inteiros. O toggle é um botão próprio com `aria-expanded`/`aria-controls`, então
-a seleção em massa não é afetada.
-
-**Export e tabela com um filtro só.** `fetchAllBls` pagina a mesma RPC da
-tabela. Reimplementava os filtros contra `bls` com busca textual mais estreita,
-então buscar por nome de cliente exibia linhas e exportava zero. O teto de
-`p_page_size` de `operational_list_bls` subiu de 100 para 1.000 na mesma
-migration 064: com 100, exportar uma viagem de 5.000 B/Ls custava 50 idas ao
-banco em série, cada uma projetando os filhos inteiros do B/L.
-
-**Fila de reconciliação por modalidade.** `ReviewDrawer` edita
-`total_weight_kg`/`total_cbm` para B/L de contêiner e `bb_weight_ton`/`bb_cbm`
-para carga solta, pelos mesmos predicados do resto do sistema; um B/L misto
-mostra os dois pares. Oferecia só o par de contêiner, então um B/L de carga
-solta aparecia na fila com os dois campos vazios — e quem preenchesse criava uma
-segunda cubagem, que `blTotalCbm()` somava à que já existia.
-
-**KPIs de `/bls`.** Máquinas, Total de volumes, CBM carga solta e **CBM total**
-(a soma aditiva que a 064 criou) são renderizados. Os quatro vinham da RPC,
-tipados e mapeados, e eram descartados sem chegar à tela.
-
-**Ficha do B/L.** `Carga` virou aba própria (`?tab=carga`), entre Visão Geral e
-Detalhes; era uma seção no fim do formulário de edição. A modalidade aparece
-como badge no topo, com rótulo único (`cargoModeLabel`).
-
-## Atualização do detalhe do B/L — trilho Documental — 2026-09-14
-
-`/bls/:blId` mantém o trilho Operacional e agora apresenta o antigo
-Financeiro como **Documental**. `BlRailsPipeline` recebe quatro cards centrais
-(`Cliente`, `Taxas Locais`, `CE Mercante`, `Fatura`), calcula o contador somente
-com os bloqueios desses cards e aponta a próxima ação para o primeiro deles.
-Demurrage permanece auxiliar e não altera a emissão da fatura comum.
-
-`listInvoiceLinksByBls` lê `invoice_bls` e `invoice_receivable_links`, preserva
-`invoice_type` e a origem do vínculo, e permite que a ficha identifique uma
-fatura `Individual` ou `Consolidada`. O CE Mercante é obrigatório para
-container e carga solta: `047_bl_documental_gates.sql` protege a prontidão do
-B/L, os vínculos de emissão individual/consolidada e a transição da invoice
-para `issued`. A disponibilidade do Portal continua sob
-`bl_has_portal_release`, que já usa CE como gate universal.
-
-**Evidência:** `BlRailsPipeline.test.tsx`, `blRails.test.ts`,
-`billing.test.ts`, `reviewBillingAutomation.test.ts` e
-`blDocumentalGatesMigration.test.ts`.
-
-## Atualização da PR #670 — 2026-09-10
-
-O recorte de `009`–`030` foi conferido no replay PostgreSQL local e agora tem
-linha de rastreabilidade para as funções que não apareciam no índice anterior.
-As funções com prefixo `_` são núcleos privados; os demais nomes são wrappers,
-leitores ou workers. **Evidência:** 17 suítes de integração local, 64 testes,
-`npm run rpc:check` com 168 nomes chamados e `npm run docs:check` com 428
-Markdown/49 rotas. O smoke autenticado do Preview também confirmou importação
-de datas, emissão/baixa de Demurrage com desconto e paridade Portal/Inspeção.
-Isso não afirma deploy de produção, execução dos jobs, Vault preenchido, BCB ou
-Resend reais.
-
-| Família / funções introduzidas ou redefinidas nesta PR | Migração / evidência executável |
-|---|---|
-| `apply_baplie_physical_flags_atomic`, `apply_container_dates_atomic` | `015_import_dates_and_flags_atomic.sql`; `importAtomicity.local-pg.test.ts`, `baplieParserS03.test.ts` |
-| `apply_customer_base_row_atomic`, `import_bl_freight_with_metadata` | `016_import_metadata_and_omission_conflicts.sql` + `048_customer_base_primary_contact.sql`; testes de importação/customer base e contrato da migration 048 |
-| `claim_import_effects`, `complete_import_effect`, `enqueue_import_effect`, `list_import_effects`, `retry_import_effect`, `prevent_import_effect_attempt_mutation` | `017_import_effects_outbox.sql`, `025_import_effect_worker.sql`; `importEffects.local-pg.test.ts` |
-| `create_customer_dunning_group_atomic`, `demurrage_dunning_candidate_sendable`, `release_demurrage_dunning_claim` | `010_contact_routing_and_dunning_eligibility.sql`, `011_dunning_group_membership.sql`; contratos de dunning |
-| `apply_demurrage_discount`, `cancel_demurrage_invoice`, `confirm_demurrage_pix_matches`, `register_demurrage_payment`, `reopen_demurrage_invoice`, `_demurrage_mutation_request` | `012_demurrage_mutation_guards.sql`, `027_demurrage_money_fixes.sql`; `demurrageMoney.local-pg.test.ts` |
-| `create_demurrage_invoice_authoritative`, `create_demurrage_invoice_with_items`, `capture_demurrage_calculation_snapshot`, `prevent_demurrage_calculation_snapshot_mutation`, `_calculate_demurrage_invoice_authoritative` | `018_exchange_rate_provenance.sql`, `023_demurrage_calculation_snapshot.sql`, `027_demurrage_money_fixes.sql`; `demurrageAuthority.local-pg.test.ts` |
-| `capture_demurrage_calculation_snapshot` (correção da coluna histórica de PTAX) | `030_fix_demurrage_snapshot_ptax_column.sql`; `demurrageAuthorityMigration.test.ts`, smoke autenticado no Preview |
-| `recalculate_demurrage_invoices`, `recalculate_demurrage_invoices_manual`, `save_exchange_rate_reference`, `save_exchange_rate_reference_v2`, `_demurrage_roe_from_ptax`, `_demurrage_spread_version` | `018_exchange_rate_provenance.sql`; `exchangeRateIntegrity.local-pg.test.ts` |
-| `operational_list_bl_summary`, `operational_list_bls`, `operational_list_containers` | `020_operational_read_pages.sql`; `operationalLists.local-pg.test.ts` |
-| `operational_list_voyage_summaries` | `035_operational_voyage_summaries.sql`; `voyageReadModels.test.ts`, `operationalLists.local-pg.test.ts` |
-| `operational_list_voyage_summaries` (status nullable) | `037_operational_voyage_summary_null_status.sql`; `voyageReadModels.test.ts`, `operationalLists.local-pg.test.ts` |
-| `operational_list_bl_summary` (métricas BB) | `036_operational_breakbulk_summary_metrics.sql`; `voyageReadModels.test.ts`, `operationalLists.local-pg.test.ts` |
-| `operational_list_bl_summary` (tolerância a drift de `charge_status`) | `040_operational_breakbulk_drift_tolerance.sql`; `operationalBreakbulkDriftToleranceMigration.test.ts` |
-| `portal_list_disputes`, `_portal_list_disputes_core` | `013_portal_disputes_inspection.sql`; `portalInspectionParity.local-pg.test.ts` |
-| `portal_list_demurrage_invoices_page`, `portal_list_invoices_page`, `_portal_list_demurrage_invoices_page_core`, `_portal_list_invoices_page_core` | `021_portal_billing_pages.sql`; `portalInspectionParity.local-pg.test.ts` |
-| `customer_billing_access_ready` | `019_local_billing_integrity.sql`; `localBillingIntegrity.local-pg.test.ts` |
-| `current_portal_customer_id`, `save_voyage_escala_terminal_state_v2` | `009_rpc_entry_security.sql` + `049_terminalized_schedule_persistence.sql`; `auditSecurityBoundaries.local-pg.test.ts`, `terminalizedSchedulePersistenceMigration.test.ts` |
-| `portal_list_provisioning_console` (candidatos ativos do cadastro canônico) | `050_portal_provisioning_active_contact_candidates.sql`; `portalProvisioningCandidatesMigration.test.ts` |
-| `portal_email_event_attempts_append_only` | `022_email_inbox_and_dispatch_state.sql`; `emailInbox.local-pg.test.ts` |
-| `refresh_customer_communication_status`, `mark_customer_communication_dispatch_blocked` | `032_customer_communication_partial_status.sql`, `038_customer_communication_status_recipient_latest.sql`, `039_customer_communication_status_identity.sql`; `customerCommunicationPartialStatusMigration.test.ts`, `customerCommunicationRecipientLatestMigration.test.ts`, `customerCommunicationStatusIdentityMigration.test.ts` |
-| `claim_demurrage_dunning_candidates` (recuperação terminal de `parcial`) | `041_dunning_partial_claim_recovery.sql`; `demurrageDunningMigration.test.ts` |
-
-## Atualização da PR #695 — revisão adversarial e bateria financeira — 2026-09-16
-
-A revisão adversarial foi incorporada também nos caminhos não bloqueantes. O CE
-Mercante dispara faturamento somente para o B/L que originou a transição; os
-demais B/Ls do mesmo container/viagem seguem apenas o cálculo aplicável. A fila
-preserva bloqueios operacionais como resultados recuperáveis. O Portal em modo
-de inspeção compartilha um predicado de somente leitura, o ledger impede
-alocações acima do recebível e o motivo de cancelamento é obrigatório em todas
-as camadas. Mensagens de erro exibidas ao usuário passam por classificação sem
-expor detalhes crus do banco.
-
-| Família / funções introduzidas ou redefinidas | Migração / evidência executável |
-|---|---|
-| `auto_bill_bl_after_ce_mercante`, `trg_auto_bill_bl_after_ce_mercante`, `suppress_duplicate_ce_auto_billing_effect`, `_run_import_effect_local_charges`, `_compute_bl_review_pendencies`, `compute_bl_review_pendencies` | `051_ce_mercante_auto_billing.sql`; `ceMercanteAutoBillingMigration.test.ts`, `ceMercanteAutoBilling.local-pg.test.ts` |
-| `guard_ledger_settlement_allocation`, `assert_ledger_invoice_payment_allocation`, `register_ledger_invoice_payment` | `052_financial_battery_guards.sql`; `ledgerSettlementGuardsMigration.test.ts`, `financialBattery.local-pg.test.ts` |
-| `block521_upsert_alert`, `alert_actor_is_authorized` | `052_financial_battery_guards.sql`; Portal de disputa autenticado e grants do Portal |
-| `apply_customer_base_row_atomic` (reativação e backfill de caixas) | `048_customer_base_primary_contact.sql`; `customerBasePrimaryMigration.test.ts` |
-| `save_voyage_escala_terminal_state_v2` (renomeação idempotente) | `049_terminalized_schedule_persistence.sql`; `terminalizedSchedulePersistenceMigration.test.ts` |
-
-### Atualização da entrega S12 — read-model de viagens e Line Up
-
-`operational_list_voyage_summaries` (`035_operational_voyage_summaries.sql`)
-separa o rail resumido da viagem do detalhe selecionado. A RPC pagina viagens
-visíveis e agrega rotas, B/Ls por modalidade, cobertura de CE, containers e
-Baplie sob `SECURITY INVOKER`; `useVoyages` consome apenas esse envelope e
-`useVoyageDetail` carrega manifests, bookings e B/Ls somente para a viagem
-aberta. `Baplie` reutiliza o rail e deixa a leitura completa limitada ao
-staging da viagem selecionada.
-
-`lineup.ts` passou a projetar `bl_containers` junto com os B/Ls, eliminando o
-waterfall B/L → containers no refresh. `listVoyageRoutePorts` é o read-model
-pequeno comum de POL/POD usado por EmbarqueVazios e pelo relatório de agência;
-essas mudanças preservam os contratos fechados e os filtros por viagem. A
-integração PostgreSQL local cobre os agregados e os testes de comportamento
-cobrem a separação resumo/detalhe. **Residual explícito:** Preview autenticado
-e roteiro manual de UX continuam provas operacionais pendentes; exportações
-explícitas ainda materializam o conjunto solicitado sob demanda e não são
-tratadas como leitura de rail.
-
-### Atualização complementar S12/S13 — PR #683, benchmark e contraste
-
-O caminho normal de `useBls`, `useContainers`, `useBlSummary` e `useVoyages`
-agora chama diretamente os wrappers/RPCs paginados; os antigos full-scans ficam
-restritos a exportações explícitas sob demanda. `CargaSolta` usa os campos
-adicionais de `operational_list_bl_summary` (`036`) para máquinas, volumes, peso
-e CBM, sem reconstruir métricas no cliente.
-
-O detalhe do Baplie também passou a ficar atrás de `baplieReadModel.ts`: a página
-usa `listBaplieStaging` com projeção explícita, paginação por viagem e
-`hasBlsForVoyage` para a checagem de existência. O contrato é coberto por
-`baplieReadModel.test.ts`; a exportação continua materializando apenas o conjunto
-explicitamente solicitado pelo operador.
-
-O harness `scripts/perf/measure-operational-read-model.mjs` executado em
-PostgreSQL local vazio, com cinco rodadas, `ANALYZE` das tabelas sintéticas
-dentro da transação e rollback por cenário, registrou:
-
-| B/Ls | resumo p95 / bytes | baseline pesado p95 / bytes |
-|---:|---:|---:|
-| 100 | 3,846 ms / 3.023 B | 7,534 ms / 205.971 B |
-| 1.000 | 4,827 ms / 3.085 B | 76,544 ms / 2.055.752 B |
-| 10.000 | 16,225 ms / 3.147 B | 614,319 ms / 20.589.687 B |
-
-O `EXPLAIN (ANALYZE, BUFFERS)` do cenário de 10.000 B/Ls mediu 15,462 ms
-(`summary`) contra 560,075 ms (baseline). “Requests” no relatório significa
-uma instrução SQL local por leitura, não uma contagem HTTP do PostgREST. O
-artefato detalhado fica em `artifacts/perf/`, fora do versionamento; os dados
-sintéticos não são persistidos.
-
-`npm run a11y:contrast` passou nos temas light e dark para texto normal, texto
-suave, links, status e cabeçalho de tabela (20 pares, todos >= 4,5:1). O gate
-ajustou os tokens claros de `muted-soft` e `green`, e o token escuro de
-`muted-soft`; a verificação manual de componentes, hover/disabled, teclado,
-leitor de tela e foco no Preview continua pendente.
-
-Os contratos financeiros passaram a persistir `demurrage_invoice_items.subtotal_brl`
-com resíduo determinístico e o documento lê o valor persistido; valores históricos
-sem snapshot não são inventados. `src/types/database.ts` foi regenerado pelo
-gerador oficial contra o Preview depois do smoke autenticado, preservando os
-aliases de domínio do frontend e uma camada separada de compatibilidade para
-`null` explícito em inputs/RPCs. A coluna `subtotal_brl`, os campos de procedência
-do ROE e a família de `exchange_rate_reference_history` foram conferidos no
-schema remoto e no replay PostgreSQL local.
-
-### Inventário S14 — legado e colunas nullable
-
-No replay local de 2026-09-09, as 14 candidatas do plano (`portal_*_legacy`,
-`close_legacy_agency_report_alerts_for_scale` e
-`reconcile_bl_review_alerts_item`) resolveram para assinaturas existentes, todas
-sem dependente em `pg_depend`, sem referência no corpo de outra função e sem job
-local cujo comando as chame. As funções `*_legacy` também estão sem `EXECUTE`
-para `anon` e `authenticated`. Isso é evidência de não-uso interno, não prova de
-ausência de consumidor externo; por isso nenhuma foi removida nesta PR e os sete
-elos de import que formam a cadeia `_legacy_205/284/322/357`, `_legacy_165`,
-`_legacy_136` e `save_granite_bl_review_legacy_148` continuam preservados.
-
-As colunas `alerts.notified_at`, `bls.consignee_address`,
-`charge_calculations.reviewed_at` e `customer_portal_sessions.last_seen_at`
-existem e são nullable; no banco descartável todas estavam nulas. Não houve
-caller ativo em `src`/Edge Functions para as quatro; `charges_reviewed_at` e
-outros campos homônimos usados pela projeção de Taxas Locais não são a coluna
-legada `charge_calculations.reviewed_at`. Sem contagem do ambiente real,
-telemetria externa e decisão documental, a remoção fica deliberadamente
-pendente; qualquer contração futura deve usar migration nova e `DROP ... RESTRICT`.
-
-Testes que apenas inspecionam texto ou regex de migrations são classificados
-como **Teste de contrato SQL**. Eles detectam drift no SQL versionado, mas não
-provam migration aplicada, grants remotos, RLS em execução ou atomicidade real.
-
-## Atualização da remediação das auditorias #654–#660 — 2026-09-07
-
-Esta revisão focal integra o baseline da PR #669 e acrescenta as migrations
-`022`–`026`. A fronteira de email agora é: webhook autenticado recebe e
-persiste a inbox; `portal-email-events-runner` faz claim, retry e transições
-server-only. Efeitos de importação usam `import_pending_effects` com lease,
-histórico de tentativas e `import-effects-runner`, que permanece fail-closed até
-ativação explícita no ambiente correto. A emissão de Demurrage recebe IDs e
-data opcional no RPC autoritativo, calcula no banco e registra snapshots
-append-only; a falha persistente do recálculo PTAX abre o alerta
-`demurrage_ptax_recalc_failed`.
-
-**Código/Teste:** migrations `022_email_inbox_and_dispatch_state.sql`,
-`023_demurrage_calculation_snapshot.sql`,
-`024_demurrage_ptax_alert.sql`, `025_import_effect_worker.sql` e
-`026_import_effect_alert.sql`, integrações locais opt-in e testes focados.
-Esse bloco não afirma deploy remoto, grants efetivos no Postgres gerenciado,
-Vault preenchido, cron executado, Resend/BCB real ou conclusão integral do plano;
-os itens pendentes continuam classificados na matriz do plano.
-
-## Atualização da PR 550
-
-O fluxo terminalizado da PR 550 acrescenta `report_id` e `terminalCode` aos
-deep-links do ADR, filtra o conteúdo exibido pelas frentes atribuídas, usa as
-chaves reais de `useAgencyReport` (`agency-report-terminal-state` incluída) e
-registra datas do POD na mesma RPC transacional da escala. O Cadastro de
-Terminais consulta `preflight_depots_terminal_port_mapping`; novos terminais
-exigem `depots.port_id`, enquanto o legado sem mapeamento permanece preservado.
-As evidências desta revisão são os testes de comportamento, o contrato SQL da
-migration 306 e a aplicação da migration em Postgres local descartável.
-
-No ADR terminalizado, as escritas por `report_id` usam as RPCs
-`set_agency_report_signoff_by_report_id`,
-`set_agency_report_department_signoff_by_report_id`,
-`set_agency_report_section_observation_by_report_id`,
-`close_agency_departure_report_by_report_id` e
-`reopen_agency_departure_report_by_report_id`. O snapshot fechado também
-congela `header.terminalScope`, distinguindo uma seção sem frente atribuída ao
-terminal de uma seção atribuída que recebeu a resolução “Nada a declarar”.
-
-### Fundação de Comunicados ao Cliente — Bloco 1
-
-A migration `372_comunicados_fundacao.sql` criou a fundação sem histórico
-retroativo: `customer_communications`, vínculos com B/L, tentativas, catálogo
-explícito de `kind`/`nature`, quatro preferências por contato, supressões do
-canal e o singleton `app_settings`. As âncoras do comunicado são valores
-congelados, sem FK para escala, atracação ou invoice. A chave global nasce
-desligada e a RPC `set_communications_enabled(boolean)` exige Administrativo e
-registra alterações em `audit_logs`.
-
-`CadastroContatosTab` expõe as quatro naturezas sem alterar
-`customer_contacts.purpose`; a gravação usa `source='interno'` e o guard
-de permissão `customer_communications` exclui Operações, Financeiro e os
-demais papéis não autorizados na tela. O mapeamento e as preferências são
-cobertos por testes de
-comportamento e de contrato SQL; a aplicação da migration foi reproduzida em
-PostgreSQL local descartável. Não há runtime remoto nem envio real afirmado
-nesta etapa.
-
-O webhook do Resend procura a tentativa no Portal e, como fallback, em
-`customer_communication_attempts`, vinculando cada evento a apenas uma delas.
-Complaint de Comunicado grava somente `customer_communication_suppressions`;
-`bounce_permanente` usa a supressão compartilhada, escala uma linha de
-`complaint` sem rebaixamento posterior e resolve a notificação ao contato
-alternativo ou o alerta `cliente_contato_bounced_sem_alternativa`. **Código**;
-**Teste:** `portalEmailWebhook.test.ts`, `portalBounceCascade.test.ts` e
-`portalEdgeFunctionsOrder.test.ts`.
-
-### Bloco 2 — Disparo manual e alertas de Comunicados
-
-`/clientes/comunicacao` é a superfície protegida pela permissão
-`customer_communications`: o modo carga exige filtro operacional e agrupa B/Ls
-por cliente; o modo institucional usa Cliente Comunicável, com ETA a partir de
-doze meses atrás e sem teto futuro. A aba Disparo é um formulário de três passos
-(o que enviar, para quem, mensagem) em que o modo deriva do modelo
-(`getCustomerCommunicationDispatchMode`), a lista de modelos vem filtrada pelo
-modo (`MANUAL_CUSTOMER_COMMUNICATION_KINDS_BY_MODE`), o público segue
-`getCustomerCommunicationAudienceRule` e o editor de assunto/mensagem aparece nos
-modelos escritos pelo operador (`isUserWrittenCustomerCommunicationKind`) —
-inclusive no livre, que continua no modo carga. A conferência mostra elegíveis,
-exclusões, bloqueios, preview e confirmação explícita de reenvio para os modelos
-ancorados em carga (`requiresResendConfirmation`); institucional e livre trocam a
-trava por informação, porque cada lote tem `dispatch_id` próprio. **Código**;
-**Teste:** `customerCommunications.test.ts`, `ClientesComunicacao.test.tsx` e
-`customerCommunicationTemplates.test.ts`.
-
-A produtora `evaluate_and_dispatch_automatic_communications` (cron de 15 em 15
-minutos via `customer-communication-auto-runner`) resolve destinatários por
-`customer_contact_box_links`, não mais pelo modelo legado de
-`customer_contact_preferences`, e produz NOA, NOR, **NOB** e `ce_mercante_taxas`.
-O NOB é por Atracação (`voyage_escala_terminal_state.id` como
-`anchor_atracacao_id`) e restrito à carga cuja Frente de Operação está atribuída
-àquele terminal em `voyage_escala_operation_fronts`. A migration `045` corrige o
-roteamento — a `008` havia aplicado a correção de caixas em
-`find_due_customer_communication_automations`, que não tem chamador. **Código**;
-**Teste:** `comunicadosCaixasNobAutomaticoMigration.test.ts`,
-`escalaOperationFrontKind.test.ts`, `customerCommunicationAutoRunner.test.ts`;
-**Teste de contrato SQL:** `scripts/check-comunicados-caixas-nob.sql`, executado
-no CI contra o Postgres real após o replay das migrations.
-
-`customerCommunicationDispatches.ts` chama `send-customer-communication`, que
-confere contato, preferência, complaint/bounce e natureza, registra a operação
-por RPC atômica e mantém o dry-run quando
-`app_settings.communications_enabled=false`. A migration
-`373_comunicados_anexos.sql` cria templates e bucket privado; a migration
-`375_comunicados_bloco2_correcoes.sql` fecha a escrita direta do Storage e cria
-modelos institucionais reutilizáveis; anexos são
-limitados a três arquivos e 10 MB e não são aceitos em cobrança local ou
-demurrage. Em erro HTTP da Edge Function, o service lê o corpo JSON retornado
-(`error`/`message`) antes de repassar a falha à tela, preservando a causa para
-diagnóstico (BUG-10). **Código**; **Teste de contrato SQL:**
-`comunicadosAnexosMigration.test.ts` e
-`sendCustomerCommunicationFunction.test.ts`.
-
-O status parcial usa `recipient_key` como SHA-256 do e-mail normalizado, sem
-agrupar destinatários pela máscara visual; tentativas anteriores à coluna são
-marcadas como `legado` até uma nova execução confirmar o modo real ou simulado.
-Um bloqueio de prontidão depois da criação passa por
-`mark_customer_communication_dispatch_blocked`, que grava `falha` ou `parcial`
-e preserva o resultado por destinatário. No dunning, a migration
-`041_dunning_partial_claim_recovery.sql` trata `parcial` como terminal para o
-scanner de claims órfãos e a Edge reutiliza a chave histórica da tentativa.
-**Código**; **Teste de contrato SQL:**
-`customerCommunicationStatusIdentityMigration.test.ts` e integração local de
-`customerCommunicationPartial.local-pg.test.ts`.
-
-O Histórico de Comunicados aparece na própria rota, na Ficha do Cliente e no
-Histórico do B/L vinculado. A migration `374_comunicados_alertas.sql` cataloga
-NOA/NOR/NOB pendentes e bounce sem alternativa no runner server-only; somente
-`status='enviado'` resolve os avisos operacionais. **Código**;
-**Teste de contrato SQL:** `comunicadosAlertasMigration.test.ts`.
+A rastreabilidade abaixo descreve as superfícies atuais. As notas cronológicas
+de entregas e resultados antigos foram preservadas no
+[histórico da rastreabilidade](archive/reports/2026-09-19-notas-historicas-rastreabilidade.md).
+Para B/Ls, pesos e cubagens são aditivos e separados por modalidade (061/064);
+a ficha possui cinco abas e a lista usa a mesma RPC paginada para tela e export.
+A resolução numérica do Manifesto BB está detalhada no
+[módulo proprietário](modules/manifesto-edi.md#anatomia-das-telas).
 
 ## Índice por rota e ação
 
@@ -461,10 +90,9 @@ as divergências permanecem no documento vivo do módulo indicado.
 | `/line-up-tv/display` | Exibir e atualizar o Line-Up protegido | `src/pages/LineUpTVDisplay.tsx` | `fetchLineUpSnapshot`, `listVoyageEscalaSchedulesByVoyageIds`, `arrivalDisplay`, `deriveEscalaState` | projeção unificada de escalas + tabelas operacionais agregadas pelo serviço | Cache `['lineup-tv-display-v2']`; ATA precede ETA; escala atracada fica verde; viagens só de exportação entram pelo porto da escala unificada; borda do ciclo acompanha a primeira linha no desktop/mobile | **Código**, **Teste**; runtime visual não executado | [Operação e suporte](modules/operacao-suporte.md#catálogo-de-ações) |
 | `/painel` | Carregar e filtrar snapshot do Line-Up | `src/pages/Painel.tsx` / `lineupFilters.ts` | queries da página / `filterLineUpRows` / `lineup.ts` / `listVoyageEscalaSchedulesByVoyageIds` / `arrivalDisplay` / `deriveEscalaState` | projeção unificada de escalas, `bls`, `containers`, `voyages`, `count_distinct_containers` | Inclui status retidos; ATA precede ETA; ATB sem ATD destaca a escala; importação e exportação do mesmo porto permanecem em uma escala; filtros locais e XLSX usam o snapshot limitado a 60 viagens | **Código**, **Teste** | [Operação e suporte](modules/operacao-suporte.md#catálogo-de-ações) |
 | `/viagens` | Buscar, filtrar, ordenar, criar e selecionar viagem | `src/pages/Viagens.tsx` | `useVoyages`/`useVoyageDetail`, `operationalLists.ts`, `useViagemSchedulesAndStats`, `listVoyageEscalaSchedulesByVoyageIds`, `voyages.ts`, `voyageForm.ts`, `cacheEffects.ts` | `operational_list_voyage_summaries` (`035`) para o rail; detalhe selecionado lê `voyages` e módulos vinculados | `useVoyages` traz somente o envelope resumido paginado, com rotas/contagens/CE/Baplie; `useVoyageDetail` carrega manifests, bookings e B/Ls somente para a viagem aberta; a barra de comando mantém a busca visível e exibe filtros aplicados como chips removíveis; o rail expõe `Canceladas`, estado de conciliação com ponto e rótulo e rodapé `B/L · CNTR · CE`; Próxima Escala e contagem de escalas usam a projeção unificada `(viagem, porto brasileiro)`; invalida via `cacheEffects` (`afterViagemAlterada`/`afterEscalaAlterada`/`afterRotaAlterada`); seleção sincroniza URL | **Código**, **Teste**, **Teste local de contrato SQL** | [Viagens](modules/viagens.md#catálogo-de-ações) |
-| `/viagens/:voyageId` | Editar agendas, Nº de Manifesto Mercante, consultar exportação por terminal, listar rotas de B/L e abrir módulos vinculados | `src/pages/Viagens.tsx` | `voyageRouteSchedules.ts`, `voyageExportSchedules.ts`, `voyageSummaries.ts`, serviços de schedule/timeline/reconciliation | audit logs de `voyage_pod_schedule`/`voyage_pol_schedule` + `voyage_export_schedules` por `(voyage_id, pol)`; leitura de `granite_manifests`, `vazios_manifests`, `vazios_bookings`, `vazios_export_operations` e `depots` | Atualiza cards, timeline e reconciliação da viagem; planejamento exibe uma linha por escala brasileira, com colunas `Escala`, `Opera`, `Chegada` (`ETA · previsto` e `ATA · real`), `ATD`, `BLs e CEs`, `Nº Escala`, `Vinculada` e `Ações`; atracações aparecem, quando existentes, em painel recolhível com cabeçalho e tabela próprios (`Terminal`, `ETB`, `ATB`, `ETD`, `ATD`, `Restow`), e suas ações `Adicionar atracação`/lápis reutilizam o `EscalaModal` já posicionado na seção ou terminal; a aba Importação organiza Containers/Carga solta e as faixas de Veículos/Vazios IMP por POD, mantendo estados vazios explícitos; a Exportação organiza Granito e Vazios EXP por `embark_port`, repartindo Vazios EXP por depot; a barra de exportação separa Manifesto Granito, CE Mercante (Granito) e Novo embarque de vazios, que abre `/embarquevazios?voyage=<id>` com a viagem travada; a barra de importação usa separadores e ações distintas para B/L container e B/L carga solta, com CE Mercante único para ambos; um único botão "Adicionar escala" e um único modal (`EscalaModal`) cobrem importação e exportação da mesma escala, incluindo os portos de descarga do embarque; o cabeçalho mostra uma linha de rota por perna (importação e exportação), com `Origem/Destino a definir` quando o lado é desconhecido | **Código**, **Teste** | [Viagens](modules/viagens.md#catálogo-de-ações) |
 | `/viagens/:voyageId` | Editar agendas, Nº de Manifesto Mercante, consultar exportação por terminal, listar Rotas e Manifestos e abrir módulos vinculados | `src/pages/Viagens.tsx` | `voyageRouteSchedules.ts`, `voyageExportSchedules.ts`, `voyageSummaries.ts`, serviços de schedule/timeline/reconciliation | audit logs de `voyage_pod_schedule`/`voyage_pol_schedule` + `voyage_export_schedules` por `(voyage_id, pol)`; leitura de `granite_manifests`, `vazios_manifests`, `vazios_bookings`, `vazios_export_operations` e `depots` | Atualiza cards, timeline e reconciliação da viagem; o cabeçalho mantém o rail e o card de detalhe, os KPIs usam um número dominante em `Syne` com até três apoios e as cinco abas usam `.app-tab`; Rotas e Manifestos exibe uma linha por rota POL/POD, faixa de totais, grupo `Mercante` com `CE Mercante · cobertura` e `Nº de manifesto Mercante`, chip `Informar` para número ausente e edição por linha; planejamento exibe uma linha por escala brasileira, com colunas `Escala`, `Opera`, `Chegada` (`ETA · previsto` e `ATA · real`), `ATD`, `BLs e CEs`, `Nº Escala`, `Vinculada` e `Ações`; atracações aparecem, quando existentes, em painel recolhível com cabeçalho e tabela próprios (`Terminal`, `ETB`, `ATB`, `ETD`, `ATD`, `Restow`), e suas ações `Adicionar atracação`/lápis reutilizam o `EscalaModal` já posicionado na seção ou terminal; a aba Importação organiza Containers/Carga solta e as faixas de Veículos/Vazios IMP por POD, mantendo estados vazios explícitos; a Exportação organiza Granito e Vazios EXP por `embark_port`, repartindo Vazios EXP por depot; a barra de exportação separa Manifesto Granito, CE Mercante (Granito) e Novo embarque de vazios, que abre `/embarquevazios?voyage=<id>` com a viagem travada; a barra de importação usa separadores e ações distintas para B/L container e B/L carga solta, com CE Mercante único para ambos; um único botão "Adicionar escala" e um único modal (`EscalaModal`) cobrem importação e exportação da mesma escala, incluindo os portos de descarga do embarque; o cabeçalho mostra uma linha de rota por perna (importação e exportação), com `Origem/Destino a definir` quando o lado é desconhecido | **Código**, **Teste** | [Viagens](modules/viagens.md#catálogo-de-ações) |
 | `/viagens/:voyageId` | Omitir escala e complementar transbordo global; listar B/Ls afetados | `OmitEscalaModal`, `TransshipmentInfoCard`, `VoyageVisaoTab` | `useTransshipments`, `transshipments.ts`, `voyageRouteSchedules.ts`, `voyageTimeline.ts`, `voyageSummaries.ts` | RPCs `omit_voyage_escala`, `update_voyage_omission`, `revert_voyage_omission`; `voyage_omissions`, `bl_transshipments`; migrations `308`–`316` | Registro global é herdado pelos B/Ls; a disposição individual é somente leitura com link para a ficha do B/L; omissão/reversão invalidam programação, Line-Up e Portal | **Código**, **Teste**, **Teste de contrato SQL** | [Viagens](modules/viagens.md#catálogo-de-ações) |
-| `/viagens/:voyageId?tab=adr&escala=:port` | Consultar o Agency Departure Report derivado (6 seções — Escala abre a aba fora das fases, depois Importação → Exportação; Embarque de vazios reúne as subseções Containers embarcados e Operação de pátio numa resolução só, ADR 0036), registrar terminal, Observação opcional por seção (edição livre, só pelo dono; exibida só quando há texto, senão o dono vê "Adicionar observação") e sign-off departamental (com confirmação/justificativa e histórico auditável); fechar (3/3 departamentos), imprimir ou reabrir sem resetar seções/assinaturas (ADR 0030). Cada escala brasileira da projeção unificada gera um ADR, com ou sem importação. Carga descarregada conta somente cheios pelos B/Ls (documental, ADR 0025) — incluindo carga em transbordo (`bl_transshipments`/`voyage_omissions`), contada no ADR do porto de descarga real e separada do destino final. Vazios descarregados ficam em seção própria: o Baplie informa a presença física e o módulo de Vazios de Importação fornece a classificação; a divergência entre as fontes permanece visível. A matriz de carga distingue `carga_geral`, `IMO` e `OOG`, com `OOG` vencendo `IMO` quando ambos estão declarados e o merge por container preservando os dois flags, com avisos de divergência (`dischargeDivergence`, `vaziosDivergence`) e de dado órfão (granito/vazios embarcados fora das escalas da viagem, `orphanData`); escala omitida com ADR já fechado antes da omissão continua acessível/imprimível (chip "Omitida"); aba e impresso exibem Listagem do operado (sem matriz de zeros); impresso (`AgencyReportDocument`) usa a linguagem visual da fatura de taxas locais (kit `InvoiceDocumentKit` + tokens de `invoiceFormat.ts`: Arial sobre branco, cabeçalho de tabela navy, zebra, barra de total âmbar) e traz resolução (estado + assinante + data) por seção e bloco final de Assinaturas departamentais (`departmentSignoffs`), com nomes resolvidos ao vivo mesmo fechado (ADR 0035); Linha do Tempo do ADR (ADR 0039): marcos de ATD da escala unificada (POD canônico, POL preenche o que falta — `getVoyageUnifiedAtd`) com o momento do seu registro, Prazo de Conclusão (3 dias úteis, seg-sex, feriados contam, dia do ATD não conta — `agencyReportDeadline.ts`), as 3 assinaturas departamentais com reaberturas e justificativa (lidas de `audit_logs`), e o Fechamento sem prazo/veredito próprio; "sem prazo" (ATD ausente ou escala omitida) exibido sem cor; no fechamento, os marcos (ATD unificado, seu registro, prazo, reaberturas por departamento) são congelados dentro de `closed_snapshot.header`/`closed_snapshot.departmentSignoffs[].reopenings` (chaves de topo do snapshot inalteradas); o impresso mostra só as datas de assinatura e as reaberturas com justificativa — nunca o veredito de prazo, cor ou contagem de dias | `VoyageAgencyReportTab`, `SignoffControl`, `DepartmentSignoffControl`, `AgencyReportDocument`, `AgencyReportTimeline` | `useAgencyReport` / `agencyDepartureReport.ts` (as escritas do ADR terminalizado passam por `callReportIdAwareRpc`, que chama `supabase.rpc` **pelo objeto**: guardar a função numa variável desliga o receptor e o supabase-js lança `TypeError` lendo `this.rest` antes de a requisição sair) / `agencyReportDeadline.ts` (função pura de prazo, compartilhada com o alerta de vencimento e o agregado de SLA; aceita ATD em ISO com hora porque no ADR por terminal o T0 é o `terminal_atd` da Atracação, `TIMESTAMPTZ`, e não mais a string `YYYY-MM-DD` da trilha da Escala) | `agency_departure_reports`, sign-offs de seção (coluna `observation`, nullable; seções `ocorrencias` e `operacao_patio` removidas do CHECK — Operações com 1 seção, `datas`; Documentação com 3, `carga_descarregada`, `vazios_descarregados` e `veiculos`; Equipamentos com 2, `carga_carregada` (Granito) e `vazios_embarcados`), sign-offs departamentais (`agency_departure_report_department_signoffs`); `agency_departure_report_occurrences`/`add_agency_report_occurrence` seguem existindo mas sem uso pela aba desde a ADR 0030 (dado histórico, fora da aba); histórico em `audit_logs` (`entity_type='agency_departure_report_signoff'` e `'agency_departure_report_department_signoff'`); RPCs `set_agency_report_signoff`, `set_agency_report_department_signoff`, `set_agency_report_section_observation`, `set_agency_report_terminal`, `close_agency_departure_report`, `reopen_agency_departure_report`, `get_agency_report_closer_name`, `get_agency_report_actor_names`; migrations `213`/`214`/`217`/`218`/`220`/`221`/`222`/`223`/`224`/`225`/`226`/`227`/`228`/`249`/`251`/`253`/`258`/`261` | Queries `['agency-report', voyageId, port]`, `['agency-report-own', voyageId, port]`, `['agency-report-signoff-events', voyageId, port]` e `['agency-report-department-signoff-events', voyageId, port]`; fechado lê `closed_snapshot`; sign-off invalida também `['agency-report-signoff-events']`; fechamento/reabertura invalidam `['agency-report']`, `['agency-report-signoff-events']`, `['agency-report-department-signoff-events']`, `['alerts']`, `['op-count']`, `['header-alert']`, `['dashboard']` | **Código**, **Teste**, **Teste de contrato SQL:** `agencyReportMigration.test.ts`, `agencyReportPendingAlertsMigration.test.ts`, `agencyReportCloserNameMigration.test.ts`, `agencyReportReopenRbacMigration.test.ts`, `agencyReportSignoffHistoryMigration.test.ts`, `agencyReportOperacaoPatioSectionMigration.test.ts`, `agencyReportDepartmentSignoffMigration.test.ts`, `agencyReportCloseByDepartmentMigration.test.ts`, `agencyReportDepartmentAlertsMigration.test.ts`, `agencyReportOccurrenceAnyDepartmentMigration.test.ts`, `agencyReportReopenPreserveStateMigration.test.ts`, `agencyReportSectionObservationMigration.test.ts`, `agencyReportSnapshotValidationMigration.test.ts`, `agencyReportEmbarqueVaziosSecaoUnicaMigration.test.ts`, `agencyReportGraniteOwnershipMigration.test.ts`, `escalaUnificadaMigration.test.ts`, `agencyReportDeadlineMissedMigration.test.ts` | [Viagens](modules/viagens.md#catálogo-de-ações) |
+| `/viagens/:voyageId?tab=adr&escala=:port&terminal=:terminal&report_id=:reportId` | Consultar, assinar, fechar e imprimir ADR por terminal da escala | `VoyageAgencyReportTab`, `AgencyReportDocument`, `AgencyReportTimeline` | `useAgencyReport` → `agencyDepartureReport.ts`; `agencyReportDeadline.ts` | `agency_departure_reports`, sign-offs e snapshots; RPCs selecionadas por `callReportIdAwareRpc`; `voyage_escala_terminal_state` | Relatórios atuais são identificados pelo report ID/terminal; legado por porto permanece compatível. Prazo parte do ATD do terminal; fechado lê snapshot | **Código**; **Teste:** `agencyDepartureReport.test.ts`, `agencyReportDeadline.test.ts`; testes SQL históricos não comprovam aplicação remota | [Viagens](modules/viagens.md#catálogo-de-ações) |
 | `/bls/:blId` | Operar disposição Transbordo/COD | `BlTransshipmentCard` | `useSetBlDisposition`, `transshipments.ts` | RPCs `set_bl_transshipment`, `set_bl_cod`; `bl_transshipments`, `bls`, `audit_logs` | Invalida cockpit, detalhe, B/Ls e viagens; ação única de escrita na ficha | **Código**, **Teste**, **Teste de contrato SQL** | [Manifestos e EDI](modules/manifesto-edi.md#catálogo-de-ações) |
 | `/bls/:blId` | Consultar cockpit, Portal e divergências Baplie | `BlVisaoGeralTab`, `BlRailsPipeline`, `BlPortalCard` | `useBlCockpit`, `blRails.ts`, `blPortalStatus.ts`, `useVoyageReconciliation` | `get_bl_portal_status` (migration 206/047); `customer_portal_access_ready`; `voyage_*_schedules`, `portal_notifications.bl_id`, `demurrage_invoices`, `baplie_containers` | Leitura escopada ao B/L; RPC do Portal valida usuário ativo, devolve `portal_access_ready` pelo predicado canônico e contorna o RLS com superfície mínima | **Código**, **Teste**, **Teste de contrato SQL** | [Manifestos e EDI](modules/manifesto-edi.md#catálogo-de-ações) |
 | `/bls` | Listar/exportar B/Ls (CNTR, carga solta e misto), importar CE Mercante e importar B/L | `src/pages/Bls.tsx`, `src/components/shared/CeMercanteImportModal.tsx`, `src/components/shared/BlImportModal.tsx` | `useBls`, `ceMercanteImport.ts`, `blParser.ts`, `blFreightImport.ts` | Leitura de B/Ls; `apply_ce_mercante_update`/`apply_ce_mercante_manifest`; `import_bl_freight_transactional` | O arquivo de B/L é a fonte documental vigente da carga; manifestos mercante editáveis por rota e B/Ls de carga solta e mista unificados | **Código**, **Teste:** `Bls.test.tsx`, `VoyageImportActions.behavior.test.tsx`, `voyageCardHelpers.test.tsx` | [Manifestos e EDI](modules/manifesto-edi.md#catálogo-de-ações) |
@@ -488,11 +116,11 @@ as divergências permanecem no documento vivo do módulo indicado.
 | `/taxas-locais/tabelas` | Consultar e gerir tabelas/overrides (todo perfil ativo) | `src/pages/TaxasLocaisTabelas.tsx`; `src/components/taxasLocais/ChargeTablesTab.tsx`; `src/components/taxasLocais/ChargeOverridesTab.tsx` | charge table/rate services | tabelas de taxas e overrides | Invalida famílias `queryKeys.charges.*`; `canEdit` continua decidindo apenas escrita | **Código**, **Teste** | [Taxas locais](modules/taxas-locais.md#catálogo-de-ações) |
 | `/taxas-locais` | Derivar fila de bloqueios, recalcular e emitir invoice individual/consolidada | `src/pages/TaxasLocais.tsx`; `src/components/billing/ValidacaoTab.tsx`, `src/components/billing/ValidacaoControls.tsx`, `src/components/billing/ValidacaoOperationsTable.tsx` | `useLocalCharges`, reconciliação, `issueOperationalInvoice` | charges RPCs, invoice RPCs, `alerts` para falhas de emissão | A fila deriva Sem cliente, Cálculo incompleto e Aguardando CE; faturados/isentos só entram com filtro de resolvidos | **Código**, **Teste**, **Teste de contrato SQL** | [Faturamento](modules/faturamento.md#catálogo-de-ações) |
 | `/faturamento` | Redirect legado com query string preservada; `tab=demurrage` segue para `/demurrage` | `src/AppInterno.tsx`, `src/lib/routeRedirects.ts` | `resolveLegacyFaturamentoRedirect` | Nenhuma | `replace` mantém deep links antigos sem montar uma tela errada | **Código**, **Teste** | [Faturamento](modules/faturamento.md#catálogo-de-ações) |
-| `/carga-solta` | Redirect legado para `/bls?tipo=carga_solta` com query string preservada | `src/AppInterno.tsx` | `Navigate` | Nenhuma | `replace` preserva deep links legados de carga solta | **Código**, **Teste** | [Manifestos e EDI](modules/manifesto-edi.md#catálogo-de-ações) |
-| `/carga-solta/:blId` | Redirect legado para `/bls/:blId` | `src/AppInterno.tsx` | `LegacyCargaSoltaRedirect` | Nenhuma | `replace` redireciona para a tela unificada de detalhe de B/L | **Código**, **Teste** | [Manifestos e EDI](modules/manifesto-edi.md#catálogo-de-ações) |
-| `/manifestos` | Redirect legado para `/viagens` | `src/AppInterno.tsx` | `Navigate` | Nenhuma | `replace` preserva deep links legados de manifestos | **Código**, **Teste** | [Viagens](modules/viagens.md#catálogo-de-ações) |
+| `/carga-solta` | Redirect fixo para `/bls`, sem preservar query string | `src/AppInterno.tsx` | `Navigate` | Nenhuma | `replace` troca a URL; filtros antigos são descartados | **Código**; sem teste específico de navegação identificado | [Manifestos e EDI](modules/manifesto-edi.md#catálogo-de-ações) |
+| `/carga-solta/:blId` | Redirect legado para `/bls/:blId` | `src/AppInterno.tsx` | `LegacyCargaSoltaRedirect` | Nenhuma | `replace` redireciona para a tela unificada de detalhe de B/L | **Código**; sem teste específico de navegação identificado | [Manifestos e EDI](modules/manifesto-edi.md#catálogo-de-ações) |
+| `/manifestos` | Redirect legado para `/bls` | `src/AppInterno.tsx` | `Navigate` | Nenhuma | `replace` troca a URL; filtros antigos são descartados | **Código**; sem teste específico de navegação identificado | [Viagens](modules/viagens.md#catálogo-de-ações) |
 | `/alertas` | Consultar a fila, filtrar ativos/dispensados e dispensar temporariamente um item | `src/pages/Alertas.tsx` | `alerts.ts` | `list_alert_queue`; `dismiss_alert_item`; `alerts`, `alert_items`, `alert_item_dismissals`, `alert_item_events`, `alert_type_catalog`, `run_alert_detectors` | A página não executa detectores, não reconhece e não fecha manualmente; a coluna Entidade traduz a chave surrogate para o rótulo humano (navio/viagem, número da fatura, nome do cliente, `doc_number` do Demurrage, `bl_number` do Granito, txid do PIX) por uma consulta em lote separada da fila, caindo no id quando a tradução falha; mostra severidade/departamento/destino do catálogo e exige motivo + revisão futura para dispensa. Alertas históricos sem `alert_items` continuam consultáveis. Detectores server-side de operação, revisão e viagem reconciliam B/L esperado, Baplie ausente/cobertura, CE Mercante, datas de escala/terminal e pendências de revisão (agrupadas por cliente pela migration 364). | **Código**, **Teste de contrato SQL:** `alertsFoundationMigration.test.ts`, `reviewBlAlertsLifecycleMigration.test.ts`, `reviewBlCustomerAlertsMigration.test.ts`, `voyageOperationAlertsMigration.test.ts`, `unifiedAlertsRunnerMigration.test.ts`; **Teste:** `Alertas.behavior.test.tsx` | [Operação e suporte](modules/operacao-suporte.md#catálogo-de-ações) |
-| `/alertas/regras` | Consultar o manual dos 26 tipos ativos do catálogo, filtrar por busca/setor notificado/domínio/gravidade e abrir o destino de tratamento | `src/pages/AlertasRegras.tsx`; `src/services/alertRulesCatalog.ts` | Catálogo TypeScript educativo; setores notificados espelham `fanout_alert_item_for_department`; rotas de destino reutilizam os links atuais de `alerts.ts` | Nenhuma; somente leitura | Seleção e filtros são preservados em `?regra=`, `?q=`, `?setor=`, `?dominio=` e `?gravidade=`; não executa RPC nem altera a fila | Regra inexistente (inclusive tipo aposentado) ou filtro sem resultado retorna ao primeiro item válido ou mostra estado vazio | **Código**, **Teste:** `AlertasRegrasCatalog.test.tsx`; **Teste de contrato SQL:** catálogo de migrations `317`, `325` e `347` lido por `src/services/__tests__/alertCatalogSql.ts` | [Operação e suporte](modules/operacao-suporte.md#catálogo-de-ações) |
+| `/alertas/regras` | Consultar o manual dos 26 tipos ativos do catálogo, filtrar por busca/setor notificado/domínio/gravidade e abrir o destino de tratamento | `src/pages/AlertasRegras.tsx`; `src/services/alertRulesCatalog.ts` | Catálogo TypeScript educativo; setores notificados espelham `fanout_alert_item_for_department`; rotas de destino reutilizam os links atuais de `alerts.ts` | Nenhuma; somente leitura | Seleção e filtros são preservados em `?regra=`, `?q=`, `?setor=`, `?dominio=` e `?gravidade=`; não executa RPC nem altera a fila; Regra inexistente (inclusive tipo aposentado) ou filtro sem resultado retorna ao primeiro item válido ou mostra estado vazio | **Código**, **Teste:** `AlertasRegrasCatalog.test.tsx`; **Teste de contrato SQL:** catálogo de migrations `317`, `325` e `347` lido por `src/services/__tests__/alertCatalogSql.ts` | [Operação e suporte](modules/operacao-suporte.md#catálogo-de-ações) |
 | `/relatorios` | Consultar e exportar relatórios XLSX | `src/pages/Relatorios.tsx` | `reports.ts`, `exports.ts`, `demurrage/demurrageInvoices.ts` | leituras de B/Ls, invoices, clientes e demurrage | Caches por aba/filtro; as quatro visões exportam xlsx; operacional e financeiro exportam sem o teto de 2.000 linhas | **Código**, **Teste** | [Operação e suporte](modules/operacao-suporte.md#catálogo-de-ações) |
 | `/line-up-tv` | Cair no catch-all interno | `src/pages/NaoEncontrado.tsx` | catch-all `<Route path="*">` de `src/AppInterno.tsx`, dentro de `ProtectedRoute`/`AppLayout` | nenhuma leitura | Não há rota nem página dedicada a `/line-up-tv`. O catch-all deixou de redirecionar para `/painel` com `replace` (realocação silenciosa, sem histórico recuperável) e passou a renderizar a tela "Página não encontrada", que mostra o endereço solicitado e o caminho de volta. Visitante sem sessão continua caindo em `/login`, porque o catch-all vive dentro do `ProtectedRoute` | **Código**, **Teste** (`src/pages/__tests__/rotasDesconhecidas.test.tsx`) | [Operação e suporte](modules/operacao-suporte.md#anatomia-das-telas) |
 | `/demurrage` | Acompanhar containers e gerir invoices | `src/pages/Demurrage.tsx` (composição/estado); `src/components/demurrage/DemurrageContainersTab.tsx`, `DemurrageInvoicesTab.tsx`, `DemurrageCustomersTab.tsx` e modais do módulo | demurrage services / `demurragePresentation.ts` / exchange rates | tabelas de demurrage, `demurrage_invoice_history` e RPCs `recalculate_demurrage_invoices(_manual)`/PIX/reversal | Cálculo por datas/tarifas; recálculo diário da PTAX (ADR 0014) com banner de staleness e botão Informar PTAX | **Código**, **Teste** | [Demurrage](modules/demurrage.md#catálogo-de-ações) |
@@ -671,7 +299,6 @@ loops, não apenas por regex de `CREATE POLICY`.
 | `bl_containers` | `SELECT`, `UPDATE`, `DELETE` | `src/hooks/useBls.ts`; `src/hooks/useOperationalAlerts.ts`; `src/services/baplieReconciliation.ts`; `src/services/containerDatesImport.ts`; `src/services/containers.ts`; `src/services/demurrage/demurrageContainers.ts`; `src/services/demurrage/demurrageInvoices.ts`; `src/services/demurrage/demurrageKpis.ts`; `src/services/lineup.ts`; `src/services/vehicleImport.ts` | Estado final de `010`: ativo lê/insere/atualiza; admin deleta; `164` normaliza/remove inválidos livres e adiciona constraint ISO `NOT VALID` | Trigger preenche descarga; mudanças podem ser auditadas; delete é bloqueado por dependências no serviço; `container_number` físico deve ser `AAAA9999999`. | Containers / Demurrage | **Código:** callers + migrations `010`/`028`/`164`; **Teste de contrato SQL:** `containerNumberGuardMigration.test.ts` |
 | `bl_freight_lines` | `SELECT`, `INSERT`, `UPDATE`, `DELETE` | `src/hooks/useBls.ts`; `src/services/blFreightImport.ts` | `162`: ativo lê/insere/atualiza; admin deleta; importador escreve pela RPC transacional | Guarda Frete & Despesas documentais do B/L; não participa de Taxas Locais e cai por cascade com o B/L. | Manifestos | **Código:** callers + migration; **Teste:** `blFreightImport.test.ts`; **Teste de contrato SQL:** `blFreightLinesMigration.test.ts` |
 | `bl_receivables` | `SELECT` | `src/services/bls.ts`; `src/services/customers.ts`; ficha do cliente lê via RPC `get_customer_receivables` (`src/services/customerFicha.ts`), não a tabela direto | `20260529100000` + `291`: SELECT `is_active_read_user()` (todo perfil ativo); INSERT/UPDATE/DELETE admin | Mantido por funções de ledger; vínculos/settlements definem saldo. A migration `216_customer_receivables_read_rpc.sql` já tinha contornado o `is_admin()`-only original com uma RPC `SECURITY DEFINER` liberando leitura ativa — mesmo achado desta rastreabilidade, resolvido ali só para esta tabela via RPC. A `291` corrige a RLS diretamente; a RPC continua funcionando, agora redundante com o `SELECT` direto. | Ledger | **Código:** callers + migrations `216`/`291`; **Teste de contrato SQL:** `customerReceivablesReadRpcMigration.test.ts` |
-| `bl_terminal_exceptions` | `SELECT`, `UPSERT`, `DELETE` | `src/services/charges/chargeOperationsService.ts` | `055`: usuário ativo lê/insere/atualiza/deleta | Exceção de terminal portuário por B/L individual; precede a herança da escala da viagem na resolução de taxas locais. | Taxas Locais / B/L | **Código:** caller; **Código SQL:** migration `055_terminal_bl_heranca_excecao.sql`; **Teste de contrato SQL:** `terminalBlHerancaExcecaoMigration.test.ts` |
 | `bls` | `SELECT`, `UPDATE`, `UPSERT`, `DELETE` | `src/components/bl/BlDemurrageSection.tsx`; `src/hooks/useBls.ts`; `src/hooks/useOperationalCounts.ts`; `src/hooks/useReview.ts`; `src/pages/Baplie.tsx`; `src/pages/Painel.tsx`; `src/services/baplieReconciliation.ts`; `src/services/billing.ts`; `src/services/blFreightImport.ts`; `src/services/bls.ts`; `src/services/breakbulkImport.ts`; `src/services/ceMercanteImport.ts`; `src/services/charges/chargeOperationsService.ts`; `src/services/containerDatesImport.ts`; `src/services/customerBase.ts`; `src/services/customers.ts`; `src/services/demurrage/demurrageInvoices.ts`; `src/services/lineup.ts`; `src/services/reports.ts`; `src/services/vehicleImport.ts`; `src/services/voyages.ts` | Estado final de `010`: ativo lê/insere/atualiza; admin deleta | `updated_at`, gate de revisão, promoção, auto-emissão e guards de faturamento e container. | B/L transversal | **Código:** callers + migrations `003`/`010`/`20260619130000`/`162` |
 | `carriers` | `SELECT`, `INSERT` | `src/services/voyages.ts` | Estado final de `010`: ativo lê/insere/atualiza; admin deleta | Referência de viagens. | Viagens | **Código:** caller + `010_rls_by_role.sql` |
 | `charge_calculations` | `SELECT` | `src/services/charges/chargeOperationsService.ts`; `src/services/containers.ts` | `291`: SELECT `is_active_read_user()` (todo perfil ativo); INSERT/UPDATE ativo herdados de `010`; DELETE admin | Trigger preenche metadados; estados alimentam gate, ledger e timeline. | Taxas Locais | **Código:** callers + migrations `010`/`014`/`025`/`291` |
@@ -919,3 +546,72 @@ runtime remoto ainda requer secrets e domínio verificado.
 | Auto-captura de B/L | `ensure_customer_contact_email` | Sem reativação: ignora e-mail existente (ativo ou inativo), insere com caixas e não sobrescreve nome/telefone | **Teste:** `customerBase.test.ts` |
 | Fallback e reparo | `repair_customer_contact_box_fallbacks` | Vincula contato principal ativo a caixas sem cobertura após bounce ou desativação | **Teste de contrato SQL:** `issue609ContactBoxesMigration.test.ts`; webhook do Resend |
 | Roteamento de comunicados | `resolveCustomerCommunicationRecipientsByBoxes`, `customer_communication_recipient_allowed` | Destinatários elegíveis por caixa e deduplicação determinística por e-mail | **Teste:** `customerCommunicationBoxes.test.ts`, `ClientesComunicacao.test.tsx` |
+
+### Entradas índice e fallback
+
+| Rota | Superfície / origem | Contrato | Evidência |
+|---|---|---|---|
+| `/` | Índice de `AppInterno`, sob `ProtectedRoute` | `Navigate` para `/painel`; sem hook/service/persistência própria | **Código:** `src/AppInterno.tsx` |
+| `*` | `AppInterno` e `AppPortal` | Interno mostra `NaoEncontrado` sob sessão; Portal redireciona para `/portal` | **Código:** os dois roteadores |
+
+O índice da inspeção `/clientes/portal/inspecao/:customerId` monta
+`PortalDashboard`, compartilhando os hooks e RPCs de leitura da inspeção.
+
+## Testes identificados por superfície
+
+Este índice complementa a cadeia de componentes, hooks, serviços e persistência
+acima. **Teste** indica asserções locais existentes, não cobertura integral da
+rota, do guard ou de suas RPCs. `—` significa que não foi identificado teste
+específico da página/redirect; testes dos serviços continuam nos módulos.
+Os testes das páginas do Portal em modo cliente não provam o modo inspeção;
+para a fronteira deste, consultar o código de `portalScope.ts` e os testes
+de contrato `portalInspectionMigration.test.ts`. Nenhum selo de runtime remoto
+é concedido por esta revisão.
+
+| Rota | Composição | Teste local identificado |
+|---|---|---|
+| `/login` | `Login` | — (lacuna de teste de página/redirect) |
+| `/painel` | `Painel` | **Teste:** [Painel.behavior.test.tsx](../src/pages/__tests__/Painel.behavior.test.tsx) |
+| `/viagens`, `/viagens/:voyageId` | `Viagens` | **Teste:** [Viagens.behavior.test.tsx](../src/pages/__tests__/Viagens.behavior.test.tsx) |
+| `/bls` | `Bls / BlRowDetail` | **Teste:** [Bls.test.tsx](../src/pages/__tests__/Bls.test.tsx) |
+| `/bls/:blId` | `BlDetalhe / abas de B/L` | **Teste:** [BlDetalhe.test.tsx](../src/pages/__tests__/BlDetalhe.test.tsx) |
+| `/containers` | `Containers` | — (lacuna de teste de página/redirect) |
+| `/veiculos` | `Veiculos` | — (lacuna de teste de página/redirect) |
+| `/baplie` | `Baplie` | — (lacuna de teste de página/redirect) |
+| `/vazios-importacao` | `VaziosImportacao` | **Teste:** [VaziosImportacao.test.tsx](../src/pages/__tests__/VaziosImportacao.test.tsx) |
+| `/embarquevazios` | `EmbarqueVazios` | **Teste:** [EmbarqueVazios.flow.test.tsx](../src/pages/__tests__/EmbarqueVazios.flow.test.tsx) |
+| `/embarquevazios/depots` | `DepotCadastro` | **Teste:** [DepotCadastro.behavior.test.tsx](../src/pages/__tests__/DepotCadastro.behavior.test.tsx) |
+| `/granito` | `Granite` | **Teste:** [Granite.behavior.test.tsx](../src/pages/__tests__/Granite.behavior.test.tsx) |
+| `/granito/taxas` | `GraniteRates` | — (lacuna de teste de página/redirect) |
+| `/revisao` | `Revisao` | **Teste:** [Revisao.test.tsx](../src/pages/__tests__/Revisao.test.tsx) |
+| `/clientes` | `Clientes` | **Teste:** [Clientes.behavior.test.tsx](../src/pages/__tests__/Clientes.behavior.test.tsx) |
+| `/clientes/:cnpj` | `ClienteFicha` | **Teste:** [ClienteFicha.behavior.test.tsx](../src/pages/__tests__/ClienteFicha.behavior.test.tsx) |
+| `/clientes/portal` | `ClientesPortal / PortalReviewPanel` | **Teste:** [ClientesPortal.behavior.test.tsx](../src/pages/__tests__/ClientesPortal.behavior.test.tsx) |
+| `/clientes/comunicacao` | `ClientesComunicacao` | **Teste:** [ClientesComunicacao.test.tsx](../src/pages/__tests__/ClientesComunicacao.test.tsx) |
+| `/taxas-locais` | `TaxasLocais / ValidacaoTab` | **Teste:** [TaxasLocais.behavior.test.tsx](../src/pages/__tests__/TaxasLocais.behavior.test.tsx) |
+| `/taxas-locais/tabelas` | `TaxasLocaisTabelas` | **Teste:** [TaxasLocaisTabelas.test.ts](../src/pages/__tests__/TaxasLocaisTabelas.test.ts) |
+| `/demurrage` | `Demurrage` | **Teste:** [Demurrage.behavior.test.tsx](../src/pages/__tests__/Demurrage.behavior.test.tsx) |
+| `/demurrage/taxas` | `DemurrageRates` | **Teste:** [DemurrageRates.behavior.test.tsx](../src/pages/__tests__/DemurrageRates.behavior.test.tsx) |
+| `/reconciliacao` | `Reconciliacao` | **Teste:** [Reconciliacao.behavior.test.tsx](../src/pages/__tests__/Reconciliacao.behavior.test.tsx) |
+| `/alertas` | `Alertas` | **Teste:** [Alertas.behavior.test.tsx](../src/pages/__tests__/Alertas.behavior.test.tsx) |
+| `/alertas/regras` | `AlertasRegras` | **Teste:** [AlertasRegrasCatalog.test.tsx](../src/pages/__tests__/AlertasRegrasCatalog.test.tsx) |
+| `/relatorios` | `Relatorios` | **Teste:** [Relatorios.behavior.test.tsx](../src/pages/__tests__/Relatorios.behavior.test.tsx) |
+| `/line-up-tv/display` | `LineUpTVDisplay` | **Teste:** [LineUpTVDisplay.behavior.test.tsx](../src/pages/__tests__/LineUpTVDisplay.behavior.test.tsx) |
+| `/chegadas-saidas` | `ChegadasSaidas` | **Teste:** [ChegadasSaidas.behavior.test.tsx](../src/pages/__tests__/ChegadasSaidas.behavior.test.tsx) |
+| `/admin`, `/admin/:tab` | `Admin` | **Teste:** [Admin.behavior.test.tsx](../src/pages/__tests__/Admin.behavior.test.tsx) |
+| `/perfil` | `Profile` | — (lacuna de teste de página/redirect) |
+| `/portal/login` | `PortalLogin` | **Teste:** [PortalLogin.test.tsx](../src/pages/__tests__/PortalLogin.test.tsx) |
+| `/portal/esqueci-senha`, `/portal/recuperar-senha` | `PortalForgotPassword / PortalResetPassword` | **Teste:** [PortalRecovery.behavior.test.tsx](../src/pages/__tests__/PortalRecovery.behavior.test.tsx) |
+| `/portal/ativar` | `PortalAtivacao` | **Teste:** [PortalAtivacao.test.tsx](../src/pages/__tests__/PortalAtivacao.test.tsx) |
+| `/portal/confirmar-email` | `PortalConfirmarEmail` | **Teste:** [PortalConfirmarEmail.test.tsx](../src/pages/__tests__/PortalConfirmarEmail.test.tsx) |
+| `/portal` | `PortalDashboard` | **Teste:** [PortalDashboard.test.tsx](../src/pages/__tests__/PortalDashboard.test.tsx) |
+| `/portal/billing` | `PortalBilling` | **Teste:** [PortalBilling.test.tsx](../src/pages/__tests__/PortalBilling.test.tsx) |
+| `/portal/operacao` | `PortalOperacao` | **Teste:** [PortalOperacao.test.tsx](../src/pages/__tests__/PortalOperacao.test.tsx) |
+| `/portal/perfil` | `PortalProfile` | **Teste:** [PortalProfile.test.tsx](../src/pages/__tests__/PortalProfile.test.tsx) |
+| `/clientes/portal/inspecao/:customerId/*`, `/clientes/portal/inspecao/:customerId` | `PortalInspection / PortalDashboard` | **Teste:** [PortalInspection.behavior.test.tsx](../src/pages/__tests__/PortalInspection.behavior.test.tsx) |
+| `/clientes/portal/inspecao/:customerId/billing` | `PortalBilling em inspeção` | **Teste:** [PortalBilling.test.tsx](../src/pages/__tests__/PortalBilling.test.tsx) |
+| `/clientes/portal/inspecao/:customerId/operacao` | `PortalOperacao em inspeção` | **Teste:** [PortalOperacao.test.tsx](../src/pages/__tests__/PortalOperacao.test.tsx) |
+| `/clientes/portal/inspecao/:customerId/perfil` | `PortalProfile em inspeção` | **Teste:** [PortalProfile.test.tsx](../src/pages/__tests__/PortalProfile.test.tsx) |
+| `/faturamento` | `LegacyFaturamentoRedirect` | **Teste:** [routeRedirects.test.ts](../src/lib/__tests__/routeRedirects.test.ts) |
+| `/`, `/vazios`, `/demurrage/invoices`, `/demurrage/reconciliacao`, `/carga-solta`, `/carga-solta/:blId`, `/manifestos` | `Navigate / LegacyCargaSoltaRedirect` | — (lacuna de teste de página/redirect) |
+| `*` | `NaoEncontrado (interno) / Navigate (Portal)` | — (lacuna de teste de página/redirect) |

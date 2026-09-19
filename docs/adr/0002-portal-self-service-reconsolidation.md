@@ -1,6 +1,10 @@
 # 0002 — Cliente pode refazer a própria consolidada pelo Portal
 
-Status: aceito — 2026-06-03
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Reconsolidação permanece; sessão é resolvida por Auth e overdue não integra mais o estado da invoice local.
+> Rastreabilidade: [ADR 0055](./0055-taxa-local-sem-vencimento-praticado.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-06-03
 
 ## Contexto
 

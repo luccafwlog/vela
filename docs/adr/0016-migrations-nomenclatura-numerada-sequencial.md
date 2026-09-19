@@ -1,6 +1,10 @@
 # 0016 — Migrations: nomenclatura numerada sequencial única
 
-Status: aceito — 2026-06-24
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** A sequência histórica foi consolidada em 001/002 e preservada em migrations_archive. Novas migrations usam o maior prefixo ativo + 1; não renumerar a lacuna histórica 014.
+> Rastreabilidade: [ADR 0062](./0062-consolidacao-migrations-schema-1-0.md); [migration ativa 001](../../supabase/migrations/001_initial_schema.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-06-24
 
 ## Contexto
 

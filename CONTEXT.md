@@ -4,7 +4,7 @@ Glossário de domínio do Vela. Este arquivo define linguagem de
 negócio; arquitetura e detalhes técnicos pertencem a `docs/ARCHITECTURE.md` e
 aos ADRs.
 
-Verificado em 2026-08-18.
+Revisão documental contra código e migrations em 2026-09-18; divergências explícitas abaixo não equivalem a validação remota.
 
 ## Comunicação orientada ao sistema
 
@@ -91,11 +91,6 @@ A escala omitida permanece visivel na programacao de navios, marcada como
 cliente no Portal (ADR 0052). `OMIT` e distinto de `X`: um diz que a escala nao
 vai acontecer, o outro que a data ainda nao foi informada. O motivo interno da
 omissao nao acompanha essa marca.
-
-Reversão da omissão é uma operação Admin com justificativa: a decisão fica
-marcada como revertida e seus vínculos permanecem para auditoria e histórico
-financeiro. Uma segunda omissão do mesmo POD é rejeitada. A escala omitida é
-projetada como `OMIT` no Portal; a marca é distinta de `X` (data desconhecida).
 
 **Porto de Transbordo**
 Porto onde a carga de uma escala omitida é efetivamente descarregada para seguir
@@ -184,6 +179,13 @@ Sequência de portos de uma viagem. Cada escala registra a chegada ao porto
 berço (ETB/ATB/ETD/ATD). É o dado que o sistema operacional consome — B/Ls e
 demais documentos de carga referenciam esses mesmos portos.
 
+**Frente de Operação**
+Recorte da escala por sentido e modalidade, persistido em
+`voyage_escala_operation_fronts`. A atribuição de terminal liga a carga à
+Atracação correspondente. Frentes distintas podem compartilhar terminal;
+frente sem terminal permanece TBC. Para B/L misto, carga cheia e carga solta
+são frentes distintas do mesmo documento, não dois B/Ls (ADR 0068).
+
 **Atracação**
 Passagem de uma Escala por um terminal, com o ciclo próprio de berço: ETB e ATB
 para a atracação, ETD e ATD para a desatracação. É dona dessas quatro datas e do
@@ -191,7 +193,7 @@ Restow — a Escala é dona apenas de ETA e ATA, a chegada ao porto. Uma Escala 
 uma sequência ordenada de Atracações; o mesmo terminal ocorre uma vez por
 Escala. A ordem é derivada de `COALESCE(ATB, ETB)`, com empate desfeito pelo
 código do terminal: não é campo digitado. Nasce da atribuição de um terminal a
-uma Frente Operacional; sem frente não há Atracação, e uma frente sem terminal
+uma Frente de Operação; sem frente não há Atracação, e uma frente sem terminal
 escolhido é uma Atracação **TBC**.
 _Evitar_: berço, janela, escala no terminal.
 
@@ -207,12 +209,15 @@ desatracação daquele terminal. Marca o início da contagem do Prazo
 de Conclusão do ADR.
 
 **Estado da Escala**
-Estado operacional derivado das datas reais das suas Atracações, não um status
-manual independente. Com alguma Atracação atracada — ATB sem ATD — a escala
-está `Atracada`; quando todas as Atracações têm ATD, passa automaticamente a
-`Concluída`. Entre duas Atracações, o navio está no porto sem berço e a escala
-não tem estado. Vale para qualquer escala, inclusive a que só
-embarca. A conclusão de uma escala não implica, sozinha, a conclusão da Viagem.
+Estado derivado por `deriveEscalaState` (`src/lib/escalaState.ts`): sem
+Atracações, nulo; todas com ATD, `Concluída`; caso contrário, qualquer ATB
+preenchido resulta em `Atracada`; sem esses fatos, nulo. No caminho legado de
+uma única Atracação, ATD precede ATB. Não é um campo manual.
+
+**Divergência conhecida:** entre duas Atracações, uma já com ATD e outra sem
+ATB, o código ainda retorna `Atracada` se a primeira tem ATB. A intenção antiga
+de exibir estado vazio nesse intervalo não está implementada; esta revisão
+documental não modifica o cálculo.
 
 **ETD do POL**
 Data estimada de saída da viagem no porto de carregamento. Permanece como a
@@ -665,6 +670,13 @@ o B/L misto e a soma, sobre o espelho, contava a carga solta duas vezes. Quem
 precisa do peso total usa `blTotalWeightKg`/`blTotalWeightTon` (`src/lib/cargoMode.ts`)
 no TypeScript e a soma das duas colunas no SQL.
 
+**Cubagem do B/L (contêiner x carga solta)**
+Desde a migration `064`, `bls.total_cbm` mede somente carga conteinerizada e
+`bls.bb_cbm` somente carga solta, ambas em m³. A cubagem total é a soma por
+`blTotalCbm` (`src/lib/cargoMode.ts`). Importação e revisão atualizam cada
+componente separadamente, inclusive no B/L misto. Máquinas e cubagem BB também
+contam como sinal de carga solta na derivação de `cargo_mode`.
+
 **Painel Unificado de BLs**
 Superfície canônica em `/bls` que centraliza todos os B/Ls da agência
 independentemente do seu modo de carga (`container`, `carga_solta` ou `misto`),
@@ -925,11 +937,21 @@ aviso, nunca exclusão.
 - **Related:** Item de Taxa, Condição de Cliente, Tarifa de Demurrage
 
 **Herança e Exceção de Terminal por B/L**
-Regra de determinação do terminal portuário para fins de tarifação de Taxas
-Locais. A precedência é rigorosamente hierárquica:
-1. Exceção explícita cadastrada para o B/L em `bl_terminal_exceptions`;
-2. Terminal padrão da atracação/escala na viagem (`voyage_port_calls.terminal_id`);
-3. Nulo / sem terminal específico (aplica regras gerais da tabela tarifária).
+`bls.terminal_id` preenchido é a exceção individual; nulo herda o terminal
+resolvido por `resolve_bl_terminal_id` a partir de `voyage_escala_operation_fronts`.
+A alteração passa por `set_bl_terminal_override`, exige justificativa e registra
+`audit_logs`. `pod_port_id` participa da FK composta com o terminal cadastrado.
+No B/L misto, as frentes de carga cheia e carga solta devem convergir ao mesmo
+terminal, salvo exceção válida. Ausência/conflito gera pendência de revisão.
+Terminal não faz parte da chave de `charge_tables` e não reprecifica Taxas
+Locais (ADR 0068). COD limpa a exceção anterior ao mudar o destino.
+
+**Âncora de Taxa Local**
+O destino final/POD e o escopo comercial determinam as tabelas aplicáveis;
+a data de referência seleciona condições de cliente, não a vigência da tabela.
+B/L misto resolve duas tabelas, container e carga solta, pela função compartilhada
+`resolve_bl_local_charge_table_ids`, com taxa documental apenas do lado container.
+O valor emitido permanece congelado; COD segue os ajustes da ADR 0051.
 
 **Fatura Adaptativa Modular**
 Modelo de fatura que organiza seus itens visual e documentalmente em blocos

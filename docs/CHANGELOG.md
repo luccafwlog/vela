@@ -3,6 +3,14 @@
 > Histórico curado de entregas relevantes. Sintetizado dos planos de execução (arquivados em [archive/](archive/README.md)) e do histórico git. Não substitui o `git log`.
 
 ## 2026-09
+
+- **Revisão documental (2026-09-19):** diretrizes unificadas em `AGENTS.md`,
+  arquivo legado removido; glossário, arquitetura, módulos e rastreabilidade
+  reconciliados com carga mista, terminais e cubagem da migration 064.
+  69 ADRs revisadas, com 33 supersessões parciais explicitadas. Notas antigas
+  dos índices preservadas em relatórios históricos; os dois planos pendentes
+  permanecem vivos. O gate valida rotas por AST e estrutura dos módulos.
+  [Inventário e evidências](archive/audits/2026-09-19-overhaul-documental.md).
 - **QA adversarial — correções pós-caos:** o primeiro e-mail da importação de
   clientes passa a ser principal (com reparo determinístico dos clientes
   legados sem principal), o resumo da ficha não promove contatos adicionais,

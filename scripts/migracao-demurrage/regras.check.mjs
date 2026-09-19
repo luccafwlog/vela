@@ -1,4 +1,4 @@
-// Verificação executável das regras da migração (CLAUDE.md: "uma checagem
+// Verificação executável das regras da migração (AGENTS.md: "uma checagem
 // runnable"). Sem framework, sem fixture — `node` e `assert`.
 //
 //   node scripts/migracao-demurrage/regras.check.mjs

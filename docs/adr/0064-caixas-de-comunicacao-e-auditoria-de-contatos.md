@@ -1,5 +1,7 @@
 # ADR 0064 — Caixas de comunicação, salvamento atômico e auditoria de contatos
 
+> **Implementação conferida em 2026-09-18 (Código):** 008/010 implementam caixas e roteamento; 032/038/039 refinam estados de entrega, 045/062 a produção automática.
+
 Status: aceito — 2026-09-03
 
 ## Contexto

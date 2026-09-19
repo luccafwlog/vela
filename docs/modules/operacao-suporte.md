@@ -129,7 +129,7 @@ As queries são `['report-operational', filters]`, `['report-financial', filters
 
 `src/services/reports.ts` define `REPORT_ROW_LIMIT = 2000` para as listas operacional e financeira em tela. As variantes de exportação operacional/financeira removem o limite e carregam o XLSX sob demanda. O relatório por cliente consulta até 4.000 B/Ls e 4.000 invoices (`REPORT_ROW_LIMIT * 2`) antes do agrupamento; portanto, a mensagem geral de “2.000 linhas por consulta” não descreve uniformemente todas as abas. Demurrage usa `listDemurrageInvoices` sem limite explícito no service.
 
-Há exportação XLSX para operacional, financeiro e clientes. A aba demurrage atual não expõe botão de exportação.
+Há exportação XLSX nas quatro abas: operacional, financeiro, clientes e demurrage. Cada export respeita o conjunto obtido por sua consulta.
 
 ### `/line-up-tv` e `/line-up-tv/display`
 
@@ -153,7 +153,7 @@ O display compartilha `fetchLineUpSnapshot` com o Painel, mas não compartilha a
 
 ### `/admin`
 
-`src/pages/AdminUsuarios.tsx` contém abas:
+`src/pages/Admin.tsx` contém abas:
 
 - **Usuários**: nome, papel, ativo/inativo, criação e ações;
 - **Log de Ações**: filtros por módulo (`entity_type`), autor (`changedBy`, disponível no estado/query), período e paginação de 50;
@@ -220,10 +220,10 @@ Não há lock otimista nessa atualização. A proteção efetiva para `role` e `
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| Listar usuários | `ProtectedRoute adminOnly` e RLS admin | Aba Usuários | `listAllUserProfiles` | Leitura de `user_profiles` | Cache `['admin-users']` | Erro exibe `InlineError` | **Código:** `src/pages/AdminUsuarios.tsx`, `src/services/adminUsers.ts`, `src/components/layout/ProtectedRoute.tsx` |
+| Listar usuários | `ProtectedRoute adminOnly` e RLS admin | Aba Usuários | `listAllUserProfiles` | Leitura de `user_profiles` | Cache `['admin-users']` | Erro exibe `InlineError` | **Código:** `src/pages/Admin.tsx`, `src/services/adminUsers.ts`, `src/components/layout/ProtectedRoute.tsx` |
 | Alterar role/ativo | Admin; perfil alvo | Select ou Ativar/Desativar | `updateUserProfile(id, updates)` | Update direto em `user_profiles`; trigger impede alteração sensível por não admin | Invalida `['admin-users']` | Não há optimistic lock; concorrência usa last write wins; `42501` bloqueia autor indevido | **Código:** `src/services/adminUsers.ts`, `supabase/migrations_archive/077_fix_user_profile_privilege_escalation.sql` |
-| Filtrar/paginar audit log | Admin na rota; aba Logs | Filtros de módulo, autor/período e paginação | Query direta com count e lookup dos autores | Leitura de `audit_logs` e `user_profiles` | Cache `['admin-audit-logs', logFilters]`; páginas de 50 | Falha da query lança; UI não renderiza `InlineError` específico para logs | **Código:** `src/pages/AdminUsuarios.tsx`, `supabase/migrations_archive/014_lock_down_financial_reads_and_audit_writes.sql` |
-| Carregar métricas | Aba Métricas | Troca de aba | Três leituras paralelas | `voyages`, `audit_logs` de `pix_reconciliation`, `invoices` | Cache `['admin-metrics']`, stale 60 s | Função não verifica erros individuais; ausência/falha pode aparecer como `-` | **Código:** `src/pages/AdminUsuarios.tsx` |
+| Filtrar/paginar audit log | Admin na rota; aba Logs | Filtros de módulo, autor/período e paginação | Query direta com count e lookup dos autores | Leitura de `audit_logs` e `user_profiles` | Cache `['admin-audit-logs', logFilters]`; páginas de 50 | Falha da query lança; UI não renderiza `InlineError` específico para logs | **Código:** `src/pages/Admin.tsx`, `supabase/migrations_archive/014_lock_down_financial_reads_and_audit_writes.sql` |
+| Carregar métricas | Aba Métricas | Troca de aba | Três leituras paralelas | `voyages`, `audit_logs` de `pix_reconciliation`, `invoices` | Cache `['admin-metrics']`, stale 60 s | Função não verifica erros individuais; ausência/falha pode aparecer como `-` | **Código:** `src/pages/Admin.tsx` |
 | Navegar e sair | Sessão interna ativa | Menus, marca, Header e botão Sair | `AppLayout`/`HeaderInfoBar`; `signOut` → `/login` | Supabase Auth/storage de sessão | Limpa sessão conforme `useAuth`; badges vêm de `['op-count', ...]` | Falha de autorização real deve ser resolvida por RLS/RPC, não pelo menu | **Código:** `src/components/layout/AppLayout.tsx`, `src/components/layout/HeaderInfoBar.tsx`, `src/components/layout/appLayoutNav.ts`, `src/hooks/useOperationalCounts.ts`; **Teste:** `src/components/layout/__tests__/AppLayout.test.ts` |
 
 ## Estado e dados
@@ -233,26 +233,26 @@ Não há lock otimista nessa atualização. A proteção efetiva para `role` e `
 | Superfície | Query keys principais | Dono | Política observável |
 |---|---|---|---|
 | Painel | `['dashboard']`, `['lineup-tv-v3']` | `src/pages/Painel.tsx` | Dashboard sob demanda; Line-Up stale 60 s/refetch 90 s |
-| Badges do shell | `['op-count', 'pending-review' | 'charge-review-required' | 'ready-for-billing' | 'open-alerts' | 'bls-without-customer']` | `src/hooks/useOperationalCounts.ts` | stale 60 s; realtime apenas para alertas abertos |
-| Header | `['header-alert', 'demurrage-overdue' | 'granite-pending']` | `src/hooks/useOperationalAlerts.ts` | stale 5 min |
+| Badges do shell | `['op-count', 'pending-review' \| 'charge-review-required' \| 'ready-for-billing' \| 'open-alerts' \| 'bls-without-customer']` | `src/hooks/useOperationalCounts.ts` | stale 60 s; realtime apenas para alertas abertos |
+| Header | `['header-alert', 'demurrage-overdue' \| 'granite-pending']` | `src/hooks/useOperationalAlerts.ts` | stale 5 min |
 | Revisão | `['review-queue']`, além de `['bls']`, `['granite-bls']`, `['bl-detail', id]`, `['customers']`, `['op-count']` | `src/hooks/useReview.ts`, `src/pages/Revisao.tsx` | Invalidação explícita após mutations |
 | Alertas | `['alerts', statusFilter]` | `src/pages/Alertas.tsx` | Lista por filtro; mutations invalidam prefixo |
 | Relatórios | famílias `report-*` e `demurrage-report` | `src/pages/Relatorios.tsx` | stale 30 s operacional/financeiro/clientes; 60 s demurrage |
 | Display TV | `['lineup-tv-display-v2']` | `src/pages/LineUpTVDisplay.tsx` | stale/refetch 30 s |
-| Admin | `['admin-users']`, `['admin-audit-logs', logFilters]`, `['admin-metrics']` | `src/pages/AdminUsuarios.tsx` | logs 30 s; métricas 60 s |
+| Admin | `['admin-users']`, `['admin-audit-logs', logFilters]`, `['admin-metrics']` | `src/pages/Admin.tsx` | logs 30 s; métricas 60 s |
 
 ### Gate canônico de revisão
 
-`supabase/migrations_archive/129_review_gate_hardening.sql` é a definição posterior do contrato:
+O contrato vigente combina `compute_bl_review_pendencies` (`051`), seu
+núcleo `_compute_bl_review_pendencies` (`059`) e os gates de prontidão/emissão
+(`047`/`056`). Cliente ausente bloqueia; no caminho normal, contato ativo com
+email e prontidão do Portal são exigidos. Peso BB é validado para carga solta
+e misto. A exceção interna controlada da automação CE dispensa contato/Portal
+nesse contexto, sem liberar os caminhos manuais.
 
-1. `customer_id` precisa existir;
-2. qualquer contato do cliente precisa ter e-mail não vazio;
-3. precisa existir conta de Portal `active = true` com `auth_user_id IS NOT NULL`;
-4. B/L de `cargo_mode = 'carga_solta'` precisa de `bb_weight_ton > 0`.
-
-CE Mercante não integra esse conjunto. Pode continuar editável e relevante para outras superfícies, mas não decide `review_status` nem autoriza faturamento.
-
-O helper `compute_bl_review_pendencies` é `SECURITY DEFINER` e teve execução revogada de `PUBLIC`, `anon` e `authenticated`; ele é consumido dentro das funções controladas. `save_bl_review` permanece executável por `authenticated`, mas valida `is_active_user()` e exige que `p_changed_by = auth.uid()`.
+CE Mercante tem guarda documental própria antes de promover/emitir, mesmo
+quando não aparece no array de pendências de revisão. `save_bl_review` calcula
+o status no servidor e protege identidade do ator e concorrência.
 
 ### Persistência relevante
 
@@ -306,8 +306,8 @@ Invariantes:
 - `save_bl_review` é o autor de `review_status` para o save manual: o status não é aceito do payload;
 - `expected_updated_at` protege contra sobrescrita concorrente; conflito é `PT409`;
 - faturamento automático só é tentado quando `pendencias` está vazio;
-- CE Mercante não é condição do gate canônico;
-- Portal só satisfaz o gate com conta ativa e usuário Auth vinculado;
+- CE Mercante é guarda documental de emissão, distinta do array de revisão;
+- Portal usa `customer_portal_access_ready`; automação CE possui exceção interna controlada;
 - nenhuma migration atual faz backfill top-level dos B/Ls históricos já faturados;
 - importação aplica o gate antes de `run_billing_for_import_batch`;
 - Granite compartilha a superfície de revisão, mas não a mesma RPC/status canônico de B/L comum.
@@ -346,7 +346,7 @@ Testes existentes relevantes, não executados nesta cartografia por restrição 
 
 Lacunas observadas:
 
-- não há teste focado de `Painel`, `fetchLineUpSnapshot`, `Alertas`, `LineUpTVDisplay` ou `AdminUsuarios`;
+- há cobertura local em `Painel.behavior.test.tsx`, `lineupSnapshot.test.ts`, `Alertas.behavior.test.tsx`, `LineUpTVDisplay.behavior.test.tsx` e `Admin.behavior.test.tsx`; esses testes não substituem runtime autenticado;
 - os testes de contrato SQL provam texto esperado na migration, não schema aplicado, grants efetivos nem execução transacional;
 - faltam cenários de integração para conflito real `PT409`, provisionamento Auth, RLS por papel, emissão completa de invoice e invalidation/realtime.
 
@@ -357,7 +357,7 @@ Validação runtime futura deve usar ambiente controlado e registrar: papel, B/L
 - **Admin sem lock otimista — Código.** A documentação anterior atribuía lock por `updated_at` à edição de usuários, mas `src/services/adminUsers.ts` faz update por `id` sem versão. Segurança de papel/ativo existe no banco; concorrência continua last-write-wins.
 - **Display não é público — Código.** `/line-up-tv/display` está fora do `AppLayout`, porém dentro de `ProtectedRoute` em `src/AppInterno.tsx`.
 - **Relatórios e limite — Código.** A UI anuncia limite geral de 2.000; operacional/financeiro em tela usam 2.000, clientes usa até 4.000 por fonte, exportações operacional/financeira não aplicam limite e demurrage não define limite explícito.
-- **Demurrage sem export na aba — Código.** A rota tem quatro abas, mas somente operacional, financeiro e clientes expõem exportação XLSX.
+- **Exportações — Código.** As quatro abas expõem XLSX; Demurrage usa `exportDemurrageReportWorkbook`. O export respeita os dados carregados e seus limites; não equivale a consulta ilimitada.
 - **Filtro `changedBy` de auditoria — Código.** O estado e a query suportam autor, mas a UI atual não renderiza um controle para preenchê-lo; módulo e período estão visíveis.
 - **CE Mercante — Código + Teste de contrato SQL.** O bloqueio de CE Mercante permanece na validação do faturamento; o predicado morto `needsCeMercante` foi removido da fila de revisão manual, que não trata esse motivo como pendência própria.
 - **Auditoria Granite não atômica — Código.** O update de `granite_bls` e o insert em `audit_logs` são chamadas separadas; o erro do insert não é verificado.

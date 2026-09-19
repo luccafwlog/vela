@@ -1,6 +1,10 @@
 # ADR 0011 — Revogação total de `anon` em funções SECURITY DEFINER (default-deny)
 
-**Data:** 2026-06-09 · **Status:** aceito
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** A exceção intermediária portal_resolve_login foi encerrada. A exceção pública vigente é portal_ship_schedule; defaults de função estão fechados.
+> Rastreabilidade: [ADR 0013](./0013-portal-auth-identificador-resolvido-e-excecao-anon.md), [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md); [migration ativa 003](../../supabase/migrations/003_pos_squash_objetos_fora_do_dump.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+**Data:** 2026-06-09 · **Status:** supersedida parcialmente
 
 Supersedida parcialmente pela ADR 0013: `portal_resolve_login(text)` é a exceção
 pré-autenticação explícita e limitada para `anon`.

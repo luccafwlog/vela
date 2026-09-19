@@ -1,5 +1,5 @@
 // Toda migration que reescreve ou apaga linhas existentes depende da afirmação
-// "Data status" do CLAUDE.md (o banco de produção não tem dados de negócio).
+// "Data status" do AGENTS.md (o banco de produção não tem dados de negócio).
 // A regra exige que o arquivo declare essa dependência no próprio cabeçalho.
 // Este script transforma a regra em porta de CI: sem a declaração, o gate falha.
 //
@@ -25,7 +25,7 @@ const DESTRUCTIVE = [
 
 // O cabeçalho precisa nomear a afirmação e o arquivo onde ela vive, para que o
 // leitor consiga verificar se ainda está vigente.
-const DECLARATION = [/data\s+status/i, /CLAUDE\.md/]
+const DECLARATION = [/data\s+status/i, /(?:AGENTS|CLAUDE)\.md/]
 
 // A regra nasceu com a migration 061. As anteriores ja foram aplicadas e sao
 // historico: reescrever o cabecalho delas nao muda nada no banco e apagaria o
@@ -109,8 +109,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     }
     console.error(`
 Toda migration que reescreve ou apaga linhas existentes depende da afirmação
-"Data status" do CLAUDE.md (seção Gotchas) e precisa dizer isso no cabeçalho,
-citando o nome da afirmação e o CLAUDE.md. Exemplo em
+"Data status" do AGENTS.md (seção Gotchas) e precisa dizer isso no cabeçalho,
+citando o nome da afirmação e o AGENTS.md. Exemplo em
 supabase/migrations/061_bl_weight_semantics_and_triggers.sql.
 
 Se a afirmação já tiver sido revogada, a migration não é aceitável como está:

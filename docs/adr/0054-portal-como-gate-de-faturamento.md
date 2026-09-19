@@ -1,6 +1,10 @@
 # ADR 0054 — Portal ativo e acesso do cliente como gate de faturamento
 
-Status: aceito — 2026-08-17
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** A 047 mantém a prontidão do Portal na emissão manual; a 051 introduz contexto interno controlado que emite pela transição CE sem provisionamento. Não é dispensa pública do gate.
+> Rastreabilidade: [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 051](../../supabase/migrations/051_ce_mercante_auto_billing.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-08-17
 
 ## Contexto
 

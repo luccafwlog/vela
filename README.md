@@ -29,11 +29,11 @@ O ADR, por exemplo, é uma visão consolidada da escala, não um cadastro parale
 ## Capacidades atuais
 
 - **Viagens e escalas:** cadastro e acompanhamento de rotas, previsões e datas reais, publicação de programação no Portal e Line Up TV.
-- **Manifestos e documentos:** importação e tratamento de B/Ls CNTR, carga solta, veículos, CE Mercante e Baplie EDI.
+- **Manifestos e documentos:** importação e tratamento de B/Ls CNTR, carga solta e mistos, veículos, CE Mercante e Baplie EDI.
 - **Operação de carga:** containers, vazios de importação, embarque de vazios, depots e Granito.
 - **Exceções operacionais:** omissão de escala, transbordo global da viagem e decisão individual de COD por B/L.
 - **Revisão e rastreabilidade:** cockpit operacional do B/L, reconciliação de cliente, histórico, pendências e gates antes do faturamento.
-- **Agency Departure Report:** um relatório por escala brasileira, com dados consolidados, resolução por seção, sign-off por departamento e prazo de conclusão.
+- **Agency Departure Report:** um relatório por terminal da escala brasileira, com dados consolidados, resolução por seção, sign-off por departamento e prazo de conclusão.
 - **Comercial e financeiro:** clientes, tabelas e overrides de taxas locais, invoices, demurrage, Conciliação PIX e relatórios.
 - **Portal do Cliente:** visão geral, B/Ls, containers, faturas, demurrage, notificações, disputas, perfil e recuperação de senha.
 - **Administração e suporte:** usuários internos, alertas, relatórios, programação de chegadas e saídas e display do Line Up.
@@ -47,14 +47,15 @@ O frontend é composto por duas SPAs React/TypeScript carregadas sob demanda a p
 - **Frontend:** React 19, TypeScript, Vite, React Router, TanStack Query, Tailwind CSS e Zod.
 - **Dados e segurança:** PostgreSQL no Supabase, RLS, grants e RPCs auditadas. A autorização real está no banco; proteção de rota e visibilidade de controles são apenas UX.
 - **Sessões:** aplicação interna e Portal usam clientes Supabase separados, podendo coexistir no mesmo navegador.
-- **Integrações:** Resend para fluxos de email do Portal, Banco Central para PTAX e Sentry para observabilidade.
+- **Integrações:** Resend para email transacional do Portal e Comunicados ao Cliente, Banco Central para PTAX e Sentry para observabilidade.
+- **PIX:** BR Code estático e conciliação por extrato; integração direta com a API Itaú continua como spec futura em `docs/spec/2026-08-25-integracao-itau-pix.md`.
 - **Entrega:** GitHub Actions valida pull requests e pushes em `main`; a integração GitHub/Vercel cria Preview Deployments para PRs e Production Deployments a partir de `main`. Migrations e Edge Functions têm ciclo de deploy próprio no Supabase.
 
 O mapa técnico completo, as fronteiras de autenticação e as fontes de dados por módulo estão em [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Rodar localmente
 
-Pré-requisitos: Node.js 20+ e um projeto Supabase compatível com as migrations do repositório.
+Pré-requisitos: Node.js 24.x e um projeto Supabase compatível com as migrations do repositório.
 
 ```bash
 npm ci --legacy-peer-deps
@@ -83,7 +84,7 @@ Testes de integração não devem apontar para produção. Os critérios e o esc
 - RLS e RPCs definem o escopo de dados e as permissões de cada perfil.
 - Migrations devem ser aplicadas de forma controlada no Supabase e não são executadas pelo deploy da SPA.
 - O reset operacional amplo está suspenso; quando necessário, siga [`docs/operations/reset-ambiente.md`](docs/operations/reset-ambiente.md).
-- Antes de alterar schema, autenticação, rotas, integrações ou regras de negócio, consulte [`CLAUDE.md`](CLAUDE.md) e as fontes de verdade listadas nele.
+- Antes de alterar schema, autenticação, rotas, integrações ou regras de negócio, consulte [`AGENTS.md`](AGENTS.md) e as fontes de verdade listadas nele.
 
 ## Onde encontrar cada coisa
 
@@ -111,4 +112,4 @@ Testes de integração não devem apontar para produção. Os critérios e o esc
 | [`.github/`](.github/) | Workflows de CI/CD |
 | [`test-fixtures/`](test-fixtures/) | Fixtures técnicas para testes de importação |
 
-As diretrizes para desenvolvimento assistido por IA estão em [`CLAUDE.md`](CLAUDE.md); [`AGENTS.md`](AGENTS.md) é um ponteiro para esse arquivo.
+As diretrizes para desenvolvimento assistido por IA estão em [`AGENTS.md`](AGENTS.md), fonte canônica de regras, salvaguardas e gates.

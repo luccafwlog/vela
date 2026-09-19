@@ -1,6 +1,10 @@
 # 0067 — NOB automático, ancorado na Frente de Operação do B/L
 
-Status: aceito — 2026-09-14
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** NOB usa terminal resolvido do B/L, incluindo exceção, não apenas modalidade da frente. A produtora vigente foi redefinida em 062; a variante _045 ficou inerte.
+> Rastreabilidade: [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md); [migration ativa 062](../../supabase/migrations/062_pr698_audit_remediations.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-09-14
 
 ## Contexto
 

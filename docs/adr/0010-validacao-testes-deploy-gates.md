@@ -1,6 +1,10 @@
 # 0010 — Validação, testes e gates de deploy
 
-Status: aceito — 2026-06-09
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** A entrega tem duas SPAs. O CI valida/reproduz migrations em banco descartável; a aplicação remota é da integração de branching Supabase, conforme WORKFLOW.
+> Rastreabilidade: [ADR 0056](./0056-branching-automatico-supabase-vercel.md), [ADR 0066](./0066-transicao-marca-vela.md); [migration ativa 003](../../supabase/migrations/003_pos_squash_objetos_fora_do_dump.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-06-09
 
 ## Contexto
 

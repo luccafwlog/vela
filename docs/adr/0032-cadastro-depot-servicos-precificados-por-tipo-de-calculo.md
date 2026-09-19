@@ -1,6 +1,10 @@
 # 0032 — Cadastro de Depot: serviços precificados por tipo de cálculo substituem tarifas estruturadas
 
-Status: aceito — 2026-07-23
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Serviços manuais e valores sugeridos substituem tipos de cálculo e quantidades automáticas; cadastro de terminais permanece.
+> Rastreabilidade: [ADR 0033](./0033-embarque-vazios-unidades-importadas-servicos-lancados.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-07-23
 
 ## Contexto
 

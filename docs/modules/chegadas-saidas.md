@@ -67,14 +67,24 @@ lanes e ordena pela menor ETA de POD.
 
 ## Catálogo de ações
 
-| Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Evidência |
-|---|---|---|---|---|---|---|
-| Carregar publicados | Sessão interna | Montagem de `/chegadas-saidas` | `useQuery(['portal-schedule-voyages'])` | RPC `portal_ship_schedule` projetada em linhas | Preenche tabela por ETA | **Código**, **Teste** |
-| Adicionar/anexar viagem | Papel diferente de Equipamentos; navio, VOY e ao menos um POD com data | Modal | `buildScheduleLanes` + `createOrAttachVoyageFromSchedule` | `voyages.show_on_portal`, `audit_logs` POL/POD | Invalida `['portal-schedule-voyages']` e `['voyages']` | **Código**, **Teste** |
-| Editar publicação | Papel diferente de Equipamentos; viagem já visível | Botão Editar/modal | Pré-preenche datas projetadas e salva pelo mesmo serviço | Atualiza somente ETD/ETA informados | Last write wins em ETD/ETA digitados | **Código**, **Teste** |
-| Remover do Portal | Papel diferente de Equipamentos; confirmação | Botão Remover do Portal | `setVoyageShowOnPortal(id, false)` | Atualiza `voyages.show_on_portal` | Remove do quadro sem excluir viagem | **Código**, **Teste** |
-| Importar planilha | Papel diferente de Equipamentos; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload` | `parseScheduleRows` + `createOrAttachVoyageFromSchedule` por linha | Mesma persistência do modal | Resumo de sucesso/erro por linha; invalida caches | **Código**, **Teste** |
-| Consultar no Portal | Sessão do Portal | `ShipScheduleWidget` | `usePortalScheduleVoyages` | RPC `portal_ship_schedule` | Cache `['portal-schedule-voyages']` | **Código**, **Teste**, **Teste de contrato SQL** |
+| Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
+|---|---|---|---|---|---|---|---|
+| Carregar publicados | Sessão interna | Montagem de `/chegadas-saidas` | `useQuery(['portal-schedule-voyages'])` | RPC `portal_ship_schedule` projetada em linhas | Preenche tabela por ETA | Erro de leitura da RPC exibido na página | **Código**, **Teste** |
+| Adicionar/anexar viagem | Papel diferente de Equipamentos; navio, VOY e ao menos um POD com data | Modal | `buildScheduleLanes` + `createOrAttachVoyageFromSchedule` | `voyages.show_on_portal`, `audit_logs` POL/POD | Invalida `['portal-schedule-voyages']` e `['voyages']` | Campos obrigatórios, identidade divergente ou falha ao persistir | **Código**, **Teste** |
+| Editar publicação | Papel diferente de Equipamentos; viagem já visível | Botão Editar/modal | Pré-preenche datas projetadas e salva pelo mesmo serviço | Atualiza somente ETD/ETA informados | Last write wins em ETD/ETA digitados | Conflitos de identidade e erro do serviço | **Código**, **Teste** |
+| Remover do Portal | Papel diferente de Equipamentos; confirmação | Botão Remover do Portal | `setVoyageShowOnPortal(id, false)` | Atualiza `voyages.show_on_portal` | Remove do quadro sem excluir viagem | Erro no update mantém a viagem publicada | **Código**, **Teste** |
+| Importar planilha | Papel diferente de Equipamentos; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload` | `parseScheduleRows` + `createOrAttachVoyageFromSchedule` por linha | Mesma persistência do modal | Resumo de sucesso/erro por linha; invalida caches | Erro de parse/linha exibido no resumo; pode haver sucesso parcial | **Código**, **Teste** |
+| Consultar no Portal | Sessão do Portal | `ShipScheduleWidget` | `usePortalScheduleVoyages` | RPC `portal_ship_schedule` | Cache `['portal-schedule-voyages']` | Erro de RPC e estados vazio/loading no widget | **Código**, **Teste**, **Teste de contrato SQL** |
+
+## Estado e dados
+
+| Dado | Fonte atual |
+|---|---|
+| Visibilidade no Portal | `voyages.show_on_portal` |
+| POL/ETD | `audit_logs` com `entity_type='voyage_pol_schedule'` |
+| POD/ETA | `audit_logs` com `entity_type='voyage_pod_schedule'` |
+| Portos-vitrine | `PORTAL_SCHEDULE_LANES` |
+| Leitura do Portal | RPC `portal_ship_schedule` |
 
 ## Fluxos e invariantes
 
@@ -87,16 +97,6 @@ lanes e ordena pela menor ETA de POD.
 - Chegadas e Saídas nunca grava ATA/ATD/RTW/CE/linked.
 - A ordenação do quadro é automática pela menor ETA; não há setas manuais nem
   arquivamento em `ended_vessels` no fluxo atual.
-
-## Estado e dados
-
-| Dado | Fonte atual |
-|---|---|
-| Visibilidade no Portal | `voyages.show_on_portal` |
-| POL/ETD | `audit_logs` com `entity_type='voyage_pol_schedule'` |
-| POD/ETA | `audit_logs` com `entity_type='voyage_pod_schedule'` |
-| Portos-vitrine | `PORTAL_SCHEDULE_LANES` |
-| Leitura do Portal | RPC `portal_ship_schedule` |
 
 ## Testes e validação
 

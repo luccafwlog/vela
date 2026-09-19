@@ -1,6 +1,10 @@
 # ADR 0022: Omissao de Escala, Transbordo e COD como Registro Operacional
 
-Status: aceito
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** COD reprecifica Taxa Local; escala omitida continua visível como OMIT. COD também limpa manifesto_mercante_id e exceção de terminal, preservando ce_mercante.
+> Rastreabilidade: [ADR 0051](./0051-cod-reprecifica-no-destino-final.md), [ADR 0052](./0052-escala-omitida-visivel-na-programacao.md); [migration ativa 060](../../supabase/migrations/060_pr698_claude_review_followup.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente
 
 Data: 2026-07-09
 

@@ -63,4 +63,7 @@ const real = auditMigration(
 assert.equal(real.destructive, true, 'a 061 faz um backfill; deveria ser detectada como destrutiva')
 assert.equal(real.declared, true, 'a 061 declara a dependencia no cabecalho')
 
-console.log('check-destructive-migrations: 8 asserções passaram.')
+// Canonical declaration and historic compatibility both remain accepted.
+assert.equal(auditMigration(`${DECLARACAO.replace('CLAUDE.md', 'AGENTS.md')}DELETE FROM public.bls;`).declared, true)
+assert.equal(auditMigration('-- Data status do README.md\nDELETE FROM public.bls;').declared, false)
+console.log('check-destructive-migrations: 10 cenários passaram (AGENTS.md e compatibilidade histórica).')

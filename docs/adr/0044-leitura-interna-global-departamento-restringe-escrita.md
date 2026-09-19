@@ -1,5 +1,9 @@
 # 0044 — Leitura interna é global; departamento restringe escrita
 
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Leitura global permanece; a restrição geral de escrita por departamento foi substituída por escrita interna com rastro e exceções explícitas.
+> Rastreabilidade: [ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
 Status: substituída pela ADR 0046 — 2026-08-13
 
 ## Contexto

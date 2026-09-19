@@ -1,6 +1,10 @@
 # 0030 — Observações por seção substituem Ocorrências; reabertura não reseta seções/assinaturas
 
-Status: aceito — 2026-07-22
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Observação continua por seção; edição/exibição é sob demanda. Reabrir não apaga assinaturas alheias.
+> Rastreabilidade: [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-07-22
 
 > **Nota editorial — 2026-08-04.** A
 > [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md)

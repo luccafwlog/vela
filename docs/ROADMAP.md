@@ -1,19 +1,19 @@
 # Roadmap do Vela e do Portal Fwlog
 
-Baseline revisado contra o repositório em 2026-08-26.
+Baseline documental revisado em 2026-09-18. A presença no código não comprova rollout remoto.
 
 Este documento separa capacidades entregues, evolução confirmada, backlog e
 riscos ativos. Planos datados registram o caminho de uma mudança, mas não
 substituem este baseline.
 
-## Em produção
+## Implementado no repositório
 
 ### Operação
 
 - viagens em layout master-detail, com deep link por viagem;
-- planejamento POL/POD, escalas do Mercante, CE Master e linha do tempo;
+- planejamento de Escalas/Atracações, Manifestos Mercante por rota e linha do tempo;
 - importação e reconciliação de Baplie EDI;
-- B/Ls de container e manifestos breakbulk;
+- B/Ls unificados de container, carga solta e mistos;
 - containers, veículos RoRo e CE Mercante;
 - Vazios de Importação por Baplie ou planilha;
 - bookings de Vazios de Exportação;
@@ -93,7 +93,7 @@ substituem este baseline.
 - adicionar autenticação mais forte ao Portal quando houver requisito de
   negócio e suporte operacional;
 - substituir o reset suspenso por ferramenta validada, idempotente e segura;
-- automatizar previews ou staging antes do deploy live;
+- validar readiness dos Previews automáticos já configurados e os runners ainda dependentes de ativação;
 - avaliar realtime para eventos operacionais prioritários;
 - revisar políticas e índices orientado por queries reais, não por contagem
   genérica de advisors.

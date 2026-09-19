@@ -8,7 +8,7 @@ O módulo mantém o cadastro mestre de clientes, seus contatos, o vínculo com B
 
 `clientes.md` é dono do ciclo cadastral e do adaptador interno de provisionamento. Autenticação, sessão e autosserviço externos pertencem a [Portal do Cliente](portal-cliente.md); reconciliação manual e gate de faturamento pertencem a [Operação e suporte](operacao-suporte.md).
 
-## Reconciliação de cliente em B/L e Granito
+### Reconciliação de cliente em B/L e Granito
 
 O CNPJ exato, normalizado para 14 caracteres alfanuméricos canônicos, pode preencher automaticamente o
 cliente. Match por nome nunca preenche `customer_id` ou `client_id`: fica em
@@ -238,7 +238,7 @@ Os testes históricos abaixo foram inspecionados na cartografia; os contratos do
 
 **Runtime não executado.** Validação futura precisa registrar ambiente e dados controlados para: criar cliente e contatos; importar XLSX/CSV com duplicatas, erros e B/L retroativo; editar mestre e conferir `audit_logs`; provisionar/criar/resetar/desativar usuário Auth real; tentar ativação sem `auth_user_id`; excluir lote misto e conferir bloqueios, RLS, cascatas/SET NULL e auditoria.
 
-## Provisionamento do Portal
+### Provisionamento do Portal
 
 O cabeçalho desta página é o ponto de entrada para `/clientes/portal`, com badge de Clientes aguardando análise. A ficha mantém resumo, botão “Gerenciar Portal” e deep link por ID; contatos continuam candidatos e não sincronizam o Email de Recuperação.
 

@@ -10,7 +10,7 @@ Executá-lo pode falhar por FKs ou produzir um ambiente parcialmente limpo.
 ## Status dos dados
 
 Este documento foi escrito quando se supunha haver dado a preservar. Desde
-2026-09-18 o `CLAUDE.md`, na seção Gotchas, afirma o contrário: o projeto de
+2026-09-18 o `AGENTS.md`, na seção Gotchas, afirma o contrário: o projeto de
 produção **não tem dados de negócio** — toda linha é fixture e pode ser
 descartada. Quem lê este arquivo deve conferir aquela afirmação antes de
 tratar qualquer limpeza como arriscada.
@@ -26,7 +26,7 @@ parcialmente limpo. A suspensão é técnica, não uma medida de proteção de d
 - Identifique os dados pelo prefixo e pela viagem de QA.
 - Registre os IDs criados durante a validação.
 - Remova-os pelos fluxos do produto ou por SQL revisado para aquela fixture.
-- Limpeza ampla em produção depende da afirmação "Data status" do `CLAUDE.md`
+- Limpeza ampla em produção depende da afirmação "Data status" do `AGENTS.md`
   estar vigente; se ela tiver sido revogada, trate produção como intocável.
 
 ## Consultas de diagnóstico

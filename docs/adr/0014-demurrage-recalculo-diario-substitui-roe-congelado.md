@@ -1,6 +1,10 @@
 # 0014 — Demurrage: recálculo diário substitui ROE congelado na emissão
 
-Status: aceito — 2026-06-24
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Princípio de câmbio permanece; cálculo autoritativo e snapshots são server-side. A existência da Edge Function não prova ativação remota do job PTAX.
+> Rastreabilidade: [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 028](../../supabase/migrations/028_demurrage_roe_integrity.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-06-24
 
 ## Contexto
 
