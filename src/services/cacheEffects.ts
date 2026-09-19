@@ -56,6 +56,11 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, opt
     ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
     ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
     ['baplie-reconciliation', vId], ['baplie-staging', vId],
+    // P0-4: Importar B/L, CE Mercante e Manifesto BB alimentam as seções
+    // "Carga descarregada" e "Veículos" do ADR (agencyDepartureReport.ts),
+    // mas nenhuma dessas invalidava a família 'agency-report' — a aba
+    // continuava mostrando "nada operado" depois de um import concluído.
+    ['agency-report'],
     ['voyage-pol-schedules'], ['voyage-escala-schedules'], voyageTimelineKey(options.voyageId), ...LINEUP_KEYS,
   ])
 }

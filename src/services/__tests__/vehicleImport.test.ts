@@ -529,3 +529,85 @@ describe('vehicleImport', () => {
     expect(result.errors[0]?.message).toContain('Mais de um container desta BL')
   })
 })
+
+describe('vehicleImport — P1-9: validação de chassi e teto de absurdo', () => {
+  it('recusa chassi mais curto que os 17 caracteres do VIN (ISO 3779)', async () => {
+    const buffer = jsonToBuffer([
+      {
+        CHASSI: 'CURTO123',
+        MARCA: 'BYD',
+        MODELO: 'DOLPHIN',
+        PESO: '1650',
+        CUBAGEM: '12',
+        CONTAINER: 'CAXU1234567',
+        TIPO_CONTAINER: '40FM',
+        LACRE: 'SEL123',
+        BL: 'BL001',
+      },
+    ])
+    const parsed = await parseVehicleImportBuffer(buffer)
+    expect(parsed.rows).toHaveLength(0)
+    expect(parsed.rowErrors[0]?.message).toContain('formato VIN esperado')
+  })
+
+  it('recusa chassi com letras proibidas pelo VIN (I, O, Q)', async () => {
+    const buffer = jsonToBuffer([
+      {
+        CHASSI: 'LGXC74O44V0007087', // 'O' na posição 8, proibida no VIN
+        MARCA: 'BYD',
+        MODELO: 'DOLPHIN',
+        PESO: '1650',
+        CUBAGEM: '12',
+        CONTAINER: 'CAXU1234567',
+        TIPO_CONTAINER: '40FM',
+        LACRE: 'SEL123',
+        BL: 'BL001',
+      },
+    ])
+    const parsed = await parseVehicleImportBuffer(buffer)
+    expect(parsed.rows).toHaveLength(0)
+    expect(parsed.rowErrors[0]?.message).toContain('formato VIN esperado')
+  })
+
+  it('recusa peso fora da faixa plausível para um veículo (teto de absurdo)', async () => {
+    const buffer = jsonToBuffer([
+      {
+        CHASSI: '9BWZZZ377VT004251',
+        MARCA: 'BYD',
+        MODELO: 'DOLPHIN',
+        PESO: '1650000', // 1.650 toneladas — nao e um veiculo
+        CUBAGEM: '12',
+        CONTAINER: 'CAXU1234567',
+        TIPO_CONTAINER: '40FM',
+        LACRE: 'SEL123',
+        BL: 'BL001',
+      },
+    ])
+    const parsed = await parseVehicleImportBuffer(buffer)
+    expect(parsed.rows).toHaveLength(0)
+    expect(parsed.rowErrors[0]?.message).toContain('fora da faixa plausível')
+  })
+
+  it('não recai sobre uma segunda leitura quando o número contradiz o formato declarado/inferido', async () => {
+    // Cabecalho sem marcador de carrier -> formato inferido pt-BR. '1.650,50'
+    // em pt-BR e 1650,5 (valido). Ja '12.34' nao e pt-BR valido (separador de
+    // milhar sem tres digitos) nem deveria ser relido como outra convencao.
+    const buffer = jsonToBuffer([
+      {
+        CHASSI: '9BWZZZ377VT004251',
+        MARCA: 'BYD',
+        MODELO: 'DOLPHIN',
+        PESO: '1.650,50',
+        CUBAGEM: '12.34',
+        CONTAINER: 'CAXU1234567',
+        TIPO_CONTAINER: '40FM',
+        LACRE: 'SEL123',
+        BL: 'BL001',
+      },
+    ])
+    const parsed = await parseVehicleImportBuffer(buffer)
+    expect(parsed.rows).toHaveLength(0)
+    expect(parsed.rowErrors[0]?.message).toContain('obrigatorios')
+  })
+})
+

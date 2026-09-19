@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseBaplieFile } from '../baplieParser'
+import { parseBaplieFile, parseBaplieText } from '../baplieParser'
 
 function baplieFile(text: string) {
   return new File([text], 'baplie.edi', { type: 'text/plain' })
@@ -100,5 +100,59 @@ describe('baplieParser', () => {
     expect(parsed.containers[0].container_number).toBe('UETU7016802')
     expect(parsed.containers[1].container_number).toBe('MSCU9999999')
     expect(parsed.issues.filter((i) => i.severity === 'error')).toHaveLength(0)
+  })
+})
+
+describe('baplieParser — P0-1: indicador cheio/vazio (EQD 8169)', () => {
+  const head = "UNB+UNOA:2+X+Y+260101:0000+1'TDT+20+0012+++:::GREEN VITORIA'"
+
+  it('EQD+CN+...+45G1+++4 (8169=4) e vazio', () => {
+    const t = `${head}LOC+147+010101'LOC+9+CNTAO'LOC+11+BRVIX'EQD+CN+TCLU1234567+45G1+++4'`
+    const parsed = parseBaplieText(t)
+    expect(parsed.containers[0]?.status).toBe('empty')
+  })
+
+  it('8249 (equipment status, elemento 5) preenchido nao e lido como indicador cheio/vazio', () => {
+    // Antes da correcao, o primeiro elemento nao vazio entre 5 e 6 era lido
+    // como indicador; um 8249='2' (export) fazia um container vazio (8169=4)
+    // virar 'full' por engano.
+    const t = `${head}LOC+147+010101'LOC+9+CNTAO'LOC+11+BRVIX'EQD+CN+TCLU1234567+45G1++2+4'`
+    const parsed = parseBaplieText(t)
+    expect(parsed.containers[0]?.status).toBe('empty')
+  })
+
+  it('indicador ausente bloqueia com erro em vez de assumir full', () => {
+    const t = `${head}LOC+147+010101'LOC+9+CNTAO'LOC+11+BRVIX'EQD+CN+TCLU1234567+45G1+++'`
+    const parsed = parseBaplieText(t)
+    expect(parsed.issues.some((i) => i.field === 'status' && i.severity === 'error')).toBe(true)
+  })
+})
+
+describe('baplieParser — P0-2: unidade de peso do MEA (UN/ECE R20)', () => {
+  const head = "UNB+UNOA:2+X+Y+260101:0000+1'TDT+20+0012+++:::GREEN VITORIA'"
+
+  it('MEA em toneladas (TNE) converte para kg em vez de gravar o numero cru', () => {
+    const t = `${head}LOC+147+010101'LOC+9+CNTAO'LOC+11+BRVIX'EQD+CN+TCLU1234567+45G1+++5'MEA+WT++TNE:24.5'`
+    const parsed = parseBaplieText(t)
+    expect(parsed.containers[0]?.weight_kg).toBe(24500)
+  })
+
+  it('MEA em libras (LBR) converte para kg', () => {
+    const t = `${head}LOC+147+010101'LOC+9+CNTAO'LOC+11+BRVIX'EQD+CN+TCLU1234567+45G1+++5'MEA+WT++LBR:2000'`
+    const parsed = parseBaplieText(t)
+    expect(parsed.containers[0]?.weight_kg).toBeCloseTo(907.18474, 3)
+  })
+
+  it('MEA em quilos (KGM) permanece sem conversao', () => {
+    const t = `${head}LOC+147+010101'LOC+9+CNTAO'LOC+11+BRVIX'EQD+CN+TCLU1234567+45G1+++5'MEA+WT++KGM:24500'`
+    const parsed = parseBaplieText(t)
+    expect(parsed.containers[0]?.weight_kg).toBe(24500)
+  })
+
+  it('unidade de peso desconhecida vira erro bloqueante, nao numero cru', () => {
+    const t = `${head}LOC+147+010101'LOC+9+CNTAO'LOC+11+BRVIX'EQD+CN+TCLU1234567+45G1+++5'MEA+WT++XYZ:24500'`
+    const parsed = parseBaplieText(t)
+    expect(parsed.containers[0]?.weight_kg).toBeNull()
+    expect(parsed.issues.some((i) => i.field === 'weight_kg' && i.severity === 'error')).toBe(true)
   })
 })

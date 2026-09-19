@@ -63,10 +63,14 @@ export function quantidadeEfetiva(linha: CostServiceLine, unidades: EmptyUnit[],
   return armazenagemPorDepotCondicao(unidades, depots).find((row) => row.depot_id === linha.local_id && row.condition === linha.condition)?.quantidade ?? 0
 }
 
+// ADR 0033 §3: "O total é `quantidade × valor unitário`; não há percentual na
+// linha." `vetoPercentual` já bloqueia percentual em linha nova; linhas
+// legadas com percentual gravado (armazenagem com valor não nulo) agora
+// recalculam pela fórmula da ADR em vez de manter o multiplicador antigo —
+// decisão confirmada com o usuário em 2026-09-19.
 export function totalLinha(linha: CostServiceLine, unidades: EmptyUnit[] = [], depots: StorageDepot[] = []): number {
   const quantity = quantidadeEfetiva(linha, unidades, depots)
-  const multiplier = linha.natureza === 'armazenagem' ? 1 : Number(linha.percentual ?? 100) / 100
-  return quantity * Number(linha.valor_unitario || 0) * multiplier
+  return quantity * Number(linha.valor_unitario || 0)
 }
 
 export function totalEmbarque(embarque: CostShipment): number {
@@ -99,14 +103,3 @@ export function veto(line: CostServiceLine, context: { depots?: StorageDepot[]; 
     ?? vetoSegundaArmazenagem(line, context.lines ?? [])
 }
 
-// Compatibilidade temporária para telas legadas durante a transição do agregado.
-export type CostDepot = StorageDepot & { free_time_days?: number }
-export type CostContainer = EmptyUnit & { depot_id?: string | null; overtime_pct?: number | null }
-export type PricedService = { id: string; depot_id: string; name: string; calc_type?: string; rate_brl: number; active?: boolean; valid_from?: string; valid_to?: string | null; subject_to_overtime?: boolean }
-export function computeContainerCost(container: CostContainer): { container_number: string; fixed: number; storage: number; overtime: number; total: number; breakdown: Array<{ label: string; amount: number }> } {
-  return { container_number: container.container_number ?? '', fixed: 0, storage: 0, overtime: 0, total: 0, breakdown: [] }
-}
-export function computeOperationTotals(..._args: unknown[]): { rows: Array<{ container_number: string; fixed: number; storage: number; overtime: number; total: number; breakdown: Array<{ label: string; amount: number }> }>; qtyTotal: number; total: number } {
-  void _args
-  return { rows: [], qtyTotal: 0, total: 0 }
-}

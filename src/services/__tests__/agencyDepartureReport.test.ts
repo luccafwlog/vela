@@ -224,7 +224,10 @@ describe('getAgencyReportDerivedData', () => {
     await getAgencyReportDerivedData(7, 'BRSSZ')
 
     expect(vehiclesQuery.eq).toHaveBeenCalledWith('bl.voyage_id', 7)
-    expect(vehiclesQuery.eq).toHaveBeenCalledWith('bl.pod', 'BRSSZ')
+    // P0-3: igualdade crua contra 'BRSSZ' perdia veículos de B/Ls gravados na
+    // forma legada do porto (ex. 'BRVIT'); casa por variantes, como
+    // baplie/vazios/granito já fazem.
+    expect(vehiclesQuery.in).toHaveBeenCalledWith('bl.pod', expect.arrayContaining(['BRSSZ']))
   })
 
   it('busca o local de desova do container para o bloco de veículos', async () => {

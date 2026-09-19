@@ -140,7 +140,7 @@ export function BlDetalhe() {
   const blDivergenceCount = useMemo(() => {
     if (!reconciliation || !bl) return 0
     const numbers = new Set((bl.bl_containers ?? []).map((container) => container.container_number))
-    return reconciliation.items.filter((item) => item.kind === 'missing_in_baplie' ? item.bl_number === bl.id : item.baplie_bl_ref === bl.id || numbers.has(item.container_number)).length
+    return reconciliation.items.filter((item) => item.kind === 'missing_in_baplie' ? item.bl_id === bl.id : item.baplie_bl_ref === bl.id || numbers.has(item.container_number)).length
   }, [reconciliation, bl])
 
   const baplieStatus = useMemo((): BaplieStatus => {

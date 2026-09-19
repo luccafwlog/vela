@@ -13,6 +13,7 @@ describe('invalidateBaplieDependentQueries', () => {
       ['bl-detail'],
       ['voyages'],
       ['voyage-timeline', '24'],
+      ['agency-report'],
     ])
   })
 })

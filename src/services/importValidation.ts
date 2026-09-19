@@ -96,6 +96,16 @@ export const IsoContainerSchema = z
 
 export const LocodeSchema = z.string().regex(/^[A-Z]{5}$/, 'LOCODE esperado (5 letras)')
 
+// ISO 3779: 17 caracteres alfanuméricos, sem I/O/Q (confundem com 1/0). O
+// dígito verificador da posição 9 (SAE J853/NHTSA) é uma convenção só de VINs
+// norte-americanos, não universal na ISO 3779 — a importação de veículos
+// recebe VINs de fabricantes chineses (COSCO Daily Report) que não seguem
+// esse cálculo, então só o formato é validado aqui (mesmo nível de rigor que
+// IsoContainerSchema: formato, não checksum).
+export const VinSchema = z
+  .string()
+  .regex(/^[A-HJ-NPR-Z0-9]{17}$/, 'VIN/chassi de 17 caracteres esperado, sem I/O/Q')
+
 export function isValidCalendarDate(iso: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
   if (!match) return false

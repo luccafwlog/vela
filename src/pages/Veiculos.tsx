@@ -173,6 +173,9 @@ export function Veiculos() {
         queryClient.invalidateQueries({ queryKey: ['vehicle-stats'] }),
         queryClient.invalidateQueries({ queryKey: ['voyage-vehicle-stats'] }),
         queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),
+        // P0-4: a seção "Veículos" do ADR conta por marca/VIN a partir de
+        // `vehicles`; sem esta linha, importar veículos não atualizava a aba.
+        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
       ])
 
       showToast(
@@ -209,6 +212,7 @@ export function Veiculos() {
       queryClient.invalidateQueries({ queryKey: ['vehicle-stats'] }),
       queryClient.invalidateQueries({ queryKey: ['voyage-vehicle-stats'] }),
       queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),
+      queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
     ])
   }
 

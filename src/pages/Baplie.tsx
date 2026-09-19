@@ -125,6 +125,8 @@ export function Baplie() {
       await queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] })
       await queryClient.invalidateQueries({ queryKey: ['vazios-importacao'] })
       await queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] })
+      // P0-4: alimenta "Vazios descarregados" no ADR.
+      await queryClient.invalidateQueries({ queryKey: ['agency-report'] })
       showToast(`${emptyContainers.length} container(s) vazio(s) cadastrados em Vazios Importacao.`, 'success')
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Falha ao cadastrar vazios.', 'error')
@@ -140,6 +142,7 @@ export function Baplie() {
       await queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] })
       await queryClient.invalidateQueries({ queryKey: ['vazios-importacao'] })
       await queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] })
+      await queryClient.invalidateQueries({ queryKey: ['agency-report'] })
       showToast(`Manifesto de vazios substituido. ${emptyContainers.length} container(s) recadastrado(s).`, 'success')
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Falha ao substituir vazios.', 'error')
@@ -255,12 +258,20 @@ export function Baplie() {
               if (applied > 0) {
                 await queryClient.invalidateQueries({ queryKey: ['containers'] })
                 await queryClient.invalidateQueries({ queryKey: ['voyages'] })
+                // Os badges IMO/OOG do container aparecem na ficha do B/L
+                // (bl-detail); sem isso, o operador via o valor antigo até F5.
+                await queryClient.invalidateQueries({ queryKey: ['bl-detail'] })
               }
             } catch {
               showToast('Baplie importado, mas falha ao aplicar flags físicas ao B/L.', 'error')
             }
           }
           await queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] })
+          // P0-4: reimportar Baplie muda a divergencia de existencia de Carga
+          // descarregada e a contagem de Vazios descarregados no ADR — este e
+          // o callback real do import (afterBaplieImportado/
+          // invalidateBaplieDependentQueries nao tem chamador na aplicacao).
+          await queryClient.invalidateQueries({ queryKey: ['agency-report'] })
         }}
         initialVoyageId={voyageId}
       />
@@ -517,7 +528,7 @@ function ReconciliacaoSection({
                 {missingInBaplie.map((item) => (
                   <tr key={item.container_number}>
                     <td className="px-3 py-2 font-semibold text-white">{item.container_number}</td>
-                    <td className="px-3 py-2">{item.bl_number ?? '-'}</td>
+                    <td className="px-3 py-2">{item.bl_id ?? '-'}</td>
                   </tr>
                 ))}
               </tbody>

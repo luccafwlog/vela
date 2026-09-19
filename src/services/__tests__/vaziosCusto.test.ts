@@ -38,6 +38,17 @@ describe('motor de custo do Embarque de Vazios', () => {
     expect(totalEmbarque({ unidades: units, linhas: [...linhas], depots })).toBe(230)
   })
 
+  // Decisão confirmada com o usuário em 2026-09-19: a ADR 0033 §3 não tem
+  // percentual na fórmula ("O total é `quantidade × valor unitário`"); uma
+  // linha legada com percentual gravado (ex.: 50) não deve mais reduzir o
+  // total exibido — só a fórmula nova conta.
+  it('ignora percentual legado gravado na linha: o total é sempre quantidade × valor unitário', () => {
+    const linhaComPercentualLegado = {
+      natureza: 'geral', local_id: 'tvv', quantidade: 2, percentual: 50, valor_unitario: 100,
+    } as const
+    expect(totalLinha(linhaComPercentualLegado, units, depots)).toBe(200)
+  })
+
   it('veta transporte sem rota, armazenagem fora de depot e duplicata', () => {
     expect(veto({ natureza: 'transporte', local_id: 'd1', destino_id: null, quantidade: 1, percentual: null, valor_unitario: 1 })).toContain('rota')
     expect(veto({ natureza: 'armazenagem', local_id: 'tvv', condition: 'vazio', quantidade: 1, percentual: null, valor_unitario: 1 }, { depots })).toContain('depot')
