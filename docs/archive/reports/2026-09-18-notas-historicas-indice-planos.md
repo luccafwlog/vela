@@ -46,4 +46,3 @@ Para o Bloco #521, esse registro foi formalizado como spec funcional em
 plano acima. A substituição é intencional: a spec separa decisões funcionais
 do plano de execução e deve ser consultada pelos blocos seguintes até que um
 registro transversal seja consolidado.
-

@@ -42,7 +42,7 @@
 
 **Files:**
 - Read: `AGENTS.md`
-- Read: `CLAUDE.md`
+- Read: `AGENTS.md`
 - Read: `skills/README.md`
 - Read: `scripts/skills/install-skills.mjs`
 
@@ -132,7 +132,7 @@ npm run skills:sync
 - Modify: documentos ativos que apontem para skills removidas
 
 - [x] Usar a lista aprovada pelo usuário, não a lista inferida pelo agente.
-- [x] Antes de cada remoção, verificar referências diretas em `CLAUDE.md`, `AGENTS.md`, `opencode.json`, scripts, documentação ativa e outras skills.
+- [x] Antes de cada remoção, verificar referências diretas em `AGENTS.md`, `opencode.json`, scripts, documentação ativa e outras skills.
 - [x] Remover pastas completas somente após registrar no relatório a razão, os substitutos e o impacto esperado.
 - [x] Atualizar tabelas, comandos e validações que assumiam a existência das skills removidas.
 - [x] Rodar `npm run docs:check` e corrigir referências vivas quebradas.

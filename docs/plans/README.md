@@ -18,8 +18,9 @@ O plano [2026-09-03 — Issue 609: contatos e caixas de comunicação](../archiv
 
 ## Revisão do ciclo de vida — 2026-09-19
 
-Os dois planos acima continuam vivos: remediação #654–#660 ainda exige prova de
-runtime; revisão sistemática mantém C4/D4/D6 abertos. Nenhum foi arquivado
+Os três planos acima continuam vivos: remediação #654–#660 ainda exige prova de
+runtime; revisão sistemática mantém C4/D4/D6 abertos; governança de skills
+mantém validação no Alienware e encerramento pendentes. Nenhum foi arquivado
 apenas por ter grande parte implementada.
 
 As notas de execução intermediária de agosto/setembro foram preservadas no

@@ -30,7 +30,7 @@ obtido por replay controlado. Não foi consultado nem modificado banco remoto.
   mesmo já tendo ATD. Registrado em CONTEXT; sem alteração de aplicação.
 - Runners e PTAX requerem configuração/ativação e prova remota; existência não prova rollout.
 - API Itaú dinâmica permanece spec futura.
-- Os dois planos ativos ainda têm gates e tarefas pendentes; nenhum foi arquivado
+- Os três planos ativos ainda têm gates e tarefas pendentes; nenhum foi arquivado
   como concluído. As notas do índice foram movidas para relatório histórico.
 - Testes de SQL arquivado mantêm o limite de evidência descrito pela ADR 0062.
 
@@ -282,8 +282,9 @@ objetos fora do dump de public, mantidos em migrations próprias.
 
 O trabalho de 18/09 estava preservado no stash `d99f8d1d`. Foi recuperado em
 worktree isolado sobre `a0fa5001`, incluindo as correções da PR 703. O stash e
-o checkout de origem foram preservados. O plano de skills removido nessa base
-não foi ressuscitado; somente os dois planos existentes foram avaliados.
+o checkout de origem foram preservados. Antes da PR, a branch foi atualizada
+sobre `212b568d` da main, que já contém a PR 703 e a governança de skills.
+Essa base mantém três planos ativos; todos permanecem abertos.
 
 - [Notas antigas do índice de planos](../reports/2026-09-18-notas-historicas-indice-planos.md).
 - [Notas cronológicas da rastreabilidade](../reports/2026-09-19-notas-historicas-rastreabilidade.md).
@@ -302,7 +303,9 @@ não foi ressuscitado; somente os dois planos existentes foram avaliados.
 - Autotestes: gate documental (caso válido e sete rejeições), extrator de rotas
   (índice, composição, wildcard, expressão literal e rejeição de caminho dinâmico),
   gate de migrations (10 cenários, AGENTS e compatibilidade histórica).
-- ESLint focado nos scripts alterados e no teste de referências legadas: passou.
+- ESLint focado e `npm run lint` integral após atualização da base: passaram.
+- Após atualizar a base: gates repetidos e 32 testes passaram em seis arquivos
+  (modalidades, escala, redirects, referências legadas e páginas de B/L).
 - Vitest focado: 13 arquivos passaram; 61 testes passaram e 6 ficaram skipped.
   Abrange modalidades/pesos/cubagem, estado da escala, redirects financeiros,
   contratos SQL de terminal/tarifas/CE/pesos, referências legadas e páginas de B/L.
@@ -317,5 +320,5 @@ Saída final de `npm run docs:check`:
 > vela@0.0.0 docs:check
 > node scripts/check-docs.mjs
 
-Documentation checks passed: 221 Markdown files, 55 routes, and ADR index coverage verified.
+Documentation checks passed: 154 Markdown files, 55 routes, and ADR index coverage verified.
 ```

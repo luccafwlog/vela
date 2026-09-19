@@ -379,4 +379,3 @@ Histórico do B/L vinculado. A migration `374_comunicados_alertas.sql` cataloga
 NOA/NOR/NOB pendentes e bounce sem alternativa no runner server-only; somente
 `status='enviado'` resolve os avisos operacionais. **Código**;
 **Teste de contrato SQL:** `comunicadosAlertasMigration.test.ts`.
-
