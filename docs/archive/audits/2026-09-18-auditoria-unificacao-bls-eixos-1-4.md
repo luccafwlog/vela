@@ -110,3 +110,13 @@ paralelo** — `financialBattery` e `importEffects` falham em execução paralel
 - **Teto conhecido:** sem evidência no arquivo, o import BB lê em pt-BR e avisa. O desempate
   definitivo é um seletor de formato no modal — registrado como `ponytail:` em
   `breakbulkManifestParser.ts`.
+
+## Adendo editorial — 2026-09-19
+
+Este documento é histórico e permanece como registro do que a auditoria de 2026-09-18 encontrou. A
+revisão da PR #703 mostrou que a remediação do formato numérico **não fechava o achado**: a forma
+ambígua era testada no valor cru e o número parseado no valor sem a unidade, então `"259.312 TON"`
+escapava da evidência e do aviso e entrava como 259 312 toneladas, em silêncio. O "teto conhecido"
+acima foi levantado na mesma PR — o seletor de formato existe, a ambiguidade não declarada passou a
+bloquear, e há um teto de absurdo por coluna. O estado corrente está em `docs/RASTREABILIDADE.md`,
+seção "Cubagem, formato numérico e linha expansível de B/Ls".

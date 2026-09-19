@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { inferSeparatorFormat, parseImportNumber } from '../importNumber'
+import {
+  inferSeparatorFormat,
+  isThousandsGroupShape,
+  normalizeNumericText,
+  parseImportNumber,
+} from '../importNumber'
 import { toNumber } from '../utils'
 
 // S03 P0-1, tabela de vetores do plano: fronteira numérica explícita por
@@ -104,5 +109,33 @@ describe('inferSeparatorFormat', () => {
 
   it('não lê agrupamento repetido como prova de decimal', () => {
     expect(inferSeparatorFormat(['1.234.567'])).toBe('unknown')
+  })
+})
+
+describe('normalizeNumericText e isThousandsGroupShape', () => {
+  it('tira a unidade colada antes de qualquer julgamento sobre a celula', () => {
+    // Era a fresta do P0: a forma ambigua era testada no valor cru (com a
+    // unidade, nao casava) e o numero era parseado no valor sem ela.
+    expect(normalizeNumericText('259.312 TON')).toBe('259.312')
+    expect(normalizeNumericText('1.217,11 CBM')).toBe('1.217,11')
+    expect(normalizeNumericText('  42  ')).toBe('42')
+    expect(normalizeNumericText('')).toBeNull()
+    expect(normalizeNumericText(null)).toBeNull()
+    expect(normalizeNumericText(12.5)).toBe('12.5')
+  })
+
+  it('a celula com unidade colada continua entrando na evidencia do arquivo', () => {
+    expect(inferSeparatorFormat(['259.312 TON', '12,5 TON'])).toBe('pt-BR')
+    expect(inferSeparatorFormat(['259,312 TON', '12.5 TON'])).toBe('en-US')
+  })
+
+  it('reconhece a forma milhar mesmo com unidade colada', () => {
+    expect(isThousandsGroupShape('259.312 TON', 'pt-BR')).toBe(true)
+    expect(isThousandsGroupShape('259.312', 'en-US')).toBe(false)
+    expect(isThousandsGroupShape('259,312', 'en-US')).toBe(true)
+    expect(isThousandsGroupShape('259,312', 'pt-BR')).toBe(false)
+    // Dois separadores ja se explicam; quatro casas tambem.
+    expect(isThousandsGroupShape('1.234,56', 'pt-BR')).toBe(false)
+    expect(isThousandsGroupShape('12.3456', 'pt-BR')).toBe(false)
   })
 })

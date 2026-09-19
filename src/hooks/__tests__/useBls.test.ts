@@ -94,16 +94,19 @@ describe('fetchAllBls', () => {
   })
 
   it('pagina a RPC até completar a contagem do envelope', async () => {
-    const firstPage = Array.from({ length: 100 }, (_, index) => makeBl(`BL-${index}`, []))
-    const secondPage = [makeBl('BL-100', [])]
+    // O lote é o teto de `p_page_size` da RPC, elevado para 1.000 pela
+    // migration 064: uma página cheia significa que pode haver mais.
+    const firstPage = Array.from({ length: 1000 }, (_, index) => makeBl(`BL-${index}`, []))
+    const secondPage = [makeBl('BL-1000', [])]
     mockRpc
-      .mockResolvedValueOnce({ data: { rows: firstPage, count: 101 }, error: null })
-      .mockResolvedValueOnce({ data: { rows: secondPage, count: 101 }, error: null })
+      .mockResolvedValueOnce({ data: { rows: firstPage, count: 1001 }, error: null })
+      .mockResolvedValueOnce({ data: { rows: secondPage, count: 1001 }, error: null })
 
     const result = await fetchAllBls(baseFilters)
 
-    expect(result).toHaveLength(101)
+    expect(result).toHaveLength(1001)
     expect(mockRpc).toHaveBeenCalledTimes(2)
+    expect(mockRpc).toHaveBeenCalledWith('operational_list_bls', expect.objectContaining({ p_page_size: 1000 }))
     expect(mockRpc).toHaveBeenLastCalledWith('operational_list_bls', expect.objectContaining({ p_page: 2 }))
   })
 

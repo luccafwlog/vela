@@ -7,6 +7,8 @@ import {
   hasBlockingRowErrors,
   parseBreakbulkManifestBuffer,
   parseBreakbulkManifestFile,
+  type BreakbulkNumberFormat,
+  type ParseBreakbulkOptions,
   type ParsedBreakbulkManifest,
 } from './breakbulkManifestParser'
 
@@ -14,6 +16,8 @@ export {
   hasBlockingRowErrors,
   parseBreakbulkManifestBuffer,
   parseBreakbulkManifestFile,
+  type BreakbulkNumberFormat,
+  type ParseBreakbulkOptions,
   type ParsedBreakbulkManifest,
 }
 

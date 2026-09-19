@@ -1,7 +1,21 @@
 import { supabase } from './supabase'
 import type { BL, Json } from '../types/database'
 
-type ReviewEditableFields = Pick<BL, 'shipper' | 'consignee' | 'pol' | 'pod' | 'total_weight_kg' | 'total_cbm' | 'notes'>
+/**
+ * Campos que a fila de reconciliação edita.
+ *
+ * Peso e cubagem vêm em PARES por modalidade, e não num campo "total" só:
+ * desde as migrations 061 e 064, `total_weight_kg`/`total_cbm` medem
+ * exclusivamente a carga conteinerizada e `bb_weight_ton`/`bb_cbm` a carga
+ * solta. Enquanto a fila só oferecia o par de contêiner, um B/L de carga solta
+ * aparecia aqui com os dois campos VAZIOS (as colunas dele são as outras), e
+ * quem preenchesse criava uma segunda cubagem — `blTotalCbm()` somava as duas.
+ * Qual par a tela mostra é decidido pela modalidade, em ReviewDrawer.
+ */
+type ReviewEditableFields = Pick<
+  BL,
+  'shipper' | 'consignee' | 'pol' | 'pod' | 'total_weight_kg' | 'total_cbm' | 'bb_weight_ton' | 'bb_cbm' | 'notes'
+>
 type JsonObject = { [key: string]: Json | undefined }
 
 /**
@@ -238,7 +252,7 @@ export class ConcurrentEditError extends Error {
 class InvalidNumericValue {}
 
 function normalizeBlValue(field: keyof ReviewEditableFields, value: unknown): unknown {
-  if (field === 'total_weight_kg' || field === 'total_cbm') {
+  if (field === 'total_weight_kg' || field === 'total_cbm' || field === 'bb_weight_ton' || field === 'bb_cbm') {
     if (value === '' || value === null || value === undefined) return null
     const parsed = typeof value === 'number' ? value : Number(value)
     if (!Number.isFinite(parsed)) return new InvalidNumericValue()

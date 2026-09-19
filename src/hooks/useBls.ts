@@ -132,8 +132,11 @@ export function useBlSummary(filters: BlFilters) {
  */
 export async function fetchAllBls(filters: BlFilters) {
   const rows: BLListItem[] = []
-  // O teto de page_size da RPC é 100 (greatest(1, least(p_page_size, 100))).
-  const pageSize = 100
+  // Teto de page_size da RPC, elevado de 100 para 1.000 pela migration 064: com
+  // 100, uma viagem de 5.000 B/Ls custava 50 idas ao banco em série, cada uma
+  // projetando os filhos inteiros do B/L. 1.000 é o mesmo lote que o caminho
+  // antigo usava contra `bls`, antes de os dois dialetos de filtro virarem um.
+  const pageSize = 1000
 
   for (let page = 1; ; page += 1) {
     const result = await listOperationalBls(filters, page, pageSize)

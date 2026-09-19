@@ -27,6 +27,13 @@ type Props<T, TResult = void> = {
   accept: string
   multiple?: boolean
   parser: (file: File) => Promise<T>
+  /**
+   * Muda quando uma opção de leitura muda (ex.: o formato numérico declarado).
+   * O modal relê os arquivos já escolhidos com o novo `parser`, para a prévia
+   * e as divergências refletirem a opção — sem isso o operador trocaria a
+   * opção e continuaria vendo o resultado da leitura anterior.
+   */
+  reparseKey?: string | number
   inspectFile?: (file: File) => Promise<ImportFileInspection>
   importer?: (preview: T, file: File, allowOverride?: boolean) => Promise<TResult>
   batchImporter?: (entries: FilePreviewEntry<T>[], allowOverride?: boolean) => Promise<void>
@@ -48,6 +55,7 @@ export function FileImportModal<T, TResult = void>({
   accept,
   multiple = false,
   parser,
+  reparseKey,
   inspectFile,
   importer,
   batchImporter,
@@ -63,6 +71,7 @@ export function FileImportModal<T, TResult = void>({
   const { showToast } = useToast()
   const [entries, setEntries] = useState<FilePreviewEntry<T>[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [parsing, setParsing] = useState(false)
   const [parseProgress, setParseProgress] = useState<FileReadProgress>({ completed: 0, total: 0, currentFile: null })
   const [importing, setImporting] = useState(false)
@@ -76,14 +85,27 @@ export function FileImportModal<T, TResult = void>({
     importControllerRef.current?.abort()
   }, [])
 
+
   function closeModal() {
+    setSelectedFiles([])
     parseControllerRef.current?.abort()
     importControllerRef.current?.abort()
     onClose()
   }
 
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? [])
+  // A escolha do arquivo só guarda os arquivos; quem lê é o efeito abaixo. É o
+  // que permite reler os MESMOS arquivos quando `reparseKey` muda, sem duplicar
+  // o caminho de leitura nem guardar a lista num ref.
+  function handleFile(event: ChangeEvent<HTMLInputElement>) {
+    parseControllerRef.current?.abort()
+    setEntries([])
+    setActiveIndex(0)
+    setAllowOverride(false)
+    setImportResult(undefined)
+    setSelectedFiles(Array.from(event.target.files ?? []))
+  }
+
+  async function parseFiles(files: File[]) {
     parseControllerRef.current?.abort()
     setEntries([])
     setActiveIndex(0)
@@ -128,6 +150,21 @@ export function FileImportModal<T, TResult = void>({
       parseControllerRef.current = null
     }
   }
+
+  // Lê os arquivos escolhidos, e relê quando a opção de leitura muda. Ler um
+  // File é I/O externo assíncrono, e `parseFiles` zera prévia e progresso antes
+  // de começar — daí o disable de `set-state-in-effect`, com o mesmo critério
+  // usado em CustomerContactConfiguration e DepotCadastro.
+  //
+  // `parser` fica fora das deps de propósito: nem todo chamador o memoiza, e
+  // uma identidade nova a cada render relançaria a leitura em laço.
+  // `reparseKey` é o sinal explícito de "reler", no lugar dessa dependência.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (selectedFiles.length) void parseFiles(selectedFiles)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFiles, reparseKey])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleImport() {
     const importableEntries = entries.filter((entry) => canImport(entry.preview, allowOverride))

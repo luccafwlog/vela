@@ -60,11 +60,14 @@ describe('breakbulkImport', () => {
     expect(manifest.bls[0]?.bb_weight_ton).toBeCloseTo(259.312)
     expect(manifest.bls[0]?.bb_cbm).toBeCloseTo(1217.109)
 
-    // `259,312` e `1217,109` são lidos em pt-BR, mas nenhuma célula deste
-    // arquivo prova que a vírgula é o decimal: a importação segue e o operador
-    // é avisado. Nada aqui bloqueia.
+    // `259,312` e `1217,109` não são ambíguos na leitura pt-BR: a vírgula é o
+    // decimal desse formato, nunca separador de milhar. A checagem de
+    // ambiguidade é assimétrica de propósito e só olha a direção que INFLA o
+    // número por mil (`259.312` lido como 259 mil) — a que chega na fatura.
+    // Tratar as duas direções como ambíguas rejeitaria o próprio modelo que a
+    // tela distribui, que não tem nenhuma célula desempatadora.
+    expect(manifest.rowErrors).toEqual([])
     expect(hasBlockingRowErrors(manifest.rowErrors)).toBe(false)
-    expect(manifest.rowErrors.map((rowError) => rowError.severity)).toEqual(['warning', 'warning'])
   })
 
   it('não avisa quando o próprio arquivo desempata o separador decimal', async () => {

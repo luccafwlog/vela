@@ -43,6 +43,12 @@
 -- 1. Coluna nova e backfill
 -- ---------------------------------------------------------------------------
 
+-- ORDEM IMPORTA: o backfill da secao 1 roda ANTES de a secao 2 recriar o
+-- trigger. So por isso ele e seguro -- o trigger vigente (062) observa
+-- `UPDATE OF cargo_mode, bb_weight_ton, bb_packages_qty`, e nenhuma dessas
+-- colunas aparece no SET abaixo, entao ele nao dispara. Recriar o trigger antes
+-- do backfill faria o proprio backfill reavaliar a modalidade e, num B/L
+-- faturado, abortar a migration com P0003. Nao reordene estas duas secoes.
 ALTER TABLE public.bls ADD COLUMN IF NOT EXISTS bb_cbm numeric(10,3);
 
 ALTER TABLE public.bls DROP CONSTRAINT IF EXISTS bls_bb_cbm_nonneg;
@@ -65,17 +71,26 @@ SET bb_cbm = b.total_cbm,
 WHERE b.cargo_mode = 'carga_solta'
   AND b.total_cbm IS NOT NULL;
 
+-- A soma dos conteineres entra por subquery CORRELACIONADA, e nao por
+-- `FROM (... GROUP BY bl_id)`: aquele e join interno, entao o B/L 'misto' que
+-- ainda nao tem linha em bl_containers (manifesto importado, B/L de armador
+-- ainda nao) simplesmente nao era atualizado -- ficava com bb_cbm NULL e
+-- total_cbm ainda ambiguo, que e exatamente o estado que esta migration existe
+-- para acabar. `FROM LATERAL` tambem nao serve aqui: num UPDATE, a tabela alvo
+-- nao pode ser referenciada de dentro do LATERAL.
 UPDATE public.bls AS b
-SET bb_cbm = GREATEST(COALESCE(b.total_cbm, 0) - COALESCE(cntr.cbm, 0), 0),
-    total_cbm = cntr.cbm,
+SET bb_cbm = GREATEST(
+      COALESCE(b.total_cbm, 0)
+      - (SELECT COALESCE(sum(bc.cbm), 0) FROM public.bl_containers bc WHERE bc.bl_id = b.id),
+      0
+    ),
+    total_cbm = NULLIF(
+      (SELECT COALESCE(sum(bc.cbm), 0) FROM public.bl_containers bc WHERE bc.bl_id = b.id),
+      0
+    ),
     updated_at = now()
-FROM (
-  SELECT bl_id, COALESCE(sum(cbm), 0) AS cbm
-  FROM public.bl_containers
-  GROUP BY bl_id
-) AS cntr
-WHERE cntr.bl_id = b.id
-  AND b.cargo_mode = 'misto';
+WHERE b.cargo_mode = 'misto'
+  AND b.total_cbm IS NOT NULL;
 
 COMMENT ON COLUMN public.bls.total_cbm IS
   'Cubagem da carga CONTEINERIZADA, em m3. Nao inclui carga solta: esta fica em '
@@ -657,3 +672,104 @@ $function$;
 
 REVOKE ALL ON FUNCTION public.operational_list_bl_summary(text, bigint, text, text, text, text, text, text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.operational_list_bl_summary(text, bigint, text, text, text, text, text, text, text) TO authenticated, service_role;
+
+-- ---------------------------------------------------------------------------
+-- 5. Teto de page_size da listagem de B/Ls: 100 -> 1000
+-- ---------------------------------------------------------------------------
+
+-- Reescreve operational_list_bls da 059 mudando UMA coisa: o teto de
+-- `p_page_size`. A funcao e copiada na integra de proposito, pela mesma razao
+-- das funcoes de modalidade da secao 2.
+--
+-- O teto de 100 existia para uma tela, e passou a governar os exports quando
+-- `fetchAllBls` deixou de ter um dialeto de filtro proprio e passou a paginar
+-- esta RPC. Com 100, exportar uma viagem de 5.000 B/Ls custa 50 idas ao banco
+-- em serie, cada uma projetando bl_containers, bl_freight_lines e
+-- bl_breakbulk_items inteiros. O export de conteineres sai pelo mesmo caminho,
+-- entao paga o mesmo preco.
+--
+-- 1000 e o mesmo lote que o caminho antigo usava contra `bls`. A paginacao do
+-- cliente continua obrigatoria: o teto nao promete o conjunto inteiro numa
+-- chamada, so reduz o numero de chamadas.
+CREATE OR REPLACE FUNCTION public.operational_list_bls(
+  p_page integer DEFAULT 1,
+  p_page_size integer DEFAULT 50,
+  p_search text DEFAULT NULL::text,
+  p_voyage_id bigint DEFAULT NULL::bigint,
+  p_cargo_mode text DEFAULT NULL::text,
+  p_pol text DEFAULT NULL::text,
+  p_pod text DEFAULT NULL::text,
+  p_review_status text DEFAULT NULL::text,
+  p_financial_status text DEFAULT NULL::text,
+  p_charge_status text DEFAULT NULL::text,
+  p_cargo_profile text DEFAULT NULL::text
+) RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path TO 'public', 'pg_temp'
+AS $$
+WITH filtered AS (
+  SELECT b.*, COUNT(*) OVER () AS total_count
+  FROM public.bls AS b
+  LEFT JOIN public.customers AS c ON c.id = b.customer_id
+  WHERE (p_voyage_id IS NULL OR b.voyage_id = p_voyage_id)
+    AND public.bl_cargo_mode_matches_filter(b.cargo_mode, p_cargo_mode)
+    AND (NULLIF(btrim(coalesce(p_pol, '')), '') IS NULL OR b.pol ILIKE '%' || btrim(p_pol) || '%')
+    AND (NULLIF(btrim(coalesce(p_pod, '')), '') IS NULL OR b.pod ILIKE '%' || btrim(p_pod) || '%')
+    AND (NULLIF(btrim(coalesce(p_review_status, '')), '') IS NULL OR b.review_status = p_review_status)
+    AND (NULLIF(btrim(coalesce(p_financial_status, '')), '') IS NULL OR b.financial_status = p_financial_status)
+    AND (NULLIF(btrim(coalesce(p_charge_status, '')), '') IS NULL OR lower(btrim(coalesce(b.charge_status, ''))) = lower(btrim(p_charge_status)))
+    AND (
+      NULLIF(btrim(coalesce(p_search, '')), '') IS NULL
+      OR b.id ILIKE '%' || btrim(p_search) || '%'
+      OR b.consignee ILIKE '%' || btrim(p_search) || '%'
+      OR c.name ILIKE '%' || btrim(p_search) || '%'
+      OR c.cnpj_cpf ILIKE '%' || btrim(p_search) || '%'
+    )
+    AND (
+      NULLIF(btrim(coalesce(p_cargo_profile, '')), '') IS NULL
+      OR (p_cargo_profile = 'standard' AND NOT EXISTS (
+        SELECT 1 FROM public.bl_containers bc
+        WHERE bc.bl_id = b.id AND (coalesce(bc.is_imo, false) OR coalesce(bc.is_oog, false))
+      ))
+      OR (p_cargo_profile = 'imo' AND EXISTS (
+        SELECT 1 FROM public.bl_containers bc WHERE bc.bl_id = b.id AND coalesce(bc.is_imo, false)
+      ))
+      OR (p_cargo_profile = 'oog' AND EXISTS (
+        SELECT 1 FROM public.bl_containers bc WHERE bc.bl_id = b.id AND coalesce(bc.is_oog, false)
+      ))
+    )
+), projected AS (
+  SELECT f.*, (
+    to_jsonb(f) - 'total_count' || jsonb_build_object(
+      'customer', CASE WHEN c.id IS NULL THEN NULL ELSE jsonb_build_object('id', c.id, 'cnpj_cpf', c.cnpj_cpf, 'name', c.name) END,
+      'voyage', CASE WHEN v.id IS NULL THEN NULL ELSE jsonb_build_object(
+        'id', v.id, 'voyage_number', v.voyage_number, 'eta', v.eta, 'ata', v.ata, 'status', v.status,
+        'vessel', CASE WHEN vs.id IS NULL THEN NULL ELSE jsonb_build_object(
+          'id', vs.id, 'name', vs.name, 'imo', vs.imo,
+          'carrier', CASE WHEN cr.id IS NULL THEN NULL ELSE jsonb_build_object('id', cr.id, 'name', cr.name, 'scac', cr.scac) END
+        ) END
+      ) END,
+      'bl_containers', coalesce((SELECT jsonb_agg(to_jsonb(bc) ORDER BY bc.id) FROM public.bl_containers bc WHERE bc.bl_id = f.id), '[]'::jsonb),
+      'bl_freight_lines', coalesce((SELECT jsonb_agg(to_jsonb(bfl) ORDER BY bfl.seq NULLS LAST) FROM public.bl_freight_lines bfl WHERE bfl.bl_id = f.id), '[]'::jsonb),
+      'bl_breakbulk_items', coalesce((SELECT jsonb_agg(to_jsonb(bb) ORDER BY bb.id) FROM public.bl_breakbulk_items bb WHERE bb.bl_id = f.id), '[]'::jsonb)
+    )
+  ) AS row_json
+  FROM filtered f
+  LEFT JOIN public.customers c ON c.id = f.customer_id
+  LEFT JOIN public.voyages v ON v.id = f.voyage_id
+  LEFT JOIN public.vessels vs ON vs.id = v.vessel_id
+  LEFT JOIN public.carriers cr ON cr.id = vs.carrier_id
+  ORDER BY f.created_at DESC NULLS LAST, f.id DESC
+  OFFSET (greatest(coalesce(p_page, 1), 1) - 1) * greatest(1, least(coalesce(p_page_size, 50), 1000))
+  LIMIT greatest(1, least(coalesce(p_page_size, 50), 1000))
+)
+SELECT jsonb_build_object(
+  'rows', coalesce((SELECT jsonb_agg(row_json ORDER BY row_json->>'created_at' DESC NULLS LAST, row_json->>'id' DESC) FROM projected), '[]'::jsonb),
+  'count', coalesce((SELECT max(total_count) FROM filtered), 0)
+);
+$$;
+
+REVOKE ALL ON FUNCTION public.operational_list_bls(integer, integer, text, bigint, text, text, text, text, text, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.operational_list_bls(integer, integer, text, bigint, text, text, text, text, text, text, text) TO authenticated, service_role;

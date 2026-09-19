@@ -126,6 +126,57 @@ describeLocal('064 — cubagem com dono único e sinal de carga solta completo',
     expect(Number(summary.breakbulkCbm)).toBe(45)
   })
 
+  it('o teto de page_size da listagem de B/Ls passou de 100 para 1.000', () => {
+    // `fetchAllBls` pagina esta RPC para exportar. Com o teto de 100, uma
+    // viagem de 5.000 B/Ls custava 50 idas ao banco em série, cada uma
+    // projetando bl_containers, bl_freight_lines e bl_breakbulk_items inteiros.
+    psql(`
+      INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode)
+      SELECT 'CBM064-PAGE-' || lpad(n::text, 3, '0'), ${voyageId}, ${customerId}, 'container'
+      FROM generate_series(1, 120) AS n;
+    `)
+
+    const page = JSON.parse(psql(
+      `SELECT public.operational_list_bls(1, 500, NULL, ${voyageId})`,
+    ))
+    expect(page.rows.length).toBeGreaterThan(100)
+    expect(page.rows.length).toBe(Number(page.count))
+
+    psql(`DELETE FROM public.bls WHERE id LIKE 'CBM064-PAGE-%'`)
+  })
+
+  it('o backfill da 064 alcança o B/L misto que ainda não tem contêiner', () => {
+    // O `FROM (... GROUP BY bl_id)` original é join interno: um B/L 'misto' sem
+    // linha em bl_containers não era atualizado e ficava com bb_cbm NULL e
+    // total_cbm ainda ambíguo — o estado que a migration existe para acabar.
+    // Este caso roda a MESMA sentença da seção 1 contra linhas novas.
+    psql(`
+      INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode, total_cbm, bb_weight_ton)
+        VALUES ('CBM064-SEMCNTR', ${voyageId}, ${customerId}, 'carga_solta', 90, 12);
+      UPDATE public.bls SET cargo_mode = 'misto', bb_cbm = NULL WHERE id = 'CBM064-SEMCNTR';
+
+      UPDATE public.bls AS b
+      SET bb_cbm = GREATEST(
+            COALESCE(b.total_cbm, 0)
+            - (SELECT COALESCE(sum(bc.cbm), 0) FROM public.bl_containers bc WHERE bc.bl_id = b.id),
+            0
+          ),
+          total_cbm = NULLIF(
+            (SELECT COALESCE(sum(bc.cbm), 0) FROM public.bl_containers bc WHERE bc.bl_id = b.id),
+            0
+          )
+      WHERE b.id = 'CBM064-SEMCNTR'
+        AND b.total_cbm IS NOT NULL;
+    `)
+
+    const [containerCbm, breakbulkCbm] = psql(`
+      SELECT coalesce(total_cbm::text, 'NULL') || '|' || coalesce(bb_cbm::text, 'NULL')
+      FROM public.bls WHERE id = 'CBM064-SEMCNTR'
+    `).split('|')
+    expect(containerCbm).toBe('NULL')
+    expect(Number(breakbulkCbm)).toBe(90)
+  })
+
   it('A8 — máquinas e cubagem também disparam a reavaliação da modalidade', () => {
     psql(`
       INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode)

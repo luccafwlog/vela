@@ -11,6 +11,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useCustomerLookup } from '../../hooks/useCustomers'
 import type { ReviewQueueItem } from '../../hooks/useReview'
 import { formatCnpj } from '../../lib/cnpj'
+import { isBreakbulkCargoMode, isContainerCargoMode } from '../../lib/cargoMode'
 import { logOperationalEvent } from '../../services/operationalEvents'
 import { ConcurrentEditError, saveBlReview, saveGraniteBlReview } from '../../services/review'
 import { tryAutoIssueInvoice } from '../../services/reviewBillingAutomation'
@@ -46,6 +47,8 @@ export function ReviewDrawer({
   const [pod, setPod] = useState('')
   const [totalWeightKg, setTotalWeightKg] = useState('')
   const [totalCbm, setTotalCbm] = useState('')
+  const [bbWeightTon, setBbWeightTon] = useState('')
+  const [bbCbm, setBbCbm] = useState('')
   const [notes, setNotes] = useState('')
   const [customerSearch, setCustomerSearch] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
@@ -65,6 +68,8 @@ export function ReviewDrawer({
     setPod(item.pod ?? '')
     setTotalWeightKg(item.total_weight_kg ? String(item.total_weight_kg) : '')
     setTotalCbm(item.total_cbm ? String(item.total_cbm) : '')
+    setBbWeightTon('bb_weight_ton' in item && item.bb_weight_ton ? String(item.bb_weight_ton) : '')
+    setBbCbm('bb_cbm' in item && item.bb_cbm ? String(item.bb_cbm) : '')
     setNotes(item.notes ?? '')
     setSelectedCustomerId(item.customer_id ?? null)
     setSelectedCustomerDisplay(item.customer ? `${item.customer.name} (${formatCnpj(item.customer.cnpj_cpf)})` : null)
@@ -100,8 +105,12 @@ export function ReviewDrawer({
           pod: item.pod,
           total_weight_kg: item.total_weight_kg,
           total_cbm: item.total_cbm,
+          bb_weight_ton: 'bb_weight_ton' in item ? item.bb_weight_ton : null,
+          bb_cbm: 'bb_cbm' in item ? item.bb_cbm : null,
           notes: item.notes,
         },
+        // Os quatro campos viajam sempre; `saveBlReview` só persiste o que
+        // mudou, e a tela só deixa mexer no par da modalidade do B/L.
         values: {
           shipper,
           consignee,
@@ -109,6 +118,8 @@ export function ReviewDrawer({
           pod,
           total_weight_kg: totalWeightKg === '' ? null : Number(totalWeightKg),
           total_cbm: totalCbm === '' ? null : Number(totalCbm),
+          bb_weight_ton: bbWeightTon === '' ? null : Number(bbWeightTon),
+          bb_cbm: bbCbm === '' ? null : Number(bbCbm),
           notes,
         },
         customerId: selectedCustomerId,
@@ -165,6 +176,10 @@ export function ReviewDrawer({
   const canGoNext = currentIndex >= 0 && currentIndex < totalItems - 1
   const isGranite = item?.source === 'granite'
   const canSelectCustomer = Boolean(isGranite || allowCustomerLink)
+  // Mesmos predicados do resto do sistema, e não uma terceira regra local.
+  const cargoMode = item && !isGranite ? item.cargo_mode : null
+  const showContainerCargo = !cargoMode || isContainerCargoMode(cargoMode)
+  const showBreakbulkCargo = Boolean(cargoMode) && isBreakbulkCargoMode(cargoMode)
   const pendencies = item?.review_reasons?.length ? item.review_reasons : ['Pendente de revisão']
 
   return (
@@ -231,12 +246,28 @@ export function ReviewDrawer({
                 <Field label="POD">
                   <Input value={pod} onChange={(event) => setPod(event.target.value)} />
                 </Field>
-                <Field label="Peso total (kg)">
-                  <Input type="number" value={totalWeightKg} onChange={(event) => setTotalWeightKg(event.target.value)} />
-                </Field>
-                <Field label="CBM total">
-                  <Input type="number" value={totalCbm} onChange={(event) => setTotalCbm(event.target.value)} />
-                </Field>
+                {/* Cada modalidade edita as SUAS colunas. Um B/L misto mostra
+                    os dois pares, porque satisfaz os dois predicados. */}
+                {showContainerCargo ? (
+                  <>
+                    <Field label="Peso contêiner (kg)">
+                      <Input type="number" value={totalWeightKg} onChange={(event) => setTotalWeightKg(event.target.value)} />
+                    </Field>
+                    <Field label="CBM contêiner (m³)">
+                      <Input type="number" value={totalCbm} onChange={(event) => setTotalCbm(event.target.value)} />
+                    </Field>
+                  </>
+                ) : null}
+                {showBreakbulkCargo ? (
+                  <>
+                    <Field label="Peso carga solta (ton)">
+                      <Input type="number" value={bbWeightTon} onChange={(event) => setBbWeightTon(event.target.value)} />
+                    </Field>
+                    <Field label="CBM carga solta (m³)">
+                      <Input type="number" value={bbCbm} onChange={(event) => setBbCbm(event.target.value)} />
+                    </Field>
+                  </>
+                ) : null}
               </div>
               <Field label="Descrição da carga do B/L" hint="Texto extraído do documento; não é alterado nesta revisão.">
                 <Textarea

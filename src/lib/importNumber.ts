@@ -148,6 +148,54 @@ export function parseImportNumber(
 }
 
 /**
+ * Texto numérico de uma célula de planilha, sem a unidade que venha colada.
+ *
+ * Existe para que a MESMA leitura valha em todo lugar. A ambiguidade de
+ * separador era detectada sobre o valor cru e o número era parseado sobre o
+ * valor sem a unidade: `"259.312 TON"` não casava a forma ambígua (por causa do
+ * ` TON`), não entrava na evidência do arquivo (por causa do espaço e das
+ * letras) e mesmo assim era lido como 259.312 — o ×1000 passava sem erro nem
+ * aviso. Quem normaliza uma vez e usa o resultado nas três decisões não tem
+ * como abrir essa fresta de novo.
+ *
+ * Devolve `null` quando não há nada numérico para ler.
+ */
+export function normalizeNumericText(value: unknown): string | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null
+  if (typeof value !== 'string') return null
+  const text = value.trim()
+  if (!text) return null
+  return text.match(/^[+-]?\d[\d.,]*/)?.[0] ?? text
+}
+
+/**
+ * Separador de milhar do formato — o que, seguido de exatamente três dígitos,
+ * produz a forma que não dá para distinguir de um decimal.
+ */
+export function groupingSeparator(format: 'pt-BR' | 'en-US'): '.' | ',' {
+  return format === 'pt-BR' ? '.' : ','
+}
+
+/**
+ * `true` quando a célula tem UM separador só, ele é o separador de milhar do
+ * formato em uso, e vêm exatamente três dígitos depois: `259.312` lido em
+ * pt-BR, `259,312` lido em en-US.
+ *
+ * É a forma em que uma leitura errada não parece errada: 259,312 toneladas e
+ * 259.312 toneladas são ambas plausíveis na tela, e a segunda vira uma taxa por
+ * tonelada mil vezes maior. Quem chama decide o que fazer com isso; esta função
+ * só diz que o número não se explica sozinho.
+ */
+export function isThousandsGroupShape(value: unknown, format: 'pt-BR' | 'en-US'): boolean {
+  const text = normalizeNumericText(value)
+  if (!text) return false
+  const separator = groupingSeparator(format)
+  const other = separator === '.' ? ',' : '.'
+  if (text.includes(other)) return false
+  return new RegExp(`^[+-]?\\d+\\${separator}\\d{3}$`).test(text)
+}
+
+/**
  * Descobre, olhando a coluna inteira, qual separador decimal a planilha usa.
  *
  * Existe porque fixar um formato é o pior dos mundos: com `pt-BR` fixo, um
@@ -169,8 +217,9 @@ export function inferSeparatorFormat(values: readonly unknown[]): ImportNumberFo
   let decided: ImportNumberFormat | null = null
 
   for (const value of values) {
-    if (typeof value !== 'string') continue
-    const text = value.trim()
+    // Normaliza antes de julgar: a unidade colada (`"1.217,11 CBM"`) não pode
+    // mais fazer a célula desaparecer da evidência do arquivo.
+    const text = normalizeNumericText(value)
     if (!text || /[^0-9.,+-]/.test(text)) continue
 
     const evidence = separatorEvidence(text)

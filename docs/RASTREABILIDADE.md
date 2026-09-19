@@ -51,16 +51,33 @@ passaram a contar como sinal de carga solta em `_recalculate_bl_cargo_mode` e
 era reclassificado como `container` em silêncio no primeiro UPDATE de
 `bb_weight_ton`/`bb_packages_qty`.
 
-**Formato numérico dos imports BB.** `parseNumber` do manifesto de carga solta
-não fixa mais pt-BR. `inferSeparatorFormat` (`src/lib/importNumber.ts`) decide o
-separador decimal pela evidência do próprio arquivo — uma célula com os dois
-separadores, ou com um separador seguido de um número de dígitos diferente de 3.
-Sem evidência, a leitura segue em pt-BR e cada célula ambígua (`259.312`) gera um
-`rowError` de severidade `warning` dizendo o valor exato que entrou. Antes,
-`259.312` entrava como 259.312 toneladas, sem erro nenhum, e alimentava a taxa
-local de base `weight_ton`. `ParsedBreakbulkManifest.rowErrors` ganhou
-`severity`, e `rowErrorsToImportIssues` a respeita: só divergência bloqueante
-impede a importação.
+**Formato numérico dos imports BB.** O manifesto de carga solta não fixa mais
+pt-BR, e também não adivinha. Três camadas, nesta ordem:
+
+1. **Declaração do operador** — o modal de importação tem um seletor
+   `Detectar pelo arquivo` / `Vírgula decimal (pt-BR)` / `Ponto decimal (en-US)`
+   (`ParseBreakbulkOptions.numberFormat`). Trocar o formato relê os arquivos já
+   escolhidos (`FileImportModal.reparseKey`). Formato declarado que o arquivo
+   contradiz é **recusado**, não corrigido em silêncio.
+2. **Evidência do arquivo** — `inferSeparatorFormat` (`src/lib/importNumber.ts`)
+   decide pelo que o próprio arquivo mostra: célula com os dois separadores, ou
+   com um separador seguido de um número de dígitos diferente de 3.
+3. **Ambiguidade residual** — `isThousandsGroupShape` marca a célula que sobrou
+   na forma `259.312` (separador de milhar seguido de exatamente três dígitos).
+   Sem declaração do operador ela é **erro bloqueante**; com declaração, aviso
+   de conferência, e a mensagem mostra as DUAS leituras possíveis.
+
+`normalizeNumericText` é a normalização única: a mesma leitura vale para a
+evidência, para a detecção de ambiguidade e para o parse. Antes, a ambiguidade
+era testada no valor cru e o número parseado no valor sem a unidade, então
+`"259.312 TON"` escapava das duas checagens e entrava como 259 312 toneladas, na
+taxa local de base `weight_ton`. `NUMERIC_CEILINGS` acrescenta um teto de
+absurdo por coluna, que não depende de heurística nenhuma. O layout do armador
+usa a mesma resolução — lia peso sem formato e cubagem em `en-US` fixo.
+
+`ParsedBreakbulkManifest.rowErrors` ganhou `severity`, e
+`rowErrorsToImportIssues` a respeita: só divergência bloqueante impede a
+importação.
 
 **Linha expansível em `/bls`.** Cada linha expande contêineres (com tara e data
 de descarga) e carga solta (resumo e itens) em `BlRowDetail`, sem query nova — a
@@ -70,7 +87,21 @@ a seleção em massa não é afetada.
 
 **Export e tabela com um filtro só.** `fetchAllBls` pagina a mesma RPC da
 tabela. Reimplementava os filtros contra `bls` com busca textual mais estreita,
-então buscar por nome de cliente exibia linhas e exportava zero.
+então buscar por nome de cliente exibia linhas e exportava zero. O teto de
+`p_page_size` de `operational_list_bls` subiu de 100 para 1.000 na mesma
+migration 064: com 100, exportar uma viagem de 5.000 B/Ls custava 50 idas ao
+banco em série, cada uma projetando os filhos inteiros do B/L.
+
+**Fila de reconciliação por modalidade.** `ReviewDrawer` edita
+`total_weight_kg`/`total_cbm` para B/L de contêiner e `bb_weight_ton`/`bb_cbm`
+para carga solta, pelos mesmos predicados do resto do sistema; um B/L misto
+mostra os dois pares. Oferecia só o par de contêiner, então um B/L de carga
+solta aparecia na fila com os dois campos vazios — e quem preenchesse criava uma
+segunda cubagem, que `blTotalCbm()` somava à que já existia.
+
+**KPIs de `/bls`.** Máquinas, Total de volumes, CBM carga solta e **CBM total**
+(a soma aditiva que a 064 criou) são renderizados. Os quatro vinham da RPC,
+tipados e mapeados, e eram descartados sem chegar à tela.
 
 **Ficha do B/L.** `Carga` virou aba própria (`?tab=carga`), entre Visão Geral e
 Detalhes; era uma seção no fim do formulário de edição. A modalidade aparece

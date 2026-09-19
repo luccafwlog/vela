@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp, Download, FileText, Loader2, MoreVertical, Upload } from 'lucide-react'
@@ -34,7 +34,14 @@ import { formatBlCargoBadge } from '../lib/blCargoBadge'
 import { BlRowDetail } from '../components/bl/BlRowDetail'
 import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
 import { formatPortDisplayName } from '../lib/voyageFormat'
-import { hasBlockingRowErrors, importBreakbulkManifest, parseBreakbulkManifestFile, type ParsedBreakbulkManifest } from '../services/breakbulkImport'
+import {
+  hasBlockingRowErrors,
+  importBreakbulkManifest,
+  parseBreakbulkManifestFile,
+  type BreakbulkNumberFormat,
+  type ParseBreakbulkOptions,
+  type ParsedBreakbulkManifest,
+} from '../services/breakbulkImport'
 import { afterManifestoImportado } from '../services/cacheEffects'
 import { inspectImportUpload } from '../services/importText'
 import { rowErrorsToImportIssues } from '../services/importValidation'
@@ -455,6 +462,13 @@ export function Bls() {
               />
             </>
           ) : null}
+          {/* Cubagem do documento inteiro (contêiner + carga solta), que a
+              migration 064 tornou uma soma aditiva. Vinha da RPC e era
+              descartada sem renderizar — o mesmo defeito dos três cards acima. */}
+          <MetricCard
+            label="CBM total"
+            value={isSummaryLoading ? '...' : `${(summary?.totalCbm ?? 0).toLocaleString('pt-BR')} m³`}
+          />
           <MetricCard label="Sem faturamento" value={isSummaryLoading ? '...' : summary?.pendingFinancial ?? 0} />
           <MetricCard label="Taxas pendentes" value={isSummaryLoading ? '...' : summary?.chargePending ?? 0} />
           <MetricCard label="Faturados" value={isSummaryLoading ? '...' : summary?.chargeReady ?? 0} />
@@ -729,9 +743,21 @@ function BreakbulkManifestUploadModal({
   defaultVoyageId?: string
 }) {
   const [voyageId, setVoyageId] = useState(defaultVoyageId ?? '')
+  // 'auto' lê pela evidência do arquivo e BLOQUEIA o que a evidência não
+  // resolve; declarar o formato é o que desfaz a ambiguidade de vez. Ver
+  // `readNumericColumns` em breakbulkManifestParser.ts.
+  const [numberFormat, setNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
+  const parseOptions = useMemo<ParseBreakbulkOptions>(
+    () => (numberFormat === 'auto' ? {} : { numberFormat }),
+    [numberFormat],
+  )
+  const parseManifest = useCallback(
+    (file: File) => parseBreakbulkManifestFile(file, parseOptions),
+    [parseOptions],
+  )
 
   if (!open) return null
 
@@ -739,7 +765,8 @@ function BreakbulkManifestUploadModal({
     <FileImportModal
       title="Importar Manifesto Breakbulk (Carga Solta)"
       accept=".xlsx,.xls,.csv"
-      parser={parseBreakbulkManifestFile}
+      parser={parseManifest}
+      reparseKey={numberFormat}
       inspectFile={inspectImportUpload}
       importer={async (nextManifest, file, override) => {
         if (!user || !voyageId) return
@@ -753,6 +780,7 @@ function BreakbulkManifestUploadModal({
         await afterManifestoImportado(queryClient, { voyageId })
         showToast('Manifesto de carga solta importado com sucesso.', 'success')
         setVoyageId('')
+        setNumberFormat('auto')
         onClose()
       }}
       canImport={(nextManifest, override) =>
@@ -761,12 +789,26 @@ function BreakbulkManifestUploadModal({
       getIssues={(nextManifest) => rowErrorsToImportIssues(nextManifest.rowErrors)}
       ready={Boolean(voyageId && user)}
       prerequisite={
-        <VoyageCombobox
-          required
-          label="Viagem de destino"
-          selectedVoyageId={voyageId}
-          onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
-        />
+        <div className="grid gap-3">
+          <VoyageCombobox
+            required
+            label="Viagem de destino"
+            selectedVoyageId={voyageId}
+            onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
+          />
+          <Field
+            label="Formato numérico do arquivo"
+            hint={numberFormat === 'auto'
+              ? 'Detectar usa a evidência do próprio arquivo e recusa a linha quando ela não basta — "259.312" pode ser 259 mil ou 259,312. Declarar o formato resolve.'
+              : 'A leitura inteira usa este separador decimal. Se o arquivo contradisser, a importação é recusada em vez de corrigir sozinha.'}
+          >
+            <Select value={numberFormat} onChange={(event) => setNumberFormat(event.target.value as typeof numberFormat)}>
+              <option value="auto">Detectar pelo arquivo</option>
+              <option value="pt-BR">Vírgula decimal — 259,312 (pt-BR)</option>
+              <option value="en-US">Ponto decimal — 259.312 (en-US)</option>
+            </Select>
+          </Field>
+        </div>
       }
       renderPreview={(nextManifest) => <BreakbulkPreview manifest={nextManifest} />}
       helper={
@@ -786,6 +828,7 @@ function BreakbulkManifestUploadModal({
       }
       onClose={() => {
         setVoyageId('')
+        setNumberFormat('auto')
         onClose()
       }}
     />

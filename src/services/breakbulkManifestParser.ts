@@ -5,7 +5,14 @@
 // breakbulkImport.ts.
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeDocument, extractCnpjFromText } from '../lib/cnpj'
-import { inferSeparatorFormat, parseImportNumber, type ImportNumberFormat } from '../lib/importNumber'
+import {
+  groupingSeparator,
+  inferSeparatorFormat,
+  isThousandsGroupShape,
+  normalizeNumericText,
+  parseImportNumber,
+  type ImportNumberFormat,
+} from '../lib/importNumber'
 import { asString, normalizeHeader, onlyDigits } from '../lib/utils'
 import { normalizePortCode } from './portCode'
 import {
@@ -94,29 +101,49 @@ export function hasBlockingRowErrors(rowErrors: ParsedBreakbulkManifest['rowErro
   return rowErrors.some((rowError) => (rowError.severity ?? 'error') === 'error')
 }
 
-export async function parseBreakbulkManifestFile(file: File): Promise<ParsedBreakbulkManifest> {
+/**
+ * `numberFormat` e o separador decimal que o operador declarou no modal. Sem
+ * ele o parser usa a evidencia do arquivo e BLOQUEIA o que a evidencia nao
+ * resolve; com ele nao ha palpite nenhum. Ver `readNumericColumns`.
+ */
+export type ParseBreakbulkOptions = { numberFormat?: BreakbulkNumberFormat }
+
+export async function parseBreakbulkManifestFile(
+  file: File,
+  options: ParseBreakbulkOptions = {},
+): Promise<ParsedBreakbulkManifest> {
   assertUploadFile(file, ['xlsx', 'xls', 'csv'])
   const buffer = await file.arrayBuffer()
-  return parseBreakbulkManifestBuffer(buffer)
+  return parseBreakbulkManifestBuffer(buffer, options)
 }
 
-export async function parseBreakbulkManifestBuffer(buffer: ArrayBuffer): Promise<ParsedBreakbulkManifest> {
+export async function parseBreakbulkManifestBuffer(
+  buffer: ArrayBuffer,
+  options: ParseBreakbulkOptions = {},
+): Promise<ParsedBreakbulkManifest> {
   const { headers: rawHeaders, matrix, rows } = await readSheet(buffer)
 
   if (looksLikeCarrierBreakbulk(matrix as (string | number | null)[][])) {
-    return parseCarrierBreakbulkRows(matrix as (string | number | null)[][])
+    return parseCarrierBreakbulkRows(matrix as (string | number | null)[][], options)
   }
 
   const layout = detectLayout(rawHeaders)
   validateRequiredHeaders(rawHeaders, layout)
-  return parseBreakbulkRows(rows, layout)
+  return parseBreakbulkRows(rows, layout, options)
 }
 
-function parseBreakbulkRows(rows: SheetRow[], layout: BreakbulkLayout): ParsedBreakbulkManifest {
-  return layout === 'summary' ? parseSummaryRows(rows) : parseLegacyRows(rows)
+function parseBreakbulkRows(
+  rows: SheetRow[],
+  layout: BreakbulkLayout,
+  options: ParseBreakbulkOptions,
+): ParsedBreakbulkManifest {
+  return layout === 'summary' ? parseSummaryRows(rows, options) : parseLegacyRows(rows, options)
 }
 
-function parseCarrierBreakbulkRows(rawRows: (string | number | null)[][]): ParsedBreakbulkManifest {
+function parseCarrierBreakbulkRows(
+  rawRows: (string | number | null)[][],
+  options: ParseBreakbulkOptions = {},
+): ParsedBreakbulkManifest {
   const rowErrors: ParsedBreakbulkManifest['rowErrors'] = []
   const bls: BreakbulkImportRow[] = []
 
@@ -132,6 +159,23 @@ function parseCarrierBreakbulkRows(rawRows: (string | number | null)[][]): Parse
   const colShipper = findCarrierColumnIndex(headerRow, ['shipper'])
   const colConsignee = findCarrierColumnIndex(headerRow, ['consignee'])
   const colNotify = findCarrierColumnIndex(headerRow, ['notify', 'notify party'])
+
+  // O layout carrier lia peso com 'unknown' e cubagem com 'en-US' FIXO: o
+  // proprio codigo contradizia a premissa de que uma planilha usa um locale so,
+  // e a coluna de cubagem nunca era conferida contra o arquivo. Agora as duas
+  // colunas passam pela mesma resolucao dos outros layouts.
+  const carrierFormat = resolveSheetFormat(
+    inferSeparatorFormat(
+      rawRows.flatMap((row) => [colWeight >= 0 ? row[colWeight] : null, colCbm >= 0 ? row[colCbm] : null]),
+    ),
+    options.numberFormat,
+    // Sem evidência e sem declaração, este layout lê en-US: é um documento de
+    // armador em inglês, não uma planilha do operador. Era o que o código já
+    // fazia para a cubagem, só que fixo — agora é um default que a evidência do
+    // arquivo e a declaração do operador podem sobrepor.
+    'en-US',
+  )
+  pushFormatConflict(rowErrors, carrierFormat, headerRowIndex + 1)
 
   const previewText = rawRows.slice(0, 20).map((row) => row.map((cell) => asString(cell)).join(' ')).join(' ')
   let currentPol = inferPortFromText(previewText, 'pol') ?? ''
@@ -166,31 +210,25 @@ function parseCarrierBreakbulkRows(rawRows: (string | number | null)[][]): Parse
     index += groupRows.length - 1
 
     const descriptionBlock = joinedStringsFromColumn(groupRows, colDescription >= 0 ? colDescription : 3)
+    const rawWeight = firstRawFromColumn(groupRows, colWeight) ?? firstRawBeforeUnit(groupRows, /^KGS?$/i)
+    const rawCbm = firstRawFromColumn(groupRows, colCbm) ?? firstRawBeforeUnit(groupRows, /^CBMS?$/i)
     const readWeightKg =
-      firstNumberFromColumn(groupRows, colWeight, 'unknown') ?? findNumberBeforeUnit(groupRows, /^KGS?$/i, 'unknown')
-    const readCbm = firstNumberFromColumn(groupRows, colCbm, 'en-US') ?? findNumberBeforeUnit(groupRows, /^CBMS?$/i, 'en-US')
-    const grossWeightKg = readWeightKg ?? 0
-    const cbm = readCbm ?? 0
+      firstNumberFromColumn(groupRows, colWeight, carrierFormat.format)
+      ?? findNumberBeforeUnit(groupRows, /^KGS?$/i, carrierFormat.format)
+    const readCbm =
+      firstNumberFromColumn(groupRows, colCbm, carrierFormat.format)
+      ?? findNumberBeforeUnit(groupRows, /^CBMS?$/i, carrierFormat.format)
+    const weightIssue = describeCarrierNumber('gross_weight_kg', candidateBl, rawWeight, readWeightKg, carrierFormat)
+    const cbmIssue = describeCarrierNumber('cbm', candidateBl, rawCbm, readCbm, carrierFormat)
+    const grossWeightKg = weightIssue?.severity === 'error' ? 0 : readWeightKg ?? 0
+    const cbm = cbmIssue?.severity === 'error' ? 0 : readCbm ?? 0
 
     // Os layouts resumido e legado rejeitam a linha sem peso; o carrier aceitava
     // em silêncio e o B/L entrava sem peso nenhum, indistinguível de uma carga
     // que realmente não tem peso declarado. O peso alimenta a taxa por tonelada,
     // então a ausência tem de aparecer como issue, não como zero.
-    if (readWeightKg === null || readWeightKg <= 0) {
-      rowErrors.push({
-        row: index + 1,
-        message: `Peso bruto nao identificado para o BL ${candidateBl}; confira a coluna de peso do arquivo.`,
-        raw: row,
-      })
-    }
-    if (readCbm === null) {
-      rowErrors.push({
-        row: index + 1,
-        message: `Cubagem (CBM) nao identificada para o BL ${candidateBl}.`,
-        raw: row,
-        severity: 'warning',
-      })
-    }
+    if (weightIssue) rowErrors.push({ row: index + 1, ...weightIssue, raw: row })
+    if (cbmIssue) rowErrors.push({ row: index + 1, ...cbmIssue, raw: row })
     const packageInfo = parseCarrierPackageInfo(descriptionBlock, firstValueFromColumn(groupRows, colQty))
     const itemDescription = normalizeCarrierBreakbulkDescription(descriptionBlock)
     const splitParties = parseCarrierSplitPartyRows(groupRows)
@@ -256,12 +294,16 @@ function parseCarrierBreakbulkRows(rawRows: (string | number | null)[][]): Parse
   }
 }
 
-function parseSummaryRows(rows: SheetRow[]): ParsedBreakbulkManifest {
+function parseSummaryRows(rows: SheetRow[], options: ParseBreakbulkOptions = {}): ParsedBreakbulkManifest {
   const rowErrors: ParsedBreakbulkManifest['rowErrors'] = []
   const parsedRows: BreakbulkImportRow[] = []
 
   const mappedRows = rows.map((row) => ({ row, mapped: mapRow(row, SUMMARY_SPEC) }))
-  const format = inferSheetFormat(mappedRows.map((entry) => entry.mapped), SUMMARY_NUMERIC_FIELDS)
+  const format = resolveSheetFormat(
+    inferSheetFormat(mappedRows.map((entry) => entry.mapped), SUMMARY_NUMERIC_FIELDS),
+    options.numberFormat,
+  )
+  pushFormatConflict(rowErrors, format, rows[0]?.rowNumber ?? 1)
 
   mappedRows.forEach(({ row, mapped }) => {
     const rowNumber = row.rowNumber
@@ -324,7 +366,7 @@ function parseSummaryRows(rows: SheetRow[]): ParsedBreakbulkManifest {
   }
 }
 
-function parseLegacyRows(rows: SheetRow[]): ParsedBreakbulkManifest {
+function parseLegacyRows(rows: SheetRow[], options: ParseBreakbulkOptions = {}): ParsedBreakbulkManifest {
   const rowErrors: ParsedBreakbulkManifest['rowErrors'] = []
   const mappedRows: Array<{
     rowNumber: number
@@ -343,7 +385,11 @@ function parseLegacyRows(rows: SheetRow[]): ParsedBreakbulkManifest {
   }> = []
 
   const sheetRows = rows.map((row) => ({ row, mapped: mapRow(row, LEGACY_SPEC) }))
-  const format = inferSheetFormat(sheetRows.map((entry) => entry.mapped), LEGACY_NUMERIC_FIELDS)
+  const format = resolveSheetFormat(
+    inferSheetFormat(sheetRows.map((entry) => entry.mapped), LEGACY_NUMERIC_FIELDS),
+    options.numberFormat,
+  )
+  pushFormatConflict(rowErrors, format, rows[0]?.rowNumber ?? 1)
 
   sheetRows.forEach(({ row, mapped }) => {
     const rowNumber = row.rowNumber
@@ -560,6 +606,69 @@ function findNumberBeforeUnit(rows: (string | number | null)[][], unitPattern: R
   return null
 }
 
+function firstRawFromColumn(rows: (string | number | null)[][], columnIndex: number) {
+  if (columnIndex < 0) return null
+  for (const row of rows) {
+    if (asString(row[columnIndex])) return row[columnIndex]
+  }
+  return null
+}
+
+function firstRawBeforeUnit(rows: (string | number | null)[][], unitPattern: RegExp) {
+  for (const row of rows) {
+    for (let index = 1; index < row.length; index += 1) {
+      if (unitPattern.test(asString(row[index])) && asString(row[index - 1])) return row[index - 1]
+    }
+  }
+  return null
+}
+
+/**
+ * Divergência de um número do layout carrier, com a mesma régua dos outros
+ * layouts: ausente, ilegível, absurdo ou ambíguo.
+ *
+ * A mensagem anterior dizia sempre "nao identificado ... confira a coluna de
+ * peso", inclusive quando o valor estava lá e era o SEPARADOR que não dava para
+ * decidir — o operador conferia a coluna, via o número no lugar, e não tinha o
+ * que fazer.
+ */
+function describeCarrierNumber(
+  field: DestinationField,
+  blId: string,
+  raw: unknown,
+  parsed: number | null,
+  resolved: ResolvedSheetFormat,
+): { message: string; severity?: 'error' | 'warning' } | null {
+  const label = NUMERIC_COLUMN_LABELS[field] ?? field
+  const isWeight = field === 'gross_weight_kg'
+  const shown = normalizeNumericText(raw)
+  // `N/A`, `-` e afins não são número ilegível: são a ausência do dado escrita
+  // à mão. A mensagem tem de dizer "ausente", não "não é um número válido".
+  const hasNumber = Boolean(shown) && /^[+-]?\d/.test(shown as string)
+
+  if (!hasNumber) {
+    return isWeight
+      ? { message: `Coluna ${label}: peso bruto ausente para o BL ${blId}; a taxa por tonelada depende dele.` }
+      : { message: `Coluna ${label}: cubagem ausente para o BL ${blId}.`, severity: 'warning' }
+  }
+  if (parsed === null) {
+    return { message: `Coluna ${label}: "${shown}" nao e um numero valido no formato lido (BL ${blId}).` }
+  }
+  if (isWeight && parsed <= 0) {
+    return { message: `Coluna ${label}: peso bruto zerado para o BL ${blId}; a taxa por tonelada depende dele.` }
+  }
+
+  if (isThousandsGroupShape(raw, resolved.format)) {
+    const message = `${describeAmbiguity(field, raw, parsed, resolved.format)} (BL ${blId})`
+    return resolved.declared ? { message, severity: 'warning' } : { message }
+  }
+  const ceiling = NUMERIC_CEILINGS[field]
+  if (ceiling && parsed > ceiling.max) {
+    return { message: `${describeCeiling(field, raw, parsed, ceiling)} (BL ${blId})` }
+  }
+  return null
+}
+
 function validateRequiredHeaders(rawHeaders: string[], layout: BreakbulkLayout) {
   if (layout === 'carrier') return
   const requiredHeaders = layout === 'summary' ? bbRequiredHeaders : legacyRequiredHeaders
@@ -762,14 +871,52 @@ const NUMERIC_COLUMN_LABELS: Record<string, string> = {
 }
 
 /**
- * Formato decidido uma vez para o arquivo inteiro, com a evidência de todas as
- * colunas numéricas. Ler célula a célula não resolveria: `259.312` sozinho é
- * ambíguo, mas a planilha que em qualquer outra célula traz `12,5` já disse
- * qual é o separador decimal dela. Uma planilha usa um locale só.
+ * Teto de absurdo por coluna: acima disso o número não descreve um B/L, seja
+ * qual for o separador. É a rede que não depende de heurística nenhuma — pega o
+ * ×1000 mesmo num arquivo cujo formato o operador declarou errado.
  *
- * `'unknown'` significa que o arquivo não desempata — ver `readNumericColumns`,
- * que lê em pt-BR (o formato que a tela documenta e o modelo usa) e avisa o
- * operador célula a célula, em vez de escolher em silêncio.
+ * ponytail: é um teto de sanidade, não uma regra de negócio. Não substitui o
+ * bloqueio por ambiguidade (`259.312` -> 259.312 t passa por aqui de folga);
+ * serve para o caso em que tudo o mais falhou. O caminho definitivo é validar
+ * contra a capacidade declarada da viagem, que o sistema ainda não guarda.
+ */
+const NUMERIC_CEILINGS: Partial<Record<DestinationField, { max: number; unit: string }>> = {
+  // Um navio de carga geral inteiro não passa de ~200 mil toneladas.
+  gross_weight_ton: { max: 200_000, unit: 't' },
+  gross_weight_kg: { max: 200_000_000, unit: 'kg' },
+  // Capacidade volumétrica de um navio inteiro, com folga.
+  cbm: { max: 400_000, unit: 'm3' },
+  machine_qty: { max: 100_000, unit: 'un' },
+  packages_qty: { max: 1_000_000, unit: 'vol' },
+  packages_total: { max: 1_000_000, unit: 'vol' },
+  package_qty: { max: 1_000_000, unit: 'vol' },
+}
+
+/**
+ * Formato numérico do arquivo, como o parser passou a resolvê-lo.
+ *
+ * `declared` é o formato que o operador escolheu no modal de importação. Ele
+ * existe porque nenhuma heurística fecha o caso sozinha: `259.312` só tem um
+ * significado quando alguém diz qual é o separador decimal daquele arquivo.
+ * Quando não há declaração, a evidência do próprio arquivo decide, e o que a
+ * evidência não resolve vira erro bloqueante — nunca um palpite silencioso.
+ */
+export type BreakbulkNumberFormat = 'pt-BR' | 'en-US'
+
+export type ResolvedSheetFormat = {
+  /** Formato efetivamente usado na leitura. */
+  format: BreakbulkNumberFormat
+  /** `true` quando veio do operador, `false` quando veio da evidência ou do padrão. */
+  declared: boolean
+  /** Evidência encontrada no arquivo; `'unknown'` quando ele não desempata. */
+  inferred: ImportNumberFormat
+}
+
+/**
+ * Evidência de separador do arquivo inteiro, olhando todas as colunas
+ * numéricas. Ler célula a célula não resolveria: `259.312` sozinho é ambíguo,
+ * mas a planilha que em qualquer outra célula traz `12,5` já disse qual é o
+ * separador decimal dela.
  */
 function inferSheetFormat<TField extends DestinationField>(
   rows: Partial<Record<DestinationField, unknown>>[],
@@ -778,83 +925,179 @@ function inferSheetFormat<TField extends DestinationField>(
   return inferSeparatorFormat(rows.flatMap((row) => fields.map((field) => row[field])))
 }
 
-type NumericCell = { ok: true; value: number } | { ok: false; reason: 'empty' | 'ambiguous' | 'syntax' }
+/**
+ * Junta a declaração do operador com a evidência do arquivo.
+ *
+ * Sem declaração, a evidência manda. Se ela também não desempata, vale o
+ * `fallback` do LAYOUT — e não um palpite global: o resumido e o legado são
+ * planilhas que a própria tela documenta e distribui em pt-BR, enquanto o
+ * layout do armador é um documento em inglês (`B/L NO.`, `KGS`, `CBMS`,
+ * `DESCRIPTION OF GOODS`), cuja notação é en-US por construção. O que o
+ * fallback não resolve continua virando erro bloqueante em
+ * `readNumericColumns`.
+ */
+function resolveSheetFormat(
+  inferred: ImportNumberFormat,
+  declared: BreakbulkNumberFormat | undefined,
+  fallback: BreakbulkNumberFormat = 'pt-BR',
+): ResolvedSheetFormat {
+  if (declared) return { format: declared, declared: true, inferred }
+  if (inferred === 'unknown') return { format: fallback, declared: false, inferred }
+  return { format: inferred, declared: false, inferred }
+}
 
-function readNumericCell(value: unknown, format: ImportNumberFormat): NumericCell {
-  const text = typeof value === 'string'
-    ? value.trim().match(/^[+-]?\d[\d.,]*/)?.[0] ?? value.trim()
-    : value
-  const parsed = parseImportNumber(text, format)
+/**
+ * O arquivo contradiz o que o operador declarou. Não é uma sutileza: se ele
+ * escolheu `en-US` e alguma célula traz `12,5`, ler o arquivo inteiro em en-US
+ * quebra essa célula e provavelmente todas as outras. Bloqueia e diz onde está
+ * a contradição.
+ */
+function describeFormatConflict(resolved: ResolvedSheetFormat) {
+  if (!resolved.declared || resolved.inferred === 'unknown' || resolved.inferred === resolved.format) return null
+  return `Formato declarado (${formatLabel(resolved.format)}) contradiz o arquivo, que usa ${formatLabel(resolved.inferred)} `
+    + 'em pelo menos uma celula. Troque o formato no modal ou corrija a planilha.'
+}
+
+function pushFormatConflict(
+  rowErrors: ParsedBreakbulkManifest['rowErrors'],
+  resolved: ResolvedSheetFormat,
+  rowNumber: number,
+) {
+  const message = describeFormatConflict(resolved)
+  if (message) rowErrors.push({ row: rowNumber, message, raw: null })
+}
+
+function formatLabel(format: ImportNumberFormat) {
+  if (format === 'pt-BR') return 'virgula decimal (pt-BR)'
+  if (format === 'en-US') return 'ponto decimal (en-US)'
+  return 'formato indefinido'
+}
+
+type NumericCell = { ok: true; value: number } | { ok: false; reason: 'empty' | 'syntax' }
+
+function readNumericCell(value: unknown, format: BreakbulkNumberFormat): NumericCell {
+  const parsed = parseImportNumber(normalizeNumericText(value), format)
   if (parsed.kind === 'value') {
     const numeric = Number(parsed.decimal)
     return Number.isFinite(numeric) ? { ok: true, value: numeric } : { ok: false, reason: 'syntax' }
   }
-  if (parsed.kind === 'empty') return { ok: false, reason: 'empty' }
-  return { ok: false, reason: parsed.reason === 'ambiguous' ? 'ambiguous' : 'syntax' }
+  return { ok: false, reason: parsed.kind === 'empty' ? 'empty' : 'syntax' }
 }
 
 /**
  * Lê as colunas numéricas de uma linha, separando o que impede a importação do
  * que só pede conferência.
  *
- * `problems` (erro) é coluna vazia ou valor que não é número. `warnings` é o
- * caso em que o arquivo não disse qual é o separador decimal e a célula tem a
- * forma ambígua `259.312`: aí a leitura segue em pt-BR — o formato que a tela
- * documenta e que os modelos usam — e o operador é avisado do valor exato que
- * entrou, com o número já formatado. Era esse o buraco: `259.312` virava
- * 259.312 toneladas sem nenhum sinal, e daí ia para a taxa por tonelada.
+ * O caso que importa é a célula da forma `259.312` lida como grupo de milhar:
+ * ela pode ser 259 mil ou 259 e trezentos e doze milésimos, e a diferença vira
+ * uma taxa por tonelada mil vezes maior.
  *
- * ponytail: o desempate definitivo é o operador declarar o formato no próprio
- * modal de importação (um seletor pt-BR/en-US ao lado da viagem de destino).
- * Enquanto não existe, o teto é este: arquivos sem evidência nenhuma são lidos
- * em pt-BR e o aviso é o que impede o erro de passar despercebido.
+ * A checagem é ASSIMÉTRICA de propósito, e só olha a direção do grupo de
+ * milhar. `259,312` lido em pt-BR já está resolvido — a vírgula é o decimal
+ * naquele formato, e é a notação que a tela documenta e que os modelos
+ * distribuem. Tratar as duas direções como ambíguas rejeitaria o próprio modelo
+ * da tela, que não tem nenhuma célula desempatadora. O erro que esta função
+ * existe para impedir é o que INFLA o número por mil e vai para a fatura.
+ *
+ * A regra é:
+ *
+ * - formato DECLARADO pelo operador -> aviso, com as duas leituras na mensagem.
+ *   Ele afirmou o separador daquele arquivo; o parser registra o que entrou.
+ * - formato inferido ou default -> ERRO bloqueante. Ninguem declarou nada, e um
+ *   palpite nosso nao pode virar faturamento. A saida do operador e um clique
+ *   no seletor de formato do modal.
+ *
+ * A checagem vale mesmo quando a evidencia do arquivo apontou um formato: era
+ * exatamente essa a fresta — um arquivo com `1.217,11` numa coluna e
+ * `259.312` na outra "provava" pt-BR e entregava o peso multiplicado por mil.
  */
 function readNumericColumns<TField extends DestinationField>(
   mapped: Partial<Record<DestinationField, unknown>>,
   fields: readonly TField[],
-  format: ImportNumberFormat,
+  resolved: ResolvedSheetFormat,
 ) {
-  const readAs: ImportNumberFormat = format === 'unknown' ? 'pt-BR' : format
   const values = {} as Record<TField, number>
   const problems: string[] = []
   const warnings: string[] = []
 
   for (const field of fields) {
-    const cell = readNumericCell(mapped[field], readAs)
-    if (cell.ok) {
-      values[field] = cell.value
-      if (format === 'unknown' && isAmbiguousCell(mapped[field])) {
-        warnings.push(describeAmbiguity(field, mapped[field], cell.value))
-      }
+    const raw = mapped[field]
+    const cell = readNumericCell(raw, resolved.format)
+    if (!cell.ok) {
+      problems.push(describeNumericProblem(field, raw, cell.reason))
       continue
     }
-    problems.push(describeNumericProblem(field, mapped[field], cell.reason))
+
+    // A ambiguidade vem antes do teto de propósito: quando as duas disparam, é
+    // a ambiguidade que EXPLICA o número absurdo, e a mensagem dela diz o que
+    // fazer. Avisar "acima do máximo" sobre um número que só está mil vezes
+    // maior por causa do separador manda o operador conferir a coisa errada.
+    if (isThousandsGroupShape(raw, resolved.format)) {
+      const message = describeAmbiguity(field, raw, cell.value, resolved.format)
+      if (!resolved.declared) {
+        problems.push(message)
+        continue
+      }
+      warnings.push(message)
+    }
+
+    const ceiling = NUMERIC_CEILINGS[field]
+    if (ceiling && cell.value > ceiling.max) {
+      problems.push(describeCeiling(field, raw, cell.value, ceiling))
+      continue
+    }
+
+    values[field] = cell.value
   }
 
   return { values, problems, warnings }
 }
 
-/** `259.312` e `259,312`: um separador só, seguido de exatamente três dígitos. */
-function isAmbiguousCell(raw: unknown) {
-  return typeof raw === 'string' && /^[+-]?\d+[.,]\d{3}$/.test(raw.trim())
-}
-
-function describeAmbiguity(field: string, raw: unknown, readValue: number) {
+/**
+ * Mostra as DUAS leituras possíveis, lado a lado e com unidade.
+ *
+ * A versão anterior escrevia `"177.120" foi lido como 177.120`: o
+ * `toLocaleString('pt-BR')` de 177120 é a mesma string do valor cru, então o
+ * operador lia o mesmo número duas vezes e concluía que estava certo. Um aviso
+ * que não mostra diferença nenhuma não é um aviso.
+ */
+function describeAmbiguity(
+  field: string,
+  raw: unknown,
+  readValue: number,
+  format: BreakbulkNumberFormat,
+) {
   const label = NUMERIC_COLUMN_LABELS[field] ?? field
-  const shown = String(raw ?? '').trim()
-  return `Coluna ${label}: "${shown}" foi lido como ${readValue.toLocaleString('pt-BR')}. `
-    + 'Nenhuma celula do arquivo desempata se o separador e milhar ou decimal. '
-    + 'Se o arquivo usa ponto decimal, troque por virgula e reimporte.'
+  const shown = normalizeNumericText(raw) ?? String(raw ?? '').trim()
+  const separator = groupingSeparator(format)
+  const asDecimal = Number(shown.replace(separator, '.'))
+  return `Coluna ${label}: "${shown}" pode ser ${describeMagnitude(readValue)} (separador de milhar) `
+    + `ou ${describeMagnitude(asDecimal)} (separador decimal), e a planilha nao desempata. `
+    + `Declare o formato do arquivo no modal de importacao: a leitura atual e ${describeMagnitude(readValue)}.`
 }
 
-function describeNumericProblem(field: string, raw: unknown, reason: 'empty' | 'ambiguous' | 'syntax') {
+/** `259312` e `259,312` por extenso curto, para as duas leituras nao se confundirem. */
+function describeMagnitude(value: number) {
+  const exact = value.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
+  if (Number.isInteger(value) && Math.abs(value) >= 1000) {
+    return `${exact} (${Math.round(value / 1000).toLocaleString('pt-BR')} mil)`
+  }
+  return exact
+}
+
+function describeCeiling(field: string, raw: unknown, value: number, ceiling: { max: number; unit: string }) {
+  const label = NUMERIC_COLUMN_LABELS[field] ?? field
+  const shown = normalizeNumericText(raw) ?? String(raw ?? '').trim()
+  return `Coluna ${label}: "${shown}" foi lido como ${value.toLocaleString('pt-BR')} ${ceiling.unit}, `
+    + `acima do maximo plausivel para um B/L (${ceiling.max.toLocaleString('pt-BR')} ${ceiling.unit}). `
+    + 'Confira a unidade e o separador decimal do arquivo.'
+}
+
+function describeNumericProblem(field: string, raw: unknown, reason: 'empty' | 'syntax') {
   const label = NUMERIC_COLUMN_LABELS[field] ?? field
   const shown = String(raw ?? '').trim()
   if (reason === 'empty') return `Coluna ${label}: valor obrigatorio ausente.`
-  if (reason === 'ambiguous') {
-    return `Coluna ${label}: "${shown}" e ambiguo — use virgula no decimal (ex.: ${shown.replace(/\./g, ',')}).`
-  }
-  return `Coluna ${label}: "${shown}" nao e um numero valido.`
+  return `Coluna ${label}: "${shown}" nao e um numero valido no formato lido.`
 }
 
 function parseNumber(value: unknown, format: ImportNumberFormat = 'unknown') {
