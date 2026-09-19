@@ -16,6 +16,20 @@ Use este documento para procedimentos técnicos. Consulte:
 Código, migrations e configuração executável são a evidência final quando um
 snapshot histórico diverge do estado atual.
 
+Execute os comandos a partir da raiz do checkout correto. Antes de instalar,
+editar ou sincronizar, confira `git status --short` e a branch atual; preserve
+alterações alheias. `npm run sync` exige avanço fast-forward da branch atual.
+`npm run sync:hard` descarta alterações e arquivos não rastreados e redefine a
+branch para `origin/main`: não é procedimento de atualização cotidiana.
+
+| Necessidade | Seção |
+|---|---|
+| Preparar e executar as duas aplicações | 4 |
+| Alterar schema ou contrato de RPC | 5 e 11 |
+| Alterar acesso a dados, imports ou rotas | 6–8 |
+| Escolher verificações e interpretar CI | 11–12 |
+| Entregar a mudança | 14 |
+
 ## Claude Code e `AGENTS.md`
 
 O repositório mantém suas instruções em `AGENTS.md`, sem um `CLAUDE.md` na
@@ -125,7 +139,8 @@ a exceção pública remanescente: `portal_ship_schedule()`.
 src/
   AppInterno.tsx          mapa de rotas do sistema interno
   AppPortal.tsx           mapa de rotas do Portal Fwlog
-  main.tsx                providers globais e telemetria
+  main.tsx                entrada interna, providers e telemetria
+  portal-main.tsx         entrada do Portal, providers e telemetria
   pages/                  composição de telas
   hooks/                  queries e mutations reutilizáveis
   services/               Supabase, parsers, imports e domínio
@@ -148,7 +163,8 @@ scripts/
   design-audit/           bootstrap e seed da auditoria de design
 
 supabase/
-  migrations/             história do schema
+  migrations/             cadeia ativa do schema
+  migrations_archive/     migrations históricas anteriores ao squash
   functions/              Edge Functions
   scripts/                scripts operacionais
   seeds/                  dados de validação
@@ -196,6 +212,10 @@ devem atualizar `package.json` e `package-lock.json` juntas.
 Copy-Item .env.example .env
 ```
 
+Em Bash/zsh, use `cp .env.example .env`. Copie somente se `.env` ainda não
+existir; preserve a configuração local existente. Confira o projeto apontado
+pelas variáveis antes de abrir fluxos que escrevem no banco.
+
 Variáveis obrigatórias para o app:
 
 ```env
@@ -203,8 +223,15 @@ VITE_SUPABASE_URL=https://seu-projeto.supabase.co
 VITE_SUPABASE_ANON_KEY=sua-chave-publica
 ```
 
-As variáveis `SUPABASE_*` adicionais são usadas pela suíte de integração. Não
-coloque service role no bundle Vite.
+As variáveis `SUPABASE_*` adicionais do exemplo são usadas pela suíte de
+integração e precisam estar no ambiente do processo de teste. Não coloque
+service role no bundle Vite. Tudo que usa prefixo `VITE_` pode chegar ao
+navegador; mudança de valor exige novo build do artefato publicado.
+
+Confira também `VITE_PORTAL_URL` e `VITE_PORTAL_BILLING_URL`: na ausência
+delas há fallback para URLs de produção. Em validação isolada, configure o
+destino correto antes de gerar links de comunicação. `.env.example` é a
+referência de nomes, não um conjunto de credenciais utilizáveis.
 
 Edge Functions de Portal usam `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`,
 `PORTAL_REPLY_TO`, `RESEND_WEBHOOK_SECRET`, `NOTIFY_WEBHOOK_SECRET` e
@@ -216,7 +243,8 @@ e [`docs/operations/segredos-cron.md`](./docs/operations/segredos-cron.md)).
 Com o cofre vazio o job fica inerte e registra `WARNING`, em vez de disparar.
 Webhooks e cron têm
 `verify_jwt = false` em `supabase/config.toml` e validam seus próprios segredos.
-Sem `RESEND_API_KEY`, o módulo transacional opera em dry-run. O domínio do
+O modo dry-run deve ser confirmado no caminho de envio que será exercitado;
+não presuma que remover uma chave simula todas as Edge Functions. O domínio do
 remetente precisa estar verificado antes de qualquer envio real.
 
 Os consumidores da remediação usam `PORTAL_EMAIL_EVENTS_CRON_SECRET`,
@@ -232,8 +260,11 @@ validação externa descrita em `docs/operations/segredos-cron.md`.
 npm run dev
 ```
 
-O Vite usa a porta padrão local. O proxy `/sb-proxy` existe apenas para a
-auditoria de design com Supabase local.
+Use a URL indicada pelo Vite: `/login` abre o Vela e `/portal/login` abre o
+Portal. `vite.config.ts` direciona `/portal/*` para `portal.html` durante o
+desenvolvimento. O build gera as duas entradas, `index.html` e `portal.html`.
+O proxy `/sb-proxy` é um recurso de desenvolvimento usado pela auditoria de
+design; não faz parte do deploy e não equivale ao backend real.
 
 ## 5. Migrations Supabase
 
@@ -249,14 +280,15 @@ validada por replay completo das migrations e só segura em banco descartável
 
 ### Aplicação no remoto
 
-O **Automatic branching** da integração GitHub do Supabase permanece habilitado.
-Cada branch do GitHub recebe uma branch Supabase efêmera correspondente; as
+O fluxo esperado usa **Automatic branching** da integração GitHub do Supabase.
+Confirme sua configuração e os checks da PR no ambiente alvo; o checkout não
+comprova que a integração remota está habilitada. Para PRs elegíveis, as
 migrations em `supabase/migrations/` são executadas pelo branch action antes do
 Preview ser usado. A integração Supabase/Vercel atualiza as variáveis públicas
 do Preview para o project ref dessa mesma branch e reimplanta o Preview quando
 necessário.
 
-No merge ou push em `main`, a opção **Deploy to production** aplica as migrations
+No merge ou push em `main`, quando habilitada, a opção **Deploy to production** aplica as migrations
 pendentes no projeto Supabase de produção (`fgmkhbzhaeebrsizwccx`). Não aplique
 migrations remotas por ferramentas que geram versão **timestamp** (ex.: `apply_migration`
 do MCP Supabase): elas gravam em `supabase_migrations.schema_migrations` uma
@@ -269,7 +301,8 @@ não edite migrations aplicadas.
 
 1. declare o problema de negócio;
 2. identifique todas as tabelas, funções e policies afetadas;
-3. leia as migrations recentes e o schema real;
+3. leia a cadeia ativa e a última definição de cada objeto; confira o schema
+   do ambiente alvo quando a tarefa envolver aplicação remota;
 4. confira os ADRs de segurança e domínio relevantes;
 5. defina rollback ou reversão operacional.
 
@@ -278,14 +311,27 @@ rollback, RLS, grants, numeração sequencial e validação em banco descartáve
 
 ### Validar em banco descartável (local)
 
-Para replay real das migrations sem tocar em produção, rode
-`scripts/setup-local-pg.sh` — ele sobe um **PostgreSQL 16 local e descartável**,
-aplica os shims Supabase (schema `auth`, roles `anon`/`authenticated`/
-`service_role`, `pgcrypto` no schema `extensions`, stub de `pg_cron`, publicação
-`supabase_realtime`) e replica todas as migrations. Ecoa a `DATABASE_URL`
-(`postgresql://postgres:postgres@127.0.0.1:5432/vela_test`). Use
-`--reset` para recriar do zero. Nunca aponte validação de migration ao projeto
-Supabase de produção.
+O script [setup-local-pg.sh](scripts/setup-local-pg.sh) requer PostgreSQL 16 e
+deve rodar na raiz do repositório:
+
+- Debian/Ubuntu: usa o cluster `16/main`, com privilégios para administrar o
+  cluster e executar como `postgres` (no CI: `sudo scripts/setup-local-pg.sh --reset`).
+- macOS: usa os binários do Homebrew `postgresql@16` ou `PG_BIN`, criando um
+  cluster em `TMPDIR`; não usa `brew services`.
+- Windows: o script é Bash; use um ambiente WSL com os pré-requisitos Linux.
+  Não execute sua sintaxe diretamente no PowerShell.
+
+O alvo é `vela_test`, com porta configurável por `LOCAL_PG_PORT` (padrão 5432).
+`--reset` recria esse banco; no macOS também recria o cluster temporário.
+O caminho Debian usa um cluster existente e ajusta a senha local de `postgres`:
+reserve um ambiente de testes. Sem `--reset`, o script pode retornar ao encontrar
+`public.bls`, sem aplicar migrations adicionadas depois do último replay.
+
+O replay executa SQL real, mas usa shims de Auth, Vault, cron, HTTP e Storage.
+Não comprova login, envio de email, disparo de cron nem criptografia do Vault.
+Não use segredos reais nesses shims. O script imprime uma URL local; não exporta
+variáveis para o shell chamador. O seed operacional `supabase/seed.sql` é uma
+etapa separada, validada no CI. Nunca aponte testes de migration para produção.
 
 ### Nome de arquivo novo
 
@@ -293,25 +339,29 @@ Supabase de produção.
 NNN_descricao_curta.sql
 ```
 
-Use o próximo número sequencial disponível — derive-o do repositório com
-`ls supabase/migrations/ | sort | tail -1` e some 1 — com três dígitos e zero
-à esquerda. Em caso de branches paralelos, reconcilie os números antes do
+Use o maior prefixo numérico da cadeia ativa mais um, com três dígitos e zero
+à esquerda. Não use a quantidade de arquivos: lacunas históricas não devem ser
+preenchidas. Em caso de branches paralelos, reconcilie os arquivos novos antes do
 merge para preservar a ordem lexicográfica = ordem de aplicação.
 
 ### Migration que reescreve ou apaga dados
 
 Uma migration que faz `UPDATE`, `DELETE`, `TRUNCATE`, `DROP TABLE` ou
 `DROP COLUMN` fora de um corpo de função só é aceitável enquanto valer a
-afirmação **"Data status"** da seção Gotchas do `AGENTS.md` — hoje: o projeto de
-produção não tem dados de negócio. Declare essa dependência no cabeçalho do
+afirmação **"Data status"** da seção Gotchas do `AGENTS.md`, datada de
+2026-09-18 e revogável pelo proprietário. Consulte sua validade antes da mudança;
+este manual não renova a afirmação sobre dados de produção. Declare a dependência no cabeçalho do
 arquivo, citando o nome da afirmação e o `AGENTS.md`; veja
 `supabase/migrations/061_bl_weight_semantics_and_triggers.sql` como exemplo.
 
 `npm run migrations:check` verifica isso e roda no gate `quality`. Ele ignora
 `UPDATE`/`DELETE` dentro de `CREATE FUNCTION` (código que roda depois, a pedido
 da aplicação) mas não dentro de blocos `DO` (executam durante o deploy), e não
-cobra declaração das migrations anteriores à 061, que são histórico já
-aplicado — o relatório conta quantas são.
+cobra declaração ausente nas migrations até a 061, inclusive, tratadas como
+históricas pelo checker atual. Nesse intervalo também aceita a referência
+antiga a `CLAUDE.md`; arquivos novos devem citar `AGENTS.md`. O relatório conta
+as exceções. A análise é textual e não detecta toda forma de SQL dinâmico ou
+efeito indireto: ela complementa a revisão, não autoriza perda de dados.
 
 Se a afirmação tiver sido revogada, declarar dependência não basta: escreva um
 plano de preservação.
@@ -327,8 +377,10 @@ plano de preservação.
 
 ### Tipos
 
-Regere `src/types/database.ts` quando o contrato usado pelo app mudar. Não edite
-tipos gerados manualmente para esconder drift.
+Quando o contrato usado pelo app mudar, planeje a regeneração de
+`src/types/database.ts` a partir do schema correto, preservando os complementos
+tipados existentes. O arquivo é protegido: siga a autorização exigida em
+`AGENTS.md` antes de modificá-lo. Não edite tipos para esconder drift.
 
 ### Aplicação
 
@@ -413,12 +465,17 @@ Regras mínimas:
 2. validar tamanho com `assertUploadSize` antes de `arrayBuffer()` ou parsing;
 3. importar planilhas por `await import('@e965/xlsx')` quando possível;
 4. manter parser puro separado da persistência;
-5. adicionar fixture e teste de regressão;
+5. deixar um teste de regressão com o menor exemplo representativo; reutilizar
+   o harness e evitar fixture com dados pessoais ou scaffolding desnecessário;
 6. usar RPC quando múltiplas escritas precisarem ser atômicas;
 7. exibir preview e resumo de erros antes da confirmação;
 8. validar duplicidade ou idempotência.
 
-Parsers existentes são referências, não contratos universais:
+Reutilize `src/services/importCore.ts` para leitura de planilhas e casamento de
+cabeçalhos quando aplicável. Diferencie importação de arquivo de importação
+marítima: Granito ingere arquivos, mas sua carga é de exportação.
+
+Parsers em `src/services/` são referências, não contratos universais:
 
 - `blParser.ts` e `blFreightImport.ts`: ingestão documental de B/L de container;
 - `breakbulkImport.ts`: carga solta;
@@ -439,12 +496,16 @@ cada uma no seu build.
 2. carregue-a por `lazyPage`;
 3. coloque-a sob o guard apropriado;
 4. adicione navegação, se aplicável;
-5. atualize `docs/ARCHITECTURE.md`;
+5. atualize `docs/ARCHITECTURE.md`, `docs/RASTREABILIDADE.md` e o módulo dono;
 6. execute `npm run docs:check`.
 
-Rotas do Portal ficam sob `PortalProtectedRoute` e `PortalLayout`. Rotas internas
-ficam sob `ProtectedRoute` e `AppLayout`. Administração de usuários usa
-`adminOnly`.
+Rotas autenticadas do Portal ficam sob `PortalProtectedRoute`,
+`PortalScopeProvider` e `PortalLayout`; login, ativação e recuperação são públicas.
+Rotas internas usam `ProtectedRoute`; a maioria usa `AppLayout`, mas TV e
+inspeção do Portal têm composição própria. Toda a árvore `/admin` usa
+`adminOnly`, e `/clientes/comunicacao` exige `customer_communications`.
+Confira também preloading, título, redirects antigos e acesso direto por URL.
+Guard de rota não substitui autorização no banco.
 
 ## 9. Componentes e interface
 
@@ -506,13 +567,10 @@ Testing Library renderizou ao fim de cada teste. Não declare `afterEach(cleanup
 em arquivos novos — os que já declaram continuam corretos, porque `cleanup` é
 idempotente.
 
-O Vitest roda com isolamento por arquivo (`isolate` no padrão). Isso é
-obrigatório aqui: 134 arquivos usam `vi.mock` para substituir `supabase`,
-hooks e componentes, e dependem de um registro de módulos limpo por arquivo.
-Rodar com `--no-isolate` é ~2,5x mais rápido, mas quebra um conjunto
-**não determinístico** de arquivos, que muda conforme a distribuição entre
-workers. Só faz sentido reavaliar se as dependências passarem a ser injetadas
-em vez de mockadas por módulo.
+O Vitest roda com isolamento por arquivo (`isolate` no padrão). Os mocks de
+módulo dependem desse isolamento; não use `--no-isolate` como otimização
+rotineira. O ambiente padrão é Node; testes de componente optam por jsdom
+com `// @vitest-environment jsdom`, conforme `vite.config.ts`.
 
 ### Orçamento de bundle
 
@@ -521,13 +579,35 @@ npm run build
 npm run size-limit
 ```
 
-`npm run size-limit` valida o JS de carga inicial (entry + chunks
-pré-carregados em `dist/index.html`) contra o orçamento de 250 kB
-comprimidos, configurado na chave `size-limit` do `package.json`. Se um
-chunk novo passar a ser pré-carregado, inclua o glob correspondente na
-configuração. O CI executa esse gate após o build em todo PR.
+`npm run size-limit` executa `scripts/check-size-limit.mjs`. O script soma o
+tamanho gzip dos assets JS referenciados por cada HTML, separadamente para
+`dist/index.html` e `dist/portal.html`, com limite de **250 KiB por entrada**.
+Descobre esses assets no HTML gerado; não usa globs em `package.json`.
+Não mede todos os chunks lazy, tempo de renderização nem rede. Para o orçamento
+por rota, consulte [setup/testing.md](docs/setup/testing.md).
 
 ### Testes de integração
+
+Há dois caminhos distintos:
+
+| Caminho | Ativação e alcance |
+|---|---|
+| PostgreSQL local | `LOCAL_PG_INTEGRATION=1` e `LOCAL_DATABASE_URL` apontando para o banco descartável; executa SQL com shims |
+| Supabase completo | `SUPABASE_RUN_INTEGRATION=1`, credenciais e fixtures controladas; exercita Auth/API no projeto escolhido |
+
+Para Postgres local, depois do replay, execute as suítes relevantes com
+`npx vitest run --no-file-parallelism <arquivos.local-pg.test.ts>`.
+Use a lista explícita de `.github/workflows/ci.yml` para reproduzir o gate
+completo. As suítes compartilham banco e precisam rodar em série; cada uma deve
+usar seu próprio namespace de IDs e documentos nas fixtures.
+
+`npm run rpc:check` requer `psql` e banco já preparado. Configure explicitamente
+`LOCAL_DATABASE_URL` para o alvo descartável; o script também aceita
+`DATABASE_URL` e possui fallback local. Ele compara nomes chamados com
+`public.pg_proc`, não valida assinaturas, grants nem comportamento das RPCs.
+
+Para Supabase completo, carregue no ambiente do processo as variáveis indicadas
+em `.env.example`, inclusive os IDs das fixtures, antes de habilitar a suíte:
 
 ```powershell
 $env:SUPABASE_RUN_INTEGRATION = '1'
@@ -535,7 +615,10 @@ npm run test:integration
 ```
 
 Exigem Supabase real e dados controlados. Não aponte a suíte destrutiva para
-produção.
+produção. Em Bash, a ativação equivalente é
+`SUPABASE_RUN_INTEGRATION=1 npm run test:integration`. Apenas copiar `.env` não
+garante que essas variáveis estejam em `process.env` do teste. Casos opcionais
+podem ficar skipped se faltarem fixtures: reporte isso, não os conte como aprovados.
 
 ### Validação manual
 
@@ -548,18 +631,21 @@ resultado e evidência conforme
 
 ### Pull request
 
-`.github/workflows/ci.yml` executa cinco jobs em paralelo em pull requests e
-pushes para `main`, usando Node.js 24 e instalação reproduzível própria (`npm ci
---legacy-peer-deps`):
+`.github/workflows/ci.yml` define cinco grupos de validação em pull requests e
+pushes para `main`, mais o agregador. As etapas Node usam a versão 24 e
+`npm ci --legacy-peer-deps`; o replay de guardas usa Python e o replay de banco
+requer PostgreSQL 16:
 
-1. `quality` — verificação documental, lint e a declaração exigida em migration
-   destrutiva (`npm run migrations:check`);
+1. `quality` — verificação documental e autotestes, lint, self-check do gerador
+   de squash, declaração de migration destrutiva e autotestes desse checker;
 2. `build` — build (`tsc` + `vite`) e orçamento de bundle;
 3. `test` — suíte Vitest dividida em 3 shards (`--shard=N/3`);
 4. `security-audit` — replay estático de autorização (`verificar_guardas.py`);
 5. `migration-replay` — aplica as migrations do zero num PostgreSQL 16
    descartável (`setup-local-pg.sh --reset`) e trava invariantes em banco real
-   (`check-squash-replay.sql`): é o único gate que executa SQL;
+   (`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), roda as
+   suítes locais serializadas, confere o catálogo de RPCs e aplica/verifica
+   `supabase/seed.sql`; é o job dedicado à execução real de SQL;
 6. `checks` — gate agregador que só fica verde quando os cinco terminam verdes.
 
 `checks` é o nome estável para a proteção de branch: a quantidade de shards
@@ -576,7 +662,8 @@ secret `PREVIEW_ADMIN_PASSWORD`; o workflow também exige os secrets
 `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`. Não faça checkout do código da
 PR nesse workflow nem coloque credenciais server-side em `VITE_*`.
 PRs de forks são ignoradas pelo provisionamento porque não podem receber esses
-secrets nem têm branch automática no projeto Supabase conectado.
+secrets nesse workflow. A disponibilidade de Preview remoto deve ser conferida
+na integração, não inferida da existência da PR.
 
 ### Push em main
 
@@ -600,8 +687,9 @@ essas etapas no Supabase antes do frontend que depende delas.
 
 ## 13. Telemetria e falhas
 
-`src/lib/telemetry.ts` inicializa Sentry somente em produção e associa o release
-ao commit injetado no build.
+`src/lib/telemetry.ts` inicializa Sentry quando `import.meta.env.PROD` é
+verdadeiro e associa o release ao commit injetado no build. Isso inclui builds
+de Preview; não significa exclusivamente o ambiente remoto de produção.
 
 - falhas principais devem chegar à UI e interromper a operação insegura;
 - escritas best-effort podem seguir, mas precisam chamar a telemetria;
@@ -621,3 +709,8 @@ Antes de concluir:
 - `npm run docs:check`, lint, testes e build passaram quando aplicáveis;
 - `git diff --check` não aponta whitespace;
 - snapshots históricos não foram reescritos como se descrevessem o presente.
+
+Registre o commit verificado, os comandos e resultados, os casos skipped e o
+ambiente efetivamente exercitado. Depois de publicar a PR, acompanhe os checks
+do commit enviado até concluírem; após verde, encerre o acompanhamento conforme
+[AGENTS.md](AGENTS.md). CI verde não é autorização de merge ou deploy adicional.
