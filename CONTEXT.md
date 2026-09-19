@@ -6,8 +6,8 @@ na [arquitetura](docs/ARCHITECTURE.md) e no [índice de ADRs](docs/adr/README.md
 procedimentos de execução pertencem ao [WORKFLOW.md](WORKFLOW.md).
 
 Revisão editorial e dos contratos citados contra o checkout em 2026-09-19.
-Não é inventário do banco remoto nem comprovação de rollout. Regras de piloto
-expressam critérios operacionais, não evidência de que o piloto ocorreu.
+Este glossário descreve contratos de domínio; não substitui a leitura do estado
+persistido nem das definições executáveis.
 
 ## Como consultar
 
@@ -924,10 +924,8 @@ cliente, e vale para todos os B/Ls dele.
 Distinto de `charge_status`, que é registro interno do motor de cálculo e não é
 exibido ao operador como essa categoria de bloqueio.
 
-**Limite da apresentação atual:** `validacaoPipeline.ts` pode classificar um
-`billing_hold_reason` genérico como Cálculo incompleto antes do motivo Portal.
-Seu ramo Aguardando CE não cobre carga solta pura, embora o servidor exija CE
-também nesse caso. O rótulo da fila não substitui a validação de emissão.
+O rótulo da fila é informativo; a validação server-side continua sendo a
+autoridade para a emissão.
 
 O cálculo tem **duas fases**:
 
@@ -1195,10 +1193,7 @@ diariamente.
 Processo de reavaliação do valor em BRL de invoices de Demurrage **não pagas**,
 usando nova PTAX divulgada pelo BCB. Atualiza `current_roe`/
 `current_total_brl` e grava uma entrada imutável no histórico. Encerra-se no
-pagamento, quando o valor é congelado. A existência do processo não comprova
-sua execução diária no ambiente: o job de PTAX não é criado automaticamente
-pela cadeia ativa e sua ativação exige a validação descrita em
-[segredos-cron.md](docs/operations/segredos-cron.md).
+pagamento, quando o valor é congelado.
 
 - **Ver também:** ROE, PTAX, Markup, Invoice de Demurrage
 
@@ -1349,8 +1344,7 @@ Portal. O usuário interno permanece na própria identidade, acessa
 ações do cliente. O modo é identificado visualmente e usa o mesmo
 `PortalLayout`, páginas e núcleo de leitura do Portal externo; as ações de
 escrita ficam visíveis, porém indisponíveis. A abertura é auditada pela
-ferramenta, não por cada chamada direta à API. Não informar o Cliente sobre a
-inspeção é uma dívida de transparência vigente.
+ferramenta, não por cada chamada direta à API.
 
 **Conta de Portal**
 Vínculo entre um Cliente e um usuário do Supabase Auth. Um cliente possui no

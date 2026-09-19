@@ -1,7 +1,7 @@
 # WORKFLOW.md — Vela
 
 Manual vivo para desenvolver, testar, migrar e publicar o Vela e o Portal Fwlog.
-Stack, comandos e contratos documentais revisados em 2026-09-19; deploy remoto não revalidado nesta revisão.
+Stack, comandos e contratos documentais revisados em 2026-09-19.
 
 Use este documento para procedimentos técnicos. Consulte:
 
@@ -182,9 +182,9 @@ docs/
   setup/                  desenvolvimento, testes e deploy
   modules/                documentação por módulo
   CONVENCOES.md           convenções de documentação
-  spec/                   specs ainda sem implementação concluída
-  plans/                  planos de implementação vivos
-  archive/                histórico: planos executados, specs concluídas, auditorias, relatórios
+  spec/                   especificações de produto e contrato
+  plans/                  planos de implementação documentados
+  archive/                histórico: planos, specs, auditorias e relatórios
 ```
 
 Para obter contagens atuais, derive-as do repositório. Exemplo:
@@ -247,12 +247,12 @@ O modo dry-run deve ser confirmado no caminho de envio que será exercitado;
 não presuma que remover uma chave simula todas as Edge Functions. O domínio do
 remetente precisa estar verificado antes de qualquer envio real.
 
-Os consumidores da remediação usam `PORTAL_EMAIL_EVENTS_CRON_SECRET`,
+Os consumidores desses fluxos usam `PORTAL_EMAIL_EVENTS_CRON_SECRET`,
 `IMPORT_EFFECTS_CRON_SECRET` e `RECALC_CRON_SECRET`, sempre em par entre o
 secret da Edge Function e o Supabase Vault. `import-effects-runner` também exige
 `IMPORT_EFFECTS_RUNNER_ENABLED=true`; sem essa variável o endpoint responde
-paused e não faz claim. O job de PTAX continua deliberadamente inativo até a
-validação externa descrita em `docs/operations/segredos-cron.md`.
+paused e não faz claim. O job de PTAX só pode ser ativado depois da validação
+externa descrita em `docs/operations/segredos-cron.md`.
 
 ### Execução
 
@@ -391,7 +391,7 @@ do Supabase Preview antes do merge e, em caso de falha, compare o histórico
 remoto com os arquivos locais antes de reexecutar. Após DDL, verifique advisors
 e o contrato usado pela aplicação.
 
-As migrations `022`–`026` e `031`–`037` são a integração atual da remediação:
+As migrations `022`–`026` e `031`–`037` implementam os fluxos de:
 inbox/dispatch de email, autoridade e snapshot de Demurrage, alerta persistente
 de PTAX, consumidor de efeitos de importação e seus consumidores de Granito,
 veículos e carga solta (`031`), status parcial de despacho de comunicados (`032`),
