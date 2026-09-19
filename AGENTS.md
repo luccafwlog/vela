@@ -1,25 +1,72 @@
 # AGENTS.md
 
-## Sources of truth
+Canonical instructions for work in Vela and Portal Fwlog. Keep shared agent
+rules here; do not recreate a root `CLAUDE.md`. Tool setup belongs in
+[WORKFLOW.md](WORKFLOW.md#claude-code-e-agentsmd).
+
+## Start with the affected behavior
+
+Vela is the internal operations application; Portal Fwlog is the customer
+application. They share code and a Supabase backend, but have separate SPA
+entries and authentication clients. A change in shared code can affect both.
+
+Before editing, confirm the working directory, branch and existing diff.
+Preserve unrelated work. Identify the requested outcome, the current behavior
+and the smallest existing owner of the change. For a bug, establish a concrete
+reproduction or failing check before changing the implementation when feasible.
+
+## Read by task
 
 Read the sections relevant to the change. A typo or isolated edit does not
 require a repository map or the full documentation set. Before changing domain
 behavior, authentication, security boundaries, billing, imports, routes, or
 database schema, consult the corresponding source below.
 
-- `CONTEXT.md` — terminology and business rules for the affected domain.
-- `docs/ARCHITECTURE.md` — affected layers, contracts and routes.
-- `docs/RASTREABILIDADE.md` — traces every route/action to components, hooks,
-  services, RPCs, and tests.
-- `docs/adr/README.md` — indexes accepted and superseded decisions.
-- `WORKFLOW.md` — development, migrations, testing, and deploy.
-- `docs/CONVENCOES.md` — documentation style, evidence labels, and module
-  structure.
+| Task | Read first |
+| --- | --- |
+| Business rule or terminology | [CONTEXT.md](CONTEXT.md), then the affected module from [docs/README.md](docs/README.md) |
+| Screen, route or user action | [RASTREABILIDADE.md](docs/RASTREABILIDADE.md), then the linked implementation and module |
+| Shared code, imports or architecture | Relevant sections of [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ADR index](docs/adr/README.md) |
+| Authentication, permissions or customer data | [Security](docs/operations/seguranca.md), affected policies/RPCs and session contracts in [WORKFLOW.md](WORKFLOW.md) |
+| Schema, commands, environment, testing or deployment | Relevant procedure in [WORKFLOW.md](WORKFLOW.md); exact commands in [package.json](package.json) |
+| Documentation, plans or specs | [Documentation index](docs/README.md) and [CONVENCOES.md](docs/CONVENCOES.md) |
 
-Dated audits, specs, and plans are historical snapshots, not current truth. When
-a historical document differs from current behavior, the executable repository
-is authoritative: correct the living document and preserve the historical
-record.
+Audits and archived plans/specs are historical snapshots. Live plans/specs
+describe intended work, not proof that it has shipped. When documentation
+differs from current behavior, inspect the executable repository, correct the
+living document and preserve historical records. Executable behavior is
+evidence of what exists, not proof that a bug is
+intended: compare it with the requested outcome and applicable business rules.
+Check an ADR's current status before treating its original decision as active.
+
+## Change the existing owner
+
+- Follow the affected path from screen to hook/service to RPC or table, and
+  back through cache invalidation to the visible result. Inspect callers and
+  tests before changing a shared contract.
+- Keep page composition and visual state in `src/pages/`, reusable remote
+  state in `src/hooks/`, and data access, parsers and domain operations in
+  `src/services/`. Reuse the smallest existing owner; do not reorganize a
+  whole page just to make a local correction.
+- Reuse query families in `src/services/queryKeys.ts` and applicable domain
+  effects in `src/services/cacheEffects.ts`. A successful write is incomplete
+  if the affected screens continue displaying stale data.
+- For spreadsheet imports, check `src/services/importCore.ts` before adding
+  another reader or header matcher. For shared error handling, check
+  `src/lib/errors.ts` and its Portal adapter.
+- Preserve the separate internal and Portal clients in
+  `src/services/supabase.ts`. Route guards are navigation controls; enforce
+  authorization and customer scope in database policies, grants and RPCs.
+  A hidden button does not secure a mutation.
+- Fix a shared bug at its owner after checking callers, not with one guard
+  per call site. Keep unrelated refactors out of the requested change.
+- Mark intentional simplifications with a `ponytail:` comment. Name any known
+  ceiling (global lock, O(n²) scan, naive heuristic) and the upgrade path.
+- Non-trivial logic must leave a meaningful runnable check: a small regression
+  test using the existing harness, or an assert-based demo where appropriate.
+  Verify behavior, not a restatement of the implementation. Do not introduce
+  a test framework or fixture scaffolding just for that check. Trivial
+  one-liners and prose-only changes need no new test.
 
 ## Task scope and completion
 
@@ -38,16 +85,6 @@ Local edits and checks needed for the request can proceed without repeated
 approval. This does not authorize production mutations, sending messages,
 publishing, or bypassing the protections below. Honor any authorization already
 given for the specific action and environment.
-
-## Conventions
-
-- Mark intentional simplifications with a `ponytail:` comment. If the shortcut
-  has a known ceiling (global lock, O(n²) scan, naive heuristic), the comment
-  names the ceiling and the upgrade path.
-- Non-trivial logic leaves ONE runnable check behind (an assert-based demo or
-  one small test; no frameworks, no fixtures). Trivial one-liners need no test.
-- Fix a bug at the shared function after checking its callers, not one guard
-  per call site.
 
 ## Documentation contract
 
@@ -77,8 +114,10 @@ planos e specs"):
 - Never execute the suspended reset script
   (`supabase/scripts/reset_operational_data.sql`); see
   `docs/operations/reset-ambiente.md` for the safe alternative.
-- Project playbooks live in `skills/`. Hooks in `.claude/hooks/` also guard
-  destructive commands and lint edited TypeScript.
+- Hooks in `.claude/hooks/` provide additional checks. These protections apply
+  even when the current agent or editor does not run those hooks. Inspect
+  commands before running them; `npm run sync:hard` resets and cleans the
+  checkout and is not a routine synchronization command.
 - **Data status — asserted 2026-09-18, revocable by the repository owner.** The
   production Supabase project carries no real business data: every row is test
   fixture and may be discarded. A migration may therefore rewrite or delete
@@ -92,41 +131,42 @@ planos e specs"):
   assertion in the same change that opens it to real users — until then a
   reviewer may assume the data is disposable, and after then they must not.
 
-## Verification
+## Verify the claim you will make
 
-### Claude Code
+Choose checks by impact using [WORKFLOW.md](WORKFLOW.md) §11:
 
-This repository keeps agent guidance in `AGENTS.md`. Claude Code loads that
-file only when its built-in `agents-md` mod is enabled in the user's settings
-with the `claude-md-or-agents-md` (default) or `claude-md-and-agents-md` mode.
-The setting belongs in `~/.claude/settings.json` or managed settings; do not
-put it in `.claude/settings.json`, because project settings are not read for
-this plugin option. The user-level entry is:
+| Change | Required local evidence |
+| --- | --- |
+| Markdown or agent instructions only | `npm run docs:check` and `git diff --check`; inspect the meaning and referenced paths too |
+| Application or configuration affecting its contracts | `npm run docs:check`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` |
+| Schema or RPC contract | Above gates as applicable, plus `npm run migrations:check` and `npm run rpc:check`; follow the database validation procedure |
+| Skill scripts | Documentation checks plus verification of the changed scripts |
 
-```json
-{
-  "pluginConfigs": {
-    "agents-md@builtin": {
-      "options": { "instructionFiles": "claude-md-or-agents-md" }
-    }
-  }
-}
-```
-
-After changing the option, start a new conversation or use `/clear`. If the
-installed Claude Code version does not provide the built-in `agents-md` mod,
-keep a compatibility `CLAUDE.md` that imports `@AGENTS.md` instead of deleting
-the file. The official mod documentation is at
-`https://github.com/anthropics/claude-code/tree/main/mods/agents-md`.
-
-Choose checks by impact using `WORKFLOW.md` §11. Markdown-only changes need
-`npm run docs:check` and `git diff --check`; application changes need the
-relevant lint, tests and build gates. Keep successful results for unchanged
-code; rerun affected checks after fixes or new evidence, not for each status
-message. Report what ran and any unverified behavior.
+Use focused checks during implementation. Keep successful results for unchanged
+code and environment; rerun affected checks after fixes or new evidence, not
+for each status message. Mandatory CI checks still apply.
 
 Do not treat all tests as production-isolated: Supabase integration tests
 require an explicitly controlled environment (see `WORKFLOW.md` §11).
+
+Distinguish static code inspection, automated tests and observed runtime.
+A SQL text assertion verifies a SQL contract, not execution or RLS behavior.
+A green build does not establish a working user flow; a local migration file
+does not establish deployment. Report the environment and evidence actually
+used, and name what remains unverified. See evidence labels in
+[CONVENCOES.md](docs/CONVENCOES.md).
+
+## Deliver and stop at the agreed boundary
+
+Before delivery, review the final diff for unintended changes, update affected
+living docs and verify the requested outcome against the evidence. Explain the
+visible or operational effect first, then relevant technical details, checks
+and remaining limitations. Use the system's vocabulary and the user's language;
+follow [the communication contract](docs/agents/linguagem-do-sistema.md).
+
+Do not claim a task is complete while required work remains. If blocked, state
+the concrete blocker and what was completed; do not present a workaround or
+unverified configuration as a proven result.
 
 After creating a pull request, monitor it ONLY until CI finishes for the pushed
 commit: stay subscribed, fix CI failures and push, and once every check

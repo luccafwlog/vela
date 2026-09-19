@@ -116,20 +116,9 @@ As diretrizes para desenvolvimento assistido por IA estão em [`AGENTS.md`](AGEN
 
 ### Claude Code
 
-O repositório não mantém um `CLAUDE.md` duplicado. Para que o Claude Code
-carregue `AGENTS.md`, habilite o mod integrado `agents-md` nas configurações do
-usuário (`~/.claude/settings.json`), usando `claude-md-or-agents-md` ou
-`claude-md-and-agents-md`. A configuração é do usuário, não do projeto:
-
-```json
-{
-  "pluginConfigs": {
-    "agents-md@builtin": {
-      "options": { "instructionFiles": "claude-md-or-agents-md" }
-    }
-  }
-}
-```
-
-Depois de alterar a opção, inicie uma conversa nova ou use `/clear`. O mod é
-documentado em [anthropics/claude-code](https://github.com/anthropics/claude-code/tree/main/mods/agents-md).
+O repositório mantém `AGENTS.md` como fonte canônica, sem `CLAUDE.md` na raiz.
+Cada instalação do Claude Code precisa disponibilizar e habilitar o mod
+`agents-md`, com um modo que carregue esse arquivo. Siga a
+[configuração e verificação de carregamento](WORKFLOW.md#claude-code-e-agentsmd).
+Sincronizar o repositório ou gravar a opção, isoladamente, não comprova que as
+instruções entraram no contexto da sessão.

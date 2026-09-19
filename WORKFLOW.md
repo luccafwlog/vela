@@ -18,13 +18,43 @@ snapshot histórico diverge do estado atual.
 
 ## Claude Code e `AGENTS.md`
 
-O Claude Code precisa do mod integrado `agents-md` habilitado para tratar
-`AGENTS.md` como instruções do projeto. Configure-o no arquivo de usuário
-`~/.claude/settings.json`; `.claude/settings.json` do projeto não configura a
-opção do mod. Use `instructionFiles` como `claude-md-or-agents-md` (fallback
-quando não há `CLAUDE.md`) ou `claude-md-and-agents-md` (carrega ambos). Depois
-da alteração, abra uma conversa nova ou execute `/clear`. Em versões sem esse
-mod, use temporariamente um `CLAUDE.md` com `@AGENTS.md`.
+O repositório mantém suas instruções em `AGENTS.md`, sem um `CLAUDE.md` na
+raiz. Sincronizar ou fazer merge entrega o arquivo; não comprova que o Claude
+Code instalado naquela máquina o carregou.
+
+Para instalações que disponibilizam o mod integrado `agents-md`:
+
+1. Confirme que o mod está disponível e habilitado em `/plugin`. Em `/config`,
+   confira a opção **Project instructions**.
+2. Use `claude-md-or-agents-md` para carregar `AGENTS.md` na ausência de
+   instruções próprias do projeto, ou `claude-md-and-agents-md` para carregar
+   ambos. No modo fallback, um `CLAUDE.md`, `.claude/CLAUDE.md` ou
+   `CLAUDE.local.md` no caminho até o diretório de trabalho pode impedir o
+   carregamento. Inspecione eventuais conflitos antes de alterar esses arquivos.
+3. Se configurar por arquivo, mescle a entrada abaixo nas configurações do
+   usuário (`~/.claude/settings.json`), preservando as demais opções.
+   `.claude/settings.json` do projeto não configura opções desse mod.
+
+```json
+{
+  "pluginConfigs": {
+    "agents-md@builtin": {
+      "options": { "instructionFiles": "claude-md-or-agents-md" }
+    }
+  }
+}
+```
+
+Abra uma conversa nova ou execute `/clear` e verifique o anúncio de
+carregamento de `AGENTS.md` no contexto da sessão. JSON válido comprova apenas
+a configuração gravada; `/memory` não é um inventário desses arquivos.
+Se o mod não estiver disponível, ou não houver evidência de carregamento,
+registre essa limitação e investigue suporte/configuração da instalação.
+Não recrie `CLAUDE.md` como fallback automático nem declare a máquina pronta
+apenas pela presença da opção. Essa verificação é por instalação, inclusive
+quando Windows e WSL coexistirem.
+
+Referência: [documentação oficial do mod agents-md](https://github.com/anthropics/claude-code/tree/main/mods/agents-md).
 
 ## 1. Stack verificada
 
