@@ -74,6 +74,7 @@ export function BlCargaTab({
                   <th scope="col" className="py-2">No. Container</th>
                   <th scope="col" className="py-2">Seal</th>
                   <th scope="col" className="py-2">Tipo</th>
+                  <th scope="col" className="py-2">Tara</th>
                   <th scope="col" className="py-2">Peso bruto</th>
                   <th scope="col" className="py-2">CBM</th>
                   <th scope="col" className="py-2">OOG</th>
@@ -88,6 +89,7 @@ export function BlCargaTab({
                       <td className="py-2 font-semibold text-white">{container.container_number}</td>
                       <td className="py-2">{container.seal_number ?? '-'}</td>
                       <td className="py-2">{container.type ?? '-'}</td>
+                      <td className="py-2">{container.tare_weight_kg == null ? '-' : `${formatNumber(container.tare_weight_kg)} kg`}</td>
                       <td className="py-2">{formatNumber(container.gross_weight_kg)} kg</td>
                       <td className="py-2">{formatNumber(container.cbm)}</td>
                       <td className="py-2">{container.is_oog ? <Badge tone="yellow">OOG</Badge> : '-'}</td>
@@ -97,7 +99,7 @@ export function BlCargaTab({
                   ))
                 ) : (
                   <tr>
-                    <td className="py-3 text-slate-400" colSpan={8}>
+                    <td className="py-3 text-slate-400" colSpan={9}>
                       Nenhum container vinculado a este B/L.
                     </td>
                   </tr>
@@ -140,14 +142,14 @@ export function BlCargaTab({
                     <td className="py-2">{formatNumber(bl.bb_packages_qty)}</td>
                     <td className="py-2">{formatNumber(bl.bb_packages_total ?? bl.bb_packages_qty)}</td>
                     <td className="py-2">{formatNumber(bl.bb_weight_ton)}</td>
-                    <td className="py-2">{formatNumber(bl.total_cbm)}</td>
+                    <td className="py-2">{formatNumber(bl.bb_cbm)}</td>
                   </tr>
                 </tbody>
               </table>
 
               {bl.bl_breakbulk_items?.length ? (
                 <div>
-                  <div className="mb-2 text-sm font-semibold text-slate-300">Itens legados vinculados</div>
+                  <div className="mb-2 text-sm font-semibold text-slate-300">Itens da carga solta</div>
                   <table className="app-table app-table--compact app-table--dense w-full table-fixed text-left text-sm">
                     <thead className="bg-[#0d1117] text-xs uppercase text-slate-500">
                       <tr>
@@ -175,7 +177,7 @@ export function BlCargaTab({
                 </div>
               ) : (
                 <div className="text-sm text-slate-400">
-                  Este manifesto BB esta no layout resumido por B/L e nao possui itens individuais detalhados.
+                  Nenhum item individual vinculado a este B/L.
                 </div>
               )}
             </div>

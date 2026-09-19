@@ -10,6 +10,7 @@ import { useBlLocalChargeLines } from '../../hooks/useLocalCharges'
 import type { BlForm } from '../../hooks/useBlEditForm'
 import { cargoModeLabel, type CargoMode } from '../../pages/blDetalheHelpers'
 import { formatNcm, listBlNcms } from '../../lib/ncm'
+import { normalizeText } from '../../lib/utils'
 import { parseNcmInput } from '../../hooks/useBlEditForm'
 import { REVIEW_STATUS_LABELS } from '../../lib/statusLabels'
 import type { BL, BLDetail } from '../../types/database'
@@ -69,6 +70,16 @@ export function BlOperacionalTab({
     () => ncmSugerido.length > 0 && ncmSugerido.join(',') !== ncmCadastrado.join(','),
     [ncmSugerido, ncmCadastrado],
   )
+
+  // O upsert da reimportação atualiza manifest_customer_name mas preserva
+  // consignee. Sem este sinal, a ficha e a fila de reconciliação mostravam
+  // nomes diferentes e nada dizia que havia divergência.
+  const manifestConsigneeDiverges = useMemo(() => {
+    const manifestName = String(bl.manifest_customer_name ?? '').trim()
+    const blConsignee = String(form.consignee ?? '').trim()
+    return Boolean(manifestName) && Boolean(blConsignee)
+      && normalizeText(manifestName) !== normalizeText(blConsignee)
+  }, [bl.manifest_customer_name, form.consignee])
   if (!active) return null
 
   return (
@@ -153,13 +164,25 @@ export function BlOperacionalTab({
                   onChange={(event) => onFieldChange('bb_weight_ton', event.target.value)}
                 />
               </Field>
+              <Field label="CBM carga solta (m³)">
+                <Input
+                  type="number"
+                  value={form.bb_cbm ?? ''}
+                  onChange={(event) => onFieldChange('bb_cbm', event.target.value)}
+                />
+              </Field>
             </>
           ) : null}
 
           <Field label="Shipper">
             <Input value={form.shipper ?? ''} onChange={(event) => onFieldChange('shipper', event.target.value)} />
           </Field>
-          <Field label="Consignatário">
+          <Field
+            label="Consignatário"
+            hint={manifestConsigneeDiverges
+              ? `O último manifesto importado declara "${bl.manifest_customer_name}". A reimportação preserva o consignatário do B/L de propósito (dado comercial), então a divergência fica visível aqui em vez de sobrescrever em silêncio.`
+              : undefined}
+          >
             <Input value={form.consignee ?? ''} onChange={(event) => onFieldChange('consignee', event.target.value)} />
           </Field>
           <Field label="Notify Party">
@@ -174,22 +197,28 @@ export function BlOperacionalTab({
           <Field label="Telefone do consignatario">
             <Input disabled value={bl.consignee_phone ?? ''} />
           </Field>
+          {/* Peso e cubagem de contêiner só aparecem quando há contêiner: desde
+              as migrations 061 e 064 estas duas colunas medem exclusivamente a
+              carga conteinerizada, e a carga solta tem as suas próprias acima.
+              Num B/L misto os dois conjuntos aparecem e são independentes. */}
           {hasContainers ? (
-            <Field label="Peso total (kg)">
-              <Input
-                type="number"
-                value={form.total_weight_kg ?? ''}
-                onChange={(event) => onFieldChange('total_weight_kg', event.target.value)}
-              />
-            </Field>
+            <>
+              <Field label="Peso contêiner (kg)">
+                <Input
+                  type="number"
+                  value={form.total_weight_kg ?? ''}
+                  onChange={(event) => onFieldChange('total_weight_kg', event.target.value)}
+                />
+              </Field>
+              <Field label="CBM contêiner (m³)">
+                <Input
+                  type="number"
+                  value={form.total_cbm ?? ''}
+                  onChange={(event) => onFieldChange('total_cbm', event.target.value)}
+                />
+              </Field>
+            </>
           ) : null}
-          <Field label="CBM total">
-            <Input
-              type="number"
-              value={form.total_cbm ?? ''}
-              onChange={(event) => onFieldChange('total_cbm', event.target.value)}
-            />
-          </Field>
 
           <Field label="Pagamento">
             <Select

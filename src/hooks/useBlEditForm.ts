@@ -41,6 +41,7 @@ const editableFields: (keyof Pick<
   | 'cargo_description'
   | 'total_weight_kg'
   | 'total_cbm'
+  | 'bb_cbm'
   | 'payment_type'
   | 'free_time_override'
   | 'notes'
@@ -64,6 +65,7 @@ const editableFields: (keyof Pick<
   'cargo_description',
   'total_weight_kg',
   'total_cbm',
+  'bb_cbm',
   'payment_type',
   'free_time_override',
   'notes',
@@ -165,6 +167,15 @@ export function useBlEditForm(bl: BLDetail | undefined) {
       })
 
       if (rpcError) {
+        // P0003 é a guarda de conteúdo pós-faturamento das migrations 060/062:
+        // a mensagem do banco diz exatamente o que impede o salvamento e o que
+        // fazer ("estorno/refaturamento"). Cair no catch genérico transformava
+        // isso em "Falha ao salvar alterações do B/L", e o operador repetia a
+        // tentativa sem saber a causa.
+        if (rpcError.code === 'P0003') {
+          showToast(rpcError.message || 'Alteração bloqueada pelas regras de faturamento do B/L.', 'error')
+          return
+        }
         if (rpcError.code === 'PT409' || rpcError.code === '40001') {
           void logOperationalEvent({
             code: 'bl_review_concurrent_conflict',
@@ -195,8 +206,11 @@ export function useBlEditForm(bl: BLDetail | undefined) {
 
       setJustification('')
       showToast('B/L salvo com auditoria campo a campo.', 'success')
-    } catch {
-      showToast('Falha ao salvar alterações do B/L.', 'error')
+    } catch (err) {
+      // A causa vem do banco com frequência (constraint, trigger de modalidade).
+      // Engolir a mensagem deixava o operador sem saber o que corrigir.
+      const detail = err instanceof Error ? err.message : ''
+      showToast(detail ? `Falha ao salvar alterações do B/L: ${detail}` : 'Falha ao salvar alterações do B/L.', 'error')
     } finally {
       setSaving(false)
     }
@@ -229,6 +243,7 @@ function makeForm(bl: BLDetail): BlForm {
     cargo_description: bl.cargo_description,
     total_weight_kg: bl.total_weight_kg,
     total_cbm: bl.total_cbm,
+    bb_cbm: bl.bb_cbm,
     payment_type: bl.payment_type,
     free_time_override: bl.free_time_override,
     notes: bl.notes,
@@ -265,7 +280,7 @@ function toJsonValue(value: unknown): Json {
 
 function normalizeFormValue(field: keyof BlForm, value: unknown) {
   if (
-    ['bb_machine_qty', 'bb_packages_qty', 'bb_packages_total', 'bb_weight_ton', 'total_weight_kg', 'total_cbm', 'free_time_override'].includes(
+    ['bb_machine_qty', 'bb_packages_qty', 'bb_packages_total', 'bb_weight_ton', 'bb_cbm', 'total_weight_kg', 'total_cbm', 'free_time_override'].includes(
       field,
     )
   ) {

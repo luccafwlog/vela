@@ -34,7 +34,7 @@ function makeBl(overrides: Partial<VoyageBl> = {}): VoyageBl {
     pol: 'CNTAC',
     pod: 'BRVIX',
     total_weight_kg: null,
-    total_cbm: null,
+    bb_cbm: null,
     bl_containers: null,
     bl_breakbulk_items: null,
     ...overrides,

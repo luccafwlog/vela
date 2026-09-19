@@ -21,7 +21,7 @@ import type { PortalOperationBL } from './portalOperation'
 import type { PortalFlatContainer } from '../lib/portalOperationViews'
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
-import { blTotalWeightKg, cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
+import { blTotalCbm, blTotalWeightKg, cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
 
 function toSheet<T extends Record<string, unknown>>(
   XLSX: typeof import('@e965/xlsx'),
@@ -49,7 +49,7 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
     'Containers OOG distintos': countDistinctContainerNumbersBy(row.bl_containers, (container) => Boolean(container.is_oog)),
     'Containers IMO distintos': countDistinctContainerNumbersBy(row.bl_containers, (container) => Boolean(container.is_imo)),
     PesoKg: blTotalWeightKg(row),
-    CBM: row.total_cbm ?? '',
+    CBM: blTotalCbm(row),
     Revisao: row.review_status ?? '',
     Financeiro: row.financial_status ?? '',
   }))
@@ -86,7 +86,7 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
       PACKAGES: row.bb_packages_qty ?? '',
       'PACKAGES TOTAL': row.bb_packages_total ?? row.bb_packages_qty ?? '',
       'WEIGHT (TON)': row.bb_weight_ton ?? '',
-      'CBM (M3)': row.total_cbm ?? '',
+      'CBM (M3)': row.bb_cbm ?? '',
       SHIPPER: row.shipper ?? '',
       CONSIGNEE: row.customer?.name ?? row.consignee ?? '',
       NOTIFY: row.notify_party ?? '',
@@ -296,7 +296,7 @@ export async function exportOperationalReportWorkbook(rows: OperationalReportRow
     CNPJ: row.customer?.cnpj_cpf ?? '',
     Containers: (row.bl_containers ?? []).length,
     PesoKg: blTotalWeightKg(row),
-    CBM: Number(row.total_cbm ?? 0),
+    CBM: blTotalCbm(row),
     Revisao: row.review_status ?? '',
     Financeiro: row.financial_status ?? '',
     CriadoEm: row.created_at ?? '',

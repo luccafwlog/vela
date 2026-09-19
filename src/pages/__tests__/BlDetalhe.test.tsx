@@ -94,7 +94,7 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
     })
   })
 
-  it('exibe badge Misto (CNTR + Carga Solta) e botão voltar para /bls', () => {
+  it('exibe badge de modalidade Misto e botão voltar para /bls', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -107,7 +107,9 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
     )
 
     // Título / Modalidade
-    expect(screen.getByText(/Misto \(CNTR \+ Carga Solta\)/)).toBeTruthy()
+    // Rótulo único: a lista, o export e o detalhe escreviam nomes diferentes
+    // para a mesma modalidade.
+    expect(screen.getAllByText('Misto').length).toBeGreaterThan(0)
 
     // Botão Voltar para /bls
     const backLinks = screen.getAllByRole('link').filter((l) => l.getAttribute('href') === '/bls')
@@ -121,7 +123,7 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
-        <MemoryRouter initialEntries={['/bls/BL-MISTO-1?tab=detalhes']}>
+        <MemoryRouter initialEntries={['/bls/BL-MISTO-1?tab=carga']}>
           <Routes>
             <Route path="/bls/:blId" element={<BlDetalhe />} />
           </Routes>

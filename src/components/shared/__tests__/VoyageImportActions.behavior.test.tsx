@@ -30,6 +30,8 @@ vi.mock('../../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
 vi.mock('../../../services/breakbulkImport', () => ({
   parseBreakbulkManifestFile: mocks.parseBreakbulkManifestFile,
   importBreakbulkManifest: mocks.importBreakbulkManifest,
+  hasBlockingRowErrors: (rowErrors: Array<{ severity?: 'error' | 'warning' }>) =>
+    rowErrors.some((e) => (e.severity ?? 'error') === 'error'),
 }))
 vi.mock('../../../services/baplieParser', () => ({
   parseBaplieFile: mocks.parseBaplieFile,
@@ -278,4 +280,54 @@ it('preserva todas as importacoes solicitadas para os demais papeis', () => {
   expect(screen.getAllByRole('button').map((button) => button.textContent?.trim())).toEqual([
     'Baplie EDI', 'B/L container', 'B/L carga solta', 'CE Mercante', 'Manifesto BB', 'Veículos', 'Vazios IMP', 'Manifesto Granito', 'Novo embarque de vazios',
   ])
+})
+
+it('manifesto BB permite importar sem override quando a prévia contém apenas avisos (severity: warning)', async () => {
+  mocks.effectiveRole.mockReturnValue('documentacao')
+  mocks.can.mockReturnValue(true)
+  mocks.parseBreakbulkManifestFile.mockResolvedValue({
+    bls: [{ id: 'BL-WARN' }],
+    rowErrors: [{ row: 1, message: 'Cubagem ausente', raw: {}, severity: 'warning' }],
+  })
+
+  const { container } = render(
+    <VoyageImportActions voyageId={7} voyageLabel="GREEN SANTOS / 14N" userId="user-1" types={['bb']} />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: /Manifesto BB/ }))
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['BL;CE\nBL-WARN;CE-1'], 'manifesto-bb.csv')] },
+  })
+
+  await waitFor(() => expect(mocks.parseBreakbulkManifestFile).toHaveBeenCalled())
+  const confirm = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
+  await waitFor(() => expect(confirm.disabled).toBe(false))
+})
+
+it('permite declarar o formato numérico no modal de manifesto BB', async () => {
+  mocks.effectiveRole.mockReturnValue('documentacao')
+  mocks.can.mockReturnValue(true)
+  mocks.parseBreakbulkManifestFile.mockResolvedValue({
+    bls: [{ id: 'BL-FMT' }],
+    rowErrors: [],
+  })
+
+  const { container } = render(
+    <VoyageImportActions voyageId={7} voyageLabel="GREEN SANTOS / 14N" userId="user-1" types={['bb']} />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: /Manifesto BB/ }))
+
+  const select = container.querySelector('select') as HTMLSelectElement
+  expect(select).toBeTruthy()
+  fireEvent.change(select, { target: { value: 'pt-BR' } })
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['BL;CE\nBL-FMT;CE-1'], 'manifesto-bb.csv')] },
+  })
+
+  await waitFor(() => {
+    expect(mocks.parseBreakbulkManifestFile).toHaveBeenCalledWith(
+      expect.any(File),
+      { numberFormat: 'pt-BR' },
+    )
+  })
 })

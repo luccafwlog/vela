@@ -1,9 +1,9 @@
-import { useState, type ChangeEvent } from 'react'
+import { useCallback, useMemo, useState, type ChangeEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Box, Car, Download, FileText, Mountain, Package, PackageOpen, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Field, Input } from '../ui/Input'
+import { Field, Input, Select } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
@@ -12,7 +12,13 @@ import { FileImportModal } from './FileImportModal'
 import { BlImportModal } from './BlImportModal'
 import { BlDocumentImportModal } from './BlDocumentImportModal'
 import { CeMercanteImportModal } from './CeMercanteImportModal'
-import { importBreakbulkManifest, parseBreakbulkManifestFile } from '../../services/breakbulkImport'
+import {
+  hasBlockingRowErrors,
+  importBreakbulkManifest,
+  parseBreakbulkManifestFile,
+  type BreakbulkNumberFormat,
+  type ParseBreakbulkOptions,
+} from '../../services/breakbulkImport'
 import { importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
 import { importVaziosImportacaoManifest, parseVaziosImportacaoFile } from '../../services/vaziosImportacaoImport'
 import { importVehicleRows, parseVehicleImportFile } from '../../services/vehicleImport'
@@ -81,6 +87,7 @@ export function VoyageImportActions({
   types: ImportType[]
 }) {
   const [activeType, setActiveType] = useState<ImportType | null>(null)
+  const [bbNumberFormat, setBbNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -93,6 +100,14 @@ export function VoyageImportActions({
     if (type === 'vehicles') return canEditVehicles
     return Boolean(profile || userId)
   })
+  const bbParseOptions = useMemo<ParseBreakbulkOptions>(
+    () => (bbNumberFormat === 'auto' ? {} : { numberFormat: bbNumberFormat }),
+    [bbNumberFormat],
+  )
+  const parseBbManifest = useCallback(
+    (file: File) => (bbNumberFormat === 'auto' ? parseBreakbulkManifestFile(file) : parseBreakbulkManifestFile(file, bbParseOptions)),
+    [bbNumberFormat, bbParseOptions],
+  )
   const actionGroups: Array<{ group: ImportGroup; types: ImportType[] }> = []
   for (const type of allowedTypes) {
     const group = IMPORT_GROUP_BY_TYPE[type]
@@ -136,10 +151,25 @@ export function VoyageImportActions({
           title="Importar Manifesto BB (Break Bulk)"
           subtitle={<>Viagem: <span className="font-semibold text-[var(--app-text-strong)]">{voyageLabel}</span></>}
           accept=".xlsx,.xls,.csv"
-          parser={parseBreakbulkManifestFile}
+          parser={parseBbManifest}
+          reparseKey={bbNumberFormat}
           inspectFile={inspectImportUpload}
+          prerequisite={
+            <Field
+              label="Formato numérico do arquivo"
+              hint={bbNumberFormat === 'auto'
+                ? 'Detectar usa a evidência do próprio arquivo e recusa a linha quando ela não basta — "259.312" pode ser 259 mil ou 259,312. Declarar o formato resolve.'
+                : 'A leitura inteira usa este separador decimal. Se o arquivo contradisser, a importação é recusada em vez de corrigir sozinha.'}
+            >
+              <Select value={bbNumberFormat} onChange={(event) => setBbNumberFormat(event.target.value as typeof bbNumberFormat)}>
+                <option value="auto">Detectar pelo arquivo</option>
+                <option value="pt-BR">Vírgula decimal — 259,312 (pt-BR)</option>
+                <option value="en-US">Ponto decimal — 259.312 (en-US)</option>
+              </Select>
+            </Field>
+          }
           helper={<TemplateLinks baseName="manifesto-bb-modelo" />}
-          canImport={(p, override) => p.bls.length > 0 && (p.rowErrors.length === 0 || Boolean(override))}
+          canImport={(p, override) => p.bls.length > 0 && (!hasBlockingRowErrors(p.rowErrors) || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
           importer={async (preview, file, override) => {
             await importBreakbulkManifest({ filename: file.name, voyageId, manifest: preview, uploadedBy: userId, allowRowErrors: Boolean(override) })
@@ -149,11 +179,14 @@ export function VoyageImportActions({
           renderPreview={(preview) => (
             <div className="grid grid-cols-3 gap-3">
               <Stat label="B/Ls" value={preview.bls.length} />
-              <Stat label="Erros" value={preview.rowErrors.length} />
+              <Stat label="Erros" value={preview.rowErrors.filter((e) => (e.severity ?? 'error') === 'error').length} />
               <Stat label="Linhas" value={preview.bls.length + preview.rowErrors.length} />
             </div>
           )}
-          onClose={() => setActiveType(null)}
+          onClose={() => {
+            setBbNumberFormat('auto')
+            setActiveType(null)
+          }}
         />
       ) : null}
 

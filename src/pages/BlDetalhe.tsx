@@ -4,10 +4,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Upload } from 'lucide-react'
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../lib/containerCounts'
+import { Badge } from '../components/ui/Badge'
 import { Card, PageHeader } from '../components/ui/Card'
 import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { BlImportModal } from '../components/shared/BlImportModal'
+import { BlCargaTab } from '../components/bl/BlCargaTab'
 import { BlDetalhesTab } from '../components/bl/BlDetalhesTab'
 import { BlFaturamentoTab } from '../components/bl/BlFaturamentoTab'
 import { BlHistoricoTab } from '../components/bl/BlHistoricoTab'
@@ -32,17 +34,24 @@ import { queryKeys } from '../services/queryKeys'
 import { useVoyageReconciliation } from '../hooks/useVoyageReconciliation'
 import { cargoModeLabel, resolveCargoMode } from './blDetalheHelpers'
 
-export type BlTab = 'visao-geral' | 'detalhes' | 'faturamento' | 'historico'
+export type BlTab = 'visao-geral' | 'carga' | 'detalhes' | 'faturamento' | 'historico'
 
+const BL_TAB_KEYS: BlTab[] = ['visao-geral', 'carga', 'detalhes', 'faturamento', 'historico']
+
+// 'Carga' era uma seção no fim da aba "Detalhes do B/L", abaixo de um
+// formulário de ~25 campos: ver os contêineres ou os itens de carga solta de um
+// B/L custava quatro interações e uma rolagem. É o dado mais operacional da
+// ficha e agora tem aba própria, logo após a visão geral.
 export const BL_TABS: { key: BlTab; label: string }[] = [
   { key: 'visao-geral', label: 'Visão Geral' },
+  { key: 'carga', label: 'Carga' },
   { key: 'detalhes', label: 'Detalhes do B/L' },
   { key: 'faturamento', label: 'Faturamento' },
   { key: 'historico', label: 'Histórico' },
 ]
 
 export function isBlTab(value: string | null): value is BlTab {
-  return value === 'visao-geral' || value === 'detalhes' || value === 'faturamento' || value === 'historico'
+  return (BL_TAB_KEYS as string[]).includes(value ?? '')
 }
 
 export function BlDetalhe() {
@@ -159,7 +168,7 @@ export function BlDetalhe() {
       packages: Number(bl?.bb_packages_qty ?? 0),
       packagesTotal: Number(bl?.bb_packages_total ?? bl?.bb_packages_qty ?? 0),
       weightTon: Number(bl?.bb_weight_ton ?? 0),
-      cbm: Number(bl?.total_cbm ?? 0),
+      cbm: Number(bl?.bb_cbm ?? 0),
     }),
     [bl],
   )
@@ -204,8 +213,16 @@ export function BlDetalhe() {
           { label: `B/L ${bl.id}` },
         ]}
       />
+      {/* A modalidade estava só no texto do título, concatenada com um hífen.
+          Agora é um badge com tom próprio, ao lado do identificador — a mesma
+          leitura de relance que a coluna Carga dá na lista. */}
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Badge tone={cargoMode === 'misto' ? 'yellow' : cargoMode === 'carga_solta' ? 'green' : 'blue'}>
+          {cargoModeLabel(cargoMode)}
+        </Badge>
+      </div>
       <PageHeader
-        title={`B/L ${bl.id} - ${cargoModeLabel(cargoMode)}`}
+        title={`B/L ${bl.id}`}
         description={
           isMixedMode
             ? 'Edição manual com auditoria. Esta tela exibe containers, carga solta e veículos vinculados a este B/L misto.'
@@ -270,7 +287,7 @@ export function BlDetalhe() {
         active={activeTab === 'visao-geral'}
         bl={bl}
         cockpit={cockpitQuery.data}
-        isContainerMode={isContainerMode}
+        cargoMode={cargoMode}
         containerSummary={containerSummary}
         breakbulkSummary={breakbulkSummary}
         omission={cockpitQuery.data?.omission}
@@ -290,6 +307,16 @@ export function BlDetalhe() {
         terminalOverrideError={terminalOverrideMutation.error instanceof Error ? terminalOverrideMutation.error.message : null}
         onSaveTerminalOverride={(input) => terminalOverrideMutation.mutate(input)}
       />
+      <BlCargaTab
+        active={activeTab === 'carga'}
+        bl={bl}
+        blId={blId}
+        cargoMode={cargoMode}
+        isContainerMode={isContainerMode}
+        containerSummary={containerSummary}
+        breakbulkSummary={breakbulkSummary}
+      />
+
       <BlDetalhesTab
         active={activeTab === 'detalhes'}
         bl={bl}
@@ -301,8 +328,6 @@ export function BlDetalhe() {
         cargoMode={cargoMode}
         isContainerMode={isContainerMode}
         hasContainers={hasContainers}
-        containerSummary={containerSummary}
-        breakbulkSummary={breakbulkSummary}
         onFieldChange={setField}
         onJustificationChange={setJustification}
         onSubmit={handleSubmit}

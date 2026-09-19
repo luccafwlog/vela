@@ -14,7 +14,7 @@ describe('Agregadores de Viagem com B/Ls Mistos', () => {
     bb_weight_ton: 25.4,
     bb_packages_qty: 6,
     bb_machine_qty: 2,
-    total_cbm: 50,
+    bb_cbm: 50,
     bl_containers: [
       {
         container_number: 'CNTR001',
@@ -48,7 +48,7 @@ describe('Agregadores de Viagem com B/Ls Mistos', () => {
     bb_weight_ton: 10.0,
     bb_packages_qty: 4,
     bb_machine_qty: 0,
-    total_cbm: 20,
+    bb_cbm: 20,
     bl_containers: [],
   } as unknown as VoyageBl
 

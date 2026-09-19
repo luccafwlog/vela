@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { escapeFilterTerm, normalizeText } from '../lib/utils'
+import { normalizeText } from '../lib/utils'
 import { queryKeys } from '../services/queryKeys'
 import { supabase } from '../services/supabase'
 import {
@@ -10,18 +10,7 @@ import {
   type OperationalVoyageSummary,
 } from '../services/operationalLists'
 import type { VoyageDetail } from '../services/voyageReadModels'
-import type { AuditLog, BL, BLDetail, BLListItem, ContainerListItem } from '../types/database'
-
-const blSelect = `
-  *,
-  customer:customers!bls_customer_id_fkey(id, cnpj_cpf, name),
-  voyage:voyages(id, voyage_number, eta, ata, status, vessel:vessels(id, name, imo, carrier:carriers(id, name, scac))),
-  bl_containers(id, bl_id, container_number, seal_number, type, tare_weight_kg, gross_weight_kg, cbm, is_oog, is_imo, imo_class, un_number, created_at),
-  bl_freight_lines(bl_id, seq, description, category, mercante_code, currency, amount, payment),
-  bl_breakbulk_items(id, bl_id, item_description, package_qty, package_unit, gross_weight_kg, cbm, marks, created_at)
-`
-
-const exportBatchSize = 1000
+import type { AuditLog, BLDetail, BLListItem, ContainerListItem } from '../types/database'
 
 const voyageDetailSelect = `
   *,
@@ -131,36 +120,31 @@ export function useBlSummary(filters: BlFilters) {
 
 /**
  * @deprecated Não utilizar para navegação ou renderização de rails/listas operacionais.
- * Materializa lotes sucessivos de 1.000 linhas exclusivamente para fluxos de
- * exportação explícita (CSV/XLSX) disparados manualmente pelo operador.
+ * Materializa lotes sucessivos exclusivamente para fluxos de exportação
+ * explícita (CSV/XLSX) disparados manualmente pelo operador.
+ *
+ * Pagina a MESMA RPC que alimenta a tabela. A versão anterior reimplementava os
+ * filtros contra `bls` com uma busca textual mais estreita (só `id` e
+ * `consignee`, sem nome nem CNPJ do cliente): buscar por nome de cliente
+ * mostrava N linhas na tela e exportava as que casassem por `consignee` —
+ * possivelmente zero. Dois dialetos de filtro para o mesmo conjunto é uma
+ * divergência que reaparece a cada mudança; agora há um só.
  */
 export async function fetchAllBls(filters: BlFilters) {
   const rows: BLListItem[] = []
-  let from = 0
-  const chargeStatusFilter = normalizeChargeStatus(filters.chargeStatus)
-  const dbFilters = chargeStatusFilter ? { ...filters, chargeStatus: '' } : filters
+  // Teto de page_size da RPC, elevado de 100 para 1.000 pela migration 064: com
+  // 100, uma viagem de 5.000 B/Ls custava 50 idas ao banco em série, cada uma
+  // projetando os filhos inteiros do B/L. 1.000 é o mesmo lote que o caminho
+  // antigo usava contra `bls`, antes de os dois dialetos de filtro virarem um.
+  const pageSize = 1000
 
-  while (true) {
-    const to = from + exportBatchSize - 1
-    let query = supabase.from('bls').select(blSelect).order('created_at', { ascending: false }).range(from, to)
-    query = applyBlFilters(query, dbFilters)
-
-    const { data, error } = await query
-    if (error) throw error
-
-    const batch = supabaseRows<BLListItem>(data)
-    rows.push(...batch)
-
-    if (batch.length < exportBatchSize) {
-      break
-    }
-
-    from += exportBatchSize
+  for (let page = 1; ; page += 1) {
+    const result = await listOperationalBls(filters, page, pageSize)
+    rows.push(...result.rows)
+    if (result.rows.length < pageSize || rows.length >= result.count) break
   }
 
-  const profileFiltered = applyCargoProfile(rows, filters.cargoProfile)
-  if (!chargeStatusFilter) return profileFiltered
-  return profileFiltered.filter((row) => normalizeChargeStatus(row.charge_status) === chargeStatusFilter)
+  return rows
 }
 
 /**
@@ -180,7 +164,7 @@ export async function fetchAllContainers(filters: ContainerFilters) {
     chargeStatus: filters.chargeStatus,
     cargoProfile: '',
     page: 1,
-    pageSize: exportBatchSize,
+    pageSize: 1000,
   })
 
   const flattenedRows = rows.flatMap((bl) =>
@@ -354,61 +338,6 @@ export function useVoyageDetail(voyageId?: number | null) {
       return data as unknown as VoyageDetail
     },
   })
-}
-
-function applyBlFilters(query: ReturnType<typeof supabase.from>, filters: BlFilters) {
-  let nextQuery = query
-
-  if (filters.search) {
-    const term = escapeFilterTerm(filters.search)
-    if (term) {
-      nextQuery = nextQuery.or(`id.ilike.%${term}%,consignee.ilike.%${term}%`)
-    }
-  }
-
-  if (filters.voyageId) nextQuery = nextQuery.eq('voyage_id', Number(filters.voyageId))
-  if (filters.cargoMode === 'container') nextQuery = nextQuery.in('cargo_mode', ['container', 'misto'])
-  else if (filters.cargoMode === 'carga_solta') nextQuery = nextQuery.in('cargo_mode', ['carga_solta', 'misto'])
-  else if (filters.cargoMode) nextQuery = nextQuery.eq('cargo_mode', filters.cargoMode)
-  if (filters.pol) {
-    const pol = escapeFilterTerm(filters.pol)
-    if (pol) nextQuery = nextQuery.ilike('pol', `%${pol}%`)
-  }
-  if (filters.pod) {
-    const pod = escapeFilterTerm(filters.pod)
-    if (pod) nextQuery = nextQuery.ilike('pod', `%${pod}%`)
-  }
-  if (filters.reviewStatus) nextQuery = nextQuery.eq('review_status', filters.reviewStatus as NonNullable<BL['review_status']>)
-  if (filters.financialStatus) {
-    nextQuery = nextQuery.eq('financial_status', filters.financialStatus as NonNullable<BL['financial_status']>)
-  }
-  if (filters.chargeStatus) {
-    nextQuery = nextQuery.eq('charge_status', filters.chargeStatus as NonNullable<BL['charge_status']>)
-  }
-
-  return nextQuery
-}
-
-function applyCargoProfile(rows: BLListItem[], cargoProfile: string) {
-  if (!cargoProfile) {
-    return rows
-  }
-
-  if (cargoProfile === 'standard') {
-    return rows.filter((row) =>
-      !(row.bl_containers ?? []).some((container) => container.is_imo || container.is_oog),
-    )
-  }
-
-  return rows.filter((row) =>
-    row.bl_containers?.some((container) => (cargoProfile === 'oog' ? container.is_oog : container.is_imo)),
-  )
-}
-
-function normalizeChargeStatus(value: string | null | undefined) {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase()
 }
 
 function applyContainerFilters(

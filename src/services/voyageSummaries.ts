@@ -86,7 +86,7 @@ export type VoyageBl = {
   pol: string | null
   pod: string | null
   total_weight_kg: number | null
-  total_cbm: number | null
+  bb_cbm: number | null
   bl_containers?: Array<{
     id: number
     container_number: string
@@ -1256,7 +1256,7 @@ export function summarizeImportByPod(
           (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
           0,
         ),
-        cbm: podBreakbulk.reduce((sum, bl) => sum + Number(bl.total_cbm ?? 0), 0),
+        cbm: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_cbm ?? 0), 0),
       },
     }
   })

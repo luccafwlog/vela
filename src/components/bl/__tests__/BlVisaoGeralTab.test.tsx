@@ -28,7 +28,7 @@ function renderTab(baplieStatus: BaplieStatus) {
         active
         bl={baseBl}
         cockpit={undefined}
-        isContainerMode
+        cargoMode="container"
         containerSummary={containerSummary}
         breakbulkSummary={breakbulkSummary}
         baplieStatus={baplieStatus}
@@ -76,7 +76,7 @@ describe('BlVisaoGeralTab — transbordo e COD', () => {
           bl={baseBl}
           cockpit={{ omission: omittedVoyage, transshipment: null } as never}
           omission={omittedVoyage}
-          isContainerMode
+          cargoMode="container"
           containerSummary={containerSummary}
           breakbulkSummary={breakbulkSummary}
           onCod={vi.fn()}
