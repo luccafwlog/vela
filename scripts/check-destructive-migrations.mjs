@@ -1,5 +1,5 @@
 // Toda migration que reescreve ou apaga linhas existentes depende da afirmação
-// "Data status" do CLAUDE.md (o banco de produção não tem dados de negócio).
+// "Data status" do AGENTS.md (o banco de produção não tem dados de negócio).
 // A regra exige que o arquivo declare essa dependência no próprio cabeçalho.
 // Este script transforma a regra em porta de CI: sem a declaração, o gate falha.
 //
@@ -25,7 +25,7 @@ const DESTRUCTIVE = [
 
 // O cabeçalho precisa nomear a afirmação e o arquivo onde ela vive, para que o
 // leitor consiga verificar se ainda está vigente.
-const DECLARATION = [/data\s+status/i, /CLAUDE\.md/]
+const DECLARATION = [/data\s+status/i, /AGENTS\.md/]
 
 // A regra nasceu com a migration 061. As anteriores ja foram aplicadas e sao
 // historico: reescrever o cabecalho delas nao muda nada no banco e apagaria o
@@ -77,12 +77,14 @@ export function headerComment(sql) {
   return lines.join('\n')
 }
 
-export function auditMigration(sql) {
+export function auditMigration(sql, { legacy = false } = {}) {
   const body = stripFunctionBodies(sql)
   const statements = DESTRUCTIVE.filter(({ re }) => re.test(body)).map(({ name }) => name)
   if (statements.length === 0) return { destructive: false, statements, declared: true }
   const header = headerComment(sql)
-  return { destructive: true, statements, declared: DECLARATION.every((re) => re.test(header)) }
+  const declared = DECLARATION.every((re) => re.test(header))
+    || (legacy && /data\s+status/i.test(header) && /CLAUDE\.md/i.test(header))
+  return { destructive: true, statements, declared }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -91,11 +93,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   let destructiveCount = 0
   let legacyCount = 0
   for (const name of files) {
-    const result = auditMigration(fs.readFileSync(path.join(migrationsDir, name), 'utf8'))
+    const result = auditMigration(fs.readFileSync(path.join(migrationsDir, name), 'utf8'), {
+      legacy: Number.parseInt(name.slice(0, 3), 10) <= RULE_FROM,
+    })
     if (!result.destructive) continue
     destructiveCount++
     if (result.declared) continue
-    if (Number.parseInt(name.slice(0, 3), 10) < RULE_FROM) {
+    if (Number.parseInt(name.slice(0, 3), 10) <= RULE_FROM) {
       legacyCount++
       continue
     }
@@ -109,8 +113,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     }
     console.error(`
 Toda migration que reescreve ou apaga linhas existentes depende da afirmação
-"Data status" do CLAUDE.md (seção Gotchas) e precisa dizer isso no cabeçalho,
-citando o nome da afirmação e o CLAUDE.md. Exemplo em
+"Data status" do AGENTS.md (seção Gotchas) e precisa dizer isso no cabeçalho,
+citando o nome da afirmação e o AGENTS.md. Exemplo em
 supabase/migrations/061_bl_weight_semantics_and_triggers.sql.
 
 Se a afirmação já tiver sido revogada, a migration não é aceitável como está:
@@ -120,6 +124,6 @@ escreva um plano de preservação em vez de declarar a dependência.`)
 
   console.log(
     `Destructive migration check passed: ${files.length} migrations, ${destructiveCount} destrutiva(s); `
-    + `${legacyCount} anterior(es) a ${String(RULE_FROM).padStart(3, '0')} sem declaracao (historico, nao bloqueia).`,
+    + `${legacyCount} migration(s) até ${String(RULE_FROM).padStart(3, '0')} sem declaracao (historico, nao bloqueia).`,
   )
 }

@@ -1,6 +1,10 @@
 # ADR 0062 — Consolidação de Migrações: Schema Inicial v1.0 e Arquivo Morto
 
-Status: aceito — 2026-09-02
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Squash e arquivo histórico permanecem; URL/segredos dos jobs usam Vault e ops.dispatch_edge_job, substituindo configuração por app.settings.*.
+> Rastreabilidade: [ADR 0063](./0063-configuracao-de-jobs-cron-no-vault.md); [migration ativa 007](../../supabase/migrations/007_cron_secrets_no_vault.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-09-02
 
 ## Contexto
 

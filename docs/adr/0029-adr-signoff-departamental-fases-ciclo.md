@@ -1,6 +1,10 @@
 # 0029 — Sign-off do ADR por departamento, seções na ordem do ciclo e operação de pátio como seção própria
 
-Status: aceito — 2026-07-21 (nota editorial em 2026-08-04)
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Ocorrências deram lugar a observações por seção; Operação de Pátio é subseção de Embarque de Vazios, não seção assinável separada.
+> Rastreabilidade: [ADR 0030](./0030-adr-observacoes-por-secao-substitui-ocorrencias.md), [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-07-21 (nota editorial em 2026-08-04)
 
 > **Nota editorial — 2026-08-04.** Dois pontos desta decisão foram supersedidos
 > pela [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md).

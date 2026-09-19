@@ -1,6 +1,10 @@
 # 0017 — B/L como fonte de ingestão e correção; autoridade compartilhada com o manifesto
 
-Status: aceito — 2026-07-01
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** B/L é fonte documental única de container; cálculo provisório pós-import e NCM persistido refinam a decisão. Proteções financeiras e correções auditadas continuam.
+> Rastreabilidade: [ADR 0025](./0025-bl-fonte-documental-unica-container-atd-pol.md), [ADR 0038](./0038-taxa-local-valor-congelado-ancorado-na-escala.md), [ADR 0057](./0057-ncm-como-campo-proprio-do-bl.md); [migration ativa 060](../../supabase/migrations/060_pr698_claude_review_followup.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-07-01
 
 ## Contexto
 

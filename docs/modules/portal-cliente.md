@@ -4,9 +4,97 @@
 
 > **Status:** ativo · **Atualizado:** 2026-08-14 · **Rotas:** `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/confirmar-email`, `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/perfil`
 
-## Provisionamento operacional
+## Propósito e escopo
 
-### Gate UX pré-piloto
+O Portal é a superfície externa para autenticação, consulta financeira e operacional, consolidação de recebíveis, disputas de demurrage, notificações e atualização limitada de perfil. Não existe cadastro público nem sessão alternativa por token próprio: CNPJ e senha são os **dados visíveis de entrada**; a Edge Function `portal-login` resolve a identidade técnica no servidor e o Supabase Auth continua sendo o único **mecanismo de autenticação e sessão**.
+
+São públicas as cinco rotas de login, recuperação, redefinição, ativação e confirmação de email. `/portal`, `/portal/billing`, `/portal/operacao` e `/portal/perfil` ficam sob `PortalProtectedRoute` e `PortalLayout` em `src/AppPortal.tsx`. O navegador usa `supabasePortal`, com `storageKey: 'td-portal-auth'` e `detectSessionInUrl:false`, separado da sessão interna (`src/services/supabase.ts`).
+
+A interface e seus filtros não autorizam dados. RPCs de Portal resolvem o cliente pela identidade autenticada; RLS, grants e validações server-side continuam sendo a fronteira real, conforme [ADR 0004](../adr/0004-supabase-rls-rpc-fronteira-seguranca.md) e [ADR 0013](../adr/0013-portal-auth-identificador-resolvido-e-excecao-anon.md).
+
+## Anatomia das telas
+
+### `/portal/login`
+
+`src/pages/PortalLogin.tsx` aceita CNPJ e senha. Se a sessão já foi hidratada, redireciona para `/portal`; durante submit chama `usePortalAuth.signIn`, que invoca `portal-login` e converte falhas em mensagem genérica de credenciais. Antes de chamar o servidor, a tela reprova CNPJ com menos de 14 caracteres (`isCompleteCnpjLogin`, `src/lib/portalCnpjLogin.ts`) com mensagem própria de digitação — o formato se confere offline, então avisar não revela nada sobre a base, e a tentativa não consome o rate limit de login.
+
+### `/portal/esqueci-senha`
+
+`src/pages/PortalForgotPassword.tsx` envia o CNPJ para a Edge Function
+`portal-password-recovery`. A resposta é `{ accepted: true }` para todo caso
+elegível (com conta ou sem, ativa ou não, email enviado ou não) e
+`{ accepted: false, rate_limited: true }` apenas quando o rate limit por CNPJ
+bloqueia; a tela mostra a mesma mensagem de sucesso nos dois primeiros casos e
+uma mensagem de "tente mais tarde" só para o rate limit — não enumera conta
+(achado 3.2 da auditoria `security-audit-portal-2026-08-12`).
+
+A tela de confirmação **afirma** o envio ("Enviamos um link de redefinição para
+o email cadastrado na conta"), sem a forma condicional "se houver uma conta para
+este CNPJ": o condicional devolvia ao cliente o mesmo sinal de enumeração que o
+backend deixou de dar. Dois casos ficam de fora dessa afirmação, e nenhum deles
+depende de existir conta: CNPJ com menos de 14 caracteres é reprovado na tela,
+sem chamar a Edge Function, e falha de rede/função mostra "não foi possível
+concluir a solicitação agora" — prometer email numa requisição que não chegou ao
+servidor faria o cliente esperar por uma mensagem que nunca sairia.
+
+### `/portal/confirmar-email`
+
+`src/pages/PortalConfirmarEmail.tsx` lê o token do link enviado ao endereço
+novo e chama `portal-recovery-email-change` com `action: 'confirm'`. É rota
+**pública**, como `/portal/ativar` e `/portal/recuperar-senha`.
+
+A autorização da troca acontece no pedido, não aqui: `action: 'request'` exige
+sessão ativa **e** a senha atual. O que a confirmação prova é posse da caixa
+nova, e o token é essa prova — exigir sessão outra vez não acrescentava
+barreira. Antes o link apontava para `/portal/perfil?confirm_email=`, rota
+protegida: quem abrisse sem sessão era redirecionado ao login por
+`PortalProtectedRoute`, que navega sem preservar a query string, e o token se
+perdia em silêncio. Isso atingia justamente o leitor do Email de Recuperação,
+em geral o contato financeiro, que não tem a senha do Portal.
+
+O token sai da barra de endereços assim que lido (mesmo racional do achado
+3.3). A página aceita `token` e também `confirm_email`, e `PortalProfile`
+mantém o tratamento do parâmetro antigo: os convites já enviados para o caminho
+anterior valem 48 horas, e os dois ramos podem sair depois que essa janela
+expirar. Para o link antigo chegar até esse ramo sem sessão, o próprio
+`PortalProtectedRoute` redireciona `/portal/perfil?confirm_email=` para a rota
+pública preservando a query string — sem isso o guard continuaria descartando o
+token. A publicação da Edge Function que passa a montar o link novo só pode
+acontecer depois que a rota estiver servida em produção; antes disso a URL cai
+no `path="*"` do `App`. Falha de rede na confirmação mostra mensagem própria de
+"tente de novo", não "link inválido": `functions.invoke` devolve `{ error }`
+tanto no 410 da função quanto no fetch que não saiu, e só o status decide.
+Decisão registrada na
+[ADR 0048](../adr/0048-confirmacao-de-email-do-portal-em-rota-publica.md).
+
+### `/portal/recuperar-senha`
+
+`src/pages/PortalResetPassword.tsx` lê o `token` de convite de recuperação da
+query string, remove-o da URL logo após ler (`setSearchParams(..., {replace:
+true})`, mantido em estado para o submit) e envia `{ token, password }` à
+Edge Function `portal-password-reset`, que valida o hash do token, a validade
+e o status antes de trocar a senha via Auth Admin e revogar as sessões do
+Portal.
+
+### `/portal`
+
+`src/pages/PortalDashboard.tsx` deriva quatro KPIs das listas de invoices locais, invoices de demurrage e B/Ls operacionais. Cada card navega para billing/operação com aba e filtro na query string. `ShipScheduleWidget` lê a projeção de viagens publicada por `portal_ship_schedule`.
+
+### `/portal/billing`
+
+`src/pages/PortalBilling.tsx` orquestra abas Taxas Locais e Demurrage. As listas interativas usam `portal_list_invoices_page` e `portal_list_demurrage_invoices_page`, com filtros server-side de status, navio/viagem, B/L, POD e intervalo de emissão, contagem total, opções e páginas de 25 linhas. Os wrappers `portal_inspect_*_page` preservam o mesmo recorte no Modo Inspeção. As listas ficam em `PortalBillingTabs`; os detalhes ficam em `PortalInvoiceDetailModal` e `PortalDemurrageDetailModal`, com bloco PIX compartilhado. A aba local mostra breakdown, containers, PIX e impressão pelo navegador; também abre criação ou desfazimento de consolidada. A aba demurrage mostra detalhe, PIX e abertura de disputa. **Código:** `src/pages/PortalBilling.tsx`, `src/hooks/usePortalBilling.ts`, `src/services/portalBilling.ts`; **SQL:** migration `021_portal_billing_pages.sql`.
+
+### `/portal/operacao`
+
+`src/pages/PortalOperacao.tsx` alterna B/Ls e Containers, com filtros, paginacao local, tabelas desktop, cards mobile, expansao dos containers do B/L e exportacao XLSX. A ficha expandida mantém o card persistente `Informações de Transbordo`, alimentado pelo registro global vigente da omissão; a disposição COD não publica o motivo interno, navio ou datas do desvio. A aba Containers e derivada por `flattenContainers`; `tab` e o filtro inicial `devolucao` podem vir da URL.
+
+### `/portal/perfil`
+
+`src/pages/PortalProfile.tsx` carrega email de contato, telefone e endereço via RPC, mantém os campos em estado local e salva somente o conjunto permitido. `NotificationBell`, em `PortalLayout`, fica disponível em todas as rotas protegidas.
+
+### Provisionamento operacional
+
+#### Gate UX pré-piloto
 
 O console interno usa `/clientes/portal`, filtro Todos, expansão inline acessível, deep links por cliente e exportação XLSX. A leitura usa o read model protegido pelas migrations `196`, `197` e `198`; antes da projeção, a migration `198` repara de forma idempotente Clientes sem `customer_portal_accounts` e registra evento de sistema. Financeiro consulta tudo, Operações recebe a situação resumida e os booleanos `has_open_invoice`/`has_active_process`, e somente Administrativo/Documentação executam ações.
 
@@ -106,7 +194,7 @@ leitura nesta frente e `operacoes` não recebe ações de Portal. As telas
 `ClienteFicha`, `Clientes` e `Revisao` usam `can()` para esse recorte; as demais
 ocorrências legadas de `isAdmin` pertencem à auditoria RBAC global futura.
 
-### Gate de faturamento e Dispute
+#### Gate de faturamento e Dispute
 
 A migration 324 consolida a pendência do Portal por Cliente e o bloqueio
 final de emissão por B/L: a invoice só pode ficar issued quando a conta está
@@ -124,7 +212,7 @@ e solicitar reabertura; somente Equipamentos reabre o caso. As rotas
 os componentes PortalDisputeConversation e DemurrageDisputeConversation.
 **Teste de contrato SQL:** src/services/__tests__/block521Migration.test.ts.
 
-### Email transacional
+#### Email transacional
 
 `_shared/portalEmail.ts` registra cada tentativa por chave idempotente, não
 envia para endereços suprimidos e repete somente respostas transitórias do
@@ -135,7 +223,7 @@ consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave de Resend o
 ambiente opera em dry-run e nenhum email real é enviado.
 
-### Inspeção do Portal
+#### Inspeção do Portal
 
 `/clientes/portal/inspecao/:customerId/*` é uma visão interna somente leitura
 do Portal de um Cliente. O acesso usa `is_active_read_user()` e registra a
@@ -149,7 +237,7 @@ modo, `customerId`, overview e `basePath`; nav, cards, abas e links do sino usam
 esse base path. A faixa de Modo Inspeção identifica Cliente, CNPJ e situação de
 conta não ativa.
 
-#### Catálogo de ações
+##### Catálogo de ações
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
@@ -158,7 +246,7 @@ conta não ativa.
 | Inspeção — navegar ou sair | Escopo em modo `inspect` | `PortalLayout`, dashboard e `NotificationBell` | Helper de `portalPath`; saída retorna à origem | Nenhuma; sino não marca leitura | Links não escapam para `/portal/*` | Destino inválido permanece no shell protegido | **Código:** ADR 0045; **Teste:** contenção da navegação |
 | Inspeção — ação do cliente | Escopo em modo `inspect` | Disputa, perfil, consolidação e sino | UI desabilita; `callPortalRpc` recusa escrita | Nenhuma RPC de escrita de inspeção | Leitura e navegação continuam disponíveis | Tooltip de ação indisponível em Modo Inspeção | **Código:** ADR 0045; **Teste:** bloqueio de escrita |
 
-#### Arquitetura núcleo + invólucro
+##### Arquitetura núcleo + invólucro
 
 As leituras escopadas por Cliente usam `_portal_<x>_core(customer_id, ...)`
 como fonte única. A RPC do cliente mantém a assinatura e chama o núcleo com
@@ -176,93 +264,6 @@ cliente/inspeção deriva do mapa literal `src/services/portalRpcContracts.ts`
 `portal_ship_schedule` é a única leitura chamada diretamente, pois não é
 escopada por Cliente. Nenhuma escrita recebe invólucro de inspeção.
 
-## Propósito e escopo
-
-O Portal é a superfície externa para autenticação, consulta financeira e operacional, consolidação de recebíveis, disputas de demurrage, notificações e atualização limitada de perfil. Não existe cadastro público nem sessão alternativa por token próprio: CNPJ e senha são os **dados visíveis de entrada**; a Edge Function `portal-login` resolve a identidade técnica no servidor e o Supabase Auth continua sendo o único **mecanismo de autenticação e sessão**.
-
-As três rotas de autenticação são públicas. `/portal`, `/portal/billing`, `/portal/operacao` e `/portal/perfil` ficam sob `PortalProtectedRoute` e `PortalLayout` em `src/AppPortal.tsx`. O navegador usa `supabasePortal`, com `storageKey: 'td-portal-auth'` e `detectSessionInUrl:false`, separado da sessão interna (`src/services/supabase.ts`).
-
-A interface e seus filtros não autorizam dados. RPCs de Portal resolvem o cliente pela identidade autenticada; RLS, grants e validações server-side continuam sendo a fronteira real, conforme [ADR 0004](../adr/0004-supabase-rls-rpc-fronteira-seguranca.md) e [ADR 0013](../adr/0013-portal-auth-identificador-resolvido-e-excecao-anon.md).
-
-## Anatomia das telas
-
-### `/portal/login`
-
-`src/pages/PortalLogin.tsx` aceita CNPJ e senha. Se a sessão já foi hidratada, redireciona para `/portal`; durante submit chama `usePortalAuth.signIn`, que invoca `portal-login` e converte falhas em mensagem genérica de credenciais. Antes de chamar o servidor, a tela reprova CNPJ com menos de 14 caracteres (`isCompleteCnpjLogin`, `src/lib/portalCnpjLogin.ts`) com mensagem própria de digitação — o formato se confere offline, então avisar não revela nada sobre a base, e a tentativa não consome o rate limit de login.
-
-### `/portal/esqueci-senha`
-
-`src/pages/PortalForgotPassword.tsx` envia o CNPJ para a Edge Function
-`portal-password-recovery`. A resposta é `{ accepted: true }` para todo caso
-elegível (com conta ou sem, ativa ou não, email enviado ou não) e
-`{ accepted: false, rate_limited: true }` apenas quando o rate limit por CNPJ
-bloqueia; a tela mostra a mesma mensagem de sucesso nos dois primeiros casos e
-uma mensagem de "tente mais tarde" só para o rate limit — não enumera conta
-(achado 3.2 da auditoria `security-audit-portal-2026-08-12`).
-
-A tela de confirmação **afirma** o envio ("Enviamos um link de redefinição para
-o email cadastrado na conta"), sem a forma condicional "se houver uma conta para
-este CNPJ": o condicional devolvia ao cliente o mesmo sinal de enumeração que o
-backend deixou de dar. Dois casos ficam de fora dessa afirmação, e nenhum deles
-depende de existir conta: CNPJ com menos de 14 caracteres é reprovado na tela,
-sem chamar a Edge Function, e falha de rede/função mostra "não foi possível
-concluir a solicitação agora" — prometer email numa requisição que não chegou ao
-servidor faria o cliente esperar por uma mensagem que nunca sairia.
-
-### `/portal/confirmar-email`
-
-`src/pages/PortalConfirmarEmail.tsx` lê o token do link enviado ao endereço
-novo e chama `portal-recovery-email-change` com `action: 'confirm'`. É rota
-**pública**, como `/portal/ativar` e `/portal/recuperar-senha`.
-
-A autorização da troca acontece no pedido, não aqui: `action: 'request'` exige
-sessão ativa **e** a senha atual. O que a confirmação prova é posse da caixa
-nova, e o token é essa prova — exigir sessão outra vez não acrescentava
-barreira. Antes o link apontava para `/portal/perfil?confirm_email=`, rota
-protegida: quem abrisse sem sessão era redirecionado ao login por
-`PortalProtectedRoute`, que navega sem preservar a query string, e o token se
-perdia em silêncio. Isso atingia justamente o leitor do Email de Recuperação,
-em geral o contato financeiro, que não tem a senha do Portal.
-
-O token sai da barra de endereços assim que lido (mesmo racional do achado
-3.3). A página aceita `token` e também `confirm_email`, e `PortalProfile`
-mantém o tratamento do parâmetro antigo: os convites já enviados para o caminho
-anterior valem 48 horas, e os dois ramos podem sair depois que essa janela
-expirar. Para o link antigo chegar até esse ramo sem sessão, o próprio
-`PortalProtectedRoute` redireciona `/portal/perfil?confirm_email=` para a rota
-pública preservando a query string — sem isso o guard continuaria descartando o
-token. A publicação da Edge Function que passa a montar o link novo só pode
-acontecer depois que a rota estiver servida em produção; antes disso a URL cai
-no `path="*"` do `App`. Falha de rede na confirmação mostra mensagem própria de
-"tente de novo", não "link inválido": `functions.invoke` devolve `{ error }`
-tanto no 410 da função quanto no fetch que não saiu, e só o status decide.
-Decisão registrada na
-[ADR 0048](../adr/0048-confirmacao-de-email-do-portal-em-rota-publica.md).
-
-### `/portal/recuperar-senha`
-
-`src/pages/PortalResetPassword.tsx` lê o `token` de convite de recuperação da
-query string, remove-o da URL logo após ler (`setSearchParams(..., {replace:
-true})`, mantido em estado para o submit) e envia `{ token, password }` à
-Edge Function `portal-password-reset`, que valida o hash do token, a validade
-e o status antes de trocar a senha via Auth Admin e revogar as sessões do
-Portal.
-
-### `/portal`
-
-`src/pages/PortalDashboard.tsx` deriva quatro KPIs das listas de invoices locais, invoices de demurrage e B/Ls operacionais. Cada card navega para billing/operação com aba e filtro na query string. `ShipScheduleWidget` lê a projeção de viagens publicada por `portal_ship_schedule`.
-
-### `/portal/billing`
-
-`src/pages/PortalBilling.tsx` orquestra abas Taxas Locais e Demurrage. As listas interativas usam `portal_list_invoices_page` e `portal_list_demurrage_invoices_page`, com filtros server-side de status, navio/viagem, B/L, POD e intervalo de emissão, contagem total, opções e páginas de 25 linhas. Os wrappers `portal_inspect_*_page` preservam o mesmo recorte no Modo Inspeção. As listas ficam em `PortalBillingTabs`; os detalhes ficam em `PortalInvoiceDetailModal` e `PortalDemurrageDetailModal`, com bloco PIX compartilhado. A aba local mostra breakdown, containers, PIX e impressão pelo navegador; também abre criação ou desfazimento de consolidada. A aba demurrage mostra detalhe, PIX e abertura de disputa. **Código:** `src/pages/PortalBilling.tsx`, `src/hooks/usePortalBilling.ts`, `src/services/portalBilling.ts`; **SQL:** migration `021_portal_billing_pages.sql`.
-
-### `/portal/operacao`
-
-`src/pages/PortalOperacao.tsx` alterna B/Ls e Containers, com filtros, paginacao local, tabelas desktop, cards mobile, expansao dos containers do B/L e exportacao XLSX. A ficha expandida mantém o card persistente `Informações de Transbordo`, alimentado pelo registro global vigente da omissão; a disposição COD não publica o motivo interno, navio ou datas do desvio. A aba Containers e derivada por `flattenContainers`; `tab` e o filtro inicial `devolucao` podem vir da URL.
-
-### `/portal/perfil`
-
-`src/pages/PortalProfile.tsx` carrega email de contato, telefone e endereço via RPC, mantém os campos em estado local e salva somente o conjunto permitido. `NotificationBell`, em `PortalLayout`, fica disponível em todas as rotas protegidas.
 
 ## Catálogo de ações
 

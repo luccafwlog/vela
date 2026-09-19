@@ -86,7 +86,7 @@ Depois que o usuário confirmar uma decisão, classifique-a antes de editar:
 No modo de persistência:
 
 1. Leia as fontes relevantes antes de editar; para mudanças documentais amplas,
-   siga `CLAUDE.md`, `docs/README.md` e `docs/CONVENCOES.md`.
+   siga `AGENTS.md`, `docs/README.md` e `docs/CONVENCOES.md`.
 2. Mantenha decisões ainda abertas somente na conversa.
 3. Após cada confirmação, atualize apenas o documento vivo necessário e informe
    ao usuário o arquivo e a seção alterados.

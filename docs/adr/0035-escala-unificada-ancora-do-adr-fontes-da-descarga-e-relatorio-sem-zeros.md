@@ -1,6 +1,10 @@
 # 0035 — Escala unificada (POL+POD) como âncora do ADR, B/L como fonte da descarga e relatório que lista só o operado
 
-Status: aceito — 2026-07-31 (notas editoriais em 2026-08-03, 2026-08-04 e 2026-08-26)
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Escala unificada permanece, mas apuração terminalizada respeita a exceção do B/L e a herança das frentes. Pesos container e BB são disjuntos após 061.
+> Rastreabilidade: [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md); [migration ativa 061](../../supabase/migrations/061_bl_weight_semantics_and_triggers.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-07-31 (notas editoriais em 2026-08-03, 2026-08-04 e 2026-08-26)
 
 > **Nota editorial — 2026-08-03.** O bloco 1 desta decisão foi revisitado com a
 > operação antes da execução. O modelo não muda; três pontos que a decisão

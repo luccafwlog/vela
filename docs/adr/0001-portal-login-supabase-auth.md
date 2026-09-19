@@ -1,8 +1,12 @@
 # 0001 — Login do Portal do Cliente via Supabase Auth (email + senha)
 
-Status: aceito — 2026-06-03 · **parcialmente superado** (ver nota)
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Login atual pede CNPJ e senha; portal-login resolve a identidade no servidor. Não restaurar email-only nem acesso anon ao resolver.
+> Rastreabilidade: [ADR 0013](./0013-portal-auth-identificador-resolvido-e-excecao-anon.md), [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
 
-> **Nota (2026-06-18):** a decisão de adotar **email-only** foi parcialmente revertida. O login por **CNPJ** foi reintroduzido sobre Supabase Auth: o documento (CNPJ/CPF) é resolvido para o email via RPC `portal_resolve_login` e a autenticação final continua sendo `signInWithPassword`. Hoje o portal aceita **CNPJ ou email**. O que se manteve do ADR é o fim do token legado em `sessionStorage` (auth é 100% Supabase Auth). Fonte de verdade: [modules/portal-cliente.md](../modules/portal-cliente.md) e [operations/seguranca.md](../operations/seguranca.md).
+Status: supersedida parcialmente — 2026-06-03 · **parcialmente superado** (ver nota)
+
+> **Nota (2026-06-18):** a decisão de adotar **email-only** foi parcialmente revertida. O login por **CNPJ** foi reintroduzido sobre Supabase Auth: o documento (CNPJ/CPF) é resolvido para o email via RPC `portal_resolve_login` e a autenticação final continua sendo `signInWithPassword`. Naquele estágio o portal aceitava **CNPJ ou email**; o contrato atual está na nota de 2026-09-18. O que se manteve do ADR é o fim do token legado em `sessionStorage` (auth é 100% Supabase Auth). Fonte de verdade: [modules/portal-cliente.md](../modules/portal-cliente.md) e [operations/seguranca.md](../operations/seguranca.md).
 
 Supersedida parcialmente pela ADR 0013 quanto ao identificador aceito na tela
 de login. Supabase Auth continua sendo o mecanismo de autenticação e sessão.

@@ -38,7 +38,7 @@ design audit rather than loading all.
 The guidance is maintained for capable agents across models, following
 [Eric Provencher's article on skills and prompts](https://x.com/pvncher/status/2095991462416490862).
 Descriptions identify specific tasks; entrypoints retain constraints and route
-to supporting material only when needed. `AGENTS.md` points to `CLAUDE.md`, whose
+to supporting material only when needed. `AGENTS.md` is the canonical agent guide, whose
 source map is contextual. Implementation requests continue through validation
 without mandatory design, test-boundary or delivery menus.
 

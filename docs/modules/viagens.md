@@ -97,7 +97,7 @@ POL/POD e exportação têm contratos diferentes:
 
 ## Fluxos e invariantes
 
-1. **Seleção e deep-link.** A viagem selecionada pertence à URL; as quatro abas internas pertencem apenas ao estado de `VoyageCard`.
+1. **Seleção e deep-link.** A viagem selecionada pertence à URL; as cinco abas internas pertencem ao estado de `VoyageCard`.
 2. **Próxima escala.** `getProximaEscala` escolhe o menor ETA entre PODs sem ATA e sem `omitted=true`. ETA vencido continua sendo a próxima escala e deve indicar “ETA vencido — ATA pendente”; o rail usa esse valor para ordenação e filtros de período.
 3. **POD removido.** “Excluir” não apaga histórico: grava `deleted=true`. Reincluir o mesmo POD por `saveVoyagePodSchedule` grava `deleted=false`.
 4. **Ciclo de status.** Ao alterar ATD, `syncVoyageStatusAfterAtdChange` marca `completed` apenas quando todos os PODs ativos e nao omitidos têm ATD; caso contrário, volta a `active`. Uma viagem `cancelled` é estado retido e o guard impede que uma alteração de ATD a reverta automaticamente. Exclusão de viagem continua sendo hard delete controlado, não um status.
@@ -141,6 +141,6 @@ Os testes Vitest focados e a suíte final desta frente foram executados. Não ho
 - `CONTEXT.md` é a fonte canônica de linguagem de domínio do sistema, complementada por `docs/ARCHITECTURE.md`, ADRs, código e migrations.
 - As migrations 046/052 introduzem snapshots JSONB de schedule, mas a leitura atual continua baseada em `audit_logs`. Não documentar snapshot como fonte de leitura até o serviço mudar.
 - O card “Vazios” navega para `/vazios?voyage=<id>`; `src/AppInterno.tsx` redireciona para `/embarquevazios` com destino fixo, portanto a preservação do query param não está garantida pelo código do redirect.
-- O card de Carga Solta envia `?voyage=<id>`, mas `src/pages/CargaSolta.tsx` não inicializa seus filtros por `useSearchParams`; o contexto não é aplicado hoje.
-- O CE Master é editado na ficha de Viagens por `PolScheduleModal`. `src/pages/Manifestos.tsx` não oferece edição inline atual, apesar de planos/documentação históricos associarem a ação também a Manifestos.
+- Carga solta e container usam a lista unificada `/bls`; a rota legada `/carga-solta` redireciona sem query string.
+- Manifestos Mercante são geridos em `VoyageManifestosTab`, `useManifestosMercante` e `manifestosMercanteService.ts`; o vínculo legado `voyage_route_ce_master` continua no schema, sem substituir `manifestos_mercante`.
 - A família de timeline é invalidada por prefixo `['voyage-timeline']`; o hook armazena o ID como string. A notação `['voyage-timeline', voyageId]` neste documento representa a família, não afirma tipo numérico no cache.

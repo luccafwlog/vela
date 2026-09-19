@@ -414,7 +414,7 @@ function assertNoForwardFunctionRefs(b001, b002) {
   }
 }
 
-// Check runnable (CLAUDE.md): trava sem dump as invariantes que já quebraram
+// Check runnable (AGENTS.md): trava sem dump as invariantes que já quebraram
 // o squash uma vez. Uso: node scripts/build-squash-migrations.mjs --self-check
 //
 // Verifica o GERADOR (literais header001/foundationCatalogs002) E os ARTEFATOS

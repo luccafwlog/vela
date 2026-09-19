@@ -1,9 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { extractDocRoutes } from './lib/docs-routes.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
-// 'archive': snapshots históricos não são verdade atual (CLAUDE.md); seus
+// 'archive': snapshots históricos não são verdade atual (AGENTS.md); seus
 // links podem apodrecer quando assets são podados, sem quebrar o gate.
 const ignoredDirectories = new Set(['.git', 'dist', 'node_modules', 'archive'])
 const errors = []
@@ -64,6 +65,7 @@ for (const file of markdownFiles) {
 }
 
 const requiredFiles = [
+  'AGENTS.md',
   'docs/README.md',
   'docs/RASTREABILIDADE.md',
   'docs/adr/README.md',
@@ -126,14 +128,34 @@ for (const moduleDocument of moduleDocuments) {
       addError(moduleDocument, `required cartography heading is missing: ${heading}`)
     }
   }
+  const actualHeadings = content.split('\n').filter((line) => line.startsWith('## '))
+  if (JSON.stringify(actualHeadings) !== JSON.stringify(requiredModuleHeadings)) {
+    addError(moduleDocument, 'module must have exactly the seven canonical sections in order')
+  }
+  const actionHeader = '| Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |'
+  if (!content.includes(actionHeader)) addError(moduleDocument, 'canonical eight-column action catalog is missing')
+  for (const line of content.split('\n').filter((line) => line.startsWith('| Tela / ação'))) {
+    if (line !== actionHeader) addError(moduleDocument, 'action catalog has noncanonical columns')
+  }
+  let inActionTable = false
+  for (const line of content.split('\n')) {
+    if (line.startsWith('| Tela / ação')) inActionTable = true
+    else if (!line.startsWith('|')) inActionTable = false
+    if (inActionTable && line.split(/(?<!\\)\|/).length - 2 !== 8) {
+      addError(moduleDocument, 'action row must contain eight cells; escape literal pipes')
+    }
+  }
 }
 
 const routeSources = ['src/AppInterno.tsx', 'src/AppPortal.tsx']
-const appRoutes = [...new Set(routeSources.flatMap((routeSource) =>
-  [...read(routeSource).matchAll(/<Route\s+path="([^"]+)"/g)]
-    .map((match) => match[1])
-    .filter((route) => route !== '*'),
-))]
+const appRoutes = new Set()
+for (const routeSource of routeSources) {
+  try {
+    for (const route of extractDocRoutes(read(routeSource), routeSource)) appRoutes.add(route.path)
+  } catch (error) {
+    addError(routeSource, error instanceof Error ? error.message : String(error))
+  }
+}
 const architecture = read('docs/ARCHITECTURE.md')
 
 for (const route of appRoutes) {
@@ -163,7 +185,6 @@ const livingFiles = [
   'README.md',
   'WORKFLOW.md',
   'AGENTS.md',
-  'CLAUDE.md',
   'docs/README.md',
   'docs/ARCHITECTURE.md',
   'docs/ROADMAP.md',
@@ -199,6 +220,10 @@ for (const livingFile of livingFiles) {
   }
 }
 
+if (fs.existsSync(path.join(root, 'CLAUDE.md'))) {
+  addError('AGENTS.md', 'agent guidance must live only in AGENTS.md; legacy root file still exists')
+}
+
 if (errors.length > 0) {
   console.error(`Documentation check failed with ${errors.length} issue(s):`)
   for (const error of errors) console.error(`- ${error}`)
@@ -206,6 +231,6 @@ if (errors.length > 0) {
 } else {
   console.log(
     `Documentation checks passed: ${markdownFiles.length} Markdown files, ` +
-    `${appRoutes.length} routes, and ADR index coverage verified.`,
+    `${appRoutes.size} routes, and ADR index coverage verified.`,
   )
 }

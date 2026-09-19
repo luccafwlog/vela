@@ -1,6 +1,10 @@
 # 0046 — Escrita interna global com rastro obrigatório
 
-Status: aceito — 2026-08-13
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Comunicação e edição de caixas têm permissão customer_communications; a chave global de envio possui guarda administrativa própria. São exceções posteriores à escrita global.
+> Rastreabilidade: [ADR 0059](./0059-chave-global-de-envio-desligada-por-padrao.md), [ADR 0060](./0060-primeira-permissao-do-perfil-equipamentos.md), [ADR 0064](./0064-caixas-de-comunicacao-e-auditoria-de-contatos.md); [migration ativa 008](../../supabase/migrations/008_portal_contact_boxes.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-08-13
 
 ## Contexto
 

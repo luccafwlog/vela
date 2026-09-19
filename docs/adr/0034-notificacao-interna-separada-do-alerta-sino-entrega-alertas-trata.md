@@ -1,6 +1,10 @@
 # 0034 — Notificação Interna é conceito separado do Alerta: o sino entrega, `/alertas` trata
 
-Status: aceito — 2026-07-24
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Ler notificação não fecha alerta; encerramento é pela origem, com dispensa temporária justificada no lugar de acknowledge/fechamento manual.
+> Rastreabilidade: [ADR 0053](./0053-ciclo-de-vida-alerta-dispensa-temporaria.md); [migration ativa 029](../../supabase/migrations/029_alert_item_upsert_idempotence.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-07-24
 
 ## Contexto
 

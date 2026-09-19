@@ -1,5 +1,7 @@
 # 0069 — A resolução da Tabela de Taxas Locais é uma função única compartilhada
 
+> **Implementação conferida em 2026-09-18 (Código):** 056 unifica resolução e motor; 059 cobre lançamento/catálogo manual; 062 refina quantidades BB e mensagens de pendência.
+
 Status: aceito — 2026-09-17
 
 Estende a [ADR 0040](./0040-vigencia-da-tabela-de-taxas-e-informativa.md) quanto

@@ -4,7 +4,7 @@
 
 ## Pré-requisitos
 
-- **Node.js 20+**
+- **Node.js 24.x**
 - Projeto **Supabase** com as migrations aplicadas (ver abaixo)
 
 ## 1. Dependências

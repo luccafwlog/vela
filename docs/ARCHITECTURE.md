@@ -10,7 +10,7 @@ Este é o mapa canônico da arquitetura atual. Termos de negócio vivem em
 
 ```mermaid
 flowchart LR
-    Browser["Navegador<br/>React SPA"]
+    Browser["Navegador<br/>Vela + Portal Fwlog"]
     Internal["Sessão interna<br/>Supabase Auth"]
     Portal["Sessão do Portal<br/>Supabase Auth isolada"]
     Database[("Supabase PostgreSQL<br/>RLS + RPCs")]
@@ -32,7 +32,7 @@ flowchart LR
     Vercel --> Browser
 ```
 
-O frontend é uma SPA estática. A segurança real não depende do roteador: tabelas,
+O frontend entrega duas SPAs estáticas, com entradas e roteadores separados. A segurança real não depende do roteador: tabelas,
 views e funções do Supabase aplicam escopo e autorização por RLS, grants e
 validações dentro das RPCs.
 
@@ -330,11 +330,11 @@ flowchart LR
 ### Importações
 
 - Baplie entra em staging por viagem e pode alimentar Vazios de Importação.
-- O B/L é a entidade unificada de conhecimento de embarque (`cargo_mode IN ('container', 'carga_solta', 'misto')`), acessado pela rota canônica `/bls` (substituindo em definitivo as antigas telas e rotas separadas `/manifestos` e `/carga-solta`). B/Ls com presença simultânea de contêineres e carga solta assumem automaticamente o modo `misto` via trigger no banco (`trg_sync_bl_cargo_mode`).
+- O B/L é a entidade unificada de conhecimento de embarque (`cargo_mode IN ('container', 'carga_solta', 'misto')`), acessado pela rota canônica `/bls` (substituindo em definitivo as antigas telas e rotas separadas `/manifestos` e `/carga-solta`). B/Ls com presença simultânea de contêineres e carga solta assumem automaticamente o modo `misto` via trigger no banco (`trg_sync_bl_cargo_mode_statement` (migration `060`)).
 - Arquivos de B/L alimentam os B/Ls e cargas de container; Manifestos BB mantêm seu fluxo próprio. A importação de Manifesto CNTR e a geração local de EDI Mercante foram removidas conforme a ADR 0025.
 - Carga solta tem duas portas de ingestão que convivem: o Manifesto BB (planilha) e o B/L avulso do armador em `.pdf`/`.docx`. As duas terminam na mesma RPC transacional (`import_breakbulk_manifest_transactional`); o B/L avulso é lido no cliente (`blDocumentParser.ts`) e convertido em um manifesto de uma linha.
 - Manifestos aduaneiros são entidades de lançamento oficial na tabela `manifestos_mercante`, extinguindo a antiga nomenclatura "CE Master". A tabela suporta N manifestos por rota da viagem e indicação explícita de contêineres vazios (`is_empty`). Cada B/L aponta para seu manifesto via `bls.manifesto_mercante_id`. Em manobras de COD (Change of Destination), o CE Mercante (`bls.ce_mercante`) é preservado e o vínculo do manifesto é limpo (`NULL`), gerando pendência operacional.
-- Regra de terminal para Taxas Locais: a resolução tarifária consulta prioritariamente a tabela de exceções individuais `bl_terminal_exceptions`. Se inexistente, herda o terminal da atracação/escala (`voyage_port_calls.terminal_id`), ou permanece nulo.
+- Terminal do B/L: `bls.terminal_id` é a exceção auditada; nulo herda de `voyage_escala_operation_fronts` via `resolve_bl_terminal_id`. B/L misto exige convergência das duas frentes ou exceção válida. Terminal não participa da chave tarifária (ADR 0068).
 - Granito mantém tabelas próprias, integradas downstream.
 - Veículos são importados por planilha e vinculados a B/L/container.
 - CE Mercante e datas operacionais têm importadores específicos.
@@ -469,58 +469,47 @@ Consumidores principais:
 
 ### Migrations
 
-`supabase/migrations/` contém a história completa do schema em arquivos com
-prefixo numérico sequencial. A lacuna histórica entre `282` e `284` é mantida
-porque a versão `283` foi renumerada/descartada em uma reconciliação anterior;
-ela não representa uma migration pendente. O número de arquivos não é um
-contrato. O estado de um ambiente é definido pelo histórico aplicado, não por
-um intervalo fixo documentado.
+A cadeia ativa está em `supabase/migrations/`: `001` consolida o schema,
+`002` funções/policies/triggers, e `003` em diante aplicam os refinamentos.
+A sequência atual chega a `064`, com a lacuna histórica `014` preservada
+(63 arquivos). O histórico anterior à consolidação fica em
+`supabase/migrations_archive/`, conforme ADR 0062. Referências antigas como
+208–214 (fundação do ADR), 249–251 (snapshot/escala) e 291/295 (permissões)
+identificam essa origem arquivada, não arquivos a reaplicar.
 
-As migrations `208`–`214` implementam o Agency Departure Report (ADR) e suas
-fundações: campos e operações de Vazios EXP (`208`/`209`), papel
-`equipamentos` (`210`) e o hardening do seu contrato RBAC (`211`/`212`), além
-do agregado, sign-offs, ocorrências, snapshot e alertas pós-ATD do ADR
-(`213`/`214`). A superfície continua sendo a aba `ADR` de
-`/viagens/:voyageId`; não há rota top-level adicional.
+A fonte vigente de cada função é sua última definição por assinatura na cadeia
+ativa. A existência de uma migration no checkout não prova aplicação remota.
+O inventário de declarações e contratos está na
+[auditoria documental](archive/audits/2026-09-19-overhaul-documental.md).
 
-A ADR 0035 fixou, por seção, as fontes atuais de derivação do
-ADR: containers cheios ← B/Ls (documental, ADR 0025), incluindo B/Ls em
-transbordo casados via `voyage_omissions`/`bl_transshipments` e contados no
-ADR do porto onde a carga foi efetivamente descarregada; vazios na descarga ←
-Baplie (`status='empty'`) como natureza própria, separada da carga cheia;
-vazios descarregados (cama/cover plate) ← `vazios_importacao_containers`, com
-aviso de divergência contra a contagem do Baplie; granito ← `granite_bls`/
-`granite_manifests`, casados por porto normalizado (`normalizePortCode`) com
-fallback para o porto do manifesto-pai quando o B/L não tem porto próprio;
-vazios embarcados/operação de pátio ← `vazios_export_operations`/
-`vazios_bookings`, com o porto escolhido entre as escalas brasileiras da
-própria viagem; o snapshot de fechamento é revalidado no banco pela migration
-`249`. O bloco 1 da ADR 0035 foi implementado pelas migrations `250` e `251`:
-`voyage_export_schedules` passa a aceitar uma linha por `(voyage_id, pol)`, a
-projeção compartilhada unifica POL/POD/EXP por escala brasileira, e o alerta
-pós-ATD do ADR enxerga também o ATD documental do POL sem retroagir o baseline.
+O Agency Departure Report usa fontes operacionais compartilhadas e um relatório
+por terminal da escala: `agencyDepartureReport.ts` resolve a carga e
+`voyage_escala_terminal_state` fornece ATB/ATD/Restow. O legado por porto pode
+continuar presente; não se deve impor unicidade só por `(viagem, porto)` ao
+modelo atual. Sign-offs, observações e snapshots são próprios do relatório;
+seu fechamento não reescreve a carga de origem.
 
-A migration `291` (ADR 0044) corrige o eixo de leitura de `014`/`020`/`066`/
-`111`: 13 tabelas financeiras (`charge_tables`, `invoices`, `payments`, o
-ledger de recebíveis etc.) tinham `SELECT` restrito a `is_admin()`, um
-resquício do modelo antigo admin/operator. Agora usam `is_active_read_user()`
-como qualquer dado interno — a restrição por departamento era, então, sobre
-escrita e não sobre leitura. A migration `295_internal_writes_global.sql`
-removeu depois também a fronteira de escrita: todo Departamento ativo altera
-todos os módulos, com o rastro obrigatório no lugar do bloqueio prévio, e apenas
-exclusão operacional, provisionamento do Portal e administração de usuários
-seguem restritos. A mesma migration cria `can_edit_local_charges()` e alinha o
-`INSERT`/`UPDATE`/`DELETE` de `charge_tables`/`charge_table_items`/
-`customer_rate_overrides` à permissão `charge_tables`/`charge_overrides` de
-`roleHasPermission`, que já incluía Documentação sem a RLS correspondente.
+Leitura interna global exige perfil ativo; escrita usa as permissões/RPCs
+atuais, sem assumir que todo papel pode toda mutação. Administração,
+provisionamento, configurações e exclusões mantêm restrições específicas.
 
 As migrations `053`–`058` introduzem o modelo de domínio unificado de B/Ls e manifestos aduaneiros:
 `053` cria a tabela `manifestos_mercante` por rota da viagem com suporte a N manifestos e vazios;
 `054` institui `cargo_mode = 'misto'` e trigger de sincronização automática entre contêineres e carga solta;
-`055` implementa herança de terminal da escala e tabela de exceções individuais `bl_terminal_exceptions`;
+`055` implementa herança das Frentes de Operação e exceção em `bls.terminal_id`;
 `056` reformula a resolução tarifária (`calculate_bl_local_charges` e `recalculate_bl_charges`) para buscar tabelas de contêiner e de carga solta para o mesmo B/L;
 `057` ajusta o tratamento de COD desvinculando o manifesto (`manifesto_mercante_id = NULL`) e mantendo o CE Mercante;
 e `058` atualiza `operational_list_voyage_summaries` para que B/Ls mistos componham tanto contagens de contêineres quanto de carga solta da escala sem duplicar B/Ls únicos.
+
+As migrations `059`–`063` refinam esses contratos: triggers de modalidade
+por statement; COD limpa a exceção de terminal; recebível manual sincroniza
+uma vez por B/L; os pesos container (`total_weight_kg`) e carga solta
+(`bb_weight_ton`) são disjuntos e aditivos. `062` restringe exclusão de
+Manifesto Mercante a admin e consolida a produtora automática de Comunicados;
+`063` limita a métrica BB ao peso de carga solta, sem somar container.
+`064` separa a cubagem em `total_cbm` (contêiner) e `bb_cbm` (carga solta),
+e inclui máquinas/cubagem BB nos sinais de modalidade. `blTotalCbm` soma os
+componentes; import e revisão preservam o componente da outra modalidade.
 
 ### Segurança
 
@@ -570,9 +559,11 @@ e `058` atualiza `operational_list_voyage_summaries` para que B/Ls mistos compon
 - `recalc-demurrage-ptax`: recálculo diário do BRL das invoices de demurrage,
   com alerta persistente em falha e job nominal inativo até validação externa;
 
-O Portal não participa do gate financeiro de revisão/faturamento. As migrations
-188–190 criam alertas preventivos e exceções críticas por fatura, mantendo a
-pendência geral separada do ciclo da fatura.
+O Portal participa dos gates manuais de emissão e da emissão pelo cliente
+(ADR 0054, `047`). A migration `051` abre uma exceção interna controlada para
+automação pela transição do CE Mercante: emitir não depende do provisionamento
+nesse contexto. A liberação documental para leitura no Portal permanece
+separada. Não generalizar a exceção para chamadas do navegador.
 
 ## Integrações externas
 
@@ -584,7 +575,7 @@ pendência geral separada do ciclo da fatura.
 - **Banco Central:** cotação PTAX;
 - **Sentry:** erros do frontend em produção;
 - **Vercel:** distribuição da SPA e Preview/Production Deployments;
-- **PIX:** payload persistido e QR renderizado nos documentos financeiros.
+- **PIX:** BR Code estático persistido e QR renderizado; conciliação por extrato. API Itaú dinâmica/webhook permanece proposta em `docs/spec/2026-08-25-integracao-itau-pix.md`.
 
 ### Telemetria do Portal
 
@@ -613,7 +604,6 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/portal/recuperar-senha` | Definição de nova senha |
 | `/portal/ativar` | Ativação de convite sem login automático |
 | `/portal/confirmar-email` | Confirmação do novo Email de Recuperação por token, sem login |
-| `/clientes/portal` | Console operacional de provisionamento do Portal |
 
 ### Portal autenticado
 
@@ -634,9 +624,9 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/baplie` | Importação e conciliação Baplie |
 | `/bls` | Painel unificado de B/Ls (contêiner, carga solta e misto); importação documental e CE Mercante |
 | `/bls/:blId` | Detalhe do B/L |
-| `/carga-solta` | Redirect legado para `/bls?tipo=carga_solta` |
+| `/carga-solta` | Redirect legado para `/bls` |
 | `/carga-solta/:blId` | Redirect legado para `/bls/:blId` |
-| `/manifestos` | Redirect legado para `/viagens` |
+| `/manifestos` | Redirect legado para `/bls` |
 | `/containers` | Containers |
 | `/veiculos` | Veículos RoRo |
 | `/vazios-importacao` | Vazios de importação |
@@ -646,6 +636,7 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/granito/taxas` | Tarifas de Granito |
 | `/revisao` | Revisão operacional |
 | `/clientes` | Clientes |
+| `/clientes/portal` | Console interno de provisionamento sob `ProtectedRoute` |
 | `/clientes/comunicacao` | Conferência, simulação/envio e histórico de Comunicados ao Cliente |
 | `/clientes/:cnpj` | Ficha do cliente (hub em abas via `?tab=`) |
 | `/clientes/portal/inspecao/:customerId/*` | Inspeção interna somente leitura do Portal, fora do `AppLayout`, sob `ProtectedRoute` |
@@ -657,7 +648,7 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `perfil` | Subrota de perfil dentro da Inspeção do Portal |
 | `/taxas-locais` | Validação, invoices e ledger de Taxas Locais |
 | `/taxas-locais/tabelas` | Cadastro de tabelas e overrides de Taxas Locais |
-| `/faturamento` | Redirect legado para `/taxas-locais`, preservando a query string |
+| `/faturamento` | Redirect legado para `/taxas-locais`, preservando a query string; `tab=demurrage` vai para `/demurrage` |
 | `/demurrage` | Operação e invoices de demurrage |
 | `/demurrage/taxas` | Tarifas de demurrage |
 | `/reconciliacao` | Conciliação PIX |
@@ -693,7 +684,15 @@ tem dois hosts (cliente e inspeção) e dois modos (client e inspect), mas uma
 | `/demurrage/invoices` | `/demurrage` |
 | `/demurrage/reconciliacao` | `/reconciliacao` |
 
-Rotas desconhecidas redirecionam para `/painel`.
+A rota índice interna `/` redireciona para `/painel`. O catch-all interno `*`
+mostra `NaoEncontrado` sob `ProtectedRoute`; no Portal, `*` redireciona para
+`/portal`, onde o guard exige sessão.
+
+As rotas internas exigem sessão e perfil; `/admin` e `/admin/:tab` exigem
+`adminOnly`. `/clientes/comunicacao` exige `customer_communications`.
+As quatro rotas autenticadas do Portal usam `PortalProtectedRoute`,
+`PortalScopeProvider` e `PortalLayout`. A inspeção é interna e somente leitura.
+Esses guards são UX; grants, RLS e RPCs continuam sendo a autorização real.
 
 Emails transacionais passam pela mecânica comum de
 `supabase/functions/_shared/email.ts`; `portalEmail.ts` adapta essa mecânica às
@@ -715,3 +714,13 @@ compartilhado.
 - [`docs/ROADMAP.md`](./ROADMAP.md): baseline, evolução e riscos;
 - [`docs/operations/validacao.md`](./operations/validacao.md): provas funcionais e técnicas;
 - [`docs/adr/README.md`](./adr/README.md): decisões arquiteturais.
+
+### Entradas índice e fallback
+
+| Rota | Superfície / origem | Contrato | Evidência |
+|---|---|---|---|
+| `/` | Índice de `AppInterno`, sob `ProtectedRoute` | `Navigate` para `/painel`; sem hook/service/persistência própria | **Código:** `src/AppInterno.tsx` |
+| `*` | `AppInterno` e `AppPortal` | Interno mostra `NaoEncontrado` sob sessão; Portal redireciona para `/portal` | **Código:** os dois roteadores |
+
+O índice da inspeção `/clientes/portal/inspecao/:customerId` monta
+`PortalDashboard`, compartilhando os hooks e RPCs de leitura da inspeção.

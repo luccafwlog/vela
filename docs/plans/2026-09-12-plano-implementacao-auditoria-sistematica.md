@@ -6,7 +6,7 @@
 
 **Arquitetura:** Preservar a estratificação `Page → Hook → Service → RPC/RLS`, os domínios segregados de Taxas Locais e Demurrage, a autoridade de cálculos financeiros no banco de dados, a imutabilidade dos snapshots e o isolamento de ambientes (banco descartável vs produção).
 
-**Convenções e Regras:** `CLAUDE.md`, `WORKFLOW.md` e `docs/CONVENCOES.md`. Testes de banco contra PostgreSQL local descartável (`setup-local-pg.sh`); arquivos protegidos (`src/types/database.ts`, `src/lib/pix.ts`, migrations existentes) não devem ser modificados sem autorização expressa.
+**Convenções e Regras:** `AGENTS.md`, `WORKFLOW.md` e `docs/CONVENCOES.md`. Testes de banco contra PostgreSQL local descartável (`setup-local-pg.sh`); arquivos protegidos (`src/types/database.ts`, `src/lib/pix.ts`, migrations existentes) não devem ser modificados sem autorização expressa.
 
 ---
 

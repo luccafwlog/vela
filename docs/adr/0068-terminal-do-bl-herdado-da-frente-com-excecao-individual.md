@@ -1,5 +1,7 @@
 # 0068 — Terminal do B/L herdado da Frente de Operação, com exceção individual auditada
 
+> **Implementação conferida em 2026-09-18 (Código):** 055 cria colunas/resolvedor; 059/060 endurecem validação, FK composta, auditoria e limpeza da exceção em COD.
+
 Status: aceito — 2026-09-16
 
 Estende a [ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md)

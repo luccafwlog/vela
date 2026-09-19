@@ -1,120 +1,18 @@
-# Specs (vivas)
+# Specs vivas
 
-Este é o **único** diretório de specs vivas do projeto. Ele contém:
+Specs descrevem decisões ainda não executadas. O ciclo de vida é definido em
+[CONVENCOES.md](../CONVENCOES.md#ciclo-de-vida-de-planos-e-specs).
 
-1. A **spec comportamental canônica** derivada do código (planilha CSV/XLSX,
-   detalhada abaixo) — permanente, nunca arquivada.
-2. **Specs funcionais / design docs** aprovadas que ainda não tiveram seu plano
-   derivado executado. Skills e agentes (incluindo o plugin Superpowers) gravam
-   specs novas aqui, com o nome `YYYY-MM-DD-<tema>-design.md`.
-
-Quando o plano derivado de uma spec é concluído, a spec é movida para
-[`../archive/specs/`](../archive/README.md). Regra completa em
-[`../CONVENCOES.md`](../CONVENCOES.md#ciclo-de-vida-de-planos-e-specs).
-
-## Specs funcionais vivas
-
-| Spec | Tema |
+| Spec | Estado |
 |---|---|
-| [Integração futura com o Itaú — cobrança PIX](2026-08-25-integracao-itau-pix.md) | QR Code dinâmico, webhook e confirmação automática de pagamento |
-| Blocos 1–6 | Specs concluídas e arquivadas em `docs/archive/specs/` após o encerramento do Épico #519 |
+| [Integração Itaú PIX](2026-08-25-integracao-itau-pix.md) | Planejamento futuro, não aprovado para execução; API dinâmica/webhook não implementados |
 
-A spec funcional permanece nesta tabela enquanto seu plano não for concluído e
-é movida para o [arquivo histórico](../archive/specs/) junto com ele.
+As specs de carga mista, Manifesto Mercante, múltiplos terminais e editor de
+escala já estão em [archive/specs](../archive/specs/). Suas regras vigentes
+pertencem ao glossário, arquitetura e módulos, reconciliados com o código.
 
-As specs [Unificação de B/Ls e carga mista](../archive/specs/2026-09-16-unificacao-bls-carga-mista-design.md) e [Manifesto Mercante — modelo de domínio](../archive/specs/2026-09-17-manifesto-mercante-design.md) foram concluídas pelo plano unificado e arquivadas em `docs/archive/specs/`. O comportamento vigente foi promovido para `CONTEXT.md` e `docs/ARCHITECTURE.md`.
-
-A spec de múltiplos terminais foi concluída na PR #550 e está arquivada em
-[`../archive/specs/`](../archive/specs/). O comportamento vigente foi promovido
-para `CONTEXT.md` e `docs/ARCHITECTURE.md`.
-
-A spec do editor de escala foi concluída e está arquivada em
-[`../archive/specs/`](../archive/specs/).
-
-A spec comportamental abaixo é histórica e suas edições arquivadas estão em `docs/archive/specs/`.
-
-## Behavioral Specification
-
-This directory previously held the **single canonical, code-derived behavioral
-specification** for Vela and the Fwlog Portal tracking features across the system.
-
-Dated CSV/XLSX pairs are editions: superseded editions move to
-[`../archive/specs/`](../archive/specs/) as historical snapshots.
-
-## Canonical files
-
-| File | Role |
-|---|---|
-| `<date>-behavioral-spec.csv` | **Source of truth** (edited directly, diffable, reviewable) |
-| `<date>-behavioral-spec.xlsx` | View layer (filters + summary sheet), generated from the CSV |
-
-Archived editions: **`2026-07-02-behavioral-spec.{csv,xlsx}`** e **`2026-08-12-behavioral-spec.{csv,xlsx}`** estão em [`../archive/specs/`](../archive/specs/).
-
-The CSV is edited by hand; the `.xlsx` is generated from it by
-[`../../scripts/build-behavioral-spec.mjs`](../../scripts/build-behavioral-spec.mjs).
-Regenerate the workbook after editing the CSV:
-
-```bash
-node scripts/build-behavioral-spec.mjs
-```
-
-Without an argument the script rebuilds the newest `*-behavioral-spec.csv` in
-this directory; pass a path to target a specific edition.
-
-## Scope
-
-One row per feature across: all SPA routes, every `supabase.rpc(...)`, every
-Edge Function under `supabase/functions/` (12 at `2026-08-12`), staff/portal
-auth, and every RLS table boundary, plus security/financial triggers and jobs. Generic UI components and behaviourless
-helpers are out of scope.
-
-## Columns
-
-`ID, Area, User Story, Expected Behavior (as implemented), Status, Defects,
-Defect Type, Evidence, Source References, Open Questions / Notes`.
-
-- **Status flow:** `Spec'd → Tested-Pass / Tested-Fail → Fixed → Verified`.
-- **Evidence (strongest available):** `Vitest` (executed assertion) ›
-  `SQL-contract` (`*Migration.test.ts`, detects SQL drift, not runtime) ›
-  `Integration` (`src/integration/*`, not executed here) › `Static` (code read).
-
-## Provenance
-
-The `2026-07-02` edition was rebuilt from scratch against the executable
-repository at that date: `src/App.tsx` (routes), the `supabase.rpc(...)` call
-sites, `supabase/functions/`, the numbered migrations (`001`–`162`) and
-[`../RASTREABILIDADE.md`](../RASTREABILIDADE.md), then driven through one QA loop
-against the green Vitest suite.
-
-The `2026-08-12` edition carries that work forward against the repository at
-migrations `001`–`289`, 42 routes, 103 distinct `supabase.rpc(...)` call sites
-and 12 Edge Functions, with the Vitest suite green (`npm test`). It is a
-**differential** rebuild, not a from-scratch one: rows unaffected by the drift
-carry their `2026-07-02` verification forward.
-
-What changed relative to the previous edition:
-
-- **36 rows added** for surfaces the old edition did not cover — the departure
-  report RPCs (`ADR-RPC-01`–`08`), the Portal provisioning and authentication
-  flow (`PORT-ROUTE-05`–`09`, `PORT-RPC-06`–`11`, `PORT-EDGE-03`–`10`), the
-  `admin-users` Edge Function, depot registration, and the CE-master,
-  omission-edit, granite-CE, receivables, invoice-due-date and exchange-rate
-  RPCs.
-- **3 rows removed** for behavior the code no longer has: the Mercante EDI (M5)
-  generator (`MAN-ACT-02` — only CE Mercante *import* remains), the
-  `/line-up-tv` redirect (`OPS-ROUTE-04`), and the `provision-portal-user` Edge
-  Function (`PORT-EDGE-01`, superseded by the invite/activate flow).
-- **8 rows repaired** where a module or test had been renamed or moved
-  (`src/lib/uploadLimits.ts` → `src/lib/fileGuard.ts`, `manifestParser.ts` →
-  `blParser.ts`, `LineUpTV` → `LineUpTVDisplay`, and five stale `Evidence`
-  citations).
-
-All 175 rows carry no open defect. 133 are `Verified` — backed by an executed
-`Vitest` or `SQL-contract` assertion; the remaining 42 are `Verified (static)`,
-confirmed by static code read where the feature has no executable surface in
-this environment (SQL triggers, `pg_cron` jobs, Edge Functions, live-DB RLS).
-The `Evidence` column preserves the strength of each verification, and every
-file cited in `Evidence` and `Source References` was checked to exist at
-`2026-08-12`. The `Open Questions / Notes` entries (`OPS-ROUTE-01`,
-`VOY-ACC-02`, `MAN-ROUTE-09`, `BILL-RPC-12`) are design-intent confirmations or
-coverage gaps in pre-existing code, not defects.
+As edições CSV/XLSX da especificação comportamental de 2026-07-02 e 2026-08-12
+são snapshots históricos em [archive/specs](../archive/specs/), não uma spec
+canônica viva. Para regenerar uma edição histórica, forneça seu caminho
+explicitamente a `scripts/build-behavioral-spec.mjs`; não há CSV vivo para o
+modo sem argumentos.

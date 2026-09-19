@@ -6,12 +6,19 @@
 
 ## Gate de faturamento
 
-Um B/L só pode ser faturado depois de passar por dois portões (ADR 0006):
+A emissão exige cliente reconciliado, cálculo elegível, revisão sem pendências
+bloqueantes e CE Mercante. `047_bl_documental_gates.sql` guarda a promoção e a
+emissão individual/consolidada; `056` inclui as duas tabelas do B/L misto.
+O CE também participa da liberação documental para leitura no Portal.
 
-1. **Revisão manual** — o gate canônico bloqueia cliente ausente, cliente sem e-mail, portal sem conta ativa vinculada ao Supabase Auth e peso BB ausente em carga solta. **CE Mercante não bloqueia a revisão/fatura**; ela é um gate separado de visibilidade no Portal. Ver [Revisão](../modules/operacao-suporte.md#revisão).
-2. **Reconciliação de cliente** — o B/L precisa estar vinculado a um `customer` de forma segura; casos ambíguos ficam em `customer_reconciliation_queue` e bloqueiam o faturamento até resolução manual. Ver [Clientes](../modules/clientes.md).
+A prontidão do Portal permanece exigida no caminho manual e do cliente. A
+migration `051_ce_mercante_auto_billing.sql` permite à automação de transição
+do CE emitir em contexto interno controlado sem depender do provisionamento.
+Essa exceção não pode ser assumida por uma chamada comum do navegador.
+Cálculo provisório não equivale a emissão. As pendências são derivadas no banco;
+a Revisão resolve vínculo e correções, sem uma aprovação em lote obrigatória.
 
-O banco é a fonte da verdade: `save_bl_review` calcula e audita o status real; o gate roda após novas importações e novamente ao promover/faturar. A correção de 2026-06-19 é prospectiva e não reabre B/Ls históricos já faturados. Prefere-se travar a emissão a emitir uma invoice para o cliente errado.
+Fontes: ADRs 0038/0042/0054/0069 e [Faturamento](../modules/faturamento.md).
 
 ## Numeração de invoices
 
@@ -26,7 +33,7 @@ Taxas locais usam um **ledger local** (ADR 0007) como fonte de saldo:
 - `ledger_settlements` — baixas/pagamentos.
 - `invoice_lifecycle_events` — trilha de eventos da invoice.
 
-Demurrage **não** entra no ledger local — mantém persistência própria (`demurrage_invoices`), mas é exibido de forma unificada em Faturamento, Conciliação PIX e Portal (ADR 0008).
+Demurrage **não** entra no ledger local — mantém persistência própria (`demurrage_invoices`), com operação própria em `/demurrage` e consultas em Conciliação PIX e Portal (ADRs 0008/0050).
 
 ## Vencimento e inadimplência
 
@@ -54,7 +61,7 @@ Cobranças em moeda estrangeira usam o ROE obtido da PTAX Venda do Banco Central
 
 ## Reconciliação de cliente (fuzzy matching)
 
-Na importação documental de container, o consignatário do B/L é casado contra a base de `customers` por CNPJ e por similaridade de nome. Match incerto entra em `customer_reconciliation_queue` em vez de vincular automaticamente. Ver [Clientes](../modules/clientes.md). Conforme a ADR 0025, o arquivo de B/L é a fonte documental da carga de container; o importador de Manifesto CNTR foi removido do frontend.
+Na importação documental de container, o consignatário do B/L é casado contra a base de `customers` por documento exato; similaridade de nome produz somente sugestão que exige confirmação humana (ADR 0043). Match incerto entra em `customer_reconciliation_queue` em vez de vincular automaticamente. Ver [Clientes](../modules/clientes.md). Conforme a ADR 0025, o arquivo de B/L é a fonte documental da carga de container; o importador de Manifesto CNTR foi removido do frontend.
 
 ## Confirmação de exclusões persistidas
 

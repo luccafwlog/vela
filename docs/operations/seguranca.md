@@ -7,7 +7,7 @@
 ## RLS-first
 
 - **RLS ativo em todas as tabelas.** Acesso segmentado por role via helpers `is_admin()`, `is_active_user()`, `current_user_role()` (ADR 0004).
-- **Tabelas financeiras:** leitura por usuário ativo, escrita restrita a admin.
+- **Dados financeiros:** leitura interna usa `is_active_read_user()`; escrita depende da RPC/policy e das exceções das ADRs 0046/0060. Não presumir restrição universal a admin.
 - A lógica financeira sensível (criar invoice, numerar, consolidar, PIX) roda em **RPCs `SECURITY DEFINER`** transacionais — o cliente não escreve direto nessas tabelas.
 - **Default-deny em funções** (ADR 0011, reforçada pela ADR 0047): desde a migration `297`, o `ALTER DEFAULT PRIVILEGES` de `public` **revoga** `EXECUTE` de `PUBLIC`, `anon` e `authenticated`. Função nova nasce fechada e o acesso é concedido caso a caso na própria migration (`GRANT EXECUTE ON FUNCTION public.<fn>(<args>) TO authenticated;`) — esquecer quebra fechado, com erro de permissão em teste, em vez de abrir em silêncio. Antes disso o default do Supabase concedia `EXECUTE` a `anon`/`authenticated` em toda função criada, o que gerou as correções `078`, `088`, `093`, `152` e `257` e deixou 51 funções executáveis por `anon` até a `297` varrê-las. `PUBLIC` faz parte da revogação por necessidade: sem ela, `anon` e `authenticated` herdariam o EXECUTE do default embutido do PostgreSQL. Atenção ao recriar função: `CREATE OR REPLACE` preserva o ACL, mas `DROP FUNCTION` + `CREATE` exige o `GRANT` de volta.
 - **Exceção pré-autenticação:** há **uma** viva — `portal_ship_schedule()`, vitrine pública da programação de navios. A exceção `anon` da ADR 0013 (`portal_resolve_login`) foi encerrada na migration `182`, quando o login passou a ser resolvido pela Edge Function `portal-login` com `service_role`.
@@ -17,7 +17,7 @@
 
 ## Roles internas
 
-`administrativo` · `financeiro` · `operacoes` · `documentacao`, em `user_profiles` (`role`, `active`). Geridas em `/admin/usuarios`. Ver [Admin Usuários](../modules/operacao-suporte.md#admin-usuários).
+`administrativo` · `financeiro` · `operacoes` · `documentacao` · `equipamentos`, em `user_profiles` (`role`, `active`). Geridas em `/admin/usuarios`. Ver [Admin Usuários](../modules/operacao-suporte.md#admin-usuários).
 
 ## Duas fronteiras de autenticação
 
@@ -37,7 +37,7 @@
 
 ## Invariante de provisionamento do portal
 
-Uma conta de `customer_portal_accounts` só pode ficar ativa quando possui `auth_user_id`. A identidade é criada na ativação do convite; suspensão revoga sessões e devolve a conta à análise. A fila de revisão não usa a prontidão do Portal como bloqueio financeiro.
+Uma conta de `customer_portal_accounts` só pode ficar ativa quando possui `auth_user_id`. A identidade é criada na ativação do convite; suspensão revoga sessões e devolve a conta à análise. A prontidão do Portal é guarda dos caminhos manuais de emissão; a automação CE tem exceção interna controlada na migration `051`.
 
 Troca/redefinição de senha, recuperação assistida, troca de Email de Recuperação (self-service ou assistida, migration `195`) e suspeita de comprometimento revogam as sessões existentes via `portal_revoke_sessions` (migration `194`, delete direto em `auth.sessions`/`auth.refresh_tokens` — o endpoint admin `/admin/users/{id}/logout` do GoTrue retorna 404 nesta versão).
 

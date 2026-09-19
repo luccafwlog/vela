@@ -1,5 +1,7 @@
 # ADR 0065 — Inbox durável, efeitos pós-commit e autoridade financeira server-side
 
+> **Implementação conferida em 2026-09-18 (Código):** 031 implementa consumidores adicionais; 027/028/030 refinam moeda, ROE e snapshots. Rollout remoto continua exigindo evidência própria.
+
 Status: aceito — 2026-09-07
 
 ## Contexto

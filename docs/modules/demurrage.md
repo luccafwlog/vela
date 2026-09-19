@@ -6,7 +6,7 @@
 
 Demurrage acompanha descarga e devolução de containers, resolve free time e
 tarifas P1/P2, calcula a sobreestadia em USD e mantém invoices próprias cujo
-total BRL é **recalculado diariamente pela PTAX até o pagamento** (USD travado na
+total BRL **acompanha a PTAX até o pagamento** (USD travado na
 emissão; ROE/BRL congelam só no pagamento — ver
 [ADR 0014](../adr/0014-demurrage-recalculo-diario-substitui-roe-congelado.md) e
 [ADR 0015](../adr/0015-demurrage-conciliacao-janela-duas-ptax-data-pagamento.md)).
@@ -18,7 +18,7 @@ fronteira efetiva de autorização.
 O domínio não pertence ao ledger de taxas locais. Datas vivem em
 `bl_containers`; configuração por B/L, em `bls`; tarifas, em
 `demurrage_rates`; documentos e itens, em `demurrage_invoices` e
-`demurrage_invoice_items`. A experiência é agregada em `/taxas-locais`,
+`demurrage_invoice_items`. A operação vive em `/demurrage`, com consultas em
 `/reconciliacao` e `/portal/billing`, mas a persistência continua separada,
 conforme a [ADR 0008](../adr/0008-demurrage-integrado-sem-unificar-persistencia.md).
 
@@ -309,6 +309,8 @@ flowchart LR
   rodado. Não há selo **Runtime** nesta cartografia.
 
 ## Notas e divergências
+
+- O recálculo automático depende da ativação e configuração do job remoto; o código da Edge Function e seus testes não demonstram execução diária em produção (ADR 0065).
 
 - **Corrigido (2026-06-25) — P2 não conta dias livres do override:** quando o
   `free_time_override` do B/L é maior que o fim da faixa P1 do grupo, a cobrança

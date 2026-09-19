@@ -1,6 +1,10 @@
 # 0007 — Ledger local e ciclo de vida de invoices
 
-Status: aceito — 2026-06-09
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Ledger permanece; due_date e overdue foram retirados do ciclo das invoices locais.
+> Rastreabilidade: [ADR 0055](./0055-taxa-local-sem-vencimento-praticado.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-06-09
 
 ## Contexto
 

@@ -1,0 +1,2784 @@
+{
+  "evidence": "Código: extração estática de literais e declarações, não catálogo de runtime. Sobrecargas e SQL dinâmico exigem replay; from inclui Storage quando aplicável.",
+  "source_files_inspected": 169,
+  "contracts": [
+    {
+      "file": "src/hooks/useAuth.tsx",
+      "rpc": [],
+      "from": [
+        "user_profiles"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/hooks/useBlEditForm.ts",
+      "rpc": [
+        "save_bl_review"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/hooks/useBls.ts",
+      "rpc": [],
+      "from": [
+        "audit_logs",
+        "bl_containers",
+        "bls",
+        "vehicles",
+        "voyages"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/hooks/useCustomers.ts",
+      "rpc": [],
+      "from": [
+        "customers",
+        "invoices"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/hooks/useOperationalAlerts.ts",
+      "rpc": [],
+      "from": [
+        "bl_containers"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/hooks/useOperationalCounts.ts",
+      "rpc": [],
+      "from": [
+        "bls"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/hooks/usePortalAuth.tsx",
+      "rpc": [
+        "portal_get_session_overview_v2"
+      ],
+      "from": [],
+      "edge": [
+        "portal-login"
+      ]
+    },
+    {
+      "file": "src/hooks/usePortalProvisioning.ts",
+      "rpc": [
+        "portal_admin_change_cnpj",
+        "portal_assisted_email_change",
+        "portal_cancel_invite"
+      ],
+      "from": [],
+      "edge": [
+        "portal-account-suspend"
+      ]
+    },
+    {
+      "file": "src/hooks/useReview.ts",
+      "rpc": [],
+      "from": [
+        "bls",
+        "granite_bls"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/hooks/useVaziosImportacaoStats.ts",
+      "rpc": [],
+      "from": [
+        "vazios_importacao_containers",
+        "vazios_importacao_manifests"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/hooks/useVehicles.ts",
+      "rpc": [],
+      "from": [
+        "vehicles",
+        "voyages"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/adminObservability.ts",
+      "rpc": [],
+      "from": [
+        "audit_logs",
+        "invoices",
+        "user_profiles",
+        "voyages"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/adminUsers.ts",
+      "rpc": [
+        "admin_list_users"
+      ],
+      "from": [
+        "user_profiles"
+      ],
+      "edge": [
+        "admin-users"
+      ]
+    },
+    {
+      "file": "src/services/agencyDepartureReport.ts",
+      "rpc": [
+        "add_agency_report_occurrence",
+        "close_agency_departure_report",
+        "reopen_agency_departure_report",
+        "set_agency_report_department_signoff",
+        "set_agency_report_section_observation",
+        "set_agency_report_signoff",
+        "set_agency_report_terminal"
+      ],
+      "from": [
+        "agency_departure_reports",
+        "audit_logs",
+        "baplie_containers",
+        "bl_containers",
+        "bl_transshipments",
+        "bls",
+        "depot_services",
+        "granite_bls",
+        "vazios_bookings",
+        "vazios_export_operations",
+        "vazios_export_service_lines",
+        "vazios_importacao_containers",
+        "vehicles",
+        "voyage_omissions"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/agencyReportSla.ts",
+      "rpc": [],
+      "from": [
+        "agency_departure_reports"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/alerts.ts",
+      "rpc": [
+        "count_alert_queue",
+        "count_unread_internal_notifications",
+        "dismiss_alert_item",
+        "list_alert_queue_page",
+        "list_internal_notifications",
+        "mark_all_internal_notifications_read",
+        "mark_internal_notification_read",
+        "resolve_billing_alert",
+        "summarize_alert_queue_by_department",
+        "upsert_billing_alert"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/appSettings.ts",
+      "rpc": [
+        "set_communications_enabled",
+        "set_demurrage_dunning_interval_days"
+      ],
+      "from": [
+        "app_settings"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/baplieImport.ts",
+      "rpc": [
+        "import_baplie_staging_transactional"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/baplieReadModel.ts",
+      "rpc": [],
+      "from": [
+        "baplie_containers",
+        "bls"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/baplieReconciliation.ts",
+      "rpc": [
+        "apply_baplie_physical_flags_atomic",
+        "get_voyage_first_brazilian_eta"
+      ],
+      "from": [
+        "baplie_containers",
+        "bl_containers",
+        "bls"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/billing.ts",
+      "rpc": [
+        "add_manual_invoice_charge",
+        "cancel_invoice",
+        "create_invoice_from_bls_with_ledger",
+        "delete_manual_invoice_charge",
+        "get_consolidated_invoice_item_breakdown",
+        "list_invoice_details",
+        "mark_bl_ready_and_create_invoice",
+        "mark_bls_ready_and_create_invoice",
+        "register_invoice_payment"
+      ],
+      "from": [
+        "bls",
+        "customers",
+        "invoice_bls",
+        "invoice_granite_bls",
+        "invoice_receivable_links",
+        "invoices",
+        "payments",
+        "voyages"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/billingLedger.ts",
+      "rpc": [
+        "create_local_consolidated_invoice",
+        "list_consolidatable_receivables",
+        "list_invoice_refunds",
+        "reconcile_invoice_payment_by_txid",
+        "register_ledger_invoice_payment",
+        "settle_cod_adjustment",
+        "settle_invoice_refund"
+      ],
+      "from": [
+        "cod_adjustments"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/blChangeOfDestinationService.ts",
+      "rpc": [
+        "set_bl_cod"
+      ],
+      "from": [
+        "bls"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/blDemurrageConfig.ts",
+      "rpc": [
+        "save_bl_demurrage_config"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/blDocumentImport.ts",
+      "rpc": [],
+      "from": [
+        "voyages"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/blFreightImport.ts",
+      "rpc": [
+        "import_bl_freight_transactional",
+        "import_bl_freight_with_metadata"
+      ],
+      "from": [
+        "bl_containers",
+        "bl_receivables",
+        "bls",
+        "charge_calculations",
+        "customers",
+        "demurrage_invoices",
+        "invoice_bls",
+        "invoices",
+        "voyages"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/blPortalStatus.ts",
+      "rpc": [
+        "get_bl_portal_status"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/blTerminal.ts",
+      "rpc": [
+        "set_bl_terminal_override"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/blTimeline.ts",
+      "rpc": [
+        "bl_timeline"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/bls.ts",
+      "rpc": [],
+      "from": [
+        "bl_receivables",
+        "bls",
+        "demurrage_invoices",
+        "invoice_bls",
+        "invoice_receivable_links",
+        "invoices",
+        "vehicles"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/breakbulkImport.ts",
+      "rpc": [
+        "import_breakbulk_manifest_transactional"
+      ],
+      "from": [
+        "voyages"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/ceMercanteImport.ts",
+      "rpc": [
+        "apply_ce_mercante_manifest",
+        "apply_ce_mercante_update",
+        "apply_granite_ce_mercante_update"
+      ],
+      "from": [
+        "bls",
+        "granite_bls",
+        "manifestos_mercante"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/charges/chargeOperationsService.ts",
+      "rpc": [
+        "add_manual_bl_charge",
+        "calculate_bl_local_charges",
+        "delete_manual_bl_charge",
+        "list_bl_local_charge_lines",
+        "list_manual_charge_items_for_bl",
+        "mark_bl_charges_reviewed",
+        "mark_bl_ready_for_billing",
+        "update_manual_bl_charge"
+      ],
+      "from": [
+        "audit_logs",
+        "bl_containers",
+        "bls",
+        "charge_calculations",
+        "granite_bl_charges",
+        "granite_bls",
+        "invoice_bls",
+        "invoice_receivable_links"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/charges/chargeRateService.ts",
+      "rpc": [],
+      "from": [
+        "charge_table_items",
+        "customer_rate_overrides",
+        "customers"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/charges/chargeReconciliationService.ts",
+      "rpc": [
+        "list_customer_reconciliation_queue"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/charges/chargeTableService.ts",
+      "rpc": [],
+      "from": [
+        "charge_table_items",
+        "charge_tables"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/containerDatesImport.ts",
+      "rpc": [
+        "apply_container_dates_atomic"
+      ],
+      "from": [
+        "bl_containers"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/containers.ts",
+      "rpc": [],
+      "from": [
+        "bl_containers",
+        "charge_calculations",
+        "demurrage_invoice_items",
+        "vehicles"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/customerBase.ts",
+      "rpc": [
+        "apply_customer_base_row_atomic"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/customerCommunicationDispatches.ts",
+      "rpc": [],
+      "from": [],
+      "edge": [
+        "send-customer-communication"
+      ]
+    },
+    {
+      "file": "src/services/customerCommunicationReadiness.ts",
+      "rpc": [
+        "customer_local_charges_communication_readiness"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/customerCommunications.ts",
+      "rpc": [],
+      "from": [
+        "bls",
+        "customer_communication_bls",
+        "customer_communications",
+        "customer_contact_box_links",
+        "customer_contacts",
+        "voyage_escala_operation_fronts",
+        "voyage_escala_terminal_state",
+        "voyages"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/customerContactConfiguration.ts",
+      "rpc": [
+        "internal_save_customer_contact_configuration"
+      ],
+      "from": [
+        "customer_communication_boxes",
+        "customer_communication_suppressions",
+        "customer_contact_box_links",
+        "customer_contacts",
+        "portal_suppressed_emails"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/customerFicha.ts",
+      "rpc": [
+        "get_customer_receivables"
+      ],
+      "from": [
+        "audit_logs",
+        "bl_containers",
+        "bls",
+        "charge_calculations",
+        "customer_contact_change_events",
+        "customer_rate_overrides",
+        "demurrage_invoices",
+        "invoices",
+        "payments",
+        "portal_provisioning_events"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/customerFinanceCommunications.ts",
+      "rpc": [],
+      "from": [
+        "bls",
+        "customer_communication_suppressions",
+        "customer_communications",
+        "customer_contact_box_links",
+        "customer_contacts",
+        "invoice_bls",
+        "invoice_receivable_links",
+        "portal_suppressed_emails"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/customerReconciliation.ts",
+      "rpc": [],
+      "from": [
+        "customers"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/customers.ts",
+      "rpc": [
+        "create_customer_with_contacts",
+        "ensure_customer_contact_email",
+        "update_customer_with_audit"
+      ],
+      "from": [
+        "billing_batches",
+        "bl_receivables",
+        "bls",
+        "customer_contacts",
+        "customer_rate_overrides",
+        "customers",
+        "demurrage_invoices",
+        "invoices"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/deleteAudit.ts",
+      "rpc": [],
+      "from": [
+        "audit_logs"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/demurrage/customerDemurrageAgreements.ts",
+      "rpc": [],
+      "from": [
+        "customer_demurrage_agreements"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/demurrage/demurrageContainers.ts",
+      "rpc": [],
+      "from": [
+        "audit_logs",
+        "bl_containers",
+        "demurrage_invoice_items"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/demurrage/demurrageDisputes.ts",
+      "rpc": [
+        "add_demurrage_dispute_attachment",
+        "add_demurrage_dispute_message",
+        "list_demurrage_disputes_internal",
+        "reopen_demurrage_dispute"
+      ],
+      "from": [
+        "demurrage-disputes"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/demurrage/demurrageInvoices.ts",
+      "rpc": [
+        "apply_demurrage_discount",
+        "cancel_demurrage_invoice",
+        "create_demurrage_invoice_authoritative",
+        "register_demurrage_payment",
+        "reopen_demurrage_invoice"
+      ],
+      "from": [
+        "bl_containers",
+        "bls",
+        "demurrage_invoice_items",
+        "demurrage_invoices"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/demurrage/demurrageKpis.ts",
+      "rpc": [
+        "recalculate_demurrage_invoices_manual",
+        "save_exchange_rate_reference_v2"
+      ],
+      "from": [
+        "bl_containers",
+        "demurrage_invoice_history",
+        "demurrage_invoices"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/demurrage/demurrageRates.ts",
+      "rpc": [],
+      "from": [
+        "demurrage_rates"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/demurrageDunning.ts",
+      "rpc": [
+        "list_demurrage_dunning_claim_statuses"
+      ],
+      "from": [
+        "app_settings",
+        "customer_communication_suppressions",
+        "customer_contact_box_links",
+        "customer_contacts",
+        "portal_suppressed_emails"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/depots.ts",
+      "rpc": [
+        "preflight_depots_terminal_port_mapping"
+      ],
+      "from": [
+        "bls",
+        "depot_services",
+        "depots",
+        "ports"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/escalaTerminalAllocation.ts",
+      "rpc": [
+        "save_voyage_escala_terminal_state_v2"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/graniteCharges.ts",
+      "rpc": [
+        "calculate_granite_bl_charges"
+      ],
+      "from": [
+        "granite_bls",
+        "granite_manifests",
+        "granite_rates"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/graniteImport.ts",
+      "rpc": [
+        "import_granite_manifest_transactional"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/importEffects.ts",
+      "rpc": [
+        "claim_import_effects",
+        "complete_import_effect",
+        "enqueue_import_effect",
+        "list_import_effects",
+        "retry_import_effect"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/lineup.ts",
+      "rpc": [],
+      "from": [
+        "audit_logs",
+        "bl_containers",
+        "bls",
+        "vazios_importacao_containers",
+        "vehicles",
+        "voyages"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/manifestImport.ts",
+      "rpc": [
+        "set_import_batch_ce_master"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/manifestosMercanteService.ts",
+      "rpc": [],
+      "from": [
+        "bls",
+        "manifestos_mercante"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/operationalEvents.ts",
+      "rpc": [],
+      "from": [
+        "audit_logs"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/operationalLists.ts",
+      "rpc": [
+        "operational_list_bl_summary",
+        "operational_list_bls",
+        "operational_list_containers",
+        "operational_list_voyage_summaries"
+      ],
+      "from": [
+        "bls"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/portalBilling.ts",
+      "rpc": [
+        "portal_resolve_login"
+      ],
+      "from": [
+        "demurrage-disputes"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/portalProvisioning.ts",
+      "rpc": [
+        "portal_list_provisioning_console",
+        "portal_list_provisioning_events",
+        "portal_release_suppressed_email",
+        "portal_return_to_analysis"
+      ],
+      "from": [],
+      "edge": [
+        "portal-invite-send"
+      ]
+    },
+    {
+      "file": "src/services/portalScope.ts",
+      "rpc": [
+        "portal_open_inspection"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/reconciliacao.ts",
+      "rpc": [
+        "confirm_unified_pix_matches",
+        "reverse_demurrage_payment",
+        "reverse_invoice_payment"
+      ],
+      "from": [
+        "demurrage_invoice_history",
+        "demurrage_invoices",
+        "invoices"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/reports.ts",
+      "rpc": [],
+      "from": [
+        "bls",
+        "invoice_receivable_links",
+        "invoices"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/review.ts",
+      "rpc": [
+        "save_bl_review",
+        "save_granite_bl_review"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/reviewBillingAutomation.ts",
+      "rpc": [],
+      "from": [
+        "bls"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/reviewCustomerGroup.ts",
+      "rpc": [
+        "complete_review_customer_group"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/transshipments.ts",
+      "rpc": [
+        "omit_voyage_escala",
+        "revert_voyage_omission",
+        "set_bl_cod",
+        "set_bl_transshipment",
+        "update_voyage_omission"
+      ],
+      "from": [
+        "bl_transshipments",
+        "voyage_omissions"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/vaziosExportOperations.ts",
+      "rpc": [
+        "create_manual_vazios_booking",
+        "delete_manual_vazios_booking",
+        "update_manual_vazios_booking"
+      ],
+      "from": [
+        "vazios_bookings",
+        "vazios_export_operations",
+        "vazios_export_service_lines"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/vaziosImport.ts",
+      "rpc": [
+        "import_vazios_bookings_transactional"
+      ],
+      "from": [
+        "vazios_bookings"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/vaziosImportacaoImport.ts",
+      "rpc": [
+        "delete_baplie_manifest_for_voyage",
+        "import_vazios_importacao_transactional",
+        "replace_vazios_from_baplie_transactional"
+      ],
+      "from": [
+        "vazios_importacao_containers",
+        "vazios_importacao_manifests"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/vaziosNatureza.ts",
+      "rpc": [],
+      "from": [
+        "bl_containers",
+        "vazios_importacao_containers",
+        "vazios_importacao_manifests"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/vehicleImport.ts",
+      "rpc": [
+        "import_vehicle_rows_transactional"
+      ],
+      "from": [
+        "bl_containers",
+        "bls",
+        "vehicles"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/vehicles.ts",
+      "rpc": [],
+      "from": [
+        "vehicles"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/vesselScheduleAdmin.ts",
+      "rpc": [
+        "archive_vessel_schedule",
+        "reorder_vessel_schedules"
+      ],
+      "from": [],
+      "edge": []
+    },
+    {
+      "file": "src/services/voyageExportSchedules.ts",
+      "rpc": [
+        "save_voyage_escala_terminal_state"
+      ],
+      "from": [
+        "voyage_escala_operation_fronts",
+        "voyage_escala_terminal_state",
+        "voyage_export_schedules"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/voyageFromSchedule.ts",
+      "rpc": [],
+      "from": [
+        "bls",
+        "voyage_escala_revision_state"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/voyageRouteSchedules.ts",
+      "rpc": [
+        "set_voyage_route_ce_master"
+      ],
+      "from": [
+        "audit_logs",
+        "voyage_route_ce_master",
+        "voyages"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/voyageTimeline.ts",
+      "rpc": [],
+      "from": [
+        "audit_logs",
+        "baplie_containers",
+        "baplie_reconciliation_resolutions",
+        "import_batches",
+        "user_profiles"
+      ],
+      "edge": []
+    },
+    {
+      "file": "src/services/voyages.ts",
+      "rpc": [],
+      "from": [
+        "audit_logs",
+        "bls",
+        "carriers",
+        "granite_manifests",
+        "import_batches",
+        "vazios_manifests",
+        "vessels",
+        "voyages"
+      ],
+      "edge": []
+    }
+  ],
+  "migration_declarations": [
+    {
+      "file": "supabase/migrations/001_initial_schema.sql",
+      "tables": [
+        "public.agency_departure_report_department_signoffs",
+        "public.agency_departure_report_occurrences",
+        "public.agency_departure_report_signoffs",
+        "public.agency_departure_reports",
+        "public.agency_report_pending_baselines",
+        "public.alert_item_dismissals",
+        "public.alert_item_events",
+        "public.alert_items",
+        "public.alert_notification_failures",
+        "public.alert_type_catalog",
+        "public.alerts",
+        "public.app_settings",
+        "public.audit_logs",
+        "public.baplie_containers",
+        "public.baplie_reconciliation_resolutions",
+        "public.billing_batches",
+        "public.billing_run_logs",
+        "public.billing_runs",
+        "public.bl_breakbulk_items",
+        "public.bl_containers",
+        "public.bl_freight_lines",
+        "public.bl_receivables",
+        "public.bl_transshipments",
+        "public.bls",
+        "public.carriers",
+        "public.charge_calculations",
+        "public.charge_table_items",
+        "public.charge_tables",
+        "public.cod_adjustments",
+        "public.customer_communication_attachments",
+        "public.customer_communication_attempts",
+        "public.customer_communication_automation_claims",
+        "public.customer_communication_bls",
+        "public.customer_communication_kinds",
+        "public.customer_communication_saved_templates",
+        "public.customer_communication_suppressions",
+        "public.customer_communication_templates",
+        "public.customer_communications",
+        "public.customer_contact_preferences",
+        "public.customer_contacts",
+        "public.customer_demurrage_agreements",
+        "public.customer_portal_accounts",
+        "public.customer_portal_sessions",
+        "public.customer_rate_overrides",
+        "public.customer_reconciliation_queue",
+        "public.customers",
+        "public.demurrage_dispute_attachments",
+        "public.demurrage_dispute_messages",
+        "public.demurrage_disputes",
+        "public.demurrage_dunning_claims",
+        "public.demurrage_invoice_history",
+        "public.demurrage_invoice_items",
+        "public.demurrage_invoices",
+        "public.demurrage_rates",
+        "public.depot_services",
+        "public.depots",
+        "public.ended_vessels",
+        "public.exchange_rate_reference",
+        "public.granite_bl_charges",
+        "public.granite_bls",
+        "public.granite_manifests",
+        "public.granite_rates",
+        "public.import_batches",
+        "public.import_errors",
+        "public.internal_notifications",
+        "public.invoice_bls",
+        "public.invoice_counters",
+        "public.invoice_granite_bls",
+        "public.invoice_items",
+        "public.invoice_lifecycle_events",
+        "public.invoice_receivable_links",
+        "public.invoice_refunds",
+        "public.invoices",
+        "public.ledger_settlements",
+        "public.payments",
+        "public.pix_reconciliation_exceptions",
+        "public.portal_email_attempts",
+        "public.portal_email_events",
+        "public.portal_inspection_events",
+        "public.portal_invites",
+        "public.portal_login_attempts",
+        "public.portal_login_resolution_attempts",
+        "public.portal_notifications",
+        "public.portal_provisioning_events",
+        "public.portal_rate_limits",
+        "public.portal_suppressed_emails",
+        "public.ports",
+        "public.pricing_rule_versions",
+        "public.provision_rate_limit_log",
+        "public.user_profiles",
+        "public.vazios_bookings",
+        "public.vazios_export_operations",
+        "public.vazios_export_service_lines",
+        "public.vazios_importacao_containers",
+        "public.vazios_importacao_manifests",
+        "public.vazios_manifests",
+        "public.vehicles",
+        "public.vessel_schedules",
+        "public.vessels",
+        "public.voyage_escala_operation_fronts",
+        "public.voyage_escala_revision_state",
+        "public.voyage_escala_terminal_state",
+        "public.voyage_export_schedules",
+        "public.voyage_omissions",
+        "public.voyage_route_ce_master",
+        "public.voyages"
+      ],
+      "functions": [],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/002_business_logic_and_security.sql",
+      "tables": [],
+      "functions": [
+        "public._portal_actor_role",
+        "public._portal_get_current_roe_core",
+        "public._portal_get_demurrage_invoice_detail_core",
+        "public._portal_get_profile_core",
+        "public._portal_inspect_guard",
+        "public._portal_invoice_details_core",
+        "public._portal_list_consolidatable_receivables_core",
+        "public._portal_list_demurrage_invoices_core",
+        "public._portal_list_invoices_core",
+        "public._portal_list_notifications_core",
+        "public._portal_list_operation_bls_core",
+        "public._portal_list_operation_bls_without_transshipment_core",
+        "public._portal_log_event",
+        "public._portal_notification_unread_count_core",
+        "public.add_agency_report_occurrence",
+        "public.add_demurrage_dispute_attachment",
+        "public.add_demurrage_dispute_message",
+        "public.add_manual_bl_charge",
+        "public.add_manual_invoice_charge",
+        "public.admin_list_users",
+        "public.agency_report_alert_entity_id",
+        "public.agency_report_alert_entity_key",
+        "public.agency_report_alert_entity_prefix",
+        "public.agency_report_deadline_date",
+        "public.agency_report_department_label",
+        "public.agency_report_reject_closed_write",
+        "public.agency_report_section_label",
+        "public.agency_report_section_owner",
+        "public.alert_actor_is_authorized",
+        "public.apply_bl_review_gate_after_import",
+        "public.apply_ce_mercante_manifest",
+        "public.apply_ce_mercante_update",
+        "public.apply_cod_financial_effect",
+        "public.apply_cod_open_balance_offset",
+        "public.apply_granite_ce_mercante_update",
+        "public.approve_customer_reconciliation",
+        "public.archive_vessel_schedule",
+        "public.assert_voyage_escala_ready_for_report_close",
+        "public.assign_invoice_number",
+        "public.audit_row_changes",
+        "public.audit_user_profile_changes",
+        "public.backfill_invoice_receivable_links",
+        "public.backfill_local_charge_receivables",
+        "public.bl_has_portal_release",
+        "public.bl_timeline",
+        "public.block521_resolve_alert",
+        "public.block521_upsert_alert",
+        "public.build_transshipping_pix_payload",
+        "public.calculate_bl_local_charges",
+        "public.cancel_invoice",
+        "public.canonicalize_customer_cnpj",
+        "public.capture_manifest_financial_contact",
+        "public.check_portal_rate_limit",
+        "public.check_provision_rate_limit",
+        "public.claim_demurrage_dunning_candidates",
+        "public.classify_granite_invoice",
+        "public.clear_alert_item_destination",
+        "public.close_agency_departure_report",
+        "public.close_agency_departure_report_by_report_id",
+        "public.close_legacy_agency_report_alerts_for_scale",
+        "public.complete_review_customer_group",
+        "public.compute_bl_review_pendencies",
+        "public.confirm_demurrage_pix_matches",
+        "public.confirm_unified_pix_matches",
+        "public.count_alert_queue",
+        "public.count_distinct_containers",
+        "public.count_unread_internal_notifications",
+        "public.create_customer_communication_atomic",
+        "public.create_customer_with_contacts",
+        "public.create_demurrage_invoice_with_items",
+        "public.create_invoice_from_bls",
+        "public.create_invoice_from_bls_core",
+        "public.create_invoice_from_bls_with_ledger",
+        "public.create_invoice_from_granite_bls",
+        "public.create_local_consolidated_invoice",
+        "public.create_local_consolidated_invoice_core",
+        "public.create_manual_vazios_booking",
+        "public.current_actor_role",
+        "public.current_portal_customer_id",
+        "public.current_user_role",
+        "public.customer_communication_safe_timestamptz",
+        "public.customer_local_charges_communication_payload",
+        "public.customer_local_charges_communication_readiness",
+        "public.customer_portal_access_ready",
+        "public.customer_rate_overrides_validate_range",
+        "public.delete_baplie_manifest_for_voyage",
+        "public.delete_manual_bl_charge",
+        "public.delete_manual_invoice_charge",
+        "public.delete_manual_vazios_booking",
+        "public.demurrage_dispute_messages_immutable",
+        "public.demurrage_dunning_candidate_sendable",
+        "public.detect_agency_report_deadline_missed",
+        "public.detect_agency_report_department_pending",
+        "public.detect_agency_report_pending",
+        "public.detect_bl_review_pendencies",
+        "public.detect_customer_communication_alerts",
+        "public.detect_granite_bl_review_pendencies",
+        "public.detect_voyage_operation_alerts",
+        "public.dismiss_alert_item",
+        "public.enforce_portal_invoice_bl_gate",
+        "public.enforce_portal_invoice_gate",
+        "public.ensure_agency_departure_report",
+        "public.ensure_container_bl_charge_status_default",
+        "public.ensure_customer_contact_email",
+        "public.ensure_demurrage_dispute",
+        "public.ensure_pricing_rule_version",
+        "public.evaluate_and_dispatch_automatic_communications",
+        "public.extract_ncm_codes",
+        "public.extract_review_cnpjs_from_text",
+        "public.fanout_alert_item",
+        "public.fanout_alert_item_for_department",
+        "public.freeze_import_batch_route_summary",
+        "public.get_agency_report_actor_names",
+        "public.get_agency_report_actor_names_by_report_id",
+        "public.get_agency_report_closer_name",
+        "public.get_billing_run_details",
+        "public.get_bl_portal_status",
+        "public.get_consolidated_invoice_item_breakdown",
+        "public.get_customer_portal_account",
+        "public.get_customer_receivables",
+        "public.get_demurrage_recent_values",
+        "public.get_invoice_pending_refund",
+        "public.get_voyage_eligible_pods",
+        "public.get_voyage_first_brazilian_eta",
+        "public.guard_container_bl_without_containers",
+        "public.guard_granite_financial_status",
+        "public.import_baplie_staging_transactional",
+        "public.import_bl_freight_transactional",
+        "public.import_bl_freight_transactional_legacy_205",
+        "public.import_bl_freight_transactional_legacy_284",
+        "public.import_bl_freight_transactional_legacy_322",
+        "public.import_bl_freight_transactional_legacy_357",
+        "public.import_breakbulk_manifest_transactional",
+        "public.import_granite_manifest_transactional",
+        "public.import_granite_manifest_transactional_legacy_136",
+        "public.import_manifest_transactional",
+        "public.import_manifest_transactional_legacy_165",
+        "public.import_vazios_bookings_transactional",
+        "public.import_vazios_importacao_transactional",
+        "public.import_vehicle_rows_transactional",
+        "public.insert_billing_run_log",
+        "public.is_active_read_user",
+        "public.is_active_user",
+        "public.is_admin",
+        "public.is_financeiro_user",
+        "public.is_valid_cnpj",
+        "public.keep_single_pix_txid_settlement_row",
+        "public.link_invoice_to_ledger",
+        "public.link_pix_reconciliation_candidate",
+        "public.list_alert_queue",
+        "public.list_alert_queue_page",
+        "public.list_billing_runs",
+        "public.list_bl_local_charge_lines",
+        "public.list_consolidatable_receivables",
+        "public.list_customer_communication_saved_templates",
+        "public.list_customer_reconciliation_queue",
+        "public.list_demurrage_disputes_internal",
+        "public.list_demurrage_dunning_claim_statuses",
+        "public.list_internal_notifications",
+        "public.list_invoice_details",
+        "public.list_invoice_refunds",
+        "public.list_manual_charge_items_for_bl",
+        "public.list_pix_reconciliation_candidates",
+        "public.list_pix_reconciliation_exceptions",
+        "public.mark_all_internal_notifications_read",
+        "public.mark_bl_charges_reviewed",
+        "public.mark_bl_ready_and_create_invoice",
+        "public.mark_bl_ready_for_billing",
+        "public.mark_bls_ready_and_create_invoice",
+        "public.mark_internal_notification_read",
+        "public.mark_obsolete_consolidated_links",
+        "public.mark_replaced_obsolete_consolidated_invoice",
+        "public.normalize_cnpj",
+        "public.normalize_depot_code",
+        "public.normalize_document_text",
+        "public.normalize_ncm_codes",
+        "public.normalize_pix_txid",
+        "public.normalize_port_code",
+        "public.notify_demurrage_issued",
+        "public.notify_dispute_responded",
+        "public.notify_invoice_issued",
+        "public.obsolete_consolidated_invoice",
+        "public.omit_voyage_escala",
+        "public.pix_crc16_ccitt",
+        "public.pix_reconciliation_authority_holds",
+        "public.pix_tlv",
+        "public.populate_charge_calculation_billing_metadata",
+        "public.populate_local_invoice_pix_payload",
+        "public.portal_add_dispute_message",
+        "public.portal_admin_change_cnpj",
+        "public.portal_assisted_email_change",
+        "public.portal_billing_gate",
+        "public.portal_cancel_invite",
+        "public.portal_create_account_on_customer_insert",
+        "public.portal_create_consolidation",
+        "public.portal_current_role",
+        "public.portal_events_block_mutation",
+        "public.portal_get_current_roe",
+        "public.portal_get_current_roe_legacy",
+        "public.portal_get_demurrage_invoice_detail",
+        "public.portal_get_demurrage_invoice_detail_legacy",
+        "public.portal_get_profile",
+        "public.portal_get_profile_legacy",
+        "public.portal_get_session_overview_v2",
+        "public.portal_inspect_get_current_roe",
+        "public.portal_inspect_get_demurrage_invoice_detail",
+        "public.portal_inspect_get_profile",
+        "public.portal_inspect_invoice_details",
+        "public.portal_inspect_list_consolidatable_receivables",
+        "public.portal_inspect_list_demurrage_invoices",
+        "public.portal_inspect_list_invoices",
+        "public.portal_inspect_list_notifications",
+        "public.portal_inspect_list_operation_bls",
+        "public.portal_inspect_notification_unread_count",
+        "public.portal_invoice_details",
+        "public.portal_invoice_details_legacy",
+        "public.portal_invoice_exception_on_close",
+        "public.portal_invoice_exception_on_invoice_bl",
+        "public.portal_invoice_exception_on_issue",
+        "public.portal_list_consolidatable_receivables",
+        "public.portal_list_consolidatable_receivables_legacy",
+        "public.portal_list_demurrage_invoices",
+        "public.portal_list_demurrage_invoices_legacy",
+        "public.portal_list_disputes",
+        "public.portal_list_invoices",
+        "public.portal_list_notifications",
+        "public.portal_list_notifications_legacy",
+        "public.portal_list_operation_bls",
+        "public.portal_list_operation_bls_legacy",
+        "public.portal_list_operation_bls_without_transshipment_legacy",
+        "public.portal_list_provisioning_console",
+        "public.portal_list_provisioning_console_legacy",
+        "public.portal_list_provisioning_events",
+        "public.portal_list_provisioning_events_legacy",
+        "public.portal_login_check_rate_limit",
+        "public.portal_login_register_failure",
+        "public.portal_login_register_success",
+        "public.portal_mark_all_notifications_read",
+        "public.portal_mark_expired_invites",
+        "public.portal_mark_notification_read",
+        "public.portal_normalize_login_cnpj",
+        "public.portal_notification_unread_count",
+        "public.portal_notification_unread_count_legacy",
+        "public.portal_obsolete_consolidation",
+        "public.portal_open_demurrage_dispute",
+        "public.portal_open_inspection",
+        "public.portal_protect_customer_cnpj",
+        "public.portal_provisioning_backfill",
+        "public.portal_recovery_check_rate_limit",
+        "public.portal_recovery_register_failure",
+        "public.portal_refresh_general_pendencies",
+        "public.portal_release_suppressed_email",
+        "public.portal_reopen_on_new_process",
+        "public.portal_repair_missing_accounts",
+        "public.portal_request_dispute_reopen",
+        "public.portal_resolve_login",
+        "public.portal_return_to_analysis",
+        "public.portal_revoke_sessions",
+        "public.portal_set_exception",
+        "public.portal_ship_schedule",
+        "public.portal_sync_login_cnpj",
+        "public.portal_update_profile",
+        "public.preflight_depots_terminal_port_mapping",
+        "public.prevent_duplicate_active_invoice_bl_link",
+        "public.prevent_duplicate_active_invoice_granite_bl_link",
+        "public.prevent_pending_review_invoice",
+        "public.prevent_user_profile_privilege_escalation",
+        "public.propagate_voyage_ata_to_containers",
+        "public.recalculate_demurrage_invoices",
+        "public.recalculate_demurrage_invoices_manual",
+        "public.recompute_bl_review_status",
+        "public.reconcile_agency_report_alerts",
+        "public.reconcile_agency_report_alerts_for_scale",
+        "public.reconcile_agency_report_alerts_on_audit",
+        "public.reconcile_agency_report_alerts_on_report_change",
+        "public.reconcile_baplie_coverage_from_new_bl_containers",
+        "public.reconcile_baplie_coverage_from_new_rows",
+        "public.reconcile_baplie_coverage_from_old_bl_containers",
+        "public.reconcile_baplie_coverage_from_old_rows",
+        "public.reconcile_baplie_coverage_from_updated_baplie_rows",
+        "public.reconcile_baplie_coverage_from_updated_bl_containers",
+        "public.reconcile_baplie_coverage_from_updated_bls",
+        "public.reconcile_bl_review_alerts",
+        "public.reconcile_bl_review_alerts_item",
+        "public.reconcile_client_portal_alerts",
+        "public.reconcile_customer_bl_review_alerts",
+        "public.reconcile_granite_bl_review_alerts",
+        "public.reconcile_invoice_payment_by_txid",
+        "public.reconcile_voyage_baplie_coverage_alerts",
+        "public.reconcile_voyage_baplie_missing_alerts",
+        "public.reconcile_voyage_bl_expected_alerts",
+        "public.reconcile_voyage_ce_mercante_missing_alerts",
+        "public.reconcile_voyage_export_after_atd_alerts",
+        "public.reconcile_voyage_operation_alerts",
+        "public.reconcile_voyage_operation_alerts_on_audit",
+        "public.reconcile_voyage_operation_alerts_on_terminal_change",
+        "public.reconcile_voyage_schedule_date_alerts",
+        "public.refresh_alert_aggregate",
+        "public.refresh_customer_reconciliation_queue_for_bl",
+        "public.refresh_voyage_status_from_terminal_scales",
+        "public.register_invoice_payment",
+        "public.register_ledger_invoice_payment",
+        "public.register_portal_login_abuse",
+        "public.reject_customer_reconciliation",
+        "public.reject_deleted_agency_report_deadline_alert",
+        "public.release_customer_communication_automation_claim",
+        "public.release_demurrage_dunning_claim",
+        "public.relink_bl_customer",
+        "public.reopen_agency_departure_report",
+        "public.reopen_agency_departure_report_by_report_id",
+        "public.reopen_demurrage_dispute",
+        "public.reopen_pix_exception_for_authority_change",
+        "public.reopen_pix_reconciliation_exception",
+        "public.reorder_vessel_schedules",
+        "public.replace_vazios_from_baplie_transactional",
+        "public.reprocess_customer_billing_after_portal_activation",
+        "public.resolve_alert_item",
+        "public.resolve_alert_item_for_department",
+        "public.resolve_billing_alert",
+        "public.resolve_bl_local_charge_items",
+        "public.resolve_customer_contact_bounce_alert_on_change",
+        "public.resolve_demurrage_alert_on_status_change",
+        "public.resolve_invoice_alerts_on_status_change",
+        "public.resolve_local_charge_table_id",
+        "public.resolve_pix_reconciliation_exception",
+        "public.resolve_portal_alert_items_on_account_change",
+        "public.reverse_demurrage_payment",
+        "public.reverse_invoice_payment",
+        "public.revert_voyage_omission",
+        "public.review_bl_document_candidates",
+        "public.route_catalog_alert_insert",
+        "public.run_alert_detectors",
+        "public.run_billing_for_import_batch",
+        "public.save_bl_demurrage_config",
+        "public.save_bl_review",
+        "public.save_customer_communication_saved_template",
+        "public.save_exchange_rate_reference",
+        "public.save_granite_bl_review",
+        "public.save_granite_bl_review_legacy_148",
+        "public.save_voyage_escala_terminal_state",
+        "public.save_voyage_escala_terminal_state_v2",
+        "public.seed_customer_contact_preferences",
+        "public.set_agency_report_department_signoff",
+        "public.set_agency_report_department_signoff_by_report_id",
+        "public.set_agency_report_section_observation",
+        "public.set_agency_report_section_observation_by_report_id",
+        "public.set_agency_report_signoff",
+        "public.set_agency_report_signoff_by_report_id",
+        "public.set_agency_report_terminal",
+        "public.set_bl_cod",
+        "public.set_bl_transshipment",
+        "public.set_communications_enabled",
+        "public.set_container_discharge_date",
+        "public.set_customer_portal_account_active",
+        "public.set_demurrage_dunning_interval_days",
+        "public.set_import_batch_ce_master",
+        "public.set_updated_at",
+        "public.set_voyage_route_ce_master",
+        "public.settle_cod_adjustment",
+        "public.settle_invoice_refund",
+        "public.summarize_alert_queue_by_department",
+        "public.suppress_normal_portal_alert_events",
+        "public.sync_customer_reconciliation_queue_for_bl",
+        "public.sync_demurrage_dispute_alert",
+        "public.sync_demurrage_dispute_alert_for_invoice",
+        "public.sync_demurrage_dispute_lifecycle_from_invoice",
+        "public.sync_demurrage_dispute_source_alert",
+        "public.sync_legacy_alert_item_lifecycle",
+        "public.sync_local_charge_receivable",
+        "public.touch_demurrage_invoice_updated_at",
+        "public.trg_reconcile_bl_review_alerts",
+        "public.trg_reconcile_bl_review_on_portal_change",
+        "public.trg_reconcile_granite_bl_review_alerts",
+        "public.trg_voyage_schedule_snapshot",
+        "public.update_container_demurrage_dates",
+        "public.update_customer_with_audit",
+        "public.update_manual_bl_charge",
+        "public.update_manual_vazios_booking",
+        "public.update_updated_at_column",
+        "public.update_voyage_omission",
+        "public.upsert_alert_item",
+        "public.upsert_alert_item_before_milestone_hardening",
+        "public.upsert_billing_alert",
+        "public.upsert_customer_portal_account",
+        "public.upsert_pix_reconciliation_exceptions",
+        "public.upsert_portal_invoice_exception",
+        "public.validate_agency_departure_report_port",
+        "public.validate_bl_breakbulk_item_parent",
+        "public.validate_depot_terminal_port",
+        "public.validate_escala_port_reference",
+        "public.validate_vazios_booking_operation",
+        "public.validate_vazios_export_service_line",
+        "public.validate_vehicle_relationships",
+        "public.voyage_terminal_code"
+      ],
+      "policies": [
+        "admin_gerencia_customer_demurrage_agreements",
+        "agency_departure_report_department_signoffs_select",
+        "agency_departure_report_occurrences_select",
+        "agency_departure_report_signoffs_select",
+        "agency_departure_reports_select",
+        "alert_item_dismissals_select_active",
+        "alert_item_events_select_active",
+        "alert_items_select_active",
+        "alert_notification_failures_select_active",
+        "alert_type_catalog_select_active",
+        "alerts_delete_admin",
+        "alerts_insert_active_global",
+        "alerts_select_active",
+        "alerts_update_active_global",
+        "app_settings_administrativo_update",
+        "app_settings_communications_read",
+        "audit_logs_delete_admin",
+        "audit_logs_insert_self_global",
+        "audit_logs_select_active",
+        "audit_logs_update_admin",
+        "autenticados_leem_customer_demurrage_agreements",
+        "autenticados_leem_demurrage_rates",
+        "baplie_containers_delete_admin",
+        "baplie_containers_insert_active_global",
+        "baplie_containers_select_active",
+        "baplie_containers_update_active_global",
+        "baplie_reconciliation_resolutions_delete_admin",
+        "baplie_reconciliation_resolutions_insert_acti_global",
+        "baplie_reconciliation_resolutions_select_active",
+        "baplie_reconciliation_resolutions_update_acti_global",
+        "billing_batches_delete_admin",
+        "billing_batches_insert_admin",
+        "billing_batches_select_active",
+        "billing_batches_update_admin",
+        "billing_run_logs_delete_admin",
+        "billing_run_logs_insert_admin",
+        "billing_run_logs_select_active",
+        "billing_runs_delete_admin",
+        "billing_runs_insert_admin",
+        "billing_runs_select_active",
+        "billing_runs_update_admin",
+        "bl_breakbulk_items_delete_admin",
+        "bl_breakbulk_items_insert_active_global",
+        "bl_breakbulk_items_select_active",
+        "bl_breakbulk_items_update_active_global",
+        "bl_containers_delete_admin",
+        "bl_containers_insert_active_global",
+        "bl_containers_select_active",
+        "bl_containers_update_active_global",
+        "bl_freight_lines_delete_admin",
+        "bl_freight_lines_insert_active_global",
+        "bl_freight_lines_select_active",
+        "bl_freight_lines_update_active_global",
+        "bl_receivables_delete_admin",
+        "bl_receivables_insert_admin",
+        "bl_receivables_select_read",
+        "bl_receivables_update_admin",
+        "bl_transshipments_select_active",
+        "bls_delete_admin",
+        "bls_insert_active_global",
+        "bls_select_active",
+        "bls_update_active_global",
+        "carriers_delete_admin",
+        "carriers_insert_active_global",
+        "carriers_select_active",
+        "carriers_update_active_global",
+        "charge_calculations_delete_admin",
+        "charge_calculations_insert_active_global",
+        "charge_calculations_select_read",
+        "charge_calculations_update_active_global",
+        "charge_table_items_delete_local_charges_global",
+        "charge_table_items_insert_local_charges_global",
+        "charge_table_items_select_read",
+        "charge_table_items_update_local_charges_global",
+        "charge_tables_delete_local_charges_global",
+        "charge_tables_insert_local_charges_global",
+        "charge_tables_select_read",
+        "charge_tables_update_local_charges_global",
+        "cod_adjustments_select_active",
+        "cpa_admin_all",
+        "cps_admin_all",
+        "crq_delete_admin",
+        "crq_insert_admin",
+        "crq_select_active",
+        "crq_update_admin",
+        "customer_communication_attachments_internal_read",
+        "customer_communication_attempts_internal_read",
+        "customer_communication_bls_internal_read",
+        "customer_communication_kinds_internal_read",
+        "customer_communication_saved_templates_internal_read",
+        "customer_communication_suppressions_internal_read",
+        "customer_communication_templates_internal_read",
+        "customer_communications_internal_read",
+        "customer_contact_preferences_edit",
+        "customer_contact_preferences_internal_read",
+        "customer_contacts_delete_admin",
+        "customer_contacts_insert_active_global",
+        "customer_contacts_select_active",
+        "customer_contacts_update_active_global",
+        "customer_rate_overrides_delete_local_charges_global",
+        "customer_rate_overrides_insert_local_charges_global",
+        "customer_rate_overrides_select_read",
+        "customer_rate_overrides_update_local_charges_global",
+        "customers_delete_admin",
+        "customers_insert_active_global",
+        "customers_select_active",
+        "customers_update_active_global",
+        "demurrage_dispute_attachments_internal_read",
+        "demurrage_dispute_attachments_portal_read",
+        "demurrage_dispute_messages_internal_read",
+        "demurrage_dispute_messages_portal_read",
+        "demurrage_disputes_internal_read",
+        "demurrage_disputes_portal_read",
+        "demurrage_invoice_history_select_active",
+        "demurrage_invoices_delete_admin",
+        "demurrage_invoices_insert_active_global",
+        "demurrage_invoices_select_active",
+        "demurrage_invoices_update_active_global",
+        "demurrage_items_delete_admin",
+        "demurrage_items_insert_active_global",
+        "demurrage_items_select_active",
+        "demurrage_items_update_active_global",
+        "demurrage_rates_admin_delete_global",
+        "demurrage_rates_admin_insert_global",
+        "demurrage_rates_admin_update_global",
+        "depot_services_delete_global",
+        "depot_services_insert_global",
+        "depot_services_select",
+        "depot_services_update_global",
+        "depots_delete_global",
+        "depots_insert_global",
+        "depots_select",
+        "depots_update_global",
+        "ended_vessels_delete_admin",
+        "ended_vessels_insert_active_global",
+        "ended_vessels_select_internal",
+        "exchange_rate_reference_internal_read",
+        "granite_bl_charges_delete_admin",
+        "granite_bl_charges_insert_active_global",
+        "granite_bl_charges_select_active",
+        "granite_bl_charges_update_active_global",
+        "granite_bls_delete_admin",
+        "granite_bls_insert_active_global",
+        "granite_bls_select_active",
+        "granite_bls_update_active_global",
+        "granite_manifests_delete_admin",
+        "granite_manifests_insert_active_global",
+        "granite_manifests_select_active",
+        "granite_manifests_update_active_global",
+        "granite_rates_delete_admin",
+        "granite_rates_insert_active_global",
+        "granite_rates_select_active",
+        "granite_rates_update_active_global",
+        "import_batches_delete_admin",
+        "import_batches_insert_active_global",
+        "import_batches_select_active",
+        "import_batches_update_active_global",
+        "import_errors_delete_admin",
+        "import_errors_insert_active_global",
+        "import_errors_select_active",
+        "import_errors_update_active_global",
+        "internal_notifications_select_recipient",
+        "internal_notifications_update_recipient",
+        "invoice_bls_delete_admin",
+        "invoice_bls_insert_admin",
+        "invoice_bls_select_read",
+        "invoice_bls_update_admin",
+        "invoice_counters_admin_all",
+        "invoice_granite_bls_delete_admin",
+        "invoice_granite_bls_insert_admin",
+        "invoice_granite_bls_select_active",
+        "invoice_granite_bls_update_admin",
+        "invoice_items_delete_admin",
+        "invoice_items_insert_admin",
+        "invoice_items_select_read",
+        "invoice_items_update_admin",
+        "invoice_lifecycle_events_delete_admin",
+        "invoice_lifecycle_events_insert_admin",
+        "invoice_lifecycle_events_select_read",
+        "invoice_lifecycle_events_update_admin",
+        "invoice_receivable_links_delete_admin",
+        "invoice_receivable_links_insert_admin",
+        "invoice_receivable_links_select_read",
+        "invoice_receivable_links_update_admin",
+        "invoice_refunds_delete_admin",
+        "invoice_refunds_insert_financeiro",
+        "invoice_refunds_select_financeiro",
+        "invoice_refunds_select_read",
+        "invoice_refunds_update_financeiro",
+        "invoices_delete_admin",
+        "invoices_insert_admin",
+        "invoices_select_read",
+        "invoices_update_admin",
+        "ledger_settlements_delete_admin",
+        "ledger_settlements_insert_admin",
+        "ledger_settlements_select_read",
+        "ledger_settlements_update_admin",
+        "payments_delete_admin",
+        "payments_insert_admin",
+        "payments_select_read",
+        "payments_update_admin",
+        "pix_reconciliation_exceptions_select",
+        "portal_email_attempts_internal_read",
+        "portal_email_events_internal_read",
+        "portal_events_internal_read",
+        "portal_inspection_events_read_active",
+        "portal_invites_internal_read",
+        "portal_suppressed_internal_read",
+        "ports_delete_admin",
+        "ports_insert_active_global",
+        "ports_select_active",
+        "ports_update_active_global",
+        "pricing_rule_versions_delete_admin",
+        "pricing_rule_versions_insert_admin",
+        "pricing_rule_versions_select_active",
+        "pricing_rule_versions_update_admin",
+        "user_profiles_admin_delete",
+        "user_profiles_admin_insert",
+        "user_profiles_self_select",
+        "user_profiles_update",
+        "vazios_bookings_delete_admin",
+        "vazios_bookings_insert_active_global",
+        "vazios_bookings_select_active",
+        "vazios_bookings_update_active_global",
+        "vazios_export_operations_delete_admin",
+        "vazios_export_operations_insert_equipamentos_global",
+        "vazios_export_operations_select",
+        "vazios_export_operations_update_equipamentos_global",
+        "vazios_export_service_lines_select",
+        "vazios_export_service_lines_write_global_delete",
+        "vazios_export_service_lines_write_global_insert",
+        "vazios_export_service_lines_write_global_select",
+        "vazios_export_service_lines_write_global_update",
+        "vazios_importacao_containers_delete_admin",
+        "vazios_importacao_containers_insert_active_global",
+        "vazios_importacao_containers_select_active",
+        "vazios_importacao_containers_update_active_global",
+        "vazios_importacao_manifests_delete_admin",
+        "vazios_importacao_manifests_insert_active_global",
+        "vazios_importacao_manifests_select_active",
+        "vazios_importacao_manifests_update_active_global",
+        "vazios_manifests_delete_admin",
+        "vazios_manifests_insert_active_global",
+        "vazios_manifests_select_active",
+        "vazios_manifests_update_active_global",
+        "vehicles_delete_admin",
+        "vehicles_insert_active_global",
+        "vehicles_select_active",
+        "vehicles_update_active_global",
+        "vessel_schedules_delete_admin",
+        "vessel_schedules_insert_active_global",
+        "vessel_schedules_select_internal",
+        "vessel_schedules_update_active_global",
+        "vessels_delete_admin",
+        "vessels_insert_active_global",
+        "vessels_select_active",
+        "vessels_update_active_global",
+        "voyage_escala_operation_fronts_select",
+        "voyage_escala_revision_state_select",
+        "voyage_escala_terminal_state_select",
+        "voyage_export_schedules_delete_admin",
+        "voyage_export_schedules_insert_active_global",
+        "voyage_export_schedules_select_active",
+        "voyage_export_schedules_update_active_global",
+        "voyage_omissions_select_active",
+        "voyage_route_ce_master_delete_admin",
+        "voyage_route_ce_master_insert_active_global",
+        "voyage_route_ce_master_select_active",
+        "voyage_route_ce_master_update_active_global",
+        "voyages_delete_admin",
+        "voyages_insert_active_global",
+        "voyages_select_active",
+        "voyages_update_active_global"
+      ],
+      "triggers": [
+        "agency_report_department_signoffs_reject_closed_write",
+        "agency_report_occurrences_reject_closed_write",
+        "agency_report_signoffs_reject_closed_write",
+        "assign_invoice_number",
+        "audit_bl_breakbulk_items",
+        "audit_bl_containers",
+        "audit_bl_freight_lines",
+        "audit_bl_receivables",
+        "audit_bl_transshipments",
+        "audit_bls",
+        "audit_carriers",
+        "audit_charge_calculations",
+        "audit_charge_table_items",
+        "audit_charge_tables",
+        "audit_customer_contacts",
+        "audit_customer_rate_overrides",
+        "audit_customers",
+        "audit_demurrage_invoice_items",
+        "audit_demurrage_invoices",
+        "audit_demurrage_rates",
+        "audit_depot_services",
+        "audit_depots",
+        "audit_ended_vessels",
+        "audit_exchange_rate_reference",
+        "audit_granite_bl_charges",
+        "audit_granite_bls",
+        "audit_granite_manifests",
+        "audit_granite_rates",
+        "audit_import_batches",
+        "audit_invoice_bls",
+        "audit_invoice_items",
+        "audit_invoice_receivable_links",
+        "audit_invoice_refunds",
+        "audit_invoices",
+        "audit_ledger_settlements",
+        "audit_payments",
+        "audit_ports",
+        "audit_vazios_bookings",
+        "audit_vazios_export_operations",
+        "audit_vazios_export_service_lines",
+        "audit_vazios_importacao_containers",
+        "audit_vazios_importacao_manifests",
+        "audit_vazios_manifests",
+        "audit_vehicles",
+        "audit_vessel_schedules",
+        "audit_vessels",
+        "audit_voyage_export_schedules",
+        "audit_voyage_omissions",
+        "audit_voyage_route_ce_master",
+        "clear_alert_item_destination",
+        "demurrage_dispute_messages_immutable",
+        "freeze_import_batch_route_summary",
+        "guard_granite_financial_status_on_change",
+        "normalize_depot_code",
+        "populate_charge_calculation_billing_metadata",
+        "portal_events_no_update",
+        "prevent_pending_review_invoice",
+        "reconcile_agency_report_alerts_on_audit",
+        "reconcile_agency_report_alerts_on_report_change",
+        "reconcile_baplie_coverage_on_baplie_delete",
+        "reconcile_baplie_coverage_on_baplie_insert",
+        "reconcile_baplie_coverage_on_baplie_update",
+        "reconcile_baplie_coverage_on_bl_containers_delete",
+        "reconcile_baplie_coverage_on_bl_containers_insert",
+        "reconcile_baplie_coverage_on_bl_containers_update",
+        "reconcile_baplie_coverage_on_bls_delete",
+        "reconcile_baplie_coverage_on_bls_insert",
+        "reconcile_baplie_coverage_on_bls_update",
+        "reconcile_voyage_operation_alerts_on_audit",
+        "reconcile_voyage_operation_alerts_on_terminal_change",
+        "reject_deleted_agency_report_deadline_alert",
+        "reopen_pix_exception_on_demurrage_invoice",
+        "reopen_pix_exception_on_ledger_settlement",
+        "resolve_customer_contact_bounce_alert_on_change",
+        "resolve_demurrage_alert_on_status_change",
+        "resolve_invoice_alerts_on_status_change",
+        "resolve_portal_alert_items_on_account_change",
+        "route_catalog_alert_insert",
+        "set_billing_batches_updated_at",
+        "set_bls_updated_at",
+        "set_customer_communication_attempts_updated_at",
+        "set_customer_communication_saved_templates_updated_at",
+        "set_customer_communication_templates_updated_at",
+        "set_customer_demurrage_agreements_updated_at",
+        "set_customer_portal_accounts_updated_at",
+        "set_customer_reconciliation_queue_updated_at",
+        "set_customers_updated_at",
+        "set_demurrage_disputes_updated_at",
+        "set_demurrage_rates_updated_at",
+        "set_invoices_updated_at",
+        "set_portal_email_attempts_updated_at",
+        "set_voyage_escala_operation_fronts_updated_at",
+        "set_voyage_escala_revision_state_updated_at",
+        "set_voyage_escala_terminal_state_updated_at",
+        "suppress_normal_portal_alert_events",
+        "sync_demurrage_dispute_alert_on_change",
+        "sync_demurrage_dispute_lifecycle_from_invoice",
+        "sync_demurrage_dispute_source_alert",
+        "sync_legacy_alert_item_lifecycle",
+        "trg_audit_user_profile_changes",
+        "trg_canonicalize_customer_cnpj",
+        "trg_classify_granite_invoice",
+        "trg_container_discharge_date",
+        "trg_customer_rate_overrides_validate_range",
+        "trg_demurrage_invoice_updated_at",
+        "trg_enforce_portal_invoice_bl_gate",
+        "trg_enforce_portal_invoice_gate",
+        "trg_ensure_container_bl_charge_status_default",
+        "trg_guard_container_bl_without_containers",
+        "trg_keep_single_pix_txid_settlement_row",
+        "trg_mark_obsolete_consolidated_links",
+        "trg_mark_replaced_obsolete_consolidated_invoice",
+        "trg_notify_demurrage_issued",
+        "trg_notify_dispute_responded",
+        "trg_notify_invoice_issued",
+        "trg_populate_local_invoice_pix_payload",
+        "trg_portal_create_account_on_customer_insert",
+        "trg_portal_invoice_exception_close",
+        "trg_portal_invoice_exception_invoice_bl",
+        "trg_portal_invoice_exception_open",
+        "trg_portal_normalize_login_cnpj",
+        "trg_portal_protect_customer_cnpj",
+        "trg_portal_reopen_on_new_process",
+        "trg_portal_sync_login_cnpj",
+        "trg_prevent_duplicate_active_invoice_bl_link",
+        "trg_prevent_duplicate_active_invoice_granite_bl_link",
+        "trg_prevent_user_profile_privilege_escalation",
+        "trg_propagate_voyage_ata_to_containers",
+        "trg_reconcile_bl_review_alerts",
+        "trg_reconcile_bl_review_on_contact_change",
+        "trg_reconcile_bl_review_on_portal_change",
+        "trg_reconcile_granite_bl_review_alerts",
+        "trg_seed_customer_contact_preferences",
+        "trg_voyage_schedule_snapshot",
+        "update_vessel_schedules_updated_at",
+        "validate_agency_departure_report_port",
+        "validate_bl_breakbulk_item_parent",
+        "validate_depot_terminal_port",
+        "validate_vazios_booking_operation",
+        "validate_vazios_export_service_line",
+        "validate_vehicle_relationships",
+        "validate_voyage_escala_front_port",
+        "validate_voyage_escala_revision_port",
+        "validate_voyage_escala_terminal_port"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/003_pos_squash_objetos_fora_do_dump.sql",
+      "tables": [],
+      "functions": [],
+      "policies": [
+        "customer_communications_objects_read",
+        "demurrage_dispute_objects_insert",
+        "demurrage_dispute_objects_read"
+      ],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/004_vazios_delete_baplie_grant.sql",
+      "tables": [],
+      "functions": [],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/005_pg_net_jobs_rls_guard.sql",
+      "tables": [
+        "AS"
+      ],
+      "functions": [
+        "public.rls_auto_enable"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/006_operational_contract_hardening.sql",
+      "tables": [
+        "AS"
+      ],
+      "functions": [
+        "public.rls_auto_enable"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/007_cron_secrets_no_vault.sql",
+      "tables": [],
+      "functions": [
+        "ops.dispatch_edge_job"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": [
+        "novo",
+        "ops"
+      ]
+    },
+    {
+      "file": "supabase/migrations/008_portal_contact_boxes.sql",
+      "tables": [
+        "public.customer_communication_box_kinds",
+        "public.customer_communication_boxes",
+        "public.customer_contact_box_links",
+        "public.customer_contact_change_events"
+      ],
+      "functions": [
+        "public._apply_customer_contact_configuration",
+        "public._build_customer_contact_configuration",
+        "public.capture_manifest_financial_contact",
+        "public.claim_due_demurrage_dunning_invoices",
+        "public.compute_bl_review_pendencies",
+        "public.create_customer_with_contacts",
+        "public.customer_communication_recipient_allowed",
+        "public.ensure_customer_contact_email",
+        "public.find_due_customer_communication_automations",
+        "public.internal_save_customer_contact_configuration",
+        "public.portal_get_contact_configuration",
+        "public.portal_inspect_get_contact_configuration",
+        "public.portal_save_contact_configuration",
+        "public.portal_update_profile",
+        "public.repair_customer_contact_box_fallbacks",
+        "public.seed_customer_contact_box_links",
+        "public.touch_customer_contact_updated_at"
+      ],
+      "policies": [
+        "customer_communication_box_kinds_select",
+        "customer_communication_boxes_select",
+        "customer_contact_box_links_select",
+        "customer_contact_change_events_select"
+      ],
+      "triggers": [
+        "trg_seed_customer_contact_box_links",
+        "trg_touch_customer_contact_updated_at"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/009_rpc_entry_security.sql",
+      "tables": [],
+      "functions": [
+        "public.current_portal_customer_id",
+        "public.import_bl_freight_transactional",
+        "public.portal_get_session_overview_v2",
+        "public.save_voyage_escala_terminal_state_v2"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/010_contact_routing_and_dunning_eligibility.sql",
+      "tables": [],
+      "functions": [
+        "public.claim_demurrage_dunning_candidates",
+        "public.customer_communication_recipient_allowed",
+        "public.demurrage_dunning_candidate_sendable",
+        "public.release_demurrage_dunning_claim",
+        "public.repair_customer_contact_box_fallbacks"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/011_dunning_group_membership.sql",
+      "tables": [
+        "public.customer_communication_dunning_groups",
+        "public.customer_communication_dunning_invoices"
+      ],
+      "functions": [
+        "public.claim_demurrage_dunning_candidates",
+        "public.create_customer_dunning_group_atomic"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/012_demurrage_mutation_guards.sql",
+      "tables": [
+        "public.demurrage_mutation_requests"
+      ],
+      "functions": [
+        "public._demurrage_mutation_request",
+        "public.apply_demurrage_discount",
+        "public.cancel_demurrage_invoice",
+        "public.confirm_demurrage_pix_matches",
+        "public.register_demurrage_payment",
+        "public.reopen_demurrage_invoice"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/013_portal_disputes_inspection.sql",
+      "tables": [],
+      "functions": [
+        "public._portal_list_disputes_core",
+        "public.portal_inspect_list_disputes",
+        "public.portal_list_disputes"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/015_import_dates_and_flags_atomic.sql",
+      "tables": [
+        "public.import_pending_effects"
+      ],
+      "functions": [
+        "public.apply_baplie_physical_flags_atomic",
+        "public.apply_container_dates_atomic"
+      ],
+      "policies": [
+        "import_pending_effects_select_active"
+      ],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/016_import_metadata_and_omission_conflicts.sql",
+      "tables": [],
+      "functions": [
+        "public.apply_ce_mercante_manifest",
+        "public.apply_ce_mercante_update",
+        "public.apply_customer_base_row_atomic",
+        "public.import_bl_freight_with_metadata",
+        "public.omit_voyage_escala"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/017_import_effects_outbox.sql",
+      "tables": [
+        "public.import_effect_attempts"
+      ],
+      "functions": [
+        "public._import_effect_priority",
+        "public.claim_import_effects",
+        "public.complete_import_effect",
+        "public.enqueue_import_effect",
+        "public.list_import_effects",
+        "public.prevent_import_effect_attempt_mutation",
+        "public.retry_import_effect"
+      ],
+      "policies": [
+        "import_effect_attempts_select_active"
+      ],
+      "triggers": [
+        "import_effect_attempts_append_only"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/018_exchange_rate_provenance.sql",
+      "tables": [
+        "public.exchange_rate_reference_history"
+      ],
+      "functions": [
+        "public._demurrage_roe_from_ptax",
+        "public._demurrage_spread_version",
+        "public.create_demurrage_invoice_with_items",
+        "public.recalculate_demurrage_invoices",
+        "public.recalculate_demurrage_invoices_manual",
+        "public.save_exchange_rate_reference",
+        "public.save_exchange_rate_reference_v2"
+      ],
+      "policies": [
+        "exchange_rate_reference_history_select_active"
+      ],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/019_local_billing_integrity.sql",
+      "tables": [],
+      "functions": [
+        "public.create_invoice_from_bls_core",
+        "public.create_local_consolidated_invoice_core",
+        "public.customer_billing_access_ready",
+        "public.customer_local_charges_communication_readiness",
+        "public.register_ledger_invoice_payment",
+        "public.reverse_invoice_payment",
+        "public.sync_local_charge_receivable"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/020_operational_read_pages.sql",
+      "tables": [],
+      "functions": [
+        "public.operational_list_bl_summary",
+        "public.operational_list_bls",
+        "public.operational_list_containers"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/021_portal_billing_pages.sql",
+      "tables": [],
+      "functions": [
+        "public._portal_list_demurrage_invoices_page_core",
+        "public._portal_list_invoices_page_core",
+        "public.portal_inspect_list_demurrage_invoices_page",
+        "public.portal_inspect_list_invoices_page",
+        "public.portal_list_demurrage_invoices_page",
+        "public.portal_list_invoices_page"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/022_email_inbox_and_dispatch_state.sql",
+      "tables": [
+        "public.portal_email_event_attempts"
+      ],
+      "functions": [
+        "public._portal_email_event_attempts_append_only",
+        "public.claim_portal_email_events",
+        "public.complete_portal_email_event",
+        "public.process_portal_email_event"
+      ],
+      "policies": [],
+      "triggers": [
+        "portal_email_event_attempts_append_only"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/023_demurrage_calculation_snapshot.sql",
+      "tables": [
+        "public.demurrage_calculation_snapshots"
+      ],
+      "functions": [
+        "public._calculate_demurrage_invoice_authoritative",
+        "public.capture_demurrage_calculation_snapshot",
+        "public.create_demurrage_invoice_authoritative",
+        "public.prevent_demurrage_calculation_snapshot_mutation"
+      ],
+      "policies": [],
+      "triggers": [
+        "demurrage_calculation_snapshots_append_only",
+        "demurrage_invoice_financial_snapshot"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/024_demurrage_ptax_alert.sql",
+      "tables": [],
+      "functions": [],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/025_import_effect_worker.sql",
+      "tables": [],
+      "functions": [
+        "public._record_import_effect_blocked_alert",
+        "public._run_import_effect_demurrage",
+        "public._run_import_effect_local_charges",
+        "public.process_import_effect"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/026_import_effect_alert.sql",
+      "tables": [],
+      "functions": [],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/027_demurrage_money_fixes.sql",
+      "tables": [],
+      "functions": [
+        "public.capture_demurrage_calculation_snapshot",
+        "public.register_demurrage_payment"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/028_demurrage_roe_integrity.sql",
+      "tables": [],
+      "functions": [
+        "public.capture_demurrage_calculation_snapshot",
+        "public.refresh_demurrage_invoice_item_brl",
+        "public.sync_demurrage_invoice_item_brl",
+        "public.sync_demurrage_invoice_items_brl_from_invoice"
+      ],
+      "policies": [],
+      "triggers": [
+        "demurrage_invoice_brl_item_refresh",
+        "demurrage_invoice_brl_refresh"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/029_alert_item_upsert_idempotence.sql",
+      "tables": [],
+      "functions": [
+        "public.upsert_alert_item_before_milestone_hardening"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/030_fix_demurrage_snapshot_ptax_column.sql",
+      "tables": [],
+      "functions": [
+        "public.capture_demurrage_calculation_snapshot"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/031_import_effect_consumers.sql",
+      "tables": [],
+      "functions": [
+        "public._run_import_effect_granite_billing",
+        "public._run_import_effect_vehicle_followup",
+        "public.calculate_granite_bl_charges",
+        "public.cancel_invoice",
+        "public.import_bl_freight_with_metadata",
+        "public.import_breakbulk_manifest_transactional",
+        "public.import_granite_manifest_transactional",
+        "public.import_vehicle_rows_transactional",
+        "public.process_import_effect",
+        "public.reconcile_granite_bl_review_alerts"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/032_customer_communication_partial_status.sql",
+      "tables": [],
+      "functions": [
+        "public._refresh_customer_communication_status_trigger",
+        "public.refresh_customer_communication_status"
+      ],
+      "policies": [],
+      "triggers": [
+        "customer_communication_attempts_refresh_status"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/033_customer_communication_readiness_guards.sql",
+      "tables": [],
+      "functions": [
+        "public.customer_local_charges_communication_dispatch_ready",
+        "public.enforce_customer_communication_automation_claim_readiness",
+        "public.enforce_customer_communication_readiness"
+      ],
+      "policies": [],
+      "triggers": [
+        "customer_communication_automation_claims_ce_mercante_readiness",
+        "customer_communications_ce_mercante_readiness"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/034_pix_static_payload_normative_fixes.sql",
+      "tables": [],
+      "functions": [
+        "public.build_transshipping_pix_payload"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/035_operational_voyage_summaries.sql",
+      "tables": [],
+      "functions": [
+        "public.operational_list_voyage_summaries"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/036_operational_breakbulk_summary_metrics.sql",
+      "tables": [],
+      "functions": [
+        "public.operational_list_bl_summary"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/037_operational_voyage_summary_null_status.sql",
+      "tables": [],
+      "functions": [
+        "public.operational_list_voyage_summaries"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/038_customer_communication_status_recipient_latest.sql",
+      "tables": [],
+      "functions": [
+        "public.refresh_customer_communication_status"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/039_customer_communication_status_identity.sql",
+      "tables": [],
+      "functions": [
+        "public.mark_customer_communication_dispatch_blocked",
+        "public.refresh_customer_communication_status"
+      ],
+      "policies": [],
+      "triggers": [
+        "customer_communication_attempts_refresh_status"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/040_operational_breakbulk_drift_tolerance.sql",
+      "tables": [],
+      "functions": [
+        "public.operational_list_bl_summary"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/041_dunning_partial_claim_recovery.sql",
+      "tables": [],
+      "functions": [
+        "public.claim_demurrage_dunning_candidates"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/042_preview_admin_service_role_grant.sql",
+      "tables": [],
+      "functions": [],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/043_security_and_indexes_hardening.sql",
+      "tables": [],
+      "functions": [
+        "public.customer_communication_recipient_allowed",
+        "public.ensure_customer_contact_email",
+        "public.list_alert_queue"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/044_restore_app_settings_singleton.sql",
+      "tables": [],
+      "functions": [],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/045_comunicados_caixas_e_nob_automatico.sql",
+      "tables": [],
+      "functions": [
+        "public.bl_operation_front_modalidade",
+        "public.evaluate_and_dispatch_automatic_communications"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/046_renomeia_avisos_operacionais.sql",
+      "tables": [],
+      "functions": [],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/047_bl_documental_gates.sql",
+      "tables": [],
+      "functions": [
+        "public.assert_bl_ce_mercante",
+        "public.enforce_invoice_ce_gate",
+        "public.enforce_invoice_ce_on_issue",
+        "public.enforce_receivable_invoice_ce_gate",
+        "public.get_bl_portal_status",
+        "public.mark_bl_ready_for_billing"
+      ],
+      "policies": [],
+      "triggers": [
+        "trg_enforce_invoice_ce_gate",
+        "trg_enforce_invoice_ce_on_issue",
+        "trg_enforce_receivable_invoice_ce_gate"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/048_customer_base_primary_contact.sql",
+      "tables": [],
+      "functions": [
+        "public.apply_customer_base_row_atomic"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/049_terminalized_schedule_persistence.sql",
+      "tables": [],
+      "functions": [
+        "public.save_voyage_escala_terminal_state_v2"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/050_portal_provisioning_active_contact_candidates.sql",
+      "tables": [],
+      "functions": [
+        "public.portal_list_provisioning_console"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/051_ce_mercante_auto_billing.sql",
+      "tables": [],
+      "functions": [
+        "public._compute_bl_review_pendencies",
+        "public._run_import_effect_local_charges",
+        "public.auto_bill_bl_after_ce_mercante",
+        "public.compute_bl_review_pendencies",
+        "public.customer_billing_access_ready",
+        "public.enforce_portal_invoice_bl_gate",
+        "public.enforce_portal_invoice_gate",
+        "public.is_internal_auto_billing_context",
+        "public.suppress_duplicate_ce_auto_billing_effect",
+        "public.trg_auto_bill_bl_after_ce_mercante"
+      ],
+      "policies": [],
+      "triggers": [
+        "trg_auto_bill_bl_after_ce_mercante",
+        "trg_suppress_duplicate_ce_auto_billing_effect"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/052_financial_battery_guards.sql",
+      "tables": [],
+      "functions": [
+        "public.alert_actor_is_authorized",
+        "public.assert_ledger_invoice_payment_allocation",
+        "public.block521_upsert_alert",
+        "public.cancel_invoice",
+        "public.guard_ledger_settlement_allocation",
+        "public.recalculate_demurrage_invoices",
+        "public.register_ledger_invoice_payment"
+      ],
+      "policies": [],
+      "triggers": [
+        "trg_guard_ledger_settlement_allocation"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/053_manifestos_mercante_dominio.sql",
+      "tables": [
+        "public.manifestos_mercante"
+      ],
+      "functions": [],
+      "policies": [
+        "manifestos_mercante_read_policy",
+        "manifestos_mercante_write_policy"
+      ],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/054_bl_cargo_mode_misto_trigger.sql",
+      "tables": [],
+      "functions": [
+        "public.ensure_container_bl_charge_status_default",
+        "public.recalculate_bl_cargo_mode",
+        "public.trg_sync_bl_cargo_mode",
+        "public.trg_sync_bl_weight_cargo_mode",
+        "public.validate_bl_breakbulk_item_parent"
+      ],
+      "policies": [],
+      "triggers": [
+        "trg_bl_breakbulk_cargo_mode",
+        "trg_bl_containers_cargo_mode",
+        "trg_bl_weight_cargo_mode"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/055_terminal_bl_heranca_excecao.sql",
+      "tables": [],
+      "functions": [
+        "public.bl_operation_front_modalidade",
+        "public.check_bl_terminal_pendencies",
+        "public.resolve_bl_terminal_id"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/056_resolucao_taxas_duas_tabelas.sql",
+      "tables": [],
+      "functions": [
+        "public._run_import_effect_local_charges",
+        "public.calculate_bl_local_charges",
+        "public.mark_bl_ready_for_billing",
+        "public.resolve_bl_local_charge_items",
+        "public.resolve_bl_local_charge_table_ids"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/057_cod_manifesto_pendency.sql",
+      "tables": [],
+      "functions": [
+        "public.set_bl_cod"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/058_operational_voyage_summaries_misto.sql",
+      "tables": [],
+      "functions": [
+        "public._portal_list_operation_bls_without_transshipment_core",
+        "public.operational_list_voyage_summaries"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/059_pr698_integrity_hardening.sql",
+      "tables": [],
+      "functions": [
+        "public._compute_bl_review_pendencies",
+        "public.add_manual_bl_charge",
+        "public.bl_cargo_mode_matches_filter",
+        "public.bl_operation_front_modalidade",
+        "public.check_bl_terminal_pendencies",
+        "public.customer_local_charges_communication_readiness",
+        "public.evaluate_and_dispatch_automatic_communications",
+        "public.guard_bl_terminal_override",
+        "public.list_manual_charge_items_for_bl",
+        "public.operational_list_bl_summary",
+        "public.operational_list_bls",
+        "public.operational_list_containers",
+        "public.recalculate_bl_cargo_mode",
+        "public.reconcile_customer_bl_review_alerts",
+        "public.resolve_bl_terminal_id",
+        "public.set_bl_terminal_override",
+        "public.trg_sync_bl_cargo_mode",
+        "public.trg_sync_bl_weight_cargo_mode"
+      ],
+      "policies": [],
+      "triggers": [
+        "trg_bl_breakbulk_cargo_mode",
+        "trg_bl_containers_cargo_mode",
+        "trg_bl_weight_cargo_mode",
+        "trg_guard_bl_terminal_override"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/060_pr698_claude_review_followup.sql",
+      "tables": [],
+      "functions": [
+        "public._recalculate_bl_cargo_mode",
+        "public.bl_cargo_mode_matches_filter",
+        "public.bl_operation_front_modalidade",
+        "public.evaluate_and_dispatch_automatic_communications",
+        "public.import_breakbulk_manifest_transactional",
+        "public.operational_list_bl_summary",
+        "public.recalculate_bl_cargo_mode",
+        "public.reconcile_customer_bl_review_alerts",
+        "public.set_bl_cod",
+        "public.set_bl_terminal_override",
+        "public.trg_sync_bl_cargo_mode_statement",
+        "public.trg_sync_bl_weight_cargo_mode",
+        "public.trg_sync_manual_local_charge_receivable"
+      ],
+      "policies": [],
+      "triggers": [
+        "trg_bl_breakbulk_cargo_mode_delete_stmt",
+        "trg_bl_breakbulk_cargo_mode_insert_stmt",
+        "trg_bl_breakbulk_cargo_mode_update_stmt",
+        "trg_bl_containers_cargo_mode_delete_stmt",
+        "trg_bl_containers_cargo_mode_insert_stmt",
+        "trg_bl_containers_cargo_mode_update_stmt",
+        "trg_bl_weight_cargo_mode",
+        "trg_sync_manual_local_charge_receivable"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/061_bl_weight_semantics_and_triggers.sql",
+      "tables": [],
+      "functions": [
+        "public.trg_sync_manual_local_charge_receivable_statement"
+      ],
+      "policies": [],
+      "triggers": [
+        "trg_sync_manual_local_charge_receivable_delete_stmt",
+        "trg_sync_manual_local_charge_receivable_insert_stmt",
+        "trg_sync_manual_local_charge_receivable_update_stmt"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/062_pr698_audit_remediations.sql",
+      "tables": [],
+      "functions": [
+        "public._recalculate_bl_cargo_mode",
+        "public.evaluate_and_dispatch_automatic_communications",
+        "public.resolve_bl_local_charge_items",
+        "public.trg_manifestos_mercante_updated_at",
+        "public.trg_sync_bl_weight_cargo_mode"
+      ],
+      "policies": [
+        "manifestos_mercante_delete_policy",
+        "manifestos_mercante_insert_policy",
+        "manifestos_mercante_update_policy"
+      ],
+      "triggers": [
+        "audit_manifestos_mercante",
+        "trg_manifestos_mercante_updated_at"
+      ],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/063_operational_bl_summary_breakbulk_weight.sql",
+      "tables": [],
+      "functions": [
+        "public.operational_list_bl_summary"
+      ],
+      "policies": [],
+      "triggers": [],
+      "schemas": []
+    },
+    {
+      "file": "supabase/migrations/064_bl_cbm_semantics_and_cargo_signal.sql",
+      "tables": [],
+      "functions": [
+        "public._recalculate_bl_cargo_mode",
+        "public.import_breakbulk_manifest_transactional",
+        "public.operational_list_bl_summary",
+        "public.operational_list_bls",
+        "public.trg_sync_bl_weight_cargo_mode"
+      ],
+      "policies": [],
+      "triggers": [
+        "trg_bl_weight_cargo_mode"
+      ],
+      "schemas": []
+    }
+  ]
+}

@@ -1,10 +1,32 @@
 # Contexto do Sistema
 
-Glossário de domínio do Vela. Este arquivo define linguagem de
-negócio; arquitetura e detalhes técnicos pertencem a `docs/ARCHITECTURE.md` e
-aos ADRs.
+Glossário de domínio do Vela e do Portal Fwlog. Define entidades, estados e
+regras de negócio. A implementação é rastreada nos [módulos](docs/README.md),
+na [arquitetura](docs/ARCHITECTURE.md) e no [índice de ADRs](docs/adr/README.md);
+procedimentos de execução pertencem ao [WORKFLOW.md](WORKFLOW.md).
 
-Verificado em 2026-08-18.
+Revisão editorial e dos contratos citados contra o checkout em 2026-09-19.
+Este glossário descreve contratos de domínio; não substitui a leitura do estado
+persistido nem das definições executáveis.
+
+## Como consultar
+
+| Assunto | Seção |
+|---|---|
+| Viagem, Escala, Atracação, ADR e vazios | [Operação marítima](#operação-marítima) |
+| Documento e carga física | [Baplie e reconciliação](#baplie-e-reconciliação) |
+| CE, Manifesto Mercante e frete documental | [Mercante](#mercante) |
+| Revisão, cadastro e contatos | [Revisão e clientes](#revisão-e-clientes) |
+| Taxas Locais, câmbio, Demurrage e PIX | [Faturamento](#faturamento) |
+| Eventos e pendências | [Histórico e auditoria](#histórico-e-auditoria) e [Alertas e notificações](#alertas-e-notificações) |
+| Acesso, provisionamento e permissões | [Portal do Cliente](#portal-do-cliente) |
+| Modelos, destinatários e envios | [Comunicação com o cliente](#comunicação-com-o-cliente) |
+
+**Distinções essenciais:** Escala é passagem pelo porto; Atracação é passagem
+pelo terminal. B/L é documento; container é unidade física. CE Mercante é do
+B/L; Manifesto Mercante agrupa documentos. Taxas Locais e Demurrage têm ciclos
+financeiros diferentes. Alerta é pendência compartilhada; Notificação Interna
+é aviso pessoal. ADR operacional não é a ADR de arquitetura do repositório.
 
 ## Comunicação orientada ao sistema
 
@@ -18,7 +40,7 @@ implementação, quando ele ajudar a validar ou decidir o trabalho.
 Use este arquivo como glossário canônico. Não invente sinônimos para entidades
 ou estados. Se o rótulo da tela ou o vínculo ainda não foi verificado, trate-o
 como hipótese e diga o que precisa ser confirmado. O guia operacional completo
-está em `docs/agents/linguagem-do-sistema.md`.
+está no [contrato de comunicação](docs/agents/linguagem-do-sistema.md).
 
 ## Operação marítima
 
@@ -75,38 +97,33 @@ de escala informam o POD omitido, o Porto de Transbordo e o motivo quando houver
 Alterações editoriais de terminologia não são acontecimentos da Viagem e não
 integram sua linha do tempo.
 
-**Omissao de Escala**
-Evento operacional em que o armador nao realiza a escala prevista em um POD. A
-carga afetada e descarregada em outro porto da mesma viagem para seguir em
-transbordo ou ser convertida em COD. A omissao em si nao tem efeito financeiro;
-so o COD reprecifica a Taxa Local, no destino final (ADR 0051). CE Mercante e
+**Omissão de Escala**
+Evento operacional em que o armador não realiza a escala prevista em um POD. A
+carga afetada é descarregada em outro porto da mesma viagem para seguir em
+transbordo ou ser convertida em COD. A omissão em si não tem efeito financeiro;
+só o COD reprecifica a Taxa Local, no destino final (ADR 0051). CE Mercante e
 Demurrage seguem manuais.
 
-Uma omissao registrada por engano e reversivel por Admin, com justificativa e
-notificacao de correcao ao cliente, enquanto nenhum B/L afetado estiver em COD.
-Omitir duas vezes o mesmo POD e erro, nao atualizacao silenciosa.
+Uma omissão registrada por engano é reversível pelo Administrativo, com justificativa e
+notificação de correção ao cliente, enquanto nenhum B/L afetado estiver em COD.
+Omitir duas vezes o mesmo POD é erro, não atualização silenciosa.
 
-A escala omitida permanece visivel na programacao de navios, marcada como
-`OMIT` na coluna daquele porto — para o operador em Chegadas e Saidas e para o
-cliente no Portal (ADR 0052). `OMIT` e distinto de `X`: um diz que a escala nao
-vai acontecer, o outro que a data ainda nao foi informada. O motivo interno da
-omissao nao acompanha essa marca.
-
-Reversão da omissão é uma operação Admin com justificativa: a decisão fica
-marcada como revertida e seus vínculos permanecem para auditoria e histórico
-financeiro. Uma segunda omissão do mesmo POD é rejeitada. A escala omitida é
-projetada como `OMIT` no Portal; a marca é distinta de `X` (data desconhecida).
+A escala omitida permanece visível na programação de navios, marcada como
+`OMIT` na coluna daquele porto — para o operador em Chegadas e Saídas e para o
+cliente no Portal (ADR 0052). `OMIT` é distinto de `X`: um diz que a escala não
+vai acontecer, o outro que a data ainda não foi informada. O motivo interno da
+omissão não acompanha essa marca.
 
 **Porto de Transbordo**
 Porto onde a carga de uma escala omitida é efetivamente descarregada para seguir
 em transbordo ou receber COD. Pode ser diferente do POD original do B/L.
 
 **Transbordo**
-Seguimento da carga em navio de terceiro apos omissao de escala. Porto, navio,
-armador, viagem, ETD e ETA de transbordo formam um registro global da omissao,
+Seguimento da carga em navio de terceiro após omissão de escala. Porto, navio,
+armador, viagem, ETD e ETA de transbordo formam um registro global da omissão,
 compartilhado pelos B/Ls afetados e complementado progressivamente conforme as
-informacoes se tornam conhecidas. Esses dados sao referencia operacional leve,
-nao uma nova Viagem; COD permanece uma excecao individual por B/L.
+informações se tornam conhecidas. Esses dados são referência operacional leve,
+não uma nova Viagem; COD permanece uma exceção individual por B/L.
 
 O ADR do Porto de Transbordo (Porto onde a carga foi efetivamente
 descarregada) passa a contar essa carga, separada da carga de destino final
@@ -114,29 +131,29 @@ própria daquele porto. A apuração é por porto; no modelo terminalizado ela
 aparece no ADR do terminal que operou a frente correspondente — ver Porto de
 Transbordo e ADR.
 
-O registro global e mantido na Viagem. Cada B/L afetado exibe os dados herdados
-para consulta e conserva apenas sua acao individual de COD. Alteracoes do
-registro global integram a Linha do Tempo da Viagem e o Historico dos B/Ls
+O registro global é mantido na Viagem. Cada B/L afetado exibe os dados herdados
+para consulta e conserva apenas sua ação individual de COD. Alterações do
+registro global integram a Linha do Tempo da Viagem e o Histórico dos B/Ls
 afetados.
-Cada complementacao e auditada pela RPC `update_voyage_omission`; a disposicao
-`transshipment` ou `cod` continua no grao individual do B/L.
+Cada complementação é auditada pela RPC `update_voyage_omission`; a disposição
+`transshipment` ou `cod` continua no grão individual do B/L.
 
-A disposicao individual (`transshipment`/`cod`) e operada na ficha do B/L; a
+A disposição individual (`transshipment`/`cod`) é operada na ficha do B/L; a
 Viagem edita apenas o registro global e lista os B/Ls afetados para consulta.
 
-No Portal, a omissao gera uma notificacao e o COD gera outra para o B/L
-especifico. Os dados globais vigentes permanecem visiveis em Informacoes de
+No Portal, a omissão gera uma notificação e o COD gera outra para o B/L
+específico. Os dados globais vigentes permanecem visíveis em Informações de
 Transbordo; complementos posteriores atualizam esse card sem criar uma nova
-notificacao a cada edicao.
+notificação a cada edição.
 
 **COD (Change of Destination)**
-Alteracao do destino final do B/L para o Porto de Transbordo apos omissao de
-escala. E uma excecao por B/L, marcada deliberadamente pelo operador com
+Alteração do destino final do B/L para o Porto de Transbordo após omissão de
+escala. É uma exceção por B/L, marcada deliberadamente pelo operador com
 justificativa registrada.
 
-Reprecifica a Taxa Local: ela e devida no destino final, e o COD muda o destino
-final (ADR 0051). O Transbordo nao reprecifica, porque nele o destino final e
-preservado — a carga segue por navio de terceiro ate o POD original. A diferenca
+Reprecifica a Taxa Local: ela é devida no destino final, e o COD muda o destino
+final (ADR 0051). O Transbordo não reprecifica, porque nele o destino final é
+preservado — a carga segue por navio de terceiro até o POD original. A diferença
 apurada vira um Ajuste de COD; CE Mercante e Demurrage seguem manuais.
 
 `set_bl_cod` grava a decisão e calcula um Ajuste de COD append-only. A prévia
@@ -150,39 +167,46 @@ COD, o B/L deixa de constar no manifesto do porto omitido e seu vínculo
 (`bls.manifesto_mercante_id`) é limpo (NULL), gerando pendência operacional de
 vinculação ao manifesto do novo destino (monitorada via o filtro "Sem manifesto" no LineUp).
 
-- **Related:** Ajuste de COD, Taxas Locais, Omissao de Escala, Porto de Transbordo, Manifesto Mercante
+- **Ver também:** Ajuste de COD, Taxas Locais, Omissão de Escala, Porto de Transbordo, Manifesto Mercante
 
 **Ajuste de COD**
-Diferenca financeira apurada quando um COD reprecifica a Taxa Local de um B/L ja
-faturado. Quando falta valor, e cobrada por Fatura Complementar de COD; quando
-sobra, o destino depende do que ja entrou. Antes do faturamento nao ha ajuste:
-B/L nao faturado e simplesmente recalculado, e B/L faturado e nao pago gera
-pendencia de cancelar e reemitir a fatura.
+Diferença financeira apurada quando um COD reprecifica a Taxa Local de um B/L já
+faturado. Quando falta valor, é cobrada por Fatura Complementar de COD; quando
+sobra, o destino depende do que já entrou. Antes do faturamento não há ajuste:
+B/L não faturado é simplesmente recalculado, e B/L faturado e não pago gera
+pendência de cancelar e reemitir a fatura.
 
-Com pagamento parcial, a diferenca a menor **abate o saldo em aberto** antes de
-virar restituicao: so o que exceder o valor efetivamente pago volta como
-dinheiro. Devolver a diferenca cheia restituiria o que nunca entrou. Com a
-fatura integralmente paga, a diferenca a menor vira restituicao direto.
+Com pagamento parcial, a diferença a menor **abate o saldo em aberto** antes de
+virar restituição: só a parcela da redução que exceder o saldo em aberto volta como
+dinheiro. Devolver a diferença cheia restituiria o que nunca entrou. Com a
+fatura integralmente paga, a diferença a menor vira restituição direto.
 
-O COD apura e registra a diferenca; a emissao do documento e a liberacao da
-restituicao sao atos do Financeiro, nunca automaticos.
+O COD apura e registra a diferença; a emissão do documento e a liberação da
+restituição são atos do Financeiro, nunca automáticos.
 
 O ajuste é criado automaticamente pela transição de COD e permanece pendente
 até que Financeiro vincule o documento resultante (ou registre abatimento/
 restituição pela operação transacional de liquidação).
 
-- **Related:** COD, Taxas Locais, Recebivel Local, Invoice Individual
+- **Ver também:** COD, Taxas Locais, Recebível Local, Invoice Individual
 
-**Visao Geral do B/L**
-Informa a aba padrao da ficha do B/L que consolida viagem e escalas,
+**Visão Geral do B/L**
+Informa a aba padrão da ficha do B/L que consolida viagem e escalas,
 transbordo/COD, carga, cliente, Portal e financeiro, com os trilhos operacional
-e financeiro e a proxima acao.
+e financeiro e a próxima ação.
 
 **Rota da Viagem**
 Sequência de portos de uma viagem. Cada escala registra a chegada ao porto
 (ETA/ATA) e as Atracações que a compõem, cada uma com o seu próprio ciclo de
 berço (ETB/ATB/ETD/ATD). É o dado que o sistema operacional consome — B/Ls e
 demais documentos de carga referenciam esses mesmos portos.
+
+**Frente de Operação**
+Recorte da escala por sentido e modalidade, persistido em
+`voyage_escala_operation_fronts`. A atribuição de terminal liga a carga à
+Atracação correspondente. Frentes distintas podem compartilhar terminal;
+frente sem terminal permanece TBC. Para B/L misto, carga cheia e carga solta
+são frentes distintas do mesmo documento, não dois B/Ls (ADR 0068).
 
 **Atracação**
 Passagem de uma Escala por um terminal, com o ciclo próprio de berço: ETB e ATB
@@ -191,7 +215,7 @@ Restow — a Escala é dona apenas de ETA e ATA, a chegada ao porto. Uma Escala 
 uma sequência ordenada de Atracações; o mesmo terminal ocorre uma vez por
 Escala. A ordem é derivada de `COALESCE(ATB, ETB)`, com empate desfeito pelo
 código do terminal: não é campo digitado. Nasce da atribuição de um terminal a
-uma Frente Operacional; sem frente não há Atracação, e uma frente sem terminal
+uma Frente de Operação; sem frente não há Atracação, e uma frente sem terminal
 escolhido é uma Atracação **TBC**.
 _Evitar_: berço, janela, escala no terminal.
 
@@ -207,12 +231,15 @@ desatracação daquele terminal. Marca o início da contagem do Prazo
 de Conclusão do ADR.
 
 **Estado da Escala**
-Estado operacional derivado das datas reais das suas Atracações, não um status
-manual independente. Com alguma Atracação atracada — ATB sem ATD — a escala
-está `Atracada`; quando todas as Atracações têm ATD, passa automaticamente a
-`Concluída`. Entre duas Atracações, o navio está no porto sem berço e a escala
-não tem estado. Vale para qualquer escala, inclusive a que só
-embarca. A conclusão de uma escala não implica, sozinha, a conclusão da Viagem.
+Estado derivado por `deriveEscalaState` (`src/lib/escalaState.ts`): sem
+Atracações, nulo; todas com ATD, `Concluída`; caso contrário, qualquer ATB
+preenchido resulta em `Atracada`; sem esses fatos, nulo. No caminho legado de
+uma única Atracação, ATD precede ATB. Não é um campo manual.
+
+**Divergência conhecida:** entre duas Atracações, uma já com ATD e outra sem
+ATB, o código ainda retorna `Atracada` se a primeira tem ATB. A intenção antiga
+de exibir estado vazio nesse intervalo não está implementada; esta revisão
+documental não modifica o cálculo.
 
 **ETD do POL**
 Data estimada de saída da viagem no porto de carregamento. Permanece como a
@@ -247,10 +274,11 @@ sentido único produz uma linha só. É granularidade de exibição, não um seg
 registro: o planejamento da Viagem continua mostrando uma linha por Escala.
 
 **ADR (Agency Departure Report)**
-Relatório de escala do navio: cada escala brasileira de uma viagem gera um ADR
-(duas escalas brasileiras, dois ADRs), com ou sem importação; portos de origem
-estrangeiros não geram ADR. Escala
-que só embarca gera ADR como qualquer outra, e o fechamento exige os três
+Relatório operacional do navio no porto. No modelo terminalizado, cada terminal
+atribuído às frentes da Escala brasileira tem seu ADR; vários terminais no mesmo
+porto podem gerar vários relatórios. O legado mantém um ADR por (viagem, porto).
+Portos de origem estrangeiros não geram ADR. Uma operação
+que só embarca também gera ADR, e o fechamento exige os três
 sign-offs departamentais mesmo quando um departamento não tem nada a declarar.
 Documenta tudo que aconteceu na escala — datas confirmadas, carga descarregada
 e carregada, embarque e descarga de vazios, granito, carga solta, veículos,
@@ -268,7 +296,9 @@ da classificação cama/cover plate da seção de Vazios descarregados.
 O ADR é uma **exibição consolidada** de dados construídos nos módulos de
 origem, não uma redigitação: carga, veículos, vazios, depot e overtime nascem
 nos seus módulos; apenas ocorrências e sign-offs nascem no próprio ADR. Existe
-desde que a escala existe; suas pendências só alertam após o ATD da escala.
+no escopo da operação correspondente; as pendências do relatório terminalizado
+são avaliadas a partir do ATD daquele terminal, respeitando a elegibilidade e
+os marcos de vigência dos alertas.
 
 A identidade do ADR legado continua sendo (viagem, porto). Para o modelo
 terminalizado, a identidade nova é (viagem, porto, terminal), materializada por
@@ -278,7 +308,7 @@ Frente sem terminal é `TBC`, não cria ADR e bloqueia o fechamento. ADRs legado
 sem `terminal_id` permanecem legíveis pelo caminho antigo. O armador exibido no
 cabeçalho deriva do navio da viagem.
 
-- **Related:** Seção do ADR, Resolução de Seção, Sign-off Departamental, Fechamento do ADR, Listagem do operado
+- **Ver também:** Seção do ADR, Resolução de Seção, Sign-off Departamental, Fechamento do ADR, Listagem do operado
 
 - **Distinto de:** Architecture Decision Record (`docs/adr/`), que é documento
   de engenharia deste repositório. Em código e schema, usar sempre
@@ -320,7 +350,7 @@ ADR, confirmando que refletem a realidade da escala. São três — Operações,
 Documentação e Equipamentos — e o fechamento do ADR exige os três. Só é
 habilitado quando todas as seções do departamento estão resolvidas (Confirmado
 ou Nada a declarar); reabrir um sign-off já dado exige justificativa. Os alertas
-de informação faltante, disparados após o ATD da escala, são por departamento
+de informação faltante, disparados após o ATD aplicável ao relatório, são por departamento
 ("Documentação pendente"), não por seção.
 
 **Equipamentos**
@@ -349,7 +379,7 @@ O grão do módulo **deixou de ser o container**: uma linha de serviço não apo
 para containers específicos, e a lista de unidades não carrega preço. O único
 ponto onde as duas partes se tocam é a armazenagem.
 
-- **Related:** Unidade Embarcada, Linha de Serviço do Embarque, Operação de Pátio
+- **Ver também:** Unidade Embarcada, Linha de Serviço do Embarque, Operação de Pátio
 
 **Unidade Embarcada**
 Container vazio efetivamente embarcado na escala; item da Lista de Unidades
@@ -412,13 +442,13 @@ lançada, e o cadastro não tem vigência — o valor sugerido vale até alguém
 A entidade nomeada é o **local**, não a "taxa": é distinta da Tabela de Taxas —
 Granito, que é genuinamente uma tabela de tarifas.
 
-- **Synonyms / avoid:** "Cadastro de Depot" (nome anterior, quando o cadastro só
+- **Evitar:** "Cadastro de Depot" (nome anterior, quando o cadastro só
   tinha depots), "Taxas de Vazios", "tabela de taxas de depot"
 - **Distinto de:** o **porto** da escala (identidade `(viagem, porto)` do ADR
   legado, ex.: BRVIX). Um Terminal Portuário fica *dentro* de um porto. ADR
   novo referencia o terminal cadastrado por `terminal_id`; o texto permanece
   apenas para leitura histórica legada.
-- **Related:** Free Time de Storage, Embarque Direto, Linha de Serviço do
+- **Ver também:** Free Time de Storage, Embarque Direto, Linha de Serviço do
   Embarque, Natureza do Serviço, Tabela de Taxas — Granito
 
 **Free Time de Storage**
@@ -474,7 +504,7 @@ A natureza define quais campos a linha exige e se a quantidade é digitada ou
 calculada. O valor unitário do serviço já é o valor efetivo, inclusive quando o
 serviço representa uma majoração ou overtime; a linha não recebe percentual.
 
-- **Synonyms:** "forma de cobrança" (nome usado pela operação)
+- **Sinônimos:** "forma de cobrança" (nome usado pela operação)
 - **Distinto de:** Tipo de Cálculo da ADR 0032 (`fixo_por_container` /
   `storage_por_dias` / `quantidade`), que precificava automaticamente e foi
   aposentado pela ADR 0033.
@@ -554,19 +584,19 @@ registrado como tal; quando o ATD chega, essas assinaturas já contam como
 cumpridas. Escala omitida nunca tem prazo — o navio não atracou, não houve saída
 —, e o seu ADR fica fora da medição em definitivo, nem cumprido nem descumprido.
 
-- **Related:** Prazo de Conclusão do ADR, Sign-off Departamental, Fechamento do ADR, ATD, Omissão de Escala
+- **Ver também:** Prazo de Conclusão do ADR, Sign-off Departamental, Fechamento do ADR, ATD, Omissão de Escala
 
 **Prazo de Conclusão do ADR** *(ADR 0039)*
 Compromisso interno de que cada departamento assina a sua parte do ADR até três
-dias úteis depois da saída do navio. A contagem começa na **data real do ATD da
-escala unificada** — a saída do navio do porto brasileiro, o fato que encerra a
-escala —, não no momento em que o ATD foi registrado no sistema: navio que
+dias úteis depois da saída aplicável ao relatório. No ADR terminalizado, a
+contagem começa na **data real do ATD da Atracação** (`terminal_atd`); no legado,
+usa o ATD da escala. Não começa no momento em que a saída foi registrada: navio que
 saiu na segunda e teve o ATD lançado na quarta já chega ao lançamento com dois
 dias consumidos, e um ADR pode nascer com o prazo vencido. O prazo vence no fim
 do terceiro dia útil após o ATD e é contado em dias, sem hora — a hora da saída
 não é considerada. O dia do ATD não conta, mesmo quando é dia útil. Quando a
 escala tem também um ATD do POL e as duas datas divergem, o relógio segue a data
-operacional da escala; a divergência continua exposta, mas não move o prazo.
+operacional do relatório; a divergência continua exposta, mas não move o prazo.
 
 **Dia útil**, para este prazo, é de segunda a sexta: sábado e domingo não são
 contados. Feriados contam como dia útil — o prazo não conhece calendário de
@@ -599,7 +629,7 @@ falta. Ele não substitui o alerta de pendência do ADR: os dois convivem porque
 dizem coisas diferentes — um lembra que há trabalho a fazer desde que o ATD foi
 lançado, o outro afirma que o compromisso foi descumprido.
 
-- **Related:** Linha do Tempo do ADR, Sign-off Departamental, ATD
+- **Ver também:** Linha do Tempo do ADR, Sign-off Departamental, ATD
 - **Distinto de:** o alerta de pendência do ADR, que sinaliza seção não
   resolvida a partir do lançamento do ATD e não conhece data-limite.
 
@@ -657,13 +687,22 @@ adaptativa modular com blocos distintos para contêiner e carga solta.
 **Peso do B/L (contêiner x carga solta)**
 O peso físico de um B/L vive em duas colunas **disjuntas**: `bls.total_weight_kg`
 mede somente a carga conteinerizada e `bls.bb_weight_ton` somente a carga solta.
-O peso total do documento é a soma das duas — nunca uma delas isoladamente, nem
-um desempate entre elas. Até a migration 061 os importadores de carga solta
+O peso total em kg é `total_weight_kg + bb_weight_ton × 1000`; em toneladas,
+divide-se esse resultado por 1000. Nunca se somam diretamente unidades
+diferentes nem se escolhe uma componente isolada. Até a migration 061, os
+importadores de carga solta
 espelhavam o mesmo peso nas duas colunas, o que forçava os consumidores a
 escolher uma (`bb_weight_ton ?? total_weight_kg / 1000`); o desempate subcontava
 o B/L misto e a soma, sobre o espelho, contava a carga solta duas vezes. Quem
 precisa do peso total usa `blTotalWeightKg`/`blTotalWeightTon` (`src/lib/cargoMode.ts`)
-no TypeScript e a soma das duas colunas no SQL.
+no TypeScript e a soma com conversão de unidades no SQL.
+
+**Cubagem do B/L (contêiner x carga solta)**
+Desde a migration `064`, `bls.total_cbm` mede somente carga conteinerizada e
+`bls.bb_cbm` somente carga solta, ambas em m³. A cubagem total é a soma por
+`blTotalCbm` (`src/lib/cargoMode.ts`). Importação e revisão atualizam cada
+componente separadamente, inclusive no B/L misto. Máquinas e cubagem BB também
+contam como sinal de carga solta na derivação de `cargo_mode`.
 
 **Painel Unificado de BLs**
 Superfície canônica em `/bls` que centraliza todos os B/Ls da agência
@@ -678,8 +717,10 @@ aplicável, ao container físico.
 **Granito**
 Carga de exportação: blocos de granito embarcados nas escalas brasileiras.
 "Importação" no fluxo de Granito refere-se à ingestão das planilhas COSCO
-(entrada de dados), não ao sentido da carga. É integrado à revisão e ao
-faturamento, mas mantém regras e registros próprios.
+(entrada de dados), não ao sentido da carga. Mantém revisão e registros
+operacionais próprios. Na Validação de Taxas aparece como **Apoio operacional**,
+sem participar da emissão de invoices; conferência de quantidades não é
+faturamento financeiro.
 
 ## Baplie e reconciliação
 
@@ -744,11 +785,13 @@ ADR 0057.
 
 **CE Mercante**
 Conhecimento Eletrônico registrado por B/L no sistema Mercante, nos sentidos de
-importação e exportação. Seu cadastro é o confirmador do cálculo e dispara três
-efeitos automáticos imediatos: (1) a emissão das faturas de Taxas Locais dos B/Ls,
-(2) a disponibilização do B/L e das faturas no Portal do Cliente, e (3) o envio
-automático do Comunicado de CE Mercante e Taxas Locais para o cliente assim que
-todos os seus B/Ls na viagem atingem a prontidão. A relação CE × B/L é 1:1: um
+importação e exportação. Sua transição aciona o cálculo e a tentativa de emissão
+automática das Taxas Locais no servidor. Se houver bloqueios, o cadastro do CE
+não comprova emissão: o resultado e a fila de efeitos precisam ser consultados.
+O CE também integra a liberação documental do B/L no Portal; o acesso depende
+da conta do Cliente. O Comunicado de CE e Taxas depende da prontidão do conjunto
+Cliente/Viagem, da chave de envio e do processamento do canal, não de um envio
+imediato garantido ao salvar o CE. A relação CE × B/L é 1:1: um
 número de CE não pode ser usado por mais de um B/L. Embarque de Vazios é a exceção
 operacional: não emite CE porque é módulo de custo pago pela agência ao depot,
 sem invoice ou recebível de cliente.
@@ -871,14 +914,18 @@ do cálculo é o cadastro do CE Mercante — não existe ato separado de aprova�
 de marcação como pronto.
 
 Nenhum deles impede **calcular**: as taxas são calculadas para conferência
-mesmo com bloqueio aberto. Todos impedem **emitir** — a fatura só existe quando
-o cliente pode recebê-la e vê-la (ADR 0054, em vigor no servidor desde a
-migration `337`). Quando mais de um está aberto, o
+mesmo com bloqueio aberto. Na emissão manual, esses motivos impedem emitir.
+A automação interna da transição do CE possui exceção controlada para o Portal
+(migration `051`); não é uma dispensa pública nem uma permissão do frontend.
+Quando mais de um está aberto, o
 motivo exibido segue esta ordem: cliente, cálculo, CE Mercante, portal. O portal
 vem por último porque é o único que não se resolve no B/L: é cadastro do
 cliente, e vale para todos os B/Ls dele.
 Distinto de `charge_status`, que é registro interno do motor de cálculo e não é
-exibido ao operador.
+exibido ao operador como essa categoria de bloqueio.
+
+O rótulo da fila é informativo; a validação server-side continua sendo a
+autoridade para a emissão.
 
 O cálculo tem **duas fases**:
 
@@ -888,8 +935,9 @@ O cálculo tem **duas fases**:
   dividem container e ainda não têm fatura —, para que o rateio provisório fique
   certo mesmo quando o segundo B/L entra numa importação posterior.
 - **Confirmada** — cadastrar o CE Mercante recalcula, fecha e só então emite a
-  fatura e publica. É o cálculo do CE que produz o valor cobrado, quando todos
-  os B/Ls da viagem já existem e o rateio de container compartilhado está certo.
+  fatura quando os demais requisitos forem satisfeitos. A regra operacional é
+  cadastrar o CE após completar os B/Ls envolvidos no rateio; a presença do CE,
+  sozinha, não prova que essa conferência foi feita.
 
 O **fato gerador é a emissão do CE Mercante**, não a chegada da carga. Emitido o
 CE, a taxa local é devida pelo porto declarado nele. O Transbordo preserva o
@@ -899,14 +947,14 @@ CE Mercante inalterado. A emissão do documento financeiro resultante é um ato
 do Financeiro.
 
 Por isso a fatura de taxas locais é emitida dias antes da atracação: o cliente
-precisa dela paga para retirar a carga, e não há fato posterior capaz de mudar
-o valor.
+precisa dela paga para retirar a carga. O documento emitido preserva seu valor;
+ajustes posteriores, como COD, seguem atos próprios e não reescrevem o snapshot.
 
 B/Ls que dividem um mesmo container **recebem o CE no mesmo momento**. É essa
 regra operacional — não uma trava de software — que garante o rateio correto de
 taxa de container compartilhado.
 
-- **Related:** Fato Gerador, Omissao de Escala, COD, Data de Referência da Tarifa
+- **Ver também:** Fato Gerador, Omissao de Escala, COD, Data de Referência da Tarifa
 
 **Tabela de Taxas Locais**
 Cadastro que define quais taxas locais existem e quanto custam, por POD e por
@@ -921,15 +969,25 @@ escopo, vence a de vigência inicial mais recente e a tela avisa que a outra nã
 está sendo aplicada. Um período vencido ou futuro em tabela ativa também vira
 aviso, nunca exclusão.
 
-- **Synonyms / avoid:** "tabela de preços", "tarifa local"
-- **Related:** Item de Taxa, Condição de Cliente, Tarifa de Demurrage
+- **Evitar:** "tabela de preços", "tarifa local"
+- **Ver também:** Item de Taxa, Condição de Cliente, Tarifa de Demurrage
 
 **Herança e Exceção de Terminal por B/L**
-Regra de determinação do terminal portuário para fins de tarifação de Taxas
-Locais. A precedência é rigorosamente hierárquica:
-1. Exceção explícita cadastrada para o B/L em `bl_terminal_exceptions`;
-2. Terminal padrão da atracação/escala na viagem (`voyage_port_calls.terminal_id`);
-3. Nulo / sem terminal específico (aplica regras gerais da tabela tarifária).
+`bls.terminal_id` preenchido é a exceção individual; nulo herda o terminal
+resolvido por `resolve_bl_terminal_id` a partir de `voyage_escala_operation_fronts`.
+A alteração passa por `set_bl_terminal_override`, exige justificativa e registra
+`audit_logs`. `pod_port_id` participa da FK composta com o terminal cadastrado.
+No B/L misto, as frentes de carga cheia e carga solta devem convergir ao mesmo
+terminal, salvo exceção válida. Ausência/conflito gera pendência de revisão.
+Terminal não faz parte da chave de `charge_tables` e não reprecifica Taxas
+Locais (ADR 0068). COD limpa a exceção anterior ao mudar o destino.
+
+**Âncora de Taxa Local**
+O destino final/POD e o escopo comercial determinam as tabelas aplicáveis;
+a data de referência seleciona condições de cliente, não a vigência da tabela.
+B/L misto resolve duas tabelas, container e carga solta, pela função compartilhada
+`resolve_bl_local_charge_table_ids`, com taxa documental apenas do lado container.
+O valor emitido permanece congelado; COD segue os ajustes da ADR 0051.
 
 **Fatura Adaptativa Modular**
 Modelo de fatura que organiza seus itens visual e documentalmente em blocos
@@ -948,7 +1006,7 @@ da carga solta). Divide-se em dois tipos que **não** se misturam:
 - **Item manual** — existe no cadastro mas nunca é aplicado sozinho; depende de
   o usuário decidir lançá-lo naquele processo.
 
-- **Related:** Tabela de Taxas Locais, Lançamento Manual
+- **Ver também:** Tabela de Taxas Locais, Lançamento Manual
 
 **Condição de Cliente**
 Valor negociado com um Cliente específico para um Item de Taxa específico,
@@ -965,8 +1023,8 @@ Difere da Tarifa de Demurrage nesse ponto: aquela é lista de preço pública, o
 agendar uma vigência por cima da anterior é operação normal e a mais recente
 vence. Condição de Cliente é acordo negociado, e conflito precisa aparecer.
 
-- **Synonyms / avoid:** "desconto", "override de cliente"
-- **Related:** Item de Taxa, Cliente, Tarifa de Demurrage
+- **Evitar:** "desconto", "override de cliente"
+- **Ver também:** Item de Taxa, Cliente, Tarifa de Demurrage
 
 **Data de Referência da Tarifa**
 
@@ -984,7 +1042,7 @@ Não é a ATA: o CE Mercante é cadastrado dias antes da atracação, então a f
 já foi emitida quando a ATA passa a existir. Não é a data de importação do B/L,
 que é fato administrativo e não comercial.
 
-- **Related:** Tabela de Taxas Locais, Condição de Cliente, Escala
+- **Ver também:** Tabela de Taxas Locais, Condição de Cliente, Escala
 
 **Movimento (FCL/LCL)**
 Declaração do armador, presente no próprio B/L, sobre como a carga foi estufada
@@ -1002,10 +1060,12 @@ duas — na prática `FCL`/`LCL` é a mais comum:
 São **dois lados**: origem e destino. O B/L declara o par, e os mistos existem
 (`FCL/LCL`, `LCL/FCL`). Para Taxa Local vale o **lado do destino** — taxa local
 é cobrança de chegada, e o que define se há o que cobrar é quem executa a
-movimentação no porto de destino. Num B/L `FCL/LCL` o armador entrega o
+movimentação no porto de destino. No contexto da isenção de veículos, num B/L
+`FCL/LCL` o armador entrega o
 container na CFS e o cliente retira sua parte de lá: a movimentação de destino
 não é do armador, logo não há taxa local dele. Num `LCL/FCL` é o inverso — há
-taxa local.
+taxa local. LCL sozinho não concede isenção a qualquer carga: veja as duas
+condições em **Isenção de Taxas Locais**.
 
 A justificativa histórica da isenção ("taxas pagas na origem") é explicação
 comercial, não critério: usar o lado da origem inverteria os dois casos mistos.
@@ -1019,8 +1079,8 @@ quem talvez não devesse — visível e contestável — em vez de isentar quem 
 pagar, que não deixa rastro. A correção acontece na fase provisória do cálculo,
 antes de qualquer fatura existir.
 
-- **Synonyms / avoid:** "tipo de carregamento"
-- **Related:** Isenção de Taxas Locais, Taxas Locais
+- **Evitar:** "tipo de carregamento"
+- **Ver também:** Isenção de Taxas Locais, Taxas Locais
 
 **Isenção de Taxas Locais**
 
@@ -1033,7 +1093,7 @@ A isenção é consequência de dado operacional (o cadastro de veículos), ent�
 precisa ser conferível: as isenções aplicadas devem ser visíveis em tela, não
 apenas inferíveis do valor zero.
 
-- **Related:** Movimento (FCL/LCL), Taxas Locais
+- **Ver também:** Movimento (FCL/LCL), Taxas Locais
 
 **Taxa Local em Dólar**
 
@@ -1046,7 +1106,7 @@ dívida está correndo, aqui o valor já é devido por inteiro desde o CE. Aplic
 Recálculo Diário a uma taxa local criaria dois comportamentos para o mesmo
 documento conforme a moeda do item.
 
-- **Related:** ROE, Recálculo Diário, Item de Taxa
+- **Ver também:** ROE, Recálculo Diário, Item de Taxa
 
 **Conferência de Cálculo**
 Reconstituição de como o valor de taxas locais de um B/L foi obtido: a tabela de
@@ -1055,14 +1115,15 @@ quantidade correspondente. É leitura, nunca ato — conferir não recalcula, n�
 aprova e não emite. Enquanto a fatura não existe, a conferência é feita sobre o
 cálculo; emitida a fatura, ela passa a ser a fonte, porque é o que o cliente
 recebeu.
-- **Related:** Taxas Locais, Item de Taxa, Invoice Individual, Invoice Consolidada
+- **Ver também:** Taxas Locais, Item de Taxa, Invoice Individual, Invoice Consolidada
 
 **Recebível Local**
 Saldo financeiro de taxas locais de um B/L. Pode ser ligado a invoice individual
 ou consolidada e liquidado por um ou mais pagamentos.
 
 **Invoice Individual**
-Documento financeiro emitido para um único conjunto elegível de cobranças.
+Documento financeiro emitido para as cobranças elegíveis de um B/L, com
+valores e condições preservados no snapshot da emissão.
 
 **Invoice Consolidada**
 Documento que reúne recebíveis de múltiplos B/Ls do mesmo cliente.
@@ -1079,8 +1140,8 @@ pátio, excedendo o free time contratado.
 Período após a descarga durante o qual o container pode ficar no pátio sem
 cobrança. Definido por container type (grupo tarifário) ou por override por B/L.
 
-- **Synonyms / avoid:** "taxa P1", "tarifa P1"
-- **Related:** P1, P2
+- **Evitar:** "taxa P1", "tarifa P1"
+- **Ver também:** P1, P2
 
 **P1 (Período 1)**
 Primeira faixa tarifária após o free time. Taxa diária em USD aplicada aos dias
@@ -1088,28 +1149,28 @@ entre o fim do free time e o início de P2. Quando o free time override do B/L �
 maior que o fim de P1 do grupo, P1 tem zero dias e a cobrança inicia direto em
 P2.
 
-- **Synonyms / avoid:** "taxa P1", "tarifa P1"
-- **Related:** Free Time, P2
+- **Evitar:** "taxa P1", "tarifa P1"
+- **Ver também:** Free Time, P2
 
 **P2 (Período 2)**
 Segunda faixa tarifária, com taxa diária superior a P1. Aplicada a partir do dia
 definido pelo grupo tarifário, independentemente do free time override do B/L.
 
-- **Synonyms / avoid:** "taxa P2", "tarifa P2"
-- **Related:** P1, Free Time
+- **Evitar:** "taxa P2", "tarifa P2"
+- **Ver também:** P1, Free Time
 
 **Free Time Override**
 Valor de free time específico de um B/L, sobrescrevendo o padrão do grupo
 tarifário. Afeta apenas o início da cobrança (P1 começa em override+1), sem
 deslocar as faixas P1/P2.
 
-- **Related:** Free Time, P1, P2
+- **Ver também:** Free Time, P1, P2
 
 **ROE (Taxa de Câmbio)**
-Taxa de câmbio USD→BRL aplicada à invoice, calculada a partir da PTAX do BCB
-com markup de 1,065. **Não é congelada na emissão**: enquanto a invoice não está
-paga, o ROE é recalculado a cada nova PTAX divulgada pelo BCB (dias úteis). O
-congelamento real do valor ocorre apenas no momento do pagamento, registrado de
+Taxa de câmbio USD→BRL calculada a partir da PTAX do BCB com fator 1,065.
+Em Taxas Locais, congela na emissão. Em **Demurrage**, pode ser atualizada
+enquanto a invoice não está paga, pelo recálculo com nova PTAX. O
+congelamento do valor de Demurrage ocorre no pagamento, registrado de
 forma imutável no histórico da invoice. As colunas que guardam o último valor
 recalculado chamam-se `current_roe` e `current_total_brl`.
 
@@ -1118,7 +1179,7 @@ No cabeçalho interno, a referência cambial é a composição explícita PTAX V
 na aba Demurrage informa apenas o ROE vigente e sua data de atualização; cada
 invoice paga preserva o ROE que foi congelado no pagamento.
 
-- **Related:** PTAX, Markup, Recálculo Diário
+- **Ver também:** PTAX, Markup, Recálculo Diário
 
 **Markup**
 Fator multiplicativo (1,065) aplicado à PTAX para obter o ROE. É o **spread
@@ -1126,15 +1187,15 @@ fixo cobrado pelo armador**, não uma margem de proteção contra flutuação ca
 — a proteção cambial deixa de existir quando o valor passa a ser recalculado
 diariamente.
 
-- **Related:** ROE, PTAX
+- **Ver também:** ROE, PTAX
 
 **Recálculo Diário**
-Reavaliação do valor em BRL de toda invoice de Demurrage **não paga**, a cada
-nova PTAX divulgada pelo BCB (dias úteis). Atualiza `current_roe`/
+Processo de reavaliação do valor em BRL de invoices de Demurrage **não pagas**,
+usando nova PTAX divulgada pelo BCB. Atualiza `current_roe`/
 `current_total_brl` e grava uma entrada imutável no histórico. Encerra-se no
 pagamento, quando o valor é congelado.
 
-- **Related:** ROE, PTAX, Markup, Invoice de Demurrage
+- **Ver também:** ROE, PTAX, Markup, Invoice de Demurrage
 
 **Invoice de Demurrage**
 Documento financeiro que cobra sobreestadia de containers. Cada item armazena a
@@ -1149,7 +1210,7 @@ não se fatura com container ainda fora, pois os dias de demurrage (e portanto o
 pagamento. O monitoramento de containers ainda fora (demurrage correndo) é
 operacional, não gera fatura.
 
-- **Related:** P1, P2, Free Time, ROE, Recálculo Diário
+- **Ver também:** P1, P2, Free Time, ROE, Recálculo Diário
 
 **Tarifa de Demurrage (Rate)**
 Configurável por container type com vigência temporal na tabela geral do
@@ -1158,7 +1219,7 @@ acordo vigente do cliente > tarifa geral do armador. A tarifa do banco é a
 única fonte de verdade; não existe fallback estático. O `active` flag é o
 mecanismo de desativação imediata; `valid_to` é para expiração agendada.
 
-- **Related:** P1, P2, Free Time, Free Time Override, Acordo de Demurrage do Cliente
+- **Ver também:** P1, P2, Free Time, Free Time Override, Acordo de Demurrage do Cliente
 
 **Acordo de Demurrage do Cliente**
 Condições comerciais negociadas diretamente com o cliente (`customer_demurrage_agreements`),
@@ -1168,7 +1229,7 @@ resolvida com base na data de descarga (`discharge_date`) do container. Campos n
 personalizados no acordo herdam automaticamente os valores padrão da tabela geral
 do armador.
 
-- **Related:** Demurrage, Free Time, P1, P2, Tarifa de Demurrage (Rate), Free Time Override
+- **Ver também:** Demurrage, Free Time, P1, P2, Tarifa de Demurrage (Rate), Free Time Override
 
 **Conciliação PIX**
 Comparação entre transações recebidas e cobranças emitidas, priorizando TXID e
@@ -1261,11 +1322,14 @@ provisionamento só se conclui quando a Conta de Portal fica Ativa após a pesso
 autorizada definir a senha.
 
 **Gate de faturamento do Portal**
-Condição server-side para considerar o processo faturável: a Conta de Portal
+Condição server-side usada nos fluxos ordinários de emissão: a Conta de Portal
 está Ativa, vinculada ao usuário de autenticação e com Email de Recuperação
 válido e não suprimido, de modo que o cliente consiga acessar e visualizar a
 fatura. A ausência dessa condição mantém o processo bloqueado e pode aparecer
-no alerta único de revisão do B/L.
+na revisão ou nos alertas do Cliente. A automação interna do CE pode emitir
+sem essa prontidão, exclusivamente no contexto privado da migration `051`.
+Isso não ativa a conta nem libera acesso do Cliente. Consulte também
+**Desacoplamento financeiro do Portal**.
 
 **Provisionamento autorizado**
 Decisão auditada de Documentação ou Administrativo que confirma o Email de
@@ -1280,8 +1344,7 @@ Portal. O usuário interno permanece na própria identidade, acessa
 ações do cliente. O modo é identificado visualmente e usa o mesmo
 `PortalLayout`, páginas e núcleo de leitura do Portal externo; as ações de
 escrita ficam visíveis, porém indisponíveis. A abertura é auditada pela
-ferramenta, não por cada chamada direta à API. Não informar o Cliente sobre a
-inspeção é uma dívida de transparência vigente.
+ferramenta, não por cada chamada direta à API.
 
 **Conta de Portal**
 Vínculo entre um Cliente e um usuário do Supabase Auth. Um cliente possui no
@@ -1408,7 +1471,7 @@ Resend e webhooks configurados, backfill concluído, Console e alertas
 operacionais, lista de clientes aprovada e canal de suporte monitorado.
 
 **Sequência de GO LIVE do Portal**
-Deploy sem disparos reais; pré-voo e backfill dos 309 Clientes; configuração e
+Deploy sem disparos reais; pré-voo e reconciliação dos Clientes existentes; configuração e
 verificação de domínio, Resend e webhooks; ativação de alertas e suporte; piloto;
 aprovação final do Administrativo; abertura geral. Convites reais só ocorrem
 depois das quatro primeiras etapas técnicas e operacionais.
@@ -1442,7 +1505,8 @@ precisa estar verificado e com DNS configurado antes de envios a clientes
 reais.
 
 **Email de Convite do Portal**
-Mensagem transacional sem senha, token legível ou dados financeiros. Identifica
+Mensagem transacional sem senha ou dados financeiros. O link contém o token
+opaco necessário à ativação; não o reproduza em logs ou auditoria. Identifica
 a empresa e o CNPJ parcialmente mascarado, informa a validade de 48 horas e
 orienta o destinatário a criar a própria senha ou avisar a Transhipping se não
 for a pessoa autorizada.
@@ -1454,7 +1518,7 @@ histórico de tentativas.
 
 **Email de Recuperação de Senha do Portal**
 Mensagem com link de uso único, válido por uma hora, identificando a empresa e
-o CNPJ parcialmente mascarado. Não contém senha ou token legível; a troca de
+o CNPJ parcialmente mascarado. O token opaco fica no link, nunca como senha; a troca de
 senha encerra as sessões anteriores.
 
 **Tentativa de entrega transacional do Portal**
@@ -1475,13 +1539,15 @@ de abertura ou rastreamento de clique.
 
 **Webhook de entrega do Portal**
 Evento do Resend aceito somente com assinatura válida e dentro da janela de
-tempo. O ID do evento é deduplicado; persistem apenas metadados de entrega e o
-histórico é atualizado de forma idempotente.
+tempo. O evento é persistido numa inbox durável, deduplicado pelo ID do
+provedor e processado por consumidor posterior. Receber o webhook não significa
+que o histórico já foi atualizado; retries preservam a idempotência.
 
 **Teste de assinatura e replay de webhook**
 Gate do piloto que envia webhook com assinatura inválida, fora da janela de
-tempo e repetido. Todos devem ser rejeitados sem alterar entrega, bounce ou
-complaint; qualquer aceitação indevida bloqueia a aprovação do piloto.
+tempo e repetido. Assinatura inválida e timestamp fora da janela devem ser
+rejeitados. Uma repetição válida pode receber sucesso como no-op (ou permanecer
+pendente de processamento), sem duplicar efeitos de entrega, bounce ou complaint.
 
 **Alerta interno do Portal**
 Pendência exibida somente no Console e na central `/alertas` para a equipe
@@ -1491,24 +1557,34 @@ pendências ou atividade relevante. Financeiro consulta no sistema e Operações
 não recebe pendências do Portal.
 
 **Visualização global interna**
-Todo perfil interno ativo abre todas as telas e consulta todos os registros,
-inclusive dados financeiros e de tarifação. A mesma regra vale para escrita:
-todo Departamento ativo pode alterar os módulos internos e cada evento congela
-autor e Departamento no rastro. As exceções são exclusão de registro
-operacional (Administrativo), provisionamento do Portal (Administrativo e
-Documentação) e administração de usuários (Administrativo). `/admin/usuarios`
-é a única exceção à leitura global.
+A leitura interna é ampla, inclusive para dados financeiros e de tarifação,
+mas não equivale a acesso irrestrito. Toda a árvore `/admin` é administrativa;
+`/clientes/comunicacao` exige permissão específica. Ações também possuem
+fronteiras próprias, conforme **Escrita interna global**. Consulte a matriz
+vigente em `src/hooks/useAuth.tsx`, os guards e a autorização do servidor.
 
 **Departamento**
 Assinatura de responsabilidade de um usuário interno (Administrativo,
 Financeiro, Operações, Documentação, Equipamentos). Identifica o autor no
-registro de eventos e define quem assina cada seção do ADR de Saída. Não
-delimita acesso. _Evitar_: setor, perfil de acesso, papel, role.
+registro de eventos e define quem assina cada seção do ADR de Saída. O sistema
+também usa o papel associado para autorizar operações específicas; Departamento
+não significa acesso irrestrito. Na comunicação de negócio, prefira o nome do
+Departamento; preserve `role` e os demais identificadores ao explicar o código.
 
 **Escrita interna global**
-Todo Departamento ativo altera dados em todos os módulos. As exceções são
-exclusão de registro operacional, provisionamento do Portal e administração de
-usuários; nenhuma é uma conveniência de departamento.
+A escrita operacional é compartilhada, com exceções aplicadas por operação:
+
+| Operação | Departamentos autorizados |
+|---|---|
+| Administração de usuários e painel administrativo | Administrativo |
+| Provisionamento do Portal | Administrativo e Documentação |
+| Liquidação de ajustes financeiros | Administrativo e Financeiro |
+| Comunicados e edição interna das Caixas de Comunicação | Administrativo, Documentação e Equipamentos |
+| Alterar a chave global de envio de Comunicados | Administrativo |
+| Exclusão operacional protegida | Administrativo, conforme a fronteira da operação |
+
+Essa tabela resume as exceções; não substitui as validações de estado e de
+escopo das RPCs. Assinaturas do ADR também respeitam o departamento dono.
 
 **Rastro obrigatório**
 Toda escrita registra autor e Departamento no instante do evento. O
@@ -1516,10 +1592,10 @@ Departamento é gravado junto com o evento, nunca derivado do cadastro atual.
 Ações automáticas assinam `sistema`.
 
 
-**Usuário interno atual**
-No escopo atual existe apenas `lucca.juliatti@fwlog.com.br`, com papel
-Administrativo. Os demais papéis ficam disponíveis para novos cadastros; uma
-identidade Auth sem perfil ativo não possui acesso interno.
+**Usuário interno ativo**
+Identidade Auth com perfil interno ativo e papel reconhecido. Quantidades e
+identidades de usuários são dados do ambiente, não invariantes deste glossário.
+Uma identidade Auth sem perfil ativo não possui acesso interno.
 
 **Administrador ativo mínimo**
 O sistema deve manter pelo menos um Administrador ativo. Não é permitido
@@ -1529,13 +1605,13 @@ exigem confirmação, motivo e auditoria.
 **Dupla proteção RBAC**
 A interface usa `can(permission)` para orientar exceções de navegação, mas a
 autoridade real está em RLS, RPCs e Edge Functions; o rastro obrigatório
-responsabiliza toda escrita e as três exceções continuam rejeitadas diretamente
-pela API.
+responsabiliza as operações auditadas e as permissões precisam ser verificadas
+também por chamadas diretas à API.
 
 O lado do frontend que lê essa recusa é `classifyDbError` em
 `src/lib/errors.ts`: uma tabela de códigos Postgres/PostgREST para `kind` e
-mensagem em português. É o único lugar do app que decide o que o operador vê
-quando o banco nega, sem deixar `details` ou `hint` chegarem à tela.
+mensagem em português. É o classificador compartilhado; os consumidores devem
+evitar expor `details`, `hint` ou dados sensíveis do erro bruto na interface.
 
 **Teste de isolamento por CNPJ**
 Gate de segurança do piloto que tenta acessar e alterar, por chamadas diretas à
@@ -1544,13 +1620,15 @@ RLS, RPCs e Edge Functions devem negar o acesso; qualquer falha bloqueia a
 aprovação do piloto.
 
 **Desacoplamento financeiro do Portal**
-Email de Recuperação e Conta de Portal não são pré-requisitos para revisão ou
-faturamento. A ausência de qualquer um gera pendência operacional no Console,
-na ficha e em `/alertas`, sem bloquear o gate financeiro.
+O desacoplamento é específico da **emissão automática interna pela transição
+do CE**, não uma regra universal. A migration `051` cria um contexto privado
+que dispensa a prontidão do Portal durante essa transação. Fora dele, emissão
+manual e gates ordinários preservam a exigência de Portal. A ausência de conta
+ou Email de Recuperação continua sendo pendência operacional.
 
 Quando uma fatura é emitida sem Email de Recuperação ou sem Portal ativo, a
 pendência é crítica, permanece aberta e entra no resumo diário interno, mas a
-emissão da fatura não é bloqueada.
+emissão automática nesse contexto não é bloqueada por essa ausência.
 
 A exceção crítica da fatura fica vinculada àquela fatura e encerra-se quando ela
 deixa de estar aberta, por exemplo após pagamento, cancelamento, substituição ou
@@ -1589,12 +1667,12 @@ entrada.
 
 **Aguardando análise**
 Estado do Cliente que ainda não foi aprovado pela equipe para receber convite.
-Os 309 Clientes da base inicial entram nesse estado. Nenhum envio ocorre
+O tamanho da base inicial é histórico, não uma quantidade atual. Nenhum envio ocorre
 automaticamente; Documentação ou Administrativo deve revisar o Cliente, indicar
 ou informar o Email de Recuperação e executar o convite individualmente.
 
 **Backfill inicial do Portal**
-Operação que cria o registro de Portal para cada um dos 309 Clientes em
+Operação de implantação que cria registros de Portal para Clientes elegíveis em
 Aguardando análise, sem selecionar emails candidatos, criar Conta de Portal,
 criar identidade Auth ou disparar qualquer email. A contagem de identidades Auth
 é revalidada imediatamente antes da execução; o inventário histórico não é uma
@@ -1779,3 +1857,20 @@ desligada e só é ligada por decisão auditada do Administrativo — os demais
 perfis que operam o módulo leem a chave, mas não a alteram. Não afeta o
 email transacional do Portal. Desligada, o Disparo continua sendo montado e
 conferido, mas é registrado como simulado em vez de enviado.
+
+## Referências de verificação dos contratos
+
+Estas referências permitem conferir as distinções mais sujeitas a regressão;
+não substituem a leitura da última definição na cadeia ativa de migrations.
+
+| Contrato | Fonte executável |
+|---|---|
+| Peso e cubagem de B/L misto | [cargoMode.ts](src/lib/cargoMode.ts) |
+| Motivos exibidos na Validação, incluindo Granito | [validacaoPipeline.ts](src/components/billing/validacaoPipeline.ts) |
+| CE obrigatório e fronteiras de emissão | [migration 047](supabase/migrations/047_bl_documental_gates.sql) |
+| Exceção privada de faturamento automático do CE | [migration 051](supabase/migrations/051_ce_mercante_auto_billing.sql) |
+| Permissões por Departamento | [useAuth.tsx](src/hooks/useAuth.tsx) e [rotas internas](src/AppInterno.tsx) |
+| Edição interna dos contatos e caixas | [migration 008](supabase/migrations/008_portal_contact_boxes.sql) |
+| Calendário do prazo do ADR | [agencyReportDeadline.ts](src/services/agencyReportDeadline.ts) |
+| ATD do terminal, ajuste de COD e prontidão do Portal | Funções `reconcile_agency_report_alerts`, `apply_cod_financial_effect` e `customer_portal_access_ready` na [base consolidada](supabase/migrations/002_business_logic_and_security.sql) |
+| Inbox e resposta a webhook duplicado | [portal-email-webhook](supabase/functions/portal-email-webhook/index.ts) |

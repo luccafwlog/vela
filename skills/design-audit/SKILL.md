@@ -24,7 +24,7 @@ componente, arquivo ou CSS como detalhe técnico. Consulte `CONTEXT.md` e os
 documentos de módulo para não inventar nomes de entidades ou labels.
 
 Use o stack local e os scripts de auditoria existentes quando estiverem
-disponíveis e autorizados. Consulte `WORKFLOW.md`, `CLAUDE.md` e a documentação
+disponíveis e autorizados. Consulte `WORKFLOW.md`, `AGENTS.md` e a documentação
 de setup antes de preparar banco, servidor ou dados. Não instale pacotes, altere
 configuração global, crie credenciais ou inicialize serviços automaticamente
 sem necessidade e autorização.

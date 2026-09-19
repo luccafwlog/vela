@@ -1,6 +1,10 @@
 # 0027 — Agency Departure Report: agregado por escala, exibição derivada e fechamento com snapshot
 
-Status: aceito — 2026-07-19
+> **Nota editorial — 2026-09-18 · supersedida parcialmente.** ADR usa identidade por terminal da escala; seis seções, três sign-offs departamentais, observações por seção e terminal resolvido por B/L. O agregado legado continua legível.
+> Rastreabilidade: [ADR 0029](./0029-adr-signoff-departamental-fases-ciclo.md), [ADR 0030](./0030-adr-observacoes-por-secao-substitui-ocorrencias.md), [ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md), [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md), [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md); [migration ativa 059](../../supabase/migrations/059_pr698_integrity_hardening.sql).
+> O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
+
+Status: supersedida parcialmente — 2026-07-19
 
 ## Contexto
 
