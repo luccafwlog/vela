@@ -1,10 +1,10 @@
 # 0004 — Supabase RLS e RPCs como fronteira de segurança
 
-> **Nota editorial — 2026-09-18 · supersedida parcialmente.** Leitura interna global, escrita com rastro, grants fechados por padrão e núcleos financeiros server-side refinam as permissões originais. Os exemplos de Edge Functions removidas são históricos.
+> **Nota editorial — 2026-09-18 · estendida.** Leitura interna global, escrita com rastro, grants fechados por padrão e núcleos financeiros server-side refinam as permissões originais. Os exemplos de Edge Functions removidas são históricos.
 > Rastreabilidade: [ADR 0044](./0044-leitura-interna-global-departamento-restringe-escrita.md), [ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md), [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md), [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 023](../../supabase/migrations/023_demurrage_calculation_snapshot.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
 
-Status: supersedida parcialmente — 2026-06-09
+Status: estendida — 2026-06-09
 
 ## Contexto
 

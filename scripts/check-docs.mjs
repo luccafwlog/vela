@@ -148,9 +148,14 @@ for (const moduleDocument of moduleDocuments) {
 }
 
 const routeSources = ['src/AppInterno.tsx', 'src/AppPortal.tsx']
-const appRoutes = [...new Set(routeSources.flatMap((routeSource) =>
-  extractDocRoutes(read(routeSource), routeSource).map((route) => route.path),
-))]
+const appRoutes = new Set()
+for (const routeSource of routeSources) {
+  try {
+    for (const route of extractDocRoutes(read(routeSource), routeSource)) appRoutes.add(route.path)
+  } catch (error) {
+    addError(routeSource, error instanceof Error ? error.message : String(error))
+  }
+}
 const architecture = read('docs/ARCHITECTURE.md')
 
 for (const route of appRoutes) {
@@ -226,6 +231,6 @@ if (errors.length > 0) {
 } else {
   console.log(
     `Documentation checks passed: ${markdownFiles.length} Markdown files, ` +
-    `${appRoutes.length} routes, and ADR index coverage verified.`,
+    `${appRoutes.size} routes, and ADR index coverage verified.`,
   )
 }

@@ -402,6 +402,13 @@ Não há evidência de Runtime registrada neste documento.
 
 ## Notas e divergências
 
+- **Divergência de tipo legado — Código.** `InvoiceDocumentStatus` e `blRails.ts`
+  ainda carregam o literal `overdue` e o traduzem para “Emitida”, embora o
+  constraint atual de `invoices.status` não grave mais esse estado. É código
+  legado sem caminho de persistência conhecido; a documentação de taxas locais
+  continua descrevendo o contrato efetivo do banco, e esta nota evita tratar a
+  divergência como conformidade completa.
+
 - **Histórico fora de `/faturamento`.** Apesar do nome e diretório do componente,
   `ReconciliationHistoryTable` é montado somente em `/reconciliacao`.
 - **Vencimento saiu do domínio (resolvido).** Os dois detectores que coexistiam

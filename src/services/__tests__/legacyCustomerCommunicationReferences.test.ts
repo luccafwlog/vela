@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const removedFunctionName = ['notify', 'invoice', 'issued'].join('-')
@@ -14,7 +14,6 @@ function trackedFiles(): string[] {
   return execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null' } })
     .split('\0')
     .filter((file) => file && inspectableExtensions.has(file.slice(file.lastIndexOf('.'))))
-    .filter((file) => existsSync(file)) // git ls-files includes unstaged deletions.
     .filter((file) => !ignoredPaths.some((prefix) => file === prefix || file.startsWith(prefix)))
 }
 

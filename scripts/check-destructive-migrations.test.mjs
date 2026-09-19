@@ -11,7 +11,7 @@ const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 const DECLARACAO = `-- 099: exemplo
 --
 -- ATENCAO -- esta migration APAGA dados existentes. Ela depende da afirmacao
--- "Data status" da secao Gotchas do CLAUDE.md.
+-- "Data status" da secao Gotchas do AGENTS.md.
 `
 
 // 1. Destrutiva sem declaracao -> reprovada.
@@ -59,11 +59,14 @@ assert.match(stripped, /B/)
 // 8. A 061 real, do repositorio, passa -- e o exemplo citado na mensagem de erro.
 const real = auditMigration(
   fs.readFileSync(path.join(root, 'supabase/migrations/061_bl_weight_semantics_and_triggers.sql'), 'utf8'),
+  { legacy: true },
 )
 assert.equal(real.destructive, true, 'a 061 faz um backfill; deveria ser detectada como destrutiva')
 assert.equal(real.declared, true, 'a 061 declara a dependencia no cabecalho')
 
-// Canonical declaration and historic compatibility both remain accepted.
+// Canonical declaration passes; the old spelling is accepted only when the
+// caller identifies a migration already applied before rule 061.
 assert.equal(auditMigration(`${DECLARACAO.replace('CLAUDE.md', 'AGENTS.md')}DELETE FROM public.bls;`).declared, true)
-assert.equal(auditMigration('-- Data status do README.md\nDELETE FROM public.bls;').declared, false)
+assert.equal(auditMigration('-- Data status do CLAUDE.md\nDELETE FROM public.bls;').declared, false)
+assert.equal(auditMigration('-- Data status do CLAUDE.md\nDELETE FROM public.bls;', { legacy: true }).declared, true, 'legacy mode accepts the historical spelling')
 console.log('check-destructive-migrations: 10 cenários passaram (AGENTS.md e compatibilidade histórica).')

@@ -20,7 +20,7 @@ obtido por replay controlado. Não foi consultado nem modificado banco remoto.
 - Terminal é exceção em bls.terminal_id e herança de frentes; não altera preço.
 - B/L misto, pesos/cubagens disjuntos (061/064), CE/gates, NCM persistido e cinco abas alinhados.
 - Redirects, catch-all, console interno e inspeção descritos conforme roteadores.
-- 33 decisões marcadas parcialmente supersedidas, sem apagar o texto histórico.
+- 31 decisões marcadas parcialmente supersedidas e 2 estendidas, sem apagar o texto histórico.
 - Módulos com sete seções ordenadas e catálogos de oito colunas.
 - Índices de planos/specs deixam de anunciar snapshots e execução intermediária como trabalho vivo.
 
@@ -44,13 +44,13 @@ de cada frase por esse arquivo. Supersessões e limites estão nos cabeçalhos/�
 | [0001](../../adr/0001-portal-login-supabase-auth.md) | supersedida parcialmente | `supabase/functions/portal-login/index.ts` |
 | [0002](../../adr/0002-portal-self-service-reconsolidation.md) | supersedida parcialmente | `src/services/portalBilling.ts` |
 | [0003](../../adr/0003-spa-react-rotas-lazy-camadas-page-hook-service.md) | aceito | `src/AppInterno.tsx` |
-| [0004](../../adr/0004-supabase-rls-rpc-fronteira-seguranca.md) | supersedida parcialmente | `supabase/migrations/002_business_logic_and_security.sql` |
+| [0004](../../adr/0004-supabase-rls-rpc-fronteira-seguranca.md) | estendida | `supabase/migrations/002_business_logic_and_security.sql` |
 | [0005](../../adr/0005-pipeline-importacao-viagem-staging-reconciliacao.md) | supersedida parcialmente | `src/services/blFreightImport.ts` |
 | [0006](../../adr/0006-revisao-operacional-reconciliacao-cliente-gate-faturamento.md) | supersedida parcialmente | `src/services/reviewBillingAutomation.ts` |
 | [0007](../../adr/0007-ledger-local-ciclo-vida-invoices.md) | supersedida parcialmente | `src/services/billingLedger.ts` |
 | [0008](../../adr/0008-demurrage-integrado-sem-unificar-persistencia.md) | supersedida parcialmente | `src/services/demurrage/demurrageInvoices.ts` |
 | [0009](../../adr/0009-hard-delete-controlado-bloqueios-fiscais-auditoria.md) | aceito | `src/services/deleteDependencies.ts` |
-| [0010](../../adr/0010-validacao-testes-deploy-gates.md) | supersedida parcialmente | `.github/workflows/ci.yml` |
+| [0010](../../adr/0010-validacao-testes-deploy-gates.md) | estendida | `.github/workflows/ci.yml` |
 | [0011](../../adr/0011-revogacao-anon-security-definer-default-deny.md) | supersedida parcialmente | `supabase/migrations/003_pos_squash_objetos_fora_do_dump.sql` |
 | [0012](../../adr/0012-viagens-master-detail-rota-dedicada.md) | aceito | `src/pages/Viagens.tsx` |
 | [0013](../../adr/0013-portal-auth-identificador-resolvido-e-excecao-anon.md) | supersedida parcialmente | `supabase/functions/portal-login/index.ts` |

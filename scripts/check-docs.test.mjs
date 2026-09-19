@@ -49,8 +49,14 @@ try {
   write('CLAUDE.md', '# Legacy\n')
   assert.match(run().stderr, /legacy root file still exists/)
   fs.unlinkSync(path.join(fixture, 'CLAUDE.md'))
+  write('src/AppInterno.tsx', '<Routes><Route path={DYNAMIC_ROUTE} /></Routes>')
+  const dynamic = run()
+  assert.notEqual(dynamic.status, 0)
+  assert.match(dynamic.stderr, /dynamic route path requires explicit documentation extraction/)
+  assert.doesNotMatch(dynamic.stderr, /at checkDocs|file:\/\//)
+  write('src/AppInterno.tsx', '<Routes><Route index /><Route path="/inspect/:id/*"><Route path="billing" /></Route></Routes>')
   assert.equal(run().status, 0)
-  console.log('check-docs: positive fixture and seven rejection scenarios passed.')
+  console.log('check-docs: positive fixture and eight rejection scenarios passed.')
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true })
 }
