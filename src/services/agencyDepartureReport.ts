@@ -52,10 +52,10 @@ export const AGENCY_REPORT_SECTION_LABELS: Record<AgencyReportSection, string> =
   // granito como seu conteúdo — não como seu nome." Renomear para "Granito"
   // foi listado como alternativa rejeitada ("vira mentira na primeira carga
   // de exportação que não for granito"). Decisão confirmada com o usuário em
-  // 2026-09-19. A função SQL agency_report_section_label (migration 002)
-  // ainda devolve 'Granito' para os alertas de seção pendente — pendente de
-  // migration própria (fora de arquivos que este agente pode editar sem
-  // autorização explícita adicional).
+  // 2026-09-19. A função SQL agency_report_section_label foi realinhada pela
+  // migration 065 (supersede o CASE de 'Granito' que a migration 258 havia
+  // gravado); os dois lados ficam sincronizados por
+  // agencyReportGraniteOwnershipMigration.test.ts.
   carga_carregada: 'Carga carregada',
   veiculos: 'Veículos',
   vazios_embarcados: 'Embarque de vazios',
