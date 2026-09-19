@@ -16,6 +16,16 @@ Use este documento para procedimentos técnicos. Consulte:
 Código, migrations e configuração executável são a evidência final quando um
 snapshot histórico diverge do estado atual.
 
+## Claude Code e `AGENTS.md`
+
+O Claude Code precisa do mod integrado `agents-md` habilitado para tratar
+`AGENTS.md` como instruções do projeto. Configure-o no arquivo de usuário
+`~/.claude/settings.json`; `.claude/settings.json` do projeto não configura a
+opção do mod. Use `instructionFiles` como `claude-md-or-agents-md` (fallback
+quando não há `CLAUDE.md`) ou `claude-md-and-agents-md` (carrega ambos). Depois
+da alteração, abra uma conversa nova ou execute `/clear`. Em versões sem esse
+mod, use temporariamente um `CLAUDE.md` com `@AGENTS.md`.
+
 ## 1. Stack verificada
 
 ### Frontend

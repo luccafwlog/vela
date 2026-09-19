@@ -113,3 +113,23 @@ Testes de integração não devem apontar para produção. Os critérios e o esc
 | [`test-fixtures/`](test-fixtures/) | Fixtures técnicas para testes de importação |
 
 As diretrizes para desenvolvimento assistido por IA estão em [`AGENTS.md`](AGENTS.md), fonte canônica de regras, salvaguardas e gates.
+
+### Claude Code
+
+O repositório não mantém um `CLAUDE.md` duplicado. Para que o Claude Code
+carregue `AGENTS.md`, habilite o mod integrado `agents-md` nas configurações do
+usuário (`~/.claude/settings.json`), usando `claude-md-or-agents-md` ou
+`claude-md-and-agents-md`. A configuração é do usuário, não do projeto:
+
+```json
+{
+  "pluginConfigs": {
+    "agents-md@builtin": {
+      "options": { "instructionFiles": "claude-md-or-agents-md" }
+    }
+  }
+}
+```
+
+Depois de alterar a opção, inicie uma conversa nova ou use `/clear`. O mod é
+documentado em [anthropics/claude-code](https://github.com/anthropics/claude-code/tree/main/mods/agents-md).

@@ -94,6 +94,31 @@ planos e specs"):
 
 ## Verification
 
+### Claude Code
+
+This repository keeps agent guidance in `AGENTS.md`. Claude Code loads that
+file only when its built-in `agents-md` mod is enabled in the user's settings
+with the `claude-md-or-agents-md` (default) or `claude-md-and-agents-md` mode.
+The setting belongs in `~/.claude/settings.json` or managed settings; do not
+put it in `.claude/settings.json`, because project settings are not read for
+this plugin option. The user-level entry is:
+
+```json
+{
+  "pluginConfigs": {
+    "agents-md@builtin": {
+      "options": { "instructionFiles": "claude-md-or-agents-md" }
+    }
+  }
+}
+```
+
+After changing the option, start a new conversation or use `/clear`. If the
+installed Claude Code version does not provide the built-in `agents-md` mod,
+keep a compatibility `CLAUDE.md` that imports `@AGENTS.md` instead of deleting
+the file. The official mod documentation is at
+`https://github.com/anthropics/claude-code/tree/main/mods/agents-md`.
+
 Choose checks by impact using `WORKFLOW.md` §11. Markdown-only changes need
 `npm run docs:check` and `git diff --check`; application changes need the
 relevant lint, tests and build gates. Keep successful results for unchanged
