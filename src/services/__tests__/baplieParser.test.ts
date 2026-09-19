@@ -126,6 +126,13 @@ describe('baplieParser — P0-1: indicador cheio/vazio (EQD 8169)', () => {
     const parsed = parseBaplieText(t)
     expect(parsed.issues.some((i) => i.field === 'status' && i.severity === 'error')).toBe(true)
   })
+
+  it('bloqueia indicador ausente em qualquer EQD consecutivo', () => {
+    const t = `${head}LOC+147+010101'LOC+9+CNTAO'LOC+11+BRVIX'EQD+CN+TCLU1234567+45G1+++5'EQD+CN+MSCU9999999+45G1+++''`
+    const parsed = parseBaplieText(t)
+    expect(parsed.containers).toHaveLength(2)
+    expect(parsed.issues.filter((i) => i.field === 'status' && i.severity === 'error')).toHaveLength(1)
+  })
 })
 
 describe('baplieParser — P0-2: unidade de peso do MEA (UN/ECE R20)', () => {

@@ -380,13 +380,13 @@ export function parseBaplieText(text: string): ParsedBaplie {
       // consecutivos. Preserve a validação histórica do conjunto no primeiro
       // equipamento, sem transformar a ausência de repetição nos seguintes em
       // uma troca silenciosa de atributos.
-      if (eqdPos === 0 && !fullEmptyCode) {
+      if (!fullEmptyCode || !['4', '5'].includes(fullEmptyCode)) {
         issues.push({
           row: group.order,
           field: 'status',
           code: 'invalid_group',
           severity: 'error',
-          message: `Container ${container_number}: indicador cheio/vazio (EQD 8169) ausente no conjunto ${group.order}.`,
+          message: `Container ${container_number}: indicador cheio/vazio (EQD 8169) ausente ou inválido no conjunto ${group.order}.`,
         })
       }
       if (eqdPos === 0 && (!ownPol.code || !ownPol.recognized)) {

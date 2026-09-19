@@ -102,4 +102,3 @@ export function veto(line: CostServiceLine, context: { depots?: StorageDepot[]; 
     ?? vetoPercentual(line)
     ?? vetoSegundaArmazenagem(line, context.lines ?? [])
 }
-

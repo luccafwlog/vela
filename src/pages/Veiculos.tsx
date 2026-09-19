@@ -224,7 +224,10 @@ export function Veiculos() {
     try {
       await setContainerUnpackingLocation(containerId, unpackingLocation)
       setUnpackingLocations((current) => ({ ...current, [containerId]: unpackingLocation ?? '' }))
-      await queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
+        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
+      ])
       showToast('Local de desova atualizado.', 'success')
     } catch (err) {
       setUnpackingLocations((current) => ({ ...current, [containerId]: currentValue ?? '' }))
@@ -254,7 +257,10 @@ export function Veiculos() {
         for (const containerId of containerIds) next[containerId] = value ?? ''
         return next
       })
-      await queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
+        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
+      ])
       showToast(`Local de desova aplicado a ${containerIds.length} container(s).`, 'success')
       setBulkDesovaOpen(false)
       setBulkDesovaValue('')

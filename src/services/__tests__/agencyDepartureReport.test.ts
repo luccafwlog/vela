@@ -201,8 +201,8 @@ describe('getAgencyReportDerivedData', () => {
     const breakbulkQuery = queryBuilder([
       // total_weight_kg é peso de contêiner e não entra na tonelagem de carga
       // solta: desde a migration 061 as duas colunas são disjuntas.
-      { bb_machine_qty: 2, bb_packages_qty: 8, bb_weight_ton: 3.5, total_weight_kg: 9999, bb_cbm: 12.25 },
-      { bb_machine_qty: 1, bb_packages_qty: 4, bb_weight_ton: 2.5, total_weight_kg: null, bb_cbm: 7.75 },
+      { cargo_mode: 'carga_solta', bb_machine_qty: 2, bb_packages_qty: 8, bb_weight_ton: 3.5, total_weight_kg: 9999, bb_cbm: 12.25 },
+      { cargo_mode: 'carga_solta', bb_machine_qty: 1, bb_packages_qty: 4, bb_weight_ton: 2.5, total_weight_kg: null, bb_cbm: 7.75 },
     ])
     fromMock.mockImplementation((table: string) => table === 'bls' ? breakbulkQuery : queryBuilder())
     schedulesMock.mockResolvedValue(new Map())

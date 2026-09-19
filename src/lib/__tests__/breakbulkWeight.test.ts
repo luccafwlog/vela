@@ -20,4 +20,8 @@ describe('breakbulkWeightTon', () => {
   it('bb_weight_ton = 0 e um valor explicito e prevalece sobre o fallback', () => {
     expect(breakbulkWeightTon({ bb_weight_ton: 0, total_weight_kg: 26800 })).toBe(0)
   })
+
+  it('não usa peso de contêiner como carga solta em B/L misto', () => {
+    expect(breakbulkWeightTon({ cargo_mode: 'misto', bb_weight_ton: null, total_weight_kg: 26800 })).toBe(0)
+  })
 })

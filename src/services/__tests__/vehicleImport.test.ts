@@ -529,7 +529,6 @@ describe('vehicleImport', () => {
     expect(result.errors[0]?.message).toContain('Mais de um container desta BL')
   })
 })
-
 describe('vehicleImport — P1-9: validação de chassi e teto de absurdo', () => {
   it('recusa chassi mais curto que os 17 caracteres do VIN (ISO 3779)', async () => {
     const buffer = jsonToBuffer([
@@ -610,4 +609,3 @@ describe('vehicleImport — P1-9: validação de chassi e teto de absurdo', () =
     expect(parsed.rowErrors[0]?.message).toContain('obrigatorios')
   })
 })
-
