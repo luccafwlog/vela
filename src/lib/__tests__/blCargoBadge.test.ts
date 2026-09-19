@@ -28,6 +28,9 @@ describe('formatBlCargoBadge', () => {
 
   it('cai para volumes e depois para itens quando não há peso', () => {
     expect(formatBlCargoBadge(makeBl({ cargo_mode: 'carga_solta', bb_packages_qty: 8 }))).toBe('8 vol')
+    expect(formatBlCargoBadge(makeBl({ cargo_mode: 'carga_solta', bb_packages_total: 15 }))).toBe('15 vol')
+    expect(formatBlCargoBadge(makeBl({ cargo_mode: 'carga_solta', bb_machine_qty: 4 }))).toBe('4 máq')
+    expect(formatBlCargoBadge(makeBl({ cargo_mode: 'carga_solta', bb_cbm: 50.5 }))).toBe('50,5 m³')
     expect(formatBlCargoBadge(makeBl({
       cargo_mode: 'carga_solta',
       bl_breakbulk_items: [{ id: 1 }, { id: 2 }],

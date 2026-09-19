@@ -20,7 +20,7 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
   const showBreakbulk = isBreakbulkCargoMode(bl.cargo_mode)
 
   return (
-    <tr data-row-detail className="bg-[var(--app-surface-muted)]">
+    <tr id={`bl-detail-${bl.id}`} data-row-detail className="bg-[var(--app-surface-muted)]">
       <td colSpan={colSpan} className="px-4 py-4">
         <div className="grid gap-5">
           {showContainers ? (
@@ -31,8 +31,8 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
               {containers.length ? (
                 <DetailTable
                   headers={['Número', 'Tipo', 'Lacre', 'Tara (kg)', 'Peso bruto (kg)', 'CBM', 'Perfil', 'Descarga']}
-                  rows={containers.map((container) => ({
-                    key: String(container.id),
+                  rows={containers.map((container, index) => ({
+                    key: String(container.id ?? container.container_number ?? index),
                     cells: [
                       <span className="font-semibold text-[var(--app-text-strong)]">{container.container_number || '—'}</span>,
                       container.type ?? '—',
@@ -70,8 +70,8 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
               {items.length ? (
                 <DetailTable
                   headers={['Descrição', 'Volumes', 'Unidade', 'Peso (kg)', 'CBM', 'Marcas']}
-                  rows={items.map((item) => ({
-                    key: String(item.id),
+                  rows={items.map((item, index) => ({
+                    key: String(item.id ?? `${item.item_description}-${index}`),
                     cells: [
                       <span className="font-semibold text-[var(--app-text-strong)]">{item.item_description || '—'}</span>,
                       formatOptionalNumber(item.package_qty),

@@ -333,7 +333,9 @@ describe('Página Bls (unificada)', () => {
 
     const openToggle = screen.getByRole('button', { name: 'Recolher carga do B/L BL-MISTO' })
     expect(openToggle.getAttribute('aria-expanded')).toBe('true')
-    expect(openToggle.getAttribute('aria-controls')).toBe('bl-detail-BL-MISTO')
+    const detailId = openToggle.getAttribute('aria-controls')
+    expect(detailId).toBe('bl-detail-BL-MISTO')
+    expect(document.getElementById(detailId!)).toBeTruthy()
   })
 
   it('recolhe a linha e devolve o painel ao estado fechado', async () => {

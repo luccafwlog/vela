@@ -220,8 +220,10 @@ function parseCarrierBreakbulkRows(
       ?? findNumberBeforeUnit(groupRows, /^CBMS?$/i, carrierFormat.format)
     const weightIssue = describeCarrierNumber('gross_weight_kg', candidateBl, rawWeight, readWeightKg, carrierFormat)
     const cbmIssue = describeCarrierNumber('cbm', candidateBl, rawCbm, readCbm, carrierFormat)
-    const grossWeightKg = weightIssue?.severity === 'error' ? 0 : readWeightKg ?? 0
-    const cbm = cbmIssue?.severity === 'error' ? 0 : readCbm ?? 0
+    const isWeightError = Boolean(weightIssue && (weightIssue.severity ?? 'error') === 'error')
+    const isCbmError = Boolean(cbmIssue && (cbmIssue.severity ?? 'error') === 'error')
+    const grossWeightKg = isWeightError ? 0 : readWeightKg ?? 0
+    const cbm = isCbmError ? 0 : readCbm ?? 0
 
     // Os layouts resumido e legado rejeitam a linha sem peso; o carrier aceitava
     // em silêncio e o B/L entrava sem peso nenhum, indistinguível de uma carga
@@ -648,23 +650,23 @@ function describeCarrierNumber(
 
   if (!hasNumber) {
     return isWeight
-      ? { message: `Coluna ${label}: peso bruto ausente para o BL ${blId}; a taxa por tonelada depende dele.` }
+      ? { message: `Coluna ${label}: peso bruto ausente para o BL ${blId}; a taxa por tonelada depende dele.`, severity: 'error' }
       : { message: `Coluna ${label}: cubagem ausente para o BL ${blId}.`, severity: 'warning' }
   }
   if (parsed === null) {
-    return { message: `Coluna ${label}: "${shown}" nao e um numero valido no formato lido (BL ${blId}).` }
+    return { message: `Coluna ${label}: "${shown}" nao e um numero valido no formato lido (BL ${blId}).`, severity: 'error' }
   }
   if (isWeight && parsed <= 0) {
-    return { message: `Coluna ${label}: peso bruto zerado para o BL ${blId}; a taxa por tonelada depende dele.` }
+    return { message: `Coluna ${label}: peso bruto zerado para o BL ${blId}; a taxa por tonelada depende dele.`, severity: 'error' }
   }
 
   if (isThousandsGroupShape(raw, resolved.format)) {
     const message = `${describeAmbiguity(field, raw, parsed, resolved.format)} (BL ${blId})`
-    return resolved.declared ? { message, severity: 'warning' } : { message }
+    return resolved.declared ? { message, severity: 'warning' } : { message, severity: 'error' }
   }
   const ceiling = NUMERIC_CEILINGS[field]
   if (ceiling && parsed > ceiling.max) {
-    return { message: `${describeCeiling(field, raw, parsed, ceiling)} (BL ${blId})` }
+    return { message: `${describeCeiling(field, raw, parsed, ceiling)} (BL ${blId})`, severity: 'error' }
   }
   return null
 }
@@ -1101,9 +1103,7 @@ function describeNumericProblem(field: string, raw: unknown, reason: 'empty' | '
 }
 
 function parseNumber(value: unknown, format: ImportNumberFormat = 'unknown') {
-  const text = typeof value === 'string'
-    ? value.trim().match(/^[+-]?\d[\d.,]*/)?.[0] ?? value.trim()
-    : value
+  const text = normalizeNumericText(value)
   const parsed = parseImportNumber(text, format)
   return parsed.kind === 'value' ? Number(parsed.decimal) : null
 }

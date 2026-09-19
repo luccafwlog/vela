@@ -16,8 +16,14 @@ function formatBreakbulkCargo(bl: BLListItem): string {
   const weightTon = Number(bl.bb_weight_ton ?? 0)
   if (weightTon > 0) return `${formatCargoNumber(weightTon)} ton`
 
-  const packages = Number(bl.bb_packages_qty ?? 0)
+  const packages = Number(bl.bb_packages_total ?? bl.bb_packages_qty ?? 0)
   if (packages > 0) return `${formatCargoNumber(packages)} vol`
+
+  const machines = Number(bl.bb_machine_qty ?? 0)
+  if (machines > 0) return `${formatCargoNumber(machines)} máq`
+
+  const cbm = Number(bl.bb_cbm ?? 0)
+  if (cbm > 0) return `${formatCargoNumber(cbm)} m³`
 
   const itemsCount = bl.bl_breakbulk_items?.length ?? 0
   return `${itemsCount} ${itemsCount === 1 ? 'item' : 'itens'}`

@@ -86,6 +86,25 @@ describe('layout carrier: peso e cubagem ilegíveis', () => {
     const cbmIssue = parsed.rowErrors.find((error) => /cubagem/i.test(error.message))
     expect(cbmIssue?.severity).toBe('warning')
   })
+
+  it('zera o peso no modelo do B/L quando há erro de ambiguidade não declarada no carrier', async () => {
+    const ambiguousCarrierCsv = [
+      'SHIPPER,MARKS,POL,DESCRIPTION OF GOODS,NUMBER OF PIECES,GROSS WEIGHT,MEASUREMENT',
+      'B/L NO.,MARKS AND NUMBERS,POD,DESCRIPTION OF GOODS,NUMBER OF PIECES,GROSS WEIGHT,MEASUREMENT',
+      'ABCD1234567,MARCA X,BRVIX,10 PACKAGES OF MACHINERY,10,"259,312","120.5"',
+    ].join('\n')
+
+    const parsed = await parseBreakbulkManifestBuffer(
+      new TextEncoder().encode(ambiguousCarrierCsv).buffer as ArrayBuffer,
+    )
+
+    const weightIssue = parsed.rowErrors.find((error) => /peso/i.test(error.message) || /PESO_KG/i.test(error.message))
+    expect(weightIssue).toBeDefined()
+    expect(weightIssue?.severity).toBe('error')
+
+    // Quando há erro bloqueante no peso, o peso não pode ser mantido nem multiplicado por mil
+    expect(parsed.bls[0]?.bb_weight_ton).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------
