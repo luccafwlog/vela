@@ -6,6 +6,10 @@
 achados P0, 4 P1 e 2 P2 em fluxos de Demurrage, faturamento local, rateio de
 containers, importação, ADR e invalidação de cache.
 
+Este relatório é complementar à [auditoria forense do núcleo de Operação
+Marítima](2026-09-19-auditoria-forense-nucleo-operacao-maritima.md). Em conjunto,
+as duas auditorias registram 3 achados P0, 9 P1, 2 P2 e 1 P3.
+
 O escopo foi auditado no commit `b136849a`, branch `main`, em 2026-09-19,
 com leitura estática do código, migrations e documentação normativa. Nenhum
 arquivo de aplicação foi alterado durante a auditoria.
@@ -171,8 +175,10 @@ arquivo de aplicação foi alterado durante a auditoria.
   execução, RLS ou concorrência em Postgres.
 - `git diff --check` passou e o worktree permaneceu limpo antes da criação da
   branch.
-- A suíte focada não executou porque o workspace não possui `node_modules`;
-  `npm test` falhou com `vitest: command not found`.
+- Na verificação local inicial, a suíte focada não executou porque o workspace
+  ainda não possuía `node_modules` (`vitest: command not found`). Depois da
+  instalação das dependências, a validação do CI executou a suíte completa com
+  sucesso.
 - Não houve execução contra Supabase local ou remoto.
 - O arquivo solicitado `src/services/demurrage/calculateDemurrage.ts` não existe;
   o cálculo efetivo foi auditado em `demurrageRates.ts` e nas RPCs SQL.
