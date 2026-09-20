@@ -57,8 +57,10 @@ export function Combobox({
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLUListElement>(null)
+  const pointerSelectedValueRef = useRef<string | null>(null)
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
   const listId = useId()
+  const optionId = useCallback((index: number) => `${listId}-option-${index}`, [listId])
 
   // Posiciona o dropdown em coordenadas de viewport (position: fixed) a partir do
   // input, para renderizá-lo num portal no body e escapar de `overflow:hidden` e
@@ -127,6 +129,14 @@ export function Combobox({
     }
   }, [open, options.length, loading, updateMenuPosition])
 
+  useEffect(() => {
+    if (!open || highlight < 0) return
+    const el = document.getElementById(optionId(highlight))
+    if (typeof el?.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest' })
+    }
+  }, [highlight, open, optionId])
+
   function handleSelect(option: ComboOption) {
     justSelectedRef.current = true
     setText(option.label)
@@ -134,6 +144,14 @@ export function Combobox({
     setOptions([])
     setHighlight(-1)
     onSelectOption?.(option)
+  }
+
+  function handlePointerSelect(option: ComboOption) {
+    pointerSelectedValueRef.current = option.value
+    handleSelect(option)
+    window.setTimeout(() => {
+      if (pointerSelectedValueRef.current === option.value) pointerSelectedValueRef.current = null
+    }, 0)
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
@@ -151,6 +169,7 @@ export function Combobox({
       }
     } else if (event.key === 'Escape') {
       setOpen(false)
+      setHighlight(-1)
     }
   }
 
@@ -165,6 +184,7 @@ export function Combobox({
         aria-expanded={open}
         aria-controls={listId}
         aria-autocomplete="list"
+        aria-activedescendant={open && highlight >= 0 ? optionId(highlight) : undefined}
         autoComplete="off"
         value={text}
         disabled={disabled}
@@ -191,24 +211,29 @@ export function Combobox({
           style={menuStyle}
         >
           {loading ? (
-            <li className="app-combobox__empty">Buscando…</li>
+            <li className="app-combobox__empty" role="status">Buscando…</li>
           ) : options.length === 0 ? (
-            <li className="app-combobox__empty">Nenhuma sugestão</li>
+            <li className="app-combobox__empty" role="status">Nenhuma sugestão</li>
           ) : (
             options.map((option, index) => (
-              <li key={`${option.value}-${index}`} role="option" aria-selected={index === highlight}>
-                <button
-                  type="button"
-                  className={`app-combobox__option${index === highlight ? ' app-combobox__option--active' : ''}`}
-                  onMouseDown={(event) => {
-                    event.preventDefault()
-                    handleSelect(option)
-                  }}
-                  onMouseEnter={() => setHighlight(index)}
-                >
+              <li
+                id={optionId(index)}
+                key={`${option.value}-${index}`}
+                role="option"
+                aria-selected={index === highlight}
+                className={`app-combobox__option${index === highlight ? ' app-combobox__option--active' : ''}`}
+                onMouseDown={(event) => { event.preventDefault(); handlePointerSelect(option) }}
+                onClick={() => {
+                  if (pointerSelectedValueRef.current === option.value) {
+                    pointerSelectedValueRef.current = null
+                    return
+                  }
+                  handleSelect(option)
+                }}
+                onMouseEnter={() => setHighlight(index)}
+              >
                   <span className="app-combobox__option-label">{option.label}</span>
                   {option.meta ? <span className="app-combobox__option-meta">{option.meta}</span> : null}
-                </button>
               </li>
             ))
           )}

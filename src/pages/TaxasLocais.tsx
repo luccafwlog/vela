@@ -23,17 +23,8 @@ import { exportInvoicesWorkbook } from '../services/exports'
 import { listFinancialAlerts } from '../services/alerts'
 import { queryKeys } from '../services/queryKeys'
 import { describeActiveFilters, describeEmptyState } from '../lib/operationalState'
+import { userFacingErrorMessage } from '../lib/errors'
 import { formatBRL } from '../lib/utils'
-
-function extractMessage(error: unknown, fallback: string): string {
-  if (!error) return fallback
-  if (typeof error === 'string') return error
-  if (typeof error === 'object') {
-    const msg = (error as { message?: string }).message
-    if (msg) return msg
-  }
-  return fallback
-}
 
 export function TaxasLocais() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -181,7 +172,7 @@ export function TaxasLocais() {
       await exportInvoicesWorkbook(rows)
       showToast(`Relatório exportado (${rows.length} fatura(s)).`, 'success')
     } catch (error) {
-      showToast(extractMessage(error, 'Falha ao exportar relatório.'), 'error')
+      showToast(userFacingErrorMessage(error, 'Falha ao exportar relatório.'), 'error')
     } finally {
       setExporting(false)
     }
@@ -257,6 +248,7 @@ export function TaxasLocais() {
             totalCount={data?.count ?? 0}
             filterDescription={filterDescription}
             emptyState={emptyState}
+            emptyAction={activeFilterCount > 0 ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button> : undefined}
             page={filters.page}
             totalPages={totalPages}
             onPageChange={(page) => updateFilter('page', page)}

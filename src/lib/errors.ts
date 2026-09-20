@@ -87,6 +87,7 @@ export function classifyDbError(error: unknown): ClassifiedDbError {
         : { code: '', message: '' }
   const known = ERROR_TABLE[fields.code]
   const raw = /permission denied for (?:table|view|function|relation|schema|sequence)/i.test(fields.message)
+    || /row-level security policy/i.test(fields.message)
     || /violates (?:check|not-null|foreign key|unique) constraint/i.test(fields.message)
   if (known) {
     const preserve = known.preserveMessage && fields.message && !raw
@@ -97,4 +98,17 @@ export function classifyDbError(error: unknown): ClassifiedDbError {
     return { kind: permissao.kind, message: permissao.message }
   }
   return { kind: 'desconhecido', message: fields.message || 'Falha inesperada. Tente novamente.' }
+}
+
+/**
+ * Mensagem segura para superfícies voltadas à pessoa usuária. Erros conhecidos
+ * preservam a orientação de negócio; falhas desconhecidas nunca vazam texto de
+ * banco, RPC ou infraestrutura.
+ */
+export function userFacingErrorMessage(
+  error: unknown,
+  fallback = 'Não foi possível concluir a operação. Tente novamente.',
+): string {
+  const classified = classifyDbError(error)
+  return classified.kind === 'desconhecido' ? fallback : classified.message
 }

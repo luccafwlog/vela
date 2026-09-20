@@ -8,6 +8,7 @@ import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
+import { SkeletonTable } from '../components/ui/Skeleton'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
@@ -22,6 +23,7 @@ import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { checkContainerDependencies, deleteContainers } from '../services/containers'
 import { formatBlockedSummary } from '../services/deleteDependencies'
 import { type ContainerFilters, fetchAllContainers, useContainers, usePortOptions, useContainerTypeOptions } from '../hooks/useBls'
+import { userFacingErrorMessage } from '../lib/errors'
 
 export function Containers() {
   const queryClient = useQueryClient()
@@ -179,7 +181,7 @@ export function Containers() {
       ])
       showToast(`${report.deletableIds.length} container(es) excluido(s).`, 'success')
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'erro desconhecido'
+      const detail = userFacingErrorMessage(err, 'Não foi possível excluir os containers selecionados.')
       showToast(`Falha ao excluir container(es): ${detail}`, 'error')
     } finally {
       setDeleting(false)
@@ -189,6 +191,7 @@ export function Containers() {
   const pageContainerIds = (data?.rows ?? []).map((row) => row.id)
   const allPageSelected = pageContainerIds.length > 0 && pageContainerIds.every((id) => selection.isSelected(id))
   const containerColumnCount = isAdmin ? 11 : 10
+  const containerSkeletonTemplate = `${isAdmin ? '44px ' : ''}1.2fr repeat(9, 1fr)`
 
   return (
     <>
@@ -390,15 +393,21 @@ export function Containers() {
             <tbody className="divide-y divide-[#30363d]">
               {isLoading ? (
                 <tr>
-                  <td colSpan={containerColumnCount} className="px-4 py-8 text-center text-slate-400">
-                    Carregando containers...
+                  <td colSpan={containerColumnCount} className="p-0">
+                    <SkeletonTable rows={8} cols={containerColumnCount} columnTemplate={containerSkeletonTemplate} label="Carregando containers" />
                   </td>
                 </tr>
               ) : null}
               {!isLoading && data?.rows.length === 0 ? (
                 <tr>
                   <td colSpan={containerColumnCount} className="p-0">
-                    <EmptyState title="Nenhum container encontrado." description="Ajuste os filtros de viagem ou POD." />
+                    <EmptyState
+                      title="Nenhum container encontrado."
+                      description="Ajuste os filtros de viagem ou POD."
+                      action={activeFilterCount > 0
+                        ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>
+                        : <Link className="app-btn app-btn--secondary" to="/bls">Ir para B/Ls</Link>}
+                    />
                   </td>
                 </tr>
               ) : null}
@@ -487,7 +496,6 @@ export function Containers() {
             pageSize={filters.pageSize}
             totalCount={data?.count ?? 0}
             totalPages={totalPages}
-            countLabel={`${data?.count ?? 0} containers`}
             onPageChange={(page) => updateFilter('page', page)}
             onPageSizeChange={(pageSize) => updateFilter('pageSize', pageSize)}
           />

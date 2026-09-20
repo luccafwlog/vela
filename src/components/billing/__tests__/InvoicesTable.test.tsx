@@ -35,6 +35,23 @@ const baseInvoice: InvoiceListRow = {
 }
 
 describe('InvoicesTable', () => {
+  it('oferece ação no vazio e alinha a coluna financeira à direita', () => {
+    render(
+      <MemoryRouter>
+        <InvoicesTable invoices={[]} isLoading={false} error={null} totalCount={0} filterDescription="" emptyState={{ title: 'Nenhuma fatura' }} emptyAction={<button>Limpar filtros</button>} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={vi.fn()} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('button', { name: 'Limpar filtros' })).toBeTruthy()
+
+    cleanup()
+    render(
+      <MemoryRouter>
+        <InvoicesTable invoices={[baseInvoice]} isLoading={false} error={null} totalCount={1} filterDescription="" emptyState={{ title: 'Nenhuma fatura' }} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={vi.fn()} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('columnheader', { name: 'Financeiro' }).className).toContain('text-right')
+  })
+
   it('aponta o número do BL para a ficha do B/L', () => {
     render(
       <MemoryRouter>

@@ -68,10 +68,10 @@ export class ErrorBoundary extends Component<Props, State> {
               <p className="mb-4 text-sm text-[var(--app-muted)]">
                 Ocorreu um erro inesperado nesta página. As demais áreas do sistema continuam funcionando.
               </p>
-              <details className="mb-4 rounded-lg bg-[var(--app-surface)] p-3 text-left text-xs text-[var(--app-muted)]">
+              {import.meta.env.DEV ? <details className="mb-4 rounded-lg bg-[var(--app-surface)] p-3 text-left text-xs text-[var(--app-muted)]">
                 <summary className="cursor-pointer font-semibold">Detalhe técnico</summary>
                 <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap">{this.state.error.message}</pre>
-              </details>
+              </details> : null}
               <div className="flex justify-center gap-3">
                 <a href="/painel" className="app-btn app-btn--secondary">Voltar ao Painel</a>
                 <button type="button" className="app-btn app-btn--primary" onClick={() => window.location.reload()}>
@@ -90,10 +90,10 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="mb-4 text-sm text-slate-400">
               Algo deu errado. Recarregue a página para continuar.
             </p>
-            <details className="mb-4 rounded-lg bg-[#0d1117] p-3 text-left text-xs text-slate-400">
+            {import.meta.env.DEV ? <details className="mb-4 rounded-lg bg-[#0d1117] p-3 text-left text-xs text-slate-400">
               <summary className="cursor-pointer font-semibold">Detalhe técnico</summary>
               <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap">{this.state.error.message}</pre>
-            </details>
+            </details> : null}
             <button
               className="rounded-lg bg-[#21262d] px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-[#30363d]"
               onClick={() => window.location.reload()}

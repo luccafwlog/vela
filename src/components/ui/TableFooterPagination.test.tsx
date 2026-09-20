@@ -7,6 +7,17 @@ import { describe, expect, it, vi } from 'vitest'
 import { TableFooterPagination } from './TableFooterPagination'
 
 describe('TableFooterPagination', () => {
+  it('informa o intervalo visível e o total', () => {
+    render(<TableFooterPagination page={2} pageSize={50} totalCount={340} totalPages={7} onPageChange={vi.fn()} />)
+    expect(screen.getByText('Exibindo 51–100 de 340')).toBeTruthy()
+    expect(screen.getByText('Página 2 de 7')).toBeTruthy()
+  })
+
+  it('calcula o intervalo quando a paginação começa em zero', () => {
+    render(<TableFooterPagination page={1} pageBase={0} pageSize={20} totalCount={35} totalPages={2} onPageChange={vi.fn()} />)
+    expect(screen.getByText('Exibindo 21–35 de 35')).toBeTruthy()
+  })
+
   it('disables previous and next at the limits', () => {
     const onPageChange = vi.fn()
 
@@ -40,5 +51,13 @@ describe('TableFooterPagination', () => {
     await userEvent.selectOptions(screen.getByRole('combobox'), '50')
 
     expect(onPageSizeChange).toHaveBeenCalledWith(50)
+  })
+
+  it('exibe estado de lista vazia e desabilita navegação quando totalCount for zero', () => {
+    render(<TableFooterPagination page={1} pageSize={20} totalCount={0} totalPages={0} onPageChange={vi.fn()} />)
+    expect(screen.getByText('Nenhum registro')).toBeTruthy()
+    expect(screen.getByText('Página 0 de 0')).toBeTruthy()
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Anterior' }).disabled).toBe(true)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Próxima' }).disabled).toBe(true)
   })
 })

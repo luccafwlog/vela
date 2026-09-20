@@ -59,7 +59,7 @@ export function DepartmentSignoffControl({
       {compact ? <span className={`app-badge ${signed ? 'app-badge--green' : 'app-badge--yellow'}`}>{signed ? 'Assinado' : 'Aguardando assinatura'}</span> : null}
       {canSignoff ? (
         <Button
-          variant={signed ? 'secondary' : 'primary'}
+          variant={signed ? 'danger' : 'primary'}
           className={compact ? 'app-btn--sm' : undefined}
           disabled={isPending || (!signed && sectionsPending)}
           title={!signed && sectionsPending ? 'Resolva todas as seções do departamento (ou marque "Nada a declarar") para assinar.' : undefined}
@@ -89,7 +89,7 @@ export function DepartmentSignoffControl({
         ) : null}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" onClick={closeAction}>Cancelar</Button>
-          <Button variant="primary" disabled={action === 'reopen' && !justification.trim()} onClick={confirmAction}>Confirmar</Button>
+          <Button variant={action === 'reopen' ? 'danger' : 'primary'} disabled={action === 'reopen' && !justification.trim()} onClick={confirmAction}>Confirmar</Button>
         </div>
       </Modal>
     </div>

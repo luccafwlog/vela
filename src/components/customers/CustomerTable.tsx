@@ -150,7 +150,6 @@ export function CustomerTable({
             pageSize={filters.pageSize}
             totalCount={data?.totalCount ?? 0}
             totalPages={totalPages}
-            countLabel={`${data?.totalCount ?? 0} clientes`}
             onPageChange={onPageChange}
           />
         ) : null}

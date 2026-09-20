@@ -412,7 +412,6 @@ export function VaziosImportacao() {
           pageSize={filters.pageSize}
           totalCount={data?.count ?? 0}
           totalPages={totalPages}
-          countLabel={`${data?.count ?? 0} registros`}
           onPageChange={(page) => updateFilter('page', page)}
         />
       </Card>

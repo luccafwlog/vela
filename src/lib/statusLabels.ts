@@ -83,6 +83,6 @@ export const ESTADO_CONCILIACAO_META: Record<
 
 export const VOYAGE_STATUS_BADGE_TONE: Record<string, BadgeTone> = {
   active: 'blue',
-  completed: 'slate',
+  completed: 'green',
   cancelled: 'red',
 }

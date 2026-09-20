@@ -31,17 +31,10 @@ import { buildInvoiceFileBaseName, describeInvoiceItemsFreezeNote, describeUsdCo
 import { formatValidationError, manualInvoiceChargeSchema, paymentFormSchema } from '../../services/financialValidation'
 import { logOperationalEvent } from '../../services/operationalEvents'
 import { formatBRL, formatDate, stripBlPrefix } from '../../lib/utils'
+import { userFacingErrorMessage } from '../../lib/errors'
 import { isLedgerInvoicePayable } from '../../pages/faturamentoLedgerPayment'
 import { invoiceStatusLabel, isOpenInvoiceStatus } from '../../pages/faturamentoInvoiceStatus'
 import { printDocumentElement } from '../../lib/printDocument'
-import { classifyDbError } from '../../lib/errors'
-
-function extractMessage(error: unknown, fallback: string): string {
-  if (!error) return fallback
-  const classified = classifyDbError(error)
-  if (classified.kind !== 'desconhecido') return classified.message
-  return (typeof error === 'string' ? error : (error as { message?: string })?.message) || fallback
-}
 
 type PaymentMethod = 'pix' | 'ted' | 'doc' | 'boleto' | 'outros'
 
@@ -152,7 +145,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       setLedgerPaymentRequestId(null)
       showToast('Pagamento registrado.', 'success')
     } catch (error) {
-      const msg = extractMessage(error, 'Falha ao registrar pagamento.')
+      const msg = userFacingErrorMessage(error, 'Falha ao registrar pagamento.')
       showToast(msg, 'error')
       void logOperationalEvent({ code: 'invoice_payment_invalid', message: msg, changedBy: user?.id ?? null, entityId: String(invoiceId ?? '') })
     }
@@ -185,7 +178,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       setChargeNotes('')
       showToast('Item adicionado a fatura.', 'success')
     } catch (error) {
-      showToast(extractMessage(error, 'Falha ao adicionar item.'), 'error')
+      showToast(userFacingErrorMessage(error, 'Falha ao adicionar item.'), 'error')
     }
   }
 
@@ -201,7 +194,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       await deleteChargeMutation.mutateAsync({ itemId, actorId: user?.id ?? null })
       showToast('Item removido da fatura.', 'success')
     } catch (error) {
-      showToast(extractMessage(error, 'Falha ao remover item.'), 'error')
+      showToast(userFacingErrorMessage(error, 'Falha ao remover item.'), 'error')
     }
   }
 
@@ -209,7 +202,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
     if (!invoiceId) return
     const reason = cancelReason.trim()
     if (!reason) {
-      showToast('Informe a justificativa para cancelar a invoice.', 'error')
+      showToast('Informe a justificativa para cancelar a fatura.', 'error')
       return
     }
     try {
@@ -219,9 +212,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
         actorId: user?.id ?? null,
       })
       setCancelReason('')
-      showToast('Invoice cancelada.', 'success')
+      showToast('Fatura cancelada.', 'success')
     } catch (error) {
-      const msg = extractMessage(error, 'Falha ao cancelar invoice.')
+      const msg = userFacingErrorMessage(error, 'Falha ao cancelar fatura.')
       showToast(msg, 'error')
       void logOperationalEvent({ code: 'invoice_cancel_blocked', message: msg, changedBy: user?.id ?? null, entityId: String(invoiceId ?? '') })
     }
@@ -240,7 +233,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       showToast('Baixa cancelada.', 'success')
       onClose()
     } catch (error) {
-      showToast(extractMessage(error, 'Falha ao cancelar a baixa.'), 'error')
+      showToast(userFacingErrorMessage(error, 'Falha ao cancelar a baixa.'), 'error')
     } finally {
       setReversalLoading(false)
     }
@@ -251,7 +244,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       await settleRefundMutation.mutateAsync(refundId)
       showToast('Estorno marcado como efetuado.', 'success')
     } catch (error) {
-      showToast(extractMessage(error, 'Falha ao marcar o estorno como efetuado.'), 'error')
+      showToast(userFacingErrorMessage(error, 'Falha ao marcar o estorno como efetuado.'), 'error')
     }
   }
 
@@ -263,7 +256,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
 
   return (
     <>
-      <Modal open={Boolean(invoiceId)} onClose={onClose} title={`Detalhe da invoice ${detailQuery.data?.invoice?.invoice_number ?? invoiceId ?? ''}`}>
+      <Modal open={Boolean(invoiceId)} onClose={onClose} title={`Detalhe da fatura ${detailQuery.data?.invoice?.invoice_number ?? invoiceId ?? ''}`}>
         <div className="grid gap-5">
           {detailQuery.isLoading ? <div className="p-4"><SkeletonTable rows={3} cols={3} /></div> : null}
           {detailQuery.error ? <div className="text-sm text-red-200">Falha ao carregar detalhe.</div> : null}
@@ -309,7 +302,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
               </Card>
               <Card className="overflow-hidden p-0">
                 <div className="border-b border-[#30363d] px-4 py-3">
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Itens da invoice</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Itens da fatura</h2>
                   <p className="mt-1 text-xs text-slate-500">{describeInvoiceItemsFreezeNote(detailQuery.data.invoice)}</p>
                 </div>
                 {canEditCharges ? (
@@ -468,7 +461,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                               ) : refund.status === 'pending' ? (
                                 <span className="text-xs text-slate-500">Aguardando Financeiro</span>
                               ) : (
-                                <Badge tone="slate">Cancelada</Badge>
+                                <Badge tone="red">Cancelada</Badge>
                               )}
                             </td>
                             <td className="px-3 py-2">{refund.settled_at ? formatDate(refund.settled_at) : '—'}</td>
@@ -566,7 +559,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                     </Button>
                   </div>
                 </Card>
-                <Card><h2 className="mb-3 text-base font-semibold text-white">Cancelar invoice</h2><Field label="Motivo"><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></Field><div className="mt-4 flex justify-end"><Button variant="danger" loading={cancelInvoiceMutation.isPending} disabled={detailQuery.data.payments.length > 0 || !cancelReason.trim()} onClick={handleCancelInvoice}><Ban size={16} />Cancelar invoice</Button></div></Card>
+                <Card><h2 className="mb-3 text-base font-semibold text-white">Cancelar fatura</h2><Field label="Motivo"><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></Field><div className="mt-4 flex justify-end"><Button variant="danger" loading={cancelInvoiceMutation.isPending} disabled={detailQuery.data.payments.length > 0 || !cancelReason.trim()} onClick={handleCancelInvoice}><Ban size={16} />Cancelar fatura</Button></div></Card>
               </div>
               )}
             </>

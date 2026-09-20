@@ -127,7 +127,6 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
           pageSize={BILLING_PAGE_SIZE}
           totalCount={totalCount}
           totalPages={totalPages}
-          countLabel={`${safePage * BILLING_PAGE_SIZE + 1}-${Math.min(safePage * BILLING_PAGE_SIZE + invoices.length, totalCount)} de ${totalCount}`}
           onPageChange={onPageChange}
         />
       ) : null}
@@ -251,7 +250,6 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
           pageSize={BILLING_PAGE_SIZE}
           totalCount={totalCount}
           totalPages={totalPages}
-          countLabel={`${safePage * BILLING_PAGE_SIZE + 1}-${Math.min(safePage * BILLING_PAGE_SIZE + invoices.length, totalCount)} de ${totalCount}`}
           onPageChange={onPageChange}
         />
       ) : null}

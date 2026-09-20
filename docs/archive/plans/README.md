@@ -8,6 +8,10 @@ no [CHANGELOG](../../CHANGELOG.md); planos vivos ficam em
 
 ## Conteúdo
 
+- [`2026-09-20-remediacao-ui-design-system.md`](2026-09-20-remediacao-ui-design-system.md)
+  — remediação dos 15 achados da auditoria forense de UI, design system e
+  acessibilidade nas superfícies Vela e Portal Fwlog; testes de primitives,
+  navegação, estados operacionais e gates completos registrados na PR.
 - [`2026-09-20-remediacao-clientes-revisao-comunicacao`](2026-09-20-remediacao-clientes-revisao-comunicacao.md)
   — segurança dos comunicados, serialização financeira, revisão otimista,
   saldo canônico, fila completa e preview explícito da importação. Migration `070`.

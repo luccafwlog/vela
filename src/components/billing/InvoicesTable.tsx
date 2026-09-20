@@ -22,6 +22,7 @@ type InvoicesTableProps = {
   totalCount: number
   filterDescription: string
   emptyState: { title: string; description?: string }
+  emptyAction?: React.ReactNode
   page: number
   totalPages: number
   onPageChange: (page: number) => void
@@ -36,6 +37,7 @@ export function InvoicesTable({
   totalCount,
   filterDescription,
   emptyState,
+  emptyAction,
   page,
   totalPages,
   onPageChange,
@@ -51,10 +53,10 @@ export function InvoicesTable({
       {error ? <InlineError message="Erro ao carregar faturamento." /> : null}
       <div className="app-table-scroll app-table-scroll--sticky">
         <table className={`app-table app-table--compact ${showCommunication ? 'min-w-[1440px]' : 'min-w-[1200px]'} text-left text-sm`}>
-          <thead><tr><th scope="col" className="px-4 py-3">Número do BL</th><th scope="col" className="px-4 py-3">Fatura</th><th scope="col" className="px-4 py-3">Tipo</th><th scope="col" className="px-4 py-3">Navio / Viagem · POD</th><th scope="col" className="px-4 py-3">Emissão</th><th scope="col" className="px-4 py-3">Pagamento</th><th scope="col" className="px-4 py-3">Financeiro</th><th scope="col" className="px-4 py-3">Status</th>{showCommunication ? <th scope="col" className="px-4 py-3">Comunicação financeira</th> : null}<th scope="col" className="px-4 py-3">Ações</th></tr></thead>
+          <thead><tr><th scope="col" className="px-4 py-3">Número do BL</th><th scope="col" className="px-4 py-3">Fatura</th><th scope="col" className="px-4 py-3">Tipo</th><th scope="col" className="px-4 py-3">Navio / Viagem · POD</th><th scope="col" className="px-4 py-3">Emissão</th><th scope="col" className="px-4 py-3">Pagamento</th><th scope="col" className="px-4 py-3 text-right">Financeiro</th><th scope="col" className="px-4 py-3">Status</th>{showCommunication ? <th scope="col" className="px-4 py-3">Comunicação financeira</th> : null}<th scope="col" className="px-4 py-3">Ações</th></tr></thead>
           <tbody>
             {isLoading ? <tr><td colSpan={showCommunication ? 10 : 9} className="p-0"><SkeletonTable rows={6} cols={showCommunication ? 10 : 9} /></td></tr> : null}
-            {!isLoading && invoices.length === 0 ? <tr><td colSpan={showCommunication ? 10 : 9} className="p-0"><EmptyState title={emptyState.title} description={emptyState.description} /></td></tr> : null}
+            {!isLoading && invoices.length === 0 ? <tr><td colSpan={showCommunication ? 10 : 9} className="p-0"><EmptyState title={emptyState.title} description={emptyState.description} action={emptyAction} /></td></tr> : null}
             {invoices.map((invoice) => {
               const bls = getInvoiceBls(invoice)
               const consolidated = isConsolidatedInvoice(invoice)
@@ -92,7 +94,7 @@ export function InvoicesTable({
                 </td>
                 <td className="px-4 py-3">{formatDate(invoice.issued_at)}</td>
                 <td className="px-4 py-3">{paymentDate ? formatDate(paymentDate) : <span className="text-slate-500">—</span>}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 text-right tabular-nums">
                   <div className="app-table__cell-stack">
                     <div className="app-table__cell-value app-table__cell-value--financial">Total {formatBRL(invoice.total_brl)}</div>
                     <div className="app-table__cell-meta">Pago {formatBRL(invoice.total_paid_brl)}</div>

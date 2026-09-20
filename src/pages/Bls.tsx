@@ -46,6 +46,7 @@ import { afterManifestoImportado } from '../services/cacheEffects'
 import { inspectImportUpload } from '../services/importText'
 import { rowErrorsToImportIssues } from '../services/importValidation'
 import type { InvoiceLinkInfo } from '../services/billing'
+import { userFacingErrorMessage } from '../lib/errors'
 
 function InvoiceLink({ links }: { links: InvoiceLinkInfo[] }) {
   if (!links.length) return <span>-</span>
@@ -280,7 +281,7 @@ export function Bls() {
       ])
       showToast(`${report.deletableIds.length} B/L(s) excluído(s).`, 'success')
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'erro desconhecido'
+      const detail = userFacingErrorMessage(err, 'Não foi possível excluir os B/Ls selecionados.')
       showToast(`Falha ao excluir B/L(s): ${detail}`, 'error')
     } finally {
       setDeleting(false)
@@ -292,6 +293,7 @@ export function Bls() {
   // Uma constante só: o cabeçalho, o colSpan do estado vazio, o do skeleton e o
   // da linha de detalhe têm de concordar, e antes o número era escrito à mão.
   const blColumnCount = BASE_BL_COLUMNS + (isAdmin ? 1 : 0)
+  const blSkeletonTemplate = `${isAdmin ? '44px ' : ''}44px 1.2fr 1.2fr 1.4fr 1.6fr repeat(6, 1fr) 96px`
   const showBreakbulkMetrics = filters.cargoMode !== 'container'
 
   return (
@@ -530,7 +532,7 @@ export function Bls() {
                 <th scope="col" className="px-3 py-3">Carga</th>
                 <th scope="col" className="px-3 py-3">Perfil</th>
                 <th scope="col" className="px-3 py-3">Taxas locais</th>
-                <th scope="col" className="px-3 py-3">Invoice</th>
+                <th scope="col" className="px-3 py-3">Fatura</th>
                 <th scope="col" className="px-3 py-3">Ações</th>
               </tr>
             </thead>
@@ -538,14 +540,20 @@ export function Bls() {
               {isLoading ? (
                 <tr>
                   <td colSpan={blColumnCount} className="p-0">
-                    <SkeletonTable rows={8} cols={6} />
+                    <SkeletonTable rows={8} cols={blColumnCount} columnTemplate={blSkeletonTemplate} label="Carregando B/Ls" />
                   </td>
                 </tr>
               ) : null}
               {!isLoading && data?.rows.length === 0 ? (
                 <tr>
                   <td colSpan={blColumnCount} className="p-0">
-                    <EmptyState title={emptyState.title} description={emptyState.description} />
+                    <EmptyState
+                      title={emptyState.title}
+                      description={emptyState.description}
+                      action={activeFilterCount > 0
+                        ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>
+                        : canImport ? <Button onClick={() => setBlFreightOpen(true)}>Importar B/L CNTR</Button> : undefined}
+                    />
                   </td>
                 </tr>
               ) : null}
@@ -664,7 +672,6 @@ export function Bls() {
             pageSize={filters.pageSize}
             totalCount={data?.count ?? 0}
             totalPages={totalPages}
-            countLabel={`${data?.count ?? 0} B/Ls`}
             onPageChange={(page) => updateFilter('page', page)}
             onPageSizeChange={(pageSize) => updateFilter('pageSize', pageSize)}
           />
@@ -871,7 +878,7 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
             <tr>
               {['BL', 'CE', 'Máquinas', 'Volumes', 'Total de volumes', 'Peso (ton)', 'CBM (M3)', 'Shipper', 'Consignee', 'Notify'].map(
                 (label) => (
-                  <th key={label} scope="col" className="px-3 py-2">
+                  <th key={label} scope="col" className={`px-3 py-2 ${['Máquinas', 'Volumes', 'Total de volumes', 'Peso (ton)', 'CBM (M3)'].includes(label) ? 'text-right' : ''}`}>
                     {label}
                   </th>
                 ),
@@ -883,13 +890,13 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
               <tr key={bl.bl_id}>
                 <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{bl.bl_id}</td>
                 <td className="px-3 py-2">{bl.ce_mercante ?? '-'}</td>
-                <td className="px-3 py-2">{formatBBNumber(bl.bb_machine_qty)}</td>
-                <td className="px-3 py-2">{formatBBNumber(bl.bb_packages_qty)}</td>
-                <td className="px-3 py-2">{formatBBNumber(bl.bb_packages_total)}</td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_machine_qty)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_packages_qty)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_packages_total)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
                   {formatBBNumber(bl.bb_weight_ton)}
                 </td>
-                <td className="px-3 py-2">{formatBBNumber(bl.bb_cbm)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_cbm)}</td>
                 <td className="px-3 py-2">{bl.shipper ?? '-'}</td>
                 <td className="px-3 py-2">{bl.consignee ?? '-'}</td>
                 <td className="px-3 py-2">{bl.notify_party ?? '-'}</td>

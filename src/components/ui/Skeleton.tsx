@@ -15,15 +15,15 @@ export function SkeletonCard({ lines = 3, className }: { lines?: number; classNa
   )
 }
 
-export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+export function SkeletonTable({ rows = 5, cols = 4, columnTemplate, label = 'Carregando tabela' }: { rows?: number; cols?: number; columnTemplate?: string; label?: string }) {
   return (
-    <div style={{ padding: '0 4px' }}>
+    <div style={{ padding: '0 4px' }} aria-busy="true" aria-label={label}>
       {Array.from({ length: rows }, (_, r) => (
         <div
           key={r}
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${cols}, 1fr)`,
+            gridTemplateColumns: columnTemplate ?? `repeat(${cols}, 1fr)`,
             gap: 12,
             padding: '12px 16px',
             borderBottom: '1px solid var(--app-border)',

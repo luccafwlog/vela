@@ -26,7 +26,7 @@ describe('invoiceStatusLabel', () => {
 describe('invoiceStatusTone', () => {
   it('mapeia tom de cor coerente com o rótulo', () => {
     expect(invoiceStatusTone('paid')).toBe('green')
-    expect(invoiceStatusTone('cancelled')).toBe('slate')
+    expect(invoiceStatusTone('cancelled')).toBe('red')
     expect(invoiceStatusTone('issued')).toBe('blue')
     expect(invoiceStatusTone(null)).toBe('blue')
   })
