@@ -134,6 +134,13 @@ CREATE FUNCTION public.import_bl_freight_transactional(p_bls jsonb, p_changed_by
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_bl_id text;
 BEGIN
+  -- A entrada precisa negar uma sessão Portal antes de inspecionar o payload;
+  -- além de preservar a fronteira do núcleo legado, isso evita vazar erros de
+  -- estrutura para chamadores sem autorização.
+  IF auth.uid() IS NULL OR NOT public.is_active_user() OR p_changed_by IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'Credenciais invalidas para importar frete do BL.' USING ERRCODE = '42501';
+  END IF;
+
   FOR v_bl_id IN SELECT DISTINCT value->>'id' FROM jsonb_array_elements(coalesce(p_bls, '[]'::jsonb)) ORDER BY 1
   LOOP
     IF nullif(v_bl_id, '') IS NOT NULL THEN
