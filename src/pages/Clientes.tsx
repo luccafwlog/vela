@@ -30,7 +30,7 @@ import { escapeFilterTerm, formatBRL, formatCountLabel } from '../lib/utils'
 import { isValidCnpj } from '../lib/cnpj'
 import { getCustomerFilterChips, type CustomerSortKey } from '../lib/customerTableViewModel'
 import { BLS_OF_CUSTOMER } from '../lib/supabaseEmbeds'
-import { importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
+import { compareCustomerBaseWithExisting, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
 import { checkCustomerDependencies, createCustomer, deleteCustomers, fetchIssuedInvoiceBalanceByCustomer } from '../services/customers'
 import { formatBlockedSummary } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
@@ -225,7 +225,7 @@ export function Clientes() {
 
     setParsingBase(true)
     try {
-      const parsed = await parseCustomerBaseFile(nextFile)
+      const parsed = await compareCustomerBaseWithExisting(await parseCustomerBaseFile(nextFile))
       setParsedBase(parsed)
       showToast(
         parsed.rowErrors.length

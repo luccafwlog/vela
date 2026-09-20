@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   useCustomers: vi.fn(),
   createCustomer: vi.fn(),
   parseCustomerBaseFile: vi.fn(),
+  compareCustomerBaseWithExisting: vi.fn(),
   importCustomerBaseRows: vi.fn(),
   checkCustomerDependencies: vi.fn(),
   deleteCustomers: vi.fn(),
@@ -54,9 +55,11 @@ vi.mock('../../services/customers', () => ({
   checkCustomerDependencies: mocks.checkCustomerDependencies,
   deleteCustomers: mocks.deleteCustomers,
   fetchIssuedInvoiceBalanceByCustomer: vi.fn(() => Promise.resolve(new Map())),
+  fetchCustomerPendingBalance: vi.fn(() => Promise.resolve({ localBrl: 0, demurrageBrl: 0, totalBrl: 0 })),
 }))
 vi.mock('../../services/customerBase', () => ({
   parseCustomerBaseFile: mocks.parseCustomerBaseFile,
+  compareCustomerBaseWithExisting: mocks.compareCustomerBaseWithExisting,
   importCustomerBaseRows: mocks.importCustomerBaseRows,
 }))
 vi.mock('../../services/exports', () => ({ exportCustomerBaseWorkbook: mocks.exportCustomerBaseWorkbook }))
@@ -115,6 +118,7 @@ describe('Clientes page behaviours', () => {
     }))
     mocks.createCustomer.mockResolvedValue({ cnpj_cpf: '12345678000195' })
     mocks.parseCustomerBaseFile.mockResolvedValue(parsedBase)
+    mocks.compareCustomerBaseWithExisting.mockResolvedValue(parsedBase)
     mocks.importCustomerBaseRows.mockResolvedValue({ imported: 1, updated: 0, contactsCreated: 1, blsLinked: 1 })
     mocks.checkCustomerDependencies.mockResolvedValue({ deletableIds: [42], blockedIds: [] })
     mocks.deleteCustomers.mockResolvedValue(undefined)
@@ -185,6 +189,7 @@ describe('Clientes page behaviours', () => {
 
     expect(await screen.findByText('Cliente Importado')).toBeTruthy()
     expect(mocks.parseCustomerBaseFile).toHaveBeenCalledWith(file)
+    expect(mocks.compareCustomerBaseWithExisting).toHaveBeenCalledWith(parsedBase)
     await user.click(within(screen.getByRole('dialog', { name: 'Importar Base de Clientes' })).getByRole('button', { name: 'Importar base' }))
 
     await waitFor(() => expect(mocks.importCustomerBaseRows).toHaveBeenCalledWith(parsedBase.rows, { changedBy: 'user-1' }))

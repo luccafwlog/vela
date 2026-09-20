@@ -189,50 +189,41 @@ export async function deleteCustomers(ids: number[], changedBy?: string | null) 
   await logDeletions('customer', ids, changedBy)
 }
 
-type CustomerInvoiceBalanceRow = {
-  customer_id: number | null
-  status: string | null
-  balance_brl: number | string | null
+type CustomerPendingBalanceRow = {
+  customer_id: number
+  local_balance_brl: number | string | null
+  demurrage_balance_brl: number | string | null
+  total_balance_brl: number | string | null
 }
 
-export function sumIssuedInvoiceBalancesByCustomer(rows: CustomerInvoiceBalanceRow[]) {
+export function mapPendingBalancesByCustomer(rows: CustomerPendingBalanceRow[]) {
   const balances = new Map<number, number>()
-
   for (const row of rows) {
-    if (row.status !== 'issued' || row.customer_id == null) continue
-    balances.set(row.customer_id, (balances.get(row.customer_id) ?? 0) + Number(row.balance_brl ?? 0))
+    balances.set(row.customer_id, Number(row.total_balance_brl ?? 0))
   }
-
   return balances
+}
+
+export async function fetchCustomerPendingBalance(customerId: number) {
+  const { data, error } = await supabase.rpc('get_customer_pending_balances' as never, {
+    p_customer_ids: [customerId],
+  } as never)
+  if (error) throw error
+  const row = ((data ?? []) as unknown as CustomerPendingBalanceRow[])[0]
+  return {
+    localBrl: Number(row?.local_balance_brl ?? 0),
+    demurrageBrl: Number(row?.demurrage_balance_brl ?? 0),
+    totalBrl: Number(row?.total_balance_brl ?? 0),
+  }
 }
 
 export async function fetchIssuedInvoiceBalanceByCustomer(customerIds?: number[]) {
   if (customerIds && customerIds.length === 0) return new Map<number, number>()
-
-  const pageSize = 1000
-  const rows: CustomerInvoiceBalanceRow[] = []
-  let from = 0
-
-  while (true) {
-    let query = supabase
-      .from('invoices')
-      .select('customer_id, status, balance_brl')
-      .eq('status', 'issued')
-      .range(from, from + pageSize - 1)
-
-    if (customerIds) {
-      query = query.in('customer_id', Array.from(new Set(customerIds)))
-    }
-
-    const { data, error } = await query
-    if (error) throw error
-
-    rows.push(...((data ?? []) as CustomerInvoiceBalanceRow[]))
-    if ((data ?? []).length < pageSize) break
-    from += pageSize
-  }
-
-  return sumIssuedInvoiceBalancesByCustomer(rows)
+  const { data, error } = await supabase.rpc('get_customer_pending_balances' as never, {
+    p_customer_ids: customerIds ? Array.from(new Set(customerIds)) : null,
+  } as never)
+  if (error) throw error
+  return mapPendingBalancesByCustomer((data ?? []) as unknown as CustomerPendingBalanceRow[])
 }
 
 function stringifyValue(value: unknown) {

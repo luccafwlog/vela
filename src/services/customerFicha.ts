@@ -46,6 +46,7 @@ export type CustomerTimelineEvent = {
   label: string
   detail: string | null
   link: string | null
+  actorId?: string | null
 }
 
 export type ContactChangeEventSource = {
@@ -79,6 +80,7 @@ type TimelineSources = {
   demurrageInvoices: Array<{ id: number; doc_number: string; billed_at: string | null; paid_at: string | null; status: string | null }>
   bls: Array<{ id: string; created_at: string | null }>
   communications?: CustomerCommunicationHistoryItem[]
+  actorNames?: ReadonlyMap<string, string>
 }
 
 export function buildCustomerTimeline(sources: TimelineSources): CustomerTimelineEvent[] {
@@ -119,11 +121,12 @@ export function buildCustomerTimeline(sources: TimelineSources): CustomerTimelin
       label: `Contatos: alteração via ${origin}`,
       detail,
       link: null,
+      actorId: row.actor_id ? (sources.actorNames?.get(row.actor_id) ?? row.actor_id) : null,
     }
   })
 
   const events: CustomerTimelineEvent[] = [
-    ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: 'cadastro_audit' as const, sourceId: String(row.id), at: row.changed_at!, label: `Cadastro alterado: ${row.field_name}`, detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${row.justification ? ` · ${row.justification}` : ''}`, link: null })),
+    ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: 'cadastro_audit' as const, sourceId: String(row.id), at: row.changed_at!, label: `Cadastro alterado: ${row.field_name}`, detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${row.justification ? ` · ${row.justification}` : ''}`, link: null, actorId: row.changed_by ? (sources.actorNames?.get(row.changed_by) ?? row.changed_by) : null })),
     ...sources.portalEvents.map((row) => ({ kind: 'portal_event' as const, sourceId: String(row.id), at: row.created_at, label: `Portal: ${row.new_decision ? provisioningDecisionLabel(row.new_decision) : row.new_situation ? accountSituationLabel(row.new_situation) : 'evento'}`, detail: row.reason, link: null })),
     ...sources.contacts.filter((row) => row.created_at).map((row) => ({ kind: 'contact_created' as const, sourceId: String(row.id), at: row.created_at!, label: `Contato criado: ${row.name ?? '—'}`, detail: null, link: null })),
     ...contactEvents,
@@ -244,6 +247,16 @@ export async function fetchCustomerTimelineSources(customerId: number, contacts:
   const paymentRows = payments.error && classifyDbError(payments.error).kind !== 'permissao' ? (() => { throw payments.error })() : (payments.data ?? [])
   const demurrageRows = demurrage.error && classifyDbError(demurrage.error).kind !== 'permissao' ? (() => { throw demurrage.error })() : (demurrage.data ?? [])
   const contactChangeRows = contactChanges.error && classifyDbError(contactChanges.error).kind !== 'permissao' ? (() => { throw contactChanges.error })() : (contactChanges.data ?? [])
+  const actorIds = Array.from(new Set([
+    ...(auditLogs.data ?? []).map((row) => row.changed_by),
+    ...contactChangeRows.map((row) => row.actor_id),
+  ].filter((id): id is string => Boolean(id))))
+  const actorNames = new Map<string, string>()
+  if (actorIds.length) {
+    const { data: profiles, error: profilesError } = await supabase.from('user_profiles').select('id, full_name').in('id', actorIds)
+    if (profilesError && classifyDbError(profilesError).kind !== 'permissao') throw profilesError
+    for (const profile of profiles ?? []) actorNames.set(profile.id, profile.full_name)
+  }
   return buildCustomerTimeline({
     customerId,
     auditLogs: (auditLogs.data ?? []).filter((row) => row.changed_at).map((row) => ({ ...row, changed_at: row.changed_at! })),
@@ -255,5 +268,6 @@ export async function fetchCustomerTimelineSources(customerId: number, contacts:
     demurrageInvoices: demurrageRows,
     bls,
     communications,
+    actorNames,
   })
 }
