@@ -432,4 +432,3 @@ aninhado, com status para carregamento/vazio.
 no histórico da PR. A auditoria visual em navegador não foi executada nesta
 rodada; contraste foi verificado por contrato CSS e os limites de runtime
 continuam declarados como lacuna.
-
