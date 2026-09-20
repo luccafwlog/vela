@@ -9,7 +9,7 @@ vi.mock('../supabase', () => ({
   supabase: { from: mockFrom, rpc: mockRpc },
 }))
 
-import { fetchVoyageCommunicationCoverage } from '../customerCommunications'
+import { fetchCustomerCommunicationHistory, fetchVoyageCommunicationCoverage } from '../customerCommunications'
 
 function queryResult(data: unknown, error: unknown = null) {
   const chain: Record<string, unknown> = {}
@@ -73,5 +73,23 @@ describe('fetchVoyageCommunicationCoverage', () => {
     const result = await fetchVoyageCommunicationCoverage({ voyage: 'INEXISTENTE' })
     expect(result).toEqual([])
     expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
+
+  it('remove curingas de LIKE antes de filtrar viagem', async () => {
+    const voyagesMock = queryResult([])
+    mockFrom.mockReturnValue(voyagesMock)
+
+    await fetchVoyageCommunicationCoverage({ voyage: ' V%_10 ' })
+
+    expect(voyagesMock.ilike).toHaveBeenCalledWith('voyage_number', '%V10%')
+  })
+
+  it('remove curingas de LIKE antes de filtrar navio no histórico', async () => {
+    const historyMock = queryResult([])
+    mockFrom.mockReturnValue(historyMock)
+
+    await fetchCustomerCommunicationHistory({ vessel: ' N%_AVIO ' })
+
+    expect(historyMock.ilike).toHaveBeenCalledWith('vessel_name', '%NAVIO%')
   })
 })

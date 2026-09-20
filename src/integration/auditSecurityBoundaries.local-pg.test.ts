@@ -126,27 +126,25 @@ describeLocal('S01 — fronteiras de segurança das RPCs auditadas', () => {
     expect(lastLoginIsSentinel()).toBe(true)
   })
 
-  it('tolerância de 5s: iat dentro da folga hidrata, iat 10s antes da revogação nega', () => {
+  it('nega qualquer token emitido antes do marco de revogação, sem janela de tolerância', () => {
     const now = Math.floor(Date.now() / 1000)
     psql(`UPDATE public.customer_portal_accounts
       SET credentials_revoked_at = to_timestamp(${now}) + interval '3 seconds',
         last_login_at = '${LOGIN_SENTINEL}'::timestamptz WHERE customer_id = ${CUSTOMER_ID};`)
-    const within = portalCall(PORTAL_SUB, now, `SELECT public.portal_get_session_overview_v2();`)
-    expect(within.status).toBe(0)
-    // -At ecoa BEGIN/SET/COMMIT e o set_config das claims: o payload do
-    // overview é a linha JSON com customer_id.
-    const payload = within.stdout
-      .split('\n')
-      .find((line) => line.includes('"customer_id"')) as string
-    expect(JSON.parse(payload).customer_id).toBe(CUSTOMER_ID)
+    const justBefore = portalCall(PORTAL_SUB, now, `SELECT public.portal_get_session_overview_v2();`)
+    expect(justBefore.status).not.toBe(0)
+    expect(justBefore.stderr).toContain('28000')
+    expect(lastLoginIsSentinel()).toBe(true)
 
     psql(`UPDATE public.customer_portal_accounts
       SET credentials_revoked_at = to_timestamp(${now}),
         last_login_at = '${LOGIN_SENTINEL}'::timestamptz WHERE customer_id = ${CUSTOMER_ID};`)
-    const beyond = portalCall(PORTAL_SUB, now - 10, `SELECT public.portal_get_session_overview_v2();`)
-    expect(beyond.status).not.toBe(0)
-    expect(beyond.stderr).toContain('28000')
-    expect(lastLoginIsSentinel()).toBe(true)
+    const after = portalCall(PORTAL_SUB, now + 1, `SELECT public.portal_get_session_overview_v2();`)
+    expect(after.status, `${after.stdout}\n${after.stderr}`).toBe(0)
+    const payload = after.stdout
+      .split('\n')
+      .find((line) => line.includes('"customer_id"')) as string
+    expect(JSON.parse(payload).customer_id).toBe(CUSTOMER_ID)
   })
 
   it('iat ausente ou malformado com revogação ativa nega com mensagem genérica (sem vazar cast)', () => {

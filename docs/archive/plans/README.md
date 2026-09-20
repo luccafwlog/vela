@@ -8,6 +8,16 @@ no [CHANGELOG](../../CHANGELOG.md); planos vivos ficam em
 
 ## Conteúdo
 
+- [`2026-09-20-remediacao-clientes-revisao-comunicacao`](2026-09-20-remediacao-clientes-revisao-comunicacao.md)
+  — segurança dos comunicados, serialização financeira, revisão otimista,
+  saldo canônico, fila completa e preview explícito da importação. Migration `070`.
+- [`2026-09-20-remediacao-fronteira-seguranca-portal`](2026-09-20-remediacao-fronteira-seguranca-portal.md)
+  — fecha guards NULL-safe em RPCs internas, minimiza payloads financeiros do
+  Portal, revoga sessões em modo fail-closed, equaliza o login contra enumeração
+  por tempo e neutraliza curingas nos filtros de Comunicados. Migrations `068` e `069`.
+- [`2026-09-20-remediacao-auditorias-maritimas`](2026-09-20-remediacao-auditorias-maritimas.md)
+  — remediação das auditorias dos sistemas críticos marítimos: datas por terminal/sentido,
+  exclusão física segura com trigger de integridade, TEU ISO 6346 e alinhamento de lineup. Migrations `066` e `067`.
 - [`2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante`](2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md)
   — unificação de B/Ls com suporte a carga mista, rota canônica `/bls`, fatura
   adaptativa modular, modelo de lançamento de Manifesto Mercante (`manifestos_mercante`),

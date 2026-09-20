@@ -4,13 +4,34 @@
 
 ## 2026-09
 
-- **PR 706 — decisões finais das auditorias marítimas:** as datas de berço
+- **Remediação de Clientes, Revisão e Comunicação (2026-09-20):** comunicados operacionais
+  passam a falhar fechado, validar B/L/cliente/âncoras e impor a caixa correta;
+  a troca de cliente serializa com linhas financeiras; revisão exige versão,
+  persiste `bb_cbm` e não confia em valores de auditoria do navegador. Saldos
+  usam o ledger com Demurrage, filas deixam de truncar em 500 e a importação
+  explicita criações e alterações cadastrais no preview (migration `070`).
+  [Plano e evidências](archive/plans/2026-09-20-remediacao-clientes-revisao-comunicacao.md).
+
+- **Remediação AppSec da fronteira Vela/Portal (2026-09-20):** a migration
+  `068` fecha cinco RPCs internas que aceitavam role `NULL`, impedindo leitura
+  global e mutações de Dispute por clientes do Portal; detalhes de invoices e
+  Demurrage passam a usar allowlists JSON sem notas, aprovadores, TXID ou
+  snapshots internos. O reset de senha revoga antes e depois da alteração com
+  quarentena fail-closed; a migration `069` impõe corte estrito de `iat`,
+  eliminando a janela residual em que um login concorrente com a senha antiga
+  ainda era aceito. O login equaliza conta real/inexistente por meio de
+  identidade dummy sem vínculo. Filtros de Comunicados removem curingas de
+  `ilike`, e a tela deixa de decompor o markup cambial no navegador.
+  [Plano e evidências](archive/plans/2026-09-20-remediacao-fronteira-seguranca-portal.md).
+
+- **Decisões finais das auditorias marítimas e hard delete seguro (2026-09-20):** as datas de berço
   continuam projetadas por terminal e sentido, com ETA/ATA compartilhados pela
   Escala; a recomendação de datas idênticas em Importação e Exportação foi
   descartada por conflito operacional. Viagens não canceladas sem qualquer
   vínculo agora podem ser removidas fisicamente por Administrador, enquanto o
   trigger `trg_guard_voyage_hard_delete` bloqueia cascatas quando existe dado em
-  `voyage_id` ou `anchor_voyage_id`.
+  `voyage_id` ou `anchor_voyage_id` (migrations `066` e `067`).
+  [Plano e evidências](archive/plans/2026-09-20-remediacao-auditorias-maritimas.md).
 
 - **Revisão documental (2026-09-19):** diretrizes unificadas em `AGENTS.md`,
   arquivo legado removido; glossário, arquitetura, módulos e rastreabilidade

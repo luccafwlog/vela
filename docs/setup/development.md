@@ -68,6 +68,7 @@ Variáveis necessárias nas Edge Functions do Supabase:
 | `PORTAL_URL` | URL base do portal do cliente |
 | `APP_URL` | URL do app usada pelas Edge Functions do Portal |
 | `VERCEL_PREVIEW_ORIGINS` | Opcional; URLs HTTPS exatas de Preview, separadas por vírgula, para CORS sem wildcard |
+| `PORTAL_LOGIN_DUMMY_AUTH_USER_ID` | UUID de identidade técnica confirmada, sem vínculo em `customer_portal_accounts`, usada para equalizar o custo de logins com CNPJ inexistente |
 
 ## 6. Rodar
 
