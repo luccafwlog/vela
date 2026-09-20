@@ -5,6 +5,7 @@ Specs descrevem decisões ainda não executadas. O ciclo de vida é definido em
 
 | Spec | Estado |
 |---|---|
+| [Remediação de UI, design system e acessibilidade](2026-09-20-remediacao-ui-design-system-design.md) | Aprovada e em execução; corrige os 15 achados da auditoria de 2026-09-20 |
 | [Integração Itaú PIX](2026-08-25-integracao-itau-pix.md) | Planejamento futuro, não aprovado para execução; API dinâmica/webhook não implementados |
 
 As specs de carga mista, Manifesto Mercante, múltiplos terminais e editor de
