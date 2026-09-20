@@ -21,6 +21,10 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-toast__close\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/s)
   })
 
+  it('ancora o indicador de carregamento ao proprio botao', () => {
+    expect(css).toMatch(/\.app-btn\s*\{[^}]*position:\s*relative/s)
+  })
+
   it('usa superfícies temáticas nos campos e pares escuros explícitos nos badges', () => {
     expect(css).toMatch(/\.app-input\s*\{[^}]*background:\s*var\(--app-surface-strong\)/s)
     expect(css).toMatch(/:root\[data-visual-theme='dark'\][\s\S]*?\.app-badge--blue\s*\{[^}]*color:\s*#bfdbfe/s)
