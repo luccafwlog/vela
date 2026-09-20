@@ -220,6 +220,12 @@ ALTER FUNCTION public.register_ledger_invoice_payment(
   bigint, numeric, text, timestamptz, text, text, text, uuid
 ) RENAME TO register_ledger_invoice_payment_legacy_066;
 
+-- A implementação legada só pode ser chamada internamente pelo wrapper
+-- idempotente; não deixe a ACL histórica expô-la como SECURITY DEFINER.
+REVOKE ALL ON FUNCTION public.register_ledger_invoice_payment_legacy_066(
+  bigint, numeric, text, timestamptz, text, text, text, uuid
+) FROM PUBLIC, anon, authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.register_ledger_invoice_payment(
   p_invoice_id bigint,
   p_amount_brl numeric,
