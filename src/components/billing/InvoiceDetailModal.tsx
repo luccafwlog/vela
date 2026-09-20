@@ -31,7 +31,7 @@ import { buildInvoiceFileBaseName, describeInvoiceItemsFreezeNote, describeUsdCo
 import { formatValidationError, manualInvoiceChargeSchema, paymentFormSchema } from '../../services/financialValidation'
 import { logOperationalEvent } from '../../services/operationalEvents'
 import { formatBRL, formatDate, stripBlPrefix } from '../../lib/utils'
-import { userFacingErrorMessage, classifyDbError } from '../../lib/errors'
+import { userFacingErrorMessage } from '../../lib/errors'
 import { isLedgerInvoicePayable } from '../../pages/faturamentoLedgerPayment'
 import { invoiceStatusLabel, isOpenInvoiceStatus } from '../../pages/faturamentoInvoiceStatus'
 import { printDocumentElement } from '../../lib/printDocument'
