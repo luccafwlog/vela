@@ -4,6 +4,13 @@ Status: aceito
 
 Data: 2026-07-10
 
+> **Nota editorial — 2026-09-20.** A decisão foi confirmada durante a revisão
+> da PR 706: `voyages` continua sem estado `deleted`, mas um Administrador pode
+> fazer hard-delete de uma viagem não cancelada quando ela ainda não possui
+> qualquer dado vinculado. O banco aplica a regra no trigger
+> `trg_guard_voyage_hard_delete`, cobrindo `voyage_id` e `anchor_voyage_id`;
+> viagens canceladas permanecem retidas mesmo que não tenham outro vínculo.
+
 ## Contexto
 
 O status `cancelled` de uma viagem havia sido omitido de alguns filtros e uma

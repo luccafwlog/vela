@@ -210,8 +210,26 @@ describe('fetchLineUpSnapshot', () => {
         { voyage_id: 24, port: 'BRVIX', sentido: 'exportacao', modalidade: 'granito', terminal_id: 'export-terminal' },
       ],
       voyage_escala_terminal_state: [
-        { voyage_id: 24, port: 'BRVIX', terminal_id: 'inactive-terminal', terminal_atb: '2026-08-02', terminal_atd: null, terminal_rtw: null, revision: 1 },
-        { voyage_id: 24, port: 'BRVIX', terminal_id: 'export-terminal', terminal_atb: '2026-08-03', terminal_atd: null, terminal_rtw: null, revision: 1 },
+        {
+          voyage_id: 24,
+          port: 'BRVIX',
+          terminal_id: 'inactive-terminal',
+          terminal_etb: '2026-08-01',
+          terminal_atb: '2026-08-02',
+          terminal_atd: '2026-08-04',
+          terminal_rtw: null,
+          revision: 1,
+        },
+        {
+          voyage_id: 24,
+          port: 'BRVIX',
+          terminal_id: 'export-terminal',
+          terminal_etb: '2026-08-05',
+          terminal_atb: '2026-08-06',
+          terminal_atd: '2026-08-08',
+          terminal_rtw: null,
+          revision: 1,
+        },
       ],
       depots: [
         { id: 'inactive-terminal', code: 'TVV', active: false },
@@ -225,6 +243,8 @@ describe('fetchLineUpSnapshot', () => {
       { rowType: 'import', terminal: 'TVV' },
       { rowType: 'export', terminal: 'PORTMAC' },
     ])
+    expect(rows.find((row) => row.rowType === 'import')).toMatchObject({ etb: '2026-08-01', atb: '2026-08-02', atd: '2026-08-04' })
+    expect(rows.find((row) => row.rowType === 'export')).toMatchObject({ etb: '2026-08-05', atb: '2026-08-06', atd: '2026-08-08' })
   })
 
   it('mantem exportacao declarada sem operacao e apresenta TBC sem salvar placeholder', async () => {

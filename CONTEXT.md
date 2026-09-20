@@ -51,7 +51,10 @@ acompanhado em suas escalas, agendas e cargas.
 **Viagem Cancelada**
 Viagem que não será mais realizada pelo armador, embora tenha sido cadastrada
 ou programada. O cancelamento preserva seus registros e vínculos para
-rastreabilidade; não é conclusão nem exclusão.
+rastreabilidade; não é conclusão nem exclusão. Uma viagem não cancelada que
+ainda não recebeu qualquer dado vinculado pode ser removida fisicamente por
+Administrador; depois que existe vínculo, o caminho é corrigir ou cancelar,
+nunca apagar a operação por cascata.
 
 **Alias de Nome de Navio**
 Prefixo abreviado reconhecido como equivalente ao prefixo canônico do nome do

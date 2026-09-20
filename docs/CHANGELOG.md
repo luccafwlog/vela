@@ -4,6 +4,14 @@
 
 ## 2026-09
 
+- **PR 706 — decisões finais das auditorias marítimas:** as datas de berço
+  continuam projetadas por terminal e sentido, com ETA/ATA compartilhados pela
+  Escala; a recomendação de datas idênticas em Importação e Exportação foi
+  descartada por conflito operacional. Viagens não canceladas sem qualquer
+  vínculo agora podem ser removidas fisicamente por Administrador, enquanto o
+  trigger `trg_guard_voyage_hard_delete` bloqueia cascatas quando existe dado em
+  `voyage_id` ou `anchor_voyage_id`.
+
 - **Revisão documental (2026-09-19):** diretrizes unificadas em `AGENTS.md`,
   arquivo legado removido; glossário, arquitetura, módulos e rastreabilidade
   reconciliados com carga mista, terminais e cubagem da migration 064.

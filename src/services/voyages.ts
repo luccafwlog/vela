@@ -105,7 +105,7 @@ export async function deleteVoyage(voyageId: number) {
 
   if (blCount > 0 || batchCount > 0 || graniteManifestCount > 0 || vaziosManifestCount > 0) {
     throw new Error(
-      `Nao e possivel excluir esta viagem porque ela possui ${blCount} B/L(s), ${batchCount} importacao(oes) CNTR/BB, ${graniteManifestCount} manifesto(s) de granito e ${vaziosManifestCount} manifesto(s) de vazios vinculados. Limpe o operacional dessa viagem antes.`,
+      `Nao e possivel excluir esta viagem porque ela possui dados vinculados: ${blCount} B/L(s), ${batchCount} importacao(oes) CNTR/BB, ${graniteManifestCount} manifesto(s) de granito e ${vaziosManifestCount} manifesto(s) de vazios. Remova os vinculos antes.`,
     )
   }
 

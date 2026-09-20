@@ -100,7 +100,7 @@ POL/POD e exportação têm contratos diferentes:
 1. **Seleção e deep-link.** A viagem selecionada pertence à URL; as cinco abas internas pertencem ao estado de `VoyageCard`.
 2. **Próxima escala.** `getProximaEscala` escolhe o menor ETA entre PODs sem ATA e sem `omitted=true`. ETA vencido continua sendo a próxima escala e deve indicar “ETA vencido — ATA pendente”; o rail usa esse valor para ordenação e filtros de período.
 3. **POD removido.** “Excluir” não apaga histórico: grava `deleted=true`. Reincluir o mesmo POD por `saveVoyagePodSchedule` grava `deleted=false`.
-4. **Ciclo de status.** Ao alterar ATD, `syncVoyageStatusAfterAtdChange` marca `completed` apenas quando todos os PODs ativos e nao omitidos têm ATD; caso contrário, volta a `active`. Uma viagem `cancelled` é estado retido e o guard impede que uma alteração de ATD a reverta automaticamente. Exclusão de viagem continua sendo hard delete controlado, não um status.
+4. **Ciclo de status.** Ao alterar ATD, `syncVoyageStatusAfterAtdChange` marca `completed` apenas quando todos os PODs ativos e nao omitidos têm ATD; caso contrário, volta a `active`. Uma viagem `cancelled` é estado retido e o guard impede que uma alteração de ATD a reverta automaticamente. Exclusão de viagem continua sendo hard delete controlado, não um status: o administrador só consegue excluir uma viagem não cancelada quando o banco não encontra nenhum `voyage_id` ou `anchor_voyage_id` vinculado.
 5. **Número de Escala ≠ VINCULADA.** `escala_number` identifica a escala criada no Mercante; `linked=true` confirma que manifestos foram vinculados à escala.
 6. **CE Master ≠ CE Mercante.** CE Master é um agrupador por rota: com batch de manifesto vive em `import_batches.ce_master`; em viagem só-B/L (sem batch) vive em `voyage_route_ce_master` por `(voyage_id, pol, pod)` (#322). CE Mercante vive em cada B/L. Nenhum dos dois entra no EDI Mercante — só registro/agrupamento.
 7. **Rotas e Manifestos é B/L-first.** A tabela agrupa primeiro os B/Ls por rota POL/POD. Batches são metadados opcionais para a edição de CE Master; nomes de arquivo não são exibidos. B/Ls importados sem batch continuam aparecendo como rota, com edição de ETD e de CE Master por rota.
@@ -125,7 +125,8 @@ Evidência estática localizada:
 - `src/pages/__tests__/viagensHelpers.test.ts`: métricas, estado de conciliação, próxima escala, timeline e agrupamentos por POD/POL.
 - `src/components/voyages/__tests__/voyageCardHelpers.test.tsx`: linhas de Rotas e Manifestos derivadas por rota de B/L, inclusive sem batch.
 - `src/services/__tests__/voyageRouteSchedules.test.ts`: ciclo ETA/ATA, ETB/ATB e ETD/ATD, fallback automático do status de B/Ls e CEs por POD e guard que impede ATD de reverter viagem cancelada.
-- `src/services/__tests__/voyageMutations.test.ts`: cancelamento dedicado com motivo e auditoria, além dos guards de hard delete.
+- `src/services/__tests__/voyageMutations.test.ts`: cancelamento dedicado com motivo e auditoria, além da pré-checagem de hard delete.
+- `src/services/__tests__/voyageHardDeleteMigration.test.ts` e `src/integration/voyageHardDeleteGuard.local-pg.test.ts`: contrato e execução no Postgres do bloqueio por dados vinculados, incluindo uma escala sem B/L.
 - `src/pages/__tests__/Painel.behavior.test.tsx` e `src/pages/__tests__/Viagens.behavior.test.tsx`: filtros `cancelled` no Line-Up e no rail de viagens.
 - `src/components/shared/__tests__/VoyageScheduleModals.test.tsx`: normalização e payload dos modais POL, POD, inclusão de POD e export schedule.
 - `src/components/shared/__tests__/VoyageSectionCards.test.tsx`: navegação, estado desabilitado e componentes de métricas.
@@ -133,12 +134,21 @@ Evidência estática localizada:
 - `src/components/shared/__tests__/VoyageImportActions.behavior.test.tsx`: ações de importação, abertura dos modais, escopo pela viagem, ordenação, navegação e chamada do importador; não prova persistência no banco nem invalidações de cache.
 - `src/services/__tests__/agencyDepartureReport.test.ts`: matriz de descarga, incluindo somente cheios no total de Carga descarregada, divergência Baplie × módulo, precedência OOG sobre IMO e merge de duplicatas.
 
-Os testes Vitest focados e a suíte final desta frente foram executados. Não houve validação contra Supabase ou runtime autenticado; as afirmações operacionais permanecem calibradas por código, testes locais e migrations.
+Os testes Vitest focados e a suíte final desta frente foram executados. A
+migration 067 também foi reaplicada no Postgres local descartável e a
+contraprova cobriu exclusão vazia, bloqueio por escala vinculada e retenção de
+Viagem cancelada. Não houve validação contra Supabase remoto ou runtime
+autenticado; as afirmações operacionais permanecem calibradas por código,
+testes locais e migrations.
 
 ## Notas e divergências
 
 Viagens canceladas são seladas no banco: o RPC de cancelamento grava status e
-auditoria na mesma transação e mutações operacionais posteriores são recusadas.
+auditoria na mesma transação, mutações operacionais posteriores são recusadas e
+o hard-delete também é negado. Uma viagem não cancelada sem qualquer dado
+vinculado pode ser removida fisicamente por administrador; o trigger
+`trg_guard_voyage_hard_delete` cobre as colunas `voyage_id` e
+`anchor_voyage_id`, inclusive quando o vínculo ainda não tem uma FK declarada.
 Os KPIs de containers exibem CNTRs distintos e TEU separadamente; tipos ISO
 desconhecidos aparecem como divergência, não como zero.
 

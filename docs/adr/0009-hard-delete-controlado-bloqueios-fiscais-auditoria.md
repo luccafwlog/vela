@@ -16,6 +16,7 @@ Permitir hard delete apenas de entidades operacionais sem bloqueadores fiscais, 
 - Policies de banco devem manter `DELETE` restrito a `is_admin()`.
 - Dependências operacionais podem ser removidas em cascata controlada pelo service, em ordem bottom-up.
 - Dependências fiscais bloqueiam a exclusão: invoices, vínculos de invoice, recebíveis, Demurrage emitida e lotes/ledger relevantes.
+- Para `voyages`, a exclusão só é autorizada quando não existe nenhum dado nas colunas `voyage_id` ou `anchor_voyage_id`; o trigger `trg_guard_voyage_hard_delete` faz essa última verificação no banco.
 - Services como `deleteVehicles`, `deleteContainers`, `deleteBls` e `deleteCustomers` fazem pré-checagem e retornam relatório de bloqueados/deletáveis.
 - Cada exclusão registra `audit_logs` via `logDeletions` quando há autor conhecido. Falha de auditoria é reportada como telemetria best-effort e não reverte a exclusão.
 

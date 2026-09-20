@@ -16,7 +16,8 @@ em `docs/archive/audits/`.
 3. **Operação marítima** — corrigir o estado de Atracação atual, ordenar o
    Line-Up por ATB/ATA/ETA, selar mutações de Viagem cancelada, proteger a
    retirada de exportação na camada de dados e eliminar o caminho de POD sem
-   COD.
+   COD; manter datas de berço por terminal/sentido e permitir hard-delete de
+   Viagem somente quando não houver dado vinculado.
 4. **ATD POL** — persistir `laden_on_board` como fato documental e recalcular o
    mínimo canônico da Viagem/POL em uma operação transacional.
 5. **Métricas e cache** — adicionar TEU canônico aos cards/snapshot do ADR e
@@ -24,13 +25,18 @@ em `docs/archive/audits/`.
 6. **Evidência** — criar regressões focadas antes de cada alteração, executar os
    gates do repositório e arquivar este plano ao concluir.
 
-## Decisões que não serão inferidas
+## Decisões confirmadas durante a execução
 
-Os dois conflitos documentais da auditoria permanecem fora da implementação até
-decisão explícita: (a) forçar datas idênticas nas linhas de Importação e
-Exportação, supersedendo a ADR 0035, e (b) proibir completamente hard-delete de
-Viagem, supersedendo a ADR 0024. As demais correções são independentes e serão
-entregues agora.
+Os dois conflitos documentais foram resolvidos sem supersessão das ADRs ativas:
+
+- **Datas por terminal/sentido:** ETA/ATA seguem compartilhados pela Escala,
+  mas ETB/ATB/ETD/ATD permanecem nos terminais que hospedam cada sentido. A
+  recomendação de datas idênticas na Importação e Exportação foi rejeitada por
+  atribuir o berço errado à linha operacional.
+- **Hard-delete de Viagem:** Administrador pode excluir fisicamente uma Viagem
+  não cancelada sem qualquer dado em `voyage_id` ou `anchor_voyage_id`. O
+  trigger `trg_guard_voyage_hard_delete` impede a exclusão quando há vínculo e
+  mantém Viagens canceladas retidas.
 
 ## Verificação
 

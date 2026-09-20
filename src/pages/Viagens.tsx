@@ -342,7 +342,7 @@ export function Viagens() {
       <Modal open={deletingVoyageId !== null} onClose={() => setDeletingVoyageId(null)} title="Excluir Viagem">
         <div className="grid gap-4">
           <div className="rounded-xl border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-100">
-            Esta exclusão é permanente. Ela só será permitida se a viagem não tiver importações nem B/Ls vinculados.
+            Esta exclusão é permanente. Ela só será permitida se a viagem não tiver nenhum dado vinculado. Viagens canceladas permanecem retidas para rastreabilidade.
           </div>
 
           <div className="text-sm text-[var(--app-text)]">
