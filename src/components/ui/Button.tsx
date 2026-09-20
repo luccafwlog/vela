@@ -15,7 +15,7 @@ const variants = {
   ghost: 'app-btn--ghost',
 }
 
-export function Button({ className, variant = 'primary', loading, loadingLabel = 'Carregando…', children, disabled, ...props }: ButtonProps) {
+export function Button({ className, variant = 'primary', loading, loadingLabel = 'Carregando…', children, disabled, 'aria-label': ariaLabel, ...props }: ButtonProps) {
   return (
     <button
       className={cn(
@@ -25,7 +25,7 @@ export function Button({ className, variant = 'primary', loading, loadingLabel =
       )}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      aria-label={loading ? loadingLabel : props['aria-label']}
+      aria-label={loading ? loadingLabel : ariaLabel}
       {...props}
     >
       <span data-button-label className={loading ? 'invisible' : undefined}>{children}</span>

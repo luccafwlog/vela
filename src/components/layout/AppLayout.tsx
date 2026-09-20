@@ -52,6 +52,8 @@ export function AppLayout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const userMenuButtonRef = useRef<HTMLButtonElement>(null)
+  const userMenuFirstItemRef = useRef<HTMLButtonElement>(null)
+  const userMenuWasOpenRef = useRef(false)
   const primaryNavItemsWithBadges: NavItem[] = primaryNavItems.map((item) =>
     item.to === '/alertas' ? { ...item, badge: counts.openAlerts || undefined } : item,
   )
@@ -91,6 +93,15 @@ export function AppLayout() {
 
     return () => mediaQuery.removeEventListener('change', handleChange)
   }, [])
+
+  useEffect(() => {
+    if (userMenuOpen) {
+      userMenuFirstItemRef.current?.focus()
+    } else if (userMenuWasOpenRef.current) {
+      userMenuButtonRef.current?.focus()
+    }
+    userMenuWasOpenRef.current = userMenuOpen
+  }, [userMenuOpen])
 
   useEffect(() => {
     if (!userMenuOpen) return
@@ -163,7 +174,7 @@ export function AppLayout() {
               </button>
               {userMenuOpen ? (
                 <div id="app-user-dropdown" className="app-header__user-dropdown">
-                  <button type="button" onClick={() => { setUserMenuOpen(false); navigate('/perfil') }}>
+                  <button ref={userMenuFirstItemRef} type="button" onClick={() => { setUserMenuOpen(false); navigate('/perfil') }}>
                     <UserCircle size={14} aria-hidden="true" />
                     Meu perfil
                   </button>

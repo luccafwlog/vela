@@ -18,6 +18,7 @@ export function InternalNotificationBell() {
   const [page, setPage] = useState(0)
   const [cursorByPage, setCursorByPage] = useState<Array<InternalNotificationCursor | null>>([null])
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const navigate = useNavigate()
   const { showToast } = useToast()
 
@@ -40,6 +41,7 @@ export function InternalNotificationBell() {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setOpen(false)
+        triggerRef.current?.focus()
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -53,6 +55,7 @@ export function InternalNotificationBell() {
   return (
     <div ref={wrapperRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         className="app-header__icon-button"
         aria-label={`Notificações internas${unreadCount ? ` (${unreadCount} não lidas)` : ''}`}

@@ -30,4 +30,6 @@ it('usa disclosure de navegação e botão nativo para a conta', () => {
   expect(source).not.toContain('role="menuitem"')
   expect(source).toContain('aria-haspopup="true"')
   expect(source).toContain('aria-controls="app-user-dropdown"')
+  expect(source).toContain('userMenuFirstItemRef.current?.focus()')
+  expect(source).toContain('userMenuButtonRef.current?.focus()')
 })

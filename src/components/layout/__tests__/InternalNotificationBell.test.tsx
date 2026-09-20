@@ -123,6 +123,21 @@ describe('InternalNotificationBell', () => {
     expect(screen.getByText('Marcar todas como lidas')).toBeTruthy()
   })
 
+  it('devolve o foco ao sino ao fechar com Escape', () => {
+    render(
+      <MemoryRouter>
+        <InternalNotificationBell />
+      </MemoryRouter>,
+    )
+
+    const trigger = screen.getByLabelText('Notificações internas (3 não lidas)')
+    fireEvent.click(trigger)
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(document.activeElement).toBe(trigger)
+    expect(screen.queryByRole('region', { name: 'Notificações internas' })).toBeNull()
+  })
+
   it('traduz a chave surrogate da entidade para o rotulo humano', () => {
     render(
       <MemoryRouter>

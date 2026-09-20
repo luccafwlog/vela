@@ -616,7 +616,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 42px;
+  min-height: 44px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 8px 14px;
@@ -650,7 +650,7 @@ textarea {
   align-items: center;
   flex: 0 0 auto;
   gap: 8px;
-  min-height: 42px;
+  min-height: 44px;
   padding: 10px 14px;
   border: 1px solid transparent;
   border-bottom: 0;
@@ -3636,7 +3636,7 @@ textarea {
   justify-content: center;
   min-width: 0;
   max-width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   border: 1px solid #bfd4ff;
   border-radius: 12px;
   padding: 8px 14px;
@@ -3917,7 +3917,7 @@ textarea {
 }
 
 .app-table__action--compact {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 12px;
   gap: 6px;
   white-space: nowrap;
@@ -3981,7 +3981,7 @@ textarea {
   align-items: center;
   gap: 6px;
   border: 0;
-  min-height: 40px;
+  min-height: 44px;
   margin: -12px;
   padding: 12px;
   background: transparent;
@@ -3994,8 +3994,8 @@ textarea {
 }
 
 .app-status-toggle {
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   border: 0;
   padding: 7px 0;
   background: transparent;
@@ -4683,9 +4683,9 @@ textarea {
 }
 
 .app-voyage-icon-btn {
-  width: 38px;
-  min-width: 38px;
-  min-height: 38px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border-radius: 12px;
   border: 1px solid var(--app-border);
@@ -4733,7 +4733,7 @@ textarea {
 }
 
 .app-voyage-action-icon {
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 12px;
   border-radius: 12px;
   border: 1px solid var(--app-border);

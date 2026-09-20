@@ -9,7 +9,7 @@ import { SkeletonTable } from '../Skeleton'
 
 describe('primitives acessíveis', () => {
   it('preserva o conteúdo no fluxo e anuncia botão ocupado', () => {
-    render(<Button loading>Salvar</Button>)
+    render(<Button loading aria-label="Salvar alterações">Salvar</Button>)
     const button = screen.getByRole('button', { name: 'Carregando…' })
     expect(button.getAttribute('aria-busy')).toBe('true')
     expect(button.querySelector('[data-button-label]')?.textContent).toBe('Salvar')
