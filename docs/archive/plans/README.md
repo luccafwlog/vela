@@ -8,6 +8,10 @@ no [CHANGELOG](../../CHANGELOG.md); planos vivos ficam em
 
 ## Conteúdo
 
+- [`2026-09-20-remediacao-fronteira-seguranca-portal`](2026-09-20-remediacao-fronteira-seguranca-portal.md)
+  — fecha guards NULL-safe em RPCs internas, minimiza payloads financeiros do
+  Portal, revoga sessões em modo fail-closed, equaliza o login contra enumeração
+  por tempo e neutraliza curingas nos filtros de Comunicados. Migration `067`.
 - [`2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante`](2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md)
   — unificação de B/Ls com suporte a carga mista, rota canônica `/bls`, fatura
   adaptativa modular, modelo de lançamento de Manifesto Mercante (`manifestos_mercante`),
