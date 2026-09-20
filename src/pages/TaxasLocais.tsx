@@ -257,6 +257,7 @@ export function TaxasLocais() {
             totalCount={data?.count ?? 0}
             filterDescription={filterDescription}
             emptyState={emptyState}
+            emptyAction={activeFilterCount > 0 ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button> : undefined}
             page={filters.page}
             totalPages={totalPages}
             onPageChange={(page) => updateFilter('page', page)}

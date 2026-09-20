@@ -60,6 +60,7 @@ vi.mock('../../hooks/useViagemSchedulesAndStats', () => ({
         voyageId: 41,
         port: 'BRVIX',
         eta: null,
+        atracacoes: [],
         etb: null,
         ata: null,
         atb: null,
@@ -173,6 +174,13 @@ it('seleciona a viagem pelo id do item do rail', () => {
   fireEvent.click(screen.getByText('Navio cancelado / CANCEL-42'))
 
   expect(screen.getByRole('heading', { name: 'Navio cancelado / CANCEL-42' })).toBeTruthy()
+})
+
+it('mostra breadcrumb no deep-link da viagem', () => {
+  renderAt('/viagens/41')
+  const breadcrumb = screen.getByRole('navigation', { name: 'Navegação estrutural' })
+  expect(breadcrumb.textContent).toContain('Viagens')
+  expect(breadcrumb.textContent).toContain('Navio ativo / ACTIVE-41')
 })
 
 it('US-213: ID inexistente mantem a tela e mostra "Viagem não encontrada"', () => {

@@ -8,6 +8,7 @@ import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
+import { SkeletonTable } from '../components/ui/Skeleton'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
@@ -391,15 +392,21 @@ export function Containers() {
             <tbody className="divide-y divide-[#30363d]">
               {isLoading ? (
                 <tr>
-                  <td colSpan={containerColumnCount} className="px-4 py-8 text-center text-slate-400">
-                    Carregando containers...
+                  <td colSpan={containerColumnCount} className="p-0">
+                    <SkeletonTable rows={8} cols={containerColumnCount} columnTemplate="44px 1.2fr repeat(8, 1fr)" label="Carregando containers" />
                   </td>
                 </tr>
               ) : null}
               {!isLoading && data?.rows.length === 0 ? (
                 <tr>
                   <td colSpan={containerColumnCount} className="p-0">
-                    <EmptyState title="Nenhum container encontrado." description="Ajuste os filtros de viagem ou POD." />
+                    <EmptyState
+                      title="Nenhum container encontrado."
+                      description="Ajuste os filtros de viagem ou POD."
+                      action={activeFilterCount > 0
+                        ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>
+                        : <Link className="app-btn app-btn--secondary" to="/bls">Ir para B/Ls</Link>}
+                    />
                   </td>
                 </tr>
               ) : null}

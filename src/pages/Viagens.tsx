@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../components/ui/Button'
 import { EmptyState, InlineError, PageHeader } from '../components/ui/Card'
+import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { VoyageCreateModal } from '../components/shared/VoyageCreateModal'
 import { EscalaModal, PolScheduleModal, type EscalaModalData } from '../components/shared/VoyageScheduleModals'
 import { Modal } from '../components/ui/Modal'
@@ -41,7 +42,7 @@ import {
   saveEscalaTerminalState,
 } from '../services/escalaTerminalAllocation'
 import { afterEscalaAlterada, afterRotaAlterada, afterViagemAlterada } from '../services/cacheEffects'
-import { classifyDbError } from '../lib/errors'
+import { classifyDbError, userFacingErrorMessage } from '../lib/errors'
 import {
   VoyageCard,
   type EditingPolPayload,
@@ -209,7 +210,7 @@ export function Viagens() {
       if (selectedVoyageId === deletingVoyageId) navigate('/viagens')
       setDeletingVoyageId(null)
     } catch (error) {
-      const message = classifyDbError(error).message || 'Falha ao excluir viagem.'
+      const message = classifyDbError(error).message || userFacingErrorMessage(error, 'Falha ao excluir viagem. Tente novamente.')
       showToast(message, 'error')
     } finally {
       setDeleting(false)
@@ -234,7 +235,7 @@ export function Viagens() {
       setCancellingVoyageId(null)
       setCancellationReason('')
     } catch (error) {
-      showToast(classifyDbError(error).message || 'Falha ao cancelar viagem.', 'error')
+      showToast(classifyDbError(error).message || userFacingErrorMessage(error, 'Falha ao cancelar viagem. Tente novamente.'), 'error')
     } finally {
       setCancelling(false)
     }
@@ -254,6 +255,13 @@ export function Viagens() {
           ) : null
         }
       />
+
+      {selectedVoyage ? (
+        <Breadcrumb items={[
+          { label: 'Viagens', to: '/viagens' },
+          { label: `${selectedVoyage.vessel?.name ?? 'Navio'} / ${selectedVoyage.voyage_number}` },
+        ]} />
+      ) : null}
 
       {error ? <InlineError message="Erro ao carregar viagens." /> : null}
       {selectedVoyageError ? <InlineError message="Erro ao carregar o detalhe da viagem." /> : null}

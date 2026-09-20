@@ -531,7 +531,7 @@ export function Bls() {
                 <th scope="col" className="px-3 py-3">Carga</th>
                 <th scope="col" className="px-3 py-3">Perfil</th>
                 <th scope="col" className="px-3 py-3">Taxas locais</th>
-                <th scope="col" className="px-3 py-3">Invoice</th>
+                <th scope="col" className="px-3 py-3">Fatura</th>
                 <th scope="col" className="px-3 py-3">Ações</th>
               </tr>
             </thead>
@@ -539,14 +539,20 @@ export function Bls() {
               {isLoading ? (
                 <tr>
                   <td colSpan={blColumnCount} className="p-0">
-                    <SkeletonTable rows={8} cols={6} />
+                    <SkeletonTable rows={8} cols={blColumnCount} columnTemplate="44px 44px 1.2fr 1.2fr 1.4fr 1.6fr repeat(6, 1fr) 96px" label="Carregando B/Ls" />
                   </td>
                 </tr>
               ) : null}
               {!isLoading && data?.rows.length === 0 ? (
                 <tr>
                   <td colSpan={blColumnCount} className="p-0">
-                    <EmptyState title={emptyState.title} description={emptyState.description} />
+                    <EmptyState
+                      title={emptyState.title}
+                      description={emptyState.description}
+                      action={activeFilterCount > 0
+                        ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>
+                        : canImport ? <Button onClick={() => setBlFreightOpen(true)}>Importar B/L CNTR</Button> : undefined}
+                    />
                   </td>
                 </tr>
               ) : null}
@@ -872,7 +878,7 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
             <tr>
               {['BL', 'CE', 'Máquinas', 'Volumes', 'Total de volumes', 'Peso (ton)', 'CBM (M3)', 'Shipper', 'Consignee', 'Notify'].map(
                 (label) => (
-                  <th key={label} scope="col" className="px-3 py-2">
+                  <th key={label} scope="col" className={`px-3 py-2 ${['Máquinas', 'Volumes', 'Total de volumes', 'Peso (ton)', 'CBM (M3)'].includes(label) ? 'text-right' : ''}`}>
                     {label}
                   </th>
                 ),
@@ -884,13 +890,13 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
               <tr key={bl.bl_id}>
                 <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{bl.bl_id}</td>
                 <td className="px-3 py-2">{bl.ce_mercante ?? '-'}</td>
-                <td className="px-3 py-2">{formatBBNumber(bl.bb_machine_qty)}</td>
-                <td className="px-3 py-2">{formatBBNumber(bl.bb_packages_qty)}</td>
-                <td className="px-3 py-2">{formatBBNumber(bl.bb_packages_total)}</td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_machine_qty)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_packages_qty)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_packages_total)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
                   {formatBBNumber(bl.bb_weight_ton)}
                 </td>
-                <td className="px-3 py-2">{formatBBNumber(bl.bb_cbm)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_cbm)}</td>
                 <td className="px-3 py-2">{bl.shipper ?? '-'}</td>
                 <td className="px-3 py-2">{bl.consignee ?? '-'}</td>
                 <td className="px-3 py-2">{bl.notify_party ?? '-'}</td>

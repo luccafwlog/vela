@@ -272,7 +272,7 @@ export function VoyageVisaoTab({
                           {atracacoes.length ? (
                             <button
                               type="button"
-                              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--app-muted)] hover:bg-[var(--app-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-border-focus)]"
+                              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-[var(--app-muted)] hover:bg-[var(--app-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-border-focus)]"
                               aria-controls={`${voyage.id}-atracacoes-${row.port}`}
                               aria-expanded={!collapsedAtracacoes.has(row.port)}
                               aria-label={`${collapsedAtracacoes.has(row.port) ? 'Expandir' : 'Recolher'} atracações de ${row.port}`}
