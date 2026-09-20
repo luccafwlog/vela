@@ -4,6 +4,7 @@ import type {
   CustomerContactPreference,
 } from '../types/database'
 import { canonicalizeDocument } from '../lib/cnpj'
+import { sanitizeLikeTerm } from '../lib/utils'
 import { operationFrontKindsForCargoMode } from './escalaTerminalAllocation'
 import { listVoyageEscalaSchedulesByVoyageIds, type VoyageEscalaSchedule } from './voyageRouteSchedules'
 import { supabase } from './supabase'
@@ -999,7 +1000,8 @@ export async function fetchCustomerCommunicationHistory(input?: number | Custome
     if (filters.id != null) query = query.eq('id', filters.id)
     if (filters.customerId != null) query = query.eq('customer_id', filters.customerId)
     if (filters.voyageId != null) query = query.eq('anchor_voyage_id', filters.voyageId)
-    if (filters.vessel?.trim()) query = query.ilike('vessel_name', `%${filters.vessel.trim()}%`)
+    const vessel = sanitizeLikeTerm(filters.vessel ?? '')
+    if (vessel) query = query.ilike('vessel_name', `%${vessel}%`)
     if (filters.kind) query = query.eq('kind', filters.kind)
     if (filters.status) query = query.eq('status', filters.status)
     if (filters.origin) {
@@ -1034,7 +1036,8 @@ async function fetchCoverageRows<T>(fetchPage: (from: number, to: number) => Pro
 export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: string; voyage?: string; month?: string }): Promise<VoyageCommunicationCoverageSummary[]> {
   const rawVoyages = await fetchCoverageRows((from, to) => {
     let voyageQuery = supabase.from('voyages').select('id, voyage_number, vessel:vessels(name)').order('id', { ascending: false }).range(from, to)
-    if (filters?.voyage?.trim()) voyageQuery = voyageQuery.ilike('voyage_number', `%${filters.voyage.trim()}%`)
+    const voyage = sanitizeLikeTerm(filters?.voyage ?? '')
+    if (voyage) voyageQuery = voyageQuery.ilike('voyage_number', `%${voyage}%`)
     return voyageQuery.overrideTypes<Array<{ id: number; voyage_number: string; vessel: { name: string } | null }>, { merge: false }>()
   })
 
