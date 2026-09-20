@@ -180,6 +180,62 @@ $$;
 REVOKE ALL ON FUNCTION public.register_ledger_invoice_payment(bigint, numeric, text, timestamptz, text, text, text, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.register_ledger_invoice_payment(bigint, numeric, text, timestamptz, text, text, text, uuid) TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.register_ledger_invoice_payment(
+  p_invoice_id bigint,
+  p_amount_brl numeric,
+  p_method text,
+  p_paid_at timestamptz,
+  p_pix_txid text,
+  p_source text,
+  p_notes text,
+  p_actor uuid,
+  p_request_id uuid
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $function$
+DECLARE
+  v_bl_id text;
+  v_request_id uuid := COALESCE(p_request_id, gen_random_uuid());
+  v_hash text := md5(jsonb_build_object('invoice_id', p_invoice_id, 'amount_brl', round(p_amount_brl::numeric, 2), 'method', p_method, 'paid_at', p_paid_at, 'pix_txid', p_pix_txid, 'source', p_source, 'notes', p_notes, 'actor', p_actor)::text);
+  v_existing public.ledger_payment_requests%ROWTYPE;
+  v_result jsonb;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_active_user() OR NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Credenciais invalidas ou sem permissao de faturamento.' USING ERRCODE = '42501';
+  END IF;
+
+  FOR v_bl_id IN
+    SELECT DISTINCT links.bl_id
+    FROM (
+      SELECT ib.bl_id FROM public.invoice_bls ib WHERE ib.invoice_id = p_invoice_id
+      UNION
+      SELECT r.bl_id FROM public.invoice_receivable_links l JOIN public.bl_receivables r ON r.id = l.receivable_id WHERE l.invoice_id = p_invoice_id
+    ) links ORDER BY 1
+  LOOP
+    PERFORM pg_advisory_xact_lock(hashtextextended('bl:' || v_bl_id, 0));
+  END LOOP;
+
+  INSERT INTO public.ledger_payment_requests(request_id, payload_hash, created_by)
+  VALUES (v_request_id, v_hash, COALESCE(p_actor, auth.uid()))
+  ON CONFLICT (request_id) DO NOTHING;
+  SELECT * INTO v_existing FROM public.ledger_payment_requests WHERE request_id = v_request_id FOR UPDATE;
+  IF v_existing.payload_hash IS DISTINCT FROM v_hash THEN
+    RAISE EXCEPTION 'Request de pagamento % já foi usado com outro payload.', v_request_id USING ERRCODE = '22023';
+  END IF;
+  IF v_existing.result IS NOT NULL THEN RETURN v_existing.result; END IF;
+
+  PERFORM public.assert_ledger_invoice_payment_allocation(p_invoice_id, p_amount_brl);
+  v_result := public.register_ledger_invoice_payment_legacy_066(
+    p_invoice_id, p_amount_brl, p_method, p_paid_at, p_pix_txid, p_source, p_notes, p_actor
+  );
+  UPDATE public.ledger_payment_requests SET result = v_result WHERE request_id = v_request_id;
+  RETURN v_result;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.register_ledger_invoice_payment(bigint, numeric, text, timestamptz, text, text, text, uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.register_ledger_invoice_payment(bigint, numeric, text, timestamptz, text, text, text, uuid, uuid) TO authenticated;
+
 -- A criação do comunicado precisa validar e congelar a âncora na mesma
 -- transação que grava o snapshot. O RPC legado continua sendo o escritor,
 -- mas recebe somente valores derivados sob locks dos B/Ls/escala.
