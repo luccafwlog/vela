@@ -25,6 +25,10 @@ describe('contrato visual compartilhado', () => {
     expect(css).toContain('@media (prefers-reduced-motion: reduce)')
   })
 
+  it('alinha valores financeiros pela casa decimal com numerais tabulares', () => {
+    expect(css).toMatch(/\.app-table__cell-value--financial\s*\{[^}]*text-align:\s*right[^}]*font-variant-numeric:\s*tabular-nums/s)
+  })
+
   it('ancora notificacoes do Portal dentro do viewport mobile', () => {
     expect(css).toMatch(/@media \(max-width: 480px\)[\s\S]*?\.portal-notifications__panel\s*\{[^}]*position:\s*fixed[^}]*left:\s*12px[^}]*right:\s*12px/s)
   })

@@ -468,7 +468,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                               ) : refund.status === 'pending' ? (
                                 <span className="text-xs text-slate-500">Aguardando Financeiro</span>
                               ) : (
-                                <Badge tone="slate">Cancelada</Badge>
+                                <Badge tone="red">Cancelada</Badge>
                               )}
                             </td>
                             <td className="px-3 py-2">{refund.settled_at ? formatDate(refund.settled_at) : '—'}</td>

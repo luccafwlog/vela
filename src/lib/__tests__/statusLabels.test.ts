@@ -26,7 +26,7 @@ describe('ESTADO_CONCILIACAO_META', () => {
 describe('VOYAGE_STATUS_BADGE_TONE', () => {
   it('mapeia status de viagem para tons de badge', () => {
     expect(VOYAGE_STATUS_BADGE_TONE.active).toBe('blue')
-    expect(VOYAGE_STATUS_BADGE_TONE.completed).toBe('slate')
+    expect(VOYAGE_STATUS_BADGE_TONE.completed).toBe('green')
     expect(VOYAGE_STATUS_BADGE_TONE.cancelled).toBe('red')
   })
 })

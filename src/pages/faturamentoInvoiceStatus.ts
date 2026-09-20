@@ -24,7 +24,7 @@ export function invoiceStatusLabel(status: string | null) {
 export function invoiceStatusTone(status: string | null) {
   const display = invoiceDisplayStatus(status)
   if (display === 'paid') return 'green'
-  if (display === 'cancelled') return 'slate'
+  if (display === 'cancelled') return 'red'
   return 'blue'
 }
 

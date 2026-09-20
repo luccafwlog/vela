@@ -3603,6 +3603,8 @@ textarea {
 .app-table__cell-value--financial {
   font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
   letter-spacing: -0.03em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .app-table__action {

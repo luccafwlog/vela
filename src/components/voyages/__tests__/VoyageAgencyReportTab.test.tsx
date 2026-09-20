@@ -73,6 +73,31 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
+function confirmAgencyReportClose() {
+  fireEvent.click(screen.getByRole('button', { name: 'Fechar ADR' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar fechamento' }))
+}
+
+it('pede confirmação antes de fechar o ADR', () => {
+  useAgencyReportOwnMock.mockReturnValue({
+    data: {
+      status: 'open', terminal: 'TVV', signoffs: allSectionsSignoffs(),
+      departmentSignoffs: allDepartmentsSigned(), occurrences: [], actor_names: {},
+    },
+  })
+  useAgencyReportDerivedMock.mockReturnValue({
+    data: { containers: [], vehicles: [], vaziosImp: [], granite: [], vaziosExp: [], storage: {}, operation: {}, schedule: {} },
+    isLoading: false,
+    error: null,
+  })
+
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+
+  fireEvent.click(screen.getByRole('button', { name: 'Fechar ADR' }))
+  expect(closeMutateMock).not.toHaveBeenCalled()
+  expect(screen.getByRole('dialog', { name: 'Confirmar fechamento do ADR' })).toBeTruthy()
+})
+
 it('abre a escala indicada no deep-link e permite trocar a escala do ADR', () => {
   render(
     <VoyageAgencyReportTab
@@ -174,7 +199,7 @@ it('não congela vazios de exportação no ADR que só recebeu vazio de importa�
   })
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} reportId="report-tvv" terminalCode="TVV" />)
-  fireEvent.click(screen.getByRole('button', { name: 'Fechar ADR' }))
+  confirmAgencyReportClose()
 
   const snapshot = closeMutateMock.mock.calls.at(-1)?.[0]?.snapshot
   expect(snapshot.sections).toMatchObject({
@@ -440,7 +465,7 @@ it('congela o ATD unificado, o prazo calculado e as reaberturas departamentais n
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  fireEvent.click(screen.getByRole('button', { name: 'Fechar ADR' }))
+  confirmAgencyReportClose()
   expect(closeMutateMock).toHaveBeenCalledWith(expect.objectContaining({
     snapshot: expect.objectContaining({
       header: expect.objectContaining({
@@ -502,7 +527,7 @@ it('exibe a carga solta derivada e a congela sob cargaSolta no snapshot', () => 
 
   expect(screen.getAllByText('Máquinas')).toHaveLength(2)
   expect(screen.getByText('3')).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: 'Fechar ADR' }))
+  confirmAgencyReportClose()
   expect(closeMutateMock).toHaveBeenCalledWith(expect.objectContaining({
     snapshot: expect.objectContaining({
       sections: expect.objectContaining({ cargaSolta }),
@@ -654,7 +679,7 @@ it('congela locais de desova, depots e embarques diretos no snapshot', () => {
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  fireEvent.click(screen.getByRole('button', { name: 'Fechar ADR' }))
+  confirmAgencyReportClose()
   expect(closeMutateMock).toHaveBeenCalledWith(expect.objectContaining({
     snapshot: expect.objectContaining({
       header: expect.objectContaining({ schedule: expect.objectContaining({ atb: '2026-07-19', rtw: 2 }) }),
@@ -1351,4 +1376,3 @@ it('observação longa sem quebras de linha exibe o botão para expandir', () =>
   fireEvent.click(within(datasSection).getByRole('button', { name: 'Ver observação completa' }))
   expect(within(datasSection).getByRole('button', { name: 'Recolher observação' })).toBeTruthy()
 })
-

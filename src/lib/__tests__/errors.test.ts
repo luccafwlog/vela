@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyDbError, extractErrorText, isRetriableDbError } from '../errors'
+import { classifyDbError, extractErrorText, isRetriableDbError, userFacingErrorMessage } from '../errors'
 
 describe('extractErrorText', () => {
   it('junta os campos de um erro do Supabase preservando o casing', () => {
@@ -131,5 +131,16 @@ describe('isRetriableDbError', () => {
   it('continua repetindo falhas transitorias', () => {
     expect(isRetriableDbError(new TypeError('Failed to fetch'))).toBe(true)
     expect(isRetriableDbError({ code: '40001', message: 'could not serialize access' })).toBe(true)
+  })
+})
+
+describe('userFacingErrorMessage', () => {
+  it('traduz erros conhecidos e nunca exibe mensagem técnica desconhecida', () => {
+    expect(userFacingErrorMessage({ code: '23503', message: 'violates foreign key constraint fk_bls' })).toBe(
+      'Registro referenciado nao existe ou ainda esta em uso.',
+    )
+    expect(userFacingErrorMessage(new Error('relation internal_table does not exist'), 'Não foi possível excluir.')).toBe(
+      'Não foi possível excluir.',
+    )
   })
 })

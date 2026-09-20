@@ -46,6 +46,7 @@ import { afterManifestoImportado } from '../services/cacheEffects'
 import { inspectImportUpload } from '../services/importText'
 import { rowErrorsToImportIssues } from '../services/importValidation'
 import type { InvoiceLinkInfo } from '../services/billing'
+import { userFacingErrorMessage } from '../lib/errors'
 
 function InvoiceLink({ links }: { links: InvoiceLinkInfo[] }) {
   if (!links.length) return <span>-</span>
@@ -280,7 +281,7 @@ export function Bls() {
       ])
       showToast(`${report.deletableIds.length} B/L(s) excluído(s).`, 'success')
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'erro desconhecido'
+      const detail = userFacingErrorMessage(err, 'Não foi possível excluir os B/Ls selecionados.')
       showToast(`Falha ao excluir B/L(s): ${detail}`, 'error')
     } finally {
       setDeleting(false)

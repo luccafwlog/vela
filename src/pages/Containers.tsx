@@ -22,6 +22,7 @@ import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { checkContainerDependencies, deleteContainers } from '../services/containers'
 import { formatBlockedSummary } from '../services/deleteDependencies'
 import { type ContainerFilters, fetchAllContainers, useContainers, usePortOptions, useContainerTypeOptions } from '../hooks/useBls'
+import { userFacingErrorMessage } from '../lib/errors'
 
 export function Containers() {
   const queryClient = useQueryClient()
@@ -179,7 +180,7 @@ export function Containers() {
       ])
       showToast(`${report.deletableIds.length} container(es) excluido(s).`, 'success')
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'erro desconhecido'
+      const detail = userFacingErrorMessage(err, 'Não foi possível excluir os containers selecionados.')
       showToast(`Falha ao excluir container(es): ${detail}`, 'error')
     } finally {
       setDeleting(false)
