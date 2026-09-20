@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { buildFinancialNavItemsForCounts, financialNavItems, getNavIndicator, primaryNavItems } from '../appLayoutNav'
 
@@ -21,4 +22,12 @@ describe('financial navigation badges', () => {
 
 it('não expõe Portal do Cliente na navegação superior', () => {
   expect(primaryNavItems.some((item) => item.to === '/clientes/portal')).toBe(false)
+})
+
+it('usa disclosure de navegação e botão nativo para a conta', () => {
+  const source = fs.readFileSync('src/components/layout/AppLayout.tsx', 'utf8')
+  expect(source).not.toContain('role="menu"')
+  expect(source).not.toContain('role="menuitem"')
+  expect(source).toContain('aria-haspopup="true"')
+  expect(source).toContain('aria-controls="app-user-dropdown"')
 })

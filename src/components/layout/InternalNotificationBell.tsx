@@ -57,6 +57,8 @@ export function InternalNotificationBell() {
         className="app-header__icon-button"
         aria-label={`Notificações internas${unreadCount ? ` (${unreadCount} não lidas)` : ''}`}
         aria-expanded={open}
+        aria-haspopup="true"
+        aria-controls="internal-notifications-panel"
         onClick={() => {
           setOpen((current) => !current)
           setPage(0)
@@ -74,7 +76,8 @@ export function InternalNotificationBell() {
       {open ? (
         <div
           className="absolute right-0 top-10 z-50 w-[min(92vw,400px)] rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-2 shadow-2xl"
-          role="menu"
+          id="internal-notifications-panel"
+          role="region"
           aria-label="Notificações internas"
         >
           <div className="flex items-center justify-between border-b border-[var(--app-border)] px-3 py-2">
@@ -118,7 +121,6 @@ export function InternalNotificationBell() {
                 <button
                   key={notification.id}
                   type="button"
-                  role="menuitem"
                   className="flex w-full gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-white/5"
                   onClick={() => {
                     if (!notification.read_at) {
@@ -158,9 +160,9 @@ export function InternalNotificationBell() {
                       ) : null}
 
                       {notification.is_fallback ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400 border border-amber-500/20" title="Entregue via fallback de Administrativo. Responsável pelo tratamento permanece inalterado.">
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400 border border-amber-500/20" title="Entregue por rota alternativa do Administrativo. Responsável pelo tratamento permanece inalterado.">
                           <ShieldAlert size={10} />
-                          Fallback
+                          Entrega alternativa
                         </span>
                       ) : null}
 

@@ -51,6 +51,7 @@ export function AppLayout() {
   )
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const userMenuButtonRef = useRef<HTMLButtonElement>(null)
   const primaryNavItemsWithBadges: NavItem[] = primaryNavItems.map((item) =>
     item.to === '/alertas' ? { ...item, badge: counts.openAlerts || undefined } : item,
   )
@@ -96,8 +97,17 @@ export function AppLayout() {
     function handleOutside(event: MouseEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) setUserMenuOpen(false)
     }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      setUserMenuOpen(false)
+      userMenuButtonRef.current?.focus()
+    }
     document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
   }, [userMenuOpen])
 
   function closeMobileMenus() {
@@ -136,25 +146,28 @@ export function AppLayout() {
 
           <div className="app-header__actions">
             <InternalNotificationBell />
-            <div
-              className="app-header__user-menu"
-              ref={userMenuRef}
-              role="button"
-              tabIndex={0}
-              onClick={() => setUserMenuOpen((current) => !current)}
-              onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setUserMenuOpen((current) => !current) }}
-            >
+            <div ref={userMenuRef} className="relative">
+              <button
+                ref={userMenuButtonRef}
+                type="button"
+                className="app-header__user-menu"
+                aria-expanded={userMenuOpen}
+                aria-haspopup="true"
+                aria-controls="app-user-dropdown"
+                onClick={() => setUserMenuOpen((current) => !current)}
+              >
               <span className="app-user-pill__icon" aria-hidden="true">
                 <User size={14} />
               </span>
               <span className="app-user-pill__name">{profile?.full_name ?? 'Usuário'}</span>
+              </button>
               {userMenuOpen ? (
-                <div className="app-header__user-dropdown" role="menu">
-                  <button type="button" role="menuitem" onClick={() => { setUserMenuOpen(false); navigate('/perfil') }}>
+                <div id="app-user-dropdown" className="app-header__user-dropdown">
+                  <button type="button" onClick={() => { setUserMenuOpen(false); navigate('/perfil') }}>
                     <UserCircle size={14} aria-hidden="true" />
                     Meu perfil
                   </button>
-                  <button type="button" role="menuitem" onClick={() => void handleSignOut()}>
+                  <button type="button" onClick={() => void handleSignOut()}>
                     <LogOut size={14} aria-hidden="true" />
                     Sair
                   </button>
@@ -331,7 +344,8 @@ function TopNavDropdownMenu({
         type="button"
         className={cn('app-nav-link', 'app-nav-link--button', (isActive || isOpen) && 'active')}
         aria-expanded={isOpen}
-        aria-haspopup="menu"
+        aria-haspopup="true"
+        aria-controls={`app-nav-${label.toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g, '-')}`}
         onClick={() => {
           if (isMobile) {
             onToggleMobile()
@@ -348,12 +362,11 @@ function TopNavDropdownMenu({
         <ChevronDown size={16} className="app-nav-dropdown__chevron" />
       </button>
 
-      <div className="app-nav-dropdown__menu" role="menu" aria-label={label}>
+      <div id={`app-nav-${label.toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g, '-')}`} className="app-nav-dropdown__menu" aria-label={label}>
         {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
-            role="menuitem"
             onClick={onNavigate}
             className={({ isActive }) => cn('app-nav-dropdown__item', isActive && 'active')}
           >

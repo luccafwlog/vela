@@ -59,6 +59,7 @@ export function Combobox({
   const menuRef = useRef<HTMLUListElement>(null)
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
   const listId = useId()
+  const optionId = (index: number) => `${listId}-option-${index}`
 
   // Posiciona o dropdown em coordenadas de viewport (position: fixed) a partir do
   // input, para renderizá-lo num portal no body e escapar de `overflow:hidden` e
@@ -165,6 +166,7 @@ export function Combobox({
         aria-expanded={open}
         aria-controls={listId}
         aria-autocomplete="list"
+        aria-activedescendant={open && highlight >= 0 ? optionId(highlight) : undefined}
         autoComplete="off"
         value={text}
         disabled={disabled}
@@ -191,24 +193,22 @@ export function Combobox({
           style={menuStyle}
         >
           {loading ? (
-            <li className="app-combobox__empty">Buscando…</li>
+            <li className="app-combobox__empty" role="status">Buscando…</li>
           ) : options.length === 0 ? (
-            <li className="app-combobox__empty">Nenhuma sugestão</li>
+            <li className="app-combobox__empty" role="status">Nenhuma sugestão</li>
           ) : (
             options.map((option, index) => (
-              <li key={`${option.value}-${index}`} role="option" aria-selected={index === highlight}>
-                <button
-                  type="button"
-                  className={`app-combobox__option${index === highlight ? ' app-combobox__option--active' : ''}`}
-                  onMouseDown={(event) => {
-                    event.preventDefault()
-                    handleSelect(option)
-                  }}
-                  onMouseEnter={() => setHighlight(index)}
-                >
+              <li
+                id={optionId(index)}
+                key={`${option.value}-${index}`}
+                role="option"
+                aria-selected={index === highlight}
+                className={`app-combobox__option${index === highlight ? ' app-combobox__option--active' : ''}`}
+                onMouseDown={(event) => { event.preventDefault(); handleSelect(option) }}
+                onMouseEnter={() => setHighlight(index)}
+              >
                   <span className="app-combobox__option-label">{option.label}</span>
                   {option.meta ? <span className="app-combobox__option-meta">{option.meta}</span> : null}
-                </button>
               </li>
             ))
           )}

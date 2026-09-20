@@ -105,7 +105,7 @@ describe('InternalNotificationBell', () => {
     expect(screen.getByText('3')).toBeTruthy()
   })
 
-  it('abre o menu ao clicar no sino e exibe as notificações com Eco e Fallback', () => {
+  it('abre o painel ao clicar no sino e usa linguagem operacional em português', () => {
     render(
       <MemoryRouter>
         <InternalNotificationBell />
@@ -117,7 +117,9 @@ describe('InternalNotificationBell', () => {
     expect(screen.getByText('Notificações internas')).toBeTruthy()
     expect(screen.getByText('Fatura vencida')).toBeTruthy()
     expect(screen.getByText('Eco de Tratamento')).toBeTruthy()
-    expect(screen.getByText('Fallback')).toBeTruthy()
+    expect(screen.getByText('Entrega alternativa')).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'Notificações internas' })).toBeTruthy()
+    expect(screen.queryByRole('menu')).toBeNull()
     expect(screen.getByText('Marcar todas como lidas')).toBeTruthy()
   })
 
