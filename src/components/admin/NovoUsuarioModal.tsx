@@ -37,7 +37,7 @@ export function NovoUsuarioModal({
 
   return (
     <Modal open={open} title="Novo usuário" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="grid gap-3">
+      <form onSubmit={handleSubmit} noValidate className="grid gap-3">
         <Field label="Nome completo" required>
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus />
         </Field>
