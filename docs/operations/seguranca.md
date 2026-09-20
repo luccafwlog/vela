@@ -40,6 +40,10 @@
 Uma conta de `customer_portal_accounts` só pode ficar ativa quando possui `auth_user_id`. A identidade é criada na ativação do convite; suspensão revoga sessões e devolve a conta à análise. A prontidão do Portal é guarda dos caminhos manuais de emissão; a automação CE tem exceção interna controlada na migration `051`.
 
 Troca/redefinição de senha, recuperação assistida, troca de Email de Recuperação (self-service ou assistida, migration `195`) e suspeita de comprometimento revogam as sessões existentes via `portal_revoke_sessions` (migration `194`, delete direto em `auth.sessions`/`auth.refresh_tokens` — o endpoint admin `/admin/users/{id}/logout` do GoTrue retorna 404 nesta versão). O reset self-service revoga antes da mudança, instala uma quarentena futura em `credentials_revoked_at`, altera a senha e revoga novamente; falha intermediária mantém o fluxo negado fechado.
+O corte de `iat` é estrito desde a migration `068`: qualquer access
+token emitido antes do marco final é recusado, inclusive dentro dos cinco
+segundos antes tolerados. Token sem `iat` válido também é recusado enquanto o
+marco estiver ativo.
 
 As RPCs `SECURITY DEFINER` de provisionamento vigentes (`portal_set_exception`, `portal_return_to_analysis`, `portal_admin_change_cnpj`, `portal_cancel_invite`, `portal_assisted_email_change`) autorizam em duas camadas: EXECUTE concedido só a `authenticated`/`service_role` (o herdado do `PUBLIC` foi revogado na migration `192`) e guarda NULL-safe sobre `_portal_actor_role()`, negando role indefinido — inclusive clientes do Portal, que também são role `authenticated`. As RPCs temporárias de pré-voo e backfill foram revogadas e removidas pela migration `201`. Correção da falha *fail-open* encontrada em teste de isolamento por CNPJ (2026-07-14): a comparação com role NULL não disparava o `permission denied`, e o `REVOKE ... FROM anon` original não removia o EXECUTE do `PUBLIC`.
 

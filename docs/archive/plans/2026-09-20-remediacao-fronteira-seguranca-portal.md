@@ -10,6 +10,12 @@
 
 **Spec:** solicitação de remediação da auditoria AppSec nesta tarefa; contratos canônicos em `docs/operations/seguranca.md`, ADR 0011 e ADR 0047.
 
+**Revisão final:** o parecer independente identificou que a folga histórica de
+cinco segundos em `current_portal_customer_id()` ainda admitia um JWT obtido
+concorrentemente com a senha antiga. A migration `068` substitui o
+corte por comparação estrita; o teste local cobre token imediatamente anterior
+e posterior ao marco de revogação.
+
 ## Restrições globais
 
 - Preservar os dois clientes Supabase e a resolução de tenant no banco.

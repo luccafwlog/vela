@@ -9,7 +9,9 @@
   global e mutações de Dispute por clientes do Portal; detalhes de invoices e
   Demurrage passam a usar allowlists JSON sem notas, aprovadores, TXID ou
   snapshots internos. O reset de senha revoga antes e depois da alteração com
-  quarentena fail-closed, e o login equaliza conta real/inexistente por meio de
+  quarentena fail-closed; o corte estrito de `iat` elimina também a janela
+  residual de cinco segundos em que um login concorrente com a senha antiga
+  ainda era aceito. O login equaliza conta real/inexistente por meio de
   identidade dummy sem vínculo. Filtros de Comunicados removem curingas de
   `ilike`, e a tela deixa de decompor o markup cambial no navegador.
   [Plano e evidências](archive/plans/2026-09-20-remediacao-fronteira-seguranca-portal.md).
