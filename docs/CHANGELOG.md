@@ -4,6 +4,17 @@
 
 ## 2026-09
 
+- **Remediação da auditoria de UI, design system e acessibilidade (2026-09-20):**
+  erros técnicos deixaram de vazar para toasts e ErrorBoundary; status de
+  conclusão, cancelamento e omissão recuperaram semântica; fechamento de ADR
+  ganhou confirmação e reabertura passou a ser ação de perigo. Primitives
+  compartilhados agora cobrem loading estável, `required`, empty states,
+  skeletons estruturais, intervalo de paginação, listbox, foco, contraste nos
+  dois temas e alvos de toque de 44 px. B/Ls, Containers, Faturas e Viagens
+  receberam CTAs contextuais, números alinhados, breadcrumb e vocabulário em
+  português. Evidências e limites estão em
+  [auditoria histórica](archive/audits/2026-09-20-auditoria-ui-design-system.md).
+
 - **Remediação de Clientes, Revisão e Comunicação (2026-09-20):** comunicados operacionais
   passam a falhar fechado, validar B/L/cliente/âncoras e impor a caixa correta;
   a troca de cliente serializa com linhas financeiras; revisão exige versão,

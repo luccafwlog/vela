@@ -1,7 +1,7 @@
 # Remediação de UI, design system e acessibilidade
 
 - **Data:** 2026-09-20
-- **Estado:** aprovado para execução
+- **Estado:** concluída em 2026-09-20
 - **Origem:** auditoria forense de UI, design system e acessibilidade de
   2026-09-20
 - **Superfícies:** Vela interno e Portal Fwlog

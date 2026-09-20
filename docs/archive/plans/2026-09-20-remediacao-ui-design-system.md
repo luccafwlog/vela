@@ -1,9 +1,9 @@
 # Plano de remediação de UI, design system e acessibilidade
 
 - **Data:** 2026-09-20
-- **Estado:** em execução
+- **Estado:** concluído em 2026-09-20
 - **Spec:**
-  [remediação de UI, design system e acessibilidade](../spec/2026-09-20-remediacao-ui-design-system-design.md)
+  [remediação de UI, design system e acessibilidade](../specs/2026-09-20-remediacao-ui-design-system-design.md)
 
 ## Objetivo
 
