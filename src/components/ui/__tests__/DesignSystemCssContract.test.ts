@@ -9,16 +9,23 @@ describe('contrato visual compartilhado', () => {
     expect(css.match(/--app-surface-hover:/g)).toHaveLength(3)
   })
 
-  it('mantem controles compartilhados com alvo minimo de 40px', () => {
-    expect(css).toMatch(/\.app-skip-link\s*\{[^}]*min-height:\s*40px/s)
-    expect(css).toMatch(/\.app-breadcrumb__link\s*\{[^}]*min-height:\s*40px/s)
-    expect(css).toMatch(/\.app-touch-link\s*\{[^}]*min-height:\s*40px/s)
-    expect(css).toMatch(/\.app-tab\s*\{[^}]*min-height:\s*40px/s)
-    expect(css).toMatch(/\.app-table__icon-button\s*\{[^}]*min-width:\s*40px[^}]*min-height:\s*40px/s)
-    expect(css).toMatch(/\.app-market-refresh::after\s*\{[^}]*width:\s*40px[^}]*height:\s*40px/s)
-    expect(css).toMatch(/\.app-header__brand\s*\{[^}]*min-height:\s*40px/s)
-    expect(css).toMatch(/\.app-modal__close\s*\{[^}]*min-width:\s*40px[^}]*min-height:\s*40px/s)
-    expect(css).toMatch(/\.app-toast__close\s*\{[^}]*width:\s*40px[^}]*height:\s*40px/s)
+  it('mantem controles compartilhados com alvo minimo de 44px', () => {
+    expect(css).toMatch(/\.app-skip-link\s*\{[^}]*min-height:\s*44px/s)
+    expect(css).toMatch(/\.app-breadcrumb__link\s*\{[^}]*min-height:\s*44px/s)
+    expect(css).toMatch(/\.app-touch-link\s*\{[^}]*min-height:\s*44px/s)
+    expect(css).toMatch(/\.app-tab\s*\{[^}]*min-height:\s*44px/s)
+    expect(css).toMatch(/\.app-table__icon-button\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
+    expect(css).toMatch(/\.app-market-refresh::after\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/s)
+    expect(css).toMatch(/\.app-header__brand\s*\{[^}]*min-height:\s*44px/s)
+    expect(css).toMatch(/\.app-modal__close\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
+    expect(css).toMatch(/\.app-toast__close\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/s)
+  })
+
+  it('usa superfícies temáticas nos campos e pares escuros explícitos nos badges', () => {
+    expect(css).toMatch(/\.app-input\s*\{[^}]*background:\s*var\(--app-surface-strong\)/s)
+    expect(css).toMatch(/:root\[data-visual-theme='dark'\][\s\S]*?\.app-badge--blue\s*\{[^}]*color:\s*#bfdbfe/s)
+    expect(css).toMatch(/:root\[data-visual-theme='dark'\][\s\S]*?\.app-badge--green\s*\{[^}]*color:\s*#bbf7d0/s)
+    expect(css).toMatch(/:root\[data-visual-theme='dark'\][\s\S]*?\.app-badge--yellow\s*\{[^}]*color:\s*#fde68a/s)
   })
 
   it('remove movimento de interacao quando o usuario prefere menos animacao', () => {

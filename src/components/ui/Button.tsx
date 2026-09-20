@@ -5,6 +5,7 @@ import { cn } from '../../lib/utils'
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
   loading?: boolean
+  loadingLabel?: string
 }
 
 const variants = {
@@ -14,7 +15,7 @@ const variants = {
   ghost: 'app-btn--ghost',
 }
 
-export function Button({ className, variant = 'primary', loading, children, disabled, ...props }: ButtonProps) {
+export function Button({ className, variant = 'primary', loading, loadingLabel = 'Carregando…', children, disabled, ...props }: ButtonProps) {
   return (
     <button
       className={cn(
@@ -23,16 +24,12 @@ export function Button({ className, variant = 'primary', loading, children, disa
         className,
       )}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      aria-label={loading ? loadingLabel : props['aria-label']}
       {...props}
     >
-      {loading ? (
-        <>
-          <Loader2 size={14} className="animate-spin" />
-          Carregando...
-        </>
-      ) : (
-        children
-      )}
+      <span data-button-label className={loading ? 'invisible' : undefined}>{children}</span>
+      {loading ? <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true"><Loader2 size={14} className="animate-spin" /></span> : null}
     </button>
   )
 }

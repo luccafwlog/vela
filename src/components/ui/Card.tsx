@@ -16,10 +16,12 @@ export function EmptyState({
   icon: Icon = Inbox,
   title,
   description,
+  action,
 }: {
   icon?: LucideIcon
   title: string
   description?: string
+  action?: React.ReactNode
 }) {
   return (
     <div className="app-empty-state">
@@ -28,6 +30,7 @@ export function EmptyState({
       </div>
       <p className="app-empty-state__title">{title}</p>
       {description ? <p className="app-empty-state__description">{description}</p> : null}
+      {action ? <div className="app-empty-state__action">{action}</div> : null}
     </div>
   )
 }

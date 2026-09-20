@@ -7,6 +7,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { TableFooterPagination } from './TableFooterPagination'
 
 describe('TableFooterPagination', () => {
+  it('informa o intervalo visível e o total', () => {
+    render(<TableFooterPagination page={2} pageSize={50} totalCount={340} totalPages={7} onPageChange={vi.fn()} />)
+    expect(screen.getByText('Exibindo 51–100 de 340')).toBeTruthy()
+    expect(screen.getByText('Página 2 de 7')).toBeTruthy()
+  })
+
   it('disables previous and next at the limits', () => {
     const onPageChange = vi.fn()
 

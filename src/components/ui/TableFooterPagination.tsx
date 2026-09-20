@@ -28,18 +28,18 @@ export function TableFooterPagination({
   const displayPage = pageBase === 0 ? page + 1 : page
   const firstPage = pageBase
   const lastPage = pageBase === 0 ? totalPages - 1 : totalPages
+  const rangeStart = totalCount === 0 ? 0 : (displayPage - 1) * pageSize + 1
+  const rangeEnd = Math.min(displayPage * pageSize, totalCount)
 
   return (
     <div className="app-table__footer">
-      <span>
-        {countLabel ?? `${totalCount} registros`} · Página {displayPage} de {totalPages}
-      </span>
+      <div><span>{countLabel ?? `Exibindo ${rangeStart}–${rangeEnd} de ${totalCount}`}</span><span className="block text-xs">Página {displayPage} de {totalPages}</span></div>
       <div className="app-table__footer-controls">
         {onPageSizeChange ? (
           <Select className="w-28" value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
             {pageSizes.map((size) => (
               <option key={size} value={size}>
-                {size}/pag
+                {size} por página
               </option>
             ))}
           </Select>

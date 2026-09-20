@@ -137,7 +137,7 @@
 
 .app-skip-link {
   display: inline-flex;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
   position: absolute;
   top: -100%;
@@ -409,7 +409,7 @@ textarea {
   align-items: center;
   gap: 14px;
   min-width: 0;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1999,7 +1999,7 @@ textarea {
 }
 
 .app-btn--sm {
-  min-height: 40px;
+  min-height: 44px;
   padding: 6px 12px;
   font-size: 12px;
   gap: 6px;
@@ -2085,7 +2085,7 @@ textarea {
   justify-content: center;
   min-width: 0;
   max-width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   border: 1px solid var(--app-border-strong);
   border-radius: 8px;
@@ -2119,7 +2119,7 @@ textarea {
   min-height: var(--app-control-h);
   border: 1px solid var(--app-border);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 247, 251, 0.98));
+  background: var(--app-surface-strong);
   color: var(--app-text-strong);
   padding: 11px 14px;
   font-size: 14px;
@@ -2248,6 +2248,29 @@ textarea {
   /* Âmbar levemente mais escuro: contraste AA (>=4.5:1) sobre o gold-suave
      (antes 4.47:1 — falhava por margem; a11y A11Y-001). */
   color: #a85309;
+}
+
+:root[data-visual-theme='dark'] .app-badge--blue {
+  background: #1e3a5f;
+  border-color: #315784;
+  color: #bfdbfe;
+}
+
+:root[data-visual-theme='dark'] .app-badge--green {
+  background: #123c2a;
+  border-color: #286548;
+  color: #bbf7d0;
+}
+
+:root[data-visual-theme='dark'] .app-badge--yellow {
+  background: #49320a;
+  border-color: #765514;
+  color: #fde68a;
+}
+
+:root[data-visual-theme='dark'] .app-nav-badge {
+  background: #fbbf24;
+  color: #152238;
 }
 
 /* Segmented control de 3 estados do sign-off do ADR. Concêntrico: raio
@@ -2383,9 +2406,9 @@ textarea {
 }
 
 .app-modal__close {
-  width: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   color: rgba(255, 255, 255, 0.72) !important;
 }
@@ -3638,10 +3661,10 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border: 1px solid var(--app-border);
   border-radius: 10px;
   background: linear-gradient(180deg, #ffffff, var(--app-surface-muted));
@@ -3654,14 +3677,14 @@ textarea {
   padding: 0;
 }
 
-/* Alvo de toque de 40x40 sem inflar a altura da faixa de câmbio (~25px):
+/* Alvo de toque de 44x44 sem inflar a altura da faixa de câmbio (~25px):
    a área de toque é um pseudo-elemento posicionado, fora do fluxo. */
 .app-market-refresh::after {
   content: '';
   position: absolute;
   inset: 50% auto auto 50%;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   transform: translate(-50%, -50%);
 }
 
@@ -3902,10 +3925,10 @@ textarea {
 
 /* Versao reduzida do botao de icone para caber varias acoes na linha da tabela. */
 .app-table__icon-button--sm {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 9px;
 }
 
@@ -5360,7 +5383,7 @@ textarea {
 
 .app-breadcrumb__link {
   display: inline-flex;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
   color: var(--app-muted);
   font-size: 13px;
@@ -5371,7 +5394,7 @@ textarea {
 
 .app-touch-link {
   display: inline-flex;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
 }
 
@@ -5396,8 +5419,8 @@ textarea {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: none;
   border-radius: 4px;
   background: transparent;
