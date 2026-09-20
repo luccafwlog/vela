@@ -685,6 +685,7 @@ export function compareDateValues(left: string | null, right: string | null) {
  */
 export function compareLineUpRows(left: LineUpRow, right: LineUpRow) {
   const priority = (row: LineUpRow) => {
+    if (row.voyageStatus === 'cancelled') return 5
     if (row.omitted) return 4
     if (row.atb && !row.atd) return 0
     if (row.ata && !row.atb) return 1

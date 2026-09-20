@@ -114,6 +114,7 @@ export async function registerLedgerInvoicePayment(input: {
   pixTxid?: string | null
   source?: 'manual' | 'pix_extract'
   notes?: string | null
+  actorId?: string | null
   /** Stable key reused by the UI when a network retry follows a timeout. */
   requestId?: string
 }) {
@@ -126,7 +127,7 @@ export async function registerLedgerInvoicePayment(input: {
     p_pix_txid: input.pixTxid ?? null,
     p_source: input.source ?? 'manual',
     p_notes: input.notes?.trim() || null,
-    p_actor: null,
+    p_actor: input.actorId ?? null,
     p_request_id: requestId,
   })
   if (error) throw error

@@ -41,6 +41,7 @@ import {
   saveEscalaTerminalState,
 } from '../services/escalaTerminalAllocation'
 import { afterEscalaAlterada, afterRotaAlterada, afterViagemAlterada } from '../services/cacheEffects'
+import { classifyDbError } from '../lib/errors'
 import {
   VoyageCard,
   type EditingPolPayload,
@@ -208,7 +209,7 @@ export function Viagens() {
       if (selectedVoyageId === deletingVoyageId) navigate('/viagens')
       setDeletingVoyageId(null)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Falha ao excluir viagem.'
+      const message = classifyDbError(error).message || 'Falha ao excluir viagem.'
       showToast(message, 'error')
     } finally {
       setDeleting(false)
@@ -233,7 +234,7 @@ export function Viagens() {
       setCancellingVoyageId(null)
       setCancellationReason('')
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Falha ao cancelar viagem.', 'error')
+      showToast(classifyDbError(error).message || 'Falha ao cancelar viagem.', 'error')
     } finally {
       setCancelling(false)
     }

@@ -34,15 +34,13 @@ import { formatBRL, formatDate, stripBlPrefix } from '../../lib/utils'
 import { isLedgerInvoicePayable } from '../../pages/faturamentoLedgerPayment'
 import { invoiceStatusLabel, isOpenInvoiceStatus } from '../../pages/faturamentoInvoiceStatus'
 import { printDocumentElement } from '../../lib/printDocument'
+import { classifyDbError } from '../../lib/errors'
 
 function extractMessage(error: unknown, fallback: string): string {
   if (!error) return fallback
-  if (typeof error === 'string') return error
-  if (typeof error === 'object') {
-    const msg = (error as { message?: string }).message
-    if (msg) return msg
-  }
-  return fallback
+  const classified = classifyDbError(error)
+  if (classified.kind !== 'desconhecido') return classified.message
+  return (typeof error === 'string' ? error : (error as { message?: string })?.message) || fallback
 }
 
 type PaymentMethod = 'pix' | 'ted' | 'doc' | 'boleto' | 'outros'
@@ -135,6 +133,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
           paidAt: payment.paidAt ? new Date(`${payment.paidAt}T12:00:00`).toISOString() : null,
           source: 'manual',
           notes: paymentNotes.trim() || null,
+          actorId: user?.id ?? null,
           requestId,
         })
       } else {

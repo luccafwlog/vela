@@ -252,6 +252,7 @@ describe('registerLedgerInvoicePayment', () => {
       pixTxid: 'TX123',
       source: 'pix_extract',
       notes: '  ok  ',
+      actorId: 'usr-123',
     })
     expect(supabaseMocks.rpc).toHaveBeenCalledWith('register_ledger_invoice_payment', {
       p_invoice_id: 2,
@@ -261,7 +262,7 @@ describe('registerLedgerInvoicePayment', () => {
       p_pix_txid: 'TX123',
       p_source: 'pix_extract',
       p_notes: 'ok',
-      p_actor: null,
+      p_actor: 'usr-123',
       p_request_id: expect.any(String),
     })
 

@@ -4,7 +4,9 @@ import { calculateTeu, teuForContainerType } from '../containerTeu'
 describe('containerTeu', () => {
   it('calcula 20, 40 e 45 pés sem transformar tipo desconhecido em TEU', () => {
     expect(teuForContainerType('20GP')).toBe(1)
+    expect(teuForContainerType('22G1')).toBe(1)
     expect(teuForContainerType('40 HC')).toBe(2)
+    expect(teuForContainerType('42G1')).toBe(2)
     expect(teuForContainerType('45G1')).toBe(2.25)
     expect(teuForContainerType('L5G1')).toBeNull()
   })
