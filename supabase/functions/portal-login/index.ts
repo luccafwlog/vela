@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { openAlertOnce } from '../_shared/portalAlerts.ts'
 import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess } from '../_shared/portalLoginRateLimit.ts'
+import { authenticatePortalLoginIdentity } from '../_shared/portalLoginIdentity.ts'
 
 const GENERIC_ERROR = 'CNPJ ou senha inválidos.'
 
@@ -33,7 +34,8 @@ if (typeof Deno !== 'undefined') {
     const url = Deno.env.get('SUPABASE_URL')
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
-    if (!url || !serviceKey || !anonKey) return json(500, { error: 'Portal indisponível.' }, origin)
+    const dummyUserId = Deno.env.get('PORTAL_LOGIN_DUMMY_AUTH_USER_ID')
+    if (!url || !serviceKey || !anonKey || !dummyUserId) return json(500, { error: 'Portal indisponível.' }, origin)
 
     const admin = createClient(url, serviceKey)
     if (await isLoginRateLimited(admin, normalized)) {
@@ -59,21 +61,18 @@ if (typeof Deno !== 'undefined') {
     }
 
     const { data: account } = await admin.from('customer_portal_accounts').select('auth_user_id, account_situation').eq('login_cnpj', normalized).maybeSingle()
-    if (!account || account.account_situation !== 'ativo' || !account.auth_user_id) {
-      await registerLoginFailure(admin, normalized)
-      return json(401, { error: GENERIC_ERROR }, origin)
-    }
-
-    const { data: user } = await admin.auth.admin.getUserById(account.auth_user_id)
-    const technicalEmail = user.user?.email
-    if (!technicalEmail) {
-      await registerLoginFailure(admin, normalized)
-      return json(401, { error: GENERIC_ERROR }, origin)
-    }
-
     const authClient = createClient(url, anonKey)
-    const { data: session, error } = await authClient.auth.signInWithPassword({ email: technicalEmail, password: body.password })
-    if (error || !session.session) {
+    const authentication = await authenticatePortalLoginIdentity(account, dummyUserId, body.password, {
+      lookupEmail: async (userId) => {
+        const { data: user } = await admin.auth.admin.getUserById(userId)
+        return user.user?.email ?? null
+      },
+      signIn: async (email, password) => {
+        const { data, error } = await authClient.auth.signInWithPassword({ email, password })
+        return error ? null : data.session
+      },
+    })
+    if (!authentication.accepted || !authentication.session) {
       await registerLoginFailure(admin, normalized)
       return json(401, { error: GENERIC_ERROR }, origin)
     }
@@ -81,9 +80,9 @@ if (typeof Deno !== 'undefined') {
     await registerLoginSuccess(admin, normalized)
     await admin.from('customer_portal_accounts').update({ last_login_at: new Date().toISOString() }).eq('login_cnpj', normalized)
     return json(200, {
-      access_token: session.session.access_token,
-      refresh_token: session.session.refresh_token,
-      expires_at: session.session.expires_at,
+      access_token: authentication.session.access_token,
+      refresh_token: authentication.session.refresh_token,
+      expires_at: authentication.session.expires_at,
     }, origin)
   })
 }
