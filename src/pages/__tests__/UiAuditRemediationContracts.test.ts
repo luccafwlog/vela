@@ -22,4 +22,15 @@ describe('contratos das telas remediadas', () => {
     expect(source).toContain('min-h-11 min-w-11')
     expect(source).not.toContain('h-5 w-5')
   })
+
+  it('usa mensagens amigáveis e terminologia padronizada em faturas', () => {
+    const invoiceModal = fs.readFileSync('src/components/billing/InvoiceDetailModal.tsx', 'utf8')
+    const taxasLocais = fs.readFileSync('src/pages/TaxasLocais.tsx', 'utf8')
+    expect(invoiceModal).not.toContain('function extractMessage')
+    expect(invoiceModal).toContain('userFacingErrorMessage')
+    expect(invoiceModal).toContain('>Cancelar fatura<')
+    expect(invoiceModal).not.toContain('>Cancelar invoice<')
+    expect(taxasLocais).not.toContain('function extractMessage')
+    expect(taxasLocais).toContain('userFacingErrorMessage')
+  })
 })

@@ -52,4 +52,12 @@ describe('TableFooterPagination', () => {
 
     expect(onPageSizeChange).toHaveBeenCalledWith(50)
   })
+
+  it('exibe estado de lista vazia e desabilita navegação quando totalCount for zero', () => {
+    render(<TableFooterPagination page={1} pageSize={20} totalCount={0} totalPages={0} onPageChange={vi.fn()} />)
+    expect(screen.getByText('Nenhum registro')).toBeTruthy()
+    expect(screen.getByText('Página 0 de 0')).toBeTruthy()
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Anterior' }).disabled).toBe(true)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Próxima' }).disabled).toBe(true)
+  })
 })

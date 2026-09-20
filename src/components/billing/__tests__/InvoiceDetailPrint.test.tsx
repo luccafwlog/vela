@@ -6,12 +6,14 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 
 const deleteCharge = vi.fn()
+const cancelInvoice = vi.fn()
 const confirm = vi.fn()
+const showToast = vi.fn()
 
 vi.mock('../../../hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'admin-1' }, isAdmin: true, can: () => true }),
 }))
-vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
+vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast }) }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => confirm }))
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
@@ -38,7 +40,7 @@ vi.mock('../../../hooks/useBilling', () => ({
     error: null,
   }),
   useRegisterInvoicePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useCancelInvoice: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCancelInvoice: () => ({ mutateAsync: cancelInvoice, isPending: false }),
   useAddManualInvoiceCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteManualInvoiceCharge: () => ({ mutateAsync: deleteCharge, isPending: false }),
 }))
@@ -75,4 +77,20 @@ it('pede confirmação antes de excluir uma cobrança manual', async () => {
 
   expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ tone: 'danger' }))
   expect(deleteCharge).not.toHaveBeenCalled()
+})
+
+it('usa terminologia em português (fatura) no modal de detalhe e cancelamento', async () => {
+  const user = userEvent.setup()
+  cancelInvoice.mockRejectedValueOnce(new Error('PGRST116: row lock timeout'))
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+
+  expect(screen.getByText('Detalhe da fatura INV-9')).toBeTruthy()
+  expect(screen.getByText('Itens da fatura')).toBeTruthy()
+  expect(screen.getByRole('heading', { name: 'Cancelar fatura' })).toBeTruthy()
+
+  const reasonInput = screen.getByLabelText('Motivo')
+  await user.type(reasonInput, 'Cancelamento operacional')
+  await user.click(screen.getByRole('button', { name: 'Cancelar fatura' }))
+
+  expect(showToast).toHaveBeenCalledWith('Falha ao cancelar fatura.', 'error')
 })

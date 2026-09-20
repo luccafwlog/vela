@@ -60,7 +60,7 @@ export function Combobox({
   const pointerSelectedValueRef = useRef<string | null>(null)
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
   const listId = useId()
-  const optionId = (index: number) => `${listId}-option-${index}`
+  const optionId = useCallback((index: number) => `${listId}-option-${index}`, [listId])
 
   // Posiciona o dropdown em coordenadas de viewport (position: fixed) a partir do
   // input, para renderizá-lo num portal no body e escapar de `overflow:hidden` e
@@ -129,6 +129,14 @@ export function Combobox({
     }
   }, [open, options.length, loading, updateMenuPosition])
 
+  useEffect(() => {
+    if (!open || highlight < 0) return
+    const el = document.getElementById(optionId(highlight))
+    if (typeof el?.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest' })
+    }
+  }, [highlight, open, optionId])
+
   function handleSelect(option: ComboOption) {
     justSelectedRef.current = true
     setText(option.label)
@@ -161,6 +169,7 @@ export function Combobox({
       }
     } else if (event.key === 'Escape') {
       setOpen(false)
+      setHighlight(-1)
     }
   }
 

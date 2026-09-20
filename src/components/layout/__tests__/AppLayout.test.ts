@@ -33,3 +33,9 @@ it('usa disclosure de navegação e botão nativo para a conta', () => {
   expect(source).toContain('userMenuFirstItemRef.current?.focus()')
   expect(source).toContain('userMenuButtonRef.current?.focus()')
 })
+
+it('fecha os dropdowns da navegação superior com Escape e restaura foco no gatilho', () => {
+  const source = fs.readFileSync('src/components/layout/AppLayout.tsx', 'utf8')
+  expect(source).toContain("event.key === 'Escape' && isOpen")
+  expect(source).toContain('triggerRef.current?.focus()')
+})

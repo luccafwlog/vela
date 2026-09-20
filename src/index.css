@@ -3126,6 +3126,13 @@ textarea {
   text-wrap: pretty;
 }
 
+.app-empty-state__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+}
+
 .app-inline-error {
   display: flex;
   align-items: center;

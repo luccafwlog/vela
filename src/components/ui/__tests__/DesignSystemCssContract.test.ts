@@ -51,4 +51,8 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/@media \(max-width: 480px\)[\s\S]*?\.app-header__actions \.app-user-pill\s*\{[^}]*display:\s*none/s)
     expect(css).toMatch(/@media \(max-width: 480px\)[\s\S]*?\.app-header__logout\s*\{[^}]*font-size:\s*0/s)
   })
+
+  it('define a ação do estado vazio com alinhamento e espaçamento dedicados', () => {
+    expect(css).toMatch(/\.app-empty-state__action\s*\{[^}]*display:\s*inline-flex/s)
+  })
 })

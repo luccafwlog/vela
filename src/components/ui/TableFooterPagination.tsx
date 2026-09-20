@@ -23,15 +23,18 @@ export function TableFooterPagination({
   pageSizes = PAGE_SIZES,
   pageBase = 1,
 }: TableFooterPaginationProps) {
-  const displayPage = pageBase === 0 ? page + 1 : page
+  const displayPage = totalCount === 0 ? 0 : (pageBase === 0 ? page + 1 : page)
+  const displayTotalPages = totalCount === 0 ? 0 : totalPages
   const firstPage = pageBase
   const lastPage = pageBase === 0 ? totalPages - 1 : totalPages
   const rangeStart = totalCount === 0 ? 0 : (displayPage - 1) * pageSize + 1
   const rangeEnd = Math.min(displayPage * pageSize, totalCount)
+  const rangeSummary = totalCount === 0 ? 'Nenhum registro' : `Exibindo ${rangeStart}–${rangeEnd} de ${totalCount}`
+  const pageSummary = `Página ${displayPage} de ${displayTotalPages}`
 
   return (
     <div className="app-table__footer">
-      <div><span>{`Exibindo ${rangeStart}–${rangeEnd} de ${totalCount}`}</span><span className="block text-xs">Página {displayPage} de {totalPages}</span></div>
+      <div><span>{rangeSummary}</span><span className="block text-xs">{pageSummary}</span></div>
       <div className="app-table__footer-controls">
         {onPageSizeChange ? (
           <Select className="w-28" value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
@@ -42,10 +45,10 @@ export function TableFooterPagination({
             ))}
           </Select>
         ) : null}
-        <Button variant="secondary" disabled={page <= firstPage} onClick={() => onPageChange(Math.max(firstPage, page - 1))}>
+        <Button variant="secondary" disabled={totalCount === 0 || page <= firstPage} onClick={() => onPageChange(Math.max(firstPage, page - 1))}>
           Anterior
         </Button>
-        <Button variant="secondary" disabled={page >= lastPage} onClick={() => onPageChange(Math.min(lastPage, page + 1))}>
+        <Button variant="secondary" disabled={totalCount === 0 || page >= lastPage} onClick={() => onPageChange(Math.min(lastPage, page + 1))}>
           Próxima
         </Button>
       </div>

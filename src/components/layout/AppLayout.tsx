@@ -331,6 +331,7 @@ function TopNavDropdownMenu({
   onToggleMobile: () => void
   onNavigate?: () => void
 }) {
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const isOpen = isMobile ? mobileOpen : desktopOpen
   const indicator = getNavIndicator(items)
 
@@ -343,8 +344,20 @@ function TopNavDropdownMenu({
         if (isMobile) return
         onCloseDesktop()
       }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && isOpen) {
+          event.stopPropagation()
+          if (isMobile) {
+            onToggleMobile()
+          } else {
+            onCloseDesktop()
+          }
+          triggerRef.current?.focus()
+        }
+      }}
     >
       <button
+        ref={triggerRef}
         type="button"
         className={cn('app-nav-link', 'app-nav-link--button', (isActive || isOpen) && 'active')}
         aria-expanded={isOpen}
