@@ -275,7 +275,9 @@ export function Viagens() {
             items={visibleRailItems}
             selectedId={selectedVoyageId}
             onSelect={(id) => navigate(`/viagens/${id}`)}
-            onEdit={canEditVoyages ? setEditingVoyageId : undefined}
+            onEdit={canEditVoyages ? (id) => {
+              if (voyages.find((voyage) => voyage.id === id)?.status !== 'cancelled') setEditingVoyageId(id)
+            } : undefined}
           />
         )}
 

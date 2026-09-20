@@ -280,6 +280,17 @@ describe('fetchLineUpSnapshot', () => {
   })
 })
 
+describe('compareLineUpRows', () => {
+  it('prioriza berço efetivo sobre ETA mais antigo e mantém escala concluída depois', async () => {
+    const { compareLineUpRows } = await import('../lineup')
+    const base = { id: 'x', voyageId: 1, voyageNumber: '1', voyageStatus: 'active' as const, vesselName: 'V', pod: 'BRVIX', eta: null, etb: null, ata: null, atb: null, rowType: 'import' as const, omitted: false, importTerminal: 'TBC', exportTerminal: 'TBC', vin: 0, car: 0, cg: 0, total: 0, mty: 0, rtw: null, bbMachines: 0, bbPackages: 0, bbTotal: 0, atd: null, ceStatus: 'missing' as const, linked: false, exportHasGranite: null, exportContainersQty: null, exportMovementsQty: null, exportCeStatus: null, exportLinked: null }
+    const active = { ...base, id: 'active', atb: '2026-08-10', eta: '2026-07-01' }
+    const pending = { ...base, id: 'pending', eta: '2026-07-02' }
+    const completed = { ...base, id: 'done', atb: '2026-07-03', atd: '2026-07-04' }
+    expect([pending, completed, active].sort(compareLineUpRows).map((row) => row.id)).toEqual(['active', 'pending', 'done'])
+  })
+})
+
 describe('projectLineUpTerminals', () => {
   it('cobre import-only, export-only, ambos e TBC', async () => {
     const { projectLineUpTerminals } = await import('../lineup')

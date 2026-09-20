@@ -222,16 +222,21 @@ describe('createConsolidatedInvoice', () => {
 })
 
 describe('registerLedgerInvoicePayment', () => {
-  it('chama o RPC register_ledger_invoice_payment omitindo defaults opcionais', async () => {
+  it('chama o RPC register_ledger_invoice_payment com uma chave de idempotência', async () => {
     supabaseMocks.rpc.mockResolvedValueOnce({ data: paymentPayload(), error: null })
 
-    const result = await registerLedgerInvoicePayment({ invoiceId: 1, amountBrl: 50 })
+    const result = await registerLedgerInvoicePayment({ invoiceId: 1, amountBrl: 50, requestId: 'req-1' })
 
     expect(supabaseMocks.rpc).toHaveBeenCalledWith('register_ledger_invoice_payment', {
       p_invoice_id: 1,
       p_amount_brl: 50,
       p_method: 'pix',
+      p_paid_at: expect.any(String),
+      p_pix_txid: null,
       p_source: 'manual',
+      p_notes: null,
+      p_actor: null,
+      p_request_id: 'req-1',
     })
     expect(result).toEqual(paymentPayload())
   })
@@ -256,6 +261,8 @@ describe('registerLedgerInvoicePayment', () => {
       p_pix_txid: 'TX123',
       p_source: 'pix_extract',
       p_notes: 'ok',
+      p_actor: null,
+      p_request_id: expect.any(String),
     })
 
     await registerLedgerInvoicePayment({ invoiceId: 2, amountBrl: 1, notes: '   ' })
@@ -263,7 +270,12 @@ describe('registerLedgerInvoicePayment', () => {
       p_invoice_id: 2,
       p_amount_brl: 1,
       p_method: 'pix',
+      p_paid_at: expect.any(String),
+      p_pix_txid: null,
       p_source: 'manual',
+      p_notes: null,
+      p_actor: null,
+      p_request_id: expect.any(String),
     })
   })
 

@@ -195,8 +195,8 @@ describe('blParser', () => {
     }))
 
     expect(parsed.vehicles).toEqual([
-      { chassis: '9BWZZZ377VT004251', containerNumber: 'RORO001', blNumber: 'CSC45250E02Y00' },
-      { chassis: '9BWZZZ377VT004252', containerNumber: 'RORO001', blNumber: 'CSC45250E02Y00' },
+      { chassis: '9BWZZZ377VT004251', containerNumber: 'RORO001', blNumber: 'CSC45250E02Y00', brand: null, model: null, weightKg: null, cbm: null },
+      { chassis: '9BWZZZ377VT004252', containerNumber: 'RORO001', blNumber: 'CSC45250E02Y00', brand: null, model: null, weightKg: null, cbm: null },
     ])
   })
 

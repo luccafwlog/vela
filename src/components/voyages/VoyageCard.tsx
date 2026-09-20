@@ -10,6 +10,7 @@ import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante
 import type { VoyageVehicleStat } from '../../hooks/useVehicles'
 import type { VoyageVaziosImportacaoStat } from '../../hooks/useVaziosImportacaoStats'
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../../lib/containerCounts'
+import { calculateTeu } from '../../services/containerTeu'
 import { formatDate } from '../../lib/utils'
 import {
   collectVoyagePorts,
@@ -78,9 +79,9 @@ function DirectionKpiTile({
         {primary.unit ? <span className="app-voyage-kpi-tile__unit">{primary.unit}</span> : null}
       </div>
       <div className="app-voyage-kpi-tile__support">
-        {/* ponytail: teto visual de três apoios por tile; upgrade: tornar o
+        {/* ponytail: teto visual de quatro apoios por tile; upgrade: tornar o
             conjunto expansível quando surgirem métricas que precisem de detalhe. */}
-        {metrics.slice(0, 3).map((metric) => (
+        {metrics.slice(0, 4).map((metric) => (
           <div key={`${direction}-${metric.label}`} className="app-voyage-kpi-tile__metric">
             <span>{metric.label}</span>
             <strong>{metric.value}</strong>
@@ -150,7 +151,9 @@ export function VoyageCard({
   const [activeTab, setActiveTab] = useState<VoyageTabKey>(initialTab)
   const [omitTarget, setOmitTarget] = useState<string | null>(null)
   const { isAdmin, user, profile } = useAuth()
-  const canEditVoyages = Boolean(profile || user)
+  const isCancelled = voyage.status === 'cancelled'
+  const canEditVoyages = !isCancelled && Boolean(profile || user)
+  const canDeleteVoyage = !isCancelled && isAdmin
 
   const vehicleStats = vehicleStatsProp ?? DEFAULT_VEHICLE_STATS
   const vaziosImpStats = vaziosImpStatsProp ?? DEFAULT_VAZIOS_IMP_STATS
@@ -167,6 +170,12 @@ export function VoyageCard({
   const totalImoContainers = countDistinctContainerNumbersBy(flatContainers, (container) => Boolean(container.is_imo))
   const totalOogContainers = countDistinctContainerNumbersBy(flatContainers, (container) => Boolean(container.is_oog))
   const totalImportVehicles = vehicleStats.totalVehicles
+  const distinctContainerTypes = Array.from(new Map(
+    flatContainers
+      .map((container) => [String(container.container_number ?? '').trim().toUpperCase(), container.type ?? null] as const)
+      .filter(([containerNumber]) => Boolean(containerNumber)),
+  ).values())
+  const totalTeu = calculateTeu(distinctContainerTypes)
   const exportSummary = summarizeExportByEmbarkPort(voyage.granite_manifests, voyage.vazios_manifests)
   // Mesma fonte da aba Exportação (`summarizeExportByEmbarkPort`): contar
   // `vazios_manifests.total_bookings` aqui fazia o KPI divergir da faixa
@@ -346,7 +355,7 @@ export function VoyageCard({
             </div>
           </div>
 
-          {canEditVoyages || isAdmin ? (
+          {canEditVoyages || canDeleteVoyage ? (
             <div className="flex items-center gap-2 self-start">
               {canEditVoyages ? (
                 <>
@@ -365,7 +374,7 @@ export function VoyageCard({
                   </Button>
                 </>
               ) : null}
-              {isAdmin ? (
+              {canDeleteVoyage ? (
                 // deleteVoyage faz DELETE real em voyages, cuja policy exige
                 // is_admin() (010_rls_by_role) — nao alinhar com voyages_edit.
                 <Button
@@ -390,6 +399,7 @@ export function VoyageCard({
           primary={{ value: String(totalBls), unit: 'B/Ls' }}
           metrics={[
             { label: 'CNTRs distintos', value: String(totalContainers) },
+            { label: 'TEU', value: totalTeu.unknownTypeCount ? `${totalTeu.teu} (+${totalTeu.unknownTypeCount} diverg.)` : String(totalTeu.teu) },
             { label: 'IMO / OOG', value: `${totalImoContainers} / ${totalOogContainers}` },
             { label: 'Veículos', value: String(totalImportVehicles) },
           ]}
@@ -453,6 +463,7 @@ export function VoyageCard({
               isAdmin={isAdmin}
               divergenceCount={divergenceCount}
               ceCoverage={ceCoverage}
+              canEdit={!isCancelled}
               onEditEscala={onEditEscala}
               onOmitPod={(pod) => setOmitTarget(pod)}
             />
@@ -463,11 +474,11 @@ export function VoyageCard({
               voyageLabel={voyageLabel}
               vehicleStats={vehicleStats}
               vaziosImpStats={vaziosImpStats}
-              userId={user?.id}
+              userId={isCancelled ? undefined : user?.id}
             />
           ) : null}
           {activeTab === 'exportacao' ? (
-            <VoyageExportacaoTab voyage={voyage} voyageLabel={voyageLabel} userId={user?.id} />
+            <VoyageExportacaoTab voyage={voyage} voyageLabel={voyageLabel} userId={isCancelled ? undefined : user?.id} />
           ) : null}
           {activeTab === 'manifestos' ? (
             <VoyageManifestosTab
@@ -478,6 +489,7 @@ export function VoyageCard({
               routeCeMasters={routeCeMasters}
               ceCoverage={ceCoverage}
               vaziosRoutes={vaziosImpStats?.routes}
+              canEdit={!isCancelled}
               onEditPol={onEditPol}
             />
           ) : null}
@@ -490,6 +502,7 @@ export function VoyageCard({
               initialEscala={initialEscala}
               reportId={initialReportId}
               terminalCode={initialTerminalCode}
+              readOnly={isCancelled}
             />
           ) : null}
         </div>

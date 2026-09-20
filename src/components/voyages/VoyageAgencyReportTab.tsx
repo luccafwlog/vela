@@ -53,6 +53,7 @@ type Props = {
   initialEscala?: string
   reportId?: string | null
   terminalCode?: string | null
+  readOnly?: boolean
 }
 
 const OPERATION_FRONT_LABELS: Record<string, string> = {
@@ -302,7 +303,7 @@ function ContainerNatureTable({ rows }: { rows: Record<string, Record<string, nu
   )
 }
 
-export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods, initialEscala, reportId: initialReportId, terminalCode: initialTerminalCode }: Props) {
+export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods, initialEscala, reportId: initialReportId, terminalCode: initialTerminalCode, readOnly = false }: Props) {
   const { showToast } = useToast()
   const initialPortCode = normalizePortCode(initialEscala)
   const initialPort = initialPortCode && pods.some((entry) => normalizePortCode(entry.pod) === initialPortCode) ? initialPortCode : (normalizePortCode(pods[0]?.pod) ?? null)
@@ -350,7 +351,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const { data: signoffEvents } = useAgencyReportSignoffEvents(voyageId, port, resolvedReportId)
   const { data: departmentSignoffEvents } = useAgencyReportDepartmentSignoffEvents(voyageId, port, resolvedReportId)
   const { effectiveRole, isAdmin } = useAuth()
-  const canEditOperations = isAdmin || effectiveRole === 'operacoes'
+  const canEditOperations = !readOnly && (isAdmin || effectiveRole === 'operacoes')
   const signoffMutation = useSetAgencyReportSignoff(resolvedReportId)
   const departmentSignoffMutation = useSetAgencyReportDepartmentSignoff(resolvedReportId)
   const observationMutation = useSetAgencyReportSectionObservation(resolvedReportId)
@@ -486,12 +487,12 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
     const name = (signoff.signed_by && actorNames[signoff.signed_by]) || null
     return `${signoffLabels[signoff.state]} por ${name ?? '—'} em ${formatDate(signoff.signed_at)}`
   }
-  const canSignoff = (section: AgencyReportSection) => isAdmin || effectiveRole === AGENCY_REPORT_SECTIONS[section]
+  const canSignoff = (section: AgencyReportSection) => !readOnly && (isAdmin || effectiveRole === AGENCY_REPORT_SECTIONS[section])
   const updateSignoff = (section: AgencyReportSection, state: SignoffState, justification?: string) => {
-    if (port) signoffMutation.mutate({ voyageId, port, section, state, justification })
+    if (!readOnly && port) signoffMutation.mutate({ voyageId, port, section, state, justification })
   }
   const updateObservation = (section: AgencyReportSection, observation: string) => {
-    if (port) observationMutation.mutate({ voyageId, port, section, observation })
+    if (!readOnly && port) observationMutation.mutate({ voyageId, port, section, observation })
   }
   const eventsBySection = (section: AgencyReportSection) => (signoffEvents ?? []).filter((event) => event.section === section)
 
@@ -507,9 +508,9 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
     const name = (row.signed_by && actorNames[row.signed_by]) || null
     return `Assinado por ${name ?? '—'} em ${formatDate(row.signed_at)}`
   }
-  const canSignDepartment = (department: AgencyReportDepartmentKey) => isAdmin || effectiveRole === department
+  const canSignDepartment = (department: AgencyReportDepartmentKey) => !readOnly && (isAdmin || effectiveRole === department)
   const updateDepartmentSignoff = (department: AgencyReportDepartmentKey, signed: boolean, justification?: string) => {
-    if (port) departmentSignoffMutation.mutate({ voyageId, port, department, signed, justification })
+    if (!readOnly && port) departmentSignoffMutation.mutate({ voyageId, port, department, signed, justification })
   }
   const signedDepartmentsCount = DEPARTMENTS.filter(isDepartmentSigned).length
   const missingDepartmentLabels = DEPARTMENTS.filter((department) => !isDepartmentSigned(department)).map((department) => AGENCY_REPORT_DEPARTMENT_LABELS[department])
@@ -672,7 +673,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       {error ? <div className="app-panel app-panel--padded text-sm text-[var(--app-red)]">Não foi possível carregar os dados do ADR.</div> : null}
       {!isLoading && !error ? <>
         {isClosed ? <>
-          <div className="app-panel app-panel--padded flex flex-wrap items-center justify-between gap-3" role="status"><span>Fechado em {formatDate(ownData?.closed_at)} por {ownData?.closed_by_name ?? ownData?.closed_by ?? '—'}</span><div className="flex gap-2"><Button variant="secondary" onClick={() => setPrintOpen(true)}>Imprimir</Button>{isAdmin ? <Button variant="primary" onClick={() => setReopenOpen(true)}>Reabrir</Button> : null}</div></div>
+          <div className="app-panel app-panel--padded flex flex-wrap items-center justify-between gap-3" role="status"><span>Fechado em {formatDate(ownData?.closed_at)} por {ownData?.closed_by_name ?? ownData?.closed_by ?? '—'}</span><div className="flex gap-2"><Button variant="secondary" onClick={() => setPrintOpen(true)}>Imprimir</Button>{isAdmin && !readOnly ? <Button variant="primary" onClick={() => setReopenOpen(true)}>Reabrir</Button> : null}</div></div>
           <AgencyReportTimeline
             atd={closedSnapshot.header?.unifiedAtd ?? terminalAtd}
             atdSource={closedSnapshot.header?.atdSource ?? (terminalAtd ? ('terminal' as const) : null)}
@@ -687,7 +688,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             closedByName={ownData?.closed_by_name ?? ownData?.closed_by ?? null}
           />
           <Modal open={printOpen} title="Agency Departure Report" onClose={() => setPrintOpen(false)}><div className="flex justify-end pb-3"><Button variant="secondary" onClick={printClosedReport}>Imprimir</Button></div><AgencyReportDocument snapshot={closedSnapshot} actorNames={actorNames} /></Modal>
-          <Modal open={reopenOpen} title="Reabrir ADR" onClose={() => setReopenOpen(false)}><label className="grid gap-2">Justificativa<textarea value={reopenJustification} onChange={(event) => setReopenJustification(event.target.value)} className="min-h-24 rounded border border-[var(--app-border)] bg-transparent p-2" /></label><Button variant="primary" className="mt-3" disabled={!reopenJustification.trim() || reopenMutation.isPending} onClick={() => { if (port) reopenMutation.mutate({ voyageId, port, justification: reopenJustification.trim() }, { onSuccess: () => { setReopenOpen(false); setReopenJustification('') } }) }}>Confirmar reabertura</Button></Modal>
+          <Modal open={reopenOpen} title="Reabrir ADR" onClose={() => setReopenOpen(false)}><label className="grid gap-2">Justificativa<textarea value={reopenJustification} onChange={(event) => setReopenJustification(event.target.value)} className="min-h-24 rounded border border-[var(--app-border)] bg-transparent p-2" /></label><Button variant="primary" className="mt-3" disabled={readOnly || !reopenJustification.trim() || reopenMutation.isPending} onClick={() => { if (!readOnly && port) reopenMutation.mutate({ voyageId, port, justification: reopenJustification.trim() }, { onSuccess: () => { setReopenOpen(false); setReopenJustification('') } }) }}>Confirmar reabertura</Button></Modal>
         </> : <>
          <div className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
            <div className="flex flex-wrap items-center justify-between gap-3">
@@ -697,7 +698,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
              </div>
              <div className="flex gap-2">
                <Button variant="secondary" disabled title="A impressão fica disponível depois do fechamento.">Imprimir</Button>
-               <Button variant="primary" disabled={signedDepartmentsCount !== 3 || !departmentSignoffEvents || closeMutation.isPending || !port} title={signedDepartmentsCount !== 3 ? 'Assine os 3 departamentos para fechar o ADR.' : !departmentSignoffEvents ? 'Aguardando o histórico de reaberturas.' : undefined} onClick={() => { if (port) closeMutation.mutate({ voyageId, port, snapshot: snapshot as unknown as Json }, { onError: (error) => showToast(error instanceof Error ? error.message : 'Falha ao fechar o ADR.', 'error') }) }}>Fechar ADR</Button>
+               <Button variant="primary" disabled={readOnly || signedDepartmentsCount !== 3 || !departmentSignoffEvents || closeMutation.isPending || !port} title={signedDepartmentsCount !== 3 ? 'Assine os 3 departamentos para fechar o ADR.' : !departmentSignoffEvents ? 'Aguardando o histórico de reaberturas.' : undefined} onClick={() => { if (!readOnly && port) closeMutation.mutate({ voyageId, port, snapshot: snapshot as unknown as Json }, { onError: (error) => showToast(error instanceof Error ? error.message : 'Falha ao fechar o ADR.', 'error') }) }}>Fechar ADR</Button>
              </div>
            </div>
            {missingDepartmentLabels.length ? <div className="flex items-start gap-2 border-t border-[var(--app-border)] pt-3 text-xs leading-5 text-[var(--app-muted)]"><span className="text-[var(--app-gold)]" aria-hidden="true">!</span><span><strong className="text-[var(--app-gold-strong)]">Falta {missingDepartmentLabels.join(' e ')} assinar</strong> — todas as seções do setor precisam estar resolvidas antes da assinatura departamental.</span></div> : null}
@@ -726,7 +727,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                   {resolvedReportId ? (
                     <Info label="Terminal" value={resolvedTerminalCode ? `${resolvedTerminalCode}${resolvedTerminalName && resolvedTerminalName !== resolvedTerminalCode ? ` — ${resolvedTerminalName}` : ''}` : (ownData?.terminal ?? '—')} />
                   ) : canEditOperations ? (
-                    <div className="grid gap-1"><label htmlFor="legacy-adr-terminal" className="text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">Terminal</label><div className="flex gap-2"><input id="legacy-adr-terminal" className="app-input min-w-0" value={terminalDraft} onChange={(event) => setTerminalDraft(event.target.value)} placeholder="Informe o terminal" disabled={ownData?.status === 'closed' || terminalMutation.isPending} /><Button type="button" variant="secondary" disabled={!port || ownData?.status === 'closed' || terminalMutation.isPending || terminalDraft.trim() === (ownData?.terminal ?? '')} onClick={() => { if (!port) return; terminalMutation.mutate({ voyageId, port, terminal: terminalDraft.trim() }, { onSuccess: () => showToast('Terminal do ADR salvo.', 'success'), onError: (error) => showToast(error instanceof Error ? error.message : 'Falha ao salvar o terminal do ADR.', 'error') }) }}>Salvar</Button></div></div>
+                    <div className="grid gap-1"><label htmlFor="legacy-adr-terminal" className="text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">Terminal</label><div className="flex gap-2"><input id="legacy-adr-terminal" className="app-input min-w-0" value={terminalDraft} onChange={(event) => setTerminalDraft(event.target.value)} placeholder="Informe o terminal" disabled={readOnly || ownData?.status === 'closed' || terminalMutation.isPending} /><Button type="button" variant="secondary" disabled={readOnly || !port || ownData?.status === 'closed' || terminalMutation.isPending || terminalDraft.trim() === (ownData?.terminal ?? '')} onClick={() => { if (readOnly || !port) return; terminalMutation.mutate({ voyageId, port, terminal: terminalDraft.trim() }, { onSuccess: () => showToast('Terminal do ADR salvo.', 'success'), onError: (error) => showToast(error instanceof Error ? error.message : 'Falha ao salvar o terminal do ADR.', 'error') }) }}>Salvar</Button></div></div>
                   ) : <Info label="Terminal" value={ownData?.terminal ?? '—'} />}
                   <Info label="ATA" value={formatDate(data?.escala?.ata ?? data?.schedule?.ata)} />
                   <Info label="ATB" value={formatDate(terminalAtb)} />
@@ -749,6 +750,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
               {containers.length ? <div className="grid content-start gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-[0.09em] text-[var(--app-muted-soft)]">Containers descarregados</span><Hero value={String(containers.length)} unit="unidades" /></div>
                 <div className="flex flex-wrap gap-1.5">{imoCount ? <ReportToken label="IMO" value={imoCount} /> : null}{containers.filter((container) => container.is_oog).length ? <ReportToken label="OOG" value={containers.filter((container) => container.is_oog).length} /> : null}</div>
+                <div className="flex flex-wrap gap-1.5"><ReportToken label="TEU" value={dischargeMatrix.teu} />{dischargeMatrix.unknownTypeCount ? <ReportToken label="Tipo não reconhecido" value={dischargeMatrix.unknownTypeCount} /> : null}</div>
                 <div className="grid gap-2"><span className="text-[10px] font-bold uppercase tracking-[0.09em] text-[var(--app-muted)]">Por tipo</span><div className="flex flex-wrap gap-1.5">{Object.entries(dischargeMatrix.rows).sort(([a], [b]) => a.localeCompare(b)).map(([type, categories]) => <ReportToken key={type} label={type} value={Object.values(categories).reduce((sum, value) => sum + value, 0)} />)}</div></div>
                 <div className="grid gap-2"><span className="text-[10px] font-bold uppercase tracking-[0.09em] text-[var(--app-muted)]">Por tipo e natureza</span><ContainerNatureTable rows={dischargeMatrix.rows} /></div>
                 <div className="grid gap-2"><span className="text-[10px] font-bold uppercase tracking-[0.09em] text-[var(--app-muted)]">Destino</span><div className="flex flex-wrap gap-1.5"><ReportToken label="Destino final" value={dischargeDestination.destinoFinal} /><ReportToken label="Em transbordo" value={dischargeDestination.transbordo} /></div></div>
@@ -776,6 +778,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                   </span>
                   <Hero value={String(vaziosImp.length || data?.vaziosDivergence?.baplieCount || 0)} unit="vazios descarregados" />
                 </div>
+                <div className="flex flex-wrap gap-1.5"><ReportToken label="TEU" value={emptyDischargeMatrix.teu} />{emptyDischargeMatrix.unknownTypeCount ? <ReportToken label="Tipo não reconhecido" value={emptyDischargeMatrix.unknownTypeCount} /> : null}</div>
                 {data?.vaziosDivergence?.unclassifiedCount ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="app-badge app-badge--yellow w-fit">

@@ -14,6 +14,24 @@ describe('deriveEscalaState', () => {
   it('sem datas reais não há estado derivado', () => {
     expect(deriveEscalaState({ atb: null, atd: null })).toBeNull()
   })
+
+  it('ignora ATB histórico quando todos os berços já têm ATD', () => {
+    expect(deriveEscalaState({
+      atracacoes: [
+        { atb: '2026-07-10', atd: '2026-07-11' },
+        { atb: '2026-07-12', atd: '2026-07-13' },
+      ],
+    })).toBe('concluida')
+  })
+
+  it('mantém atracada quando há um berço sem ATD', () => {
+    expect(deriveEscalaState({
+      atracacoes: [
+        { atb: '2026-07-10', atd: '2026-07-11' },
+        { atb: '2026-07-12', atd: null },
+      ],
+    })).toBe('atracada')
+  })
 })
 
 describe('arrivalDisplay (precedência ATA → ETA)', () => {

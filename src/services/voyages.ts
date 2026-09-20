@@ -78,30 +78,13 @@ export async function cancelVoyage({
   const normalizedReason = reason.trim()
   if (!normalizedReason) throw new Error('Informe o motivo do cancelamento.')
 
-  const { data: current, error: currentError } = await supabase
-    .from('voyages')
-    .select('status')
-    .eq('id', voyageId)
-    .single()
-  if (currentError || !current) throw currentError
-  if (current.status === 'cancelled') return
-
-  const { error: updateError } = await supabase
-    .from('voyages')
-    .update({ status: 'cancelled' })
-    .eq('id', voyageId)
-  if (updateError) throw updateError
-
-  const { error: auditError } = await supabase.from('audit_logs').insert([{
-    entity_type: 'voyages',
-    entity_id: String(voyageId),
-    field_name: 'status',
-    old_value: current.status ?? null,
-    new_value: 'cancelled',
-    changed_by: changedBy,
-    justification: `Cancelamento de viagem: ${normalizedReason}`,
-  }])
-  if (auditError) throw auditError
+  const cancelRpc = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: Error | null }>
+  const { error } = await cancelRpc('cancel_voyage', {
+    p_voyage_id: voyageId,
+    p_reason: normalizedReason,
+    p_changed_by: changedBy,
+  })
+  if (error) throw error
 }
 
 export async function deleteVoyage(voyageId: number) {

@@ -286,6 +286,11 @@ executadas apenas no PostgreSQL descartável e revertidas ao final.
 
 ## Notas e divergências
 
+Desde a migration `066_auditoria_maritima_remediations.sql`, o import transacional
+persiste `bls.laden_on_board` e recalcula o menor ATD do POL dentro da mesma
+transação. Linhas VIN sem marca, modelo, peso e cubagem positivos ficam
+bloqueadas no preview; nenhum veículo é criado com valores zero artificiais.
+
 - A migration `199_drop_import_manifest_cntr_rpc.sql` remove as assinaturas histórica de 13 argumentos e ativa de 14 argumentos de `import_manifest_with_postprocess_transactional`; `import_manifest_transactional` permanece disponível para os fluxos legítimos que ainda a compõem.
 - CE Master é uma ação relacionada a manifestos, porém a UI executável atual está em `/viagens/:voyageId`; `/manifestos` não possui editor inline.
 - O plano histórico de consolidação dizia que free time e P1/P2 passariam todos por `save_bl_review`. O código atual usa a RPC apenas para `free_time_override`; P1/P2 usam update direto em `bls` e auditoria best-effort em `BlDemurrageSection`.

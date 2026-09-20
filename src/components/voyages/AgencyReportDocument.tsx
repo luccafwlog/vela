@@ -33,6 +33,8 @@ import type { AgencyReportDepartmentKey } from "../../types/database";
 type Matrix = {
   rows?: Record<string, Record<string, number>>;
   totals?: Record<string, number>;
+  teu?: number;
+  unknownTypeCount?: number;
 };
 type Snapshot = {
   header?: {
@@ -671,6 +673,12 @@ export function AgencyReportDocument({
       </Section>
       <Section title="Matriz de descarga" {...section("carga_descarregada")} hasData={discargaCombos.length > 0}>
         <OperatedListingTable label="Matriz de descarga" combos={discargaCombos} />
+        {(asMatrix(sections.cargaDescarregada).teu != null || asMatrix(sections.cargaDescarregada).unknownTypeCount) ? (
+          <MetricsTable label="TEU" metrics={[
+            ["TEU", count(asMatrix(sections.cargaDescarregada).teu)],
+            ["Tipos não reconhecidos", count(asMatrix(sections.cargaDescarregada).unknownTypeCount)],
+          ]} />
+        ) : null}
         {hasDiscargaDestino ? (
           <MetricsTable
             label="Destino dos containers descarregados"
@@ -683,6 +691,12 @@ export function AgencyReportDocument({
       </Section>
       <Section title="Vazios descarregados" {...section("vazios_descarregados")} hasData={vaziosDescarregadosCombos.length > 0}>
         <OperatedListingTable label="Vazios descarregados" combos={vaziosDescarregadosCombos} />
+        {(asMatrix(sections.vaziosDescarregados).teu != null || asMatrix(sections.vaziosDescarregados).unknownTypeCount) ? (
+          <MetricsTable label="TEU" metrics={[
+            ["TEU", count(asMatrix(sections.vaziosDescarregados).teu)],
+            ["Tipos não reconhecidos", count(asMatrix(sections.vaziosDescarregados).unknownTypeCount)],
+          ]} />
+        ) : null}
       </Section>
       <Section title="Container com veículo" {...section("veiculos")} hasData={vehicles.length > 0}>
         <table aria-label="Container com veículo" style={dataTable}>

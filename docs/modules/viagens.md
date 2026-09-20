@@ -137,6 +137,11 @@ Os testes Vitest focados e a suíte final desta frente foram executados. Não ho
 
 ## Notas e divergências
 
+Viagens canceladas são seladas no banco: o RPC de cancelamento grava status e
+auditoria na mesma transação e mutações operacionais posteriores são recusadas.
+Os KPIs de containers exibem CNTRs distintos e TEU separadamente; tipos ISO
+desconhecidos aparecem como divergência, não como zero.
+
 - A omissão grava os dados globais de transbordo na própria RPC, cria a disposição por B/L e pode ser revertida por Admin com justificativa, auditoria e notificação. A escala omitida é marcada no Line-Up e na programação como `OMIT`, distinta de `X`; `portal_ship_schedule` a devolve com a flag explícita, enquanto escalas deletadas continuam ocultas.
 - `CONTEXT.md` é a fonte canônica de linguagem de domínio do sistema, complementada por `docs/ARCHITECTURE.md`, ADRs, código e migrations.
 - As migrations 046/052 introduzem snapshots JSONB de schedule, mas a leitura atual continua baseada em `audit_logs`. Não documentar snapshot como fonte de leitura até o serviço mudar.
