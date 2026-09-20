@@ -8,6 +8,9 @@ no [CHANGELOG](../../CHANGELOG.md); planos vivos ficam em
 
 ## Conteúdo
 
+- [`2026-09-20-remediacao-clientes-revisao-comunicacao`](2026-09-20-remediacao-clientes-revisao-comunicacao.md)
+  — segurança dos comunicados, serialização financeira, revisão otimista,
+  saldo canônico, fila completa e preview explícito da importação. Migration `068`.
 - [`2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante`](2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md)
   — unificação de B/Ls com suporte a carga mista, rota canônica `/bls`, fatura
   adaptativa modular, modelo de lançamento de Manifesto Mercante (`manifestos_mercante`),

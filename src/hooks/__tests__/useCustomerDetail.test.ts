@@ -7,7 +7,10 @@ import { useCustomerDetail } from '../useCustomers'
 
 const { mockFrom } = vi.hoisted(() => ({ mockFrom: vi.fn() }))
 vi.mock('../../services/supabase', () => ({ supabase: { from: mockFrom } }))
-vi.mock('../../services/customers', () => ({ fetchIssuedInvoiceBalanceByCustomer: vi.fn() }))
+vi.mock('../../services/customers', () => ({
+  fetchIssuedInvoiceBalanceByCustomer: vi.fn(),
+  fetchCustomerPendingBalance: vi.fn(() => Promise.resolve({ localBrl: 40, demurrageBrl: 15, totalBrl: 55 })),
+}))
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -27,8 +30,8 @@ function makeInvoicePage(count: number, offset: number, status: string) {
   }))
 }
 
-describe('useCustomerDetail — paginacao de invoices', () => {
-  it('soma o saldo pendente de todas as paginas, nao so da primeira janela de 500', async () => {
+describe('useCustomerDetail — invoices e saldo canônico', () => {
+  it('pagina o histórico inteiro e usa o saldo do ledger, não a soma de invoices', async () => {
     const firstPage = makeInvoicePage(500, 1, 'issued')
     const secondPage = makeInvoicePage(1, 501, 'issued')
 
@@ -60,6 +63,7 @@ describe('useCustomerDetail — paginacao de invoices', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.invoices?.length).toBe(501)
-    expect(result.current.data?.pending_balance).toBe(501 * 100)
+    expect(result.current.data?.pending_balance).toBe(55)
+    expect((result.current.data as unknown as { pending_balance_local: number }).pending_balance_local).toBe(40)
   })
 })

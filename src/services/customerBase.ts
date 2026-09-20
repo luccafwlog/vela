@@ -35,6 +35,8 @@ export type CustomerBaseRow = {
   city: string | null
   state: string | null
   zip: string | null
+  existingCustomerId?: number
+  changedFields?: string[]
 }
 
 export type ParsedCustomerBase = {
@@ -48,6 +50,30 @@ export async function parseCustomerBaseFile(file: File): Promise<ParsedCustomerB
   const { headers, rows } = await readSheet(buffer)
   validateRequiredHeaders(headers)
   return parseCustomerBaseRows(rows)
+}
+
+export async function compareCustomerBaseWithExisting(parsed: ParsedCustomerBase): Promise<ParsedCustomerBase> {
+  const existing: Array<Record<string, unknown>> = []
+  for (let from = 0; from < parsed.rows.length; from += 500) {
+    const documents = parsed.rows.slice(from, from + 500).map((row) => row.cnpj_cpf)
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id, cnpj_cpf, name, trade_name, address, city, state, zip')
+      .in('cnpj_cpf', documents)
+    if (error) throw error
+    existing.push(...(data ?? []))
+  }
+  const byDocument = new Map(existing.map((row) => [String(row.cnpj_cpf), row]))
+  const labels: Record<string, string> = { name: 'Razão Social', trade_name: 'Nome Fantasia', address: 'Endereço', city: 'Cidade', state: 'UF', zip: 'CEP' }
+  return {
+    ...parsed,
+    rows: parsed.rows.map((row) => {
+      const current = byDocument.get(row.cnpj_cpf)
+      if (!current) return row
+      const changedFields = Object.keys(labels).filter((field) => String(current[field] ?? '').trim() !== String(row[field as keyof CustomerBaseRow] ?? '').trim()).map((field) => labels[field])
+      return { ...row, existingCustomerId: Number(current.id), changedFields }
+    }),
+  }
 }
 
 export async function importCustomerBaseRows(rows: CustomerBaseRow[], options: { changedBy: string | null } = { changedBy: null }) {

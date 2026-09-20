@@ -41,6 +41,9 @@ export function ImportBaseModal({
             Se o mesmo CNPJ aparecer em mais de uma linha com e-mails distintos, todos os e-mails serao criados
             como contatos do cliente.
           </div>
+          <div className="mt-2 text-amber-200">
+            CNPJs já cadastrados serão atualizados. O preview identifica cada atualização e os campos que mudarão.
+          </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <a
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#21262d] px-4 text-sm font-semibold text-slate-100 transition hover:bg-[#30363d]"
@@ -89,12 +92,20 @@ export function ImportBaseModal({
 }
 
 function ImportBasePreview({ parsedBase }: { parsedBase: ParsedCustomerBase }) {
+  const updates = parsedBase.rows.filter((row) => row.existingCustomerId && (row.changedFields?.length ?? 0) > 0).length
+  const unchanged = parsedBase.rows.filter((row) => row.existingCustomerId && !(row.changedFields?.length ?? 0)).length
+  const creates = parsedBase.rows.length - updates - unchanged
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 md:grid-cols-3">
         <PreviewBox variant="surface" label="Clientes validos" value={parsedBase.rows.length} />
         <PreviewBox variant="surface" label="Linhas ignoradas" value={parsedBase.rowErrors.length} />
         <PreviewBox label="Emails detectados" value={parsedBase.rows.reduce((sum, row) => sum + row.emails.length, 0)} />
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <PreviewBox variant="surface" label="Criar" value={creates} />
+        <PreviewBox variant="surface" label="Atualizar cadastro" value={updates} />
+        <PreviewBox variant="surface" label="Sem alteração cadastral" value={unchanged} />
       </div>
 
       {parsedBase.rowErrors.length ? (
@@ -108,6 +119,7 @@ function ImportBasePreview({ parsedBase }: { parsedBase: ParsedCustomerBase }) {
           <thead className="text-xs uppercase tracking-wider">
             <tr>
               <th scope="col" className="px-3 py-2">CNPJ</th>
+              <th scope="col" className="px-3 py-2">Ação</th>
               <th scope="col" className="px-3 py-2">Nome</th>
               <th scope="col" className="px-3 py-2">Emails</th>
               <th scope="col" className="px-3 py-2">Cidade/UF</th>
@@ -118,6 +130,7 @@ function ImportBasePreview({ parsedBase }: { parsedBase: ParsedCustomerBase }) {
             {parsedBase.rows.slice(0, 15).map((row) => (
               <tr key={row.cnpj_cpf}>
                 <td className="px-3 py-2">{formatCnpjCpf(row.cnpj_cpf)}</td>
+                <td className="px-3 py-2">{row.existingCustomerId ? `Atualizar${row.changedFields?.length ? `: ${row.changedFields.join(', ')}` : ' (sem alteração cadastral)'}` : 'Criar'}</td>
                 <td className="px-3 py-2 font-semibold text-white">{row.name}</td>
                 <td className="px-3 py-2">
                   <span className="app-table__truncate app-table__truncate--xl" title={row.emails.join('; ')}>

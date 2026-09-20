@@ -4,6 +4,13 @@
 
 ## 2026-09
 
+- **Remediação de Clientes, Revisão e Comunicação:** comunicados operacionais
+  passam a falhar fechado, validar B/L/cliente/âncoras e impor a caixa correta;
+  a troca de cliente serializa com linhas financeiras; revisão exige versão,
+  persiste `bb_cbm` e não confia em valores de auditoria do navegador. Saldos
+  usam o ledger com Demurrage, filas deixam de truncar em 500 e a importação
+  explicita criações e alterações cadastrais no preview (migration `068`).
+
 - **PR 706 — decisões finais das auditorias marítimas:** as datas de berço
   continuam projetadas por terminal e sentido, com ETA/ATA compartilhados pela
   Escala; a recomendação de datas idênticas em Importação e Exportação foi

@@ -3,6 +3,7 @@ import { corsHeaders, withCors } from '../_shared/cors.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttachment, type EmailAttemptRecord } from '../_shared/email.ts'
 import {
   assertValidCommunicationAttachments,
+  renderCustomerCommunicationTemplate,
   renderCeMercanteTaxasTemplate,
   type CustomerCommunicationKind,
   type CommunicationAttachment,
@@ -314,6 +315,16 @@ async function handler(req: Request): Promise<Response> {
   if (kind === 'institucional' && blIds.length > 0) {
     return json(422, { error: 'Comunicado institucional não pode conter B/Ls.' }, origin)
   }
+  if (kind !== 'institucional' && blIds.length === 0) {
+    return json(422, { error: 'Selecione ao menos um B/L para o comunicado.' }, origin)
+  }
+  const fixedOperationalKind = ['aviso_chegada_noa', 'aviso_prontidao_nor', 'aviso_atracacao_nob'].includes(kind)
+  if (fixedOperationalKind && (!Number.isInteger(body.anchor_voyage_id) || Number(body.anchor_voyage_id) <= 0 || !body.anchor_port?.trim())) {
+    return json(422, { error: 'Viagem e porto são obrigatórios para o comunicado operacional.' }, origin)
+  }
+  if (kind === 'aviso_atracacao_nob' && !body.anchor_atracacao_id?.trim()) {
+    return json(422, { error: 'Atracação obrigatória para o NOB.' }, origin)
+  }
 
   const attachments: CommunicationAttachment[] = []
   const emailAttachments: EmailAttachment[] = []
@@ -384,10 +395,92 @@ async function handler(req: Request): Promise<Response> {
     })
     canonicalPayload = { subject: rendered.subject, html: rendered.html, text: rendered.text, blIds: rendered.blIds }
   }
+  let effectiveBlIds = canonicalPayload?.blIds ?? blIds
+  const isFixedOperationalAudience = ['aviso_chegada_noa', 'aviso_prontidao_nor', 'aviso_atracacao_nob', 'ce_mercante_taxas'].includes(kind)
+  const effectiveAudienceMode = kind === 'institucional'
+    ? 'todos'
+    : isFixedOperationalAudience
+      ? 'caixa'
+      : body.audience_mode ?? 'todos'
+  const effectiveBoxCode = isFixedOperationalAudience
+    ? 'documentacao_operacao'
+    : effectiveAudienceMode === 'caixa'
+      ? body.recipient_box_code ?? null
+      : null
+  if (effectiveBlIds.length > 0) {
+    const uniqueBlIds = Array.from(new Set(effectiveBlIds))
+    const { data: ownedBls, error: ownedBlsError } = await admin
+      .from('bls')
+      .select('id, customer_id, voyage_id, pod, cargo_mode, customer:customers!bls_customer_id_fkey(name), voyage:voyages(voyage_number, pod_schedule_snapshot, vessel:vessels(name))')
+      .in('id', uniqueBlIds)
+    if (ownedBlsError) return json(500, { error: 'Não foi possível conferir os B/Ls do comunicado.' }, origin)
+    const validBls = (ownedBls ?? []) as unknown as Array<{ id: string; customer_id: number | null; voyage_id: number | null; pod: string | null; cargo_mode: string | null; customer: { name: string } | null; voyage: { voyage_number: string; pod_schedule_snapshot?: Record<string, { eta?: string | null; ata?: string | null; omitted?: boolean; deleted?: boolean }> | null; vessel: { name: string } | null } | null }>
+    if (validBls.length !== uniqueBlIds.length || validBls.some((bl) => bl.customer_id !== customerId)) {
+      return json(422, { error: 'Um ou mais B/Ls não pertencem ao cliente selecionado.' }, origin)
+    }
+    if (body.anchor_voyage_id != null && validBls.some((bl) => bl.voyage_id !== Number(body.anchor_voyage_id))) {
+      return json(422, { error: 'A viagem-âncora não corresponde aos B/Ls selecionados.' }, origin)
+    }
+    if (body.anchor_port && validBls.some((bl) => (bl.pod ?? '').trim().toUpperCase() !== body.anchor_port!.trim().toUpperCase())) {
+      return json(422, { error: 'O porto-âncora não corresponde aos B/Ls selecionados.' }, origin)
+    }
+    if (fixedOperationalKind) {
+      const first = validBls[0]
+      let terminalId: string | null = null
+      let terminalName: string | null = null
+      const schedule = first?.voyage?.pod_schedule_snapshot?.[first.pod ?? '']
+      let milestoneAt = kind === 'aviso_prontidao_nor' ? schedule?.ata : schedule?.eta
+      if (fixedOperationalKind && kind !== 'aviso_atracacao_nob' && (!schedule || schedule.omitted || schedule.deleted)) {
+        return json(422, { error: 'A escala canônica do porto não está disponível para este comunicado.' }, origin)
+      }
+      if (kind === 'aviso_atracacao_nob') {
+        const { data: berth, error: berthError } = await admin
+          .from('voyage_escala_terminal_state')
+          .select('id, voyage_id, port, terminal_id, terminal_atb, terminal:terminals(code)')
+          .eq('id', body.anchor_atracacao_id!)
+          .maybeSingle()
+        const row = berth as unknown as { voyage_id?: number; port?: string; terminal_id?: string | null; terminal_atb?: string | null; terminal?: { code?: string | null } | null } | null
+        if (berthError || !row || row.voyage_id !== Number(body.anchor_voyage_id) || (row.port ?? '').toUpperCase() !== body.anchor_port!.trim().toUpperCase() || !row.terminal_id || !row.terminal_atb) {
+          return json(422, { error: 'A Atracação não corresponde à viagem e ao porto informados.' }, origin)
+        }
+        terminalId = row.terminal_id
+        terminalName = row.terminal?.code ?? row.terminal_id
+        milestoneAt = row.terminal_atb
+        for (const bl of validBls) {
+          const { data: front, error: frontError } = await admin
+            .from('voyage_escala_operation_fronts')
+            .select('id')
+            .eq('voyage_id', bl.voyage_id)
+            .eq('port', (bl.pod ?? '').trim().toUpperCase())
+            .eq('terminal_id', row.terminal_id)
+            .eq('sentido', 'importacao')
+            .eq('modalidade', bl.cargo_mode === 'carga_solta' ? 'carga_solta' : bl.cargo_mode === 'veiculo' || bl.cargo_mode === 'veiculos' ? 'veiculo' : 'carga_cheia')
+            .maybeSingle()
+          if (frontError || !front) return json(422, { error: 'Um B/L não pertence à Frente de Operação desta Atracação.' }, origin)
+        }
+      }
+      if (!first?.customer?.name || !first.voyage?.voyage_number || !first.voyage.vessel?.name || !milestoneAt) {
+        return json(422, { error: 'Dados operacionais incompletos para renderizar o comunicado.' }, origin)
+      }
+      const rendered = renderCustomerCommunicationTemplate(kind as CustomerCommunicationKind, {
+        customerId,
+        customerName: first.customer.name,
+        vesselName: first.voyage.vessel.name,
+        voyageNumber: first.voyage.voyage_number,
+        port: body.anchor_port!,
+        terminalId,
+        terminalName,
+        terminalStateId: body.anchor_atracacao_id ?? null,
+        milestoneAt,
+        bls: validBls.map((bl) => ({ id: bl.id, customerId, terminalId, terminalStateId: body.anchor_atracacao_id ?? null })),
+      })
+      canonicalPayload = { subject: rendered.subject, html: rendered.html, text: rendered.text, blIds: rendered.blIds }
+      effectiveBlIds = rendered.blIds
+    }
+  }
   const effectiveSubject = canonicalPayload?.subject ?? subject
   const effectiveHtml = canonicalPayload?.html ?? html
   const effectiveText = canonicalPayload?.text ?? text
-  const effectiveBlIds = canonicalPayload?.blIds ?? blIds
   const { data: contacts, error: contactsError } = await admin
     .from('customer_contacts')
     .select('id, customer_id, email')
@@ -406,8 +499,8 @@ async function handler(req: Request): Promise<Response> {
       p_customer_id: customerId,
       p_contact_id: contact.id,
       p_kind: kind,
-      p_audience_mode: body.audience_mode ?? (kind === 'institucional' ? 'todos' : 'caixa'),
-      p_recipient_box_code: body.recipient_box_code ?? null,
+      p_audience_mode: effectiveAudienceMode,
+      p_recipient_box_code: effectiveBoxCode,
     }),
     admin.from('customer_communication_suppressions').select('id').eq('email', recipient).maybeSingle(),
     admin.from('portal_suppressed_emails').select('id').eq('email', recipient).eq('reason', 'bounce_permanente').maybeSingle(),

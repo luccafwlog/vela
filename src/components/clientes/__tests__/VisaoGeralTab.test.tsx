@@ -54,6 +54,13 @@ describe('VisaoGeralTab — pendencias', () => {
     expect(screen.queryByText('Nenhuma pendência aberta.')).toBeNull()
   })
 
+  it('não transforma falha de Demurrage em saldo zero', () => {
+    mocks.demurrage = { data: { rows: [], denied: false }, isLoading: false, isError: true }
+    renderTab()
+    expect(screen.getAllByText('Erro ao carregar')).toHaveLength(3)
+    expect(screen.queryByText('R$ 0,00')).toBeNull()
+  })
+
   it('trata conta suspensa como pendência de Portal após a remoção da exceção', () => {
     mocks.portal = {
       data: { account_situation: 'suspenso', provisioning_decision: 'aguardando_analise' },

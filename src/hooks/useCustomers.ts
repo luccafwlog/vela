@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { supabase } from '../services/supabase'
-import { fetchIssuedInvoiceBalanceByCustomer } from '../services/customers'
+import { fetchCustomerPendingBalance, fetchIssuedInvoiceBalanceByCustomer } from '../services/customers'
 import { escapeFilterTerm } from '../lib/utils'
 import { classifyDbError } from '../lib/errors'
 import { sortCustomerRows, type CustomerSortKey, type SortDirection } from '../lib/customerTableViewModel'
@@ -244,13 +244,13 @@ export function useCustomerDetail(cnpj?: string) {
         invoicesFrom += INVOICES_PAGE_SIZE
       }
 
-      const pendingBalance = (invoices ?? [])
-        .filter((invoice) => invoice.status === 'issued')
-        .reduce((sum, invoice) => sum + Number(invoice.balance_brl ?? 0), 0)
+      const canonicalBalance = await fetchCustomerPendingBalance(customer.id)
 
       return {
         ...customer,
-        pending_balance: pendingBalance,
+        pending_balance: canonicalBalance.totalBrl,
+        pending_balance_local: canonicalBalance.localBrl,
+        pending_balance_demurrage: canonicalBalance.demurrageBrl,
         invoices: (invoices ?? []) as CustomerDetail['invoices'],
         invoices_access_denied: false,
       } as CustomerDetail

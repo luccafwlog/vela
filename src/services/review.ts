@@ -75,6 +75,9 @@ export async function saveBlReview({
   justification: string
   expectedUpdatedAt: string | null
 }) {
+  if (!expectedUpdatedAt) {
+    throw new Error('Recarregue o B/L antes de salvar: a versão atual não está disponível.')
+  }
   const changedEntries = Object.entries(values).filter(
     ([field, value]) => stringifyValue(original[field as keyof ReviewEditableFields]) !== stringifyValue(value),
   ) as Array<[keyof ReviewEditableFields, ReviewEditableFields[keyof ReviewEditableFields]]>
@@ -158,6 +161,9 @@ export async function applyInlineBlReviewFix({
   changedBy: string
   expectedUpdatedAt: string | null
 }) {
+  if (!expectedUpdatedAt) {
+    throw new Error('Recarregue o B/L antes de salvar: a versão atual não está disponível.')
+  }
   const justification = 'Correcao inline na fila de revisao'
   const updatePayload: JsonObject = {
     [field]: value,
