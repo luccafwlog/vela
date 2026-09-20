@@ -41,6 +41,7 @@ export function VoyageVisaoTab({
   isAdmin,
   divergenceCount,
   ceCoverage,
+  canEdit = true,
   onEditEscala,
   onOmitPod,
 }: {
@@ -52,6 +53,7 @@ export function VoyageVisaoTab({
   isAdmin: boolean
   divergenceCount: number
   ceCoverage: { filled: number; total: number }
+  canEdit?: boolean
   onEditEscala: (payload: EscalaModalData) => void
   onOmitPod: (pod: string) => void
 }) {
@@ -59,7 +61,7 @@ export function VoyageVisaoTab({
   const { showToast } = useToast()
   const confirm = useConfirm()
   const { user, profile } = useAuth()
-  const canEditVoyages = Boolean(profile || user)
+  const canEditVoyages = canEdit && Boolean(profile || user)
   const [timelineOpen, setTimelineOpen] = useState(true)
   const [collapsedAtracacoes, setCollapsedAtracacoes] = useState<Set<string>>(() => new Set())
 
@@ -317,7 +319,7 @@ export function VoyageVisaoTab({
                               <AlertTriangle size={15} />
                             </Button>
                           ) : null}
-                          {isAdmin ? (
+                          {isAdmin && canEdit ? (
                             // handleDeleteEscala pode chamar deleteVoyageExportSchedule,
                             // cuja policy de DELETE exige is_admin() (091). Nao trocar
                             // por canEditVoyages sem tambem alinhar a RLS.

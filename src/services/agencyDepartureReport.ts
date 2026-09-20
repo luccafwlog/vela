@@ -12,6 +12,7 @@ import type {
 } from '../types/database'
 import type { AgencyDepartureReport, AgencyReportDepartmentKey, AgencyReportDepartmentSignoff, AgencyReportOccurrence, AgencyReportSignoff } from '../types/database'
 import { supabase } from './supabase'
+import { calculateTeu } from './containerTeu'
 import { extractErrorText } from '../lib/errors'
 import { breakbulkWeightTon } from '../lib/breakbulkWeight'
 import { computeStorageTotals, type VaziosExportServiceLineWithObservation } from './vaziosExportOperations'
@@ -671,7 +672,8 @@ export function buildContainerTypeMatrix(
     totals[item.category] = (totals[item.category] ?? 0) + 1
   }
 
-  return { rows, totals }
+  const teu = calculateTeu(items.map((item) => item.type))
+  return { rows, totals, teu: teu.teu, unknownTypeCount: teu.unknownTypeCount }
 }
 
 // Rótulo de condição dos vazios de exportação, mesma convenção do Depot

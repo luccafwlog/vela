@@ -30,6 +30,10 @@ export type ParsedBLVehicle = {
   chassis: string
   containerNumber: string | null
   blNumber: string | null
+  brand: string | null
+  model: string | null
+  weightKg: number | null
+  cbm: number | null
 }
 
 export type ParsedBLDocument = {
@@ -247,6 +251,10 @@ function parseVehicles(workbook: { Sheets: Record<string, unknown> }, utils: typ
       chassis,
       containerNumber: findHeaderValue(row, ['CONTAINERNO']) || null,
       blNumber: findHeaderValue(row, ['BLNO', 'BL']) || null,
+      brand: findHeaderValue(row, ['BRAND', 'MARCA']) || null,
+      model: findHeaderValue(row, ['MODEL', 'MODELO']) || null,
+      weightKg: parseNumber(findHeaderValue(row, ['WEIGHTKG', 'WEIGHT', 'PESO']), 'unknown'),
+      cbm: parseNumber(findHeaderValue(row, ['CBM', 'M3', 'CUBICMETERS', 'CUBAGEM']), 'unknown'),
     }]
   })
 }

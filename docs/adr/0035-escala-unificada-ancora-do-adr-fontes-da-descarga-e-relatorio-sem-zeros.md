@@ -143,6 +143,13 @@ Status: supersedida parcialmente — 2026-07-31 (notas editoriais em 2026-08-03,
 > na categoria exibida. A extensão mantém a regra da seção 4 de listar apenas o
 > que foi operado e não altera snapshots fechados.
 
+> **Nota editorial — 2026-09-20.** A revisão da PR 706 confirmou a regra de
+> datas por terminal e sentido: ETA/ATA continuam compartilhados pela Escala,
+> enquanto ETB/ATB/ETD/ATD são projetados da Atracação que atende aquele
+> sentido (ATD somente quando todas as Atracações do sentido saíram). A
+> recomendação de forçar datas idênticas nas linhas de Importação e Exportação
+> não foi adotada: ela atribuiria ao sentido errado o berço de outro terminal.
+
 ## Contexto
 
 Uma revisão completa do fluxo do Agency Departure Report em 31 jul 2026

@@ -13,6 +13,9 @@ Quando um plano é totalmente executado, ele é movido para
 - [2026-09-12 — Remediação da revisão sistemática multiagente](2026-09-12-plano-implementacao-auditoria-sistematica.md) — plano de remediação dos achados consolidados da auditoria da PR #687, cobrindo acessibilidade, UX, documentos/faturas, segurança de testes, banco de dados e performance.
 
 O plano [2026-09-17 — Unificação de B/Ls, carga mista e Manifesto Mercante](../archive/plans/2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md) foi concluído e arquivado.
+O plano [2026-09-20 — Remediação das auditorias marítimas (PR 706)](../archive/plans/2026-09-20-remediacao-auditorias-maritimas.md) foi concluído e arquivado.
+O plano [2026-09-20 — Remediação da fronteira de segurança do Portal](../archive/plans/2026-09-20-remediacao-fronteira-seguranca-portal.md) foi concluído e arquivado.
+O plano [2026-09-20 — Remediação de clientes, revisão e comunicação](../archive/plans/2026-09-20-remediacao-clientes-revisao-comunicacao.md) foi concluído e arquivado.
 O plano [2026-09-12 — Transição de marca: Transhipping Desk → Vela](../archive/plans/2026-09-12-plano-transicao-marca-vela.md) foi concluído e arquivado (PR #688).
 O plano [2026-09-03 — Issue 609: contatos e caixas de comunicação](../archive/plans/2026-09-03-issue-609-contatos-caixas-comunicacao.md) foi concluído e arquivado.
 

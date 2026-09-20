@@ -72,7 +72,7 @@ function parsedBL(): ParsedBLDocument {
         cbm: 68.5,
       },
     ],
-    vehicles: [{ chassis: '9BWZZZ377VT004251', containerNumber: 'TCLU1234567', blNumber: 'CSC45250E02Y00' }],
+    vehicles: [{ chassis: '9BWZZZ377VT004251', containerNumber: 'TCLU1234567', blNumber: 'CSC45250E02Y00', brand: 'BYD', model: 'DOLPHIN', weightKg: 1800, cbm: 8.5 }],
     freightCharges: [
       { description: 'OCEAN FREIGHT', rateCurrency: 'USD', rateAmount: 2600, per: 'BL', currency: 'USD', amount: 2600, payment: 'PREPAID' },
       { description: 'THD', rateCurrency: 'BRL', rateAmount: 1717, per: 'CNTR', currency: 'BRL', amount: 1717, payment: 'COLLECT' },
@@ -177,7 +177,19 @@ describe('blFreightImport', () => {
       imo_class: '9',
       un_number: '3556',
     })
-    expect(payload.vehicles[0]).toMatchObject({ chassis: '9BWZZZ377VT004251', container_number: 'TCLU1234567' })
+    expect(payload.vehicles[0]).toMatchObject({ chassis: '9BWZZZ377VT004251', container_number: 'TCLU1234567', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 })
+  })
+
+  it('bloqueia VIN sem peso/cubagem em vez de fabricar zeros', () => {
+    const doc = parsedBL()
+    doc.vehicles[0] = { ...doc.vehicles[0], brand: null, model: null, weightKg: null, cbm: null }
+    const preview = buildBlFreightPreview({
+      documents: [doc],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+    })
+    expect(preview.rows[0].status).toBe('blocked')
+    expect(preview.rows[0].blockedReasons.join(' ')).toMatch(/sem marca, modelo, peso e cubagem/)
+    expect(buildBlFreightPayload(doc, 7).vehicles).toEqual([])
   })
 
   it('extracts consignee phone and leaves non-DG containers as non-IMO', () => {
@@ -234,7 +246,7 @@ describe('blFreightImport', () => {
 
     expect(preview.rows[0].ladenOnBoard).toBe('2026-02-19')
     expect(preview.rows[0].payload).not.toHaveProperty('ladenOnBoard')
-    expect(preview.rows[0].payload).not.toHaveProperty('laden_on_board')
+    expect(preview.rows[0].payload).toHaveProperty('laden_on_board', '2026-02-19')
   })
 
   it('normalizes port city names to UN/LOCODEs, keeping codes untouched', () => {

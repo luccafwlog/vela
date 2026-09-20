@@ -210,8 +210,26 @@ describe('fetchLineUpSnapshot', () => {
         { voyage_id: 24, port: 'BRVIX', sentido: 'exportacao', modalidade: 'granito', terminal_id: 'export-terminal' },
       ],
       voyage_escala_terminal_state: [
-        { voyage_id: 24, port: 'BRVIX', terminal_id: 'inactive-terminal', terminal_atb: '2026-08-02', terminal_atd: null, terminal_rtw: null, revision: 1 },
-        { voyage_id: 24, port: 'BRVIX', terminal_id: 'export-terminal', terminal_atb: '2026-08-03', terminal_atd: null, terminal_rtw: null, revision: 1 },
+        {
+          voyage_id: 24,
+          port: 'BRVIX',
+          terminal_id: 'inactive-terminal',
+          terminal_etb: '2026-08-01',
+          terminal_atb: '2026-08-02',
+          terminal_atd: '2026-08-04',
+          terminal_rtw: null,
+          revision: 1,
+        },
+        {
+          voyage_id: 24,
+          port: 'BRVIX',
+          terminal_id: 'export-terminal',
+          terminal_etb: '2026-08-05',
+          terminal_atb: '2026-08-06',
+          terminal_atd: '2026-08-08',
+          terminal_rtw: null,
+          revision: 1,
+        },
       ],
       depots: [
         { id: 'inactive-terminal', code: 'TVV', active: false },
@@ -225,6 +243,8 @@ describe('fetchLineUpSnapshot', () => {
       { rowType: 'import', terminal: 'TVV' },
       { rowType: 'export', terminal: 'PORTMAC' },
     ])
+    expect(rows.find((row) => row.rowType === 'import')).toMatchObject({ etb: '2026-08-01', atb: '2026-08-02', atd: '2026-08-04' })
+    expect(rows.find((row) => row.rowType === 'export')).toMatchObject({ etb: '2026-08-05', atb: '2026-08-06', atd: '2026-08-08' })
   })
 
   it('mantem exportacao declarada sem operacao e apresenta TBC sem salvar placeholder', async () => {
@@ -277,6 +297,17 @@ describe('fetchLineUpSnapshot', () => {
     ])
     expect(rows.find((row) => row.rowType === 'import')).toMatchObject({ importTerminal: 'TVV', exportTerminal: 'TBC' })
     expect(rows.find((row) => row.rowType === 'export')).toMatchObject({ importTerminal: 'TBC', exportTerminal: 'PORTMAC' })
+  })
+})
+
+describe('compareLineUpRows', () => {
+  it('prioriza berço efetivo sobre ETA mais antigo e mantém escala concluída depois', async () => {
+    const { compareLineUpRows } = await import('../lineup')
+    const base = { id: 'x', voyageId: 1, voyageNumber: '1', voyageStatus: 'active' as const, vesselName: 'V', pod: 'BRVIX', eta: null, etb: null, ata: null, atb: null, rowType: 'import' as const, omitted: false, importTerminal: 'TBC', exportTerminal: 'TBC', vin: 0, car: 0, cg: 0, total: 0, mty: 0, rtw: null, bbMachines: 0, bbPackages: 0, bbTotal: 0, atd: null, ceStatus: 'missing' as const, linked: false, exportHasGranite: null, exportContainersQty: null, exportMovementsQty: null, exportCeStatus: null, exportLinked: null }
+    const active = { ...base, id: 'active', atb: '2026-08-10', eta: '2026-07-01' }
+    const pending = { ...base, id: 'pending', eta: '2026-07-02' }
+    const completed = { ...base, id: 'done', atb: '2026-07-03', atd: '2026-07-04' }
+    expect([pending, completed, active].sort(compareLineUpRows).map((row) => row.id)).toEqual(['active', 'pending', 'done'])
   })
 })
 

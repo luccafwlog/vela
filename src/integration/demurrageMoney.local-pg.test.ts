@@ -185,8 +185,8 @@ describeLocal('S08-A — invariantes monetarios de Demurrage', () => {
   it('captura snapshot no ciclo de item sem quebrar o gatilho compartilhado', () => {
     localPsql(`
       SET session_replication_role = replica;
-      INSERT INTO public.bl_containers (id, bl_id, container_number, type)
-      VALUES (99122611, '${blIds[2]}', 'MSCU7654321', '20GP')
+      INSERT INTO public.bl_containers (id, bl_id, container_number, type, return_date)
+      VALUES (99122611, '${blIds[2]}', 'MSCU7654321', '20GP', '2026-09-20')
       ON CONFLICT (id) DO NOTHING;
       INSERT INTO public.demurrage_invoice_items
         (id, invoice_id, container_id, container_number, container_type, discharge_date, return_date, total_days, free_days, subtotal_usd)

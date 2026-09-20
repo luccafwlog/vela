@@ -118,6 +118,8 @@ export type BlFreightRpcPayload = {
   total_cbm: number | null
   payment_type: 'PREPAID' | 'COLLECT' | null
   bl_emission_date: string | null
+  /** Documental Laden on Board; persisted independently from the emission date. */
+  laden_on_board: string | null
   manifest_customer_cnpj_cpf: string | null
   manifest_customer_name: string | null
   manifest_customer_email: string | null
@@ -353,6 +355,12 @@ export function buildBlFreightPreview({
       const mismatchReason = getDeclaredVoyageMismatchReason(doc, selectedVoyage)
       if (mismatchReason) blockedReasons.push(mismatchReason)
     }
+    const incompleteVehicles = doc.vehicles.filter((vehicle) => (
+      !vehicle.brand?.trim() || !vehicle.model?.trim() || !(vehicle.weightKg && vehicle.weightKg > 0) || !(vehicle.cbm && vehicle.cbm > 0)
+    ))
+    if (incompleteVehicles.length > 0) {
+      blockedReasons.push(`${incompleteVehicles.length} VIN(s) sem marca, modelo, peso e cubagem positivos; revise o veículo antes de importar.`)
+    }
 
     const consigneeDocumentMatches = payload && existing?.manifest_customer_cnpj_cpf
       ? canonicalizeDocument(existing.manifest_customer_cnpj_cpf) === canonicalizeDocument(payload.manifest_customer_cnpj_cpf)
@@ -560,6 +568,7 @@ export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | 
     total_cbm: sumNumbers(containers.map((container) => container.cbm)),
     payment_type: oceanFreight?.payment ?? null,
     bl_emission_date: normalizeDate(doc.dates.issueDate || doc.dates.ladenOnBoard),
+    laden_on_board: normalizeDate(doc.dates.ladenOnBoard),
     manifest_customer_cnpj_cpf: doc.parties.consigneeTaxId,
     manifest_customer_name: firstLine(doc.parties.consigneeBlock),
     manifest_customer_email: doc.parties.consigneeEmail ?? null,
@@ -577,14 +586,17 @@ export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | 
       payment: charge.payment,
     })),
     containers,
-    vehicles: doc.vehicles.map((vehicle) => ({
-      chassis: vehicle.chassis,
-      container_number: normalizeIsoContainerNumber(vehicle.containerNumber),
-      brand: 'NA',
-      model: 'NA',
-      weight_kg: 0,
-      cbm: 0,
-    })),
+    vehicles: doc.vehicles.flatMap((vehicle) => {
+      if (!vehicle.brand?.trim() || !vehicle.model?.trim() || !(vehicle.weightKg && vehicle.weightKg > 0) || !(vehicle.cbm && vehicle.cbm > 0)) return []
+      return [{
+        chassis: vehicle.chassis,
+        container_number: normalizeIsoContainerNumber(vehicle.containerNumber),
+        brand: vehicle.brand.trim(),
+        model: vehicle.model.trim(),
+        weight_kg: vehicle.weightKg,
+        cbm: vehicle.cbm,
+      }]
+    }),
   }
 }
 

@@ -51,7 +51,10 @@ acompanhado em suas escalas, agendas e cargas.
 **Viagem Cancelada**
 Viagem que não será mais realizada pelo armador, embora tenha sido cadastrada
 ou programada. O cancelamento preserva seus registros e vínculos para
-rastreabilidade; não é conclusão nem exclusão.
+rastreabilidade; não é conclusão nem exclusão. Uma viagem não cancelada que
+ainda não recebeu qualquer dado vinculado pode ser removida fisicamente por
+Administrador; depois que existe vínculo, o caminho é corrigir ou cancelar,
+nunca apagar a operação por cascata.
 
 **Alias de Nome de Navio**
 Prefixo abreviado reconhecido como equivalente ao prefixo canônico do nome do
@@ -233,13 +236,8 @@ de Conclusão do ADR.
 **Estado da Escala**
 Estado derivado por `deriveEscalaState` (`src/lib/escalaState.ts`): sem
 Atracações, nulo; todas com ATD, `Concluída`; caso contrário, qualquer ATB
-preenchido resulta em `Atracada`; sem esses fatos, nulo. No caminho legado de
-uma única Atracação, ATD precede ATB. Não é um campo manual.
-
-**Divergência conhecida:** entre duas Atracações, uma já com ATD e outra sem
-ATB, o código ainda retorna `Atracada` se a primeira tem ATB. A intenção antiga
-de exibir estado vazio nesse intervalo não está implementada; esta revisão
-documental não modifica o cálculo.
+preenchido e ainda sem ATD resulta em `Atracada`; sem esses fatos, nulo. No
+caminho legado de uma única Atracação, ATD precede ATB. Não é um campo manual.
 
 **ETD do POL**
 Data estimada de saída da viagem no porto de carregamento. Permanece como a

@@ -41,6 +41,7 @@ import {
   saveEscalaTerminalState,
 } from '../services/escalaTerminalAllocation'
 import { afterEscalaAlterada, afterRotaAlterada, afterViagemAlterada } from '../services/cacheEffects'
+import { classifyDbError } from '../lib/errors'
 import {
   VoyageCard,
   type EditingPolPayload,
@@ -208,7 +209,7 @@ export function Viagens() {
       if (selectedVoyageId === deletingVoyageId) navigate('/viagens')
       setDeletingVoyageId(null)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Falha ao excluir viagem.'
+      const message = classifyDbError(error).message || 'Falha ao excluir viagem.'
       showToast(message, 'error')
     } finally {
       setDeleting(false)
@@ -233,7 +234,7 @@ export function Viagens() {
       setCancellingVoyageId(null)
       setCancellationReason('')
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Falha ao cancelar viagem.', 'error')
+      showToast(classifyDbError(error).message || 'Falha ao cancelar viagem.', 'error')
     } finally {
       setCancelling(false)
     }
@@ -275,7 +276,9 @@ export function Viagens() {
             items={visibleRailItems}
             selectedId={selectedVoyageId}
             onSelect={(id) => navigate(`/viagens/${id}`)}
-            onEdit={canEditVoyages ? setEditingVoyageId : undefined}
+            onEdit={canEditVoyages ? (id) => {
+              if (voyages.find((voyage) => voyage.id === id)?.status !== 'cancelled') setEditingVoyageId(id)
+            } : undefined}
           />
         )}
 
@@ -340,7 +343,7 @@ export function Viagens() {
       <Modal open={deletingVoyageId !== null} onClose={() => setDeletingVoyageId(null)} title="Excluir Viagem">
         <div className="grid gap-4">
           <div className="rounded-xl border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-100">
-            Esta exclusão é permanente. Ela só será permitida se a viagem não tiver importações nem B/Ls vinculados.
+            Esta exclusão é permanente. Ela só será permitida se a viagem não tiver nenhum dado vinculado. Viagens canceladas permanecem retidas para rastreabilidade.
           </div>
 
           <div className="text-sm text-[var(--app-text)]">

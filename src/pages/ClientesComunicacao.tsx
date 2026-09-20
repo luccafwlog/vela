@@ -444,7 +444,9 @@ export function ClientesComunicacao() {
           return
         }
       } catch {
-        // Se a verificação de rede falhar, a validação autoritativa final fica com o backend
+        setDispatchError('Não foi possível atualizar a conferência. Tente novamente antes de enviar.')
+        setSending(false)
+        return
       }
 
       const dispatchId = userWritten ? crypto.randomUUID() : null

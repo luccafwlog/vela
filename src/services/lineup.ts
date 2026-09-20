@@ -408,15 +408,7 @@ export async function fetchLineUpSnapshot(voyageLimit = 60): Promise<LineUpSnaps
     }
   }
 
-  const sortedRows = rows.sort((left, right) => {
-    const etaComparison = compareDateValues(left.eta, right.eta)
-    if (etaComparison !== 0) return etaComparison
-    const etbComparison = compareDateValues(left.etb, right.etb)
-    if (etbComparison !== 0) return etbComparison
-    if (left.vesselName !== right.vesselName) return left.vesselName.localeCompare(right.vesselName, 'pt-BR')
-    if (left.voyageNumber !== right.voyageNumber) return left.voyageNumber.localeCompare(right.voyageNumber, 'pt-BR')
-    return left.pod.localeCompare(right.pod, 'pt-BR')
-  })
+  const sortedRows = rows.sort(compareLineUpRows)
 
   // MTY = exclusively Vazios Importacao containers, credited to the first route of each voyage
   const creditedVoyageIds = new Set<number>()
@@ -684,4 +676,40 @@ export function compareDateValues(left: string | null, right: string | null) {
   const rightValue = toSortableDateValue(right)
   if (leftValue === rightValue) return 0
   return leftValue < rightValue ? -1 : 1
+}
+
+/**
+ * Operational queue order for the Line-Up. Actual berth work is actionable
+ * before an anchored vessel, which is before an ETA-only pending call; closed
+ * and explicitly omitted calls remain visible at the end for traceability.
+ */
+export function compareLineUpRows(left: LineUpRow, right: LineUpRow) {
+  const priority = (row: LineUpRow) => {
+    if (row.voyageStatus === 'cancelled') return 5
+    if (row.omitted) return 4
+    if (row.atb && !row.atd) return 0
+    if (row.ata && !row.atb) return 1
+    if (row.atd) return 3
+    return 2
+  }
+  const priorityComparison = priority(left) - priority(right)
+  if (priorityComparison !== 0) return priorityComparison
+
+  const primaryDate = (row: LineUpRow) => {
+    if (priority(row) === 0) return row.atb
+    if (priority(row) === 1) return row.ata
+    if (priority(row) === 3) return row.atd
+    return row.eta
+  }
+  const primaryComparison = compareDateValues(primaryDate(left), primaryDate(right))
+  if (primaryComparison !== 0) return primaryComparison
+  const etaComparison = compareDateValues(left.eta, right.eta)
+  if (etaComparison !== 0) return etaComparison
+  const etbComparison = compareDateValues(left.etb, right.etb)
+  if (etbComparison !== 0) return etbComparison
+  const groupComparison = `${left.voyageId}::${left.pod}`.localeCompare(`${right.voyageId}::${right.pod}`, 'pt-BR')
+  if (groupComparison !== 0) return groupComparison
+  if (left.rowType !== right.rowType) return left.rowType === 'import' ? -1 : 1
+  if (left.vesselName !== right.vesselName) return left.vesselName.localeCompare(right.vesselName, 'pt-BR')
+  return left.voyageNumber.localeCompare(right.voyageNumber, 'pt-BR')
 }

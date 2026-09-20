@@ -18,6 +18,7 @@ export function VoyageManifestosTab({
   routeCeMasters,
   ceCoverage,
   vaziosRoutes,
+  canEdit = true,
   onEditPol,
 }: {
   voyage: Voyage
@@ -27,6 +28,7 @@ export function VoyageManifestosTab({
   routeCeMasters: Map<string, string> | undefined
   ceCoverage: { filled: number; total: number }
   vaziosRoutes?: Array<{ pol: string; pod: string; containerCount: number }> | undefined
+  canEdit?: boolean
   onEditPol: (payload: EditingPolPayload) => void
 }) {
   const { data: transshipmentData } = useVoyageTransshipments(voyage.id)
@@ -164,7 +166,7 @@ export function VoyageManifestosTab({
                                 aria-label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
                                 title="Informar Nº de Manifesto Mercante"
                                 onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
-                                disabled={!row.pol || row.pol === '-'}
+                                disabled={!canEdit || !row.pol || row.pol === '-'}
                               >
                                 <Pencil size={11} aria-hidden="true" />
                                 <span>Informar</span>
@@ -181,7 +183,7 @@ export function VoyageManifestosTab({
                           aria-label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
                           title="Editar ETD previsto + ATD POL e Nº de Manifesto Mercante"
                           onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
-                          disabled={!row.pol || row.pol === '-'}
+                          disabled={!canEdit || !row.pol || row.pol === '-'}
                         >
                           <Pencil size={15} />
                         </Button>

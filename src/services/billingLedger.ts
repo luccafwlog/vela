@@ -114,15 +114,21 @@ export async function registerLedgerInvoicePayment(input: {
   pixTxid?: string | null
   source?: 'manual' | 'pix_extract'
   notes?: string | null
+  actorId?: string | null
+  /** Stable key reused by the UI when a network retry follows a timeout. */
+  requestId?: string
 }) {
+  const requestId = input.requestId ?? crypto.randomUUID()
   const { data, error } = await supabase.rpc('register_ledger_invoice_payment', {
     p_invoice_id: input.invoiceId,
     p_amount_brl: input.amountBrl,
     p_method: input.method ?? 'pix',
-    ...(input.paidAt == null ? {} : { p_paid_at: input.paidAt }),
-    ...(input.pixTxid == null ? {} : { p_pix_txid: input.pixTxid }),
+    p_paid_at: input.paidAt ?? new Date().toISOString(),
+    p_pix_txid: input.pixTxid ?? null,
     p_source: input.source ?? 'manual',
-    ...(input.notes?.trim() ? { p_notes: input.notes.trim() } : {}),
+    p_notes: input.notes?.trim() || null,
+    p_actor: input.actorId ?? null,
+    p_request_id: requestId,
   })
   if (error) throw error
   return parseRpcResult(ledgerPaymentResultSchema, data, 'register_ledger_invoice_payment')

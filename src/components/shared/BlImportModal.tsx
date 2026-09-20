@@ -11,7 +11,6 @@ import {
   type BlFreightImportPreview,
   type BlFreightImportRow,
 } from '../../services/blFreightImport'
-import { applyLadenOnBoardAtd } from '../../services/ladenOnBoardAtd'
 import { afterManifestoImportado } from '../../services/cacheEffects'
 import { Badge, type BadgeTone } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -134,11 +133,6 @@ export function BlImportModal({
         files[0]?.name,
         confirmCustomerChange,
       )
-      try {
-        await applyLadenOnBoardAtd({ rows: preview.rows, changedBy: user?.id ?? null })
-      } catch {
-        showToast('B/Ls importados; ATD do POL não pôde ser atualizado — edite manualmente.', 'info')
-      }
       await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
       if (refusedCustomerRelinks.length) {
         // Importou, mas o B/L continua com o cliente antigo: dizer "concluida" aqui

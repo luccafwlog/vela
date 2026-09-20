@@ -43,6 +43,7 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
       const result = await importContainerDates(preview.rows)
       setReport(result)
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['containers'] }),
         queryClient.invalidateQueries({ queryKey: ['demurrage-containers'] }),
         queryClient.invalidateQueries({ queryKey: ['demurrage-invoices'] }),
         queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),

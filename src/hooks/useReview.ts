@@ -47,12 +47,33 @@ export type ReviewQueueItem = (BL & {
   source: 'granite'
 }
 
+const REVIEW_PAGE_SIZE = 500
+
+export async function fetchAllReviewPages<T>(loadPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>) {
+  const rows: T[] = []
+  for (let from = 0; ; from += REVIEW_PAGE_SIZE) {
+    const result = await loadPage(from, from + REVIEW_PAGE_SIZE - 1)
+    if (result.error) throw result.error
+    const page = result.data ?? []
+    rows.push(...page)
+    if (page.length < REVIEW_PAGE_SIZE) return rows
+  }
+}
+
+async function tryFetchAllReviewPages<T>(loadPage: Parameters<typeof fetchAllReviewPages<T>>[0]) {
+  try {
+    return { data: await fetchAllReviewPages(loadPage), error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
 export function useReviewQueue() {
   const query = useQuery({
     queryKey: ['review-queue'],
     queryFn: async () => {
-      const [blResult, graniteResult] = await Promise.all([
-        supabase
+      const [blData, graniteResult] = await Promise.all([
+        fetchAllReviewPages((from, to) => supabase
           .from('bls')
           .select(
             `*,
@@ -62,9 +83,9 @@ export function useReviewQueue() {
           )
           .eq('review_status', 'pending_review')
           .order('created_at', { ascending: false })
-          .range(0, 499),
+          .range(from, to)),
 
-        supabase
+        tryFetchAllReviewPages((from, to) => supabase
           .from('granite_bls')
           .select(
             `id, bl_number, shipper_name, shipper_cnpj, discharge_port, loading_port, vessel_voyage, created_at, client_id, suggested_client_id, charge_status,
@@ -74,12 +95,10 @@ export function useReviewQueue() {
           )
           .is('client_id', null)
           .order('created_at', { ascending: false })
-          .range(0, 499),
+          .range(from, to)),
       ])
 
-      if (blResult.error) throw blResult.error
-
-      const blItems = ((blResult.data ?? []) as unknown as (Omit<ReviewQueueItem & { source: 'bl' }, 'source'>)[]).map((row) => ({
+      const blItems = (blData as unknown as (Omit<ReviewQueueItem & { source: 'bl' }, 'source'>)[]).map((row) => ({
         ...row,
         consignee_block: row.consignee_block ?? null,
         cargo_description: row.cargo_description ?? null,
@@ -93,12 +112,12 @@ export function useReviewQueue() {
       if (graniteResult.error) {
         // Fallback defensivo: se o join de relacoes falhar por schema/permissao,
         // ainda retornamos a fila de granito sem metadados de viagem.
-        const fallback = await supabase
+        const fallback = await tryFetchAllReviewPages((from, to) => supabase
           .from('granite_bls')
           .select('id, bl_number, shipper_name, shipper_cnpj, discharge_port, loading_port, vessel_voyage, created_at, client_id, suggested_client_id, charge_status, customer:customers!granite_bls_client_id_fkey(id, cnpj_cpf, name, customer_contacts(email)), suggested_customer:customers!granite_bls_suggested_client_id_fkey(id, cnpj_cpf, name)')
           .is('client_id', null)
           .order('created_at', { ascending: false })
-          .range(0, 499)
+          .range(from, to))
         if (fallback.error) {
           console.error('[review-queue] granite query failed (primary + fallback)', {
             primary: graniteResult.error,

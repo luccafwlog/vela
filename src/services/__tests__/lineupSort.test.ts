@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 // testado aqui não o toca, então um stub vazio basta.
 vi.mock('../supabase', () => ({ supabase: {} }))
 
-import { compareDateValues } from '../lineup'
+import { compareDateValues, compareLineUpRows, type LineUpRow } from '../lineup'
 
 describe('compareDateValues (ordenação do Line-Up)', () => {
   it('ordena datas em ordem crescente', () => {
@@ -41,5 +41,38 @@ describe('compareDateValues (ordenação do Line-Up)', () => {
       return a.vessel.localeCompare(b.vessel, 'pt-BR')
     })
     expect(sorted.map((r) => r.vessel)).toEqual(['ARES', 'ZEUS'])
+  })
+})
+
+describe('compareLineUpRows', () => {
+  function makeRow(overrides: Partial<LineUpRow>): LineUpRow {
+    return {
+      id: 'row-1',
+      voyageId: 1,
+      voyageNumber: '100A',
+      vesselName: 'ALPHA',
+      rowType: 'import',
+      pod: 'BRSSZ',
+      eta: '2026-06-01',
+      etb: null,
+      ata: null,
+      atb: null,
+      atd: null,
+      omitted: false,
+      voyageStatus: 'active',
+      ...overrides,
+    } as LineUpRow
+  }
+
+  it('coloca viagens canceladas no final da fila operacional após ativas e omitidas', () => {
+    const atBerth = makeRow({ id: 'berth', atb: '2026-06-01', voyageStatus: 'active' })
+    const pendingEta = makeRow({ id: 'eta', eta: '2026-06-02', voyageStatus: 'active' })
+    const omitted = makeRow({ id: 'omitted', omitted: true, voyageStatus: 'active' })
+    const cancelled = makeRow({ id: 'cancelled', atb: '2026-05-30', voyageStatus: 'cancelled' })
+
+    const rows = [cancelled, omitted, pendingEta, atBerth]
+    const sorted = [...rows].sort(compareLineUpRows)
+
+    expect(sorted.map((r) => r.id)).toEqual(['berth', 'eta', 'omitted', 'cancelled'])
   })
 })

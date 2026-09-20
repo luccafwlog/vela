@@ -10,7 +10,10 @@ type LadenOnBoardAtdRow = {
 // ADR 0025: Laden on Board do B/L e a fonte documental do ATD do POL.
 // Regra: entre B/Ls da mesma Viagem+POL, prevalece automaticamente a data mais antiga.
 export function resolveCanonicalPolAtd(currentAtd: string | null, ladenDates: string[]): string | null {
-  const candidates = [currentAtd, ...ladenDates].filter((date): date is string => Boolean(date))
+  // When the import carries documental dates, the set is authoritative: a
+  // correction can move the ATD forward as well as backward. Keep the current
+  // value only for the legacy no-date call path.
+  const candidates = (ladenDates.length ? ladenDates : [currentAtd]).filter((date): date is string => Boolean(date))
   if (!candidates.length) return null
   return candidates.sort()[0]
 }

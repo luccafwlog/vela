@@ -263,7 +263,11 @@ pelos padrões restritos em `supabase/functions/_shared/cors.ts`.
 
 Edge Functions continuam sendo publicadas separadamente no Supabase CLI/Console
 e continuam usando `PORTAL_URL`, `APP_URL`, `RESEND_API_KEY` e demais segredos
-server-side. Para Comunicados, configure também `COMMUNICATIONS_REPLY_TO` (o
+server-side. A função `portal-login` também exige
+`PORTAL_LOGIN_DUMMY_AUTH_USER_ID`: UUID de uma identidade Auth confirmada, com
+senha aleatória de alta entropia e sem vínculo em `customer_portal_accounts`.
+Ela equaliza o lookup e a tentativa de senha quando o CNPJ não existe; qualquer
+sessão dummy é descartada no servidor. Para Comunicados, configure também `COMMUNICATIONS_REPLY_TO` (o
 reply-to operacional do canal, distinto de `PORTAL_REPLY_TO`); o remetente
 continua sendo `PORTAL_FROM_EMAIL`. Se a chave global de Comunicados estiver desligada, a
 Function registra simulação e não exige chamada ao Resend; para envio real, o

@@ -53,6 +53,21 @@ describe('review service', () => {
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
+  it('rejeita revisao sem versao antes de chamar o RPC', async () => {
+    await expect(
+      applyInlineBlReviewFix({
+        blId: 'BL001',
+        field: 'bb_weight_ton',
+        value: 10,
+        previousValue: null,
+        changedBy: 'user-1',
+        expectedUpdatedAt: null,
+      }),
+    ).rejects.toThrow('Recarregue o B/L antes de salvar')
+
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
   it('mapeia conflito concorrente para ConcurrentEditError', async () => {
     mockRpc.mockResolvedValue({
       data: null,

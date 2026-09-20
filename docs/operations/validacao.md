@@ -385,7 +385,7 @@ Passos:
 10. após revogar a credencial (`credentials_revoked_at`), confirme que o overview
     nega com `28000` e não atualiza `last_login_at` — coberto de forma
     automatizada por `src/integration/auditSecurityBoundaries.local-pg.test.ts`
-    (iat anterior/posterior, tolerância de 5 s, ausência e formato inválido).
+    (`iat` anterior/posterior com corte estrito, ausência e formato inválido).
 
 ### Recuperação de senha
 

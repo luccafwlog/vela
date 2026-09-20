@@ -142,12 +142,13 @@ confirmação.
 revogação de credencial, gravado por `portal_revoke_sessions`.
 `current_portal_customer_id()` — o ponto único onde toda leitura do Portal
 resolve o cliente — recusa token cujo `iat` seja anterior a esse marco, com
-folga de cinco segundos para o desalinhamento entre o relógio do emissor e o do
-banco. Sem isso, apagar `auth.sessions` tirava o direito de **renovar** o
-token, mas não invalidava o access token já emitido, e a sessão antiga
-sobrevivia à troca de senha ou de email pelo TTL do JWT (1 hora). Se `iat` não
-estiver acessível no contexto da RPC, o guard não rejeita e a checagem de
-`active` continua valendo — limitação declarada na migration.
+corte estrito e sem tolerância temporal. Sem isso, apagar `auth.sessions`
+tirava o direito de **renovar** o token, mas não invalidava o access token já
+emitido, e a sessão antiga sobrevivia à troca de senha ou de email pelo TTL do
+JWT (1 hora). Se `iat` estiver ausente ou malformado durante uma revogação
+ativa, o guard nega fechado com a mesma mensagem genérica. A migration
+`069` remove a antiga folga de cinco segundos, que permitia a um JWT
+emitido concorrentemente com a senha antiga sobreviver ao reset.
 
 `portal_invites` armazena somente hash de token; `portal_email_attempts`,
 `portal_email_events` e `portal_suppressed_emails` registram entrega e supressão;

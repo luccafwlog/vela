@@ -21,8 +21,8 @@ describe('resolveCanonicalPolAtd', () => {
     expect(resolveCanonicalPolAtd(null, ['2026-07-12', '2026-07-10', '2026-07-15'])).toBe('2026-07-10')
   })
 
-  it('nunca substitui o ATD canonico por data posterior em reimportacao', () => {
-    expect(resolveCanonicalPolAtd('2026-07-08', ['2026-07-10'])).toBe('2026-07-08')
+  it('permite avançar o ATD quando a correção remove a menor data histórica', () => {
+    expect(resolveCanonicalPolAtd('2026-07-08', ['2026-07-10'])).toBe('2026-07-10')
   })
 
   it('substitui quando chega data mais antiga', () => {

@@ -20,7 +20,18 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
   const { data: timeline, isLoading: timelineLoading, isError: timelineError } = useCustomerTimeline(data.id, data.customer_contacts ?? [], data.bls ?? [])
 
   const financialDenied = data.invoices_access_denied || (demurrage?.denied ?? false)
-  const balance = buildConsolidatedBalance(data.invoices ?? [], demurrage?.rows ?? [])
+  const canonicalData = data as Data & { pending_balance_local?: number; pending_balance_demurrage?: number; pending_balance?: number }
+  const legacyBalance = buildConsolidatedBalance(data.invoices ?? [], demurrage?.rows ?? [])
+  const balance = canonicalData.pending_balance_local == null
+    ? legacyBalance
+    : { localBrl: canonicalData.pending_balance_local, demurrageBrl: canonicalData.pending_balance_demurrage ?? 0, totalBrl: canonicalData.pending_balance ?? 0 }
+  const financialMetric = (value: number, deniedValue = '—') => financialDenied
+    ? deniedValue
+    : demurrageLoading
+      ? 'Carregando…'
+      : demurrageError
+        ? 'Erro ao carregar'
+        : formatBRL(value)
   const primaryContact = data.customer_contacts?.find(
     (contact) => contact.is_primary && !contact.deactivated_at && Boolean(contact.email?.trim()),
   )
@@ -57,9 +68,9 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
   return (
     <>
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MetricCard label="Saldo pendente (local + demurrage)" value={financialDenied ? 'Restrito' : formatBRL(balance.totalBrl)} tone="primary" />
-        <MetricCard label="Local" value={financialDenied ? '—' : formatBRL(balance.localBrl)} />
-        <MetricCard label="Demurrage" value={financialDenied ? '—' : formatBRL(balance.demurrageBrl)} />
+        <MetricCard label="Saldo pendente (local + demurrage)" value={financialMetric(balance.totalBrl, 'Restrito')} tone="primary" />
+        <MetricCard label="Local" value={financialMetric(balance.localBrl)} />
+        <MetricCard label="Demurrage" value={financialMetric(balance.demurrageBrl)} />
       </div>
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>
@@ -85,7 +96,7 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
         {timelineLoading ? <div className="text-sm text-slate-400">Carregando atividade…</div>
           : timelineError ? <div className="text-sm text-red-300">Erro ao carregar atividade.</div>
           : (timeline ?? []).length === 0 ? <div className="text-sm text-slate-400">Sem eventos registrados.</div>
-          : <ul className="grid gap-2 text-sm">{timeline!.slice(0, 5).map((event) => <li key={`${event.kind}-${event.sourceId}`} className="flex items-baseline gap-3"><span className="shrink-0 text-xs text-slate-500">{formatDate(event.at)}</span><span>{event.link ? <Link className="hover:underline" to={event.link}>{event.label}</Link> : event.label}</span></li>)}</ul>}
+          : <ul className="grid gap-2 text-sm">{timeline!.slice(0, 5).map((event) => <li key={`${event.kind}-${event.sourceId}`} className="flex items-baseline gap-3"><span className="shrink-0 text-xs text-slate-500">{formatDate(event.at)}</span><span>{event.link ? <Link className="hover:underline" to={event.link}>{event.label}</Link> : event.label}{event.actorId ? <span className="ml-2 text-xs text-slate-500">por {event.actorId}</span> : null}</span></li>)}</ul>}
       </Card>
     </>
   )

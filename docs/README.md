@@ -69,6 +69,15 @@ A [revisão de 2026-09-19](archive/audits/2026-09-19-overhaul-documental.md)
 registra os contratos encontrados, as 69 decisões revisadas, o inventário da
 cadeia ativa e os limites de evidência. É um snapshot, não substitui os módulos.
 
+A [auditoria forense do núcleo de Operação Marítima de 2026-09-19](archive/audits/2026-09-19-auditoria-forense-nucleo-operacao-maritima.md)
+registra riscos encontrados em Viagens, Escalas, Atracações, Line-Up, omissões,
+transbordo e COD, além de dois conflitos contratuais pendentes de decisão.
+
+A [auditoria de sistemas críticos marítimos de 2026-09-19](archive/audits/2026-09-19-auditoria-sistemas-criticos-maritimos.md)
+registra riscos encontrados em Demurrage, faturamento local, rateio de
+containers, importação, ADR e invalidação de cache. Em conjunto, as duas
+auditorias registram 3 achados P0, 9 P1, 2 P2 e 1 P3.
+
 ## Convenções da documentação
 
 Ver [`CONVENCOES.md`](CONVENCOES.md) — formato, estrutura dos módulos,

@@ -257,10 +257,10 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
       ) VALUES
         (${chargeCalculationIds[0]}, '${localBlIds[0]}', ${chargeTableId}, ${chargeItemId}, 1, 100, 100, 'manual', 'ready_for_billing', 'fin-battery:one', '${actorId}', now()),
         (${chargeCalculationIds[1]}, '${localBlIds[1]}', ${chargeTableId}, ${chargeItemId}, 1, 100, 100, 'manual', 'ready_for_billing', 'fin-battery:two', '${actorId}', now());
-      INSERT INTO public.bl_containers (id, bl_id, container_number, type)
+      INSERT INTO public.bl_containers (id, bl_id, container_number, type, return_date)
       VALUES
-        (${demurrageContainerIds[0]}, '${demurrageBlIds[0]}', 'MSCU1234501', '20GP'),
-        (${demurrageContainerIds[1]}, '${demurrageBlIds[1]}', 'MSCU1234502', '20GP');
+        (${demurrageContainerIds[0]}, '${demurrageBlIds[0]}', 'MSCU1234501', '20GP', '2026-08-20'),
+        (${demurrageContainerIds[1]}, '${demurrageBlIds[1]}', 'MSCU1234502', '20GP', '2026-08-20');
       INSERT INTO public.demurrage_invoices (
         id, doc_number, bl_id, customer_id, doc_date, due_date, billed_at,
         first_billed_at, ready_at, total_usd, roe, roe_manual, current_roe,
@@ -341,7 +341,7 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
     expect(reissuedCancelled.status, `${reissuedCancelled.stdout}\n${reissuedCancelled.stderr}`).toBe(0)
   })
 
-  it('H15/H16 — pausa cobrança em disputa, preserva quitada e recalcula PTAX/ROE após resolução', () => {
+  it('H15/H16 — pausa cobrança em disputa, mas não recálculo PTAX; preserva quitada', () => {
     const opened = callAs(portalUserId, `SELECT public.portal_open_demurrage_dispute(${demurrageInvoiceIds[0]}, 'Divergência sintética de cobrança e período.');`)
     expect(opened.status, `${opened.stdout}\n${opened.stderr}`).toBe(0)
     const disputeId = Number(JSON.parse(lastJson(opened.stdout)).dispute_id)
@@ -357,9 +357,9 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
 
     const recalcPaused = callAs(actorId, `SELECT public.recalculate_demurrage_invoices(6.0, '2026-09-16', 'bcb_live');`, 'service_role')
     expect(recalcPaused.status, `${recalcPaused.stdout}\n${recalcPaused.stderr}`).toBe(0)
-    expect(JSON.parse(lastJson(recalcPaused.stdout))).toMatchObject({ updated: 0, roe: 6.39 })
-    expect(psql(`SELECT current_roe::text || '|' || current_total_brl::text FROM public.demurrage_invoices WHERE id = ${demurrageInvoiceIds[0]};`)).toBe('5.5000|550.00')
-    expect(psql(`SELECT count(*) FROM public.demurrage_invoice_history WHERE invoice_id = ${demurrageInvoiceIds[0]};`)).toBe('1')
+    expect(JSON.parse(lastJson(recalcPaused.stdout))).toMatchObject({ updated: 1, roe: 6.39 })
+    expect(psql(`SELECT current_roe::text || '|' || current_total_brl::text FROM public.demurrage_invoices WHERE id = ${demurrageInvoiceIds[0]};`)).toBe('6.3900|639.00')
+    expect(psql(`SELECT count(*) FROM public.demurrage_invoice_history WHERE invoice_id = ${demurrageInvoiceIds[0]};`)).toBe('2')
 
     expectFailure(equipmentUserId, `SELECT public.add_demurrage_dispute_message(${disputeId}, '   ', 'ninguem');`)
     const resolved = callAs(equipmentUserId, `SELECT public.add_demurrage_dispute_message(${disputeId}, 'Parecer emitido; cobrança mantida conforme o período.', 'ninguem');`)
@@ -370,7 +370,7 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
 
     const recalcResolved = callAs(actorId, `SELECT public.recalculate_demurrage_invoices(6.0, '2026-09-16', 'bcb_live');`, 'service_role')
     expect(recalcResolved.status, `${recalcResolved.stdout}\n${recalcResolved.stderr}`).toBe(0)
-    expect(JSON.parse(lastJson(recalcResolved.stdout))).toMatchObject({ updated: 1, roe: 6.39 })
+    expect(JSON.parse(lastJson(recalcResolved.stdout))).toMatchObject({ updated: 0, roe: 6.39 })
     expect(psql(`SELECT current_roe::text || '|' || current_total_brl::text || '|' || roe_source FROM public.demurrage_invoices WHERE id = ${demurrageInvoiceIds[0]};`)).toBe('6.3900|639.00|bcb_live')
     expect(psql(`SELECT count(*) FROM public.demurrage_invoice_history WHERE invoice_id = ${demurrageInvoiceIds[0]};`)).toBe('2')
     expect(psql(`SELECT ptax_used::text || '|' || roe_used::text || '|' || total_brl::text || '|' || source FROM public.demurrage_invoice_history WHERE invoice_id = ${demurrageInvoiceIds[0]} ORDER BY id DESC LIMIT 1;`)).toBe('6.0000|6.3900|639.00|bcb_live')

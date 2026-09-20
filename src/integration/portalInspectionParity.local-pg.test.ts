@@ -47,6 +47,25 @@ function callAs(userId: string, sql: string) {
   )
 }
 
+function callAsRollback(userId: string, sql: string) {
+  return spawnSync(
+    'psql',
+    [
+      '-X',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-v',
+      'VERBOSITY=verbose',
+      '-At',
+      '-d',
+      databaseUrl,
+      '-c',
+      `BEGIN; SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${userId}', true); ${sql} ROLLBACK;`,
+    ],
+    { encoding: 'utf8' },
+  )
+}
+
 function lastJson(stdout: string) {
   const lines = stdout
     .split('\n')
@@ -75,9 +94,16 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
         (${customerA}, '${customerACnpj}', 'Cliente S11 A'),
         (${customerB}, '${customerBCnpj}', 'Cliente S11 B')
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
-      INSERT INTO public.customer_portal_accounts (customer_id, active, auth_user_id) VALUES
-        (${customerA}, true, '${portalUserA}')
-      ON CONFLICT (customer_id) DO UPDATE SET active = true, auth_user_id = '${portalUserA}';
+      INSERT INTO public.customer_portal_accounts (customer_id, active, auth_user_id, provisioning_decision, account_situation, recovery_email, portal_email, login_cnpj) VALUES
+        (${customerA}, true, '${portalUserA}', 'aprovado_para_provisionar', 'ativo', 'financeiro-s11@example.test', 'financeiro-s11@example.test', '${customerACnpj}')
+      ON CONFLICT (customer_id) DO UPDATE SET
+        active = true,
+        auth_user_id = '${portalUserA}',
+        provisioning_decision = 'aprovado_para_provisionar',
+        account_situation = 'ativo',
+        recovery_email = 'financeiro-s11@example.test',
+        portal_email = 'financeiro-s11@example.test',
+        login_cnpj = '${customerACnpj}';
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier S11') ON CONFLICT (id) DO NOTHING;
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel S11', ${carrierId}) ON CONFLICT (id) DO NOTHING;
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'S11-001', 'active') ON CONFLICT (id) DO NOTHING;
@@ -98,6 +124,22 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
       SELECT i.id, ${customerB}, 'aberta', 'equipamentos', 'assunto B', 'cliente'
       FROM public.demurrage_invoices i WHERE i.doc_number = 'S11-DEM-B'
       ON CONFLICT DO NOTHING;
+      INSERT INTO public.invoices (invoice_number, customer_id, bl_id, total_brl, balance_brl, status, pix_payload, notes, pix_txid)
+      VALUES ('S11-INV-A', ${customerA}, '${blA}', 100, 100, 'draft', 'PIX-S11', 'nota interna S11', 'txid-interno-s11')
+      ON CONFLICT (invoice_number) DO UPDATE SET notes = EXCLUDED.notes, pix_txid = EXCLUDED.pix_txid;
+      INSERT INTO public.invoice_bls (invoice_id, bl_id, subtotal_brl, subtotal_usd)
+      SELECT i.id, '${blA}', 100, 0 FROM public.invoices i WHERE i.invoice_number = 'S11-INV-A'
+      ON CONFLICT DO NOTHING;
+      INSERT INTO public.invoice_items (invoice_id, description, total_value_brl, snapshot_payload)
+      SELECT i.id, 'Taxa S11', 100, '{"internal_margin": "secret"}'::jsonb
+      FROM public.invoices i
+      WHERE i.invoice_number = 'S11-INV-A'
+        AND NOT EXISTS (SELECT 1 FROM public.invoice_items ii WHERE ii.invoice_id = i.id);
+      INSERT INTO public.payments (invoice_id, amount_brl, payment_method, notes)
+      SELECT i.id, 1, 'pix', 'nota interna do pagamento'
+      FROM public.invoices i
+      WHERE i.invoice_number = 'S11-INV-A'
+        AND NOT EXISTS (SELECT 1 FROM public.payments p WHERE p.invoice_id = i.id);
     `)
   })
 
@@ -108,6 +150,10 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
     psql(`
       DELETE FROM public.demurrage_disputes WHERE customer_id IN (${customerA}, ${customerB});
       DELETE FROM public.demurrage_invoices WHERE doc_number IN ('S11-DEM-A', 'S11-DEM-B');
+      DELETE FROM public.payments WHERE invoice_id = (SELECT id FROM public.invoices WHERE invoice_number = 'S11-INV-A');
+      DELETE FROM public.invoice_items WHERE invoice_id = (SELECT id FROM public.invoices WHERE invoice_number = 'S11-INV-A');
+      DELETE FROM public.invoice_bls WHERE invoice_id = (SELECT id FROM public.invoices WHERE invoice_number = 'S11-INV-A');
+      DELETE FROM public.invoices WHERE invoice_number = 'S11-INV-A';
       DELETE FROM public.bls WHERE id IN ('${blA}', '${blB}');
       DELETE FROM public.voyages WHERE id = ${voyageId};
       DELETE FROM public.vessels WHERE id = ${vesselId};
@@ -140,8 +186,8 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
     const localPage = callAs(inspectorId, `SELECT public.portal_inspect_list_invoices_page(${customerA}, 1, 0, NULL, NULL, NULL, NULL, NULL, NULL);`)
     expect(localPage.status, `${localPage.stdout}\n${localPage.stderr}`).toBe(0)
     const localPayload = JSON.parse(lastJson(localPage.stdout)) as { rows: unknown[]; total_count: number }
-    expect(localPayload.rows).toHaveLength(0)
-    expect(localPayload.total_count).toBe(0)
+    expect(localPayload.rows).toHaveLength(1)
+    expect(localPayload.total_count).toBe(1)
 
     const demurragePage = callAs(inspectorId, `SELECT public.portal_inspect_list_demurrage_invoices_page(${customerA}, 1, 0, NULL, NULL, NULL, NULL, NULL, NULL);`)
     expect(demurragePage.status, `${demurragePage.stdout}\n${demurragePage.stderr}`).toBe(0)
@@ -166,6 +212,51 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
     const rowsB = JSON.parse(lastJson(inspectB.stdout)) as Array<{ subject: string }>
     expect(rowsB.map((r) => r.subject)).toContain('assunto B')
     expect(rowsB.map((r) => r.subject)).not.toContain('assunto A')
+  })
+
+  it('nega ao usuário do Portal as cinco RPCs internas com 42501', () => {
+    const disputeId = Number(psql(`SELECT id FROM public.demurrage_disputes WHERE customer_id = ${customerA} ORDER BY id LIMIT 1;`))
+    const attempts = [
+      { sql: 'SELECT public.list_demurrage_disputes_internal(NULL);', message: 'Apenas Equipamentos pode consultar a fila' },
+      { sql: `SELECT public.add_demurrage_dispute_message(${disputeId}, 'intrusão', 'cliente');`, message: 'Apenas Equipamentos pode responder' },
+      { sql: `SELECT public.reopen_demurrage_dispute(${disputeId}, 'intrusão');`, message: 'Apenas Equipamentos pode reabrir' },
+      { sql: "SELECT public.save_customer_communication_saved_template('intrusão', 'x', 'x');", message: 'Sem permissão para salvar modelos' },
+      { sql: `SELECT public.set_agency_report_terminal(${voyageId}, 'BRVIX', 'intrusão');`, message: 'Terminal pertence ao departamento operacoes' },
+    ]
+
+    for (const attempt of attempts) {
+      const result = callAsRollback(portalUserA, attempt.sql)
+      expect(result.status, `${attempt.sql}\n${result.stdout}\n${result.stderr}`).not.toBe(0)
+      expect(result.stderr).toContain('42501')
+      expect(result.stderr).toContain(attempt.message)
+    }
+  })
+
+  it('detalhes financeiros do Portal expõem somente a allowlist pública', () => {
+    const invoiceId = Number(psql("SELECT id FROM public.invoices WHERE invoice_number = 'S11-INV-A';"))
+    const localResult = callAs(portalUserA, `SELECT public.portal_invoice_details(${invoiceId});`)
+    expect(localResult.status, `${localResult.stdout}\n${localResult.stderr}`).toBe(0)
+    const localPayload = JSON.parse(lastJson(localResult.stdout)) as {
+      invoice: Record<string, unknown>
+      items: Array<Record<string, unknown>>
+      payments: Array<Record<string, unknown>>
+    }
+    expect(localPayload.invoice).toMatchObject({ invoice_number: 'S11-INV-A', pix_payload: 'PIX-S11' })
+    expect(localPayload.invoice).not.toHaveProperty('notes')
+    expect(localPayload.invoice).not.toHaveProperty('pix_txid')
+    expect(localPayload.invoice).not.toHaveProperty('issued_by')
+    expect(localPayload.items[0]).not.toHaveProperty('snapshot_payload')
+    expect(localPayload.items[0]).not.toHaveProperty('pricing_rule_version_id')
+    expect(localPayload.payments[0]).not.toHaveProperty('notes')
+    expect(localPayload.payments[0]).not.toHaveProperty('registered_by')
+
+    const demurrageId = Number(psql("SELECT id FROM public.demurrage_invoices WHERE doc_number = 'S11-DEM-A';"))
+    const demurrageResult = callAs(portalUserA, `SELECT public.portal_get_demurrage_invoice_detail(${demurrageId});`)
+    expect(demurrageResult.status, `${demurrageResult.stdout}\n${demurrageResult.stderr}`).toBe(0)
+    const demurragePayload = JSON.parse(lastJson(demurrageResult.stdout)) as { invoice: Record<string, unknown> }
+    for (const forbidden of ['roe', 'roe_manual', 'discount_justification', 'discount_approver', 'dispute_reason', 'dispute_notes', 'notes', 'pix_txid']) {
+      expect(demurragePayload.invoice).not.toHaveProperty(forbidden)
+    }
   })
 
   it('mapa literal cobre callers, leituras têm wrapper e escritas não ganham variante', () => {
