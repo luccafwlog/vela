@@ -17,7 +17,11 @@ export type BaplieReconciliationItem =
       kind: 'missing_in_baplie'
       container_number: string
       bl_container_id: number
-      bl_number: string | null
+      // P2-16: renomeado de bl_number (o valor sempre foi bls.id, nao um
+      // "numero" resolvido a parte -- bls.id ja carrega o numero do B/L por
+      // desenho de schema, mas o nome do campo sugeria uma resolucao que
+      // nunca existiu).
+      bl_id: string | null
     }
 
 export type BaplieReconciliationResult = {
@@ -148,7 +152,7 @@ export function computeExistenceDivergences(
         kind: 'missing_in_baplie',
         container_number: mc.container_number,
         bl_container_id: mc.id,
-        bl_number: (mc.bl_id as string) ?? null,
+        bl_id: mc.bl_id ?? null,
       })
     }
   }

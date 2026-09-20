@@ -343,9 +343,14 @@ export function parseBaplieText(text: string): ParsedBaplie {
       }
 
       const size_type = eqd.components[3]?.[0]?.trim() || null
-      const statusCode = [eqd.components[5]?.[0], eqd.components[6]?.[0]]
-        .find((value) => Boolean(value?.trim()))?.trim() ?? ''
-      const status: BaplieContainer['status'] = statusCode === '4' ? 'empty' : 'full'
+      // EQD 8169 (full/empty indicator) mora no elemento 6. O elemento 5 e
+      // 8249 (equipment status coded) e responde a outra pergunta (ex.: '2'
+      // = export, nao vazio); lê-lo como indicador de vazio confunde os
+      // dois campos e classifica containers vazios como cheios sempre que o
+      // 8249 vem preenchido (#P0-1). Ausencia do 8169 nao vira 'full' por
+      // default: fica marcada e bloqueia a confirmacao.
+      const fullEmptyCode = (eqd.components[6]?.[0] ?? '').trim()
+      const status: BaplieContainer['status'] = fullEmptyCode === '4' ? 'empty' : 'full'
 
       // EQDs consecutivos no mesmo slot não herdam campos da unidade anterior;
       // cada unidade só recebe os segmentos do seu próprio trecho.
@@ -375,6 +380,15 @@ export function parseBaplieText(text: string): ParsedBaplie {
       // consecutivos. Preserve a validação histórica do conjunto no primeiro
       // equipamento, sem transformar a ausência de repetição nos seguintes em
       // uma troca silenciosa de atributos.
+      if (!fullEmptyCode || !['4', '5'].includes(fullEmptyCode)) {
+        issues.push({
+          row: group.order,
+          field: 'status',
+          code: 'invalid_group',
+          severity: 'error',
+          message: `Container ${container_number}: indicador cheio/vazio (EQD 8169) ausente ou inválido no conjunto ${group.order}.`,
+        })
+      }
       if (eqdPos === 0 && (!ownPol.code || !ownPol.recognized)) {
         issues.push({
           row: group.order,
@@ -437,17 +451,40 @@ function lastPort(items: ParsedSegment[], qualifiers: ReadonlySet<string>): Pars
 
 type ParsedWeight = { value: number | null; issue: 'invalid' | null }
 
+// Fator de conversao para kg pelo qualificador UN/ECE R20 (elemento 6411 do
+// componente de medida). KGM e o unico que o staging grava sem conversao;
+// TNE/LBR convertem; qualquer outro codigo e desconhecido e bloqueia — nunca
+// grava um numero sem saber a que unidade ele se refere (#P0-2).
+const WEIGHT_UNIT_TO_KG: Record<string, number> = {
+  KGM: 1,
+  TNE: 1000,
+  LBR: 0.45359237,
+}
+
 function parseWeight(segment: ParsedSegment, delimiters: Delimiters): ParsedWeight {
   const valueField = segment.rawElements[3] ?? segment.rawElements[2] ?? ''
   const parts = splitRespectingRelease(valueField, delimiters.component, delimiters.release)
-  const value = (parts[1] ?? parts[0] ?? '').trim()
+  // parts[0] e o qualificador de unidade (6411, ex.: KGM/TNE/LBR); parts[1] e
+  // o valor. Descartar parts[0] e ler direto o valor faz um MEA em toneladas
+  // gravar o numero cru como se fosse quilos (1000x menor que o real).
+  const hasUnitField = parts.length >= 2
+  const unit = hasUnitField ? parts[0]!.trim().toUpperCase() : ''
+  const value = (hasUnitField ? parts[1] : parts[0])?.trim() ?? ''
   if (!value) return { value: null, issue: null }
 
   const parsed = parseImportNumber(value, 'en-US')
   if (parsed.kind !== 'value') return { value: null, issue: 'invalid' }
   const number = Number(parsed.decimal)
   if (!Number.isFinite(number) || number < 0) return { value: null, issue: 'invalid' }
-  return { value: number, issue: null }
+
+  // Sem qualificador de unidade no segmento: dialeto legado que sempre
+  // gravou o valor cru como kg. Mantido para nao quebrar staging historico
+  // sem MEA tipado; com qualificador presente, ele e obrigatoriamente
+  // reconhecido.
+  if (!hasUnitField) return { value: number, issue: null }
+  const factor = WEIGHT_UNIT_TO_KG[unit]
+  if (factor === undefined) return { value: null, issue: 'invalid' }
+  return { value: number * factor, issue: null }
 }
 
 function hasOogDims(segment: ParsedSegment, delimiters: Delimiters): boolean {

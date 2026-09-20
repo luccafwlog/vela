@@ -822,7 +822,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><h2 className="text-[11px] font-bold uppercase tracking-[0.09em] text-[var(--app-muted)]">Equipamentos</h2><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-green)]">{sectionsOf('equipamentos').filter((section) => sectionState(section) !== 'pending').length}/{sectionsOf('equipamentos').length} seções</span><span className="flex gap-1">{sectionsOf('equipamentos').map((section) => <span key={section} className={`h-1 w-7 rounded-full ${sectionState(section) === 'pending' ? 'bg-[var(--app-panel-strong)]' : 'bg-[var(--app-green)]'}`} />)}</span></div><DepartmentSignoffControl department="equipamentos" label="Equipamentos" signed={isDepartmentSigned('equipamentos')} attribution={departmentAttribution('equipamentos')} canSignoff={canSignDepartment('equipamentos')} sectionsPending={departmentSectionsPending('equipamentos')} isPending={departmentSignoffMutation.isPending} compact onChange={updateDepartmentSignoff} /></div>
             <div className="grid gap-3">
           <ReportSection
-            title="Granito"
+            title="Carga carregada"
             section="carga_carregada" state={sectionState('carga_carregada')} attribution={sectionAttribution('carga_carregada')} canSignoff={canSignoff('carga_carregada')} events={eventsBySection('carga_carregada')} actorNames={actorNames} isPending={signoffMutation.isPending} onSignoff={updateSignoff}
             observation={signoffRows.get('carga_carregada')?.observation} onObservationChange={updateObservation} terminalView={terminalViewFor('carga_carregada')}
           >

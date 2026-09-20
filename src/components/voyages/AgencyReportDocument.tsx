@@ -657,7 +657,9 @@ export function AgencyReportDocument({
           />
         ) : null}
       </Section>
-      <Section title="Granito" {...section("carga_carregada")} hasData={Boolean(number(granite.bls))}>
+      {/* ADR 0036: o título da seção é "Carga carregada"; granito é o
+          conteúdo, não o nome — decisão confirmada em 2026-09-19. */}
+      <Section title="Carga carregada" {...section("carga_carregada")} hasData={Boolean(number(granite.bls))}>
         <MetricsTable
           label="Granito"
           metrics={[

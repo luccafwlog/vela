@@ -102,6 +102,12 @@ export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: re
     if (handInRaw && !handInDate) rowErrors.add(rowNumber, `Container ${containerNumber}: data de entrada inválida.`, row)
     if (handOutRaw && !handOutDate) rowErrors.add(rowNumber, `Container ${containerNumber}: data de saída inválida.`, row)
     if (movementRaw && !movementDate) rowErrors.add(rowNumber, `Container ${containerNumber}: data de embarque inválida.`, row)
+    // P2-20: um container nao pode embarcar antes de sair do depot que o
+    // liberou — sem essa checagem, um erro de digitação no embarque nunca era
+    // confrontado com o gate in/out que ja tinhamos.
+    if (movementDate && handOutDate && movementDate < handOutDate) {
+      rowErrors.add(rowNumber, `Container ${containerNumber}: data de embarque anterior à saída do depot.`, row)
+    }
     if (!localCode) rowErrors.add(rowNumber, `Container ${containerNumber}: local de origem obrigatório.`, row)
     else if (depots) validateLocalAgainstDepots(rowNumber, containerNumber, localCode, handInDate, handOutDate, depots, rowErrors, row)
     bookings.push({
@@ -177,8 +183,23 @@ const SLASH_DATE = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/
  * toda a coluna a partir da primeira linha que desambigua (algum campo >12),
  * em vez de inferir linha a linha — o que faria uma mesma coluna misturar
  * convenções conforme cada linha for ou não ambígua.
+ *
+ * P2-17: sem nenhuma linha com campo >12, a evidência do arquivo não decide
+ * nada — mesmo caso que `inferSeparatorFormat` (src/lib/importNumber.ts)
+ * resolve devolvendo `'unknown'`. Aqui a assimetria é deliberada: bloquear
+ * quando ambíguo (testado e revertido nesta mesma revisão) rejeitava a
+ * maioria das planilhas reais, porque qualquer dia 1–12 do mês — o caso
+ * comum de operação brasileira — já é "ambíguo" nesta definição. Sem um
+ * declarar-formato na tela (como o Manifesto BB tem para decimais), o
+ * bloqueio não tem via de escape para o operador. `'ambiguous'` fica
+ * exposto no tipo de retorno para o upgrade descrito abaixo; o *fallback*
+ * de leitura continua sendo DD/MM.
+ *
+ * ponytail: teto — planilha genuinamente MM/DD sem nenhum dia >12 é lida
+ * como DD/MM sem aviso. Upgrade: alternador "Detectar pelo arquivo / DD/MM
+ * / MM/DD" na UI do modal, no mesmo padrão do Importar Manifesto BB.
  */
-function inferDateOrder(rawValues: string[]): DateOrder {
+function inferDateOrder(rawValues: string[]): DateOrder | 'ambiguous' {
   for (const raw of rawValues) {
     const match = raw.trim().match(SLASH_DATE)
     if (!match) continue
@@ -187,10 +208,10 @@ function inferDateOrder(rawValues: string[]): DateOrder {
     if (first > 12 && second <= 12) return 'dmy'
     if (second > 12 && first <= 12) return 'mdy'
   }
-  return 'dmy'
+  return 'ambiguous'
 }
 
-function parseDate(value: string, order: DateOrder): string | null {
+function parseDate(value: string, order: DateOrder | 'ambiguous'): string | null {
   const normalized = value.trim()
   if (!normalized) return null
   const serial = Number(normalized)

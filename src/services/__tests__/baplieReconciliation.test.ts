@@ -96,7 +96,7 @@ describe('computeExistenceDivergences', () => {
       blcs([{ id: 10, bl_id: 'BL1', container_number: 'ABCD1234567' }]),
     )
     expect(items).toEqual([
-      { kind: 'missing_in_baplie', container_number: 'ABCD1234567', bl_container_id: 10, bl_number: 'BL1' },
+      { kind: 'missing_in_baplie', container_number: 'ABCD1234567', bl_container_id: 10, bl_id: 'BL1' },
     ])
   })
 

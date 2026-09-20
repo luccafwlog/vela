@@ -123,6 +123,8 @@ export function VoyageImportActions({
       queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
       queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] }),
       queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] }),
+      // P0-4: Manifesto BB alimenta "Carga descarregada" (carga solta) no ADR.
+      queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
     ])
   }
 
@@ -205,6 +207,8 @@ export function VoyageImportActions({
               queryClient.invalidateQueries({ queryKey: ['voyages'] }),
               queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
               queryClient.invalidateQueries({ queryKey: ['granite-manifests'] }),
+              // P0-4: alimenta "Carga carregada" no ADR.
+              queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
             ])
             showToast(`Manifesto Granito importado: ${preview.bls.length} B/L(s).`, 'success')
             return result
@@ -253,6 +257,8 @@ export function VoyageImportActions({
               queryClient.invalidateQueries({ queryKey: ['vazios-importacao-containers'] }),
               queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] }),
               queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] }),
+              // P0-4: alimenta "Vazios descarregados" no ADR.
+              queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
             ])
             showToast(`Manifesto Vazios Imp. importado: ${preview.containers.length} container(s).`, 'success')
           }}
@@ -362,6 +368,9 @@ function BaplieImportModal({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['baplie-staging', voyageId] }),
         queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] }),
+        // P0-4: alimenta a divergencia de existencia de Carga descarregada e
+        // Vazios descarregados no ADR.
+        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
       ])
       showToast(`Baplie importado: ${staged} container(s) em staging.`, 'success')
       handleClose()
@@ -487,6 +496,8 @@ function VehiclesImportModal({
         queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
         queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] }),
         queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] }),
+        // P0-4: alimenta a secao "Veiculos" no ADR.
+        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
       ])
       showToast(`Veiculos importados: ${result.successCount} sucesso(s), ${result.errorCount} erro(s).`, result.errorCount ? 'info' : 'success')
       if (!result.errorCount) onClose()

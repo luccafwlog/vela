@@ -96,7 +96,7 @@ it("imprime o snapshot fechado nos blocos e matrizes do modelo real", () => {
 
   for (const heading of [
     "Carga solta",
-    "Granito",
+    "Carga carregada",
     "Matriz de descarga",
     "Vazios descarregados",
     "Container com veículo",

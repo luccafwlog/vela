@@ -124,6 +124,9 @@ export function Granite() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['granite-bls'] }),
         queryClient.invalidateQueries({ queryKey: ['voyages'] }),
+        // P0-4: a seção "Carga carregada" do ADR soma peso/blocos de
+        // granite_bls; sem esta linha, o import não refletia na aba.
+        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
       ])
       const msg = pendingCount
         ? `Importado com ${manifest.bls.length} B/Ls. ${pendingCount} com reconciliação pendente.`

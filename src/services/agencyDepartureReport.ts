@@ -13,6 +13,7 @@ import type {
 import type { AgencyDepartureReport, AgencyReportDepartmentKey, AgencyReportDepartmentSignoff, AgencyReportOccurrence, AgencyReportSignoff } from '../types/database'
 import { supabase } from './supabase'
 import { extractErrorText } from '../lib/errors'
+import { breakbulkWeightTon } from '../lib/breakbulkWeight'
 import { computeStorageTotals, type VaziosExportServiceLineWithObservation } from './vaziosExportOperations'
 import { listDepots } from './depots'
 import { quantidadeEfetiva, totalEmbarque, totalLinha } from './vaziosCusto'
@@ -47,7 +48,15 @@ export const AGENCY_REPORT_SECTIONS: Record<AgencyReportSection, UserProfileRole
 export const AGENCY_REPORT_SECTION_LABELS: Record<AgencyReportSection, string> = {
   datas: 'Escala',
   carga_descarregada: 'Carga descarregada',
-  carga_carregada: 'Granito',
+  // ADR 0036: "A seção `carga_carregada` chama-se 'Carga carregada', com o
+  // granito como seu conteúdo — não como seu nome." Renomear para "Granito"
+  // foi listado como alternativa rejeitada ("vira mentira na primeira carga
+  // de exportação que não for granito"). Decisão confirmada com o usuário em
+  // 2026-09-19. A função SQL agency_report_section_label foi realinhada pela
+  // migration 065 (supersede o CASE de 'Granito' que a migration 258 havia
+  // gravado); os dois lados ficam sincronizados por
+  // agencyReportGraniteOwnershipMigration.test.ts.
+  carga_carregada: 'Carga carregada',
   veiculos: 'Veículos',
   vazios_embarcados: 'Embarque de vazios',
   vazios_descarregados: 'Vazios descarregados',
@@ -784,7 +793,7 @@ async function listTransshipmentBlIds(voyageId: number, port: string): Promise<s
 }
 
 const BL_CONTAINERS_SELECT = 'id, container_number, type, is_imo, is_oog, bl:bls!inner(voyage_id, pod, transshipments:bl_transshipments(disposition))'
-const BREAKBULK_SELECT = 'bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, bb_cbm'
+const BREAKBULK_SELECT = 'cargo_mode, bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, bb_cbm'
 const VEHICLES_SELECT = 'brand, model, bl_id, chassis, container_id, container:bl_containers(container_number, type, unpacking_location)'
 
 const SUPABASE_PAGE_SIZE = 1000
@@ -883,7 +892,11 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
         .from('vehicles')
         .select(`${VEHICLES_SELECT}, bl:bls!inner(voyage_id, pod)`)
         .eq('bl.voyage_id', voyageId)
-        .eq('bl.pod', port)
+        // P0-3: igualdade crua contra `port` perdia veiculos de B/Ls gravados
+        // com a forma legada do porto (ex. 'BRVIT' antes de 'BRVIX' virar
+        // canonico) — mesmo problema que baplie/vazios/granito ja tratam com
+        // portCodeVariants abaixo.
+        .in('bl.pod', portCodeVariants(port))
         .range(from, to),
     ),
     fetchAllRows((from, to) =>
@@ -919,7 +932,11 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
         .from('bl_containers')
         .select(BL_CONTAINERS_SELECT)
         .eq('bl.voyage_id', voyageId)
-        .eq('bl.pod', port)
+        // P0-3: mesma correcao acima — esta e a consulta que alimenta a
+        // contagem de Carga descarregada (ADR 0025/0035); igualdade crua
+        // subcontava containers de B/Ls com pod na forma legada e inflava
+        // a divergencia de existencia com o Baplie.
+        .in('bl.pod', portCodeVariants(port))
         .range(from, to),
     ),
     supabase
@@ -1218,10 +1235,7 @@ function summarizeBreakbulk(breakbulk: BreakbulkAgencyReportBl[]) {
     bls: breakbulk.length,
     machines: breakbulk.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0),
     packages: breakbulk.reduce((sum, bl) => sum + Number(bl.bb_packages_qty ?? 0), 0),
-    weightTon: breakbulk.reduce(
-      (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
-      0,
-    ),
+    weightTon: breakbulk.reduce((sum, bl) => sum + breakbulkWeightTon(bl), 0),
     cbm: breakbulk.reduce((sum, bl) => sum + Number(bl.bb_cbm ?? 0), 0),
   }
 }

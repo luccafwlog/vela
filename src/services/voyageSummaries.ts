@@ -1,4 +1,5 @@
 // Helpers puros para rótulos, métricas e resumos da tela de Viagens.
+import { breakbulkWeightTon } from '../lib/breakbulkWeight'
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../lib/containerCounts'
 import { formatDate } from '../lib/utils'
 import { formatMetric, formatPortDisplayName, normalizePortName, stripFileExtension } from '../lib/voyageFormat'
@@ -1252,10 +1253,7 @@ export function summarizeImportByPod(
         bls: podBreakbulk.length,
         machines: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0),
         packages: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_packages_qty ?? 0), 0),
-        weightTon: podBreakbulk.reduce(
-          (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
-          0,
-        ),
+        weightTon: podBreakbulk.reduce((sum, bl) => sum + breakbulkWeightTon(bl), 0),
         cbm: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_cbm ?? 0), 0),
       },
     }

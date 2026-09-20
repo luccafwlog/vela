@@ -46,16 +46,25 @@ describe('cache effects', () => {
       ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
       ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
       ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
-      ['baplie-reconciliation', '24'], ['baplie-staging', '24'],
+      ['baplie-reconciliation', '24'], ['baplie-staging', '24'], ['agency-report'],
       ['voyage-pol-schedules'], ['voyage-escala-schedules'], ['voyage-timeline', '24'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
     ]))
+  })
+
+  // P0-4: Importar B/L, CE Mercante e Manifesto BB alimentam "Carga
+  // descarregada" e "Veículos" no ADR — a família 'agency-report' precisa
+  // sair invalidada junto, ou a aba fica mostrando o número velho até F5.
+  it('invalidates the agency report family so the ADR tab reflects the import', async () => {
+    const { client, keys } = fakeQueryClient()
+    await afterManifestoImportado(client, { voyageId: 24 })
+    expect(keys()).toContain('["agency-report"]')
   })
 
   it('delegates Baplie invalidation through the event seam', async () => {
     const { client, keys } = fakeQueryClient()
     await afterBaplieImportado(client, { voyageId: '24' })
     expect(keys()).toEqual(keySet([
-      ['baplie-reconciliation', '24'], ['bls'], ['bl-detail'], ['voyages'], ['voyage-timeline', '24'],
+      ['baplie-reconciliation', '24'], ['bls'], ['bl-detail'], ['voyages'], ['voyage-timeline', '24'], ['agency-report'],
     ]))
   })
 

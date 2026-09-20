@@ -1,7 +1,7 @@
 import { assertUploadFile } from '../lib/fileGuard'
 import { asString, chunkArray, normalizeHeader } from '../lib/utils'
 import { parseImportNumber, type ImportNumberFormat } from '../lib/importNumber'
-import { IsoContainerSchema } from './importValidation'
+import { IsoContainerSchema, VinSchema } from './importValidation'
 import { supabase } from './supabase'
 import { matchHeaders, readSheet, type HeaderSpec, type SheetRow } from './importCore'
 
@@ -375,8 +375,32 @@ function parseVehicleImportRows(rows: SheetRow[], numberFormat: ImportNumberForm
       return
     }
 
+    // P1-9: teto de absurdo, no mesmo espírito do Manifesto BB
+    // (breakbulkManifestParser.ts) — um numero que nao descreve um veiculo
+    // e recusado seja qual for o separador decimal lido. Faixa generosa
+    // (carro pequeno a maquina pesada em container); nao calibrada contra
+    // amostra real de producao.
+    // ponytail: upgrade — se a faixa se mostrar apertada para algum layout
+    // real, ajustar aqui em vez de remover a checagem.
+    if (weight < 300 || weight > 60_000) {
+      rowErrors.push({ row: rowNumber, message: `Peso ${weight}kg fora da faixa plausível para um veículo (300–60.000kg).`, raw: row })
+      return
+    }
+    if (cbm < 1 || cbm > 300) {
+      rowErrors.push({ row: rowNumber, message: `Cubagem ${cbm}m³ fora da faixa plausível para um veículo (1–300m³).`, raw: row })
+      return
+    }
+
     if (!IsoContainerSchema.safeParse(containerNumber).success) {
       rowErrors.push({ row: rowNumber, message: `Container ${containerNumber}: formato ISO esperado (XXXX0000000).`, raw: row })
+      return
+    }
+
+    // P1-9: a unica checagem de chassi antes desta correção era "não vazio".
+    // VinSchema exige os 17 caracteres do ISO 3779 sem I/O/Q — mesmo nível de
+    // rigor que o container já tinha, agora simétrico para o veículo.
+    if (!VinSchema.safeParse(chassis).success) {
+      rowErrors.push({ row: rowNumber, message: `Chassi ${chassis}: formato VIN esperado (17 caracteres, sem I/O/Q).`, raw: row })
       return
     }
 
@@ -407,11 +431,17 @@ function mapRow(row: Record<string, unknown>) {
   return mapped
 }
 
+// P1-9: o fallback para 'unknown' que existia aqui recaía sobre uma segunda
+// leitura sempre que a declarada/inferida rejeitasse a célula — o mesmo
+// padrão que o Manifesto BB (breakbulkManifestParser.ts) e a doc do módulo
+// tratam como recusado, não corrigido em silêncio ("Formato declarado que o
+// arquivo contradiz é recusado em vez de corrigido em silêncio",
+// docs/modules/manifesto-edi.md). Sem o fallback, uma célula que não
+// confirma o formato inferido vira `null`, que a checagem de campos
+// obrigatórios já bloqueia — em vez de ser relida sob uma convenção
+// diferente da que o cabeçalho do arquivo indicou.
 function parseSpreadsheetNumber(value: unknown, format: ImportNumberFormat) {
-  let parsed = parseImportNumber(value, format)
-  if (parsed.kind !== 'value') {
-    parsed = parseImportNumber(value, 'unknown')
-  }
+  const parsed = parseImportNumber(value, format)
   if (parsed.kind !== 'value') return null
   const number = Number(parsed.decimal)
   return Number.isFinite(number) ? number : null

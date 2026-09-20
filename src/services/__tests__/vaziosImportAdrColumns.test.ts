@@ -22,6 +22,17 @@ describe('parser de vazios — novo contrato', () => {
     expect(parsed.rowErrors).toEqual([])
     expect(parsed.bookings[0]).toMatchObject({ local_code: 'VBR', condition: 'vazio', hand_in_date: '2026-07-01', hand_out_date: '2026-07-05', movement_date: '2026-07-06' })
   })
+  // P2-20: um container nao pode embarcar antes de sair do depot que o
+  // liberou — sem checagem, um erro de digitacao no embarque nao era
+  // confrontado com o gate in/out ja existente.
+  it('recusa embarque anterior à saída do depot', async () => {
+    const parsed = await parseVaziosManifestBuffer(await makeBuffer([
+      { Container: 'ABCD1234567', Depot: 'VBR', Condition: 'vazio', 'Hand-in': '01/07/2026', 'Hand-out': '05/07/2026', 'Load date': '03/07/2026' },
+    ]))
+    expect(parsed.rowErrors).toHaveLength(1)
+    expect(parsed.rowErrors[0].message).toContain('embarque anterior à saída do depot')
+  })
+
   it('canoniza a caixa do container e do tipo antes do contrato da RPC', async () => {
     const parsed = await parseVaziosManifestBuffer(await makeBuffer([{ Container: 'abcd1234568', Type: '40hc', Depot: 'VBR', Condition: 'vazio' }]))
     expect(parsed.rowErrors).toEqual([])

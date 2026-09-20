@@ -2,6 +2,14 @@
 
 Status: aceito — 2026-07-28
 
+> **Nota editorial — 2026-09-19.** A fórmula de armazenagem escrita na
+> decisão original (`saída − entrada − free time`) estava incompleta: o dia
+> de entrada e o dia de saída contam ambos como dia de armazenagem, como o
+> código (`diasCobraveis`, `src/services/vaziosCusto.ts`) sempre implementou.
+> A fórmula correta, confirmada com o usuário, é
+> `(saída − entrada + 1) − free time da condição`, nunca negativa. O texto
+> original abaixo permanece como registro histórico da decisão.
+
 ## Contexto
 
 As ADRs 0031 e 0032 modelaram o VAZIOS EXP como um fluxo derivado: o container é
