@@ -1,7 +1,6 @@
 import { Card } from '../ui/Card'
 import { MetricCard } from '../ui/MetricCard'
 import { Modal } from '../ui/Modal'
-import { DEMURRAGE_ROE_MARKUP } from '../../services/demurrage/demurrageKpis'
 import { portalInvoiceStatusLabel } from '../../lib/portalInvoiceStatus'
 import { formatBRL, formatDate } from '../../lib/utils'
 import type { PortalDemurrageInvoiceDetail } from '../../services/portalBilling'
@@ -40,11 +39,11 @@ export function PortalDemurrageDetailModal({
               <MetricCard label="Status" value={portalInvoiceStatusLabel(invoice.status)} />
               <MetricCard label="Total USD" value={`$ ${Number(invoice.total_usd).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
               <MetricCard label="Total BRL" value={invoice.current_total_brl != null ? formatBRL(invoice.current_total_brl) : '-'} />
-              <MetricCard label="PTAX ref." value={invoice.current_roe != null ? formatBRL(invoice.current_roe / DEMURRAGE_ROE_MARKUP) : '-'} />
+              <MetricCard label="ROE aplicado" value={invoice.current_roe != null ? formatBRL(invoice.current_roe) : '-'} />
             </div>
             <p className="text-xs text-[var(--app-muted)]">
               Valores atualizados em {formatDate(invoice.updated_at) ?? '-'} · fonte {portalRoeSourceLabel(invoice.roe_source)}.
-              O valor em BRL acompanha a PTAX diaria ate o pagamento.
+              O valor em BRL acompanha a cotação cambial diária até o pagamento.
             </p>
 
             <Card className="overflow-hidden p-0">

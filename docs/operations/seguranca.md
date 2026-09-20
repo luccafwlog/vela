@@ -43,6 +43,15 @@ Troca/redefinição de senha, recuperação assistida, troca de Email de Recuper
 
 As RPCs `SECURITY DEFINER` de provisionamento vigentes (`portal_set_exception`, `portal_return_to_analysis`, `portal_admin_change_cnpj`, `portal_cancel_invite`, `portal_assisted_email_change`) autorizam em duas camadas: EXECUTE concedido só a `authenticated`/`service_role` (o herdado do `PUBLIC` foi revogado na migration `192`) e guarda NULL-safe sobre `_portal_actor_role()`, negando role indefinido — inclusive clientes do Portal, que também são role `authenticated`. As RPCs temporárias de pré-voo e backfill foram revogadas e removidas pela migration `201`. Correção da falha *fail-open* encontrada em teste de isolamento por CNPJ (2026-07-14): a comparação com role NULL não disparava o `permission denied`, e o `REVOKE ... FROM anon` original não removia o EXECUTE do `PUBLIC`.
 
+A migration `067` estende a mesma disciplina NULL-safe às RPCs internas de
+Dispute, modelos de comunicação e terminal do ADR. As implementações de negócio
+ficam privadas e os wrappers concedidos a `authenticated` negam um cliente do
+Portal antes de qualquer leitura ou mutação. A mesma migration faz as RPCs de
+detalhes financeiros projetarem allowlists JSON explícitas: notas internas,
+identidade de operadores, justificativas, aprovadores, TXID e snapshots de
+cálculo não atravessam a fronteira do Portal. A interface mostra o ROE aplicado,
+sem decompor no navegador o fator comercial da cotação.
+
 ## Edge Functions
 
 - **Convite/ativação e recuperação** — criam a identidade técnica somente na ativação do convite, sem expor email técnico ou senha ao operador; suspensão revoga as sessões do usuário.

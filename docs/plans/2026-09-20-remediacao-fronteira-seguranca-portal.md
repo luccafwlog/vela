@@ -29,16 +29,18 @@
 
 ---
 
-### Tarefa 1: Fechar RPCs internas e minimizar projeções do Portal
+### Task 1: Fechar RPCs internas e minimizar projeções do Portal
 
 **Arquivos:**
 - Criar: `supabase/migrations/067_portal_security_boundary_remediation.sql`
 - Modificar: `src/integration/portalInspectionParity.local-pg.test.ts`
+- Modificar: `src/components/portal/PortalDemurrageDetailModal.tsx`
+- Modificar: `src/pages/__tests__/PortalBilling.test.tsx`
 - Modificar: `docs/operations/seguranca.md`
 
 **Interfaces:**
 - Consome: `_portal_actor_role()`, wrappers públicos do Portal e assinaturas atuais das RPCs.
-- Produz: mesmas assinaturas públicas com guards NULL-safe e JSON allowlisted.
+- Produz: mesmas assinaturas públicas com guards NULL-safe e JSON allowlisted; a UI exibe somente o ROE aplicado, sem decompor o markup.
 
 - [ ] Adicionar testes locais que chamem as cinco RPCs como usuário Portal e esperem `42501`.
 - [ ] Adicionar testes locais que consultem detalhes próprios e rejeitem as chaves internas auditadas.
@@ -47,7 +49,7 @@
 - [ ] Recriar o Postgres local, executar os testes e confirmar aprovação.
 - [ ] Atualizar o contrato operacional de segurança e fazer commit.
 
-### Tarefa 2: Tornar a redefinição de senha fail-closed
+### Task 2: Tornar a redefinição de senha fail-closed
 
 **Arquivos:**
 - Criar: `supabase/functions/_shared/portalPasswordResetFlow.ts`
@@ -63,7 +65,7 @@
 - [ ] Implementar o orquestrador e integrá-lo à Edge Function.
 - [ ] Executar testes focados e fazer commit.
 
-### Tarefa 3: Equalizar o caminho de login contra enumeração
+### Task 3: Equalizar o caminho de login contra enumeração
 
 **Arquivos:**
 - Criar: `supabase/functions/_shared/portalLoginIdentity.ts`
@@ -80,7 +82,7 @@
 - [ ] Implementar seleção da identidade real/dummy e remover o retorno antecipado pré-Auth.
 - [ ] Documentar a identidade dummy server-only, executar testes focados e fazer commit.
 
-### Tarefa 4: Neutralizar curingas nos filtros de comunicação e concluir
+### Task 4: Neutralizar curingas nos filtros de comunicação e concluir
 
 **Arquivos:**
 - Modificar: `src/services/customerCommunications.ts`
