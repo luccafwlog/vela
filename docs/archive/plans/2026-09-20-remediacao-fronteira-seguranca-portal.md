@@ -48,12 +48,12 @@ e posterior ao marco de revogação.
 - Consome: `_portal_actor_role()`, wrappers públicos do Portal e assinaturas atuais das RPCs.
 - Produz: mesmas assinaturas públicas com guards NULL-safe e JSON allowlisted; a UI exibe somente o ROE aplicado, sem decompor o markup.
 
-- [ ] Adicionar testes locais que chamem as cinco RPCs como usuário Portal e esperem `42501`.
-- [ ] Adicionar testes locais que consultem detalhes próprios e rejeitem as chaves internas auditadas.
-- [ ] Executar os testes contra o schema anterior e observar falha pelos dois comportamentos vulneráveis.
-- [ ] Criar a migration com `IS DISTINCT FROM`/guarda explícita de `NULL`, projeções `jsonb_build_object`, `search_path` e grants fechados.
-- [ ] Recriar o Postgres local, executar os testes e confirmar aprovação.
-- [ ] Atualizar o contrato operacional de segurança e fazer commit.
+- [x] Adicionar testes locais que chamem as cinco RPCs como usuário Portal e esperem `42501`.
+- [x] Adicionar testes locais que consultem detalhes próprios e rejeitem as chaves internas auditadas.
+- [x] Executar os testes contra o schema anterior e observar falha pelos dois comportamentos vulneráveis.
+- [x] Criar a migration com `IS DISTINCT FROM`/guarda explícita de `NULL`, projeções `jsonb_build_object`, `search_path` e grants fechados.
+- [x] Recriar o Postgres local, executar os testes e confirmar aprovação.
+- [x] Atualizar o contrato operacional de segurança e fazer commit.
 
 ### Task 2: Tornar a redefinição de senha fail-closed
 
@@ -66,10 +66,10 @@ e posterior ao marco de revogação.
 - Consome: `revokePortalSessions(userId)` e atualização administrativa da senha.
 - Produz: `resetPortalPasswordFailClosed(userId, dependencies)`.
 
-- [ ] Escrever testes de comportamento para ordem revogar → quarentena → alterar → revogar e para falhas antes/depois da alteração.
-- [ ] Executar e observar falha por módulo ausente.
-- [ ] Implementar o orquestrador e integrá-lo à Edge Function.
-- [ ] Executar testes focados e fazer commit.
+- [x] Escrever testes de comportamento para ordem revogar → quarentena → alterar → revogar e para falhas antes/depois da alteração.
+- [x] Executar e observar falha por módulo ausente.
+- [x] Implementar o orquestrador e integrá-lo à Edge Function.
+- [x] Executar testes focados e fazer commit.
 
 ### Task 3: Equalizar o caminho de login contra enumeração
 
@@ -83,10 +83,10 @@ e posterior ao marco de revogação.
 - Consome: conta consultada por CNPJ e `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`.
 - Produz: `resolvePortalLoginIdentity(account, dummyUserId, lookupUser)` com exatamente um lookup para ambos os casos.
 
-- [ ] Escrever teste que prova lookup e tentativa de autenticação equivalentes para conta elegível e inexistente.
-- [ ] Executar e observar falha por módulo ausente.
-- [ ] Implementar seleção da identidade real/dummy e remover o retorno antecipado pré-Auth.
-- [ ] Documentar a identidade dummy server-only, executar testes focados e fazer commit.
+- [x] Escrever teste que prova lookup e tentativa de autenticação equivalentes para conta elegível e inexistente.
+- [x] Executar e observar falha por módulo ausente.
+- [x] Implementar seleção da identidade real/dummy e remover o retorno antecipado pré-Auth.
+- [x] Documentar a identidade dummy server-only, executar testes focados e fazer commit.
 
 ### Task 4: Neutralizar curingas nos filtros de comunicação e concluir
 
@@ -101,9 +101,9 @@ e posterior ao marco de revogação.
 - Consome: `sanitizeLikeTerm(value)` de `src/lib/utils.ts`.
 - Produz: padrões `.ilike()` com curingas do usuário escapados.
 
-- [ ] Escrever testes que esperem `%` e `_` escapados nos dois filtros.
-- [ ] Executar e observar a falha com os termos crus.
-- [ ] Aplicar `sanitizeLikeTerm` antes de construir os padrões.
-- [ ] Executar a suíte focada e fazer commit.
-- [ ] Arquivar o plano, atualizar changelog/índices e executar todos os gates obrigatórios.
-- [ ] Solicitar revisão integral independente, corrigir achados importantes, criar a PR e acompanhar a CI até ficar verde.
+- [x] Escrever testes que esperem `%` e `_` escapados nos dois filtros.
+- [x] Executar e observar a falha com os termos crus.
+- [x] Aplicar `sanitizeLikeTerm` antes de construir os padrões.
+- [x] Executar a suíte focada e fazer commit.
+- [x] Arquivar o plano, atualizar changelog/índices e executar todos os gates obrigatórios.
+- [x] Solicitar revisão integral independente, corrigir achados importantes, criar a PR e acompanhar a CI até ficar verde.
