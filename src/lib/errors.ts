@@ -87,6 +87,7 @@ export function classifyDbError(error: unknown): ClassifiedDbError {
         : { code: '', message: '' }
   const known = ERROR_TABLE[fields.code]
   const raw = /permission denied for (?:table|view|function|relation|schema|sequence)/i.test(fields.message)
+    || /row-level security policy/i.test(fields.message)
     || /violates (?:check|not-null|foreign key|unique) constraint/i.test(fields.message)
   if (known) {
     const preserve = known.preserveMessage && fields.message && !raw

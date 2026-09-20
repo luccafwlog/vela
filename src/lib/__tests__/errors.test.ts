@@ -67,6 +67,16 @@ describe('classifyDbError', () => {
     })
   })
 
+  it('usa a mensagem canonica de 42501 para negativa de RLS', () => {
+    expect(classifyDbError({
+      code: '42501',
+      message: 'new row violates row-level security policy for table "invoices"',
+    })).toEqual({
+      kind: 'permissao',
+      message: 'Sem permissao para esta acao. Solicite acesso administrativo.',
+    })
+  })
+
   it('preserva a mensagem de 42501 quando ela e um texto de negocio (RAISE customizado)', () => {
     expect(classifyDbError({ code: '42501', message: 'Usuario sem permissao ativa para importar bookings.' })).toEqual({
       kind: 'permissao',

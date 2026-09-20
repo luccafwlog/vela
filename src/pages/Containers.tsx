@@ -191,6 +191,7 @@ export function Containers() {
   const pageContainerIds = (data?.rows ?? []).map((row) => row.id)
   const allPageSelected = pageContainerIds.length > 0 && pageContainerIds.every((id) => selection.isSelected(id))
   const containerColumnCount = isAdmin ? 11 : 10
+  const containerSkeletonTemplate = `${isAdmin ? '44px ' : ''}1.2fr repeat(9, 1fr)`
 
   return (
     <>
@@ -393,7 +394,7 @@ export function Containers() {
               {isLoading ? (
                 <tr>
                   <td colSpan={containerColumnCount} className="p-0">
-                    <SkeletonTable rows={8} cols={containerColumnCount} columnTemplate="44px 1.2fr repeat(8, 1fr)" label="Carregando containers" />
+                    <SkeletonTable rows={8} cols={containerColumnCount} columnTemplate={containerSkeletonTemplate} label="Carregando containers" />
                   </td>
                 </tr>
               ) : null}
@@ -495,7 +496,6 @@ export function Containers() {
             pageSize={filters.pageSize}
             totalCount={data?.count ?? 0}
             totalPages={totalPages}
-            countLabel={`${data?.count ?? 0} containers`}
             onPageChange={(page) => updateFilter('page', page)}
             onPageSizeChange={(pageSize) => updateFilter('pageSize', pageSize)}
           />

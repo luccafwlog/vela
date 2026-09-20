@@ -28,7 +28,7 @@ it('usa disclosure de navegação e botão nativo para a conta', () => {
   const source = fs.readFileSync('src/components/layout/AppLayout.tsx', 'utf8')
   expect(source).not.toContain('role="menu"')
   expect(source).not.toContain('role="menuitem"')
-  expect(source).toContain('aria-haspopup="true"')
+  expect(source).not.toContain('aria-haspopup')
   expect(source).toContain('aria-controls="app-user-dropdown"')
   expect(source).toContain('userMenuFirstItemRef.current?.focus()')
   expect(source).toContain('userMenuButtonRef.current?.focus()')

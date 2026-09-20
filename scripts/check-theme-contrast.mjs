@@ -100,6 +100,7 @@ const checks = [
   ['gold status on gold surface', '--app-gold-strong', '--app-gold-soft'],
   ['green status on green surface', '--app-green', '--app-green-soft'],
   ['red status on red surface', '--app-red', '--app-red-soft'],
+  ['navigation badge text on badge', '--app-navy', '--app-gold'],
   ['table heading text on table heading', '--app-thead-text', '--app-thead-bg'],
 ]
 

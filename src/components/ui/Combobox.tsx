@@ -57,6 +57,7 @@ export function Combobox({
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLUListElement>(null)
+  const pointerSelectedValueRef = useRef<string | null>(null)
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
   const listId = useId()
   const optionId = (index: number) => `${listId}-option-${index}`
@@ -137,6 +138,14 @@ export function Combobox({
     onSelectOption?.(option)
   }
 
+  function handlePointerSelect(option: ComboOption) {
+    pointerSelectedValueRef.current = option.value
+    handleSelect(option)
+    window.setTimeout(() => {
+      if (pointerSelectedValueRef.current === option.value) pointerSelectedValueRef.current = null
+    }, 0)
+  }
+
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'ArrowDown') {
       event.preventDefault()
@@ -204,7 +213,14 @@ export function Combobox({
                 role="option"
                 aria-selected={index === highlight}
                 className={`app-combobox__option${index === highlight ? ' app-combobox__option--active' : ''}`}
-                onMouseDown={(event) => { event.preventDefault(); handleSelect(option) }}
+                onMouseDown={(event) => { event.preventDefault(); handlePointerSelect(option) }}
+                onClick={() => {
+                  if (pointerSelectedValueRef.current === option.value) {
+                    pointerSelectedValueRef.current = null
+                    return
+                  }
+                  handleSelect(option)
+                }}
                 onMouseEnter={() => setHighlight(index)}
               >
                   <span className="app-combobox__option-label">{option.label}</span>

@@ -53,7 +53,6 @@ export function AppLayout() {
   const userMenuRef = useRef<HTMLDivElement>(null)
   const userMenuButtonRef = useRef<HTMLButtonElement>(null)
   const userMenuFirstItemRef = useRef<HTMLButtonElement>(null)
-  const userMenuWasOpenRef = useRef(false)
   const primaryNavItemsWithBadges: NavItem[] = primaryNavItems.map((item) =>
     item.to === '/alertas' ? { ...item, badge: counts.openAlerts || undefined } : item,
   )
@@ -95,12 +94,7 @@ export function AppLayout() {
   }, [])
 
   useEffect(() => {
-    if (userMenuOpen) {
-      userMenuFirstItemRef.current?.focus()
-    } else if (userMenuWasOpenRef.current) {
-      userMenuButtonRef.current?.focus()
-    }
-    userMenuWasOpenRef.current = userMenuOpen
+    if (userMenuOpen) userMenuFirstItemRef.current?.focus()
   }, [userMenuOpen])
 
   useEffect(() => {
@@ -163,7 +157,6 @@ export function AppLayout() {
                 type="button"
                 className="app-header__user-menu"
                 aria-expanded={userMenuOpen}
-                aria-haspopup="true"
                 aria-controls="app-user-dropdown"
                 onClick={() => setUserMenuOpen((current) => !current)}
               >
@@ -355,7 +348,6 @@ function TopNavDropdownMenu({
         type="button"
         className={cn('app-nav-link', 'app-nav-link--button', (isActive || isOpen) && 'active')}
         aria-expanded={isOpen}
-        aria-haspopup="true"
         aria-controls={`app-nav-${label.toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g, '-')}`}
         onClick={() => {
           if (isMobile) {

@@ -464,6 +464,29 @@ textarea {
   display: none !important;
 }
 
+.app-header__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+}
+
+.app-header__icon-button:hover,
+.app-header__icon-button:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
 .app-header__user-menu {
   position: relative;
   display: inline-flex;
@@ -505,6 +528,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   width: 100%;
+  min-height: 44px;
   gap: 8px;
   border: 0;
   border-radius: 6px;
@@ -695,7 +719,7 @@ textarea {
   padding: 0 6px;
   background: var(--app-gold);
   box-shadow: none;
-  color: #ffffff;
+  color: var(--app-navy);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0;
@@ -778,7 +802,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  min-height: 40px;
+  min-height: 44px;
   border-radius: 8px;
   padding: 10px 12px;
   color: rgba(255, 255, 255, 0.76);
@@ -2267,11 +2291,6 @@ textarea {
   background: #49320a;
   border-color: #765514;
   color: #fde68a;
-}
-
-:root[data-visual-theme='dark'] .app-nav-badge {
-  background: #fbbf24;
-  color: #152238;
 }
 
 /* Segmented control de 3 estados do sign-off do ADR. Concêntrico: raio
@@ -5147,7 +5166,7 @@ textarea {
   }
 
   .app-nav-dropdown__item {
-    min-height: 38px;
+    min-height: 44px;
   }
 
   .app-modal__actions {

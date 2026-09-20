@@ -13,6 +13,11 @@ describe('TableFooterPagination', () => {
     expect(screen.getByText('Página 2 de 7')).toBeTruthy()
   })
 
+  it('calcula o intervalo quando a paginação começa em zero', () => {
+    render(<TableFooterPagination page={1} pageBase={0} pageSize={20} totalCount={35} totalPages={2} onPageChange={vi.fn()} />)
+    expect(screen.getByText('Exibindo 21–35 de 35')).toBeTruthy()
+  })
+
   it('disables previous and next at the limits', () => {
     const onPageChange = vi.fn()
 

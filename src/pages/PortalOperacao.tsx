@@ -279,7 +279,6 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
             pageSize={pageSize}
             totalCount={filtered.length}
             totalPages={totalPages}
-            countLabel={`${safePage * pageSize + 1}-${Math.min((safePage + 1) * pageSize, filtered.length)} de ${filtered.length}`}
             onPageChange={setPage}
           />
         </>
@@ -435,7 +434,6 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
             pageSize={pageSize}
             totalCount={filtered.length}
             totalPages={totalPages}
-            countLabel={`${safePage * pageSize + 1}-${Math.min((safePage + 1) * pageSize, filtered.length)} de ${filtered.length}`}
             onPageChange={setPage}
           />
         </>

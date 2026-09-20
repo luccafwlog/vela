@@ -60,7 +60,6 @@ export function InternalNotificationBell() {
         className="app-header__icon-button"
         aria-label={`Notificações internas${unreadCount ? ` (${unreadCount} não lidas)` : ''}`}
         aria-expanded={open}
-        aria-haspopup="true"
         aria-controls="internal-notifications-panel"
         onClick={() => {
           setOpen((current) => !current)

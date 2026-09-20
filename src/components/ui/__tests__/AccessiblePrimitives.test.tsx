@@ -13,6 +13,7 @@ describe('primitives acessíveis', () => {
     const button = screen.getByRole('button', { name: 'Carregando…' })
     expect(button.getAttribute('aria-busy')).toBe('true')
     expect(button.querySelector('[data-button-label]')?.textContent).toBe('Salvar')
+    expect(button.querySelector('[data-button-label]')?.className).toContain('gap-2')
   })
 
   it('propaga obrigatoriedade e erro do Field para o controle', () => {

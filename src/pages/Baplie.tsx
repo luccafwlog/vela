@@ -664,7 +664,6 @@ function ContainerList({ containers, filters }: { containers: BaplieContainer[];
           pageSize={pageSize}
           totalCount={filtered.length}
           totalPages={totalPages}
-          countLabel={`${filtered.length} containers`}
           onPageChange={setPage}
         />
       ) : null}

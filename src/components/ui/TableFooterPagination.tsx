@@ -9,7 +9,6 @@ type TableFooterPaginationProps = {
   totalPages: number
   onPageChange: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
-  countLabel?: string
   pageSizes?: readonly number[]
   pageBase?: 0 | 1
 }
@@ -21,7 +20,6 @@ export function TableFooterPagination({
   totalPages,
   onPageChange,
   onPageSizeChange,
-  countLabel,
   pageSizes = PAGE_SIZES,
   pageBase = 1,
 }: TableFooterPaginationProps) {
@@ -33,7 +31,7 @@ export function TableFooterPagination({
 
   return (
     <div className="app-table__footer">
-      <div><span>{countLabel ?? `Exibindo ${rangeStart}–${rangeEnd} de ${totalCount}`}</span><span className="block text-xs">Página {displayPage} de {totalPages}</span></div>
+      <div><span>{`Exibindo ${rangeStart}–${rangeEnd} de ${totalCount}`}</span><span className="block text-xs">Página {displayPage} de {totalPages}</span></div>
       <div className="app-table__footer-controls">
         {onPageSizeChange ? (
           <Select className="w-28" value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>

@@ -293,6 +293,7 @@ export function Bls() {
   // Uma constante só: o cabeçalho, o colSpan do estado vazio, o do skeleton e o
   // da linha de detalhe têm de concordar, e antes o número era escrito à mão.
   const blColumnCount = BASE_BL_COLUMNS + (isAdmin ? 1 : 0)
+  const blSkeletonTemplate = `${isAdmin ? '44px ' : ''}44px 1.2fr 1.2fr 1.4fr 1.6fr repeat(6, 1fr) 96px`
   const showBreakbulkMetrics = filters.cargoMode !== 'container'
 
   return (
@@ -539,7 +540,7 @@ export function Bls() {
               {isLoading ? (
                 <tr>
                   <td colSpan={blColumnCount} className="p-0">
-                    <SkeletonTable rows={8} cols={blColumnCount} columnTemplate="44px 44px 1.2fr 1.2fr 1.4fr 1.6fr repeat(6, 1fr) 96px" label="Carregando B/Ls" />
+                    <SkeletonTable rows={8} cols={blColumnCount} columnTemplate={blSkeletonTemplate} label="Carregando B/Ls" />
                   </td>
                 </tr>
               ) : null}
@@ -671,7 +672,6 @@ export function Bls() {
             pageSize={filters.pageSize}
             totalCount={data?.count ?? 0}
             totalPages={totalPages}
-            countLabel={`${data?.count ?? 0} B/Ls`}
             onPageChange={(page) => updateFilter('page', page)}
             onPageSizeChange={(pageSize) => updateFilter('pageSize', pageSize)}
           />

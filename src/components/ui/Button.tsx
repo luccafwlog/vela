@@ -28,7 +28,7 @@ export function Button({ className, variant = 'primary', loading, loadingLabel =
       aria-label={loading ? loadingLabel : ariaLabel}
       {...props}
     >
-      <span data-button-label className={loading ? 'invisible' : undefined}>{children}</span>
+      <span data-button-label className={cn('inline-flex items-center gap-2', loading && 'invisible')}>{children}</span>
       {loading ? <span className="absolute inset-0 flex items-center justify-center" aria-hidden="true"><Loader2 size={14} className="animate-spin" /></span> : null}
     </button>
   )
