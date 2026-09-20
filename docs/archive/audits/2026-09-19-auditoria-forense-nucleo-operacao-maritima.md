@@ -1,8 +1,8 @@
 # Auditoria forense do núcleo de Operação Marítima
 
-Data: 2026-09-19  
-Escopo: Viagens, Escalas, Atracações, Line-Up, omissões, transbordo e COD  
-Base revisada: branch `main`, sem diff local no início da inspeção  
+Data: 2026-09-19
+Escopo: Viagens, Escalas, Atracações, Line-Up, omissões, transbordo e COD
+Base revisada: branch `main`, sem diff local no início da inspeção
 Modo: revisão rigorosa da skill canônica `vela-code-review`
 
 > Este documento é um snapshot histórico da inspeção estática realizada na
