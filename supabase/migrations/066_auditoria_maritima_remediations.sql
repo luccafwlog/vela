@@ -143,8 +143,24 @@ BEGIN
 
   IF EXISTS (SELECT 1 FROM public.demurrage_invoices WHERE id = p_invoice_id AND status IN ('issued', 'paid')) THEN
     SELECT count(*) INTO v_expected FROM public.bl_containers WHERE bl_id = v_bl_id;
-    IF v_expected = 0 OR EXISTS (
+    -- Há invoices históricas para B/Ls que ainda não materializaram
+    -- containers (e também cargas não conteinerizadas). Nesses casos não há
+    -- conjunto físico a conferir; se vier item mesmo assim, rejeite-o.
+    IF v_expected = 0 THEN
+      IF EXISTS (
+        SELECT 1 FROM public.demurrage_invoice_items WHERE invoice_id = p_invoice_id
+      ) THEN
+        RAISE EXCEPTION 'Demurrage do B/L % possui itens sem containers físicos correspondentes.', v_bl_id USING ERRCODE = '23514';
+      END IF;
+      RETURN;
+    END IF;
+
+    IF EXISTS (
       SELECT 1 FROM public.bl_containers WHERE bl_id = v_bl_id AND return_date IS NULL
+    ) OR EXISTS (
+      SELECT 1
+      FROM public.demurrage_invoice_items AS item
+      WHERE item.invoice_id = p_invoice_id AND item.return_date IS NULL
     ) THEN
       RAISE EXCEPTION 'Demurrage só pode ser emitida após a devolução de todos os containers do B/L %.' , v_bl_id USING ERRCODE = '23514';
     END IF;
@@ -198,7 +214,7 @@ EXECUTE FUNCTION public.assert_demurrage_invoice_row();
 
 DROP TRIGGER IF EXISTS trg_assert_demurrage_invoice_items_complete ON public.demurrage_invoice_items;
 CREATE CONSTRAINT TRIGGER trg_assert_demurrage_invoice_items_complete
-AFTER INSERT OR UPDATE OR DELETE ON public.demurrage_invoice_items
+AFTER INSERT OR UPDATE ON public.demurrage_invoice_items
 DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
 EXECUTE FUNCTION public.assert_demurrage_invoice_item_row();
 
@@ -445,21 +461,48 @@ CREATE UNIQUE INDEX IF NOT EXISTS cod_adjustments_one_pending_transition_idx
 ON public.cod_adjustments(bl_id, omission_id) WHERE status = 'pending';
 
 CREATE OR REPLACE FUNCTION public.set_bl_cod(
-  p_bl_id text, p_omission_id bigint, p_justification text, p_changed_by uuid
-) RETURNS void LANGUAGE plpgsql SECURITY DEFINER
+  p_bl_id text,
+  p_omission_id bigint,
+  p_justification text,
+  p_changed_by uuid
+) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
-  v_discharge text; v_omitted text; v_old_pod text; v_customer bigint; v_justification text := NULLIF(btrim(COALESCE(p_justification, '')), '');
+  v_discharge text;
+  v_omitted text;
+  v_old_pod text;
+  v_customer bigint;
+  v_old_terminal uuid;
+  v_old_pod_port_id bigint;
+  v_justification text := NULLIF(btrim(COALESCE(p_justification, '')), '');
+  v_previous_override text := current_setting('vela.bl_terminal_override', true);
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_active_user() OR p_changed_by IS DISTINCT FROM auth.uid() THEN RAISE EXCEPTION 'Usuario sem permissao ativa.' USING ERRCODE = '42501'; END IF;
+  IF auth.uid() IS NULL OR NOT public.is_active_user() OR p_changed_by IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'Usuario sem permissao ativa.' USING ERRCODE = '42501';
+  END IF;
   IF v_justification IS NULL THEN RAISE EXCEPTION 'Marcar COD exige justificativa.' USING ERRCODE = '22023'; END IF;
+
   SELECT o.discharge_pod, o.omitted_pod INTO v_discharge, v_omitted
-  FROM public.bl_transshipments t JOIN public.voyage_omissions o ON o.id = t.omission_id
-  WHERE t.bl_id = p_bl_id AND t.omission_id = p_omission_id FOR UPDATE OF o;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Transbordo do B/L % nao encontrado', p_bl_id USING ERRCODE = 'P0002'; END IF;
-  SELECT pod, customer_id INTO v_old_pod, v_customer FROM public.bls WHERE id = p_bl_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'B/L % nao encontrado', p_bl_id USING ERRCODE = 'P0002'; END IF;
+  FROM public.bl_transshipments AS t
+  JOIN public.voyage_omissions AS o ON o.id = t.omission_id
+  WHERE t.bl_id = p_bl_id AND t.omission_id = p_omission_id
+  FOR UPDATE OF o;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Transbordo do B/L % nao encontrado', p_bl_id USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT pod, customer_id, terminal_id, pod_port_id
+    INTO v_old_pod, v_customer, v_old_terminal, v_old_pod_port_id
+  FROM public.bls
+  WHERE id = p_bl_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'B/L % nao encontrado', p_bl_id USING ERRCODE = 'P0002';
+  END IF;
+
   -- Retry do mesmo COD não repete efeito financeiro, auditoria ou notificação;
   -- inclusive quando a reprecificação concluiu que não havia diferença.
   IF EXISTS (
@@ -469,14 +512,48 @@ BEGIN
   ) THEN
     RETURN;
   END IF;
-  UPDATE public.bl_transshipments SET disposition = 'cod', updated_at = now() WHERE bl_id = p_bl_id AND omission_id = p_omission_id;
-  UPDATE public.bls SET pod = v_discharge, manifesto_mercante_id = NULL, updated_at = now() WHERE id = p_bl_id;
-  PERFORM public.apply_cod_financial_effect(p_bl_id, p_omission_id, v_old_pod);
+
+  UPDATE public.bl_transshipments
+  SET disposition = 'cod', updated_at = now()
+  WHERE bl_id = p_bl_id AND omission_id = p_omission_id;
+
+  -- A exceção terminal é específica do POD anterior. COD deve limpar os dois
+  -- campos como uma operação atômica; deixar a dupla antiga seria herdar um
+  -- terminal incompatível no destino novo.
+  PERFORM set_config('vela.bl_terminal_override', 'on', true);
+  UPDATE public.bls
+  SET pod = v_discharge,
+      manifesto_mercante_id = NULL,
+      terminal_id = NULL,
+      pod_port_id = NULL,
+      updated_at = now()
+  WHERE id = p_bl_id;
+  PERFORM set_config('vela.bl_terminal_override', COALESCE(v_previous_override, 'off'), true);
+
+  IF to_regprocedure('public.apply_cod_financial_effect(text,bigint,text)') IS NOT NULL THEN
+    PERFORM public.apply_cod_financial_effect(p_bl_id, p_omission_id, v_old_pod);
+  END IF;
+
   INSERT INTO public.audit_logs(entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
-  VALUES ('bls', p_bl_id, 'pod', v_old_pod, v_discharge, p_changed_by, 'COD apos omissao da escala de ' || v_omitted || ': ' || v_justification);
+  VALUES ('bls', p_bl_id, 'pod', v_old_pod, v_discharge, p_changed_by,
+    'COD apos omissao da escala de ' || v_omitted || ': ' || v_justification);
+
+  IF v_old_terminal IS NOT NULL OR v_old_pod_port_id IS NOT NULL THEN
+    INSERT INTO public.audit_logs(entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
+    VALUES (
+      'bls', p_bl_id, 'terminal_override',
+      jsonb_build_object('terminal_id', v_old_terminal, 'pod_port_id', v_old_pod_port_id)::text,
+      jsonb_build_object('terminal_id', NULL, 'pod_port_id', NULL)::text,
+      p_changed_by,
+      'Excecao de terminal limpa por COD: ' || v_justification
+    );
+  END IF;
+
   IF v_customer IS NOT NULL THEN
     INSERT INTO public.portal_notifications(customer_id, bl_id, type, title, message, link)
-    VALUES (v_customer, p_bl_id, 'transshipment', 'Destino alterado (COD)', 'A pedido, o destino final do B/L ' || p_bl_id || ' foi alterado para ' || v_discharge || ' (COD), apos a omissao da escala de ' || v_omitted || '.', NULL);
+    VALUES (v_customer, p_bl_id, 'transshipment', 'Destino alterado (COD)',
+      'A pedido, o destino final do B/L ' || p_bl_id || ' foi alterado para ' || v_discharge ||
+        ' (COD), apos a omissao da escala de ' || v_omitted || '.', NULL);
   END IF;
 END;
 $function$;
