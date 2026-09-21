@@ -49,7 +49,7 @@ BEGIN
   SELECT roe, effective_date INTO v_roe, v_roe_effective_date
   FROM public.exchange_rate_reference WHERE id = 1;
 
-  IF v_roe IS NULL AND EXISTS (\
+  IF v_roe IS NULL AND EXISTS (
     SELECT 1 FROM public.charge_calculations AS cc
     WHERE cc.bl_id = v_bl.id
       AND COALESCE(cc.total_value_usd, 0) > 0
