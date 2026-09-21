@@ -160,7 +160,7 @@ export async function calculateBlLocalCharges(
 
   const { data, error } = await supabase.rpc('calculate_bl_local_charges', {
     p_bl_id: blId,
-    ...(options?.actorId == null ? {} : { p_actor: options.actorId }),
+    ...((options?.actorId && options.actorId.trim()) ? { p_actor: options.actorId.trim() } : {}),
     p_recalculate: options?.recalculate ?? true,
   })
 
@@ -600,22 +600,60 @@ export async function calculateLocalChargesBatch(
     recalculate?: boolean
   },
 ) {
-  // Uma unica consulta para todo o lote em vez de uma por B/L dentro de
-  // calculateBlLocalCharges (runBatch e sequencial, entao a versao antiga
-  // dobrava os round trips do lote).
   const normalizedIds = Array.from(new Set(blIds.map((value) => value.trim().toUpperCase()).filter(Boolean)))
+  if (normalizedIds.length === 0) {
+    return { total: 0, successCount: 0, errorCount: 0, errors: [] }
+  }
+
   const { data: bls, error } = await supabase.from('bls').select('id, financial_status').in('id', normalizedIds)
   if (error) throw error
   const financialStatusById = new Map((bls ?? []).map((bl) => [bl.id, bl.financial_status] as const))
 
+  const unlockedIds = normalizedIds.filter((id) => !isBlFinanciallyLocked(financialStatusById.get(id)))
+  const actor = options?.actorId && options.actorId.trim() ? options.actorId.trim() : null
+
+  if (unlockedIds.length > 0) {
+    try {
+      const { data: batchData, error: batchError } = await (supabase.rpc as unknown as (
+        name: string,
+        args: unknown,
+      ) => Promise<{ data: unknown; error: unknown }>)('calculate_bl_local_charges_batch', {
+        p_bl_ids: unlockedIds,
+        ...(actor ? { p_actor: actor } : {}),
+        p_recalculate: options?.recalculate ?? true,
+      })
+
+      if (!batchError && batchData && typeof batchData === 'object') {
+        const parsed = batchData as {
+          total?: number
+          success_count?: number
+          error_count?: number
+          errors?: Array<{ bl_id?: string; blId?: string; message?: string }>
+        }
+        return {
+          total: normalizedIds.length,
+          successCount: parsed.success_count ?? 0,
+          errorCount: (parsed.error_count ?? 0) + (normalizedIds.length - unlockedIds.length),
+          errors: [
+            ...(parsed.errors ?? []).map((err) => ({
+              blId: err.bl_id || err.blId || '',
+              message: err.message || 'Erro no calculo.',
+            })),
+            ...normalizedIds
+              .filter((id) => isBlFinanciallyLocked(financialStatusById.get(id)))
+              .map((id) => ({
+                blId: id,
+                message: `B/L ${id} ja foi faturado; recalculo bloqueado.`,
+              })),
+          ],
+        }
+      }
+    } catch {
+      // Fallback para loop sequencial runBatch
+    }
+  }
+
   return runBatch(blIds, (blId) => {
-    // Achado 6 da review da PR 501: NAO usar `?? null` aqui. Um lookup miss
-    // (blId ausente no Map, inclusive por diferenca de normalizacao entre
-    // blId cru e normalizedIds) virava `null`, e o guard em
-    // calculateBlLocalCharges so faz a consulta de pre-flight quando
-    // `financialStatus === undefined` -- null !== undefined, entao a trava de
-    // recalculo de B/L faturado era pulada silenciosamente. Mantendo
-    // `undefined` no miss, o guard cai no fallback e busca o status real.
     const normalizedBlId = blId.trim().toUpperCase()
     const knownFinancialStatus = financialStatusById.get(normalizedBlId)
     return calculateBlLocalCharges(blId, { ...options, knownFinancialStatus })

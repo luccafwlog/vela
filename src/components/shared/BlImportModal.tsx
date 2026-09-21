@@ -11,6 +11,7 @@ import {
   type BlFreightImportPreview,
   type BlFreightImportRow,
 } from '../../services/blFreightImport'
+import { calculateLocalChargesBatch } from '../../services/charges/chargeOperationsService'
 import { afterManifestoImportado } from '../../services/cacheEffects'
 import { Badge, type BadgeTone } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -133,6 +134,20 @@ export function BlImportModal({
         files[0]?.name,
         confirmCustomerChange,
       )
+      const importedBlIds = preview.rows
+        .filter((row) => Boolean(row.payload))
+        .map((row) => row.blNumber)
+        .filter(Boolean)
+      if (importedBlIds.length > 0) {
+        try {
+          await calculateLocalChargesBatch(importedBlIds, {
+            actorId: user?.id ?? null,
+            recalculate: true,
+          })
+        } catch (calcError) {
+          console.warn('Falha no calculo imediato das taxas pos-importacao:', calcError)
+        }
+      }
       await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
       if (refusedCustomerRelinks.length) {
         // Importou, mas o B/L continua com o cliente antigo: dizer "concluida" aqui
@@ -257,13 +272,6 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
         <PreviewBox label="Bloqueados" value={preview.summary.blockedCount} />
       </div>
 
-      {/* Plain app-table-scroll (horizontal only): the modal body is already the
-          scroll container (.app-modal__body, overflow-y: auto) with a sticky
-          actions bar pinned to its bottom. Giving the table its own bounded
-          vertical scroll region (app-table-scroll--sticky) nests a second
-          independent scrollbar inside that one, and its sticky header/footer
-          fight the outer sticky actions bar, breaking scrolling and clipping
-          rows behind the buttons. */}
       <div className="app-table-scroll rounded-xl border border-[var(--app-border)]">
         <table className="app-table app-table--compact min-w-[960px] text-left text-sm">
           <thead>
@@ -313,10 +321,6 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
   )
 }
 
-/**
- * O aviso que o operador le antes de aceitar: de quem para quem o B/L vai, o que
- * a fatura faz, e o que impede a troca quando ela nao pode ser automatica.
- */
 function CustomerChangeCard({ blNumber, change }: { blNumber: string; change: BlCustomerChange }) {
   return (
     <div className="rounded-lg border border-[var(--app-border)] px-3 py-2">
@@ -363,8 +367,7 @@ function StatusPill({ status }: { status: BlFreightImportRow['status'] }) {
     unchanged: 'Sem mudanca',
     blocked: 'Bloqueado',
   }
-  // Badge (app-badge--*) instead of ad-hoc Tailwind colors: those hardcoded
-  // light-text-on-light-tint classes were unreadable outside dark theme.
+
   const tone: BadgeTone = status === 'blocked'
     ? 'yellow'
     : status === 'new'

@@ -59,7 +59,8 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
         localIds.length ? batchCalculateMutation.mutateAsync({ blIds: localIds, actorId: userId, recalculate: action === 'recalculate' }) : Promise.resolve({ total: 0, successCount: 0, errorCount: 0, errors: [] as Array<{ blId: string; message: string }> }),
       ])
       const result = { total: graniteResult.total + localResult.total, successCount: graniteResult.successCount + localResult.successCount, errorCount: graniteResult.errorCount + localResult.errorCount, errors: [...graniteResult.errors, ...localResult.errors] }
-      showToast(`${result.successCount} B/L(s) recalculado(s).${result.errorCount ? ` ${result.errorCount} falharam.` : ''}`, result.errorCount ? 'info' : 'success')
+      const firstError = result.errors[0]?.message ? `: ${result.errors[0].message}` : ''
+      showToast(`${result.successCount} B/L(s) recalculado(s).${result.errorCount ? ` ${result.errorCount} falharam${firstError}.` : ''}`, result.errorCount ? 'error' : 'success')
       if (invoiced.size) showToast(`${invoiced.size} ignorado(s) (já faturados).`, 'info')
       setSelectedOpsRows([])
     } catch (error) {

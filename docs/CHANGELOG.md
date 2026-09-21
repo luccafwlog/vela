@@ -4,6 +4,15 @@
 
 ## 2026-09
 
+- **Cálculo automático de Taxas Locais na importação de B/L e desacoplamento de cliente (2026-09-21):**
+  A importação de B/L agora dispara o cálculo automático inicial de taxas imediatamente na ingestão
+  (na RPC `import_bl_freight_with_metadata` e no modal `BlImportModal`), eliminando a necessidade de
+  recálculo manual ou de workers offline. `sync_local_charge_receivable` foi desacoplado da presença
+  obrigatória de cliente cadastrado (`customer_id IS NULL`), permitindo que B/Ls novos calculem taxas
+  normalmente pelas tabelas de porto/perfil e aguardem conciliação na fila de Validação sem falhas.
+  Criada a RPC `calculate_bl_local_charges_batch` para recálculos performáticos em lote e toasts
+  detalhados com o motivo de eventuais rejeições (migration `072`).
+
 - **Remediação da auditoria de UI, design system e acessibilidade (2026-09-20):**
   erros técnicos deixaram de vazar para toasts e ErrorBoundary; status de
   conclusão, cancelamento e omissão recuperaram semântica; fechamento de ADR

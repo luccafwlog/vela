@@ -510,6 +510,10 @@ Manifesto Mercante a admin e consolida a produtora automática de Comunicados;
 `064` separa a cubagem em `total_cbm` (contêiner) e `bb_cbm` (carga solta),
 e inclui máquinas/cubagem BB nos sinais de modalidade. `blTotalCbm` soma os
 componentes; import e revisão preservam o componente da outra modalidade.
+`072` desacopla `sync_local_charge_receivable` da exigência de cliente vinculado
+(retornando NULL se `customer_id IS NULL`), permitindo cálculo tarifário de B/Ls novos,
+adiciona a RPC `calculate_bl_local_charges_batch` e dispara o cálculo inicial na própria
+importação de B/L via `import_bl_freight_with_metadata`.
 
 ### Segurança
 

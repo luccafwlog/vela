@@ -56,6 +56,9 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, opt
     ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
     ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
     ['baplie-reconciliation', vId], ['baplie-staging', vId],
+    // Taxas locais e reconciliação de clientes: após importar novos B/Ls,
+    // as filas operacionais de validação e conferência refletem imediatamente o cálculo.
+    ['local-charge-operations'], ['customer-reconciliation-queue'], ['bl-local-charge-lines'],
     // P0-4: Importar B/L, CE Mercante e Manifesto BB alimentam as seções
     // "Carga descarregada" e "Veículos" do ADR (agencyDepartureReport.ts),
     // mas nenhuma dessas invalidava a família 'agency-report' — a aba

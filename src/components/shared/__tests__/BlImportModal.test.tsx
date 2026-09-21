@@ -12,6 +12,12 @@ const mocks = vi.hoisted(() => ({
     result: { imported: 1 },
     refusedCustomerRelinks: [] as Array<{ blNumber: string; blockers: string[] }>,
   })),
+  calculateLocalChargesBatch: vi.fn(() => Promise.resolve({
+    total: 0,
+    successCount: 0,
+    errorCount: 0,
+    errors: [],
+  })),
   afterManifestoImportado: vi.fn(() => Promise.resolve()),
 }))
 
@@ -24,6 +30,9 @@ vi.mock('../../../services/blParser', () => ({ parseBLFile: mocks.parseBLFile })
 vi.mock('../../../services/blFreightImport', () => ({
   previewBlFreightImport: mocks.previewBlFreightImport,
   confirmBlFreightImport: mocks.confirmBlFreightImport,
+}))
+vi.mock('../../../services/charges/chargeOperationsService', () => ({
+  calculateLocalChargesBatch: mocks.calculateLocalChargesBatch,
 }))
 vi.mock('../../../services/cacheEffects', () => ({
   afterManifestoImportado: mocks.afterManifestoImportado,
@@ -50,7 +59,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.invalidateQueries.mockResolvedValue(undefined)
   mocks.confirmBlFreightImport.mockResolvedValue({ result: { imported: 1 }, refusedCustomerRelinks: [] })
-
+  mocks.calculateLocalChargesBatch.mockResolvedValue({ total: 0, successCount: 0, errorCount: 0, errors: [] })
   mocks.afterManifestoImportado.mockResolvedValue(undefined)
 })
 afterEach(cleanup)
@@ -252,6 +261,7 @@ it('confirma importacao, usa o efeito central de manifesto e fecha modal', async
 
   await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithDiff, 'user-1', false, 'bl.xlsx', false))
 
+  expect(mocks.calculateLocalChargesBatch).toHaveBeenCalledWith(['COSU123', 'COSU456'], { actorId: 'user-1', recalculate: true })
   expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
   expect(mocks.invalidateQueries).not.toHaveBeenCalled()
   expect(mocks.showToast).toHaveBeenCalledWith('Importacao de B/L concluida: 2 B/L(s), 0 bloqueado(s).', 'success')
@@ -439,6 +449,5 @@ it('mostra o impedimento quando a fatura nao pode acompanhar a troca de cliente'
   })
 
   await screen.findByText(/Impedimento: Cliente do novo consignatario nao esta cadastrado/)
-  // sem troca aplicavel nao ha caixa de aceite; os demais campos seguem importando
   expect(container.querySelector('input[type="checkbox"]')).toBeNull()
 })
