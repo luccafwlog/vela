@@ -261,6 +261,11 @@ export async function portalCreateConsolidation(input: { receivableIds: number[]
   return (data ?? {}) as Record<string, unknown>
 }
 
+/**
+ * @deprecated A chamada direta no cliente foi revogada (ADR 0047). A resolução
+ * de login do Portal agora é executada exclusivamente server-side via Edge
+ * Function `portal-login`.
+ */
 export async function portalResolveLogin(login: string): Promise<string> {
   const { data, error } = await supabasePortal.rpc('portal_resolve_login', {
     p_login: login,

@@ -3,13 +3,13 @@
 - **Data do checkout:** 2026-09-21
 - **Commit base:** `e59c6bc14684b8f53614b4341e8bdbd21f9dbf9e` (`main`, 2026-09-20)
 - **Alvo:** `docs/RASTREABILIDADE.md` (tabelas de contratos, tabelas diretas,
-  triggers e histórico) contra `supabase/migrations/001…070` e `src/`.
+  triggers e histórico) contra `supabase/migrations/001…071` e `src/`.
 - **Método:**
   1. extração das linhas de tabela de `docs/RASTREABILIDADE.md`;
   2. leitura das migrations da cadeia ativa, resolvendo a definição vigente pela
      última migration aplicável por assinatura (regra de `docs/CONVENCOES.md`);
   3. varredura de `.rpc('…')`/`callPortalRpc(…)` em `src/` fora de `__tests__`;
-  4. **runtime local:** as 69 migrations ativas aplicadas em um Postgres 16
+  4. **runtime local:** as migrações ativas aplicadas em um Postgres 16
      descartável por `scripts/setup-local-pg.sh`, com consulta direta a
      `pg_proc`, `has_function_privilege('anon'|'authenticated', …)` e
      `pg_policies`.
@@ -18,8 +18,7 @@
   o estado do projeto Supabase remoto (drift de ACL aplicado fora de migration),
   nem isolamento por cliente sob RLS — este exige sessão com identidade/papel
   correspondente. Itens dessa natureza ficam como **Runtime remoto pendente**.
-- **Escopo editorial:** relatório histórico. Nenhum documento, ADR, migration ou
-  serviço foi alterado.
+- **Escopo editorial:** relatório histórico confrontado criticamente com a base de código.
 
 ## Estado dos gates automatizados
 
@@ -34,25 +33,27 @@ do chamador citado. É exatamente a lacuna que esta auditoria mede.
 
 ## A. Divergências confirmadas
 
-Severidade: **alta** = a documentação descreve a superfície de segurança de forma
-mais fechada do que o schema aplicado; **média** = contrato (assinatura/privilégio)
-documentado não é o vigente; **baixa** = referência de navegação obsoleta.
+Severidade:
+- **crítica** = regressão de autorização no código ou brecha de segurança explorável;
+- **alta** = a documentação descreve a superfície de segurança de forma substancialmente mais fechada do que o schema aplicado;
+- **média** = contrato (assinatura/privilégio) documentado não é o vigente ou chamador divergente;
+- **baixa** = referência de navegação obsoleta ou função fantasma em doc.
 
 | # | Item | O que a doc afirma | O que a fonte executável mostra | Evidência | Sev. |
 |---|---|---|---|---|---|
-| A-01 | `ensure_customer_contact_email` (L276) | `PUBLIC`, `anon` **e `authenticated` revogados** | `authenticated` **tem** `EXECUTE`; `service_role` também | `043_security_and_indexes_hardening.sql`; `has_function_privilege('authenticated', …) = true` | alta |
-| A-02 | `relink_bl_customer` (L240) | ``PUBLIC``/``anon``/``authenticated`` revogados; "só executa dentro da RPC de importação" | `authenticated` **tem** `EXECUTE` na cadeia ativa; a função é `SECURITY DEFINER` e troca o dono do B/L | `pg_proc` + `has_function_privilege` no schema aplicado | alta |
+| A-01 | `ensure_customer_contact_email` (L276) | `PUBLIC`, `anon` **e `authenticated` revogados** | `authenticated` **tem** `EXECUTE` (concedido intencionalmente em `043`); a função possui guard fail-closed `IF auth.role() IS DISTINCT FROM 'service_role' AND (auth.uid() IS NULL OR NOT public.is_active_user()) THEN RAISE ... 42501`, barrando portal e anônimos. Divergência puramente documental | `043_security_and_indexes_hardening.sql:25`; `has_function_privilege('authenticated', …) = true` | média |
+| A-02 | `relink_bl_customer` (L240) | `PUBLIC`/`anon`/`authenticated` revogados; "só executa dentro da RPC de importação" | `authenticated` **recebeu** `EXECUTE` indevidamente em `070_customer_review_communication_remediations.sql` ao criar o wrapper de advisory lock (em `357` era revogado de `authenticated`). A função é `SECURITY DEFINER` e **não tem check de `is_active_user()`**, permitindo que qualquer usuário autenticado alterasse o cliente de um B/L. **Regressão de código remediada na migration 071** | `070_…:124`; `071_revoke_relink_bl_customer_authenticated.sql` | crítica |
 | A-03 | `apply_ce_mercante_update` (L221) | `012_transactional_rpcs.sql`: `SECURITY INVOKER`, "RLS do chamador" | Redefinida em `016_import_metadata_and_omission_conflicts.sql` como `SECURITY DEFINER` com guard `auth.uid()` + `is_active_user()` + `p_changed_by = auth.uid()` | `016_…:229`; `prosecdef = true` | média |
 | A-04 | `apply_ce_mercante_manifest` (L220) | `087_apply_ce_mercante_manifest.sql`: `SECURITY INVOKER` | Redefinida em `016_…:282` como `SECURITY DEFINER`, `search_path=public,pg_temp` | idem | média |
 | A-05 | `ensure_customer_contact_email` (L276) | assinatura `(bigint,text,text,text)` | vigente `(bigint,text,text,text,text)` — `p_related_bl_id` acrescentado em `008`/`043` | `043_…:18` | média |
 | A-06 | `create_invoice_from_granite_bls` (L230) | overload `(uuid[],bigint,date,text,uuid)`; "grants de overloads a `authenticated`" | vigente `(uuid[],bigint,text,boolean,uuid)` — sem `date`, com `p_issue_now`; **nenhum** overload é executável por `authenticated` no schema aplicado | `002_…:4980`; `has_function_privilege('authenticated', …) = false` | média |
 | A-07 | `create_local_consolidated_invoice` (L232) | `(bigint,bigint[],date,text,uuid)` | vigente `(bigint,bigint[],text,uuid)` | `002_…:4995` | média |
-| A-08 | `mark_bl_ready_and_create_invoice` (L249) | `(text[],bigint,text,uuid)`, chamada por `src/services/billing.ts` | a RPC desse nome é `(text,bigint,text,uuid)`; quem recebe `text[]` é **`mark_bls_ready_and_create_invoice`** (plural), que é a efetivamente chamada por `billing.ts` e **não está documentada** | `002_…:10739`; `src/services/billing.ts` | média |
+| A-08 | `mark_bl_ready_and_create_invoice` (L249) | `(text[],bigint,text,uuid)`, chamada por `src/services/billing.ts` | A doc misturou o nome da singular com a assinatura da plural: a singular `mark_bl_ready_and_create_invoice` recebe `(text,bigint,text,uuid)` (chamada em `BlCobrancasTab.tsx` e `reviewBillingAutomation.ts`); a plural **`mark_bls_ready_and_create_invoice`** recebe `(text[],bigint,text,uuid)` (chamada por `localBatchBillingWorkflow.ts`). **Ambas são chamadas por `billing.ts`** | `002_…:10739`; `src/services/billing.ts:780,799` | média |
 | A-09 | `complete_review_customer_group` (L275) | `(text[],bigint,text,text,text,text,uuid)` — 7 argumentos | vigente com 6: `(text[],bigint,text,text,text,uuid)` | `002_…:3783` | média |
 | A-10 | `register_ledger_invoice_payment` (L271) | "8 argumentos" | além do overload de 8, existe um de 9 (`…, p_request_id uuid`) criado em `066` e mantido em `070`; ambos com grant a `authenticated` | `066_…`, `070_…`; `pg_proc` | baixa |
-| A-11 | `portal_resolve_login` (L267) | grants `anon` **e** `authenticated`; exceção pré-auth viva da ADR 0013 | na cadeia ativa há apenas `REVOKE … FROM PUBLIC`: **nem `anon` nem `authenticated`** podem executar. É server-only via Edge Function `portal-login` (`service_role`) — como já registram a nota editorial da ADR 0011/0013, a ADR 0047 e `docs/operations/seguranca.md` | `002_…:29238`; `has_function_privilege` = false para ambos | média |
-| A-12 | Fronteira de execução (L176-177) | "a ADR 0013 permite como exceção pré-auth apenas `portal_resolve_login(text)`" | a exceção `anon` da ADR 0013 foi **encerrada** (ADR 0047 §, `docs/operations/seguranca.md`); a única exceção viva é `portal_ship_schedule()` — que é, no schema aplicado, a **única** função de `public` executável por `anon` | ADR 0047; `002_…:29273`; consulta de ACL (§C) | média |
-| A-13 | Tabela de RPCs (L215-281) | `calculateAndIssueGraniteInvoice` aparece como linha da tabela "RPCs e funções chamadas pelo cliente" | é uma função TypeScript de `src/services/graniteBillingWorkflow.ts`, não existe em `pg_proc` | `pg_proc`; `src/services/graniteBillingWorkflow.ts` | baixa |
+| A-11 | `portal_resolve_login` (L267) | grants `anon` **e** `authenticated`; exceção pré-auth viva da ADR 0013 | na cadeia ativa há apenas `REVOKE … FROM PUBLIC`: **nem `anon` nem `authenticated`** podem executar. É server-only via Edge Function `portal-login` (`service_role`) — como já registram a nota editorial da ADR 0011/0013, a ADR 0047 e `docs/operations/seguranca.md`. O wrapper `portalResolveLogin` em `src/services/portalBilling.ts:264` é código morto | `002_…:29238`; `has_function_privilege` = false para ambos; `portalBilling.ts:264` | média |
+| A-12 | Fronteira de execução (L176-177) | "a ADR 0013 permite como exceção pré-auth apenas `portal_resolve_login(text)`" | a exceção `anon` da ADR 0013 foi **encerrada** (ADR 0047 §4, `docs/operations/seguranca.md`); a única exceção viva é `portal_ship_schedule()` — que é, no schema aplicado, a **única** função de `public` executável por `anon` | ADR 0047; `002_…:29273`; consulta de ACL (§C) | média |
+| A-13 | Tabela de RPCs (L215-281) | `calculateAndIssueGraniteInvoice` aparece como linha da tabela "RPCs e funções chamadas pelo cliente" | **Não existe em `pg_proc` nem em lugar algum de `src/`** (inclusive ausente em `src/services/graniteBillingWorkflow.ts`). Trata-se de função fantasma herdada de planos arquivados | `pg_proc`; `src/services/graniteBillingWorkflow.ts` | baixa |
 | A-14 | Chamadores citados de RPC | 6 RPCs documentadas com chamador TypeScript nomeado | não há chamada em `src/` (fora de `__tests__` e de `src/types/database.ts` gerado): `apply_bl_review_gate_after_import` (só `PERFORM` dentro de SQL), `count_distinct_containers` (doc: `src/pages/Painel.tsx`), `create_invoice_from_granite_bls`, `get_customer_portal_account`, `set_customer_portal_account_active`, `upsert_customer_portal_account` (doc: `src/services/customers.ts`/`billing.ts`) | varredura de `src/` | baixa |
 | A-15 | Coluna "Chamadores" das tabelas diretas (L283-342) | páginas listadas como chamadoras diretas de tabelas | `src/pages/Painel.tsx` e `src/pages/Admin.tsx` não contêm nenhum `.from(`/`.rpc(`; o acesso é por hooks/serviços. 35 de 175 pares (tabela, caminho) citados não mencionam a tabela no arquivo | varredura de `src/` | baixa |
 | A-16 | Coluna "Definição vigente" (tabela de RPCs) | cita 95 arquivos de migration nominalmente | **86 deles não existem na cadeia ativa** — só em `supabase/migrations_archive/` (ex.: `108`, `123`, `129`, `151`, `262`, `322`, `357`). Apenas 9 citações apontam para arquivos de `supabase/migrations/` | `ls supabase/migrations{,_archive}` | média (sistêmica) |
@@ -68,9 +69,9 @@ e **não se sustentam** contra a cadeia ativa. A afirmação factual ("tem grant
 
 | Linha | Item | Suspeita registrada | Verificação | Rebaixar para |
 |---|---|---|---|---|
-| 242 | `list_bl_local_charge_lines` | "definer permite leitura a usuário autenticado inativo" | corpo vigente abre com `IF auth.uid() IS NULL OR NOT public.is_active_read_user() THEN RAISE … 42501` | **Código** + **Runtime local** |
-| 244 | `list_customer_reconciliation_queue` | "sessão autenticada inativa pode contornar a policy via definer" | mesmo guard `42501` | **Código** + **Runtime local** |
-| 247 | `list_manual_charge_items_for_bl` | "definer sem `is_active_user()`" | mesmo guard `42501`, também na redefinição de `059_pr698_integrity_hardening.sql` | **Código** + **Runtime local** |
+| 242 | `list_bl_local_charge_lines` | "definer permite leitura a usuário autenticado inativo" | corpo vigente abre com `IF auth.uid() IS NULL OR NOT public.is_active_read_user() THEN RAISE … 42501` | **Código** (runtime inativo pendente conforme §E) |
+| 244 | `list_customer_reconciliation_queue` | "sessão autenticada inativa pode contornar a policy via definer" | mesmo guard `42501` | **Código** (runtime inativo pendente conforme §E) |
+| 247 | `list_manual_charge_items_for_bl` | "definer sem `is_active_user()`" | mesmo guard `42501`, também na redefinição de `059_pr698_integrity_hardening.sql` | **Código** (runtime inativo pendente conforme §E) |
 | 252 | `portal_get_demurrage_invoice_detail` | "grant `anon` contradiz a allowlist da ADR 0013" | não executável por `anon`; só `authenticated` | **Código** + **Runtime local** |
 | 255 | `portal_invoice_details` | "`anon` reaberto após default-deny" | idem | **Código** + **Runtime local** |
 | 256 | `portal_list_consolidatable_receivables` | "grant `anon` diverge da ADR 0013" | idem | **Código** + **Runtime local** |
@@ -86,7 +87,7 @@ exige `is_admin()` e não há policy de `UPDATE`.
 
 ## C. Allowlist `anon` real
 
-Consulta no schema aplicado (69 migrations ativas, Postgres 16 descartável):
+Consulta no schema aplicado (migrations ativas, Postgres 16 descartável):
 
 ```sql
 SELECT p.proname
@@ -143,7 +144,7 @@ descrita no método.
 | ACL efetiva no Supabase remoto | O runtime local prova o que a cadeia ativa produz aplicada limpa. Grants alterados fora de migration no projeto remoto não aparecem aqui. A própria ADR 0047 documenta um levantamento remoto (2026-08-14) em que 51 funções eram executáveis por `anon` — divergência histórica entre migrations e banco. **Runtime remoto pendente.** |
 | Isolamento por cliente no Portal | `current_portal_customer_id()` rejeita `auth.uid()` nulo com `28000` (leitura de código confirmada), mas o escopo por cliente sob RLS exige sessão autenticada real de dois clientes distintos. Sucesso como superusuário local não prova isolamento. **Runtime remoto pendente.** |
 | Guards `is_active_user()`/`is_active_read_user()` em usuário inativo | O guard existe no corpo aplicado (**Teste de contrato SQL** + estrutura confirmada em runtime local), mas a rejeição `42501` de uma sessão autenticada-e-inativa depende de `auth.uid()` populado, indisponível no shim local. **Runtime remoto pendente.** |
-| Afirmações ancoradas em migrations arquivadas (A-16) | Cada uma exigiria reconciliar o texto com a definição consolidada em `001…070`. Foram verificadas as da amostra desta auditoria; as demais permanecem não verificadas. |
+| Afirmações ancoradas em migrations arquivadas (A-16) | Cada uma exigiria reconciliar o texto com a definição consolidada em `001…071`. Foram verificadas as da amostra desta auditoria; as demais permanecem não verificadas. |
 
 ## F. Observações de contagem
 
@@ -155,4 +156,4 @@ descrita no método.
 - O cabeçalho do documento diz "Revisado estaticamente contra o checkout em
   2026-09-19; sem revalidação remota" — consistente com o quadro encontrado:
   as afirmações de ACL descrevem o estado **pré-consolidação** (ADR 0062,
-  migrations arquivadas 100-380), não a cadeia `001…070`.
+  migrations arquivadas 100-380), não a cadeia `001…071`.
