@@ -662,6 +662,7 @@ describe('blFreightImport', () => {
     await expect(confirmBlFreightImport(preview, 'user-1')).resolves.toEqual({
       result: { bls_received: 1 },
       refusedCustomerRelinks: [],
+      calculationErrors: [],
     })
     expect(mockRpc).toHaveBeenCalledWith('import_bl_freight_with_metadata', {
       p_bls: [preview.rows[0]?.payload],
@@ -675,6 +676,42 @@ describe('blFreightImport', () => {
       manifest_customer_name: 'IMPORTADOR LTDA',
     })
     expect(mockTryAutoIssueInvoice).not.toHaveBeenCalled()
+  })
+
+  it('preserva os erros de calculo retornados fora do resultado da importacao', async () => {
+    mockRpc.mockResolvedValue({
+      data: {
+        result: { bls_received: 1 },
+        calculation_errors: [{ bl_id: 'COSU777', message: 'Nenhuma tabela vigente.' }],
+      },
+      error: null,
+    })
+    const preview: BlFreightImportPreview = {
+      rows: [{
+        blNumber: 'COSU777',
+        status: 'new',
+        existing: false,
+        voyageId: 7,
+        voyageNumber: null,
+        pol: null,
+        pod: null,
+        ladenOnBoard: null,
+        consigneeDocumentMatches: null,
+        blockedReasons: [],
+        billingImpacts: [],
+        requiresBillingOverride: false,
+        customerChange: null,
+        requiresCustomerConfirmation: false,
+        diffs: [],
+        payload: buildBlFreightPayload(parsedBL(), 7),
+      }],
+      summary: { total: 1, newCount: 1, updatedCount: 0, unchangedCount: 0, blockedCount: 0, billingOverrideCount: 0, customerChangeCount: 0 },
+    }
+
+    await expect(confirmBlFreightImport(preview, 'user-1')).resolves.toMatchObject({
+      result: { bls_received: 1 },
+      calculationErrors: [{ blNumber: 'COSU777', message: 'Nenhuma tabela vigente.' }],
+    })
   })
 
   it('does not trigger automatic billing during BL import after ADR 0020', async () => {

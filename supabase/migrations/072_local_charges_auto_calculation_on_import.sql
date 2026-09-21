@@ -33,7 +33,10 @@ BEGIN
   SELECT id, customer_id, voyage_id, cargo_mode, pol, pod
   INTO v_bl
   FROM public.bls
-  WHERE id = UPPER(TRIM(p_bl_id));
+  WHERE id = btrim(p_bl_id)
+     OR UPPER(id) = UPPER(btrim(p_bl_id))
+  ORDER BY (id = btrim(p_bl_id)) DESC
+  LIMIT 1;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'B/L % nao encontrado.', p_bl_id USING ERRCODE = 'P0002';
@@ -141,11 +144,13 @@ BEGIN
     RAISE EXCEPTION 'Usuario sem permissao ativa' USING ERRCODE = '42501';
   END IF;
 
-  IF p_actor IS NOT NULL AND auth.uid() IS NOT NULL AND NOT public.is_admin() THEN
-    v_actor := auth.uid();
-  ELSE
-    v_actor := COALESCE(p_actor, auth.uid());
+  IF auth.uid() IS NOT NULL
+     AND NOT public.is_admin()
+     AND p_actor IS NOT NULL
+     AND p_actor IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'O ator informado deve ser o usuario autenticado.' USING ERRCODE = '42501';
   END IF;
+  v_actor := CASE WHEN auth.uid() IS NOT NULL AND NOT public.is_admin() THEN auth.uid() ELSE COALESCE(p_actor, auth.uid()) END;
 
   IF p_bl_ids IS NULL OR cardinality(p_bl_ids) = 0 THEN
     RETURN jsonb_build_object(
@@ -157,8 +162,13 @@ BEGIN
     );
   END IF;
 
+  IF cardinality(p_bl_ids) > 100 THEN
+    RAISE EXCEPTION 'O lote de calculo aceita no maximo 100 B/Ls por chamada.'
+      USING ERRCODE = '22023';
+  END IF;
+
   FOREACH v_bl_id IN ARRAY p_bl_ids LOOP
-    v_bl_id := UPPER(TRIM(v_bl_id));
+    v_bl_id := btrim(v_bl_id);
     CONTINUE WHEN v_bl_id IS NULL OR v_bl_id = '';
     v_total := v_total + 1;
     BEGIN
@@ -224,64 +234,64 @@ BEGIN
 
   v_result := public.import_bl_freight_transactional(p_bls, p_changed_by);
 
-  IF p_batch IS NULL THEN
-    RETURN jsonb_build_object('result', v_result, 'batch_id', NULL);
-  END IF;
+  -- O batch e opcional (ADR 0017): mesmo no B/L avulso o calculo inicial
+  -- deve acontecer nesta mesma operacao, sem depender de worker offline.
+  IF p_batch IS NOT NULL THEN
+    v_filename := NULLIF(btrim(COALESCE(p_batch->>'filename', '')), '');
+    v_voyage_id := NULLIF(btrim(COALESCE(p_batch->>'voyage_id', '')), '')::bigint;
+    v_cargo_mode := COALESCE(NULLIF(btrim(COALESCE(p_batch->>'cargo_mode', '')), ''), 'container');
+    IF v_filename IS NULL OR v_voyage_id IS NULL THEN
+      RAISE EXCEPTION 'Batch invalido: filename e voyage_id obrigatorios.' USING ERRCODE = '22023';
+    END IF;
+    IF v_cargo_mode NOT IN ('container', 'carga_solta') THEN
+      RAISE EXCEPTION 'cargo_mode de batch invalido.' USING ERRCODE = '22023';
+    END IF;
 
-  v_filename := NULLIF(btrim(COALESCE(p_batch->>'filename', '')), '');
-  v_voyage_id := NULLIF(btrim(COALESCE(p_batch->>'voyage_id', '')), '')::bigint;
-  v_cargo_mode := COALESCE(NULLIF(btrim(COALESCE(p_batch->>'cargo_mode', '')), ''), 'container');
-  IF v_filename IS NULL OR v_voyage_id IS NULL THEN
-    RAISE EXCEPTION 'Batch invalido: filename e voyage_id obrigatorios.' USING ERRCODE = '22023';
-  END IF;
-  IF v_cargo_mode NOT IN ('container', 'carga_solta') THEN
-    RAISE EXCEPTION 'cargo_mode de batch invalido.' USING ERRCODE = '22023';
-  END IF;
+    PERFORM 1 FROM public.voyages WHERE id = v_voyage_id FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Viagem % nao encontrada', v_voyage_id USING ERRCODE = 'P0002';
+    END IF;
 
-  PERFORM 1 FROM public.voyages WHERE id = v_voyage_id FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Viagem % nao encontrada', v_voyage_id USING ERRCODE = 'P0002';
-  END IF;
-
-  SELECT count(*) INTO v_mismatch
-  FROM jsonb_array_elements(p_bls) AS item
-  WHERE (item->>'voyage_id')::bigint IS DISTINCT FROM v_voyage_id;
-  IF v_mismatch > 0 THEN
-    RAISE EXCEPTION 'Batch da viagem % com B/L de outra viagem.', v_voyage_id USING ERRCODE = '22023';
-  END IF;
-
-  v_total_bls := jsonb_array_length(p_bls);
-
-  INSERT INTO public.import_batches(
-    filename, voyage_id, cargo_mode, uploaded_by, status, total_bls, total_containers
-  ) VALUES (
-    v_filename, v_voyage_id, v_cargo_mode, v_actor, 'completed', v_total_bls, NULL
-  ) RETURNING id INTO v_batch_id;
-
-  UPDATE public.bls AS b
-    SET batch_id = v_batch_id
+    SELECT count(*) INTO v_mismatch
     FROM jsonb_array_elements(p_bls) AS item
-    WHERE b.id = item->>'id' AND b.voyage_id = v_voyage_id;
-  GET DIAGNOSTICS v_updated = ROW_COUNT;
-  IF v_updated <> v_total_bls THEN
-    RAISE EXCEPTION 'Vinculo de batch falhou: % de % B/Ls vinculados.', v_updated, v_total_bls USING ERRCODE = 'P0002';
-  END IF;
+    WHERE (item->>'voyage_id')::bigint IS DISTINCT FROM v_voyage_id;
+    IF v_mismatch > 0 THEN
+      RAISE EXCEPTION 'Batch da viagem % com B/L de outra viagem.', v_voyage_id USING ERRCODE = '22023';
+    END IF;
 
-  v_physical_effect := public.enqueue_import_effect(
-    v_action_id,
-    'physical_flags',
-    v_voyage_id::text,
-    v_actor,
-    1,
-    NULL,
-    jsonb_build_object(
-      'filename', v_filename,
-      'voyage_id', v_voyage_id,
-      'cargo_mode', v_cargo_mode,
-      'bl_count', v_total_bls
-    )
-  );
-  v_physical_effect_id := NULLIF(v_physical_effect->'effect'->>'id', '')::bigint;
+    v_total_bls := jsonb_array_length(p_bls);
+
+    INSERT INTO public.import_batches(
+      filename, voyage_id, cargo_mode, uploaded_by, status, total_bls, total_containers
+    ) VALUES (
+      v_filename, v_voyage_id, v_cargo_mode, v_actor, 'completed', v_total_bls, NULL
+    ) RETURNING id INTO v_batch_id;
+
+    UPDATE public.bls AS b
+      SET batch_id = v_batch_id
+      FROM jsonb_array_elements(p_bls) AS item
+      WHERE b.id = item->>'id' AND b.voyage_id = v_voyage_id;
+    GET DIAGNOSTICS v_updated = ROW_COUNT;
+    IF v_updated <> v_total_bls THEN
+      RAISE EXCEPTION 'Vinculo de batch falhou: % de % B/Ls vinculados.', v_updated, v_total_bls USING ERRCODE = 'P0002';
+    END IF;
+
+    v_physical_effect := public.enqueue_import_effect(
+      v_action_id,
+      'physical_flags',
+      v_voyage_id::text,
+      v_actor,
+      1,
+      NULL,
+      jsonb_build_object(
+        'filename', v_filename,
+        'voyage_id', v_voyage_id,
+        'cargo_mode', v_cargo_mode,
+        'bl_count', v_total_bls
+      )
+    );
+    v_physical_effect_id := NULLIF(v_physical_effect->'effect'->>'id', '')::bigint;
+  END IF;
 
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_bls)
   LOOP
@@ -293,7 +303,7 @@ BEGIN
     BEGIN
       PERFORM public.calculate_bl_local_charges(v_bl_id, v_actor, true);
     EXCEPTION WHEN OTHERS THEN
-      -- Registra rastro detalhado do erro em audit_logs e acumula no retorno do batch
+      -- Registra rastro detalhado do erro em audit_logs e acumula no retorno do batch.
       v_calc_errors := v_calc_errors || jsonb_build_array(jsonb_build_object(
         'bl_id', v_bl_id,
         'message', SQLERRM
@@ -304,22 +314,23 @@ BEGIN
         'bl', v_bl_id, 'local_charges_auto_calc_error', NULL, SQLERRM, v_actor, now(),
         'Falha no calculo automatico de taxas locais na importacao do B/L'
       );
+      -- A fila e somente recuperacao: um calculo bem-sucedido nao e repetido pelo worker.
+      IF p_batch IS NOT NULL THEN
+        PERFORM public.enqueue_import_effect(
+          v_action_id,
+          'provisional_charges',
+          v_bl_id,
+          v_actor,
+          1,
+          v_physical_effect_id,
+          jsonb_build_object(
+            'filename', v_filename,
+            'voyage_id', v_voyage_id,
+            'cargo_mode', v_cargo_mode
+          )
+        );
+      END IF;
     END;
-
-    -- Mantem provisional_charges enfileirado como contingencia assincrona / recuperacao idempotente
-    PERFORM public.enqueue_import_effect(
-      v_action_id,
-      'provisional_charges',
-      v_bl_id,
-      v_actor,
-      1,
-      v_physical_effect_id,
-      jsonb_build_object(
-        'filename', v_filename,
-        'voyage_id', v_voyage_id,
-        'cargo_mode', v_cargo_mode
-      )
-    );
   END LOOP;
 
   RETURN jsonb_build_object('result', v_result, 'batch_id', v_batch_id, 'calculation_errors', v_calc_errors);
@@ -349,12 +360,16 @@ DECLARE
   v_actor UUID;
   v_target_customer_id BIGINT;
   v_financial_status TEXT;
+  v_calculation_error TEXT;
 BEGIN
   IF auth.uid() IS NULL OR NOT public.is_active_user() THEN
     RAISE EXCEPTION 'Usuario sem permissao ativa' USING ERRCODE = '42501';
   END IF;
 
-  v_actor := COALESCE(p_actor, auth.uid());
+  IF NOT public.is_admin() AND p_actor IS NOT NULL AND p_actor IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'O ator informado deve ser o usuario autenticado.' USING ERRCODE = '42501';
+  END IF;
+  v_actor := CASE WHEN public.is_admin() THEN COALESCE(p_actor, auth.uid()) ELSE auth.uid() END;
 
   SELECT * INTO v_queue
   FROM public.customer_reconciliation_queue
@@ -407,9 +422,10 @@ BEGIN
     BEGIN
       PERFORM public.calculate_bl_local_charges(v_queue.bl_id, v_actor, true);
     EXCEPTION WHEN OTHERS THEN
+      v_calculation_error := SQLERRM;
       INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at, justification)
       VALUES (
-        'bl', v_queue.bl_id, 'local_charges_reconciliation_calc_error', NULL, SQLERRM,
+        'bl', v_queue.bl_id, 'local_charges_reconciliation_calc_error', NULL, v_calculation_error,
         v_actor, now(), 'Falha no recalculo de taxas locais apos aprovacao de reconciliacao de cliente.'
       );
     END;
@@ -421,7 +437,13 @@ BEGIN
     v_actor, now(), COALESCE(NULLIF(TRIM(COALESCE(p_notes, '')), ''), 'Cliente reconciliado manualmente.')
   );
 
-  RETURN jsonb_build_object('queue_id', p_queue_id, 'bl_id', v_queue.bl_id, 'customer_id', v_target_customer_id, 'status', 'approved');
+  RETURN jsonb_build_object(
+    'queue_id', p_queue_id,
+    'bl_id', v_queue.bl_id,
+    'customer_id', v_target_customer_id,
+    'status', 'approved',
+    'calculation_error', v_calculation_error
+  );
 END;
 $$;
 
@@ -451,6 +473,7 @@ DECLARE
   v_has_financials BOOLEAN;
   v_settled_receivables INTEGER;
   v_status TEXT;
+  v_calculation_error TEXT;
 BEGIN
   SELECT * INTO v_bl FROM public.bls WHERE id = p_bl_id FOR UPDATE;
   IF NOT FOUND THEN
@@ -548,6 +571,12 @@ BEGIN
     RETURN jsonb_build_object('bl_id', p_bl_id, 'applied', false, 'blockers', v_blockers);
   END IF;
 
+  IF auth.uid() IS NOT NULL
+     AND NOT public.is_admin()
+     AND p_changed_by IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'O ator informado deve ser o usuario autenticado.' USING ERRCODE = '42501';
+  END IF;
+
   UPDATE public.bls
   SET
     customer_id = p_customer_id,
@@ -613,8 +642,9 @@ BEGIN
     BEGIN
       PERFORM public.calculate_bl_local_charges(p_bl_id, p_changed_by, true);
     EXCEPTION WHEN OTHERS THEN
+      v_calculation_error := SQLERRM;
       INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
-      VALUES ('bl', p_bl_id, 'local_charges_relink_calc_error', NULL, SQLERRM, p_changed_by, 'Falha no recalculo de taxas apos relink de cliente');
+      VALUES ('bl', p_bl_id, 'local_charges_relink_calc_error', NULL, v_calculation_error, p_changed_by, 'Falha no recalculo de taxas apos relink de cliente');
     END;
   END IF;
 
@@ -627,7 +657,8 @@ BEGIN
     'from_customer_id', v_bl.customer_id,
     'to_customer_id', p_customer_id,
     'moved_invoices', to_jsonb(v_moved_invoices),
-    'review_status', v_status
+    'review_status', v_status,
+    'calculation_error', v_calculation_error
   );
 END;
 $$;
@@ -654,7 +685,13 @@ BEGIN
     BEGIN
       PERFORM public.calculate_bl_local_charges(v_rec.id, NULL, false);
     EXCEPTION WHEN OTHERS THEN
-      NULL;
+      RAISE WARNING 'Falha no backfill de taxas locais do B/L %: %', v_rec.id, SQLERRM;
+      INSERT INTO public.audit_logs (
+        entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at, justification
+      ) VALUES (
+        'bl', v_rec.id, 'local_charges_backfill_error', NULL, SQLERRM, NULL, now(),
+        'Falha no calculo automatico de taxas locais durante o backfill da migration 072.'
+      );
     END;
   END LOOP;
 END;

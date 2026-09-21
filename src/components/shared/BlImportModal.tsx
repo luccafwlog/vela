@@ -126,7 +126,7 @@ export function BlImportModal({
 
     setSubmitting(true)
     try {
-      const { refusedCustomerRelinks } = await confirmBlFreightImport(
+      const { refusedCustomerRelinks, calculationErrors } = await confirmBlFreightImport(
         preview,
         user?.id ?? '',
         overrideBilling,
@@ -134,15 +134,25 @@ export function BlImportModal({
         confirmCustomerChange,
       )
       await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
+      const warnings: string[] = []
       if (refusedCustomerRelinks.length) {
         // Importou, mas o B/L continua com o cliente antigo: dizer "concluida" aqui
         // esconderia justamente o que o operador pediu para acontecer.
-        showToast(
-          `Importacao concluida, mas a troca de cliente foi recusada em ${refusedCustomerRelinks.length} B/L(s): ${refusedCustomerRelinks
+        warnings.push(
+          `a troca de cliente foi recusada em ${refusedCustomerRelinks.length} B/L(s): ${refusedCustomerRelinks
             .map((relink) => `${relink.blNumber} (${relink.blockers.join(' ')})`)
             .join(' | ')}`,
-          'error',
         )
+      }
+      if (calculationErrors.length) {
+        warnings.push(
+          `${calculationErrors.length} B/L(s) ficaram sem cálculo automático: ${calculationErrors
+            .map((failure) => `${failure.blNumber} (${failure.message})`)
+            .join(' | ')}`,
+        )
+      }
+      if (warnings.length) {
+        showToast(`Importacao concluida, mas ${warnings.join(' | ')}`, 'error')
       } else {
         showToast(
           `Importacao de B/L concluida: ${importableCount} B/L(s), ${preview.summary.blockedCount} bloqueado(s).`,
@@ -257,6 +267,13 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
         <PreviewBox label="Bloqueados" value={preview.summary.blockedCount} />
       </div>
 
+      {/* Plain app-table-scroll (horizontal only): the modal body is already the
+          scroll container (.app-modal__body, overflow-y: auto) with a sticky
+          actions bar pinned to its bottom. Giving the table its own bounded
+          vertical scroll region (app-table-scroll--sticky) nests a second
+          independent scrollbar inside that one, and its sticky header/footer
+          fight the outer sticky actions bar, breaking scrolling and clipping
+          rows behind the buttons. */}
       <div className="app-table-scroll rounded-xl border border-[var(--app-border)]">
         <table className="app-table app-table--compact min-w-[960px] text-left text-sm">
           <thead>
@@ -306,6 +323,10 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
   )
 }
 
+/**
+ * O aviso que o operador le antes de aceitar: de quem para quem o B/L vai, o que
+ * a fatura faz, e o que impede a troca quando ela nao pode ser automatica.
+ */
 function CustomerChangeCard({ blNumber, change }: { blNumber: string; change: BlCustomerChange }) {
   return (
     <div className="rounded-lg border border-[var(--app-border)] px-3 py-2">
@@ -352,6 +373,8 @@ function StatusPill({ status }: { status: BlFreightImportRow['status'] }) {
     unchanged: 'Sem mudanca',
     blocked: 'Bloqueado',
   }
+  // Badge (app-badge--*) instead of ad-hoc Tailwind colors: those hardcoded
+  // light-text-on-light-tint classes were unreadable outside dark theme.
 
   const tone: BadgeTone = status === 'blocked'
     ? 'yellow'

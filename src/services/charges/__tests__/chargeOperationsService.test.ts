@@ -120,6 +120,23 @@ describe('calculateLocalChargesBatch', () => {
     expect(result.errorCount).toBe(0)
   })
 
+  it('separa a RPC em chunks para preservar progresso parcial do lote', async () => {
+    const { calculateLocalChargesBatch } = await import('../chargeOperationsService')
+    from.mockImplementation(() => builder({ data: [], error: null }))
+    rpc.mockImplementation((_name: string, args: { p_bl_ids: string[] }) => Promise.resolve({
+      data: { success_count: args.p_bl_ids.length, error_count: 0, errors: [] },
+      error: null,
+    }))
+    const ids = Array.from({ length: 101 }, (_, index) => `BL-${index + 1}`)
+
+    const result = await calculateLocalChargesBatch(ids)
+
+    expect(rpc.mock.calls.filter(([name]) => name === 'calculate_bl_local_charges_batch')).toHaveLength(2)
+    expect(rpc.mock.calls[0]?.[1].p_bl_ids).toHaveLength(100)
+    expect(rpc.mock.calls[1]?.[1].p_bl_ids).toEqual(['BL-101'])
+    expect(result).toMatchObject({ total: 101, successCount: 101, errorCount: 0 })
+  })
+
   it('executa fallback sequencial caso a RPC batch retorne erro', async () => {
     const { calculateLocalChargesBatch } = await import('../chargeOperationsService')
     from.mockImplementation(() => builder({

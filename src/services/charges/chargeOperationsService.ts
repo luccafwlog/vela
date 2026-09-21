@@ -4,6 +4,7 @@ import { classifyDbError } from '../../lib/errors'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 
 const OPERATIONAL_PAGE_SIZE = 1000
+const LOCAL_CHARGE_BATCH_SIZE = 100
 
 export type LocalChargeLine = {
   id: number
@@ -605,78 +606,83 @@ export async function calculateLocalChargesBatch(
     return { total: 0, successCount: 0, errorCount: 0, errors: [] }
   }
 
-  // Consulta status financeiro em chunks de 100 para evitar limite de URL no PostgREST
-  const chunkSize = 100
+  // Mantem as consultas e as transacoes em lotes limitados: PostgREST nao deve
+  // receber uma URL gigante e a RPC nao deve transformar a selecao inteira em
+  // uma unica transacao que perde todo o progresso em caso de timeout.
   const blRows: Array<{ id: string; financial_status: string | null }> = []
-  for (let i = 0; i < normalizedIds.length; i += chunkSize) {
-    const chunk = normalizedIds.slice(i, i + chunkSize)
+  for (let i = 0; i < normalizedIds.length; i += LOCAL_CHARGE_BATCH_SIZE) {
+    const chunk = normalizedIds.slice(i, i + LOCAL_CHARGE_BATCH_SIZE)
     const { data, error } = await supabase.from('bls').select('id, financial_status').in('id', chunk)
     if (error) throw error
     if (data) blRows.push(...data)
   }
   const financialStatusById = new Map(blRows.map((bl) => [bl.id, bl.financial_status] as const))
 
+  const lockedIds = normalizedIds.filter((id) => isBlFinanciallyLocked(financialStatusById.get(id)))
   const unlockedIds = normalizedIds.filter((id) => !isBlFinanciallyLocked(financialStatusById.get(id)))
   const actor = options?.actorId && options.actorId.trim() ? options.actorId.trim() : null
+  const errors: Array<{ blId: string; message: string }> = lockedIds.map((id) => ({
+    blId: id,
+    message: formatLockedBlError(id, financialStatusById.get(id)),
+  }))
+  let successCount = 0
+  let errorCount = lockedIds.length
 
   if (unlockedIds.length === 0) {
-    return {
-      total: normalizedIds.length,
-      successCount: 0,
-      errorCount: normalizedIds.length,
-      errors: normalizedIds.map((id) => ({
-        blId: id,
-        message: `B/L ${id} ja foi faturado (status financeiro=${financialStatusById.get(id)}); recalculo bloqueado.`,
-      })),
-    }
+    return { total: normalizedIds.length, successCount, errorCount, errors }
   }
 
-  try {
-    const { data: batchData, error: batchError } = await supabase.rpc('calculate_bl_local_charges_batch', {
-      p_bl_ids: unlockedIds,
-      ...(actor ? { p_actor: actor } : {}),
-      p_recalculate: options?.recalculate ?? true,
-    })
+  for (let i = 0; i < unlockedIds.length; i += LOCAL_CHARGE_BATCH_SIZE) {
+    const chunk = unlockedIds.slice(i, i + LOCAL_CHARGE_BATCH_SIZE)
+    let batchCompleted = false
 
-    if (
-      !batchError &&
-      batchData &&
-      typeof batchData === 'object' &&
-      typeof (batchData as { success_count?: unknown }).success_count === 'number'
-    ) {
-      const parsed = batchData as {
-        total?: number
-        success_count: number
-        error_count?: number
-        errors?: Array<{ bl_id?: string; blId?: string; message?: string }>
-      }
-      return {
-        total: normalizedIds.length,
-        successCount: parsed.success_count,
-        errorCount: (parsed.error_count ?? 0) + (normalizedIds.length - unlockedIds.length),
-        errors: [
+    try {
+      const { data: batchData, error: batchError } = await supabase.rpc('calculate_bl_local_charges_batch', {
+        p_bl_ids: chunk,
+        ...(actor ? { p_actor: actor } : {}),
+        p_recalculate: options?.recalculate ?? true,
+      })
+
+      if (
+        !batchError &&
+        batchData &&
+        typeof batchData === 'object' &&
+        typeof (batchData as { success_count?: unknown }).success_count === 'number'
+      ) {
+        const parsed = batchData as {
+          success_count: number
+          error_count?: number
+          errors?: Array<{ bl_id?: string; blId?: string; message?: string }>
+        }
+        successCount += parsed.success_count
+        errorCount += parsed.error_count ?? 0
+        errors.push(
           ...(parsed.errors ?? []).map((err) => ({
             blId: err.bl_id || err.blId || '',
             message: err.message || 'Erro no calculo.',
           })),
-          ...normalizedIds
-            .filter((id) => isBlFinanciallyLocked(financialStatusById.get(id)))
-            .map((id) => ({
-              blId: id,
-              message: `B/L ${id} ja foi faturado (status financeiro=${financialStatusById.get(id)}); recalculo bloqueado.`,
-            })),
-        ],
+        )
+        batchCompleted = true
       }
+    } catch {
+      // O fallback abaixo limita a perda de progresso ao chunk que falhou.
     }
-  } catch {
-    // Fallback para loop sequencial runBatch
+
+    if (!batchCompleted) {
+      const fallback = await runBatch(chunk, (blId) => {
+        // Achado 6 da review da PR 501: preserve `undefined` no lookup miss.
+        // Transformar o miss em `null` faria o guard de recalculo considerar o
+        // status conhecido e poderia pular a consulta de seguranca do B/L.
+        const knownFinancialStatus = financialStatusById.get(blId)
+        return calculateBlLocalCharges(blId, { ...options, knownFinancialStatus })
+      })
+      successCount += fallback.successCount
+      errorCount += fallback.errorCount
+      errors.push(...fallback.errors)
+    }
   }
 
-  return runBatch(blIds, (blId) => {
-    const normalizedBlId = blId.trim().toUpperCase()
-    const knownFinancialStatus = financialStatusById.get(normalizedBlId)
-    return calculateBlLocalCharges(blId, { ...options, knownFinancialStatus })
-  })
+  return { total: normalizedIds.length, successCount, errorCount, errors }
 }
 
 export type LocalChargeConferenceRow = {
@@ -914,6 +920,9 @@ function extractBlIdFromChargeAuditMessage(message: string, candidates: string[]
   return null
 }
 
+function formatLockedBlError(blId: string, financialStatus: string | null | undefined) {
+  return `B/L ${blId} ja foi faturado (status financeiro=${financialStatus}); recalculo bloqueado.`
+}
 
 async function runBatch<T>(blIds: string[], worker: (blId: string) => Promise<T>) {
   const normalizedIds = Array.from(new Set(blIds.map((value) => value.trim().toUpperCase()).filter(Boolean)))

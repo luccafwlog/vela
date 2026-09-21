@@ -441,11 +441,18 @@ export type RefusedCustomerRelink = {
   blockers: string[]
 }
 
+export type LocalChargeCalculationError = {
+  blNumber: string
+  message: string
+}
+
 export type BlFreightImportResult = {
   /** retorno cru da RPC de importacao */
   result: unknown
   /** trocas de cliente pedidas no preview e recusadas pelo servidor */
   refusedCustomerRelinks: RefusedCustomerRelink[]
+  /** B/Ls persistidos cuja tentativa de cálculo imediato falhou */
+  calculationErrors: LocalChargeCalculationError[]
 }
 
 /**
@@ -464,6 +471,22 @@ export function readRefusedCustomerRelinks(data: unknown): RefusedCustomerRelink
       blNumber: typeof relink.bl_id === 'string' ? relink.bl_id : '',
       blockers: blockers.length ? blockers : ['Troca de consignatario recusada pelo servidor.'],
     }]
+  })
+}
+
+export function readLocalChargeCalculationErrors(data: unknown): LocalChargeCalculationError[] {
+  if (!Array.isArray(data)) return []
+  return data.flatMap((entry) => {
+    const error = entry as { bl_id?: unknown; blNumber?: unknown; message?: unknown }
+    const blNumber = typeof error.bl_id === 'string'
+      ? error.bl_id
+      : typeof error.blNumber === 'string'
+        ? error.blNumber
+        : ''
+    const message = typeof error.message === 'string' && error.message.trim()
+      ? error.message
+      : 'Erro no calculo automatico de taxas locais.'
+    return [{ blNumber, message }]
   })
 }
 
@@ -508,10 +531,17 @@ export async function confirmBlFreightImport(
         p_changed_by: changedBy,
       })
   if (error) throw error
-  const wrapped = rawData as { result?: unknown } | null
+  const wrapped = rawData as { result?: unknown; calculation_errors?: unknown } | null
   const data = usesBatchContract && wrapped && 'result' in wrapped ? wrapped.result : rawData
+  const calculationErrors = usesBatchContract && wrapped
+    ? readLocalChargeCalculationErrors(wrapped.calculation_errors)
+    : []
 
-  return { result: data, refusedCustomerRelinks: readRefusedCustomerRelinks(data) }
+  return {
+    result: data,
+    refusedCustomerRelinks: readRefusedCustomerRelinks(data),
+    calculationErrors,
+  }
 }
 
 export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | null): BlFreightRpcPayload {

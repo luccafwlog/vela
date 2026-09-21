@@ -6,7 +6,8 @@
 
 - **Cálculo automático de Taxas Locais na importação de B/L e recálculo na conciliação de cliente (2026-09-21):**
   A importação de B/L agora dispara o cálculo automático inicial de taxas de forma atômica na ingestão
-  (na RPC `import_bl_freight_with_metadata`), mantendo a fila assíncrona de efeitos (`provisional_charges`) como contingência idempotente.
+  (na RPC `import_bl_freight_with_metadata`); a fila assíncrona de efeitos (`provisional_charges`) só é criada
+  quando esse cálculo falha, como recuperação idempotente, evitando recálculo duplicado no caminho feliz.
   `sync_local_charge_receivable` foi desacoplado da presença obrigatória de cliente (`customer_id IS NULL`),
   permitindo o cálculo prévio de linhas com tabelas do porto/rota. Ao conciliar ou alterar o cliente
   (`approve_customer_reconciliation` e `relink_bl_customer`), as taxas de B/Ls pendentes são recalculadas

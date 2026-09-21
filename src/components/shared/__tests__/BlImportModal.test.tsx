@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   confirmBlFreightImport: vi.fn(() => Promise.resolve({
     result: { imported: 1 },
     refusedCustomerRelinks: [] as Array<{ blNumber: string; blockers: string[] }>,
+    calculationErrors: [] as Array<{ blNumber: string; message: string }>,
   })),
   afterManifestoImportado: vi.fn(() => Promise.resolve()),
 }))
@@ -49,7 +50,7 @@ import { BlImportModal } from '../BlImportModal'
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.invalidateQueries.mockResolvedValue(undefined)
-  mocks.confirmBlFreightImport.mockResolvedValue({ result: { imported: 1 }, refusedCustomerRelinks: [] })
+  mocks.confirmBlFreightImport.mockResolvedValue({ result: { imported: 1 }, refusedCustomerRelinks: [], calculationErrors: [] })
   mocks.afterManifestoImportado.mockResolvedValue(undefined)
 })
 afterEach(cleanup)
@@ -376,6 +377,7 @@ it('nao diz "concluida" quando o servidor recusa a troca de cliente', async () =
   mocks.confirmBlFreightImport.mockResolvedValue({
     result: { imported: 1 },
     refusedCustomerRelinks: [{ blNumber: 'COSU888', blockers: ['Fatura INV-001 ja tem pagamento registrado.'] }],
+    calculationErrors: [],
   })
   const { container } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N' })
 
@@ -393,6 +395,37 @@ it('nao diz "concluida" quando o servidor recusa a troca de cliente', async () =
   await waitFor(() =>
     expect(mocks.showToast).toHaveBeenCalledWith(
       expect.stringContaining('troca de cliente foi recusada em 1 B/L(s): COSU888 (Fatura INV-001 ja tem pagamento registrado.)'),
+      'error',
+    ),
+  )
+  expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Importacao de B/L concluida'), 'success')
+})
+
+it('informa B/Ls cujo calculo automatico falhou sem esconder a importacao', async () => {
+  mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU777'))
+  mocks.previewBlFreightImport.mockResolvedValue({
+    ...previewWithDiff,
+    rows: [{ ...previewWithDiff.rows[0], blNumber: 'COSU777', payload: { id: 'COSU777' } }],
+    summary: { ...previewWithDiff.summary, total: 1, updatedCount: 0 },
+  })
+  mocks.confirmBlFreightImport.mockResolvedValue({
+    result: { imported: 1 },
+    refusedCustomerRelinks: [],
+    calculationErrors: [{ blNumber: 'COSU777', message: 'Nenhuma tabela vigente.' }],
+  })
+  const { container } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N' })
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'bl.xlsx')] },
+  })
+  await screen.findByText('COSU777')
+  const confirm = await screen.findByRole('button', { name: /Confirmar importacao/ })
+  await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(confirm)
+
+  await waitFor(() =>
+    expect(mocks.showToast).toHaveBeenCalledWith(
+      expect.stringContaining('1 B/L(s) ficaram sem cálculo automático: COSU777 (Nenhuma tabela vigente.)'),
       'error',
     ),
   )

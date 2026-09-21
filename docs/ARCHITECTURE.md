@@ -349,8 +349,9 @@ prontidão do Portal **não** integra o gate desde a migration `188`
 e o caso vira alerta crítico por fatura, não bloqueio. `save_bl_review` é o único autor do
 status e de sua auditoria; importação, promoção para `ready_for_billing` e
 invoice recalculam o mesmo contrato. Ao zerar as pendências, o sistema tenta
-recalcular cobranças e emitir a invoice. A correção não executa backfill nem
-reabre B/Ls históricos já faturados.
+recalcular cobranças e emitir a invoice. A migration `072` faz backfill
+idempotente apenas dos B/Ls pendentes sem linhas e não reabre B/Ls históricos já
+faturados.
 
 ### Taxas locais e ledger
 
@@ -471,8 +472,8 @@ Consumidores principais:
 
 A cadeia ativa está em `supabase/migrations/`: `001` consolida o schema,
 `002` funções/policies/triggers, e `003` em diante aplicam os refinamentos.
-A sequência atual chega a `064`, com a lacuna histórica `014` preservada
-(63 arquivos). O histórico anterior à consolidação fica em
+A sequência atual chega a `072`, com a lacuna histórica `014` preservada
+(71 arquivos). O histórico anterior à consolidação fica em
 `supabase/migrations_archive/`, conforme ADR 0062. Referências antigas como
 208–214 (fundação do ADR), 249–251 (snapshot/escala) e 291/295 (permissões)
 identificam essa origem arquivada, não arquivos a reaplicar.
@@ -511,9 +512,11 @@ Manifesto Mercante a admin e consolida a produtora automática de Comunicados;
 e inclui máquinas/cubagem BB nos sinais de modalidade. `blTotalCbm` soma os
 componentes; import e revisão preservam o componente da outra modalidade.
 `072` desacopla `sync_local_charge_receivable` da exigência de cliente vinculado
-(retornando NULL se `customer_id IS NULL`), permitindo cálculo tarifário de B/Ls novos,
-adiciona a RPC `calculate_bl_local_charges_batch` e dispara o cálculo inicial na própria
-importação de B/L via `import_bl_freight_with_metadata`.
+(retornando NULL se `customer_id IS NULL`), permitindo cálculo tarifário de B/Ls novos;
+recalcula B/Ls pendentes ao aprovar ou relinkar o cliente, sincronizando o recebível;
+adiciona a RPC `calculate_bl_local_charges_batch` limitada a 100 IDs por chamada;
+dispara o cálculo inicial na própria importação via `import_bl_freight_with_metadata`,
+informa falhas ao operador e mantém `provisional_charges` apenas como recuperação.
 
 ### Segurança
 
