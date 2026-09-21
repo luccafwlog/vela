@@ -1,7 +1,7 @@
 # 0020 — CE Mercante como gatilho do cálculo automático de Taxas Locais
 
-> **Nota editorial — 2026-09-18 · supersedida parcialmente.** CE confirma o cálculo e dispara emissão; há cálculo provisório antes do CE. Container/carga solta/misto compartilham resolução; Granito mantém persistência própria.
-> Rastreabilidade: [ADR 0038](./0038-taxa-local-valor-congelado-ancorado-na-escala.md), [ADR 0041](./0041-validacao-fila-de-bloqueios-ce-como-confirmacao.md), [ADR 0042](./0042-ce-mercante-confirma-calculo-em-todos-os-modos.md), [ADR 0069](./0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md); [migration ativa 051](../../supabase/migrations/051_ce_mercante_auto_billing.sql).
+> **Nota editorial — 2026-09-21 · supersedida parcialmente.** CE confirma o cálculo e dispara emissão; a importação de B/L passa a disparar o cálculo automático inicial de taxas na própria ingestão (migration 072), sem depender de runner offline ou de cliente já vinculado. Container/carga solta/misto compartilham resolução; Granito mantém persistência própria.
+> Rastreabilidade: [ADR 0038](./0038-taxa-local-valor-congelado-ancorado-na-escala.md), [ADR 0041](./0041-validacao-fila-de-bloqueios-ce-como-confirmacao.md), [ADR 0042](./0042-ce-mercante-confirma-calculo-em-todos-os-modos.md), [ADR 0069](./0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md); [migrations ativas 051](../../supabase/migrations/051_ce_mercante_auto_billing.sql), [072](../../supabase/migrations/072_local_charges_auto_calculation_on_import.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
 
 Status: supersedida parcialmente — 2026-07-08

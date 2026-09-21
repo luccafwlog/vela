@@ -4,6 +4,7 @@ import { classifyDbError } from '../../lib/errors'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 
 const OPERATIONAL_PAGE_SIZE = 1000
+const LOCAL_CHARGE_BATCH_SIZE = 100
 
 export type LocalChargeLine = {
   id: number
@@ -160,7 +161,7 @@ export async function calculateBlLocalCharges(
 
   const { data, error } = await supabase.rpc('calculate_bl_local_charges', {
     p_bl_id: blId,
-    ...(options?.actorId == null ? {} : { p_actor: options.actorId }),
+    ...((options?.actorId && options.actorId.trim()) ? { p_actor: options.actorId.trim() } : {}),
     p_recalculate: options?.recalculate ?? true,
   })
 
@@ -600,26 +601,88 @@ export async function calculateLocalChargesBatch(
     recalculate?: boolean
   },
 ) {
-  // Uma unica consulta para todo o lote em vez de uma por B/L dentro de
-  // calculateBlLocalCharges (runBatch e sequencial, entao a versao antiga
-  // dobrava os round trips do lote).
   const normalizedIds = Array.from(new Set(blIds.map((value) => value.trim().toUpperCase()).filter(Boolean)))
-  const { data: bls, error } = await supabase.from('bls').select('id, financial_status').in('id', normalizedIds)
-  if (error) throw error
-  const financialStatusById = new Map((bls ?? []).map((bl) => [bl.id, bl.financial_status] as const))
+  if (normalizedIds.length === 0) {
+    return { total: 0, successCount: 0, errorCount: 0, errors: [] }
+  }
 
-  return runBatch(blIds, (blId) => {
-    // Achado 6 da review da PR 501: NAO usar `?? null` aqui. Um lookup miss
-    // (blId ausente no Map, inclusive por diferenca de normalizacao entre
-    // blId cru e normalizedIds) virava `null`, e o guard em
-    // calculateBlLocalCharges so faz a consulta de pre-flight quando
-    // `financialStatus === undefined` -- null !== undefined, entao a trava de
-    // recalculo de B/L faturado era pulada silenciosamente. Mantendo
-    // `undefined` no miss, o guard cai no fallback e busca o status real.
-    const normalizedBlId = blId.trim().toUpperCase()
-    const knownFinancialStatus = financialStatusById.get(normalizedBlId)
-    return calculateBlLocalCharges(blId, { ...options, knownFinancialStatus })
-  })
+  // Mantem as consultas e as transacoes em lotes limitados: PostgREST nao deve
+  // receber uma URL gigante e a RPC nao deve transformar a selecao inteira em
+  // uma unica transacao que perde todo o progresso em caso de timeout.
+  const blRows: Array<{ id: string; financial_status: string | null }> = []
+  for (let i = 0; i < normalizedIds.length; i += LOCAL_CHARGE_BATCH_SIZE) {
+    const chunk = normalizedIds.slice(i, i + LOCAL_CHARGE_BATCH_SIZE)
+    const { data, error } = await supabase.from('bls').select('id, financial_status').in('id', chunk)
+    if (error) throw error
+    if (data) blRows.push(...data)
+  }
+  const financialStatusById = new Map(blRows.map((bl) => [bl.id, bl.financial_status] as const))
+
+  const lockedIds = normalizedIds.filter((id) => isBlFinanciallyLocked(financialStatusById.get(id)))
+  const unlockedIds = normalizedIds.filter((id) => !isBlFinanciallyLocked(financialStatusById.get(id)))
+  const actor = options?.actorId && options.actorId.trim() ? options.actorId.trim() : null
+  const errors: Array<{ blId: string; message: string }> = lockedIds.map((id) => ({
+    blId: id,
+    message: formatLockedBlError(id, financialStatusById.get(id)),
+  }))
+  let successCount = 0
+  let errorCount = lockedIds.length
+
+  if (unlockedIds.length === 0) {
+    return { total: normalizedIds.length, successCount, errorCount, errors }
+  }
+
+  for (let i = 0; i < unlockedIds.length; i += LOCAL_CHARGE_BATCH_SIZE) {
+    const chunk = unlockedIds.slice(i, i + LOCAL_CHARGE_BATCH_SIZE)
+    let batchCompleted = false
+
+    try {
+      const { data: batchData, error: batchError } = await supabase.rpc('calculate_bl_local_charges_batch', {
+        p_bl_ids: chunk,
+        ...(actor ? { p_actor: actor } : {}),
+        p_recalculate: options?.recalculate ?? true,
+      })
+
+      if (
+        !batchError &&
+        batchData &&
+        typeof batchData === 'object' &&
+        typeof (batchData as { success_count?: unknown }).success_count === 'number'
+      ) {
+        const parsed = batchData as {
+          success_count: number
+          error_count?: number
+          errors?: Array<{ bl_id?: string; blId?: string; message?: string }>
+        }
+        successCount += parsed.success_count
+        errorCount += parsed.error_count ?? 0
+        errors.push(
+          ...(parsed.errors ?? []).map((err) => ({
+            blId: err.bl_id || err.blId || '',
+            message: err.message || 'Erro no calculo.',
+          })),
+        )
+        batchCompleted = true
+      }
+    } catch {
+      // O fallback abaixo limita a perda de progresso ao chunk que falhou.
+    }
+
+    if (!batchCompleted) {
+      const fallback = await runBatch(chunk, (blId) => {
+        // Achado 6 da review da PR 501: preserve `undefined` no lookup miss.
+        // Transformar o miss em `null` faria o guard de recalculo considerar o
+        // status conhecido e poderia pular a consulta de seguranca do B/L.
+        const knownFinancialStatus = financialStatusById.get(blId)
+        return calculateBlLocalCharges(blId, { ...options, knownFinancialStatus })
+      })
+      successCount += fallback.successCount
+      errorCount += fallback.errorCount
+      errors.push(...fallback.errors)
+    }
+  }
+
+  return { total: normalizedIds.length, successCount, errorCount, errors }
 }
 
 export type LocalChargeConferenceRow = {
@@ -857,6 +920,9 @@ function extractBlIdFromChargeAuditMessage(message: string, candidates: string[]
   return null
 }
 
+function formatLockedBlError(blId: string, financialStatus: string | null | undefined) {
+  return `B/L ${blId} ja foi faturado (status financeiro=${financialStatus}); recalculo bloqueado.`
+}
 
 async function runBatch<T>(blIds: string[], worker: (blId: string) => Promise<T>) {
   const normalizedIds = Array.from(new Set(blIds.map((value) => value.trim().toUpperCase()).filter(Boolean)))

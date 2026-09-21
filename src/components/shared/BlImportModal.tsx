@@ -126,7 +126,7 @@ export function BlImportModal({
 
     setSubmitting(true)
     try {
-      const { refusedCustomerRelinks } = await confirmBlFreightImport(
+      const { refusedCustomerRelinks, calculationErrors } = await confirmBlFreightImport(
         preview,
         user?.id ?? '',
         overrideBilling,
@@ -134,15 +134,25 @@ export function BlImportModal({
         confirmCustomerChange,
       )
       await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
+      const warnings: string[] = []
       if (refusedCustomerRelinks.length) {
         // Importou, mas o B/L continua com o cliente antigo: dizer "concluida" aqui
         // esconderia justamente o que o operador pediu para acontecer.
-        showToast(
-          `Importacao concluida, mas a troca de cliente foi recusada em ${refusedCustomerRelinks.length} B/L(s): ${refusedCustomerRelinks
+        warnings.push(
+          `a troca de cliente foi recusada em ${refusedCustomerRelinks.length} B/L(s): ${refusedCustomerRelinks
             .map((relink) => `${relink.blNumber} (${relink.blockers.join(' ')})`)
             .join(' | ')}`,
-          'error',
         )
+      }
+      if (calculationErrors.length) {
+        warnings.push(
+          `${calculationErrors.length} B/L(s) ficaram sem cálculo automático: ${calculationErrors
+            .map((failure) => `${failure.blNumber} (${failure.message})`)
+            .join(' | ')}`,
+        )
+      }
+      if (warnings.length) {
+        showToast(`Importacao concluida, mas ${warnings.join(' | ')}`, 'error')
       } else {
         showToast(
           `Importacao de B/L concluida: ${importableCount} B/L(s), ${preview.summary.blockedCount} bloqueado(s).`,
@@ -365,6 +375,7 @@ function StatusPill({ status }: { status: BlFreightImportRow['status'] }) {
   }
   // Badge (app-badge--*) instead of ad-hoc Tailwind colors: those hardcoded
   // light-text-on-light-tint classes were unreadable outside dark theme.
+
   const tone: BadgeTone = status === 'blocked'
     ? 'yellow'
     : status === 'new'

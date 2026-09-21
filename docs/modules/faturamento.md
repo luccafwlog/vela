@@ -444,6 +444,7 @@ Não há evidência de Runtime registrada neste documento.
   ledger atualizado sem esse efeito colateral. A emissão automática voltou a
   existir apenas na transição explícita do CE Mercante, de forma idempotente,
   pela migration `051`.
+- **Cálculo de taxas locais antes da conciliação de cliente (migration `072`):** `sync_local_charge_receivable` retorna `NULL` sem abortar quando `v_bl.customer_id` é nulo, permitindo cálculo inicial de taxas no B/L recém-importado; o registro financeiro em `bl_receivables` aguarda a conciliação do cliente na Revisão.
 - **PIX tem dois autores.** A migration
   `074_ledger_invoice_pix_payload.sql` mantém payload por trigger para
   invoices locais. `createInvoiceFromBls` ainda executa `persistPixPayload`

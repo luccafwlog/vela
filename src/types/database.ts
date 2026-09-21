@@ -6601,6 +6601,10 @@ export type Database = {
         Args: { p_actor?: string; p_bl_id: string; p_recalculate?: boolean }
         Returns: Json
       }
+      calculate_bl_local_charges_batch: {
+        Args: { p_actor?: string; p_bl_ids: string[]; p_recalculate?: boolean }
+        Returns: Json
+      }
       cancel_demurrage_invoice: {
         Args: { p_invoice_id: number; p_reason: string; p_request_id: string }
         Returns: Json
