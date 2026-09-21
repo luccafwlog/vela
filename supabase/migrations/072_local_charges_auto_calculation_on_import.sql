@@ -151,6 +151,8 @@ BEGIN
   END IF;
 
   FOREACH v_bl_id IN ARRAY p_bl_ids LOOP
+    v_bl_id := UPPER(TRIM(v_bl_id));
+    CONTINUE WHEN v_bl_id IS NULL OR v_bl_id = '';
     BEGIN
       v_res := public.calculate_bl_local_charges(v_bl_id, v_actor, p_recalculate);
       v_results := v_results || jsonb_build_array(v_res);
@@ -274,8 +276,8 @@ BEGIN
 
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_bls)
   LOOP
-    v_bl_id := v_item->>'id';
-    CONTINUE WHEN v_bl_id IS NULL;
+    v_bl_id := UPPER(TRIM(COALESCE(v_item->>'id', '')));
+    CONTINUE WHEN v_bl_id = '';
 
     -- Disparo imediato do calculo inicial das taxas locais com base nas tabelas cadastradas
     BEGIN

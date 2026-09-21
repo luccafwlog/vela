@@ -60,7 +60,8 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
       ])
       const result = { total: graniteResult.total + localResult.total, successCount: graniteResult.successCount + localResult.successCount, errorCount: graniteResult.errorCount + localResult.errorCount, errors: [...graniteResult.errors, ...localResult.errors] }
       const firstError = result.errors[0]?.message ? `: ${result.errors[0].message}` : ''
-      showToast(`${result.successCount} B/L(s) recalculado(s).${result.errorCount ? ` ${result.errorCount} falharam${firstError}.` : ''}`, result.errorCount ? 'error' : 'success')
+      const tone: 'success' | 'error' | 'info' = result.errorCount === 0 ? 'success' : result.successCount === 0 ? 'error' : 'info'
+      showToast(`${result.successCount} B/L(s) recalculado(s).${result.errorCount ? ` ${result.errorCount} falharam${firstError}.` : ''}`, tone)
       if (invoiced.size) showToast(`${invoiced.size} ignorado(s) (já faturados).`, 'info')
       setSelectedOpsRows([])
     } catch (error) {

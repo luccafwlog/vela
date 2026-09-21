@@ -605,52 +605,74 @@ export async function calculateLocalChargesBatch(
     return { total: 0, successCount: 0, errorCount: 0, errors: [] }
   }
 
-  const { data: bls, error } = await supabase.from('bls').select('id, financial_status').in('id', normalizedIds)
-  if (error) throw error
-  const financialStatusById = new Map((bls ?? []).map((bl) => [bl.id, bl.financial_status] as const))
+  // Consulta status financeiro em chunks de 100 para evitar limite de URL no PostgREST
+  const chunkSize = 100
+  const blRows: Array<{ id: string; financial_status: string | null }> = []
+  for (let i = 0; i < normalizedIds.length; i += chunkSize) {
+    const chunk = normalizedIds.slice(i, i + chunkSize)
+    const { data, error } = await supabase.from('bls').select('id, financial_status').in('id', chunk)
+    if (error) throw error
+    if (data) blRows.push(...data)
+  }
+  const financialStatusById = new Map(blRows.map((bl) => [bl.id, bl.financial_status] as const))
 
   const unlockedIds = normalizedIds.filter((id) => !isBlFinanciallyLocked(financialStatusById.get(id)))
   const actor = options?.actorId && options.actorId.trim() ? options.actorId.trim() : null
 
-  if (unlockedIds.length > 0) {
-    try {
-      const { data: batchData, error: batchError } = await (supabase.rpc as unknown as (
-        name: string,
-        args: unknown,
-      ) => Promise<{ data: unknown; error: unknown }>)('calculate_bl_local_charges_batch', {
-        p_bl_ids: unlockedIds,
-        ...(actor ? { p_actor: actor } : {}),
-        p_recalculate: options?.recalculate ?? true,
-      })
-
-      if (!batchError && batchData && typeof batchData === 'object') {
-        const parsed = batchData as {
-          total?: number
-          success_count?: number
-          error_count?: number
-          errors?: Array<{ bl_id?: string; blId?: string; message?: string }>
-        }
-        return {
-          total: normalizedIds.length,
-          successCount: parsed.success_count ?? 0,
-          errorCount: (parsed.error_count ?? 0) + (normalizedIds.length - unlockedIds.length),
-          errors: [
-            ...(parsed.errors ?? []).map((err) => ({
-              blId: err.bl_id || err.blId || '',
-              message: err.message || 'Erro no calculo.',
-            })),
-            ...normalizedIds
-              .filter((id) => isBlFinanciallyLocked(financialStatusById.get(id)))
-              .map((id) => ({
-                blId: id,
-                message: `B/L ${id} ja foi faturado; recalculo bloqueado.`,
-              })),
-          ],
-        }
-      }
-    } catch {
-      // Fallback para loop sequencial runBatch
+  if (unlockedIds.length === 0) {
+    return {
+      total: normalizedIds.length,
+      successCount: 0,
+      errorCount: normalizedIds.length,
+      errors: normalizedIds.map((id) => ({
+        blId: id,
+        message: `B/L ${id} ja foi faturado (status financeiro=${financialStatusById.get(id)}); recalculo bloqueado.`,
+      })),
     }
+  }
+
+  try {
+    const { data: batchData, error: batchError } = await (supabase.rpc as unknown as (
+      name: string,
+      args: unknown,
+    ) => Promise<{ data: unknown; error: unknown }>)('calculate_bl_local_charges_batch', {
+      p_bl_ids: unlockedIds,
+      ...(actor ? { p_actor: actor } : {}),
+      p_recalculate: options?.recalculate ?? true,
+    })
+
+    if (
+      !batchError &&
+      batchData &&
+      typeof batchData === 'object' &&
+      typeof (batchData as { success_count?: unknown }).success_count === 'number'
+    ) {
+      const parsed = batchData as {
+        total?: number
+        success_count: number
+        error_count?: number
+        errors?: Array<{ bl_id?: string; blId?: string; message?: string }>
+      }
+      return {
+        total: normalizedIds.length,
+        successCount: parsed.success_count,
+        errorCount: (parsed.error_count ?? 0) + (normalizedIds.length - unlockedIds.length),
+        errors: [
+          ...(parsed.errors ?? []).map((err) => ({
+            blId: err.bl_id || err.blId || '',
+            message: err.message || 'Erro no calculo.',
+          })),
+          ...normalizedIds
+            .filter((id) => isBlFinanciallyLocked(financialStatusById.get(id)))
+            .map((id) => ({
+              blId: id,
+              message: `B/L ${id} ja foi faturado (status financeiro=${financialStatusById.get(id)}); recalculo bloqueado.`,
+            })),
+        ],
+      }
+    }
+  } catch {
+    // Fallback para loop sequencial runBatch
   }
 
   return runBatch(blIds, (blId) => {

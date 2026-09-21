@@ -92,9 +92,7 @@ describe('localCharges service', () => {
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('recalcula o lote inteiro e agrega falhas por B/L sem interromper os demais', async () => {
-    // Consulta unica de financial_status para o lote inteiro (evita uma SELECT
-    // sequencial por B/L dentro do loop de calculateBlLocalCharges).
+  it('recalcula o lote via calculate_bl_local_charges_batch em chamada unica', async () => {
     mockFrom.mockImplementation(() =>
       createBuilder({
         data: [
@@ -105,10 +103,20 @@ describe('localCharges service', () => {
         error: null,
       }),
     )
-    mockRpc
-      .mockResolvedValueOnce({ data: { bl_id: 'BL1', status: 'calculated' }, error: null })
-      .mockResolvedValueOnce({ data: null, error: new Error('tabela ausente') })
-      .mockResolvedValueOnce({ data: { bl_id: 'BL3', status: 'calculated' }, error: null })
+    mockRpc.mockImplementation((name) => {
+      if (name === 'calculate_bl_local_charges_batch') {
+        return Promise.resolve({
+          data: {
+            total: 3,
+            success_count: 2,
+            error_count: 1,
+            errors: [{ bl_id: 'BL2', message: 'tabela ausente' }],
+          },
+          error: null,
+        })
+      }
+      return Promise.resolve({ data: null, error: new Error('unexpected') })
+    })
 
     const result = await calculateLocalChargesBatch([' bl1 ', 'BL2', 'BL3', 'BL1'], {
       actorId: 'user-1',
@@ -121,7 +129,49 @@ describe('localCharges service', () => {
       errorCount: 1,
       errors: [{ blId: 'BL2', message: 'tabela ausente' }],
     })
-    expect(mockRpc).toHaveBeenCalledTimes(3)
+    expect(mockRpc).toHaveBeenCalledWith('calculate_bl_local_charges_batch', {
+      p_bl_ids: ['BL1', 'BL2', 'BL3'],
+      p_actor: 'user-1',
+      p_recalculate: true,
+    })
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
+
+  it('faz fallback para runBatch sequencial se calculate_bl_local_charges_batch falhar', async () => {
+    mockFrom.mockImplementation(() =>
+      createBuilder({
+        data: [
+          { id: 'BL1', financial_status: 'pending' },
+          { id: 'BL2', financial_status: 'pending' },
+          { id: 'BL3', financial_status: 'pending' },
+        ],
+        error: null,
+      }),
+    )
+    mockRpc.mockImplementation((name, args) => {
+      if (name === 'calculate_bl_local_charges_batch') {
+        return Promise.resolve({ data: null, error: new Error('RPC not found') })
+      }
+      if (name === 'calculate_bl_local_charges') {
+        const id = args && typeof args === 'object' && 'p_bl_id' in args ? args.p_bl_id : ''
+        if (id === 'BL2') return Promise.resolve({ data: null, error: new Error('tabela ausente') })
+        return Promise.resolve({ data: { bl_id: id, status: 'calculated' }, error: null })
+      }
+      return Promise.resolve({ data: null, error: new Error('unexpected') })
+    })
+
+    const result = await calculateLocalChargesBatch([' bl1 ', 'BL2', 'BL3', 'BL1'], {
+      actorId: 'user-1',
+      recalculate: true,
+    })
+
+    expect(result).toEqual({
+      total: 3,
+      successCount: 2,
+      errorCount: 1,
+      errors: [{ blId: 'BL2', message: 'tabela ausente' }],
+    })
+    expect(mockRpc).toHaveBeenCalledTimes(4)
     expect(mockFrom).toHaveBeenCalledTimes(1)
   })
 
