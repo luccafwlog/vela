@@ -46,7 +46,9 @@ describe('cache effects', () => {
       ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
       ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
       ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
-      ['baplie-reconciliation', '24'], ['baplie-staging', '24'], ['agency-report'],
+      ['baplie-reconciliation', '24'], ['baplie-staging', '24'],
+      ['local-charge-operations'], ['customer-reconciliation-queue'], ['bl-local-charge-lines'],
+      ['agency-report'],
       ['voyage-pol-schedules'], ['voyage-escala-schedules'], ['voyage-timeline', '24'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
     ]))
   })

@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const from = vi.fn()
-vi.mock('../../supabase', () => ({ supabase: { from: (table: string) => from(table) } }))
+const rpc = vi.fn()
+vi.mock('../../supabase', () => ({
+  supabase: {
+    from: (table: string) => from(table),
+    rpc: (name: string, args: unknown) => rpc(name, args),
+  },
+}))
 
 function builder(result: { data: unknown; error: unknown }) {
   const chain: Record<string, unknown> = {}
@@ -13,7 +19,10 @@ function builder(result: { data: unknown; error: unknown }) {
 }
 
 describe('listLocalChargeOperationalRows', () => {
-  beforeEach(() => from.mockReset())
+  beforeEach(() => {
+    from.mockReset()
+    rpc.mockReset()
+  })
 
   it('nao consulta B/Ls quando o filtro pede so granito', async () => {
     const { listLocalChargeOperationalRows } = await import('../chargeOperationsService')
@@ -55,5 +64,84 @@ describe('listLocalChargeOperationalRows', () => {
     from.mockImplementation(() => builder({ data: [], error: null }))
     await expect(listLocalChargeOperationalRows({ cargoMode: 'container', limit: 999999 })).resolves.toEqual([])
     await expect(listLocalChargeOperationalRows({ cargoMode: 'container', limit: -1 })).resolves.toEqual([])
+  })
+})
+
+describe('calculateLocalChargesBatch', () => {
+  beforeEach(() => {
+    from.mockReset()
+    rpc.mockReset()
+  })
+
+  it('rejeita lote vazio sem chamar rpc', async () => {
+    const { calculateLocalChargesBatch } = await import('../chargeOperationsService')
+    const result = await calculateLocalChargesBatch([])
+    expect(result).toEqual({ total: 0, successCount: 0, errorCount: 0, errors: [] })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('bloqueia B/Ls já faturados antes de chamar a RPC', async () => {
+    const { calculateLocalChargesBatch } = await import('../chargeOperationsService')
+    from.mockImplementation(() => builder({
+      data: [{ id: 'BL-PAID', financial_status: 'paid' }],
+      error: null,
+    }))
+
+    const result = await calculateLocalChargesBatch(['BL-PAID'])
+    expect(result.total).toBe(1)
+    expect(result.successCount).toBe(0)
+    expect(result.errorCount).toBe(1)
+    expect(result.errors[0].message).toContain('ja foi faturado')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('chama calculate_bl_local_charges_batch via supabase.rpc com sucesso', async () => {
+    const { calculateLocalChargesBatch } = await import('../chargeOperationsService')
+    from.mockImplementation(() => builder({
+      data: [{ id: 'BL-OK', financial_status: 'pending' }],
+      error: null,
+    }))
+    rpc.mockResolvedValue({
+      data: {
+        total: 1,
+        success_count: 1,
+        error_count: 0,
+        errors: [],
+      },
+      error: null,
+    })
+
+    const result = await calculateLocalChargesBatch(['BL-OK'])
+    expect(rpc).toHaveBeenCalledWith('calculate_bl_local_charges_batch', {
+      p_bl_ids: ['BL-OK'],
+      p_recalculate: true,
+    })
+    expect(result.successCount).toBe(1)
+    expect(result.errorCount).toBe(0)
+  })
+
+  it('executa fallback sequencial caso a RPC batch retorne erro', async () => {
+    const { calculateLocalChargesBatch } = await import('../chargeOperationsService')
+    from.mockImplementation(() => builder({
+      data: [{ id: 'BL-FALLBACK', financial_status: 'pending' }],
+      error: null,
+    }))
+    rpc.mockImplementation((name: string) => {
+      if (name === 'calculate_bl_local_charges_batch') {
+        return Promise.resolve({ data: null, error: { message: 'function not found' } })
+      }
+      if (name === 'calculate_bl_local_charges') {
+        return Promise.resolve({ data: { status: 'calculated' }, error: null })
+      }
+      return Promise.resolve({ data: null, error: null })
+    })
+
+    const result = await calculateLocalChargesBatch(['BL-FALLBACK'])
+    expect(rpc).toHaveBeenCalledWith('calculate_bl_local_charges_batch', expect.anything())
+    expect(rpc).toHaveBeenCalledWith('calculate_bl_local_charges', {
+      p_bl_id: 'BL-FALLBACK',
+      p_recalculate: true,
+    })
+    expect(result.successCount).toBe(1)
   })
 })

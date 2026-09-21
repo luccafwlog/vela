@@ -11,7 +11,6 @@ import {
   type BlFreightImportPreview,
   type BlFreightImportRow,
 } from '../../services/blFreightImport'
-import { calculateLocalChargesBatch } from '../../services/charges/chargeOperationsService'
 import { afterManifestoImportado } from '../../services/cacheEffects'
 import { Badge, type BadgeTone } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -134,20 +133,6 @@ export function BlImportModal({
         files[0]?.name,
         confirmCustomerChange,
       )
-      const importedBlIds = preview.rows
-        .filter((row) => Boolean(row.payload))
-        .map((row) => row.blNumber)
-        .filter(Boolean)
-      if (importedBlIds.length > 0) {
-        try {
-          await calculateLocalChargesBatch(importedBlIds, {
-            actorId: user?.id ?? null,
-            recalculate: true,
-          })
-        } catch (calcError) {
-          console.warn('Falha no calculo imediato das taxas pos-importacao:', calcError)
-        }
-      }
       await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
       if (refusedCustomerRelinks.length) {
         // Importou, mas o B/L continua com o cliente antigo: dizer "concluida" aqui

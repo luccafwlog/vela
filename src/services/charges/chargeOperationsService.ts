@@ -632,10 +632,7 @@ export async function calculateLocalChargesBatch(
   }
 
   try {
-    const { data: batchData, error: batchError } = await (supabase.rpc as unknown as (
-      name: string,
-      args: unknown,
-    ) => Promise<{ data: unknown; error: unknown }>)('calculate_bl_local_charges_batch', {
+    const { data: batchData, error: batchError } = await supabase.rpc('calculate_bl_local_charges_batch', {
       p_bl_ids: unlockedIds,
       ...(actor ? { p_actor: actor } : {}),
       p_recalculate: options?.recalculate ?? true,
