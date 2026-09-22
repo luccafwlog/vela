@@ -38,4 +38,9 @@ describe('Migration 075: residuais da revisão final da PR #718', () => {
     expect(migrationSql).toContain('REVOKE ALL ON FUNCTION public.list_orphaned_dispute_attachments(interval) FROM PUBLIC, anon, authenticated;')
     expect(migrationSql).toContain('GRANT EXECUTE ON FUNCTION public.list_orphaned_dispute_attachments(interval) TO service_role;')
   })
+
+  it('reaplica o contrato de EXECUTE das RPCs substituídas, sem depender da versão da 074 aplicada', () => {
+    expect(migrationSql).toContain('GRANT EXECUTE ON FUNCTION public.add_demurrage_dispute_attachment(bigint, text, text, text, bigint) TO authenticated, service_role;')
+    expect(migrationSql).toContain('GRANT EXECUTE ON FUNCTION public.portal_check_dispute_attachment_eligibility(bigint, bigint) TO authenticated, service_role;')
+  })
 })

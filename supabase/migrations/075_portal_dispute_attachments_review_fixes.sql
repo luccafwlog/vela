@@ -200,6 +200,14 @@ BEGIN
 END;
 $$;
 
+-- Grants explícitos: CREATE OR REPLACE preserva o ACL de uma função existente,
+-- mas num banco em que a 074 foi aplicada numa versão anterior (sem a RPC de
+-- elegibilidade) a função nasce aqui e precisa do contrato completo.
+REVOKE ALL ON FUNCTION public.add_demurrage_dispute_attachment(bigint, text, text, text, bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.add_demurrage_dispute_attachment(bigint, text, text, text, bigint) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.portal_check_dispute_attachment_eligibility(bigint, bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.portal_check_dispute_attachment_eligibility(bigint, bigint) TO authenticated, service_role;
+
 DO $storage_disputes_delete$
 BEGIN
   IF to_regclass('storage.objects') IS NOT NULL THEN
