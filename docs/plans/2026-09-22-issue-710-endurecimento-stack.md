@@ -1,14 +1,21 @@
 # Issue 710 — Endurecimento da stack (observabilidade, segurança e resiliência)
 
-> **Estado:** plano vivo; nenhuma configuração remota ou mudança de produção foi aplicada por este documento.
+> **Estado:** plano vivo em execução; o documento não é prova de produção. As configurações remotas e PRs abaixo foram registradas separadamente, com runtime ainda pendente onde indicado.
 >
 > **Para execução pelo Codex:** usar `executing-plans`, manter a checklist deste arquivo atualizada e operar os painéis dos provedores pelo navegador com sessões autenticadas. Login, MFA, CAPTCHA e qualquer confirmação de ação externa permanecem sob controle do usuário; credenciais, tokens, códigos de recuperação e OTPs não entram em prompts, terminal, commits, screenshots ou evidências.
 
 **Origem:** [Issue #710](https://github.com/luccafwlog/vela/issues/710), lida no GitHub autenticado em 2026-09-22.
 
-**Objetivo:** reduzir o tempo de detecção e recuperação de falhas, endurecer as fronteiras de autenticação e supply chain e provar restauração de dados, preservando GitHub, Vercel, Supabase, Resend, Sentry e Registro.br como núcleo da stack e mantendo os novos serviços no free tier enquanto o volume permitir.
+**Objetivo:** reduzir o tempo de detecção e recuperação de falhas, endurecer as fronteiras de autenticação e supply chain e provar restauração de dados, preservando GitHub, Vercel, Supabase, Resend, Sentry e Registro.br como núcleo da stack e mantendo os novos serviços no free tier enquanto o volume permitir. A primeira entrega não inclui MFA; essa frente fica adiada até nova decisão explícita.
 
-**Resultado observável:** o Vela e o Portal continuam com as mesmas URLs e fluxos, mas passam a bloquear abuso antes do Auth, exigir MFA dos papéis internos definidos (`admin`, `administrativo` e `financeiro`), expor estado operacional público, gerar alertas acionáveis para falhas de frontend/backend/cron e recuperar dados por procedimento ensaiado. No Portal, o cliente vê o status do serviço no rodapé e conclui desafios anti-bot nos fluxos públicos; os processos financeiros continuam utilizando o fluxo estável de emissão estática e conciliação manual existente.
+**Resultado observável:** o Vela e o Portal continuam com as mesmas URLs e fluxos, passam a bloquear abuso antes do Auth, expor estado operacional público, gerar alertas acionáveis para falhas de frontend/backend/cron e recuperar dados por procedimento ensaiado. MFA interno fica fora da primeira entrega; o captcha/Turnstile permanece uma decisão operacional separada. No Portal, o cliente vê o status do serviço no rodapé e conclui desafios anti-bot quando essa frente for habilitada; os processos financeiros continuam utilizando o fluxo estável de emissão estática e conciliação manual existente.
+
+### Atualização de execução — 2026-09-22
+
+- Decisões do owner registradas: sem GitHub Team, Dependabot semanal, Better Stack, PostHog Cloud EU, R2 como reserva, backup diário e MFA adiado; alertas destinados somente a `lucca.juliatti@fwlog.com.br`.
+- Recursos remotos já criados, mas ainda não equivalem a entrega: zonas Cloudflare aguardando troca de nameservers, bucket R2 privado com lifecycle, projeto PostHog EU sem eventos, Redis Upstash Free em São Paulo, dois monitores HTTP Better Stack e DSNs/variáveis públicas de Sentry/PostHog na Vercel.
+- PRs de execução abertas: [#720](https://github.com/luccafwlog/vela/pull/720), [#725](https://github.com/luccafwlog/vela/pull/725), [#726](https://github.com/luccafwlog/vela/pull/726), [#727](https://github.com/luccafwlog/vela/pull/727) e [#728](https://github.com/luccafwlog/vela/pull/728). A [PR #718](https://github.com/luccafwlog/vela/pull/718) foi incorporada à `main` como remediação relacionada, não como encerramento desta Issue.
+- O runtime de produção, a troca de nameservers, a configuração de secrets, os envios de email, o agendamento do backup e os testes de restore continuam pendentes. Nenhum desses gates é fechado por build ou CI verde.
 
 ## 1. Limites, restrições e fontes de verdade
 
@@ -43,15 +50,15 @@ Registrar as decisões em comentário da Issue 710 e, quando alterarem arquitetu
 
 | Gate | Decisão / autorização | Padrão proposto | Bloqueia |
 |---|---|---|---|
-| G1 | Autorizar delegação dos NS de cada domínio para Cloudflare e definir janela/owner | `vela.app.br` primeiro; `portalfwlog.com.br` após 24 h verde | M1 produção, M8 captcha e M11 DNS |
-| G2 | Better Stack ou Checkly; destinatários e escalonamento noturno | Better Stack para uptime, heartbeat, status e logs | M2 e M4 |
-| G3 | Organização/canais Sentry e quem pode acessar Replay | dois projetos (`vela-interno`, `portal`), Replay restrito ao menor grupo operacional | M3 |
-| G4 | Dependabot ou Renovate; política de review de `main` | Dependabot semanal, `checks` + 1 review + sem push direto | M6 |
-| G5 | Upstash e região; limiar final de bloqueio | 10 erros por IP+CNPJ, bloqueio de 5 min, fail-closed somente para abuso confirmado | M7 |
-| G6 | Papéis sujeitos a MFA, graça e custódia de recovery codes | `admin`, `administrativo` e `financeiro`, rollout por coorte e 7 dias de graça | M8 |
-| G7 | PostHog Cloud EU e base legal/retention; flag authority | Cloud EU, IDs pseudônimos, sem autocapture/replay | M9 |
-| G8 | PITR disponível/custo e destino da chave R2 | cotar antes de ligar; dump criptografado com chave fora do bucket | M10 |
-| G9 | Endereços de relatório DMARC e passagem `quarantine → reject` | Postmark DMARC; avançar após 14 dias com alinhamento estável | M11 |
+| G1 | Autorização concedida para Cloudflare; janela e troca efetiva de NS ainda exigem confirmação no momento do cutover | `vela.app.br` primeiro; `portalfwlog.com.br` após 24 h verde | M1 produção e M11 DNS |
+| G2 | Better Stack escolhido; destinatário único `lucca.juliatti@fwlog.com.br`; escalonamento/status ainda pendentes | Better Stack para uptime, heartbeat, status e logs | M2 e M4 |
+| G3 | Sentry autenticado; dois projetos e DSNs criados; Replay permanece desligado até validação | dois projetos (`vela-interno`, `portal`), sem Replay na primeira entrega | M3 |
+| G4 | Dependabot escolhido; GitHub Team não será contratado; regras indisponíveis no plano devem ser registradas | Dependabot semanal; preservar checks disponíveis | M6 |
+| G5 | Upstash aprovado em São Paulo; limiar final aprovado | 10 erros por IP+CNPJ, bloqueio de 5 min, fail-closed somente para abuso confirmado | M7 |
+| G6 | MFA explicitamente adiado pelo owner | fora da primeira entrega; reabrir somente por decisão explícita | M8 MFA |
+| G7 | PostHog Cloud EU aprovado; sem autocapture/replay e sem PII | Cloud EU, IDs pseudônimos, sem autocapture/replay | M9 |
+| G8 | R2 aprovado e ativado; backup diário escolhido; PITR ainda depende de custo/benefício | dump criptografado diário com chave fora do bucket | M10 |
+| G9 | Destinatário e domínios ainda não definidos para o novo fluxo de email | só avançar após baseline DNS/Resend e definição do remetente | M11 |
 
 ## 3. Contrato de execução pelo navegador autenticado
 
@@ -153,17 +160,15 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 - [ ] Testar rate-limit com tráfego sintético autorizado e baixo volume; não usar força bruta real. Rollback: desativar proxy/regra isolada ou restaurar NS/DS a partir do inventário; não trocar o segundo domínio com o primeiro instável.
 - [ ] Atualizar `docs/setup/deploy.md`, arquitetura, segurança e runbook DNS.
 
-### M8 — MFA interno e captcha no Portal
+### M8 — Captcha no Portal; MFA interno adiado
 
-**Comportamento operacional:** após a graça, usuário `admin`, `administrativo` ou `financeiro` sem AAL2 não acessa áreas protegidas; os fluxos públicos do Portal exigem Turnstile válido, com erro recuperável para humanos e recusa antes do trabalho caro do Auth.
+**Comportamento operacional da primeira entrega:** os fluxos públicos do Portal podem exigir Turnstile válido, com erro recuperável para humanos e recusa antes do trabalho caro do Auth. MFA interno não será imposto nesta entrega; os itens de enrolamento, AAL2, recovery codes e enforcement permanecem adiados.
 
-- [ ] Modelar enrolamento/garantia MFA: página ou modal interno, status, QR/TOTP, verificação, recovery codes, perda de dispositivo e suporte. Não guardar recovery codes no banco de negócio nem em logs.
-- [ ] Implementar guarda de sessão AAL2 em `src/hooks/useAuth.tsx` e nos componentes de rota, mas impor a política também server-side/RPC para operações privilegiadas (inclusive liquidações financeiras e cadastros administrativos); UI sozinha não atende o requisito. Definir claims/política em migration/Hook suportado pelo Supabase.
-- [ ] Habilitar TOTP primeiro para coorte piloto no Supabase autenticado e depois para os papéis definidos (`admin`, `administrativo` e `financeiro`). Evitar ligar enforcement global antes de todos os owners terem fator e recuperação testada.
+- [x] **Adiado por decisão do owner:** modelar enrolamento/garantia MFA, AAL2, recovery codes e enforcement server-side somente após nova autorização explícita.
 - [ ] Integrar widget Turnstile em `src/pages/PortalLogin.tsx`, `PortalAtivacao.tsx`, `PortalForgotPassword.tsx`/reset conforme ameaça. Encaminhar apenas token efêmero às Edge Functions; validar com secret server-side antes de resolver conta/chamar Auth.
 - [ ] Alinhar `supabase/config.toml` ao estado remoto suportado sem commitar secret. Confirmar se Supabase Auth CAPTCHA cobre chamadas feitas dentro de `portal-login`; se não, manter verificação explícita na Edge Function.
-- [ ] Testes de UI/hooks, Edge Functions e policy AAL; browser autenticado testa enrolar, sair, entrar, refresh, graça, recovery e recusa. Testar chaves Turnstile próprias de teste em Preview.
-- [ ] Atualizar segurança, auth, deploy e suporte. Rollback: suspender enforcement mantendo fatores enrolados; rotacionar/revogar segredo Turnstile se exposto.
+- [ ] Testes de UI/Edge Functions para Turnstile; validar recusa e recuperação em Preview com chaves próprias de teste, sem alterar a política MFA adiada.
+- [ ] Atualizar segurança, auth, deploy e suporte para a decisão de escopo. Rollback: remover a verificação Turnstile e revogar o segredo se exposto; não há enforcement MFA para suspender nesta entrega.
 
 ### M7 — Upstash Redis para bloqueio distribuído e idempotência
 
@@ -198,12 +203,12 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 - [ ] Testes de schema/PII e runtime com fixtures. Inspecionar payload na rede e dez eventos no painel.
 - [ ] Atualizar privacidade, arquitetura, CSP e operação. Rollback: default da flag local, remover key/script e manter chave global atual.
 
-### M10 — PITR, dump em R2 e restore ensaiado
+### M10 — PITR, dump diário em R2 e restore ensaiado
 
-**Comportamento operacional:** a equipe conhece RPO/RTO reais, recebe alerta quando o backup semanal falha e consegue restaurar Viagem, B/Ls e faturas até o ponto aprovado em ambiente descartável.
+**Comportamento operacional:** a equipe conhece RPO/RTO reais, recebe alerta quando o backup diário falha e consegue restaurar Viagem, B/Ls e faturas até o ponto aprovado em ambiente descartável.
 
 - [ ] No Supabase autenticado, confirmar plano, frequência/retenção de backups e disponibilidade/preço do PITR; não ativar upgrade sem G8. Registrar RPO/RTO contratual mostrado no painel.
-- [ ] Definir pipeline de `pg_dump` semanal a partir de credencial read-only/backup apropriada, criptografia client-side, upload versionado no R2, checksum, `pg_restore --list`, retenção 90 dias e lifecycle. Não colocar connection string ou chave no GitHub log/artifact.
+- [ ] Definir pipeline de `pg_dump` diário a partir de credencial read-only/backup apropriada, criptografia client-side, upload versionado no R2, checksum, `pg_restore --list`, retenção 90 dias e lifecycle. Não colocar connection string ou chave no GitHub log/artifact.
 - [ ] Escolher executor confiável (GitHub Actions com environment protegido ou serviço de backup) e proteção contra exfiltração em PR. Workflow de PR nunca recebe credenciais produtivas.
 - [ ] Provisionar bucket privado, versioning/Object Lock quando disponível, lifecycle, chave e alertas pelo navegador autenticado. Separar capacidade de gravar backup de capacidade de apagar versões.
 - [ ] Criar `scripts/backup/` e runbook `docs/operations/backup-restore.md`; validar checksum e listar conteúdo a cada execução. Heartbeat em M2 para sucesso/falha.
