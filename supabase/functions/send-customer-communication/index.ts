@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders, withCors } from '../_shared/cors.ts'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttachment, type EmailAttemptRecord } from '../_shared/email.ts'
 import {
   assertValidCommunicationAttachments,
@@ -678,4 +679,6 @@ async function handler(req: Request): Promise<Response> {
   }, origin)
 }
 
-if (typeof Deno !== 'undefined') Deno.serve(withCors(handler))
+if (typeof Deno !== 'undefined') {
+  Deno.serve(instrumentEdgeHandler('send-customer-communication', withCors(handler)))
+}

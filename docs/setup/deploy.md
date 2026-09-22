@@ -285,6 +285,13 @@ Function registra simulação e não exige chamada ao Resend; para envio real, o
 remetente, reply-to e `RESEND_API_KEY` precisam estar configurados. Resend não é
 migrado para Vercel Functions.
 
+As Edge Functions instrumentadas com Sentry usam o manifesto compartilhado
+`supabase/functions/deno.json`, referenciado individualmente como `import_map`
+em `supabase/config.toml`. Mantenha a versão do SDK nesse manifesto e publique
+as Functions alteradas pelo fluxo normal do Supabase; o deploy do frontend na
+Vercel não publica nem ativa essa telemetria. Sem `SENTRY_DSN`, o adaptador fica
+inativo.
+
 A régua de Demurrage exige o segredo server-side `DEMURRAGE_DUNNING_SECRET`.
 O mesmo valor precisa estar no Supabase Vault sob o **mesmo nome**, junto de
 `SUPABASE_URL`, para que o `pg_cron` consiga chamar a Edge Function

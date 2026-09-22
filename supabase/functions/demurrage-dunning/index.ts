@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { renderDemurrageTemplate } from '../_shared/customerCommunicationTemplates.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttemptRecord } from '../_shared/email.ts'
 
@@ -781,4 +782,4 @@ async function handler(req: Request): Promise<Response> {
   return json(releaseFailures ? 500 : 200, { claimed: candidates.length, sent, simulated, partial, failed, paused, releaseFailures })
 }
 
-if (typeof Deno !== 'undefined') Deno.serve(handler)
+if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('demurrage-dunning', handler))

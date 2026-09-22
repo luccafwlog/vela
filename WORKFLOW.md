@@ -702,6 +702,14 @@ essas etapas no Supabase antes do frontend que depende delas.
 verdadeiro e associa o release ao commit injetado no build. Isso inclui builds
 de Preview; não significa exclusivamente o ambiente remoto de produção.
 
+As Edge Functions prioritárias usam o helper best-effort
+`supabase/functions/_shared/telemetry.ts`: sem `SENTRY_DSN`, ele não envia
+eventos; quando configurado, captura exceções não tratadas e respostas 5xx sem
+mensagens brutas, usuário, headers ou corpos HTTP. Não coloque valores de
+cliente em tags/extra. Valide em Preview e confirme o ambiente antes de ativar
+o DSN de produção. O SDK Deno está em beta e não isola automaticamente escopos
+por requisição.
+
 - falhas principais devem chegar à UI e interromper a operação insegura;
 - escritas best-effort podem seguir, mas precisam chamar a telemetria;
 - não envie segredos ou PII em contexto de erro;

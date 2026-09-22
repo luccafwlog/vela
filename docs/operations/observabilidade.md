@@ -7,21 +7,29 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
 
 - `src/main.tsx` inicializa a aplicação interna com `initTelemetry('internal')`;
 - `src/portal-main.tsx` inicializa o Portal com `initTelemetry('portal')`;
-- `src/lib/telemetry.ts` captura somente telemetria de browser em builds de
-  produção, remove query strings e redige CNPJ, CPF e e-mail;
+- `src/lib/telemetryContract.ts` centraliza sanitização compartilhada de texto,
+  valores aninhados e URLs, usada pelo browser e pelas Edge Functions;
+- `src/lib/telemetry.ts` captura erros de browser em builds de produção,
+  remove query strings e redige CNPJ, CPF e e-mail;
+- dez Edge Functions têm wrapper repository-side que reporta exceções não
+  tratadas e respostas HTTP 5xx apenas se `SENTRY_DSN` estiver configurado;
+  erros brutos, corpo/resposta HTTP, usuário e headers não são enviados;
+- o helper Edge carrega o SDK Sentry sob demanda e fica em no-op sem `SENTRY_DSN`;
 - o projeto Vercel `vela` publica `index.html` em `https://vela.app.br` e
   `fwlog-portal` publica `portal.html` em `https://portalfwlog.com.br`;
-- Edge Functions, `pg_cron` e Supabase ainda não enviam eventos ao Sentry nem
-  pings de heartbeat ao Better Stack.
+- heartbeats para `pg_cron` ainda não foram implementados.
 
 Essa é inspeção estática do checkout. Não prova disponibilidade dos domínios,
-entrega de eventos ou execução de jobs remotos.
+presença do secret `SENTRY_DSN`, entrega de eventos, alertas ou execução de jobs
+remotos. O SDK oficial Sentry para Deno está em beta; o runtime do projeto ainda
+precisa ser validado em Preview antes de configurar o DSN de produção.
 
 ## M2 — Better Stack
 
 ### Monitores HTTP iniciais
 
-Ao provisionar o Better Stack, criar monitores HTTP públicos e sem autenticação:
+Quando houver monitores ativos no Better Stack, os HTTP checks públicos e sem
+autenticação esperados são:
 
 | Monitor | URL | Sucesso mínimo | Cadência |
 |---|---|---|---|
@@ -46,6 +54,7 @@ sem URL no código e sem segredo no Git:
 | `portal-email-events-runner` | confirmar antes do cadastro |
 | `import-effects-runner` | confirmar antes do cadastro |
 | `recalc-demurrage-ptax` | confirmar antes do cadastro |
+| `portal-daily-digest` | confirmar antes do cadastro |
 
 O ping de sucesso deve ocorrer somente depois da execução bem-sucedida do job.
 O monitor deve alertar pela ausência de um ping além da janela acordada
@@ -53,9 +62,12 @@ O monitor deve alertar pela ausência de um ping além da janela acordada
 quando existir, deve ser um secret server-side do runner/Supabase Vault; nunca
 uma variável `VITE_*`, fixture, migration ou valor versionado.
 
-**Lacuna atual:** não há código repository-side que emita esses pings. A
-instrumentação dos seis runners, a confirmação das cadências e a configuração
-do destinatário do alerta são uma mudança posterior e separada.
+**Lacuna atual:** não há código repository-side que emita esses pings. Em
+2026-09-22, o painel autenticado do Better Stack mostrou “Create your first
+monitor”; portanto, o registro anterior de dois monitores foi superado e deve
+ser tratado como desatualizado. Nenhum monitor ou status page está confirmado
+agora. A configuração remota, cadências e destinatário do alerta continuam
+pendentes.
 
 ## M3 — projetos Sentry separados
 
@@ -79,6 +91,35 @@ As garantias atuais permanecem: `sendDefaultPii: false`, redação de query
 strings/tokens e de CNPJ, CPF e e-mail, `sourcemap: 'hidden'` e tags de
 superfície. O Portal também aplica `area=portal` depois de hidratar a sessão.
 
+### Erros das Edge Functions
+
+`supabase/functions/_shared/telemetry.ts` usa o SDK oficial `@sentry/deno`
+(`npm:@sentry/deno@10.73.0`) somente quando uma função falha com exceção não
+tratada ou resposta 5xx. O wrapper é aplicado a `portal-invite-send`,
+`send-customer-communication`, `portal-email-webhook`, `demurrage-dunning` e
+seis runners. Captura apenas classe genérica de erro e tags operacionais
+(função, ambiente, status e duração); não envia mensagem original, usuário,
+headers, request body nem response body. O flush tem limite de um segundo e a
+falha do Sentry não muda o resultado da função.
+As dez entradas em `supabase/config.toml` apontam para o manifesto Deno
+compartilhado em `supabase/functions/deno.json`; a configuração não altera
+`verify_jwt` nem os contratos HTTP.
+
+O segredo server-side esperado é `SENTRY_DSN`; `SENTRY_ENVIRONMENT` e
+`SENTRY_RELEASE` são opcionais. Sem DSN, não há envio. Em 2026-09-22, o painel
+de secrets do projeto Supabase de produção não listava `SENTRY_DSN`; nenhum DSN
+foi adicionado nesta etapa. A configuração Preview e o recebimento de eventos
+continuam sem validação.
+O SDK Deno do Sentry está em beta e não faz escopo automático por requisição;
+cada evento usa `withScope` para impedir compartilhamento de tags entre
+invocações. Primeiro valide em Preview antes de gravar o DSN de produção.
+
+Os contratos puros são testados por Vitest e por
+`deno test --config supabase/functions/deno.json supabase/functions/_shared/telemetry_test.ts`.
+Para rollback, remover `instrumentEdgeHandler` da função afetada mantém seu
+handler original; alternativamente, sem `SENTRY_DSN` o helper é no-op. A
+captura não é dependência de negócio.
+
 ### Procedimento quando houver autorização do provedor
 
 1. Criar/confirmar os projetos Sentry `vela-interno` e `portal` na mesma
@@ -88,18 +129,22 @@ superfície. O Portal também aplica `area=portal` depois de hidratar a sessão.
    Preview conforme a política da organização.
 3. Configurar `VITE_SENTRY_ENVIRONMENT=production` em Production e
    `preview` em Preview; gerar novo deploy dos dois projetos.
-4. Verificar um evento controlado em cada projeto, conferindo `release`,
-   `environment`, `surface` e ausência de PII/token no evento. Essa verificação
-   é externa ao checkout e não foi executada nesta tarefa.
+4. Validar em Preview o browser e uma Edge Function, conferindo `release`,
+   `environment`, `surface`, status e ausência de PII/token; o runtime Preview
+   ainda precisa ser exercitado.
 5. Só então configurar a regra de alerta para novos issues em
    `environment=production`, com rate limit e destinatário aprovados.
 
 ## Fora do escopo e blockers
 
-- Não foram criados Better Stack, Sentry, Slack/Teams ou status-page accounts.
+- A conta Better Stack existe, mas o painel autenticado mostrou zero monitores
+  e nenhuma status page em 2026-09-22. Sentry já tem projetos; esta tarefa não
+  cria integrações de canal.
 - Não foram gerados API keys, heartbeat URLs, DNS records ou alertas.
-- Não foram alterados PostHog, R2 ou `.github/dependabot.yml`.
+- Não foram alterados PostHog ou R2. `.github/dependabot.yml` agora também
+  acompanha as dependências Deno declaradas no manifesto das Edge Functions.
 - A separação efetiva de projetos depende da configuração Vercel/Sentry e de
-  um deploy; a entrega deste patch é apenas o contrato e o fallback seguro.
+  deploys; a instrumentação Edge depende ainda de um DSN server-side e validação
+  de runtime.
 - Heartbeats de `pg_cron` dependem de uma implementação posterior nos runners
   e da confirmação das cadências reais no ambiente remoto.

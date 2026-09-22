@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { dailyDigestTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { canonicalPortalOrigin, portalSupportEmail } from '../_shared/portalUrls.ts'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 function timingSafeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder()
@@ -13,7 +14,7 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
-if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
+if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-daily-digest', async (req) => {
   if (req.method !== 'POST') return new Response(null, { status: 405 })
   const expectedSecret = Deno.env.get('PORTAL_DIGEST_SECRET')
   const providedSecret = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
@@ -40,4 +41,4 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     if (email) await sendPortalEmail({ admin, kind: 'resumo_diario', to: email, subject: template.subject, html: template.html, text: template.text, idempotencyKey: `resumo:${date}:${email.toLowerCase()}` })
   }
   return new Response(JSON.stringify({ sent: users?.length ?? 0 }), { status: 200 })
-})
+}))
