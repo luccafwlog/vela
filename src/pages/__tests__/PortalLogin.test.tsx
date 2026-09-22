@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom'
 
 const auth = vi.hoisted(() => ({
   signIn: vi.fn(),
+  signOutError: null as string | null,
 }))
 
 vi.mock('../../hooks/usePortalAuth', () => ({
@@ -13,6 +14,7 @@ vi.mock('../../hooks/usePortalAuth', () => ({
     isAuthenticated: false,
     loading: false,
     signIn: auth.signIn,
+    signOutError: auth.signOutError,
   }),
 }))
 
@@ -26,6 +28,7 @@ import { PortalLogin } from '../PortalLogin'
 afterEach(() => {
   cleanup()
   auth.signIn.mockReset()
+  auth.signOutError = null
 })
 
 
@@ -109,4 +112,30 @@ it('senha errada em CNPJ completo mantem a mensagem generica de credenciais', as
   await user.click(screen.getByRole('button', { name: 'Entrar no portal' }))
 
   await waitFor(() => expect(screen.getByText('Credenciais inválidas para o portal do cliente.')).toBeTruthy())
+})
+
+it('exibe o aviso quando a revogacao remota falha depois que a tela de login ja montou', () => {
+  // Fluxo real: clearSession redireciona para o login antes do timeout de 5s.
+  const view = render(
+    <MemoryRouter>
+      <PortalLogin />
+    </MemoryRouter>,
+  )
+  expect(screen.queryByText(/A revogação no servidor não pôde ser confirmada/)).toBeNull()
+
+  auth.signOutError = 'Tempo limite excedido na revogação remota de sessão (rede indisponível).'
+  view.rerender(
+    <MemoryRouter>
+      <PortalLogin />
+    </MemoryRouter>,
+  )
+  expect(screen.getByText(/A revogação no servidor não pôde ser confirmada/)).toBeTruthy()
+
+  auth.signOutError = null
+  view.rerender(
+    <MemoryRouter>
+      <PortalLogin />
+    </MemoryRouter>,
+  )
+  expect(screen.queryByText(/A revogação no servidor não pôde ser confirmada/)).toBeNull()
 })

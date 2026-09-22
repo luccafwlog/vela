@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { MessageSquare, Send } from 'lucide-react'
 import { usePortalAddDisputeMessage, usePortalRequestDisputeReopen } from '../../hooks/usePortalDisputes'
-import { portalUploadDisputeAttachment } from '../../services/portalBilling'
+import { portalCheckDisputeAttachmentEligibility, portalUploadDisputeAttachment } from '../../services/portalBilling'
 import { usePortalScope } from '../../hooks/usePortalScope'
 import type { PortalDispute } from '../../services/portalBilling'
 import { formatDate } from '../../lib/utils'
@@ -28,26 +28,95 @@ export function PortalDisputeConversation({ disputes }: { disputes: PortalDisput
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [errors, setErrors] = useState<Record<number, string>>({})
   const [files, setFiles] = useState<Record<number, File | null>>({})
+  const [pendingMessageIds, setPendingMessageIds] = useState<Record<number, number | null>>({})
+  const [isUploading, setIsUploading] = useState<Record<number, boolean>>({})
 
   if (!disputes.length) return null
 
   async function submit(dispute: PortalDispute) {
+    const pendingMsgId = pendingMessageIds[dispute.id]
+    const file = files[dispute.id]
     const body = (drafts[dispute.id] ?? '').trim()
+
+    // V-A2: Se houver um anexo pendente de envio para uma mensagem já gravada e sem novo texto
+    if (pendingMsgId && file && !body) {
+      setErrors((current) => ({ ...current, [dispute.id]: '' }))
+      setIsUploading((current) => ({ ...current, [dispute.id]: true }))
+      try {
+        await portalUploadDisputeAttachment(pendingMsgId, dispute.id, file, scope)
+        setFiles((current) => ({ ...current, [dispute.id]: null }))
+        setPendingMessageIds((current) => ({ ...current, [dispute.id]: null }))
+      } catch (uploadError) {
+        const uploadMsg = portalErrorMessage(uploadError, 'Falha ao enviar anexo.')
+        setErrors((current) => ({
+          ...current,
+          [dispute.id]: `Não foi possível enviar o anexo: ${uploadMsg}`,
+        }))
+      } finally {
+        setIsUploading((current) => ({ ...current, [dispute.id]: false }))
+      }
+      return
+    }
+
     if (!body) {
       setErrors((current) => ({ ...current, [dispute.id]: 'Escreva uma mensagem antes de enviar.' }))
       return
     }
     setErrors((current) => ({ ...current, [dispute.id]: '' }))
+
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setErrors((current) => ({ ...current, [dispute.id]: 'O anexo excede o limite de 10 MB.' }))
+        return
+      }
+      const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'text/plain']
+      if (!allowed.includes(file.type)) {
+        setErrors((current) => ({ ...current, [dispute.id]: 'Tipo de anexo não permitido. Use PDF, JPG, PNG ou TXT.' }))
+        return
+      }
+
+      // V-A2: Pré-validação de elegibilidade (cota e taxa) no servidor ANTES de criar a mensagem
+      setIsUploading((current) => ({ ...current, [dispute.id]: true }))
+      try {
+        await portalCheckDisputeAttachmentEligibility(dispute.id, file.size, scope)
+      } catch (checkError) {
+        setErrors((current) => ({
+          ...current,
+          [dispute.id]: portalErrorMessage(checkError, 'Não é possível anexar o arquivo (cota ou limite excedido).'),
+        }))
+        setIsUploading((current) => ({ ...current, [dispute.id]: false }))
+        return
+      }
+      setIsUploading((current) => ({ ...current, [dispute.id]: false }))
+    }
+
     try {
       if (dispute.state === 'resolvida') {
         await requestReopen.mutateAsync({ disputeId: dispute.id, body })
+        setDrafts((current) => ({ ...current, [dispute.id]: '' }))
+        setFiles((current) => ({ ...current, [dispute.id]: null }))
+        setPendingMessageIds((current) => ({ ...current, [dispute.id]: null }))
       } else {
         const result = await addMessage.mutateAsync({ demurrageInvoiceId: dispute.demurrage_invoice_id, body })
-        const file = files[dispute.id]
-        if (file && result?.message_id && scope.customerId) await portalUploadDisputeAttachment(result.message_id, dispute.id, scope.customerId, file, scope)
+        // Limpa o rascunho de texto imediatamente após a mensagem ser gravada para evitar duplicações
+        setDrafts((current) => ({ ...current, [dispute.id]: '' }))
+
+        if (file && result?.message_id) {
+          try {
+            await portalUploadDisputeAttachment(result.message_id, dispute.id, file, scope)
+            setFiles((current) => ({ ...current, [dispute.id]: null }))
+            setPendingMessageIds((current) => ({ ...current, [dispute.id]: null }))
+          } catch (uploadError) {
+            const uploadMsg = portalErrorMessage(uploadError, 'Falha ao enviar anexo.')
+            setPendingMessageIds((current) => ({ ...current, [dispute.id]: result.message_id }))
+            setErrors((current) => ({
+              ...current,
+              [dispute.id]: `Sua mensagem foi registrada, mas o anexo não pôde ser enviado: ${uploadMsg}`,
+            }))
+            return
+          }
+        }
       }
-      setDrafts((current) => ({ ...current, [dispute.id]: '' }))
-      setFiles((current) => ({ ...current, [dispute.id]: null }))
     } catch (error) {
       setErrors((current) => ({ ...current, [dispute.id]: portalErrorMessage(error, 'Falha ao enviar a mensagem.') }))
     }
@@ -96,13 +165,17 @@ export function PortalDisputeConversation({ disputes }: { disputes: PortalDisput
                 {errors[dispute.id] ? <InlineError message={errors[dispute.id]} /> : null}
                 <div className="flex justify-end">
                   <Button
-                    loading={addMessage.isPending || requestReopen.isPending}
+                    loading={addMessage.isPending || requestReopen.isPending || Boolean(isUploading[dispute.id])}
                     disabled={readOnly}
                     onClick={() => void submit(dispute)}
                     title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
                   >
                     <Send size={14} />
-                    {dispute.state === 'resolvida' ? 'Solicitar reabertura' : 'Enviar mensagem'}
+                    {pendingMessageIds[dispute.id] && files[dispute.id] && !(drafts[dispute.id] ?? '').trim()
+                      ? 'Reenviar anexo'
+                      : dispute.state === 'resolvida'
+                        ? 'Solicitar reabertura'
+                        : 'Enviar mensagem'}
                   </Button>
                 </div>
               </div>

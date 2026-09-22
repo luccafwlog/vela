@@ -106,7 +106,7 @@ describe('recuperação reusa o convite vivo em vez de enviar email novo', () =>
   // um cliente real — e cancelava o link que o cliente estava lendo.
   it('procura o convite reusável antes de invalidar os pendentes', () => {
     expect(indexOf(recovery, 'findReusableRecoveryInvite(admin, account.id')).toBeLessThan(indexOf(recovery, "update({ status: 'invalidado_por_reenvio' })"))
-    expect(recovery).toContain('if (liveInvite) return accepted()')
+    expect(recovery).toContain('if (liveInvite) return')
   })
 
   // Reuso é sobre um link que o cliente possa ler AGORA: o convite tem de estar
@@ -124,5 +124,11 @@ describe('recuperação reusa o convite vivo em vez de enviar email novo', () =>
 
   it('o caminho de reuso devolve a mesma resposta dos demais casos elegíveis', () => {
     expect(recovery).toContain("const accepted = () => new Response(JSON.stringify({ accepted: true }), { status: 200, headers: { 'Content-Type': 'application/json' } })")
+  })
+
+  it('processa a recuperação em segundo plano com EdgeRuntime.waitUntil para eliminar canal lateral temporal', () => {
+    expect(recovery).toContain('EdgeRuntime.waitUntil(recoveryWork)')
+    expect(indexOf(recovery, "admin.rpc('portal_recovery_register_failure'")).toBeLessThan(indexOf(recovery, 'EdgeRuntime.waitUntil(recoveryWork)'))
+    expect(indexOf(recovery, 'EdgeRuntime.waitUntil(recoveryWork)')).toBeLessThan(recovery.lastIndexOf('return accepted()'))
   })
 })
