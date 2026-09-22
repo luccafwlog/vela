@@ -161,7 +161,7 @@ export function Painel() {
                   <span
                     className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${
                       card.activeCount > 0
-                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
                         : 'bg-slate-500/10 text-[var(--app-muted)]'
                     }`}
                   >
@@ -182,7 +182,7 @@ export function Painel() {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-[var(--app-muted)]">Sem setor / Legado</span>
-                  <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-400 border border-amber-500/20">
+                  <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-400 border border-amber-500/20">
                     {legacyActiveCount}
                   </span>
                 </div>

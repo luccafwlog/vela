@@ -7,7 +7,6 @@ import {
   LogOut,
   Menu,
   Package,
-  ShieldCheck,
   User,
   UserCircle,
   X,
@@ -19,7 +18,7 @@ import { HeaderInfoBar } from './HeaderInfoBar'
 import { InternalNotificationBell } from './InternalNotificationBell'
 import { cn } from '../../lib/utils'
 import {
-  adminNavItems,
+  adminNavItem,
   buildFinancialNavItemsForCounts,
   exportNavItems,
   financialNavItems,
@@ -44,8 +43,6 @@ export function AppLayout() {
   const [desktopExportOpen, setDesktopExportOpen] = useState(false)
   const [mobileFinancialOpen, setMobileFinancialOpen] = useState(false)
   const [desktopFinancialOpen, setDesktopFinancialOpen] = useState(false)
-  const [mobileAdminOpen, setMobileAdminOpen] = useState(false)
-  const [desktopAdminOpen, setDesktopAdminOpen] = useState(false)
   const [isMobileNav, setIsMobileNav] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth <= NAV_COLLAPSE_WIDTH : false,
   )
@@ -65,7 +62,6 @@ export function AppLayout() {
   const isImportSectionActive = importNavItems.some((item) => isPathActive(location.pathname, item.to))
   const isExportSectionActive = exportNavItems.some((item) => isPathActive(location.pathname, item.to))
   const isFinancialSectionActive = financialNavItems.some((item) => isPathActive(location.pathname, item.to))
-  const isAdminSectionActive = adminNavItems.some((item) => isPathActive(location.pathname, item.to))
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(`(max-width: ${NAV_COLLAPSE_WIDTH}px)`)
@@ -76,12 +72,10 @@ export function AppLayout() {
         setMobileImportOpen(false)
         setMobileExportOpen(false)
         setMobileFinancialOpen(false)
-        setMobileAdminOpen(false)
       } else {
         setDesktopImportOpen(false)
         setDesktopExportOpen(false)
         setDesktopFinancialOpen(false)
-        setDesktopAdminOpen(false)
       }
     }
 
@@ -123,8 +117,6 @@ export function AppLayout() {
     setDesktopExportOpen(false)
     setMobileFinancialOpen(false)
     setDesktopFinancialOpen(false)
-    setMobileAdminOpen(false)
-    setDesktopAdminOpen(false)
   }
 
   async function handleSignOut() {
@@ -251,21 +243,7 @@ export function AppLayout() {
 
           <TopNavLink {...reportsNavItem} onNavigate={closeMobileMenus} />
 
-          {isAdmin && (
-            <TopNavDropdownMenu
-              label="Admin"
-              icon={ShieldCheck}
-              items={adminNavItems}
-              isActive={isAdminSectionActive}
-              isMobile={isMobileNav}
-              desktopOpen={desktopAdminOpen}
-              mobileOpen={mobileAdminOpen}
-              onOpenDesktop={() => setDesktopAdminOpen(true)}
-              onCloseDesktop={() => setDesktopAdminOpen(false)}
-              onToggleMobile={() => setMobileAdminOpen((current) => !current)}
-              onNavigate={closeMobileMenus}
-            />
-          )}
+          {isAdmin && <TopNavLink {...adminNavItem} onNavigate={closeMobileMenus} />}
         </nav>
       </div>
 

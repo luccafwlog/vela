@@ -108,7 +108,7 @@ export function BlClienteSection({ bl }: { bl: BLDetail }) {
           </dl>
           {!bl.customer_id && bl.manifest_customer_name && bl.manifest_customer_cnpj_cpf ? (
             !bl.manifest_customer_email?.trim() ? (
-              <div className="rounded-lg bg-amber-950/40 border border-amber-800/40 p-2 text-xs text-amber-300">
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 p-2 text-xs text-amber-900 dark:text-amber-200">
                 O manifesto não possui e-mail. Complete o cadastro do cliente manualmente antes de vincular.
               </div>
             ) : (

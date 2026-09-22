@@ -265,6 +265,12 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByText('COSCO SHIPPING XING WANG · 2401E')).toBeTruthy()
     expect(screen.getByText('3/3')).toBeTruthy() // NOA 3/3
     expect(screen.getByText('2/3')).toBeTruthy() // NOR 2/3
+
+    const table = screen.getByRole('table')
+    const scroll = table.closest('.app-table-scroll')
+    expect(table.classList.contains('app-table')).toBe(true)
+    expect(scroll).not.toBeNull()
+    expect(scroll?.classList.contains('overflow-hidden')).toBe(false)
   })
 
   it('na aba de disparo, valida filtros e exibe a conferência de destinatários com aviso de reenvio', () => {
