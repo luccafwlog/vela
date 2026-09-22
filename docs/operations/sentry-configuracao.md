@@ -1,6 +1,10 @@
-# Guia de Configuração e Uso do Sentry no Vela
+# Guia de Configuração e Uso do Sentry no Vela e no Portal Fwlog
 
-Este documento orienta a equipe sobre a integração do **Sentry** com o Vela, explicando como os erros são capturados, classificados e como configurar o painel web para receber alertas didáticos e objetivos.
+Este documento orienta a equipe sobre a integração do **Sentry** com o Vela e
+com o Portal Fwlog, explicando como os erros são capturados, classificados e
+como configurar o painel web para receber alertas didáticos e objetivos. O
+contrato de DSNs distintos, ambientes Preview/Production e o runbook Better
+Stack estão em [`observabilidade.md`](observabilidade.md).
 
 ---
 
@@ -23,13 +27,14 @@ Antes do envio para o Sentry, todo payload passa por sanitização automática e
 
 Para que as notificações por e-mail e canais de alerta reflitam a identidade do sistema:
 
-### A. Renomear o Projeto de `javascript-react` para `vela`
-1. Acesse [sentry.io](https://sentry.io) e entre na sua organização.
-2. No menu lateral esquerdo, clique em **Settings** > **Projects**.
-3. Selecione o projeto atual (que está com o nome padrão `javascript-react`).
-4. Em **General Settings** > **Project Name**, altere para: `vela`.
-5. Clique em **Save Changes**.
-* **Impacto imediato:** O assunto dos próximos e-mails virá com `[VELA]` em vez de `JAVASCRIPT-REACT-XX`.
+### A. Separar os projetos do Vela e do Portal
+
+O alvo repository-side é um projeto para a aplicação interna (`vela-interno`)
+e outro para o Portal (`portal`), ambos na mesma organização. A seleção ocorre
+no build por `VITE_SENTRY_DSN_INTERNAL` e `VITE_SENTRY_DSN_PORTAL`; não copie um
+DSN de um projeto para o outro. O procedimento de configuração e a evidência
+necessária estão em [`observabilidade.md`](observabilidade.md) e dependem de
+autorização no provedor.
 
 ### B. Configurar Regras de Alerta Inteligentes (Evitar Spam em Testes)
 No Sentry, alertas disparados para todo e qualquer erro durante homologação podem sobrecarregar a caixa de entrada. Recomendamos criar uma regra de alerta focada:

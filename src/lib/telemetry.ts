@@ -3,10 +3,24 @@
 
 import * as Sentry from '@sentry/react'
 
-// DSN do Sentry é público por design (vai no bundle do cliente de qualquer
-// forma); não é segredo. Envio autorizado pela operação em 2026-06-10
-// (auditoria T10 / Open Question 4).
-const SENTRY_DSN = 'https://8fbf8837315ab9f627c2f6e1283bf8d5@o4511542052454400.ingest.us.sentry.io/4511542063464448'
+// DSNs do Sentry são públicos por design (vão no bundle do cliente); não são
+// segredos. Os valores por superfície permitem separar Vela e Portal sem
+// quebrar builds existentes que ainda não receberam as novas variáveis.
+const LEGACY_SENTRY_DSN = 'https://8fbf8837315ab9f627c2f6e1283bf8d5@o4511542052454400.ingest.us.sentry.io/4511542063464448'
+
+export type TelemetrySurface = 'internal' | 'portal'
+
+export function resolveSentryDsn(surface?: TelemetrySurface): string {
+  const configured = surface === 'portal'
+    ? import.meta.env.VITE_SENTRY_DSN_PORTAL
+    : import.meta.env.VITE_SENTRY_DSN_INTERNAL
+  return typeof configured === 'string' && configured.trim() ? configured.trim() : LEGACY_SENTRY_DSN
+}
+
+export function resolveSentryEnvironment(): string {
+  const configured = import.meta.env.VITE_SENTRY_ENVIRONMENT
+  return typeof configured === 'string' && configured.trim() ? configured.trim() : 'production'
+}
 
 const FORMATTED_CNPJ_RE = /\b[0-9A-Z]{2}\.[0-9A-Z]{3}\.[0-9A-Z]{3}\/[0-9A-Z]{4}-[0-9]{2}\b/gi
 const FORMATTED_CPF_RE = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g
@@ -129,10 +143,11 @@ export function scrubEventValue(value: unknown, depth = 0): unknown {
 // Inicializa o relatório de erros em produção. Os default integrations do
 // @sentry/react já capturam window.onerror e onunhandledrejection; o release
 // usa o commit injetado no build (VITE_APP_COMMIT_SHA) para rastrear regressões.
-export function initTelemetry(surface?: 'internal' | 'portal'): void {
+export function initTelemetry(surface?: TelemetrySurface): void {
   if (!import.meta.env.PROD) return
   Sentry.init({
-    dsn: SENTRY_DSN,
+    dsn: resolveSentryDsn(surface),
+    environment: resolveSentryEnvironment(),
     release: (import.meta.env.VITE_APP_COMMIT_SHA as string | undefined) || undefined,
     // Sem replay/tracing: só captura de erros, mantendo payloads mínimos.
     sendDefaultPii: false,

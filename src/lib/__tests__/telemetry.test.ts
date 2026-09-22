@@ -16,6 +16,8 @@ import {
   redactUrlQueryString,
   reportBestEffortFailure,
   reportCaughtException,
+  resolveSentryDsn,
+  resolveSentryEnvironment,
   setTelemetryUser,
   scrubBreadcrumbData,
   scrubEventValue,
@@ -27,6 +29,28 @@ afterEach(() => {
   sentryMock.setUser.mockReset()
   sentryMock.setTag.mockReset()
   sentryMock.captureException.mockReset()
+  sentryMock.init.mockReset()
+  vi.unstubAllEnvs()
+})
+
+describe('Sentry build contract', () => {
+  it('uses the Portal DSN when the Portal build supplies one', () => {
+    vi.stubEnv('VITE_SENTRY_DSN_PORTAL', ' https://portal.example/123 ')
+
+    expect(resolveSentryDsn('portal')).toBe('https://portal.example/123')
+  })
+
+  it('keeps the legacy DSN as a compatibility fallback', () => {
+    vi.stubEnv('VITE_SENTRY_DSN_PORTAL', '')
+
+    expect(resolveSentryDsn('portal')).toBe(resolveSentryDsn('internal'))
+  })
+
+  it('allows Preview and Production to be classified independently', () => {
+    vi.stubEnv('VITE_SENTRY_ENVIRONMENT', 'preview')
+
+    expect(resolveSentryEnvironment()).toBe('preview')
+  })
 })
 
 describe('markStartupStage', () => {
