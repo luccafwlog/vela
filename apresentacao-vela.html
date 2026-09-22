@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Vela + Portal Fwlog | A operação de ponta a ponta</title>
+  <style>
+    :root {
+      --navy: #14233f;
+      --navy-2: #21365d;
+      --ink: #172033;
+      --muted: #5d687a;
+      --paper: #f6f4ef;
+      --white: #fffdfa;
+      --line: #d9d8d2;
+      --amber: #f3a712;
+      --amber-soft: #fff0c7;
+      --teal: #1e8f86;
+      --teal-soft: #dff4ef;
+      --red: #bf4b43;
+      --red-soft: #fae4df;
+      --blue-soft: #e8eef8;
+      --shadow: 0 18px 55px rgba(20, 35, 63, .12);
+      --radius: 24px;
+      --pad-x: clamp(28px, 5vw, 86px);
+      --pad-y: clamp(28px, 5vh, 62px);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink);
+      background: #dfe4eb;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    button, a { font: inherit; }
+    button:focus-visible, a:focus-visible {
+      outline: 4px solid var(--amber);
+      outline-offset: 4px;
+    }
+
+    .deck { position: relative; width: 100vw; height: 100dvh; }
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      overflow: auto;
+      padding: var(--pad-y) var(--pad-x) 92px;
+      background:
+        radial-gradient(circle at 94% 2%, rgba(243,167,18,.13), transparent 26%),
+        linear-gradient(135deg, var(--white), var(--paper));
+    }
+    .slide.active { display: flex; animation: enter .28s ease-out; }
+    @keyframes enter { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+    .slide::before {
+      content: attr(data-chapter);
+      position: absolute;
+      top: 22px;
+      right: var(--pad-x);
+      color: var(--muted);
+      font-size: clamp(12px, 1.1vw, 17px);
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .slide-number {
+      position: absolute;
+      left: var(--pad-x);
+      bottom: 33px;
+      color: var(--muted);
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--teal);
+      font-size: clamp(13px, 1.15vw, 18px);
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 980px;
+      margin-bottom: 22px;
+      color: var(--navy);
+      font-size: clamp(48px, 7vw, 104px);
+      line-height: .96;
+      letter-spacing: -.045em;
+      text-wrap: balance;
+    }
+    h2 {
+      max-width: 1040px;
+      margin-bottom: clamp(18px, 3vh, 34px);
+      color: var(--navy);
+      font-size: clamp(34px, 4.6vw, 68px);
+      line-height: 1.02;
+      letter-spacing: -.035em;
+      text-wrap: balance;
+    }
+    h3 {
+      margin-bottom: 8px;
+      color: var(--navy);
+      font-size: clamp(19px, 1.8vw, 28px);
+      line-height: 1.12;
+    }
+    p, li {
+      font-size: clamp(17px, 1.45vw, 23px);
+      line-height: 1.38;
+      text-wrap: pretty;
+    }
+    strong { color: var(--navy); }
+    .subtitle { max-width: 930px; color: var(--muted); font-size: clamp(21px, 2.2vw, 33px); line-height: 1.3; }
+    .small { font-size: clamp(14px, 1.15vw, 18px); color: var(--muted); }
+    .grow { flex: 1; }
+    .grid-2 { display: grid; grid-template-columns: 1.12fr .88fr; gap: clamp(24px, 4vw, 58px); align-items: center; flex: 1; }
+    .grid-even { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(22px, 3vw, 46px); align-items: stretch; flex: 1; }
+    .stack { display: grid; gap: 18px; }
+    .rule { width: 82px; height: 6px; margin: 4px 0 22px; border-radius: 999px; background: var(--amber); }
+
+    .cover { color: white; background: linear-gradient(135deg, #0e1c35 0%, #1d365d 72%, #214f67 100%); }
+    .cover::before { color: rgba(255,255,255,.65); }
+    .cover h1, .cover strong { color: white; }
+    .cover .subtitle { color: rgba(255,255,255,.78); }
+    .cover-mark {
+      position: absolute;
+      right: 7vw;
+      bottom: 13vh;
+      width: min(33vw, 470px);
+      aspect-ratio: 1;
+      border: 2px solid rgba(255,255,255,.18);
+      border-radius: 50%;
+    }
+    .cover-mark::before, .cover-mark::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.16);
+    }
+    .cover-mark::before { inset: 12%; }
+    .cover-mark::after { inset: 28%; background: var(--amber); border: 0; box-shadow: 0 0 0 22px rgba(243,167,18,.16); }
+    .cover-path { position: absolute; left: 10%; right: 10%; top: 50%; height: 2px; background: rgba(255,255,255,.28); transform: rotate(-16deg); }
+
+    .toc {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 28px;
+      counter-reset: chapters;
+    }
+    .toc a {
+      counter-increment: chapters;
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      align-items: center;
+      min-height: 46px;
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--line);
+    }
+    .toc a::before { content: counter(chapters, decimal-leading-zero); color: var(--teal); font-weight: 800; }
+    .toc a:hover { color: var(--teal); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+      margin: auto 0;
+    }
+    .flow-step {
+      position: relative;
+      display: flex;
+      min-height: 190px;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 22px 18px;
+      border-top: 6px solid var(--teal);
+      background: white;
+      box-shadow: var(--shadow);
+    }
+    .flow-step:nth-child(n+4) { border-top-color: var(--amber); }
+    .flow-step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      right: -18px;
+      width: 20px;
+      height: 3px;
+      background: var(--navy);
+    }
+    .flow-step:not(:last-child)::before {
+      content: "";
+      position: absolute;
+      z-index: 3;
+      top: calc(50% - 5px);
+      right: -19px;
+      border-left: 8px solid var(--navy);
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+    }
+    .flow-step b { color: var(--navy); font-size: clamp(20px, 1.7vw, 28px); }
+    .flow-step span { color: var(--muted); font-size: clamp(14px, 1.15vw, 18px); line-height: 1.3; }
+    .flow-step .dot { width: 20px; height: 20px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 7px var(--teal-soft); }
+    .flow-step:nth-child(n+4) .dot { background: var(--amber); box-shadow: 0 0 0 7px var(--amber-soft); }
+
+    .journey {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 2px solid var(--line);
+    }
+    .journey > div { min-width: 0; }
+    .journey b { display: block; margin-bottom: 4px; color: var(--teal); font-size: clamp(12px, 1vw, 15px); text-transform: uppercase; letter-spacing: .06em; }
+    .journey span { display: block; font-size: clamp(14px, 1.08vw, 17px); line-height: 1.3; }
+
+    .example, .what-if, .owner {
+      padding: 18px 20px;
+      border-radius: 18px;
+      font-size: clamp(15px, 1.2vw, 19px);
+      line-height: 1.35;
+    }
+    .example { background: var(--blue-soft); border-left: 6px solid var(--navy-2); }
+    .what-if { background: var(--amber-soft); border-left: 6px solid var(--amber); }
+    .owner { background: var(--teal-soft); border-left: 6px solid var(--teal); }
+    .label { display: block; margin-bottom: 6px; color: var(--navy); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .compare-card { padding: 26px; background: white; border: 2px solid var(--line); border-radius: var(--radius); }
+    .compare-card.primary { border-color: var(--teal); }
+    .compare-card.secondary { border-color: var(--amber); }
+    .compare-card p:last-child { margin-bottom: 0; }
+    .symbol { display: grid; place-items: center; width: 70px; height: 70px; margin-bottom: 20px; border-radius: 50%; color: white; background: var(--navy); font-size: 24px; font-weight: 800; }
+    .secondary .symbol { color: var(--navy); background: var(--amber); }
+
+    .timeline { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; padding-top: 30px; }
+    .timeline::before { content: ""; position: absolute; top: 17px; left: 4%; right: 4%; height: 4px; background: var(--line); }
+    .time-point { position: relative; padding: 18px 14px; background: white; border-radius: 16px; border-top: 5px solid var(--teal); }
+    .time-point::before { content: ""; position: absolute; top: -25px; left: calc(50% - 8px); width: 16px; height: 16px; border-radius: 50%; background: var(--teal); border: 4px solid var(--white); }
+    .time-point.actual { border-top-color: var(--amber); }
+    .time-point.actual::before { background: var(--amber); }
+    .time-point b { display: block; color: var(--navy); font-size: clamp(20px, 1.8vw, 27px); }
+    .time-point span { display: block; margin-top: 7px; color: var(--muted); font-size: clamp(13px, 1.05vw, 16px); line-height: 1.28; }
+
+    .decision {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+    .decision > article { padding: 24px; background: white; border-radius: var(--radius); border-top: 7px solid var(--navy); }
+    .decision > article:nth-child(2) { border-top-color: var(--teal); }
+    .decision > article:nth-child(3) { border-top-color: var(--amber); }
+    .decision ul { margin: 12px 0 0; padding-left: 22px; }
+    .decision li { margin: 7px 0; }
+
+    .equation { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; margin: 20px 0; }
+    .equation .term { padding: 18px 22px; background: white; border: 2px solid var(--line); border-radius: 16px; color: var(--navy); font-size: clamp(19px, 2vw, 29px); font-weight: 800; }
+    .equation .op { color: var(--teal); font-size: 34px; font-weight: 800; }
+
+    .clock { position: relative; display: grid; place-items: center; width: min(31vw, 340px); aspect-ratio: 1; margin: auto; border: 18px solid var(--navy); border-radius: 50%; background: white; box-shadow: var(--shadow); }
+    .clock::before { content: ""; position: absolute; width: 7px; height: 31%; bottom: 50%; border-radius: 9px; background: var(--teal); transform-origin: bottom; transform: rotate(34deg); }
+    .clock::after { content: ""; position: absolute; width: 7px; height: 22%; bottom: 50%; border-radius: 9px; background: var(--amber); transform-origin: bottom; transform: rotate(120deg); }
+    .clock span { z-index: 2; width: 66%; text-align: center; color: var(--navy); font-weight: 800; font-size: clamp(18px, 1.8vw, 27px); }
+
+    .signatures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .signature { padding: 26px; background: white; border-radius: 18px; border-bottom: 7px solid var(--teal); }
+    .signature:nth-child(2) { border-bottom-color: var(--navy); }
+    .signature:nth-child(3) { border-bottom-color: var(--amber); }
+    .signature .check { float: right; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: white; background: var(--teal); font-weight: 900; }
+
+    .portal-window { overflow: hidden; background: white; border: 2px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); }
+    .portal-top { display: flex; gap: 7px; padding: 14px 18px; background: var(--navy); }
+    .portal-top i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.55); }
+    .portal-body { display: grid; grid-template-columns: 150px 1fr; min-height: 350px; }
+    .portal-nav { padding: 22px 14px; color: white; background: var(--navy-2); }
+    .portal-nav span { display: block; padding: 9px; font-size: 14px; }
+    .portal-content { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 24px; }
+    .portal-content div { min-height: 105px; padding: 16px; border-radius: 14px; background: var(--paper); border-left: 5px solid var(--teal); }
+    .portal-content b { display: block; color: var(--navy); font-size: 18px; }
+    .portal-content span { display: block; margin-top: 8px; color: var(--muted); font-size: 14px; }
+
+    .golden { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; align-items: stretch; flex: 1; }
+    .golden article { display: flex; flex-direction: column; justify-content: space-between; padding: 24px 20px; background: white; border-top: 8px solid var(--teal); box-shadow: var(--shadow); }
+    .golden article:nth-child(even) { border-top-color: var(--amber); }
+    .golden .num { color: var(--navy); font-size: clamp(50px, 5vw, 78px); font-weight: 900; line-height: 1; opacity: .16; }
+    .golden p { margin-bottom: 0; font-size: clamp(17px, 1.35vw, 21px); font-weight: 700; }
+
+    .controls {
+      position: fixed;
+      z-index: 20;
+      left: 50%;
+      bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px;
+      border: 1px solid rgba(255,255,255,.5);
+      border-radius: 999px;
+      background: rgba(20,35,63,.94);
+      box-shadow: 0 10px 30px rgba(0,0,0,.22);
+      transform: translateX(-50%);
+      backdrop-filter: blur(12px);
+    }
+    .controls button {
+      min-width: 46px;
+      height: 46px;
+      padding: 0 16px;
+      border: 0;
+      border-radius: 999px;
+      color: white;
+      background: transparent;
+      cursor: pointer;
+      font-weight: 800;
+    }
+    .controls button:hover:not(:disabled) { color: var(--navy); background: var(--amber); }
+    .controls button:disabled { opacity: .34; cursor: not-allowed; }
+    .controls .counter { min-width: 70px; color: white; text-align: center; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .progress { position: fixed; z-index: 30; top: 0; left: 0; width: 100%; height: 7px; background: rgba(20,35,63,.1); }
+    .progress span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, var(--teal), var(--amber)); transition: width .25s ease; }
+    .print-btn { position: fixed; z-index: 20; top: 18px; left: 20px; border: 0; border-radius: 999px; padding: 10px 15px; color: white; background: var(--navy); cursor: pointer; font-weight: 700; }
+
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      .deck { min-height: 100dvh; height: auto; }
+      .slide { position: relative; min-height: 100dvh; padding-bottom: 110px; }
+      .slide:not(.active) { display: none; }
+      .grid-2, .grid-even, .compare, .decision { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: repeat(2, 1fr); }
+      .flow-step:not(:last-child)::before, .flow-step:not(:last-child)::after { display: none; }
+      .journey { grid-template-columns: 1fr 1fr; }
+      .timeline { grid-template-columns: repeat(2, 1fr); }
+      .golden { grid-template-columns: 1fr 1fr; }
+      .portal-body { grid-template-columns: 1fr; }
+      .portal-nav { display: flex; flex-wrap: wrap; }
+      .cover-mark { opacity: .2; }
+    }
+
+    @media (max-height: 820px) and (min-width: 901px) {
+      :root { --pad-y: 28px; --pad-x: 54px; }
+      .slide { padding-bottom: 78px; }
+      h2 { margin-bottom: 16px; font-size: clamp(32px, 4vw, 54px); }
+      p, li { font-size: clamp(15px, 1.25vw, 19px); }
+      .flow-step { min-height: 150px; padding: 17px 15px; }
+      .compare-card, .decision > article, .signature { padding: 18px; }
+      .example, .what-if, .owner { padding: 13px 16px; }
+      .journey { margin-top: 14px; padding-top: 12px; }
+      .portal-body { min-height: 290px; }
+      .golden article { padding: 18px 16px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .slide.active { animation: none; }
+      .progress span { transition: none; }
+    }
+
+    @media print {
+      @page { size: 13.333in 7.5in; margin: 0; }
+      body { overflow: visible; background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .deck { width: auto; height: auto; }
+      .slide, .slide.active {
+        position: relative;
+        display: flex !important;
+        width: 13.333in;
+        height: 7.5in;
+        overflow: hidden;
+        page-break-after: always;
+        break-after: page;
+        padding: .46in .62in .45in;
+        animation: none;
+      }
+      .controls, .progress, .print-btn { display: none !important; }
+      .slide-number { bottom: .2in; }
+      h1 { font-size: 62pt; }
+      h2 { font-size: 36pt; }
+      p, li { font-size: 14pt; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+  <button class="print-btn" type="button" onclick="window.print()" aria-label="Imprimir apresentação">Imprimir</button>
+
+  <main class="deck" id="deck" aria-live="polite">
+    <section class="slide cover active" id="capa" data-chapter="Vela + Portal Fwlog">
+      <p class="eyebrow">Introdução para toda a empresa</p>
+      <h1>A operação marítima, do navio ao cliente</h1>
+      <div class="rule"></div>
+      <p class="subtitle">Como Vela e Portal Fwlog conectam Operações, Documentação, Equipamentos, Financeiro, Administrativo e Cliente.</p>
+      <div class="cover-mark" aria-hidden="true"><div class="cover-path"></div></div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="sumario" data-chapter="Sumário">
+      <p class="eyebrow">A rota da apresentação</p>
+      <h2>Treze capítulos, uma única história</h2>
+      <nav class="toc" aria-label="Sumário dos capítulos">
+        <a href="#grande-historia">A grande história</a>
+        <a href="#viagem-escala">Viagem, Escala e Atracação</a>
+        <a href="#bl-container">Carga que chega</a>
+        <a href="#revisao">Revisão</a>
+        <a href="#ce-fato-gerador">CE Mercante</a>
+        <a href="#taxas-locais">Taxas Locais e Fatura</a>
+        <a href="#pix">Pagamento via PIX</a>
+        <a href="#demurrage">Demurrage</a>
+        <a href="#adr">ADR</a>
+        <a href="#omissao">Omissão, Transbordo e COD</a>
+        <a href="#portal-acesso">Portal do Cliente</a>
+        <a href="#comunicacao">Comunicação</a>
+        <a href="#cinco-regras">Cinco regras de ouro</a>
+      </nav>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="grande-historia" data-chapter="1 · A grande história">
+      <p class="eyebrow">Ponta a ponta</p>
+      <h2>O Vela organiza o trabalho. O Portal do Cliente mostra o resultado.</h2>
+      <div class="flow" role="img" aria-label="Fluxo do navio até o acompanhamento pelo cliente">
+        <div class="flow-step"><div class="dot"></div><b>Navio</b><span>Viagem, Escalas e Atracações</span></div>
+        <div class="flow-step"><div class="dot"></div><b>Documentos</b><span>B/L, CE Mercante e Manifesto Mercante</span></div>
+        <div class="flow-step"><div class="dot"></div><b>Revisão</b><span>Cliente, peso e pendências</span></div>
+        <div class="flow-step"><div class="dot"></div><b>Cobrança</b><span>Taxas Locais e Demurrage</span></div>
+        <div class="flow-step"><div class="dot"></div><b>Pagamento</b><span>Fatura e Conciliação PIX</span></div>
+        <div class="flow-step"><div class="dot"></div><b>Cliente</b><span>Portal, Comunicados e disputas</span></div>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>Navio X, viagem 123, escala Santos: o mesmo processo nasce na programação, recebe carga e documentos, passa pela Revisão, gera cobrança e termina visível ao Cliente.</div>
+        <div class="what-if"><span class="label">E se...</span>uma etapa estiver incompleta? A próxima área enxerga a pendência e o trabalho volta ao responsável certo antes de seguir.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Viagens, B/Ls, Revisão, Taxas Locais, Conciliação PIX e Portal do Cliente</span></div>
+        <div><b>Quem</b><span>Todos os departamentos, cada um no seu momento</span></div>
+        <div><b>O que</b><span>Passa a informação certa para a próxima etapa</span></div>
+        <div><b>Por quê</b><span>Uma cobrança segura depende de uma operação bem registrada</span></div>
+        <div><b>Depois</b><span>O Cliente acompanha sem precisar perguntar a cada área</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="viagem-escala" data-chapter="2 · Viagem, Escala e Atracação">
+      <p class="eyebrow">A estrutura da operação</p>
+      <h2>Uma Viagem passa por portos. Cada porto pode ter uma ou mais Atracações.</h2>
+      <div class="grid-2">
+        <div class="stack">
+          <div class="compare-card primary"><div class="symbol">V</div><h3>Viagem</h3><p>Navio + número da viagem + rota completa.</p></div>
+          <div class="compare">
+            <div class="compare-card"><h3>Escala</h3><p>Passagem pelo porto brasileiro. Guarda ETA e ATA.</p></div>
+            <div class="compare-card secondary"><h3>Atracação</h3><p>Passagem pelo terminal. Guarda ETB, ATB, ETD e ATD.</p></div>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="owner"><span class="label">Responsável</span><strong>Operações</strong> cadastra e atualiza a Viagem, a Escala e cada Atracação.</div>
+          <div class="example"><span class="label">Exemplo</span>Navio X, viagem 123, escala Santos. Se operar em dois terminais, haverá uma Escala em Santos e duas Atracações.</div>
+          <div class="what-if"><span class="label">E se...</span>o terminal ainda não estiver definido? A frente fica <strong>TBC</strong>. O ADR daquele terminal ainda não pode nascer.</div>
+        </div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Página Viagens e Chegadas e Saídas</span></div>
+        <div><b>Quem</b><span>Operações</span></div>
+        <div><b>O que</b><span>Cadastra navio, viagem, portos e terminais</span></div>
+        <div><b>Por quê</b><span>Toda carga e todo documento precisam de uma rota</span></div>
+        <div><b>Depois</b><span>Line-Up, Portal e demais páginas usam as mesmas datas</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="datas" data-chapter="2 · Viagem, Escala e Atracação">
+      <p class="eyebrow">Previsão e fato</p>
+      <h2>Chegar ao porto e atracar no terminal são momentos diferentes</h2>
+      <div class="timeline" role="img" aria-label="Linha do tempo de ETA, ATA, ETB, ATB, ETD e ATD">
+        <div class="time-point"><b>ETA</b><span>Previsão de chegada ao porto</span></div>
+        <div class="time-point actual"><b>ATA</b><span>Chegada real ao porto</span></div>
+        <div class="time-point"><b>ETB</b><span>Previsão de atracação</span></div>
+        <div class="time-point actual"><b>ATB</b><span>Atracação real no terminal</span></div>
+        <div class="time-point"><b>ETD</b><span>Previsão de saída do terminal</span></div>
+        <div class="time-point actual"><b>ATD</b><span>Saída real do terminal</span></div>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>O Navio X chega à área de Santos às 08h: ATA. Atraca no terminal às 14h: ATB. Sai do terminal na sexta: ATD.</div>
+        <div class="what-if"><span class="label">E se...</span>o ETA passar e não houver ATA? A Escala continua como próxima, marcada com “ETA vencido · ATA pendente”.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Planejamento da Viagem</span></div>
+        <div><b>Quem</b><span>Operações</span></div>
+        <div><b>O que</b><span>Troca previsão por data real quando o fato acontece</span></div>
+        <div><b>Por quê</b><span>Cada marco dispara acompanhamento e Comunicação</span></div>
+        <div><b>Depois</b><span>NOR usa ATA, NOB usa ATB e o prazo do ADR usa ATD</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="bl-container" data-chapter="3 · Carga que chega">
+      <p class="eyebrow">Duas fontes, duas perguntas</p>
+      <h2>B/L é o documento. Container é a carga física.</h2>
+      <div class="compare">
+        <article class="compare-card primary"><div class="symbol">B/L</div><h3>O que foi declarado?</h3><p>Cliente, rota, peso, mercadoria e containers do conhecimento.</p><p class="small">O B/L é a base da Revisão e das Taxas Locais.</p></article>
+        <article class="compare-card secondary"><div class="symbol">CNTR</div><h3>O que está no navio?</h3><p>O Baplie mostra presença física, posição e características como IMO e OOG.</p><p class="small">A Conciliação compara o físico com o documento.</p></article>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>O B/L do Navio X declara o container ABCD1234567. O Baplie confirma que ele está a bordo.</div>
+        <div class="what-if"><span class="label">E se...</span>o container aparecer só em uma fonte? Surge uma divergência de existência. <strong>Documentação</strong> confere; dados físicos do Baplie não alteram silenciosamente os dados comerciais.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Páginas B/Ls e Baplie</span></div>
+        <div><b>Quem</b><span>Documentação</span></div>
+        <div><b>O que</b><span>Importa e compara documento com carga física</span></div>
+        <div><b>Por quê</b><span>Evitar cobrar ou informar carga incorreta</span></div>
+        <div><b>Depois</b><span>A divergência aparece na Viagem e na ficha do B/L</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="perfis-carga" data-chapter="3 · Carga que chega">
+      <p class="eyebrow">Nem toda carga é igual</p>
+      <h2>A mesma Viagem pode reunir quatro operações diferentes</h2>
+      <div class="decision">
+        <article><h3>Carga solta</h3><p>Itens, peso e volume sem container.</p><p><strong>Documentação</strong> importa pelo Manifesto BB ou B/L Avulso.</p></article>
+        <article><h3>Granito e veículos</h3><p>Granito é exportação. Veículos podem estar ligados a B/L e container.</p><p><strong>Documentação</strong> registra; <strong>Equipamentos</strong> confere no ADR.</p></article>
+        <article><h3>Vazios</h3><p>Vazios descarregados entram na importação. Vazios embarcados têm unidades e serviços.</p><p><strong>Documentação</strong> cuida da descarga; <strong>Equipamentos</strong> cuida do embarque.</p></article>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>Na escala Santos do Navio X chegam containers cheios e veículos; também embarcam granito e vazios.</div>
+        <div class="what-if"><span class="label">E se...</span>um B/L tiver container e carga solta? Ele continua sendo um único B/L, com os dois blocos de carga.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>B/Ls, Veículos, Granito e Embarque de Vazios</span></div>
+        <div><b>Quem</b><span>Documentação e Equipamentos</span></div>
+        <div><b>O que</b><span>Registra cada tipo de operação no seu lugar</span></div>
+        <div><b>Por quê</b><span>Quantidade, responsabilidade e cobrança mudam por tipo</span></div>
+        <div><b>Depois</b><span>O ADR consolida o que realmente ocorreu</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="revisao" data-chapter="4 · Revisão">
+      <p class="eyebrow">A barreira contra erro</p>
+      <h2>Nada deve avançar com cliente, CE Mercante ou peso duvidoso</h2>
+      <div class="grid-2">
+        <div class="decision">
+          <article><h3>Cliente</h3><p>Vínculo por <strong>CNPJ exato</strong>. Nome semelhante é só sugestão.</p></article>
+          <article><h3>CE Mercante</h3><p>Sem CE, a cobrança pode ser calculada para conferência, mas não segue o fluxo normal de emissão.</p></article>
+          <article><h3>Peso</h3><p>Carga solta e B/L misto precisam do peso correto para calcular.</p></article>
+        </div>
+        <div class="stack">
+          <div class="owner"><span class="label">Responsável</span><strong>Documentação</strong> resolve as pendências na página Revisão.</div>
+          <div class="example"><span class="label">Exemplo</span>“Cliente Santos Ltda.” aparece no B/L. O nome sugere um cadastro, mas só o CNPJ confirma o vínculo.</div>
+          <div class="what-if"><span class="label">E se...</span>o consignatário mudar de CNPJ? O vínculo precisa ser refeito. Uma cobrança já emitida mantém o valor e pode acompanhar o novo Cliente quando não houver impedimento.</div>
+        </div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Página Revisão e ficha do B/L</span></div>
+        <div><b>Quem</b><span>Documentação</span></div>
+        <div><b>O que</b><span>Resolve identidade e dados que impedem avanço seguro</span></div>
+        <div><b>Por quê</b><span>Nome parecido, peso ausente e documento incompleto geram erro financeiro</span></div>
+        <div><b>Depois</b><span>O B/L segue para confirmação das Taxas Locais</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="ce-fato-gerador" data-chapter="5 · CE Mercante">
+      <p class="eyebrow">O fato gerador</p>
+      <h2>A fatura pode sair antes da Atracação porque a cobrança nasce no CE Mercante</h2>
+      <div class="equation" aria-label="Cálculo provisório mais CE Mercante resulta em cálculo confirmado e emissão">
+        <div class="term">B/L importado</div><div class="op">+</div>
+        <div class="term">Cálculo provisório</div><div class="op">+</div>
+        <div class="term">CE Mercante</div><div class="op">=</div>
+        <div class="term">Confirmar e emitir</div>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>O CE do B/L do Navio X sai na segunda. A Atracação será na quinta. A fatura pode ser emitida na segunda para o Cliente pagar antes de retirar a carga.</div>
+        <div class="what-if"><span class="label">E se...</span>faltar CE Mercante? O cálculo provisório continua disponível para conferência, mas o B/L fica “Aguardando CE”.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>B/Ls e Taxas Locais</span></div>
+        <div><b>Quem</b><span>Documentação cadastra; Financeiro acompanha a emissão</span></div>
+        <div><b>O que</b><span>Transforma conferência em cobrança confirmada</span></div>
+        <div><b>Por quê</b><span>O Cliente precisa pagar para retirar a carga</span></div>
+        <div><b>Depois</b><span>A fatura aparece em Taxas Locais e no Portal do Cliente</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="taxas-locais" data-chapter="6 · Taxas Locais e Fatura">
+      <p class="eyebrow">Como o valor é formado</p>
+      <h2>O porto define a tabela. O item define a cobrança. O Cliente pode ter condição negociada.</h2>
+      <div class="decision">
+        <article><h3>Tabela de Taxas Locais</h3><p>Escolhida pelo porto de destino e pelo tipo de carga.</p></article>
+        <article><h3>Item automático ou manual</h3><p>O automático entra quando elegível. O manual só entra por decisão da equipe.</p></article>
+        <article><h3>Condição de Cliente</h3><p>Substitui o valor padrão do item durante a vigência negociada.</p></article>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>O B/L do Navio X descarrega em Santos. A tabela de Santos aplica os itens automáticos; uma condição negociada pode trocar o valor de um item.</div>
+        <div class="what-if"><span class="label">E se...</span>faltar um serviço manual? O Financeiro ou a equipe responsável lança o item antes da emissão. O sistema não presume a cobrança.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Taxas Locais, aba Validação</span></div>
+        <div><b>Quem</b><span>Financeiro</span></div>
+        <div><b>O que</b><span>Confere tabela, itens, quantidade e condição negociada</span></div>
+        <div><b>Por quê</b><span>O valor precisa refletir o porto e o acordo comercial</span></div>
+        <div><b>Depois</b><span>O B/L fica pronto para a fatura</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="fatura" data-chapter="6 · Taxas Locais e Fatura">
+      <p class="eyebrow">O documento financeiro</p>
+      <h2>Individual ou consolidada, a fatura preserva o valor que o Cliente recebeu</h2>
+      <div class="compare">
+        <article class="compare-card primary"><h3>Fatura individual</h3><p>Reúne as cobranças elegíveis de um B/L.</p><p class="small">Boa para acompanhar um processo isolado.</p></article>
+        <article class="compare-card secondary"><h3>Fatura consolidada</h3><p>Reúne cobranças de vários B/Ls do mesmo Cliente.</p><p class="small">Boa para pagar processos juntos.</p></article>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>O Cliente tem três B/Ls do Navio X. Pode receber três faturas individuais ou reunir os saldos elegíveis em uma consolidada.</div>
+        <div class="what-if"><span class="label">E se...</span>uma tabela mudar depois? A fatura emitida não muda. Ela guarda uma fotografia do valor, dos itens e das condições usados na emissão.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Taxas Locais, aba Faturas</span></div>
+        <div><b>Quem</b><span>Financeiro</span></div>
+        <div><b>O que</b><span>Emite, consulta, imprime e acompanha o saldo</span></div>
+        <div><b>Por quê</b><span>O documento enviado ao Cliente precisa permanecer estável</span></div>
+        <div><b>Depois</b><span>Pagamento baixa o saldo; COD gera ajuste separado</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="pix" data-chapter="7 · Pagamento via PIX">
+      <p class="eyebrow">Da transação à baixa</p>
+      <h2>A Conciliação PIX procura o documento pelo TXID e confere o valor</h2>
+      <div class="flow" style="grid-template-columns:repeat(4,1fr)">
+        <div class="flow-step"><div class="dot"></div><b>Extrato</b><span>Financeiro importa a planilha bancária</span></div>
+        <div class="flow-step"><div class="dot"></div><b>TXID</b><span>Localiza a fatura correspondente</span></div>
+        <div class="flow-step"><div class="dot"></div><b>Valor</b><span>Compara pagamento e saldo</span></div>
+        <div class="flow-step"><div class="dot"></div><b>Baixa</b><span>Marca o pagamento e atualiza o histórico</span></div>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>O PIX da fatura do B/L do Navio X traz o TXID correto e o valor esperado. A baixa entra no histórico da fatura.</div>
+        <div class="what-if"><span class="label">E se...</span>o TXID aparecer duas vezes, servir para mais de um documento ou o valor divergir? O caso fica ambíguo e exige decisão humana. Nenhuma baixa acontece sozinha.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Página Conciliação PIX</span></div>
+        <div><b>Quem</b><span>Financeiro e Administrativo</span></div>
+        <div><b>O que</b><span>Importa extrato, revisa e confirma casos seguros</span></div>
+        <div><b>Por quê</b><span>Evitar dar baixa no documento errado</span></div>
+        <div><b>Depois</b><span>Fatura, Cliente e Portal passam a mostrar o pagamento</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="demurrage" data-chapter="8 · Demurrage">
+      <p class="eyebrow">Sobreestadia</p>
+      <h2>Demurrage começa quando o container ultrapassa o Free Time</h2>
+      <div class="grid-2">
+        <div class="clock"><span>Descarga<br>até devolução</span></div>
+        <div class="stack">
+          <div class="equation"><div class="term">Free Time</div><div class="op">→</div><div class="term">P1</div><div class="op">→</div><div class="term">P2</div></div>
+          <p><strong>Free Time</strong> são os dias livres. Depois entram os dias de <strong>P1</strong> e, mais adiante, os dias de <strong>P2</strong>.</p>
+          <div class="owner"><span class="label">Responsável</span><strong>Equipamentos</strong> acompanha descarga, devolução e disputas. <strong>Financeiro</strong> acompanha a cobrança e o pagamento.</div>
+          <div class="example"><span class="label">Exemplo</span>O container do Navio X tem 7 dias livres e retorna no 11º dia. Quatro dias entram na sobreestadia conforme P1 e P2.</div>
+        </div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Página Demurrage</span></div>
+        <div><b>Quem</b><span>Equipamentos e Financeiro</span></div>
+        <div><b>O que</b><span>Acompanha dias fora e calcula Free Time, P1 e P2</span></div>
+        <div><b>Por quê</b><span>O container ficou além do período livre</span></div>
+        <div><b>Depois</b><span>Com todas as devoluções, pode nascer a fatura</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="demurrage-fatura" data-chapter="8 · Demurrage">
+      <p class="eyebrow">Quando vira cobrança</p>
+      <h2>O valor em dólar fecha na emissão. O valor em reais acompanha o câmbio até pagar.</h2>
+      <div class="decision">
+        <article><h3>Todos devolvidos</h3><p>A fatura só sai quando todos os containers do B/L foram devolvidos.</p></article>
+        <article><h3>Dólar fixo</h3><p>Os dias e o total em USD ficam travados na emissão.</p></article>
+        <article><h3>Real atualizado</h3><p>O ROE atualiza o total em BRL até o pagamento.</p></article>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>A fatura do B/L do Navio X fecha em USD 1.000. Enquanto estiver aberta, o total em reais acompanha o ROE. Ao pagar, o valor congela.</div>
+        <div class="what-if"><span class="label">E se...</span>um container ainda estiver fora? A cobrança continua correndo e nenhuma fatura é emitida. Se o Cliente abrir disputa, a Régua de Cobrança pausa.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Demurrage e Portal do Cliente</span></div>
+        <div><b>Quem</b><span>Equipamentos trata a disputa; Financeiro trata a fatura</span></div>
+        <div><b>O que</b><span>Emite, recalcula em reais e registra pagamento</span></div>
+        <div><b>Por quê</b><span>Os dias precisam terminar antes de cobrar</span></div>
+        <div><b>Depois</b><span>Pagamento congela o ROE e encerra a Régua</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="adr" data-chapter="9 · ADR">
+      <p class="eyebrow">O relatório de saída</p>
+      <h2>O ADR reúne o que realmente aconteceu na operação</h2>
+      <div class="signatures">
+        <article class="signature"><span class="check">✓</span><h3>Operações</h3><p>Escala, terminal e datas confirmadas.</p></article>
+        <article class="signature"><span class="check">✓</span><h3>Documentação</h3><p>Carga descarregada e vazios descarregados.</p></article>
+        <article class="signature"><span class="check">✓</span><h3>Equipamentos</h3><p>Veículos, Granito e Embarque de Vazios.</p></article>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>Após a saída do Navio X em Santos, cada departamento confirma sua parte. Com as três assinaturas, o ADR pode ser fechado.</div>
+        <div class="what-if"><span class="label">E se...</span>um departamento não tiver nada a declarar? Ele registra “Nada a declarar” e assina. Ausência de informação não vale como conclusão.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Aba ADR na página da Viagem</span></div>
+        <div><b>Quem</b><span>Operações, Documentação e Equipamentos</span></div>
+        <div><b>O que</b><span>Confirma seções e assina por departamento</span></div>
+        <div><b>Por quê</b><span>Transformar dados da operação em relatório confiável</span></div>
+        <div><b>Depois</b><span>Financeiro usa o ADR fechado para conferir pagamentos</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="adr-prazo" data-chapter="9 · ADR">
+      <p class="eyebrow">Prazo e confiança</p>
+      <h2>Cada departamento tem 3 dias úteis após o ATD para assinar</h2>
+      <div class="timeline" style="grid-template-columns:repeat(5,1fr)">
+        <div class="time-point actual"><b>ATD</b><span>Saída real do terminal. O dia não entra na contagem.</span></div>
+        <div class="time-point"><b>Dia 1</b><span>Primeiro dia útil</span></div>
+        <div class="time-point"><b>Dia 2</b><span>Segundo dia útil</span></div>
+        <div class="time-point"><b>Dia 3</b><span>Prazo termina no fim do dia</span></div>
+        <div class="time-point actual"><b>Fechado</b><span>Fotografia final para consulta</span></div>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>O Navio X sai na segunda. Terça, quarta e quinta contam. As três assinaturas devem valer até o fim de quinta.</div>
+        <div class="what-if"><span class="label">E se...</span>uma seção for reaberta para correção? A assinatura daquele departamento deixa de valer até a nova assinatura. As demais continuam válidas.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Linha do Tempo do ADR e Alertas</span></div>
+        <div><b>Quem</b><span>Cada departamento responde pela própria assinatura</span></div>
+        <div><b>O que</b><span>Resolve pendências e assina dentro do prazo</span></div>
+        <div><b>Por quê</b><span>O Financeiro precisa de uma fonte fechada e rastreável</span></div>
+        <div><b>Depois</b><span>O ADR fechado não muda com alterações posteriores</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="omissao" data-chapter="10 · Quando o navio não para">
+      <p class="eyebrow">Três situações diferentes</p>
+      <h2>Omissão, Transbordo e COD não significam a mesma coisa</h2>
+      <div class="decision">
+        <article><h3>Omissão de Escala</h3><p>O navio não faz a Escala prevista. O porto aparece como <strong>OMIT</strong>.</p></article>
+        <article><h3>Transbordo</h3><p>A carga segue em outro navio, mas mantém o destino original.</p></article>
+        <article><h3>COD</h3><p>O destino final do B/L muda para o Porto de Transbordo.</p></article>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>O Navio X não para em Santos. A carga descarrega em Vitória. Se seguir depois para Santos, é Transbordo. Se Vitória virar o destino final, é COD.</div>
+        <div class="what-if"><span class="label">E se...</span>a omissão foi registrada por engano? O Administrativo pode reverter com justificativa enquanto nenhum B/L afetado estiver em COD.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Viagem e ficha do B/L</span></div>
+        <div><b>Quem</b><span>Operações registra; Documentação trata cada B/L</span></div>
+        <div><b>O que</b><span>Marca OMIT e define Transbordo ou COD com justificativa</span></div>
+        <div><b>Por quê</b><span>O Cliente precisa saber onde a carga seguirá</span></div>
+        <div><b>Depois</b><span>Portal mostra a omissão e as Informações de Transbordo</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="cod" data-chapter="10 · Quando o navio não para">
+      <p class="eyebrow">Efeito financeiro</p>
+      <h2>Transbordo preserva a Taxa Local. COD reprecifica pelo novo destino.</h2>
+      <div class="compare">
+        <article class="compare-card primary"><h3>Transbordo</h3><p>Destino final continua o mesmo.</p><p><strong>Taxa Local não muda.</strong></p></article>
+        <article class="compare-card secondary"><h3>COD</h3><p>Destino final muda.</p><p><strong>Taxa Local é recalculada.</strong></p></article>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>A taxa de Santos era R$ 1.000. O COD muda o destino para Vitória, onde seria R$ 1.200. Surge ajuste de R$ 200.</div>
+        <div class="what-if"><span class="label">E se...</span>a nova taxa for maior? Financeiro emite fatura complementar. Se for menor, pode haver reemissão, abatimento ou restituição conforme o que já foi pago.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Ficha do B/L e painel de Ajustes de COD</span></div>
+        <div><b>Quem</b><span>Documentação decide o destino; Financeiro conclui o ajuste</span></div>
+        <div><b>O que</b><span>Registra a decisão e trata a diferença</span></div>
+        <div><b>Por quê</b><span>Taxa Local pertence ao destino final</span></div>
+        <div><b>Depois</b><span>Complemento, reemissão, abatimento ou restituição</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="portal-acesso" data-chapter="11 · Portal do Cliente">
+      <p class="eyebrow">Entrada controlada</p>
+      <h2>O Cliente entra com CNPJ e senha depois de ativar a conta</h2>
+      <div class="flow" style="grid-template-columns:repeat(4,1fr)">
+        <div class="flow-step"><div class="dot"></div><b>Análise</b><span>Documentação ou Administrativo confere o Cliente</span></div>
+        <div class="flow-step"><div class="dot"></div><b>Convite</b><span>Link de uso único, válido por 48 horas</span></div>
+        <div class="flow-step"><div class="dot"></div><b>Ativação</b><span>Cliente define a própria senha</span></div>
+        <div class="flow-step"><div class="dot"></div><b>Login</b><span>CNPJ + senha, com conta ativa</span></div>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>O Cliente do B/L do Navio X recebe o convite, cria a senha e entra usando somente o CNPJ como identificação.</div>
+        <div class="what-if"><span class="label">E se...</span>o convite vencer? A conta não fica ativa. Documentação ou Administrativo precisa revisar e reenviar um novo convite.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Ficha do Cliente e Console do Portal</span></div>
+        <div><b>Quem</b><span>Documentação e Administrativo; depois, Cliente</span></div>
+        <div><b>O que</b><span>Autoriza convite e conclui ativação</span></div>
+        <div><b>Por quê</b><span>Garantir que a pessoa certa acesse o CNPJ certo</span></div>
+        <div><b>Depois</b><span>Cliente consulta operação e financeiro no Portal</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="portal-visao" data-chapter="11 · Portal do Cliente">
+      <p class="eyebrow">O que o Cliente acompanha</p>
+      <h2>Programação, carga, cobranças, disputas e contatos em um só lugar</h2>
+      <div class="grid-2">
+        <div class="portal-window" role="img" aria-label="Representação das áreas do Portal do Cliente">
+          <div class="portal-top"><i></i><i></i><i></i></div>
+          <div class="portal-body">
+            <div class="portal-nav"><span>Painel</span><span>Faturas</span><span>Operação</span><span>Perfil</span></div>
+            <div class="portal-content"><div><b>Programação</b><span>Navios, datas e OMIT</span></div><div><b>B/Ls</b><span>Carga e containers liberados</span></div><div><b>Faturas</b><span>Taxas Locais, Demurrage e PIX</span></div><div><b>Disputas</b><span>Conversa sobre Demurrage</span></div></div>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="owner"><span class="label">Responsável</span><strong>Cliente</strong> consulta e abre disputas; <strong>Documentação</strong> atende acesso; <strong>Equipamentos</strong> responde Demurrage.</div>
+          <div class="example"><span class="label">Exemplo</span>O Cliente acompanha o Navio X, abre o B/L, confere a fatura e acompanha uma disputa sem sair do Portal.</div>
+          <div class="what-if"><span class="label">E se...</span>faltar CE Mercante no B/L? A carga ainda não fica liberada para consulta operacional no Portal.</div>
+        </div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Portal do Cliente</span></div>
+        <div><b>Quem</b><span>Cliente, com apoio interno</span></div>
+        <div><b>O que</b><span>Consulta programação, B/Ls, containers, faturas e contatos</span></div>
+        <div><b>Por quê</b><span>Dar autonomia e reduzir pedidos espalhados</span></div>
+        <div><b>Depois</b><span>Notificações e Comunicados mantêm o Cliente atualizado</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="comunicacao" data-chapter="12 · Comunicação">
+      <p class="eyebrow">Cada marco tem sua mensagem</p>
+      <h2>NOA avisa o que vai acontecer. NOR e NOB avisam o que já aconteceu.</h2>
+      <div class="timeline" style="grid-template-columns:repeat(3,1fr)">
+        <div class="time-point"><b>NOA</b><span>Chegada Próxima. Usa ETA e sai 5 dias antes.</span></div>
+        <div class="time-point actual"><b>NOR</b><span>Aviso de Chegada. Usa ATA.</span></div>
+        <div class="time-point actual"><b>NOB</b><span>Aviso de Atracação. Usa ATB de cada terminal.</span></div>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>Navio X: NOA na previsão de chegada a Santos, NOR quando chega ao porto e NOB quando atraca no terminal do Cliente.</div>
+        <div class="what-if"><span class="label">E se...</span>a Atracação estiver TBC? O NOB não sai até a carga estar ligada ao terminal correto.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Clientes, página Comunicação</span></div>
+        <div><b>Quem</b><span>Operações alimenta as datas; Documentação acompanha o envio</span></div>
+        <div><b>O que</b><span>Envia o Comunicado correspondente ao marco</span></div>
+        <div><b>Por quê</b><span>O Cliente recebe a informação no momento certo</span></div>
+        <div><b>Depois</b><span>O Histórico do B/L registra o Comunicado</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="comunicacao-financeira" data-chapter="12 · Comunicação">
+      <p class="eyebrow">Quem recebe o quê</p>
+      <h2>Caixas de Comunicação organizam os destinatários por assunto</h2>
+      <div class="decision">
+        <article><h3>Documentação e Operação</h3><p>NOA, NOR, NOB e CE Mercante e Taxas Locais.</p></article>
+        <article><h3>Financeiro</h3><p>CE Mercante e Taxas Locais, além da Régua de Cobrança de Demurrage.</p></article>
+        <article><h3>Demurrage</h3><p>Cobranças e eventuais mensagens sobre Demurrage.</p></article>
+      </div>
+      <div class="grid-even">
+        <div class="example"><span class="label">Exemplo</span>Quando todos os B/Ls do Cliente na viagem 123 estão prontos, o Comunicado de CE Mercante e Taxas Locais pode ser enviado.</div>
+        <div class="what-if"><span class="label">E se...</span>o Cliente abrir disputa de Demurrage ou ficar sem contato válido? A Régua de Cobrança pausa e a equipe recebe um Alerta quando precisa agir.</div>
+      </div>
+      <div class="journey">
+        <div><b>Onde</b><span>Comunicação e Perfil no Portal</span></div>
+        <div><b>Quem</b><span>Cliente configura contatos; equipe interna acompanha</span></div>
+        <div><b>O que</b><span>Relaciona cada e-mail às Caixas de Comunicação</span></div>
+        <div><b>Por quê</b><span>Cada assunto precisa chegar às pessoas certas</span></div>
+        <div><b>Depois</b><span>Envios e falhas ficam no Histórico; pendências viram Alerta</span></div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+
+    <section class="slide" id="cinco-regras" data-chapter="13 · Se lembrar de 5 coisas">
+      <p class="eyebrow">Fechamento</p>
+      <h2>Cinco regras de ouro</h2>
+      <div class="golden">
+        <article><span class="num">01</span><p>Viagem contém Escalas; Escala contém Atracações.</p></article>
+        <article><span class="num">02</span><p>B/L é documento. Container é carga física. A Conciliação compara os dois.</p></article>
+        <article><span class="num">03</span><p>Cliente só é vinculado por CNPJ exato. Nome é sugestão.</p></article>
+        <article><span class="num">04</span><p>CE Mercante confirma Taxas Locais. A fatura emitida preserva o valor.</p></article>
+        <article><span class="num">05</span><p>Cada departamento confirma sua parte. O Cliente vê o resultado no Portal.</p></article>
+      </div>
+      <p class="subtitle" style="margin:20px 0 12px">Quando cada área registra o fato no lugar certo, a próxima área trabalha com confiança.</p>
+      <div class="grid-even">
+        <div class="example"><span class="label">Responsável + exemplo</span>Todos os departamentos: no Navio X, viagem 123, cada área entrega um fato confiável para a próxima.</div>
+        <div class="what-if"><span class="label">E se...</span>algo não fechar? Pare na página dona da informação, resolva com o departamento responsável e só então avance.</div>
+      </div>
+      <span class="slide-number"></span>
+    </section>
+  </main>
+
+  <div class="controls" aria-label="Controles da apresentação">
+    <button id="prevBtn" type="button" aria-label="Slide anterior">← <span aria-hidden="true">Anterior</span></button>
+    <span class="counter" id="counter" aria-live="polite">1 / 23</span>
+    <button id="nextBtn" type="button" aria-label="Próximo slide"><span aria-hidden="true">Próximo</span> →</button>
+  </div>
+
+  <script>
+    (() => {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const prev = document.getElementById('prevBtn');
+      const next = document.getElementById('nextBtn');
+      const counter = document.getElementById('counter');
+      const progress = document.getElementById('progressBar');
+      let index = 0;
+
+      const byHash = () => {
+        const id = decodeURIComponent(location.hash.slice(1));
+        const found = slides.findIndex(slide => slide.id === id);
+        return found >= 0 ? found : 0;
+      };
+
+      const show = (newIndex, updateHash = true) => {
+        index = Math.max(0, Math.min(slides.length - 1, newIndex));
+        slides.forEach((slide, i) => {
+          const active = i === index;
+          slide.classList.toggle('active', active);
+          slide.setAttribute('aria-hidden', String(!active));
+          if (active) slide.scrollTop = 0;
+        });
+        prev.disabled = index === 0;
+        next.disabled = index === slides.length - 1;
+        counter.textContent = `${index + 1} / ${slides.length}`;
+        progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+        document.title = `${slides[index].querySelector('h1,h2')?.textContent || 'Vela'} | Vela + Portal Fwlog`;
+        if (updateHash && history.replaceState) history.replaceState(null, '', `#${slides[index].id}`);
+      };
+
+      slides.forEach((slide, i) => {
+        const number = slide.querySelector('.slide-number');
+        if (number) number.textContent = String(i + 1).padStart(2, '0');
+      });
+
+      prev.addEventListener('click', () => show(index - 1));
+      next.addEventListener('click', () => show(index + 1));
+      document.addEventListener('keydown', event => {
+        if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); show(index + 1); }
+        if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); show(index - 1); }
+        if (event.key === 'Home') { event.preventDefault(); show(0); }
+        if (event.key === 'End') { event.preventDefault(); show(slides.length - 1); }
+      });
+      document.querySelectorAll('a[href^="#"]').forEach(link => link.addEventListener('click', event => {
+        const target = slides.findIndex(slide => `#${slide.id}` === link.getAttribute('href'));
+        if (target >= 0) { event.preventDefault(); show(target); }
+      }));
+      window.addEventListener('hashchange', () => show(byHash(), false));
+      show(byHash(), false);
+    })();
+  </script>
+</body>
+</html>
