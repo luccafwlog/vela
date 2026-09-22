@@ -8,6 +8,8 @@ import { MemoryRouter } from 'react-router-dom'
 const portalAuth = vi.hoisted(() => ({
   overview: { customer_name: 'Cliente Portal', customer_cnpj_cpf: '12345678000195' },
   signOut: vi.fn(),
+  isSigningOut: false,
+  signOutError: null,
 }))
 vi.mock('../../../hooks/usePortalAuth', async () => ({
   usePortalAuth: () => portalAuth,
@@ -52,5 +54,19 @@ describe('PortalLayout', () => {
 
     const brandLogo = screen.getByRole('img', { name: 'Portal Fwlog' })
     expect(brandLogo.getAttribute('src')).toBe('/branding/fwlog-logo-white.png')
+  })
+
+  it('desabilita o botão de sair e exibe indicador durante o logout', () => {
+    portalAuth.isSigningOut = true
+    render(
+      <MemoryRouter initialEntries={['/portal']}>
+        <PortalLayout />
+      </MemoryRouter>,
+    )
+
+    const logoutButton = screen.getByRole('button', { name: 'Saindo...' })
+    expect(logoutButton).toBeTruthy()
+    expect(logoutButton.hasAttribute('disabled')).toBe(true)
+    portalAuth.isSigningOut = false
   })
 })

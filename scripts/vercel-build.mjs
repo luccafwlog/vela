@@ -81,27 +81,47 @@ function main() {
   const result = spawnSync('npm', ['run', 'build'], { stdio: 'inherit', shell: process.platform === 'win32' })
   if (result.error) throw result.error
   if (result.status !== 0) return result.status ?? 1
-  cleanProductionArtifacts(OUT_DIR)
+  try {
+    cleanProductionArtifacts(OUT_DIR)
+  } catch (err) {
+    console.error('[vercel-build] Erro ao limpar artefatos confidenciais de produção:', err)
+    return 1
+  }
   return 0
 }
 
-export function cleanProductionArtifacts(outDir) {
-  try {
-    const viteDir = resolve(outDir, '.vite')
-    if (existsSync(viteDir)) {
-      rmSync(viteDir, { recursive: true, force: true })
-    }
-    const assetsDir = resolve(outDir, 'assets')
-    if (existsSync(assetsDir)) {
-      for (const file of readdirSync(assetsDir)) {
-        if (file.endsWith('.map')) {
-          rmSync(resolve(assetsDir, file), { force: true })
-        }
+export function assertNoForbiddenArtifacts(dir) {
+  if (!existsSync(dir)) return
+  const entries = readdirSync(dir, { withFileTypes: true })
+  for (const entry of entries) {
+    const fullPath = resolve(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name === '.vite') {
+        throw new Error(`[vercel-build] Diretório confidencial residual encontrado: ${fullPath}`)
+      }
+      assertNoForbiddenArtifacts(fullPath)
+    } else if (entry.isFile()) {
+      if (entry.name.endsWith('.map')) {
+        throw new Error(`[vercel-build] Arquivo .map residual encontrado no build: ${fullPath}`)
       }
     }
-  } catch (err) {
-    console.warn('[vercel-build] Aviso ao limpar artefatos confidenciais:', err)
   }
+}
+
+export function cleanProductionArtifacts(outDir) {
+  const viteDir = resolve(outDir, '.vite')
+  if (existsSync(viteDir)) {
+    rmSync(viteDir, { recursive: true, force: true })
+  }
+  const assetsDir = resolve(outDir, 'assets')
+  if (existsSync(assetsDir)) {
+    for (const file of readdirSync(assetsDir)) {
+      if (file.endsWith('.map')) {
+        rmSync(resolve(assetsDir, file), { force: true })
+      }
+    }
+  }
+  assertNoForbiddenArtifacts(outDir)
 }
 
 // ponytail: sem framework de teste aqui — o import direto de

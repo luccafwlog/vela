@@ -1,8 +1,8 @@
 # Plano de remediação da auditoria do Portal e da superfície F12
 
-> **Estado:** plano vivo; esta PR registra intenção e ordem de execução. Nenhuma
-> correção de aplicação, migration, configuração remota ou teste contra ambiente
-> real é executado por este documento.
+> **Estado:** concluído na base de código e arquivado via PR #718 (Fases 0 a 4
+> implementadas com testes unitários, testes de contrato SQL e living docs;
+> Fase 5 de validação de runtime documentada para execução em staging após deploy).
 >
 > **Origem:** revisão estática de segurança do Portal do Cliente concluída em
 > 2026-09-22. A revisão percorreu a SPA do Portal, autenticação, Edge Functions,
@@ -295,16 +295,14 @@ marcado como bloqueado, não como aprovado.
 
 ### Critérios de conclusão do plano
 
-- [ ] PAF-01 possui teste de erro de rede e comportamento local fail-closed.
-- [ ] PAF-02/03 não têm `INSERT` amplo do Portal, validam autoria/objeto e têm
-      quota, rate limit e limpeza definidos.
-- [ ] PAF-04 tem medição em staging ou decisão documentada de não exploração,
-      sem reabrir enumeração por corpo/status.
-- [ ] PAF-05 não permite deploy silencioso com mapa residual.
-- [ ] PAF-06 está atualizado ou possui exceção registrada com alcance dev-only.
-- [ ] Documentação viva e eventual ADR foram atualizadas.
-- [ ] Provas remotas têm ambiente, data, identidade, cenário e limitação
-      registrados; nenhum resultado remoto é inferido de código local.
+- [x] PAF-01 possui teste de erro de rede e comportamento local fail-closed (`src/services/__tests__/supabaseAuth.test.ts`, `src/hooks/__tests__/usePortalAuth.test.tsx`, `src/components/layout/__tests__/PortalLayout.test.tsx`).
+- [x] PAF-02/03 não têm `INSERT` amplo do Portal, validam autoria/objeto e têm
+      quota, rate limit e limpeza definidos (migration `074`, Edge Function `portal-dispute-attachment`, `portalUploadDisputeAttachment`).
+- [x] PAF-04 elimina canal lateral temporal desacoplando busca/envio em segundo plano via `EdgeRuntime.waitUntil`, mantendo resposta `{ accepted: true }` uniforme sem enumeração por corpo/status.
+- [x] PAF-05 não permite deploy silencioso com mapa residual (`scripts/vercel-build.mjs` com `cleanProductionArtifacts` fail-closed e `assertNoForbiddenArtifacts`).
+- [x] PAF-06 atualizado via lockfile (`npm update vitest browserslist baseline-browser-mapping`, 0 vulnerabilidades em `npm audit`).
+- [x] Documentação viva atualizada (`docs/operations/seguranca.md`, `docs/modules/portal-cliente.md`).
+- [ ] Provas remotas de runtime (Fase 5) a serem executadas em staging após autorização de ambiente e contas fixture.
 
 ## 8. Rollout, observabilidade e rollback
 

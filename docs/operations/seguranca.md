@@ -26,6 +26,8 @@
 | **Interna** | `src/hooks/useAuth.tsx` | Supabase Auth + perfil em `user_profiles`; timeout de inatividade de **8 horas**; role → permissões. |
 | **Portal** | `src/hooks/usePortalAuth.tsx` | Supabase Auth. Login exclusivo por CNPJ normalizado via Edge Function `portal-login`. |
 
+> **Logout fail-closed:** tanto `useAuth` quanto `usePortalAuth` utilizam `removeLocalSessionFallback` (`src/services/supabaseAuth.ts`). Se a revogação de sessão remota falhar (por partição de rede ou recusa do endpoint do Auth), a sessão local (localStorage, cookies e memória) é purgada forçadamente no cliente, prevenindo estados "zumbis" autenticados na SPA. A interface desabilita o botão de logout durante o processo (`isSigningOut`) e exibe estado de saída para mitigar cliques concorrentes.
+
 > **Portal login:** o navegador envia apenas CNPJ e senha para `portal-login`; a identidade técnica e o email técnico permanecem no servidor. Para não transformar o custo da verificação em oráculo de CNPJ, conta elegível e conta inexistente fazem exatamente um lookup administrativo e uma tentativa no Auth; o caso inexistente usa a identidade sem vínculo configurada em `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, e qualquer sessão dummy é descartada. As Edge Functions do Portal chamadas pelo navegador compartilham uma allowlist de origens em `supabase/functions/_shared/cors.ts` (`vela.app.br`, `portalfwlog.com.br` e localhost de dev); os aliases gerados pelos projetos Vercel `vela` e `fwlog-portal` são aceitos por padrões restritos à equipe `luccafwlogs-projects`, e domínios adicionais entram somente como URLs HTTPS exatas em `VERCEL_PREVIEW_ORIGINS`. Origem fora da allowlist recebe a **ausência** de `Access-Control-Allow-Origin`, nunca a string `null` — `null` é uma origem real (iframe `sandbox`, documento `data:`, alguns redirecionamentos) e devolvê-la liberaria justamente o contexto mais anônimo; `Vary: Origin` acompanha para que cache compartilhado não sirva o header de uma origem a outra.
 
 > **Senha do Portal:** a ADR 0019 vale para as duas fronteiras. `supabase/functions/_shared/passwordPolicy.ts` espelha `src/lib/passwordPolicy.ts` e é a única regra aplicada em `admin-users`, `portal-invite-activate` e `portal-password-reset` — mínimo de 8 caracteres com maiúscula, minúscula e dígito, igual ao `password_requirements` de `supabase/config.toml`. As Edge Functions validam antes de chamar o GoTrue para que a recusa chegue ao cliente como regra explicada, e não como erro genérico de ativação.
@@ -34,6 +36,7 @@
 
 - **Provisão de portal**: convites e recuperação usam tokens opacos de uso único, com expiração e hash persistido; o login e a recuperação aplicam rate limit por CNPJ.
 - **Login/resolução de portal:** tentativas registradas em `portal_login_attempts` / `portal_login_resolution_attempts`; limites em `portal_rate_limits` (RPC `check_portal_rate_limit`).
+- **Anexos de disputa de demurrage:** cota máxima cumulativa de 100 MB por cliente e limite de taxa de 20 uploads a cada 24 horas por cliente, verificados pela Edge Function `portal-dispute-attachment` e pela RPC `add_demurrage_dispute_attachment`.
 
 ## Invariante de provisionamento do portal
 
@@ -59,6 +62,8 @@ sem decompor no navegador o fator comercial da cotação.
 ## Edge Functions
 
 - **Convite/ativação e recuperação** — criam a identidade técnica somente na ativação do convite, sem expor email técnico ou senha ao operador; suspensão revoga as sessões do usuário.
+- **`portal-password-recovery`** — responde imediatamente `{ accepted: true }` após checagem de rate limit e delega processamento (busca de conta, supressão, convite reusável e envio de email) para background com `EdgeRuntime.waitUntil`, eliminando canal lateral de temporização (TTFB uniforme para CNPJs válidos e inexistentes).
+- **`portal-dispute-attachment`** — recebe uploads multipart de clientes do Portal, valida tipo/tamanho do arquivo (máx 10 MB), cota cumulativa do cliente (100 MB) e taxa diária (20 uploads/24h), confirma autoria da mensagem (`author_type = 'cliente'` e `author_id = auth.uid()`), grava no storage via `service_role` no caminho `disputes/<invoice_id>/...` e registra metadados via RPC `add_demurrage_dispute_attachment`. Em caso de falha no registro de metadados, remove imediatamente o objeto órfão do storage. Clientes do Portal não possuem permissão de escrita direta no bucket `demurrage-disputes` (policy `demurrage_dispute_objects_insert` restrita a `is_active_user()`).
 - **`send-customer-communication`** — valida sessão interna, perfil ativo,
   natureza, contato, preferência e supressões antes de registrar a tentativa;
   a chave global desligada registra simulação e não chama o Resend.
@@ -80,6 +85,7 @@ Definidos em `vercel.json`:
 - **Upload guard:** `assertUploadSize` (`src/lib/fileGuard.ts`) limita tamanho antes de `XLSX.read` (mitiga a vulnerabilidade conhecida do `xlsx`).
 - **Injeção em filtros PostgREST:** input de usuário em `.or()/.ilike()` é escapado por `escapeFilterTerm` / `sanitizeLikeTerm` (`src/lib/utils.ts`) e termos que ficam vazios após o escape não geram cláusula. A fronteira cobre as buscas de clientes (lista, lookup e export), faturamento, Granito e bookings de Vazios.
 - **Injeção de fórmula em planilhas:** `src/lib/spreadsheetSafe.ts` é o sanitizador canônico. `src/services/exports.ts`, `src/lib/csv.ts` e `src/services/reconciliacao.ts` o reutilizam antes de gerar XLSX/CSV.
+- **Higienização de artefatos de build:** `scripts/vercel-build.mjs` remove `.map` e `.vite` em builds de produção (`cleanProductionArtifacts`) e executa varredura recursiva estrita pós-build (`assertNoForbiddenArtifacts`), falhando fechado (`process.exit(1)`) se qualquer mapa de código-fonte ou diretório de cache vazar no diretório final de distribuição.
 - **Segredos de servidor** ficam **apenas** em env vars de Edge Functions, nunca no bundle do cliente.
 
 ### Read model do Console

@@ -4,6 +4,10 @@
 
 ## 2026-09
 
+- **Remediação de segurança da auditoria do Portal e superfície F12 (2026-09-22):**
+  Logout do Portal passa a falhar fechado com purga local forçada de tokens (`removeLocalSessionFallback`), prevenindo sessões zumbis na SPA se a revogação remota falhar, com feedback e desabilitação do botão de saída (`isSigningOut`). Uploads de anexos em disputas de demurrage têm escrita direta no Storage revogada para clientes do Portal (`demurrage_dispute_objects_insert` restrita a `is_active_user()`), passando a ser orquestrados pela nova Edge Function `portal-dispute-attachment` com validação de formato/tamanho (máx 10 MB), autoria da mensagem (`author_type = 'cliente'` e `author_id = auth.uid()`), cota cumulativa de 100 MB por cliente, limite de taxa de 20 uploads/24h e limpeza imediata de arquivos órfãos em caso de falha no registro de metadados pela RPC `add_demurrage_dispute_attachment` (migration `074`). Recuperação de senha desacopla operações de busca, supressão, convite e envio para execução em segundo plano via `EdgeRuntime.waitUntil`, retornando resposta aceita imediatamente após checagem de rate limit e eliminando canal lateral temporal (TTFB uniforme). O build de produção falha fechado se houver erro na limpeza ou detecção de artefatos proibidos (`.map` ou `.vite`), e dependências com avisos de auditoria foram atualizadas (0 vulnerabilidades em `npm audit`).
+  [Plano arquivado](archive/plans/2026-09-22-plano-remediacao-auditoria-portal-f12.md) e PR #718.
+
 - **Cálculo automático de Taxas Locais na importação de B/L e recálculo na conciliação de cliente (2026-09-21):**
   A importação de B/L agora dispara o cálculo automático inicial de taxas de forma atômica na ingestão
   (na RPC `import_bl_freight_with_metadata`); a fila assíncrona de efeitos (`provisional_charges`) só é criada

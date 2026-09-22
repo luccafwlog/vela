@@ -11,6 +11,8 @@ type PortalAuthContextValue = {
   overview: PortalSessionOverview | null
   loading: boolean
   isAuthenticated: boolean
+  isSigningOut: boolean
+  signOutError: string | null
   signIn: (cnpj: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   refreshOverview: () => Promise<void>
@@ -53,6 +55,8 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient()
   const [overview, setOverview] = useState<PortalSessionOverview | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  const [signOutError, setSignOutError] = useState<string | null>(null)
 
   const clearPortalQueries = useCallback(() => {
     queryClient.removeQueries({
@@ -133,8 +137,18 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
   }, [])
 
   const signOut = useCallback(async () => {
+    setIsSigningOut(true)
+    setSignOutError(null)
     clearSession()
-    await signOutSupabaseClient(supabasePortal)
+    try {
+      await signOutSupabaseClient(supabasePortal)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Sessão encerrada localmente, mas a revogação remota falhou.'
+      setSignOutError(message)
+    } finally {
+      setIsSigningOut(false)
+    }
   }, [clearSession])
 
   const refreshOverview = useCallback(async () => {
@@ -153,11 +167,13 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
       overview,
       loading,
       isAuthenticated: Boolean(overview),
+      isSigningOut,
+      signOutError,
       signIn,
       signOut,
       refreshOverview,
     }),
-    [loading, overview, refreshOverview, signIn, signOut],
+    [isSigningOut, loading, overview, refreshOverview, signIn, signOut, signOutError],
   )
 
   return <PortalAuthContext.Provider value={value}>{children}</PortalAuthContext.Provider>
@@ -177,6 +193,8 @@ export function PortalInspectionAuthProvider({
       overview,
       loading: false,
       isAuthenticated: true,
+      isSigningOut: false,
+      signOutError: null,
       signIn,
       signOut,
       refreshOverview,

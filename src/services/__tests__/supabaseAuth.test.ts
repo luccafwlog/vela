@@ -42,10 +42,31 @@ describe('signOutSupabaseClient', () => {
     await expect(signOutSupabaseClient(client)).resolves.toBeUndefined()
   })
 
-  it('still throws regular Supabase logout errors', async () => {
+  it('still throws regular Supabase logout errors, but ensures local cleanup before throwing', async () => {
     const error = new Error('network failed')
-    const client = createClient(vi.fn(async () => ({ error })))
+    const removeSession = vi.fn()
+    const removeItem = vi.fn()
+    const signOut = vi.fn(async (options?: { scope?: string }) => {
+      if (options?.scope === 'local') {
+        return { error: null }
+      }
+      return { error }
+    })
+
+    const client = {
+      auth: {
+        signOut,
+        _removeSession: removeSession,
+        storageKey: 'td-portal-auth',
+        storage: {
+          removeItem,
+        },
+      },
+    }
 
     await expect(signOutSupabaseClient(client)).rejects.toThrow('network failed')
+    expect(signOut).toHaveBeenCalledWith({ scope: 'local' })
+    expect(removeSession).toHaveBeenCalledTimes(1)
+    expect(removeItem).toHaveBeenCalledWith('td-portal-auth')
   })
 })
