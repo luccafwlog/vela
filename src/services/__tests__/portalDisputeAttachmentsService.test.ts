@@ -20,7 +20,7 @@ describe('portalUploadDisputeAttachment (PAF-02/03)', () => {
 
   it('recusa tipo de arquivo fora da allowlist', async () => {
     const file = new File(['hello'], 'script.sh', { type: 'application/x-sh' })
-    await expect(portalUploadDisputeAttachment(1, 2, 3, file)).rejects.toThrow(
+    await expect(portalUploadDisputeAttachment(1, 2, file)).rejects.toThrow(
       'Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.',
     )
     expect(invokeMock).not.toHaveBeenCalled()
@@ -29,7 +29,7 @@ describe('portalUploadDisputeAttachment (PAF-02/03)', () => {
   it('recusa arquivo maior que 10 MB', async () => {
     const bigContent = new Uint8Array(10 * 1024 * 1024 + 1)
     const file = new File([bigContent], 'large.pdf', { type: 'application/pdf' })
-    await expect(portalUploadDisputeAttachment(1, 2, 3, file)).rejects.toThrow(
+    await expect(portalUploadDisputeAttachment(1, 2, file)).rejects.toThrow(
       'Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.',
     )
     expect(invokeMock).not.toHaveBeenCalled()
@@ -43,20 +43,20 @@ describe('portalUploadDisputeAttachment (PAF-02/03)', () => {
       overview: null,
       basePath: '/clientes/portal',
     }
-    await expect(portalUploadDisputeAttachment(1, 2, 42, file, inspectionScope)).rejects.toThrow(
+    await expect(portalUploadDisputeAttachment(1, 2, file, inspectionScope)).rejects.toThrow(
       'Upload de anexo indisponível em Modo Inspeção.',
     )
     expect(invokeMock).not.toHaveBeenCalled()
   })
 
-  it('envia FormData para a Edge Function portal-dispute-attachment e retorna metadados', async () => {
+  it('envia FormData para a Edge Function portal-dispute-attachment e retorna metadados sem depender de customer_id da UI', async () => {
     const file = new File(['dummy-pdf'], 'documento.pdf', { type: 'application/pdf' })
     invokeMock.mockResolvedValueOnce({
       data: { id: 99, file_name: 'documento.pdf', size_bytes: file.size },
       error: null,
     })
 
-    const result = await portalUploadDisputeAttachment(10, 20, 30, file)
+    const result = await portalUploadDisputeAttachment(10, 20, file)
 
     expect(invokeMock).toHaveBeenCalledTimes(1)
     const [functionName, options] = invokeMock.mock.calls[0]
@@ -64,18 +64,28 @@ describe('portalUploadDisputeAttachment (PAF-02/03)', () => {
     expect(options.body).toBeInstanceOf(FormData)
     expect((options.body as FormData).get('message_id')).toBe('10')
     expect((options.body as FormData).get('dispute_id')).toBe('20')
-    expect((options.body as FormData).get('customer_id')).toBe('30')
+    // B2: customer_id não deve ser enviado pela UI; o servidor deriva da sessão
+    expect((options.body as FormData).get('customer_id')).toBeNull()
     expect(result).toEqual({ id: 99, file_name: 'documento.pdf', size_bytes: file.size })
   })
 
-  it('propaga mensagem de erro retornada pela Edge Function', async () => {
+  it('extrai e propaga mensagem de erro do corpo JSON de FunctionsHttpError', async () => {
     const file = new File(['dummy'], 'nota.txt', { type: 'text/plain' })
+    const httpError = {
+      message: 'Edge Function returned a non-2xx status code',
+      context: {
+        json: async () => ({
+          error: 'Quota de armazenamento de anexos de 100 MB excedida.',
+          code: '22023',
+        }),
+      },
+    }
     invokeMock.mockResolvedValueOnce({
       data: null,
-      error: { message: 'Quota de armazenamento de anexos de 100 MB excedida.' },
+      error: httpError,
     })
 
-    await expect(portalUploadDisputeAttachment(10, 20, 30, file)).rejects.toThrow(
+    await expect(portalUploadDisputeAttachment(10, 20, file)).rejects.toThrow(
       'Quota de armazenamento de anexos de 100 MB excedida.',
     )
   })

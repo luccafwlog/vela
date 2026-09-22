@@ -38,16 +38,43 @@ export function PortalDisputeConversation({ disputes }: { disputes: PortalDisput
       return
     }
     setErrors((current) => ({ ...current, [dispute.id]: '' }))
+    const file = files[dispute.id]
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setErrors((current) => ({ ...current, [dispute.id]: 'O anexo excede o limite de 10 MB.' }))
+        return
+      }
+      const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'text/plain']
+      if (!allowed.includes(file.type)) {
+        setErrors((current) => ({ ...current, [dispute.id]: 'Tipo de anexo não permitido. Use PDF, JPG, PNG ou TXT.' }))
+        return
+      }
+    }
+
     try {
       if (dispute.state === 'resolvida') {
         await requestReopen.mutateAsync({ disputeId: dispute.id, body })
+        setDrafts((current) => ({ ...current, [dispute.id]: '' }))
+        setFiles((current) => ({ ...current, [dispute.id]: null }))
       } else {
         const result = await addMessage.mutateAsync({ demurrageInvoiceId: dispute.demurrage_invoice_id, body })
-        const file = files[dispute.id]
-        if (file && result?.message_id && scope.customerId) await portalUploadDisputeAttachment(result.message_id, dispute.id, scope.customerId, file, scope)
+        // Limpa o rascunho de texto imediatamente após a mensagem ser gravada para evitar duplicações
+        setDrafts((current) => ({ ...current, [dispute.id]: '' }))
+
+        if (file && result?.message_id) {
+          try {
+            await portalUploadDisputeAttachment(result.message_id, dispute.id, file, scope)
+            setFiles((current) => ({ ...current, [dispute.id]: null }))
+          } catch (uploadError) {
+            const uploadMsg = portalErrorMessage(uploadError, 'Falha ao enviar anexo.')
+            setErrors((current) => ({
+              ...current,
+              [dispute.id]: `Sua mensagem foi registrada, mas o anexo não pôde ser enviado: ${uploadMsg}`,
+            }))
+            return
+          }
+        }
       }
-      setDrafts((current) => ({ ...current, [dispute.id]: '' }))
-      setFiles((current) => ({ ...current, [dispute.id]: null }))
     } catch (error) {
       setErrors((current) => ({ ...current, [dispute.id]: portalErrorMessage(error, 'Falha ao enviar a mensagem.') }))
     }

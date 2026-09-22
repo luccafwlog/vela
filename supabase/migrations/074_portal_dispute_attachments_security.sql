@@ -66,15 +66,20 @@ BEGIN
       RAISE EXCEPTION 'Sem permissão.' USING ERRCODE = '42501';
     END IF;
 
+    -- B5: Serialização de quota/taxa por cliente para eliminar TOCTOU
+    PERFORM pg_advisory_xact_lock(hashtext('customer_dispute_quota_' || v_customer_id::text));
+
     -- PAF-03: para o Portal, a mensagem deve ser de cliente e pertencer ao usuário autenticado
     IF v_message.author_type <> 'cliente' OR v_message.author_id IS DISTINCT FROM auth.uid() THEN
       RAISE EXCEPTION 'Apenas o autor da mensagem pode anexar arquivos.' USING ERRCODE = '42501';
     END IF;
 
-    -- Quota por cliente (100 MB = 104857600 bytes)
-    SELECT COALESCE(SUM(size_bytes), 0) INTO v_total_stored
-      FROM public.demurrage_dispute_attachments
-     WHERE customer_id = v_customer_id;
+    -- Quota por cliente em disputas abertas (100 MB = 104857600 bytes)
+    SELECT COALESCE(SUM(a.size_bytes), 0) INTO v_total_stored
+      FROM public.demurrage_dispute_attachments a
+      JOIN public.demurrage_disputes d ON d.id = a.dispute_id
+     WHERE a.customer_id = v_customer_id
+       AND d.state = 'aberta';
 
     IF (v_total_stored + p_size_bytes) > 104857600 THEN
       RAISE EXCEPTION 'Quota de armazenamento de anexos de 100 MB excedida.' USING ERRCODE = '22023';
@@ -126,11 +131,46 @@ $$;
 REVOKE ALL ON FUNCTION public.add_demurrage_dispute_attachment(bigint, text, text, text, bigint) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.add_demurrage_dispute_attachment(bigint, text, text, text, bigint) TO authenticated, service_role;
 
+-- M3: Limpeza de anexos órfãos no storage por idade
+CREATE OR REPLACE FUNCTION public.cleanup_orphaned_dispute_attachments(p_older_than interval DEFAULT interval '1 day')
+RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $$
+DECLARE
+  v_count integer := 0;
+BEGIN
+  IF NOT public.is_admin() AND NOT (current_user = 'service_role') THEN
+    RAISE EXCEPTION 'Apenas administradores podem executar a limpeza de órfãos.' USING ERRCODE = '42501';
+  END IF;
+
+  IF to_regclass('storage.objects') IS NOT NULL THEN
+    WITH orphans AS (
+      DELETE FROM storage.objects o
+       WHERE o.bucket_id = 'demurrage-disputes'
+         AND o.created_at < (now() - p_older_than)
+         AND NOT EXISTS (
+           SELECT 1 FROM public.demurrage_dispute_attachments a
+            WHERE a.storage_path = o.name
+         )
+       RETURNING 1
+    )
+    SELECT count(*) INTO v_count FROM orphans;
+  END IF;
+
+  RETURN v_count;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.cleanup_orphaned_dispute_attachments(interval) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.cleanup_orphaned_dispute_attachments(interval) TO authenticated, service_role;
+
 DO $verify_add_demurrage_dispute_attachment_security$
 BEGIN
   IF has_function_privilege('anon', 'public.add_demurrage_dispute_attachment(bigint, text, text, text, bigint)', 'EXECUTE')
-     OR NOT has_function_privilege('authenticated', 'public.add_demurrage_dispute_attachment(bigint, text, text, text, bigint)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'add_demurrage_dispute_attachment fora do contrato de EXECUTE';
+     OR NOT has_function_privilege('authenticated', 'public.add_demurrage_dispute_attachment(bigint, text, text, text, bigint)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.cleanup_orphaned_dispute_attachments(interval)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'Contratos de EXECUTE de anexos fora do padrão de segurança';
   END IF;
 END;
 $verify_add_demurrage_dispute_attachment_security$;

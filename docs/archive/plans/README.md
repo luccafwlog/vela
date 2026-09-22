@@ -8,8 +8,6 @@ no [CHANGELOG](../../CHANGELOG.md); planos vivos ficam em
 
 ## Conteúdo
 
-- [`2026-09-22-plano-remediacao-auditoria-portal-f12.md`](2026-09-22-plano-remediacao-auditoria-portal-f12.md)
-  — remediação da auditoria do Portal e superfície F12: logout fail-closed, upload e metadados de anexos de disputa com Edge Function dedicada e storage restrito, eliminação de canal lateral temporal no recovery via execução em segundo plano, proteção fail-closed contra artefatos residuais de build e dependências limpas. Migration `074` e PR #718.
 - [`2026-09-20-remediacao-ui-design-system.md`](2026-09-20-remediacao-ui-design-system.md)
   — remediação dos 15 achados da auditoria forense de UI, design system e
   acessibilidade nas superfícies Vela e Portal Fwlog; testes de primitives,

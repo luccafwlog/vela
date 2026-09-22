@@ -106,7 +106,7 @@ describe('recuperação reusa o convite vivo em vez de enviar email novo', () =>
   // um cliente real — e cancelava o link que o cliente estava lendo.
   it('procura o convite reusável antes de invalidar os pendentes', () => {
     expect(indexOf(recovery, 'findReusableRecoveryInvite(admin, account.id')).toBeLessThan(indexOf(recovery, "update({ status: 'invalidado_por_reenvio' })"))
-    expect(recovery).toContain('if (liveInvite) return accepted()')
+    expect(recovery).toContain('if (liveInvite) return')
   })
 
   // Reuso é sobre um link que o cliente possa ler AGORA: o convite tem de estar

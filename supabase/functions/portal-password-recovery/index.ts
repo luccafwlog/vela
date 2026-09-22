@@ -50,14 +50,14 @@ async function processRecoveryInBackground(admin: ReturnType<typeof createClient
     .select('id, customer_id, account_situation, recovery_email, customers(name, cnpj_cpf)')
     .eq('login_cnpj', cnpj)
     .maybeSingle()
-  if (!account) return accepted()
-  if (account.account_situation !== 'ativo' || !account.recovery_email) return accepted()
+  if (!account) return
+  if (account.account_situation !== 'ativo' || !account.recovery_email) return
   const { data: suppressed } = await admin
     .from('portal_suppressed_emails')
     .select('id')
     .eq('email', account.recovery_email.toLowerCase())
     .maybeSingle()
-  if (suppressed) return accepted()
+  if (suppressed) return
 
   // Havendo link vivo, o pedido reusa em vez de reenviar: sem isso, um terceiro
   // com o CNPJ (público) fazia o sistema enviar até 480 emails por dia à caixa
@@ -68,7 +68,7 @@ async function processRecoveryInBackground(admin: ReturnType<typeof createClient
   // em envio; contar só os pedidos sem conta faria do bloqueio um oráculo de
   // enumeração.
   const liveInvite = await findReusableRecoveryInvite(admin, account.id, account.recovery_email, Date.now())
-  if (liveInvite) return accepted()
+  if (liveInvite) return
 
   await admin
     .from('portal_invites')
@@ -91,7 +91,7 @@ async function processRecoveryInBackground(admin: ReturnType<typeof createClient
     })
     .select('id')
     .single()
-  if (!invite) return accepted()
+  if (!invite) return
 
   const customer = account.customers as { name?: string; cnpj_cpf?: string } | null
   const d = (customer?.cnpj_cpf ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
@@ -117,6 +117,4 @@ async function processRecoveryInBackground(admin: ReturnType<typeof createClient
     accountId: account.id,
     inviteId: invite.id,
   }).catch((error) => console.error('[portal-password-recovery] falha ao enviar email em segundo plano', error))
-
-  return accepted()
 }

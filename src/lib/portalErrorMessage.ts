@@ -8,9 +8,23 @@ export function portalErrorMessage(error: unknown, fallback: string): string {
   const classified = classifyDbError(error)
   if (classified.kind !== 'desconhecido') return classified.message
 
-  const message = errorMessage(error).toLowerCase()
-  if ((message.includes('new password') && message.includes('different')) || message.includes('same password')) {
+  const msg = errorMessage(error)
+  const lower = msg.toLowerCase()
+  if ((lower.includes('new password') && lower.includes('different')) || lower.includes('same password')) {
     return 'A nova senha deve ser diferente da senha atual.'
+  }
+
+  if (
+    msg.includes('Quota de armazenamento') ||
+    msg.includes('Limite diário') ||
+    msg.includes('Apenas o autor da mensagem') ||
+    msg.includes('Anexo inválido') ||
+    msg.includes('Tipo de anexo não permitido') ||
+    msg.includes('Conteúdo do arquivo não corresponde') ||
+    msg.includes('Upload de anexo indisponível') ||
+    msg.includes('Sua mensagem foi registrada, mas o anexo')
+  ) {
+    return msg
   }
 
   return fallback

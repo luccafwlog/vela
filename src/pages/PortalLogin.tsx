@@ -23,6 +23,20 @@ export function PortalLogin() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [notice] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        const stored = window.sessionStorage.getItem('portal_signout_notice')
+        if (stored) {
+          window.sessionStorage.removeItem('portal_signout_notice')
+          return stored
+        }
+      }
+    } catch {
+      // ignora erro de sessionStorage
+    }
+    return ''
+  })
 
   if (!loading && isAuthenticated) {
     return <Navigate to="/portal" replace />
@@ -81,6 +95,12 @@ export function PortalLogin() {
         {!isSupabaseConfigured ? (
           <div className="app-callout app-callout--warning">
             Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env antes de autenticar.
+          </div>
+        ) : null}
+
+        {notice ? (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            {notice}
           </div>
         ) : null}
 

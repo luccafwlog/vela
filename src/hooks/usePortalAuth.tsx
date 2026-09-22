@@ -146,6 +146,17 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
       const message =
         error instanceof Error ? error.message : 'Sessão encerrada localmente, mas a revogação remota falhou.'
       setSignOutError(message)
+      console.warn('[PortalAuth] Falha na revogação remota de sessão; saída local forçada:', error)
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.setItem(
+            'portal_signout_notice',
+            'Sua sessão foi encerrada neste dispositivo. A revogação no servidor não pôde ser confirmada devido a instabilidade de rede.',
+          )
+        }
+      } catch {
+        // ignora erro de sessionStorage
+      }
     } finally {
       setIsSigningOut(false)
     }

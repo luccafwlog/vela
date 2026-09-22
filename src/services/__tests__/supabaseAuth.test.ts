@@ -69,4 +69,31 @@ describe('signOutSupabaseClient', () => {
     expect(removeSession).toHaveBeenCalledTimes(1)
     expect(removeItem).toHaveBeenCalledWith('td-portal-auth')
   })
+
+  it('purges local session and throws if remote logout hangs beyond timeout', async () => {
+    const removeSession = vi.fn()
+    const removeItem = vi.fn()
+    const signOut = vi.fn(async (options?: { scope?: string }) => {
+      if (options?.scope === 'local') {
+        return { error: null }
+      }
+      return new Promise<{ error: null }>(() => {})
+    })
+
+    const client = {
+      auth: {
+        signOut,
+        _removeSession: removeSession,
+        storageKey: 'td-portal-auth',
+        storage: {
+          removeItem,
+        },
+      },
+    }
+
+    await expect(signOutSupabaseClient(client, 50)).rejects.toThrow(/Tempo limite excedido/)
+    expect(signOut).toHaveBeenCalledWith({ scope: 'local' })
+    expect(removeSession).toHaveBeenCalledTimes(1)
+    expect(removeItem).toHaveBeenCalledWith('td-portal-auth')
+  })
 })

@@ -37,16 +37,20 @@ describe('página de espera do Preview do Vercel (ADR 0056)', () => {
     try {
       const viteDir = join(tempDir, '.vite')
       const assetsDir = join(tempDir, 'assets')
+      const nestedDir = join(tempDir, 'nested')
       mkdirSync(viteDir, { recursive: true })
       mkdirSync(assetsDir, { recursive: true })
+      mkdirSync(nestedDir, { recursive: true })
       writeFileSync(join(viteDir, 'manifest.json'), '{}')
       writeFileSync(join(assetsDir, 'app.js'), 'console.log("ok")')
       writeFileSync(join(assetsDir, 'app.js.map'), '{"version":3}')
+      writeFileSync(join(nestedDir, 'extra.js.map'), '{"version":3}')
 
       cleanProductionArtifacts(tempDir)
 
       expect(existsSync(viteDir)).toBe(false)
       expect(existsSync(join(assetsDir, 'app.js.map'))).toBe(false)
+      expect(existsSync(join(nestedDir, 'extra.js.map'))).toBe(false)
       expect(existsSync(join(assetsDir, 'app.js'))).toBe(true)
     } finally {
       rmSync(tempDir, { recursive: true, force: true })

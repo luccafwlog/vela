@@ -1,8 +1,6 @@
 # Plano de remediação da auditoria do Portal e da superfície F12
 
-> **Estado:** concluído na base de código e arquivado via PR #718 (Fases 0 a 4
-> implementadas com testes unitários, testes de contrato SQL e living docs;
-> Fase 5 de validação de runtime documentada para execução em staging após deploy).
+> **Estado:** em execução na PR #718 (Fases 0 a 4 implementadas; Fase 5 de validação de runtime em staging aguardando deploy).
 >
 > **Origem:** revisão estática de segurança do Portal do Cliente concluída em
 > 2026-09-22. A revisão percorreu a SPA do Portal, autenticação, Edge Functions,

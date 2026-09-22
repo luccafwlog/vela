@@ -110,3 +110,18 @@ it('senha errada em CNPJ completo mantem a mensagem generica de credenciais', as
 
   await waitFor(() => expect(screen.getByText('Credenciais inválidas para o portal do cliente.')).toBeTruthy())
 })
+
+it('exibe e limpa aviso quando o logout local foi forcado por falha de revogacao remota', async () => {
+  sessionStorage.setItem('portal_signout_notice', 'Sessão local encerrada. A revogação no servidor não pôde ser confirmada devido a instabilidade de rede.')
+
+  render(
+    <MemoryRouter>
+      <PortalLogin />
+    </MemoryRouter>,
+  )
+
+  expect(
+    screen.getByText(/Sessão local encerrada\. A revogação no servidor não pôde ser confirmada/),
+  ).toBeTruthy()
+  expect(sessionStorage.getItem('portal_signout_notice')).toBeNull()
+})

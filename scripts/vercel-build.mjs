@@ -108,19 +108,25 @@ export function assertNoForbiddenArtifacts(dir) {
   }
 }
 
-export function cleanProductionArtifacts(outDir) {
-  const viteDir = resolve(outDir, '.vite')
-  if (existsSync(viteDir)) {
-    rmSync(viteDir, { recursive: true, force: true })
-  }
-  const assetsDir = resolve(outDir, 'assets')
-  if (existsSync(assetsDir)) {
-    for (const file of readdirSync(assetsDir)) {
-      if (file.endsWith('.map')) {
-        rmSync(resolve(assetsDir, file), { force: true })
+function removeForbiddenArtifacts(dir) {
+  if (!existsSync(dir)) return
+  const entries = readdirSync(dir, { withFileTypes: true })
+  for (const entry of entries) {
+    const fullPath = resolve(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name === '.vite') {
+        rmSync(fullPath, { recursive: true, force: true })
+      } else {
+        removeForbiddenArtifacts(fullPath)
       }
+    } else if (entry.isFile() && entry.name.endsWith('.map')) {
+      rmSync(fullPath, { force: true })
     }
   }
+}
+
+export function cleanProductionArtifacts(outDir) {
+  removeForbiddenArtifacts(outDir)
   assertNoForbiddenArtifacts(outDir)
 }
 

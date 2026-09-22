@@ -3,8 +3,27 @@ import { withCors } from '../_shared/cors.ts'
 
 const ALLOWED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'text/plain'])
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
-const MAX_CUSTOMER_QUOTA = 100 * 1024 * 1024 // 100 MB
-const MAX_DAILY_UPLOADS = 20
+
+// ponytail: validação de magic bytes em memória para os 4 MIME types permitidos.
+// Teto conhecido: não inspeciona macros ou embeds profundos em PDF;
+// caminho de upgrade é verificação antivírus assíncrona/sandboxed se visualização inline for introduzida.
+function matchesMagicBytes(buffer: Uint8Array, mime: string): boolean {
+  if (buffer.length < 4) return false
+  if (mime === 'application/pdf') {
+    return buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46 // %PDF
+  }
+  if (mime === 'image/png') {
+    return buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47
+  }
+  if (mime === 'image/jpeg') {
+    return buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF
+  }
+  if (mime === 'text/plain') {
+    const slice = buffer.subarray(0, Math.min(buffer.length, 512))
+    return !slice.includes(0x00)
+  }
+  return false
+}
 
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
@@ -52,7 +71,13 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     return new Response(JSON.stringify({ error: 'Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.' }), { status: 422 })
   }
 
-  // PAF-03: Validação de autoria e integridade
+  const fileBuffer = await file.arrayBuffer()
+  const uint8 = new Uint8Array(fileBuffer)
+  if (!matchesMagicBytes(uint8, file.type)) {
+    return new Response(JSON.stringify({ error: 'Conteúdo do arquivo não corresponde ao tipo MIME informado.' }), { status: 422 })
+  }
+
+  // PAF-03: Pré-validação de autoria e integridade
   const { data: message } = await admin
     .from('demurrage_dispute_messages')
     .select('id, dispute_id, author_type, author_id')
@@ -77,32 +102,9 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     return new Response(JSON.stringify({ error: 'Disputa não encontrada ou não autorizada.' }), { status: 403 })
   }
 
-  // Quota e Rate Limit (G-PAF1)
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const { count } = await admin
-    .from('demurrage_dispute_attachments')
-    .select('*', { count: 'exact', head: true })
-    .eq('customer_id', account.customer_id)
-    .gte('created_at', oneDayAgo)
-
-  if (typeof count === 'number' && count >= MAX_DAILY_UPLOADS) {
-    return new Response(JSON.stringify({ error: 'Limite diário de 20 anexos excedido.' }), { status: 429 })
-  }
-
-  const { data: existingAttachments } = await admin
-    .from('demurrage_dispute_attachments')
-    .select('size_bytes')
-    .eq('customer_id', account.customer_id)
-
-  const currentUsageBytes = (existingAttachments ?? []).reduce((acc, row) => acc + Number(row.size_bytes || 0), 0)
-  if (currentUsageBytes + file.size > MAX_CUSTOMER_QUOTA) {
-    return new Response(JSON.stringify({ error: 'Quota de armazenamento de anexos de 100 MB excedida.' }), { status: 422 })
-  }
-
   // Caminho gerado no servidor
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
   const storagePath = `${account.customer_id}/disputes/${dispute.id}/${message.id}/${crypto.randomUUID()}-${safeName}`
-  const fileBuffer = await file.arrayBuffer()
 
   const { error: uploadError } = await admin.storage
     .from('demurrage-disputes')
@@ -112,27 +114,28 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     return new Response(JSON.stringify({ error: 'Falha ao gravar anexo no storage.' }), { status: 500 })
   }
 
-  // Registro de metadados
-  const { data: attachment, error: insertError } = await admin
-    .from('demurrage_dispute_attachments')
-    .insert({
-      message_id: message.id,
-      dispute_id: dispute.id,
-      customer_id: account.customer_id,
-      storage_path: storagePath,
-      file_name: file.name,
-      mime_type: file.type,
-      size_bytes: file.size,
-      uploaded_by: authUserId,
-    })
-    .select('id, file_name, size_bytes')
-    .single()
+  // A1: Registro de metadados e validação de quota/taxa via RPC add_demurrage_dispute_attachment
+  const { data: attachmentId, error: rpcError } = await portal.rpc('add_demurrage_dispute_attachment', {
+    p_message_id: message.id,
+    p_storage_path: storagePath,
+    p_file_name: file.name,
+    p_mime_type: file.type,
+    p_size_bytes: file.size,
+  })
 
-  if (insertError || !attachment) {
+  if (rpcError || !attachmentId) {
     // Limpeza de órfão imediata
     await admin.storage.from('demurrage-disputes').remove([storagePath]).catch(() => null)
-    return new Response(JSON.stringify({ error: 'Falha ao registrar anexo.' }), { status: 500 })
+    const errorMessage = rpcError?.message || 'Falha ao registrar anexo.'
+    const status = rpcError?.code === '42501' ? 403 : rpcError?.code === 'P0002' ? 404 : 422
+    return new Response(JSON.stringify({ error: errorMessage, code: rpcError?.code }), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
-  return new Response(JSON.stringify(attachment), { status: 201, headers: { 'Content-Type': 'application/json' } })
+  return new Response(
+    JSON.stringify({ id: attachmentId, file_name: file.name, size_bytes: file.size }),
+    { status: 201, headers: { 'Content-Type': 'application/json' } }
+  )
 }))

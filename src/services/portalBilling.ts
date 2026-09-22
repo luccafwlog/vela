@@ -342,7 +342,6 @@ export async function portalAddDisputeMessage(demurrageInvoiceId: number, body: 
 export async function portalUploadDisputeAttachment(
   messageId: number,
   disputeId: number,
-  customerId: number,
   file: File,
   scope: PortalScope = clientPortalScope,
 ) {
@@ -358,14 +357,28 @@ export async function portalUploadDisputeAttachment(
   formData.append('file', file)
   formData.append('message_id', String(messageId))
   formData.append('dispute_id', String(disputeId))
-  formData.append('customer_id', String(customerId))
 
   const { data, error } = await supabasePortal.functions.invoke('portal-dispute-attachment', {
     body: formData,
   })
   if (error) {
-    const message = (error as { message?: string }).message || 'Falha ao enviar anexo.'
-    throw new Error(message)
+    let serverMessage: string | undefined
+    let serverCode: string | undefined
+    if ('context' in error && error.context && typeof (error.context as { json?: unknown }).json === 'function') {
+      try {
+        const body = await (error.context as { json: () => Promise<{ error?: string; code?: string }> }).json()
+        if (body && typeof body.error === 'string') {
+          serverMessage = body.error
+          serverCode = body.code
+        }
+      } catch {
+        // ignora falha de parse
+      }
+    }
+    const message = serverMessage || (error as { message?: string }).message || 'Falha ao enviar anexo.'
+    const err = new Error(message) as Error & { code?: string }
+    if (serverCode) err.code = serverCode
+    throw err
   }
   return data
 }
