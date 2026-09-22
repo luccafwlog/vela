@@ -54,7 +54,7 @@ O fluxo canônico detalhado está em [ARCHITECTURE.md](ARCHITECTURE.md#fluxo-ope
 - [ROADMAP.md](ROADMAP.md) — estado atual, backlog e riscos.
 - [CHANGELOG.md](CHANGELOG.md) — histórico de entregas relevantes.
 - [adr/](adr/) — decisões arquiteturais numeradas.
-- [operations/](operations/regras-de-negocio.md) — regras de negócio, segurança, validação, reset, [segredos dos jobs `pg_cron`](operations/segredos-cron.md).
+- [operations/](operations/regras-de-negocio.md) — regras de negócio, segurança, validação, reset, [rate limit do Portal](operations/portal-rate-limit.md), [segredos dos jobs `pg_cron`](operations/segredos-cron.md).
 - [setup/](setup/development.md) — desenvolvimento, deploy, testes.
 - [plans/](plans/README.md) — planos de implementação vivos (ainda não executados).
 - [spec/](spec/README.md) — specs funcionais ainda sem implementação concluída.

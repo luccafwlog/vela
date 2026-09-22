@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { openAlertOnce } from '../_shared/portalAlerts.ts'
-import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess } from '../_shared/portalLoginRateLimit.ts'
+import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { authenticatePortalLoginIdentity } from '../_shared/portalLoginIdentity.ts'
 
 const GENERIC_ERROR = 'CNPJ ou senha inválidos.'
@@ -39,7 +39,8 @@ if (typeof Deno !== 'undefined') {
       if (!url || !serviceKey || !anonKey || !dummyUserId) return json(500, { error: 'Portal indisponível.' }, origin)
 
       const admin = createClient(url, serviceKey)
-      if (await isLoginRateLimited(admin, normalized)) {
+      const rateLimitContext = { ip: requestIp(req) }
+      if (await isLoginRateLimited(admin, normalized, rateLimitContext)) {
         // O caminho bloqueado consultava a conta e, SÓ se ela existisse,
         // consultava e inseria o alerta: os dois desfechos devolvem o mesmo 401,
         // mas um fazia consistentemente uma consulta a mais que o outro. É o
@@ -74,11 +75,11 @@ if (typeof Deno !== 'undefined') {
         },
       })
       if (!authentication.accepted || !authentication.session) {
-        await registerLoginFailure(admin, normalized)
+        await registerLoginFailure(admin, normalized, rateLimitContext)
         return json(401, { error: GENERIC_ERROR }, origin)
       }
 
-      await registerLoginSuccess(admin, normalized)
+      await registerLoginSuccess(admin, normalized, rateLimitContext)
       await admin.from('customer_portal_accounts').update({ last_login_at: new Date().toISOString() }).eq('login_cnpj', normalized)
       return json(200, {
         access_token: authentication.session.access_token,
