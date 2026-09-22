@@ -25,16 +25,16 @@ describe('troca de Email de Recuperação consulta a trava antes de verificar a 
   // Achado B: quem tivesse uma sessão do Portal aberta testava senha sem limite
   // por este caminho, contornando as 5 tentativas do login.
   it('chama isLoginRateLimited antes de signInWithPassword', () => {
-    expect(indexOf(emailChange, 'isLoginRateLimited(admin, account.login_cnpj)')).toBeLessThan(indexOf(emailChange, 'verifier.auth.signInWithPassword'))
+    expect(indexOf(emailChange, 'isLoginRateLimited(admin, account.login_cnpj, rateLimitContext)')).toBeLessThan(indexOf(emailChange, 'verifier.auth.signInWithPassword'))
   })
 
   it('responde 429 sem seguir adiante quando o balde está cheio', () => {
-    expect(emailChange).toContain('if (await isLoginRateLimited(admin, account.login_cnpj)) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })')
+    expect(emailChange).toContain('if (await isLoginRateLimited(admin, account.login_cnpj, rateLimitContext)) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })')
   })
 
   it('registra falha e sucesso no contador do login', () => {
-    expect(emailChange).toContain('await registerLoginFailure(admin, account.login_cnpj)')
-    expect(emailChange).toContain('await registerLoginSuccess(admin, account.login_cnpj)')
+    expect(emailChange).toContain('await registerLoginFailure(admin, account.login_cnpj, rateLimitContext)')
+    expect(emailChange).toContain('await registerLoginSuccess(admin, account.login_cnpj, rateLimitContext)')
   })
 
   // Falha ao resolver o usuário do Auth não é senha errada: registrá-la no
@@ -42,7 +42,7 @@ describe('troca de Email de Recuperação consulta a trava antes de verificar a 
   // trancaria 15 minutos fora do Portal sem que ele tivesse errado nada.
   it('não registra falha quando o email técnico não pôde ser resolvido', () => {
     expect(emailChange).toContain("if (!technicalEmail) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 500 })")
-    expect(indexOf(emailChange, 'if (!technicalEmail)')).toBeLessThan(indexOf(emailChange, 'await registerLoginFailure(admin, account.login_cnpj)'))
+    expect(indexOf(emailChange, 'if (!technicalEmail)')).toBeLessThan(indexOf(emailChange, 'await registerLoginFailure(admin, account.login_cnpj, rateLimitContext)'))
   })
 
   // A verificação criava uma sessão do Auth que ninguém mais usava. O escopo
@@ -64,7 +64,7 @@ describe('caminho bloqueado do login não faz trabalho síncrono a mais', () => 
   // (e às vezes `alerts`) antes de responder — assimetria mensurável num
   // caminho projetado para não ter nenhuma.
   it('move a consulta e o alerta para segundo plano com EdgeRuntime.waitUntil', () => {
-    const blockedBranch = login.slice(indexOf(login, 'if (await isLoginRateLimited(admin, normalized))'), indexOf(login, 'const { data: account }'))
+    const blockedBranch = login.slice(indexOf(login, 'if (await isLoginRateLimited(admin, normalized, rateLimitContext))'), indexOf(login, 'const { data: account }'))
     expect(blockedBranch).toContain('EdgeRuntime.waitUntil(alertWork)')
     expect(indexOf(blockedBranch, 'EdgeRuntime.waitUntil(alertWork)')).toBeLessThan(indexOf(blockedBranch, 'return json(401, { error: GENERIC_ERROR }, origin)'))
     // A consulta à conta e a abertura do alerta ficam dentro do trabalho
@@ -106,7 +106,7 @@ describe('recuperação reusa o convite vivo em vez de enviar email novo', () =>
   // um cliente real — e cancelava o link que o cliente estava lendo.
   it('procura o convite reusável antes de invalidar os pendentes', () => {
     expect(indexOf(recovery, 'findReusableRecoveryInvite(admin, account.id')).toBeLessThan(indexOf(recovery, "update({ status: 'invalidado_por_reenvio' })"))
-    expect(recovery).toContain('if (liveInvite) return accepted()')
+    expect(recovery).toContain('if (liveInvite) return')
   })
 
   // Reuso é sobre um link que o cliente possa ler AGORA: o convite tem de estar
@@ -119,10 +119,16 @@ describe('recuperação reusa o convite vivo em vez de enviar email novo', () =>
   // Contar só os pedidos sem conta transformaria o bloqueio em oráculo de
   // enumeração; o registro da tentativa continua antes de qualquer bifurcação.
   it('não altera o balde de tentativas', () => {
-    expect(indexOf(recovery, "admin.rpc('portal_recovery_register_failure'")).toBeLessThan(indexOf(recovery, 'findReusableRecoveryInvite(admin, account.id'))
+    expect(indexOf(recovery, 'await registerRecoveryFailure(admin, cnpj, rateLimitContext)')).toBeLessThan(indexOf(recovery, 'findReusableRecoveryInvite(admin, account.id'))
   })
 
   it('o caminho de reuso devolve a mesma resposta dos demais casos elegíveis', () => {
     expect(recovery).toContain("const accepted = () => new Response(JSON.stringify({ accepted: true }), { status: 200, headers: { 'Content-Type': 'application/json' } })")
+  })
+
+  it('processa a recuperação em segundo plano com EdgeRuntime.waitUntil para eliminar canal lateral temporal', () => {
+    expect(recovery).toContain('EdgeRuntime.waitUntil(recoveryWork)')
+    expect(indexOf(recovery, 'await registerRecoveryFailure(admin, cnpj, rateLimitContext)')).toBeLessThan(indexOf(recovery, 'EdgeRuntime.waitUntil(recoveryWork)'))
+    expect(indexOf(recovery, 'EdgeRuntime.waitUntil(recoveryWork)')).toBeLessThan(recovery.lastIndexOf('return accepted()'))
   })
 })

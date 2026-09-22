@@ -16,13 +16,19 @@ function isNetworkError(error: unknown): boolean {
   return name === 'AuthRetryableFetchError' || message.includes('failed to fetch') || message.includes('fetch failed')
 }
 
+const SIGNOUT_NOTICE = 'Sua sessão foi encerrada neste dispositivo. A revogação no servidor não pôde ser confirmada devido a instabilidade de rede.'
+
 export function PortalLogin() {
   const navigate = useNavigate()
-  const { isAuthenticated, loading, signIn } = usePortalAuth()
+  const { isAuthenticated, loading, signIn, signOutError } = usePortalAuth()
   const [cnpj, setCnpj] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  // Derivado do estado vivo do provider: o redirecionamento para esta tela
+  // acontece antes do timeout da revogação remota, então um valor congelado na
+  // montagem nunca veria a falha.
+  const notice = signOutError ? SIGNOUT_NOTICE : ''
 
   if (!loading && isAuthenticated) {
     return <Navigate to="/portal" replace />
@@ -81,6 +87,12 @@ export function PortalLogin() {
         {!isSupabaseConfigured ? (
           <div className="app-callout app-callout--warning">
             Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env antes de autenticar.
+          </div>
+        ) : null}
+
+        {notice ? (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            {notice}
           </div>
         ) : null}
 
