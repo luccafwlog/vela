@@ -699,13 +699,8 @@ essas etapas no Supabase antes do frontend que depende delas.
 ## 13. Telemetria e falhas
 
 `src/lib/telemetry.ts` inicializa Sentry quando `import.meta.env.PROD` é
-verdadeiro e associa o release ao commit injetado no build. `main.tsx` e
-`portal-main.tsx` selecionam DSNs distintos por `VITE_SENTRY_DSN_INTERNAL` e
-`VITE_SENTRY_DSN_PORTAL`; sem essas variáveis, o DSN legado é usado como
-fallback de compatibilidade. `VITE_SENTRY_ENVIRONMENT` deve distinguir
-`production` de `preview` antes de regras de alerta baseadas no ambiente.
-O contrato de uptime/heartbeat e o procedimento externo estão em
-[`docs/operations/observabilidade.md`](./docs/operations/observabilidade.md).
+verdadeiro e associa o release ao commit injetado no build. Isso inclui builds
+de Preview; não significa exclusivamente o ambiente remoto de produção.
 
 - falhas principais devem chegar à UI e interromper a operação insegura;
 - escritas best-effort podem seguir, mas precisam chamar a telemetria;

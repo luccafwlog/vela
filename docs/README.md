@@ -14,7 +14,6 @@
 | Rodar/entender os testes | [setup/testing.md](setup/testing.md) |
 | Entender uma regra de negócio não óbvia | [operations/regras-de-negocio.md](operations/regras-de-negocio.md) |
 | Entender segurança (RLS, auth, CSP) | [operations/seguranca.md](operations/seguranca.md) |
-| Operar uptime, heartbeats e Sentry | [operations/observabilidade.md](operations/observabilidade.md) |
 | Validar um fluxo manualmente | [operations/validacao.md](operations/validacao.md) |
 | Saber por que algo foi decidido | [adr/](adr/) |
 
