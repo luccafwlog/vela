@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 import { signOutSupabaseClient } from '../supabaseAuth'
 
@@ -95,5 +96,53 @@ describe('signOutSupabaseClient', () => {
     expect(signOut).toHaveBeenCalledWith({ scope: 'local' })
     expect(removeSession).toHaveBeenCalledTimes(1)
     expect(removeItem).toHaveBeenCalledWith('td-portal-auth')
+  })
+
+  it('N1: purga apenas o storageKey do cliente que está saindo, preservando outra sessão no mesmo domínio', async () => {
+    localStorage.setItem('td-portal-auth', 'token-portal')
+    localStorage.setItem('sb-app-auth-token', 'token-interno')
+
+    const client = {
+      auth: {
+        signOut: vi.fn(async () => ({ error: new Error('rede instável') })),
+        storageKey: 'td-portal-auth',
+      },
+    }
+
+    await expect(signOutSupabaseClient(client)).rejects.toThrow('rede instável')
+
+    expect(localStorage.getItem('td-portal-auth')).toBeNull()
+    expect(localStorage.getItem('sb-app-auth-token')).toBe('token-interno')
+
+    localStorage.clear()
+  })
+
+  it('N2: purga localStorage imediatamente e resolve o fallback mesmo se signOut local bloquear no lock de GoTrue', async () => {
+    localStorage.setItem('td-portal-auth', 'token-portal')
+
+    // Simula a situação onde signOut global nunca resolve e o signOut local enfileira atrás do lock indefinidamente
+    const client = {
+      auth: {
+        signOut: vi.fn((options?: { scope?: string }) => {
+          if (options?.scope === 'local') {
+            return new Promise<{ error: null }>(() => {}) // trava no lock
+          }
+          return new Promise<{ error: null }>(() => {}) // trava na rede
+        }),
+        _removeSession: vi.fn(() => new Promise<void>(() => {})), // trava no lock
+        storageKey: 'td-portal-auth',
+      },
+    }
+
+    const start = Date.now()
+    await expect(signOutSupabaseClient(client, 50)).rejects.toThrow(/Tempo limite excedido/)
+    const elapsed = Date.now() - start
+
+    // localStorage foi purgado imediatamente sem ficar preso nas chamadas bloqueadas
+    expect(localStorage.getItem('td-portal-auth')).toBeNull()
+    // O fallback resolveu com timeout curto defensivo (~200ms) sem travar a thread
+    expect(elapsed).toBeLessThan(1000)
+
+    localStorage.clear()
   })
 })

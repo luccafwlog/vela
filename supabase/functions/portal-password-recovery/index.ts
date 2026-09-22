@@ -67,6 +67,12 @@ async function processRecoveryInBackground(admin: ReturnType<typeof createClient
   // NÃO muda: ele continua registrando todo pedido, inclusive os que resultam
   // em envio; contar só os pedidos sem conta faria do bloqueio um oráculo de
   // enumeração.
+  //
+  // "Vivo" é mais que "pendente": o convite tem de estar endereçado ao email de
+  // recuperação VIGENTE e o envio não pode ter falhado. Um convite pendente que
+  // o Resend recusou, ou que foi para a caixa anterior a uma troca de endereço,
+  // seguraria por uma hora o link que o cliente está pedindo agora -- justamente
+  // no caminho em que ele não tem outro jeito de entrar.
   const liveInvite = await findReusableRecoveryInvite(admin, account.id, account.recovery_email, Date.now())
   if (liveInvite) return
 

@@ -88,5 +88,17 @@ describe('portalUploadDisputeAttachment (PAF-02/03)', () => {
     await expect(portalUploadDisputeAttachment(10, 20, file)).rejects.toThrow(
       'Quota de armazenamento de anexos de 100 MB excedida.',
     )
+
+    invokeMock.mockResolvedValueOnce({
+      data: null,
+      error: httpError,
+    })
+    try {
+      await portalUploadDisputeAttachment(10, 20, file)
+      expect.unreachable('deveria ter falhado')
+    } catch (err) {
+      expect((err as { isUserSafe?: boolean }).isUserSafe).toBe(true)
+      expect((err as { code?: string }).code).toBe('22023')
+    }
   })
 })

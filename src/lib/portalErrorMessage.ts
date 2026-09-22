@@ -5,6 +5,10 @@ function errorMessage(error: unknown): string {
 }
 
 export function portalErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'object' && error && (error as { isUserSafe?: boolean }).isUserSafe && (error as Error).message) {
+    return (error as Error).message
+  }
+
   const classified = classifyDbError(error)
   if (classified.kind !== 'desconhecido') return classified.message
 

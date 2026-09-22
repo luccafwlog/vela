@@ -27,42 +27,47 @@ function isLockStolenError(error: unknown) {
 
 export async function removeLocalSessionFallback(client: SignOutClient) {
   const internalAuth = client.auth as unknown as InternalAuthClient
-
-  try {
-    await internalAuth.signOut({ scope: 'local' })
-  } catch {
-    // Ignora erro de transporte ao tentar revogação local
-  }
-
-  try {
-    await internalAuth._removeSession?.()
-  } catch {
-    // Fallback silencioso
-  }
-
   const storageKey = internalAuth.storageKey
-  if (storageKey) {
+
+  // N1 & N2: Purga síncrona e imediata do storageKey exclusivo desta sessão no localStorage.
+  // Executado ANTES de qualquer await no cliente de auth para que, mesmo se o lock interno
+  // estiver preso por uma chamada de rede pendurada, o token seja destruído imediatamente.
+  // Além disso, preserva as credenciais de outra sessão no mesmo domínio (Portal x Interno).
+  if (typeof window !== 'undefined' && window.localStorage && storageKey) {
     try {
-      await internalAuth.storage?.removeItem?.(storageKey)
+      window.localStorage.removeItem(storageKey)
+    } catch {
+      // Ignora erro de acesso a localStorage
+    }
+  }
+
+  if (storageKey && internalAuth.storage?.removeItem) {
+    try {
+      await internalAuth.storage.removeItem(storageKey)
     } catch {
       // Ignora erro de adaptador de storage
     }
   }
 
-  // M5: Purga forçada em localStorage como caminho principal garantido
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      if (storageKey) window.localStorage.removeItem(storageKey)
-      window.localStorage.removeItem('td-portal-auth')
-      for (let i = window.localStorage.length - 1; i >= 0; i--) {
-        const key = window.localStorage.key(i)
-        if (key && (key.startsWith('sb-') && key.endsWith('-auth-token'))) {
-          window.localStorage.removeItem(key)
-        }
-      }
-    } catch {
-      // Ignora erro de acesso a localStorage
-    }
+  // N2: Limpeza em memória e estado interno em modo com timeout defensivo curto (200ms).
+  // No GoTrueClient, signOut({ scope: 'local' }) passa por _acquireLock. Se a chamada global
+  // anterior estiver travada na rede, o método enfileira atrás dela indefinidamente.
+  try {
+    await Promise.race([
+      Promise.resolve(internalAuth._removeSession?.()),
+      new Promise((resolve) => setTimeout(resolve, 200)),
+    ])
+  } catch {
+    // Fallback silencioso
+  }
+
+  try {
+    await Promise.race([
+      internalAuth.signOut({ scope: 'local' }),
+      new Promise((resolve) => setTimeout(resolve, 200)),
+    ])
+  } catch {
+    // Ignora erro ao tentar revogação local
   }
 }
 

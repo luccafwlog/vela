@@ -246,9 +246,8 @@ dados permitidos, limite de carga e limpeza. Produção fica fora por padrão.
 
 - Browser: logout com transporte interrompido, reload e isolamento entre sessão
   interna e Portal.
-- Storage/RPC: upload normal, upload repetido por REST, metadata adulterada,
-  mensagem de Equipamentos, outro cliente, objeto órfão e quota.
-- Recovery: distribuição de TTFB e ausência de enumeração por corpo/status.
+- Storage/RPC: upload normal (incluindo teste com arquivo de 9,9 MB para validar overhead de multipart no gateway Supabase), validação de preflight CORS (`OPTIONS`), leitura efetiva de `storage.objects` pela RPC, upload repetido por REST, metadata adulterada, mensagem de Equipamentos, outro cliente, objeto órfão, pré-checagem de elegibilidade e quota.
+- Recovery: distribuição de TTFB e ausência de enumeração por corpo/status; confirmação do comportamento assíncrono best-effort.
 - Build/deploy: verificar que `.map` não é servido e headers/CSP continuam
   presentes no ambiente identificado.
 - Registrar evidência como **Runtime**, sem converter teste de contrato SQL em

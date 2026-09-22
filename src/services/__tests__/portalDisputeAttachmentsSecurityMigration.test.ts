@@ -49,4 +49,9 @@ describe('Migration 074: segurança de anexos de Dispute (PAF-02 e PAF-03)', () 
     expect(migrationSql).toContain('NOT EXISTS (')
     expect(migrationSql).toContain('GRANT EXECUTE ON FUNCTION public.cleanup_orphaned_dispute_attachments(interval) TO authenticated, service_role;')
   })
+
+  it('fornece função de pré-checagem de cota e elegibilidade antes da criação da mensagem (V-A2)', () => {
+    expect(migrationSql).toContain('CREATE OR REPLACE FUNCTION public.portal_check_dispute_attachment_eligibility')
+    expect(migrationSql).toContain('GRANT EXECUTE ON FUNCTION public.portal_check_dispute_attachment_eligibility(bigint, bigint) TO authenticated, service_role;')
+  })
 })

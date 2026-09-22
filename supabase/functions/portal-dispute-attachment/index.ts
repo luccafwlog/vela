@@ -25,8 +25,15 @@ function matchesMagicBytes(buffer: Uint8Array, mime: string): boolean {
   return false
 }
 
+function json(body: { error?: string; code?: string; [key: string]: unknown }, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
-  if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
+  if (req.method !== 'POST') return json({ error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' }, 405)
 
   const url = Deno.env.get('SUPABASE_URL')!
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -37,7 +44,7 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   const { data: userData, error: userError } = await portal.auth.getUser()
   const authUserId = userData.user?.id
   if (userError || !authUserId) {
-    return new Response(JSON.stringify({ error: 'Sessão inválida ou expirada.' }), { status: 401 })
+    return json({ error: 'Sessão inválida ou expirada.', code: 'AUTH_REQUIRED' }, 401)
   }
 
   const admin = createClient(url, serviceKey)
@@ -48,12 +55,12 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     .maybeSingle()
 
   if (!account || !account.active) {
-    return new Response(JSON.stringify({ error: 'Acesso negado ao Portal.' }), { status: 403 })
+    return json({ error: 'Acesso negado ao Portal.', code: 'FORBIDDEN' }, 403)
   }
 
   const formData = await req.formData().catch(() => null)
   if (!formData) {
-    return new Response(JSON.stringify({ error: 'Requisição inválida (esperado multipart/form-data).' }), { status: 400 })
+    return json({ error: 'Requisição inválida (esperado multipart/form-data).', code: 'BAD_REQUEST' }, 400)
   }
 
   const file = formData.get('file') as File | null
@@ -64,17 +71,17 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   const disputeId = Number(disputeIdRaw)
 
   if (!file || !Number.isInteger(messageId) || !Number.isInteger(disputeId)) {
-    return new Response(JSON.stringify({ error: 'Arquivo ou IDs de mensagem/disputa inválidos.' }), { status: 422 })
+    return json({ error: 'Arquivo ou IDs de mensagem/disputa inválidos.', code: 'INVALID_INPUT' }, 422)
   }
 
   if (!ALLOWED_MIME_TYPES.has(file.type) || file.size <= 0 || file.size > MAX_FILE_SIZE) {
-    return new Response(JSON.stringify({ error: 'Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.' }), { status: 422 })
+    return json({ error: 'Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.', code: 'INVALID_FILE' }, 422)
   }
 
   const fileBuffer = await file.arrayBuffer()
   const uint8 = new Uint8Array(fileBuffer)
   if (!matchesMagicBytes(uint8, file.type)) {
-    return new Response(JSON.stringify({ error: 'Conteúdo do arquivo não corresponde ao tipo MIME informado.' }), { status: 422 })
+    return json({ error: 'Conteúdo do arquivo não corresponde ao tipo MIME informado.', code: 'INVALID_MAGIC_BYTES' }, 422)
   }
 
   // PAF-03: Pré-validação de autoria e integridade
@@ -85,11 +92,11 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     .maybeSingle()
 
   if (!message || message.dispute_id !== disputeId) {
-    return new Response(JSON.stringify({ error: 'Mensagem não encontrada.' }), { status: 404 })
+    return json({ error: 'Mensagem não encontrada.', code: 'NOT_FOUND' }, 404)
   }
 
   if (message.author_type !== 'cliente' || message.author_id !== authUserId) {
-    return new Response(JSON.stringify({ error: 'Apenas o autor da mensagem pode anexar arquivos.' }), { status: 403 })
+    return json({ error: 'Apenas o autor da mensagem pode anexar arquivos.', code: 'FORBIDDEN' }, 403)
   }
 
   const { data: dispute } = await admin
@@ -99,7 +106,7 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     .maybeSingle()
 
   if (!dispute || dispute.customer_id !== account.customer_id) {
-    return new Response(JSON.stringify({ error: 'Disputa não encontrada ou não autorizada.' }), { status: 403 })
+    return json({ error: 'Disputa não encontrada ou não autorizada.', code: 'FORBIDDEN' }, 403)
   }
 
   // Caminho gerado no servidor
@@ -111,7 +118,7 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     .upload(storagePath, fileBuffer, { contentType: file.type, upsert: false })
 
   if (uploadError) {
-    return new Response(JSON.stringify({ error: 'Falha ao gravar anexo no storage.' }), { status: 500 })
+    return json({ error: 'Falha ao gravar anexo no storage.', code: 'STORAGE_ERROR' }, 500)
   }
 
   // A1: Registro de metadados e validação de quota/taxa via RPC add_demurrage_dispute_attachment
@@ -127,15 +134,9 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     // Limpeza de órfão imediata
     await admin.storage.from('demurrage-disputes').remove([storagePath]).catch(() => null)
     const errorMessage = rpcError?.message || 'Falha ao registrar anexo.'
-    const status = rpcError?.code === '42501' ? 403 : rpcError?.code === 'P0002' ? 404 : 422
-    return new Response(JSON.stringify({ error: errorMessage, code: rpcError?.code }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    const status = (rpcError?.code === '42501' || rpcError?.code === '28000') ? 403 : rpcError?.code === 'P0002' ? 404 : 422
+    return json({ error: errorMessage, code: rpcError?.code || 'RPC_ERROR' }, status)
   }
 
-  return new Response(
-    JSON.stringify({ id: attachmentId, file_name: file.name, size_bytes: file.size }),
-    { status: 201, headers: { 'Content-Type': 'application/json' } }
-  )
+  return json({ id: attachmentId, file_name: file.name, size_bytes: file.size }, 201)
 }))

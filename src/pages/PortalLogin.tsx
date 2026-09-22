@@ -18,7 +18,7 @@ function isNetworkError(error: unknown): boolean {
 
 export function PortalLogin() {
   const navigate = useNavigate()
-  const { isAuthenticated, loading, signIn } = usePortalAuth()
+  const { isAuthenticated, loading, signIn, signOutError } = usePortalAuth()
   const [cnpj, setCnpj] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -35,7 +35,7 @@ export function PortalLogin() {
     } catch {
       // ignora erro de sessionStorage
     }
-    return ''
+    return signOutError ? 'Sua sessão foi encerrada neste dispositivo. A revogação no servidor não pôde ser confirmada devido a instabilidade de rede.' : ''
   })
 
   if (!loading && isAuthenticated) {

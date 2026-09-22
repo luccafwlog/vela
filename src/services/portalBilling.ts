@@ -2,7 +2,7 @@ import type { InvoiceDetail } from './billing'
 import type { ConsolidatableReceivable, DemurrageInvoiceItem } from '../types/database'
 import type { PortalBillingFilters } from '../lib/portalBillingFilters'
 import { callPortalRpc, clientPortalScope, isPortalReadOnly, type PortalScope } from './portalScope'
-import { supabasePortal } from './supabase'
+import { supabase, supabasePortal } from './supabase'
 
 export type PortalSessionOverview = {
   customer_id: number
@@ -376,8 +376,34 @@ export async function portalUploadDisputeAttachment(
       }
     }
     const message = serverMessage || (error as { message?: string }).message || 'Falha ao enviar anexo.'
-    const err = new Error(message) as Error & { code?: string }
+    const err = new Error(message) as Error & { code?: string; isUserSafe?: boolean }
     if (serverCode) err.code = serverCode
+    if (serverMessage) err.isUserSafe = true
+    throw err
+  }
+  return data
+}
+
+export async function portalCheckDisputeAttachmentEligibility(
+  disputeId: number,
+  sizeBytes: number,
+  scope: PortalScope = clientPortalScope,
+) {
+  if (isPortalReadOnly(scope)) {
+    throw new Error('Upload de anexo indisponível em Modo Inspeção.')
+  }
+  const client = scope.mode === 'inspect' ? supabase : supabasePortal
+  const { data, error } = await (client as unknown as { rpc: (name: string, params: Record<string, unknown>) => Promise<{ data: boolean | null; error: { message: string; code?: string } | null }> }).rpc(
+    'portal_check_dispute_attachment_eligibility',
+    {
+      p_dispute_id: disputeId,
+      p_size_bytes: sizeBytes,
+    },
+  )
+  if (error) {
+    const err = new Error(error.message) as Error & { code?: string; isUserSafe?: boolean }
+    err.code = error.code
+    err.isUserSafe = true
     throw err
   }
   return data

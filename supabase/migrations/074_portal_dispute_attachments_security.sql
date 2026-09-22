@@ -11,6 +11,7 @@ BEGIN
       CREATE POLICY demurrage_dispute_objects_insert ON storage.objects FOR INSERT TO authenticated
       WITH CHECK (bucket_id = 'demurrage-disputes' AND public.is_active_user());
     $sql$;
+    EXECUTE 'GRANT SELECT ON storage.objects TO authenticated, service_role';
   END IF;
 END;
 $storage_disputes$;
@@ -34,7 +35,7 @@ DECLARE
   v_daily_count bigint;
   v_obj_size bigint;
 BEGIN
-  IF auth.uid() IS NULL OR (NOT public.is_active_user() AND public.current_portal_customer_id() IS NULL) THEN
+  IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Sem permissão.' USING ERRCODE = '42501';
   END IF;
 
@@ -140,8 +141,11 @@ AS $$
 DECLARE
   v_count integer := 0;
 BEGIN
-  IF NOT public.is_admin() AND NOT (current_user = 'service_role') THEN
-    RAISE EXCEPTION 'Apenas administradores podem executar a limpeza de órfãos.' USING ERRCODE = '42501';
+  IF NOT public.is_admin()
+     AND auth.role() IS DISTINCT FROM 'service_role'
+     AND session_user IS DISTINCT FROM 'service_role'
+     AND COALESCE((current_setting('request.jwt.claims', true)::jsonb->>'role'), '') <> 'service_role' THEN
+    RAISE EXCEPTION 'Apenas administradores ou service_role podem executar a limpeza de órfãos.' USING ERRCODE = '42501';
   END IF;
 
   IF to_regclass('storage.objects') IS NOT NULL THEN
@@ -165,11 +169,77 @@ $$;
 REVOKE ALL ON FUNCTION public.cleanup_orphaned_dispute_attachments(interval) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.cleanup_orphaned_dispute_attachments(interval) TO authenticated, service_role;
 
+-- V-A2: Pré-checagem de cota e taxa antes da criação da mensagem na conversa
+CREATE OR REPLACE FUNCTION public.portal_check_dispute_attachment_eligibility(
+  p_dispute_id bigint,
+  p_size_bytes bigint
+)
+RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $$
+DECLARE
+  v_dispute public.demurrage_disputes%ROWTYPE;
+  v_customer_id bigint;
+  v_total_stored bigint;
+  v_daily_count bigint;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Sem permissão.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_size_bytes IS NULL OR p_size_bytes <= 0 OR p_size_bytes > 10485760 THEN
+    RAISE EXCEPTION 'Tamanho de anexo inválido.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_dispute FROM public.demurrage_disputes WHERE id = p_dispute_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Disputa não encontrada.' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF public.is_active_user() THEN
+    v_customer_id := v_dispute.customer_id;
+  ELSE
+    v_customer_id := public.current_portal_customer_id();
+    IF v_dispute.customer_id <> v_customer_id THEN
+      RAISE EXCEPTION 'Sem permissão.' USING ERRCODE = '42501';
+    END IF;
+
+    -- Quota por cliente em disputas abertas (100 MB)
+    SELECT COALESCE(SUM(a.size_bytes), 0) INTO v_total_stored
+      FROM public.demurrage_dispute_attachments a
+      JOIN public.demurrage_disputes d ON d.id = a.dispute_id
+     WHERE a.customer_id = v_customer_id
+       AND d.state = 'aberta';
+
+    IF (v_total_stored + p_size_bytes) > 104857600 THEN
+      RAISE EXCEPTION 'Quota de armazenamento de anexos de 100 MB excedida.' USING ERRCODE = '22023';
+    END IF;
+
+    -- Rate limit diário (máx 20 uploads nas últimas 24h)
+    SELECT COUNT(*) INTO v_daily_count
+      FROM public.demurrage_dispute_attachments
+     WHERE customer_id = v_customer_id
+       AND created_at >= (now() - interval '1 day');
+
+    IF v_daily_count >= 20 THEN
+      RAISE EXCEPTION 'Limite diário de 20 anexos excedido.' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+
+  RETURN true;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.portal_check_dispute_attachment_eligibility(bigint, bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.portal_check_dispute_attachment_eligibility(bigint, bigint) TO authenticated, service_role;
+
 DO $verify_add_demurrage_dispute_attachment_security$
 BEGIN
   IF has_function_privilege('anon', 'public.add_demurrage_dispute_attachment(bigint, text, text, text, bigint)', 'EXECUTE')
      OR NOT has_function_privilege('authenticated', 'public.add_demurrage_dispute_attachment(bigint, text, text, text, bigint)', 'EXECUTE')
-     OR NOT has_function_privilege('authenticated', 'public.cleanup_orphaned_dispute_attachments(interval)', 'EXECUTE') THEN
+     OR NOT has_function_privilege('authenticated', 'public.cleanup_orphaned_dispute_attachments(interval)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.portal_check_dispute_attachment_eligibility(bigint, bigint)', 'EXECUTE') THEN
     RAISE EXCEPTION 'Contratos de EXECUTE de anexos fora do padrão de segurança';
   END IF;
 END;
