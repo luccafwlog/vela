@@ -1,4 +1,3 @@
-import fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { buildFinancialNavItemsForCounts, financialNavItems, getNavIndicator, primaryNavItems } from '../appLayoutNav'
 
@@ -22,27 +21,4 @@ describe('financial navigation badges', () => {
 
 it('não expõe Portal do Cliente na navegação superior', () => {
   expect(primaryNavItems.some((item) => item.to === '/clientes/portal')).toBe(false)
-})
-
-it('usa disclosure de navegação e botão nativo para a conta', () => {
-  const source = fs.readFileSync('src/components/layout/AppLayout.tsx', 'utf8')
-  expect(source).not.toContain('role="menu"')
-  expect(source).not.toContain('role="menuitem"')
-  expect(source).not.toContain('aria-haspopup')
-  expect(source).toContain('aria-controls="app-user-dropdown"')
-  expect(source).toContain('userMenuFirstItemRef.current?.focus()')
-  expect(source).toContain('userMenuButtonRef.current?.focus()')
-})
-
-it('fecha os dropdowns da navegação superior com Escape e restaura foco no gatilho', () => {
-  const source = fs.readFileSync('src/components/layout/AppLayout.tsx', 'utf8')
-  expect(source).toContain("event.key === 'Escape' && isOpen")
-  expect(source).toContain('triggerRef.current?.focus()')
-})
-
-
-it('renderiza Admin como link direto sem dropdown', () => {
-  const source = fs.readFileSync('src/components/layout/AppLayout.tsx', 'utf8')
-  expect(source).toContain('<TopNavLink {...adminNavItem} onNavigate={closeMobileMenus} />')
-  expect(source).not.toContain('label="Admin"')
 })

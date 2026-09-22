@@ -1,5 +1,6 @@
 @import "./fonts.css";
 @import "tailwindcss";
+@custom-variant dark (&:where([data-visual-theme='dark'], [data-visual-theme='dark'] *));
 
 :root,
 :root[data-visual-theme='current'] {
@@ -4700,10 +4701,6 @@ textarea {
   border-top-right-radius: 16px;
 }
 
-.app-voyage-table-frame .app-table thead tr:not(:first-child) th {
-  border-radius: 0 !important;
-}
-
 .app-voyage-table-frame .app-table tbody td {
   background: var(--app-surface);
 }
@@ -4884,6 +4881,7 @@ textarea {
   color: #b91c1c !important;
 }
 
+/* Legacy Tailwind status colors are remapped globally for Vela and Portal. */
 :root[data-visual-theme='current'] .text-amber-100,
 :root[data-visual-theme='current'] .text-amber-200,
 :root[data-visual-theme='current'] .text-amber-300,

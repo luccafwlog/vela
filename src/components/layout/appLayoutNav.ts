@@ -46,8 +46,9 @@ export const primaryNavItems: NavItem[] = [
   { to: '/alertas', label: 'Alertas', icon: Bell },
 ]
 
+// Aponta para a tela, não para uma de suas abas: /admin abre a
+// Administração completa e cada aba tem sua própria sub-rota.
 export const adminNavItem: NavItem = { to: '/admin', label: 'Admin', icon: ShieldCheck }
-export const adminNavItems: NavItem[] = [adminNavItem]
 
 export const financialNavItems: NavItem[] = [
   { to: '/taxas-locais', label: 'Taxas Locais', icon: ReceiptText },

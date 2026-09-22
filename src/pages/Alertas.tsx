@@ -345,7 +345,7 @@ export function Alertas() {
           </div>
         ) : null}
 
-        <div className="app-table-scroll rounded-xl border border-[var(--app-border)] overflow-hidden">
+        <div className="app-table-scroll rounded-xl border border-[var(--app-border)]">
           <table className="app-table text-xs">
             <thead>
               <tr>

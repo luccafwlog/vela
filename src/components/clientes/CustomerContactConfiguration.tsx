@@ -330,7 +330,7 @@ export function CustomerContactConfiguration({
                       Contato Adicional
                     </span>
                   )}
-                  <span className="text-xs text-slate-400">{formatOrigin(contact.origin)}</span>
+                  <span className="text-xs text-[var(--app-muted)]">{formatOrigin(contact.origin)}</span>
                   {!contact.active && (
                     <span className="inline-flex items-center rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 px-2 py-0.5 text-xs font-medium">
                       Desativado

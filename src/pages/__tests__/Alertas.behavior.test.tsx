@@ -63,6 +63,17 @@ it('US-135: lista os alertas e filtra por status', () => {
   expect(screen.queryByText('Container vencendo')).toBeNull()
 })
 
+it('mantém a tabela de alertas rolável sem bloquear o overflow horizontal', () => {
+  renderAlertas()
+
+  const table = screen.getByRole('table')
+  const scroll = table.closest('.app-table-scroll')
+
+  expect(table.classList.contains('app-table')).toBe(true)
+  expect(scroll).not.toBeNull()
+  expect(scroll?.classList.contains('overflow-hidden')).toBe(false)
+})
+
 it('US-138: oferece link direto para a entidade do alerta', () => {
   renderAlertas()
 
