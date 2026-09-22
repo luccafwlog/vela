@@ -1,7 +1,7 @@
 # Backup lógico cifrado em Cloudflare R2 — M10 R2
 
 Este procedimento implementa somente o lado local/repositorio do plano M10 da
-Issue 710. O comando gera um dump lógico semanal do schema `public`, cifra o
+Issue 710. O comando gera um dump lógico diário do schema `public`, cifra o
 arquivo antes de qualquer upload e envia o resultado para um bucket R2 privado.
 Ele não cria recursos Cloudflare, não habilita PITR, não agenda produção e não
 executa restore.
@@ -123,7 +123,7 @@ mudança:
    prefixo. Não habilite acesso anônimo, presigned URL público ou uma policy de
    leitura ampla.
 6. Em um runner autenticado e controlado (Task Scheduler, cron ou outro
-   executor operacional), agende o comando semanal. O primeiro ciclo deve ser
+   executor operacional), agende o comando diário. O primeiro ciclo deve ser
    dry-run, seguido de uma execução autorizada e da conferência do manifesto,
    SHA-256 e presença dos dois objetos privados. Este repositório não adiciona
    workflow GitHub para evitar acoplar credenciais de banco e R2 ao CI.
