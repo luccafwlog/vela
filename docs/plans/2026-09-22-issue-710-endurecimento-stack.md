@@ -12,6 +12,8 @@
 
 ### Atualização de execução — 2026-09-22
 
+- **Estado dos dados reafirmado pelo owner em 2026-09-22:** o sistema ainda não tem usuários reais; os dados de produção existentes são de teste e não precisam ser preservados para este trabalho. Isso permite mudanças de schema e operações sobre dados de teste sem plano de retenção desses registros. A diretriz deve ser revista antes da entrada de usuários reais e não elimina gates separados de custo, DNS, segurança ou envio/publicação externa.
+- Validação local desta fatia M9: teste focal `PortalBilling.test.tsx` (12/12), suíte completa (652 arquivos aprovados, 28 ignorados; 3.532 testes aprovados, 135 ignorados), `docs:check`, `typecheck`, `lint`, `build` e `git diff --check` aprovados. Não comprova ingestão no PostHog; evento permanece sem validação de rede/painel até deploy em Preview.
 - Decisões do owner registradas: sem GitHub Team, Dependabot semanal, Better Stack, PostHog Cloud EU, R2 como reserva, backup diário e MFA adiado; alertas destinados somente a `lucca.juliatti@fwlog.com.br`.
 - PRs [#720](https://github.com/luccafwlog/vela/pull/720), [#725](https://github.com/luccafwlog/vela/pull/725), [#726](https://github.com/luccafwlog/vela/pull/726), [#727](https://github.com/luccafwlog/vela/pull/727) e [#728](https://github.com/luccafwlog/vela/pull/728) foram incorporadas à `main`; [#718](https://github.com/luccafwlog/vela/pull/718) também foi incorporada como remediação relacionada.
 - Estado remoto que não equivale à conclusão da Issue: zonas Cloudflare aguardando cutover; R2 ativado; projeto PostHog EU criado, ainda sem eventos; Upstash Free configurado para o rate limit; migration `076_portal_activation_rate_limit` aplicada e três secrets do rate limit gravados no Supabase. Better Stack tem dois monitores HTTP privados ativos para Vela e Portal; não há heartbeats provisionados. Nenhuma página pública de status será criada, conforme decisão do owner.
@@ -229,13 +231,16 @@ destinados apenas ao owner já aprovado.
 **Comportamento operacional desejado:** funil agregado sem dados identificáveis. Não enviar IDs de cliente/viagem nem correlacionar usuários até que o contrato de dados seja confirmado. A flag de Comunicados só pode restringir envios; `app_settings.communications_enabled` permanece bloqueio mestre no servidor.
 
 - [x] Decidir contrato de privacidade: somente eventos agregados allowlisted, sem IDs brutos nem hashes de cliente/viagem. O adapter aceita só superfície e tipo de fatura; `cookieless_mode: always` e `person_profiles: never` evitam persistir identidade no browser. A opção PostHog “Discard client IP data” está ligada; hashing server-side de visitantes únicos não foi validado e não deve ser ativado sem nova decisão.
-- [x] Desabilitar autocapture, pageviews, session recording, eventos de exceção e coleta automática de URL/query. Sem cookies nem armazenamento local de identificador no modo cookieless. Não há eventos de produto instrumentados nem runtime validado nesta PR.
-- [ ] Instrumentar os pontos de confirmação do servidor para `invoice_paid`; evento de browser sozinho não prova pagamento. `invoice_viewed`/`dispute_opened` partem dos owners de Portal com deduplicação.
+- [x] Desabilitar autocapture, pageviews, session recording, eventos de exceção e coleta automática de URL/query. Sem cookies nem armazenamento persistente de identificador; a chave de deduplicação de fatura vive somente em memória durante a montagem da página e nunca é enviada.
+- [x] Instrumentar `invoice_viewed` após o detalhe local/demurrage carregar no Portal do cliente; payload contém apenas superfície e tipo, deduplicado em memória e sem evento no Modo Inspeção. Teste local cobre sucesso, reabertura, ausência de detalhe e inspeção; ingestão real ainda depende de Preview após deploy.
+- [ ] Instrumentar os pontos de confirmação do servidor para `invoice_paid`; evento de browser sozinho não prova pagamento. `dispute_opened` ainda precisa ser implementado no owner do Portal e deduplicado.
 - [ ] Criar enforcement server-side se a flag remota for mantida; a flag cliente `COMMUNICATIONS_ENABLED` atual não bloqueia os envios. O bloqueio mestre `app_settings.communications_enabled` deve continuar prevalecendo e PostHog nunca pode ativar envios por conta própria.
 - [x] Confirmar projeto PostHog EU `281503`, token/host configurados como variáveis Vercel de Production nos dois projetos, painel ainda sem eventos e opção “Discard client IP data” ligada. Não houve criação de funil/flag nem envio de evento de fixture.
-- [ ] Revisar retenção/acesso e definir política de feature flags; o modo cookieless server hash não foi validado nem ativado. Atualizar CSP `connect-src` somente para host necessário quando eventos forem instrumentados.
-- [ ] Testes de schema/PII e runtime com fixtures. Inspecionar payload na rede e dez eventos no painel.
-- [ ] Atualizar privacidade, arquitetura, CSP e operação. Rollback: default da flag local, remover key/script e manter chave global atual.
+- [ ] Revisar retenção/acesso e definir política de feature flags; o modo cookieless server hash não foi validado nem ativado.
+- [x] CSP `connect-src` inclui somente o host europeu PostHog necessário para o SDK, junto dos destinos já documentados.
+- [x] Teste automatizado local confirma payload `invoice_viewed` allowlisted, sem IDs, sucesso apenas após detalhe carregado, deduplicação e exclusão do Modo Inspeção.
+- [ ] Em Preview após deploy, verificar payload real de rede e recepção no PostHog; não há evidência runtime nesta etapa.
+- [x] Atualizar arquitetura e operação para `invoice_viewed`. Privacidade/CSP já documentados; Rollback: desabilitar o evento no adapter mantendo a ingestão fail-safe e o fluxo financeiro inalterado.
 
 ### M10 — PITR, dump diário em R2 e restore ensaiado
 

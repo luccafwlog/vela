@@ -190,10 +190,14 @@ deve ser considerado abrangente para todo o runtime Edge.
   e `VITE_POSTHOG_HOST` aparecem nos dois projetos Vercel em Production; no
   painel PostHog EU ainda não havia eventos. Presença de configuração não prova
   que deploys enviaram eventos.
-- `featureFlags.capture` ainda não tem chamadas de produto em `src/`. Os nomes
-  permitidos são `invoice_viewed`, `invoice_paid` e `dispute_opened`; o adapter
-  só aceita `surface` e `invoice_type`. Não enviar PII nem IDs ou hashes de
-  cliente/viagem.
+- `invoice_viewed` é emitido ao abrir um detalhe de fatura local ou demurrage
+  carregado com sucesso no Portal do cliente; falha de consulta e Modo Inspeção
+  não geram evento. A deduplicação mantém apenas uma chave efêmera em memória
+  durante a montagem da página. O payload contém somente `surface=portal` e
+  `invoice_type`; nenhum ID, hash, dado pessoal ou conteúdo da fatura é enviado.
+  `invoice_paid` e `dispute_opened` ainda não têm pontos de captura. O runtime
+  configurado não prova ingestão: validar em Preview e no painel PostHog após
+  deploy, sem fixture com dados reais.
 - `COMMUNICATIONS_ENABLED` é somente uma flag de cliente sem consumidor que
   controle envio server-side; o bloqueio efetivo permanece em
   `app_settings.communications_enabled`. Qualquer rollout de flag deve ser um

@@ -587,9 +587,11 @@ separada. Não generalizar a exceção para chamadas do navegador.
   idempotência/supressão;
 - **Banco Central:** cotação PTAX;
 - **Sentry:** erros do frontend em produção;
-- **PostHog EU:** fundação de analytics agregado e feature flags; coleta
-  automática fica desativada e o contrato não associa cliente/viagem. Eventos de
-  produto ainda precisam ser instrumentados e validados em Preview.
+- **PostHog EU:** analytics agregado e feature flags; coleta automática fica
+  desativada e o contrato não associa cliente/viagem. O Portal registra
+  `invoice_viewed` somente após carregar o detalhe de uma fatura local ou
+  demurrage; payload limitado a superfície e tipo. Ingestão ainda requer prova
+  em Preview após deploy.
 - **Vercel:** distribuição da SPA e Preview/Production Deployments;
 - **PIX:** BR Code estático persistido e QR renderizado; conciliação por extrato. API Itaú dinâmica/webhook permanece proposta em `docs/spec/2026-08-25-integracao-itau-pix.md`.
 

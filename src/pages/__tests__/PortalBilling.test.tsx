@@ -80,9 +80,12 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   obsolete: vi.fn(),
   detail: null as unknown,
+  demurrageDetail: null as unknown,
   demurrageError: null as Error | null,
   currentRoe: { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' } as { roe: number; updatedAt: string } | null,
 }))
+
+const analytics = vi.hoisted(() => ({ capture: vi.fn() }))
 
 const portalScope = vi.hoisted(() => ({
   mode: 'client' as 'client' | 'inspect',
@@ -152,8 +155,8 @@ vi.mock('../../hooks/usePortalBilling', () => ({
     error: mocks.demurrageError,
   }),
   usePortalCurrentRoe: () => ({ data: mocks.currentRoe }),
-  usePortalInvoiceDetail: () => ({ data: mocks.detail, isLoading: false, error: null }),
-  usePortalDemurrageInvoiceDetail: () => ({ data: null, isLoading: false, error: null }),
+  usePortalInvoiceDetail: () => ({ data: mocks.detail, isLoading: false, error: null, isSuccess: Boolean(mocks.detail) }),
+  usePortalDemurrageInvoiceDetail: () => ({ data: mocks.demurrageDetail, isLoading: false, error: null, isSuccess: Boolean(mocks.demurrageDetail) }),
   usePortalObsoleteConsolidation: () => ({ isPending: false, mutateAsync: mocks.obsolete }),
 }))
 
@@ -172,6 +175,11 @@ vi.mock('../../services/exports', () => ({
 vi.mock('../../services/portalBilling', () => ({
   portalListInvoicesForExport: (...args: unknown[]) => portalExport.local(...args),
   portalListDemurrageInvoicesForExport: (...args: unknown[]) => portalExport.demurrage(...args),
+}))
+
+vi.mock('../../lib/featureFlags', () => ({
+  PRODUCT_EVENTS: { INVOICE_VIEWED: 'invoice_viewed' },
+  featureFlags: { capture: (...args: unknown[]) => analytics.capture(...args) },
 }))
 
 import { PortalBilling } from '../PortalBilling'
@@ -195,9 +203,11 @@ afterEach(() => {
   mocks.confirm.mockReset()
   mocks.obsolete.mockReset()
   mocks.detail = null
+  mocks.demurrageDetail = null
   mocks.demurrageError = null
   mocks.currentRoe = { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' }
   portalScope.mode = 'client'
+  analytics.capture.mockReset()
 })
 
 const consolidatedDetail = {
@@ -295,6 +305,46 @@ describe('PortalBilling', () => {
 
     expect(screen.getByText('Falha ao consultar faturas de demurrage.')).toBeTruthy()
     expect(screen.queryByText('Nenhuma fatura de demurrage para os filtros atuais.')).toBeNull()
+  })
+
+  it('registra uma visualização agregada ao abrir o detalhe local carregado, sem reenviar ao reabrir', async () => {
+    const user = userEvent.setup()
+    mocks.detail = consolidatedDetail
+    renderBilling()
+
+    await user.click(screen.getAllByRole('button', { name: 'Detalhes' })[0])
+    expect(analytics.capture).toHaveBeenCalledTimes(1)
+    expect(analytics.capture).toHaveBeenCalledWith('invoice_viewed', { surface: 'portal', invoice_type: 'local' })
+
+    await user.click(screen.getByRole('button', { name: 'Fechar modal' }))
+    await user.click(screen.getAllByRole('button', { name: 'Detalhes' })[0])
+    expect(analytics.capture).toHaveBeenCalledTimes(1)
+  })
+
+  it('registra visualização agregada de demurrage sem identificadores', async () => {
+    const user = userEvent.setup()
+    mocks.demurrageDetail = { invoice: { id: 10 }, items: [] }
+    renderBilling()
+
+    await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
+    await user.click(screen.getAllByRole('button', { name: 'Detalhes' })[0])
+
+    expect(analytics.capture).toHaveBeenCalledTimes(1)
+    expect(analytics.capture).toHaveBeenCalledWith('invoice_viewed', { surface: 'portal', invoice_type: 'demurrage' })
+  })
+
+  it('nao registra evento se o detalhe falhar ou estiver em Modo Inspeção', async () => {
+    const user = userEvent.setup()
+    renderBilling()
+    await user.click(screen.getAllByRole('button', { name: 'Detalhes' })[0])
+    expect(analytics.capture).not.toHaveBeenCalled()
+
+    cleanup()
+    mocks.detail = consolidatedDetail
+    portalScope.mode = 'inspect'
+    renderBilling()
+    await user.click(screen.getAllByRole('button', { name: 'Detalhes' })[0])
+    expect(analytics.capture).not.toHaveBeenCalled()
   })
 
   it('Task 10: desfazer consolidada usa ConfirmDialog e so executa apos confirmar', async () => {
