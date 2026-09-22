@@ -174,13 +174,60 @@ function extractUnNumber(value: string) {
   return value.match(UN_NUMBER_PATTERN)?.[1] ?? null
 }
 
+
+const FREIGHT_HEADER_VALUES = new Set(['RATE', 'PER', 'PREPAID', 'COLLECT'])
+
+export function isInvalidFreightDescription(value: string): boolean {
+  const normalized = value.trim().replace(/\s+/g, ' ').toUpperCase()
+  if (!normalized) return true
+
+  // Só os rótulos isolados são cabeçalhos. Prefixos como "RATE ADJUSTMENT"
+  // e "PREPAID HANDLING" são descrições comerciais válidas.
+  if (/^(?:11[.\s]*)?FREIGHT\s*(?:&|AND)\s*CHARGES$/.test(normalized)) return true
+  if (/^(?:REVENUE\s*TONS?|RATE|PER|PREPAID|COLLECT)$/.test(normalized)) return true
+
+  // Cláusulas contratuais são reconhecidas pela frase jurídica ancorada, não
+  // por qualquer ocorrência de "ORDER", "GOODS" ou "CONTAINER".
+  return [
+    /^(?:4\.\s*)?RECEIVED\s+(?:IN|BY)\b.*APPARENT\s+GOOD\s+ORDER\b/,
+    /^APPARENT\s+GOOD\s+ORDER\b/,
+    /^SHIPPER'?S\s+LOAD\b/,
+    /^NOTWITHSTANDING\s+ANY\s+PROVISION\b/,
+    /^TERMS\s+AND\s+CONDITIONS\b/,
+    /^PARTICULARS\s+FURNISHED\b/,
+  ].some((pattern) => pattern.test(normalized))
+}
+
+function isFreightHeaderRow(row: RawSheetRow | undefined): boolean {
+  const valueCells = [7, 11, 22, 23].map((index) => cellValue(row, index).trim().replace(/\s+/g, ' ').toUpperCase())
+  const labelCount = valueCells.filter((value) => FREIGHT_HEADER_VALUES.has(value)).length
+  return labelCount >= 2
+}
+
+function hasNumericFreightValue(values: string[]): boolean {
+  return values.some((value) => parseMoney(value).amount !== null)
+}
+
+function isInvalidFreightRow(row: RawSheetRow | undefined): boolean {
+  const rateText = cellValue(row, 7)
+  const amount = cellValue(row, 15)
+  const prepaid = cellValue(row, 22)
+  const collect = cellValue(row, 23)
+
+  // A numeric value is stronger evidence than a description prefix. This keeps
+  // legitimate charges such as "4 X 40HC OCEAN FREIGHT" and "PER DIEM".
+  if (hasNumericFreightValue([rateText, amount, prepaid, collect])) return false
+
+  return isFreightHeaderRow(row) || isInvalidFreightDescription(cellValue(row, 0))
+}
+
 function parseFreightCharges(rows: RawSheetRow[]): BLFreightCharge[] {
   const charges: BLFreightCharge[] = []
 
   for (let rowIndex = 25; rowIndex < 46; rowIndex += 1) {
     const row = rows[rowIndex]
     const description = cellValue(row, 0)
-    if (!description) {
+    if (!description || isInvalidFreightRow(row)) {
       continue
     }
 

@@ -10,7 +10,7 @@ import type { QueueRow } from '../../services/portalProvisioning'
 import { useAdminChangeCnpj, useAssistedEmailChange, useCancelPortalInvite, usePortalEvents, useReleaseSuppressedEmail, useReturnToAnalysis, useSendPortalInvite, useSuspendPortalAccount } from '../../hooks/usePortalProvisioning'
 import { accountSituationLabel, contactPurposeLabel, deliveryStatusLabel, hasBrokenRecoveryEmail, provisioningDecisionLabel, recoveryEmailSourceLabel, recoveryEmailStatusLabel } from '../../lib/portalProvisioningViewModel'
 import { formatCnpjCpf } from '../../lib/utils'
-import { normalizeCnpj } from '../../lib/cnpj'
+import { CNPJ_INPUT_MAX_LENGTH, normalizeCnpj } from '../../lib/cnpj'
 
 type Props = {
   row: QueueRow
@@ -163,7 +163,7 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
         {row.account_situation === 'ativo' ? <Button variant="secondary" onClick={() => void assistedEmailChange()} disabled={!canUseRecoveryEmail}>Trocar Email de Recuperação</Button> : null}
       </div> : null}
 
-      {isAdmin && !isOperations ? <div className="mt-5 grid gap-3 border-t border-[var(--app-border)] pt-5"><Field label="Novo CNPJ"><Input maxLength={14} value={newCnpj} onChange={(event) => setNewCnpj(normalizeCnpj(event.target.value))} /></Field><Button variant="secondary" onClick={() => void adminCnpjChange()} disabled={!newCnpj.trim() || newCnpj === row.cnpj_cpf || busy}>Alterar CNPJ auditado</Button></div> : null}
+      {isAdmin && !isOperations ? <div className="mt-5 grid gap-3 border-t border-[var(--app-border)] pt-5"><Field label="Novo CNPJ"><Input maxLength={CNPJ_INPUT_MAX_LENGTH} value={newCnpj} onChange={(event) => setNewCnpj(normalizeCnpj(event.target.value))} /></Field><Button variant="secondary" onClick={() => void adminCnpjChange()} disabled={!newCnpj.trim() || newCnpj === row.cnpj_cpf || busy}>Alterar CNPJ auditado</Button></div> : null}
 
       {!isOperations && row.account_situation === 'convite_pendente' ? (
         <div className="mt-6 grid gap-3 border-t border-[var(--app-border)] pt-5">

@@ -157,7 +157,9 @@ it('US-078: resolver o CNPJ no preview reconcilia o B/L pendente', async () => {
   await user.upload(screen.getByLabelText(/Arquivo/), new File(['x'], 'cosco.xlsx'))
   await waitFor(() => expect(screen.getByText(/sem cliente resolvido/)).toBeTruthy())
 
-  await user.type(screen.getByPlaceholderText('Digite o CNPJ'), '11222333000181')
+  const cnpjInput = screen.getByPlaceholderText('Digite o CNPJ') as HTMLInputElement
+  expect(cnpjInput.maxLength).toBe(18)
+  await user.type(cnpjInput, '11222333000181')
 
   // ao reconciliar, o alerta de pendencia desaparece
   await waitFor(() => expect(screen.queryByText(/sem cliente resolvido/)).toBeNull())

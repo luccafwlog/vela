@@ -1,7 +1,7 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp, Download, FileText, Loader2, MoreVertical, Upload } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, FileText, Loader2, MoreVertical, Trash2, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { MetricCard } from '../components/ui/MetricCard'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
@@ -174,16 +174,46 @@ export function Bls() {
 
   const [actionsMenu, setActionsMenu] = useState<ActionsMenuState>(null)
   const actionsTriggerRef = useRef<HTMLButtonElement | null>(null)
-  const actionsItemRef = useRef<HTMLButtonElement | null>(null)
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null)
+  const actionsItemRefs = useRef<Array<HTMLElement | null>>([])
 
   function openActionsMenu(id: string, button: HTMLButtonElement) {
     actionsTriggerRef.current = button
     const rect = button.getBoundingClientRect()
     setActionsMenu({
       id,
-      top: rect.bottom + window.scrollY + 4,
-      left: rect.right + window.scrollX - 160,
+      top: rect.bottom + 4,
+      left: rect.right,
     })
+  }
+
+  function focusActionsMenuItem(index: number) {
+    const items = actionsItemRefs.current.filter((item): item is HTMLElement => item !== null)
+    if (!items.length) return
+    items[(index + items.length) % items.length]?.focus()
+  }
+
+  function handleActionsMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const items = actionsItemRefs.current.filter((item): item is HTMLElement => item !== null)
+    const currentIndex = items.indexOf(document.activeElement as HTMLElement)
+    if (currentIndex < 0) return
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      focusActionsMenuItem(currentIndex + 1)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      focusActionsMenuItem(currentIndex - 1)
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      focusActionsMenuItem(0)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      focusActionsMenuItem(items.length - 1)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setActionsMenu(null)
+    }
   }
 
   useEffect(() => {
@@ -192,7 +222,21 @@ export function Bls() {
       actionsTriggerRef.current = null
       return
     }
-    actionsItemRef.current?.focus()
+    actionsItemRefs.current[0]?.focus()
+  }, [actionsMenu])
+
+  useLayoutEffect(() => {
+    if (!actionsMenu || !actionsMenuRef.current) return
+    const menuRect = actionsMenuRef.current.getBoundingClientRect()
+    const maxTop = Math.max(4, window.innerHeight - menuRect.height - 4)
+    const top = Math.min(Math.max(actionsMenu.top, 4), maxTop)
+    const maxLeft = Math.max(4, window.innerWidth - menuRect.width - 4)
+    const actualLeft = Math.min(Math.max(actionsMenu.left - menuRect.width, 4), maxLeft)
+    const left = actualLeft + menuRect.width
+
+    if (top !== actionsMenu.top || left !== actionsMenu.left) {
+      setActionsMenu({ ...actionsMenu, top, left })
+    }
   }, [actionsMenu])
 
   useEffect(() => {
@@ -203,7 +247,7 @@ export function Bls() {
     }
     const onPointer = (event: MouseEvent) => {
       const target = event.target as HTMLElement
-      if (!target.closest('[data-actions-menu]')) close()
+      if (!target.closest('[data-actions-menu]') && !target.closest('[data-actions-trigger]')) close()
     }
     window.addEventListener('scroll', close, true)
     window.addEventListener('resize', close)
@@ -285,6 +329,17 @@ export function Bls() {
       showToast(`Falha ao excluir B/L(s): ${detail}`, 'error')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function copyBlNumber(targetId: string) {
+    setActionsMenu(null)
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard indisponível')
+      await navigator.clipboard.writeText(targetId)
+      showToast(`Número do B/L copiado: ${targetId}`, 'success')
+    } catch {
+      showToast('Não foi possível copiar o número do B/L.', 'error')
     }
   }
 
@@ -635,25 +690,31 @@ export function Bls() {
                       >
                         Abrir B/L
                       </Link>
-                      {isAdmin ? (
-                        <button
-                          type="button"
-                          className="app-btn app-btn--secondary p-1 leading-none"
-                          aria-label={`Ações para B/L ${bl.id}`}
-                          aria-haspopup="menu"
-                          aria-expanded={actionsMenu?.id === bl.id}
-                          aria-controls="bls-actions-menu"
-                          onClick={(e) => openActionsMenu(bl.id, e.currentTarget)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'ArrowDown') {
-                              e.preventDefault()
-                              openActionsMenu(bl.id, e.currentTarget)
-                            }
-                          }}
-                        >
-                          <MoreVertical size={15} />
-                        </button>
-                      ) : null}
+                      <button
+                        type="button"
+                        data-actions-trigger
+                        className="app-btn app-btn--secondary p-1 leading-none"
+                        aria-label={`Ações para B/L ${bl.id}`}
+                        aria-haspopup="menu"
+                        aria-expanded={actionsMenu?.id === bl.id}
+                        aria-controls="bls-actions-menu"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (actionsMenu?.id === bl.id) {
+                            setActionsMenu(null)
+                          } else {
+                            openActionsMenu(bl.id, e.currentTarget)
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault()
+                            openActionsMenu(bl.id, e.currentTarget)
+                          }
+                        }}
+                      >
+                        <MoreVertical size={15} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -683,14 +744,36 @@ export function Bls() {
           data-actions-menu
           id="bls-actions-menu"
           className="app-floating-menu"
+          ref={actionsMenuRef}
           role="menu"
+          onKeyDown={handleActionsMenuKeyDown}
           style={{ top: actionsMenu.top, left: actionsMenu.left }}
         >
+          <button
+            type="button"
+            role="menuitem"
+            ref={(element) => { actionsItemRefs.current[0] = element }}
+            onClick={() => void copyBlNumber(actionsMenu.id)}
+          >
+            <Copy size={14} />
+            <span>Copiar número do B/L</span>
+          </button>
+
+          <Link
+            role="menuitem"
+            ref={(element) => { actionsItemRefs.current[1] = element }}
+            to={`/bls/${actionsMenu.id}`}
+            onClick={() => setActionsMenu(null)}
+          >
+            <ExternalLink size={14} />
+            <span>Abrir detalhes</span>
+          </Link>
+
           {isAdmin ? (
             <button
               type="button"
               role="menuitem"
-              ref={actionsItemRef}
+              ref={(element) => { actionsItemRefs.current[2] = element }}
               className="app-floating-menu__danger"
               disabled={deleting}
               onClick={() => {
@@ -699,7 +782,8 @@ export function Bls() {
                 void runBlDelete([targetId])
               }}
             >
-              Excluir B/L
+              <Trash2 size={14} />
+              <span>Excluir B/L</span>
             </button>
           ) : null}
         </div>

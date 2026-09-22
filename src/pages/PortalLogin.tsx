@@ -5,7 +5,7 @@ import { Card, InlineError } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Input'
 import { usePortalAuth } from '../hooks/usePortalAuth'
 import { isSupabaseConfigured } from '../services/supabase'
-import { normalizeCnpj } from '../lib/cnpj'
+import { CNPJ_INPUT_MAX_LENGTH, normalizeCnpj } from '../lib/cnpj'
 import { INCOMPLETE_CNPJ_MESSAGE, isCompleteCnpjLogin } from '../lib/portalCnpjLogin'
 
 function isNetworkError(error: unknown): boolean {
@@ -91,7 +91,7 @@ export function PortalLogin() {
               type="text"
               inputMode="text"
               autoComplete="username"
-              maxLength={14}
+              maxLength={CNPJ_INPUT_MAX_LENGTH}
               value={cnpj}
               onChange={(event) => setCnpj(normalizeCnpj(event.target.value))}
               placeholder="00.000.000/0000-00"

@@ -1,6 +1,6 @@
 # Rastreabilidade Técnica
 
-Revisado estaticamente contra o checkout em 2026-09-19; sem revalidação remota.
+Revisado estaticamente contra o checkout em 2026-09-21; sem revalidação remota.
 
 Este índice liga cada rota e ação relevante aos chamadores do frontend, aos
 contratos executáveis do Supabase e ao documento do módulo proprietário. Ele é
@@ -32,6 +32,19 @@ Para B/Ls, pesos e cubagens são aditivos e separados por modalidade (061/064);
 a ficha possui cinco abas e a lista usa a mesma RPC paginada para tela e export.
 A resolução numérica do Manifesto BB está detalhada no
 [módulo proprietário](modules/manifesto-edi.md#anatomia-das-telas).
+
+### Entrega PR 714 — revisão de B/L, CNPJ e frete (2026-09-21)
+
+- `/bls`: o menu de ações mantém Copiar número, Abrir detalhes e Excluir para
+  os perfis aplicáveis, abre no primeiro item acionável, navega por teclado e
+  limita sua posição ao viewport; a cópia confirma sucesso somente depois do
+  `clipboard.writeText` e exibe erro quando a área de transferência falha.
+- Importação de B/L: `blParser.ts` e `073_purge_bogus_freight_lines.sql` usam
+  critérios restritos e alinhados para descartar apenas cabeçalhos/cláusulas
+  documentais sem valor numérico; linhas legítimas com descrição longa,
+  percentuais, quantidades ou cobranças `RATE/PER/PREPAID/COLLECT` permanecem.
+- CNPJ: campos de entrada aceitam o valor formatado completo (18 caracteres)
+  antes da normalização canônica para 14 dígitos.
 
 ## Índice por rota e ação
 
@@ -67,6 +80,7 @@ as divergências permanecem no documento vivo do módulo indicado.
 
 | Rota / superfície | Ação | Origem | Hook / serviço | RPC / tabela / integração | Efeito e cache | Evidência | Módulo |
 |---|---|---|---|---|---|---|---|
+| `/bls` | Operar menu de ações do B/L e importar Frete & Despesas | `src/pages/Bls.tsx`, `src/services/blParser.ts`, `supabase/migrations/073_purge_bogus_freight_lines.sql` | `buildBlFreightPayload` / parser COSCO | `bl_freight_lines`; migration `073` | Menu com cópia confirmada, detalhes e exclusão para os perfis aplicáveis; parser e limpeza persistida rejeitam somente cabeçalhos/cláusulas sem valor numérico, preservando despesas legítimas | **Código**, **Teste**, **Teste de contrato SQL** | [Manifestos e EDI](modules/manifesto-edi.md#anatomia-das-telas) |
 | `/login` | Autenticar usuário interno | `src/pages/Login.tsx` | `useAuth` / cliente `supabase` | Supabase Auth + `user_profiles` | Estabelece sessão interna e redireciona para `/painel` | **Código**; runtime bloqueado sem configuração | [Operação e suporte](modules/operacao-suporte.md#anatomia-das-telas) |
 | `/portal/login` | Entrar por CNPJ e senha | `src/pages/PortalLogin.tsx` | `usePortalAuth` / Edge Function `portal-login` | `portal_resolve_login` no servidor + Supabase Auth isolado | Hidrata overview e libera `PortalProtectedRoute` | **Código**, **Teste**, **Teste de contrato SQL** | [Portal do Cliente](modules/portal-cliente.md#catálogo-de-ações) |
 | `/portal/confirmar-email` | Confirmar o novo Email de Recuperação por token | `src/pages/PortalConfirmarEmail.tsx`, `PortalProtectedRoute` (redireciona o link antigo) | Edge Function `portal-recovery-email-change` (`action: 'confirm'`) | Convite de confirmação de email por token de uso único | Troca o Email de Recuperação e encerra as sessões; rota pública | **Código**, **Teste** | [Portal do Cliente](modules/portal-cliente.md#catálogo-de-ações) |

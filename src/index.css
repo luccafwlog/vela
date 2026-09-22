@@ -3968,6 +3968,8 @@ textarea {
   transform: translateX(-100%);
   display: grid;
   min-width: 188px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   padding: 6px;
   border: 1px solid var(--app-border);
   border-radius: 8px;
@@ -3975,7 +3977,8 @@ textarea {
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
 }
 
-.app-floating-menu button {
+.app-floating-menu button,
+.app-floating-menu a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -3991,7 +3994,8 @@ textarea {
   cursor: pointer;
 }
 
-.app-floating-menu button:hover {
+.app-floating-menu button:hover,
+.app-floating-menu a:hover {
   background: rgba(37, 99, 235, 0.08);
 }
 

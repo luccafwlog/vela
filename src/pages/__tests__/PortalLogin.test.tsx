@@ -28,6 +28,21 @@ afterEach(() => {
   auth.signIn.mockReset()
 })
 
+
+it('normaliza um CNPJ formatado completo depois que o campo aceita a máscara', async () => {
+  render(
+    <MemoryRouter>
+      <PortalLogin />
+    </MemoryRouter>,
+  )
+
+  const input = await screen.findByPlaceholderText('00.000.000/0000-00') as HTMLInputElement
+  expect(input.maxLength).toBe(18)
+
+  fireEvent.change(input, { target: { value: '55.115.118/0001-57' } })
+  expect(input.value).toBe('55115118000157')
+})
+
 it('normaliza um CNPJ alfanumérico colado antes de autenticar', async () => {
   auth.signIn.mockResolvedValue(undefined)
 
