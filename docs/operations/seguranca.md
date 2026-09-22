@@ -37,6 +37,20 @@
 - **Provisão de portal**: convites e recuperação usam tokens opacos de uso único, com expiração e hash persistido; o login e a recuperação aplicam rate limit por CNPJ.
 - **Login/resolução de portal:** tentativas registradas em `portal_login_attempts` / `portal_login_resolution_attempts`; limites em `portal_rate_limits` (RPC `check_portal_rate_limit`).
 - **Anexos de disputa de demurrage:** cota máxima cumulativa de 100 MB por cliente em disputas abertas e limite de taxa de 20 uploads a cada 24 horas por cliente (G-PAF1), verificados pela RPC `add_demurrage_dispute_attachment` sob lock transacional por cliente para prevenir condições de corrida (TOCTOU).
+- **Camada distribuída opcional:** `portal-login`, troca de senha no Portal,
+  recuperação e ativação consultam o Upstash Redis por par IP+CNPJ. A chave é
+  HMAC de cada componente e nunca contém CNPJ, IP ou token em claro. O padrão
+  é 10 erros em 5 minutos, com TTL no Redis.
+- **Degradação:** o RPC/tabela do Supabase continua sendo consultado para
+  auditoria; com Redis saudável, o par IP+CNPJ é a decisão distribuída. Timeout
+  curto, circuit breaker e falha do Upstash devolvem a decisão à defesa
+  persistida. Falha do Supabase continua fail-closed nos caminhos que verificam
+  senha. Não há segredo de Redis no bundle do navegador.
+- **Segredo:** `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` e
+  `PORTAL_RATE_LIMIT_HMAC_SECRET` vivem somente nas Edge Functions. Sem os
+  três valores, o adaptador distribuído fica desligado e o caminho persistido
+  permanece ativo. O procedimento de cadastro, teste, métricas e rollback está
+  em [Rate limit do Portal](portal-rate-limit.md).
 
 ## Invariante de provisionamento do portal
 

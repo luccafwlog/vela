@@ -306,6 +306,15 @@ na [ADR 0063](../adr/0063-configuracao-de-jobs-cron-no-vault.md).
 Claims abandonadas da automação possuem lease de 30 minutos e podem ser retomadas pelo ciclo
 seguinte; falhas de liberação aparecem como erro do runner.
 
+Os fluxos públicos de login, recuperação e ativação também podem usar o
+rate-limit distribuído do Upstash. Configure somente nas Edge Functions
+`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` e
+`PORTAL_RATE_LIMIT_HMAC_SECRET` (os parâmetros opcionais e o rollback estão em
+[Rate limit do Portal](../operations/portal-rate-limit.md)). A migration
+`076_portal_activation_rate_limit.sql` deve preceder o deploy da função de
+ativação. O token de rate limit é independente do token de backup do R2; nenhum
+deles deve ser colocado no Vercel ou em `VITE_*`.
+
 Migrations continuam sendo aplicadas no Supabase, em ordem e antes do deploy de
 código que dependa delas, pelo branch action da integração GitHub no Preview e
 pelo deploy de produção quando `main` recebe o merge. As reconciliações abaixo

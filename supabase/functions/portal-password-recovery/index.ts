@@ -5,6 +5,7 @@ import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { findReusableRecoveryInvite } from '../_shared/portalInvites.ts'
 import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
+import { isRecoveryRateLimited, registerRecoveryFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
 
 // Achado 3.2 (auditoria 2026-08-12): a resposta antiga distinguia
 // account_found/email_sent, entao um atacante varria CNPJs distintos e
@@ -28,9 +29,9 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   if (cnpj.length !== 14) return accepted()
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-  const { data: blocked } = await admin.rpc('portal_recovery_check_rate_limit', { p_login: cnpj })
-  if (blocked === true) return rateLimited()
-  await admin.rpc('portal_recovery_register_failure', { p_login: cnpj })
+  const rateLimitContext = { ip: requestIp(req) }
+  if (await isRecoveryRateLimited(admin, cnpj, rateLimitContext)) return rateLimited()
+  await registerRecoveryFailure(admin, cnpj, rateLimitContext)
 
   // PAF-04: o processamento da conta, validação de supressão, reutilização de convite e
   // despacho de email rodam em segundo plano via EdgeRuntime.waitUntil.
