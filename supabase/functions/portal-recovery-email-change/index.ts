@@ -3,7 +3,7 @@ import { generateToken, hashToken } from '../_shared/portalToken.ts'
 import { emailChangeAlertTemplate, emailChangeConfirmTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { revokePortalSessions } from '../_shared/revokePortalSessions.ts'
-import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess } from '../_shared/portalLoginRateLimit.ts'
+import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { resolveEmailChangeConfirmation } from '../_shared/portalInvites.ts'
 import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
@@ -29,7 +29,8 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     // notebook emprestado) testaria senha sem limite por aqui, contornando as
     // 5 tentativas do login. A consulta vem ANTES de signInWithPassword: quem
     // está bloqueado não chega a ter a senha verificada.
-    if (await isLoginRateLimited(admin, account.login_cnpj)) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })
+    const rateLimitContext = { ip: requestIp(req) }
+    if (await isLoginRateLimited(admin, account.login_cnpj, rateLimitContext)) return new Response(JSON.stringify({ error: RATE_LIMITED }), { status: 429 })
     const { data: authUser } = await admin.auth.admin.getUserById(authId); const technicalEmail = authUser.user?.email
     // Sem email técnico não houve senha errada: houve falha nossa ao resolver o
     // usuário do Auth. Contar isso no balde do login gastaria as 5 tentativas do
@@ -40,10 +41,10 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     const verifier = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!)
     const verified = await verifier.auth.signInWithPassword({ email: technicalEmail, password: body.current_password })
     if (verified.error) {
-      await registerLoginFailure(admin, account.login_cnpj)
+      await registerLoginFailure(admin, account.login_cnpj, rateLimitContext)
       return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 422 })
     }
-    await registerLoginSuccess(admin, account.login_cnpj)
+    await registerLoginSuccess(admin, account.login_cnpj, rateLimitContext)
     // A verificação cria uma sessão do Supabase Auth que ninguém mais usa;
     // sem signOut, cada troca deixava um refresh token pendurado. O escopo é
     // `local` de propósito: o padrão do supabase-js é `global`, que revoga TODO

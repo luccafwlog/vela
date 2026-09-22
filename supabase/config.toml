@@ -50,6 +50,9 @@ verify_jwt = false
 [functions.portal-recovery-email-change]
 verify_jwt = false
 
+[functions.portal-dispute-attachment]
+verify_jwt = false
+
 [functions.recalc-demurrage-ptax]
 verify_jwt = false
 

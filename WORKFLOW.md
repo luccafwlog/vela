@@ -9,6 +9,7 @@ Use este documento para procedimentos técnicos. Consulte:
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) para fluxos e rotas;
 - [`docs/adr/README.md`](./docs/adr/README.md) para decisões;
 - [`docs/operations/validacao.md`](./docs/operations/validacao.md) para testes operacionais;
+- [`docs/operations/backup-r2.md`](./docs/operations/backup-r2.md) para o backup lógico cifrado M10 R2;
 - [`docs/CONVENCOES.md`](./docs/CONVENCOES.md) para estilo e labels de evidência;
 - [`docs/RASTREABILIDADE.md`](./docs/RASTREABILIDADE.md) para rastrear rotas até componentes, hooks, RPCs e testes;
 - [`docs/README.md`](./docs/README.md) para a hierarquia documental.
@@ -626,6 +627,16 @@ Auth, RLS, RPCs, Edge Functions, email, impressão, PIX e fluxos completos
 dependem de ambiente real ou equivalente. Registre ambiente, usuário, dados,
 resultado e evidência conforme
 [`docs/operations/validacao.md`](./docs/operations/validacao.md).
+
+### Backup lógico cifrado para R2 (M10 R2)
+
+O comando `npm run backup:r2` é dry-run por padrão. A execução autorizada lê a
+URL PostgreSQL e os segredos R2 somente do ambiente do processo, cifra o
+`pg_dump` do schema `public` antes do upload e valida o arquivo com
+`pg_restore --list`. Consulte o [runbook do backup R2](./docs/operations/backup-r2.md)
+para pré-requisitos, variáveis, proteção adicional de produção e os passos que
+dependem do Supabase/Cloudflare Dashboard. Não existe workflow GitHub para este
+backup nesta etapa, e nenhum restore destrutivo faz parte dos checks locais.
 
 ## 12. CI e deploy
 
