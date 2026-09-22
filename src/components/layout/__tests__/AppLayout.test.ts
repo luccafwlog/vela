@@ -39,3 +39,10 @@ it('fecha os dropdowns da navegação superior com Escape e restaura foco no gat
   expect(source).toContain("event.key === 'Escape' && isOpen")
   expect(source).toContain('triggerRef.current?.focus()')
 })
+
+
+it('renderiza Admin como link direto sem dropdown', () => {
+  const source = fs.readFileSync('src/components/layout/AppLayout.tsx', 'utf8')
+  expect(source).toContain('<TopNavLink {...adminNavItem} onNavigate={closeMobileMenus} />')
+  expect(source).not.toContain('label="Admin"')
+})

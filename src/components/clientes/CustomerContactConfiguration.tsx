@@ -259,22 +259,22 @@ export function CustomerContactConfiguration({
               <div>
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-[var(--app-text-strong)] text-sm">{box.label}</span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 font-medium">
+                  <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200 font-medium">
                     {linkedContacts.length} {linkedContacts.length === 1 ? 'e-mail' : 'e-mails'}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">{box.description}</p>
+                <p className="text-xs text-[var(--app-muted)] mt-1">{box.description}</p>
               </div>
 
-              <div className="mt-3 border-t border-[#30363d]/60 pt-2 space-y-1">
+              <div className="mt-3 border-t border-[var(--app-border)] pt-2 space-y-1">
                 {linkedContacts.length === 0 ? (
-                  <span className="text-xs text-amber-400 font-medium">Nenhum contato vinculado</span>
+                  <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">Nenhum contato vinculado</span>
                 ) : (
                   linkedContacts.map((c, i) => (
-                    <div key={i} className="text-xs text-slate-300 flex items-center justify-between">
+                    <div key={i} className="text-xs text-[var(--app-text)] flex items-center justify-between">
                       <span className="truncate max-w-[180px]">{c.email}</span>
                       {c.isPrimary && (
-                        <span className="text-[10px] text-blue-400 font-medium ml-1">principal</span>
+                        <span className="text-[10px] text-[var(--app-link)] font-medium ml-1">principal</span>
                       )}
                     </div>
                   ))
@@ -290,7 +290,7 @@ export function CustomerContactConfiguration({
       </p>
 
       {!canEdit && (
-        <div className="rounded-lg bg-amber-950/40 border border-amber-800/40 p-3 text-xs text-amber-200">
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 p-3 text-xs text-amber-900 dark:text-amber-200">
           Seu perfil de usuário não possui permissão para editar os contatos do cliente.
         </div>
       )}
@@ -298,7 +298,7 @@ export function CustomerContactConfiguration({
       {/* Editor de contatos */}
       <form onSubmit={handleSubmit} className="grid gap-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">Contatos do cliente</h3>
+          <h3 className="text-base font-semibold text-[var(--app-text-strong)]">Contatos do cliente</h3>
           {canEdit && (
             <Button type="button" variant="secondary" onClick={handleAddContact}>
               + Novo contato
@@ -313,26 +313,26 @@ export function CustomerContactConfiguration({
               key={contact.id ?? `draft-${index}`}
               className={`rounded-xl border p-4 transition-colors ${
                 !contact.active
-                  ? 'border-[#30363d] bg-[#0d1117]/60 opacity-70'
+                  ? 'border-[var(--app-border)] bg-[var(--app-surface-muted)] opacity-75'
                   : contact.isPrimary
-                  ? 'border-blue-500/50 bg-blue-950/20'
-                  : 'border-[#30363d] bg-[#0d1117]'
+                  ? 'border-[var(--app-blue)] bg-blue-50/50 dark:bg-blue-950/20'
+                  : 'border-[var(--app-border)] bg-[var(--app-surface)]'
               }`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#30363d]">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--app-border)]">
                 <div className="flex items-center gap-2">
                   {contact.isPrimary ? (
-                    <span className="inline-flex items-center rounded-md bg-blue-900/60 px-2 py-0.5 text-xs font-semibold text-blue-200">
+                    <span className="inline-flex items-center rounded-md bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200 px-2 py-0.5 text-xs font-semibold">
                       Contato Principal
                     </span>
                   ) : (
-                    <span className="inline-flex items-center rounded-md bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-300">
+                    <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 px-2 py-0.5 text-xs font-medium">
                       Contato Adicional
                     </span>
                   )}
                   <span className="text-xs text-slate-400">{formatOrigin(contact.origin)}</span>
                   {!contact.active && (
-                    <span className="inline-flex items-center rounded-md bg-amber-900/60 px-2 py-0.5 text-xs font-medium text-amber-200">
+                    <span className="inline-flex items-center rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 px-2 py-0.5 text-xs font-medium">
                       Desativado
                     </span>
                   )}
@@ -344,7 +344,7 @@ export function CustomerContactConfiguration({
                       <button
                         type="button"
                         onClick={() => handleSetPrimary(index)}
-                        className="text-xs text-blue-400 hover:underline font-medium"
+                        className="text-xs text-[var(--app-link)] hover:underline font-medium"
                       >
                         Tornar principal
                       </button>
@@ -361,7 +361,7 @@ export function CustomerContactConfiguration({
               </div>
 
               {suppressionMsg && (
-                <div className="mt-2 rounded bg-amber-950/40 p-2 text-xs text-amber-200 border border-amber-800/40">
+                <div className="mt-2 rounded bg-amber-50 dark:bg-amber-950/40 p-2 text-xs text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800/40">
                   {suppressionMsg}
                 </div>
               )}
@@ -396,8 +396,8 @@ export function CustomerContactConfiguration({
                 </Field>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-[#30363d]/60">
-                <span className="text-xs font-semibold text-slate-300">
+              <div className="mt-4 pt-3 border-t border-[var(--app-border)]">
+                <span className="text-xs font-semibold text-[var(--app-text-strong)]">
                   Caixas de recebimento vinculadas:
                 </span>
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
@@ -408,8 +408,8 @@ export function CustomerContactConfiguration({
                         key={box.code}
                         className={`flex items-start gap-2 p-2 rounded border text-xs cursor-pointer ${
                           checked
-                            ? 'border-blue-500 bg-blue-950/30'
-                            : 'border-[#30363d] opacity-80'
+                            ? 'border-[var(--app-blue)] bg-blue-50/70 dark:bg-blue-950/30'
+                            : 'border-[var(--app-border)] opacity-80'
                         } ${!contact.active || !canEdit ? 'cursor-not-allowed opacity-60' : ''}`}
                       >
                         <input
@@ -420,8 +420,8 @@ export function CustomerContactConfiguration({
                           onChange={() => handleToggleBox(index, box.code)}
                         />
                         <div>
-                          <div className="font-medium text-white">{box.label}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">{box.description}</div>
+                          <div className="font-medium text-[var(--app-text-strong)]">{box.label}</div>
+                          <div className="text-[10px] text-[var(--app-muted)] mt-0.5">{box.description}</div>
                         </div>
                       </label>
                     )

@@ -345,17 +345,17 @@ export function Alertas() {
           </div>
         ) : null}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="app-table-scroll rounded-xl border border-[var(--app-border)] overflow-hidden">
+          <table className="app-table text-xs">
             <thead>
-              <tr className="border-b border-[var(--app-border)] bg-[var(--app-surface-muted)] text-[var(--app-muted)]">
-                <th scope="col" className="px-4 py-3 font-medium">Severidade</th>
-                <th scope="col" className="px-4 py-3 font-medium">Tipo</th>
-                <th scope="col" className="px-4 py-3 font-medium">Responsável</th>
-                <th scope="col" className="px-4 py-3 font-medium">Mensagem</th>
-                <th scope="col" className="px-4 py-3 font-medium">Entidade</th>
-                <th scope="col" className="px-4 py-3 font-medium">Criação</th>
-                <th scope="col" className="px-4 py-3 font-medium">Status / Ação</th>
+              <tr>
+                <th scope="col" className="px-4 py-3">Severidade</th>
+                <th scope="col" className="px-4 py-3">Tipo</th>
+                <th scope="col" className="px-4 py-3">Responsável</th>
+                <th scope="col" className="px-4 py-3">Mensagem</th>
+                <th scope="col" className="px-4 py-3">Entidade</th>
+                <th scope="col" className="px-4 py-3">Criação</th>
+                <th scope="col" className="px-4 py-3">Status / Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--app-border)]">
@@ -503,8 +503,8 @@ function AlertRow({
         <span
           className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
             alert.severity === 'critical'
-              ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+              ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
+              : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
           }`}
         >
           {alert.severity === 'critical' ? 'Crítico' : 'Normal'}
@@ -512,7 +512,7 @@ function AlertRow({
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
-          <AlertTriangle size={14} className="shrink-0 text-amber-400" />
+          <AlertTriangle size={14} className="shrink-0 text-amber-700 dark:text-amber-400" />
           <span className="text-xs text-[var(--app-text)]">{getAlertTypeLabel(effectiveType)}</span>
         </div>
       </td>
@@ -551,7 +551,7 @@ function AlertRow({
           {isDismissed ? (
             <div className="flex flex-col gap-0.5">
               <span
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-400"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400"
                 title={alert.dismissal_reason ?? ''}
               >
                 <History size={12} />

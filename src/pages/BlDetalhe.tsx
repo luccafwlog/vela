@@ -32,6 +32,7 @@ import { buildDocumentalRail, buildOperationalRail, pickNextAction, summarizeDoc
 import { getBlPortalStatus } from '../services/blPortalStatus'
 import { queryKeys } from '../services/queryKeys'
 import { useVoyageReconciliation } from '../hooks/useVoyageReconciliation'
+import { TabButton } from '../components/ui/TabButton'
 import { cargoModeLabel, resolveCargoMode } from './blDetalheHelpers'
 
 export type BlTab = 'visao-geral' | 'carga' | 'detalhes' | 'faturamento' | 'historico'
@@ -257,29 +258,20 @@ export function BlDetalhe() {
         ) : null}
       </div>
 
-      <div className="mb-5 flex flex-wrap gap-1 border-b border-[#30363d]">
-        {BL_TABS.map((tab) => {
-          const isActive = tab.key === activeTab
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => {
-                const next = new URLSearchParams(searchParams)
-                if (tab.key === 'visao-geral') next.delete('tab')
-                else next.set('tab', tab.key)
-                setSearchParams(next, { replace: true })
-              }}
-              className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                isActive
-                  ? 'border-b-2 border-[#1f6feb] text-white'
-                  : 'border-b-2 border-transparent text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          )
-        })}
+      <div className="mb-5 flex flex-wrap gap-2" role="tablist">
+        {BL_TABS.map((tab) => (
+          <TabButton
+            key={tab.key}
+            active={tab.key === activeTab}
+            label={tab.label}
+            onClick={() => {
+              const next = new URLSearchParams(searchParams)
+              if (tab.key === 'visao-geral') next.delete('tab')
+              else next.set('tab', tab.key)
+              setSearchParams(next, { replace: true })
+            }}
+          />
+        ))}
       </div>
 
       {/* Abas montadas incondicionalmente (prop `active`) para preservar estado de formulários ao trocar de aba. */}
