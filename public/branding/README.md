@@ -29,6 +29,7 @@ Documentos fiscais, faturas e recibos mantêm a identidade e titularidade da Tra
 |---|---|
 | `fwlog-logo.png` | Logo sobre fundo claro (cards e telas de autenticação). |
 | `fwlog-logo-white.png` | Logo sobre fundo escuro ou azul (header do Portal do Cliente, topo de e-mails transacionais). **Toda vez que o fundo for azul/navy, deve ser utilizada esta logo branca**, pois a logo padrão fica ilegível. |
+| `fwlog-icon.png` | Símbolo branco sobre fundo navy (squircle), base do favicon e ícones de app do Portal Fwlog. |
 
 
 ## Duas regras que não são preferência estética
