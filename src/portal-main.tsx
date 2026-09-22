@@ -12,9 +12,11 @@ import { ToastProvider } from './components/ui/Toast'
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog'
 import { isSupabaseConfigured } from './services/supabase'
 import { initTelemetry, markStartupStage, redactVercelTelemetryEvent } from './lib/telemetry'
+import { initFeatureFlags } from './lib/featureFlags'
 import { createPortalQueryClient } from './lib/portalQueryClient'
 
 initTelemetry('portal')
+void initFeatureFlags()
 markStartupStage('entry')
 
 function ConfigurationError() {

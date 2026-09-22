@@ -13,9 +13,11 @@ import { ToastProvider } from './components/ui/Toast'
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog'
 import { isSupabaseConfigured } from './services/supabase'
 import { initTelemetry, markStartupStage, redactVercelTelemetryEvent } from './lib/telemetry'
+import { initFeatureFlags } from './lib/featureFlags'
 import { createAppQueryClient } from './lib/queryClient'
 
 initTelemetry('internal')
+void initFeatureFlags()
 markStartupStage('entry')
 
 function ConfigurationError() {
