@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 function timingSafeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder()
@@ -28,7 +29,7 @@ if (typeof Deno !== 'undefined') {
     )
     const { data, error } = await admin.rpc('run_alert_detectors')
     if (error) {
-      console.error('alerts detector failed', error)
+      logEdgeFailure({ functionName: 'alerts-detector', job: 'run_detectors', errorCode: 'unexpected_failure' })
       return new Response(JSON.stringify({ error: 'Detector execution failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
     }
     return new Response(JSON.stringify(data ?? {}), { status: 200, headers: { 'Content-Type': 'application/json' } })

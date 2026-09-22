@@ -91,11 +91,16 @@ sem decompor no navegador o fator comercial da cotação.
 Definidos em `vercel.json`:
 
 - `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy`
-- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br` e Sentry. O browser não chama Resend diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#content-security-policy).
+- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry e o endpoint europeu do PostHog (`eu.i.posthog.com`). O browser não chama Resend diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#content-security-policy).
 - **Telemetria Vercel:** Web Analytics e Speed Insights removem query strings e normalizam identificadores dinâmicos de clientes, B/Ls, viagens e inspeções antes do envio.
 
 ## Outras defesas
 
+- **Logs Edge:** falhas usam `supabase/functions/_shared/logger.ts`, que aceita
+  somente campos e códigos allowlisted e descarta valores desconhecidos também
+  em runtime. Não passar objetos de erro, headers, bodies, emails ou IDs. O
+  logging permanece no sink nativo do Supabase e sujeito à retenção do plano;
+  ver [Observabilidade](observabilidade.md).
 - **Upload guard:** `assertUploadSize` (`src/lib/fileGuard.ts`) limita tamanho antes de `XLSX.read` (mitiga a vulnerabilidade conhecida do `xlsx`).
 - **Injeção em filtros PostgREST:** input de usuário em `.or()/.ilike()` é escapado por `escapeFilterTerm` / `sanitizeLikeTerm` (`src/lib/utils.ts`) e termos que ficam vazios após o escape não geram cláusula. A fronteira cobre as buscas de clientes (lista, lookup e export), faturamento, Granito e bookings de Vazios.
 - **Injeção de fórmula em planilhas:** `src/lib/spreadsheetSafe.ts` é o sanitizador canônico. `src/services/exports.ts`, `src/lib/csv.ts` e `src/services/reconciliacao.ts` o reutilizam antes de gerar XLSX/CSV.

@@ -152,17 +152,25 @@ captura não é dependência de negócio.
 ## M4 — Logs locais sanitizados
 
 `supabase/functions/_shared/logger.ts` permite somente campos fixos
-(`function`, `job`, `status`, `error_code`) para o processamento do
-`portal-email-events-runner`. O helper não aceita objetos de erro, emails,
-IDs ou propriedades arbitrárias. `portalEmailEventProcessor.ts` e a Edge
-Function correspondente usam esse logger para falhas de consulta, envio e
-retry; dois testes Vitest verificam o formato e a ausência de `console.*` cru
-nesses módulos.
+(`function`, `job`, `status`, `error_code`) e valores de unions TypeScript
+allowlisted. O helper não aceita objetos de erro, emails, IDs ou propriedades
+arbitrárias. Além do `portal-email-events-runner`, foram migrados os logs de
+falha de `admin-users`, `alerts-detector`, `customer-communication-auto-runner`,
+`demurrage-dunning`, `import-effects-runner`, `portal-email-webhook`,
+`portal-invite-activate`, `portal-invite-send`, `portal-login`,
+`portal-password-recovery`, `portal-recovery-email-change`,
+`recalc-demurrage-ptax` e `send-customer-communication`. Testes Vitest validam
+o formato serializado, rejeitam valores fora da allowlist em runtime e proíbem
+`console.*` direto na árvore de funções, exceto no logger central.
+Os helpers compartilhados também não registram texto de erro do Redis: a
+indisponibilidade vira código fixo; o modo dry-run de email não inclui
+destinatário nem ID da tentativa.
 
 Esta é uma mudança local nos logs nativos, sem destino externo. O owner recusou
 Log Drains e retenção/dashboards pagos para manter custo zero adicional; estes
-logs não ficam pesquisáveis por 30 dias e o restante das Edge Functions ainda
-precisa de revisão antes de se considerar o scrub abrangente.
+logs não ficam pesquisáveis por 30 dias. A migração cobre os erros das funções
+críticas listadas acima, não todos os módulos nem logs de sucesso; o scrub não
+deve ser considerado abrangente para todo o runtime Edge.
 
 ## Fora do escopo e blockers
 

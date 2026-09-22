@@ -1,3 +1,5 @@
+import { logEdgeFailure } from './logger.ts'
+
 export type RateLimitAction = 'login' | 'recovery' | 'activation'
 
 export type RateLimitIdentity = {
@@ -26,7 +28,7 @@ type Fetcher = (input: string, init?: RequestInit) => Promise<Response>
 type RateLimitRuntime = {
   fetcher?: Fetcher
   now?: () => number
-  log?: (message: string, details?: Record<string, unknown>) => void
+  log?: () => void
 }
 
 export type DistributedRateLimiter = {
@@ -88,8 +90,13 @@ function resultPair(value: unknown): [number, number] {
   return [count, ttl]
 }
 
-function defaultLog(message: string, details?: Record<string, unknown>): void {
-  console.info(message, details ?? {})
+function defaultLog(): void {
+  logEdgeFailure({
+    functionName: 'portal-rate-limit',
+    job: 'redis_request',
+    errorCode: 'upstash_unavailable',
+    status: 'warning',
+  })
 }
 
 function readEnvironment(name: string): string | undefined {
@@ -134,14 +141,10 @@ export function createUpstashRateLimiter(
   let consecutiveFailures = 0
   let circuitOpenUntil = 0
 
-  const unavailable = (command: string, error: unknown): DistributedRateLimitResult => {
+  const unavailable = (): DistributedRateLimitResult => {
     consecutiveFailures += 1
     if (consecutiveFailures >= 3) circuitOpenUntil = now() + config.circuitOpenSeconds * 1000
-    log('[portal-rate-limit] Upstash indisponível; mantendo defesa do Supabase', {
-      command,
-      circuitOpen: circuitOpenUntil > now(),
-      error: error instanceof Error ? error.message : 'erro desconhecido',
-    })
+    log()
     return { state: 'unavailable' }
   }
 
@@ -179,8 +182,8 @@ export function createUpstashRateLimiter(
         return count >= config.threshold
           ? { state: 'blocked', retryAfterSeconds: Math.max(ttl, 1) }
           : { state: 'allowed' }
-      } catch (error) {
-        return unavailable('check', error)
+      } catch {
+        return unavailable()
       }
     },
 
@@ -188,8 +191,8 @@ export function createUpstashRateLimiter(
       try {
         const key = await buildRateLimitKey(config.hmacSecret, identity)
         resultPair(await execute(INCREMENT_SCRIPT, key, [String(config.windowSeconds)]))
-      } catch (error) {
-        unavailable('register_failure', error)
+      } catch {
+        unavailable()
       }
     },
 
@@ -197,8 +200,8 @@ export function createUpstashRateLimiter(
       try {
         const key = await buildRateLimitKey(config.hmacSecret, identity)
         await execute(CLEAR_SCRIPT, key)
-      } catch (error) {
-        unavailable('register_success', error)
+      } catch {
+        unavailable()
       }
     },
   }

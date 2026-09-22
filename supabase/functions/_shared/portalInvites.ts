@@ -37,7 +37,7 @@ const ENVIO_EM_VOO_MS = 2 * 60 * 1000
 //    aponta para a caixa anterior. Reusá-lo responderia "enviamos" enquanto
 //    nada chega ao endereço vigente — e é justamente o endereço novo que o
 //    cliente acabou de pedir para usar.
-// 2. Envio. A falha do Resend só vira `console.error` dentro do `waitUntil`, e
+// 2. Envio. A falha do Resend só vira um código de erro sanitizado no log dentro do `waitUntil`, e
 //    o convite fica pendente do mesmo jeito. Tratar pendente como enviado
 //    transformava uma indisponibilidade passageira do provedor em uma hora sem
 //    recuperação de senha, atrás de uma tela dizendo que o email saiu.

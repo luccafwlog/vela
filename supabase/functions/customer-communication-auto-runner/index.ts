@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { renderCustomerCommunicationTemplate } from '../_shared/customerCommunicationTemplates.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 type Candidate = {
   claim_key?: string
@@ -43,8 +44,8 @@ async function releaseClaimSafely(admin: ReturnType<typeof createClient>, claimK
     const { error } = await admin.rpc('release_customer_communication_automation_claim', { p_claim_key: claimKey })
     if (error) throw error
     return true
-  } catch (error) {
-    console.error('[customer-communication-auto-runner] falha ao liberar claim', claimKey, error)
+  } catch {
+    logEdgeFailure({ functionName: 'customer-communication-auto-runner', job: 'claim_release', errorCode: 'claim_release_failed' })
     return false
   }
 }
@@ -140,8 +141,8 @@ async function handler(req: Request): Promise<Response> {
             const isPermanentSuppression = response.status === 422 && Boolean(result?.suppressed)
             if (isDeliveredOrSimulated) count += 1
             if (isDeliveredOrSimulated || isPermanentSuppression) resolvedRecipients += 1
-          } catch (dispatchError) {
-            console.error('[customer-communication-auto-runner] falha de requisição', candidate.customer_id, recipient, dispatchError)
+          } catch {
+            logEdgeFailure({ functionName: 'customer-communication-auto-runner', job: 'email_dispatch', errorCode: 'email_send_failed' })
           }
         }
         // A claim covers the whole customer/port target, but delivery is per
@@ -152,9 +153,9 @@ async function handler(req: Request): Promise<Response> {
           if (!await releaseClaimSafely(admin, candidate.claim_key)) releaseFailures += 1
         }
       }
-    } catch (candidateError) {
+    } catch {
       failed += 1
-      console.error('[customer-communication-auto-runner] candidato com erro', candidate.customer_id, candidateError)
+      logEdgeFailure({ functionName: 'customer-communication-auto-runner', job: 'candidate_processing', errorCode: 'candidate_failed' })
       if (!await releaseClaimSafely(admin, candidate.claim_key)) releaseFailures += 1
     }
     sent.push({ kind: candidate.kind, customerId: candidate.customer_id, emails: count })

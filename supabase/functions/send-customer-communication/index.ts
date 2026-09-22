@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders, withCors } from '../_shared/cors.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttachment, type EmailAttemptRecord } from '../_shared/email.ts'
 import {
   assertValidCommunicationAttachments,
@@ -525,8 +526,8 @@ async function handler(req: Request): Promise<Response> {
         attemptDiscriminator,
         dispatchId: body.dispatch_id,
       })
-    } catch (error) {
-      console.error('customer communication identity lookup failed', error)
+    } catch {
+      logEdgeFailure({ functionName: 'send-customer-communication', job: 'identity_lookup', errorCode: 'identity_lookup_failed' })
       return json(500, { error: 'Não foi possível conferir o comunicado existente.' }, origin)
     }
   }
@@ -549,23 +550,23 @@ async function handler(req: Request): Promise<Response> {
   })
   if (createError || communicationId == null) {
     if (isUniqueViolation(createError)) return json(200, { status: 'simulado', message: 'Comunicado já registrado.' }, origin)
-    console.error('customer communication atomic record failed', createError)
+    logEdgeFailure({ functionName: 'send-customer-communication', job: 'audit', errorCode: 'audit_write_failed' })
     return json(500, { error: 'Não foi possível registrar o comunicado.' }, origin)
   }
 
   if (isAutomation && existingCommunicationId == null) {
     const { error: originError } = await admin.from('customer_communications').update({ origin: 'automatico' }).eq('id', communicationId)
     if (originError) {
-      console.error('customer communication origin persistence failed', originError)
+      logEdgeFailure({ functionName: 'send-customer-communication', job: 'origin_persist', errorCode: 'origin_persist_failed' })
       return json(500, { error: 'Não foi possível registrar a origem do comunicado.' }, origin)
     }
   }
 
   try {
     await persistCommunicationAttachments(admin, Number(communicationId), attachments, callerUser.user?.id ?? null)
-  } catch (error) {
+  } catch {
     await admin.from('customer_communications').update({ status: 'falha' }).eq('id', communicationId)
-    console.error('customer communication attachment persistence failed', error)
+    logEdgeFailure({ functionName: 'send-customer-communication', job: 'attachment_persist', errorCode: 'attachment_persist_failed' })
     return json(500, { error: 'Não foi possível persistir os anexos do comunicado.' }, origin)
   }
 
@@ -585,8 +586,8 @@ async function handler(req: Request): Promise<Response> {
       const { error: blockedStatusError } = await admin.rpc('mark_customer_communication_dispatch_blocked', {
         p_communication_id: Number(communicationId),
       })
-      if (blockedStatusError) console.error('customer communication blocked status persistence failed', blockedStatusError)
-      console.error('customer communication dispatch readiness failed', dispatchReadinessError)
+      if (blockedStatusError) logEdgeFailure({ functionName: 'send-customer-communication', job: 'status_persist', errorCode: 'status_persist_failed' })
+      logEdgeFailure({ functionName: 'send-customer-communication', job: 'dispatch_readiness', errorCode: 'dispatch_readiness_failed' })
       return json(422, { error: 'Prontidão financeira bloqueada para este cliente e viagem.' }, origin)
     }
   }
@@ -650,9 +651,9 @@ async function handler(req: Request): Promise<Response> {
         if (error) throw error
       },
     })
-  } catch (error) {
+  } catch {
     await admin.from('customer_communications').update({ status: 'falha' }).eq('id', communicationId)
-    console.error('customer communication send failed', error)
+    logEdgeFailure({ functionName: 'send-customer-communication', job: 'email_dispatch', errorCode: 'email_send_failed' })
     return json(500, { error: 'Falha no envio do comunicado.' }, origin)
   }
 
@@ -660,7 +661,7 @@ async function handler(req: Request): Promise<Response> {
     p_communication_id: Number(communicationId),
   })
   if (statusError) {
-    console.error('customer communication status persistence failed', statusError)
+    logEdgeFailure({ functionName: 'send-customer-communication', job: 'status_persist', errorCode: 'status_persist_failed' })
     return json(500, { error: 'Não foi possível persistir o status do comunicado.' }, origin)
   }
   const status = String(refreshedStatus ?? (sent.ok ? (enabled ? 'enviado' : 'simulado') : 'falha'))

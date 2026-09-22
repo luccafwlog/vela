@@ -1,3 +1,5 @@
+import { logEmailDryRun } from './logger.ts'
+
 export type EmailSuppression = {
   suppressed: boolean
   reason?: string
@@ -72,7 +74,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
   const attempt = await input.recordAttempt({ kind: input.kind, to: input.to, idempotencyKey: input.idempotencyKey })
 
   if (!input.resendApiKey) {
-    console.log(`[dry-run] ${input.kind} para ${maskEmail(input.to)} (attempt ${attempt.id})`)
+    logEmailDryRun()
     return { ok: true }
   }
 

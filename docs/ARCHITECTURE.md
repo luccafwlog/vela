@@ -566,6 +566,12 @@ informa falhas ao operador e mantém `provisional_charges` apenas como recupera�
 - `recalc-demurrage-ptax`: recálculo diário do BRL das invoices de demurrage,
   com alerta persistente em falha e job nominal inativo até validação externa;
 
+No código das Edge Functions, falhas operacionais usam o logger compartilhado
+com `function`, `job`, `status` e `error_code` allowlisted; objetos de erro,
+IDs, email, headers e bodies não entram nesses registros. O sink continua sendo
+o log nativo Supabase, sem Log Drain ou promessa de retenção estendida; ver
+[runbook de observabilidade](operations/observabilidade.md).
+
 O Portal participa dos gates manuais de emissão e da emissão pelo cliente
 (ADR 0054, `047`). A migration `051` abre uma exceção interna controlada para
 automação pela transição do CE Mercante: emitir não depende do provisionamento
@@ -581,6 +587,9 @@ separada. Não generalizar a exceção para chamadas do navegador.
   idempotência/supressão;
 - **Banco Central:** cotação PTAX;
 - **Sentry:** erros do frontend em produção;
+- **PostHog EU:** fundação de analytics agregado e feature flags; coleta
+  automática fica desativada e o contrato não associa cliente/viagem. Eventos de
+  produto ainda precisam ser instrumentados e validados em Preview.
 - **Vercel:** distribuição da SPA e Preview/Production Deployments;
 - **PIX:** BR Code estático persistido e QR renderizado; conciliação por extrato. API Itaú dinâmica/webhook permanece proposta em `docs/spec/2026-08-25-integracao-itau-pix.md`.
 
@@ -589,10 +598,9 @@ separada. Não generalizar a exceção para chamadas do navegador.
 Erros globais de queries e mutations TanStack Query são reportados ao Sentry via
 `reportCaughtException`, com `context=TanStack Query` e a `queryKey` ou
 `mutationKey` serializada em `extra`. O `PortalAuthProvider` define
-`Sentry.setUser({ id: customer_id })` e a tag `area=portal` quando o overview do
-cliente é carregado; no logout ou `SIGNED_OUT`, limpa o usuário com
-`Sentry.setUser(null)`. O projeto mantém `sendDefaultPii: false` e não envia
-email, nome, documento ou contato do cliente como identidade Sentry.
+somente a tag `area=portal`, sem identidade estável de cliente (`Sentry.setUser(null)`).
+O projeto mantém `sendDefaultPii: false` e não envia email, nome, documento ou
+contato do cliente como identidade Sentry.
 
 Domínios usados pelo navegador precisam permanecer compatíveis com a CSP de
 `vercel.json`.

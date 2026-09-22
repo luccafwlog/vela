@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 
@@ -139,7 +140,7 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
 
     // O flag sozinho não derruba a sessão: o token segue válido até expirar.
     const { error: signOutError } = await admin.auth.admin.signOut(userId)
-    if (signOutError) console.error('admin-users: falha ao encerrar sessões', signOutError)
+    if (signOutError) logEdgeFailure({ functionName: 'admin-users', job: 'session_revocation', errorCode: 'session_revoke_failed' })
 
     return json(200, { ok: true, sessions_revoked: !signOutError }, origin)
   }

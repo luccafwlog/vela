@@ -5,6 +5,7 @@ import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 const json = (status: number, body: unknown, origin: string | null) => new Response(body === null ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) } })
 const maskCnpj = (value: string) => { const d = value.replace(/[^0-9a-z]/gi, '').toUpperCase(); return d.length === 14 ? `${d.slice(0, 2)}.***.***/${d.slice(8, 12)}-${d.slice(12)}` : '***' }
@@ -51,7 +52,7 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   await admin.from('customer_portal_accounts').update({ recovery_email: email, recovery_email_source: body.recovery_email_source === 'informado_manualmente' ? 'informado_manualmente' : 'candidato', recovery_email_status: 'ok', provisioning_decision: 'aprovado_para_provisionar', account_situation: sent.ok ? 'convite_pendente' : 'falha_no_envio' }).eq('id', account.id)
   const { error: auditError } = await admin.rpc('_portal_log_event', { p_customer_id: account.customer_id, p_account_id: account.id, p_invite_id: invite.id, p_prev_decision: account.provisioning_decision, p_new_decision: 'aprovado_para_provisionar', p_prev_situation: account.account_situation, p_new_situation: sent.ok ? 'convite_pendente' : 'falha_no_envio', p_actor_type: String(role), p_reason: body.reason ?? (resend ? 'Reenvio de convite autorizado.' : 'Convite autorizado.'), p_request_id: null })
   if (auditError) {
-    console.error('portal invite audit failed', auditError)
+    logEdgeFailure({ functionName: 'portal-invite-send', job: 'audit', errorCode: 'audit_write_failed' })
     return json(500, { error: 'Não foi possível registrar a auditoria do convite.' }, origin)
   }
   if (!sent.ok) await admin.from('alerts').insert({ type: 'portal_falha_envio', entity_type: 'customer', entity_id: String(body.customer_id), message: 'Falha no envio do convite do Portal.', status: 'open' })

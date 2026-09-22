@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Webhook } from 'https://esm.sh/svix@1'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 type ResendEvent = {
   type: string
@@ -62,7 +63,7 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-email-
     .eq('provider_event_id', svixHeaders['svix-id'])
     .maybeSingle() as { data: { id: number; status: string } | null; error: { code?: string; message?: string } | null }
   if (lookupError) {
-    console.error('[portal-email-webhook] falha ao consultar deduplicação', lookupError)
+    logEdgeFailure({ functionName: 'portal-email-webhook', job: 'deduplication', errorCode: 'deduplication_lookup_failed' })
     return json(500, { error: 'inbox_lookup_failed' })
   }
   if (existing) {
@@ -94,7 +95,7 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-email-
       .eq('provider_event_id', svixHeaders['svix-id'])
       .maybeSingle() as { data: { id: number; status: string } | null; error: { code?: string; message?: string } | null }
     if (raceLookupError || !raced) {
-      console.error('[portal-email-webhook] corrida de deduplicação sem linha recuperável', raceLookupError)
+      logEdgeFailure({ functionName: 'portal-email-webhook', job: 'deduplication', errorCode: 'deduplication_race_unresolved' })
       return json(500, { error: 'inbox_race_lookup_failed' })
     }
     return json(raced.status === 'processed' ? 200 : 202, {
@@ -104,7 +105,7 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-email-
     })
   }
   if (insertError || !inserted) {
-    console.error('[portal-email-webhook] falha ao persistir inbox', insertError)
+    logEdgeFailure({ functionName: 'portal-email-webhook', job: 'inbox_persist', errorCode: 'inbox_persist_failed' })
     return json(500, { error: 'inbox_persist_failed' })
   }
 

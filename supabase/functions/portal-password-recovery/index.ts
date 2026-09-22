@@ -6,6 +6,7 @@ import { findReusableRecoveryInvite } from '../_shared/portalInvites.ts'
 import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { isRecoveryRateLimited, registerRecoveryFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 // Achado 3.2 (auditoria 2026-08-12): a resposta antiga distinguia
 // account_found/email_sent, entao um atacante varria CNPJs distintos e
@@ -39,7 +40,7 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   // eliminando qualquer assimetria temporal observável (TTFB) entre CNPJs existentes,
   // inexistentes, inativos ou com convite já ativo.
   const recoveryWork = processRecoveryInBackground(admin, cnpj)
-    .catch((error) => console.error('[portal-password-recovery] falha no processamento em segundo plano', error))
+    .catch(() => logEdgeFailure({ functionName: 'portal-password-recovery', job: 'recovery_process', errorCode: 'recovery_process_failed' }))
 
   if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(recoveryWork)
   return accepted()
@@ -123,5 +124,5 @@ async function processRecoveryInBackground(admin: ReturnType<typeof createClient
     idempotencyKey: `recuperacao:${invite.id}`,
     accountId: account.id,
     inviteId: invite.id,
-  }).catch((error) => console.error('[portal-password-recovery] falha ao enviar email em segundo plano', error))
+  }).catch(() => logEdgeFailure({ functionName: 'portal-password-recovery', job: 'recovery_email', errorCode: 'recovery_email_failed' }))
 }

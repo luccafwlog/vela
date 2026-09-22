@@ -3,6 +3,7 @@ import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { renderDemurrageTemplate } from '../_shared/customerCommunicationTemplates.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttemptRecord } from '../_shared/email.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 type DunningCandidate = {
   invoice_id: number
@@ -552,9 +553,9 @@ async function sendCandidateGroup(
       } else {
         failedRecipients += 1
       }
-    } catch (error) {
+    } catch {
       failedRecipients += 1
-      console.error('[demurrage-dunning] falha no envio em grupo', first.customer_id, first.attempt_discriminator, recipient, error)
+      logEdgeFailure({ functionName: 'demurrage-dunning', job: 'email_dispatch', errorCode: 'email_send_failed' })
     }
   }
 
@@ -660,9 +661,9 @@ async function sendCandidate(
       } else {
         failedRecipients += 1
       }
-    } catch (error) {
+    } catch {
       failedRecipients += 1
-      console.error('[demurrage-dunning] falha no envio', candidate.invoice_id, recipient, error)
+      logEdgeFailure({ functionName: 'demurrage-dunning', job: 'email_dispatch', errorCode: 'email_send_failed' })
     }
   }
 
@@ -695,8 +696,8 @@ async function releaseClaimSafely(
   try {
     await releaseClaim(admin, candidate)
     return true
-  } catch (error) {
-    console.error('[demurrage-dunning] falha ao liberar claim', candidate.invoice_id, error)
+  } catch {
+    logEdgeFailure({ functionName: 'demurrage-dunning', job: 'claim_release', errorCode: 'claim_release_failed' })
     return false
   }
 }
@@ -719,7 +720,7 @@ async function handler(req: Request): Promise<Response> {
     }),
   ])
   if (settingsError || claimError) {
-    console.error('[demurrage-dunning] falha ao preparar o ciclo', settingsError ?? claimError)
+    logEdgeFailure({ functionName: 'demurrage-dunning', job: 'cycle_prepare', errorCode: 'cycle_prepare_failed' })
     return json(500, { error: 'Falha ao preparar a régua de Demurrage.' })
   }
 
@@ -750,10 +751,10 @@ async function handler(req: Request): Promise<Response> {
         } else {
           simulated += 1
         }
-      } catch (error) {
+      } catch {
         failed += 1
         if (!await releaseClaimSafely(admin, candidate)) releaseFailures += 1
-        console.error('[demurrage-dunning] candidato inválido', candidate.invoice_id, error)
+        logEdgeFailure({ functionName: 'demurrage-dunning', job: 'candidate_validate', errorCode: 'candidate_invalid' })
       }
       continue
     }
@@ -772,12 +773,12 @@ async function handler(req: Request): Promise<Response> {
       } else {
         simulated += 1
       }
-    } catch (error) {
+    } catch {
       failed += 1
       for (const candidate of group) {
         if (!await releaseClaimSafely(admin, candidate)) releaseFailures += 1
       }
-      console.error('[demurrage-dunning] grupo inválido', group[0]?.customer_id, group[0]?.attempt_discriminator, error)
+      logEdgeFailure({ functionName: 'demurrage-dunning', job: 'group_validate', errorCode: 'group_invalid' })
     }
   }
   return json(releaseFailures ? 500 : 200, { claimed: candidates.length, sent, simulated, partial, failed, paused, releaseFailures })

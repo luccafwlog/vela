@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { openAlertOnce } from '../_shared/portalAlerts.ts'
 import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { authenticatePortalLoginIdentity } from '../_shared/portalLoginIdentity.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 const GENERIC_ERROR = 'CNPJ ou senha inválidos.'
 
@@ -57,7 +58,7 @@ if (typeof Deno !== 'undefined') {
             entityId: String(blockedAccount.customer_id),
             message: 'Muitas tentativas de login no Portal. Verifique a origem e contate o Cliente se necessário.',
           })
-        })().catch((error) => console.error('[portal-login] falha ao registrar alerta de abuso em segundo plano', error))
+        })().catch(() => logEdgeFailure({ functionName: 'portal-login', job: 'abuse_alert', errorCode: 'abuse_alert_failed' }))
         if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(alertWork)
         return json(401, { error: GENERIC_ERROR }, origin)
       }
@@ -86,8 +87,8 @@ if (typeof Deno !== 'undefined') {
         refresh_token: authentication.session.refresh_token,
         expires_at: authentication.session.expires_at,
       }, origin)
-    } catch (err) {
-      console.error('[portal-login] erro inesperado:', err)
+    } catch {
+      logEdgeFailure({ functionName: 'portal-login', job: 'login', errorCode: 'unexpected_failure' })
       return json(500, { error: 'Portal indisponível.' }, origin)
     }
   })

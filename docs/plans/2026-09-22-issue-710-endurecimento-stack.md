@@ -148,14 +148,14 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 
 **Comportamento operacional desejado, adiado pelo custo:** logs sanitizados pesquisáveis por 30 dias. O owner escolheu custo zero adicional; o Log Drain do Supabase e qualquer retenção/dashboards pagos ficam desativados. A retenção nativa disponível não cumpre o alvo de 30 dias.
 
-- [ ] Definir schema de log estruturado: `timestamp`, `environment`, `release`, `surface`, `function_name`, `job_name`, `status`, `duration_ms`, `correlation_id` aleatório, `customer_ref` hash quando estritamente necessário e códigos de erro de baixa cardinalidade.
-- [ ] Substituir logs soltos de Edge Functions prioritárias por logger allowlisted, sem headers, bearer, body, CNPJ, email ou IDs brutos. Implementação local cobre `portal-email-events-runner` e `portalEmailEventProcessor`; outros fluxos críticos e correlação permanecem pendentes.
+- [ ] Definir schema de log estruturado: `timestamp`, `environment`, `release`, `surface`, `function_name`, `job_name`, `status`, `duration_ms`, `correlation_id` aleatório, `customer_ref` hash quando estritamente necessário e códigos de erro de baixa cardinalidade. Para a primeira entrega sem serviço pago, o logger local adota somente `function`, `job`, `status` e `error_code`; timestamp/ambiente/function também são metadados do runtime Supabase. Release, duração e correlação permanecem pendentes; nenhum ID de cliente será necessário para este escopo.
+- [x] Substituir logs soltos de falha em `admin-users`, `alerts-detector`, `customer-communication-auto-runner`, `demurrage-dunning`, `import-effects-runner`, `portal-email-webhook`, `portal-invite-activate`, `portal-invite-send`, `portal-login`, `portal-password-recovery`, `portal-recovery-email-change`, `recalc-demurrage-ptax`, `send-customer-communication` e `portal-email-events-runner` por logger allowlisted sem headers, bearer, body, CNPJ, email, objetos de erro ou IDs brutos. Helpers compartilhados `rateLimit.ts` e `email.ts` agora não registram mensagem de provedor, destinatário ou ID de tentativa. Outros módulos Edge e logs de sucesso ainda não foram migrados.
 - [x] Criar `supabase/functions/_shared/logger.ts` para o processamento de eventos de email e emitir apenas `function`, `job`, `status` e `error_code`; dois testes Vitest passaram. Não adiciona transmissão externa.
 - [x] Avaliar disponibilidade/custo de Log Drains; o custo adicional foi recusado. Não habilitar drain nem configurar destino pago.
-- [ ] Implementar logger allowlisted localmente apenas se não criar custo nem transmitir dados a serviço externo; dashboards, exportação e retenção longa ficam adiados.
+- [x] Implementar logger allowlisted localmente para os fluxos críticos listados, sem custo nem transmissão externa; dashboards, exportação e retenção longa ficam adiados.
 - [x] Não criar dashboards/destino pago: fora da decisão de custo zero. Alertas operacionais ficam nos monitores privados M2/M3.
-- [ ] Expandir scrub/testes pelos demais fluxos críticos. Não enviar eventos para serviço externo nem alegar retenção de 10/30 dias; a retenção nativa permanece a disponível no plano.
-- [ ] Atualizar arquitetura, segurança e runbook. Rollback: desligar drain/token e revogar credencial no destino; preservar logs nativos.
+- [x] Expandir scrub/testes para os fluxos críticos listados e helpers compartilhados; o teste inclui rejeição runtime de valores fora da allowlist. A cobertura de outras Edge Functions e logs de sucesso permanece pendente. Não enviar eventos para serviço externo nem alegar retenção de 10/30 dias; a retenção nativa permanece a disponível no plano.
+- [x] Atualizar arquitetura, segurança e runbook para o logger sem destino externo. Não há drain/token para reverter; o rollback é restaurar os `console.*` anteriores somente se uma regressão exigir, mantendo os logs nativos e seu scrub.
 
 ### M1 — Cloudflare DNS, WAF, Turnstile e cache
 

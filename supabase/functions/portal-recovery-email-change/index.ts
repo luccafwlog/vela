@@ -7,6 +7,7 @@ import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, request
 import { resolveEmailChangeConfirmation } from '../_shared/portalInvites.ts'
 import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 // Mensagem própria para o pedido que já não tem o que aplicar. Dizer "link
 // inválido" aqui seria mentira -- o link estava válido -- e mandaria o cliente
@@ -51,7 +52,7 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     // refresh token do usuário -- inclusive o da aba em que o cliente está
     // fazendo o pedido, que cairia para o login na renovação seguinte. O que
     // sobra para encerrar é a sessão que esta função acabou de criar.
-    await verifier.auth.signOut({ scope: 'local' }).catch((error) => console.error('[portal-recovery-email-change] falha ao encerrar a sessão de verificação', error))
+    await verifier.auth.signOut({ scope: 'local' }).catch(() => logEdgeFailure({ functionName: 'portal-recovery-email-change', job: 'verification_session_cleanup', errorCode: 'session_cleanup_failed' }))
     const email = body.new_email.toLowerCase(); const { data: suppressed } = await admin.from('portal_suppressed_emails').select('id').eq('email', email).maybeSingle()
     if (suppressed) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 422 })
     await admin.from('portal_invites').update({ status: 'invalidado_por_reenvio' }).eq('account_id', account.id).eq('purpose', 'confirmacao_email').eq('status', 'pendente')

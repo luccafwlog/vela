@@ -12,6 +12,7 @@
 //   ou período vazio → aborta e loga (o caminho manual em /demurrage cobre esse caso).
 //
 // A PTAX bruta (cotacaoVenda) é passada à RPC; o markup 1,065 é aplicado no banco.
+import { logEdgeFailure } from '../_shared/logger.ts'
 //
 // Configuração no Supabase:
 //   Schedule (cron) → dias úteis ~14h BRT (ex.: "0 17 * * 1-5" em UTC)
@@ -126,9 +127,9 @@ async function recordPtaxFailure(
       },
       p_destination: '/demurrage',
     })
-    if (alertError) console.error('recalc-demurrage-ptax: alerta de falha não persistido', alertError)
-  } catch (alertError) {
-    console.error('recalc-demurrage-ptax: canal de alerta indisponível', alertError)
+    if (alertError) logEdgeFailure({ functionName: 'recalc-demurrage-ptax', job: 'alert_persist', errorCode: 'alert_persist_failed' })
+  } catch {
+    logEdgeFailure({ functionName: 'recalc-demurrage-ptax', job: 'alert_delivery', errorCode: 'alert_delivery_unavailable' })
   }
 }
 
@@ -169,7 +170,7 @@ Deno.serve(instrumentEdgeHandler('recalc-demurrage-ptax', async (req: Request) =
   try {
     quote = await fetchLatestPtax()
   } catch (error) {
-    console.error('recalc-demurrage-ptax: PTAX indisponivel', error)
+    logEdgeFailure({ functionName: 'recalc-demurrage-ptax', job: 'ptax_lookup', errorCode: 'ptax_unavailable' })
     await recordPtaxFailure(supabase, 'ptax_unavailable', error)
     return new Response(JSON.stringify({ error: 'ptax_unavailable' }), {
       status: 502,
@@ -188,7 +189,7 @@ Deno.serve(instrumentEdgeHandler('recalc-demurrage-ptax', async (req: Request) =
     p_quote_date: quoteDate,
   })
   if (referenceError) {
-    console.error('recalc-demurrage-ptax: referencia cambial falhou', referenceError)
+    logEdgeFailure({ functionName: 'recalc-demurrage-ptax', job: 'ptax_reference', errorCode: 'ptax_reference_failed' })
     await recordPtaxFailure(supabase, 'reference_failed', referenceError)
     return new Response(JSON.stringify({ error: 'reference_failed' }), {
       status: 500,
@@ -202,7 +203,7 @@ Deno.serve(instrumentEdgeHandler('recalc-demurrage-ptax', async (req: Request) =
     p_source: 'bcb_live',
   })
   if (error) {
-    console.error('recalc-demurrage-ptax: RPC falhou', error)
+    logEdgeFailure({ functionName: 'recalc-demurrage-ptax', job: 'ptax_recalculate', errorCode: 'ptax_recalculate_failed' })
     await recordPtaxFailure(supabase, 'recalc_failed', error)
     return new Response(JSON.stringify({ error: 'recalc_failed' }), {
       status: 500,
@@ -213,7 +214,7 @@ Deno.serve(instrumentEdgeHandler('recalc-demurrage-ptax', async (req: Request) =
   try {
     await resolvePtaxFailure(supabase, quoteDate)
   } catch (error) {
-    console.error('recalc-demurrage-ptax: alerta de falha não resolvido', error)
+    logEdgeFailure({ functionName: 'recalc-demurrage-ptax', job: 'ptax_resolution', errorCode: 'ptax_alert_resolution_failed' })
     await recordPtaxFailure(supabase, 'alert_resolution_failed', error)
     return new Response(JSON.stringify({ error: 'alert_resolution_failed' }), {
       status: 500,

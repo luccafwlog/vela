@@ -3,6 +3,7 @@ import { hashToken } from '../_shared/portalToken.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 import { isActivationRateLimited, registerActivationFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 const GENERIC_INVALID = 'Link inválido ou expirado. Solicite um novo convite à empresa.'
 
@@ -61,8 +62,8 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     p_customer_id: account.customer_id,
   })
   const { error: reconcileError } = await admin.rpc('reconcile_client_portal_alerts')
-  if (reprocessError) console.error('portal activation reprocess failed', reprocessError)
-  if (reconcileError) console.error('portal activation alert reconciliation failed', reconcileError)
+  if (reprocessError) logEdgeFailure({ functionName: 'portal-invite-activate', job: 'activation_reprocess', errorCode: 'activation_reprocess_failed' })
+  if (reconcileError) logEdgeFailure({ functionName: 'portal-invite-activate', job: 'alert_reconciliation', errorCode: 'alert_reconciliation_failed' })
   return cors(200, {
     activated: true,
     reprocess: reprocess ?? null,

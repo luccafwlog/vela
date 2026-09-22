@@ -6,6 +6,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { logEdgeFailure } from '../_shared/logger.ts'
 
 function timingSafeEqual(leftValue: string, rightValue: string): boolean {
   const encoder = new TextEncoder()
@@ -49,7 +50,7 @@ Deno.serve(instrumentEdgeHandler('import-effects-runner', async (req: Request) =
     p_lease_seconds: 300,
   })
   if (claimError) {
-    console.error('import-effects-runner: claim falhou', claimError)
+    logEdgeFailure({ functionName: 'import-effects-runner', job: 'effect_claim', errorCode: 'effect_claim_failed' })
     return json(502, { error: 'claim_failed' })
   }
 
@@ -58,7 +59,7 @@ Deno.serve(instrumentEdgeHandler('import-effects-runner', async (req: Request) =
   for (const effect of effects) {
     const effectId = Number((effect as { id?: unknown }).id)
     if (!Number.isSafeInteger(effectId) || effectId <= 0) {
-      console.error('import-effects-runner: claim retornou id inválido')
+      logEdgeFailure({ functionName: 'import-effects-runner', job: 'effect_claim', errorCode: 'effect_claim_id_invalid' })
       continue
     }
 
@@ -69,7 +70,7 @@ Deno.serve(instrumentEdgeHandler('import-effects-runner', async (req: Request) =
     if (processError) {
       // Em erro de rede o lease expira e outro ciclo recupera o efeito. O
       // payload não é repetido no log para não vazar snapshot de importação.
-      console.error('import-effects-runner: processamento falhou', { effectId, error: processError })
+      logEdgeFailure({ functionName: 'import-effects-runner', job: 'effect_process', errorCode: 'effect_process_failed' })
       outcomes.push({ effect_id: effectId, status: 'completed_with_error' })
       continue
     }
