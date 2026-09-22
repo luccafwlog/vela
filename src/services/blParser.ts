@@ -175,24 +175,50 @@ function extractUnNumber(value: string) {
 }
 
 
+const FREIGHT_HEADER_VALUES = new Set(['RATE', 'PER', 'PREPAID', 'COLLECT'])
+
 export function isInvalidFreightDescription(value: string): boolean {
-  const normalized = value.trim().toUpperCase()
+  const normalized = value.trim().replace(/\s+/g, ' ').toUpperCase()
   if (!normalized) return true
 
-  // 1. Cabeçalho de bloco impresso do formulário de B/L
-  if (/^(11[.\s]*)?FREIGHT\s*(&|AND)\s*CHARGES/i.test(normalized)) return true
-  if (/^(REVENUE\s*TONS?|RATE|PER|PREPAID|COLLECT)\b/i.test(normalized)) return true
+  // Só os rótulos isolados são cabeçalhos. Prefixos como "RATE ADJUSTMENT"
+  // e "PREPAID HANDLING" são descrições comerciais válidas.
+  if (/^(?:11[.\s]*)?FREIGHT\s*(?:&|AND)\s*CHARGES$/.test(normalized)) return true
+  if (/^(?:REVENUE\s*TONS?|RATE|PER|PREPAID|COLLECT)$/.test(normalized)) return true
 
-  // 2. Cláusulas jurídicas e contratuais do B/L
-  if (/^4[.\s]/i.test(normalized)) return true
-  if (/(RECEIVED\s+(IN|BY)\s+(EXTERNAL\s+)?APPARENT|APPARENT\s+GOOD\s+ORDER|SHIPPER'?S\s+LOAD|NOTWITHSTANDING\s+ANY\s+PROVISION|TERMS\s+AND\s+CONDITIONS|PARTICULARS\s+FURNISHED)/i.test(normalized)) return true
+  // Cláusulas contratuais são reconhecidas pela frase jurídica ancorada, não
+  // por qualquer ocorrência de "ORDER", "GOODS" ou "CONTAINER".
+  return [
+    /^(?:4\.\s*)?RECEIVED\s+(?:IN|BY)\b.*APPARENT\s+GOOD\s+ORDER\b/,
+    /^APPARENT\s+GOOD\s+ORDER\b/,
+    /^SHIPPER'?S\s+LOAD\b/,
+    /^NOTWITHSTANDING\s+ANY\s+PROVISION\b/,
+    /^TERMS\s+AND\s+CONDITIONS\b/,
+    /^PARTICULARS\s+FURNISHED\b/,
+  ].some((pattern) => pattern.test(normalized))
+}
 
-  // 3. Parágrafos jurídicos longos (> 50 chars) com termos contratuais de transporte
-  if (normalized.length > 50 && /(CARRIER|ORDER|GOODS|CONTAINER|LIABILITY|PORT\s+OF)/i.test(normalized)) {
-    return true
-  }
+function isFreightHeaderRow(row: RawSheetRow | undefined): boolean {
+  const valueCells = [7, 11, 22, 23].map((index) => cellValue(row, index).trim().replace(/\s+/g, ' ').toUpperCase())
+  const labelCount = valueCells.filter((value) => FREIGHT_HEADER_VALUES.has(value)).length
+  return labelCount >= 2
+}
 
-  return false
+function hasNumericFreightValue(values: string[]): boolean {
+  return values.some((value) => parseMoney(value).amount !== null)
+}
+
+function isInvalidFreightRow(row: RawSheetRow | undefined): boolean {
+  const rateText = cellValue(row, 7)
+  const amount = cellValue(row, 15)
+  const prepaid = cellValue(row, 22)
+  const collect = cellValue(row, 23)
+
+  // A numeric value is stronger evidence than a description prefix. This keeps
+  // legitimate charges such as "4 X 40HC OCEAN FREIGHT" and "PER DIEM".
+  if (hasNumericFreightValue([rateText, amount, prepaid, collect])) return false
+
+  return isFreightHeaderRow(row) || isInvalidFreightDescription(cellValue(row, 0))
 }
 
 function parseFreightCharges(rows: RawSheetRow[]): BLFreightCharge[] {
@@ -201,7 +227,7 @@ function parseFreightCharges(rows: RawSheetRow[]): BLFreightCharge[] {
   for (let rowIndex = 25; rowIndex < 46; rowIndex += 1) {
     const row = rows[rowIndex]
     const description = cellValue(row, 0)
-    if (!description || isInvalidFreightDescription(description)) {
+    if (!description || isInvalidFreightRow(row)) {
       continue
     }
 

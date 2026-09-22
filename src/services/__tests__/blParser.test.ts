@@ -169,6 +169,45 @@ describe('blParser', () => {
     expect(isInvalidFreightDescription('THD')).toBe(false)
     expect(isInvalidFreightDescription('THC')).toBe(false)
     expect(isInvalidFreightDescription('BAF')).toBe(false)
+    expect(isInvalidFreightDescription('PER DIEM')).toBe(false)
+    expect(isInvalidFreightDescription('COLLECT FEE')).toBe(false)
+    expect(isInvalidFreightDescription('RATE ADJUSTMENT')).toBe(false)
+    expect(isInvalidFreightDescription('PREPAID HANDLING')).toBe(false)
+    expect(isInvalidFreightDescription('4 X 40HC OCEAN FREIGHT')).toBe(false)
+    expect(isInvalidFreightDescription('4.5% AD VALOREM')).toBe(false)
+    expect(isInvalidFreightDescription('TERMINAL HANDLING CHARGE AT PORT OF DISCHARGE SANTOS BR')).toBe(false)
+    expect(isInvalidFreightDescription('BUNKER ADJUSTMENT FACTOR - CONTAINER IMBALANCE SURCHARGE')).toBe(false)
+    expect(isInvalidFreightDescription('FREIGHT & CHARGES AS ARRANGED')).toBe(false)
+  })
+
+  it('preserva despesas que começam com rótulos, números ou texto longo quando a linha tem valor', async () => {
+    const parsed = await parseBLBuffer(coscoBuffer({
+      freightRows: [
+        ['11. Freight & Charges', 'RATE', 'PER', '', 'PREPAID', 'COLLECT'],
+        ['PER DIEM', 'USD 50.00', 'DAY', 'USD 50.00', 'USD 50.00', ''],
+        ['COLLECT FEE', 'USD 10.00', 'BL', 'USD 10.00', '', 'USD 10.00'],
+        ['RATE ADJUSTMENT', 'USD 20.00', 'BL', 'USD 20.00', 'USD 20.00', ''],
+        ['PREPAID HANDLING', 'USD 30.00', 'BL', 'USD 30.00', 'USD 30.00', ''],
+        ['4 X 40HC OCEAN FREIGHT', 'USD 8,000.00', 'BL', 'USD 8,000.00', '', 'USD 8,000.00'],
+        ['4.5% AD VALOREM', 'USD 45.00', 'BL', 'USD 45.00', '', 'USD 45.00'],
+        ['TERMINAL HANDLING CHARGE AT PORT OF DISCHARGE SANTOS BR', 'BRL 100.00', 'BL', 'BRL 100.00', '', 'BRL 100.00'],
+        ['BUNKER ADJUSTMENT FACTOR - CONTAINER IMBALANCE SURCHARGE', 'USD 12.00', 'CNTR', 'USD 12.00', '', 'USD 12.00'],
+        ['FREIGHT & CHARGES AS ARRANGED', 'USD 15.00', 'BL', 'USD 15.00', '', 'USD 15.00'],
+        ['4. Received by the Carrier in external apparent good order and condition', '', '', '', '', ''],
+      ],
+    }))
+
+    expect(parsed.freightCharges.map((charge) => charge.description)).toEqual([
+      'PER DIEM',
+      'COLLECT FEE',
+      'RATE ADJUSTMENT',
+      'PREPAID HANDLING',
+      '4 X 40HC OCEAN FREIGHT',
+      '4.5% AD VALOREM',
+      'TERMINAL HANDLING CHARGE AT PORT OF DISCHARGE SANTOS BR',
+      'BUNKER ADJUSTMENT FACTOR - CONTAINER IMBALANCE SURCHARGE',
+      'FREIGHT & CHARGES AS ARRANGED',
+    ])
   })
 
   it('ignora cabecalho 11 e texto contratual 4 na secao de frete', async () => {

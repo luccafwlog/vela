@@ -12,6 +12,9 @@ export function canonicalizeDocument(value?: string | null): string {
   return (value ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
 }
 
+/** Limite bruto do campo: inclui a máscara `00.000.000/0000-00` antes da normalização. */
+export const CNPJ_INPUT_MAX_LENGTH = 18
+
 export function normalizeCnpj(value?: string | null): string {
   return canonicalizeDocument(value).slice(0, 14)
 }

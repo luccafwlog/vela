@@ -117,10 +117,20 @@ const mockHistory = [
   },
 ]
 
-let mockAppSettings = { communications_enabled: false }
+type MockAppSettings = { communications_enabled: boolean }
+
+let mockAppSettings: MockAppSettings | null = { communications_enabled: false }
+let mockAppSettingsLoading = false
+let mockAppSettingsError: Error | null = null
+const mockRefetchSettings = vi.fn()
 
 vi.mock('../../hooks/useAppSettings', () => ({
-  useAppSettings: () => ({ data: mockAppSettings }),
+  useAppSettings: () => ({
+    data: mockAppSettings,
+    isLoading: mockAppSettingsLoading,
+    error: mockAppSettingsError,
+    refetch: mockRefetchSettings,
+  }),
   useSetCommunicationsEnabled: () => mockSetCommunicationsMutation,
 }))
 
@@ -174,6 +184,8 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     vi.clearAllMocks()
     activeMockConference = undefined
     mockAppSettings = { communications_enabled: false }
+    mockAppSettingsLoading = false
+    mockAppSettingsError = null
   })
 
   it('exibe o banner permanente de simulação quando communications_enabled é false', () => {
@@ -203,7 +215,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
 
 
   it('exibe o banner de simulação como fallback seguro quando settings é nulo ou indefinido', () => {
-    mockAppSettings = null as any
+    mockAppSettings = null
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao']}>
         <ClientesComunicacao />
@@ -211,6 +223,35 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     expect(screen.getByText('Modo de simulação permanente')).toBeTruthy()
+  })
+
+  it('exibe o estado de carregamento da chave sem ocultar o painel', () => {
+    mockAppSettings = null
+    mockAppSettingsLoading = true
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('status')).toBeTruthy()
+    expect(screen.queryByText('Modo de simulação permanente')).toBeNull()
+  })
+
+  it('exibe erro da chave e permite tentar novamente', () => {
+    mockAppSettings = null
+    mockAppSettingsError = new Error('falha de rede')
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('alert')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+    expect(mockRefetchSettings).toHaveBeenCalledTimes(1)
   })
 
   it('renderiza o painel de cobertura na aba padrão com viagens e contadores', () => {

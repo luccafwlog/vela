@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, FileText, Loader2, MoreVertical, Trash2, Upload } from 'lucide-react'
@@ -174,7 +174,8 @@ export function Bls() {
 
   const [actionsMenu, setActionsMenu] = useState<ActionsMenuState>(null)
   const actionsTriggerRef = useRef<HTMLButtonElement | null>(null)
-  const actionsItemRef = useRef<HTMLButtonElement | null>(null)
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null)
+  const actionsItemRefs = useRef<Array<HTMLElement | null>>([])
 
   function openActionsMenu(id: string, button: HTMLButtonElement) {
     actionsTriggerRef.current = button
@@ -186,13 +187,56 @@ export function Bls() {
     })
   }
 
+  function focusActionsMenuItem(index: number) {
+    const items = actionsItemRefs.current.filter((item): item is HTMLElement => item !== null)
+    if (!items.length) return
+    items[(index + items.length) % items.length]?.focus()
+  }
+
+  function handleActionsMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const items = actionsItemRefs.current.filter((item): item is HTMLElement => item !== null)
+    const currentIndex = items.indexOf(document.activeElement as HTMLElement)
+    if (currentIndex < 0) return
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      focusActionsMenuItem(currentIndex + 1)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      focusActionsMenuItem(currentIndex - 1)
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      focusActionsMenuItem(0)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      focusActionsMenuItem(items.length - 1)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setActionsMenu(null)
+    }
+  }
+
   useEffect(() => {
     if (!actionsMenu) {
       actionsTriggerRef.current?.focus()
       actionsTriggerRef.current = null
       return
     }
-    actionsItemRef.current?.focus()
+    actionsItemRefs.current[0]?.focus()
+  }, [actionsMenu])
+
+  useLayoutEffect(() => {
+    if (!actionsMenu || !actionsMenuRef.current) return
+    const menuRect = actionsMenuRef.current.getBoundingClientRect()
+    const maxTop = Math.max(4, window.innerHeight - menuRect.height - 4)
+    const top = Math.min(Math.max(actionsMenu.top, 4), maxTop)
+    const maxLeft = Math.max(4, window.innerWidth - menuRect.width - 4)
+    const actualLeft = Math.min(Math.max(actionsMenu.left - menuRect.width, 4), maxLeft)
+    const left = actualLeft + menuRect.width
+
+    if (top !== actionsMenu.top || left !== actionsMenu.left) {
+      setActionsMenu({ ...actionsMenu, top, left })
+    }
   }, [actionsMenu])
 
   useEffect(() => {
@@ -285,6 +329,17 @@ export function Bls() {
       showToast(`Falha ao excluir B/L(s): ${detail}`, 'error')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function copyBlNumber(targetId: string) {
+    setActionsMenu(null)
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard indisponível')
+      await navigator.clipboard.writeText(targetId)
+      showToast(`Número do B/L copiado: ${targetId}`, 'success')
+    } catch {
+      showToast('Não foi possível copiar o número do B/L.', 'error')
     }
   }
 
@@ -689,19 +744,16 @@ export function Bls() {
           data-actions-menu
           id="bls-actions-menu"
           className="app-floating-menu"
+          ref={actionsMenuRef}
           role="menu"
+          onKeyDown={handleActionsMenuKeyDown}
           style={{ top: actionsMenu.top, left: actionsMenu.left }}
         >
           <button
             type="button"
             role="menuitem"
-            ref={isAdmin ? undefined : actionsItemRef}
-            onClick={() => {
-              const targetId = actionsMenu.id
-              setActionsMenu(null)
-              void navigator.clipboard?.writeText(targetId)
-              showToast(`Número do B/L copiado: ${targetId}`, 'success')
-            }}
+            ref={(element) => { actionsItemRefs.current[0] = element }}
+            onClick={() => void copyBlNumber(actionsMenu.id)}
           >
             <Copy size={14} />
             <span>Copiar número do B/L</span>
@@ -709,6 +761,7 @@ export function Bls() {
 
           <Link
             role="menuitem"
+            ref={(element) => { actionsItemRefs.current[1] = element }}
             to={`/bls/${actionsMenu.id}`}
             onClick={() => setActionsMenu(null)}
           >
@@ -720,7 +773,7 @@ export function Bls() {
             <button
               type="button"
               role="menuitem"
-              ref={isAdmin ? actionsItemRef : undefined}
+              ref={(element) => { actionsItemRefs.current[2] = element }}
               className="app-floating-menu__danger"
               disabled={deleting}
               onClick={() => {

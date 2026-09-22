@@ -42,6 +42,14 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
 
 ### `/bls`
 
+- O menu de ações do B/L oferece Copiar número, Abrir detalhes e Excluir aos
+  perfis aplicáveis; o primeiro item recebe foco, as ações podem ser percorridas
+  por teclado e o menu é limitado ao viewport. A cópia só mostra sucesso após a
+  confirmação da área de transferência.
+- O parser de Frete & Despesas e a migration `073_purge_bogus_freight_lines.sql`
+  compartilham a regra de rejeitar somente cabeçalhos/cláusulas documentais sem
+  valor numérico. Descrições longas e cobranças legítimas que começam por
+  palavras ou números continuam preservadas.
 - `src/pages/Bls.tsx` lista B/Ls unificados (contêiner, carga solta e misto) com paginação, seleção em massa, **linha expansível** (`BlRowDetail`: contêineres com tara e descarga, resumo e itens de carga solta — sem query nova, a RPC já projeta os filhos), resumo e filtros por texto, viagem, POL, POD, revisão, financeiro, taxas locais, perfil de carga e modo de carga (`container`, `carga_solta`, `misto`). As ações disponíveis são Containers, Exportar, Importar CE Mercante, Importar B/L, Importar Manifesto BB e Importar B/L Avulso (.pdf/.docx); não há importação de Manifesto CNTR nem geração local de EDI Mercante. As antigas rotas segregadas `/manifestos` e `/carga-solta` foram unificadas nesta tela única.
 - Cada linha mostra CE Mercante, navio/viagem, consignatário/cliente, rota, modo de carga, containers distintos, perfil IMO/OOG, status de taxas, invoice e link para `/bls/:blId`.
 - O modal de CE Mercante aceita planilha por B/L ou EDI de um único manifesto, captura o Nº de Manifesto Mercante oficial e, quando informado, cria/vincula o manifesto de carga à viagem e à rota dos B/Ls importados; o preview do EDI exibe o encoding escolhido.

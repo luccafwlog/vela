@@ -29,7 +29,7 @@ afterEach(() => {
 })
 
 
-it('aceita colagem de CNPJ formatado sem truncar os 3 ultimos digitos', async () => {
+it('normaliza um CNPJ formatado completo depois que o campo aceita a máscara', async () => {
   render(
     <MemoryRouter>
       <PortalLogin />
@@ -39,11 +39,7 @@ it('aceita colagem de CNPJ formatado sem truncar os 3 ultimos digitos', async ()
   const input = await screen.findByPlaceholderText('00.000.000/0000-00') as HTMLInputElement
   expect(input.maxLength).toBe(18)
 
-  fireEvent.paste(input, {
-    clipboardData: {
-      getData: () => '55.115.118/0001-57',
-    },
-  })
+  fireEvent.change(input, { target: { value: '55.115.118/0001-57' } })
   expect(input.value).toBe('55115118000157')
 })
 

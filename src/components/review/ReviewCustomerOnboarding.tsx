@@ -4,7 +4,7 @@ import { Card } from '../ui/Card'
 import { Field, Input } from '../ui/Input'
 import { useCustomerLookup } from '../../hooks/useCustomers'
 import type { ReviewCustomer } from '../../hooks/useReview'
-import { canonicalizeValidCnpj, formatCnpj, normalizeCnpj } from '../../lib/cnpj'
+import { CNPJ_INPUT_MAX_LENGTH, canonicalizeValidCnpj, formatCnpj, normalizeCnpj } from '../../lib/cnpj'
 import type { ReviewGroup } from '../../pages/revisaoHelpers'
 
 type CustomerLookupResult = ReviewCustomer & { city?: string | null; state?: string | null }
@@ -92,7 +92,7 @@ export function ReviewCustomerOnboarding({
       ) : null}
       <div className="review-onboarding-card__identity-fields grid gap-3 md:grid-cols-2">
         <Field label="Razão social" required><Input value={name} onChange={(event) => { clearSelectedCustomer(); setName(event.target.value) }} /></Field>
-        <Field label="CNPJ" required hint={cnpjHint}><Input placeholder="00.000.000/0000-00" value={cnpj} onChange={(event) => { clearSelectedCustomer(); setCnpj(normalizeCnpj(event.target.value)) }} /></Field>
+        <Field label="CNPJ" required hint={cnpjHint}><Input maxLength={CNPJ_INPUT_MAX_LENGTH} placeholder="00.000.000/0000-00" value={cnpj} onChange={(event) => { clearSelectedCustomer(); setCnpj(normalizeCnpj(event.target.value)) }} /></Field>
       </div>
       <Field label="E-mail principal do cliente" required hint={email.trim() ? 'Será salvo como contato do cliente.' : 'O cliente precisa ter pelo menos um e-mail cadastrado.'}>
         <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="financeiro@cliente.com.br" />

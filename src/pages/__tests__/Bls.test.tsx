@@ -5,9 +5,10 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Bls } from '../Bls'
 
-const { useBlsMock, useBlSummaryMock } = vi.hoisted(() => ({
+const { useBlsMock, useBlSummaryMock, showToastMock } = vi.hoisted(() => ({
   useBlsMock: vi.fn(),
   useBlSummaryMock: vi.fn(),
+  showToastMock: vi.fn(),
 }))
 
 vi.mock('../../hooks/useBls', () => ({
@@ -19,7 +20,7 @@ vi.mock('../../hooks/useBls', () => ({
 }))
 vi.mock('../../hooks/useBilling', () => ({ useInvoiceLinks: () => ({ data: {} }) }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true, user: { id: 'user-1' }, profile: { id: 'user-1' } }) }))
-vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
+vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: showToastMock }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn() }))
 vi.mock('../../components/shared/CeMercanteImportModal', () => ({ CeMercanteImportModal: () => null }))
 vi.mock('../../components/shared/BlImportModal', () => ({ BlImportModal: () => null }))
@@ -33,6 +34,7 @@ describe('Página Bls (unificada)', () => {
   beforeEach(() => {
     useBlsMock.mockReset()
     useBlSummaryMock.mockReset()
+    showToastMock.mockReset()
 
     useBlSummaryMock.mockReturnValue({
       data: {
@@ -236,7 +238,7 @@ describe('Página Bls (unificada)', () => {
     removeSpy.mockRestore()
   })
 
-  it('abre o menu de ações pelo teclado e devolve o foco ao acionador', () => {
+  it('abre o menu pelo primeiro item, navega com as setas e devolve o foco ao acionador', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -249,10 +251,47 @@ describe('Página Bls (unificada)', () => {
     const trigger = screen.getByRole('button', { name: 'Ações para B/L BL-CNTR' })
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
 
-    const menuItem = screen.getByRole('menuitem', { name: 'Excluir B/L' })
-    expect(document.activeElement).toBe(menuItem)
-    fireEvent.keyDown(menuItem, { key: 'Escape' })
+    const copyItem = screen.getByRole('menuitem', { name: 'Copiar número do B/L' })
+    const detailsItem = screen.getByRole('menuitem', { name: 'Abrir detalhes' })
+    const deleteItem = screen.getByRole('menuitem', { name: 'Excluir B/L' })
+    expect(document.activeElement).toBe(copyItem)
+
+    fireEvent.keyDown(copyItem, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(detailsItem)
+    fireEvent.keyDown(detailsItem, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(deleteItem)
+    fireEvent.keyDown(deleteItem, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(copyItem)
+    fireEvent.keyDown(copyItem, { key: 'ArrowUp' })
+    expect(document.activeElement).toBe(deleteItem)
+    fireEvent.keyDown(deleteItem, { key: 'Escape' })
     expect(document.activeElement).toBe(trigger)
+  })
+
+  it('mostra erro quando não consegue copiar o número do B/L', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('permissão negada'))
+    const previousClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+
+    try {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      render(
+        <QueryClientProvider client={client}>
+          <MemoryRouter>
+            <Bls />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ações para B/L BL-CNTR' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Copiar número do B/L' }))
+
+      await waitFor(() => expect(showToastMock).toHaveBeenCalledWith('Não foi possível copiar o número do B/L.', 'error'))
+      expect(showToastMock).not.toHaveBeenCalledWith(expect.stringContaining('copiado'), 'success')
+    } finally {
+      if (previousClipboard) Object.defineProperty(navigator, 'clipboard', previousClipboard)
+      else Reflect.deleteProperty(navigator, 'clipboard')
+    }
   })
 
 

@@ -57,4 +57,11 @@ describe('PortalReviewPanel', () => {
     expect(screen.queryByRole('button', { name: 'Liberar endereço bloqueado' })).toBeNull()
     expect(screen.queryByText(/lista de bloqueio de envio/)).toBeNull()
   })
+
+  it('aceita um CNPJ formatado completo no campo de alteração auditada', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={row} /></MemoryRouter></QueryClientProvider>)
+
+    expect((screen.getByLabelText('Novo CNPJ') as HTMLInputElement).maxLength).toBe(18)
+  })
 })

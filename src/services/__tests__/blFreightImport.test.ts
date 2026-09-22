@@ -180,6 +180,31 @@ describe('blFreightImport', () => {
     expect(payload.vehicles[0]).toMatchObject({ chassis: '9BWZZZ377VT004251', container_number: 'TCLU1234567', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 })
   })
 
+  it('mantém todas as linhas aceitas pelo parser no payload, sem segundo filtro por descrição', () => {
+    const doc = parsedBL()
+    doc.freightCharges.push({
+      description: '4 X 40HC OCEAN FREIGHT',
+      rateCurrency: 'USD',
+      rateAmount: 8000,
+      per: 'BL',
+      currency: 'USD',
+      amount: 8000,
+      payment: 'COLLECT',
+    })
+
+    const payload = buildBlFreightPayload(doc, 7)
+
+    expect(payload.freight_lines.at(-1)).toEqual({
+      seq: 4,
+      description: '4 X 40HC OCEAN FREIGHT',
+      category: '4_X_40HC_OCEAN_FREIGHT',
+      mercante_code: null,
+      currency: 'USD',
+      amount: 8000,
+      payment: 'COLLECT',
+    })
+  })
+
   it('bloqueia VIN sem peso/cubagem em vez de fabricar zeros', () => {
     const doc = parsedBL()
     doc.vehicles[0] = { ...doc.vehicles[0], brand: null, model: null, weightKg: null, cbm: null }

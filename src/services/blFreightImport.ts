@@ -4,7 +4,7 @@ import { normalizeIsoContainerNumber } from '../lib/containerNumber'
 import { canonicalizeVesselName } from '../lib/vesselAlias'
 import { extractConsigneeShortName } from '../lib/consigneeName'
 import type { BL, BLContainer, BlFreightLine, Vehicle } from '../types/database'
-import { extractTaxId, isInvalidFreightDescription, type ParsedBLDocument } from './blParser'
+import { extractTaxId, type ParsedBLDocument } from './blParser'
 import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, type CustomerMaps } from './customerReconciliation'
 import { normalizePortCode } from './portCode'
 import { supabase } from './supabase'
@@ -606,7 +606,7 @@ export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | 
     override_billing: true,
     relink_customer: false,
     ncm_codes: [...new Set(extractNcmCodes(doc.cargo.description || ''))],
-    freight_lines: doc.freightCharges.filter((charge) => !isInvalidFreightDescription(charge.description)).map((charge, index) => ({
+    freight_lines: doc.freightCharges.map((charge, index) => ({
       seq: index + 1,
       description: charge.description,
       category: normalizeFreightCategory(charge.description),

@@ -23,7 +23,7 @@ import {
 } from '../services/graniteImport'
 import { listGraniteBls, calculateGraniteBlCharges } from '../services/graniteCharges'
 import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
-import { canonicalizeDocument, normalizeCnpj } from '../lib/cnpj'
+import { CNPJ_INPUT_MAX_LENGTH, canonicalizeDocument, normalizeCnpj } from '../lib/cnpj'
 import { loadCustomerMaps, findMatchedCustomer, resolveCustomerLink } from '../services/customerReconciliation'
 import { rowErrorsToImportIssues } from '../services/importValidation'
 import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
@@ -456,7 +456,7 @@ export function Granite() {
                               placeholder="Digite o CNPJ"
                               className="w-40 text-xs"
                               value={cnpjOverrides[idx] ?? ''}
-                              maxLength={14}
+                              maxLength={CNPJ_INPUT_MAX_LENGTH}
                               onChange={(e) => handleCnpjOverride(idx, normalizeCnpj(e.target.value))}
                             />
                           ) : (
