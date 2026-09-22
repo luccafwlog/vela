@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const removedFunctionName = ['notify', 'invoice', 'issued'].join('-')
@@ -15,6 +15,7 @@ function trackedFiles(): string[] {
     .split('\0')
     .filter((file) => file && inspectableExtensions.has(file.slice(file.lastIndexOf('.'))))
     .filter((file) => !ignoredPaths.some((prefix) => file === prefix || file.startsWith(prefix)))
+    .filter((file) => existsSync(file))
 }
 
 describe('referências do canal de comunicação removido', () => {

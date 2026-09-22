@@ -206,7 +206,6 @@ function CustomerTableRow({
   portalRow?: QueueRow
 }) {
   const summary = summarizeChargeStatuses(row.bls ?? [])
-  const hasPendingBalance = Number(row.pending_balance ?? 0) > 0
   const customerComplement = [
     row.trade_name,
     row.city && row.state ? `${row.city}/${row.state}` : row.city || row.state,
@@ -266,9 +265,8 @@ function CustomerTableRow({
       </td>
       <td className="px-4 py-3">
         <div className="app-table__cell-stack">
-          <div className="app-table__cell-value app-table__cell-value--financial">{formatBRL(row.pending_balance)}</div>
+          <div className="app-table__cell-value app-table__cell-value--financial app-table__cell-value--financial-left">{formatBRL(row.pending_balance)}</div>
           <Badge tone={nextAction.tone}>{nextAction.label}</Badge>
-          {hasPendingBalance ? <div className="app-table__cell-meta">Com saldo em aberto</div> : null}
         </div>
       </td>
       <td className="px-3 py-3 text-right">

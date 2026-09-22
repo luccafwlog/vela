@@ -3658,6 +3658,10 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+.app-table__cell-value--financial-left {
+  text-align: left;
+}
+
 .app-table__action {
   display: inline-flex;
   align-items: center;

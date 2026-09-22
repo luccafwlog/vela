@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { Download } from 'lucide-react'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Input } from '../components/ui/Input'
@@ -41,7 +42,10 @@ export function ClientesPortal() {
     return (text.includes(search.toLowerCase()) || (normalizedSearch.length >= 2 && row.cnpj_cpf.includes(normalizedSearch))) && matchesPreset(row, preset)
   }).sort(comparePriority), [data, preset, search])
   const visibleRows = selected && !rows.some((row) => row.customer_id === selected.customer_id) ? [selected] : rows
-  const count = (fn: (row: QueueRow) => boolean) => data.filter(fn).length
+  const presetCounts: Record<Preset, number> = useMemo(() => presets.reduce((counts, item) => {
+    counts[item.value] = data.filter((row) => matchesPreset(row, item.value)).length
+    return counts
+  }, {} as Record<Preset, number>), [data])
 
   function updateParams(update: (next: URLSearchParams) => void) {
     setSearchParams((current) => { const next = new URLSearchParams(current); update(next); return next }, { replace: true })
@@ -60,14 +64,54 @@ export function ClientesPortal() {
   return (
     <>
       <Breadcrumb items={[{ label: 'Clientes', to: '/clientes' }, { label: 'Provisionamento do Portal' }]} />
-      <PageHeader title="Provisionamento do Portal" description="Fila operacional de análise, convites e situações do Portal." action={<Link className="app-touch-link text-sm text-cyan-300" to="/clientes">← Voltar para Clientes</Link>} />
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-        {[['Total', data.length, 'todos'], ['Críticas', count((row) => row.hasCriticalAlert), 'criticas'], ['Aguardando análise', count((row) => row.provisioning_decision === 'aguardando_analise'), 'aguardando_analise'], ['Sem email', count((row) => !row.recovery_email && !row.candidates.length), 'sem_email'], ['Ativação pendente', count((row) => row.account_situation === 'convite_pendente'), 'convite_pendente'], ['Expirados', count((row) => row.account_situation === 'convite_expirado'), 'convite_expirado'], ['Falhas', count((row) => row.account_situation === 'falha_no_envio'), 'falha_no_envio'], ['Ativas', count((row) => row.account_situation === 'ativo'), 'ativo']].map(([label, value, filter]) => <button key={String(label)} type="button" className="text-left" onClick={() => selectPreset(filter as Preset)}><Card className="h-full"><div className="text-xs text-[var(--app-muted)]">{label}</div><div className="mt-1 text-2xl font-semibold">{value}</div></Card></button>)}
-      </div>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        {presets.map((item) => <button key={item.value} type="button" className={`app-tab ${preset === item.value ? 'app-tab--active' : ''}`} onClick={() => selectPreset(item.value)}>{item.label}</button>)}
-        <Input aria-label="Buscar cliente" className="ml-auto min-w-64" placeholder="Buscar razão social ou CNPJ" value={search} onChange={(event) => setSearch(event.target.value)} />
-        <button type="button" className="app-tab" onClick={() => void exportPortalProvisioningWorkbook(rows)}>Exportar XLSX</button>
+      <PageHeader
+        title="Provisionamento do Portal"
+        description="Fila operacional de análise, convites e situações do Portal."
+        action={
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="app-btn app-btn--ghost app-btn--sm inline-flex items-center gap-1.5"
+              title="Exportar XLSX"
+              onClick={() => void exportPortalProvisioningWorkbook(rows)}
+            >
+              <Download size={15} aria-hidden="true" />
+              <span>Exportar XLSX</span>
+            </button>
+            <Link className="app-touch-link text-sm text-cyan-300" to="/clientes">
+              ← Voltar para Clientes
+            </Link>
+          </div>
+        }
+      />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtros de provisionamento">
+          {presets.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              aria-pressed={preset === item.value}
+              className={`app-tab inline-flex items-center gap-1.5 ${preset === item.value ? 'app-tab--active' : ''}`}
+              onClick={() => selectPreset(item.value)}
+            >
+              <span>{item.label}</span>
+              <span className={`inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
+                preset === item.value
+                  ? 'bg-amber-400 text-slate-900 dark:bg-amber-300 dark:text-slate-950 font-bold'
+                  : 'bg-[var(--app-surface-muted)] text-[var(--app-muted)]'
+              }`}>
+                {presetCounts[item.value]}
+              </span>
+            </button>
+          ))}
+        </div>
+        <Input
+          aria-label="Buscar cliente"
+          className="min-w-64"
+          placeholder="Buscar razão social ou CNPJ"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
       </div>
       {selected && !rows.some((row) => row.customer_id === selected.customer_id) ? <div className="mb-3 flex items-center justify-between rounded-lg border border-cyan-400/30 bg-cyan-400/5 px-3 py-2 text-sm">Cliente selecionado fora do filtro atual.<button type="button" className="text-cyan-300 underline" onClick={returnToQueue}>Voltar para a fila</button></div> : null}
       {error ? <InlineError message="Erro ao carregar a fila do Portal." /> : null}

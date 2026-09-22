@@ -273,6 +273,18 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(scroll?.classList.contains('overflow-hidden')).toBe(false)
   })
 
+  it('mantém a matriz de cobertura na ordem operacional documentada', () => {
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=cobertura']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent?.trim())).toEqual([
+      'Viagem', 'Clientes', 'NOA', 'NOR', 'NOB', 'CE / Taxas',
+    ])
+  })
+
   it('na aba de disparo, valida filtros e exibe a conferência de destinatários com aviso de reenvio', () => {
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
