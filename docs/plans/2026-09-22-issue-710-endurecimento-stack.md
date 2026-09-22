@@ -8,13 +8,17 @@
 
 **Objetivo:** reduzir o tempo de detecção e recuperação de falhas, endurecer as fronteiras de autenticação e supply chain e provar restauração de dados, preservando GitHub, Vercel, Supabase, Resend, Sentry e Registro.br como núcleo da stack e mantendo os novos serviços no free tier enquanto o volume permitir. A primeira entrega não inclui MFA; essa frente fica adiada até nova decisão explícita.
 
-**Resultado observável:** o Vela e o Portal continuam com as mesmas URLs e fluxos, passam a bloquear abuso antes do Auth, expor estado operacional público, gerar alertas acionáveis para falhas de frontend/backend/cron e recuperar dados por procedimento ensaiado. MFA interno fica fora da primeira entrega; o captcha/Turnstile permanece uma decisão operacional separada. No Portal, o cliente vê o status do serviço no rodapé e conclui desafios anti-bot quando essa frente for habilitada; os processos financeiros continuam utilizando o fluxo estável de emissão estática e conciliação manual existente.
+**Resultado observável:** o Vela e o Portal continuam com as mesmas URLs e fluxos, passam a bloquear abuso antes do Auth, gerar alertas internos acionáveis para falhas de frontend/backend/cron e recuperar dados por procedimento ensaiado. Não haverá página pública de status nem link público no Portal: o owner não quer expor disponibilidade/histórico a terceiros. MFA interno fica fora da primeira entrega; o captcha/Turnstile permanece uma decisão operacional separada. Os processos financeiros continuam utilizando o fluxo estável de emissão estática e conciliação manual existente.
 
 ### Atualização de execução — 2026-09-22
 
 - Decisões do owner registradas: sem GitHub Team, Dependabot semanal, Better Stack, PostHog Cloud EU, R2 como reserva, backup diário e MFA adiado; alertas destinados somente a `lucca.juliatti@fwlog.com.br`.
 - PRs [#720](https://github.com/luccafwlog/vela/pull/720), [#725](https://github.com/luccafwlog/vela/pull/725), [#726](https://github.com/luccafwlog/vela/pull/726), [#727](https://github.com/luccafwlog/vela/pull/727) e [#728](https://github.com/luccafwlog/vela/pull/728) foram incorporadas à `main`; [#718](https://github.com/luccafwlog/vela/pull/718) também foi incorporada como remediação relacionada.
-- Estado remoto que não equivale à conclusão da Issue: zonas Cloudflare aguardando cutover; R2 ativado; projeto PostHog EU criado; Upstash Free configurado para o rate limit; migration `076_portal_activation_rate_limit` aplicada e três secrets do rate limit gravados no Supabase. O painel autenticado do Better Stack mostrou zero monitores e nenhuma status page em 2026-09-22; a anotação anterior de dois monitores estava desatualizada.
+- Estado remoto que não equivale à conclusão da Issue: zonas Cloudflare aguardando cutover; R2 ativado; projeto PostHog EU criado, ainda sem eventos; Upstash Free configurado para o rate limit; migration `076_portal_activation_rate_limit` aplicada e três secrets do rate limit gravados no Supabase. Better Stack tem dois monitores HTTP privados ativos para Vela e Portal; não há heartbeats provisionados. Nenhuma página pública de status será criada, conforme decisão do owner.
+- Decisões atualizadas do owner: manter custo adicional em zero; não habilitar Supabase Log Drains nem retenção/dashboards externos pagos. Não expor status operacional publicamente. O alias de entrada e o destino foram confirmados; falta ativar a zona Cloudflare e verificar o endereço de destino antes de configurar Email Routing. A matriz de emails transacionais ainda exige decisão.
+- No ImprovMX autenticado, a lista mostrou “No domains found”; não há domínio legado para apagar nessa conta neste momento. No Registro.br autenticado, `portalfwlog.com.br` e `vela.app.br` estão publicados e continuam delegados ao DNS do Registro.br; as zonas avançadas de ambos contêm somente um A no apex para `216.198.79.1`, sem outras entradas (MX/TXT/CNAME/AAAA/CAA). A consulta DNS pública confirmou NS Registro.br e A do apex; nenhuma resposta MX/TXT no apex. A Cloudflare segue Pending e mostra o mesmo A proxied. Inventário dos subdomínios/remetentes e dos alvos Vercel permanece necessário antes de adicionar os registros Resend ou trocar NS.
+- Alterações locais não publicadas desta continuação cobrem M2 heartbeats, M4 logs sanitizados, M7 rate-limit e M10 executor/validação remota do backup. Verificações locais em 2026-09-22: `docs:check`, `typecheck`, `lint`, `build`, `size-limit` (Vela 218,35 KiB e Portal 186,48 KiB gzip, ambos abaixo de 250 KiB), suíte Vitest completa (3.525 passaram, 135 ignorados em 651 arquivos), `backup:r2:test` (15 passaram, incluindo limpeza após upload bem-sucedido, preservação em falha e round-trip sintético do Windows Credential Manager; credencial temporária apagada) e teste focal de heartbeat (8 passaram). Não houve uso de credencial real nem upload. O contrato estático do heartbeat valida os quatro dispatchers e a agenda observada em produção. Deno não está instalado, então os asserts Deno do helper não foram executados nesta máquina; Vitest cobriu o contrato equivalente. Nenhuma dessas alterações foi commitada, enviada ou implantada.
+- Decisões recentes: PostHog somente eventos agregados sem identificadores; remover `customer_id` estável do contexto Sentry do Portal; MFA permanece adiado. O owner confirmou o agendador de backup diário às 09:00 (horário local), após login no Windows, com segredos no Credential Manager e uma segunda cópia da chave de criptografia no gerenciador de senhas existente. A execução perdida deve iniciar quando a máquina voltar; isso não recria cópias dos dias em que ficou desligada. Executor e testes locais estão implementados, mas ainda não publicados/instalados nem executados com credenciais reais. Para email de entrada, o owner confirmou `suporte@portalfwlog.com.br` encaminhado a `importacao@fwlog.com.br`; o destino pode ser verificado pelo owner. O encaminhamento depende da zona Cloudflare estar ativa e da verificação do destino. Pendente também: inventário dos subdomínios/alvos Vercel; remetente `From`, `Reply-To` e relatórios DMARC; decisão Turnstile (separada de MFA); provisionar heartbeats/secrets sem expor as URLs secretas; restore isolado.
 - O recurso de malware alerts do Dependabot foi ativado; alerts e security updates já estavam ativos. Não foi contratado upgrade do GitHub: CodeQL, Dependency Review, secret scanning, push protection e ruleset/branch protection não estão disponíveis para este repositório privado no plano atual. Decisão do owner: registrar a limitação e seguir com os checks atuais, sem upgrade nem tornar o repositório público.
 - A camada de telemetria Edge está em implementação local; não há novo deploy desta frente. O runtime Sentry para Edge, cutover de nameservers, envios de email, agendamento do backup e restore seguem pendentes. Nenhum gate de runtime é fechado por build ou CI verde.
 
@@ -40,7 +44,7 @@
 - Autorização continua no banco por RLS/RPC; WAF, UI, Turnstile e route guards são camadas adicionais, não fronteira de autorização (`docs/operations/seguranca.md`, ADRs 0001 e 0004).
 - Clientes internos e do Portal permanecem separados (`src/services/supabase.ts`, `src/hooks/useAuth.tsx`, `src/hooks/usePortalAuth.tsx`).
 - O login do Portal envia CNPJ e senha a `portal-login`; a identidade técnica não vai ao browser. O rate limit persistido atual (`portal_login_attempts`, `portal_login_resolution_attempts`, `portal_rate_limits`) permanece como defesa e auditoria de origem.
-- `src/lib/telemetry.ts` é o dono da sanitização frontend; `sendDefaultPii:false`, remoção de query strings e redação de CNPJ/CPF/email/token são invariantes.
+- `src/lib/telemetry.ts` é o dono da sanitização frontend; `sendDefaultPii:false`, remoção de query strings e redação de CNPJ/CPF/email/token são invariantes. O Portal não associa um identificador estável de cliente ao Sentry, por decisão do owner; o Vela interno mantém sua identidade técnica atual, fora dessa decisão.
 - Migrations existentes não são reescritas. Migrations novas preservam default-deny, grants explícitos e seguem `WORKFLOW.md` §11. `src/types/database.ts` e `src/lib/pix.ts` são protegidos; qualquer alteração exige autorização expressa.
 - Jobs continuam autenticados por segredo de Edge Function espelhado no Vault e despachados por `ops.dispatch_edge_job`; heartbeat não pode expor segredo nem tornar o monitor condição de sucesso do job.
 - O projeto de produção Supabase é `fgmkhbzhaeebrsizwccx`; operações de produção exigem alvo exibido e conferido antes da ação.
@@ -52,14 +56,14 @@ Registrar as decisões em comentário da Issue 710 e, quando alterarem arquitetu
 | Gate | Decisão / autorização | Padrão proposto | Bloqueia |
 |---|---|---|---|
 | G1 | Autorização concedida para Cloudflare; janela e troca efetiva de NS ainda exigem confirmação no momento do cutover | `vela.app.br` primeiro; `portalfwlog.com.br` após 24 h verde | M1 produção e M11 DNS |
-| G2 | Better Stack escolhido; destinatário único `lucca.juliatti@fwlog.com.br`; painel mostrou zero monitores/status page em 2026-09-22; escalonamento pendente | Better Stack para uptime, heartbeat, status e logs | M2 e M4 |
-| G3 | Sentry autenticado; dois projetos e DSNs criados; Replay permanece desligado até validação | dois projetos (`vela-interno`, `portal`), sem Replay na primeira entrega | M3 |
+| G2 | Better Stack escolhido; destinatário único `lucca.juliatti@fwlog.com.br`; dois monitores HTTP privados verificados ativos; owner recusou status page pública | Better Stack para uptime e heartbeat privados; sem link/status público | M2 |
+| G3 | Projetos Sentry e variáveis DSN de frontend configurados; Replay desligado. Owner decidiu não enviar `customer_id` do Portal como identidade Sentry; Vela interno não alterado. Presença das variáveis não prova deploy/roteamento; `SENTRY_DSN` de Edge Functions ausente na verificação registrada | confirmar roteamento dos eventos dos dois frontends e Edge em Preview após PR; manter a separação Portal sem ID de cliente | M3 |
 | G4 | Dependabot escolhido; GitHub Team não será contratado; regras indisponíveis no plano devem ser registradas | Dependabot semanal; preservar checks disponíveis | M6 |
 | G5 | Upstash aprovado em São Paulo; limiar final aprovado | 10 erros por IP+CNPJ, bloqueio de 5 min, fail-closed somente para abuso confirmado | M7 |
 | G6 | MFA explicitamente adiado pelo owner | fora da primeira entrega; reabrir somente por decisão explícita | M8 MFA |
-| G7 | PostHog Cloud EU aprovado; sem autocapture/replay e sem PII | Cloud EU, IDs pseudônimos, sem autocapture/replay | M9 |
-| G8 | R2 aprovado e ativado; backup diário escolhido; PITR ainda depende de custo/benefício | dump criptografado diário com chave fora do bucket | M10 |
-| G9 | Destinatário e domínios ainda não definidos para o novo fluxo de email | só avançar após baseline DNS/Resend e definição do remetente | M11 |
+| G7 | PostHog Cloud EU aprovado; owner decidiu eventos exclusivamente agregados, sem IDs de cliente/viagem; sem autocapture/replay e sem PII | propriedades allowlisted de superfície/tipo/estado; nenhuma correlação por identificador | M9 |
+| G8 | R2 aprovado e ativado; backup diário às 09:00 local; Task Scheduler após login; segredos no Credential Manager e cópia secundária da chave no gerenciador de senhas; custo zero exclui add-on PITR | dump criptografado diário com chave fora do bucket; backups físicos diários Supabase seguem como primeira cópia; tarefa atrasada roda quando possível, mas não cria snapshots dos dias perdidos | M10 |
+| G9 | Owner confirmou `suporte@portalfwlog.com.br` → `importacao@fwlog.com.br`; destino pode ser verificado pelo owner. A zona `portalfwlog.com.br` está Pending no Cloudflare e não recebe email por ele enquanto estiver inativa. | ativar a zona/cutover autorizado, verificar destino no Cloudflare e então configurar Email Routing; isso só encaminha mensagens recebidas, não hospeda caixa nem configura envio | M11 |
 
 ## 3. Contrato de execução pelo navegador autenticado
 
@@ -104,13 +108,13 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 
 **Comportamento operacional pretendido:** vulnerabilidade crítica/segredo bloqueia merge e `main` exige revisão e checks. **Limite vigente:** sem upgrade, o GitHub não oferece esses bloqueios a este repositório privado; Dependabot alerta e abre PRs, mas a regra de bloqueio automático continua não atendida.
 
-- [x] Adicionar `.github/dependabot.yml` para npm/GitHub Actions (PR #720 incorporada) e Deno (`supabase/functions/deno.json`, nesta implementação). A entrada Deno aguarda CI/merge desta PR.
+- [x] Adicionar `.github/dependabot.yml` para npm/GitHub Actions (PR #720 incorporada) e Deno (`supabase/functions/deno.json`).
 - [ ] CodeQL para JavaScript/TypeScript não está disponível como code scanning neste repositório privado/plano atual; não fazer upgrade. Manter o item registrado como lacuna, sem afirmar que o CI atual substitui essa cobertura.
 - [ ] Dependency Review não está disponível no plano atual; não fazer upgrade. Manter o item registrado como lacuna, sem bloqueio de severidade crítica no PR.
 - [x] No GitHub autenticado, confirmar Dependabot alerts/security updates e habilitar malware alerts. Secret scanning/push protection não estão disponíveis no plano atual; decisão do owner: não fazer upgrade, manter CI atual e registrar a limitação.
 - [ ] Criar/atualizar ruleset de `main`: recurso indisponível no plano atual do repositório privado; não fazer upgrade. PRs continuam usando os checks existentes, sem proteção remota obrigatória de branch.
-- [ ] Testar em branch descartável com pacote vulnerável de fixture e token sintético reconhecido pelo GitHub; não usar segredo real. Fechar a branch/PR após capturar o resultado.
-- [ ] Atualizar `WORKFLOW.md` §12 e documentação de segurança. Rollback: desabilitar apenas o novo check que estiver bloqueando por falso positivo, preservando `checks` e review.
+- [x] Registrar limites do plano e preservar checks atuais em `WORKFLOW.md`/documentação de segurança. PRs abertas #729–#733 foram verificadas; checks aplicáveis estão verdes. Nas #731 e #733, CI apontou incompatibilidades que foram corrigidas nas próprias branches: TypeScript/Vitest 7/5 foram mantidos no major compatível atual, e a asserção da versão Sentry deixou de fixar um patch. Supabase Preview foi `skipping` nas #731/#733. Nenhuma PR foi mesclada; esta conclusão não autoriza merge automático.
+- [ ] Testar em branch descartável com pacote vulnerável de fixture e token sintético reconhecido pelo GitHub; sem segredo real. A disponibilidade de alertas/bloqueios para esse cenário segue sem prova.
 
 ### M3 — Sentry frontend, Edge Functions, cron e Replay
 
@@ -118,40 +122,47 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 
 - [x] Extrair `src/lib/telemetryContract.ts` com sanitização compartilhável sem acoplar Deno ao SDK React. Os DSNs públicos separados do browser permanecem vinculados às entradas internas e do Portal.
 - [x] Criar `supabase/functions/_shared/telemetry.ts` com inicialização lazy, scrub e flush limitado; aplicar somente a exceções não tratadas e HTTP 5xx em dez Edge Functions prioritárias. Dependência e `import_map` compartilhados estão configurados. Implementação local nesta PR; runtime/Preview e DSN permanecem pendentes.
-- [ ] Instrumentar eventos operacionais de início/fim dos runners com duração, quantidade processada e resultado, sem IDs de cliente/message payload. A implementação atual captura exceções e 5xx; heartbeats de M2 continuam independentes e pendentes.
+- [ ] Instrumentar eventos operacionais agregados de início/fim dos runners com duração, quantidade processada e resultado, sem IDs de cliente/message payload. Heartbeats de M2 estão em código local para os quatro crons ativos; isso não envia eventos Sentry nem prova runtime.
 - [x] Manter Replay desligado na primeira entrega, conforme decisão registrada; não habilitar profiling sem avaliar custo, privacidade e compatibilidade.
 - [ ] Atualizar `vite.config.ts`/build somente se sourcemap upload autenticado for adotado; nunca publicar token Sentry no bundle. Manter artifact `hidden` e release ligado ao commit.
-- [ ] No Sentry autenticado, criar/renomear projetos sem perder histórico inadvertidamente, cadastrar DSNs por ambiente, alertas `environment=production`, integração de canal e limitação `>5/h`; restringir Replay por equipe.
+- [ ] No Sentry autenticado, conferir projetos/alertas `environment=production`, integração de canal e limitação `>5/h`; variáveis DSN frontend estão presentes em Vercel Production, mas falta comprovar roteamento por projeto e deploy. `SENTRY_DSN` Edge e Previews também precisam validação antes da produção.
 - [x] Testar sanitização compartilhada, query opaca, resposta 5xx preservada e falha do provider; adicionar teste Deno/assert e verificação da configuração. Runtime: erro sintético em Preview/produção controlada, roteamento e inspeção de eventos continuam pendentes.
 - [x] Atualizar runbook de observabilidade, workflow e deploy com o comportamento e rollback do helper. Configuração remota de DSN/alertas e prova de runtime continuam pendentes; código de negócio não depende do Sentry.
 
-### M2 — Uptime, heartbeats e status público
+### M2 — Uptime e heartbeats privados
 
-**Comportamento operacional:** queda do Portal alerta em menos de 6 minutos; ausência do `demurrage-dunning` alerta em menos de 70 minutos; a página “Portal Fwlog operacional” reflete monitores automaticamente e é acessível no rodapé.
+**Comportamento operacional:** queda do Portal alerta em menos de 6 minutos; ausência do `demurrage-dunning` alerta em menos de 70 minutos. Monitores e notificações são internos; sem página pública de status ou link no Portal (decisão do owner).
 
-- [ ] Definir três probes sem PII: `portal_ship_schedule()` público; login interno de Preview/produção com conta QA dedicada e permissão mínima; leitura de fatura fixture no Portal de homologação. Probes autenticados guardam credenciais exclusivamente no secret store do monitor.
-- [ ] Criar helper best-effort compartilhado de heartbeat nas Edge Functions, com eventos `start`, `success` e `failure`, timeout curto e URL secreta em env. Instrumentar `demurrage-dunning`, `alerts-detector`, `customer-communication-auto-runner`, `portal-email-events-runner`, `import-effects-runner`, `recalc-demurrage-ptax` e `portal-daily-digest` sem mudar resultado do job.
-- [ ] Provisionar monitores, escalonamento e status page no painel autenticado do fornecedor escolhido. PTAX inativo deve aparecer como manutenção/desabilitado, não incidente permanente.
-- [ ] Adicionar link externo “Status do serviço” ao rodapé de `src/components/layout/PortalLayout.tsx`, com teste do destino/configuração e CSP se necessário.
-- [ ] Criar teste de contrato para todos os jobs esperados terem heartbeat e alerta coerente com sua frequência. No runtime, pausar monitor de teste/endpoint sintético, nunca o cron produtivo, e provar os dois tempos de aceite.
-- [ ] Documentar owner, manutenção planejada, ack/escalation e resposta a alerta em novo runbook `docs/operations/monitoramento-disponibilidade.md`. Rollback: remover link/monitores e env vars; helper permanece no-op sem configuração.
+- [ ] Definir probes autenticados sem PII: login interno e leitura de fatura fixture em homologação, com contas QA dedicadas e permissões mínimas. Guardar credenciais exclusivamente no secret store do monitor. A opção `portal_ship_schedule()` permanece sem contrato de asserção/ambiente.
+- [ ] Manter dois probes HTTP públicos sem autenticação para disponibilidade do shell (Vela e Portal), com alertas privados para o destinatário aprovado; não são testes de login/faturamento. Monitores vistos up a cada 3 min em 2026-09-22.
+- [x] Criar helper best-effort com ping de sucesso e endpoint `/fail`, timeout curto e URL secreta por env; a API documentada não oferece `/start`. Ligar aos quatro jobs ativos: `demurrage-dunning`, `alerts-detector`, `customer-communication-auto-runner` e `portal-daily-digest`. Respostas 2xx com contador `failed`, `partial` ou `releaseFailures` positivo são falha; o digest diário propaga falhas de consulta como HTTP 500 e falhas parciais de envio como contador. Alterações locais ainda precisam de PR/CI/deploy.
+- [x] Conferir via consulta read-only os oito `cron.job` ativos em produção. Os quatro dispatchers Edge elegíveis são `demurrage-dunning` (a cada hora), `alerts-detector` por `alerts-foundation-detectors` (a cada 15 min), `customer-communication-auto-runner` (a cada 15 min) e `portal-daily-digest` (11:00 UTC); os quatro jobs SQL de manutenção não recebem heartbeat HTTP.
+- [x] Adicionar teste de contrato que fixa a correspondência entre essas quatro agendas, `ops.dispatch_edge_job()` e os entrypoints. Teste Vitest focal passou; isso valida o contrato no repositório, não a agenda futura do Supabase.
+- Não instrumentar `portal-email-events-runner`, `import-effects-runner` ou `recalc-demurrage-ptax`: não estavam ativos no cron de produção observado; rever se a agenda mudar.
+- [ ] Após PR/deploy, criar os quatro heartbeats privados e gravar as URLs-secretas nos secrets de Edge Functions sem mostrá-las em chat, terminal ou screenshots; depois provar um ping e uma falha controlada não destrutiva. A autorização do owner já existe.
+- [x] Não criar status page pública nem adicionar link de status ao Portal, por decisão expressa do owner.
+- [ ] Validar em Preview um heartbeat perdido e tempos de alerta sem pausar cron produtivo.
+- [ ] Registrar owner, manutenção, ack/escalation e resposta a alerta no runbook `docs/operations/observabilidade.md`. Helper permanece no-op sem configuração.
 
 ### M4 — Retenção e consulta de logs
 
-**Comportamento operacional:** a equipe pesquisa falha de Edge Function, cron ou email por campos de correlação sem entrar no banco, com 30 dias de retenção e sem armazenar corpo, token, email ou documento.
+**Comportamento operacional desejado, adiado pelo custo:** logs sanitizados pesquisáveis por 30 dias. O owner escolheu custo zero adicional; o Log Drain do Supabase e qualquer retenção/dashboards pagos ficam desativados. A retenção nativa disponível não cumpre o alvo de 30 dias.
 
 - [ ] Definir schema de log estruturado: `timestamp`, `environment`, `release`, `surface`, `function_name`, `job_name`, `status`, `duration_ms`, `correlation_id` aleatório, `customer_ref` hash quando estritamente necessário e códigos de erro de baixa cardinalidade.
-- [ ] Substituir logs soltos das Edge Functions prioritárias por helper em `supabase/functions/_shared/logger.ts`; nunca logar headers, bearer, body, CNPJ, email, `message_id` bruto se ele for dado pessoal. Definir hash/chave de correlação e política de acesso.
-- [ ] No Supabase autenticado, confirmar se Log Drains está disponível no plano e quais fontes/campos entrega. Configurar destino Better Stack/Axiom, filtros `healthcheck`/`OPTIONS`, região e retenção; se o recurso exigir plano pago, parar no gate de custo e usar export suportado/documentado em vez de scraping.
-- [ ] Criar dashboards de emails, Edge Functions e cron; alertas operacionais permanecem em M2/M3 para evitar duplicação.
-- [ ] Testar scrub unitário e enviar eventos sintéticos. O aceite de “10 dias” só fecha após envelhecimento real ou teste de retenção suportado pelo fornecedor; presença imediata não prova retenção.
+- [ ] Substituir logs soltos de Edge Functions prioritárias por logger allowlisted, sem headers, bearer, body, CNPJ, email ou IDs brutos. Implementação local cobre `portal-email-events-runner` e `portalEmailEventProcessor`; outros fluxos críticos e correlação permanecem pendentes.
+- [x] Criar `supabase/functions/_shared/logger.ts` para o processamento de eventos de email e emitir apenas `function`, `job`, `status` e `error_code`; dois testes Vitest passaram. Não adiciona transmissão externa.
+- [x] Avaliar disponibilidade/custo de Log Drains; o custo adicional foi recusado. Não habilitar drain nem configurar destino pago.
+- [ ] Implementar logger allowlisted localmente apenas se não criar custo nem transmitir dados a serviço externo; dashboards, exportação e retenção longa ficam adiados.
+- [x] Não criar dashboards/destino pago: fora da decisão de custo zero. Alertas operacionais ficam nos monitores privados M2/M3.
+- [ ] Expandir scrub/testes pelos demais fluxos críticos. Não enviar eventos para serviço externo nem alegar retenção de 10/30 dias; a retenção nativa permanece a disponível no plano.
 - [ ] Atualizar arquitetura, segurança e runbook. Rollback: desligar drain/token e revogar credencial no destino; preservar logs nativos.
 
 ### M1 — Cloudflare DNS, WAF, Turnstile e cache
 
 **Comportamento operacional:** os dois domínios continuam servindo Vela/Portal pela Vercel, com DNSSEC; abuso de fluxos públicos é barrado na borda e assets versionados são cacheados sem cachear HTML, Auth ou Edge Functions.
 
-- [ ] Exportar/inventariar todos os registros de cada zona no Registro.br e provedores de email. Reduzir TTL com antecedência; criar zona Cloudflare e importar/comparar A/AAAA/CNAME, MX, SPF, DKIM, DMARC, CAA e verificações.
+- [x] Inventariar as zonas avançadas no Registro.br autenticado: os dois domínios estão publicados e usam DNS do Registro.br; cada zona contém somente um A no apex (`216.198.79.1`), sem MX/TXT/CNAME/AAAA/CAA. Consulta pública confirma NS Registro.br e A; sem MX/TXT no apex. Cloudflare permanece Pending com um A proxied correspondente. ImprovMX legado do transhippingdesk foi declarado sem uso e não deve ser recriado.
+- [ ] Inventariar o restante do DNS/Resend e confirmar alvos Vercel (www/outros subdomínios, SPF/DKIM/DMARC, verificação e remetentes). Não alterar DNS/Resend nem fazer cutover até que esses registros sejam enumerados e aprovados.
 - [ ] Confirmar no Vercel autenticado os alvos atuais com `vercel domains inspect` e no painel; não inventar A/CNAME. Manter Vercel como origin e “Full (strict)” no SSL/TLS.
 - [ ] Configurar proxy somente nos hosts web. Manter registros de email DNS-only. Ativar DNSSEC na Cloudflare e publicar DS no Registro.br na ordem documentada pelo provedor.
 - [ ] Criar WAF/rate limits nos paths efetivos `/portal/login`, `/portal/ativar`, `/portal/esqueci-senha`, `/portal/recuperar-senha` e URL da Edge Function `portal-login`. Como a Edge Function pode ser chamada diretamente no domínio Supabase, a regra Cloudflare no domínio web não é suficiente: introduzir proxy/gateway same-origin ou manter rate limit server-side/Redis e registrar esse limite arquitetural.
@@ -175,32 +186,54 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 
 **Comportamento operacional:** 10 erros do mesmo IP+CNPJ bloqueiam aquele par por 5 minutos sem bloquear outro IP; indisponibilidade do Redis não remove o rate limit persistido atual.
 
-- [ ] Criar `supabase/functions/_shared/rateLimit.ts` e port de idempotência atrás de interface, mantendo hash/HMAC de IP+CNPJ e TTL; nunca usar CNPJ puro como chave.
-- [ ] Integrar a `portal-login`, ativação e recuperação. Distinguir erro de credencial, limite local e indisponibilidade do provedor sem criar oráculo de conta. Manter `check_portal_rate_limit`/tabelas como defesa e auditoria.
-- [ ] Definir degradação: timeout curto, circuit breaker e limite local/Supabase ainda ativo. Falha do Redis não pode liberar tentativas ilimitadas nem derrubar todos os logins por período indefinido.
-- [ ] Provisionar database/token de menor privilégio na região aprovada; secret apenas nas Edge Functions. Configurar métricas de comando/erro/custo.
-- [ ] Testes concorrentes por chave/IP, TTL, provedor indisponível, hash e ausência de PII. Runtime em Preview com duas origens controladas.
-- [ ] Atualizar segurança e runbook. Rollback: remover env/token e retornar ao caminho Supabase; revogar token Upstash.
+- [x] Criar `supabase/functions/_shared/rateLimit.ts` com hash/HMAC de IP+CNPJ e TTL; nunca usar CNPJ puro como chave.
+- [x] Integrar à `portal-login`, ativação e recuperação; manter tabelas/RPCs persistidas como defesa e auditoria.
+- [x] Definir fallback ao rate limit persistido quando Redis estiver indisponível; esta alteração local também impede que Redis `allowed` anule bloqueio persistido.
+- [x] Provisionar database Upstash Free e gravar os três secrets autorizados nas Edge Functions de produção. Configuração existe, mas não prova comportamento runtime.
+- [ ] Confirmar no Preview se o gateway sobrescreve `CF-Connecting-IP` e testar duas origens controladas, concorrência, TTL e fallback. Os testes adicionados nesta execução são estáticos, não prova de runtime.
+- [x] Atualizar o runbook de rate limit e endurecer a identidade de IP para não confiar em `X-Forwarded-For`/`X-Real-IP` do cliente.
+- [ ] A identidade Redis ainda usa `CF-Connecting-IP`; antes de tratar o limite distribuído como defesa efetiva, comprovar em Preview que o gateway Supabase sobrescreve/remove o valor enviado pelo cliente. Se não houver prova ou o cabeçalho for controlável, não promover essa camada a produção; o limitador persistido por CNPJ continua sendo a defesa existente.
 
 ### M11 — Monitor de entregabilidade e DMARC
 
-**Comportamento operacional:** os dois domínios têm SPF/DKIM/DMARC preservados no cutover, relatório agregado semanal e alerta de quebra em menos de 24 h; `p=reject` só entra após evidência estável.
+**Comportamento operacional:** autenticar e monitorar somente o domínio realmente usado pelos remetentes aprovados. O novo domínio, endereços e categorias de mensagens ainda não foram decididos; não configurar relatórios nem DNS de email antes de mapear o que é enviado. Os registros antigos do ImprovMX não são mais usados e não serão preservados/recriados.
 
-- [ ] Capturar baseline autenticado de Registro.br/Cloudflare e Resend, incluindo alinhamento, selectors DKIM, SPF includes e remetentes; não duplicar SPF.
-- [ ] Cadastrar os domínios no Postmark DMARC e publicar somente os registros fornecidos, via Cloudflare autenticada após M1. Definir mailbox/owner e retenção dos relatórios agregados.
+**Mapa do código (From/Reply-To são env vars, não valores confirmados):**
+
+| Categoria enviada | Gatilho/destinatário | Cabeçalhos atuais | Decisão pendente |
+|---|---|---|---|
+| Convite/reenvio, recuperação de senha e troca do e-mail de recuperação | ação de operador ou pedido do cliente; endereço do cliente atual/novo/anterior conforme o fluxo | `PORTAL_FROM_EMAIL` + `PORTAL_REPLY_TO` | endereços aprovados de remetente e suporte; se todos os fluxos compartilham a identidade |
+| Resumo diário operacional | diariamente, se houver atividade; usuários internos ativos nos papéis admin/administrativo/documentação | `PORTAL_FROM_EMAIL` + `PORTAL_REPLY_TO` | confirmar que resumo interno deve usar a identidade transacional do Portal |
+| Aviso a contato alternativo após bounce | evento Resend e cascata de bounce; contato alternativo do mesmo cliente | `PORTAL_FROM_EMAIL` + `PORTAL_REPLY_TO` | endereço de resposta; execução segue sem comprovação pois runner não constava agendado |
+| Comunicados operacionais/documentais e institucionais/livres | automático ou disparo interno; contatos elegíveis conforme caixas, preferências e supressões | `PORTAL_FROM_EMAIL` + `COMMUNICATIONS_REPLY_TO` | endereços de envio/resposta para comunicados |
+| Cobrança de demurrage | régua automática; contatos ativos das caixas financeiro/demurrage | `PORTAL_FROM_EMAIL` + `COMMUNICATIONS_REPLY_TO` | endereço de resposta financeira |
+
+`PORTAL_SUPPORT_EMAIL` é texto de contato dentro dos templates, não cabeçalho
+From/Reply-To. O alias sugerido `suporte@portalfwlog.com.br` fica no domínio
+raiz (não é, tecnicamente, um subdomínio); Cloudflare Email Routing encaminha
+para um destino verificado, mas não hospeda uma caixa postal. Os endereços
+exatos continuam pendentes; os valores atuais desses secrets não foram lidos.
+Alertas Better Stack são separados de email transacional e continuam
+destinados apenas ao owner já aprovado.
+
+- [x] Reautenticar no Registro.br e inventariar zonas raiz junto com Resend: os dois domínios web estão no DNS Registro.br com um A cada e sem registros de email; Resend tem somente `transhippingdesk.com.br` como Verified. Ainda faltam inventariar subdomínios/origens legítimas e confirmar remetentes, Reply-To, tipos de mensagem e destinatários antes de escolher novo domínio.
+- [x] Levantar, por inspeção de código, categorias de mensagens, gatilhos, classes de destinatários e owners de `From`/`Reply-To` (tabela acima); isso não revela os valores atuais nem comprova entrega.
+- [ ] Configurar `suporte@portalfwlog.com.br` → `importacao@fwlog.com.br`, após a zona Cloudflare estar ativa e o destino ser verificado. O owner confirmou os endereços e pode concluir a verificação; encaminhamento de entrada não configura envio/respostas pelo sistema.
+- [ ] Só depois da matriz de mensagens, definir quais domínios exigem SPF/DKIM/DMARC e quem recebe relatórios; não supor que Vela e Portal ambos enviem email.
 - [ ] Manter política vigente durante o cutover; observar 14 dias. Avançar de `none/quarantine` para `reject` em percentuais controlados apenas se fontes legítimas estiverem alinhadas.
 - [ ] Simular falha em subdomínio/selector de teste ou usar validação do fornecedor; não quebrar DKIM produtivo para testar alerta.
 - [ ] Atualizar deploy/email e criar runbook de entregabilidade. Rollback: voltar a política/percentual anterior e restaurar registros do inventário.
 
 ### M9 — PostHog sem PII e feature flags
 
-**Comportamento operacional:** a equipe enxerga o funil “fatura vista → paga” com dimensões não identificáveis e pode desligar Comunicados sem deploy; nenhum evento contém CNPJ, email, B/L, invoice ID bruto ou texto digitado.
+**Comportamento operacional desejado:** funil agregado sem dados identificáveis. Não enviar IDs de cliente/viagem nem correlacionar usuários até que o contrato de dados seja confirmado. A flag de Comunicados só pode restringir envios; `app_settings.communications_enabled` permanece bloqueio mestre no servidor.
 
-- [ ] Definir contrato versionado de eventos em novo `src/lib/productAnalytics.ts`: `invoice_viewed`, `invoice_paid`, `dispute_opened`; propriedades allowlisted (ambiente, superfície, tipo, faixa/estado e identificadores HMAC quando necessário).
-- [ ] Desabilitar autocapture, session recording e coleta automática de URL/query. Reaproveitar regras de rota/scrub de `src/lib/telemetry.ts` sem criar duas políticas divergentes.
+- [x] Decidir contrato de privacidade: somente eventos agregados allowlisted, sem IDs brutos nem hashes de cliente/viagem. O adapter aceita só superfície e tipo de fatura; `cookieless_mode: always` e `person_profiles: never` evitam persistir identidade no browser. A opção PostHog “Discard client IP data” está ligada; hashing server-side de visitantes únicos não foi validado e não deve ser ativado sem nova decisão.
+- [x] Desabilitar autocapture, pageviews, session recording, eventos de exceção e coleta automática de URL/query. Sem cookies nem armazenamento local de identificador no modo cookieless. Não há eventos de produto instrumentados nem runtime validado nesta PR.
 - [ ] Instrumentar os pontos de confirmação do servidor para `invoice_paid`; evento de browser sozinho não prova pagamento. `invoice_viewed`/`dispute_opened` partem dos owners de Portal com deduplicação.
-- [ ] Criar feature flag com adapter e default fail-safe. Antes de substituir `COMMUNICATIONS_ENABLED`, manter dupla leitura e precedência documentada; desligar comunicação deve ser efetivo server-side em `send-customer-communication`, não apenas ocultar UI.
-- [ ] Provisionar projeto EU, chaves por ambiente, retention e acesso no painel autenticado; criar funil e flag. Atualizar CSP `connect-src` somente para host necessário.
+- [ ] Criar enforcement server-side se a flag remota for mantida; a flag cliente `COMMUNICATIONS_ENABLED` atual não bloqueia os envios. O bloqueio mestre `app_settings.communications_enabled` deve continuar prevalecendo e PostHog nunca pode ativar envios por conta própria.
+- [x] Confirmar projeto PostHog EU `281503`, token/host configurados como variáveis Vercel de Production nos dois projetos, painel ainda sem eventos e opção “Discard client IP data” ligada. Não houve criação de funil/flag nem envio de evento de fixture.
+- [ ] Revisar retenção/acesso e definir política de feature flags; o modo cookieless server hash não foi validado nem ativado. Atualizar CSP `connect-src` somente para host necessário quando eventos forem instrumentados.
 - [ ] Testes de schema/PII e runtime com fixtures. Inspecionar payload na rede e dez eventos no painel.
 - [ ] Atualizar privacidade, arquitetura, CSP e operação. Rollback: default da flag local, remover key/script e manter chave global atual.
 
@@ -208,11 +241,14 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 
 **Comportamento operacional:** a equipe conhece RPO/RTO reais, recebe alerta quando o backup diário falha e consegue restaurar Viagem, B/Ls e faturas até o ponto aprovado em ambiente descartável.
 
-- [ ] No Supabase autenticado, confirmar plano, frequência/retenção de backups e disponibilidade/preço do PITR; não ativar upgrade sem G8. Registrar RPO/RTO contratual mostrado no painel.
-- [ ] Definir pipeline de `pg_dump` diário a partir de credencial read-only/backup apropriada, criptografia client-side, upload versionado no R2, checksum, `pg_restore --list`, retenção 90 dias e lifecycle. Não colocar connection string ou chave no GitHub log/artifact.
-- [ ] Escolher executor confiável (GitHub Actions com environment protegido ou serviço de backup) e proteção contra exfiltração em PR. Workflow de PR nunca recebe credenciais produtivas.
-- [ ] Provisionar bucket privado, versioning/Object Lock quando disponível, lifecycle, chave e alertas pelo navegador autenticado. Separar capacidade de gravar backup de capacidade de apagar versões.
-- [ ] Criar `scripts/backup/` e runbook `docs/operations/backup-restore.md`; validar checksum e listar conteúdo a cada execução. Heartbeat em M2 para sucesso/falha.
+- [x] Confirmar backups físicos diários no Supabase; PITR está desligado e tem custo adicional. Decisão do owner: manter custo zero, portanto não habilitar PITR/add-on.
+- [x] Definir runner diário às 09:00 local, por Task Scheduler após login, com `StartWhenAvailable`, rede obrigatória, três tentativas espaçadas e limite de execução; segredos serão obtidos do Windows Credential Manager e a chave terá cópia secundária no gerenciador de senhas existente. Se o PC ficar desligado, o backup atrasa e uma execução posterior não cria snapshots retroativos dos dias perdidos. A cópia privada é apagada após 90 dias; isso não é versionamento.
+- [x] Implementar executor confiável local: allowlist de ambiente (sem herdar segredos/processo), sem credenciais em argumentos, wrapper PowerShell que lê do Credential Manager, limpa variáveis ao terminar, log sanitizado e política de tarefa limitada ao usuário interativo. Após upload do dump e manifesto e validação do objeto remoto, remove os dois arquivos locais; em falha preserva os arquivos completos cifrados e apaga só `.part` incompleto. Testes locais cobrem sucesso/falha e round-trip sintético do Credential Manager; ainda precisa seguir por PR/CI/deploy à `main`.
+- [ ] Criar token R2 restrito ao bucket `vela-database-backups` e guardar no Credential Manager. O owner autorizou; ainda não foi criado. A chave secreta só é exibida uma vez pelo Cloudflare, por isso a captura precisa ser digitada diretamente no prompt protegido sem expor o valor em chat, terminal ou screenshot.
+- [ ] Criar/confirmar a cópia secundária da chave de criptografia no gerenciador de senhas antes de gerar credenciais reais ou executar backup. Não guardar a chave somente no PC.
+- [x] Confirmar bucket privado R2 `vela-database-backups` com lifecycle de 90 dias; bucket ainda está vazio. Lifecycle apaga objetos e não equivale a versionamento/restore.
+- [x] Manter o script `scripts/backup-r2.mjs` e runbook `docs/operations/backup-r2.md`; o script valida o dump com `pg_restore --list` e, após upload, baixa o objeto cifrado e compara tamanho/SHA-256 antes de enviar o manifesto. `npm run backup:r2:test` passou em 15 testes locais; em sucesso limpa o cache local, em falha preserva artefatos completos cifrados. Não houve upload real nem tarefa agendada registrada.
+- [ ] Conectar alertas privados/heartbeat M2 ao resultado da execução diária depois que o runner e suas credenciais aprovadas estiverem configurados.
 - [ ] Trimestralmente criar branch/projeto descartável, restaurar backup/PITR, aplicar `supabase/tests/seed_catalog.sql` conforme o procedimento e conferir amostra relacionada de Viagem → B/Ls → invoices/ledger. Nunca restaurar sobre produção.
 - [ ] Registrar tempo, ponto alcançado e limitações como relatório histórico. Rollback operacional: desabilitar workflow e revogar credenciais; não apagar backups existentes sem autorização destrutiva específica.
 
@@ -222,7 +258,7 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 |---|---|
 | Auth/MFA/captcha | `src/hooks/useAuth.tsx`, `src/hooks/usePortalAuth.tsx`, páginas públicas do Portal, `supabase/functions/portal-login/`, `portal-invite-activate/`, `portal-password-recovery/`, `_shared/cors.ts`, `_shared/passwordPolicy.ts`, migration nova |
 | Observabilidade | `src/lib/telemetry.ts`, `src/lib/telemetryContext.ts`, `supabase/functions/_shared/telemetry.ts`, `_shared/logger.ts`, runners e funções prioritárias |
-| Uptime/status | runners listados em M2, helper de heartbeat, `src/components/layout/PortalLayout.tsx`, novo runbook |
+| Uptime privado | runners ativos listados em M2, helper de heartbeat, runbook de observabilidade (sem status page ou link público) |
 | Analytics/flags | novo `src/lib/productAnalytics.ts`, Portal Billing/Disputes, `send-customer-communication`, CSP e env vars |
 | CI/supply chain | `.github/dependabot.yml`, `.github/workflows/codeql.yml`, `.github/workflows/ci.yml` e GitHub ruleset |
 | Infra/ops | `vercel.json`, `supabase/config.toml`, `docs/setup/deploy.md`, `docs/operations/*`, `WORKFLOW.md`, `docs/ARCHITECTURE.md`, `docs/RASTREABILIDADE.md` |
@@ -243,10 +279,10 @@ Interfaces novas devem ser pequenas e substituíveis: `TelemetrySink`, `Heartbea
 | Frente | Preview/homologação | Produção controlada | Evidência mínima |
 |---|---|---|---|
 | M1/M8/M7 | login/ativação/recovery, Turnstile e limites | smoke das duas autenticações e 20 tentativas sintéticas autorizadas | HTTP/status, painel WAF, sessão/refresh, sem PII |
-| M2/M3/M4 | erro, heartbeat perdido, log sintético | alerta production e status sem incidente falso | timestamps, regra acionada, evento sanitizado |
+| M2/M3/M4 | erro, heartbeat perdido, log sintético | alerta privado em produção sem status público | timestamps, regra acionada, evento sanitizado |
 | M6 | PR/branch descartável | ruleset de `main` | checks e bloqueios visíveis |
 | M9 | projeto dev/Preview | evento de fixture | payload de rede + painel sem PII |
-| M10 | branch/projeto descartável | confirmação de PITR/backups no painel | RPO/RTO, checksum, restore e duração |
+| M10 | branch/projeto descartável | confirmação de backup diário e, após aprovação/secrets, objeto R2 validado | ponto de recuperação, checksum, restore e duração; PITR permanece desligado por custo |
 | M11 | subdomínio/validador | 14 dias de relatórios reais | alinhamento e alerta sem quebrar DKIM |
 
 ### Aceite global

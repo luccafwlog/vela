@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { processPortalEmailEvent } from '../_shared/portalEmailEventProcessor.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { logPortalEmailEvent } from '../_shared/logger.ts'
 
 type ClaimedEvent = { id: number }
 
@@ -39,7 +40,7 @@ async function handler(req: Request): Promise<Response> {
     p_lease_seconds: 300,
   })
   if (error) {
-    console.error('[portal-email-events-runner] falha no claim', error)
+    logPortalEmailEvent({ job: 'event_claim', status: 'error', errorCode: 'event_claim_failed' })
     return json(500, { error: 'claim_failed' })
   }
 
@@ -55,20 +56,19 @@ async function handler(req: Request): Promise<Response> {
       if (result.status === 'processed') processed += 1
       else if (result.status === 'retry_wait') retried += 1
       else if (result.status === 'investigate') investigated += 1
-    } catch (error) {
+    } catch {
       failures += 1
-      const message = error instanceof Error ? error.message : String(error)
-      console.error('[portal-email-events-runner] falha no evento', event.id, error)
+      logPortalEmailEvent({ job: 'event_processing', status: 'error', errorCode: 'event_processing_failed' })
       const { error: completionError } = await admin.rpc('complete_portal_email_event', {
         p_event_id: Number(event.id),
         p_worker_id: workerId,
         p_status: 'retry_wait',
         p_error_code: 'runner_error',
-        p_error_message: message.slice(0, 500),
+        p_error_message: 'Falha interna no processamento do evento.',
       })
       if (completionError) {
         failures += 1
-        console.error('[portal-email-events-runner] falha ao devolver evento para retry', event.id, completionError)
+        logPortalEmailEvent({ job: 'event_retry', status: 'error', errorCode: 'event_retry_enqueue_failed' })
       }
     }
   }

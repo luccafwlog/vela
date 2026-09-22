@@ -87,7 +87,7 @@ describe('processamento do evento do Resend preserva fatos antes dos efeitos', (
     expect(inboxProcessor).toContain('for (const customerId of [...new Set(customerIds)])')
     const alertHelper = inboxProcessor.slice(indexOf(inboxProcessor, 'async function openNoAlternativeAlert'), indexOf(inboxProcessor, 'async function loadPortalSuppressionSets'))
     expect(alertHelper).toContain('try {')
-    expect(alertHelper).toContain('catch (error)')
+    expect(alertHelper).toContain('catch {')
     expect(alertHelper).toContain('return false')
   })
 

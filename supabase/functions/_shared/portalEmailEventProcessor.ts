@@ -3,6 +3,7 @@ import { maskEmail, sendPortalEmail } from './portalEmail.ts'
 import { bounceNotificationTemplate } from './portalEmailTemplates.ts'
 import { resolveBounceCascade, type BounceContact } from './portalBounceCascade.ts'
 import { canonicalPortalOrigin, portalSupportEmail } from './portalUrls.ts'
+import { logPortalEmailEvent } from './logger.ts'
 
 const BOUNCE_NOTIFICATION_KIND = 'contato_bounced_notificacao'
 
@@ -66,10 +67,10 @@ async function sendBounceNotification(
       text: template.text,
       idempotencyKey: `${BOUNCE_NOTIFICATION_KIND}:${customerId}:${normalizedBouncedEmail}:${recipient.id}`,
     })
-    if (!sent.ok) console.warn('[portal-email-events-runner] notificação de bounce não enviada', customerId, recipient.id)
+    if (!sent.ok) logPortalEmailEvent({ job: 'bounce_notification', status: 'error', errorCode: 'email_send_failed' })
     return true
-  } catch (error) {
-    console.error('[portal-email-events-runner] falha ao enviar notificação de bounce', customerId, error)
+  } catch {
+    logPortalEmailEvent({ job: 'bounce_notification', status: 'error', errorCode: 'email_send_exception' })
     return false
   }
 }
@@ -99,8 +100,8 @@ async function openNoAlternativeAlert(admin: AdminClient, customerId: number): P
     })
     if (error) throw error
     return true
-  } catch (error) {
-    console.error('[portal-email-events-runner] falha ao abrir alerta de contato sem alternativa', customerId, error)
+  } catch {
+    logPortalEmailEvent({ job: 'contact_alert', status: 'error', errorCode: 'alert_upsert_failed' })
     return false
   }
 }
@@ -142,7 +143,7 @@ async function handleBounceCascade(
       .select('id, email, is_primary, deactivated_at')
       .eq('customer_id', customerId)
     if (contactsError) {
-      console.error('[portal-email-events-runner] falha ao consultar contatos para cascata', customerId, contactsError)
+      logPortalEmailEvent({ job: 'contact_lookup', status: 'error', errorCode: 'contact_lookup_failed' })
       failures += 1
       continue
     }
@@ -151,8 +152,8 @@ async function handleBounceCascade(
     let suppressionSets: { portalSuppressedEmails: string[]; sharedBounceEmails: string[] }
     try {
       suppressionSets = await loadPortalSuppressionSets(admin, bounceContacts)
-    } catch (error) {
-      console.error('[portal-email-events-runner] falha ao consultar supressões para cascata', customerId, error)
+    } catch {
+      logPortalEmailEvent({ job: 'suppression_lookup', status: 'error', errorCode: 'suppression_lookup_failed' })
       failures += 1
       continue
     }

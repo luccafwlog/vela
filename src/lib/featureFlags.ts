@@ -17,8 +17,6 @@ export type ProductEventName = (typeof PRODUCT_EVENTS)[keyof typeof PRODUCT_EVEN
 export type ProductEventProperties = Readonly<{
   surface?: 'portal' | 'internal'
   invoice_type?: 'local' | 'demurrage'
-  customer_id_hash?: string
-  voyage_id_hash?: string
 }>
 
 export type FeatureFlagAdapter = Readonly<{
@@ -29,7 +27,6 @@ export type FeatureFlagAdapter = Readonly<{
 type PostHogClient = Pick<PostHog, 'capture' | 'isFeatureEnabled'>
 
 const POSTHOG_DEFAULT_HOST = 'https://eu.i.posthog.com'
-const HASH_RE = /^[a-f0-9]{64}$/i
 const PRODUCT_EVENT_NAMES = new Set<ProductEventName>(Object.values(PRODUCT_EVENTS))
 
 const DISABLED_ADAPTER: FeatureFlagAdapter = Object.freeze({
@@ -51,12 +48,6 @@ function sanitizeProperties(properties: Record<string, unknown> | undefined): Re
   if (properties.surface === 'portal' || properties.surface === 'internal') safe.surface = properties.surface
   if (properties.invoice_type === 'local' || properties.invoice_type === 'demurrage') {
     safe.invoice_type = properties.invoice_type
-  }
-  if (typeof properties.customer_id_hash === 'string' && HASH_RE.test(properties.customer_id_hash)) {
-    safe.customer_id_hash = properties.customer_id_hash.toLowerCase()
-  }
-  if (typeof properties.voyage_id_hash === 'string' && HASH_RE.test(properties.voyage_id_hash)) {
-    safe.voyage_id_hash = properties.voyage_id_hash.toLowerCase()
   }
   return safe
 }
@@ -82,7 +73,7 @@ export function createPostHogConfig(apiHost: string): Partial<PostHogConfig> {
     capture_performance: false,
     disable_session_recording: true,
     disable_surveys: true,
-    persistence: 'memory',
+    cookieless_mode: 'always',
     person_profiles: 'never',
     before_send: redactPostHogEvent,
   }

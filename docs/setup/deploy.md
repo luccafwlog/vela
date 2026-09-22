@@ -220,8 +220,11 @@ Sequência operacional:
    Realtime, PTAX, Sentry, CSP, assets e Edge Functions;
 4. adicionar os dois domínios ao projeto Vercel e usar os registros exibidos
    por `vercel domains inspect`;
-5. trocar somente os registros web no provedor DNS, preservando MX, SPF, DKIM,
-   DMARC, ImprovMX, Resend e demais registros de email;
+5. trocar somente os registros web no provedor DNS; preservar os registros
+   atuais de Resend e demais provedores de email após inventário. Não recriar
+   entradas antigas de ImprovMX/transhippingdesk, que foram declaradas fora de
+   uso pelo owner; não remover nem alterar configuração Resend sem antes mapear
+   os remetentes e obter a decisão correspondente;
 6. validar DNS, SSL, aplicação, Portal, Supabase, emails e Sentry; o domínio
    antigo nunca deve ser apontado para produção.
 

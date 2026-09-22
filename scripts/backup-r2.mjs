@@ -1,6 +1,6 @@
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 import { closeSync, createReadStream, createWriteStream, existsSync, openSync, readSync, statSync } from 'node:fs'
-import { appendFile, mkdir, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import { appendFile, mkdtemp, mkdir, rename, rm, stat, unlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -146,9 +146,10 @@ function planFor(args) {
     database: 'SUPABASE_DB_URL ou DATABASE_URL (valor oculto)',
     encryption: 'BACKUP_ENCRYPTION_KEY_HEX (valor oculto; 32 bytes)',
     upload: 'aws s3 cp para bucket R2 privado (credenciais ocultas)',
+    verification: 'baixa o dump cifrado enviado e compara tamanho/SHA-256 antes de publicar o manifesto',
     effects: args.mode === 'dry-run'
       ? ['nao executa pg_dump', 'nao cria arquivo', 'nao acessa R2']
-      : ['pg_dump public', 'cifra localmente', 'valida com pg_restore --list', 'faz upload do .dump.enc e manifesto'],
+      : ['pg_dump public', 'cifra localmente', 'valida com pg_restore --list', 'faz upload do .dump.enc', 'baixa e compara tamanho/SHA-256 do objeto', 'faz upload do manifesto'],
   }
 }
 
@@ -292,10 +293,13 @@ function assertExecuteAllowed(args) {
   }
 }
 
-async function uploadToR2({ filePath, objectKey, config, contentType }) {
-  const target = `s3://${config.bucket}/${objectKey}`
-  const env = {
-    ...process.env,
+function awsChildEnvironment(config, source = process.env) {
+  const env = {}
+  for (const name of ['PATH', 'Path', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'SSL_CERT_FILE', 'SSL_CERT_DIR', 'AWS_CA_BUNDLE']) {
+    if (source[name]) env[name] = source[name]
+  }
+  return {
+    ...env,
     AWS_ACCESS_KEY_ID: config.accessKeyId,
     AWS_SECRET_ACCESS_KEY: config.secretAccessKey,
     AWS_REGION: 'auto',
@@ -303,6 +307,56 @@ async function uploadToR2({ filePath, objectKey, config, contentType }) {
     AWS_EC2_METADATA_DISABLED: 'true',
     AWS_PAGER: '',
   }
+}
+
+function taskBackupEnvironment(secrets, config, source = process.env) {
+  for (const name of ['databaseUrl', 'encryptionKeyHex', 'r2AccessKeyId', 'r2SecretAccessKey']) {
+    if (typeof secrets?.[name] !== 'string' || secrets[name].trim() === '') {
+      throw new Error(`credencial obrigatoria ausente: ${name}.`)
+    }
+  }
+  parseDatabaseUrl(secrets.databaseUrl)
+  parseEncryptionKey(secrets.encryptionKeyHex)
+
+  let endpoint
+  try {
+    endpoint = new URL(config?.endpoint)
+  } catch {
+    throw new Error('endpoint R2 obrigatorio ou invalido.')
+  }
+  if (endpoint.protocol !== 'https:' || !/^[a-f0-9]{32}\.r2\.cloudflarestorage\.com$/i.test(endpoint.hostname) || endpoint.username || endpoint.password || endpoint.pathname !== '/' || endpoint.search || endpoint.hash) {
+    throw new Error('endpoint R2 deve ser uma origem HTTPS sem credenciais, caminho ou parametros.')
+  }
+
+  if (typeof config?.bucket !== 'string' || !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(config.bucket)) {
+    throw new Error('bucket R2 obrigatorio ou invalido.')
+  }
+  if (typeof config?.projectRef !== 'string' || !/^[a-z0-9]{20}$/.test(config.projectRef)) {
+    throw new Error('projectRef Supabase obrigatorio ou invalido.')
+  }
+
+  const env = {}
+  for (const name of ['PATH', 'Path', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'PATHEXT', 'COMSPEC', 'PG_DUMP_BIN', 'PG_RESTORE_BIN', 'AWS_BIN']) {
+    if (source[name]) env[name] = source[name]
+  }
+  return {
+    ...env,
+    SUPABASE_DB_URL: secrets.databaseUrl,
+    BACKUP_ENCRYPTION_KEY_HEX: secrets.encryptionKeyHex,
+    R2_ACCESS_KEY_ID: secrets.r2AccessKeyId,
+    R2_SECRET_ACCESS_KEY: secrets.r2SecretAccessKey,
+    R2_ENDPOINT: endpoint.origin,
+    R2_BUCKET: config.bucket,
+    R2_PREFIX: normalizePrefix(config.prefix ?? 'vela/database'),
+    SUPABASE_PROJECT_REF: config.projectRef,
+    BACKUP_ENVIRONMENT: 'production',
+    BACKUP_ALLOW_PRODUCTION: 'YES',
+  }
+}
+
+async function uploadToR2({ filePath, objectKey, config, contentType }) {
+  const target = `s3://${config.bucket}/${objectKey}`
+  const env = awsChildEnvironment(config)
   const cliArgs = [
     's3', 'cp', filePath, target,
     '--endpoint-url', config.endpoint,
@@ -317,7 +371,48 @@ async function uploadToR2({ filePath, objectKey, config, contentType }) {
   if (result.code !== 0) throw new Error(`upload R2 falhou com codigo ${result.code ?? 'desconhecido'}.`)
 }
 
-async function executeBackup(args) {
+async function downloadFromR2({ objectKey, destination, config }) {
+  const target = `s3://${config.bucket}/${objectKey}`
+  const env = awsChildEnvironment(config)
+  const aws = spawn(process.env.AWS_BIN ?? 'aws', [
+    's3', 'cp', target, destination,
+    '--endpoint-url', config.endpoint,
+    '--region', 'auto',
+    '--only-show-errors',
+    '--no-progress',
+  ], { env, stdio: ['ignore', 'ignore', 'pipe'] })
+  drain(aws.stderr)
+  const result = await waitForClose(aws, 'aws')
+  if (result.code !== 0) throw new Error(`verificacao remota R2 falhou com codigo ${result.code ?? 'desconhecido'}.`)
+}
+
+async function verifyR2Object({ filePath, objectKey, config, download = downloadFromR2 }) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'vela-r2-verify-'))
+  const downloadedPath = path.join(tempDir, 'download.dump.enc')
+  try {
+    await download({ objectKey, destination: downloadedPath, config })
+    const [localStat, remoteStat] = await Promise.all([stat(filePath), stat(downloadedPath)])
+    if (remoteStat.size !== localStat.size) {
+      throw new Error(`verificacao remota R2 falhou: tamanho divergente para ${objectKey}.`)
+    }
+    const [localHash, remoteHash] = await Promise.all([sha256File(filePath), sha256File(downloadedPath)])
+    if (remoteHash !== localHash) {
+      throw new Error(`verificacao remota R2 falhou: SHA-256 divergente para ${objectKey}.`)
+    }
+  } catch (error) {
+    if (error.code === 'ENOENT') throw new Error(`verificacao remota R2 falhou: objeto ausente ou download incompleto para ${objectKey}.`)
+    throw error
+  } finally {
+    await rm(tempDir, { recursive: true, force: true })
+  }
+}
+
+async function executeBackup(args, {
+  encrypt = encryptPgDump,
+  verify = verifyArchive,
+  upload = uploadToR2,
+  verifyRemote = verifyR2Object,
+} = {}) {
   assertExecuteAllowed(args)
   const database = parseDatabaseUrl(process.env.SUPABASE_DB_URL ?? process.env.DATABASE_URL)
   const key = parseEncryptionKey(process.env.BACKUP_ENCRYPTION_KEY_HEX)
@@ -334,8 +429,8 @@ async function executeBackup(args) {
 
   await mkdir(outputDir, { recursive: true })
   try {
-    await encryptPgDump({ destination: partPath, databaseEnv: database.env, key })
-    await verifyArchive(partPath, key)
+    await encrypt({ destination: partPath, databaseEnv: database.env, key })
+    await verify(partPath, key)
     await rename(partPath, encryptedPath)
     const bytes = (await stat(encryptedPath)).size
     const manifest = {
@@ -355,8 +450,11 @@ async function executeBackup(args) {
     }
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx' })
     console.log(`dump cifrado e validado localmente: ${encryptedPath}`)
-    await uploadToR2({ filePath: encryptedPath, objectKey: names.dumpKey, config: r2 })
-    await uploadToR2({ filePath: manifestPath, objectKey: names.manifestKey, config: r2, contentType: 'application/json' })
+    await upload({ filePath: encryptedPath, objectKey: names.dumpKey, config: r2 })
+    await verifyRemote({ filePath: encryptedPath, objectKey: names.dumpKey, config: r2 })
+    await upload({ filePath: manifestPath, objectKey: names.manifestKey, config: r2, contentType: 'application/json' })
+    await unlink(encryptedPath)
+    await unlink(manifestPath)
     console.log(`upload concluido no prefixo R2: ${args.prefix}/${args.environment}/${args.projectRef}/`)
   } finally {
     await unlink(partPath).catch(() => {})
@@ -385,4 +483,4 @@ if (isMain) {
   })
 }
 
-export { buildObjectNames, parseArgs, parseDatabaseUrl, parseEncryptionKey, planFor }
+export { awsChildEnvironment, buildObjectNames, executeBackup, parseArgs, parseDatabaseUrl, parseEncryptionKey, planFor, taskBackupEnvironment, verifyR2Object }

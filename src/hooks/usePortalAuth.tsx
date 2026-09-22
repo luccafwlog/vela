@@ -46,8 +46,9 @@ async function fetchOverview(): Promise<PortalSessionOverview> {
   return normalizePortalOverview((data ?? {}) as Record<string, unknown>)
 }
 
-function setPortalTelemetryUser(overview: PortalSessionOverview) {
-  Sentry.setUser({ id: String(overview.customer_id) })
+function setPortalTelemetryUser() {
+  // O Portal não envia ID estável de cliente ao Sentry.
+  Sentry.setUser(null)
   Sentry.setTag('area', 'portal')
 }
 
@@ -82,7 +83,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
         const ov = await fetchOverview()
         if (mounted) {
           setOverview(ov)
-          setPortalTelemetryUser(ov)
+          setPortalTelemetryUser()
         }
       } catch (error) {
         // Sessão Supabase pode existir sem perfil de portal (ex.: usuário interno);
@@ -105,7 +106,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
         void fetchOverview()
           .then((ov) => {
             if (mounted) setOverview((current) => current ?? ov)
-            if (mounted) setPortalTelemetryUser(ov)
+            if (mounted) setPortalTelemetryUser()
           })
           .catch((error) => {
             if (isPortalSessionError(error) && mounted) clearSession()
@@ -131,7 +132,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
       if (sessionError) throw new Error('CNPJ ou senha inválidos.')
       const ov = await fetchOverview()
       setOverview(ov)
-      setPortalTelemetryUser(ov)
+      setPortalTelemetryUser()
     } finally {
       setLoading(false)
     }
@@ -157,7 +158,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
     try {
       const ov = await fetchOverview()
       setOverview(ov)
-      setPortalTelemetryUser(ov)
+      setPortalTelemetryUser()
     } catch (error) {
       if (isPortalSessionError(error)) clearSession()
       throw error

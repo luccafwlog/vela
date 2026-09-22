@@ -18,6 +18,19 @@ As chaves usam HMAC-SHA-256 de IP e CNPJ com
 ficam apenas nas variáveis server-side das Edge Functions. Logs registram
 somente o comando, estado do circuito e erro técnico sanitizado.
 
+O código considera somente `CF-Connecting-IP`, esperado do gateway Supabase;
+`X-Forwarded-For` e `X-Real-IP` não são usados como fallback, pois podem ser
+fornecidos pelo chamador da URL pública da Edge Function, sem passar pelo proxy
+dos domínios do Vela. O gateway deve ser testado em Preview para provar que
+substitui um `CF-Connecting-IP` forjado antes de esse valor ser tratado como IP
+confiável. Se o header não existir, a chave usa `unknown` com o HMAC do CNPJ;
+isso conserva o bloqueio por conta, mas compartilha o balde entre as origens
+desse CNPJ até a camada de rede oferecer um IP confiável.
+
+O Redis é uma segunda defesa e não pode anular uma decisão de bloqueio do
+contador persistido do Supabase: o resultado final é bloqueado se qualquer uma
+das duas camadas bloquear, ou se a consulta persistida falhar.
+
 ## Configuração
 
 No projeto Supabase de produção e em cada Preview que for exercitado, cadastrar

@@ -30,20 +30,18 @@ describe('feature flags', () => {
     })
   })
 
-  it('captures only allowlisted event properties', () => {
+  it('captures aggregate properties and drops customer or voyage identifiers', () => {
     const capture = vi.fn()
     const adapter = createPostHogAdapter({ isFeatureEnabled: vi.fn(), capture })
 
     adapter.capture(PRODUCT_EVENTS.INVOICE_VIEWED, {
       surface: 'portal',
       invoice_type: 'local',
-      customer_id_hash: 'A'.repeat(64),
     })
 
     expect(capture).toHaveBeenCalledWith(PRODUCT_EVENTS.INVOICE_VIEWED, {
       surface: 'portal',
       invoice_type: 'local',
-      customer_id_hash: 'a'.repeat(64),
     })
   })
 
@@ -55,6 +53,8 @@ describe('feature flags', () => {
         surface: 'portal',
         '$current_url': 'https://portalfwlog.com.br/portal/clientes/12.345.678/0001-95',
         email: 'client@example.com',
+        customer_id_hash: 'a'.repeat(64),
+        voyage_id_hash: 'b'.repeat(64),
       },
     })
 
@@ -67,7 +67,7 @@ describe('feature flags', () => {
       capture_pageview: false,
       capture_pageleave: false,
       disable_session_recording: true,
-      persistence: 'memory',
+      cookieless_mode: 'always',
       person_profiles: 'never',
     })
   })
