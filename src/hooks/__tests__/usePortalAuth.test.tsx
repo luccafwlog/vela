@@ -155,6 +155,23 @@ describe('usePortalAuth', () => {
     expect(queryClient.getQueryData(['portal-invoices'])).toBeUndefined()
   })
 
+  it('limpa o aviso de revogação pendente ao iniciar novo login', async () => {
+    signOut.mockRejectedValueOnce(new Error('Network offline'))
+
+    const { result } = renderHook(() => usePortalAuth(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await result.current.signOut()
+    })
+    expect(result.current.signOutError).toBe('Network offline')
+
+    await act(async () => {
+      await result.current.signIn('123', 'senha').catch(() => undefined)
+    })
+    expect(result.current.signOutError).toBeNull()
+  })
+
   it('redireciona rota protegida quando logout acontece em outra aba', async () => {
     getSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
     let authCallback: ((event: string, session: unknown) => void) | undefined

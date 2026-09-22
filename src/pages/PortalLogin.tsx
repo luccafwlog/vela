@@ -16,6 +16,8 @@ function isNetworkError(error: unknown): boolean {
   return name === 'AuthRetryableFetchError' || message.includes('failed to fetch') || message.includes('fetch failed')
 }
 
+const SIGNOUT_NOTICE = 'Sua sessão foi encerrada neste dispositivo. A revogação no servidor não pôde ser confirmada devido a instabilidade de rede.'
+
 export function PortalLogin() {
   const navigate = useNavigate()
   const { isAuthenticated, loading, signIn, signOutError } = usePortalAuth()
@@ -23,20 +25,10 @@ export function PortalLogin() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [notice] = useState(() => {
-    try {
-      if (typeof window !== 'undefined' && window.sessionStorage) {
-        const stored = window.sessionStorage.getItem('portal_signout_notice')
-        if (stored) {
-          window.sessionStorage.removeItem('portal_signout_notice')
-          return stored
-        }
-      }
-    } catch {
-      // ignora erro de sessionStorage
-    }
-    return signOutError ? 'Sua sessão foi encerrada neste dispositivo. A revogação no servidor não pôde ser confirmada devido a instabilidade de rede.' : ''
-  })
+  // Derivado do estado vivo do provider: o redirecionamento para esta tela
+  // acontece antes do timeout da revogação remota, então um valor congelado na
+  // montagem nunca veria a falha.
+  const notice = signOutError ? SIGNOUT_NOTICE : ''
 
   if (!loading && isAuthenticated) {
     return <Navigate to="/portal" replace />

@@ -21,6 +21,7 @@ export function portalErrorMessage(error: unknown, fallback: string): string {
   if (
     msg.includes('Quota de armazenamento') ||
     msg.includes('Limite diário') ||
+    msg.includes('Anexos só podem ser enviados em disputas abertas') ||
     msg.includes('Apenas o autor da mensagem') ||
     msg.includes('Anexo inválido') ||
     msg.includes('Tipo de anexo não permitido') ||
