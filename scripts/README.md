@@ -287,7 +287,23 @@ termina com erro de propósito — serve como portão antes da migração real.
 
 ---
 
-## 10. Usuário admin da Preview (`provision-preview-admin`)
+## 10. Backup lógico cifrado para R2 (`backup:r2`)
+
+**O que faz:** em modo padrão, apenas ensaia um backup semanal do schema
+`public`. Com `--execute`, lê a conexão PostgreSQL do ambiente, gera `pg_dump`
+custom, cifra localmente com AES-256-GCM, valida com `pg_restore --list` e envia
+o arquivo e um manifesto sem segredos para um bucket R2 privado. Não cria
+recursos Cloudflare, não apaga objetos e não restaura banco.
+
+```powershell
+npm run backup:r2 -- --dry-run --environment staging --project-ref <PROJECT_REF>
+npm run backup:r2:test
+```
+
+O procedimento completo, os nomes das variáveis e os passos que dependem do
+Dashboard estão em [`docs/operations/backup-r2.md`](../docs/operations/backup-r2.md).
+
+## 11. Usuário admin da Preview (`provision-preview-admin`)
 
 **O que faz:** cria ou atualiza o usuário `qa-admin@example.test` usando a Auth
 Admin API e garante o perfil interno `admin` na branch Supabase indicada pelas
@@ -314,7 +330,7 @@ restante do fixture sem expor ou substituir a credencial silenciosamente.
 
 ---
 
-## 11. Reconstruir o schema consolidado v1.0 (`build-squash-migrations`)
+## 12. Reconstruir o schema consolidado v1.0 (`build-squash-migrations`)
 
 **O que faz:** recorta um `pg_dump` do schema `public` em
 `supabase/migrations/001_initial_schema.sql` (estrutura) e
