@@ -424,11 +424,9 @@ export function Clientes() {
         ]}
       />
 
-      <div className="mb-5 flex flex-col gap-4">
-        <div>
+      <div className="mb-5">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <MetricCard label="Saldo pendente" value={formatBRL(summary?.pendingBalance ?? 0)} tone="primary" />
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
           <MetricCard label="Clientes" value={String(summary?.totalCustomers ?? 0)} />
           <MetricCard label="B/Ls vinculados" value={String(summary?.totalBls ?? 0)} />
           <MetricCard label="Taxas pendentes" value={String(summary?.chargePending ?? 0)} />

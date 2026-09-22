@@ -94,15 +94,49 @@ export function BlOperacionalTab({
           {changes.length ? <Badge tone="yellow">{changes.length} alteracao(oes) pendentes</Badge> : null}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 items-start">
           <div className="col-span-full border-b border-[var(--app-border)] pb-1 text-sm font-semibold text-[var(--app-text-strong)]">Partes</div>
-          <Field label="Armador / Navio / Viagem">
-            {bl.voyage_id ? (
-              <Link className="block rounded-md border border-[var(--app-border)] px-3 py-2 text-sm font-semibold text-[#58a6ff] hover:underline" to={`/viagens/${bl.voyage_id}`}>
-                {`${bl.voyage?.vessel?.carrier?.name ?? '-'} / ${bl.voyage?.vessel?.name ?? '-'} / ${bl.voyage?.voyage_number ?? '-'}`}
-              </Link>
-            ) : <Input disabled value="-" />}
-          </Field>
+          <div className="col-span-full">
+            <Field label="Armador / Navio / Viagem">
+              {bl.voyage_id ? (
+                <Link className="block rounded-md border border-[var(--app-border)] px-3 py-2 text-sm font-semibold text-[#58a6ff] hover:underline" to={`/viagens/${bl.voyage_id}`}>
+                  {`${bl.voyage?.vessel?.carrier?.name ?? '-'} / ${bl.voyage?.vessel?.name ?? '-'} / ${bl.voyage?.voyage_number ?? '-'}`}
+                </Link>
+              ) : <Input disabled value="-" />}
+            </Field>
+          </div>
+          <div className="col-span-full">
+            <Field label="Shipper">
+              <Input value={form.shipper ?? ''} onChange={(event) => onFieldChange('shipper', event.target.value)} />
+            </Field>
+          </div>
+          <div className="col-span-full">
+            <Field
+              label="Consignatário"
+              hint={manifestConsigneeDiverges
+                ? `O último manifesto importado declara "${bl.manifest_customer_name}". A reimportação preserva o consignatário do B/L de propósito (dado comercial), então a divergência fica visível aqui em vez de sobrescrever em silêncio.`
+                : undefined}
+            >
+              <Input value={form.consignee ?? ''} onChange={(event) => onFieldChange('consignee', event.target.value)} />
+            </Field>
+          </div>
+          <div className="col-span-full grid gap-4 md:grid-cols-2">
+            <Field label="Notify Party">
+              <Input
+                value={form.notify_party ?? ''}
+                onChange={(event) => onFieldChange('notify_party', event.target.value)}
+              />
+            </Field>
+            <Field label="Notify 2">
+              <Input disabled value={bl.notify2_block ?? ''} />
+            </Field>
+          </div>
+          <div className="col-span-full">
+            <Field label="Telefone do consignatario">
+              <Input disabled value={bl.consignee_phone ?? ''} />
+            </Field>
+          </div>
+
           <div className="col-span-full border-b border-[var(--app-border)] pb-1 text-sm font-semibold text-[var(--app-text-strong)]">Rota e datas</div>
           <Field label="Place of Receipt">
             <Input value={form.place_of_receipt ?? ''} onChange={(event) => onFieldChange('place_of_receipt', event.target.value)} />
@@ -174,29 +208,6 @@ export function BlOperacionalTab({
             </>
           ) : null}
 
-          <Field label="Shipper">
-            <Input value={form.shipper ?? ''} onChange={(event) => onFieldChange('shipper', event.target.value)} />
-          </Field>
-          <Field
-            label="Consignatário"
-            hint={manifestConsigneeDiverges
-              ? `O último manifesto importado declara "${bl.manifest_customer_name}". A reimportação preserva o consignatário do B/L de propósito (dado comercial), então a divergência fica visível aqui em vez de sobrescrever em silêncio.`
-              : undefined}
-          >
-            <Input value={form.consignee ?? ''} onChange={(event) => onFieldChange('consignee', event.target.value)} />
-          </Field>
-          <Field label="Notify Party">
-            <Input
-              value={form.notify_party ?? ''}
-              onChange={(event) => onFieldChange('notify_party', event.target.value)}
-            />
-          </Field>
-          <Field label="Notify 2">
-            <Input disabled value={bl.notify2_block ?? ''} />
-          </Field>
-          <Field label="Telefone do consignatario">
-            <Input disabled value={bl.consignee_phone ?? ''} />
-          </Field>
           {/* Peso e cubagem de contêiner só aparecem quando há contêiner: desde
               as migrations 061 e 064 estas duas colunas medem exclusivamente a
               carga conteinerizada, e a carga solta tem as suas próprias acima.
@@ -277,12 +288,25 @@ export function BlOperacionalTab({
               onChange={(event) => onFieldChange('cargo_description', event.target.value)}
             />
           </Field>
-          <Field label="Notas">
-            <Textarea value={form.notes ?? ''} onChange={(event) => onFieldChange('notes', event.target.value)} />
-          </Field>
-          <Field label="Justificativa da alteração manual">
-            <Textarea value={justification} onChange={(event) => onJustificationChange(event.target.value)} required />
-          </Field>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Notas">
+              <Textarea
+                rows={2}
+                className="min-h-[72px]"
+                value={form.notes ?? ''}
+                onChange={(event) => onFieldChange('notes', event.target.value)}
+              />
+            </Field>
+            <Field label="Justificativa da alteração manual">
+              <Textarea
+                rows={2}
+                className="min-h-[72px]"
+                value={justification}
+                onChange={(event) => onJustificationChange(event.target.value)}
+                required
+              />
+            </Field>
+          </div>
         </div>
 
         <div className="mt-5 flex justify-end">

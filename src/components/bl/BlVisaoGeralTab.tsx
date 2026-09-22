@@ -127,14 +127,29 @@ export function BlVisaoGeralTab({ active, bl, cockpit, cargoMode, containerSumma
       </div>
     </Card>
       <Card>
-        <h3 className="mb-3 text-sm font-semibold">Cliente</h3>
-        {bl.customer ? (
-          <div className="text-sm">
-            <div className="font-semibold">{bl.customer.name}</div>
-            <div className="text-[var(--app-muted)]">{bl.customer.cnpj_cpf}</div>
+        <div className="flex h-full flex-col justify-between gap-3">
+          <div>
+            <h3 className="mb-2 text-sm font-semibold">Cliente</h3>
+            {bl.customer ? (
+              <div className="text-sm">
+                <div className="font-semibold text-[var(--app-text-strong)]">{bl.customer.name}</div>
+                <div className="font-mono text-xs text-[var(--app-muted)]">{bl.customer.cnpj_cpf}</div>
+              </div>
+            ) : (
+              <div>
+                <Badge tone="yellow">Sem cliente vinculado</Badge>
+              </div>
+            )}
           </div>
-        ) : <Badge tone="yellow">Sem cliente vinculado</Badge>}
-        <Link className="mt-2 inline-block text-sm font-semibold text-[#58a6ff] hover:underline" to={`/bls/${bl.id}?tab=faturamento`}>Abrir Faturamento →</Link>
+          <div className="border-t border-[var(--app-border)] pt-2">
+            <Link
+              className="inline-flex items-center gap-1 text-sm font-medium text-[var(--app-link,#58a6ff)] hover:underline"
+              to={`/bls/${bl.id}?tab=faturamento`}
+            >
+              Abrir Faturamento →
+            </Link>
+          </div>
+        </div>
       </Card>
       {terminalOptions ? (
         <div className="lg:col-span-2">

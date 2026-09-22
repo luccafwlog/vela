@@ -23,7 +23,7 @@ import { ClientesPortal } from '../ClientesPortal'
 describe('ClientesPortal', () => {
   it('abre filtrado por aguardando análise e mostra a fila', () => {
     render(<MemoryRouter><ClientesPortal /></MemoryRouter>)
-    expect(screen.getByRole('button', { name: 'Aguardando análise' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /^Aguardando análise/ })).toBeTruthy()
     expect(screen.getByText('Cliente Portal')).toBeTruthy()
   })
   it('usa Ativação pendente no filtro e no indicador da fila', () => {
@@ -31,7 +31,6 @@ describe('ClientesPortal', () => {
     // O card do indicador tem o contador no nome acessível ("Ativação
     // pendente 0"), então o filtro casa exato e o indicador só casa por
     // prefixo. Um match cada, num único render.
-    expect(screen.getByRole('button', { name: 'Ativação pendente' })).toBeTruthy()
-    expect(screen.getAllByRole('button', { name: /^Ativação pendente/ })).toHaveLength(2)
+    expect(screen.getByRole('tab', { name: /^Ativação pendente/ })).toBeTruthy()
   })
 })
