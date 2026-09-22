@@ -288,7 +288,7 @@ export function BlOperacionalTab({
               onChange={(event) => onFieldChange('cargo_description', event.target.value)}
             />
           </Field>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="col-span-full grid gap-4 md:grid-cols-2">
             <Field label="Notas">
               <Textarea
                 rows={2}

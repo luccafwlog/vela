@@ -42,16 +42,10 @@ export function ClientesPortal() {
     return (text.includes(search.toLowerCase()) || (normalizedSearch.length >= 2 && row.cnpj_cpf.includes(normalizedSearch))) && matchesPreset(row, preset)
   }).sort(comparePriority), [data, preset, search])
   const visibleRows = selected && !rows.some((row) => row.customer_id === selected.customer_id) ? [selected] : rows
-  const presetCounts: Record<Preset, number> = useMemo(() => ({
-    todos: data.length,
-    criticas: data.filter((row) => row.hasCriticalAlert).length,
-    aguardando_analise: data.filter((row) => row.provisioning_decision === 'aguardando_analise').length,
-    sem_email: data.filter((row) => !row.recovery_email && !row.candidates.length).length,
-    convite_pendente: data.filter((row) => row.account_situation === 'convite_pendente').length,
-    convite_expirado: data.filter((row) => row.account_situation === 'convite_expirado').length,
-    falha_no_envio: data.filter((row) => row.account_situation === 'falha_no_envio').length,
-    ativo: data.filter((row) => row.account_situation === 'ativo').length,
-  }), [data])
+  const presetCounts: Record<Preset, number> = useMemo(() => presets.reduce((counts, item) => {
+    counts[item.value] = data.filter((row) => matchesPreset(row, item.value)).length
+    return counts
+  }, {} as Record<Preset, number>), [data])
 
   function updateParams(update: (next: URLSearchParams) => void) {
     setSearchParams((current) => { const next = new URLSearchParams(current); update(next); return next }, { replace: true })
@@ -78,7 +72,6 @@ export function ClientesPortal() {
             <button
               type="button"
               className="app-btn app-btn--ghost app-btn--sm inline-flex items-center gap-1.5"
-              aria-label="Exportar XLSX"
               title="Exportar XLSX"
               onClick={() => void exportPortalProvisioningWorkbook(rows)}
             >
@@ -92,13 +85,12 @@ export function ClientesPortal() {
         }
       />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Filtros de provisionamento">
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtros de provisionamento">
           {presets.map((item) => (
             <button
               key={item.value}
               type="button"
-              role="tab"
-              aria-selected={preset === item.value}
+              aria-pressed={preset === item.value}
               className={`app-tab inline-flex items-center gap-1.5 ${preset === item.value ? 'app-tab--active' : ''}`}
               onClick={() => selectPreset(item.value)}
             >

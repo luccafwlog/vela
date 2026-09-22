@@ -252,6 +252,9 @@ export function BlDetalhe() {
 
       <div className="mb-5 grid gap-3">
         <ImportResultPanel entityId={bl.id} />
+        {hasContainers && bl.voyage_id != null ? (
+          <ImportResultPanel entityId={String(bl.voyage_id)} title="Processamento físico da viagem" />
+        ) : null}
       </div>
 
       <div className="mb-5 flex flex-wrap gap-1 border-b border-[#30363d]">

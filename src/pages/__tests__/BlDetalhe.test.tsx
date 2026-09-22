@@ -38,7 +38,9 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({
 }))
 
 vi.mock('../../components/shared/ImportResultPanel', () => ({
-  ImportResultPanel: () => null,
+  ImportResultPanel: ({ entityId, title = 'Processamento pós-importação' }: { entityId?: string | null; title?: string }) => (
+    <section aria-label={title} data-entity-id={entityId ?? ''}>{title}</section>
+  ),
 }))
 
 vi.mock('../../hooks/useTransshipments', () => ({
@@ -117,6 +119,22 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
 
     // Indicação do terminal de descarga unificado
     expect(screen.getByText('Terminal TVV')).toBeTruthy()
+  })
+
+  it('mantém a vitrine do processamento físico da viagem para B/L com containers', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/bls/BL-MISTO-1']}>
+          <Routes>
+            <Route path="/bls/:blId" element={<BlDetalhe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    const panel = screen.getByRole('region', { name: 'Processamento físico da viagem' })
+    expect(panel.getAttribute('data-entity-id')).toBe('10')
   })
 
   it('renderiza painel conjunto de containers e carga solta na aba Carga', () => {

@@ -265,7 +265,7 @@ function CustomerTableRow({
       </td>
       <td className="px-4 py-3">
         <div className="app-table__cell-stack">
-          <div className="app-table__cell-value app-table__cell-value--financial text-left">{formatBRL(row.pending_balance)}</div>
+          <div className="app-table__cell-value app-table__cell-value--financial app-table__cell-value--financial-left">{formatBRL(row.pending_balance)}</div>
           <Badge tone={nextAction.tone}>{nextAction.label}</Badge>
         </div>
       </td>
