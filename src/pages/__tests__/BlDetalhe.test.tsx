@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -155,5 +155,30 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
 
     expect(screen.getByText('Resumo da carga solta')).toBeTruthy()
     expect(screen.getByText('Tubos de aço')).toBeTruthy()
+  })
+
+  it('renderiza as abas oficiais e atualiza a aba ativa ao selecionar Histórico', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/bls/BL-MISTO-1']}>
+          <Routes>
+            <Route path="/bls/:blId" element={<BlDetalhe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Visão Geral',
+      'Carga',
+      'Detalhes do B/L',
+      'Faturamento',
+      'Histórico',
+    ])
+
+    const historyTab = screen.getByRole('tab', { name: 'Histórico' })
+    fireEvent.click(historyTab)
+    expect(historyTab.getAttribute('aria-selected')).toBe('true')
   })
 })

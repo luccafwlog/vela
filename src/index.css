@@ -1,5 +1,6 @@
 @import "./fonts.css";
 @import "tailwindcss";
+@custom-variant dark (&:where([data-visual-theme='dark'], [data-visual-theme='dark'] *));
 
 :root,
 :root[data-visual-theme='current'] {
@@ -4696,11 +4697,11 @@ textarea {
   border-spacing: 0;
 }
 
-.app-voyage-table-frame .app-table thead th:first-child {
+.app-voyage-table-frame .app-table thead tr:first-child > th:first-child {
   border-top-left-radius: 16px;
 }
 
-.app-voyage-table-frame .app-table thead th:last-child {
+.app-voyage-table-frame .app-table thead tr:first-child > th:last-child {
   border-top-right-radius: 16px;
 }
 
@@ -4884,10 +4885,25 @@ textarea {
   color: #b91c1c !important;
 }
 
+/* Legacy Tailwind status colors are remapped globally for Vela and Portal. */
 :root[data-visual-theme='current'] .text-amber-100,
 :root[data-visual-theme='current'] .text-amber-200,
+:root[data-visual-theme='current'] .text-amber-300,
+:root[data-visual-theme='current'] .text-amber-400,
+:root[data-visual-theme='current'] .text-amber-500,
+:root[data-visual-theme='current'] .text-yellow-100,
+:root[data-visual-theme='current'] .text-yellow-200,
+:root[data-visual-theme='current'] .text-yellow-300,
+:root[data-visual-theme='current'] .text-yellow-400,
 :root[data-visual-theme='light'] .text-amber-100,
-:root[data-visual-theme='light'] .text-amber-200 {
+:root[data-visual-theme='light'] .text-amber-200,
+:root[data-visual-theme='light'] .text-amber-300,
+:root[data-visual-theme='light'] .text-amber-400,
+:root[data-visual-theme='light'] .text-amber-500,
+:root[data-visual-theme='light'] .text-yellow-100,
+:root[data-visual-theme='light'] .text-yellow-200,
+:root[data-visual-theme='light'] .text-yellow-300,
+:root[data-visual-theme='light'] .text-yellow-400 {
   color: #92400e !important;
 }
 
