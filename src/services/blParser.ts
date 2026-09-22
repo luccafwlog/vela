@@ -174,13 +174,34 @@ function extractUnNumber(value: string) {
   return value.match(UN_NUMBER_PATTERN)?.[1] ?? null
 }
 
+
+export function isInvalidFreightDescription(value: string): boolean {
+  const normalized = value.trim().toUpperCase()
+  if (!normalized) return true
+
+  // 1. Cabeçalho de bloco impresso do formulário de B/L
+  if (/^(11[.\s]*)?FREIGHT\s*(&|AND)\s*CHARGES/i.test(normalized)) return true
+  if (/^(REVENUE\s*TONS?|RATE|PER|PREPAID|COLLECT)\b/i.test(normalized)) return true
+
+  // 2. Cláusulas jurídicas e contratuais do B/L
+  if (/^4[.\s]/i.test(normalized)) return true
+  if (/(RECEIVED\s+(IN|BY)\s+(EXTERNAL\s+)?APPARENT|APPARENT\s+GOOD\s+ORDER|SHIPPER'?S\s+LOAD|NOTWITHSTANDING\s+ANY\s+PROVISION|TERMS\s+AND\s+CONDITIONS|PARTICULARS\s+FURNISHED)/i.test(normalized)) return true
+
+  // 3. Parágrafos jurídicos longos (> 50 chars) com termos contratuais de transporte
+  if (normalized.length > 50 && /(CARRIER|ORDER|GOODS|CONTAINER|LIABILITY|PORT\s+OF)/i.test(normalized)) {
+    return true
+  }
+
+  return false
+}
+
 function parseFreightCharges(rows: RawSheetRow[]): BLFreightCharge[] {
   const charges: BLFreightCharge[] = []
 
   for (let rowIndex = 25; rowIndex < 46; rowIndex += 1) {
     const row = rows[rowIndex]
     const description = cellValue(row, 0)
-    if (!description) {
+    if (!description || isInvalidFreightDescription(description)) {
       continue
     }
 

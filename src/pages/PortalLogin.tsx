@@ -91,9 +91,13 @@ export function PortalLogin() {
               type="text"
               inputMode="text"
               autoComplete="username"
-              maxLength={14}
+              maxLength={18}
               value={cnpj}
               onChange={(event) => setCnpj(normalizeCnpj(event.target.value))}
+              onPaste={(event) => {
+                event.preventDefault()
+                setCnpj(normalizeCnpj(event.clipboardData.getData('text')))
+              }}
               placeholder="00.000.000/0000-00"
             />
           </Field>

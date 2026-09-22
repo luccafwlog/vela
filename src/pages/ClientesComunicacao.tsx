@@ -195,7 +195,7 @@ export function ClientesComunicacao() {
   // Só o Comunicado livre deixa o operador escolher o público; os demais modelos
   // recebem o público imposto por `getCustomerCommunicationAudienceRule`.
   const [freeAudience, setFreeAudience] = useState<CustomerCommunicationAudience>({ mode: 'todos' })
-  const { data: settings } = useAppSettings()
+  const { data: settings, isLoading: settingsLoading, error: settingsError, refetch: refetchSettings } = useAppSettings()
   const { effectiveRole, isAdmin } = useAuth()
   const confirm = useConfirm()
   const canToggleCommunications = effectiveRole === 'administrativo' || isAdmin
@@ -504,37 +504,30 @@ export function ClientesComunicacao() {
         }
       />
 
-      {settings?.communications_enabled === false ? (
-        <div role="status" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-l-4 border-[var(--app-border)] border-l-amber-500 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      {settingsLoading ? (
+        <div role="status" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-[var(--app-border)] p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between animate-pulse">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400">
+            <div className="h-9 w-9 shrink-0 rounded-lg bg-[var(--app-border)]" />
+            <div className="space-y-2">
+              <div className="h-4 w-44 rounded bg-[var(--app-border)]" />
+              <div className="h-3 w-72 rounded bg-[var(--app-border)]" />
+            </div>
+          </div>
+        </div>
+      ) : settingsError ? (
+        <div role="alert" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-l-4 border-[var(--app-border)] border-l-rose-500 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400">
               <AlertTriangle size={18} />
             </div>
             <div>
-              <div className="text-sm font-bold text-[var(--app-text-strong)]">Modo de simulação permanente</div>
-              <p className="mt-0.5 text-xs text-[var(--app-muted)]">A chave global está desligada. Os comunicados serão registrados como simulados e nenhum e-mail será enviado ao Resend.</p>
+              <div className="text-sm font-bold text-[var(--app-text-strong)]">Não foi possível carregar o status da chave de envio</div>
+              <p className="mt-0.5 text-xs text-[var(--app-muted)]">Ocorreu um erro ao consultar as configurações globais de comunicação.</p>
             </div>
           </div>
-          {canToggleCommunications ? (
-            <Button
-              type="button"
-              variant="secondary"
-              loading={setCommunicationsMutation.isPending}
-              onClick={() => {
-                void (async () => {
-                  const confirmed = await confirm({
-                    title: 'Ativar envio real',
-                    message: 'Confirma a ativação da chave global de envio? Os próximos disparos de comunicados e cobranças enviarão e-mails reais aos clientes via Resend.',
-                    confirmLabel: 'Ativar envio real',
-                    tone: 'danger',
-                  })
-                  if (confirmed) await setCommunicationsMutation.mutateAsync(true)
-                })()
-              }}
-            >
-              Ativar envio real
-            </Button>
-          ) : null}
+          <Button type="button" variant="secondary" onClick={() => void refetchSettings()}>
+            Tentar novamente
+          </Button>
         </div>
       ) : settings?.communications_enabled === true ? (
         <div role="status" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-l-4 border-[var(--app-border)] border-l-emerald-500 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -568,7 +561,39 @@ export function ClientesComunicacao() {
             </Button>
           ) : null}
         </div>
-      ) : null}
+      ) : (
+        <div role="status" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-l-4 border-[var(--app-border)] border-l-amber-500 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400">
+              <AlertTriangle size={18} />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-[var(--app-text-strong)]">Modo de simulação permanente</div>
+              <p className="mt-0.5 text-xs text-[var(--app-muted)]">A chave global está desligada. Os comunicados serão registrados como simulados e nenhum e-mail será enviado ao Resend.</p>
+            </div>
+          </div>
+          {canToggleCommunications ? (
+            <Button
+              type="button"
+              variant="secondary"
+              loading={setCommunicationsMutation.isPending}
+              onClick={() => {
+                void (async () => {
+                  const confirmed = await confirm({
+                    title: 'Ativar envio real',
+                    message: 'Confirma a ativação da chave global de envio? Os próximos disparos de comunicados e cobranças enviarão e-mails reais aos clientes via Resend.',
+                    confirmLabel: 'Ativar envio real',
+                    tone: 'danger',
+                  })
+                  if (confirmed) await setCommunicationsMutation.mutateAsync(true)
+                })()
+              }}
+            >
+              Ativar envio real
+            </Button>
+          ) : null}
+        </div>
+      )}
 
       <div className="mb-6 flex flex-wrap gap-2">
         <button type="button" className={`app-tab ${tab === 'cobertura' ? 'app-tab--active' : ''}`} onClick={() => selectTab('cobertura')}>

@@ -28,6 +28,25 @@ afterEach(() => {
   auth.signIn.mockReset()
 })
 
+
+it('aceita colagem de CNPJ formatado sem truncar os 3 ultimos digitos', async () => {
+  render(
+    <MemoryRouter>
+      <PortalLogin />
+    </MemoryRouter>,
+  )
+
+  const input = await screen.findByPlaceholderText('00.000.000/0000-00') as HTMLInputElement
+  expect(input.maxLength).toBe(18)
+
+  fireEvent.paste(input, {
+    clipboardData: {
+      getData: () => '55.115.118/0001-57',
+    },
+  })
+  expect(input.value).toBe('55115118000157')
+})
+
 it('normaliza um CNPJ alfanumérico colado antes de autenticar', async () => {
   auth.signIn.mockResolvedValue(undefined)
 

@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp, Download, FileText, Loader2, MoreVertical, Upload } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, FileText, Loader2, MoreVertical, Trash2, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { MetricCard } from '../components/ui/MetricCard'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
@@ -181,8 +181,8 @@ export function Bls() {
     const rect = button.getBoundingClientRect()
     setActionsMenu({
       id,
-      top: rect.bottom + window.scrollY + 4,
-      left: rect.right + window.scrollX - 160,
+      top: rect.bottom + 4,
+      left: rect.right,
     })
   }
 
@@ -203,7 +203,7 @@ export function Bls() {
     }
     const onPointer = (event: MouseEvent) => {
       const target = event.target as HTMLElement
-      if (!target.closest('[data-actions-menu]')) close()
+      if (!target.closest('[data-actions-menu]') && !target.closest('[data-actions-trigger]')) close()
     }
     window.addEventListener('scroll', close, true)
     window.addEventListener('resize', close)
@@ -635,25 +635,31 @@ export function Bls() {
                       >
                         Abrir B/L
                       </Link>
-                      {isAdmin ? (
-                        <button
-                          type="button"
-                          className="app-btn app-btn--secondary p-1 leading-none"
-                          aria-label={`Ações para B/L ${bl.id}`}
-                          aria-haspopup="menu"
-                          aria-expanded={actionsMenu?.id === bl.id}
-                          aria-controls="bls-actions-menu"
-                          onClick={(e) => openActionsMenu(bl.id, e.currentTarget)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'ArrowDown') {
-                              e.preventDefault()
-                              openActionsMenu(bl.id, e.currentTarget)
-                            }
-                          }}
-                        >
-                          <MoreVertical size={15} />
-                        </button>
-                      ) : null}
+                      <button
+                        type="button"
+                        data-actions-trigger
+                        className="app-btn app-btn--secondary p-1 leading-none"
+                        aria-label={`Ações para B/L ${bl.id}`}
+                        aria-haspopup="menu"
+                        aria-expanded={actionsMenu?.id === bl.id}
+                        aria-controls="bls-actions-menu"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (actionsMenu?.id === bl.id) {
+                            setActionsMenu(null)
+                          } else {
+                            openActionsMenu(bl.id, e.currentTarget)
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault()
+                            openActionsMenu(bl.id, e.currentTarget)
+                          }
+                        }}
+                      >
+                        <MoreVertical size={15} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -686,11 +692,35 @@ export function Bls() {
           role="menu"
           style={{ top: actionsMenu.top, left: actionsMenu.left }}
         >
+          <button
+            type="button"
+            role="menuitem"
+            ref={isAdmin ? undefined : actionsItemRef}
+            onClick={() => {
+              const targetId = actionsMenu.id
+              setActionsMenu(null)
+              void navigator.clipboard?.writeText(targetId)
+              showToast(`Número do B/L copiado: ${targetId}`, 'success')
+            }}
+          >
+            <Copy size={14} />
+            <span>Copiar número do B/L</span>
+          </button>
+
+          <Link
+            role="menuitem"
+            to={`/bls/${actionsMenu.id}`}
+            onClick={() => setActionsMenu(null)}
+          >
+            <ExternalLink size={14} />
+            <span>Abrir detalhes</span>
+          </Link>
+
           {isAdmin ? (
             <button
               type="button"
               role="menuitem"
-              ref={actionsItemRef}
+              ref={isAdmin ? actionsItemRef : undefined}
               className="app-floating-menu__danger"
               disabled={deleting}
               onClick={() => {
@@ -699,7 +729,8 @@ export function Bls() {
                 void runBlDelete([targetId])
               }}
             >
-              Excluir B/L
+              <Trash2 size={14} />
+              <span>Excluir B/L</span>
             </button>
           ) : null}
         </div>

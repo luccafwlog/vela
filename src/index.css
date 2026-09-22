@@ -3975,7 +3975,8 @@ textarea {
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
 }
 
-.app-floating-menu button {
+.app-floating-menu button,
+.app-floating-menu a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -3991,7 +3992,8 @@ textarea {
   cursor: pointer;
 }
 
-.app-floating-menu button:hover {
+.app-floating-menu button:hover,
+.app-floating-menu a:hover {
   background: rgba(37, 99, 235, 0.08);
 }
 

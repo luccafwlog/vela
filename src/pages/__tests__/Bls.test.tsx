@@ -255,6 +255,25 @@ describe('Página Bls (unificada)', () => {
     expect(document.activeElement).toBe(trigger)
   })
 
+
+  it('abre o menu de ações ao clicar nos três pontinhos e exibe opções de cópia e detalhes', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Ações para B/L BL-CNTR' })
+    fireEvent.click(trigger)
+
+    expect(screen.getByRole('menuitem', { name: 'Copiar número do B/L' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Abrir detalhes' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Excluir B/L' })).toBeTruthy()
+  })
+
   it('aplica o POL recebido na URL junto com viagem e POD', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(

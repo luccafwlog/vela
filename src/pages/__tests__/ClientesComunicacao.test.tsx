@@ -201,6 +201,18 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByRole('button', { name: 'Desativar envio real' })).toBeTruthy()
   })
 
+
+  it('exibe o banner de simulação como fallback seguro quando settings é nulo ou indefinido', () => {
+    mockAppSettings = null as any
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Modo de simulação permanente')).toBeTruthy()
+  })
+
   it('renderiza o painel de cobertura na aba padrão com viagens e contadores', () => {
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao?tab=cobertura']}>
