@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 function timingSafeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder()
@@ -10,7 +11,7 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
-if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
+if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('alerts-detector', async (req) => {
   if (req.method !== 'POST') return new Response(null, { status: 405 })
 
   const expectedSecret = Deno.env.get('ALERTS_DETECTOR_SECRET') ?? ''
@@ -29,4 +30,4 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Detector execution failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
   }
   return new Response(JSON.stringify(data ?? {}), { status: 200, headers: { 'Content-Type': 'application/json' } })
-})
+}))

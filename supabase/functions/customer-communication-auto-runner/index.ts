@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { renderCustomerCommunicationTemplate } from '../_shared/customerCommunicationTemplates.ts'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 type Candidate = {
   claim_key?: string
@@ -157,4 +158,4 @@ async function handler(req: Request): Promise<Response> {
   return json(releaseFailures ? 500 : 200, { candidates: candidates.length, sent, releaseFailures })
 }
 
-if (import.meta.main) Deno.serve(handler)
+if (import.meta.main) Deno.serve(instrumentEdgeHandler('customer-communication-auto-runner', handler))

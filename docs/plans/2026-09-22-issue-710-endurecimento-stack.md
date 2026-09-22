@@ -13,9 +13,10 @@
 ### Atualização de execução — 2026-09-22
 
 - Decisões do owner registradas: sem GitHub Team, Dependabot semanal, Better Stack, PostHog Cloud EU, R2 como reserva, backup diário e MFA adiado; alertas destinados somente a `lucca.juliatti@fwlog.com.br`.
-- Recursos remotos já criados, mas ainda não equivalem a entrega: zonas Cloudflare aguardando troca de nameservers, bucket R2 privado com lifecycle, projeto PostHog EU sem eventos, Redis Upstash Free em São Paulo, dois monitores HTTP Better Stack e DSNs/variáveis públicas de Sentry/PostHog na Vercel.
-- PRs de execução abertas: [#720](https://github.com/luccafwlog/vela/pull/720), [#725](https://github.com/luccafwlog/vela/pull/725), [#726](https://github.com/luccafwlog/vela/pull/726), [#727](https://github.com/luccafwlog/vela/pull/727) e [#728](https://github.com/luccafwlog/vela/pull/728). A [PR #718](https://github.com/luccafwlog/vela/pull/718) foi incorporada à `main` como remediação relacionada, não como encerramento desta Issue.
-- O runtime de produção, a troca de nameservers, a configuração de secrets, os envios de email, o agendamento do backup e os testes de restore continuam pendentes. Nenhum desses gates é fechado por build ou CI verde.
+- PRs [#720](https://github.com/luccafwlog/vela/pull/720), [#725](https://github.com/luccafwlog/vela/pull/725), [#726](https://github.com/luccafwlog/vela/pull/726), [#727](https://github.com/luccafwlog/vela/pull/727) e [#728](https://github.com/luccafwlog/vela/pull/728) foram incorporadas à `main`; [#718](https://github.com/luccafwlog/vela/pull/718) também foi incorporada como remediação relacionada.
+- Estado remoto que não equivale à conclusão da Issue: zonas Cloudflare aguardando cutover; R2 ativado; projeto PostHog EU criado; Upstash Free configurado para o rate limit; migration `076_portal_activation_rate_limit` aplicada e três secrets do rate limit gravados no Supabase. O painel autenticado do Better Stack mostrou zero monitores e nenhuma status page em 2026-09-22; a anotação anterior de dois monitores estava desatualizada.
+- O recurso de malware alerts do Dependabot foi ativado; alerts e security updates já estavam ativos. Não foi contratado upgrade do GitHub: CodeQL, Dependency Review, secret scanning, push protection e ruleset/branch protection não estão disponíveis para este repositório privado no plano atual. Decisão do owner: registrar a limitação e seguir com os checks atuais, sem upgrade nem tornar o repositório público.
+- A camada de telemetria Edge está em implementação local; não há novo deploy desta frente. O runtime Sentry para Edge, cutover de nameservers, envios de email, agendamento do backup e restore seguem pendentes. Nenhum gate de runtime é fechado por build ou CI verde.
 
 ## 1. Limites, restrições e fontes de verdade
 
@@ -51,7 +52,7 @@ Registrar as decisões em comentário da Issue 710 e, quando alterarem arquitetu
 | Gate | Decisão / autorização | Padrão proposto | Bloqueia |
 |---|---|---|---|
 | G1 | Autorização concedida para Cloudflare; janela e troca efetiva de NS ainda exigem confirmação no momento do cutover | `vela.app.br` primeiro; `portalfwlog.com.br` após 24 h verde | M1 produção e M11 DNS |
-| G2 | Better Stack escolhido; destinatário único `lucca.juliatti@fwlog.com.br`; escalonamento/status ainda pendentes | Better Stack para uptime, heartbeat, status e logs | M2 e M4 |
+| G2 | Better Stack escolhido; destinatário único `lucca.juliatti@fwlog.com.br`; painel mostrou zero monitores/status page em 2026-09-22; escalonamento pendente | Better Stack para uptime, heartbeat, status e logs | M2 e M4 |
 | G3 | Sentry autenticado; dois projetos e DSNs criados; Replay permanece desligado até validação | dois projetos (`vela-interno`, `portal`), sem Replay na primeira entrega | M3 |
 | G4 | Dependabot escolhido; GitHub Team não será contratado; regras indisponíveis no plano devem ser registradas | Dependabot semanal; preservar checks disponíveis | M6 |
 | G5 | Upstash aprovado em São Paulo; limiar final aprovado | 10 erros por IP+CNPJ, bloqueio de 5 min, fail-closed somente para abuso confirmado | M7 |
@@ -101,13 +102,13 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 
 ### M6 — Blindar o GitHub
 
-**Comportamento operacional:** PR com dependência crítica vulnerável ou segredo reconhecível não chega ao merge; `main` aceita somente mudanças revisadas com o gate `checks` verde.
+**Comportamento operacional pretendido:** vulnerabilidade crítica/segredo bloqueia merge e `main` exige revisão e checks. **Limite vigente:** sem upgrade, o GitHub não oferece esses bloqueios a este repositório privado; Dependabot alerta e abre PRs, mas a regra de bloqueio automático continua não atendida.
 
-- [ ] Adicionar `.github/dependabot.yml` para `npm` e GitHub Actions, semanal, grupos de updates e limite de PRs. Verificar no inventário se os imports Deno são cobertos; se não forem, adicionar workflow específico com `deno task outdated`/scanner suportado ou documentar Renovate como decisão alternativa.
-- [ ] Adicionar `.github/workflows/codeql.yml` para JavaScript/TypeScript com permissões mínimas e gatilhos PR/push/schedule.
-- [ ] Adicionar Dependency Review ao PR, bloqueando severidade crítica; fixar actions por SHA quando a política escolhida exigir.
-- [ ] No GitHub autenticado, habilitar Dependabot alerts/security updates, secret scanning e push protection se disponíveis no plano; registrar indisponibilidade real em vez de prometer o recurso.
-- [ ] Criar/atualizar ruleset de `main`: PR obrigatório, 1 approval, conversa resolvida, branch atualizada se decidido, `checks` obrigatório, bloquear force-push e delete, preservar bypass mínimo auditável.
+- [x] Adicionar `.github/dependabot.yml` para npm/GitHub Actions (PR #720 incorporada) e Deno (`supabase/functions/deno.json`, nesta implementação). A entrada Deno aguarda CI/merge desta PR.
+- [ ] CodeQL para JavaScript/TypeScript não está disponível como code scanning neste repositório privado/plano atual; não fazer upgrade. Manter o item registrado como lacuna, sem afirmar que o CI atual substitui essa cobertura.
+- [ ] Dependency Review não está disponível no plano atual; não fazer upgrade. Manter o item registrado como lacuna, sem bloqueio de severidade crítica no PR.
+- [x] No GitHub autenticado, confirmar Dependabot alerts/security updates e habilitar malware alerts. Secret scanning/push protection não estão disponíveis no plano atual; decisão do owner: não fazer upgrade, manter CI atual e registrar a limitação.
+- [ ] Criar/atualizar ruleset de `main`: recurso indisponível no plano atual do repositório privado; não fazer upgrade. PRs continuam usando os checks existentes, sem proteção remota obrigatória de branch.
 - [ ] Testar em branch descartável com pacote vulnerável de fixture e token sintético reconhecido pelo GitHub; não usar segredo real. Fechar a branch/PR após capturar o resultado.
 - [ ] Atualizar `WORKFLOW.md` §12 e documentação de segurança. Rollback: desabilitar apenas o novo check que estiver bloqueando por falso positivo, preservando `checks` e review.
 
@@ -115,14 +116,14 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 
 **Comportamento operacional:** erro no Vela, Portal ou Edge Function aparece no projeto correto com `release`, `environment`, `surface`, `modulo`, `tela`, `tarefa` e `categoria_falha`; Preview não acorda a equipe; produção respeita rate limit; nenhum evento amostrado contém PII/segredo.
 
-- [ ] Extrair de `src/lib/telemetry.ts` o contrato compartilhável de nomes/tags/sanitização sem acoplar Deno ao SDK React. Manter DSNs separados por entrada (`src/main.tsx`, `src/portal-main.tsx`) por env vars públicas específicas.
-- [ ] Criar `supabase/functions/_shared/telemetry.ts` com inicialização lazy, `captureException`, flush com timeout curto e scrub recursivo. Instrumentar primeiro `portal-invite-send`, `send-customer-communication`, `portal-email-webhook`, `demurrage-dunning` e os runners; expandir às demais Edge Functions após validar custo e latência.
-- [ ] Instrumentar início/fim/falha dos runners com `monitor_slug`, duração, quantidade processada e resultado, sem IDs de cliente/message payload. Heartbeat de M2 continua independente do Sentry.
-- [ ] Habilitar Replay apenas no browser, com `replaysSessionSampleRate=0.1`, `replaysOnErrorSampleRate` decidido no G3, mask de texto/input/media e denylist de rotas de ativação/reset. Avaliar profiling compatível com a versão do SDK antes de configurar; não declarar ativo sem bundle e evento observados.
+- [x] Extrair `src/lib/telemetryContract.ts` com sanitização compartilhável sem acoplar Deno ao SDK React. Os DSNs públicos separados do browser permanecem vinculados às entradas internas e do Portal.
+- [x] Criar `supabase/functions/_shared/telemetry.ts` com inicialização lazy, scrub e flush limitado; aplicar somente a exceções não tratadas e HTTP 5xx em dez Edge Functions prioritárias. Dependência e `import_map` compartilhados estão configurados. Implementação local nesta PR; runtime/Preview e DSN permanecem pendentes.
+- [ ] Instrumentar eventos operacionais de início/fim dos runners com duração, quantidade processada e resultado, sem IDs de cliente/message payload. A implementação atual captura exceções e 5xx; heartbeats de M2 continuam independentes e pendentes.
+- [x] Manter Replay desligado na primeira entrega, conforme decisão registrada; não habilitar profiling sem avaliar custo, privacidade e compatibilidade.
 - [ ] Atualizar `vite.config.ts`/build somente se sourcemap upload autenticado for adotado; nunca publicar token Sentry no bundle. Manter artifact `hidden` e release ligado ao commit.
 - [ ] No Sentry autenticado, criar/renomear projetos sem perder histórico inadvertidamente, cadastrar DSNs por ambiente, alertas `environment=production`, integração de canal e limitação `>5/h`; restringir Replay por equipe.
-- [ ] Testes: ampliar `src/lib/__tests__/telemetry.test.ts`; criar testes Deno/assert para scrub, tags, timeout e falha do próprio Sentry. Runtime: forçar erro sintético sanitizado em Preview e produção controlada, confirmar roteamento e inspecionar cinco eventos de cada superfície por vazamento.
-- [ ] Atualizar `docs/operations/sentry-configuracao.md`, arquitetura, segurança e deploy. Rollback: zerar sampling/alert rule, remover DSN da superfície afetada e manter logging local; código de negócio não pode depender do Sentry.
+- [x] Testar sanitização compartilhada, query opaca, resposta 5xx preservada e falha do provider; adicionar teste Deno/assert e verificação da configuração. Runtime: erro sintético em Preview/produção controlada, roteamento e inspeção de eventos continuam pendentes.
+- [x] Atualizar runbook de observabilidade, workflow e deploy com o comportamento e rollback do helper. Configuração remota de DSN/alertas e prova de runtime continuam pendentes; código de negócio não depende do Sentry.
 
 ### M2 — Uptime, heartbeats e status público
 

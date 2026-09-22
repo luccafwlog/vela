@@ -7,36 +7,45 @@ project_id = "Vela"
 
 [functions.alerts-detector]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.portal-account-suspend]
 verify_jwt = false
 
 [functions.portal-daily-digest]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.portal-email-webhook]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.portal-email-events-runner]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.portal-invite-activate]
 verify_jwt = false
 
 [functions.portal-invite-send]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.send-customer-communication]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.demurrage-dunning]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.customer-communication-auto-runner]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.import-effects-runner]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.portal-login]
 verify_jwt = false
@@ -55,6 +64,7 @@ verify_jwt = false
 
 [functions.recalc-demurrage-ptax]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [api]
 enabled = true

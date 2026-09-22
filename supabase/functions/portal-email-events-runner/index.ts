@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { processPortalEmailEvent } from '../_shared/portalEmailEventProcessor.ts'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 type ClaimedEvent = { id: number }
 
@@ -82,4 +83,4 @@ async function handler(req: Request): Promise<Response> {
   })
 }
 
-if (import.meta.main) Deno.serve(handler)
+if (import.meta.main) Deno.serve(instrumentEdgeHandler('portal-email-events-runner', handler))

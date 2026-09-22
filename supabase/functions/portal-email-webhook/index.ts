@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Webhook } from 'https://esm.sh/svix@1'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 type ResendEvent = {
   type: string
@@ -28,7 +29,7 @@ function minimalPayload(event: ResendEvent): Record<string, unknown> {
   }
 }
 
-if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
+if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-email-webhook', async (req) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' })
 
   const payload = await req.text()
@@ -110,4 +111,4 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
   // O worker pode resolver o provider_message_id depois do recebimento. O
   // ACK só significa persistência durável, nunca processamento concluído.
   return json(202, { event_id: inserted.id, status: inserted.status ?? 'pending' })
-})
+}))

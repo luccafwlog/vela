@@ -5,6 +5,7 @@
 // idempotente vivem em `process_import_effect`.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 function timingSafeEqual(leftValue: string, rightValue: string): boolean {
   const encoder = new TextEncoder()
@@ -20,7 +21,7 @@ function json(status: number, value: unknown): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(instrumentEdgeHandler('import-effects-runner', async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' })
 
   const expectedSecret = Deno.env.get('IMPORT_EFFECTS_CRON_SECRET') ?? ''
@@ -83,4 +84,4 @@ Deno.serve(async (req: Request) => {
     completed: outcomes.length,
     outcomes,
   })
-})
+}))

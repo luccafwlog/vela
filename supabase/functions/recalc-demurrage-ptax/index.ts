@@ -21,6 +21,7 @@
 // Env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RECALC_CRON_SECRET
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 // Comparação em tempo constante para evitar timing attacks no bearer secret.
 function timingSafeEqual(a: string, b: string): boolean {
@@ -145,7 +146,7 @@ async function resolvePtaxFailure(
   if (error) throw error
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(instrumentEdgeHandler('recalc-demurrage-ptax', async (req: Request) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   const cronSecret = Deno.env.get('RECALC_CRON_SECRET') ?? ''
   const auth = req.headers.get('authorization') ?? ''
@@ -224,4 +225,4 @@ Deno.serve(async (req: Request) => {
     status: 200,
     headers: { 'content-type': 'application/json' },
   })
-})
+}))
