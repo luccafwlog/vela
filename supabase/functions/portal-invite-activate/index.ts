@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { hashToken } from '../_shared/portalToken.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
-import { isActivationRateLimited, registerActivationFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
+import { beginPortalRateLimitAttempt, completePortalRateLimitAttempt, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { logEdgeFailure } from '../_shared/logger.ts'
 
 const GENERIC_INVALID = 'Link inválido ou expirado. Solicite um novo convite à empresa.'
@@ -29,11 +29,17 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
   if (body.action !== 'activate' || typeof body.password !== 'string') return cors(400, { error: GENERIC_INVALID })
   const { data: accountForRateLimit } = await admin.from('customer_portal_accounts').select('login_cnpj').eq('id', invite.account_id).maybeSingle()
   const loginCnpj = typeof accountForRateLimit?.login_cnpj === 'string' ? accountForRateLimit.login_cnpj : ''
-  if (!loginCnpj || await isActivationRateLimited(admin, loginCnpj, { ip: requestIp(req) })) return cors(429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' })
+  if (!loginCnpj) return cors(429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' })
+  const rateLimitContext = { ip: requestIp(req) }
+  const rateLimitAttempt = await beginPortalRateLimitAttempt(admin, 'activation', loginCnpj, rateLimitContext)
+  if (rateLimitAttempt.blocked) return cors(429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' })
   if (!isValidPassword(body.password)) {
-    await registerActivationFailure(admin, loginCnpj, { ip: requestIp(req) })
+    await completePortalRateLimitAttempt(admin, 'activation', loginCnpj, rateLimitAttempt, 'failure')
     return cors(422, { error: PASSWORD_RULE_MESSAGE })
   }
+  // A política da senha foi satisfeita; uma ativação falhada mais adiante é
+  // erro de servidor/estado do convite, não uma senha incorreta do usuário.
+  await completePortalRateLimitAttempt(admin, 'activation', loginCnpj, rateLimitAttempt, 'success')
   const { data: consumed } = await admin.from('portal_invites').update({ status: 'consumido', consumed_at: new Date().toISOString() }).eq('id', invite.id).eq('status', 'pendente').gt('expires_at', new Date().toISOString()).select('id').maybeSingle()
   if (!consumed) return cors(410, { error: GENERIC_INVALID })
   const technicalEmail = `p-${crypto.randomUUID()}@${Deno.env.get('PORTAL_TECH_EMAIL_DOMAIN') ?? 'portal-interno.transhippingdesk.invalid'}`

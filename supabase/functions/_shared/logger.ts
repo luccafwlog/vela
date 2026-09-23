@@ -10,7 +10,7 @@ const failureJobs = [
   'contact_alert', 'contact_lookup', 'cycle_prepare', 'deduplication', 'dispatch_readiness', 'dry_run',
   'effect_claim', 'effect_process', 'email_dispatch', 'event_claim', 'event_processing', 'event_retry',
   'group_validate', 'identity_lookup', 'inbox_persist', 'login', 'origin_persist', 'portal_login',
-  'ptax_lookup', 'ptax_recalculate', 'ptax_reference', 'ptax_resolution', 'recovery_email',
+  'persisted_check', 'persisted_failure', 'persisted_success', 'ptax_lookup', 'ptax_recalculate', 'ptax_reference', 'ptax_resolution', 'recovery_email',
   'recovery_process', 'redis_request', 'run_detectors', 'session_cleanup', 'session_revocation',
   'status_persist', 'suppression_lookup', 'verification_session_cleanup', 'attachment_persist',
 ] as const
@@ -23,7 +23,7 @@ const failureCodes = [
   'email_send_exception', 'email_send_failed', 'event_claim_failed', 'event_processing_failed',
   'event_retry_enqueue_failed', 'group_invalid', 'identity_lookup_failed', 'inbox_persist_failed',
   'origin_persist_failed', 'ptax_alert_resolution_failed', 'ptax_recalculate_failed', 'ptax_reference_failed',
-  'ptax_unavailable', 'recovery_email_failed', 'recovery_process_failed', 'session_cleanup_failed',
+  'ptax_unavailable', 'rate_limit_persisted_failed', 'recovery_email_failed', 'recovery_process_failed', 'session_cleanup_failed',
   'session_revoke_failed', 'status_persist_failed', 'suppression_lookup_failed', 'unexpected_failure',
   'upstash_unavailable',
 ] as const

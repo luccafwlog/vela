@@ -17,7 +17,10 @@ Cloudflare, não habilita PITR nem executa restore.
   cliente PostgreSQL.
 - O dump é cifrado localmente com AES-256-GCM em streaming. O arquivo plaintext
   não é persistido pelo script. O `.dump.enc` é validado com
-  `pg_restore --list` antes do upload.
+  `pg_restore --list` antes do upload. O processo-filho `pg_restore` recebe
+  somente `PATH` (e variáveis de sistema/temporárias necessárias no Windows);
+  não herda URL/credenciais PostgreSQL, chave AES, credenciais R2 ou opções de
+  inicialização Node.
 - O upload usa a API S3-compatible do R2, mas não há `wrangler`, criação de
   bucket, alteração de ACL ou exclusão de objeto no repositório.
 - Após enviar o arquivo cifrado, o script baixa o objeto privado para um
@@ -49,14 +52,19 @@ de restore para um projeto descartável continuam sendo camadas separadas.
 
 ## Pré-requisitos locais
 
-Instale Node 24, os binários de cliente PostgreSQL (`pg_dump` e `pg_restore`) e
-AWS CLI v2. A AWS CLI é usada apenas como cliente S3; nenhuma credencial deve
-ser colocada em `.env`, no repositório ou na linha de comando.
+Instale Node 24, os binários de cliente PostgreSQL da mesma versão major do
+projeto Supabase (atualmente PostgreSQL 17) e AWS CLI v2. Para o agendador
+Windows, `pg_dump` e `pg_restore` ficam em
+`%LOCALAPPDATA%\Programs\VelaBackup\PostgreSQL\17\bin`; o wrapper exige
+major 17 e usa caminhos explícitos. A AWS CLI é usada apenas como cliente S3 e
+também é chamada pelo caminho da instalação. Não é necessário instalar nem
+executar um servidor PostgreSQL local. Nenhuma credencial deve ser colocada em
+`.env`, no repositório ou na linha de comando.
 
 ```powershell
-pg_dump --version
-pg_restore --version
-aws --version
+& "$env:LOCALAPPDATA\Programs\VelaBackup\PostgreSQL\17\bin\pg_dump.exe" --version
+& "$env:LOCALAPPDATA\Programs\VelaBackup\PostgreSQL\17\bin\pg_restore.exe" --version
+& "$env:ProgramFiles\Amazon\AWSCLIV2\aws.exe" --version
 ```
 
 O ponto de entrada é `scripts/backup-r2.mjs`:

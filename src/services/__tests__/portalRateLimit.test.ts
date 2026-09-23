@@ -12,7 +12,7 @@ describe('adaptador distribuído de rate limit do Portal', () => {
     const key = await buildRateLimitKey('segredo-de-teste', identity)
     expect(key).not.toContain(identity.ip)
     expect(key).not.toContain(identity.cnpj)
-    expect(key).toMatch(/^vela:portal-rate:login:[0-9a-f]{64}:[0-9a-f]{64}$/)
+    expect(key).toMatch(/^vela:portal-rate:v2:login:[0-9a-f]{64}:[0-9a-f]{64}$/)
   })
 
   it('lê os padrões aprovados e exige os três segredos server-side', () => {
@@ -22,53 +22,44 @@ describe('adaptador distribuído de rate limit do Portal', () => {
       UPSTASH_REDIS_REST_TOKEN: 'token-for-test',
       PORTAL_RATE_LIMIT_HMAC_SECRET: 'hmac-for-test',
     }
-    expect(readUpstashRateLimitConfig((name) => values[name])).toMatchObject({
-      threshold: 10,
-      windowSeconds: 300,
-      timeoutMs: 750,
+    expect(readUpstashRateLimitConfig((name) => values[name])).toMatchObject({ threshold: 10, windowSeconds: 300, timeoutMs: 750 })
+  })
+
+  it('reserva atomicamente a décima tentativa e bloqueia a seguinte com TTL', async () => {
+    let pending = 0
+    let failures = 0
+    const limiter = createUpstashRateLimiter({ url: 'https://example.upstash.io', token: 'token', hmacSecret: 'hmac', threshold: 10 }, {
+      fetcher: async (_url, init) => {
+        const [, script] = (JSON.parse(String(init?.body)) as string[][])[0]
+        if (script.includes('-- reserve-v2')) {
+          if (pending + failures >= 10) return new Response(JSON.stringify([{ result: [0, 300] }]))
+          pending += 1
+          return new Response(JSON.stringify([{ result: [1, 300] }]))
+        }
+        const args = (JSON.parse(String(init?.body)) as string[][])[0].slice(4)
+        if (script.includes('-- commit-v2')) { pending -= 1; failures += 1 }
+        else pending -= 1
+        return new Response(JSON.stringify([{ result: [failures, Number(args[0]) || 300] }]))
+      },
+      log: () => undefined,
     })
+
+    const attempts = await Promise.all(Array.from({ length: 10 }, () => limiter.reserve(identity)))
+    expect(attempts.every((attempt) => attempt.state === 'reserved')).toBe(true)
+    for (const attempt of attempts) if (attempt.state === 'reserved') await limiter.commitFailure(identity, attempt.reservationId)
+    expect(await limiter.reserve(identity)).toEqual({ state: 'blocked', retryAfterSeconds: 300 })
   })
 
-  it('bloqueia a décima primeira tentativa e informa o TTL', async () => {
-    let count = 0
-    const limiter = createUpstashRateLimiter(
-      { url: 'https://example.upstash.io', token: 'token', hmacSecret: 'hmac' },
-      {
-        fetcher: async (_url, init) => {
-          const command = (JSON.parse(String(init?.body)) as string[][])[0]
-          const script = command[1]
-          if (script.includes('INCR')) {
-            count += 1
-            return new Response(JSON.stringify([{ result: [count, 300] }]))
-          }
-          if (script.includes("GET")) return new Response(JSON.stringify([{ result: [count, 300] }]))
-          return new Response(JSON.stringify([{ result: 1 }]))
-        },
-        log: () => undefined,
-      },
-    )
-
-    await Promise.all(Array.from({ length: 10 }, () => limiter.registerFailure(identity)))
-    expect(await limiter.check(identity)).toEqual({ state: 'blocked', retryAfterSeconds: 300 })
-  })
-
-  it('degrada sem liberar uma segunda barreira como se o provedor estivesse saudável', async () => {
+  it('degrada após falhas do provedor e abre o circuito local', async () => {
     let fetchCalls = 0
-    const limiter = createUpstashRateLimiter(
-      { url: 'https://example.upstash.io', token: 'token', hmacSecret: 'hmac' },
-      {
-        fetcher: async () => {
-          fetchCalls += 1
-          throw new Error('provider down')
-        },
-        log: () => undefined,
-      },
-    )
-
-    expect((await limiter.check(identity)).state).toBe('unavailable')
-    expect((await limiter.check(identity)).state).toBe('unavailable')
-    expect((await limiter.check(identity)).state).toBe('unavailable')
-    expect((await limiter.check(identity)).state).toBe('unavailable')
+    const limiter = createUpstashRateLimiter({ url: 'https://example.upstash.io', token: 'token', hmacSecret: 'hmac' }, {
+      fetcher: async () => { fetchCalls += 1; throw new Error('provider down') },
+      log: () => undefined,
+    })
+    expect((await limiter.reserve(identity)).state).toBe('unavailable')
+    expect((await limiter.reserve(identity)).state).toBe('unavailable')
+    expect((await limiter.reserve(identity)).state).toBe('unavailable')
+    expect((await limiter.reserve(identity)).state).toBe('unavailable')
     expect(fetchCalls).toBe(3)
   })
 })

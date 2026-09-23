@@ -6,7 +6,7 @@ import { test } from 'node:test'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildBackupTaskCommand, runBackupTask } from './backup-r2-task.mjs'
-import { awsChildEnvironment, buildObjectNames, executeBackup, parseDatabaseUrl, parseEncryptionKey, planFor, taskBackupEnvironment, verifyR2Object } from './backup-r2.mjs'
+import { awsChildEnvironment, buildObjectNames, executeBackup, parseDatabaseUrl, parseEncryptionKey, planFor, pgRestoreChildEnvironment, taskBackupEnvironment, verifyR2Object } from './backup-r2.mjs'
 
 const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'backup-r2.mjs')
 
@@ -85,6 +85,25 @@ test('ambiente da AWS CLI recebe apenas configuracao necessaria e credenciais R2
   assert.equal(env.BACKUP_ENCRYPTION_KEY_HEX, undefined)
   assert.equal(env.DATABASE_URL, undefined)
   assert.equal(env.AWS_PROFILE, undefined)
+})
+
+test('pg_restore recebe ambiente minimo sem credenciais de banco, cifragem ou R2', () => {
+  const env = pgRestoreChildEnvironment({
+    PATH: 'C:\\tools',
+    SystemRoot: 'C:\\Windows',
+    TEMP: 'C:\\temp',
+    SUPABASE_DB_URL: 'postgresql://secret@db.test/postgres',
+    DATABASE_URL: 'postgresql://other-secret@db.test/postgres',
+    PGPASSWORD: 'db-password',
+    BACKUP_ENCRYPTION_KEY_HEX: 'a'.repeat(64),
+    R2_ACCESS_KEY_ID: 'r2-access-secret',
+    R2_SECRET_ACCESS_KEY: 'r2-secret-secret',
+    AWS_SECRET_ACCESS_KEY: 'aws-secret',
+    NODE_OPTIONS: '--require=untrusted.js',
+  })
+
+  assert.deepEqual(env, { PATH: 'C:\\tools', SystemRoot: 'C:\\Windows', TEMP: 'C:\\temp' })
+  assert.doesNotMatch(JSON.stringify(env), /secret|password|a{64}/i)
 })
 
 test('runner do Windows injeta credenciais do Credential Manager sem alterar alvos fixos de producao', () => {
