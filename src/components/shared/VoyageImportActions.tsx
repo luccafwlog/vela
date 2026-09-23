@@ -23,7 +23,8 @@ import { importGraniteManifest, parseGraniteManifestFile } from '../../services/
 import { importVaziosImportacaoManifest, parseVaziosImportacaoFile } from '../../services/vaziosImportacaoImport'
 import { importVehicleRows, parseVehicleImportFile } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
-import { importBaplieStaging } from '../../services/baplieImport'
+import { baplieReplacementMessage, countBaplieStaging, importBaplieStaging } from '../../services/baplieImport'
+import { useConfirm } from '../ui/ConfirmDialog'
 import { canImportPreview, rowErrorsToImportIssues } from '../../services/importValidation'
 import { inspectImportUpload } from '../../services/importText'
 import { queryKeys } from '../../services/queryKeys'
@@ -326,6 +327,7 @@ function BaplieImportModal({
 }) {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const { preview: parsed, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<Awaited<ReturnType<typeof parseBaplieFile>>>(parseBaplieFile)
   const [importing, setImporting] = useState(false)
   const [excludedPods, setExcludedPods] = useState<Set<string>>(new Set())
@@ -364,6 +366,13 @@ function BaplieImportModal({
     if (!canImport) return
     setImporting(true)
     try {
+      const existing = await countBaplieStaging(voyageId)
+      if (existing > 0 && !(await confirm({
+        title: 'Substituir o Baplie da viagem',
+        message: baplieReplacementMessage(existing, filteredContainers.length),
+        confirmLabel: 'Substituir',
+        tone: 'danger',
+      }))) return
       const { staged } = await importBaplieStaging(voyageId, filteredContainers, userId)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['baplie-staging', voyageId] }),

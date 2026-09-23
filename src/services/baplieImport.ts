@@ -33,3 +33,21 @@ export async function importBaplieStaging(
 
   return { staged: rows.length }
 }
+
+/** Quantos containers o Baplie atual da viagem tem; 0 quando ainda não há Baplie. */
+export async function countBaplieStaging(voyageId: number): Promise<number> {
+  const { count, error } = await supabase
+    .from('baplie_containers')
+    .select('id', { count: 'exact', head: true })
+    .eq('voyage_id', voyageId)
+  if (error) throw error
+  return count ?? 0
+}
+
+/**
+ * Reimportar apaga o Baplie anterior da viagem inteiro. Como todo Departamento
+ * importa (decisão de 2026-09-23), a substituição sempre pede confirmação.
+ */
+export function baplieReplacementMessage(existing: number, incoming: number): string {
+  return `Esta viagem já tem um Baplie com ${existing} container(s). O arquivo novo, com ${incoming} container(s), substitui o anterior por inteiro.`
+}
