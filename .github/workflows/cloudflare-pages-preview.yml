@@ -1,0 +1,297 @@
+name: Cloudflare Pages Preview
+
+# workflow_run executes this trusted workflow from the default branch. PR code
+# is built in a separate job with only the public Supabase branch endpoint/key;
+# Cloudflare credentials are confined to the final artifact-upload job.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: cloudflare-pages-pr-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.pull_requests[0].head.repo.id == github.event.repository.id &&
+      github.event.workflow_run.pull_requests[0].number
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+      pull-requests: read
+    outputs:
+      readiness: ${{ steps.readiness.outputs.readiness }}
+      supabase_url: ${{ steps.branch-env.outputs.supabase_url }}
+      supabase_anon_key: ${{ steps.branch-env.outputs.supabase_anon_key }}
+      pr_number: ${{ steps.context.outputs.pr_number }}
+      pr_head_sha: ${{ steps.context.outputs.pr_head_sha }}
+      pr_head_ref: ${{ steps.context.outputs.pr_head_ref }}
+      pages_branch: ${{ steps.context.outputs.pages_branch }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      PAGES_BRANCH: pr-${{ github.event.workflow_run.pull_requests[0].number }}
+      PR_HEAD_REF: ${{ github.event.workflow_run.pull_requests[0].head.ref }}
+      PR_HEAD_SHA: ${{ github.event.workflow_run.pull_requests[0].head.sha }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      PRODUCTION_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - name: Checkout trusted workflow helpers
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Record originating PR context
+        id: context
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${PR_NUMBER:?PR number is missing}"
+          : "${PR_HEAD_REF:?PR branch is missing}"
+          : "${PR_HEAD_SHA:?PR SHA is missing}"
+          printf 'pr_number=%s\npr_head_sha=%s\npr_head_ref=%s\npages_branch=%s\n' \
+            "$PR_NUMBER" "$PR_HEAD_SHA" "$PR_HEAD_REF" "$PAGES_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Validate PR branch before using it with Supabase CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PR_HEAD_REF" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || {
+            echo 'Unexpected PR branch name; refusing to pass it to Supabase CLI.'
+            exit 1
+          }
+
+      - name: Wait for successful Supabase Preview on this SHA
+        id: readiness
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${SUPABASE_ACCESS_TOKEN:?Configure the Supabase access-token secret}"
+          : "${SUPABASE_PROJECT_REF:?Configure the Supabase project-ref secret}"
+          for attempt in $(seq 1 36); do
+            pr_state="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.state')"
+            pr_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
+            if [[ "$pr_state" != open || "$pr_sha" != "$PR_HEAD_SHA" ]]; then
+              echo "PR closed or superseded; no Preview will be published."
+              exit 1
+            fi
+            payload="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${PR_HEAD_SHA}/check-runs?per_page=100")"
+            read -r check_status check_conclusion <<<"$(jq -sr --arg sha "$PR_HEAD_SHA" '
+              [.[].check_runs[] | select(.name == "Supabase Preview" and .head_sha == $sha and .app.id == 330661 and .app.slug == "supabase")]
+              | if length == 0 then ["", ""]
+                else (max_by(.completed_at // .started_at // .created_at) | [.status, (.conclusion // "")])
+                end | join(" ")' <<<"$payload")"
+            if [[ "$check_status" == completed && "$check_conclusion" == success ]]; then
+              if supabase --experimental branches get "$PR_HEAD_REF" --project-ref "$SUPABASE_PROJECT_REF" -o env >/dev/null 2>&1; then
+                echo 'readiness=ready' >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            elif [[ "$check_status" == completed && -n "$check_conclusion" && "$check_conclusion" != success ]]; then
+              echo "Supabase Preview ended with '$check_conclusion'; refusing deployment."
+              exit 1
+            elif [[ "$check_conclusion" == skipped ]]; then
+              echo 'Supabase Preview was skipped; refusing deployment.'
+              exit 1
+            fi
+            echo "Waiting for Supabase Preview ($attempt/36): status=${check_status:-missing}, conclusion=${check_conclusion:-missing}"
+            sleep 10
+          done
+          echo 'Timed out waiting for successful Supabase Preview.'
+          exit 1
+
+      - name: Export only public credentials of the Supabase branch
+        id: branch-env
+        if: steps.readiness.outputs.readiness == 'ready'
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase --experimental branches get "$PR_HEAD_REF" \
+            --project-ref "$SUPABASE_PROJECT_REF" -o env \
+            | node scripts/cloudflare-preview-env.mjs
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.readiness == 'ready'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # This is the only job that checks out and executes PR-controlled code.
+      # It receives only the public Supabase URL and anon/publishable key.
+      - name: Checkout PR source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.pr_head_sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build and stage both sites against the Supabase Preview branch
+        run: npm run cloudflare:build:sites
+        env:
+          VITE_SUPABASE_URL: ${{ needs.prepare.outputs.supabase_url }}
+          VITE_SUPABASE_ANON_KEY: ${{ needs.prepare.outputs.supabase_anon_key }}
+          CLOUDFLARE_PORTAL_ORIGIN: https://${{ needs.prepare.outputs.pages_branch }}.vela-portal.pages.dev
+
+      - name: Upload internal site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-pages-internal
+          path: dist/pages-internal
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload Portal site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-pages-portal
+          path: dist/pages-portal
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    needs: [prepare, build]
+    # Do not publish a preview until Cloudflare Access is configured and
+    # verified to preserve Vercel's team-login protection for both projects.
+    if: >-
+      needs.prepare.outputs.readiness == 'ready' &&
+      needs.build.result == 'success' &&
+      vars.CLOUDFLARE_PAGES_ACCESS_CONFIGURED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    steps:
+      # Run only trusted Wrangler from the default branch. Never execute PR code
+      # in the job that receives the Cloudflare write token.
+      - name: Checkout trusted deployment tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install trusted deployment tooling
+        run: npm ci --legacy-peer-deps
+
+      - name: Download internal site artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cloudflare-pages-internal
+          path: pages-internal
+
+      - name: Download Portal site artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cloudflare-pages-portal
+          path: pages-portal
+
+      - name: Revalidate the PR SHA before protected preview publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.prepare.outputs.pr_number }}
+          PR_HEAD_SHA: ${{ needs.prepare.outputs.pr_head_sha }}
+        run: |
+          set -euo pipefail
+          pr_state="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.state')"
+          pr_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
+          [[ "$pr_state" == open && "$pr_sha" == "$PR_HEAD_SHA" ]] || {
+            echo 'PR closed or superseded before publication; refusing deployment.'
+            exit 1
+          }
+
+      - name: Publish Vela preview
+        id: deploy-vela
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PR_PAGES_BRANCH: ${{ needs.prepare.outputs.pages_branch }}
+          PR_HEAD_SHA: ${{ needs.prepare.outputs.pr_head_sha }}
+        run: |
+          set -euo pipefail
+          : "${CLOUDFLARE_API_TOKEN:?Configure the narrowly scoped Pages Write token secret}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?Configure the Cloudflare account ID variable}"
+          : "${PR_PAGES_BRANCH:?PR Pages branch is missing}"
+          deployment="$(npx --no-install wrangler pages deploy pages-internal \
+            --project-name vela-internal --branch "$PR_PAGES_BRANCH" --commit-hash "$PR_HEAD_SHA" 2>&1)" || {
+            printf '%s\n' "$deployment"
+            exit 1
+          }
+          printf '%s\n' "$deployment"
+          preview_url="https://${PR_PAGES_BRANCH}.vela-internal.pages.dev"
+          echo "url=$preview_url" >> "$GITHUB_OUTPUT"
+
+      - name: Publish Portal preview
+        id: deploy-portal
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PR_PAGES_BRANCH: ${{ needs.prepare.outputs.pages_branch }}
+          PR_HEAD_SHA: ${{ needs.prepare.outputs.pr_head_sha }}
+        run: |
+          set -euo pipefail
+          : "${PR_PAGES_BRANCH:?PR Pages branch is missing}"
+          deployment="$(npx --no-install wrangler pages deploy pages-portal \
+            --project-name vela-portal --branch "$PR_PAGES_BRANCH" --commit-hash "$PR_HEAD_SHA" 2>&1)" || {
+            printf '%s\n' "$deployment"
+            exit 1
+          }
+          printf '%s\n' "$deployment"
+          preview_url="https://${PR_PAGES_BRANCH}.vela-portal.pages.dev"
+          echo "url=$preview_url" >> "$GITHUB_OUTPUT"
+
+      - name: Publish preview links and success status on the PR commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ needs.prepare.outputs.pr_head_sha }}
+          VELA_PREVIEW_URL: ${{ steps.deploy-vela.outputs.url }}
+          PORTAL_PREVIEW_URL: ${{ steps.deploy-portal.outputs.url }}
+        run: |
+          set -euo pipefail
+          {
+            echo '# Cloudflare Pages previews'
+            echo
+            echo "Commit: \`${PR_HEAD_SHA}\`"
+            echo
+            echo "- Vela: ${VELA_PREVIEW_URL}"
+            echo "- Portal: ${PORTAL_PREVIEW_URL}"
+            echo
+            echo 'Os previews dependem da política Cloudflare Access; não alteram o DNS de produção.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${PR_HEAD_SHA}" \
+            -f state=success \
+            -f context='Cloudflare Pages Preview' \
+            -f description='Both protected site previews are ready' \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --silent
