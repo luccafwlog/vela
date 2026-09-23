@@ -107,12 +107,38 @@ superfície. O Portal também aplica `area=portal` depois de hidratar a sessão.
 tratada ou resposta 5xx. O wrapper é aplicado a `portal-invite-send`,
 `send-customer-communication`, `portal-email-webhook`, `demurrage-dunning` e
 seis runners. Captura apenas classe genérica de erro e tags operacionais
-(função, ambiente, status e duração); não envia mensagem original, usuário,
-headers, request body nem response body. O flush tem limite de um segundo e a
-falha do Sentry não muda o resultado da função.
+(função e status de baixa cardinalidade); duração/contagens ficam em contexto,
+nunca em tags. Não envia mensagem original, usuário, headers, request body nem
+response body. A resposta esperada `paused` de `import-effects-runner` não é
+registrada como erro. O flush tem limite de um segundo e a falha do Sentry não
+muda o resultado da função.
 As dez entradas em `supabase/config.toml` apontam para o manifesto Deno
 compartilhado em `supabase/functions/deno.json`; a configuração não altera
 `verify_jwt` nem os contratos HTTP.
+
+### Métricas agregadas dos cron runners
+
+Depois de validar método e segredo, os quatro jobs ativos (`alerts-detector`,
+`demurrage-dunning`, `customer-communication-auto-runner` e
+`portal-daily-digest`) emitem métricas Sentry de início/fim, duração e contagem
+processada. O ciclo usa Application Metrics (`edge.job.started`,
+`edge.job.finished`, `edge.job.duration_ms` e
+`edge.job.processed_count`), com atributos fixos `job_name` e resultado
+`success`/`partial`/`failure`; a métrica de contagem também recebe `count_kind`
+para impedir que unidades diferentes sejam somadas. Os contadores são extraídos por allowlist de
+respostas clonadas; corpos continuam intactos e nunca são enviados. Para o
+`alerts-detector`, a quantidade significa quantos dos sete detectores retornaram
+resultado, não soma valores com semânticas distintas. No Demurrage conta faturas
+reivindicadas; no runner de comunicados, quantidade de candidatos — o array de
+envios contém IDs e não atravessa a telemetria. O cron do digest conta tentativas
+agregadas (`sent + failed`), não endereços. Chamadas sem autenticação não emitem
+métricas. Resposta `paused` continua sendo estado esperado e não cria erro.
+
+O SDK Deno configurado (`10.73.0`) já é posterior à versão `10.25.0` que
+introduziu a API de métricas. A Sentry anunciou 5 GB de Application Metrics
+incluídos em todos os planos na [disponibilização GA](https://sentry.io/changelog/application-metrics-are-now-ga/);
+isso não substitui conferir a cota desta organização e acompanhar o consumo no
+painel. Nenhum orçamento adicional foi autorizado.
 
 O segredo server-side esperado é `SENTRY_DSN`; `SENTRY_ENVIRONMENT` e
 `SENTRY_RELEASE` são opcionais. Sem DSN, não há envio. Em 2026-09-22, o painel

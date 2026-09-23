@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { renderCustomerCommunicationTemplate } from '../_shared/customerCommunicationTemplates.ts'
-import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { instrumentEdgeHandler, instrumentEdgeJob, summarizeEdgeJobResponse } from '../_shared/telemetry.ts'
 import { logEdgeFailure } from '../_shared/logger.ts'
 
 type Candidate = {
@@ -169,6 +169,17 @@ if (import.meta.main) {
     const expectedSecret = Deno.env.get('CUSTOMER_COMMUNICATION_AUTOMATION_SECRET') ?? ''
     const providedSecret = req.headers.get('X-Communication-Automation-Secret') ?? ''
     const authorized = req.method === 'POST' && Boolean(expectedSecret) && timingSafeEqual(providedSecret, expectedSecret)
-    return runWithBetterStackHeartbeat('customerCommunicationAutoRunner', () => edgeHandler(req), { enabled: authorized })
+    return runWithBetterStackHeartbeat('customerCommunicationAutoRunner', () => instrumentEdgeJob(
+      'customer-communication-auto-runner',
+      'communication_candidates',
+      () => edgeHandler(req),
+      (response) => summarizeEdgeJobResponse(
+        response,
+        (body) => typeof body.candidates === 'number' ? body.candidates : 0,
+        (body) => (typeof body.failed === 'number' && body.failed > 0)
+          || (typeof body.releaseFailures === 'number' && body.releaseFailures > 0),
+      ),
+      authorized,
+    ), { enabled: authorized })
   })
 }

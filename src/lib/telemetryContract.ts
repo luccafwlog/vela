@@ -34,14 +34,65 @@ export function scrubTelemetryValue(value: unknown, depth = 0): unknown {
 
 export type EdgeTelemetryContext = {
   functionName: string
-  jobName?: string
+  jobName?: EdgeCronJobName
   surface?: 'internal' | 'portal' | 'edge'
   category?: string
   status?: string
   durationMs?: number
   processedCount?: number
-  result?: string
+  result?: EdgeJobResult
 }
+
+export type EdgeCronJobName =
+  | 'alerts-detector'
+  | 'demurrage-dunning'
+  | 'customer-communication-auto-runner'
+  | 'portal-daily-digest'
+
+export type EdgeJobResult = 'success' | 'partial' | 'failure'
+export type EdgeJobStage = 'started' | 'finished'
+export type EdgeJobCountKind =
+  | 'detectors_completed'
+  | 'invoices_claimed'
+  | 'communication_candidates'
+  | 'digest_recipients_attempted'
+
+export type EdgeJobSummary = {
+  result: EdgeJobResult
+  processedCount: number
+}
+
+export async function summarizeEdgeJobResponse(
+  response: Response,
+  processedCount: (body: Record<string, unknown>) => number,
+  hasPartialFailure: (body: Record<string, unknown>) => boolean = () => false,
+): Promise<EdgeJobSummary> {
+  let body: Record<string, unknown> = {}
+  try {
+    const value: unknown = await response.clone().json()
+    if (value && typeof value === 'object' && !Array.isArray(value)) body = value as Record<string, unknown>
+  } catch {
+    // Empty/non-JSON bodies carry no aggregate details.
+  }
+
+  const count = processedCount(body)
+  return {
+    result: response.status >= 500 ? 'failure' : hasPartialFailure(body) ? 'partial' : 'success',
+    processedCount: Number.isSafeInteger(count) && count >= 0 ? count : 0,
+  }
+}
+
+export type EdgeJobLifecycleEvent = {
+  jobName: EdgeCronJobName
+  countKind: EdgeJobCountKind
+  stage: EdgeJobStage
+  result?: EdgeJobResult
+  durationMs?: number
+  processedCount?: number
+}
+
+type EdgeJobReporter = (event: EdgeJobLifecycleEvent) => Promise<void>
+type EdgeJobOptions = { enabled?: boolean; now?: () => number }
 
 type EdgeHandler = (request: Request) => Response | Promise<Response>
 type EdgeFailureReporter = (error: unknown, context: EdgeTelemetryContext) => Promise<void>
@@ -51,6 +102,7 @@ export function instrumentHttpHandler(
   functionName: string,
   handler: EdgeHandler,
   reportFailure: EdgeFailureReporter,
+  shouldReportServerError: (response: Response) => boolean | Promise<boolean> = () => true,
 ): EdgeHandler {
   const reportSafely = async (error: unknown, context: EdgeTelemetryContext) => {
     try {
@@ -64,7 +116,15 @@ export function instrumentHttpHandler(
     const startedAt = Date.now()
     try {
       const response = await handler(request)
-      if (response.status >= 500) {
+      let shouldReport = response.status >= 500
+      if (shouldReport) {
+        try {
+          shouldReport = await shouldReportServerError(response)
+        } catch {
+          // A telemetry filter cannot replace a valid endpoint response.
+        }
+      }
+      if (shouldReport) {
         await reportSafely(new Error('Edge Function returned a server error'), {
           functionName,
           status: `http_${response.status}`,
@@ -82,5 +142,65 @@ export function instrumentHttpHandler(
       })
       throw error
     }
+  }
+}
+
+/** Reports aggregate job lifecycle data without changing the response or thrown error. */
+export async function instrumentEdgeJob<T>(
+  jobName: EdgeCronJobName,
+  countKind: EdgeJobCountKind,
+  operation: () => T | Promise<T>,
+  summarize: (value: T) => EdgeJobSummary | Promise<EdgeJobSummary>,
+  report: EdgeJobReporter,
+  options: EdgeJobOptions = {},
+): Promise<T> {
+  if (options.enabled === false) return operation()
+
+  const now = options.now ?? Date.now
+  const startedAt = now()
+  const reportSafely = async (event: EdgeJobLifecycleEvent) => {
+    try {
+      await report(event)
+    } catch {
+      // Lifecycle telemetry is optional and cannot change job behavior.
+    }
+  }
+  const processedCount = (value: number) => Number.isSafeInteger(value) && value >= 0 ? value : 0
+  const elapsed = () => Math.max(0, now() - startedAt)
+
+  await reportSafely({ jobName, countKind, stage: 'started' })
+  try {
+    const value = await operation()
+    let summary: EdgeJobSummary = { result: 'failure', processedCount: 0 }
+    try {
+      const candidate = await summarize(value)
+      if (candidate && ['success', 'partial', 'failure'].includes(candidate.result)) {
+        summary = {
+          result: candidate.result,
+          processedCount: processedCount(candidate.processedCount),
+        }
+      }
+    } catch {
+      // A broken summary function is not allowed to change a successful job.
+    }
+    await reportSafely({
+      jobName,
+      countKind,
+      stage: 'finished',
+      result: summary.result,
+      durationMs: elapsed(),
+      processedCount: summary.processedCount,
+    })
+    return value
+  } catch (error) {
+    await reportSafely({
+      jobName,
+      countKind,
+      stage: 'finished',
+      result: 'failure',
+      durationMs: elapsed(),
+      processedCount: 0,
+    })
+    throw error
   }
 }

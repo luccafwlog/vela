@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
-import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { instrumentEdgeHandler, instrumentEdgeJob, summarizeEdgeJobResponse } from '../_shared/telemetry.ts'
 import { logEdgeFailure } from '../_shared/logger.ts'
 
 function timingSafeEqual(a: string, b: string): boolean {
@@ -12,6 +12,16 @@ function timingSafeEqual(a: string, b: string): boolean {
   for (let index = 0; index < left.length; index += 1) diff |= left[index] ^ right[index]
   return diff === 0
 }
+
+const DETECTOR_RESULT_FIELDS = [
+  'agency_report_pending',
+  'agency_report_deadline_missed',
+  'bl_review_pendencies',
+  'granite_bl_review_pendencies',
+  'voyage_operation_alerts',
+  'client_portal',
+  'customer_communications',
+] as const
 
 if (typeof Deno !== 'undefined') {
   const edgeHandler = instrumentEdgeHandler('alerts-detector', async (req) => {
@@ -38,6 +48,16 @@ if (typeof Deno !== 'undefined') {
     const expectedSecret = Deno.env.get('ALERTS_DETECTOR_SECRET') ?? ''
     const providedSecret = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
     const authorized = req.method === 'POST' && Boolean(expectedSecret) && timingSafeEqual(providedSecret, expectedSecret)
-    return runWithBetterStackHeartbeat('alertsDetector', () => edgeHandler(req), { enabled: authorized })
+    return runWithBetterStackHeartbeat('alertsDetector', () => instrumentEdgeJob(
+      'alerts-detector',
+      'detectors_completed',
+      () => edgeHandler(req),
+      (response) => summarizeEdgeJobResponse(
+        response,
+        (body) => DETECTOR_RESULT_FIELDS.filter((key) => Object.prototype.hasOwnProperty.call(body, key)).length,
+        () => false,
+      ),
+      authorized,
+    ), { enabled: authorized })
   })
 }

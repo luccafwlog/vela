@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
-import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { instrumentEdgeHandler, instrumentEdgeJob, summarizeEdgeJobResponse } from '../_shared/telemetry.ts'
 import { renderDemurrageTemplate } from '../_shared/customerCommunicationTemplates.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttemptRecord } from '../_shared/email.ts'
 import { logEdgeFailure } from '../_shared/logger.ts'
@@ -790,6 +790,19 @@ if (typeof Deno !== 'undefined') {
     const expectedSecret = Deno.env.get('DEMURRAGE_DUNNING_SECRET') ?? ''
     const providedSecret = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
     const authorized = req.method === 'POST' && Boolean(expectedSecret) && timingSafeEqual(providedSecret, expectedSecret)
-    return runWithBetterStackHeartbeat('demurrageDunning', () => edgeHandler(req), { enabled: authorized })
+    return runWithBetterStackHeartbeat('demurrageDunning', () => instrumentEdgeJob(
+      'demurrage-dunning',
+      'invoices_claimed',
+      () => edgeHandler(req),
+      (response) => summarizeEdgeJobResponse(
+        response,
+        (body) => typeof body.claimed === 'number' ? body.claimed : 0,
+        (body) => ['partial', 'failed', 'releaseFailures'].some((key) => {
+          const count = body[key]
+          return typeof count === 'number' && count > 0
+        }),
+      ),
+      authorized,
+    ), { enabled: authorized })
   })
 }

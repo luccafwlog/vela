@@ -3,7 +3,7 @@ import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { dailyDigestTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { canonicalPortalOrigin, portalSupportEmail } from '../_shared/portalUrls.ts'
-import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { instrumentEdgeHandler, instrumentEdgeJob, summarizeEdgeJobResponse } from '../_shared/telemetry.ts'
 
 function timingSafeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder()
@@ -67,6 +67,17 @@ if (typeof Deno !== 'undefined') {
     const expectedSecret = Deno.env.get('PORTAL_DIGEST_SECRET') ?? ''
     const providedSecret = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
     const authorized = req.method === 'POST' && Boolean(expectedSecret) && timingSafeEqual(providedSecret, expectedSecret)
-    return runWithBetterStackHeartbeat('portalDailyDigest', () => edgeHandler(req), { enabled: authorized })
+    return runWithBetterStackHeartbeat('portalDailyDigest', () => instrumentEdgeJob(
+      'portal-daily-digest',
+      'digest_recipients_attempted',
+      () => edgeHandler(req),
+      (response) => summarizeEdgeJobResponse(
+        response,
+        (body) => (typeof body.sent === 'number' ? body.sent : 0)
+          + (typeof body.failed === 'number' ? body.failed : 0),
+        (body) => typeof body.failed === 'number' && body.failed > 0,
+      ),
+      authorized,
+    ), { enabled: authorized })
   })
 }

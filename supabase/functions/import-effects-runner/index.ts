@@ -22,7 +22,7 @@ function json(status: number, value: unknown): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-Deno.serve(instrumentEdgeHandler('import-effects-runner', async (req: Request) => {
+const edgeHandler = instrumentEdgeHandler('import-effects-runner', async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' })
 
   const expectedSecret = Deno.env.get('IMPORT_EFFECTS_CRON_SECRET') ?? ''
@@ -85,4 +85,16 @@ Deno.serve(instrumentEdgeHandler('import-effects-runner', async (req: Request) =
     completed: outcomes.length,
     outcomes,
   })
-}))
+}, async (response) => {
+  if (response.status !== 503) return true
+  try {
+    const body: unknown = await response.clone().json()
+    return !(body && typeof body === 'object'
+      && 'status' in body && body.status === 'paused'
+      && 'reason' in body && body.reason === 'consumers_not_activated')
+  } catch {
+    return true
+  }
+})
+
+Deno.serve(edgeHandler)
