@@ -125,3 +125,67 @@ describe078('078 — PIX sem conciliação na fila do Administrativo', () => {
     expect(psql(`SELECT severity FROM public.alert_type_catalog WHERE type = 'review_granite_customer_unlinked';`)).toBe('normal')
   })
 })
+
+function migration079Applied() {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('bl_containers' IN prosrc) > 0 FROM pg_proc WHERE proname = 'bl_timeline';`) === 't'
+  } catch {
+    return false
+  }
+}
+
+const describe079 = migration079Applied() ? describe : describe.skip
+
+describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
+  const BL_ID = 'BL079LOCALPG'
+  const USER = '77777777-0000-4000-8000-000000000079'
+
+  function clean() {
+    psql(`
+      SET session_replication_role = replica;
+      DELETE FROM public.audit_logs WHERE entity_type = 'bl_containers' AND entity_id IN (SELECT id::text FROM public.bl_containers WHERE bl_id = '${BL_ID}');
+      DELETE FROM public.bl_containers WHERE bl_id = '${BL_ID}';
+      DELETE FROM public.bls WHERE id = '${BL_ID}';
+      DELETE FROM public.voyages WHERE id = 7793;
+      DELETE FROM public.vessels WHERE id = 7792;
+      DELETE FROM public.carriers WHERE id = 7791;
+      DELETE FROM public.user_profiles WHERE id = '${USER}';
+      DELETE FROM auth.users WHERE id = '${USER}';
+      SET session_replication_role = origin;
+    `)
+  }
+
+  beforeAll(() => {
+    clean()
+    psql(`
+      INSERT INTO auth.users (id, email) VALUES ('${USER}', 'equip-079@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${USER}', 'Equipamentos 079', 'equipamentos', true);
+      INSERT INTO public.carriers (id, name) VALUES (7791, 'Carrier 079');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (7792, 'Vessel 079', 7791);
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (7793, 7792, 'V079', 'active');
+      INSERT INTO public.bls (id, voyage_id) VALUES ('${BL_ID}', 7793);
+      INSERT INTO public.bl_containers (bl_id, container_number, type, discharge_date) VALUES ('${BL_ID}', 'TCLU0790001', '40HC', '2026-10-14');
+    `)
+    // Mudança feita por um usuário, como a importação de datas em lote: passa
+    // pelo gatilho audit_row_changes, que grava entity_type = 'bl_containers'.
+    psql(`
+      BEGIN;
+      SELECT set_config('request.jwt.claim.sub', '${USER}', true);
+      UPDATE public.bl_containers SET return_date = '2026-10-20', cbm = 67 WHERE bl_id = '${BL_ID}';
+      COMMIT;
+    `)
+  })
+  afterAll(clean)
+
+  it('lista a devolução com o número do container e esconde campo técnico', () => {
+    const rows = psql(`
+      BEGIN;
+      SELECT set_config('request.jwt.claim.sub', '${USER}', true);
+      SELECT entity_type || ' ' || field_name || ' ' || coalesce(new_value, '') FROM public.bl_timeline('${BL_ID}', 50, 0);
+      COMMIT;
+    `)
+    expect(rows).toContain('bl_container return_date|TCLU0790001 2026-10-20')
+    expect(rows).not.toContain('cbm')
+  })
+})

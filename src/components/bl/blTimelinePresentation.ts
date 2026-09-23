@@ -54,9 +54,17 @@ const FIELD_LABELS: Record<string, string> = {
   bb_cbm: 'CBM carga solta',
   total_weight_kg: 'Peso contêiner (kg)',
   total_cbm: 'CBM contêiner (m³)',
+  discharge_date: 'Descarga',
+  return_date: 'Devolução',
+  is_imo: 'IMO',
+  imo_class: 'Classe IMO',
+  un_number: 'Número ONU',
+  is_oog: 'OOG',
 }
 
 const VALUE_LABELS_BY_FIELD: Record<string, Record<string, string>> = {
+  is_imo: { true: 'Sim', false: 'Não' },
+  is_oog: { true: 'Sim', false: 'Não' },
   charge_status: {
     not_calculated: 'Pendente',
     calculated: 'Calculado',
@@ -113,6 +121,8 @@ function formatTimelineValue(fieldName: string, val: string | null | undefined):
   if (!normalized) return '-'
   if (VALUE_LABELS_BY_FIELD[fieldName] && normalized.toLowerCase() === 'null') return '-'
   const fieldLabels = VALUE_LABELS_BY_FIELD[fieldName]
+  const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(normalized)
+  if (isoDate && (fieldName === 'discharge_date' || fieldName === 'return_date')) return `${isoDate[3]}/${isoDate[2]}/${isoDate[1]}`
   return fieldLabels?.[normalized.toLowerCase()] ?? normalized
 }
 
@@ -128,8 +138,12 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
     return `Taxa: ${new_value ?? field_name}`
   }
   if (entity_type === 'bl_container') {
-    const cleanField = FIELD_LABELS[field_name] ?? field_name
-    return `Container ${cleanField}: ${formatTimelineValue(field_name, old_value)} → ${formatTimelineValue(field_name, new_value)}`
+    // bl_timeline (migration 079) envia '<campo>|<container>' para a auditoria
+    // por coluna de bl_containers; eventos antigos vêm só com o campo.
+    const [field, containerNumber] = field_name.split('|')
+    const cleanField = FIELD_LABELS[field] ?? field
+    const subject = containerNumber ? `Container ${containerNumber} · ${cleanField}` : `Container ${cleanField}`
+    return `${subject}: ${formatTimelineValue(field, old_value)} → ${formatTimelineValue(field, new_value)}`
   }
   if (entity_type === 'system_event') {
     return new_value ?? field_name
