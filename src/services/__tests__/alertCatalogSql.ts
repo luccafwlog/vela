@@ -32,6 +32,14 @@ const DEACTIVATION_MIGRATIONS = [
   '348_taxas_locais_sem_vencimento.sql',
 ]
 
+// Migrations que mudam gravidade, responsável ou audiência de um tipo já
+// semeado (`UPDATE public.alert_type_catalog SET ... WHERE type = '...'`).
+const CATALOG_UPDATE_MIGRATIONS = [
+  '078_alertas_pix_administrativo_granito_normal.sql',
+]
+
+const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi
+
 const ENTRY_PATTERN = /\(\s*'([a-z0-9_]+)',\s*'(critical|normal)',\s*'([a-z_]+)',\s*ARRAY\[([^\]]*)\],\s*'([^']+)'\s*\)/g
 const DEACTIVATION_PATTERN = /SET\s+active\s*=\s*false\s+WHERE\s+type\s+(?:IN\s*\(([^)]*)\)|=\s*('[a-z0-9_]+'))/i
 const AUDIENCE_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+audience_departments\s*=\s*ARRAY\[([^\]]*)\][^;]*?WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi
@@ -60,6 +68,20 @@ export function readSqlAlertCatalog(): SqlAlertCatalogEntry[] {
       const [, audience, type] = match
       const entry = entries.get(type)
       if (entry) entry.audienceDepartments = Array.from(audience.matchAll(/'([a-z_]+)'/g), (item) => item[1])
+    }
+  }
+
+  for (const fileName of CATALOG_UPDATE_MIGRATIONS) {
+    for (const match of readMigration(fileName).matchAll(CATALOG_UPDATE_PATTERN)) {
+      const [, assignments, type] = match
+      const entry = entries.get(type)
+      if (!entry) continue
+      const severity = assignments.match(/severity\s*=\s*'(critical|normal)'/)
+      if (severity) entry.severity = severity[1] as 'critical' | 'normal'
+      const responsible = assignments.match(/responsible_department\s*=\s*'([a-z_]+)'/)
+      if (responsible) entry.responsibleDepartment = responsible[1]
+      const audience = assignments.match(/audience_departments\s*=\s*ARRAY\[([^\]]*)\]/)
+      if (audience) entry.audienceDepartments = Array.from(audience[1].matchAll(/'([a-z_]+)'/g), (item) => item[1])
     }
   }
 

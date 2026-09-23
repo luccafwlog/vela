@@ -87,7 +87,10 @@ describe('Regras de Alertas', () => {
     const schedule = ALERT_RULES.find((rule) => rule.type === 'voyage_schedule_date_pending')!
     const terminal = ALERT_RULES.find((rule) => rule.type === 'voyage_terminal_date_pending')!
 
-    expect(pix.notifiedDepartments).toEqual(['documentacao', 'equipamentos'])
+    // Migration 078: o Administrativo trata (só ele abre a Conciliação PIX);
+    // Documentação e Equipamentos continuam avisados.
+    expect(pix.responsibleDepartments).toEqual(['administrativo'])
+    expect(pix.notifiedDepartments).toEqual(['documentacao', 'equipamentos', 'administrativo'])
     expect(schedule.notifiedDepartments).toEqual(['documentacao', 'operacoes'])
     expect(terminal.notifiedDepartments).toEqual(['documentacao', 'operacoes'])
     expect(schedule.responsibleDepartments).toEqual(['operacoes'])

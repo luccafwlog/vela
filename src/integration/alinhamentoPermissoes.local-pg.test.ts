@@ -85,3 +85,43 @@ describeLocal('077 — Baplie importado por qualquer Departamento ativo', () => 
     expect(result.stderr).toContain('sem permissao para importar Baplie')
   })
 })
+
+function migration078Applied() {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT responsible_department FROM public.alert_type_catalog WHERE type = 'pix_unreconciled';`) === 'administrativo'
+  } catch {
+    return false
+  }
+}
+
+const describe078 = migration078Applied() ? describe : describe.skip
+
+describe078('078 — PIX sem conciliação na fila do Administrativo', () => {
+  const ENTITY = 'pix-078-local-pg'
+
+  afterAll(() => {
+    psql(`
+      SET session_replication_role = replica;
+      DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id = '${ENTITY}');
+      DELETE FROM public.alerts WHERE entity_id = '${ENTITY}';
+      SET session_replication_role = origin;
+    `)
+  })
+
+  it('abre o item com o Administrativo como setor responsável', () => {
+    // Antes da 078 a fila recusava 'administrativo' ("Departamento inválido").
+    psql(`
+      BEGIN;
+      SELECT set_config('request.jwt.claim.role', 'service_role', true);
+      SELECT public.upsert_alert_item('pix_unreconciled', 'pix_transaction', '${ENTITY}', 'PIX teste 078', 'local_pg_test', '{}'::jsonb, '/reconciliacao');
+      COMMIT;
+    `)
+    expect(psql(`SELECT ai.department || '/' || ai.severity FROM public.alert_items ai
+      JOIN public.alerts a ON a.id = ai.alert_id WHERE a.entity_id = '${ENTITY}';`)).toBe('administrativo/critical')
+  })
+
+  it('rebaixa Granito sem cliente para Normal', () => {
+    expect(psql(`SELECT severity FROM public.alert_type_catalog WHERE type = 'review_granite_customer_unlinked';`)).toBe('normal')
+  })
+})

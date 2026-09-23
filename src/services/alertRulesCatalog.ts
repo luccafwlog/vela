@@ -157,7 +157,8 @@ const ALERT_RULES_BASE = [
     responsible: 'documentacao',
     catalogAudience: ['documentacao'],
     entityType: 'granite_bl',
-    severity: 'critical',
+    // Normal desde a migration 078: Granito é apoio operacional e não fatura.
+    severity: 'normal',
     summary: 'O B/L de Granito foi recebido sem cliente vinculado.',
     trigger: 'Registro de Granito sem cliente associado.',
     timing: 'Aparece assim que o registro é criado ou alterado sem vínculo.',
@@ -235,9 +236,9 @@ const ALERT_RULES_BASE = [
   {
     type: 'pix_unreconciled',
     domain: 'Financeiro',
-    responsible: 'documentacao',
-    catalogAudience: ['documentacao', 'equipamentos'],
-    routingNote: 'Documentação é o setor responsável na fila, mas a notificação interna vai também para Equipamentos, porque o PIX pode se referir a uma invoice de Demurrage.',
+    responsible: 'administrativo',
+    catalogAudience: ['administrativo', 'documentacao', 'equipamentos'],
+    routingNote: 'Administrativo trata na fila, porque só ele abre a Conciliação PIX; Documentação e Equipamentos também recebem a notificação interna, porque o PIX pode se referir a uma invoice de Demurrage.',
     entityType: 'pix_transaction',
     severity: 'critical',
     summary: 'Um PIX não encontrou uma correspondência segura com a cobrança esperada.',

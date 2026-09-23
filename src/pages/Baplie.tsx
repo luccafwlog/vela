@@ -291,7 +291,7 @@ function StateA({ canImport, onUpload }: { canImport: boolean; onUpload: () => v
             Importar Baplie EDI
           </Button>
         ) : (
-          <div className="text-sm text-amber-200">A importação Baplie exige perfil administrativo.</div>
+          <div className="text-sm text-amber-200">A importação do Baplie exige um usuário interno ativo.</div>
         )}
       </div>
     </Card>
