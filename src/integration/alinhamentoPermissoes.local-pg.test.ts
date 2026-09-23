@@ -309,3 +309,70 @@ describe081('081 — Administrativo responde disputa de Demurrage', () => {
       .toBe('Administrativo respondeu à sua disputa.')
   })
 })
+
+function migration082Applied() {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT count(*) FROM pg_proc WHERE proname = 'apply_ce_mercante_rows_atomic';`) === '1'
+  } catch {
+    return false
+  }
+}
+
+const describe082 = migration082Applied() ? describe : describe.skip
+
+describe082('082 — CE Mercante por planilha tudo ou nada', () => {
+  const USER = '77777777-0000-4000-8000-000000000820'
+  const BL_A = 'BL082A'
+  const BL_B = 'BL082B'
+
+  function clean() {
+    psql(`
+      SET session_replication_role = replica;
+      DELETE FROM public.bls WHERE id IN ('${BL_A}', '${BL_B}');
+      DELETE FROM public.voyages WHERE id = 7823;
+      DELETE FROM public.vessels WHERE id = 7822;
+      DELETE FROM public.carriers WHERE id = 7821;
+      DELETE FROM public.user_profiles WHERE id = '${USER}';
+      DELETE FROM auth.users WHERE id = '${USER}';
+      SET session_replication_role = origin;
+    `)
+  }
+
+  beforeAll(() => {
+    clean()
+    psql(`
+      INSERT INTO auth.users (id, email) VALUES ('${USER}', 'docs-082@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${USER}', 'Documentação 082', 'documentacao', true);
+      INSERT INTO public.carriers (id, name) VALUES (7821, 'Carrier 082');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (7822, 'Vessel 082', 7821);
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (7823, 7822, 'V082', 'active');
+      INSERT INTO public.bls (id, voyage_id) VALUES ('${BL_A}', 7823), ('${BL_B}', 7823);
+    `)
+  })
+  afterAll(clean)
+
+  const call = (rows: string) => runAs(USER, `SELECT public.apply_ce_mercante_rows_atomic('${rows}'::jsonb, '${USER}'::uuid, 'bls');`)
+
+  it('uma linha inválida desfaz a linha válida do mesmo lote', () => {
+    const result = call(JSON.stringify([
+      { row: 2, bl_id: BL_A, ce: '152608200000001' },
+      { row: 3, bl_id: 'BL082-NAO-EXISTE', ce: '152608200000002' },
+    ]))
+    expect(result.stderr).toBe('')
+    const payload = JSON.parse(result.stdout.trim().split('\n').find((line) => line.startsWith('{')) ?? '{}')
+    expect(payload.ok).toBe(false)
+    expect(payload.errors).toHaveLength(1)
+    expect(payload.errors[0].row).toBe(3)
+    expect(psql(`SELECT coalesce(ce_mercante, '') FROM public.bls WHERE id = '${BL_A}';`)).toBe('')
+  })
+
+  it('lote todo válido grava todas as linhas', () => {
+    const result = call(JSON.stringify([
+      { row: 2, bl_id: BL_A, ce: '152608200000001' },
+      { row: 3, bl_id: BL_B, ce: '152608200000002' },
+    ]))
+    expect(result.stderr).toBe('')
+    expect(psql(`SELECT count(*) FROM public.bls WHERE id IN ('${BL_A}', '${BL_B}') AND ce_mercante IS NOT NULL;`)).toBe('2')
+  })
+})

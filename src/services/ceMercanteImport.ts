@@ -4,6 +4,18 @@ import { supabase } from './supabase'
 import type { CeMercanteEdiRow } from './ceMercanteEdiParser'
 import { matchHeaders, readSheet, type HeaderSpec, type SheetRow } from './importCore'
 
+// apply_ce_mercante_rows_atomic (migration 082) ainda não está no bloco gerado
+// de src/types/database.ts: a regeneração depende do CLI do Supabase.
+const ceRowsRpc = supabase as unknown as {
+  rpc: (
+    fn: 'apply_ce_mercante_rows_atomic',
+    args: { p_rows: Array<{ row: number; bl_id: string; ce: string }>; p_changed_by: string | null; p_target: CeMercanteImportTarget },
+  ) => Promise<{
+    data: { ok: boolean; inserted?: number; overwritten?: number; unchanged?: number; errors?: Array<{ row?: number; bl_id?: string; message: string }> } | null
+    error: Error | null
+  }>
+}
+
 const headerMap = {
   bl_id: ['bl', 'b/l', 'bill of lading', 'numero bl', 'n bl', 'no bl', 'no. bl'],
   ce_mercante: ['ce mercante', 'ce_mercante', 'ce', 'numero ce mercante', 'ce merc'],
@@ -188,46 +200,35 @@ export async function importCeMercanteRows(
     return true
   })
 
-  let overwritten = 0
-  let unchanged = 0
-  let inserted = 0
-  const successfulBlIds: string[] = []
-
-  for (const row of validRows) {
-    const { data, error } = target === 'granite'
-      ? await supabase.rpc('apply_granite_ce_mercante_update', {
-          p_bl_id: resolvedIds.get(row.bl_id) ?? row.bl_id,
-          p_new_ce: row.ce_mercante,
-          p_changed_by: options.changedBy,
-        })
-      : await supabase.rpc('apply_ce_mercante_update', {
-        p_bl_id: row.bl_id,
-        p_new_ce: row.ce_mercante,
-        p_changed_by: options.changedBy,
-      })
-
-    if (error) {
-      errors.push({
-        row: row.rowNumber,
-        bl_id: row.bl_id,
-        message: error.message || `Falha ao aplicar CE Mercante no BL ${row.bl_id}.`,
-      })
-      continue
-    }
-
-    switch (data) {
-      case 'overwritten':
-        overwritten += 1
-        break
-      case 'unchanged':
-        unchanged += 1
-        break
-      default:
-        inserted += 1
-        break
-    }
-    if (target === 'bls') successfulBlIds.push(row.bl_id)
+  // "Tudo ou nada" (migration 082, decisão de 2026-09-23): qualquer erro de
+  // pré-validação impede a gravação do lote inteiro, e a RPC desfaz tudo se
+  // alguma linha falhar no banco.
+  if (errors.length > 0) {
+    return { processed: rows.length, updated: 0, overwritten: 0, unchanged: 0, errorCount: errors.length, errors }
   }
+
+  const { data, error } = await ceRowsRpc.rpc('apply_ce_mercante_rows_atomic', {
+    p_rows: validRows.map((row) => ({
+      row: row.rowNumber,
+      bl_id: target === 'granite' ? resolvedIds.get(row.bl_id) ?? row.bl_id : row.bl_id,
+      ce: row.ce_mercante,
+    })),
+    p_changed_by: options.changedBy,
+    p_target: target,
+  })
+  if (error) throw error
+  if (!data?.ok) {
+    const rowErrors = (data?.errors ?? []).map((item) => ({
+      row: Number(item.row ?? 0),
+      bl_id: item.bl_id ?? '',
+      message: item.message || 'Falha ao aplicar CE Mercante.',
+    }))
+    return { processed: rows.length, updated: 0, overwritten: 0, unchanged: 0, errorCount: rowErrors.length, errors: rowErrors }
+  }
+  const inserted = data.inserted ?? 0
+  const overwritten = data.overwritten ?? 0
+  const unchanged = data.unchanged ?? 0
+  const successfulBlIds = target === 'bls' ? validRows.map((row) => row.bl_id) : []
 
   if (target === 'bls' && options.manifestoNumero?.trim() && successfulBlIds.length > 0) {
     try {

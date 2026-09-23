@@ -1582,7 +1582,7 @@
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-file"/></svg><span class="n">02</span></div><h3>Lê com o encoding certo</h3><p>Mostra formato, encoding e tamanho antes de qualquer interpretação.</p></div>
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-list"/></svg><span class="n">03</span></div><h3>Valida linha a linha</h3><p>Cada erro aponta a linha real do arquivo. Por padrão, erro bloqueia a confirmação.</p></div>
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-eye"/></svg><span class="n">04</span></div><h3>Mostra a prévia</h3><p>Novos, atualizados e bloqueados. O relatório completo de erros baixa em CSV.</p></div>
-          <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-db"/></svg><span class="n">05</span></div><h3>Grava em bloco</h3><p>Em geral, ou entra inteiro ou nada entra. A programação em lote e o CE por planilha gravam por linha.</p></div>
+          <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-db"/></svg><span class="n">05</span></div><h3>Grava em bloco</h3><p>Em geral, ou entra inteiro ou nada entra. Só a programação em lote de Chegadas e Saídas grava por linha.</p></div>
         </div>
         <div class="content" style="grid-template-columns: 1fr 470px; margin-top: 22px; gap: 20px">
           <div>
@@ -1627,7 +1627,7 @@
             <tr><td><b>Baplie EDI</b><span>EDI do plano de carga</span></td><td>Baplie · Viagem</td><td>Se é EDI de verdade; containers repetidos; quem está no Baplie e não em B/L, e o contrário.</td><td>IMO, OOG e classe dos containers · Vazios IMP · ADR</td></tr>
             <tr><td><b>B/L de container</b><span>Excel do armador</span></td><td>BLs · Viagem</td><td>Navio e viagem do arquivo = viagem escolhida; só número de container ISO; mudança que afeta cobrança pede confirmação auditada; troca de consignatário aparece antes.</td><td>B/L, Cliente pelo CNPJ, frete e despesas, ATD do POL, cálculo provisório</td></tr>
             <tr><td><b>B/L avulso</b><span>PDF ou DOCX</span></td><td>BLs · Viagem</td><td>A mesma trava de viagem declarada; avisos de leitura na prévia.</td><td>Partes, rota, volumes, peso, NCM, frete</td></tr>
-            <tr><td><b>CE Mercante</b><span>planilha ou EDI</span></td><td>BLs · Viagem</td><td>B/L de outra viagem é bloqueado; captura o nº do Manifesto Mercante.</td><td>Emissão da fatura · comunicado CE e Taxas</td></tr>
+            <tr><td><b>CE Mercante</b><span>planilha ou EDI</span></td><td>BLs · Viagem</td><td>B/L de outra viagem é bloqueado; uma linha ruim segura o lote inteiro; captura o nº do Manifesto Mercante.</td><td>Emissão da fatura · comunicado CE e Taxas</td></tr>
             <tr><td><b>Manifesto BB</b><span>carga solta</span></td><td>BLs</td><td>Formato numérico (vírgula ou ponto); número ambíguo bloqueia; teto de absurdo para peso, cubagem e volumes.</td><td>B/L de carga solta ou misto · peso da taxa</td></tr>
             <tr><td><b>Veículos</b><span>modelo, COSCO ou chinês</span></td><td>Veículos · Viagem</td><td>Chassi; B/L da viagem; container por número, tipo e lacre, sem ambiguidade.</td><td>VIN no Line Up · ADR · taxas</td></tr>
             <tr><td><b>Vazios IMP</b><span>container, tipo e tara</span></td><td>Vazios IMP · Viagem</td><td>Tara não negativa; porto reconhecido pelo cadastro.</td><td>MTY no Line Up · ADR</td></tr>

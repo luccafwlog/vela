@@ -140,7 +140,6 @@ export function CeMercanteImportModal({
         voyageId: lockedVoyageId,
         manifestoNumero: target === 'bls' ? numeroManifesto.trim() || undefined : undefined,
       })
-      const totalErrors = preview.rowErrors.length + result.errorCount
       setReport(result)
 
       await invalidateBls()
@@ -152,8 +151,8 @@ export function CeMercanteImportModal({
       }
 
       showToast(
-        `Importacao concluida com ${result.updated} atualizacao(oes) e ${totalErrors} erro(s).`,
-        'info',
+        `Nada foi gravado: ${result.errorCount} erro(s). Corrija a planilha e envie de novo.`,
+        'error',
       )
     } catch {
       showToast('Falha ao importar CE Mercante.', 'error')
@@ -188,7 +187,7 @@ export function CeMercanteImportModal({
             errors: result.errors.map((error) => ({ bl_id: error.bl_id, ce: undefined, message: error.message })),
           })
           await invalidateBls()
-          showToast(`Importacao parcial: ${result.updated} gravado(s), ${result.errorCount} pendencia(s).`, 'error')
+          showToast(`Nada foi gravado: ${result.errorCount} pendência(s). Corrija o arquivo e envie de novo.`, 'error')
           return
         }
         await invalidateBls()
@@ -250,7 +249,10 @@ export function CeMercanteImportModal({
   }
 
   const ediBlocked = Boolean(ediPreview && ediPreview.rowErrors.length > 0)
-  const canSubmit = (preview?.rows.length ?? 0) > 0 || ((ediPreview?.rows.length ?? 0) > 0 && !ediBlocked)
+  // Planilha também é "tudo ou nada" (migration 082): erro de estrutura na
+  // prévia bloqueia a confirmação, como no EDI.
+  const sheetBlocked = Boolean(preview && preview.rowErrors.length > 0)
+  const canSubmit = ((preview?.rows.length ?? 0) > 0 && !sheetBlocked) || ((ediPreview?.rows.length ?? 0) > 0 && !ediBlocked)
 
   return (
     <Modal open={open} onClose={resetAndClose} title="Importar CE Mercante">
