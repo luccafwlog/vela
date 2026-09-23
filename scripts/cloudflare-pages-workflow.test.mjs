@@ -37,3 +37,9 @@ test('PR-controlled build job receives only repository read permission', () => {
   assert.match(jobPermissions('build'), /^      contents: read\n?$/)
   assert.match(jobBlock('build'), /persist-credentials: false/)
 })
+
+test('Supabase access token is scoped only to steps that invoke the Supabase CLI', () => {
+  const prepare = jobBlock('prepare')
+  assert.doesNotMatch(prepare, /^      SUPABASE_ACCESS_TOKEN:/m)
+  assert.equal((prepare.match(/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/g) ?? []).length, 2)
+})

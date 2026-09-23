@@ -94,10 +94,16 @@ Esta automação depende da criação prévia desses projetos Pages e dos seguin
 valores no GitHub Actions: secret `CLOUDFLARE_PAGES_API_TOKEN` com escopo Pages
 Write e variáveis `CLOUDFLARE_ACCOUNT_ID` e
 `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`. Esta última é um gate manual: só deve
-ser criada depois de configurar e testar Access nos dois projetos; sem ela, o
-job de publicação não executa. A automação não associa domínios, não altera DNS
-e não publica Production. Até a configuração externa e uma prova observável dos
-dois previews protegidos, Vercel continua sendo o hosting atual.
+ser criada depois de conferir no painel Cloudflare que os dois Access apps cobrem
+os hosts de Preview e permitem somente a identidade autorizada. Ela atesta a
+configuração, não o sucesso do teste de runtime. Para o primeiro Preview, a
+sequência é: mesclar esta automação após review formal; definir o gate após
+conferir Access; abrir uma PR de validação controlada; e testar acesso autorizado
+e negado nos dois URLs implantados. Se qualquer teste falhar, remover
+imediatamente o gate e parar novas publicações até corrigir Access. Sem o gate,
+o job de publicação não executa. A automação não associa domínios, não altera DNS
+e não publica Production. Até os dois testes de runtime passarem, Vercel continua
+sendo o hosting atual.
 
 O workflow manual de provisionamento usa apenas `CLOUDFLARE_PAGES_API_TOKEN` e
 `CLOUDFLARE_ACCOUNT_ID`. Ele consulta os projetos existentes e cria somente os
@@ -107,9 +113,10 @@ existem, portanto essa automação deverá reconhecê-los e deixá-los intactos.
 `CLOUDFLARE_ACCOUNT_ID` já foi adicionada às Actions Variables. O secret
 `CLOUDFLARE_PAGES_API_TOKEN` também foi confirmado na lista de repository
 secrets (seu valor não foi acessado). Antes de definir
-`CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`, testar sessões autorizada e não
-autorizada em Preview implantado; a escolha e autenticação inicial do IdP já
-foram concluídas pelo owner.
+`CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`, conferir as aplicações e políticas no
+Cloudflare antes do primeiro Preview. Depois de publicar, testar sessões
+autorizada e não autorizada em ambos os projetos; a escolha e autenticação
+inicial do IdP já foram concluídas pelo owner.
 
 Não há mais workflow de deploy Firebase no repositório. A integração Vercel é
 configurada no projeto Vercel, não como uma segunda publicação no GitHub

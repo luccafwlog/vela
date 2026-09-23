@@ -45,6 +45,9 @@
 - **Refresh da fila remota (2026-09-23, gh CLI autenticado, leitura apenas):** #719 e #729–#730 têm todos os checks reportados verdes, mas seguem `REVIEW_REQUIRED`; #731 e #733 também têm seus demais checks verdes, porém `Supabase Preview` está `SKIPPED`. #734–#736 ainda falham nos previews Vercel (Vela em #734/#735; Portal em #736); #737 tem `Supabase Preview` `CANCELLED`. #734–#737 continuam drafts empilhadas; #734 requer review formal. #738 (base `codex/apresentacao-vela`) não pertence à Issue 710, e tem `Supabase Preview` `CANCELLED`; permanece fora do escopo. Nenhuma escrita remota foi feita. Não tratar skipped/cancelled como sucesso nem avançar Dependabot antes da conciliação planejada.
 - **Bootstrap autorizado da #739 e revisão de segurança (2026-09-23):** após a validação anterior, a branch Supabase `3c2eefaa-ae1d-40b9-9f66-e8df165bfd47` foi removida conforme autorização do owner; o check `Supabase Preview` havia passado no SHA `d4aaa67e408a23c37cdfe7ad039fd306f9414e70`, e o ambiente estava sem dados. O owner autorizou enviar uma correção de segurança e seguir o bootstrap com Preview temporário novamente, removido ao final, sem DNS ou produção. A revisão encontrou `statuses: write` concedido globalmente, inclusive ao job que executa código da PR; a correção restringe essa permissão ao job confiável `publish`, limita os demais jobs e desativa persistência da credencial do checkout não confiável. Também restringe o token Cloudflare do cleanup ao passo que chama a API. Testes contratuais Pages (12) e provisionamento (5), `docs:check`, ESLint do teste e `git diff --check` passaram localmente. As mudanças estão apenas no checkout até o novo push/CI. Na consulta do GitHub, o owner é o único colaborador disponível e autor da PR; não há reviewer formal independente listado. Merge continua condicionado à revisão formal e à evidência de Preview protegido; nenhuma mudança de DNS/produção está autorizada por este registro.
 
+- **Revisão independente e sequência de bootstrap (2026-09-23):** a revisão confirmou a falta de bootstrap antes do primeiro deploy e identificou `SUPABASE_ACCESS_TOKEN` disponível ao job inteiro `prepare`. O segredo foi movido para os dois passos que executam a CLI; o teste estático agora cobre esse escopo. O procedimento operacional foi ajustado para definir o gate após conferir as políticas Access no painel e testar autorização/negação logo após o primeiro Preview controlado, removendo o gate se falhar. O commit `7a3e8e812604db05d16df3e52594bee7467d9f33` passou em todos os checks GitHub/Supabase/Vercel; o Preview temporário foi removido depois. Atualizações posteriores da revisão e testes locais ainda serão registradas após novo push. A `main` exige uma aprovação formal; só o autor consta como colaborador disponível, então o merge espera reviewer com permissão. Nenhum deploy Pages/DNS/produção ocorreu.
+- **Correção do escopo do token Supabase (2026-09-23):** o segredo saiu do ambiente global de `prepare` e ficou apenas nos passos `readiness` e `branch-env` que executam a CLI. O teste contratual verifica que não volta a ser declarado no nível do job e conta exatamente os dois usos; documentação do deploy e plano vivo agora descrevem o bootstrap condicionado à conferência manual de Access e o teste runtime posterior. Validação local atual: 13 testes Pages, 5 de provisionamento, `docs:check`, ESLint e `git diff --check` aprovados. O próximo push à #739 reexecutará CI/Supabase Preview; a autorização do owner cobre o Preview temporário a US$ 0,01344/h e remoção imediatamente após concluir. Ainda não houve novo push deste conjunto nem deploy Pages.
+
 ## 1. Regras para reduzir confusão e risco
 
 1. O código mesclado, configuração no provedor e comportamento observado em runtime são três estados distintos. Fechar um só quando houver evidência própria.
@@ -130,9 +133,13 @@ concluído a autenticação/consentimento nos dois apps. Falta provar em deploym
 real tanto o acesso permitido quanto a negação de identidade não autorizada. O GitHub
 secret `CLOUDFLARE_PAGES_API_TOKEN` foi confirmado existente sem ler seu valor,
 e `CLOUDFLARE_ACCOUNT_ID` está criada como Actions Variable. A variável-gate
-`CLOUDFLARE_PAGES_ACCESS_CONFIGURED` continua ausente até o teste após deployment
-controlado. O workflow de provisionamento local reconhecerá os dois projetos e
-não os modificará.
+`CLOUDFLARE_PAGES_ACCESS_CONFIGURED` continua ausente. Para evitar circularidade
+no primeiro deploy, defini-la somente após conferir no painel que os dois Access
+apps cobrem os hosts Preview e limitam o acesso à identidade aprovada; a variável
+atesta configuração, não validação de runtime. Depois, publicar uma PR de
+bootstrap controlada e testar sessão autorizada e negada em ambos. Se falhar,
+remover a variável e pausar novas publicações. O workflow de provisionamento
+local reconhecerá os dois projetos e não os modificará.
 
 **Andamento (2026-09-23):** em worktree isolado, estão implementados o
 empacotamento reproduzível dos dois SPAs, redirects/fallback, headers de
@@ -142,7 +149,8 @@ e executar os testes contratuais. A automação `workflow_run` foi implementada 
 worktree: aguarda Supabase Preview verde, rejeita produção, fornece ao build
 da PR somente URL/chave pública da branch e separa o job de publicação (token
 Pages não é entregue ao código da PR). A publicação fica bloqueada por padrão e
-exige Access validado antes de liberar o job. Nenhum deployment, domínio, DNS ou
+exige a conferência da configuração Access antes de liberar o primeiro Preview;
+o teste funcional de Access acontece após o deploy. Nenhum deployment, domínio, DNS ou
 tráfego de produção foi criado/alterado nesta atualização; os projetos vazios e
 Access foram configurados conforme o registro acima. Neste checkout isolado,
 15 testes específicos de provisionamento/staging/ambiente/limpeza, lint,
