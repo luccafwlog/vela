@@ -1,12 +1,19 @@
-# Planos executados (archive)
+# Planos históricos (archive)
 
-Todos os planos de implementação **já executados**, consolidados aqui em
-2026-07-18 (antes divididos entre `docs/archive/plans/` e
-`docs/archive/superpowers/plans/`). O que cada entrega produziu está resumido
-no [CHANGELOG](../../CHANGELOG.md); planos vivos ficam em
+Planos concluídos, encerrados ou superados, consolidados aqui em 2026-07-18
+(antes divididos entre `docs/archive/plans/` e
+`docs/archive/superpowers/plans/`). O estado e o motivo de encerramento variam
+por documento; o que cada entrega produziu está resumido no
+[CHANGELOG](../../CHANGELOG.md); planos vivos ficam em
 [`docs/plans/`](../../plans/README.md).
 
 ## Conteúdo
+
+- [`2026-09-22-issue-710-endurecimento-stack`](2026-09-22-issue-710-endurecimento-stack.md)
+  — **superado, não concluído integralmente.** O trabalho foi parcialmente
+  entregue, mas o plano amplo foi substituído em 2026-09-23 por
+  [`2026-09-23-issue-710-consolidacao-service-a-service`](../../plans/2026-09-23-issue-710-consolidacao-service-a-service.md),
+  que reconcilia as PRs e ordena as pendências serviço a serviço.
 
 - [`2026-09-20-remediacao-ui-design-system.md`](2026-09-20-remediacao-ui-design-system.md)
   — remediação dos 15 achados da auditoria forense de UI, design system e

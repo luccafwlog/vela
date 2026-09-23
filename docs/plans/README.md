@@ -3,12 +3,14 @@
 Planos ativos — trabalho previsto e ainda não concluído. Este é o único
 diretório de planos vivos do projeto; skills e agentes gravam planos novos aqui.
 
-Quando um plano é totalmente executado, ele é movido para
-[`../archive/plans/`](../archive/plans/README.md) como registro histórico.
+Quando um plano é totalmente executado, encerrado ou superado por decisão
+registrada, ele é movido para [`../archive/plans/`](../archive/plans/README.md)
+com nota de estado e motivo; o arquivo continua sendo histórico, não fonte de
+verdade sobre o estado atual.
 
 ## Planos ativos
 
-- [2026-09-22 — Issue 710: endurecimento da stack](2026-09-22-issue-710-endurecimento-stack.md) — observabilidade, perímetro e autenticação, supply chain, analytics, entregabilidade e recuperação, com configuração e prova pelos painéis autenticados.
+- [2026-09-23 — Issue 710: conciliação e execução serviço a serviço](2026-09-23-issue-710-consolidacao-service-a-service.md) — reconcilia PRs #717–#737 e define uma sequência com dependências, custo, gates e critérios de aceite por serviço.
 - [2026-09-18 — Governança, limpeza e evolução das skills](2026-09-18-governanca-limpeza-evolucao-skills.md) — inventário, decisão, sincronização segura e melhoria comportamental das skills do Vela.
 - [2026-09-06 — Remediação das auditorias #654–#660](2026-09-06-plano-remediacao-auditorias-654-660.md) — execução parcial; os residuais de S03, S05, S06/S07 e a prova de runtime continuam abertos.
 - [2026-09-12 — Remediação da revisão sistemática multiagente](2026-09-12-plano-implementacao-auditoria-sistematica.md) — plano de remediação dos achados consolidados da auditoria da PR #687, cobrindo acessibilidade, UX, documentos/faturas, segurança de testes, banco de dados e performance.
