@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from '../../services/portalBilling'
@@ -85,7 +85,7 @@ const mocks = vi.hoisted(() => ({
   currentRoe: { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' } as { roe: number; updatedAt: string } | null,
 }))
 
-const analytics = vi.hoisted(() => ({ capture: vi.fn() }))
+const analytics = vi.hoisted(() => ({ capture: vi.fn(), initialize: vi.fn().mockResolvedValue(undefined) }))
 
 const portalScope = vi.hoisted(() => ({
   mode: 'client' as 'client' | 'inspect',
@@ -180,6 +180,7 @@ vi.mock('../../services/portalBilling', () => ({
 vi.mock('../../lib/featureFlags', () => ({
   PRODUCT_EVENTS: { INVOICE_VIEWED: 'invoice_viewed' },
   featureFlags: { capture: (...args: unknown[]) => analytics.capture(...args) },
+  initFeatureFlags: (...args: unknown[]) => analytics.initialize(...args),
 }))
 
 import { PortalBilling } from '../PortalBilling'
@@ -208,6 +209,7 @@ afterEach(() => {
   mocks.currentRoe = { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' }
   portalScope.mode = 'client'
   analytics.capture.mockReset()
+  analytics.initialize.mockReset().mockResolvedValue(undefined)
 })
 
 const consolidatedDetail = {
@@ -313,6 +315,7 @@ describe('PortalBilling', () => {
     renderBilling()
 
     await user.click(screen.getAllByRole('button', { name: 'Detalhes' })[0])
+    await waitFor(() => expect(analytics.capture).toHaveBeenCalledTimes(1))
     expect(analytics.capture).toHaveBeenCalledTimes(1)
     expect(analytics.capture).toHaveBeenCalledWith('invoice_viewed', { surface: 'portal', invoice_type: 'local' })
 
@@ -329,6 +332,7 @@ describe('PortalBilling', () => {
     await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
     await user.click(screen.getAllByRole('button', { name: 'Detalhes' })[0])
 
+    await waitFor(() => expect(analytics.capture).toHaveBeenCalledTimes(1))
     expect(analytics.capture).toHaveBeenCalledTimes(1)
     expect(analytics.capture).toHaveBeenCalledWith('invoice_viewed', { surface: 'portal', invoice_type: 'demurrage' })
   })
@@ -345,6 +349,25 @@ describe('PortalBilling', () => {
     renderBilling()
     await user.click(screen.getAllByRole('button', { name: 'Detalhes' })[0])
     expect(analytics.capture).not.toHaveBeenCalled()
+  })
+
+  it('aguarda a inicializacao do PostHog antes de enviar uma visualizacao', async () => {
+    const user = userEvent.setup()
+    let resolveInitialization: (() => void) | undefined
+    analytics.initialize.mockImplementation(() => new Promise<void>((resolve) => {
+      resolveInitialization = resolve
+    }))
+    mocks.detail = consolidatedDetail
+    renderBilling()
+
+    await user.click(screen.getAllByRole('button', { name: 'Detalhes' })[0])
+    expect(analytics.capture).not.toHaveBeenCalled()
+
+    resolveInitialization?.()
+    await waitFor(() => expect(analytics.capture).toHaveBeenCalledWith('invoice_viewed', {
+      surface: 'portal',
+      invoice_type: 'local',
+    }))
   })
 
   it('Task 10: desfazer consolidada usa ConfirmDialog e so executa apos confirmar', async () => {

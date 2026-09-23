@@ -35,7 +35,7 @@ import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../lib/
 import { formatBRL } from '../lib/utils'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
 import { isPortalReadOnly } from '../services/portalScope'
-import { featureFlags, PRODUCT_EVENTS } from '../lib/featureFlags'
+import { featureFlags, initFeatureFlags, PRODUCT_EVENTS } from '../lib/featureFlags'
 
 type PortalTab = 'local' | 'demurrage'
 type Filters = PortalBillingFilters
@@ -104,7 +104,9 @@ export function PortalBilling() {
     const key = `local:${selectedInvoiceId}`
     if (trackedInvoiceViews.current.has(key)) return
     trackedInvoiceViews.current.add(key)
-    featureFlags.capture(PRODUCT_EVENTS.INVOICE_VIEWED, { surface: 'portal', invoice_type: 'local' })
+    void initFeatureFlags().then(() => {
+      featureFlags.capture(PRODUCT_EVENTS.INVOICE_VIEWED, { surface: 'portal', invoice_type: 'local' })
+    })
   }, [portalScope.mode, selectedInvoiceId, detailQuery.data, detailQuery.error, detailQuery.isLoading, detailQuery.isSuccess])
 
   useEffect(() => {
@@ -122,7 +124,9 @@ export function PortalBilling() {
     const key = `demurrage:${selectedDemurrageId}`
     if (trackedInvoiceViews.current.has(key)) return
     trackedInvoiceViews.current.add(key)
-    featureFlags.capture(PRODUCT_EVENTS.INVOICE_VIEWED, { surface: 'portal', invoice_type: 'demurrage' })
+    void initFeatureFlags().then(() => {
+      featureFlags.capture(PRODUCT_EVENTS.INVOICE_VIEWED, { surface: 'portal', invoice_type: 'demurrage' })
+    })
   }, [portalScope.mode, selectedDemurrageId, demurrageDetailQuery.data, demurrageDetailQuery.error, demurrageDetailQuery.isLoading, demurrageDetailQuery.isSuccess])
 
   const eligibleCount = (receivables ?? []).filter((r) => r.eligibility_status === 'eligible').length
