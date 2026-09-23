@@ -181,11 +181,21 @@ deve ser considerado abrangente para todo o runtime Edge.
 - A fundação de PostHog está no código: ambos os entrypoints chamam
   `initFeatureFlags()`, com autocapture, pageviews, gravação de sessão e
   captura automática de exceções desligados. Pela decisão do owner, o SDK usa
-  `cookieless_mode: always`, `person_profiles: never` e só permite propriedades
-  agregadas allowlisted; não persiste ID de visitante no navegador. No painel,
-  “Discard client IP data” está ligado. O modo de hash diário server-side (IP,
-  user-agent e hostname) não foi validado; não ativá-lo sem nova decisão. A
-  meta atual é volume agregado de eventos, não visitantes únicos. As
+  `cookieless_mode: always`, `person_profiles: never` e propriedades
+  allowlisted. Em `posthog-js 1.434.8`, `before_send` recebe o evento já
+  montado (incluindo as propriedades de transporte cookieless) antes de entrar
+  na fila de envio; o redator mantém o envelope técnico `event`/`uuid` e o
+  `timestamp` quando presente. Nas propriedades, mantém apenas o project key
+  público configurado em `token`, o sentinela fixo e compartilhado
+  `distinct_id="$posthog_cookieless"`, `$cookieless_mode=true` e os campos
+  agregados `surface`/`invoice_type` quando válidos. O sentinela é constante
+  para todos os visitantes e eventos; não identifica nem correlaciona
+  visitantes. Nenhum identificador de cliente/fatura, hash, PII ou propriedade
+  padrão é mantido. Não há persistência de ID de visitante no navegador. No
+  painel, “Discard client IP data” está ligado. O modo de hash diário
+  server-side (IP, user-agent e hostname) não foi validado e não deve ser
+  ativado sem nova decisão. A meta atual é volume agregado de eventos, não
+  visitantes únicos. As
   variáveis `VITE_POSTHOG_KEY`
   e `VITE_POSTHOG_HOST` aparecem nos dois projetos Vercel em Production; no
   painel PostHog EU ainda não havia eventos. Presença de configuração não prova
@@ -193,8 +203,12 @@ deve ser considerado abrangente para todo o runtime Edge.
 - `invoice_viewed` é emitido ao abrir um detalhe de fatura local ou demurrage
   carregado com sucesso no Portal do cliente; falha de consulta e Modo Inspeção
   não geram evento. A deduplicação mantém apenas uma chave efêmera em memória
-  durante a montagem da página. O payload contém somente `surface=portal` e
-  `invoice_type`; nenhum ID, hash, dado pessoal ou conteúdo da fatura é enviado.
+  durante a montagem da página. As únicas propriedades de transporte do evento
+  são `token` (o project key público configurado), `distinct_id` fixo
+  `$posthog_cookieless` e `$cookieless_mode=true`; dimensões de produto
+  allowlisted são `surface=portal` e `invoice_type`. O sentinela é igual para
+  todos, sem correlação entre visitantes. Nenhum ID de cliente/fatura, hash,
+  PII, URL, dado do conteúdo da fatura ou outra propriedade é enviado.
   `invoice_paid` e `dispute_opened` ainda não têm pontos de captura. O runtime
   configurado não prova ingestão: validar em Preview e no painel PostHog após
   deploy, sem fixture com dados reais.

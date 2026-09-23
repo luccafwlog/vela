@@ -27,6 +27,7 @@ export type FeatureFlagAdapter = Readonly<{
 type PostHogClient = Pick<PostHog, 'capture' | 'isFeatureEnabled'>
 
 const POSTHOG_DEFAULT_HOST = 'https://eu.i.posthog.com'
+const COOKIELESS_DISTINCT_ID = '$posthog_cookieless'
 const PRODUCT_EVENT_NAMES = new Set<ProductEventName>(Object.values(PRODUCT_EVENTS))
 
 const DISABLED_ADAPTER: FeatureFlagAdapter = Object.freeze({
@@ -41,10 +42,9 @@ function isProductEventName(event: string): event is ProductEventName {
   return PRODUCT_EVENT_NAMES.has(event as ProductEventName)
 }
 
-function sanitizeProperties(properties: Record<string, unknown> | undefined): Record<string, string> {
-  if (!properties) return {}
-
+function sanitizeProductProperties(properties: Record<string, unknown> | undefined): Record<string, string> {
   const safe: Record<string, string> = {}
+  if (!properties) return safe
   if (properties.surface === 'portal' || properties.surface === 'internal') safe.surface = properties.surface
   if (properties.invoice_type === 'local' || properties.invoice_type === 'demurrage') {
     safe.invoice_type = properties.invoice_type
@@ -52,17 +52,35 @@ function sanitizeProperties(properties: Record<string, unknown> | undefined): Re
   return safe
 }
 
-/**
- * Final event boundary: only the named product events and allowlisted
- * properties may leave the browser. This also drops PostHog's default URL and
- * device properties, which could otherwise contain application identifiers.
- */
-export function redactPostHogEvent(event: CaptureResult | null): CaptureResult | null {
-  if (!event || !isProductEventName(event.event)) return null
-  return { ...event, properties: sanitizeProperties(event.properties) }
+function sanitizeProperties(
+  properties: Record<string, unknown> | undefined,
+  projectKey: string,
+): Record<string, string | boolean> {
+  return {
+    token: projectKey,
+    distinct_id: COOKIELESS_DISTINCT_ID,
+    $cookieless_mode: true,
+    ...sanitizeProductProperties(properties),
+  }
 }
 
-export function createPostHogConfig(apiHost: string): Partial<PostHogConfig> {
+/**
+ * Final event boundary: only the named product events and allowlisted
+ * properties may leave the browser. The SDK's cookieless transport requires
+ * the configured project token, its shared sentinel, and its mode marker.
+ * This also drops PostHog's default URL/device properties and all person data.
+ */
+export function redactPostHogEvent(event: CaptureResult | null, projectKey: string): CaptureResult | null {
+  if (!event || !projectKey || !isProductEventName(event.event)) return null
+  return {
+    uuid: event.uuid,
+    event: event.event,
+    ...(event.timestamp ? { timestamp: event.timestamp } : {}),
+    properties: sanitizeProperties(event.properties, projectKey),
+  }
+}
+
+export function createPostHogConfig(apiHost: string, projectKey: string): Partial<PostHogConfig> {
   return {
     api_host: apiHost,
     autocapture: false,
@@ -75,7 +93,7 @@ export function createPostHogConfig(apiHost: string): Partial<PostHogConfig> {
     disable_surveys: true,
     cookieless_mode: 'always',
     person_profiles: 'never',
-    before_send: redactPostHogEvent,
+    before_send: (event) => redactPostHogEvent(event, projectKey),
   }
 }
 
@@ -101,7 +119,7 @@ export function createPostHogAdapter(client: PostHogClient): FeatureFlagAdapter 
     capture(event: ProductEventName, properties?: ProductEventProperties) {
       if (!isProductEventName(event)) return
       try {
-        client.capture(event, sanitizeProperties(properties as Record<string, unknown> | undefined))
+        client.capture(event, sanitizeProductProperties(properties as Record<string, unknown> | undefined))
       } catch {
         // Analytics is best-effort and must never interrupt the product flow.
       }
@@ -127,7 +145,7 @@ export async function initFeatureFlags(): Promise<void> {
 
   initialization = import('posthog-js')
     .then(({ default: posthog }) => {
-      posthog.init(key, createPostHogConfig(normalizeHost(import.meta.env.VITE_POSTHOG_HOST)))
+      posthog.init(key, createPostHogConfig(normalizeHost(import.meta.env.VITE_POSTHOG_HOST), key))
       activeAdapter = createPostHogAdapter(posthog)
     })
     .catch(() => {

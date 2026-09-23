@@ -46,6 +46,7 @@ describe('feature flags', () => {
   })
 
   it('removes default URL/device properties at the final provider boundary', () => {
+    const projectKey = 'phc_configured_key'
     const event = redactPostHogEvent({
       uuid: 'event-id',
       event: PRODUCT_EVENTS.INVOICE_VIEWED,
@@ -56,13 +57,86 @@ describe('feature flags', () => {
         customer_id_hash: 'a'.repeat(64),
         voyage_id_hash: 'b'.repeat(64),
       },
+    }, projectKey)
+
+    expect(event?.properties).toEqual({
+      token: projectKey,
+      distinct_id: '$posthog_cookieless',
+      $cookieless_mode: true,
+      surface: 'portal',
+    })
+  })
+
+  it('preserves only the configured token, shared cookieless sentinel, and approved dimensions', () => {
+    const projectKey = 'phc_public_project_key'
+    const event = redactPostHogEvent({
+      uuid: 'event-id',
+      event: PRODUCT_EVENTS.INVOICE_VIEWED,
+      timestamp: new Date('2026-09-22T12:00:00.000Z'),
+      properties: {
+        token: 'attacker-controlled-token',
+        distinct_id: 'customer-42',
+        $cookieless_mode: false,
+        surface: 'portal',
+        invoice_type: 'local',
+        customer_id: 42,
+        email: 'cliente@example.com',
+        $current_url: 'https://portalfwlog.com.br/portal/faturas/42',
+      },
+      $set: { email: 'cliente@example.com' },
+      $set_once: { customer_id: 42 },
+      $unset: ['email'],
+    }, projectKey)
+
+    expect(event).toEqual({
+      uuid: 'event-id',
+      event: PRODUCT_EVENTS.INVOICE_VIEWED,
+      timestamp: new Date('2026-09-22T12:00:00.000Z'),
+      properties: {
+        token: projectKey,
+        distinct_id: '$posthog_cookieless',
+        $cookieless_mode: true,
+        surface: 'portal',
+        invoice_type: 'local',
+      },
+    })
+    expect(event?.properties).toEqual({
+      token: projectKey,
+      distinct_id: '$posthog_cookieless',
+      $cookieless_mode: true,
+      surface: 'portal',
+      invoice_type: 'local',
+    })
+  })
+
+  it('drops non-approved PostHog events at the final provider boundary', () => {
+    expect(redactPostHogEvent({
+      uuid: 'event-id',
+      event: '$pageview',
+      properties: { token: 'phc_public_project_key', distinct_id: '$posthog_cookieless' },
+    }, 'phc_configured_key')).toBeNull()
+  })
+
+  it('binds the redaction boundary to the configured public project key', () => {
+    const projectKey = 'phc_configured_key'
+    const beforeSend = createPostHogConfig('https://eu.i.posthog.com', projectKey).before_send
+    if (typeof beforeSend !== 'function') throw new Error('PostHog before_send callback was not configured')
+
+    const event = beforeSend({
+      uuid: 'event-id',
+      event: PRODUCT_EVENTS.INVOICE_VIEWED,
+      properties: { token: 'wrong-key', distinct_id: 'customer-42', $cookieless_mode: false },
     })
 
-    expect(event?.properties).toEqual({ surface: 'portal' })
+    expect(event?.properties).toEqual({
+      token: projectKey,
+      distinct_id: '$posthog_cookieless',
+      $cookieless_mode: true,
+    })
   })
 
   it('disables automatic collection and recording in the provider config', () => {
-    expect(createPostHogConfig('https://eu.i.posthog.com')).toMatchObject({
+    expect(createPostHogConfig('https://eu.i.posthog.com', 'phc_configured_key')).toMatchObject({
       autocapture: false,
       capture_pageview: false,
       capture_pageleave: false,

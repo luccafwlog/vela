@@ -590,8 +590,11 @@ separada. Não generalizar a exceção para chamadas do navegador.
 - **PostHog EU:** analytics agregado e feature flags; coleta automática fica
   desativada e o contrato não associa cliente/viagem. O Portal registra
   `invoice_viewed` somente após carregar o detalhe de uma fatura local ou
-  demurrage; payload limitado a superfície e tipo. Ingestão ainda requer prova
-  em Preview após deploy.
+  demurrage. As propriedades preservam o token público configurado e o
+  sentinela fixo compartilhado `$posthog_cookieless` com `$cookieless_mode=true`,
+  além de superfície/tipo allowlisted; o sentinela não identifica nem
+  correlaciona visitantes. Nenhum ID de negócio ou PII é enviado. Ingestão
+  ainda requer prova em Preview após deploy.
 - **Vercel:** distribuição da SPA e Preview/Production Deployments;
 - **PIX:** BR Code estático persistido e QR renderizado; conciliação por extrato. API Itaú dinâmica/webhook permanece proposta em `docs/spec/2026-08-25-integracao-itau-pix.md`.
 
