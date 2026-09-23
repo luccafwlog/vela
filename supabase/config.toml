@@ -265,6 +265,10 @@ token_verifications = 30
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
 web3 = 30
 
+# O Portal usa Edge Functions próprias para login/convite/recuperação e valida
+# Turnstile por Siteverify antes do trabalho privilegiado. Não habilitar o
+# CAPTCHA nativo do GoTrue nesta arquitetura: o token Turnstile é de uso único
+# e já foi consumido pela verificação explícita da Edge Function.
 # Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
 # [auth.captcha]
 # enabled = true

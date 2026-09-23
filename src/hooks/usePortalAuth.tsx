@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/react'
 import { supabasePortal } from '../services/supabase'
 import { signOutSupabaseClient } from '../services/supabaseAuth'
 import { canonicalizeDocument } from '../lib/cnpj'
+import { isPortalTurnstileRejection } from '../lib/portalTurnstileError'
 import type { PortalSessionOverview } from '../services/portalBilling'
 
 type PortalAuthContextValue = {
@@ -13,7 +14,7 @@ type PortalAuthContextValue = {
   isAuthenticated: boolean
   isSigningOut: boolean
   signOutError: string | null
-  signIn: (cnpj: string, password: string) => Promise<void>
+  signIn: (cnpj: string, password: string, turnstileToken: string) => Promise<void>
   signOut: () => Promise<void>
   refreshOverview: () => Promise<void>
 }
@@ -120,13 +121,14 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
     }
   }, [clearSession])
 
-  const signIn = useCallback(async (cnpj: string, password: string) => {
+  const signIn = useCallback(async (cnpj: string, password: string, turnstileToken: string) => {
     setLoading(true)
     setSignOutError(null)
     try {
       const normalized = canonicalizeDocument(cnpj)
       if (!normalized) throw new Error('CNPJ ou senha inválidos.')
-      const { data, error } = await supabasePortal.functions.invoke('portal-login', { body: { cnpj: normalized, password } })
+      const { data, error } = await supabasePortal.functions.invoke('portal-login', { body: { cnpj: normalized, password, turnstile_token: turnstileToken } })
+      if (isPortalTurnstileRejection(error)) throw Object.assign(new Error('Verificação de segurança inválida.'), { code: 'TURNSTILE_REJECTED' })
       if (error || !data?.access_token) throw new Error('CNPJ ou senha inválidos.')
       const { error: sessionError } = await supabasePortal.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
       if (sessionError) throw new Error('CNPJ ou senha inválidos.')

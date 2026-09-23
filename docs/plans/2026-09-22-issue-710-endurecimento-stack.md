@@ -196,10 +196,10 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 **Comportamento operacional da primeira entrega:** os fluxos públicos do Portal podem exigir Turnstile válido, com erro recuperável para humanos e recusa antes do trabalho caro do Auth. MFA interno não será imposto nesta entrega; os itens de enrolamento, AAL2, recovery codes e enforcement permanecem adiados.
 
 - [x] **Adiado por decisão do owner:** modelar enrolamento/garantia MFA, AAL2, recovery codes e enforcement server-side somente após nova autorização explícita.
-- [ ] Integrar widget Turnstile em `src/pages/PortalLogin.tsx`, `PortalAtivacao.tsx`, `PortalForgotPassword.tsx`/reset conforme ameaça. Encaminhar apenas token efêmero às Edge Functions; validar com secret server-side antes de resolver conta/chamar Auth.
-- [ ] Alinhar `supabase/config.toml` ao estado remoto suportado sem commitar secret. Confirmar se Supabase Auth CAPTCHA cobre chamadas feitas dentro de `portal-login`; se não, manter verificação explícita na Edge Function.
-- [ ] Testes de UI/Edge Functions para Turnstile; validar recusa e recuperação em Preview com chaves próprias de teste, sem alterar a política MFA adiada.
-- [ ] Atualizar segurança, auth, deploy e suporte para a decisão de escopo. Rollback: remover a verificação Turnstile e revogar o segredo se exposto; não há enforcement MFA para suspender nesta entrega.
+- [x] Integrar widget Turnstile às páginas de login, ativação, recuperação e redefinição; cada envio recebe apenas token efêmero. As quatro Edge Functions consultam Siteverify, validam `success`, action e hostname allowlisted antes de resolver conta, consumir convite ou chamar Auth. Ausência de configuração/token, falha de rede ou resposta inválida bloqueia o fluxo; nenhuma chave está configurada nem houve deploy.
+- [x] Alinhar `supabase/config.toml` sem commitar secrets. O CAPTCHA nativo do GoTrue permanece desativado: `portal-login` chama Auth de dentro de Edge Function; o token Turnstile de uso único é validado ali antes, não podendo ser consumido outra vez pela mesma operação Auth.
+- [x] Adicionar testes locais do widget, Siteverify e ordem das verificações nas Edge Functions; cobrir fluxo de recusa/recuperação nas páginas. **Preview com chaves próprias, validação real Cloudflare e produção continuam pendentes** até configurar sitekey/secret por ambiente.
+- [x] Atualizar segurança, Portal e deploy: `VITE_TURNSTILE_SITE_KEY` pública; `TURNSTILE_SECRET_KEY` server-only; `TURNSTILE_ALLOWED_HOSTNAMES` com allowlist específica por ambiente; CSP permite somente script/iframe Cloudflare. Rollback: remover a verificação e revogar o segredo se exposto; MFA interno continua adiado.
 
 ### M7 — Upstash Redis para bloqueio distribuído e idempotência
 

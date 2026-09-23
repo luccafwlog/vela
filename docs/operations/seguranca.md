@@ -52,6 +52,31 @@
   permanece ativo. O procedimento de cadastro, teste, métricas e rollback está
   em [Rate limit do Portal](portal-rate-limit.md).
 
+## Turnstile no Portal
+
+As ações públicas de login, solicitação de recuperação, inspeção/ativação de
+convite e redefinição de senha exibem o widget managed e enviam o token efêmero
+uma única vez à Edge Function correspondente. O servidor chama o Siteverify
+do Cloudflare, exige `success`, `action` esperada e `hostname` pertencente a
+`TURNSTILE_ALLOWED_HOSTNAMES`, antes de resolver CNPJ, consultar/consumir
+convites ou chamar Auth Admin. Falta de token/configuração, recusa, timeout,
+resposta inválida ou falha de rede bloqueiam o caminho; o token não é logado.
+
+`VITE_TURNSTILE_SITE_KEY` é público e vai no bundle; `TURNSTILE_SECRET_KEY`
+é segredo apenas das Edge Functions. `TURNSTILE_ALLOWED_HOSTNAMES` é uma
+allowlist sem segredo, separada por vírgulas. Production deve restringir a
+`vela.app.br` e `portalfwlog.com.br`; nunca inclua `localhost` nas funções de
+produção. Preview e desenvolvimento devem usar chaves Cloudflare de teste,
+secret de teste e hostnames próprios do ambiente.
+
+O CAPTCHA nativo do GoTrue permanece desativado: o Portal autentica e provisiona
+por Edge Functions customizadas, e o token Cloudflare é de uso único; a função
+valida-o antes de continuar. Não passe esse mesmo token a uma segunda validação
+do GoTrue. A CSP autoriza somente o script e iframe `challenges.cloudflare.com`.
+Código e testes locais não comprovam widget/sitekeys, secrets, ingestão no
+Siteverify ou comportamento em Preview/Production; isso depende de configuração
+e de validação controlada do ambiente.
+
 ## Invariante de provisionamento do portal
 
 Uma conta de `customer_portal_accounts` só pode ficar ativa quando possui `auth_user_id`. A identidade é criada na ativação do convite; suspensão revoga sessões e devolve a conta à análise. A prontidão do Portal é guarda dos caminhos manuais de emissão; a automação CE tem exceção interna controlada na migration `051`.

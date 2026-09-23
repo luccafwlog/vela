@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError } from '../components/ui/Card'
@@ -6,6 +6,8 @@ import { Field, Input } from '../components/ui/Input'
 import { supabasePortal } from '../services/supabase'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../lib/passwordPolicy'
+import { TurnstileChallenge } from '../components/security/TurnstileChallenge'
+import { isPortalTurnstileRejection, PORTAL_TURNSTILE_REJECTION_MESSAGE } from '../lib/portalTurnstileError'
 
 const INVALID_LINK_MESSAGE = 'Link de recuperação inválido ou expirado.'
 
@@ -26,6 +28,11 @@ export function PortalResetPassword() {
   const [error, setError] = useState(() => (token ? '' : INVALID_LINK_MESSAGE))
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const [turnstileError, setTurnstileError] = useState('')
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0)
+  const handleTurnstileToken = useCallback((value: string) => setTurnstileToken(value), [])
+  const handleTurnstileError = useCallback((message: string) => setTurnstileError(message), [])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -41,16 +48,27 @@ export function PortalResetPassword() {
       return
     }
 
+    if (!turnstileToken) {
+      setError(turnstileError || 'Complete a verificação de segurança antes de continuar.')
+      return
+    }
+
     setSubmitting(true)
 
     try {
       if (!token) throw new Error(INVALID_LINK_MESSAGE)
-      const { error: updateError } = await supabasePortal.functions.invoke('portal-password-reset', { body: { token, password } })
+      const { error: updateError } = await supabasePortal.functions.invoke('portal-password-reset', {
+        body: { token, password, turnstile_token: turnstileToken },
+      })
       if (updateError) throw updateError
       setDone(true)
     } catch (err: unknown) {
-      setError(portalErrorMessage(err, 'Falha ao redefinir senha. Tente novamente em instantes.'))
+      setError(isPortalTurnstileRejection(err)
+        ? PORTAL_TURNSTILE_REJECTION_MESSAGE
+        : portalErrorMessage(err, 'Falha ao redefinir senha. Tente novamente em instantes.'))
     } finally {
+      setTurnstileToken('')
+      setTurnstileResetKey((current) => current + 1)
       setSubmitting(false)
     }
   }
@@ -112,6 +130,13 @@ export function PortalResetPassword() {
               placeholder="Minimo 8 caracteres"
             />
           </Field>
+
+          <TurnstileChallenge
+            action="portal_password_reset"
+            resetKey={turnstileResetKey}
+            onToken={handleTurnstileToken}
+            onError={handleTurnstileError}
+          />
 
           <Field label="Confirmar senha">
             <Input

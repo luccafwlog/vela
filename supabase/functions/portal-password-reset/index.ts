@@ -4,9 +4,13 @@ import { revokePortalSessions } from '../_shared/revokePortalSessions.ts'
 import { resetPortalPasswordFailClosed } from '../_shared/portalPasswordResetFlow.ts'
 import { withCors } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
+import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
-  const body = await req.json().catch(() => ({})) as { token?: string; password?: string }
+  const body = await req.json().catch(() => ({})) as { token?: string; password?: string; turnstile_token?: unknown }
+  if (!await verifyTurnstileRequest(req, body.turnstile_token, 'portal_password_reset')) {
+    return new Response(JSON.stringify({ error: 'Verificação de segurança inválida. Atualize e tente novamente.' }), { status: 403 })
+  }
   if (!body.token || typeof body.password !== 'string') return new Response(JSON.stringify({ error: 'Link inválido ou senha inválida.' }), { status: 422 })
   // A regra da senha não é oráculo de token: dizer o que falta na senha não revela
   // nada sobre o link, e a mensagem genérica acima continua cobrindo o token.

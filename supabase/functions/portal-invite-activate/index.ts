@@ -4,6 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 import { beginPortalRateLimitAttempt, completePortalRateLimitAttempt, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { logEdgeFailure } from '../_shared/logger.ts'
+import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
 
 const GENERIC_INVALID = 'Link inválido ou expirado. Solicite um novo convite à empresa.'
 
@@ -13,7 +14,11 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     const maskCnpj = (value: string) => { const d = value.replace(/[^0-9a-z]/gi, '').toUpperCase(); return d.length === 14 ? `${d.slice(0, 2)}.***.***/${d.slice(8, 12)}-${d.slice(12)}` : '***' }
   if (req.method === 'OPTIONS') return cors(204, null)
   if (req.method !== 'POST') return cors(405, { error: 'Method not allowed' })
-  const body = await req.json().catch(() => ({})) as { action?: string; token?: string; password?: string }
+  const body = await req.json().catch(() => ({})) as { action?: string; token?: string; password?: string; turnstile_token?: unknown }
+  if (!['inspect', 'activate'].includes(body.action ?? '')) return cors(400, { error: GENERIC_INVALID })
+  if (!await verifyTurnstileRequest(req, body.turnstile_token, 'portal_activation')) {
+    return cors(403, { error: 'Verificação de segurança inválida. Atualize e tente novamente.' })
+  }
   if (!body.token) return cors(400, { error: GENERIC_INVALID })
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const tokenHash = await hashToken(body.token)

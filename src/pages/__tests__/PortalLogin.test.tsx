@@ -22,6 +22,12 @@ vi.mock('../../services/supabase', () => ({
   isSupabaseConfigured: true,
 }))
 
+vi.mock('../../components/security/TurnstileChallenge', () => ({
+  TurnstileChallenge: ({ onToken }: { onToken: (token: string) => void }) => (
+    <button type="button" onClick={() => onToken('test-turnstile-token')}>Mock Turnstile success</button>
+  ),
+}))
+
 import { INCOMPLETE_CNPJ_MESSAGE } from '../../lib/portalCnpjLogin'
 import { PortalLogin } from '../PortalLogin'
 
@@ -72,6 +78,7 @@ it('mostra erro de conexao quando o login falha por rede', async () => {
 
   await user.type(await screen.findByPlaceholderText('00.000.000/0000-00'), '12.345.678/0001-95')
   await user.type(screen.getByLabelText('Senha'), 'senha-secreta')
+  await user.click(screen.getByRole('button', { name: 'Mock Turnstile success' }))
   await user.click(screen.getByRole('button', { name: 'Entrar no portal' }))
 
   await waitFor(() => {
@@ -97,6 +104,22 @@ it('CNPJ incompleto para no cliente, com mensagem propria, sem tentar autenticar
   expect(auth.signIn).not.toHaveBeenCalled()
 })
 
+it('não envia credenciais ao servidor sem token de verificação', async () => {
+  const user = userEvent.setup()
+  render(
+    <MemoryRouter>
+      <PortalLogin />
+    </MemoryRouter>,
+  )
+
+  await user.type(await screen.findByPlaceholderText('00.000.000/0000-00'), '12.345.678/0001-95')
+  await user.type(screen.getByLabelText('Senha'), 'senha-secreta')
+  await user.click(screen.getByRole('button', { name: 'Entrar no portal' }))
+
+  await waitFor(() => expect(screen.getByText('Complete a verificação de segurança antes de continuar.')).toBeTruthy())
+  expect(auth.signIn).not.toHaveBeenCalled()
+})
+
 it('senha errada em CNPJ completo mantem a mensagem generica de credenciais', async () => {
   const user = userEvent.setup()
   auth.signIn.mockRejectedValue(new Error('CNPJ ou senha inválidos.'))
@@ -109,6 +132,7 @@ it('senha errada em CNPJ completo mantem a mensagem generica de credenciais', as
 
   await user.type(await screen.findByPlaceholderText('00.000.000/0000-00'), '12.345.678/0001-95')
   await user.type(screen.getByLabelText('Senha'), 'senha-errada')
+  await user.click(screen.getByRole('button', { name: 'Mock Turnstile success' }))
   await user.click(screen.getByRole('button', { name: 'Entrar no portal' }))
 
   await waitFor(() => expect(screen.getByText('Credenciais inválidas para o portal do cliente.')).toBeTruthy())

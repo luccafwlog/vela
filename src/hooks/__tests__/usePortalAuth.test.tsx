@@ -88,9 +88,12 @@ describe('usePortalAuth', () => {
     const { result } = renderHook(() => usePortalAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    await expect(result.current.signIn('12.345.678/0001-95', 'senha-secreta')).rejects.toThrow(
+    await expect(result.current.signIn('12.345.678/0001-95', 'senha-secreta', 'valid-turnstile-token')).rejects.toThrow(
       'CNPJ ou senha inválidos.',
     )
+    expect(invoke).toHaveBeenCalledWith('portal-login', {
+      body: { cnpj: '12345678000195', password: 'senha-secreta', turnstile_token: 'valid-turnstile-token' },
+    })
     expect(signInWithPassword).not.toHaveBeenCalled()
   })
 
@@ -100,7 +103,7 @@ describe('usePortalAuth', () => {
     const { result } = renderHook(() => usePortalAuth(), { wrapper })
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    await expect(result.current.signIn('12.345.678/0001-95', 'senha-secreta')).rejects.toThrow('CNPJ ou senha inválidos.')
+    await expect(result.current.signIn('12.345.678/0001-95', 'senha-secreta', 'valid-turnstile-token')).rejects.toThrow('CNPJ ou senha inválidos.')
     expect(signInWithPassword).not.toHaveBeenCalled()
   })
 
@@ -167,7 +170,7 @@ describe('usePortalAuth', () => {
     expect(result.current.signOutError).toBe('Network offline')
 
     await act(async () => {
-      await result.current.signIn('123', 'senha').catch(() => undefined)
+      await result.current.signIn('123', 'senha', 'valid-turnstile-token').catch(() => undefined)
     })
     expect(result.current.signOutError).toBeNull()
   })

@@ -4,6 +4,7 @@ import { openAlertOnce } from '../_shared/portalAlerts.ts'
 import { beginPortalRateLimitAttempt, completePortalRateLimitAttempt, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { authenticatePortalLoginIdentity } from '../_shared/portalLoginIdentity.ts'
 import { logEdgeFailure } from '../_shared/logger.ts'
+import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
 
 const GENERIC_ERROR = 'CNPJ ou senha inválidos.'
 
@@ -29,7 +30,10 @@ if (typeof Deno !== 'undefined') {
     if (req.method !== 'POST') return json(405, { error: 'Method not allowed' }, origin)
 
     try {
-      const body = await req.json().catch(() => ({})) as { cnpj?: unknown; password?: unknown }
+      const body = await req.json().catch(() => ({})) as { cnpj?: unknown; password?: unknown; turnstile_token?: unknown }
+      if (!await verifyTurnstileRequest(req, body.turnstile_token, 'portal_login')) {
+        return json(403, { error: 'Verificação de segurança inválida. Atualize e tente novamente.' }, origin)
+      }
       const normalized = typeof body.cnpj === 'string' ? normalizeCnpj(body.cnpj) : null
       if (!normalized || typeof body.password !== 'string' || body.password.length === 0) return json(401, { error: GENERIC_ERROR }, origin)
 

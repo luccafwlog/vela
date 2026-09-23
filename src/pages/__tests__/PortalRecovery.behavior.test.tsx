@@ -10,15 +10,26 @@ import { INCOMPLETE_CNPJ_MESSAGE } from '../../lib/portalCnpjLogin'
 type RecoveryResponse = { accepted: boolean; rate_limited?: boolean }
 const auth = vi.hoisted(() => ({
   functions: { invoke: vi.fn(() => Promise.resolve<{ data: RecoveryResponse | null; error: unknown }>({ data: { accepted: true }, error: null })) },
+  issueTurnstile: true,
 }))
 
 vi.mock('../../services/supabase', () => ({ supabasePortal: { auth, functions: auth.functions } }))
+vi.mock('../../components/security/TurnstileChallenge', async () => {
+  const { useEffect } = await import('react')
+  return {
+    TurnstileChallenge: ({ onToken }: { onToken: (token: string) => void }) => {
+      useEffect(() => { if (auth.issueTurnstile) onToken('test-turnstile-token') }, [onToken])
+      return null
+    },
+  }
+})
 
 import { PortalForgotPassword } from '../PortalForgotPassword'
 import { PortalResetPassword } from '../PortalResetPassword'
 
 beforeEach(() => {
   vi.clearAllMocks()
+  auth.issueTurnstile = true
 })
 afterEach(cleanup)
 
@@ -34,7 +45,9 @@ it('US-155: solicita recuperacao e confirma o recebimento da solicitacao', async
   await user.click(screen.getByRole('button', { name: 'Enviar link de recuperação' }))
 
   await waitFor(() => expect(screen.getByText('Solicitação recebida')).toBeTruthy())
-  expect(auth.functions.invoke).toHaveBeenCalledWith('portal-password-recovery', { body: { cnpj: '12345678000195' } })
+  expect(auth.functions.invoke).toHaveBeenCalledWith('portal-password-recovery', {
+    body: { cnpj: '12345678000195', turnstile_token: 'test-turnstile-token' },
+  })
 })
 
 it('achado 3.2 (auditoria 2026-08-12): mostra a MESMA tela para conta existente e inexistente', async () => {
@@ -107,6 +120,22 @@ it('CNPJ incompleto nao chega a chamar a Edge Function e recebe mensagem propria
   expect(auth.functions.invoke).not.toHaveBeenCalled()
 })
 
+it('bloqueia a solicitacao de recuperacao no cliente sem token Turnstile', async () => {
+  const user = userEvent.setup()
+  auth.issueTurnstile = false
+  render(
+    <MemoryRouter>
+      <PortalForgotPassword />
+    </MemoryRouter>,
+  )
+  await user.type(screen.getByPlaceholderText('00.000.000/0000-00'), '12.345.678/0001-95')
+  await user.click(screen.getByRole('button', { name: 'Enviar link de recuperação' }))
+
+  expect(await screen.findByText('Complete a verificação de segurança antes de continuar.')).toBeTruthy()
+  expect(auth.functions.invoke).not.toHaveBeenCalled()
+  auth.issueTurnstile = true
+})
+
 it('falha de rede nao promete email que nunca sera enviado', async () => {
   const user = userEvent.setup()
   auth.functions.invoke.mockRejectedValueOnce(new TypeError('Failed to fetch'))
@@ -158,7 +187,9 @@ it('US-157: atualiza a senha e volta para o login', async () => {
   await user.click(screen.getByRole('button', { name: 'Redefinir senha' }))
 
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Senha redefinida' })).toBeTruthy())
-  expect(auth.functions.invoke).toHaveBeenCalledWith('portal-password-reset', { body: { token: 'TOKEN', password: 'senhaSegura1' } })
+  expect(auth.functions.invoke).toHaveBeenCalledWith('portal-password-reset', {
+    body: { token: 'TOKEN', password: 'senhaSegura1', turnstile_token: 'test-turnstile-token' },
+  })
 
   await user.click(screen.getByRole('button', { name: 'Ir para o login' }))
   await waitFor(() => expect(screen.getByText('LOGIN PLACEHOLDER')).toBeTruthy())
@@ -183,7 +214,9 @@ it('achado 3.3 (auditoria 2026-08-12): remove o token da URL apos a montagem, se
   await user.type(screen.getByPlaceholderText('Repita a senha'), 'senhaSegura1')
   await user.click(screen.getByRole('button', { name: 'Redefinir senha' }))
 
-  await waitFor(() => expect(auth.functions.invoke).toHaveBeenCalledWith('portal-password-reset', { body: { token: 'TOKEN', password: 'senhaSegura1' } }))
+  await waitFor(() => expect(auth.functions.invoke).toHaveBeenCalledWith('portal-password-reset', {
+    body: { token: 'TOKEN', password: 'senhaSegura1', turnstile_token: 'test-turnstile-token' },
+  }))
 })
 
 it('US-157: rejeita senha sem composicao minima', async () => {

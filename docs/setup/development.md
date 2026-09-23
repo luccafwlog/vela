@@ -26,6 +26,7 @@ Preencha no `.env` (mínimo para o app subir):
 ```env
 VITE_SUPABASE_URL=https://<projeto>.supabase.co
 VITE_SUPABASE_ANON_KEY=<anon key>
+VITE_TURNSTILE_SITE_KEY=<sitekey de teste>
 ```
 
 No Vercel, `main` usa as credenciais públicas de produção. Nos Previews, a
@@ -35,6 +36,10 @@ fixo para Preview. Como todo `VITE_*` chega ao bundle do navegador, não coloque
 segredos server-side nelas.
 
 Sem `VITE_SUPABASE_*` a aplicação loga erro e o cliente Supabase fica vazio. As demais variáveis (`SUPABASE_*`) são usadas apenas nos [testes de integração](testing.md).
+
+No Supabase local, use somente as chaves de teste documentadas pelo Cloudflare
+e configure `TURNSTILE_SECRET_KEY` e `TURNSTILE_ALLOWED_HOSTNAMES=localhost`
+no ambiente local das Edge Functions. Não use o secret de produção na máquina.
 
 ## 3. Banco de dados
 

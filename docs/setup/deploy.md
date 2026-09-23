@@ -60,11 +60,21 @@ As únicas variáveis necessárias ao bundle são públicas por definição do V
 | `VITE_SENTRY_DSN_INTERNAL` | DSN público do projeto Sentry interno | DSN público de Preview do projeto interno, se separado | vazio usa o fallback legado |
 | `VITE_SENTRY_DSN_PORTAL` | DSN público do projeto Sentry do Portal | DSN público de Preview do Portal, se separado | vazio usa o fallback legado |
 | `VITE_SENTRY_ENVIRONMENT` | `production` | `preview` | `development` |
+| `VITE_TURNSTILE_SITE_KEY` | sitekey pública do widget Cloudflare Turnstile | sitekey de teste do ambiente Preview | sitekey de teste local |
 
 `VITE_APP_COMMIT_SHA` é opcional: `vite.config.ts` injeta o commit Git atual
 quando a variável não é fornecida, mantendo o release visível no Sentry e na
 interface. Nunca configure `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` ou
 outros segredos de Edge Functions como variáveis `VITE_*`.
+
+Turnstile é fail-closed: configure `VITE_TURNSTILE_SITE_KEY` nos dois projetos
+Vercel e, no Supabase Edge Functions, `TURNSTILE_SECRET_KEY` e
+`TURNSTILE_ALLOWED_HOSTNAMES` (lista separada por vírgulas). A Production só
+deve permitir `vela.app.br` e `portalfwlog.com.br`; nunca inclua `localhost`
+nas funções de produção. Preview/local devem usar a chave de teste e secret
+próprios, com os hostnames exatos desse ambiente. O token é enviado uma única
+vez e validado pela Edge Function antes de consultas privilegiadas; o secret
+nunca chega ao bundle. Consulte o [runbook de segurança](../operations/seguranca.md#turnstile-no-portal).
 
 Os DSNs do Sentry são identificadores públicos do browser, não API keys. Para a
 separação do M3, configure `VITE_SENTRY_DSN_INTERNAL` somente no projeto
@@ -236,6 +246,8 @@ são:
 ```text
 default-src 'self'
 script-src  'self'
+            https://challenges.cloudflare.com
+frame-src   https://challenges.cloudflare.com
 connect-src 'self' https://*.supabase.co wss://*.supabase.co
             https://olinda.bcb.gov.br https://*.ingest.us.sentry.io
 font-src    'self' https://fonts.gstatic.com
