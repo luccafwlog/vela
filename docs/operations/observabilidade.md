@@ -209,9 +209,15 @@ deve ser considerado abrangente para todo o runtime Edge.
   allowlisted são `surface=portal` e `invoice_type`. O sentinela é igual para
   todos, sem correlação entre visitantes. Nenhum ID de cliente/fatura, hash,
   PII, URL, dado do conteúdo da fatura ou outra propriedade é enviado.
-  `invoice_paid` e `dispute_opened` ainda não têm pontos de captura. O runtime
-  configurado não prova ingestão: validar em Preview e no painel PostHog após
-  deploy, sem fixture com dados reais.
+- `invoice_paid` é capturado depois de as RPCs de pagamento confirmarem status
+  `paid` para invoices locais/ledger e Demurrage; parcial, erro e tentativa
+  negada não contam. `dispute_opened` só é capturado depois do sucesso da RPC
+  Portal real, não no Modo Inspeção. Ambos mantêm apenas `surface` e
+  `invoice_type`; valor, método de pagamento, motivo, IDs e PII não saem do
+  sistema. Isso é confirmação transacional no retorno da RPC, seguida de
+  captura best-effort pelo adapter do browser — não captura direta dentro do
+  PostgreSQL. O runtime configurado não prova ingestão: validar em Preview e
+  no painel PostHog após deploy, sem fixture com dados reais.
 - `COMMUNICATIONS_ENABLED` também é verificada no servidor por
   `send-customer-communication` e `demurrage-dunning`; o bloqueio mestre
   `app_settings.communications_enabled` continua obrigatório. PostHog só pode

@@ -3,9 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const supabaseMocks = vi.hoisted(() => ({
   from: vi.fn(),
   rpc: vi.fn(),
+  capture: vi.fn(),
 }))
 
 vi.mock('../supabase', () => ({ supabase: { from: supabaseMocks.from, rpc: supabaseMocks.rpc } }))
+vi.mock('../../lib/featureFlags', () => ({
+  featureFlags: { capture: supabaseMocks.capture },
+  PRODUCT_EVENTS: { INVOICE_PAID: 'invoice_paid' },
+}))
 
 import {
   createConsolidatedInvoice,
@@ -17,6 +22,7 @@ import {
 beforeEach(() => {
   supabaseMocks.from.mockReset()
   supabaseMocks.rpc.mockReset()
+  supabaseMocks.capture.mockReset()
 })
 
 function consolidatedPayload(overrides: Record<string, unknown> = {}) {
@@ -222,6 +228,22 @@ describe('createConsolidatedInvoice', () => {
 })
 
 describe('registerLedgerInvoicePayment', () => {
+  it('emite invoice_paid apenas quando o retorno confirmado fecha o saldo', async () => {
+    supabaseMocks.rpc.mockResolvedValueOnce({ data: paymentPayload({ status: 'paid' }), error: null })
+
+    await registerLedgerInvoicePayment({ invoiceId: 1, amountBrl: 50, requestId: 'request-paid' })
+
+    expect(supabaseMocks.capture).toHaveBeenCalledWith('invoice_paid', { surface: 'internal', invoice_type: 'local' })
+  })
+
+  it('não emite invoice_paid para retorno parcial', async () => {
+    supabaseMocks.rpc.mockResolvedValueOnce({ data: paymentPayload({ status: 'partially_paid' }), error: null })
+
+    await registerLedgerInvoicePayment({ invoiceId: 1, amountBrl: 10, requestId: 'request-partial' })
+
+    expect(supabaseMocks.capture).not.toHaveBeenCalled()
+  })
+
   it('chama o RPC register_ledger_invoice_payment com uma chave de idempotência', async () => {
     supabaseMocks.rpc.mockResolvedValueOnce({ data: paymentPayload(), error: null })
 

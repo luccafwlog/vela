@@ -1,6 +1,7 @@
 import type { InvoiceDetail } from './billing'
 import type { ConsolidatableReceivable, DemurrageInvoiceItem } from '../types/database'
 import type { PortalBillingFilters } from '../lib/portalBillingFilters'
+import { featureFlags, PRODUCT_EVENTS } from '../lib/featureFlags'
 import { callPortalRpc, clientPortalScope, isPortalReadOnly, type PortalScope } from './portalScope'
 import { supabase, supabasePortal } from './supabase'
 
@@ -304,6 +305,9 @@ export async function portalMarkAllNotificationsRead(scope: PortalScope = client
 
 export async function portalOpenDemurrageDispute(demurrageInvoiceId: number, reason: string, scope: PortalScope = clientPortalScope): Promise<void> {
   await callPortalRpc(scope, 'portal_open_demurrage_dispute', { p_demurrage_invoice_id: demurrageInvoiceId, p_reason: reason })
+  if (scope.mode === 'client') {
+    featureFlags.capture(PRODUCT_EVENTS.DISPUTE_OPENED, { surface: 'portal', invoice_type: 'demurrage' })
+  }
 }
 
 export type PortalDisputeMessage = {

@@ -4,12 +4,17 @@ const supabaseMocks = vi.hoisted(() => ({
   from: vi.fn(),
   rpc: vi.fn(),
   buildPix: vi.fn(() => 'pix-payload'),
+  capture: vi.fn(),
 }))
 
 // Testes de caracterização: travam o comportamento ATUAL de billing.ts na
 // fronteira do Supabase (mesmo padrão de mock de billingHelpers.test.ts).
 vi.mock('../supabase', () => ({ supabase: { from: supabaseMocks.from, rpc: supabaseMocks.rpc } }))
 vi.mock('../../lib/pix', () => ({ buildTransshippingPixPayload: supabaseMocks.buildPix }))
+vi.mock('../../lib/featureFlags', () => ({
+  featureFlags: { capture: supabaseMocks.capture },
+  PRODUCT_EVENTS: { INVOICE_PAID: 'invoice_paid' },
+}))
 
 import {
   addManualInvoiceCharge,
@@ -29,6 +34,7 @@ import type { InvoiceDetail, InvoiceFilters } from '../billing'
 beforeEach(() => {
   supabaseMocks.from.mockReset()
   supabaseMocks.rpc.mockReset()
+  supabaseMocks.capture.mockReset()
   supabaseMocks.buildPix.mockReset()
   supabaseMocks.buildPix.mockReturnValue('pix-payload')
 })
@@ -246,6 +252,23 @@ describe('createInvoiceFromBls', () => {
 })
 
 describe('registerInvoicePayment', () => {
+  it('emite invoice_paid sem dados da fatura somente após o RPC confirmar quitação integral', async () => {
+    supabaseMocks.rpc.mockResolvedValueOnce({ data: { payment_id: 1, status: 'paid' }, error: null })
+
+    await registerInvoicePayment({ invoiceId: 9, amountBrl: 150.5, paymentMethod: 'pix' })
+
+    expect(supabaseMocks.capture).toHaveBeenCalledWith('invoice_paid', { surface: 'internal', invoice_type: 'local' })
+  })
+
+  it('não emite invoice_paid para pagamento parcial nem quando o RPC falha', async () => {
+    supabaseMocks.rpc.mockResolvedValueOnce({ data: { payment_id: 1, status: 'partially_paid' }, error: null })
+    await registerInvoicePayment({ invoiceId: 9, amountBrl: 10, paymentMethod: 'ted' })
+    supabaseMocks.rpc.mockResolvedValueOnce({ data: null, error: new Error('falha') })
+    await expect(registerInvoicePayment({ invoiceId: 9, amountBrl: 10, paymentMethod: 'ted' })).rejects.toThrow('falha')
+
+    expect(supabaseMocks.capture).not.toHaveBeenCalled()
+  })
+
   it('chama o RPC register_invoice_payment omitindo defaults opcionais', async () => {
     supabaseMocks.rpc.mockResolvedValueOnce({ data: { payment_id: 1 }, error: null })
 

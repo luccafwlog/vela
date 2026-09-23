@@ -5,6 +5,7 @@ import { classifyDbError } from '../lib/errors'
 import { escapeFilterTerm, sanitizeLikeTerm } from '../lib/utils'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { reportBestEffortFailure } from '../lib/telemetry'
+import { featureFlags, PRODUCT_EVENTS } from '../lib/featureFlags'
 
 // Filtro de status exposto na UI: 3 estados operacionais. Cada um cobre os
 // status documentais reais persistidos na coluna invoices.status.
@@ -827,7 +828,12 @@ export async function registerInvoicePayment(input: {
   })
 
   if (error) throw error
-  return (data ?? {}) as Json
+  const result = (data ?? {}) as Json
+  const status = typeof result === 'object' && result !== null && !Array.isArray(result) ? result.status : undefined
+  if (status === 'paid') {
+    featureFlags.capture(PRODUCT_EVENTS.INVOICE_PAID, { surface: 'internal', invoice_type: 'local' })
+  }
+  return result
 }
 
 export async function cancelInvoice(input: {

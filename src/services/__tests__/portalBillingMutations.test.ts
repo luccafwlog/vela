@@ -1,12 +1,17 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 
-const { rpcMock } = vi.hoisted(() => ({ rpcMock: vi.fn() }))
+const { rpcMock, captureMock } = vi.hoisted(() => ({ rpcMock: vi.fn(), captureMock: vi.fn() }))
 vi.mock('../supabase', () => ({ supabasePortal: { rpc: rpcMock } }))
+vi.mock('../../lib/featureFlags', () => ({
+  featureFlags: { capture: captureMock },
+  PRODUCT_EVENTS: { DISPUTE_OPENED: 'dispute_opened' },
+}))
 
 import { portalGetCurrentRoe, portalObsoleteConsolidation, portalOpenDemurrageDispute, portalUpdateProfile } from '../portalBilling'
 
 beforeEach(() => {
   rpcMock.mockReset()
+  captureMock.mockReset()
 })
 
 it('consulta a referencia ROE vigente pelo RPC seguro do Portal', async () => {
@@ -36,6 +41,15 @@ it('US-168: abre disputa de demurrage com motivo', async () => {
     p_demurrage_invoice_id: 9,
     p_reason: 'cobranca indevida',
   })
+  expect(captureMock).toHaveBeenCalledWith('dispute_opened', { surface: 'portal', invoice_type: 'demurrage' })
+})
+
+it('não emite dispute_opened quando a abertura é rejeitada pela RPC', async () => {
+  rpcMock.mockResolvedValue({ data: null, error: new Error('disputa já aberta') })
+
+  await expect(portalOpenDemurrageDispute(9, 'cobranca indevida')).rejects.toThrow('disputa já aberta')
+
+  expect(captureMock).not.toHaveBeenCalled()
 })
 
 it('US-176: atualiza contato/endereco mapeando os parametros do RPC', async () => {

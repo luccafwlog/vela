@@ -1,6 +1,7 @@
 import { supabase } from '../supabase'
 import { extractErrorText } from '../../lib/errors'
 import type { DemurrageInvoice, DemurrageInvoiceItem } from '../../types/database'
+import { featureFlags, PRODUCT_EVENTS } from '../../lib/featureFlags'
 
 export type DemurrageInvoiceFilters = {
   status?: DemurrageInvoice['status'] | null
@@ -157,7 +158,7 @@ export async function markInvoicePaid(invoiceId: number, paidAt: string): Promis
     throw new Error(`Fatura não pode ser marcada como paga no status atual: ${inv.status}`)
   }
 
-  const { error } = await supabase.rpc('register_demurrage_payment', {
+  const { data, error } = await supabase.rpc('register_demurrage_payment', {
     p_request_id: crypto.randomUUID(),
     p_invoice_id: invoiceId,
     p_paid_at: paidAt,
@@ -166,6 +167,10 @@ export async function markInvoicePaid(invoiceId: number, paidAt: string): Promis
     p_ptax_used: null,
   })
   if (error) throw error
+  const status = typeof data === 'object' && data !== null && !Array.isArray(data) ? data.status : undefined
+  if (status === 'paid') {
+    featureFlags.capture(PRODUCT_EVENTS.INVOICE_PAID, { surface: 'internal', invoice_type: 'demurrage' })
+  }
 }
 
 /**

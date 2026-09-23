@@ -6,6 +6,7 @@ import type {
   LedgerPaymentResult,
   ReconcileByTxidResult,
 } from '../types/database'
+import { featureFlags, PRODUCT_EVENTS } from '../lib/featureFlags'
 
 export type ConsolidatableReceivableFilters = {
   customerId?: number | null
@@ -131,7 +132,11 @@ export async function registerLedgerInvoicePayment(input: {
     p_request_id: requestId,
   })
   if (error) throw error
-  return parseRpcResult(ledgerPaymentResultSchema, data, 'register_ledger_invoice_payment')
+  const result = parseRpcResult(ledgerPaymentResultSchema, data, 'register_ledger_invoice_payment')
+  if (result.status === 'paid') {
+    featureFlags.capture(PRODUCT_EVENTS.INVOICE_PAID, { surface: 'internal', invoice_type: 'local' })
+  }
+  return result
 }
 export type InvoiceRefund = {
   id: number

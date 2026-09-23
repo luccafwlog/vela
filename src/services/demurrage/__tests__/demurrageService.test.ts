@@ -1,7 +1,11 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 
-const { fromMock, rpcMock } = vi.hoisted(() => ({ fromMock: vi.fn(), rpcMock: vi.fn() }))
+const { fromMock, rpcMock, captureMock } = vi.hoisted(() => ({ fromMock: vi.fn(), rpcMock: vi.fn(), captureMock: vi.fn() }))
 vi.mock('../../supabase', () => ({ supabase: { from: fromMock, rpc: rpcMock } }))
+vi.mock('../../../lib/featureFlags', () => ({
+  featureFlags: { capture: captureMock },
+  PRODUCT_EVENTS: { INVOICE_PAID: 'invoice_paid' },
+}))
 vi.mock('../demurrageRates', () => ({
   ensureDemurrageRatesLoaded: vi.fn(() => Promise.resolve()),
   ensureDemurrageRatesFresh: vi.fn(() => Promise.resolve()),
@@ -50,6 +54,7 @@ beforeEach(() => {
   fromMock.mockReset()
   fromMock.mockImplementation((table: string) => builderFor(table))
   rpcMock.mockReset()
+  captureMock.mockReset()
   rpcMock.mockResolvedValue({ data: {}, error: null })
 })
 
@@ -62,6 +67,15 @@ it('US-043: marca como paga uma invoice emitida', async () => {
     p_total_brl: null,
     p_ptax_used: null,
   }))
+})
+
+it('emite invoice_paid sem identificador somente depois de confirmação da RPC de Demurrage', async () => {
+  results.demurrage_invoices = { data: { status: 'issued', current_roe: 5, current_total_brl: 500, total_usd: 100, doc_number: 'DEM-1' }, error: null }
+  rpcMock.mockResolvedValueOnce({ data: { invoice_id: 5, status: 'paid' }, error: null })
+
+  await markInvoicePaid(5, '2026-06-23')
+
+  expect(captureMock).toHaveBeenCalledWith('invoice_paid', { surface: 'internal', invoice_type: 'demurrage' })
 })
 
 it('US-043: rejeita marcar paga uma invoice em draft', async () => {
