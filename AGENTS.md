@@ -118,9 +118,10 @@ planos e specs"):
   even when the current agent or editor does not run those hooks. Inspect
   commands before running them; `npm run sync:hard` resets and cleans the
   checkout and is not a routine synchronization command.
-- **Data status — asserted 2026-09-18, revocable by the repository owner.** The
-  production Supabase project carries no real business data: every row is test
-  fixture and may be discarded. A migration may therefore rewrite or delete
+- **Data status — reaffirmed 2026-09-22, revocable by the repository owner.**
+  The owner confirms Vela/Portal still have no real users and the production
+  Supabase project carries no real business data: every row is a test fixture
+  and may be discarded. A migration may therefore rewrite or delete
   existing rows without a preservation plan. This is the ONLY thing that makes
   such a migration acceptable, so any migration that rewrites or deletes
   existing rows must say in its header comment that it relies on this line.

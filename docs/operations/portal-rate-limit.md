@@ -1,12 +1,12 @@
 # Rate limit distribuído do Portal
 
 Este procedimento cobre a segunda camada de proteção dos fluxos públicos do
-Portal. A primeira camada continua no Supabase e não deve ser removida quando o
-Redis estiver ativo.
+Portal. Redis decide normalmente o limite distribuído por par; o contador do
+Supabase permanece como auditoria e fallback quando Redis não está disponível.
 
 ## Contrato
 
-O limite padrão é de 10 erros em 5 minutos para a combinação de IP e CNPJ:
+O limite padrão é de 10 tentativas em 5 minutos para a combinação de IP e CNPJ:
 
 - login: `portal-login` e verificação da senha atual na troca do Email de Recuperação;
 - recuperação: pedidos de recuperação, inclusive os que não encontram conta;
@@ -18,6 +18,13 @@ As chaves usam HMAC-SHA-256 de IP e CNPJ com
 ficam apenas nas variáveis server-side das Edge Functions. Logs registram
 somente o comando, estado do circuito e erro técnico sanitizado.
 
+Cada chamada reserva atomicamente uma vaga via Lua/EVAL: o mesmo script soma
+falhas já confirmadas e reservas ainda em processamento antes de aceitar outra
+tentativa. Senha incorreta confirma a reserva; senha correta a desfaz. Assim,
+requisições concorrentes não ultrapassam o limiar e uma autenticação válida não
+consome uma vaga de falha. Reserva e contador compartilham a chave com TTL de
+300 segundos; não há lock global nem coordenação entre pares IP+CNPJ.
+
 O código considera somente `CF-Connecting-IP`, esperado do gateway Supabase;
 `X-Forwarded-For` e `X-Real-IP` não são usados como fallback, pois podem ser
 fornecidos pelo chamador da URL pública da Edge Function, sem passar pelo proxy
@@ -27,9 +34,13 @@ confiável. Se o header não existir, a chave usa `unknown` com o HMAC do CNPJ;
 isso conserva o bloqueio por conta, mas compartilha o balde entre as origens
 desse CNPJ até a camada de rede oferecer um IP confiável.
 
-O Redis é uma segunda defesa e não pode anular uma decisão de bloqueio do
-contador persistido do Supabase: o resultado final é bloqueado se qualquer uma
-das duas camadas bloquear, ou se a consulta persistida falhar.
+Enquanto Redis estiver saudável, ele é a fonte decisória exclusiva do par
+IP+CNPJ: o contador persistido por CNPJ não pode bloquear outro IP. Somente se
+Redis estiver indisponível (ou não configurado) é consultado o contador
+persistido como fallback legado. Uma resposta de erro da RPC persistida não
+confirma abuso; ela é registrada de forma sanitizada e não causa bloqueio por
+si só. Falhas de senha continuam sendo gravadas no Supabase para auditoria e
+para o fallback quando Redis estiver indisponível.
 
 ## Configuração
 
@@ -63,8 +74,11 @@ O token usado para backups do R2 é de outro produto e não pode ser reutilizado
    métricas de erro/comando. Não registrar nem copiar chaves, CNPJs, IPs ou
    tokens.
 5. Interromper temporariamente o acesso ao endpoint REST e confirmar que o
-   login continua obedecendo o balde persistido do Supabase, sem liberar
-   tentativas ilimitadas e sem bloquear indefinidamente todos os usuários.
+   login consulta o fallback persistido. A RPC persistida deve bloquear somente
+   quando responder `true`; erro de RPC não deve ser tratado como abuso
+   confirmado. Não simular falha de um par com bloqueio global.
+6. Confirmar, com duas origens de teste, que cada IP+CNPJ tem balde próprio e
+   que respostas corretas desfazem a reserva sem somar falha.
 
 Essa validação é evidência de Runtime somente quando executada no Preview ou
 ambiente de produção controlado. Testes locais do adaptador são evidência de
@@ -75,7 +89,8 @@ Código/Teste e não substituem a conferência remota.
 Acompanhar no Upstash os comandos `EVAL`, erros de requisição e uso/custo do
 database. O limite de 5 minutos expira chaves automaticamente. O circuito
 local abre após três falhas consecutivas e tenta novamente após o intervalo
-configurado; durante esse período o Supabase continua sendo a defesa ativa.
+configurado; durante esse período o contador persistido é usado como fallback
+por CNPJ, sem alterar a decisão normal por par do Redis.
 
 ## Rollback
 

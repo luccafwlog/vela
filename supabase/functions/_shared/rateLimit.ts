@@ -9,9 +9,11 @@ export type RateLimitIdentity = {
 }
 
 export type DistributedRateLimitResult =
-  | { state: 'allowed' }
+  | { state: 'reserved'; reservationId: string }
   | { state: 'blocked'; retryAfterSeconds: number }
   | { state: 'unavailable' }
+
+export type RateLimitReservationResult = Exclude<DistributedRateLimitResult, { state: 'allowed' }>
 
 export type UpstashRateLimitConfig = {
   url: string
@@ -32,24 +34,45 @@ type RateLimitRuntime = {
 }
 
 export type DistributedRateLimiter = {
-  check(identity: RateLimitIdentity): Promise<DistributedRateLimitResult>
-  registerFailure(identity: RateLimitIdentity): Promise<void>
-  registerSuccess(identity: RateLimitIdentity): Promise<void>
+  reserve(identity: RateLimitIdentity): Promise<RateLimitReservationResult>
+  commitFailure(identity: RateLimitIdentity, reservationId: string): Promise<void>
+  rollback(identity: RateLimitIdentity, reservationId: string): Promise<void>
 }
 
-const CHECK_SCRIPT = `
-local value = redis.call('GET', KEYS[1])
-if not value then return {0, 0} end
-return {tonumber(value), redis.call('TTL', KEYS[1])}
+const RESERVE_SCRIPT = `-- reserve-v2
+local failures = tonumber(redis.call('HGET', KEYS[1], 'failures') or '0')
+local pending = tonumber(redis.call('HGET', KEYS[1], 'pending') or '0')
+if failures + pending >= tonumber(ARGV[1]) then
+  return {0, math.max(redis.call('TTL', KEYS[1]), 1)}
+end
+redis.call('HSET', KEYS[1], 'reservation:' .. ARGV[3], '1')
+redis.call('HINCRBY', KEYS[1], 'pending', 1)
+if redis.call('TTL', KEYS[1]) < 0 then redis.call('EXPIRE', KEYS[1], ARGV[2]) end
+return {1, redis.call('TTL', KEYS[1])}
 `
 
-const INCREMENT_SCRIPT = `
-local count = redis.call('INCR', KEYS[1])
-if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
-return {count, redis.call('TTL', KEYS[1])}
+const COMMIT_SCRIPT = `-- commit-v2
+if redis.call('HDEL', KEYS[1], 'reservation:' .. ARGV[2]) == 1 then
+  redis.call('HINCRBY', KEYS[1], 'pending', -1)
+  redis.call('HINCRBY', KEYS[1], 'failures', 1)
+end
+if redis.call('TTL', KEYS[1]) < 0 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+return {tonumber(redis.call('HGET', KEYS[1], 'failures') or '0'), redis.call('TTL', KEYS[1])}
 `
 
-const CLEAR_SCRIPT = `return redis.call('DEL', KEYS[1])`
+const ROLLBACK_SCRIPT = `-- rollback-v2
+if redis.call('HDEL', KEYS[1], 'reservation:' .. ARGV[2]) == 1 then
+  redis.call('HINCRBY', KEYS[1], 'pending', -1)
+end
+local failures = tonumber(redis.call('HGET', KEYS[1], 'failures') or '0')
+local pending = tonumber(redis.call('HGET', KEYS[1], 'pending') or '0')
+if failures == 0 and pending <= 0 then
+  redis.call('DEL', KEYS[1])
+  return {0, 0}
+end
+if redis.call('TTL', KEYS[1]) < 0 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+return {failures, redis.call('TTL', KEYS[1])}
+`
 
 function toHex(bytes: ArrayBuffer): string {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -74,7 +97,7 @@ async function hmacHex(secret: string, value: string): Promise<string> {
 export async function buildRateLimitKey(secret: string, identity: RateLimitIdentity): Promise<string> {
   const ipDigest = await hmacHex(secret, identity.ip.trim() || 'unknown')
   const cnpjDigest = await hmacHex(secret, identity.cnpj?.trim() || 'unknown')
-  return `vela:portal-rate:${identity.action}:${ipDigest}:${cnpjDigest}`
+  return `vela:portal-rate:v2:${identity.action}:${ipDigest}:${cnpjDigest}`
 }
 
 function pipelineResult(payload: unknown): unknown {
@@ -175,31 +198,32 @@ export function createUpstashRateLimiter(
   }
 
   return {
-    async check(identity) {
+    async reserve(identity) {
       try {
         const key = await buildRateLimitKey(config.hmacSecret, identity)
-        const [count, ttl] = resultPair(await execute(CHECK_SCRIPT, key))
-        return count >= config.threshold
-          ? { state: 'blocked', retryAfterSeconds: Math.max(ttl, 1) }
-          : { state: 'allowed' }
+        const reservationId = crypto.randomUUID()
+        const [reserved, ttl] = resultPair(await execute(RESERVE_SCRIPT, key, [String(config.threshold), String(config.windowSeconds), reservationId]))
+        return reserved === 1
+          ? { state: 'reserved', reservationId }
+          : { state: 'blocked', retryAfterSeconds: Math.max(ttl, 1) }
       } catch {
         return unavailable()
       }
     },
 
-    async registerFailure(identity) {
+    async commitFailure(identity, reservationId) {
       try {
         const key = await buildRateLimitKey(config.hmacSecret, identity)
-        resultPair(await execute(INCREMENT_SCRIPT, key, [String(config.windowSeconds)]))
+        resultPair(await execute(COMMIT_SCRIPT, key, [String(config.windowSeconds), reservationId]))
       } catch {
         unavailable()
       }
     },
 
-    async registerSuccess(identity) {
+    async rollback(identity, reservationId) {
       try {
         const key = await buildRateLimitKey(config.hmacSecret, identity)
-        await execute(CLEAR_SCRIPT, key)
+        resultPair(await execute(ROLLBACK_SCRIPT, key, [String(config.windowSeconds), reservationId]))
       } catch {
         unavailable()
       }

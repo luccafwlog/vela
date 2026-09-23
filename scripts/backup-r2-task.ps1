@@ -264,9 +264,32 @@ function Invoke-BackupTask {
     'BACKUP_TASK_R2_ACCESS_KEY_ID',
     'BACKUP_TASK_R2_SECRET_ACCESS_KEY',
     'BACKUP_TASK_R2_ENDPOINT',
-    'BACKUP_TASK_R2_BUCKET'
+    'BACKUP_TASK_R2_BUCKET',
+    'PG_DUMP_BIN',
+    'PG_RESTORE_BIN',
+    'AWS_BIN'
   )
   try {
+    $postgresBin = Join-Path $env:LOCALAPPDATA 'Programs\VelaBackup\PostgreSQL\17\bin'
+    $pgDump = Join-Path $postgresBin 'pg_dump.exe'
+    $pgRestore = Join-Path $postgresBin 'pg_restore.exe'
+    $awsCli = Join-Path $env:ProgramFiles 'Amazon\AWSCLIV2\aws.exe'
+    if (-not (Test-Path -LiteralPath $pgDump -PathType Leaf)) { throw 'PostgreSQL 17 pg_dump is missing from the backup tools directory.' }
+    if (-not (Test-Path -LiteralPath $pgRestore -PathType Leaf)) { throw 'PostgreSQL 17 pg_restore is missing from the backup tools directory.' }
+    if (-not (Test-Path -LiteralPath $awsCli -PathType Leaf)) { throw 'AWS CLI is missing from its installed directory.' }
+
+    $pgDumpVersion = (& $pgDump --version 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $pgDumpVersion -notmatch '\(PostgreSQL\) 17\.') {
+      throw 'The backup requires pg_dump major version 17.'
+    }
+    $pgRestoreVersion = (& $pgRestore --version 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $pgRestoreVersion -notmatch '\(PostgreSQL\) 17\.') {
+      throw 'The backup requires pg_restore major version 17.'
+    }
+    [Environment]::SetEnvironmentVariable('PG_DUMP_BIN', $pgDump, 'Process')
+    [Environment]::SetEnvironmentVariable('PG_RESTORE_BIN', $pgRestore, 'Process')
+    [Environment]::SetEnvironmentVariable('AWS_BIN', $awsCli, 'Process')
+
     foreach ($entry in $credentialTargets.GetEnumerator()) {
       $value = [VelaBackupCredentialStore]::Read($entry.Value)
       if ([string]::IsNullOrWhiteSpace($value)) { throw "Missing or empty credential: $($entry.Value)." }
