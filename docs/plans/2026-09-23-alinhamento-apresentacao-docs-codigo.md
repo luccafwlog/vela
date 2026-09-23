@@ -316,3 +316,8 @@ apoia na linha "Data status" do `AGENTS.md`.
     - `typecheck`, `lint`, `build`, `test`, `docs:check`, `migrations:check`,
       `rpc:check` e `verificar_guardas.py`.
   - Pendente: 3.6 (Portal como bloqueio universal), em PR própria.
+- **2026-09-23 · Decisões do item 3.6:**
+  - A Liberação de faturamento sem Portal tem **data de revisão**: vencida, a
+    trava volta e o Alerta reaparece.
+  - O Alerta de Portal não provisionado continua **tratado pela Documentação**,
+    com o Administrativo avisado.
