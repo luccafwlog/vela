@@ -123,6 +123,21 @@ Uma fase só avança quando os critérios da fase anterior forem atendidos, ou q
 
 ### Fase 0.5 — Cloudflare Pages como hospedagem final
 
+**Bootstrap pós-merge (2026-09-23):** a PR #739 foi mesclada pelo owner no
+commit `04e3e2ace16aa764840e10b955bc2d4d7ee99cf0`; a CI da `main` concluiu
+verde, inclusive o build dos dois artefatos Pages. O GitHub ainda exige uma
+aprovação formal no ruleset e não há review registrado para a #739; o owner
+realizou o merge. Leitura autenticada atual confirmou os dois Access apps,
+destinos `*.vela-internal.pages.dev` e `*.vela-portal.pages.dev`, e política
+`Allow` limitada a `luccafwlog@gmail.com`. A lista Workers & Pages mostra ambos
+os projetos sem deployment e uso faturável de US$ 0,00 no período visível.
+Após os workflows de PRs existentes terminarem sem publicar Pages, a variável
+`CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true` foi habilitada para o teste controlado
+autorizado. Nenhum domínio, DNS ou produção foi alterado. Uma branch Supabase
+de Preview associada à PR #740 permanece ativa por decisão do owner; não será
+apagada nesta fase. O teste runtime autorizado/negado em Preview ainda está
+pendente.
+
 **Atualização de configuração remota (2026-09-23):** dois projetos vazios
 (`vela-internal`, `vela-portal`) existem no Cloudflare, sem deployment, domínio
 customizado ou integração Git. A restrição de Preview está ativa em ambos.
