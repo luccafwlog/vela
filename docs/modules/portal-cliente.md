@@ -207,7 +207,9 @@ falhas técnicas permanecem projetados no B/L.
 Disputes de Demurrage são conversas append-only em demurrage_disputes e
 demurrage_dispute_messages, com anexos privados por mensagem em Storage, RLS e
 próximo responsável (cliente, equipamentos ou ninguem). O Portal pode responder
-e solicitar reabertura; somente Equipamentos reabre o caso. As rotas
+e solicitar reabertura; do lado interno, Equipamentos é o dono do caso e o
+Administrativo responde e reabre como cobertura (migration 081), com a mensagem
+gravando quem respondeu (`author_type` `equipamentos` ou `administrativo`). As rotas
 /portal/billing e /demurrage projetam a mesma conversa e a pendência interna só
 é mantida quando a próxima ação é de Equipamentos. **Código:** migration 324 e
 os componentes PortalDisputeConversation e DemurrageDisputeConversation.

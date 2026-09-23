@@ -308,7 +308,7 @@ export async function portalOpenDemurrageDispute(demurrageInvoiceId: number, rea
 
 export type PortalDisputeMessage = {
   id: number
-  author_type: 'cliente' | 'equipamentos' | 'sistema'
+  author_type: 'cliente' | 'equipamentos' | 'administrativo' | 'sistema'
   body: string
   next_responder: 'cliente' | 'equipamentos' | 'ninguem'
   created_at: string

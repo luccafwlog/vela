@@ -237,3 +237,75 @@ describe080('080 — escala de exportação sem vínculo removida por qualquer D
     expect(psql(`SELECT count(*) FROM public.voyage_export_schedules WHERE id = '${SCHEDULE}';`)).toBe('0')
   })
 })
+
+function migration081Applied() {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('administrativo' IN prosrc) > 0 FROM pg_proc WHERE proname = '_add_demurrage_dispute_message_impl_20260920';`) === 't'
+  } catch {
+    return false
+  }
+}
+
+const describe081 = migration081Applied() ? describe : describe.skip
+
+describe081('081 — Administrativo responde disputa de Demurrage', () => {
+  const ADMIN = '77777777-0000-4000-8000-000000000081'
+  const DOCS = '77777777-0000-4000-8000-000000000082'
+  const CUSTOMER = 7810
+  const BL_ID = 'BL081LOCALPG'
+
+  function clean() {
+    psql(`
+      SET session_replication_role = replica;
+      DELETE FROM public.portal_notifications WHERE customer_id = ${CUSTOMER};
+      DELETE FROM public.demurrage_dispute_messages WHERE dispute_id IN (SELECT d.id FROM public.demurrage_disputes d WHERE d.customer_id = ${CUSTOMER});
+      DELETE FROM public.demurrage_disputes WHERE customer_id = ${CUSTOMER};
+      DELETE FROM public.demurrage_invoices WHERE doc_number = 'DEM-081';
+      DELETE FROM public.bls WHERE id = '${BL_ID}';
+      DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER};
+      DELETE FROM public.customers WHERE id = ${CUSTOMER};
+      DELETE FROM public.voyages WHERE id = 7813;
+      DELETE FROM public.vessels WHERE id = 7812;
+      DELETE FROM public.carriers WHERE id = 7811;
+      DELETE FROM public.user_profiles WHERE id IN ('${ADMIN}', '${DOCS}');
+      DELETE FROM auth.users WHERE id IN ('${ADMIN}', '${DOCS}');
+      SET session_replication_role = origin;
+    `)
+  }
+
+  beforeAll(() => {
+    clean()
+    psql(`
+      INSERT INTO auth.users (id, email) VALUES ('${ADMIN}', 'adm-081@example.test'), ('${DOCS}', 'docs-081@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
+        ('${ADMIN}', 'Administrativo 081', 'administrativo', true),
+        ('${DOCS}', 'Documentação 081', 'documentacao', true);
+      INSERT INTO public.carriers (id, name) VALUES (7811, 'Carrier 081');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (7812, 'Vessel 081', 7811);
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (7813, 7812, 'V081', 'active');
+      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${CUSTOMER}, '61981000000104', 'Cliente 081');
+      INSERT INTO public.bls (id, voyage_id, customer_id) VALUES ('${BL_ID}', 7813, ${CUSTOMER});
+      INSERT INTO public.demurrage_invoices (doc_number, bl_id, customer_id, total_usd, status) VALUES ('DEM-081', '${BL_ID}', ${CUSTOMER}, 100, 'issued');
+      INSERT INTO public.demurrage_disputes (demurrage_invoice_id, customer_id, state, next_responder, subject, opened_by)
+        SELECT id, ${CUSTOMER}, 'aberta', 'equipamentos', 'Data de devolução', 'cliente' FROM public.demurrage_invoices WHERE doc_number = 'DEM-081';
+    `)
+  })
+  afterAll(clean)
+
+  const disputeId = () => psql(`SELECT id FROM public.demurrage_disputes WHERE customer_id = ${CUSTOMER};`)
+
+  it('Documentação continua sem responder', () => {
+    const result = runAs(DOCS, `SELECT public.add_demurrage_dispute_message(${disputeId()}, 'teste', 'cliente');`)
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('Apenas Equipamentos ou Administrativo')
+  })
+
+  it('Administrativo responde, a mensagem mostra o autor e o Cliente é avisado', () => {
+    const result = runAs(ADMIN, `SELECT public.add_demurrage_dispute_message(${disputeId()}, 'Conferimos com o terminal.', 'cliente');`)
+    expect(result.stderr).toBe('')
+    expect(psql(`SELECT author_type FROM public.demurrage_dispute_messages WHERE dispute_id = ${disputeId()};`)).toBe('administrativo')
+    expect(psql(`SELECT message FROM public.portal_notifications WHERE customer_id = ${CUSTOMER} AND type = 'dispute_responded';`))
+      .toBe('Administrativo respondeu à sua disputa.')
+  })
+})

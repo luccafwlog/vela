@@ -145,7 +145,7 @@ export function PortalDisputeConversation({ disputes }: { disputes: PortalDisput
               {dispute.messages.map((message) => (
                 <div key={message.id} className="rounded-lg bg-[var(--app-surface-muted)] px-3 py-2 text-sm">
                   <div className="mb-1 flex justify-between gap-2 text-xs text-[var(--app-muted)]">
-                    <span>{message.author_type === 'cliente' ? 'Você' : message.author_type === 'equipamentos' ? 'Equipamentos' : 'Sistema'}</span>
+                    <span>{message.author_type === 'cliente' ? 'Você' : message.author_type === 'equipamentos' ? 'Equipamentos' : message.author_type === 'administrativo' ? 'Administrativo' : 'Sistema'}</span>
                     <span>{formatDate(message.created_at)}</span>
                   </div>
                   <p className="whitespace-pre-wrap">{message.body}</p>

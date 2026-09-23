@@ -1704,7 +1704,8 @@ navios e alertas.
 
 **Disputa de Demurrage**
 Contestação do cliente sobre valores, dias ou condições de uma cobrança de
-demurrage.
+demurrage. Equipamentos é o dono da disputa e do seu Alerta; o Administrativo
+também responde e reabre, como cobertura, e o Portal mostra quem respondeu.
 
 **Notificação In-App do Portal**
 Mensagem exibida ao cliente no Portal em resposta a eventos financeiros ou

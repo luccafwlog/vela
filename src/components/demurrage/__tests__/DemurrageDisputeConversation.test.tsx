@@ -70,9 +70,15 @@ describe('DemurrageDisputeConversation', () => {
     expect(screen.getByRole('button', { name: /Reabrir Dispute/ })).toBeTruthy()
   })
 
-  it('oculta a conversa para departamentos diferentes de Equipamentos', () => {
+  it('oculta a conversa para departamentos fora de Equipamentos e Administrativo', () => {
     authState.role = 'documentacao'
     const { container } = render(<DemurrageDisputeConversation />)
     expect(container.firstChild).toBeNull()
+  })
+
+  it('mostra a conversa ao Administrativo, que responde como cobertura (migration 081)', () => {
+    authState.role = 'administrativo'
+    render(<DemurrageDisputeConversation />)
+    expect(screen.getByRole('button', { name: /Enviar/ })).toBeTruthy()
   })
 })
