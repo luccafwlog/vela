@@ -1,9 +1,57 @@
 # Deploy
 
-> Hosting: **Vercel**, com dois projetos sobre a mesma base de código. O projeto
-> `vela` publica o build interno em `vela.app.br`; `fwlog-portal` publica o
-> Portal em `portalfwlog.com.br`. Ambos geram Preview Deployments em pull
-> requests e Production Deployments em `main` pela integração GitHub/Vercel.
+> **Estado atual:** Vercel continua atendendo produção e previews até a migração
+> aprovada para Cloudflare Pages ser implementada, validada e cortada. Existem
+> dois projetos Pages sem deployments nem domínios customizados. A
+> integração Vercel publica
+> o Vela (`vela`) em `vela.app.br` e o Portal (`fwlog-portal`) em
+> `portalfwlog.com.br`.
+
+> **Migração planejada, ainda não concluída:** o destino aprovado é Cloudflare
+> Pages para os dois SPAs, mantendo Supabase como backend. A configuração
+> observada no Vercel exige login da equipe nos previews de ambos os projetos.
+> Cloudflare Access agora bloqueia as URLs Preview dos dois projetos vazios e
+> deve ser validado novamente com um artefato antes de qualquer
+> publicação; não os torne públicos. Até builds, previews protegidos,
+> autenticação, headers, rotas e operação serem comprovados, Vercel continua
+> sendo o hosting ativo. Não altere DNS nem remova os projetos Vercel nesta
+> etapa.
+
+## Preparação do artefato Cloudflare Pages
+
+O mesmo build Vite contém `index.html` (Vela interno) e `portal.html` (Portal).
+O comando `npm run cloudflare:build:sites` gera uma vez o build Vite e prepara
+saídas independentes em `dist/pages-internal` e `dist/pages-portal` (também há
+comandos individuais `cloudflare:build:internal` e `cloudflare:build:portal`).
+Cada diretório contém seu próprio
+`index.html`, os assets/branding utilizados, `_redirects` para a navegação SPA
+e `_headers` com a política de segurança/cache equivalente à hospedagem atual.
+O Pages deve publicar o diretório correspondente, não o `dist` compartilhado.
+
+Esta preparação local não cria deployments ou altera DNS. Os projetos vazios
+`vela-internal` e `vela-portal` já foram criados no painel Cloudflare. A regra
+`Restringir pré-visualizações` foi ativada em ambos. A política Access herdada
+permite somente `luccafwlog@gmail.com`; o IdP selecionado é Cloudflare, e o MFA
+está desativado. O owner confirmou que concluiu a autenticação nos dois apps.
+Um URL Preview sem deployment havia encaminhado ao consentimento OAuth; esse
+passo manual já foi concluído, mas ainda não há artefato para provar o fluxo
+autorizado e a negação de identidade não permitida. O workflow de Preview e a
+espera explícita pela branch Supabase estão nesta PR; ainda não foram publicados
+na branch padrão.
+O workflow deve manter previews privados, equivalentes à proteção por login
+observada nos dois projetos Vercel. A integração Supabase↔Vercel não configura
+automaticamente builds Cloudflare. O contrato local do staging é validado por
+`npm run cloudflare:stage:test`.
+
+Nos Previews, ambos os projetos usam um alias Cloudflare estável `pr-<número>`
+(por exemplo, `pr-123.vela-internal.pages.dev` e
+`pr-123.vela-portal.pages.dev`), separado do nome/alias da branch Supabase.
+Assim, `/portal` no Vela Preview aponta para o Portal Preview da mesma PR, e
+não para o Portal de produção. O alias `pages.dev` também precisa estar sob a
+política de Access validada antes da publicação. Em builds que não são Preview,
+o redirecionamento continua apontando para `portalfwlog.com.br`. A normalização
+dos aliases de branch está descrita na
+[documentação de Preview Deployments da Cloudflare](https://developers.cloudflare.com/pages/configuration/preview-deployments/#preview-aliases).
 
 ## Workflows
 
@@ -11,11 +59,57 @@
 |---|---|---|
 | `.github/workflows/ci.yml` | `pull_request` e push em `main` | `docs:check`, lint, build, bundle size e testes em shards. |
 | `.github/workflows/provision-preview-admin.yml` | conclusão verde do CI de uma PR | Aguarda o check `Supabase Preview` e cria/atualiza o usuário admin de teste na branch Supabase correspondente. |
+| `.github/workflows/cloudflare-pages-provision.yml` | execução manual (`workflow_dispatch`) na `main` | Cria apenas os projetos Pages ausentes (`vela-internal` e `vela-portal`) como projetos vazios, sem deploy nem alteração dos projetos existentes. |
+| `.github/workflows/cloudflare-pages-preview.yml` | conclusão verde do CI de uma PR interna | Implementado no worktree de migração, ainda não publicado na branch padrão: exige Supabase Preview verde, compila artefatos sem secrets de escrita e publica os previews protegidos dos dois projetos Pages separados. |
+| `.github/workflows/cloudflare-pages-preview-cleanup.yml` | PR interna fechada | Implementado no worktree: remove deployments `preview` antigos dos dois projetos para a branch exata; retém o mais recente porque Cloudflare não permite apagá-lo. |
 | Supabase GitHub Integration — Automatic branching | branch/PR do GitHub | Cria a branch Supabase efêmera correspondente e executa migrations/configuração do Preview. |
 | Supabase + Vercel Branching Integration | PR aberta | Sincroniza as variáveis públicas do Preview com a branch Supabase correspondente e reimplanta se houver corrida de timing. |
 | Supabase GitHub Integration — Deploy to production | merge/push em `main` | Aplica migrations e publica os artefatos de produção no projeto Supabase principal. |
 | Vercel + GitHub | pull request | Build e Preview Deployment. |
 | Vercel + GitHub | push em `main` | Build e Production Deployment. |
+
+### Migração em andamento: Cloudflare Pages
+
+A migração aprovada manterá os previews **privados**: a configuração observada
+no Vercel exige login da equipe nos projetos `vela` e `fwlog-portal`; no
+Cloudflare, Access deve permitir somente a identidade do owner, a menos que o
+owner decida adicionar outras pessoas. A conta Cloudflare continua administrada
+somente pelo owner. O workflow implementado no worktree executa primeiro um job
+confiável para conferir o `Supabase Preview` da PR e extrair somente URL e chave
+pública da branch. O código da PR roda em job separado, sem tokens Supabase de
+administração nem token Cloudflare. Um último job, usando apenas artefatos
+estáticos e Wrangler confiável da branch padrão, publica nos projetos
+`vela-internal` e `vela-portal`.
+
+Quando uma PR interna fecha, um segundo workflow obtém as listas paginadas de
+deployments do ambiente `preview`, filtra os dois projetos pelo alias exato
+`pr-<número>` e remove os deployments antigos correspondentes. O deployment
+mais recente de cada branch é retido: a Cloudflare não permite apagá-lo, mesmo
+com `force`.
+Assim, a limpeza remove históricos antigos, mas não apaga o último artefato nem
+garante que seu URL hash deixe de responder. O workflow nunca enumera o ambiente
+`production` nem executa código da PR fechada. [Regra de exclusão de previews](https://developers.cloudflare.com/pages/configuration/preview-deployments/#delete-preview-deployments).
+
+Esta automação depende da criação prévia desses projetos Pages e dos seguintes
+valores no GitHub Actions: secret `CLOUDFLARE_PAGES_API_TOKEN` com escopo Pages
+Write e variáveis `CLOUDFLARE_ACCOUNT_ID` e
+`CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`. Esta última é um gate manual: só deve
+ser criada depois de configurar e testar Access nos dois projetos; sem ela, o
+job de publicação não executa. A automação não associa domínios, não altera DNS
+e não publica Production. Até a configuração externa e uma prova observável dos
+dois previews protegidos, Vercel continua sendo o hosting atual.
+
+O workflow manual de provisionamento usa apenas `CLOUDFLARE_PAGES_API_TOKEN` e
+`CLOUDFLARE_ACCOUNT_ID`. Ele consulta os projetos existentes e cria somente os
+nomes ausentes, com branch de produção `main`; não sobe artefatos, associa
+domínios nem configura integração Git, Access ou DNS. Os dois projetos já
+existem, portanto essa automação deverá reconhecê-los e deixá-los intactos.
+`CLOUDFLARE_ACCOUNT_ID` já foi adicionada às Actions Variables. O secret
+`CLOUDFLARE_PAGES_API_TOKEN` também foi confirmado na lista de repository
+secrets (seu valor não foi acessado). Antes de definir
+`CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`, testar sessões autorizada e não
+autorizada em Preview implantado; a escolha e autenticação inicial do IdP já
+foram concluídas pelo owner.
 
 Não há mais workflow de deploy Firebase no repositório. A integração Vercel é
 configurada no projeto Vercel, não como uma segunda publicação no GitHub
