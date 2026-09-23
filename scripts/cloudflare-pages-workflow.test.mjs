@@ -43,3 +43,13 @@ test('Supabase access token is scoped only to steps that invoke the Supabase CLI
   assert.doesNotMatch(prepare, /^      SUPABASE_ACCESS_TOKEN:/m)
   assert.equal((prepare.match(/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/g) ?? []).length, 2)
 })
+
+test('public Supabase key survives Actions job-output secret filtering', () => {
+  const prepare = jobBlock('prepare')
+  const build = jobBlock('build')
+  assert.match(prepare, /supabase_anon_key_b64: \$\{\{ steps\.branch-env\.outputs\.supabase_anon_key_b64 \}\}/)
+  assert.match(build, /Restore public Supabase preview key for Vite build/)
+  assert.match(build, /SUPABASE_ANON_KEY_BASE64: \$\{\{ needs\.prepare\.outputs\.supabase_anon_key_b64 \}\}/)
+  assert.match(build, /base64 --decode/)
+  assert.doesNotMatch(build, /VITE_SUPABASE_ANON_KEY: \$\{\{ needs\.prepare\.outputs\.supabase_anon_key/)
+})

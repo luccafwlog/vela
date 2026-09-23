@@ -38,7 +38,9 @@ export async function writeCloudflarePreviewOutputs({ cliEnv, productionProjectR
   const delimiter = `CF_PREVIEW_${randomUUID().replaceAll('-', '')}`
   const output = [
     `supabase_url<<${delimiter}\n${url}\n${delimiter}`,
-    `supabase_anon_key<<${delimiter}\n${anonKey}\n${delimiter}`,
+    // GitHub Actions suppresses job outputs that match a secret value. Encode
+    // this public browser key in transit and decode it only in the build job.
+    `supabase_anon_key_b64<<${delimiter}\n${Buffer.from(anonKey, 'utf8').toString('base64')}\n${delimiter}`,
     '',
   ].join('\n')
   await appendFile(outputFile, output, { encoding: 'utf8', flag: 'a' })

@@ -17,7 +17,10 @@ test('exports only the matching branch URL and public key, never its database se
     await writeCloudflarePreviewOutputs({ cliEnv, productionProjectRef: 'fgmkhbzhaeebrsizwccx', outputFile: output })
     const result = await readFile(output, 'utf8')
     assert.match(result, /supabase_url<<[^\n]+\nhttps:\/\/branch-ref\.supabase\.co/)
-    assert.match(result, /supabase_anon_key<<[^\n]+\npublic-anon-key/)
+    const encodedKey = result.match(/supabase_anon_key_b64<<[^\n]+\n([^\n]+)/)?.[1]
+    assert.ok(encodedKey, 'public key is transported as a single-line encoded job output')
+    assert.equal(Buffer.from(encodedKey, 'base64').toString('utf8'), 'public-anon-key')
+    assert.ok(!result.includes('public-anon-key'))
     assert.ok(!result.includes('private-database-secret'))
   } finally {
     await rm(directory, { recursive: true, force: true })

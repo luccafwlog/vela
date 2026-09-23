@@ -1,6 +1,6 @@
 # Issue 710 — Conciliação e execução serviço a serviço
 
-> **Estado (última conferência: 2026-09-23):** Zero Trust Free ativo; projetos Pages `vela-internal` e `vela-portal` existentes sem deployment; ambos têm Access obrigatório em Preview e política que só permite `luccafwlog@gmail.com`. O owner escolheu e configurou manualmente o IdP Cloudflare nos dois apps (conta Cloudflare acessada via Google); MFA permanece desativado. A autenticação/consentimento inicial foi confirmada pelo owner. Ainda falta provar acesso autorizado e negado em deployment Preview real. O owner escolheu Cloudflare Pages como hospedagem final antes do GO-LIVE, mantendo Supabase como backend e Vercel temporária durante validação. DNS/cutover e desligamento dependem de evidência e confirmação operacional.
+> **Estado (última conferência: 2026-09-23):** Zero Trust Free ativo; projetos Pages `vela-internal` e `vela-portal` existem, e os previews temporários `pr-742` foram publicados. Ambos os hosts redirecionam acessos sem sessão ao Cloudflare Access; o primeiro runtime autenticado revelou bundle em branco porque o GitHub Actions suprimiu a chave pública Supabase na passagem entre jobs. A correção de transporte está preparada nesta frente e requer chegar à branch padrão antes de novo teste. A política Access nos dois apps só permite `luccafwlog@gmail.com`; IdP Cloudflare configurado, MFA desativado e autenticação/consentimento inicial confirmados pelo owner. A negação de identidade autenticada não autorizada ainda não foi testada. O owner escolheu Cloudflare Pages como hospedagem final antes do GO-LIVE, mantendo Supabase como backend e Vercel temporária durante validação. DNS/cutover e desligamento dependem de evidência e confirmação operacional.
 >
 > **Regra de execução:** concluir e aceitar uma frente antes de começar a seguinte. Manter no máximo uma PR de implementação de serviço em andamento; abrir exceção somente para dependência técnica demonstrada e registrar por quê. Revisar o estado remoto novamente no início de cada etapa.
 
@@ -137,6 +137,18 @@ autorizado. Nenhum domínio, DNS ou produção foi alterado. Uma branch Supabase
 de Preview associada à PR #740 permanece ativa por decisão do owner; não será
 apagada nesta fase. O teste runtime autorizado/negado em Preview ainda está
 pendente.
+
+**Teste controlado #742 (2026-09-23):** CI, Supabase Preview, Vercel e publicação
+dos dois Pages previews concluíram com sucesso. Sem cookies do Access, ambos os
+hosts responderam com `302` para o login do Cloudflare Access. Na sessão
+autenticada, o HTML dos dois SPAs foi servido, mas ambos ficaram em branco porque
+o GitHub Actions suprimiu `supabase_anon_key` como saída entre jobs: o log de
+build mostra `VITE_SUPABASE_ANON_KEY` vazio e o console confirma que o cliente
+Supabase não foi inicializado. A correção codifica a chave pública só durante o
+transporte entre jobs e a decodifica no build; esta alteração ainda precisa
+chegar à branch padrão e ser exercitada por um novo Preview antes de aceitar o
+runtime autorizado. O redirect anônimo comprova o desafio de Access, mas ainda
+não comprova bloqueio de outra identidade autenticada.
 
 **Atualização de configuração remota (2026-09-23):** dois projetos vazios
 (`vela-internal`, `vela-portal`) existem no Cloudflare, sem deployment, domínio

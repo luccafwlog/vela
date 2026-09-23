@@ -32,7 +32,7 @@ jobs:
     outputs:
       readiness: ${{ steps.readiness.outputs.readiness }}
       supabase_url: ${{ steps.branch-env.outputs.supabase_url }}
-      supabase_anon_key: ${{ steps.branch-env.outputs.supabase_anon_key }}
+      supabase_anon_key_b64: ${{ steps.branch-env.outputs.supabase_anon_key_b64 }}
       pr_number: ${{ steps.context.outputs.pr_number }}
       pr_head_sha: ${{ steps.context.outputs.pr_head_sha }}
       pr_head_ref: ${{ steps.context.outputs.pr_head_ref }}
@@ -152,11 +152,21 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Restore public Supabase preview key for Vite build
+        shell: bash
+        env:
+          SUPABASE_ANON_KEY_BASE64: ${{ needs.prepare.outputs.supabase_anon_key_b64 }}
+        run: |
+          set -euo pipefail
+          : "${SUPABASE_ANON_KEY_BASE64:?Public Supabase preview key output is missing}"
+          anon_key="$(printf '%s' "$SUPABASE_ANON_KEY_BASE64" | base64 --decode)"
+          : "${anon_key:?Decoded public Supabase preview key is empty}"
+          printf 'VITE_SUPABASE_ANON_KEY=%s\n' "$anon_key" >> "$GITHUB_ENV"
+
       - name: Build and stage both sites against the Supabase Preview branch
         run: npm run cloudflare:build:sites
         env:
           VITE_SUPABASE_URL: ${{ needs.prepare.outputs.supabase_url }}
-          VITE_SUPABASE_ANON_KEY: ${{ needs.prepare.outputs.supabase_anon_key }}
           CLOUDFLARE_PORTAL_ORIGIN: https://${{ needs.prepare.outputs.pages_branch }}.vela-portal.pages.dev
 
       - name: Upload internal site artifact
