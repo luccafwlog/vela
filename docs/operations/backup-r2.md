@@ -126,15 +126,26 @@ npm run backup:r2 -- --verify C:\caminho\<arquivo>.dump.enc
 
 Estado confirmado: o projeto Supabase tem backup físico diário; PITR continua
 desligado por custo. O bucket `vela-database-backups` está privado e sua
-lifecycle expira objetos após 90 dias; ainda está vazio. Nenhum dump foi enviado
-e nenhum restore foi executado.
+lifecycle expira objetos após 90 dias. O painel R2 mostrou 0 objetos/0 B e
+US$ 0,00 de uso faturável no período atual em 2026-09-23. O token
+`Vela R2 Backup` aparece ativo e limitado a esse bucket; não foi verificado se
+o Secret Access Key foi preservado ou se as credenciais estão no Credential
+Manager. Nenhum dump foi enviado e nenhum restore foi executado.
+
+Na máquina Windows inspecionada em 2026-09-23, os quatro alvos `VelaBackup/*`
+do Credential Manager e a tarefa `Vela-R2-Database-Backup-Daily` não existem;
+`pg_dump`, `pg_restore` e AWS CLI também não estão instalados/no `PATH`.
+Portanto, o runner ainda não está pronto para produzir um backup real.
 
 1. Obtenha em `Connect` no Supabase uma URL PostgreSQL com SSL adequada à rede
    desta máquina. Não a cole no chat, em arquivo, issue ou linha de comando.
-2. Crie no Cloudflare R2 um token `Object Read & Write` limitado somente ao
-   bucket `vela-database-backups`. A interface revela o Secret Access Key uma
-   vez; insira-o diretamente no prompt oculto do próximo passo, sem screenshot,
-   copiar para chat ou terminal com eco.
+2. O painel Cloudflare R2 lista o token `Vela R2 Backup` ativo, com permissão
+   `Object Read & Write` restrita ao bucket `vela-database-backups` (verificado
+   em 2026-09-23). Antes de criar outro, confirme se o Secret Access Key de uso
+   único foi guardado e se as duas chaves constam no Credential Manager. Se a
+   chave secreta se perdeu, revogue a credencial antiga e crie outra somente
+   quando o prompt oculto de armazenamento estiver pronto; não exponha o valor
+   em chat, terminal com eco ou screenshot.
 3. Mantenha a chave AES-256 fora do R2 **e também fora deste computador** em um
    segundo cofre recuperável. O Credential Manager local, sozinho, não é
    recuperação suficiente se o PC for perdido. A execução agendada depende de
