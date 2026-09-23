@@ -19,10 +19,6 @@ jobs:
       github.event.pull_request.head.repo.id == github.event.repository.id &&
       vars.CLOUDFLARE_PAGES_ACCESS_CONFIGURED == 'true'
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      PR_PAGES_BRANCH: pr-${{ github.event.pull_request.number }}
     steps:
       - name: Checkout trusted cleanup script
         uses: actions/checkout@v4
@@ -35,4 +31,8 @@ jobs:
           node-version: '24'
 
       - name: Delete only this PR branch's preview deployments
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PR_PAGES_BRANCH: pr-${{ github.event.pull_request.number }}
         run: node scripts/cloudflare-pages-cleanup.mjs

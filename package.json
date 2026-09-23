@@ -24,7 +24,7 @@
     "cloudflare:build:sites": "npm run build && node scripts/cloudflare-pages-stage.mjs internal dist dist/pages-internal && node scripts/cloudflare-pages-stage.mjs portal dist dist/pages-portal",
     "cloudflare:build:internal": "npm run build && node scripts/cloudflare-pages-stage.mjs internal dist dist/pages-internal",
     "cloudflare:build:portal": "npm run build && node scripts/cloudflare-pages-stage.mjs portal dist dist/pages-portal",
-    "cloudflare:stage:test": "node --test scripts/cloudflare-pages-stage.test.mjs scripts/cloudflare-preview-env.test.mjs scripts/cloudflare-pages-cleanup.test.mjs",
+    "cloudflare:stage:test": "node --test scripts/cloudflare-pages-stage.test.mjs scripts/cloudflare-preview-env.test.mjs scripts/cloudflare-pages-cleanup.test.mjs scripts/cloudflare-pages-workflow.test.mjs",
     "cloudflare:provision:test": "node --test scripts/cloudflare-pages-provision.test.mjs",
     "lint": "eslint .",
     "test": "vitest run",
