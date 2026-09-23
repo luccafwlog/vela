@@ -1,16 +1,21 @@
-import type { PortalDb } from './portalDb.ts'
+import type { PortalDb, PortalDbResult } from './portalDb.ts'
+import { logEdgeFailure } from './logger.ts'
 import {
   createUpstashRateLimiter,
   readUpstashRateLimitConfig,
   type DistributedRateLimiter,
-  type DistributedRateLimitResult,
   type RateLimitAction,
+  type RateLimitIdentity,
 } from './rateLimit.ts'
 
-// Contadores persistidos e distribuídos do Portal. O RPC continua sendo a
-// fonte de auditoria e o fallback fail-closed; quando o Redis está saudável,
-// ele decide o par IP+CNPJ sem transformar o CNPJ puro em chave.
 export type PortalRateLimitContext = { ip: string }
+export type PortalRateLimitAttempt = {
+  blocked: boolean
+  reservationId?: string
+  identity?: RateLimitIdentity
+  limiter?: DistributedRateLimiter
+}
+export type AttemptOutcome = 'failure' | 'success'
 
 let cachedRedisConfig = ''
 let cachedRedis: DistributedRateLimiter | null = null
@@ -22,7 +27,6 @@ function getRedis(): DistributedRateLimiter | null {
     cachedRedisConfig = ''
     return null
   }
-
   const fingerprint = `${config.url}|${config.token}|${config.hmacSecret}|${config.threshold}|${config.windowSeconds}|${config.timeoutMs}`
   if (!cachedRedis || cachedRedisConfig !== fingerprint) {
     cachedRedis = createUpstashRateLimiter(config)
@@ -33,9 +37,6 @@ function getRedis(): DistributedRateLimiter | null {
 
 export function requestIp(req: Request): string {
   const cloudflareIp = req.headers.get('CF-Connecting-IP')?.trim()
-  // Only accept the Cloudflare client-IP header expected from the Supabase
-  // gateway. Do not fall back to X-Forwarded-For or X-Real-IP: callers can
-  // supply those headers themselves when invoking the public function URL.
   // Preview runtime must prove the gateway overwrites a forged value before
   // this can be considered a trusted network identity.
   if (!cloudflareIp || cloudflareIp.length > 64 || cloudflareIp.includes(',') || /\s/.test(cloudflareIp)) return 'unknown'
@@ -43,76 +44,64 @@ export function requestIp(req: Request): string {
     const code = character.charCodeAt(0)
     return code < 0x20 || code === 0x7f
   })
-  if (containsControlCharacter) return 'unknown'
-  return cloudflareIp
+  return containsControlCharacter ? 'unknown' : cloudflareIp
 }
 
-export function shouldBlockRateLimit(
-  persistedBlocked: boolean,
-  distributed: DistributedRateLimitResult | null,
-): boolean {
-  // The Redis counter is an additional defense, never an override for the
-  // persisted Supabase decision. A healthy but empty Redis bucket must not
-  // release a login that the durable counter has already blocked.
-  return persistedBlocked || distributed?.state === 'blocked'
+const rpcNames: Record<RateLimitAction, { check: string; failure: string; success?: string }> = {
+  login: { check: 'portal_login_check_rate_limit', failure: 'portal_login_register_failure', success: 'portal_login_register_success' },
+  recovery: { check: 'portal_recovery_check_rate_limit', failure: 'portal_recovery_register_failure' },
+  activation: { check: 'portal_activation_check_rate_limit', failure: 'portal_activation_register_failure' },
 }
 
-async function distributedRateLimitState(action: RateLimitAction, loginCnpj: string, context?: PortalRateLimitContext): Promise<DistributedRateLimitResult | null> {
-  if (!context) return null
-  const redis = getRedis()
-  if (!redis) return null
-  return redis.check({ action, ip: context.ip, cnpj: loginCnpj })
+async function rpcSafely(db: PortalDb, name: string, loginCnpj: string): Promise<PortalDbResult<unknown>> {
+  try {
+    return await db.rpc(name, { p_login: loginCnpj })
+  } catch (error) {
+    return { data: null, error }
+  }
 }
 
-async function registerDistributedFailure(action: RateLimitAction, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
-  if (!context) return
-  const redis = getRedis()
-  if (redis) await redis.registerFailure({ action, ip: context.ip, cnpj: loginCnpj })
+export async function beginPortalRateLimitAttempt(
+  db: PortalDb,
+  action: RateLimitAction,
+  loginCnpj: string,
+  context?: PortalRateLimitContext,
+  redisOverride?: DistributedRateLimiter,
+): Promise<PortalRateLimitAttempt> {
+  const limiter = redisOverride ?? (context ? getRedis() : null)
+  const identity = context ? { action, ip: context.ip, cnpj: loginCnpj } : undefined
+  if (limiter && identity) {
+    const reservation = await limiter.reserve(identity)
+    if (reservation.state === 'reserved') return { blocked: false, reservationId: reservation.reservationId, identity, limiter }
+    if (reservation.state === 'blocked') return { blocked: true }
+    // Only Redis unavailability falls back to the durable legacy CNPJ counter.
+  }
+
+  const { data, error } = await rpcSafely(db, rpcNames[action].check, loginCnpj)
+  if (error) logEdgeFailure({ functionName: 'portal-rate-limit', job: 'persisted_check', errorCode: 'rate_limit_persisted_failed', status: 'warning' })
+  // A healthy Redis reservation is authoritative and avoids false lockouts from
+  // the CNPJ-wide legacy counter. Once we are in fallback, however, a failed
+  // durable check cannot safely establish that the request is within budget.
+  return { blocked: Boolean(error) || data === true }
 }
 
-async function registerDistributedSuccess(action: RateLimitAction, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
-  if (!context) return
-  const redis = getRedis()
-  if (redis) await redis.registerSuccess({ action, ip: context.ip, cnpj: loginCnpj })
-}
+export async function completePortalRateLimitAttempt(
+  db: PortalDb,
+  action: RateLimitAction,
+  loginCnpj: string,
+  attempt: PortalRateLimitAttempt,
+  outcome: AttemptOutcome,
+): Promise<void> {
+  if (attempt.limiter && attempt.identity && attempt.reservationId) {
+    if (outcome === 'failure') await attempt.limiter.commitFailure(attempt.identity, attempt.reservationId)
+    else await attempt.limiter.rollback(attempt.identity, attempt.reservationId)
+  }
 
-export async function isLoginRateLimited(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<boolean> {
-  const { data, error } = await db.rpc('portal_login_check_rate_limit', { p_login: loginCnpj })
-  const persistedBlocked = Boolean(error) || data === true
-  const distributed = await distributedRateLimitState('login', loginCnpj, context)
-  return shouldBlockRateLimit(persistedBlocked, distributed)
-}
-
-export async function registerLoginFailure(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
-  await db.rpc('portal_login_register_failure', { p_login: loginCnpj })
-  await registerDistributedFailure('login', loginCnpj, context)
-}
-
-export async function registerLoginSuccess(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
-  await db.rpc('portal_login_register_success', { p_login: loginCnpj })
-  await registerDistributedSuccess('login', loginCnpj, context)
-}
-
-export async function isRecoveryRateLimited(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<boolean> {
-  const { data, error } = await db.rpc('portal_recovery_check_rate_limit', { p_login: loginCnpj })
-  const persistedBlocked = Boolean(error) || data === true
-  const distributed = await distributedRateLimitState('recovery', loginCnpj, context)
-  return shouldBlockRateLimit(persistedBlocked, distributed)
-}
-
-export async function registerRecoveryFailure(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
-  await db.rpc('portal_recovery_register_failure', { p_login: loginCnpj })
-  await registerDistributedFailure('recovery', loginCnpj, context)
-}
-
-export async function isActivationRateLimited(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<boolean> {
-  const { data, error } = await db.rpc('portal_activation_check_rate_limit', { p_login: loginCnpj })
-  const persistedBlocked = Boolean(error) || data === true
-  const distributed = await distributedRateLimitState('activation', loginCnpj, context)
-  return shouldBlockRateLimit(persistedBlocked, distributed)
-}
-
-export async function registerActivationFailure(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
-  await db.rpc('portal_activation_register_failure', { p_login: loginCnpj })
-  await registerDistributedFailure('activation', loginCnpj, context)
+  if (outcome === 'failure') {
+    const { error } = await rpcSafely(db, rpcNames[action].failure, loginCnpj)
+    if (error) logEdgeFailure({ functionName: 'portal-rate-limit', job: 'persisted_failure', errorCode: 'rate_limit_persisted_failed', status: 'warning' })
+  } else if (action === 'login' && rpcNames.login.success) {
+    const { error } = await rpcSafely(db, rpcNames.login.success, loginCnpj)
+    if (error) logEdgeFailure({ functionName: 'portal-rate-limit', job: 'persisted_success', errorCode: 'rate_limit_persisted_failed', status: 'warning' })
+  }
 }

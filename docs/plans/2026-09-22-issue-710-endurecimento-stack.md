@@ -184,15 +184,16 @@ Cada PR inclui testes, documentação viva e rollback da sua própria frente. Mu
 
 ### M7 — Upstash Redis para bloqueio distribuído e idempotência
 
-**Comportamento operacional:** 10 erros do mesmo IP+CNPJ bloqueiam aquele par por 5 minutos sem bloquear outro IP; indisponibilidade do Redis não remove o rate limit persistido atual.
+**Comportamento operacional:** 10 falhas confirmadas/reservas concorrentes do mesmo IP+CNPJ bloqueiam aquele par por 5 minutos sem bloquear outro IP. Redis saudável decide esse par; indisponibilidade usa o fallback persistido por CNPJ. Erro da RPC persistida, isoladamente, não confirma abuso.
 
 - [x] Criar `supabase/functions/_shared/rateLimit.ts` com hash/HMAC de IP+CNPJ e TTL; nunca usar CNPJ puro como chave.
 - [x] Integrar à `portal-login`, ativação e recuperação; manter tabelas/RPCs persistidas como defesa e auditoria.
-- [x] Definir fallback ao rate limit persistido quando Redis estiver indisponível; esta alteração local também impede que Redis `allowed` anule bloqueio persistido.
+- [x] Definir fallback ao rate limit persistido somente quando Redis estiver indisponível; erro de RPC não é abuso confirmado e Redis saudável não agrega o bloqueio legado por CNPJ.
+- [x] Fechar concorrência com reserva Lua/EVAL atômica, confirmação apenas para senha incorreta e rollback para senha validada; teste concorrente confirma limite de dez reservas e rollback sem contagem.
 - [x] Provisionar database Upstash Free e gravar os três secrets autorizados nas Edge Functions de produção. Configuração existe, mas não prova comportamento runtime.
-- [ ] Confirmar no Preview se o gateway sobrescreve `CF-Connecting-IP` e testar duas origens controladas, concorrência, TTL e fallback. Os testes adicionados nesta execução são estáticos, não prova de runtime.
+- [ ] Confirmar no Preview se o gateway sobrescreve `CF-Connecting-IP` e validar duas origens controladas, concorrência, TTL e fallback em Upstash. Os testes locais usam fetcher Redis simulado e são evidência de Código/Teste, não prova de execução Lua/Upstash nem de runtime.
 - [x] Atualizar o runbook de rate limit e endurecer a identidade de IP para não confiar em `X-Forwarded-For`/`X-Real-IP` do cliente.
-- [ ] A identidade Redis ainda usa `CF-Connecting-IP`; antes de tratar o limite distribuído como defesa efetiva, comprovar em Preview que o gateway Supabase sobrescreve/remove o valor enviado pelo cliente. Se não houver prova ou o cabeçalho for controlável, não promover essa camada a produção; o limitador persistido por CNPJ continua sendo a defesa existente.
+- [ ] A identidade Redis ainda usa `CF-Connecting-IP`; antes de tratar o limite distribuído como defesa efetiva, comprovar em Preview que o gateway Supabase sobrescreve/remove o valor enviado pelo cliente. Se não houver prova ou o cabeçalho for controlável, não promover essa camada a produção; o fallback persistido por CNPJ permanece ativo quando Redis não estiver disponível.
 
 ### M11 — Monitor de entregabilidade e DMARC
 
@@ -247,7 +248,7 @@ destinados apenas ao owner já aprovado.
 - [ ] Criar token R2 restrito ao bucket `vela-database-backups` e guardar no Credential Manager. O owner autorizou; ainda não foi criado. A chave secreta só é exibida uma vez pelo Cloudflare, por isso a captura precisa ser digitada diretamente no prompt protegido sem expor o valor em chat, terminal ou screenshot.
 - [ ] Criar/confirmar a cópia secundária da chave de criptografia no gerenciador de senhas antes de gerar credenciais reais ou executar backup. Não guardar a chave somente no PC.
 - [x] Confirmar bucket privado R2 `vela-database-backups` com lifecycle de 90 dias; bucket ainda está vazio. Lifecycle apaga objetos e não equivale a versionamento/restore.
-- [x] Manter o script `scripts/backup-r2.mjs` e runbook `docs/operations/backup-r2.md`; o script valida o dump com `pg_restore --list` e, após upload, baixa o objeto cifrado e compara tamanho/SHA-256 antes de enviar o manifesto. `npm run backup:r2:test` passou em 15 testes locais; em sucesso limpa o cache local, em falha preserva artefatos completos cifrados. Não houve upload real nem tarefa agendada registrada.
+- [x] Manter o script `scripts/backup-r2.mjs` e runbook `docs/operations/backup-r2.md`; o script valida o dump com `pg_restore --list`, cujo processo-filho recebe ambiente mínimo sem segredos, e, após upload, baixa o objeto cifrado e compara tamanho/SHA-256 antes de enviar o manifesto. `npm run backup:r2:test` passou em 16 testes locais, incluindo não vazamento de secrets ao `pg_restore`; em sucesso limpa o cache local, em falha preserva artefatos completos cifrados. Não houve upload real nem tarefa agendada registrada.
 - [ ] Conectar alertas privados/heartbeat M2 ao resultado da execução diária depois que o runner e suas credenciais aprovadas estiverem configurados.
 - [ ] Trimestralmente criar branch/projeto descartável, restaurar backup/PITR, aplicar `supabase/tests/seed_catalog.sql` conforme o procedimento e conferir amostra relacionada de Viagem → B/Ls → invoices/ledger. Nunca restaurar sobre produção.
 - [ ] Registrar tempo, ponto alcançado e limitações como relatório histórico. Rollback operacional: desabilitar workflow e revogar credenciais; não apagar backups existentes sem autorização destrutiva específica.

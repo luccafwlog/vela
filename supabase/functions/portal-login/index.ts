@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { openAlertOnce } from '../_shared/portalAlerts.ts'
-import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
+import { beginPortalRateLimitAttempt, completePortalRateLimitAttempt, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { authenticatePortalLoginIdentity } from '../_shared/portalLoginIdentity.ts'
 import { logEdgeFailure } from '../_shared/logger.ts'
 
@@ -41,7 +41,8 @@ if (typeof Deno !== 'undefined') {
 
       const admin = createClient(url, serviceKey)
       const rateLimitContext = { ip: requestIp(req) }
-      if (await isLoginRateLimited(admin, normalized, rateLimitContext)) {
+      const rateLimitAttempt = await beginPortalRateLimitAttempt(admin, 'login', normalized, rateLimitContext)
+      if (rateLimitAttempt.blocked) {
         // O caminho bloqueado consultava a conta e, SÓ se ela existisse,
         // consultava e inseria o alerta: os dois desfechos devolvem o mesmo 401,
         // mas um fazia consistentemente uma consulta a mais que o outro. É o
@@ -76,11 +77,11 @@ if (typeof Deno !== 'undefined') {
         },
       })
       if (!authentication.accepted || !authentication.session) {
-        await registerLoginFailure(admin, normalized, rateLimitContext)
+        await completePortalRateLimitAttempt(admin, 'login', normalized, rateLimitAttempt, 'failure')
         return json(401, { error: GENERIC_ERROR }, origin)
       }
 
-      await registerLoginSuccess(admin, normalized, rateLimitContext)
+      await completePortalRateLimitAttempt(admin, 'login', normalized, rateLimitAttempt, 'success')
       await admin.from('customer_portal_accounts').update({ last_login_at: new Date().toISOString() }).eq('login_cnpj', normalized)
       return json(200, {
         access_token: authentication.session.access_token,

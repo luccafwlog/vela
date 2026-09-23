@@ -239,6 +239,11 @@ function requireFileSize(filePath) {
   }
 }
 
+export function pgRestoreChildEnvironment(source = process.env) {
+  const allowed = ['PATH', 'Path', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP']
+  return Object.fromEntries(allowed.filter((name) => source[name] !== undefined).map((name) => [name, source[name]]))
+}
+
 async function verifyArchive(filePath, key) {
   const { fileSize, iv, tag } = readArchiveParts(filePath)
   const decipher = createDecipheriv('aes-256-gcm', key, iv)
@@ -246,6 +251,7 @@ async function verifyArchive(filePath, key) {
   const input = createReadStream(filePath, { start: HEADER_BYTES, end: fileSize - AUTH_TAG_BYTES - 1 })
   const restore = spawn(process.env.PG_RESTORE_BIN ?? 'pg_restore', ['--list', '--exit-on-error'], {
     stdio: ['pipe', 'ignore', 'pipe'],
+    env: pgRestoreChildEnvironment(),
   })
   drain(restore.stderr)
   const closing = waitForClose(restore, 'pg_restore')

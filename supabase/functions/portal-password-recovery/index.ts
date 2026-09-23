@@ -5,7 +5,7 @@ import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { findReusableRecoveryInvite } from '../_shared/portalInvites.ts'
 import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
-import { isRecoveryRateLimited, registerRecoveryFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
+import { beginPortalRateLimitAttempt, completePortalRateLimitAttempt, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { logEdgeFailure } from '../_shared/logger.ts'
 
 // Achado 3.2 (auditoria 2026-08-12): a resposta antiga distinguia
@@ -31,8 +31,11 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const rateLimitContext = { ip: requestIp(req) }
-  if (await isRecoveryRateLimited(admin, cnpj, rateLimitContext)) return rateLimited()
-  await registerRecoveryFailure(admin, cnpj, rateLimitContext)
+  const rateLimitAttempt = await beginPortalRateLimitAttempt(admin, 'recovery', cnpj, rateLimitContext)
+  if (rateLimitAttempt.blocked) return rateLimited()
+  // Cada pedido válido conta para reduzir enumeração por CNPJ, independente
+  // de o processamento em segundo plano encontrar ou enviar um email.
+  await completePortalRateLimitAttempt(admin, 'recovery', cnpj, rateLimitAttempt, 'failure')
 
   // PAF-04: o processamento da conta, validação de supressão, reutilização de convite e
   // despacho de email rodam em segundo plano via EdgeRuntime.waitUntil.

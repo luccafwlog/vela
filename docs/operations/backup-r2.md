@@ -17,7 +17,10 @@ Cloudflare, não habilita PITR nem executa restore.
   cliente PostgreSQL.
 - O dump é cifrado localmente com AES-256-GCM em streaming. O arquivo plaintext
   não é persistido pelo script. O `.dump.enc` é validado com
-  `pg_restore --list` antes do upload.
+  `pg_restore --list` antes do upload. O processo-filho `pg_restore` recebe
+  somente `PATH` (e variáveis de sistema/temporárias necessárias no Windows);
+  não herda URL/credenciais PostgreSQL, chave AES, credenciais R2 ou opções de
+  inicialização Node.
 - O upload usa a API S3-compatible do R2, mas não há `wrangler`, criação de
   bucket, alteração de ACL ou exclusão de objeto no repositório.
 - Após enviar o arquivo cifrado, o script baixa o objeto privado para um
