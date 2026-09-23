@@ -212,10 +212,17 @@ deve ser considerado abrangente para todo o runtime Edge.
   `invoice_paid` e `dispute_opened` ainda não têm pontos de captura. O runtime
   configurado não prova ingestão: validar em Preview e no painel PostHog após
   deploy, sem fixture com dados reais.
-- `COMMUNICATIONS_ENABLED` é somente uma flag de cliente sem consumidor que
-  controle envio server-side; o bloqueio efetivo permanece em
-  `app_settings.communications_enabled`. Qualquer rollout de flag deve ser um
-  bloqueio adicional no servidor, nunca autorização para enviar.
+- `COMMUNICATIONS_ENABLED` também é verificada no servidor por
+  `send-customer-communication` e `demurrage-dunning`; o bloqueio mestre
+  `app_settings.communications_enabled` continua obrigatório. PostHog só pode
+  restringir envio: chave ausente, flag ausente/desativada, quota, erro,
+  resposta inválida ou timeout falham fechados e deixam o envio simulado. A
+  consulta usa um sentinela global fixo, sem dado de cliente, e não envia
+  evento de avaliação; a régua consulta uma vez por execução. O secret
+  `POSTHOG_PROJECT_KEY` e a flag ainda não estão configurados nas Edge
+  Functions de produção, então não habilitará envio real até ambos serem
+  configurados. Antes disso, conferir a política de cobrança/limite de uso no
+  PostHog; a ativação está pendente para preservar a decisão de custo zero.
 - Decisão do owner: o Portal não associa ID estável de cliente aos eventos do
   Sentry; a sessão Sentry do Portal fica sem usuário. O Vela interno conserva
   sua associação atual à identidade do usuário interno, que é um contrato

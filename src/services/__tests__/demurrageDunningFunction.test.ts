@@ -19,6 +19,8 @@ describe('Edge Function demurrage-dunning', () => {
 
   it('respeita a chave global, contatos/supressões e o reply-to dedicado', () => {
     expect(source).toContain("communications_enabled")
+    expect(source).toContain('resolveCommunicationsSendEnabled')
+    expect(source).toContain("projectKey: Deno.env.get('POSTHOG_PROJECT_KEY')")
     expect(source).toContain("dispatch_mode: communicationsEnabled ? 'real' : 'simulado'")
 		expect(source).toContain('recipient_key: recipientIdentity')
 		expect(source).toContain(".eq('recipient_key', recipientIdentity)")

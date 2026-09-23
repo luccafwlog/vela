@@ -3,6 +3,7 @@ import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { renderDemurrageTemplate } from '../_shared/customerCommunicationTemplates.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttemptRecord } from '../_shared/email.ts'
+import { resolveCommunicationsSendEnabled } from '../_shared/postHogFeatureFlag.ts'
 import { logEdgeFailure } from '../_shared/logger.ts'
 
 type DunningCandidate = {
@@ -724,7 +725,10 @@ async function handler(req: Request): Promise<Response> {
     return json(500, { error: 'Falha ao preparar a régua de Demurrage.' })
   }
 
-  const communicationsEnabled = Boolean((settings as { communications_enabled?: boolean } | null)?.communications_enabled)
+  const communicationsEnabled = await resolveCommunicationsSendEnabled({
+    masterSwitchEnabled: Boolean((settings as { communications_enabled?: boolean } | null)?.communications_enabled),
+    projectKey: Deno.env.get('POSTHOG_PROJECT_KEY'),
+  })
   const candidates = asCandidates(claimed)
   const groups = groupDunningCandidatesByCustomerCycle(candidates)
   let sent = 0

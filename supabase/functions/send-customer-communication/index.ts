@@ -3,6 +3,7 @@ import { corsHeaders, withCors } from '../_shared/cors.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { logEdgeFailure } from '../_shared/logger.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttachment, type EmailAttemptRecord } from '../_shared/email.ts'
+import { resolveCommunicationsSendEnabled } from '../_shared/postHogFeatureFlag.ts'
 import {
   assertValidCommunicationAttachments,
   renderCustomerCommunicationTemplate,
@@ -512,6 +513,11 @@ async function handler(req: Request): Promise<Response> {
   if (communicationSuppression || portalSuppression) return json(422, { error: 'Endereço suprimido para Comunicados.', suppressed: true }, origin)
   if (!recipientAllowed) return json(422, { error: 'Contato desativado para esta caixa ou modelo.' }, origin)
 
+  const enabled = await resolveCommunicationsSendEnabled({
+    masterSwitchEnabled: Boolean((settings as { communications_enabled?: boolean } | null)?.communications_enabled),
+    projectKey: Deno.env.get('POSTHOG_PROJECT_KEY'),
+  })
+
   let existingCommunicationId: number | null = null
   if (isAutomation) {
     try {
@@ -570,7 +576,6 @@ async function handler(req: Request): Promise<Response> {
     return json(500, { error: 'Não foi possível persistir os anexos do comunicado.' }, origin)
   }
 
-  const enabled = Boolean((settings as { communications_enabled?: boolean } | null)?.communications_enabled)
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   if (enabled && !resendApiKey) {
     await admin.from('customer_communications').update({ status: 'falha' }).eq('id', communicationId)

@@ -10,7 +10,8 @@ describe('Edge Function send-customer-communication', () => {
   it('mantém autenticação interna, guarda de natureza e simulação sem Resend', () => {
     expect(source).toContain("caller.rpc('portal_current_role')")
     expect(source).toContain("if (!nature || !natureForKind(kind, nature))")
-    expect(source).toContain("const enabled = Boolean")
+    expect(source).toContain('resolveCommunicationsSendEnabled')
+    expect(source).toContain("projectKey: Deno.env.get('POSTHOG_PROJECT_KEY')")
     expect(source).toContain("dispatch_mode: enabled ? 'real' : 'simulado'")
     expect(source).toContain("resendApiKey: enabled ? resendApiKey : null")
     expect(source).toContain("refresh_customer_communication_status")
