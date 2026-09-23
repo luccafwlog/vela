@@ -1,8 +1,14 @@
 # Issue 710 — Endurecimento da stack (observabilidade, segurança e resiliência)
 
-> **Estado:** plano vivo em execução; o documento não é prova de produção. As configurações remotas e PRs abaixo foram registradas separadamente, com runtime ainda pendente onde indicado.
->
-> **Para execução pelo Codex:** usar `executing-plans`, manter a checklist deste arquivo atualizada e operar os painéis dos provedores pelo navegador com sessões autenticadas. Login, MFA, CAPTCHA e qualquer confirmação de ação externa permanecem sob controle do usuário; credenciais, tokens, códigos de recuperação e OTPs não entram em prompts, terminal, commits, screenshots ou evidências.
+> **Nota editorial — 2026-09-23:** este plano foi arquivado como superado, não
+> como integralmente executado. Algumas PRs e configurações foram entregues,
+> mas o conjunto de frentes ficou parcialmente concluído e sem conciliação
+> única. O plano vivo [2026-09-23 — Issue 710: conciliação e execução serviço
+> a serviço](../../plans/2026-09-23-issue-710-consolidacao-service-a-service.md)
+> é a referência para inventário e próximos passos. O conteúdo abaixo foi
+> preservado como registro histórico do plano original.
+
+> **Estado ao arquivar:** execução parcial; este documento deixou de ser a fila de trabalho. Todas as instruções, checklists, bloqueios e afirmações de estado operacional abaixo são o snapshot do plano original de 2026-09-22 e não devem ser usados para executar ou descrever o trabalho atual. Para estado e próximas ações, usar o plano vivo indicado na nota editorial acima.
 
 **Origem:** [Issue #710](https://github.com/luccafwlog/vela/issues/710), lida no GitHub autenticado em 2026-09-22.
 

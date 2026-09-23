@@ -61,6 +61,16 @@ jobs:
         with:
           version: 2.113.0
 
+      - name: Validate PR branch before using it with Supabase CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${PR_HEAD_REF:?PR_HEAD_REF ausente}"
+          [[ "$PR_HEAD_REF" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || {
+            echo 'Nome de branch inesperado; recusando passá-lo ao Supabase CLI.'
+            exit 1
+          }
+
       - name: Wait for Supabase Preview readiness
         id: readiness
         shell: bash
