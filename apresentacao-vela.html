@@ -1305,7 +1305,7 @@
           <div style="display:flex; flex-direction:column; gap: 14px">
             <div class="surface pad">
               <div class="steps">
-                <div class="step"><span class="n">1</span><div><h3>Navio, VOY, IMO e uma data por porto</h3><p>Porto marcado como “não escala” fica sem data.</p></div></div>
+                <div class="step"><span class="n">1</span><div><h3>Navio, VOY, IMO e uma data por porto</h3><p>“Não escala” fica sem data. Na edição, remove a escala que não tem B/L, ATA nem manifesto.</p></div></div>
                 <div class="step"><span class="n">2</span><div><h3>Acha ou cria a Viagem <span class="auto"><svg class="i"><use href="#i-zap"/></svg>auto</span></h3><p>Procura por VOY e IMO. IMO diferente nunca é fundido; sem IMO e com duas candidatas, pede decisão.</p></div></div>
                 <div class="step"><span class="n">3</span><div><h3>Grava só ETD e ETA</h3><p>ATA, ATD, CE e vínculo são da Viagem: esta tela nunca os sobrescreve.</p></div></div>
                 <div class="step"><span class="n">4</span><div><h3>Liga “mostrar no Portal”</h3><p>O Cliente passa a ver o navio no quadro do Painel dele.</p></div></div>
@@ -1446,7 +1446,7 @@
             <div class="p3-h"><span class="tab tab--active"><span class="no">2</span>Importação</span></div>
             <div class="p3-b">
               <p>O que descarrega em cada porto: containers, IMO/OOG, veículos, carga geral, carga solta e vazios.</p>
-              <div><p class="flabel">Importação rápida, nesta ordem</p><div class="qbtns"><span><em>1</em>Baplie EDI</span><span><em>2</em>B/L</span><span><em>3</em>CE Mercante</span><span><em>4</em>Manifesto BB</span><span><em>5</em>Veículos</span><span><em>6</em>Vazios IMP</span></div></div>
+              <div><p class="flabel">Importação rápida, nesta ordem</p><div class="qbtns"><span><em>1</em>Baplie EDI</span><span><em>2</em>B/L container</span><span><em>3</em>B/L carga solta</span><span><em>4</em>CE Mercante</span><span><em>5</em>Veículos</span><span><em>6</em>Vazios IMP</span></div></div>
               <div class="mini"><table class="t sm"><thead><tr><th>POD</th><th>CNTR</th><th>IMO/OOG</th><th>VIN</th><th>BB</th><th>MTY</th></tr></thead><tbody><tr><td>Salvador</td><td class="num">252</td><td class="num">6 / 1</td><td class="num">36</td><td class="num">—</td><td class="num">30</td></tr><tr><td>Vitória</td><td class="num">188</td><td class="num">2 / 0</td><td class="num">—</td><td class="num">7</td><td class="num">22</td></tr><tr><td>Pecém</td><td class="num">172</td><td class="num">0 / 0</td><td class="num">—</td><td class="num">—</td><td class="num">32</td></tr></tbody></table></div>
               <div class="check"><svg class="i"><use href="#i-lock"/></svg><span>O importador nasce <b>travado nesta viagem</b>: uma linha de CE de outra viagem é bloqueada na prévia.</span></div>
             </div>
@@ -1553,7 +1553,7 @@
               <ul class="clean rules">
                 <li><div class="ico"><svg class="i"><use href="#i-db"/></svg></div><div><h3>Nada é redigitado</h3><p>Carga, veículos, vazios e Granito vêm de onde já foram registrados.</p></div></li>
                 <li><div class="ico"><svg class="i"><use href="#i-clock"/></svg></div><div><h3>Prazo visível: 3 dias úteis após o ATD</h3><p>Pendência e atraso viram Alerta para o departamento dono.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-lock"/></svg></div><div><h3>Fechado, não muda</h3><p>O Financeiro confere pagamentos sobre uma fotografia final.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-lock"/></svg></div><div><h3>Fechado vira fotografia</h3><p>O Financeiro confere pagamentos sobre ela. Reabrir exige o Administrativo e um motivo.</p></div></li>
               </ul>
             </div>
             <div class="gain">
@@ -1575,20 +1575,20 @@
       <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Importação</div></header>
       <div class="body">
         <p class="kicker">Documentos · Como um arquivo entra</p>
-        <h2>Todo arquivo passa pelas mesmas cinco conferências antes de gravar</h2>
+        <h2>Todo arquivo passa pelas mesmas cinco conferências, e erro não passa em silêncio</h2>
         <div class="rule"></div>
         <div class="flow five">
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-search"/></svg><span class="n">01</span></div><h3>Reconhece o conteúdo</h3><p>Planilha, CSV ou EDI pelo que o arquivo é, não pela extensão. Conteúdo ambíguo é recusado.</p></div>
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-file"/></svg><span class="n">02</span></div><h3>Lê com o encoding certo</h3><p>Mostra formato, encoding e tamanho antes de qualquer interpretação.</p></div>
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-list"/></svg><span class="n">03</span></div><h3>Valida linha a linha</h3><p>Cada erro aponta a linha real do arquivo. Por padrão, erro bloqueia a confirmação.</p></div>
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-eye"/></svg><span class="n">04</span></div><h3>Mostra a prévia</h3><p>Novos, atualizados e bloqueados. O relatório completo de erros baixa em CSV.</p></div>
-          <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-db"/></svg><span class="n">05</span></div><h3>Grava tudo de uma vez</h3><p>Ou entra inteiro, ou nada entra. A leitura pode ser cancelada antes de gravar.</p></div>
+          <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-db"/></svg><span class="n">05</span></div><h3>Grava em bloco</h3><p>Em geral, ou entra inteiro ou nada entra. A programação em lote e o CE por planilha gravam por linha.</p></div>
         </div>
         <div class="content" style="grid-template-columns: 1fr 470px; margin-top: 22px; gap: 20px">
           <div>
             <p class="section-label">Onde cada arquivo entra</p>
             <div class="doors">
-              <a class="door go" href="#viagem-abas"><b><svg class="i"><use href="#i-ship"/></svg>Viagem · Importação</b><div class="chips-s"><i>Baplie EDI</i><i>B/L</i><i>CE Mercante</i><i>Manifesto BB</i><i>Veículos</i><i>Vazios IMP</i></div></a>
+              <a class="door go" href="#viagem-abas"><b><svg class="i"><use href="#i-ship"/></svg>Viagem · Importação</b><div class="chips-s"><i>Baplie EDI</i><i>B/L</i><i>B/L avulso</i><i>CE Mercante</i><i>Veículos</i><i>Vazios IMP</i></div></a>
               <a class="door go" href="#bls"><b><svg class="i"><use href="#i-file"/></svg>BLs</b><div class="chips-s"><i>B/L</i><i>B/L avulso PDF/DOCX</i><i>CE Mercante</i><i>Manifesto BB</i></div></a>
               <a class="door go" href="#apoio"><b><svg class="i"><use href="#i-package"/></svg>Containers · Veículos · Vazios</b><div class="chips-s"><i>Datas de descarga e devolução</i><i>Veículos</i><i>Vazios IMP</i></div></a>
               <a class="door go" href="#granito"><b><svg class="i"><use href="#i-mountain"/></svg>Exportação</b><div class="chips-s"><i>Manifesto Granito</i><i>Unidades embarcadas</i></div></a>
@@ -1626,9 +1626,9 @@
           <tbody>
             <tr><td><b>Baplie EDI</b><span>EDI do plano de carga</span></td><td>Baplie · Viagem</td><td>Se é EDI de verdade; containers repetidos; quem está no Baplie e não em B/L, e o contrário.</td><td>IMO, OOG e classe dos containers · Vazios IMP · ADR</td></tr>
             <tr><td><b>B/L de container</b><span>Excel do armador</span></td><td>BLs · Viagem</td><td>Navio e viagem do arquivo = viagem escolhida; só número de container ISO; mudança que afeta cobrança pede confirmação auditada; troca de consignatário aparece antes.</td><td>B/L, Cliente pelo CNPJ, frete e despesas, ATD do POL, cálculo provisório</td></tr>
-            <tr><td><b>B/L avulso</b><span>PDF ou DOCX</span></td><td>BLs</td><td>A mesma trava de viagem declarada; avisos de leitura na prévia.</td><td>Partes, rota, volumes, peso, NCM, frete</td></tr>
+            <tr><td><b>B/L avulso</b><span>PDF ou DOCX</span></td><td>BLs · Viagem</td><td>A mesma trava de viagem declarada; avisos de leitura na prévia.</td><td>Partes, rota, volumes, peso, NCM, frete</td></tr>
             <tr><td><b>CE Mercante</b><span>planilha ou EDI</span></td><td>BLs · Viagem</td><td>B/L de outra viagem é bloqueado; captura o nº do Manifesto Mercante.</td><td>Emissão da fatura · comunicado CE e Taxas</td></tr>
-            <tr><td><b>Manifesto BB</b><span>carga solta</span></td><td>BLs · Viagem</td><td>Formato numérico (vírgula ou ponto); número ambíguo bloqueia; teto de absurdo para peso, cubagem e volumes.</td><td>B/L de carga solta ou misto · peso da taxa</td></tr>
+            <tr><td><b>Manifesto BB</b><span>carga solta</span></td><td>BLs</td><td>Formato numérico (vírgula ou ponto); número ambíguo bloqueia; teto de absurdo para peso, cubagem e volumes.</td><td>B/L de carga solta ou misto · peso da taxa</td></tr>
             <tr><td><b>Veículos</b><span>modelo, COSCO ou chinês</span></td><td>Veículos · Viagem</td><td>Chassi; B/L da viagem; container por número, tipo e lacre, sem ambiguidade.</td><td>VIN no Line Up · ADR · taxas</td></tr>
             <tr><td><b>Vazios IMP</b><span>container, tipo e tara</span></td><td>Vazios IMP · Viagem</td><td>Tara não negativa; porto reconhecido pelo cadastro.</td><td>MTY no Line Up · ADR</td></tr>
             <tr><td><b>Datas de container</b><span>descarga e devolução</span></td><td>Containers · Demurrage</td><td>Descarga obrigatória; devolução opcional e posterior à descarga.</td><td>Contagem do Demurrage · fatura quando todos voltam</td></tr>

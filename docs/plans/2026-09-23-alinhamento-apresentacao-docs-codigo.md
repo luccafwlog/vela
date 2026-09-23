@@ -276,3 +276,13 @@ apoia na linha "Data status" do `AGENTS.md`.
   Cliente. Validade (permanente ou com data de revisão) é escolha de execução.
   Proposta: com data de revisão, reaproveitando o padrão da dispensa temporária
   de Alertas (ADR 0053).
+
+## Registro de execução
+
+- **2026-09-23 · Bloco 1 (PR #719):** feitas as correções B1–B4 e B6–B10, a
+  revisão de diagnóstico (P1/P2, datas em lote, Baplie), a nota editorial na
+  ADR 0042 e os ajustes da apresentação (ADR fechado, "não escala", gravação em
+  bloco, aba Importação da Viagem, tabela de importadores). Checks:
+  `docs:check`, `git diff --check`, `eslint` no arquivo alterado e roteiro
+  Playwright dos slides alterados, sem sobreposição e sem erro de JS. B5 segue
+  para o Bloco 2.

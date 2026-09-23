@@ -1,6 +1,6 @@
 # Taxas Locais
 
-> **Status:** ativo · **Atualizado:** 2026-09-21 · **Rotas:** operação em `/taxas-locais`; cadastro em `/taxas-locais/tabelas`; ações operacionais também partem de `/revisao` e `/bls/:blId`
+> **Status:** ativo · **Atualizado:** 2026-09-23 · **Rotas:** operação em `/taxas-locais`; cadastro em `/taxas-locais/tabelas`; ações operacionais também partem de `/revisao` e `/bls/:blId`
 
 ## Propósito e escopo
 
@@ -12,8 +12,12 @@ liberação para faturamento, cobranças manuais e reconciliação de cliente s�
 operações do mesmo domínio disparadas por outras telas.
 
 - `src/AppInterno.tsx` monta `/taxas-locais` dentro da aplicação interna protegida.
-- `src/pages/TaxasLocaisTabelas.tsx` exige as capacidades de interface
-  `charge_tables` e `charge_overrides`, definidas em `src/hooks/useAuth.tsx`.
+- `src/pages/TaxasLocaisTabelas.tsx` libera leitura e edição de tabelas e
+  condições negociadas a todo usuário interno ativo (ADR 0046, confirmado em
+  2026-09-23). As policies de `charge_tables`, `charge_table_items` e
+  `customer_rate_overrides` exigem `is_active_user()` para gravar e reservam a
+  exclusão ao Administrativo; o gatilho `audit_row_changes` registra cada
+  alteração com autor.
 - `src/services/charges/chargeTableService.ts` e
   `src/services/charges/chargeRateService.ts` são donos do CRUD de configuração.
 - `src/services/charges/chargeOperationsService.ts` é o dono das operações de
@@ -215,10 +219,15 @@ flowchart LR
   tabela vigente. A definição vigente de `mark_bl_ready_for_billing` está em
   `supabase/migrations_archive/129_review_gate_hardening.sql` +
   `supabase/migrations_archive/268_local_charges_usd_conversion_at_emission.sql`; a de
-  `compute_bl_review_pendencies` está em
-  `supabase/migrations_archive/188_review_gate_remove_portal.sql`, que reduziu o gate a
-  cliente vinculado, e-mail cadastrado e peso BB — prontidão do Portal deixou de
-  bloquear faturamento.
+  `compute_bl_review_pendencies` está nas migrations ativas `051` (assinaturas
+  públicas) e `059` (núcleo `_compute_bl_review_pendencies`). A `188` havia
+  reduzido o gate a cliente vinculado, e-mail cadastrado e peso BB; a `337`
+  (ADR 0054) devolveu *Acesso ao portal nao provisionado*. Na emissão manual o
+  Portal bloqueia; na emissão automática pela transição do CE, a `051` dispensa
+  a prontidão do Portal num contexto interno privado (ver **Gate de faturamento
+  do Portal** em `CONTEXT.md`). A decisão de 2026-09-23 de bloquear também a
+  emissão automática está no
+  [plano de alinhamento](../plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md).
 - **Taxa local em USD (ADR 0038 decisão 6, achado 7, migration 268):** linha
   em USD deixou de bloquear `mark_bl_ready_for_billing`. Converte para BRL na
   emissão da fatura (`create_invoice_from_bls_core` /
