@@ -162,7 +162,7 @@ Corrige apenas o que já diverge do código atual. O que depende dos Blocos 2 e 
 
 ### Bloco 3 — Banco e contratos (branch nova; 3.6 numa PR separada)
 
-Migrations novas a partir de `074_`. Toda migration que reescreva linhas
+Migrations novas a partir de `077_` (a `074`–`076` entraram pelo `main`; a `074`/`075` tratam anexos de disputa e devem ser relidas antes de R13). Toda migration que reescreva linhas
 existentes (por exemplo, rerrotear Alertas ativos) declara no cabeçalho que se
 apoia na linha "Data status" do `AGENTS.md`.
 
