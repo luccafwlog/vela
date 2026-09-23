@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError } from '../components/ui/Card'
@@ -7,6 +7,8 @@ import { usePortalAuth } from '../hooks/usePortalAuth'
 import { isSupabaseConfigured } from '../services/supabase'
 import { CNPJ_INPUT_MAX_LENGTH, normalizeCnpj } from '../lib/cnpj'
 import { INCOMPLETE_CNPJ_MESSAGE, isCompleteCnpjLogin } from '../lib/portalCnpjLogin'
+import { TurnstileChallenge } from '../components/security/TurnstileChallenge'
+import { PORTAL_TURNSTILE_REJECTION_MESSAGE } from '../lib/portalTurnstileError'
 
 function isNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true
@@ -25,10 +27,15 @@ export function PortalLogin() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const [turnstileError, setTurnstileError] = useState('')
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0)
   // Derivado do estado vivo do provider: o redirecionamento para esta tela
   // acontece antes do timeout da revogação remota, então um valor congelado na
   // montagem nunca veria a falha.
   const notice = signOutError ? SIGNOUT_NOTICE : ''
+  const handleTurnstileToken = useCallback((token: string) => setTurnstileToken(token), [])
+  const handleTurnstileError = useCallback((message: string) => setTurnstileError(message), [])
 
   if (!loading && isAuthenticated) {
     return <Navigate to="/portal" replace />
@@ -46,14 +53,22 @@ export function PortalLogin() {
       return
     }
 
+    const hasSiteKey = Boolean(String(import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '').trim())
+    if (hasSiteKey && !turnstileToken) {
+      setError(turnstileError || 'Complete a verificação de segurança antes de continuar.')
+      return
+    }
+
     setSubmitting(true)
 
     try {
-      await signIn(cnpj, password)
+      await signIn(cnpj, password, turnstileToken || undefined)
       navigate('/portal', { replace: true })
     } catch (err: unknown) {
       const code = typeof err === 'object' && err !== null ? String((err as { code?: string }).code ?? '') : ''
-      if (code === 'P0429') {
+      if (code === 'TURNSTILE_REJECTED') {
+        setError(PORTAL_TURNSTILE_REJECTION_MESSAGE)
+      } else if (code === 'P0429') {
         setError('Muitas tentativas de acesso. Aguarde alguns minutos antes de tentar novamente.')
       } else if (isNetworkError(err)) {
         setError('Não foi possível conectar. Verifique sua internet e tente novamente.')
@@ -61,6 +76,8 @@ export function PortalLogin() {
         setError('Credenciais inválidas para o portal do cliente.')
       }
     } finally {
+      setTurnstileToken('')
+      setTurnstileResetKey((current) => current + 1)
       setSubmitting(false)
     }
   }
@@ -118,6 +135,13 @@ export function PortalLogin() {
               onChange={(event) => setPassword(event.target.value)}
             />
           </Field>
+
+          <TurnstileChallenge
+            action="portal_login"
+            resetKey={turnstileResetKey}
+            onToken={handleTurnstileToken}
+            onError={handleTurnstileError}
+          />
 
           {error ? <InlineError message={error} /> : null}
 

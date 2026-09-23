@@ -17,7 +17,12 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
 - o helper Edge carrega o SDK Sentry sob demanda e fica em no-op sem `SENTRY_DSN`;
 - o projeto Vercel `vela` publica `index.html` em `https://vela.app.br` e
   `fwlog-portal` publica `portal.html` em `https://portalfwlog.com.br`;
-- heartbeats para `pg_cron` ainda não foram implementados.
+- heartbeats repository-side para Edge Functions agendadas foram implementados via
+  `supabase/functions/_shared/betterStackHeartbeat.ts` nos runners `alerts-detector`,
+  `portal-daily-digest`, `demurrage-dunning` e `customer-communication-auto-runner`.
+  Eles emitem ping HTTP apenas em conclusões bem-sucedidas (status < 400) quando a URL
+  do heartbeat está configurada nos secrets do Supabase. Sem o secret, operam em no-op
+  sem falhar o job. Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
 
 Essa é inspeção estática do checkout. Não prova disponibilidade dos domínios,
 presença do secret `SENTRY_DSN`, entrega de eventos, alertas ou execução de jobs
@@ -43,31 +48,25 @@ slice.
 
 ### Heartbeats dos runners
 
-O contrato de heartbeat deve ser criado junto da instrumentação de cada runner,
-sem URL no código e sem segredo no Git:
+O contrato repository-side implementado (`runWithBetterStackHeartbeat`) lê as URLs
+de secrets server-side do Supabase (`BETTERSTACK_HEARTBEAT_*_URL`), nunca expostas
+ao bundle nem commitadas no Git:
 
-| Job | Cadência-alvo a confirmar no `pg_cron` |
-|---|---|
-| `demurrage-dunning` | horária |
-| `alerts-detector` | 15 min |
-| `customer-communication-auto-runner` | 15 min |
-| `portal-email-events-runner` | confirmar antes do cadastro |
-| `import-effects-runner` | confirmar antes do cadastro |
-| `recalc-demurrage-ptax` | confirmar antes do cadastro |
-| `portal-daily-digest` | confirmar antes do cadastro |
+| Job | Variável de Secret Supabase | Cadência-alvo |
+|---|---|---|
+| `demurrage-dunning` | `BETTERSTACK_HEARTBEAT_DEMURRAGE_DUNNING_URL` | horária |
+| `alerts-detector` | `BETTERSTACK_HEARTBEAT_ALERTS_DETECTOR_URL` | 15 min |
+| `customer-communication-auto-runner` | `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_URL` | 15 min |
+| `portal-daily-digest` | `BETTERSTACK_HEARTBEAT_PORTAL_DAILY_DIGEST_URL` | diária |
 
-O ping de sucesso deve ocorrer somente depois da execução bem-sucedida do job.
-O monitor deve alertar pela ausência de um ping além da janela acordada
-(referência da issue: menos de 70 min para o job horário). A URL do heartbeat,
-quando existir, deve ser um secret server-side do runner/Supabase Vault; nunca
-uma variável `VITE_*`, fixture, migration ou valor versionado.
+O ping de sucesso ocorre estritamente após a conclusão bem-sucedida do job. Se a
+URL não estiver configurada no Supabase, a função executa normalmente e ignora o
+ping. O monitor no painel do Better Stack deve alertar pela ausência de ping além
+da janela acordada (ex.: 70 min para job horário).
 
-**Lacuna atual:** não há código repository-side que emita esses pings. Em
-2026-09-22, o painel autenticado do Better Stack mostrou “Create your first
-monitor”; portanto, o registro anterior de dois monitores foi superado e deve
-ser tratado como desatualizado. Nenhum monitor ou status page está confirmado
-agora. A configuração remota, cadências e destinatário do alerta continuam
-pendentes.
+**Estado atual:** a instrumentação repository-side dos 4 runners principais está
+concluída e testada. Resta cadastrar os Heartbeats no painel do Better Stack e
+inserir as URLs correspondentes em **Project Settings → Secrets** no Supabase.
 
 ## M3 — projetos Sentry separados
 
