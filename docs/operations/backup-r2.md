@@ -52,14 +52,19 @@ de restore para um projeto descartável continuam sendo camadas separadas.
 
 ## Pré-requisitos locais
 
-Instale Node 24, os binários de cliente PostgreSQL (`pg_dump` e `pg_restore`) e
-AWS CLI v2. A AWS CLI é usada apenas como cliente S3; nenhuma credencial deve
-ser colocada em `.env`, no repositório ou na linha de comando.
+Instale Node 24, os binários de cliente PostgreSQL da mesma versão major do
+projeto Supabase (atualmente PostgreSQL 17) e AWS CLI v2. Para o agendador
+Windows, `pg_dump` e `pg_restore` ficam em
+`%LOCALAPPDATA%\Programs\VelaBackup\PostgreSQL\17\bin`; o wrapper exige
+major 17 e usa caminhos explícitos. A AWS CLI é usada apenas como cliente S3 e
+também é chamada pelo caminho da instalação. Não é necessário instalar nem
+executar um servidor PostgreSQL local. Nenhuma credencial deve ser colocada em
+`.env`, no repositório ou na linha de comando.
 
 ```powershell
-pg_dump --version
-pg_restore --version
-aws --version
+& "$env:LOCALAPPDATA\Programs\VelaBackup\PostgreSQL\17\bin\pg_dump.exe" --version
+& "$env:LOCALAPPDATA\Programs\VelaBackup\PostgreSQL\17\bin\pg_restore.exe" --version
+& "$env:ProgramFiles\Amazon\AWSCLIV2\aws.exe" --version
 ```
 
 O ponto de entrada é `scripts/backup-r2.mjs`:
