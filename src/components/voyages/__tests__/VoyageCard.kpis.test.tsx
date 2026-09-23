@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../../../services/supabase', () => ({ supabase: {}, isSupabaseConfigured: true }))
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: false, user: null, profile: null }) }))
-vi.mock('../../../hooks/useVoyageReconciliation', () => ({ useVoyageReconciliation: () => ({ data: { items: [] } }) }))
+let mockDivergences: unknown[] = []
+vi.mock('../../../hooks/useVoyageReconciliation', () => ({ useVoyageReconciliation: () => ({ data: { items: mockDivergences } }) }))
 vi.mock('../../../hooks/useAgencyReport', () => ({ useClosedAgencyReportPorts: () => ({ data: [] }) }))
 let mockManifestos: Array<{ pol: string; pod: string; numero: string }> = []
 vi.mock('../../../hooks/useManifestosMercante', () => ({
@@ -22,10 +24,12 @@ import { VoyageCard, type Voyage } from '../VoyageCard'
 afterEach(cleanup)
 beforeEach(() => {
   mockManifestos = []
+  mockDivergences = []
 })
 
 function renderCard(voyage: Partial<Voyage>, routeCeMasters?: Map<string, string>) {
   render(
+    <MemoryRouter>
     <VoyageCard
       voyage={{
         id: 7,
@@ -50,7 +54,8 @@ function renderCard(voyage: Partial<Voyage>, routeCeMasters?: Map<string, string
       onCancelVoyage={() => {}}
       onEditEscala={() => {}}
       onEditPol={() => {}}
-    />,
+    />
+    </MemoryRouter>,
   )
 }
 
@@ -126,5 +131,21 @@ describe('KPIs do cabeçalho da viagem', () => {
     } as unknown as Partial<Voyage>)
 
     expect(screen.getByText('vazios embarcados').previousElementSibling?.textContent).toBe('2')
+  })
+})
+
+describe('Atalhos da viagem', () => {
+  it('leva ao Baplie e aos B/Ls filtrados na viagem, sem Granito quando não há', () => {
+    renderCard({})
+    const nav = screen.getByRole('navigation', { name: 'Atalhos da viagem' })
+    expect(nav.querySelector('a[href="/baplie?voyage=7"]')?.textContent).toContain('Baplie EDI')
+    expect(nav.querySelector('a[href="/bls?voyage=7"]')?.textContent).toContain('B/Ls da viagem')
+    expect(nav.querySelector('a[href^="/granito"]')).toBeNull()
+  })
+
+  it('vira "Resolver divergências" quando a conciliação está divergente', () => {
+    mockDivergences = [{}, {}]
+    renderCard({})
+    expect(screen.getByRole('link', { name: /Resolver divergências \(2\)/ }).getAttribute('href')).toBe('/baplie?voyage=7')
   })
 })

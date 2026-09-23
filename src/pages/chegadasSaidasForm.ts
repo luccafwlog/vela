@@ -44,3 +44,15 @@ export function scheduleFormFromVoyage(voyage: PortalScheduleVoyage): ScheduleFo
     })),
   }
 }
+
+/**
+ * Portos de descarga que tinham data na publicação e passaram a "não escala"
+ * na edição. Para cada um, `createOrAttachVoyageFromSchedule` remove a escala
+ * da Viagem quando ela não tem B/L, ATA nem manifesto; por isso a tela confirma.
+ */
+export function clearedPodLabels(original: ScheduleForm, next: ScheduleForm): string[] {
+  return PORTAL_SCHEDULE_LANES
+    .filter((lane) => lane.kind === 'pod')
+    .filter((lane) => Boolean(original.dates[lane.label]?.trim()) && !next.dates[lane.label]?.trim())
+    .map((lane) => lane.label)
+}

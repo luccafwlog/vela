@@ -91,8 +91,9 @@ Os formulários e defaults vivem em
   ganhou duas métricas antes do funil de revisão — "Provisório" (`charge_status
   = 'calculated'`, agora um estado real desde que a migration `263` desligou a
   promoção automática) e "Aguardando CE" (`isAwaitingCeMercante` em
-  `validacaoPipeline.ts`: container reconciliado e não faturado sem
-  `ce_mercante`) — para a tela responder "o que está calculado e ainda não
+  `validacaoPipeline.ts`: B/L faturável — container, carga solta ou misto —
+  reconciliado e não faturado sem `ce_mercante`; até 2026-09-23 contava só
+  container, embora o banco exija CE em todos os modos) — para a tela responder "o que está calculado e ainda não
   faturado, e por quê" como o plano pede. O nome da aba ("Validação") foi
   mantido: a etapa 12 do mesmo plano já dá a ela o papel de tela das duas
   fases, então o motivo original para renomear deixou de existir.

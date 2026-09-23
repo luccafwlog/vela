@@ -17,13 +17,14 @@ Para taxas locais, o saldo canônico é o ledger por recebível; a tabela
   `src/pages/TaxasLocais.tsx` não a usa como gate da rota ou das abas.
 - [Taxas Locais](taxas-locais.md) é dona do cálculo e do estado
   `ready_for_billing`.
-- Para B/Ls de container, carga solta e Granito, emissão automática de taxas
+- Para B/Ls de container, carga solta e misto, emissão automática de taxas
   locais nasce na transição do CE Mercante (ADRs 0020 e 0042): o gatilho
   server-side calcula as taxas, promove o B/L e emite a invoice/recebível na
   mesma transação quando os dados do cliente, a reconciliação e os demais
-  critérios financeiros estão prontos. Granito sem CE fica em “Aguardando CE
-  Mercante”; a exceção manual é a emissão individual “Emitir”, que mantém os
-  mesmos gates. Embarque de Vazios não emite CE nem possui faturamento de
+  critérios financeiros estão prontos. Sem CE, qualquer desses modos fica em
+  “Aguardando CE Mercante” na Validação; a exceção manual é a emissão
+  individual “Emitir”, que mantém os mesmos gates. Granito é apoio operacional
+  e não emite invoice (nota de 2026-09-23 na ADR 0042). Embarque de Vazios não emite CE nem possui faturamento de
   cliente.
 - A conta do Portal não é pré-requisito para essa emissão interna automática:
   `trg_auto_bill_bl_after_ce_mercante`, criado pela migration `051`, é a fonte

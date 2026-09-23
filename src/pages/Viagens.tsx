@@ -76,7 +76,7 @@ function makeTerminalScaleLoadingState(voyageId: number, port: string): NonNulla
 
 export function Viagens() {
   const { voyageId } = useParams()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -99,6 +99,7 @@ export function Viagens() {
   const initialTab: VoyageTabKey | undefined = tabParam === 'visao' || tabParam === 'importacao' || tabParam === 'exportacao' || tabParam === 'manifestos' || tabParam === 'adr'
     ? tabParam
     : undefined
+  const activeTab: VoyageTabKey = initialTab ?? 'visao'
   const initialEscala = searchParams.get('escala') ?? undefined
   const initialReportId = searchParams.get('report') ?? searchParams.get('reportId') ?? undefined
   const initialTerminalCode = searchParams.get('terminal') ?? searchParams.get('terminalCode') ?? undefined
@@ -106,6 +107,18 @@ export function Viagens() {
     ...emptyFilters(),
     search: initialVessel,
   })
+
+  // A aba da Viagem vive na URL, como na ficha do B/L: o link copiado abre na
+  // mesma aba. Escala, ADR e terminal só fazem sentido na aba ADR.
+  function handleVoyageTabChange(tab: VoyageTabKey) {
+    const next = new URLSearchParams(searchParams)
+    if (tab === 'visao') next.delete('tab')
+    else next.set('tab', tab)
+    if (tab !== 'adr') {
+      for (const key of ['escala', 'report', 'reportId', 'terminal', 'terminalCode']) next.delete(key)
+    }
+    setSearchParams(next, { replace: true })
+  }
 
   function closeEscalaModal() {
     setEditingEscala(null)
@@ -319,6 +332,8 @@ export function Viagens() {
             }}
             onEditPol={setEditingPol}
             initialTab={initialTab}
+            activeTab={activeTab}
+            onTabChange={handleVoyageTabChange}
             initialEscala={initialEscala}
             initialReportId={initialReportId}
             initialTerminalCode={initialTerminalCode}
