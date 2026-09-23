@@ -8,7 +8,7 @@
 > é a referência para inventário e próximos passos. O conteúdo abaixo foi
 > preservado como registro histórico do plano original.
 
-> **Estado ao arquivar:** execução parcial; este documento deixou de ser a fila de trabalho. A instrução original de execução está obsoleta. Usar o plano vivo indicado na nota editorial acima.
+> **Estado ao arquivar:** execução parcial; este documento deixou de ser a fila de trabalho. Todas as instruções, checklists, bloqueios e afirmações de estado operacional abaixo são o snapshot do plano original de 2026-09-22 e não devem ser usados para executar ou descrever o trabalho atual. Para estado e próximas ações, usar o plano vivo indicado na nota editorial acima.
 
 **Origem:** [Issue #710](https://github.com/luccafwlog/vela/issues/710), lida no GitHub autenticado em 2026-09-22.
 
