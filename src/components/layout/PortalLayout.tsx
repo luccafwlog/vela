@@ -9,7 +9,7 @@ import { NotificationBell } from '../portal/NotificationBell'
 import { cn, formatCnpjCpf } from '../../lib/utils'
 
 export function PortalLayout() {
-  const { overview: authOverview, signOut } = usePortalAuth()
+  const { overview: authOverview, signOut, isSigningOut } = usePortalAuth()
   const scope = usePortalScope()
   const navigate = useNavigate()
   const readOnly = isPortalReadOnly(scope)
@@ -53,9 +53,14 @@ export function PortalLayout() {
               <span className="app-user-pill__name">{overview?.customer_name ?? 'Cliente'}</span>
             </div>
 
-            <Button className="app-header__logout" variant="ghost" onClick={() => readOnly ? navigate('/clientes/portal') : void signOut()}>
+            <Button
+              className="app-header__logout"
+              variant="ghost"
+              disabled={isSigningOut}
+              onClick={() => (readOnly ? navigate('/clientes/portal') : void signOut())}
+            >
               <LogOut size={16} />
-              Sair
+              {isSigningOut ? 'Saindo...' : 'Sair'}
             </Button>
           </div>
         </div>

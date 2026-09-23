@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { hashToken } from '../_shared/portalToken.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
+import { isActivationRateLimited, registerActivationFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
 
 const GENERIC_INVALID = 'Link inválido ou expirado. Solicite um novo convite à empresa.'
 
@@ -23,9 +24,15 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     const customer = account?.customers as { name?: string } | null
     return cors(200, { company_name: customer?.name ?? '', cnpj_masked: maskCnpj(account?.login_cnpj ?? '') })
   }
-  if (body.action !== 'activate' || typeof body.password !== 'string') return cors(400, { error: GENERIC_INVALID })
-  if (!isValidPassword(body.password)) return cors(422, { error: PASSWORD_RULE_MESSAGE })
   if (!valid) return cors(410, { error: GENERIC_INVALID })
+  if (body.action !== 'activate' || typeof body.password !== 'string') return cors(400, { error: GENERIC_INVALID })
+  const { data: accountForRateLimit } = await admin.from('customer_portal_accounts').select('login_cnpj').eq('id', invite.account_id).maybeSingle()
+  const loginCnpj = typeof accountForRateLimit?.login_cnpj === 'string' ? accountForRateLimit.login_cnpj : ''
+  if (!loginCnpj || await isActivationRateLimited(admin, loginCnpj, { ip: requestIp(req) })) return cors(429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' })
+  if (!isValidPassword(body.password)) {
+    await registerActivationFailure(admin, loginCnpj, { ip: requestIp(req) })
+    return cors(422, { error: PASSWORD_RULE_MESSAGE })
+  }
   const { data: consumed } = await admin.from('portal_invites').update({ status: 'consumido', consumed_at: new Date().toISOString() }).eq('id', invite.id).eq('status', 'pendente').gt('expires_at', new Date().toISOString()).select('id').maybeSingle()
   if (!consumed) return cors(410, { error: GENERIC_INVALID })
   const technicalEmail = `p-${crypto.randomUUID()}@${Deno.env.get('PORTAL_TECH_EMAIL_DOMAIN') ?? 'portal-interno.transhippingdesk.invalid'}`

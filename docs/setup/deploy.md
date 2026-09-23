@@ -57,11 +57,22 @@ As únicas variáveis necessárias ao bundle são públicas por definição do V
 |---|---|---|---|
 | `VITE_SUPABASE_URL` | URL do projeto Supabase de produção | URL da branch automática correspondente à PR, injetada pela integração Supabase/Vercel | valor do ambiente local |
 | `VITE_SUPABASE_ANON_KEY` | chave pública `anon` correspondente | chave pública da branch automática correspondente, injetada pela integração Supabase/Vercel | chave pública do ambiente local |
+| `VITE_SENTRY_DSN_INTERNAL` | DSN público do projeto Sentry interno | DSN público de Preview do projeto interno, se separado | vazio usa o fallback legado |
+| `VITE_SENTRY_DSN_PORTAL` | DSN público do projeto Sentry do Portal | DSN público de Preview do Portal, se separado | vazio usa o fallback legado |
+| `VITE_SENTRY_ENVIRONMENT` | `production` | `preview` | `development` |
 
 `VITE_APP_COMMIT_SHA` é opcional: `vite.config.ts` injeta o commit Git atual
 quando a variável não é fornecida, mantendo o release visível no Sentry e na
 interface. Nunca configure `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` ou
 outros segredos de Edge Functions como variáveis `VITE_*`.
+
+Os DSNs do Sentry são identificadores públicos do browser, não API keys. Para a
+separação do M3, configure `VITE_SENTRY_DSN_INTERNAL` somente no projeto
+Vercel `vela` e `VITE_SENTRY_DSN_PORTAL` somente no projeto `fwlog-portal`.
+Configure também `VITE_SENTRY_ENVIRONMENT=production` em Production e
+`preview` em Preview; sem isso, o fallback de ambiente permanece `production`.
+O contrato completo e o runbook de Better Stack estão em
+[`docs/operations/observabilidade.md`](../operations/observabilidade.md).
 
 Cadastre as credenciais de produção no Vercel Project Settings em Production e
 as credenciais locais em Development. Não mantenha um valor global fixo para
@@ -274,6 +285,13 @@ Function registra simulação e não exige chamada ao Resend; para envio real, o
 remetente, reply-to e `RESEND_API_KEY` precisam estar configurados. Resend não é
 migrado para Vercel Functions.
 
+As Edge Functions instrumentadas com Sentry usam o manifesto compartilhado
+`supabase/functions/deno.json`, referenciado individualmente como `import_map`
+em `supabase/config.toml`. Mantenha a versão do SDK nesse manifesto e publique
+as Functions alteradas pelo fluxo normal do Supabase; o deploy do frontend na
+Vercel não publica nem ativa essa telemetria. Sem `SENTRY_DSN`, o adaptador fica
+inativo.
+
 A régua de Demurrage exige o segredo server-side `DEMURRAGE_DUNNING_SECRET`.
 O mesmo valor precisa estar no Supabase Vault sob o **mesmo nome**, junto de
 `SUPABASE_URL`, para que o `pg_cron` consiga chamar a Edge Function
@@ -305,6 +323,15 @@ na [ADR 0063](../adr/0063-configuracao-de-jobs-cron-no-vault.md).
 `001`/`002` para o schema.)
 Claims abandonadas da automação possuem lease de 30 minutos e podem ser retomadas pelo ciclo
 seguinte; falhas de liberação aparecem como erro do runner.
+
+Os fluxos públicos de login, recuperação e ativação também podem usar o
+rate-limit distribuído do Upstash. Configure somente nas Edge Functions
+`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` e
+`PORTAL_RATE_LIMIT_HMAC_SECRET` (os parâmetros opcionais e o rollback estão em
+[Rate limit do Portal](../operations/portal-rate-limit.md)). A migration
+`076_portal_activation_rate_limit.sql` deve preceder o deploy da função de
+ativação. O token de rate limit é independente do token de backup do R2; nenhum
+deles deve ser colocado no Vercel ou em `VITE_*`.
 
 Migrations continuam sendo aplicadas no Supabase, em ordem e antes do deploy de
 código que dependa delas, pelo branch action da integração GitHub no Preview e

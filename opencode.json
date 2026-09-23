@@ -90,6 +90,10 @@
       "description": "Alias de compatibilidade: solicitar um parecer independente sobre um diff.",
       "template": "Invoke the skill vela-code-review in solicitar mode and follow its instructions."
     },
+    "security-audit": {
+      "description": "Multi-phase security audit com ledger de cobertura, validação adversarial de candidatos e findings.json.",
+      "template": "Invoke the skill security-audit and follow its instructions."
+    },
     "security-audit-penetration-testing": {
       "description": "Use when the user requests a scoped security audit or authorized penetration test of an accessible target.",
       "template": "Invoke the skill security-audit-penetration-testing and follow its instructions."

@@ -2,18 +2,31 @@
 // (alertas, trilha de auditoria, payload PIX e escritas auxiliares).
 
 import * as Sentry from '@sentry/react'
+import {
+  redactTelemetryUrl,
+  scrubTelemetryText,
+  scrubTelemetryValue,
+} from './telemetryContract'
 
-// DSN do Sentry é público por design (vai no bundle do cliente de qualquer
-// forma); não é segredo. Envio autorizado pela operação em 2026-06-10
-// (auditoria T10 / Open Question 4).
-const SENTRY_DSN = 'https://8fbf8837315ab9f627c2f6e1283bf8d5@o4511542052454400.ingest.us.sentry.io/4511542063464448'
+// DSNs do Sentry são públicos por design (vão no bundle do cliente); não são
+// segredos. Os valores por superfície permitem separar Vela e Portal sem
+// quebrar builds existentes que ainda não receberam as novas variáveis.
+const LEGACY_SENTRY_DSN = 'https://8fbf8837315ab9f627c2f6e1283bf8d5@o4511542052454400.ingest.us.sentry.io/4511542063464448'
 
-const FORMATTED_CNPJ_RE = /\b[0-9A-Z]{2}\.[0-9A-Z]{3}\.[0-9A-Z]{3}\/[0-9A-Z]{4}-[0-9]{2}\b/gi
-const FORMATTED_CPF_RE = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g
-const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi
-const BARE_CNPJ_RE = /\b(?=[0-9A-Z]{14}\b)(?=[0-9A-Z]*\d)[0-9A-Z]{14}\b/gi
-const BARE_CPF_RE = /\b\d{11}\b/g
-const MAX_SCRUB_DEPTH = 4
+export type TelemetrySurface = 'internal' | 'portal'
+
+export function resolveSentryDsn(surface?: TelemetrySurface): string {
+  const configured = surface === 'portal'
+    ? import.meta.env.VITE_SENTRY_DSN_PORTAL
+    : import.meta.env.VITE_SENTRY_DSN_INTERNAL
+  return typeof configured === 'string' && configured.trim() ? configured.trim() : LEGACY_SENTRY_DSN
+}
+
+export function resolveSentryEnvironment(): string {
+  const configured = import.meta.env.VITE_SENTRY_ENVIRONMENT
+  return typeof configured === 'string' && configured.trim() ? configured.trim() : 'production'
+}
+
 const STARTUP_MARK = 'td-startup'
 
 /** Records a low-cardinality startup checkpoint without sending route, user,
@@ -43,12 +56,7 @@ export function markStartupStage(stage: 'entry' | 'session' | 'profile' | 'route
 
 // Redige padroes de PII (CNPJ, CPF, email) em qualquer string do evento.
 export function scrubPii(text: string): string {
-  return text
-    .replace(FORMATTED_CNPJ_RE, '[cnpj]')
-    .replace(FORMATTED_CPF_RE, '[cpf]')
-    .replace(EMAIL_RE, '[email]')
-    .replace(BARE_CNPJ_RE, '[digits14]')
-    .replace(BARE_CPF_RE, '[digits11]')
+  return scrubTelemetryText(text)
 }
 
 // httpContextIntegration (default do @sentry/browser) grava event.request.url
@@ -57,8 +65,7 @@ export function scrubPii(text: string): string {
 // Portal e necessaria para diagnostico, entao a query inteira e removida em
 // vez de manter uma lista de nomes sensiveis, que envelhece mal.
 export function redactUrlQueryString(url: string): string {
-  const queryIndex = url.indexOf('?')
-  return queryIndex === -1 ? url : url.slice(0, queryIndex)
+  return redactTelemetryUrl(url)
 }
 
 const VERCEL_TELEMETRY_BASE_URL = 'https://telemetry.invalid'
@@ -115,24 +122,17 @@ export function scrubBreadcrumbData(data: Record<string, unknown>): Record<strin
 }
 
 export function scrubEventValue(value: unknown, depth = 0): unknown {
-  if (typeof value === 'string') return scrubPii(value)
-  if (value == null || typeof value !== 'object') return value
-  if (depth >= MAX_SCRUB_DEPTH) return value
-  if (Array.isArray(value)) return value.map((item) => scrubEventValue(item, depth + 1))
-  if (Object.getPrototypeOf(value) !== Object.prototype) return value
-
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, scrubEventValue(item, depth + 1)]),
-  )
+  return scrubTelemetryValue(value, depth)
 }
 
 // Inicializa o relatório de erros em produção. Os default integrations do
 // @sentry/react já capturam window.onerror e onunhandledrejection; o release
 // usa o commit injetado no build (VITE_APP_COMMIT_SHA) para rastrear regressões.
-export function initTelemetry(surface?: 'internal' | 'portal'): void {
+export function initTelemetry(surface?: TelemetrySurface): void {
   if (!import.meta.env.PROD) return
   Sentry.init({
-    dsn: SENTRY_DSN,
+    dsn: resolveSentryDsn(surface),
+    environment: resolveSentryEnvironment(),
     release: (import.meta.env.VITE_APP_COMMIT_SHA as string | undefined) || undefined,
     // Sem replay/tracing: só captura de erros, mantendo payloads mínimos.
     sendDefaultPii: false,

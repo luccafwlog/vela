@@ -1,6 +1,6 @@
 # Agent Skills
 
-A unified collection of 14 agent skills following the [agentskills.io](https://agentskills.io) specification. Skills provide task-specific guidance for planning, implementation and specialist workflows.
+A unified collection of 15 agent skills following the [agentskills.io](https://agentskills.io) specification. Skills provide task-specific guidance for planning, implementation and specialist workflows.
 
 Each skill is a directory containing a `SKILL.md` file (with YAML frontmatter) plus optional supporting files (prompts, references, scripts, tests).
 
@@ -12,6 +12,7 @@ Every skill below is tagged with where it comes from:
 |-----|---------|
 | **mattpocock/skills** | Vendored from [github.com/mattpocock/skills](https://github.com/mattpocock/skills) at tag `release/v1.2`. See the dedicated section below. |
 | **Superpowers** | Vendored from the [obra/superpowers](https://github.com/obra/superpowers) skill set. |
+| **Cloudflare** | Vendored from [github.com/cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill). |
 | **Project** | Authored for this repository (Vela domain/workflow skills). |
 | **Third-party** | Vendored from another named author/source (credited per skill). |
 
@@ -96,8 +97,9 @@ for the changes, structural checks and remaining installation limits.
 
 | Skill | Description |
 |-------|-------------|
-| **vela-code-review** | Revisão orientada ao sentido do Vela: confronta decisões atuais e anteriores, fluxo visível, cenários adversos e qualidade estrutural. |
+| **security-audit** *(Cloudflare)* | Multi-phase security audit com ledger de cobertura determinístico, validação adversarial de candidatos e findings.json estruturado. |
 | **security-audit-penetration-testing** | Scoped, authorized security audit or penetration test with evidence, approval gates, safe validation and explicit limitations. |
+| **vela-code-review** | Revisão orientada ao sentido do Vela: confronta decisões atuais e anteriores, fluxo visível, cenários adversos e qualidade estrutural. |
 
 ## Workflow & Communication Skills
 
@@ -183,6 +185,7 @@ references. Vela only synchronizes the skills listed in this repository.
 
 Mattpocock skills: see https://github.com/mattpocock/skills for licensing terms.
 Superpowers skills: see original source for licensing terms.
+Cloudflare skills: see `skills/security-audit/LICENSE.txt` (MIT License, Cloudflare, Inc.).
 Frontend Design: see `frontend-design/LICENSE.txt`.
 The removed vendored skills remain documented in the dated audit report under
 `docs/skills/` for traceability; they are not part of the active catalog.

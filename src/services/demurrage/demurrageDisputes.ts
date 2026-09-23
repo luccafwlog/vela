@@ -68,6 +68,13 @@ export async function uploadDemurrageDisputeAttachment(
     p_mime_type: file.type,
     p_size_bytes: file.size,
   })
-  if (error) throw error
+  if (error) {
+    try {
+      await supabase.storage.from('demurrage-disputes').remove([path])
+    } catch {
+      // Ignora erro ao tentar remover arquivo órfão
+    }
+    throw error
+  }
   return data
 }

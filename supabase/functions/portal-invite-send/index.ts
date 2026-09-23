@@ -4,11 +4,12 @@ import { inviteTemplate, resendTemplate } from '../_shared/portalEmailTemplates.
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 const json = (status: number, body: unknown, origin: string | null) => new Response(body === null ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) } })
 const maskCnpj = (value: string) => { const d = value.replace(/[^0-9a-z]/gi, '').toUpperCase(); return d.length === 14 ? `${d.slice(0, 2)}.***.***/${d.slice(8, 12)}-${d.slice(12)}` : '***' }
 
-if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
+if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite-send', async (req) => {
   const origin = req.headers.get('Origin')
   if (req.method === 'OPTIONS') return json(204, null, origin)
   if (req.method !== 'POST') return json(405, { error: 'Method not allowed' }, origin)
@@ -55,4 +56,4 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
   }
   if (!sent.ok) await admin.from('alerts').insert({ type: 'portal_falha_envio', entity_type: 'customer', entity_id: String(body.customer_id), message: 'Falha no envio do convite do Portal.', status: 'open' })
   return json(200, { situation: sent.ok ? 'convite_pendente' : 'falha_no_envio', invite_id: invite.id }, origin)
-})
+}))

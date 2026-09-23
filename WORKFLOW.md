@@ -9,6 +9,7 @@ Use este documento para procedimentos técnicos. Consulte:
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) para fluxos e rotas;
 - [`docs/adr/README.md`](./docs/adr/README.md) para decisões;
 - [`docs/operations/validacao.md`](./docs/operations/validacao.md) para testes operacionais;
+- [`docs/operations/backup-r2.md`](./docs/operations/backup-r2.md) para o backup lógico cifrado M10 R2;
 - [`docs/CONVENCOES.md`](./docs/CONVENCOES.md) para estilo e labels de evidência;
 - [`docs/RASTREABILIDADE.md`](./docs/RASTREABILIDADE.md) para rastrear rotas até componentes, hooks, RPCs e testes;
 - [`docs/README.md`](./docs/README.md) para a hierarquia documental.
@@ -627,6 +628,16 @@ dependem de ambiente real ou equivalente. Registre ambiente, usuário, dados,
 resultado e evidência conforme
 [`docs/operations/validacao.md`](./docs/operations/validacao.md).
 
+### Backup lógico cifrado para R2 (M10 R2)
+
+O comando `npm run backup:r2` é dry-run por padrão. A execução autorizada lê a
+URL PostgreSQL e os segredos R2 somente do ambiente do processo, cifra o
+`pg_dump` do schema `public` antes do upload e valida o arquivo com
+`pg_restore --list`. Consulte o [runbook do backup R2](./docs/operations/backup-r2.md)
+para pré-requisitos, variáveis, proteção adicional de produção e os passos que
+dependem do Supabase/Cloudflare Dashboard. Não existe workflow GitHub para este
+backup nesta etapa, e nenhum restore destrutivo faz parte dos checks locais.
+
 ## 12. CI e deploy
 
 ### Pull request
@@ -690,6 +701,14 @@ essas etapas no Supabase antes do frontend que depende delas.
 `src/lib/telemetry.ts` inicializa Sentry quando `import.meta.env.PROD` é
 verdadeiro e associa o release ao commit injetado no build. Isso inclui builds
 de Preview; não significa exclusivamente o ambiente remoto de produção.
+
+As Edge Functions prioritárias usam o helper best-effort
+`supabase/functions/_shared/telemetry.ts`: sem `SENTRY_DSN`, ele não envia
+eventos; quando configurado, captura exceções não tratadas e respostas 5xx sem
+mensagens brutas, usuário, headers ou corpos HTTP. Não coloque valores de
+cliente em tags/extra. Valide em Preview e confirme o ambiente antes de ativar
+o DSN de produção. O SDK Deno está em beta e não isola automaticamente escopos
+por requisição.
 
 - falhas principais devem chegar à UI e interromper a operação insegura;
 - escritas best-effort podem seguir, mas precisam chamar a telemetria;
