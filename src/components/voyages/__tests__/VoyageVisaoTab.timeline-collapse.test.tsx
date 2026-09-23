@@ -38,7 +38,6 @@ it('mostra apenas os 3 eventos mais recentes da linha do tempo, com opção de e
       escalaRows={[]}
       importBatches={importBatches as never}
       exportSchedules={[]}
-      isAdmin={false}
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
       onEditEscala={vi.fn()}
@@ -84,7 +83,6 @@ it('não mostra atracação TBC completamente vazia no planejamento', () => {
       } as never]}
       importBatches={[]}
       exportSchedules={[]}
-      isAdmin={false}
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
       onEditEscala={vi.fn()}
@@ -125,7 +123,6 @@ it('marca a escala omitida com OMIT no planejamento interno', () => {
       } as never]}
       importBatches={[]}
       exportSchedules={[]}
-      isAdmin={false}
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
       onEditEscala={vi.fn()}
@@ -168,7 +165,6 @@ it('recolhe e expande o painel próprio de atracações sem perder os dados da e
       } as never]}
       importBatches={[]}
       exportSchedules={[]}
-      isAdmin={false}
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
       onEditEscala={onEditEscala}
@@ -224,7 +220,6 @@ it('não usa status de exportação ao reabrir uma escala que também tem import
       } as never]}
       importBatches={[]}
       exportSchedules={[]}
-      isAdmin={false}
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
       onEditEscala={onEditEscala}

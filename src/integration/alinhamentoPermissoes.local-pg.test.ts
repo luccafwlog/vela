@@ -189,3 +189,51 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
     expect(rows).not.toContain('cbm')
   })
 })
+
+function migration080Applied() {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT count(*) FROM pg_policies WHERE tablename = 'voyage_export_schedules' AND policyname = 'voyage_export_schedules_delete_active_global';`) === '1'
+  } catch {
+    return false
+  }
+}
+
+const describe080 = migration080Applied() ? describe : describe.skip
+
+describe080('080 — escala de exportação sem vínculo removida por qualquer Departamento', () => {
+  const OPS = '77777777-0000-4000-8000-000000000080'
+  const SCHEDULE = '80808080-0000-4000-8000-000000000080'
+
+  function clean() {
+    psql(`
+      SET session_replication_role = replica;
+      DELETE FROM public.voyage_export_schedules WHERE id = '${SCHEDULE}';
+      DELETE FROM public.voyages WHERE id = 7803;
+      DELETE FROM public.vessels WHERE id = 7802;
+      DELETE FROM public.carriers WHERE id = 7801;
+      DELETE FROM public.user_profiles WHERE id = '${OPS}';
+      DELETE FROM auth.users WHERE id = '${OPS}';
+      SET session_replication_role = origin;
+    `)
+  }
+
+  beforeAll(() => {
+    clean()
+    psql(`
+      INSERT INTO auth.users (id, email) VALUES ('${OPS}', 'ops-080@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${OPS}', 'Operações 080', 'operacoes', true);
+      INSERT INTO public.carriers (id, name) VALUES (7801, 'Carrier 080');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (7802, 'Vessel 080', 7801);
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (7803, 7802, 'V080', 'active');
+      INSERT INTO public.voyage_export_schedules (id, voyage_id, pol, tem_exportacao) VALUES ('${SCHEDULE}', 7803, 'BRVIX', true);
+    `)
+  })
+  afterAll(clean)
+
+  it('Operações apaga a exportação sem Granito nem vazios', () => {
+    const result = runAs(OPS, `DELETE FROM public.voyage_export_schedules WHERE id = '${SCHEDULE}';`)
+    expect(result.stderr).toBe('')
+    expect(psql(`SELECT count(*) FROM public.voyage_export_schedules WHERE id = '${SCHEDULE}';`)).toBe('0')
+  })
+})
