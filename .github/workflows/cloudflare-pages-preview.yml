@@ -47,12 +47,12 @@ jobs:
       PRODUCTION_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
     steps:
       - name: Checkout trusted workflow helpers
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.repository.default_branch }}
 
       - name: Set up Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
           version: 2.113.0
 
@@ -138,13 +138,13 @@ jobs:
       # This is the only job that checks out and executes PR-controlled code.
       # It receives only the public Supabase URL and anon/publishable key.
       - name: Checkout PR source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.pr_head_sha }}
           persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -160,7 +160,7 @@ jobs:
           CLOUDFLARE_PORTAL_ORIGIN: https://${{ needs.prepare.outputs.pages_branch }}.vela-portal.pages.dev
 
       - name: Upload internal site artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cloudflare-pages-internal
           path: dist/pages-internal
@@ -168,7 +168,7 @@ jobs:
           retention-days: 3
 
       - name: Upload Portal site artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cloudflare-pages-portal
           path: dist/pages-portal
@@ -192,12 +192,12 @@ jobs:
       # Run only trusted Wrangler from the default branch. Never execute PR code
       # in the job that receives the Cloudflare write token.
       - name: Checkout trusted deployment tooling
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.repository.default_branch }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -206,13 +206,13 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Download internal site artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: cloudflare-pages-internal
           path: pages-internal
 
       - name: Download Portal site artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: cloudflare-pages-portal
           path: pages-portal
