@@ -297,3 +297,22 @@ apoia na linha "Data status" do `AGENTS.md`.
   `build`, `docs:check` e suíte completa; a única falha, em
   `VoyageCard.kpis.test.tsx` (falta de roteador para os novos `Link`), foi
   corrigida e reexecutada. Não houve verificação visual no app rodando.
+- **2026-09-23 · Bloco 3, primeira PR (`codex/alinhamento-banco`):**
+  - Migrations 077 a 082, autorizadas pelo dono em 2026-09-23:
+    - **077:** Baplie para todo Departamento, com confirmação de substituição (R1).
+    - **078:** a fila de Alertas passa a aceitar `administrativo`, que recebe o
+      Alerta de PIX; Granito sem cliente passa a Normal (R2, R7).
+    - **079:** `bl_timeline` lê a auditoria de `bl_containers` (R11).
+    - **080:** lixeira da escala para todos (R8).
+    - **081:** o Administrativo responde e reabre disputa (R13).
+    - **082:** CE por planilha tudo ou nada (R12).
+  - Achados durante a execução:
+    - Até a 078, a fila recusava `administrativo`, e só o teste no banco
+      revelou isso.
+    - A RPC da 082 não está no bloco gerado de `database.ts`, porque não há
+      CLI do Supabase nesta sessão.
+  - Checks:
+    - replay do zero no Postgres descartável e suíte `local-pg` em série;
+    - `typecheck`, `lint`, `build`, `test`, `docs:check`, `migrations:check`,
+      `rpc:check` e `verificar_guardas.py`.
+  - Pendente: 3.6 (Portal como bloqueio universal), em PR própria.

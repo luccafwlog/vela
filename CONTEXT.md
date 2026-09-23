@@ -1579,7 +1579,8 @@ A escrita operacional é compartilhada, com exceções aplicadas por operação:
 | Liquidação de ajustes financeiros | Administrativo e Financeiro |
 | Comunicados e edição interna das Caixas de Comunicação | Administrativo, Documentação e Equipamentos |
 | Alterar a chave global de envio de Comunicados | Administrativo |
-| Exclusão operacional protegida | Administrativo, conforme a fronteira da operação |
+| Resposta e reabertura de disputa de Demurrage | Equipamentos e Administrativo |
+| Exclusão operacional protegida | Administrativo, conforme a fronteira da operação; a declaração de exportação de uma escala sem vínculo pode ser removida por qualquer Departamento ativo (migration `080`) |
 
 Essa tabela resume as exceções; não substitui as validações de estado e de
 escopo das RPCs. Assinaturas do ADR também respeitam o departamento dono.
