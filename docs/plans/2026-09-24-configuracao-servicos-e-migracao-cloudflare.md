@@ -25,7 +25,7 @@
   aceita Turnstile e PostHog.
 - [x] `portal-login`, `portal-password-recovery`, `portal-recovery-email-change`
   e `portal-invite-activate` republicadas em 2026-09-24 com a correção.
-- [ ] Depois do merge desta PR, republicar as funções que usam a lista de CORS,
+- [x] Depois do merge da #745, republicar as funções que usam a lista de CORS,
   que passou a aceitar os endereços `pages.dev` do Vela:
 
   ```bash
@@ -398,3 +398,4 @@ cinza). Em seguida, remova o custom domain do projeto Pages.
 | Etapa | Data | Quem | Resultado |
 |---|---|---|---|
 | 0 | 2026-09-24 | Claude Code | #746 no `main`; 4 funções do Portal republicadas |
+| 0 | 2026-09-24 | Claude Code | #745 no `main`; 10 funções com CORS republicadas e conferidas (código publicado = `main`; `pr-<n>.vela-portal.pages.dev` aceito, outro `pages.dev` recusado) |
