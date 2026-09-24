@@ -6313,6 +6313,10 @@ export type Database = {
         }
         Returns: Json
       }
+      _auto_bill_bl_core: {
+        Args: { p_actor: string; p_bl_id: string; p_reuse_calculation: boolean }
+        Returns: Json
+      }
       _build_customer_contact_configuration: {
         Args: { p_customer_id: number }
         Returns: Json
