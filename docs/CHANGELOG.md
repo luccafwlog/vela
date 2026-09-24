@@ -11,8 +11,22 @@
   Normal, Histórico do B/L com containers, lixeira da escala para todos, disputa respondida pelo Administrativo e CE
   por planilha tudo ou nada (PR #740, migrations `077`–`082`). Por fim, o Portal passou a travar toda emissão,
   inclusive a automática pelo CE, com a Liberação de faturamento sem Portal por Cliente concedida pelo
-  Administrativo (ADR 0070, migration `083`).
+  Administrativo (ADR 0070, migrations `083`–`084`).
   [Plano arquivado](archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md).
+
+- **Consolidação e integração de serviços de observabilidade e segurança — Issue #710 (2026-09-23):**
+  Integração direta repository-side sem overhead de pipelines paralelas. O Sentry
+  no Portal não mais anexa `customer_id` ao contexto de usuário (`Sentry.setUser(null)`
+  com tag `area: 'portal'`). Better Stack Heartbeats instrumentados de forma segura e
+  resiliente (`runWithBetterStackHeartbeat`) nos 4 runners periódicos (`alerts-detector`,
+  `portal-daily-digest`, `demurrage-dunning` e `customer-communication-auto-runner`),
+  emitindo ping HTTP após conclusões bem-sucedidas quando configurados nos secrets e em
+  no-op transparente quando ausentes. Desafio anti-bot Cloudflare Turnstile adicionado
+  com suporte server-side nas Edge Functions de autenticação (`portal-login`,
+  `portal-password-recovery`) e cliente visual resiliente (`TurnstileChallenge`),
+  operando em bypass quando as chaves não estão presentes no ambiente. Métrica agregada e
+  anônima de faturamento (`invoice_viewed`) no PostHog EU adicionada em `PortalBilling`.
+  [Plano arquivado](archive/plans/2026-09-23-issue-710-consolidacao-service-a-service.md).
 
 - **Remediação de segurança da auditoria do Portal e superfície F12 (2026-09-22):**
   Logout passa a falhar fechado com timeout de segurança (5s) e purga local síncrona e forçada de tokens (`removeLocalSessionFallback`), isolando estritamente o `storageKey` de cada aplicação (Portal x Vela interna) sem derrubar sessões alheias no mesmo domínio e exibindo alerta contextual no login, derivado do estado vivo do provider, caso a revogação remota falhe por instabilidade de rede (`signOutError`). Uploads de anexos em disputas de demurrage têm escrita direta no Storage revogada para clientes do Portal (`demurrage_dispute_objects_insert` restrita a `is_active_user()`), com pré-checagem de elegibilidade antes da criação da mensagem (`portal_check_dispute_attachment_eligibility`), orquestração pela Edge Function `portal-dispute-attachment` (`verify_jwt = false` para preflight CORS com validação de sessão interna), validação de assinatura/magic bytes (PDF, PNG, JPEG, TXT) e tamanho (máx 10 MB), cota agregada no banco restrita a disputas abertas com lock transacional consultivo (`pg_advisory_xact_lock`), limite diário de uploads por cliente, delegação à RPC `add_demurrage_dispute_attachment`, reenvio de anexo retido e limpeza imediata de arquivos órfãos tanto no Portal quanto no fluxo interno de Demurrage (migration `074`). A migration `075` restringe anexos do Portal a Disputes abertas (fechando o desvio da quota por Disputes resolvidas), cria a policy DELETE que torna efetiva a limpeza do fluxo interno e troca a rotina de expurgo por SQL pela listagem somente leitura `list_orphaned_dispute_attachments`, com remoção pelo Storage API. Recuperação de senha desacopla processamento para segundo plano via `EdgeRuntime.waitUntil` em melhor esforço (best-effort), retornando 200 imediatamente após checagem de rate limit e eliminando canal lateral temporal. O build de produção remove recursivamente e falha fechado na detecção de artefatos proibidos (`.map` ou `.vite`), e dependências foram atualizadas (0 vulnerabilidades em `npm audit`).
