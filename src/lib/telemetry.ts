@@ -81,6 +81,12 @@ function redactVercelTelemetryPath(path: string): string {
   return match ? path.replace(match[0], match[1]) : path
 }
 
+/** Vercel Analytics and Speed Insights load /_vercel/* scripts that only the
+ * Vercel host serves; on Cloudflare Pages they return the SPA HTML. The flag is
+ * fixed at build time from the VERCEL variable in vite.config.ts.
+ * ponytail: remove with both packages when Vercel is disconnected (Etapa 10). */
+export const vercelTelemetryEnabled = import.meta.env.VITE_HOSTED_ON_VERCEL === 'true'
+
 /** Removes query strings and record identifiers before Vercel telemetry sees
  * application URLs. Analytics and Speed Insights receive the current href by
  * default, while this SPA has CNPJ, B/L, voyage, and customer identifiers in

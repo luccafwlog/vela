@@ -12,7 +12,7 @@ import { VisualThemeProvider } from './hooks/useVisualTheme'
 import { ToastProvider } from './components/ui/Toast'
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog'
 import { isSupabaseConfigured } from './services/supabase'
-import { initTelemetry, markStartupStage, redactVercelTelemetryEvent } from './lib/telemetry'
+import { initTelemetry, markStartupStage, redactVercelTelemetryEvent, vercelTelemetryEnabled } from './lib/telemetry'
 import { initFeatureFlags } from './lib/featureFlags'
 import { createAppQueryClient } from './lib/queryClient'
 
@@ -50,7 +50,7 @@ createRoot(document.getElementById('root')!).render(
               <VisualThemeProvider>
                 <AuthProvider>
                   <App />
-                  <SpeedInsights beforeSend={redactVercelTelemetryEvent} />
+                  {vercelTelemetryEnabled && <SpeedInsights beforeSend={redactVercelTelemetryEvent} />}
                 </AuthProvider>
               </VisualThemeProvider>
             </ConfirmDialogProvider>

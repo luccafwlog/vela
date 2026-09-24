@@ -98,6 +98,7 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env': {},
       'import.meta.env.VITE_APP_COMMIT_SHA': JSON.stringify(appCommitSha),
+      'import.meta.env.VITE_HOSTED_ON_VERCEL': JSON.stringify(process.env.VERCEL === '1' ? 'true' : ''),
     },
     build: {
       manifest: true,
