@@ -49,6 +49,7 @@ function cleanup() {
   psql(`
     SET session_replication_role = replica;
     DELETE FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};
+    DELETE FROM public.audit_logs WHERE entity_type = 'voyage' AND entity_id = '${VOYAGE_ID}' AND field_name = 'baplie_import';
     DELETE FROM public.voyages WHERE id = ${VOYAGE_ID};
     DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
     DELETE FROM public.carriers WHERE id = ${CARRIER_ID};
@@ -77,6 +78,18 @@ describeLocal('077 — Baplie importado por qualquer Departamento ativo', () => 
     const result = runAs(DOCS_SUB, `SELECT public.import_baplie_staging_transactional(${VOYAGE_ID}, '${baplieRow}'::jsonb);`)
     expect(result.stderr).toBe('')
     expect(psql(`SELECT count(*) FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};`)).toBe('1')
+  })
+
+  it('substituição grava o autor da sessão, não o enviado pela tela, e registra o evento', () => {
+    // A tela manda imported_by no corpo; com a importação aberta a todos, um
+    // corpo com outro autor não pode forjar quem substituiu o Baplie.
+    const forged = baplieRow.replace(DOCS_SUB, INACTIVE_SUB)
+    const result = runAs(DOCS_SUB, `SELECT public.import_baplie_staging_transactional(${VOYAGE_ID}, '${forged}'::jsonb);`)
+    expect(result.stderr).toBe('')
+    expect(psql(`SELECT DISTINCT imported_by FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};`)).toBe(DOCS_SUB)
+    expect(psql(`SELECT old_value || '>' || new_value || '|' || changed_by || '|' || justification FROM public.audit_logs
+      WHERE entity_type = 'voyage' AND entity_id = '${VOYAGE_ID}' AND field_name = 'baplie_import' ORDER BY id DESC LIMIT 1;`))
+      .toBe(`1>1|${DOCS_SUB}|Baplie substituído`)
   })
 
   it('usuário inativo continua recusado', () => {
@@ -144,7 +157,7 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
   function clean() {
     psql(`
       SET session_replication_role = replica;
-      DELETE FROM public.audit_logs WHERE entity_type = 'bl_containers' AND entity_id IN (SELECT id::text FROM public.bl_containers WHERE bl_id = '${BL_ID}');
+      DELETE FROM public.audit_logs WHERE entity_type IN ('bl_container', 'bl_containers') AND entity_id IN (SELECT id::text FROM public.bl_containers WHERE bl_id = '${BL_ID}');
       DELETE FROM public.bl_containers WHERE bl_id = '${BL_ID}';
       DELETE FROM public.bls WHERE id = '${BL_ID}';
       DELETE FROM public.voyages WHERE id = 7793;
@@ -187,6 +200,22 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
     `)
     expect(rows).toContain('bl_container return_date|TCLU0790001 2026-10-20')
     expect(rows).not.toContain('cbm')
+  })
+
+  it('edição com justificativa aparece uma vez só, com o motivo', () => {
+    // update_container_demurrage_dates grava o evento semântico 'bl_container'
+    // com justificativa e dispara o gatilho por coluna na mesma transação.
+    const result = runAs(USER, `SELECT public.update_container_demurrage_dates(
+      (SELECT id FROM public.bl_containers WHERE bl_id = '${BL_ID}'), '2026-10-14', '2026-10-25', NULL, 'Cliente devolveu no dia 25');`)
+    expect(result.stderr).toBe('')
+    const rows = psql(`
+      BEGIN;
+      SELECT set_config('request.jwt.claim.sub', '${USER}', true);
+      SELECT field_name || ' ' || coalesce(justification, '-') FROM public.bl_timeline('${BL_ID}', 50, 0)
+      WHERE new_value = '2026-10-25';
+      COMMIT;
+    `)
+    expect(rows.split('\n').filter((line) => line.startsWith('return_date'))).toEqual(['return_date Cliente devolveu no dia 25'])
   })
 })
 

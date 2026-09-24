@@ -3,8 +3,15 @@
 -- Decisão de 2026-09-23 (plano docs/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md,
 -- R1): o Alerta "Baplie ausente" é da Documentação e a ADR 0046 libera a
 -- escrita interna a todo Departamento. A RPC deixa de exigir is_admin(); a
--- sessão continua obrigatória e ativa, o autor segue em imported_by e a tela
--- pede confirmação antes de substituir um Baplie existente.
+-- sessão continua obrigatória e ativa e a tela pede confirmação antes de
+-- substituir um Baplie existente.
+--
+-- Com a importação aberta, o autor precisa ser confiável: imported_by passa a
+-- vir da sessão (auth.uid()), não do corpo enviado pela tela, e cada
+-- importação grava em audit_logs um evento da Viagem ('baplie_import') com a
+-- quantidade de containers antes e depois. Assim "quem substituiu o Baplie
+-- desta viagem, e quando?" tem resposta mesmo depois que o Baplie anterior foi
+-- apagado.
 -- Não reescreve linhas existentes.
 
 CREATE OR REPLACE FUNCTION public.import_baplie_staging_transactional(p_voyage_id bigint, p_rows jsonb) RETURNS integer
@@ -13,12 +20,19 @@ CREATE OR REPLACE FUNCTION public.import_baplie_staging_transactional(p_voyage_i
     AS $$
 DECLARE
   v_count INTEGER := COALESCE(jsonb_array_length(p_rows), 0);
+  v_actor UUID := auth.uid();
+  v_previous INTEGER := 0;
+  v_role TEXT;
 BEGIN
   IF auth.uid() IS NULL OR NOT public.is_active_user() THEN
     RAISE EXCEPTION 'Credenciais invalidas ou sem permissao para importar Baplie.' USING ERRCODE = '42501';
   END IF;
 
   PERFORM set_config('alerts.baplie_coverage_deferred', 'on', true);
+
+  SELECT count(*) INTO v_previous
+  FROM public.baplie_containers
+  WHERE voyage_id = p_voyage_id;
 
   DELETE FROM public.baplie_containers
   WHERE voyage_id = p_voyage_id;
@@ -56,7 +70,7 @@ BEGIN
       row.imo_class,
       row.un_number,
       row.is_oog,
-      row.imported_by
+      v_actor
     FROM jsonb_to_recordset(p_rows) AS row(
       container_number TEXT,
       size_type TEXT,
@@ -70,10 +84,21 @@ BEGIN
       is_imo BOOLEAN,
       imo_class TEXT,
       un_number TEXT,
-      is_oog BOOLEAN,
-      imported_by UUID
+      is_oog BOOLEAN
     );
   END IF;
+
+  v_role := public.current_actor_role();
+  INSERT INTO public.audit_logs(
+    entity_type, entity_id, field_name, old_value, new_value,
+    changed_by, justification, actor_role, actor_department
+  ) VALUES (
+    'voyage', p_voyage_id::text, 'baplie_import',
+    v_previous::text, v_count::text,
+    v_actor,
+    CASE WHEN v_previous > 0 THEN 'Baplie substituído' ELSE 'Baplie importado' END,
+    v_role, v_role
+  );
 
   PERFORM set_config('alerts.baplie_coverage_deferred', 'off', true);
   PERFORM public.reconcile_voyage_baplie_coverage_alerts(p_voyage_id, 'baplie_coverage_import');

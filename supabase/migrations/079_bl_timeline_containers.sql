@@ -14,6 +14,11 @@
 -- '<campo>|<container_number>', porque a função não devolve entity_id e mudar
 -- o RETURNS TABLE exigiria recriar a função e regenerar os tipos. A tela
 -- separa pelo '|'. Evolução: devolver entity_id/container_number como colunas.
+-- Sem duplicar: quem já grava o evento semântico 'bl_container' com
+-- justificativa (update_container_demurrage_dates, propagate_voyage_ata_to_containers)
+-- também dispara o gatilho por coluna na mesma transação. A linha da auditoria
+-- por coluna só entra quando não há evento semântico do mesmo container, campo
+-- e instante (now() da transação); o semântico, que traz o motivo, prevalece.
 -- Não reescreve linhas existentes.
 
 CREATE OR REPLACE FUNCTION public.bl_timeline(p_bl_id text, p_limit integer DEFAULT 50, p_offset integer DEFAULT 0)
@@ -56,7 +61,15 @@ AS $$
       OR (a.entity_type = 'bl_container' AND a.entity_id IN (SELECT id FROM bl_container_ids))
       OR (a.entity_type = 'bl_containers'
           AND bc.id IS NOT NULL
-          AND a.field_name IN ('discharge_date', 'return_date', 'is_imo', 'imo_class', 'un_number', 'is_oog'))
+          AND a.field_name IN ('discharge_date', 'return_date', 'is_imo', 'imo_class', 'un_number', 'is_oog')
+          AND NOT EXISTS (
+            SELECT 1
+            FROM public.audit_logs AS semantic
+            WHERE semantic.entity_type = 'bl_container'
+              AND semantic.entity_id = a.entity_id
+              AND semantic.field_name = a.field_name
+              AND semantic.changed_at = a.changed_at
+          ))
       OR (a.entity_type = 'charge_calculation' AND a.entity_id IN (
             SELECT cc.id::text FROM public.charge_calculations cc WHERE cc.bl_id = p_bl_id))
       OR (a.entity_type = 'invoice' AND a.entity_id IN (

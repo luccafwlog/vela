@@ -344,3 +344,15 @@ apoia na linha "Data status" do `AGENTS.md`.
     `migrations:check`, `rpc:check` e `verificar_guardas.py`.
   - Não verificado: aplicação no Supabase remoto e o fluxo na interface com o
     app rodando.
+- **2026-09-24 · Revisão da primeira PR do Bloco 3 (`vela-code-review`):**
+  - **079:** o Histórico mostrava duas vezes a mesma mudança de container
+    quando ela já tinha o evento semântico `bl_container` com justificativa
+    (edição manual de datas, sincronização com a ATA). A linha da auditoria
+    por coluna passou a ficar de fora nesse caso.
+  - **077:** com a importação aberta a todos, o autor do Baplie passou a vir
+    da sessão (`auth.uid()`), e cada importação grava o evento
+    `voyage/baplie_import` com a quantidade antes e depois.
+  - A 077 e a 079 foram corrigidas no próprio arquivo, com autorização do dono
+    para corrigir dentro da PR. Nenhuma das duas estava no `main`.
+  - Checks: replay do zero e `alinhamentoPermissoes.local-pg.test.ts`; os dois
+    testes novos falham com as versões anteriores da 077 e da 079.
