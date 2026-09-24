@@ -23,6 +23,10 @@ const VERCEL_PREVIEW_ORIGINS = [
   /^https:\/\/vela(?:-[a-z0-9-]+)?-luccafwlogs-projects\.vercel\.app$/,
   /^https:\/\/fwlog-portal(?:-[a-z0-9-]+)?-luccafwlogs-projects\.vercel\.app$/,
   /^https:\/\/transhippingdesk(?:-[a-z0-9-]+)?-luccafwlogs-projects\.vercel\.app$/,
+  // Cloudflare Pages: domínio de produção do projeto e aliases de Preview
+  // (`pr-<n>.` ou hash do deployment). Nomes de projeto `pages.dev` são únicos
+  // na Cloudflare, então o padrão fica restrito aos dois projetos do Vela.
+  /^https:\/\/(?:[a-z0-9-]+\.)?vela-(?:internal|portal)\.pages\.dev$/,
 ]
 
 export function parseConfiguredOrigins(raw: string | undefined): string[] {

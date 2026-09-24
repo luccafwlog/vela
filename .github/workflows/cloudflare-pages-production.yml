@@ -1,0 +1,85 @@
+name: Cloudflare Pages Production
+
+# Publica os dois sites no ambiente de produção do Cloudflare Pages depois que o
+# CI de um push em `main` termina verde. Fica desligado até a variável de
+# repositório CLOUDFLARE_PAGES_PRODUCTION_ENABLED ser `true` (roteiro
+# docs/plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md, etapa 8).
+# Só roda código da própria `main`; nenhum código de PR chega a este workflow.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      vars.CLOUDFLARE_PAGES_PRODUCTION_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.conclusion == 'success'))
+    runs-on: ubuntu-latest
+    environment: cloudflare-production
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Refuse a build without production Supabase configuration
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          : "${VITE_SUPABASE_URL:?Configure VITE_SUPABASE_URL no environment cloudflare-production}"
+          : "${VITE_SUPABASE_ANON_KEY:?Configure VITE_SUPABASE_ANON_KEY no environment cloudflare-production}"
+
+      - name: Build and stage both production sites
+        run: npm run cloudflare:build:sites
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_PORTAL_URL: https://portalfwlog.com.br
+          VITE_PORTAL_BILLING_URL: https://portalfwlog.com.br/portal/billing
+          VITE_SENTRY_DSN_INTERNAL: ${{ vars.VITE_SENTRY_DSN_INTERNAL }}
+          VITE_SENTRY_DSN_PORTAL: ${{ vars.VITE_SENTRY_DSN_PORTAL }}
+          VITE_SENTRY_ENVIRONMENT: production
+          VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          VITE_APP_COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Publish Vela and Portal to production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          : "${CLOUDFLARE_API_TOKEN:?Configure o secret CLOUDFLARE_PAGES_API_TOKEN}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?Configure a variável CLOUDFLARE_ACCOUNT_ID}"
+          npx --no-install wrangler pages deploy dist/pages-internal \
+            --project-name vela-internal --branch main --commit-hash "$COMMIT_SHA"
+          npx --no-install wrangler pages deploy dist/pages-portal \
+            --project-name vela-portal --branch main --commit-hash "$COMMIT_SHA"

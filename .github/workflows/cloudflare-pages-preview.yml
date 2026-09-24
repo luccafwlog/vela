@@ -158,6 +158,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ needs.prepare.outputs.supabase_url }}
           VITE_SUPABASE_ANON_KEY: ${{ needs.prepare.outputs.supabase_anon_key }}
           CLOUDFLARE_PORTAL_ORIGIN: https://${{ needs.prepare.outputs.pages_branch }}.vela-portal.pages.dev
+          VITE_SENTRY_ENVIRONMENT: preview
 
       - name: Upload internal site artifact
         uses: actions/upload-artifact@v7
