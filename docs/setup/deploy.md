@@ -392,7 +392,9 @@ server-side. A função `portal-login` também exige
 senha aleatória de alta entropia e sem vínculo em `customer_portal_accounts`.
 Ela equaliza o lookup e a tentativa de senha quando o CNPJ não existe; qualquer
 sessão dummy é descartada no servidor. Para Comunicados, configure também `COMMUNICATIONS_REPLY_TO` (o
-reply-to operacional do canal, distinto de `PORTAL_REPLY_TO`); o remetente
+reply-to operacional do canal, distinto de `PORTAL_REPLY_TO`) e, para a
+régua de cobrança de Demurrage, `DEMURRAGE_REPLY_TO` (sem ela, a cobrança usa
+`COMMUNICATIONS_REPLY_TO`); o remetente
 continua sendo `PORTAL_FROM_EMAIL`. Se a chave global de Comunicados estiver desligada, a
 Function registra simulação e não exige chamada ao Resend; para envio real, o
 remetente, reply-to e `RESEND_API_KEY` precisam estar configurados. Resend não é

@@ -101,6 +101,12 @@ function normalizeNested<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null
 }
 
+// Respostas à cobrança vão para a equipe de demurrage, não para a caixa dos
+// Comunicados; sem DEMURRAGE_REPLY_TO, mantém o reply-to do canal.
+function demurrageReplyTo(): string | undefined {
+  return Deno.env.get('DEMURRAGE_REPLY_TO')?.trim() || Deno.env.get('COMMUNICATIONS_REPLY_TO')
+}
+
 function portalBillingUrl(): string {
   const configured = (Deno.env.get('PORTAL_URL') ?? '').trim().replace(/\/+$/, '')
   if (!configured) return 'https://portalfwlog.com.br/portal/billing'
@@ -518,8 +524,8 @@ async function sendCandidateGroup(
         idempotencyKey,
         resendApiKey,
         from: Deno.env.get('PORTAL_FROM_EMAIL'),
-        replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO'),
-        missingConfigurationMessage: 'PORTAL_FROM_EMAIL e COMMUNICATIONS_REPLY_TO são obrigatórios para envio real',
+        replyTo: demurrageReplyTo(),
+        missingConfigurationMessage: 'PORTAL_FROM_EMAIL e DEMURRAGE_REPLY_TO (ou COMMUNICATIONS_REPLY_TO) são obrigatórios para envio real',
         checkSuppression: async (to) => {
           const [{ data: communicationSuppression }, { data: portalSuppression }] = await Promise.all([
             admin.from('customer_communication_suppressions').select('id').eq('email', to).maybeSingle(),
@@ -626,8 +632,8 @@ async function sendCandidate(
         idempotencyKey,
         resendApiKey,
         from: Deno.env.get('PORTAL_FROM_EMAIL'),
-        replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO'),
-        missingConfigurationMessage: 'PORTAL_FROM_EMAIL e COMMUNICATIONS_REPLY_TO são obrigatórios para envio real',
+        replyTo: demurrageReplyTo(),
+        missingConfigurationMessage: 'PORTAL_FROM_EMAIL e DEMURRAGE_REPLY_TO (ou COMMUNICATIONS_REPLY_TO) são obrigatórios para envio real',
         checkSuppression: async (to) => {
           const [{ data: communicationSuppression }, { data: portalSuppression }] = await Promise.all([
             admin.from('customer_communication_suppressions').select('id').eq('email', to).maybeSingle(),
