@@ -11,7 +11,7 @@ import { PortalAuthProvider } from './hooks/usePortalAuth'
 import { ToastProvider } from './components/ui/Toast'
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog'
 import { isSupabaseConfigured } from './services/supabase'
-import { initTelemetry, markStartupStage, redactVercelTelemetryEvent } from './lib/telemetry'
+import { initTelemetry, markStartupStage, redactVercelTelemetryEvent, vercelTelemetryEnabled } from './lib/telemetry'
 import { initFeatureFlags } from './lib/featureFlags'
 import { createPortalQueryClient } from './lib/portalQueryClient'
 
@@ -48,7 +48,7 @@ createRoot(document.getElementById('root')!).render(
               <ConfirmDialogProvider>
                 <PortalAuthProvider>
                   <App />
-                  <SpeedInsights beforeSend={redactVercelTelemetryEvent} />
+                  {vercelTelemetryEnabled && <SpeedInsights beforeSend={redactVercelTelemetryEvent} />}
                 </PortalAuthProvider>
               </ConfirmDialogProvider>
             </ToastProvider>

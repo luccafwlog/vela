@@ -7,7 +7,7 @@ import { PortalLayout } from './components/layout/PortalLayout'
 import { PortalScopeProvider } from './hooks/usePortalScope'
 import { lazyPage } from './lib/lazyPage'
 import { matchRoutePreload, type RoutePreloadTable } from './lib/routePreload'
-import { markStartupStage, redactVercelTelemetryEvent } from './lib/telemetry'
+import { markStartupStage, redactVercelTelemetryEvent, vercelTelemetryEnabled } from './lib/telemetry'
 
 const PortalLogin = lazyPage(() => import('./pages/PortalLogin'), 'PortalLogin')
 const PortalBilling = lazyPage(() => import('./pages/PortalBilling'), 'PortalBilling')
@@ -85,7 +85,7 @@ export default function AppPortal() {
         </Route>
         <Route path="*" element={<Navigate to="/portal" replace />} />
       </Routes>
-      <Analytics beforeSend={redactVercelTelemetryEvent} />
+      {vercelTelemetryEnabled && <Analytics beforeSend={redactVercelTelemetryEvent} />}
     </>
   )
 }
