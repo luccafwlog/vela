@@ -17,3 +17,9 @@ export const INCOMPLETE_CNPJ_MESSAGE = 'Informe o CNPJ completo, com 14 caracter
 export function isCompleteCnpjLogin(value: string): boolean {
   return canonicalizeDocument(value).length === 14
 }
+
+// Mesma mensagem para senha errada, CNPJ sem conta e CNPJ bloqueado (ADR 0049):
+// uma mensagem própria do bloqueio revelaria que o CNPJ tem conta. Por isso a
+// orientação sobre a suspensão de 15 minutos vai para todos os casos.
+export const PORTAL_LOGIN_REJECTED_MESSAGE =
+  'CNPJ ou senha inválidos. Após várias tentativas, o acesso fica suspenso por 15 minutos. Se esqueceu a senha, use "Esqueci minha senha".'
