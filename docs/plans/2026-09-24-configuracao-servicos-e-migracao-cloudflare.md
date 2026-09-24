@@ -54,10 +54,17 @@ Se algum dia for preciso recriar:
    cadastre `PORTAL_RATE_LIMIT_THRESHOLD` nem `PORTAL_RATE_LIMIT_WINDOW_SECONDS`:
    os padrões (10 erros em 5 minutos) são os aprovados.
 
-**Conferência:** em uma janela anônima, erre a senha 3 vezes com um CNPJ de
-teste em `https://portalfwlog.com.br/portal/login`. No Upstash → **Data
-Browser** deve aparecer uma chave `vela:portal-rate:login:...` com valor `3` e
-TTL perto de 300. A chave não pode conter CNPJ nem IP legíveis.
+**Conferência:**
+1. Em uma janela anônima, erre a senha 3 vezes com um CNPJ de teste em
+   `https://portalfwlog.com.br/portal/login`. Cada tentativa tem de mostrar a
+   mensagem de CNPJ ou senha inválidos. Se aparecer "Portal indisponível" (erro
+   500), pare: falta configuração no servidor, e nada é contado. Veja o
+   ocorrido de 2026-09-24 no registro de execução.
+2. No Upstash → **Data Browser**, busque `vela:portal-rate:login:*`. Deve
+   aparecer uma chave com valor `3` e TTL abaixo de 300 segundos. A chave não
+   pode conter CNPJ nem IP legíveis.
+3. Entre com a senha certa de um CNPJ que **não** foi usado no passo 1 (ou
+   espere 15 minutos). O login tem de funcionar.
 
 **Como desfazer:** apague os três secrets. O login volta a usar só a trava do
 Supabase, sem efeito para o cliente.
@@ -399,3 +406,25 @@ cinza). Em seguida, remova o custom domain do projeto Pages.
 |---|---|---|---|
 | 0 | 2026-09-24 | Claude Code | #746 no `main`; 4 funções do Portal republicadas |
 | 0 | 2026-09-24 | Claude Code | #745 no `main`; 10 funções com CORS republicadas e conferidas (código publicado = `main`; `pr-<n>.vela-portal.pages.dev` aceito, outro `pages.dev` recusado) |
+| 1 | 2026-09-24 | Dono + Claude Code | Contador do Upstash conferido (chave com valor 2, sem CNPJ/IP legível); login real com senha certa funcionou |
+
+### Ocorrido de 2026-09-24 — login do Portal fora do ar
+
+- **Sintoma:** na conferência da Etapa 1, toda tentativa com CNPJ completo
+  recebia erro 500 ("Portal indisponível"), inclusive com a senha certa. Nada
+  era contado no Upstash nem no balde do Supabase.
+- **Causa:** o secret `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, exigido por
+  `portal-login` desde a PR 707 (2026-09-20), nunca foi cadastrado em produção.
+  Os testes anteriores usavam corpo vazio, que é recusado antes desse ponto, e
+  não revelaram a falha. Os logs guardam só 24 horas; não é possível saber
+  desde quando clientes estavam sem acesso.
+- **Correção (12:35 UTC):** criado no Auth o usuário técnico
+  `portal-login-dummy@portal-interno.transhippingdesk.invalid`
+  (`91abc3b0-96ab-49b0-9a7d-750d5e7d9e84`), confirmado, com senha aleatória não
+  guardada, sem vínculo em `customer_portal_accounts` nem `user_profiles`; o id
+  foi cadastrado como `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`.
+- **Conferência:** senha errada com CNPJ sem conta → 401 e falha registrada no
+  Supabase e no Upstash; login real do dono com a senha certa funcionou.
+- **Prevenção:** a conferência da Etapa 1 passou a exigir a mensagem de senha
+  inválida em cada erro e um login com a senha certa. Não apague esse usuário
+  técnico: sem ele o login do Portal volta a falhar.
