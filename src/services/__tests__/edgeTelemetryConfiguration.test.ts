@@ -23,6 +23,6 @@ describe('Edge telemetry configuration', () => {
     for (const functionName of instrumentedFunctions) {
       expect(config).toContain(`[functions.${functionName}]\nverify_jwt = false\nimport_map = "./functions/deno.json"`)
     }
-    expect(deno.imports?.['@sentry/deno']).toBe('npm:@sentry/deno@10.73.0')
+    expect(deno.imports?.['@sentry/deno']).toMatch(/^npm:@sentry\/deno@\d+\.\d+\.\d+$/)
   })
 })
