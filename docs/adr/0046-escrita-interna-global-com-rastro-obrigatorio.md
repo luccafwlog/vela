@@ -5,7 +5,7 @@
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
 
 > **Nota editorial — 2026-09-23.** Decisões do alinhamento entre apresentação,
-> documentação e código ([plano](../plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md)):
+> documentação e código ([plano](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md)):
 > a importação do Baplie deixou de exigir Administrativo (migration 077); a
 > remoção de escala de exportação sem vínculo passou a qualquer Departamento
 > ativo, com a trava de vínculo e a auditoria no banco — exceção à regra de

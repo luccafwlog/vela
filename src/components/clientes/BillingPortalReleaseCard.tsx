@@ -93,7 +93,7 @@ export function BillingPortalReleaseCard({ customerId, portalReady, variant = 'c
   const content = (
     <div className="grid gap-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-white">Liberação de faturamento sem Portal</h3>
+        <h3 className="text-base font-semibold">Liberação de faturamento sem Portal</h3>
         {state ? <Badge tone={STATE_BADGE[state].tone}>{STATE_BADGE[state].label}</Badge> : null}
       </div>
       <p className="text-[var(--app-muted)]">

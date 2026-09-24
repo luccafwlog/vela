@@ -18,7 +18,7 @@ respeitava o gate. Um Cliente sem Portal recebia fatura automática, que ele nã
 conseguia ver, e o sistema abria em seguida um Alerta crítico dizendo isso.
 
 A revisão da apresentação contra o código (plano
-[2026-09-23](../plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md))
+[2026-09-23](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md))
 levou a questão ao dono do produto. As decisões foram:
 
 - **R4:** Portal não provisionado sempre bloqueia a emissão, inclusive a

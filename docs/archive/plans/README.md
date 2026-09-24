@@ -142,6 +142,12 @@ por documento; o que cada entrega produziu está resumido no
   Renomeação do sistema interno para Vela com entrada em `index.html` e domínio `https://vela.app.br`, separação
   do Portal Fwlog em entrada dedicada `portal.html` e domínio `https://portalfwlog.com.br`, preservação da identidade
   jurídico-financeira Transhipping, e configuração de roteamento/CORS multi-host no Vercel e Edge Functions.
+- [`2026-09-23-alinhamento-apresentacao-docs-codigo.md`](2026-09-23-alinhamento-apresentacao-docs-codigo.md)
+  — Alinhamento entre apresentação, documentação e código: revisão da apresentação contra docs e código,
+  questionário com o dono e entrega em três blocos (PRs #719, #738, #740 e a do item 3.6). Baplie para todo
+  Departamento, PIX com o Administrativo, CE exigido na carga solta, Histórico com containers, disputa respondida
+  pelo Administrativo, CE por planilha tudo ou nada e o Portal travando toda emissão com a Liberação por Cliente
+  (ADR 0070). Migrations `077`–`083`.
 - **Planos numerados** (`001`–`006`, `0001`) — sprint de manutenção 2026-06-15
   ([README-2026-06-15-maintenance-sprint.md](README-2026-06-15-maintenance-sprint.md)),
   redesign de Viagens e correções pós-auditoria.

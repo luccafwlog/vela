@@ -1,6 +1,6 @@
 -- Migration 083: Portal como trava universal do faturamento e Liberação de
 -- faturamento sem Portal (decisões R4, R5 e 3.6 de 2026-09-23; plano
--- docs/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md; ADR 0070).
+-- docs/archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md; ADR 0070).
 --
 -- - A 051 deixava a emissão automática pelo CE passar sem Portal, por um
 --   contexto interno. Agora nenhuma emissão passa sem Portal pronto, inclusive
