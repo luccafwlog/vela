@@ -11,6 +11,8 @@ import { useAdminChangeCnpj, useAssistedEmailChange, useCancelPortalInvite, useP
 import { accountSituationLabel, contactPurposeLabel, deliveryStatusLabel, hasBrokenRecoveryEmail, provisioningDecisionLabel, recoveryEmailSourceLabel, recoveryEmailStatusLabel } from '../../lib/portalProvisioningViewModel'
 import { formatCnpjCpf } from '../../lib/utils'
 import { CNPJ_INPUT_MAX_LENGTH, normalizeCnpj } from '../../lib/cnpj'
+import { BillingPortalReleaseCard } from '../clientes/BillingPortalReleaseCard'
+import { isPortalReadyForBilling } from '../../lib/portalProvisioningViewModel'
 
 type Props = {
   row: QueueRow
@@ -187,6 +189,10 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
         </div>
         </div>
       </details> : null}
+
+      {!isOperations ? <section className="mt-6 border-t border-[var(--app-border)] pt-5">
+        <BillingPortalReleaseCard customerId={row.customer_id} portalReady={isPortalReadyForBilling(row)} variant="embedded" />
+      </section> : null}
 
       {canReadEvents ? <section className="mt-6 border-t border-[var(--app-border)] pt-5">
         <h3 className="font-semibold">Histórico</h3>

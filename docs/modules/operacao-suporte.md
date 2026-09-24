@@ -100,7 +100,7 @@ Granite é uma ramificação mais simples: `saveGraniteBlReview` atualiza `grani
 
 `src/pages/Alertas.tsx` mostra abas `all | active | dismissed`, tabela, deep-links por entidade e dispensa temporária por item. `src/services/alerts.ts` consulta a fila canônica; `list_alert_queue` limita a projeção global a 200 linhas, preservando carriers legados ainda não migrados.
 
-Os alertas de revisão de B/L e Granito (`review_customer_unlinked`, `review_customer_email_missing`, `review_portal_not_ready`, `review_breakbulk_weight_missing` e `review_granite_customer_unlinked`) são reconciliados pelas migrations `324` e `337` em agregados por entidade `(bl, id)` e `(granite_bl, id)` com severidade crítica e audiência do departamento de Documentação. Triggers em `public.bls`, `public.customer_portal_accounts` e `public.granite_bls`, mutações autoritativas (`save_bl_review`, `complete_review_customer_group`) e o cron server-side de 15 minutos (`run_alert_detectors`) mantêm a fila e os sinos sincronizados em tempo real.
+Os alertas de revisão de B/L e Granito (`review_customer_unlinked`, `review_portal_not_ready`, `review_breakbulk_weight_missing` e `review_granite_customer_unlinked`) são reconciliados pelas migrations `324` e `337` em agregados por entidade `(bl, id)` e `(granite_bl, id)` com audiência do departamento de Documentação; todos são críticos, exceto `review_granite_customer_unlinked`, Normal desde a migration `078` porque Granito não fatura. O `review_customer_email_missing` foi aposentado na migration `085`: e-mail de contato não é condição de faturamento. Triggers em `public.bls`, `public.customer_portal_accounts` e `public.granite_bls`, mutações autoritativas (`save_bl_review`, `complete_review_customer_group`) e o cron server-side de 15 minutos (`run_alert_detectors`) mantêm a fila e os sinos sincronizados em tempo real.
 
 Os dois produtores do ADR (`agency_report_department_pending` e `agency_report_deadline_missed`) são reconciliados pela migration `323` em um agregado por `(viagem, porto, terminal)` — ou `(viagem, porto)` no legado — com um item independente para cada um dos três departamentos. O ATD do ADR terminalizado vem de `voyage_escala_terminal_state.terminal_atd`; audit logs, sign-offs e o cron server-side de 15 minutos acionam a mesma reconciliação. Se uma seção confirmada volta a pendente, o sign-off departamental dono é invalidado com a justificativa da reabertura. O link para a viagem é produzido por `agencyReportAlertLink`, preservando `terminal` e `report_id` quando existirem.
 
@@ -112,7 +112,7 @@ Dispensar exige motivo e uma data futura e grava o histórico por ocorrência; a
 
 `src/pages/AlertasRegras.tsx` apresenta o catálogo educativo dos 28 tipos de `alert_type_catalog` — 26 ativos e 2 aposentados —, alimentado por `src/services/alertRulesCatalog.ts`. A lista pode ser filtrada por busca, setor notificado, domínio, gravidade e situação; o painel detalha entidade, setor responsável, setores notificados, distribuição, gatilho, prazo, resolução, dispensa e destino. A seleção e os filtros ficam na query string para permitir retorno e compartilhamento. A tela é somente leitura: não executa detectores, não resolve itens e não altera configurações.
 
-O verbete distingue **setor responsável** (o `alert_items.department` gravado pelo produtor, que agrupa a fila `/alertas`) de **setores notificados** (a união entre `alert_type_catalog.audience_departments` e o departamento do item, como faz `fanout_alert_item_for_department`). O filtro de setor usa os setores notificados, porque um mesmo alerta pode chegar a mais de um: `pix_unreconciled` alcança Documentação e Equipamentos; `voyage_schedule_date_pending` e `voyage_terminal_date_pending` alcançam Operações e Documentação; e os dois tipos de ADR abrem um item por departamento — Operações (Escala), Equipamentos (Granito, Veículos, Embarque de vazios) e Documentação (Carga descarregada, Vazios descarregados) — com Documentação também na audiência fixa do catálogo. A opção *"Aplicável a todos os setores"* filtra exclusivamente essas regras que envolvem todos os setores simultaneamente.
+O verbete distingue **setor responsável** (o `alert_items.department` gravado pelo produtor, que agrupa a fila `/alertas`) de **setores notificados** (a união entre `alert_type_catalog.audience_departments` e o departamento do item, como faz `fanout_alert_item_for_department`). O filtro de setor usa os setores notificados, porque um mesmo alerta pode chegar a mais de um: `pix_unreconciled` é tratado pelo Administrativo, que é quem abre a Conciliação PIX, e alcança também Documentação e Equipamentos (migration `078`, que também passou a aceitar `administrativo` como setor da fila); `voyage_schedule_date_pending` e `voyage_terminal_date_pending` alcançam Operações e Documentação; e os dois tipos de ADR abrem um item por departamento — Operações (Escala), Equipamentos (Granito, Veículos, Embarque de vazios) e Documentação (Carga descarregada, Vazios descarregados) — com Documentação também na audiência fixa do catálogo. A opção *"Aplicável a todos os setores"* filtra exclusivamente essas regras que envolvem todos os setores simultaneamente.
 
 As regras aposentadas ficam fora do filtro padrão e trazem o motivo no verbete. Um deep-link `?regra=` para uma regra aposentada abre o verbete sem exigir `?situacao=`.
 
@@ -245,10 +245,11 @@ Não há lock otimista nessa atualização. A proteção efetiva para `role` e `
 
 O contrato vigente combina `compute_bl_review_pendencies` (`051`), seu
 núcleo `_compute_bl_review_pendencies` (`059`) e os gates de prontidão/emissão
-(`047`/`056`). Cliente ausente bloqueia; no caminho normal, contato ativo com
-email e prontidão do Portal são exigidos. Peso BB é validado para carga solta
-e misto. A exceção interna controlada da automação CE dispensa contato/Portal
-nesse contexto, sem liberar os caminhos manuais.
+(`047`/`056`). Cliente ausente bloqueia. O Portal pronto é exigido, salvo
+Liberação de faturamento sem Portal vigente (ADR 0070, migration `083`).
+Contato com e-mail não é pendência de revisão nem condição de emissão
+(migration `085`). Peso BB é validado para carga solta
+e misto.
 
 CE Mercante tem guarda documental própria antes de promover/emitir, mesmo
 quando não aparece no array de pendências de revisão. `save_bl_review` calcula
@@ -307,7 +308,7 @@ Invariantes:
 - `expected_updated_at` protege contra sobrescrita concorrente; conflito é `PT409`;
 - faturamento automático só é tentado quando `pendencias` está vazio;
 - CE Mercante é guarda documental de emissão, distinta do array de revisão;
-- Portal usa `customer_portal_access_ready`; automação CE possui exceção interna controlada;
+- Portal usa `customer_billing_access_ready` (Portal pronto ou Liberação vigente), inclusive na automação CE, que retém a fatura em vez de emitir;
 - nenhuma migration atual faz backfill top-level dos B/Ls históricos já faturados;
 - importação aplica o gate antes de `run_billing_for_import_batch`;
 - Granite compartilha a superfície de revisão, mas não a mesma RPC/status canônico de B/L comum.

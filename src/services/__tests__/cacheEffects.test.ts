@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterBaplieImportado, afterEscalaAlterada, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
+import { afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -74,5 +74,13 @@ describe('cache effects', () => {
     const { client, keys } = fakeQueryClient()
     await afterEscalaAlterada(client, { voyageId: 24 })
     expect(new Set(keys()).size).toBe(keys().length)
+  })
+
+  it('refreshes the gate, the issued invoices and the Portal alert after a billing release', async () => {
+    const { client, keys } = fakeQueryClient()
+    await afterLiberacaoFaturamentoPortal(client, { customerId: 7 })
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
+      ['customer-ficha', 'billing-portal-release', 7], ['invoices'], ['bls'], ['local-charge-operations'], ['alerts'], ['portal-provisioning'],
+    ])))
   })
 })

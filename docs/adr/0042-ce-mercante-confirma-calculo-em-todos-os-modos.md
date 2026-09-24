@@ -1,6 +1,17 @@
 # 0042 — CE Mercante confirma o cálculo em todos os modos
 
-Status: aceito — 2026-08-10
+> **Nota editorial — 2026-09-23 · supersedida parcialmente.** As decisões 3 e 4
+> não valem mais para o Granito: ele é apoio operacional, calcula taxas para
+> conferência e não emite invoice nem recebível. A Validação o classifica como
+> *Apoio operacional — Granito*, e o CE de Granito não dispara faturamento. Isso
+> foi confirmado com o dono do produto em 2026-09-23. A exigência de CE para
+> faturar continua valendo nos demais modos (container, carga solta e misto).
+> Rastreabilidade: [Granito](../modules/granito.md);
+> `src/components/billing/validacaoPipeline.ts`;
+> [plano de alinhamento](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md).
+> O texto original abaixo preserva o contexto da decisão.
+
+Status: supersedida parcialmente — 2026-09-23 (original: aceito — 2026-08-10)
 
 ## Contexto
 

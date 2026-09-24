@@ -87,3 +87,23 @@ export async function afterCustomerCommunicationDispatched(
   ]
   await invalidate(queryClient, keys)
 }
+
+// Liberação de faturamento sem Portal (ADR 0070): conceder reprocessa o Cliente
+// e emite as faturas retidas; revogar muda o gate e o Alerta do Portal.
+export async function afterLiberacaoFaturamentoPortal(
+  queryClient: QueryInvalidator,
+  options: { customerId: number },
+): Promise<void> {
+  await invalidate(queryClient, [
+    ['customer-ficha', 'billing-portal-release', options.customerId],
+    ['customer-ficha', 'receivables', options.customerId],
+    ['customer-detail'],
+    ['portal-provisioning'],
+    ['invoices'],
+    ['bls'],
+    ['bl-summary'],
+    ['local-charge-operations'],
+    ['alerts'],
+    ['financial-alerts'],
+  ])
+}

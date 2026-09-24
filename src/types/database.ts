@@ -1147,6 +1147,7 @@ export type Database = {
           id: string
           incoterm: string | null
           issue_place: string | null
+          laden_on_board: string | null
           last_billing_run_id: number | null
           manifest_customer_cnpj_cpf: string | null
           manifest_customer_email: string | null
@@ -1212,6 +1213,7 @@ export type Database = {
           id: string
           incoterm?: string | null
           issue_place?: string | null
+          laden_on_board?: string | null
           last_billing_run_id?: number | null
           manifest_customer_cnpj_cpf?: string | null
           manifest_customer_email?: string | null
@@ -1277,6 +1279,7 @@ export type Database = {
           id?: string
           incoterm?: string | null
           issue_place?: string | null
+          laden_on_board?: string | null
           last_billing_run_id?: number | null
           manifest_customer_cnpj_cpf?: string | null
           manifest_customer_email?: string | null
@@ -1310,13 +1313,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "bls_manifesto_mercante_id_fkey"
-            columns: ["manifesto_mercante_id"]
-            isOneToOne: false
-            referencedRelation: "manifestos_mercante"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "bls_batch_id_fkey"
             columns: ["batch_id"]
             isOneToOne: false
@@ -1338,11 +1334,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bls_manifesto_mercante_id_fkey"
+            columns: ["manifesto_mercante_id"]
+            isOneToOne: false
+            referencedRelation: "manifestos_mercante"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bls_pod_port_id_fkey"
+            columns: ["pod_port_id"]
+            isOneToOne: false
+            referencedRelation: "ports"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bls_suggested_customer_id_fkey"
             columns: ["suggested_customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bls_terminal_pod_port_fk"
+            columns: ["terminal_id", "pod_port_id"]
+            isOneToOne: false
+            referencedRelation: "depots"
+            referencedColumns: ["id", "port_id"]
           },
           {
             foreignKeyName: "bls_voyage_id_fkey"
@@ -1688,6 +1705,64 @@ export type Database = {
             columns: ["omission_id"]
             isOneToOne: false
             referencedRelation: "voyage_omissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_billing_portal_releases: {
+        Row: {
+          customer_id: number
+          granted_at: string
+          granted_by: string
+          id: number
+          justification: string
+          review_at: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          customer_id: number
+          granted_at?: string
+          granted_by: string
+          id?: never
+          justification: string
+          review_at: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          customer_id?: number
+          granted_at?: string
+          granted_by?: string
+          id?: never
+          justification?: string
+          review_at?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_billing_portal_releases_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_billing_portal_releases_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_billing_portal_releases_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -4509,6 +4584,30 @@ export type Database = {
           },
         ]
       }
+      ledger_payment_requests: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          payload_hash: string
+          request_id: string
+          result: Json | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          payload_hash: string
+          request_id: string
+          result?: Json | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          payload_hash?: string
+          request_id?: string
+          result?: Json | null
+        }
+        Relationships: []
+      }
       ledger_settlements: {
         Row: {
           amount_brl: number
@@ -5332,6 +5431,8 @@ export type Database = {
           manifest_id: string
           movement_date: string | null
           operation_id: string
+          pod: string | null
+          pol: string | null
           voyage_id: number
         }
         Insert: {
@@ -5346,6 +5447,8 @@ export type Database = {
           manifest_id: string
           movement_date?: string | null
           operation_id: string
+          pod?: string | null
+          pol?: string | null
           voyage_id: number
         }
         Update: {
@@ -5360,6 +5463,8 @@ export type Database = {
           manifest_id?: string
           movement_date?: string | null
           operation_id?: string
+          pod?: string | null
+          pol?: string | null
           voyage_id?: number
         }
         Relationships: [
@@ -6188,6 +6293,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _add_demurrage_dispute_message_impl_20260920: {
+        Args: {
+          p_body: string
+          p_dispute_id: number
+          p_next_responder?: string
+        }
+        Returns: Json
+      }
       _apply_customer_contact_configuration: {
         Args: {
           p_actor_id?: string
@@ -6198,6 +6311,10 @@ export type Database = {
           p_related_bl_id?: string
           p_source: string
         }
+        Returns: Json
+      }
+      _auto_bill_bl_core: {
+        Args: { p_actor: string; p_bl_id: string; p_reuse_calculation: boolean }
         Returns: Json
       }
       _build_customer_contact_configuration: {
@@ -6211,6 +6328,15 @@ export type Database = {
           p_container_ids: number[]
         }
         Returns: Json
+      }
+      _compute_bl_review_pendencies: {
+        Args: {
+          p_bb_weight_ton: number
+          p_cargo_mode: string
+          p_customer_id: number
+          p_skip_portal: boolean
+        }
+        Returns: string[]
       }
       _demurrage_mutation_request: {
         Args: {
@@ -6227,6 +6353,10 @@ export type Database = {
         Args: { p_effect_kind: string }
         Returns: number
       }
+      _list_demurrage_disputes_internal_impl_20260920: {
+        Args: { p_state?: string }
+        Returns: Json
+      }
       _portal_actor_role: { Args: never; Returns: string }
       _portal_get_current_roe_core: {
         Args: { p_customer_id: number }
@@ -6239,6 +6369,10 @@ export type Database = {
         Args: { p_customer_id: number; p_invoice_id: number }
         Returns: Json
       }
+      _portal_get_demurrage_invoice_detail_core_unfiltered_20260920: {
+        Args: { p_customer_id: number; p_invoice_id: number }
+        Returns: Json
+      }
       _portal_get_profile_core: {
         Args: { p_customer_id: number }
         Returns: Json
@@ -6248,6 +6382,10 @@ export type Database = {
         Returns: number
       }
       _portal_invoice_details_core: {
+        Args: { p_customer_id: number; p_invoice_id: number }
+        Returns: Json
+      }
+      _portal_invoice_details_core_unfiltered_20260920: {
         Args: { p_customer_id: number; p_invoice_id: number }
         Returns: Json
       }
@@ -6356,6 +6494,10 @@ export type Database = {
         Args: { p_customer_id: number }
         Returns: number
       }
+      _recalculate_bl_cargo_mode: {
+        Args: { p_bl_id: string; p_transition?: string }
+        Returns: undefined
+      }
       _record_import_effect_blocked_alert: {
         Args: {
           p_effect_id: number
@@ -6366,13 +6508,37 @@ export type Database = {
         }
         Returns: undefined
       }
+      _reopen_demurrage_dispute_impl_20260920: {
+        Args: { p_dispute_id: number; p_reason: string }
+        Returns: undefined
+      }
+      _reprocess_customer_held_billing: {
+        Args: { p_actor: string; p_customer_id: number; p_source: string }
+        Returns: Json
+      }
       _run_import_effect_demurrage: {
         Args: { p_actor: string; p_bl_id: string; p_effect_id: number }
+        Returns: Json
+      }
+      _run_import_effect_granite_billing: {
+        Args: { p_actor: string; p_entity_id: string }
         Returns: Json
       }
       _run_import_effect_local_charges: {
         Args: { p_actor: string; p_entity_id: string }
         Returns: Json
+      }
+      _run_import_effect_vehicle_followup: {
+        Args: { p_actor: string; p_entity_id: string }
+        Returns: Json
+      }
+      _save_customer_communication_saved_template_impl_20260920: {
+        Args: { p_body: string; p_name: string; p_subject: string }
+        Returns: number
+      }
+      _set_agency_report_terminal_impl_20260920: {
+        Args: { p_port: string; p_terminal: string; p_voyage_id: number }
+        Returns: undefined
       }
       add_agency_report_occurrence: {
         Args: {
@@ -6477,6 +6643,10 @@ export type Database = {
         Args: { p_changed_by: string; p_rows: Json }
         Returns: Json
       }
+      apply_ce_mercante_rows_atomic: {
+        Args: { p_changed_by: string; p_rows: Json; p_target?: string }
+        Returns: Json
+      }
       apply_ce_mercante_update: {
         Args: { p_bl_id: string; p_changed_by: string; p_new_ce: string }
         Returns: string
@@ -6543,9 +6713,22 @@ export type Database = {
         Returns: Json
       }
       archive_vessel_schedule: { Args: { p_vessel_id: string }; Returns: Json }
+      assert_bl_ce_mercante: { Args: { p_bl_id: string }; Returns: undefined }
+      assert_demurrage_invoice_complete: {
+        Args: { p_invoice_id: number }
+        Returns: undefined
+      }
+      assert_ledger_invoice_payment_allocation: {
+        Args: { p_amount_brl: number; p_invoice_id: number }
+        Returns: undefined
+      }
       assert_voyage_escala_ready_for_report_close: {
         Args: { p_port: string; p_report_id: string; p_voyage_id: number }
         Returns: undefined
+      }
+      auto_bill_bl_after_ce_mercante: {
+        Args: { p_actor?: string; p_bl_id: string }
+        Returns: Json
       }
       backfill_invoice_receivable_links: {
         Args: { p_limit?: number }
@@ -6555,7 +6738,15 @@ export type Database = {
         Args: { p_limit?: number }
         Returns: Json
       }
+      bl_cargo_mode_matches_filter: {
+        Args: { p_cargo_mode: string; p_filter: string }
+        Returns: boolean
+      }
       bl_has_portal_release: { Args: { p_bl_id: string }; Returns: boolean }
+      bl_operation_front_modalidade: {
+        Args: { p_cargo_mode: string }
+        Returns: string
+      }
       bl_timeline: {
         Args: { p_bl_id: string; p_limit?: number; p_offset?: number }
         Returns: {
@@ -6605,6 +6796,10 @@ export type Database = {
         Args: { p_actor?: string; p_bl_ids: string[]; p_recalculate?: boolean }
         Returns: Json
       }
+      calculate_granite_bl_charges: {
+        Args: { p_actor?: string; p_bl_id: string }
+        Returns: Json
+      }
       cancel_demurrage_invoice: {
         Args: { p_invoice_id: number; p_reason: string; p_request_id: string }
         Returns: Json
@@ -6613,9 +6808,17 @@ export type Database = {
         Args: { p_actor?: string; p_invoice_id: number; p_reason: string }
         Returns: Json
       }
+      cancel_voyage: {
+        Args: { p_changed_by: string; p_reason: string; p_voyage_id: number }
+        Returns: Json
+      }
       capture_manifest_financial_contact: {
         Args: { p_customer_id: number; p_email: string }
         Returns: boolean
+      }
+      check_bl_terminal_pendencies: {
+        Args: { p_bl_id: string }
+        Returns: string[]
       }
       check_portal_rate_limit: {
         Args: {
@@ -6792,6 +6995,25 @@ export type Database = {
         }
         Returns: number
       }
+      create_customer_communication_atomic_legacy_070: {
+        Args: {
+          p_anchor_atracacao_id?: string
+          p_anchor_invoice_id?: number
+          p_anchor_port?: string
+          p_anchor_voyage_id?: number
+          p_attempt_discriminator?: number
+          p_bl_ids?: string[]
+          p_created_by?: string
+          p_customer_id: number
+          p_dispatch_id?: string
+          p_kind: string
+          p_nature: string
+          p_terminal_name?: string
+          p_vessel_name?: string
+          p_voyage_number?: string
+        }
+        Returns: number
+      }
       create_customer_dunning_group_atomic: {
         Args: {
           p_anchor_port?: string
@@ -6916,6 +7138,10 @@ export type Database = {
         Args: { p_customer_id: number }
         Returns: boolean
       }
+      customer_billing_release_active: {
+        Args: { p_customer_id: number }
+        Returns: boolean
+      }
       customer_communication_recipient_allowed: {
         Args: {
           p_audience_mode?: string
@@ -6930,6 +7156,10 @@ export type Database = {
         Args: { p_value: string }
         Returns: string
       }
+      customer_has_contact_email: {
+        Args: { p_customer_id: number }
+        Returns: boolean
+      }
       customer_local_charges_communication_dispatch_ready: {
         Args: { p_customer_id: number; p_raise?: boolean; p_voyage_id: number }
         Returns: Json
@@ -6943,6 +7173,10 @@ export type Database = {
         Returns: Json
       }
       customer_portal_access_ready: {
+        Args: { p_customer_id: number }
+        Returns: boolean
+      }
+      customer_portal_billing_ready: {
         Args: { p_customer_id: number }
         Returns: boolean
       }
@@ -7026,6 +7260,10 @@ export type Database = {
         Args: { p_as_of?: string }
         Returns: Json
       }
+      evaluate_and_dispatch_automatic_communications_045: {
+        Args: { p_as_of?: string }
+        Returns: Json
+      }
       extract_ncm_codes: { Args: { p_text: string }; Returns: string[] }
       extract_review_cnpjs_from_text: {
         Args: { p_text: string }
@@ -7088,6 +7326,15 @@ export type Database = {
           unit_value_usd: number
         }[]
       }
+      get_customer_pending_balances: {
+        Args: { p_customer_ids?: number[] }
+        Returns: {
+          customer_id: number
+          demurrage_balance_brl: number
+          local_balance_brl: number
+          total_balance_brl: number
+        }[]
+      }
       get_customer_portal_account: {
         Args: { p_customer_id: number }
         Returns: Json
@@ -7125,11 +7372,23 @@ export type Database = {
         Args: { p_voyage_id: number }
         Returns: string
       }
+      grant_customer_billing_portal_release: {
+        Args: {
+          p_customer_id: number
+          p_justification: string
+          p_review_at: string
+        }
+        Returns: Json
+      }
       import_baplie_staging_transactional: {
         Args: { p_rows: Json; p_voyage_id: number }
         Returns: number
       }
       import_bl_freight_transactional: {
+        Args: { p_bls: Json; p_changed_by: string }
+        Returns: Json
+      }
+      import_bl_freight_transactional_legacy_070: {
         Args: { p_bls: Json; p_changed_by: string }
         Returns: Json
       }
@@ -7154,6 +7413,18 @@ export type Database = {
         Returns: Json
       }
       import_breakbulk_manifest_transactional: {
+        Args: {
+          p_bls: Json
+          p_errors: Json
+          p_filename: string
+          p_items: Json
+          p_total_bls: number
+          p_uploaded_by: string
+          p_voyage_id: number
+        }
+        Returns: Json
+      }
+      import_breakbulk_manifest_transactional_031: {
         Args: {
           p_bls: Json
           p_errors: Json
@@ -7269,6 +7540,7 @@ export type Database = {
       is_active_user: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_financeiro_user: { Args: never; Returns: boolean }
+      is_internal_auto_billing_context: { Args: never; Returns: boolean }
       is_valid_cnpj: { Args: { p_value: string }; Returns: boolean }
       link_invoice_to_ledger: {
         Args: { p_invoice_id: number }
@@ -7487,6 +7759,13 @@ export type Database = {
           pod: string
         }[]
       }
+      list_orphaned_dispute_attachments: {
+        Args: { p_older_than?: string }
+        Returns: {
+          created_at: string
+          storage_path: string
+        }[]
+      }
       list_pix_reconciliation_candidates: {
         Args: { p_exception_id: number }
         Returns: {
@@ -7552,6 +7831,10 @@ export type Database = {
           p_notes?: string
         }
         Returns: Json
+      }
+      mark_customer_communication_dispatch_blocked: {
+        Args: { p_communication_id: number }
+        Returns: string
       }
       mark_internal_notification_read: {
         Args: { p_notification_id: number }
@@ -7630,10 +7913,7 @@ export type Database = {
         Returns: Json
       }
       operational_list_voyage_summaries: {
-        Args: {
-          p_page?: number
-          p_page_size?: number
-        }
+        Args: { p_page?: number; p_page_size?: number }
         Returns: Json
       }
       pix_crc16_ccitt: { Args: { p_payload: string }; Returns: string }
@@ -7642,6 +7922,14 @@ export type Database = {
         Returns: boolean
       }
       pix_tlv: { Args: { p_id: string; p_value: string }; Returns: string }
+      portal_activation_check_rate_limit: {
+        Args: { p_login: string }
+        Returns: boolean
+      }
+      portal_activation_register_failure: {
+        Args: { p_login: string }
+        Returns: undefined
+      }
       portal_add_dispute_message: {
         Args: { p_body: string; p_demurrage_invoice_id: number }
         Returns: Json
@@ -7663,6 +7951,10 @@ export type Database = {
       portal_cancel_invite: {
         Args: { p_customer_id: number; p_reason: string; p_request_id?: string }
         Returns: undefined
+      }
+      portal_check_dispute_attachment_eligibility: {
+        Args: { p_dispute_id: number; p_size_bytes: number }
+        Returns: boolean
       }
       portal_create_consolidation: {
         Args: { p_receivable_ids: number[] }
@@ -8080,6 +8372,10 @@ export type Database = {
         Args: { p_event_id: number; p_worker_id: string }
         Returns: Json
       }
+      recalculate_bl_cargo_mode: {
+        Args: { p_bl_id: string }
+        Returns: undefined
+      }
       recalculate_demurrage_invoices: {
         Args: { p_ptax: number; p_quote_date: string; p_source?: string }
         Returns: Json
@@ -8125,10 +8421,15 @@ export type Database = {
         Args: { p_consignee: string; p_customer_id: number; p_source?: string }
         Returns: undefined
       }
-      reconcile_granite_bl_review_alerts: {
-        Args: { p_granite_bl_id: number; p_source?: string }
-        Returns: undefined
-      }
+      reconcile_granite_bl_review_alerts:
+        | {
+            Args: { p_granite_bl_id: number; p_source?: string }
+            Returns: undefined
+          }
+        | {
+            Args: { p_granite_bl_id: string; p_source?: string }
+            Returns: undefined
+          }
       reconcile_invoice_payment_by_txid: {
         Args: { p_amount_brl: number; p_paid_at?: string; p_txid: string }
         Returns: Json
@@ -8208,7 +8509,61 @@ export type Database = {
         }
         Returns: Json
       }
-      register_ledger_invoice_payment: {
+      register_ledger_invoice_payment:
+        | {
+            Args: {
+              p_actor?: string
+              p_amount_brl: number
+              p_invoice_id: number
+              p_method?: string
+              p_notes?: string
+              p_paid_at?: string
+              p_pix_txid?: string
+              p_source?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_actor: string
+              p_amount_brl: number
+              p_invoice_id: number
+              p_method: string
+              p_notes: string
+              p_paid_at: string
+              p_pix_txid: string
+              p_request_id: string
+              p_source: string
+            }
+            Returns: Json
+          }
+      register_ledger_invoice_payment_legacy_052: {
+        Args: {
+          p_actor?: string
+          p_amount_brl: number
+          p_invoice_id: number
+          p_method?: string
+          p_notes?: string
+          p_paid_at?: string
+          p_pix_txid?: string
+          p_source?: string
+        }
+        Returns: Json
+      }
+      register_ledger_invoice_payment_legacy_066: {
+        Args: {
+          p_actor?: string
+          p_amount_brl: number
+          p_invoice_id: number
+          p_method?: string
+          p_notes?: string
+          p_paid_at?: string
+          p_pix_txid?: string
+          p_source?: string
+        }
+        Returns: Json
+      }
+      register_ledger_invoice_payment_legacy_070: {
         Args: {
           p_actor?: string
           p_amount_brl: number
@@ -8241,6 +8596,15 @@ export type Database = {
         Returns: boolean
       }
       relink_bl_customer: {
+        Args: {
+          p_bl_id: string
+          p_changed_by: string
+          p_customer_id: number
+          p_reason?: string
+        }
+        Returns: Json
+      }
+      relink_bl_customer_legacy_070: {
         Args: {
           p_bl_id: string
           p_changed_by: string
@@ -8335,6 +8699,14 @@ export type Database = {
           unit_value_usd: number
         }[]
       }
+      resolve_bl_local_charge_table_ids: {
+        Args: { p_bl_id: string; p_reference_date?: string }
+        Returns: {
+          cargo_mode: string
+          table_id: number
+        }[]
+      }
+      resolve_bl_terminal_id: { Args: { p_bl_id: string }; Returns: string }
       resolve_local_charge_table_id: {
         Args: { p_cargo_mode: string; p_pod: string; p_reference_date?: string }
         Returns: number
@@ -8377,6 +8749,10 @@ export type Database = {
         }
         Returns: string[]
       }
+      revoke_customer_billing_portal_release: {
+        Args: { p_customer_id: number; p_reason: string }
+        Returns: Json
+      }
       run_alert_detectors: { Args: never; Returns: Json }
       run_billing_for_import_batch: {
         Args: { p_actor?: string; p_batch_id: number; p_recalculate?: boolean }
@@ -8394,6 +8770,16 @@ export type Database = {
         Returns: undefined
       }
       save_bl_review: {
+        Args: {
+          p_audit_rows: Json
+          p_bl_id: string
+          p_changed_by: string
+          p_expected_updated_at: string
+          p_update_payload: Json
+        }
+        Returns: Json
+      }
+      save_bl_review_legacy_070: {
         Args: {
           p_audit_rows: Json
           p_bl_id: string
@@ -8450,6 +8836,18 @@ export type Database = {
         Returns: Json
       }
       save_voyage_escala_terminal_state_v2: {
+        Args: {
+          p_expected_revision: number
+          p_export_expectation: Json
+          p_fronts: Json
+          p_justification: string
+          p_port: string
+          p_terminals: Json
+          p_voyage_id: number
+        }
+        Returns: Json
+      }
+      save_voyage_escala_terminal_state_v2_legacy_049: {
         Args: {
           p_expected_revision: number
           p_export_expectation: Json
@@ -8534,6 +8932,16 @@ export type Database = {
           p_omission_id: number
         }
         Returns: undefined
+      }
+      set_bl_terminal_override: {
+        Args: {
+          p_bl_id: string
+          p_changed_by?: string
+          p_justification: string
+          p_pod_port_id: number
+          p_terminal_id: string
+        }
+        Returns: Json
       }
       set_bl_transshipment: {
         Args: {
@@ -8872,6 +9280,7 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
 
 // O gerador oficial preserva a nulabilidade do catálogo com exatidão. O
 // cliente da aplicação, porém, envia `null` explicitamente para parâmetros

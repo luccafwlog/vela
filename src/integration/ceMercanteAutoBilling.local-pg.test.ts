@@ -78,6 +78,8 @@ function cleanup(): void {
     DELETE FROM public.bls WHERE id = ANY(ARRAY['${allBlIds.join("','")}']::text[]);
     DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
     DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
+    DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
+    DELETE FROM public.customer_contacts WHERE customer_id = ${customerId};
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
@@ -135,12 +137,20 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
         ('${blockedBlId}', 'MSCU1234568'),
         ('${workerOriginBlId}', 'MSCU1234569'),
         ('${workerPeerBlId}', 'MSCU1234569');
+      -- Desde a 083 o CE só emite com o gate do Portal aberto. Este arquivo
+      -- prova a emissão automática; a retenção sem Portal está em
+      -- portalBillingRelease.local-pg.test.ts.
+      -- Desde a 084 a Liberação só vale com contato ativo com e-mail.
+      INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary)
+      VALUES (${customerId}, 'Financeiro 051', 'financeiro-051@example.test', 'financeiro', true);
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
+      VALUES (${customerId}, 'Fixture: gate aberto para o CE automático', '${actorId}', now() + interval '1 day');
     `)
   })
 
   afterAll(cleanup)
 
-  it('calcula, emite e cria o recebível sem conta pronta do Portal', () => {
+  it('calcula, emite e cria o recebível com a Liberação vigente, sem conta pronta do Portal', () => {
     psqlAsDatabaseRole(`
       DO $$
       BEGIN

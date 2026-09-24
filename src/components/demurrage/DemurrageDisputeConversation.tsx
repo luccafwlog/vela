@@ -10,10 +10,19 @@ import { portalErrorMessage } from '../../lib/portalErrorMessage'
 import { useAuth } from '../../hooks/useAuth'
 import { addDemurrageDisputeMessage, listDemurrageDisputes, reopenDemurrageDispute, uploadDemurrageDisputeAttachment, type DemurrageDispute } from '../../services/demurrage/demurrageDisputes'
 
+const DISPUTE_AUTHOR_LABELS: Record<string, string> = {
+  cliente: 'Cliente',
+  equipamentos: 'Equipamentos',
+  administrativo: 'Administrativo',
+  sistema: 'Sistema',
+}
+
 export function DemurrageDisputeConversation() {
   const { effectiveRole } = useAuth()
 
-  if (effectiveRole !== 'equipamentos') return null
+  // Equipamentos é dono da disputa; o Administrativo responde como cobertura
+  // (migration 081, decisão de 2026-09-23).
+  if (effectiveRole !== 'equipamentos' && effectiveRole !== 'administrativo') return null
 
   return <DemurrageDisputeConversationContent />
 }
@@ -73,7 +82,7 @@ function DemurrageDisputeConversationContent() {
         {data.map((dispute) => (
           <article key={dispute.id} className="rounded-xl border border-[var(--app-border)] p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><div className="font-semibold text-[var(--app-text-strong)]">{dispute.doc_number} · {dispute.customer_name}</div><div className="text-xs text-[var(--app-muted)]">Atualizada em {formatDate(dispute.updated_at)} · próximo: {dispute.next_responder}</div></div><Badge tone={dispute.state === 'aberta' ? 'yellow' : dispute.state === 'resolvida' ? 'green' : 'slate'}>{dispute.state}</Badge></div>
-            <div className="grid gap-2">{dispute.messages.map((message) => <div key={message.id} className="rounded-lg bg-[var(--app-surface-muted)] px-3 py-2 text-sm"><div className="mb-1 flex justify-between gap-2 text-xs text-[var(--app-muted)]"><span>{message.author_type}</span><span>{formatDate(message.created_at)}</span></div><p className="whitespace-pre-wrap">{message.body}</p></div>)}</div>
+            <div className="grid gap-2">{dispute.messages.map((message) => <div key={message.id} className="rounded-lg bg-[var(--app-surface-muted)] px-3 py-2 text-sm"><div className="mb-1 flex justify-between gap-2 text-xs text-[var(--app-muted)]"><span>{DISPUTE_AUTHOR_LABELS[message.author_type] ?? message.author_type}</span><span>{formatDate(message.created_at)}</span></div><p className="whitespace-pre-wrap">{message.body}</p></div>)}</div>
             {dispute.state !== 'cancelada' ? (
               <div className="mt-3 grid gap-2">
                 <Textarea rows={2} value={drafts[dispute.id] ?? ''} onChange={(event) => setDrafts((current) => ({ ...current, [dispute.id]: event.target.value }))} placeholder={dispute.state === 'resolvida' ? 'Justifique a reabertura...' : 'Responder ao cliente...'} />

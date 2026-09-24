@@ -200,14 +200,22 @@ ocorrências legadas de `isAdmin` pertencem à auditoria RBAC global futura.
 A migration 324 consolida a pendência do Portal por Cliente e o bloqueio
 final de emissão por B/L: a invoice só pode ficar issued quando a conta está
 ativa, o acesso Auth está presente e o e-mail de recuperação é válido,
-entregável e não suprimido. A ativação chama o reprocessamento idempotente dos
-B/Ls com reconciliação matched_document ou reconciled; bloqueios funcionais e
-falhas técnicas permanecem projetados no B/L.
+entregável e não suprimido, ou quando o Administrativo concedeu a Liberação de
+faturamento sem Portal para o Cliente (ADR 0070, migration 083). O gate vale
+também para a emissão automática pelo CE, que retém a fatura sem Portal. A
+ativação e a concessão da Liberação chamam o mesmo reprocessamento idempotente
+dos B/Ls com reconciliação matched_document ou reconciled, pelo caminho da
+transição do CE, reaproveitando o cálculo feito no registro do CE (migration
+085); bloqueios funcionais e falhas técnicas permanecem projetados no B/L. A
+Liberação não depende de contato com e-mail: sem Portal, a fatura é entregue
+por um usuário interno. A Liberação aparece no painel do Cliente no Console do Portal.
 
 Disputes de Demurrage são conversas append-only em demurrage_disputes e
 demurrage_dispute_messages, com anexos privados por mensagem em Storage, RLS e
 próximo responsável (cliente, equipamentos ou ninguem). O Portal pode responder
-e solicitar reabertura; somente Equipamentos reabre o caso. As rotas
+e solicitar reabertura; do lado interno, Equipamentos é o dono do caso e o
+Administrativo responde e reabre como cobertura (migration 081), com a mensagem
+gravando quem respondeu (`author_type` `equipamentos` ou `administrativo`). As rotas
 /portal/billing e /demurrage projetam a mesma conversa e a pendência interna só
 é mantida quando a próxima ação é de Equipamentos. **Código:** migration 324 e
 os componentes PortalDisputeConversation e DemurrageDisputeConversation.
@@ -272,7 +280,7 @@ escopada por Cliente. Nenhuma escrita recebe invólucro de inspeção.
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| `/portal/login` — autenticar por CNPJ | CNPJ canônico de 14 posições e senha preenchidos; pontuação colada é removida imediatamente e letras são preservadas em maiúsculas; comprimento < 14 para na tela (`isCompleteCnpjLogin`) | `PortalLogin` → `usePortalAuth.signIn` | Edge Function `portal-login` → Auth técnico → `setSession` | `customer_portal_accounts.login_cnpj`; rate limit hash em `portal_login_attempts` | O navegador recebe somente tokens de sessão | CNPJ desconhecido, conta inativa, senha errada e bloqueio usam a mesma mensagem; no caminho bloqueado a consulta à conta e o alerta `portal_abuso_login` rodam em `EdgeRuntime.waitUntil`, então o 401 sai sem trabalho a mais; CNPJ incompleto tem mensagem de digitação, decidida sem consultar o servidor | **Teste:** `src/hooks/__tests__/usePortalAuth.test.tsx`, `src/pages/__tests__/PortalLogin.test.tsx`, `src/lib/__tests__/cnpj.test.ts` |
+| `/portal/login` — autenticar por CNPJ | CNPJ canônico de 14 posições e senha preenchidos; pontuação colada é removida imediatamente e letras são preservadas em maiúsculas; comprimento < 14 para na tela (`isCompleteCnpjLogin`) | `PortalLogin` → `usePortalAuth.signIn` | Edge Function `portal-login` → Auth técnico → `setSession` | `customer_portal_accounts.login_cnpj`; rate limit hash em `portal_login_attempts` | O navegador recebe somente tokens de sessão | CNPJ desconhecido, conta inativa, senha errada e bloqueio usam a mesma mensagem, que avisa a todos da suspensão de 15 minutos após várias tentativas e aponta "Esqueci minha senha" (`PORTAL_LOGIN_REJECTED_MESSAGE`); no caminho bloqueado a consulta à conta e o alerta `portal_abuso_login` rodam em `EdgeRuntime.waitUntil`, então o 401 sai sem trabalho a mais; CNPJ incompleto tem mensagem de digitação, decidida sem consultar o servidor | **Teste:** `src/hooks/__tests__/usePortalAuth.test.tsx`, `src/pages/__tests__/PortalLogin.test.tsx`, `src/lib/__tests__/cnpj.test.ts` |
 | Inicialização — hidratar sessão e overview | Aplicação montada; sessão Portal persistida opcional | `PortalAuthProvider` | `getSession()` → `fetchOverview()`; listener `onAuthStateChange` reidrata em `SIGNED_IN`/`TOKEN_REFRESHED` quando necessário | Supabase Auth; RPC `portal_get_session_overview_v2`; UPDATE de `last_login_at` | Define `overview`, `isAuthenticated=Boolean(overview)` e identidade Sentry `{ id: customer_id }` com tag `area=portal` | Sessão sem Conta de Portal ativa gera `28000` e limpa overview; outras falhas não são exibidas | **Teste:** `src/hooks/__tests__/usePortalAuth.test.tsx` |
 | Layout — sair | Sessão/overview presente | Botão “Sair” em `PortalLayout` ou evento `SIGNED_OUT` do Supabase Auth | Limpa overview e caches `portal-*` antes de `signOutSupabaseClient`; chamadas concorrentes compartilham uma Promise; `isSigningOut` previne duplo clique | Supabase Auth `signOut` (com fallback de remoção local fail-closed se revogação global falhar) | Guard passa a considerar a sessão não autenticada e queries do Portal são removidas; usuário sai localmente mesmo com erro de rede | Se a revogação remota falhar, a sessão local é removida e o erro é exposto como aviso sem bloquear a saída | **Teste:** `src/hooks/__tests__/usePortalAuth.test.tsx`; `src/services/__tests__/supabaseAuth.test.ts` |
 | `/portal/esqueci-senha` — solicitar recuperação | CNPJ de 14 posições numéricas ou alfanuméricas; pontuação colada é removida imediatamente; comprimento < 14 para na tela (`isCompleteCnpjLogin`) | `PortalForgotPassword.handleSubmit` | Edge Function `portal-password-recovery`; rate limit em `portal_recovery_check_rate_limit`/`_register_failure`; trabalho de busca, supressão, convite e envio roda em segundo plano via `EdgeRuntime.waitUntil` | `customer_portal_accounts.login_cnpj`; `portal_invites` (purpose `recuperacao`); email via `sendPortalEmail` | `{ accepted: true }` sai imediatamente após rate limit, eliminando canal lateral temporal (TTFB uniforme); `{ accepted: false, rate_limited: true }` no rate limit | Resposta não enumera conta (achado 3.2 e PAF-04); confirmação afirma o envio sem condicionar a existência de conta; rate limit mostra "tente mais tarde"; teto de envio de um email por hora por conta (validade do convite) | **Código:** `src/pages/PortalForgotPassword.tsx`, `supabase/functions/portal-password-recovery/index.ts`, [ADR 0049](../adr/0049-rate-limit-do-portal-chaveado-somente-por-cnpj.md); **Teste:** `src/pages/__tests__/PortalRecovery.behavior.test.tsx`, `src/services/__tests__/portalEdgeFunctionsOrder.test.ts` |
@@ -339,9 +347,12 @@ escopada por Cliente. Nenhuma escrita recebe invólucro de inspeção.
 
 Persistência principal: `customer_portal_accounts`, `portal_login_resolution_attempts`, `portal_rate_limits`, `portal_notifications`, `customers`, `customer_contacts`, `invoices`, `invoice_bls`, `invoice_receivable_links`, `bl_receivables`, `payments`, `demurrage_invoices`, `demurrage_invoice_items`, `bls`, `bl_containers`, `voyages` (projeção da programação), `alerts` e `invoice_lifecycle_events`.
 
-A falta de Portal ou Email de Recuperação não bloqueia revisão nem faturamento.
-Ela gera `portal_pendencia_geral` para Documentação e, na emissão de uma
-fatura, `portal_excecao_critica_fatura` vinculada à fatura. A exceção é fechada
+A falta de Portal ou Email de Recuperação bloqueia a emissão, manual ou
+automática, até o Portal ficar pronto ou até a Liberação de faturamento sem
+Portal (ADR 0070). Ela gera `portal_pendencia_geral` para Documentação e o
+Alerta `review_portal_not_ready` (Documentação trata, Administrativo avisado).
+Uma fatura emitida sem Portal e sem Liberação, como as anteriores à migration
+083, abre `portal_excecao_critica_fatura` vinculada à fatura. A exceção é fechada
 quando a fatura é paga, coberta, cancelada ou obsoleta; a pendência geral só é
 fechada por conta ativa ou exceção formal.
 

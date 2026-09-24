@@ -1,5 +1,7 @@
 # 0041 — Validação como fila de bloqueios; CE Mercante como confirmação
 
+> **Nota editorial — 2026-09-23.** A exceção interna da `051` foi retirada pela [ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md) (migration `083`): o Portal trava toda emissão, inclusive a automática pelo CE, e a saída sem Portal é a Liberação de faturamento sem Portal, por Cliente, concedida pelo Administrativo.
+>
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Validação está em /taxas-locais; reconciliação de cliente fica na Revisão. Portal é gate manual, com exceção interna de emissão automática pelo CE na 051.
 > Rastreabilidade: [ADR 0050](./0050-financeiro-segregado-por-processo-faturavel.md), [ADR 0054](./0054-portal-como-gate-de-faturamento.md), [ADR 0061](./0061-conciliacao-de-cliente-com-casa-unica-na-revisao.md); [migration ativa 051](../../supabase/migrations/051_ce_mercante_auto_billing.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

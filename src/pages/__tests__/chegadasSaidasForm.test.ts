@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildScheduleLanes, emptyScheduleForm, scheduleFormFromVoyage } from '../chegadasSaidasForm'
+import { buildScheduleLanes, clearedPodLabels, emptyScheduleForm, scheduleFormFromVoyage } from '../chegadasSaidasForm'
 
 describe('buildScheduleLanes', () => {
   it('converte o form em lanes com code canonico, pulando nao escala', () => {
@@ -29,5 +29,21 @@ describe('buildScheduleLanes', () => {
     expect(form.omitted?.SALVADOR).toBe(false)
     expect(form.omitted?.QINGDAO).toBe(true)
     expect(form.omitted?.VITÓRIA).toBe(true)
+  })
+})
+
+describe('clearedPodLabels', () => {
+  const withDates = (dates: Record<string, string>) => ({ ...emptyScheduleForm, dates: { ...emptyScheduleForm.dates, ...dates } })
+
+  it('lista só o porto de descarga que tinha data e virou não escala', () => {
+    const original = withDates({ QINGDAO: '2026-08-02', SALVADOR: '2026-10-14', 'VITÓRIA': '2026-10-17' })
+    const next = withDates({ QINGDAO: '', SALVADOR: '2026-10-14', 'VITÓRIA': '' })
+    // Qingdao é porto de embarque: limpar o ETD não remove escala.
+    expect(clearedPodLabels(original, next)).toEqual(['VITÓRIA'])
+  })
+
+  it('não pede confirmação quando nada foi limpo', () => {
+    const form = withDates({ SALVADOR: '2026-10-14' })
+    expect(clearedPodLabels(form, withDates({ SALVADOR: '2026-10-20' }))).toEqual([])
   })
 })

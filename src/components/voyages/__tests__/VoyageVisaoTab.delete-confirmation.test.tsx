@@ -48,7 +48,6 @@ it('pede confirmação uma vez por escala antes de excluir o planejamento', asyn
       ]}
       importBatches={[]}
       exportSchedules={[{ id: 9, pol: 'BRVIX', eta: null, etb: null, linked: false } as never]}
-      isAdmin
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
       onEditEscala={vi.fn()}
@@ -95,7 +94,6 @@ it('renderiza uma escala mista em uma linha com marcadores de importação e exp
       ]}
       importBatches={[]}
       exportSchedules={[{ id: 'exp-1', voyageId: 7, pol: 'BRVIX', eta: '2026-07-20', etb: '2026-07-21', linked: true } as never]}
-      isAdmin
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
       onEditEscala={vi.fn()}
@@ -147,7 +145,6 @@ it('exibe divergencia com os valores POD e POL na linha da escala', () => {
       } as never]}
       importBatches={[]}
       exportSchedules={[]}
-      isAdmin={false}
       divergenceCount={1}
       ceCoverage={{ filled: 0, total: 0 }}
       onEditEscala={vi.fn()}
@@ -189,7 +186,6 @@ it('renderiza viagem só de exportação em uma linha sem marcador de importaç�
       ]}
       importBatches={[]}
       exportSchedules={[{ id: 'exp-2', voyageId: 8, pol: 'BRSSZ', eta: '2026-08-01', etb: null, linked: false } as never]}
-      isAdmin
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
       onEditEscala={vi.fn()}
@@ -227,7 +223,6 @@ it('trava a retirada da exportação apenas na escala que tem carga, não na via
       escalaRows={[escala('BRVIX'), escala('BRSSA')] as never}
       importBatches={[]}
       exportSchedules={[]}
-      isAdmin
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
       onEditEscala={onEditEscala}

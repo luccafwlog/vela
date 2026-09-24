@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ArrowRight, Ban, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
@@ -124,6 +125,9 @@ type VoyageCardProps = {
   onEditEscala: (payload: EscalaModalData) => void
   onEditPol: (payload: EditingPolPayload) => void
   initialTab?: VoyageTabKey
+  /** Aba controlada pela URL (`?tab=`); sem ela, o card guarda a aba localmente. */
+  activeTab?: VoyageTabKey
+  onTabChange?: (tab: VoyageTabKey) => void
   initialEscala?: string
   initialReportId?: string
   initialTerminalCode?: string
@@ -144,11 +148,14 @@ export function VoyageCard({
   onEditEscala,
   onEditPol,
   initialTab = 'visao',
+  activeTab: controlledActiveTab,
+  onTabChange,
   initialEscala,
   initialReportId,
   initialTerminalCode,
 }: VoyageCardProps) {
-  const [activeTab, setActiveTab] = useState<VoyageTabKey>(initialTab)
+  const [localActiveTab, setLocalActiveTab] = useState<VoyageTabKey>(initialTab)
+  const activeTab = controlledActiveTab ?? localActiveTab
   const [omitTarget, setOmitTarget] = useState<string | null>(null)
   const { isAdmin, user, profile } = useAuth()
   const isCancelled = voyage.status === 'cancelled'
@@ -440,6 +447,27 @@ export function VoyageCard({
         />
       </section>
 
+      <nav aria-label="Atalhos da viagem" className="flex flex-wrap items-center gap-2">
+        {reconciliationState === 'divergente' ? (
+          <Link to={`/baplie?voyage=${voyage.id}`} className="app-btn app-btn--primary app-btn--sm">
+            Resolver divergências ({divergenceCount})
+            <ArrowRight size={14} />
+          </Link>
+        ) : (
+          <Link to={`/baplie?voyage=${voyage.id}`} className="app-btn app-btn--secondary app-btn--sm">
+            Baplie EDI
+          </Link>
+        )}
+        <Link to={`/bls?voyage=${voyage.id}`} className="app-btn app-btn--secondary app-btn--sm">
+          B/Ls da viagem
+        </Link>
+        {totalGraniteBls > 0 ? (
+          <Link to={`/granito?voyage=${voyage.id}`} className="app-btn app-btn--secondary app-btn--sm">
+            Granito
+          </Link>
+        ) : null}
+      </nav>
+
       <section className="grid gap-4">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Seções da viagem">
           {tabs.map((tab) => (
@@ -447,7 +475,7 @@ export function VoyageCard({
               key={tab.key}
               label={tab.label}
               active={activeTab === tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => (onTabChange ? onTabChange(tab.key) : setLocalActiveTab(tab.key))}
             />
           ))}
         </div>
@@ -460,7 +488,6 @@ export function VoyageCard({
               escalaRows={planningEscalaRows}
               importBatches={importBatches}
               exportSchedules={exportSchedules}
-              isAdmin={isAdmin}
               divergenceCount={divergenceCount}
               ceCoverage={ceCoverage}
               canEdit={!isCancelled}

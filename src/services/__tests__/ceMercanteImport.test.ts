@@ -49,7 +49,7 @@ describe('ceMercanteImport', () => {
     expect(parsed.rowErrors[0]?.message).toContain('15 digitos')
   })
 
-  it('atualiza apenas BLs existentes via RPC', async () => {
+  it('não grava nada quando alguma linha falha na pré-validação (tudo ou nada)', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table !== 'bls') {
         throw new Error(`Tabela nao mockada: ${table}`)
@@ -65,8 +65,6 @@ describe('ceMercanteImport', () => {
       }
     })
 
-    mockRpc.mockResolvedValue({ data: 'inserted', error: null })
-
     const rows: CeMercanteRow[] = [
       { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' },
       { rowNumber: 3, bl_id: 'BL999', ce_mercante: '122605051526082' },
@@ -74,19 +72,32 @@ describe('ceMercanteImport', () => {
 
     const result = await importCeMercanteRows(rows)
 
-    expect(result.processed).toBe(2)
-    expect(result.updated).toBe(1)
-    expect(result.overwritten).toBe(0)
-    expect(result.unchanged).toBe(0)
-    expect(result.errorCount).toBe(1)
+    expect(result).toMatchObject({ processed: 2, updated: 0, overwritten: 0, unchanged: 0, errorCount: 1 })
     expect(result.errors[0]?.message).toBe('BL BL999 nao encontrado no sistema.')
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
 
+  it('envia o lote inteiro numa chamada só à RPC atômica', async () => {
+    mockFrom.mockImplementation(() => ({
+      select: () => ({ in: async () => ({ data: [{ id: 'BL001' }, { id: 'BL002' }], error: null }) }),
+    }))
+    mockRpc.mockResolvedValue({ data: { ok: true, processed: 2, inserted: 1, overwritten: 1, unchanged: 0 }, error: null })
+
+    const result = await importCeMercanteRows([
+      { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' },
+      { rowNumber: 3, bl_id: 'BL002', ce_mercante: '122605051526082' },
+    ], { changedBy: 'user-1' })
+
+    expect(result).toMatchObject({ processed: 2, updated: 2, overwritten: 1, unchanged: 0, errorCount: 0 })
     expect(mockRpc).toHaveBeenCalledOnce()
-    const [rpcName, rpcArgs] = mockRpc.mock.calls[0] as [string, Record<string, unknown>]
-    expect(rpcName).toBe('apply_ce_mercante_update')
-    expect(rpcArgs.p_bl_id).toBe('BL001')
-    expect(rpcArgs.p_new_ce).toBe('122605051526081')
-    expect(mockRpc).toHaveBeenCalledOnce()
+    expect(mockRpc).toHaveBeenCalledWith('apply_ce_mercante_rows_atomic', {
+      p_rows: [
+        { row: 2, bl_id: 'BL001', ce: '122605051526081' },
+        { row: 3, bl_id: 'BL002', ce: '122605051526082' },
+      ],
+      p_changed_by: 'user-1',
+      p_target: 'bls',
+    })
   })
 
   it('resolve o numero do B/L de Granito para UUID e grava pela RPC auditavel sem auto-faturar', async () => {
@@ -98,7 +109,7 @@ describe('ceMercanteImport', () => {
         }),
       }
     })
-    mockRpc.mockResolvedValue({ data: 'inserted', error: null })
+    mockRpc.mockResolvedValue({ data: { ok: true, processed: 1, inserted: 1, overwritten: 0, unchanged: 0 }, error: null })
 
     const result = await importCeMercanteRows(
       [{ rowNumber: 2, bl_id: 'GR1', ce_mercante: '122605051526081' }],
@@ -106,8 +117,10 @@ describe('ceMercanteImport', () => {
     )
 
     expect(result).toMatchObject({ processed: 1, updated: 1, errorCount: 0 })
-    expect(mockRpc).toHaveBeenCalledWith('apply_granite_ce_mercante_update', {
-      p_bl_id: 'uuid-gr1', p_new_ce: '122605051526081', p_changed_by: 'user-1',
+    expect(mockRpc).toHaveBeenCalledWith('apply_ce_mercante_rows_atomic', {
+      p_rows: [{ row: 2, bl_id: 'uuid-gr1', ce: '122605051526081' }],
+      p_changed_by: 'user-1',
+      p_target: 'granite',
     })
   })
 
@@ -120,7 +133,7 @@ describe('ceMercanteImport', () => {
         }),
       }
     })
-    mockRpc.mockResolvedValue({ data: 'unchanged', error: null })
+    mockRpc.mockResolvedValue({ data: { ok: true, processed: 1, inserted: 0, overwritten: 0, unchanged: 1 }, error: null })
     const result = await importCeMercanteRows(
       [{ rowNumber: 2, bl_id: 'GR1', ce_mercante: '122605051526081' }],
       { changedBy: null, target: 'granite', voyageId: 7 },
@@ -173,19 +186,19 @@ describe('ceMercanteImport', () => {
     })
   })
 
-  it('nao tenta uma segunda operacao quando a aplicacao do CE falha', async () => {
+  it('devolve os erros do banco sem nada gravado quando a RPC desfaz o lote', async () => {
     mockFrom.mockImplementation(() => ({
       select: () => ({
         in: async () => ({ data: [{ id: 'BL001' }], error: null }),
       }),
     }))
-    mockRpc.mockResolvedValue({ data: null, error: { message: 'CE invalido' } })
+    mockRpc.mockResolvedValue({ data: { ok: false, errors: [{ row: 2, bl_id: 'BL001', message: 'CE invalido' }] }, error: null })
 
     const result = await importCeMercanteRows([
       { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' },
     ])
 
-    expect(result.errorCount).toBe(1)
+    expect(result).toMatchObject({ updated: 0, errorCount: 1, errors: [{ row: 2, bl_id: 'BL001', message: 'CE invalido' }] })
     expect(mockRpc).toHaveBeenCalledOnce()
   })
 
@@ -244,7 +257,7 @@ describe('ceMercanteImport', () => {
       }
       throw new Error(`Tabela nao mockada: ${table}`)
     })
-    mockRpc.mockResolvedValue({ data: 'inserted', error: null })
+    mockRpc.mockResolvedValue({ data: { ok: true, processed: 1, inserted: 1, overwritten: 0, unchanged: 0 }, error: null })
 
     const result = await importCeMercanteRows(
       [{ rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }],

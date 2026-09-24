@@ -6,7 +6,7 @@ import { Field, Input } from '../components/ui/Input'
 import { usePortalAuth } from '../hooks/usePortalAuth'
 import { isSupabaseConfigured } from '../services/supabase'
 import { CNPJ_INPUT_MAX_LENGTH, normalizeCnpj } from '../lib/cnpj'
-import { INCOMPLETE_CNPJ_MESSAGE, isCompleteCnpjLogin } from '../lib/portalCnpjLogin'
+import { INCOMPLETE_CNPJ_MESSAGE, PORTAL_LOGIN_REJECTED_MESSAGE, isCompleteCnpjLogin } from '../lib/portalCnpjLogin'
 import { TurnstileChallenge } from '../components/security/TurnstileChallenge'
 import { PORTAL_TURNSTILE_REJECTION_MESSAGE } from '../lib/portalTurnstileError'
 
@@ -73,7 +73,7 @@ export function PortalLogin() {
       } else if (isNetworkError(err)) {
         setError('Não foi possível conectar. Verifique sua internet e tente novamente.')
       } else {
-        setError('Credenciais inválidas para o portal do cliente.')
+        setError(PORTAL_LOGIN_REJECTED_MESSAGE)
       }
     } finally {
       setTurnstileToken('')

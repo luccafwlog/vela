@@ -1,50 +1,8 @@
 import type { ReactNode } from 'react'
-import { ArrowRight, ChevronDown, type LucideIcon } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { tokenizeInfoValue } from '../../lib/voyageFormat'
 
-// Componentes apresentacionais da tela de Viagens: navegação, acordeões e métricas.
-
-export function NavigationCard({
-  icon: Icon,
-  title,
-  metrics,
-  disabled,
-  onClick,
-}: {
-  icon: LucideIcon
-  title: string
-  metrics: string[]
-  disabled?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`app-voyage-nav-card ${disabled ? 'app-voyage-nav-card--disabled' : ''}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-blue-btn)] shadow-sm">
-          <Icon size={20} />
-        </div>
-        {disabled ? <span className="app-voyage-nav-card__badge">Sem dados</span> : null}
-      </div>
-      <div className="grid gap-2 text-left">
-        <div className="text-base font-semibold text-[var(--app-text)]">{title}</div>
-        <div className="grid gap-1 text-sm text-[var(--app-muted)]">
-          {metrics.slice(0, 3).map((metric) => (
-            <span key={`${title}-${metric}`}>{metric}</span>
-          ))}
-        </div>
-      </div>
-      <div className="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-[var(--app-blue-btn)]">
-        Ver
-        <ArrowRight size={14} />
-      </div>
-    </button>
-  )
-}
+// Componentes apresentacionais da tela de Viagens: acordeões e métricas.
 
 export function AccordionSection({
   title,

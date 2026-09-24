@@ -217,9 +217,9 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
   it('nega ao usuário do Portal as cinco RPCs internas com 42501', () => {
     const disputeId = Number(psql(`SELECT id FROM public.demurrage_disputes WHERE customer_id = ${customerA} ORDER BY id LIMIT 1;`))
     const attempts = [
-      { sql: 'SELECT public.list_demurrage_disputes_internal(NULL);', message: 'Apenas Equipamentos pode consultar a fila' },
-      { sql: `SELECT public.add_demurrage_dispute_message(${disputeId}, 'intrusão', 'cliente');`, message: 'Apenas Equipamentos pode responder' },
-      { sql: `SELECT public.reopen_demurrage_dispute(${disputeId}, 'intrusão');`, message: 'Apenas Equipamentos pode reabrir' },
+      { sql: 'SELECT public.list_demurrage_disputes_internal(NULL);', message: 'Apenas Equipamentos ou Administrativo pode consultar a fila' },
+      { sql: `SELECT public.add_demurrage_dispute_message(${disputeId}, 'intrusão', 'cliente');`, message: 'Apenas Equipamentos ou Administrativo pode responder' },
+      { sql: `SELECT public.reopen_demurrage_dispute(${disputeId}, 'intrusão');`, message: 'Apenas Equipamentos ou Administrativo pode reabrir' },
       { sql: "SELECT public.save_customer_communication_saved_template('intrusão', 'x', 'x');", message: 'Sem permissão para salvar modelos' },
       { sql: `SELECT public.set_agency_report_terminal(${voyageId}, 'BRVIX', 'intrusão');`, message: 'Terminal pertence ao departamento operacoes' },
     ]

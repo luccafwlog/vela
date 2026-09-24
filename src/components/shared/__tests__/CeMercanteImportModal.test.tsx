@@ -44,14 +44,14 @@ it('exclui do preview o BL de outra viagem e mostra erro bloqueante', async () =
   expect((screen.getByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-it('invalida caches e informa parcialidade no EDI de Granito', async () => {
+it('invalida caches e avisa que nada foi gravado no EDI de Granito com pendência', async () => {
   mocks.parseEdi.mockResolvedValue({
     rows: [{ lineNumber: 1, bl_id: 'GR1', ce_mercante: '122605051526081' }],
     rowErrors: [],
   })
   mocks.importRows.mockResolvedValue({
     processed: 1,
-    updated: 1,
+    updated: 0,
     overwritten: 0,
     unchanged: 0,
     errorCount: 1,
@@ -70,7 +70,7 @@ it('invalida caches e informa parcialidade no EDI de Granito', async () => {
   )
   fireEvent.click(screen.getByRole('button', { name: 'Confirmar importação' }))
   await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalled())
-  expect(mocks.showToast).toHaveBeenCalledWith('Importacao parcial: 1 gravado(s), 1 pendencia(s).', 'error')
+  expect(mocks.showToast).toHaveBeenCalledWith('Nada foi gravado: 1 pendência(s). Corrija o arquivo e envie de novo.', 'error')
 })
 
 it('oferece campo de Nº de Manifesto Mercante e nao exibe rotulo equivocado "Manifesto detectado:"', async () => {
@@ -124,4 +124,21 @@ it('envia o Nº de Manifesto Mercante junto com a importação de planilha', asy
   await waitFor(() => expect(mocks.importRows).toHaveBeenCalledWith([row], expect.objectContaining({
     manifestoNumero: '26BR000001',
   })))
+})
+
+it('bloqueia a planilha quando a prévia tem qualquer erro, mesmo com linhas válidas (tudo ou nada)', async () => {
+  mocks.importRows.mockClear()
+  const good = { rowNumber: 2, bl_id: 'BL-OK', ce_mercante: '122605051526081' }
+  mocks.parse.mockResolvedValue({ rows: [good], rowErrors: [{ row: 3, message: 'CE com dígitos a menos' }] })
+  const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'ce.xlsx')] },
+  })
+
+  await waitFor(() => expect(mocks.parse).toHaveBeenCalled())
+  const confirm = await screen.findByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement
+  await waitFor(() => expect(confirm.disabled).toBe(true))
+  fireEvent.click(confirm)
+  expect(mocks.importRows).not.toHaveBeenCalled()
 })

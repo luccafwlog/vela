@@ -4,6 +4,14 @@
 > Rastreabilidade: [ADR 0059](./0059-chave-global-de-envio-desligada-por-padrao.md), [ADR 0060](./0060-primeira-permissao-do-perfil-equipamentos.md), [ADR 0064](./0064-caixas-de-comunicacao-e-auditoria-de-contatos.md); [migration ativa 008](../../supabase/migrations/008_portal_contact_boxes.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
 
+> **Nota editorial — 2026-09-23.** Decisões do alinhamento entre apresentação,
+> documentação e código ([plano](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md)):
+> a importação do Baplie deixou de exigir Administrativo (migration 077); a
+> remoção de escala de exportação sem vínculo passou a qualquer Departamento
+> ativo, com a trava de vínculo e a auditoria no banco — exceção à regra de
+> exclusão operacional abaixo (migration 080); e a resposta e reabertura de
+> disputa de Demurrage ficam com Equipamentos e Administrativo (migration 081).
+
 Status: supersedida parcialmente — 2026-08-13
 
 ## Contexto
