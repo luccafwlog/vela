@@ -38,6 +38,13 @@ test('PR-controlled build job receives only repository read permission', () => {
   assert.match(jobBlock('build'), /persist-credentials: false/)
 })
 
+test('Supabase public key reaches the build by artifact, not by a job output GitHub may drop', () => {
+  assert.doesNotMatch(jobBlock('prepare'), /^      supabase_anon_key:/m)
+  assert.doesNotMatch(jobBlock('build'), /needs\.prepare\.outputs\.supabase_/)
+  assert.match(jobBlock('build'), /name: preview-supabase-env/)
+  assert.match(jobBlock('build'), /refusing to build a blank preview/)
+})
+
 test('Supabase access token is scoped only to steps that invoke the Supabase CLI', () => {
   const prepare = jobBlock('prepare')
   assert.doesNotMatch(prepare, /^      SUPABASE_ACCESS_TOKEN:/m)

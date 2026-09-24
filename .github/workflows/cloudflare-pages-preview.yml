@@ -31,8 +31,6 @@ jobs:
       pull-requests: read
     outputs:
       readiness: ${{ steps.readiness.outputs.readiness }}
-      supabase_url: ${{ steps.branch-env.outputs.supabase_url }}
-      supabase_anon_key: ${{ steps.branch-env.outputs.supabase_anon_key }}
       pr_number: ${{ steps.context.outputs.pr_number }}
       pr_head_sha: ${{ steps.context.outputs.pr_head_sha }}
       pr_head_ref: ${{ steps.context.outputs.pr_head_ref }}
@@ -128,6 +126,30 @@ jobs:
             --project-ref "$SUPABASE_PROJECT_REF" -o env \
             | node scripts/cloudflare-preview-env.mjs
 
+      # GitHub drops job outputs that look like secrets ("Skip output
+      # 'supabase_anon_key' since it may contain secret"), which built previews
+      # without a Supabase key. An artifact carries both public values intact.
+      - name: Hand the public branch endpoint to the build job
+        if: steps.readiness.outputs.readiness == 'ready'
+        shell: bash
+        env:
+          BRANCH_SUPABASE_URL: ${{ steps.branch-env.outputs.supabase_url }}
+          BRANCH_SUPABASE_ANON_KEY: ${{ steps.branch-env.outputs.supabase_anon_key }}
+        run: |
+          set -euo pipefail
+          mkdir -p preview-supabase-env
+          printf '%s' "$BRANCH_SUPABASE_URL" > preview-supabase-env/url
+          printf '%s' "$BRANCH_SUPABASE_ANON_KEY" > preview-supabase-env/anon_key
+
+      - name: Upload public branch endpoint
+        if: steps.readiness.outputs.readiness == 'ready'
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-supabase-env
+          path: preview-supabase-env
+          if-no-files-found: error
+          retention-days: 1
+
   build:
     needs: prepare
     if: needs.prepare.outputs.readiness == 'ready'
@@ -152,11 +174,26 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Download public branch endpoint
+        uses: actions/download-artifact@v8
+        with:
+          name: preview-supabase-env
+          path: ${{ runner.temp }}/preview-supabase-env
+
+      - name: Refuse a preview build without Supabase configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/preview-supabase-env"
+          url="$(cat "$dir/url")"
+          key="$(cat "$dir/anon_key")"
+          [[ -n "$url" && -n "$key" ]] || { echo 'Supabase branch URL or public key is empty; refusing to build a blank preview.'; exit 1; }
+          echo "::add-mask::$key"
+          { echo "VITE_SUPABASE_URL=$url"; echo "VITE_SUPABASE_ANON_KEY=$key"; } >> "$GITHUB_ENV"
+
       - name: Build and stage both sites against the Supabase Preview branch
         run: npm run cloudflare:build:sites
         env:
-          VITE_SUPABASE_URL: ${{ needs.prepare.outputs.supabase_url }}
-          VITE_SUPABASE_ANON_KEY: ${{ needs.prepare.outputs.supabase_anon_key }}
           CLOUDFLARE_PORTAL_ORIGIN: https://${{ needs.prepare.outputs.pages_branch }}.vela-portal.pages.dev
           VITE_SENTRY_ENVIRONMENT: preview
 
