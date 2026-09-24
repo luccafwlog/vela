@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { renderDemurrageTemplate } from '../_shared/customerCommunicationTemplates.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttemptRecord } from '../_shared/email.ts'
@@ -782,4 +783,12 @@ async function handler(req: Request): Promise<Response> {
   return json(releaseFailures ? 500 : 200, { claimed: candidates.length, sent, simulated, partial, failed, paused, releaseFailures })
 }
 
-if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('demurrage-dunning', handler))
+if (typeof Deno !== 'undefined') {
+  const edgeHandler = instrumentEdgeHandler('demurrage-dunning', handler)
+  Deno.serve((req) => {
+    const expectedSecret = Deno.env.get('DEMURRAGE_DUNNING_SECRET') ?? ''
+    const providedSecret = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
+    const authorized = req.method === 'POST' && Boolean(expectedSecret) && timingSafeEqual(providedSecret, expectedSecret)
+    return runWithBetterStackHeartbeat('demurrageDunning', () => edgeHandler(req), { enabled: authorized })
+  })
+}

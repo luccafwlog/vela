@@ -6,6 +6,7 @@ import { findReusableRecoveryInvite } from '../_shared/portalInvites.ts'
 import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { isRecoveryRateLimited, registerRecoveryFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
+import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
 
 // Achado 3.2 (auditoria 2026-08-12): a resposta antiga distinguia
 // account_found/email_sent, entao um atacante varria CNPJs distintos e
@@ -24,8 +25,11 @@ const rateLimited = () => new Response(JSON.stringify({ accepted: false, rate_li
 
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
-  const body = await req.json().catch(() => ({})) as { cnpj?: string }
-  const cnpj = (body.cnpj ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
+  const body = await req.json().catch(() => ({})) as { cnpj?: unknown; turnstile_token?: unknown }
+  if (!await verifyTurnstileRequest(req, body.turnstile_token, 'portal_recovery')) {
+    return new Response(JSON.stringify({ error: 'Verificação de segurança inválida. Atualize e tente novamente.' }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+  }
+  const cnpj = (typeof body.cnpj === 'string' ? body.cnpj : '').replace(/[^0-9a-z]/gi, '').toUpperCase()
   if (cnpj.length !== 14) return accepted()
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
