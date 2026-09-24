@@ -407,6 +407,8 @@ cinza). Em seguida, remova o custom domain do projeto Pages.
 | 0 | 2026-09-24 | Claude Code | #746 no `main`; 4 funções do Portal republicadas |
 | 0 | 2026-09-24 | Claude Code | #745 no `main`; 10 funções com CORS republicadas e conferidas (código publicado = `main`; `pr-<n>.vela-portal.pages.dev` aceito, outro `pages.dev` recusado) |
 | 1 | 2026-09-24 | Dono + Claude Code | Contador do Upstash conferido (chave com valor 2, sem CNPJ/IP legível); login real com senha certa funcionou |
+| 2 | 2026-09-24 | Dono | Parcial: widget `Portal Fwlog` criado e `VITE_TURNSTILE_SITE_KEY` salva na Vercel (tipo Config); redeploy recusado pelo limite diário da Vercel (100 deploys/dia). `TURNSTILE_SECRET_KEY` **não** cadastrado; retomar pelo redeploy, sem cache e sem "Ignore Build Step" |
+| 8 | 2026-09-24 | Dono + Claude Code | Adiantada enquanto a Etapa 2 espera a Vercel. Environment `cloudflare-production` (só `main`, 7 variáveis) e `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`; workflow verde. Conferido: 200 nos dois `pages.dev` e em `/portal/billing`, CSP presente, `/portal` do interno → 302 para `portalfwlog.com.br`; dono fez login no Vela e no Portal (widget Turnstile visível, F5 em `/portal/billing`, `/portal/esqueci-senha` OK). Erros de `/_vercel/*` no console corrigidos na #750; console limpo nos dois |
 
 ### Ocorrido de 2026-09-24 — login do Portal fora do ar
 
