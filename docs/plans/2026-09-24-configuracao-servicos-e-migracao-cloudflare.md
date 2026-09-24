@@ -343,54 +343,124 @@ A partir daqui, cada merge no `main` publica nos dois lugares, Vercel e Pages.
 
 ---
 
-## Etapa 9 — DNS na Cloudflare (a hospedagem continua na Vercel)
+## Etapa 9 — DNS na Cloudflare e e-mail do Portal (a hospedagem continua na Vercel)
+
+**Estado em 2026-09-24 (foto do DNS):** `vela.app.br` e `portalfwlog.com.br`
+têm só o registro `A` da Vercel (`216.198.79.1`) e DNSSEC ativo (DS `61554` e
+`24163`). Nenhum dos dois tem MX, SPF, DMARC ou registros do Resend: todo o
+e-mail atual (ImprovMX e Resend) está em `transhippingdesk.com.br`, que não faz
+parte desta migração. Por isso `suporte@portalfwlog.com.br`, o endereço que os
+e-mails do Portal mandam o cliente usar, hoje não recebe nada.
+
+**Decisões do dono (2026-09-24):**
+
+| Domínio | Site | Recebe e-mail | Envia e-mail |
+|---|---|---|---|
+| `vela.app.br` | sim | não | não |
+| `portalfwlog.com.br` | sim | `suporte@` → `importacao@fwlog.com.br` e `lucca.juliatti@fwlog.com.br` (ImprovMX) | `no-reply@` (Resend) |
+
+Respostas aos e-mails: acesso ao Portal (convite, senha) → `suporte@portalfwlog.com.br`;
+Comunicados → `importacao@fwlog.com.br`; cobrança de Demurrage → `eqp@fwlog.com.br`.
 
 Faça um domínio por vez, fora do horário comercial, começando por `vela.app.br`
 (uso interno). Só passe para `portalfwlog.com.br` depois de 24 horas sem
 problema.
 
-1. **Foto do DNS atual.** No terminal, guarde a saída num arquivo; ela é o
-   plano B (troque `D` pelo domínio da vez):
+1. **Foto do DNS atual.** Guarde a saída num arquivo; ela é o plano B (troque
+   `D` pelo domínio da vez):
 
    ```bash
-   D=portalfwlog.com.br; for t in A AAAA CNAME MX TXT NS CAA; do echo "== $t"; dig +short $t $D; done; for s in www _dmarc resend._domainkey send; do echo "== $s"; dig +short CNAME $s.$D; dig +short TXT $s.$D; dig +short MX $s.$D; done
+   D=portalfwlog.com.br; for t in A AAAA CNAME MX TXT NS DS CAA; do echo "== $t"; dig +short $t $D; done; for s in www _dmarc resend._domainkey send; do echo "== $s"; dig +short CNAME $s.$D; dig +short TXT $s.$D; dig +short MX $s.$D; done
    ```
 
+   Sem `dig` no Windows, consulte `https://cloudflare-dns.com/dns-query?name=<nome>&type=<tipo>`
+   com o cabeçalho `accept: application/dns-json`.
+
 2. **DNSSEC.** Registro.br → domínio → **DNS** → seção **DNSSEC**. Se houver
-   chave (DS) cadastrada, **remova-a** e espere **24 horas** antes do passo 5.
-   Trocar os servidores DNS com o DS antigo derruba o domínio.
+   chave (DS) cadastrada, **remova-a** e espere **24 horas** antes do passo 6.
+   Trocar os servidores DNS com o DS antigo derruba o domínio. Os dois
+   domínios podem ter o DS removido no mesmo dia.
 3. Cloudflare → **Add a domain** → digite o domínio → deixe a opção de
    **importar automaticamente** os registros (Quick scan) → plano **Free**.
-4. Na revisão dos registros, compare com a foto do passo 1, **um a um**:
-   - todos os registros de e-mail precisam estar lá, idênticos: **MX**
-     (ImprovMX), **TXT** de SPF, **TXT** de `_dmarc` e os do Resend
-     (`resend._domainkey`, `send`, com o MX e o TXT de `send`). O que faltar,
-     adicione em **Add record** com o valor da foto;
-   - os registros da Vercel (`A` `76.76.21.21` e/ou `CNAME`
-     `cname.vercel-dns.com`) ficam com a nuvem **cinza (DNS only)**. Proxy
-     laranja na frente da Vercel quebra a emissão de certificado.
-5. Registro.br → domínio → **DNS** → **Alterar servidores DNS** → **Utilizar
+4. Na revisão dos registros, compare com a foto do passo 1, **um a um**. O
+   registro da Vercel (`A` `216.198.79.1`, ou o `CNAME` que a Vercel indicar)
+   fica com a nuvem **cinza (DNS only)**: proxy laranja na frente da Vercel
+   quebra a emissão de certificado.
+5. **Registros de e-mail**, ainda na Cloudflare, antes de trocar os servidores
+   (entram no ar junto com a troca):
+   - **`vela.app.br`** (não usa e-mail; os registros impedem que alguém envie
+     em nome do domínio):
+
+     | Tipo | Nome | Valor |
+     |---|---|---|
+     | TXT | `@` | `v=spf1 -all` |
+     | TXT | `_dmarc` | `v=DMARC1; p=reject;` |
+
+   - **`portalfwlog.com.br`, recebimento (ImprovMX).** No ImprovMX →
+     **Add domain** → `portalfwlog.com.br` → alias `suporte` → encaminhar para
+     `importacao@fwlog.com.br` e `lucca.juliatti@fwlog.com.br` (um alias por
+     destino, ou os dois separados por vírgula). Confira em **Account** se o
+     plano aceita mais um domínio além de `transhippingdesk.com.br`. Na
+     Cloudflare:
+
+     | Tipo | Nome | Valor | Prioridade |
+     |---|---|---|---|
+     | MX | `@` | `mx1.improvmx.com` | 10 |
+     | MX | `@` | `mx2.improvmx.com` | 20 |
+     | TXT | `@` | `v=spf1 include:spf.improvmx.com ~all` | |
+
+   - **`portalfwlog.com.br`, envio (Resend).** No Resend → **Domains** →
+     **Add domain** → `portalfwlog.com.br`, região **São Paulo (sa-east-1)**.
+     Copie para a Cloudflare exatamente os registros que o Resend mostrar
+     (normalmente `TXT resend._domainkey`, `MX send` →
+     `feedback-smtp.sa-east-1.amazonses.com` prioridade 10 e `TXT send` com
+     `v=spf1 include:amazonses.com ~all`). Todos com nuvem **cinza**.
+   - **`portalfwlog.com.br`, DMARC:** `TXT` `_dmarc` =
+     `v=DMARC1; p=none; rua=mailto:suporte@portalfwlog.com.br; fo=1`. Suba para
+     `p=quarantine` depois de algumas semanas de relatórios sem surpresa.
+6. Registro.br → domínio → **DNS** → **Alterar servidores DNS** → **Utilizar
    servidores DNS de terceiros** → informe os dois nomes que a Cloudflare
    mostrou.
-6. Espere a Cloudflare marcar o domínio como **Active**. Ela avisa por e-mail;
+7. Espere a Cloudflare marcar o domínio como **Active**. Ela avisa por e-mail;
    leva de minutos a algumas horas.
-7. Só então ative o DNSSEC novo: Cloudflare → **DNS → Settings → Enable
+8. **Só para `portalfwlog.com.br`, depois do Active:**
+   - Resend → **Domains** → `portalfwlog.com.br` → **Verify** até ficar
+     **Verified**;
+   - ImprovMX → o domínio fica com os registros em verde; mande um e-mail de
+     um endereço externo para `suporte@portalfwlog.com.br` e confira que chega
+     nas duas caixas;
+   - **só com o Resend Verified**, troque os secrets no Supabase
+     (**Edge Functions → Secrets**). Na ordem inversa, os e-mails para clientes
+     param de sair:
+
+     | Secret | Valor |
+     |---|---|
+     | `PORTAL_FROM_EMAIL` | `Portal Fwlog <no-reply@portalfwlog.com.br>` |
+     | `PORTAL_REPLY_TO` | `suporte@portalfwlog.com.br` |
+     | `COMMUNICATIONS_REPLY_TO` | `importacao@fwlog.com.br` |
+     | `DEMURRAGE_REPLY_TO` | `eqp@fwlog.com.br` (exige `demurrage-dunning` publicada com o `main` atual) |
+     | `PORTAL_SUPPORT_EMAIL` | `suporte@portalfwlog.com.br` |
+
+9. Só então ative o DNSSEC novo: Cloudflare → **DNS → Settings → Enable
    DNSSEC** → copie os dados do DS → Registro.br → **DNSSEC** → adicione.
 
 **Conferência** (depois do Active):
 - o site abre com cadeado válido;
 - login interno e do Portal funcionam;
-- um convite de teste do Portal chega por e-mail;
-- no Resend → **Domains**, o domínio continua **Verified**, e nada precisa ser
-  recriado lá;
-- os comandos do passo 1 devolvem os mesmos valores;
-- `supabase secrets list --project-ref fgmkhbzhaeebrsizwccx` continua listando
-  `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET` e `PORTAL_FROM_EMAIL`. Não é preciso
-  alterá-los.
+- os comandos do passo 1 devolvem o registro do site igual e os registros de
+  e-mail novos;
+- para `portalfwlog.com.br`: um convite de teste do Portal chega por e-mail com
+  remetente `no-reply@portalfwlog.com.br`, sem cair no spam; responder a ele
+  vai para `suporte@portalfwlog.com.br`, que encaminha às duas caixas.
+- `DEMURRAGE_REPLY_TO` e `COMMUNICATIONS_REPLY_TO` não dependem do domínio novo
+  (`fwlog.com.br` já recebe e-mail) e podem ser trocados antes.
 
 **Como desfazer:** Registro.br → servidores DNS → volte para os anteriores (os
-que estavam antes do passo 5). Com o DNSSEC removido no passo 2, a volta é
-segura.
+que estavam antes do passo 6). Com o DNSSEC removido no passo 2, a volta é
+segura. Se o envio falhar depois da troca dos secrets, aponte
+`PORTAL_FROM_EMAIL` para um endereço de `transhippingdesk.com.br`, que continua
+verificado no Resend (o Supabase não mostra o valor antigo; anote-o antes da
+troca se o painel permitir).
 
 ---
 
