@@ -147,15 +147,19 @@ avisar.
 
 ## Etapa 4 — Sentry (erros do app, do Portal e das Edge Functions)
 
-1. No Sentry, confirme os projetos `vela` (interno) e `fwlog-portal` (Portal).
+1. No Sentry, confirme os projetos `vela` (interno) e `portal` (Portal).
    Em cada um: **Settings → Client Keys (DSN)** → copie o DSN.
 2. Vercel → projeto `vela` → **Environment Variables**:
    - `VITE_SENTRY_DSN_INTERNAL` = DSN do `vela` (Production e Preview)
    - `VITE_SENTRY_ENVIRONMENT` = `production`, só em **Production**
    - `VITE_SENTRY_ENVIRONMENT` = `preview`, só em **Preview**
 3. Vercel → projeto `fwlog-portal`: o mesmo, com `VITE_SENTRY_DSN_PORTAL` = DSN
-   do `fwlog-portal`.
+   do `portal`.
 4. Faça **Redeploy** de Production nos dois projetos.
+
+   Os passos 2–4 só valem enquanto a Vercel serve os domínios. Em 2026-09-24
+   foram dispensados: o Pages já recebe os DSNs e `VITE_SENTRY_ENVIRONMENT`
+   pela Etapa 8, e a Vercel sai na Etapa 10.
 5. Supabase → **Edge Functions** → **Secrets**:
    - `SENTRY_DSN` = DSN do projeto `vela`
    - `SENTRY_ENVIRONMENT` = `production`
@@ -178,7 +182,10 @@ A chave do PostHog já está no build de produção do Portal.
 1. PostHog (região **EU**) → **Project settings**: confirme que a **Project API
    Key** é a mesma de `VITE_POSTHOG_KEY` no projeto `fwlog-portal` da Vercel, e
    que `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`.
-2. Não coloque `VITE_POSTHOG_KEY` no projeto `vela` da Vercel.
+2. Não coloque `VITE_POSTHOG_KEY` no projeto `vela` da Vercel. No Pages, o
+   workflow compila Vela e Portal com a mesma chave: o Vela carrega o PostHog,
+   mas não envia eventos (os únicos eventos estão na tela de faturas do Portal
+   e a captura automática está desligada em `src/lib/featureFlags.ts`).
 
 **Conferência:** abra uma fatura no Portal com um usuário de teste. Em
 **Activity**, no PostHog, deve aparecer `invoice_viewed` só com `surface` e
@@ -210,7 +217,12 @@ Backups**).
    ```
 
 4. **Conexão do banco:** Supabase → **Connect** → **Session pooler** → copie a
-   URI e troque `[YOUR-PASSWORD]` pela senha do banco.
+   URI e troque `[YOUR-PASSWORD]` (com os colchetes) pela senha do banco. A
+   senha não pode ter `@ : / ? # [ ] %`: esses caracteres quebram a URI. Sem a
+   senha, use **Project Settings → Database → Reset database password →
+   Generate** até sair só com letras e números; nada no repositório usa essa
+   senha. Para gravar sem deixar a URI no histórico do PowerShell, use
+   `Read-Host -AsSecureString` em vez do comando do passo 6.
 5. **Programas no Windows:** instale o Node 24, o **PostgreSQL 17** (para ter
    `pg_dump` e `pg_restore`; marque só "Command Line Tools") e o **AWS CLI v2**.
    Confira no PowerShell:
@@ -248,9 +260,13 @@ Backups**).
    - **Geral:** nome `Backup Diario Vela R2`; marque **Executar estando o
      usuário conectado ou não**.
    - **Disparadores:** Diariamente, 09:00.
-   - **Ações:** Programa `C:\Program Files\nodejs\node.exe`; Argumentos
-     `scripts\backup-r2.mjs --execute --allow-production --environment production --project-ref fgmkhbzhaeebrsizwccx`;
+   - **Ações:** Programa `C:\Windows\System32\cmd.exe`; Argumentos
+     `/c node scripts\backup-r2.mjs --execute --allow-production --environment production --project-ref fgmkhbzhaeebrsizwccx`;
      Iniciar em: a pasta do repositório (ex.: `C:\Users\Lucca\Downloads\Vela`).
+     O `cmd /c node` acha o Node pelo `Path`, onde quer que ele esteja instalado
+     (pelo winget, fica numa pasta do usuário com a versão no nome).
+   - **Condições:** desmarque **Iniciar a tarefa somente se o computador estiver
+     ligado na rede elétrica**.
    - **Configurações:** marque **Executar a tarefa assim que possível após uma
      inicialização agendada ter sido perdida**.
 
@@ -410,6 +426,10 @@ cinza). Em seguida, remova o custom domain do projeto Pages.
 | 2 | 2026-09-24 | Dono | Parcial: widget `Portal Fwlog` criado e `VITE_TURNSTILE_SITE_KEY` salva na Vercel (tipo Config); redeploy recusado pelo limite diário da Vercel (100 deploys/dia). `TURNSTILE_SECRET_KEY` **não** cadastrado; retomar pelo redeploy, sem cache e sem "Ignore Build Step" |
 | 8 | 2026-09-24 | Dono + Claude Code | Adiantada enquanto a Etapa 2 espera a Vercel. Environment `cloudflare-production` (só `main`, 7 variáveis) e `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`; workflow verde. Conferido: 200 nos dois `pages.dev` e em `/portal/billing`, CSP presente, `/portal` do interno → 302 para `portalfwlog.com.br`; dono fez login no Vela e no Portal (widget Turnstile visível, F5 em `/portal/billing`, `/portal/esqueci-senha` OK). Erros de `/_vercel/*` no console corrigidos na #750; console limpo nos dois |
 | 2 | 2026-09-24 | Dono + Claude Code | Concluída. Redeploy de Production do `fwlog-portal` na Vercel; widget visível em `portalfwlog.com.br/portal/login` e `/portal/esqueci-senha` (um erro "Não foi possível conectar ao site" logo após editar o widget sumiu sozinho em minutos; Site Key no bundle igual à do Pages); login com senha certa antes do secret. `TURNSTILE_SECRET_KEY` cadastrado às 13:38 UTC: POST sem token → 403 em `portal-login` e `portal-password-recovery`; login do dono com senha certa funcionou depois |
+| 3 | 2026-09-24 | Dono + Claude Code | Monitores `vela.app.br` e `portalfwlog.com.br/portal/login` já existiam (Up, a cada 3 min). 4 heartbeats criados e secrets `BETTERSTACK_HEARTBEAT_*` conferidos por nome; `alerts-detector`, `customer-communication-auto-runner` e `demurrage-dunning` Up. Pendente: `portal-daily-digest` Up após 08:00 de Brasília de 2026-09-25. Sem escalation policy (o plano grátis avisa a equipe inteira, que é só o dono) |
+| 4 | 2026-09-24 | Dono + Claude Code | `SENTRY_DSN` (projeto `vela`) e `SENTRY_ENVIRONMENT=production` no Supabase às 13:59 UTC. Um alerta único (novo issue ou regressão) para `vela` e `portal`, e-mail ao dono. Passos 2–4 (Vercel) dispensados; Pages já configurado na Etapa 8. Não verificado: um erro real de Edge Function chegando ao Sentry |
+| 5 | 2026-09-24 | Dono | Pages: requisições a `eu-assets.i.posthog.com` e `eu.i.posthog.com` com 200, sem erro de CSP. Não havia fatura para gerar `invoice_viewed`; a limpeza das propriedades é coberta por `featureFlags.test.ts`. Pendente: conferir o primeiro `invoice_viewed` real |
+| 6 | 2026-09-24 | Dono + Claude Code | Bucket e regra "Expire backups after 90 days" (prefixo `vela/database`) já existiam. Chaves do R2 lidas do Gerenciador de Credenciais; chave de cifragem nova, guardada no Gerenciador de Credenciais e no iCloud Senhas; senha do banco resetada. Primeiro backup às 15:01 UTC e execução pela tarefa agendada às 15:11 UTC (0x0), ambos no R2. Corrigido `scripts/backup-r2.mjs`: `--file=-` fazia o `pg_dump` do Windows gravar o banco sem cifragem num arquivo `-` (apagado na hora, não saiu da máquina) |
 
 ### Ocorrido de 2026-09-24 — login do Portal fora do ar
 
