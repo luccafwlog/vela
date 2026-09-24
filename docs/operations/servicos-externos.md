@@ -18,7 +18,7 @@ sem ter participado da configuração.
 flowchart LR
     U["Usuário interno<br/>vela.app.br"] --> DNS["Cloudflare DNS"]
     C["Cliente<br/>portalfwlog.com.br"] --> DNS
-    DNS --> HOST["Vercel (transição)<br/>Cloudflare Pages"]
+    DNS --> HOST["Cloudflare Pages"]
     HOST --> SB["Supabase<br/>banco · Auth · Edge Functions · cron"]
     SB --> RS["Resend<br/>envio de e-mail"]
     SB --> UP["Upstash<br/>trava de tentativas"]
@@ -90,11 +90,11 @@ próprio Registro.br.
 
 | Domínio | Registro | Valor | Para quê |
 |---|---|---|---|
-| `vela.app.br` | `A @` | `216.198.79.1` (nuvem cinza) | site na Vercel **(transição)** |
+| `vela.app.br` | `CNAME @` | `vela-internal.pages.dev` (nuvem laranja) | site no Cloudflare Pages |
 | | `TXT @` | `v=spf1 -all` | o domínio não envia e-mail |
 | | `TXT _dmarc` | `v=DMARC1; p=reject;` | rejeitar e-mail falso em nome do Vela |
 | | `A www` | `192.0.2.1` (nuvem laranja) | endereço fictício; só existe para a Redirect Rule do `www` |
-| `portalfwlog.com.br` | `A @` | `216.198.79.1` (nuvem cinza) | site na Vercel **(transição)** |
+| `portalfwlog.com.br` | `CNAME @` | `vela-portal.pages.dev` (nuvem laranja) | site no Cloudflare Pages |
 | | `MX @` | `mx1.improvmx.com` (10), `mx2.improvmx.com` (20) | receber e-mail (ImprovMX) |
 | | `TXT @` | `v=spf1 include:spf.improvmx.com ~all` | SPF do domínio raiz |
 | | `TXT resend._domainkey` | chave pública DKIM mostrada pelo Resend | assinatura do envio |
@@ -112,9 +112,13 @@ proxy (laranja): sem proxy a regra não roda e o `www` não abre. Não aponte o
 
 Regras:
 
-- Registros que apontam para a Vercel ou para o Resend ficam **DNS only**
-  (nuvem cinza). Proxy laranja na frente da Vercel quebra o certificado. A única
-  exceção é o `A www`, que precisa de proxy.
+- O `CNAME @` de cada domínio é criado e mantido pelo **Custom domain** do
+  projeto Pages. Não o edite à mão; para trocar, remova o domínio no projeto.
+- Registros do Resend ficam **DNS only** (nuvem cinza). O `CNAME @` do Pages e o
+  `A www` ficam com proxy.
+- **Volta para a Vercel (até 2026-10-01):** apague o `CNAME @` e crie
+  `A @ 216.198.79.1` com nuvem **cinza** (proxy na frente da Vercel quebra o
+  certificado); depois remova o custom domain do projeto Pages.
 - `transhippingdesk.com.br` guarda o e-mail legado (ImprovMX e Resend); não é
   servido pela Cloudflare.
 
@@ -125,9 +129,11 @@ Regras:
 O repositório gera dois sites a partir do mesmo código: **Vela** (interno,
 `index.html`) e **Portal** (cliente, `portal.html`).
 
-### Cloudflare Pages (destino)
+### Cloudflare Pages (produção)
 
-| Projeto | Endereço provisório | Domínio final (Etapa 10) |
+Serve os dois domínios desde 2026-09-24 (Etapa 10).
+
+| Projeto | Endereço `pages.dev` | Domínio (Custom domain, Active) |
 |---|---|---|
 | `vela-internal` | `vela-internal.pages.dev` | `vela.app.br` |
 | `vela-portal` | `vela-portal.pages.dev` | `portalfwlog.com.br` |
@@ -159,7 +165,9 @@ responsável.
 
 ### Vercel (transição)
 
-Projetos `vela` (`vela.app.br`) e `fwlog-portal` (`portalfwlog.com.br`), ligados
+**Reserva até 2026-10-01.** Desde 2026-09-24 os domínios apontam para o Pages;
+a Vercel não recebe mais tráfego e fica de pé só para a volta rápida (ver
+[Cloudflare DNS](#cloudflare-dns)). Projetos `vela` e `fwlog-portal`, ligados
 ao GitHub; cada PR e merge gera deploy. Plano Hobby: **100 deploys por dia**,
 somados; ao estourar, os checks "Vercel – …" falham com *Deployment rate
 limited* e o site continua na versão anterior. `vercel.json` define rotas e
@@ -314,8 +322,8 @@ Detalhes: [portal-rate-limit.md](portal-rate-limit.md).
 O ambiente vem de `VITE_SENTRY_ENVIRONMENT` (`production` no workflow de
 produção do Pages, `preview` nas previews) e de `SENTRY_ENVIRONMENT` no Supabase.
 Alertas: "Novo erro em produção — Vela e Portal" (novo issue ou regressão, e-mail
-ao responsável) e os alertas automáticos de alta prioridade. Enquanto a Vercel
-servir os domínios, o build dela usa o DSN antigo compartilhado.
+ao responsável) e os alertas automáticos de alta prioridade. O build da Vercel
+usa o DSN antigo compartilhado; desde 2026-09-24 ele não serve mais os domínios.
 Mais: [sentry-configuracao.md](sentry-configuracao.md), [observabilidade.md](observabilidade.md).
 
 ### PostHog (eventos de produto)
