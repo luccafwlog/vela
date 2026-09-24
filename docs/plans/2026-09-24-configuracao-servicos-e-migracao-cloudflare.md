@@ -27,7 +27,8 @@
 ## Bloco 1: Cloudflare & Transição da Vercel (Prioridade Máxima)
 
 ### 1.1 Cloudflare Turnstile (Anti-Bot no Portal)
-* **Objetivo:** Proteger o login e recuperação de senha do Portal Fwlog contra ataques de força bruta. O código já está pronto na `main`.
+* **Objetivo:** Proteger o login e recuperação de senha do Portal Fwlog contra ataques de força bruta.
+* **Pré-requisito:** a [PR #746](https://github.com/luccafwlog/vela/pull/746) precisa estar no `main` e publicada. Sem ela, a CSP bloqueia o widget e o login do Portal trava. Ela também corrige o rate limit; republique `portal-login`, `portal-password-recovery`, `portal-recovery-email-change` e `portal-invite-activate` no Supabase **antes** de cadastrar as chaves do Upstash.
 * **Ações no Painel da Cloudflare:**
   1. Acesse o Cloudflare Dashboard → menu lateral **Turnstile** → **Add Site**.
   2. **Site name:** `Portal Fwlog`.
@@ -37,8 +38,10 @@
 * **Configuração dos Ambientes:**
   - **No Vercel** (projeto `fwlog-portal`, ambientes Production e Preview) e **no Cloudflare Pages**:
     Cadastrar a variável: `VITE_TURNSTILE_SITE_KEY=<Site Key copiada>`.
-  - **No Supabase Dashboard** (Project Settings → Configuration → Secrets):
+  - **Depois** que o novo deploy do Portal estiver no ar com a Site Key, no **Supabase Dashboard** (Project Settings → Configuration → Secrets):
     Cadastrar o secret: `TURNSTILE_SECRET_KEY=<Secret Key copiada>`.
+    A ordem importa: com o secret no servidor e a tela ainda sem Site Key, todo login e toda recuperação recebem 403.
+  - O servidor só aceita os hostnames de `TURNSTILE_ALLOWED_HOSTNAMES` (padrão: `portalfwlog.com.br`, `localhost`, `127.0.0.1`). Para testar em Preview, inclua o hostname da Preview nessa variável e no cadastro do site no Turnstile.
 * **Resultado Esperado:** Acessar a tela de login do Portal (`/portal/login`) e ver a validação do Turnstile antes de submeter o formulário.
 
 ---
@@ -130,7 +133,7 @@
        - `portal-daily-digest` (Período: 24 horas).
   3. Copiar a URL de cada Heartbeat e cadastrar nos **Secrets do Supabase** (Project Settings → Secrets):
      - `BETTERSTACK_HEARTBEAT_ALERTS_DETECTOR_URL`
-     - `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_URL`
+     - `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_AUTO_RUNNER_URL`
      - `BETTERSTACK_HEARTBEAT_DEMURRAGE_DUNNING_URL`
      - `BETTERSTACK_HEARTBEAT_PORTAL_DAILY_DIGEST_URL`
 
