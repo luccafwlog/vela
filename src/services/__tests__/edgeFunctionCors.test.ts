@@ -69,4 +69,14 @@ describe('corsHeaders das Edge Functions', () => {
     expect(isAllowedOrigin('https://fwlog-portal-abc123-outra-equipe.vercel.app')).toBe(false)
     expect(isAllowedOrigin('https://transhippingdesk-abc123-outra-equipe.vercel.app')).toBe(false)
   })
+
+  it('aceita os projetos Cloudflare Pages do Vela, e só eles', () => {
+    expect(isAllowedOrigin('https://vela-portal.pages.dev')).toBe(true)
+    expect(isAllowedOrigin('https://pr-745.vela-portal.pages.dev')).toBe(true)
+    expect(isAllowedOrigin('https://3f2a9c1b.vela-internal.pages.dev')).toBe(true)
+    expect(isAllowedOrigin('https://pr-745.outro-projeto.pages.dev')).toBe(false)
+    expect(isAllowedOrigin('https://vela-portal.pages.dev.evil.com')).toBe(false)
+    expect(isAllowedOrigin('http://pr-745.vela-portal.pages.dev')).toBe(false)
+    expect(isAllowedOrigin('https://a.b.vela-portal.pages.dev')).toBe(false)
+  })
 })

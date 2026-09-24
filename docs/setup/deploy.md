@@ -61,6 +61,7 @@ dos aliases de branch está descrita na
 | `.github/workflows/provision-preview-admin.yml` | conclusão verde do CI de uma PR | Aguarda o check `Supabase Preview` e cria/atualiza o usuário admin de teste na branch Supabase correspondente. |
 | `.github/workflows/cloudflare-pages-provision.yml` | execução manual (`workflow_dispatch`) na `main` | Cria apenas os projetos Pages ausentes (`vela-internal` e `vela-portal`) como projetos vazios, sem deploy nem alteração dos projetos existentes. |
 | `.github/workflows/cloudflare-pages-preview.yml` | conclusão verde do CI de uma PR interna | Implementado no worktree de migração, ainda não publicado na branch padrão: exige Supabase Preview verde, compila artefatos sem secrets de escrita e publica os previews protegidos dos dois projetos Pages separados. |
+| `.github/workflows/cloudflare-pages-production.yml` | CI verde de push em `main` (ou execução manual) | Desligado até `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`. Compila a `main` com as variáveis do environment `cloudflare-production` e publica `dist/pages-internal` em `vela-internal` e `dist/pages-portal` em `vela-portal` (branch de produção `main`). Não altera DNS. |
 | `.github/workflows/cloudflare-pages-preview-cleanup.yml` | PR interna fechada | Implementado no worktree: remove deployments `preview` antigos dos dois projetos para a branch exata; retém o mais recente porque Cloudflare não permite apagá-lo. |
 | Supabase GitHub Integration — Automatic branching | branch/PR do GitHub | Cria a branch Supabase efêmera correspondente e executa migrations/configuração do Preview. |
 | Supabase + Vercel Branching Integration | PR aberta | Sincroniza as variáveis públicas do Preview com a branch Supabase correspondente e reimplanta se houver corrida de timing. |
@@ -368,7 +369,9 @@ As origens de produção permanecem na allowlist compartilhada em
 `portalfwlog.com.br`.
 
 Os aliases de Preview dos projetos `vela` e `fwlog-portal` são aceitos pela
-allowlist das Edge Functions. Para um domínio adicional que invoque Edge
+allowlist das Edge Functions, assim como os endereços `pages.dev` dos projetos
+Cloudflare `vela-internal` e `vela-portal` (domínio de produção, `pr-<n>.` e hash
+do deployment). Para um domínio adicional que invoque Edge
 Functions pelo browser, configure no ambiente da branch Supabase:
 
 ```text
