@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-// Bloco 3 do plano docs/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md:
+// Bloco 3 do plano docs/archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md:
 // execução real no Postgres descartável (scripts/setup-local-pg.sh), não só o
 // texto das migrations.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'

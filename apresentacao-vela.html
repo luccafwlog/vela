@@ -1181,9 +1181,9 @@
           <a class="st c-op" href="#viagem-visao"><i></i><em>02 · Operações</em><b>Viagens</b><span>Escalas e atracações com previsão e realidade. O NOA sai 5 dias antes do ETA.</span></a>
           <a class="st c-doc" href="#baplie"><i></i><em>03 · Documentação</em><b>Baplie EDI</b><span>O plano de carga confere, container a container, com os B/Ls.</span></a>
           <a class="st c-doc" href="#bls"><i></i><em>04 · Documentação</em><b>BLs</b><span>O B/L entra do arquivo; o Cliente vem pelo CNPJ e a taxa já é calculada.</span></a>
-          <a class="st c-doc" href="#revisao"><i></i><em>05 · se algo não fecha</em><b>Revisão</b><span>CNPJ sem cadastro, e-mail ou peso faltando: o B/L espera aqui.</span></a>
+          <a class="st c-doc" href="#revisao"><i></i><em>05 · se algo não fecha</em><b>Revisão</b><span>CNPJ sem cadastro ou peso faltando: o B/L espera aqui.</span></a>
           <a class="st c-doc" href="#checagens"><i></i><em>06 · Documentação</em><b>CE Mercante</b><span>O CE registrado é o fato gerador da cobrança.</span></a>
-          <a class="st sys c-sys" href="#gate"><i></i><em>07 · sistema</em><b>Taxas Locais</b><span>Sem bloqueio, a fatura sai com PIX. Com bloqueio, a Validação diz o motivo.</span></a>
+          <a class="st sys c-sys" href="#gate"><i></i><em>07 · sistema</em><b>Taxas Locais</b><span>Sem bloqueio, a fatura sai com PIX. Com bloqueio, inclusive sem Portal, ela espera e a Validação diz o motivo.</span></a>
           <span class="cont">continua ↓</span>
         </div>
         <div class="metro m2" style="margin-top: 58px">
@@ -1986,9 +1986,9 @@
         <div class="rule"></div>
         <div class="flow gates">
           <div class="surface"><div class="top"><svg class="i"><use href="#i-users"/></svg><span class="n">01</span></div><p class="q">O Cliente está vinculado?</p><span class="badge badge--red motive">Sem cliente vinculado</span><p>Só CNPJ exato vincula sozinho. Nome parecido é sugestão e espera aprovação humana.</p><p class="fix">Resolve em <a href="#revisao">Revisão</a></p></div>
-          <div class="surface"><div class="top"><svg class="i"><use href="#i-receipt"/></svg><span class="n">02</span></div><p class="q">O cálculo está completo?</p><span class="badge badge--yellow motive">Cálculo incompleto</span><p>Sem e-mail de faturamento, sem peso da carga solta, linha de taxa em revisão ou nenhuma taxa calculada.</p><p class="fix">Resolve em <a href="#revisao">Revisão</a> ou na <a href="#bl-ficha">ficha do B/L</a></p></div>
-          <div class="surface"><div class="top"><svg class="i"><use href="#i-file"/></svg><span class="n">03</span></div><p class="q">O CE Mercante existe?</p><span class="badge badge--yellow motive">Aguardando CE Mercante</span><p>O CE é o fato gerador. Registrado o CE, a emissão é automática.</p><p class="fix">Resolve na <a href="#bl-ficha">ficha do B/L</a> ou importando o CE</p></div>
-          <div class="surface"><div class="top"><svg class="i"><use href="#i-lock"/></svg><span class="n">04</span></div><p class="q">O Cliente tem acesso ao Portal?</p><span class="badge badge--slate motive">Portal não provisionado</span><p>A fatura precisa chegar a quem paga. Só aparece quando é a única pendência.</p><p class="fix">Resolve no <a href="#console">Console do Portal</a></p></div>
+          <div class="surface"><div class="top"><svg class="i"><use href="#i-receipt"/></svg><span class="n">02</span></div><p class="q">O cálculo está completo?</p><span class="badge badge--yellow motive">Cálculo incompleto</span><p>Sem peso da carga solta, linha de taxa em revisão ou nenhuma taxa calculada.</p><p class="fix">Resolve em <a href="#revisao">Revisão</a> ou na <a href="#bl-ficha">ficha do B/L</a></p></div>
+          <div class="surface"><div class="top"><svg class="i"><use href="#i-file"/></svg><span class="n">03</span></div><p class="q">O CE Mercante existe?</p><span class="badge badge--yellow motive">Aguardando CE Mercante</span><p>O CE é o fato gerador. Registrado o CE, a emissão é automática, se as outras três respostas forem sim.</p><p class="fix">Resolve na <a href="#bl-ficha">ficha do B/L</a> ou importando o CE</p></div>
+          <div class="surface"><div class="top"><svg class="i"><use href="#i-lock"/></svg><span class="n">04</span></div><p class="q">O Cliente tem acesso ao Portal?</p><span class="badge badge--slate motive">Portal não provisionado</span><p>A fatura precisa chegar a quem paga: sem Portal, o CE retém a fatura. Ela sai quando o Portal fica Ativo ou quando o Administrativo concede a Liberação, com justificativa e revisão em até 30 dias.</p><p class="fix">Resolve no <a href="#console">Console do Portal</a> ou na <a href="#clientes">ficha do Cliente</a></p></div>
           <div class="surface done"><div class="top"><svg class="i"><use href="#i-zap"/></svg><span class="n">ok</span></div><p class="q">Pronto para emitir</p><span class="badge badge--green motive">Pronto para emitir</span><p>Fatura com PIX, individual ou consolidada; o comunicado de CE e Taxas sai quando todos os B/Ls do Cliente na viagem estão prontos.</p><p class="fix">Acompanhe em <a href="#taxas-tela">Taxas Locais</a></p></div>
         </div>
         <div class="side-states"><span>Fora do caminho:</span><span class="badge badge--green">Faturado</span><span class="badge badge--slate">Isento</span><span class="badge badge--blue">Apoio operacional — Granito</span><span>· A Validação sempre mostra <b>o primeiro bloqueio</b>, com o link de onde ele se resolve.</span></div>
@@ -2361,7 +2361,7 @@
               <div class="steps">
                 <div class="step"><span class="n">1</span><div><h3>Aguardando análise</h3><p>Cliente com processo ativo e sem conta. Alguém confere o e-mail de recuperação.</p></div></div>
                 <div class="step"><span class="n">2</span><div><h3>Convite enviado</h3><p>Vale 48 horas, uso único. Expirou ou falhou: vira Alerta e cai na fila certa.</p></div></div>
-                <div class="step"><span class="n">3</span><div><h3>Ativo</h3><p>O Cliente criou a senha. Os B/Ls dele deixam de esperar pelo Portal na Validação.</p></div></div>
+                <div class="step"><span class="n">3</span><div><h3>Ativo</h3><p>O Cliente criou a senha. As faturas retidas por falta de Portal são emitidas na hora.</p></div></div>
               </div>
             </div>
             <div class="tvcard"><div class="ico"><svg class="i"><use href="#i-eye"/></svg></div><div><b>Inspecionar = ver como o Cliente vê</b><p>Abre o próprio Portal daquele Cliente, só para leitura, sem usar a senha dele. Cada abertura fica registrada.</p></div></div>
@@ -2432,7 +2432,7 @@
       <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Alertas · as regras</div></header>
       <div class="body">
         <p class="kicker">Como funciona · De onde vem um Alerta</p>
-        <h2>31 regras vigiam a operação, e cada uma sabe quem cobrar</h2>
+        <h2>30 regras vigiam a operação, e cada uma sabe quem cobrar</h2>
         <div class="rule"></div>
         <div class="content" style="grid-template-columns: 400px 1fr; margin-top: 30px">
           <div style="display:grid; gap: 14px">
@@ -2445,12 +2445,12 @@
               <thead><tr><th>Domínio</th><th>O que vigia</th><th>Quem trata</th></tr></thead>
               <tbody>
                 <tr><td><b>Operação</b><span class="count">12</span></td><td><div class="chips-s"><i>B/L esperado pendente</i><i>Baplie ausente</i><i>Cobertura Baplie / B/L</i><i>CE Mercante pendente</i><i>Data da escala pendente</i><i>Data de terminal pendente</i><i>Exportação pendente pós-ATD</i><i>Comunicado NOA, NOR e NOB pendente</i><i>ADR: departamento pendente e prazo vencido</i></div></td><td>Documentação<br>Operações<br><span class="muted">ADR: cada setor</span></td></tr>
-                <tr><td><b>Revisão</b><span class="count">5</span></td><td><div class="chips-s"><i>Cliente não vinculado</i><i>Cliente sem e-mail</i><i>Portal não provisionado</i><i>Peso de carga solta ausente</i><i>Granito sem cliente</i></div></td><td>Documentação</td></tr>
+                <tr><td><b>Revisão</b><span class="count">4</span></td><td><div class="chips-s"><i>Cliente não vinculado</i><i>Portal não provisionado</i><i>Peso de carga solta ausente</i><i>Granito sem cliente</i></div></td><td>Documentação</td></tr>
                 <tr><td><b>Financeiro</b><span class="count">5</span></td><td><div class="chips-s"><i>Cálculo bloqueado</i><i>Falha de emissão automática</i><i>PIX sem conciliação segura</i><i>Falha na atualização da PTAX</i><i>Efeito de importação bloqueado</i></div></td><td>Documentação<br><span class="muted">PIX: Administrativo</span></td></tr>
                 <tr><td><b>Portal</b><span class="count">9</span></td><td><div class="chips-s"><i>Disputa de invoice Demurrage</i><i>Convite expirado</i><i>Falha de envio</i><i>E-mail suprimido</i><i>Abuso de login</i><i>Cliente sem contato alternativo</i><i>Exceção de fatura</i><i>+2</i></div></td><td>Documentação<br>Equipamentos<br>Administrativo</td></tr>
               </tbody>
             </table>
-            <div class="sevline"><span><i class="dot crit"></i><b>18</b> críticas</span><span><i class="dot norm"></i><b>13</b> normais</span><span class="muted">Duas severidades apenas: Crítico e Normal.</span></div>
+            <div class="sevline"><span><i class="dot crit"></i><b>17</b> críticas</span><span><i class="dot norm"></i><b>13</b> normais</span><span class="muted">Duas severidades apenas: Crítico e Normal.</span></div>
           </div>
         </div>
         <div class="gain gain-row" style="margin-top: 20px; grid-template-columns: auto 1fr">

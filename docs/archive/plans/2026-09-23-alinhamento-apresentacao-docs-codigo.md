@@ -316,6 +316,34 @@ apoia na linha "Data status" do `AGENTS.md`.
     - `typecheck`, `lint`, `build`, `test`, `docs:check`, `migrations:check`,
       `rpc:check` e `verificar_guardas.py`.
   - Pendente: 3.6 (Portal como bloqueio universal), em PR própria.
+- **2026-09-23 · Decisões do item 3.6:**
+  - A Liberação de faturamento sem Portal tem **data de revisão**: vencida, a
+    trava volta e o Alerta reaparece.
+  - O Alerta de Portal não provisionado continua **tratado pela Documentação**,
+    com o Administrativo avisado.
+- **2026-09-23 · Bloco 3, item 3.6 (`codex/alinhamento-portal`):**
+  - Migration **083**, autorizada pelo dono em 2026-09-23, e ADR 0070:
+    - o gate do Portal vale para toda emissão; a exceção interna da `051` saiu;
+    - o CE sem Portal calcula e **retém** a fatura (`held`), sem acionar a fila;
+    - Liberação de faturamento sem Portal por Cliente: só o Administrativo
+      concede e revoga, com justificativa e data de revisão;
+    - conceder e ativar o Portal reprocessam pelo mesmo caminho do CE;
+    - `review_portal_not_ready` conta os B/Ls retidos; Administrativo na audiência.
+  - Achados durante a execução:
+    - o reprocessamento antigo emitia pelo caminho manual, que exige e-mail de
+      contato; a Liberação não emitiria para Cliente sem contato. Passou a
+      usar o caminho do CE;
+    - a Validação lia qualquer `billing_hold_reason` como *Cálculo incompleto*;
+      a retenção do Portal passou a aparecer como *Portal não provisionado*;
+    - a `apply_ce_mercante_update` ainda registra um efeito legado; processado,
+      ele termina como sucesso retido, não como bloqueio.
+  - Limite registrado (`ponytail:` na 083): a vigência é lida na hora; o Alerta
+    só reaparece na próxima retenção ou reconciliação, não no vencimento.
+  - Checks: replay do zero (82 arquivos), suíte `local-pg` em série (31
+    arquivos), `typecheck`, `lint`, `build`, `test`, `docs:check`,
+    `migrations:check`, `rpc:check` e `verificar_guardas.py`.
+  - Não verificado: aplicação no Supabase remoto e o fluxo na interface com o
+    app rodando.
 - **2026-09-24 · Revisão da primeira PR do Bloco 3 (`vela-code-review`):**
   - **079:** o Histórico mostrava duas vezes a mesma mudança de container
     quando ela já tinha o evento semântico `bl_container` com justificativa
@@ -328,3 +356,18 @@ apoia na linha "Data status" do `AGENTS.md`.
     para corrigir dentro da PR. Nenhuma das duas estava no `main`.
   - Checks: replay do zero e `alinhamentoPermissoes.local-pg.test.ts`; os dois
     testes novos falham com as versões anteriores da 077 e da 079.
+- **2026-09-24 · Revisão do item 3.6 (`vela-code-review`), decisões do dono:**
+  - A fatura retida sai com as **taxas do dia do CE**: liberar ou ativar o
+    Portal não recalcula pela tabela vigente.
+  - O **e-mail de contato não é condição de faturamento**: a fatura não é
+    enviada por e-mail; sem Portal, um usuário interno a imprime e entrega. A
+    exigência da 084 foi desfeita.
+  - Migration **085**: Liberação e revisão sem e-mail, Alerta
+    `review_customer_email_missing` aposentado, reprocessamento pelo cálculo
+    do CE (`_auto_bill_bl_core` com reaproveitamento). Nota na ADR 0070.
+  - Tempo medido no Postgres local: concessão com 100 B/Ls retidos em 1,4 s;
+    planilha de CE com 100 linhas emitindo 100 faturas em 1,8 s.
+  - Checks: replay do zero, `portalBillingRelease.local-pg.test.ts` (os testes
+    de e-mail e de taxa do CE falham sem a 085; os de taxa falham também com o
+    reprocessamento recalculando), suíte `local-pg` em série e gates do
+    `package.json`.

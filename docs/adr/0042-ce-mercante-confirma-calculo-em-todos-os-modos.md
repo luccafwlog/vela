@@ -8,7 +8,7 @@
 > faturar continua valendo nos demais modos (container, carga solta e misto).
 > Rastreabilidade: [Granito](../modules/granito.md);
 > `src/components/billing/validacaoPipeline.ts`;
-> [plano de alinhamento](../plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md).
+> [plano de alinhamento](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md).
 > O texto original abaixo preserva o contexto da decisão.
 
 Status: supersedida parcialmente — 2026-09-23 (original: aceito — 2026-08-10)

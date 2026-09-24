@@ -11,11 +11,10 @@ export function BlReviewContextPanel({ bl }: { bl: BLDetail }) {
 
   const notesReasons = extractReviewReasons(bl.notes)
   const computedReasons: string[] = []
-  const contacts = (bl.customer as { customer_contacts?: { email?: string | null }[] } | null | undefined)?.customer_contacts
+  // E-mail de contato não é pendência de faturamento desde a migration 085:
+  // a fatura chega pelo Portal ou impressa por um usuário interno.
   if (bl.customer_id == null) {
     computedReasons.push('Cliente não vinculado')
-  } else if (!contacts?.some((contact) => (contact.email ?? '').trim())) {
-    computedReasons.push('Cliente sem e-mail cadastrado')
   }
   if (isBreakbulkCargoMode(bl.cargo_mode) && (bl.bb_weight_ton == null || Number(bl.bb_weight_ton) <= 0)) {
     computedReasons.push('Peso BB ausente')

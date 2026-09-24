@@ -1,5 +1,7 @@
 # ADR 0054 — Portal ativo e acesso do cliente como gate de faturamento
 
+> **Nota editorial — 2026-09-23.** A exceção interna da `051` foi retirada pela [ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md) (migration `083`): o Portal trava toda emissão, inclusive a automática pelo CE, e a saída sem Portal é a Liberação de faturamento sem Portal, por Cliente, concedida pelo Administrativo.
+>
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** A 047 mantém a prontidão do Portal na emissão manual; a 051 introduz contexto interno controlado que emite pela transição CE sem provisionamento. Não é dispensa pública do gate.
 > Rastreabilidade: [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 051](../../supabase/migrations/051_ce_mercante_auto_billing.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

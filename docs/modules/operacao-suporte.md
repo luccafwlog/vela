@@ -100,7 +100,7 @@ Granite é uma ramificação mais simples: `saveGraniteBlReview` atualiza `grani
 
 `src/pages/Alertas.tsx` mostra abas `all | active | dismissed`, tabela, deep-links por entidade e dispensa temporária por item. `src/services/alerts.ts` consulta a fila canônica; `list_alert_queue` limita a projeção global a 200 linhas, preservando carriers legados ainda não migrados.
 
-Os alertas de revisão de B/L e Granito (`review_customer_unlinked`, `review_customer_email_missing`, `review_portal_not_ready`, `review_breakbulk_weight_missing` e `review_granite_customer_unlinked`) são reconciliados pelas migrations `324` e `337` em agregados por entidade `(bl, id)` e `(granite_bl, id)` com audiência do departamento de Documentação; todos são críticos, exceto `review_granite_customer_unlinked`, Normal desde a migration `078` porque Granito não fatura. Triggers em `public.bls`, `public.customer_portal_accounts` e `public.granite_bls`, mutações autoritativas (`save_bl_review`, `complete_review_customer_group`) e o cron server-side de 15 minutos (`run_alert_detectors`) mantêm a fila e os sinos sincronizados em tempo real.
+Os alertas de revisão de B/L e Granito (`review_customer_unlinked`, `review_portal_not_ready`, `review_breakbulk_weight_missing` e `review_granite_customer_unlinked`) são reconciliados pelas migrations `324` e `337` em agregados por entidade `(bl, id)` e `(granite_bl, id)` com audiência do departamento de Documentação; todos são críticos, exceto `review_granite_customer_unlinked`, Normal desde a migration `078` porque Granito não fatura. O `review_customer_email_missing` foi aposentado na migration `085`: e-mail de contato não é condição de faturamento. Triggers em `public.bls`, `public.customer_portal_accounts` e `public.granite_bls`, mutações autoritativas (`save_bl_review`, `complete_review_customer_group`) e o cron server-side de 15 minutos (`run_alert_detectors`) mantêm a fila e os sinos sincronizados em tempo real.
 
 Os dois produtores do ADR (`agency_report_department_pending` e `agency_report_deadline_missed`) são reconciliados pela migration `323` em um agregado por `(viagem, porto, terminal)` — ou `(viagem, porto)` no legado — com um item independente para cada um dos três departamentos. O ATD do ADR terminalizado vem de `voyage_escala_terminal_state.terminal_atd`; audit logs, sign-offs e o cron server-side de 15 minutos acionam a mesma reconciliação. Se uma seção confirmada volta a pendente, o sign-off departamental dono é invalidado com a justificativa da reabertura. O link para a viagem é produzido por `agencyReportAlertLink`, preservando `terminal` e `report_id` quando existirem.
 
@@ -245,10 +245,11 @@ Não há lock otimista nessa atualização. A proteção efetiva para `role` e `
 
 O contrato vigente combina `compute_bl_review_pendencies` (`051`), seu
 núcleo `_compute_bl_review_pendencies` (`059`) e os gates de prontidão/emissão
-(`047`/`056`). Cliente ausente bloqueia; no caminho normal, contato ativo com
-email e prontidão do Portal são exigidos. Peso BB é validado para carga solta
-e misto. A exceção interna controlada da automação CE dispensa contato/Portal
-nesse contexto, sem liberar os caminhos manuais.
+(`047`/`056`). Cliente ausente bloqueia. O Portal pronto é exigido, salvo
+Liberação de faturamento sem Portal vigente (ADR 0070, migration `083`).
+Contato com e-mail não é pendência de revisão nem condição de emissão
+(migration `085`). Peso BB é validado para carga solta
+e misto.
 
 CE Mercante tem guarda documental própria antes de promover/emitir, mesmo
 quando não aparece no array de pendências de revisão. `save_bl_review` calcula
@@ -307,7 +308,7 @@ Invariantes:
 - `expected_updated_at` protege contra sobrescrita concorrente; conflito é `PT409`;
 - faturamento automático só é tentado quando `pendencias` está vazio;
 - CE Mercante é guarda documental de emissão, distinta do array de revisão;
-- Portal usa `customer_portal_access_ready`; automação CE possui exceção interna controlada;
+- Portal usa `customer_billing_access_ready` (Portal pronto ou Liberação vigente), inclusive na automação CE, que retém a fatura em vez de emitir;
 - nenhuma migration atual faz backfill top-level dos B/Ls históricos já faturados;
 - importação aplica o gate antes de `run_billing_for_import_batch`;
 - Granite compartilha a superfície de revisão, mas não a mesma RPC/status canônico de B/L comum.

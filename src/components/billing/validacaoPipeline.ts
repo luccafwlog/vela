@@ -19,22 +19,24 @@ export function isPendingBillingReview(row: {
   )
 }
 
-// O gate de faturamento (ADR 0054, migrations 337/367/368) recusa a promoção a
-// `ready_for_billing`, mas a recusa é uma exceção: o `UPDATE` de
-// `billing_hold_reason` que a antecedia morria no rollback da mesma transação
-// (por isso a 368 o removeu). O estado vivo das pendências canônicas é o que a
-// `save_bl_review` grava em `notes`, e é dele que esta tela lê.
+// O Portal chega aqui por dois caminhos: a pendência canônica que a
+// `save_bl_review` grava em `notes` (ADR 0054) e a retenção do CE sem Portal,
+// que a 083 grava em `billing_hold_reason` (ADR 0070). A recusa do gate na
+// promoção manual continua sendo exceção, sem motivo gravado.
 const PORTAL_PENDENCY = /acesso ao portal nao provisionado/i
 
 // Portal é o único bloqueio que não se resolve no B/L — mora no cadastro do
 // cliente e vale para todos os B/Ls dele. Por isso é o último da precedência:
 // só responde pelo B/L quando é a única pendência aberta.
 function isPortalOnlyPendency(row: { billing_hold_reason: string | null; notes: string | null }) {
-  // `billing_hold_reason` gravado é hold próprio do B/L (reconciliação de
-  // cliente, sem linhas faturáveis): nunca é "só o portal".
-  if ((row.billing_hold_reason ?? '').trim()) return false
+  const hold = (row.billing_hold_reason ?? '').trim()
   const reasons = extractReviewReasons(row.notes)
-  return reasons.length > 0 && reasons.every((reason) => PORTAL_PENDENCY.test(reason))
+  const onlyPortalReasons = reasons.every((reason) => PORTAL_PENDENCY.test(reason))
+  // Desde a 083 (ADR 0070) o CE retém a fatura sem Portal e grava o motivo em
+  // `billing_hold_reason`. Qualquer outro hold gravado é próprio do B/L
+  // (reconciliação de cliente, sem linhas faturáveis): nunca é "só o portal".
+  if (hold) return PORTAL_PENDENCY.test(hold) && onlyPortalReasons
+  return reasons.length > 0 && onlyPortalReasons
 }
 
 export function getBillingBlockReason(row: {
@@ -100,7 +102,7 @@ export function getBillingBlock(row: {
       detail: row.billing_hold_reason ?? (reasons.length ? `Revisão pendente: ${reasons.join(', ')}` : row.totals.review_required_count > 0 ? 'Há linhas de taxa com revisão pendente.' : 'Sem linhas de taxa calculadas.'),
     }
   }
-  if (row.billing_hold_reason) {
+  if (row.billing_hold_reason && !portalOnly) {
     return { code: 'calculo_incompleto', label: 'Cálculo incompleto', detail: row.billing_hold_reason }
   }
   // CE Mercante é exigido em todo modo faturável (ADR 0042; `assert_bl_ce_mercante`

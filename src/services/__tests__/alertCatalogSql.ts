@@ -30,12 +30,14 @@ const CATALOG_MIGRATIONS = [
 const DEACTIVATION_MIGRATIONS = [
   '347_alerts_retire_dead_invoice_types.sql',
   '348_taxas_locais_sem_vencimento.sql',
+  '085_email_fora_do_faturamento_taxas_do_ce.sql',
 ]
 
 // Migrations que mudam gravidade, responsável ou audiência de um tipo já
 // semeado (`UPDATE public.alert_type_catalog SET ... WHERE type = '...'`).
 const CATALOG_UPDATE_MIGRATIONS = [
   '078_alertas_pix_administrativo_granito_normal.sql',
+  '083_portal_trava_universal_liberacao_faturamento.sql',
 ]
 
 const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi

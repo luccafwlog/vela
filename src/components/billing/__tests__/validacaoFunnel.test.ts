@@ -55,6 +55,23 @@ describe('bloqueio por portal não provisionado', () => {
     expect(block.detail).toBe(hold)
   })
 
+  // ADR 0070: o CE sem Portal retém a fatura e grava o motivo no B/L, com a
+  // revisão já concluída (sem notas de pendência).
+  it('reconhece a retenção do CE sem Portal gravada no B/L', () => {
+    const block = getBillingBlock({ ...withCe, review_status: 'reviewed', notes: null, billing_hold_reason: 'Acesso ao portal nao provisionado' })
+    expect(block.code).toBe('portal_nao_provisionado')
+  })
+
+  it('não esconde pendência de revisão atrás da retenção do Portal', () => {
+    const block = getBillingBlock({
+      ...withCe,
+      review_status: 'pending_review',
+      notes: 'Pendencias de importacao: Cliente sem e-mail cadastrado',
+      billing_hold_reason: 'Acesso ao portal nao provisionado',
+    })
+    expect(block.code).toBe('calculo_incompleto')
+  })
+
   it('fica atrás do CE Mercante na precedência', () => {
     const block = getBillingBlock({ ...base, ce_mercante: null, review_status: 'pending_review', notes: portalNotes })
     expect(block.code).toBe('aguardando_ce')

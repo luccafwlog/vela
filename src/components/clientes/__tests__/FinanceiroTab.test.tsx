@@ -26,6 +26,14 @@ vi.mock('../../../hooks/useCustomerDemurrageAgreements', () => ({
   useSaveCustomerDemurrageAgreement: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
+vi.mock('../../../hooks/usePortalProvisioning', () => ({
+  usePortalProvisioningForCustomer: () => ({ data: undefined }),
+}))
+
+vi.mock('../BillingPortalReleaseCard', () => ({
+  BillingPortalReleaseCard: () => null,
+}))
+
 import { FinanceiroTab } from '../FinanceiroTab'
 
 const baseData = { id: 101, name: 'ACME', invoices: [], invoices_access_denied: false } as never

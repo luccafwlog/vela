@@ -4,16 +4,13 @@ import { supabase } from './supabase'
 import type { CeMercanteEdiRow } from './ceMercanteEdiParser'
 import { matchHeaders, readSheet, type HeaderSpec, type SheetRow } from './importCore'
 
-// apply_ce_mercante_rows_atomic (migration 082) ainda não está no bloco gerado
-// de src/types/database.ts: a regeneração depende do CLI do Supabase.
-const ceRowsRpc = supabase as unknown as {
-  rpc: (
-    fn: 'apply_ce_mercante_rows_atomic',
-    args: { p_rows: Array<{ row: number; bl_id: string; ce: string }>; p_changed_by: string | null; p_target: CeMercanteImportTarget },
-  ) => Promise<{
-    data: { ok: boolean; inserted?: number; overwritten?: number; unchanged?: number; errors?: Array<{ row?: number; bl_id?: string; message: string }> } | null
-    error: Error | null
-  }>
+// Resposta de apply_ce_mercante_rows_atomic (migration 082); o tipo gerado é Json.
+type CeRowsAtomicResult = {
+  ok: boolean
+  inserted?: number
+  overwritten?: number
+  unchanged?: number
+  errors?: Array<{ row?: number; bl_id?: string; message: string }>
 }
 
 const headerMap = {
@@ -207,7 +204,7 @@ export async function importCeMercanteRows(
     return { processed: rows.length, updated: 0, overwritten: 0, unchanged: 0, errorCount: errors.length, errors }
   }
 
-  const { data, error } = await ceRowsRpc.rpc('apply_ce_mercante_rows_atomic', {
+  const { data: rawResult, error } = await supabase.rpc('apply_ce_mercante_rows_atomic', {
     p_rows: validRows.map((row) => ({
       row: row.rowNumber,
       bl_id: target === 'granite' ? resolvedIds.get(row.bl_id) ?? row.bl_id : row.bl_id,
@@ -217,6 +214,7 @@ export async function importCeMercanteRows(
     p_target: target,
   })
   if (error) throw error
+  const data = rawResult as unknown as CeRowsAtomicResult | null
   if (!data?.ok) {
     const rowErrors = (data?.errors ?? []).map((item) => ({
       row: Number(item.row ?? 0),

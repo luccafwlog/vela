@@ -75,4 +75,25 @@ describe('BlReviewContextPanel', () => {
     expect(screen.getByText('Peso BB ausente')).toBeTruthy()
     expect(screen.getByText(/Informe o peso BB na aba Detalhes/i)).toBeTruthy()
   })
+
+  it('não calcula pendência de e-mail para cliente sem contato (migration 085)', () => {
+    const bl = {
+      id: 'BL_SEM_EMAIL',
+      review_status: 'pending_review',
+      customer_id: 11,
+      customer: { id: 11, name: 'Cliente sem contato', cnpj_cpf: '12345678000195', customer_contacts: [] },
+      cargo_mode: 'carga_solta',
+      bb_weight_ton: null,
+      notes: null,
+    } as unknown as BLDetail
+
+    render(
+      <MemoryRouter>
+        <BlReviewContextPanel bl={bl} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Peso BB ausente')).toBeTruthy()
+    expect(screen.queryByText('Cliente sem e-mail cadastrado')).toBeNull()
+  })
 })
