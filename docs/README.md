@@ -14,6 +14,7 @@
 | Rodar/entender os testes | [setup/testing.md](setup/testing.md) |
 | Entender uma regra de negócio não óbvia | [operations/regras-de-negocio.md](operations/regras-de-negocio.md) |
 | Entender segurança (RLS, auth, CSP) | [operations/seguranca.md](operations/seguranca.md) |
+| Saber quais serviços externos o sistema usa, onde estão as contas e os segredos | [operations/servicos-externos.md](operations/servicos-externos.md) |
 | Validar um fluxo manualmente | [operations/validacao.md](operations/validacao.md) |
 | Saber por que algo foi decidido | [adr/](adr/) |
 
@@ -54,7 +55,7 @@ O fluxo canônico detalhado está em [ARCHITECTURE.md](ARCHITECTURE.md#fluxo-ope
 - [ROADMAP.md](ROADMAP.md) — estado atual, backlog e riscos.
 - [CHANGELOG.md](CHANGELOG.md) — histórico de entregas relevantes.
 - [adr/](adr/) — decisões arquiteturais numeradas.
-- [operations/](operations/regras-de-negocio.md) — regras de negócio, segurança, validação, reset, [backup lógico cifrado em R2](operations/backup-r2.md), [rate limit do Portal](operations/portal-rate-limit.md), [segredos dos jobs `pg_cron`](operations/segredos-cron.md).
+- [operations/](operations/regras-de-negocio.md) — [manual dos serviços externos](operations/servicos-externos.md), regras de negócio, segurança, validação, reset, [backup lógico cifrado em R2](operations/backup-r2.md), [rate limit do Portal](operations/portal-rate-limit.md), [segredos dos jobs `pg_cron`](operations/segredos-cron.md).
 - [setup/](setup/development.md) — desenvolvimento, deploy, testes.
 - [plans/](plans/README.md) — planos de implementação vivos (ainda não executados).
 - [spec/](spec/README.md) — specs funcionais ainda sem implementação concluída.
