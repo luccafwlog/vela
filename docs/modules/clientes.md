@@ -1,10 +1,10 @@
 # Clientes
 
-> **Status:** ativo · **Atualizado:** 2026-09-01 · **Rotas:** `/clientes`, `/clientes/:cnpj`, `/clientes/comunicacao`
+> **Status:** ativo · **Atualizado:** 2026-09-23 · **Rotas:** `/clientes`, `/clientes/:cnpj`, `/clientes/comunicacao`
 
 ## Propósito e escopo
 
-O módulo mantém o cadastro mestre de clientes, seus contatos, o vínculo com B/Ls e invoices, o provisionamento administrativo da Conta de Portal e a comunicação operacional por e-mail. As rotas são internas, montadas sob `ProtectedRoute` e `AppLayout` em `src/AppInterno.tsx`; seleção/exclusão em massa e gestão do Portal aparecem somente para admin, enquanto Comunicados exigem a permissão `customer_communications`. A fronteira efetiva continua nas policies, RPCs e Edge Functions do Supabase.
+O módulo mantém o cadastro mestre de clientes, seus contatos, o vínculo com B/Ls e invoices, o provisionamento administrativo da Conta de Portal e a comunicação operacional por e-mail. As rotas são internas, montadas sob `ProtectedRoute` e `AppLayout` em `src/AppInterno.tsx`; seleção/exclusão em massa aparece somente para o Administrativo, a gestão do Portal (permissão `portal_provisioning`) para Documentação e Administrativo, e Comunicados exigem a permissão `customer_communications`. A fronteira efetiva continua nas policies, RPCs e Edge Functions do Supabase.
 
 `clientes.md` é dono do ciclo cadastral e do adaptador interno de provisionamento. Autenticação, sessão e autosserviço externos pertencem a [Portal do Cliente](portal-cliente.md); reconciliação manual e gate de faturamento pertencem a [Operação e suporte](operacao-suporte.md).
 

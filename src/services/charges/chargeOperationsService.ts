@@ -13,8 +13,8 @@ export type LocalChargeLine = {
   charge_item_id: number | null
   charge_name: string
   // Migration 369: a linha diz de qual tabela de cobranca veio e sob qual base
-  // foi aplicada. `charge_tables` e admin-only sob RLS, entao sem estas colunas
-  // a tela nao tem como nomear a tabela usada no calculo.
+  // foi aplicada. Com estas colunas a tela nomeia a tabela usada no calculo
+  // sem uma segunda consulta a `charge_tables`.
   charge_table_name: string | null
   charge_table_pod: string | null
   application_basis: string | null
