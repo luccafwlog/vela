@@ -476,7 +476,11 @@ Cloudflare.
 
 1. Cloudflare → **Workers & Pages** → `vela-internal` → **Custom domains** →
    **Set up a custom domain** → `vela.app.br` → **Activate domain**. A
-   Cloudflare troca o registro da Vercel pelo do Pages.
+   Cloudflare troca o registro da Vercel por `CNAME @` → `<projeto>.pages.dev`
+   com proxy. O painel pode mostrar "Verifying" pedindo um CNAME: **não
+   adicione nada**; confira o registro em **DNS → Records** e espere o Active.
+   Durante a troca, alguns segundos de 522 ou respostas ainda da Vercel são
+   normais.
 2. Teste o domínio como na etapa 8, passo 5.
 3. Repita para `vela-portal` com `portalfwlog.com.br`, fora do horário
    comercial.
@@ -485,8 +489,8 @@ Cloudflare.
    Domains** → remova o domínio; depois **Settings → Git → Disconnect**, para
    parar os builds.
 
-**Como desfazer (dentro dos 7 dias):** Cloudflare → **DNS** → apague o registro
-do Pages e recrie o registro da Vercel com o valor da foto da etapa 9 (nuvem
+**Como desfazer (dentro dos 7 dias):** Cloudflare → **DNS** → apague o `CNAME @`
+do Pages e recrie `A @ 216.198.79.1` (valor da foto da etapa 9, nuvem
 cinza). Em seguida, remova o custom domain do projeto Pages.
 
 ---
@@ -507,6 +511,7 @@ cinza). Em seguida, remova o custom domain do projeto Pages.
 | 6 | 2026-09-24 | Dono + Claude Code | Bucket e regra "Expire backups after 90 days" (prefixo `vela/database`) já existiam. Chaves do R2 lidas do Gerenciador de Credenciais; chave de cifragem nova, guardada no Gerenciador de Credenciais e no iCloud Senhas; senha do banco resetada. Primeiro backup às 15:01 UTC e execução pela tarefa agendada às 15:11 UTC (0x0), ambos no R2. Corrigido `scripts/backup-r2.mjs`: `--file=-` fazia o `pg_dump` do Windows gravar o banco sem cifragem num arquivo `-` (apagado na hora, não saiu da máquina) |
 | 7 | 2026-09-24 | Dono + Claude Code | Aplicações do Access `*.vela-internal.pages.dev` e `*.vela-portal.pages.dev` com Include só `luccafwlog@gmail.com` (login pela conta Cloudflare); `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`. PR #753: sem sessão, os dois `pr-753` redirecionam para o Access; janela anônima barrada no login da Cloudflare. A preview abria em branco: o GitHub descartava o output `supabase_anon_key` ("may contain secret"); corrigido na #753 (artefato + recusa de build sem chave). Na #754 (já com a correção): dono entrou no Vela da preview até `/painel` e viu o login do Portal, sem erro de configuração do Supabase. Resta no console só o manifest bloqueado pelo redirecionamento do Access (inofensivo, só nas previews) |
 | 9 | 2026-09-24 | Dono + Claude Code | Concluída. Foto do DNS: só `A 216.198.79.1` e DNSSEC nos dois domínios; e-mail só em `transhippingdesk.com.br`. Zonas já existiam na Cloudflare (Free); `A` passado para DNS only. `vela.app.br`: SPF `-all` e DMARC `reject`. `portalfwlog.com.br`: ImprovMX (`suporte@` → `importacao@fwlog.com.br`, `lucca.juliatti@fwlog.com.br`), MX, SPF, DKIM e CNAMEs do Resend, DMARC; conferidos nos servidores da Cloudflare. `DEMURRAGE_REPLY_TO`=`eqp@fwlog.com.br` e `COMMUNICATIONS_REPLY_TO`=`importacao@fwlog.com.br` (16:53–16:54 UTC; `demurrage-dunning` publicada da #755). Servidores trocados no Registro.br para `ariadne`/`pablo` (publicados no `.br` por volta das 16:15 de Brasília); as duas zonas Active. Resend Verified para `portalfwlog.com.br`. E-mail externo para `suporte@portalfwlog.com.br` chegou nas duas caixas. `PORTAL_FROM_EMAIL`=`Portal Fwlog <no-reply@portalfwlog.com.br>`, `PORTAL_REPLY_TO` e `PORTAL_SUPPORT_EMAIL`=`suporte@portalfwlog.com.br`; "Esqueci minha senha" no Portal chegou com remetente e responder-para certos. DNSSEC ligado na Cloudflare e DS no Registro.br nos dois domínios (keytag 2371, digests diferentes), conferido com a DNSKEY publicada. Sites no Vercel respondem 200 com certificado válido. `www`: `A www 192.0.2.1` com proxy e Redirect Rule "www para raiz" (301, preserva caminho e query) nos dois domínios. Conferido com `curl`: `www.<domínio>/teste?x=1` → 301 para `https://<domínio>/teste?x=1`. A regra do Portal tinha o destino errado (voltava para o próprio `www`) e foi corrigida. Não verificado: um convite real do Portal chegando fora do spam |
+| 10 | 2026-09-24 | Dono + Claude Code | Passos 1–4. `vela.app.br` → `vela-internal` e `portalfwlog.com.br` → `vela-portal`, os dois Active; registro da raiz virou `CNAME @` → `<projeto>.pages.dev` com proxy. Conferido: HTML de cada domínio idêntico ao do `pages.dev`, sem resposta da Vercel; `/painel`, `/portal/login`, `/portal/billing` e `/portal/esqueci-senha` com 200; `/portal` do interno → 302 para o Portal; `www` segue com 301. Um 522 isolado na troca do Vela. Dono: login no Vela (F5 em `/painel`) e no Portal (Turnstile, F5 em `/portal/billing`, esqueci-senha). Pendente: passo 5 (desligar a Vercel) a partir de 2026-10-01 e PR de limpeza |
 
 ### Ocorrido de 2026-09-24 — login do Portal fora do ar
 
