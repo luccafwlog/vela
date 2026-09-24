@@ -102,6 +102,7 @@ function cleanup(): void {
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
     DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
+    DELETE FROM public.customer_contacts WHERE customer_id = ${customerId};
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
     DELETE FROM public.customers WHERE id = ${customerId};
     DELETE FROM public.audit_logs WHERE changed_by IN ('${adminId}', '${docId}');
@@ -184,6 +185,17 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(blState(heldBlId).invoice_count).toBe(0)
   })
 
+  // 084: sem Portal, o e-mail de contato é o único canal da fatura.
+  it('não concede sem contato com e-mail nem com revisão além de 30 dias', () => {
+    expect(sqlError(() => asUser(`SELECT public.grant_customer_billing_portal_release(${customerId}, 'Cliente sem e-mail', now() + interval '7 days');`, adminId)))
+      .toContain('Cadastre um contato com e-mail')
+    psql(`INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary)
+      VALUES (${customerId}, 'Financeiro 083', 'financeiro-083@example.test', 'financeiro', true);`)
+    expect(sqlError(() => asUser(`SELECT public.grant_customer_billing_portal_release(${customerId}, 'Prazo longo', now() + interval '45 days');`, adminId)))
+      .toContain('no máximo 30 dias')
+    expect(blState(heldBlId).invoice_count).toBe(0)
+  })
+
   it('conceder a Liberação emite a fatura retida sem outra ação e resolve o Alerta', () => {
     const result = JSON.parse(asUser(
       `SELECT public.grant_customer_billing_portal_release(${customerId}, 'Cliente sem e-mail até o fim do mês', now() + interval '7 days');`,
@@ -216,6 +228,19 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(portalAlert()).toBe('active/documentacao')
   })
 
+  it('a Liberação perde efeito se o último e-mail de contato for desativado', () => {
+    // Inserida direto (sem a RPC) para não reprocessar o B/L retido que o
+    // teste seguinte, de ativação do Portal, precisa encontrar.
+    psql(`UPDATE public.customer_billing_portal_releases SET revoked_at = now(), revoked_by = '${adminId}',
+      revoke_reason = 'Troca no teste' WHERE customer_id = ${customerId} AND revoked_at IS NULL;
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
+      VALUES (${customerId}, 'Nova liberação', '${adminId}', now() + interval '3 days');`)
+    expect(psql(`SELECT public.customer_billing_access_ready(${customerId});`)).toBe('t')
+    psql(`UPDATE public.customer_contacts SET deactivated_at = now() WHERE customer_id = ${customerId};`)
+    expect(psql(`SELECT public.customer_billing_access_ready(${customerId});`)).toBe('f')
+    psql(`UPDATE public.customer_contacts SET deactivated_at = NULL WHERE customer_id = ${customerId};`)
+  })
+
   it('ativar o Portal reprocessa o Cliente e emite o que ficou retido', () => {
     psql(`UPDATE public.customer_billing_portal_releases SET revoked_at = now(), revoked_by = '${adminId}',
       revoke_reason = 'Encerrada no teste' WHERE customer_id = ${customerId} AND revoked_at IS NULL;`)
@@ -230,5 +255,15 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(result.issued).toBe(1)
     expect(blState(activationBlId)).toMatchObject({ financial_status: 'invoiced', billing_hold_reason: null, invoice_count: 1 })
     expect(portalAlert()).toBe('resolved/documentacao')
+  })
+
+  // 084: com Portal pronto, o Cliente vê a fatura no Portal; contato com
+  // e-mail deixa de ser pendência, na emissão manual e na automática.
+  it('com Portal pronto, a falta de e-mail de contato não é pendência', () => {
+    psql(`UPDATE public.customer_contacts SET deactivated_at = now() WHERE customer_id = ${customerId};`)
+    expect(psql(`SELECT array_to_string(public.compute_bl_review_pendencies(${customerId}, 'container', NULL::numeric), ',');`)).toBe('')
+    psql(`UPDATE public.customer_portal_accounts SET account_situation = 'suspenso' WHERE customer_id = ${customerId};`)
+    expect(psql(`SELECT array_to_string(public.compute_bl_review_pendencies(${customerId}, 'container', NULL::numeric), ',');`))
+      .toBe('Cliente sem e-mail cadastrado,Acesso ao portal nao provisionado')
   })
 })

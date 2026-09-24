@@ -245,10 +245,11 @@ Não há lock otimista nessa atualização. A proteção efetiva para `role` e `
 
 O contrato vigente combina `compute_bl_review_pendencies` (`051`), seu
 núcleo `_compute_bl_review_pendencies` (`059`) e os gates de prontidão/emissão
-(`047`/`056`). Cliente ausente bloqueia; no caminho normal, contato ativo com
-email e prontidão do Portal são exigidos. Peso BB é validado para carga solta
-e misto. A automação CE dispensa só o e-mail de contato; o Portal vale sempre,
-salvo Liberação de faturamento sem Portal vigente (ADR 0070, migration `083`).
+(`047`/`056`). Cliente ausente bloqueia. O Portal pronto é exigido, salvo
+Liberação de faturamento sem Portal vigente (ADR 0070, migration `083`);
+contato ativo com e-mail só é exigido de quem não tem Portal pronto, na emissão
+manual e na automática (migration `084`). Peso BB é validado para carga solta
+e misto.
 
 CE Mercante tem guarda documental própria antes de promover/emitir, mesmo
 quando não aparece no array de pendências de revisão. `save_bl_review` calcula

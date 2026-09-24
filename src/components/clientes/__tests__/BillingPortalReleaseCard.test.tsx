@@ -51,6 +51,16 @@ describe('BillingPortalReleaseCard', () => {
     expect(grant).not.toHaveBeenCalled()
   })
 
+  it('não envia revisão além de 30 dias', async () => {
+    render(<BillingPortalReleaseCard customerId={9} portalReady={false} />)
+    fireEvent.change(screen.getByRole('textbox', { name: /Justificativa/ }), { target: { value: 'Cliente sem Portal' } })
+    const far = new Date(Date.now() + 45 * 86_400_000).toLocaleDateString('en-CA')
+    fireEvent.change(screen.getByLabelText(/Data de revisão/), { target: { value: far } })
+    fireEvent.click(screen.getByRole('button', { name: 'Liberar faturamento' }))
+    expect(await screen.findByText(/no máximo 30 dias/)).toBeTruthy()
+    expect(grant).not.toHaveBeenCalled()
+  })
+
   it('a Documentação vê a situação, mas não concede', () => {
     auth.effectiveRole = 'documentacao'
     render(<BillingPortalReleaseCard customerId={9} portalReady={false} />)

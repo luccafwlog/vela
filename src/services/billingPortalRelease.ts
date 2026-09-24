@@ -1,19 +1,11 @@
 import { supabase } from './supabase'
+import type { Database } from '../types/database'
 
-// Liberação de faturamento sem Portal (migration 083, ADR 0070). A tabela e as
-// RPCs ainda não estão no bloco gerado de src/types/database.ts: a regeneração
-// depende do CLI do Supabase. Os tipos abaixo espelham a migration.
-export type BillingPortalRelease = {
-  id: number
-  customer_id: number
-  justification: string
-  granted_by: string
-  granted_at: string
-  review_at: string
-  revoked_at: string | null
-  revoked_by: string | null
-  revoke_reason: string | null
-}
+// Liberação de faturamento sem Portal (migrations 083/084, ADR 0070).
+export type BillingPortalRelease = Pick<
+  Database['public']['Tables']['customer_billing_portal_releases']['Row'],
+  'id' | 'customer_id' | 'justification' | 'granted_by' | 'granted_at' | 'review_at' | 'revoked_at' | 'revoked_by' | 'revoke_reason'
+>
 
 export type BillingPortalReleaseReprocess = {
   customer_id: number
@@ -21,24 +13,6 @@ export type BillingPortalReleaseReprocess = {
   issued: number
   blocked: number
   failed: number
-}
-
-type RpcResult<T> = Promise<{ data: T | null; error: Error | null }>
-
-const releaseClient = supabase as unknown as {
-  from: (table: 'customer_billing_portal_releases') => {
-    select: (columns: string) => {
-      eq: (column: 'customer_id', value: number) => {
-        order: (column: 'granted_at', options: { ascending: boolean }) => {
-          limit: (count: number) => RpcResult<BillingPortalRelease[]>
-        }
-      }
-    }
-  }
-  rpc: {
-    (fn: 'grant_customer_billing_portal_release', args: { p_customer_id: number; p_justification: string; p_review_at: string }): RpcResult<{ release_id: number; reprocess: BillingPortalReleaseReprocess }>
-    (fn: 'revoke_customer_billing_portal_release', args: { p_customer_id: number; p_reason: string }): RpcResult<{ release_id: number; revoked: boolean }>
-  }
 }
 
 export type BillingPortalReleaseState = 'vigente' | 'vencida' | 'revogada'
@@ -50,7 +24,7 @@ export function billingPortalReleaseState(release: BillingPortalRelease, now = n
 
 /** A liberação mais recente do Cliente, vigente ou não; `null` se nunca houve. */
 export async function fetchLatestBillingPortalRelease(customerId: number): Promise<BillingPortalRelease | null> {
-  const { data, error } = await releaseClient
+  const { data, error } = await supabase
     .from('customer_billing_portal_releases')
     .select('id, customer_id, justification, granted_by, granted_at, review_at, revoked_at, revoked_by, revoke_reason')
     .eq('customer_id', customerId)
@@ -66,18 +40,18 @@ export function reviewDateToTimestamp(date: string): string {
 }
 
 export async function grantBillingPortalRelease(input: { customerId: number; justification: string; reviewDate: string }) {
-  const { data, error } = await releaseClient.rpc('grant_customer_billing_portal_release', {
+  const { data, error } = await supabase.rpc('grant_customer_billing_portal_release', {
     p_customer_id: input.customerId,
     p_justification: input.justification.trim(),
     p_review_at: reviewDateToTimestamp(input.reviewDate),
   })
   if (error) throw error
   if (!data) throw new Error('A liberação não retornou confirmação.')
-  return data
+  return data as unknown as { release_id: number; reprocess: BillingPortalReleaseReprocess }
 }
 
 export async function revokeBillingPortalRelease(input: { customerId: number; reason: string }) {
-  const { error } = await releaseClient.rpc('revoke_customer_billing_portal_release', {
+  const { error } = await supabase.rpc('revoke_customer_billing_portal_release', {
     p_customer_id: input.customerId,
     p_reason: input.reason.trim(),
   })

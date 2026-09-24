@@ -226,9 +226,9 @@ flowchart LR
   (ADR 0054) devolveu *Acesso ao portal nao provisionado*. Desde a `083`
   (ADR 0070), o Portal bloqueia também a emissão automática pela transição do
   CE: sem Portal pronto nem Liberação de faturamento sem Portal vigente, o CE
-  calcula, retém a fatura e grava o motivo em `billing_hold_reason`. O
-  contexto interno da `051` só dispensa o e-mail de contato (ver **Gate de
-  faturamento do Portal** em `CONTEXT.md`).
+  calcula, retém a fatura e grava o motivo em `billing_hold_reason`. Desde a
+  `084`, *Cliente sem e-mail cadastrado* só aparece para Cliente sem Portal
+  pronto (ver **Gate de faturamento do Portal** em `CONTEXT.md`).
 - **Taxa local em USD (ADR 0038 decisão 6, achado 7, migration 268):** linha
   em USD deixou de bloquear `mark_bl_ready_for_billing`. Converte para BRL na
   emissão da fatura (`create_invoice_from_bls_core` /

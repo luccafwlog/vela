@@ -16,6 +16,9 @@ const STATE_BADGE = {
   revogada: { tone: 'slate', label: 'Revogada' },
 } as const
 
+// Teto da migration 084 (decisão de 2026-09-24); o banco recusa além disso.
+const MAX_REVIEW_DAYS = 30
+
 function todayPlusDays(days: number) {
   const date = new Date()
   date.setDate(date.getDate() + days)
@@ -40,7 +43,7 @@ export function BillingPortalReleaseCard({ customerId, portalReady, variant = 'c
   const grant = useGrantBillingPortalRelease()
   const revoke = useRevokeBillingPortalRelease()
   const [justification, setJustification] = useState('')
-  const [reviewDate, setReviewDate] = useState(todayPlusDays(30))
+  const [reviewDate, setReviewDate] = useState(todayPlusDays(MAX_REVIEW_DAYS))
   const [revokeReason, setRevokeReason] = useState('')
   const [error, setError] = useState('')
   const state = release ? billingPortalReleaseState(release) : null
@@ -50,6 +53,7 @@ export function BillingPortalReleaseCard({ customerId, portalReady, variant = 'c
     setError('')
     if (justification.trim().length < 3) return setError('Informe a justificativa.')
     if (!reviewDate || reviewDate <= todayPlusDays(0)) return setError('A data de revisão precisa ser futura.')
+    if (reviewDate > todayPlusDays(MAX_REVIEW_DAYS)) return setError(`A data de revisão pode ser no máximo ${MAX_REVIEW_DAYS} dias à frente.`)
     const ok = await confirm({
       title: 'Liberar faturamento sem Portal',
       message: 'As faturas retidas deste Cliente serão emitidas agora, e as próximas sairão sem esperar o Portal até a data de revisão.',
@@ -99,7 +103,7 @@ export function BillingPortalReleaseCard({ customerId, portalReady, variant = 'c
       <p className="text-[var(--app-muted)]">
         {portalReady
           ? 'O Portal deste Cliente está pronto: o faturamento não depende de liberação.'
-          : 'Sem Portal pronto, a fatura fica retida quando o CE Mercante é registrado. A liberação emite as retidas e vale até a data de revisão.'}
+          : 'Sem Portal pronto, a fatura fica retida quando o CE Mercante é registrado. A liberação emite as retidas e vale até a data de revisão. Exige contato do Cliente com e-mail, que passa a ser o único canal da fatura.'}
       </p>
       {isLoading ? <div className="text-[var(--app-muted)]">Carregando…</div> : null}
       {isError ? <InlineError message="Erro ao carregar a liberação." /> : null}
@@ -126,8 +130,8 @@ export function BillingPortalReleaseCard({ customerId, portalReady, variant = 'c
           <Field label="Justificativa" required>
             <Textarea rows={2} value={justification} onChange={(event) => setJustification(event.target.value)} disabled={busy} />
           </Field>
-          <Field label="Data de revisão" required hint="Depois dela, as faturas voltam a ficar retidas até o Portal ficar pronto.">
-            <Input type="date" min={todayPlusDays(1)} value={reviewDate} onChange={(event) => setReviewDate(event.target.value)} disabled={busy} />
+          <Field label="Data de revisão" required hint={`Até ${MAX_REVIEW_DAYS} dias. Depois dela, as faturas voltam a ficar retidas até o Portal ficar pronto.`}>
+            <Input type="date" min={todayPlusDays(1)} max={todayPlusDays(MAX_REVIEW_DAYS)} value={reviewDate} onChange={(event) => setReviewDate(event.target.value)} disabled={busy} />
           </Field>
           <div><Button onClick={() => void handleGrant()} disabled={busy}>Liberar faturamento</Button></div>
         </div>

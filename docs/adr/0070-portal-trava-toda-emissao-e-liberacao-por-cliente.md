@@ -62,13 +62,27 @@ levou a questão ao dono do produto. As decisões foram:
   instante. O Alerta reaparece na próxima retenção ou reconciliação do
   Cliente, não no instante do vencimento. Se for preciso avisar no
   vencimento, o caminho é um `pg_cron` diário (marcado `ponytail:` na `083`).
-- O contexto privado da `051` continua existindo só para dispensar o **e-mail
-  de contato** na emissão automática. A emissão manual continua exigindo esse
-  e-mail. Essa assimetria é anterior e não foi decidida aqui.
+- O **e-mail de contato** segue uma regra só, decidida em 2026-09-24 (ver
+  abaixo). O contexto privado da `051` não muda mais nenhum gate.
 - A fatura emitida com a Liberação vigente não abre a exceção crítica
   `portal_excecao_critica_fatura`: a Liberação é a decisão registrada.
 - Rollback: uma migration que devolva a exceção interna a
   `customer_billing_access_ready` e às triggers, sem tocar faturas emitidas.
+
+## Nota — 2026-09-24 · e-mail de contato e teto (migration `084`)
+
+Decisões do dono sobre o que ficou em aberto na primeira versão:
+
+- **E-mail de contato só é exigido de quem fatura sem Portal.** Com Portal
+  pronto, o Cliente vê a fatura no Portal, e a emissão manual ou automática
+  não depende de contato com e-mail (antes, a manual exigia e a automática
+  não). Sem Portal, o e-mail é o único canal: a Liberação só pode ser
+  concedida, e só vale, com contato ativo com e-mail. Se o último e-mail for
+  desativado, a Liberação perde efeito e o CE volta a reter; nada reprocessa
+  sozinho quando um e-mail novo é cadastrado, então é preciso renovar a
+  Liberação (`ponytail:` na `084`).
+- **Teto de 30 dias** para a data de revisão, em dias de Brasília. A RPC recusa
+  além disso, e a tabela tem um `CHECK` de 31 dias como defesa.
 
 ## Evidência
 
