@@ -7152,6 +7152,10 @@ export type Database = {
         Args: { p_value: string }
         Returns: string
       }
+      customer_has_contact_email: {
+        Args: { p_customer_id: number }
+        Returns: boolean
+      }
       customer_local_charges_communication_dispatch_ready: {
         Args: { p_customer_id: number; p_raise?: boolean; p_voyage_id: number }
         Returns: Json
@@ -7165,6 +7169,10 @@ export type Database = {
         Returns: Json
       }
       customer_portal_access_ready: {
+        Args: { p_customer_id: number }
+        Returns: boolean
+      }
+      customer_portal_billing_ready: {
         Args: { p_customer_id: number }
         Returns: boolean
       }
