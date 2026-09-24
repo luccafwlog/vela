@@ -336,7 +336,7 @@ para eles vale o backup do próprio Supabase.
 - **Programas:** Node 24, PostgreSQL 17 (só as ferramentas de linha de comando)
   e AWS CLI v2.
 - **Retenção:** regra "Expire backups after 90 days" no bucket.
-- **Token R2:** Account API Token com Object Read & Write só nesse bucket.
+- **Token R2:** Account API Token `vela-backup-diario` (Access Key ID começa com `5b22`), Object Read & Write só nesse bucket, sem validade. Criado em 2026-09-24; os tokens antigos foram apagados.
 - **Validar um backup:** `node scripts/backup-r2.mjs --verify <arquivo>.dump.enc`
   (trimestral). Procedimento completo: [backup-r2.md](backup-r2.md).
 - **Mudar de computador:** instalar os programas, recriar as 7 variáveis do
