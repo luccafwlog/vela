@@ -171,7 +171,9 @@ function waitForClose(child, label) {
 }
 
 function drain(stream) {
-  if (stream) stream.on('data', () => {})
+  let tail = ''
+  if (stream) stream.on('data', (chunk) => { tail = (tail + chunk).slice(-500) })
+  return () => tail.trim()
 }
 
 async function encryptPgDump({ destination, databaseEnv, key }) {
@@ -184,9 +186,10 @@ async function encryptPgDump({ destination, databaseEnv, key }) {
     '--schema=public',
     '--no-owner',
     '--no-privileges',
-    '--file=-',
-  ], { env: childEnvironment(databaseEnv), stdio: ['ignore', 'pipe', 'pipe'] })
-  drain(pgDump.stderr)
+    // Sem --file: o dump sai no stdout. pg_dump no Windows trata --file=- como
+    // um arquivo chamado "-" e grava o banco em texto claro no diretório atual.
+  ],{ env: childEnvironment(databaseEnv), stdio: ['ignore', 'pipe', 'pipe'] })
+  const pgDumpStderr = drain(pgDump.stderr)
   const cipher = createCipheriv('aes-256-gcm', key, iv)
   const output = createWriteStream(destination, { flags: 'a' })
   const closing = waitForClose(pgDump, 'pg_dump')
@@ -200,7 +203,8 @@ async function encryptPgDump({ destination, databaseEnv, key }) {
   }
 
   const result = await closing
-  if (result.code !== 0) throw new Error(`pg_dump terminou com codigo ${result.code ?? 'desconhecido'}.`)
+  // pg_dump nao imprime a senha (vem de PGPASSWORD); o stderr so diz o motivo.
+  if (result.code !== 0) throw new Error(`pg_dump terminou com codigo ${result.code ?? 'desconhecido'}: ${pgDumpStderr()}`)
   await appendFile(destination, cipher.getAuthTag())
 }
 
