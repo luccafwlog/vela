@@ -50,6 +50,12 @@ jobs:
       - name: Destructive migration check self-test
         run: node scripts/check-destructive-migrations.test.mjs
 
+      - name: Cloudflare Pages artifact staging contract
+        run: npm run cloudflare:stage:test
+
+      - name: Cloudflare Pages provisioning contract
+        run: npm run cloudflare:provision:test
+
   build:
     name: Build + Bundle size
     runs-on: ubuntu-latest
@@ -64,8 +70,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Build (tsc + vite)
-        run: npm run build
+      - name: Build Vite bundles and stage both Cloudflare Pages sites
+        run: npm run cloudflare:build:sites
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}

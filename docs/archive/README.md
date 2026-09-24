@@ -1,9 +1,9 @@
 # Archive
 
-Conteúdo **histórico e não-vivo**: planos executados, specs cuja execução foi
-concluída, auditorias datadas e relatórios de execução. Preservados para trilha
-e contexto — **não** são fonte de verdade do estado atual. Para o estado atual,
-ver a [documentação viva](../README.md).
+Conteúdo **histórico e não-vivo**: planos concluídos, encerrados ou superados;
+specs cuja execução foi concluída; auditorias datadas e relatórios de execução.
+Preservados para trilha e contexto — **não** são fonte de verdade do estado
+atual. Para o estado atual, ver a [documentação viva](../README.md).
 
 Reorganizado em 2026-07-18: as antigas subpastas `superpowers/{plans,specs,sdd}`
 foram achatadas em `plans/`, `specs/` e `reports/sdd/`; as auditorias soltas da
@@ -15,7 +15,7 @@ não verifica este diretório.
 
 | Pasta | O que é |
 |---|---|
-| `plans/` | Planos de implementação **executados** (numerados e datados, 2026-06 → 2026-07). Inclui os subprojetos `2026-07-08-transhipping-desk-edi-taxas/`, `cadastro-unico-navio-viagem/` e `security-audit-2026-07-07/` |
+| `plans/` | Planos de implementação concluídos, encerrados ou superados (numerados e datados, desde 2026-06). Inclui os subprojetos `2026-07-08-transhipping-desk-edi-taxas/`, `cadastro-unico-navio-viagem/` e `security-audit-2026-07-07/` |
 | `specs/` | Specs / design docs aprovadas cujos planos derivados foram concluídos |
 | `audits/` | Auditorias e reviews datados (técnica, QA e2e, segurança, qualidade de código, portal) |
 | `reports/sdd/` | Relatórios de execução por task (subagent-driven development), agrupados por plano |
