@@ -971,15 +971,6 @@
     .toc-part button.cur { background: var(--navy); color: #fff; }
     .toc-part button span { color: var(--muted-soft); font-family: var(--mono); font-size: 12px; }
     .toc-part button.cur span { color: var(--gold-nav); }
-    /* perguntas que sempre aparecem */
-    .faq { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 26px; }
-    .faq.c2 { grid-template-columns: 1fr 1fr; }
-    .faq-card { display: flex; flex-direction: column; gap: 8px; padding: 18px 20px; }
-    .faq-card h3 { display: flex; align-items: flex-start; gap: 10px; font-size: 18px; }
-    .faq-card .qm { display: grid; flex: none; place-items: center; width: 26px; height: 26px; border: 1.5px solid var(--gold); border-radius: 50%; background: var(--gold-soft); color: var(--gold-strong); font-family: var(--mono); font-size: 14px; }
-    .faq-card p { color: var(--muted); font-size: 15.5px; line-height: 1.45; }
-    .faq-card .reg { display: flex; align-items: center; gap: 7px; margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--border); color: var(--muted-soft); font-size: 12.5px; font-weight: 600; }
-    .faq-card .reg svg { width: 14px; height: 14px; }
     @media print { .toc { display: none !important; } .rel a { border-color: var(--border); } }
   </style>
   <style>
@@ -1060,7 +1051,7 @@
         <h1>Como o sistema funciona e o que ganhamos com ele</h1>
         <div class="rule"></div>
         <p class="lead">Um tour pelo Vela e pelo Portal Fwlog: cada tela e suas abas, como elas se ligam, o que o sistema confere e o que faz sozinho.</p>
-        <div class="cover-foot"><span>Apresentação às equipes</span></div>
+        <div class="cover-foot"><span>Transhipping Agenciamento Marítimo</span><span>Apresentação às equipes</span></div>
       </div>
     </section>
 
@@ -1084,7 +1075,7 @@
           </div>
           <div class="hub-col hub-out">
             <div class="col-title">O que o sistema entrega</div>
-            <div class="hub-item"><div class="ico"><svg class="i"><use href="#i-receipt"/></svg></div><div><b>Faturas e recibos</b><span>Taxas Locais e Demurrage, em nome da Transhipping, com PIX</span></div></div>
+            <div class="hub-item"><div class="ico"><svg class="i"><use href="#i-receipt"/></svg></div><div><b>Faturas</b><span>Taxas Locais e Demurrage, com PIX</span></div></div>
             <div class="hub-item"><div class="ico"><svg class="i"><use href="#i-mail"/></svg></div><div><b>Comunicados ao Cliente</b><span>NOA, NOR, NOB, CE e Taxas, cobrança</span></div></div>
             <div class="hub-item"><div class="ico"><svg class="i"><use href="#i-pen"/></svg></div><div><b>ADR da escala</b><span>Montado a partir dos módulos de origem</span></div></div>
             <div class="hub-item"><div class="ico"><svg class="i"><use href="#i-eye"/></svg></div><div><b>Portal, Painel e Alertas</b><span>Cliente e equipe veem a mesma situação</span></div></div>
@@ -1134,6 +1125,50 @@
       </div>
     </section>
 
+    <!-- Como as telas se ligam -->
+    <section class="slide" id="telas" data-part="Abertura" data-chapter="Como as telas se ligam">
+      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Como as telas se ligam</div></header>
+      <div class="body">
+        <p class="kicker">O mapa das relações</p>
+        <h2>Três fichas amarram o sistema: a Viagem, o B/L e o Cliente</h2>
+        <div class="rule"></div>
+        <div class="fichas">
+          <div class="ficha">
+            <p class="fx-k">Chega-se por</p>
+            <div class="fx-in"><a href="#painel">Painel · Line Up</a><a href="#chegadas">Chegadas e Saídas</a><a href="#viagem">Viagens · rail</a></div>
+            <a class="hubcard" href="#viagem"><span class="hc-ico"><svg class="i"><use href="#i-ship"/></svg></span><b>Viagem</b><span class="route">/viagens/:viagem</span><p>O navio e suas escalas. Tudo o que é da operação aponta para ela.</p><span class="hc-tabs"><i>Visão geral</i><i>Importação</i><i>Exportação</i><i>Rotas e Manifestos</i><i>ADR</i></span></a>
+            <p class="fx-k">Leva a</p>
+            <div class="fx-out"><a href="#bls">BLs da viagem</a><a href="#baplie">Baplie EDI</a><a href="#granito">Granito</a><a href="#vazios-exp">Embarque de Vazios</a><a href="#adr">ADR</a></div>
+          </div>
+          <div class="join"><span class="j-top">uma Viagem<br>tem muitos B/Ls</span><i></i><span class="j-bot">?voyage=</span></div>
+          <div class="ficha">
+            <p class="fx-k">Chega-se por</p>
+            <div class="fx-in"><a href="#bls">BLs</a><a href="#revisao">Revisão</a><a href="#taxas-tela">Validação</a><a href="#apoio">Containers</a><a href="#alertas-fila">Alertas</a></div>
+            <a class="hubcard" href="#bl-ficha"><span class="hc-ico"><svg class="i"><use href="#i-file"/></svg></span><b>B/L</b><span class="route">/bls/:bl</span><p>O documento da carga. Liga o navio, o cliente e o dinheiro.</p><span class="hc-tabs"><i>Visão Geral</i><i>Carga</i><i>Detalhes do B/L</i><i>Faturamento</i><i>Histórico</i></span></a>
+            <p class="fx-k">Leva a</p>
+            <div class="fx-out"><a href="#viagem">Viagem</a><a href="#clientes">Cliente</a><a href="#taxas-tela">Fatura</a><a href="#demurrage-tela">Demurrage</a><a href="#portal-operacao">O que o Cliente vê</a></div>
+          </div>
+          <div class="join"><span class="j-top">cada B/L<br>pertence a um Cliente</span><i></i><span class="j-bot">CNPJ exato</span></div>
+          <div class="ficha">
+            <p class="fx-k">Chega-se por</p>
+            <div class="fx-in"><a href="#clientes">Clientes</a><a href="#revisao">Revisão</a><a href="#console">Console do Portal</a></div>
+            <a class="hubcard" href="#clientes"><span class="hc-ico"><svg class="i"><use href="#i-building"/></svg></span><b>Cliente</b><span class="route">/clientes/:cnpj</span><p>Quem paga e quem é avisado. Reúne cadastro, carga, saldo e conversas.</p><span class="hc-tabs"><i>Visão Geral</i><i>Cadastro &amp; Contatos</i><i>Operacional</i><i>Financeiro</i><i>Histórico</i></span></a>
+            <p class="fx-k">Leva a</p>
+            <div class="fx-out"><a href="#comunicacao-tela">Comunicação</a><a href="#console">Portal · inspeção</a><a href="#taxas-tela">Faturas</a><a href="#demurrage-tela">Demurrage</a></div>
+          </div>
+        </div>
+        <div class="overlay-band">
+          <div class="ob-k"><svg class="i"><use href="#i-link"/></svg>Por cima das três</div>
+          <div><b>Alertas</b><span>cada linha leva à tela onde o dado é corrigido</span></div>
+          <div><b>Painel</b><span>as pendências por setor abrem a fila já filtrada</span></div>
+          <div><b>Sino</b><span>a notificação abre a entidade de origem</span></div>
+          <div><b>Comunicados</b><span>o mesmo histórico aparece na Comunicação, no Cliente e no B/L</span></div>
+        </div>
+        <span class="hint"><svg class="i"><use href="#i-external"/></svg>Clique em uma tela para ir ao slide dela</span>
+        <span class="foot"></span>
+      </div>
+    </section>
+
     <!-- A vida de um B/L -->
     <section class="slide" id="jornada" data-part="Abertura" data-chapter="A vida de um B/L">
       <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>A vida de um B/L</div></header>
@@ -1143,21 +1178,21 @@
         <div class="rule"></div>
         <div class="metro">
           <a class="st c-op" href="#chegadas"><i></i><em>01 · Operações</em><b>Chegadas e Saídas</b><span>ETD e ETA publicados: a Viagem nasce e já aparece no Portal.</span></a>
-          <a class="st c-op" href="#viagem-visao"><i></i><em>02 · Operações</em><b>Viagens</b><span>Cada escala guarda a data prevista e a real. É dela que saem os avisos ao Cliente.</span></a>
-          <a class="st c-doc" href="#bls"><i></i><em>03 · Documentação</em><b>BLs</b><span>O B/L entra do arquivo; o Cliente vem pelo CNPJ e a taxa já é calculada.</span></a>
-          <a class="st c-doc" href="#revisao"><i></i><em>04 · se algo não fecha</em><b>Revisão</b><span>CNPJ sem cadastro ou peso faltando: o B/L espera aqui.</span></a>
-          <a class="st c-doc" href="#baplie"><i></i><em>05 · Documentação</em><b>Baplie EDI</b><span>O plano de carga confere, container a container, com os B/Ls.</span></a>
-          <a class="st c-doc" href="#faturamento"><i></i><em>06 · Documentação</em><b>CE Mercante</b><span>O CE registrado é o que autoriza a cobrança.</span></a>
-          <a class="st sys c-sys" href="#faturamento"><i></i><em>07 · sistema</em><b>Taxas Locais</b><span>Sem pendência, a fatura sai sozinha com PIX. Faltando algo, ela espera e o sistema diz o motivo.</span></a>
+          <a class="st c-op" href="#viagem-visao"><i></i><em>02 · Operações</em><b>Viagens</b><span>Escalas e atracações com previsão e realidade. O NOA sai 5 dias antes do ETA.</span></a>
+          <a class="st c-doc" href="#baplie"><i></i><em>03 · Documentação</em><b>Baplie EDI</b><span>O plano de carga confere, container a container, com os B/Ls.</span></a>
+          <a class="st c-doc" href="#bls"><i></i><em>04 · Documentação</em><b>BLs</b><span>O B/L entra do arquivo; o Cliente vem pelo CNPJ e a taxa já é calculada.</span></a>
+          <a class="st c-doc" href="#revisao"><i></i><em>05 · se algo não fecha</em><b>Revisão</b><span>CNPJ sem cadastro ou peso faltando: o B/L espera aqui.</span></a>
+          <a class="st c-doc" href="#checagens"><i></i><em>06 · Documentação</em><b>CE Mercante</b><span>O CE registrado é o fato gerador da cobrança.</span></a>
+          <a class="st sys c-sys" href="#gate"><i></i><em>07 · sistema</em><b>Taxas Locais</b><span>Sem bloqueio, a fatura sai com PIX. Com bloqueio, inclusive sem Portal, ela espera e a Validação diz o motivo.</span></a>
           <span class="cont">continua ↓</span>
         </div>
         <div class="metro m2" style="margin-top: 58px">
-          <a class="st sys c-sys" href="#comunicacao"><i></i><em>08 · sistema</em><b>Comunicação</b><span>Com as faturas prontas, o Cliente recebe o aviso de CE e Taxas. Chegada e atracação também viram aviso.</span></a>
+          <a class="st sys c-sys" href="#comunicacao"><i></i><em>08 · sistema</em><b>Comunicação</b><span>Todos os B/Ls do Cliente prontos: sai o CE e Taxas. ATA e ATB disparam NOR e NOB.</span></a>
           <a class="st c-cli" href="#portal-fatura"><i></i><em>09 · Cliente</em><b>Portal Fwlog</b><span>O Cliente abre a fatura e paga pelo PIX, sem pedir segunda via.</span></a>
           <a class="st c-adm" href="#pix"><i></i><em>10 · Administrativo</em><b>Conciliação PIX</b><span>O extrato do banco dá a baixa pela identificação do PIX.</span></a>
           <a class="st c-op" href="#adr"><i></i><em>11 · os três setores</em><b>ADR</b><span>No ATD, o relatório se monta com o que já foi registrado; cada setor assina.</span></a>
           <a class="st c-eq" href="#apoio"><i></i><em>12 · Equipamentos</em><b>Containers</b><span>Descarga e devolução entram por planilha.</span></a>
-          <a class="st sys c-sys" href="#demurrage"><i></i><em>13 · sistema</em><b>Demurrage</b><span>Os dias fora são contados sozinhos; a fatura sai quando o último container volta.</span></a>
+          <a class="st sys c-sys" href="#demurrage"><i></i><em>13 · sistema</em><b>Demurrage</b><span>Free Time, P1 e P2 contados; fatura quando todos voltam; régua semanal.</span></a>
           <a class="st end c-op" href="#historico"><i></i><em>fim da linha</em><b>Histórico do B/L</b><span>Cada parada acima deixou registro, com autor e data.</span></a>
         </div>
         <div class="metro-legend">
@@ -1174,6 +1209,60 @@
           <ul class="clean"><li><svg class="i"><use href="#i-check"/></svg><span>Cada setor faz <strong>só a sua parada</strong>; ninguém redigita a do vizinho.</span></li></ul>
           <ul class="clean"><li><svg class="i"><use href="#i-check"/></svg><span>As paradas douradas <strong>andam sozinhas</strong> quando a anterior termina.</span></li></ul>
         </div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- Painel -->
+    <section class="slide" id="painel" data-part="Operação" data-chapter="Painel">
+      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Painel</div></header>
+      <div class="body">
+        <p class="kicker">Operação · Painel e Line Up TV</p>
+        <h2>O Painel abre o dia: o que está no porto e o que está pendente</h2>
+        <div class="rule"></div>
+        <div class="content" style="grid-template-columns: 1fr 420px; margin-top: 24px; gap: 14px 24px">
+          <div class="mock">
+            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Painel</span></div>
+            <div class="mock-body" style="padding: 12px 14px">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 10px">
+                <div><div class="mock-title" style="font-size:20px">Painel</div><p class="mock-desc">Quadro Line Up consolidado com navegação direta aos dados operacionais.</p></div>
+                <div class="pbtns"><span class="btn btn--secondary sm"><svg class="i"><use href="#i-ship"/></svg>Chegadas e Saídas</span><span class="btn btn--secondary sm"><svg class="i"><use href="#i-monitor"/></svg>Abrir tela TV</span><span class="btn btn--secondary sm"><svg class="i"><use href="#i-refresh"/></svg>Atualizar</span><span class="btn btn--secondary sm"><svg class="i"><use href="#i-download"/></svg>Exportar Excel</span></div>
+              </div>
+              <p class="seclabel"><svg class="i"><use href="#i-alert"/></svg>Pendências por Setor Responsável</p>
+              <div class="deptcards">
+                <div class="deptcard"><div class="t">Documentação<span class="pill-amber">4 pendências</span></div><div class="m"><span>+ 1 dispensada(s)</span><em>Ver fila →</em></div></div>
+                <div class="deptcard"><div class="t">Equipamentos<span class="pill-amber">1 pendência</span></div><div class="m"><span>Nenhuma dispensa</span><em>Ver fila →</em></div></div>
+                <div class="deptcard"><div class="t">Operações<span class="pill-amber">2 pendências</span></div><div class="m"><span>Nenhuma dispensa</span><em>Ver fila →</em></div></div>
+              </div>
+              <div class="surface" style="margin-top: 10px; overflow: hidden">
+                <table class="lu">
+                  <thead><tr><th>Vessel</th><th>Voy</th><th>POD</th><th>Terminal</th><th>ETA</th><th>ETB</th><th>VIN</th><th>VIN CNTR</th><th>CG</th><th>Total</th><th>MTY</th><th>RTW</th><th>BB</th><th>CEs</th><th>Linked</th></tr></thead>
+                  <tbody>
+                    <tr class="atr"><td>AURORA</td><td>123N</td><td>Salvador</td><td>Terminal A</td><td>14/10</td><td>14/10</td><td>36</td><td>4</td><td>248</td><td>252</td><td>30</td><td>4</td><td>—</td><td><span class="badge badge--blue">Em aprovação</span></td><td><span class="badge badge--green">Sim</span></td></tr>
+                    <tr><td>AURORA</td><td>123N</td><td>Vitória</td><td>TBC</td><td>17/10</td><td>18/10</td><td>—</td><td>—</td><td>188</td><td>188</td><td>22</td><td>—</td><td>2/5/7</td><td><span class="badge badge--yellow">Lançando</span></td><td><span class="badge badge--slate">Não</span></td></tr>
+                    <tr><td>AURORA</td><td>123N</td><td>Pecém</td><td>Terminal C</td><td>20/10</td><td>20/10</td><td>—</td><td>—</td><td>172</td><td>172</td><td>32</td><td>—</td><td>—</td><td><span class="badge badge--slate">Aguardando</span></td><td><span class="badge badge--slate">Não</span></td></tr>
+                    <tr><td>BOREAL</td><td>045S</td><td>Salvador</td><td>Terminal A</td><td>22/10</td><td>23/10</td><td>12</td><td>2</td><td>128</td><td>130</td><td>14</td><td>—</td><td>—</td><td><span class="badge badge--slate">Aguardando</span></td><td><span class="badge badge--slate">Não</span></td></tr>
+                  </tbody>
+                </table>
+                <p class="lu-legend">TBC = sem atribuição · Linha com barra verde = navio atracado no terminal · VIN = veículos · CG = carga geral · MTY = vazios · RTW = restow · BB = break-bulk · CEs = status dos CEs Mercante · Linked = manifesto vinculado</p>
+              </div>
+              <p class="mock-note">Tela ilustrativa · dados fictícios</p>
+            </div>
+          </div>
+          <div class="tvcard" style="grid-column: 1"><div class="ico"><svg class="i"><use href="#i-monitor"/></svg></div><div><b>Line Up TV, para o monitor do escritório</b><p>Abre sem menu, em tela cheia: oito escalas por vez em carrossel, atualiza a cada 30 segundos e pisca em verde quando chega dado novo. Uma borda marca o início do ciclo.</p></div></div>
+          <div style="display:flex; flex-direction:column; gap: 14px; grid-column: 2; grid-row: 1 / span 2">
+            <div class="surface pad" style="padding: 16px 18px">
+              <p class="section-label">Como ler o Line Up</p>
+              <ul class="clean rules tight">
+                <li><div class="ico"><svg class="i"><use href="#i-anchor"/></svg></div><div><h3>Linha verde = navio atracado</h3><p>ATB lançado e ainda sem ATD. Com o ATD, a escala conclui e perde o destaque.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-clock"/></svg></div><div><h3>Data verde na coluna ETA = ATA</h3><p>A chegada real substitui a prevista na mesma coluna.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-filter"/></svg></div><div><h3>Filtros por presença</h3><p>Com ou sem veículos, BB, Linked, MTY e RTW; CEs por status. O Excel exporta só o filtrado.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-bell"/></svg></div><div><h3>Cards de setor abrem a fila</h3><p>Clicar em Documentação leva a Alertas já filtrado por esse setor.</p></div></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="rel"><span class="k">Leva a</span><a href="#chegadas">Chegadas e Saídas</a><a href="#viagem">Viagens</a><a href="#alertas-fila">Alertas por setor</a></div>
         <span class="foot"></span>
       </div>
     </section>
@@ -1198,9 +1287,9 @@
                   <table>
                     <thead><tr><th>Vessel Name</th><th>VOY</th><th>Qingdao<i>ETD</i></th><th>Shanghai<i>ETD</i></th><th>Taicang<i>ETD</i></th><th>Ningbo<i>ETD</i></th><th>Nansha<i>ETD</i></th><th>Salvador<i>ETA</i></th><th>Vitória<i>ETA</i></th><th>Pecém<i>ETA</i></th><th></th></tr></thead>
                     <tbody>
-                      <tr><td class="v">COSCO SHIPPING ARIES</td><td>123N</td><td class="act">02/08</td><td class="act">05/08</td><td class="off">X</td><td class="act">08/08</td><td class="act">12/08</td><td class="act">14/10</td><td>17/10</td><td>20/10</td><td style="color:var(--blue-btn); font-weight:600">Editar</td></tr>
-                      <tr><td class="v">COSCO SHIPPING TAURUS</td><td>045S</td><td class="act">16/08</td><td class="act">19/08</td><td class="off">X</td><td class="off">X</td><td class="act">25/08</td><td>22/10</td><td class="off">OMIT</td><td>29/10</td><td style="color:var(--blue-btn); font-weight:600">Editar</td></tr>
-                      <tr><td class="v">COSCO SHIPPING GEMINI</td><td>210N</td><td class="act">30/08</td><td>02/09</td><td>03/09</td><td>05/09</td><td>09/09</td><td>05/11</td><td>09/11</td><td>13/11</td><td style="color:var(--blue-btn); font-weight:600">Editar</td></tr>
+                      <tr><td class="v">AURORA</td><td>123N</td><td class="act">02/08</td><td class="act">05/08</td><td class="off">X</td><td class="act">08/08</td><td class="act">12/08</td><td class="act">14/10</td><td>17/10</td><td>20/10</td><td style="color:var(--blue-btn); font-weight:600">Editar</td></tr>
+                      <tr><td class="v">BOREAL</td><td>045S</td><td class="act">16/08</td><td class="act">19/08</td><td class="off">X</td><td class="off">X</td><td class="act">25/08</td><td>22/10</td><td class="off">OMIT</td><td>29/10</td><td style="color:var(--blue-btn); font-weight:600">Editar</td></tr>
+                      <tr><td class="v">CASSIOPEIA</td><td>210N</td><td class="act">30/08</td><td>02/09</td><td>03/09</td><td>05/09</td><td>09/09</td><td>05/11</td><td>09/11</td><td>13/11</td><td style="color:var(--blue-btn); font-weight:600">Editar</td></tr>
                     </tbody>
                   </table>
                   <div class="sched-foot"><span><b>Azul</b> = data efetiva confirmada · preto = prevista</span><span>X = não escala · OMIT = escala omitida pelo armador</span></div>
@@ -1248,12 +1337,12 @@
             <div class="mock-body" style="padding: 14px">
               <div class="fbar"><span class="fld wide"><svg class="i"><use href="#i-search"/></svg>Navio, viagem, armador ou porto</span><span class="fchip">Período: 30 dias</span><span class="fchip">Conciliação: Divergente</span><span style="margin-left:auto; color:var(--muted); font-size:12px" class="mono">3 / 41 visíveis</span></div>
               <div class="rail-cards">
-                <div class="vc on"><div class="a"><span>COSCO</span><span class="cstate red">Divergente</span></div><b>COSCO SHIPPING ARIES 123N</b><div class="esc">SSA 14/10 · VIX 17/10 · PEC 20/10</div><div class="seals"><i>Container</i><i>Carga solta</i><i>Veículos</i><i>Vazios</i><i>Granito</i></div><div class="ft"><span>148 B/L</span><span>612 CNTR</span><span>CE 97%</span></div></div>
-                <div class="vc"><div class="a"><span>COSCO</span><span class="cstate amber">Incompleto</span></div><b>COSCO SHIPPING TAURUS 045S</b><div class="esc">SSA 22/10 · PEC 29/10</div><div class="seals"><i>Container</i><i>Veículos</i></div><div class="ft"><span>61 B/L</span><span>130 CNTR</span><span>CE 40%</span></div></div>
-                <div class="vc"><div class="a"><span>COSCO</span><span class="cstate green">Conciliado</span></div><b>COSCO SHIPPING GEMINI 210N</b><div class="esc">SSA 05/11 · VIX 09/11 · PEC 13/11</div><div class="seals"><i>Container</i><i>Vazios</i></div><div class="ft"><span>12 B/L</span><span>40 CNTR</span><span>CE 0%</span></div></div>
+                <div class="vc on"><div class="a"><span>COSCO</span><span class="cstate red">Divergente</span></div><b>AURORA 123N</b><div class="esc">SSA 14/10 · VIX 17/10 · PEC 20/10</div><div class="seals"><i>Container</i><i>Carga solta</i><i>Veículos</i><i>Vazios</i><i>Granito</i></div><div class="ft"><span>148 B/L</span><span>612 CNTR</span><span>CE 97%</span></div></div>
+                <div class="vc"><div class="a"><span>COSCO</span><span class="cstate amber">Incompleto</span></div><b>BOREAL 045S</b><div class="esc">SSA 22/10 · PEC 29/10</div><div class="seals"><i>Container</i><i>Veículos</i></div><div class="ft"><span>61 B/L</span><span>130 CNTR</span><span>CE 40%</span></div></div>
+                <div class="vc"><div class="a"><span>OOCL</span><span class="cstate green">Conciliado</span></div><b>CASSIOPEIA 210N</b><div class="esc">SSA 05/11 · VIX 09/11 · PEC 13/11</div><div class="seals"><i>Container</i><i>Vazios</i></div><div class="ft"><span>12 B/L</span><span>40 CNTR</span><span>CE 0%</span></div></div>
               </div>
               <div class="surface" style="margin-top: 12px; overflow:hidden">
-                <div class="voyage-head"><div><b>COSCO SHIPPING ARIES · 123N</b><br><span>Próxima escala: Vitória · ETA 17/10</span></div><span class="badge badge--blue">Em operação</span></div>
+                <div class="voyage-head"><div><b>AURORA · 123N</b><br><span>Próxima escala: Vitória · ETA 17/10</span></div><span class="badge badge--blue">Em operação</span></div>
                 <div class="tabs"><span class="tab tab--active"><span class="no">1</span>Visão geral</span><span class="tab"><span class="no">2</span>Importação</span><span class="tab"><span class="no">3</span>Exportação</span><span class="tab"><span class="no">4</span>Rotas e Manifestos</span><span class="tab"><span class="no">5</span>ADR</span></div>
                 <div class="kpis"><div class="kpi"><span>B/Ls</span><b>148</b></div><div class="kpi"><span>Containers</span><b>612</b></div><div class="kpi"><span>Veículos</span><b>36</b></div><div class="kpi"><span>Vazios</span><b>84</b></div></div>
               </div>
@@ -1287,7 +1376,7 @@
         <div class="rule"></div>
         <div class="content" style="grid-template-columns: 1fr 440px; margin-top: 24px">
           <div class="mock">
-            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Viagens · COSCO SHIPPING ARIES 123N · Visão geral</span></div>
+            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Viagens · AURORA 123N · Visão geral</span></div>
             <div class="mock-body" style="padding: 14px">
               <p class="section-label" style="margin-bottom:6px">Planejamento por escala</p>
               <div class="surface" style="overflow:hidden">
@@ -1380,61 +1469,103 @@
             </div>
           </div>
         </div>
-        <div class="rel"><span class="k">Leva a</span><a href="#bls">BLs da viagem</a><a href="#baplie">Baplie</a><a href="#granito">Granito</a><a href="#vazios-exp">Embarque de Vazios</a><a href="#importacao">Como um arquivo entra</a></div>
+        <div class="rel"><span class="k">Leva a</span><a href="#bls">BLs da viagem</a><a href="#baplie">Baplie</a><a href="#granito">Granito</a><a href="#vazios-exp">Embarque de Vazios</a><a href="#checagens">O que cada importador confere</a></div>
         <span class="foot"></span>
       </div>
     </section>
 
-    <!-- Painel -->
-    <section class="slide" id="painel" data-part="Operação" data-chapter="Painel">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Painel</div></header>
+    <!-- Omissão de escala -->
+    <section class="slide" id="omissao" data-part="Operação" data-chapter="Omissão de escala">
+      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Omissão de escala</div></header>
       <div class="body">
-        <p class="kicker">Operação · Painel e Line Up TV</p>
-        <h2>O Painel junta todas as viagens: o que está no porto e o que está pendente</h2>
+        <p class="kicker">Operação · Quando o navio não para</p>
+        <h2>Escala omitida: a carga segue em Transbordo ou muda de destino por COD</h2>
         <div class="rule"></div>
-        <div class="content" style="grid-template-columns: 1fr 420px; margin-top: 24px; gap: 14px 24px">
-          <div class="mock">
-            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Painel</span></div>
-            <div class="mock-body" style="padding: 12px 14px">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 10px">
-                <div><div class="mock-title" style="font-size:20px">Painel</div><p class="mock-desc">Quadro Line Up consolidado com navegação direta aos dados operacionais.</p></div>
-                <div class="pbtns"><span class="btn btn--secondary sm"><svg class="i"><use href="#i-ship"/></svg>Chegadas e Saídas</span><span class="btn btn--secondary sm"><svg class="i"><use href="#i-monitor"/></svg>Abrir tela TV</span><span class="btn btn--secondary sm"><svg class="i"><use href="#i-refresh"/></svg>Atualizar</span><span class="btn btn--secondary sm"><svg class="i"><use href="#i-download"/></svg>Exportar Excel</span></div>
-              </div>
-              <p class="seclabel"><svg class="i"><use href="#i-alert"/></svg>Pendências por Setor Responsável</p>
-              <div class="deptcards">
-                <div class="deptcard"><div class="t">Documentação<span class="pill-amber">4 pendências</span></div><div class="m"><span>+ 1 dispensada(s)</span><em>Ver fila →</em></div></div>
-                <div class="deptcard"><div class="t">Equipamentos<span class="pill-amber">1 pendência</span></div><div class="m"><span>Nenhuma dispensa</span><em>Ver fila →</em></div></div>
-                <div class="deptcard"><div class="t">Operações<span class="pill-amber">2 pendências</span></div><div class="m"><span>Nenhuma dispensa</span><em>Ver fila →</em></div></div>
-              </div>
-              <div class="surface" style="margin-top: 10px; overflow: hidden">
-                <table class="lu">
-                  <thead><tr><th>Vessel</th><th>Voy</th><th>POD</th><th>Terminal</th><th>ETA</th><th>ETB</th><th>VIN</th><th>VIN CNTR</th><th>CG</th><th>Total</th><th>MTY</th><th>RTW</th><th>BB</th><th>CEs</th><th>Linked</th></tr></thead>
-                  <tbody>
-                    <tr class="atr"><td>COSCO SHIPPING ARIES</td><td>123N</td><td>Salvador</td><td>Terminal A</td><td>14/10</td><td>14/10</td><td>36</td><td>4</td><td>248</td><td>252</td><td>30</td><td>4</td><td>—</td><td><span class="badge badge--blue">Em aprovação</span></td><td><span class="badge badge--green">Sim</span></td></tr>
-                    <tr><td>COSCO SHIPPING ARIES</td><td>123N</td><td>Vitória</td><td>TBC</td><td>17/10</td><td>18/10</td><td>—</td><td>—</td><td>188</td><td>188</td><td>22</td><td>—</td><td>2/5/7</td><td><span class="badge badge--yellow">Lançando</span></td><td><span class="badge badge--slate">Não</span></td></tr>
-                    <tr><td>COSCO SHIPPING ARIES</td><td>123N</td><td>Pecém</td><td>Terminal C</td><td>20/10</td><td>20/10</td><td>—</td><td>—</td><td>172</td><td>172</td><td>32</td><td>—</td><td>—</td><td><span class="badge badge--slate">Aguardando</span></td><td><span class="badge badge--slate">Não</span></td></tr>
-                    <tr><td>COSCO SHIPPING TAURUS</td><td>045S</td><td>Salvador</td><td>Terminal A</td><td>22/10</td><td>23/10</td><td>12</td><td>2</td><td>128</td><td>130</td><td>14</td><td>—</td><td>—</td><td><span class="badge badge--slate">Aguardando</span></td><td><span class="badge badge--slate">Não</span></td></tr>
-                  </tbody>
-                </table>
-                <p class="lu-legend">TBC = sem atribuição · Linha com barra verde = navio atracado no terminal · VIN = veículos · CG = carga geral · MTY = vazios · RTW = restow · BB = break-bulk · CEs = status dos CEs Mercante · Linked = manifesto vinculado</p>
-              </div>
-              <p class="mock-note">Tela ilustrativa · dados fictícios</p>
-            </div>
+        <div class="fork">
+          <div class="surface fork-src">
+            <span class="badge badge--red">OMIT · Vitória</span>
+            <h3 style="margin-top:10px">Omitir escala</h3>
+            <p class="muted" style="margin-top:6px; font-size:15px">Na Visão geral da Viagem. O armador não fará a escala; a carga desce em outro porto da mesma viagem.</p>
+            <ul class="clean dots">
+              <li>Confirmação em duas etapas, com o resumo do impacto.</li>
+              <li>Porto de Transbordo é obrigatório.</li>
+              <li>Omitir não é excluir: a escala fica registrada e aparece como OMIT no quadro e no Portal.</li>
+            </ul>
           </div>
-          <div class="tvcard" style="grid-column: 1"><div class="ico"><svg class="i"><use href="#i-monitor"/></svg></div><div><b>Line Up TV, para o monitor do escritório</b><p>Abre sem menu, em tela cheia: oito escalas por vez em carrossel, atualiza a cada 30 segundos e pisca em verde quando chega dado novo. Uma borda marca o início do ciclo.</p></div></div>
-          <div style="display:flex; flex-direction:column; gap: 14px; grid-column: 2; grid-row: 1 / span 2">
-            <div class="surface pad" style="padding: 16px 18px">
-              <p class="section-label">Como ler o Line Up</p>
-              <ul class="clean rules tight">
-                <li><div class="ico"><svg class="i"><use href="#i-anchor"/></svg></div><div><h3>Linha verde = navio atracado</h3><p>ATB lançado e ainda sem ATD. Com o ATD, a escala conclui e perde o destaque.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-clock"/></svg></div><div><h3>Data verde na coluna ETA = ATA</h3><p>A chegada real substitui a prevista na mesma coluna.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-filter"/></svg></div><div><h3>Filtros por presença</h3><p>Com ou sem veículos, BB, Linked, MTY e RTW; CEs por status. O Excel exporta só o filtrado.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-bell"/></svg></div><div><h3>Cards de setor abrem a fila</h3><p>Clicar em Documentação leva a Alertas já filtrado por esse setor.</p></div></li>
+          <div class="fork-arm"></div>
+          <div class="fork-dst">
+            <div class="surface branch">
+              <div class="bh"><span class="badge badge--blue" style="align-self:flex-start">padrão · todos os B/Ls</span><b>Transbordo</b><span class="muted" style="font-size:13.5px">a carga segue em navio de terceiro até o destino original</span></div>
+              <ul class="clean dots">
+                <li>Destino final preservado: a Taxa Local <b>não muda</b>.</li>
+                <li>Informações de Transbordo (porto, navio, armador, viagem, ETD, ETA) são completadas aos poucos, na Viagem, e valem para todos os B/Ls afetados.</li>
+                <li>O Cliente recebe uma notificação no Portal e vê o card de Transbordo atualizado.</li>
+              </ul>
+            </div>
+            <div class="surface branch cod">
+              <div class="bh"><span class="badge badge--yellow" style="align-self:flex-start">exceção · por B/L</span><b>COD</b><span class="muted" style="font-size:13.5px">Change of Destination: o B/L passa a terminar no Porto de Transbordo</span></div>
+              <ul class="clean dots">
+                <li>Marcado na ficha do B/L, <b>com justificativa</b>. Pode voltar ao Transbordo.</li>
+                <li>A Taxa Local é <b>recalculada pelo novo destino</b>; se já havia fatura, a diferença vira um Ajuste de COD para o Financeiro (complementar, reemitir ou restituir).</li>
+                <li>O CE Mercante não muda; o vínculo com o Manifesto Mercante é limpo e vira pendência.</li>
               </ul>
             </div>
           </div>
         </div>
-        <div class="rel"><span class="k">Leva a</span><a href="#chegadas">Chegadas e Saídas</a><a href="#viagem">Viagens</a><a href="#alertas-fila">Alertas por setor</a></div>
+        <div class="content cols-even" style="margin-top: 18px; gap: 16px">
+          <div class="note"><svg class="i"><use href="#i-undo"/></svg><span><b>Omitiu por engano?</b> O Administrativo reverte, com justificativa e aviso de correção ao Cliente, enquanto nenhum B/L estiver em COD.</span></div>
+          <div class="gain" style="padding: 14px 20px"><ul class="clean"><li><svg class="i"><use href="#i-check"/></svg><span>A mudança de rota vira <strong>registro, cobrança certa e aviso ao Cliente</strong>, sem planilha paralela.</span></li></ul></div>
+        </div>
+        <div class="rel"><span class="k">Onde acontece</span><a href="#viagem-visao">Viagem · Visão geral</a><a href="#bl-ficha">Ficha do B/L</a><a href="#taxas-tela">Validação · Ajustes de COD</a></div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- ADR -->
+    <section class="slide" id="adr" data-part="Operação" data-chapter="ADR">
+      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>ADR</div></header>
+      <div class="body">
+        <p class="kicker">Como funciona · Agency Departure Report</p>
+        <h2>O ADR se monta sozinho; cada departamento confere e assina</h2>
+        <div class="rule"></div>
+        <div class="content cols-2">
+          <div class="mock">
+            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Viagens · aba ADR</span></div>
+            <div class="mock-body" style="padding: 18px">
+              <div style="display:flex; justify-content:space-between; align-items:center"><div><b style="font-size:17px">AURORA 123N · Salvador · Terminal A</b><div class="mock-desc">ATD 16/10 (sexta) · prazo de assinatura até 21/10</div></div><span class="badge badge--yellow">2 de 3 assinaturas</span></div>
+              <p class="section-label" style="margin: 16px 0 0">Dados trazidos dos módulos de origem</p>
+              <div class="sources">
+                <div>Carga descarregada<em>BLs · Containers</em></div>
+                <div>Vazios descarregados<em>Vazios IMP</em></div>
+                <div>Veículos<em>Veículos</em></div>
+                <div>Granito e vazios embarcados<em>Exportação</em></div>
+              </div>
+              <div class="signs">
+                <div class="sign"><b>Operações</b><span>Escala, terminal e datas</span><span class="badge badge--green"><svg class="i"><use href="#i-check"/></svg>Assinado</span></div>
+                <div class="sign"><b>Documentação</b><span>Carga e vazios descarregados</span><span class="badge badge--green"><svg class="i"><use href="#i-check"/></svg>Assinado</span></div>
+                <div class="sign"><b>Equipamentos</b><span>Veículos, Granito e vazios</span><span class="badge badge--red">Vence hoje</span></div>
+              </div>
+              <p class="mock-note">Tela ilustrativa · dados fictícios</p>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap: 20px">
+            <div class="surface pad">
+              <ul class="clean rules">
+                <li><div class="ico"><svg class="i"><use href="#i-db"/></svg></div><div><h3>Nada é redigitado</h3><p>Carga, veículos, vazios e Granito vêm de onde já foram registrados.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-clock"/></svg></div><div><h3>Prazo visível: 3 dias úteis após o ATD</h3><p>Pendência e atraso viram Alerta para o departamento dono.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-lock"/></svg></div><div><h3>Fechado vira fotografia</h3><p>O Financeiro confere pagamentos sobre ela. Reabrir exige o Administrativo e um motivo.</p></div></li>
+              </ul>
+            </div>
+            <div class="gain">
+              <p class="section-label">O que ganhamos</p>
+              <ul class="clean">
+                <li><svg class="i"><use href="#i-check"/></svg><span>O relatório deixa de ser <strong>um documento à parte</strong> para montar.</span></li>
+                <li><svg class="i"><use href="#i-check"/></svg><span>Cada área sabe <strong>o que falta assinar e até quando</strong>.</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="rel"><span class="k">Dados de</span><a href="#viagem-visao">Escala</a><a href="#bls">Carga</a><a href="#apoio">Veículos e Vazios IMP</a><a href="#granito">Granito</a><a href="#vazios-exp">Vazios EXP</a></div>
         <span class="foot"></span>
       </div>
     </section>
@@ -1478,133 +1609,35 @@
             </div>
           </div>
         </div>
-        <div class="rel"><span class="k">A seguir</span><a href="#bls">BLs</a></div>
+        <div class="rel"><span class="k">A seguir</span><a href="#checagens">O que cada importador confere</a></div>
         <span class="foot"></span>
       </div>
     </section>
 
-    <!-- BLs · lista -->
-    <section class="slide" id="bls" data-part="Documentos" data-chapter="BLs">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>BLs</div></header>
+    <!-- Checagens por importador -->
+    <section class="slide" id="checagens" data-part="Documentos" data-chapter="As checagens de cada arquivo">
+      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>As checagens de cada arquivo</div></header>
       <div class="body">
-        <p class="kicker">Documentos · BLs</p>
-        <h2>A lista de BLs mostra em que ponto do caminho cada conhecimento está</h2>
+        <p class="kicker">Documentos · Ferramentas e checagens</p>
+        <h2>O que cada importador confere, e o que ele alimenta</h2>
         <div class="rule"></div>
-        <div class="content" style="grid-template-columns: 1fr 390px; margin-top: 24px">
-          <div class="mock">
-            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Importação · BLs</span></div>
-            <div class="mock-body" style="padding: 14px">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 10px">
-                <div class="mock-title" style="font-size:20px">BLs</div>
-                <div class="pbtns"><span class="btn btn--secondary sm">Containers</span><span class="btn btn--secondary sm">Exportar</span><span class="btn btn--secondary sm">Importar CE Mercante</span><span class="btn btn--secondary sm">Importar Manifesto BB</span><span class="btn btn--secondary sm">Importar B/L Avulso</span><span class="btn btn--primary sm">Importar B/L</span></div>
-              </div>
-              <div class="fbar" style="margin-top: 10px"><span class="fld wide"><svg class="i"><use href="#i-search"/></svg>B/L, CE, consignatário…</span><span class="fchip">Viagem: COSCO SHIPPING ARIES 123N</span><span class="fld">POD</span><span class="fld">Revisão</span><span class="fld">Taxas locais</span><span class="fld">Modo</span></div>
-              <div class="surface" style="overflow:hidden">
-                <table class="t sm">
-                  <thead><tr><th>No. B/L</th><th>CE Mercante</th><th>Navio/Viagem</th><th>CNEE</th><th>POL</th><th>POD</th><th>Carga</th><th>Perfil</th><th>Taxas locais</th><th>Fatura</th></tr></thead>
-                  <tbody>
-                    <tr class="expanded"><td class="num">▾ CSC4355019022</td><td class="num">152605123456789</td><td style="white-space:normal; line-height:1.25">COSCO SHIPPING<br>ARIES 123N</td><td>COMERCIAL ATLÂNTICO</td><td>Qingdao</td><td>Salvador</td><td>Container</td><td>—</td><td><span class="badge badge--green">Faturado</span></td><td class="num">TL-2026-1482</td></tr>
-                    <tr><td colspan="10" style="background:var(--surface-muted); padding: 8px 14px; font-size: 11.5px; color: var(--muted)"><b style="color:var(--text-strong)">2 containers</b> · ABCU 123456-7 · 40HC · tara 3.900 kg · descarga 14/10 &nbsp;|&nbsp; TCLU 402981-5 · 40HC · tara 3.880 kg · descarga 14/10</td></tr>
-                    <tr><td class="num">CSC4355019035</td><td class="num">152605123456790</td><td style="white-space:normal; line-height:1.25">COSCO SHIPPING<br>ARIES 123N</td><td>COMERCIAL ATLÂNTICO</td><td>Qingdao</td><td>Salvador</td><td>Misto</td><td>IMO</td><td><span class="badge badge--green">Faturado</span></td><td class="num">TL-2026-1490</td></tr>
-                    <tr><td class="num">CSC4355019058</td><td style="color:var(--muted-soft)">—</td><td style="white-space:normal; line-height:1.25">COSCO SHIPPING<br>ARIES 123N</td><td>COMERCIAL ATLÂNTICO</td><td>Qingdao</td><td>Salvador</td><td>Container</td><td>IMO</td><td><span class="badge badge--blue">Calculado</span></td><td style="color:var(--muted-soft)">—</td></tr>
-                    <tr><td class="num">CSC4355019041</td><td class="num">152605123456801</td><td style="white-space:normal; line-height:1.25">COSCO SHIPPING<br>ARIES 123N</td><td>ATLANTICO COM. LTDA</td><td>Ningbo</td><td>Vitória</td><td>Container</td><td>—</td><td><span class="badge badge--red">Revisão</span></td><td style="color:var(--muted-soft)">—</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <p class="mock-note">Tela ilustrativa · dados fictícios</p>
-            </div>
-          </div>
-          <div style="display:flex; flex-direction:column; gap: 14px">
-            <div class="surface pad" style="padding: 18px 20px">
-              <ul class="clean rules tight">
-                <li><div class="ico"><svg class="i"><use href="#i-layers"/></svg></div><div><h3>Uma lista para tudo</h3><p>Container, carga solta e misto juntos. As antigas telas de Manifestos e Carga Solta viraram esta.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-list"/></svg></div><div><h3>Abre sem sair da lista</h3><p>A seta mostra containers com tara e descarga e os itens de carga solta.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-filter"/></svg></div><div><h3>Cada estado é um filtro</h3><p>Revisão, financeiro, taxas locais, perfil e modo. Exportar leva exatamente o que está filtrado.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-lock"/></svg></div><div><h3>Excluir tem pré-checagem</h3><p>Só o Administrativo, e só B/L sem vínculo fiscal que impeça.</p></div></li>
-              </ul>
-            </div>
-            <div class="note"><svg class="i"><use href="#i-link"/></svg><span>Vindo da Viagem, a lista já abre <b>filtrada naquela viagem</b>. O número do B/L abre a ficha.</span></div>
-          </div>
-        </div>
-        <div class="rel"><span class="k">Chega de</span><a href="#viagem-abas">Viagem</a><span class="sep"></span><span class="k">Leva a</span><a href="#bl-ficha">Ficha do B/L</a><a href="#apoio">Containers</a><a href="#importacao">Como um arquivo entra</a></div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Revisão -->
-    <section class="slide" id="revisao" data-part="Documentos" data-chapter="Revisão">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Revisão</div></header>
-      <div class="body">
-        <p class="kicker">Como funciona · Revisão</p>
-        <h2>A Revisão segura o que ainda não está pronto para ser cobrado</h2>
-        <div class="rule"></div>
-        <div class="content cols-2">
-          <div class="mock">
-            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Importação · Revisão</span></div>
-            <div class="mock-body">
-              <div class="mock-title">Revisão Manual</div>
-              <p class="mock-desc">Fila de B/Ls com pendências de importação que exigem validação humana, agrupada por cliente.</p>
-              <div class="surface" style="margin-top: 12px; overflow: hidden">
-                <table class="t">
-                  <thead><tr><th>B/L</th><th>Viagem</th><th>Tipo</th><th>Pendência</th><th></th></tr></thead>
-                  <tbody>
-                    <tr class="group-row"><td colspan="5">COMERCIAL ATLÂNTICO LTDA · <span class="mono">12.345.678/0001-90</span></td></tr>
-                    <tr><td class="num">CSC4355019022</td><td>COSCO SHIPPING ARIES 123N</td><td>Contêiner</td><td><span class="badge badge--yellow">CE Mercante pendente</span></td><td><span class="btn btn--secondary">Abrir</span></td></tr>
-                    <tr><td class="num">CSC4355019035</td><td>COSCO SHIPPING ARIES 123N</td><td>Misto</td><td><span class="badge badge--yellow">Peso da carga solta ausente</span></td><td><span class="btn btn--secondary">Abrir</span></td></tr>
-                    <tr class="group-row"><td colspan="5">SEM CLIENTE VINCULADO · nome no manifesto: “ATLANTICO COM. LTDA”</td></tr>
-                    <tr><td class="num">CSC4355019041</td><td>COSCO SHIPPING ARIES 123N</td><td>Contêiner</td><td><span class="badge badge--red">Cadastro de cliente pendente</span></td><td><span class="btn btn--primary">Vincular</span></td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <p class="mock-note">Tela ilustrativa · dados fictícios</p>
-            </div>
-          </div>
-          <div style="display:flex; flex-direction:column; gap: 20px">
-            <div class="surface pad">
-              <ul class="clean rules">
-                <li><div class="ico"><svg class="i"><use href="#i-users"/></svg></div><div><h3>Cliente só pelo CNPJ exato</h3><p>Nome parecido é apenas sugestão. O sistema nunca vincula por semelhança.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-lock"/></svg></div><div><h3>Pendência bloqueia a fatura</h3><p>Sem cliente, CE ou peso confiável, o B/L não segue para cobrança.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-grid"/></svg></div><div><h3>Resolve o grupo de uma vez</h3><p>CNPJ, razão social e e-mail cadastram o Cliente e vinculam todos os B/Ls do grupo; o convite do Portal é opcional.</p></div></li>
-              </ul>
-            </div>
-            <div class="gain">
-              <p class="section-label">O que ganhamos</p>
-              <ul class="clean">
-                <li><svg class="i"><use href="#i-check"/></svg><span><strong>Fatura para o cliente errado</strong> deixa de ser possível por engano de nome.</span></li>
-                <li><svg class="i"><use href="#i-check"/></svg><span>Ninguém precisa lembrar o que falta: <strong>a fila mostra</strong>.</span></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div class="rel"><span class="k">Chega de</span><a href="#bls">BLs</a><a href="#granito">Granito</a><a href="#gate">Validação</a><span class="sep"></span><span class="k">Depois</span><a href="#gate">O sistema tenta faturar</a></div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Ficha do B/L -->
-    <section class="slide" id="bl-ficha" data-part="Documentos" data-chapter="Ficha do B/L">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Ficha do B/L</div></header>
-      <div class="body">
-        <p class="kicker">Documentos · A ficha do B/L</p>
-        <h2>A ficha do B/L diz o que já aconteceu, o que falta e onde resolver</h2>
-        <div class="rule"></div>
-        <div class="mock" style="margin-top: 22px">
-          <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">BLs · CSC4355019058</span></div>
-          <div class="mock-body" style="padding: 14px 16px">
-            <div class="blhead"><div><b>CSC4355019058</b><span class="d">COMERCIAL ATLÂNTICO LTDA · COSCO SHIPPING ARIES 123N · Qingdao → Salvador · 2 containers · IMO</span></div><div class="tabs" style="padding:0"><span class="tab tab--active">Visão Geral</span><span class="tab">Carga</span><span class="tab">Detalhes do B/L</span><span class="tab">Faturamento</span><span class="tab">Histórico</span></div></div>
-            <div class="rail"><span>Operacional</span><div class="stage ok"><em>Saída do POL</em><b>02/08 · Qingdao</b></div><div class="stage ok"><em>Chegada ao POD</em><b>14/10 · Salvador</b></div><div class="stage ok"><em>Descarga</em><b>14/10 · 2 de 2</b></div><div class="stage wait"><em>Devolução</em><b>0 de 2 · Free Time até 21/10</b></div></div>
-            <div class="rail"><span>Documental · 1 pendência</span><div class="stage ok"><em>Cliente</em><b>Vinculado por CNPJ</b></div><div class="stage ok"><em>Taxas Locais</em><b>Calculado · R$ 3.780,00</b></div><div class="stage warn"><em>CE Mercante</em><b>Pendente · bloqueia emissão e Portal</b></div><div class="stage wait"><em>Fatura</em><b>Não emitida</b></div></div>
-            <div class="nextact"><svg class="i"><use href="#i-arrow"/></svg><span><b>Próxima ação · CE Mercante:</b> cadastrar o CE para liberar a emissão da fatura.</span></div>
-          </div>
-        </div>
-        <div class="tabcards">
-          <div class="surface tc"><div class="tc-h"><span class="no">1</span>Visão Geral</div><ul class="clean dots"><li>Viagem e escala, carga, cliente e financeiro.</li><li>Transbordo ou COD, divergência do Baplie.</li><li>Card do Portal: o que o Cliente vê e as disputas.</li></ul></div>
-          <div class="surface tc"><div class="tc-h"><span class="no">2</span>Carga</div><ul class="clean dots"><li>Containers com tara e descarga.</li><li>Itens de carga solta e veículos.</li><li>B/L misto mostra as duas partes.</li></ul></div>
-          <div class="surface tc"><div class="tc-h"><span class="no">3</span>Detalhes do B/L</div><ul class="clean dots"><li>POL, POD, CE, partes, NCM e pesos por modalidade.</li><li>Toda correção pede justificativa.</li><li>Frete e despesas do documento.</li></ul></div>
-          <div class="surface tc"><div class="tc-h"><span class="no">4</span>Faturamento</div><ul class="clean dots"><li>Vincular cliente, calcular e lançar taxas manuais.</li><li>Free Time e P1/P2 próprios do B/L.</li><li>Situação e link da fatura.</li></ul></div>
-          <div class="surface tc"><div class="tc-h"><span class="no">5</span>Histórico</div><ul class="clean dots"><li>Importações, correções, faturas, comunicados e pagamentos.</li><li>Marca “Auditoria” quando houve justificativa.</li></ul></div>
-        </div>
-        <div class="rel"><span class="k">Leva a</span><a href="#viagem">Viagem</a><a href="#clientes">Cliente</a><a href="#gate">Por que não fatura</a><a href="#demurrage-tela">Demurrage</a><a href="#historico">Histórico</a></div>
+        <table class="t imp" style="margin-top: 20px; border: 1.5px solid var(--border); background: #fff; box-shadow: var(--shadow)">
+          <thead><tr><th>Arquivo</th><th>Onde</th><th>O sistema confere</th><th>Alimenta</th></tr></thead>
+          <tbody>
+            <tr><td><b>Baplie EDI</b><span>EDI do plano de carga</span></td><td>Baplie · Viagem</td><td>Se é EDI de verdade; containers repetidos; quem está no Baplie e não em B/L, e o contrário.</td><td>IMO, OOG e classe dos containers · Vazios IMP · ADR</td></tr>
+            <tr><td><b>B/L de container</b><span>Excel do armador</span></td><td>BLs · Viagem</td><td>Navio e viagem do arquivo = viagem escolhida; só número de container ISO; mudança que afeta cobrança pede confirmação auditada; troca de consignatário aparece antes.</td><td>B/L, Cliente pelo CNPJ, frete e despesas, ATD do POL, cálculo provisório</td></tr>
+            <tr><td><b>B/L avulso</b><span>PDF ou DOCX</span></td><td>BLs · Viagem</td><td>A mesma trava de viagem declarada; avisos de leitura na prévia.</td><td>Partes, rota, volumes, peso, NCM, frete</td></tr>
+            <tr><td><b>CE Mercante</b><span>planilha ou EDI</span></td><td>BLs · Viagem</td><td>B/L de outra viagem é bloqueado; uma linha ruim segura o lote inteiro; captura o nº do Manifesto Mercante.</td><td>Emissão da fatura · comunicado CE e Taxas</td></tr>
+            <tr><td><b>Manifesto BB</b><span>carga solta</span></td><td>BLs</td><td>Formato numérico (vírgula ou ponto); número ambíguo bloqueia; teto de absurdo para peso, cubagem e volumes.</td><td>B/L de carga solta ou misto · peso da taxa</td></tr>
+            <tr><td><b>Veículos</b><span>modelo, COSCO ou chinês</span></td><td>Veículos · Viagem</td><td>Chassi; B/L da viagem; container por número, tipo e lacre, sem ambiguidade.</td><td>VIN no Line Up · ADR · taxas</td></tr>
+            <tr><td><b>Vazios IMP</b><span>container, tipo e tara</span></td><td>Vazios IMP · Viagem</td><td>Tara não negativa; porto reconhecido pelo cadastro.</td><td>MTY no Line Up · ADR</td></tr>
+            <tr><td><b>Datas de container</b><span>descarga e devolução</span></td><td>Containers · Demurrage</td><td>Descarga obrigatória; devolução opcional e posterior à descarga.</td><td>Contagem do Demurrage · fatura quando todos voltam</td></tr>
+            <tr><td><b>Manifesto Granito</b><span>planilha COSCO</span></td><td>Granito · Viagem</td><td>Shipper × Cliente: CNPJ encontrado, ausente ou não cadastrado; peso e datas válidos.</td><td>B/Ls de Granito · taxas por peso · ADR</td></tr>
+            <tr><td><b>Unidades embarcadas</b><span>sete colunas</span></td><td>Vazios EXP</td><td>Container repetido, local, condição ou datas incompatíveis recusam o lote inteiro.</td><td>Armazenagem · ADR</td></tr>
+            <tr><td><b>Extrato PIX</b><span>planilha do banco</span></td><td>Conciliação PIX</td><td>Identificador, valor pago e data; PIX sem documento fica à parte, nunca baixa sozinho.</td><td>Baixa das faturas locais e de Demurrage</td></tr>
+          </tbody>
+        </table>
+        <div class="rel"><span class="k">Veja</span><a href="#baplie">Baplie</a><a href="#bls">BLs</a><a href="#apoio">Containers e Veículos</a><a href="#granito">Granito</a><a href="#vazios-exp">Vazios EXP</a><a href="#pix">PIX</a></div>
         <span class="foot"></span>
       </div>
     </section>
@@ -1621,15 +1654,15 @@
             <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Importação · Baplie EDI</span></div>
             <div class="mock-body">
               <div class="states"><span>Sem Baplie</span><i>→</i><span>Baplie sem B/Ls</span><i>→</i><span class="on">Baplie × B/Ls</span></div>
-              <div style="display:flex; justify-content:space-between; align-items:center"><div><b style="font-size:16px">COSCO SHIPPING ARIES 123N</b><div class="mock-desc">Baplie importado em 07/10 · 612 containers cheios · 84 vazios</div></div><span class="btn btn--secondary"><svg class="i"><use href="#i-upload"/></svg>Reimportar</span></div>
+              <div style="display:flex; justify-content:space-between; align-items:center"><div><b style="font-size:16px">AURORA 123N</b><div class="mock-desc">Baplie importado em 07/10 · 612 containers cheios · 84 vazios</div></div><span class="btn btn--secondary"><svg class="i"><use href="#i-upload"/></svg>Reimportar</span></div>
               <div class="surface" style="margin-top: 12px; overflow:hidden">
                 <table class="t">
                   <thead><tr><th>Container</th><th>No B/L</th><th>No Baplie</th><th>Situação</th></tr></thead>
                   <tbody>
-                    <tr><td class="num">ABCU 123456-7</td><td>CSC4355019022</td><td>Posição 140286</td><td><span class="badge badge--green">Confere</span></td></tr>
+                    <tr><td class="num">ABCU 123456-7</td><td>MEDU7719022</td><td>Posição 140286</td><td><span class="badge badge--green">Confere</span></td></tr>
                     <tr><td class="num">TGHU 884120-3</td><td style="color:var(--muted-soft)">—</td><td>Posição 220482</td><td><span class="badge badge--red">Só no Baplie</span></td></tr>
-                    <tr><td class="num">MSKU 552017-0</td><td>CSC4355019035</td><td style="color:var(--muted-soft)">—</td><td><span class="badge badge--yellow">Só no B/L</span></td></tr>
-                    <tr><td class="num">CSNU 710245-9</td><td>CSC4355019058</td><td>Posição 060412</td><td><span class="badge badge--green">Confere</span> <span class="badge badge--slate">IMO 3 aplicado</span></td></tr>
+                    <tr><td class="num">MSKU 552017-0</td><td>MEDU7719035</td><td style="color:var(--muted-soft)">—</td><td><span class="badge badge--yellow">Só no B/L</span></td></tr>
+                    <tr><td class="num">CSNU 710245-9</td><td>MEDU7719058</td><td>Posição 060412</td><td><span class="badge badge--green">Confere</span> <span class="badge badge--slate">IMO 3 aplicado</span></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -1650,6 +1683,82 @@
           </div>
         </div>
         <div class="rel"><span class="k">Chega de</span><a href="#viagem">Viagem · resolver divergências</a><a href="#alertas-fila">Alertas</a><span class="sep"></span><span class="k">Leva a</span><a href="#apoio">Vazios IMP</a><a href="#bl-ficha">Ficha do B/L</a></div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- BLs · lista -->
+    <section class="slide" id="bls" data-part="Documentos" data-chapter="BLs">
+      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>BLs</div></header>
+      <div class="body">
+        <p class="kicker">Documentos · BLs</p>
+        <h2>A lista de BLs mostra em que ponto do caminho cada conhecimento está</h2>
+        <div class="rule"></div>
+        <div class="content" style="grid-template-columns: 1fr 390px; margin-top: 24px">
+          <div class="mock">
+            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Importação · BLs</span></div>
+            <div class="mock-body" style="padding: 14px">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 10px">
+                <div class="mock-title" style="font-size:20px">BLs</div>
+                <div class="pbtns"><span class="btn btn--secondary sm">Containers</span><span class="btn btn--secondary sm">Exportar</span><span class="btn btn--secondary sm">Importar CE Mercante</span><span class="btn btn--secondary sm">Importar Manifesto BB</span><span class="btn btn--secondary sm">Importar B/L Avulso</span><span class="btn btn--primary sm">Importar B/L</span></div>
+              </div>
+              <div class="fbar" style="margin-top: 10px"><span class="fld wide"><svg class="i"><use href="#i-search"/></svg>B/L, CE, consignatário…</span><span class="fchip">Viagem: AURORA 123N</span><span class="fld">POD</span><span class="fld">Revisão</span><span class="fld">Taxas locais</span><span class="fld">Modo</span></div>
+              <div class="surface" style="overflow:hidden">
+                <table class="t sm">
+                  <thead><tr><th>No. B/L</th><th>CE Mercante</th><th>Navio/Viagem</th><th>CNEE</th><th>POL</th><th>POD</th><th>Carga</th><th>Perfil</th><th>Taxas locais</th><th>Fatura</th></tr></thead>
+                  <tbody>
+                    <tr class="expanded"><td class="num">▾ MEDU7719022</td><td class="num">152605123456789</td><td>AURORA 123N</td><td>COMERCIAL ATLÂNTICO</td><td>Qingdao</td><td>Salvador</td><td>Container</td><td>—</td><td><span class="badge badge--green">Faturado</span></td><td class="num">TL-2026-1482</td></tr>
+                    <tr><td colspan="10" style="background:var(--surface-muted); padding: 8px 14px; font-size: 11.5px; color: var(--muted)"><b style="color:var(--text-strong)">2 containers</b> · ABCU 123456-7 · 40HC · tara 3.900 kg · descarga 14/10 &nbsp;|&nbsp; TCLU 402981-5 · 40HC · tara 3.880 kg · descarga 14/10</td></tr>
+                    <tr><td class="num">MEDU7719035</td><td class="num">152605123456790</td><td>AURORA 123N</td><td>COMERCIAL ATLÂNTICO</td><td>Qingdao</td><td>Salvador</td><td>Misto</td><td>IMO</td><td><span class="badge badge--green">Faturado</span></td><td class="num">TL-2026-1490</td></tr>
+                    <tr><td class="num">MEDU7719058</td><td style="color:var(--muted-soft)">—</td><td>AURORA 123N</td><td>COMERCIAL ATLÂNTICO</td><td>Qingdao</td><td>Salvador</td><td>Container</td><td>IMO</td><td><span class="badge badge--blue">Calculado</span></td><td style="color:var(--muted-soft)">—</td></tr>
+                    <tr><td class="num">MEDU7719041</td><td class="num">152605123456801</td><td>AURORA 123N</td><td>ATLANTICO COM. LTDA</td><td>Ningbo</td><td>Vitória</td><td>Container</td><td>—</td><td><span class="badge badge--red">Revisão</span></td><td style="color:var(--muted-soft)">—</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="mock-note">Tela ilustrativa · dados fictícios</p>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap: 14px">
+            <div class="surface pad" style="padding: 18px 20px">
+              <ul class="clean rules tight">
+                <li><div class="ico"><svg class="i"><use href="#i-layers"/></svg></div><div><h3>Uma lista para tudo</h3><p>Container, carga solta e misto juntos. As antigas telas de Manifestos e Carga Solta viraram esta.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-list"/></svg></div><div><h3>Abre sem sair da lista</h3><p>A seta mostra containers com tara e descarga e os itens de carga solta.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-filter"/></svg></div><div><h3>Cada estado é um filtro</h3><p>Revisão, financeiro, taxas locais, perfil e modo. Exportar leva exatamente o que está filtrado.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-lock"/></svg></div><div><h3>Excluir tem pré-checagem</h3><p>Só o Administrativo, e só B/L sem vínculo fiscal que impeça.</p></div></li>
+              </ul>
+            </div>
+            <div class="note"><svg class="i"><use href="#i-link"/></svg><span>Vindo da Viagem, a lista já abre <b>filtrada naquela viagem</b>. O número do B/L abre a ficha.</span></div>
+          </div>
+        </div>
+        <div class="rel"><span class="k">Chega de</span><a href="#viagem-abas">Viagem</a><span class="sep"></span><span class="k">Leva a</span><a href="#bl-ficha">Ficha do B/L</a><a href="#apoio">Containers</a><a href="#checagens">Importadores</a></div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- Ficha do B/L -->
+    <section class="slide" id="bl-ficha" data-part="Documentos" data-chapter="Ficha do B/L">
+      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Ficha do B/L</div></header>
+      <div class="body">
+        <p class="kicker">Documentos · A ficha do B/L</p>
+        <h2>A ficha do B/L diz o que já aconteceu, o que falta e onde resolver</h2>
+        <div class="rule"></div>
+        <div class="mock" style="margin-top: 22px">
+          <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">BLs · MEDU7719058</span></div>
+          <div class="mock-body" style="padding: 14px 16px">
+            <div class="blhead"><div><b>MEDU7719058</b><span class="d">COMERCIAL ATLÂNTICO LTDA · AURORA 123N · Qingdao → Salvador · 2 containers · IMO</span></div><div class="tabs" style="padding:0"><span class="tab tab--active">Visão Geral</span><span class="tab">Carga</span><span class="tab">Detalhes do B/L</span><span class="tab">Faturamento</span><span class="tab">Histórico</span></div></div>
+            <div class="rail"><span>Operacional</span><div class="stage ok"><em>Saída do POL</em><b>02/08 · Qingdao</b></div><div class="stage ok"><em>Chegada ao POD</em><b>14/10 · Salvador</b></div><div class="stage ok"><em>Descarga</em><b>14/10 · 2 de 2</b></div><div class="stage wait"><em>Devolução</em><b>0 de 2 · Free Time até 21/10</b></div></div>
+            <div class="rail"><span>Documental · 1 pendência</span><div class="stage ok"><em>Cliente</em><b>Vinculado por CNPJ</b></div><div class="stage ok"><em>Taxas Locais</em><b>Calculado · R$ 3.780,00</b></div><div class="stage warn"><em>CE Mercante</em><b>Pendente · bloqueia emissão e Portal</b></div><div class="stage wait"><em>Fatura</em><b>Não emitida</b></div></div>
+            <div class="nextact"><svg class="i"><use href="#i-arrow"/></svg><span><b>Próxima ação · CE Mercante:</b> cadastrar o CE para liberar a emissão da fatura.</span></div>
+          </div>
+        </div>
+        <div class="tabcards">
+          <div class="surface tc"><div class="tc-h"><span class="no">1</span>Visão Geral</div><ul class="clean dots"><li>Viagem e escala, carga, cliente e financeiro.</li><li>Transbordo ou COD, divergência do Baplie.</li><li>Card do Portal: o que o Cliente vê e as disputas.</li></ul></div>
+          <div class="surface tc"><div class="tc-h"><span class="no">2</span>Carga</div><ul class="clean dots"><li>Containers com tara e descarga.</li><li>Itens de carga solta e veículos.</li><li>B/L misto mostra as duas partes.</li></ul></div>
+          <div class="surface tc"><div class="tc-h"><span class="no">3</span>Detalhes do B/L</div><ul class="clean dots"><li>POL, POD, CE, partes, NCM e pesos por modalidade.</li><li>Toda correção pede justificativa.</li><li>Frete e despesas do documento.</li></ul></div>
+          <div class="surface tc"><div class="tc-h"><span class="no">4</span>Faturamento</div><ul class="clean dots"><li>Vincular cliente, calcular e lançar taxas manuais.</li><li>Free Time e P1/P2 próprios do B/L.</li><li>Situação e link da fatura.</li></ul></div>
+          <div class="surface tc"><div class="tc-h"><span class="no">5</span>Histórico</div><ul class="clean dots"><li>Importações, correções, faturas, comunicados e pagamentos.</li><li>Marca “Auditoria” quando houve justificativa.</li></ul></div>
+        </div>
+        <div class="rel"><span class="k">Leva a</span><a href="#viagem">Viagem</a><a href="#clientes">Cliente</a><a href="#gate">Por que não fatura</a><a href="#demurrage-tela">Demurrage</a><a href="#historico">Histórico</a></div>
         <span class="foot"></span>
       </div>
     </section>
@@ -1704,22 +1813,52 @@
       </div>
     </section>
 
-    <!-- Perguntas · a carga -->
-    <section class="slide" id="faq-carga" data-part="Documentos" data-chapter="Perguntas · a carga">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Perguntas · a carga</div></header>
+    <!-- Revisão -->
+    <section class="slide" id="revisao" data-part="Documentos" data-chapter="Revisão">
+      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Revisão</div></header>
       <div class="body">
-        <p class="kicker">Perguntas que sempre aparecem · a carga e os arquivos</p>
-        <h2>Arquivo repetido, errado ou de outra viagem: o que o sistema faz</h2>
+        <p class="kicker">Como funciona · Revisão</p>
+        <h2>A Revisão segura o que ainda não está pronto para ser cobrado</h2>
         <div class="rule"></div>
-        <div class="faq">
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>Importei o mesmo arquivo de novo. Vai duplicar?</h3><p>Não. A prévia separa o que é novo, o que atualiza e o que está bloqueado. Mudança que afeta a cobrança pede confirmação antes de gravar.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>A confirmação fica no Histórico do B/L</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>E se o arquivo for de outra viagem?</h3><p>Não entra. O importador fica preso à viagem escolhida e aponta, na prévia, as linhas que não são dela.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>Com erro, nada é gravado</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>O B/L veio com um dado errado. Corrijo onde?</h3><p>Na ficha do B/L, aba Detalhes do B/L. Toda correção pede justificativa; não há edição silenciosa.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>Quem mudou, de quanto para quanto e por quê</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>O nome no manifesto é quase igual ao de um Cliente.</h3><p>Não basta. O vínculo só acontece pelo CNPJ exato; nome parecido é apenas sugestão, e o B/L espera na Revisão.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>Fica na fila da Revisão até alguém decidir</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>O armador mandou um Baplie corrigido.</h3><p>Basta reimportar: o novo substitui o anterior inteiro daquela viagem e a conferência com os B/Ls é refeita. Nada fica misturado.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>A tela mostra a data da última importação</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>Um B/L foi importado por engano. Dá para apagar?</h3><p>Só o Administrativo exclui, e só depois de uma pré-checagem: B/L com vínculo fiscal que impeça não sai.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>Exclusão restrita a um perfil</span></div>
+        <div class="content cols-2">
+          <div class="mock">
+            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Importação · Revisão</span></div>
+            <div class="mock-body">
+              <div class="mock-title">Revisão Manual</div>
+              <p class="mock-desc">Fila de B/Ls com pendências de importação que exigem validação humana, agrupada por cliente.</p>
+              <div class="surface" style="margin-top: 12px; overflow: hidden">
+                <table class="t">
+                  <thead><tr><th>B/L</th><th>Viagem</th><th>Tipo</th><th>Pendência</th><th></th></tr></thead>
+                  <tbody>
+                    <tr class="group-row"><td colspan="5">COMERCIAL ATLÂNTICO LTDA · <span class="mono">12.345.678/0001-90</span></td></tr>
+                    <tr><td class="num">MEDU7719022</td><td>AURORA 123N</td><td>Contêiner</td><td><span class="badge badge--yellow">CE Mercante pendente</span></td><td><span class="btn btn--secondary">Abrir</span></td></tr>
+                    <tr><td class="num">MEDU7719035</td><td>AURORA 123N</td><td>Misto</td><td><span class="badge badge--yellow">Peso da carga solta ausente</span></td><td><span class="btn btn--secondary">Abrir</span></td></tr>
+                    <tr class="group-row"><td colspan="5">SEM CLIENTE VINCULADO · nome no manifesto: “ATLANTICO COM. LTDA”</td></tr>
+                    <tr><td class="num">MEDU7719041</td><td>AURORA 123N</td><td>Contêiner</td><td><span class="badge badge--red">Cadastro de cliente pendente</span></td><td><span class="btn btn--primary">Vincular</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="mock-note">Tela ilustrativa · dados fictícios</p>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap: 20px">
+            <div class="surface pad">
+              <ul class="clean rules">
+                <li><div class="ico"><svg class="i"><use href="#i-users"/></svg></div><div><h3>Cliente só pelo CNPJ exato</h3><p>Nome parecido é apenas sugestão. O sistema nunca vincula por semelhança.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-lock"/></svg></div><div><h3>Pendência bloqueia a fatura</h3><p>Sem cliente, CE ou peso confiável, o B/L não segue para cobrança.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-grid"/></svg></div><div><h3>Resolve o grupo de uma vez</h3><p>CNPJ, razão social e e-mail cadastram o Cliente e vinculam todos os B/Ls do grupo; o convite do Portal é opcional.</p></div></li>
+              </ul>
+            </div>
+            <div class="gain">
+              <p class="section-label">O que ganhamos</p>
+              <ul class="clean">
+                <li><svg class="i"><use href="#i-check"/></svg><span><strong>Fatura para o cliente errado</strong> deixa de ser possível por engano de nome.</span></li>
+                <li><svg class="i"><use href="#i-check"/></svg><span>Ninguém precisa lembrar o que falta: <strong>a fila mostra</strong>.</span></li>
+              </ul>
+            </div>
+          </div>
         </div>
-        <div class="rel"><span class="k">Veja</span><a href="#importacao">Como um arquivo entra</a><a href="#bl-ficha">Ficha do B/L</a><a href="#revisao">Revisão</a><a href="#baplie">Baplie</a></div>
+        <div class="rel"><span class="k">Chega de</span><a href="#bls">BLs</a><a href="#granito">Granito</a><a href="#gate">Validação</a><span class="sep"></span><span class="k">Depois</span><a href="#gate">O sistema tenta faturar</a></div>
         <span class="foot"></span>
       </div>
     </section>
@@ -1739,7 +1878,7 @@
                 <div><div class="mock-title">Granito</div><p class="mock-desc">Manifestos de blocos por viagem, reconciliação de shipper e taxas por peso.</p></div>
                 <div class="pbtns"><span class="btn btn--secondary">Tabela de Taxas</span><span class="btn btn--primary"><svg class="i"><use href="#i-upload"/></svg>Importar COSCO</span></div>
               </div>
-              <div class="fbar" style="margin-top: 10px"><span class="fld wide"><svg class="i"><use href="#i-search"/></svg>Booking, shipper, CNPJ…</span><span class="fchip">Viagem: COSCO SHIPPING ARIES 123N</span><span class="fld">Porto de descarga</span></div>
+              <div class="fbar" style="margin-top: 10px"><span class="fld wide"><svg class="i"><use href="#i-search"/></svg>Booking, shipper, CNPJ…</span><span class="fchip">Viagem: AURORA 123N</span><span class="fld">Porto de descarga</span></div>
               <div class="surface" style="overflow:hidden">
                 <table class="t sm">
                   <thead><tr><th>Booking</th><th>Shipper / CNPJ</th><th>Peso real</th><th>CBM</th><th>Cliente</th><th>Taxas</th><th></th></tr></thead>
@@ -1801,82 +1940,6 @@
       </div>
     </section>
 
-    <!-- Checagens por importador -->
-    <section class="slide" id="checagens" data-part="Saída do navio" data-chapter="As checagens de cada arquivo">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>As checagens de cada arquivo</div></header>
-      <div class="body">
-        <p class="kicker">Recapitulando · todos os arquivos</p>
-        <h2>O que cada arquivo confere, e o que ele alimenta até o ADR</h2>
-        <div class="rule"></div>
-        <table class="t imp" style="margin-top: 20px; border: 1.5px solid var(--border); background: #fff; box-shadow: var(--shadow)">
-          <thead><tr><th>Arquivo</th><th>Onde</th><th>O sistema confere</th><th>Alimenta</th></tr></thead>
-          <tbody>
-            <tr><td><b>Baplie EDI</b><span>EDI do plano de carga</span></td><td>Baplie · Viagem</td><td>Se é EDI de verdade; containers repetidos; quem está no Baplie e não em B/L, e o contrário.</td><td>IMO, OOG e classe dos containers · Vazios IMP · ADR</td></tr>
-            <tr><td><b>B/L de container</b><span>Excel do armador</span></td><td>BLs · Viagem</td><td>Navio e viagem do arquivo = viagem escolhida; só número de container ISO; mudança que afeta cobrança pede confirmação auditada; troca de consignatário aparece antes.</td><td>B/L, Cliente pelo CNPJ, frete e despesas, ATD do POL, cálculo provisório</td></tr>
-            <tr><td><b>B/L avulso</b><span>PDF ou DOCX</span></td><td>BLs · Viagem</td><td>A mesma trava de viagem declarada; avisos de leitura na prévia.</td><td>Partes, rota, volumes, peso, NCM, frete</td></tr>
-            <tr><td><b>CE Mercante</b><span>planilha ou EDI</span></td><td>BLs · Viagem</td><td>B/L de outra viagem é bloqueado; uma linha ruim segura o lote inteiro; captura o nº do Manifesto Mercante.</td><td>Emissão da fatura · comunicado CE e Taxas</td></tr>
-            <tr><td><b>Manifesto BB</b><span>carga solta</span></td><td>BLs</td><td>Formato numérico (vírgula ou ponto); número ambíguo bloqueia; teto de absurdo para peso, cubagem e volumes.</td><td>B/L de carga solta ou misto · peso da taxa</td></tr>
-            <tr><td><b>Veículos</b><span>modelo, COSCO ou chinês</span></td><td>Veículos · Viagem</td><td>Chassi; B/L da viagem; container por número, tipo e lacre, sem ambiguidade.</td><td>VIN no Line Up · ADR · taxas</td></tr>
-            <tr><td><b>Vazios IMP</b><span>container, tipo e tara</span></td><td>Vazios IMP · Viagem</td><td>Tara não negativa; porto reconhecido pelo cadastro.</td><td>MTY no Line Up · ADR</td></tr>
-            <tr><td><b>Datas de container</b><span>descarga e devolução</span></td><td>Containers · Demurrage</td><td>Descarga obrigatória; devolução opcional e posterior à descarga.</td><td>Contagem do Demurrage · fatura quando todos voltam</td></tr>
-            <tr><td><b>Manifesto Granito</b><span>planilha COSCO</span></td><td>Granito · Viagem</td><td>Shipper × Cliente: CNPJ encontrado, ausente ou não cadastrado; peso e datas válidos.</td><td>B/Ls de Granito · taxas por peso · ADR</td></tr>
-            <tr><td><b>Unidades embarcadas</b><span>sete colunas</span></td><td>Vazios EXP</td><td>Container repetido, local, condição ou datas incompatíveis recusam o lote inteiro.</td><td>Armazenagem · ADR</td></tr>
-          </tbody>
-        </table>
-        <div class="rel"><span class="k">Veja</span><a href="#baplie">Baplie</a><a href="#bls">BLs</a><a href="#apoio">Containers e Veículos</a><a href="#granito">Granito</a><a href="#vazios-exp">Vazios EXP</a><span class="sep"></span><span class="k">A seguir</span><a href="#adr">ADR</a></div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- ADR -->
-    <section class="slide" id="adr" data-part="Saída do navio" data-chapter="ADR">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>ADR</div></header>
-      <div class="body">
-        <p class="kicker">Como funciona · Agency Departure Report</p>
-        <h2>No ATD, o ADR se monta com tudo o que foi registrado; cada departamento confere e assina</h2>
-        <div class="rule"></div>
-        <div class="content cols-2">
-          <div class="mock">
-            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Viagens · aba ADR</span></div>
-            <div class="mock-body" style="padding: 18px">
-              <div style="display:flex; justify-content:space-between; align-items:center"><div><b style="font-size:17px">COSCO SHIPPING ARIES 123N · Salvador · Terminal A</b><div class="mock-desc">ATD 16/10 (sexta) · prazo de assinatura até 21/10</div></div><span class="badge badge--yellow">2 de 3 assinaturas</span></div>
-              <p class="section-label" style="margin: 16px 0 0">Dados trazidos dos módulos de origem</p>
-              <div class="sources">
-                <div>Carga descarregada<em>BLs · Containers</em></div>
-                <div>Vazios descarregados<em>Vazios IMP</em></div>
-                <div>Veículos<em>Veículos</em></div>
-                <div>Granito e vazios embarcados<em>Exportação</em></div>
-              </div>
-              <div class="signs">
-                <div class="sign"><b>Operações</b><span>Escala, terminal e datas</span><span class="badge badge--green"><svg class="i"><use href="#i-check"/></svg>Assinado</span></div>
-                <div class="sign"><b>Documentação</b><span>Carga e vazios descarregados</span><span class="badge badge--green"><svg class="i"><use href="#i-check"/></svg>Assinado</span></div>
-                <div class="sign"><b>Equipamentos</b><span>Veículos, Granito e vazios</span><span class="badge badge--red">Vence hoje</span></div>
-              </div>
-              <p class="mock-note">Tela ilustrativa · dados fictícios</p>
-            </div>
-          </div>
-          <div style="display:flex; flex-direction:column; gap: 20px">
-            <div class="surface pad">
-              <ul class="clean rules">
-                <li><div class="ico"><svg class="i"><use href="#i-db"/></svg></div><div><h3>Nada é redigitado</h3><p>Carga, veículos, vazios e Granito vêm de onde já foram registrados.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-clock"/></svg></div><div><h3>Prazo visível: 3 dias úteis após o ATD</h3><p>Pendência e atraso viram Alerta para o departamento dono.</p></div></li>
-                <li><div class="ico"><svg class="i"><use href="#i-lock"/></svg></div><div><h3>Fechado vira fotografia</h3><p>O Financeiro confere pagamentos sobre ela. Reabrir exige o Administrativo e um motivo.</p></div></li>
-              </ul>
-            </div>
-            <div class="gain">
-              <p class="section-label">O que ganhamos</p>
-              <ul class="clean">
-                <li><svg class="i"><use href="#i-check"/></svg><span>O relatório deixa de ser <strong>um documento à parte</strong> para montar.</span></li>
-                <li><svg class="i"><use href="#i-check"/></svg><span>Cada área sabe <strong>o que falta assinar e até quando</strong>.</span></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div class="rel"><span class="k">Dados de</span><a href="#viagem-visao">Escala</a><a href="#bls">Carga</a><a href="#apoio">Veículos e Vazios IMP</a><a href="#granito">Granito</a><a href="#vazios-exp">Vazios EXP</a></div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
     <!-- Faturamento -->
     <section class="slide" id="faturamento" data-part="Financeiro" data-chapter="Taxas Locais">
       <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Taxas Locais</div></header>
@@ -1887,7 +1950,7 @@
         <div class="flow">
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-receipt"/></svg><span class="n">01</span></div><h3>Cálculo provisório</h3><p>Assim que o B/L entra, o sistema calcula pela tabela do porto e, com o Cliente vinculado, aplica a condição negociada.</p><p class="who sys">Sistema</p></div>
           <div class="surface"><div class="top"><svg class="i"><use href="#i-file"/></svg><span class="n">02</span></div><h3>CE Mercante registrado</h3><p>É o fato gerador. A cobrança pode sair antes mesmo da atracação.</p><p class="who">Documentação</p></div>
-          <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-zap"/></svg><span class="n">03</span></div><h3>Fatura emitida</h3><p>Com o CE e o B/L sem pendências, a fatura sai automaticamente em nome da Transhipping, já com PIX (QR e copia e cola).</p><p class="who sys">Sistema</p></div>
+          <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-zap"/></svg><span class="n">03</span></div><h3>Fatura emitida</h3><p>Com o CE e o B/L sem pendências, a fatura sai automaticamente, já com PIX (QR e copia e cola).</p><p class="who sys">Sistema</p></div>
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-mail"/></svg><span class="n">04</span></div><h3>Cliente avisado</h3><p>Quando todos os B/Ls do Cliente na viagem estão prontos, o comunicado de CE e Taxas sai sozinho.</p><p class="who sys">Sistema</p></div>
           <div class="surface"><div class="top"><svg class="i"><use href="#i-eye"/></svg><span class="n">05</span></div><h3>Fatura no Portal</h3><p>O Cliente consulta, imprime e paga sem pedir segunda via.</p><p class="who">Cliente</p></div>
         </div>
@@ -1951,7 +2014,7 @@
           <div class="layers">
             <div class="surface layer"><span class="n"><svg class="i"><use href="#i-layers"/></svg></span><div><h3>Tabelas e Condições<span>Taxas Locais → Tabelas</span></h3><p><b>Tabelas</b> por modo de carga e porto de descarga: é o POD que escolhe a tabela. Avisos de vigência vencida ou futura e de tabela “não aplicada”. <b>Overrides</b> guardam a condição negociada com cada Cliente, com vigência.</p></div></div>
             <div class="surface layer"><span class="n"><svg class="i"><use href="#i-list"/></svg></span><div><h3>Validação<span>B/L a B/L</span></h3><p>A fila de tudo o que ainda não faturou, com o motivo, a reconciliação e o subtotal. Recalcula em lote, exporta a conferência e emite individualmente. Aqui também aparecem os Ajustes de COD pendentes.</p></div></div>
-            <div class="surface layer"><span class="n"><svg class="i"><use href="#i-receipt"/></svg></span><div><h3>Faturas<span>aba padrão</span></h3><p>Saldo aberto, pagas e consolidadas, com filtros por cliente, navio, POD e status. O detalhe registra pagamento, outras cobranças, estorno e cancelamento, e abre o documento da Transhipping para imprimir.</p></div></div>
+            <div class="surface layer"><span class="n"><svg class="i"><use href="#i-receipt"/></svg></span><div><h3>Faturas<span>aba padrão</span></h3><p>Saldo aberto, pagas e consolidadas, com filtros por cliente, navio, POD e status. O detalhe registra pagamento, outras cobranças, estorno e cancelamento, e abre o documento para imprimir.</p></div></div>
             <div class="note"><svg class="i"><use href="#i-dollar"/></svg><span>Taxa local <b>não tem vencimento</b>. Item em dólar converte na emissão pelo ROE do dia e fica congelado na fatura.</span></div>
           </div>
           <div class="mock">
@@ -1962,7 +2025,7 @@
                 <table class="t sm">
                   <thead><tr><th>B/L</th><th>Motivo</th><th>Modo</th><th>Cliente</th><th>Reconcil.</th><th>Subtotal BRL</th><th></th></tr></thead>
                   <tbody>
-                    <tr class="expanded"><td class="num">▾ CSC4355019058</td><td><span class="badge badge--yellow">Aguardando CE Mercante</span></td><td>Container</td><td>COMERCIAL ATLÂNTICO</td><td>Conciliado</td><td class="num">R$ 3.780,00</td><td><span class="btn btn--secondary sm" style="opacity:.5">Emitir</span></td></tr>
+                    <tr class="expanded"><td class="num">▾ MEDU7719058</td><td><span class="badge badge--yellow">Aguardando CE Mercante</span></td><td>Container</td><td>COMERCIAL ATLÂNTICO</td><td>Conciliado</td><td class="num">R$ 3.780,00</td><td><span class="btn btn--secondary sm" style="opacity:.5">Emitir</span></td></tr>
                     <tr><td colspan="7" style="padding: 10px 0 0; background:#fff">
                       <div class="whyblock"><b>Por que não fatura?</b><p>Aguardando cadastro do CE Mercante para emitir a fatura. <a>Abrir ficha do B/L →</a></p></div>
                       <div class="conf">
@@ -1975,8 +2038,8 @@
                         <div class="tot"><span>Conferência de cálculo</span><b>R$ 3.780,00</b></div>
                       </div>
                     </td></tr>
-                    <tr><td class="num">CSC4355019041</td><td><span class="badge badge--red">Sem cliente vinculado</span></td><td>Container</td><td class="muted">—</td><td>Sugerido</td><td class="num">R$ 2.940,00</td><td><span class="btn btn--secondary sm" style="opacity:.5">Emitir</span></td></tr>
-                    <tr><td class="num">CSC4355019066</td><td><span class="badge badge--green">Pronto para emitir</span></td><td>Carga solta</td><td>NORDESTE MÁQUINAS</td><td>Conciliado</td><td class="num">R$ 5.112,40</td><td><span class="btn btn--primary sm">Emitir</span></td></tr>
+                    <tr><td class="num">MEDU7719041</td><td><span class="badge badge--red">Sem cliente vinculado</span></td><td>Container</td><td class="muted">—</td><td>Sugerido</td><td class="num">R$ 2.940,00</td><td><span class="btn btn--secondary sm" style="opacity:.5">Emitir</span></td></tr>
+                    <tr><td class="num">MEDU7719066</td><td><span class="badge badge--green">Pronto para emitir</span></td><td>Carga solta</td><td>NORDESTE MÁQUINAS</td><td>Conciliado</td><td class="num">R$ 5.112,40</td><td><span class="btn btn--primary sm">Emitir</span></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -1985,24 +2048,6 @@
           </div>
         </div>
         <div class="rel"><span class="k">Chega de</span><a href="#gate">Quatro perguntas</a><a href="#bl-ficha">Ficha do B/L</a><span class="sep"></span><span class="k">Leva a</span><a href="#revisao">Revisão</a><a href="#console">Portal</a><a href="#pix">Conciliação PIX</a></div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Perguntas · faturas -->
-    <section class="slide" id="faq-faturas" data-part="Financeiro" data-chapter="Perguntas · faturas">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Perguntas · faturas</div></header>
-      <div class="body">
-        <p class="kicker">Perguntas que sempre aparecem · faturas</p>
-        <h2>Valor errado, cobrança extra, fatura única: como o sistema responde</h2>
-        <div class="rule"></div>
-        <div class="faq c2">
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>A fatura saiu com valor errado. E agora?</h3><p>Sem pagamento registrado, o Administrativo cancela a fatura com justificativa; o B/L volta para a Validação, a origem é corrigida e a fatura é emitida de novo. Com pagamento, ela não pode ser cancelada: primeiro se cancela a baixa.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>Cancelamento com autor e motivo</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>Preciso cobrar algo que não está na tabela.</h3><p>Antes da emissão, entra como lançamento manual no B/L. Depois, como outra cobrança na fatura individual, enquanto ela ainda não tiver pagamento. O total é refeito.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>O item manual fica separado do que veio da tabela</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>O Cliente quer uma fatura só para vários B/Ls.</h3><p>A consolidada soma o que já foi calculado, e o próprio Cliente pode gerá-la no Portal. Se uma individual for paga antes, a consolidada perde a validade; se a consolidada for paga, as individuais ficam cobertas.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>Nenhum B/L é cobrado duas vezes</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>Veículo que veio em LCL paga Taxa Local?</h3><p>Não, desde que o B/L diga LCL. Sem essa informação, o sistema cobra normalmente: uma cobrança visível e contestável é melhor que uma isenção sem rastro. A leitura pode ser corrigida na ficha do B/L.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>A correção fica no Histórico do B/L</span></div>
-        </div>
-        <div class="rel"><span class="k">Veja</span><a href="#taxas-tela">Taxas Locais</a><a href="#gate">Quatro perguntas</a><a href="#portal-faturas">Consolidada no Portal</a></div>
         <span class="foot"></span>
       </div>
     </section>
@@ -2057,27 +2102,6 @@
       </div>
     </section>
 
-    <!-- Perguntas · pagamentos -->
-    <section class="slide" id="faq-pagamentos" data-part="Financeiro" data-chapter="Perguntas · pagamentos">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Perguntas · pagamentos</div></header>
-      <div class="body">
-        <p class="kicker">Perguntas que sempre aparecem · pagamentos</p>
-        <h2>Pagou a mais, a menos ou sem identificação: o que o sistema faz com cada caso</h2>
-        <div class="rule"></div>
-        <div class="faq">
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>Pagou o valor exato.</h3><p>O extrato encontra a fatura pela identificação do PIX, e a baixa é registrada quando o lote é confirmado. Diferença de até um centavo é aceita.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>Baixa com data, identificação e autor</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>Pagou a menos.</h3><p>O PIX não baixa sozinho: vira divergência e Alerta para o Administrativo. Registrado o valor recebido, a fatura fica Parcial e o saldo que falta continua em aberto, também no Portal.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>A fatura mostra o que entrou e o que falta</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>Pagou a mais.</h3><p>Também não baixa sozinho. Ao registrar, o sistema quita só o saldo aberto e separa o excedente como restituição pendente, até alguém marcar que foi devolvido.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>O excedente fica na fatura até a devolução</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>Pagou duas vezes, ou o PIX veio sem identificação.</h3><p>Sem fatura em aberto que corresponda, o PIX fica à parte e nunca baixa sozinho. Vira Alerta para o Administrativo, e Documentação e Equipamentos são avisados, porque pode ser Demurrage.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>O Alerta segue aberto até a decisão</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>Pagou por transferência, fora do PIX.</h3><p>O Administrativo registra o pagamento no detalhe da fatura, com valor e data. Pode ser parcial; se passar do saldo, o excedente vira restituição.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>O pagamento fica marcado como manual</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>A baixa foi lançada na fatura errada.</h3><p>O Administrativo cancela a baixa com justificativa: a fatura reabre e a identificação do PIX fica livre para uma nova conciliação.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>O cancelamento da baixa fica em auditoria</span></div>
-        </div>
-        <div class="gain" style="margin-top: 16px; padding: 14px 22px"><ul class="clean"><li><svg class="i"><use href="#i-check"/></svg><span>Quando há dúvida, o dinheiro <strong>não muda de lugar sozinho</strong>: o caso seguro baixa, o duvidoso espera uma pessoa decidir, e tudo fica registrado.</span></li></ul></div>
-        <div class="rel"><span class="k">Veja</span><a href="#pix">Conciliação PIX</a><a href="#portal-fatura">Fatura no Portal</a><a href="#alertas-avisos">Quem é avisado</a></div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
     <!-- Demurrage -->
     <section class="slide" id="demurrage" data-part="Financeiro" data-chapter="Demurrage">
       <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Demurrage</div></header>
@@ -2089,7 +2113,7 @@
           <div class="mock">
             <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">Financeiro · Demurrage</span></div>
             <div class="mock-body" style="padding: 18px">
-              <div style="display:flex; justify-content:space-between; align-items:center"><div><b class="mono" style="font-size:17px">ABCU 123456-7</b><div class="mock-desc">B/L CSC4355019022 · descarga 14/10 · devolvido no 11º dia</div></div><span class="badge badge--yellow">Em sobreestadia</span></div>
+              <div style="display:flex; justify-content:space-between; align-items:center"><div><b class="mono" style="font-size:17px">ABCU 123456-7</b><div class="mock-desc">B/L MEDU7719022 · descarga 14/10 · devolvido no 11º dia</div></div><span class="badge badge--yellow">Em sobreestadia</span></div>
               <div class="dem-bar"><div class="ft">Free Time · 7 dias</div><div class="p1">P1 · 2</div><div class="p2">P2 · 2</div><div class="rest">—</div></div>
               <div class="dem-scale"><span>descarga</span><span>dia 8</span><span>dia 10</span><span>devolvido</span></div>
               <div class="money">
@@ -2146,9 +2170,9 @@
                 <table class="t sm">
                   <thead><tr><th>Container</th><th>Descarga</th><th>Devolução</th><th>Free Time</th><th>Excedidos</th><th>P1 / P2</th><th>Total</th></tr></thead>
                   <tbody>
-                    <tr class="group-row"><td colspan="7">CSC4355019022 · COMERCIAL ATLÂNTICO LTDA</td></tr>
+                    <tr class="group-row"><td colspan="7">MEDU7719022 · COMERCIAL ATLÂNTICO LTDA</td></tr>
                     <tr><td class="num">ABCU 123456-7</td><td class="num">14/10</td><td class="num">24/10</td><td class="num">7 dias</td><td class="num">4</td><td class="num">2 / 2</td><td class="num">USD 1.000,00</td></tr>
-                    <tr class="group-row"><td colspan="7">CSC4355019058 · COMERCIAL ATLÂNTICO LTDA</td></tr>
+                    <tr class="group-row"><td colspan="7">MEDU7719058 · COMERCIAL ATLÂNTICO LTDA</td></tr>
                     <tr><td class="num">CSNU 710245-9</td><td class="num">14/10</td><td><span class="badge badge--red">fora · hoje</span></td><td class="num">7 dias</td><td class="num">2</td><td class="num">2 / 0</td><td class="num">USD 300,00</td></tr>
                   </tbody>
                 </table>
@@ -2173,71 +2197,6 @@
       </div>
     </section>
 
-    <!-- Perguntas · Demurrage -->
-    <section class="slide" id="faq-demurrage" data-part="Financeiro" data-chapter="Perguntas · Demurrage">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Perguntas · Demurrage</div></header>
-      <div class="body">
-        <p class="kicker">Perguntas que sempre aparecem · Demurrage</p>
-        <h2>Container fora, câmbio que muda, Cliente que discorda: como o Demurrage responde</h2>
-        <div class="rule"></div>
-        <div class="faq c2">
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>O container voltou dentro do Free Time.</h3><p>Não há o que cobrar: ele sai da lista de Demurrage.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>Contado pelas datas de descarga e devolução</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>Um container do B/L ainda não voltou.</h3><p>A fatura espera. Enquanto houver container fora, os dias seguem correndo e aparecem só no monitor; a fatura sai quando o último volta.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>O Cliente acompanha os dias no Portal</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>O Cliente pagou com o QR de ontem.</h3><p>O valor em dólar trava na emissão; o valor em reais acompanha a PTAX. Por isso o PIX é aceito se bater com um dos dois últimos valores até a data do pagamento. Demurrage só aceita pagamento integral.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>No pagamento, o valor em reais congela</span></div>
-          <div class="surface faq-card"><h3><span class="qm" aria-hidden="true">?</span>O Cliente discorda da cobrança.</h3><p>Ele abre a disputa no Portal, com motivo e anexos. A Régua de Cobrança pausa e Equipamentos recebe o Alerta. Se for o caso, aplica desconto em dólar, que já reflete no PIX.</p><span class="reg"><svg class="i"><use href="#i-history"/></svg>As mensagens da disputa não podem ser editadas</span></div>
-        </div>
-        <div class="rel"><span class="k">Veja</span><a href="#demurrage-tela">A tela de Demurrage</a><a href="#portal-demurrage">A disputa no Portal</a></div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Omissão de escala -->
-    <section class="slide" id="omissao" data-part="Financeiro" data-chapter="Omissão de escala">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Omissão de escala</div></header>
-      <div class="body">
-        <p class="kicker">Caso especial · E se o navio não parar?</p>
-        <h2>Escala omitida: a carga segue em Transbordo ou muda de destino por COD</h2>
-        <div class="rule"></div>
-        <div class="fork">
-          <div class="surface fork-src">
-            <span class="badge badge--red">OMIT · Vitória</span>
-            <h3 style="margin-top:10px">Omitir escala</h3>
-            <p class="muted" style="margin-top:6px; font-size:15px">Na Visão geral da Viagem. O armador não fará a escala; a carga desce em outro porto da mesma viagem.</p>
-            <ul class="clean dots">
-              <li>Confirmação em duas etapas, com o resumo do impacto.</li>
-              <li>Porto de Transbordo é obrigatório.</li>
-              <li>Omitir não é excluir: a escala fica registrada e aparece como OMIT no quadro e no Portal.</li>
-            </ul>
-          </div>
-          <div class="fork-arm"></div>
-          <div class="fork-dst">
-            <div class="surface branch">
-              <div class="bh"><span class="badge badge--blue" style="align-self:flex-start">padrão · todos os B/Ls</span><b>Transbordo</b><span class="muted" style="font-size:13.5px">a carga segue em navio de terceiro até o destino original</span></div>
-              <ul class="clean dots">
-                <li>Destino final preservado: a Taxa Local <b>não muda</b>.</li>
-                <li>Informações de Transbordo (porto, navio, armador, viagem, ETD, ETA) são completadas aos poucos, na Viagem, e valem para todos os B/Ls afetados.</li>
-                <li>O Cliente recebe uma notificação no Portal e vê o card de Transbordo atualizado.</li>
-              </ul>
-            </div>
-            <div class="surface branch cod">
-              <div class="bh"><span class="badge badge--yellow" style="align-self:flex-start">exceção · por B/L</span><b>COD</b><span class="muted" style="font-size:13.5px">Change of Destination: o B/L passa a terminar no Porto de Transbordo</span></div>
-              <ul class="clean dots">
-                <li>Marcado na ficha do B/L, <b>com justificativa</b>. Pode voltar ao Transbordo.</li>
-                <li>A Taxa Local é <b>recalculada pelo novo destino</b>; se já havia fatura, a diferença vira um Ajuste de COD para o Financeiro (complementar, reemitir ou restituir).</li>
-                <li>O CE Mercante não muda; o vínculo com o Manifesto Mercante é limpo e vira pendência.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div class="content cols-even" style="margin-top: 18px; gap: 16px">
-          <div class="note"><svg class="i"><use href="#i-undo"/></svg><span><b>Omitiu por engano?</b> O Administrativo reverte, com justificativa e aviso de correção ao Cliente, enquanto nenhum B/L estiver em COD.</span></div>
-          <div class="gain" style="padding: 14px 20px"><ul class="clean"><li><svg class="i"><use href="#i-check"/></svg><span>A mudança de rota vira <strong>registro, cobrança certa e aviso ao Cliente</strong>, sem planilha paralela.</span></li></ul></div>
-        </div>
-        <div class="rel"><span class="k">Onde acontece</span><a href="#viagem-visao">Viagem · Visão geral</a><a href="#bl-ficha">Ficha do B/L</a><a href="#taxas-tela">Validação · Ajustes de COD</a></div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
     <!-- Clientes -->
     <section class="slide" id="clientes" data-part="Clientes e comunicação" data-chapter="Clientes">
       <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Clientes</div></header>
@@ -2257,7 +2216,7 @@
                 <ul class="clean hist">
                   <li><time style="color:var(--red)">disputa</time><div><b>1 disputa de demurrage aberta</b><span>DEM-2026-0412 · aberta pelo Cliente no Portal</span></div></li>
                   <li><time style="color:#a85309">correndo</time><div><b>1 container com demurrage correndo</b><span>CSNU 710245-9 · fora desde 14/10</span></div></li>
-                  <li><time style="color:#a85309">revisão</time><div><b>1 B/L com reconciliação de cliente pendente</b><span>CSC4355019041 · nome parecido, aguardando aprovação</span></div></li>
+                  <li><time style="color:#a85309">revisão</time><div><b>1 B/L com reconciliação de cliente pendente</b><span>MEDU7719041 · nome parecido, aguardando aprovação</span></div></li>
                 </ul>
               </div>
               <p class="mock-note">Tela ilustrativa · dados fictícios</p>
@@ -2343,11 +2302,11 @@
                   <span class="flabel">Público <em>Fixo</em></span>
                   <div class="m-field" style="margin:0">Caixa Documentação e Operação de cada Cliente</div>
                   <span class="flabel">Recorte</span>
-                  <div class="fields4"><span class="fld sel"><b>COSCO SHIPPING ARIES 123N</b></span><span class="fld">POL</span><span class="fld sel"><b>BRSSA</b></span><span class="fld">CNPJ (opcional)</span></div>
+                  <div class="fields4"><span class="fld sel"><b>AURORA 123N</b></span><span class="fld">POL</span><span class="fld sel"><b>BRSSA</b></span><span class="fld">CNPJ (opcional)</span></div>
                 </div>
                 <div class="sendpanel" style="align-self: start">
                   <span class="h">O que será enviado</span>
-                  <p>NOA para os clientes com carga da <b>COSCO SHIPPING ARIES 123N</b> descarregando em <b>Salvador</b>.</p>
+                  <p>NOA para os clientes com carga da <b>AURORA 123N</b> descarregando em <b>Salvador</b>.</p>
                   <div class="m4"><div><span>Clientes</span><b>—</b></div><div><span>E-mails elegíveis</span><b>—</b></div><div><span>Excluídos</span><b>—</b></div><div><span>Selecionados</span><b>—</b></div></div>
                   <span class="btn btn--secondary" style="justify-content:center">Conferir destinatários</span>
                 </div>
@@ -2409,319 +2368,6 @@
           </div>
         </div>
         <div class="rel"><span class="k">Chega de</span><a href="#gate">Validação · Portal não provisionado</a><a href="#clientes">Ficha do Cliente</a><span class="sep"></span><span class="k">Leva a</span><a href="#portal">Portal Fwlog</a></div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Portal · 1 · Entrada (abre o capítulo do lado do Cliente) -->
-    <section class="slide portal-open" id="portal" data-part="Portal do Cliente" data-chapter="Portal · a entrada">
-      <div class="po-left">
-        <div class="po-card surface">
-          <span class="po-logo logo-c" role="img" aria-label="Fwlog"></span>
-          <b class="po-title">Portal do cliente</b>
-          <p class="po-sub">Consulte faturas emitidas e consolide B/Ls prontos para faturamento.</p>
-          <label>CNPJ</label><div class="m-field mono">12.345.678/0001-90</div>
-          <label>Senha</label><div class="m-field mono">••••••••••</div>
-          <span class="btn btn--primary po-btn">Entrar no portal</span>
-          <span class="po-link">Esqueci minha senha</span>
-          <p class="po-meta">Acesso provisionado internamente por cliente. Não há cadastro público.<br>Problemas para acessar? Solicite um novo acesso ao seu contato comercial.</p>
-        </div>
-        <p class="mock-note" style="text-align:center">Tela ilustrativa · dados fictícios</p>
-      </div>
-      <div class="po-right">
-        <p class="kicker">Portal do Cliente · a outra porta do mesmo dado</p>
-        <h2>O Portal Fwlog é o Vela visto pelo Cliente</h2>
-        <div class="rule"></div>
-        <p class="lead">Mesma base, outra entrada, outra marca. O Cliente vê só o que é dele e nunca lê o nome Vela: no Portal a marca é Fwlog, e as faturas e os recibos saem em nome da Transhipping.</p>
-        <ul class="clean po-steps">
-          <li><span class="n">1</span><div><b>A equipe libera o acesso</b><span>Documentação ou Administrativo aprova o Cliente e envia o convite ao Email de Recuperação.</span></div></li>
-          <li><span class="n">2</span><div><b>O Cliente define a senha</b><span>O convite vale 48 horas e só pode ser usado uma vez. A conta fica Ativa quando a senha é criada.</span></div></li>
-          <li><span class="n">3</span><div><b>Entra com CNPJ e senha</b><span>Cinco erros em 15 minutos bloqueiam o CNPJ por 15 minutos. A tela nunca revela se um CNPJ existe.</span></div></li>
-        </ul>
-        <div class="po-bs"><svg aria-hidden="true"><use href="#vela-dark"/></svg><p><b>Nos bastidores:</b> se o Cliente tem processo ativo, convite expirado, falha de envio ou e-mail suprimido viram Alerta para Documentação. Ninguém precisa descobrir pelo telefone.</p></div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Portal · 2 · Painel -->
-    <section class="slide portal" id="portal-painel" data-part="Portal do Cliente" data-chapter="Portal · Painel">
-      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
-      <nav class="pnav" aria-hidden="true"><span class="on"><svg class="i"><use href="#i-dash"/></svg>Painel</span><span><svg class="i"><use href="#i-file"/></svg>Faturas</span><span><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
-      <div class="body pbody">
-        <div class="pgrid">
-          <div class="ppage">
-            <div class="pp-title">Painel</div>
-            <div class="pcards">
-              <div class="pcard"><span>Taxas locais em aberto</span><b>R$ 9.380,00</b><em>3 fatura(s) em aberto</em></div>
-              <div class="pcard"><span>Demurrage em aberto</span><b>R$ 5.773,40</b><em>1 fatura(s) em aberto</em></div>
-              <div class="pcard"><span>Containers sem devolução</span><b>4</b><em>container(es) ainda não devolvido(s)</em></div>
-              <div class="pcard"><span>Containers em demurrage</span><b>1</b><em>container(es) gerando sobreestadia</em></div>
-            </div>
-            <h3 class="pp-h">Chegadas e Saídas</h3>
-            <div class="sched">
-              <div class="sched-head"><svg class="i"><use href="#i-ship"/></svg>CSSC Container Liner Service Schedule - ECSA<svg class="i" style="margin-left:auto; opacity:.7"><use href="#i-anchor"/></svg></div>
-              <table>
-                <thead><tr><th>Vessel Name</th><th>VOY</th><th>Qingdao<i>ATD POL / ETD</i></th><th>Shanghai<i>ATD POL / ETD</i></th><th>Ningbo<i>ATD POL / ETD</i></th><th>Nansha<i>ATD POL / ETD</i></th><th>Salvador<i>ATA / ETA</i></th><th>Vitória<i>ATA / ETA</i></th><th>Pecém<i>ATA / ETA</i></th></tr></thead>
-                <tbody>
-                  <tr><td class="v">COSCO SHIPPING ARIES</td><td>123N</td><td class="act">02/08/2026</td><td class="act">05/08/2026</td><td class="act">08/08/2026</td><td class="act">12/08/2026</td><td class="act">14/10/2026</td><td class="act">17/10/2026</td><td class="act">20/10/2026</td></tr>
-                  <tr><td class="v">COSCO SHIPPING TAURUS</td><td>045S</td><td class="act">16/08/2026</td><td class="act">19/08/2026</td><td class="off">X</td><td class="act">25/08/2026</td><td>22/10/2026</td><td class="off">OMIT</td><td>29/10/2026</td></tr>
-                  <tr><td class="v">COSCO SHIPPING GEMINI</td><td>210N</td><td class="act">30/08/2026</td><td>02/09/2026</td><td>05/09/2026</td><td>09/09/2026</td><td>05/11/2026</td><td>09/11/2026</td><td>13/11/2026</td></tr>
-                </tbody>
-              </table>
-              <div class="sched-foot"><span><b>Datas em azul</b> = data efetiva confirmada. Datas em preto = data prevista.</span><span>X = Não programado</span></div>
-            </div>
-            <p class="mock-note">Tela ilustrativa · dados fictícios · colunas de portos resumidas</p>
-          </div>
-          <aside class="pside">
-            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
-            <h2>O Cliente abre o Portal e já sabe onde está</h2>
-            <ul class="clean pts">
-              <li><svg class="i"><use href="#i-check"/></svg><span><b>Quatro números</b> que respondem “quanto devo” e “o que ainda está comigo”.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span>Cada número <b>abre a lista já filtrada</b>: clicar em “Containers em demurrage” mostra exatamente quais.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span><b>Chegadas e Saídas</b> com a programação dos navios: azul é data confirmada, preto é previsão, OMIT é escala omitida.</span></li>
-            </ul>
-            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Nos bastidores, no Vela</div><p>As datas vêm da Viagem marcada para aparecer no Portal. Quando Operações registra a ATA, a data fica azul aqui, sem planilha nem e-mail de programação.</p></div>
-          </aside>
-        </div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Portal · 3 · Faturas de Taxas Locais -->
-    <section class="slide portal" id="portal-faturas" data-part="Portal do Cliente" data-chapter="Portal · Faturas">
-      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
-      <nav class="pnav" aria-hidden="true"><span><svg class="i"><use href="#i-dash"/></svg>Painel</span><span class="on"><svg class="i"><use href="#i-file"/></svg>Faturas</span><span><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
-      <div class="body pbody">
-        <div class="pgrid">
-          <div class="ppage" style="position: relative">
-            <div class="pp-headrow"><div><div class="pp-title">Faturas</div><p class="pp-desc">Consulte suas faturas, pague via PIX e consolide B/Ls em aberto.</p></div><div style="display:flex; gap:8px"><span class="btn btn--ghost"><svg class="i"><use href="#i-download"/></svg>Exportar Excel</span><span class="btn btn--primary"><svg class="i"><use href="#i-fileplus"/></svg>Gerar fatura consolidada</span></div></div>
-            <div class="pcards three">
-              <div class="pcard"><span>Saldo pendente</span><b>R$ 9.380,00</b></div>
-              <div class="pcard"><span>Faturas emitidas</span><b>4</b></div>
-              <div class="pcard"><span>B/Ls elegíveis</span><b>2</b></div>
-            </div>
-            <div class="ptabs"><span class="on">Taxas Locais</span><span>Demurrage</span></div>
-            <div class="pcard-box">
-              <div class="pcb-head"><b>Faturas de taxas locais</b><span>4 faturas</span></div>
-              <table class="t ptable">
-                <thead><tr><th>B/L</th><th>Fatura</th><th>Tipo</th><th>Navio / Viagem · POD</th><th>Emissão</th><th>Financeiro</th><th>Status</th><th>Ações</th></tr></thead>
-                <tbody>
-                  <tr><td><b class="mono">CSC4355019022</b></td><td class="num">INV-2026-0148</td><td>Individual</td><td>COSCO SHIPPING ARIES 123N<br><span class="muted">SALVADOR</span></td><td class="num">13/10/2026</td><td><b class="num">R$ 4.380,00</b><br><span class="muted">Saldo R$ 4.380,00</span></td><td><span class="badge badge--blue">Emitida</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
-                  <tr><td><b class="mono">CSC4355019035 +1</b></td><td class="num">INV-2026-0151</td><td>Consolidada</td><td>COSCO SHIPPING ARIES 123N<br><span class="muted">SALVADOR</span></td><td class="num">14/10/2026</td><td><b class="num">R$ 8.080,00</b><br><span class="muted">Saldo R$ 3.080,00</span></td><td><span class="badge badge--blue">Parcial</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
-                  <tr><td><b class="mono">CSC4355019041</b></td><td class="num">INV-2026-0155</td><td>Individual</td><td>COSCO SHIPPING ARIES 123N<br><span class="muted">PECÉM</span></td><td class="num">15/10/2026</td><td><b class="num">R$ 1.920,00</b><br><span class="muted">Saldo R$ 1.920,00</span></td><td><span class="badge badge--blue">Emitida</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
-                  <tr><td><b class="mono">CSC4355002114</b></td><td class="num">INV-2026-0097</td><td>Individual</td><td>COSCO SHIPPING VIRGO 318S<br><span class="muted">VITÓRIA</span></td><td class="num">22/09/2026</td><td><b class="num">R$ 2.950,00</b><br><span class="muted">Saldo R$ 0,00</span></td><td><span class="badge badge--green">Pago</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="modal-dim" style="border-radius: 12px"></div>
-            <div class="modal surface cons">
-              <b class="m-title">Gerar fatura consolidada</b>
-              <p class="m-sub">Selecione os B/Ls em aberto para emitir uma única fatura consolidada. Apenas itens elegíveis podem ser selecionados.</p>
-              <table class="t ptable mini">
-                <thead><tr><th>Sel.</th><th>B/L</th><th>Individual</th><th>Saldo</th><th>Elegibilidade</th></tr></thead>
-                <tbody>
-                  <tr><td><span class="cb on"></span></td><td class="mono">CSC4355019022</td><td class="num">INV-2026-0148</td><td class="num">R$ 4.380,00</td><td><span class="badge badge--green">Elegível</span></td></tr>
-                  <tr><td><span class="cb on"></span></td><td class="mono">CSC4355019041</td><td class="num">INV-2026-0155</td><td class="num">R$ 1.920,00</td><td><span class="badge badge--green">Elegível</span></td></tr>
-                  <tr class="dim"><td><span class="cb"></span></td><td class="mono">CSC4355019035</td><td class="num">INV-2026-0149</td><td class="num">R$ 3.080,00</td><td class="muted">B/L já está em consolidada aberta.</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <p class="mock-note">Tela ilustrativa · dados fictícios</p>
-          </div>
-          <aside class="pside">
-            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
-            <h2>Toda fatura com saldo e situação, sem pedir segunda via</h2>
-            <ul class="clean pts">
-              <li><svg class="i"><use href="#i-check"/></svg><span><b>Emitida, Parcial, Pago</b>: o saldo aparece em cada linha.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span>Filtros por status, navio ou viagem, B/L, POD e período; <b>exporta para Excel</b>.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span>O próprio Cliente <b>junta B/Ls numa fatura consolidada</b> e pode desfazê-la enquanto não houver pagamento.</span></li>
-            </ul>
-            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Nos bastidores, no Vela</div><p>A fatura nasce no Vela quando o CE é registrado. A consolidada soma o que já foi calculado: nada é recalculado.</p></div>
-          </aside>
-        </div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Portal · 4 · Detalhe da fatura e PIX -->
-    <section class="slide portal" id="portal-fatura" data-part="Portal do Cliente" data-chapter="Portal · Fatura e PIX">
-      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
-      <nav class="pnav" aria-hidden="true"><span><svg class="i"><use href="#i-dash"/></svg>Painel</span><span class="on"><svg class="i"><use href="#i-file"/></svg>Faturas</span><span><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
-      <div class="body pbody">
-        <div class="pgrid">
-          <div class="ppage">
-            <div class="pmodal surface">
-              <div class="pm-head"><b>Fatura INV-2026-0148</b><div style="display:flex; gap:8px"><span class="btn btn--secondary sm"><svg class="i"><use href="#i-printer"/></svg>Imprimir recibo</span><span class="btn btn--ghost sm">Fechar</span></div></div>
-              <div class="pm-metrics"><div><span>Status</span><b><span class="badge badge--blue">Emitida</span></b></div><div><span>Total</span><b>R$ 4.380,00</b></div><div><span>Pago</span><b>R$ 0,00</b></div><div><span>Saldo</span><b>R$ 4.380,00</b></div><div><span>B/Ls</span><b>1</b></div></div>
-              <div class="pm-cols">
-                <div>
-                  <p class="pm-sec">Itens cobrados <span>Taxas, quantidades e valores</span></p>
-                  <table class="t ptable">
-                    <thead><tr><th>Descrição</th><th>B/L</th><th>Qtd</th><th>Valor unit.</th><th>Total</th></tr></thead>
-                    <tbody>
-                      <tr><td>THC</td><td class="mono">CSC4355019022</td><td class="num">2</td><td class="num">R$ 1.450,00</td><td class="num">R$ 2.900,00</td></tr>
-                      <tr><td>Liberação de B/L</td><td class="mono">CSC4355019022</td><td class="num">1</td><td class="num">R$ 980,00</td><td class="num">R$ 980,00</td></tr>
-                      <tr><td>ISPS</td><td class="mono">CSC4355019022</td><td class="num">2</td><td class="num">R$ 250,00</td><td class="num">R$ 500,00</td></tr>
-                    </tbody>
-                  </table>
-                  <p class="pm-sec" style="margin-top: 14px">Containers <span>Equipamentos vinculados aos B/Ls</span></p>
-                  <table class="t ptable">
-                    <thead><tr><th>Container</th><th>Tipo</th><th>Lacre</th><th>Peso bruto (kg)</th></tr></thead>
-                    <tbody>
-                      <tr><td class="mono">MSCU4412870</td><td>40HC</td><td class="mono">FX20931</td><td class="num">21.480</td></tr>
-                      <tr><td class="mono">MSCU4412911</td><td>40HC</td><td class="mono">FX20934</td><td class="num">19.905</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div class="pixcard surface">
-                  <b>Pagamento via PIX</b>
-                  <svg class="qr" viewBox="0 0 21 21" aria-hidden="true"></svg>
-                  <span>Copia e cola</span>
-                  <div class="pixcode mono">00020126580014BR.GOV.BCB.PIX0136a1f4…5204000053039865802BR6009SALVADOR62290525INV20260148…6304B1F2</div>
-                </div>
-              </div>
-            </div>
-            <p class="mock-note">Tela ilustrativa · dados fictícios · o código PIX não é válido</p>
-          </div>
-          <aside class="pside">
-            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
-            <h2>Detalhe, recibo e PIX na mesma tela</h2>
-            <ul class="clean pts">
-              <li><svg class="i"><use href="#i-check"/></svg><span>O Cliente confere <b>cada taxa, quantidade e container</b> antes de pagar.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span>Paga pelo <b>QR Code ou copia e cola</b>, com a Transhipping como recebedora, sem pedir dados bancários.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span><b>Imprime o recibo</b> da Transhipping direto do navegador.</span></li>
-            </ul>
-            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Nos bastidores, no Vela</div><p>O PIX leva a identificação da fatura. Na Conciliação PIX, o extrato encontra a fatura por essa identificação e confere o valor.</p></div>
-          </aside>
-        </div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Portal · 5 · BLs e Containers -->
-    <section class="slide portal" id="portal-operacao" data-part="Portal do Cliente" data-chapter="Portal · BLs e Containers">
-      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
-      <nav class="pnav" aria-hidden="true"><span><svg class="i"><use href="#i-dash"/></svg>Painel</span><span><svg class="i"><use href="#i-file"/></svg>Faturas</span><span class="on"><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
-      <div class="body pbody">
-        <div class="pgrid">
-          <div class="ppage">
-            <div class="pp-headrow"><div><div class="pp-title">BLs e Containers</div><p class="pp-desc">Consulte seus B/Ls e containers: descarga, devolução, free time e dias de demurrage.</p></div></div>
-            <div class="ptabs"><span>BLs</span><span class="on">Containers</span></div>
-            <div class="pcard-box">
-              <div class="pcb-head"><b>Containers</b><span class="btn btn--ghost sm"><svg class="i"><use href="#i-download"/></svg>Exportar Excel</span></div>
-              <div class="pfilters"><span class="fld">Container</span><span class="fld">B/L</span><span class="fld">Navio</span><span class="fld">POD</span><span class="fld sel">Situação de devolução: <b>Todos</b></span></div>
-              <table class="t ptable">
-                <thead><tr><th>Container</th><th>Tipo</th><th>B/L</th><th>Navio</th><th>POD</th><th>Descarga</th><th>Devolução</th><th>Dias de uso</th><th>Free time</th><th>Dias em demurrage</th><th>Status</th></tr></thead>
-                <tbody>
-                  <tr><td class="mono">MSCU4412870</td><td>40HC</td><td class="mono">CSC4355019022</td><td style="white-space:normal; line-height:1.25">COSCO SHIPPING<br>ARIES</td><td>SALVADOR</td><td class="num">15/10/2026</td><td class="num">18/10/2026</td><td class="num">4</td><td class="num">7</td><td class="num">0</td><td><span class="badge badge--green">Devolvido</span></td></tr>
-                  <tr><td class="mono">MSCU4412911</td><td>40HC</td><td class="mono">CSC4355019022</td><td style="white-space:normal; line-height:1.25">COSCO SHIPPING<br>ARIES</td><td>SALVADOR</td><td class="num">15/10/2026</td><td>Pendente</td><td class="num">7</td><td class="num">7</td><td class="num">0</td><td><span class="badge badge--blue">Dentro free time</span></td></tr>
-                  <tr><td class="mono">TGHU7730251</td><td>20DV</td><td class="mono">CSC4355002150</td><td style="white-space:normal; line-height:1.25">COSCO SHIPPING<br>VIRGO</td><td>VITÓRIA</td><td class="num">24/09/2026</td><td>Pendente</td><td class="num">28</td><td class="num">7</td><td class="num">21</td><td><span class="badge badge--red">Em demurrage</span></td></tr>
-                  <tr><td class="mono">TGHU7730187</td><td>20DV</td><td class="mono">CSC4355019041</td><td style="white-space:normal; line-height:1.25">COSCO SHIPPING<br>ARIES</td><td>PECÉM</td><td>-</td><td>Pendente</td><td>-</td><td class="num">7</td><td>-</td><td><span class="badge badge--slate">Sem descarga</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-            <p class="mock-note">Tela ilustrativa · dados fictícios · colunas resumidas (a tela traz também CE Mercante, Viagem e POL)</p>
-          </div>
-          <aside class="pside">
-            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
-            <h2>O Cliente acompanha o Free Time de cada container</h2>
-            <ul class="clean pts">
-              <li><svg class="i"><use href="#i-check"/></svg><span>Cada container mostra <b>descarga, devolução, dias de uso e dias em demurrage</b>.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span>Situação clara: <b>Sem descarga, Dentro free time, Em demurrage, Devolvido</b>.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span>Na aba BLs, cada B/L mostra quantos containers já voltaram e as <b>informações de transbordo</b> quando a escala é omitida.</span></li>
-            </ul>
-            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Nos bastidores, no Vela</div><p>O B/L só aparece aqui depois que o CE Mercante é registrado. A devolução é a que Equipamentos lançou no Vela: não existe uma segunda versão para o Cliente.</p></div>
-          </aside>
-        </div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Portal · 6 · Demurrage e disputa -->
-    <section class="slide portal" id="portal-demurrage" data-part="Portal do Cliente" data-chapter="Portal · Demurrage e disputa">
-      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
-      <nav class="pnav" aria-hidden="true"><span><svg class="i"><use href="#i-dash"/></svg>Painel</span><span class="on"><svg class="i"><use href="#i-file"/></svg>Faturas</span><span><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
-      <div class="body pbody">
-        <div class="pgrid">
-          <div class="ppage">
-            <div class="ptabs" style="margin-top: 0"><span>Taxas Locais</span><span class="on">Demurrage</span></div>
-            <div class="pcard-box dispute">
-              <div class="dsp-head"><svg class="i"><use href="#i-msg"/></svg><div><b>Conversas de Dispute</b><span>Mensagens imutáveis, com o próximo responsável explícito.</span></div></div>
-              <div class="dsp">
-                <div class="dsp-top"><div><b class="mono">DEM-2026-0412</b><span>Atualizada em 21/10/2026</span></div><span class="badge badge--yellow">Aberta</span></div>
-                <div class="msg"><div><span>Você</span><span>20/10/2026</span></div><p>O TGHU7730144 foi devolvido em 06/10, não em 09/10. Segue o comprovante do terminal.</p></div>
-                <div class="msg"><div><span>Equipamentos</span><span>21/10/2026</span></div><p>Recebemos. Estamos conferindo a data com o terminal e retornamos até amanhã.</p></div>
-                <div class="reply"><span class="m-field">Responda à conversa...</span><span class="btn btn--primary sm"><svg class="i"><use href="#i-send"/></svg>Enviar mensagem</span></div>
-              </div>
-            </div>
-            <div class="roe">ROE vigente: R$ 5,7734 · atualizado em 21/10/2026</div>
-            <div class="pcard-box">
-              <div class="pcb-head"><b>Sobreestadia de containers (D&amp;D)</b><span>2 faturas</span></div>
-              <table class="t ptable">
-                <thead><tr><th>Documento</th><th>BL / Trecho</th><th>Emissão</th><th>Atualizado em</th><th>Total USD</th><th>Total BRL</th><th>Status</th><th>Ação</th></tr></thead>
-                <tbody>
-                  <tr><td><b class="mono">DEM-2026-0412</b></td><td><span class="mono">CSC4355002114</span> — QINGDAO / VITÓRIA</td><td class="num">16/10/2026</td><td class="num">21/10/2026</td><td class="num">$ 1.000,00</td><td class="num">R$ 5.773,40</td><td><span class="badge badge--blue">Emitida</span> <span class="badge badge--yellow">Disputa</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
-                  <tr><td><b class="mono">DEM-2026-0377</b></td><td><span class="mono">CSC4355088520</span> — SHANGHAI / SALVADOR</td><td class="num">29/09/2026</td><td class="num">03/10/2026</td><td class="num">$ 640,00</td><td class="num">R$ 3.598,21</td><td><span class="badge badge--green">Pago</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
-                </tbody>
-              </table>
-            </div>
-            <p class="mock-note">Tela ilustrativa · dados fictícios</p>
-          </div>
-          <aside class="pside">
-            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
-            <h2>Demurrage transparente, e a contestação tem canal próprio</h2>
-            <ul class="clean pts">
-              <li><svg class="i"><use href="#i-check"/></svg><span>O valor em dólar é fixo; o valor em real segue a <b>ROE vigente, mostrada na tela</b>.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span>O detalhe mostra <b>cada container</b>: descarga, devolução, dias e valor.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span><b>Disputar</b> abre uma conversa com motivo e anexos. As mensagens não podem ser editadas, e a disputa resolvida admite pedido de reabertura.</span></li>
-            </ul>
-            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Nos bastidores, no Vela</div><p>A disputa abre Alerta para Equipamentos e pausa a Régua de Cobrança. Quando Equipamentos responde, o Cliente é notificado.</p></div>
-          </aside>
-        </div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Portal · 7 · Notificações, perfil e Inspeção -->
-    <section class="slide portal" id="portal-perfil" data-part="Portal do Cliente" data-chapter="Portal · Notificações e Perfil">
-      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
-      <nav class="pnav" aria-hidden="true"><span><svg class="i"><use href="#i-dash"/></svg>Painel</span><span><svg class="i"><use href="#i-file"/></svg>Faturas</span><span><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span class="on"><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
-      <div class="body pbody">
-        <div class="pgrid">
-          <div class="ppage pp-two">
-            <div class="surface pnotif">
-              <div class="pn-head"><b>Notificações</b><span>Marcar todas como lidas</span></div>
-              <div class="pn-item"><span class="pn-ico"><svg class="i"><use href="#i-file"/></svg></span><div><b>Nova fatura emitida</b><p>Fatura INV-2026-0148 no valor de R$ 4.380,00 foi emitida.</p><time>13/10/2026</time></div><i class="unread"></i></div>
-              <div class="pn-item"><span class="pn-ico"><svg class="i"><use href="#i-file"/></svg></span><div><b>Nova fatura de demurrage</b><p>Demurrage DEM-2026-0412 no valor de USD 1.000,00 foi emitida.</p><time>16/10/2026</time></div><i class="unread"></i></div>
-              <div class="pn-item"><span class="pn-ico"><svg class="i"><use href="#i-msg"/></svg></span><div><b>Disputa respondida</b><p>Equipamentos respondeu à sua disputa.</p><time>21/10/2026</time></div><i class="unread"></i></div>
-              <div class="pn-item read"><span class="pn-ico"><svg class="i"><use href="#i-bell"/></svg></span><div><b>Escala omitida</b><p>A escala de Vitória foi omitida. A carga do B/L seguirá em transbordo.</p><time>02/10/2026</time></div><i></i></div>
-            </div>
-            <div>
-              <div class="pp-title">Meu perfil</div>
-              <p class="pp-desc">Atualize seus dados de contato e endereço.</p>
-              <div class="pcard-box" style="margin-top: 12px">
-                <div class="pcb-head"><b>Contatos e recebimento</b></div>
-                <div class="contact"><div><b>Paula Mendes</b><span>paula@atlantico.com.br</span></div><div class="boxes"><i class="on">Documentação e Operação</i><i class="on">Financeiro</i><i>Demurrage</i></div></div>
-                <div class="contact"><div><b>Carlos Nunes</b><span>financeiro@atlantico.com.br</span></div><div class="boxes"><i>Documentação e Operação</i><i class="on">Financeiro</i><i class="on">Demurrage</i></div></div>
-                <p class="box-rule">Nenhuma caixa pode ficar sem contato ativo.</p>
-              </div>
-              <div class="pcard-box" style="margin-top: 12px">
-                <div class="pcb-head"><b>Email de Recuperação</b></div>
-                <p class="box-rule" style="margin: 0; padding: 12px 16px">O endereço atual permanece válido até a confirmação do novo. Trocar pede a senha atual.</p>
-              </div>
-            </div>
-            <p class="mock-note" style="grid-column: 1 / -1">Tela ilustrativa · dados fictícios</p>
-          </div>
-          <aside class="pside">
-            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
-            <h2>O Cliente é avisado, e decide quem recebe cada comunicado</h2>
-            <ul class="clean pts">
-              <li><svg class="i"><use href="#i-check"/></svg><span>O sino avisa <b>fatura nova, demurrage nova, resposta de disputa e escala omitida</b>.</span></li>
-              <li><svg class="i"><use href="#i-check"/></svg><span>Cada contato escolhe as <b>caixas</b>: Documentação e Operação recebe NOA, NOR, NOB e CE e Taxas; Financeiro, CE e Taxas e cobranças; Demurrage, as cobranças de Demurrage.</span></li>
-            </ul>
-            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Inspeção do Portal, no Vela</div><p>Em Clientes → Portal, <b>“Ver como o cliente vê”</b> abre estas mesmas telas em Modo Inspeção: somente leitura, com as ações do Cliente visíveis e bloqueadas, e cada abertura registrada.</p></div>
-          </aside>
-        </div>
         <span class="foot"></span>
       </div>
     </section>
@@ -2879,14 +2525,14 @@
                 </div>
                 <div class="surface filters">
                   <div class="seg"><span class="btn btn--primary">Todos</span><span class="btn btn--secondary">Ativos</span><span class="btn btn--secondary">Dispensados</span></div>
-                  <span class="fld wide"><svg class="i"><use href="#i-search"/></svg>Ex.: COSCO SHIPPING, CNPJ, CSC4355...</span>
+                  <span class="fld wide"><svg class="i"><use href="#i-search"/></svg>Ex.: COSCO SHIPPING, CNPJ, BL123...</span>
                   <span class="fld">Todos os setores</span><span class="fld">Todas as entidades</span><span class="fld">Todas as severidades</span>
                 </div>
                 <div class="surface" style="margin-top: 10px; overflow: hidden">
                   <table class="t q-table">
                     <thead><tr><th>Severidade</th><th>Tipo</th><th>Responsável</th><th>Mensagem</th><th>Criação</th><th></th></tr></thead>
                     <tbody>
-                      <tr><td><span class="badge badge--red">Crítico</span></td><td>CE Mercante pendente</td><td class="muted">Documentação</td><td class="msg">3 B/Ls da COSCO SHIPPING ARIES 123N sem CE Mercante</td><td class="num">09/10/2026</td><td><span class="btn btn--secondary sm">Abrir Viagem<svg class="i"><use href="#i-external"/></svg></span><span class="btn btn--secondary sm">Dispensar</span></td></tr>
+                      <tr><td><span class="badge badge--red">Crítico</span></td><td>CE Mercante pendente</td><td class="muted">Documentação</td><td class="msg">3 B/Ls da AURORA 123N sem CE Mercante</td><td class="num">09/10/2026</td><td><span class="btn btn--secondary sm">Abrir Viagem<svg class="i"><use href="#i-external"/></svg></span><span class="btn btn--secondary sm">Dispensar</span></td></tr>
                       <tr><td><span class="badge badge--red">Crítico</span></td><td>PIX sem conciliação segura</td><td class="muted">Administrativo</td><td class="msg">PIX de R$ 4.380,00 sem cobrança correspondente</td><td class="num">13/10/2026</td><td><span class="btn btn--secondary sm">Abrir Reconciliação<svg class="i"><use href="#i-external"/></svg></span><span class="btn btn--secondary sm">Dispensar</span></td></tr>
                       <tr><td><span class="badge badge--yellow">Normal</span></td><td>Data de terminal pendente</td><td class="muted">Operações</td><td class="msg">ETB atingido sem ATB · Vitória, Terminal B</td><td class="num">17/10/2026</td><td><span class="badge badge--slate">Dispensado até 19/10/2026</span></td></tr>
                       <tr><td><span class="badge badge--yellow">Normal</span></td><td>Disputa de invoice Demurrage</td><td class="muted">Equipamentos</td><td class="msg">Cliente abriu disputa na DEM-2026-0412</td><td class="num">20/10/2026</td><td><span class="btn btn--secondary sm">Ver Demurrage<svg class="i"><use href="#i-external"/></svg></span><span class="btn btn--secondary sm">Dispensar</span></td></tr>
@@ -2938,7 +2584,7 @@
             <div class="mock-body">
               <div class="surface bellpanel">
                 <div class="bp-head"><b>Notificações internas</b><span>Marcar todas como lidas</span></div>
-                <div class="bp-item"><i class="d red"></i><div><div class="bp-t"><span class="badge badge--red">Crítico</span><b>CE Mercante pendente</b></div><p>3 B/Ls da COSCO SHIPPING ARIES 123N ainda sem CE Mercante.</p><div class="bp-m"><span>Viagem COSCO SHIPPING ARIES 123N</span><span>09/10/2026</span></div></div></div>
+                <div class="bp-item"><i class="d red"></i><div><div class="bp-t"><span class="badge badge--red">Crítico</span><b>CE Mercante pendente</b></div><p>3 B/Ls da AURORA 123N ainda sem CE Mercante.</p><div class="bp-m"><span>Viagem AURORA 123N</span><span>09/10/2026</span></div></div></div>
                 <div class="bp-item"><i class="d sky"></i><div><div class="bp-t"><span class="badge badge--sky"><svg class="i"><use href="#i-undo"/></svg>Eco de Tratamento</span><b>Pendência dispensada</b></div><p>Pendência dispensada por Marina S. até 19/10/2026</p><div class="bp-m"><span>Terminal da escala</span><span>17/10/2026</span></div></div></div>
                 <div class="bp-item"><i class="d red"></i><div><div class="bp-t"><span class="badge badge--red">Crítico</span><span class="badge badge--yellow"><svg class="i"><use href="#i-shield-alert"/></svg>Entrega alternativa</span><b>ADR: prazo vencido</b></div><p>Equipamentos ainda sem sign-off no ADR de Salvador.</p><div class="bp-m"><span>ADR</span><span>22/10/2026</span></div></div></div>
                 <div class="bp-item read"><i class="d grey"></i><div><div class="bp-t"><b>Comunicado NOB pendente</b></div><p>Atracação em Pecém sem NOB enviado.</p><div class="bp-m"><span>Terminal da escala</span><span>20/10/2026</span></div></div></div>
@@ -2961,6 +2607,319 @@
               </ul>
             </div>
           </div>
+        </div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- Portal · 1 · Entrada (abre o capítulo do lado do Cliente) -->
+    <section class="slide portal-open" id="portal" data-part="Portal do Cliente" data-chapter="Portal · a entrada">
+      <div class="po-left">
+        <div class="po-card surface">
+          <span class="po-logo logo-c" role="img" aria-label="Fwlog"></span>
+          <b class="po-title">Portal do cliente</b>
+          <p class="po-sub">Consulte faturas emitidas e consolide B/Ls prontos para faturamento.</p>
+          <label>CNPJ</label><div class="m-field mono">12.345.678/0001-90</div>
+          <label>Senha</label><div class="m-field mono">••••••••••</div>
+          <span class="btn btn--primary po-btn">Entrar no portal</span>
+          <span class="po-link">Esqueci minha senha</span>
+          <p class="po-meta">Acesso provisionado internamente por cliente. Não há cadastro público.<br>Problemas para acessar? Solicite um novo acesso ao seu contato comercial na Transhipping.</p>
+        </div>
+        <p class="mock-note" style="text-align:center">Tela ilustrativa · dados fictícios</p>
+      </div>
+      <div class="po-right">
+        <p class="kicker">Portal do Cliente · a outra porta do mesmo dado</p>
+        <h2>O Portal Fwlog é o Vela visto pelo Cliente</h2>
+        <div class="rule"></div>
+        <p class="lead">Mesma base, outra entrada, outra marca. O Cliente vê só o que é dele e nunca lê o nome Vela: no Portal e nos e-mails a marca é Fwlog, e as faturas saem em nome da Transhipping.</p>
+        <ul class="clean po-steps">
+          <li><span class="n">1</span><div><b>A equipe libera o acesso</b><span>Documentação ou Administrativo aprova o Cliente e envia o convite ao Email de Recuperação.</span></div></li>
+          <li><span class="n">2</span><div><b>O Cliente define a senha</b><span>O convite vale 48 horas e só pode ser usado uma vez. A conta fica Ativa quando a senha é criada.</span></div></li>
+          <li><span class="n">3</span><div><b>Entra com CNPJ e senha</b><span>Cinco erros em 15 minutos bloqueiam o CNPJ por 15 minutos. A tela nunca revela se um CNPJ existe.</span></div></li>
+        </ul>
+        <div class="po-bs"><svg aria-hidden="true"><use href="#vela-dark"/></svg><p><b>Nos bastidores:</b> se o Cliente tem processo ativo, convite expirado, falha de envio ou e-mail suprimido viram Alerta para Documentação. Ninguém precisa descobrir pelo telefone.</p></div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- Portal · 2 · Painel -->
+    <section class="slide portal" id="portal-painel" data-part="Portal do Cliente" data-chapter="Portal · Painel">
+      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
+      <nav class="pnav" aria-hidden="true"><span class="on"><svg class="i"><use href="#i-dash"/></svg>Painel</span><span><svg class="i"><use href="#i-file"/></svg>Faturas</span><span><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
+      <div class="body pbody">
+        <div class="pgrid">
+          <div class="ppage">
+            <div class="pp-title">Painel</div>
+            <div class="pcards">
+              <div class="pcard"><span>Taxas locais em aberto</span><b>R$ 9.380,00</b><em>3 fatura(s) em aberto</em></div>
+              <div class="pcard"><span>Demurrage em aberto</span><b>R$ 5.773,40</b><em>1 fatura(s) em aberto</em></div>
+              <div class="pcard"><span>Containers sem devolução</span><b>4</b><em>container(es) ainda não devolvido(s)</em></div>
+              <div class="pcard"><span>Containers em demurrage</span><b>1</b><em>container(es) gerando sobreestadia</em></div>
+            </div>
+            <h3 class="pp-h">Chegadas e Saídas</h3>
+            <div class="sched">
+              <div class="sched-head"><svg class="i"><use href="#i-ship"/></svg>CSSC Container Liner Service Schedule - ECSA<svg class="i" style="margin-left:auto; opacity:.7"><use href="#i-anchor"/></svg></div>
+              <table>
+                <thead><tr><th>Vessel Name</th><th>VOY</th><th>Qingdao<i>ATD POL / ETD</i></th><th>Shanghai<i>ATD POL / ETD</i></th><th>Ningbo<i>ATD POL / ETD</i></th><th>Nansha<i>ATD POL / ETD</i></th><th>Salvador<i>ATA / ETA</i></th><th>Vitória<i>ATA / ETA</i></th><th>Pecém<i>ATA / ETA</i></th></tr></thead>
+                <tbody>
+                  <tr><td class="v">AURORA</td><td>123N</td><td class="act">02/08/2026</td><td class="act">05/08/2026</td><td class="act">08/08/2026</td><td class="act">12/08/2026</td><td class="act">14/10/2026</td><td class="act">17/10/2026</td><td class="act">20/10/2026</td></tr>
+                  <tr><td class="v">BOREAL</td><td>045S</td><td class="act">16/08/2026</td><td class="act">19/08/2026</td><td class="off">X</td><td class="act">25/08/2026</td><td>22/10/2026</td><td class="off">OMIT</td><td>29/10/2026</td></tr>
+                  <tr><td class="v">CASSIOPEIA</td><td>210N</td><td class="act">30/08/2026</td><td>02/09/2026</td><td>05/09/2026</td><td>09/09/2026</td><td>05/11/2026</td><td>09/11/2026</td><td>13/11/2026</td></tr>
+                </tbody>
+              </table>
+              <div class="sched-foot"><span><b>Datas em azul</b> = data efetiva confirmada. Datas em preto = data prevista.</span><span>X = Não programado</span></div>
+            </div>
+            <p class="mock-note">Tela ilustrativa · dados fictícios · colunas de portos resumidas</p>
+          </div>
+          <aside class="pside">
+            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
+            <h2>O Cliente abre o Portal e já sabe onde está</h2>
+            <ul class="clean pts">
+              <li><svg class="i"><use href="#i-check"/></svg><span><b>Quatro números</b> que respondem “quanto devo” e “o que ainda está comigo”.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span>Cada número <b>abre a lista já filtrada</b>: clicar em “Containers em demurrage” mostra exatamente quais.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span><b>Chegadas e Saídas</b> com a programação dos navios: azul é data confirmada, preto é previsão, OMIT é escala omitida.</span></li>
+            </ul>
+            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Nos bastidores, no Vela</div><p>As datas vêm da Viagem marcada para aparecer no Portal. Quando Operações registra a ATA, a data fica azul aqui, sem planilha nem e-mail de programação.</p></div>
+          </aside>
+        </div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- Portal · 3 · Faturas de Taxas Locais -->
+    <section class="slide portal" id="portal-faturas" data-part="Portal do Cliente" data-chapter="Portal · Faturas">
+      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
+      <nav class="pnav" aria-hidden="true"><span><svg class="i"><use href="#i-dash"/></svg>Painel</span><span class="on"><svg class="i"><use href="#i-file"/></svg>Faturas</span><span><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
+      <div class="body pbody">
+        <div class="pgrid">
+          <div class="ppage" style="position: relative">
+            <div class="pp-headrow"><div><div class="pp-title">Faturas</div><p class="pp-desc">Consulte suas faturas, pague via PIX e consolide B/Ls em aberto.</p></div><div style="display:flex; gap:8px"><span class="btn btn--ghost"><svg class="i"><use href="#i-download"/></svg>Exportar Excel</span><span class="btn btn--primary"><svg class="i"><use href="#i-fileplus"/></svg>Gerar fatura consolidada</span></div></div>
+            <div class="pcards three">
+              <div class="pcard"><span>Saldo pendente</span><b>R$ 9.380,00</b></div>
+              <div class="pcard"><span>Faturas emitidas</span><b>4</b></div>
+              <div class="pcard"><span>B/Ls elegíveis</span><b>2</b></div>
+            </div>
+            <div class="ptabs"><span class="on">Taxas Locais</span><span>Demurrage</span></div>
+            <div class="pcard-box">
+              <div class="pcb-head"><b>Faturas de taxas locais</b><span>4 faturas</span></div>
+              <table class="t ptable">
+                <thead><tr><th>B/L</th><th>Fatura</th><th>Tipo</th><th>Navio / Viagem · POD</th><th>Emissão</th><th>Financeiro</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody>
+                  <tr><td><b class="mono">MEDU7719022</b></td><td class="num">INV-2026-0148</td><td>Individual</td><td>AURORA 123N<br><span class="muted">SALVADOR</span></td><td class="num">13/10/2026</td><td><b class="num">R$ 4.380,00</b><br><span class="muted">Saldo R$ 4.380,00</span></td><td><span class="badge badge--blue">Emitida</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
+                  <tr><td><b class="mono">MEDU7719035 +1</b></td><td class="num">INV-2026-0151</td><td>Consolidada</td><td>AURORA 123N<br><span class="muted">SALVADOR</span></td><td class="num">14/10/2026</td><td><b class="num">R$ 8.080,00</b><br><span class="muted">Saldo R$ 3.080,00</span></td><td><span class="badge badge--blue">Parcial</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
+                  <tr><td><b class="mono">MEDU7719041</b></td><td class="num">INV-2026-0155</td><td>Individual</td><td>AURORA 123N<br><span class="muted">PECÉM</span></td><td class="num">15/10/2026</td><td><b class="num">R$ 1.920,00</b><br><span class="muted">Saldo R$ 1.920,00</span></td><td><span class="badge badge--blue">Emitida</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
+                  <tr><td><b class="mono">MEDU7702114</b></td><td class="num">INV-2026-0097</td><td>Individual</td><td>DELFIM 318S<br><span class="muted">VITÓRIA</span></td><td class="num">22/09/2026</td><td><b class="num">R$ 2.950,00</b><br><span class="muted">Saldo R$ 0,00</span></td><td><span class="badge badge--green">Pago</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-dim" style="border-radius: 12px"></div>
+            <div class="modal surface cons">
+              <b class="m-title">Gerar fatura consolidada</b>
+              <p class="m-sub">Selecione os B/Ls em aberto para emitir uma única fatura consolidada. Apenas itens elegíveis podem ser selecionados.</p>
+              <table class="t ptable mini">
+                <thead><tr><th>Sel.</th><th>B/L</th><th>Individual</th><th>Saldo</th><th>Elegibilidade</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="cb on"></span></td><td class="mono">MEDU7719022</td><td class="num">INV-2026-0148</td><td class="num">R$ 4.380,00</td><td><span class="badge badge--green">Elegível</span></td></tr>
+                  <tr><td><span class="cb on"></span></td><td class="mono">MEDU7719041</td><td class="num">INV-2026-0155</td><td class="num">R$ 1.920,00</td><td><span class="badge badge--green">Elegível</span></td></tr>
+                  <tr class="dim"><td><span class="cb"></span></td><td class="mono">MEDU7719035</td><td class="num">INV-2026-0149</td><td class="num">R$ 3.080,00</td><td class="muted">B/L já está em consolidada aberta.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="mock-note">Tela ilustrativa · dados fictícios</p>
+          </div>
+          <aside class="pside">
+            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
+            <h2>Toda fatura com saldo e situação, sem pedir segunda via</h2>
+            <ul class="clean pts">
+              <li><svg class="i"><use href="#i-check"/></svg><span><b>Emitida, Parcial, Pago</b>: o saldo aparece em cada linha.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span>Filtros por status, navio ou viagem, B/L, POD e período; <b>exporta para Excel</b>.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span>O próprio Cliente <b>junta B/Ls numa fatura consolidada</b> e pode desfazê-la enquanto não houver pagamento.</span></li>
+            </ul>
+            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Nos bastidores, no Vela</div><p>A fatura nasce no Vela quando o CE é registrado. A consolidada soma o que já foi calculado: nada é recalculado.</p></div>
+          </aside>
+        </div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- Portal · 4 · Detalhe da fatura e PIX -->
+    <section class="slide portal" id="portal-fatura" data-part="Portal do Cliente" data-chapter="Portal · Fatura e PIX">
+      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
+      <nav class="pnav" aria-hidden="true"><span><svg class="i"><use href="#i-dash"/></svg>Painel</span><span class="on"><svg class="i"><use href="#i-file"/></svg>Faturas</span><span><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
+      <div class="body pbody">
+        <div class="pgrid">
+          <div class="ppage">
+            <div class="pmodal surface">
+              <div class="pm-head"><b>Fatura INV-2026-0148</b><div style="display:flex; gap:8px"><span class="btn btn--secondary sm"><svg class="i"><use href="#i-printer"/></svg>Imprimir recibo</span><span class="btn btn--ghost sm">Fechar</span></div></div>
+              <div class="pm-metrics"><div><span>Status</span><b><span class="badge badge--blue">Emitida</span></b></div><div><span>Total</span><b>R$ 4.380,00</b></div><div><span>Pago</span><b>R$ 0,00</b></div><div><span>Saldo</span><b>R$ 4.380,00</b></div><div><span>B/Ls</span><b>1</b></div></div>
+              <div class="pm-cols">
+                <div>
+                  <p class="pm-sec">Itens cobrados <span>Taxas, quantidades e valores</span></p>
+                  <table class="t ptable">
+                    <thead><tr><th>Descrição</th><th>B/L</th><th>Qtd</th><th>Valor unit.</th><th>Total</th></tr></thead>
+                    <tbody>
+                      <tr><td>THC</td><td class="mono">MEDU7719022</td><td class="num">2</td><td class="num">R$ 1.450,00</td><td class="num">R$ 2.900,00</td></tr>
+                      <tr><td>Liberação de B/L</td><td class="mono">MEDU7719022</td><td class="num">1</td><td class="num">R$ 980,00</td><td class="num">R$ 980,00</td></tr>
+                      <tr><td>ISPS</td><td class="mono">MEDU7719022</td><td class="num">2</td><td class="num">R$ 250,00</td><td class="num">R$ 500,00</td></tr>
+                    </tbody>
+                  </table>
+                  <p class="pm-sec" style="margin-top: 14px">Containers <span>Equipamentos vinculados aos B/Ls</span></p>
+                  <table class="t ptable">
+                    <thead><tr><th>Container</th><th>Tipo</th><th>Lacre</th><th>Peso bruto (kg)</th></tr></thead>
+                    <tbody>
+                      <tr><td class="mono">MSCU4412870</td><td>40HC</td><td class="mono">FX20931</td><td class="num">21.480</td></tr>
+                      <tr><td class="mono">MSCU4412911</td><td>40HC</td><td class="mono">FX20934</td><td class="num">19.905</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="pixcard surface">
+                  <b>Pagamento via PIX</b>
+                  <svg class="qr" viewBox="0 0 21 21" aria-hidden="true"></svg>
+                  <span>Copia e cola</span>
+                  <div class="pixcode mono">00020126580014BR.GOV.BCB.PIX0136a1f4…5204000053039865802BR6009SALVADOR62290525INV20260148…6304B1F2</div>
+                </div>
+              </div>
+            </div>
+            <p class="mock-note">Tela ilustrativa · dados fictícios · o código PIX não é válido</p>
+          </div>
+          <aside class="pside">
+            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
+            <h2>Detalhe, recibo e PIX na mesma tela</h2>
+            <ul class="clean pts">
+              <li><svg class="i"><use href="#i-check"/></svg><span>O Cliente confere <b>cada taxa, quantidade e container</b> antes de pagar.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span>Paga pelo <b>QR Code ou copia e cola</b>, sem pedir dados bancários.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span><b>Imprime o recibo</b> direto do navegador.</span></li>
+            </ul>
+            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Nos bastidores, no Vela</div><p>O PIX leva a identificação da fatura. Na Conciliação PIX, o extrato encontra a fatura por essa identificação e confere o valor.</p></div>
+          </aside>
+        </div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- Portal · 5 · BLs e Containers -->
+    <section class="slide portal" id="portal-operacao" data-part="Portal do Cliente" data-chapter="Portal · BLs e Containers">
+      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
+      <nav class="pnav" aria-hidden="true"><span><svg class="i"><use href="#i-dash"/></svg>Painel</span><span><svg class="i"><use href="#i-file"/></svg>Faturas</span><span class="on"><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
+      <div class="body pbody">
+        <div class="pgrid">
+          <div class="ppage">
+            <div class="pp-headrow"><div><div class="pp-title">BLs e Containers</div><p class="pp-desc">Consulte seus B/Ls e containers: descarga, devolução, free time e dias de demurrage.</p></div></div>
+            <div class="ptabs"><span>BLs</span><span class="on">Containers</span></div>
+            <div class="pcard-box">
+              <div class="pcb-head"><b>Containers</b><span class="btn btn--ghost sm"><svg class="i"><use href="#i-download"/></svg>Exportar Excel</span></div>
+              <div class="pfilters"><span class="fld">Container</span><span class="fld">B/L</span><span class="fld">Navio</span><span class="fld">POD</span><span class="fld sel">Situação de devolução: <b>Todos</b></span></div>
+              <table class="t ptable">
+                <thead><tr><th>Container</th><th>Tipo</th><th>B/L</th><th>Navio</th><th>POD</th><th>Descarga</th><th>Devolução</th><th>Dias de uso</th><th>Free time</th><th>Dias em demurrage</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">MSCU4412870</td><td>40HC</td><td class="mono">MEDU7719022</td><td>AURORA</td><td>SALVADOR</td><td class="num">15/10/2026</td><td class="num">18/10/2026</td><td class="num">4</td><td class="num">7</td><td class="num">0</td><td><span class="badge badge--green">Devolvido</span></td></tr>
+                  <tr><td class="mono">MSCU4412911</td><td>40HC</td><td class="mono">MEDU7719022</td><td>AURORA</td><td>SALVADOR</td><td class="num">15/10/2026</td><td>Pendente</td><td class="num">7</td><td class="num">7</td><td class="num">0</td><td><span class="badge badge--blue">Dentro free time</span></td></tr>
+                  <tr><td class="mono">TGHU7730251</td><td>20DV</td><td class="mono">MEDU7702150</td><td>DELFIM</td><td>VITÓRIA</td><td class="num">24/09/2026</td><td>Pendente</td><td class="num">28</td><td class="num">7</td><td class="num">21</td><td><span class="badge badge--red">Em demurrage</span></td></tr>
+                  <tr><td class="mono">TGHU7730187</td><td>20DV</td><td class="mono">MEDU7719041</td><td>AURORA</td><td>PECÉM</td><td>-</td><td>Pendente</td><td>-</td><td class="num">7</td><td>-</td><td><span class="badge badge--slate">Sem descarga</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="mock-note">Tela ilustrativa · dados fictícios · colunas resumidas (a tela traz também CE Mercante, Viagem e POL)</p>
+          </div>
+          <aside class="pside">
+            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
+            <h2>O Cliente acompanha o Free Time de cada container</h2>
+            <ul class="clean pts">
+              <li><svg class="i"><use href="#i-check"/></svg><span>Cada container mostra <b>descarga, devolução, dias de uso e dias em demurrage</b>.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span>Situação clara: <b>Sem descarga, Dentro free time, Em demurrage, Devolvido</b>.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span>Na aba BLs, cada B/L mostra quantos containers já voltaram e as <b>informações de transbordo</b> quando a escala é omitida.</span></li>
+            </ul>
+            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Nos bastidores, no Vela</div><p>O B/L só aparece aqui depois que o CE Mercante é registrado. A devolução é a que Equipamentos lançou no Vela: não existe uma segunda versão para o Cliente.</p></div>
+          </aside>
+        </div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- Portal · 6 · Demurrage e disputa -->
+    <section class="slide portal" id="portal-demurrage" data-part="Portal do Cliente" data-chapter="Portal · Demurrage e disputa">
+      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
+      <nav class="pnav" aria-hidden="true"><span><svg class="i"><use href="#i-dash"/></svg>Painel</span><span class="on"><svg class="i"><use href="#i-file"/></svg>Faturas</span><span><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
+      <div class="body pbody">
+        <div class="pgrid">
+          <div class="ppage">
+            <div class="ptabs" style="margin-top: 0"><span>Taxas Locais</span><span class="on">Demurrage</span></div>
+            <div class="pcard-box dispute">
+              <div class="dsp-head"><svg class="i"><use href="#i-msg"/></svg><div><b>Conversas de Dispute</b><span>Mensagens imutáveis, com o próximo responsável explícito.</span></div></div>
+              <div class="dsp">
+                <div class="dsp-top"><div><b class="mono">DEM-2026-0412</b><span>Atualizada em 21/10/2026</span></div><span class="badge badge--yellow">Aberta</span></div>
+                <div class="msg"><div><span>Você</span><span>20/10/2026</span></div><p>O TGHU7730144 foi devolvido em 06/10, não em 09/10. Segue o comprovante do terminal.</p></div>
+                <div class="msg"><div><span>Equipamentos</span><span>21/10/2026</span></div><p>Recebemos. Estamos conferindo a data com o terminal e retornamos até amanhã.</p></div>
+                <div class="reply"><span class="m-field">Responda à conversa...</span><span class="btn btn--primary sm"><svg class="i"><use href="#i-send"/></svg>Enviar mensagem</span></div>
+              </div>
+            </div>
+            <div class="roe">ROE vigente: R$ 5,7734 · atualizado em 21/10/2026</div>
+            <div class="pcard-box">
+              <div class="pcb-head"><b>Sobreestadia de containers (D&amp;D)</b><span>2 faturas</span></div>
+              <table class="t ptable">
+                <thead><tr><th>Documento</th><th>BL / Trecho</th><th>Emissão</th><th>Atualizado em</th><th>Total USD</th><th>Total BRL</th><th>Status</th><th>Ação</th></tr></thead>
+                <tbody>
+                  <tr><td><b class="mono">DEM-2026-0412</b></td><td><span class="mono">MEDU7702114</span> — QINGDAO / VITÓRIA</td><td class="num">16/10/2026</td><td class="num">21/10/2026</td><td class="num">$ 1.000,00</td><td class="num">R$ 5.773,40</td><td><span class="badge badge--blue">Emitida</span> <span class="badge badge--yellow">Disputa</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
+                  <tr><td><b class="mono">DEM-2026-0377</b></td><td><span class="mono">MEDU7688520</span> — SHANGHAI / SALVADOR</td><td class="num">29/09/2026</td><td class="num">03/10/2026</td><td class="num">$ 640,00</td><td class="num">R$ 3.598,21</td><td><span class="badge badge--green">Pago</span></td><td><span class="btn btn--secondary sm">Detalhes</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="mock-note">Tela ilustrativa · dados fictícios</p>
+          </div>
+          <aside class="pside">
+            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
+            <h2>Demurrage transparente, e a contestação tem canal próprio</h2>
+            <ul class="clean pts">
+              <li><svg class="i"><use href="#i-check"/></svg><span>O valor em dólar é fixo; o valor em real segue a <b>ROE vigente, mostrada na tela</b>.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span>O detalhe mostra <b>cada container</b>: descarga, devolução, dias e valor.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span><b>Disputar</b> abre uma conversa com motivo e anexos. As mensagens não podem ser editadas, e a disputa resolvida admite pedido de reabertura.</span></li>
+            </ul>
+            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Nos bastidores, no Vela</div><p>A disputa abre Alerta para Equipamentos e pausa a Régua de Cobrança. Quando Equipamentos responde, o Cliente é notificado.</p></div>
+          </aside>
+        </div>
+        <span class="foot"></span>
+      </div>
+    </section>
+
+    <!-- Portal · 7 · Notificações, perfil e Inspeção -->
+    <section class="slide portal" id="portal-perfil" data-part="Portal do Cliente" data-chapter="Portal · Notificações e Perfil">
+      <header class="pbar"><div class="pbrand"><span class="logo-w" role="img" aria-label="Fwlog" style="width:114px;height:32px"></span><div><b>Portal do cliente</b><span>faturas e operação</span></div></div><div class="pactions"><span class="picon"><svg class="i"><use href="#i-bell"/></svg><i>3</i></span><span class="picon"><svg class="i"><use href="#i-user"/></svg></span><span class="ppill"><svg class="i"><use href="#i-building"/></svg>COMERCIAL ATLÂNTICO LTDA</span><span class="plogout"><svg class="i"><use href="#i-logout"/></svg>Sair</span></div></header>
+      <nav class="pnav" aria-hidden="true"><span><svg class="i"><use href="#i-dash"/></svg>Painel</span><span><svg class="i"><use href="#i-file"/></svg>Faturas</span><span><svg class="i"><use href="#i-package"/></svg>BLs e Containers</span><span class="on"><svg class="i"><use href="#i-user"/></svg>Perfil</span></nav>
+      <div class="body pbody">
+        <div class="pgrid">
+          <div class="ppage pp-two">
+            <div class="surface pnotif">
+              <div class="pn-head"><b>Notificações</b><span>Marcar todas como lidas</span></div>
+              <div class="pn-item"><span class="pn-ico"><svg class="i"><use href="#i-file"/></svg></span><div><b>Nova fatura emitida</b><p>Fatura INV-2026-0148 no valor de R$ 4.380,00 foi emitida.</p><time>13/10/2026</time></div><i class="unread"></i></div>
+              <div class="pn-item"><span class="pn-ico"><svg class="i"><use href="#i-file"/></svg></span><div><b>Nova fatura de demurrage</b><p>Demurrage DEM-2026-0412 no valor de USD 1.000,00 foi emitida.</p><time>16/10/2026</time></div><i class="unread"></i></div>
+              <div class="pn-item"><span class="pn-ico"><svg class="i"><use href="#i-msg"/></svg></span><div><b>Disputa respondida</b><p>Equipamentos respondeu à sua disputa.</p><time>21/10/2026</time></div><i class="unread"></i></div>
+              <div class="pn-item read"><span class="pn-ico"><svg class="i"><use href="#i-bell"/></svg></span><div><b>Escala omitida</b><p>A escala de Vitória foi omitida. A carga do B/L seguirá em transbordo.</p><time>02/10/2026</time></div><i></i></div>
+            </div>
+            <div>
+              <div class="pp-title">Meu perfil</div>
+              <p class="pp-desc">Atualize seus dados de contato e endereço.</p>
+              <div class="pcard-box" style="margin-top: 12px">
+                <div class="pcb-head"><b>Contatos e recebimento</b></div>
+                <div class="contact"><div><b>Paula Mendes</b><span>paula@atlantico.com.br</span></div><div class="boxes"><i class="on">Documentação e Operação</i><i class="on">Financeiro</i><i>Demurrage</i></div></div>
+                <div class="contact"><div><b>Carlos Nunes</b><span>financeiro@atlantico.com.br</span></div><div class="boxes"><i>Documentação e Operação</i><i class="on">Financeiro</i><i class="on">Demurrage</i></div></div>
+                <p class="box-rule">Nenhuma caixa pode ficar sem contato ativo.</p>
+              </div>
+              <div class="pcard-box" style="margin-top: 12px">
+                <div class="pcb-head"><b>Email de Recuperação</b></div>
+                <p class="box-rule" style="margin: 0; padding: 12px 16px">O endereço atual permanece válido até a confirmação do novo. Trocar pede a senha atual.</p>
+              </div>
+            </div>
+            <p class="mock-note" style="grid-column: 1 / -1">Tela ilustrativa · dados fictícios</p>
+          </div>
+          <aside class="pside">
+            <span class="tag-client"><svg class="i"><use href="#i-eye"/></svg>Visão do Cliente</span>
+            <h2>O Cliente é avisado, e decide quem recebe cada comunicado</h2>
+            <ul class="clean pts">
+              <li><svg class="i"><use href="#i-check"/></svg><span>O sino avisa <b>fatura nova, demurrage nova, resposta de disputa e escala omitida</b>.</span></li>
+              <li><svg class="i"><use href="#i-check"/></svg><span>Cada contato escolhe as <b>caixas</b>: Documentação e Operação recebe NOA, NOR, NOB e CE e Taxas; Financeiro, CE e Taxas e cobranças; Demurrage, as cobranças de Demurrage.</span></li>
+            </ul>
+            <div class="backstage"><div class="h"><svg aria-hidden="true"><use href="#vela-dark"/></svg>Inspeção do Portal, no Vela</div><p>Em Clientes → Portal, <b>“Ver como o cliente vê”</b> abre estas mesmas telas em Modo Inspeção: somente leitura, com as ações do Cliente visíveis e bloqueadas, e cada abertura registrada.</p></div>
+          </aside>
         </div>
         <span class="foot"></span>
       </div>
@@ -3032,7 +2991,7 @@
         <div class="rule"></div>
         <div class="content cols-2b">
           <div class="mock">
-            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">BL CSC4355019035 · Histórico</span></div>
+            <div class="mock-bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><b>Vela</b></div><span class="where">BL MEDU7719035 · Histórico</span></div>
             <div class="mock-body" style="padding: 18px">
               <div class="surface pad" style="padding: 14px 18px">
                 <ul class="clean hist">
@@ -3064,50 +3023,6 @@
             </div>
           </div>
         </div>
-        <span class="foot"></span>
-      </div>
-    </section>
-
-    <!-- Como as telas se ligam -->
-    <section class="slide" id="telas" data-part="Fechamento" data-chapter="Como as telas se ligam">
-      <header class="bar"><div class="brand"><svg aria-hidden="true"><use href="#vela-dark"/></svg><div><b>Vela</b><span>Importação, exportação e faturamento</span></div></div><div class="chapter"><em></em>Como as telas se ligam</div></header>
-      <div class="body">
-        <p class="kicker">Recapitulando · o mapa das relações</p>
-        <h2>Tudo o que vimos se prende a três fichas: a Viagem, o B/L e o Cliente</h2>
-        <div class="rule"></div>
-        <div class="fichas">
-          <div class="ficha">
-            <p class="fx-k">Chega-se por</p>
-            <div class="fx-in"><a href="#painel">Painel · Line Up</a><a href="#chegadas">Chegadas e Saídas</a><a href="#viagem">Viagens · rail</a></div>
-            <a class="hubcard" href="#viagem"><span class="hc-ico"><svg class="i"><use href="#i-ship"/></svg></span><b>Viagem</b><p>O navio e suas escalas. Tudo o que é da operação aponta para ela.</p><span class="hc-tabs"><i>Visão geral</i><i>Importação</i><i>Exportação</i><i>Rotas e Manifestos</i><i>ADR</i></span></a>
-            <p class="fx-k">Leva a</p>
-            <div class="fx-out"><a href="#bls">BLs da viagem</a><a href="#baplie">Baplie EDI</a><a href="#granito">Granito</a><a href="#vazios-exp">Embarque de Vazios</a><a href="#adr">ADR</a></div>
-          </div>
-          <div class="join"><span class="j-top">uma Viagem<br>tem muitos B/Ls</span><i></i><span class="j-bot">abre já filtrado</span></div>
-          <div class="ficha">
-            <p class="fx-k">Chega-se por</p>
-            <div class="fx-in"><a href="#bls">BLs</a><a href="#revisao">Revisão</a><a href="#taxas-tela">Validação</a><a href="#apoio">Containers</a><a href="#alertas-fila">Alertas</a></div>
-            <a class="hubcard" href="#bl-ficha"><span class="hc-ico"><svg class="i"><use href="#i-file"/></svg></span><b>B/L</b><p>O documento da carga. Liga o navio, o cliente e o dinheiro.</p><span class="hc-tabs"><i>Visão Geral</i><i>Carga</i><i>Detalhes do B/L</i><i>Faturamento</i><i>Histórico</i></span></a>
-            <p class="fx-k">Leva a</p>
-            <div class="fx-out"><a href="#viagem">Viagem</a><a href="#clientes">Cliente</a><a href="#taxas-tela">Fatura</a><a href="#demurrage-tela">Demurrage</a><a href="#portal-operacao">O que o Cliente vê</a></div>
-          </div>
-          <div class="join"><span class="j-top">cada B/L<br>pertence a um Cliente</span><i></i><span class="j-bot">CNPJ exato</span></div>
-          <div class="ficha">
-            <p class="fx-k">Chega-se por</p>
-            <div class="fx-in"><a href="#clientes">Clientes</a><a href="#revisao">Revisão</a><a href="#console">Console do Portal</a></div>
-            <a class="hubcard" href="#clientes"><span class="hc-ico"><svg class="i"><use href="#i-building"/></svg></span><b>Cliente</b><p>Quem paga e quem é avisado. Reúne cadastro, carga, saldo e conversas.</p><span class="hc-tabs"><i>Visão Geral</i><i>Cadastro &amp; Contatos</i><i>Operacional</i><i>Financeiro</i><i>Histórico</i></span></a>
-            <p class="fx-k">Leva a</p>
-            <div class="fx-out"><a href="#comunicacao-tela">Comunicação</a><a href="#console">Portal · inspeção</a><a href="#taxas-tela">Faturas</a><a href="#demurrage-tela">Demurrage</a></div>
-          </div>
-        </div>
-        <div class="overlay-band">
-          <div class="ob-k"><svg class="i"><use href="#i-link"/></svg>Por cima das três</div>
-          <div><b>Alertas</b><span>cada linha leva à tela onde o dado é corrigido</span></div>
-          <div><b>Painel</b><span>as pendências por setor abrem a fila já filtrada</span></div>
-          <div><b>Sino</b><span>a notificação abre a entidade de origem</span></div>
-          <div><b>Comunicados</b><span>o mesmo histórico aparece na Comunicação, no Cliente e no B/L</span></div>
-        </div>
-        <span class="hint"><svg class="i"><use href="#i-external"/></svg>Clique em uma tela para ir ao slide dela</span>
         <span class="foot"></span>
       </div>
     </section>
