@@ -260,7 +260,8 @@ Demurrage, sempre pelas Edge Functions (o navegador nunca chama o Resend).
 - **Secrets atuais:** `PORTAL_FROM_EMAIL` = `Portal Fwlog <no-reply@portalfwlog.com.br>`;
   `PORTAL_REPLY_TO` e `PORTAL_SUPPORT_EMAIL` = `suporte@portalfwlog.com.br`.
   Conferido em 2026-09-24 por "Esqueci minha senha" no Portal: o e-mail saiu
-  com esse remetente e esse endereço de resposta. Não troque o remetente para
+  com esse remetente e esse endereço de resposta; um convite real do Portal chegou
+  na caixa de entrada, fora do spam. Não troque o remetente para
   um domínio que não esteja **Verified** no Resend: os e-mails param de sair.
 - **Webhook:** o Resend avisa entregas, bounces e reclamações em
   `portal-email-webhook`, assinado com `RESEND_WEBHOOK_SECRET`. Bounces e
