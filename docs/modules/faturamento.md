@@ -81,7 +81,8 @@ No backend, `047_bl_documental_gates.sql` exige CE Mercante antes de marcar o
 B/L como pronto e nas fronteiras de emissão individual e consolidada. A
 migration `051_ce_mercante_auto_billing.sql` leva a emissão para a transição
 do CE; desde a `083` ela obedece ao mesmo gate do Portal que a emissão manual,
-e contato com e-mail só é exigido de quem fatura sem Portal (`084`). A leitura de
+e contato com e-mail não é condição de emissão (`085`). Ao abrir o gate, a
+fatura retida sai com o cálculo do registro do CE (`085`). A leitura de
 Portal do detalhe também devolve `portal_access_ready`, calculado pela função
 canônica `customer_portal_access_ready`; a entrega continua usando
 `bl_has_portal_release`, que aplica a exigência documental aos dois modos de

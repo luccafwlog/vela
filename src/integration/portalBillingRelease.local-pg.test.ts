@@ -5,6 +5,8 @@ import { syntheticCnpj } from './localTestData'
 // Migration 083 (ADR 0070): o Portal trava toda emissão, inclusive a
 // automática pelo CE. A saída é ativar o Portal ou o Administrativo conceder a
 // Liberação de faturamento sem Portal; as duas emitem o que ficou retido.
+// Migration 085: o e-mail de contato não é condição de nada disso, e a fatura
+// retida sai com as taxas do dia do CE.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -65,6 +67,14 @@ function blState(blId: string) {
           AND status IN ('pending', 'running', 'retry_wait', 'blocked'))
     ) FROM public.bls WHERE id = '${blId}';
   `)) as { financial_status: string; billing_hold_reason: string | null; invoice_count: number; active_effects: number }
+}
+
+function invoiceTotal(blId: string): string {
+  return psql(`SELECT total_brl FROM public.invoices WHERE bl_id = '${blId}';`)
+}
+
+function setPrice(value: number): void {
+  psql(`UPDATE public.charge_table_items SET value_brl = ${value}, unit_value_brl = ${value} WHERE id = ${chargeItemId};`)
 }
 
 function portalAlert(): string {
@@ -185,18 +195,17 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(blState(heldBlId).invoice_count).toBe(0)
   })
 
-  // 084: sem Portal, o e-mail de contato é o único canal da fatura.
-  it('não concede sem contato com e-mail nem com revisão além de 30 dias', () => {
-    expect(sqlError(() => asUser(`SELECT public.grant_customer_billing_portal_release(${customerId}, 'Cliente sem e-mail', now() + interval '7 days');`, adminId)))
-      .toContain('Cadastre um contato com e-mail')
-    psql(`INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary)
-      VALUES (${customerId}, 'Financeiro 083', 'financeiro-083@example.test', 'financeiro', true);`)
+  it('não concede com revisão além de 30 dias', () => {
     expect(sqlError(() => asUser(`SELECT public.grant_customer_billing_portal_release(${customerId}, 'Prazo longo', now() + interval '45 days');`, adminId)))
       .toContain('no máximo 30 dias')
     expect(blState(heldBlId).invoice_count).toBe(0)
   })
 
-  it('conceder a Liberação emite a fatura retida sem outra ação e resolve o Alerta', () => {
+  it('conceder a Liberação, mesmo sem contato com e-mail, emite a retida com a taxa do dia do CE', () => {
+    // 085: a fatura não é enviada por e-mail; o Cliente não tem nenhum contato.
+    expect(psql(`SELECT count(*) FROM public.customer_contacts WHERE customer_id = ${customerId};`)).toBe('0')
+    // A tabela mudou depois do CE: a retida continua com o valor do dia do CE.
+    setPrice(120)
     const result = JSON.parse(asUser(
       `SELECT public.grant_customer_billing_portal_release(${customerId}, 'Cliente sem e-mail até o fim do mês', now() + interval '7 days');`,
       adminId,
@@ -204,14 +213,16 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
 
     expect(result.reprocess).toMatchObject({ gate_open: true, issued: 1 })
     expect(blState(heldBlId)).toMatchObject({ financial_status: 'invoiced', billing_hold_reason: null, invoice_count: 1 })
+    expect(invoiceTotal(heldBlId)).toBe('90.00')
     expect(portalAlert()).toBe('resolved/documentacao')
     expect(asUser(`SELECT granted_by || '|' || justification FROM public.customer_billing_portal_releases WHERE id = ${result.release_id};`, docId))
       .toBe(`${adminId}|Cliente sem e-mail até o fim do mês`)
   })
 
-  it('com a Liberação vigente, o CE seguinte emite direto', () => {
+  it('com a Liberação vigente, o CE seguinte emite direto, com a tabela do dia', () => {
     setCe(secondBlId, '083000000000002')
     expect(blState(secondBlId)).toMatchObject({ financial_status: 'invoiced', invoice_count: 1 })
+    expect(invoiceTotal(secondBlId)).toBe('120.00')
   })
 
   it('revogada ou vencida, a trava volta e o Alerta reaparece na retenção seguinte', () => {
@@ -228,20 +239,19 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(portalAlert()).toBe('active/documentacao')
   })
 
-  it('a Liberação perde efeito se o último e-mail de contato for desativado', () => {
+  it('a Liberação vale sem nenhum contato com e-mail', () => {
     // Inserida direto (sem a RPC) para não reprocessar o B/L retido que o
     // teste seguinte, de ativação do Portal, precisa encontrar.
     psql(`UPDATE public.customer_billing_portal_releases SET revoked_at = now(), revoked_by = '${adminId}',
       revoke_reason = 'Troca no teste' WHERE customer_id = ${customerId} AND revoked_at IS NULL;
       INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
       VALUES (${customerId}, 'Nova liberação', '${adminId}', now() + interval '3 days');`)
+    expect(psql(`SELECT count(*) FROM public.customer_contacts WHERE customer_id = ${customerId} AND deactivated_at IS NULL;`)).toBe('0')
     expect(psql(`SELECT public.customer_billing_access_ready(${customerId});`)).toBe('t')
-    psql(`UPDATE public.customer_contacts SET deactivated_at = now() WHERE customer_id = ${customerId};`)
-    expect(psql(`SELECT public.customer_billing_access_ready(${customerId});`)).toBe('f')
-    psql(`UPDATE public.customer_contacts SET deactivated_at = NULL WHERE customer_id = ${customerId};`)
   })
 
-  it('ativar o Portal reprocessa o Cliente e emite o que ficou retido', () => {
+  it('ativar o Portal reprocessa o Cliente e emite o que ficou retido, com a taxa do dia do CE', () => {
+    setPrice(150)
     psql(`UPDATE public.customer_billing_portal_releases SET revoked_at = now(), revoked_by = '${adminId}',
       revoke_reason = 'Encerrada no teste' WHERE customer_id = ${customerId} AND revoked_at IS NULL;`)
     psql(`UPDATE public.customer_portal_accounts SET auth_user_id = '${portalUserId}', active = true,
@@ -254,16 +264,16 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
 
     expect(result.issued).toBe(1)
     expect(blState(activationBlId)).toMatchObject({ financial_status: 'invoiced', billing_hold_reason: null, invoice_count: 1 })
+    expect(invoiceTotal(activationBlId)).toBe('120.00')
     expect(portalAlert()).toBe('resolved/documentacao')
   })
 
-  // 084: com Portal pronto, o Cliente vê a fatura no Portal; contato com
-  // e-mail deixa de ser pendência, na emissão manual e na automática.
-  it('com Portal pronto, a falta de e-mail de contato não é pendência', () => {
-    psql(`UPDATE public.customer_contacts SET deactivated_at = now() WHERE customer_id = ${customerId};`)
+  // 085: e-mail de contato não é pendência em nenhum caso, com ou sem Portal.
+  it('a falta de e-mail de contato não é pendência, com ou sem Portal', () => {
     expect(psql(`SELECT array_to_string(public.compute_bl_review_pendencies(${customerId}, 'container', NULL::numeric), ',');`)).toBe('')
     psql(`UPDATE public.customer_portal_accounts SET account_situation = 'suspenso' WHERE customer_id = ${customerId};`)
     expect(psql(`SELECT array_to_string(public.compute_bl_review_pendencies(${customerId}, 'container', NULL::numeric), ',');`))
-      .toBe('Cliente sem e-mail cadastrado,Acesso ao portal nao provisionado')
+      .toBe('Acesso ao portal nao provisionado')
+    expect(psql(`SELECT active FROM public.alert_type_catalog WHERE type = 'review_customer_email_missing';`)).toBe('f')
   })
 })

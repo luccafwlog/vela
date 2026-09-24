@@ -84,7 +84,7 @@ Os formulários e defaults vivem em
   O passo "Em revisão" do funil conta todo B/L já conciliado que ainda não é
   faturável (`isPendingBillingReview` em `validacaoPipeline.ts`), incluindo os
   presos no gate de revisão (`review_status = pending_review`), e o motivo de
-  bloqueio expõe a pendência canônica (ex.: cliente sem e-mail cadastrado) via
+  bloqueio expõe a pendência canônica (ex.: peso BB ausente) via
   `extractReviewReasons`. Prontidão de Portal integra a guarda de toda emissão, manual e
   automática (ADR 0070, migration `083`); a retirada histórica na migration `188` foi
   revertida. A retenção do CE sem Portal aparece como *Portal não provisionado*. **Etapa 6 do plano de faturamento (ADR 0038, decisão 8):** o painel
@@ -226,9 +226,12 @@ flowchart LR
   (ADR 0054) devolveu *Acesso ao portal nao provisionado*. Desde a `083`
   (ADR 0070), o Portal bloqueia também a emissão automática pela transição do
   CE: sem Portal pronto nem Liberação de faturamento sem Portal vigente, o CE
-  calcula, retém a fatura e grava o motivo em `billing_hold_reason`. Desde a
-  `084`, *Cliente sem e-mail cadastrado* só aparece para Cliente sem Portal
-  pronto (ver **Gate de faturamento do Portal** em `CONTEXT.md`).
+  calcula, retém a fatura e grava o motivo em `billing_hold_reason`. Ao abrir
+  o gate (Liberação ou Portal ativo), a retida sai com esse cálculo do dia do
+  CE, sem recalcular pela tabela vigente; a conversão de USD segue a regra da
+  emissão (ROE vigente). Desde a `085`, *Cliente sem e-mail cadastrado* não é
+  mais pendência, com ou sem Portal (ver **Gate de faturamento do Portal** em
+  `CONTEXT.md`).
 - **Taxa local em USD (ADR 0038 decisão 6, achado 7, migration 268):** linha
   em USD deixou de bloquear `mark_bl_ready_for_billing`. Converte para BRL na
   emissão da fatura (`create_invoice_from_bls_core` /

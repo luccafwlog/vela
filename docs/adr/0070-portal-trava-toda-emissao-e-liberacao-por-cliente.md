@@ -62,14 +62,17 @@ levou a questão ao dono do produto. As decisões foram:
   instante. O Alerta reaparece na próxima retenção ou reconciliação do
   Cliente, não no instante do vencimento. Se for preciso avisar no
   vencimento, o caminho é um `pg_cron` diário (marcado `ponytail:` na `083`).
-- O **e-mail de contato** segue uma regra só, decidida em 2026-09-24 (ver
-  abaixo). O contexto privado da `051` não muda mais nenhum gate.
+- O **e-mail de contato** não é condição de faturamento (nota de 2026-09-24
+  b, abaixo). O contexto privado da `051` não muda mais nenhum gate.
 - A fatura emitida com a Liberação vigente não abre a exceção crítica
   `portal_excecao_critica_fatura`: a Liberação é a decisão registrada.
 - Rollback: uma migration que devolva a exceção interna a
   `customer_billing_access_ready` e às triggers, sem tocar faturas emitidas.
 
 ## Nota — 2026-09-24 · e-mail de contato e teto (migration `084`)
+
+> A regra de e-mail desta nota foi substituída no mesmo dia pela nota
+> seguinte (migration `085`). O teto de 30 dias continua valendo.
 
 Decisões do dono sobre o que ficou em aberto na primeira versão:
 
@@ -84,11 +87,38 @@ Decisões do dono sobre o que ficou em aberto na primeira versão:
 - **Teto de 30 dias** para a data de revisão, em dias de Brasília. A RPC recusa
   além disso, e a tabela tem um `CHECK` de 31 dias como defesa.
 
+## Nota — 2026-09-24 b · e-mail fora do faturamento e taxas do dia do CE (migration `085`)
+
+Decisões do dono na revisão da PR #744, que substituem a regra de e-mail da
+nota anterior:
+
+- **A fatura de Taxas Locais não é enviada por e-mail.** Ela chega ao Cliente
+  pelo Portal ou impressa e entregue por um usuário interno. Por isso o e-mail
+  de contato deixa de ser condição de emissão em qualquer caso: a Liberação é
+  concedida e vale sem e-mail, a pendência de revisão *Cliente sem e-mail
+  cadastrado* deixa de existir, e o Alerta `review_customer_email_missing` foi
+  aposentado. O `ponytail:` da `084` sobre reprocessar ao cadastrar e-mail
+  perdeu o objeto. O e-mail de contato continua servindo à cobrança de
+  Demurrage e aos Comunicados.
+- **Taxas do dia do CE.** Ao conceder a Liberação ou ativar o Portal, a fatura
+  retida sai com o cálculo que a transição do CE gravou; o reprocessamento não
+  recalcula pela tabela vigente. Uma edição do B/L entre o CE e a liberação
+  continua recalculando pelo caminho normal da edição. A conversão de linhas em
+  USD segue a regra de toda emissão: ROE vigente no momento da emissão.
+- **Tempo da concessão.** O reprocessamento roda dentro da chamada da tela.
+  No Postgres 16 local, conceder com 100 B/Ls retidos levou 1,4 s (cerca de
+  15 ms por B/L). Um Cliente com centenas de B/Ls retidos pode se aproximar do
+  `statement_timeout` do Supabase; se isso acontecer, o caminho é emitir por um
+  efeito da fila (`import_pending_effects`) depois de gravar a Liberação.
+
 ## Evidência
 
-- Migration: [083](../../supabase/migrations/083_portal_trava_universal_liberacao_faturamento.sql).
+- Migration: [083](../../supabase/migrations/083_portal_trava_universal_liberacao_faturamento.sql),
+  [084](../../supabase/migrations/084_liberacao_portal_email_e_teto.sql) e
+  [085](../../supabase/migrations/085_email_fora_do_faturamento_taxas_do_ce.sql).
 - Teste no Postgres: [portalBillingRelease.local-pg.test.ts](../../src/integration/portalBillingRelease.local-pg.test.ts)
-  prova retenção, permissão, concessão com emissão, CE com liberação vigente,
-  revogação, vencimento e ativação do Portal.
+  prova retenção, permissão, concessão com emissão (sem contato com e-mail e
+  com a taxa do dia do CE), CE com liberação vigente, revogação, vencimento e
+  ativação do Portal.
 - Tela: [BillingPortalReleaseCard.tsx](../../src/components/clientes/BillingPortalReleaseCard.tsx),
   na ficha do Cliente e no Console do Portal.

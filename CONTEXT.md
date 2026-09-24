@@ -1333,10 +1333,12 @@ Portal**.
 
 **Liberação de faturamento sem Portal**
 Decisão do Administrativo, por Cliente, que abre o Gate de faturamento do
-Portal enquanto o Portal não fica pronto. Exige justificativa, data de
-revisão de até 30 dias e contato do Cliente com e-mail, que passa a ser o
-único canal da fatura; registra autor e data. Ao ser concedida, emite as
-faturas que o CE reteve. Sem contato com e-mail, a Liberação não vale. Vencida a data de revisão, ou revogada, a trava volta e a próxima
+Portal enquanto o Portal não fica pronto. Exige justificativa e data de
+revisão de até 30 dias; registra autor e data. Não depende de contato com
+e-mail: a fatura não é enviada por e-mail, e sem Portal um usuário interno a
+imprime e entrega ao Cliente (migration `085`). Ao ser concedida, emite as
+faturas que o CE reteve, com as taxas calculadas no registro do CE, sem
+recalcular pela tabela vigente. Vencida a data de revisão, ou revogada, a trava volta e a próxima
 retenção reabre o Alerta de Portal não provisionado. Não ativa a conta nem dá
 acesso ao Cliente. Conceder e revogar ficam na ficha do Cliente (aba
 Financeiro) e no Console do Portal; os outros Departamentos só consultam.
@@ -1635,8 +1637,8 @@ O desacoplamento é explícito e por Cliente: a **Liberação de faturamento sem
 Portal** (ADR 0070). Não existe mais exceção automática. De 2026-09 até a
 migration `083`, a transição do CE emitia sem Portal num contexto privado da
 `051`; essa exceção foi retirada, e o contexto privado da `051` não muda mais
-nenhum gate. Contato com e-mail só é exigido de quem fatura sem Portal
-(migration `084`).
+nenhum gate. Contato com e-mail não é condição de faturamento, com ou sem
+Portal (migration `085`, que desfez a exigência da `084`).
 
 Quando uma fatura é emitida sem Email de Recuperação ou sem Portal ativo (por
 exemplo, emitida antes da `083`), a pendência é crítica, permanece aberta e

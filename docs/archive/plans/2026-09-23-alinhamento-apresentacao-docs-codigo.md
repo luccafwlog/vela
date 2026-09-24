@@ -356,3 +356,18 @@ apoia na linha "Data status" do `AGENTS.md`.
     para corrigir dentro da PR. Nenhuma das duas estava no `main`.
   - Checks: replay do zero e `alinhamentoPermissoes.local-pg.test.ts`; os dois
     testes novos falham com as versões anteriores da 077 e da 079.
+- **2026-09-24 · Revisão do item 3.6 (`vela-code-review`), decisões do dono:**
+  - A fatura retida sai com as **taxas do dia do CE**: liberar ou ativar o
+    Portal não recalcula pela tabela vigente.
+  - O **e-mail de contato não é condição de faturamento**: a fatura não é
+    enviada por e-mail; sem Portal, um usuário interno a imprime e entrega. A
+    exigência da 084 foi desfeita.
+  - Migration **085**: Liberação e revisão sem e-mail, Alerta
+    `review_customer_email_missing` aposentado, reprocessamento pelo cálculo
+    do CE (`_auto_bill_bl_core` com reaproveitamento). Nota na ADR 0070.
+  - Tempo medido no Postgres local: concessão com 100 B/Ls retidos em 1,4 s;
+    planilha de CE com 100 linhas emitindo 100 faturas em 1,8 s.
+  - Checks: replay do zero, `portalBillingRelease.local-pg.test.ts` (os testes
+    de e-mail e de taxa do CE falham sem a 085; os de taxa falham também com o
+    reprocessamento recalculando), suíte `local-pg` em série e gates do
+    `package.json`.

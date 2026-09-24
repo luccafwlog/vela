@@ -103,7 +103,7 @@ export function BillingPortalReleaseCard({ customerId, portalReady, variant = 'c
       <p className="text-[var(--app-muted)]">
         {portalReady
           ? 'O Portal deste Cliente está pronto: o faturamento não depende de liberação.'
-          : 'Sem Portal pronto, a fatura fica retida quando o CE Mercante é registrado. A liberação emite as retidas e vale até a data de revisão. Exige contato do Cliente com e-mail, que passa a ser o único canal da fatura.'}
+          : 'Sem Portal pronto, a fatura fica retida quando o CE Mercante é registrado. A liberação emite as retidas, com as taxas calculadas no registro do CE, e vale até a data de revisão. Sem Portal, a fatura é entregue ao Cliente por um usuário interno.'}
       </p>
       {isLoading ? <div className="text-[var(--app-muted)]">Carregando…</div> : null}
       {isError ? <InlineError message="Erro ao carregar a liberação." /> : null}

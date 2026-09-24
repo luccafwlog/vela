@@ -11,7 +11,8 @@
   Normal, Histórico do B/L com containers, lixeira da escala para todos, disputa respondida pelo Administrativo e CE
   por planilha tudo ou nada (PR #740, migrations `077`–`082`). Por fim, o Portal passou a travar toda emissão,
   inclusive a automática pelo CE, com a Liberação de faturamento sem Portal por Cliente concedida pelo
-  Administrativo (ADR 0070, migrations `083`–`084`).
+  Administrativo (ADR 0070, migrations `083`–`085`). Na revisão, o e-mail de contato deixou de ser condição de
+  faturamento (a fatura não é enviada por e-mail) e a fatura retida passou a sair com as taxas do dia do CE (`085`).
   [Plano arquivado](archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md).
 
 - **Consolidação e integração de serviços de observabilidade e segurança — Issue #710 (2026-09-23):**

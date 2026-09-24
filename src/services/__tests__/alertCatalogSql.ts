@@ -30,6 +30,7 @@ const CATALOG_MIGRATIONS = [
 const DEACTIVATION_MIGRATIONS = [
   '347_alerts_retire_dead_invoice_types.sql',
   '348_taxas_locais_sem_vencimento.sql',
+  '085_email_fora_do_faturamento_taxas_do_ce.sql',
 ]
 
 // Migrations que mudam gravidade, responsável ou audiência de um tipo já

@@ -205,8 +205,10 @@ faturamento sem Portal para o Cliente (ADR 0070, migration 083). O gate vale
 também para a emissão automática pelo CE, que retém a fatura sem Portal. A
 ativação e a concessão da Liberação chamam o mesmo reprocessamento idempotente
 dos B/Ls com reconciliação matched_document ou reconciled, pelo caminho da
-transição do CE; bloqueios funcionais e falhas técnicas permanecem projetados
-no B/L. A Liberação aparece no painel do Cliente no Console do Portal.
+transição do CE, reaproveitando o cálculo feito no registro do CE (migration
+085); bloqueios funcionais e falhas técnicas permanecem projetados no B/L. A
+Liberação não depende de contato com e-mail: sem Portal, a fatura é entregue
+por um usuário interno. A Liberação aparece no painel do Cliente no Console do Portal.
 
 Disputes de Demurrage são conversas append-only em demurrage_disputes e
 demurrage_dispute_messages, com anexos privados por mensagem em Storage, RLS e
