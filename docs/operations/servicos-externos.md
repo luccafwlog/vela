@@ -77,11 +77,12 @@ Registro dos três domínios. A partir de 2026-09-24, `vela.app.br` e
 `pablo.ns.cloudflare.com`). `transhippingdesk.com.br` continua com o DNS do
 próprio Registro.br.
 
-- **DNSSEC:** quando o domínio usava o DNS do Registro.br, a chave era automática.
-  Ao trocar para servidores externos, o Registro.br faz a transição sozinho (cerca
-  de 2 horas "em transição") e remove a chave antiga. Depois do domínio
-  **Active** na Cloudflare, o DNSSEC novo é ligado na Cloudflare e o DS copiado
-  para o Registro.br (**Alterar servidores DNS → + DNSSEC**).
+- **DNSSEC:** ativo nos dois domínios desde 2026-09-24. A chave fica na
+  Cloudflare (**DNS → Settings → DNSSEC**). O DS correspondente está no
+  Registro.br (**Alterar servidores DNS → + DNSSEC**): keytag `2371` nos dois,
+  com digests diferentes. Antes de trocar de novo os servidores DNS, **remova o
+  DS** no Registro.br e espere cerca de 2 horas. Com um DS antigo publicado, o
+  domínio deixa de resolver.
 - **Renovação:** confira a data de expiração de cada domínio no painel do
   Registro.br; domínio expirado derruba site e e-mail.
 
@@ -92,17 +93,28 @@ próprio Registro.br.
 | `vela.app.br` | `A @` | `216.198.79.1` (nuvem cinza) | site na Vercel **(transição)** |
 | | `TXT @` | `v=spf1 -all` | o domínio não envia e-mail |
 | | `TXT _dmarc` | `v=DMARC1; p=reject;` | rejeitar e-mail falso em nome do Vela |
+| | `A www` | `192.0.2.1` (nuvem laranja) | endereço fictício; só existe para a Redirect Rule do `www` |
 | `portalfwlog.com.br` | `A @` | `216.198.79.1` (nuvem cinza) | site na Vercel **(transição)** |
 | | `MX @` | `mx1.improvmx.com` (10), `mx2.improvmx.com` (20) | receber e-mail (ImprovMX) |
 | | `TXT @` | `v=spf1 include:spf.improvmx.com ~all` | SPF do domínio raiz |
 | | `TXT resend._domainkey` | chave pública DKIM mostrada pelo Resend | assinatura do envio |
 | | `CNAME send`, `CNAME rsend` | alvos `*.forge.rmta.net` mostrados pelo Resend (nuvem cinza) | SPF/retorno do envio (Resend) |
 | | `TXT _dmarc` | `v=DMARC1; p=none; rua=mailto:suporte@portalfwlog.com.br; fo=1` | política e relatórios DMARC |
+| | `A www` | `192.0.2.1` (nuvem laranja) | endereço fictício; só existe para a Redirect Rule do `www` |
+
+**Redirect Rules** (em cada zona: **Rules → Redirect Rules**). A regra
+**"www para raiz"** vai de `https://www.<domínio>/*` para
+`https://<domínio>/${1}`, com 301 e preservando a query string. Conferido em
+2026-09-24: `https://www.<domínio>/teste?x=1` → 301 para
+`https://<domínio>/teste?x=1` nos dois domínios. O `A www` precisa ficar com
+proxy (laranja): sem proxy a regra não roda e o `www` não abre. Não aponte o
+`www` para a Vercel nem para o Pages; o redirecionamento é da Cloudflare.
 
 Regras:
 
 - Registros que apontam para a Vercel ou para o Resend ficam **DNS only**
-  (nuvem cinza). Proxy laranja na frente da Vercel quebra o certificado.
+  (nuvem cinza). Proxy laranja na frente da Vercel quebra o certificado. A única
+  exceção é o `A www`, que precisa de proxy.
 - `transhippingdesk.com.br` guarda o e-mail legado (ImprovMX e Resend); não é
   servido pela Cloudflare.
 
@@ -234,11 +246,14 @@ Demurrage, sempre pelas Edge Functions (o navegador nunca chama o Resend).
 | Comunicados | `PORTAL_FROM_EMAIL` | `COMMUNICATIONS_REPLY_TO` = `importacao@fwlog.com.br` |
 | Cobrança de Demurrage (régua automática) | `PORTAL_FROM_EMAIL` | `DEMURRAGE_REPLY_TO` = `eqp@fwlog.com.br` |
 
-- **Domínios:** `transhippingdesk.com.br` (verificado, remetente atual) e
-  `portalfwlog.com.br` (região São Paulo). Destino decidido:
-  `PORTAL_FROM_EMAIL` = `Portal Fwlog <no-reply@portalfwlog.com.br>`, trocado
-  **só depois** do domínio **Verified** no Resend; antes disso os e-mails param
-  de sair.
+- **Domínios:** `portalfwlog.com.br` (**Verified**, região São Paulo; é o
+  remetente desde 2026-09-24) e `transhippingdesk.com.br` (verificado, legado;
+  serve de reserva se o envio pelo domínio novo falhar).
+- **Secrets atuais:** `PORTAL_FROM_EMAIL` = `Portal Fwlog <no-reply@portalfwlog.com.br>`;
+  `PORTAL_REPLY_TO` e `PORTAL_SUPPORT_EMAIL` = `suporte@portalfwlog.com.br`.
+  Conferido em 2026-09-24 por "Esqueci minha senha" no Portal: o e-mail saiu
+  com esse remetente e esse endereço de resposta. Não troque o remetente para
+  um domínio que não esteja **Verified** no Resend: os e-mails param de sair.
 - **Webhook:** o Resend avisa entregas, bounces e reclamações em
   `portal-email-webhook`, assinado com `RESEND_WEBHOOK_SECRET`. Bounces e
   reclamações alimentam as listas de supressão.
@@ -252,6 +267,9 @@ Não há caixa de e-mail nos domínios do sistema; o ImprovMX só encaminha.
 |---|---|
 | `suporte@portalfwlog.com.br` | `importacao@fwlog.com.br`, `lucca.juliatti@fwlog.com.br` |
 | endereços de `transhippingdesk.com.br` | legado; conferir no painel |
+
+Encaminhamento conferido em 2026-09-24: um e-mail enviado de um endereço
+externo chegou às duas caixas.
 
 `suporte@portalfwlog.com.br` é o endereço impresso nos e-mails aos clientes
 (`src/services/customerCommunicationTemplates.ts`) e o destino dos relatórios
