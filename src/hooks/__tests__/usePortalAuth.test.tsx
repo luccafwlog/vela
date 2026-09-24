@@ -115,7 +115,7 @@ describe('usePortalAuth', () => {
 
     const { result } = renderHook(() => usePortalAuth(), { wrapper })
     await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
-    expect(sentry.setUser).toHaveBeenCalledWith({ id: '123' })
+    expect(sentry.setUser).toHaveBeenCalledWith(null)
     expect(sentry.setTag).toHaveBeenCalledWith('area', 'portal')
 
     act(() => authCallback?.('SIGNED_OUT', null))

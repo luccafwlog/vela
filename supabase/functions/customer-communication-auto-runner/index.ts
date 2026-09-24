@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { renderCustomerCommunicationTemplate } from '../_shared/customerCommunicationTemplates.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
@@ -158,4 +159,12 @@ async function handler(req: Request): Promise<Response> {
   return json(releaseFailures ? 500 : 200, { candidates: candidates.length, sent, releaseFailures })
 }
 
-if (import.meta.main) Deno.serve(instrumentEdgeHandler('customer-communication-auto-runner', handler))
+if (import.meta.main) {
+  const edgeHandler = instrumentEdgeHandler('customer-communication-auto-runner', handler)
+  Deno.serve((req) => {
+    const expectedSecret = Deno.env.get('CUSTOMER_COMMUNICATION_AUTOMATION_SECRET') ?? ''
+    const providedSecret = req.headers.get('X-Communication-Automation-Secret') ?? ''
+    const authorized = req.method === 'POST' && Boolean(expectedSecret) && timingSafeEqual(providedSecret, expectedSecret)
+    return runWithBetterStackHeartbeat('customerCommunicationAutoRunner', () => edgeHandler(req), { enabled: authorized })
+  })
+}

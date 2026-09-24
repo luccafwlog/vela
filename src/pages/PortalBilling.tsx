@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Download, FilePlus2, Printer } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -35,6 +35,7 @@ import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../lib/
 import { formatBRL } from '../lib/utils'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
 import { isPortalReadOnly } from '../services/portalScope'
+import { featureFlags, initFeatureFlags, PRODUCT_EVENTS } from '../lib/featureFlags'
 
 type PortalTab = 'local' | 'demurrage'
 type Filters = PortalBillingFilters
@@ -86,6 +87,47 @@ export function PortalBilling() {
 
   const detailQuery = usePortalInvoiceDetail(selectedInvoiceId)
   const demurrageDetailQuery = usePortalDemurrageInvoiceDetail(selectedDemurrageId)
+  const trackedInvoiceViews = useRef(new Set<string>())
+
+  useEffect(() => {
+    const invoice = detailQuery.data?.invoice
+    if (
+      portalScope.mode !== 'client' ||
+      !selectedInvoiceId ||
+      !detailQuery.isSuccess ||
+      detailQuery.isLoading ||
+      detailQuery.error ||
+      !invoice ||
+      Number(invoice.id) !== selectedInvoiceId
+    ) return
+
+    const key = `local:${selectedInvoiceId}`
+    if (trackedInvoiceViews.current.has(key)) return
+    trackedInvoiceViews.current.add(key)
+    void initFeatureFlags().then(() => {
+      featureFlags.capture(PRODUCT_EVENTS.INVOICE_VIEWED, { surface: 'portal', invoice_type: 'local' })
+    })
+  }, [portalScope.mode, selectedInvoiceId, detailQuery.data, detailQuery.error, detailQuery.isLoading, detailQuery.isSuccess])
+
+  useEffect(() => {
+    const invoice = demurrageDetailQuery.data?.invoice
+    if (
+      portalScope.mode !== 'client' ||
+      !selectedDemurrageId ||
+      !demurrageDetailQuery.isSuccess ||
+      demurrageDetailQuery.isLoading ||
+      demurrageDetailQuery.error ||
+      !invoice ||
+      Number(invoice.id) !== selectedDemurrageId
+    ) return
+
+    const key = `demurrage:${selectedDemurrageId}`
+    if (trackedInvoiceViews.current.has(key)) return
+    trackedInvoiceViews.current.add(key)
+    void initFeatureFlags().then(() => {
+      featureFlags.capture(PRODUCT_EVENTS.INVOICE_VIEWED, { surface: 'portal', invoice_type: 'demurrage' })
+    })
+  }, [portalScope.mode, selectedDemurrageId, demurrageDetailQuery.data, demurrageDetailQuery.error, demurrageDetailQuery.isLoading, demurrageDetailQuery.isSuccess])
 
   const eligibleCount = (receivables ?? []).filter((r) => r.eligibility_status === 'eligible').length
 

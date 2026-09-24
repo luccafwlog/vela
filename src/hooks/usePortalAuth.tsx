@@ -13,7 +13,7 @@ type PortalAuthContextValue = {
   isAuthenticated: boolean
   isSigningOut: boolean
   signOutError: string | null
-  signIn: (cnpj: string, password: string) => Promise<void>
+  signIn: (cnpj: string, password: string, turnstileToken?: string) => Promise<void>
   signOut: () => Promise<void>
   refreshOverview: () => Promise<void>
 }
@@ -46,8 +46,9 @@ async function fetchOverview(): Promise<PortalSessionOverview> {
   return normalizePortalOverview((data ?? {}) as Record<string, unknown>)
 }
 
-function setPortalTelemetryUser(overview: PortalSessionOverview) {
-  Sentry.setUser({ id: String(overview.customer_id) })
+function setPortalTelemetryUser() {
+  // O Portal não envia ID estável de cliente ao Sentry.
+  Sentry.setUser(null)
   Sentry.setTag('area', 'portal')
 }
 
@@ -82,7 +83,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
         const ov = await fetchOverview()
         if (mounted) {
           setOverview(ov)
-          setPortalTelemetryUser(ov)
+          setPortalTelemetryUser()
         }
       } catch (error) {
         // Sessão Supabase pode existir sem perfil de portal (ex.: usuário interno);
@@ -105,7 +106,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
         void fetchOverview()
           .then((ov) => {
             if (mounted) setOverview((current) => current ?? ov)
-            if (mounted) setPortalTelemetryUser(ov)
+            if (mounted) setPortalTelemetryUser()
           })
           .catch((error) => {
             if (isPortalSessionError(error) && mounted) clearSession()
@@ -119,19 +120,21 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
     }
   }, [clearSession])
 
-  const signIn = useCallback(async (cnpj: string, password: string) => {
+  const signIn = useCallback(async (cnpj: string, password: string, turnstileToken?: string) => {
     setLoading(true)
     setSignOutError(null)
     try {
       const normalized = canonicalizeDocument(cnpj)
       if (!normalized) throw new Error('CNPJ ou senha inválidos.')
-      const { data, error } = await supabasePortal.functions.invoke('portal-login', { body: { cnpj: normalized, password } })
+      const payload: Record<string, unknown> = { cnpj: normalized, password }
+      if (turnstileToken) payload.turnstile_token = turnstileToken
+      const { data, error } = await supabasePortal.functions.invoke('portal-login', { body: payload })
       if (error || !data?.access_token) throw new Error('CNPJ ou senha inválidos.')
       const { error: sessionError } = await supabasePortal.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token })
       if (sessionError) throw new Error('CNPJ ou senha inválidos.')
       const ov = await fetchOverview()
       setOverview(ov)
-      setPortalTelemetryUser(ov)
+      setPortalTelemetryUser()
     } finally {
       setLoading(false)
     }
@@ -157,7 +160,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
     try {
       const ov = await fetchOverview()
       setOverview(ov)
-      setPortalTelemetryUser(ov)
+      setPortalTelemetryUser()
     } catch (error) {
       if (isPortalSessionError(error)) clearSession()
       throw error

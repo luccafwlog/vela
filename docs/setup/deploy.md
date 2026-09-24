@@ -161,6 +161,7 @@ As únicas variáveis necessárias ao bundle são públicas por definição do V
 | `VITE_SENTRY_DSN_INTERNAL` | DSN público do projeto Sentry interno | DSN público de Preview do projeto interno, se separado | vazio usa o fallback legado |
 | `VITE_SENTRY_DSN_PORTAL` | DSN público do projeto Sentry do Portal | DSN público de Preview do Portal, se separado | vazio usa o fallback legado |
 | `VITE_SENTRY_ENVIRONMENT` | `production` | `preview` | `development` |
+| `VITE_TURNSTILE_SITE_KEY` | Site Key público Cloudflare Turnstile do Portal | Site Key de teste/preview (opcional; sem chave opera em bypass) | chave de teste dummy ou vazio |
 
 `VITE_APP_COMMIT_SHA` é opcional: `vite.config.ts` injeta o commit Git atual
 quando a variável não é fornecida, mantendo o release visível no Sentry e na
