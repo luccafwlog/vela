@@ -9,11 +9,10 @@ por documento; o que cada entrega produziu está resumido no
 
 ## Conteúdo
 
+- [`2026-09-23-issue-710-consolidacao-service-a-service`](2026-09-23-issue-710-consolidacao-service-a-service.md)
+  — reconcilia PRs #717–#737 e detalha a integração serviço a serviço; implementado e consolidado em PR única.
 - [`2026-09-22-issue-710-endurecimento-stack`](2026-09-22-issue-710-endurecimento-stack.md)
-  — **superado, não concluído integralmente.** O trabalho foi parcialmente
-  entregue, mas o plano amplo foi substituído em 2026-09-23 por
-  [`2026-09-23-issue-710-consolidacao-service-a-service`](../../plans/2026-09-23-issue-710-consolidacao-service-a-service.md),
-  que reconcilia as PRs e ordena as pendências serviço a serviço.
+  — **superado, não concluído integralmente.** Substituído pelo plano consolidado de 2026-09-23.
 
 - [`2026-09-20-remediacao-ui-design-system.md`](2026-09-20-remediacao-ui-design-system.md)
   — remediação dos 15 achados da auditoria forense de UI, design system e
