@@ -1,7 +1,6 @@
 import { isCustomerReconciliationResolved } from '../../services/customerReconciliation'
 import { extractReviewReasons } from '../../hooks/useReview'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
-import { isContainerCargoMode } from '../../lib/cargoMode'
 import type { BillingBlockCode } from './validacaoTypes'
 
 // B/L reconciliado que ainda não é faturável: preso entre a conciliação de cliente
@@ -104,8 +103,9 @@ export function getBillingBlock(row: {
   if (row.billing_hold_reason) {
     return { code: 'calculo_incompleto', label: 'Cálculo incompleto', detail: row.billing_hold_reason }
   }
-  const mode = row.cargo_mode ?? 'container'
-  if (!row.ce_mercante?.trim() && (isContainerCargoMode(mode) || mode === '' || mode === 'granito')) {
+  // CE Mercante é exigido em todo modo faturável (ADR 0042; `assert_bl_ce_mercante`
+  // no banco). Granito já saiu acima como apoio operacional.
+  if (!row.ce_mercante?.trim()) {
     return { code: 'aguardando_ce', label: 'Aguardando CE Mercante', detail: 'Aguardando cadastro do CE Mercante para emitir a fatura.' }
   }
   if (portalOnly) {
@@ -157,7 +157,7 @@ export function getLegacyBillingBlockReason(row: {
 export const isBlLockedForRecalc = isBlFinanciallyLocked
 
 // Etapa 6 do plano de faturamento (ADR 0038, decisão 8): motivo mais comum de
-// um B/L de container ficar provisório depois que a promoção automática saiu
+// um B/L faturável ficar provisório depois que a promoção automática saiu
 // (migration 263) — já calculado e reconciliado, mas sem CE Mercante, então
 // reviewBillingAutomation.ts bloqueia só a emissão (não mais o cálculo).
 export function isAwaitingCeMercante(row: {
@@ -168,7 +168,7 @@ export function isAwaitingCeMercante(row: {
   customer_reconciliation_status: string | null
 }) {
   return (
-    isContainerCargoMode(row.cargo_mode ?? 'container') &&
+    (row.cargo_mode ?? 'container') !== 'granito' &&
     (row.financial_status ?? 'pending') === 'pending' &&
     !row.ce_mercante?.trim() &&
     // Achado 9 da review da PR 501: sem isto o card "Aguardando CE" contava

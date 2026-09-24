@@ -149,14 +149,11 @@ Corrige apenas o que já diverge do código atual. O que depende dos Blocos 2 e 
    - Antes, confirmar que `Bls.tsx` e `Granite.tsx` leem `?voyage=`.
    - Atualizar `viagens.md` (linhas 160 a 165 e 187) e a apresentação (slides
      Baplie e Viagem, nas abas).
-4. **R8, remover escala:**
-   - Em `VoyageVisaoTab.tsx`, tirar o `isAdmin` da lixeira da escala e manter a
-     confirmação.
-   - Em `ChegadasSaidas.tsx`, pedir confirmação quando a edição marca "não
-     escala" numa escala existente, dizendo se ela será removida ou mantida
-     (se houver vínculo).
-   - Conferir que a gravação passa por `audit_logs` e aparece na linha do tempo
-     da Viagem.
+4. **R8, remover escala (parte de tela):** em `ChegadasSaidas.tsx`, a edição
+   que marca "não escala" num porto de descarga que tinha data pede confirmação
+   (`clearedPodLabels`). A lixeira de `VoyageVisaoTab.tsx` continua exclusiva do
+   Administrativo neste bloco: ela pode apagar `voyage_export_schedules`, cuja
+   policy de DELETE exige `is_admin()`. A liberação foi para o Bloco 3 (item 7).
 5. **Checks:** `npm run docs:check`, `npm run typecheck`, `npm run lint`,
    `npm test` e `npm run build`.
 
@@ -224,6 +221,13 @@ apoia na linha "Data status" do `AGENTS.md`.
      - `taxas-locais.md:216`, `portal-cliente.md:341` e `faturamento.md`;
      - apresentação: slide "Quatro perguntas" e jornada.
 
+7. **R8, lixeira da escala para todos:** a exclusão de agendamento de
+   exportação sem vínculo passa por uma RPC auditada (ou a policy de DELETE de
+   `voyage_export_schedules` passa a aceitar `is_active_user()` com rastro); em
+   `VoyageVisaoTab.tsx`, tirar o `isAdmin` da lixeira e manter a confirmação.
+   Registrar como exceção à regra de exclusão da ADR 0046 e atualizar
+   `viagens.md` (linha "Excluir snapshot/POD").
+
 **Checks do Bloco 3:**
 
 - `npm run docs:check`, `npm run typecheck`, `npm run lint`, `npm test` e
@@ -286,3 +290,10 @@ apoia na linha "Data status" do `AGENTS.md`.
   `docs:check`, `git diff --check`, `eslint` no arquivo alterado e roteiro
   Playwright dos slides alterados, sem sobreposição e sem erro de JS. B5 segue
   para o Bloco 2.
+- **2026-09-23 · Bloco 2 (`codex/alinhamento-telas`):** feitos R3 (CE
+  exigido na carga solta e no misto), B5 (abas da Viagem na URL), R10 (faixa
+  "Atalhos da viagem"; `NavigationCard` removido por estar sem uso) e a parte de
+  tela de R8 (confirmação em Chegadas e Saídas). Checks: `typecheck`, `lint`,
+  `build`, `docs:check` e suíte completa; a única falha, em
+  `VoyageCard.kpis.test.tsx` (falta de roteador para os novos `Link`), foi
+  corrigida e reexecutada. Não houve verificação visual no app rodando.

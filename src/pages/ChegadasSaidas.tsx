@@ -6,7 +6,7 @@ import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { assertUploadSize } from '../lib/fileGuard'
 import { useAuth } from '../hooks/useAuth'
-import { emptyScheduleForm, buildScheduleLanes, scheduleFormFromVoyage, type ScheduleForm } from './chegadasSaidasForm'
+import { emptyScheduleForm, buildScheduleLanes, clearedPodLabels, scheduleFormFromVoyage, type ScheduleForm } from './chegadasSaidasForm'
 import { PORTAL_SCHEDULE_LANES, formatScheduleDate } from '../services/portalScheduleLanes'
 import { parseScheduleRows, scheduleTemplateColumns } from '../services/portalScheduleBulkImport'
 import { fetchPortalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
@@ -227,6 +227,7 @@ export function ChegadasSaidas() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState<ScheduleForm>(emptyScheduleForm)
+  const [originalForm, setOriginalForm] = useState<ScheduleForm | null>(null)
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const confirm = useConfirm()
@@ -257,13 +258,16 @@ export function ChegadasSaidas() {
 
   const openEdit = (voyage: PortalScheduleVoyage) => {
     setEditingId(voyage.voyageId)
-    setFormData(scheduleFormFromVoyage(voyage))
+    const form = scheduleFormFromVoyage(voyage)
+    setFormData(form)
+    setOriginalForm(form)
     setDialogOpen(true)
   }
 
   const closeDialog = () => {
     setDialogOpen(false)
     setEditingId(null)
+    setOriginalForm(null)
     setFormData({
       ...emptyScheduleForm,
       dates: { ...emptyScheduleForm.dates },
@@ -281,6 +285,16 @@ export function ChegadasSaidas() {
     if (pods.length === 0) {
       showToast('Informe ao menos um porto de descarga com data.', 'error')
       return
+    }
+    const cleared = editingId && originalForm ? clearedPodLabels(originalForm, formData) : []
+    if (cleared.length > 0) {
+      const confirmed = await confirm({
+        title: 'Marcar como “não escala”',
+        message: `${cleared.join(', ')}: a escala sai da Viagem e do Line-Up quando não tem B/L, ATA nem manifesto. Com vínculo, só a data sai do Portal.`,
+        confirmLabel: 'Confirmar',
+        tone: 'danger',
+      })
+      if (!confirmed) return
     }
     try {
       await createOrAttachVoyageFromSchedule({

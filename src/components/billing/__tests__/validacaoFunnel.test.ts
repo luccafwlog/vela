@@ -4,7 +4,11 @@ import { getBillingBlock, getBillingBlockReason, isAwaitingCeMercante, isBlLocke
 const base = { customer_reconciliation_status: 'matched_document', financial_status: 'pending', charge_status: 'calculated', review_status: null, notes: null, billing_hold_reason: null, customer_reconciliation_notes: null, charge_exemption_reason: null, ce_mercante: null as string | null, cargo_mode: 'container', customer: { id: 1 }, totals: { total_brl: 100, line_count: 1, review_required_count: 0 } }
 describe('billing blocks', () => {
   it('classifica container calculado sem CE como aguardando_ce', () => expect(getBillingBlock(base).code).toBe('aguardando_ce'))
-  it('classifica carga solta sem CE como pronta', () => expect(getBillingBlock({ ...base, cargo_mode: 'carga_solta' }).code).toBe('pronto'))
+  // Decisão de 2026-09-23 (ADR 0042): o banco exige CE para emitir em todo modo
+  // faturável; a fila não pode chamar de pronto o que a emissão vai recusar.
+  it('classifica carga solta sem CE como aguardando_ce', () => expect(getBillingBlock({ ...base, cargo_mode: 'carga_solta' }).code).toBe('aguardando_ce'))
+  it('classifica misto sem CE como aguardando_ce', () => expect(getBillingBlock({ ...base, cargo_mode: 'misto' }).code).toBe('aguardando_ce'))
+  it('libera carga solta com CE para emissão', () => expect(getBillingBlock({ ...base, cargo_mode: 'carga_solta', ce_mercante: '152605123456789' }).code).toBe('pronto'))
   it('classifica Granito como apoio operacional sem depender de CE', () => expect(getBillingBlock({ ...base, cargo_mode: 'granito' }).code).toBe('operacao_granito'))
   it('mantém Granito operacional mesmo quando há CE', () => expect(getBillingBlock({ ...base, cargo_mode: 'granito', ce_mercante: '122605051526081' }).code).toBe('operacao_granito'))
   it('prioriza causa estrutural sobre hold livre', () => expect(getBillingBlock({ ...base, customer: null, billing_hold_reason: 'texto livre' }).code).toBe('sem_cliente'))
@@ -70,6 +74,7 @@ describe('legacy predicates', () => {
   it('reconhece revisão pendente', () => expect(isPendingBillingReview(base)).toBe(true))
   it('trava financeiros faturados', () => expect(isBlLockedForRecalc('invoiced')).toBe(true))
   it('reconhece aguardando CE', () => expect(isAwaitingCeMercante(base)).toBe(true))
+  it('conta carga solta sem CE no backlog de aguardando CE', () => expect(isAwaitingCeMercante({ ...base, cargo_mode: 'carga_solta' })).toBe(true))
   it('não conta Granito com CE no backlog de aguardando CE', () => expect(isAwaitingCeMercante({ ...base, cargo_mode: 'granito', ce_mercante: '122605051526081' })).toBe(false))
   it('não conta Granito sem CE no backlog de aguardando CE', () => expect(isAwaitingCeMercante({ ...base, cargo_mode: 'granito', ce_mercante: null })).toBe(false))
 })

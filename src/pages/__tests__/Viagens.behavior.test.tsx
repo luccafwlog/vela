@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }), useQuery: () => ({ data: null, isLoading: false, error: null }) }))
@@ -108,10 +108,16 @@ vi.mock('../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
 import { Viagens } from '../Viagens'
 import { ConfirmDialogProvider } from '../../components/ui/ConfirmDialog'
 
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location">{location.pathname + location.search}</output>
+}
+
 function renderAt(path: string) {
   render(
     <MemoryRouter initialEntries={[path]}>
       <ConfirmDialogProvider>
+        <LocationProbe />
         <Routes>
           <Route path="/viagens" element={<Viagens />} />
           <Route path="/viagens/:voyageId" element={<Viagens />} />
@@ -186,4 +192,15 @@ it('mostra breadcrumb no deep-link da viagem', () => {
 it('US-213: ID inexistente mantem a tela e mostra "Viagem não encontrada"', () => {
   renderAt('/viagens/999')
   expect(screen.getByText('Viagem não encontrada')).toBeTruthy()
+})
+
+it('grava a aba da Viagem na URL e a aba padrão remove o parâmetro', () => {
+  renderAt('/viagens/41?escala=BRVIX&report=r-1')
+
+  fireEvent.click(screen.getByRole('tab', { name: 'Exportação' }))
+  // Escala e ADR só valem na aba ADR; ao sair dela o link fica limpo.
+  expect(screen.getByTestId('location').textContent).toBe('/viagens/41?tab=exportacao')
+
+  fireEvent.click(screen.getByRole('tab', { name: 'Visão geral' }))
+  expect(screen.getByTestId('location').textContent).toBe('/viagens/41')
 })

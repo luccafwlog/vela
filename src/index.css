@@ -4788,41 +4788,6 @@ textarea {
   color: #dc2626;
 }
 
-.app-voyage-nav-card {
-  display: grid;
-  min-height: 220px;
-  gap: 16px;
-  padding: 18px;
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 247, 251, 0.98));
-  box-shadow: var(--app-shadow);
-  text-align: left;
-  transition: transform 0.18s ease, border-color 0.18s ease;
-}
-
-.app-voyage-nav-card:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--app-blue) 35%, var(--app-border));
-}
-
-.app-voyage-nav-card--disabled {
-  opacity: 0.72;
-}
-
-.app-voyage-nav-card__badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  color: #c2410c;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
 .app-voyage-accordion {
   display: grid;
   gap: 16px;
