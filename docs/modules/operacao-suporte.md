@@ -247,8 +247,8 @@ O contrato vigente combina `compute_bl_review_pendencies` (`051`), seu
 núcleo `_compute_bl_review_pendencies` (`059`) e os gates de prontidão/emissão
 (`047`/`056`). Cliente ausente bloqueia; no caminho normal, contato ativo com
 email e prontidão do Portal são exigidos. Peso BB é validado para carga solta
-e misto. A exceção interna controlada da automação CE dispensa contato/Portal
-nesse contexto, sem liberar os caminhos manuais.
+e misto. A automação CE dispensa só o e-mail de contato; o Portal vale sempre,
+salvo Liberação de faturamento sem Portal vigente (ADR 0070, migration `083`).
 
 CE Mercante tem guarda documental própria antes de promover/emitir, mesmo
 quando não aparece no array de pendências de revisão. `save_bl_review` calcula
@@ -307,7 +307,7 @@ Invariantes:
 - `expected_updated_at` protege contra sobrescrita concorrente; conflito é `PT409`;
 - faturamento automático só é tentado quando `pendencias` está vazio;
 - CE Mercante é guarda documental de emissão, distinta do array de revisão;
-- Portal usa `customer_portal_access_ready`; automação CE possui exceção interna controlada;
+- Portal usa `customer_billing_access_ready` (Portal pronto ou Liberação vigente), inclusive na automação CE, que retém a fatura em vez de emitir;
 - nenhuma migration atual faz backfill top-level dos B/Ls históricos já faturados;
 - importação aplica o gate antes de `run_billing_for_import_batch`;
 - Granite compartilha a superfície de revisão, mas não a mesma RPC/status canônico de B/L comum.

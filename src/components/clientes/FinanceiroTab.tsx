@@ -10,6 +10,9 @@ import { formatBRL, formatDate, formatUSD } from '../../lib/utils'
 import { INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import { CustomerDemurrageAgreementModal } from '../demurrage/CustomerDemurrageAgreementModal'
 import type { useCustomerDetail } from '../../hooks/useCustomers'
+import { usePortalProvisioningForCustomer } from '../../hooks/usePortalProvisioning'
+import { isPortalReadyForBilling } from '../../lib/portalProvisioningViewModel'
+import { BillingPortalReleaseCard } from './BillingPortalReleaseCard'
 import type { CustomerDemurrageAgreementListItem } from '../../types/customerDemurrageAgreements'
 
 type Data = NonNullable<ReturnType<typeof useCustomerDetail>['data']>
@@ -26,6 +29,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
   const overrides = useCustomerRateOverrides(data.id)
   const manual = useCustomerManualChargeBls(data.id)
   const agreements = useCustomerDemurrageAgreements({ customerId: data.id })
+  const { data: portalRow } = usePortalProvisioningForCustomer(data.id)
 
   const [agreementModalOpen, setAgreementModalOpen] = useState(false)
   const [selectedAgreement, setSelectedAgreement] = useState<CustomerDemurrageAgreementListItem | null>(null)
@@ -44,6 +48,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
 
   return (
     <div className="grid gap-5">
+      <BillingPortalReleaseCard customerId={data.id} portalReady={portalRow ? isPortalReadyForBilling(portalRow) : undefined} />
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Invoices locais</h2>

@@ -85,9 +85,9 @@ Os formulários e defaults vivem em
   faturável (`isPendingBillingReview` em `validacaoPipeline.ts`), incluindo os
   presos no gate de revisão (`review_status = pending_review`), e o motivo de
   bloqueio expõe a pendência canônica (ex.: cliente sem e-mail cadastrado) via
-  `extractReviewReasons`. Prontidão de Portal integra a guarda manual de emissão; a retirada
-  histórica na migration `188` foi revertida. A automação CE tem exceção
-  interna controlada na `051`. **Etapa 6 do plano de faturamento (ADR 0038, decisão 8):** o painel
+  `extractReviewReasons`. Prontidão de Portal integra a guarda de toda emissão, manual e
+  automática (ADR 0070, migration `083`); a retirada histórica na migration `188` foi
+  revertida. A retenção do CE sem Portal aparece como *Portal não provisionado*. **Etapa 6 do plano de faturamento (ADR 0038, decisão 8):** o painel
   ganhou duas métricas antes do funil de revisão — "Provisório" (`charge_status
   = 'calculated'`, agora um estado real desde que a migration `263` desligou a
   promoção automática) e "Aguardando CE" (`isAwaitingCeMercante` em
@@ -223,12 +223,12 @@ flowchart LR
   `compute_bl_review_pendencies` está nas migrations ativas `051` (assinaturas
   públicas) e `059` (núcleo `_compute_bl_review_pendencies`). A `188` havia
   reduzido o gate a cliente vinculado, e-mail cadastrado e peso BB; a `337`
-  (ADR 0054) devolveu *Acesso ao portal nao provisionado*. Na emissão manual o
-  Portal bloqueia; na emissão automática pela transição do CE, a `051` dispensa
-  a prontidão do Portal num contexto interno privado (ver **Gate de faturamento
-  do Portal** em `CONTEXT.md`). A decisão de 2026-09-23 de bloquear também a
-  emissão automática está no
-  [plano de alinhamento](../plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md).
+  (ADR 0054) devolveu *Acesso ao portal nao provisionado*. Desde a `083`
+  (ADR 0070), o Portal bloqueia também a emissão automática pela transição do
+  CE: sem Portal pronto nem Liberação de faturamento sem Portal vigente, o CE
+  calcula, retém a fatura e grava o motivo em `billing_hold_reason`. O
+  contexto interno da `051` só dispensa o e-mail de contato (ver **Gate de
+  faturamento do Portal** em `CONTEXT.md`).
 - **Taxa local em USD (ADR 0038 decisão 6, achado 7, migration 268):** linha
   em USD deixou de bloquear `mark_bl_ready_for_billing`. Converte para BRL na
   emissão da fatura (`create_invoice_from_bls_core` /

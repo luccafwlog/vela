@@ -26,13 +26,16 @@ Para taxas locais, o saldo canônico é o ledger por recebível; a tabela
   individual “Emitir”, que mantém os mesmos gates. Granito é apoio operacional
   e não emite invoice (nota de 2026-09-23 na ADR 0042). Embarque de Vazios não emite CE nem possui faturamento de
   cliente.
-- A conta do Portal não é pré-requisito para essa emissão interna automática:
+- A emissão automática respeita o gate do Portal (ADR 0070, migration `083`):
   `trg_auto_bill_bl_after_ce_mercante`, criado pela migration `051`, é a fonte
-  de verdade da transição CE → cálculo → fatura. Se houver falha operacional,
+  de verdade da transição CE → cálculo → fatura. Sem Portal pronto nem
+  Liberação de faturamento sem Portal vigente, o CE calcula e **retém** a
+  fatura (`billing_hold_reason = 'Acesso ao portal nao provisionado'`, resultado
+  `held`), sem acionar a fila. Conceder a Liberação ou ativar o Portal
+  reprocessa o Cliente e emite as retidas pelo mesmo caminho. Se houver falha operacional,
   um efeito `local_billing` é enfileirado; com ator válido ele é recuperável e,
   sem `auth.uid()`, fica registrado como `actor_source=system` e bloqueado de
-  forma auditável, sem fabricar um usuário. A repetição é idempotente. Os
-  fluxos iniciados pelo Portal continuam protegidos pelo gate de acesso.
+  forma auditável, sem fabricar um usuário. A repetição é idempotente.
 - A comunicação financeira é posterior à emissão/disponibilização no Portal:
   `customer_local_charges_communication_readiness()` exige CE, revisão limpa e
   faturamento concluído em todos os B/Ls ativos do cliente na viagem. Quando
@@ -76,10 +79,9 @@ estado `Vencida` nesse trilho: essa regra não existe para taxas locais.
 
 No backend, `047_bl_documental_gates.sql` exige CE Mercante antes de marcar o
 B/L como pronto e nas fronteiras de emissão individual e consolidada. A
-migration `051_ce_mercante_auto_billing.sql` mantém esses gates para ações
-manuais/Portal, mas abre apenas o contexto interno temporário, verificado pelo
-owner da função, para que a transição CE emita sem depender do provisionamento
-do Portal. A leitura de
+migration `051_ce_mercante_auto_billing.sql` leva a emissão para a transição
+do CE; desde a `083` ela obedece ao mesmo gate do Portal que a emissão manual,
+e o contexto interno da `051` só dispensa o e-mail de contato. A leitura de
 Portal do detalhe também devolve `portal_access_ready`, calculado pela função
 canônica `customer_portal_access_ready`; a entrega continua usando
 `bl_has_portal_release`, que aplica a exigência documental aos dois modos de
@@ -126,12 +128,10 @@ foi removido junto com a coluna `invoices.due_date`.
   `customer_portal_accounts`/`customer_contacts` — é assim que provisionar o
   portal atualiza os B/Ls do cliente sem intervenção manual — e pelo backfill
   que alinhou os B/Ls já existentes ao critério novo. B/L faturado não é
-  recomputado. A emissão manual/consolidada continua recusando esse gate com
-  exceção; já a emissão interna automática do CE usa o contexto privado da
-  migration `051`, sem transformar a conta do Portal em pré-condição. O
-  `UPDATE` de `billing_hold_reason` que a antecedia morria no rollback da mesma
-  transação e saiu na `368` — o estado vivo das pendências é `notes`, escrito
-  pela `save_bl_review`, e é dele que a Validação lê. O cálculo não é afetado.
+  recomputado. A emissão manual/consolidada recusa esse gate com exceção; a
+  emissão automática do CE, desde a `083`, retém a fatura e grava o motivo em
+  `billing_hold_reason`. A Validação lê as duas fontes: `notes`, escrito pela
+  `save_bl_review`, e a retenção do CE. O cálculo não é afetado.
   Na Validação o
   motivo deixou de aparecer como “Cálculo incompleto”: `getBillingBlock` ganhou o
   código `portal_nao_provisionado`, atrás de cliente, cálculo e CE Mercante na

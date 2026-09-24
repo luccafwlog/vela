@@ -112,6 +112,7 @@ export const queryKeys = {
     runningDemurrage: (customerId: number) => ['customer-ficha', 'running-demurrage', customerId] as const,
     demurrageAgreements: (customerId: number) => ['customer-ficha', 'demurrage-agreements', customerId] as const,
     timeline: (customerId: number) => ['customer-ficha', 'timeline', customerId] as const,
+    billingPortalRelease: (customerId: number) => ['customer-ficha', 'billing-portal-release', customerId] as const,
   },
   customerCommunications: {
     all: () => ['customer-communications'] as const,

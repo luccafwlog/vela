@@ -912,9 +912,10 @@ do cálculo é o cadastro do CE Mercante — não existe ato separado de aprova�
 de marcação como pronto.
 
 Nenhum deles impede **calcular**: as taxas são calculadas para conferência
-mesmo com bloqueio aberto. Na emissão manual, esses motivos impedem emitir.
-A automação interna da transição do CE possui exceção controlada para o Portal
-(migration `051`); não é uma dispensa pública nem uma permissão do frontend.
+mesmo com bloqueio aberto. Esses motivos impedem emitir, na emissão manual e
+na automática pela transição do CE (ADR 0070). Sem Portal pronto, o CE calcula
+e retém a fatura no B/L; ela sai quando o Portal fica Ativo ou quando o
+Administrativo concede a **Liberação de faturamento sem Portal**.
 Quando mais de um está aberto, o
 motivo exibido segue esta ordem: cliente, cálculo, CE Mercante, portal. O portal
 vem por último porque é o único que não se resolve no B/L: é cadastro do
@@ -1324,10 +1325,20 @@ Condição server-side usada nos fluxos ordinários de emissão: a Conta de Port
 está Ativa, vinculada ao usuário de autenticação e com Email de Recuperação
 válido e não suprimido, de modo que o cliente consiga acessar e visualizar a
 fatura. A ausência dessa condição mantém o processo bloqueado e pode aparecer
-na revisão ou nos alertas do Cliente. A automação interna do CE pode emitir
-sem essa prontidão, exclusivamente no contexto privado da migration `051`.
-Isso não ativa a conta nem libera acesso do Cliente. Consulte também
-**Desacoplamento financeiro do Portal**.
+na revisão ou nos alertas do Cliente. Vale para toda emissão, inclusive a
+automática pela transição do CE (ADR 0070, migration `083`, que retirou a
+exceção interna da `051`). A única saída sem Portal é a **Liberação de
+faturamento sem Portal**. Consulte também **Desacoplamento financeiro do
+Portal**.
+
+**Liberação de faturamento sem Portal**
+Decisão do Administrativo, por Cliente, que abre o Gate de faturamento do
+Portal enquanto o Portal não fica pronto. Exige justificativa e data de
+revisão; registra autor e data. Ao ser concedida, emite as faturas que o CE
+reteve. Vencida a data de revisão, ou revogada, a trava volta e a próxima
+retenção reabre o Alerta de Portal não provisionado. Não ativa a conta nem dá
+acesso ao Cliente. Conceder e revogar ficam na ficha do Cliente (aba
+Financeiro) e no Console do Portal; os outros Departamentos só consultam.
 
 **Provisionamento autorizado**
 Decisão auditada de Documentação ou Administrativo que confirma o Email de
@@ -1619,15 +1630,16 @@ RLS, RPCs e Edge Functions devem negar o acesso; qualquer falha bloqueia a
 aprovação do piloto.
 
 **Desacoplamento financeiro do Portal**
-O desacoplamento é específico da **emissão automática interna pela transição
-do CE**, não uma regra universal. A migration `051` cria um contexto privado
-que dispensa a prontidão do Portal durante essa transação. Fora dele, emissão
-manual e gates ordinários preservam a exigência de Portal. A ausência de conta
-ou Email de Recuperação continua sendo pendência operacional.
+O desacoplamento é explícito e por Cliente: a **Liberação de faturamento sem
+Portal** (ADR 0070). Não existe mais exceção automática. De 2026-09 até a
+migration `083`, a transição do CE emitia sem Portal num contexto privado da
+`051`; essa exceção foi retirada. O contexto privado da `051` continua só para
+dispensar o e-mail de contato na emissão automática.
 
-Quando uma fatura é emitida sem Email de Recuperação ou sem Portal ativo, a
-pendência é crítica, permanece aberta e entra no resumo diário interno, mas a
-emissão automática nesse contexto não é bloqueada por essa ausência.
+Quando uma fatura é emitida sem Email de Recuperação ou sem Portal ativo (por
+exemplo, emitida antes da `083`), a pendência é crítica, permanece aberta e
+entra no resumo diário interno. Emitida com a Liberação vigente, ela não abre
+essa exceção: a Liberação é a decisão registrada.
 
 A exceção crítica da fatura fica vinculada àquela fatura e encerra-se quando ela
 deixa de estar aberta, por exemplo após pagamento, cancelamento, substituição ou
@@ -1868,7 +1880,7 @@ não substituem a leitura da última definição na cadeia ativa de migrations.
 | Peso e cubagem de B/L misto | [cargoMode.ts](src/lib/cargoMode.ts) |
 | Motivos exibidos na Validação, incluindo Granito | [validacaoPipeline.ts](src/components/billing/validacaoPipeline.ts) |
 | CE obrigatório e fronteiras de emissão | [migration 047](supabase/migrations/047_bl_documental_gates.sql) |
-| Exceção privada de faturamento automático do CE | [migration 051](supabase/migrations/051_ce_mercante_auto_billing.sql) |
+| Gate do Portal na emissão automática e Liberação de faturamento sem Portal | [migration 083](supabase/migrations/083_portal_trava_universal_liberacao_faturamento.sql) |
 | Permissões por Departamento | [useAuth.tsx](src/hooks/useAuth.tsx) e [rotas internas](src/AppInterno.tsx) |
 | Edição interna dos contatos e caixas | [migration 008](supabase/migrations/008_portal_contact_boxes.sql) |
 | Calendário do prazo do ADR | [agencyReportDeadline.ts](src/services/agencyReportDeadline.ts) |

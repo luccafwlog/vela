@@ -36,6 +36,7 @@ const DEACTIVATION_MIGRATIONS = [
 // semeado (`UPDATE public.alert_type_catalog SET ... WHERE type = '...'`).
 const CATALOG_UPDATE_MIGRATIONS = [
   '078_alertas_pix_administrativo_granito_normal.sql',
+  '083_portal_trava_universal_liberacao_faturamento.sql',
 ]
 
 const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi

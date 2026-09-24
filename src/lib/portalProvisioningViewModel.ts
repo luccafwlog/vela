@@ -38,6 +38,13 @@ export function hasBrokenRecoveryEmail(row: Pick<QueueRow, 'recoveryEmailStatus'
   return row.recoveryEmailSuppressed || (row.recoveryEmailStatus !== null && row.recoveryEmailStatus !== 'ok')
 }
 
+// Espelha o lado do Portal de `customer_billing_access_ready` (ADR 0054/0070):
+// conta ativa com Email de Recuperação utilizável. O banco é a autoridade; esta
+// leitura só decide o texto da Liberação de faturamento sem Portal.
+export function isPortalReadyForBilling(row: Pick<QueueRow, 'account_situation' | 'recovery_email' | 'recoveryEmailStatus' | 'recoveryEmailSuppressed'>): boolean {
+  return row.account_situation === 'ativo' && Boolean(row.recovery_email) && !hasBrokenRecoveryEmail(row)
+}
+
 export function hasPortalPendency(row: Pick<QueueRow, 'account_situation' | 'provisioning_decision'> | null | undefined): boolean {
   if (!row) return false
   return row.account_situation !== 'ativo'

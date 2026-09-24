@@ -200,9 +200,13 @@ ocorrências legadas de `isAdmin` pertencem à auditoria RBAC global futura.
 A migration 324 consolida a pendência do Portal por Cliente e o bloqueio
 final de emissão por B/L: a invoice só pode ficar issued quando a conta está
 ativa, o acesso Auth está presente e o e-mail de recuperação é válido,
-entregável e não suprimido. A ativação chama o reprocessamento idempotente dos
-B/Ls com reconciliação matched_document ou reconciled; bloqueios funcionais e
-falhas técnicas permanecem projetados no B/L.
+entregável e não suprimido, ou quando o Administrativo concedeu a Liberação de
+faturamento sem Portal para o Cliente (ADR 0070, migration 083). O gate vale
+também para a emissão automática pelo CE, que retém a fatura sem Portal. A
+ativação e a concessão da Liberação chamam o mesmo reprocessamento idempotente
+dos B/Ls com reconciliação matched_document ou reconciled, pelo caminho da
+transição do CE; bloqueios funcionais e falhas técnicas permanecem projetados
+no B/L. A Liberação aparece no painel do Cliente no Console do Portal.
 
 Disputes de Demurrage são conversas append-only em demurrage_disputes e
 demurrage_dispute_messages, com anexos privados por mensagem em Storage, RLS e
@@ -341,9 +345,12 @@ escopada por Cliente. Nenhuma escrita recebe invólucro de inspeção.
 
 Persistência principal: `customer_portal_accounts`, `portal_login_resolution_attempts`, `portal_rate_limits`, `portal_notifications`, `customers`, `customer_contacts`, `invoices`, `invoice_bls`, `invoice_receivable_links`, `bl_receivables`, `payments`, `demurrage_invoices`, `demurrage_invoice_items`, `bls`, `bl_containers`, `voyages` (projeção da programação), `alerts` e `invoice_lifecycle_events`.
 
-A falta de Portal ou Email de Recuperação não bloqueia revisão nem faturamento.
-Ela gera `portal_pendencia_geral` para Documentação e, na emissão de uma
-fatura, `portal_excecao_critica_fatura` vinculada à fatura. A exceção é fechada
+A falta de Portal ou Email de Recuperação bloqueia a emissão, manual ou
+automática, até o Portal ficar pronto ou até a Liberação de faturamento sem
+Portal (ADR 0070). Ela gera `portal_pendencia_geral` para Documentação e o
+Alerta `review_portal_not_ready` (Documentação trata, Administrativo avisado).
+Uma fatura emitida sem Portal e sem Liberação, como as anteriores à migration
+083, abre `portal_excecao_critica_fatura` vinculada à fatura. A exceção é fechada
 quando a fatura é paga, coberta, cancelada ou obsoleta; a pendência geral só é
 fechada por conta ativa ou exceção formal.
 

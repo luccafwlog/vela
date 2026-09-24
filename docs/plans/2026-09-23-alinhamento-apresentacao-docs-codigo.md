@@ -321,3 +321,26 @@ apoia na linha "Data status" do `AGENTS.md`.
     trava volta e o Alerta reaparece.
   - O Alerta de Portal não provisionado continua **tratado pela Documentação**,
     com o Administrativo avisado.
+- **2026-09-23 · Bloco 3, item 3.6 (`codex/alinhamento-portal`):**
+  - Migration **083**, autorizada pelo dono em 2026-09-23, e ADR 0070:
+    - o gate do Portal vale para toda emissão; a exceção interna da `051` saiu;
+    - o CE sem Portal calcula e **retém** a fatura (`held`), sem acionar a fila;
+    - Liberação de faturamento sem Portal por Cliente: só o Administrativo
+      concede e revoga, com justificativa e data de revisão;
+    - conceder e ativar o Portal reprocessam pelo mesmo caminho do CE;
+    - `review_portal_not_ready` conta os B/Ls retidos; Administrativo na audiência.
+  - Achados durante a execução:
+    - o reprocessamento antigo emitia pelo caminho manual, que exige e-mail de
+      contato; a Liberação não emitiria para Cliente sem contato. Passou a
+      usar o caminho do CE;
+    - a Validação lia qualquer `billing_hold_reason` como *Cálculo incompleto*;
+      a retenção do Portal passou a aparecer como *Portal não provisionado*;
+    - a `apply_ce_mercante_update` ainda registra um efeito legado; processado,
+      ele termina como sucesso retido, não como bloqueio.
+  - Limite registrado (`ponytail:` na 083): a vigência é lida na hora; o Alerta
+    só reaparece na próxima retenção ou reconciliação, não no vencimento.
+  - Checks: replay do zero (82 arquivos), suíte `local-pg` em série (31
+    arquivos), `typecheck`, `lint`, `build`, `test`, `docs:check`,
+    `migrations:check`, `rpc:check` e `verificar_guardas.py`.
+  - Não verificado: aplicação no Supabase remoto e o fluxo na interface com o
+    app rodando.
