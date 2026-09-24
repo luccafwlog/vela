@@ -329,16 +329,24 @@ Sequência operacional:
 
 ## Content-Security-Policy
 
-A CSP é definida em `vercel.json`. As origens efetivamente usadas pelo browser
-são:
+A CSP é definida em `vercel.json` e repetida no `_headers` do Cloudflare Pages
+(`scripts/cloudflare-pages-stage.mjs`); as duas precisam mudar juntas. As
+origens efetivamente usadas pelo browser são:
 
 ```text
 default-src 'self'
-script-src  'self'
+script-src  'self' https://challenges.cloudflare.com https://eu-assets.i.posthog.com
+frame-src   https://challenges.cloudflare.com
 connect-src 'self' https://*.supabase.co wss://*.supabase.co
             https://olinda.bcb.gov.br https://*.ingest.us.sentry.io
+            https://eu.i.posthog.com https://eu-assets.i.posthog.com
+            https://challenges.cloudflare.com
 font-src    'self' https://fonts.gstatic.com
 ```
+
+`challenges.cloudflare.com` é o widget do Turnstile no login e na recuperação
+do Portal; sem ele na CSP, ligar `VITE_TURNSTILE_SITE_KEY` trava o login.
+`eu-assets.i.posthog.com` serve a configuração remota do PostHog.
 
 `api.resend.com` não é acessado pelo browser: Resend continua sendo chamado
 somente pelas Supabase Edge Functions e por isso não precisa estar no

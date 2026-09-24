@@ -7,9 +7,11 @@ import {
   type RateLimitAction,
 } from './rateLimit.ts'
 
-// Contadores persistidos e distribuídos do Portal. O RPC continua sendo a
-// fonte de auditoria e o fallback fail-closed; quando o Redis está saudável,
-// ele decide o par IP+CNPJ sem transformar o CNPJ puro em chave.
+// Contadores persistidos e distribuídos do Portal. O balde do Supabase,
+// chaveado só pelo CNPJ (ADR 0049), é a trava que decide: falha da RPC conta
+// como bloqueio. O Redis (IP+CNPJ) só pode ACRESCENTAR bloqueio; um "allowed"
+// dele nunca libera um CNPJ que o Supabase já travou, senão trocar de IP
+// contornaria as 5 tentativas em 15 minutos.
 export type PortalRateLimitContext = { ip: string }
 
 let cachedRedisConfig = ''
@@ -58,13 +60,16 @@ async function registerDistributedSuccess(action: RateLimitAction, loginCnpj: st
   if (redis) await redis.registerSuccess({ action, ip: context.ip, cnpj: loginCnpj })
 }
 
+/** Supabase bloqueado sempre vence; o Redis só soma bloqueios. */
+export function isRateLimitBlocked(persistedBlocked: boolean, distributed: DistributedRateLimitResult | null): boolean {
+  return persistedBlocked || distributed?.state === 'blocked'
+}
+
 export async function isLoginRateLimited(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<boolean> {
   const { data, error } = await db.rpc('portal_login_check_rate_limit', { p_login: loginCnpj })
   const persistedBlocked = Boolean(error) || data === true
-  const distributed = await distributedRateLimitState('login', loginCnpj, context)
-  if (distributed?.state === 'blocked') return true
-  if (distributed?.state === 'allowed') return false
-  return persistedBlocked
+  if (persistedBlocked) return true
+  return isRateLimitBlocked(persistedBlocked, await distributedRateLimitState('login', loginCnpj, context))
 }
 
 export async function registerLoginFailure(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
@@ -80,10 +85,8 @@ export async function registerLoginSuccess(db: PortalDb, loginCnpj: string, cont
 export async function isRecoveryRateLimited(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<boolean> {
   const { data, error } = await db.rpc('portal_recovery_check_rate_limit', { p_login: loginCnpj })
   const persistedBlocked = Boolean(error) || data === true
-  const distributed = await distributedRateLimitState('recovery', loginCnpj, context)
-  if (distributed?.state === 'blocked') return true
-  if (distributed?.state === 'allowed') return false
-  return persistedBlocked
+  if (persistedBlocked) return true
+  return isRateLimitBlocked(persistedBlocked, await distributedRateLimitState('recovery', loginCnpj, context))
 }
 
 export async function registerRecoveryFailure(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {
@@ -94,10 +97,8 @@ export async function registerRecoveryFailure(db: PortalDb, loginCnpj: string, c
 export async function isActivationRateLimited(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<boolean> {
   const { data, error } = await db.rpc('portal_activation_check_rate_limit', { p_login: loginCnpj })
   const persistedBlocked = Boolean(error) || data === true
-  const distributed = await distributedRateLimitState('activation', loginCnpj, context)
-  if (distributed?.state === 'blocked') return true
-  if (distributed?.state === 'allowed') return false
-  return persistedBlocked
+  if (persistedBlocked) return true
+  return isRateLimitBlocked(persistedBlocked, await distributedRateLimitState('activation', loginCnpj, context))
 }
 
 export async function registerActivationFailure(db: PortalDb, loginCnpj: string, context?: PortalRateLimitContext): Promise<void> {

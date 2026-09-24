@@ -6,7 +6,10 @@ Redis estiver ativo.
 
 ## Contrato
 
-O limite padrão é de 10 erros em 5 minutos para a combinação de IP e CNPJ:
+O balde do Supabase (5 erros em 15 minutos por CNPJ, ADR 0049) sempre decide:
+se ele bloqueia, ou se a RPC falha, a tentativa é recusada mesmo que o Redis
+libere. O Redis só acrescenta bloqueios. Seu limite padrão é de 10 erros em 5
+minutos para a combinação de IP e CNPJ:
 
 - login: `portal-login` e verificação da senha atual na troca do Email de Recuperação;
 - recuperação: pedidos de recuperação, inclusive os que não encontram conta;

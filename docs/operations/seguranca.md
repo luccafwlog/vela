@@ -91,7 +91,7 @@ sem decompor no navegador o fator comercial da cotação.
 Definidos em `vercel.json`:
 
 - `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy`
-- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br` e Sentry. O browser não chama Resend diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#content-security-policy).
+- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src`/`frame-src` só abrem o Turnstile e a configuração do PostHog. O browser não chama Resend diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#content-security-policy).
 - **Telemetria Vercel:** Web Analytics e Speed Insights removem query strings e normalizam identificadores dinâmicos de clientes, B/Ls, viagens e inspeções antes do envio.
 
 ## Outras defesas
