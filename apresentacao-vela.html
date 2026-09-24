@@ -1582,7 +1582,7 @@
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-file"/></svg><span class="n">02</span></div><h3>Lê com o encoding certo</h3><p>Mostra formato, encoding e tamanho antes de qualquer interpretação.</p></div>
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-list"/></svg><span class="n">03</span></div><h3>Valida linha a linha</h3><p>Cada erro aponta a linha real do arquivo. Por padrão, erro bloqueia a confirmação.</p></div>
           <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-eye"/></svg><span class="n">04</span></div><h3>Mostra a prévia</h3><p>Novos, atualizados e bloqueados. O relatório completo de erros baixa em CSV.</p></div>
-          <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-db"/></svg><span class="n">05</span></div><h3>Grava em bloco</h3><p>Em geral, ou entra inteiro ou nada entra. A programação em lote e o CE por planilha gravam por linha.</p></div>
+          <div class="surface auto-step"><div class="top"><svg class="i"><use href="#i-db"/></svg><span class="n">05</span></div><h3>Grava em bloco</h3><p>Em geral, ou entra inteiro ou nada entra. Só a programação em lote de Chegadas e Saídas grava por linha.</p></div>
         </div>
         <div class="content" style="grid-template-columns: 1fr 470px; margin-top: 22px; gap: 20px">
           <div>
@@ -1627,7 +1627,7 @@
             <tr><td><b>Baplie EDI</b><span>EDI do plano de carga</span></td><td>Baplie · Viagem</td><td>Se é EDI de verdade; containers repetidos; quem está no Baplie e não em B/L, e o contrário.</td><td>IMO, OOG e classe dos containers · Vazios IMP · ADR</td></tr>
             <tr><td><b>B/L de container</b><span>Excel do armador</span></td><td>BLs · Viagem</td><td>Navio e viagem do arquivo = viagem escolhida; só número de container ISO; mudança que afeta cobrança pede confirmação auditada; troca de consignatário aparece antes.</td><td>B/L, Cliente pelo CNPJ, frete e despesas, ATD do POL, cálculo provisório</td></tr>
             <tr><td><b>B/L avulso</b><span>PDF ou DOCX</span></td><td>BLs · Viagem</td><td>A mesma trava de viagem declarada; avisos de leitura na prévia.</td><td>Partes, rota, volumes, peso, NCM, frete</td></tr>
-            <tr><td><b>CE Mercante</b><span>planilha ou EDI</span></td><td>BLs · Viagem</td><td>B/L de outra viagem é bloqueado; captura o nº do Manifesto Mercante.</td><td>Emissão da fatura · comunicado CE e Taxas</td></tr>
+            <tr><td><b>CE Mercante</b><span>planilha ou EDI</span></td><td>BLs · Viagem</td><td>B/L de outra viagem é bloqueado; uma linha ruim segura o lote inteiro; captura o nº do Manifesto Mercante.</td><td>Emissão da fatura · comunicado CE e Taxas</td></tr>
             <tr><td><b>Manifesto BB</b><span>carga solta</span></td><td>BLs</td><td>Formato numérico (vírgula ou ponto); número ambíguo bloqueia; teto de absurdo para peso, cubagem e volumes.</td><td>B/L de carga solta ou misto · peso da taxa</td></tr>
             <tr><td><b>Veículos</b><span>modelo, COSCO ou chinês</span></td><td>Veículos · Viagem</td><td>Chassi; B/L da viagem; container por número, tipo e lacre, sem ambiguidade.</td><td>VIN no Line Up · ADR · taxas</td></tr>
             <tr><td><b>Vazios IMP</b><span>container, tipo e tara</span></td><td>Vazios IMP · Viagem</td><td>Tara não negativa; porto reconhecido pelo cadastro.</td><td>MTY no Line Up · ADR</td></tr>
@@ -2446,11 +2446,11 @@
               <tbody>
                 <tr><td><b>Operação</b><span class="count">12</span></td><td><div class="chips-s"><i>B/L esperado pendente</i><i>Baplie ausente</i><i>Cobertura Baplie / B/L</i><i>CE Mercante pendente</i><i>Data da escala pendente</i><i>Data de terminal pendente</i><i>Exportação pendente pós-ATD</i><i>Comunicado NOA, NOR e NOB pendente</i><i>ADR: departamento pendente e prazo vencido</i></div></td><td>Documentação<br>Operações<br><span class="muted">ADR: cada setor</span></td></tr>
                 <tr><td><b>Revisão</b><span class="count">5</span></td><td><div class="chips-s"><i>Cliente não vinculado</i><i>Cliente sem e-mail</i><i>Portal não provisionado</i><i>Peso de carga solta ausente</i><i>Granito sem cliente</i></div></td><td>Documentação</td></tr>
-                <tr><td><b>Financeiro</b><span class="count">5</span></td><td><div class="chips-s"><i>Cálculo bloqueado</i><i>Falha de emissão automática</i><i>PIX sem conciliação segura</i><i>Falha na atualização da PTAX</i><i>Efeito de importação bloqueado</i></div></td><td>Documentação<br><span class="muted">PIX: avisa Equipamentos</span></td></tr>
+                <tr><td><b>Financeiro</b><span class="count">5</span></td><td><div class="chips-s"><i>Cálculo bloqueado</i><i>Falha de emissão automática</i><i>PIX sem conciliação segura</i><i>Falha na atualização da PTAX</i><i>Efeito de importação bloqueado</i></div></td><td>Documentação<br><span class="muted">PIX: Administrativo</span></td></tr>
                 <tr><td><b>Portal</b><span class="count">9</span></td><td><div class="chips-s"><i>Disputa de invoice Demurrage</i><i>Convite expirado</i><i>Falha de envio</i><i>E-mail suprimido</i><i>Abuso de login</i><i>Cliente sem contato alternativo</i><i>Exceção de fatura</i><i>+2</i></div></td><td>Documentação<br>Equipamentos<br>Administrativo</td></tr>
               </tbody>
             </table>
-            <div class="sevline"><span><i class="dot crit"></i><b>19</b> críticas</span><span><i class="dot norm"></i><b>12</b> normais</span><span class="muted">Duas severidades apenas: Crítico e Normal.</span></div>
+            <div class="sevline"><span><i class="dot crit"></i><b>18</b> críticas</span><span><i class="dot norm"></i><b>13</b> normais</span><span class="muted">Duas severidades apenas: Crítico e Normal.</span></div>
           </div>
         </div>
         <div class="gain gain-row" style="margin-top: 20px; grid-template-columns: auto 1fr">
@@ -2533,7 +2533,7 @@
                     <thead><tr><th>Severidade</th><th>Tipo</th><th>Responsável</th><th>Mensagem</th><th>Criação</th><th></th></tr></thead>
                     <tbody>
                       <tr><td><span class="badge badge--red">Crítico</span></td><td>CE Mercante pendente</td><td class="muted">Documentação</td><td class="msg">3 B/Ls da AURORA 123N sem CE Mercante</td><td class="num">09/10/2026</td><td><span class="btn btn--secondary sm">Abrir Viagem<svg class="i"><use href="#i-external"/></svg></span><span class="btn btn--secondary sm">Dispensar</span></td></tr>
-                      <tr><td><span class="badge badge--red">Crítico</span></td><td>PIX sem conciliação segura</td><td class="muted">Documentação</td><td class="msg">PIX de R$ 4.380,00 sem cobrança correspondente</td><td class="num">13/10/2026</td><td><span class="btn btn--secondary sm">Abrir Reconciliação<svg class="i"><use href="#i-external"/></svg></span><span class="btn btn--secondary sm">Dispensar</span></td></tr>
+                      <tr><td><span class="badge badge--red">Crítico</span></td><td>PIX sem conciliação segura</td><td class="muted">Administrativo</td><td class="msg">PIX de R$ 4.380,00 sem cobrança correspondente</td><td class="num">13/10/2026</td><td><span class="btn btn--secondary sm">Abrir Reconciliação<svg class="i"><use href="#i-external"/></svg></span><span class="btn btn--secondary sm">Dispensar</span></td></tr>
                       <tr><td><span class="badge badge--yellow">Normal</span></td><td>Data de terminal pendente</td><td class="muted">Operações</td><td class="msg">ETB atingido sem ATB · Vitória, Terminal B</td><td class="num">17/10/2026</td><td><span class="badge badge--slate">Dispensado até 19/10/2026</span></td></tr>
                       <tr><td><span class="badge badge--yellow">Normal</span></td><td>Disputa de invoice Demurrage</td><td class="muted">Equipamentos</td><td class="msg">Cliente abriu disputa na DEM-2026-0412</td><td class="num">20/10/2026</td><td><span class="btn btn--secondary sm">Ver Demurrage<svg class="i"><use href="#i-external"/></svg></span><span class="btn btn--secondary sm">Dispensar</span></td></tr>
                     </tbody>
@@ -2595,7 +2595,7 @@
           <div style="display:flex; flex-direction:column; gap: 16px">
             <div class="surface pad">
               <ul class="clean rules">
-                <li><div class="ico"><svg class="i"><use href="#i-users"/></svg></div><div><h3>Quem trata e quem fica sabendo</h3><p>Cada regra tem um setor responsável e uma lista de setores avisados. PIX sem conciliação é tratado por Documentação e avisa Equipamentos, porque pode ser um pagamento de Demurrage.</p></div></li>
+                <li><div class="ico"><svg class="i"><use href="#i-users"/></svg></div><div><h3>Quem trata e quem fica sabendo</h3><p>Cada regra tem um setor responsável e uma lista de setores avisados. PIX sem conciliação é tratado pelo Administrativo, que abre a Conciliação PIX, e avisa Documentação e Equipamentos, porque pode ser um pagamento de Demurrage.</p></div></li>
                 <li><div class="ico"><svg class="i"><use href="#i-undo"/></svg></div><div><h3>Eco de Tratamento</h3><p>Quando alguém dispensa uma pendência, quem já tinha sido avisado recebe quem dispensou e até quando.</p></div></li>
                 <li><div class="ico"><svg class="i"><use href="#i-shield-alert"/></svg></div><div><h3>Crítico nunca fica sem dono</h3><p>Se não há ninguém ativo no setor avisado, o Alerta crítico vai para o Administrativo, marcado como Entrega alternativa.</p></div></li>
                 <li><div class="ico"><svg class="i"><use href="#i-history"/></svg></div><div><h3>O aviso é uma cópia do fato</h3><p>Fechar ou dispensar o Alerta não apaga a notificação: fica o registro de que a pessoa foi avisada.</p></div></li>

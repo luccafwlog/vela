@@ -2,7 +2,7 @@ import { supabase } from '../supabase'
 
 export type DemurrageDisputeMessage = {
   id: number
-  author_type: 'cliente' | 'equipamentos' | 'sistema'
+  author_type: 'cliente' | 'equipamentos' | 'administrativo' | 'sistema'
   body: string
   next_responder: 'cliente' | 'equipamentos' | 'ninguem'
   created_at: string

@@ -110,7 +110,7 @@ export const FINANCIAL_ALERT_EVENTS = {
   billing_calculation_blocked: { audience: ['documentacao'], unit: 'bl' },
   billing_auto_issue_failed: { audience: ['documentacao'], unit: 'bl' },
   demurrage_ptax_recalc_failed: { audience: ['documentacao'], unit: 'exchange_rate_reference' },
-  pix_unreconciled: { audience: ['documentacao', 'equipamentos'], unit: 'pix_transaction' },
+  pix_unreconciled: { audience: ['administrativo', 'documentacao', 'equipamentos'], unit: 'pix_transaction' },
   portal_dispute_opened: { audience: ['equipamentos'], unit: 'demurrage_invoice' },
 } as const satisfies Record<string, { audience: readonly AlertAudience[]; unit: AlertEventUnit }>
 

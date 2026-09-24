@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   importBreakbulkManifest: vi.fn(() => Promise.resolve()),
   parseBaplieFile: vi.fn(),
   importBaplieStaging: vi.fn(() => Promise.resolve({ staged: 1 })),
+  countBaplieStaging: vi.fn(() => Promise.resolve(0)),
+  confirm: vi.fn(() => Promise.resolve(true)),
   can: vi.fn<(permission: string) => boolean>(() => true),
   effectiveRole: vi.fn(() => 'documentacao'),
   profile: { id: 'user-1' },
@@ -36,8 +38,11 @@ vi.mock('../../../services/breakbulkImport', () => ({
 vi.mock('../../../services/baplieParser', () => ({
   parseBaplieFile: mocks.parseBaplieFile,
 }))
+vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('../../../services/baplieImport', () => ({
   importBaplieStaging: mocks.importBaplieStaging,
+  countBaplieStaging: mocks.countBaplieStaging,
+  baplieReplacementMessage: (existing: number, incoming: number) => `${existing}->${incoming}`,
 }))
 vi.mock('../CeMercanteImportModal', () => ({
   CeMercanteImportModal: ({ lockedVoyageId, target }: { lockedVoyageId?: number; target?: string }) => <div>CE travado: {lockedVoyageId} · {target ?? 'bls'}</div>,
@@ -52,7 +57,11 @@ beforeEach(() => {
   mocks.invalidateQueries.mockResolvedValue(undefined)
   mocks.importBreakbulkManifest.mockResolvedValue(undefined)
   mocks.parseBaplieFile.mockReset()
+  mocks.importBaplieStaging.mockReset()
   mocks.importBaplieStaging.mockResolvedValue({ staged: 1 })
+  mocks.countBaplieStaging.mockResolvedValue(0)
+  mocks.confirm.mockReset()
+  mocks.confirm.mockResolvedValue(true)
   mocks.navigate.mockReset()
 })
 afterEach(cleanup)
@@ -330,4 +339,48 @@ it('permite declarar o formato numérico no modal de manifesto BB', async () => 
       { numberFormat: 'pt-BR' },
     )
   })
+})
+
+const validBaplie = {
+  vessel_name: 'GREEN SANTOS',
+  voyage_number: '14N',
+  containers: [{
+    container_number: 'TCLU1234567', size_type: '45G1', status: 'full', weight_kg: 21000, pol: 'CNSHA', pod: 'BRSSA',
+    final_dest: null, bl_ref: null, slot: '010101', is_imo: false, imo_class: null, un_number: null, is_oog: false,
+  }],
+  pods: ['BRSSA'],
+  issues: [],
+  encoding: 'utf-8',
+}
+
+async function openBaplieWithFile() {
+  const { container } = renderActions()
+  fireEvent.click(screen.getByRole('button', { name: /Baplie/ }))
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['edi'], 'baplie.edi', { type: 'text/plain' })] },
+  })
+  await waitFor(() => expect(mocks.parseBaplieFile).toHaveBeenCalledTimes(1))
+  const confirm = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
+  await waitFor(() => expect(confirm.disabled).toBe(false))
+  fireEvent.click(confirm)
+}
+
+it('pede confirmação antes de substituir o Baplie que a viagem já tem', async () => {
+  mocks.parseBaplieFile.mockResolvedValue(validBaplie)
+  mocks.countBaplieStaging.mockResolvedValue(612)
+  mocks.confirm.mockResolvedValue(false)
+
+  await openBaplieWithFile()
+
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ message: '612->1' })))
+  expect(mocks.importBaplieStaging).not.toHaveBeenCalled()
+})
+
+it('importa direto quando a viagem ainda não tem Baplie', async () => {
+  mocks.parseBaplieFile.mockResolvedValue(validBaplie)
+
+  await openBaplieWithFile()
+
+  await waitFor(() => expect(mocks.importBaplieStaging).toHaveBeenCalledTimes(1))
+  expect(mocks.confirm).not.toHaveBeenCalled()
 })

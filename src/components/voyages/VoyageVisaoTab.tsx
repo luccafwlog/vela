@@ -38,7 +38,6 @@ export function VoyageVisaoTab({
   escalaRows,
   importBatches,
   exportSchedules,
-  isAdmin,
   divergenceCount,
   ceCoverage,
   canEdit = true,
@@ -50,7 +49,6 @@ export function VoyageVisaoTab({
   escalaRows: VoyageEscalaSchedule[]
   importBatches: VoyageImportBatch[]
   exportSchedules: VoyageExportSchedule[]
-  isAdmin: boolean
   divergenceCount: number
   ceCoverage: { filled: number; total: number }
   canEdit?: boolean
@@ -319,10 +317,9 @@ export function VoyageVisaoTab({
                               <AlertTriangle size={15} />
                             </Button>
                           ) : null}
-                          {isAdmin && canEdit ? (
-                            // handleDeleteEscala pode chamar deleteVoyageExportSchedule,
-                            // cuja policy de DELETE exige is_admin() (091). Nao trocar
-                            // por canEditVoyages sem tambem alinhar a RLS.
+                          {canEdit ? (
+                            // Todo Departamento remove escala sem vínculo (migration 080);
+                            // o banco recusa quando há B/L, Granito ou embarque de vazios.
                             <Button
                               variant="danger"
                               className="app-voyage-icon-btn"

@@ -297,3 +297,34 @@ apoia na linha "Data status" do `AGENTS.md`.
   `build`, `docs:check` e suíte completa; a única falha, em
   `VoyageCard.kpis.test.tsx` (falta de roteador para os novos `Link`), foi
   corrigida e reexecutada. Não houve verificação visual no app rodando.
+- **2026-09-23 · Bloco 3, primeira PR (`codex/alinhamento-banco`):**
+  - Migrations 077 a 082, autorizadas pelo dono em 2026-09-23:
+    - **077:** Baplie para todo Departamento, com confirmação de substituição (R1).
+    - **078:** a fila de Alertas passa a aceitar `administrativo`, que recebe o
+      Alerta de PIX; Granito sem cliente passa a Normal (R2, R7).
+    - **079:** `bl_timeline` lê a auditoria de `bl_containers` (R11).
+    - **080:** lixeira da escala para todos (R8).
+    - **081:** o Administrativo responde e reabre disputa (R13).
+    - **082:** CE por planilha tudo ou nada (R12).
+  - Achados durante a execução:
+    - Até a 078, a fila recusava `administrativo`, e só o teste no banco
+      revelou isso.
+    - A RPC da 082 não está no bloco gerado de `database.ts`, porque não há
+      CLI do Supabase nesta sessão.
+  - Checks:
+    - replay do zero no Postgres descartável e suíte `local-pg` em série;
+    - `typecheck`, `lint`, `build`, `test`, `docs:check`, `migrations:check`,
+      `rpc:check` e `verificar_guardas.py`.
+  - Pendente: 3.6 (Portal como bloqueio universal), em PR própria.
+- **2026-09-24 · Revisão da primeira PR do Bloco 3 (`vela-code-review`):**
+  - **079:** o Histórico mostrava duas vezes a mesma mudança de container
+    quando ela já tinha o evento semântico `bl_container` com justificativa
+    (edição manual de datas, sincronização com a ATA). A linha da auditoria
+    por coluna passou a ficar de fora nesse caso.
+  - **077:** com a importação aberta a todos, o autor do Baplie passou a vir
+    da sessão (`auth.uid()`), e cada importação grava o evento
+    `voyage/baplie_import` com a quantidade antes e depois.
+  - A 077 e a 079 foram corrigidas no próprio arquivo, com autorização do dono
+    para corrigir dentro da PR. Nenhuma das duas estava no `main`.
+  - Checks: replay do zero e `alinhamentoPermissoes.local-pg.test.ts`; os dois
+    testes novos falham com as versões anteriores da 077 e da 079.

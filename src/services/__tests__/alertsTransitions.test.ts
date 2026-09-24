@@ -112,7 +112,7 @@ it('expõe somente os tipos financeiros ativos do contrato', () => {
       unit: 'exchange_rate_reference',
     },
     pix_unreconciled: {
-      audience: ['documentacao', 'equipamentos'],
+      audience: ['administrativo', 'documentacao', 'equipamentos'],
       unit: 'pix_transaction',
     },
     portal_dispute_opened: {

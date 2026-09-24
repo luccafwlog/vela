@@ -488,7 +488,6 @@ export function VoyageCard({
               escalaRows={planningEscalaRows}
               importBatches={importBatches}
               exportSchedules={exportSchedules}
-              isAdmin={isAdmin}
               divergenceCount={divergenceCount}
               ceCoverage={ceCoverage}
               canEdit={!isCancelled}

@@ -15,7 +15,8 @@ import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { parseBaplieFile } from '../services/baplieParser'
-import { importBaplieStaging } from '../services/baplieImport'
+import { baplieReplacementMessage, countBaplieStaging, importBaplieStaging } from '../services/baplieImport'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import { hasBlsForVoyage, listBaplieStaging } from '../services/baplieReadModel'
 import {
   reconcileBaplieWithManifest,
@@ -40,9 +41,9 @@ export function Baplie() {
   const [searchParams, setSearchParams] = useSearchParams()
   const voyageId = searchParams.get('voyage') ?? ''
   const { showToast } = useToast()
-  const { user, profile, isAdmin } = useAuth()
+  const { user, profile } = useAuth()
   const canImportVazios = Boolean(profile || user)
-  const canUploadManifests = isAdmin
+  const canUploadManifests = Boolean(profile || user)
   const queryClient = useQueryClient()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -290,7 +291,7 @@ function StateA({ canImport, onUpload }: { canImport: boolean; onUpload: () => v
             Importar Baplie EDI
           </Button>
         ) : (
-          <div className="text-sm text-amber-200">A importação Baplie exige perfil administrativo.</div>
+          <div className="text-sm text-amber-200">A importação do Baplie exige um usuário interno ativo.</div>
         )}
       </div>
     </Card>
@@ -684,6 +685,7 @@ function BaplieUploadModal({
 }) {
   const { user } = useAuth()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const [voyageId, setVoyageId] = useState(initialVoyageId)
   const { preview: parsed, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<Awaited<ReturnType<typeof parseBaplieFile>>>(parseBaplieFile)
   const [submitting, setSubmitting] = useState(false)
@@ -729,6 +731,13 @@ function BaplieUploadModal({
     if (!canImport || !user) return
     setSubmitting(true)
     try {
+      const existing = await countBaplieStaging(Number(voyageId))
+      if (existing > 0 && !(await confirm({
+        title: 'Substituir o Baplie da viagem',
+        message: baplieReplacementMessage(existing, filteredContainers.length),
+        confirmLabel: 'Substituir',
+        tone: 'danger',
+      }))) return
       const { staged } = await importBaplieStaging(Number(voyageId), filteredContainers, user.id)
       showToast(`Baplie importado: ${staged} container(s) em staging.`, 'success')
       onImported()

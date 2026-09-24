@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { describeTimelineEvent, familyLabel, isAudited } from '../blTimelinePresentation'
 
 describe('describeTimelineEvent', () => {
+  it('nomeia o container e o campo vindos da auditoria por coluna (migration 079)', () => {
+    const devolucao = { family: 'container', entity_type: 'bl_container', field_name: 'return_date|TCLU1234567', old_value: null, new_value: '2026-10-20', justification: null } as never
+    expect(describeTimelineEvent(devolucao)).toBe('Container TCLU1234567 · Devolução: - → 20/10/2026')
+    const imo = { family: 'container', entity_type: 'bl_container', field_name: 'is_imo|TCLU1234567', old_value: 'false', new_value: 'true', justification: null } as never
+    expect(describeTimelineEvent(imo)).toBe('Container TCLU1234567 · IMO: Não → Sim')
+  })
   it('humanizes a field edit', () => {
     const e = { family: 'edicao', entity_type: 'bl', field_name: 'notify_party', old_value: 'X', new_value: 'Y', justification: 'ajuste' } as never
     expect(describeTimelineEvent(e)).toBe('Notify Party: X → Y')
