@@ -24,6 +24,7 @@ vi.mock('../../services/supabase', () => ({
 
 import { INCOMPLETE_CNPJ_MESSAGE } from '../../lib/portalCnpjLogin'
 import { PortalLogin } from '../PortalLogin'
+import { PORTAL_LOGIN_REJECTED_MESSAGE } from '../../lib/portalCnpjLogin'
 
 afterEach(() => {
   cleanup()
@@ -111,7 +112,7 @@ it('senha errada em CNPJ completo mantem a mensagem generica de credenciais', as
   await user.type(screen.getByLabelText('Senha'), 'senha-errada')
   await user.click(screen.getByRole('button', { name: 'Entrar no portal' }))
 
-  await waitFor(() => expect(screen.getByText('Credenciais inválidas para o portal do cliente.')).toBeTruthy())
+  await waitFor(() => expect(screen.getByText(PORTAL_LOGIN_REJECTED_MESSAGE)).toBeTruthy())
 })
 
 it('exibe o aviso quando a revogacao remota falha depois que a tela de login ja montou', () => {
