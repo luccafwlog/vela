@@ -376,10 +376,12 @@ problema.
    Sem `dig` no Windows, consulte `https://cloudflare-dns.com/dns-query?name=<nome>&type=<tipo>`
    com o cabeçalho `accept: application/dns-json`.
 
-2. **DNSSEC.** Registro.br → domínio → **DNS** → seção **DNSSEC**. Se houver
-   chave (DS) cadastrada, **remova-a** e espere **24 horas** antes do passo 6.
-   Trocar os servidores DNS com o DS antigo derruba o domínio. Os dois
-   domínios podem ter o DS removido no mesmo dia.
+2. **DNSSEC.** Com o DNS do próprio Registro.br, a chave é automática e não há
+   como removê-la à parte. Ao salvar os servidores externos (passo 6), o
+   Registro.br mostra "servidores DNS em transição" por cerca de 2 horas: ele
+   retira a chave antiga, espera a validade dela vencer e só então delega. Não
+   há espera de 24 horas nem queda. Só em domínio com DNS de terceiros e DS
+   cadastrado à mão é preciso remover o DS e esperar antes de trocar.
 3. Cloudflare → **Add a domain** → digite o domínio → deixe a opção de
    **importar automaticamente** os registros (Quick scan) → plano **Free**.
 4. Na revisão dos registros, compare com a foto do passo 1, **um a um**. O
@@ -412,9 +414,11 @@ problema.
    - **`portalfwlog.com.br`, envio (Resend).** No Resend → **Domains** →
      **Add domain** → `portalfwlog.com.br`, região **São Paulo (sa-east-1)**.
      Copie para a Cloudflare exatamente os registros que o Resend mostrar
-     (normalmente `TXT resend._domainkey`, `MX send` →
-     `feedback-smtp.sa-east-1.amazonses.com` prioridade 10 e `TXT send` com
-     `v=spf1 include:amazonses.com ~all`). Todos com nuvem **cinza**.
+     (em 2026-09: `TXT resend._domainkey` e dois `CNAME`, `send` e `rsend`,
+     para `*.forge.rmta.net`). Os valores aparecem cortados no Resend: copie
+     cada um pelo botão de copiar. CNAME nasce com nuvem laranja na Cloudflare;
+     deixe **cinza**. Mantenha **Enable Receiving** desligado no Resend (o
+     recebimento é do ImprovMX).
    - **`portalfwlog.com.br`, DMARC:** `TXT` `_dmarc` =
      `v=DMARC1; p=none; rua=mailto:suporte@portalfwlog.com.br; fo=1`. Suba para
      `p=quarantine` depois de algumas semanas de relatórios sem surpresa.
@@ -501,6 +505,7 @@ cinza). Em seguida, remova o custom domain do projeto Pages.
 | 5 | 2026-09-24 | Dono | Pages: requisições a `eu-assets.i.posthog.com` e `eu.i.posthog.com` com 200, sem erro de CSP. Não havia fatura para gerar `invoice_viewed`; a limpeza das propriedades é coberta por `featureFlags.test.ts`. Pendente: conferir o primeiro `invoice_viewed` real |
 | 6 | 2026-09-24 | Dono + Claude Code | Bucket e regra "Expire backups after 90 days" (prefixo `vela/database`) já existiam. Chaves do R2 lidas do Gerenciador de Credenciais; chave de cifragem nova, guardada no Gerenciador de Credenciais e no iCloud Senhas; senha do banco resetada. Primeiro backup às 15:01 UTC e execução pela tarefa agendada às 15:11 UTC (0x0), ambos no R2. Corrigido `scripts/backup-r2.mjs`: `--file=-` fazia o `pg_dump` do Windows gravar o banco sem cifragem num arquivo `-` (apagado na hora, não saiu da máquina) |
 | 7 | 2026-09-24 | Dono + Claude Code | Aplicações do Access `*.vela-internal.pages.dev` e `*.vela-portal.pages.dev` com Include só `luccafwlog@gmail.com` (login pela conta Cloudflare); `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`. PR #753: sem sessão, os dois `pr-753` redirecionam para o Access; janela anônima barrada no login da Cloudflare. A preview abria em branco: o GitHub descartava o output `supabase_anon_key` ("may contain secret"); corrigido na #753 (artefato + recusa de build sem chave). Na #754 (já com a correção): dono entrou no Vela da preview até `/painel` e viu o login do Portal, sem erro de configuração do Supabase. Resta no console só o manifest bloqueado pelo redirecionamento do Access (inofensivo, só nas previews) |
+| 9 | 2026-09-24 | Dono + Claude Code | Em andamento. Foto do DNS: só `A 216.198.79.1` e DNSSEC nos dois domínios; e-mail só em `transhippingdesk.com.br`. Zonas já existiam na Cloudflare (Free); `A` passado para DNS only. `vela.app.br`: SPF `-all` e DMARC `reject`. `portalfwlog.com.br`: ImprovMX (`suporte@` → `importacao@fwlog.com.br`, `lucca.juliatti@fwlog.com.br`), MX, SPF, DKIM e CNAMEs do Resend, DMARC; conferidos nos servidores da Cloudflare. `DEMURRAGE_REPLY_TO`=`eqp@fwlog.com.br` e `COMMUNICATIONS_REPLY_TO`=`importacao@fwlog.com.br` (16:53–16:54 UTC; `demurrage-dunning` publicada da #755). Servidores trocados no Registro.br para `ariadne`/`pablo`: "em transição" (~2 h). Pendente: Active, Resend Verified, teste do `suporte@`, troca de `PORTAL_FROM_EMAIL`/`PORTAL_REPLY_TO`/`PORTAL_SUPPORT_EMAIL`, DNSSEC na Cloudflare |
 
 ### Ocorrido de 2026-09-24 — login do Portal fora do ar
 
