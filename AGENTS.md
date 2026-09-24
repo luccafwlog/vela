@@ -91,7 +91,10 @@ given for the specific action and environment.
 Update living documentation in the same change when modifying routes, commands,
 environment variables, migrations, auth contracts, operational procedures, or
 architectural decisions. Preserve historical records; use a new ADR or an
-editorial note for later decisions. Read `docs/README.md` before broad
+editorial note for later decisions. A change to any external service (account,
+DNS, secret name, webhook, scheduled job, hosting, e-mail routing) also updates
+[the external services manual](docs/operations/servicos-externos.md) in the same
+change; record names and locations of secrets, never their values. Read `docs/README.md` before broad
 documentation or architecture changes.
 
 Plan/spec lifecycle (full rule in `docs/CONVENCOES.md`, "Ciclo de vida de
