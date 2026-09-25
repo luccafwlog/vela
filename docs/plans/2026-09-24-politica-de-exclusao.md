@@ -199,10 +199,9 @@ Visível: nenhum papel "admin" nas telas de usuários; nada muda no dia a dia.
   em `src/hooks/useAuth.tsx`. Cabeçalho declara dependência do status de
   dados descartáveis.
 - Rotina de retenção (`pg_cron`, configuração no Vault conforme ADR 0063):
-  expurgo de `audit_logs` > 5 anos e de eventos/tentativas do Portal > 1 ano;
-  anonimização de contatos, contas do Portal e usuários desativados há mais de
-  2 anos, inclusive nas cópias em `audit_logs` — exceção controlada à trilha
-  imutável, executada só pela rotina.
+  expurgo de `audit_logs` > 5 anos e de eventos/tentativas do Portal > 1 ano.
+  A anonimização prevista aqui foi retirada em 2026-09-25 (nota na ADR 0074);
+  a rotina é SQL puro e não precisou de Vault.
 - Backup diário: agendar o procedimento de `docs/operations/backup-r2.md` e
   testar uma restauração; atualizar `docs/operations/servicos-externos.md`.
 - Aceite: teste local-pg da rotina com datas simuladas; registro de uma
