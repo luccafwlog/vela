@@ -99,6 +99,20 @@ Parar de ver um aviso. Nada muda no dado. Exclusivo de Alertas e Notificações.
 Devolução ao cliente de valor que ele pagou a maior. Não é o desfazer de uma
 baixa: uma baixa lançada por engano é cancelada.
 
+**Confirmação de ação**
+Toda ação que grava ou altera dado, envia algo a alguém ou tira um registro de
+circulação abre um diálogo antes de executar. Busca, filtros, abas e
+navegação não abrem. O diálogo diz o que será feito e em quais registros
+(inclusive a cascata), a consequência visível (onde muda, se o cliente ou o
+Portal vê, se recalcula, emite ou envia), se dá para desfazer e como, e pede
+motivo obrigatório em Excluir, Cancelar, Reativar, Reverter e Revogar. Salvar
+uma edição mostra cada campo com valor anterior e novo. A prévia de
+importação vale como o diálogo quando mostra o que entra, muda e sai. Ação em
+massa mostra totais, bloqueados com motivo e a lista sob demanda, com um
+motivo para o lote. Decidida na
+[ADR 0072](docs/adr/0072-toda-escrita-confirmada-com-consequencia.md); a
+implementação ainda está pendente.
+
 Em diálogos de confirmação, o botão que fecha sem executar a ação se chama
 **Voltar**, para não confundir com a ação Cancelar.
 
