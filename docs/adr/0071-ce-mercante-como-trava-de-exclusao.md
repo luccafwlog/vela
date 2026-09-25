@@ -22,6 +22,11 @@ registros ganharam um vocabulário único em `CONTEXT.md` (seção "Ações sobr
 registros"). Faltava dizer **até quando** um erro de cadastro se resolve
 excluindo.
 
+Na revisão tela a tela, dois pontos do relatório não se confirmaram:
+"Encerrar navio" (`archive_vessel_schedule`) e a exclusão do manifesto
+BAPLIE (`delete_baplie_manifest_for_voyage`) existem no banco, mas nenhuma
+tela os chama. O relatório é histórico e não foi alterado.
+
 O CE Mercante é o marco que já separa as duas fases no sistema: sem CE, a
 fatura de Taxas Locais não é emitida (`enforce_invoice_ce_on_issue`) e o B/L
 não é liberado no Portal. Antes dele, os dados de uma viagem ainda são
