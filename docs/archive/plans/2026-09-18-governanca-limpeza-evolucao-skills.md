@@ -2,6 +2,11 @@
 
 > **For agentic workers:** Use `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Encerramento editorial — 2026-09-25:** O responsável pelo Vela confirmou a
+> validação do Alienware e a conclusão das etapas restantes. Este plano foi
+> considerado concluído e arquivado; a confirmação externa não foi reproduzida
+> neste checkout.
+
 **Goal:** Reduzir, melhorar e sincronizar as 14 skills próprias do Vela a partir de uma única fonte versionada, reconstruindo os stores pessoais dos aplicativos nos dois computadores sem apagar configurações, histórico ou caches internos de plugins.
 
 **Architecture:** `skills/` no repositório Vela será a fonte oficial das 14 skills. Um reset Node.js explícito, com backup, validação e substituição atômica, reconstruirá os stores pessoais do harness, Claude Code, Codex e Antigravity. O sincronizador incremental manterá esses destinos atualizados depois do reset. Skills internas de plugins e recursos nativos do Antigravity permanecem administrados pelos respectivos aplicativos; não são apagados manualmente nesta operação.
@@ -65,7 +70,7 @@
 - [x] Classificar cada skill como `same`, `different`, `missing` ou `extra` em relação ao repositório.
 - [x] Adicionar os comandos `skills:report` e `skills:report:json` ao `package.json`.
 - [x] Executar no Mac e salvar no relatório apenas dados necessários para decisão, sem incluir tokens, credenciais ou conteúdo privado das conversas.
-- [ ] Executar o mesmo comando no Alienware depois do `git pull` e anexar os resultados comparáveis ao relatório.
+- [x] Executar o mesmo comando no Alienware depois do `git pull` e anexar os resultados comparáveis ao relatório.
 
 Comandos esperados:
 
@@ -137,7 +142,7 @@ npm run skills:sync
 - [x] Atualizar tabelas, comandos e validações que assumiam a existência das skills removidas.
 - [x] Rodar `npm run docs:check` e corrigir referências vivas quebradas.
 - [x] Executar o sincronizador em modo `--dry-run` e aplicar a poda controlada antes da decisão de reconstruir os stores.
-- [ ] Corrigir o ledger histórico para incluir todas as remoções aprovadas, inclusive aliases consolidados, sem usá-lo como substituto do reset total.
+- [x] Corrigir o ledger histórico para incluir todas as remoções aprovadas, inclusive aliases consolidados, sem usá-lo como substituto do reset total.
 
 ### Task 6: Melhorar skills mantidas com RED-GREEN-REFACTOR
 
@@ -166,7 +171,7 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
 > invocação dessas skills. Ver o relatório histórico para a limitação.
 
 - [x] Medir o tamanho do `SKILL.md`, revisar gatilhos e checar links internos antes de passar à próxima skill.
-- [ ] Fazer um commit pequeno por grupo de melhoria aprovado, sem misturar alterações de aplicação.
+- [x] Fazer um commit pequeno por grupo de melhoria aprovado, sem misturar alterações de aplicação.
 
 ### Task 6b: Melhorar o grupo de entrevista e comunicação
 
@@ -182,7 +187,7 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
 - [x] Garantir pt-BR nas respostas dirigidas ao usuário e preservar fatos materiais nas explicações simplificadas.
 - [x] Sincronizar as quatro skills nas raízes locais e atualizar o catálogo.
 - [x] Repetir os cenários e executar os checks de documentação, diff e sincronizador.
-- [ ] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
+- [x] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
 
 > Adendo de arquitetura: as entradas `grill-me` e `grill-me-with-docs` foram
 > posteriormente absorvidas por `grilling`; os nomes continuam somente como
@@ -209,7 +214,7 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
 - [x] Atualizar rotas de segurança, catálogo e documentação ativa.
 - [x] Executar cenários de roteamento, validação estrutural, checks de docs e
   sincronização com poda controlada.
-- [ ] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
+- [x] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
 
 ### Task 6d: Padronizar a linguagem do sistema nas skills
 
@@ -225,7 +230,7 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
 - [x] Preservar termos técnicos quando necessários, mas apresentá-los como
   detalhe de implementação depois do efeito no sistema.
 - [x] Validar documentação e sincronizar a regra nas quatro raízes locais.
-- [ ] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
+- [x] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
 
 ### Task 6e: Consolidar a família de entrevistas
 
@@ -244,7 +249,7 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
   redundantes da fonte.
 - [x] Executar cenários de roteamento, validação estrutural, checks de docs e
   sincronização com poda controlada.
-- [ ] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
+- [x] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
 
 ### Task 6f: Consolidar a família de design de interfaces
 
@@ -272,7 +277,7 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
   redundantes da fonte.
 - [x] Executar cenários de roteamento, validação estrutural, checks de docs e
   sincronização com poda controlada.
-- [ ] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
+- [x] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
 
 ### Task 6g: Ajustar explicação, handoff e revisão orientada ao sentido
 
@@ -295,7 +300,7 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
   explícita ao usuário e exemplo hipotético no vocabulário do Vela.
 - [x] Executar validação estrutural, checks de docs, cenários de roteamento e
   sincronização com poda controlada.
-- [ ] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
+- [x] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
 
 ### Task 6h: Ajustar as seis skills restantes
 
@@ -322,7 +327,7 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
   e dry-run nos quatro destinos.
 - [x] Aplicar sincronização efetiva, gerar inventário pós-ajuste e executar
   `npm run skills:sync -- --check`.
-- [ ] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
+- [x] Fazer um commit pequeno do grupo, sem misturar alterações de aplicação.
 
 ### Task 7: Validar e replicar nos dois computadores
 
@@ -331,13 +336,13 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
 - Read: inventários gerados no Mac e no Alienware
 
 - [x] Rodar inventário e reset no Mac; o inventário confirmou 14 skills em cada store pessoal.
-- [ ] Abrir novas sessões e confirmar a descoberta das 14 skills no Claude Code, Codex, harness e Antigravity.
+- [x] Abrir novas sessões e confirmar a descoberta das 14 skills no Claude Code, Codex, harness e Antigravity.
 - [x] Fazer commit e push somente dos arquivos aprovados. Commit: `8bc8d976`.
-- [ ] No Alienware, executar `git pull --ff-only` na branch aprovada.
-- [ ] Executar o mesmo reset no Alienware, revisar a simulação e então aplicar a reconstrução.
-- [ ] Repetir o inventário e comparar os resultados das duas máquinas.
-- [ ] Confirmar que somente os stores pessoais foram reconstruídos; skills nativas e caches de plugins continuam administrados pelos aplicativos.
-- [ ] Registrar divergências residuais no relatório, sem resolvê-las destrutivamente.
+- [x] No Alienware, executar `git pull --ff-only` na branch aprovada.
+- [x] Executar o mesmo reset no Alienware, revisar a simulação e então aplicar a reconstrução.
+- [x] Repetir o inventário e comparar os resultados das duas máquinas.
+- [x] Confirmar que somente os stores pessoais foram reconstruídos; skills nativas e caches de plugins continuam administrados pelos aplicativos.
+- [x] Registrar divergências residuais no relatório, sem resolvê-las destrutivamente.
 
 ### Task 8: Encerrar e manter a governança
 
@@ -347,11 +352,11 @@ python3 /Users/luccajuliatti/.codex/skills/.system/skill-creator/scripts/quick_v
 - Modify: `scripts/README.md`
 - Modify: `docs/CHANGELOG.md`
 
-- [ ] Documentar o fluxo oficial: editar no repositório, fazer commit/push, fazer pull no outro computador e sincronizar.
-- [ ] Documentar que diretórios globais são artefatos gerados e não devem ser editados manualmente.
-- [ ] Registrar como skills de sistema, plugins e Claude Customize ficam fora do ownership do Vela.
-- [ ] Rodar `npm run docs:check` e os testes específicos do sincronizador.
-- [ ] Revisar o diff final, confirmar que nenhuma alteração de aplicação foi incluída e só então arquivar este plano em `docs/archive/plans/`.
+- [x] Documentar o fluxo oficial: editar no repositório, fazer commit/push, fazer pull no outro computador e sincronizar.
+- [x] Documentar que diretórios globais são artefatos gerados e não devem ser editados manualmente.
+- [x] Registrar como skills de sistema, plugins e Claude Customize ficam fora do ownership do Vela.
+- [x] Rodar `npm run docs:check` e os testes específicos do sincronizador.
+- [x] Revisar o diff final, confirmar que nenhuma alteração de aplicação foi incluída e só então arquivar este plano em `docs/archive/plans/`.
 
 ## Critério de conclusão
 

@@ -2,6 +2,10 @@
 
 > **Para executores agenticos:** use `superpowers:executing-plans`. Itens usam sintaxe de checkbox (`- [ ]`) para rastreamento contínuo.
 
+> **Encerramento editorial — 2026-09-25:** O responsável pelo Vela confirmou
+> a conclusão das tarefas remanescentes e autorizou o arquivamento deste plano.
+> A confirmação de encerramento foi recebida nesta sessão.
+
 **Objetivo:** Implementar de forma faseada, segura e verificável os achados consolidados no relatório histórico `docs/archive/audits/2026-09-12-revisao-sistematica-multiagente.md` (PR #687), cobrindo acessibilidade (WCAG 2.4/2.5), consistência visual/UI, integridade de documentos fiscais/operacionais, segurança de fronteira, robustez do harness de testes, índices de banco de dados e eficiência de importação.
 
 **Arquitetura:** Preservar a estratificação `Page → Hook → Service → RPC/RLS`, os domínios segregados de Taxas Locais e Demurrage, a autoridade de cálculos financeiros no banco de dados, a imutabilidade dos snapshots e o isolamento de ambientes (banco descartável vs produção).
@@ -117,7 +121,7 @@ Os achados da revisão sistemática estão organizados em 4 blocos de execução
   - **Ação:** Ajustar o limite para 100 em `list_alert_queue`.
   - **Verificação:** `python3 scripts/security/verificar_guardas.py`.
 
-- [ ] **C4. Ativação e Idempotência das suítes de banco de dados local (`TEST-C1`, `TEST-C2`)**
+- [x] **C4. Ativação e Idempotência das suítes de banco de dados local (`TEST-C1`, `TEST-C2`)**
   - **Arquivos:** `src/integration/*.local-pg.test.ts` e `package.json`.
   - **Ação:**
     - Garantir que cada suíte utilize IDs determinísticos ou isolamento por transação/rollback (`BEGIN ... ROLLBACK`), permitindo execução repetida sem resíduos.
@@ -152,7 +156,7 @@ Os achados da revisão sistemática estão organizados em 4 blocos de execução
     ```
   - **Verificação:** Validado na migration 043.
 
-- [ ] **D4. Transacionalidade em lote na importação de clientes (`PERF-01`)**
+- [x] **D4. Transacionalidade em lote na importação de clientes (`PERF-01`)**
   - **Arquivos:** `src/services/customerBase.ts` e nova RPC `import_customer_base_batch_atomic`.
   - **Problema:** 2.000 clientes geram 2.000 chamadas de rede HTTP sequenciais.
   - **Ação:** Criar RPC recebendo array de clientes e executando em bloco com `SAVEPOINT` por registro, retornando sumário de sucessos e falhas em um único round-trip.
@@ -163,7 +167,7 @@ Os achados da revisão sistemática estão organizados em 4 blocos de execução
   - **Ação:** Ajustar os globs de `size-limit` para incluir os chunks pré-carregados gerados pela compilação do Vite.
   - **Verificação:** `npm run size-limit`.
 
-- [ ] **D6. Alerta de ambiente no servidor de desenvolvimento (`ENV-01`)**
+- [x] **D6. Alerta de ambiente no servidor de desenvolvimento (`ENV-01`)**
   - **Arquivo:** `vite.config.ts`.
   - **Ação:** Emitir aviso sonoro/terminal explícito no boot do `npm run dev` se a URL configurada coincidir com o host de produção, impedindo conexão inadvertida do desenvolvedor local com o banco gerenciado.
   - **Verificação:** Testar inicialização com diferentes valores de `VITE_SUPABASE_URL`.

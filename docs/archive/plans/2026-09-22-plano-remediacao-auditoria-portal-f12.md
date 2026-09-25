@@ -6,6 +6,9 @@
 > 2026-09-22. A revisão percorreu a SPA do Portal, autenticação, Edge Functions,
 > RPCs, RLS, Storage, headers/CSP, sinks do navegador, build e dependências.
 
+> **Encerramento editorial — 2026-09-25:** O responsável pelo Vela confirmou
+> a conclusão da Fase 5 e autorizou o arquivamento deste plano.
+
 ## 1. Resultado pretendido
 
 O cliente deve conseguir usar o Portal e sair dele sem deixar uma sessão ativa
@@ -299,7 +302,7 @@ marcado como bloqueado, não como aprovado.
 - [x] PAF-05 não permite deploy silencioso com mapa residual (`scripts/vercel-build.mjs` com `cleanProductionArtifacts` fail-closed e `assertNoForbiddenArtifacts`).
 - [x] PAF-06 atualizado via lockfile (`npm update vitest browserslist baseline-browser-mapping`, 0 vulnerabilidades em `npm audit`).
 - [x] Documentação viva atualizada (`docs/operations/seguranca.md`, `docs/modules/portal-cliente.md`).
-- [ ] Provas remotas de runtime (Fase 5) a serem executadas em staging após autorização de ambiente e contas fixture.
+- [x] Provas remotas de runtime (Fase 5) executadas em staging após autorização de ambiente e contas fixture.
 
 ## 8. Rollout, observabilidade e rollback
 

@@ -11,10 +11,7 @@ verdade sobre o estado atual.
 ## Planos ativos
 
 - [2026-09-24 — Configuração de serviços e migração para Cloudflare](2026-09-24-configuracao-servicos-e-migracao-cloudflare.md) — roteiro em 10 etapas, na ordem segura: Upstash, Turnstile, Better Stack, Sentry, PostHog, backup R2, previews e produção no Pages, DNS e desligamento da Vercel.
-- [2026-09-18 — Governança, limpeza e evolução das skills](2026-09-18-governanca-limpeza-evolucao-skills.md) — inventário, decisão, sincronização segura e melhoria comportamental das skills do Vela.
 - [2026-09-06 — Remediação das auditorias #654–#660](2026-09-06-plano-remediacao-auditorias-654-660.md) — execução parcial; os residuais de S03, S05, S06/S07 e a prova de runtime continuam abertos.
-- [2026-09-12 — Remediação da revisão sistemática multiagente](2026-09-12-plano-implementacao-auditoria-sistematica.md) — plano de remediação dos achados consolidados da auditoria da PR #687, cobrindo acessibilidade, UX, documentos/faturas, segurança de testes, banco de dados e performance.
-- [2026-09-22 — Remediação da auditoria do Portal e da superfície F12](2026-09-22-plano-remediacao-auditoria-portal-f12.md) — em execução na PR #718 (Fases 0 a 4 implementadas; Fase 5 de validação de runtime em staging pendente pós-deploy).
 
 O plano [2026-09-23 — Alinhamento entre apresentação, documentação e código](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md) foi concluído e arquivado.
 O plano [2026-09-23 — Issue 710: consolidação serviço a serviço](../archive/plans/2026-09-23-issue-710-consolidacao-service-a-service.md) foi concluído e arquivado.
@@ -25,12 +22,20 @@ O plano [2026-09-20 — Remediação de clientes, revisão e comunicação](../a
 O plano [2026-09-12 — Transição de marca: Transhipping Desk → Vela](../archive/plans/2026-09-12-plano-transicao-marca-vela.md) foi concluído e arquivado (PR #688).
 O plano [2026-09-03 — Issue 609: contatos e caixas de comunicação](../archive/plans/2026-09-03-issue-609-contatos-caixas-comunicacao.md) foi concluído e arquivado.
 
+## Atualização do ciclo de vida — 2026-09-25
+
+Por confirmação do responsável pelo Vela, os planos de governança das skills,
+da revisão sistemática multiagente e da auditoria do Portal/F12 foram
+concluídos e movidos para [`../archive/plans/`](../archive/plans/). O plano
+Cloudflare permanece vivo, assim como a remediação das auditorias #654–#660.
+
 ## Revisão do ciclo de vida — 2026-09-19
 
-Os três planos acima continuam vivos: remediação #654–#660 ainda exige prova de
-runtime; revisão sistemática mantém C4/D4/D6 abertos; governança de skills
-mantém validação no Alienware e encerramento pendentes. Nenhum foi arquivado
-apenas por ter grande parte implementada.
+Naquela revisão, os planos #654–#660, da revisão sistemática e de governança
+das skills ainda continuavam vivos: o primeiro exigia prova de runtime; o
+segundo mantinha C4/D4/D6 abertos; e o terceiro mantinha a validação no
+Alienware e o encerramento pendentes. Nenhum foi arquivado apenas por ter
+grande parte implementada.
 
 As notas de execução intermediária de agosto/setembro foram preservadas no
 [registro histórico](../archive/reports/2026-09-18-notas-historicas-indice-planos.md).

@@ -9,6 +9,16 @@ por documento; o que cada entrega produziu está resumido no
 
 ## Conteúdo
 
+- [`2026-09-22-remediacao-auditoria-portal-f12.md`](2026-09-22-plano-remediacao-auditoria-portal-f12.md)
+  — remediação do logout, anexos de Dispute, recuperação de senha, artefatos
+  de build e dependências; Fase 5 de runtime confirmada pelo responsável em
+  2026-09-25.
+- [`2026-09-18-governanca-limpeza-evolucao-skills.md`](2026-09-18-governanca-limpeza-evolucao-skills.md)
+  — fonte versionada, inventário, reset e sincronização das skills do Vela;
+  validação do Alienware confirmada pelo responsável em 2026-09-25.
+- [`2026-09-12-plano-implementacao-auditoria-sistematica.md`](2026-09-12-plano-implementacao-auditoria-sistematica.md)
+  — remediação de acessibilidade, documentos/faturas, segurança, banco e
+  performance; encerramento confirmado pelo responsável em 2026-09-25.
 - [`2026-09-23-issue-710-consolidacao-service-a-service`](2026-09-23-issue-710-consolidacao-service-a-service.md)
   — reconcilia PRs #717–#737 e detalha a integração serviço a serviço; implementado e consolidado em PR única.
 - [`2026-09-22-issue-710-endurecimento-stack`](2026-09-22-issue-710-endurecimento-stack.md)
