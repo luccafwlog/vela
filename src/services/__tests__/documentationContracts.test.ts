@@ -14,6 +14,7 @@ const contracts: Array<{
   origin: string[]
   orchestration: string[]
   persistence: string[]
+  effects?: string[]
   evidence: string[]
 }> = [
   {
@@ -27,6 +28,10 @@ const contracts: Array<{
       'resolve_pix_reconciliation_exception',
       'confirm_unified_pix_matches',
       'pix_reconciliation_exceptions',
+    ],
+    effects: [
+      'resolver pendência invalida exceções, `invoices`, `demurrage-invoices` e histórico',
+      'confirmar o lote importado também invalida `demurrage-kpis`, B/Ls e detalhe do cliente',
     ],
     evidence: [
       'src/pages/__tests__/Reconciliacao.behavior.test.tsx',
@@ -82,6 +87,7 @@ const contracts: Array<{
       'update_manual_vazios_booking',
       'delete_manual_vazios_booking',
       'vazios_bookings',
+      'vazios_manifests',
     ],
     evidence: [
       'src/pages/__tests__/EmbarqueVazios.flow.test.tsx',
@@ -124,6 +130,7 @@ describe('S14 route-to-data traceability', () => {
       requireTokens(columns[2] ?? '', contract.origin, `${contract.label} origin`)
       requireTokens(columns[3] ?? '', contract.orchestration, `${contract.label} orchestration`)
       requireTokens(columns[4] ?? '', contract.persistence, `${contract.label} persistence`)
+      requireTokens(columns[5] ?? '', contract.effects ?? [], `${contract.label} effects/cache`)
       requireTokens(columns[6] ?? '', contract.evidence, `${contract.label} evidence`)
 
       for (const evidencePath of contract.evidence.filter((value) => value.startsWith('src/'))) {
