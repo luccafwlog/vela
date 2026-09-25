@@ -37,6 +37,11 @@ das cobranças que ela gerou, sem bloqueio. O valor faturado não muda, porque
    cliente desativado não se vincula sozinho: entra na Revisão com esse
    motivo, e o Administrativo decide se reativa.
 7. **Convite do Portal** se revoga ("Revogar convite"), não se cancela.
+8. **Local, terminal, depot e serviço do depot** seguem a regra do item 1,
+   com as ações do Administrativo; "Inativar" passa a Desativar e o bloqueio
+   do banco vira mensagem legível.
+9. **Navio, porto e armador** continuam sem ação de excluir ou desativar na
+   tela; erro se corrige. Se um dia ganharem essas ações, seguem o item 1.
 
 ## Consequências
 
@@ -46,6 +51,3 @@ das cobranças que ela gerou, sem bloqueio. O valor faturado não muda, porque
   tarifa de Granito deixa de zerar a referência; tabelas que hoje qualquer
   usuário ativa ou desativa passam ao Administrativo; cliente ganha estado
   desativado e a sessão do Portal passa a depender dele.
-- **Em aberto:** os demais cadastros (local e terminal, serviço de depot,
-  navio, porto, armador) são decididos na revisão das telas deles e
-  entram nesta ADR.

@@ -102,10 +102,11 @@ baixa: uma baixa lançada por engano é cancelada. No código, estorno é
 `reverse_demurrage_payment`.
 
 **Cadastro usado**
-Um cadastro de referência (tarifa, e os demais conforme forem revisados)
+Um cadastro de referência (tarifa, cliente, local, terminal, depot, serviço
+do depot)
 só pode ser excluído se nunca foi usado; depois de usado, só se desativa, para
-que todo valor cobrado mantenha a origem. Para tarifas e clientes, excluir e
-desativar são do Administrativo. Cliente desativado perde o acesso ao Portal;
+que todo valor cobrado mantenha a origem. Excluir e desativar são do
+Administrativo. Cliente desativado perde o acesso ao Portal;
 não se desativa cliente com fatura ou recebível em aberto, e B/L novo com o
 CNPJ dele vai para a Revisão em vez de se vincular. Decidido na
 [ADR 0073](docs/adr/0073-cadastro-usado-so-se-desativa.md), ainda não
