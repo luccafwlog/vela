@@ -141,18 +141,22 @@ describeLocal('087 — delete_records: exclusão atômica com prévia', () => {
       WHERE entity_type = 'bl' AND entity_id = '${BL_FREE}' AND field_name = 'deleted';`)).toBe(`${ADMIN_ID}|teste 087`)
   })
 
-  it('cliente recusado pelo banco mantém os contatos (antes eram apagados primeiro)', () => {
-    // Todo cliente com CNPJ ganha eventos de provisionamento do Portal, que são
-    // somente inclusão: hoje nenhum desses clientes pode ser excluído. O que
-    // importa aqui é o item voltar inteiro, com o motivo.
+  it('cliente com CNPJ só se desativa; o recusado mantém os contatos', () => {
+    // ADR 0073, item 5: cliente com CNPJ conta como usado, e a regra é do
+    // próprio delete_records, não do trigger dos eventos do Portal.
     const run = callDelete(ADMIN_ID, 'customer', [String(CUSTOMER_FREE), String(CUSTOMER_BILLED)])
     expect(run.json.deleted).toEqual([])
     expect(run.json.blocked).toEqual([
-      { id: String(CUSTOMER_FREE), reasons: ['portal_provisioning_events é somente inclusão'] },
-      { id: String(CUSTOMER_BILLED), reasons: ['vinculado a B/L'] },
+      { id: String(CUSTOMER_FREE), reasons: ['cliente com CNPJ: desative em vez de excluir'] },
+      { id: String(CUSTOMER_BILLED), reasons: ['cliente com CNPJ: desative em vez de excluir'] },
     ])
     expect(psql(`SELECT count(*) FROM public.customer_contacts
       WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});`)).toBe('2')
+  })
+
+  it('id repetido no lote conta uma vez, na prévia e na execução', () => {
+    const preview = callDelete(ADMIN_ID, 'vehicle', ['999999998', '999999998'], true)
+    expect(preview.json.blocked).toEqual([{ id: '999999998', reasons: ['não encontrado'] }])
   })
 
   it('item inexistente aparece como bloqueado', () => {

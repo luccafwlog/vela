@@ -14,6 +14,8 @@
 --   uma exclusão silenciosa de 0 linhas.
 -- - A linha "deleted" com o autor é gravada na mesma transação da exclusão
 --   (antes era logDeletions no navegador, best-effort).
+-- - Cliente com CNPJ não se exclui: volta bloqueado com "desative em vez de
+--   excluir" (ADR 0073, item 5). Ids repetidos no lote contam uma vez.
 -- - Linha de serviço de vazios: DELETE passa a is_active_user(), como a
 --   inclusão e a edição (ADR 0071, item 4); a tela mostrava sucesso falso.
 -- - Saem as funções sem tela archive_vessel_schedule (Encerrar navio) e
@@ -96,8 +98,23 @@ BEGIN
     RAISE EXCEPTION 'Tipo de exclusão desconhecido: %.', p_kind USING ERRCODE = '22023';
   END IF;
 
-  FOREACH v_id IN ARRAY COALESCE(p_ids, ARRAY[]::text[]) LOOP
+  -- Um id repetido no lote conta uma vez: sem isto a prévia mostrava o item
+  -- duas vezes como excluído e a execução, uma vez "não encontrado".
+  FOREACH v_id IN ARRAY ARRAY(
+    SELECT u.id FROM unnest(COALESCE(p_ids, ARRAY[]::text[])) WITH ORDINALITY AS u(id, ord)
+    GROUP BY u.id ORDER BY min(u.ord)
+  ) LOOP
     BEGIN
+      IF p_kind = 'customer' AND EXISTS (
+        SELECT 1 FROM public.customers c WHERE c.id = v_id::bigint AND NULLIF(btrim(c.cnpj_cpf), '') IS NOT NULL
+      ) THEN
+        -- Cliente com CNPJ conta como usado (ADR 0073, item 5): só se desativa.
+        -- A regra é explícita; antes dependia do trigger somente-inclusão dos
+        -- eventos do Portal, que a retenção de 1 ano apaga.
+        v_blocked := v_blocked || jsonb_build_object('id', v_id, 'reasons', jsonb_build_array('cliente com CNPJ: desative em vez de excluir'));
+        CONTINUE;
+      END IF;
+
       IF p_kind = 'bl' THEN
         DELETE FROM public.vehicles WHERE bl_id = v_id;
         DELETE FROM public.bls WHERE id = v_id;
