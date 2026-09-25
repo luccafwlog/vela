@@ -245,7 +245,7 @@ export function Admin() {
                   ) : null}
                   {visibleUsers.map((u) => {
                     const isBusy = pendingId === u.id && (mutation.isPending || deactivateMutation.isPending)
-                    const normalizedRole = u.role === 'admin' ? 'administrativo' : u.role === 'operator' ? 'documentacao' : u.role
+                    const normalizedRole = u.role === 'operator' ? 'documentacao' : u.role
                     const legacyRoleTitle = u.role !== normalizedRole ? `Perfil legado: ${PROFILE_LABELS[u.role] ?? u.role}` : undefined
                     return (
                       <tr key={u.id} className={!u.active ? 'opacity-60' : undefined}>

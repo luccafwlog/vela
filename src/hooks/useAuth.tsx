@@ -36,9 +36,9 @@ export type Permission =
 
 export function roleHasPermission(role: UserProfileRole | undefined, permission: Permission): boolean {
   if (!role) return false
-  // Legacy roles: admin = administrativo, operator = documentacao
-  const effectiveRole: UserProfileRole =
-    role === 'admin' ? 'administrativo' : role === 'operator' ? 'documentacao' : role
+  // Papel legado: operator = documentacao. O papel `admin` foi migrado para
+  // administrativo e saiu da lista de papeis aceitos (migration 093).
+  const effectiveRole: UserProfileRole = role === 'operator' ? 'documentacao' : role
 
   switch (effectiveRole) {
     case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'customer_communications'
@@ -70,7 +70,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 function isUserProfileRole(role: string): role is UserProfileRole {
-  return ['admin', 'operator', 'administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos'].includes(role)
+  return ['operator', 'administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos'].includes(role)
 }
 
 async function loadProfile(userId: string): Promise<UserProfile> {
@@ -219,7 +219,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const value = useMemo<AuthContextValue>(() => {
     const role = profile?.role
     const effectiveRole: UserProfileRole | null = !role ? null :
-      role === 'admin' ? 'administrativo' :
       role === 'operator' ? 'documentacao' :
       role
     return {
@@ -229,7 +228,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       loading,
       profileStatus,
       profileError,
-      isAdmin: role === 'admin' || role === 'administrativo',
+      isAdmin: role === 'administrativo',
       effectiveRole,
       can: (permission: Permission) => roleHasPermission(role, permission),
       async signIn(email, password) {

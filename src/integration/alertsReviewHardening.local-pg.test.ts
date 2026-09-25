@@ -41,7 +41,7 @@ describeLocal('migrations 338 — comportamento real no Postgres', () => {
       INSERT INTO auth.users (id, email) VALUES
         ('${adminId}', 'admin-338@example.test'), ('${opsId}', 'ops-338@example.test'), ('${docsId}', 'docs-338@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${adminId}', 'Admin 338', 'admin', true), ('${opsId}', 'Ops 338', 'operacoes', true), ('${docsId}', 'Docs 338', 'documentacao', true);
+        ('${adminId}', 'Admin 338', 'administrativo', true), ('${opsId}', 'Ops 338', 'operacoes', true), ('${docsId}', 'Docs 338', 'documentacao', true);
     `)
   })
 

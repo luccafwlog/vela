@@ -89,7 +89,7 @@ describeLocal('S12 — gates documentais de CE Mercante no faturamento', () => {
       SET session_replication_role = replica;
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 's12-bl-gates@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active)
-      VALUES ('${actorId}', 'S12 BL gates', 'admin', true);
+      VALUES ('${actorId}', 'S12 BL gates', 'administrativo', true);
       INSERT INTO public.customers (id, cnpj_cpf, name)
       VALUES (${customerId}, '12692010000192', 'Cliente S12 BL gates');
       INSERT INTO public.customer_contacts (id, customer_id, name, email, purpose, is_primary)

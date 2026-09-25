@@ -8,7 +8,7 @@ insert into auth.users (instance_id, id, aud, role, email, encrypted_password, e
 values ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000001','authenticated','authenticated','auditor@local.test', extensions.crypt('audit-local', extensions.gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}','{}', now(), now()),
        ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000002','authenticated','authenticated','operador@local.test', extensions.crypt('audit-local', extensions.gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}','{}', now(), now());
 insert into public.user_profiles (id, full_name, role, active) values
-  ('a0000000-0000-4000-8000-000000000001','Ana Ribeiro','admin', true),
+  ('a0000000-0000-4000-8000-000000000001','Ana Ribeiro','administrativo', true),
   ('a0000000-0000-4000-8000-000000000002','Carlos Mendes','operator', true);
 
 insert into public.carriers (id, name, scac) values (50,'COSCO Shipping','COSU') on conflict do nothing;

@@ -668,7 +668,7 @@ Após um CI verde, `.github/workflows/provision-preview-admin.yml` executa no
 contexto confiável da branch padrão, aguarda o check `Supabase Preview`, obtém
 as credenciais da branch efêmera e roda `scripts/provision-preview-admin.mjs`.
 Esse script cria ou atualiza `qa-admin@example.test` pela Auth Admin API e
-garante seu `user_profiles.role = 'admin'`. O password fica exclusivamente no
+garante seu `user_profiles.role = 'administrativo'`. O password fica exclusivamente no
 secret `PREVIEW_ADMIN_PASSWORD`; o workflow também exige os secrets
 `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`. Não faça checkout do código da
 PR nesse workflow nem coloque credenciais server-side em `VITE_*`.

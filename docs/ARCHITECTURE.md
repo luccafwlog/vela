@@ -121,7 +121,7 @@ parte da arquitetura.
 Depois de um CI verde, o workflow confiável
 `.github/workflows/provision-preview-admin.yml` aguarda o check da branch
 Supabase e provisiona `qa-admin@example.test` pela Auth Admin API da própria
-Preview, com perfil interno `admin`. A senha existe somente como secret do
+Preview, com perfil interno `administrativo`. A senha existe somente como secret do
 GitHub Actions; ela não participa do bundle Vite nem do projeto de produção.
 
 ### Alertas e notificações internas

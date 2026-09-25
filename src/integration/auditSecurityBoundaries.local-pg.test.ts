@@ -72,7 +72,7 @@ describeLocal('S01 — fronteiras de segurança das RPCs auditadas', () => {
       ('${OTHER_SUB}', 's01-other@example.test')
       ON CONFLICT (id) DO NOTHING;`)
     psql(`INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-      ('${STAFF_SUB}', 'Staff S01', 'admin', true),
+      ('${STAFF_SUB}', 'Staff S01', 'administrativo', true),
       ('${OTHER_SUB}', 'Outro S01', 'operacoes', true)
       ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, active = true;`)
     psql(`UPDATE public.customer_portal_accounts SET auth_user_id = '${PORTAL_SUB}', active = true,

@@ -194,7 +194,8 @@ jobs:
             src/integration/deleteLock.local-pg.test.ts \
             src/integration/blCancel.local-pg.test.ts \
             src/integration/tariffDeactivate.local-pg.test.ts \
-            src/integration/customerDeactivate.local-pg.test.ts
+            src/integration/customerDeactivate.local-pg.test.ts \
+            src/integration/dataRetention.local-pg.test.ts
 
       - name: Verify the executed RPC catalog
         # `npm run rpc:check` existia no package.json sem nenhum gate a executá-lo.

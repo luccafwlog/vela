@@ -101,7 +101,7 @@ describeLocal('S05 — outbox duravel dos efeitos de import', () => {
       DELETE FROM auth.users WHERE id = '${actorId}';
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 's05-effects@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active)
-      VALUES ('${actorId}', 'S05 Effects', 'admin', true);
+      VALUES ('${actorId}', 'S05 Effects', 'administrativo', true);
     `)
   })
 
