@@ -337,6 +337,12 @@ export async function fetchVoyagesWithUnpaidBls(voyageIds: number[]): Promise<Se
   return new Set((data ?? []).map((row) => Number((row as { voyage_id: number }).voyage_id)).filter(Boolean))
 }
 
+/** Devolve a viagem cancelada por engano (ADR 0071, item 8); so o Administrativo. */
+export async function reactivateVoyage(voyageId: number, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('reactivate_voyage' as never, { p_voyage_id: voyageId, p_reason: reason } as never)
+  if (error) throw error
+}
+
 export async function setVoyageShowOnPortal(voyageId: number, show: boolean) {
   const { error } = await supabase
     .from('voyages')

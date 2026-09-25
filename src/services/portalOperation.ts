@@ -34,6 +34,8 @@ export type PortalOperationBL = {
   cargo_mode?: 'container' | 'carga_solta' | 'misto' | null
   bb_weight_ton?: number | null
   bb_packages_qty?: number | null
+  /** Preenchido quando o B/L foi cancelado depois de liberado (ADR 0071). */
+  cancelled_at?: string | null
 }
 
 export type PortalOperationTransshipment = {
@@ -136,6 +138,7 @@ export function normalizePortalOperationRows(data: unknown): PortalOperationBL[]
       cargo_mode: (asStringOrNull(row.cargo_mode) as PortalOperationBL['cargo_mode']) ?? null,
       bb_weight_ton: asNumberOrNull(row.bb_weight_ton),
       bb_packages_qty: asNumberOrNull(row.bb_packages_qty),
+      cancelled_at: asStringOrNull(row.cancelled_at),
     }
   })
 }

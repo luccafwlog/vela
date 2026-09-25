@@ -191,6 +191,21 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
     expect(adminTerminal.stderr).toMatch(/Atracação travada: B\/L com CE Mercante/)
   })
 
+  it('"não escala" (marca de POD removido) segue a regra de Excluir escala (migration 090)', () => {
+    const mark = (userId: string, port: string) => as(userId, `INSERT INTO public.audit_logs
+      (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
+      VALUES ('voyage_pod_schedule', '${V_LOCKED}::${port}', 'deleted', 'false', 'true', '${userId}', 'não escala');`)
+
+    expect(mark(OPS_ID, 'BRPNG').stderr).toMatch(/Somente o Administrativo retira escala/)
+    expect(mark(ADMIN_ID, 'BRSSZ').stderr).toMatch(/Escala BRSSZ travada: B\/L com CE Mercante/)
+    // A tela lê a marca normalizada; 'TRUE' não escapa da regra.
+    const upper = as(OPS_ID, `INSERT INTO public.audit_logs
+      (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
+      VALUES ('voyage_pod_schedule', '${V_LOCKED}::BRSSZ', 'deleted', 'false', ' TRUE', '${OPS_ID}', 'não escala');`)
+    expect(upper.stderr).toMatch(/Somente o Administrativo retira escala/)
+    expect(mark(ADMIN_ID, 'BRPNG').status).toBe(0)
+  })
+
   it('taxa manual do B/L exige o Administrativo', () => {
     const run = as(OPS_ID, `SELECT public.delete_manual_bl_charge(1, NULL);`)
     expect(run.stderr).toMatch(/Somente o Administrativo exclui taxa manual/)
