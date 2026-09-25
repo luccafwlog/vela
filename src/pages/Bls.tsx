@@ -27,7 +27,7 @@ import { useRowSelection } from '../hooks/useRowSelection'
 import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { checkBlDependencies, deleteBls } from '../services/bls'
-import { formatBlockedSummary } from '../services/deleteDependencies'
+import { formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
 import { type BlFilters, fetchAllBls, useBls, useBlSummary, usePortOptions } from '../hooks/useBls'
 import { useInvoiceLinks } from '../hooks/useBilling'
 import { formatBlCargoBadge } from '../lib/blCargoBadge'
@@ -312,7 +312,7 @@ export function Bls() {
       const ok = await confirm({ message: parts.join('\n\n'), tone: 'danger', confirmLabel: 'Excluir' })
       if (!ok) return
 
-      await deleteBls(report.deletableIds, user?.id)
+      const result = await deleteBls(report.deletableIds)
       selection.clear()
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['bls'] }),
@@ -323,7 +323,8 @@ export function Bls() {
         queryClient.invalidateQueries({ queryKey: ['voyages'] }),
         queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation'] }),
       ])
-      showToast(`${report.deletableIds.length} B/L(s) excluído(s).`, 'success')
+      const outcome = formatDeleteOutcome('B/L(s)', result)
+      showToast(outcome.message, outcome.tone)
     } catch (err) {
       const detail = userFacingErrorMessage(err, 'Não foi possível excluir os B/Ls selecionados.')
       showToast(`Falha ao excluir B/L(s): ${detail}`, 'error')

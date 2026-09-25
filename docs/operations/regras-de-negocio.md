@@ -94,7 +94,7 @@ O Portal do Cliente só expõe dados de B/Ls que tenham `ce_mercante` preenchido
 
 ## Hard delete controlado
 
-Entidades operacionais permitem **hard delete**, mas exclusões são bloqueadas por vínculos fiscais e registradas em auditoria (ADR 0009). A trilha fica em `audit_logs` (services `deleteAudit.ts`, `deleteDependencies.ts`).
+Entidades operacionais permitem **hard delete**, mas exclusões são bloqueadas por vínculos fiscais e registradas em auditoria (ADR 0009). B/L, container, veículo e cliente são excluídos pela RPC `delete_records` (migration `087`): cada item sai por inteiro, com os filhos, ou volta intacto com o motivo, e a mesma RPC em modo prévia alimenta a confirmação. A trilha fica em `audit_logs`, gravada na mesma transação (`src/services/deleteRecords.ts`, `deleteDependencies.ts`). Exclusões de uma linha só (`deleteOneById`) tratam 0 linhas apagadas como erro, em vez de anunciar sucesso.
 
 ## Escritas best-effort
 

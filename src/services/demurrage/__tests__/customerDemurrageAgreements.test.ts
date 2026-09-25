@@ -141,7 +141,7 @@ describe('customerDemurrageAgreements service', () => {
   })
 
   it('deletes and toggles active status of agreements', async () => {
-    const builder = createMockQuery({ error: null })
+    const builder = createMockQuery({ data: [{ id: 5 }], error: null })
     mocks.from.mockReturnValue(builder)
 
     await deleteCustomerDemurrageAgreement(5)

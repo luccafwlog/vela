@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import type { VoyageFormValues } from './voyageForm'
 import { canonicalizeVesselName, normalizeVesselImo } from '../lib/vesselAlias'
+import { deleteOneById } from './deleteRecords'
 
 export async function createVoyage(form: VoyageFormValues, changedBy: string | null) {
   const carrierId = await getOrCreateCarrier(form.carrierName, form.carrierScac)
@@ -109,7 +110,7 @@ export async function deleteVoyage(voyageId: number) {
     )
   }
 
-  const { error } = await supabase.from('voyages').delete().eq('id', voyageId)
+  const { error } = await deleteOneById('voyages', voyageId)
   if (error) throw error
 }
 

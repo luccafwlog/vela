@@ -26,7 +26,8 @@ export function ChargeOverridesTab({
   setPodFilter,
   initialCustomerSearch = '',
   canEdit,
-}: ChargeFilterProps & { initialCustomerSearch?: string; canEdit: boolean }) {
+  canDelete,
+}: ChargeFilterProps & { initialCustomerSearch?: string; canEdit: boolean; canDelete: boolean }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [overrideCustomerSearch, setOverrideCustomerSearch] = useState(initialCustomerSearch)
@@ -304,6 +305,7 @@ export function ChargeOverridesTab({
                           >
                             <Pencil size={14} />
                           </button>
+                          {canDelete ? (
                           <button
                             className="app-table__icon-button app-table__icon-button--danger"
                             type="button"
@@ -314,6 +316,7 @@ export function ChargeOverridesTab({
                           >
                             <Trash2 size={14} />
                           </button>
+                          ) : null}
                         </div>
                       </td>
                     ) : null}

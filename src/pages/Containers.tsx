@@ -21,7 +21,7 @@ import { ContainerDatesImportModal } from '../components/shared/ContainerDatesIm
 import { CargoProfileBadge, ChargeStatusBadge } from '../components/shared/OperationalBadges'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { checkContainerDependencies, deleteContainers } from '../services/containers'
-import { formatBlockedSummary } from '../services/deleteDependencies'
+import { formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
 import { type ContainerFilters, fetchAllContainers, useContainers, usePortOptions, useContainerTypeOptions } from '../hooks/useBls'
 import { userFacingErrorMessage } from '../lib/errors'
 
@@ -33,7 +33,7 @@ export function Containers() {
   const initialVehicleContainer = (searchParams.get('vehicle_container') ?? '') as ContainerFilters['vehicleContainer']
   const { showToast } = useToast()
   const confirm = useConfirm()
-  const { user, isAdmin } = useAuth()
+  const { isAdmin } = useAuth()
   const selection = useRowSelection<number>()
   const [deleting, setDeleting] = useState(false)
   const { filters, setFilters, updateFilter } = usePageFilters<ContainerFilters>({
@@ -171,7 +171,7 @@ export function Containers() {
       const ok = await confirm({ message: parts.join('\n\n'), tone: 'danger', confirmLabel: 'Excluir' })
       if (!ok) return
 
-      await deleteContainers(report.deletableIds, user?.id)
+      const result = await deleteContainers(report.deletableIds)
       selection.clear()
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['containers'] }),
@@ -179,7 +179,8 @@ export function Containers() {
         queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
         queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),
       ])
-      showToast(`${report.deletableIds.length} container(es) excluido(s).`, 'success')
+      const outcome = formatDeleteOutcome('container(es)', result)
+      showToast(outcome.message, outcome.tone)
     } catch (err) {
       const detail = userFacingErrorMessage(err, 'Não foi possível excluir os containers selecionados.')
       showToast(`Falha ao excluir container(es): ${detail}`, 'error')

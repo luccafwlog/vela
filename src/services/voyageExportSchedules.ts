@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { normalizePortCode } from './portCode'
 import type { Json, VoyageExportCeStatus, VoyageExportSchedule as VoyageExportScheduleRow } from '../types/database'
+import { deleteOneById } from './deleteRecords'
 
 export type ExportCeStatus = VoyageExportCeStatus
 
@@ -293,7 +294,7 @@ function parseVoyageExportScheduleSaveResult(value: Json | null): VoyageExportSc
 }
 
 export async function deleteVoyageExportSchedule(id: string): Promise<void> {
-  const { error } = await supabase.from('voyage_export_schedules').delete().eq('id', id)
+  const { error } = await deleteOneById('voyage_export_schedules', id)
   if (error) throw error
 }
 

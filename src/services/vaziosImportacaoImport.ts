@@ -253,16 +253,6 @@ export async function getBaplieManifestForVoyage(voyageId: number): Promise<{
   return data as { id: string; total_containers: number; imported_at: string } | null
 }
 
-// DELETE direto na tabela é admin-only (migration 20260610170000); o
-// reimport de operadores passa pela RPC escopada, que apaga apenas o
-// manifesto baplie da viagem (containers caem por cascade).
-export async function deleteBaplieManifestForVoyage(voyageId: number): Promise<void> {
-  const { error } = await supabase.rpc('delete_baplie_manifest_for_voyage', {
-    p_voyage_id: voyageId,
-  })
-  if (error) throw error
-}
-
 export async function listVaziosImportacaoContainers(filters: {
   manifestId?: string
   voyageId?: string

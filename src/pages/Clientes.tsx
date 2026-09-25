@@ -32,7 +32,7 @@ import { getCustomerFilterChips, type CustomerSortKey } from '../lib/customerTab
 import { BLS_OF_CUSTOMER } from '../lib/supabaseEmbeds'
 import { compareCustomerBaseWithExisting, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
 import { checkCustomerDependencies, createCustomer, deleteCustomers, fetchIssuedInvoiceBalanceByCustomer } from '../services/customers'
-import { formatBlockedSummary } from '../services/deleteDependencies'
+import { formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
 import { supabase } from '../services/supabase'
 import type { CustomerListItem } from '../types/database'
@@ -49,8 +49,10 @@ export function Clientes() {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const confirm = useConfirm()
-  const { user, effectiveRole, profile, can } = useAuth()
-  const canEditCustomers = Boolean(profile || user)
+  const { user, effectiveRole, can, isAdmin } = useAuth()
+  // Excluir exige o Administrativo no banco (delete_records); a tela so
+  // oferece a acao a quem pode executa-la.
+  const canDeleteCustomers = isAdmin
   const [deleting, setDeleting] = useState(false)
   const [actionsMenu, setActionsMenu] = useState<CustomerActionsMenu | null>(null)
   const [filters, setFilters] = useState<CustomerFilters>({
@@ -337,14 +339,15 @@ export function Clientes() {
       const ok = await confirm({ message: parts.join('\n\n'), tone: 'danger', confirmLabel: 'Excluir' })
       if (!ok) return
 
-      await deleteCustomers(report.deletableIds, user?.id)
+      const result = await deleteCustomers(report.deletableIds)
       selection.clear()
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
         queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
         queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
       ])
-      showToast(`${report.deletableIds.length} cliente(s) excluido(s).`, 'success')
+      const outcome = formatDeleteOutcome('cliente(s)', result)
+      showToast(outcome.message, outcome.tone)
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'erro desconhecido'
       showToast(`Falha ao excluir cliente(s): ${detail}`, 'error')
@@ -486,7 +489,7 @@ export function Clientes() {
         </div>
       ) : null}
 
-      {canEditCustomers ? (
+      {canDeleteCustomers ? (
         <BulkActionsBar
           count={selection.count}
           onClear={selection.clear}
@@ -500,7 +503,7 @@ export function Clientes() {
         data={data}
         isLoading={isLoading}
         error={error}
-        canEditCustomers={canEditCustomers}
+        canDeleteCustomers={canDeleteCustomers}
         selection={selection}
         filters={filters}
         totalPages={totalPages}
