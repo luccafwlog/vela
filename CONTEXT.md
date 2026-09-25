@@ -102,6 +102,19 @@ baixa: uma baixa lançada por engano é cancelada.
 Em diálogos de confirmação, o botão que fecha sem executar a ação se chama
 **Voltar**, para não confundir com a ação Cancelar.
 
+**Trava de exclusão**
+Marco a partir do qual um dado de viagem deixa de ser excluível. É o CE
+Mercante do B/L, porque ele permite emitir a fatura e liberar a fatura e o
+B/L no Portal. O CE trava o B/L, sua carga e tudo de que ele depende (escala,
+atracação e viagem); B/Ls sem CE da mesma viagem continuam excluíveis.
+Fatura, invoice de Demurrage ou recebível também travam o que referenciam.
+Vazios, que não têm CE, travam com o ADR de Saída fechado da escala e
+terminal. Corrigir o CE mantém a trava; apagá-lo só a solta enquanto nenhuma
+fatura foi emitida nem B/L liberado no Portal. Antes da trava, excluir cabe ao
+Administrativo, com motivo; depois, o caminho é corrigir, substituir, reemitir
+ou cancelar. Decidida na [ADR 0071](docs/adr/0071-ce-mercante-como-trava-de-exclusao.md);
+a implementação ainda segue as regras anteriores.
+
 ## Operação marítima
 
 **Viagem**
@@ -111,10 +124,16 @@ acompanhado em suas escalas, agendas e cargas.
 **Viagem Cancelada**
 Viagem que não será mais realizada pelo armador, embora tenha sido cadastrada
 ou programada. O cancelamento preserva seus registros e vínculos para
-rastreabilidade; não é conclusão nem exclusão. Uma viagem não cancelada que
-ainda não recebeu qualquer dado vinculado pode ser removida fisicamente por
-Administrador; depois que existe vínculo, o caminho é corrigir ou cancelar,
-nunca apagar a operação por cascata.
+rastreabilidade; não é conclusão nem exclusão. Uma viagem cancelada por
+engano pode ser reativada pelo Administrativo, com motivo.
+
+Hoje, uma viagem não cancelada só pode ser excluída pelo Administrativo se
+ainda não recebeu qualquer dado vinculado. A regra decidida na
+[ADR 0071](docs/adr/0071-ce-mercante-como-trava-de-exclusao.md), ainda não
+implementada, é outra: a viagem pode ser excluída, levando junto seus B/Ls,
+carga e escalas, enquanto nenhum B/L dela estiver sob a
+[Trava de exclusão](#ações-sobre-registros); a tela mostra antes o que será
+apagado. Depois da trava, o caminho é corrigir ou cancelar.
 
 **Alias de Nome de Navio**
 Prefixo abreviado reconhecido como equivalente ao prefixo canônico do nome do

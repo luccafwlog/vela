@@ -4,6 +4,12 @@ Status: aceito
 
 Data: 2026-07-10
 
+> **Nota editorial — 2026-09-24.** Supersedida parcialmente pela
+> [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md): viagem com B/Ls
+> sem CE Mercante passa a ser excluível em cascata, com prévia, e viagem
+> cancelada por engano pode ser reativada pelo Administrativo. O cancelamento
+> continua estado retido. Implementação pendente.
+
 > **Nota editorial — 2026-09-20.** A decisão foi confirmada durante a revisão
 > da PR 706: `voyages` continua sem estado `deleted`, mas um Administrador pode
 > fazer hard-delete de uma viagem não cancelada quando ela ainda não possui
