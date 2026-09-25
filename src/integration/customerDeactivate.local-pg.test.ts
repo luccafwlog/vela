@@ -127,4 +127,10 @@ describeLocal('092 — cliente desativado', () => {
     expect(psql(`SELECT count(*) FROM public.audit_logs WHERE entity_type = 'customer'
       AND entity_id = '${CUSTOMER_FREE}' AND field_name = 'deactivated';`)).toBe('2')
   })
+
+  it('Reativar cliente ativo é recusado; coluna direta continua fechada', () => {
+    expect(as(ADMIN_ID, `SELECT public.reactivate_customer(${CUSTOMER_FREE}, 'de novo');`).stderr).toMatch(/não está desativado/)
+    expect(as(ADMIN_ID, `UPDATE public.customers SET deactivated_at = now() WHERE id = ${CUSTOMER_FREE};`).stderr)
+      .toMatch(/Use deactivate_customer/)
+  })
 })

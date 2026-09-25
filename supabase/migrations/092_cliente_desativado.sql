@@ -73,9 +73,11 @@ BEGIN
     RAISE EXCEPTION 'Informe o motivo da desativação.' USING ERRCODE = '22023';
   END IF;
 
+  PERFORM set_config('vela.allow_customer_state', 'on', true);
   UPDATE public.customers
   SET deactivated_at = now(), deactivated_by = auth.uid(), deactivation_reason = v_reason
   WHERE id = p_customer_id;
+  PERFORM set_config('vela.allow_customer_state', 'off', true);
   INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
   VALUES ('customer', p_customer_id::text, 'deactivated', 'false', 'true', auth.uid(), v_reason);
   RETURN jsonb_build_object('deactivated', true, 'reasons', '[]'::jsonb);
@@ -97,12 +99,14 @@ BEGIN
   IF v_reason IS NULL THEN
     RAISE EXCEPTION 'Informe o motivo da reativação.' USING ERRCODE = '22023';
   END IF;
+  PERFORM set_config('vela.allow_customer_state', 'on', true);
   UPDATE public.customers
   SET deactivated_at = NULL, deactivated_by = NULL, deactivation_reason = NULL
   WHERE id = p_customer_id AND deactivated_at IS NOT NULL;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Cliente % não está desativado.', p_customer_id USING ERRCODE = 'P0002';
   END IF;
+  PERFORM set_config('vela.allow_customer_state', 'off', true);
   INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
   VALUES ('customer', p_customer_id::text, 'deactivated', 'true', 'false', auth.uid(), v_reason);
   RETURN jsonb_build_object('reactivated', true);
@@ -114,7 +118,9 @@ REVOKE ALL ON FUNCTION public.reactivate_customer(bigint, text) FROM PUBLIC, ano
 GRANT EXECUTE ON FUNCTION public.deactivate_customer(bigint, text, boolean) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reactivate_customer(bigint, text) TO authenticated;
 
--- Estado de desativação só pelas RPCs.
+-- Estado de desativação só pelas RPCs, que ligam vela.allow_customer_state na
+-- própria transação (mesmo padrão de vela.allow_bl_state, migration 089). Não
+-- depende do nome do dono das funções.
 CREATE OR REPLACE FUNCTION public.guard_customer_deactivation_columns()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -125,7 +131,7 @@ BEGIN
       OR OLD.deactivated_by IS DISTINCT FROM NEW.deactivated_by
       OR OLD.deactivation_reason IS DISTINCT FROM NEW.deactivation_reason)
      AND auth.uid() IS NOT NULL
-     AND current_user NOT IN ('postgres', 'supabase_admin') THEN
+     AND current_setting('vela.allow_customer_state', true) IS DISTINCT FROM 'on' THEN
     RAISE EXCEPTION 'Use deactivate_customer ou reactivate_customer.' USING ERRCODE = '42501';
   END IF;
   RETURN NEW;
