@@ -138,7 +138,7 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
 
   async function handleDeleteManualCharge(lineId: number) {
     if (!user) return
-    if (!(await confirm({ message: 'Excluir esta linha manual?', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    if (!(await confirm({ title: 'Excluir taxa manual', message: 'Excluir esta taxa manual do B/L?', consequence: 'A taxa sai das cobranças do B/L e do próximo faturamento.', reversibility: 'Lance a taxa de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
 
     try {
       await deleteManualChargeMutation.mutateAsync({

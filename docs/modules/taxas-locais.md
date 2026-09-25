@@ -173,8 +173,8 @@ Definidas em `src/services/queryKeys.ts`:
 - `charge_tables` possui escopo, vigência e ativação da tabela. A vigência é
   informativa (ADR 0040): `resolve_local_charge_table_id` (migration `274`)
   resolve por `cargo_mode` + POD normalizado + `active`, e desempata entre
-  ativas por `valid_from DESC, id DESC`. Inativar é a única forma de tirar uma
-  tabela do cálculo.
+  ativas por `valid_from DESC, id DESC`. Desativar ("Desativar tabela") é a única forma de tirar
+  uma tabela do cálculo.
 - `charge_table_items` possui categoria, base de aplicação, perfil, moeda e
   valor unitário; `manual_only` separa itens automáticos dos adicionáveis.
 - `customer_rate_overrides` possui a substituição por cliente/item/vigência.

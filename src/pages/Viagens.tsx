@@ -381,7 +381,7 @@ export function Viagens() {
 
           <div className="app-modal__actions">
             <Button variant="secondary" onClick={() => setDeletingVoyageId(null)}>
-              Cancelar
+              Voltar
             </Button>
             <Button variant="danger" loading={deleting} onClick={handleDeleteVoyage}>
               Excluir viagem

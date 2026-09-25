@@ -62,7 +62,7 @@ export function GraniteRates() {
   }
 
   async function handleDelete(id: string) {
-    if (!(await confirm({ message: 'Excluir esta taxa?', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    if (!(await confirm({ title: 'Excluir taxa de Granito', message: 'Excluir esta taxa de Granito?', consequence: 'A taxa sai do cadastro e não entra em cálculos novos. O banco recusa se ela já foi usada.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
     setDeletingId(id)
     try {
       await deleteGraniteRate(id)
@@ -248,7 +248,7 @@ export function GraniteRates() {
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>Voltar</Button>
             <Button disabled={!form.description} loading={saving} onClick={handleSave}>
               Salvar
             </Button>

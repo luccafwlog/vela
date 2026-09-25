@@ -88,7 +88,7 @@ export function DepartmentSignoffControl({
           </label>
         ) : null}
         <div className="mt-4 flex justify-end gap-2">
-          <Button variant="secondary" onClick={closeAction}>Cancelar</Button>
+          <Button variant="secondary" onClick={closeAction}>Voltar</Button>
           <Button variant={action === 'reopen' ? 'danger' : 'primary'} disabled={action === 'reopen' && !justification.trim()} onClick={confirmAction}>Confirmar</Button>
         </div>
       </Modal>

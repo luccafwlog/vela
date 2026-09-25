@@ -7,6 +7,6 @@ export function checkContainerDependencies(ids: number[]): Promise<DeleteDepende
 }
 
 /** Exclui containers com os veiculos; cada um sai por inteiro ou volta com o motivo. */
-export function deleteContainers(ids: number[]): Promise<DeleteDependencyReport<number>> {
-  return deleteRecords('container', ids)
+export function deleteContainers(ids: number[], reason?: string): Promise<DeleteDependencyReport<number>> {
+  return deleteRecords('container', ids, { reason })
 }

@@ -64,7 +64,7 @@ export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={handleClose}>
-            Cancelar
+            Voltar
           </Button>
           <Button type="submit" loading={setDunningMutation.isPending}>
             Salvar intervalo

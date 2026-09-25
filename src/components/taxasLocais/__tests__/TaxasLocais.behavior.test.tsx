@@ -138,7 +138,7 @@ describe('Taxas Locais user behaviours', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Inativar tabela' }))
+    await user.click(screen.getByRole('button', { name: 'Desativar tabela' }))
     const disclosure = screen.getByTitle('Ver itens')
     expect(disclosure.getAttribute('aria-expanded')).toBe('false')
     expect(disclosure.getAttribute('aria-controls')).toBe('charge-table-items-1')

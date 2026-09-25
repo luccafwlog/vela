@@ -143,8 +143,8 @@ export function checkCustomerDependencies(ids: number[]): Promise<DeleteDependen
 }
 
 /** Exclui clientes com contatos e overrides; cada um sai por inteiro ou volta com o motivo. */
-export function deleteCustomers(ids: number[]): Promise<DeleteDependencyReport<number>> {
-  return deleteRecords('customer', ids)
+export function deleteCustomers(ids: number[], reason?: string): Promise<DeleteDependencyReport<number>> {
+  return deleteRecords('customer', ids, { reason })
 }
 
 type CustomerPendingBalanceRow = {

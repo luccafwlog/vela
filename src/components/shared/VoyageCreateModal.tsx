@@ -259,7 +259,7 @@ export function VoyageCreateModal({
 
         <div className="app-modal__actions">
           <Button variant="secondary" type="button" onClick={handleClose}>
-            Cancelar
+            Voltar
           </Button>
           <Button loading={saving} type="submit">
             {voyageId ? 'Salvar viagem' : 'Cadastrar viagem'}

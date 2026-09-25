@@ -91,7 +91,7 @@ export function DemurrageRates() {
   }
 
   async function handleDelete(id: number) {
-    if (!(await confirm({ message: 'Excluir esta tarifa?', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    if (!(await confirm({ title: 'Excluir tarifa de Demurrage', message: 'Excluir esta tarifa de Demurrage?', consequence: 'A tarifa sai do cadastro e não entra em cálculos novos.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
     deleteMutation.mutate(id, {
       onSuccess: () => showToast('Tarifa removida.', 'success'),
       onError: () => showToast('Falha ao remover tarifa.', 'error'),
@@ -292,7 +292,7 @@ export function DemurrageRates() {
           </Field>
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="ghost" onClick={() => setModalOpen(false)}>
-              Cancelar
+              Voltar
             </Button>
             <Button onClick={handleSave} loading={saveMutation.isPending}>
               Salvar

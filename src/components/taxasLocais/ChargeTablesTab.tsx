@@ -179,7 +179,7 @@ export function ChargeTablesTab({
   }
 
   async function handleDeleteTableItem(itemId: number) {
-    if (!(await confirm({ message: 'Excluir este item de taxa?', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    if (!(await confirm({ title: 'Excluir item de taxa', message: 'Excluir este item da tabela de taxas?', consequence: 'O item sai da tabela e não entra em cálculos novos. O banco recusa se ele já foi usado em cálculo.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
     try {
       await deleteChargeTableItemMutation.mutateAsync(itemId)
       showToast('Item de taxa removido.', 'success')

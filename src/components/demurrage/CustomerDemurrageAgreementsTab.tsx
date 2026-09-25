@@ -49,7 +49,9 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
     const customerName = agreement.customer?.name ?? `Cliente #${agreement.customer_id}`
     const confirmed = await confirm({
       title: 'Excluir Acordo de Demurrage',
-      message: `Tem certeza que deseja remover o acordo de Demurrage de ${customerName}?`,
+      message: `Excluir o acordo de Demurrage de ${customerName}?`,
+      consequence: 'Cálculos novos de Demurrage deste cliente voltam a usar a tarifa padrão.',
+      reversibility: 'Não é possível desfazer; cadastre o acordo de novo se precisar.',
       tone: 'danger',
       confirmLabel: 'Excluir',
     })

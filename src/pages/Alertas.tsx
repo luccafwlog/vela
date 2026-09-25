@@ -461,7 +461,7 @@ export function Alertas() {
                 onClick={closeDismissModal}
                 disabled={dismissMutation.isPending}
               >
-                Cancelar
+                Voltar
               </Button>
               <Button
                 variant="primary"

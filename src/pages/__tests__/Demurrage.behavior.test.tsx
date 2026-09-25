@@ -351,7 +351,7 @@ describe('Demurrage page behaviours', () => {
 
     await user.click(screen.getByRole('button', { name: 'Detalhes' }))
     await screen.findByRole('dialog', { name: 'Detalhes da invoice' })
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await user.click(screen.getByRole('button', { name: 'Voltar' }))
     await waitFor(() => expect(mocks.cancelInvoice.mock.calls.at(-1)?.[0]).toBe(21))
     expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Cancelar invoice',

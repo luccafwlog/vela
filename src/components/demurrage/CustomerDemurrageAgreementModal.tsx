@@ -273,7 +273,7 @@ function CustomerDemurrageAgreementForm({
       {/* Actions */}
       <div className="mt-2 flex justify-end gap-2">
         <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
-          Cancelar
+          Voltar
         </Button>
         <Button type="button" onClick={() => void handleSave()} loading={saving}>
           {initialAgreement ? 'Salvar Alterações' : 'Cadastrar Acordo'}
