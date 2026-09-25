@@ -99,6 +99,14 @@ Parar de ver um aviso. Nada muda no dado. Exclusivo de Alertas e Notificações.
 Devolução ao cliente de valor que ele pagou a maior. Não é o desfazer de uma
 baixa: uma baixa lançada por engano é cancelada.
 
+**Cadastro usado**
+Um cadastro de referência (tarifa, e os demais conforme forem revisados)
+só pode ser excluído se nunca foi usado; depois de usado, só se desativa, para
+que todo valor cobrado mantenha a origem. Para tarifas, excluir e desativar
+são do Administrativo. Decidido na
+[ADR 0073](docs/adr/0073-cadastro-usado-so-se-desativa.md), ainda não
+implementada.
+
 **Confirmação de ação**
 Toda ação que grava ou altera dado, envia algo a alguém ou tira um registro de
 circulação abre um diálogo antes de executar. Busca, filtros, abas e

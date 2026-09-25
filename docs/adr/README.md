@@ -77,6 +77,7 @@ vigentes e onde uma decisão posterior alterou parte de uma ADR anterior.
 | [0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md) | O Portal trava toda emissão; a saída é a Liberação por Cliente | aceito | Retira a exceção interna da 051: o CE retém a fatura sem Portal. O Administrativo concede a Liberação de faturamento sem Portal com justificativa e data de revisão; conceder ou ativar o Portal emite o que ficou retido. Relações: [0054](./0054-portal-como-gate-de-faturamento.md), [0041](./0041-validacao-fila-de-bloqueios-ce-como-confirmacao.md), [0006](./0006-revisao-operacional-reconciliacao-cliente-gate-faturamento.md); migration `083`. |
 | [0071](./0071-ce-mercante-como-trava-de-exclusao.md) | O CE Mercante é a trava de exclusão | aceito | Supersede parcialmente a 0009 (critério, papel e auditoria) e a 0024 (exclusão de viagem com vínculo e reativação). Implementação pendente. |
 | [0072](./0072-toda-escrita-confirmada-com-consequencia.md) | Toda escrita é confirmada com o que faz e a consequência | aceito | Diálogo com registros afetados, consequência, reversibilidade e motivo; salvar mostra antes e depois; prévia de importação vale como diálogo. Implementação pendente. |
+| [0073](./0073-cadastro-usado-so-se-desativa.md) | Cadastro de referência usado só se desativa | aceito | Complementa a 0071 para cadastros. Tarifas: excluir só a nunca usada, usada se desativa, ações do Administrativo. Implementação pendente. |
 
 ## Convenção
 
