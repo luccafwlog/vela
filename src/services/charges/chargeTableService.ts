@@ -138,6 +138,17 @@ export async function setChargeTableActive(id: number, active: boolean) {
   if (error) throw error
 }
 
+/**
+ * Desativa ou reativa um item de taxa (ADR 0073). Desativado, nao entra em
+ * calculos novos e continua explicando os antigos. So o Administrativo; o
+ * banco recusa os demais (migration 091).
+ */
+export async function setChargeTableItemActive(id: number, active: boolean) {
+  const { data, error } = await supabase.from('charge_table_items').update({ active }).eq('id', id).select('id')
+  if (error) throw error
+  if (!data || data.length === 0) throw new Error('O item não foi alterado: sem permissão ou item inexistente.')
+}
+
 export async function saveChargeTableItem(input: ChargeTableItemInput) {
   const normalizedUnitValue = Number(input.unitValue)
   const appliesTo: 'container' | 'bl' | 'teu' =

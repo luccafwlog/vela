@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   saveTable: vi.fn(),
   toggleTable: vi.fn(),
+  toggleItem: vi.fn(),
+  toggleOverride: vi.fn(),
   saveItem: vi.fn(),
   deleteItem: vi.fn(),
   saveOverride: vi.fn(),
@@ -79,6 +81,8 @@ vi.mock('../../../hooks/useLocalCharges', () => ({
   useLocalChargeTables: () => ({ data: tables, isLoading: false, error: null }),
   useSaveChargeTable: () => ({ mutateAsync: mocks.saveTable, isPending: false }),
   useSetChargeTableActive: () => ({ mutateAsync: mocks.toggleTable, isPending: false }),
+  useSetChargeTableItemActive: () => ({ mutateAsync: mocks.toggleItem, isPending: false }),
+  useSetCustomerRateOverrideActive: () => ({ mutateAsync: mocks.toggleOverride, isPending: false }),
   useSaveChargeTableItem: () => ({ mutateAsync: mocks.saveItem, isPending: false }),
   useDeleteChargeTableItem: () => ({ mutateAsync: mocks.deleteItem, isPending: false }),
   useCustomerRateOverrides: () => ({ data: overrides, isLoading: false, error: null }),
@@ -193,6 +197,25 @@ describe('Taxas Locais user behaviours', () => {
 
     expect(screen.getByRole('button', { name: 'Editar override' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Excluir override' })).toBeNull()
+  })
+
+  it('Administrativo desativa override depois da confirmação (ADR 0073)', async () => {
+    const user = userEvent.setup()
+    mocks.confirm.mockResolvedValue(true)
+    render(
+      <ChargeOverridesTab
+        cargoModeFilter=""
+        setCargoModeFilter={vi.fn()}
+        podFilter=""
+        setPodFilter={vi.fn()}
+        canEdit
+        canDelete
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Desativar override' }))
+    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Desativar override', consequence: expect.any(String) }))
+    expect(mocks.toggleOverride).toHaveBeenCalledWith({ id: expect.any(Number), active: false })
   })
 
   it('carrega override para edicao e confirma sua exclusao', async () => {

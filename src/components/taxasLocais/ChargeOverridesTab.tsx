@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pencil, Save, Trash2, X } from 'lucide-react'
+import { Ban, Pencil, Save, Trash2, X } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card, EmptyState, InlineError } from '../ui/Card'
@@ -10,6 +10,7 @@ import { useToast } from '../ui/Toast'
 import {
   useCustomerRateOverrides,
   useDeleteCustomerRateOverride,
+  useSetCustomerRateOverrideActive,
   useOverrideChargeItems,
   useOverrideCustomers,
   useSaveCustomerRateOverride,
@@ -44,6 +45,7 @@ export function ChargeOverridesTab({
   const { data: overrideCustomers } = useOverrideCustomers(overrideCustomerSearch)
   const saveOverrideMutation = useSaveCustomerRateOverride()
   const deleteOverrideMutation = useDeleteCustomerRateOverride()
+  const setOverrideActiveMutation = useSetCustomerRateOverrideActive()
 
   async function handleSaveOverride() {
     const result = validateOverrideInput(overrideForm)
@@ -86,17 +88,38 @@ export function ChargeOverridesTab({
     })
   }
 
+  async function handleToggleOverrideActive(id: number, current: boolean) {
+    const nextActive = !current
+    const confirmed = await confirm({
+      title: nextActive ? 'Reativar override' : 'Desativar override',
+      message: nextActive ? 'Reativar este override de cliente?' : 'Desativar este override de cliente?',
+      consequence: nextActive
+        ? 'Cálculos novos deste cliente voltam a usar o valor do override, dentro da vigência.'
+        : 'Cálculos novos deste cliente passam a usar o valor da tabela; os cálculos antigos continuam mostrando o override aplicado.',
+      reversibility: nextActive ? 'Desative de novo se precisar.' : 'Reativar override.',
+      confirmLabel: nextActive ? 'Reativar' : 'Desativar',
+      tone: nextActive ? 'primary' : 'danger',
+    })
+    if (!confirmed) return
+    try {
+      await setOverrideActiveMutation.mutateAsync({ id, active: nextActive })
+      showToast(nextActive ? 'Override reativado.' : 'Override desativado.', 'success')
+    } catch (error) {
+      showToast(extractErrorText(error) || 'Falha ao alterar o override.', 'error')
+    }
+  }
+
   async function handleDeleteOverride(id: number) {
     if (!(await confirm({ title: 'Excluir override', message: 'Excluir este override de cliente?', consequence: 'Cálculos novos deste cliente voltam a usar o valor da tabela.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
     setOverrideDeletingId(id)
     try {
       await deleteOverrideMutation.mutateAsync(id)
-      showToast('Override removido.', 'success')
+      showToast('Override excluído.', 'success')
       if (overrideForm.id === id) {
         setOverrideForm(EMPTY_OVERRIDE_FORM)
       }
-    } catch {
-      showToast('Falha ao remover override.', 'error')
+    } catch (error) {
+      showToast(extractErrorText(error) || 'Falha ao excluir override.', 'error')
     } finally {
       setOverrideDeletingId(null)
     }
@@ -281,8 +304,8 @@ export function ChargeOverridesTab({
                       {(row.charge_item?.charge_table?.cargo_mode ?? '').toUpperCase()} / {row.charge_item?.charge_table?.pod ?? '-'}
                     </td>
                     <td className="px-4 py-3">
-                      <div className={`text-xs font-medium uppercase tracking-wide ${statusStyle}`}>
-                        {overrideStatus}
+                      <div className={`text-xs font-medium uppercase tracking-wide ${row.active === false ? 'text-[var(--app-muted)]' : statusStyle}`}>
+                        {row.active === false ? 'desativado' : overrideStatus}
                       </div>
                       <div className="text-xs text-[var(--app-muted)]">
                         {validFrom ?? '-'}{validTo ? ` ate ${validTo}` : validFrom ? ' (aberta)' : ''}
@@ -305,6 +328,17 @@ export function ChargeOverridesTab({
                           >
                             <Pencil size={14} />
                           </button>
+                          {canDelete ? (
+                            <button
+                              className="app-table__icon-button"
+                              type="button"
+                              onClick={() => handleToggleOverrideActive(row.id, row.active !== false)}
+                              aria-label={row.active === false ? 'Reativar override' : 'Desativar override'}
+                              title={row.active === false ? 'Reativar override' : 'Desativar override'}
+                            >
+                              {row.active === false ? <Save size={14} /> : <Ban size={14} />}
+                            </button>
+                          ) : null}
                           {canDelete ? (
                           <button
                             className="app-table__icon-button app-table__icon-button--danger"
