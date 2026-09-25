@@ -49,7 +49,8 @@ describeLocal('094 — rotina de guarda de dados', () => {
       INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value, changed_at) VALUES
         ('bl', '${TAG}-old', 'pod', 'x', now() - interval '6 years'),
         ('bl', '${TAG}-new', 'pod', 'x', now() - interval '4 years'),
-        ('voyage_pod_schedule', '9400001::BRSSZ', 'eta', '2020-01-01', now() - interval '6 years');
+        ('voyage_pod_schedule', '9400001::BRSSZ', 'eta', '2020-01-01', now() - interval '6 years'),
+        ('voyages', '${TAG}-voyage', 'indicated_first_brazilian_port', 'BRSSZ', now() - interval '6 years');
       INSERT INTO public.portal_provisioning_events (customer_id, actor_type, created_at) VALUES
         (${CUSTOMER_ID}, 'sistema', now() - interval '2 years'),
         (${CUSTOMER_ID}, 'sistema', now() - interval '6 months');
@@ -72,7 +73,7 @@ describeLocal('094 — rotina de guarda de dados', () => {
     expect(result.audit_logs).toBeGreaterThanOrEqual(1)
 
     expect(psql(`SELECT string_agg(entity_id, ',' ORDER BY entity_id) FROM public.audit_logs
-      WHERE entity_id LIKE '${TAG}%' OR entity_id = '9400001::BRSSZ';`)).toBe(`9400001::BRSSZ,${TAG}-new`)
+      WHERE entity_id LIKE '${TAG}%' OR entity_id = '9400001::BRSSZ';`)).toBe(`9400001::BRSSZ,${TAG}-new,${TAG}-voyage`)
     expect(psql(`SELECT count(*) FROM public.portal_provisioning_events WHERE customer_id = ${CUSTOMER_ID};`)).toBe('1')
     expect(psql(`SELECT string_agg(cnpj_hash, ',') FROM public.portal_login_attempts WHERE cnpj_hash LIKE '${TAG}%';`)).toBe(`${TAG}-new`)
   })

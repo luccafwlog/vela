@@ -5,6 +5,10 @@
 --   - audit_logs com mais de 5 anos, exceto as marcas de escala
 --     (voyage_pod_schedule, voyage_pol_schedule), que são dado operacional:
 --     a programação das viagens é reconstruída a partir delas (achado A4);
+--     e o primeiro porto brasileiro indicado da viagem (entity_type voyages,
+--     indicated_first_brazilian_port/eta), que só existe na auditoria;
+--   - cliente com CNPJ continua sem poder ser excluído depois do expurgo dos
+--     eventos do Portal: a regra é explícita em delete_records (087/088);
 --   - eventos e tentativas do Portal com mais de 1 ano:
 --     portal_provisioning_events, portal_email_event_attempts,
 --     portal_inspection_events, portal_login_attempts,
@@ -36,7 +40,9 @@ BEGIN
 
   DELETE FROM public.audit_logs
   WHERE changed_at < now() - interval '5 years'
-    AND entity_type NOT IN ('voyage_pod_schedule', 'voyage_pol_schedule');
+    AND entity_type NOT IN ('voyage_pod_schedule', 'voyage_pol_schedule')
+    AND NOT (entity_type = 'voyages'
+             AND field_name IN ('indicated_first_brazilian_port', 'indicated_first_brazilian_eta'));
   GET DIAGNOSTICS v_count = ROW_COUNT;
   v_result := v_result || jsonb_build_object('audit_logs', v_count);
 
