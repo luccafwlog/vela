@@ -11,6 +11,8 @@ export type LocalChargeOverrideItem = {
   valid_to: string | null
   notes: string | null
   created_at: string | null
+  /** Desativado nao entra em calculos novos (migration 091). */
+  active: boolean
   customer: {
     id: number
     name: string
@@ -82,6 +84,7 @@ export async function listCustomerRateOverrides(filters?: {
       valid_to,
       notes,
       created_at,
+      active,
       customer:customers(
         id,
         name,
@@ -218,6 +221,9 @@ export async function findOverlappingCustomerRateOverride(input: {
     .select('id, valid_from, valid_to')
     .eq('customer_id', input.customerId)
     .eq('charge_item_id', input.chargeItemId)
+    // Override desativado nao disputa a vigencia com um novo. (`active` e da
+    // migration 091; src/types/database.ts ainda nao foi regenerado.)
+    .eq('active' as never, true as never)
 
   if (input.id) query = query.neq('id', input.id)
 
@@ -281,6 +287,13 @@ function classifyOverrideOverlapError(error: { code?: string; message?: string }
     return new Error('Já existe uma condição para este cliente e item com vigência sobreposta. Ajuste o período ou edite a condição existente.')
   }
   return error
+}
+
+/** Desativa ou reativa um override de cliente (ADR 0073); so o Administrativo. */
+export async function setCustomerRateOverrideActive(id: number, active: boolean) {
+  const { data, error } = await supabase.from('customer_rate_overrides').update({ active } as never).eq('id', id).select('id')
+  if (error) throw error
+  if (!data || data.length === 0) throw new Error('O override não foi alterado: sem permissão ou override inexistente.')
 }
 
 export async function deleteCustomerRateOverride(id: number) {

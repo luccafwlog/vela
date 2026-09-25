@@ -13,8 +13,10 @@ import {
   useSaveChargeTable,
   useSaveChargeTableItem,
   useSetChargeTableActive,
+  useSetChargeTableItemActive,
 } from '../../hooks/useLocalCharges'
 import { describeActiveFilters, describeEmptyState } from '../../lib/operationalState'
+import { userFacingErrorMessage } from '../../lib/errors'
 import { formatCountLabel } from '../../lib/utils'
 import { validateTableInput, validateTableItemInput } from '../../pages/taxasLocaisHelpers'
 import { ChargeTableFormCard } from './ChargeTableFormCard'
@@ -47,6 +49,7 @@ export function ChargeTablesTab({
   })
   const saveChargeTableMutation = useSaveChargeTable()
   const setChargeTableActiveMutation = useSetChargeTableActive()
+  const setChargeTableItemActiveMutation = useSetChargeTableItemActive()
   const saveChargeTableItemMutation = useSaveChargeTableItem()
   const deleteChargeTableItemMutation = useDeleteChargeTableItem()
   const currentTables = useMemo(() => tables ?? [], [tables])
@@ -121,9 +124,30 @@ export function ChargeTablesTab({
     const nextActive = current !== true
     try {
       await setChargeTableActiveMutation.mutateAsync({ id, active: nextActive })
-      showToast(nextActive ? 'Tabela ativada.' : 'Tabela inativada.', 'success')
-    } catch {
-      showToast('Falha ao alterar status da tabela.', 'error')
+      showToast(nextActive ? 'Tabela reativada.' : 'Tabela desativada.', 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Falha ao alterar status da tabela.'), 'error')
+    }
+  }
+
+  async function handleToggleTableItemActive(id: number, current: boolean | null) {
+    const nextActive = current !== true
+    const confirmed = await confirm({
+      title: nextActive ? 'Reativar item de taxa' : 'Desativar item de taxa',
+      message: nextActive ? 'Reativar este item da tabela de taxas?' : 'Desativar este item da tabela de taxas?',
+      consequence: nextActive
+        ? 'O item volta a entrar nos cálculos novos.'
+        : 'O item deixa de entrar em cálculos novos; os cálculos e faturas antigos continuam mostrando de onde veio o valor.',
+      reversibility: nextActive ? 'Desative de novo se precisar.' : 'Reativar item.',
+      confirmLabel: nextActive ? 'Reativar' : 'Desativar',
+      tone: nextActive ? 'primary' : 'danger',
+    })
+    if (!confirmed) return
+    try {
+      await setChargeTableItemActiveMutation.mutateAsync({ id, active: nextActive })
+      showToast(nextActive ? 'Item reativado.' : 'Item desativado.', 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Falha ao alterar o item.'), 'error')
     }
   }
 
@@ -268,6 +292,7 @@ export function ChargeTablesTab({
         onToggleTableActive={handleToggleTableActive}
         onEditTableItem={handleEditTableItem}
         onDeleteTableItem={handleDeleteTableItem}
+        onToggleTableItemActive={handleToggleTableItemActive}
         togglingTableActive={setChargeTableActiveMutation.isPending}
         deletingTableItem={deleteChargeTableItemMutation.isPending}
       />

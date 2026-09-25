@@ -14,13 +14,14 @@ type ChargeTablesListProps = {
   filterDescription: string
   emptyState: { title: string; description: string }
   canEdit: boolean
-  /** Excluir item e do Administrativo no banco. */
+  /** Excluir, desativar e reativar sao do Administrativo no banco. */
   canDelete: boolean
   onEditTable: (id: number) => void
   onPrepareTableItem: (tableId: number) => void
   onToggleTableActive: (id: number, current: boolean | null) => void
   onEditTableItem: (tableId: number, itemId: number) => void
   onDeleteTableItem: (itemId: number) => void
+  onToggleTableItemActive: (itemId: number, current: boolean | null) => void
   togglingTableActive: boolean
   deletingTableItem: boolean
 }
@@ -39,6 +40,7 @@ export function ChargeTablesList({
   onToggleTableActive,
   onEditTableItem,
   onDeleteTableItem,
+  onToggleTableItemActive,
   togglingTableActive,
   deletingTableItem,
 }: ChargeTablesListProps) {
@@ -135,6 +137,7 @@ export function ChargeTablesList({
                           <button className="app-table__icon-button" type="button" onClick={() => onPrepareTableItem(table.id)} aria-label="Novo item nesta tabela" title="Novo item nesta tabela">
                             <Plus size={13} />
                           </button>
+                          {canDelete ? (
                           <button
                             className={`app-table__icon-button ${table.active ? 'app-table__icon-button--danger' : ''}`}
                             type="button"
@@ -145,6 +148,7 @@ export function ChargeTablesList({
                           >
                             {table.active ? <Ban size={13} /> : <Save size={13} />}
                           </button>
+                          ) : null}
                         </div>
                       </td>
                     ) : null}
@@ -202,6 +206,17 @@ export function ChargeTablesList({
                                           <Pencil size={13} />
                                         </button>
 {canDelete ? (
+                                          <button
+                                            className="app-table__icon-button"
+                                            type="button"
+                                            onClick={() => onToggleTableItemActive(item.id, item.active)}
+                                            title={item.active ? 'Desativar item' : 'Reativar item'}
+                                            aria-label={item.active ? 'Desativar item' : 'Reativar item'}
+                                          >
+                                            {item.active ? <Ban size={13} /> : <Save size={13} />}
+                                          </button>
+                                        ) : null}
+                                        {canDelete ? (
                                         <button
                                           className="app-table__icon-button app-table__icon-button--danger"
                                           type="button"
