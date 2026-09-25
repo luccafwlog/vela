@@ -75,7 +75,7 @@ export function ManualChargeFormFields({
           {isEditing ? (
             <Button variant="ghost" type="button" onClick={onCancel}>
               <X size={15} />
-              Cancelar
+              Voltar
             </Button>
           ) : null}
         </div>

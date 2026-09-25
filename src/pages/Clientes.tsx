@@ -10,7 +10,7 @@ import { MetricCard } from '../components/ui/MetricCard'
 import { PageHeader } from '../components/ui/Card'
 import { WorkspaceNav } from '../components/ui/WorkspaceNav'
 import { useToast } from '../components/ui/Toast'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { CreateCustomerModal } from '../components/customers/CreateCustomerModal'
 import { CustomerTable, type CustomerActionsMenu } from '../components/customers/CustomerTable'
@@ -32,7 +32,7 @@ import { getCustomerFilterChips, type CustomerSortKey } from '../lib/customerTab
 import { BLS_OF_CUSTOMER } from '../lib/supabaseEmbeds'
 import { compareCustomerBaseWithExisting, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
 import { checkCustomerDependencies, createCustomer, deleteCustomers, fetchIssuedInvoiceBalanceByCustomer } from '../services/customers'
-import { formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
+import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
 import { supabase } from '../services/supabase'
 import type { CustomerListItem } from '../types/database'
@@ -48,7 +48,7 @@ export function Clientes() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
-  const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const { user, effectiveRole, can, isAdmin } = useAuth()
   // Excluir exige o Administrativo no banco (delete_records); a tela so
   // oferece a acao a quem pode executa-la.
@@ -332,14 +332,18 @@ export function Clientes() {
         return
       }
 
-      const parts = [
-        `Excluir ${report.deletableIds.length} cliente(s)? Os contatos e overrides de tarifa serao excluidos junto. Esta acao e irreversivel.`,
-      ]
-      if (report.blockedIds.length) parts.push(formatBlockedSummary(report.blockedIds))
-      const ok = await confirm({ message: parts.join('\n\n'), tone: 'danger', confirmLabel: 'Excluir' })
-      if (!ok) return
+      const reason = await confirmWithReason({
+        title: 'Excluir cliente',
+        message: `Excluir ${report.deletableIds.length} cliente(s)?`,
+        affected: buildDeleteAffected('cliente(s)', report),
+        consequence: 'Os clientes saem das listas e das escolhas; contatos e overrides de tarifa deles são apagados junto.',
+        reversibility: 'Não é possível desfazer pelo sistema; o registro apagado fica guardado na auditoria.',
+        confirmLabel: 'Excluir',
+        tone: 'danger',
+      })
+      if (reason === null) return
 
-      const result = await deleteCustomers(report.deletableIds)
+      const result = await deleteCustomers(report.deletableIds, reason)
       selection.clear()
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['customers'] }),

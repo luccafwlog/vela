@@ -40,7 +40,7 @@ export function PtaxModal({ open, value, loading, onValueChange, onClose, onSubm
           />
         </Field>
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>Voltar</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading ? 'Recalculando…' : 'Recalcular'}
           </Button>

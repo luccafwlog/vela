@@ -70,3 +70,19 @@ export function formatDeleteOutcome<K extends string | number>(
   const done = `${result.deletableIds.length} ${noun} excluído(s).`
   return { message: blocked ? `${done} ${blocked}` : done, tone: 'success' }
 }
+
+/**
+ * Registros afetados para o dialogo de confirmacao (ADR 0072), a partir da
+ * previa do banco: totais, lista sob demanda e bloqueados com motivo.
+ */
+export function buildDeleteAffected<K extends string | number>(
+  noun: string,
+  report: DeleteDependencyReport<K>,
+  label: (id: K) => string = String,
+) {
+  return {
+    summary: `${report.deletableIds.length} ${noun} serão excluído(s).`,
+    items: report.deletableIds.map(label),
+    blocked: report.blockedIds.map((b) => ({ label: label(b.id), reasons: b.reasons })),
+  }
+}

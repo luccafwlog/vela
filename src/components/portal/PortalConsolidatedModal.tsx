@@ -120,7 +120,7 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={close}>
-              Cancelar
+              Voltar
             </Button>
             <Button onClick={submit} loading={createMutation.isPending} disabled={summary.selectedCount === 0 || readOnly} title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>
               <FilePlus2 size={16} />

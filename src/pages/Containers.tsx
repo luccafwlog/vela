@@ -11,7 +11,7 @@ import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { useToast } from '../components/ui/Toast'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useAuth } from '../hooks/useAuth'
 import { useRowSelection } from '../hooks/useRowSelection'
 import { usePageFilters } from '../hooks/usePageFilters'
@@ -21,7 +21,7 @@ import { ContainerDatesImportModal } from '../components/shared/ContainerDatesIm
 import { CargoProfileBadge, ChargeStatusBadge } from '../components/shared/OperationalBadges'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { checkContainerDependencies, deleteContainers } from '../services/containers'
-import { formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
+import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
 import { type ContainerFilters, fetchAllContainers, useContainers, usePortOptions, useContainerTypeOptions } from '../hooks/useBls'
 import { userFacingErrorMessage } from '../lib/errors'
 
@@ -32,7 +32,7 @@ export function Containers() {
   const initialPod = searchParams.get('pod') ?? ''
   const initialVehicleContainer = (searchParams.get('vehicle_container') ?? '') as ContainerFilters['vehicleContainer']
   const { showToast } = useToast()
-  const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const { isAdmin } = useAuth()
   const selection = useRowSelection<number>()
   const [deleting, setDeleting] = useState(false)
@@ -164,14 +164,18 @@ export function Containers() {
         return
       }
 
-      const parts = [
-        `Excluir ${report.deletableIds.length} container(es)? Os veiculos vinculados serao excluidos junto. Esta acao e irreversivel.`,
-      ]
-      if (report.blockedIds.length) parts.push(formatBlockedSummary(report.blockedIds))
-      const ok = await confirm({ message: parts.join('\n\n'), tone: 'danger', confirmLabel: 'Excluir' })
-      if (!ok) return
+      const reason = await confirmWithReason({
+        title: 'Excluir container',
+        message: `Excluir ${report.deletableIds.length} container(es)?`,
+        affected: buildDeleteAffected('container(es)', report),
+        consequence: 'Os containers saem do B/L e das listas; os veículos dentro deles são apagados junto.',
+        reversibility: 'Não é possível desfazer pelo sistema; o registro apagado fica guardado na auditoria.',
+        confirmLabel: 'Excluir',
+        tone: 'danger',
+      })
+      if (reason === null) return
 
-      const result = await deleteContainers(report.deletableIds)
+      const result = await deleteContainers(report.deletableIds, reason)
       selection.clear()
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['containers'] }),

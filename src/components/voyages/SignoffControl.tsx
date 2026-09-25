@@ -218,7 +218,7 @@ function SignoffActionModal({
         </label>
       ) : null}
       <div className="mt-4 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
+        <Button variant="secondary" onClick={onCancel}>Voltar</Button>
         <Button variant="primary" disabled={mode === 'justify' && !justification.trim()} onClick={onConfirm}>Confirmar</Button>
       </div>
     </Modal>

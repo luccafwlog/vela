@@ -194,7 +194,7 @@ export function PolScheduleModal({
 
           <div className="app-modal__actions">
             <Button variant="secondary" type="button" onClick={onClose}>
-              Cancelar
+              Voltar
             </Button>
             <Button loading={saving} type="submit">
               Salvar
@@ -1182,7 +1182,7 @@ export function EscalaModal({
 
           <div className="app-modal__actions app-escala-actions">
             <Button variant="secondary" type="button" onClick={onClose}>
-              Cancelar
+              Voltar
             </Button>
             <Button loading={saving} disabled={saving || Boolean(terminalScale?.loading || terminalScale?.error)} type="submit">
               {isNew ? 'Adicionar escala' : 'Salvar escala'}

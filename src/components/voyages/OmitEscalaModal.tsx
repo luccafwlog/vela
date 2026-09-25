@@ -134,7 +134,7 @@ export function OmitEscalaModal({
         {!isConfirming ? (
           <div className="app-modal__actions">
             <Button variant="secondary" type="button" onClick={onClose}>
-              Cancelar
+              Voltar
             </Button>
             <Button autoFocus loading={omit.isPending} type="submit" disabled={!dischargePod}>
               Omitir escala

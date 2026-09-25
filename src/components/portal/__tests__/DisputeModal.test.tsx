@@ -16,7 +16,7 @@ it('limpa motivo ao fechar e reabrir para outra fatura', async () => {
   const { rerender } = render(<DisputeModal demurrageInvoiceId={1} docNumber="DEM-A" onClose={onClose} />)
 
   await user.type(screen.getByLabelText('Motivo da disputa'), 'Valor divergente')
-  await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+  await user.click(screen.getByRole('button', { name: 'Voltar' }))
   rerender(<DisputeModal demurrageInvoiceId={null} docNumber="" onClose={onClose} />)
   rerender(<DisputeModal demurrageInvoiceId={2} docNumber="DEM-B" onClose={onClose} />)
 

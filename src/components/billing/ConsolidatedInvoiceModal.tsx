@@ -278,7 +278,7 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="ghost" onClick={close}>
-              Cancelar
+              Voltar
             </Button>
             <Button
               variant="primary"

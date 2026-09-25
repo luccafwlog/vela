@@ -65,8 +65,17 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
 
   async function cancelInvite() {
     if (!reason.trim()) { setError('Informe a justificativa.'); return }
-    try { await cancelInviteMutation.mutateAsync({ customerId: row.customer_id, reason: reason.trim() }); showToast('Convite cancelado.', 'success'); onSaved?.() }
-    catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível cancelar o convite.') }
+    const confirmed = await confirm({
+      title: 'Revogar convite do Portal',
+      message: `Revogar o convite de acesso ao Portal de ${row.customer_name}?`,
+      consequence: 'O link enviado deixa de funcionar e o cliente não consegue ativar a conta por ele.',
+      reversibility: 'Enviar um novo convite.',
+      confirmLabel: 'Revogar convite',
+      tone: 'danger',
+    })
+    if (!confirmed) return
+    try { await cancelInviteMutation.mutateAsync({ customerId: row.customer_id, reason: reason.trim() }); showToast('Convite revogado.', 'success'); onSaved?.() }
+    catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível revogar o convite.') }
   }
 
   async function changeAccount(action: 'suspend' | 'reactivate') {
@@ -171,7 +180,7 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
         <div className="mt-6 grid gap-3 border-t border-[var(--app-border)] pt-5">
           <Field label="Justificativa"><Textarea value={reason} onChange={(event) => setReason(event.target.value)} /></Field>
           <p className="text-sm text-[var(--app-muted)]">Cancelar invalida o link atual e devolve o Cliente à fila de análise.</p>
-          <Button variant="secondary" onClick={cancelInvite} disabled={!canProvision || busy}>Cancelar convite</Button>
+          <Button variant="secondary" onClick={cancelInvite} disabled={!canProvision || busy}>Revogar convite</Button>
         </div>
       ) : null}
 

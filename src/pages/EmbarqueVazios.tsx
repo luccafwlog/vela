@@ -10,6 +10,7 @@ import { VoyageCombobox } from "../components/shared/VoyageCombobox";
 import { Combobox, type ComboOption } from "../components/ui/Combobox";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../components/ui/Toast";
+import { useConfirm } from "../components/ui/ConfirmDialog";
 import {
   getVaziosExportOperation,
   upsertServiceLine,
@@ -103,6 +104,7 @@ export function EmbarqueVazios() {
   const queryClient = useQueryClient();
   const { user, profile } = useAuth();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const canEdit = Boolean(profile || user);
   const [searchParams] = useSearchParams();
   const queryVoyageId = Number(searchParams.get("voyage"));
@@ -738,7 +740,7 @@ export function EmbarqueVazios() {
                   </Button>
                   {unit.id ? (
                     <Button variant="ghost" onClick={clearUnit}>
-                      Cancelar
+                      Voltar
                     </Button>
                   ) : null}
                 </div>
@@ -808,13 +810,24 @@ export function EmbarqueVazios() {
                           <Button
                             variant="ghost"
                             disabled={!canEdit}
-                            onClick={() =>
+                            aria-label={`Excluir unidade ${item.container_number}`}
+                            onClick={async () => {
+                              const confirmed = await confirm({
+                                title: "Excluir unidade",
+                                message: `Excluir a unidade ${item.container_number} deste embarque?`,
+                                consequence:
+                                  "A unidade sai do embarque, da contagem de vazios e do ADR de Saída desta escala.",
+                                reversibility: "Inclua a unidade de novo se precisar.",
+                                confirmLabel: "Excluir",
+                                tone: "danger",
+                              });
+                              if (!confirmed) return;
                               void notify(async () => {
                                 await deleteManualVaziosBooking(item.id);
                                 clearUnit();
                                 await refreshOperationData();
-                              }, "Unidade excluída.")
-                            }
+                              }, "Unidade excluída.");
+                            }}
                           >
                             <Trash2 size={14} />
                           </Button>
@@ -1138,7 +1151,7 @@ export function EmbarqueVazios() {
                                     className="min-h-16 rounded border border-[var(--app-border)] bg-transparent p-2 text-sm"
                                   />
                                   <div className="flex gap-2">
-                                    <Button variant="secondary" className="app-btn--sm" onClick={() => setEditingServiceObservation(null)}>Cancelar</Button>
+                                    <Button variant="secondary" className="app-btn--sm" onClick={() => setEditingServiceObservation(null)}>Voltar</Button>
                                     <Button className="app-btn--sm" onClick={() => void saveServiceObservation(item.id)}>Salvar</Button>
                                   </div>
                                 </div>
@@ -1154,12 +1167,23 @@ export function EmbarqueVazios() {
                             <td>
                               <Button
                                 variant="ghost"
-                                onClick={() =>
+                                aria-label="Excluir linha de serviço"
+                                onClick={async () => {
+                                  const confirmed = await confirm({
+                                    title: "Excluir linha de serviço",
+                                    message: `Excluir a linha de serviço ${(item.service as { name?: string } | null)?.name ?? item.service_id}?`,
+                                    consequence:
+                                      "O custo desta linha sai do embarque e do ADR de Saída desta escala.",
+                                    reversibility: "Lance a linha de novo se precisar.",
+                                    confirmLabel: "Excluir",
+                                    tone: "danger",
+                                  });
+                                  if (!confirmed) return;
                                   void notify(async () => {
                                     await deleteServiceLine(item.id);
                                     await refreshOperationData();
-                                  }, "Linha excluída.")
-                                }
+                                  }, "Linha excluída.");
+                                }}
                               >
                                 <Trash2 size={14} />
                               </Button>

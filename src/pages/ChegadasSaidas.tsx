@@ -111,7 +111,7 @@ function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing }: {
         })}
       </div>
       <div className="flex justify-end gap-2 pt-4">
-        <button type="button" className="app-btn app-btn--secondary" onClick={onCancel}>Cancelar</button>
+        <button type="button" className="app-btn app-btn--secondary" onClick={onCancel}>Voltar</button>
         <button type="submit" className="app-btn app-btn--primary">{isEditing ? 'Salvar Alterações' : 'Adicionar'}</button>
       </div>
     </form>

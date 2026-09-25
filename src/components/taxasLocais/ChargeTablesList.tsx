@@ -139,8 +139,8 @@ export function ChargeTablesList({
                             className={`app-table__icon-button ${table.active ? 'app-table__icon-button--danger' : ''}`}
                             type="button"
                             onClick={() => onToggleTableActive(table.id, table.active)}
-                            aria-label={table.active ? 'Inativar tabela' : 'Ativar tabela'}
-                            title={table.active ? 'Inativar tabela' : 'Ativar tabela'}
+                            aria-label={table.active ? 'Desativar tabela' : 'Reativar tabela'}
+                            title={table.active ? 'Desativar tabela' : 'Reativar tabela'}
                             disabled={togglingTableActive}
                           >
                             {table.active ? <Ban size={13} /> : <Save size={13} />}

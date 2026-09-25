@@ -188,7 +188,9 @@ export function VoyageVisaoTab({
     }
     const confirmed = await confirm({
       title: 'Excluir escala do planejamento',
-      message: `Excluir a escala ${row.port}? As datas, o vínculo operacional e o planejamento de exportação serão removidos.`,
+      message: `Excluir a escala ${row.port}?`,
+      consequence: 'As datas, o vínculo operacional e o planejamento de exportação desta escala saem da viagem, do Line-Up e da Programação no Portal.',
+      reversibility: 'Adicione a escala de novo se precisar; o registro fica na auditoria.',
       confirmLabel: 'Excluir',
       tone: 'danger',
     })

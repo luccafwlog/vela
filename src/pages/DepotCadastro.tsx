@@ -121,7 +121,7 @@ export function DepotCadastro() {
   }
 
   async function removeDepot() {
-    if (!selected || !(await confirm({ message: `Excluir o local ${selected.code}?`, tone: 'danger', confirmLabel: 'Excluir' }))) return
+    if (!selected || !(await confirm({ title: 'Excluir local', message: `Excluir o local ${selected.code}?`, consequence: 'O local e os serviços dele saem do cadastro. O banco recusa se o local estiver em uso por B/L, escala, ADR ou vazios.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
     await run(async () => {
       await deleteDepot(selected.id)
       setSelectedId(null)
@@ -152,7 +152,7 @@ export function DepotCadastro() {
   }
 
   async function removeService(service: DepotService) {
-    if (!(await confirm({ message: `Excluir o serviço ${service.name}?`, tone: 'danger', confirmLabel: 'Excluir' }))) return
+    if (!(await confirm({ title: 'Excluir serviço', message: `Excluir o serviço ${service.name}?`, consequence: 'O serviço sai do catálogo do local. O banco recusa se ele já foi lançado em Embarque de Vazios.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
     await run(async () => {
       await deleteDepotService(service.id)
       await services.refetch()
@@ -402,7 +402,7 @@ export function DepotCadastro() {
                           <Edit3 size={14} /> Editar
                         </Button>
                         <Button variant="ghost" onClick={() => void toggleService(service)}>
-                          <Power size={14} /> {service.active ? 'Inativar' : 'Ativar'}</Button>
+                          <Power size={14} /> {service.active ? 'Desativar' : 'Reativar'}</Button>
                         {canDelete ? (
                           <Button variant="ghost" onClick={() => void removeService(service)}>
                             <Trash2 size={14} /> Excluir

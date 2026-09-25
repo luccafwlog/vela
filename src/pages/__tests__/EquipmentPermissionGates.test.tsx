@@ -84,7 +84,7 @@ vi.mock('../../hooks/useVehicles', () => ({
 }))
 vi.mock('../../components/shared/VoyageCombobox', () => ({ VoyageCombobox: () => <div /> }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
-vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn() }))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
 vi.mock('../../services/vehicles', () => ({ deleteVehicles: vi.fn() }))
 vi.mock('../../services/vehicleImport', () => ({
   importVehicleRows: vi.fn(),

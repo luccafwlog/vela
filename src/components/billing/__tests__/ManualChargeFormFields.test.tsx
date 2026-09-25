@@ -70,7 +70,7 @@ describe('ManualChargeFormFields', () => {
   it('em modo de criação mostra "Adicionar" e não mostra Cancelar', () => {
     const { onSave } = setup()
     expect(screen.getByRole('button', { name: /Adicionar cobrança manual/ })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull()
     expect(onSave).not.toHaveBeenCalled()
   })
 
@@ -81,7 +81,7 @@ describe('ManualChargeFormFields', () => {
     })
     expect(screen.getByRole('button', { name: /Salvar edição/ })).toBeTruthy()
     expect((screen.getByLabelText('Item') as HTMLSelectElement).disabled).toBe(true)
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await user.click(screen.getByRole('button', { name: 'Voltar' }))
     expect(onCancel).toHaveBeenCalledTimes(1)
   })
 

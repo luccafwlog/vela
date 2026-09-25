@@ -87,7 +87,7 @@ export function ChargeOverridesTab({
   }
 
   async function handleDeleteOverride(id: number) {
-    if (!(await confirm({ message: 'Excluir este override de cliente?', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    if (!(await confirm({ title: 'Excluir override', message: 'Excluir este override de cliente?', consequence: 'Cálculos novos deste cliente voltam a usar o valor da tabela.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
     setOverrideDeletingId(id)
     try {
       await deleteOverrideMutation.mutateAsync(id)

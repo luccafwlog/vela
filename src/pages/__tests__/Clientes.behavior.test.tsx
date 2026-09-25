@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   importCustomerBaseRows: vi.fn(),
   checkCustomerDependencies: vi.fn(),
   deleteCustomers: vi.fn(),
+  confirmWithReason: vi.fn(),
   supabaseFrom: vi.fn(),
   supabaseOr: vi.fn(),
   exportCustomerBaseWorkbook: vi.fn(),
@@ -49,6 +50,7 @@ vi.mock('../../components/ui/Toast', () => ({
 }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirm: () => mocks.confirm,
+  useConfirmWithReason: () => mocks.confirmWithReason,
 }))
 vi.mock('../../services/customers', () => ({
   createCustomer: mocks.createCustomer,
@@ -123,6 +125,7 @@ describe('Clientes page behaviours', () => {
     mocks.checkCustomerDependencies.mockResolvedValue({ deletableIds: [42], blockedIds: [] })
     mocks.deleteCustomers.mockResolvedValue({ deletableIds: [42], blockedIds: [] })
     mocks.confirm.mockResolvedValue(true)
+    mocks.confirmWithReason.mockResolvedValue('cadastro duplicado')
     mocks.exportCustomerBaseWorkbook.mockResolvedValue(undefined)
     const exportResult = Promise.resolve({ data: [customer], error: null })
     const exportQuery = {
@@ -210,9 +213,13 @@ describe('Clientes page behaviours', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Selecionar cliente Cliente Teste' }))
     await user.click(screen.getByRole('button', { name: 'Excluir selecionados' }))
 
-    await waitFor(() => expect(mocks.deleteCustomers).toHaveBeenCalledWith([42]))
+    await waitFor(() => expect(mocks.deleteCustomers).toHaveBeenCalledWith([42], 'cadastro duplicado'))
     expect(mocks.checkCustomerDependencies).toHaveBeenCalledWith([42])
-    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ tone: 'danger', confirmLabel: 'Excluir' }))
+    expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({
+      tone: 'danger',
+      confirmLabel: 'Excluir',
+      affected: expect.objectContaining({ summary: '1 cliente(s) serão excluído(s).' }),
+    }))
     for (const queryKey of [['customers'], ['customers-summary'], ['customer-lookup']]) {
       expect(invalidateQueries).toHaveBeenCalledWith({ queryKey })
     }

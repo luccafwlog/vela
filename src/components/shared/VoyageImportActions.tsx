@@ -439,7 +439,7 @@ function BaplieImportModal({
           </div>
         ) : null}
         <div className="app-modal__actions">
-          <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Cancelar leitura' : 'Cancelar'}</Button>
+          <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
           <Button disabled={!canImport} loading={importing} onClick={() => void handleImport()}>
             Confirmar{excludedPods.size > 0 ? ` (${filteredContainers.length} containers)` : ''}
           </Button>
@@ -551,7 +551,7 @@ function VehiclesImportModal({
           </div>
         ) : null}
         <div className="app-modal__actions">
-          <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Cancelar leitura' : 'Cancelar'}</Button>
+          <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
           <Button disabled={!preview?.rows.length || (preview.rowErrors.length > 0 && !allowOverride)} loading={importing} onClick={() => void handleImport()}>Confirmar</Button>
         </div>
       </div>

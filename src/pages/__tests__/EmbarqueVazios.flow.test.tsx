@@ -5,6 +5,8 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  confirm: vi.fn(),
+  deleteManualVaziosBooking: vi.fn(() => Promise.resolve()),
   createManualVaziosBooking: vi.fn(() => Promise.resolve()),
   invalidateQueries: vi.fn(() => Promise.resolve()),
   refetch: vi.fn(() => Promise.resolve()),
@@ -63,6 +65,7 @@ vi.mock("../../hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "user-1" }, can: () => true }),
 }));
 vi.mock("../../components/ui/Toast", () => ({ useToast: () => ({ showToast: mocks.showToast }) }));
+vi.mock("../../components/ui/ConfirmDialog", () => ({ useConfirm: () => mocks.confirm }));
 vi.mock("../../components/shared/VoyageCombobox", () => ({
   VoyageCombobox: ({ onSelect }: { onSelect: (voyageId: number | null) => void }) => (
     <button type="button" onClick={() => onSelect(179)}>
@@ -80,7 +83,7 @@ vi.mock("../../services/depots", () => ({
 vi.mock("../../services/vaziosImport", () => ({ importVaziosManifest: vi.fn(), parseVaziosManifestFile: vi.fn() }));
 vi.mock("../../services/vaziosExportOperations", () => ({
   createManualVaziosBooking: mocks.createManualVaziosBooking,
-  deleteManualVaziosBooking: vi.fn(),
+  deleteManualVaziosBooking: mocks.deleteManualVaziosBooking,
   deleteServiceLine: vi.fn(),
   getVaziosExportOperation: vi.fn(),
   listVaziosBookingsForOperation: vi.fn(),
@@ -249,6 +252,25 @@ describe("EmbarqueVazios", () => {
 
     await waitFor(() => expect(mocks.operationRefetch).toHaveBeenCalledTimes(1));
     expect(mocks.setQueryData).not.toHaveBeenCalled();
+  });
+
+  it("só exclui a unidade depois da confirmação (ADR 0072)", async () => {
+    mocks.unitsData = {
+      rows: [{ id: "u1", container_number: "MSCU7654321", local_id: "depot-1", condition: "vazio", hand_in_date: "2026-01-01", hand_out_date: "2026-01-05" }],
+      count: 1,
+    };
+    mocks.deleteManualVaziosBooking.mockClear();
+    mocks.confirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    await selectOperation();
+
+    fireEvent.click(screen.getByRole("button", { name: "Excluir unidade MSCU7654321" }));
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledTimes(1));
+    expect(mocks.deleteManualVaziosBooking).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Excluir unidade MSCU7654321" }));
+    await waitFor(() => expect(mocks.deleteManualVaziosBooking).toHaveBeenCalledWith("u1"));
+    expect(mocks.confirm).toHaveBeenLastCalledWith(expect.objectContaining({ confirmLabel: "Excluir", consequence: expect.any(String) }));
   });
 
   it("aponta a armazenagem calculada sem linha lançada e lança com 1 clique", async () => {

@@ -91,7 +91,7 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
           <Field label="ETA de Transbordo"><Input type="date" value={eta} onChange={(event) => setEta(event.target.value)} /></Field>
           <div className="flex gap-2 md:col-span-2">
             <Button type="submit" loading={update.isPending}>Salvar informações</Button>
-            <Button type="button" variant="secondary" onClick={() => setEditing(false)}>Cancelar</Button>
+            <Button type="button" variant="secondary" onClick={() => setEditing(false)}>Voltar</Button>
           </div>
         </form>
       ) : (
@@ -120,7 +120,7 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
           </Field>
           {revert.isError ? <p className="text-sm text-red-500">Falha ao reverter a omissão. Verifique se algum B/L está em COD.</p> : null}
           <div className="app-modal__actions">
-            <Button variant="secondary" type="button" onClick={() => setRevertOpen(false)}>Cancelar</Button>
+            <Button variant="secondary" type="button" onClick={() => setRevertOpen(false)}>Voltar</Button>
             <Button variant="danger" loading={revert.isPending} type="submit" disabled={!revertJustification.trim()}>Reverter omissão</Button>
           </div>
         </form>

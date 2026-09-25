@@ -89,7 +89,7 @@ export function CreateCustomerModal({
 
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
-            Cancelar
+            Voltar
           </Button>
           <Button loading={saving} onClick={onSubmit}>
             Cadastrar cliente
