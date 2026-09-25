@@ -135,8 +135,8 @@ uma edição mostra cada campo com valor anterior e novo. A prévia de
 importação vale como o diálogo quando mostra o que entra, muda e sai. Ação em
 massa mostra totais, bloqueados com motivo e a lista sob demanda, com um
 motivo para o lote. Decidida na
-[ADR 0072](docs/adr/0072-toda-escrita-confirmada-com-consequencia.md); a
-implementação ainda está pendente.
+[ADR 0072](docs/adr/0072-toda-escrita-confirmada-com-consequencia.md); implementada
+nas exclusões e cancelamentos, pendente em Salvar e nas demais escritas.
 
 Em diálogos de confirmação, o botão que fecha sem executar a ação se chama
 **Voltar**, para não confundir com a ação Cancelar.

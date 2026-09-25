@@ -1,6 +1,14 @@
 # 0074 — Usuário não se exclui; retenção definida; backup diário sem PITR
 
-Status: aceito — 2026-09-24. Implementação pendente.
+Status: aceito — 2026-09-24. Implementação parcial (ver nota).
+
+> **Nota de implementação — 2026-09-25.** Itens 1 a 3 implementados em
+> luccafwlog/vela#769 (migrations 093 e 094) e aplicados em produção: o papel
+> `admin` saiu da lista aceita e os perfis passaram a `administrativo`;
+> `run_retention` roda todo dia às 06:30 UTC (`data-retention`, pg_cron) e
+> preserva as marcas de escala e o primeiro porto brasileiro indicado da
+> viagem. Pendente o item 4: agendar o backup diário e testar uma
+> restauração (Etapa 6 do plano de serviços e Cloudflare).
 
 > **Nota editorial — 2026-09-25.** O dono do negócio decidiu **não anonimizar**
 > dados pessoais: o item 3 fica só com os expurgos por prazo (auditoria 5 anos,

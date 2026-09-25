@@ -1,7 +1,15 @@
 # 0072 — Toda escrita é confirmada com o que faz e a consequência
 
-Status: aceito — 2026-09-24. Implementação pendente: hoje só parte das ações
-pede confirmação, em geral com texto genérico.
+Status: aceito — 2026-09-24. Implementação parcial (ver nota).
+
+> **Nota de implementação — 2026-09-25.** Em luccafwlog/vela#764 o diálogo
+> (`ConfirmDialog`, `useConfirmWithReason`) ganhou registros afetados, lista
+> sob demanda, bloqueados com motivo, consequência, reversibilidade, motivo
+> obrigatório e o botão Voltar, e passou a ser usado nas ações de exclusão e
+> cancelamento. A prévia vem do banco que executa (`p_dry_run`). Pendente,
+> no [plano da política de exclusão](../plans/2026-09-24-politica-de-exclusao.md): antes/depois em Salvar, diálogo nas demais escritas e motivo
+> gravado nas exclusões que não passam por `delete_records` (vazios, tarifas,
+> locais).
 
 ## Contexto
 

@@ -6,7 +6,7 @@ Status: aceito — 2026-06-09
 > [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md): o critério de
 > exclusão passa a ser a trava do CE Mercante, o papel autorizado é o
 > Administrativo e a auditoria deixa de ser best-effort. A rejeição de soft
-> delete generalizado continua. Implementação pendente.
+> delete generalizado continua. Implementada em 2026-09-25 (nota da 0071).
 
 ## Contexto
 
