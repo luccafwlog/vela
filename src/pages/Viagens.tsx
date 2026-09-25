@@ -222,19 +222,16 @@ export function Viagens() {
         showToast(`A viagem ${label} não pode ser excluída: ${blocked.reasons.join(', ')}. Corrija ou cancele.`, 'error')
         return
       }
-      const { counts } = preview
+      const removed = preview.items.filter((item) => item.action === 'delete')
+      const detached = preview.items.filter((item) => item.action === 'detach')
       const reason = await confirmWithReason({
         title: 'Excluir viagem',
         message: `Excluir a viagem ${label}?`,
         affected: {
-          summary: 'Vão junto com a viagem:',
+          summary: removed.length > 0 ? 'Vão junto com a viagem:' : 'A viagem não tem dados vinculados.',
           items: [
-            `${counts.bls} B/L(s)`,
-            `${counts.containers} container(es)`,
-            `${counts.vehicles} veículo(s)`,
-            `${counts.export_schedules} escala(s) de exportação`,
-            `${counts.terminals} atracação(ões)`,
-            `${counts.vazios_bookings} unidade(s) de vazios`,
+            ...removed.map((item) => `${item.count} ${item.label}`),
+            ...detached.map((item) => `${item.count} ${item.label}`),
           ],
         },
         consequence: 'A viagem e tudo o que é dela saem do Vela, do Line-Up e da Programação no Portal. Nenhum B/L dela tem CE Mercante nem documento financeiro.',

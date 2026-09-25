@@ -191,7 +191,15 @@ export function VoyageVisaoTab({
       const reason = await confirmWithReason({
         title: 'Excluir escala do planejamento',
         message: `Excluir a escala ${row.port}?`,
-        consequence: 'As datas, o vínculo operacional e o planejamento de exportação desta escala saem da viagem, do Line-Up e da Programação no Portal.',
+        affected: preview.scope ? {
+          summary: 'Vão junto com a escala:',
+          items: [
+            `${preview.scope.terminals} atracação(ões)`,
+            `${preview.scope.export_schedules} escala(s) de exportação`,
+            `${preview.scope.open_departure_reports} ADR(s) de Saída em aberto`,
+          ],
+        } : undefined,
+        consequence: 'As datas, o vínculo operacional, as atracações e o planejamento de exportação desta escala saem da viagem, do Line-Up e da Programação no Portal.',
         reversibility: 'Adicione a escala de novo se precisar; o registro fica na auditoria.',
         confirmLabel: 'Excluir',
         tone: 'danger',

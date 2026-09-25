@@ -125,7 +125,7 @@ describeLocal('087 — delete_records: exclusão atômica com prévia', () => {
     const run = callDelete(ADMIN_ID, 'bl', [BL_FREE, BL_BILLED], true)
     expect(run.status).toBe(0)
     expect(run.json.deleted).toEqual([BL_FREE])
-    expect(run.json.blocked).toEqual([{ id: BL_BILLED, reasons: ['vinculado a fatura'] }])
+    expect(run.json.blocked).toEqual([{ id: BL_BILLED, reasons: ['documento financeiro emitido'] }])
     expect(psql(`SELECT count(*) FROM public.vehicles WHERE bl_id IN ('${BL_FREE}', '${BL_BILLED}');`)).toBe('2')
   })
 

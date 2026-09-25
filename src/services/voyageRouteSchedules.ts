@@ -668,12 +668,19 @@ export async function deleteVoyagePodSchedule({
   if (error) throw error
 }
 
-export type EscalaDeleteResult = { deleted: boolean; reasons: string[] }
+export type EscalaDeleteResult = {
+  deleted: boolean
+  /** Na prévia: a execução vai excluir (sem trava). */
+  deletable: boolean
+  reasons: string[]
+  scope?: { export_schedules: number; terminals: number; open_departure_reports: number }
+}
 
 /**
  * Exclui a escala (voyage, porto) numa operacao so no banco (migration 088):
  * marca o POD como removido do planejamento e apaga a escala de exportacao do
- * mesmo porto. Somente o Administrativo; B/L com CE Mercante, documento
+ * mesmo porto, com as atracações, as frentes e o ADR de Saída aberto do
+ * porto. Somente o Administrativo, com motivo; B/L com CE Mercante, documento
  * financeiro ou ADR fechado no porto travam (ADR 0071). Com `dryRun`, so
  * devolve os motivos da trava.
  */

@@ -91,8 +91,11 @@ export async function cancelVoyage({
 
 export type VoyageDeletePreview = {
   report: DeleteDependencyReport<number>
-  counts: { bls: number; containers: number; vehicles: number; export_schedules: number; terminals: number; vazios_bookings: number }
+  /** O que vai junto, da mesma lista que a exclusão executa (migration 088). */
+  items: VoyageDeleteScopeItem[]
 }
+
+export type VoyageDeleteScopeItem = { table: string; action: 'delete' | 'detach'; label: string; count: number }
 
 /**
  * Previa da exclusao de viagem (ADR 0071): se ela esta travada (CE Mercante,
@@ -100,12 +103,13 @@ export type VoyageDeletePreview = {
  * junto em cascata. Calculada pelo banco, com as regras da exclusao real.
  */
 export async function previewVoyageDeletion(voyageId: number): Promise<VoyageDeletePreview> {
-  const [report, counts] = await Promise.all([
+  const [report, scope] = await Promise.all([
     deleteRecords('voyage', [voyageId], { dryRun: true }),
     supabase.rpc('voyage_delete_preview' as never, { p_voyage_id: voyageId } as never),
   ])
-  if (counts.error) throw counts.error
-  return { report, counts: counts.data as unknown as VoyageDeletePreview['counts'] }
+  if (scope.error) throw scope.error
+  const data = scope.data as unknown as { items?: VoyageDeleteScopeItem[] } | null
+  return { report, items: data?.items ?? [] }
 }
 
 /**

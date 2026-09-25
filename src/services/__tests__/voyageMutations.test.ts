@@ -35,11 +35,11 @@ it('US-215: exclui a viagem pelo banco, com o motivo', async () => {
 it('US-215: a prévia devolve a trava e o que vai junto', async () => {
   rpcMock.mockImplementation((name: string) => Promise.resolve(name === 'delete_records'
     ? { data: { deleted: [], blocked: [{ id: '1', reasons: ['B/L com CE Mercante'] }] }, error: null }
-    : { data: { bls: 3, containers: 5, vehicles: 0, export_schedules: 1, terminals: 1, vazios_bookings: 0 }, error: null }))
+    : { data: { items: [{ table: 'bls', action: 'delete', label: 'B/L(s), com containers e taxas', count: 3 }] }, error: null }))
 
   const preview = await previewVoyageDeletion(1)
   expect(preview.report.blockedIds).toEqual([{ id: 1, reasons: ['B/L com CE Mercante'] }])
-  expect(preview.counts.bls).toBe(3)
+  expect(preview.items).toEqual([{ table: 'bls', action: 'delete', label: 'B/L(s), com containers e taxas', count: 3 }])
   expect(rpcMock).toHaveBeenCalledWith('delete_records', expect.objectContaining({ p_kind: 'voyage', p_dry_run: true }))
 })
 

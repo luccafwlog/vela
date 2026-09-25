@@ -190,7 +190,8 @@ jobs:
             src/integration/pr698ClaudeReview.local-pg.test.ts \
             src/integration/pr698Auditoria.local-pg.test.ts \
             src/integration/exclusionProtections.local-pg.test.ts \
-            src/integration/deleteRecords.local-pg.test.ts
+            src/integration/deleteRecords.local-pg.test.ts \
+            src/integration/deleteLock.local-pg.test.ts
 
       - name: Verify the executed RPC catalog
         # `npm run rpc:check` existia no package.json sem nenhum gate a executá-lo.

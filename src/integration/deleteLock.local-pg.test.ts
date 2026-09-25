@@ -65,6 +65,7 @@ function cleanup() {
     DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id IN (${VOYAGES});
     DELETE FROM public.voyage_export_schedules WHERE voyage_id IN (${VOYAGES});
     DELETE FROM public.vehicles WHERE voyage_id IN (${VOYAGES});
+    DELETE FROM public.vehicles WHERE bl_id LIKE 'BL088%';
     DELETE FROM public.bl_containers WHERE bl_id LIKE 'BL088%';
     DELETE FROM public.bls WHERE voyage_id IN (${VOYAGES});
     DELETE FROM public.voyages WHERE id IN (${VOYAGES});
@@ -111,9 +112,40 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
 
   afterAll(cleanup)
 
-  it('prévia conta o que vai junto com a viagem', () => {
+  it('prévia conta o que vai junto com a viagem, da mesma lista que exclui', () => {
     const run = as(ADMIN_ID, `SELECT public.voyage_delete_preview(${V_FREE});`)
-    expect(run.json).toMatchObject({ bls: 1, containers: 1, export_schedules: 1, terminals: 1 })
+    const count = (table: string) => run.json.items.find((item: { table: string }) => item.table === table)?.count
+    expect(count('bls')).toBe(1)
+    expect(count('bl_containers')).toBe(1)
+    expect(count('voyage_export_schedules')).toBe(1)
+    expect(count('voyage_escala_terminal_state')).toBe(1)
+  })
+
+  it('prévia de exclusão de viagem é só do Administrativo', () => {
+    expect(as(OPS_ID, `SELECT public.voyage_delete_preview(${V_FREE});`).stderr).toMatch(/Somente o Administrativo/)
+  })
+
+  it('B/L com CE, o container e o veículo dele não se excluem; B/L sem CE sai', () => {
+    psql(`INSERT INTO public.bl_containers (bl_id, container_number) VALUES ('BL088SSZ', 'TEST0880002');`)
+    const containerId = psql(`SELECT id FROM public.bl_containers WHERE bl_id = 'BL088SSZ';`)
+    const bl = as(ADMIN_ID, `SELECT public.delete_records('bl', ARRAY['BL088SSZ'], false, 'erro');`)
+    expect(bl.json.blocked).toEqual([{ id: 'BL088SSZ', reasons: ['B/L com CE Mercante'] }])
+    const container = as(ADMIN_ID, `SELECT public.delete_records('container', ARRAY['${containerId}'], false, 'erro');`)
+    expect(container.json.blocked).toEqual([{ id: containerId, reasons: ['B/L com CE Mercante'] }])
+    expect(psql(`SELECT count(*) FROM public.bl_containers WHERE id = ${containerId};`)).toBe('1')
+
+    const direct = as(ADMIN_ID, `DELETE FROM public.bls WHERE id = 'BL088SSZ';`)
+    expect(direct.stderr).toMatch(/permission denied/i)
+
+    const preview = as(ADMIN_ID, `SELECT public.delete_records('bl', ARRAY['BL088PNG'], true);`)
+    expect(preview.json.deleted).toEqual(['BL088PNG'])
+  })
+
+  it('excluir exige motivo; a prévia não', () => {
+    const run = as(ADMIN_ID, `SELECT public.delete_records('bl', ARRAY['BL088PNG'], false, '  ');`)
+    expect(run.stderr).toMatch(/Informe o motivo/)
+    const escala = as(ADMIN_ID, `SELECT public.delete_escala(${V_LOCKED}, 'BRVIX', false, NULL);`)
+    expect(escala.stderr).toMatch(/Informe o motivo/)
   })
 
   it('viagem com B/L com CE fica travada; cancelada fica retida', () => {
@@ -139,6 +171,9 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
   it('escala com B/L com CE fica travada; a de outro porto sai', () => {
     const locked = as(ADMIN_ID, `SELECT public.delete_escala(${V_LOCKED}, 'brssz', false, 'erro');`)
     expect(locked.json).toMatchObject({ deleted: false, reasons: ['B/L com CE Mercante'] })
+
+    const previewFree = as(ADMIN_ID, `SELECT public.delete_escala(${V_LOCKED}, 'BRVIX', true);`)
+    expect(previewFree.json).toMatchObject({ deleted: false, deletable: true, scope: { export_schedules: 1 } })
 
     const free = as(ADMIN_ID, `SELECT public.delete_escala(${V_LOCKED}, 'BRVIX', false, 'escala errada');`)
     expect(free.json).toMatchObject({ deleted: true })

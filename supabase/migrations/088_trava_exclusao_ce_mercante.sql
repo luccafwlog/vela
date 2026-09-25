@@ -8,21 +8,30 @@
 --   fatura consolidada, recebível, fatura de Demurrage) dos B/Ls; ADR de Saída
 --   fechado; no nível da viagem, também Granito com CE ou faturado e comunicado
 --   ao cliente ancorado na viagem. Lista vazia = pode excluir.
+-- - bl_delete_lock_reasons(B/L): a trava do B/L (CE Mercante ou documento
+--   financeiro) vale também para excluir o B/L, o container e o veículo dele
+--   (ADR 0071, itens 1, 2 e 6). O DELETE direto nessas três tabelas sai de
+--   authenticated: a exclusão passa só por delete_records.
 -- - delete_records ganha o tipo 'voyage': sem trava e não cancelada, a viagem
---   sai com B/Ls, carga, escalas e demais dados operacionais, numa
---   sub-transação; o guard trg_guard_voyage_hard_delete continua como última
---   barreira (passa porque os filhos saem antes). voyage_delete_preview conta
---   o que vai junto, para o diálogo.
+--   sai com o que é dela, numa sub-transação. O que sai e o que só se
+--   desvincula vem de uma lista explícita (voyage_delete_children_spec), a
+--   mesma que voyage_delete_preview conta para o diálogo (ADR 0072, item 2).
+--   Tabela nova que aponte para a viagem não entra sozinha: o guard
+--   trg_guard_voyage_hard_delete (067) recusa a exclusão até a lista a incluir.
+-- - Excluir exige motivo (ADR 0071, item 8): delete_records e delete_escala
+--   recusam a execução sem motivo; a prévia não pede.
 -- - delete_escala(viagem, porto): substitui as duas chamadas do navegador
 --   (marca do POD em audit_logs + exclusão da escala de exportação) por uma
 --   operação com trava, motivo e Administrativo. A policy de DELETE de
 --   voyage_export_schedules passa de is_active_user() a is_admin()
---   (supersede a decisão da migration 080; ADR 0071, achado A8). A mesclagem
---   interna de save_voyage_escala_terminal_state roda como dono e não muda.
+--   (supersede a decisão da migration 080; ADR 0071, achado A8). Excluir escala
+--   leva junto as atracações, as frentes e o ADR de Saída aberto do porto.
 -- - Remover atracação (tirar o terminal da escala no modal) passa a exigir o
 --   Administrativo e respeitar a trava, por trigger em
---   voyage_escala_terminal_state. Contextos sem usuário (rotinas do banco)
---   não são afetados.
+--   voyage_escala_terminal_state. O trigger olha o usuário da sessão
+--   (auth.uid()), não o dono da função: a remoção feita por
+--   save_voyage_escala_terminal_state também passa por ele. Contextos sem
+--   usuário (rotinas do banco) não são afetados.
 -- - delete_manual_bl_charge passa a exigir o Administrativo (achado A8).
 --
 -- Não reescreve nem apaga linhas existentes.
@@ -95,29 +104,109 @@ $function$;
 
 REVOKE ALL ON FUNCTION public.delete_lock_reasons(bigint, text, uuid) FROM PUBLIC, anon, authenticated;
 
-CREATE OR REPLACE FUNCTION public.voyage_delete_preview(p_voyage_id bigint)
-RETURNS jsonb
-LANGUAGE sql
+-- Trava de um B/L: CE Mercante ou documento financeiro emitido dele.
+CREATE OR REPLACE FUNCTION public.bl_delete_lock_reasons(p_bl_id text)
+RETURNS text[]
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $function$
-  SELECT jsonb_build_object(
-    'bls', (SELECT count(*) FROM public.bls WHERE voyage_id = p_voyage_id),
-    'containers', (SELECT count(*) FROM public.bl_containers c JOIN public.bls b ON b.id = c.bl_id WHERE b.voyage_id = p_voyage_id),
-    'vehicles', (SELECT count(*) FROM public.vehicles WHERE voyage_id = p_voyage_id),
-    'export_schedules', (SELECT count(*) FROM public.voyage_export_schedules WHERE voyage_id = p_voyage_id),
-    'terminals', (SELECT count(*) FROM public.voyage_escala_terminal_state WHERE voyage_id = p_voyage_id),
-    'vazios_bookings', (SELECT count(*) FROM public.vazios_bookings WHERE voyage_id = p_voyage_id)
-  );
+DECLARE
+  v_reasons text[] := ARRAY[]::text[];
+BEGIN
+  IF p_bl_id IS NULL THEN
+    RETURN v_reasons;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.bls b WHERE b.id = p_bl_id AND NULLIF(btrim(b.ce_mercante), '') IS NOT NULL) THEN
+    v_reasons := array_append(v_reasons, 'B/L com CE Mercante');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.invoices i WHERE i.bl_id = p_bl_id)
+     OR EXISTS (SELECT 1 FROM public.invoice_bls ib WHERE ib.bl_id = p_bl_id)
+     OR EXISTS (SELECT 1 FROM public.bl_receivables r WHERE r.bl_id = p_bl_id)
+     OR EXISTS (SELECT 1 FROM public.demurrage_invoices d WHERE d.bl_id = p_bl_id) THEN
+    v_reasons := array_append(v_reasons, 'documento financeiro emitido');
+  END IF;
+  RETURN v_reasons;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.bl_delete_lock_reasons(text) FROM PUBLIC, anon, authenticated;
+
+DROP POLICY IF EXISTS bls_delete_admin ON public.bls;
+DROP POLICY IF EXISTS bl_containers_delete_admin ON public.bl_containers;
+DROP POLICY IF EXISTS vehicles_delete_admin ON public.vehicles;
+REVOKE DELETE ON TABLE public.bls, public.bl_containers, public.vehicles FROM authenticated;
+
+-- O que a exclusão da viagem leva junto, em ordem de execução. 'delete'
+-- apaga; 'detach' só tira a viagem (FK SET NULL: o manifesto continua).
+-- A prévia do diálogo conta esta mesma lista.
+CREATE OR REPLACE FUNCTION public.voyage_delete_children_spec()
+RETURNS TABLE(ord integer, table_name text, column_name text, action text, label text)
+LANGUAGE sql
+IMMUTABLE
+SET search_path = public, pg_temp
+AS $function$
+  VALUES
+    (1, 'vehicles', 'voyage_id', 'delete', 'veículo(s)'),
+    (2, 'bls', 'voyage_id', 'delete', 'B/L(s), com containers e taxas'),
+    (3, 'import_batches', 'voyage_id', 'delete', 'importação(ões) de manifesto'),
+    (4, 'manifestos_mercante', 'voyage_id', 'delete', 'Manifesto(s) Mercante'),
+    (5, 'voyage_route_ce_master', 'voyage_id', 'delete', 'CE Master por rota'),
+    (6, 'baplie_reconciliation_resolutions', 'voyage_id', 'delete', 'resolução(ões) de BAPLIE'),
+    (7, 'baplie_containers', 'voyage_id', 'delete', 'container(es) do BAPLIE'),
+    (8, 'agency_departure_reports', 'voyage_id', 'delete', 'ADR(s) de Saída em aberto'),
+    (9, 'vazios_bookings', 'voyage_id', 'delete', 'unidade(s) de vazios'),
+    (10, 'vazios_export_operations', 'voyage_id', 'delete', 'operação(ões) de embarque de vazios'),
+    (11, 'voyage_omissions', 'voyage_id', 'delete', 'omissão(ões) de escala e transbordo'),
+    (12, 'voyage_escala_terminal_state', 'voyage_id', 'delete', 'atracação(ões)'),
+    (13, 'voyage_escala_operation_fronts', 'voyage_id', 'delete', 'frente(s) de operação'),
+    (14, 'voyage_escala_revision_state', 'voyage_id', 'delete', 'revisão(ões) de escala'),
+    (15, 'voyage_export_schedules', 'voyage_id', 'delete', 'escala(s) de exportação'),
+    (16, 'granite_manifests', 'voyage_id', 'detach', 'manifesto(s) de Granito ficam sem viagem'),
+    (17, 'vazios_manifests', 'voyage_id', 'detach', 'manifesto(s) de vazios ficam sem viagem'),
+    (18, 'vazios_importacao_manifests', 'voyage_id', 'detach', 'manifesto(s) de vazios de importação ficam sem viagem');
+$function$;
+
+REVOKE ALL ON FUNCTION public.voyage_delete_children_spec() FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.voyage_delete_preview(p_voyage_id bigint)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $function$
+DECLARE
+  v_spec record;
+  v_count bigint;
+  v_items jsonb := '[]'::jsonb;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_active_user() OR NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Somente o Administrativo pode excluir viagem.' USING ERRCODE = '42501';
+  END IF;
+  FOR v_spec IN SELECT * FROM public.voyage_delete_children_spec() ORDER BY ord LOOP
+    EXECUTE format('SELECT count(*) FROM public.%I WHERE %I = $1', v_spec.table_name, v_spec.column_name)
+      INTO v_count USING p_voyage_id;
+    IF v_count > 0 THEN
+      v_items := v_items || jsonb_build_object('table', v_spec.table_name, 'action', v_spec.action, 'label', v_spec.label, 'count', v_count);
+    END IF;
+  END LOOP;
+  IF v_items <> '[]'::jsonb THEN
+    v_items := jsonb_build_array(jsonb_build_object(
+      'table', 'bl_containers', 'action', 'delete', 'label', 'container(es) dos B/Ls',
+      'count', (SELECT count(*) FROM public.bl_containers c JOIN public.bls b ON b.id = c.bl_id WHERE b.voyage_id = p_voyage_id)
+    )) || v_items;
+  END IF;
+  RETURN jsonb_build_object('items', v_items);
+END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.voyage_delete_preview(bigint) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.voyage_delete_preview(bigint) TO authenticated;
 
--- Apaga, em passadas, as linhas de toda tabela que aponta para a viagem. Uma
--- passada pode falhar por ordem de FK entre filhos; a seguinte completa. A
--- lista vem do catálogo, como no guard de exclusão de viagem.
+-- Executa a lista explícita. Uma passada pode falhar por ordem de FK entre
+-- filhos; a seguinte completa. Sobra = o guard 067 recusa a viagem.
 CREATE OR REPLACE FUNCTION public.delete_voyage_children(p_voyage_id bigint)
 RETURNS void
 LANGUAGE plpgsql
@@ -125,27 +214,20 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $function$
 DECLARE
-  v_table text;
-  v_column text;
+  v_spec record;
   v_pass integer;
   v_left boolean;
 BEGIN
-  DELETE FROM public.vehicles WHERE voyage_id = p_voyage_id;
-  DELETE FROM public.bls WHERE voyage_id = p_voyage_id;
-
-  FOR v_pass IN 1..5 LOOP
+  FOR v_pass IN 1..3 LOOP
     v_left := false;
-    FOR v_table, v_column IN
-      SELECT c.table_name, c.column_name
-      FROM information_schema.columns c
-      JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name
-      WHERE c.table_schema = 'public' AND c.column_name IN ('voyage_id', 'anchor_voyage_id')
-        AND t.table_type = 'BASE TABLE' AND c.table_name <> 'voyages'
-      ORDER BY c.table_name
-    LOOP
+    FOR v_spec IN SELECT * FROM public.voyage_delete_children_spec() ORDER BY ord LOOP
       BEGIN
-        EXECUTE format('DELETE FROM public.%I WHERE %I::text = $1::text', v_table, v_column) USING p_voyage_id;
-      EXCEPTION WHEN foreign_key_violation OR raise_exception THEN
+        IF v_spec.action = 'detach' THEN
+          EXECUTE format('UPDATE public.%I SET %I = NULL WHERE %I = $1', v_spec.table_name, v_spec.column_name, v_spec.column_name) USING p_voyage_id;
+        ELSE
+          EXECUTE format('DELETE FROM public.%I WHERE %I = $1', v_spec.table_name, v_spec.column_name) USING p_voyage_id;
+        END IF;
+      EXCEPTION WHEN foreign_key_violation THEN
         v_left := true;
       END;
     END LOOP;
@@ -178,6 +260,8 @@ DECLARE
   v_entity text;
   v_lock text[];
   v_status text;
+  v_bl_id text;
+  v_reason text := NULLIF(btrim(COALESCE(p_reason, '')), '');
 BEGIN
   IF auth.uid() IS NULL OR NOT public.is_active_user() OR NOT public.is_admin() THEN
     RAISE EXCEPTION 'Somente o Administrativo pode excluir.' USING ERRCODE = '42501';
@@ -193,20 +277,42 @@ BEGIN
   IF v_entity IS NULL THEN
     RAISE EXCEPTION 'Tipo de exclusão desconhecido: %.', p_kind USING ERRCODE = '22023';
   END IF;
+  IF NOT COALESCE(p_dry_run, false) AND v_reason IS NULL THEN
+    RAISE EXCEPTION 'Informe o motivo da exclusão.' USING ERRCODE = '22023';
+  END IF;
 
-  FOREACH v_id IN ARRAY COALESCE(p_ids, ARRAY[]::text[]) LOOP
+  FOREACH v_id IN ARRAY ARRAY(
+    SELECT u.id FROM unnest(COALESCE(p_ids, ARRAY[]::text[])) WITH ORDINALITY AS u(id, ord)
+    GROUP BY u.id ORDER BY min(u.ord)
+  ) LOOP
     BEGIN
+      v_lock := ARRAY[]::text[];
       IF p_kind = 'voyage' THEN
         SELECT status INTO v_status FROM public.voyages WHERE id = v_id::bigint;
         IF FOUND AND v_status = 'cancelled' THEN
-          v_blocked := v_blocked || jsonb_build_object('id', v_id, 'reasons', jsonb_build_array('viagem cancelada fica retida'));
-          CONTINUE;
+          v_lock := ARRAY['viagem cancelada fica retida'];
+        ELSE
+          v_lock := public.delete_lock_reasons(v_id::bigint);
         END IF;
-        v_lock := public.delete_lock_reasons(v_id::bigint);
-        IF cardinality(v_lock) > 0 THEN
-          v_blocked := v_blocked || jsonb_build_object('id', v_id, 'reasons', to_jsonb(v_lock));
-          CONTINUE;
+      ELSIF p_kind = 'customer' THEN
+        IF EXISTS (SELECT 1 FROM public.customers c WHERE c.id = v_id::bigint AND NULLIF(btrim(c.cnpj_cpf), '') IS NOT NULL) THEN
+          v_lock := ARRAY['cliente com CNPJ: desative em vez de excluir'];
         END IF;
+      ELSE
+        v_bl_id := CASE p_kind
+          WHEN 'bl' THEN v_id
+          WHEN 'container' THEN (SELECT c.bl_id FROM public.bl_containers c WHERE c.id = v_id::bigint)
+          ELSE (SELECT COALESCE(v.bl_id, c.bl_id) FROM public.vehicles v
+                LEFT JOIN public.bl_containers c ON c.id = v.container_id WHERE v.id = v_id::bigint)
+        END;
+        v_lock := public.bl_delete_lock_reasons(v_bl_id);
+      END IF;
+      IF cardinality(v_lock) > 0 THEN
+        v_blocked := v_blocked || jsonb_build_object('id', v_id, 'reasons', to_jsonb(v_lock));
+        CONTINUE;
+      END IF;
+
+      IF p_kind = 'voyage' THEN
         PERFORM public.delete_voyage_children(v_id::bigint);
         DELETE FROM public.voyages WHERE id = v_id::bigint;
       ELSIF p_kind = 'bl' THEN
@@ -230,7 +336,7 @@ BEGIN
         RAISE EXCEPTION USING ERRCODE = 'VL001';
       ELSE
         INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
-        VALUES (v_entity, v_id, 'deleted', v_id, NULL, auth.uid(), COALESCE(NULLIF(btrim(p_reason), ''), 'exclusao manual'));
+        VALUES (v_entity, v_id, 'deleted', v_id, NULL, auth.uid(), v_reason);
         v_deleted := v_deleted || to_jsonb(v_id);
       END IF;
     EXCEPTION
@@ -266,7 +372,8 @@ AS $function$
 DECLARE
   v_port text := NULLIF(upper(btrim(p_port)), '');
   v_lock text[];
-  v_reason text := COALESCE(NULLIF(btrim(p_reason), ''), 'exclusao manual');
+  v_reason text := NULLIF(btrim(COALESCE(p_reason, '')), '');
+  v_scope jsonb;
 BEGIN
   IF auth.uid() IS NULL OR NOT public.is_active_user() OR NOT public.is_admin() THEN
     RAISE EXCEPTION 'Somente o Administrativo pode excluir escala.' USING ERRCODE = '42501';
@@ -276,16 +383,31 @@ BEGIN
   END IF;
 
   v_lock := public.delete_lock_reasons(p_voyage_id, v_port);
+  v_scope := jsonb_build_object(
+    'export_schedules', (SELECT count(*) FROM public.voyage_export_schedules WHERE voyage_id = p_voyage_id AND upper(pol) = v_port),
+    'terminals', (SELECT count(*) FROM public.voyage_escala_terminal_state WHERE voyage_id = p_voyage_id AND upper(port) = v_port),
+    'open_departure_reports', (SELECT count(*) FROM public.agency_departure_reports WHERE voyage_id = p_voyage_id AND upper(port) = v_port AND status = 'open')
+  );
+  -- deletable diz, na prévia, se a execução vai excluir; deleted só é true
+  -- quando a escala de fato saiu.
   IF cardinality(v_lock) > 0 OR p_dry_run THEN
-    RETURN jsonb_build_object('deleted', false, 'reasons', to_jsonb(v_lock), 'dry_run', p_dry_run);
+    RETURN jsonb_build_object('deleted', false, 'deletable', cardinality(v_lock) = 0,
+      'reasons', to_jsonb(v_lock), 'scope', v_scope, 'dry_run', p_dry_run);
+  END IF;
+  IF v_reason IS NULL THEN
+    RAISE EXCEPTION 'Informe o motivo da exclusão da escala.' USING ERRCODE = '22023';
   END IF;
 
   INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
   VALUES ('voyage_pod_schedule', p_voyage_id::text || '::' || v_port, 'deleted', 'false', 'true', auth.uid(), v_reason);
 
   DELETE FROM public.voyage_export_schedules WHERE voyage_id = p_voyage_id AND upper(pol) = v_port;
+  DELETE FROM public.agency_departure_reports WHERE voyage_id = p_voyage_id AND upper(port) = v_port AND status = 'open';
+  DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id = p_voyage_id AND upper(port) = v_port;
+  DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = p_voyage_id AND upper(port) = v_port;
+  DELETE FROM public.voyage_escala_revision_state WHERE voyage_id = p_voyage_id AND upper(port) = v_port;
 
-  RETURN jsonb_build_object('deleted', true, 'reasons', '[]'::jsonb, 'dry_run', false);
+  RETURN jsonb_build_object('deleted', true, 'deletable', true, 'reasons', '[]'::jsonb, 'scope', v_scope, 'dry_run', false);
 END;
 $function$;
 
