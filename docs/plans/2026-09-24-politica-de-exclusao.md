@@ -16,7 +16,7 @@ Data: 2026-09-24. Estado: fases 1 a 6 mergeadas e aplicadas em produção
 | 5b — Cliente desativado | luccafwlog/vela#768 | 092 | mergeada |
 | 6 — Papel admin e rotina de guarda | luccafwlog/vela#769 | 093, 094 | mergeada |
 | Ajuste do advisor (search_path) | luccafwlog/vela#771 | 095 | mergeada |
-| Motivo nas exclusões de cadastro | (esta PR) | 096 | em revisão |
+| Motivo nas exclusões de cadastro | luccafwlog/vela#774 | 096 | em revisão |
 
 Ordem de merge: 757 (este plano e as ADRs) → 762 → 763 → 764 → 765 → 766 →
 767 → 768 → 769. Cada PR a partir da 763 é empilhada sobre a anterior; a 763
