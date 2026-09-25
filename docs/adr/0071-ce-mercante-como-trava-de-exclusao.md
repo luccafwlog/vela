@@ -39,7 +39,12 @@ trabalho interno; depois dele, o cliente e o fisco já os viram.
    recebível travam o que referenciam, o que vier primeiro, porque a invoice
    de Demurrage não passa pelo gate do CE.
 4. **Vazios não têm CE.** A trava deles é o ADR de Saída fechado daquela
-   escala e terminal.
+   escala e terminal; reabrir o ADR solta a trava. Antes dela, unidade manual
+   e linha de serviço de vazios podem ser excluídas por qualquer usuário
+   ativo, porque são custo interno sem cliente; o banco passa a aceitar isso
+   também na linha de serviço. A função `delete_baplie_manifest_for_voyage`,
+   sem tela, é removida; o BAPLIE e a planilha de vazios se substituem por
+   reimportação.
 5. **CE errado.** Corrigir o número mantém a trava. Apagar o CE solta a
    trava só enquanto nenhuma fatura tiver sido emitida e nenhum B/L tiver sido
    liberado no Portal.

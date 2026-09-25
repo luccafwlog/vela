@@ -123,7 +123,8 @@ B/L no Portal. O CE trava o B/L, sua carga e tudo de que ele depende (escala,
 atracação e viagem); B/Ls sem CE da mesma viagem continuam excluíveis.
 Fatura, invoice de Demurrage ou recebível também travam o que referenciam.
 Vazios, que não têm CE, travam com o ADR de Saída fechado da escala e
-terminal. Corrigir o CE mantém a trava; apagá-lo só a solta enquanto nenhuma
+terminal, e reabrir o ADR solta a trava; antes dela, qualquer usuário ativo
+exclui unidade manual e linha de serviço de vazios. Corrigir o CE mantém a trava; apagá-lo só a solta enquanto nenhuma
 fatura foi emitida nem B/L liberado no Portal. Antes da trava, excluir cabe ao
 Administrativo, com motivo; depois, o caminho é corrigir, substituir, reemitir
 ou cancelar. Decidida na [ADR 0071](docs/adr/0071-ce-mercante-como-trava-de-exclusao.md);
