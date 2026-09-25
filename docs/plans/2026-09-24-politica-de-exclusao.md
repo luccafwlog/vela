@@ -173,9 +173,10 @@ Visível: nenhum papel "admin" nas telas de usuários; nada muda no dia a dia.
 
 ## Decisões pendentes
 
-- **Fase 6, backup:** onde roda o agendamento diário (runner, credenciais) é
-  configuração de serviço externo e exige ação e autorização do dono; o plano
-  do Cloudflare (etapa de backup R2) pode já cobrir isso — conferir antes.
+- **Fase 6, backup:** o agendamento diário é a Etapa 6 do
+  [plano de serviços e Cloudflare](2026-09-24-configuracao-servicos-e-migracao-cloudflare.md),
+  executada pelo dono no painel; esta fase só confirma que ela foi concluída
+  e que uma restauração foi testada.
 - **Fase 6, anonimização em `audit_logs`:** confirmar a forma da exceção
   (substituir campos pessoais no JSON guardado) quando a fase começar.
 - Nenhuma outra decisão de produto bloqueia as fases 1 a 5.
