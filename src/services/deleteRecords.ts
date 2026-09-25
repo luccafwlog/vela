@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import type { DeleteDependencyReport } from './deleteDependencies'
 
-export type DeleteRecordKind = 'bl' | 'container' | 'vehicle' | 'customer'
+export type DeleteRecordKind = 'bl' | 'container' | 'vehicle' | 'customer' | 'voyage'
 
 type DeleteRecordsResponse = {
   deleted: string[]

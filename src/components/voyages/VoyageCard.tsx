@@ -382,8 +382,8 @@ export function VoyageCard({
                 </>
               ) : null}
               {canDeleteVoyage ? (
-                // deleteVoyage faz DELETE real em voyages, cuja policy exige
-                // is_admin() (010_rls_by_role) — nao alinhar com voyages_edit.
+                // Excluir viagem e do Administrativo: delete_records('voyage')
+                // exige is_admin() e respeita a trava do CE (ADR 0071).
                 <Button
                   variant="ghost"
                   className="app-voyage-action-icon app-voyage-action-icon--danger"

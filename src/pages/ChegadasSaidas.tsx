@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, FileSpreadsheet, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { Download, FileSpreadsheet, Pencil, Plus, Upload } from 'lucide-react'
 import { Card, PageHeader } from '../components/ui/Card'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
@@ -11,7 +11,6 @@ import { PORTAL_SCHEDULE_LANES, formatScheduleDate } from '../services/portalSch
 import { parseScheduleRows, scheduleTemplateColumns } from '../services/portalScheduleBulkImport'
 import { fetchPortalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
 import { createOrAttachVoyageFromSchedule } from '../services/voyageFromSchedule'
-import { setVoyageShowOnPortal } from '../services/voyages'
 import { readSheet } from '../services/importCore'
 import { inspectImportFile, type ImportFileInspection } from '../services/importText'
 
@@ -311,23 +310,6 @@ export function ChegadasSaidas() {
     }
   }
 
-  const handleRemoveFromPortal = async (voyage: PortalScheduleVoyage) => {
-    const confirmed = await confirm({
-      title: 'Remover publicação do Portal',
-      message: `Remover "${voyage.vesselName}" do Portal? A viagem operacional será preservada.`,
-      confirmLabel: 'Remover do Portal',
-      tone: 'danger',
-    })
-    if (!confirmed) return
-    try {
-      await setVoyageShowOnPortal(voyage.voyageId, false)
-      showToast(`${voyage.vesselName} removido do Portal.`, 'success')
-      invalidateSchedules()
-    } catch (error) {
-      showToast(`Erro ao remover: ${error instanceof Error ? error.message : 'falha inesperada'}`, 'error')
-    }
-  }
-
   return (
     <>
       <PageHeader
@@ -391,8 +373,6 @@ export function ChegadasSaidas() {
                       <div className="flex justify-center gap-1">
                         <button type="button" className="app-btn app-btn--ghost app-btn--sm" style={{ minHeight: 32, minWidth: 32, padding: 0 }}
                           onClick={() => openEdit(vessel)} title="Editar"><Pencil size={14} /></button>
-                        <button type="button" className="app-btn app-btn--ghost app-btn--sm" style={{ minHeight: 32, minWidth: 32, padding: 0, color: 'var(--app-red)' }}
-                          onClick={() => handleRemoveFromPortal(vessel)} title="Remover do Portal"><Trash2 size={14} /></button>
                       </div>
                     </td>
                   ) : null}
