@@ -282,7 +282,11 @@ Demurrage, sempre pelas Edge Functions (o navegador nunca chama o Resend).
   pôs em quarentena, como **Phishing**, e-mails do Portal para caixas
   `@fwlog.com.br` (convite e recuperação de 2026-09-24, ainda do remetente
   antigo). O "Resumo do Portal" de 2026-09-25 aparece como **Delivered** no Resend, mas não
-  chegou a nenhuma pasta nem à quarentena visível ao usuário. Só um
+  chegou a nenhuma pasta nem à quarentena visível ao usuário. Confirmado no mesmo
+  dia com uma recuperação de senha da conta de teste para `lucca.juliatti@fwlog.com.br`, já
+  com o remetente novo: **Delivered** no Resend e nada na caixa nem na
+  quarentena do usuário. O bloqueio, que parece ser "phishing de alta confiança",
+  vale também para clientes que usam Microsoft 365. Só um
   administrador do Microsoft 365 da Fwlog pode rastrear a mensagem e liberar os domínios
   `portalfwlog.com.br` e `transhippingdesk.com.br`; pedido enviado à TI.
 
