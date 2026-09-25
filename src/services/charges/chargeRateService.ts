@@ -178,6 +178,8 @@ export async function listOverrideCustomers(search?: string) {
   let query = supabase
     .from('customers')
     .select('id, name, cnpj_cpf')
+    // Cliente desativado sai das listas de escolha (ADR 0073; migration 092).
+    .is('deactivated_at' as never, null as never)
     .order('name', { ascending: true })
     .range(0, 199)
 

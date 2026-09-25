@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { hasBlockingRowErrors, importBreakbulkManifest, parseBreakbulkManifestBuffer, type ParsedBreakbulkManifest } from '../breakbulkImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
+// Clientes desativados sao filtrados com .is('deactivated_at', null) (migration 092).
+const withIs = <T extends object>(query: T): T & { is: () => T } => ({ ...query, is: () => query })
+
 // breakbulkImport importa customerReconciliation que importa supabase — mock necessário para
 // testes de parser que não usam o banco.
 const { mockFrom, mockRpc } = vi.hoisted(() => ({
@@ -132,7 +135,7 @@ describe('breakbulkImport', () => {
       }
       if (table === 'customers') {
         return {
-          select: vi.fn(() => ({
+          select: vi.fn(() => withIs({
             order: vi.fn(() => ({
               range: vi.fn(() =>
                 Promise.resolve({
@@ -496,7 +499,7 @@ describe('breakbulkImport', () => {
         return { select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: { id: 10 }, error: null })) })) })) }
       }
       if (table === 'customers') {
-        return { select: vi.fn(() => ({ order: vi.fn(() => ({ range: vi.fn(() => Promise.resolve({ data: [], error: null })) })) })) }
+        return { select: vi.fn(() => withIs({ order: vi.fn(() => ({ range: vi.fn(() => Promise.resolve({ data: [], error: null })) })) })) }
       }
       if (table === 'bls') {
         return {
@@ -554,7 +557,7 @@ describe('breakbulkImport', () => {
       }
       if (table === 'customers') {
         return {
-          select: vi.fn(() => ({
+          select: vi.fn(() => withIs({
             order: vi.fn(() => ({
               range: vi.fn(() => Promise.resolve({ data: [], error: null })),
             })),

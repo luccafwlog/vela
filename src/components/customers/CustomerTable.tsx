@@ -1,6 +1,6 @@
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileText, MoreHorizontal, ReceiptText, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileText, MoreHorizontal, Power, ReceiptText, Trash2 } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Card, EmptyState, InlineError } from '../ui/Card'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
@@ -23,6 +23,8 @@ export type CustomerActionsMenu = {
   name: string
   cnpj: string
   email: string | null
+  /** Cliente desativado (ADR 0073; migration 092). */
+  deactivated: boolean
 }
 
 type CustomerRows = {
@@ -45,6 +47,7 @@ export function CustomerTable({
   onOpenActionsMenu,
   onCopy,
   onDeleteCustomer,
+  onToggleCustomerActive,
   portalRows,
 }: {
   data: CustomerRows | undefined
@@ -64,10 +67,11 @@ export function CustomerTable({
   onPageChange: (page: number) => void
   onOpenActionsMenu: (
     event: ReactMouseEvent<HTMLButtonElement>,
-    row: { id: number; name: string; cnpj_cpf: string; email: string | null },
+    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
   ) => void
   onCopy: (value: string, label: string) => Promise<void>
   onDeleteCustomer: (id: number) => void
+  onToggleCustomerActive: (id: number, deactivated: boolean) => void
   portalRows?: QueueRow[]
 }) {
   const pageCustomerIds = (data?.rows ?? []).map((row) => row.id)
@@ -171,6 +175,17 @@ export function CustomerTable({
             <button
               type="button"
               role="menuitem"
+              className={actionsMenu.deactivated ? undefined : 'app-floating-menu__danger'}
+              onClick={() => onToggleCustomerActive(actionsMenu.id, actionsMenu.deactivated)}
+            >
+              <Power size={14} />
+              {actionsMenu.deactivated ? 'Reativar cliente' : 'Desativar cliente'}
+            </button>
+          ) : null}
+          {canDeleteCustomers ? (
+            <button
+              type="button"
+              role="menuitem"
               className="app-floating-menu__danger"
               disabled={deleting}
               onClick={() => onDeleteCustomer(actionsMenu.id)}
@@ -201,7 +216,7 @@ function CustomerTableRow({
   onToggle: () => void
   onOpenActionsMenu: (
     event: ReactMouseEvent<HTMLButtonElement>,
-    row: { id: number; name: string; cnpj_cpf: string; email: string | null },
+    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
   ) => void
   portalRow?: QueueRow
 }) {
@@ -228,7 +243,7 @@ function CustomerTableRow({
       ) : null}
       <td className="px-4 py-3">
         <div className="app-table__cell-stack">
-          <div className="app-table__cell-value flex items-center gap-2" title={row.name}>{truncateCustomerName(row.name, 64)}{portalNeedsAttention ? <AlertTriangle size={15} className="text-amber-400" aria-label="Pendência de Portal" /> : null}</div>
+          <div className="app-table__cell-value flex items-center gap-2" title={row.name}>{truncateCustomerName(row.name, 64)}{(row as { deactivated_at?: string | null }).deactivated_at ? <Badge tone="slate">Desativado</Badge> : null}{portalNeedsAttention ? <AlertTriangle size={15} className="text-amber-400" aria-label="Pendência de Portal" /> : null}</div>
           <div className="app-table__cell-meta">{formatCnpjCpf(row.cnpj_cpf)}</div>
           {customerComplement ? <div className="app-table__cell-meta">{customerComplement}</div> : null}
         </div>
@@ -286,7 +301,7 @@ function CustomerTableRow({
             aria-label={`Mais ações para ${row.name}`}
             aria-haspopup="menu"
             aria-expanded={actionsOpen}
-            onClick={(event) => onOpenActionsMenu(event, { id: row.id, name: row.name, cnpj_cpf: row.cnpj_cpf, email: contactSummary.primaryEmail })}
+            onClick={(event) => onOpenActionsMenu(event, { id: row.id, name: row.name, cnpj_cpf: row.cnpj_cpf, email: contactSummary.primaryEmail, deactivated: Boolean((row as { deactivated_at?: string | null }).deactivated_at) })}
           >
             <MoreHorizontal size={15} />
           </button>
