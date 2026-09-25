@@ -13,6 +13,7 @@ persistido nem das definições executáveis.
 
 | Assunto | Seção |
 |---|---|
+| Excluir, cancelar, desativar e demais ações sobre registros | [Ações sobre registros](#ações-sobre-registros) |
 | Viagem, Escala, Atracação, ADR e vazios | [Operação marítima](#operação-marítima) |
 | Documento e carga física | [Baplie e reconciliação](#baplie-e-reconciliação) |
 | CE, Manifesto Mercante e frete documental | [Mercante](#mercante) |
@@ -41,6 +42,65 @@ Use este arquivo como glossário canônico. Não invente sinônimos para entidad
 ou estados. Se o rótulo da tela ou o vínculo ainda não foi verificado, trate-o
 como hipótese e diga o que precisa ser confirmado. O guia operacional completo
 está no [contrato de comunicação](docs/agents/linguagem-do-sistema.md).
+
+## Ações sobre registros
+
+Vocabulário decidido em 2026-09-24 para as ações que tiram um registro de
+circulação ou desfazem uma ação anterior. Cada termo tem um único efeito; o
+rótulo de um botão deve corresponder ao efeito que ele produz. A interface ainda
+não segue este vocabulário em todas as telas: as divergências conhecidas estão
+na [revisão da exclusão de dados](docs/archive/audits/2026-09-24-revisao-exclusao-de-dados.md)
+e são tratadas tela a tela.
+
+**Excluir**
+Remove o registro do banco. Irreversível pelo aplicativo. Serve apenas para
+erro de cadastro em registro que ainda não tem vínculo. Não é a saída para um
+registro que não pode mais ser excluído.
+
+**Corrigir**
+Editar os campos de um registro. É o caminho para um erro de cadastro em
+registro que já tem vínculo. O valor anterior só é preservado pela Auditoria.
+
+**Cancelar**
+Registrar, com motivo, que um fato de negócio deixou de valer: o armador
+cancelou a viagem, a fatura foi anulada, uma baixa foi lançada por engano. O
+registro permanece e continua visível como cancelado. Não é correção de erro de
+cadastro.
+
+**Reativar**
+Desfazer, com motivo e rastro, um cancelamento ou uma desativação. O histórico
+mostra os dois eventos. Se uma fatura cancelada pode ser reativada ainda será
+decidido.
+
+**Desativar**
+Tirar de uso um cadastro que não será mais escolhido. O registro sai das listas
+de escolha e continua no histórico e nos documentos que o referenciam. O oposto
+é Reativar. "Inativar" não é usado como ação; *Inativo* continua sendo o nome
+do estado exibido.
+
+**Remover**
+Tirar um item de um lugar ou de um vínculo sem apagá-lo: remover a exceção de
+terminal de um B/L. O item continua existindo; o oposto é adicioná-lo de novo.
+Uma ação que apaga o registro do banco se chama Excluir, não Remover.
+
+**Revogar**
+Retirar uma permissão ou liberação concedida: liberação de faturamento no
+Portal, convite, sessão. O oposto é conceder de novo.
+
+**Reverter**
+Desfazer, com motivo, uma marcação sobre algo que continua ativo: omissão de
+escala, transbordo. Difere de Reativar, que traz de volta algo cancelado ou
+desativado.
+
+**Dispensar**
+Parar de ver um aviso. Nada muda no dado. Exclusivo de Alertas e Notificações.
+
+**Estorno**
+Devolução ao cliente de valor que ele pagou a maior. Não é o desfazer de uma
+baixa: uma baixa lançada por engano é cancelada.
+
+Em diálogos de confirmação, o botão que fecha sem executar a ação se chama
+**Voltar**, para não confundir com a ação Cancelar.
 
 ## Operação marítima
 
