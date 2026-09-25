@@ -78,6 +78,7 @@ vigentes e onde uma decisão posterior alterou parte de uma ADR anterior.
 | [0071](./0071-ce-mercante-como-trava-de-exclusao.md) | O CE Mercante é a trava de exclusão | aceito | Supersede parcialmente a 0009 (critério, papel e auditoria) e a 0024 (exclusão de viagem com vínculo e reativação). Implementação pendente. |
 | [0072](./0072-toda-escrita-confirmada-com-consequencia.md) | Toda escrita é confirmada com o que faz e a consequência | aceito | Diálogo com registros afetados, consequência, reversibilidade e motivo; salvar mostra antes e depois; prévia de importação vale como diálogo. Implementação pendente. |
 | [0073](./0073-cadastro-usado-so-se-desativa.md) | Cadastro de referência usado só se desativa | aceito | Complementa a 0071 para cadastros. Tarifas: excluir só a nunca usada, usada se desativa, ações do Administrativo. Implementação pendente. |
+| [0074](./0074-usuarios-retencao-e-backup-diario.md) | Usuário não se exclui; retenção definida; backup diário sem PITR | aceito | Remove o papel `admin`; auditoria 5 anos, eventos do Portal 1 ano, anonimização 2 anos após desativar; recuperação por backup diário. Implementação pendente. |
 
 ## Convenção
 

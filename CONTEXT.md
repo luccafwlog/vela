@@ -112,6 +112,16 @@ CNPJ dele vai para a Revisão em vez de se vincular. Decidido na
 [ADR 0073](docs/adr/0073-cadastro-usado-so-se-desativa.md), ainda não
 implementada.
 
+**Guarda e recuperação**
+Usuário interno nunca é excluído, só desativado, porque é o autor na
+auditoria. A auditoria é guardada por 5 anos; eventos e tentativas do Portal,
+por 1 ano; dados pessoais de contatos, contas do Portal e usuários
+desativados são anonimizados 2 anos após a desativação, por rotina do banco.
+Não há PITR: a recuperação do banco é o backup diário, e a de uma exclusão
+pontual é a cópia na auditoria. Decidido na
+[ADR 0074](docs/adr/0074-usuarios-retencao-e-backup-diario.md), ainda não
+implementada.
+
 **Confirmação de ação**
 Toda ação que grava ou altera dado, envia algo a alguém ou tira um registro de
 circulação abre um diálogo antes de executar. Busca, filtros, abas e
