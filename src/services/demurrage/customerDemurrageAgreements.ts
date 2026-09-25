@@ -4,6 +4,7 @@ import type {
   CustomerDemurrageAgreementFormInput,
   CustomerDemurrageAgreementListItem,
 } from '../../types/customerDemurrageAgreements'
+import { deleteOneById } from '../deleteRecords'
 
 export type CustomerDemurrageAgreementFilters = {
   customerId?: number | null
@@ -130,7 +131,7 @@ export async function saveCustomerDemurrageAgreement(
 }
 
 export async function deleteCustomerDemurrageAgreement(id: number): Promise<void> {
-  const { error } = await supabase.from('customer_demurrage_agreements').delete().eq('id', id)
+  const { error } = await deleteOneById('customer_demurrage_agreements', id)
   if (error) throw error
 }
 

@@ -1,8 +1,8 @@
 import { canonicalizeDocument, canonicalizeValidCnpj } from '../lib/cnpj'
 import { onlyDigits } from '../lib/utils'
 import { supabase } from './supabase'
-import { buildDependencyReport, tallyReasons, type DeleteDependencyReport } from './deleteDependencies'
-import { logDeletions } from './deleteAudit'
+import type { DeleteDependencyReport } from './deleteDependencies'
+import { deleteRecords } from './deleteRecords'
 import type { Customer, CustomerContact } from '../types/database'
 
 type CustomerEditableFields = Pick<
@@ -137,56 +137,14 @@ export async function deleteCustomerContact(contactId: number) {
   if (error) throw error
 }
 
-/**
- * Verifica bloqueadores de exclusao de clientes. Um cliente com B/L, fatura
- * (local ou demurrage), recebivel ou lote de faturamento vinculado nao pode ser
- * excluido — destruiria historico operacional/fiscal. Contatos e overrides de
- * tarifa NAO bloqueiam: sao apagados em cascata controlada por `deleteCustomers`.
- */
-export async function checkCustomerDependencies(ids: number[]): Promise<DeleteDependencyReport<number>> {
-  if (ids.length === 0) return { deletableIds: [], blockedIds: [] }
-
-  const [bls, invoices, demurrageInvoices, receivables, billingBatches] = await Promise.all([
-    supabase.from('bls').select('customer_id').in('customer_id', ids),
-    supabase.from('invoices').select('customer_id').in('customer_id', ids),
-    supabase.from('demurrage_invoices').select('customer_id').in('customer_id', ids),
-    supabase.from('bl_receivables').select('customer_id').in('customer_id', ids),
-    supabase.from('billing_batches').select('customer_id').in('customer_id', ids),
-  ])
-  for (const result of [bls, invoices, demurrageInvoices, receivables, billingBatches]) {
-    if (result.error) throw result.error
-  }
-
-  const reasons = new Map<number, string[]>()
-  tallyReasons(reasons, bls.data ?? [], 'customer_id', (count) => `${count} B/L(s) vinculado(s)`)
-  tallyReasons(reasons, invoices.data ?? [], 'customer_id', (count) => `${count} fatura(s) emitida(s)`)
-  tallyReasons(reasons, demurrageInvoices.data ?? [], 'customer_id', (count) => `${count} fatura(s) de demurrage`)
-  tallyReasons(reasons, receivables.data ?? [], 'customer_id', (count) => `${count} recebivel(is)`)
-  tallyReasons(reasons, billingBatches.data ?? [], 'customer_id', (count) => `${count} lote(s) de faturamento`)
-
-  return buildDependencyReport(ids, reasons)
+/** Previa da exclusao de clientes, calculada pelo banco. */
+export function checkCustomerDependencies(ids: number[]): Promise<DeleteDependencyReport<number>> {
+  return deleteRecords('customer', ids, { dryRun: true })
 }
 
-/**
- * Exclui clientes e seus dados cadastrais (contatos e overrides de tarifa). O
- * banco auto-resolve `customer_portal_accounts`/`customer_portal_sessions`
- * (CASCADE) e zera referencias em `granite_bls`, `customer_reconciliation_queue`
- * e `pricing_rule_versions` (SET NULL). Pressupoe que os ids ja passaram por
- * `checkCustomerDependencies`.
- */
-export async function deleteCustomers(ids: number[], changedBy?: string | null) {
-  if (ids.length === 0) return
-
-  const contacts = await supabase.from('customer_contacts').delete().in('customer_id', ids)
-  if (contacts.error) throw contacts.error
-
-  const overrides = await supabase.from('customer_rate_overrides').delete().in('customer_id', ids)
-  if (overrides.error) throw overrides.error
-
-  const customers = await supabase.from('customers').delete().in('id', ids)
-  if (customers.error) throw customers.error
-
-  await logDeletions('customer', ids, changedBy)
+/** Exclui clientes com contatos e overrides; cada um sai por inteiro ou volta com o motivo. */
+export function deleteCustomers(ids: number[]): Promise<DeleteDependencyReport<number>> {
+  return deleteRecords('customer', ids)
 }
 
 type CustomerPendingBalanceRow = {

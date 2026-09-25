@@ -11,7 +11,7 @@ const { mocks, depot, destination, service } = vi.hoisted(() => ({
   destination: { id: 'd2', code: 'TVV', name: 'Terminal Vila Velha', tipo: 'terminal_portuario', free_time_vazio_days: 0, free_time_material_days: 0, active: true },
   service: { id: 's1', depot_id: 'd1', name: 'Transporte', natureza: 'transporte', container_type: null, route_destino_id: 'd2', condition: null, rate_brl: 100, active: true, created_at: '2026-01-01' },
 }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ can: () => true, profile: { id: 'user-1' } }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ can: () => true, isAdmin: true, profile: { id: 'user-1' } }) }))
 vi.mock('../../hooks/useDepots', () => ({ useDepots: () => ({ data: [depot, destination], error: null, refetch: vi.fn(async () => {}) }) }))
 vi.mock('../../services/depots', () => ({ listDepotServices: vi.fn(async () => [service]), listBrazilianPorts: mocks.listBrazilianPorts, preflightDepotsTerminalPortMapping: vi.fn(async () => ({ pending_count: 0, codes: [] })), upsertDepot: mocks.upsertDepot, upsertDepotService: mocks.upsertDepotService, deleteDepot: mocks.deleteDepot, deleteDepotService: mocks.deleteDepotService }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))

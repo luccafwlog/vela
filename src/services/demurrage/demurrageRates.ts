@@ -2,6 +2,7 @@ import { supabase } from '../supabase'
 import { buildDemurrageRateUpsertPayload, type DemurrageRateUpsertInput } from './demurrageRateUpsertPayload'
 import { reportBestEffortFailure } from '../../lib/telemetry'
 import type { DemurrageCalcResult, DemurrageRate } from '../../types/database'
+import { deleteOneById } from '../deleteRecords'
 
 export type RateGroup = {
   aliases: string[]
@@ -182,7 +183,7 @@ export async function upsertDemurrageRate(rate: DemurrageRateUpsertInput) {
 }
 
 export async function deleteDemurrageRate(id: number) {
-  const { error } = await supabase.from('demurrage_rates').delete().eq('id', id)
+  const { error } = await deleteOneById('demurrage_rates', id)
   if (error) throw error
   invalidateDemurrageRatesCache()
 }

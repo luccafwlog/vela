@@ -60,10 +60,15 @@ it('US-090: ativar/desativar usa upsert com a flag active', async () => {
 })
 
 it('US-091: exclui uma taxa', async () => {
-  results.granite_rates = { data: null, error: null }
+  results.granite_rates = { data: [{ id: 'r1' }], error: null }
   await deleteGraniteRate('r1')
   expect(builderFor('granite_rates').delete).toHaveBeenCalled()
   expect(builderFor('granite_rates').eq).toHaveBeenCalledWith('id', 'r1')
+})
+
+it('A1: nao anuncia exclusao quando o banco apagou 0 linhas', async () => {
+  results.granite_rates = { data: [], error: null }
+  await expect(deleteGraniteRate('r1')).rejects.toThrow(/Nada foi excluído/)
 })
 
 it('US-082: calcula as taxas do B/L aplicando per_kg sobre o peso real', async () => {

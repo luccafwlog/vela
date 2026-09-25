@@ -34,7 +34,8 @@ export function ChargeTablesTab({
   podFilter,
   setPodFilter,
   canEdit,
-}: ChargeFilterProps & { canEdit: boolean }) {
+  canDelete,
+}: ChargeFilterProps & { canEdit: boolean; canDelete: boolean }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [formsOpen, setFormsOpen] = useState(false)
@@ -261,6 +262,7 @@ export function ChargeTablesTab({
         filterDescription={tableFilterDescription}
         emptyState={tableEmptyState}
         canEdit={canEdit}
+        canDelete={canDelete}
         onEditTable={handleEditTable}
         onPrepareTableItem={handlePrepareTableItem}
         onToggleTableActive={handleToggleTableActive}

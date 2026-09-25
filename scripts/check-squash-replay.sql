@@ -107,8 +107,11 @@ BEGIN
   IF v_nosearch <> 0 THEN
     RAISE EXCEPTION 'SECURITY DEFINER sem search_path: %.', v_nosearch;
   END IF;
-  -- Grant líquido novo da 004 (sem ele, o navegador recebe 42501).
-  IF NOT has_function_privilege('authenticated', 'public.delete_baplie_manifest_for_voyage(bigint)', 'EXECUTE') THEN
+  -- Grant líquido novo da 004 (sem ele, o navegador recebe 42501). A 087
+  -- remove a função, que não tinha tela (ADR 0071); o piso vale enquanto ela
+  -- existir.
+  IF to_regprocedure('public.delete_baplie_manifest_for_voyage(bigint)') IS NOT NULL
+     AND NOT has_function_privilege('authenticated', 'public.delete_baplie_manifest_for_voyage(bigint)', 'EXECUTE') THEN
     RAISE EXCEPTION 'GRANT da 004 ausente para authenticated em delete_baplie_manifest_for_voyage.';
   END IF;
 

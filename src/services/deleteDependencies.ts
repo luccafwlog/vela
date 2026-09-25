@@ -53,3 +53,20 @@ export function formatBlockedSummary<K extends string | number>(
   const extra = blocked.length > 3 ? ` e mais ${blocked.length - 3}` : ''
   return `${blocked.length} bloqueado(s): ${shown.join('; ')}${extra}.`
 }
+
+/**
+ * Mensagem final de uma exclusao a partir do que o banco de fato apagou: nunca
+ * anuncia sucesso para o que foi recusado. `noun` e o rotulo no plural
+ * abreviado, ex: "B/L(s)".
+ */
+export function formatDeleteOutcome<K extends string | number>(
+  noun: string,
+  result: DeleteDependencyReport<K>,
+): { message: string; tone: 'success' | 'error' } {
+  const blocked = formatBlockedSummary(result.blockedIds)
+  if (result.deletableIds.length === 0) {
+    return { message: `Nenhum ${noun} excluído. ${blocked}`.trim(), tone: 'error' }
+  }
+  const done = `${result.deletableIds.length} ${noun} excluído(s).`
+  return { message: blocked ? `${done} ${blocked}` : done, tone: 'success' }
+}

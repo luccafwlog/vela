@@ -1,5 +1,6 @@
 import { supabase } from '../supabase'
 import { sanitizeLikeTerm } from '../../lib/utils'
+import { deleteOneById } from '../deleteRecords'
 
 export type LocalChargeTableWithItems = {
   id: number
@@ -174,6 +175,6 @@ export async function saveChargeTableItem(input: ChargeTableItemInput) {
 }
 
 export async function deleteChargeTableItem(id: number) {
-  const { error } = await supabase.from('charge_table_items').delete().eq('id', id)
+  const { error } = await deleteOneById('charge_table_items', id)
   if (error) throw error
 }

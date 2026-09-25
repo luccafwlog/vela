@@ -1,5 +1,6 @@
 import { supabase } from '../supabase'
 import { escapeFilterTerm } from '../../lib/utils'
+import { deleteOneById } from '../deleteRecords'
 
 export type LocalChargeOverrideItem = {
   id: number
@@ -283,6 +284,6 @@ function classifyOverrideOverlapError(error: { code?: string; message?: string }
 }
 
 export async function deleteCustomerRateOverride(id: number) {
-  const { error } = await supabase.from('customer_rate_overrides').delete().eq('id', id)
+  const { error } = await deleteOneById('customer_rate_overrides', id)
   if (error) throw error
 }

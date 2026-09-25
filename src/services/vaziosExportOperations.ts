@@ -7,6 +7,7 @@ import type {
 import { supabase } from "./supabase";
 import { normalizePortCode } from "./portCode";
 import { diasCobraveis } from "./vaziosCusto";
+import { deleteOneById } from "./deleteRecords";
 
 const OPERATION_BOOKINGS_PAGE_SIZE = 1000;
 
@@ -238,10 +239,7 @@ export async function upsertServiceLine(
 }
 
 export async function deleteServiceLine(id: string) {
-  const { error } = await supabase
-    .from("vazios_export_service_lines")
-    .delete()
-    .eq("id", id);
+  const { error } = await deleteOneById("vazios_export_service_lines", id);
   if (error) throw error;
 }
 

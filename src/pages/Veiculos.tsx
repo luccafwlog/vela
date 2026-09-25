@@ -22,6 +22,7 @@ import { usePageFilters } from '../hooks/usePageFilters'
 import { useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
 import { formatDate } from '../lib/utils'
 import { deleteVehicles } from '../services/vehicles'
+import { formatDeleteOutcome } from '../services/deleteDependencies'
 import { importVehicleRows, parseVehicleImportFile, type ParsedVehicleImport } from '../services/vehicleImport'
 import { setContainerUnpackingLocation } from '../services/vaziosNatureza'
 import { exportVehicleWorkbook } from '../services/exports'
@@ -277,10 +278,11 @@ export function Veiculos() {
 
     setDeleting(true)
     try {
-      await deleteVehicles(ids, user?.id)
+      const result = await deleteVehicles(ids)
       selection.clear()
       await invalidateAfterDelete()
-      showToast(ids.length === 1 ? 'Veiculo excluido.' : `${ids.length} veiculos excluidos.`, 'success')
+      const outcome = formatDeleteOutcome('veículo(s)', result)
+      showToast(outcome.message, outcome.tone)
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'erro desconhecido'
       showToast(`Falha ao excluir veiculo(s): ${detail}`, 'error')

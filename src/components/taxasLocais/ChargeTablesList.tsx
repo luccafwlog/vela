@@ -14,6 +14,8 @@ type ChargeTablesListProps = {
   filterDescription: string
   emptyState: { title: string; description: string }
   canEdit: boolean
+  /** Excluir item e do Administrativo no banco. */
+  canDelete: boolean
   onEditTable: (id: number) => void
   onPrepareTableItem: (tableId: number) => void
   onToggleTableActive: (id: number, current: boolean | null) => void
@@ -31,6 +33,7 @@ export function ChargeTablesList({
   filterDescription,
   emptyState,
   canEdit,
+  canDelete,
   onEditTable,
   onPrepareTableItem,
   onToggleTableActive,
@@ -198,6 +201,7 @@ export function ChargeTablesList({
                                         <button className="app-table__icon-button" type="button" onClick={() => onEditTableItem(table.id, item.id)} title="Editar item">
                                           <Pencil size={13} />
                                         </button>
+{canDelete ? (
                                         <button
                                           className="app-table__icon-button app-table__icon-button--danger"
                                           type="button"
@@ -207,6 +211,7 @@ export function ChargeTablesList({
                                         >
                                           <Trash2 size={13} />
                                         </button>
+                                        ) : null}
                                       </div>
                                     </td>
                                   ) : null}

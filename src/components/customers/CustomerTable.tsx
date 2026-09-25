@@ -34,7 +34,7 @@ export function CustomerTable({
   data,
   isLoading,
   error,
-  canEditCustomers,
+  canDeleteCustomers,
   selection,
   filters,
   totalPages,
@@ -50,7 +50,7 @@ export function CustomerTable({
   data: CustomerRows | undefined
   isLoading: boolean
   error: unknown
-  canEditCustomers: boolean
+  canDeleteCustomers: boolean
   selection: {
     isSelected: (id: number) => boolean
     toggle: (id: number) => void
@@ -81,7 +81,7 @@ export function CustomerTable({
           <table className="app-table app-table--compact app-table--sticky-actions min-w-[1140px] table-fixed text-left text-sm">
             <thead className="text-xs uppercase tracking-wider">
               <tr>
-                {canEditCustomers ? (
+                {canDeleteCustomers ? (
                   <th scope="col" className="w-10 px-4 py-3">
                     <input
                       type="checkbox"
@@ -116,14 +116,14 @@ export function CustomerTable({
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={canEditCustomers ? 6 : 5} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={canDeleteCustomers ? 6 : 5} className="px-4 py-8 text-center text-slate-400">
                     Carregando clientes...
                   </td>
                 </tr>
               ) : null}
               {!isLoading && !data?.rows.length ? (
                 <tr>
-                  <td colSpan={canEditCustomers ? 6 : 5} className="p-0">
+                  <td colSpan={canDeleteCustomers ? 6 : 5} className="p-0">
                     <EmptyState title="Nenhum cliente encontrado." description="Importe uma base de clientes ou cadastre manualmente." />
                   </td>
                 </tr>
@@ -132,7 +132,7 @@ export function CustomerTable({
                 <CustomerTableRow
                   key={row.id}
                   row={row}
-                  canEditCustomers={canEditCustomers}
+                  canDeleteCustomers={canDeleteCustomers}
                   selected={selection.isSelected(row.id)}
                   actionsOpen={actionsMenu?.id === row.id}
                   onToggle={() => selection.toggle(row.id)}
@@ -167,7 +167,7 @@ export function CustomerTable({
               Copiar e-mail
             </button>
           ) : null}
-          {canEditCustomers ? (
+          {canDeleteCustomers ? (
             <button
               type="button"
               role="menuitem"
@@ -187,7 +187,7 @@ export function CustomerTable({
 
 function CustomerTableRow({
   row,
-  canEditCustomers,
+  canDeleteCustomers,
   selected,
   actionsOpen,
   onToggle,
@@ -195,7 +195,7 @@ function CustomerTableRow({
   portalRow,
 }: {
   row: CustomerListItem
-  canEditCustomers: boolean
+  canDeleteCustomers: boolean
   selected: boolean
   actionsOpen: boolean
   onToggle: () => void
@@ -221,7 +221,7 @@ function CustomerTableRow({
 
   return (
     <tr>
-      {canEditCustomers ? (
+      {canDeleteCustomers ? (
         <td className="px-4 py-3">
           <input type="checkbox" aria-label={`Selecionar cliente ${row.name}`} checked={selected} onChange={onToggle} />
         </td>

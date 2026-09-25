@@ -35,7 +35,7 @@ it('cancela a viagem e audita o motivo', async () => {
 })
 
 it('US-215: exclui a viagem quando nao ha dependencias', async () => {
-  const deleteEq = vi.fn(() => Promise.resolve({ error: null }))
+  const deleteEq = vi.fn(() => ({ select: () => Promise.resolve({ data: [{ id: 1 }], error: null }) }))
   const deleteFn = vi.fn(() => ({ eq: deleteEq }))
   fromMock.mockImplementation((table: string) => {
     if (table === 'voyages') return { delete: deleteFn }

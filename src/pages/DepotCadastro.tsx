@@ -47,8 +47,10 @@ function conditionLabel(condition: string) {
 }
 
 export function DepotCadastro() {
-  const { profile, user } = useAuth()
+  const { profile, user, isAdmin } = useAuth()
   const canEdit = Boolean(profile || user)
+  // Excluir e do Administrativo no banco; os demais editam, mas nao veem Excluir.
+  const canDelete = isAdmin
   const confirm = useConfirm()
   const { showToast } = useToast()
   const depots = useDepots()
@@ -300,7 +302,7 @@ export function DepotCadastro() {
                 <Button onClick={() => void saveDepot()} disabled={!canSaveDepot}>
                   Salvar local
                 </Button>
-                {selected ? (
+                {selected && canDelete ? (
                   <Button variant="ghost" onClick={() => void removeDepot()}>
                     <Trash2 size={14} /> Excluir
                   </Button>
@@ -401,9 +403,11 @@ export function DepotCadastro() {
                         </Button>
                         <Button variant="ghost" onClick={() => void toggleService(service)}>
                           <Power size={14} /> {service.active ? 'Inativar' : 'Ativar'}</Button>
-                        <Button variant="ghost" onClick={() => void removeService(service)}>
-                          <Trash2 size={14} /> Excluir
-                        </Button>
+                        {canDelete ? (
+                          <Button variant="ghost" onClick={() => void removeService(service)}>
+                            <Trash2 size={14} /> Excluir
+                          </Button>
+                        ) : null}
                       </span>
                     ) : null}
                   </li>

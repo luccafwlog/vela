@@ -121,7 +121,7 @@ describe('Clientes page behaviours', () => {
     mocks.compareCustomerBaseWithExisting.mockResolvedValue(parsedBase)
     mocks.importCustomerBaseRows.mockResolvedValue({ imported: 1, updated: 0, contactsCreated: 1, blsLinked: 1 })
     mocks.checkCustomerDependencies.mockResolvedValue({ deletableIds: [42], blockedIds: [] })
-    mocks.deleteCustomers.mockResolvedValue(undefined)
+    mocks.deleteCustomers.mockResolvedValue({ deletableIds: [42], blockedIds: [] })
     mocks.confirm.mockResolvedValue(true)
     mocks.exportCustomerBaseWorkbook.mockResolvedValue(undefined)
     const exportResult = Promise.resolve({ data: [customer], error: null })
@@ -210,7 +210,7 @@ describe('Clientes page behaviours', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Selecionar cliente Cliente Teste' }))
     await user.click(screen.getByRole('button', { name: 'Excluir selecionados' }))
 
-    await waitFor(() => expect(mocks.deleteCustomers).toHaveBeenCalledWith([42], 'user-1'))
+    await waitFor(() => expect(mocks.deleteCustomers).toHaveBeenCalledWith([42]))
     expect(mocks.checkCustomerDependencies).toHaveBeenCalledWith([42])
     expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ tone: 'danger', confirmLabel: 'Excluir' }))
     for (const queryKey of [['customers'], ['customers-summary'], ['customer-lookup']]) {

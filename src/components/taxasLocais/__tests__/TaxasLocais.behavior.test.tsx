@@ -108,6 +108,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit
+        canDelete
       />,
     )
 
@@ -133,6 +134,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit
+        canDelete
       />,
     )
 
@@ -159,6 +161,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit
+        canDelete
       />,
     )
 
@@ -176,6 +179,22 @@ describe('Taxas Locais user behaviours', () => {
     }))
   })
 
+  it('quem edita mas nao e Administrativo nao ve Excluir override', () => {
+    render(
+      <ChargeOverridesTab
+        cargoModeFilter=""
+        setCargoModeFilter={vi.fn()}
+        podFilter=""
+        setPodFilter={vi.fn()}
+        canEdit
+        canDelete={false}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Editar override' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Excluir override' })).toBeNull()
+  })
+
   it('carrega override para edicao e confirma sua exclusao', async () => {
     const user = userEvent.setup()
     render(
@@ -185,6 +204,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit
+        canDelete
       />,
     )
 
@@ -205,6 +225,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit={false}
+        canDelete={false}
       />,
     )
 
@@ -221,6 +242,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit={false}
+        canDelete={false}
       />,
     )
 
