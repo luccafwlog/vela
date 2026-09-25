@@ -25,6 +25,10 @@ export type VoyageVaziosImportacaoStat = {
   routes?: VoyageVaziosImportacaoRoute[]
 }
 
+// ponytail: `.in()` com todos os ids vai na URL; com milhares de manifestos o
+// pedido pode exceder o limite de URL. Upgrade: RPC de agregação no banco.
+const PAGE_SIZE = 1000
+
 export function useVaziosImportacaoStats(voyageIds: number[]) {
   const normalizedIds = useMemo(
     () => Array.from(new Set(voyageIds)).filter((id) => Number.isFinite(id)).sort((a, b) => a - b),
@@ -38,13 +42,22 @@ export function useVaziosImportacaoStats(voyageIds: number[]) {
     queryFn: async () => {
       const byVoyageId: Record<number, VoyageVaziosImportacaoStat> = {}
 
-      const { data: manifests, error: manifestError } = await supabase
-        .from('vazios_importacao_manifests')
-        .select('id, voyage_id')
-        .in('voyage_id', normalizedIds)
-      if (manifestError) throw manifestError
+      // PostgREST devolve no máximo PAGE_SIZE linhas por pedido; sem paginar e
+      // ordenar por id, Viagens além do limite ficariam com contagem parcial.
+      const rows: Array<{ id: string; voyage_id: number | null }> = []
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const { data: manifests, error: manifestError } = await supabase
+          .from('vazios_importacao_manifests')
+          .select('id, voyage_id')
+          .in('voyage_id', normalizedIds)
+          .order('id')
+          .range(from, from + PAGE_SIZE - 1)
+        if (manifestError) throw manifestError
+        const page = (manifests ?? []) as Array<{ id: string; voyage_id: number | null }>
+        rows.push(...page)
+        if (page.length < PAGE_SIZE) break
+      }
 
-      const rows = (manifests ?? []) as Array<{ id: string; voyage_id: number | null }>
       const manifestToVoyage = new Map<string, number>()
       const manifestCountByVoyage = new Map<number, number>()
       for (const row of rows) {
@@ -70,7 +83,8 @@ export function useVaziosImportacaoStats(voyageIds: number[]) {
             .from('vazios_importacao_containers')
             .select('manifest_id, container_number, container_type, pol, pod')
             .in('manifest_id', manifestIds)
-            .range(from, from + 999)
+            .order('id')
+            .range(from, from + PAGE_SIZE - 1)
           if (containerError) throw containerError
           const batch = (containers ?? []) as Array<{ manifest_id: string; container_number: string | null; container_type: string | null; pol?: string | null; pod?: string | null }>
           if (!batch.length) break
@@ -110,8 +124,8 @@ export function useVaziosImportacaoStats(voyageIds: number[]) {
             }
             containersByVoyage.set(voyageId, entry)
           }
-          if (batch.length < 1000) break
-          from += 1000
+          if (batch.length < PAGE_SIZE) break
+          from += PAGE_SIZE
         }
       }
 
