@@ -2,6 +2,14 @@
 
 Status: aceito — 2026-09-24. Implementação pendente.
 
+> **Nota editorial — 2026-09-25.** O dono do negócio decidiu **não anonimizar**
+> dados pessoais: o item 3 fica só com os expurgos por prazo (auditoria 5 anos,
+> eventos e tentativas do Portal 1 ano). A rotina de guarda preserva, na
+> auditoria, as marcas de escala (`voyage_pod_schedule`, `voyage_pol_schedule`),
+> que são dado operacional. O custo de anonimizar na trilha imutável, descrito
+> em Consequências, deixa de existir. Implementação em luccafwlog/vela#769
+> (migrations 093 e 094).
+
 Fecha os pontos gerais da
 [revisão da exclusão de dados](../archive/audits/2026-09-24-revisao-exclusao-de-dados.md)
 que não pertencem a uma tela: usuário interno, papel legado, prazos de guarda

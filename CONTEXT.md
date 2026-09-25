@@ -115,9 +115,10 @@ implementada.
 
 **Guarda e recuperação**
 Usuário interno nunca é excluído, só desativado, porque é o autor na
-auditoria. A auditoria é guardada por 5 anos; eventos e tentativas do Portal,
-por 1 ano; dados pessoais de contatos, contas do Portal e usuários
-desativados são anonimizados 2 anos após a desativação, por rotina do banco.
+auditoria. A auditoria é guardada por 5 anos, exceto as marcas de escala, que
+são dado operacional; eventos e tentativas do Portal, por 1 ano. O expurgo é
+feito por rotina diária do banco. Dados pessoais não são anonimizados: ficam
+enquanto o registro existir (decisão de 2026-09-25).
 Não há PITR: a recuperação do banco é o backup diário, e a de uma exclusão
 pontual é a cópia na auditoria. Decidido na
 [ADR 0074](docs/adr/0074-usuarios-retencao-e-backup-diario.md), ainda não

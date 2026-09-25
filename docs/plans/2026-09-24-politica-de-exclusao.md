@@ -1,6 +1,43 @@
 # Plano — Política de exclusão de dados
 
-Data: 2026-09-24. Estado: não iniciado.
+Data: 2026-09-24. Estado: implementado em PRs empilhadas, aguardando revisão e
+merge (2026-09-25).
+
+## Estado da execução
+
+| Fase | PR | Migrations | Situação |
+|---|---|---|---|
+| 1 — Proteções do banco | luccafwlog/vela#762 | 086 | aberta |
+| 2 — Falso sucesso e cascata atômica | luccafwlog/vela#763 | 087 | aberta |
+| 3 — Diálogo de confirmação e vocabulário (1ª entrega) | luccafwlog/vela#764 | — | aberta |
+| 4a — Trava do CE, viagem, escala, atracação | luccafwlog/vela#765 | 088 | aberta |
+| 4b — B/L cancelado, Reativar, CE, "não escala" | luccafwlog/vela#766 | 089, 090 | aberta |
+| 5a — Tarifas | luccafwlog/vela#767 | 091 | aberta |
+| 5b — Cliente desativado | luccafwlog/vela#768 | 092 | aberta |
+| 6 — Papel admin e rotina de guarda | luccafwlog/vela#769 | 093, 094 | aberta |
+
+Ordem de merge: 762 → 763 → 764 → 765 → 766 → 767 → 768 → 769 (cada PR a
+partir da 764 é empilhada sobre a anterior).
+
+Pendente para encerrar o plano:
+
+- merge das PRs acima e confirmação das migrations no ambiente remoto;
+- **Fase 3, restante:** diálogo com antes/depois em Salvar e confirmação nas
+  demais escritas; motivo gravado nas exclusões que não passam por
+  `delete_records` (vazios, tarifas, locais, escala de exportação por RPC já
+  grava);
+- **Fase 6, backup:** Etapa 6 do plano de serviços/Cloudflare, pelo dono, com
+  um teste de restauração;
+- verificação por papel no Preview (Financeiro, Operações, Administrativo);
+- depois disso: trocar "implementação pendente" por notas de implementação nas
+  ADRs 0071–0074 e em `CONTEXT.md`, e arquivar este plano.
+
+Desvios registrados durante a execução (detalhes em cada PR): sem trigger de
+recusa nas tabelas fiscais (padrão de grant, Fase 1); prévia de exclusão
+calculada pelo banco em vez da lista de bloqueios (Fase 2); remover atracação
+já existia no modal (Fase 4a); unicidade do CE não é imposta pelo banco (Fase
+4b); Demurrage conta como usado quando vigente (Fase 5a); sem anonimização
+(Fase 6, decisão de 2026-09-25).
 
 Implementa as decisões das
 [ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md),
@@ -177,8 +214,8 @@ Visível: nenhum papel "admin" nas telas de usuários; nada muda no dia a dia.
   [plano de serviços e Cloudflare](2026-09-24-configuracao-servicos-e-migracao-cloudflare.md),
   executada pelo dono no painel; esta fase só confirma que ela foi concluída
   e que uma restauração foi testada.
-- **Fase 6, anonimização em `audit_logs`:** confirmar a forma da exceção
-  (substituir campos pessoais no JSON guardado) quando a fase começar.
+- ~~Fase 6, anonimização em `audit_logs`~~: decidido não anonimizar
+  (2026-09-25).
 - Nenhuma outra decisão de produto bloqueia as fases 1 a 5.
 
 ## Checks por fase
