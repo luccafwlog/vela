@@ -291,6 +291,8 @@ export async function fetchCustomerLookup(search: string) {
     .from('customers')
     .select('id, cnpj_cpf, name, city, state, customer_contacts(email)')
     .or(filter)
+    // Cliente desativado sai das listas de escolha (ADR 0073; migration 092).
+    .is('deactivated_at' as never, null as never)
     .order('name', { ascending: true })
     .range(0, 24)
 

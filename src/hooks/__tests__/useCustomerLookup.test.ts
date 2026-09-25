@@ -20,12 +20,14 @@ describe('fetchCustomerLookup', () => {
       or: mocks.or,
       order: vi.fn(),
       range: vi.fn(),
+      is: vi.fn(),
       then: result.then.bind(result),
     }
     query.select.mockReturnValue(query)
     query.or.mockReturnValue(query)
     query.order.mockReturnValue(query)
     query.range.mockReturnValue(query)
+    query.is.mockReturnValue(query)
     mocks.from.mockReturnValue(query)
   })
 

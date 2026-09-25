@@ -147,6 +147,34 @@ export function deleteCustomers(ids: number[], reason?: string): Promise<DeleteD
   return deleteRecords('customer', ids, { reason })
 }
 
+export type DeactivateCustomerResult = { deactivated: boolean; reasons: string[] }
+
+/**
+ * Desativa um cliente com historico (ADR 0073): sai das listas de escolha,
+ * perde o Portal e B/L novo com o CNPJ dele vai para a Revisao. So o
+ * Administrativo; recusado com fatura, recebivel ou Demurrage em aberto. Com
+ * `dryRun`, so devolve o que bloqueia.
+ */
+export async function deactivateCustomer(
+  customerId: number,
+  reason: string,
+  options: { dryRun?: boolean } = {},
+): Promise<DeactivateCustomerResult> {
+  const { data, error } = await supabase.rpc('deactivate_customer' as never, {
+    p_customer_id: customerId,
+    p_reason: reason,
+    p_dry_run: options.dryRun ?? false,
+  } as never)
+  if (error) throw error
+  return data as unknown as DeactivateCustomerResult
+}
+
+/** Devolve um cliente desativado; so o Administrativo, com motivo. */
+export async function reactivateCustomer(customerId: number, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('reactivate_customer' as never, { p_customer_id: customerId, p_reason: reason } as never)
+  if (error) throw error
+}
+
 type CustomerPendingBalanceRow = {
   customer_id: number
   local_balance_brl: number | string | null

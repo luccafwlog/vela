@@ -31,7 +31,7 @@ import { isValidCnpj } from '../lib/cnpj'
 import { getCustomerFilterChips, type CustomerSortKey } from '../lib/customerTableViewModel'
 import { BLS_OF_CUSTOMER } from '../lib/supabaseEmbeds'
 import { compareCustomerBaseWithExisting, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
-import { checkCustomerDependencies, createCustomer, deleteCustomers, fetchIssuedInvoiceBalanceByCustomer } from '../services/customers'
+import { checkCustomerDependencies, createCustomer, deactivateCustomer, deleteCustomers, fetchIssuedInvoiceBalanceByCustomer, reactivateCustomer } from '../services/customers'
 import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
 import { supabase } from '../services/supabase'
@@ -106,14 +106,14 @@ export function Clientes() {
   }
   function openActionsMenu(
     event: ReactMouseEvent<HTMLButtonElement>,
-    row: { id: number; name: string; cnpj_cpf: string; email: string | null },
+    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
   ) {
     if (actionsMenu?.id === row.id) {
       setActionsMenu(null)
       return
     }
     const rect = event.currentTarget.getBoundingClientRect()
-    setActionsMenu({ id: row.id, top: rect.bottom + 6, left: rect.right, name: row.name, cnpj: row.cnpj_cpf, email: row.email })
+    setActionsMenu({ id: row.id, top: rect.bottom + 6, left: rect.right, name: row.name, cnpj: row.cnpj_cpf, email: row.email, deactivated: row.deactivated })
   }
   // O menu flutua via position:fixed para escapar do recorte do container de scroll
   // da tabela; por isso precisa fechar quando o usuario rola, redimensiona ou clica fora.
@@ -360,6 +360,51 @@ export function Clientes() {
     }
   }
 
+  async function handleToggleCustomerActive(id: number, deactivated: boolean) {
+    try {
+      if (!deactivated) {
+        const preview = await deactivateCustomer(id, '', { dryRun: true })
+        if (preview.reasons.length > 0) {
+          showToast(`O cliente não pode ser desativado: ${preview.reasons.join(', ')}. O Financeiro quita ou cancela antes.`, 'error')
+          return
+        }
+      }
+      const reason = await confirmWithReason(deactivated ? {
+        title: 'Reativar cliente',
+        message: 'Reativar este cliente?',
+        consequence: 'O cliente volta às listas de escolha, recupera o acesso ao Portal e pode ser vinculado de novo a B/Ls.',
+        reversibility: 'Desative de novo se precisar.',
+        confirmLabel: 'Reativar cliente',
+        tone: 'primary',
+      } : {
+        title: 'Desativar cliente',
+        message: 'Desativar este cliente?',
+        consequence: 'O cliente sai das listas de escolha e perde o acesso ao Portal. B/Ls novos com o CNPJ dele vão para a Revisão. O histórico, as faturas e os B/Ls antigos continuam com ele.',
+        reversibility: 'Reativar cliente, pelo Administrativo, com motivo.',
+        confirmLabel: 'Desativar cliente',
+        tone: 'danger',
+      })
+      if (reason === null) return
+      if (deactivated) {
+        await reactivateCustomer(id, reason)
+      } else {
+        const result = await deactivateCustomer(id, reason)
+        if (!result.deactivated) {
+          showToast(`O cliente não foi desativado: ${result.reasons.join(', ')}.`, 'error')
+          return
+        }
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['customers'] }),
+        queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
+      ])
+      showToast(deactivated ? 'Cliente reativado.' : 'Cliente desativado.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Falha ao alterar o cliente.', 'error')
+    }
+  }
+
   function updateCreateField<K extends keyof Omit<CreateCustomerForm, 'contacts'>>(field: K, value: CreateCustomerForm[K]) {
     setCreateForm((current) => ({ ...current, [field]: value }))
   }
@@ -520,6 +565,10 @@ export function Clientes() {
         onDeleteCustomer={(id) => {
           setActionsMenu(null)
           void runCustomerDelete([id])
+        }}
+        onToggleCustomerActive={(id, deactivated) => {
+          setActionsMenu(null)
+          void handleToggleCustomerActive(id, deactivated)
         }}
         portalRows={portalRows ?? undefined}
       />

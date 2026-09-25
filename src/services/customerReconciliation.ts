@@ -70,6 +70,8 @@ export async function loadCustomerMaps() {
     const { data, error } = await supabase
       .from('customers')
       .select('id, cnpj_cpf, name')
+      // Cliente desativado nao e sugerido na reconciliacao (ADR 0073; migration 092).
+      .is('deactivated_at' as never, null as never)
       .order('id', { ascending: true })
       .range(from, to)
 
