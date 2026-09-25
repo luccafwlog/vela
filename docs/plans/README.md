@@ -10,6 +10,7 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
+- [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — implementa as ADRs 0071–0074 em seis fases: proteções do banco, falso sucesso e cascata atômica, diálogo de confirmação, trava do CE Mercante, cadastros, e usuários/retenção/backup.
 - [2026-09-24 — Configuração de serviços e migração para Cloudflare](2026-09-24-configuracao-servicos-e-migracao-cloudflare.md) — roteiro em 10 etapas, na ordem segura: Upstash, Turnstile, Better Stack, Sentry, PostHog, backup R2, previews e produção no Pages, DNS e desligamento da Vercel.
 - [2026-09-06 — Remediação das auditorias #654–#660](2026-09-06-plano-remediacao-auditorias-654-660.md) — execução parcial; os residuais de S03, S05, S06/S07 e a prova de runtime continuam abertos.
 
