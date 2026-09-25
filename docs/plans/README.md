@@ -11,7 +11,7 @@ verdade sobre o estado atual.
 ## Planos ativos
 
 - [2026-09-24 — Configuração de serviços e migração para Cloudflare](2026-09-24-configuracao-servicos-e-migracao-cloudflare.md) — roteiro em 10 etapas, na ordem segura: Upstash, Turnstile, Better Stack, Sentry, PostHog, backup R2, previews e produção no Pages, DNS e desligamento da Vercel.
-- [2026-09-06 — Remediação das auditorias #654–#660](2026-09-06-plano-remediacao-auditorias-654-660.md) — execução parcial; os residuais de S03, S05, S06/S07 e a prova de runtime continuam abertos.
+- [2026-09-06 — Remediação das auditorias #654–#660](2026-09-06-plano-remediacao-auditorias-654-660.md) — execução parcial; famílias de rastreabilidade S14 mapeadas localmente; fixture COSCO/Granito, runtimes S05–S09, refresh/benchmark S12, validação manual S13 e consumidores externos/colunas/DV S14 continuam abertos.
 
 O plano [2026-09-23 — Alinhamento entre apresentação, documentação e código](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md) foi concluído e arquivado.
 O plano [2026-09-23 — Issue 710: consolidação serviço a serviço](../archive/plans/2026-09-23-issue-710-consolidacao-service-a-service.md) foi concluído e arquivado.
