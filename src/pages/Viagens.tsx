@@ -22,7 +22,7 @@ import {
   normalizeVoyageStatus,
   type VoyageRailModuleStats,
 } from '../services/voyageSummaries'
-import { cancelVoyage, deleteVoyage, previewVoyageDeletion } from '../services/voyages'
+import { cancelVoyage, deleteVoyage, previewVoyageDeletion, reactivateVoyage } from '../services/voyages'
 import { setImportBatchCeMaster } from '../services/manifestImport'
 import {
   buildVoyagePolEntityId,
@@ -257,6 +257,27 @@ export function Viagens() {
     }
   }
 
+  async function handleReactivateVoyage(voyageId: number) {
+    const voyage = voyages.find((item) => item.id === voyageId)
+    const label = voyage ? `${voyage.vessel?.name ?? 'Navio'} / ${voyage.voyage_number}` : `viagem ${voyageId}`
+    const reason = await confirmWithReason({
+      title: 'Reativar viagem',
+      message: `Reativar a viagem ${label}?`,
+      consequence: 'A viagem volta a ativa, deixa de ser somente leitura e reaparece no Line-Up e na Programação do Portal, se publicada.',
+      reversibility: 'Cancele de novo se o armador confirmar o cancelamento.',
+      confirmLabel: 'Reativar viagem',
+      tone: 'primary',
+    })
+    if (reason === null) return
+    try {
+      await reactivateVoyage(voyageId, reason)
+      await afterViagemAlterada(queryClient, { voyageId })
+      showToast('Viagem reativada.', 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Falha ao reativar a viagem.'), 'error')
+    }
+  }
+
   async function handleCancelVoyage() {
     if (!cancellingVoyageId || !user?.id || !cancellationReason.trim()) return
     const accepted = await confirm({
@@ -351,6 +372,7 @@ export function Viagens() {
             onEditVoyage={setEditingVoyageId}
             onDeleteVoyage={(id) => void handleDeleteVoyage(id)}
             onCancelVoyage={setCancellingVoyageId}
+            onReactivateVoyage={(id) => void handleReactivateVoyage(id)}
             onEditEscala={(payload) => {
               setEditingEscala(payload)
               setEditingTerminalScale(payload.port

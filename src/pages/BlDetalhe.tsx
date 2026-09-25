@@ -22,6 +22,11 @@ import { useBlDetail } from '../hooks/useBls'
 import { useBlEditForm } from '../hooks/useBlEditForm'
 import { useBlCockpit } from '../hooks/useBlCockpit'
 import { useAuth } from '../hooks/useAuth'
+import { afterBlEstadoAlterado } from '../services/cacheEffects'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useToast } from '../components/ui/Toast'
+import { cancelBl, reactivateBl } from '../services/blState'
+import { userFacingErrorMessage } from '../lib/errors'
 import { useSetBlDisposition } from '../hooks/useTransshipments'
 import { useInvoiceLinks } from '../hooks/useBilling'
 import { extractReviewReasons } from '../hooks/useReview'
@@ -62,12 +67,64 @@ export function BlDetalhe() {
   const tabParam = searchParams.get('tab')
   const activeTab: BlTab = isBlTab(tabParam) ? tabParam : 'visao-geral'
   const { data: bl, isLoading, error } = useBlDetail(blId)
-  const { user, profile } = useAuth()
+  const { user, profile, isAdmin } = useAuth()
+  const confirmWithReason = useConfirmWithReason()
+  const { showToast } = useToast()
   const queryClient = useQueryClient()
   const canEditVoyages = Boolean(profile || user)
   const canImport = Boolean(profile || user)
   const { setTransshipment, setCod } = useSetBlDisposition(bl?.voyage_id ?? 0)
   const cockpitQuery = useBlCockpit(bl)
+  const cancelledAt = (bl as { cancelled_at?: string | null } | undefined)?.cancelled_at ?? null
+
+  async function handleCancelBl() {
+    if (!bl) return
+    try {
+      const preview = await cancelBl(bl.id, '', { dryRun: true })
+      if (preview.reasons.length > 0) {
+        showToast(`O B/L ${bl.id} não pode ser cancelado: ${preview.reasons.join(', ')}. O Financeiro cancela ou estorna antes.`, 'error')
+        return
+      }
+      const reason = await confirmWithReason({
+        title: 'Cancelar B/L',
+        message: `Cancelar o B/L ${bl.id}? Use quando a carga não embarcou ou o armador reemitiu o documento com outro número.`,
+        consequence: 'O B/L fica visível como cancelado, somente leitura, sai do faturamento e aparece como Cancelado no Portal. O CE fica livre para o B/L reemitido.',
+        reversibility: 'Reativar B/L, pelo Administrativo, com motivo.',
+        confirmLabel: 'Cancelar B/L',
+        tone: 'danger',
+      })
+      if (reason === null) return
+      const result = await cancelBl(bl.id, reason)
+      if (!result.cancelled) {
+        showToast(`O B/L não foi cancelado: ${result.reasons.join(', ')}.`, 'error')
+        return
+      }
+      await afterBlEstadoAlterado(queryClient, { blId: bl.id, voyageId: bl.voyage_id })
+      showToast('B/L cancelado.', 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Falha ao cancelar o B/L.'), 'error')
+    }
+  }
+
+  async function handleReactivateBl() {
+    if (!bl) return
+    const reason = await confirmWithReason({
+      title: 'Reativar B/L',
+      message: `Reativar o B/L ${bl.id}?`,
+      consequence: 'O B/L volta a ser editável, entra de novo no faturamento e deixa de aparecer como Cancelado no Portal.',
+      reversibility: 'Cancele de novo se precisar.',
+      confirmLabel: 'Reativar B/L',
+      tone: 'primary',
+    })
+    if (reason === null) return
+    try {
+      await reactivateBl(bl.id, reason)
+      await afterBlEstadoAlterado(queryClient, { blId: bl.id, voyageId: bl.voyage_id })
+      showToast('B/L reativado.', 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Falha ao reativar o B/L.'), 'error')
+    }
+  }
   const { data: invoiceLinksByBl } = useInvoiceLinks(bl?.id ? [bl.id] : [])
   const { data: demurrageInvoices } = useQuery({
     queryKey: queryKeys.demurrage.invoices({ blId: bl?.id }),
@@ -221,6 +278,7 @@ export function BlDetalhe() {
         <Badge tone={cargoMode === 'misto' ? 'yellow' : cargoMode === 'carga_solta' ? 'green' : 'blue'}>
           {cargoModeLabel(cargoMode)}
         </Badge>
+        {cancelledAt ? <Badge tone="red">Cancelado</Badge> : null}
       </div>
       <PageHeader
         title={`B/L ${bl.id}`}
@@ -233,6 +291,12 @@ export function BlDetalhe() {
         }
         action={
           <div className="flex flex-wrap justify-end gap-2">
+            {isAdmin && bl.ce_mercante && !cancelledAt ? (
+              <Button variant="danger" onClick={() => void handleCancelBl()}>Cancelar B/L</Button>
+            ) : null}
+            {isAdmin && cancelledAt ? (
+              <Button variant="secondary" onClick={() => void handleReactivateBl()}>Reativar B/L</Button>
+            ) : null}
             {hasContainers && canImport ? (
               <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
                 <Upload size={16} />

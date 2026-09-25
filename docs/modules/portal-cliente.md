@@ -246,6 +246,8 @@ modo, `customerId`, overview e `basePath`; nav, cards, abas e links do sino usam
 esse base path. A faixa de Modo Inspeção identifica Cliente, CNPJ e situação de
 conta não ativa.
 
+B/L cancelado depois de liberado continua listado em BLs e Containers, com o selo **Cancelado** (`cancelled_at` vindo de `_portal_list_operation_bls_core`, migration `089`; ADR 0071).
+
 ##### Catálogo de ações
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |

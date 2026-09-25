@@ -35,6 +35,7 @@ vi.mock('../../components/ui/Toast', () => ({
 
 vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirm: () => vi.fn(),
+  useConfirmWithReason: () => vi.fn(),
 }))
 
 vi.mock('../../components/shared/ImportResultPanel', () => ({

@@ -122,6 +122,7 @@ type VoyageCardProps = {
   onEditVoyage: (voyageId: number) => void
   onDeleteVoyage: (voyageId: number) => void
   onCancelVoyage: (voyageId: number) => void
+  onReactivateVoyage?: (voyageId: number) => void
   onEditEscala: (payload: EscalaModalData) => void
   onEditPol: (payload: EditingPolPayload) => void
   initialTab?: VoyageTabKey
@@ -145,6 +146,7 @@ export function VoyageCard({
   onEditVoyage,
   onDeleteVoyage,
   onCancelVoyage,
+  onReactivateVoyage,
   onEditEscala,
   onEditPol,
   initialTab = 'visao',
@@ -161,6 +163,8 @@ export function VoyageCard({
   const isCancelled = voyage.status === 'cancelled'
   const canEditVoyages = !isCancelled && Boolean(profile || user)
   const canDeleteVoyage = !isCancelled && isAdmin
+  // Cancelar e Reativar viagem sao do Administrativo (ADR 0071; migration 089).
+  const canReactivateVoyage = isCancelled && isAdmin && Boolean(onReactivateVoyage)
 
   const vehicleStats = vehicleStatsProp ?? DEFAULT_VEHICLE_STATS
   const vaziosImpStats = vaziosImpStatsProp ?? DEFAULT_VAZIOS_IMP_STATS
@@ -362,6 +366,13 @@ export function VoyageCard({
             </div>
           </div>
 
+          {canReactivateVoyage ? (
+            <div className="flex items-center gap-2 self-start">
+              <Button variant="ghost" className="app-voyage-action-icon" onClick={() => onReactivateVoyage?.(voyage.id)}>
+                Reativar viagem
+              </Button>
+            </div>
+          ) : null}
           {canEditVoyages || canDeleteVoyage ? (
             <div className="flex items-center gap-2 self-start">
               {canEditVoyages ? (
@@ -370,15 +381,17 @@ export function VoyageCard({
                     <Pencil size={15} />
                     Editar
                   </Button>
-                  <Button
-                    variant="ghost"
-                    className="app-voyage-action-icon app-voyage-action-icon--danger"
-                    onClick={() => onCancelVoyage(voyage.id)}
-                    disabled={voyage.status === 'cancelled'}
-                  >
-                    <Ban size={15} />
-                    Cancelar viagem
-                  </Button>
+                  {isAdmin ? (
+                    <Button
+                      variant="ghost"
+                      className="app-voyage-action-icon app-voyage-action-icon--danger"
+                      onClick={() => onCancelVoyage(voyage.id)}
+                      disabled={voyage.status === 'cancelled'}
+                    >
+                      <Ban size={15} />
+                      Cancelar viagem
+                    </Button>
+                  ) : null}
                 </>
               ) : null}
               {canDeleteVoyage ? (

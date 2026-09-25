@@ -177,6 +177,20 @@ describe('PortalOperacao (BLs e Containers)', () => {
     expect(within(blsTable).getAllByText('CNSHA').length).toBeGreaterThan(0)
   })
 
+  it('marca como Cancelado o B/L cancelado depois de liberado (ADR 0071)', () => {
+    rows[1].cancelled_at = '2026-09-25T10:00:00Z'
+    try {
+      renderOperacao()
+      const blsTable = screen.getByRole('table')
+      const cancelledRow = within(blsTable).getByText('BL002').closest('tr') as HTMLElement
+      expect(within(cancelledRow).getByText('Cancelado')).toBeTruthy()
+      const activeRow = within(blsTable).getByText('BL001').closest('tr') as HTMLElement
+      expect(within(activeRow).queryByText('Cancelado')).toBeNull()
+    } finally {
+      rows[1].cancelled_at = null
+    }
+  })
+
   it('filtra B/Ls por navio na aba BLs', async () => {
     const user = userEvent.setup()
     renderOperacao()
