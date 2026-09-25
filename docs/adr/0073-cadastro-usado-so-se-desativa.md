@@ -27,6 +27,16 @@ das cobranças que ela gerou, sem bloqueio. O valor faturado não muda, porque
 3. Item de taxa e override de cliente ganham a ação Desativar.
 4. Excluir, desativar e reativar tarifas é do Administrativo; os demais não
    veem essas ações.
+5. **Cliente** segue a mesma regra: excluir só o que não tem B/L, fatura,
+   comunicação nem disputa, numa operação única no banco que leva contatos
+   e overrides (achados A1 e A2); com histórico, Desativar. As duas ações são
+   do Administrativo.
+6. **Cliente desativado** sai das listas de escolha e perde o acesso ao
+   Portal. Desativar é bloqueado enquanto houver fatura ou recebível em
+   aberto: o Financeiro quita ou cancela antes. Um B/L novo com o CNPJ de
+   cliente desativado não se vincula sozinho: entra na Revisão com esse
+   motivo, e o Administrativo decide se reativa.
+7. **Convite do Portal** se revoga ("Revogar convite"), não se cancela.
 
 ## Consequências
 
@@ -34,7 +44,8 @@ das cobranças que ela gerou, sem bloqueio. O valor faturado não muda, porque
   exclusão em Taxas Locais.
 - **Negativas / custos:** item e override precisam de estado ativo; a FK da
   tarifa de Granito deixa de zerar a referência; tabelas que hoje qualquer
-  usuário ativa ou desativa passam ao Administrativo.
-- **Em aberto:** os demais cadastros (cliente, local e terminal, serviço de
-  depot, navio, porto, armador) são decididos na revisão das telas deles e
+  usuário ativa ou desativa passam ao Administrativo; cliente ganha estado
+  desativado e a sessão do Portal passa a depender dele.
+- **Em aberto:** os demais cadastros (local e terminal, serviço de depot,
+  navio, porto, armador) são decididos na revisão das telas deles e
   entram nesta ADR.

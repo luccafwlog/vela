@@ -85,7 +85,7 @@ Uma ação que apaga o registro do banco se chama Excluir, não Remover.
 
 **Revogar**
 Retirar uma permissão ou liberação concedida: liberação de faturamento no
-Portal, convite, sessão. O oposto é conceder de novo.
+Portal, convite ("Revogar convite"), sessão. O oposto é conceder de novo.
 
 **Reverter**
 Desfazer, com motivo, uma marcação sobre algo que continua ativo: omissão de
@@ -104,8 +104,10 @@ baixa: uma baixa lançada por engano é cancelada. No código, estorno é
 **Cadastro usado**
 Um cadastro de referência (tarifa, e os demais conforme forem revisados)
 só pode ser excluído se nunca foi usado; depois de usado, só se desativa, para
-que todo valor cobrado mantenha a origem. Para tarifas, excluir e desativar
-são do Administrativo. Decidido na
+que todo valor cobrado mantenha a origem. Para tarifas e clientes, excluir e
+desativar são do Administrativo. Cliente desativado perde o acesso ao Portal;
+não se desativa cliente com fatura ou recebível em aberto, e B/L novo com o
+CNPJ dele vai para a Revisão em vez de se vincular. Decidido na
 [ADR 0073](docs/adr/0073-cadastro-usado-so-se-desativa.md), ainda não
 implementada.
 
