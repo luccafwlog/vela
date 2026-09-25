@@ -16,8 +16,19 @@ merge (2026-09-25).
 | 5b — Cliente desativado | luccafwlog/vela#768 | 092 | aberta |
 | 6 — Papel admin e rotina de guarda | luccafwlog/vela#769 | 093, 094 | aberta |
 
-Ordem de merge: 762 → 763 → 764 → 765 → 766 → 767 → 768 → 769 (cada PR a
-partir da 764 é empilhada sobre a anterior).
+Ordem de merge: 757 (este plano e as ADRs) → 762 → 763 → 764 → 765 → 766 →
+767 → 768 → 769. Cada PR a partir da 763 é empilhada sobre a anterior; a 763
+passou a ter a 762 como base na revisão de 2026-09-25.
+
+Revisão de 2026-09-25 (correções em cada PR, commits `fix(...)`: revisão da
+Fase N): trava do B/L também ao excluir B/L, container e veículo, com DELETE
+direto revogado; cascata de viagem por lista explícita, a mesma da prévia;
+motivo obrigatório no banco; cliente com CNPJ bloqueado explicitamente;
+"não escala" reconhecida como a tela lê; selo do B/L cancelado só nos campos
+editáveis; override desativado fora da sobreposição; rateio sem B/L
+cancelado; seed com marca de catálogo; estado do cliente por marca; guarda
+preserva o primeiro porto indicado; suítes local-pg das fases no CI, com o
+shim de `auth` igual ao do Supabase.
 
 Pendente para encerrar o plano:
 
@@ -37,7 +48,8 @@ recusa nas tabelas fiscais (padrão de grant, Fase 1); prévia de exclusão
 calculada pelo banco em vez da lista de bloqueios (Fase 2); remover atracação
 já existia no modal (Fase 4a); unicidade do CE não é imposta pelo banco (Fase
 4b); Demurrage conta como usado quando vigente (Fase 5a); sem anonimização
-(Fase 6, decisão de 2026-09-25).
+(Fase 6, decisão de 2026-09-25); manifestos de Granito e de vazios só se
+desvinculam ao excluir a viagem, seguindo a FK SET NULL (Fase 4a, revisão).
 
 Implementa as decisões das
 [ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md),
