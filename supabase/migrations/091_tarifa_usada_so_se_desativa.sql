@@ -6,6 +6,9 @@
 --   (resolve_bl_local_charge_items, add_manual_bl_charge,
 --   list_manual_charge_items_for_bl) passa a ignorar override desativado. O
 --   item de taxa já tinha active e já era respeitado.
+-- - Override desativado sai da restrição de sobreposição de vigência.
+-- - O rateio de container entre B/Ls ignora B/L cancelado (ADR 0071, item 9:
+--   ele sai do faturamento).
 -- - Excluir tarifa usada é recusado, com mensagem legível, por um trigger por
 --   tabela. Usada = referenciada por cálculo, item de fatura ou versão de
 --   regra de preço (tabela, item, override) ou por cobrança de Granito (tarifa
@@ -24,6 +27,13 @@
 
 ALTER TABLE public.customer_rate_overrides
   ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEFAULT true;
+
+-- Override desativado não disputa período: um novo override do mesmo cliente
+-- e item pode cobrir a vigência do desativado (que, usado, não se exclui).
+ALTER TABLE public.customer_rate_overrides DROP CONSTRAINT IF EXISTS customer_rate_overrides_no_overlap;
+ALTER TABLE public.customer_rate_overrides ADD CONSTRAINT customer_rate_overrides_no_overlap
+  EXCLUDE USING gist (customer_id WITH =, charge_item_id WITH =, daterange(valid_from, valid_to, '[]') WITH &&)
+  WHERE (active);
 
 CREATE OR REPLACE FUNCTION public.resolve_bl_local_charge_items(p_bl_id text, p_pod text)
  RETURNS TABLE(charge_table_id bigint, charge_item_id bigint, quantity numeric, unit_value_brl numeric, unit_value_usd numeric, total_value_brl numeric, total_value_usd numeric, override_applied boolean, source text, status text, calculation_key text, review_reason text, notes text)
@@ -116,6 +126,7 @@ BEGIN
         FROM public.bls AS b2
         JOIN public.bl_containers AS bc2 ON bc2.bl_id = b2.id
         WHERE b2.voyage_id = v_bl.voyage_id
+          AND b2.cancelled_at IS NULL
           AND COALESCE(b2.cargo_mode, 'container') IN ('container', 'misto')
           AND UPPER(TRIM(COALESCE(bc2.container_number, ''))) = cc.cn
       ) AS sh ON TRUE
@@ -527,6 +538,13 @@ AS $function$
 DECLARE
   v_used boolean := false;
 BEGIN
+  -- O seed de catálogo (supabase/seed.sql) substitui as tarifas de um banco
+  -- novo: ele liga vela.seed_catalog na própria sessão, sem usuário. A API não
+  -- consegue ligar essa marca.
+  IF auth.uid() IS NULL AND current_setting('vela.seed_catalog', true) = 'on' THEN
+    RETURN OLD;
+  END IF;
+
   IF TG_TABLE_NAME = 'charge_table_items' THEN
     v_used := EXISTS (SELECT 1 FROM public.charge_calculations WHERE charge_item_id = OLD.id)
       OR EXISTS (SELECT 1 FROM public.invoice_items WHERE charge_item_id = OLD.id)

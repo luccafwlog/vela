@@ -112,6 +112,18 @@ describeLocal('091 — tarifa usada só se desativa', () => {
       AND prosrc LIKE '%WHERE cro.active%';`)).toBe('3')
   })
 
+  it('override desativado não impede um novo override no mesmo período', () => {
+    expect(psql(`SELECT count(*) FROM public.customer_rate_overrides WHERE customer_id = ${CUSTOMER_ID} AND NOT active;`)).toBe('1')
+    psql(`INSERT INTO public.customer_rate_overrides (customer_id, charge_item_id, override_value) VALUES (${CUSTOMER_ID}, ${ITEM_USED}, 9);`)
+    expect(() => psql(`INSERT INTO public.customer_rate_overrides (customer_id, charge_item_id, override_value) VALUES (${CUSTOMER_ID}, ${ITEM_USED}, 7);`))
+      .toThrow(/customer_rate_overrides_no_overlap/)
+  })
+
+  it('o seed de catálogo substitui tarifa vigente só com a marca, sem usuário', () => {
+    expect(() => psql(`BEGIN; DELETE FROM public.demurrage_rates WHERE valid_from IS NULL OR valid_from <= current_date; ROLLBACK;`)).toThrow(/desative em vez de excluir/)
+    expect(() => psql(`BEGIN; SET LOCAL vela.seed_catalog = 'on'; DELETE FROM public.demurrage_rates; ROLLBACK;`)).not.toThrow()
+  })
+
   it('só o Administrativo desativa tabela de taxas', () => {
     const ops = as(OPS_ID, `UPDATE public.charge_tables SET active = false WHERE id = ${TABLE_ID};`)
     expect(ops.stderr).toMatch(/Somente o Administrativo desativa ou reativa tarifas/)
