@@ -740,6 +740,16 @@ criar um B/L inexistente e corrigir dados comerciais já gravados, além de ser 
 fonte de Frete & Despesas do BL, da data de emissão e da data de embarque na
 origem. A operação de container não depende da importação de Manifesto.
 
+**B/L Cancelado** (decidido na
+[ADR 0071](docs/adr/0071-ce-mercante-como-trava-de-exclusao.md), ainda não
+implementado)
+B/L com CE Mercante que não vai seguir: a carga não embarcou ou o armador
+reemitiu o documento com outro número. O Administrativo cancela, com motivo,
+depois que o Financeiro cancelou ou estornou as faturas e recebíveis abertos
+dele. O B/L sai do faturamento, aparece no Portal como cancelado se já tiver
+sido liberado e libera o CE para o B/L reemitido. Pode ser reativado se o
+cancelamento foi por engano. B/L sem CE não é cancelado: é excluído.
+
 **Razão Social do Consignatário**
 Nome empresarial curto exibido em tabelas e usado como sugestão na reconciliação
 de cliente — nunca como vínculo, que só se estabelece por documento exato. É
@@ -883,7 +893,9 @@ O CE também integra a liberação documental do B/L no Portal; o acesso depende
 da conta do Cliente. O Comunicado de CE e Taxas depende da prontidão do conjunto
 Cliente/Viagem, da chave de envio e do processamento do canal, não de um envio
 imediato garantido ao salvar o CE. A relação CE × B/L é 1:1: um
-número de CE não pode ser usado por mais de um B/L. Embarque de Vazios é a exceção
+número de CE não pode ser usado por mais de um B/L. Pela ADR 0071, ainda não
+implementada, a unicidade passa a valer entre B/Ls não cancelados: o
+[B/L Cancelado](#operação-marítima) libera o CE. Embarque de Vazios é a exceção
 operacional: não emite CE porque é módulo de custo pago pela agência ao depot,
 sem invoice ou recebível de cliente.
 

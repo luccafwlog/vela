@@ -50,7 +50,20 @@ trabalho interno; depois dele, o cliente e o fisco já os viram.
    motivo; o banco executa tudo numa transação, ou nada.
 8. **Autoria.** Excluir, cancelar e reativar são do Administrativo, sempre
    com motivo e rastro. Viagem cancelada por engano pode ser reativada.
-9. **Recuperação.** A cópia da linha gravada pela auditoria de banco
+9. **B/L cancelado.** Um B/L com CE que não vai seguir (a carga não embarcou,
+   o armador reemitiu com outro número) é cancelado pelo Administrativo, com
+   motivo, e pode ser reativado. Ele sai do faturamento e aparece no Portal
+   como cancelado se já tiver sido liberado. O cancelamento é bloqueado
+   enquanto houver fatura ou recebível aberto dele: o Financeiro cancela ou
+   estorna antes. O B/L cancelado libera o CE; a unicidade CE × B/L vale
+   entre B/Ls não cancelados.
+10. **Reimportação é correção.** Reimportar o B/L depois do CE pode tirar
+    containers e veículos que o novo arquivo não traz, porque o arquivo é a
+    fonte da carga. A prévia mostra o que sai, fica rastro, e B/L faturado
+    continua exigindo a autorização auditada.
+11. **Taxa manual do B/L** é cobrança, não dado operacional: pode ser
+    excluída pelo Administrativo até ser faturada, independentemente do CE.
+12. **Recuperação.** A cópia da linha gravada pela auditoria de banco
    (`audit_row_changes`) é suficiente para recadastrar à mão; não há ação de
    restaurar. Isso exige que toda tabela coberta tenha o trigger e que
    `audit_logs` seja imutável.
