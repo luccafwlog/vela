@@ -73,4 +73,7 @@ assert.equal(auditMigration('-- Data status do CLAUDE.md\nDELETE FROM public.bls
 assert.equal(auditMigration('-- 099\nTRUNCATE public.bls;\n').destructive, true)
 assert.equal(auditMigration('-- 099\nSELECT 1; TRUNCATE TABLE public.bls;\n').destructive, true)
 assert.equal(auditMigration('-- 099: TRUNCATE sai de anon\nREVOKE TRUNCATE ON TABLE public.bls FROM anon;\n').destructive, false)
-console.log('check-destructive-migrations: 13 cenários passaram (AGENTS.md e compatibilidade histórica).')
+assert.equal(auditMigration('-- 099\nBEGIN; TRUNCATE public.bls; COMMIT;\n').destructive, true, 'TRUNCATE depois de BEGIN')
+assert.equal(auditMigration('-- 099\nGRANT SELECT, TRUNCATE ON TABLE public.bls TO service_role;\n').destructive, false)
+assert.equal(auditMigration('-- 099\n-- aqui não se faz TRUNCATE public.bls\nSELECT 1;\n').destructive, false, 'comentário não conta')
+console.log('check-destructive-migrations: 16 cenários passaram (AGENTS.md e compatibilidade histórica).')

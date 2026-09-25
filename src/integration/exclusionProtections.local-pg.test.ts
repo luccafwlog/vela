@@ -34,6 +34,9 @@ const INVOICE_NUMBER = 'EXCL-086-1'
 const CARRIER_ID = 8600002
 const VESSEL_ID = 8600003
 const VOYAGE_ID = 8600004
+// CNPJ do namespace 086: o CNPJ é UNIQUE também na conta do Portal criada
+// pelo trigger de cliente, e um CNPJ compartilhado derruba outras suítes.
+const CUSTOMER_CNPJ = '08600001000189'
 
 // Executa como o usuário Administrativo autenticado, dentro de uma transação.
 function asAdmin(statement: string) {
@@ -51,6 +54,8 @@ function cleanup() {
     SET session_replication_role = replica;
     DELETE FROM public.audit_logs WHERE entity_type = 'voyages' AND entity_id = '${VOYAGE_ID}';
     DELETE FROM public.invoices WHERE invoice_number = '${INVOICE_NUMBER}';
+    DELETE FROM public.portal_provisioning_events WHERE customer_id = ${CUSTOMER_ID};
+    DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customers WHERE id = ${CUSTOMER_ID};
     DELETE FROM public.voyages WHERE id = ${VOYAGE_ID};
     DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
@@ -70,7 +75,7 @@ describeLocal('086 — documento fiscal e auditoria não se apagam; viagem deixa
       INSERT INTO public.user_profiles (id, full_name, role, active)
         VALUES ('${ADMIN_ID}', 'Administrativo 086', 'administrativo', true)
         ON CONFLICT (id) DO UPDATE SET role = 'administrativo', active = true;
-      INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${CUSTOMER_ID}, 'Cliente 086', '11222333000181');
+      INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${CUSTOMER_ID}, 'Cliente 086', '${CUSTOMER_CNPJ}');
       INSERT INTO public.invoices (invoice_number, customer_id, total_brl)
         VALUES ('${INVOICE_NUMBER}', ${CUSTOMER_ID}, 10);
       INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Carrier 086');

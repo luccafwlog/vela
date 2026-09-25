@@ -16,6 +16,10 @@
 --   audit_logs_update_admin e audit_logs_delete_admin. Nenhuma parte do
 --   sistema altera ou apaga auditoria (verificado em 2026-09-24); inserções
 --   continuam. A rotina de retenção da ADR 0074 rodará como dono.
+-- - service_role (chave das Edge Functions) também perde esse DELETE e o
+--   UPDATE/DELETE da auditoria: nenhuma Edge Function apaga documento fiscal
+--   nem altera auditoria (verificado em 2026-09-25); a rotina de retenção
+--   roda como dono.
 -- - TRUNCATE sai de anon, authenticated e service_role nessas seis tabelas.
 --   O PostgREST não expõe TRUNCATE; a revogação fecha o privilégio padrão.
 -- - voyages ganha o trigger audit_row_changes, como as demais tabelas
@@ -29,7 +33,7 @@ REVOKE DELETE ON TABLE
   public.payments,
   public.bl_receivables,
   public.ledger_settlements
-FROM authenticated;
+FROM authenticated, service_role;
 
 DROP POLICY IF EXISTS invoices_delete_admin ON public.invoices;
 DROP POLICY IF EXISTS invoice_items_delete_admin ON public.invoice_items;
@@ -37,7 +41,7 @@ DROP POLICY IF EXISTS payments_delete_admin ON public.payments;
 DROP POLICY IF EXISTS bl_receivables_delete_admin ON public.bl_receivables;
 DROP POLICY IF EXISTS ledger_settlements_delete_admin ON public.ledger_settlements;
 
-REVOKE UPDATE, DELETE ON TABLE public.audit_logs FROM authenticated;
+REVOKE UPDATE, DELETE ON TABLE public.audit_logs FROM authenticated, service_role;
 
 DROP POLICY IF EXISTS audit_logs_update_admin ON public.audit_logs;
 DROP POLICY IF EXISTS audit_logs_delete_admin ON public.audit_logs;

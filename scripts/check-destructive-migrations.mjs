@@ -18,9 +18,10 @@ const migrationsDir = path.join(root, 'supabase', 'migrations')
 const DESTRUCTIVE = [
   { name: 'UPDATE', re: /\bUPDATE\s+(?:public\.)?[a-z_][a-z0-9_]*\s+SET\b/i },
   { name: 'DELETE FROM', re: /\bDELETE\s+FROM\b/i },
-  // Só como comando no início de uma instrução: `REVOKE TRUNCATE ON ...` e um
-  // comentário que cite a palavra não apagam linha nenhuma.
-  { name: 'TRUNCATE', re: /(?:^|;)\s*TRUNCATE\b/im },
+  // Como comando, em qualquer posição (inclusive depois de BEGIN). O
+  // privilégio (`REVOKE TRUNCATE ON`, `GRANT SELECT, TRUNCATE ON`) não apaga
+  // linha nenhuma; comentários saem antes do teste (stripLineComments).
+  { name: 'TRUNCATE', re: /\bTRUNCATE\b(?!\s*(?:,|ON\b))/i },
   { name: 'DROP TABLE', re: /\bDROP\s+TABLE\b/i },
   { name: 'DROP COLUMN', re: /\bDROP\s+COLUMN\b/i },
 ]
@@ -79,8 +80,13 @@ export function headerComment(sql) {
   return lines.join('\n')
 }
 
+/** Remove comentários de linha (`-- ...`), que citam comandos sem executá-los. */
+function stripLineComments(sql) {
+  return sql.replace(/--[^\n]*/g, '')
+}
+
 export function auditMigration(sql, { legacy = false } = {}) {
-  const body = stripFunctionBodies(sql)
+  const body = stripLineComments(stripFunctionBodies(sql))
   const statements = DESTRUCTIVE.filter(({ re }) => re.test(body)).map(({ name }) => name)
   if (statements.length === 0) return { destructive: false, statements, declared: true }
   const header = headerComment(sql)
