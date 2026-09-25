@@ -18,7 +18,9 @@ const migrationsDir = path.join(root, 'supabase', 'migrations')
 const DESTRUCTIVE = [
   { name: 'UPDATE', re: /\bUPDATE\s+(?:public\.)?[a-z_][a-z0-9_]*\s+SET\b/i },
   { name: 'DELETE FROM', re: /\bDELETE\s+FROM\b/i },
-  { name: 'TRUNCATE', re: /\bTRUNCATE\b/i },
+  // Só como comando no início de uma instrução: `REVOKE TRUNCATE ON ...` e um
+  // comentário que cite a palavra não apagam linha nenhuma.
+  { name: 'TRUNCATE', re: /(?:^|;)\s*TRUNCATE\b/im },
   { name: 'DROP TABLE', re: /\bDROP\s+TABLE\b/i },
   { name: 'DROP COLUMN', re: /\bDROP\s+COLUMN\b/i },
 ]
