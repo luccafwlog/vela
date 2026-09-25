@@ -32,7 +32,7 @@ describe('provisionPreviewAdmin', () => {
       user_metadata: { full_name: input.fullName, preview_fixture: true },
     })
     expect(profiles.upsert).toHaveBeenCalledWith(
-      { id: 'user-preview-1', full_name: input.fullName, role: 'admin', active: true },
+      { id: 'user-preview-1', full_name: input.fullName, role: 'administrativo', active: true },
       { onConflict: 'id' },
     )
   })
@@ -91,7 +91,7 @@ describe('provisionPreviewAdmin', () => {
       user_metadata: { full_name: input.fullName, preview_fixture: true },
     })
     expect(profiles.upsert).toHaveBeenCalledWith(
-      { id: 'user-preview-1', full_name: input.fullName, role: 'admin', active: true },
+      { id: 'user-preview-1', full_name: input.fullName, role: 'administrativo', active: true },
       { onConflict: 'id' },
     )
   })

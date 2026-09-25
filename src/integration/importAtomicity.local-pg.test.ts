@@ -49,8 +49,8 @@ describeLocal('S04 — datas de container como unidade atômica', () => {
         ('${actorId}', 's04-atomic@example.test'),
         ('${otherActorId}', 's04-other@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${actorId}', 'S04 Atomic', 'admin', true),
-        ('${otherActorId}', 'S04 Other', 'admin', true);
+        ('${actorId}', 'S04 Atomic', 'administrativo', true),
+        ('${otherActorId}', 'S04 Other', 'administrativo', true);
       INSERT INTO public.customers (id, cnpj_cpf, name)
       VALUES (${customerId}, '${customerCnpj}', 'Cliente S04');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier S04');

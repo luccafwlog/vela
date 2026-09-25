@@ -98,7 +98,7 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
       INSERT INTO auth.users (id, email)
       VALUES ('${actorId}', 'ce-auto-051@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active)
-      VALUES ('${actorId}', 'CE Auto 051', 'admin', true);
+      VALUES ('${actorId}', 'CE Auto 051', 'administrativo', true);
       INSERT INTO public.customers (id, cnpj_cpf, name)
       VALUES (${customerId}, '${customerCnpj}', 'Cliente CE Auto 051');
       INSERT INTO public.carriers (id, name)

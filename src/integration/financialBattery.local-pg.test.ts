@@ -171,7 +171,7 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
         ('${equipmentUserId}', 'financial-battery-equipment@example.test')
       ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${actorId}', 'Financial Battery Admin', 'admin', true),
+        ('${actorId}', 'Financial Battery Admin', 'administrativo', true),
         ('${equipmentUserId}', 'Financial Battery Equipamentos', 'equipamentos', true)
       ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, active = true;
       INSERT INTO public.customers (id, cnpj_cpf, name)

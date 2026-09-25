@@ -29,7 +29,8 @@ describe('matriz RBAC de exceções', () => {
     }
   })
   it('mapeia os papéis legados', () => {
-    expect(roleHasPermission('admin', 'manage_users')).toBe(true)
+    // O papel `admin` saiu da lista aceita (migration 093); nao herda mais permissao.
+    expect(roleHasPermission('admin' as never, 'manage_users')).toBe(false)
     expect(roleHasPermission('operator', 'portal_provisioning')).toBe(true)
   })
 })

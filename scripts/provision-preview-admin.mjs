@@ -78,7 +78,7 @@ export async function provisionPreviewAdmin({ authAdmin, profiles, email, passwo
   if (!user?.id) throw new Error('A Auth API não devolveu o id do usuário de Preview.')
 
   const { error: profileError } = await profiles.upsert(
-    { id: user.id, full_name: fullName, role: 'admin', active: true },
+    { id: user.id, full_name: fullName, role: 'administrativo', active: true },
     { onConflict: 'id' },
   )
   if (profileError) throw new Error(`Não foi possível garantir o perfil admin da Preview: ${errorMessage(profileError)}`)
@@ -89,7 +89,7 @@ export async function provisionPreviewAdmin({ authAdmin, profiles, email, passwo
 /**
  * Refuses to provision the fixture against the production project.
  *
- * Este script cria um usuário `role = 'admin'`, `active = true`, com e-mail
+ * Este script cria um usuário `role = 'administrativo'`, `active = true`, com e-mail
  * conhecido e senha fixa. Ele nunca deve tocar produção — mas nada nele exigia
  * isso: a URL vinha pronta do ambiente, e um `supabase branches get` que
  * resolvesse para o projeto pai (o branching do Supabase expõe o projeto de
