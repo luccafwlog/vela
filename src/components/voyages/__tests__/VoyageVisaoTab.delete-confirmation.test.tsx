@@ -4,15 +4,14 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 
-const { confirm, deletePod, deleteExport } = vi.hoisted(() => ({
+const { confirm, deleteEscala } = vi.hoisted(() => ({
   confirm: vi.fn(),
-  deletePod: vi.fn(),
-  deleteExport: vi.fn(),
+  deleteEscala: vi.fn(),
 }))
 
-vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => confirm }))
+vi.mock('../../ui/ConfirmDialog', () => ({ useConfirmWithReason: () => confirm }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
-vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'admin-1' }, can: () => true }) }))
+vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'admin-1' }, can: () => true, isAdmin: true }) }))
 vi.mock('../../../hooks/useVoyageTimeline', () => ({ useVoyageTimeline: () => ({ data: undefined }) }))
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
@@ -21,11 +20,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }))
 vi.mock('../../../services/voyageRouteSchedules', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../services/voyageRouteSchedules')>()),
-  deleteVoyagePodSchedule: deletePod,
-}))
-vi.mock('../../../services/voyageExportSchedules', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../../services/voyageExportSchedules')>()),
-  deleteVoyageExportSchedule: deleteExport,
+  deleteEscala,
 }))
 
 import { VoyageVisaoTab } from '../VoyageVisaoTab'
@@ -36,7 +31,8 @@ afterEach(() => {
 })
 
 it('pede confirmação uma vez por escala antes de excluir o planejamento', async () => {
-  confirm.mockResolvedValue(false)
+  confirm.mockResolvedValue(null)
+  deleteEscala.mockResolvedValue({ deleted: false, reasons: [], dry_run: true })
   const user = userEvent.setup()
   render(
     <VoyageVisaoTab
@@ -60,8 +56,34 @@ it('pede confirmação uma vez por escala antes de excluir o planejamento', asyn
   await user.click(screen.getByRole('button', { name: 'Excluir escala BRVIX' }))
 
   expect(confirm).toHaveBeenCalledTimes(2)
-  expect(deletePod).not.toHaveBeenCalled()
-  expect(deleteExport).not.toHaveBeenCalled()
+  // Só a prévia (dryRun) foi pedida; nada foi excluído.
+  expect(deleteEscala).toHaveBeenCalledTimes(2)
+  for (const call of deleteEscala.mock.calls) expect(call[2]).toEqual({ dryRun: true })
+})
+
+it('escala travada pelo CE não abre confirmação e não é excluída', async () => {
+  deleteEscala.mockResolvedValue({ deleted: false, reasons: ['B/L com CE Mercante'], dry_run: true })
+  const user = userEvent.setup()
+  render(
+    <VoyageVisaoTab
+      voyage={{ id: 7, status: 'planning', bls: [], granite_manifests: [], vazios_manifests: [] } as never}
+      voyageLabel="NAVIO / 01N"
+      escalaRows={[
+        { port: 'BRSSZ', eta: '2026-07-20', etb: null, ata: null, atb: null, etd: null, atd: null, rtw: null, linked: true, temImportacao: true, temExportacao: false, temGranito: false, containersQty: null, movementsQty: null, divergences: [], omitted: false, deleted: false } as never,
+      ]}
+      importBatches={[]}
+      exportSchedules={[]}
+      divergenceCount={0}
+      ceCoverage={{ filled: 0, total: 0 }}
+      onEditEscala={vi.fn()}
+      onOmitPod={vi.fn()}
+    />,
+  )
+
+  await user.click(screen.getByRole('button', { name: 'Excluir escala BRSSZ' }))
+
+  expect(confirm).not.toHaveBeenCalled()
+  expect(deleteEscala).toHaveBeenCalledTimes(1)
 })
 
 it('renderiza uma escala mista em uma linha com marcadores de importação e exportação', () => {

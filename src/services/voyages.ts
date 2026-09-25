@@ -1,7 +1,8 @@
 import { supabase } from './supabase'
 import type { VoyageFormValues } from './voyageForm'
 import { canonicalizeVesselName, normalizeVesselImo } from '../lib/vesselAlias'
-import { deleteOneById } from './deleteRecords'
+import { deleteRecords } from './deleteRecords'
+import type { DeleteDependencyReport } from './deleteDependencies'
 
 export async function createVoyage(form: VoyageFormValues, changedBy: string | null) {
   const carrierId = await getOrCreateCarrier(form.carrierName, form.carrierScac)
@@ -88,30 +89,31 @@ export async function cancelVoyage({
   if (error) throw error
 }
 
-export async function deleteVoyage(voyageId: number) {
-  const [bls, batches, graniteManifests, vaziosManifests] = await Promise.all([
-    supabase.from('bls').select('id', { count: 'exact', head: true }).eq('voyage_id', voyageId).range(0, 0),
-    supabase.from('import_batches').select('id', { count: 'exact', head: true }).eq('voyage_id', voyageId).range(0, 0),
-    supabase.from('granite_manifests').select('id', { count: 'exact', head: true }).eq('voyage_id', voyageId).range(0, 0),
-    supabase.from('vazios_manifests').select('id', { count: 'exact', head: true }).eq('voyage_id', voyageId).range(0, 0),
+export type VoyageDeletePreview = {
+  report: DeleteDependencyReport<number>
+  counts: { bls: number; containers: number; vehicles: number; export_schedules: number; terminals: number; vazios_bookings: number }
+}
+
+/**
+ * Previa da exclusao de viagem (ADR 0071): se ela esta travada (CE Mercante,
+ * documento financeiro, ADR fechado, comunicado) ou cancelada, e quanto vai
+ * junto em cascata. Calculada pelo banco, com as regras da exclusao real.
+ */
+export async function previewVoyageDeletion(voyageId: number): Promise<VoyageDeletePreview> {
+  const [report, counts] = await Promise.all([
+    deleteRecords('voyage', [voyageId], { dryRun: true }),
+    supabase.rpc('voyage_delete_preview' as never, { p_voyage_id: voyageId } as never),
   ])
+  if (counts.error) throw counts.error
+  return { report, counts: counts.data as unknown as VoyageDeletePreview['counts'] }
+}
 
-  const firstError = [bls, batches, graniteManifests, vaziosManifests].find((result) => result.error)?.error
-  if (firstError) throw firstError
-
-  const blCount = bls.count ?? 0
-  const batchCount = batches.count ?? 0
-  const graniteManifestCount = graniteManifests.count ?? 0
-  const vaziosManifestCount = vaziosManifests.count ?? 0
-
-  if (blCount > 0 || batchCount > 0 || graniteManifestCount > 0 || vaziosManifestCount > 0) {
-    throw new Error(
-      `Nao e possivel excluir esta viagem porque ela possui dados vinculados: ${blCount} B/L(s), ${batchCount} importacao(oes) CNTR/BB, ${graniteManifestCount} manifesto(s) de granito e ${vaziosManifestCount} manifesto(s) de vazios. Remova os vinculos antes.`,
-    )
-  }
-
-  const { error } = await deleteOneById('voyages', voyageId)
-  if (error) throw error
+/**
+ * Exclui a viagem com B/Ls, carga, escalas e demais dados operacionais, numa
+ * operacao so no banco. Viagem travada ou cancelada volta no relatorio.
+ */
+export function deleteVoyage(voyageId: number, reason: string): Promise<DeleteDependencyReport<number>> {
+  return deleteRecords('voyage', [voyageId], { reason })
 }
 
 async function getOrCreateCarrier(name: string, scac: string) {

@@ -9,7 +9,7 @@ import { VoyageCreateModal } from '../components/shared/VoyageCreateModal'
 import { EscalaModal, PolScheduleModal, type EscalaModalData } from '../components/shared/VoyageScheduleModals'
 import { Modal } from '../components/ui/Modal'
 import { Field, Input } from '../components/ui/Input'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyageDetail, useVoyages } from '../hooks/useBls'
@@ -22,7 +22,7 @@ import {
   normalizeVoyageStatus,
   type VoyageRailModuleStats,
 } from '../services/voyageSummaries'
-import { cancelVoyage, deleteVoyage } from '../services/voyages'
+import { cancelVoyage, deleteVoyage, previewVoyageDeletion } from '../services/voyages'
 import { setImportBatchCeMaster } from '../services/manifestImport'
 import {
   buildVoyagePolEntityId,
@@ -83,10 +83,10 @@ export function Viagens() {
   const { user, profile } = useAuth()
   const canEditVoyages = Boolean(profile || user)
   const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const { data, isLoading, error } = useVoyages()
   const [open, setOpen] = useState(false)
   const [editingVoyageId, setEditingVoyageId] = useState<number | null>(null)
-  const [deletingVoyageId, setDeletingVoyageId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [cancellingVoyageId, setCancellingVoyageId] = useState<number | null>(null)
   const [cancellationReason, setCancellationReason] = useState('')
@@ -209,19 +209,49 @@ export function Viagens() {
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters])
 
   const selectedVoyage = selectedVoyageDetail
-  const deletingVoyage = voyages.find((voyage) => voyage.id === deletingVoyageId)
 
-  async function handleDeleteVoyage() {
-    if (!deletingVoyageId) return
-
+  async function handleDeleteVoyage(voyageId: number) {
+    if (deleting) return
+    const voyage = voyages.find((item) => item.id === voyageId)
+    const label = voyage ? `${voyage.vessel?.name ?? 'Navio'} / ${voyage.voyage_number}` : `viagem ${voyageId}`
     setDeleting(true)
     try {
-      await deleteVoyage(deletingVoyageId)
-      await afterViagemAlterada(queryClient, { voyageId: deletingVoyageId })
+      const preview = await previewVoyageDeletion(voyageId)
+      const blocked = preview.report.blockedIds[0]
+      if (blocked) {
+        showToast(`A viagem ${label} não pode ser excluída: ${blocked.reasons.join(', ')}. Corrija ou cancele.`, 'error')
+        return
+      }
+      const { counts } = preview
+      const reason = await confirmWithReason({
+        title: 'Excluir viagem',
+        message: `Excluir a viagem ${label}?`,
+        affected: {
+          summary: 'Vão junto com a viagem:',
+          items: [
+            `${counts.bls} B/L(s)`,
+            `${counts.containers} container(es)`,
+            `${counts.vehicles} veículo(s)`,
+            `${counts.export_schedules} escala(s) de exportação`,
+            `${counts.terminals} atracação(ões)`,
+            `${counts.vazios_bookings} unidade(s) de vazios`,
+          ],
+        },
+        consequence: 'A viagem e tudo o que é dela saem do Vela, do Line-Up e da Programação no Portal. Nenhum B/L dela tem CE Mercante nem documento financeiro.',
+        reversibility: 'Não é possível desfazer pelo sistema; os registros apagados ficam guardados na auditoria.',
+        confirmLabel: 'Excluir viagem',
+        tone: 'danger',
+      })
+      if (reason === null) return
 
-      showToast('Viagem excluida com sucesso.', 'success')
-      if (selectedVoyageId === deletingVoyageId) navigate('/viagens')
-      setDeletingVoyageId(null)
+      const result = await deleteVoyage(voyageId, reason)
+      if (result.deletableIds.length === 0) {
+        showToast(`A viagem não foi excluída: ${result.blockedIds[0]?.reasons.join(', ') ?? 'recusada pelo banco'}.`, 'error')
+        return
+      }
+      await afterViagemAlterada(queryClient, { voyageId })
+      showToast('Viagem excluída.', 'success')
+      if (selectedVoyageId === voyageId) navigate('/viagens')
     } catch (error) {
       const message = classifyDbError(error).message || userFacingErrorMessage(error, 'Falha ao excluir viagem. Tente novamente.')
       showToast(message, 'error')
@@ -322,7 +352,7 @@ export function Viagens() {
             scheduledEscalaRows={escalaSchedulesByVoyage.get(selectedVoyage.id) ?? []}
             exportSchedules={Array.from(exportSchedulesData?.get(selectedVoyage.id)?.values() ?? [])}
             onEditVoyage={setEditingVoyageId}
-            onDeleteVoyage={setDeletingVoyageId}
+            onDeleteVoyage={(id) => void handleDeleteVoyage(id)}
             onCancelVoyage={setCancellingVoyageId}
             onEditEscala={(payload) => {
               setEditingEscala(payload)
@@ -363,32 +393,6 @@ export function Viagens() {
         onSaved={() => setEditingVoyageId(null)}
       />
 
-      <Modal open={deletingVoyageId !== null} onClose={() => setDeletingVoyageId(null)} title="Excluir Viagem">
-        <div className="grid gap-4">
-          <div className="rounded-xl border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-100">
-            Esta exclusão é permanente. Ela só será permitida se a viagem não tiver nenhum dado vinculado. Viagens canceladas permanecem retidas para rastreabilidade.
-          </div>
-
-          <div className="text-sm text-[var(--app-text)]">
-            {deletingVoyage ? (
-              <>
-                Confirme a exclusão de <span className="font-semibold text-[var(--app-text-strong)]">{deletingVoyage.vessel?.name ?? 'Navio'} / {deletingVoyage.voyage_number}</span>.
-              </>
-            ) : (
-              'Confirme a exclusão da viagem selecionada.'
-            )}
-          </div>
-
-          <div className="app-modal__actions">
-            <Button variant="secondary" onClick={() => setDeletingVoyageId(null)}>
-              Voltar
-            </Button>
-            <Button variant="danger" loading={deleting} onClick={handleDeleteVoyage}>
-              Excluir viagem
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       <Modal
         open={cancellingVoyageId !== null}

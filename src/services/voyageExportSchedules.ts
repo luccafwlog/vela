@@ -1,7 +1,6 @@
 import { supabase } from './supabase'
 import { normalizePortCode } from './portCode'
 import type { Json, VoyageExportCeStatus, VoyageExportSchedule as VoyageExportScheduleRow } from '../types/database'
-import { deleteOneById } from './deleteRecords'
 
 export type ExportCeStatus = VoyageExportCeStatus
 
@@ -291,11 +290,6 @@ function parseVoyageExportScheduleSaveResult(value: Json | null): VoyageExportSc
     closed_blockers: closedBlockers,
     blocked: record.blocked === true,
   }
-}
-
-export async function deleteVoyageExportSchedule(id: string): Promise<void> {
-  const { error } = await deleteOneById('voyage_export_schedules', id)
-  if (error) throw error
 }
 
 function buildExportSchedulePortKey(schedule: Pick<VoyageExportSchedule, 'id' | 'pol'>) {

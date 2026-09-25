@@ -668,6 +668,30 @@ export async function deleteVoyagePodSchedule({
   if (error) throw error
 }
 
+export type EscalaDeleteResult = { deleted: boolean; reasons: string[] }
+
+/**
+ * Exclui a escala (voyage, porto) numa operacao so no banco (migration 088):
+ * marca o POD como removido do planejamento e apaga a escala de exportacao do
+ * mesmo porto. Somente o Administrativo; B/L com CE Mercante, documento
+ * financeiro ou ADR fechado no porto travam (ADR 0071). Com `dryRun`, so
+ * devolve os motivos da trava.
+ */
+export async function deleteEscala(
+  voyageId: number,
+  port: string,
+  options: { dryRun?: boolean; reason?: string } = {},
+): Promise<EscalaDeleteResult> {
+  const { data, error } = await supabase.rpc('delete_escala' as never, {
+    p_voyage_id: voyageId,
+    p_port: port,
+    p_dry_run: options.dryRun ?? false,
+    p_reason: options.reason ?? null,
+  } as never)
+  if (error) throw error
+  return data as unknown as EscalaDeleteResult
+}
+
 /**
  * CE Master por ROTA (POL/POD), independente de batch de manifesto (#322).
  * Viagem só-B/L não tem batch onde guardar a CE agrupadora; aqui fica por rota.
