@@ -24,8 +24,8 @@ export async function upsertGraniteRate(
   return data as GraniteRate
 }
 
-export async function deleteGraniteRate(id: string): Promise<void> {
-  const { error } = await deleteOneById('granite_rates', id)
+export async function deleteGraniteRate(id: string, reason: string): Promise<void> {
+  const { error } = await deleteOneById('granite_rates', id, reason)
   if (error) throw error
 }
 

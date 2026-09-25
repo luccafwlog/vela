@@ -42,20 +42,33 @@ export async function deleteRecords<K extends string | number>(
 export const NOTHING_DELETED_MESSAGE =
   'Nada foi excluído: você não tem permissão para excluir este registro, ou ele já não existe.'
 
+export type CatalogDeleteTable =
+  | 'granite_rates'
+  | 'depots'
+  | 'depot_services'
+  | 'vazios_export_service_lines'
+  | 'demurrage_rates'
+  | 'customer_demurrage_agreements'
+  | 'customer_rate_overrides'
+  | 'charge_table_items'
+
 /**
- * Exclui uma linha por id e confere que ela saiu. O PostgREST responde a um
- * DELETE barrado por RLS com 0 linhas e sem erro; sem esta conferencia a tela
- * anunciava "excluido" para algo que continuava no banco (achado A1).
- * Devolve o erro em vez de lancar, para o chamador poder traduzir codigos
- * como 23503.
+ * Exclui uma linha de cadastro (taxas, locais, servicos, linhas de vazios)
+ * pela RPC `delete_catalog_row` (migration 096), que exige o motivo e o grava
+ * na auditoria. O banco recusa DELETE direto nessas tabelas. Devolve o erro em
+ * vez de lancar, para o chamador poder traduzir codigos como 23503.
  */
-export async function deleteOneById(table: string, id: string | number): Promise<{ error: Error | null }> {
-  const { data, error } = await supabase
-    .from(table as never)
-    .delete()
-    .eq('id' as never, id as never)
-    .select('id')
-  if (error) return { error }
-  if (!data || (data as unknown[]).length === 0) return { error: new Error(NOTHING_DELETED_MESSAGE) }
-  return { error: null }
+export async function deleteOneById(
+  table: CatalogDeleteTable,
+  id: string | number,
+  reason: string,
+): Promise<{ error: Error | null }> {
+  const { error } = await supabase.rpc('delete_catalog_row' as never, {
+    p_table: table,
+    p_id: String(id),
+    p_reason: reason,
+  } as never)
+  if (!error) return { error: null }
+  if ((error as { code?: string }).code === 'P0002') return { error: new Error(NOTHING_DELETED_MESSAGE) }
+  return { error }
 }

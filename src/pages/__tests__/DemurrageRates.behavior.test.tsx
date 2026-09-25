@@ -42,7 +42,7 @@ const agreementSvc = vi.hoisted(() => ({
 
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true }) }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
-vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(() => Promise.resolve(true)) }))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(() => Promise.resolve(true)), useConfirmWithReason: () => vi.fn(() => Promise.resolve('motivo')) }))
 vi.mock('../../services/demurrage/demurrageRates', () => svc)
 vi.mock('../../services/demurrage/customerDemurrageAgreements', () => agreementSvc)
 
@@ -95,7 +95,7 @@ it('US-054: exclui a tarifa', async () => {
 
   await user.click(await screen.findByRole('button', { name: 'Excluir tarifa' }))
 
-  await waitFor(() => expect(svc.deleteDemurrageRate).toHaveBeenCalledWith(1))
+  await waitFor(() => expect(svc.deleteDemurrageRate).toHaveBeenCalledWith(1, 'motivo'))
 })
 
 it('lista os acordos de clientes na aba correspondente', async () => {

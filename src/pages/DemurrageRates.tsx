@@ -5,7 +5,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { TabButton } from '../components/ui/TabButton'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { Field, Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
@@ -41,7 +41,7 @@ const EMPTY_FORM: DemurrageRateForm = {
 export function DemurrageRates() {
   const { isAdmin } = useAuth()
   const { showToast } = useToast()
-  const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const [searchParams, setSearchParams] = useSearchParams()
   const currentTab = searchParams.get('tab') === 'acordos' ? 'acordos' : 'padrao'
   const [tab, setTab] = useState<'padrao' | 'acordos'>(currentTab)
@@ -91,8 +91,9 @@ export function DemurrageRates() {
   }
 
   async function handleDelete(id: number) {
-    if (!(await confirm({ title: 'Excluir tarifa de Demurrage', message: 'Excluir esta tarifa de Demurrage?', consequence: 'A tarifa sai do cadastro e não entra em cálculos novos.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
-    deleteMutation.mutate(id, {
+    const reason = await confirmWithReason({ title: 'Excluir tarifa de Demurrage', message: 'Excluir esta tarifa de Demurrage?', consequence: 'A tarifa sai do cadastro e não entra em cálculos novos.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
+    if (reason === null) return
+    deleteMutation.mutate({ id, reason }, {
       onSuccess: () => showToast('Tarifa removida.', 'success'),
       onError: () => showToast('Falha ao remover tarifa.', 'error'),
     })
@@ -195,7 +196,7 @@ export function DemurrageRates() {
                         </button>
                         <button
                           onClick={() => handleDelete(rate.id)}
-                          disabled={deleteMutation.isPending && deleteMutation.variables === rate.id}
+                          disabled={deleteMutation.isPending && deleteMutation.variables?.id === rate.id}
                           className="app-table__icon-button app-table__icon-button--danger app-table__icon-button--sm"
                           title="Excluir"
                           aria-label="Excluir tarifa"

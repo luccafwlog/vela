@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Edit3, Plus, Power, Trash2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { Field, Input, Select } from '../components/ui/Input'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
@@ -51,7 +51,7 @@ export function DepotCadastro() {
   const canEdit = Boolean(profile || user)
   // Excluir e do Administrativo no banco; os demais editam, mas nao veem Excluir.
   const canDelete = isAdmin
-  const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const { showToast } = useToast()
   const depots = useDepots()
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -121,9 +121,11 @@ export function DepotCadastro() {
   }
 
   async function removeDepot() {
-    if (!selected || !(await confirm({ title: 'Excluir local', message: `Excluir o local ${selected.code}?`, consequence: 'O local e os serviços dele saem do cadastro. O banco recusa se o local estiver em uso por B/L, escala, ADR ou vazios.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    if (!selected) return
+    const reason = await confirmWithReason({ title: 'Excluir local', message: `Excluir o local ${selected.code}?`, consequence: 'O local e os serviços dele saem do cadastro. O banco recusa se o local estiver em uso por B/L, escala, ADR ou vazios.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
+    if (reason === null) return
     await run(async () => {
-      await deleteDepot(selected.id)
+      await deleteDepot(selected.id, reason)
       setSelectedId(null)
       await depots.refetch()
     }, 'Local excluído.')
@@ -152,9 +154,10 @@ export function DepotCadastro() {
   }
 
   async function removeService(service: DepotService) {
-    if (!(await confirm({ title: 'Excluir serviço', message: `Excluir o serviço ${service.name}?`, consequence: 'O serviço sai do catálogo do local. O banco recusa se ele já foi lançado em Embarque de Vazios.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    const reason = await confirmWithReason({ title: 'Excluir serviço', message: `Excluir o serviço ${service.name}?`, consequence: 'O serviço sai do catálogo do local. O banco recusa se ele já foi lançado em Embarque de Vazios.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
+    if (reason === null) return
     await run(async () => {
-      await deleteDepotService(service.id)
+      await deleteDepotService(service.id, reason)
       await services.refetch()
     }, 'Serviço excluído.')
   }

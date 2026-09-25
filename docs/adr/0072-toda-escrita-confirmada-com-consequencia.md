@@ -6,10 +6,13 @@ Status: aceito — 2026-09-24. Implementação parcial (ver nota).
 > (`ConfirmDialog`, `useConfirmWithReason`) ganhou registros afetados, lista
 > sob demanda, bloqueados com motivo, consequência, reversibilidade, motivo
 > obrigatório e o botão Voltar, e passou a ser usado nas ações de exclusão e
-> cancelamento. A prévia vem do banco que executa (`p_dry_run`). Pendente,
-> no [plano da política de exclusão](../plans/2026-09-24-politica-de-exclusao.md): antes/depois em Salvar, diálogo nas demais escritas e motivo
-> gravado nas exclusões que não passam por `delete_records` (vazios, tarifas,
-> locais).
+> cancelamento. A prévia vem do banco que executa (`p_dry_run`). A migration
+> `096` levou o motivo obrigatório às exclusões de cadastro que não passam por
+> `delete_records` (taxas, tarifas e acordos, locais e serviços, linhas de
+> serviço de vazios): a RPC `delete_catalog_row` exige o motivo e o grava em
+> `audit_logs`. Pendente, no
+> [plano da política de exclusão](../plans/2026-09-24-politica-de-exclusao.md):
+> antes/depois em Salvar e diálogo nas demais escritas.
 
 ## Contexto
 

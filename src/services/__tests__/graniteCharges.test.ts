@@ -59,16 +59,15 @@ it('US-090: ativar/desativar usa upsert com a flag active', async () => {
   )
 })
 
-it('US-091: exclui uma taxa', async () => {
-  results.granite_rates = { data: [{ id: 'r1' }], error: null }
-  await deleteGraniteRate('r1')
-  expect(builderFor('granite_rates').delete).toHaveBeenCalled()
-  expect(builderFor('granite_rates').eq).toHaveBeenCalledWith('id', 'r1')
+it('US-091: exclui uma taxa pela RPC, com o motivo', async () => {
+  rpcMock.mockResolvedValue({ data: null, error: null })
+  await deleteGraniteRate('r1', 'tarifa duplicada')
+  expect(rpcMock).toHaveBeenCalledWith('delete_catalog_row', { p_table: 'granite_rates', p_id: 'r1', p_reason: 'tarifa duplicada' })
 })
 
-it('A1: nao anuncia exclusao quando o banco apagou 0 linhas', async () => {
-  results.granite_rates = { data: [], error: null }
-  await expect(deleteGraniteRate('r1')).rejects.toThrow(/Nada foi excluído/)
+it('A1: nao anuncia exclusao quando o banco nao achou a linha', async () => {
+  rpcMock.mockResolvedValue({ data: null, error: { code: 'P0002', message: 'x' } })
+  await expect(deleteGraniteRate('r1', 'motivo')).rejects.toThrow(/Nada foi excluído/)
 })
 
 it('US-082: calcula as taxas do B/L aplicando per_kg sobre o peso real', async () => {

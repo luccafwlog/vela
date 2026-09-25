@@ -10,7 +10,7 @@ import { VoyageCombobox } from "../components/shared/VoyageCombobox";
 import { Combobox, type ComboOption } from "../components/ui/Combobox";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../components/ui/Toast";
-import { useConfirm } from "../components/ui/ConfirmDialog";
+import { useConfirm, useConfirmWithReason } from "../components/ui/ConfirmDialog";
 import {
   getVaziosExportOperation,
   upsertServiceLine,
@@ -105,6 +105,7 @@ export function EmbarqueVazios() {
   const { user, profile } = useAuth();
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const confirmWithReason = useConfirmWithReason();
   const canEdit = Boolean(profile || user);
   const [searchParams] = useSearchParams();
   const queryVoyageId = Number(searchParams.get("voyage"));
@@ -1169,7 +1170,7 @@ export function EmbarqueVazios() {
                                 variant="ghost"
                                 aria-label="Excluir linha de serviço"
                                 onClick={async () => {
-                                  const confirmed = await confirm({
+                                  const reason = await confirmWithReason({
                                     title: "Excluir linha de serviço",
                                     message: `Excluir a linha de serviço ${(item.service as { name?: string } | null)?.name ?? item.service_id}?`,
                                     consequence:
@@ -1178,9 +1179,9 @@ export function EmbarqueVazios() {
                                     confirmLabel: "Excluir",
                                     tone: "danger",
                                   });
-                                  if (!confirmed) return;
+                                  if (reason === null) return;
                                   void notify(async () => {
-                                    await deleteServiceLine(item.id);
+                                    await deleteServiceLine(item.id, reason);
                                     await refreshOperationData();
                                   }, "Linha excluída.");
                                 }}

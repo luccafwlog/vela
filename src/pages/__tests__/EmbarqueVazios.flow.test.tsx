@@ -65,7 +65,7 @@ vi.mock("../../hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "user-1" }, can: () => true }),
 }));
 vi.mock("../../components/ui/Toast", () => ({ useToast: () => ({ showToast: mocks.showToast }) }));
-vi.mock("../../components/ui/ConfirmDialog", () => ({ useConfirm: () => mocks.confirm }));
+vi.mock("../../components/ui/ConfirmDialog", () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (o: unknown) => ((await mocks.confirm(o)) ? "motivo" : null) }));
 vi.mock("../../components/shared/VoyageCombobox", () => ({
   VoyageCombobox: ({ onSelect }: { onSelect: (voyageId: number | null) => void }) => (
     <button type="button" onClick={() => onSelect(179)}>

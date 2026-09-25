@@ -5,7 +5,7 @@ import { Button } from '../ui/Button'
 import { MetricCard } from '../ui/MetricCard'
 import { FilterBar } from '../ui/FilterBar'
 import { Field, Input, Select } from '../ui/Input'
-import { useConfirm } from '../ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import {
   useDeleteChargeTableItem,
@@ -40,6 +40,7 @@ export function ChargeTablesTab({
 }: ChargeFilterProps & { canEdit: boolean; canDelete: boolean }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const [formsOpen, setFormsOpen] = useState(false)
   const [tableForm, setTableForm] = useState<ChargeTableForm>(EMPTY_TABLE_FORM)
   const [tableItemForm, setTableItemForm] = useState<ChargeTableItemForm>(EMPTY_TABLE_ITEM_FORM)
@@ -203,9 +204,10 @@ export function ChargeTablesTab({
   }
 
   async function handleDeleteTableItem(itemId: number) {
-    if (!(await confirm({ title: 'Excluir item de taxa', message: 'Excluir este item da tabela de taxas?', consequence: 'O item sai da tabela e não entra em cálculos novos. O banco recusa se ele já foi usado em cálculo.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    const reason = await confirmWithReason({ title: 'Excluir item de taxa', message: 'Excluir este item da tabela de taxas?', consequence: 'O item sai da tabela e não entra em cálculos novos. O banco recusa se ele já foi usado em cálculo.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
+    if (reason === null) return
     try {
-      await deleteChargeTableItemMutation.mutateAsync(itemId)
+      await deleteChargeTableItemMutation.mutateAsync({ id: itemId, reason })
       showToast('Item de taxa removido.', 'success')
       if (tableItemForm.id === itemId) setTableItemForm(EMPTY_TABLE_ITEM_FORM)
     } catch {

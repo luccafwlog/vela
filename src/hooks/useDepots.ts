@@ -17,5 +17,5 @@ export function useUpsertDepot() {
 
 export function useDeleteDepot() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: deleteDepot, onSuccess: () => queryClient.invalidateQueries({ queryKey: depotQueryKeys.all }) })
+  return useMutation({ mutationFn: ({ id, reason }: { id: string; reason: string }) => deleteDepot(id, reason), onSuccess: () => queryClient.invalidateQueries({ queryKey: depotQueryKeys.all }) })
 }

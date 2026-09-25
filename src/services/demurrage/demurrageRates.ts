@@ -182,8 +182,8 @@ export async function upsertDemurrageRate(rate: DemurrageRateUpsertInput) {
   invalidateDemurrageRatesCache()
 }
 
-export async function deleteDemurrageRate(id: number) {
-  const { error } = await deleteOneById('demurrage_rates', id)
+export async function deleteDemurrageRate(id: number, reason: string) {
+  const { error } = await deleteOneById('demurrage_rates', id, reason)
   if (error) throw error
   invalidateDemurrageRatesCache()
 }

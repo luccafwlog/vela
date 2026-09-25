@@ -238,8 +238,8 @@ export async function upsertServiceLine(
   return data as VaziosExportServiceLine;
 }
 
-export async function deleteServiceLine(id: string) {
-  const { error } = await deleteOneById("vazios_export_service_lines", id);
+export async function deleteServiceLine(id: string, reason: string) {
+  const { error } = await deleteOneById("vazios_export_service_lines", id, reason);
   if (error) throw error;
 }
 

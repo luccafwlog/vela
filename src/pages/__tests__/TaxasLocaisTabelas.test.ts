@@ -29,6 +29,7 @@ vi.mock('../../components/ui/ConfirmDialog', async () => {
   return {
     ...actual,
     useConfirm: () => vi.fn(async () => true),
+    useConfirmWithReason: () => vi.fn(async () => 'motivo'),
   }
 })
 

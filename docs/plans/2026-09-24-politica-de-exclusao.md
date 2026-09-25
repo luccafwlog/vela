@@ -16,6 +16,7 @@ Data: 2026-09-24. Estado: fases 1 a 6 mergeadas e aplicadas em produção
 | 5b — Cliente desativado | luccafwlog/vela#768 | 092 | mergeada |
 | 6 — Papel admin e rotina de guarda | luccafwlog/vela#769 | 093, 094 | mergeada |
 | Ajuste do advisor (search_path) | luccafwlog/vela#771 | 095 | mergeada |
+| Motivo nas exclusões de cadastro | (esta PR) | 096 | em revisão |
 
 Ordem de merge: 757 (este plano e as ADRs) → 762 → 763 → 764 → 765 → 766 →
 767 → 768 → 769. Cada PR a partir da 763 é empilhada sobre a anterior; a 763
@@ -38,9 +39,8 @@ receberam notas de implementação.
 Pendente para encerrar o plano:
 
 - **Fase 3, restante:** diálogo com antes/depois em Salvar e confirmação nas
-  demais escritas; motivo gravado nas exclusões que não passam por
-  `delete_records` (vazios, tarifas, locais, escala de exportação por RPC já
-  grava);
+  demais escritas (o motivo nas exclusões fora de `delete_records` entrou na
+  migration `096`, `delete_catalog_row`);
 - **Fase 6, backup:** Etapa 6 do plano de serviços/Cloudflare, pelo dono, com
   um teste de restauração;
 - verificação por papel no Preview (Financeiro, Operações, Administrativo);

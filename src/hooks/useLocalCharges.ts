@@ -245,7 +245,7 @@ export function useDeleteChargeTableItem() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: deleteChargeTableItem,
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => deleteChargeTableItem(id, reason),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
@@ -321,7 +321,7 @@ export function useDeleteCustomerRateOverride() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: deleteCustomerRateOverride,
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => deleteCustomerRateOverride(id, reason),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrides() }),

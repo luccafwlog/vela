@@ -298,7 +298,7 @@ export async function setCustomerRateOverrideActive(id: number, active: boolean)
   if (!data || data.length === 0) throw new Error('O override não foi alterado: sem permissão ou override inexistente.')
 }
 
-export async function deleteCustomerRateOverride(id: number) {
-  const { error } = await deleteOneById('customer_rate_overrides', id)
+export async function deleteCustomerRateOverride(id: number, reason: string) {
+  const { error } = await deleteOneById('customer_rate_overrides', id, reason)
   if (error) throw error
 }

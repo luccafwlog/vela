@@ -5,7 +5,7 @@ import { Button } from '../ui/Button'
 import { Card, EmptyState, InlineError } from '../ui/Card'
 import { FilterBar } from '../ui/FilterBar'
 import { Field, Input, Select, Textarea } from '../ui/Input'
-import { useConfirm } from '../ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import {
   useCustomerRateOverrides,
@@ -31,6 +31,7 @@ export function ChargeOverridesTab({
 }: ChargeFilterProps & { initialCustomerSearch?: string; canEdit: boolean; canDelete: boolean }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const [overrideCustomerSearch, setOverrideCustomerSearch] = useState(initialCustomerSearch)
   const [overrideForm, setOverrideForm] = useState<OverrideForm>(EMPTY_OVERRIDE_FORM)
   const [overrideSaving, setOverrideSaving] = useState(false)
@@ -110,10 +111,11 @@ export function ChargeOverridesTab({
   }
 
   async function handleDeleteOverride(id: number) {
-    if (!(await confirm({ title: 'Excluir override', message: 'Excluir este override de cliente?', consequence: 'Cálculos novos deste cliente voltam a usar o valor da tabela.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    const reason = await confirmWithReason({ title: 'Excluir override', message: 'Excluir este override de cliente?', consequence: 'Cálculos novos deste cliente voltam a usar o valor da tabela.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
+    if (reason === null) return
     setOverrideDeletingId(id)
     try {
-      await deleteOverrideMutation.mutateAsync(id)
+      await deleteOverrideMutation.mutateAsync({ id, reason })
       showToast('Override excluído.', 'success')
       if (overrideForm.id === id) {
         setOverrideForm(EMPTY_OVERRIDE_FORM)

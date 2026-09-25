@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { Field, Input, Select } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { listGraniteRates, upsertGraniteRate, deleteGraniteRate } from '../services/graniteCharges'
@@ -25,7 +25,7 @@ export function GraniteRates() {
   const queryClient = useQueryClient()
   const { isAdmin } = useAuth()
   const { showToast } = useToast()
-  const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<Omit<GraniteRate, 'id' | 'created_at'> & { id?: string }>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
@@ -62,10 +62,11 @@ export function GraniteRates() {
   }
 
   async function handleDelete(id: string) {
-    if (!(await confirm({ title: 'Excluir taxa de Granito', message: 'Excluir esta taxa de Granito?', consequence: 'A taxa sai do cadastro e não entra em cálculos novos. O banco recusa se ela já foi usada.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    const reason = await confirmWithReason({ title: 'Excluir taxa de Granito', message: 'Excluir esta taxa de Granito?', consequence: 'A taxa sai do cadastro e não entra em cálculos novos. O banco recusa se ela já foi usada.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
+    if (reason === null) return
     setDeletingId(id)
     try {
-      await deleteGraniteRate(id)
+      await deleteGraniteRate(id, reason)
       await queryClient.invalidateQueries({ queryKey: ['granite-rates'] })
       showToast('Taxa excluida.', 'success')
     } catch (err) {

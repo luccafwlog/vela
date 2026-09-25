@@ -185,7 +185,7 @@ export async function saveChargeTableItem(input: ChargeTableItemInput) {
   return Number(data.id)
 }
 
-export async function deleteChargeTableItem(id: number) {
-  const { error } = await deleteOneById('charge_table_items', id)
+export async function deleteChargeTableItem(id: number, reason: string) {
+  const { error } = await deleteOneById('charge_table_items', id, reason)
   if (error) throw error
 }
