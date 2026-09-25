@@ -6,6 +6,7 @@ import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { assertUploadSize } from '../lib/fileGuard'
 import { useAuth } from '../hooks/useAuth'
+import { userFacingErrorMessage } from '../lib/errors'
 import { emptyScheduleForm, buildScheduleLanes, clearedPodLabels, scheduleFormFromVoyage, type ScheduleForm } from './chegadasSaidasForm'
 import { PORTAL_SCHEDULE_LANES, formatScheduleDate } from '../services/portalScheduleLanes'
 import { parseScheduleRows, scheduleTemplateColumns } from '../services/portalScheduleBulkImport'
@@ -230,7 +231,7 @@ export function ChegadasSaidas() {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const confirm = useConfirm()
-  const { user, profile } = useAuth()
+  const { user, profile, isAdmin } = useAuth()
   const canWrite = Boolean(profile || user)
   const tableColumnCount = PORTAL_SCHEDULE_LANES.length + (canWrite ? 3 : 2)
 
@@ -301,12 +302,12 @@ export function ChegadasSaidas() {
         vesselImo: formData.vesselImo,
         voyageNumber: formData.voyageNumber,
         lanes,
-      }, user?.id ?? null, { mode: 'form', voyageId: editingId ?? undefined })
+      }, user?.id ?? null, { mode: 'form', voyageId: editingId ?? undefined, canRemoveEscala: isAdmin })
       showToast('Viagem cadastrada e publicada no Portal.', 'success')
       invalidateSchedules()
       closeDialog()
-    } catch {
-      showToast('Falha ao cadastrar a viagem.', 'error')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Falha ao cadastrar a viagem.'), 'error')
     }
   }
 

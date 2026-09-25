@@ -40,9 +40,11 @@ vínculo não são sobrescritos.
 Na **edição**, apenas as datas da programação são editáveis — navio, VOY e IMO
 são read-only (corrigidos na tela Viagens). Marcar um porto como "não escala"
 cancela aquela escala — quando é porto de descarga que tinha data, a tela pede
-confirmação antes (`clearedPodLabels`): o ETD/ETA publicado é removido e, se a escala não tiver
-âncora operacional (manifesto vinculado, ATA/ATD ou B/L), ela é removida também
-de Viagens e do Line-Up. O upload em lote nunca cancela escalas — células vazias
+confirmação antes (`clearedPodLabels`): o ETD/ETA publicado é removido. A
+escala só é retirada também de Viagens e do Line-Up quando quem salva é o
+Administrativo, ela não tem âncora operacional (manifesto vinculado, ATA/ATD ou
+B/L) e o porto não está sob a Trava de exclusão; para os demais Departamentos,
+a escala continua sem data (migration `090`, ADR 0071). O upload em lote nunca cancela escalas — células vazias
 ou "X" são ignoradas.
 
 A tela não tira linhas do quadro. A viagem sai da Programação sozinha ao
