@@ -1,20 +1,21 @@
 # Plano — Política de exclusão de dados
 
-Data: 2026-09-24. Estado: implementado em PRs empilhadas, aguardando revisão e
-merge (2026-09-25).
+Data: 2026-09-24. Estado: fases 1 a 6 mergeadas e aplicadas em produção
+(2026-09-25); restam as pendências abaixo.
 
 ## Estado da execução
 
 | Fase | PR | Migrations | Situação |
 |---|---|---|---|
-| 1 — Proteções do banco | luccafwlog/vela#762 | 086 | aberta |
-| 2 — Falso sucesso e cascata atômica | luccafwlog/vela#763 | 087 | aberta |
-| 3 — Diálogo de confirmação e vocabulário (1ª entrega) | luccafwlog/vela#764 | — | aberta |
-| 4a — Trava do CE, viagem, escala, atracação | luccafwlog/vela#765 | 088 | aberta |
-| 4b — B/L cancelado, Reativar, CE, "não escala" | luccafwlog/vela#766 | 089, 090 | aberta |
-| 5a — Tarifas | luccafwlog/vela#767 | 091 | aberta |
-| 5b — Cliente desativado | luccafwlog/vela#768 | 092 | aberta |
-| 6 — Papel admin e rotina de guarda | luccafwlog/vela#769 | 093, 094 | aberta |
+| 1 — Proteções do banco | luccafwlog/vela#762 | 086 | mergeada |
+| 2 — Falso sucesso e cascata atômica | luccafwlog/vela#763 | 087 | mergeada |
+| 3 — Diálogo de confirmação e vocabulário (1ª entrega) | luccafwlog/vela#764 | — | mergeada |
+| 4a — Trava do CE, viagem, escala, atracação | luccafwlog/vela#765 | 088 | mergeada |
+| 4b — B/L cancelado, Reativar, CE, "não escala" | luccafwlog/vela#766 | 089, 090 | mergeada |
+| 5a — Tarifas | luccafwlog/vela#767 | 091 | mergeada |
+| 5b — Cliente desativado | luccafwlog/vela#768 | 092 | mergeada |
+| 6 — Papel admin e rotina de guarda | luccafwlog/vela#769 | 093, 094 | mergeada |
+| Ajuste do advisor (search_path) | luccafwlog/vela#771 | 095 | mergeada |
 
 Ordem de merge: 757 (este plano e as ADRs) → 762 → 763 → 764 → 765 → 766 →
 767 → 768 → 769. Cada PR a partir da 763 é empilhada sobre a anterior; a 763
@@ -30,9 +31,12 @@ cancelado; seed com marca de catálogo; estado do cliente por marca; guarda
 preserva o primeiro porto indicado; suítes local-pg das fases no CI, com o
 shim de `auth` igual ao do Supabase.
 
+Migrations 086–095 confirmadas no projeto de produção em 2026-09-25
+(`schema_migrations` e catálogo de funções). ADRs 0071–0074 e `CONTEXT.md`
+receberam notas de implementação.
+
 Pendente para encerrar o plano:
 
-- merge das PRs acima e confirmação das migrations no ambiente remoto;
 - **Fase 3, restante:** diálogo com antes/depois em Salvar e confirmação nas
   demais escritas; motivo gravado nas exclusões que não passam por
   `delete_records` (vazios, tarifas, locais, escala de exportação por RPC já
@@ -40,8 +44,7 @@ Pendente para encerrar o plano:
 - **Fase 6, backup:** Etapa 6 do plano de serviços/Cloudflare, pelo dono, com
   um teste de restauração;
 - verificação por papel no Preview (Financeiro, Operações, Administrativo);
-- depois disso: trocar "implementação pendente" por notas de implementação nas
-  ADRs 0071–0074 e em `CONTEXT.md`, e arquivar este plano.
+- depois disso: completar as notas das ADRs 0072 e 0074 e arquivar este plano.
 
 Desvios registrados durante a execução (detalhes em cada PR): sem trigger de
 recusa nas tabelas fiscais (padrão de grant, Fase 1); prévia de exclusão

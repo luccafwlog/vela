@@ -1,6 +1,18 @@
 # 0073 — Cadastro de referência usado só se desativa
 
-Status: aceito — 2026-09-24. Implementação pendente.
+Status: aceito — 2026-09-24. Implementado em 2026-09-25 (ver nota).
+
+> **Nota de implementação — 2026-09-25.** Implementada nas PRs
+> luccafwlog/vela#763, #767 e #768 (migrations 087, 088, 091 e 092), aplicadas
+> em produção. Tarifa usada só se desativa: um trigger por tabela recusa a
+> exclusão com mensagem legível; item e override ganharam Desativar; mudar o
+> estado ativo é do Administrativo. Cliente com CNPJ volta bloqueado em
+> `delete_records` ("desative em vez de excluir"); `deactivate_customer`
+> corta o Portal (`current_portal_customer_id`) e o B/L com CNPJ de cliente
+> desativado vai para a Revisão. Desvio aceito: tarifa e acordo de Demurrage
+> contam como usados quando já estão em vigor, porque o cálculo não guarda o
+> id da tarifa. Pendente: verificação por papel no Preview; ver o
+> [plano da política de exclusão](../plans/2026-09-24-politica-de-exclusao.md).
 
 Complementa a [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md), que
 trata dos dados de viagem, para os cadastros que a operação usa como

@@ -1,7 +1,20 @@
 # 0071 — O CE Mercante é a trava de exclusão
 
-Status: aceito — 2026-09-24. Implementação pendente: o banco e as telas ainda
-seguem as regras da 0009 e da 0024.
+Status: aceito — 2026-09-24. Implementado em 2026-09-25 (ver nota).
+
+> **Nota de implementação — 2026-09-25.** Implementada nas PRs
+> luccafwlog/vela#762, #763, #765 e #766 (migrations 086 a 090), aplicadas em
+> produção. A trava fica no banco: `delete_lock_reasons` (viagem, escala,
+> atracação) e `bl_delete_lock_reasons` (B/L, container e veículo), usadas por
+> `delete_records` e `delete_escala`; o DELETE direto em `bls`,
+> `bl_containers` e `vehicles` não é concedido a usuário logado. Excluir exige
+> Administrativo e motivo. A viagem sai em cascata por uma lista explícita
+> (`voyage_delete_children_spec`), a mesma que a prévia mostra. Documento
+> fiscal não se apaga pela API (086) e `audit_logs` não aceita UPDATE/DELETE.
+> Desvios aceitos: a unicidade CE × B/L não é imposta pelo banco (item 9);
+> manifestos de Granito e de vazios só se desvinculam da viagem excluída,
+> seguindo a FK SET NULL. Pendente: verificação por papel no Preview; ver o
+> [plano da política de exclusão](../plans/2026-09-24-politica-de-exclusao.md).
 
 Supersede parcialmente a
 [ADR 0009](./0009-hard-delete-controlado-bloqueios-fiscais-auditoria.md) quanto
