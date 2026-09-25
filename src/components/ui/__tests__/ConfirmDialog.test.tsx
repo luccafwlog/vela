@@ -87,3 +87,14 @@ describe('ConfirmDialog com motivo', () => {
     expect(screen.getByText('voltou')).toBeTruthy()
   })
 })
+
+describe('ConfirmDialog — diálogo substituído', () => {
+  it('o diálogo anterior encerra como Voltar quando outro é aberto', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    render(<ConfirmDialogProvider><Harness /></ConfirmDialogProvider>)
+    const open = screen.getByRole('button', { name: 'abrir' })
+    fireEvent.click(open)
+    fireEvent.click(open)
+    expect(await screen.findByText('voltou')).toBeTruthy()
+  })
+})

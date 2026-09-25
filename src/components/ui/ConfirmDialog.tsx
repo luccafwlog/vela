@@ -61,6 +61,9 @@ export function ConfirmDialogProvider({ children }: PropsWithChildren) {
 
   const open = useCallback((options: ReasonOptions, requireReason: boolean) => {
     return new Promise<Settlement>((resolve) => {
+      // Um diálogo novo substitui o aberto: o anterior encerra como Voltar,
+      // em vez de deixar a ação dele esperando para sempre.
+      resolveRef.current?.({ confirmed: false, reason: '' })
       resolveRef.current = resolve
       setReason('')
       setShowAll(false)
@@ -107,7 +110,7 @@ export function ConfirmDialogProvider({ children }: PropsWithChildren) {
                   </Button>
                   {showAll ? (
                     <ul className="max-h-40 list-disc overflow-auto pl-5">
-                      {items.map((item) => <li key={item}>{item}</li>)}
+                      {items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}
                     </ul>
                   ) : null}
                 </>
@@ -116,7 +119,7 @@ export function ConfirmDialogProvider({ children }: PropsWithChildren) {
                 <div>
                   <p className="font-medium">Não serão alterados ({blocked.length}):</p>
                   <ul className="max-h-32 list-disc overflow-auto pl-5">
-                    {blocked.map((b) => <li key={b.label}>{b.label}: {b.reasons.join(', ')}</li>)}
+                    {blocked.map((b, index) => <li key={`${index}-${b.label}`}>{b.label}: {b.reasons.join(', ')}</li>)}
                   </ul>
                 </div>
               ) : null}
