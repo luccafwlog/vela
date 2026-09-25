@@ -73,7 +73,12 @@ trabalho interno; depois dele, o cliente e o fisco já os viram.
     existir: tirar a viagem antes disso só se faz em Viagens, por Excluir ou
     Cancelar. A função `archive_vessel_schedule` e seu serviço, sem tela,
     são removidos.
-13. **Recuperação.** A cópia da linha gravada pela auditoria de banco
+13. **Documento fiscal** (fatura, invoice de Demurrage, pagamento,
+    recebível, liquidação) nunca é excluído; o banco recusa a exclusão
+    (achado A3). Fatura e invoice se cancelam, e a baixa lançada por engano
+    se cancela, sempre pelo Administrativo e com motivo. Documento fiscal
+    cancelado não se reativa: emite-se outro.
+14. **Recuperação.** A cópia da linha gravada pela auditoria de banco
    (`audit_row_changes`) é suficiente para recadastrar à mão; não há ação de
    restaurar. Isso exige que toda tabela coberta tenha o trigger e que
    `audit_logs` seja imutável.
@@ -88,6 +93,5 @@ trabalho interno; depois dele, o cliente e o fisco já os viram.
   para cada entidade, não só na tela; `voyages` precisa ganhar auditoria
   (achado A5) e `audit_logs` precisa deixar de aceitar UPDATE/DELETE (achado
   A4) antes de a exclusão ampliada entrar.
-- **Em aberto:** as regras de exclusão das demais telas (cadastros, tarifas,
-  clientes, faturamento) seguem sendo revisadas tela a tela; se fatura
-  cancelada pode ser reativada ainda será decidido.
+- **Em aberto:** as regras de exclusão das demais telas (cadastros e
+  clientes) seguem sendo revisadas tela a tela.

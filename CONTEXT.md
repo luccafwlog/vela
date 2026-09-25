@@ -69,8 +69,8 @@ cadastro.
 
 **Reativar**
 Desfazer, com motivo e rastro, um cancelamento ou uma desativação. O histórico
-mostra os dois eventos. Se uma fatura cancelada pode ser reativada ainda será
-decidido.
+mostra os dois eventos. Documento fiscal cancelado (fatura, invoice de
+Demurrage) não se reativa: emite-se outro, que referencia o cancelado.
 
 **Desativar**
 Tirar de uso um cadastro que não será mais escolhido. O registro sai das listas
@@ -97,7 +97,9 @@ Parar de ver um aviso. Nada muda no dado. Exclusivo de Alertas e Notificações.
 
 **Estorno**
 Devolução ao cliente de valor que ele pagou a maior. Não é o desfazer de uma
-baixa: uma baixa lançada por engano é cancelada.
+baixa: uma baixa lançada por engano é cancelada. No código, estorno é
+`invoice_refunds`; Cancelar baixa é `reverse_invoice_payment` e
+`reverse_demurrage_payment`.
 
 **Cadastro usado**
 Um cadastro de referência (tarifa, e os demais conforme forem revisados)
