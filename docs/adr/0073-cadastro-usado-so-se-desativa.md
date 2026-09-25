@@ -30,7 +30,9 @@ das cobranças que ela gerou, sem bloqueio. O valor faturado não muda, porque
 5. **Cliente** segue a mesma regra: excluir só o que não tem B/L, fatura,
    comunicação nem disputa, numa operação única no banco que leva contatos
    e overrides (achados A1 e A2); com histórico, Desativar. As duas ações são
-   do Administrativo.
+   do Administrativo. Ter conta do Portal provisionada conta como uso: os
+   eventos de provisionamento são somente inclusão, e o cliente com CNPJ só
+   se desativa (decidido em 2026-09-24, na implementação da Fase 2).
 6. **Cliente desativado** sai das listas de escolha e perde o acesso ao
    Portal. Desativar é bloqueado enquanto houver fatura ou recebível em
    aberto: o Financeiro quita ou cancela antes. Um B/L novo com o CNPJ de
