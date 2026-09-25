@@ -24,7 +24,8 @@ DECLARE
 BEGIN
   IF NEW.entity_type IS DISTINCT FROM 'voyage_pod_schedule'
      OR NEW.field_name IS DISTINCT FROM 'deleted'
-     OR NEW.new_value IS DISTINCT FROM 'true'
+     -- A tela lê a marca normalizada (trim + minúsculas): 'TRUE' também retira.
+     OR lower(btrim(COALESCE(NEW.new_value, ''))) <> 'true'
      OR auth.uid() IS NULL THEN
     RETURN NEW;
   END IF;

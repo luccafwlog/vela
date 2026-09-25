@@ -198,6 +198,11 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
 
     expect(mark(OPS_ID, 'BRPNG').stderr).toMatch(/Somente o Administrativo retira escala/)
     expect(mark(ADMIN_ID, 'BRSSZ').stderr).toMatch(/Escala BRSSZ travada: B\/L com CE Mercante/)
+    // A tela lê a marca normalizada; 'TRUE' não escapa da regra.
+    const upper = as(OPS_ID, `INSERT INTO public.audit_logs
+      (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
+      VALUES ('voyage_pod_schedule', '${V_LOCKED}::BRSSZ', 'deleted', 'false', ' TRUE', '${OPS_ID}', 'não escala');`)
+    expect(upper.stderr).toMatch(/Somente o Administrativo retira escala/)
     expect(mark(ADMIN_ID, 'BRPNG').status).toBe(0)
   })
 

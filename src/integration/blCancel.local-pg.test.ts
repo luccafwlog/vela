@@ -33,6 +33,7 @@ const VESSEL_ID = 8900002
 const VOYAGE_ID = 8900003
 const VOYAGE_CANCELLED = 8900004
 const CUSTOMER_ID = 8900005
+const BASE_CNPJ = '08900006000127'
 
 function as(userId: string, sql: string) {
   const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
@@ -54,7 +55,10 @@ function cleanup() {
     DELETE FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED});
     DELETE FROM public.portal_provisioning_events WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER_ID};
-    DELETE FROM public.customers WHERE id = ${CUSTOMER_ID};
+    DELETE FROM public.customer_contacts WHERE customer_id IN (SELECT id FROM public.customers WHERE cnpj_cpf = '${BASE_CNPJ}');
+    DELETE FROM public.portal_provisioning_events WHERE customer_id IN (SELECT id FROM public.customers WHERE cnpj_cpf = '${BASE_CNPJ}');
+    DELETE FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE cnpj_cpf = '${BASE_CNPJ}');
+    DELETE FROM public.customers WHERE id = ${CUSTOMER_ID} OR cnpj_cpf = '${BASE_CNPJ}';
     DELETE FROM public.voyages WHERE id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED});
     DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
     DELETE FROM public.carriers WHERE id = ${CARRIER_ID};
@@ -136,5 +140,20 @@ describeLocal('089 — B/L cancelado, Reativar e CE', () => {
     const run = as(ADMIN_ID, `SELECT public.reactivate_voyage(${VOYAGE_CANCELLED}, 'cancelada por engano');`)
     expect(run.json).toMatchObject({ reactivated: true })
     expect(psql(`SELECT status FROM public.voyages WHERE id = ${VOYAGE_CANCELLED};`)).not.toBe('cancelled')
+  })
+
+  it('B/L cancelado não trava rotinas do sistema: status financeiro e base de clientes', () => {
+    psql(`INSERT INTO public.bls (id, voyage_id, pol, pod, manifest_customer_cnpj_cpf) VALUES ('BL089SYS', ${VOYAGE_ID}, 'CNSHA', 'BRSSZ', '${BASE_CNPJ}');`)
+    expect(as(ADMIN_ID, `SELECT public.cancel_bl('BL089SYS', 'carga não embarcou');`).json).toMatchObject({ cancelled: true })
+
+    // Cancelar baixa recalcula o status financeiro do B/L, mesmo cancelado.
+    expect(() => psql(`UPDATE public.bls SET financial_status = 'cancelled' WHERE id = 'BL089SYS';`)).not.toThrow()
+    // Campo que a pessoa edita continua selado.
+    expect(() => psql(`UPDATE public.bls SET pod = 'BRPNG' WHERE id = 'BL089SYS';`)).toThrow(/somente leitura/)
+
+    const base = as(ADMIN_ID, `SELECT public.apply_customer_base_row_atomic('${BASE_CNPJ}', 'Cliente base 089',
+      NULL, NULL, NULL, NULL, NULL, '["base089@test.local"]'::jsonb, '${ADMIN_ID}');`)
+    expect(base.stderr).toBe('')
+    expect(psql(`SELECT customer_id IS NULL FROM public.bls WHERE id = 'BL089SYS';`)).toBe('t')
   })
 })

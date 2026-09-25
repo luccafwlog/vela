@@ -8,7 +8,12 @@
 --   auditoria. Cancelar é recusado enquanto houver fatura, recebível ou fatura
 --   de Demurrage em aberto do B/L: o Financeiro cancela ou estorna antes.
 -- - B/L cancelado fica selado: não é editado nem entra em fatura nova
---   (triggers em bls, invoices e invoice_bls). A unicidade do CE não é
+--   (triggers em bls, invoices e invoice_bls). O selo vale para os campos que
+--   a pessoa edita; os que o sistema mantém (status financeiro, run de
+--   faturamento, manifesto e cliente sugerido zerados por FK SET NULL,
+--   updated_at) continuam mudando, para Cancelar baixa, cancelar fatura e
+--   excluir o registro referenciado não falharem por causa do B/L cancelado.
+--   A importação da base de clientes não vincula B/L cancelado. A unicidade do CE não é
 --   imposta pelo banco hoje; o B/L reemitido pode receber o mesmo CE.
 -- - O Portal recebe cancelled_at em cada B/L listado, para mostrar Cancelado.
 -- - reactivate_voyage devolve a viagem cancelada a ativa (Administrativo,
@@ -135,11 +140,14 @@ DECLARE
   v_state_change boolean := (OLD.cancelled_at IS DISTINCT FROM NEW.cancelled_at)
     OR (OLD.cancelled_by IS DISTINCT FROM NEW.cancelled_by)
     OR (OLD.cancel_reason IS DISTINCT FROM NEW.cancel_reason);
+  -- Mantidos pelo sistema; mudam mesmo com o B/L cancelado.
+  v_system_columns text[] := ARRAY['financial_status', 'updated_at', 'last_billing_run_id', 'manifesto_mercante_id', 'suggested_customer_id'];
 BEGIN
   IF v_state_change AND current_setting('vela.allow_bl_state', true) IS DISTINCT FROM 'on' THEN
     RAISE EXCEPTION 'Use cancel_bl ou reactivate_bl para mudar o estado do B/L.' USING ERRCODE = '42501';
   END IF;
-  IF OLD.cancelled_at IS NOT NULL AND NOT v_state_change THEN
+  IF OLD.cancelled_at IS NOT NULL AND NOT v_state_change
+     AND (to_jsonb(NEW) - v_system_columns) IS DISTINCT FROM (to_jsonb(OLD) - v_system_columns) THEN
     RAISE EXCEPTION 'B/L % cancelado: somente leitura. Reative para corrigir.', OLD.id USING ERRCODE = '42501';
   END IF;
   IF NULLIF(btrim(OLD.ce_mercante), '') IS NOT NULL AND NULLIF(btrim(NEW.ce_mercante), '') IS NULL
@@ -302,6 +310,149 @@ BEGIN
       ORDER BY vo.omitted_at DESC, vo.id DESC
       LIMIT 1
     ) omission ON true
+  );
+END;
+$function$;
+
+-- Importação da base de clientes: B/L cancelado não é vinculado (fica selado).
+CREATE OR REPLACE FUNCTION public.apply_customer_base_row_atomic(p_cnpj text, p_name text, p_trade_name text, p_address text, p_city text, p_state text, p_zip text, p_emails jsonb, p_changed_by uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_actor uuid := auth.uid();
+  v_cnpj text := NULLIF(btrim(COALESCE(p_cnpj, '')), '');
+  v_name text := NULLIF(btrim(COALESCE(p_name, '')), '');
+  v_customer_id bigint;
+  v_created boolean := false;
+  v_email text;
+  v_norm text;
+  v_seen text[] := ARRAY[]::text[];
+  v_contacts_created integer := 0;
+  v_bls_linked integer := 0;
+BEGIN
+  IF v_actor IS NULL OR NOT public.is_active_user() OR p_changed_by IS DISTINCT FROM v_actor THEN
+    RAISE EXCEPTION 'Usuario sem permissao ativa.' USING ERRCODE = '42501';
+  END IF;
+  IF v_cnpj IS NULL OR v_name IS NULL THEN
+    RAISE EXCEPTION 'CNPJ e razao social obrigatorios.' USING ERRCODE = '22023';
+  END IF;
+  IF p_emails IS NULL OR jsonb_typeof(p_emails) <> 'array' OR jsonb_array_length(p_emails) = 0 THEN
+    RAISE EXCEPTION 'Ao menos um e-mail obrigatorio.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Lock por cliente: serializa concorrentes do mesmo CNPJ.
+  SELECT id INTO v_customer_id FROM public.customers WHERE cnpj_cpf = v_cnpj FOR UPDATE;
+
+  IF NOT FOUND THEN
+    INSERT INTO public.customers(
+      cnpj_cpf, name, trade_name, address, city, state, zip, notes, pending_balance
+    ) VALUES (
+      v_cnpj, v_name,
+      NULLIF(btrim(COALESCE(p_trade_name, '')), ''),
+      NULLIF(btrim(COALESCE(p_address, '')), ''),
+      NULLIF(btrim(COALESCE(p_city, '')), ''),
+      NULLIF(upper(btrim(COALESCE(p_state, ''))), ''),
+      NULLIF(btrim(COALESCE(p_zip, '')), ''),
+      NULL, 0
+    ) RETURNING id INTO v_customer_id;
+    v_created := true;
+  ELSE
+    UPDATE public.customers
+      SET name = v_name,
+          trade_name = COALESCE(NULLIF(btrim(COALESCE(p_trade_name, '')), ''), trade_name),
+          address = COALESCE(NULLIF(btrim(COALESCE(p_address, '')), ''), address),
+          city = COALESCE(NULLIF(btrim(COALESCE(p_city, '')), ''), city),
+          state = COALESCE(NULLIF(upper(btrim(COALESCE(p_state, ''))), ''), state),
+          zip = COALESCE(NULLIF(btrim(COALESCE(p_zip, '')), ''), zip),
+          updated_at = now()
+      WHERE id = v_customer_id;
+  END IF;
+
+  -- Bases anteriores podiam ter um principal sem e-mail. Ele não satisfaz o
+  -- contrato atual; a transação só termina depois que algum e-mail elegível
+  -- assume a principalidade.
+  UPDATE public.customer_contacts AS cc
+  SET is_primary = false,
+      updated_at = now()
+  WHERE cc.customer_id = v_customer_id
+    AND cc.is_primary = true
+    AND cc.deactivated_at IS NULL
+    AND cc.email_normalized IS NULL;
+
+  -- Contatos: valida formato e duplicata no envio; existente e no-op.
+  -- O primeiro e-mail elegível assume a principalidade se ainda não houver
+  -- um principal ativo com e-mail; a decisão é reavaliada a cada iteração.
+  FOR v_email IN SELECT value #>> '{}' FROM jsonb_array_elements(p_emails)
+  LOOP
+    v_norm := lower(NULLIF(btrim(COALESCE(v_email, '')), ''));
+    IF v_norm IS NULL OR v_norm !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' THEN
+      RAISE EXCEPTION 'E-mail invalido para o cliente %: %', v_cnpj, COALESCE(v_email, '') USING ERRCODE = '22023';
+    END IF;
+    IF v_norm = ANY (v_seen) THEN
+      RAISE EXCEPTION 'E-mail duplicado no envio: %', v_norm USING ERRCODE = '23505';
+    END IF;
+    v_seen := array_append(v_seen, v_norm);
+
+    -- Se o endereço já existia como adicional, promovê-lo também corrige
+    -- clientes antigos que chegaram sem principal na base cadastral. Um
+    -- contato desativado com o mesmo e-mail deve ser reativado; deixá-lo
+    -- fora do INSERT abaixo faria o índice único tratar a linha histórica
+    -- como duplicata sem criar um principal ativo.
+    UPDATE public.customer_contacts AS cc
+    SET deactivated_at = NULL,
+        is_primary = NOT EXISTS (
+          SELECT 1
+          FROM public.customer_contacts AS primary_contact
+          WHERE primary_contact.customer_id = v_customer_id
+            AND primary_contact.is_primary = true
+            AND primary_contact.deactivated_at IS NULL
+            AND primary_contact.email_normalized IS NOT NULL
+        ),
+        updated_at = now()
+    WHERE cc.customer_id = v_customer_id
+      AND cc.email_normalized = v_norm;
+
+    INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary)
+    SELECT
+      v_customer_id,
+      v_name,
+      v_norm,
+      'financeiro',
+      NOT EXISTS (
+        SELECT 1
+        FROM public.customer_contacts AS cc
+        WHERE cc.customer_id = v_customer_id
+          AND cc.is_primary = true
+          AND cc.deactivated_at IS NULL
+          AND cc.email_normalized IS NOT NULL
+      )
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.customer_contacts AS cc
+      WHERE cc.customer_id = v_customer_id
+        AND cc.deactivated_at IS NULL
+        AND lower(btrim(COALESCE(cc.email, ''))) = v_norm
+    );
+    IF FOUND THEN
+      v_contacts_created := v_contacts_created + 1;
+    END IF;
+  END LOOP;
+
+  -- Vinculo retroativo: so B/Ls ainda sem cliente, mesmo CNPJ.
+  UPDATE public.bls AS b
+    SET customer_id = v_customer_id
+    WHERE b.manifest_customer_cnpj_cpf = v_cnpj
+      AND b.customer_id IS NULL
+      AND b.cancelled_at IS NULL;
+  GET DIAGNOSTICS v_bls_linked = ROW_COUNT;
+
+  RETURN jsonb_build_object(
+    'customer_id', v_customer_id,
+    'created', v_created,
+    'contacts_created', v_contacts_created,
+    'bls_linked', v_bls_linked
   );
 END;
 $function$;
