@@ -235,6 +235,9 @@ os runners correspondentes não têm job agendado.
 | `portal-refresh-general-pendencies` | a cada 15 min | — |
 | `cleanup-portal-sessions` | 03:00 | — |
 | `cleanup-provision-rate-limit` | 03:30 | — |
+| `data-retention` | 06:30 (03:30 de Brasília) | — |
+
+`data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 
 Rotação de segredo de job: sempre o **par** Edge Function Secret + Vault
 ([segredos-cron.md](segredos-cron.md)).
