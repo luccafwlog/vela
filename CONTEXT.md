@@ -358,6 +358,12 @@ não há cadastro próprio: cadastrar em Chegadas e Saídas cria ou anexa a pró
 Viagem e as suas Escalas, e a Programação exibida no Portal é uma projeção das
 viagens marcadas como visíveis — inclusive as escalas que só embarcam.
 
+A linha da viagem sai da Programação, no Vela e no Portal, quando a viagem
+recebe o último ATD e passa a Concluída; não há ação manual para isso. Decidido
+em 2026-09-24, ainda não implementado: a ação "Remover do Portal" deixa de
+existir, e tirar uma viagem da Programação antes do último ATD só acontece em
+Viagens, por Excluir ou Cancelar, com a confirmação e os avisos dessas ações.
+
 O Line-Up e o Painel **segregam os sentidos**: uma escala que descarrega e
 embarca aparece em duas linhas, uma de importação e uma de exportação, com as
 **mesmas datas da Escala** e diferindo apenas no conteúdo operado. Escala de

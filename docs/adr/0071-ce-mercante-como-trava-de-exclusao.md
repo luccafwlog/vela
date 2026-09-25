@@ -63,7 +63,12 @@ trabalho interno; depois dele, o cliente e o fisco já os viram.
     continua exigindo a autorização auditada.
 11. **Taxa manual do B/L** é cobrança, não dado operacional: pode ser
     excluída pelo Administrativo até ser faturada, independentemente do CE.
-12. **Recuperação.** A cópia da linha gravada pela auditoria de banco
+12. **Programação de Navios.** A viagem sai de Chegadas e Saídas e do
+    Portal sozinha, ao receber o último ATD. "Remover do Portal" deixa de
+    existir: tirar a viagem antes disso só se faz em Viagens, por Excluir ou
+    Cancelar. A função `archive_vessel_schedule` e seu serviço, sem tela,
+    são removidos.
+13. **Recuperação.** A cópia da linha gravada pela auditoria de banco
    (`audit_row_changes`) é suficiente para recadastrar à mão; não há ação de
    restaurar. Isso exige que toda tabela coberta tenha o trigger e que
    `audit_logs` seja imutável.
