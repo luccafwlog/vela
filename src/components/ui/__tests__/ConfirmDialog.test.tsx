@@ -146,6 +146,14 @@ describe('ConfirmDialog — lote grande', () => {
     expect(screen.getByText('10 de 300')).toBeTruthy()
     expect(screen.queryByText('BL000')).toBeNull()
 
+    // Esc no filtro limpa o filtro sem fechar o diálogo (nem perder o motivo).
+    await user.type(screen.getByLabelText('Motivo (obrigatório)'), 'lote duplicado')
+    await user.click(screen.getByLabelText('Filtrar registros'))
+    await user.keyboard('{Escape}')
+    expect((screen.getByLabelText('Filtrar registros') as HTMLInputElement).value).toBe('')
+    expect(screen.getByText('BL000')).toBeTruthy()
+    expect((screen.getByLabelText('Motivo (obrigatório)') as HTMLTextAreaElement).value).toBe('lote duplicado')
+
     await user.click(screen.getByRole('button', { name: 'Ver bloqueados (8)' }))
     expect(screen.getByText('BLQ0')).toBeTruthy()
   })

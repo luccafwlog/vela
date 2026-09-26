@@ -2648,7 +2648,8 @@ textarea {
 }
 
 .app-confirm__toggle svg {
-  transition: transform 150ms ease;
+  /* rotate-180 do Tailwind 4 usa a propriedade `rotate`, não `transform`. */
+  transition: rotate 150ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {

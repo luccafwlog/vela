@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, type PropsWithChildren } from 'react'
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type PropsWithChildren } from 'react'
 import { AlertTriangle, ArrowRightCircle, Ban, ChevronDown, Info, Search, Undo2 } from 'lucide-react'
 import { Button } from './Button'
 import { Modal } from './Modal'
@@ -78,12 +78,29 @@ function RecordList({
 }) {
   const [filter, setFilter] = useState('')
   const filterId = useId()
+  const filterRef = useRef<HTMLInputElement>(null)
+  const hasFilter = entries.length > FILTER_THRESHOLD
+
+  // Esc com filtro preenchido limpa só o filtro. O Modal escuta Esc no próprio
+  // diálogo (evento nativo), então o bloqueio precisa ser nativo e no campo,
+  // senão o diálogo fecha e o motivo já digitado se perde.
+  useEffect(() => {
+    const input = filterRef.current
+    if (!input) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || !input?.value) return
+      event.stopPropagation()
+      event.preventDefault()
+      setFilter('')
+    }
+    input.addEventListener('keydown', onKeyDown)
+    return () => input.removeEventListener('keydown', onKeyDown)
+  }, [hasFilter])
   const needle = filter.trim().toLocaleLowerCase('pt-BR')
   const matches = needle
     ? entries.filter((e) => `${e.label} ${e.detail ?? ''}`.toLocaleLowerCase('pt-BR').includes(needle))
     : entries
   const visible = matches.slice(0, RENDER_LIMIT)
-  const hasFilter = entries.length > FILTER_THRESHOLD
 
   return (
     <div className="app-confirm__list">
@@ -92,6 +109,7 @@ function RecordList({
           <Search size={14} aria-hidden="true" />
           <input
             id={filterId}
+            ref={filterRef}
             type="search"
             className="app-confirm__filter-input"
             placeholder={`Filtrar ${noun}`}
