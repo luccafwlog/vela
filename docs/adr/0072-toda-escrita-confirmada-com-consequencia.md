@@ -13,6 +13,14 @@ Status: aceito — 2026-09-24. Implementação parcial (ver nota).
 > `audit_logs`. Pendente, no
 > [plano da política de exclusão](../plans/2026-09-24-politica-de-exclusao.md):
 > antes/depois em Salvar e diálogo nas demais escritas.
+>
+> **Nota — 2026-09-26.** O diálogo ganhou a identidade visual do sistema
+> (classes `app-confirm*` em `src/index.css`): ícone pelo tom, afetados e
+> bloqueados em painéis com rolagem própria e rodapé fixo com Voltar e a ação.
+> Em lotes grandes a lista de afetados ganha filtro (acima de 12 itens) e os
+> bloqueados (acima de 5) aparecem agrupados por motivo, com a lista completa
+> sob demanda. Com motivo obrigatório, o foco abre no campo de motivo; sem ele,
+> em Voltar.
 
 ## Contexto
 
