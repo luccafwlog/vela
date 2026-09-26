@@ -12,6 +12,7 @@ import {
   requiresResendConfirmation,
   resolveCustomerCommunicationRecipients,
   customerCommunicationStatusLabel,
+  expandCandidatesForKind,
   validateCustomerCommunicationFilters,
   type CustomerCommunicationBlCandidate,
 } from '../customerCommunications'
@@ -319,5 +320,26 @@ describe('Contrato entre modo, modelo e público do disparo', () => {
     expect(requiresResendConfirmation('aviso_atracacao_nob')).toBe(true)
     expect(requiresResendConfirmation('livre')).toBe(false)
     expect(requiresResendConfirmation('institucional')).toBe(false)
+  })
+})
+
+describe('NOB: nome do terminal que vai ao cliente', () => {
+  const UUID = 'd0000000-0000-4000-8000-000000000001'
+  function nobFor(terminalCode: string | null) {
+    const schedules = new Map([[7, [{
+      port: 'BRSSZ', eta: '2026-09-01T12:00:00Z', ata: null, omitted: false, deleted: false,
+      atracacoes: [{ stateId: 'state-1', terminalId: UUID, terminalCode, atb: '2026-09-02T08:00:00Z' }],
+    }]]])
+    return expandCandidatesForKind([candidate({ terminalId: null, terminalName: null, terminalStateId: null })], schedules as never, 'aviso_atracacao_nob')
+  }
+
+  it('usa a sigla do terminal da Atracação', () => {
+    expect(nobFor('BTP').map((row) => row.terminalName)).toEqual(['BTP'])
+  })
+
+  it('sem sigla, deixa o terminal vazio em vez de pôr o UUID no aviso', () => {
+    const [row] = nobFor(null)
+    expect(row.terminalId).toBe(UUID)
+    expect(row.terminalName).toBeNull()
   })
 })

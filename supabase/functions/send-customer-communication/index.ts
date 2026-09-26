@@ -352,6 +352,9 @@ async function handler(req: Request): Promise<Response> {
 
   const admin = createClient(url, serviceKey)
   let canonicalPayload: { subject: string; html: string; text: string; blIds: string[] } | null = null
+  // No NOB o histórico grava o terminal que o servidor pôs no e-mail, não o
+  // que o navegador mandou.
+  let canonicalTerminalName: string | null = null
   if (kind === 'ce_mercante_taxas') {
     if (!Number.isInteger(body.anchor_voyage_id) || Number(body.anchor_voyage_id) <= 0) {
       return json(422, { error: 'Viagem obrigatória para o comunicado financeiro.' }, origin)
@@ -437,15 +440,23 @@ async function handler(req: Request): Promise<Response> {
       if (kind === 'aviso_atracacao_nob') {
         const { data: berth, error: berthError } = await admin
           .from('voyage_escala_terminal_state')
-          .select('id, voyage_id, port, terminal_id, terminal_atb, terminal:terminals(code)')
+          // Terminais vivem em depots; não existe tabela terminals, e o embed
+          // por esse nome falhava e recusava todo NOB com 422.
+          .select('id, voyage_id, port, terminal_id, terminal_atb, terminal:depots!voyage_escala_terminal_state_terminal_id_port_id_fkey(code)')
           .eq('id', body.anchor_atracacao_id!)
           .maybeSingle()
         const row = berth as unknown as { voyage_id?: number; port?: string; terminal_id?: string | null; terminal_atb?: string | null; terminal?: { code?: string | null } | null } | null
+        // Erro de leitura não é Atracação divergente: sem o log, o 422 abaixo
+        // escondia a causa real (foi assim que o embed quebrado passou).
+        if (berthError) console.error('customer communication berth lookup failed', berthError)
         if (berthError || !row || row.voyage_id !== Number(body.anchor_voyage_id) || (row.port ?? '').toUpperCase() !== body.anchor_port!.trim().toUpperCase() || !row.terminal_id || !row.terminal_atb) {
           return json(422, { error: 'A Atracação não corresponde à viagem e ao porto informados.' }, origin)
         }
         terminalId = row.terminal_id
-        terminalName = row.terminal?.code ?? row.terminal_id
+        // O cliente lê a sigla do terminal; o UUID nunca vai para o e-mail.
+        terminalName = row.terminal?.code?.trim() || null
+        if (!terminalName) return json(422, { error: 'O terminal da Atracação está sem sigla cadastrada.' }, origin)
+        canonicalTerminalName = terminalName
         milestoneAt = row.terminal_atb
         for (const bl of validBls) {
           const { data: front, error: frontError } = await admin
@@ -543,7 +554,7 @@ async function handler(req: Request): Promise<Response> {
     p_dispatch_id: body.dispatch_id ?? null,
     p_vessel_name: body.vessel_name ?? null,
     p_voyage_number: body.voyage_number ?? null,
-    p_terminal_name: body.terminal_name ?? null,
+    p_terminal_name: canonicalTerminalName ?? body.terminal_name ?? null,
     p_created_by: callerUser.user?.id ?? null,
     p_bl_ids: effectiveBlIds,
   })

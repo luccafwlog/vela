@@ -684,7 +684,7 @@ export async function fetchAssignedOperationFrontKeys(voyageIds: readonly number
   return keys
 }
 
-function expandCandidatesForKind(
+export function expandCandidatesForKind(
   rows: readonly CustomerCommunicationBlCandidate[],
   schedulesByVoyage: ReadonlyMap<number, readonly VoyageEscalaSchedule[]>,
   kind: CustomerCommunicationKind,
@@ -723,7 +723,10 @@ function expandCandidatesForKind(
         expanded.push({
           ...row,
           terminalId: atracacao.terminalId,
-          terminalName: atracacao.terminalCode ?? atracacao.terminalId,
+          // O cliente lê a sigla do terminal (depots.code, obrigatória). Sem
+          // ela o NOB fica sem terminal e o envio é recusado com "Terminal
+          // ausente para o NOB." — nunca com o UUID do terminal no e-mail.
+          terminalName: atracacao.terminalCode?.trim() || null,
           terminalStateId: atracacao.stateId,
           milestoneAt: atracacao.atb,
         })

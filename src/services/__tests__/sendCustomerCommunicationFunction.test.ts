@@ -48,4 +48,12 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain('uploadedBy: string | null')
     expect(source).toContain('callerUser.user?.id ?? null')
   })
+
+  it('lê a sigla do terminal do NOB em depots e nunca manda o UUID ao cliente', () => {
+    expect(source).not.toContain('terminals(code)')
+    expect(source).toContain('terminal:depots!voyage_escala_terminal_state_terminal_id_port_id_fkey(code)')
+    expect(source).not.toContain('?? row.terminal_id')
+    expect(source).toContain("'O terminal da Atracação está sem sigla cadastrada.'")
+    expect(source).toContain('p_terminal_name: canonicalTerminalName ?? body.terminal_name ?? null')
+  })
 })
