@@ -26,7 +26,7 @@ import {
   useRegisterLedgerInvoicePayment,
   useSettleInvoiceRefund,
 } from '../../hooks/useBillingLedger'
-import { isConsolidatedInvoice } from '../../services/billing'
+import { invoiceTypeLabel, isConsolidatedInvoice, isManualInvoice } from '../../services/billing'
 import { buildInvoiceFileBaseName, describeInvoiceItemsFreezeNote, describeUsdConversionNote } from '../shared/invoiceFormat'
 import { formatValidationError, manualInvoiceChargeSchema, paymentFormSchema } from '../../services/financialValidation'
 import { logOperationalEvent } from '../../services/operationalEvents'
@@ -75,6 +75,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const settleRefundMutation = useSettleInvoiceRefund()
   const canSettleRefund = typeof can === 'function' ? can('settle_financial_adjustments') : isAdmin
   const detailInvoice = detailQuery.data?.invoice ?? null
+  const detailIsManual = isManualInvoice(detailInvoice)
+  const detailVoyageLabel = [detailInvoice?.vessel_name, detailInvoice?.voyage_number].filter(Boolean).join(' · ') || '-'
   const isLedgerPayable = isLedgerInvoicePayable(detailInvoice)
   const registerPaymentMutation = useRegisterInvoicePayment()
   const registerLedgerPaymentMutation = useRegisterLedgerInvoicePayment()
@@ -276,6 +278,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
               </div>
               <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
                 <MetricCard label="Status" value={statusLabel(detailQuery.data.invoice.status)} />
+                <MetricCard label="Tipo" value={invoiceTypeLabel(detailQuery.data.invoice.invoice_type)} />
                 <MetricCard label="Total" value={formatBRL(detailQuery.data.invoice.total_brl)} />
                 <MetricCard label="Pago" value={formatBRL(detailQuery.data.invoice.total_paid_brl)} />
                 <MetricCard label="Saldo" value={formatBRL(detailQuery.data.invoice.balance_brl)} />
@@ -291,17 +294,20 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   <SelectionMetric label="CNPJ" value={detailQuery.data.invoice.customer_cnpj_cpf ?? '-'} />
                   <SelectionMetric label="Emissão" value={formatDate(detailQuery.data.invoice.issued_at)} />
                   <SelectionMetric label="Status" value={statusLabel(detailQuery.data.invoice.status)} />
+                  <SelectionMetric label="Tipo" value={invoiceTypeLabel(detailQuery.data.invoice.invoice_type)} />
+                  <SelectionMetric label="Navio / Viagem" value={detailVoyageLabel} />
+                  {detailIsManual ? <SelectionMetric label="Descrição da cobrança" value={detailQuery.data.invoice.notes ?? '-'} /> : null}
                   <SelectionMetric label="Itens" value={String(detailQuery.data.items.length)} />
                   <SelectionMetric label="Pagamentos" value={String(detailQuery.data.payments.length)} />
                   <SelectionMetric label="Total BRL" value={formatBRL(detailQuery.data.invoice.total_brl)} />
                   <SelectionMetric label="Saldo BRL" value={formatBRL(detailQuery.data.invoice.balance_brl)} />
                 </div>
               </Card>
-              <Card className="overflow-hidden p-0">
+              {detailQuery.data.bls.length > 0 ? <Card className="overflow-hidden p-0">
                 <div className="app-table-scroll">
                   <table className="app-table app-table--compact min-w-[620px] text-left text-sm"><thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500"><tr><th scope="col" className="px-3 py-2">B/L</th><th scope="col" className="px-3 py-2">Trecho</th><th scope="col" className="px-3 py-2">Subtotal BRL</th></tr></thead><tbody className="divide-y divide-[#30363d]">{detailQuery.data.bls.map((row) => <tr key={row.id}><td className="px-3 py-2 font-semibold text-[#58a6ff]"><Link className="hover:underline" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></td><td className="px-3 py-2">{row.pol ?? '-'} - {row.pod ?? '-'}</td><td className="px-3 py-2">{formatBRL(row.subtotal_brl)}</td></tr>)}</tbody></table>
                 </div>
-              </Card>
+              </Card> : null}
               <Card className="overflow-hidden p-0">
                 <div className="border-b border-[#30363d] px-4 py-3">
                   <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Itens da fatura</h2>

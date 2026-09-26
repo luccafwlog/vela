@@ -162,3 +162,34 @@ it('suprime bloco de contêineres para B/L exclusivamente carga solta', () => {
   expect(screen.getByText(/Subtotal Carga Solta:/)).toBeTruthy()
   expect(screen.getByText(/3\. TAXAS ADMINISTRATIVAS E DOCUMENTAIS/)).toBeTruthy()
 })
+
+it('imprime fatura avulsa com descrição e contexto opcional sem categorias artificiais', () => {
+  const manualDetail = {
+    invoice: {
+      id: 104,
+      invoice_number: 'INV-2026-0104',
+      invoice_type: 'manual',
+      status: 'issued',
+      total_brl: 75,
+      customer_name: 'Cliente Avulso',
+      notes: 'Descrição complementar da cobrança',
+      voyage_id: 42,
+      voyage_number: '42N',
+      vessel_name: 'Navio Manual',
+      issued_at: '2026-09-17',
+    },
+    bls: [],
+    items: [{ id: 41, description: 'Serviço extraordinário', quantity: 1, unit_value_brl: 75, total_value_brl: 75, source: 'manual' }],
+    payments: [],
+  } as never
+
+  render(<InvoiceDocumentLocal detail={manualDetail} />)
+
+  expect(screen.getByText('FATURA AVULSA')).toBeTruthy()
+  expect(screen.getByText('Descrição complementar da cobrança')).toBeTruthy()
+  expect(screen.getByText('Serviço extraordinário')).toBeTruthy()
+  expect(screen.getByText(/Navio Manual.*42N/)).toBeTruthy()
+  expect(screen.queryByText(/1\. CARGA CONTEINERIZADA/)).toBeNull()
+  expect(screen.queryByText(/2\. CARGA SOLTA/)).toBeNull()
+  expect(screen.queryByText(/3\. TAXAS ADMINISTRATIVAS/)).toBeNull()
+})

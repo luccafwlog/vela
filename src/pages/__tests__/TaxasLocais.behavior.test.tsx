@@ -17,8 +17,11 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, can: () => false }) }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn().mockResolvedValue(false) }))
 vi.mock('../../hooks/useBilling', () => ({
   useInvoices: () => ({ data: { rows: [], count: 0 }, isLoading: false, error: null }),
+  useBillingCustomers: () => ({ data: [] }),
+  useCreateManualInvoice: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 vi.mock('../../services/alerts', () => ({
   listFinancialAlerts: vi.fn().mockResolvedValue([]),

@@ -23,6 +23,7 @@ describe('isLedgerInvoicePayable', () => {
 
   it('rejeita tipo que não é do ledger local (ex.: demurrage/granito)', () => {
     expect(isLedgerInvoicePayable({ ...payable, invoice_type: 'demurrage' })).toBe(false)
+    expect(isLedgerInvoicePayable({ ...payable, invoice_type: 'manual' })).toBe(false)
     expect(isLedgerInvoicePayable({ ...payable, invoice_type: null })).toBe(false)
   })
 

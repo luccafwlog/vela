@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { exportLocalChargeConferenceWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+import { exportInvoicesWorkbook, exportLocalChargeConferenceWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+import type { InvoiceListRow } from '../billing'
 import type { VaziosImportacaoContainerListItem } from '../../types/database'
 
 const { jsonToSheet, bookAppendSheet, writeFile } = vi.hoisted(() => ({
@@ -77,5 +78,35 @@ describe('exportLocalChargeConferenceWorkbook', () => {
     }], '1 B/L selecionado')
     expect(jsonToSheet).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ Escopo: '1 B/L selecionado' }), expect.objectContaining({ 'B/L': 'BL-1' })]))
     expect(writeFile).toHaveBeenCalledWith(expect.anything(), expect.stringMatching(/^conferencia-taxas-locais-\d+\.xlsx$/))
+  })
+})
+
+describe('exportInvoicesWorkbook', () => {
+  it('exporta fatura avulsa sem B/L como tipo próprio', async () => {
+    const row = {
+      id: 3,
+      invoice_number: 'INV-AV-003',
+      customer_id: 1,
+      bl_id: null,
+      issued_at: '2026-06-01T10:00:00Z',
+      total_brl: 150,
+      status: 'issued',
+      invoice_type: 'manual',
+      total_paid_brl: 0,
+      balance_brl: 150,
+      created_at: '2026-06-01T10:00:00Z',
+      voyage_id: 42,
+      voyage: { id: 42, voyage_number: '42N', vessel: { name: 'Navio Manual' } },
+      customer: { id: 1, name: 'Cliente', cnpj_cpf: '123' },
+      invoice_bls: [],
+      invoice_receivable_links: [],
+      payments: [],
+    } as InvoiceListRow
+
+    await exportInvoicesWorkbook([row])
+
+    expect(jsonToSheet).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ Tipo: 'Avulsa', QtdBLs: 0, Navio: 'Navio Manual', Viagem: '42N' }),
+    ]))
   })
 })

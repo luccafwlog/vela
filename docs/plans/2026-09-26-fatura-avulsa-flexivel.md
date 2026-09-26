@@ -277,7 +277,7 @@ um modal acessível com os campos de emissão.
   Resultado esperado: `PASS`, com os testes antigos ajustados para exigir as
   duas ações de emissão.
 
-- [ ] **Passo 6: commitar a emissão interna**.
+- [x] **Passo 6: commitar a emissão interna**.
 
   ```bash
   git add src/components/billing/ManualInvoiceModal.tsx src/components/billing/__tests__/ManualInvoiceModal.test.tsx src/pages/TaxasLocais.tsx src/pages/__tests__/TaxasLocais.test.ts
@@ -302,7 +302,7 @@ um modal acessível com os campos de emissão.
 **Interfaces consumidas:** `invoiceTypeLabel`, `isManualInvoice`, contexto
 direto de `InvoiceListRow`/`InvoiceDetail`, e a mutation da Tarefa 2.
 
-- [ ] **Passo 1: escrever regressões que falhem**.
+- [x] **Passo 1: escrever regressões que falhem**.
 
   Fixar filtro **Avulsa**, tabela com **Sem B/L** e navio/viagem direta, detalhe
   com descrição, documento com título **FATURA AVULSA** e sem categorias
@@ -310,13 +310,13 @@ direto de `InvoiceListRow`/`InvoiceDetail`, e a mutation da Tarefa 2.
   **Avulsa**, reconciliação selecionando `manual` e `isLedgerInvoicePayable`
   permanecendo `false` para `manual`.
 
-- [ ] **Passo 2: executar os testes focados e confirmar as falhas**.
+- [x] **Passo 2: executar os testes focados e confirmar as falhas**.
 
   ```bash
   npx vitest run src/components/billing/__tests__/InvoicesTable.test.tsx src/components/billing/__tests__/InvoiceDocumentLocal.behavior.test.tsx src/components/shared/__tests__/invoiceFormat.test.ts src/services/__tests__/billing.test.ts src/services/__tests__/exports.test.ts src/services/__tests__/reconciliationInvoiceType.test.ts src/services/__tests__/reconciliationHistoryPagination.test.ts src/services/__tests__/blRails.test.ts src/pages/__tests__/faturamentoLedgerPayment.test.ts
   ```
 
-- [ ] **Passo 3: implementar o rótulo e as superfícies de lista**.
+- [x] **Passo 3: implementar o rótulo e as superfícies de lista**.
 
   Adicionar `manual` ao select de `InvoiceFiltersBar`, usar `invoiceTypeLabel`
   em `InvoicesTable`, `ReconciliationHistoryTable`, `exports.ts` e `blRails.ts`,
@@ -324,7 +324,7 @@ direto de `InvoiceListRow`/`InvoiceDetail`, e a mutation da Tarefa 2.
   BL/viagem deve localizar a fatura avulsa sem transformar a referência direta
   em link de recebível.
 
-- [ ] **Passo 4: implementar detalhe e impressão**.
+- [x] **Passo 4: implementar detalhe e impressão**.
 
   Mostrar tipo, `invoice.notes`, BL/viagem/navio opcionais e a linha de item.
   Em `InvoiceDocumentLocal`, selecionar título/metadata avulsa por
@@ -332,7 +332,7 @@ direto de `InvoiceListRow`/`InvoiceDetail`, e a mutation da Tarefa 2.
   esse tipo e manter intacta a classificação por carga dos tipos locais.
   Atualizar `buildInvoiceFileBaseName` sem alterar o nome de demurrage.
 
-- [ ] **Passo 5: implementar PIX, histórico e caminho de pagamento no cliente**.
+- [x] **Passo 5: implementar PIX, histórico e caminho de pagamento no cliente**.
 
   Incluir `manual` na seleção de `matchUnifiedPixTransactions`, preservar a
   fonte unificada como fatura local, exibir contexto direto em
@@ -340,7 +340,7 @@ direto de `InvoiceListRow`/`InvoiceDetail`, e a mutation da Tarefa 2.
   correto. Não adicionar a fatura avulsa ao caminho ledger de
   `faturamentoLedgerPayment`/`reports`.
 
-- [ ] **Passo 6: executar os testes focados e ajustar regressões**.
+- [x] **Passo 6: executar os testes focados e ajustar regressões**.
 
   Rodar novamente o comando do Passo 2; resultado esperado: `PASS` sem mudar
   os títulos ou rótulos de taxas locais, consolidadas e demurrage.

@@ -59,6 +59,9 @@ export function longDate() {
 // a reconstrução ao vivo a partir de charge_calculations só roda como rede de
 // seguranca para consolidadas antigas que não passaram pelo backfill.
 export function describeInvoiceItemsFreezeNote(invoice: { invoice_type?: string | null; issued_at?: string | null }) {
+  if (invoice.invoice_type === 'manual') {
+    return `Emitida em ${formatDate(invoice.issued_at)}. Fatura avulsa: o item e a descrição da cobrança foram registrados no momento da emissão e não dependem de recálculo de taxas locais.`
+  }
   if (invoice.invoice_type === 'consolidated') {
     return `Emitida em ${formatDate(invoice.issued_at)}. Consolidada: o detalhamento por B/L reflete o saldo de cada B/L congelado no momento da consolidação e não muda com recálculos posteriores.`
   }
@@ -115,7 +118,8 @@ export function buildInvoiceFileBaseName(detail: InvoiceDetail): string {
     validBls.length <= 3
       ? validBls.join(', ')
       : `${validBls.slice(0, 3).join(', ')} e mais ${validBls.length - 3}`
-  const base = [invoiceNumber, 'FATURA TAXAS LOCAIS', firstName, blPart]
+  const documentLabel = invoice?.invoice_type === 'manual' ? 'FATURA AVULSA' : 'FATURA TAXAS LOCAIS'
+  const base = [invoiceNumber, documentLabel, firstName, blPart]
     .filter((part) => part && part.trim().length > 0)
     .join(' - ')
   // Remove caracteres invalidos em nomes de arquivo, normaliza espacos e limita tamanho a 200 caracteres.

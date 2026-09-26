@@ -450,8 +450,8 @@ export function isConsolidatedInvoice(row: { invoice_type?: string | null }): bo
   return row.invoice_type === 'consolidated'
 }
 
-export function isManualInvoice(row: { invoice_type?: string | null }): boolean {
-  return row.invoice_type === 'manual'
+export function isManualInvoice(row: { invoice_type?: string | null } | null | undefined): boolean {
+  return row?.invoice_type === 'manual'
 }
 
 export function invoiceTypeLabel(invoiceType: string | null | undefined): string {
