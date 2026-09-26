@@ -31,6 +31,8 @@ type ConfirmOptions = {
   reversibility?: string
   /** Campos alterados, para confirmar um Salvar. */
   changes?: ConfirmFieldChange[]
+  /** Aviso sem ação: esconde o botão de confirmar (ex.: nada pode ser executado). */
+  noticeOnly?: boolean
 }
 
 type ReasonOptions = ConfirmOptions & { reasonLabel?: string }
@@ -324,9 +326,9 @@ export function ConfirmDialogProvider({ children }: PropsWithChildren) {
 
         <div className="app-confirm__actions">
           <Button ref={backRef} variant="secondary" onClick={() => settle({ confirmed: false, reason: '' })}>
-            {state.cancelLabel ?? 'Voltar'}
+            {state.cancelLabel ?? (state.noticeOnly ? 'Entendi' : 'Voltar')}
           </Button>
-          <Button
+          {state.noticeOnly ? null : <Button
             variant={danger ? 'danger' : 'primary'}
             className={danger ? 'app-confirm__danger' : undefined}
             disabled={!canConfirm}
@@ -334,7 +336,7 @@ export function ConfirmDialogProvider({ children }: PropsWithChildren) {
             onClick={() => settle({ confirmed: true, reason: trimmedReason })}
           >
             {state.confirmLabel ?? 'Confirmar'}
-          </Button>
+          </Button>}
         </div>
       </Modal>
     </ConfirmContext.Provider>

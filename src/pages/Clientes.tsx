@@ -10,7 +10,7 @@ import { MetricCard } from '../components/ui/MetricCard'
 import { PageHeader } from '../components/ui/Card'
 import { WorkspaceNav } from '../components/ui/WorkspaceNav'
 import { useToast } from '../components/ui/Toast'
-import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { CreateCustomerModal } from '../components/customers/CreateCustomerModal'
 import { CustomerTable, type CustomerActionsMenu } from '../components/customers/CustomerTable'
@@ -32,7 +32,7 @@ import { getCustomerFilterChips, type CustomerSortKey } from '../lib/customerTab
 import { BLS_OF_CUSTOMER } from '../lib/supabaseEmbeds'
 import { compareCustomerBaseWithExisting, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
 import { checkCustomerDependencies, createCustomer, deactivateCustomer, deleteCustomers, fetchIssuedInvoiceBalanceByCustomer, reactivateCustomer } from '../services/customers'
-import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
+import { buildDeleteAffected, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
 import { supabase } from '../services/supabase'
 import type { CustomerListItem } from '../types/database'
@@ -48,6 +48,7 @@ export function Clientes() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
   const { user, effectiveRole, can, isAdmin } = useAuth()
   // Excluir exige o Administrativo no banco (delete_records); a tela so
@@ -328,7 +329,14 @@ export function Clientes() {
     try {
       const report = await checkCustomerDependencies(ids)
       if (report.deletableIds.length === 0) {
-        showToast(`Nenhum cliente pode ser excluido. ${formatBlockedSummary(report.blockedIds)}`, 'error')
+        await confirm({
+          title: 'Excluir cliente',
+          message: 'Nenhum cliente selecionado pode ser excluído.',
+          affected: { summary: `${report.blockedIds.length} cliente(s) bloqueado(s).`, blocked: buildDeleteAffected('cliente(s)', report).blocked },
+          consequence: 'Nada foi alterado. Para tirar o cliente das listas sem apagá-lo, use Desativar cliente.',
+          tone: 'primary',
+          noticeOnly: true,
+        })
         return
       }
 

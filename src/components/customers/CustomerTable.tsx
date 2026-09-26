@@ -1,4 +1,4 @@
-import type { MouseEvent as ReactMouseEvent } from 'react'
+import { useLayoutEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileText, MoreHorizontal, Power, ReceiptText, Trash2 } from 'lucide-react'
 import { Badge } from '../ui/Badge'
@@ -76,6 +76,17 @@ export function CustomerTable({
 }) {
   const pageCustomerIds = (data?.rows ?? []).map((row) => row.id)
   const allPageSelected = pageCustomerIds.length > 0 && pageCustomerIds.every((id) => selection.isSelected(id))
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // O menu abre abaixo do botão; perto do fim da tela ele é empurrado para cima
+  // para que todas as opções (incluindo Excluir cliente) fiquem visíveis.
+  useLayoutEffect(() => {
+    const menu = menuRef.current
+    if (!actionsMenu || !menu) return
+    const height = menu.getBoundingClientRect().height
+    const maxTop = Math.max(4, window.innerHeight - height - 4)
+    menu.style.top = `${Math.min(Math.max(actionsMenu.top, 4), maxTop)}px`
+  }, [actionsMenu])
 
   return (
     <>
@@ -160,7 +171,7 @@ export function CustomerTable({
       </Card>
 
       {actionsMenu ? (
-        <div data-actions-menu className="app-floating-menu" role="menu" style={{ top: actionsMenu.top, left: actionsMenu.left }}>
+        <div ref={menuRef} data-actions-menu className="app-floating-menu" role="menu" style={{ top: actionsMenu.top, left: actionsMenu.left }}>
           <button type="button" role="menuitem" onClick={() => void onCopy(formatCnpjCpf(actionsMenu.cnpj), 'CNPJ')}>
             <Copy size={14} />
             Copiar CNPJ
