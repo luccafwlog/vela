@@ -4,6 +4,16 @@
 
 ## 2026-09
 
+- **Aviso de Atracação (NOB) com a sigla do terminal (2026-09-26):** a Edge Function
+  `send-customer-communication` lia o terminal numa relação `terminals` que não existe (os terminais vivem em
+  `depots`, e o PostgREST só embute por tabela, coluna ou FK existentes), e o erro de leitura virava o 422 "A
+  Atracação não corresponde à viagem e ao porto informados" para o NOB manual e o automático. Conclusão pela
+  estrutura do banco, não observada em execução: produção não tem nenhum NOB registrado nem tentativa nos logs
+  recentes. Se a leitura funcionasse sem sigla, o UUID do terminal iria no e-mail. A leitura passou a usar a FK da Atracação
+  para `depots`, e o terminal do e-mail e do histórico é sempre a sigla: sem ela, o envio é recusado, e a
+  conferência deixa de usar o UUID do terminal como nome. Vale em produção após publicar a função
+  (`supabase functions deploy send-customer-communication`).
+
 - **Alinhamento entre apresentação, documentação e código (2026-09-23):**
   a apresentação foi revisada contra a documentação e o código, e as divergências viraram um questionário com o
   dono. Documentação corrigida onde o código estava certo (PR #719); abas da Viagem na URL, atalhos da viagem e CE

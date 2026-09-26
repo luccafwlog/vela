@@ -69,6 +69,10 @@ describe('templates de Comunicados', () => {
     }))).toThrow('outro terminal')
   })
 
+  it('recusa NOB sem terminal legível, em vez de enviar sem nome', () => {
+    expect(() => renderNobTemplate(input({ terminalName: null }))).toThrow('Terminal ausente para o NOB.')
+  })
+
   it('não aceita B/L em comunicado institucional', () => {
     expect(() => renderInstitutionalTemplate(input({ subject: 'Aviso', body: 'Mensagem' })))
       .toThrow('não pode conter B/Ls')
