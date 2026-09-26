@@ -176,7 +176,7 @@ it('recolhe e expande o painel próprio de atracações sem perder os dados da e
   await user.click(screen.getByRole('button', { name: 'Adicionar atracação na escala BRSSZ' }))
   expect(onEditEscala).toHaveBeenLastCalledWith(expect.objectContaining({ port: 'BRSSZ', focusTerminalId: null }))
 
-  await user.click(screen.getByRole('button', { name: 'Editar atracação BTP da escala BRSSZ' }))
+  await user.click(screen.getByRole('button', { name: 'Editar atracação BTP, ETB 26/08/2026, da escala BRSSZ' }))
   expect(onEditEscala).toHaveBeenLastCalledWith(expect.objectContaining({ port: 'BRSSZ', focusTerminalId: 'terminal-1' }))
 
   await user.click(screen.getByRole('button', { name: 'Recolher atracações de BRSSZ' }))
