@@ -10,6 +10,7 @@ type Row = Record<string, unknown>
 // returns rows in a different arbitrary order on every request.
 const tables: Record<string, Row[]> = {}
 let requestCount = 0
+const urls: string[] = []
 
 function query(table: string) {
   let filter: { column: string; values: unknown[] } | null = null
@@ -22,7 +23,12 @@ function query(table: string) {
     range: (from: number, to: number) => { range = [from, to]; return builder },
     then: (resolve: (value: { data: Row[]; error: null }) => void) => {
       requestCount += 1
-      let rows = (tables[table] ?? []).filter((row) => !filter || filter.values.includes(row[filter.column]))
+      // Embedded filter `manifest.voyage_id` resolves through the manifest row.
+      const valueOf = (row: Row, column: string) => column === 'manifest.voyage_id'
+        ? tables.vazios_importacao_manifests?.find((m) => m.id === row.manifest_id)?.voyage_id
+        : row[column]
+      let rows = (tables[table] ?? []).filter((row) => !filter || filter.values.includes(valueOf(row, filter.column)))
+      if (table === 'vazios_importacao_containers') urls.push(filter?.column ?? '')
       if (ordered) rows = [...rows].sort((a, b) => String(a.id).localeCompare(String(b.id)))
       else rows = [...rows].sort((a, b) => ((Number(String(a.id).slice(1)) * (requestCount + 7)) % 997) - ((Number(String(b.id).slice(1)) * (requestCount + 7)) % 997))
       const [from, to] = range
@@ -71,5 +77,7 @@ describe('useVaziosImportacaoStats', () => {
     // Type counts are per row, so duplicated/skipped rows across pages would show here.
     expect(stats[1].containerTypes).toBe('20DC (1200)')
     expect(stats[2].containerTypes).toBe('20DC (300)')
+    // Containers are filtered by voyage, so the request never carries 1500 manifest ids.
+    expect(urls.every((column) => column === 'manifest.voyage_id')).toBe(true)
   })
 })

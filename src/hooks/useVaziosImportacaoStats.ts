@@ -25,8 +25,8 @@ export type VoyageVaziosImportacaoStat = {
   routes?: VoyageVaziosImportacaoRoute[]
 }
 
-// ponytail: `.in()` com todos os ids vai na URL; com milhares de manifestos o
-// pedido pode exceder o limite de URL. Upgrade: RPC de agregação no banco.
+// ponytail: a agregação por POD/rota roda no navegador sobre todas as linhas de
+// container das Viagens pedidas. Upgrade: RPC de agregação, se o volume crescer.
 const PAGE_SIZE = 1000
 
 export function useVaziosImportacaoStats(voyageIds: number[]) {
@@ -81,8 +81,10 @@ export function useVaziosImportacaoStats(voyageIds: number[]) {
         while (true) {
           const { data: containers, error: containerError } = await supabase
             .from('vazios_importacao_containers')
-            .select('manifest_id, container_number, container_type, pol, pod')
-            .in('manifest_id', manifestIds)
+            .select('manifest_id, container_number, container_type, pol, pod, manifest:vazios_importacao_manifests!inner(voyage_id)')
+            // Filtra pela Viagem, não pela lista de manifestos: a URL fica do
+            // tamanho da lista de Viagens mesmo com milhares de manifestos.
+            .in('manifest.voyage_id', normalizedIds)
             .order('id')
             .range(from, from + PAGE_SIZE - 1)
           if (containerError) throw containerError
