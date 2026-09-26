@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Download, FilePlus2 } from 'lucide-react'
 import { ConsolidatedInvoiceModal } from '../components/billing/ConsolidatedInvoiceModal'
+import { ManualInvoiceModal } from '../components/billing/ManualInvoiceModal'
 import { ValidacaoTab } from '../components/billing/ValidacaoTab'
 import { FinancialAlertsPanel } from '../components/billing/FinancialAlertsPanel'
 import { CodAdjustmentsPanel } from '../components/billing/CodAdjustmentsPanel'
@@ -63,6 +64,7 @@ export function TaxasLocais() {
 
   const [exporting, setExporting] = useState(false)
   const [consolidatedOpen, setConsolidatedOpen] = useState(false)
+  const [manualOpen, setManualOpen] = useState(false)
 
   // Sincroniza estado com a URL — ajuste durante o render (sem useEffect),
   // disparado pela identidade de searchParams como o effect original
@@ -193,12 +195,14 @@ export function TaxasLocais() {
         action={
           <>
             <Link className="app-btn app-btn--secondary" to="/taxas-locais/tabelas">Gerenciar em Tabelas</Link>
+            <Button variant="secondary" onClick={() => setManualOpen(true)}><FilePlus2 size={16} />Gerar fatura avulsa</Button>
             <Button onClick={() => setConsolidatedOpen(true)}><FilePlus2 size={16} />Gerar fatura consolidada</Button>
           </>
         }
       />
 
       <ConsolidatedInvoiceModal open={consolidatedOpen} onClose={() => setConsolidatedOpen(false)} />
+      <ManualInvoiceModal open={manualOpen} onClose={() => setManualOpen(false)} />
 
       <FinancialAlertsPanel
         alerts={financialAlertsQuery.data ?? []}

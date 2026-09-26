@@ -48,6 +48,7 @@ vi.mock('../../hooks/useBls', () => ({
 vi.mock('../../hooks/useBilling', () => ({
   useBillingCustomers: () => ({ data: [] }),
   useCancelInvoice: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreateManualInvoice: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateInvoiceDueDate: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useInvoiceDetail: () => ({ data: null, isLoading: false, error: null }),
   useInvoices: () => ({ data: { rows: [], count: 0 }, isLoading: false, error: null }),
@@ -150,10 +151,11 @@ describe('TaxasLocais', () => {
     expect(html).not.toContain('billing-page__tabs')
   })
 
-  it('expoe somente a acao de consolidada no faturamento local', () => {
+  it('expoe as acoes de emissao avulsa e consolidada no faturamento local', () => {
     const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(TaxasLocais)))
 
     expect(html).toContain('Gerar fatura consolidada')
+    expect(html).toContain('Gerar fatura avulsa')
     expect(html).not.toContain('Nova Invoice')
     expect(html).not.toContain('B/L único')
   })

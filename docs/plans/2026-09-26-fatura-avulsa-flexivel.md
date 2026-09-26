@@ -240,7 +240,7 @@ export function isManualInvoice(row: { invoice_type?: string | null }): boolean
 **Interfaces produzidas:** a ação **Gerar fatura avulsa** em `/taxas-locais` e
 um modal acessível com os campos de emissão.
 
-- [ ] **Passo 1: escrever o teste de componente que falhe**.
+- [x] **Passo 1: escrever o teste de componente que falhe**.
 
   Mockar hooks de cliente, viagem, mutation, toast e confirmação. Cobrir: ação
   abre o modal; cliente é obrigatório; item/quantidade/valor inválidos não
@@ -249,9 +249,9 @@ um modal acessível com os campos de emissão.
   confirmação recusada não emite; sucesso mostra o número/valor e fecha o
   modal.
 
-- [ ] **Passo 2: executar `npx vitest run src/components/billing/__tests__/ManualInvoiceModal.test.tsx`** e confirmar falha por arquivo/componente ausente.
+- [x] **Passo 2: executar `npx vitest run src/components/billing/__tests__/ManualInvoiceModal.test.tsx`** e confirmar falha por arquivo/componente ausente.
 
-- [ ] **Passo 3: implementar `ManualInvoiceModal`**.
+- [x] **Passo 3: implementar `ManualInvoiceModal`**.
 
   Reusar o picker de cliente de `ConsolidatedInvoiceModal`, `Combobox` para
   B/L opcional com `listBlSuggestions` e `VoyageCombobox clearable`. Validar o
@@ -261,14 +261,14 @@ um modal acessível com os campos de emissão.
   cobrança**, **Quantidade**, **Valor unitário (BRL)**, **B/L (opcional)** e
   **Navio / Viagem (opcional)**.
 
-- [ ] **Passo 4: integrar a ação em `TaxasLocais.tsx`**.
+- [x] **Passo 4: integrar a ação em `TaxasLocais.tsx`**.
 
   Adicionar estado `manualOpen`, botão **Gerar fatura avulsa** ao lado da
   ação consolidada e montar o modal. Não remover a ação consolidada nem mudar
   a rota; o feedback de sucesso deve deixar a lista atualizada pela
   invalidação da mutation.
 
-- [ ] **Passo 5: executar o teste focado e o teste de página**.
+- [x] **Passo 5: executar o teste focado e o teste de página**.
 
   ```bash
   npx vitest run src/components/billing/__tests__/ManualInvoiceModal.test.tsx src/pages/__tests__/TaxasLocais.test.ts
