@@ -368,34 +368,34 @@ direto de `InvoiceListRow`/`InvoiceDetail`, e a mutation da Tarefa 2.
 **Interfaces consumidas:** os payloads seguros de Portal produzidos pela
 Tarefa 1 e `InvoiceDocumentLocal`/`invoiceTypeLabel` das Tarefas 2 e 4.
 
-- [ ] **Passo 1: escrever regressões de Portal que falhem**.
+- [x] **Passo 1: escrever regressões de Portal que falhem**.
 
   Cobrir resumo com `invoice_type = 'manual'` sem BL, rótulo **Avulsa** em
   desktop/mobile, detalhe com item/descrição/contexto opcional, detalhe sem
   seção vazia de B/L e manutenção de PIX/impressão. Confirmar que o botão de
   reconsolidação só aparece para `consolidated`.
 
-- [ ] **Passo 2: executar os testes focados e confirmar as falhas**.
+- [x] **Passo 2: executar os testes focados e confirmar as falhas**.
 
   ```bash
   npx vitest run src/components/portal/__tests__/PortalInvoiceDetailModal.test.tsx src/pages/__tests__/PortalBilling.test.tsx src/services/__tests__/exports.test.ts
   ```
 
-- [ ] **Passo 3: implementar os tipos/normalização do serviço Portal**.
+- [x] **Passo 3: implementar os tipos/normalização do serviço Portal**.
 
   Preservar arrays vazios para `bls`, `vessels`, `voyages`, `vessel_voyages` e
   `pods`; carregar `notes`, `voyage_id`, número/nome de viagem e o BL direto
   no detalhe, sem permitir que o Portal envie customer ID. O serviço continua
   usando `callPortalRpc` e `clientPortalScope`.
 
-- [ ] **Passo 4: implementar as superfícies Portal**.
+- [x] **Passo 4: implementar as superfícies Portal**.
 
   Renomear a apresentação da aba local para deixar claro que ela inclui taxas
   locais e faturas avulsas, renderizar **Avulsa**, mostrar item/descrição e
   contexto somente quando informado. Manter o fluxo de PIX e recibo; não
   expor ação interna de emissão ao cliente.
 
-- [ ] **Passo 5: executar os testes focados**.
+- [x] **Passo 5: executar os testes focados**.
 
   Rodar o comando do Passo 2; resultado esperado: `PASS`.
 

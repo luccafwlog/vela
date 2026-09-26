@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { exportInvoicesWorkbook, exportLocalChargeConferenceWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+import { exportInvoicesWorkbook, exportLocalChargeConferenceWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
 import type { InvoiceListRow } from '../billing'
+import type { PortalInvoiceSummary } from '../portalBilling'
 import type { VaziosImportacaoContainerListItem } from '../../types/database'
 
 const { jsonToSheet, bookAppendSheet, writeFile } = vi.hoisted(() => ({
@@ -107,6 +108,32 @@ describe('exportInvoicesWorkbook', () => {
 
     expect(jsonToSheet).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ Tipo: 'Avulsa', QtdBLs: 0, Navio: 'Navio Manual', Viagem: '42N' }),
+    ]))
+  })
+})
+
+describe('exportPortalLocalInvoicesWorkbook', () => {
+  it('exporta fatura avulsa do Portal sem B/L como Avulsa', async () => {
+    const row: PortalInvoiceSummary = {
+      id: 3,
+      invoice_number: 'INV-AV-003',
+      issued_at: '2026-06-03',
+      total_brl: 75,
+      total_paid_brl: 0,
+      balance_brl: 75,
+      status: 'issued',
+      invoice_type: 'manual',
+      vessels: ['NAVIO MANUAL'],
+      voyages: ['42N'],
+      vessel_voyages: ['NAVIO MANUAL / 42N'],
+      bls: [],
+      pods: [],
+    }
+
+    await exportPortalLocalInvoicesWorkbook([row])
+
+    expect(jsonToSheet).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ Tipo: 'Avulsa', 'B/L': '', 'Navio/Viagem': 'NAVIO MANUAL / 42N' }),
     ]))
   })
 })

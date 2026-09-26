@@ -448,7 +448,7 @@ export async function exportPortalLocalInvoicesWorkbook(rows: PortalInvoiceSumma
   const exportRows = rows.map((row) => ({
     'B/L': (row.bls ?? []).join(' • '),
     Fatura: row.invoice_number ?? `INV-${row.id}`,
-    Tipo: row.invoice_type === 'consolidated' ? 'Consolidada' : 'Individual',
+    Tipo: invoiceTypeLabel(row.invoice_type),
     'Navio/Viagem': (row.vessel_voyages ?? []).join(' / '),
     POD: (row.pods ?? []).join(' / '),
     Emissao: row.issued_at ? formatDate(row.issued_at) : '',

@@ -5,6 +5,7 @@ import { MetricCard } from '../ui/MetricCard'
 import { Modal } from '../ui/Modal'
 import { portalInvoiceStatusLabel } from '../../lib/portalInvoiceStatus'
 import { formatBRL, stripBlPrefix } from '../../lib/utils'
+import { invoiceTypeLabel } from '../../services/billing'
 import type { PortalInvoiceDetail } from '../../services/portalBilling'
 import { PortalPixPaymentBlock } from './PortalPixPaymentBlock'
 
@@ -36,6 +37,9 @@ export function PortalInvoiceDetailModal({
   onPrintReceipt,
 }: PortalInvoiceDetailModalProps) {
   const invoice = detail?.invoice
+  const isManual = invoice?.invoice_type === 'manual'
+  const voyageLabel = [invoice?.vessel_name, invoice?.voyage_number].filter(Boolean).join(' / ')
+  const hasItemBls = Boolean(detail?.bls.length || detail?.items.some((item) => item.bl_id))
 
   return (
     <Modal open={open} onClose={onClose} title={`Fatura ${invoice?.invoice_number ?? invoiceId ?? ''}`}>
@@ -45,7 +49,7 @@ export function PortalInvoiceDetailModal({
         {invoice ? (
           <>
             <div className="flex flex-wrap justify-end gap-2">
-              {canObsolete ? (
+              {canObsolete && invoice.invoice_type === 'consolidated' ? (
                 <Button variant="ghost" loading={obsoleteLoading} onClick={onObsolete}>
                   <RotateCcw size={16} />
                   Refazer consolidada
@@ -61,13 +65,14 @@ export function PortalInvoiceDetailModal({
             </div>
             <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
               <MetricCard label="Status" value={portalInvoiceStatusLabel(invoice.status)} />
+              <MetricCard label="Tipo" value={invoiceTypeLabel(invoice.invoice_type)} />
               <MetricCard label="Total" value={formatBRL(invoice.total_brl)} />
               <MetricCard label="Pago" value={formatBRL(invoice.total_paid_brl)} />
               <MetricCard label="Saldo" value={formatBRL(invoice.balance_brl)} />
               <MetricCard label="B/Ls" value={String(detail?.bls.length ?? 0)} />
             </div>
 
-            <DetailSection title="B/Ls" subtitle="Conhecimentos de embarque desta fatura">
+            {detail?.bls.length ? <DetailSection title="B/Ls" subtitle="Conhecimentos de embarque desta fatura">
               <table className="app-table app-table--compact min-w-[620px] text-left text-sm">
                 <thead>
                   <tr>
@@ -88,7 +93,27 @@ export function PortalInvoiceDetailModal({
                   ))}
                 </tbody>
               </table>
-            </DetailSection>
+            </DetailSection> : null}
+
+            {isManual && (invoice.notes || voyageLabel) ? (
+              <Card>
+                <h3 className="text-sm font-semibold">Contexto da cobrança</h3>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {invoice.notes ? (
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Descrição</div>
+                      <div className="mt-1 text-sm">{invoice.notes}</div>
+                    </div>
+                  ) : null}
+                  {voyageLabel ? (
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Navio / Viagem</div>
+                      <div className="mt-1 text-sm">{voyageLabel}</div>
+                    </div>
+                  ) : null}
+                </div>
+              </Card>
+            ) : null}
 
             {(detail?.items?.length ?? 0) > 0 ? (
               <DetailSection title="Itens cobrados" subtitle="Taxas, quantidades e valores">
@@ -96,7 +121,7 @@ export function PortalInvoiceDetailModal({
                   <thead>
                     <tr>
                       <th scope="col" className="px-3 py-2">Descricao</th>
-                      <th scope="col" className="px-3 py-2">B/L</th>
+                      {hasItemBls ? <th scope="col" className="px-3 py-2">B/L</th> : null}
                       <th scope="col" className="px-3 py-2 text-right">Qtd</th>
                       <th scope="col" className="px-3 py-2 text-right">Valor unit.</th>
                       <th scope="col" className="px-3 py-2 text-right">Total</th>
@@ -106,7 +131,7 @@ export function PortalInvoiceDetailModal({
                     {(detail?.items ?? []).map((item) => (
                       <tr key={item.id}>
                         <td className="px-3 py-2">{stripBlPrefix(item.description, item.bl_id)}</td>
-                        <td className="px-3 py-2">{item.bl_id ?? '-'}</td>
+                        {hasItemBls ? <td className="px-3 py-2">{item.bl_id ?? '-'}</td> : null}
                         <td className="px-3 py-2 text-right">{item.quantity ?? '-'}</td>
                         <td className="px-3 py-2 text-right">{item.unit_value_brl != null ? formatBRL(item.unit_value_brl) : '-'}</td>
                         <td className="px-3 py-2 text-right font-semibold">{formatBRL(item.total_value_brl)}</td>
