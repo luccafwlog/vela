@@ -134,7 +134,7 @@ export function PortalForgotPassword() {
         </form>
 
         <div className="mt-3 text-center text-sm">
-          <Link to="/portal/login" className="text-[var(--app-link)] hover:underline">
+          <Link to="/portal/login" className="inline-flex min-h-11 items-center text-[var(--app-link)] hover:underline">
             Voltar para o login
           </Link>
         </div>
