@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
+/** Largura em que o menu horizontal vira o botão Menu (index.css, `max-width: 1100px`). */
+export const NAV_COLLAPSE_WIDTH = 1100
+
 /**
  * Estado do menu móvel compartilhado pelo Vela e pelo Portal. Aberto, o menu
  * cobre a tela: a página por baixo não rola junto, e Escape fecha devolvendo
@@ -12,6 +15,17 @@ import { useEffect, useRef, useState } from 'react'
 export function useMobileNav() {
   const [open, setOpen] = useState(false)
   const toggleRef = useRef<HTMLButtonElement>(null)
+
+  // Acima da largura de celular não há menu para fechar: girar o tablet com o
+  // menu aberto deixaria a página travada, sem rolagem e sem botão Menu.
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(`(max-width: ${NAV_COLLAPSE_WIDTH}px)`)
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (!event.matches) setOpen(false)
+    }
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
 
   useEffect(() => {
     if (!open) return

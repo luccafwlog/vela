@@ -16,7 +16,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useOperationalCounts } from '../../hooks/useOperationalCounts'
 import { HeaderInfoBar } from './HeaderInfoBar'
 import { InternalNotificationBell } from './InternalNotificationBell'
-import { useMobileNav } from './useMobileNav'
+import { NAV_COLLAPSE_WIDTH, useMobileNav } from './useMobileNav'
 import { cn } from '../../lib/utils'
 import {
   adminNavItem,
@@ -29,8 +29,6 @@ import {
   reportsNavItem,
   type NavItem,
 } from './appLayoutNav'
-
-const NAV_COLLAPSE_WIDTH = 1100
 
 export function AppLayout() {
   const location = useLocation()
@@ -68,8 +66,8 @@ export function AppLayout() {
     const mediaQuery = window.matchMedia(`(max-width: ${NAV_COLLAPSE_WIDTH}px)`)
     const syncMobileState = (matches: boolean) => {
       setIsMobileNav(matches)
+      // O menu em si fecha em useMobileNav; aqui só os grupos internos.
       if (!matches) {
-        setMobileNavOpen(false)
         setMobileImportOpen(false)
         setMobileExportOpen(false)
         setMobileFinancialOpen(false)
@@ -86,12 +84,11 @@ export function AppLayout() {
     mediaQuery.addEventListener('change', handleChange)
 
     return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [setMobileNavOpen])
+  }, [])
 
   useEffect(() => {
     if (userMenuOpen) userMenuFirstItemRef.current?.focus()
   }, [userMenuOpen])
-
 
   useEffect(() => {
     if (!userMenuOpen) return

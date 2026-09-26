@@ -56,7 +56,11 @@ escala mantém 16px e fundo 0, e o rodapé encosta nas bordas em 390px e 1440px.
 
 Regressão evitada durante o trabalho: o Portal compartilha as classes do shell;
 ao remover a barra do menu no Vela, o botão do Portal ficou colado na borda
-esquerda até receber o mesmo tratamento (item 1).
+esquerda até receber o mesmo tratamento (item 1). Na revisão da PR, o
+Portal também não fechava o menu ao passar para a largura de desktop (girar
+o tablet), o que deixaria a página sem rolagem com a trava do item 3; o
+fechamento por largura passou para `useMobileNav`, com teste em
+`PortalLayout.test.tsx`.
 
 ## Evidência
 

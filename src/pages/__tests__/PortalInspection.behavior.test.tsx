@@ -2,7 +2,7 @@
 import { Component, type PropsWithChildren, type ReactNode } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const openInspection = vi.hoisted(() => vi.fn())
 
@@ -33,6 +33,12 @@ class RenderErrorBoundary extends Component<PropsWithChildren, { error: Error | 
 }
 
 describe('PortalInspection', () => {
+  // O menu móvel do PortalLayout acompanha a largura da tela; o jsdom não tem matchMedia.
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
   it('renderiza o layout compartilhado sem exigir uma sessão de cliente', async () => {
     openInspection.mockResolvedValue({
       customer_id: 42,
