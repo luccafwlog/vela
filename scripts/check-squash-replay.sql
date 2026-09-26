@@ -79,8 +79,10 @@ BEGIN
     RAISE EXCEPTION 'Funcoes do projeto em public: % (piso 397).', v_funcs;
   END IF;
   SELECT COUNT(*) INTO v_policies FROM pg_policies WHERE schemaname = 'public';
-  IF v_policies < 273 THEN
-    RAISE EXCEPTION 'Policies RLS em public: % (piso 273).', v_policies;
+  -- A 096 removeu as 7 policies de DELETE dos cadastros (274 -> 267;
+  -- exclusão passa por delete_catalog_row).
+  IF v_policies < 267 THEN
+    RAISE EXCEPTION 'Policies RLS em public: % (piso 267).', v_policies;
   END IF;
   -- A 008 aposentou trg_seed_customer_contact_preferences (144 -> 143 triggers).
   SELECT COUNT(*) INTO v_triggers FROM pg_trigger t
