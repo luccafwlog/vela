@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 // `usePortalScope` le `PortalAuthContext` direto (sem Provider, o default do
@@ -25,7 +25,23 @@ vi.mock('../../../hooks/usePortalNotifications', () => ({
 
 import { PortalLayout } from '../PortalLayout'
 
-afterEach(cleanup)
+// O menu móvel acompanha a largura da tela; o teste guarda o ouvinte para
+// simular a passagem para a largura de desktop.
+let viewportListeners: Array<(event: { matches: boolean }) => void> = []
+
+beforeEach(() => {
+  viewportListeners = []
+  vi.stubGlobal('matchMedia', () => ({
+    matches: true,
+    addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => viewportListeners.push(listener),
+    removeEventListener: vi.fn(),
+  }))
+})
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 describe('PortalLayout', () => {
   it('mostra navegacao para Painel, Faturas, BLs e Containers e Perfil', () => {
@@ -68,5 +84,23 @@ describe('PortalLayout', () => {
     expect(logoutButton).toBeTruthy()
     expect(logoutButton.hasAttribute('disabled')).toBe(true)
     portalAuth.isSigningOut = false
+  })
+
+  it('fecha o menu e destrava a rolagem quando a tela passa para a largura de desktop', () => {
+    render(
+      <MemoryRouter initialEntries={['/portal']}>
+        <PortalLayout />
+      </MemoryRouter>,
+    )
+
+    const menu = screen.getByRole('button', { name: 'Menu' })
+    fireEvent.click(menu)
+    expect(menu.getAttribute('aria-expanded')).toBe('true')
+    expect(document.body.style.overflow).toBe('hidden')
+
+    act(() => viewportListeners.forEach((listener) => listener({ matches: false })))
+
+    expect(menu.getAttribute('aria-expanded')).toBe('false')
+    expect(document.body.style.overflow).toBe('')
   })
 })

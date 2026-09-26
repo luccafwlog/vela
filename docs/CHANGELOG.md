@@ -14,6 +14,17 @@
   conferência deixa de usar o UUID do terminal como nome. Vale em produção após publicar a função
   (`supabase functions deploy send-customer-communication`).
 
+- **Uso no celular (2026-09-26):** Vela e Portal revisados em 390px com toque
+  emulado. O botão Menu passou para o cabeçalho (sem a barra extra que só o
+  carregava) e a lista abre com rolagem própria, rótulos alinhados e Escape; as
+  abas viraram uma linha com rolagem lateral; modais viraram folha no rodapé,
+  com o rodapé de botões encostado no fundo; campos passaram a 16px no toque
+  (fim do zoom automático do iPhone) e controles pequenos ganharam área de
+  toque. Corrigidos no caminho: cartões do Demurrage cortavam o valor, o
+  painel do sino abria fora da tela, a faixa de avisos ficava por cima do
+  fundo dos modais e o diálogo de dispensa de Alertas abria atrás do cabeçalho.
+  [Relatório](archive/audits/2026-09-26-auditoria-mobile.md).
+
 - **Alinhamento entre apresentação, documentação e código (2026-09-23):**
   a apresentação foi revisada contra a documentação e o código, e as divergências viraram um questionário com o
   dono. Documentação corrigida onde o código estava certo (PR #719); abas da Viagem na URL, atalhos da viagem e CE

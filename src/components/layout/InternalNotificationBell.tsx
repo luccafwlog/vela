@@ -77,7 +77,7 @@ export function InternalNotificationBell() {
 
       {open ? (
         <div
-          className="absolute right-0 top-10 z-50 w-[min(92vw,400px)] rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-2 shadow-2xl"
+          className="internal-notifications__panel absolute right-0 top-10 z-50 w-[min(92vw,400px)] rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-2 shadow-2xl"
           id="internal-notifications-panel"
           role="region"
           aria-label="Notificações internas"

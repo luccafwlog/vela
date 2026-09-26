@@ -317,7 +317,7 @@ function RuleDetail({ rule }: { rule: AlertRule }) {
           {rule.destinationNote ? <p className="mt-2 text-xs leading-5 text-[var(--app-muted)]">{rule.destinationNote}</p> : null}
           <Link
             to={rule.destination}
-            className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--app-link)] hover:underline"
+            className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-[var(--app-link)] hover:underline"
           >
             Abrir tela de resolução
             <ExternalLink size={13} aria-hidden="true" />

@@ -275,6 +275,29 @@ rota tem um orçamento de **50 ms** de parse/compile de JS, verificável por
 - `src/lib/errors.ts`: `extractErrorText` e `classifyDbError` (`permissao`, `sessao_expirada`, `conflito`, `limite`, `validacao`, `nao_encontrado`, `desconhecido`); `portalErrorMessage.ts` é seu adapter do Portal;
 - `src/types/database.ts`: tipos gerados e complementos tipados do banco.
 
+### Celular e toque
+
+O Vela e o Portal usam o mesmo shell responsivo. Abaixo de 1100px o botão
+**Menu** fica no cabeçalho e abre a navegação por cima da página
+(`useMobileNav`, em `src/components/layout/`: trava a rolagem, Escape fecha o
+grupo aberto e depois o menu, e o menu fecha sozinho quando a tela passa de
+1100px, para não deixar a página travada ao girar o tablet). As regras transversais vivem na seção
+"Celular e toque" de `src/index.css`, fora de `@layer`, para vencer as
+utilitárias do Tailwind sem `!important`:
+
+- `[role='tablist']` vira uma linha única com rolagem lateral abaixo de 768px;
+  `TabButton` traz a aba ativa para a vista (`src/lib/tabStrip.ts`);
+- `Modal` vira folha ancorada no rodapé abaixo de 640px; o rodapé fixo
+  `.app-modal__actions` acompanha o recuo `--app-modal-pad` do corpo;
+- com ponteiro de toque (`pointer: coarse`), campos usam fonte de 16px (evita o
+  zoom automático do Safari no iPhone), checkboxes têm 20px e botões só com
+  ícone e `aria-label`/`title` têm área mínima de 40px.
+
+Tela nova: use `TabButton`/`role="tablist"`, `Modal` e as classes do design
+system em vez de overlays próprios; grades com três ou mais colunas devem
+começar em uma coluna (`grid sm:grid-cols-3`), e tabelas largas ficam dentro de
+`.app-table-scroll`.
+
 ### Como rastrear uma interação
 
 Use [`docs/RASTREABILIDADE.md`](./RASTREABILIDADE.md) para partir de uma rota ou

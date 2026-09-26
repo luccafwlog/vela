@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Building2, FileText, LayoutDashboard, LogOut, Menu, Package, User, X } from 'lucide-react'
 import { Button } from '../ui/Button'
@@ -7,6 +6,7 @@ import { usePortalScope } from '../../hooks/usePortalScope'
 import { isPortalReadOnly, portalPath } from '../../services/portalScope'
 import { NotificationBell } from '../portal/NotificationBell'
 import { cn, formatCnpjCpf } from '../../lib/utils'
+import { useMobileNav } from './useMobileNav'
 
 export function PortalLayout() {
   const { overview: authOverview, signOut, isSigningOut } = usePortalAuth()
@@ -20,7 +20,7 @@ export function PortalLayout() {
     { to: portalPath(scope, '/operacao'), label: 'BLs e Containers', icon: Package, end: false },
     { to: portalPath(scope, '/perfil'), label: 'Perfil', icon: User, end: false },
   ]
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const { open: mobileNavOpen, setOpen: setMobileNavOpen, toggleRef: mobileNavToggleRef } = useMobileNav()
 
   return (
     <div className="app-shell">
@@ -62,24 +62,23 @@ export function PortalLayout() {
               <LogOut size={16} />
               {isSigningOut ? 'Saindo...' : 'Sair'}
             </Button>
+
+            <button
+              ref={mobileNavToggleRef}
+              type="button"
+              className="app-nav-toggle"
+              aria-expanded={mobileNavOpen}
+              aria-controls="portal-primary-navigation"
+              onClick={() => setMobileNavOpen((current) => !current)}
+            >
+              {mobileNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+              <span className="app-nav-toggle__label">Menu</span>
+            </button>
           </div>
         </div>
       </header>
 
       <div className="app-nav-bar">
-        <div className="app-nav-mobile-bar">
-          <button
-            type="button"
-            className="app-nav-toggle"
-            aria-expanded={mobileNavOpen}
-            aria-controls="portal-primary-navigation"
-            onClick={() => setMobileNavOpen((current) => !current)}
-          >
-            {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
-            Menu
-          </button>
-        </div>
-
         <nav
           id="portal-primary-navigation"
           className={cn('app-nav-scroll', mobileNavOpen && 'app-nav-scroll--open')}

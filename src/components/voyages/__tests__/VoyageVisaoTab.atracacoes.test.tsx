@@ -107,6 +107,14 @@ describe('EscalaModal — ATD derivado', () => {
     expect(screen.getByText('Aguardando o ATD de PORTMAC.')).toBeTruthy()
   })
 
+  it('chama de TBC a Atracação sem código de terminal, nunca pelo UUID', () => {
+    renderComAtracacoes([
+      { terminalId: 'd0000000-0000-4000-8000-000000000001', terminalCode: null, atd: null },
+    ])
+    expect(screen.getByText('Aguardando o ATD de TBC.')).toBeTruthy()
+    expect(screen.queryByText(/d0000000/)).toBeNull()
+  })
+
   it('nao afirma que a escala esta sem Atracacoes enquanto carrega', () => {
     renderComAtracacoes([], { loading: true })
     expect(screen.getByText('Carregando as Atracações desta escala…')).toBeTruthy()

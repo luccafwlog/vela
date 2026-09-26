@@ -10,7 +10,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useVoyageTimeline } from '../../hooks/useVoyageTimeline'
 import { formatDate } from '../../lib/utils'
 import { classifyDbError } from '../../lib/errors'
-import { normalizePortName } from '../../lib/voyageFormat'
+import { atracacaoEditLabel, normalizePortName } from '../../lib/voyageFormat'
 import { normalizePortCode } from '../../services/portCode'
 import {
   buildVoyageTimeline,
@@ -390,7 +390,7 @@ export function VoyageVisaoTab({
                                           type="button"
                                           variant="ghost"
                                           className="app-table__icon-button app-table__icon-button--sm"
-                                          aria-label={`Editar atracação ${atracacao.terminalCode ?? atracacao.terminalId ?? 'TBC'} da escala ${row.port}`}
+                                          aria-label={atracacaoEditLabel(atracacao, row.port)}
                                           onClick={() => onEditEscala(buildEscalaModalData(row, atracacao.terminalId))}
                                         >
                                           <Pencil size={14} />
@@ -531,7 +531,7 @@ function VoyageTimeline({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 text-left"
+        className="flex min-h-11 w-full items-center justify-between gap-2 text-left"
       >
         <span className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
           <Clock size={16} />
