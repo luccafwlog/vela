@@ -151,7 +151,7 @@ export function PortalLogin() {
         </form>
 
         <div className="mt-3 text-center text-sm">
-          <Link to="/portal/esqueci-senha" className="text-[var(--app-link)] hover:underline">
+          <Link to="/portal/esqueci-senha" className="inline-flex min-h-11 items-center text-[var(--app-link)] hover:underline">
             Esqueci minha senha
           </Link>
         </div>

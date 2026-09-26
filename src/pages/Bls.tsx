@@ -412,11 +412,12 @@ export function Bls() {
               <button
                 key={mode.value}
                 type="button"
-                className={`rounded-md px-3 py-1 font-medium transition-colors ${
+                className={`min-h-10 rounded-md px-3 py-2 font-medium transition-colors sm:min-h-0 sm:py-1 ${
                   active
                     ? 'bg-[#1f6feb] text-white'
                     : 'text-[var(--app-text)] hover:bg-[var(--app-surface-hover,#21262d)]'
                 }`}
+                aria-pressed={active}
                 onClick={() => updateFilter('cargoMode', mode.value as BlFilters['cargoMode'])}
               >
                 {mode.label}

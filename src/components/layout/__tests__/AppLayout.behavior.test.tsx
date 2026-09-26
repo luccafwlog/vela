@@ -80,4 +80,30 @@ describe('AppLayout (navegação visível)', () => {
     expect(account.getAttribute('aria-expanded')).toBe('false')
     expect(document.activeElement).toBe(account)
   })
+
+  it('no celular, Menu no cabeçalho trava a rolagem e Escape fecha primeiro o grupo, depois o menu', () => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+    renderLayout()
+
+    const menu = screen.getByRole('button', { name: 'Menu' })
+    expect(menu.closest('header')).toBeTruthy()
+    fireEvent.click(menu)
+    expect(menu.getAttribute('aria-expanded')).toBe('true')
+    expect(document.body.style.overflow).toBe('hidden')
+
+    const importacao = screen.getByRole('button', { name: /Importação/ })
+    fireEvent.click(importacao)
+    fireEvent.keyDown(importacao, { key: 'Escape' })
+    expect(importacao.getAttribute('aria-expanded')).toBe('false')
+    expect(menu.getAttribute('aria-expanded')).toBe('true')
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(menu.getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(menu)
+    expect(document.body.style.overflow).toBe('')
+  })
 })

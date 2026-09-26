@@ -16,6 +16,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useOperationalCounts } from '../../hooks/useOperationalCounts'
 import { HeaderInfoBar } from './HeaderInfoBar'
 import { InternalNotificationBell } from './InternalNotificationBell'
+import { NAV_COLLAPSE_WIDTH, useMobileNav } from './useMobileNav'
 import { cn } from '../../lib/utils'
 import {
   adminNavItem,
@@ -29,14 +30,12 @@ import {
   type NavItem,
 } from './appLayoutNav'
 
-const NAV_COLLAPSE_WIDTH = 1100
-
 export function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { profile, signOut, isAdmin } = useAuth()
   const counts = useOperationalCounts()
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const { open: mobileNavOpen, setOpen: setMobileNavOpen, toggleRef: mobileNavToggleRef } = useMobileNav()
   const [mobileImportOpen, setMobileImportOpen] = useState(false)
   const [desktopImportOpen, setDesktopImportOpen] = useState(false)
   const [mobileExportOpen, setMobileExportOpen] = useState(false)
@@ -67,8 +66,8 @@ export function AppLayout() {
     const mediaQuery = window.matchMedia(`(max-width: ${NAV_COLLAPSE_WIDTH}px)`)
     const syncMobileState = (matches: boolean) => {
       setIsMobileNav(matches)
+      // O menu em si fecha em useMobileNav; aqui só os grupos internos.
       if (!matches) {
-        setMobileNavOpen(false)
         setMobileImportOpen(false)
         setMobileExportOpen(false)
         setMobileFinancialOpen(false)
@@ -171,25 +170,23 @@ export function AppLayout() {
               ) : null}
             </div>
 
+            <button
+              ref={mobileNavToggleRef}
+              type="button"
+              className="app-nav-toggle"
+              aria-expanded={mobileNavOpen}
+              aria-controls="app-primary-navigation"
+              onClick={() => setMobileNavOpen((current) => !current)}
+            >
+              {mobileNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+              <span className="app-nav-toggle__label">Menu</span>
+            </button>
           </div>
         </div>
 
       </header>
 
       <div className="app-nav-bar">
-        <div className="app-nav-mobile-bar">
-          <button
-            type="button"
-            className="app-nav-toggle"
-            aria-expanded={mobileNavOpen}
-            aria-controls="app-primary-navigation"
-            onClick={() => setMobileNavOpen((current) => !current)}
-          >
-            {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
-            Menu
-          </button>
-        </div>
-
         <nav id="app-primary-navigation" className={cn('app-nav-scroll', mobileNavOpen && 'app-nav-scroll--open')}>
           {primaryNavItemsWithBadges.slice(0, 2).map((item) => (
             <TopNavLink key={item.to} {...item} onNavigate={closeMobileMenus} />

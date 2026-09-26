@@ -414,12 +414,12 @@ export function Alertas() {
 
       {dismissTarget ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="app-modal-backdrop"
           role="dialog"
           aria-modal="true"
           aria-labelledby="dismiss-alert-modal-title"
         >
-          <Card className="w-full max-w-md p-6">
+          <Card className="max-h-[calc(100dvh-24px)] w-full max-w-md overflow-y-auto p-6 max-sm:max-w-none max-sm:rounded-b-none">
             <h2 id="dismiss-alert-modal-title" className="text-base font-semibold text-[var(--app-text)]">
               Dispensar alerta temporariamente
             </h2>

@@ -222,7 +222,7 @@ export function DemurrageRates() {
               placeholder="20GP"
             />
           </Field>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Free time">
               <Input
                 type="number"
@@ -245,7 +245,7 @@ export function DemurrageRates() {
               />
             </Field>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid gap-4 sm:grid-cols-3">
             <Field label="P1 USD/dia">
               <Input
                 type="number"

@@ -324,7 +324,7 @@ export function Demurrage() {
         }
       />
 
-      <div className="mb-6 grid grid-cols-3 gap-4">
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Card className="p-4"><div className="text-xs text-slate-400">Containers em atraso</div><div className="text-2xl font-bold text-red-400">{kpis?.overdueContainers ?? '—'}</div></Card>
         <Card className="p-4"><div className="text-xs text-slate-400">Total USD (visível)</div><div className="text-2xl font-bold text-amber-400">{fmtUSD(totalOverdueUSD)}</div></Card>
         <Card className="p-4"><div className="text-xs text-slate-400">Aguardando pagamento (BRL)</div><div className="text-2xl font-bold text-blue-400">{kpis ? fmtBRL(kpis.issuedInvoicesTotalBrl) : '—'}</div></Card>
