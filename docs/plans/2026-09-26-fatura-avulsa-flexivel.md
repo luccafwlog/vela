@@ -73,11 +73,11 @@ tarefa responsável:
 - O JSON de sucesso contém `invoice_id`, `invoice_number`, `invoice_type: "manual"`, `status: "issued"`, `total_brl`, `balance_brl`, `bl_id` e `voyage_id`.
 - A RPC exige o mesmo usuário interno ativo e autorizado da emissão financeira existente, calcula o total no servidor, gera número pelo trigger, cria um item `source = 'manual'`, registra lifecycle/auditoria e concede execução somente ao papel já usado pelos RPCs financeiros.
 
-- [ ] **Passo 1: escrever o teste de contrato SQL que deve falhar** em `src/services/__tests__/manualInvoiceMigration.test.ts`.
+- [x] **Passo 1: escrever o teste de contrato SQL que deve falhar** em `src/services/__tests__/manualInvoiceMigration.test.ts`.
 
   O teste lê `supabase/migrations/097_fatura_avulsa.sql` e fixa: `voyage_id` com FK/index; check de `invoice_type` com `manual`; assinatura e grant da RPC; cálculo/insert de uma linha; ausência de insert em `invoice_bls`/`invoice_receivable_links`; validação de cliente/BL/viagem; bypass explícito dos gates locais somente para `manual`; geração PIX; caminho de pagamento genérico; e inclusão de `manual` nos núcleos seguros de listagem/detalhe do Portal e conciliação.
 
-- [ ] **Passo 2: executar o teste focado para confirmar a falha inicial**.
+- [x] **Passo 2: executar o teste focado para confirmar a falha inicial**.
 
   Rodar:
 
@@ -87,7 +87,7 @@ tarefa responsável:
 
   Resultado esperado: `FAIL`, pois a migration ainda não existe.
 
-- [ ] **Passo 3: implementar `097_fatura_avulsa.sql`**.
+- [x] **Passo 3: implementar `097_fatura_avulsa.sql`**.
 
   Adicionar `invoices.voyage_id bigint REFERENCES public.voyages(id) ON DELETE RESTRICT`, índice e o valor `manual` no check. Implementar a RPC com lock/validações transacionais: cliente existente, item não vazio, números positivos, BL pertencente ao cliente, viagem existente, derivação da viagem pelo BL quando omitida e rejeição de combinação incoerente. Inserir invoice `issued` e `invoice_items` com BRL, `source = 'manual'`, `charge_calculation_id/charge_table_id/charge_item_id = NULL`; deixar o trigger existente gerar PIX e registrar lifecycle/auditoria.
 
@@ -99,15 +99,15 @@ tarefa responsável:
 
   Fechar `PUBLIC`/`anon`, manter `search_path = public, pg_temp`, conceder apenas os papéis necessários e incluir comentário de rollback. Não haverá backfill nem `UPDATE`/`DELETE` de dados fora dos corpos das funções.
 
-- [ ] **Passo 4: executar o contrato SQL**.
+- [x] **Passo 4: executar o contrato SQL**.
 
   Rodar novamente `npx vitest run src/services/__tests__/manualInvoiceMigration.test.ts`; resultado esperado: `PASS`.
 
-- [ ] **Passo 5: escrever o teste PostgreSQL descartável** em `src/integration/manualInvoice.local-pg.test.ts`.
+- [x] **Passo 5: escrever o teste PostgreSQL descartável** em `src/integration/manualInvoice.local-pg.test.ts`.
 
   Seguir o padrão `describe.skip` quando `LOCAL_PG_INTEGRATION` não estiver habilitado, com IDs próprios e limpeza em `beforeAll/afterAll`. Criar dois clientes, usuário interno, viagem e BLs. Exercitar: emissão sem contexto; emissão só com viagem; emissão com BL; rejeição de BL de outro cliente; rejeição de viagem incompatível; rejeição por usuário sem autorização; assertions de `invoice_type/status/total/balance`, item, PIX, lifecycle, ausência de links/recebíveis e manutenção do status financeiro do BL. Cancelar uma fatura avulsa antes do pagamento e confirmar que o status da invoice muda sem alterar o BL direto. Registrar um pagamento manual e uma conciliação por TXID, confirmando `payments`/saldo e zero linhas em `ledger_settlements`. Consultar listagem/detalhe Portal com o cliente correto e confirmar rejeição para o cliente errado.
 
-- [ ] **Passo 6: executar a suíte local de banco**.
+- [x] **Passo 6: executar a suíte local de banco**.
 
   Com PostgreSQL descartável replayado, rodar:
 
@@ -117,7 +117,7 @@ tarefa responsável:
 
   Resultado esperado: todos os casos passam; sem banco local, manter o teste skipped e registrar a limitação, sem tratá-lo como prova de runtime.
 
-- [ ] **Passo 7: commitar o contrato de banco**.
+- [x] **Passo 7: commitar o contrato de banco**.
 
   ```bash
   git add supabase/migrations/097_fatura_avulsa.sql src/services/__tests__/manualInvoiceMigration.test.ts src/integration/manualInvoice.local-pg.test.ts
