@@ -55,7 +55,8 @@ describe('ConfirmDialog com motivo', () => {
     await user.click(screen.getByRole('button', { name: 'abrir' }))
 
     expect(screen.getByText('2 B/L(s) serão excluído(s).')).toBeTruthy()
-    expect(screen.getByText('BL3: vinculado a fatura')).toBeTruthy()
+    expect(screen.getByText('BL3')).toBeTruthy()
+    expect(screen.getByText('vinculado a fatura')).toBeTruthy()
     expect(screen.getByText('Os B/Ls saem das listas.')).toBeTruthy()
     expect(screen.getByText('Não é possível desfazer.')).toBeTruthy()
     expect(screen.queryByText('BL1')).toBeNull()
@@ -71,6 +72,8 @@ describe('ConfirmDialog com motivo', () => {
 
     const excluir = screen.getByRole('button', { name: 'Excluir' }) as HTMLButtonElement
     expect(excluir.disabled).toBe(true)
+    // Com motivo obrigatório, o foco já começa no campo de motivo.
+    expect(document.activeElement).toBe(screen.getByLabelText('Motivo (obrigatório)'))
     await user.type(screen.getByLabelText('Motivo (obrigatório)'), '  cadastro duplicado ')
     expect(excluir.disabled).toBe(false)
     await user.click(excluir)
@@ -96,5 +99,62 @@ describe('ConfirmDialog — diálogo substituído', () => {
     fireEvent.click(open)
     fireEvent.click(open)
     expect(await screen.findByText('voltou')).toBeTruthy()
+  })
+})
+
+// Lote grande: a lista de afetados ganha filtro e os bloqueados aparecem
+// agrupados por motivo, com a lista completa só sob demanda.
+function BigHarness() {
+  const confirmWithReason = useConfirmWithReason()
+  return (
+    <button
+      type="button"
+      onClick={() => void confirmWithReason({
+        title: 'Excluir B/L',
+        message: 'Excluir 300 B/L(s)?',
+        affected: {
+          summary: '300 B/L(s) serão excluído(s).',
+          items: Array.from({ length: 300 }, (_, i) => `BL${String(i).padStart(3, '0')}`),
+          blocked: Array.from({ length: 8 }, (_, i) => ({
+            label: `BLQ${i}`,
+            reasons: [i < 5 ? 'vinculado a fatura' : 'CE Mercante informado'],
+          })),
+        },
+        confirmLabel: 'Excluir',
+        tone: 'danger',
+      })}
+    >
+      abrir
+    </button>
+  )
+}
+
+describe('ConfirmDialog — lote grande', () => {
+  it('filtra a lista de afetados e resume bloqueados por motivo', async () => {
+    const user = userEvent.setup()
+    render(<ConfirmDialogProvider><BigHarness /></ConfirmDialogProvider>)
+    await user.click(screen.getByRole('button', { name: 'abrir' }))
+
+    const counts = screen.getByRole('list', { name: 'Motivos dos bloqueios' })
+    expect(counts.textContent).toContain('vinculado a fatura5')
+    expect(counts.textContent).toContain('CE Mercante informado3')
+    expect(screen.queryByText('BLQ0')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Ver lista (300)' }))
+    expect(screen.getByText('BL299')).toBeTruthy()
+    await user.type(screen.getByLabelText('Filtrar registros'), 'BL29')
+    expect(screen.getByText('10 de 300')).toBeTruthy()
+    expect(screen.queryByText('BL000')).toBeNull()
+
+    // Esc no filtro limpa o filtro sem fechar o diálogo (nem perder o motivo).
+    await user.type(screen.getByLabelText('Motivo (obrigatório)'), 'lote duplicado')
+    await user.click(screen.getByLabelText('Filtrar registros'))
+    await user.keyboard('{Escape}')
+    expect((screen.getByLabelText('Filtrar registros') as HTMLInputElement).value).toBe('')
+    expect(screen.getByText('BL000')).toBeTruthy()
+    expect((screen.getByLabelText('Motivo (obrigatório)') as HTMLTextAreaElement).value).toBe('lote duplicado')
+
+    await user.click(screen.getByRole('button', { name: 'Ver bloqueados (8)' }))
+    expect(screen.getByText('BLQ0')).toBeTruthy()
   })
 })

@@ -2539,6 +2539,405 @@ textarea {
   padding: 16px 24px;
 }
 
+/* ─── Diálogo de confirmação (ADR 0072) ─────────────────────────────────────
+   Estreito, com o que será feito em destaque, afetados/bloqueados em painéis
+   com rolagem própria e rodapé fixo: um lote de centenas de registros não
+   empurra Voltar/Confirmar para fora da tela. */
+.app-modal.app-confirm {
+  width: min(100%, 560px);
+}
+
+.app-modal__body.app-confirm__body {
+  display: grid;
+  gap: 16px;
+  padding: 22px 24px 0;
+  color: var(--app-text);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.app-confirm__lead {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.app-confirm__lead-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--app-blue-soft);
+  color: var(--app-blue-btn);
+}
+
+:root[data-visual-theme='dark'] .app-confirm__lead--primary .app-confirm__lead-icon {
+  color: var(--app-blue);
+}
+
+.app-confirm__lead--danger .app-confirm__lead-icon {
+  background: var(--app-red-soft);
+  color: var(--app-red);
+}
+
+.app-confirm__message {
+  margin: 0;
+  padding-top: 8px;
+  color: var(--app-text-strong);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.app-confirm__panel,
+.app-confirm__blocked {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface-muted);
+  padding: 12px 14px;
+}
+
+.app-confirm__blocked {
+  border-color: color-mix(in srgb, var(--app-gold) 45%, var(--app-border));
+  background: var(--app-gold-soft);
+}
+
+.app-confirm__panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.app-confirm__summary {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-weight: 600;
+}
+
+.app-confirm__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  color: var(--app-link);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-confirm__toggle:hover {
+  background: var(--app-surface-hover);
+}
+
+.app-confirm__toggle:focus-visible,
+.app-confirm__filter-input:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+.app-confirm__toggle svg {
+  /* rotate-180 do Tailwind 4 usa a propriedade `rotate`, não `transform`. */
+  transition: rotate 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-confirm__toggle svg { transition: none; }
+}
+
+.app-confirm__list {
+  display: grid;
+  gap: 8px;
+}
+
+.app-confirm__filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface-strong);
+  padding: 0 10px;
+  color: var(--app-muted);
+}
+
+.app-confirm__filter-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 13px;
+}
+
+.app-confirm__filter-input:focus-visible {
+  outline: none;
+}
+
+.app-confirm__filter:focus-within {
+  border-color: var(--app-focus-ring);
+  box-shadow: 0 0 0 3px var(--app-border-focus);
+}
+
+.app-confirm__filter-count {
+  flex: 0 0 auto;
+  font-family: var(--app-font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-confirm__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-confirm__items li {
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-surface-strong);
+  padding: 4px 8px;
+  font-family: var(--app-font-mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-confirm__blocked-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--app-gold-strong);
+  font-weight: 700;
+}
+
+.app-confirm__reason-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-confirm__reason-counts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--app-gold) 40%, var(--app-border));
+  border-radius: 999px;
+  background: var(--app-surface-strong);
+  padding: 2px 4px 2px 10px;
+  font-size: 12px;
+}
+
+.app-confirm__reason-counts strong {
+  min-width: 22px;
+  border-radius: 999px;
+  background: var(--app-gold-soft);
+  padding: 1px 6px;
+  color: var(--app-gold-strong);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.app-confirm__blocked-list {
+  display: grid;
+  grid-auto-rows: max-content;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-confirm__blocked-list li {
+  display: grid;
+  grid-template-columns: minmax(110px, auto) 1fr;
+  gap: 4px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--app-gold) 25%, transparent);
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.app-confirm__blocked-list li:first-child {
+  border-top: none;
+}
+
+.app-confirm__blocked-label {
+  color: var(--app-text-strong);
+  font-family: var(--app-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-confirm__blocked-reasons {
+  color: var(--app-muted);
+}
+
+.app-confirm__empty {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.app-confirm__changes {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+}
+
+.app-confirm__changes table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.app-confirm__changes thead th {
+  position: sticky;
+  top: 0;
+  background: var(--app-surface-muted);
+  padding: 8px 12px;
+  color: var(--app-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.app-confirm__changes tbody th,
+.app-confirm__changes td {
+  border-top: 1px solid var(--app-border);
+  padding: 8px 12px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.app-confirm__changes tbody th {
+  font-weight: 600;
+}
+
+.app-confirm__before {
+  color: var(--app-muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--app-muted) 60%, transparent);
+}
+
+.app-confirm__empty-value {
+  color: var(--app-muted);
+}
+
+.app-confirm__after {
+  color: var(--app-text-strong);
+  font-weight: 600;
+}
+
+.app-confirm__facts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.app-confirm__fact {
+  display: grid;
+  gap: 2px;
+  border-left: 3px solid var(--app-border-strong);
+  padding-left: 12px;
+}
+
+.app-confirm__fact dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.app-confirm__fact dd {
+  margin: 0;
+}
+
+.app-confirm__textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.app-confirm__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 4px -24px 0;
+  border-top: 1px solid var(--app-border);
+  background: var(--app-surface-strong);
+  padding: 14px 24px 18px;
+}
+
+/* Confirmar destrutivo: vermelho cheio para distinguir de Voltar. */
+.app-btn.app-confirm__danger:not(:disabled) {
+  background: var(--app-red);
+  border-color: var(--app-red);
+  color: #ffffff;
+}
+
+.app-btn.app-confirm__danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--app-red) 88%, #000000);
+  border-color: color-mix(in srgb, var(--app-red) 88%, #000000);
+}
+
+:root[data-visual-theme='dark'] .app-btn.app-confirm__danger:not(:disabled) {
+  background: #b42336;
+  border-color: #b42336;
+}
+
+@media (max-width: 480px) {
+  .app-modal__body.app-confirm__body {
+    padding: 18px 16px 0;
+  }
+
+  .app-confirm__actions {
+    margin: 4px -16px 0;
+    padding: 12px 16px 16px;
+  }
+
+  .app-confirm__blocked-list li {
+    grid-template-columns: 1fr;
+  }
+
+  .app-confirm__actions > .app-btn {
+    flex: 1 1 0;
+  }
+}
+
 /* Editor de escala: mesma geometria para campos gerais, operação e terminais. */
 .app-modal--escala {
   width: min(1160px, 100%);
