@@ -259,6 +259,24 @@ describe('Clientes page behaviours', () => {
     expect(mocks.confirmWithReason).not.toHaveBeenCalled()
   })
 
+  it('mostra um aviso em diálogo quando o cliente não pode ser excluído', async () => {
+    const user = userEvent.setup()
+    mocks.checkCustomerDependencies.mockResolvedValueOnce({ deletableIds: [], blockedIds: [{ id: 42, reasons: ['possui B/Ls'] }] })
+    mocks.confirm.mockClear()
+    mocks.confirmWithReason.mockClear()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Mais ações para Cliente Teste' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Excluir cliente' }))
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
+      noticeOnly: true,
+      affected: expect.objectContaining({ blocked: [{ label: '42', reasons: ['possui B/Ls'] }] }),
+    })))
+    expect(mocks.confirmWithReason).not.toHaveBeenCalled()
+    expect(mocks.deleteCustomers).not.toHaveBeenCalled()
+  })
+
   it('delegates table sorting and row menu copy actions through the page state', async () => {
     const user = userEvent.setup()
     const writeText = vi.spyOn(navigator.clipboard, 'writeText')
