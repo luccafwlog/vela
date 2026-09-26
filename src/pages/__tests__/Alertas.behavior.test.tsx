@@ -161,7 +161,7 @@ it('abre modal de dispensa com acessibilidade, data minima futura e limpa campos
     fireEvent.change(reasonInput, { target: { value: 'Aguardando armador' } })
     expect(reasonInput.value).toBe('Aguardando armador')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar' }))
     expect(screen.queryByRole('dialog')).toBeNull()
   }
   unmount()

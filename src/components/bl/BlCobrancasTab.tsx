@@ -49,7 +49,7 @@ const EMPTY_MANUAL_CHARGE_FORM: ManualChargeForm = {
 // Aba Cobrancas: linhas de taxas locais do B/L, other charges manuais e fluxo de revisão/faturamento.
 export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const { showToast } = useToast()
   const confirm = useConfirm()
   const { data: localChargeLines, isLoading: isLocalChargeLinesLoading } = useBlLocalChargeLines(bl.id)
@@ -138,7 +138,7 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
 
   async function handleDeleteManualCharge(lineId: number) {
     if (!user) return
-    if (!(await confirm({ message: 'Excluir esta linha manual?', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    if (!(await confirm({ title: 'Excluir taxa manual', message: 'Excluir esta taxa manual do B/L?', consequence: 'A taxa sai das cobranças do B/L e do próximo faturamento.', reversibility: 'Lance a taxa de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' }))) return
 
     try {
       await deleteManualChargeMutation.mutateAsync({
@@ -343,6 +343,8 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
                         >
                           <Pencil size={13} />
                         </button>
+                        {isAdmin ? (
+                          // Excluir taxa manual e do Administrativo (migration 088; ADR 0071).
                         <button
                           className="app-table__icon-button app-table__icon-button--danger"
                           type="button"
@@ -353,6 +355,7 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
                         >
                           <Trash2 size={13} />
                         </button>
+                        ) : null}
                       </div>
                     ) : (
                       '-'

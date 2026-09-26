@@ -109,7 +109,7 @@ describe('VoyageCreateModal', () => {
     renderModal({ onClose })
 
     await user.type(screen.getByLabelText('Navio'), 'QA SCRATCH')
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await user.click(screen.getByRole('button', { name: 'Voltar' }))
 
     expect(screen.getByRole('heading', { name: 'Descartar alterações?' })).toBeTruthy()
     expect(onClose).not.toHaveBeenCalled()
@@ -123,7 +123,7 @@ describe('VoyageCreateModal', () => {
     const onClose = vi.fn()
     renderModal({ onClose })
 
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await user.click(screen.getByRole('button', { name: 'Voltar' }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('heading', { name: 'Descartar alterações?' })).toBeNull()

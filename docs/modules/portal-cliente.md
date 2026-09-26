@@ -246,6 +246,8 @@ modo, `customerId`, overview e `basePath`; nav, cards, abas e links do sino usam
 esse base path. A faixa de Modo Inspeção identifica Cliente, CNPJ e situação de
 conta não ativa.
 
+B/L cancelado depois de liberado continua listado em BLs e Containers, com o selo **Cancelado** (`cancelled_at` vindo de `_portal_list_operation_bls_core`, migration `089`; ADR 0071).
+
 ##### Catálogo de ações
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
@@ -380,7 +382,7 @@ sequenceDiagram
 
 - **Identificador ≠ mecanismo:** a Edge Function traduz o CNPJ para a identidade técnica sem expor o email. A senha e a sessão são sempre verificadas pelo Supabase Auth.
 - **Erros genéricos:** resolver desconhecido/vazio usa `28000` sem revelar existência; a UI de login esconde todos os erros exceto `P0429`. Recuperação também responde de forma não enumerável.
-- **Escopo por identidade:** `current_portal_customer_id()` exige `auth.uid()`, localiza `customer_portal_accounts.auth_user_id` e exige `active=true`. Cada RPC de dados usa esse customer ID; filtros React nunca autorizam.
+- **Escopo por identidade:** `current_portal_customer_id()` exige `auth.uid()`, localiza `customer_portal_accounts.auth_user_id`, exige `active=true` e, desde a migration `092`, recusa cliente desativado ("Acesso ao Portal encerrado: cliente desativado"). Cada RPC de dados usa esse customer ID; filtros React nunca autorizam.
 - **O role não separa cliente de interno:** ambos autenticam como `authenticated`. Quem separa é o perfil — `user_profiles` (`is_active_read_user()`, `is_admin()`, `_portal_actor_role()`) para o interno, `customer_portal_accounts` para o cliente. Nenhuma policy ou função pode autorizar por "estar autenticado": policy de leitura com `USING (true)` e função `SECURITY DEFINER` sem guarda são vazamentos para o Portal. Como o projeto concede `EXECUTE` a `anon` e `authenticated` por `ALTER DEFAULT PRIVILEGES`, toda função nova precisa de `REVOKE` explícito. Origem: migrations `192` e `257`, auditoria em `docs/archive/audits/security-audit-portal-2026-08-05.md`.
 - **Sessões isoladas:** `supabase` e `supabasePortal` têm storages distintos. Logout do Portal não deve derrubar o usuário interno.
 - **Ciclo de sessão do Portal:** `PortalAuthProvider` escuta `onAuthStateChange`; `SIGNED_OUT` limpa overview e remove queries `portal-*`, enquanto `SIGNED_IN`/`TOKEN_REFRESHED` reidratam o overview quando ele não está carregado.

@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createManifestoMercante,
-  deleteManifestoMercante,
   linkBlToManifestoMercante,
   linkBlsToManifestoMercante,
   listManifestosMercanteByVoyage,
@@ -24,17 +23,6 @@ export function useCreateManifestoMercante() {
     mutationFn: (input: CreateManifestoMercanteInput) => createManifestoMercante(input),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.byVoyage(variables.voyage_id) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() })
-    },
-  })
-}
-
-export function useDeleteManifestoMercante(voyageId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => deleteManifestoMercante(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.byVoyage(voyageId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() })
     },
   })

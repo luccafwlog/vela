@@ -3,19 +3,8 @@ import { beforeEach, expect, it, vi } from 'vitest'
 const { fromMock, rpcMock } = vi.hoisted(() => ({ fromMock: vi.fn(), rpcMock: vi.fn() }))
 vi.mock('../supabase', () => ({ supabase: { from: fromMock, rpc: rpcMock } }))
 
-import { cancelVoyage, createVoyage, deleteVoyage } from '../voyages'
+import { cancelVoyage, createVoyage, deleteVoyage, previewVoyageDeletion } from '../voyages'
 import { deleteVoyagePodSchedule } from '../voyageRouteSchedules'
-
-function countResult(count: number) {
-  const value: Record<string, unknown> = {
-    select: () => value,
-    eq: () => value,
-    range: () => value,
-    then: (resolve: (r: unknown) => unknown, reject?: (e: unknown) => unknown) =>
-      Promise.resolve({ count, error: null }).then(resolve, reject),
-  }
-  return value
-}
 
 beforeEach(() => {
   fromMock.mockReset()
@@ -34,29 +23,24 @@ it('cancela a viagem e audita o motivo', async () => {
   })
 })
 
-it('US-215: exclui a viagem quando nao ha dependencias', async () => {
-  const deleteEq = vi.fn(() => Promise.resolve({ error: null }))
-  const deleteFn = vi.fn(() => ({ eq: deleteEq }))
-  fromMock.mockImplementation((table: string) => {
-    if (table === 'voyages') return { delete: deleteFn }
-    return countResult(0)
-  })
+it('US-215: exclui a viagem pelo banco, com o motivo', async () => {
+  rpcMock.mockResolvedValueOnce({ data: { deleted: ['1'], blocked: [] }, error: null })
 
-  await expect(deleteVoyage(1)).resolves.toBeUndefined()
-  expect(deleteFn).toHaveBeenCalledTimes(1)
-  expect(deleteEq).toHaveBeenCalledWith('id', 1)
+  await expect(deleteVoyage(1, 'cadastro duplicado')).resolves.toEqual({ deletableIds: [1], blockedIds: [] })
+  expect(rpcMock).toHaveBeenCalledWith('delete_records', {
+    p_kind: 'voyage', p_ids: ['1'], p_dry_run: false, p_reason: 'cadastro duplicado',
+  })
 })
 
-it('US-215: bloqueia a exclusao quando ha B/Ls vinculados', async () => {
-  const deleteFn = vi.fn(() => ({ eq: vi.fn(() => Promise.resolve({ error: null })) }))
-  fromMock.mockImplementation((table: string) => {
-    if (table === 'voyages') return { delete: deleteFn }
-    if (table === 'bls') return countResult(2)
-    return countResult(0)
-  })
+it('US-215: a prévia devolve a trava e o que vai junto', async () => {
+  rpcMock.mockImplementation((name: string) => Promise.resolve(name === 'delete_records'
+    ? { data: { deleted: [], blocked: [{ id: '1', reasons: ['B/L com CE Mercante'] }] }, error: null }
+    : { data: { items: [{ table: 'bls', action: 'delete', label: 'B/L(s), com containers e taxas', count: 3 }] }, error: null }))
 
-  await expect(deleteVoyage(1)).rejects.toThrow(/Nao e possivel excluir esta viagem/)
-  expect(deleteFn).not.toHaveBeenCalled()
+  const preview = await previewVoyageDeletion(1)
+  expect(preview.report.blockedIds).toEqual([{ id: 1, reasons: ['B/L com CE Mercante'] }])
+  expect(preview.items).toEqual([{ table: 'bls', action: 'delete', label: 'B/L(s), com containers e taxas', count: 3 }])
+  expect(rpcMock).toHaveBeenCalledWith('delete_records', expect.objectContaining({ p_kind: 'voyage', p_dry_run: true }))
 })
 
 it('US-218: exclusao de POD grava evento insert-only deleted=true', async () => {

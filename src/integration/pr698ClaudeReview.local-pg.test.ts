@@ -69,7 +69,7 @@ describeLocal('PR 698 — revisão Claude Code no catálogo PostgreSQL', () => {
 
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'pr698-claude@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active)
-      VALUES ('${actorId}', 'PR 698 Claude', 'admin', true);
+      VALUES ('${actorId}', 'PR 698 Claude', 'administrativo', true);
       INSERT INTO public.ports (id, name, locode, country)
       VALUES (${portId}, 'PR698 Port', 'BRSSZ', 'BR');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'PR698 Carrier');

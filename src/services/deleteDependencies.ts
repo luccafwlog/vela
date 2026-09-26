@@ -53,3 +53,36 @@ export function formatBlockedSummary<K extends string | number>(
   const extra = blocked.length > 3 ? ` e mais ${blocked.length - 3}` : ''
   return `${blocked.length} bloqueado(s): ${shown.join('; ')}${extra}.`
 }
+
+/**
+ * Mensagem final de uma exclusao a partir do que o banco de fato apagou: nunca
+ * anuncia sucesso para o que foi recusado. `noun` e o rotulo no plural
+ * abreviado, ex: "B/L(s)".
+ */
+export function formatDeleteOutcome<K extends string | number>(
+  noun: string,
+  result: DeleteDependencyReport<K>,
+): { message: string; tone: 'success' | 'error' } {
+  const blocked = formatBlockedSummary(result.blockedIds)
+  if (result.deletableIds.length === 0) {
+    return { message: `Nenhum ${noun} excluído. ${blocked}`.trim(), tone: 'error' }
+  }
+  const done = `${result.deletableIds.length} ${noun} excluído(s).`
+  return { message: blocked ? `${done} ${blocked}` : done, tone: 'success' }
+}
+
+/**
+ * Registros afetados para o dialogo de confirmacao (ADR 0072), a partir da
+ * previa do banco: totais, lista sob demanda e bloqueados com motivo.
+ */
+export function buildDeleteAffected<K extends string | number>(
+  noun: string,
+  report: DeleteDependencyReport<K>,
+  label: (id: K) => string = String,
+) {
+  return {
+    summary: `${report.deletableIds.length} ${noun} serão excluído(s).`,
+    items: report.deletableIds.map(label),
+    blocked: report.blockedIds.map((b) => ({ label: label(b.id), reasons: b.reasons })),
+  }
+}

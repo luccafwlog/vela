@@ -28,7 +28,7 @@ export function useSaveDemurrageRate() {
 export function useDeleteDemurrageRate() {
   const invalidate = useInvalidateRates()
   return useMutation({
-    mutationFn: (id: number) => deleteDemurrageRate(id),
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => deleteDemurrageRate(id, reason),
     onSuccess: invalidate,
   })
 }

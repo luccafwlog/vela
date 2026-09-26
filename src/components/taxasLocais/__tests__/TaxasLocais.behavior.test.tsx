@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   saveTable: vi.fn(),
   toggleTable: vi.fn(),
+  toggleItem: vi.fn(),
+  toggleOverride: vi.fn(),
   saveItem: vi.fn(),
   deleteItem: vi.fn(),
   saveOverride: vi.fn(),
@@ -74,11 +76,14 @@ vi.mock('../../ui/Toast', () => ({
 }))
 vi.mock('../../ui/ConfirmDialog', () => ({
   useConfirm: () => mocks.confirm,
+  useConfirmWithReason: () => async (o: unknown) => ((await mocks.confirm(o)) ? 'motivo' : null),
 }))
 vi.mock('../../../hooks/useLocalCharges', () => ({
   useLocalChargeTables: () => ({ data: tables, isLoading: false, error: null }),
   useSaveChargeTable: () => ({ mutateAsync: mocks.saveTable, isPending: false }),
   useSetChargeTableActive: () => ({ mutateAsync: mocks.toggleTable, isPending: false }),
+  useSetChargeTableItemActive: () => ({ mutateAsync: mocks.toggleItem, isPending: false }),
+  useSetCustomerRateOverrideActive: () => ({ mutateAsync: mocks.toggleOverride, isPending: false }),
   useSaveChargeTableItem: () => ({ mutateAsync: mocks.saveItem, isPending: false }),
   useDeleteChargeTableItem: () => ({ mutateAsync: mocks.deleteItem, isPending: false }),
   useCustomerRateOverrides: () => ({ data: overrides, isLoading: false, error: null }),
@@ -108,6 +113,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit
+        canDelete
       />,
     )
 
@@ -133,10 +139,11 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit
+        canDelete
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Inativar tabela' }))
+    await user.click(screen.getByRole('button', { name: 'Desativar tabela' }))
     const disclosure = screen.getByTitle('Ver itens')
     expect(disclosure.getAttribute('aria-expanded')).toBe('false')
     expect(disclosure.getAttribute('aria-controls')).toBe('charge-table-items-1')
@@ -147,7 +154,7 @@ describe('Taxas Locais user behaviours', () => {
 
     expect(mocks.toggleTable).toHaveBeenCalledWith({ id: 1, active: false })
     expect(mocks.confirm).toHaveBeenCalled()
-    expect(mocks.deleteItem).toHaveBeenCalledWith(10)
+    expect(mocks.deleteItem).toHaveBeenCalledWith({ id: 10, reason: 'motivo' })
   })
 
   it('cria override com cliente, item e vigencia selecionados', async () => {
@@ -159,6 +166,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit
+        canDelete
       />,
     )
 
@@ -176,6 +184,41 @@ describe('Taxas Locais user behaviours', () => {
     }))
   })
 
+  it('quem edita mas nao e Administrativo nao ve Excluir override', () => {
+    render(
+      <ChargeOverridesTab
+        cargoModeFilter=""
+        setCargoModeFilter={vi.fn()}
+        podFilter=""
+        setPodFilter={vi.fn()}
+        canEdit
+        canDelete={false}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Editar override' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Excluir override' })).toBeNull()
+  })
+
+  it('Administrativo desativa override depois da confirmação (ADR 0073)', async () => {
+    const user = userEvent.setup()
+    mocks.confirm.mockResolvedValue(true)
+    render(
+      <ChargeOverridesTab
+        cargoModeFilter=""
+        setCargoModeFilter={vi.fn()}
+        podFilter=""
+        setPodFilter={vi.fn()}
+        canEdit
+        canDelete
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Desativar override' }))
+    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Desativar override', consequence: expect.any(String) }))
+    expect(mocks.toggleOverride).toHaveBeenCalledWith({ id: expect.any(Number), active: false })
+  })
+
   it('carrega override para edicao e confirma sua exclusao', async () => {
     const user = userEvent.setup()
     render(
@@ -185,6 +228,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit
+        canDelete
       />,
     )
 
@@ -194,7 +238,7 @@ describe('Taxas Locais user behaviours', () => {
 
     await user.click(screen.getByRole('button', { name: 'Excluir override' }))
     expect(mocks.confirm).toHaveBeenCalled()
-    expect(mocks.deleteOverride).toHaveBeenCalledWith(20)
+    expect(mocks.deleteOverride).toHaveBeenCalledWith({ id: 20, reason: 'motivo' })
   })
 
   it('mostra a tabela de tabelas sem controles de escrita quando canEdit e falso', () => {
@@ -205,6 +249,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit={false}
+        canDelete={false}
       />,
     )
 
@@ -221,6 +266,7 @@ describe('Taxas Locais user behaviours', () => {
         podFilter=""
         setPodFilter={vi.fn()}
         canEdit={false}
+        canDelete={false}
       />,
     )
 

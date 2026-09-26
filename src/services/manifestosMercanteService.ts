@@ -91,15 +91,6 @@ export async function listManifestosMercanteByRota(
   return (data ?? []) as ManifestoMercante[]
 }
 
-export async function deleteManifestoMercante(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('manifestos_mercante')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
-}
-
 export async function linkBlToManifestoMercante(
   blId: string,
   manifestoId: string | null,

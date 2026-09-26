@@ -21,7 +21,7 @@ vi.mock('../../hooks/useBls', () => ({
 vi.mock('../../hooks/useBilling', () => ({ useInvoiceLinks: () => ({ data: {} }) }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true, user: { id: 'user-1' }, profile: { id: 'user-1' } }) }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: showToastMock }) }))
-vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn() }))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
 vi.mock('../../components/shared/CeMercanteImportModal', () => ({ CeMercanteImportModal: () => null }))
 vi.mock('../../components/shared/BlImportModal', () => ({ BlImportModal: () => null }))
 vi.mock('../../components/shared/FileImportModal', () => ({ FileImportModal: () => null }))

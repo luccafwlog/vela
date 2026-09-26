@@ -19,9 +19,11 @@ import {
   saveChargeTable,
   saveChargeTableItem,
   setChargeTableActive,
+  setChargeTableItemActive,
 } from '../services/charges/chargeTableService'
 import {
   deleteCustomerRateOverride,
+  setCustomerRateOverrideActive,
   listCustomerRateOverrides,
   listOverrideChargeItems,
   listOverrideCustomers,
@@ -199,6 +201,31 @@ export function useSetChargeTableActive() {
   })
 }
 
+export function useSetChargeTableItemActive() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, active }: { id: number; active: boolean }) => setChargeTableItemActive(id, active),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() })
+    },
+  })
+}
+
+export function useSetCustomerRateOverrideActive() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, active }: { id: number; active: boolean }) => setCustomerRateOverrideActive(id, active),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrides() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines('') }),
+      ])
+    },
+  })
+}
+
 export function useSaveChargeTableItem() {
   const queryClient = useQueryClient()
 
@@ -218,7 +245,7 @@ export function useDeleteChargeTableItem() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: deleteChargeTableItem,
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => deleteChargeTableItem(id, reason),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
@@ -294,7 +321,7 @@ export function useDeleteCustomerRateOverride() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: deleteCustomerRateOverride,
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => deleteCustomerRateOverride(id, reason),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrides() }),

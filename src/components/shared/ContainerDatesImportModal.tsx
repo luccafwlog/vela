@@ -156,7 +156,7 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
         ) : null}
 
         <div className="app-modal__actions">
-          <Button variant="secondary" onClick={resetAndClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={resetAndClose}>Voltar</Button>
           <Button disabled={!preview?.rows.length} loading={submitting} onClick={() => void handleImport()}>
             Importar
           </Button>

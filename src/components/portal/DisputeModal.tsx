@@ -67,7 +67,7 @@ function DisputeModalContent({ demurrageInvoiceId, docNumber, onClose }: { demur
       {error ? <InlineError message={error} /> : null}
 
       <div className="flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button variant="secondary" onClick={onClose}>Voltar</Button>
         <Button loading={openDispute.isPending} onClick={handleSubmit} disabled={readOnly} title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Abrir disputa</Button>
       </div>
     </div>

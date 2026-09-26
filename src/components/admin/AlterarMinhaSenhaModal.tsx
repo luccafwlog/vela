@@ -56,7 +56,7 @@ export function AlterarMinhaSenhaModal({
         <p className="text-xs text-[var(--app-muted)]">{PASSWORD_RULE_MESSAGE}</p>
         {error ? <p className="app-field__error" role="alert">{error}</p> : null}
         <div className="mt-2 flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>Voltar</Button>
           <Button type="submit" loading={submitting}>Alterar senha</Button>
         </div>
       </form>

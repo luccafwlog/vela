@@ -184,15 +184,17 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
 
   async function handleDeleteCharge(itemId: number, description: string) {
     const confirmed = await confirm({
-      title: 'Remover cobrança manual',
-      message: `Excluir a cobrança manual “${description}”? O total da fatura será recalculado.`,
+      title: 'Excluir cobrança manual',
+      message: `Excluir a cobrança manual “${description}” desta fatura?`,
+      consequence: 'O total e o saldo da fatura são recalculados, e o QR Code PIX é gerado de novo.',
+      reversibility: 'Não é possível desfazer; lance a cobrança de novo se precisar.',
       confirmLabel: 'Excluir',
       tone: 'danger',
     })
     if (!confirmed) return
     try {
       await deleteChargeMutation.mutateAsync({ itemId, actorId: user?.id ?? null })
-      showToast('Item removido da fatura.', 'success')
+      showToast('Cobrança manual excluída.', 'success')
     } catch (error) {
       showToast(userFacingErrorMessage(error, 'Falha ao remover item.'), 'error')
     }

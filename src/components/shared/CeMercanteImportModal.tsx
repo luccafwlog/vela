@@ -361,7 +361,7 @@ export function CeMercanteImportModal({
 
         <div className="app-modal__actions">
           <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : resetAndClose}>
-            {parsing ? 'Cancelar leitura' : 'Cancelar'}
+            {parsing ? 'Interromper leitura' : 'Voltar'}
           </Button>
           <Button disabled={!canSubmit} loading={submitting} onClick={handleImport}>
             <Upload size={16} />

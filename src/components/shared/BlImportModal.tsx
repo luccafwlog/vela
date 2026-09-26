@@ -242,7 +242,7 @@ export function BlImportModal({
 
         <div className="app-modal__actions">
           <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : resetAndClose}>
-            {parsing ? 'Cancelar leitura' : 'Cancelar'}
+            {parsing ? 'Interromper leitura' : 'Voltar'}
           </Button>
           <Button disabled={!selectedVoyageId || importableCount === 0} loading={submitting || parsing} onClick={() => void handleConfirm()}>
             <Upload size={16} />

@@ -477,7 +477,7 @@ export function Granite() {
           ) : null}
 
           <div className="app-modal__actions">
-            <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : closeUpload}>{parsing ? 'Cancelar leitura' : 'Cancelar'}</Button>
+            <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : closeUpload}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
             <Button disabled={!manifest || manifest.rowErrors.length > 0 || !voyageId || !user} loading={submitting} onClick={handleImport}>
               Confirmar importação
             </Button>

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { Depot, DepotService } from '../types/database'
+import { deleteOneById } from './deleteRecords'
 export type { Depot, DepotService }
 
 export type LocalType = 'depot' | 'terminal_portuario'
@@ -66,8 +67,8 @@ export async function upsertDepot(input: DepotInput): Promise<void> {
   if (error) throw error
 }
 
-export async function deleteDepot(id: string): Promise<void> {
-  const { error } = await supabase.from('depots').delete().eq('id', id)
+export async function deleteDepot(id: string, reason: string): Promise<void> {
+  const { error } = await deleteOneById('depots', id, reason)
   if (!error) return
   // A FK composta (terminal_id, pod_port_id) -> depots(id, port_id) e
   // ON DELETE RESTRICT (migration 060): um local ainda apontado por B/L nao
@@ -107,8 +108,8 @@ export async function upsertDepotService(input: Omit<DepotService, 'id' | 'creat
   if (error) throw error
 }
 
-export async function deleteDepotService(id: string): Promise<void> {
-  const { error } = await supabase.from('depot_services').delete().eq('id', id)
+export async function deleteDepotService(id: string, reason: string): Promise<void> {
+  const { error } = await deleteOneById('depot_services', id, reason)
   if (error) throw error
 }
 

@@ -9,7 +9,6 @@ import { supabase } from '../services/supabase'
 
 function departmentLabel(role: string | null | undefined): string {
   switch (role) {
-    case 'admin':
     case 'administrativo': return 'Administrativo'
     case 'financeiro': return 'Financeiro'
     case 'operacoes': return 'Operações'

@@ -12,7 +12,7 @@ import { Modal } from '../components/ui/Modal'
 import { PreviewBox } from '../components/ui/PreviewBox'
 import { useToast } from '../components/ui/Toast'
 import { TruncationNote } from '../components/shared/TruncationNote'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { useAuth } from '../hooks/useAuth'
@@ -22,6 +22,7 @@ import { usePageFilters } from '../hooks/usePageFilters'
 import { useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
 import { formatDate } from '../lib/utils'
 import { deleteVehicles } from '../services/vehicles'
+import { formatDeleteOutcome } from '../services/deleteDependencies'
 import { importVehicleRows, parseVehicleImportFile, type ParsedVehicleImport } from '../services/vehicleImport'
 import { setContainerUnpackingLocation } from '../services/vaziosNatureza'
 import { exportVehicleWorkbook } from '../services/exports'
@@ -36,7 +37,7 @@ export function Veiculos() {
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
-  const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const { isAdmin, user, profile } = useAuth()
   const canEditVehicles = Boolean(profile || user)
   const canDeleteVehicles = isAdmin
@@ -272,15 +273,23 @@ export function Veiculos() {
   }
 
   async function runDelete(ids: number[], message: string) {
-    const ok = await confirm({ message, tone: 'danger', confirmLabel: 'Excluir' })
-    if (!ok) return
+    const reason = await confirmWithReason({
+      title: 'Excluir veículo',
+      message,
+      consequence: 'Os veículos saem do B/L, do container e das listas.',
+      reversibility: 'Não é possível desfazer pelo sistema; o registro apagado fica guardado na auditoria.',
+      confirmLabel: 'Excluir',
+      tone: 'danger',
+    })
+    if (reason === null) return
 
     setDeleting(true)
     try {
-      await deleteVehicles(ids, user?.id)
+      const result = await deleteVehicles(ids, reason)
       selection.clear()
       await invalidateAfterDelete()
-      showToast(ids.length === 1 ? 'Veiculo excluido.' : `${ids.length} veiculos excluidos.`, 'success')
+      const outcome = formatDeleteOutcome('veículo(s)', result)
+      showToast(outcome.message, outcome.tone)
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'erro desconhecido'
       showToast(`Falha ao excluir veiculo(s): ${detail}`, 'error')
@@ -290,11 +299,11 @@ export function Veiculos() {
   }
 
   function handleDeleteOne(id: number, chassis: string) {
-    return runDelete([id], `Excluir o veiculo ${chassis}? Esta acao e irreversivel.`)
+    return runDelete([id], `Excluir o veiculo ${chassis}? `)
   }
 
   function handleDeleteSelected() {
-    return runDelete([...selection.selected], `Excluir ${selection.count} veiculo(s) selecionado(s)? Esta acao e irreversivel.`)
+    return runDelete([...selection.selected], `Excluir ${selection.count} veiculo(s) selecionado(s)? `)
   }
 
   const filteredRowIds = data?.filteredIds ?? []
@@ -675,7 +684,7 @@ export function Veiculos() {
 
           <div className="app-modal__actions">
             <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : resetImportState}>
-              {parsing ? 'Cancelar leitura' : 'Fechar'}
+              {parsing ? 'Interromper leitura' : 'Fechar'}
             </Button>
             <Button disabled={!importTargetVoyageId || !parsedImport?.rows.length || Boolean(parsedImport.rowErrors.length) || Boolean(importReport)} loading={importing} onClick={handleImport}>
               Confirmar importação

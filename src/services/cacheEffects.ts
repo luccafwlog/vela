@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { invalidateReviewQueueCaches, type ReviewCacheScope } from '../components/review/reviewCaches'
 import { invalidateBaplieDependentQueries } from './baplieInvalidation'
+import { queryKeys } from './queryKeys'
 
 export type QueryInvalidator = {
   invalidateQueries: (input: { queryKey: readonly unknown[] }) => Promise<unknown>
@@ -70,6 +71,24 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, opt
 
 export async function afterBaplieImportado(queryClient: QueryInvalidator, options: { voyageId: string }): Promise<void> {
   await invalidateBaplieDependentQueries(queryClient, options.voyageId)
+}
+
+/**
+ * B/L cancelado ou reativado (ADR 0071): muda a ficha, as listas, o
+ * faturamento pronto e a viagem.
+ */
+export async function afterBlEstadoAlterado(
+  queryClient: QueryInvalidator,
+  options: { blId: string; voyageId: number | string | null },
+): Promise<void> {
+  await invalidate(queryClient, [
+    queryKeys.bls.detail(options.blId),
+    queryKeys.bls.cockpit(options.blId),
+    queryKeys.bls.all(),
+    queryKeys.bls.summary(),
+    queryKeys.billingReady.bls(),
+    ...(options.voyageId === null ? [] : [queryKeys.voyages.detail(Number(options.voyageId))]),
+  ])
 }
 
 export async function afterBlRevisado(queryClient: QueryClient, scope: ReviewCacheScope = {}): Promise<void> {

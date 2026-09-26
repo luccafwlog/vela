@@ -1,5 +1,6 @@
 import { supabase } from '../supabase'
 import { escapeFilterTerm } from '../../lib/utils'
+import { deleteOneById } from '../deleteRecords'
 
 export type LocalChargeOverrideItem = {
   id: number
@@ -10,6 +11,8 @@ export type LocalChargeOverrideItem = {
   valid_to: string | null
   notes: string | null
   created_at: string | null
+  /** Desativado nao entra em calculos novos (migration 091). */
+  active: boolean
   customer: {
     id: number
     name: string
@@ -81,6 +84,7 @@ export async function listCustomerRateOverrides(filters?: {
       valid_to,
       notes,
       created_at,
+      active,
       customer:customers(
         id,
         name,
@@ -174,6 +178,8 @@ export async function listOverrideCustomers(search?: string) {
   let query = supabase
     .from('customers')
     .select('id, name, cnpj_cpf')
+    // Cliente desativado sai das listas de escolha (ADR 0073; migration 092).
+    .is('deactivated_at' as never, null as never)
     .order('name', { ascending: true })
     .range(0, 199)
 
@@ -217,6 +223,9 @@ export async function findOverlappingCustomerRateOverride(input: {
     .select('id, valid_from, valid_to')
     .eq('customer_id', input.customerId)
     .eq('charge_item_id', input.chargeItemId)
+    // Override desativado nao disputa a vigencia com um novo. (`active` e da
+    // migration 091; src/types/database.ts ainda nao foi regenerado.)
+    .eq('active' as never, true as never)
 
   if (input.id) query = query.neq('id', input.id)
 
@@ -282,7 +291,14 @@ function classifyOverrideOverlapError(error: { code?: string; message?: string }
   return error
 }
 
-export async function deleteCustomerRateOverride(id: number) {
-  const { error } = await supabase.from('customer_rate_overrides').delete().eq('id', id)
+/** Desativa ou reativa um override de cliente (ADR 0073); so o Administrativo. */
+export async function setCustomerRateOverrideActive(id: number, active: boolean) {
+  const { data, error } = await supabase.from('customer_rate_overrides').update({ active } as never).eq('id', id).select('id')
+  if (error) throw error
+  if (!data || data.length === 0) throw new Error('O override não foi alterado: sem permissão ou override inexistente.')
+}
+
+export async function deleteCustomerRateOverride(id: number, reason: string) {
+  const { error } = await deleteOneById('customer_rate_overrides', id, reason)
   if (error) throw error
 }

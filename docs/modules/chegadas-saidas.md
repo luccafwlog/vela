@@ -40,13 +40,17 @@ vínculo não são sobrescritos.
 Na **edição**, apenas as datas da programação são editáveis — navio, VOY e IMO
 são read-only (corrigidos na tela Viagens). Marcar um porto como "não escala"
 cancela aquela escala — quando é porto de descarga que tinha data, a tela pede
-confirmação antes (`clearedPodLabels`): o ETD/ETA publicado é removido e, se a escala não tiver
-âncora operacional (manifesto vinculado, ATA/ATD ou B/L), ela é removida também
-de Viagens e do Line-Up. O upload em lote nunca cancela escalas — células vazias
+confirmação antes (`clearedPodLabels`): o ETD/ETA publicado é removido. A
+escala só é retirada também de Viagens e do Line-Up quando quem salva é o
+Administrativo, ela não tem âncora operacional (manifesto vinculado, ATA/ATD ou
+B/L) e o porto não está sob a Trava de exclusão; para os demais Departamentos,
+a escala continua sem data (migration `090`, ADR 0071). O upload em lote nunca cancela escalas — células vazias
 ou "X" são ignoradas.
 
-Remover uma linha do quadro chama `setVoyageShowOnPortal(id, false)`; a viagem
-operacional continua existindo e só pode ser excluída em `/viagens`.
+A tela não tira linhas do quadro. A viagem sai da Programação sozinha ao
+receber o último ATD (passa a Concluída); antes disso, só sai por Excluir ou
+Cancelar em `/viagens` (ADR 0071, item 12; "Remover do Portal" foi retirado na
+Fase 4a da política de exclusão).
 
 O upload em lote baixa um template gerado da mesma constante de lanes. Cada
 linha da planilha (`VESSEL NAME`, `VOY`, `IMO`, lanes ETD/ETA) vira uma chamada
@@ -73,7 +77,6 @@ lanes e ordena pela menor ETA de POD.
 | Carregar publicados | Sessão interna | Montagem de `/chegadas-saidas` | `useQuery(['portal-schedule-voyages'])` | RPC `portal_ship_schedule` projetada em linhas | Preenche tabela por ETA | Erro de leitura da RPC exibido na página | **Código**, **Teste** |
 | Adicionar/anexar viagem | Usuário interno ativo; navio, VOY e ao menos um POD com data | Modal | `buildScheduleLanes` + `createOrAttachVoyageFromSchedule` | `voyages.show_on_portal`, `audit_logs` POL/POD | Invalida `['portal-schedule-voyages']` e `['voyages']` | Campos obrigatórios, identidade divergente ou falha ao persistir | **Código**, **Teste** |
 | Editar publicação | Usuário interno ativo; viagem já visível | Botão Editar/modal | Pré-preenche datas projetadas e salva pelo mesmo serviço | Atualiza somente ETD/ETA informados | Last write wins em ETD/ETA digitados | Conflitos de identidade e erro do serviço | **Código**, **Teste** |
-| Remover do Portal | Usuário interno ativo; confirmação | Botão Remover do Portal | `setVoyageShowOnPortal(id, false)` | Atualiza `voyages.show_on_portal` | Remove do quadro sem excluir viagem | Erro no update mantém a viagem publicada | **Código**, **Teste** |
 | Importar planilha | Usuário interno ativo; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload` | `parseScheduleRows` + `createOrAttachVoyageFromSchedule` por linha | Mesma persistência do modal | Resumo de sucesso/erro por linha; invalida caches | Erro de parse/linha exibido no resumo; pode haver sucesso parcial | **Código**, **Teste** |
 | Consultar no Portal | Sessão do Portal | `ShipScheduleWidget` | `usePortalScheduleVoyages` | RPC `portal_ship_schedule` | Cache `['portal-schedule-voyages']` | Erro de RPC e estados vazio/loading no widget | **Código**, **Teste**, **Teste de contrato SQL** |
 

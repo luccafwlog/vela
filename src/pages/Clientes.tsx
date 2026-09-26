@@ -10,7 +10,7 @@ import { MetricCard } from '../components/ui/MetricCard'
 import { PageHeader } from '../components/ui/Card'
 import { WorkspaceNav } from '../components/ui/WorkspaceNav'
 import { useToast } from '../components/ui/Toast'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { CreateCustomerModal } from '../components/customers/CreateCustomerModal'
 import { CustomerTable, type CustomerActionsMenu } from '../components/customers/CustomerTable'
@@ -31,8 +31,8 @@ import { isValidCnpj } from '../lib/cnpj'
 import { getCustomerFilterChips, type CustomerSortKey } from '../lib/customerTableViewModel'
 import { BLS_OF_CUSTOMER } from '../lib/supabaseEmbeds'
 import { compareCustomerBaseWithExisting, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
-import { checkCustomerDependencies, createCustomer, deleteCustomers, fetchIssuedInvoiceBalanceByCustomer } from '../services/customers'
-import { formatBlockedSummary } from '../services/deleteDependencies'
+import { checkCustomerDependencies, createCustomer, deactivateCustomer, deleteCustomers, fetchIssuedInvoiceBalanceByCustomer, reactivateCustomer } from '../services/customers'
+import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
 import { supabase } from '../services/supabase'
 import type { CustomerListItem } from '../types/database'
@@ -48,9 +48,11 @@ export function Clientes() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
-  const confirm = useConfirm()
-  const { user, effectiveRole, profile, can } = useAuth()
-  const canEditCustomers = Boolean(profile || user)
+  const confirmWithReason = useConfirmWithReason()
+  const { user, effectiveRole, can, isAdmin } = useAuth()
+  // Excluir exige o Administrativo no banco (delete_records); a tela so
+  // oferece a acao a quem pode executa-la.
+  const canDeleteCustomers = isAdmin
   const [deleting, setDeleting] = useState(false)
   const [actionsMenu, setActionsMenu] = useState<CustomerActionsMenu | null>(null)
   const [filters, setFilters] = useState<CustomerFilters>({
@@ -104,14 +106,14 @@ export function Clientes() {
   }
   function openActionsMenu(
     event: ReactMouseEvent<HTMLButtonElement>,
-    row: { id: number; name: string; cnpj_cpf: string; email: string | null },
+    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
   ) {
     if (actionsMenu?.id === row.id) {
       setActionsMenu(null)
       return
     }
     const rect = event.currentTarget.getBoundingClientRect()
-    setActionsMenu({ id: row.id, top: rect.bottom + 6, left: rect.right, name: row.name, cnpj: row.cnpj_cpf, email: row.email })
+    setActionsMenu({ id: row.id, top: rect.bottom + 6, left: rect.right, name: row.name, cnpj: row.cnpj_cpf, email: row.email, deactivated: row.deactivated })
   }
   // O menu flutua via position:fixed para escapar do recorte do container de scroll
   // da tabela; por isso precisa fechar quando o usuario rola, redimensiona ou clica fora.
@@ -330,26 +332,76 @@ export function Clientes() {
         return
       }
 
-      const parts = [
-        `Excluir ${report.deletableIds.length} cliente(s)? Os contatos e overrides de tarifa serao excluidos junto. Esta acao e irreversivel.`,
-      ]
-      if (report.blockedIds.length) parts.push(formatBlockedSummary(report.blockedIds))
-      const ok = await confirm({ message: parts.join('\n\n'), tone: 'danger', confirmLabel: 'Excluir' })
-      if (!ok) return
+      const reason = await confirmWithReason({
+        title: 'Excluir cliente',
+        message: `Excluir ${report.deletableIds.length} cliente(s)?`,
+        affected: buildDeleteAffected('cliente(s)', report),
+        consequence: 'Os clientes saem das listas e das escolhas; contatos e overrides de tarifa deles são apagados junto.',
+        reversibility: 'Não é possível desfazer pelo sistema; o registro apagado fica guardado na auditoria.',
+        confirmLabel: 'Excluir',
+        tone: 'danger',
+      })
+      if (reason === null) return
 
-      await deleteCustomers(report.deletableIds, user?.id)
+      const result = await deleteCustomers(report.deletableIds, reason)
       selection.clear()
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
         queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
         queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
       ])
-      showToast(`${report.deletableIds.length} cliente(s) excluido(s).`, 'success')
+      const outcome = formatDeleteOutcome('cliente(s)', result)
+      showToast(outcome.message, outcome.tone)
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'erro desconhecido'
       showToast(`Falha ao excluir cliente(s): ${detail}`, 'error')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function handleToggleCustomerActive(id: number, deactivated: boolean) {
+    try {
+      if (!deactivated) {
+        const preview = await deactivateCustomer(id, '', { dryRun: true })
+        if (preview.reasons.length > 0) {
+          showToast(`O cliente não pode ser desativado: ${preview.reasons.join(', ')}. O Financeiro quita ou cancela antes.`, 'error')
+          return
+        }
+      }
+      const reason = await confirmWithReason(deactivated ? {
+        title: 'Reativar cliente',
+        message: 'Reativar este cliente?',
+        consequence: 'O cliente volta às listas de escolha, recupera o acesso ao Portal e pode ser vinculado de novo a B/Ls.',
+        reversibility: 'Desative de novo se precisar.',
+        confirmLabel: 'Reativar cliente',
+        tone: 'primary',
+      } : {
+        title: 'Desativar cliente',
+        message: 'Desativar este cliente?',
+        consequence: 'O cliente sai das listas de escolha e perde o acesso ao Portal. B/Ls novos com o CNPJ dele vão para a Revisão. O histórico, as faturas e os B/Ls antigos continuam com ele.',
+        reversibility: 'Reativar cliente, pelo Administrativo, com motivo.',
+        confirmLabel: 'Desativar cliente',
+        tone: 'danger',
+      })
+      if (reason === null) return
+      if (deactivated) {
+        await reactivateCustomer(id, reason)
+      } else {
+        const result = await deactivateCustomer(id, reason)
+        if (!result.deactivated) {
+          showToast(`O cliente não foi desativado: ${result.reasons.join(', ')}.`, 'error')
+          return
+        }
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['customers'] }),
+        queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
+      ])
+      showToast(deactivated ? 'Cliente reativado.' : 'Cliente desativado.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Falha ao alterar o cliente.', 'error')
     }
   }
 
@@ -486,7 +538,7 @@ export function Clientes() {
         </div>
       ) : null}
 
-      {canEditCustomers ? (
+      {canDeleteCustomers ? (
         <BulkActionsBar
           count={selection.count}
           onClear={selection.clear}
@@ -500,7 +552,7 @@ export function Clientes() {
         data={data}
         isLoading={isLoading}
         error={error}
-        canEditCustomers={canEditCustomers}
+        canDeleteCustomers={canDeleteCustomers}
         selection={selection}
         filters={filters}
         totalPages={totalPages}
@@ -513,6 +565,10 @@ export function Clientes() {
         onDeleteCustomer={(id) => {
           setActionsMenu(null)
           void runCustomerDelete([id])
+        }}
+        onToggleCustomerActive={(id, deactivated) => {
+          setActionsMenu(null)
+          void handleToggleCustomerActive(id, deactivated)
         }}
         portalRows={portalRows ?? undefined}
       />

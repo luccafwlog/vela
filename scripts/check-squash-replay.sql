@@ -79,8 +79,10 @@ BEGIN
     RAISE EXCEPTION 'Funcoes do projeto em public: % (piso 397).', v_funcs;
   END IF;
   SELECT COUNT(*) INTO v_policies FROM pg_policies WHERE schemaname = 'public';
-  IF v_policies < 273 THEN
-    RAISE EXCEPTION 'Policies RLS em public: % (piso 273).', v_policies;
+  -- A 096 removeu as 7 policies de DELETE dos cadastros (274 -> 267;
+  -- exclusão passa por delete_catalog_row).
+  IF v_policies < 267 THEN
+    RAISE EXCEPTION 'Policies RLS em public: % (piso 267).', v_policies;
   END IF;
   -- A 008 aposentou trg_seed_customer_contact_preferences (144 -> 143 triggers).
   SELECT COUNT(*) INTO v_triggers FROM pg_trigger t
@@ -107,8 +109,11 @@ BEGIN
   IF v_nosearch <> 0 THEN
     RAISE EXCEPTION 'SECURITY DEFINER sem search_path: %.', v_nosearch;
   END IF;
-  -- Grant líquido novo da 004 (sem ele, o navegador recebe 42501).
-  IF NOT has_function_privilege('authenticated', 'public.delete_baplie_manifest_for_voyage(bigint)', 'EXECUTE') THEN
+  -- Grant líquido novo da 004 (sem ele, o navegador recebe 42501). A 087
+  -- remove a função, que não tinha tela (ADR 0071); o piso vale enquanto ela
+  -- existir.
+  IF to_regprocedure('public.delete_baplie_manifest_for_voyage(bigint)') IS NOT NULL
+     AND NOT has_function_privilege('authenticated', 'public.delete_baplie_manifest_for_voyage(bigint)', 'EXECUTE') THEN
     RAISE EXCEPTION 'GRANT da 004 ausente para authenticated em delete_baplie_manifest_for_voyage.';
   END IF;
 

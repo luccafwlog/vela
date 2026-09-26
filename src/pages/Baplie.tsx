@@ -820,7 +820,7 @@ function BaplieUploadModal({
         ) : null}
 
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Cancelar leitura' : 'Cancelar'}</Button>
+          <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
           <Button
             disabled={!canImport}
             loading={submitting}

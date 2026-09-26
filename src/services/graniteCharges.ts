@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { escapeFilterTerm } from '../lib/utils'
 import type { GraniteBlCharge, GraniteRate } from '../types/database'
+import { deleteOneById } from './deleteRecords'
 
 export async function listGraniteRates(): Promise<GraniteRate[]> {
   const { data, error } = await supabase
@@ -23,8 +24,8 @@ export async function upsertGraniteRate(
   return data as GraniteRate
 }
 
-export async function deleteGraniteRate(id: string): Promise<void> {
-  const { error } = await supabase.from('granite_rates').delete().eq('id', id)
+export async function deleteGraniteRate(id: string, reason: string): Promise<void> {
+  const { error } = await deleteOneById('granite_rates', id, reason)
   if (error) throw error
 }
 

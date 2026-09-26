@@ -10,7 +10,6 @@ vi.mock('../../services/supabase', () => ({
 
 import {
   createManifestoMercante,
-  deleteManifestoMercante,
   linkBlToManifestoMercante,
   listManifestosMercanteByRota,
   listManifestosMercanteByVoyage,
@@ -147,14 +146,4 @@ describe('manifestosMercanteService', () => {
     expect(updateMock).toHaveBeenCalledWith({ manifesto_mercante_id: null })
   })
 
-  it('exclui manifesto mercante por id', async () => {
-    const eqMock = vi.fn().mockResolvedValue({ error: null })
-    const deleteMock = vi.fn().mockReturnValue({ eq: eqMock })
-    mockFrom.mockReturnValue({ delete: deleteMock })
-
-    await deleteManifestoMercante('uuid-man-01')
-    expect(mockFrom).toHaveBeenCalledWith('manifestos_mercante')
-    expect(deleteMock).toHaveBeenCalled()
-    expect(eqMock).toHaveBeenCalledWith('id', 'uuid-man-01')
-  })
 })

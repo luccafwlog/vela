@@ -29,6 +29,7 @@ vi.mock('../../components/ui/ConfirmDialog', async () => {
   return {
     ...actual,
     useConfirm: () => vi.fn(async () => true),
+    useConfirmWithReason: () => vi.fn(async () => 'motivo'),
   }
 })
 
@@ -66,6 +67,8 @@ vi.mock('../../hooks/useLocalCharges', () => ({
   useDeleteCustomerRateOverride: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSaveChargeTable: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSetChargeTableActive: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSetChargeTableItemActive: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSetCustomerRateOverrideActive: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSaveChargeTableItem: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteChargeTableItem: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useBatchCalculateLocalCharges: () => ({ mutateAsync: vi.fn(), isPending: false }),

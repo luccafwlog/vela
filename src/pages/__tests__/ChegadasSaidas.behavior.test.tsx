@@ -120,16 +120,11 @@ describe('ChegadasSaidas user behaviours', () => {
     expect((screen.getByLabelText('Número IMO') as HTMLInputElement).disabled).toBe(true)
   })
 
-  it('remove apenas a publicação do Portal', async () => {
-    const user = userEvent.setup()
+  it('não oferece Remover do Portal (ADR 0071, item 12)', () => {
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getAllByTitle('Remover do Portal')[0])
-
-    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'Remover publicação do Portal',
-    }))
-    expect(mocks.setShow).toHaveBeenCalledWith(1, false)
+    expect(screen.queryAllByTitle('Remover do Portal')).toHaveLength(0)
+    expect(mocks.setShow).not.toHaveBeenCalled()
   })
 
   it('abre MarineTraffic com IMO da viagem', () => {
@@ -153,7 +148,6 @@ describe('ChegadasSaidas user behaviours', () => {
     expect(screen.getByRole('button', { name: /Adicionar Navio/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Fazer Upload/ })).toBeTruthy()
     expect(screen.getAllByTitle('Editar').length).toBeGreaterThan(0)
-    expect(screen.getAllByTitle('Remover do Portal').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /Baixar Planilha Modelo/ })).toBeTruthy()
   })
 

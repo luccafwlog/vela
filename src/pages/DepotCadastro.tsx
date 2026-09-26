@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Edit3, Plus, Power, Trash2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { Field, Input, Select } from '../components/ui/Input'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
@@ -47,9 +47,11 @@ function conditionLabel(condition: string) {
 }
 
 export function DepotCadastro() {
-  const { profile, user } = useAuth()
+  const { profile, user, isAdmin } = useAuth()
   const canEdit = Boolean(profile || user)
-  const confirm = useConfirm()
+  // Excluir e do Administrativo no banco; os demais editam, mas nao veem Excluir.
+  const canDelete = isAdmin
+  const confirmWithReason = useConfirmWithReason()
   const { showToast } = useToast()
   const depots = useDepots()
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -119,9 +121,11 @@ export function DepotCadastro() {
   }
 
   async function removeDepot() {
-    if (!selected || !(await confirm({ message: `Excluir o local ${selected.code}?`, tone: 'danger', confirmLabel: 'Excluir' }))) return
+    if (!selected) return
+    const reason = await confirmWithReason({ title: 'Excluir local', message: `Excluir o local ${selected.code}?`, consequence: 'O local e os serviços dele saem do cadastro. O banco recusa se o local estiver em uso por B/L, escala, ADR ou vazios.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
+    if (reason === null) return
     await run(async () => {
-      await deleteDepot(selected.id)
+      await deleteDepot(selected.id, reason)
       setSelectedId(null)
       await depots.refetch()
     }, 'Local excluído.')
@@ -150,9 +154,10 @@ export function DepotCadastro() {
   }
 
   async function removeService(service: DepotService) {
-    if (!(await confirm({ message: `Excluir o serviço ${service.name}?`, tone: 'danger', confirmLabel: 'Excluir' }))) return
+    const reason = await confirmWithReason({ title: 'Excluir serviço', message: `Excluir o serviço ${service.name}?`, consequence: 'O serviço sai do catálogo do local. O banco recusa se ele já foi lançado em Embarque de Vazios.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
+    if (reason === null) return
     await run(async () => {
-      await deleteDepotService(service.id)
+      await deleteDepotService(service.id, reason)
       await services.refetch()
     }, 'Serviço excluído.')
   }
@@ -300,7 +305,7 @@ export function DepotCadastro() {
                 <Button onClick={() => void saveDepot()} disabled={!canSaveDepot}>
                   Salvar local
                 </Button>
-                {selected ? (
+                {selected && canDelete ? (
                   <Button variant="ghost" onClick={() => void removeDepot()}>
                     <Trash2 size={14} /> Excluir
                   </Button>
@@ -400,10 +405,12 @@ export function DepotCadastro() {
                           <Edit3 size={14} /> Editar
                         </Button>
                         <Button variant="ghost" onClick={() => void toggleService(service)}>
-                          <Power size={14} /> {service.active ? 'Inativar' : 'Ativar'}</Button>
-                        <Button variant="ghost" onClick={() => void removeService(service)}>
-                          <Trash2 size={14} /> Excluir
-                        </Button>
+                          <Power size={14} /> {service.active ? 'Desativar' : 'Reativar'}</Button>
+                        {canDelete ? (
+                          <Button variant="ghost" onClick={() => void removeService(service)}>
+                            <Trash2 size={14} /> Excluir
+                          </Button>
+                        ) : null}
                       </span>
                     ) : null}
                   </li>

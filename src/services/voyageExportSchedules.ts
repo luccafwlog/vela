@@ -292,11 +292,6 @@ function parseVoyageExportScheduleSaveResult(value: Json | null): VoyageExportSc
   }
 }
 
-export async function deleteVoyageExportSchedule(id: string): Promise<void> {
-  const { error } = await supabase.from('voyage_export_schedules').delete().eq('id', id)
-  if (error) throw error
-}
-
 function buildExportSchedulePortKey(schedule: Pick<VoyageExportSchedule, 'id' | 'pol'>) {
   return normalizeExportSchedulePol(schedule.pol) ?? `__missing_pol__::${schedule.id}`
 }

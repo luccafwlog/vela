@@ -111,7 +111,11 @@ $charge_assert$;
 -- O catálogo de demurrage é uma tabela única. Em uma branch nova ela pode
 -- conter as 37 linhas legadas das migrations 048/279; elas são substituídas
 -- integralmente pelo estado atual de main.
+-- Tarifa vigente conta como usada (migration 091); o seed liga a marca de
+-- catálogo para poder substituí-las num banco novo.
+SET vela.seed_catalog = 'on';
 DELETE FROM public.demurrage_rates;
+RESET vela.seed_catalog;
 
 INSERT INTO public.demurrage_rates (
   container_type, free_days, p1_day_from, p1_day_to, p1_usd,

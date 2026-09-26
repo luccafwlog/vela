@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
+  rpc: vi.fn(),
 }))
 
-vi.mock('../../supabase', () => ({ supabase: { from: mocks.from } }))
+vi.mock('../../supabase', () => ({ supabase: { from: mocks.from, rpc: mocks.rpc } }))
 
 import {
   deleteCustomerDemurrageAgreement,
@@ -141,12 +142,16 @@ describe('customerDemurrageAgreements service', () => {
   })
 
   it('deletes and toggles active status of agreements', async () => {
-    const builder = createMockQuery({ error: null })
+    const builder = createMockQuery({ data: [{ id: 5 }], error: null })
     mocks.from.mockReturnValue(builder)
 
-    await deleteCustomerDemurrageAgreement(5)
-    expect(builder.delete).toHaveBeenCalled()
-    expect(builder.eq).toHaveBeenCalledWith('id', 5)
+    mocks.rpc.mockResolvedValue({ data: null, error: null })
+    await deleteCustomerDemurrageAgreement(5, 'acordo encerrado')
+    expect(mocks.rpc).toHaveBeenCalledWith('delete_catalog_row', {
+      p_table: 'customer_demurrage_agreements',
+      p_id: '5',
+      p_reason: 'acordo encerrado',
+    })
 
     await toggleCustomerDemurrageAgreementActive(5, false)
     expect(builder.update).toHaveBeenCalledWith({ active: false })

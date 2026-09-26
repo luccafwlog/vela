@@ -36,6 +36,12 @@ export type ScheduleWriteOptions = {
   mode?: ScheduleWriteMode
   /** Viagem alvo conhecida (edicao): pula a deduplicacao por VOY+navio. */
   voyageId?: number
+  /**
+   * "Nao escala" so retira a escala para o Administrativo, e o banco ainda
+   * aplica a trava do CE (migration 090; ADR 0071). Para os demais, a data
+   * prevista e limpa e a escala continua.
+   */
+  canRemoveEscala?: boolean
 }
 
 export function partitionScheduleLanes(lanes: ScheduleLaneInput[]) {
@@ -89,6 +95,7 @@ async function cancelClearedLanes(
   voyageId: number,
   lanes: ScheduleLaneInput[],
   changedBy: string | null,
+  canRemoveEscala: boolean,
 ) {
   const cleared = collectClearedLanes(lanes)
 
@@ -105,7 +112,7 @@ async function cancelClearedLanes(
   await Promise.all(cleared.pods.map(async (code) => {
     const current = currentPods.get(buildVoyagePodEntityId(voyageId, code))
     if (!current) return
-    const anchored = await podHasOperationalAnchor(voyageId, code, current)
+    const anchored = !canRemoveEscala || await podHasOperationalAnchor(voyageId, code, current)
     if (anchored) {
       if (current.eta === null) return
       await saveVoyagePodSchedule({
@@ -167,7 +174,7 @@ export async function createOrAttachVoyageFromSchedule(
   }))
 
   if (mode === 'form') {
-    await cancelClearedLanes(voyageId, input.lanes, changedBy)
+    await cancelClearedLanes(voyageId, input.lanes, changedBy, options.canRemoveEscala ?? false)
   }
 
   return { voyageId, created: existingId === null }

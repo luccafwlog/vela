@@ -171,7 +171,7 @@ function SectionObservationAction({
             className="min-h-32 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3 text-sm shadow-sm"
           />
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setEditing(false)}>Cancelar</Button>
+            <Button type="button" variant="secondary" onClick={() => setEditing(false)}>Voltar</Button>
             <Button
               type="button"
               variant="primary"
@@ -706,7 +706,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
          </div>
          <Modal open={closeConfirmOpen} title="Confirmar fechamento do ADR" onClose={() => setCloseConfirmOpen(false)}>
            <p className="text-sm text-[var(--app-text)]">Fechar o ADR de <strong>{voyageLabel}</strong> em <strong>{port ?? 'esta escala'}</strong> congela o retrato atual e libera a impressão.</p>
-           <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setCloseConfirmOpen(false)}>Cancelar</Button><Button variant="primary" loading={closeMutation.isPending} disabled={readOnly} onClick={() => { if (!readOnly && port) closeMutation.mutate({ voyageId, port, snapshot: snapshot as unknown as Json }, { onSuccess: () => setCloseConfirmOpen(false), onError: () => showToast('Falha ao fechar o ADR. Tente novamente.', 'error') }) }}>Confirmar fechamento</Button></div>
+           <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setCloseConfirmOpen(false)}>Voltar</Button><Button variant="primary" loading={closeMutation.isPending} disabled={readOnly} onClick={() => { if (!readOnly && port) closeMutation.mutate({ voyageId, port, snapshot: snapshot as unknown as Json }, { onSuccess: () => setCloseConfirmOpen(false), onError: () => showToast('Falha ao fechar o ADR. Tente novamente.', 'error') }) }}>Confirmar fechamento</Button></div>
          </Modal>
 
         <div className="grid gap-4">

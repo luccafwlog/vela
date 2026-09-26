@@ -1,6 +1,8 @@
 import { supabase } from './supabase'
 import type { VoyageFormValues } from './voyageForm'
 import { canonicalizeVesselName, normalizeVesselImo } from '../lib/vesselAlias'
+import { deleteRecords } from './deleteRecords'
+import type { DeleteDependencyReport } from './deleteDependencies'
 
 export async function createVoyage(form: VoyageFormValues, changedBy: string | null) {
   const carrierId = await getOrCreateCarrier(form.carrierName, form.carrierScac)
@@ -87,30 +89,35 @@ export async function cancelVoyage({
   if (error) throw error
 }
 
-export async function deleteVoyage(voyageId: number) {
-  const [bls, batches, graniteManifests, vaziosManifests] = await Promise.all([
-    supabase.from('bls').select('id', { count: 'exact', head: true }).eq('voyage_id', voyageId).range(0, 0),
-    supabase.from('import_batches').select('id', { count: 'exact', head: true }).eq('voyage_id', voyageId).range(0, 0),
-    supabase.from('granite_manifests').select('id', { count: 'exact', head: true }).eq('voyage_id', voyageId).range(0, 0),
-    supabase.from('vazios_manifests').select('id', { count: 'exact', head: true }).eq('voyage_id', voyageId).range(0, 0),
+export type VoyageDeletePreview = {
+  report: DeleteDependencyReport<number>
+  /** O que vai junto, da mesma lista que a exclusão executa (migration 088). */
+  items: VoyageDeleteScopeItem[]
+}
+
+export type VoyageDeleteScopeItem = { table: string; action: 'delete' | 'detach'; label: string; count: number }
+
+/**
+ * Previa da exclusao de viagem (ADR 0071): se ela esta travada (CE Mercante,
+ * documento financeiro, ADR fechado, comunicado) ou cancelada, e quanto vai
+ * junto em cascata. Calculada pelo banco, com as regras da exclusao real.
+ */
+export async function previewVoyageDeletion(voyageId: number): Promise<VoyageDeletePreview> {
+  const [report, scope] = await Promise.all([
+    deleteRecords('voyage', [voyageId], { dryRun: true }),
+    supabase.rpc('voyage_delete_preview' as never, { p_voyage_id: voyageId } as never),
   ])
+  if (scope.error) throw scope.error
+  const data = scope.data as unknown as { items?: VoyageDeleteScopeItem[] } | null
+  return { report, items: data?.items ?? [] }
+}
 
-  const firstError = [bls, batches, graniteManifests, vaziosManifests].find((result) => result.error)?.error
-  if (firstError) throw firstError
-
-  const blCount = bls.count ?? 0
-  const batchCount = batches.count ?? 0
-  const graniteManifestCount = graniteManifests.count ?? 0
-  const vaziosManifestCount = vaziosManifests.count ?? 0
-
-  if (blCount > 0 || batchCount > 0 || graniteManifestCount > 0 || vaziosManifestCount > 0) {
-    throw new Error(
-      `Nao e possivel excluir esta viagem porque ela possui dados vinculados: ${blCount} B/L(s), ${batchCount} importacao(oes) CNTR/BB, ${graniteManifestCount} manifesto(s) de granito e ${vaziosManifestCount} manifesto(s) de vazios. Remova os vinculos antes.`,
-    )
-  }
-
-  const { error } = await supabase.from('voyages').delete().eq('id', voyageId)
-  if (error) throw error
+/**
+ * Exclui a viagem com B/Ls, carga, escalas e demais dados operacionais, numa
+ * operacao so no banco. Viagem travada ou cancelada volta no relatorio.
+ */
+export function deleteVoyage(voyageId: number, reason: string): Promise<DeleteDependencyReport<number>> {
+  return deleteRecords('voyage', [voyageId], { reason })
 }
 
 async function getOrCreateCarrier(name: string, scac: string) {
@@ -328,6 +335,12 @@ export async function fetchVoyagesWithUnpaidBls(voyageIds: number[]): Promise<Se
 
   if (error) throw error
   return new Set((data ?? []).map((row) => Number((row as { voyage_id: number }).voyage_id)).filter(Boolean))
+}
+
+/** Devolve a viagem cancelada por engano (ADR 0071, item 8); so o Administrativo. */
+export async function reactivateVoyage(voyageId: number, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('reactivate_voyage' as never, { p_voyage_id: voyageId, p_reason: reason } as never)
+  if (error) throw error
 }
 
 export async function setVoyageShowOnPortal(voyageId: number, show: boolean) {

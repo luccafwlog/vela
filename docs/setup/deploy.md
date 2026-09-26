@@ -232,7 +232,7 @@ e SHA/estado revalidados), sem fallback para produção.
 
 O script usa a Auth Admin API server-side para criar ou atualizar, de forma
 idempotente, o usuário `qa-admin@example.test`, confirmar seu e-mail e fazer
-upsert de `public.user_profiles` com `role = 'admin'` e `active = true`. A senha
+upsert de `public.user_profiles` com `role = 'administrativo'` e `active = true`. A senha
 não fica no repositório nem em variáveis `VITE_*`. O usuário é recriado quando a
 PR gera uma nova branch; ao fechar a PR, o próprio Supabase remove a Preview
 Branch e seus dados.

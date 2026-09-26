@@ -118,9 +118,9 @@ it('permite cancelar a leitura de uma seleção em andamento', async () => {
     target: { files: [new File(['A;B\n1;2'], 'um.csv'), new File(['A;B\n3;4'], 'dois.csv')] },
   })
 
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Cancelar leitura' })).toBeTruthy())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Interromper leitura' })).toBeTruthy())
   expect(screen.getByRole('progressbar')).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: 'Cancelar leitura' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Interromper leitura' }))
   release()
 
   await waitFor(() => expect(screen.queryByText('Linhas: 1')).toBeNull())

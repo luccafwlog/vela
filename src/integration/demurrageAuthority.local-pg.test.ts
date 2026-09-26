@@ -51,7 +51,7 @@ describeLocal('S08-B — cálculo server-side e snapshots de Demurrage', () => {
 
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 's08-authority@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active)
-      VALUES ('${actorId}', 'S08 Authority', 'admin', true);
+      VALUES ('${actorId}', 'S08 Authority', 'administrativo', true);
       INSERT INTO public.customers (id, cnpj_cpf, name)
       VALUES (${customerId}, '99223001000162', 'Cliente S08 Authority');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier S08 Authority');

@@ -4,7 +4,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card, EmptyState, InlineError } from '../ui/Card'
 import { Input } from '../ui/Input'
-import { useConfirm } from '../ui/ConfirmDialog'
+import { useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import {
   useCustomerDemurrageAgreements,
@@ -17,7 +17,7 @@ import type { CustomerDemurrageAgreementListItem } from '../../types/customerDem
 
 export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }) {
   const { showToast } = useToast()
-  const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
 
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -47,16 +47,18 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
 
   async function handleDelete(agreement: CustomerDemurrageAgreementListItem) {
     const customerName = agreement.customer?.name ?? `Cliente #${agreement.customer_id}`
-    const confirmed = await confirm({
+    const reason = await confirmWithReason({
       title: 'Excluir Acordo de Demurrage',
-      message: `Tem certeza que deseja remover o acordo de Demurrage de ${customerName}?`,
+      message: `Excluir o acordo de Demurrage de ${customerName}?`,
+      consequence: 'Cálculos novos de Demurrage deste cliente voltam a usar a tarifa padrão.',
+      reversibility: 'Não é possível desfazer; cadastre o acordo de novo se precisar.',
       tone: 'danger',
       confirmLabel: 'Excluir',
     })
-    if (!confirmed) return
+    if (reason === null) return
 
     deleteMutation.mutate(
-      { id: agreement.id, customerId: agreement.customer_id },
+      { id: agreement.id, reason, customerId: agreement.customer_id },
       {
         onSuccess: () => showToast('Acordo removido com sucesso.', 'success'),
         onError: (err) => showToast(err instanceof Error ? err.message : 'Erro ao remover acordo.', 'error'),

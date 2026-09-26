@@ -173,11 +173,19 @@ Definidas em `src/services/queryKeys.ts`:
 - `charge_tables` possui escopo, vigência e ativação da tabela. A vigência é
   informativa (ADR 0040): `resolve_local_charge_table_id` (migration `274`)
   resolve por `cargo_mode` + POD normalizado + `active`, e desempata entre
-  ativas por `valid_from DESC, id DESC`. Inativar é a única forma de tirar uma
-  tabela do cálculo.
+  ativas por `valid_from DESC, id DESC`. Desativar ("Desativar tabela") é a única forma de tirar
+  uma tabela do cálculo.
 - `charge_table_items` possui categoria, base de aplicação, perfil, moeda e
   valor unitário; `manual_only` separa itens automáticos dos adicionáveis.
-- `customer_rate_overrides` possui a substituição por cliente/item/vigência.
+- `customer_rate_overrides` possui a substituição por cliente/item/vigência e,
+  desde a migration `091`, `active`: override desativado não entra em cálculos
+  novos nem disputa a vigência com um override novo.
+- Tarifa usada só se desativa (ADR 0073; migration `091`): excluir tabela, item
+  ou override referenciado por cálculo, item de fatura ou versão de regra de
+  preço é recusado pelo trigger `trg_guard_used_tariff_delete`, com a mensagem
+  "desative em vez de excluir". Desativar e reativar tabela, item e override são
+  do Administrativo (`trg_guard_tariff_active_change`); a tela só mostra essas
+  ações a ele.
 - `charge_calculations` possui as linhas efetivamente calculadas ou manuais.
 - `bls.charge_status`, timestamps e `billing_hold_reason` resumem o workflow,
   mas as linhas e seus motivos continuam em `charge_calculations`.

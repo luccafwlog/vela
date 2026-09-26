@@ -2,6 +2,12 @@
 
 Status: aceito — 2026-06-09
 
+> **Nota editorial — 2026-09-24.** Supersedida parcialmente pela
+> [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md): o critério de
+> exclusão passa a ser a trava do CE Mercante, o papel autorizado é o
+> Administrativo e a auditoria deixa de ser best-effort. A rejeição de soft
+> delete generalizado continua. Implementada em 2026-09-25 (nota da 0071).
+
 ## Contexto
 
 O sistema precisa permitir correções operacionais em produção: excluir B/Ls, containers, veículos e clientes criados de forma indevida, inclusive em massa. Ao mesmo tempo, há histórico fiscal e financeiro que não pode desaparecer por cascata acidental.

@@ -1,6 +1,6 @@
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileText, MoreHorizontal, ReceiptText, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileText, MoreHorizontal, Power, ReceiptText, Trash2 } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Card, EmptyState, InlineError } from '../ui/Card'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
@@ -23,6 +23,8 @@ export type CustomerActionsMenu = {
   name: string
   cnpj: string
   email: string | null
+  /** Cliente desativado (ADR 0073; migration 092). */
+  deactivated: boolean
 }
 
 type CustomerRows = {
@@ -34,7 +36,7 @@ export function CustomerTable({
   data,
   isLoading,
   error,
-  canEditCustomers,
+  canDeleteCustomers,
   selection,
   filters,
   totalPages,
@@ -45,12 +47,13 @@ export function CustomerTable({
   onOpenActionsMenu,
   onCopy,
   onDeleteCustomer,
+  onToggleCustomerActive,
   portalRows,
 }: {
   data: CustomerRows | undefined
   isLoading: boolean
   error: unknown
-  canEditCustomers: boolean
+  canDeleteCustomers: boolean
   selection: {
     isSelected: (id: number) => boolean
     toggle: (id: number) => void
@@ -64,10 +67,11 @@ export function CustomerTable({
   onPageChange: (page: number) => void
   onOpenActionsMenu: (
     event: ReactMouseEvent<HTMLButtonElement>,
-    row: { id: number; name: string; cnpj_cpf: string; email: string | null },
+    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
   ) => void
   onCopy: (value: string, label: string) => Promise<void>
   onDeleteCustomer: (id: number) => void
+  onToggleCustomerActive: (id: number, deactivated: boolean) => void
   portalRows?: QueueRow[]
 }) {
   const pageCustomerIds = (data?.rows ?? []).map((row) => row.id)
@@ -81,7 +85,7 @@ export function CustomerTable({
           <table className="app-table app-table--compact app-table--sticky-actions min-w-[1140px] table-fixed text-left text-sm">
             <thead className="text-xs uppercase tracking-wider">
               <tr>
-                {canEditCustomers ? (
+                {canDeleteCustomers ? (
                   <th scope="col" className="w-10 px-4 py-3">
                     <input
                       type="checkbox"
@@ -116,14 +120,14 @@ export function CustomerTable({
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={canEditCustomers ? 6 : 5} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={canDeleteCustomers ? 6 : 5} className="px-4 py-8 text-center text-slate-400">
                     Carregando clientes...
                   </td>
                 </tr>
               ) : null}
               {!isLoading && !data?.rows.length ? (
                 <tr>
-                  <td colSpan={canEditCustomers ? 6 : 5} className="p-0">
+                  <td colSpan={canDeleteCustomers ? 6 : 5} className="p-0">
                     <EmptyState title="Nenhum cliente encontrado." description="Importe uma base de clientes ou cadastre manualmente." />
                   </td>
                 </tr>
@@ -132,7 +136,7 @@ export function CustomerTable({
                 <CustomerTableRow
                   key={row.id}
                   row={row}
-                  canEditCustomers={canEditCustomers}
+                  canDeleteCustomers={canDeleteCustomers}
                   selected={selection.isSelected(row.id)}
                   actionsOpen={actionsMenu?.id === row.id}
                   onToggle={() => selection.toggle(row.id)}
@@ -167,7 +171,18 @@ export function CustomerTable({
               Copiar e-mail
             </button>
           ) : null}
-          {canEditCustomers ? (
+          {canDeleteCustomers ? (
+            <button
+              type="button"
+              role="menuitem"
+              className={actionsMenu.deactivated ? undefined : 'app-floating-menu__danger'}
+              onClick={() => onToggleCustomerActive(actionsMenu.id, actionsMenu.deactivated)}
+            >
+              <Power size={14} />
+              {actionsMenu.deactivated ? 'Reativar cliente' : 'Desativar cliente'}
+            </button>
+          ) : null}
+          {canDeleteCustomers ? (
             <button
               type="button"
               role="menuitem"
@@ -187,7 +202,7 @@ export function CustomerTable({
 
 function CustomerTableRow({
   row,
-  canEditCustomers,
+  canDeleteCustomers,
   selected,
   actionsOpen,
   onToggle,
@@ -195,13 +210,13 @@ function CustomerTableRow({
   portalRow,
 }: {
   row: CustomerListItem
-  canEditCustomers: boolean
+  canDeleteCustomers: boolean
   selected: boolean
   actionsOpen: boolean
   onToggle: () => void
   onOpenActionsMenu: (
     event: ReactMouseEvent<HTMLButtonElement>,
-    row: { id: number; name: string; cnpj_cpf: string; email: string | null },
+    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
   ) => void
   portalRow?: QueueRow
 }) {
@@ -221,14 +236,14 @@ function CustomerTableRow({
 
   return (
     <tr>
-      {canEditCustomers ? (
+      {canDeleteCustomers ? (
         <td className="px-4 py-3">
           <input type="checkbox" aria-label={`Selecionar cliente ${row.name}`} checked={selected} onChange={onToggle} />
         </td>
       ) : null}
       <td className="px-4 py-3">
         <div className="app-table__cell-stack">
-          <div className="app-table__cell-value flex items-center gap-2" title={row.name}>{truncateCustomerName(row.name, 64)}{portalNeedsAttention ? <AlertTriangle size={15} className="text-amber-400" aria-label="Pendência de Portal" /> : null}</div>
+          <div className="app-table__cell-value flex items-center gap-2" title={row.name}>{truncateCustomerName(row.name, 64)}{(row as { deactivated_at?: string | null }).deactivated_at ? <Badge tone="slate">Desativado</Badge> : null}{portalNeedsAttention ? <AlertTriangle size={15} className="text-amber-400" aria-label="Pendência de Portal" /> : null}</div>
           <div className="app-table__cell-meta">{formatCnpjCpf(row.cnpj_cpf)}</div>
           {customerComplement ? <div className="app-table__cell-meta">{customerComplement}</div> : null}
         </div>
@@ -286,7 +301,7 @@ function CustomerTableRow({
             aria-label={`Mais ações para ${row.name}`}
             aria-haspopup="menu"
             aria-expanded={actionsOpen}
-            onClick={(event) => onOpenActionsMenu(event, { id: row.id, name: row.name, cnpj_cpf: row.cnpj_cpf, email: contactSummary.primaryEmail })}
+            onClick={(event) => onOpenActionsMenu(event, { id: row.id, name: row.name, cnpj_cpf: row.cnpj_cpf, email: contactSummary.primaryEmail, deactivated: Boolean((row as { deactivated_at?: string | null }).deactivated_at) })}
           >
             <MoreHorizontal size={15} />
           </button>

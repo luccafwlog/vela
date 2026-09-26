@@ -17,6 +17,9 @@ const mocks = vi.hoisted(() => ({
   importCustomerBaseRows: vi.fn(),
   checkCustomerDependencies: vi.fn(),
   deleteCustomers: vi.fn(),
+  deactivateCustomer: vi.fn(),
+  reactivateCustomer: vi.fn(),
+  confirmWithReason: vi.fn(),
   supabaseFrom: vi.fn(),
   supabaseOr: vi.fn(),
   exportCustomerBaseWorkbook: vi.fn(),
@@ -49,11 +52,14 @@ vi.mock('../../components/ui/Toast', () => ({
 }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirm: () => mocks.confirm,
+  useConfirmWithReason: () => mocks.confirmWithReason,
 }))
 vi.mock('../../services/customers', () => ({
   createCustomer: mocks.createCustomer,
   checkCustomerDependencies: mocks.checkCustomerDependencies,
   deleteCustomers: mocks.deleteCustomers,
+  deactivateCustomer: mocks.deactivateCustomer,
+  reactivateCustomer: mocks.reactivateCustomer,
   fetchIssuedInvoiceBalanceByCustomer: vi.fn(() => Promise.resolve(new Map())),
   fetchCustomerPendingBalance: vi.fn(() => Promise.resolve({ localBrl: 0, demurrageBrl: 0, totalBrl: 0 })),
 }))
@@ -121,8 +127,9 @@ describe('Clientes page behaviours', () => {
     mocks.compareCustomerBaseWithExisting.mockResolvedValue(parsedBase)
     mocks.importCustomerBaseRows.mockResolvedValue({ imported: 1, updated: 0, contactsCreated: 1, blsLinked: 1 })
     mocks.checkCustomerDependencies.mockResolvedValue({ deletableIds: [42], blockedIds: [] })
-    mocks.deleteCustomers.mockResolvedValue(undefined)
+    mocks.deleteCustomers.mockResolvedValue({ deletableIds: [42], blockedIds: [] })
     mocks.confirm.mockResolvedValue(true)
+    mocks.confirmWithReason.mockResolvedValue('cadastro duplicado')
     mocks.exportCustomerBaseWorkbook.mockResolvedValue(undefined)
     const exportResult = Promise.resolve({ data: [customer], error: null })
     const exportQuery = {
@@ -210,14 +217,46 @@ describe('Clientes page behaviours', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Selecionar cliente Cliente Teste' }))
     await user.click(screen.getByRole('button', { name: 'Excluir selecionados' }))
 
-    await waitFor(() => expect(mocks.deleteCustomers).toHaveBeenCalledWith([42], 'user-1'))
+    await waitFor(() => expect(mocks.deleteCustomers).toHaveBeenCalledWith([42], 'cadastro duplicado'))
     expect(mocks.checkCustomerDependencies).toHaveBeenCalledWith([42])
-    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ tone: 'danger', confirmLabel: 'Excluir' }))
+    expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({
+      tone: 'danger',
+      confirmLabel: 'Excluir',
+      affected: expect.objectContaining({ summary: '1 cliente(s) serão excluído(s).' }),
+    }))
     for (const queryKey of [['customers'], ['customers-summary'], ['customer-lookup']]) {
       expect(invalidateQueries).toHaveBeenCalledWith({ queryKey })
     }
     expect(screen.queryByText('1 cliente selecionado')).toBeNull()
     expect((screen.getByRole('checkbox', { name: 'Selecionar cliente Cliente Teste' }) as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('desativa o cliente pela prévia, com motivo (ADR 0073)', async () => {
+    const user = userEvent.setup()
+    mocks.deactivateCustomer.mockReset()
+      .mockResolvedValueOnce({ deactivated: false, reasons: [] })
+      .mockResolvedValueOnce({ deactivated: true, reasons: [] })
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Mais ações para Cliente Teste' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Desativar cliente' }))
+
+    await waitFor(() => expect(mocks.deactivateCustomer).toHaveBeenLastCalledWith(42, 'cadastro duplicado'))
+    expect(mocks.deactivateCustomer).toHaveBeenNthCalledWith(1, 42, '', { dryRun: true })
+    expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({ title: 'Desativar cliente' }))
+  })
+
+  it('não abre a confirmação quando há cobrança em aberto', async () => {
+    const user = userEvent.setup()
+    mocks.deactivateCustomer.mockReset().mockResolvedValueOnce({ deactivated: false, reasons: ['fatura em aberto'] })
+    mocks.confirmWithReason.mockClear()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Mais ações para Cliente Teste' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Desativar cliente' }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('fatura em aberto'), 'error'))
+    expect(mocks.confirmWithReason).not.toHaveBeenCalled()
   })
 
   it('delegates table sorting and row menu copy actions through the page state', async () => {

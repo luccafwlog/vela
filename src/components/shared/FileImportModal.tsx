@@ -247,7 +247,7 @@ export function FileImportModal<T, TResult = void>({
           </div>
         ) : null}
         <div className="app-modal__actions">
-          <Button variant="secondary" disabled={importing} onClick={parsing ? cancelParsing : closeModal}>{parsing ? 'Cancelar leitura' : 'Cancelar'}</Button>
+          <Button variant="secondary" disabled={importing} onClick={parsing ? cancelParsing : closeModal}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
           <Button
             disabled={importResult !== undefined ? false : !ready || !entries.some((entry) => canImport(entry.preview, allowOverride))}
             loading={importing}

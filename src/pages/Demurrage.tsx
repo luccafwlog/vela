@@ -394,7 +394,7 @@ export function Demurrage() {
                 if (!validation.success) return showToast(formatValidationError(validation.error), 'error')
                 containerDatesMutation.mutate({ id: editingContainer.id, discharge: validation.data.discharge, ret: validation.data.ret })
               }}>Salvar</Button>
-              <Button variant="ghost" onClick={() => setEditingContainer(null)}>Cancelar</Button>
+              <Button variant="ghost" onClick={() => setEditingContainer(null)}>Voltar</Button>
             </div>
           </div>
         )}
@@ -406,7 +406,7 @@ export function Demurrage() {
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div><div className="font-semibold text-[var(--app-text-strong)]">{breakdownDetail.invoice.doc_number}</div><div className="text-sm text-slate-400">{breakdownDetail.invoice.bl_id} — {fmtUSD(breakdownDetail.invoice.total_usd)}</div></div><div className="flex flex-wrap gap-2">
               <Button variant="secondary" onClick={() => { setDetailInvoiceId(null); openDiscount(breakdownDetail.invoice as DemurrageInvoice) }}>Desconto</Button>
               <Button variant="secondary" onClick={() => { setDetailInvoiceId(null); openDispute(breakdownDetail.invoice as DemurrageInvoice) }}>Disputa</Button>
-              {breakdownDetail.invoice.status === 'issued' && <><Button variant="secondary" onClick={() => { setDetailInvoiceId(null); setPayingId(breakdownDetail.invoice.id) }}>Registrar Pgto</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); void handleCancelInvoice(breakdownDetail.invoice.id) }}>Cancelar</Button></>}
+              {breakdownDetail.invoice.status === 'issued' && <><Button variant="secondary" onClick={() => { setDetailInvoiceId(null); setPayingId(breakdownDetail.invoice.id) }}>Registrar Pgto</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); void handleCancelInvoice(breakdownDetail.invoice.id) }}>Voltar</Button></>}
               {breakdownDetail.invoice.status === 'paid' && <><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('receipt') }}>Recibo</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setReversingPayment({ id: breakdownDetail.invoice.id, docNumber: breakdownDetail.invoice.doc_number }) }}>Cancelar baixa</Button></>}
             </div></div>
             <div className="overflow-x-auto">

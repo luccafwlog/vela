@@ -69,7 +69,7 @@ describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalida�
 
       INSERT INTO auth.users (id, email) VALUES ('${adminId}', 's06-elig@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active)
-      VALUES ('${adminId}', 'S06 Elig', 'admin', true);
+      VALUES ('${adminId}', 'S06 Elig', 'administrativo', true);
       INSERT INTO public.customers (id, cnpj_cpf, name)
       VALUES (${customerId}, '${customerCnpj}', 'Cliente S06 D11'), (${otherCustomerId}, '${otherCustomerCnpj}', 'Outro S06');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier S06');

@@ -80,7 +80,7 @@ export function ImportBaseModal({
 
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
-            Cancelar
+            Voltar
           </Button>
           <Button disabled={!parsedBase?.rows.length} loading={importingBase} onClick={onImport}>
             Importar base

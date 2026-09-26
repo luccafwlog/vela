@@ -82,7 +82,7 @@ export function BlTransshipmentCard({ omission, disposition, saving, onCod, onRe
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={closeDialog}>Cancelar</Button>
+            <Button variant="secondary" onClick={closeDialog}>Voltar</Button>
             <Button variant="primary" disabled={!justification.trim()} onClick={confirmAction}>
               {isCod ? 'Confirmar COD' : 'Confirmar reversão'}
             </Button>

@@ -108,7 +108,7 @@ describe('createOrAttachVoyageFromSchedule - modo form (cancelar escala)', () =>
     calls.blSelect.mockReturnValue(blQuery([]))
   })
 
-  it('POD sem ancora e sem data vira soft-delete', async () => {
+  it('POD sem ancora e sem data vira soft-delete para o Administrativo', async () => {
     calls.findVoyage.mockResolvedValue(42)
     calls.listPod.mockResolvedValue(new Map([
       ['42::BRVIX', { entityId: '42::BRVIX', voyageId: 42, pod: 'BRVIX', eta: '2026-01-25', etb: null, ata: null, atd: null, rtw: null, ceStatus: null, linked: false }],
@@ -122,11 +122,28 @@ describe('createOrAttachVoyageFromSchedule - modo form (cancelar escala)', () =>
         { code: 'BRSSA', kind: 'pod', date: '2026-01-22' },
         { code: 'BRVIX', kind: 'pod', date: null },
       ],
-    }, 'user-1', { mode: 'form', voyageId: 42 })
+    }, 'user-1', { mode: 'form', voyageId: 42, canRemoveEscala: true })
 
     expect(calls.findVoyage).not.toHaveBeenCalled()
     expect(calls.deletePod).toHaveBeenCalledWith({ voyageId: 42, pod: 'BRVIX', changedBy: 'user-1' })
     expect(calls.savePod).toHaveBeenCalledWith(expect.objectContaining({ pod: 'BRSSA', eta: '2026-01-22' }))
+  })
+
+  it('para os demais Departamentos, "nao escala" so zera o ETA (ADR 0071)', async () => {
+    calls.findVoyage.mockResolvedValue(42)
+    calls.listPod.mockResolvedValue(new Map([
+      ['42::BRVIX', { entityId: '42::BRVIX', voyageId: 42, pod: 'BRVIX', eta: '2026-01-25', etb: null, ata: null, atd: null, rtw: null, ceStatus: null, linked: false }],
+    ]))
+
+    await createOrAttachVoyageFromSchedule({
+      vesselName: 'GREEN PECEM',
+      vesselImo: '9976501',
+      voyageNumber: '6',
+      lanes: [{ code: 'BRVIX', kind: 'pod', date: null }],
+    }, 'user-1', { mode: 'form', voyageId: 42 })
+
+    expect(calls.deletePod).not.toHaveBeenCalled()
+    expect(calls.savePod).toHaveBeenCalledWith(expect.objectContaining({ pod: 'BRVIX', eta: null }))
   })
 
   it('POD com ancora (linked) so zera o ETA publicado, sem soft-delete', async () => {

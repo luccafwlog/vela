@@ -48,7 +48,7 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
         ('${adminId}', 'admin-323@example.test'), ('${opsId}', 'ops-323@example.test'),
         ('${docsId}', 'docs-323@example.test'), ('${equipmentId}', 'equipment-323@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${adminId}', 'Admin 323', 'admin', true), ('${opsId}', 'Ops 323', 'operacoes', true),
+        ('${adminId}', 'Admin 323', 'administrativo', true), ('${opsId}', 'Ops 323', 'operacoes', true),
         ('${docsId}', 'Docs 323', 'documentacao', true), ('${equipmentId}', 'Equipment 323', 'equipamentos', true);
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 323') ON CONFLICT (id) DO NOTHING;
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 323', ${carrierId}) ON CONFLICT (id) DO NOTHING;

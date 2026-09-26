@@ -13,6 +13,7 @@ persistido nem das definições executáveis.
 
 | Assunto | Seção |
 |---|---|
+| Excluir, cancelar, desativar e demais ações sobre registros | [Ações sobre registros](#ações-sobre-registros) |
 | Viagem, Escala, Atracação, ADR e vazios | [Operação marítima](#operação-marítima) |
 | Documento e carga física | [Baplie e reconciliação](#baplie-e-reconciliação) |
 | CE, Manifesto Mercante e frete documental | [Mercante](#mercante) |
@@ -42,6 +43,118 @@ ou estados. Se o rótulo da tela ou o vínculo ainda não foi verificado, trate-
 como hipótese e diga o que precisa ser confirmado. O guia operacional completo
 está no [contrato de comunicação](docs/agents/linguagem-do-sistema.md).
 
+## Ações sobre registros
+
+Vocabulário decidido em 2026-09-24 para as ações que tiram um registro de
+circulação ou desfazem uma ação anterior. Cada termo tem um único efeito; o
+rótulo de um botão deve corresponder ao efeito que ele produz. A interface ainda
+não segue este vocabulário em todas as telas: as divergências conhecidas estão
+na [revisão da exclusão de dados](docs/archive/audits/2026-09-24-revisao-exclusao-de-dados.md)
+e são tratadas tela a tela.
+
+**Excluir**
+Remove o registro do banco. Irreversível pelo aplicativo. Serve apenas para
+erro de cadastro em registro que ainda não tem vínculo. Não é a saída para um
+registro que não pode mais ser excluído.
+
+**Corrigir**
+Editar os campos de um registro. É o caminho para um erro de cadastro em
+registro que já tem vínculo. O valor anterior só é preservado pela Auditoria.
+
+**Cancelar**
+Registrar, com motivo, que um fato de negócio deixou de valer: o armador
+cancelou a viagem, a fatura foi anulada, uma baixa foi lançada por engano. O
+registro permanece e continua visível como cancelado. Não é correção de erro de
+cadastro.
+
+**Reativar**
+Desfazer, com motivo e rastro, um cancelamento ou uma desativação. O histórico
+mostra os dois eventos. Documento fiscal cancelado (fatura, invoice de
+Demurrage) não se reativa: emite-se outro, que referencia o cancelado.
+
+**Desativar**
+Tirar de uso um cadastro que não será mais escolhido. O registro sai das listas
+de escolha e continua no histórico e nos documentos que o referenciam. O oposto
+é Reativar. "Inativar" não é usado como ação; *Inativo* continua sendo o nome
+do estado exibido.
+
+**Remover**
+Tirar um item de um lugar ou de um vínculo sem apagá-lo: remover a exceção de
+terminal de um B/L. O item continua existindo; o oposto é adicioná-lo de novo.
+Uma ação que apaga o registro do banco se chama Excluir, não Remover.
+
+**Revogar**
+Retirar uma permissão ou liberação concedida: liberação de faturamento no
+Portal, convite ("Revogar convite"), sessão. O oposto é conceder de novo.
+
+**Reverter**
+Desfazer, com motivo, uma marcação sobre algo que continua ativo: omissão de
+escala, transbordo. Difere de Reativar, que traz de volta algo cancelado ou
+desativado.
+
+**Dispensar**
+Parar de ver um aviso. Nada muda no dado. Exclusivo de Alertas e Notificações.
+
+**Estorno**
+Devolução ao cliente de valor que ele pagou a maior. Não é o desfazer de uma
+baixa: uma baixa lançada por engano é cancelada. No código, estorno é
+`invoice_refunds`; Cancelar baixa é `reverse_invoice_payment` e
+`reverse_demurrage_payment`.
+
+**Cadastro usado**
+Um cadastro de referência (tarifa, cliente, local, terminal, depot, serviço
+do depot)
+só pode ser excluído se nunca foi usado; depois de usado, só se desativa, para
+que todo valor cobrado mantenha a origem. Excluir e desativar são do
+Administrativo. Cliente com conta do Portal
+provisionada já conta como usado. Cliente desativado perde o acesso ao Portal;
+não se desativa cliente com fatura ou recebível em aberto, e B/L novo com o
+CNPJ dele vai para a Revisão em vez de se vincular. Decidido na
+[ADR 0073](docs/adr/0073-cadastro-usado-so-se-desativa.md), ainda não
+implementada.
+
+**Guarda e recuperação**
+Usuário interno nunca é excluído, só desativado, porque é o autor na
+auditoria. A auditoria é guardada por 5 anos, exceto as marcas de escala, que
+são dado operacional; eventos e tentativas do Portal, por 1 ano. O expurgo é
+feito por rotina diária do banco. Dados pessoais não são anonimizados: ficam
+enquanto o registro existir (decisão de 2026-09-25).
+Não há PITR: a recuperação do banco é o backup diário, e a de uma exclusão
+pontual é a cópia na auditoria. Decidido na
+[ADR 0074](docs/adr/0074-usuarios-retencao-e-backup-diario.md), ainda não
+implementada.
+
+**Confirmação de ação**
+Toda ação que grava ou altera dado, envia algo a alguém ou tira um registro de
+circulação abre um diálogo antes de executar. Busca, filtros, abas e
+navegação não abrem. O diálogo diz o que será feito e em quais registros
+(inclusive a cascata), a consequência visível (onde muda, se o cliente ou o
+Portal vê, se recalcula, emite ou envia), se dá para desfazer e como, e pede
+motivo obrigatório em Excluir, Cancelar, Reativar, Reverter e Revogar. Salvar
+uma edição mostra cada campo com valor anterior e novo. A prévia de
+importação vale como o diálogo quando mostra o que entra, muda e sai. Ação em
+massa mostra totais, bloqueados com motivo e a lista sob demanda, com um
+motivo para o lote. Decidida na
+[ADR 0072](docs/adr/0072-toda-escrita-confirmada-com-consequencia.md); implementada
+nas exclusões e cancelamentos, pendente em Salvar e nas demais escritas.
+
+Em diálogos de confirmação, o botão que fecha sem executar a ação se chama
+**Voltar**, para não confundir com a ação Cancelar.
+
+**Trava de exclusão**
+Marco a partir do qual um dado de viagem deixa de ser excluível. É o CE
+Mercante do B/L, porque ele permite emitir a fatura e liberar a fatura e o
+B/L no Portal. O CE trava o B/L, sua carga e tudo de que ele depende (escala,
+atracação e viagem); B/Ls sem CE da mesma viagem continuam excluíveis.
+Fatura, invoice de Demurrage ou recebível também travam o que referenciam.
+Vazios, que não têm CE, travam com o ADR de Saída fechado da escala e
+terminal, e reabrir o ADR solta a trava; antes dela, qualquer usuário ativo
+exclui unidade manual e linha de serviço de vazios. Corrigir o CE mantém a trava; apagá-lo só a solta enquanto nenhuma
+fatura foi emitida nem B/L liberado no Portal. Antes da trava, excluir cabe ao
+Administrativo, com motivo; depois, o caminho é corrigir, substituir, reemitir
+ou cancelar. Decidida na [ADR 0071](docs/adr/0071-ce-mercante-como-trava-de-exclusao.md);
+a implementação ainda segue as regras anteriores.
+
 ## Operação marítima
 
 **Viagem**
@@ -51,10 +164,16 @@ acompanhado em suas escalas, agendas e cargas.
 **Viagem Cancelada**
 Viagem que não será mais realizada pelo armador, embora tenha sido cadastrada
 ou programada. O cancelamento preserva seus registros e vínculos para
-rastreabilidade; não é conclusão nem exclusão. Uma viagem não cancelada que
-ainda não recebeu qualquer dado vinculado pode ser removida fisicamente por
-Administrador; depois que existe vínculo, o caminho é corrigir ou cancelar,
-nunca apagar a operação por cascata.
+rastreabilidade; não é conclusão nem exclusão. Uma viagem cancelada por
+engano pode ser reativada pelo Administrativo, com motivo.
+
+Hoje, uma viagem não cancelada só pode ser excluída pelo Administrativo se
+ainda não recebeu qualquer dado vinculado. A regra decidida na
+[ADR 0071](docs/adr/0071-ce-mercante-como-trava-de-exclusao.md), ainda não
+implementada, é outra: a viagem pode ser excluída, levando junto seus B/Ls,
+carga e escalas, enquanto nenhum B/L dela estiver sob a
+[Trava de exclusão](#ações-sobre-registros); a tela mostra antes o que será
+apagado. Depois da trava, o caminho é corrigir ou cancelar.
 
 **Alias de Nome de Navio**
 Prefixo abreviado reconhecido como equivalente ao prefixo canônico do nome do
@@ -264,6 +383,12 @@ painel operacional derivado das viagens já cadastradas. Conforme a ADR 0021,
 não há cadastro próprio: cadastrar em Chegadas e Saídas cria ou anexa a própria
 Viagem e as suas Escalas, e a Programação exibida no Portal é uma projeção das
 viagens marcadas como visíveis — inclusive as escalas que só embarcam.
+
+A linha da viagem sai da Programação, no Vela e no Portal, quando a viagem
+recebe o último ATD e passa a Concluída; não há ação manual para isso. Decidido
+em 2026-09-24, ainda não implementado: a ação "Remover do Portal" deixa de
+existir, e tirar uma viagem da Programação antes do último ATD só acontece em
+Viagens, por Excluir ou Cancelar, com a confirmação e os avisos dessas ações.
 
 O Line-Up e o Painel **segregam os sentidos**: uma escala que descarrega e
 embarca aparece em duas linhas, uma de importação e uma de exportação, com as
@@ -647,6 +772,16 @@ criar um B/L inexistente e corrigir dados comerciais já gravados, além de ser 
 fonte de Frete & Despesas do BL, da data de emissão e da data de embarque na
 origem. A operação de container não depende da importação de Manifesto.
 
+**B/L Cancelado** (decidido na
+[ADR 0071](docs/adr/0071-ce-mercante-como-trava-de-exclusao.md), ainda não
+implementado)
+B/L com CE Mercante que não vai seguir: a carga não embarcou ou o armador
+reemitiu o documento com outro número. O Administrativo cancela, com motivo,
+depois que o Financeiro cancelou ou estornou as faturas e recebíveis abertos
+dele. O B/L sai do faturamento, aparece no Portal como cancelado se já tiver
+sido liberado e libera o CE para o B/L reemitido. Pode ser reativado se o
+cancelamento foi por engano. B/L sem CE não é cancelado: é excluído.
+
 **Razão Social do Consignatário**
 Nome empresarial curto exibido em tabelas e usado como sugestão na reconciliação
 de cliente — nunca como vínculo, que só se estabelece por documento exato. É
@@ -790,7 +925,9 @@ O CE também integra a liberação documental do B/L no Portal; o acesso depende
 da conta do Cliente. O Comunicado de CE e Taxas depende da prontidão do conjunto
 Cliente/Viagem, da chave de envio e do processamento do canal, não de um envio
 imediato garantido ao salvar o CE. A relação CE × B/L é 1:1: um
-número de CE não pode ser usado por mais de um B/L. Embarque de Vazios é a exceção
+número de CE não pode ser usado por mais de um B/L. Pela ADR 0071, ainda não
+implementada, a unicidade passa a valer entre B/Ls não cancelados: o
+[B/L Cancelado](#operação-marítima) libera o CE. Embarque de Vazios é a exceção
 operacional: não emite CE porque é módulo de custo pago pela agência ao depot,
 sem invoice ou recebível de cliente.
 
@@ -1594,7 +1731,7 @@ A escrita operacional é compartilhada, com exceções aplicadas por operação:
 | Comunicados e edição interna das Caixas de Comunicação | Administrativo, Documentação e Equipamentos |
 | Alterar a chave global de envio de Comunicados | Administrativo |
 | Resposta e reabertura de disputa de Demurrage | Equipamentos e Administrativo |
-| Exclusão operacional protegida | Administrativo, conforme a fronteira da operação; a declaração de exportação de uma escala sem vínculo pode ser removida por qualquer Departamento ativo (migration `080`) |
+| Exclusão operacional protegida | Administrativo, respeitando a Trava de exclusão (ADR 0071; migration `088`, que supersede a exceção da `080` para escala). Unidade manual e linha de serviço de vazios: qualquer Departamento ativo, até o ADR fechado |
 
 Essa tabela resume as exceções; não substitui as validações de estado e de
 escopo das RPCs. Assinaturas do ADR também respeitam o departamento dono.

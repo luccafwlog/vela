@@ -235,6 +235,9 @@ os runners correspondentes não têm job agendado.
 | `portal-refresh-general-pendencies` | a cada 15 min | — |
 | `cleanup-portal-sessions` | 03:00 | — |
 | `cleanup-provision-rate-limit` | 03:30 | — |
+| `data-retention` | 06:30 (03:30 de Brasília) | — |
+
+`data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 
 Rotação de segredo de job: sempre o **par** Edge Function Secret + Vault
 ([segredos-cron.md](segredos-cron.md)).
@@ -267,6 +270,25 @@ Demurrage, sempre pelas Edge Functions (o navegador nunca chama o Resend).
   `portal-email-webhook`, assinado com `RESEND_WEBHOOK_SECRET`. Bounces e
   reclamações alimentam as listas de supressão.
 - **Receiving** do Resend fica **desligado**: o recebimento é do ImprovMX.
+- **Chave de API:** uma só, `vela-supabase` (**Sending access**, restrita a
+  `portalfwlog.com.br`), guardada apenas no secret `RESEND_API_KEY` do Supabase.
+  Criada em 2026-09-25 no lugar de `transhippingdesk-portal` (Full access) e da
+  `Vercel Integration` (sem uso), ambas apagadas. Nada mais usa o Resend: o GitHub
+  não tem secret dele e o **Custom SMTP** do Auth do Supabase está desligado (os
+  e-mails de login do Auth saem pelo serviço do próprio Supabase). Para trocar a
+  chave: crie a nova, troque o secret, teste com "Esqueci minha senha" no Portal
+  e só então apague a antiga.
+- **Microsoft 365 da Fwlog (`fwlog.com.br`):** o filtro anti-spam do Microsoft 365 da Fwlog
+  pôs em quarentena, como **Phishing**, e-mails do Portal para caixas
+  `@fwlog.com.br` (convite e recuperação de 2026-09-24, ainda do remetente
+  antigo). O "Resumo do Portal" de 2026-09-25 aparece como **Delivered** no Resend, mas não
+  chegou a nenhuma pasta nem à quarentena visível ao usuário. Confirmado no mesmo
+  dia com uma recuperação de senha da conta de teste para `lucca.juliatti@fwlog.com.br`, já
+  com o remetente novo: **Delivered** no Resend e nada na caixa nem na
+  quarentena do usuário. O bloqueio, que parece ser "phishing de alta confiança",
+  vale também para clientes que usam Microsoft 365. Só um
+  administrador do Microsoft 365 da Fwlog pode rastrear a mensagem e liberar os domínios
+  `portalfwlog.com.br` e `transhippingdesk.com.br`; pedido enviado à TI.
 
 ### ImprovMX (recebimento)
 

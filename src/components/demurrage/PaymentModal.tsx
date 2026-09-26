@@ -27,7 +27,7 @@ export function PaymentModal({
         </Field>
         <div className="flex gap-2">
           <Button onClick={() => paymentId && onSubmit(paymentId, paymentDate)}>Confirmar</Button>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose}>Voltar</Button>
         </div>
       </div>
     </Modal>

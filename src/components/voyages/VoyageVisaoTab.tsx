@@ -5,7 +5,7 @@ import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { MetricSection } from '../shared/VoyageSectionCards'
 import { useToast } from '../ui/Toast'
-import { useConfirm } from '../ui/ConfirmDialog'
+import { useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useAuth } from '../../hooks/useAuth'
 import { useVoyageTimeline } from '../../hooks/useVoyageTimeline'
 import { formatDate } from '../../lib/utils'
@@ -17,8 +17,8 @@ import {
   groupBlsByRoute,
   type VoyageTimelineEvent,
 } from '../../services/voyageSummaries'
-import { deleteVoyagePodSchedule, type VoyageEscalaDivergence, type VoyageEscalaSchedule } from '../../services/voyageRouteSchedules'
-import { deleteVoyageExportSchedule, type VoyageExportSchedule } from '../../services/voyageExportSchedules'
+import { deleteEscala, type VoyageEscalaDivergence, type VoyageEscalaSchedule } from '../../services/voyageRouteSchedules'
+import type { VoyageExportSchedule } from '../../services/voyageExportSchedules'
 import { listVaziosExportEmbarkPorts } from '../../services/vaziosExportOperations'
 import { queryKeys } from '../../services/queryKeys'
 import { afterEscalaAlterada } from '../../services/cacheEffects'
@@ -57,8 +57,8 @@ export function VoyageVisaoTab({
 }) {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
-  const confirm = useConfirm()
-  const { user, profile } = useAuth()
+  const confirmWithReason = useConfirmWithReason()
+  const { user, profile, isAdmin } = useAuth()
   const canEditVoyages = canEdit && Boolean(profile || user)
   const [timelineOpen, setTimelineOpen] = useState(true)
   const [collapsedAtracacoes, setCollapsedAtracacoes] = useState<Set<string>>(() => new Set())
@@ -182,22 +182,34 @@ export function VoyageVisaoTab({
       showToast('Esta escala ja nao possui dados planejados para remover.', 'info')
       return
     }
-    if (!user?.id) {
-      showToast('Sessao expirada. Entre novamente para registrar a auditoria.', 'error')
-      return
-    }
-    const confirmed = await confirm({
-      title: 'Excluir escala do planejamento',
-      message: `Excluir a escala ${row.port}? As datas, o vínculo operacional e o planejamento de exportação serão removidos.`,
-      confirmLabel: 'Excluir',
-      tone: 'danger',
-    })
-    if (!confirmed) return
     try {
-      await Promise.all([
-        row.temImportacao ? deleteVoyagePodSchedule({ voyageId: voyage.id, pod: row.port, changedBy: user.id }) : Promise.resolve(),
-        exportSchedule ? deleteVoyageExportSchedule(exportSchedule.id) : Promise.resolve(),
-      ])
+      const preview = await deleteEscala(voyage.id, row.port, { dryRun: true })
+      if (preview.reasons.length > 0) {
+        showToast(`Não é possível excluir a escala ${row.port}: ${preview.reasons.join(', ')}. Corrija a escala ou omita.`, 'error')
+        return
+      }
+      const reason = await confirmWithReason({
+        title: 'Excluir escala do planejamento',
+        message: `Excluir a escala ${row.port}?`,
+        affected: preview.scope ? {
+          summary: 'Vão junto com a escala:',
+          items: [
+            `${preview.scope.terminals} atracação(ões)`,
+            `${preview.scope.export_schedules} escala(s) de exportação`,
+            `${preview.scope.open_departure_reports} ADR(s) de Saída em aberto`,
+          ],
+        } : undefined,
+        consequence: 'As datas, o vínculo operacional, as atracações e o planejamento de exportação desta escala saem da viagem, do Line-Up e da Programação no Portal.',
+        reversibility: 'Adicione a escala de novo se precisar; o registro fica na auditoria.',
+        confirmLabel: 'Excluir',
+        tone: 'danger',
+      })
+      if (reason === null) return
+      const result = await deleteEscala(voyage.id, row.port, { reason })
+      if (!result.deleted) {
+        showToast(`A escala não foi excluída: ${result.reasons.join(', ')}.`, 'error')
+        return
+      }
       await afterEscalaAlterada(queryClient, { voyageId: voyage.id })
       showToast('Escala removida do planejamento.', 'success')
     } catch (error) {
@@ -317,9 +329,9 @@ export function VoyageVisaoTab({
                               <AlertTriangle size={15} />
                             </Button>
                           ) : null}
-                          {canEdit ? (
-                            // Todo Departamento remove escala sem vínculo (migration 080);
-                            // o banco recusa quando há B/L, Granito ou embarque de vazios.
+                          {canEdit && isAdmin ? (
+                            // Excluir escala e do Administrativo e respeita a trava do CE
+                            // (delete_escala, migration 088; ADR 0071).
                             <Button
                               variant="danger"
                               className="app-voyage-icon-btn"

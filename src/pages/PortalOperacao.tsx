@@ -215,7 +215,7 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                   return (
                     <Fragment key={row.bl_id}>
                       <tr className={`cursor-pointer ${isOpen ? 'bg-[var(--app-surface-hover)]' : ''}`} onClick={() => setOpenBl(isOpen ? null : row.bl_id)}>
-                        <td className="px-4 py-3 font-semibold">{row.bl_id}</td>
+                        <td className="px-4 py-3 font-semibold">{row.bl_id}{row.cancelled_at ? <> <Badge tone="red">Cancelado</Badge></> : null}</td>
                         <td className="px-4 py-3">{row.ce_mercante ? <Badge tone="blue">CE {row.ce_mercante}</Badge> : <Badge>Sem CE</Badge>}</td>
                         <td className="px-4 py-3">{row.vessel_name ?? '-'}</td>
                         <td className="px-4 py-3">{row.voyage_number ?? '-'}</td>
@@ -258,6 +258,7 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold">B/L {row.bl_id}</span>
+                    {row.cancelled_at ? <Badge tone="red">Cancelado</Badge> : null}
                     {row.ce_mercante ? <Badge tone="blue">CE</Badge> : <Badge>Sem CE</Badge>}
                   </div>
                   <div className="mt-2 text-sm text-[var(--app-muted)]">

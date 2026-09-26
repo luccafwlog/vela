@@ -83,6 +83,7 @@ describe('portalOperation', () => {
         cargo_mode: null,
         bb_weight_ton: null,
         bb_packages_qty: null,
+        cancelled_at: null,
       },
     ])
   })

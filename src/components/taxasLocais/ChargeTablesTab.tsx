@@ -5,7 +5,7 @@ import { Button } from '../ui/Button'
 import { MetricCard } from '../ui/MetricCard'
 import { FilterBar } from '../ui/FilterBar'
 import { Field, Input, Select } from '../ui/Input'
-import { useConfirm } from '../ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import {
   useDeleteChargeTableItem,
@@ -13,8 +13,10 @@ import {
   useSaveChargeTable,
   useSaveChargeTableItem,
   useSetChargeTableActive,
+  useSetChargeTableItemActive,
 } from '../../hooks/useLocalCharges'
 import { describeActiveFilters, describeEmptyState } from '../../lib/operationalState'
+import { userFacingErrorMessage } from '../../lib/errors'
 import { formatCountLabel } from '../../lib/utils'
 import { validateTableInput, validateTableItemInput } from '../../pages/taxasLocaisHelpers'
 import { ChargeTableFormCard } from './ChargeTableFormCard'
@@ -34,9 +36,11 @@ export function ChargeTablesTab({
   podFilter,
   setPodFilter,
   canEdit,
-}: ChargeFilterProps & { canEdit: boolean }) {
+  canDelete,
+}: ChargeFilterProps & { canEdit: boolean; canDelete: boolean }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const [formsOpen, setFormsOpen] = useState(false)
   const [tableForm, setTableForm] = useState<ChargeTableForm>(EMPTY_TABLE_FORM)
   const [tableItemForm, setTableItemForm] = useState<ChargeTableItemForm>(EMPTY_TABLE_ITEM_FORM)
@@ -46,6 +50,7 @@ export function ChargeTablesTab({
   })
   const saveChargeTableMutation = useSaveChargeTable()
   const setChargeTableActiveMutation = useSetChargeTableActive()
+  const setChargeTableItemActiveMutation = useSetChargeTableItemActive()
   const saveChargeTableItemMutation = useSaveChargeTableItem()
   const deleteChargeTableItemMutation = useDeleteChargeTableItem()
   const currentTables = useMemo(() => tables ?? [], [tables])
@@ -120,9 +125,30 @@ export function ChargeTablesTab({
     const nextActive = current !== true
     try {
       await setChargeTableActiveMutation.mutateAsync({ id, active: nextActive })
-      showToast(nextActive ? 'Tabela ativada.' : 'Tabela inativada.', 'success')
-    } catch {
-      showToast('Falha ao alterar status da tabela.', 'error')
+      showToast(nextActive ? 'Tabela reativada.' : 'Tabela desativada.', 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Falha ao alterar status da tabela.'), 'error')
+    }
+  }
+
+  async function handleToggleTableItemActive(id: number, current: boolean | null) {
+    const nextActive = current !== true
+    const confirmed = await confirm({
+      title: nextActive ? 'Reativar item de taxa' : 'Desativar item de taxa',
+      message: nextActive ? 'Reativar este item da tabela de taxas?' : 'Desativar este item da tabela de taxas?',
+      consequence: nextActive
+        ? 'O item volta a entrar nos cálculos novos.'
+        : 'O item deixa de entrar em cálculos novos; os cálculos e faturas antigos continuam mostrando de onde veio o valor.',
+      reversibility: nextActive ? 'Desative de novo se precisar.' : 'Reativar item.',
+      confirmLabel: nextActive ? 'Reativar' : 'Desativar',
+      tone: nextActive ? 'primary' : 'danger',
+    })
+    if (!confirmed) return
+    try {
+      await setChargeTableItemActiveMutation.mutateAsync({ id, active: nextActive })
+      showToast(nextActive ? 'Item reativado.' : 'Item desativado.', 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Falha ao alterar o item.'), 'error')
     }
   }
 
@@ -178,9 +204,10 @@ export function ChargeTablesTab({
   }
 
   async function handleDeleteTableItem(itemId: number) {
-    if (!(await confirm({ message: 'Excluir este item de taxa?', tone: 'danger', confirmLabel: 'Excluir' }))) return
+    const reason = await confirmWithReason({ title: 'Excluir item de taxa', message: 'Excluir este item da tabela de taxas?', consequence: 'O item sai da tabela e não entra em cálculos novos. O banco recusa se ele já foi usado em cálculo.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
+    if (reason === null) return
     try {
-      await deleteChargeTableItemMutation.mutateAsync(itemId)
+      await deleteChargeTableItemMutation.mutateAsync({ id: itemId, reason })
       showToast('Item de taxa removido.', 'success')
       if (tableItemForm.id === itemId) setTableItemForm(EMPTY_TABLE_ITEM_FORM)
     } catch {
@@ -261,11 +288,13 @@ export function ChargeTablesTab({
         filterDescription={tableFilterDescription}
         emptyState={tableEmptyState}
         canEdit={canEdit}
+        canDelete={canDelete}
         onEditTable={handleEditTable}
         onPrepareTableItem={handlePrepareTableItem}
         onToggleTableActive={handleToggleTableActive}
         onEditTableItem={handleEditTableItem}
         onDeleteTableItem={handleDeleteTableItem}
+        onToggleTableItemActive={handleToggleTableItemActive}
         togglingTableActive={setChargeTableActiveMutation.isPending}
         deletingTableItem={deleteChargeTableItemMutation.isPending}
       />

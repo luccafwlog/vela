@@ -1,17 +1,17 @@
 import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, FileSpreadsheet, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { Download, FileSpreadsheet, Pencil, Plus, Upload } from 'lucide-react'
 import { Card, PageHeader } from '../components/ui/Card'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { assertUploadSize } from '../lib/fileGuard'
 import { useAuth } from '../hooks/useAuth'
+import { userFacingErrorMessage } from '../lib/errors'
 import { emptyScheduleForm, buildScheduleLanes, clearedPodLabels, scheduleFormFromVoyage, type ScheduleForm } from './chegadasSaidasForm'
 import { PORTAL_SCHEDULE_LANES, formatScheduleDate } from '../services/portalScheduleLanes'
 import { parseScheduleRows, scheduleTemplateColumns } from '../services/portalScheduleBulkImport'
 import { fetchPortalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
 import { createOrAttachVoyageFromSchedule } from '../services/voyageFromSchedule'
-import { setVoyageShowOnPortal } from '../services/voyages'
 import { readSheet } from '../services/importCore'
 import { inspectImportFile, type ImportFileInspection } from '../services/importText'
 
@@ -111,7 +111,7 @@ function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing }: {
         })}
       </div>
       <div className="flex justify-end gap-2 pt-4">
-        <button type="button" className="app-btn app-btn--secondary" onClick={onCancel}>Cancelar</button>
+        <button type="button" className="app-btn app-btn--secondary" onClick={onCancel}>Voltar</button>
         <button type="submit" className="app-btn app-btn--primary">{isEditing ? 'Salvar Alterações' : 'Adicionar'}</button>
       </div>
     </form>
@@ -231,7 +231,7 @@ export function ChegadasSaidas() {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const confirm = useConfirm()
-  const { user, profile } = useAuth()
+  const { user, profile, isAdmin } = useAuth()
   const canWrite = Boolean(profile || user)
   const tableColumnCount = PORTAL_SCHEDULE_LANES.length + (canWrite ? 3 : 2)
 
@@ -302,29 +302,12 @@ export function ChegadasSaidas() {
         vesselImo: formData.vesselImo,
         voyageNumber: formData.voyageNumber,
         lanes,
-      }, user?.id ?? null, { mode: 'form', voyageId: editingId ?? undefined })
+      }, user?.id ?? null, { mode: 'form', voyageId: editingId ?? undefined, canRemoveEscala: isAdmin })
       showToast('Viagem cadastrada e publicada no Portal.', 'success')
       invalidateSchedules()
       closeDialog()
-    } catch {
-      showToast('Falha ao cadastrar a viagem.', 'error')
-    }
-  }
-
-  const handleRemoveFromPortal = async (voyage: PortalScheduleVoyage) => {
-    const confirmed = await confirm({
-      title: 'Remover publicação do Portal',
-      message: `Remover "${voyage.vesselName}" do Portal? A viagem operacional será preservada.`,
-      confirmLabel: 'Remover do Portal',
-      tone: 'danger',
-    })
-    if (!confirmed) return
-    try {
-      await setVoyageShowOnPortal(voyage.voyageId, false)
-      showToast(`${voyage.vesselName} removido do Portal.`, 'success')
-      invalidateSchedules()
     } catch (error) {
-      showToast(`Erro ao remover: ${error instanceof Error ? error.message : 'falha inesperada'}`, 'error')
+      showToast(userFacingErrorMessage(error, 'Falha ao cadastrar a viagem.'), 'error')
     }
   }
 
@@ -391,8 +374,6 @@ export function ChegadasSaidas() {
                       <div className="flex justify-center gap-1">
                         <button type="button" className="app-btn app-btn--ghost app-btn--sm" style={{ minHeight: 32, minWidth: 32, padding: 0 }}
                           onClick={() => openEdit(vessel)} title="Editar"><Pencil size={14} /></button>
-                        <button type="button" className="app-btn app-btn--ghost app-btn--sm" style={{ minHeight: 32, minWidth: 32, padding: 0, color: 'var(--app-red)' }}
-                          onClick={() => handleRemoveFromPortal(vessel)} title="Remover do Portal"><Trash2 size={14} /></button>
                       </div>
                     </td>
                   ) : null}

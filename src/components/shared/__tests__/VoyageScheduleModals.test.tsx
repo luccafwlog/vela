@@ -334,7 +334,7 @@ describe('EscalaModal', () => {
     expect((screen.getByLabelText('Quantidade de CNTR vazios') as HTMLInputElement).value).toBe('4')
     expect((screen.getByLabelText('Portos de descarga') as HTMLInputElement).value).toBe('ITGOA')
 
-    await user.click(within(confirmation).getByRole('button', { name: 'Cancelar' }))
+    await user.click(within(confirmation).getByRole('button', { name: 'Voltar' }))
 
     expect(toggle.getAttribute('aria-pressed')).toBe('false')
     expect((screen.getByLabelText('Quantidade de CNTR vazios') as HTMLInputElement).value).toBe('4')
