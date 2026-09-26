@@ -5,6 +5,7 @@ import { classifyDbError } from '../lib/errors'
 import { escapeFilterTerm, sanitizeLikeTerm } from '../lib/utils'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { reportBestEffortFailure } from '../lib/telemetry'
+import { manualInvoiceCreationSchema } from './financialValidation'
 
 // Filtro de status exposto na UI: 3 estados operacionais. Cada um cobre os
 // status documentais reais persistidos na coluna invoices.status.
@@ -19,7 +20,7 @@ const INVOICE_STATUS_GROUPS: Record<Exclude<InvoiceStatusFilter, ''>, InvoiceDoc
 const INVOICE_EXPORT_PAGE_SIZE = 1000
 
 // Tipo de fatura para filtro: "Unico BL" agrupa individuais e granito.
-export type InvoiceTypeFilter = '' | 'single' | 'consolidated'
+export type InvoiceTypeFilter = '' | 'single' | 'consolidated' | 'manual'
 
 export type InvoiceFilters = {
   search: string
@@ -45,6 +46,12 @@ type InvoiceListBlSnapshot = {
   voyage?: { id?: number | null; voyage_number: string | null; vessel?: { name: string | null } | null } | null
 }
 
+type InvoiceListVoyageSnapshot = {
+  id?: number | null
+  voyage_number: string | null
+  vessel?: { name: string | null } | null
+}
+
 // Apenas os campos de invoices efetivamente buscados em INVOICE_LIST_SELECT.
 // Estender InvoiceSummary (Invoice completo) prometia colunas que a query
 // não busca — o cast em listInvoices escondia isso do compilador.
@@ -62,6 +69,9 @@ export type InvoiceListRow = Pick<
   | 'balance_brl'
   | 'created_at'
 > & {
+  voyage_id?: number | null
+  voyage?: InvoiceListVoyageSnapshot | null
+  bl?: InvoiceListBlSnapshot | null
   customer?: Pick<Customer, 'id' | 'name' | 'cnpj_cpf'> | null
   invoice_bls?:
     | Array<{ id: number; bl_id: string | null; subtotal_brl: number; subtotal_usd: number; bl?: InvoiceListBlSnapshot | null }>
@@ -75,6 +85,10 @@ export type InvoiceDetail = {
   invoice: (InvoiceSummary & {
     customer_name?: string | null
     customer_cnpj_cpf?: string | null
+    notes?: string | null
+    voyage_id?: number | null
+    voyage_number?: string | null
+    vessel_name?: string | null
   }) | null
   bls: Array<
     InvoiceBlLink & {
@@ -110,6 +124,40 @@ type BillingCustomerOption = {
   cnpj_cpf: string
 }
 
+export type ManualInvoiceInput = {
+  customerId: number
+  itemName: string
+  description?: string | null
+  quantity: number
+  unitValueBrl: number
+  blId?: string | null
+  voyageId?: number | null
+  actorId?: string | null
+}
+
+const manualInvoiceResultNumberSchema = z.preprocess(
+  (value) => (value == null ? value : Number(value)),
+  z.number().finite(),
+)
+
+const manualInvoiceResultNullableNumberSchema = z.preprocess(
+  (value) => (value == null ? null : Number(value)),
+  z.number().int().nullable(),
+)
+
+const manualInvoiceResultSchema = z.object({
+  invoice_id: manualInvoiceResultNumberSchema.pipe(z.number().int().positive()),
+  invoice_number: z.string(),
+  invoice_type: z.literal('manual'),
+  status: z.literal('issued'),
+  total_brl: manualInvoiceResultNumberSchema,
+  balance_brl: manualInvoiceResultNumberSchema,
+  bl_id: z.string().nullable(),
+  voyage_id: manualInvoiceResultNullableNumberSchema,
+})
+
+export type ManualInvoiceResult = z.infer<typeof manualInvoiceResultSchema>
+
 const INVOICE_LIST_SELECT = `
   id,
   invoice_number,
@@ -122,28 +170,37 @@ const INVOICE_LIST_SELECT = `
   total_paid_brl,
   balance_brl,
   created_at,
+  notes,
+  voyage_id,
+  voyage:voyages(id,voyage_number,vessel:vessels(name)),
+  bl:bls(pod,voyage:voyages(id,voyage_number,vessel:vessels(name))),
   customer:customers(id,name,cnpj_cpf),
   invoice_bls(id,bl_id,subtotal_brl,subtotal_usd,bl:bls(pod,voyage:voyages(id,voyage_number,vessel:vessels(name)))),
   invoice_receivable_links(id,bl_id,subtotal_brl,bl:bls(pod,voyage:voyages(id,voyage_number,vessel:vessels(name)))),
   payments(paid_at)
 `
 
-// Resolve os invoice_ids que possuem algum BL na lista informada, olhando tanto
-// invoice_bls (individuais/granito) quanto invoice_receivable_links (consolidadas).
+// Resolve os invoice_ids que possuem algum BL na lista informada, olhando os
+// links tradicionais e o BL direto das faturas avulsas.
 async function invoiceIdsForBlIds(blIds: string[]): Promise<number[]> {
   if (blIds.length === 0) return []
   const ids = new Set<number>()
-  const [direct, consolidated] = await Promise.all([
+  const [individual, consolidated, manual] = await Promise.all([
     supabase.from('invoice_bls').select('invoice_id').in('bl_id', blIds).limit(5000),
     supabase.from('invoice_receivable_links').select('invoice_id').in('bl_id', blIds).limit(5000),
+    supabase.from('invoices').select('id').in('bl_id', blIds).limit(5000),
   ])
-  if (direct.error) throw direct.error
+  if (individual.error) throw individual.error
   if (consolidated.error) throw consolidated.error
-  for (const row of direct.data ?? []) {
+  if (manual.error) throw manual.error
+  for (const row of individual.data ?? []) {
     if (Number.isInteger(Number(row.invoice_id))) ids.add(Number(row.invoice_id))
   }
   for (const row of consolidated.data ?? []) {
     if (Number.isInteger(Number(row.invoice_id))) ids.add(Number(row.invoice_id))
+  }
+  for (const row of manual.data ?? []) {
+    if (Number.isInteger(Number(row.id))) ids.add(Number(row.id))
   }
   return Array.from(ids)
 }
@@ -167,15 +224,20 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
 
   const normalizedBlSearch = sanitizeLikeTerm(normalizeText(filters.blSearch).toUpperCase())
   if (normalizedBlSearch) {
-    const [direct, consolidated] = await Promise.all([
+    const [individual, consolidated, manual] = await Promise.all([
       supabase.from('invoice_bls').select('invoice_id').ilike('bl_id', `%${normalizedBlSearch}%`).limit(5000),
       supabase.from('invoice_receivable_links').select('invoice_id').ilike('bl_id', `%${normalizedBlSearch}%`).limit(5000),
+      supabase.from('invoices').select('id').ilike('bl_id', `%${normalizedBlSearch}%`).limit(5000),
     ])
-    if (direct.error) throw direct.error
+    if (individual.error) throw individual.error
     if (consolidated.error) throw consolidated.error
+    if (manual.error) throw manual.error
     const ids = new Set<number>()
-    for (const row of [...(direct.data ?? []), ...(consolidated.data ?? [])]) {
+    for (const row of [...(individual.data ?? []), ...(consolidated.data ?? [])]) {
       if (Number.isInteger(Number(row.invoice_id))) ids.add(Number(row.invoice_id))
+    }
+    for (const row of manual.data ?? []) {
+      if (Number.isInteger(Number(row.id))) ids.add(Number(row.id))
     }
     idFilter = intersectIds(idFilter, Array.from(ids))
   }
@@ -206,16 +268,31 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
       if (Number.isInteger(Number(row.id))) voyageIds.add(Number(row.id))
     }
     let blIds: string[] = []
+    let directInvoiceIds: number[] = []
     if (voyageIds.size > 0) {
-      const { data: blRows, error: blError } = await supabase
-        .from('bls')
-        .select('id')
-        .in('voyage_id', Array.from(voyageIds))
-        .limit(5000)
-      if (blError) throw blError
-      blIds = (blRows ?? []).map((row) => String(row.id))
+      const [blResult, invoiceResult] = await Promise.all([
+        supabase
+          .from('bls')
+          .select('id')
+          .in('voyage_id', Array.from(voyageIds))
+          .limit(5000),
+        supabase
+          .from('invoices')
+          .select('id')
+          .in('voyage_id', Array.from(voyageIds))
+          .limit(5000),
+      ])
+      if (blResult.error) throw blResult.error
+      if (invoiceResult.error) throw invoiceResult.error
+      directInvoiceIds = (invoiceResult.data ?? [])
+        .map((row) => Number(row.id))
+        .filter((id) => Number.isInteger(id))
+      blIds = (blResult.data ?? []).map((row) => String(row.id))
     }
-    idFilter = intersectIds(idFilter, await invoiceIdsForBlIds(blIds))
+    idFilter = intersectIds(idFilter, Array.from(new Set([
+      ...directInvoiceIds,
+      ...(await invoiceIdsForBlIds(blIds)),
+    ])))
   }
 
   if (filters.paidFrom || filters.paidTo) {
@@ -259,6 +336,8 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
     query = query.eq('invoice_type', 'consolidated')
   } else if (filters.invoiceType === 'single') {
     query = query.in('invoice_type', ['individual', 'granite'])
+  } else if (filters.invoiceType === 'manual') {
+    query = query.eq('invoice_type', 'manual')
   }
 
   if (filters.dateFrom) {
@@ -296,6 +375,17 @@ export type InvoiceCommunicationContext = {
   pod: string | null
 }
 
+function getDirectInvoiceCommunicationContext(row: InvoiceListRow): InvoiceCommunicationContext {
+  const voyage = row.voyage ?? row.bl?.voyage ?? null
+  return {
+    customerId: row.customer_id,
+    voyageId: voyage?.id ?? row.voyage_id ?? null,
+    voyageNumber: voyage?.voyage_number ?? null,
+    vesselName: voyage?.vessel?.name ?? null,
+    pod: row.bl?.pod ?? null,
+  }
+}
+
 export function getInvoiceCommunicationContexts(row: InvoiceListRow): InvoiceCommunicationContext[] {
   const direct = row.invoice_bls ?? []
   const links = row.invoice_receivable_links ?? []
@@ -309,13 +399,19 @@ export function getInvoiceCommunicationContexts(row: InvoiceListRow): InvoiceCom
       vesselName: link.bl?.voyage?.vessel?.name ?? null,
       pod: link.bl?.pod ?? null,
     }))
-  return contexts.filter((context, index) => contexts.findIndex((candidate) => candidate.voyageId === context.voyageId) === index)
+  const uniqueContexts = contexts.filter((context, index) => contexts.findIndex((candidate) => candidate.voyageId === context.voyageId) === index)
+  if (isManualInvoice(row)) {
+    const directContext = getDirectInvoiceCommunicationContext(row)
+    if (directContext.voyageId != null) return [directContext]
+  }
+  return uniqueContexts
 }
 
 /** Contexto mínimo para a coluna de status do comunicado financeiro. */
 export function getInvoiceCommunicationContext(row: InvoiceListRow): InvoiceCommunicationContext {
   const contexts = getInvoiceCommunicationContexts(row)
   if (contexts.length) return contexts[0]
+  if (isManualInvoice(row)) return getDirectInvoiceCommunicationContext(row)
   const direct = row.invoice_bls ?? []
   const links = row.invoice_receivable_links ?? []
   const source = direct.length > 0 ? direct : links
@@ -333,7 +429,13 @@ export function getInvoiceCommunicationContext(row: InvoiceListRow): InvoiceComm
 export function getInvoiceBls(row: InvoiceListRow): InvoiceListBl[] {
   const direct = row.invoice_bls ?? []
   const links = row.invoice_receivable_links ?? []
-  const source: Array<{ bl_id: string | null; bl?: InvoiceListBlSnapshot | null }> = direct.length > 0 ? direct : links
+  const source: Array<{ bl_id: string | null; bl?: InvoiceListBlSnapshot | null }> = direct.length > 0
+    ? direct
+    : links.length > 0
+      ? links
+      : row.bl_id
+        ? [{ bl_id: row.bl_id, bl: row.bl }]
+        : []
   return source
     .map((link) => ({
       bl_id: String(link.bl_id ?? '').trim(),
@@ -346,6 +448,17 @@ export function getInvoiceBls(row: InvoiceListRow): InvoiceListBl[] {
 
 export function isConsolidatedInvoice(row: { invoice_type?: string | null }): boolean {
   return row.invoice_type === 'consolidated'
+}
+
+export function isManualInvoice(row: { invoice_type?: string | null }): boolean {
+  return row.invoice_type === 'manual'
+}
+
+export function invoiceTypeLabel(invoiceType: string | null | undefined): string {
+  if (invoiceType === 'manual') return 'Avulsa'
+  if (invoiceType === 'consolidated') return 'Consolidada'
+  if (invoiceType === 'granite') return 'Única BL'
+  return 'Única BL'
 }
 
 // Data de pagamento exibida: o pagamento mais recente registrado na fatura.
@@ -769,6 +882,26 @@ export async function createInvoiceFromBls(input: {
 
   const result = (data ?? {}) as Json
   return result
+}
+
+export async function createManualInvoice(input: ManualInvoiceInput): Promise<ManualInvoiceResult> {
+  const parsed = manualInvoiceCreationSchema.parse(input)
+
+  // ponytail: a migration-only RPC is intentionally cast locally until the
+  // protected generated database types are regenerated from the deployed schema.
+  const { data, error } = await supabase.rpc('create_manual_invoice' as never, {
+    p_customer_id: parsed.customerId,
+    p_item_name: parsed.itemName,
+    p_quantity: parsed.quantity,
+    p_unit_value_brl: parsed.unitValueBrl,
+    ...(parsed.description == null ? {} : { p_description: parsed.description }),
+    ...(parsed.blId == null ? {} : { p_bl_id: parsed.blId }),
+    ...(parsed.voyageId == null ? {} : { p_voyage_id: parsed.voyageId }),
+    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
+  } as never)
+
+  if (error) throw error
+  return manualInvoiceResultSchema.parse(data)
 }
 
 export async function markBlReadyAndCreateInvoice(input: {

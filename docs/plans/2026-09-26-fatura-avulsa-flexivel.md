@@ -170,7 +170,7 @@ export function invoiceTypeLabel(invoiceType: string | null | undefined): string
 export function isManualInvoice(row: { invoice_type?: string | null }): boolean
 ```
 
-- [ ] **Passo 1: escrever testes focados que falhem**.
+- [x] **Passo 1: escrever testes focados que falhem**.
 
   Em `financialValidation.test.ts`, cobrir nome vazio, descrição opcional,
   quantidade/valor inválidos e normalização de BL/viagem. Em `billing.test.ts`,
@@ -181,7 +181,7 @@ export function isManualInvoice(row: { invoice_type?: string | null }): boolean
   sucesso invalida `queryKeys.invoices.all()`, o detalhe criado e
   `queryKeys.reconciliation.history()`.
 
-- [ ] **Passo 2: executar os testes focados para observar as falhas**.
+- [x] **Passo 2: executar os testes focados para observar as falhas**.
 
   ```bash
   npx vitest run src/services/__tests__/financialValidation.test.ts src/services/__tests__/billing.test.ts src/hooks/__tests__/useBillingManualInvoice.test.ts
@@ -189,7 +189,7 @@ export function isManualInvoice(row: { invoice_type?: string | null }): boolean
 
   Resultado esperado: `FAIL` nos novos símbolos/casos.
 
-- [ ] **Passo 3: implementar o contrato no serviço**.
+- [x] **Passo 3: implementar o contrato no serviço**.
 
   Adicionar `manual` a `InvoiceTypeFilter`, incluir `notes`, `voyage_id`,
   `voyage` e o relacionamento direto `bl` no select de lista com tipos locais
@@ -204,11 +204,16 @@ export function isManualInvoice(row: { invoice_type?: string | null }): boolean
 
   Adicionar `queryKeys.reconciliation.history()` como `['reconciliation-history']` e `useCreateManualInvoice` com mutation, tratamento de erro pelo padrão existente e invalidação de invoices, detalhe, histórico de conciliação e contexto do BL/cliente quando aplicável.
 
-- [ ] **Passo 4: regenerar tipos, se o contrato oficial estiver disponível**.
+- [x] **Passo 4: avaliar regeneração oficial dos tipos**.
 
   Executar o gerador oficial contra o schema correto, preservar complementos e confirmar `voyage_id`/RPCs. Não editar o arquivo protegido manualmente; se a proteção solicitar uma autorização que não esteja coberta pela aprovação da feature, pausar e solicitar autorização específica.
 
-- [ ] **Passo 5: executar testes focados após a implementação**.
+  Neste checkout não há script local de geração nem ferramenta Supabase disponível
+  para regenerar os tipos contra o schema da migration. `src/types/database.ts`
+  permaneceu intacto; o RPC novo usa cast localizado e os campos novos da lista
+  usam tipos locais, seguindo o padrão já adotado para contratos pós-geração.
+
+- [x] **Passo 5: executar testes focados após a implementação**.
 
   Rodar o comando do Passo 2; resultado esperado: `PASS`.
 
