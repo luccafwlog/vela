@@ -671,8 +671,9 @@ export function EscalaModal({
   // e o mais recente entre elas. Sem dizer de onde veio (ou o que falta), o
   // operador procura um campo ATD da Escala que nao existe mais.
   const atracacoesDoModal = terminalScale?.terminals ?? []
-  const atracacaoLabel = (terminal: { terminalId: string | null; terminalCode?: string | null }) =>
-    terminal.terminalCode ?? terminal.terminalId ?? 'TBC'
+  // Sem código, a Atracação aparece como TBC, igual à tabela; nunca pelo UUID
+  // do terminal, que o operador não reconhece.
+  const atracacaoLabel = (terminal: { terminalCode?: string | null }) => terminal.terminalCode ?? 'TBC'
   const atracacoesSemAtd = atracacoesDoModal.filter((terminal) => !terminal.atd)
   const ultimaAtracacaoComAtd = atracacoesDoModal.length > 0 && atracacoesSemAtd.length === 0
     ? [...atracacoesDoModal].sort((left, right) => (left.atd ?? '').localeCompare(right.atd ?? '')).at(-1) ?? null

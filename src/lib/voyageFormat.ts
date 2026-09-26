@@ -67,16 +67,18 @@ export function stripFileExtension(filename: string) {
 
 /**
  * Nome acessível do botão que edita uma Atracação no Planejamento por escala.
- * Usa só o que a linha mostra: o código do terminal e a data de atracação
- * (ATB; ETB enquanto não atracou), que distingue duas Atracações no mesmo
- * terminal. Nunca o UUID do terminal, que é código de máquina para quem usa
- * leitor de tela.
+ * Usa só o que a linha mostra: o código do terminal, que identifica a
+ * Atracação (o mesmo terminal ocorre uma vez por Escala), e a data de
+ * atracação (ATB; ETB enquanto não atracou). Sem código — ou com o marcador
+ * TBC — diz "terminal a definir"; nunca o UUID do terminal, que é código de
+ * máquina para quem usa leitor de tela.
  */
 export function atracacaoEditLabel(
   atracacao: { terminalCode?: string | null; atb?: string | null; etb?: string | null },
   port: string,
 ) {
-  const terminal = atracacao.terminalCode?.trim() || 'terminal a definir'
+  const code = atracacao.terminalCode?.trim()
+  const terminal = code && code.toUpperCase() !== 'TBC' ? code : 'terminal a definir'
   const date = atracacao.atb ? `ATB ${formatDate(atracacao.atb)}` : atracacao.etb ? `ETB ${formatDate(atracacao.etb)}` : null
   return `Editar atracação ${terminal}${date ? `, ${date}` : ''}, da escala ${port}`
 }

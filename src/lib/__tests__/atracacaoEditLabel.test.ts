@@ -12,10 +12,9 @@ describe('atracacaoEditLabel', () => {
       .toBe('Editar atracação PORTMAC, ETB 23/08/2026, da escala BRVIX')
   })
 
-  it('distingue duas Atracações no mesmo terminal pela data', () => {
-    const first = atracacaoEditLabel({ terminalCode: 'TVV', atb: '2026-08-20' }, 'BRVIX')
-    const second = atracacaoEditLabel({ terminalCode: 'TVV', atb: '2026-08-24' }, 'BRVIX')
-    expect(first).not.toBe(second)
+  it('lê o marcador TBC como terminal a definir', () => {
+    expect(atracacaoEditLabel({ terminalCode: 'TBC', etb: '2026-08-23' }, 'BRVIX'))
+      .toBe('Editar atracação terminal a definir, ETB 23/08/2026, da escala BRVIX')
   })
 
   it('diz "terminal a definir" sem código, em vez de expor o UUID do terminal', () => {
