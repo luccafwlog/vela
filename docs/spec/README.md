@@ -5,7 +5,6 @@ Specs descrevem decisões ainda não executadas. O ciclo de vida é definido em
 
 | Spec | Estado |
 |---|---|
-| [Fatura avulsa flexível](2026-09-26-fatura-avulsa-flexivel-design.md) | Desenho aprovado em 2026-09-26; implementação em validação local, aguardando encerramento do plano |
 | [Integração Itaú PIX](2026-08-25-integracao-itau-pix.md) | Planejamento futuro, não aprovado para execução; API dinâmica/webhook não implementados |
 
 As specs de carga mista, Manifesto Mercante, múltiplos terminais e editor de

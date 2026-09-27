@@ -18,7 +18,7 @@ dos tipos locais.
 TanStack Query, Zod, Vitest, React Testing Library e impressão React existente.
 
 **Spec:**
-[`docs/spec/2026-09-26-fatura-avulsa-flexivel-design.md`](../spec/2026-09-26-fatura-avulsa-flexivel-design.md)
+[`docs/archive/specs/2026-09-26-fatura-avulsa-flexivel-design.md`](../specs/2026-09-26-fatura-avulsa-flexivel-design.md)
 
 ## Restrições globais
 
@@ -421,25 +421,25 @@ Tarefa 1 e `InvoiceDocumentLocal`/`invoiceTypeLabel` das Tarefas 2 e 4.
 - Modificar: `docs/spec/README.md` apenas para manter o estado da spec até o
   arquivamento no fim do plano
 
-- [ ] **Passo 1: registrar ADR 0075** explicando a escolha de `invoices` +
+- [x] **Passo 1: registrar ADR 0075** explicando a escolha de `invoices` +
   `invoice_type = manual`, a não utilização do ledger e a visibilidade
   escopada no Portal; listar como alternativas rejeitadas o reaproveitamento
   de `individual` e uma tabela paralela.
 
-- [ ] **Passo 2: atualizar o glossário e módulos** com efeito implementado,
+- [x] **Passo 2: atualizar o glossário e módulos** com efeito implementado,
   pré-condições, telas, RPC, cache, Portal, conciliação e limites. Manter a
   estrutura de sete seções dos módulos; não afirmar emissão remota ou runtime
   se apenas o teste local existir.
 
-- [ ] **Passo 3: atualizar arquitetura e rastreabilidade** com `097`,
+- [x] **Passo 3: atualizar arquitetura e rastreabilidade** com `097`,
   `create_manual_invoice`, `voyage_id`, list/detail Portal, impressão e
   evidências. Registrar labels **Código**, **Teste**, **Teste de contrato SQL**
   e **Runtime** conforme a prova efetivamente obtida.
 
-- [ ] **Passo 4: executar `npm run docs:check` e `git diff --check`**; resultado
+- [x] **Passo 4: executar `npm run docs:check` e `git diff --check`**; resultado
   esperado: ambos aprovados.
 
-- [ ] **Passo 5: commitar a documentação**.
+- [x] **Passo 5: commitar a documentação**.
 
   ```bash
   git add CONTEXT.md docs/adr/0075-fatura-avulsa-flexivel.md docs/adr/README.md docs/modules/faturamento.md docs/modules/portal-cliente.md docs/modules/reconciliacao-pix.md docs/ARCHITECTURE.md docs/RASTREABILIDADE.md docs/spec/README.md
@@ -448,13 +448,15 @@ Tarefa 1 e `InvoiceDocumentLocal`/`invoiceTypeLabel` das Tarefas 2 e 4.
 
 ### Tarefa 7: Validação final e encerramento do plano
 
-- [ ] **Passo 1: executar os contratos de banco** no PostgreSQL descartável,
+- [x] **Passo 1: executar os contratos de banco** no PostgreSQL descartável,
   quando disponível: `npm run migrations:check`, `npm run rpc:check` e a
   suíte local da Tarefa 1. `rpc:check` só será considerado evidência se tiver
   banco preparado; o resultado skipped/indisponível será reportado como
-  limitação.
+  limitação. **Resultado:** migrations:check passou; teste local-pg passou
+  (4/4); `rpc:check` não validou o catálogo porque faltam 15 funções
+  históricas no banco local.
 
-- [ ] **Passo 2: executar os gates completos da SPA**.
+- [x] **Passo 2: executar os gates completos da SPA**.
 
   ```bash
   npm run docs:check
@@ -466,13 +468,15 @@ Tarefa 1 e `InvoiceDocumentLocal`/`invoiceTypeLabel` das Tarefas 2 e 4.
 
   Resultado esperado: todos passam. Reexecutar somente o gate afetado depois
   de cada correção, mantendo os resultados válidos do ambiente inalterado.
+  **Resultado:** docs, typecheck, lint, testes (3.595 aprovados/207 ignorados)
+  e build passaram.
 
-- [ ] **Passo 3: revisar o diff final** com `git status --short`, `git diff
+- [x] **Passo 3: revisar o diff final** com `git status --short`, `git diff
   --check` e leitura dos diffs contra a spec. Confirmar que `main` não foi
   alterado, que nenhuma migration histórica foi editada e que os tipos
   protegidos só foram regenerados pelo processo oficial.
 
-- [ ] **Passo 4: arquivar a spec e o plano na mesma mudança de conclusão**.
+- [x] **Passo 4: arquivar a spec e o plano na mesma mudança de conclusão**.
 
   Mover `docs/spec/2026-09-26-fatura-avulsa-flexivel-design.md` para
   `docs/archive/specs/` e este plano para `docs/archive/plans/`, remover as
@@ -480,7 +484,7 @@ Tarefa 1 e `InvoiceDocumentLocal`/`invoiceTypeLabel` das Tarefas 2 e 4.
   `docs/CHANGELOG.md`, somente depois de todos os critérios da spec e gates
   estarem comprovados.
 
-- [ ] **Passo 5: commit final de documentação/histórico**.
+- [x] **Passo 5: commit final de documentação/histórico**.
 
   ```bash
   git add docs/spec docs/plans docs/archive/specs docs/archive/plans docs/CHANGELOG.md

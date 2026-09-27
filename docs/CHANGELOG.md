@@ -4,6 +4,17 @@
 
 ## 2026-09
 
+- **Fatura avulsa flexível (2026-09-27):** operador do Financeiro pode emitir
+  contra um Cliente com nome e descrição de item livres, quantidade e valor;
+  B/L e Viagem são opcionais. A invoice compartilha número, PIX, pagamento,
+  conciliação, impressão e Portal, sem criar recebíveis ou settlements do
+  ledger local. Portal mantém o escopo do Cliente autenticado. `npm test`
+  passou (3.595 testes; 207 ignorados), typecheck, lint, docs e build passaram;
+  o teste PostgreSQL local passou (4/4). `rpc:check` não validou o catálogo
+  porque o banco local não contém 15 funções históricas chamadas pelo app.
+  A migration `097` foi validada no PostgreSQL local; aplicação remota não foi
+  verificada. [ADR 0075](adr/0075-fatura-avulsa-flexivel.md) · [Plano arquivado](archive/plans/2026-09-26-fatura-avulsa-flexivel.md).
+
 - **Aviso de Atracação (NOB) com a sigla do terminal (2026-09-26):** a Edge Function
   `send-customer-communication` lia o terminal numa relação `terminals` que não existe (os terminais vivem em
   `depots`, e o PostgREST só embute por tabela, coluna ou FK existentes), e o erro de leitura virava o 422 "A

@@ -2,6 +2,11 @@
 
 Este diretório contém especificações funcionais e design docs cuja implementação foi concluída ou que foram sucedidas por novas versões da documentação viva:
 
+- [`2026-09-26-fatura-avulsa-flexivel-design.md`](2026-09-26-fatura-avulsa-flexivel-design.md)
+  — decisão aprovada e implementada localmente; a migration `097` e a
+  experiência interna/Portal estão descritas na documentação viva. Deploy
+  remoto não verificado.
+
 - [`2026-09-20-remediacao-ui-design-system-design.md`](2026-09-20-remediacao-ui-design-system-design.md)
   — contratos aprovados e executados para os 15 achados da auditoria forense
   de UI, design system e acessibilidade.
