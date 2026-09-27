@@ -212,10 +212,12 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
               <td style={cell}>{breakbulkMeta}</td>
             </tr>
           ) : null}
-          <tr>
-            <td style={labelCell}>Navio/Voy.:</td>
-            <td style={cell}>{vesselVoyages}</td>
-          </tr>
+          {!isManual || vesselVoyages !== '—' ? (
+            <tr>
+              <td style={labelCell}>Navio/Voy.:</td>
+              <td style={cell}>{vesselVoyages}</td>
+            </tr>
+          ) : null}
           {isManual && invoice.notes ? (
             <tr>
               <td style={labelCell}>Descrição:</td>

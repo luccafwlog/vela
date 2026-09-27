@@ -76,7 +76,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const canSettleRefund = typeof can === 'function' ? can('settle_financial_adjustments') : isAdmin
   const detailInvoice = detailQuery.data?.invoice ?? null
   const detailIsManual = isManualInvoice(detailInvoice)
-  const detailVoyageLabel = [detailInvoice?.vessel_name, detailInvoice?.voyage_number].filter(Boolean).join(' · ') || '-'
+  const detailVoyageLabel = [detailInvoice?.vessel_name, detailInvoice?.voyage_number].filter(Boolean).join(' · ')
+    || Array.from(new Set((detailQuery.data?.bls ?? []).map((b) => [b.vessel_name, b.voyage_number].filter(Boolean).join(' · ')).filter(Boolean))).join(', ')
+    || '-'
   const isLedgerPayable = isLedgerInvoicePayable(detailInvoice)
   const registerPaymentMutation = useRegisterInvoicePayment()
   const registerLedgerPaymentMutation = useRegisterLedgerInvoicePayment()

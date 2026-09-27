@@ -493,11 +493,12 @@ async function suggestDistinctColumn(
   table: 'invoices' | 'bls',
   column: string,
   term: string,
-  opts: { notNull?: boolean; orderBy?: string; fetchLimit?: number } = {},
+  opts: { notNull?: boolean; orderBy?: string; fetchLimit?: number; customerId?: number } = {},
 ): Promise<string[]> {
   if (!term) return []
   let query = supabase.from(table).select(column).ilike(column, `%${term}%`)
   if (opts.notNull) query = query.not(column, 'is', null)
+  if (opts.customerId != null) query = query.eq('customer_id', opts.customerId)
   if (opts.orderBy) query = query.order(opts.orderBy, { ascending: false })
   const { data, error } = await query.limit(opts.fetchLimit ?? 10)
   if (error) throw error
@@ -514,8 +515,13 @@ export function listInvoiceNumberSuggestions(search: string): Promise<string[]> 
   })
 }
 
-export function listBlSuggestions(search: string): Promise<string[]> {
-  return suggestDistinctColumn('bls', 'id', sanitizeLikeTerm(normalizeText(search).toUpperCase()))
+export function listBlSuggestions(search: string, customerId?: number | null): Promise<string[]> {
+  return suggestDistinctColumn(
+    'bls',
+    'id',
+    sanitizeLikeTerm(normalizeText(search).toUpperCase()),
+    customerId != null ? { customerId } : undefined,
+  )
 }
 
 export function listPodSuggestions(search: string): Promise<string[]> {
@@ -801,6 +807,7 @@ async function hydrateGraniteInvoiceBls(result: InvoiceDetail, invoiceId: number
 // rare consolidada that predates the backfill.
 async function hydrateConsolidatedInvoiceDetails(result: InvoiceDetail, invoiceId: number): Promise<void> {
   if (!result.invoice) return
+  if (result.invoice.invoice_type === 'manual' || result.invoice.invoice_type === 'granite') return
   if (result.bls.length !== 0 && result.items.length !== 0) return
 
   const { data: links, error: linksError } = await supabase
@@ -850,6 +857,24 @@ async function hydrateConsolidatedInvoiceDetails(result: InvoiceDetail, invoiceI
   }
 }
 
+async function hydrateManualInvoiceVoyage(result: InvoiceDetail): Promise<void> {
+  if (result.invoice?.invoice_type !== 'manual') return
+  if (result.invoice.voyage_number && result.invoice.vessel_name) return
+  const targetVoyageId = result.invoice.voyage_id ?? null
+  if (!targetVoyageId) return
+
+  const { data, error } = await supabase
+    .from('voyages')
+    .select('voyage_number,vessel:vessels(name)')
+    .eq('id', targetVoyageId)
+    .maybeSingle()
+
+  if (error || !data) return
+  const vessel = data.vessel as { name: string | null } | null
+  result.invoice.voyage_number = result.invoice.voyage_number ?? data.voyage_number ?? null
+  result.invoice.vessel_name = result.invoice.vessel_name ?? vessel?.name ?? null
+}
+
 export async function listInvoiceDetails(invoiceId: number) {
   const { data, error } = await supabase.rpc('list_invoice_details', {
     p_invoice_id: invoiceId,
@@ -860,6 +885,7 @@ export async function listInvoiceDetails(invoiceId: number) {
   const result = createInvoiceDetail((data ?? {}) as InvoiceDetailPayload)
   await hydrateGraniteInvoiceBls(result, invoiceId)
   await hydrateConsolidatedInvoiceDetails(result, invoiceId)
+  await hydrateManualInvoiceVoyage(result)
 
   return result
 }

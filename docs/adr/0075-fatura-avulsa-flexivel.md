@@ -1,6 +1,6 @@
 # 0075 — Fatura avulsa flexível no modelo de invoices
 
-Status: aceito — 2026-09-26. Implementada localmente nas migrations `097` e `098`;
+Status: aceito — 2026-09-26. Implementada localmente nas migrations `097`, `098` e `099`;
 deploy remoto não verificado.
 
 ## Contexto

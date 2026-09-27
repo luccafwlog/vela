@@ -70,7 +70,9 @@ export function InvoicesTable({
                   <div className="app-table__cell-stack">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-[#58a6ff]">{renderBlLinks(bls)}</span>
-                      <Badge tone={consolidated ? 'blue' : 'slate'}>{bls.length} B/L{bls.length === 1 ? '' : 's'}</Badge>
+                      {bls.length > 0 ? (
+                        <Badge tone={consolidated ? 'blue' : 'slate'}>{bls.length} B/L{bls.length === 1 ? '' : 's'}</Badge>
+                      ) : null}
                     </div>
                     {consolidated ? <div className="app-table__cell-meta">Consolidada · {bls.length} BLs agrupados</div> : null}
                   </div>
@@ -86,7 +88,7 @@ export function InvoicesTable({
                     <div className="app-table__cell-meta">{invoice.customer?.cnpj_cpf ?? 'Cliente não identificado'}</div>
                   </div>
                 </td>
-                <td className="px-4 py-3"><Badge tone={consolidated ? 'blue' : 'slate'}>{invoiceTypeLabel(invoice.invoice_type)}</Badge></td>
+                <td className="px-4 py-3"><Badge tone={consolidated ? 'blue' : invoice.invoice_type === 'manual' ? 'yellow' : 'slate'}>{invoiceTypeLabel(invoice.invoice_type)}</Badge></td>
                 <td className="px-4 py-3">
                   <div className="app-table__cell-stack">
                     <div className="app-table__cell-value">

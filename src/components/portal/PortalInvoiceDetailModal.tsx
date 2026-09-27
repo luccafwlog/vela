@@ -69,7 +69,9 @@ export function PortalInvoiceDetailModal({
               <MetricCard label="Total" value={formatBRL(invoice.total_brl)} />
               <MetricCard label="Pago" value={formatBRL(invoice.total_paid_brl)} />
               <MetricCard label="Saldo" value={formatBRL(invoice.balance_brl)} />
-              <MetricCard label="B/Ls" value={String(detail?.bls.length ?? 0)} />
+              {!isManual || (detail?.bls?.length ?? 0) > 0 ? (
+                <MetricCard label="B/Ls" value={String(detail?.bls.length ?? 0)} />
+              ) : null}
             </div>
 
             {detail?.bls.length ? <DetailSection title="B/Ls" subtitle="Conhecimentos de embarque desta fatura">

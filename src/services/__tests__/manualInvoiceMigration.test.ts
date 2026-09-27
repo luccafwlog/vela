@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const migrationPath = resolve(process.cwd(), 'supabase/migrations/097_fatura_avulsa.sql')
 const portalScopeMigrationPath = resolve(process.cwd(), 'supabase/migrations/098_portal_manual_invoice_notes_scope.sql')
+const projectionMigrationPath = resolve(process.cwd(), 'supabase/migrations/099_fatura_avulsa_detalhe_projecao.sql')
 
 function compact(sql: string) {
   return sql.replace(/\s+/g, ' ')
@@ -85,5 +86,18 @@ describe('migration 097 — fatura avulsa flexível', () => {
     expect(normalized).toMatch(/_portal_invoice_details_core_20260927\(p_customer_id, p_invoice_id\)/i)
     expect(normalized).toMatch(/v_result #>> '\{invoice,invoice_type\}' IS DISTINCT FROM 'manual'[\s\S]*\(v_result->'invoice'\) - 'notes'/i)
     expect(normalized).toMatch(/REVOKE ALL ON FUNCTION public\._portal_invoice_details_core\(bigint, bigint\) FROM PUBLIC, anon, authenticated, service_role/i)
+  })
+
+  it('migration 099 projeta voyage_number e vessel_name em list_invoice_details', () => {
+    expect(existsSync(projectionMigrationPath)).toBe(true)
+    const sql = readFileSync(projectionMigrationPath, 'utf8')
+    const normalized = compact(sql)
+
+    expect(normalized).toMatch(/CREATE OR REPLACE FUNCTION public\.list_invoice_details\(p_invoice_id bigint\)/i)
+    expect(normalized).toMatch(/'voyage_number',\s*v\.voyage_number/i)
+    expect(normalized).toMatch(/'vessel_name',\s*vs\.name/i)
+    expect(normalized).toMatch(/LEFT JOIN public\.voyages AS v ON v\.id = COALESCE\(i\.voyage_id,\s*b\.voyage_id\)/i)
+    expect(normalized).toMatch(/LEFT JOIN public\.vessels AS vs ON vs\.id = v\.vessel_id/i)
+    expect(normalized).toMatch(/GRANT EXECUTE ON FUNCTION public\.list_invoice_details\(bigint\) TO authenticated/i)
   })
 })

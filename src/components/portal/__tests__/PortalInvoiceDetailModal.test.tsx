@@ -74,6 +74,7 @@ describe('PortalInvoiceDetailModal', () => {
     expect(screen.getByText('Serviço extraordinário')).toBeTruthy()
     expect(screen.getByText(/NAVIO MANUAL.*42N/)).toBeTruthy()
     expect(screen.queryByRole('heading', { name: 'B/Ls' })).toBeNull()
+    expect(screen.queryByText('B/Ls')).toBeNull()
     expect(screen.getByText('Pagamento via PIX')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Refazer consolidada/ })).toBeNull()
 

@@ -9,6 +9,7 @@ import { VoyageCombobox } from '../shared/VoyageCombobox'
 import { useBillingCustomers, useCreateManualInvoice } from '../../hooks/useBilling'
 import { listBlSuggestions } from '../../services/billing'
 import type { ManualInvoiceInput } from '../../services/billing'
+import { supabase } from '../../services/supabase'
 import { formatValidationError, manualInvoiceCreationSchema } from '../../services/financialValidation'
 
 type Props = {
@@ -230,12 +231,24 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
 
             <div className="invoice-create-modal__field--bl">
               <Combobox
-                key={`manual-bl-${formResetKey}`}
+                key={`manual-bl-${formResetKey}-${customerId ?? 'none'}`}
                 label="B/L (opcional)"
-                placeholder="Buscar B/L..."
+                placeholder={customerId ? 'Buscar B/L...' : 'Selecione o cliente primeiro'}
+                disabled={customerId == null}
                 onValueChange={(value) => setBlId(value.trim() ? value.trim().toUpperCase() : null)}
-                fetchOptions={async (query) => (await listBlSuggestions(query)).map((id): ComboOption => ({ value: id, label: id }))}
-                onSelectOption={(option) => setBlId(option.value.trim().toUpperCase())}
+                fetchOptions={async (query) => (await listBlSuggestions(query, customerId)).map((id): ComboOption => ({ value: id, label: id }))}
+                onSelectOption={async (option) => {
+                  const selectedBl = option.value.trim().toUpperCase()
+                  setBlId(selectedBl)
+                  try {
+                    const { data } = await supabase.from('bls').select('voyage_id').eq('id', selectedBl).maybeSingle()
+                    if (data?.voyage_id != null) {
+                      setVoyageId(Number(data.voyage_id))
+                    }
+                  } catch {
+                    // Ignora erro de rede; o operador pode selecionar a viagem manualmente se necessário
+                  }
+                }}
               />
             </div>
 

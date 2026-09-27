@@ -193,3 +193,31 @@ it('imprime fatura avulsa com descrição e contexto opcional sem categorias art
   expect(screen.queryByText(/2\. CARGA SOLTA/)).toBeNull()
   expect(screen.queryByText(/3\. TAXAS ADMINISTRATIVAS/)).toBeNull()
 })
+
+it('InvoiceDocumentLocal omite Navio/Voy. quando fatura avulsa não tem navio nem viagem', () => {
+  const noVoyageDetail = {
+    invoice: {
+      id: 4,
+      invoice_number: 'INV-2026-0105',
+      invoice_type: 'manual',
+      status: 'issued',
+      total_brl: 120,
+      customer_name: 'Cliente Sem Navio',
+      notes: 'Consultoria e honorários',
+      voyage_id: null,
+      voyage_number: null,
+      vessel_name: null,
+      issued_at: '2026-09-18',
+    },
+    bls: [],
+    items: [{ id: 42, description: 'Honorários técnicos', quantity: 1, unit_value_brl: 120, total_value_brl: 120, source: 'manual' }],
+    payments: [],
+  } as never
+
+  render(<InvoiceDocumentLocal detail={noVoyageDetail} />)
+
+  expect(screen.getByText('FATURA AVULSA')).toBeTruthy()
+  expect(screen.getByText('Consultoria e honorários')).toBeTruthy()
+  expect(screen.queryByText('Navio/Voy.:')).toBeNull()
+  expect(screen.queryByText('B/Ls:')).toBeNull()
+})

@@ -25,6 +25,18 @@ vi.mock('../../../services/billing', () => ({
   listBlSuggestions: mocks.listBlSuggestions,
 }))
 
+vi.mock('../../../services/supabase', () => ({
+  supabase: {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: vi.fn().mockResolvedValue({ data: { voyage_id: 42 }, error: null }),
+        }),
+      }),
+    }),
+  },
+}))
+
 vi.mock('../../ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
 }))
@@ -36,10 +48,12 @@ vi.mock('../../ui/ConfirmDialog', () => ({
 vi.mock('../../ui/Combobox', () => ({
   Combobox: ({
     label,
+    disabled,
     onSelectOption,
     onValueChange,
   }: {
     label: string
+    disabled?: boolean
     onSelectOption?: (option: { value: string; label: string }) => void
     onValueChange: (value: string) => void
   }) => (
@@ -48,11 +62,13 @@ vi.mock('../../ui/Combobox', () => ({
         {label}
         <input
           aria-label={label}
+          disabled={disabled}
           onChange={(event) => onValueChange(event.target.value)}
         />
       </label>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => onSelectOption?.({ value: 'BL-1', label: 'BL-1' })}
       >
         BL-1
@@ -114,7 +130,8 @@ async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('ManualInvoiceModal', () => {
-  it('renderiza o formulário acessível quando aberto', () => {
+  it('renderiza o formulário acessível quando aberto e desabilita B/L e Viagem sem cliente', async () => {
+    const user = userEvent.setup()
     openModal()
 
     const dialog = screen.getByRole('dialog', { name: 'Nova fatura avulsa' })
@@ -123,8 +140,12 @@ describe('ManualInvoiceModal', () => {
     expect(within(dialog).getByLabelText('Descrição da cobrança')).toBeTruthy()
     expect(within(dialog).getByLabelText('Quantidade')).toBeTruthy()
     expect(within(dialog).getByLabelText('Valor unitário (BRL)')).toBeTruthy()
-    expect(within(dialog).getByLabelText('B/L (opcional)')).toBeTruthy()
-    expect(within(dialog).getByLabelText('Navio / Viagem')).toBeTruthy()
+    const blInput = within(dialog).getByLabelText('B/L (opcional)') as HTMLInputElement
+    expect(blInput.disabled).toBe(true)
+
+    await selectCustomer(user)
+    const updatedBlInput = within(dialog).getByLabelText('B/L (opcional)') as HTMLInputElement
+    expect(updatedBlInput.disabled).toBe(false)
   })
 
   it('exige cliente e não chama a mutation sem ele', async () => {

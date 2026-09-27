@@ -23,6 +23,8 @@ import {
   isConsolidatedInvoice,
   isManualInvoice,
   invoiceTypeLabel,
+  listBlSuggestions,
+  listInvoiceDetails,
   listInvoiceLinksByBls,
   listInvoices,
   registerInvoicePayment,
@@ -671,5 +673,64 @@ describe('listInvoices', () => {
     supabaseMocks.from.mockReturnValue(invoices)
 
     await expect(listInvoices(baseFilters)).rejects.toThrow('lista falhou')
+  })
+})
+
+describe('listBlSuggestions', () => {
+  it('filtra por customer_id quando informado', async () => {
+    const blsQuery = chainQuery({ data: [{ id: 'BL-01' }, { id: 'BL-02' }], error: null })
+    supabaseMocks.from.mockReturnValue(blsQuery)
+
+    const result = await listBlSuggestions('bl', 15)
+
+    expect(result).toEqual(['BL-01', 'BL-02'])
+    expect(supabaseMocks.from).toHaveBeenCalledWith('bls')
+    expect(blsQuery.ilike).toHaveBeenCalledWith('id', '%BL%')
+    expect(blsQuery.eq).toHaveBeenCalledWith('customer_id', 15)
+  })
+
+  it('não filtra por customer_id quando ausente', async () => {
+    const blsQuery = chainQuery({ data: [{ id: 'BL-01' }], error: null })
+    supabaseMocks.from.mockReturnValue(blsQuery)
+
+    const result = await listBlSuggestions('bl')
+
+    expect(result).toEqual(['BL-01'])
+    expect(blsQuery.eq).not.toHaveBeenCalled()
+  })
+})
+
+describe('listInvoiceDetails — fatura avulsa', () => {
+  it('hidrata navio e viagem da fatura avulsa quando a RPC não projeta diretamente', async () => {
+    supabaseMocks.rpc.mockResolvedValueOnce({
+      data: {
+        invoice: {
+          id: 50,
+          invoice_type: 'manual',
+          voyage_id: 10,
+          voyage_number: null,
+          vessel_name: null,
+        },
+        bls: [],
+        items: [],
+        payments: [],
+      },
+      error: null,
+    })
+
+    const voyageQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { voyage_number: '10N', vessel: { name: 'Navio Exemplo' } },
+        error: null,
+      }),
+    }
+    supabaseMocks.from.mockReturnValue(voyageQuery)
+
+    const detail = await listInvoiceDetails(50)
+
+    expect(detail.invoice?.voyage_number).toBe('10N')
+    expect(detail.invoice?.vessel_name).toBe('Navio Exemplo')
   })
 })

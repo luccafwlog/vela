@@ -138,6 +138,7 @@ describe('InvoicesTable', () => {
     )
 
     expect(screen.getByText('Sem B/L')).toBeTruthy()
+    expect(screen.queryByText('0 B/Ls')).toBeNull()
     expect(screen.getByText('Avulsa')).toBeTruthy()
     expect(screen.getByText('Navio Manual · 42N')).toBeTruthy()
   })
