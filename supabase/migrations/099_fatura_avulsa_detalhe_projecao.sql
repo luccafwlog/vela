@@ -20,6 +20,10 @@ DECLARE
   v_containers jsonb;
   v_payments jsonb;
 BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_active_user() OR NOT public.is_active_read_user() THEN
+    RAISE EXCEPTION 'Credenciais invalidas ou sem permissao de faturamento.' USING ERRCODE = '42501';
+  END IF;
+
   SELECT invoice_type INTO v_invoice_type
   FROM public.invoices
   WHERE id = p_invoice_id;
