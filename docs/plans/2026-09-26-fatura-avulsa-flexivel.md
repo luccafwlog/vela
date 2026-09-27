@@ -217,7 +217,7 @@ export function isManualInvoice(row: { invoice_type?: string | null }): boolean
 
   Rodar o comando do Passo 2; resultado esperado: `PASS`.
 
-- [ ] **Passo 6: commitar o domínio TypeScript**.
+- [x] **Passo 6: commitar o domínio TypeScript**.
 
   ```bash
   git add src/services/billing.ts src/services/financialValidation.ts src/hooks/useBilling.ts src/services/queryKeys.ts src/services/__tests__/billing.test.ts src/services/__tests__/financialValidation.test.ts src/hooks/__tests__/useBillingManualInvoice.test.ts
@@ -345,7 +345,7 @@ direto de `InvoiceListRow`/`InvoiceDetail`, e a mutation da Tarefa 2.
   Rodar novamente o comando do Passo 2; resultado esperado: `PASS` sem mudar
   os títulos ou rótulos de taxas locais, consolidadas e demurrage.
 
-- [ ] **Passo 7: commitar as superfícies internas**.
+- [x] **Passo 7: commitar as superfícies internas**.
 
   ```bash
   git add src/components/billing src/components/shared/invoiceFormat.ts src/services/exports.ts src/services/reconciliacao.ts src/services/blRails.ts src/pages/faturamentoLedgerPayment.ts
@@ -399,7 +399,7 @@ Tarefa 1 e `InvoiceDocumentLocal`/`invoiceTypeLabel` das Tarefas 2 e 4.
 
   Rodar o comando do Passo 2; resultado esperado: `PASS`.
 
-- [ ] **Passo 6: commitar a experiência Portal**.
+- [x] **Passo 6: commitar a experiência Portal**.
 
   ```bash
   git add src/services/portalBilling.ts src/components/portal/PortalBillingTabs.tsx src/components/portal/PortalInvoiceDetailModal.tsx src/pages/PortalBilling.tsx src/components/portal/__tests__/PortalInvoiceDetailModal.test.tsx src/pages/__tests__/PortalBilling.test.tsx

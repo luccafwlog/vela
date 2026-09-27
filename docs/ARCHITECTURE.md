@@ -382,6 +382,21 @@ Taxas locais geram recebíveis por B/L. `bl_receivables`,
 `invoice_receivable_links`, `ledger_settlements` e eventos de ciclo de vida são
 a fonte de saldo, reemissão e consolidação.
 
+A Fatura Avulsa reutiliza o documento `invoices` com `invoice_type = 'manual'`.
+A migration `097_fatura_avulsa.sql` adiciona `invoices.voyage_id` opcional e a
+RPC `create_manual_invoice`, que valida o Cliente e referências opcionais,
+calcula o valor no servidor e grava uma linha em `invoice_items` na mesma
+transação. `bl_id` e `voyage_id` são contexto, não vínculos de recebível: a
+emissão não cria `invoice_bls`, `invoice_receivable_links`, `bl_receivables` ou
+`ledger_settlements`. O pagamento segue o caminho genérico de invoice.
+
+O tipo atravessa lista, detalhe, impressão e exportação internos, PIX e
+histórico de reconciliação, além das leituras Portal de lista/detalhe. O Portal
+continua resolvendo o Cliente pela sessão autenticada; a Fatura Avulsa sem B/L
+não precisa do gate de CE usado nas faturas locais. Isso descreve código e
+testes locais; deploy/runtime remoto não foi verificado. Ver ADR 0075 e
+[módulo Faturamento](modules/faturamento.md).
+
 ### Demurrage
 
 Demurrage depende de descarga, devolução, free time e tarifa por equipamento.
@@ -640,7 +655,7 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | Rota | Destino |
 |---|---|
 | `/portal` | Dashboard do cliente |
-| `/portal/billing` | Faturas de taxas locais e demurrage |
+| `/portal/billing` | Faturas de taxas locais/avulsas e demurrage |
 | `/portal/operacao` | B/Ls e containers |
 | `/portal/perfil` | Contatos e perfil |
 
@@ -676,7 +691,7 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `billing` | Subrota de faturas dentro da Inspeção do Portal |
 | `operacao` | Subrota operacional dentro da Inspeção do Portal |
 | `perfil` | Subrota de perfil dentro da Inspeção do Portal |
-| `/taxas-locais` | Validação, invoices e ledger de Taxas Locais |
+| `/taxas-locais` | Validação, invoices de Taxas Locais/Avulsas e ledger local |
 | `/taxas-locais/tabelas` | Cadastro de tabelas e overrides de Taxas Locais |
 | `/faturamento` | Redirect legado para `/taxas-locais`, preservando a query string; `tab=demurrage` vai para `/demurrage` |
 | `/demurrage` | Operação e invoices de demurrage |

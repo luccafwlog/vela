@@ -1036,6 +1036,19 @@ origem mantém seu ciclo de vida próprio.
 
 ## Faturamento
 
+**Fatura Avulsa**
+Documento emitido pelo Financeiro contra um Cliente para cobrar um item de
+nome e descrição livres, sem depender de tabela de Taxas Locais, cálculo,
+CE Mercante ou liberação local do Portal. B/L e Viagem são contexto opcional;
+quando informados, o B/L deve pertencer ao Cliente e a Viagem deve ser
+compatível. A fatura usa `invoices.invoice_type = 'manual'`, guarda o item em
+`invoice_items` e pode ser paga pelo fluxo genérico de invoice. Não cria
+recebível nem liquidação do ledger de Taxas Locais. O Cliente autenticado vê
+somente suas próprias faturas no Portal.
+
+Decidida na [ADR 0075](docs/adr/0075-fatura-avulsa-flexivel.md); código e
+testes locais registrados em `docs/modules/faturamento.md`.
+
 **Taxas Locais**
 Cobranças ligadas ao B/L, calculadas por tabelas, itens e eventuais regras
 específicas do cliente.
