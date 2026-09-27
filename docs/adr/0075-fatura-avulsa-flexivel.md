@@ -1,6 +1,6 @@
 # 0075 — Fatura avulsa flexível no modelo de invoices
 
-Status: aceito — 2026-09-26. Implementada localmente na migration `097`;
+Status: aceito — 2026-09-26. Implementada localmente nas migrations `097` e `098`;
 deploy remoto não verificado.
 
 ## Contexto
@@ -28,7 +28,8 @@ consulta do Cliente no Portal.
 4. Manter PIX e conciliação unificada para a invoice. O Portal inclui o tipo
    apenas nas leituras seguras já escopadas por
    `current_portal_customer_id()`; não aceita `customer_id` fornecido pelo
-   navegador para ampliar o escopo.
+   navegador para ampliar o escopo. A descrição em `notes` só é exposta para
+   invoices `manual`; notas internas de faturas locais permanecem privadas.
 5. A emissão é um ato interno protegido pela RPC, sem exigir os gates próprios
    da emissão de Taxas Locais (tabela, cálculo, CE Mercante e liberação local
    do Portal). Isso não altera os gates dos tipos existentes.
@@ -47,8 +48,8 @@ consulta do Cliente no Portal.
 - O novo tipo atravessa as leituras internas, detalhe, impressão, exportações,
   Portal e conciliação, mas não participa da liquidação por recebível local.
 - `invoices.voyage_id` é nullable e indexado; `notes` registra a descrição da
-  cobrança. A referência direta a B/L/Viagem é contextual e não cria saldo no
-  B/L.
+  cobrança e só é exibido ao Cliente para invoices `manual`. A referência
+  direta a B/L/Viagem é contextual e não cria saldo no B/L.
 - O código e os testes locais estão descritos em
   [Faturamento](../modules/faturamento.md), [Portal do Cliente](../modules/portal-cliente.md)
   e [Reconciliação PIX](../modules/reconciliacao-pix.md). A migration e o

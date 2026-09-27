@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const migrationPath = resolve(process.cwd(), 'supabase/migrations/097_fatura_avulsa.sql')
+const portalScopeMigrationPath = resolve(process.cwd(), 'supabase/migrations/098_portal_manual_invoice_notes_scope.sql')
 
 function compact(sql: string) {
   return sql.replace(/\s+/g, ' ')
@@ -73,5 +74,16 @@ describe('migration 097 — fatura avulsa flexível', () => {
     expect(normalized).toContain("'voyage_id'")
     expect(normalized).toMatch(/invoice_type = 'manual'[\s\S]*bl_id/i)
     expect(normalized).toMatch(/SET search_path TO 'public', 'pg_temp'|SET search_path = public, pg_temp/i)
+  })
+
+  it('expõe notes no Portal somente para faturas avulsas', () => {
+    expect(existsSync(portalScopeMigrationPath)).toBe(true)
+    const sql = readFileSync(portalScopeMigrationPath, 'utf8')
+    const normalized = compact(sql)
+
+    expect(normalized).toMatch(/RENAME TO _portal_invoice_details_core_20260927/i)
+    expect(normalized).toMatch(/_portal_invoice_details_core_20260927\(p_customer_id, p_invoice_id\)/i)
+    expect(normalized).toMatch(/v_result #>> '\{invoice,invoice_type\}' IS DISTINCT FROM 'manual'[\s\S]*\(v_result->'invoice'\) - 'notes'/i)
+    expect(normalized).toMatch(/REVOKE ALL ON FUNCTION public\._portal_invoice_details_core\(bigint, bigint\) FROM PUBLIC, anon, authenticated, service_role/i)
   })
 })
