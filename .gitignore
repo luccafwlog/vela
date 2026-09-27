@@ -47,3 +47,7 @@ artifacts/design-viagens/viagens-tres-direcoes.html
 
 # Saída intermediária do gerador do squash (PR 651): nunca entra no CLI nem no git
 supabase/test_*.sql
+
+# Amostras HTML temporárias
+fatura-avulsa-exemplo.html
+
