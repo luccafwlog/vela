@@ -76,9 +76,10 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const canSettleRefund = typeof can === 'function' ? can('settle_financial_adjustments') : isAdmin
   const detailInvoice = detailQuery.data?.invoice ?? null
   const detailIsManual = isManualInvoice(detailInvoice)
-  const detailVoyageLabel = [detailInvoice?.vessel_name, detailInvoice?.voyage_number].filter(Boolean).join(' · ')
+  const voyageParts = [detailInvoice?.vessel_name, detailInvoice?.voyage_number].filter(Boolean).join(' · ')
     || Array.from(new Set((detailQuery.data?.bls ?? []).map((b) => [b.vessel_name, b.voyage_number].filter(Boolean).join(' · ')).filter(Boolean))).join(', ')
-    || '-'
+  const detailVoyageLabel = voyageParts || '-'
+  const hasDetailVoyage = Boolean(voyageParts)
   const isLedgerPayable = isLedgerInvoicePayable(detailInvoice)
   const registerPaymentMutation = useRegisterInvoicePayment()
   const registerLedgerPaymentMutation = useRegisterLedgerInvoicePayment()
@@ -287,7 +288,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                 {pendingRefund > 0.01 ? (
                   <MetricCard label="A estornar" value={formatBRL(pendingRefund)} />
                 ) : null}
-                <MetricCard label="B/Ls" value={String(detailQuery.data.bls.length)} />
+                {!detailIsManual || detailQuery.data.bls.length > 0 ? (
+                  <MetricCard label="B/Ls" value={String(detailQuery.data.bls.length)} />
+                ) : null}
               </div>
               <Card>
                 <h2 className="text-base font-semibold text-white">Informações da Fatura</h2>
@@ -297,7 +300,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   <SelectionMetric label="Emissão" value={formatDate(detailQuery.data.invoice.issued_at)} />
                   <SelectionMetric label="Status" value={statusLabel(detailQuery.data.invoice.status)} />
                   <SelectionMetric label="Tipo" value={invoiceTypeLabel(detailQuery.data.invoice.invoice_type)} />
-                  <SelectionMetric label="Navio / Viagem" value={detailVoyageLabel} />
+                  {!detailIsManual || hasDetailVoyage ? (
+                    <SelectionMetric label="Navio / Viagem" value={detailVoyageLabel} />
+                  ) : null}
                   {detailIsManual ? <SelectionMetric label="Descrição da cobrança" value={detailQuery.data.invoice.notes ?? '-'} /> : null}
                   <SelectionMetric label="Itens" value={String(detailQuery.data.items.length)} />
                   <SelectionMetric label="Pagamentos" value={String(detailQuery.data.payments.length)} />

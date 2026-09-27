@@ -168,6 +168,13 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
     ),
   ).join(', ') || [invoice.vessel_name, invoice.voyage_number].filter(Boolean).join(' · ') || '—'
 
+  const hasVesselVoyage = Boolean(
+    bls.some((b) => Boolean(b.vessel_name?.trim() || b.voyage_number?.trim())) ||
+    (invoice.vessel_name && invoice.vessel_name.trim() !== '-' && invoice.vessel_name.trim() !== '—') ||
+    (invoice.voyage_number && invoice.voyage_number.trim() !== '-' && invoice.voyage_number.trim() !== '—'),
+  )
+  const showVesselVoyages = !isManual || hasVesselVoyage
+
   const containersMeta = isManual ? null : formatContainersMetadata(bls, items)
   const breakbulkMeta = isManual ? null : formatBreakbulkMetadata(bls, items)
 
@@ -212,7 +219,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
               <td style={cell}>{breakbulkMeta}</td>
             </tr>
           ) : null}
-          {!isManual || vesselVoyages !== '—' ? (
+          {showVesselVoyages ? (
             <tr>
               <td style={labelCell}>Navio/Voy.:</td>
               <td style={cell}>{vesselVoyages}</td>
