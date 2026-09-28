@@ -12,7 +12,6 @@ vi.mock('@sentry/react', () => sentryMock)
 
 import {
   markStartupStage,
-  redactVercelTelemetryEvent,
   redactUrlQueryString,
   reportBestEffortFailure,
   reportCaughtException,
@@ -138,42 +137,6 @@ describe('redactUrlQueryString', () => {
     expect(redactUrlQueryString('https://portalfwlog.com.br/portal/login')).toBe(
       'https://portalfwlog.com.br/portal/login',
     )
-  })
-})
-
-describe('redactVercelTelemetryEvent', () => {
-  it('remove query strings and normalizes identifiers from application routes', () => {
-    const event = redactVercelTelemetryEvent({
-      url: 'https://vela.app.br/clientes/12345678000195?tab=financeiro',
-      route: '/clientes/12345678000195',
-    })
-
-    expect(event).toEqual({
-      url: 'https://vela.app.br/clientes/:cnpj',
-      route: '/clientes/:cnpj',
-    })
-  })
-
-  it('normalizes nested inspection and manifest routes', () => {
-    expect(redactVercelTelemetryEvent({
-      url: 'https://portalfwlog.com.br/clientes/portal/inspecao/42?tab=operacao',
-    })).toEqual({
-      url: 'https://portalfwlog.com.br/clientes/portal/inspecao/:customerId',
-    })
-
-    expect(redactVercelTelemetryEvent({
-      url: 'https://vela.app.br/bls/bl-123?modal=details',
-    })).toEqual({
-      url: 'https://vela.app.br/bls/:blId',
-    })
-  })
-
-  it('preserves safe routes while removing their query strings', () => {
-    expect(redactVercelTelemetryEvent({
-      url: 'https://vela.app.br/painel?filter=aberto',
-    })).toEqual({
-      url: 'https://vela.app.br/painel',
-    })
   })
 })
 

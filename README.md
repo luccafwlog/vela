@@ -42,14 +42,14 @@ O catálogo de módulos e o mapa de rotas estão em [`docs/README.md`](docs/READ
 
 ## Como o sistema é construído
 
-O frontend é composto por duas SPAs React/TypeScript carregadas sob demanda a partir da mesma base de código: o build interno do Vela e o build do Portal Fwlog. Cada superfície tem sua própria entrada HTML, roteador, sessão de autenticação e projeto Vercel; serviços, tipos, dados e componentes neutros continuam compartilhados. O Supabase fornece PostgreSQL, Auth e Edge Functions.
+O frontend é composto por duas SPAs React/TypeScript carregadas sob demanda a partir da mesma base de código: o build interno do Vela e o build do Portal Fwlog. Cada superfície tem sua própria entrada HTML, roteador e sessão de autenticação; serviços, tipos, dados e componentes neutros continuam compartilhados. O Supabase fornece PostgreSQL, Auth e Edge Functions.
 
 - **Frontend:** React 19, TypeScript, Vite, React Router, TanStack Query, Tailwind CSS e Zod.
 - **Dados e segurança:** PostgreSQL no Supabase, RLS, grants e RPCs auditadas. A autorização real está no banco; proteção de rota e visibilidade de controles são apenas UX.
 - **Sessões:** aplicação interna e Portal usam clientes Supabase separados, podendo coexistir no mesmo navegador.
 - **Integrações:** Resend para email transacional do Portal e Comunicados ao Cliente, Banco Central para PTAX e Sentry para observabilidade.
 - **PIX:** BR Code estático e conciliação por extrato; integração direta com a API Itaú continua como spec futura em `docs/spec/2026-08-25-integracao-itau-pix.md`.
-- **Entrega:** GitHub Actions valida pull requests e pushes em `main`; a integração GitHub/Vercel cria Preview Deployments para PRs e Production Deployments a partir de `main`. Migrations e Edge Functions têm ciclo de deploy próprio no Supabase.
+- **Entrega:** GitHub Actions valida pull requests e publica previews e produção no Cloudflare Pages. Migrations e Edge Functions têm ciclo de deploy próprio no Supabase.
 
 O mapa técnico completo, as fronteiras de autenticação e as fontes de dados por módulo estão em [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 

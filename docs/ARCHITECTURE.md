@@ -18,7 +18,7 @@ flowchart LR
     Resend["Resend"]
     BCB["Banco Central / PTAX"]
     Sentry["Sentry"]
-    Vercel["Vercel"]
+    Pages["Cloudflare Pages"]
 
     Browser --> Internal
     Browser --> Portal
@@ -29,7 +29,7 @@ flowchart LR
     Functions --> Resend
     Functions --> BCB
     Browser --> Sentry
-    Vercel --> Browser
+    Pages --> Browser
 ```
 
 O frontend entrega duas SPAs estáticas, com entradas e roteadores separados. A segurança real não depende do roteador: tabelas,
@@ -108,15 +108,7 @@ aberta, bounce sem contato alternativo ou ausência de contato válido. O valor
 em USD permanece o da cobrança; o BRL exibido no comunicado leva ROE e data de
 referência e informa que será recalculado no pagamento.
 
-O hosting usa dois projetos Vercel sobre o mesmo repositório e a mesma base de
-código: o projeto interno publica `index.html` em `https://vela.app.br`, e o
-projeto do Portal publica `portal.html` em `https://portalfwlog.com.br`.
-Cada projeto cria seus próprios Previews para pull requests; a integração de
-branching do Supabase mantém as credenciais de Preview alinhadas à branch Git
-correspondente. O branch `main` gera os dois Production Deployments e ambos
-usam o projeto Supabase de produção. O Portal continua sendo Fwlog, enquanto
-Vela identifica somente a superfície interna. O hosting Firebase não faz mais
-parte da arquitetura.
+O Cloudflare Pages hospeda duas aplicações estáticas produzidas pelo mesmo build Vite: `vela-internal` publica `index.html` em `https://vela.app.br`, e `vela-portal` publica `portal.html` em `https://portalfwlog.com.br`. GitHub Actions publica previews por PR; o workflow usa as credenciais da branch Supabase correspondente. `main` publica ambos os sites com as credenciais de produção. O Portal continua sendo Fwlog, enquanto Vela identifica somente a superfície interna. O hosting Firebase não faz mais parte da arquitetura.
 
 Depois de um CI verde, o workflow confiável
 `.github/workflows/provision-preview-admin.yml` aguarda o check da branch
@@ -619,7 +611,7 @@ separada. Não generalizar a exceção para chamadas do navegador.
   idempotência/supressão;
 - **Banco Central:** cotação PTAX;
 - **Sentry:** erros do frontend em produção;
-- **Vercel:** distribuição da SPA e Preview/Production Deployments;
+- **Cloudflare Pages:** distribuição dos dois SPAs e Preview/Production Deployments;
 - **PIX:** BR Code estático persistido e QR renderizado; conciliação por extrato. API Itaú dinâmica/webhook permanece proposta em `docs/spec/2026-08-25-integracao-itau-pix.md`.
 
 ### Telemetria do Portal
@@ -632,8 +624,8 @@ cliente é carregado; no logout ou `SIGNED_OUT`, limpa o usuário com
 `Sentry.setUser(null)`. O projeto mantém `dataCollection` com PII desabilitado e não envia
 email, nome, documento ou contato do cliente como identidade Sentry.
 
-Domínios usados pelo navegador precisam permanecer compatíveis com a CSP de
-`vercel.json`.
+Domínios usados pelo navegador precisam permanecer compatíveis com a CSP gerada
+em `_headers` pelo staging do Cloudflare Pages.
 
 ## Mapa de rotas
 

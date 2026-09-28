@@ -5,9 +5,8 @@ dependem: para que servem, como se entra, o que está configurado, onde moram os
 segredos e o que quebra se cada uma parar. Escrito para quem assumir a operação
 sem ter participado da configuração.
 
-- **Estado em:** 2026-09-24, durante a migração da Vercel para o Cloudflare
+- **Estado em:** 2026-09-28, após a migração da Vercel para o Cloudflare
   Pages ([roteiro](../plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md)).
-  Itens marcados **(transição)** mudam na Etapa 10 do roteiro.
 - **Nunca** escreva valores de segredo aqui. Este documento lista **nomes** e
   **onde** o valor está guardado.
 - Ao mudar qualquer configuração de serviço, atualize esta página na mesma PR.
@@ -38,7 +37,7 @@ flowchart LR
 | GitHub | repositório `luccafwlog/vela` | — |
 | Supabase | login com GitHub; projeto de produção `fgmkhbzhaeebrsizwccx` | — |
 | Cloudflare | `luccafwlog@gmail.com`; conta `b9f47a26b8f708444419dac863a54cd4`; time Zero Trust `icy-term-9505` | Free / Zero Trust Free |
-| Vercel **(transição)** | time `luccafwlogs-projects`; projetos `vela` e `fwlog-portal` | Hobby (limite de 100 deploys/dia) |
+| Vercel (rollback manual) | time `luccafwlogs-projects`; projetos `vela` e `fwlog-portal`, Git desconectado | Hobby |
 | Registro.br | titular dos domínios `vela.app.br`, `portalfwlog.com.br`, `transhippingdesk.com.br` | — |
 | Resend | conta que envia por `transhippingdesk.com.br` e `portalfwlog.com.br` | — |
 | ImprovMX | domínios `transhippingdesk.com.br` e `portalfwlog.com.br` | — |
@@ -58,7 +57,6 @@ Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-re
 | Supabase → **Vault** (`vault.secrets`) | segredos que os jobs `pg_cron` enviam às Functions | só o banco; ver [segredos-cron.md](segredos-cron.md) |
 | GitHub → **Settings → Secrets and variables → Actions** | tokens de deploy e valores públicos de build | workflows |
 | GitHub → environment **`cloudflare-production`** | as 7 variáveis `VITE_*` do build de produção do Pages | só o workflow de produção, só na branch `main` |
-| Vercel → **Environment Variables** **(transição)** | `VITE_*` dos dois projetos | build da Vercel |
 | Windows do computador do backup → **variáveis do usuário** | `SUPABASE_DB_URL`, `BACKUP_ENCRYPTION_KEY_HEX`, `R2_*`, `BACKUP_ALLOW_PRODUCTION` | tarefa agendada do backup |
 | Windows → **Gerenciador de Credenciais** | `VelaBackup/R2AccessKeyId`, `VelaBackup/R2SecretAccessKey`, `VelaBackup/EncryptionKey` | o dono, para reconfigurar o backup |
 | iCloud Senhas do dono | `vela-backup` (chave de cifragem), `supabase-db-vela` (senha do banco) | cópia fora do computador |
@@ -116,7 +114,7 @@ Regras:
   projeto Pages. Não o edite à mão; para trocar, remova o domínio no projeto.
 - Registros do Resend ficam **DNS only** (nuvem cinza). O `CNAME @` do Pages e o
   `A www` ficam com proxy.
-- **Volta para a Vercel (até 2026-10-01):** apague o `CNAME @` e crie
+- **Volta para a Vercel:** apague o `CNAME @` e crie
   `A @ 216.198.79.1` com nuvem **cinza** (proxy na frente da Vercel quebra o
   certificado); depois remova o custom domain do projeto Pages.
 - `transhippingdesk.com.br` guarda o e-mail legado (ImprovMX e Resend); não é
@@ -147,8 +145,8 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   da branch de preview do Supabase; `cloudflare-pages-preview-cleanup.yml` apaga
   ao fechar a PR. Só publica com `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`.
 - **Cabeçalhos de segurança (CSP):** gerados por
-  `scripts/cloudflare-pages-stage.mjs`; mudam junto com o `vercel.json`
-  ([deploy.md](../setup/deploy.md#content-security-policy)).
+  `scripts/cloudflare-pages-stage.mjs`; mudam junto com os workflows e o staging do Pages
+  ([deploy.md](../setup/deploy.md#headers-rotas-e-cors)).
 - **Token:** GitHub secret `CLOUDFLARE_PAGES_API_TOKEN` (Pages: Edit).
 
 ### Cloudflare Access (proteção das previews)
@@ -163,20 +161,13 @@ produção `*.pages.dev` ficam abertos.
 Ao passar a responsabilidade, troque o e-mail da política pelo do novo
 responsável.
 
-### Vercel (transição)
+### Vercel (rollback manual, sem publicação automática)
 
-**Reserva até 2026-10-01.** Desde 2026-09-24 os domínios apontam para o Pages;
-a Vercel não recebe mais tráfego e fica de pé só para a volta rápida (ver
-[Cloudflare DNS](#cloudflare-dns)). Projetos `vela` e `fwlog-portal`, ligados
-ao GitHub; cada PR e merge gera deploy. Plano Hobby: **100 deploys por dia**,
-somados; ao estourar, os checks "Vercel – …" falham com *Deployment rate
-limited* e o site continua na versão anterior. `vercel.json` define rotas e
-CSP. Vercel Web Analytics e Speed Insights só carregam no build da Vercel
-(`VITE_HOSTED_ON_VERCEL`). Sai na Etapa 10, depois de 7 dias sem problema no
-Pages.
+Em 2026-09-28, os projetos `vela` e `fwlog-portal` ficaram sem conexão Git. Os domínios de produção e os domínios legados não estão associados a eles. Os projetos e deployments existentes permanecem na conta como opção de rollback manual; nenhum tráfego de produção depende deles. O build ativo e os headers são os do Cloudflare Pages.
+
+Para retomar a Vercel, restaure a configuração de build do Vite, reconecte o Git, associe o domínio e faça o cutover DNS descrito em [Cloudflare DNS](#cloudflare-dns). Valide o site antes de remover o domínio do Pages.
 
 ---
-
 ## Supabase
 
 Banco PostgreSQL, Auth, Storage, Edge Functions e jobs agendados. Projeto de
@@ -217,7 +208,7 @@ Um merge **não** publica Functions. Para conferir, baixe o código publicado co
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET` (par com o Vault) | — |
 | Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (4), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
-| CORS legado | `VERCEL_PREVIEW_ORIGINS` **(transição)** | Vercel |
+| CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
 
 `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET` e
 `RECALC_CRON_SECRET` existem no código, mas não estão cadastrados em produção:
@@ -316,8 +307,8 @@ Widget `Portal Fwlog` (modo Managed, sem pre-clearance), hostnames
 `portalfwlog.com.br`, `vela-portal.pages.dev`, `localhost`. Protege
 `/portal/login` e `/portal/esqueci-senha`.
 
-- **Site Key** (pública): `VITE_TURNSTILE_SITE_KEY` na Vercel **(transição)** e
-  no environment `cloudflare-production` do GitHub.
+- **Site Key** (pública): `VITE_TURNSTILE_SITE_KEY` no environment GitHub
+  `cloudflare-production`.
 - **Secret Key:** `TURNSTILE_SECRET_KEY` no Supabase.
 - **Ordem obrigatória:** Site Key no ar antes do secret; ao desligar, apague o
   secret primeiro. Na ordem errada, todo login e recuperação recebem 403.
@@ -345,8 +336,10 @@ Detalhes: [portal-rate-limit.md](portal-rate-limit.md).
 O ambiente vem de `VITE_SENTRY_ENVIRONMENT` (`production` no workflow de
 produção do Pages, `preview` nas previews) e de `SENTRY_ENVIRONMENT` no Supabase.
 Alertas: "Novo erro em produção — Vela e Portal" (novo issue ou regressão, e-mail
-ao responsável) e os alertas automáticos de alta prioridade. O build da Vercel
-usa o DSN antigo compartilhado; desde 2026-09-24 ele não serve mais os domínios.
+ao responsável) e os alertas automáticos de alta prioridade. O build do Cloudflare
+Pages usa os DSNs separados `VITE_SENTRY_DSN_INTERNAL` e
+`VITE_SENTRY_DSN_PORTAL`; o projeto interno também recebe os erros de Edge
+Functions via `SENTRY_DSN`.
 Mais: [sentry-configuracao.md](sentry-configuracao.md), [observabilidade.md](observabilidade.md).
 
 ### PostHog (eventos de produto)

@@ -3,7 +3,6 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
-import { SpeedInsights } from '@vercel/speed-insights/react'
 import './index.css'
 import App from './AppInterno'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -12,7 +11,7 @@ import { VisualThemeProvider } from './hooks/useVisualTheme'
 import { ToastProvider } from './components/ui/Toast'
 import { ConfirmDialogProvider } from './components/ui/ConfirmDialog'
 import { isSupabaseConfigured } from './services/supabase'
-import { initTelemetry, markStartupStage, redactVercelTelemetryEvent, vercelTelemetryEnabled } from './lib/telemetry'
+import { initTelemetry, markStartupStage } from './lib/telemetry'
 import { initFeatureFlags } from './lib/featureFlags'
 import { createAppQueryClient } from './lib/queryClient'
 
@@ -50,7 +49,6 @@ createRoot(document.getElementById('root')!).render(
               <VisualThemeProvider>
                 <AuthProvider>
                   <App />
-                  {vercelTelemetryEnabled && <SpeedInsights beforeSend={redactVercelTelemetryEvent} />}
                 </AuthProvider>
               </VisualThemeProvider>
             </ConfirmDialogProvider>

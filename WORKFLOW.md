@@ -95,7 +95,7 @@ em documentação.
 - Supabase PostgreSQL, Auth, RLS e RPCs;
 - Edge Functions Deno;
 - Resend para email;
-- Vercel para hosting dos dois builds estáticos (Vela interno e Portal Fwlog),
+- Cloudflare Pages para hosting dos dois builds estáticos (Vela interno e Portal Fwlog),
   cada um em seu projeto, com Preview Deployments em PRs e Production
   Deployments no `main`;
 - GitHub Actions para CI e deploy.
@@ -285,9 +285,7 @@ O fluxo esperado usa **Automatic branching** da integração GitHub do Supabase.
 Confirme sua configuração e os checks da PR no ambiente alvo; o checkout não
 comprova que a integração remota está habilitada. Para PRs elegíveis, as
 migrations em `supabase/migrations/` são executadas pelo branch action antes do
-Preview ser usado. A integração Supabase/Vercel atualiza as variáveis públicas
-do Preview para o project ref dessa mesma branch e reimplanta o Preview quando
-necessário.
+Preview ser usado. O workflow Cloudflare Pages usa as credenciais públicas do Supabase Preview da mesma branch e publica os dois sites protegidos.
 
 No merge ou push em `main`, quando habilitada, a opção **Deploy to production** aplica as migrations
 pendentes no projeto Supabase de produção (`fgmkhbzhaeebrsizwccx`). Não aplique
@@ -385,7 +383,7 @@ tipados existentes. O arquivo é protegido: siga a autorização exigida em
 
 ### Aplicação
 
-O CI da SPA e a Vercel não aplicam migrations. O branch action do Supabase aplica
+O CI da SPA e o Cloudflare Pages não aplicam migrations. O branch action do Supabase aplica
 as migrations no Preview automático correspondente à PR; depois do merge, a
 integração GitHub do Supabase aplica as pendentes em produção. Confirme o check
 do Supabase Preview antes do merge e, em caso de falha, compare o histórico
@@ -678,22 +676,10 @@ na integração, não inferida da existência da PR.
 
 ### Push em main
 
-O projeto Vercel integrado ao GitHub executa Preview Deployments para pull
-requests e Production Deployments para `main`. O CI do GitHub permanece como
-gate independente de documentação, lint, build, bundle size e testes.
-
-O Preview do Vercel deve usar a integração de branching do Supabase para
-receber `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` da branch Supabase
-automática daquela PR. Não defina uma URL fixa de Preview no projeto Vercel;
-`main` usa somente as credenciais do projeto de produção.
-
-O login com o usuário fixo só deve ser tentado depois que o job `Provision
-Preview Admin` estiver verde. A Vercel pode concluir seu build antes desse job,
-porque o provisionamento altera dados da Auth, não o artefato estático.
-
+GitHub Actions publica previews no Cloudflare Pages para PRs e produção após CI verde em `main`. O environment `cloudflare-production` fornece as variáveis públicas do build. O login com o usuário fixo só deve ser tentado depois que `Provision Preview Admin` estiver verde.
 ### Edge Functions e banco
 
-O deploy da Vercel não publica Edge Functions nem aplica migrations. Coordene
+O deploy do Cloudflare Pages não publica Edge Functions nem aplica migrations. Coordene
 essas etapas no Supabase antes do frontend que depende delas.
 
 ## 13. Telemetria e falhas
