@@ -424,10 +424,15 @@ registrada.
   tarifa de US$ 0,01344/h. A migration foi aplicada com sucesso e registrada
   como `100_customer_communication_statusless_idempotency`; a consulta ao
   catálogo confirmou o índice único sem `status`, `NULLS NOT DISTINCT`, zero
-  linhas e zero identidades duplicadas. Isso fecha o upgrade da migration em
-  Preview, mas não substitui o replay local em PostgreSQL, ainda bloqueado pela
-  ausência de credencial local/WSL, nem valida Edge/provedor ou Preview pareado
-  com SHA de PR.
+  linhas e zero identidades duplicadas. Depois da validação, essa branch manual
+  foi removida para evitar custo duplicado.
+- O PR draft #790 (`f4d625b6`) recebeu Preview Supabase próprio
+  (`codex/remediacao-auditorias-654-660`, projeto `rxubmafnlnhhvldalbni`):
+  configurações, migrations, seed e Edge Functions passaram; o replay real de
+  migrations no CI passou. O workflow publicou Vela e Portal no Cloudflare
+  Pages. Isso prova o rollout técnico em Preview, mas não os fluxos autenticados,
+  execução dos jobs, segredo real ou entrega pelo provedor. O Preview Supabase
+  ligado ao PR continua ativo à tarifa confirmada.
 - O runner automático de Comunicados aparece ativo no `pg_cron`; 2.412 execuções
   no período consultado terminaram sem erro. Isso não prova dispatch de email,
   identidade do Edge atual, configuração da chave ou entrega pelo provedor.
@@ -919,7 +924,7 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Aplicar transições por evento/horário sem regressão; bounce/complaint preservam natureza da supressão e stale transitions são ignoradas.
 - [x] Persistir estado explícito `parcial` quando uma comunicação tem destinatários mistos; `dispatch_mode` fica na tentativa e a RPC/trigger recalcula o cabeçalho sem achatar combinações distintas. A prova de deploy/provedor permanece pendente.
 - [x] Trocar novas chaves de dunning para comunicação/contato/versão do destinatário, sem email em claro; não reescrever identidades históricas.
-- [x] Aplicar e validar a migration 100 em Supabase Preview descartável: preflight sem duplicatas, índice único sem `status` e `NULLS NOT DISTINCT` confirmados no catálogo, sem linhas copiadas. Replay local em PostgreSQL e Preview pareado com SHA de PR continuam pendentes; a migration falha fechada sem apagar ou fundir comunicados e mantém referências às tentativas.
+- [x] Aplicar e validar a migration 100 em Supabase Preview descartável: preflight sem duplicatas, índice único sem `status` e `NULLS NOT DISTINCT` confirmados no catálogo, sem linhas copiadas; replay real no CI e Preview pareado ao SHA do PR passaram. A migration falha fechada sem apagar ou fundir comunicados e mantém referências às tentativas.
 - [x] Fechar readiness de `ce_mercante_taxas` na criação/claim/envio; a RPC server-side com locks e a revalidação do Edge impedem criação/claim/dispatch sem CE, revisão liberada e financeiro concluído para todos os B/Ls ativos. A prova de Preview/provedor permanece pendente.
 - [x] Executar testes de webhook, dispatch, dunning e inbox; commit de referência: `ff44e1bb`.
 
@@ -1184,7 +1189,7 @@ Os nomes abaixo registram a sequência planejada e o estado observado na linha a
 | 12 | `[x]` | Fechar metadados e conflito de omissão | S04/P2-01/P3-01; `016_import_metadata_and_omission_conflicts.sql` | Metadados, CE e omissão/conflitos estão implementados/testados; não repetir o núcleo. |
 | 13 | `mitigado` + `[ ] runtime` | Persistir efeitos e relatório de import | S05; `017_import_effects_outbox.sql` + `025_import_effect_worker.sql` + `026_import_effect_alert.sql` + `031_import_effect_consumers.sql` | Outbox/claim/lease/retry, consumidores server-side e painel reabrível por unidade passaram na prova local; Preview, secrets/Vault/Edge e ativação controlada do worker continuam pendentes. |
 | 14 | `[x]` + `[ ]` runtime | Fechar readiness de emissão e comunicação | S10/F12; `033_customer_communication_readiness_guards.sql` | Guarda server-side de comunicação aplicada em criação/claim/envio, com lock e identidade de sistema; gate de emissão/Portal e prova de runtime continuam pendentes. |
-| 15 | `[x]` + `[ ]` runtime | Persistir inbox e estados de envio | S07; migrations `022`, `032`, `038` e `100` | Inbox, dedup, stale events, recuperação, estado `parcial` e agregação da última tentativa estão implementados; a migration 100 foi aplicada e conferida em Supabase Preview vazio. Replay local, Preview pareado ao SHA de PR, deploy/Edge e prova do provedor continuam pendentes. |
+| 15 | `[x]` + `[ ]` runtime | Persistir inbox e estados de envio | S07; migrations `022`, `032`, `038` e `100` | Inbox, dedup, stale events, recuperação, estado `parcial` e agregação da última tentativa estão implementados; migration 100, replay real no CI, Supabase Preview e publicação Pages pareada ao PR passaram. Execução autenticada dos fluxos, jobs, secrets e prova do provedor continuam pendentes. |
 | 16 | `[x]` + `[ ]` | Fechar ledger, status/itens e rateio do impresso | S10/F14; `019_local_billing_integrity.sql` | D05/R$0,01 e integração local passaram; casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
 | 17 | `mitigado` + `[ ]` | Paginar listas e concluir projeção compartilhada | S12; `020_operational_read_pages.sql`, `035_operational_voyage_summaries.sql`, `036_operational_breakbulk_summary_metrics.sql`, `037_operational_voyage_summary_null_status.sql` e páginas Portal | Projeções, paginação/window, resumo de viagem sob demanda, Line Up sem waterfall de containers, resumo BB server-side, fallback forward de status nullable e filtros principais estão entregues; exportações sob demanda, refresh de Preview e profiler faltam. |
 | 18 | `mitigado` + `[ ]` | Debounce, offline, feedback e acessibilidade | S13; sem migration | Debounce, estados de erro/offline, hidratação, confirmações/menu e progresso/cancelamento nos modais múltiplos e customizados estão entregues; contraste, leitor de tela/foco manual e cessão entre blocos faltam. |
