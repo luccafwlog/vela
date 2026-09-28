@@ -171,7 +171,7 @@ compartilhado.
 
 ---
 
-## Etapa 5 — PostHog (só conferência; já está ligado)
+## Etapa 5 — PostHog (evento de fatura do Portal)
 
 A chave do PostHog já está no build de produção do Portal.
 
@@ -183,20 +183,17 @@ A chave do PostHog já está no build de produção do Portal.
    de fatura, e a captura automática está desligada em
    `src/lib/featureFlags.ts`.
 
-**Conferência:** o usuário autorizou criar um cliente e uma fatura manual de QA,
-identificados como teste e sem envio de e-mail ou cobrança. Cliente fictício
-`CLIENTE QA OBSERVABILIDADE - NÃO REAL` (`11.222.333/0001-81`) criado em
-2026-09-28 via `/clientes`; contato usa `qa-observabilidade@example.com` e
-nenhuma mensagem foi enviada. Fatura avulsa de QA `INV-2026-0001` emitida pela
-interface em 2026-09-28, total e saldo em aberto de R$ 0,01, sem B/L; a lista
-confirma status `EMITIDA`. Nenhuma cobrança ou mensagem foi enviada. Ainda
-convite de ativação enviado para `luccajuliatti@gmail.com` em 2026-09-28 e
-entregue à caixa de entrada. A ativação requer que o destinatário crie a própria
-senha; ainda falta concluir essa ativação, abrir a fatura e confirmar
-`invoice_viewed` no PostHog, contendo só `surface` e `invoice_type`; depois da
-conferência, cancelar a fatura. Após a emissão, a página Events do projeto
-PostHog EU não mostrou eventos no intervalo padrão de uma hora. No console do
-navegador não pode haver erro de CSP do PostHog.
+**Conferência:** chave do PostHog EU confere com `VITE_POSTHOG_KEY` no ambiente
+GitHub `cloudflare-production`; host é `https://eu.i.posthog.com`, e a CSP e os
+assets de produção permitem o SDK. O dono criou e acessou o cliente de QA
+`CLIENTE QA OBSERVABILIDADE - NÃO REAL`, abriu `INV-2026-0001` (avulsa, emitida,
+R$ 0,01, sem pagamento ou comunicação); mesmo assim, nenhum evento apareceu.
+A inspeção do `posthog-js` instalado encontrou a causa: `before_send` removia
+`token` e `distinct_id`, campos de transporte que o SDK acrescenta e dos quais a
+ingestão depende. A correção preserva somente esses campos do SDK e as
+propriedades de produto autorizadas, descartando URL e e-mail. Teste focado
+passou localmente. **Ainda falta publicar a correção, reabrir a fatura e
+confirmar `invoice_viewed` no PostHog; depois, cancelar a fatura de QA.**
 
 ---
 
@@ -535,7 +532,7 @@ foram conferidas na Etapa 6.
 | 3 | 2026-09-28 | Dono | Problema de entrega para caixas Microsoft 365 da Fwlog confirmado como solucionado; não há ação pendente de TI. |
 | 10 | 2026-09-28 | Dono + Claude Code | Saída antecipada autorizada. `portalfwlog.com.br` removido de `fwlog-portal` e Git desconectado desse projeto. `vela.app.br`, `transhippingdesk.com.br` e `portal.transhippingdesk.com.br` removidos de `vela`; a lista atual mostra só `transhippingdesk.vercel.app`. O usuário concluiu o **Disconnect** de `vela`; os dois projetos Vercel estão sem conexão Git. A limpeza de código/configuração está sendo preparada na PR de execução deste plano. |
 | 4 | 2026-09-28 | Claude Code | Busca no projeto `vela` do Sentry por `surface:edge` e `function_name:*` sem resultados. Os erros visíveis são do frontend. Não foi provocado um 5xx em produção; a função instrumentada segura encontrada exige segredo operacional e não há ambiente de teste controlado disponível nesta sessão. |
-| 5 | 2026-09-28 | Dono + Claude Code | Cliente fictício `CLIENTE QA OBSERVABILIDADE - NÃO REAL` (`11.222.333/0001-81`) criado pela interface; contato `qa-observabilidade@example.com`, sem mensagem enviada. Fatura avulsa `INV-2026-0001` emitida pela interface; lista confirma R$ 0,01, saldo aberto R$ 0,01 e status `EMITIDA`. Nenhuma cobrança ou comunicação foi enviada. Falta conta Portal para abrir a fatura e provar `invoice_viewed` no PostHog; cancelar depois dessa conferência. |
+| 5 | 2026-09-28 | Claude Code | Causa provável identificada no `before_send`: a lista de propriedades removia `token` e `distinct_id`, campos de transporte adicionados pelo SDK PostHog. Correção aplicada localmente para preservar esses campos SDK e a lista autorizada de propriedades do produto; teste focado, typecheck, build e docs:check passaram. Falta enviar/publicar a correção, reabrir `INV-2026-0001`, confirmar o evento no PostHog e cancelar a fatura. |
 
 ### Ocorrido de 2026-09-24 — login do Portal fora do ar
 

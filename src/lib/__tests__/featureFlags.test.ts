@@ -52,13 +52,19 @@ describe('feature flags', () => {
       uuid: 'event-id',
       event: PRODUCT_EVENTS.INVOICE_VIEWED,
       properties: {
+        token: 'public-project-token',
+        distinct_id: 'anonymous-sdk-id',
         surface: 'portal',
         '$current_url': 'https://portalfwlog.com.br/portal/clientes/12.345.678/0001-95',
         email: 'client@example.com',
       },
     })
 
-    expect(event?.properties).toEqual({ surface: 'portal' })
+    expect(event?.properties).toEqual({
+      token: 'public-project-token',
+      distinct_id: 'anonymous-sdk-id',
+      surface: 'portal',
+    })
   })
 
   it('disables automatic collection and recording in the provider config', () => {

@@ -68,7 +68,14 @@ function sanitizeProperties(properties: Record<string, unknown> | undefined): Re
  */
 export function redactPostHogEvent(event: CaptureResult | null): CaptureResult | null {
   if (!event || !isProductEventName(event.event)) return null
-  return { ...event, properties: sanitizeProperties(event.properties) }
+  const properties = sanitizeProperties(event.properties)
+  // PostHog adds these transport fields before before_send; dropping them
+  // makes ingestion reject the event. They are SDK-owned, not app properties.
+  for (const key of ['token', 'distinct_id'] as const) {
+    const value = event.properties[key]
+    if (typeof value === 'string' && value) properties[key] = value
+  }
+  return { ...event, properties }
 }
 
 export function createPostHogConfig(apiHost: string): Partial<PostHogConfig> {
