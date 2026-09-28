@@ -187,12 +187,13 @@ A chave do PostHog já está no build de produção do Portal.
 identificados como teste e sem envio de e-mail ou cobrança. Cliente fictício
 `CLIENTE QA OBSERVABILIDADE - NÃO REAL` (`11.222.333/0001-81`) criado em
 2026-09-28 via `/clientes`; contato usa `qa-observabilidade@example.com` e
-nenhuma mensagem foi enviada. Abra a fatura com uma conta Portal habilitada e
-confirme `invoice_viewed` no PostHog, contendo só `surface` e `invoice_type`.
-A fatura avulsa de QA (R$ 0,01) está preenchida, mas a seleção do cliente na
-combobox não é concluída pela automação; não emita até selecionar o cliente e
-revisar a confirmação. Não enviar convite/e-mail. No console do navegador não
-pode haver erro de CSP do PostHog.
+nenhuma mensagem foi enviada. A fatura avulsa de QA (R$ 0,01) está preenchida
+com o cliente exibido na combobox, mas o formulário continua mostrando
+“Cliente obrigatório” após a seleção e a tentativa de validação; por isso a
+fatura não foi emitida. Resolver esse estado pela interface antes de prosseguir.
+Depois, abrir a fatura com uma conta Portal habilitada e confirmar
+`invoice_viewed` no PostHog, contendo só `surface` e `invoice_type`. Não enviar
+convite/e-mail. No console do navegador não pode haver erro de CSP do PostHog.
 
 ---
 
@@ -528,7 +529,7 @@ foram conferidas na Etapa 6.
 | 3 | 2026-09-28 | Dono | Problema de entrega para caixas Microsoft 365 da Fwlog confirmado como solucionado; não há ação pendente de TI. |
 | 10 | 2026-09-28 | Dono + Claude Code | Saída antecipada autorizada. `portalfwlog.com.br` removido de `fwlog-portal` e Git desconectado desse projeto. `vela.app.br`, `transhippingdesk.com.br` e `portal.transhippingdesk.com.br` removidos de `vela`; a lista atual mostra só `transhippingdesk.vercel.app`. O usuário concluiu o **Disconnect** de `vela`; os dois projetos Vercel estão sem conexão Git. A limpeza de código/configuração está sendo preparada na PR de execução deste plano. |
 | 4 | 2026-09-28 | Claude Code | Busca no projeto `vela` do Sentry por `surface:edge` e `function_name:*` sem resultados. Os erros visíveis são do frontend. Não foi provocado um 5xx em produção; a função instrumentada segura encontrada exige segredo operacional e não há ambiente de teste controlado disponível nesta sessão. |
-| 5 | 2026-09-28 | Dono + Claude Code | Cliente fictício `CLIENTE QA OBSERVABILIDADE - NÃO REAL` (`11.222.333/0001-81`) criado pela interface; contato `qa-observabilidade@example.com`, sem mensagem enviada. A fatura avulsa de QA (R$ 0,01) está preenchida na interface, mas a combobox não confirmou o cliente pela automação. Fatura não emitida; selecionar cliente e revisar a confirmação antes de emitir. Ainda falta conta Portal habilitada para observar `invoice_viewed` no PostHog. |
+| 5 | 2026-09-28 | Dono + Claude Code | Cliente fictício `CLIENTE QA OBSERVABILIDADE - NÃO REAL` (`11.222.333/0001-81`) criado pela interface; contato `qa-observabilidade@example.com`, sem mensagem enviada. A fatura avulsa de QA (R$ 0,01) está preenchida e o nome aparece selecionado, porém a interface mantém “Cliente obrigatório” após tentar validar. Fatura não emitida; resolver o vínculo pela interface antes de emitir. Ainda falta conta Portal habilitada para observar `invoice_viewed` no PostHog. |
 
 ### Ocorrido de 2026-09-24 — login do Portal fora do ar
 
