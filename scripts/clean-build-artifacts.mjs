@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 export function assertNoForbiddenArtifacts(dir) {
   if (!existsSync(dir)) return
@@ -32,7 +33,7 @@ export function cleanProductionArtifacts(outDir) {
   assertNoForbiddenArtifacts(outDir)
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const outDir = resolve(process.cwd(), 'dist')
   try {
     cleanProductionArtifacts(outDir)

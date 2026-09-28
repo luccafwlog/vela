@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error — script de build em JS puro, sem tipos gerados.
 import { assertNoForbiddenArtifacts, cleanProductionArtifacts } from '../../../scripts/clean-build-artifacts.mjs'
@@ -34,6 +35,19 @@ describe('limpeza dos artefatos confidenciais do build', () => {
       expect(() => assertNoForbiddenArtifacts(dist)).toThrow(/Arquivo \.map residual encontrado/)
     } finally {
       rmSync(dist, { recursive: true, force: true })
+    }
+  })
+
+  it('executa a limpeza CLI no dist do cwd', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'vela-build-cli-test-'))
+    try {
+      const assetsDir = join(cwd, 'dist', 'assets')
+      mkdirSync(assetsDir, { recursive: true })
+      writeFileSync(join(assetsDir, 'app.js.map'), '{}')
+      execFileSync(process.execPath, [resolve(process.cwd(), 'scripts/clean-build-artifacts.mjs')], { cwd })
+      expect(existsSync(join(assetsDir, 'app.js.map'))).toBe(false)
+    } finally {
+      rmSync(cwd, { recursive: true, force: true })
     }
   })
 })
