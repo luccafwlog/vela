@@ -18,6 +18,8 @@ describe('portalProvisioningViewModel', () => {
     expect(accountSituationLabel('ativo')).toBe('Ativa')
     expect(recoveryEmailSourceLabel('informado_manualmente')).toBe('Informado manualmente')
     expect(contactPurposeLabel('faturamento')).toBe('Faturamento')
+    expect(deliveryStatusLabel('aceito')).toBe('Aceito pelo provedor')
+    expect(deliveryStatusLabel('nao_confirmado')).toBe('Não confirmado')
     expect(deliveryStatusLabel('entregue')).toBe('Entregue')
     expect(accountSituationLabel('valor_inesperado')).toBe('Não informado')
   })

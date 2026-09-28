@@ -476,13 +476,19 @@ registrada.
   um timeout sob carga em `Clientes.behavior.test.tsx` (3.638 testes passaram,
   207 ignorados); os 11 testes desse arquivo passaram isoladamente com um worker
   e timeout de 15 s.
-- **Pendente:** publicar esta migration no Supabase Preview, conferir os ACLs
-  efetivos no mesmo SHA do Pages e repetir uma vez o convite autorizado para
-  `luccajuliatti@gmail.com`. A primeira repetição encontrou também `42501` em
-  `customers`, usado pela relação aninhada do mesmo SELECT; nenhum convite nem
-  tentativa de email foi persistido. Como a `101` já havia sido aplicada no
-  Preview, o grant somente de leitura para `customers` ficou isolado na migration
-  `102`. Só registrar entrega se o provedor confirmar.
+- O Preview aplica `101` e `102`. Consultas somente leitura comprovaram os
+  grants esperados de `service_role`; `anon` não recebeu acesso às tabelas nem
+  à sequence. A `102` concede apenas `SELECT` em `customers` para resolver os
+  nomes/documentos da relação aninhada. CI passou o replay real do Postgres e
+  Supabase Preview no SHA `6ac5c165`.
+- Após `102`, a Edge retornou 200 e criou um convite pendente. A tentativa ficou
+  `aceito` sem `provider_message_id`: o runtime executou dry-run, então nenhum
+  email foi enviado. O usuário da fixture não recebeu nem precisa de outro
+  convite ainda. A migration `103` e o consumidor agora distinguem esse estado
+  como `Não confirmado`; aceite pelo provedor exige `provider_message_id`.
+- **Pendente:** aplicar `103`, confirmar o estado pelo RPC e obter configuração
+  de envio real no Preview para repetir o convite autorizado. Só registrar email
+  enviado quando houver confirmação do provedor.
 
 ### 1.1 Baseline e alcance da evidência
 

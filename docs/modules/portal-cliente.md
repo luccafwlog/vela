@@ -157,6 +157,11 @@ emitido concorrentemente com a senha antiga sobreviver ao reset.
 `portal_mark_expired_invites`. A leitura do serviço também converte convite
 vencido em `convite_expirado` quando o job periódico está atrasado.
 
+Na fila de provisionamento, `Aceito pelo provedor` exige `provider_message_id`.
+Uma tentativa com status `aceito` mas sem esse identificador aparece como
+`Não confirmado`: pode ser dry-run sem provedor ou interrupção antes da chamada,
+e não prova que a mensagem saiu.
+
 `portal_repair_missing_accounts()` é uma função interna da migration `198`:
 cria apenas a linha inicial da fila para Clientes sem registro, sem Auth, convite,
 Email de Recuperação ou email transacional. A função não possui execução direta

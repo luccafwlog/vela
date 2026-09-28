@@ -16,7 +16,7 @@ const PURPOSE_LABELS: Record<EmailCandidate['purpose'], string> = {
   geral: 'Geral', financeiro: 'Financeiro', operacional: 'Operacional', faturamento: 'Faturamento',
 }
 const DELIVERY_LABELS: Record<PortalDeliveryStatus, string> = {
-  aceito: 'Aceito', entregue: 'Entregue', bounce: 'Devolvido', complaint: 'Reclamação',
+  aceito: 'Aceito pelo provedor', nao_confirmado: 'Não confirmado', entregue: 'Entregue', bounce: 'Devolvido', complaint: 'Reclamação',
   falha_transitoria: 'Falha temporária', falha_permanente: 'Falha permanente',
 }
 

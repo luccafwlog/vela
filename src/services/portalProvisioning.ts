@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 export type ProvisioningDecision = 'aguardando_analise' | 'aprovado_para_provisionar'
 export type AccountSituation = 'sem_conta' | 'convite_pendente' | 'convite_expirado' | 'falha_no_envio' | 'ativo' | 'suspenso'
 export type RecoveryEmailSource = 'candidato' | 'informado_manualmente'
-export type PortalDeliveryStatus = 'aceito' | 'entregue' | 'bounce' | 'complaint' | 'falha_transitoria' | 'falha_permanente'
+export type PortalDeliveryStatus = 'aceito' | 'nao_confirmado' | 'entregue' | 'bounce' | 'complaint' | 'falha_transitoria' | 'falha_permanente'
 // Saúde do Email de Recuperação, independente de `account_situation`: uma conta
 // pode estar `ativo` (o cliente entra com a senha) e ainda assim ter o endereço
 // de recuperação morto.
@@ -84,7 +84,7 @@ const portalProvisioningConsolePayloadSchema: z.ZodType<PortalProvisioningConsol
   // fora de ordem que a regra existe para impedir.
   recovery_email_status: z.enum(['ok', 'bounce_permanente', 'complaint']).nullable(),
   recovery_email_suppressed: z.boolean(),
-  latest_delivery_status: z.enum(['aceito', 'entregue', 'bounce', 'complaint', 'falha_transitoria', 'falha_permanente']).nullable(),
+  latest_delivery_status: z.enum(['aceito', 'nao_confirmado', 'entregue', 'bounce', 'complaint', 'falha_transitoria', 'falha_permanente']).nullable(),
   last_event_at: z.string().nullable(),
   has_critical_alert: z.boolean(),
   has_open_invoice: z.boolean(),
