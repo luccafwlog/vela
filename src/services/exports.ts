@@ -8,7 +8,7 @@ import type {
   FinancialReportRow,
   OperationalReportRow,
 } from './reports'
-import { getInvoiceBls, getInvoicePaymentDate, isConsolidatedInvoice, type InvoiceListRow } from './billing'
+import { getInvoiceBls, getInvoicePaymentDate, invoiceTypeLabel, type InvoiceListRow } from './billing'
 import { invoiceStatusLabel } from '../pages/faturamentoInvoiceStatus'
 import { DEMURRAGE_INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
 import type { DemurrageInvoiceListItem } from './demurrage/demurrageInvoices'
@@ -165,13 +165,21 @@ export async function exportInvoicesWorkbook(rows: InvoiceListRow[]) {
   const invoiceRows = rows.map((row) => {
     const bls = getInvoiceBls(row)
     const navios = Array.from(new Set(bls.map((bl) => bl.vessel_name).filter(Boolean))).join(' / ')
+      || row.voyage?.vessel?.name
+      || row.bl?.voyage?.vessel?.name
+      || ''
     const viagens = Array.from(new Set(bls.map((bl) => bl.voyage_number).filter(Boolean))).join(' / ')
+      || row.voyage?.voyage_number
+      || row.bl?.voyage?.voyage_number
+      || ''
     const pods = Array.from(new Set(bls.map((bl) => bl.pod).filter(Boolean))).join(' / ')
+      || row.bl?.pod
+      || ''
     return {
       Fatura: row.invoice_number ?? `INV-${row.id}`,
       Cliente: row.customer?.name ?? '',
       CNPJ: row.customer?.cnpj_cpf ?? '',
-      Tipo: isConsolidatedInvoice(row) ? 'Consolidada' : 'Único BL',
+      Tipo: invoiceTypeLabel(row.invoice_type),
       Status: invoiceStatusLabel(row.status),
       Emissao: row.issued_at ? formatDate(row.issued_at) : '',
       DataPagamento: getInvoicePaymentDate(row) ? formatDate(getInvoicePaymentDate(row)) : '',
@@ -191,7 +199,7 @@ export async function exportInvoicesWorkbook(rows: InvoiceListRow[]) {
       Fatura: row.invoice_number ?? `INV-${row.id}`,
       Cliente: row.customer?.name ?? '',
       CNPJ: row.customer?.cnpj_cpf ?? '',
-      Tipo: isConsolidatedInvoice(row) ? 'Consolidada' : 'Único BL',
+      Tipo: invoiceTypeLabel(row.invoice_type),
       BL: bl.bl_id,
       Navio: bl.vessel_name ?? '',
       Viagem: bl.voyage_number ?? '',
@@ -440,7 +448,7 @@ export async function exportPortalLocalInvoicesWorkbook(rows: PortalInvoiceSumma
   const exportRows = rows.map((row) => ({
     'B/L': (row.bls ?? []).join(' • '),
     Fatura: row.invoice_number ?? `INV-${row.id}`,
-    Tipo: row.invoice_type === 'consolidated' ? 'Consolidada' : 'Individual',
+    Tipo: invoiceTypeLabel(row.invoice_type),
     'Navio/Viagem': (row.vessel_voyages ?? []).join(' / '),
     POD: (row.pods ?? []).join(' / '),
     Emissao: row.issued_at ? formatDate(row.issued_at) : '',

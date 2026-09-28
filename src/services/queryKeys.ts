@@ -54,6 +54,7 @@ export const queryKeys = {
       (status === undefined && limit === undefined
         ? (['customer-reconciliation-queue'] as const)
         : (['customer-reconciliation-queue', status, limit] as const)),
+    history: () => ['reconciliation-history'] as const,
     pixExceptions: () => ['pix-reconciliation-exceptions'] as const,
   },
   voyages: {

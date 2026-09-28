@@ -79,7 +79,7 @@ export function InvoiceFiltersBar({
           fetchOptions={async (q) => (await listPodSuggestions(q)).map((p): ComboOption => ({ value: p, label: p }))}
           onSelectOption={(option) => updateFilter('pod', option.value)}
         />
-        <Field label="Tipo de Fatura"><Select value={filters.invoiceType} onChange={(event) => updateFilter('invoiceType', event.target.value as InvoiceTypeFilter)}><option value="">Todos</option><option value="single">Único BL</option><option value="consolidated">Consolidada</option></Select></Field>
+        <Field label="Tipo de Fatura"><Select value={filters.invoiceType} onChange={(event) => updateFilter('invoiceType', event.target.value as InvoiceTypeFilter)}><option value="">Todos</option><option value="single">Único BL</option><option value="consolidated">Consolidada</option><option value="manual">Avulsa</option></Select></Field>
         <Field label="Status"><Select value={filters.status} onChange={(event) => updateFilter('status', event.target.value as InvoiceStatusFilter)}><option value="">Todos</option>{INVOICE_STATUS_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field>
         <Field label="Itens por página"><Select value={filters.pageSize} onChange={(event) => updateFilter('pageSize', Number(event.target.value))}>{pageSizes.map((size) => <option key={size} value={size}>{size}/pág.</option>)}</Select></Field>
         <Field label="Emissão de"><Input type="date" value={filters.dateFrom} onChange={(event) => updateFilter('dateFrom', event.target.value)} /></Field>

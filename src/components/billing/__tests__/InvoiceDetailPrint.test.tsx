@@ -18,24 +18,27 @@ vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => confirm }))
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }))
+let mockDetailData: Record<string, unknown> | null = {
+  invoice: {
+    id: 9,
+    invoice_number: 'INV-9',
+    invoice_type: 'individual',
+    status: 'issued',
+    total_brl: 100,
+    total_paid_brl: 0,
+    balance_brl: 100,
+    customer_name: 'Cliente',
+    customer_cnpj_cpf: '123',
+    issued_at: '2026-06-23',
+  },
+  bls: [],
+  items: [{ id: 31, description: 'Taxa manual', quantity: 1, unit_value_brl: 25, total_brl: 25, source: 'manual' }],
+  payments: [],
+}
+
 vi.mock('../../../hooks/useBilling', () => ({
   useInvoiceDetail: () => ({
-    data: {
-      invoice: {
-        id: 9,
-        invoice_number: 'INV-9',
-        status: 'issued',
-        total_brl: 100,
-        total_paid_brl: 0,
-        balance_brl: 100,
-        customer_name: 'Cliente',
-        customer_cnpj_cpf: '123',
-        issued_at: '2026-06-23',
-      },
-      bls: [],
-      items: [{ id: 31, description: 'Taxa manual', quantity: 1, unit_value_brl: 25, total_brl: 25, source: 'manual' }],
-      payments: [],
-    },
+    data: mockDetailData,
     isLoading: false,
     error: null,
   }),
@@ -93,4 +96,35 @@ it('usa terminologia em português (fatura) no modal de detalhe e cancelamento',
   await user.click(screen.getByRole('button', { name: 'Cancelar fatura' }))
 
   expect(showToast).toHaveBeenCalledWith('Falha ao cancelar fatura.', 'error')
+})
+
+it('omite B/Ls e Navio / Viagem para fatura avulsa sem contexto no detalhe', () => {
+  mockDetailData = {
+    invoice: {
+      id: 10,
+      invoice_number: 'INV-10',
+      invoice_type: 'manual',
+      status: 'issued',
+      total_brl: 300,
+      total_paid_brl: 0,
+      balance_brl: 300,
+      customer_name: 'Cliente Avulso',
+      customer_cnpj_cpf: '456',
+      issued_at: '2026-09-27',
+      notes: 'Consultoria técnica',
+      voyage_id: null,
+      voyage_number: null,
+      vessel_name: null,
+    },
+    bls: [],
+    items: [{ id: 32, description: 'Consultoria', quantity: 1, unit_value_brl: 300, total_brl: 300, source: 'manual' }],
+    payments: [],
+  }
+
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={10} onClose={vi.fn()} /></MemoryRouter>)
+
+  expect(screen.getByText('Detalhe da fatura INV-10')).toBeTruthy()
+  expect(screen.getByText('Consultoria técnica')).toBeTruthy()
+  expect(screen.queryByText('Navio / Viagem')).toBeNull()
+  expect(screen.queryByText('B/Ls')).toBeNull()
 })

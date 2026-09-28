@@ -8,6 +8,7 @@ import {
   getInvoiceBls,
   getInvoicePaymentDate,
   isConsolidatedInvoice,
+  invoiceTypeLabel,
   type InvoiceListBl,
   type InvoiceListRow,
 } from '../../services/billing'
@@ -61,13 +62,17 @@ export function InvoicesTable({
               const bls = getInvoiceBls(invoice)
               const consolidated = isConsolidatedInvoice(invoice)
               const paymentDate = getInvoicePaymentDate(invoice)
+              const vesselVoyage = formatVesselVoyage(bls, invoice)
+              const pod = formatPodList(bls, invoice)
               return (
               <tr key={invoice.id}>
                 <td className="px-4 py-3">
                   <div className="app-table__cell-stack">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-[#58a6ff]">{renderBlLinks(bls)}</span>
-                      <Badge tone={consolidated ? 'blue' : 'slate'}>{bls.length} B/L{bls.length === 1 ? '' : 's'}</Badge>
+                      {bls.length > 0 ? (
+                        <Badge tone={consolidated ? 'blue' : 'slate'}>{bls.length} B/L{bls.length === 1 ? '' : 's'}</Badge>
+                      ) : null}
                     </div>
                     {consolidated ? <div className="app-table__cell-meta">Consolidada · {bls.length} BLs agrupados</div> : null}
                   </div>
@@ -83,13 +88,13 @@ export function InvoicesTable({
                     <div className="app-table__cell-meta">{invoice.customer?.cnpj_cpf ?? 'Cliente não identificado'}</div>
                   </div>
                 </td>
-                <td className="px-4 py-3"><Badge tone={consolidated ? 'blue' : 'slate'}>{consolidated ? 'Consolidada' : 'Único BL'}</Badge></td>
+                <td className="px-4 py-3"><Badge tone={consolidated ? 'blue' : invoice.invoice_type === 'manual' ? 'yellow' : 'slate'}>{invoiceTypeLabel(invoice.invoice_type)}</Badge></td>
                 <td className="px-4 py-3">
                   <div className="app-table__cell-stack">
                     <div className="app-table__cell-value">
-                      <span className="app-table__truncate app-table__truncate--xl" title={formatVesselVoyage(bls)}>{formatVesselVoyage(bls)}</span>
+                      <span className="app-table__truncate app-table__truncate--xl" title={vesselVoyage}>{vesselVoyage}</span>
                     </div>
-                    <div className="app-table__cell-meta">POD {formatPodList(bls)}</div>
+                    <div className="app-table__cell-meta">POD {pod}</div>
                   </div>
                 </td>
                 <td className="px-4 py-3">{formatDate(invoice.issued_at)}</td>
@@ -149,7 +154,7 @@ function renderBlLinks(bls: InvoiceListBl[]) {
   )
 }
 
-function formatVesselVoyage(bls: InvoiceListBl[]) {
+function formatVesselVoyage(bls: InvoiceListBl[], invoice?: InvoiceListRow) {
   const labels = Array.from(
     new Set(
       bls
@@ -157,13 +162,19 @@ function formatVesselVoyage(bls: InvoiceListBl[]) {
         .filter((label) => label.length > 0),
     ),
   )
+  if (labels.length === 0 && invoice) {
+    const voyage = invoice.voyage ?? invoice.bl?.voyage ?? null
+    const directLabel = [voyage?.vessel?.name, voyage?.voyage_number].filter(Boolean).join(' · ')
+    if (directLabel) return directLabel
+  }
   if (labels.length === 0) return '—'
   if (labels.length === 1) return labels[0]
   return `${labels[0]} +${labels.length - 1}`
 }
 
-function formatPodList(bls: InvoiceListBl[]) {
+function formatPodList(bls: InvoiceListBl[], invoice?: InvoiceListRow) {
   const pods = Array.from(new Set(bls.map((bl) => bl.pod).filter((pod): pod is string => Boolean(pod))))
+  if (pods.length === 0 && invoice?.bl?.pod) return invoice.bl.pod
   if (pods.length === 0) return '—'
   if (pods.length === 1) return pods[0]
   return `${pods[0]} +${pods.length - 1}`

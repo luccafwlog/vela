@@ -107,4 +107,39 @@ describe('InvoicesTable', () => {
     expect(screen.getByRole('link', { name: 'BL-B' }).getAttribute('href')).toBe('/bls/BL-B')
     expect(screen.getByText('+1')).toBeTruthy()
   })
+
+  it('mostra fatura avulsa sem B/L e usa navio/viagem do contexto direto', () => {
+    const manualInvoice: InvoiceListRow = {
+      ...baseInvoice,
+      id: 3,
+      invoice_type: 'manual',
+      bl_id: null,
+      voyage_id: 42,
+      voyage: { id: 42, voyage_number: '42N', vessel: { name: 'Navio Manual' } },
+      invoice_bls: [],
+      invoice_receivable_links: [],
+    }
+
+    render(
+      <MemoryRouter>
+        <InvoicesTable
+          invoices={[manualInvoice]}
+          isLoading={false}
+          error={null}
+          totalCount={1}
+          filterDescription=""
+          emptyState={{ title: 'Nenhuma fatura' }}
+          page={1}
+          totalPages={1}
+          onPageChange={vi.fn()}
+          onSelectInvoice={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Sem B/L')).toBeTruthy()
+    expect(screen.queryByText('0 B/Ls')).toBeNull()
+    expect(screen.getByText('Avulsa')).toBeTruthy()
+    expect(screen.getByText('Navio Manual · 42N')).toBeTruthy()
+  })
 })

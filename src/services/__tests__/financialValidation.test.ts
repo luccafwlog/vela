@@ -3,6 +3,7 @@ import {
   demurrageDatesSchema,
   demurrageDiscountSchema,
   manualInvoiceChargeSchema,
+  manualInvoiceCreationSchema,
   paymentFormSchema,
 } from '../financialValidation'
 
@@ -33,6 +34,62 @@ describe('financialValidation', () => {
       description: 'Taxa',
       quantity: 2,
       unitValueBrl: 10.5,
+    })
+  })
+
+  it('valida e normaliza os dados da criacao de fatura avulsa', () => {
+    expect(manualInvoiceCreationSchema.safeParse({
+      customerId: '',
+      itemName: 'Taxa',
+      quantity: '1',
+      unitValueBrl: '10',
+    }).success).toBe(false)
+    expect(manualInvoiceCreationSchema.safeParse({
+      customerId: 7,
+      itemName: '  ',
+      quantity: '1',
+      unitValueBrl: '10',
+    }).success).toBe(false)
+    expect(manualInvoiceCreationSchema.safeParse({
+      customerId: 7,
+      itemName: 'Taxa',
+      quantity: '0',
+      unitValueBrl: '10',
+    }).success).toBe(false)
+    expect(manualInvoiceCreationSchema.safeParse({
+      customerId: 7,
+      itemName: 'Taxa',
+      quantity: '1',
+      unitValueBrl: 'abc',
+    }).success).toBe(false)
+
+    expect(manualInvoiceCreationSchema.parse({
+      customerId: '7',
+      itemName: ' Taxa especial ',
+      description: ' Observacao da cobranca ',
+      quantity: '2',
+      unitValueBrl: '10,50',
+      blId: ' BL-1 ',
+      voyageId: '42',
+    })).toEqual({
+      customerId: 7,
+      itemName: 'Taxa especial',
+      description: 'Observacao da cobranca',
+      quantity: 2,
+      unitValueBrl: 10.5,
+      blId: 'BL-1',
+      voyageId: 42,
+    })
+
+    expect(manualInvoiceCreationSchema.parse({
+      customerId: 7,
+      itemName: 'Taxa sem contexto',
+      quantity: 1,
+      unitValueBrl: 10,
+    })).toMatchObject({
+      description: null,
+      blId: null,
+      voyageId: null,
     })
   })
 

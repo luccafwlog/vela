@@ -1,6 +1,6 @@
 # Reconciliação PIX
 
-> **Status:** ativo · **Atualizado:** 2026-08-21 · **Rotas:** `/reconciliacao` (Administrativo/Admin); `/demurrage/reconciliacao` redireciona para esta rota
+> **Status:** ativo · **Atualizado:** 2026-09-27 · **Rotas:** `/reconciliacao` (Administrativo/Admin); `/demurrage/reconciliacao` redireciona para esta rota
 
 ## Propósito e escopo
 
@@ -62,6 +62,7 @@ Depois da RPC, a página substitui os matches por um cartão de resultado com:
 `src/components/billing/ReconciliationHistoryTable.tsx` combina:
 
 - invoices locais `paid`, `covered` e `partially_paid` com data em `payments`;
+- invoices avulsas `manual` pagas/parcialmente pagas, sem exigir vínculo a B/L;
 - `demurrage_invoices.status = paid`;
 - filtros de período, origem, tipo documental, cliente, B/L, navio, viagem e
   POD;
@@ -83,6 +84,7 @@ Depois da RPC, a página substitui os matches por um cartão de resultado com:
 | `/reconciliacao` · selecionar/upload de planilha | Perfil Administrativo/Admin e arquivo `.xlsx`/`.xls` dentro do limite | Dropzone/input → `processFile` | `matchMutation` chama `parsePixExtractFile` e persiste exceções via `upsert_pix_reconciliation_exceptions` | Linhas sem match seguro ficam persistidas por importação/linha e geram `pix_unreconciled`, tratado pelo Administrativo desde a migration `078` | Limpa `matches` e `confirmationResult`; inicia estado de processamento | Perfil não autorizado vê “Acesso restrito”; arquivo grande/formato inválido gera toast | **Código:** `src/pages/Reconciliacao.tsx`, `src/services/reconciliacao.ts`, `supabase/migrations_archive/328_pix_unreconciled_persistence.sql` · **Teste:** `src/pages/__tests__/Reconciliacao.behavior.test.tsx` |
 | Parser · extrair linhas bancárias | Cabeçalho `identificador` e coluna `valor pago` | `parsePixExtractFile` | `assertUploadSize` → `parsePixExtract` → import dinâmico de `@e965/xlsx` | Nenhuma persistência | Retorna `{txid, cnpj, date, amount}`; ignora TXID vazio/valor não positivo | Cabeçalho/valor ausente lança erro; data inválida vira string vazia e falhará na confirmação | **Código:** `src/services/demurrage/demurrageKpis.ts` |
 | Matching · carregar documentos locais e Demurrage | Transações parseadas | `matchUnifiedPixTransactions` | Duas queries paralelas; normalização alfanumérica maiúscula | `SELECT invoices` locais pagáveis e `SELECT demurrage_invoices` emitidas | Sem cache React Query; monta mapa único de TXID para os dois domínios | Erro de qualquer query aborta o matching | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
+| Matching/confirmar · invoice avulsa | Invoice `manual` emitida e PIX compatível com o saldo total; sem requisito de B/L | Matching e confirmação unificada em `/reconciliacao` | `confirm_unified_pix_matches` → `reconcile_invoice_payment_by_txid` → ramo genérico `register_invoice_payment` | `payments` e agregados da invoice; não cria `ledger_settlements` nem liquida B/L | Invalida invoices, detalhe e histórico da reconciliação | TXID ausente, ambíguo, valor divergente ou invoice já paga é rejeitado | **Código:** migration `097`, `src/services/reconciliacao.ts`; **Teste:** `src/services/__tests__/reconciliationInvoiceType.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
 | Matching · classificar sem match | TXID sem candidato aberto | Loop de `matchUnifiedPixTransactions` | `txidMap.get(key)` retorna vazio | Sem persistência | Retorna linha `source = unmatched`, painel dedicado e contagem; nunca entra na confirmação | Nenhum documento é alterado | **Código:** `src/services/reconciliacao.ts`, `src/pages/Reconciliacao.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `src/pages/__tests__/Reconciliacao.behavior.test.tsx` |
 | Matching · classificar ambiguidade de documento/TXID | Mais de um documento com TXID normalizado ou TXID repetido no extrato | Mesmo loop | `entries.length > 1` ou `seenTxids` | Sem persistência | `ambiguous = true`, motivo e `candidateCount`; UI move para painel ignorado | Não há seleção manual de candidato nesta tela | **Código:** `src/services/reconciliacao.ts`, `src/pages/Reconciliacao.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
 | Matching · classificar divergência de valor | Diferença absoluta maior que `0,01` ou valor esperado não numérico | Mesmo loop | Compara transação com saldo local ou `current_total_brl` | Sem persistência | Marca como ambíguo; local e Demurrage recebem motivos distintos | Não existe pagamento parcial por PIX neste fluxo | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
@@ -111,7 +113,8 @@ Depois da RPC, a página substitui os matches por um cartão de resultado com:
 
 | Domínio | Leitura para matching | Escrita de confirmação | TXID persistido |
 |---|---|---|---|
-| Local | `invoices` em `issued`, `partially_paid`, `overdue`; tipos `individual`/`consolidated`; valor esperado = `balance_brl` ou `total_brl` | Ledger via `reconcile_invoice_payment_by_txid` e `register_ledger_invoice_payment` | `invoices.pix_txid` e uma linha de `ledger_settlements.pix_txid` |
+| Local com ledger | `invoices` em estado pagável; tipos `individual`/`consolidated`; valor esperado = saldo do ledger | `reconcile_invoice_payment_by_txid` delega a `register_ledger_invoice_payment` | `invoices.pix_txid` e uma linha de `ledger_settlements.pix_txid` |
+| Invoice avulsa | `invoices.invoice_type='manual'` em estado pagável; valor esperado = saldo da invoice | `reconcile_invoice_payment_by_txid` chama pagamento genérico `register_invoice_payment` | `invoices.pix_txid` e `payments`; sem settlement por recebível |
 | Demurrage | `demurrage_invoices.status = issued`; valor esperado = `current_total_brl` | Update em lote por `confirm_demurrage_pix_matches` | `demurrage_invoices.pix_txid` |
 
 `supabase/migrations_archive/075_ledger_pix_txid_single_settlement_row.sql`
@@ -158,7 +161,8 @@ flowchart TD
   candidatos e a UI marca o match como ambíguo.
 - `confirm_unified_pix_matches` é a fronteira transacional do lote: falha em um
   item levanta exceção e impede sucesso parcial do comando.
-- Local cria `payments` e settlements por recebível. Demurrage não cria
+- Invoice local ledger cria `payments` e settlements por recebível. Fatura
+  avulsa cria `payments` pelo ramo genérico e não afeta B/L/ledger. Demurrage não cria
   `payments` nem ledger; marca diretamente o documento como pago.
 - Estorno local remove o payment, restaura saldos/links e, por cascade, remove
   refund ligado ao pagamento. Estorno de Demurrage apenas reabre o documento e

@@ -147,6 +147,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
   const { invoice, bls, items } = detail
   if (!invoice) return null
 
+  const isManual = invoice.invoice_type === 'manual'
   const isConsolidated = bls.length >= 2
   const paymentDate = [...(detail.payments ?? [])]
     .map((payment) => payment.paid_at)
@@ -154,8 +155,8 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
     .sort()
     .at(-1) ?? null
   const title = type === 'receipt'
-    ? (isConsolidated ? 'RECIBO CONSOLIDADO DE TAXAS LOCAIS' : 'RECIBO DE TAXAS LOCAIS')
-    : (isConsolidated ? 'FATURA CONSOLIDADA DE TAXAS LOCAIS' : 'FATURA DE TAXAS LOCAIS')
+    ? (isManual ? 'RECIBO DE FATURA AVULSA' : isConsolidated ? 'RECIBO CONSOLIDADO DE TAXAS LOCAIS' : 'RECIBO DE TAXAS LOCAIS')
+    : (isManual ? 'FATURA AVULSA' : isConsolidated ? 'FATURA CONSOLIDADA DE TAXAS LOCAIS' : 'FATURA DE TAXAS LOCAIS')
 
   const blIds = bls.map((b) => b.bl_id).join(', ') || '—'
 
@@ -165,10 +166,17 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
         .filter((b) => b.vessel_name || b.voyage_number)
         .map((b) => `${b.vessel_name ?? ''} ${b.voyage_number ?? ''}`.trim()),
     ),
-  ).join(', ') || '—'
+  ).join(', ') || [invoice.vessel_name, invoice.voyage_number].filter(Boolean).join(' · ') || '—'
 
-  const containersMeta = formatContainersMetadata(bls, items)
-  const breakbulkMeta = formatBreakbulkMetadata(bls, items)
+  const hasVesselVoyage = Boolean(
+    bls.some((b) => Boolean(b.vessel_name?.trim() || b.voyage_number?.trim())) ||
+    (invoice.vessel_name && invoice.vessel_name.trim() !== '-' && invoice.vessel_name.trim() !== '—') ||
+    (invoice.voyage_number && invoice.voyage_number.trim() !== '-' && invoice.voyage_number.trim() !== '—'),
+  )
+  const showVesselVoyages = !isManual || hasVesselVoyage
+
+  const containersMeta = isManual ? null : formatContainersMetadata(bls, items)
+  const breakbulkMeta = isManual ? null : formatBreakbulkMetadata(bls, items)
 
   // Flat item indexing for zebra striping
   const itemFlatIndex = new Map<number | string, number>()
@@ -193,10 +201,12 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
               {invoice.customer_cnpj_cpf ? <><br />CNPJ: {fmtCNPJ(invoice.customer_cnpj_cpf)}</> : ''}
             </td>
           </tr>
-          <tr>
-            <td style={labelCell}>B/Ls:</td>
-            <td style={{ ...cell, color: DOC_NAVY, fontWeight: 600 }}>{blIds}</td>
-          </tr>
+          {!isManual || bls.length > 0 ? (
+            <tr>
+              <td style={labelCell}>B/Ls:</td>
+              <td style={{ ...cell, color: DOC_NAVY, fontWeight: 600 }}>{blIds}</td>
+            </tr>
+          ) : null}
           {containersMeta ? (
             <tr>
               <td style={labelCell}>Contêineres:</td>
@@ -209,10 +219,18 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
               <td style={cell}>{breakbulkMeta}</td>
             </tr>
           ) : null}
-          <tr>
-            <td style={labelCell}>Navio/Voy.:</td>
-            <td style={cell}>{vesselVoyages}</td>
-          </tr>
+          {showVesselVoyages ? (
+            <tr>
+              <td style={labelCell}>Navio/Voy.:</td>
+              <td style={cell}>{vesselVoyages}</td>
+            </tr>
+          ) : null}
+          {isManual && invoice.notes ? (
+            <tr>
+              <td style={labelCell}>Descrição:</td>
+              <td style={cell}>{invoice.notes}</td>
+            </tr>
+          ) : null}
           <tr>
             <td style={labelCell}>Emitida em:</td>
             <td style={cell}>{formatDate(invoice.issued_at)}</td>
@@ -231,7 +249,22 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
           </tr>
         </thead>
         <tbody>
-          {isConsolidated
+          {isManual
+            ? items.map((item) => {
+                const usdNote = describeUsdConversionNote(item)
+                return (
+                  <tr key={item.id} style={zebraRow(itemFlatIndex.get(item.id) ?? 0)}>
+                    <td style={{ padding: '8px 8px 8px 16px' }}>
+                      {stripBlPrefix(item.description, item.bl_id)}
+                      {usdNote && <div style={{ fontSize: '10px', color: DOC_MUTED }}>{usdNote}</div>}
+                    </td>
+                    <td style={{ padding: '8px 7px', textAlign: 'center' }}>{displayQuantity(item)}</td>
+                    <td style={{ padding: '8px 7px', textAlign: 'right' }}>{fmtBRL(item.unit_value_brl)}</td>
+                    <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600 }}>{fmtBRL(item.total_value_brl)}</td>
+                  </tr>
+                )
+              })
+            : isConsolidated
             ? bls.map((blMeta) => {
                 const blId = blMeta.bl_id
                 const blItems = items.filter((item) => item.bl_id === blId)

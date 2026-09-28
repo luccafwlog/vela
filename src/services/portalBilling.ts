@@ -149,8 +149,17 @@ export async function portalInvoiceDetails(invoiceId: number, scope: PortalScope
     payments?: InvoiceDetail['payments']
   }
 
+  const invoice = payload.invoice
   return {
-    invoice: payload.invoice ?? null,
+    invoice: invoice
+      ? {
+          ...invoice,
+          notes: invoice.notes ?? null,
+          voyage_id: invoice.voyage_id ?? null,
+          voyage_number: invoice.voyage_number ?? null,
+          vessel_name: invoice.vessel_name ?? null,
+        }
+      : null,
     bls: payload.bls ?? [],
     items: payload.items ?? [],
     containers: payload.containers ?? [],

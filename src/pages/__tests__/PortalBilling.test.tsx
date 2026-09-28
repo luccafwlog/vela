@@ -36,6 +36,21 @@ const localInvoices: PortalInvoiceSummary[] = [
     bls: ['BL-OCULTO'],
     pods: ['BRSSZ'],
   },
+  {
+    id: 3,
+    invoice_number: 'INV-AV-003',
+    issued_at: '2026-06-03',
+    total_brl: 75,
+    total_paid_brl: 0,
+    balance_brl: 75,
+    status: 'issued',
+    invoice_type: 'manual',
+    vessels: ['NAVIO MANUAL'],
+    voyages: ['42N'],
+    vessel_voyages: ['NAVIO MANUAL / 42N'],
+    bls: [],
+    pods: [],
+  },
 ]
 
 const demurrageInvoices: PortalDemurrageInvoice[] = [
@@ -222,6 +237,15 @@ async function openConsolidatedDetail(user: ReturnType<typeof userEvent.setup>) 
 }
 
 describe('PortalBilling', () => {
+  it('exibe fatura avulsa sem B/L com contexto direto no desktop e mobile', () => {
+    renderBilling()
+
+    expect(screen.getByText('Faturas de taxas locais e avulsas')).toBeTruthy()
+    expect(screen.getAllByText(/^Avulsa/)).toHaveLength(2)
+    expect(screen.getAllByText('NAVIO MANUAL / 42N')).toHaveLength(2)
+    expect(screen.getAllByText('B/L: —')).toHaveLength(1)
+  })
+
   it('exibe abas Taxas Locais e Demurrage e oculta o filtro Cliente', async () => {
     const user = userEvent.setup()
     renderBilling()

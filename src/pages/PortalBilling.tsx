@@ -185,7 +185,7 @@ export function PortalBilling() {
     <>
       <PageHeader
         title="Faturas"
-        description="Consulte suas faturas, pague via PIX e consolide B/Ls em aberto."
+        description="Consulte suas faturas locais e avulsas, pague via PIX e consolide B/Ls em aberto."
         action={
           <div className="flex flex-wrap gap-2">
             <Button variant="ghost" loading={exporting} onClick={() => void handleExport()}>

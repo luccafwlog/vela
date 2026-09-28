@@ -14,11 +14,17 @@ vi.mock('../../lib/pix', () => ({ buildTransshippingPixPayload: supabaseMocks.bu
 import {
   addManualInvoiceCharge,
   cancelInvoice,
+  createManualInvoice,
   createInvoiceFromBls,
   deleteManualInvoiceCharge,
   getInvoiceBls,
+  getInvoiceCommunicationContext,
   getInvoicePaymentDate,
   isConsolidatedInvoice,
+  isManualInvoice,
+  invoiceTypeLabel,
+  listBlSuggestions,
+  listInvoiceDetails,
   listInvoiceLinksByBls,
   listInvoices,
   registerInvoicePayment,
@@ -171,6 +177,45 @@ describe('getInvoiceBls', () => {
     }
     expect(getInvoiceBls(row as never)).toEqual([{ bl_id: 'OK', pod: null, voyage_number: null, vessel_name: null }])
   })
+
+  it('usa o BL direto da fatura avulsa quando não há tabela de links', () => {
+    const row = {
+      customer_id: 7,
+      invoice_type: 'manual',
+      bl_id: 'BL-MANUAL',
+      voyage_id: 42,
+      bl: { pod: 'SSZ', voyage: { id: 42, voyage_number: 'V42', vessel: { name: 'NAVIO' } } },
+      invoice_bls: [],
+      invoice_receivable_links: [],
+    }
+
+    expect(getInvoiceBls(row as never)).toEqual([
+      { bl_id: 'BL-MANUAL', pod: 'SSZ', voyage_number: 'V42', vessel_name: 'NAVIO' },
+    ])
+    expect(getInvoiceCommunicationContext(row as never)).toEqual({
+      customerId: 7,
+      voyageId: 42,
+      voyageNumber: 'V42',
+      vesselName: 'NAVIO',
+      pod: 'SSZ',
+    })
+  })
+
+  it('preserva contexto vazio quando a fatura avulsa não tem BL nem viagem', () => {
+    expect(getInvoiceCommunicationContext({
+      customer_id: 7,
+      bl_id: null,
+      voyage_id: null,
+      invoice_bls: [],
+      invoice_receivable_links: [],
+    } as never)).toEqual({
+      customerId: 7,
+      voyageId: null,
+      voyageNumber: null,
+      vesselName: null,
+      pod: null,
+    })
+  })
 })
 
 describe('isConsolidatedInvoice', () => {
@@ -180,6 +225,84 @@ describe('isConsolidatedInvoice', () => {
     expect(isConsolidatedInvoice({ invoice_type: 'granite' })).toBe(false)
     expect(isConsolidatedInvoice({ invoice_type: null })).toBe(false)
     expect(isConsolidatedInvoice({})).toBe(false)
+  })
+})
+
+describe('invoice type helpers', () => {
+  it('reconhece e rotula fatura avulsa', () => {
+    expect(isManualInvoice({ invoice_type: 'manual' })).toBe(true)
+    expect(isManualInvoice({ invoice_type: 'individual' })).toBe(false)
+    expect(invoiceTypeLabel('manual')).toBe('Avulsa')
+    expect(invoiceTypeLabel('consolidated')).toBe('Consolidada')
+  })
+})
+
+describe('createManualInvoice', () => {
+  it('chama o RPC com item, descricao e contexto opcionais normalizados', async () => {
+    supabaseMocks.rpc.mockResolvedValueOnce({
+      data: {
+        invoice_id: 42,
+        invoice_number: 'INV-42',
+        invoice_type: 'manual',
+        status: 'issued',
+        total_brl: 21,
+        balance_brl: 21,
+        bl_id: 'BL-1',
+        voyage_id: 9,
+      },
+      error: null,
+    })
+
+    const result = await createManualInvoice({
+      customerId: 7,
+      itemName: ' Taxa especial ',
+      description: ' Observacao ',
+      quantity: 2,
+      unitValueBrl: 10.5,
+      blId: ' bl-1 ',
+      voyageId: 9,
+      actorId: 'user-1',
+    })
+
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith('create_manual_invoice', {
+      p_customer_id: 7,
+      p_item_name: 'Taxa especial',
+      p_quantity: 2,
+      p_unit_value_brl: 10.5,
+      p_description: 'Observacao',
+      p_bl_id: 'BL-1',
+      p_voyage_id: 9,
+      p_actor: 'user-1',
+    })
+    expect(result).toEqual({
+      invoice_id: 42,
+      invoice_number: 'INV-42',
+      invoice_type: 'manual',
+      status: 'issued',
+      total_brl: 21,
+      balance_brl: 21,
+      bl_id: 'BL-1',
+      voyage_id: 9,
+    })
+  })
+
+  it('propaga erro e omite contexto ausente', async () => {
+    supabaseMocks.rpc.mockResolvedValueOnce({ data: null, error: new Error('fatura avulsa falhou') })
+
+    await expect(createManualInvoice({
+      customerId: 7,
+      itemName: 'Taxa',
+      description: '',
+      quantity: 1,
+      unitValueBrl: 10,
+    })).rejects.toThrow('fatura avulsa falhou')
+
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith('create_manual_invoice', {
+      p_customer_id: 7,
+      p_item_name: 'Taxa',
+      p_quantity: 1,
+      p_unit_value_brl: 10,
+    })
   })
 })
 
@@ -498,12 +621,23 @@ describe('listInvoices', () => {
     expect(invoices.range).toHaveBeenCalledWith(0, 19)
   })
 
-  it('blSearch sem correspondência retorna vazio sem consultar invoices', async () => {
+  it('filtra faturas avulsas pelo tipo manual', async () => {
+    const invoices = chainQuery({ data: [], error: null, count: 0 })
+    supabaseMocks.from.mockReturnValue(invoices)
+
+    await listInvoices({ ...baseFilters, invoiceType: 'manual' })
+
+    expect(invoices.eq).toHaveBeenCalledWith('invoice_type', 'manual')
+  })
+
+  it('blSearch sem correspondência retorna vazio antes da lista principal de invoices', async () => {
     const blLinks = chainQuery({ data: [], error: null })
     const recvLinks = chainQuery({ data: [], error: null })
+    const manualInvoices = chainQuery({ data: [], error: null })
     supabaseMocks.from.mockImplementation((table: string) => {
       if (table === 'invoice_bls') return blLinks
       if (table === 'invoice_receivable_links') return recvLinks
+      if (table === 'invoices') return manualInvoices
       throw new Error(`tabela inesperada: ${table}`)
     })
 
@@ -513,7 +647,8 @@ describe('listInvoices', () => {
     // Termo é normalizado: trim, uppercase e remoção dos curingas do LIKE.
     expect(blLinks.ilike).toHaveBeenCalledWith('bl_id', '%CSC 1%')
     expect(recvLinks.ilike).toHaveBeenCalledWith('bl_id', '%CSC 1%')
-    expect(supabaseMocks.from).not.toHaveBeenCalledWith('invoices')
+    expect(manualInvoices.ilike).toHaveBeenCalledWith('bl_id', '%CSC 1%')
+    expect(supabaseMocks.from).toHaveBeenCalledTimes(3)
   })
 
   it('blSearch com correspondência restringe a query de invoices por id', async () => {
@@ -538,5 +673,64 @@ describe('listInvoices', () => {
     supabaseMocks.from.mockReturnValue(invoices)
 
     await expect(listInvoices(baseFilters)).rejects.toThrow('lista falhou')
+  })
+})
+
+describe('listBlSuggestions', () => {
+  it('filtra por customer_id quando informado', async () => {
+    const blsQuery = chainQuery({ data: [{ id: 'BL-01' }, { id: 'BL-02' }], error: null })
+    supabaseMocks.from.mockReturnValue(blsQuery)
+
+    const result = await listBlSuggestions('bl', 15)
+
+    expect(result).toEqual(['BL-01', 'BL-02'])
+    expect(supabaseMocks.from).toHaveBeenCalledWith('bls')
+    expect(blsQuery.ilike).toHaveBeenCalledWith('id', '%BL%')
+    expect(blsQuery.eq).toHaveBeenCalledWith('customer_id', 15)
+  })
+
+  it('não filtra por customer_id quando ausente', async () => {
+    const blsQuery = chainQuery({ data: [{ id: 'BL-01' }], error: null })
+    supabaseMocks.from.mockReturnValue(blsQuery)
+
+    const result = await listBlSuggestions('bl')
+
+    expect(result).toEqual(['BL-01'])
+    expect(blsQuery.eq).not.toHaveBeenCalled()
+  })
+})
+
+describe('listInvoiceDetails — fatura avulsa', () => {
+  it('hidrata navio e viagem da fatura avulsa quando a RPC não projeta diretamente', async () => {
+    supabaseMocks.rpc.mockResolvedValueOnce({
+      data: {
+        invoice: {
+          id: 50,
+          invoice_type: 'manual',
+          voyage_id: 10,
+          voyage_number: null,
+          vessel_name: null,
+        },
+        bls: [],
+        items: [],
+        payments: [],
+      },
+      error: null,
+    })
+
+    const voyageQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { voyage_number: '10N', vessel: { name: 'Navio Exemplo' } },
+        error: null,
+      }),
+    }
+    supabaseMocks.from.mockReturnValue(voyageQuery)
+
+    const detail = await listInvoiceDetails(50)
+
+    expect(detail.invoice?.voyage_number).toBe('10N')
+    expect(detail.invoice?.vessel_name).toBe('Navio Exemplo')
   })
 })

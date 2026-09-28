@@ -9,6 +9,10 @@ por documento; o que cada entrega produziu está resumido no
 
 ## Conteúdo
 
+- [`2026-09-26-fatura-avulsa-flexivel.md`](2026-09-26-fatura-avulsa-flexivel.md)
+  — emissão de invoice avulsa com tipo `manual`, contexto opcional de B/L/Viagem,
+  leitura segura no Portal e integração com PIX; gates locais concluídos, com
+  `rpc:check` limitado por catálogo de banco local incompleto.
 - [`2026-09-22-remediacao-auditoria-portal-f12.md`](2026-09-22-plano-remediacao-auditoria-portal-f12.md)
   — remediação do logout, anexos de Dispute, recuperação de senha, artefatos
   de build e dependências; Fase 5 de runtime confirmada pelo responsável em

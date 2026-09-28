@@ -236,6 +236,23 @@ describe('B/L rails', () => {
     expect(rail.map((stage) => stage.key)).not.toContain('payment')
   })
 
+  it('rotula uma fatura avulsa no card da fatura', () => {
+    const rail = makeDocumental({
+      ce_mercante: '123',
+      review_status: 'reviewed',
+      customer_reconciliation_status: 'reconciled',
+      customer_id: 9,
+      charge_status: 'calculated',
+    }, {
+      portalVisibility: { visible: true, reasons: [] },
+      latestInvoice: { id: 2050, invoice_number: 'INV-AV-2050', status: 'issued', total_brl: 100, invoice_type: 'manual' },
+    })
+
+    expect(rail.find((stage) => stage.key === 'invoice')).toMatchObject({
+      detail: '#INV-AV-2050 · Emitida · Avulsa',
+    })
+  })
+
   it('conta apenas os cards documentais bloqueantes e ignora Demurrage na próxima ação', () => {
     const rail = makeDocumental({
       customer_id: 9,

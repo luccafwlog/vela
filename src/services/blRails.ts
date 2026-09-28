@@ -2,6 +2,7 @@ import type { BL } from '../types/database'
 import { INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
 import { isCustomerReconciliationResolved } from './customerReconciliation'
 import { isBreakbulkCargoMode, isContainerCargoMode } from '../lib/cargoMode'
+import { invoiceTypeLabel } from './billing'
 
 export type RailState = 'done' | 'pending' | 'blocked' | 'diverted'
 
@@ -170,7 +171,7 @@ export function buildDocumentalRail(input: {
       : invoiceStatus === 'draft'
         ? 'pending'
         : 'done'
-  const invoiceType = latestInvoice?.invoice_type === 'consolidated' ? 'Consolidada' : 'Individual'
+  const invoiceType = invoiceTypeLabel(latestInvoice?.invoice_type)
   const invoice: RailStage = latestInvoice
     ? { key: 'invoice', label: 'Fatura', detail: `#${latestInvoice.invoice_number ?? latestInvoice.id} · ${invoiceLabel} · ${invoiceType}`, state: invoiceState, href: `/taxas-locais?invoice=${latestInvoice.id}` }
     : { key: 'invoice', label: 'Fatura', detail: 'Não emitida', state: 'pending', href: fichaFat }

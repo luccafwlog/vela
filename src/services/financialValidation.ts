@@ -66,6 +66,28 @@ export const manualInvoiceChargeSchema = z.object({
   unitValueBrl: positiveNumberSchema,
 })
 
+export const manualInvoiceCreationSchema = z.object({
+  customerId: z.preprocess(
+    parseNumberInput,
+    z.number().int().positive('Cliente obrigatorio.'),
+  ),
+  itemName: z.string().trim().min(1, 'Nome do item obrigatorio.'),
+  description: nullableTextSchema,
+  quantity: positiveNumberSchema,
+  unitValueBrl: positiveNumberSchema,
+  blId: z.preprocess(
+    (value) => {
+      const normalized = blankToNull(value)
+      return normalized?.toUpperCase() ?? null
+    },
+    z.string().nullable(),
+  ),
+  voyageId: z.preprocess(
+    (value) => (blankToNull(value) === null ? null : parseNumberInput(value)),
+    z.number().int().positive('Viagem invalida.').nullable(),
+  ),
+})
+
 export const demurrageDiscountSchema = z.object({
   discount_type: z.preprocess(blankToNull, z.enum(discountTypes).nullable()),
   discount_value: optionalNonNegativeNumberSchema,

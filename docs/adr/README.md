@@ -79,6 +79,7 @@ vigentes e onde uma decisão posterior alterou parte de uma ADR anterior.
 | [0072](./0072-toda-escrita-confirmada-com-consequencia.md) | Toda escrita é confirmada com o que faz e a consequência | aceito | Diálogo com registros afetados, consequência, reversibilidade e motivo; salvar mostra antes e depois; prévia de importação vale como diálogo. Implementação parcial: exclusões e cancelamentos. |
 | [0073](./0073-cadastro-usado-so-se-desativa.md) | Cadastro de referência usado só se desativa | aceito | Complementa a 0071 para cadastros. Tarifas: excluir só a nunca usada, usada se desativa, ações do Administrativo. Implementada em 2026-09-25. |
 | [0074](./0074-usuarios-retencao-e-backup-diario.md) | Usuário não se exclui; retenção definida; backup diário sem PITR | aceito | Remove o papel `admin`; auditoria 5 anos, eventos do Portal 1 ano, recuperação por backup diário (anonimização retirada em 2026-09-25). Implementação parcial: falta o backup. |
+| [0075](./0075-fatura-avulsa-flexivel.md) | Fatura avulsa flexível no modelo de invoices | aceito | Tipo `manual` em `invoices`, item/descrição livres e contexto opcional de B/L/Viagem; sem ledger local, Portal escopado ao cliente. Implementada na migration `097`. |
 
 ## Convenção
 

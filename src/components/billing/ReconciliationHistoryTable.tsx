@@ -10,7 +10,7 @@ import { Field, Input, Select } from '../ui/Input'
 import { Combobox, type ComboOption } from '../ui/Combobox'
 import { useToast } from '../ui/Toast'
 import { formatBRL, formatDate } from '../../lib/utils'
-import { listBillingCustomers } from '../../services/billing'
+import { invoiceTypeLabel, listBillingCustomers } from '../../services/billing'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
 import { listReconciliationHistory, exportReconciliationHistoryExcel, type ReconciliationFilters } from '../../services/reconciliacao'
 
@@ -35,7 +35,7 @@ export function ReconciliationHistoryTable({
   const [paidFrom, setPaidFrom] = useState('')
   const [paidTo, setPaidTo] = useState('')
   const [sourceFilter, setSourceFilter] = useState<'' | 'local' | 'demurrage'>('')
-  const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'' | 'consolidated' | 'single'>('')
+  const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'' | 'consolidated' | 'single' | 'manual'>('')
   const [customerId, setCustomerId] = useState('')
   const [blSearch, setBlSearch] = useState('')
   const [vesselSearch, setVesselSearch] = useState('')
@@ -148,10 +148,11 @@ export function ReconciliationHistoryTable({
               </Select>
             </Field>
             <Field label="Tipo Doc.">
-              <Select value={invoiceTypeFilter} onChange={(e) => { setInvoiceTypeFilter(e.target.value as '' | 'consolidated' | 'single'); setPage(1) }}>
+              <Select value={invoiceTypeFilter} onChange={(e) => { setInvoiceTypeFilter(e.target.value as '' | 'consolidated' | 'single' | 'manual'); setPage(1) }}>
                 <option value="">Todos</option>
                 <option value="consolidated">Consolidada</option>
                 <option value="single">Único BL</option>
+                <option value="manual">Avulsa</option>
               </Select>
             </Field>
             <Combobox
@@ -247,13 +248,13 @@ export function ReconciliationHistoryTable({
             {rows.map((row) => {
               return (
                 <tr key={row.id}>
-                  <td className="px-4 py-3 font-semibold text-[#58a6ff]">{row.blId}</td>
+                  <td className="px-4 py-3 font-semibold text-[#58a6ff]">{row.blId === '-' ? 'Sem B/L' : row.blId}</td>
                   <td className="px-4 py-3">
                     <div className="app-table__cell-stack">
                       <div className="font-semibold text-white">{row.docNumber}</div>
                       {row.source !== 'demurrage' && (
                         <Badge tone={row.invoiceType === 'consolidated' ? 'blue' : 'green'} className="text-[10px] px-1.5 py-0.5">
-                          {row.invoiceType === 'consolidated' ? 'Consolidada' : 'Único BL'}
+                          {invoiceTypeLabel(row.invoiceType)}
                         </Badge>
                       )}
                     </div>

@@ -81,4 +81,20 @@ describe('buildInvoiceFileBaseName', () => {
     expect(name).toContain('e mais 47')
     expect(name.length).toBeLessThanOrEqual(200)
   })
+
+  it('usa FATURA AVULSA no nome de arquivo sem inventar B/L', () => {
+    const name = buildInvoiceFileBaseName({
+      invoice: {
+        id: 3,
+        invoice_number: 'INV-AV-003',
+        invoice_type: 'manual',
+        customer_name: 'Cliente Avulso',
+      },
+      bls: [],
+      items: [],
+      payments: [],
+    } as unknown as Parameters<typeof buildInvoiceFileBaseName>[0])
+
+    expect(name).toBe('INV-AV-003 - FATURA AVULSA - Cliente')
+  })
 })

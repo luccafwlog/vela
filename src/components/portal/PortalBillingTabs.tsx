@@ -9,6 +9,7 @@ import { formatResultCount } from '../../lib/operationalState'
 import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../../lib/portalBillingFilters'
 import { formatBRL, formatDate } from '../../lib/utils'
 import { renderDemurrageBadge, renderInvoiceBadge } from '../../lib/portalInvoiceStatus'
+import { invoiceTypeLabel } from '../../services/billing'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from '../../services/portalBilling'
 
 type Filters = PortalBillingFilters
@@ -39,7 +40,7 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
   return (
     <Card className="overflow-hidden p-0">
       <div className="border-b border-[var(--app-border)] px-5 py-4">
-        <h2 className="text-base font-semibold">Faturas de taxas locais</h2>
+        <h2 className="text-base font-semibold">Faturas de taxas locais e avulsas</h2>
         <p className="mt-1 text-sm text-[var(--app-muted)]">{formatResultCount(totalCount, 'fatura', 'faturas')}</p>
       </div>
 
@@ -52,7 +53,7 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
       {/* Desktop */}
       <div className="hidden app-table-scroll md:block">
         <table className="app-table app-table--compact min-w-[920px] text-left text-sm">
-          <caption className="sr-only">Faturas de taxas locais do cliente</caption>
+          <caption className="sr-only">Faturas de taxas locais e avulsas do cliente</caption>
           <thead>
             <tr>
               <th scope="col" className="px-4 py-3">B/L</th>
@@ -76,7 +77,7 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
               <tr key={invoice.id}>
                 <td className="px-4 py-3 font-semibold">{formatBlList(invoice.bls)}</td>
                 <td className="px-4 py-3">{invoice.invoice_number ?? `INV-${invoice.id}`}</td>
-                <td className="px-4 py-3">{invoice.invoice_type === 'consolidated' ? 'Consolidada' : 'Individual'}</td>
+                <td className="px-4 py-3">{invoiceTypeLabel(invoice.invoice_type)}</td>
                 <td className="px-4 py-3">
                   <div>{(invoice.vessel_voyages ?? []).join(' / ') || '—'}</div>
                   <div className="text-xs text-[var(--app-muted)]">{(invoice.pods ?? []).join(' / ') || '—'}</div>
@@ -113,9 +114,10 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
               {renderInvoiceBadge(invoice.status)}
             </div>
             <div className="mt-2 flex items-center justify-between text-sm text-[var(--app-muted)]">
-              <span>{invoice.invoice_type === 'consolidated' ? 'Consolidada' : 'Individual'} · {formatDate(invoice.issued_at)}</span>
+              <span>{invoiceTypeLabel(invoice.invoice_type)} · {formatDate(invoice.issued_at)}</span>
               <span className="font-semibold text-[var(--app-text)]">{formatBRL(invoice.total_brl)}</span>
             </div>
+            <div className="mt-1 text-sm text-[var(--app-muted)]">{(invoice.vessel_voyages ?? []).join(' / ') || '—'}</div>
             <div className="mt-1 text-sm text-[var(--app-muted)]">B/L: {formatBlList(invoice.bls)}</div>
           </button>
         ))}

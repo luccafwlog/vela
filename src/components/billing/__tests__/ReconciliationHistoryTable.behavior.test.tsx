@@ -42,7 +42,10 @@ vi.mock('../../../services/reconciliacao', () => ({
   listReconciliationHistory: vi.fn(),
   exportReconciliationHistoryExcel: mocks.exportExcel,
 }))
-vi.mock('../../../services/billing', () => ({ listBillingCustomers: vi.fn().mockResolvedValue([]) }))
+vi.mock('../../../services/billing', () => ({
+  listBillingCustomers: vi.fn().mockResolvedValue([]),
+  invoiceTypeLabel: (invoiceType: string | null) => invoiceType === 'consolidated' ? 'Consolidada' : invoiceType === 'manual' ? 'Avulsa' : 'Única BL',
+}))
 vi.mock('../../ui/Combobox', () => ({ Combobox: () => null }))
 vi.mock('../../ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),

@@ -1,6 +1,6 @@
 # Faturamento
 
-> **Status:** ativo · **Atualizado:** 2026-09-16 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e estorno de pagamentos também são abertos por `/reconciliacao`
+> **Status:** ativo · **Atualizado:** 2026-09-27 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e estorno de pagamentos também são abertos por `/reconciliacao`
 
 ## Propósito e escopo
 
@@ -9,6 +9,16 @@ lista e o detalhe de invoices, cria consolidadas, registra pagamentos,
 cancelamentos e restituições. Demurrage tem operação própria em `/demurrage`.
 Para taxas locais, o saldo canônico é o ledger por recebível; a tabela
 `invoices` continua sendo o documento emitido.
+
+Desde a migration `097`, o Financeiro também pode emitir Fatura Avulsa pelo
+botão **Gerar fatura avulsa** nesta rota. O operador escolhe o Cliente, nomeia
+o item, descreve a cobrança e informa quantidade e valor unitário. B/L e
+Viagem são opcionais; um B/L informado precisa pertencer ao Cliente e ser
+compatível com a Viagem. A RPC `create_manual_invoice` grava uma invoice
+`manual` e seu item em transação, sem tabela de taxas, CE Mercante ou gate local
+do Portal. Não cria `invoice_bls`, vínculo de recebível, `bl_receivables` nem
+settlement de ledger. Use a [ADR 0075](../adr/0075-fatura-avulsa-flexivel.md)
+para a decisão completa.
 
 - `/taxas-locais` é a rota interna definida em `src/AppInterno.tsx` e composta por
   `src/pages/TaxasLocais.tsx`; `/faturamento` apenas preserva links legados.
@@ -103,6 +113,12 @@ carga.
 A página não marca faturas vencidas ao montar: **taxa local não tem vencimento
 praticado** (ADR 0055, migration `348`), e o detector `detect_overdue_invoices`
 foi removido junto com a coluna `invoices.due_date`.
+
+O filtro Tipo inclui **Avulsa**. Linhas sem B/L continuam na lista; se houver
+Viagem direta, o navio e a viagem são exibidos a partir de `invoices.voyage_id`.
+O detalhe apresenta item, descrição da cobrança e contexto opcional. A impressão
+usa o mesmo modelo da invoice local, com título **FATURA AVULSA** e sem criar
+um B/L artificial.
 
 ### Validação
 
@@ -252,6 +268,7 @@ impressão e chama `window.print()`; o nome sugerido é calculado por
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
 | `/taxas-locais` · filtrar/listar invoices | Sessão interna; filtros opcionais | `TaxasLocais` → `InvoiceFiltersBar` / `InvoicesTable` | `useInvoices` → `listInvoices` | `SELECT invoices`, `invoice_bls`, `invoice_receivable_links`, `payments`; filtros auxiliares consultam B/Ls/viagens | Query `queryKeys.invoices.list(filters)`; paginação remota da lista principal | Erro principal vira `InlineError`; filtros sem IDs retornam vazio sem consultar invoices | **Código:** `src/pages/TaxasLocais.tsx`, `src/services/billing.ts` · **Teste:** `src/services/__tests__/billing.test.ts` |
+| `/taxas-locais` · emitir Fatura Avulsa | Usuário interno ativo/admin autorizado pela RPC; Cliente, item, quantidade e valor válidos; B/L/Viagem opcionais | Botão “Gerar fatura avulsa” → `ManualInvoiceModal` | `useCreateManualInvoice` → `createManualInvoice` → RPC `create_manual_invoice` | Cria `invoices.invoice_type='manual'` e um `invoice_items.source='manual'`; `notes` guarda a descrição; não cria relações de ledger | Invalida lista/detalhe de invoices, histórico de reconciliação e dados relacionados ao B/L/Cliente quando informados | RPC valida valores, Cliente/B/L/Viagem e coerência; falha transacional não deixa documento/item parcial | **Código:** `src/components/billing/ManualInvoiceModal.tsx`, `src/hooks/useBilling.ts`, `src/services/billing.ts`, migration `097`; **Teste:** `src/components/billing/__tests__/ManualInvoiceModal.test.tsx`, `src/hooks/__tests__/useBillingManualInvoice.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
 | `/taxas-locais` · exportar lista | Mesmos filtros; ao menos uma invoice | `TaxasLocais.handleExport` | `listInvoicesForExport` → `exportInvoicesWorkbook` | Leituras paginadas de 1000; arquivo XLSX local | Não altera cache | Sem linhas gera aviso; leitura/geração propaga erro | **Código:** `src/pages/TaxasLocais.tsx`, `src/services/billing.ts`, `src/services/exports.ts` · **Teste:** `src/services/__tests__/billingHelpers.test.ts` |
 | `/taxas-locais` · abrir invoice | ID selecionado pela tabela ou query string | `InvoicesTable.onSelectInvoice` | `useInvoiceDetail` → `listInvoiceDetails` | RPC `list_invoice_details` lê documento, links diretos, itens e pagamentos | Query `queryKeys.invoices.detail(id)` | ID ausente desabilita query; erro mostra falha no modal | **Código:** `src/components/billing/InvoicesTable.tsx`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts` · **Teste:** `src/pages/__tests__/TaxasLocais.behavior.test.tsx` |
 | Detalhe · carregar breakdown consolidado | Invoice sem itens diretos e com `invoice_receivable_links` | `listInvoiceDetails` após RPC base | Lê links/snapshots; RPC `get_consolidated_invoice_item_breakdown`; valida com Zod | `invoice_receivable_links`, `voyages`, leitura protegida de `charge_calculations` | Reusa `invoice-detail`; usa linha agregada por B/L se breakdown não reconciliar com subtotal | Erro/shape inválido do breakdown é best-effort e cai no agregado | **Código:** `src/services/billing.ts`, `supabase/migrations_archive/086_consolidated_invoice_item_breakdown.sql`, `supabase/migrations_archive/090_restrict_consolidated_invoice_breakdown.sql` |
@@ -296,6 +313,7 @@ menores e específicas descritas no catálogo.
 | Relação | O que possui | O que não possui |
 |---|---|---|
 | `invoices` | Documento, número, cliente, tipo, datas, total, agregados pagos/saldo, status, PIX e relações `covered`/`obsolete` | Não é a fonte final do saldo por B/L no caminho ledger |
+| `invoices` do tipo `manual` | Documento avulso; `notes` guarda descrição e `voyage_id`/`bl_id` guardam contexto opcional | Não cria vínculo financeiro com B/L nem recebível local |
 | `invoice_bls` | Vínculo direto e snapshot financeiro de B/Ls para invoices individuais/Granito | Não representa a alocação contábil de consolidadas |
 | `invoice_receivable_links` | Vínculo invoice ↔ receivable, subtotal/snapshot e estado `active`/`settled_by_this_invoice`/`settled_elsewhere`/`obsolete` | Não possui o saldo atual; aponta para `bl_receivables` |
 | `bl_receivables` | `original_amount_brl`, `settled_amount_brl`, `balance_brl` e estado por B/L de taxas locais | Não é o documento apresentado ao cliente |
@@ -311,6 +329,7 @@ menores e específicas descritas no catálogo.
 | `create_invoice_from_bls_with_ledger` | `create_invoice_from_bls_core` + `link_invoice_to_ledger` | `createInvoiceFromBls` em `src/services/billing.ts` |
 | `mark_bl_ready_and_create_invoice` | trava B/L, promove para pronto e cria invoice ledger | `BlCobrancasTab` e `reviewBillingAutomation` |
 | `create_local_consolidated_invoice` | trava receivables, cria invoice, links, evento e auditoria | `createConsolidatedInvoice` |
+| `create_manual_invoice` | valida Cliente e contexto opcional, calcula total e cria invoice/item em transação | `createManualInvoice` em `src/services/billing.ts` |
 | `register_ledger_invoice_payment` | cria payment, distribui settlements, atualiza receivables/invoice/B/Ls, estados cruzados, eventos e refund | `registerLedgerInvoicePayment`; também chamado por reconciliação TXID |
 | `reconcile_invoice_payment_by_txid` | resolve uma invoice local e delega a baixa ao ledger | `confirm_unified_pix_matches` em `/reconciliacao` |
 | `register_invoice_payment` | pagamento e agregados do modelo legado | `registerInvoicePayment` |
@@ -338,6 +357,10 @@ flowchart TD
 
 - `isLedgerInvoicePayable` exige tipo `individual` ou `consolidated`, estado
   pagável e `balance_brl > 0`; qualquer outro documento cai no RPC legado.
+- A Fatura Avulsa (`manual`) usa `register_invoice_payment`, inclusive quando o
+  PIX é confirmado na conciliação unificada. Seu B/L/Viagem direto é apenas
+  contexto; pagamento e cancelamento não alteram status financeiro ou saldo do
+  B/L nem criam settlement local.
 - No ledger, `bl_receivables.balance_brl` é a fonte da verdade. Totais e status
   em `invoices` e `bls.financial_status` são projeções atualizadas na mesma RPC.
 - Pagamento ledger parcial produz `bl_receivables.status =
@@ -399,6 +422,11 @@ banco aplicado:
 - `src/services/__tests__/settleInvoiceRefundsMigration.test.ts`
 - `src/services/__tests__/guardInvoiceableReadyStateMigration.test.ts`
 - `src/services/__tests__/guardManualChargesMigration.test.ts`
+
+Para a Fatura Avulsa, `manualInvoiceMigration.test.ts` verifica o contrato em
+texto da migration; `manualInvoice.local-pg.test.ts`, com
+`LOCAL_PG_INTEGRATION=1`, executa o fluxo num PostgreSQL local descartável.
+Esses resultados são evidência local, não comprovam deploy ou execução remota.
 
 Não há evidência de Runtime registrada neste documento.
 

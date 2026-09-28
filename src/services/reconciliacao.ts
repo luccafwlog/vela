@@ -3,6 +3,7 @@ import { formatDate } from '../lib/utils'
 import { sanitizeSheetRows } from '../lib/spreadsheetSafe'
 import { normalizePixTxid } from '../lib/pix'
 import { supabase } from './supabase'
+import { invoiceTypeLabel } from './billing'
 import type { PixTransaction } from '../types/database'
 
 export type UnifiedPixMatch = {
@@ -245,7 +246,7 @@ export async function matchUnifiedPixTransactions(transactions: PixTransaction[]
       .from('invoices')
       .select('id, invoice_number, total_brl, balance_brl, status, pix_txid, customer:customers(id, name, cnpj_cpf)')
       .in('status', ['issued', 'partially_paid', 'overdue'])
-      .in('invoice_type', ['individual', 'consolidated'])
+      .in('invoice_type', ['individual', 'consolidated', 'manual'])
       .overrideTypes<LocalInv[], { merge: false }>(),
     supabase
       .from('demurrage_invoices')
@@ -459,7 +460,7 @@ export type ReconciliationFilters = {
   blSearch: string
   vesselSearch: string
   voyageSearch: string
-  invoiceTypeFilter: '' | 'consolidated' | 'single'
+  invoiceTypeFilter: '' | 'consolidated' | 'single' | 'manual'
   pod: string
   sort: string
   sortDir: 'asc' | 'desc'
@@ -485,7 +486,7 @@ const DEFAULT_HISTORY_FILTERS: ReconciliationFilters = {
 
 export function normalizeReconciliationInvoiceTypeFilter(
   filter: ReconciliationFilters['invoiceTypeFilter'],
-): '' | 'consolidated' | 'individual' {
+): '' | 'consolidated' | 'individual' | 'manual' {
   return filter === 'single' ? 'individual' : filter
 }
 
@@ -501,8 +502,10 @@ export function selectLatestPayment(
 }
 
 const HISTORY_LOCAL_SELECT = `
-  id, invoice_number, customer_id, bl_id, issued_at, total_brl, status, invoice_type,
+  id, invoice_number, customer_id, bl_id, voyage_id, issued_at, total_brl, status, invoice_type,
   total_paid_brl, balance_brl, created_at,
+  voyage:voyages(id,voyage_number,vessel:vessels(name)),
+  bl:bls(id,pod,voyage:voyages(id,voyage_number,vessel:vessels(name))),
   customer:customers(id,name,cnpj_cpf),
   invoice_bls(id,bl_id,subtotal_brl,subtotal_usd,bl:bls(pod,voyage:voyages(voyage_number,vessel:vessels(name)))),
   invoice_receivable_links(id,bl_id,subtotal_brl,bl:bls(pod,voyage:voyages(voyage_number,vessel:vessels(name)))),
@@ -533,7 +536,30 @@ function flattenBls(inv: Record<string, unknown>): FlatBl[] {
       }
     })
     .filter((bl) => bl.blId.length > 0)
-  return out.length > 0 ? out : [{ blId: '-', pod: null, voyageNumber: null, vesselName: null, subtotalBrl: null }]
+  if (out.length > 0) return out
+
+  const directBl = inv.bl as Record<string, unknown> | null
+  const directBlId = String(inv.bl_id ?? directBl?.id ?? '').trim()
+  const directVoyage = (directBl?.voyage as Record<string, unknown> | null)
+    ?? (inv.voyage as Record<string, unknown> | null)
+  const directVessel = directVoyage?.vessel as Record<string, unknown> | null
+  if (directBlId) {
+    return [{
+      blId: directBlId,
+      pod: (directBl?.pod as string | null) ?? null,
+      voyageNumber: (directVoyage?.voyage_number as string | null) ?? null,
+      vesselName: (directVessel?.name as string | null) ?? null,
+      subtotalBrl: null,
+    }]
+  }
+
+  return [{
+    blId: '-',
+    pod: null,
+    voyageNumber: (directVoyage?.voyage_number as string | null) ?? null,
+    vesselName: (directVessel?.name as string | null) ?? null,
+    subtotalBrl: null,
+  }]
 }
 
 export async function listReconciliationHistory(
@@ -697,7 +723,7 @@ export async function exportReconciliationHistoryExcel(filters: Partial<Reconcil
   const data = rows.map((r) => ({
     Tipo: r.source === 'demurrage' ? 'Demurrage' : 'Taxas Locais',
     'Nº Documento': r.docNumber,
-    'Tipo Doc.': r.source === 'demurrage' ? '—' : r.invoiceType === 'consolidated' ? 'Consolidada' : 'Único BL',
+    'Tipo Doc.': r.source === 'demurrage' ? '—' : invoiceTypeLabel(r.invoiceType),
     Consignatário: r.customerName,
     CNPJ: r.customerCnpj,
     'B/L': r.blId,
