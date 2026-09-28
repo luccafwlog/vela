@@ -13,11 +13,9 @@ describe('corsHeaders das Edge Functions', () => {
     expect(ALLOWED_ORIGINS.has(allowed)).toBe(true)
     expect(corsHeaders(allowed)['Access-Control-Allow-Origin']).toBe(allowed)
     expect(corsHeaders('https://vela.app.br')['Access-Control-Allow-Origin']).toBe('https://vela.app.br')
-    expect(corsHeaders('https://vela.vercel.app')['Access-Control-Allow-Origin']).toBe('https://vela.vercel.app')
-    expect(corsHeaders('https://fwlog-portal.vercel.app')['Access-Control-Allow-Origin']).toBe('https://fwlog-portal.vercel.app')
-    // Mantidos durante o cutover de DNS
-    expect(corsHeaders('https://transhippingdesk.com.br')['Access-Control-Allow-Origin']).toBe('https://transhippingdesk.com.br')
-    expect(corsHeaders('https://portal.transhippingdesk.com.br')['Access-Control-Allow-Origin']).toBe('https://portal.transhippingdesk.com.br')
+    expect(corsHeaders('https://vela.vercel.app')).not.toHaveProperty('Access-Control-Allow-Origin')
+    expect(corsHeaders('https://fwlog-portal.vercel.app')).not.toHaveProperty('Access-Control-Allow-Origin')
+    expect(corsHeaders('https://transhippingdesk.com.br')).not.toHaveProperty('Access-Control-Allow-Origin')
   })
 
   it('omite o header para origem fora da allowlist, em vez de devolver "null"', () => {
@@ -45,29 +43,16 @@ describe('corsHeaders das Edge Functions', () => {
   })
 
   it('aceita somente origens HTTPS exatas na configuração manual de Preview', () => {
-    expect(parseConfiguredOrigins('https://preview.example.vercel.app, https://outro.example.vercel.app')).toEqual([
-      'https://preview.example.vercel.app',
-      'https://outro.example.vercel.app',
+    expect(parseConfiguredOrigins('https://pr-1.vela-portal.pages.dev, https://outro.example')).toEqual([
+      'https://pr-1.vela-portal.pages.dev',
+      'https://outro.example',
     ])
-    expect(parseConfiguredOrigins('*.vercel.app, http://preview.example, https://preview.example/path')).toEqual([])
+    expect(parseConfiguredOrigins('*.pages.dev, http://preview.example, https://preview.example/path')).toEqual([])
   })
 
-  it('aceita o alias de Preview gerado para este projeto Vercel (incluindo transhippingdesk no cutover)', () => {
-    for (const origin of [
-      'https://vela-git-feature-abc123-luccafwlogs-projects.vercel.app',
-      'https://fwlog-portal-git-feature-abc123-luccafwlogs-projects.vercel.app',
-      'https://transhippingdesk-git-feature-abc123-luccafwlogs-projects.vercel.app',
-    ]) {
-      expect(isAllowedOrigin(origin)).toBe(true)
-      expect(corsHeaders(origin)['Access-Control-Allow-Origin']).toBe(origin)
-    }
-  })
-
-  it('não aceita Preview de outro projeto ou equipe no Vercel', () => {
-    expect(isAllowedOrigin('https://outro-projeto-abc123-luccafwlogs-projects.vercel.app')).toBe(false)
-    expect(isAllowedOrigin('https://vela-abc123-outra-equipe.vercel.app')).toBe(false)
-    expect(isAllowedOrigin('https://fwlog-portal-abc123-outra-equipe.vercel.app')).toBe(false)
-    expect(isAllowedOrigin('https://transhippingdesk-abc123-outra-equipe.vercel.app')).toBe(false)
+  it('não aceita aliases antigos da Vercel', () => {
+    expect(isAllowedOrigin('https://vela-git-feature-abc123-luccafwlogs-projects.vercel.app')).toBe(false)
+    expect(isAllowedOrigin('https://fwlog-portal-git-feature-abc123-luccafwlogs-projects.vercel.app')).toBe(false)
   })
 
   it('aceita os projetos Cloudflare Pages do Vela, e só eles', () => {

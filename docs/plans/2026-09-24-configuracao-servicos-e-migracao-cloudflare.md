@@ -149,17 +149,11 @@ avisar.
 
 1. No Sentry, confirme os projetos `vela` (interno) e `portal` (Portal).
    Em cada um: **Settings → Client Keys (DSN)** → copie o DSN.
-2. Vercel → projeto `vela` → **Environment Variables**:
-   - `VITE_SENTRY_DSN_INTERNAL` = DSN do `vela` (Production e Preview)
-   - `VITE_SENTRY_ENVIRONMENT` = `production`, só em **Production**
-   - `VITE_SENTRY_ENVIRONMENT` = `preview`, só em **Preview**
-3. Vercel → projeto `fwlog-portal`: o mesmo, com `VITE_SENTRY_DSN_PORTAL` = DSN
-   do `portal`.
-4. Faça **Redeploy** de Production nos dois projetos.
-
-   Os passos 2–4 só valem enquanto a Vercel serve os domínios. Em 2026-09-24
-   foram dispensados: o Pages já recebe os DSNs e `VITE_SENTRY_ENVIRONMENT`
-   pela Etapa 8, e a Vercel sai na Etapa 10.
+2. Os workflows do Pages recebem `VITE_SENTRY_DSN_INTERNAL`,
+   `VITE_SENTRY_DSN_PORTAL` e `VITE_SENTRY_ENVIRONMENT` pelos ambientes GitHub
+   de produção e preview. Não configure esses valores nos projetos Vercel
+   desconectados.
+3. Após mudança nesses valores, gere deployments nos dois projetos Pages.
 5. Supabase → **Edge Functions** → **Secrets**:
    - `SENTRY_DSN` = DSN do projeto `vela`
    - `SENTRY_ENVIRONMENT` = `production`
@@ -167,8 +161,10 @@ avisar.
    is created*, com filtro `environment:production` → ação: e-mail para você.
 
 **Conferência:** no Sentry, em **Issues**, os filtros `environment:preview` e
-`environment:production` separam os dois ambientes. Os eventos do Portal não
-trazem ID de Cliente.
+`environment:production` separam os dois ambientes. Para validar o transporte
+de uma Edge Function, use um caminho de teste sem efeito de negócio em ambiente
+controlado; não provoque uma falha em rotinas de produção que enviam e-mails ou
+alteram dados. Os eventos do Portal não trazem ID de Cliente.
 
 **Como desfazer:** apague as variáveis; o código volta ao DSN antigo
 compartilhado.
@@ -180,17 +176,23 @@ compartilhado.
 A chave do PostHog já está no build de produção do Portal.
 
 1. PostHog (região **EU**) → **Project settings**: confirme que a **Project API
-   Key** é a mesma de `VITE_POSTHOG_KEY` no projeto `fwlog-portal` da Vercel, e
-   que `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`.
-2. Não coloque `VITE_POSTHOG_KEY` no projeto `vela` da Vercel. No Pages, o
-   workflow compila Vela e Portal com a mesma chave: o Vela carrega o PostHog,
-   mas não envia eventos (os únicos eventos estão na tela de faturas do Portal
-   e a captura automática está desligada em `src/lib/featureFlags.ts`).
+   Key** é a mesma de `VITE_POSTHOG_KEY` no environment GitHub
+   `cloudflare-production`, e que `VITE_POSTHOG_HOST` =
+   `https://eu.i.posthog.com`.
+2. O workflow compila Vela e Portal com a mesma chave; só o Portal envia eventos
+   de fatura, e a captura automática está desligada em
+   `src/lib/featureFlags.ts`.
 
-**Conferência:** abra uma fatura no Portal com um usuário de teste. Em
-**Activity**, no PostHog, deve aparecer `invoice_viewed` só com `surface` e
-`invoice_type`, sem URL, CNPJ ou e-mail. No console do navegador não pode haver
-erro de CSP do PostHog.
+**Conferência:** o usuário autorizou criar um cliente e uma fatura manual de QA,
+identificados como teste e sem envio de e-mail ou cobrança. Cliente fictício
+`CLIENTE QA OBSERVABILIDADE - NÃO REAL` (`11.222.333/0001-81`) criado em
+2026-09-28 via `/clientes`; contato usa `qa-observabilidade@example.com` e
+nenhuma mensagem foi enviada. Abra a fatura com uma conta Portal habilitada e
+confirme `invoice_viewed` no PostHog, contendo só `surface` e `invoice_type`.
+A fatura avulsa de QA (R$ 0,01) está preenchida, mas a seleção do cliente na
+combobox não é concluída pela automação; não emita até selecionar o cliente e
+revisar a confirmação. Não enviar convite/e-mail. No console do navegador não
+pode haver erro de CSP do PostHog.
 
 ---
 
@@ -484,14 +486,25 @@ Cloudflare.
 2. Teste o domínio como na etapa 8, passo 5.
 3. Repita para `vela-portal` com `portalfwlog.com.br`, fora do horário
    comercial.
-4. Mantenha os projetos da Vercel **por 7 dias** como volta rápida.
-5. Depois de 7 dias sem problema, faça na Vercel, em cada projeto: **Settings →
-   Domains** → remova o domínio; depois **Settings → Git → Disconnect**, para
-   parar os builds.
+4. Em 2026-09-28, o dono optou por antecipar a saída e dispensar a janela de
+   sete dias.
+5. Na Vercel, remova os domínios migrados dos projetos: `portalfwlog.com.br` de
+   `fwlog-portal` e `vela.app.br` de `vela`. O responsável também autorizou
+   remover `transhippingdesk.com.br` e `portal.transhippingdesk.com.br` do
+   projeto `vela`, pois não são mais utilizados. Desconecte o Git dos dois
+   projetos para parar os builds. Em 2026-09-28, os domínios migrados e os dois
+   legados foram removidos; a lista de `vela` mostra apenas o domínio padrão.
+   A conexão Git de `vela` segue ativa: **Disconnect** não abre a confirmação
+   no painel e precisa ser concluído.
 
-**Como desfazer (dentro dos 7 dias):** Cloudflare → **DNS** → apague o `CNAME @`
-do Pages e recrie `A @ 216.198.79.1` (valor da foto da etapa 9, nuvem
-cinza). Em seguida, remova o custom domain do projeto Pages.
+**Como desfazer:** reconecte o Git do projeto Vercel se necessário, adicione de
+novo o domínio migrado ao projeto Vercel e, na Cloudflare, troque o `CNAME @`
+do Pages por `A @ 216.198.79.1` (valor da foto da etapa 9, nuvem cinza). Depois,
+remova o custom domain do projeto Pages.
+
+**Encerramento:** a validação trimestral dos backups R2 é uma rotina contínua e
+não impede arquivar este plano. A configuração e a primeira execução do backup
+foram conferidas na Etapa 6.
 
 ---
 
@@ -511,7 +524,11 @@ cinza). Em seguida, remova o custom domain do projeto Pages.
 | 6 | 2026-09-24 | Dono + Claude Code | Bucket e regra "Expire backups after 90 days" (prefixo `vela/database`) já existiam. Chaves do R2 lidas do Gerenciador de Credenciais; chave de cifragem nova, guardada no Gerenciador de Credenciais e no iCloud Senhas; senha do banco resetada. Primeiro backup às 15:01 UTC e execução pela tarefa agendada às 15:11 UTC (0x0), ambos no R2. Corrigido `scripts/backup-r2.mjs`: `--file=-` fazia o `pg_dump` do Windows gravar o banco sem cifragem num arquivo `-` (apagado na hora, não saiu da máquina) |
 | 7 | 2026-09-24 | Dono + Claude Code | Aplicações do Access `*.vela-internal.pages.dev` e `*.vela-portal.pages.dev` com Include só `luccafwlog@gmail.com` (login pela conta Cloudflare); `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`. PR #753: sem sessão, os dois `pr-753` redirecionam para o Access; janela anônima barrada no login da Cloudflare. A preview abria em branco: o GitHub descartava o output `supabase_anon_key` ("may contain secret"); corrigido na #753 (artefato + recusa de build sem chave). Na #754 (já com a correção): dono entrou no Vela da preview até `/painel` e viu o login do Portal, sem erro de configuração do Supabase. Resta no console só o manifest bloqueado pelo redirecionamento do Access (inofensivo, só nas previews) |
 | 9 | 2026-09-24 | Dono + Claude Code | Concluída. Foto do DNS: só `A 216.198.79.1` e DNSSEC nos dois domínios; e-mail só em `transhippingdesk.com.br`. Zonas já existiam na Cloudflare (Free); `A` passado para DNS only. `vela.app.br`: SPF `-all` e DMARC `reject`. `portalfwlog.com.br`: ImprovMX (`suporte@` → `importacao@fwlog.com.br`, `lucca.juliatti@fwlog.com.br`), MX, SPF, DKIM e CNAMEs do Resend, DMARC; conferidos nos servidores da Cloudflare. `DEMURRAGE_REPLY_TO`=`eqp@fwlog.com.br` e `COMMUNICATIONS_REPLY_TO`=`importacao@fwlog.com.br` (16:53–16:54 UTC; `demurrage-dunning` publicada da #755). Servidores trocados no Registro.br para `ariadne`/`pablo` (publicados no `.br` por volta das 16:15 de Brasília); as duas zonas Active. Resend Verified para `portalfwlog.com.br`. E-mail externo para `suporte@portalfwlog.com.br` chegou nas duas caixas. `PORTAL_FROM_EMAIL`=`Portal Fwlog <no-reply@portalfwlog.com.br>`, `PORTAL_REPLY_TO` e `PORTAL_SUPPORT_EMAIL`=`suporte@portalfwlog.com.br`; "Esqueci minha senha" no Portal chegou com remetente e responder-para certos. DNSSEC ligado na Cloudflare e DS no Registro.br nos dois domínios (keytag 2371, digests diferentes), conferido com a DNSKEY publicada. Sites no Vercel respondem 200 com certificado válido. `www`: `A www 192.0.2.1` com proxy e Redirect Rule "www para raiz" (301, preserva caminho e query) nos dois domínios. Conferido com `curl`: `www.<domínio>/teste?x=1` → 301 para `https://<domínio>/teste?x=1`. A regra do Portal tinha o destino errado (voltava para o próprio `www`) e foi corrigida. Convite real do Portal enviado depois da Etapa 10 chegou na caixa de entrada, fora do spam |
-| 10 | 2026-09-24 | Dono + Claude Code | Passos 1–4. `vela.app.br` → `vela-internal` e `portalfwlog.com.br` → `vela-portal`, os dois Active; registro da raiz virou `CNAME @` → `<projeto>.pages.dev` com proxy. Conferido: HTML de cada domínio idêntico ao do `pages.dev`, sem resposta da Vercel; `/painel`, `/portal/login`, `/portal/billing` e `/portal/esqueci-senha` com 200; `/portal` do interno → 302 para o Portal; `www` segue com 301. Um 522 isolado na troca do Vela. Dono: login no Vela (F5 em `/painel`) e no Portal (Turnstile, F5 em `/portal/billing`, esqueci-senha). Pendente: passo 5 (desligar a Vercel) a partir de 2026-10-01 e PR de limpeza |
+| 10 | 2026-09-24 | Dono + Claude Code | Passos 1–4. `vela.app.br` → `vela-internal` e `portalfwlog.com.br` → `vela-portal`, os dois Active; registro da raiz virou `CNAME @` → `<projeto>.pages.dev` com proxy. Conferido: HTML de cada domínio idêntico ao do `pages.dev`, sem resposta da Vercel; `/painel`, `/portal/login`, `/portal/billing` e `/portal/esqueci-senha` com 200; `/portal` do interno → 302 para o Portal; `www` segue com 301. Um 522 isolado na troca do Vela. Dono: login no Vela (F5 em `/painel`) e no Portal (Turnstile, F5 em `/portal/billing`, esqueci-senha). Pendente à época: desligar a Vercel e PR de limpeza |
+| 3 | 2026-09-28 | Dono | Problema de entrega para caixas Microsoft 365 da Fwlog confirmado como solucionado; não há ação pendente de TI. |
+| 10 | 2026-09-28 | Dono + Claude Code | Saída antecipada autorizada. `portalfwlog.com.br` removido de `fwlog-portal` e Git desconectado desse projeto. `vela.app.br`, `transhippingdesk.com.br` e `portal.transhippingdesk.com.br` removidos de `vela`; a lista atual mostra só `transhippingdesk.vercel.app`. O usuário concluiu o **Disconnect** de `vela`; os dois projetos Vercel estão sem conexão Git. A limpeza de código/configuração está sendo preparada na PR de execução deste plano. |
+| 4 | 2026-09-28 | Claude Code | Busca no projeto `vela` do Sentry por `surface:edge` e `function_name:*` sem resultados. Os erros visíveis são do frontend. Não foi provocado um 5xx em produção; a função instrumentada segura encontrada exige segredo operacional e não há ambiente de teste controlado disponível nesta sessão. |
+| 5 | 2026-09-28 | Dono + Claude Code | Cliente fictício `CLIENTE QA OBSERVABILIDADE - NÃO REAL` (`11.222.333/0001-81`) criado pela interface; contato `qa-observabilidade@example.com`, sem mensagem enviada. A fatura avulsa de QA (R$ 0,01) está preenchida na interface, mas a combobox não confirmou o cliente pela automação. Fatura não emitida; selecionar cliente e revisar a confirmação antes de emitir. Ainda falta conta Portal habilitada para observar `invoice_viewed` no PostHog. |
 
 ### Ocorrido de 2026-09-24 — login do Portal fora do ar
 

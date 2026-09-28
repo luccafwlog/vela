@@ -1,13 +1,12 @@
 import { Suspense, useEffect, type ReactNode } from 'react'
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
-import { Analytics } from '@vercel/analytics/react'
 import { routeTitle } from './lib/pageTitle'
 import { AppLayout } from './components/layout/AppLayout'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { lazyPage } from './lib/lazyPage'
 import { matchRoutePreload, type RoutePreloadTable } from './lib/routePreload'
 import { resolveLegacyFaturamentoRedirect, resolveTaxasLocaisRedirect, toRouteTarget } from './lib/routeRedirects'
-import { markStartupStage, redactVercelTelemetryEvent, vercelTelemetryEnabled } from './lib/telemetry'
+import { markStartupStage } from './lib/telemetry'
 
 const Login = lazyPage(() => import('./pages/Login'), 'Login')
 const PortalDashboard = lazyPage(() => import('./pages/PortalDashboard'), 'PortalDashboard')
@@ -178,7 +177,6 @@ export default function AppInterno() {
           </Route>
         </Route>
       </Routes>
-      {vercelTelemetryEnabled && <Analytics beforeSend={redactVercelTelemetryEvent} />}
     </>
   )
 }

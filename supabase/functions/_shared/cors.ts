@@ -4,25 +4,14 @@
 const FIXED_ALLOWED_ORIGINS = [
   'https://vela.app.br',
   'https://portalfwlog.com.br',
-  'https://vela.vercel.app',
-  'https://fwlog-portal.vercel.app',
-  // Mantidos durante a janela de transição/cutover de DNS (ADR 0066)
-  'https://transhippingdesk.com.br',
-  'https://portal.transhippingdesk.com.br',
-  'https://transhippingdesk.web.app',
-  'https://transhippingdesk.firebaseapp.com',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
 ]
 
-// Preview URLs são efêmeras. O Vercel/Supabase Branching gera aliases dentro
-// do projeto e da equipe abaixo; o padrão é restrito a essa combinação, nunca
-// a um wildcard amplo de `vercel.app`. Origens adicionais continuam podendo
-// ser configuradas como uma lista de URLs exatas.
-const VERCEL_PREVIEW_ORIGINS = [
-  /^https:\/\/vela(?:-[a-z0-9-]+)?-luccafwlogs-projects\.vercel\.app$/,
-  /^https:\/\/fwlog-portal(?:-[a-z0-9-]+)?-luccafwlogs-projects\.vercel\.app$/,
-  /^https:\/\/transhippingdesk(?:-[a-z0-9-]+)?-luccafwlogs-projects\.vercel\.app$/,
+// Preview URLs são efêmeras; os aliases de Cloudflare Pages abaixo são restritos
+// aos dois projetos deste sistema. Origens adicionais podem ser configuradas
+// como URLs HTTPS exatas.
+const CLOUDFLARE_PAGES_PREVIEW_ORIGINS = [
   // Cloudflare Pages: domínio de produção do projeto e aliases de Preview
   // (`pr-<n>.` ou hash do deployment). Nomes de projeto `pages.dev` são únicos
   // na Cloudflare, então o padrão fica restrito aos dois projetos do Vela.
@@ -47,12 +36,12 @@ export function parseConfiguredOrigins(raw: string | undefined): string[] {
 const denoRuntime = (globalThis as typeof globalThis & {
   Deno?: { env: { get(name: string): string | undefined } }
 }).Deno
-const configuredPreviewOrigins = parseConfiguredOrigins(denoRuntime?.env.get('VERCEL_PREVIEW_ORIGINS'))
+const configuredPreviewOrigins = parseConfiguredOrigins(denoRuntime?.env.get('CLOUDFLARE_PAGES_PREVIEW_ORIGINS'))
 
 export const ALLOWED_ORIGINS = new Set([...FIXED_ALLOWED_ORIGINS, ...configuredPreviewOrigins])
 
 export function isAllowedOrigin(origin: string): boolean {
-  return ALLOWED_ORIGINS.has(origin) || VERCEL_PREVIEW_ORIGINS.some((pattern) => pattern.test(origin))
+  return ALLOWED_ORIGINS.has(origin) || CLOUDFLARE_PAGES_PREVIEW_ORIGINS.some((pattern) => pattern.test(origin))
 }
 
 // Origem fora da allowlist recebe a AUSÊNCIA do header, que é a negação correta
