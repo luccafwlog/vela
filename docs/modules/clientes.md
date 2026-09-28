@@ -150,6 +150,13 @@ comunica e mantém o alerta `comunicado_nob_pendente` aberto. Ver ADR 0067.
 
 O Histórico da rota, da ficha do cliente e do B/L lê a mesma trilha de `customer_communications` e `customer_communication_attempts`; a criação do comunicado e de seus vínculos é feita pela RPC atômica `create_customer_communication_atomic`. O runner `supabase/functions/customer-communication-auto-runner/index.ts`, agendado pela migration `381_customer_communications_automation.sql`, avalia NOA, NOR, NOB e `ce_mercante_taxas` em background, aplica a chave global e grava claims idempotentes; as correções de lease e prontidão estão na migration `384_comunicados_automacao_falhas.sql`.
 
+A identidade única de `customer_communications` combina tipo, cliente, âncoras,
+`dispatch_id` e `attempt_discriminator`; o status fica fora dela porque muda
+conforme as tentativas são projetadas. A migration
+[`100_customer_communication_statusless_idempotency.sql`](../../supabase/migrations/100_customer_communication_statusless_idempotency.sql)
+faz preflight sem reescrever tentativas e interrompe a aplicação se encontrar
+identidades duplicadas que precisem de reconciliação.
+
 O resumo financeiro `ce_mercante_taxas` não é um disparo genérico por invoice:
 após o vínculo do CE, a prontidão é calculada por cliente/viagem e exige CE,
 revisão limpa e faturamento concluído em todos os B/Ls ativos. A Taxas Locais

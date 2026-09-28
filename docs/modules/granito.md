@@ -1,6 +1,6 @@
 # Granito
 
-> **Status:** ativo · **Atualizado:** 2026-09-11 · **Rotas:** `/granito`, `/granito/taxas`
+> **Status:** ativo · **Atualizado:** 2026-09-28 · **Rotas:** `/granito`, `/granito/taxas`
 
 ## Propósito e escopo
 
@@ -51,10 +51,11 @@ operação:
   fase, `charge_status` e ação `Calcular taxas`;
 - o modal COSCO exige viagem e arquivo `.xls/.xlsx`, mostra B/Ls válidos, peso
   total, erros de parser e reconciliação `matched|missing_cnpj|not_found`; peso
-  e quantidades usam a gramática pt-BR sem expoente/texto residual, datas de
-  prontidão precisam ser calendários válidos e POL/POD são normalizados pelo
-  catálogo de LOCODEs; o relatório completo de erros pode ser exportado sem o
-  payload bruto;
+  e quantidades usam o valor numérico nativo do Excel quando a célula o traz,
+  ou a gramática pt-BR para texto, sem expoente/texto residual; datas de
+  prontidão nativas e textuais precisam ser calendários válidos, e POL/POD são
+  normalizados pelo catálogo de LOCODEs; o relatório completo de erros pode
+  ser exportado sem o payload bruto;
 - CNPJ ausente pode ser preenchido inline e reconciliado novamente;
 - a leitura do upload customizado informa arquivo atual/progresso e pode ser
   cancelada; respostas tardias são descartadas antes de qualquer RPC;
@@ -189,13 +190,15 @@ flowchart LR
 
 ## Testes e validação
 
-- Não existe arquivo dedicado de teste para
-  `src/services/graniteImport.ts` nem para
-  `src/services/graniteCharges.ts`.
+- [`src/services/__tests__/graniteParse.test.ts`](../../src/services/__tests__/graniteParse.test.ts)
+  cobre `HEADER_MAP`, regras COSCO, reconciliação, datas e a fixture anonimizada
+  derivada de uma planilha autorizada de 19 linhas. A fixture testa bytes XLSX
+  sob extensão `.xls`, cabeçalhos COSCO e leitura das células numéricas nativas;
+  não comprova upload do usuário, persistência remota, reconciliação com clientes
+  reais nem o runtime do Supabase.
 - [`src/services/__tests__/importCore.test.ts`](../../src/services/__tests__/importCore.test.ts)
   cobre helpers genéricos de cabeçalho, primeira aba e coleta de erros; não
-  comprova o `HEADER_MAP`, as regras COSCO, reconciliação ou persistência de
-  Granito.
+  substitui os testes do parser especializado.
 - [`src/services/__tests__/uploadLimits.test.ts`](../../src/services/__tests__/uploadLimits.test.ts)
   cobre limite de upload para base de clientes e extrato PIX, não chama
   `parseGraniteManifestFile`.

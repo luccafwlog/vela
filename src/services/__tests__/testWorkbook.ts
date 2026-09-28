@@ -1,6 +1,6 @@
 import * as XLSX from '@e965/xlsx'
 
-export function aoaToBuffer(rows: Array<Array<string | number>>) {
+export function aoaToBuffer(rows: Array<Array<string | number | Date>>) {
   const workbook = XLSX.utils.book_new()
   const sheet = XLSX.utils.aoa_to_sheet(rows)
   XLSX.utils.book_append_sheet(workbook, sheet, 'Sheet1')

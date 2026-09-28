@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { expect, it, vi } from 'vitest'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
@@ -30,6 +31,41 @@ it('US-077: parseia a planilha COSCO mapeando colunas e reconciliando CNPJ', asy
     reconciliationStatus: 'not_found',
   })
   expect(parsed.vesselVoyage).toBe('NAVIO/14')
+})
+
+it('S03: parseia a fixture COSCO anonimizada recebida com extensao XLS sobre conteudo XLSX', async () => {
+  const source = readFileSync(new URL('../../../test-fixtures/qa-cosco-booking.xlsx', import.meta.url))
+  const bytes = new Uint8Array(source.length)
+  bytes.set(source)
+  const parsed = await parseGraniteManifestFile(new File([bytes], 'relatorio-cosco-qa.xls'))
+
+  expect(parsed.bls).toHaveLength(19)
+  expect(parsed.rowErrors).toEqual([])
+  expect(parsed.bls.map((bl) => bl.bl_number)).toEqual(
+    Array.from({ length: 19 }, (_, index) => `QA-BL-${String(index + 1).padStart(2, '0')}`),
+  )
+  expect(parsed.bls[0]).toMatchObject({
+    booking_number: 'QA-BOOKING-01',
+    shipper_m3: 11.5,
+    shipper_weight_kg: 602,
+    real_weight_kg: 702,
+    cargo_readiness_date: '2026-09-01',
+  })
+  expect(parsed.bls.some((bl) => bl.partial_restriction)).toBe(true)
+})
+
+it('S03: converte uma data nativa do Excel para ISO sem alterar a data local', async () => {
+  const file = new File([
+    aoaToBuffer([
+      ['BL', 'Real Weight', 'Prontidao de Carga'],
+      ['QA-BL-DATE', 702, new Date(Date.UTC(2026, 8, 1))],
+    ]),
+  ], 'cosco-date.xlsx')
+
+  const parsed = await parseGraniteManifestFile(file)
+
+  expect(parsed.rowErrors).toEqual([])
+  expect(parsed.bls[0]?.cargo_readiness_date).toBe('2026-09-01')
 })
 
 it('S03: rejeita o manifesto COSCO quando o marcador estrutural Real Weight está ausente', async () => {

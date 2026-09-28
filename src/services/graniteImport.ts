@@ -20,7 +20,9 @@ const HEADER_MAP: Record<string, string> = {
   'cnpj': 'shipper_cnpj',
   'consignee': 'consignee_name',
   'charter': 'charter',
+  "shipper`s m3": 'shipper_m3',
   "shipper's m3": 'shipper_m3',
+  "shipper`s weight": 'shipper_weight_kg',
   "shipper's weight": 'shipper_weight_kg',
   'blocks qtty': 'blocks_qty',
   'received blocks qtty': 'received_blocks_qty',
@@ -100,6 +102,7 @@ export async function parseGraniteManifestFile(file: File): Promise<ParsedGranit
 async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGraniteManifest> {
   const { headers, rows } = await readSheet(buffer, {
     expectedHeaders: GRANITE_HEADER_MARKERS,
+    dates: 'date',
   })
   const { missing } = matchHeaders(headers, GRANITE_HEADER_SPEC)
   if (missing.length) {
@@ -171,12 +174,12 @@ async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGr
       rowErrors,
       row,
     )
-    const cargoReadinessRaw = String(mapped['cargo_readiness_date'] ?? '').trim()
+    const cargoReadinessRaw = mapped['cargo_readiness_date']
     const cargoReadinessDate = parseDateBR(cargoReadinessRaw)
-    if (cargoReadinessRaw && cargoReadinessDate === null) {
+    if (cargoReadinessRaw !== null && cargoReadinessRaw !== undefined && String(cargoReadinessRaw).trim() && cargoReadinessDate === null) {
       rowErrors.add(
         rowNumber,
-        `BL ${blNumber}: Cargo Readiness Date inválida (${cargoReadinessRaw}). Use DD/MM/AAAA.`,
+        `BL ${blNumber}: Cargo Readiness Date inválida (${String(cargoReadinessRaw).trim()}). Use DD/MM/AAAA.`,
         row,
       )
     }
@@ -247,8 +250,13 @@ function parseGraniteNumber(
   return number
 }
 
-function parseDateBR(value: string): string | null {
-  if (!value) return null
+function parseDateBR(value: unknown): string | null {
+  if (value instanceof Date) {
+    if (!Number.isFinite(value.getTime())) return null
+    const date = `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`
+    return IsoDateSchema.safeParse(date).success ? date : null
+  }
+  if (typeof value !== 'string' || !value.trim()) return null
   // dd/mm/yy or dd/mm/yyyy
   const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
   if (!match) return null

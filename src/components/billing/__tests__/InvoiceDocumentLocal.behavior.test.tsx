@@ -33,6 +33,7 @@ it('imprime recibo de taxas locais sem PIX e com o mesmo conteúdo da fatura', (
   expect(screen.getByText('Pago em 25/06/2026')).toBeTruthy()
   expect(screen.getByText('Taxa manual')).toBeTruthy()
   expect(screen.getByText('1/7')).toBeTruthy()
+  expect(screen.getByText('Fração do container compartilhado')).toBeTruthy()
   expect(screen.queryByText('0.142857')).toBeNull()
   expect(screen.queryByText('PAGAMENTO VIA PIX')).toBeNull()
   expect(screen.queryByText(pixPayload)).toBeNull()

@@ -95,7 +95,7 @@ export function auditMigration(sql, { legacy = false } = {}) {
   return { destructive: true, statements, declared }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql')).sort()
   const offenders = []
   let destructiveCount = 0

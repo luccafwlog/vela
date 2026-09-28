@@ -6,7 +6,7 @@
 
 **Architecture:** Preservar Page → Hook → Service → RPC/RLS e os domínios separados de Taxas Locais e Demurrage. Concentrar mudanças que precisam ser indivisíveis em RPCs; persistir efeitos recuperáveis na transação de origem e executá-los com idempotência, estados explícitos e auditoria. Evoluir schema e consumidores por expansão, migração e contração, mantendo snapshots financeiros e históricos append-only.
 
-**Tech Stack:** React, TypeScript, TanStack Query, Zod, Vitest, PostgreSQL/Supabase, Deno Edge Functions, pg_cron/Vault, Resend, GitHub Actions e Vercel; versões conforme o lockfile e o workflow vigentes.
+**Tech Stack:** React, TypeScript, TanStack Query, Zod, Vitest, PostgreSQL/Supabase, Deno Edge Functions, pg_cron/Vault, Resend, GitHub Actions e Cloudflare Pages (hospedagem atual); versões conforme o lockfile e o workflow vigentes.
 
 ---
 
@@ -170,7 +170,9 @@ As entregas desta etapa foram feitas no worktree isolado, preservando a ordem Pa
   versão 2.10.0 e do Manual BR Code versão 2.0.1 confirmou que o txid estático
   fica em `62-05`, com `***` como ausência e limite de 25 caracteres; o
   Merchant Account 26 não recebe esse campo. O campo 54 continua opcional,
-  decimal e limitado a 13 caracteres.
+  decimal e limitado a 13 caracteres. Em 2026-09-28, o BCB confirmou que a
+  versão 2.10.0 do MPI foi divulgada pela IN BCB 769, publicada em 2026-08-19;
+  o Informe 6/2020 publica a versão 2.0.1 do Manual BR Code ([MPI 2.10.0](https://www.bcb.gov.br/detalhenoticia/21252/noticia), [Informe 6/2020](https://www.bcb.gov.br/content/estabilidadefinanceira/arranjos_informes/Informe6_2020.pdf), [Manual BR Code](https://www.bcb.gov.br/content/estabilidadefinanceira/spb_docs/ManualBRCode.pdf)).
 - **Decoder independente:** `src/lib/pixDecoder.ts` valida a árvore TLV, o
   CRC-16/CCITT-FALSE, GUI/chave, moeda, país, limites e charset do subconjunto
   Pix estático emitido pela aplicação. O vetor oficial do Manual Pix termina
@@ -339,12 +341,10 @@ ser promovido a concluído apenas porque o caminho principal está verde.
   reconciliação de cliente em Granito. Evidência: testes focados de importação,
   fixture QA de veículos, fixture QA de Vazios IMP, Baplie, encoding e
   identidade.
-- [ ] **S03 residual:** fechar o gate com uma planilha COSCO/Granito real
-  anonimizada autorizada e executar a suíte integral nesta linha. Os contratos
-  de ISO, tara, datas/ordem, portos, linha física, detecção de formato e
-  relatório compartilhado já foram entregues; o bloqueio padrão de
-  `rowErrors` tem override explícito nas superfícies aplicáveis e não substitui
-  os bloqueios de documento/viagem.
+- [x] **S03 residual:** fixture COSCO/Granito real autorizada e anonimizada
+  adicionada; o parser lê células numéricas nativas, preserva datas e reconhece
+  as variantes COSCO de cabeçalho. O gate focado passou 162 testes e a suíte
+  completa passou 3.637 testes (39 arquivos/207 testes ignorados).
 - [x] **S04/S05 código:** caudas de veículo, Granite e Breakbulk, relatório
   durável por unidade e consumidores server-side foram completados na migration
   `031_import_effect_consumers.sql`, com teste focado e integração de Granito.
@@ -384,12 +384,76 @@ ser promovido a concluído apenas porque o caminho principal está verde.
   de qualquer `DROP RESTRICT`; manter funções fechadas se a ausência externa não
   puder ser provada e deixar DV sem bloqueio até decisão de dados reais.
 
-**Regra de encerramento:** o agente seguinte deve marcar um bullet como `[x]`
-somente depois de implementar, testar e registrar a evidência específica. Não
-marcar uma seção inteira por herança: S03, S04/S05, S08-C, S09 runtime, S10,
-S12, S13 e S14 ainda têm bullets abertos. O plano só pode ser arquivado quando
-esses bullets estiverem concluídos, aceitos formalmente ou reclassificados com
-uma decisão registrada.
+**Regra de encerramento:** marcar um bullet como `[x]` somente depois de
+implementar, testar e registrar a evidência específica. Não marcar uma seção
+inteira por herança: S04/S05, S08-C, S09 runtime, S10, S12, S13 e S14 ainda
+têm bullets abertos. O plano só pode ser arquivado quando esses bullets
+estiverem concluídos, aceitos formalmente ou reclassificados com uma decisão
+registrada.
+
+### 1.0.14 Fixture COSCO anonimizada e correção do leitor numérico — 2026-09-28
+
+- **S03/P0:** uma planilha COSCO autorizada foi anonimizada em
+  `test-fixtures/qa-cosco-booking.xlsx`, preservando os 19 registros, os
+  cabeçalhos e os tipos das células. Identificadores, nomes, observações,
+  categorias e medidas foram substituídos por valores QA; a rota também é
+  sintética. A verificação encontrou apenas rótulos genéricos de restrição
+  parcial repetidos, nenhum identificador longo e nenhuma fórmula.
+- O parser agora usa números nativos do Excel em vez da formatação de exibição,
+  preserva datas nativas como ISO e reconhece as variantes COSCO com crase nos
+  cabeçalhos de volume e peso do shipper. O arquivo recebido tinha assinatura
+  XLSX embora usasse extensão `.xls`; o teste reproduz esse caso.
+- **Evidência local:** parser da fixture importa 19 B/Ls sem erros; gate focado
+  de 12 arquivos de importação passou com 162 testes, incluindo Baplie, EDI,
+  encoding, Granito, Vazios, Veículos e datas. A suíte completa passou com
+  3.638 testes e 207 ignorados em 704 arquivos.
+
+### 1.0.15 Unicidade S07 e fotografia remota — 2026-09-28
+
+- A migration forward `100_customer_communication_statusless_idempotency.sql`
+  faz preflight das identidades sem `status`, falha sem reconciliar/apagar
+  linhas e recria o índice único com `NULLS NOT DISTINCT`. O teste de contrato
+  passou (3 testes); `npm run migrations:check` passou após corrigir o guard de
+  execução Windows, e seu teste de CLI passou com 17 cenários.
+- Consulta somente leitura no Supabase de produção encontrou zero comunicados
+  e zero identidades duplicadas; `app_settings` não tem a linha singleton, por
+  isso não se afirma que a chave esteja explicitamente `false`. Nenhuma escrita
+  ou ativação foi feita.
+- Em 2026-09-28 foi criada a branch Supabase `auditorias-654-660`
+  (`etabadewsccfbzvyzdls`), sem copiar dados de produção, após confirmação da
+  tarifa de US$ 0,01344/h. A migration foi aplicada com sucesso e registrada
+  como `100_customer_communication_statusless_idempotency`; a consulta ao
+  catálogo confirmou o índice único sem `status`, `NULLS NOT DISTINCT`, zero
+  linhas e zero identidades duplicadas. Isso fecha o upgrade da migration em
+  Preview, mas não substitui o replay local em PostgreSQL, ainda bloqueado pela
+  ausência de credencial local/WSL, nem valida Edge/provedor ou Preview pareado
+  com SHA de PR.
+- O runner automático de Comunicados aparece ativo no `pg_cron`; 2.412 execuções
+  no período consultado terminaram sem erro. Isso não prova dispatch de email,
+  identidade do Edge atual, configuração da chave ou entrega pelo provedor.
+
+### 1.0.16 Rateio visível e diagnóstico de B/Ls irmãos — 2026-09-28
+
+- A fatura impressa agora explica que uma quantidade como `1/7` é fração do
+  container compartilhado; o teste de comportamento do documento passou com
+  seis casos.
+- Consulta somente leitura agregada por viagem/container normalizado comparou
+  presença de CE, estado de cálculo/faturamento e existência de invoice não
+  cancelada. O retrato atual encontrou zero grupos com container compartilhado
+  e zero divergências. A consulta não expôs B/Ls nem alterou/recalculou dados.
+- A base consultada contém somente fixtures, conforme `AGENTS.md`, e não há
+  histórico de eventos de CE nesta verificação; portanto, o resultado não prova
+  ausência de ocorrências em operações reais nem encerra a decisão operacional
+  se uma ocorrência real for apresentada.
+- **Gates locais:** `typecheck`, `lint`, `docs:check` (181 Markdown/55 rotas),
+  `migrations:check` (99 migrations ativas, incluindo a 100), build, limites de
+  bundle e `git diff --check` passaram. Os testes focados de fatura/Clientes,
+  `setup-local-pg`, VoyageRail e import atômico passaram em duas execuções
+  isoladas (21 e 13 testes; a fatura aparece nas duas).
+- **Suíte ampla:** com timeout de 15 s, Vitest executou 704 arquivos: 3.637
+  testes passaram, 207 foram ignorados e um teste de VoyageRail expirou sob
+  carga; o mesmo arquivo passou isoladamente. Não registrar o gate integral
+  como totalmente verde até uma execução sem timeouts.
 
 ### 1.1 Baseline e alcance da evidência
 
@@ -430,6 +494,57 @@ continuam como histórico de diagnóstico, não como estado atual.
 precisa comprovar secret/Vault/Edge e login QA no ambiente correto; nenhuma
 credencial de produção deve ser usada como fallback.
 
+### 1.4 Fila consolidada das pendências — 2026-09-28
+
+As caixas abertas nas seções executivas, tarefas e validação repetem provas.
+Esta fila as consolida por risco e dependência; os checklists detalhados seguem
+como registro da execução.
+
+1. **Concluído — P0 S03, integridade de ingestão.** Fixture COSCO/Granito
+   real autorizada e anonimizada em `test-fixtures/qa-cosco-booking.xlsx`; o
+   leitor foi corrigido para números nativos do Excel. O gate de parsers passou
+   162 testes focados e a suíte completa passou 3.638 testes, com 207 ignorados.
+2. **P1 — S08/S10, fronteiras financeiras.** A revisão normativa dos campos
+   cobertos foi concluída contra MPI 2.10.0/BR Code 2.0.1 em 2026-09-28;
+   repetir Demurrage sob roles reais no Preview; provar os
+   wrappers de ledger/readiness com BRL, USD, misto, revisão, cancelamento e
+   COD; reordenar/renderizar documentos. A impressão já explica a fração do
+   container compartilhado. A consulta diagnóstica de 2026-09-28 encontrou
+   zero grupos compartilhados na base de fixtures, resultado inconclusivo para
+   ocorrências reais; reabrir a decisão se houver evidência operacional.
+3. **P1 — S06/S07, comunicação.** Migration 100 remove `status` da identidade
+   única após preflight; a consulta somente leitura encontrou zero comunicados
+   e zero identidades duplicadas. Falta replay local/Preview, além de validar
+   limites do provedor, Edge e readiness. Manter `communications_enabled`
+   sem ativação: envio real depende da decisão D10 depois dos gates.
+4. **P1 — S09, PTAX.** Validar Edge, gateway JWT, Vault e falha/recuperação no
+   Preview; provar uma execução agendada e idempotente antes de ativar o job.
+   A ativação operacional permanece sujeita à autorização D08.
+5. **P1 — S05, efeitos pós-commit.** Provar worker, retry, alertas e atualização
+   por unidade no Preview após as dependências S04/S08/S10; manter fail-closed
+   até aprovação específica de rollout.
+6. **P2 — S12, volume e leitura.** Provar refresh de 30 s e startup autenticado
+   no Preview; revisar materialização de exportações explícitas; medir o
+   profiler antes de memoizar/virtualizar. Só criar paginação de supressões se
+   dados operacionais demonstrarem o teto; a base atual contém apenas fixtures.
+7. **P2 — S13, interação e acessibilidade.** Completar roteiro manual
+   autenticado de teclado, leitor de tela, tabelas restantes, modal sujo,
+   offline/reconnect e temas claro/escuro.
+8. **P2 — S14, rastreabilidade e legado.** Completar evidência de roles/RPCs e
+   apurar consumidores externos das funções/colunas. Sem prova de ausência
+   externa, manter funções fechadas e colunas; sem decisão D09, não restringir
+   login por DV nem remover `consignee_address`. Contagens de produção de
+   fixtures não demonstram comportamento em dados reais.
+9. **Gate transversal — ambiente e encerramento.** Em Preview, confirmar banco
+   e site da mesma PR/SHA (a hospedagem corrente é Cloudflare Pages, conforme
+   `docs/operations/servicos-externos.md`), migrations/Edge, perfis A/B e
+   roteiro por domínio; comprovar SQL, roles, rollback/upgrade e atualizar a
+   documentação viva. Smoke de produção só após deploy autorizado, somente
+   leitura e sem fixtures ou mensagens de teste.
+
+Não marcar prova de runtime como concluída por código, teste local ou
+configuração gravada. Se ambiente, fixture, decisão ou observabilidade
+bloquear uma prova, registrar o motivo no item e manter o plano vivo.
 ## 2. Matriz completa de classificação
 
 Categorias utilizadas literalmente: **Já corrigido**, **Mitigado parcialmente**, **Pendente**, **Aceito**, **Precisa de investigação**. Uma linha desdobrada pode ter classificação distinta da outra metade do mesmo achado. Toda linha pendente tem subprojeto; itens aceitos e já corrigidos não voltam como implementação.
@@ -513,9 +628,9 @@ Categorias utilizadas literalmente: **Já corrigido**, **Mitigado parcialmente**
 | F4 — autoridade server-side | Já corrigido no código | RPC autoritativo resolve containers, datas, tarifas/acordos/overrides, ROE/PTAX e PIX; snapshots append-only possuem versão/hash. A prova remota de roles e os fluxos financeiros residuais são pendência operacional/S10, não motivo para reimplementar o núcleo. | S08 runtime/S10 |
 | F4 — validade do cache | Já corrigido | Falha de refresh não renova `loadedAt`, o estado stale é exposto e emissão exige tarifa fresca; leitura pode manter dado antigo com erro/idade visíveis. | Regressão S08 |
 | F5 | Já corrigido no código | Override manual exige valor válido, `roe_source` é controlado e UPDATE direto de `roe`/`roe_manual` foi revogado; prova remota do writer interno segue em S09 runtime. | S09 runtime |
-| F6 — quantidade/fracionamento | Mitigado parcialmente | SQL distribui resíduo determinístico e documentos usam valor persistido; a apresentação da fração compartilhada ainda precisa explicar claramente `1/7` e a consulta diagnóstica de irmãos continua aberta. | S10 |
-| F6 — B/L irmão tardio | Aceito | Risco residual reconhecido pela ADR 0020, complemento de 06/08: irmãos recebem CE juntos. Não recalcular/faturar irmãos automaticamente sem mudança dessa premissa. Validar ocorrência atual e promover decisão se houver evidência. | S10 diagnóstico / D05 |
-| F7 | Já corrigido no código | Emissão SQL é a autoridade do payload PIX; browser não persiste uma versão financeira paralela. Ainda falta prova normativa/runtime independente. | S08-C/runtime |
+| F6 — quantidade/fracionamento | Mitigado parcialmente | SQL distribui resíduo determinístico e documentos usam valor persistido; a fatura agora identifica `1/7` como fração do container compartilhado. Falta a prova operacional combinada S10. | S10 runtime |
+| F6 — B/L irmão tardio | Aceito | Risco residual reconhecido pela ADR 0020, complemento de 06/08: irmãos recebem CE juntos. Consulta somente leitura de 2026-09-28 encontrou zero grupos compartilhados na base formada apenas por fixtures; isso não demonstra ausência em operações reais. Não recalcular/faturar irmãos automaticamente sem evidência e decisão. | S10 diagnóstico real / D05 |
+| F7 | Já corrigido no código | Emissão SQL é a autoridade do payload PIX; browser não persiste uma versão financeira paralela. A revisão normativa do BR Code estático coberto foi registrada em 2026-09-28; ainda falta a prova de runtime/PSP. | S08-C/runtime |
 | F8 | Mitigado parcialmente | Manual Pix 2.10.0/BR Code 2.0.1, decoder independente e correção dos subcampos 26/00+01, 62/05, campo 54, txid e CRC estão entregues na PR #681; QR dinâmico/composto e execução em PSP continuam fora do contrato. | S08-C/runtime |
 | F9 | Já corrigido no código | Snapshot inicial usa PTAX factual para origem BCB/cached e permite `ptax = NULL` somente para manual com ROE; migration 030 corrigiu a coluna real `ptax`. | Regressão S09 |
 | F10 | Já corrigido no código | Spread canônico está no cálculo SQL e os valores/versionamento são persistidos; manter uma única função ao evoluir. | Regressão S09 |
@@ -703,7 +818,7 @@ export type ParsedNumber =
 - [x] Separar completamente detecção de tipo e decode de XLS/XLSX, CSV e EDI, incluindo UTF-8/1252 estrito, bytes inválidos, BOM, assinatura posicional Mercante e heurística restrita para CSV de uma coluna. Evidência: `detectImportFormat`, `decodeImportBytes`, `inspectImportFile` e vetores em `importText.test.ts`; o preview mostra o formato e encoding selecionados.
 - [x] Completar scanner Baplie por UNA/separadores/release character e por dialeto, com isolamento de grupos LOC/EQD, DGS/OOG, EOF e duplicata. Evidência: `baplieParserS03.test.ts` cobre ambos os sentidos LOC→EQD/EQD→LOC, separador de componente definido por UNA, DGS/DIM por EQD, trailer com conteúdo posterior e duplicata bloqueante.
 - [x] Completar a validação estrutural dos marcadores fixos de Granito/Vazios/Vazios IMP/COSCO: cabeçalhos obrigatórios são conferidos, preâmbulos são localizados sem perder a linha física e preview com erro só chega à RPC com `allowRowErrors` explícito. `locateHeaderRowIndex`, `readFirstSheetRows` e `resolvePortCode` foram reutilizados, sem duplicação. Evidência: `graniteParse.test.ts`, `vaziosImportacaoImport.test.ts`, `vaziosImportAdrColumns.test.ts`, `graniteImportAtomic.test.ts` e fixture QA de veículos.
-- [ ] Completar a prova com fixture COSCO/Granito real anonimizada autorizada; não inventar nem copiar dados de produção para teste.
+- [x] Completar a prova com fixture COSCO/Granito real anonimizada autorizada; substituir identificadores e métricas por valores QA e comprovar o parse de 19 B/Ls sem erros.
 - [x] Aplicar os contratos primitivos aos quatro fluxos: `IsoContainerSchema`/`IsoDateSchema`/`LocodeSchema`, parser numérico por origem e bloqueio de confirmação com override explícito de `rowErrors` nas superfícies que o oferecem. Erros de documento ou de viagem continuam bloqueantes, e `allowPending` não é usado como atalho para erros de linha. Evidência: `graniteParse.test.ts`, `vaziosImportacaoImport.test.ts`, `vaziosImportAdrColumns.test.ts`, `vehicleImport.test.ts`, `portCode.test.ts`, `importOverrideWiring.test.ts`, `FileImportModal.test.tsx`, `VoyageImportActions.behavior.test.tsx` e `Granite.behavior.test.tsx`.
 - [x] Canonicalizar tokens de navio em `vesselAlias.ts`/`voyages.ts` com IMO prioritário, conflito explícito e regressão de IMOs distintos. Não resolver ambiguidade com `.find()`; evidência nos testes `vesselAliasS03.test.ts` e `voyageIdentityS03.test.ts`.
 - [x] Baplie já expõe issues bloqueantes, contagens e relatório de preview.
@@ -714,7 +829,7 @@ export type ParsedNumber =
 - [x] Completar o mesmo contrato nas superfícies customizadas de arquivo,
   incluindo o upload Baplie de arquivo único. O hook compartilhado descarta
   respostas tardias e os modais não chamam persistência após cancelamento.
-- [ ] Executar o gate completo de parsers depois dos itens acima, incluindo fixtures reais anonimizados, encoding, Baplie e identidade. Não usar a suíte verde atual como prova de P0-4 ou dos contratos ainda não cobertos.
+- [x] Executar o gate completo de parsers depois dos itens acima, incluindo fixture COSCO anonimizada, encoding, Baplie e identidade. Evidência: 162 testes focados e suíte completa com 3.637 testes aprovados; contratos fora deste escopo continuam cobertos pelos respectivos gates.
 
 **Compatibilidade / rollout:** conservar assinatura dos imports ou adaptar todos os callers no mesmo PR; avisar rejeições novas no preview. Não reprocessar lotes antigos nem fundir viagens já existentes automaticamente. **Testes:** unitários acima, integração parse→preview→RPC de Granito para verificar peso e valor, regressão de templates e EDI, runtime com arquivo real e alias. **Aceite:** nenhum campo inválido vira zero/null silenciosamente; duas unidades Baplie não trocam peso/POL/POD; nenhuma duplicata por alias conhecido e nenhum merge de IMO distinto. **Residual:** formatos não suportados são recusados com diagnóstico; cadastro amplo de aliases/UNLOCODE e worker exigem medição. **Ordem:** três PRs pequenos; precisão primeiro.
 
@@ -804,7 +919,7 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Aplicar transições por evento/horário sem regressão; bounce/complaint preservam natureza da supressão e stale transitions são ignoradas.
 - [x] Persistir estado explícito `parcial` quando uma comunicação tem destinatários mistos; `dispatch_mode` fica na tentativa e a RPC/trigger recalcula o cabeçalho sem achatar combinações distintas. A prova de deploy/provedor permanece pendente.
 - [x] Trocar novas chaves de dunning para comunicação/contato/versão do destinatário, sem email em claro; não reescrever identidades históricas.
-- [ ] Remover `status` mutável da unicidade lógica de `customer_communications` após preflight/reconciliação das referências antigas; a membership D11 reduz o risco, mas não substitui esta contração.
+- [x] Aplicar e validar a migration 100 em Supabase Preview descartável: preflight sem duplicatas, índice único sem `status` e `NULLS NOT DISTINCT` confirmados no catálogo, sem linhas copiadas. Replay local em PostgreSQL e Preview pareado com SHA de PR continuam pendentes; a migration falha fechada sem apagar ou fundir comunicados e mantém referências às tentativas.
 - [x] Fechar readiness de `ce_mercante_taxas` na criação/claim/envio; a RPC server-side com locks e a revalidação do Edge impedem criação/claim/dispatch sem CE, revisão liberada e financeiro concluído para todos os B/Ls ativos. A prova de Preview/provedor permanece pendente.
 - [x] Executar testes de webhook, dispatch, dunning e inbox; commit de referência: `ff44e1bb`.
 
@@ -859,7 +974,7 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 
 - [x] Executar os testes de dinheiro, desconto, emissão atômica, documento e PIX; todos os gates locais/CI passaram. Commits de referência: `d47a5b6c`, `ff44e1bb`, `c9c1b081`.
 
-**Compatibilidade / rollout:** migration expansiva e wrappers antes dos callers; bloquear escrita antiga ao promover contratos seguros, com tratamento de app desatualizado. Autorizar arquivos protegidos conforme §9, sem editar histórico aplicado. **Runtime:** emissão → Portal/impresso/QR → recálculo → pagamento com QR anterior → tentativa repetida → consulta de histórico. **Aceite:** total exibido = persistido = QR; pagamento válido encerra recálculo, inválido não escreve; somente writers autorizados alteram dinheiro. **Status:** F4 server authority foi implementada e formalizada na ADR 0065; F8 permanece pendente de conformidade normativa e a ativação autônoma depende das provas de S09. O snapshot não recupera uma PTAX histórica que nunca foi gravada. **Ordem:** A cedo, B após S09/D02, C após confirmação normativa.
+**Compatibilidade / rollout:** migration expansiva e wrappers antes dos callers; bloquear escrita antiga ao promover contratos seguros, com tratamento de app desatualizado. Autorizar arquivos protegidos conforme §9, sem editar histórico aplicado. **Runtime:** emissão → Portal/impresso/QR → recálculo → pagamento com QR anterior → tentativa repetida → consulta de histórico. **Aceite:** total exibido = persistido = QR; pagamento válido encerra recálculo, inválido não escreve; somente writers autorizados alteram dinheiro. **Status:** F4 server authority foi implementada e formalizada na ADR 0065; a revisão normativa dos campos Pix estáticos cobertos foi concluída contra MPI 2.10.0/BR Code 2.0.1, mas isso não comprova runtime em PSP nem QR dinâmico/composto. A ativação autônoma depende das provas de S09. O snapshot não recupera uma PTAX histórica que nunca foi gravada. **Ordem:** A cedo, B após S09/D02, C após a revisão normativa registrada.
 
 ### S09 — ROE/PTAX com procedência e recálculo agendado
 
@@ -915,7 +1030,7 @@ SELECT cron.schedule(
 - [ ] Completar a prova operacional combinada BRL/USD/misto/review/cancelado em todos os wrappers.
 - [x] Manter precisão do rateio e a distribuição SQL do resíduo; o impresso identifica a fração e usa o total persistido. A cobertura local inclui compartilhamento/centavos.
 - [ ] Fechar o roteiro de reordenação e renderização de todos os documentos em Preview.
-- [ ] Fazer consulta diagnóstica de irmãos com CE/faturamento em momentos divergentes, sem recalcular, e levar ocorrência real à operação se existir. Não cancelar/reemitir irmãos nem alterar documento pago automaticamente.
+- [x] Fazer consulta diagnóstica somente leitura de irmãos, sem recalcular: em 2026-09-28, agregação por viagem/container normalizado encontrou zero grupos de containers compartilhados e zero divergências de presença de CE, estado de cobrança, estado financeiro ou presença de invoice não cancelada. A base consultada contém somente fixtures; a consulta retrata estado atual, não histórico nem ocorrência real. Se surgir ocorrência real, encaminhar para decisão sem cancelar/reemitir irmãos nem alterar documento pago automaticamente.
 - [x] Implementar o núcleo server-side de critérios de acesso à emissão (conta ativa, acesso utilizável, `auth_user_id`, `recovery_email` válido/não suprimido) nos wrappers individual/consolidado/Granito; cálculo continua separado do gate.
 - [ ] Validar o gate completo no ambiente operacional.
 - [x] Fazer overloads de pendências delegarem ao mesmo contrato, com precedência cliente → cálculo → CE → Portal e motivo Portal distinto de “Cálculo incompleto”. CE não foi introduzido no gate de revisão que deliberadamente não o exige.
@@ -1062,14 +1177,14 @@ Os nomes abaixo registram a sequência planejada e o estado observado na linha a
 | 05 | `[x]` + `[ ]` runtime | Preservar procedência e recálculo diário | S09; `018_exchange_rate_provenance.sql` + `024_demurrage_ptax_alert.sql` | Código, retry/alerta e configuração fail-closed estão prontos; Preview/Vault/Edge/cron e execução agendada real continuam pendentes. |
 | 06 | `[x]` | Restaurar Inspeção de disputas, páginas e tipos | S11; `013_portal_disputes_inspection.sql` + `021_portal_billing_pages.sql` | Paridade de escopo, paginação, tipos e adapters passaram; regenerar apenas após nova migration. |
 | 07 | `[x]` | Corrigir coerção numérica | S03/P0-1; sem migration | Callers e vetores numéricos estão corrigidos/testados. |
-| 08 | `mitigado` + `[ ]` | Corrigir bytes, grupos Baplie e schemas | S03/P0-2/P0-3 | Encoding, scanner Baplie (UNA/dialetos/grupos/EOF), schemas concretos, relatório uniforme e progresso/cancelamento nas superfícies cobertas estão entregues; marcadores/fixtures residuais continuam abertos. |
+| 08 | `mitigado` + `[x]` | Corrigir bytes, grupos Baplie e schemas | S03/P0-2/P0-3 | Encoding, scanner Baplie (UNA/dialetos/grupos/EOF), schemas concretos, relatório uniforme, progresso/cancelamento e fixture real COSCO anonimizada passaram nos gates locais; Preview/run-time permanece separado. |
 | 09 | `[x]` | Unificar identidade de navio/viagem | S03/P0-4; sem migration | Alias canônico com IMO prioritário, conflito explícito e regressão de IMOs distintos em `vesselAlias.ts`/`voyages.ts` foram implementados e testados. |
 | 10 | `[x]` + `[ ]` escopo externo | Fixar snapshot de Demurrage e escritor PIX | S08-B/C; `023_demurrage_calculation_snapshot.sql` + `030_fix_demurrage_snapshot_ptax_column.sql` + `034_pix_static_payload_normative_fixes.sql` | Autoridade server-side, snapshot, QR SQL e decoder independente do QR estático estão implementados/testados; runtime em PSP e QR dinâmico/composto permanecem fora do escopo. |
 | 11 | `[x]` | Aplicar datas/flags em transação | S04/P1-01; `015_import_dates_and_flags_atomic.sql` | Atomicidade por B/L, auditoria e flags físicas estão cobertas; não repetir. |
 | 12 | `[x]` | Fechar metadados e conflito de omissão | S04/P2-01/P3-01; `016_import_metadata_and_omission_conflicts.sql` | Metadados, CE e omissão/conflitos estão implementados/testados; não repetir o núcleo. |
 | 13 | `mitigado` + `[ ] runtime` | Persistir efeitos e relatório de import | S05; `017_import_effects_outbox.sql` + `025_import_effect_worker.sql` + `026_import_effect_alert.sql` + `031_import_effect_consumers.sql` | Outbox/claim/lease/retry, consumidores server-side e painel reabrível por unidade passaram na prova local; Preview, secrets/Vault/Edge e ativação controlada do worker continuam pendentes. |
 | 14 | `[x]` + `[ ]` runtime | Fechar readiness de emissão e comunicação | S10/F12; `033_customer_communication_readiness_guards.sql` | Guarda server-side de comunicação aplicada em criação/claim/envio, com lock e identidade de sistema; gate de emissão/Portal e prova de runtime continuam pendentes. |
-| 15 | `[x]` + `[ ]` runtime | Persistir inbox e estados de envio | S07; `022_email_inbox_and_dispatch_state.sql` + `032_customer_communication_partial_status.sql` + `038_customer_communication_status_recipient_latest.sql` | Inbox, dedup, stale events, recuperação, estado explícito `parcial` e agregação da tentativa mais recente por destinatário estão entregues; índice sem `status`, deploy/Edge e provedor continuam pendentes. |
+| 15 | `[x]` + `[ ]` runtime | Persistir inbox e estados de envio | S07; migrations `022`, `032`, `038` e `100` | Inbox, dedup, stale events, recuperação, estado `parcial` e agregação da última tentativa estão implementados; a migration 100 foi aplicada e conferida em Supabase Preview vazio. Replay local, Preview pareado ao SHA de PR, deploy/Edge e prova do provedor continuam pendentes. |
 | 16 | `[x]` + `[ ]` | Fechar ledger, status/itens e rateio do impresso | S10/F14; `019_local_billing_integrity.sql` | D05/R$0,01 e integração local passaram; casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
 | 17 | `mitigado` + `[ ]` | Paginar listas e concluir projeção compartilhada | S12; `020_operational_read_pages.sql`, `035_operational_voyage_summaries.sql`, `036_operational_breakbulk_summary_metrics.sql`, `037_operational_voyage_summary_null_status.sql` e páginas Portal | Projeções, paginação/window, resumo de viagem sob demanda, Line Up sem waterfall de containers, resumo BB server-side, fallback forward de status nullable e filtros principais estão entregues; exportações sob demanda, refresh de Preview e profiler faltam. |
 | 18 | `mitigado` + `[ ]` | Debounce, offline, feedback e acessibilidade | S13; sem migration | Debounce, estados de erro/offline, hidratação, confirmações/menu e progresso/cancelamento nos modais múltiplos e customizados estão entregues; contraste, leitor de tela/foco manual e cessão entre blocos faltam. |
@@ -1082,7 +1197,7 @@ PRs 07–09 e 18 podem avançar antes de 04–06 por serem independentes de SQL;
 
 ### 6.1 Camadas de prova e comandos
 
-**Nesta revisão do plano:** o código da PR 670 já foi validado pelos gates registrados em 1.0.1/1.0.2; para esta edição documental, executar `npm run docs:check` e `git diff --check`. Não confundir esses gates com prova de runtime remoto: Preview/Vault/Edge/cron, provedor de email, decoder BCB e benchmark continuam explicitamente pendentes onde marcados acima.
+**Nesta revisão do plano:** o código da PR 670 já foi validado pelos gates registrados em 1.0.1/1.0.2; para esta edição documental, executar `npm run docs:check` e `git diff --check`. Não confundir esses gates com prova de runtime remoto: Preview/Vault/Edge/cron, provedor de email, validação Pix independente em PSP e benchmark autenticado continuam explicitamente pendentes onde marcados acima.
 
 **Na execução de cada PR:** Node conforme `package.json` (24.x no baseline), dependências pelo lockfile e os testes estreitos indicados no subprojeto. Confirmar RED pelo comportamento que se quer corrigir, não por import quebrado acidental. Depois da correção, confirmar GREEN e executar gates aplicáveis:
 
@@ -1170,7 +1285,7 @@ Os testes existentes de listeners, guarda de Preview e HSTS são **regressão**,
 
 ### 6.4 Preview e produção
 
-- [ ] Supabase branch e Vercel Preview apontam para o mesmo ambiente da PR e SHA; a fixture QA é exclusiva da branch. Confirmar por referência de projeto, nunca imprimindo keys.
+- [ ] Supabase branch e Cloudflare Pages Preview apontam para o mesmo ambiente da PR e SHA; a fixture QA é exclusiva da branch. Confirmar por referência de projeto, nunca imprimindo keys.
 - [ ] SQL e Edge Functions correspondem ao contrato novo; conferir status da integração e testar RPC via PostgREST. Um frontend verde não prova migration ou Edge publicada.
 - [ ] Usar clientes A/B e perfis internos sintéticos, faturas/containers e endereços QA controlados. Exercitar Inspeção sem sessão de Portal emprestada.
 - [ ] Executar roteiro por domínio, registrando SHA, migration, ambiente, passos, resultado e evidência; falha impeditiva permanece aberta. “Não executado” deve ter motivo, nunca ser apresentado como PASS.
@@ -1183,7 +1298,7 @@ Os testes existentes de listeners, guarda de Preview e HSTS são **regressão**,
 
 1. **Preflight:** registrar catálogo/ACLs/jobs, dados incompatíveis, duplicatas por nova identidade, valores negativos e histórico sem fonte. Volume zero da auditoria histórica não dispensa preflight atual. Não modificar dados para fazer constraint passar sem decisão rastreável.
 2. **Expansão:** novas colunas nullable/default seguro, RPCs novas/wrappers compatíveis, CHECKs que aceitam transição de estados, tipos regenerados e UI que lê velho/novo. Não ligar produtor de estado que o consumidor ainda não entende.
-3. **Publicação:** migrations pelo fluxo GitHub/Supabase da ADR 0056; Edge Functions e secrets pelo procedimento próprio do ambiente; frontend pelo Vercel. Vercel não é mecanismo de deploy de SQL/Edge. Confirmar artefatos de cada camada antes de liberar.
+3. **Publicação:** migrations pelo fluxo GitHub/Supabase da ADR 0056; Edge Functions e secrets pelo procedimento próprio do ambiente; frontend pelo Cloudflare Pages. A hospedagem frontend não publica SQL nem Edge Functions. Confirmar artefatos de cada camada antes de liberar.
 4. **Migração de consumidores:** caller novo usa contrato novo; atualizações de segurança podem negar cliente antigo com mensagem de recarga. Nunca manter caminho antigo vulnerável indefinidamente para compatibilidade. Remover permissões de escrita direta financeira com estratégia conhecida para abas antigas.
 5. **Ativação:** jobs/worker primeiro inativos; segredo no Vault e Edge por ambiente, autenticação e simulação validadas; ativação auditada. Sem habilitar chave global de envio nesta execução de plano nem por efeito colateral de migration.
 6. **Contração:** retirar contrato/coluna legado somente após observar consumidores e preservar backup específico; DROP RESTRICT. Não reescrever 001–008 ou migrations_archive, não executar reset em produção e não usar ferramenta que gere migration timestamp fora da convenção numerada.
@@ -1238,7 +1353,7 @@ Não repetir as correções factuais da #659: `/line-up-tv` continua catch-all, 
 | #659 — tetos distantes | `useTransshipments` N+1 por viagem, alertas por página, ATD sequencial por auditoria, Vault por disparo e ZIP sem Zip64 não tiveram teto atual demonstrado. | Request/p95/volume acima de orçamento; ZIP próximo de 65535 entradas/4 GB exige outro desenho, não elevar limite silenciosamente |
 | Histórico de teste do squash | Archive é evidência histórica útil; removê-lo não melhora prova ativa. | Migrar invariantes críticas incrementalmente para catálogo/replay executado |
 
-Os riscos aceitos não autorizam chamar itens pendentes de corrigidos. D02 já foi implementada no núcleo server-side e formalizada na ADR 0065; o que permanece é runtime/worker e a prova normativa independente de F8. A premissa operacional de F6 permanece aceita; a decisão do centavo em D05 não a altera. Sem consultar a norma vigente não declarar “PIX conforme BCB”. F2 tem correção de código, mas qualquer conclusão de explorabilidade ainda exige prova sob roles reais.
+Os riscos aceitos não autorizam chamar itens pendentes de corrigidos. D02 já foi implementada no núcleo server-side e formalizada na ADR 0065; o que permanece é runtime/worker e validação independente em PSP para o escopo estático coberto. A revisão normativa contra as versões vigentes do MPI e BR Code foi registrada em 2026-09-28, sem alegar conformidade geral Pix. A premissa operacional de F6 permanece aceita; a decisão do centavo em D05 não a altera. F2 tem correção de código, mas qualquer conclusão de explorabilidade ainda exige prova sob roles reais.
 
 ## 9. Lacunas e decisões que exigem confirmação na execução
 
@@ -1250,7 +1365,7 @@ D02, D04, D05 (centavo local) e D11 foram respondidas pelo usuário após a revi
 | D02 — autoridade do cálculo de Demurrage | **Aprovada pelo usuário e implementada:** núcleo server-side com preview versionado, preservando precedência de tarifas/acordos/overrides; supersessão parcial da ADR 0026 formalizada na ADR 0065. | Decisão respondida; falta validar runtime e worker autônomo, sem nova confirmação da escolha |
 | D03 — unidade de import | Atomicidade por B/L em datas/CE, por cliente em cadastro e conjunto físico por viagem em Baplie; relatório por unidade. | Operação; se exigir arquivo inteiro, contrato muda antes do SQL, nunca simular all-or-nothing no modal |
 | D04 — aviso de bounce e chave global | **Decidida e implementada:** o aviso externo também é silenciado pela chave de Comunicados; supressão, reparo e alerta interno permanecem ativos. | Decisão respondida; manter regressão e não ativar envio real sem D10 |
-| D05 — centavo local e compartilhamento tardio | **Decidida e implementada no ledger:** manter qualquer saldo positivo em aberto, sem baixa automática; R$ 0,01 importa. Tolerância de Demurrage permanece separada. A premissa de CE simultâneo não foi alterada. | F14 entregue; F6 continua diagnóstico e qualquer automação adicional exige ocorrência/decisão específica |
+| D05 — centavo local e compartilhamento tardio | **Decidida e implementada no ledger:** manter qualquer saldo positivo em aberto, sem baixa automática; R$ 0,01 importa. Tolerância de Demurrage permanece separada. A premissa de CE simultâneo não foi alterada. A consulta atual somente leitura encontrou zero grupos compartilhados, mas a base contém apenas fixtures. | F14 entregue; automação adicional exige ocorrência real e decisão específica |
 | D06 — câmbio manual e sanidade | Positivo/finito obrigatório; limite de variação e eventual override exigem justificativa/ator e parâmetro aprovado, sem transformar toda escrita em admin. | Financeiro/Administrativo; bloqueia valor do teto, não procedência/cron/erro de fonte |
 | D07 — retenção de PII e dados históricos | Payload mínimo de inbox e relatório, acesso restrito, prazo conforme política da organização; manter chaves antigas que sustentam dedup sem reenvio. | Responsável de dados/Administrativo; bloqueia expurgo/pseudonimização destrutiva, não chave nova sem email |
 | D08 — arquivos protegidos e deploy | Obter autorização explícita para os arquivos protegidos que a entrega realmente precisa e para rollout com dados/segredos do ambiente. | Usuário na sessão de implementação; `AGENTS.md` e `.claude/hooks/protect-files.sh` proíbem bypass sem autorização |
@@ -1258,7 +1373,7 @@ D02, D04, D05 (centavo local) e D11 foram respondidas pelo usuário após a revi
 | D10 — liberação de email real | Manter estado atual da chave; autorizar canário e recorte real somente após S06/S07/readiness validados. | Administrativo conforme ADR 0059; nenhum envio nesta sessão |
 | D11 — volume de cobrança por cliente | **Decidida e implementada em S06/S07:** agrupar cobranças elegíveis por cliente/ciclo e destinatário, preservando faturas individuais, suas condições e repetição semanal até quitação. Não consolidar débitos nem descartar cobranças. | Decisão respondida; validar composição/limites/provedor, retry e rastreabilidade antes de liberar envio real |
 
-**Investigações técnicas sem decisão comercial:** efeito do gateway JWT no cron e execução real (S09); decoder/norma BR Code vigente (S08-C); contraste e roteiro manual de P3-03/teclado/leitor de tela (S13); profiler/benchmark (S12/S13); dependências/uso externo das 14 funções e quatro colunas e DV (S14). O antigo `skipped` de S02 já possui tratamento fail-closed e não é pendência desta linha. Cada investigação termina com evidência e classificação atualizada, não com mudança especulativa.
+**Investigações técnicas sem decisão comercial:** efeito do gateway JWT no cron e execução real (S09); validação do Pix estático em PSP/runtime, sem estender a conclusão a QR dinâmico/composto (S08-C); contraste e roteiro manual de P3-03/teclado/leitor de tela (S13); profiler/benchmark autenticado (S12/S13); dependências/uso externo das 14 funções e quatro colunas e DV (S14). O antigo `skipped` de S02 já possui tratamento fail-closed e não é pendência desta linha. Cada investigação termina com evidência e classificação atualizada, não com mudança especulativa.
 
 ### Checklist de revisão do plano
 
