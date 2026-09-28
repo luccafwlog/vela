@@ -498,6 +498,25 @@ registrada.
   acessível. Nenhum email enviado deve ser registrado sem confirmação do
   provedor; o link e a criação de senha ainda não foram usados para login.
 
+### 1.0.18 Readiness de jobs e ACL financeira no Preview — 2026-09-28
+
+- **S05/S09 — evidência operacional parcial:** as Edge Functions
+  `import-effects-runner` e `recalc-demurrage-ptax` estão `ACTIVE` no Preview,
+  mas a consulta a `cron.job` não encontrou jobs correspondentes e o Vault não
+  contém os secrets dedicados consultados. Nenhum job foi ativado ou invocado;
+  worker e recálculo seguem fail-closed, como exige D10.
+- **S07 — escopo de comunicação:** `communications_enabled` permanece `false`
+  no Preview. A autorização do convite individual não alterou a chave global.
+- **S08-A — ACL observada no catálogo Preview:** `anon` não tem INSERT/UPDATE
+  em `demurrage_invoice_history` nem EXECUTE em `register_demurrage_payment`;
+  `authenticated` não escreve diretamente no histórico, mas pode chamar a RPC;
+  `service_role` mantém a escrita necessária. Isso confirma privilégios no
+  catálogo, não exercita PostgREST, RLS ou a guarda de ator da RPC; a prova
+  operacional S08 continua aberta.
+- **S12/S13/S14:** permanecem pendentes conforme a matriz; esta revisão não
+  executou profiler autenticado, ensaio manual completo de acessibilidade nem
+  investigação de consumidores externos.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
