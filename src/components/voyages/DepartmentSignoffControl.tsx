@@ -75,6 +75,11 @@ export function DepartmentSignoffControl({
             ? <>Reabrir o sign-off de <strong>{label}</strong> exige justificativa e fica no histórico.</>
             : <>Assinar por <strong>{label}</strong>, confirmando que todas as suas seções refletem a realidade da escala?</>}
         </p>
+        <dl className="mt-3 grid gap-2 rounded-lg border border-[var(--app-border)] p-3 text-sm">
+          <div className="flex justify-between gap-4"><dt className="text-[var(--app-muted)]">Antes</dt><dd>{signed ? 'Assinado' : 'Pendente'}</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-[var(--app-muted)]">Depois</dt><dd>{action === 'reopen' ? 'Pendente' : 'Assinado'}</dd></div>
+        </dl>
+        <p className="mt-3 text-sm text-[var(--app-muted)]">O sign-off fica registrado no ADR. Depois de assinado, só pode ser reaberto com justificativa e registro no histórico.</p>
         {action === 'reopen' ? (
           <label htmlFor={textareaId} className="mt-3 grid gap-2 text-sm">
             Justificativa

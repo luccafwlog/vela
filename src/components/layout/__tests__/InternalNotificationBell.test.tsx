@@ -57,6 +57,11 @@ const mockFallbackNotification: InternalNotification = {
 const mutateMarkReadMock = vi.fn().mockResolvedValue(undefined)
 const mutateMarkAllReadMock = vi.fn().mockResolvedValue(1)
 const showToastMock = vi.fn()
+const confirmMock = vi.hoisted(() => vi.fn((options: { title?: string; message: string }) => {
+  void options
+  return Promise.resolve(true)
+}))
+const notificationServiceMocks = vi.hoisted(() => ({ listAllUnread: vi.fn() }))
 
 // O sino recebe so a chave surrogate em `entity_id`; os rotulos chegam por uma
 // consulta separada, exatamente como na fila de /alertas.
@@ -82,15 +87,27 @@ vi.mock('../../../hooks/useInternalNotifications', () => ({
   }),
 }))
 
+vi.mock('../../../services/alerts', async () => ({
+  ...(await vi.importActual<typeof import('../../../services/alerts')>('../../../services/alerts')),
+  listAllUnreadInternalNotifications: notificationServiceMocks.listAllUnread,
+}))
+
 vi.mock('../../ui/Toast', () => ({
   useToast: () => ({ showToast: showToastMock }),
 }))
+vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => confirmMock }))
 
 import { InternalNotificationBell } from '../InternalNotificationBell'
 
 afterEach(cleanup)
 beforeEach(() => {
   vi.clearAllMocks()
+  confirmMock.mockResolvedValue(true)
+  notificationServiceMocks.listAllUnread.mockResolvedValue([
+    mockNotification,
+    mockEchoNotification,
+    mockFallbackNotification,
+  ])
 })
 
 describe('InternalNotificationBell', () => {
@@ -155,7 +172,7 @@ describe('InternalNotificationBell', () => {
     expect(screen.queryByText('Viagem 88')).toBeNull()
   })
 
-  it('marca todas como lidas ao acionar o botão de baixa em massa', async () => {
+  it('confirma a lista completa antes de marcar todas como lidas', async () => {
     render(
       <MemoryRouter>
         <InternalNotificationBell />
@@ -165,10 +182,17 @@ describe('InternalNotificationBell', () => {
     fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
     fireEvent.click(screen.getByText('Marcar todas como lidas'))
 
-    expect(mutateMarkAllReadMock).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(confirmMock).toHaveBeenCalledOnce())
+    expect(confirmMock.mock.calls[0]?.[0]).toMatchObject({
+      affected: {
+        summary: '3 notificações internas não lidas',
+        items: expect.arrayContaining([expect.stringContaining('Fatura vencida'), expect.stringContaining('Pendência dispensada')]),
+      },
+    })
+    await waitFor(() => expect(mutateMarkAllReadMock).toHaveBeenCalledTimes(1))
   })
 
-  it('marca uma notificação individual como lida ao clicar', () => {
+  it('confirma antes de marcar uma notificação individual como lida', async () => {
     render(
       <MemoryRouter>
         <InternalNotificationBell />
@@ -178,7 +202,26 @@ describe('InternalNotificationBell', () => {
     fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
     fireEvent.click(screen.getByText('Fatura 123 vencida há 5 dias.'))
 
-    expect(mutateMarkReadMock).toHaveBeenCalledWith(101)
+    await waitFor(() => expect(confirmMock).toHaveBeenCalledOnce())
+    expect(confirmMock.mock.calls[0]?.[0]).toMatchObject({
+      affected: { summary: '1 notificação: Fatura vencida', items: ['Fatura 123 vencida há 5 dias.'] },
+    })
+    await waitFor(() => expect(mutateMarkReadMock).toHaveBeenCalledWith(101))
+  })
+
+  it('mantém a notificação não lida se a pessoa voltar do diálogo', async () => {
+    confirmMock.mockResolvedValue(false)
+    render(
+      <MemoryRouter>
+        <InternalNotificationBell />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
+    fireEvent.click(screen.getByText('Fatura 123 vencida há 5 dias.'))
+
+    await waitFor(() => expect(confirmMock).toHaveBeenCalledOnce())
+    expect(mutateMarkReadMock).not.toHaveBeenCalled()
   })
 
   it('não oferece ações de dispensar, fechar ou reconhecer alerta no sino', () => {
@@ -220,7 +263,7 @@ describe('InternalNotificationBell', () => {
     fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
     fireEvent.click(screen.getByText('Fatura 123 vencida há 5 dias.'))
 
-    expect(mutateMarkReadMock).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(mutateMarkReadMock).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(showToastMock).toHaveBeenCalledWith(expect.stringMatching(/marcar como lida/i), 'error'))
 
     // O clique fecha o menu por desenho; reabrir mostra o item ainda não
@@ -228,7 +271,7 @@ describe('InternalNotificationBell', () => {
     fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
     expect(screen.getAllByText('Fatura vencida')).toHaveLength(1)
     fireEvent.click(screen.getByText('Fatura 123 vencida há 5 dias.'))
-    expect(mutateMarkReadMock).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(mutateMarkReadMock).toHaveBeenCalledTimes(2))
   })
 
   it('falha ao marcar todas como lidas avisa sem engolir o erro', async () => {
@@ -242,7 +285,7 @@ describe('InternalNotificationBell', () => {
     fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
     fireEvent.click(screen.getByText('Marcar todas como lidas'))
 
-    expect(mutateMarkAllReadMock).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(mutateMarkAllReadMock).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(showToastMock).toHaveBeenCalledWith(expect.stringMatching(/todas como lidas/i), 'error'))
   })
 

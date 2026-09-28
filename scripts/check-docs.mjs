@@ -1,7 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { extractDocRoutes } from './lib/docs-routes.mjs'
+import {
+  appRouteIsDocumented,
+  documentedRouteIsLive,
+  extractDocRoutes,
+  extractDocumentedRoutes,
+} from './lib/docs-routes.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 // 'archive': snapshots históricos não são verdade atual (AGENTS.md); seus
@@ -157,20 +162,32 @@ for (const routeSource of routeSources) {
   }
 }
 const architecture = read('docs/ARCHITECTURE.md')
+const architectureRoutes = new Set(extractDocumentedRoutes(architecture))
 
 for (const route of appRoutes) {
-  if (!architecture.includes(`\`${route}\``)) {
-    addError('docs/ARCHITECTURE.md', `route from AppInterno/AppPortal is not documented: ${route}`)
+  if (!appRouteIsDocumented(route, [...architectureRoutes])) {
+    addError('docs/ARCHITECTURE.md', `route from AppInterno/AppPortal is missing from the route map: ${route}`)
+  }
+}
+for (const route of architectureRoutes) {
+  if (!documentedRouteIsLive(route, appRoutes)) {
+    addError('docs/ARCHITECTURE.md', `documented route is not present in AppInterno/AppPortal: ${route}`)
   }
 }
 
 const traceabilityPath = path.join(root, 'docs', 'RASTREABILIDADE.md')
 if (fs.existsSync(traceabilityPath)) {
   const traceability = fs.readFileSync(traceabilityPath, 'utf8')
+  const traceabilityRoutes = extractDocumentedRoutes(traceability)
 
   for (const route of appRoutes) {
-    if (!traceability.includes(`\`${route}\``)) {
-      addError('docs/RASTREABILIDADE.md', `route is not mapped: ${route}`)
+    if (!appRouteIsDocumented(route, traceabilityRoutes)) {
+      addError('docs/RASTREABILIDADE.md', `route from AppInterno/AppPortal is missing from the route map: ${route}`)
+    }
+  }
+  for (const route of traceabilityRoutes) {
+    if (!documentedRouteIsLive(route, appRoutes)) {
+      addError('docs/RASTREABILIDADE.md', `documented route is not present in AppInterno/AppPortal: ${route}`)
     }
   }
 

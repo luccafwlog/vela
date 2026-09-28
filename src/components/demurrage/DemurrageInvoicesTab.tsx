@@ -58,6 +58,7 @@ export function DemurrageInvoicesTab({
           </div>
           <div className="app-table-scroll app-table-scroll--sticky">
             <table className="app-table app-table--compact min-w-[1360px] text-left text-sm">
+              <caption className="sr-only">Faturas de demurrage filtradas</caption>
               <thead>
                 <tr>
                   <th scope="col" className="px-4 py-3">Documento / BL</th><th scope="col" className="px-4 py-3">Cliente</th><th scope="col" className="px-4 py-3">Emissão</th><th scope="col" className="px-4 py-3">Financeiro</th><th scope="col" className="px-4 py-3">Status</th><th scope="col" className="px-4 py-3">Régua de cobrança</th><th scope="col" className="px-4 py-3">Ações</th>

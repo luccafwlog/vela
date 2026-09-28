@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
+import { ToastProvider } from '../../ui/Toast'
 
 // `usePortalScope` le `PortalAuthContext` direto (sem Provider, o default do
 // contexto e o valor entregue), entao o mock parcial precisa exportar os dois.
@@ -46,9 +48,13 @@ afterEach(() => {
 describe('PortalLayout', () => {
   it('mostra navegacao para Painel, Faturas, BLs e Containers e Perfil', () => {
     render(
-      <MemoryRouter initialEntries={['/portal/operacao']}>
-        <PortalLayout />
-      </MemoryRouter>,
+      <ToastProvider>
+        <ConfirmDialogProvider>
+          <MemoryRouter initialEntries={['/portal/operacao']}>
+            <PortalLayout />
+          </MemoryRouter>
+        </ConfirmDialogProvider>
+      </ToastProvider>,
     )
 
     expect(screen.getByRole('link', { name: 'Painel' }).getAttribute('href')).toBe('/portal')
@@ -63,9 +69,13 @@ describe('PortalLayout', () => {
 
   it('exibe a logo branca da Fwlog no header sobre o fundo escuro/azul', () => {
     render(
-      <MemoryRouter initialEntries={['/portal']}>
-        <PortalLayout />
-      </MemoryRouter>,
+      <ToastProvider>
+        <ConfirmDialogProvider>
+          <MemoryRouter initialEntries={['/portal']}>
+            <PortalLayout />
+          </MemoryRouter>
+        </ConfirmDialogProvider>
+      </ToastProvider>,
     )
 
     const brandLogo = screen.getByRole('img', { name: 'Portal Fwlog' })
@@ -75,9 +85,13 @@ describe('PortalLayout', () => {
   it('desabilita o botão de sair e exibe indicador durante o logout', () => {
     portalAuth.isSigningOut = true
     render(
-      <MemoryRouter initialEntries={['/portal']}>
-        <PortalLayout />
-      </MemoryRouter>,
+      <ToastProvider>
+        <ConfirmDialogProvider>
+          <MemoryRouter initialEntries={['/portal']}>
+            <PortalLayout />
+          </MemoryRouter>
+        </ConfirmDialogProvider>
+      </ToastProvider>,
     )
 
     const logoutButton = screen.getByRole('button', { name: 'Saindo...' })
@@ -88,9 +102,13 @@ describe('PortalLayout', () => {
 
   it('fecha o menu e destrava a rolagem quando a tela passa para a largura de desktop', () => {
     render(
-      <MemoryRouter initialEntries={['/portal']}>
-        <PortalLayout />
-      </MemoryRouter>,
+      <ToastProvider>
+        <ConfirmDialogProvider>
+          <MemoryRouter initialEntries={['/portal']}>
+            <PortalLayout />
+          </MemoryRouter>
+        </ConfirmDialogProvider>
+      </ToastProvider>,
     )
 
     const menu = screen.getByRole('button', { name: 'Menu' })

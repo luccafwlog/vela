@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { DemurrageDisputeConversation } from '../DemurrageDisputeConversation'
+import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
 
-const authState = vi.hoisted(() => ({ role: 'equipamentos' }))
+const authState = vi.hoisted(() => ({ role: 'equipamentos', mutateAsync: vi.fn() }))
 
 const mockDispute = {
   id: 1,
@@ -31,7 +32,7 @@ vi.mock('@tanstack/react-query', () => ({
     error: null,
   })),
   useMutation: vi.fn(() => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: authState.mutateAsync,
     isPending: false,
   })),
 }))
@@ -40,20 +41,25 @@ vi.mock('../../../hooks/useAuth', () => ({
 }))
 
 describe('DemurrageDisputeConversation', () => {
+  function renderConversation() {
+    return render(<ConfirmDialogProvider><DemurrageDisputeConversation /></ConfirmDialogProvider>)
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
+    authState.mutateAsync.mockReset().mockResolvedValue({ message_id: 12 })
     mockState = 'aberta'
     authState.role = 'equipamentos'
   })
 
   it('renders the dispute subject and status', () => {
-    render(<DemurrageDisputeConversation />)
+    renderConversation()
     expect(screen.getByText('DEM-123 · Test Customer')).toBeTruthy()
     expect(screen.getByText('aberta')).toBeTruthy()
   })
 
   it('renders a form for new messages when state is aberta', () => {
-    render(<DemurrageDisputeConversation />)
+    renderConversation()
     expect(screen.getByPlaceholderText('Responder ao cliente...')).toBeTruthy()
     expect(screen.getByRole('button', { name: /Enviar resposta/ })).toBeTruthy()
     // ensure fireEvent is used so TS doesn't complain
@@ -65,7 +71,7 @@ describe('DemurrageDisputeConversation', () => {
 
   it('renders a reopen form when state is resolvida', () => {
     mockState = 'resolvida'
-    render(<DemurrageDisputeConversation />)
+    renderConversation()
     expect(screen.getByPlaceholderText('Justifique a reabertura...')).toBeTruthy()
     expect(screen.getByRole('button', { name: /Reabrir Dispute/ })).toBeTruthy()
   })
@@ -78,7 +84,20 @@ describe('DemurrageDisputeConversation', () => {
 
   it('mostra a conversa ao Administrativo, que responde como cobertura (migration 081)', () => {
     authState.role = 'administrativo'
-    render(<DemurrageDisputeConversation />)
+    renderConversation()
     expect(screen.getByRole('button', { name: /Enviar/ })).toBeTruthy()
+  })
+
+  it('confirms the response and recipient state before recording a message', async () => {
+    renderConversation()
+    fireEvent.change(screen.getByPlaceholderText('Responder ao cliente...'), { target: { value: 'Documento corrigido.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar resposta' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Confirmar resposta ao cliente' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ver lista (4)' }))
+    expect(within(dialog).getByText('Mensagem: Documento corrigido.')).toBeTruthy()
+    expect(authState.mutateAsync).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar resposta' }))
+    await waitFor(() => expect(authState.mutateAsync).toHaveBeenCalledWith({ id: 1, body: 'Documento corrigido.', nextResponder: 'cliente' }))
   })
 })

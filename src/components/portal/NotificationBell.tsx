@@ -3,7 +3,12 @@ import { Bell, FileText, MessageSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { usePortalScope } from '../../hooks/usePortalScope'
 import { usePortalMarkAllRead, usePortalMarkRead, usePortalNotifications, usePortalUnreadCount } from '../../hooks/usePortalNotifications'
+import { portalListNotifications, portalNotificationUnreadCount } from '../../services/portalBilling'
 import { isPortalReadOnly } from '../../services/portalScope'
+import { useConfirm } from '../ui/ConfirmDialog'
+import { useToast } from '../ui/Toast'
+
+const NOTIFICATION_CONFIRMATION_LIMIT = 10_000
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
@@ -13,6 +18,8 @@ export function NotificationBell() {
   const markAllRead = usePortalMarkAllRead()
   const navigate = useNavigate()
   const containerRef = useRef<HTMLDivElement>(null)
+  const confirm = useConfirm()
+  const { showToast } = useToast()
   const scope = usePortalScope()
   const readOnly = isPortalReadOnly(scope)
 
@@ -38,8 +45,37 @@ export function NotificationBell() {
   }, [open])
 
   const handleMarkAllRead = useCallback(async () => {
-    if (scope.mode === 'client') await markAllRead.mutateAsync()
-  }, [markAllRead, scope.mode])
+    if (scope.mode !== 'client') return
+    try {
+      const [snapshot, currentUnreadCount] = await Promise.all([
+        portalListNotifications(scope, NOTIFICATION_CONFIRMATION_LIMIT),
+        portalNotificationUnreadCount(scope),
+      ])
+      const unreadNotifications = snapshot.filter((notification) => !notification.read)
+      if (snapshot.length === NOTIFICATION_CONFIRMATION_LIMIT || unreadNotifications.length !== currentUnreadCount) {
+        showToast('Não foi possível confirmar a lista completa. Atualize as notificações e tente de novo; nenhuma foi marcada.', 'error')
+        return
+      }
+      if (unreadNotifications.length === 0) return
+
+      const confirmed = await confirm({
+        title: 'Marcar todas como lidas',
+        message: `Marcar ${unreadNotifications.length} notificações do Portal como lidas?`,
+        confirmLabel: 'Marcar como lidas',
+        affected: {
+          summary: `${unreadNotifications.length} notificações não lidas da conta atual`,
+          items: unreadNotifications.map((notification) => `${notification.title} — ${notification.message}`),
+        },
+        consequence: 'Elas deixam de contar como não lidas. Faturas, disputas e pendências continuam com o mesmo estado.',
+        reversibility: 'Não há ação no Portal para marcar essas notificações novamente como não lidas.',
+      })
+      if (!confirmed) return
+
+      await markAllRead.mutateAsync()
+    } catch {
+      showToast('Não foi possível marcar todas como lidas. Tente de novo.', 'error')
+    }
+  }, [confirm, markAllRead, scope, showToast])
 
   if (!scope.overview) return null
 
@@ -103,7 +139,18 @@ export function NotificationBell() {
                   data-read={String(n.read)}
                   className="portal-notifications__item"
                   onClick={async () => {
-                    if (!n.read && scope.mode === 'client') await markRead.mutateAsync(n.id)
+                    if (!n.read && scope.mode === 'client') {
+                      const confirmed = await confirm({
+                        title: 'Marcar notificação como lida',
+                        message: `Marcar “${n.title}” como lida e abrir o conteúdo?`,
+                        confirmLabel: 'Marcar como lida',
+                        affected: { summary: `1 notificação: ${n.title}`, items: [n.message] },
+                        consequence: 'A notificação deixa de contar como não lida. O estado da fatura ou disputa não muda.',
+                        reversibility: 'Não há ação no Portal para marcar esta notificação novamente como não lida.',
+                      })
+                      if (!confirmed) return
+                      await markRead.mutateAsync(n.id)
+                    }
                     if (n.link?.startsWith('/portal')) navigate(readOnly ? n.link.replace(/^\/portal/, scope.basePath) : n.link)
                     setOpen(false)
                   }}

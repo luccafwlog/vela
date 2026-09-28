@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PortalContactConfiguration } from '../PortalContactConfiguration'
+import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
 
 const getContactConfig = vi.hoisted(() => vi.fn())
 const saveContactConfig = vi.hoisted(() => vi.fn())
@@ -42,7 +43,7 @@ function renderComponent(readOnly = false) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <PortalContactConfiguration readOnly={readOnly} />
+      <ConfirmDialogProvider><PortalContactConfiguration readOnly={readOnly} /></ConfirmDialogProvider>
     </QueryClientProvider>,
   )
 }
@@ -179,7 +180,20 @@ describe('PortalContactConfiguration', () => {
     renderComponent()
 
     await screen.findByDisplayValue('principal@cliente.com')
+    await user.clear(screen.getByDisplayValue('119999'))
+    await user.type(screen.getByLabelText(/telefone/i), '118888')
     await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Confirmar contatos e recebimento' })
+    await user.click(within(dialog).getByRole('button', { name: 'Ver lista (1)' }))
+    expect(within(dialog).getByText(/Telefone: 119999 → 118888/)).toBeTruthy()
+    expect(saveContactConfig).not.toHaveBeenCalled()
+    await user.click(within(dialog).getByRole('button', { name: 'Voltar' }))
+    expect(saveContactConfig).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
+    const confirmedDialog = await screen.findByRole('dialog', { name: 'Confirmar contatos e recebimento' })
+    await user.click(within(confirmedDialog).getByRole('button', { name: 'Salvar contatos' }))
 
     await waitFor(() => {
       expect(saveContactConfig).toHaveBeenCalledWith(
@@ -187,6 +201,7 @@ describe('PortalContactConfiguration', () => {
           expect.objectContaining({
             id: 1,
             email: 'principal@cliente.com',
+            phone: '118888',
             isPrimary: true,
             boxCodes: ['documentacao_operacao', 'financeiro', 'demurrage'],
           }),

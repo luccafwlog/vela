@@ -282,7 +282,11 @@ describe('Clientes page behaviours', () => {
     const writeText = vi.spyOn(navigator.clipboard, 'writeText')
     renderPage()
 
+    expect(screen.getByRole('table', { name: 'Clientes filtrados' })).toBeTruthy()
+    const clientColumn = screen.getByRole('columnheader', { name: 'Cliente' })
+    expect(clientColumn.getAttribute('aria-sort')).toBe('ascending')
     await user.click(screen.getByRole('button', { name: 'Cliente' }))
+    expect(clientColumn.getAttribute('aria-sort')).toBe('descending')
     expect(mocks.useCustomers).toHaveBeenLastCalledWith(expect.objectContaining({
       sortKey: 'name',
       sortDirection: 'desc',
@@ -292,6 +296,23 @@ describe('Clientes page behaviours', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Copiar CNPJ' }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('12.345.678/0001-95'))
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('supports arrow navigation and restores focus when the customer actions menu closes with Escape', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const trigger = screen.getByRole('button', { name: 'Mais ações para Cliente Teste' })
+    await user.click(trigger)
+
+    const menuItems = screen.getAllByRole('menuitem')
+    expect(document.activeElement).toBe(menuItems[0])
+    await user.keyboard('{ArrowDown}')
+    expect(document.activeElement).toBe(menuItems[1])
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
   })
 
   it('escapes structural search terms when exporting the customer base', async () => {

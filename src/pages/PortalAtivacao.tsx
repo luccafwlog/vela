@@ -2,12 +2,14 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError } from '../components/ui/Card'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import { Field, Input } from '../components/ui/Input'
 import { supabasePortal } from '../services/supabase'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../lib/passwordPolicy'
 
 const invalid = 'Link inválido ou expirado. Solicite um novo convite à empresa.'
 export function PortalAtivacao() {
+  const confirmAction = useConfirm()
   const [params, setParams] = useSearchParams(); const [token] = useState(() => params.get('token') ?? '')
   const [company, setCompany] = useState<{ company_name: string; cnpj_masked: string } | null>(null)
   const [password, setPassword] = useState(''); const [confirm, setConfirm] = useState(''); const [error, setError] = useState(token ? '' : invalid); const [done, setDone] = useState(false); const [loading, setLoading] = useState(Boolean(token)); const [submitting, setSubmitting] = useState(false)
@@ -29,6 +31,15 @@ export function PortalAtivacao() {
     event.preventDefault(); setError('')
     if (!isValidPassword(password)) { setError(PASSWORD_RULE_MESSAGE); return }
     if (password !== confirm) { setError('As senhas não conferem.'); return }
+    const confirmed = await confirmAction({
+      title: 'Ativar acesso ao Portal',
+      message: `Criar seu acesso para ${company?.company_name ?? 'a empresa do convite'}?`,
+      confirmLabel: 'Ativar acesso',
+      affected: { summary: `${company?.company_name ?? 'Empresa do convite'} · CNPJ ${company?.cnpj_masked ?? 'não informado'}` },
+      consequence: 'Ativa o acesso da empresa ao Portal com a senha escolhida. Depois da ativação, será possível consultar os recursos liberados à empresa.',
+      reversibility: 'A senha pode ser redefinida pelo fluxo de recuperação do Portal; o convite utilizado não pode ser reaplicado.',
+    })
+    if (!confirmed) return
     setSubmitting(true)
     try { const { error: invokeError } = await supabasePortal.functions.invoke('portal-invite-activate', { body: { action: 'activate', token, password } }); if (invokeError) throw invokeError; setDone(true) } catch { setError('Não foi possível ativar o acesso. Solicite um novo convite.') } finally { setSubmitting(false) }
   }

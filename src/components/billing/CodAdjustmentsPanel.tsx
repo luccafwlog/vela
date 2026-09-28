@@ -10,6 +10,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card, InlineError } from '../ui/Card'
 import { useToast } from '../ui/Toast'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 function actionLabel(action: string): string {
   if (action === 'offset_open_balance') return 'Abater saldo aberto'
@@ -22,6 +23,7 @@ function actionLabel(action: string): string {
 export function CodAdjustmentsPanel() {
   const { can } = useAuth()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const queryClient = useQueryClient()
   const adjustmentsQuery = usePendingCodAdjustments()
   const settleMutation = useSettleCodAdjustment()
@@ -34,12 +36,39 @@ export function CodAdjustmentsPanel() {
   async function settle(id: number) {
     try {
       const row = rows.find((candidate) => candidate.id === id)
+      if (!row) return
       const isManualDocument = row?.action === 'complementary_invoice' || row?.action === 'cancel_and_reissue' || row?.action === 'manual_charge_review'
       const documentId = isManualDocument ? Number(documentIds[id]) : null
       if (isManualDocument && (documentId == null || !Number.isInteger(documentId) || documentId <= 0)) {
         showToast('Informe o ID da invoice emitida para concluir este ajuste.', 'error')
         return
       }
+      const action = actionLabel(row.action)
+      const confirmed = await confirm({
+        title: 'Liquidar ajuste de COD',
+        message: isManualDocument
+          ? `Vincular a invoice ${documentId} ao ajuste ${id} e concluir a pendência?`
+          : `Aplicar “${action}” ao B/L ${row.bl_id} e concluir o ajuste ${id}?`,
+        confirmLabel: 'Liquidar ajuste',
+        affected: {
+          summary: `B/L ${row.bl_id} · ${action} · diferença ${formatBRL(row.difference_brl)}`,
+          items: [
+            `Valor original: ${formatBRL(row.original_value_brl)}`,
+            `Valor no destino: ${formatBRL(row.new_destination_value_brl)}`,
+            `Saldo em aberto: ${formatBRL(row.outstanding_balance_brl)}`,
+            `Abatimento: ${formatBRL(row.offset_amount_brl)}`,
+            `Restituição a registrar: ${formatBRL(row.refund_amount_brl)}`,
+            ...(isManualDocument ? [`Invoice emitida vinculada: ${documentId}`] : []),
+          ],
+        },
+        consequence: isManualDocument
+          ? 'Vincula a invoice existente ao ajuste e retira a pendência da fila; a invoice não é criada por esta ação.'
+          : row.action === 'refund_overpayment'
+            ? `Aplica ${formatBRL(row.offset_amount_brl)} ao saldo aberto, registra ${formatBRL(row.refund_amount_brl)} como restituição pendente e conclui o ajuste. Esta ação não transfere dinheiro.`
+            : `Aplica ${formatBRL(row.offset_amount_brl)} ao saldo aberto e conclui o ajuste financeiro.`,
+        reversibility: 'A liquidação não tem ação de desfazer. Se os valores ou o documento estiverem incorretos, o Financeiro precisa registrar uma correção separada, preservando a trilha de auditoria.',
+      })
+      if (!confirmed) return
       await settleMutation.mutateAsync(isManualDocument
         ? { adjustmentId: id, resultingDocumentId: documentId, resultingDocumentType: 'invoice' }
         : id)

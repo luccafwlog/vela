@@ -569,6 +569,7 @@ export function Clientes() {
         onToggleSort={toggleSort}
         onPageChange={(page) => setFilters((current) => ({ ...current, page }))}
         onOpenActionsMenu={openActionsMenu}
+        onCloseActionsMenu={() => setActionsMenu(null)}
         onCopy={copyText}
         onDeleteCustomer={(id) => {
           setActionsMenu(null)

@@ -6,14 +6,18 @@
 // solta aparecia aqui com os dois campos vazios — e quem preenchesse criava uma
 // segunda cubagem, que `blTotalCbm()` somava à que já existia em `bb_cbm`.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReviewDrawer } from '../ReviewDrawer'
 import type { ReviewQueueItem } from '../../../hooks/useReview'
 
+const mocks = vi.hoisted(() => ({ confirm: vi.fn() }))
+
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, isAdmin: true }) }))
 vi.mock('../../../hooks/useCustomers', () => ({ useCustomerLookup: () => ({ data: [] }) }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
+vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('../../../services/review', () => ({
   ConcurrentEditError: class extends Error {},
   saveBlReview: vi.fn(),
@@ -54,6 +58,7 @@ function renderDrawer(item: ReviewQueueItem) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.confirm.mockResolvedValue(false)
 })
 
 describe('ReviewDrawer: peso e cubagem por modalidade', () => {
@@ -79,5 +84,18 @@ describe('ReviewDrawer: peso e cubagem por modalidade', () => {
 
     expect((screen.getByLabelText('CBM contêiner (m³)') as HTMLInputElement).value).toBe('58.4')
     expect((screen.getByLabelText('CBM carga solta (m³)') as HTMLInputElement).value).toBe('120')
+  })
+
+  it('exibe o diff antes de gravar a revisão do B/L', async () => {
+    const user = userEvent.setup()
+    renderDrawer(makeItem({ cargo_mode: 'container', shipper: 'Sany', total_weight_kg: 24000 } as never))
+    await user.clear(screen.getByLabelText('Shipper'))
+    await user.type(screen.getByLabelText('Shipper'), 'Novo embarcador')
+    await user.click(screen.getByRole('button', { name: 'Marcar como revisado' }))
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
+    expect(mocks.confirm.mock.calls[0][0].changes).toContainEqual({
+      field: 'Shipper', before: 'Sany', after: 'Novo embarcador',
+    })
   })
 })

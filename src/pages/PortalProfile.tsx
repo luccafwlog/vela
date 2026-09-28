@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Input'
 import { useToast } from '../components/ui/Toast'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import { usePortalProfile } from '../hooks/usePortalProfile'
 import { usePortalScope } from '../hooks/usePortalScope'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
@@ -85,6 +86,7 @@ function PortalProfileForm({
   readOnly: boolean
 }) {
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const [address, setAddress] = useState(profile.address ?? '')
   const [city, setCity] = useState(profile.city ?? '')
   const [state, setState] = useState(profile.state ?? '')
@@ -100,6 +102,29 @@ function PortalProfileForm({
     event.preventDefault()
     setError('')
     if (readOnly) return
+    const changes = [
+      ...([
+        ['Endereço', profile.address ?? '', address.trim() || '—'],
+        ['Cidade', profile.city ?? '', city.trim() || '—'],
+        ['Estado', profile.state ?? '', state.trim() || '—'],
+        ['CEP', profile.zip ?? '', zip.trim() || '—'],
+      ] as const)
+        .filter(([, before, after]) => (before || '—') !== after)
+        .map(([field, before, after]) => ({ field, before: before || '—', after })),
+    ]
+    if (changes.length === 0) {
+      showToast('Nenhuma alteração detectada.', 'info')
+      return
+    }
+    const confirmed = await confirm({
+      title: 'Confirmar alterações do perfil',
+      message: 'Salvar os dados cadastrais alterados?',
+      confirmLabel: 'Salvar alterações',
+      changes,
+      consequence: 'Os dados de contato e endereço do cliente serão atualizados no Portal e nos fluxos que consultam o perfil.',
+      reversibility: 'Edite novamente para corrigir os dados.',
+    })
+    if (!confirmed) return
     setSubmitting(true)
 
     try {
@@ -121,9 +146,19 @@ function PortalProfileForm({
     event.preventDefault(); setError('')
     if (newRecoveryEmail.trim().toLowerCase() !== confirmRecoveryEmail.trim().toLowerCase()) { setError('Os emails de recuperação não conferem.'); return }
     if (readOnly) return
+    const nextRecoveryEmail = newRecoveryEmail.trim().toLowerCase()
+    const confirmed = await confirm({
+      title: 'Confirmar troca do e-mail de recuperação',
+      message: `Enviar um link para confirmar ${nextRecoveryEmail}?`,
+      confirmLabel: 'Enviar link',
+      changes: [{ field: 'E-mail de recuperação', before: 'Endereço atual', after: nextRecoveryEmail }],
+      consequence: 'Um link de confirmação será enviado ao novo endereço. O endereço atual continua válido até a confirmação.',
+      reversibility: 'Antes da confirmação, basta solicitar a troca para outro endereço.',
+    })
+    if (!confirmed) return
     setEmailSubmitting(true)
     try {
-      const { error: invokeError } = await supabasePortal.functions.invoke('portal-recovery-email-change', { body: { action: 'request', current_password: currentPassword, new_email: newRecoveryEmail.trim() } })
+      const { error: invokeError } = await supabasePortal.functions.invoke('portal-recovery-email-change', { body: { action: 'request', current_password: currentPassword, new_email: nextRecoveryEmail } })
       if ((invokeError as { context?: { status?: number } } | null)?.context?.status === 429) { setError(RECOVERY_EMAIL_RATE_LIMIT_MESSAGE); return }
       if (invokeError) throw invokeError
       showToast('Enviamos um link para confirmar o novo email.', 'success')

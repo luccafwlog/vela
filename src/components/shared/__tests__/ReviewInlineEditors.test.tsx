@@ -41,7 +41,7 @@ describe('InlineCustomerPicker', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('lista resultados e devolve o id selecionado', async () => {
+  it('lista resultados e devolve o cliente selecionado', async () => {
     const user = userEvent.setup()
     mockedLookup.mockReturnValue({
       data: [
@@ -54,6 +54,6 @@ describe('InlineCustomerPicker', () => {
 
     expect(screen.getByText('ACME')).toBeTruthy()
     await user.click(screen.getByText('Beta'))
-    expect(onSelect).toHaveBeenCalledWith(9)
+    expect(onSelect).toHaveBeenCalledWith({ id: 9, name: 'Beta', cnpj_cpf: '99888777000166' })
   })
 })

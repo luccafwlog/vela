@@ -6,8 +6,9 @@ import { Button } from '../components/ui/Button'
 import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { Input, Select } from '../components/ui/Input'
 import { useToast } from '../components/ui/Toast'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useAuth } from '../hooks/useAuth'
-import { useReviewQueue, type ReviewQueueItem } from '../hooks/useReview'
+import { useReviewQueue, type ReviewCustomer, type ReviewQueueItem } from '../hooks/useReview'
 import {
   getGroupLinkedItem,
   getReviewItemDocumentCandidates,
@@ -18,7 +19,7 @@ import {
   type ReviewGroup,
 } from './revisaoHelpers'
 import { extractErrorText } from '../lib/errors'
-import { canonicalizeValidCnpj } from '../lib/cnpj'
+import { canonicalizeValidCnpj, formatCnpj } from '../lib/cnpj'
 import { invalidateReviewQueueCaches } from '../components/review/reviewCaches'
 import { ReviewGroupBlock } from '../components/review/ReviewGroupBlock'
 import type { ReviewCustomerOnboardingInput } from '../components/review/ReviewCustomerOnboarding'
@@ -62,6 +63,7 @@ export function Revisao() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const reviewCustomerGroup = useReviewCustomerGroup()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [searchText, setSearchText] = useState(initialCliente)
@@ -124,6 +126,22 @@ export function Revisao() {
       value = rawValue.trim()
     }
 
+    const before = (item[field] as string | number | null) ?? null
+    const confirmed = await confirm({
+      title: 'Salvar correção da Revisão',
+      message: `Salvar a correção de ${field === 'ce_mercante' ? 'CE Mercante' : 'peso de carga solta'} no B/L ${item.id}?`,
+      confirmLabel: 'Salvar correção',
+      affected: { summary: `B/L ${item.id} · ${item.customer?.name ?? 'cliente não vinculado'}` },
+      changes: [{
+        field: field === 'ce_mercante' ? 'CE Mercante' : 'Peso carga solta (ton)',
+        before: before == null ? '' : String(before),
+        after: String(value),
+      }],
+      consequence: 'Atualiza o dado documental e reavalia a pendência. Se esta correção liberar o último gate, o cálculo e a emissão da fatura poderão ocorrer automaticamente.',
+      reversibility: 'O dado pode ser corrigido novamente antes da emissão. Uma fatura emitida não pode ser apagada; sem pagamento, seu cancelamento é restrito ao perfil Administrativo.',
+    })
+    if (!confirmed) return
+
     setSavingInlineId(item.id)
     try {
       const result = await applyInlineBlReviewFix({
@@ -180,6 +198,15 @@ export function Revisao() {
   }
 
   async function handleRecalc(notice: RecalcNotice) {
+    const confirmed = await confirm({
+      title: 'Recalcular taxas locais',
+      message: `Recalcular as taxas do registro ${notice.label}?`,
+      confirmLabel: 'Recalcular',
+      affected: { summary: `${notice.source === 'granite' ? 'Granito' : 'B/L'} ${notice.label}` },
+      consequence: 'Atualiza o cálculo com a tabela e as regras vigentes e registra o resultado. O novo valor é calculado pelo servidor e não pode ser antecipado neste diálogo.',
+      reversibility: 'É possível executar novo recálculo enquanto o registro não estiver faturado. B/Ls faturados são bloqueados.',
+    })
+    if (!confirmed) return
     setRecalcingId(notice.id)
     try {
       const result = await calculateBlLocalCharges(notice.id, { actorId: user?.id ?? null, recalculate: true })
@@ -303,10 +330,22 @@ export function Revisao() {
 
   // Vincula um cliente a todos os B/Ls do grupo que ainda nao tem cliente.
   // Resolve "o mesmo problema do mesmo cliente" de uma vez (gargalo de volume).
-  async function handleGroupLinkCustomer(group: ReviewGroup, customerId: number) {
+  async function handleGroupLinkCustomer(group: ReviewGroup, customer: ReviewCustomer) {
     if (!user) return
     const targets = group.items.filter(needsCustomerLink)
     if (targets.length === 0) return
+    const confirmed = await confirm({
+      title: 'Vincular cliente ao grupo',
+      message: `Vincular ${customer.name} (${formatCnpj(customer.cnpj_cpf)}) aos registros pendentes deste grupo?`,
+      confirmLabel: 'Vincular cliente',
+      affected: {
+        summary: `${targets.length} registro(s) · ${group.displayName}`,
+        items: targets.map((item) => `${item.source === 'granite' ? 'Granito ' + item.bl_number : 'B/L ' + item.id}`),
+      },
+      consequence: 'Atualiza os vínculos de cliente. Para B/Ls, se essa for a última pendência e os gates estiverem liberados, a fatura poderá ser emitida automaticamente.',
+      reversibility: 'O vínculo pode ser corrigido pela Revisão antes da emissão. Faturas emitidas seguem o cancelamento restrito ao perfil Administrativo quando não houver pagamento.',
+    })
+    if (!confirmed) return
     setSavingGroupKey(group.key)
     let successCount = 0
     let errorCount = 0
@@ -315,19 +354,19 @@ export function Revisao() {
     for (const item of targets) {
       try {
         if (item.source === 'granite') {
-          await saveGraniteBlReview({ graniteBlId: item.id, clientId: customerId, changedBy: user.id })
+          await saveGraniteBlReview({ graniteBlId: item.id, clientId: customer.id, changedBy: user.id })
           evaluateRecalcNotice(item)
         } else {
           const result = await applyInlineBlReviewFix({
             blId: item.id,
             field: 'customer_id',
-            value: customerId,
+            value: customer.id,
             previousValue: item.customer_id ?? null,
             changedBy: user.id,
             expectedUpdatedAt: item.updated_at ?? null,
           })
           if (result.resolved) {
-            const autoInvoice = await tryAutoIssueInvoice({ blId: item.id, customerId, actorId: user.id })
+            const autoInvoice = await tryAutoIssueInvoice({ blId: item.id, customerId: customer.id, actorId: user.id })
             if (autoInvoice.status === 'invoiced') invoiceCount++
           } else {
             pendingBls.push(item.id)
@@ -365,6 +404,18 @@ export function Revisao() {
       showToast('Nenhum B/L elegível para o cadastro deste grupo.', 'error')
       return
     }
+    const confirmed = await confirm({
+      title: input.customerId ? 'Vincular cliente à Revisão' : 'Cadastrar cliente pela Revisão',
+      message: `${input.customerId ? 'Adicionar o e-mail e vincular o cliente' : 'Criar o cliente'} ${input.name} (${formatCnpj(selectedCnpj)}) aos B/Ls deste grupo?`,
+      confirmLabel: input.sendPortalInvite ? 'Salvar e enviar convite' : 'Salvar cadastro',
+      affected: {
+        summary: `${blIds.length} B/L(s) · ${input.name} · ${formatCnpj(selectedCnpj)}`,
+        items: blIds.map((id) => `B/L ${id}`),
+      },
+      consequence: `Salva o cliente e o contato ${input.email}.${input.sendPortalInvite ? ` Inicia também o convite do Portal para ${input.email}.` : ''} B/Ls liberados por essa correção poderão ter a fatura emitida automaticamente.`,
+      reversibility: 'Cadastro e contato podem ser corrigidos; um convite pode ser revogado. Faturas emitidas não podem ser apagadas e só podem ser canceladas pelo perfil Administrativo quando não houver pagamento.',
+    })
+    if (!confirmed) return
     setSavingGroupKey(group.key)
     try {
       const result = await reviewCustomerGroup.mutateAsync({
@@ -462,6 +513,19 @@ export function Revisao() {
       showToast('Informe um e-mail válido.', 'error')
       return
     }
+    const targets = group.items.filter((item) => item.source === 'bl' && item.customer_id === customerId)
+    const confirmed = await confirm({
+      title: 'Salvar e-mail do cliente',
+      message: `Adicionar ${email.trim().toLowerCase()} como contato de ${group.displayName}?`,
+      confirmLabel: 'Salvar e-mail',
+      affected: {
+        summary: `${group.displayName} · ${targets.length} B/L(s) vinculados`,
+        items: targets.map((item) => `B/L ${item.id}`),
+      },
+      consequence: 'O endereço fica disponível como contato do cliente; esta ação não envia e-mail. A atualização pode liberar o gate de emissão, então faturas elegíveis poderão ser emitidas automaticamente.',
+      reversibility: 'O contato pode ser corrigido ou removido no cadastro do cliente. Faturas emitidas não podem ser apagadas e só podem ser canceladas pelo perfil Administrativo quando não houver pagamento.',
+    })
+    if (!confirmed) return
     setSavingGroupKey(group.key)
     try {
       await addCustomerEmail(customerId, email)
@@ -603,7 +667,7 @@ export function Revisao() {
               savingGroup={savingGroupKey === group.key}
               savingInlineId={savingInlineId}
               onToggle={() => toggleGroupCollapsed(group.key)}
-              onGroupLink={(customerId) => handleGroupLinkCustomer(group, customerId)}
+              onGroupLink={(customer) => handleGroupLinkCustomer(group, customer)}
               onGroupAddEmail={(email) => handleGroupAddEmail(group, email)}
               onGroupOnboard={(input) => void handleGroupOnboard(group, input)}
               onCorrect={(id) => setSelectedId(id)}

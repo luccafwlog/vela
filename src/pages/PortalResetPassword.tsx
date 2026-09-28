@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError } from '../components/ui/Card'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import { Field, Input } from '../components/ui/Input'
 import { supabasePortal } from '../services/supabase'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
@@ -10,6 +11,7 @@ import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../lib/passwordPolicy'
 const INVALID_LINK_MESSAGE = 'Link de recuperação inválido ou expirado.'
 
 export function PortalResetPassword() {
+  const confirmAction = useConfirm()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [token] = useState(() => searchParams.get('token'))
@@ -40,6 +42,16 @@ export function PortalResetPassword() {
       setError('As senhas não conferem.')
       return
     }
+
+    const confirmed = await confirmAction({
+      title: 'Redefinir senha do Portal',
+      message: 'Usar a nova senha informada para sua conta do Portal?',
+      confirmLabel: 'Redefinir senha',
+      affected: { summary: 'Conta do Portal associada ao link de recuperação' },
+      consequence: 'Altera a senha e encerra as sessões abertas. Entre novamente usando a nova senha.',
+      reversibility: 'A senha pode ser redefinida outra vez pelo fluxo de recuperação do Portal.',
+    })
+    if (!confirmed) return
 
     setSubmitting(true)
 

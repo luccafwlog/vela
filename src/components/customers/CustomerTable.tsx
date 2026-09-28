@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react'
+import { useLayoutEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileText, MoreHorizontal, Power, ReceiptText, Trash2 } from 'lucide-react'
 import { Badge } from '../ui/Badge'
@@ -45,6 +45,7 @@ export function CustomerTable({
   onToggleSort,
   onPageChange,
   onOpenActionsMenu,
+  onCloseActionsMenu,
   onCopy,
   onDeleteCustomer,
   onToggleCustomerActive,
@@ -69,6 +70,7 @@ export function CustomerTable({
     event: ReactMouseEvent<HTMLButtonElement>,
     row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
   ) => void
+  onCloseActionsMenu: () => void
   onCopy: (value: string, label: string) => Promise<void>
   onDeleteCustomer: (id: number) => void
   onToggleCustomerActive: (id: number, deactivated: boolean) => void
@@ -77,15 +79,79 @@ export function CustomerTable({
   const pageCustomerIds = (data?.rows ?? []).map((row) => row.id)
   const allPageSelected = pageCustomerIds.length > 0 && pageCustomerIds.every((id) => selection.isSelected(id))
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuTriggerRef = useRef<HTMLButtonElement>(null)
+  const menuWasOpenRef = useRef(false)
+  const restoreFocusOnCloseRef = useRef(false)
+
+  function handleOpenActionsMenu(
+    event: ReactMouseEvent<HTMLButtonElement>,
+    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
+  ) {
+    if (actionsMenu?.id === row.id) {
+      restoreFocusOnCloseRef.current = true
+      onCloseActionsMenu()
+      return
+    }
+    menuTriggerRef.current = event.currentTarget
+    restoreFocusOnCloseRef.current = false
+    onOpenActionsMenu(event, row)
+  }
+
+  function copyFromMenu(value: string, label: string) {
+    restoreFocusOnCloseRef.current = true
+    void onCopy(value, label)
+  }
+
+  function handleMenuKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'))
+    if (items.length === 0) return
+    const activeIndex = items.indexOf(document.activeElement as HTMLButtonElement)
+    let nextIndex: number
+
+    switch (event.key) {
+      case 'ArrowDown':
+        nextIndex = activeIndex < 0 ? 0 : (activeIndex + 1) % items.length
+        break
+      case 'ArrowUp':
+        nextIndex = activeIndex < 0 ? items.length - 1 : (activeIndex - 1 + items.length) % items.length
+        break
+      case 'Home':
+        nextIndex = 0
+        break
+      case 'End':
+        nextIndex = items.length - 1
+        break
+      case 'Escape':
+        event.preventDefault()
+        event.stopPropagation()
+        restoreFocusOnCloseRef.current = true
+        onCloseActionsMenu()
+        return
+      default:
+        return
+    }
+
+    event.preventDefault()
+    items[nextIndex]?.focus()
+  }
 
   // O menu abre abaixo do botão; perto do fim da tela ele é empurrado para cima
   // para que todas as opções (incluindo Excluir cliente) fiquem visíveis.
   useLayoutEffect(() => {
     const menu = menuRef.current
-    if (!actionsMenu || !menu) return
+    if (!actionsMenu || !menu) {
+      if (menuWasOpenRef.current && restoreFocusOnCloseRef.current) {
+        menuTriggerRef.current?.focus()
+        restoreFocusOnCloseRef.current = false
+      }
+      menuWasOpenRef.current = false
+      return
+    }
     const height = menu.getBoundingClientRect().height
     const maxTop = Math.max(4, window.innerHeight - height - 4)
     menu.style.top = `${Math.min(Math.max(actionsMenu.top, 4), maxTop)}px`
+    menuWasOpenRef.current = true
+    menu.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus()
   }, [actionsMenu])
 
   return (
@@ -94,6 +160,7 @@ export function CustomerTable({
         {error ? <InlineError message="Erro ao carregar clientes." /> : null}
         <div className="app-table-scroll app-table-scroll--sticky">
           <table className="app-table app-table--compact app-table--sticky-actions min-w-[1140px] table-fixed text-left text-sm">
+            <caption className="sr-only">Clientes filtrados</caption>
             <thead className="text-xs uppercase tracking-wider">
               <tr>
                 {canDeleteCustomers ? (
@@ -106,20 +173,32 @@ export function CustomerTable({
                     />
                   </th>
                 ) : null}
-                <th scope="col" className="w-[30%] px-4 py-3">
+                <th
+                  scope="col"
+                  aria-sort={filters.sortKey === 'name' ? (filters.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                  className="w-[30%] px-4 py-3"
+                >
                   <button type="button" className="app-table__sort" onClick={() => onToggleSort('name')}>
                     Cliente
                     {renderSortIcon(filters, 'name')}
                   </button>
                 </th>
                 <th scope="col" className="w-[18%] px-4 py-3">Contatos</th>
-                <th scope="col" className="w-[20%] px-4 py-3">
+                <th
+                  scope="col"
+                  aria-sort={filters.sortKey === 'bls' ? (filters.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                  className="w-[20%] px-4 py-3"
+                >
                   <button type="button" className="app-table__sort" onClick={() => onToggleSort('bls')}>
                     Operação
                     {renderSortIcon(filters, 'bls')}
                   </button>
                 </th>
-                <th scope="col" className="w-[16%] px-4 py-3">
+                <th
+                  scope="col"
+                  aria-sort={filters.sortKey === 'pendingBalance' ? (filters.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                  className="w-[16%] px-4 py-3"
+                >
                   <button type="button" className="app-table__sort" onClick={() => onToggleSort('pendingBalance')}>
                     Financeiro
                     {renderSortIcon(filters, 'pendingBalance')}
@@ -151,7 +230,7 @@ export function CustomerTable({
                   selected={selection.isSelected(row.id)}
                   actionsOpen={actionsMenu?.id === row.id}
                   onToggle={() => selection.toggle(row.id)}
-                  onOpenActionsMenu={onOpenActionsMenu}
+                  onOpenActionsMenu={handleOpenActionsMenu}
                   portalRow={portalRows?.find((portal) => portal.customer_id === row.id)}
                 />
               ))}
@@ -171,13 +250,24 @@ export function CustomerTable({
       </Card>
 
       {actionsMenu ? (
-        <div ref={menuRef} data-actions-menu className="app-floating-menu" role="menu" style={{ top: actionsMenu.top, left: actionsMenu.left }}>
-          <button type="button" role="menuitem" onClick={() => void onCopy(formatCnpjCpf(actionsMenu.cnpj), 'CNPJ')}>
+        <div
+          ref={menuRef}
+          data-actions-menu
+          className="app-floating-menu"
+          role="menu"
+          aria-label={`Ações para ${actionsMenu.name}`}
+          onKeyDown={handleMenuKeyDown}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onCloseActionsMenu()
+          }}
+          style={{ top: actionsMenu.top, left: actionsMenu.left }}
+        >
+          <button type="button" role="menuitem" onClick={() => copyFromMenu(formatCnpjCpf(actionsMenu.cnpj), 'CNPJ')}>
             <Copy size={14} />
             Copiar CNPJ
           </button>
           {actionsMenu.email ? (
-            <button type="button" role="menuitem" onClick={() => void onCopy(actionsMenu.email!, 'E-mail principal')}>
+            <button type="button" role="menuitem" onClick={() => copyFromMenu(actionsMenu.email!, 'E-mail principal')}>
               <Copy size={14} />
               Copiar e-mail
             </button>

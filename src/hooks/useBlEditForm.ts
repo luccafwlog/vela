@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { logOperationalEvent } from '../services/operationalEvents'
 import { supabase } from '../services/supabase'
@@ -84,11 +85,39 @@ export type BlForm = Omit<Pick<EditableBl, (typeof editableFields)[number]>, 'nc
   ncm_codes: string
 }
 
+const EDITABLE_FIELD_LABELS: Record<keyof BlForm, string> = {
+  shipper: 'Shipper',
+  consignee: 'Consignatário',
+  notify_party: 'Notify Party',
+  place_of_receipt: 'Place of Receipt',
+  movement_from: 'Movement From',
+  movement_to: 'Movement To',
+  place_of_delivery: 'Place of Delivery',
+  issue_place: 'Local de emissão',
+  bl_emission_date: 'Data de emissão',
+  ce_mercante: 'CE Mercante',
+  bb_machine_qty: 'Máquinas',
+  bb_packages_qty: 'Volumes',
+  bb_packages_total: 'Total de volumes',
+  bb_weight_ton: 'Peso carga solta (t)',
+  pol: 'POL',
+  pod: 'POD',
+  cargo_description: 'Descrição da carga',
+  total_weight_kg: 'Peso de contêiner (kg)',
+  total_cbm: 'CBM de contêiner (m³)',
+  bb_cbm: 'CBM de carga solta (m³)',
+  payment_type: 'Tipo de pagamento',
+  free_time_override: 'Free time',
+  notes: 'Notas',
+  ncm_codes: 'NCM',
+}
+
 const INVALID_NUMERIC_VALUE = Symbol('INVALID_NUMERIC_VALUE')
 
 // Estado do formulário de edição manual do B/L e submissão com auditoria campo a campo.
 export function useBlEditForm(bl: BLDetail | undefined) {
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
   const { user } = useAuth()
   const { showToast } = useToast()
   const [form, setForm] = useState<BlForm | null>(null)
@@ -130,34 +159,48 @@ export function useBlEditForm(bl: BLDetail | undefined) {
       return
     }
 
+    const updatePayload: JsonObject = {}
+
+    for (const field of changes) {
+      // Único campo de array do formulário: a RPC recebe os códigos limpos,
+      // não o texto com pontuação que o operador digitou.
+      if (field === 'ncm_codes') {
+        updatePayload.ncm_codes = parseNcmInput(form.ncm_codes)
+        continue
+      }
+      const normalized = normalizeFormValue(field, form[field])
+      if (normalized === INVALID_NUMERIC_VALUE) {
+        showToast(`Valor invalido para ${field}. Informe um numero valido antes de salvar.`, 'error')
+        return
+      }
+      updatePayload[field] = toJsonValue(normalized)
+    }
+
+    const auditRows: Json[] = changes.map((field) => ({
+      entity_type: 'bl',
+      entity_id: bl.id,
+      field_name: field,
+      old_value: stringifyValue(baselineForm?.[field]),
+      new_value: stringifyValue(form[field]),
+      justification,
+    }))
+
+    const confirmed = await confirm({
+      title: 'Confirmar edição do B/L',
+      message: `Salvar ${changes.length} alteração(ões) no B/L ${bl.id}?`,
+      confirmLabel: 'Salvar alterações',
+      changes: changes.map((field) => ({
+        field: EDITABLE_FIELD_LABELS[field],
+        before: stringifyValue(baselineForm?.[field]),
+        after: stringifyValue(form[field]),
+      })),
+      consequence: 'As alterações ficam registradas na Auditoria e podem afetar a Revisão, o Portal e os cálculos de taxas conforme as regras deste B/L.',
+      reversibility: 'Edite novamente para corrigir. A Auditoria preserva os valores anteriores e novos.',
+    })
+    if (!confirmed) return
+
     setSaving(true)
     try {
-      const updatePayload: JsonObject = {}
-
-      for (const field of changes) {
-        // Único campo de array do formulário: a RPC recebe os códigos limpos,
-        // não o texto com pontuação que o operador digitou.
-        if (field === 'ncm_codes') {
-          updatePayload.ncm_codes = parseNcmInput(form.ncm_codes)
-          continue
-        }
-        const normalized = normalizeFormValue(field, form[field])
-        if (normalized === INVALID_NUMERIC_VALUE) {
-          showToast(`Valor invalido para ${field}. Informe um numero valido antes de salvar.`, 'error')
-          return
-        }
-        updatePayload[field] = toJsonValue(normalized)
-      }
-
-      const auditRows: Json[] = changes.map((field) => ({
-        entity_type: 'bl',
-        entity_id: bl.id,
-        field_name: field,
-        old_value: stringifyValue(baselineForm?.[field]),
-        new_value: stringifyValue(form[field]),
-        justification,
-      }))
-
       const { error: rpcError } = await supabase.rpc('save_bl_review', {
         p_bl_id: bl.id,
         p_expected_updated_at: bl.updated_at ?? null,

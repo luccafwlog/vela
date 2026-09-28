@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Card, InlineError } from '../components/ui/Card'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import { supabasePortal } from '../services/supabase'
 
 const INVALID_LINK_MESSAGE = 'Link de confirmacao invalido ou expirado. Peca a troca novamente pelo Portal.'
@@ -31,6 +32,7 @@ function errorMessageFor(invokeError: unknown): string {
 // Exigir sessao aqui nao acrescentava barreira e trancava justamente quem le o
 // Email de Recuperacao -- em geral o contato financeiro, que nao tem a senha.
 export function PortalConfirmarEmail() {
+  const confirmAction = useConfirm()
   const [searchParams, setSearchParams] = useSearchParams()
   const [token] = useState(() => searchParams.get('confirm_email') ?? searchParams.get('token'))
   const [state, setState] = useState<'confirmando' | 'ok' | 'erro'>(token ? 'confirmando' : 'erro')
@@ -49,21 +51,37 @@ export function PortalConfirmarEmail() {
   useEffect(() => {
     if (!token || requested.current) return
     requested.current = true
-    void supabasePortal.functions
-      .invoke('portal-recovery-email-change', { body: { action: 'confirm', token } })
-      .then(({ error: invokeError }) => {
+    void (async () => {
+      const confirmed = await confirmAction({
+        title: 'Confirmar troca do e-mail de recuperação',
+        message: 'Confirmar que o novo endereço de e-mail deve passar a valer para esta conta do Portal?',
+        confirmLabel: 'Confirmar e-mail',
+        affected: { summary: 'E-mail de Recuperação da conta atual' },
+        consequence: 'O novo e-mail passa a valer, o anterior deixa de ser o endereço de recuperação e as sessões abertas em outros dispositivos são encerradas.',
+        reversibility: 'Para trocar o endereço novamente, será necessário iniciar outro pedido e confirmar o novo link.',
+      })
+      if (!confirmed) {
+        setError('Você voltou. O novo e-mail não foi confirmado; abra o link novamente quando quiser concluir a troca.')
+        setState('erro')
+        return
+      }
+      try {
+        const { error: invokeError } = await supabasePortal.functions.invoke(
+          'portal-recovery-email-change',
+          { body: { action: 'confirm', token } },
+        )
         if (invokeError) {
           setError(errorMessageFor(invokeError))
           setState('erro')
           return
         }
         setState('ok')
-      })
-      .catch(() => {
+      } catch {
         setError(TRANSIENT_MESSAGE)
         setState('erro')
-      })
-  }, [token])
+      }
+    })()
+  }, [token, confirmAction])
 
   return (
     <main className="app-auth">

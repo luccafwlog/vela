@@ -11,6 +11,7 @@ import { Button } from '../ui/Button'
 import { Card, InlineError } from '../ui/Card'
 import { Textarea } from '../ui/Input'
 import { isPortalReadOnly } from '../../services/portalScope'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 function stateLabel(state: PortalDispute['state']) {
   return state === 'aberta' ? 'Aberta' : state === 'resolvida' ? 'Resolvida' : 'Cancelada'
@@ -25,6 +26,7 @@ export function PortalDisputeConversation({ disputes }: { disputes: PortalDisput
   const readOnly = isPortalReadOnly(scope)
   const addMessage = usePortalAddDisputeMessage()
   const requestReopen = usePortalRequestDisputeReopen()
+  const confirm = useConfirm()
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [errors, setErrors] = useState<Record<number, string>>({})
   const [files, setFiles] = useState<Record<number, File | null>>({})
@@ -41,6 +43,15 @@ export function PortalDisputeConversation({ disputes }: { disputes: PortalDisput
     // V-A2: Se houver um anexo pendente de envio para uma mensagem já gravada e sem novo texto
     if (pendingMsgId && file && !body) {
       setErrors((current) => ({ ...current, [dispute.id]: '' }))
+      const confirmed = await confirm({
+        title: 'Confirmar envio do anexo',
+        message: `Enviar o anexo ${file.name} para a disputa ${dispute.doc_number}?`,
+        confirmLabel: 'Enviar anexo',
+        affected: { summary: '1 anexo', items: [`${file.name} (${Math.ceil(file.size / 1024)} KB)`] },
+        consequence: 'O arquivo será anexado à mensagem já registrada e ficará disponível na conversa da disputa.',
+        reversibility: 'Depois de enviado, o anexo não pode ser removido pelo Portal.',
+      })
+      if (!confirmed) return
       setIsUploading((current) => ({ ...current, [dispute.id]: true }))
       try {
         await portalUploadDisputeAttachment(pendingMsgId, dispute.id, file, scope)
@@ -89,6 +100,28 @@ export function PortalDisputeConversation({ disputes }: { disputes: PortalDisput
       }
       setIsUploading((current) => ({ ...current, [dispute.id]: false }))
     }
+
+    const isReopenRequest = dispute.state === 'resolvida'
+    const confirmed = await confirm({
+      title: isReopenRequest ? 'Confirmar pedido de reabertura' : 'Confirmar envio da mensagem',
+      message: isReopenRequest
+        ? `Enviar à equipe um pedido para reabrir a disputa ${dispute.doc_number}?`
+        : `Enviar mensagem à equipe na disputa ${dispute.doc_number}?`,
+      confirmLabel: isReopenRequest ? 'Solicitar reabertura' : 'Enviar mensagem',
+      affected: {
+        summary: isReopenRequest ? 'Pedido de reabertura' : 'Mensagem da disputa',
+        items: [
+          `Disputa: ${dispute.doc_number}`,
+          `Mensagem: ${body}`,
+          ...(file ? [`Anexo: ${file.name} (${Math.ceil(file.size / 1024)} KB)`] : []),
+        ],
+      },
+      consequence: isReopenRequest
+        ? 'A equipe receberá o pedido para análise. A disputa continua resolvida até a equipe decidir reabri-la.'
+        : 'A mensagem ficará visível para a equipe na conversa da disputa e poderá gerar uma notificação.',
+      reversibility: 'Mensagens e anexos enviados ficam no histórico e não podem ser editados ou removidos pelo Portal.',
+    })
+    if (!confirmed) return
 
     try {
       if (dispute.state === 'resolvida') {

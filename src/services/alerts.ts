@@ -758,6 +758,23 @@ export async function listInternalNotifications(options: {
   return (Array.isArray(data) ? data : []) as InternalNotification[]
 }
 
+/** Carrega todas as notificações não lidas para mostrar o escopo de uma baixa em massa. */
+export async function listAllUnreadInternalNotifications(): Promise<InternalNotification[]> {
+  const pageSize = 100
+  const notifications: InternalNotification[] = []
+  let before: InternalNotificationCursor | null = null
+
+  while (true) {
+    const page = await listInternalNotifications({ includeRead: false, limit: pageSize, before })
+    notifications.push(...page)
+    if (page.length < pageSize) return notifications
+
+    const last = page[page.length - 1]
+    if (!last) return notifications
+    before = { createdAt: last.created_at, id: last.id }
+  }
+}
+
 export async function countUnreadInternalNotifications(): Promise<number> {
   const { data, error } = await alertsRpc.rpc('count_unread_internal_notifications')
   if (error) throw error

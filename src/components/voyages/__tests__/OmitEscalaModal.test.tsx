@@ -34,7 +34,7 @@ describe('OmitEscalaModal', () => {
         voyageId={7}
         omittedPod="Salvador"
         candidateDischargePods={["Vitória"]}
-        blCount={3}
+        affectedBlNumbers={['BL-001', 'BL-002', 'BL-003']}
       />,
     )
 
@@ -43,9 +43,13 @@ describe('OmitEscalaModal', () => {
 
     expect(mutateAsync).not.toHaveBeenCalled()
     const confirmButton = screen.getByRole('button', { name: 'Confirmar omissão' })
-    expect(screen.getByText('Salvador → Vitória · 3 B/Ls afetados · clientes com vínculo serão notificados')).toBeTruthy()
+    expect(screen.getByText('Escala omitida: Salvador')).toBeTruthy()
+    expect(screen.getByText('Porto de descarga: Vitória')).toBeTruthy()
     expect(document.activeElement).toBe(confirmButton)
     expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true)
+    await user.click(screen.getByText('Ver B/Ls afetados (3)'))
+    expect(screen.getByText('BL-001')).toBeTruthy()
+    expect(screen.getByText(/clientes vinculados recebem uma notificação no Portal/)).toBeTruthy()
 
     await user.click(screen.getByRole('button', { name: 'Voltar' }))
     const omitButton = screen.getByRole('button', { name: 'Omitir escala' })

@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { Input } from '../ui/Input'
 import { Button } from '../ui/Button'
 import { useCustomerLookup } from '../../hooks/useCustomers'
+import type { ReviewCustomer } from '../../hooks/useReview'
 import { formatCnpjCpf } from '../../lib/utils'
 
 // Editores inline da fila de revisão; salvamento e seleção ficam com o pai.
 
-export function InlineCustomerPicker({ saving, onSelect }: { saving: boolean; onSelect: (customerId: number) => void }) {
+export function InlineCustomerPicker({ saving, onSelect }: { saving: boolean; onSelect: (customer: ReviewCustomer) => void }) {
   const [search, setSearch] = useState('')
   const lookup = useCustomerLookup(search)
 
@@ -27,7 +28,7 @@ export function InlineCustomerPicker({ saving, onSelect }: { saving: boolean; on
               type="button"
               disabled={saving}
               className="block w-full px-3 py-1.5 text-left text-xs text-slate-300 hover:bg-[#21262d] disabled:opacity-50"
-              onClick={() => onSelect(customer.id)}
+              onClick={() => onSelect(customer)}
             >
               <div className="font-medium text-white">{customer.name}</div>
               <div className="text-[11px] text-slate-500">{formatCnpjCpf(customer.cnpj_cpf)}</div>

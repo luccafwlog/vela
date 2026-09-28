@@ -663,6 +663,7 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 
 | Rota | Destino |
 |---|---|
+| `/` | Índice interno; redireciona para `/painel` |
 | `/painel` | Dashboard operacional |
 | `/viagens` | Lista e seleção de viagens |
 | `/viagens/:voyageId` | Detalhe master-detail deep-linkável, incluindo a aba ADR por escala brasileira |
@@ -685,6 +686,7 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/clientes/comunicacao` | Conferência, simulação/envio e histórico de Comunicados ao Cliente |
 | `/clientes/:cnpj` | Ficha do cliente (hub em abas via `?tab=`) |
 | `/clientes/portal/inspecao/:customerId/*` | Inspeção interna somente leitura do Portal, fora do `AppLayout`, sob `ProtectedRoute` |
+| `/clientes/portal/inspecao/:customerId` | Visão geral do Portal em Modo Inspeção |
 | `/clientes/portal/inspecao/:customerId/billing` | Faturas do Cliente em Modo Inspeção |
 | `/clientes/portal/inspecao/:customerId/operacao` | BLs e containers do Cliente em Modo Inspeção |
 | `/clientes/portal/inspecao/:customerId/perfil` | Perfil do Cliente em Modo Inspeção |
@@ -706,6 +708,12 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/admin` | Administração: abre a tela completa na aba padrão (Usuários) |
 | `/admin/:tab` | Uma sub-rota por aba (`usuarios`, `falhas`, `logs`, `metricas`, `prazo-adr`): o endereço é compartilhável e sobrevive ao refresh. Aba inexistente responde "Página não encontrada" em vez de cair na aba padrão |
 | `/perfil` | Perfil do usuário interno: nome, e-mail e troca da própria senha |
+
+### Fallbacks
+
+| Rota | Destino |
+|---|---|
+| `*` | Interno: tela de rota não encontrada; Portal: redireciona para `/portal` |
 
 `/revisao` trabalha visualmente por grupo de cliente, embora o gate canônico
 continue sendo calculado por B/L. O onboarding do grupo usa uma RPC transacional

@@ -8,6 +8,7 @@ import { Textarea } from '../ui/Input'
 import { formatDate } from '../../lib/utils'
 import { portalErrorMessage } from '../../lib/portalErrorMessage'
 import { useAuth } from '../../hooks/useAuth'
+import { useConfirm } from '../ui/ConfirmDialog'
 import { addDemurrageDisputeMessage, listDemurrageDisputes, reopenDemurrageDispute, uploadDemurrageDisputeAttachment, type DemurrageDispute } from '../../services/demurrage/demurrageDisputes'
 
 const DISPUTE_AUTHOR_LABELS: Record<string, string> = {
@@ -29,6 +30,7 @@ export function DemurrageDisputeConversation() {
 
 function DemurrageDisputeConversationContent() {
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [nextResponders, setNextResponders] = useState<Record<number, 'cliente' | 'ninguem'>>({})
   const [errors, setErrors] = useState<Record<number, string>>({})
@@ -55,13 +57,36 @@ function DemurrageDisputeConversationContent() {
       return
     }
     setErrors((current) => ({ ...current, [dispute.id]: '' }))
+    const isReopen = dispute.state === 'resolvida'
+    const nextResponder = nextResponders[dispute.id] ?? 'cliente'
+    const file = attachments[dispute.id]
+    const confirmed = await confirm({
+      title: isReopen ? 'Confirmar reabertura da Dispute' : 'Confirmar resposta ao cliente',
+      message: isReopen
+        ? `Reabrir a Dispute ${dispute.doc_number} com esta justificativa?`
+        : `Enviar resposta ao cliente na Dispute ${dispute.doc_number}?`,
+      confirmLabel: isReopen ? 'Reabrir Dispute' : 'Enviar resposta',
+      affected: {
+        summary: isReopen ? 'Reabertura da Dispute' : 'Resposta da Dispute',
+        items: [
+          `Cliente: ${dispute.customer_name}`,
+          `Documento: ${dispute.doc_number}`,
+          `Mensagem: ${body}`,
+          ...(!isReopen ? [`Próximo responsável: ${nextResponder === 'cliente' ? 'Cliente' : 'Ninguém'}`] : []),
+          ...(file ? [`Anexo: ${file.name} (${Math.ceil(file.size / 1024)} KB)`] : []),
+        ],
+      },
+      consequence: isReopen
+        ? 'A Dispute volta à fila aberta com a justificativa registrada e o cliente poderá responder.'
+        : `A resposta fica visível ao cliente no Portal${nextResponder === 'cliente' ? ' e aguarda retorno do cliente' : ' e encerra a pendência de resposta'}.`,
+      reversibility: 'Mensagens e anexos enviados ficam no histórico e não podem ser editados ou removidos.',
+    })
+    if (!confirmed) return
     try {
       if (dispute.state === 'resolvida') {
         await reopenMutation.mutateAsync({ id: dispute.id, body })
       } else {
-        const nextResponder = nextResponders[dispute.id] ?? 'cliente'
         const result = await messageMutation.mutateAsync({ id: dispute.id, body, nextResponder }) as { message_id?: number }
-        const file = attachments[dispute.id]
         if (file && result.message_id) await uploadDemurrageDisputeAttachment(result.message_id, dispute.id, dispute.customer_id, file)
       }
       setDrafts((current) => ({ ...current, [dispute.id]: '' }))

@@ -42,6 +42,7 @@ import { formatBRL, formatDate } from '../../lib/utils'
 import { normalizePortCode } from '../../services/portCode'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../ui/Toast'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 const DEPARTMENTS: AgencyReportDepartmentKey[] = ['operacoes', 'documentacao', 'equipamentos']
 
@@ -116,6 +117,7 @@ function ReportSection({
             />
             <SignoffControl
               section={section}
+              sectionLabel={title}
               state={state}
               attribution={attribution}
               departmentLabel={AGENCY_REPORT_DEPARTMENT_LABELS[AGENCY_REPORT_SECTIONS[section]]}
@@ -154,7 +156,27 @@ function SectionObservationAction({
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(observation ?? '')
+  const confirm = useConfirm()
   const text = observation?.trim() ?? ''
+
+  async function confirmSave() {
+    const before = observation ?? ''
+    if (draft === before) {
+      setEditing(false)
+      return
+    }
+    const confirmed = await confirm({
+      title: `Confirmar observação — ${title}`,
+      message: `Salvar a observação desta seção do ADR?`,
+      confirmLabel: text ? 'Salvar alterações' : 'Salvar observação',
+      changes: [{ field: 'Observação', before: before || '—', after: draft || '—' }],
+      consequence: 'A observação passa a integrar o histórico do ADR e o relatório desta escala.',
+      reversibility: 'Edite novamente para corrigir a observação; a Auditoria preserva a mudança.',
+    })
+    if (!confirmed) return
+    onChange?.(section, draft)
+    setEditing(false)
+  }
 
   if (!canEdit) return null
 
@@ -176,7 +198,7 @@ function SectionObservationAction({
               type="button"
               variant="primary"
               disabled={draft === (observation ?? '')}
-              onClick={() => { onChange?.(section, draft); setEditing(false) }}
+              onClick={() => void confirmSave()}
             >
               {text ? 'Salvar alterações' : 'Salvar observação'}
             </Button>
@@ -305,6 +327,7 @@ function ContainerNatureTable({ rows }: { rows: Record<string, Record<string, nu
 
 export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods, initialEscala, reportId: initialReportId, terminalCode: initialTerminalCode, readOnly = false }: Props) {
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const initialPortCode = normalizePortCode(initialEscala)
   const initialPort = initialPortCode && pods.some((entry) => normalizePortCode(entry.pod) === initialPortCode) ? initialPortCode : (normalizePortCode(pods[0]?.pod) ?? null)
   const [port, setPort] = useState<string | null>(initialPort)
@@ -512,6 +535,25 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const canSignDepartment = (department: AgencyReportDepartmentKey) => !readOnly && (isAdmin || effectiveRole === department)
   const updateDepartmentSignoff = (department: AgencyReportDepartmentKey, signed: boolean, justification?: string) => {
     if (!readOnly && port) departmentSignoffMutation.mutate({ voyageId, port, department, signed, justification })
+  }
+  async function saveTerminal() {
+    if (readOnly || !port) return
+    const before = ownData?.terminal ?? selectedTerminalReport?.terminal ?? ''
+    const after = terminalDraft.trim()
+    if (after === before) return
+    const confirmed = await confirm({
+      title: 'Confirmar terminal do ADR',
+      message: `Salvar ${after || 'sem terminal'} como terminal desta escala?`,
+      confirmLabel: 'Salvar terminal',
+      changes: [{ field: 'Terminal', before: before || '—', after: after || '—' }],
+      consequence: 'O terminal identifica este ADR e orienta a leitura dos dados e dos prazos da escala.',
+      reversibility: 'Edite novamente para corrigir o terminal.',
+    })
+    if (!confirmed) return
+    terminalMutation.mutate({ voyageId, port, terminal: after }, {
+      onSuccess: () => showToast('Terminal do ADR salvo.', 'success'),
+      onError: (error) => showToast(error instanceof Error ? error.message : 'Falha ao salvar o terminal do ADR.', 'error'),
+    })
   }
   const signedDepartmentsCount = DEPARTMENTS.filter(isDepartmentSigned).length
   const missingDepartmentLabels = DEPARTMENTS.filter((department) => !isDepartmentSigned(department)).map((department) => AGENCY_REPORT_DEPARTMENT_LABELS[department])
@@ -732,7 +774,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                   {resolvedReportId ? (
                     <Info label="Terminal" value={resolvedTerminalCode ? `${resolvedTerminalCode}${resolvedTerminalName && resolvedTerminalName !== resolvedTerminalCode ? ` — ${resolvedTerminalName}` : ''}` : (ownData?.terminal ?? '—')} />
                   ) : canEditOperations ? (
-                    <div className="grid gap-1"><label htmlFor="legacy-adr-terminal" className="text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">Terminal</label><div className="flex gap-2"><input id="legacy-adr-terminal" className="app-input min-w-0" value={terminalDraft} onChange={(event) => setTerminalDraft(event.target.value)} placeholder="Informe o terminal" disabled={readOnly || ownData?.status === 'closed' || terminalMutation.isPending} /><Button type="button" variant="secondary" disabled={readOnly || !port || ownData?.status === 'closed' || terminalMutation.isPending || terminalDraft.trim() === (ownData?.terminal ?? '')} onClick={() => { if (readOnly || !port) return; terminalMutation.mutate({ voyageId, port, terminal: terminalDraft.trim() }, { onSuccess: () => showToast('Terminal do ADR salvo.', 'success'), onError: (error) => showToast(error instanceof Error ? error.message : 'Falha ao salvar o terminal do ADR.', 'error') }) }}>Salvar</Button></div></div>
+                    <div className="grid gap-1"><label htmlFor="legacy-adr-terminal" className="text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">Terminal</label><div className="flex gap-2"><input id="legacy-adr-terminal" className="app-input min-w-0" value={terminalDraft} onChange={(event) => setTerminalDraft(event.target.value)} placeholder="Informe o terminal" disabled={readOnly || ownData?.status === 'closed' || terminalMutation.isPending} /><Button type="button" variant="secondary" disabled={readOnly || !port || ownData?.status === 'closed' || terminalMutation.isPending || terminalDraft.trim() === (ownData?.terminal ?? '')} onClick={() => void saveTerminal()}>Salvar</Button></div></div>
                   ) : <Info label="Terminal" value={ownData?.terminal ?? '—'} />}
                   <Info label="ATA" value={formatDate(data?.escala?.ata ?? data?.schedule?.ata)} />
                   <Info label="ATB" value={formatDate(terminalAtb)} />

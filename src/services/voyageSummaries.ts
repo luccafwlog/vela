@@ -74,6 +74,7 @@ export function normalizeVoyageStatus(status: string | null): 'active' | 'comple
 
 export type VoyageBl = {
   id: string
+  bl_number?: string | null
   batch_id?: number | null
   cargo_mode: 'container' | 'carga_solta' | 'misto' | null
   ce_mercante: string | null
@@ -296,6 +297,20 @@ export function countPlannedPodRows(rows: Array<{ pod: string | null | undefined
 
 function canonicalPort(value: string | null | undefined) {
   return normalizePortCode(value) ?? normalizePortName(value)
+}
+
+/**
+ * B/Ls the omission RPC will affect. Keep the SQL predicate in
+ * `omit_voyage_escala` (upper(btrim(coalesce(pod, '')))) instead of merging
+ * historical port aliases: the confirmation must list the rows the RPC will
+ * actually match.
+ */
+export function getBlsAffectedByOmittedPod<T extends { pod: string | null }>(
+  bls: readonly T[] | null | undefined,
+  omittedPod: string,
+): T[] {
+  const target = omittedPod.trim().toUpperCase()
+  return (bls ?? []).filter((bl) => (bl.pod ?? '').trim().toUpperCase() === target)
 }
 
 export type AdrEscalaPod = { pod: string; omitted: boolean }

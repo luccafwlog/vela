@@ -18,6 +18,7 @@ import {
   computeAdrEscalaPods,
   countPlannedPodRows,
   deriveEstadoConciliacao,
+  getBlsAffectedByOmittedPod,
   getProximaEscala,
   isEtaOverdue,
   summarizeExportByEmbarkPort,
@@ -318,6 +319,10 @@ export function VoyageCard({
     { key: 'manifestos', label: 'Rotas e Manifestos' },
     { key: 'adr', label: 'ADR' },
   ]
+  const omitAffectedBls = useMemo(() => {
+    if (!omitTarget) return []
+    return getBlsAffectedByOmittedPod(voyage.bls, omitTarget)
+  }, [omitTarget, voyage.bls])
 
   return (
     <Card className="grid gap-5">
@@ -554,7 +559,7 @@ export function VoyageCard({
           voyageId={voyage.id}
           omittedPod={omitTarget}
           candidateDischargePods={activePods.length > 1 ? activePods.filter((pod) => pod !== omitTarget) : activePods}
-          blCount={podRows.find((row) => (normalizePortCode(row.pod) ?? normalizePortName(row.pod)) === (normalizePortCode(omitTarget) ?? normalizePortName(omitTarget)))?.blCount ?? 0}
+          affectedBlNumbers={omitAffectedBls.map((bl) => String(bl.bl_number ?? '').trim() || bl.id)}
         />
       ) : null}
     </Card>

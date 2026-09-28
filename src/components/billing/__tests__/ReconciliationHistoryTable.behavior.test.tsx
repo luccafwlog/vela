@@ -56,6 +56,19 @@ import { ReconciliationHistoryTable } from '../ReconciliationHistoryTable'
 beforeEach(() => vi.clearAllMocks())
 afterEach(cleanup)
 
+it('nomeia a tabela e anuncia a coluna ordenada com aria-sort', async () => {
+  const user = userEvent.setup()
+  render(<ReconciliationHistoryTable />)
+
+  expect(screen.getByRole('table', { name: 'Histórico de conciliações' })).toBeTruthy()
+  const paidAtColumn = screen.getByRole('columnheader', { name: 'Pagamento' })
+  expect(paidAtColumn.getAttribute('aria-sort')).toBe('descending')
+
+  await user.click(screen.getByRole('button', { name: 'B/L' }))
+  expect(screen.getByRole('columnheader', { name: 'B/L' }).getAttribute('aria-sort')).toBe('descending')
+  expect(paidAtColumn.getAttribute('aria-sort')).toBeNull()
+})
+
 it('opens the local invoice detail selected from history', async () => {
   const user = userEvent.setup()
   render(<ReconciliationHistoryTable onSelectLocalInvoice={mocks.onLocal} onSelectDemurrageInvoice={mocks.onDemurrage} />)

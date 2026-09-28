@@ -57,6 +57,7 @@ export function ValidacaoOperationsTable({
       {hasError ? <InlineError message="Falha ao carregar operação de taxas locais." /> : null}
       <div className="app-table-scroll">
         <table className="app-table app-table--compact min-w-[1100px] text-left text-sm whitespace-nowrap">
+          <caption className="sr-only">B/Ls da operação de taxas locais</caption>
           <thead>
             <tr>
               <th scope="col" className="px-4 py-3">

@@ -986,7 +986,13 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 - [x] Validar manualmente modal sujo, backdrop/Escape/fechar, foco previsível e ausência de confirmação quando não há alteração. Evidência: Preview Vercel da PR #683 no SHA `c252d7cb`, rota `/viagens`; alteração suja confirmou em Cancelar, fechar, Escape e backdrop, “Continuar editando” preservou o valor e o foco retornou a “Nova Viagem”; formulário limpo fechou sem confirmação.
 - [x] Medir contraste de texto normal >=4,5:1 nos tokens de texto, link, status e cabeçalho nos dois temas reais; `npm run a11y:contrast` passou 20 pares e ajustou tokens claros/escuros. Estados hover/disabled e confirmação de que status não depende apenas de cor continuam no roteiro manual.
 - [x] Implementar botões/menus de ação acessíveis por teclado e semântica de interação equivalente para as linhas auditadas.
-- [ ] Completar caption, `aria-sort` e retorno de foco com verificação manual de leitor de tela; não criar grid ARIA sem necessidade.
+- [x] Acrescentar caption às listas principais de Clientes, invoices, validação,
+  alertas, demurrage e histórico de conciliações; expor `aria-sort` nas colunas
+  ordenáveis de Clientes/conciliação; o menu de ações de Clientes agora move o
+  foco com setas/Home/End e o devolve ao acionador em Escape. Evidência local:
+  `Clientes.behavior.test.tsx` e `ReconciliationHistoryTable.behavior.test.tsx`.
+- [ ] Inventariar as demais tabelas relevantes e verificar caption, `aria-sort`
+  e foco com leitor de tela no Preview; não criar grid ARIA sem necessidade.
 - [x] Nos uploads múltiplos que usam `FileImportModal`, exibir progresso por
   arquivo e permitir cancelamento entre unidades; o cancelamento não inicia a
   etapa de importação. Evidência: `FileImportModal.test.tsx`.
@@ -1009,7 +1015,11 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 - [x] Derivar o inventário executável do catálogo e o mapa literal S11, cruzando rotas → componentes → hooks → serviços → RPC/args/grants → tabelas → testes; o índice/catálogo atual e as famílias entregues estão documentados.
 - [x] Completar as famílias ainda ausentes de PIX, notificações, vazios manuais e hooks/tabelas do residual sem recontar buckets como tabelas. Em 2026-09-25, `docs/RASTREABILIDADE.md` ganhou a matriz complementar por superfície → origem/hook → serviço → RPC/tabela → teste; `src/services/__tests__/documentationContracts.test.ts` cobre cinco famílias (5/5). A leitura de `useVaziosImportacaoStats` é direta via PostgREST, sem service/RPC intermediário; a ausência de teste dedicado de paginação/agregação ficou explícita como lacuna, sem ser apresentada como cobertura comportamental. A revisão identificou defeito no hook: manifestos sem paginação e containers paginados sem ordem estável; corrigido na PR #775, com teste de regressão.
 - [x] Fortalecer `docs:check` para as rotas vivas e arquivos referenciados, excluindo archive e classificando referências históricas/arquivos “a criar”; o gate atual passou sem inventar `/line-up-tv`.
-- [ ] Manter a cobertura nos dois sentidos quando novas rotas/arquivos forem adicionados.
+- [x] Manter a cobertura de rotas nos dois sentidos: `docs:check` compara as
+  rotas vivas com as tabelas de Arquitetura/Rastreabilidade, detecta rotas
+  documentadas sem handler e tem regressões para mapa incompleto/stale; links
+  relativos de documentos vivos continuam validados e `archive` continua fora
+  do gate.
 - [x] Criar e executar o gate de catálogo: RPCs chamadas, assinaturas, wrappers dinâmicos, grants default-deny e jobs obrigatórios são conferidos contra o schema final; combinado com o security checker, não depende só de regex/contagem.
 - [x] Manter testes históricos ativo+archive identificados como históricos e migrar invariantes críticas para replay 001–última; replay local, tipos e invariantes da PR passaram. Não remover testes históricos em lote.
 - [x] Conferir localmente as 14 candidatas contra dependências, corpos, mapa, triggers, jobs e scripts, registrando assinaturas e resultado.
