@@ -6,13 +6,18 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const auth = vi.hoisted(() => ({
   functions: { invoke: vi.fn(() => Promise.resolve<{ data: unknown; error: unknown }>({ data: { confirmed: true }, error: null })) },
+  confirm: vi.fn(() => Promise.resolve(true)),
 }))
 
 vi.mock('../../services/supabase', () => ({ supabasePortal: { auth, functions: auth.functions } }))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => auth.confirm }))
 
 import { PortalConfirmarEmail } from '../PortalConfirmarEmail'
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  auth.confirm.mockResolvedValue(true)
+})
 afterEach(cleanup)
 
 it('confirma o novo email sem exigir sessao do Portal', async () => {
@@ -26,6 +31,19 @@ it('confirma o novo email sem exigir sessao do Portal', async () => {
   expect(auth.functions.invoke).toHaveBeenCalledWith('portal-recovery-email-change', {
     body: { action: 'confirm', token: 'TOKEN' },
   })
+})
+
+it('não conclui a troca quando a pessoa volta do diálogo de confirmação', async () => {
+  auth.confirm.mockResolvedValue(false)
+  render(
+    <MemoryRouter initialEntries={['/portal/confirmar-email?token=TOKEN']}>
+      <PortalConfirmarEmail />
+    </MemoryRouter>,
+  )
+
+  await waitFor(() => expect(screen.getByText(/Você voltou/)).toBeTruthy())
+  expect(auth.confirm).toHaveBeenCalledOnce()
+  expect(auth.functions.invoke).not.toHaveBeenCalled()
 })
 
 it('aceita o parametro antigo confirm_email dos links ja enviados', async () => {

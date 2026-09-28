@@ -10,8 +10,10 @@ import {
 } from '../../hooks/useInternalNotifications'
 import { alertEntityLink, formatAlertEntity, ENTITY_TYPE_LABELS, type InternalNotification } from '../../services/alerts'
 import type { InternalNotificationCursor } from '../../services/alerts'
+import { listAllUnreadInternalNotifications } from '../../services/alerts'
 import { formatDate } from '../../lib/utils'
 import { useToast } from '../ui/Toast'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 export function InternalNotificationBell() {
   const [open, setOpen] = useState(false)
@@ -21,6 +23,7 @@ export function InternalNotificationBell() {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const confirm = useConfirm()
 
   const { data: countData } = useUnreadInternalNotificationCount()
   const unreadCount = Number(countData ?? 0)
@@ -30,6 +33,36 @@ export function InternalNotificationBell() {
   const { data: entityLabels } = useInternalNotificationEntityLabels(data, cursor)
   const markRead = useMarkInternalNotificationRead()
   const markAllRead = useMarkAllInternalNotificationsRead()
+
+  async function markEveryUnreadNotificationRead() {
+    try {
+      const unreadNotifications = await listAllUnreadInternalNotifications()
+      if (unreadNotifications.length !== unreadCount) {
+        showToast('A lista de notificações mudou. Atualize o painel e tente de novo; nenhuma foi marcada.', 'error')
+        return
+      }
+      if (unreadNotifications.length === 0) return
+
+      const confirmed = await confirm({
+        title: 'Marcar todas como lidas',
+        message: `Marcar ${unreadNotifications.length} notificações internas como lidas?`,
+        confirmLabel: 'Marcar como lidas',
+        affected: {
+          summary: `${unreadNotifications.length} notificações internas não lidas`,
+          items: unreadNotifications.map((notification) =>
+            `${notification.title ?? 'Notificação'} — ${notification.message}`,
+          ),
+        },
+        consequence: 'Elas saem do contador de não lidas. As pendências operacionais continuam abertas na fila de Alertas; esta ação só altera o estado das notificações.',
+        reversibility: 'Não há ação para marcar essas notificações novamente como não lidas. As pendências continuam acessíveis em Alertas.',
+      })
+      if (!confirmed) return
+
+      await markAllRead.mutateAsync()
+    } catch {
+      showToast('Não foi possível marcar todas como lidas. Tente de novo.', 'error')
+    }
+  }
 
   useEffect(() => {
     if (!open) return
@@ -89,7 +122,7 @@ export function InternalNotificationBell() {
                 type="button"
                 className="inline-flex items-center gap-1 text-xs text-[var(--app-link)] hover:underline disabled:opacity-50"
                 disabled={markAllRead.isPending}
-                onClick={() => void markAllRead.mutateAsync().catch(() => showToast('Não foi possível marcar todas como lidas. Tente de novo.', 'error'))}
+                onClick={() => void markEveryUnreadNotificationRead()}
               >
                 <CheckCheck size={14} />
                 <span>Marcar todas como lidas</span>
@@ -126,12 +159,29 @@ export function InternalNotificationBell() {
                   className="flex w-full gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-white/5"
                   onClick={() => {
                     if (!notification.read_at) {
-                      // A mutation é idempotente por notificação: repetir o clique
-                      // (retry após falha) não duplica nem perde o item — o hook
-                      // restaura o estado otimista no erro.
-                      void markRead.mutateAsync(notification.id).catch(() =>
-                        showToast('Não foi possível marcar como lida. Toque de novo para tentar.', 'error'),
-                      )
+                      void (async () => {
+                        const confirmed = await confirm({
+                          title: 'Marcar notificação como lida',
+                          message: `Marcar “${notification.title ?? 'Notificação'}” como lida e abrir o registro?`,
+                          confirmLabel: 'Marcar como lida',
+                          affected: {
+                            summary: `1 notificação: ${notification.title ?? 'Notificação'}`,
+                            items: [notification.message],
+                          },
+                          consequence: 'A notificação sai do contador de não lidas. A pendência operacional continua aberta na fila de Alertas.',
+                          reversibility: 'Não há ação para marcar esta notificação novamente como não lida. A pendência continua acessível em Alertas.',
+                        })
+                        if (!confirmed) return
+
+                        // A mutation é idempotente por notificação: o hook restaura
+                        // o estado otimista no erro para permitir uma nova tentativa.
+                        void markRead.mutateAsync(notification.id).catch(() =>
+                          showToast('Não foi possível marcar como lida. Toque de novo para tentar.', 'error'),
+                        )
+                        navigate(destination)
+                        setOpen(false)
+                      })()
+                      return
                     }
                     navigate(destination)
                     setOpen(false)

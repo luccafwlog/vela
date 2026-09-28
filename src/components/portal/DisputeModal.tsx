@@ -7,6 +7,7 @@ import { usePortalOpenDispute } from '../../hooks/usePortalDisputes'
 import { portalErrorMessage } from '../../lib/portalErrorMessage'
 import { usePortalScope } from '../../hooks/usePortalScope'
 import { isPortalReadOnly } from '../../services/portalScope'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 type Props = {
   demurrageInvoiceId: number | null
@@ -32,6 +33,7 @@ function DisputeModalContent({ demurrageInvoiceId, docNumber, onClose }: { demur
   const openDispute = usePortalOpenDispute()
   const scope = usePortalScope()
   const readOnly = isPortalReadOnly(scope)
+  const confirm = useConfirm()
 
   async function handleSubmit() {
     if (!reason.trim()) {
@@ -39,6 +41,18 @@ function DisputeModalContent({ demurrageInvoiceId, docNumber, onClose }: { demur
       return
     }
     setError('')
+    const confirmed = await confirm({
+      title: 'Confirmar abertura da disputa',
+      message: `Enviar a disputa da fatura ${docNumber} para análise?`,
+      confirmLabel: 'Abrir disputa',
+      affected: {
+        summary: '1 disputa de Demurrage',
+        items: [`Fatura: ${docNumber}`, `Motivo: ${reason.trim()}`],
+      },
+      consequence: 'A solicitação ficará registrada na conversa e será analisada pela equipe Transhipping.',
+      reversibility: 'A disputa aberta não pode ser apagada pelo Portal; a equipe poderá resolvê-la após a análise.',
+    })
+    if (!confirmed) return
     try {
       await openDispute.mutateAsync({ demurrageInvoiceId, reason: reason.trim() })
       setReason('')

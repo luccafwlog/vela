@@ -48,7 +48,13 @@ bash scripts/sync-git.sh
 **O que faz:** varre a documentação do projeto procurando problemas — como links
 que apontam para arquivos que não existem mais. Também exige `AGENTS.md`,
 indexa ADRs, extrai rotas JSX por AST (incluindo índices e subrotas) e valida
-as sete seções e oito colunas dos módulos. Requer `npm ci --legacy-peer-deps`.
+as sete seções e oito colunas dos módulos. As rotas de `AppInterno` e
+`AppPortal` precisam aparecer nas tabelas de `ARCHITECTURE.md` e
+`RASTREABILIDADE.md`; o gate também rejeita caminhos listados nesses mapas que
+já não resolvem no roteador. Normaliza query strings de abas e parâmetros de
+rota; entradas explicitamente marcadas como “sem rota própria” são notas de
+fallback, não rotas ativas. Documentos em `archive/` ficam fora do gate.
+Requer `npm ci --legacy-peer-deps`.
 Testes do gate: `node scripts/check-docs.test.mjs` e
 `node scripts/lib/docs-routes.test.mjs`.
 

@@ -1,16 +1,21 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render as rtlRender, screen, within } from '@testing-library/react'
-import type { ReactElement } from 'react'
+import { cleanup, fireEvent, render as rtlRender, screen, waitFor, within } from '@testing-library/react'
+import type { PropsWithChildren, ReactElement } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { VoyageAgencyReportTab } from '../VoyageAgencyReportTab'
 import { ToastProvider } from '../../ui/Toast'
+import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
 import { formatBRL } from '../../../lib/utils'
 
 // O componente usa `useToast`, que exige `ToastProvider` (o app o monta em
 // `main.tsx`). Envolver aqui, num render único, mantém as chamadas de teste
 // inalteradas em vez de repetir o provider em cada uma delas.
-const render = (ui: ReactElement) => rtlRender(ui, { wrapper: ToastProvider })
+function TestProviders({ children }: PropsWithChildren) {
+  return <ToastProvider><ConfirmDialogProvider>{children}</ConfirmDialogProvider></ToastProvider>
+}
+
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: TestProviders })
 
 const { useAgencyReportDerivedMock, useAgencyReportOwnMock, useAgencyReportTerminalStateMock, terminalMutateMock, closeMutateMock, reopenMutateMock, useAuthMock } = vi.hoisted(() => ({
   useAgencyReportDerivedMock: vi.fn(),
@@ -235,7 +240,7 @@ it('mantém ADR legado fora das RPCs terminalizadas quando há deep-link legado'
   expect(useAgencyReportOwnMock.mock.calls.at(-1)?.[2]).toBeNull()
 })
 
-it('mantém o terminal editável no ADR legado sem frente atribuída', () => {
+it('mantém o terminal editável no ADR legado sem frente atribuída', async () => {
   useAgencyReportTerminalStateMock.mockReturnValue({
     data: {
       agencyReports: [{
@@ -254,7 +259,11 @@ it('mantém o terminal editável no ADR legado sem frente atribuída', () => {
   fireEvent.change(terminalInput, { target: { value: 'TVV' } })
   fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
-  expect(terminalMutateMock).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, port: 'BRVIX', terminal: 'TVV' }), expect.any(Object))
+  const dialog = screen.getByRole('dialog', { name: 'Confirmar terminal do ADR' })
+  expect(terminalMutateMock).not.toHaveBeenCalled()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar terminal' }))
+
+  await waitFor(() => expect(terminalMutateMock).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, port: 'BRVIX', terminal: 'TVV' }), expect.any(Object)))
 })
 
 it('mantém o Terminal legado somente leitura fora de operações e administração', () => {
@@ -947,7 +956,7 @@ it('observação escrita por outro departamento é lida por quem não pode edit�
   expect(within(veiculosSection).queryByLabelText('Observação — Veículos')).toBeNull()
 })
 
-it('sobrescrever a Observação não pede justificativa e chama a RPC de Observação', () => {
+it('sobrescrever a Observação confirma a diferença e chama a RPC de Observação', async () => {
   observationMutateMock.mockClear()
   useAuthMock.mockReturnValue({ effectiveRole: 'equipamentos', isAdmin: false })
   useAgencyReportOwnMock.mockReturnValue({
@@ -967,10 +976,17 @@ it('sobrescrever a Observação não pede justificativa e chama a RPC de Observa
   fireEvent.change(observationField, { target: { value: 'Nota atualizada' } })
   fireEvent.click(within(veiculosSection).getByRole('button', { name: 'Salvar alterações' }))
 
+  const dialog = screen.getByRole('dialog', { name: 'Confirmar observação — Veículos' })
+  const table = within(dialog).getByRole('table', { name: 'Campos alterados' })
+  expect(within(table).getByText('Nota antiga')).toBeTruthy()
+  expect(within(table).getByText('Nota atualizada')).toBeTruthy()
+  expect(observationMutateMock).not.toHaveBeenCalled()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar alterações' }))
+
   expect(screen.queryByLabelText('Justificativa')).toBeNull()
-  expect(observationMutateMock).toHaveBeenCalledWith({
+  await waitFor(() => expect(observationMutateMock).toHaveBeenCalledWith({
     voyageId: 7, port: 'BRVIX', section: 'veiculos', observation: 'Nota atualizada',
-  })
+  }))
 })
 
 it('sign-off de Operações não é mais bloqueado por Ocorrências (1 seção: datas)', () => {

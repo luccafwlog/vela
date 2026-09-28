@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { ConfirmDialogProvider } from '../../components/ui/ConfirmDialog'
 import { PASSWORD_RULE_MESSAGE } from '../../lib/passwordPolicy'
 import { INCOMPLETE_CNPJ_MESSAGE } from '../../lib/portalCnpjLogin'
 
@@ -124,18 +125,22 @@ it('falha de rede nao promete email que nunca sera enviado', async () => {
 
 it('US-156: link invalido sem tokens mostra erro', () => {
   render(
-    <MemoryRouter>
-      <PortalResetPassword />
-    </MemoryRouter>,
+    <ConfirmDialogProvider>
+      <MemoryRouter>
+        <PortalResetPassword />
+      </MemoryRouter>
+    </ConfirmDialogProvider>,
   )
   expect(screen.getByText('Link de recuperação inválido ou expirado.')).toBeTruthy()
 })
 
 it('US-156: aceita token de recovery na query string', async () => {
   render(
-    <MemoryRouter initialEntries={['/portal/recuperar-senha?token=TOKEN']}>
-      <PortalResetPassword />
-    </MemoryRouter>,
+    <ConfirmDialogProvider>
+      <MemoryRouter initialEntries={['/portal/recuperar-senha?token=TOKEN']}>
+        <PortalResetPassword />
+      </MemoryRouter>
+    </ConfirmDialogProvider>,
   )
 
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Redefinir senha' })).toBeTruthy())
@@ -144,18 +149,22 @@ it('US-156: aceita token de recovery na query string', async () => {
 it('US-157: atualiza a senha e volta para o login', async () => {
   const user = userEvent.setup()
   render(
-    <MemoryRouter initialEntries={['/portal/recuperar-senha?token=TOKEN']}>
-      <Routes>
-        <Route path="/portal/recuperar-senha" element={<PortalResetPassword />} />
-        <Route path="/portal/login" element={<div>LOGIN PLACEHOLDER</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <ConfirmDialogProvider>
+      <MemoryRouter initialEntries={['/portal/recuperar-senha?token=TOKEN']}>
+        <Routes>
+          <Route path="/portal/recuperar-senha" element={<PortalResetPassword />} />
+          <Route path="/portal/login" element={<div>LOGIN PLACEHOLDER</div>} />
+        </Routes>
+      </MemoryRouter>
+    </ConfirmDialogProvider>,
   )
 
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Redefinir senha' })).toBeTruthy())
   await user.type(screen.getByPlaceholderText('Minimo 8 caracteres'), 'senhaSegura1')
   await user.type(screen.getByPlaceholderText('Repita a senha'), 'senhaSegura1')
   await user.click(screen.getByRole('button', { name: 'Redefinir senha' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Redefinir senha do Portal' })
+  await user.click(within(dialog).getByRole('button', { name: 'Redefinir senha' }))
 
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Senha redefinida' })).toBeTruthy())
   expect(auth.functions.invoke).toHaveBeenCalledWith('portal-password-reset', { body: { token: 'TOKEN', password: 'senhaSegura1' } })
@@ -171,10 +180,12 @@ it('achado 3.3 (auditoria 2026-08-12): remove o token da URL apos a montagem, se
     return <span data-testid="search">{location.search}</span>
   }
   render(
-    <MemoryRouter initialEntries={['/portal/recuperar-senha?token=TOKEN']}>
-      <PortalResetPassword />
-      <LocationProbe />
-    </MemoryRouter>,
+    <ConfirmDialogProvider>
+      <MemoryRouter initialEntries={['/portal/recuperar-senha?token=TOKEN']}>
+        <PortalResetPassword />
+        <LocationProbe />
+      </MemoryRouter>
+    </ConfirmDialogProvider>,
   )
 
   await waitFor(() => expect(screen.getByTestId('search').textContent).toBe(''))
@@ -182,6 +193,8 @@ it('achado 3.3 (auditoria 2026-08-12): remove o token da URL apos a montagem, se
   await user.type(screen.getByPlaceholderText('Minimo 8 caracteres'), 'senhaSegura1')
   await user.type(screen.getByPlaceholderText('Repita a senha'), 'senhaSegura1')
   await user.click(screen.getByRole('button', { name: 'Redefinir senha' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Redefinir senha do Portal' })
+  await user.click(within(dialog).getByRole('button', { name: 'Redefinir senha' }))
 
   await waitFor(() => expect(auth.functions.invoke).toHaveBeenCalledWith('portal-password-reset', { body: { token: 'TOKEN', password: 'senhaSegura1' } }))
 })
@@ -189,9 +202,11 @@ it('achado 3.3 (auditoria 2026-08-12): remove o token da URL apos a montagem, se
 it('US-157: rejeita senha sem composicao minima', async () => {
   const user = userEvent.setup()
   render(
-    <MemoryRouter initialEntries={['/portal/recuperar-senha?token=TOKEN']}>
-      <PortalResetPassword />
-    </MemoryRouter>,
+    <ConfirmDialogProvider>
+      <MemoryRouter initialEntries={['/portal/recuperar-senha?token=TOKEN']}>
+        <PortalResetPassword />
+      </MemoryRouter>
+    </ConfirmDialogProvider>,
   )
 
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Redefinir senha' })).toBeTruthy())

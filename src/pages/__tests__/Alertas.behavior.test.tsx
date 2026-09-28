@@ -153,6 +153,9 @@ it('abre modal de dispensa com acessibilidade, data minima futura e limpa campos
     expect(dialog).toBeTruthy()
     expect(dialog.getAttribute('aria-modal')).toBe('true')
     expect(dialog.getAttribute('aria-labelledby')).toBe('dismiss-alert-modal-title')
+    expect(screen.getByText(/não resolve a pendência/)).toBeTruthy()
+    expect(screen.getByText(/reaparece automaticamente/)).toBeTruthy()
+    expect(screen.getByText(/filtro “Dispensados”/)).toBeTruthy()
 
     const dateInput = screen.getByLabelText(/Revisar até/) as HTMLInputElement
     expect(dateInput.min).toBeTruthy()

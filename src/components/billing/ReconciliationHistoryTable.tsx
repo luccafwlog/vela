@@ -114,17 +114,17 @@ export function ReconciliationHistoryTable({
     return (
       <th
         scope="col"
-        className="cursor-pointer select-none px-4 py-3 hover:text-slate-300"
-        onClick={() => updateSort(field)}
+        aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+        className="px-4 py-3"
       >
-        <div className="flex items-center gap-1">
+        <button type="button" className="app-table__sort" onClick={() => updateSort(field)}>
           {label}
           {active ? (
             sort.dir === 'desc' ? <ArrowDown size={13} /> : <ArrowUp size={13} />
           ) : (
             <ArrowUpDown size={13} className="opacity-30" />
           )}
-        </div>
+        </button>
       </th>
     )
   }
@@ -223,6 +223,7 @@ export function ReconciliationHistoryTable({
 
       <div className="app-table-scroll app-table-scroll--sticky">
         <table className="app-table app-table--compact min-w-[1200px] text-left text-sm">
+          <caption className="sr-only">Histórico de conciliações</caption>
           <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
             <tr>
               {renderSortCell('blId', 'B/L')}

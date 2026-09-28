@@ -7,6 +7,7 @@ import { Card } from '../ui/Card'
 import { Field, Input, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { useToast } from '../ui/Toast'
+import { useConfirm } from '../ui/ConfirmDialog'
 import { useAuth } from '../../hooks/useAuth'
 import { useCustomerLookup } from '../../hooks/useCustomers'
 import type { ReviewQueueItem } from '../../hooks/useReview'
@@ -41,6 +42,7 @@ export function ReviewDrawer({
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const [shipper, setShipper] = useState('')
   const [consignee, setConsignee] = useState('')
   const [pol, setPol] = useState('')
@@ -79,16 +81,60 @@ export function ReviewDrawer({
 
   async function handleSave() {
     if (!item || !user) return
+    if (item.source === 'granite') {
+      if (!selectedCustomerId) {
+        showToast('Selecione um cliente para vincular.', 'error')
+        return
+      }
+      const customerLabel = selectedCustomerDisplay ?? `Cliente #${selectedCustomerId}`
+      const confirmed = await confirm({
+        title: 'Vincular cliente ao Granito',
+        message: `Vincular ${customerLabel} ao registro de Granito ${item.bl_number}?`,
+        confirmLabel: 'Vincular cliente',
+        affected: { summary: `Granito ${item.bl_number} · cliente ${customerLabel}` },
+        consequence: 'Atualiza o cliente associado ao registro operacional e reavalia se há cálculo de apoio pendente.',
+        reversibility: 'O vínculo pode ser corrigido novamente pela Revisão enquanto não houver documento financeiro emitido.',
+      })
+      if (!confirmed) return
+    } else {
+      const changes: Array<{ field: string; before: string; after: string }> = []
+      const addChange = (field: string, before: string | number | null | undefined, after: string | number | null | undefined) => {
+        const beforeText = before == null ? '' : String(before)
+        const afterText = after == null ? '' : String(after)
+        if (beforeText !== afterText) changes.push({ field, before: beforeText, after: afterText })
+      }
+      addChange('Shipper', item.shipper, shipper.trim() || null)
+      addChange('Consignatário', item.consignee, consignee.trim() || null)
+      addChange('POL', item.pol, pol.trim() || null)
+      addChange('POD', item.pod, pod.trim() || null)
+      addChange('Peso contêiner (kg)', item.total_weight_kg, totalWeightKg === '' ? null : Number(totalWeightKg))
+      addChange('CBM contêiner (m³)', item.total_cbm, totalCbm === '' ? null : Number(totalCbm))
+      addChange('Peso carga solta (ton)', 'bb_weight_ton' in item ? item.bb_weight_ton : null, bbWeightTon === '' ? null : Number(bbWeightTon))
+      addChange('CBM carga solta (m³)', 'bb_cbm' in item ? item.bb_cbm : null, bbCbm === '' ? null : Number(bbCbm))
+      addChange('Notas da revisão', item.notes, notes.trim() || null)
+      if ((item.customer_id ?? null) !== selectedCustomerId) {
+        changes.push({
+          field: 'Cliente',
+          before: item.customer ? `${item.customer.name} (${formatCnpj(item.customer.cnpj_cpf)})` : '',
+          after: selectedCustomerDisplay ?? (selectedCustomerId ? `Cliente #${selectedCustomerId}` : ''),
+        })
+      }
+      const confirmed = await confirm({
+        title: 'Salvar revisão do B/L',
+        message: `Salvar as correções e marcar o B/L ${item.id} como revisado?`,
+        confirmLabel: 'Salvar revisão',
+        affected: { summary: `B/L ${item.id} · ${item.customer?.name ?? selectedCustomerDisplay ?? 'cliente não vinculado'}` },
+        changes,
+        consequence: 'Atualiza os dados documentais e o estado da Revisão. Se esta correção resolver a última pendência e os demais gates do servidor estiverem atendidos, a emissão da fatura poderá ocorrer automaticamente.',
+        reversibility: 'Os campos podem ser corrigidos novamente antes da emissão. Uma fatura emitida não pode ser apagada; sem pagamento, seu cancelamento é restrito ao perfil Administrativo.',
+      })
+      if (!confirmed) return
+    }
 
     setSaving(true)
     try {
       if (item.source === 'granite') {
-        if (!selectedCustomerId) {
-          showToast('Selecione um cliente para vincular.', 'error')
-          setSaving(false)
-          return
-        }
-        await saveGraniteBlReview({ graniteBlId: item.id, clientId: selectedCustomerId, changedBy: user.id })
+        await saveGraniteBlReview({ graniteBlId: item.id, clientId: selectedCustomerId!, changedBy: user.id })
         await invalidateReviewQueueCaches(queryClient, { blId: item.id, includeCustomers: true, includeAudit: true })
         onReviewSaved(item)
         showToast('Cliente vinculado ao Granito.', 'success')

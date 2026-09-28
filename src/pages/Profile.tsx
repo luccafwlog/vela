@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import { Field, Input } from '../components/ui/Input'
 import { AlterarMinhaSenhaModal } from '../components/admin/AlterarMinhaSenhaModal'
 import { useAuth } from '../hooks/useAuth'
@@ -22,6 +23,7 @@ function departmentLabel(role: string | null | undefined): string {
 export function Profile() {
   const { profile, session, refreshProfile } = useAuth()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const [name, setName] = useState(profile?.full_name ?? '')
   const [email, setEmail] = useState(session?.user.email ?? '')
   const [saving, setSaving] = useState(false)
@@ -36,16 +38,44 @@ export function Profile() {
       setError('Informe nome e e-mail.')
       return
     }
+    const currentName = profile?.full_name ?? ''
+    const currentEmail = session?.user.email?.toLowerCase() ?? ''
+    const emailChanged = trimmedEmail !== currentEmail
+    const changes = [
+      ...(trimmedName !== currentName ? [{ field: 'Nome', before: currentName, after: trimmedName }] : []),
+      ...(emailChanged ? [{ field: 'E-mail', before: currentEmail, after: trimmedEmail }] : []),
+    ]
+    if (changes.length === 0) {
+      showToast('Nenhuma alteração detectada.', 'info')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: 'Confirmar alterações do perfil',
+      message: 'Salvar as alterações dos dados pessoais?',
+      confirmLabel: 'Salvar alterações',
+      changes,
+      consequence: emailChanged
+        ? 'O nome será atualizado e o e-mail novo ficará pendente até a confirmação enviada ao endereço informado.'
+        : 'O nome será atualizado nos dados de acesso ao sistema.',
+      reversibility: emailChanged
+        ? 'O nome pode ser editado novamente. A troca de e-mail só passa a valer depois da confirmação do link.'
+        : 'Edite novamente para corrigir o nome.',
+    })
+    if (!confirmed) return
+
     setError('')
     setSaving(true)
     try {
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .update({ full_name: trimmedName })
-        .eq('id', profile?.id ?? '')
-      if (profileError) throw profileError
+      if (trimmedName !== currentName) {
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .update({ full_name: trimmedName })
+          .eq('id', profile?.id ?? '')
+        if (profileError) throw profileError
+      }
 
-      if (trimmedEmail !== session?.user.email?.toLowerCase()) {
+      if (emailChanged) {
         const { error: emailError } = await supabase.auth.updateUser({ email: trimmedEmail })
         if (emailError) throw emailError
         showToast('Dados salvos. Confirme o novo e-mail pela mensagem recebida.', 'success')

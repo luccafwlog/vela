@@ -54,6 +54,7 @@ export function InvoicesTable({
       {error ? <InlineError message="Erro ao carregar faturamento." /> : null}
       <div className="app-table-scroll app-table-scroll--sticky">
         <table className={`app-table app-table--compact ${showCommunication ? 'min-w-[1440px]' : 'min-w-[1200px]'} text-left text-sm`}>
+          <caption className="sr-only">Faturas locais filtradas</caption>
           <thead><tr><th scope="col" className="px-4 py-3">Número do BL</th><th scope="col" className="px-4 py-3">Fatura</th><th scope="col" className="px-4 py-3">Tipo</th><th scope="col" className="px-4 py-3">Navio / Viagem · POD</th><th scope="col" className="px-4 py-3">Emissão</th><th scope="col" className="px-4 py-3">Pagamento</th><th scope="col" className="px-4 py-3 text-right">Financeiro</th><th scope="col" className="px-4 py-3">Status</th>{showCommunication ? <th scope="col" className="px-4 py-3">Comunicação financeira</th> : null}<th scope="col" className="px-4 py-3">Ações</th></tr></thead>
           <tbody>
             {isLoading ? <tr><td colSpan={showCommunication ? 10 : 9} className="p-0"><SkeletonTable rows={6} cols={showCommunication ? 10 : 9} /></td></tr> : null}

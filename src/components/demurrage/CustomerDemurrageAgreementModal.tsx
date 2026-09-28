@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Field, Input, Textarea } from '../ui/Input'
 import { useToast } from '../ui/Toast'
+import { useConfirm } from '../ui/ConfirmDialog'
 import { useSaveCustomerDemurrageAgreement } from '../../hooks/useCustomerDemurrageAgreements'
 import { listOverrideCustomers } from '../../services/charges/chargeRateService'
 import { formatCnpjCpf } from '../../lib/utils'
@@ -21,6 +22,7 @@ function CustomerDemurrageAgreementForm({
   initialCustomer,
 }: Omit<CustomerDemurrageAgreementModalProps, 'open'>) {
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const saveMutation = useSaveCustomerDemurrageAgreement()
 
   const [customerId, setCustomerId] = useState<number | null>(
@@ -116,19 +118,48 @@ function CustomerDemurrageAgreementForm({
       return
     }
 
+    const nextValues = {
+      id: initialAgreement?.id,
+      customer_id: customerId,
+      free_days: free,
+      p1_usd: p1Val,
+      p2_usd: p2Val,
+      valid_from: validFrom,
+      valid_to: validTo || null,
+      active,
+      notes: notes.trim() || null,
+    }
+    const changes = [
+      { field: 'Free Time (dias)', before: initialAgreement ? String(initialAgreement.free_days) : '', after: String(free) },
+      { field: 'Tarifa P1 (USD/dia)', before: initialAgreement?.p1_usd == null ? '' : String(Number(initialAgreement.p1_usd)), after: p1Val == null ? '' : String(p1Val) },
+      { field: 'Tarifa P2 (USD/dia)', before: initialAgreement?.p2_usd == null ? '' : String(Number(initialAgreement.p2_usd)), after: p2Val == null ? '' : String(p2Val) },
+      { field: 'Vigência de', before: initialAgreement?.valid_from.slice(0, 10) ?? '', after: validFrom },
+      { field: 'Vigência até', before: initialAgreement?.valid_to?.slice(0, 10) ?? '', after: validTo || '' },
+      { field: 'Status', before: initialAgreement ? (initialAgreement.active ? 'Ativo' : 'Inativo') : '', after: active ? 'Ativo' : 'Inativo' },
+      { field: 'Observações', before: initialAgreement?.notes ?? '', after: notes.trim() },
+    ].filter((field) => field.before !== field.after)
+    if (initialAgreement && changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return
+    }
+    const customerName = initialAgreement?.customer?.name ?? initialCustomer?.name ?? selectedCustomerLabel ?? `Cliente #${customerId}`
+    const confirmed = await confirm({
+      title: initialAgreement ? 'Salvar acordo de Demurrage' : 'Cadastrar acordo de Demurrage',
+      message: `${initialAgreement ? 'Atualizar' : 'Cadastrar'} o acordo de Demurrage de ${customerName}?`,
+      confirmLabel: initialAgreement ? 'Salvar alterações' : 'Cadastrar acordo',
+      affected: {
+        summary: `${customerName} · ${free} dias de Free Time · ${validFrom} a ${validTo || 'sem data final'}`,
+        ...(!initialAgreement ? { items: [`P1: ${p1Val == null ? 'tarifa padrão' : `USD ${p1Val}/dia`}`, `P2: ${p2Val == null ? 'tarifa padrão' : `USD ${p2Val}/dia`}`, `Status: ${active ? 'Ativo' : 'Inativo'}`] } : {}),
+      },
+      changes: initialAgreement ? changes : undefined,
+      consequence: 'O acordo será selecionado nos cálculos de Demurrage do cliente conforme a data de descarga e a vigência. Esta gravação atualiza a regra comercial; não grava diretamente uma invoice.',
+      reversibility: 'O acordo pode ser editado ou desativado novamente. Invoices já emitidas mantêm seu ciclo financeiro e histórico.',
+    })
+    if (!confirmed) return
+
     setSaving(true)
     try {
-      await saveMutation.mutateAsync({
-        id: initialAgreement?.id,
-        customer_id: customerId,
-        free_days: free,
-        p1_usd: p1Val,
-        p2_usd: p2Val,
-        valid_from: validFrom,
-        valid_to: validTo || null,
-        active,
-        notes: notes.trim() || null,
-      })
+      await saveMutation.mutateAsync(nextValues)
       showToast(initialAgreement ? 'Acordo de Demurrage atualizado.' : 'Acordo de Demurrage cadastrado.', 'success')
       onClose()
     } catch (err) {

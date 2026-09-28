@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import type { ComponentProps } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { PortalDisputeConversation } from '../PortalDisputeConversation'
+import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
 
 const mutateAddMessageMock = vi.fn()
 const checkEligibilityMock = vi.fn()
 const uploadAttachmentMock = vi.fn()
+
+function renderConversation(disputes: ComponentProps<typeof PortalDisputeConversation>['disputes']) {
+  return render(<ConfirmDialogProvider><PortalDisputeConversation disputes={disputes} /></ConfirmDialogProvider>)
+}
 
 vi.mock('../../../hooks/usePortalDisputes', () => ({
   usePortalAddDisputeMessage: vi.fn(() => ({
@@ -41,27 +47,27 @@ describe('PortalDisputeConversation', () => {
   })
 
   it('renders the dispute doc_number and status', () => {
-    render(<PortalDisputeConversation disputes={[mockDispute]} />)
+    renderConversation([mockDispute])
     expect(screen.getByText('DEM-123')).toBeTruthy()
     expect(screen.getByText('Aberta')).toBeTruthy()
   })
 
   it('renders a form for new messages when state is aberta', () => {
-    render(<PortalDisputeConversation disputes={[mockDispute]} />)
+    renderConversation([mockDispute])
     expect(screen.getByPlaceholderText('Responda à conversa...')).toBeTruthy()
     expect(screen.getByRole('button', { name: /Enviar/ })).toBeTruthy()
   })
 
   it('renders a reopen request form when state is resolvida', () => {
     const resolvedDispute = { ...mockDispute, state: 'resolvida' as const }
-    render(<PortalDisputeConversation disputes={[resolvedDispute]} />)
+    renderConversation([resolvedDispute])
     expect(screen.getByPlaceholderText('Explique por que a disputa deve ser reaberta...')).toBeTruthy()
     expect(screen.getByRole('button', { name: /Solicitar reabertura/ })).toBeTruthy()
   })
 
   it('V-A2: pré-validação bloqueia envio e não grava mensagem quando cota é excedida', async () => {
     checkEligibilityMock.mockRejectedValueOnce(new Error('Quota de armazenamento de anexos de 100 MB excedida.'))
-    render(<PortalDisputeConversation disputes={[mockDispute]} />)
+    renderConversation([mockDispute])
 
     const textarea = screen.getByPlaceholderText('Responda à conversa...')
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
@@ -83,7 +89,7 @@ describe('PortalDisputeConversation', () => {
     mutateAddMessageMock.mockResolvedValueOnce({ message_id: 456 })
     uploadAttachmentMock.mockRejectedValueOnce(new Error('Falha de rede ao transferir anexo.'))
 
-    render(<PortalDisputeConversation disputes={[mockDispute]} />)
+    renderConversation([mockDispute])
 
     const textarea = screen.getByPlaceholderText('Responda à conversa...')
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
@@ -94,6 +100,8 @@ describe('PortalDisputeConversation', () => {
 
     const sendBtn = screen.getByRole('button', { name: /Enviar mensagem/ })
     fireEvent.click(sendBtn)
+    const sendDialog = await screen.findByRole('dialog', { name: 'Confirmar envio da mensagem' })
+    fireEvent.click(within(sendDialog).getByRole('button', { name: 'Enviar mensagem' }))
 
     expect(await screen.findByText(/Sua mensagem foi registrada, mas o anexo não pôde ser enviado/)).toBeTruthy()
 
@@ -103,9 +111,24 @@ describe('PortalDisputeConversation', () => {
 
     uploadAttachmentMock.mockResolvedValueOnce({ id: 999 })
     fireEvent.click(retryBtn)
+    const retryDialog = await screen.findByRole('dialog', { name: 'Confirmar envio do anexo' })
+    fireEvent.click(within(retryDialog).getByRole('button', { name: 'Enviar anexo' }))
 
     // O segundo upload foi chamado com o mesmo message_id da mensagem já gravada, sem criar duplicata
     expect(uploadAttachmentMock).toHaveBeenCalledWith(456, 1, file, expect.anything())
     expect(mutateAddMessageMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not record a customer message until the customer confirms its contents', async () => {
+    renderConversation([mockDispute])
+    fireEvent.change(screen.getByPlaceholderText('Responda à conversa...'), { target: { value: 'Vamos enviar o comprovante.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar mensagem' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Confirmar envio da mensagem' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ver lista (2)' }))
+    expect(within(dialog).getByText('Mensagem: Vamos enviar o comprovante.')).toBeTruthy()
+    expect(mutateAddMessageMock).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Voltar' }))
+    expect(mutateAddMessageMock).not.toHaveBeenCalled()
   })
 })

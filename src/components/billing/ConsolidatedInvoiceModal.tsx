@@ -5,6 +5,7 @@ import { Badge } from '../ui/Badge'
 import { EmptyState } from '../ui/Card'
 import { Field, Input } from '../ui/Input'
 import { useToast } from '../ui/Toast'
+import { useConfirm } from '../ui/ConfirmDialog'
 import { VoyageCombobox } from '../shared/VoyageCombobox'
 import { useBillingCustomers } from '../../hooks/useBilling'
 import { useConsolidatableReceivables, useCreateConsolidatedInvoice } from '../../hooks/useBillingLedger'
@@ -18,6 +19,7 @@ type Props = { open: boolean; onClose: () => void }
 
 export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const [customerId, setCustomerId] = useState<number | null>(null)
   const [customerSearch, setCustomerSearch] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -95,10 +97,28 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
       setError('Selecione ao menos um B/L com saldo aberto.')
       return
     }
+    const selectedRows = rows.filter((row) => selected.includes(row.receivable_id) && isReceivableSelectable(row))
+    if (selectedRows.length !== selected.length) {
+      setError('A seleção mudou. Atualize a lista e selecione novamente os B/Ls elegíveis.')
+      return
+    }
+    const customerName = customerOptions?.find((customer) => customer.id === customerId)?.name ?? customerSearch
+    const confirmed = await confirm({
+      title: 'Emitir fatura consolidada',
+      message: `Emitir uma fatura consolidada de ${fmtBRL(selectedTotal)} para ${customerName}?`,
+      confirmLabel: 'Emitir consolidada',
+      affected: {
+        summary: `${selectedRows.length} B/L(s) · ${fmtBRL(selectedTotal)} em saldos abertos`,
+        items: selectedRows.map((row) => `B/L ${row.bl_id} · ${fmtBRL(row.balance_brl)} · ${[row.vessel_name, row.voyage_number].filter(Boolean).join(' ') || 'viagem não informada'}`),
+      },
+      consequence: 'Cria a invoice consolidada, vincula os recebíveis selecionados e registra o evento financeiro na mesma transação. Enquanto estiver ativa, esses saldos não poderão entrar em outra invoice.',
+      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o perfil Administrativo pode cancelá-la; se ficar obsoleta, os recebíveis podem ser consolidados novamente. Pagamentos seguem o fluxo próprio de estorno.',
+    })
+    if (!confirmed) return
     try {
       const result = await createMutation.mutateAsync({
         customerId,
-        receivableIds: selected,
+        receivableIds: selectedRows.map((row) => row.receivable_id),
       })
       showToast(`Consolidada ${result.invoice_number} emitida (${fmtBRL(result.total_brl)}).`, 'success')
       close()

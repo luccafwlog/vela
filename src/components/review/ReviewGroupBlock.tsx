@@ -5,7 +5,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { InlineCustomerPicker, InlineFieldEditor } from '../shared/ReviewInlineEditors'
-import type { ReviewQueueItem } from '../../hooks/useReview'
+import type { ReviewCustomer, ReviewQueueItem } from '../../hooks/useReview'
 import { formatCnpjCpf } from '../../lib/utils'
 import { formatResultCount } from '../../lib/operationalState'
 import {
@@ -43,7 +43,7 @@ export function ReviewGroupBlock({
   savingGroup: boolean
   savingInlineId: string | null
   onToggle: () => void
-  onGroupLink: (customerId: number) => void
+  onGroupLink: (customer: ReviewCustomer) => void
   onGroupAddEmail: (email: string) => void
   onGroupOnboard: (input: ReviewCustomerOnboardingInput) => void
   onCorrect: (id: string) => void

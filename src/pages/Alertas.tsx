@@ -347,6 +347,7 @@ export function Alertas() {
 
         <div className="app-table-scroll rounded-xl border border-[var(--app-border)]">
           <table className="app-table text-xs">
+            <caption className="sr-only">Fila de alertas operacionais</caption>
             <thead>
               <tr>
                 <th scope="col" className="px-4 py-3">Severidade</th>
@@ -424,6 +425,10 @@ export function Alertas() {
               Dispensar alerta temporariamente
             </h2>
             <p className="mt-1 text-xs text-[var(--app-muted)]">{dismissTarget.message}</p>
+            <p className="mt-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3 text-xs text-[var(--app-text)]">
+              A dispensa tira este alerta da fila ativa até a data escolhida, mas não resolve a pendência.
+              Ele reaparece automaticamente depois dessa data. O motivo fica registrado e o alerta pode ser consultado no filtro “Dispensados”; não há desfazer antecipado nesta tela.
+            </p>
 
             <div className="mt-4 space-y-3">
               <div>

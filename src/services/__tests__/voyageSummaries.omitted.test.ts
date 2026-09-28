@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { collectVoyagePorts, computeAdrEscalaPods, getProximaEscala } from '../voyageSummaries'
+import { collectVoyagePorts, computeAdrEscalaPods, getBlsAffectedByOmittedPod, getProximaEscala } from '../voyageSummaries'
 
 describe('getProximaEscala com PODs omitidos', () => {
   it('ignora o POD omitido ao escolher a proxima escala', () => {
@@ -47,6 +47,17 @@ describe('computeAdrEscalaPods', () => {
   it('casa o porto do ADR fechado normalizado (case/espaços)', () => {
     const rows = [{ pod: 'Salvador', omitted: true }]
     expect(computeAdrEscalaPods(rows, [' salvador '])).toEqual([{ pod: 'BRSSA', omitted: true }])
+  })
+})
+
+describe('getBlsAffectedByOmittedPod', () => {
+  it('matches the omission RPC raw trimmed case-insensitive POD predicate', () => {
+    const bls = [
+      { id: 'BL-1', pod: ' brvix ' },
+      { id: 'BL-2', pod: 'VITORIA' },
+      { id: 'BL-3', pod: null },
+    ]
+    expect(getBlsAffectedByOmittedPod(bls, 'BRVIX').map((bl) => bl.id)).toEqual(['BL-1'])
   })
 })
 

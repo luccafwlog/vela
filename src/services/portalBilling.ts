@@ -293,8 +293,11 @@ export type PortalNotification = {
   created_at: string
 }
 
-export async function portalListNotifications(scope: PortalScope = clientPortalScope): Promise<PortalNotification[]> {
-  const data = await callPortalRpc<PortalNotification[]>(scope, 'portal_list_notifications', { p_limit: 20 })
+export async function portalListNotifications(
+  scope: PortalScope = clientPortalScope,
+  limit = 20,
+): Promise<PortalNotification[]> {
+  const data = await callPortalRpc<PortalNotification[]>(scope, 'portal_list_notifications', { p_limit: limit })
   return (data ?? []) as PortalNotification[]
 }
 

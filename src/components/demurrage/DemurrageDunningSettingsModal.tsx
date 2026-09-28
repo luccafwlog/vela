@@ -3,6 +3,7 @@ import { Button } from '../ui/Button'
 import { InlineError } from '../ui/Card'
 import { Field, Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
+import { useConfirm } from '../ui/ConfirmDialog'
 import { useAppSettings, useSetDemurrageDunningIntervalDays } from '../../hooks/useAppSettings'
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
 export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
   const { data: settings } = useAppSettings()
   const setDunningMutation = useSetDemurrageDunningIntervalDays()
+  const confirm = useConfirm()
   const [daysInput, setDaysInput] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -26,6 +28,23 @@ export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
       setError('Informe um intervalo válido entre 1 e 365 dias.')
       return
     }
+    if (days === Number(settings?.demurrage_dunning_interval_days ?? 7)) {
+      onClose()
+      return
+    }
+    const confirmed = await confirm({
+      title: 'Confirmar intervalo da régua de cobrança',
+      message: `Alterar o intervalo entre cobranças automáticas para ${days} dias?`,
+      confirmLabel: 'Salvar intervalo',
+      changes: [{
+        field: 'Intervalo entre cobranças',
+        before: `${settings?.demurrage_dunning_interval_days ?? 7} dias`,
+        after: `${days} dias`,
+      }],
+      consequence: 'A régua automática de Demurrage usará o novo intervalo para faturas emitidas e não pagas; salvar não envia cobrança imediatamente.',
+      reversibility: 'Altere o intervalo novamente a qualquer momento.',
+    })
+    if (!confirmed) return
     try {
       await setDunningMutation.mutateAsync(days)
       setDaysInput(null)

@@ -21,6 +21,7 @@ function actionModeFor(current: SignoffState): 'confirm' | 'justify' {
 
 export function SignoffControl({
   section,
+  sectionLabel,
   state,
   attribution,
   departmentLabel,
@@ -32,6 +33,7 @@ export function SignoffControl({
   onChange,
 }: {
   section: AgencyReportSection
+  sectionLabel: string
   state: SignoffState
   attribution?: string | null
   departmentLabel: string
@@ -162,6 +164,8 @@ export function SignoffControl({
       <SignoffActionModal
         open={pendingAction !== null}
         mode={pendingAction?.mode ?? 'confirm'}
+        sectionLabel={sectionLabel}
+        currentState={state}
         nextState={pendingAction?.nextState ?? 'pending'}
         justification={justification}
         onJustificationChange={setJustification}
@@ -181,6 +185,8 @@ export function SignoffControl({
 function SignoffActionModal({
   open,
   mode,
+  sectionLabel,
+  currentState,
   nextState,
   justification,
   onJustificationChange,
@@ -189,6 +195,8 @@ function SignoffActionModal({
 }: {
   open: boolean
   mode: 'confirm' | 'justify'
+  sectionLabel: string
+  currentState: SignoffState
   nextState: SignoffState
   justification: string
   onJustificationChange: (value: string) => void
@@ -202,9 +210,14 @@ function SignoffActionModal({
     <Modal open={open} title={mode === 'confirm' ? 'Confirmar decisão' : 'Justificar alteração'} onClose={onCancel}>
       <p className="text-sm text-[var(--app-text)]">
         {mode === 'confirm'
-          ? <>Marcar esta seção como <strong>{signoffLabels[nextState]}</strong>?</>
-          : <>Esta seção já tem uma decisão registrada. Alterar para <strong>{signoffLabels[nextState]}</strong> exige justificativa e fica no histórico.</>}
+          ? <>Marcar <strong>{sectionLabel}</strong> como <strong>{signoffLabels[nextState]}</strong>?</>
+          : <>Alterar <strong>{sectionLabel}</strong> de <strong>{signoffLabels[currentState]}</strong> para <strong>{signoffLabels[nextState]}</strong> exige justificativa e fica no histórico.</>}
       </p>
+      <dl className="mt-3 grid gap-2 rounded-lg border border-[var(--app-border)] p-3 text-sm">
+        <div className="flex justify-between gap-4"><dt className="text-[var(--app-muted)]">Antes</dt><dd>{signoffLabels[currentState]}</dd></div>
+        <div className="flex justify-between gap-4"><dt className="text-[var(--app-muted)]">Depois</dt><dd>{signoffLabels[nextState]}</dd></div>
+      </dl>
+      <p className="mt-3 text-sm text-[var(--app-muted)]">A decisão fica no ADR desta escala e orienta o sign-off do departamento. Para corrigir uma decisão já registrada, use uma alteração justificada.</p>
       {mode === 'justify' ? (
         <label htmlFor={textareaId} className="mt-3 grid gap-2 text-sm">
           Justificativa

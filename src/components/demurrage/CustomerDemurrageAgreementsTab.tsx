@@ -4,7 +4,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card, EmptyState, InlineError } from '../ui/Card'
 import { Input } from '../ui/Input'
-import { useConfirmWithReason } from '../ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import {
   useCustomerDemurrageAgreements,
@@ -17,6 +17,7 @@ import type { CustomerDemurrageAgreementListItem } from '../../types/customerDem
 
 export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }) {
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
 
   const [search, setSearch] = useState('')
@@ -66,9 +67,25 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
     )
   }
 
-  function handleToggleActive(agreement: CustomerDemurrageAgreementListItem) {
+  async function handleToggleActive(agreement: CustomerDemurrageAgreementListItem) {
+    const nextActive = !agreement.active
+    const customerName = agreement.customer?.name ?? `Cliente #${agreement.customer_id}`
+    const confirmed = await confirm({
+      title: `${nextActive ? 'Ativar' : 'Desativar'} acordo de Demurrage`,
+      message: `${nextActive ? 'Ativar' : 'Desativar'} o acordo de Demurrage de ${customerName}?`,
+      confirmLabel: nextActive ? 'Ativar acordo' : 'Desativar acordo',
+      affected: {
+        summary: `${customerName} · ${agreement.free_days} dias de Free Time · ${formatDate(agreement.valid_from)} a ${agreement.valid_to ? formatDate(agreement.valid_to) : 'sem data final'}`,
+      },
+      changes: [{ field: 'Status', before: agreement.active ? 'Ativo' : 'Inativo', after: nextActive ? 'Ativo' : 'Inativo' }],
+      consequence: nextActive
+        ? 'Os cálculos passam a considerar este acordo quando a data de descarga estiver dentro da vigência.'
+        : 'Os cálculos deixam de considerar este acordo e usam as regras padrão aplicáveis ao cliente.',
+      reversibility: 'O status pode ser alternado novamente; invoices já emitidas mantêm seu ciclo financeiro e histórico.',
+    })
+    if (!confirmed) return
     toggleMutation.mutate(
-      { id: agreement.id, active: !agreement.active, customerId: agreement.customer_id },
+      { id: agreement.id, active: nextActive, customerId: agreement.customer_id },
       {
         onSuccess: () => showToast(`Acordo ${!agreement.active ? 'ativado' : 'inativado'}.`, 'success'),
         onError: (err) => showToast(err instanceof Error ? err.message : 'Falha ao alterar status.', 'error'),
@@ -169,7 +186,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
                     <td className="px-4 py-3">
                       <button
                         type="button"
-                        onClick={() => canEdit && handleToggleActive(item)}
+                        onClick={() => canEdit && void handleToggleActive(item)}
                         disabled={!canEdit}
                         className={canEdit ? 'cursor-pointer' : 'cursor-default'}
                         title={canEdit ? 'Clique para alternar status' : undefined}

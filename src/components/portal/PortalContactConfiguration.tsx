@@ -3,6 +3,7 @@ import { Button } from '../ui/Button'
 import { Card, InlineError } from '../ui/Card'
 import { Field, Input } from '../ui/Input'
 import { useToast } from '../ui/Toast'
+import { useConfirm } from '../ui/ConfirmDialog'
 import { usePortalContactConfiguration } from '../../hooks/usePortalContactConfiguration'
 import { usePortalScope } from '../../hooks/usePortalScope'
 import {
@@ -35,6 +36,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
   const scope = usePortalScope()
   const isInspect = readOnly || isPortalReadOnly(scope)
   const { showToast } = useToast()
+  const confirm = useConfirm()
 
   const [drafts, setDrafts] = useState<PortalContactDraft[]>([])
   const [localError, setLocalError] = useState('')
@@ -214,6 +216,46 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
         return
       }
     }
+
+    const originalById = new Map((data?.contacts ?? []).map((contact) => [contact.id, contact]))
+    const changedContacts = drafts.flatMap((draft) => {
+      const original = draft.id == null ? undefined : originalById.get(draft.id)
+      const boxLabels = (codes: readonly string[]) => codes
+        .map((code) => CUSTOMER_COMMUNICATION_BOXES.find((box) => box.code === code)?.label ?? code)
+        .sort()
+        .join(', ') || 'nenhuma'
+      const changes = original ? [
+        ['Nome', original.name || '—', draft.name || '—'],
+        ['E-mail', original.email || '—', draft.email || '—'],
+        ['Telefone', original.phone || '—', draft.phone || '—'],
+        ['Papel', original.is_primary ? 'Principal' : 'Adicional', draft.isPrimary ? 'Principal' : 'Adicional'],
+        ['Situação', original.active ? 'Ativo' : 'Inativo', draft.active ? 'Ativo' : 'Inativo'],
+        ['Caixas', boxLabels(original.box_codes), boxLabels(draft.boxCodes)],
+      ].filter(([, before, after]) => before !== after)
+        .map(([field, before, after]) => `${field}: ${before} → ${after}`)
+      : [`Novo contato ${draft.name || draft.email}: ${draft.email}; ${draft.isPrimary ? 'principal' : 'adicional'}; caixas: ${boxLabels(draft.boxCodes)}.`]
+      return changes.length > 0
+        ? [`${draft.name || draft.email || 'Contato'} — ${changes.join('; ')}`]
+        : []
+    })
+    if (changedContacts.length === 0) {
+      dirtyRef.current = false
+      showToast('Nenhuma alteração detectada.', 'info')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: 'Confirmar contatos e recebimento',
+      message: `Salvar alterações em ${changedContacts.length} contato(s)?`,
+      confirmLabel: 'Salvar contatos',
+      affected: {
+        summary: `${changedContacts.length} contato(s) novo(s) ou alterado(s)`,
+        items: changedContacts,
+      },
+      consequence: 'A configuração define quem receberá os próximos comunicados em cada caixa. Esta gravação não envia mensagens agora.',
+      reversibility: 'Edite os contatos e as caixas novamente para corrigir a configuração.',
+    })
+    if (!confirmed) return
 
     setSubmitting(true)
     try {

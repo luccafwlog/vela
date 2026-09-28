@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
+import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
 import { ConsolidatedInvoiceModal } from '../ConsolidatedInvoiceModal'
 
 vi.mock('../../../hooks/useBilling', () => ({
@@ -29,7 +30,9 @@ vi.mock('../../ui/Toast', async () => {
 describe('ConsolidatedInvoiceModal', () => {
   it('renders the optional voyage filter', () => {
     const html = renderToStaticMarkup(
-      React.createElement(ConsolidatedInvoiceModal, { open: true, onClose: vi.fn() }),
+      React.createElement(ConfirmDialogProvider, null,
+        React.createElement(ConsolidatedInvoiceModal, { open: true, onClose: vi.fn() }),
+      ),
     )
 
     expect(html).toContain('Viagem')
@@ -38,7 +41,9 @@ describe('ConsolidatedInvoiceModal', () => {
 
   it('usa layout empilhado (filtros em grade no topo, tabela, rodape fixo)', () => {
     const html = renderToStaticMarkup(
-      React.createElement(ConsolidatedInvoiceModal, { open: true, onClose: vi.fn() }),
+      React.createElement(ConfirmDialogProvider, null,
+        React.createElement(ConsolidatedInvoiceModal, { open: true, onClose: vi.fn() }),
+      ),
     )
     const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
 

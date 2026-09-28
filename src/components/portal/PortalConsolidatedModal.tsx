@@ -5,6 +5,7 @@ import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { EmptyState } from '../ui/Card'
 import { useToast } from '../ui/Toast'
+import { useConfirm } from '../ui/ConfirmDialog'
 import { usePortalConsolidatableReceivables, usePortalCreateConsolidation } from '../../hooks/usePortalBilling'
 import { isReceivableSelectable, summarizeConsolidation } from '../billing/consolidatedInvoiceSelection'
 import { formatBRL } from '../../lib/utils'
@@ -22,6 +23,7 @@ type Props = {
 // elegibilidade por linha — espelhando o ConsolidatedInvoiceModal interno.
 export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const { data: receivables, isLoading } = usePortalConsolidatableReceivables()
   const createMutation = usePortalCreateConsolidation()
   const scope = usePortalScope()
@@ -45,8 +47,25 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
       showToast('Selecione ao menos um B/L para consolidar.', 'error')
       return
     }
+    const selectedRows = rows.filter((row) => selected.includes(row.receivable_id) && isReceivableSelectable(row))
+    if (selectedRows.length !== selected.length) {
+      showToast('A seleção mudou. Atualize a lista e selecione novamente os B/Ls elegíveis.', 'error')
+      return
+    }
+    const confirmed = await confirm({
+      title: 'Emitir fatura consolidada',
+      message: `Emitir uma fatura consolidada de ${formatBRL(selectedRows.reduce((total, row) => total + Number(row.balance_brl ?? 0), 0))} para sua empresa?`,
+      confirmLabel: 'Consolidar e emitir',
+      affected: {
+        summary: `${selectedRows.length} B/L(s) · ${formatBRL(selectedRows.reduce((total, row) => total + Number(row.balance_brl ?? 0), 0))} em saldos abertos`,
+        items: selectedRows.map((row) => `B/L ${row.bl_id} · ${formatBRL(row.balance_brl)} · ${[row.vessel_name, row.voyage_number].filter(Boolean).join(' ') || 'viagem não informada'}`),
+      },
+      consequence: 'Cria a fatura consolidada, vincula os recebíveis selecionados e registra o evento financeiro. A invoice emitida ficará disponível no Portal e esses saldos não poderão entrar em outra invoice ativa.',
+      reversibility: 'O Portal não permite apagar ou cancelar invoices. Se a consolidada ficar obsoleta, os recebíveis elegíveis podem ser consolidados novamente; pagamentos seguem o fluxo de estorno.',
+    })
+    if (!confirmed) return
     try {
-      const payload = await createMutation.mutateAsync({ receivableIds: selected })
+      const payload = await createMutation.mutateAsync({ receivableIds: selectedRows.map((row) => row.receivable_id) })
       showToast('Fatura consolidada emitida com sucesso.', 'success')
       setSelected([])
       onCreated?.(Number(payload.invoice_id ?? 0) || null)

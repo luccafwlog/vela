@@ -3,6 +3,8 @@ import { Component, type PropsWithChildren, type ReactNode } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ConfirmDialogProvider } from '../../components/ui/ConfirmDialog'
+import { ToastProvider } from '../../components/ui/Toast'
 
 const openInspection = vi.hoisted(() => vi.fn())
 
@@ -50,18 +52,22 @@ describe('PortalInspection', () => {
     })
 
     render(
-      <MemoryRouter initialEntries={['/clientes/portal/inspecao/42']}>
-        <Routes>
-          <Route
-            path="/clientes/portal/inspecao/:customerId"
-            element={
-              <RenderErrorBoundary>
-                <PortalInspection />
-              </RenderErrorBoundary>
-            }
-          />
-        </Routes>
-      </MemoryRouter>,
+      <ToastProvider>
+        <ConfirmDialogProvider>
+          <MemoryRouter initialEntries={['/clientes/portal/inspecao/42']}>
+            <Routes>
+              <Route
+                path="/clientes/portal/inspecao/:customerId"
+                element={
+                  <RenderErrorBoundary>
+                    <PortalInspection />
+                  </RenderErrorBoundary>
+                }
+              />
+            </Routes>
+          </MemoryRouter>
+        </ConfirmDialogProvider>
+      </ToastProvider>,
     )
 
     await waitFor(() => expect(screen.getByText('Cliente Inspecionado')).toBeTruthy())

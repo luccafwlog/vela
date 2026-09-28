@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mutateAsync, revertMutateAsync, useAuthMock, useVoyageTransshipments, useUpdateVoyageOmission, useRevertVoyageOmission } = vi.hoisted(() => ({
@@ -15,6 +15,11 @@ vi.mock('../../../hooks/useAuth', () => ({ useAuth: useAuthMock }))
 vi.mock('../../../hooks/useTransshipments', () => ({ useVoyageTransshipments, useUpdateVoyageOmission, useRevertVoyageOmission }))
 
 import { TransshipmentInfoCard } from '../TransshipmentInfoCard'
+import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
+
+function renderCard() {
+  return render(<ConfirmDialogProvider><TransshipmentInfoCard voyageId={2} /></ConfirmDialogProvider>)
+}
 
 describe('TransshipmentInfoCard', () => {
   afterEach(cleanup)
@@ -44,7 +49,7 @@ describe('TransshipmentInfoCard', () => {
   })
 
   it('exibe os dados globais e mantém campos desconhecidos visíveis como travessão', () => {
-    render(<TransshipmentInfoCard voyageId={2} />)
+    renderCard()
 
     expect(screen.getByText('Informações de Transbordo')).toBeTruthy()
     expect(screen.getByText('COSCO STAR')).toBeTruthy()
@@ -53,11 +58,15 @@ describe('TransshipmentInfoCard', () => {
   })
 
   it('abre edição e complementa o registro global', async () => {
-    render(<TransshipmentInfoCard voyageId={2} />)
+    renderCard()
 
     fireEvent.click(screen.getByRole('button', { name: 'Complementar' }))
     fireEvent.change(screen.getByLabelText('Armador de Transbordo'), { target: { value: 'COSCO' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar informações' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Confirmar informações de transbordo' })
+    expect(screen.getByRole('table', { name: 'Campos alterados' })).toBeTruthy()
+    expect(mutateAsync).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar informações' }))
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({
       omissionId: 9,
@@ -88,7 +97,7 @@ describe('TransshipmentInfoCard', () => {
         ],
       },
     })
-    render(<TransshipmentInfoCard voyageId={2} />)
+    renderCard()
 
     fireEvent.click(screen.getByRole('button', { name: 'Reverter omissão' }))
     expect(screen.getByText(/2 B\/L\(s\)/)).toBeTruthy()

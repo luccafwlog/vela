@@ -5,6 +5,7 @@ import type { VoyageOmission } from '../../services/transshipments'
 import { Button } from '../ui/Button'
 import { Field, Input, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
+import { useConfirm } from '../ui/ConfirmDialog'
 
 const display = (value: string | null) => value?.trim() || '—'
 const displayDate = (value: string | null) => value ? new Intl.DateTimeFormat('pt-BR').format(new Date(value)) : '—'
@@ -32,6 +33,7 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
   const { user, isAdmin } = useAuth()
   const update = useUpdateVoyageOmission(voyageId)
   const revert = useRevertVoyageOmission(voyageId)
+  const confirm = useConfirm()
   const [editing, setEditing] = useState(false)
   const [revertOpen, setRevertOpen] = useState(false)
   const [revertJustification, setRevertJustification] = useState('')
@@ -45,6 +47,31 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (!user?.id) return
+    const changes = [
+      ['Navio de Transbordo', omission.onwardVesselName, vessel.trim() || null],
+      ['Armador de Transbordo', omission.onwardCarrier, carrier.trim() || null],
+      ['Viagem de Transbordo', omission.onwardVoyageNumber, voyageNumber.trim() || null],
+      ['ETD de Transbordo', omission.onwardEtd?.slice(0, 10) ?? null, etd || null],
+      ['ETA de Transbordo', omission.onwardEta?.slice(0, 10) ?? null, eta || null],
+      ['Motivo', omission.reason, reason.trim() || null],
+    ].filter(([, before, after]) => before !== after)
+    if (changes.length === 0) {
+      setEditing(false)
+      return
+    }
+    const confirmed = await confirm({
+      title: 'Confirmar informações de transbordo',
+      message: 'Salvar as informações alteradas para esta omissão de escala?',
+      confirmLabel: 'Salvar informações',
+      changes: changes.map(([field, before, after]) => ({
+        field: String(field),
+        before: before ?? '—',
+        after: after ?? '—',
+      })),
+      consequence: 'Os dados de transbordo passam a aparecer na viagem e nos B/Ls vinculados à omissão.',
+      reversibility: 'Edite novamente para corrigir as informações.',
+    })
+    if (!confirmed) return
     await update.mutateAsync({
       omissionId: omission.id,
       onwardVesselName: vessel.trim() || null,

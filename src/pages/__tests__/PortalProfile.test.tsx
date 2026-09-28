@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -27,12 +27,13 @@ vi.mock('../../components/ui/Toast', () => ({
 }))
 
 import { PortalProfile } from '../PortalProfile'
+import { ConfirmDialogProvider } from '../../components/ui/ConfirmDialog'
 
 function renderProfile() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter><PortalProfile /></MemoryRouter>
+      <ConfirmDialogProvider><MemoryRouter><PortalProfile /></MemoryRouter></ConfirmDialogProvider>
     </QueryClientProvider>,
   )
 }
@@ -59,7 +60,7 @@ it('preserva edicao local quando o overview muda depois da hidratacao', async ()
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const { rerender } = render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter><PortalProfile /></MemoryRouter>
+      <ConfirmDialogProvider><MemoryRouter><PortalProfile /></MemoryRouter></ConfirmDialogProvider>
     </QueryClientProvider>,
   )
 
@@ -70,9 +71,33 @@ it('preserva edicao local quando o overview muda depois da hidratacao', async ()
   auth.overview = { contact_email: 'novo-overview@example.com' }
   rerender(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter><PortalProfile /></MemoryRouter>
+      <ConfirmDialogProvider><MemoryRouter><PortalProfile /></MemoryRouter></ConfirmDialogProvider>
     </QueryClientProvider>,
   )
 
   expect(screen.getByDisplayValue('Rua Nova')).toBeTruthy()
+})
+
+it('confirma a diferenca do perfil antes de salvar os dados cadastrais', async () => {
+  const user = userEvent.setup()
+  getProfile.mockResolvedValue({ contact_email: 'perfil@example.com', phone: '', address: 'Rua Antiga', city: '', state: '', zip: '' })
+  renderProfile()
+
+  const address = await screen.findByDisplayValue('Rua Antiga')
+  await user.clear(address)
+  await user.type(address, 'Rua Nova')
+  await user.click(screen.getByRole('button', { name: 'Salvar alterações' }))
+
+  const dialog = await screen.findByRole('dialog', { name: 'Confirmar alterações do perfil' })
+  const table = within(dialog).getByRole('table', { name: 'Campos alterados' })
+  expect(within(table).getByText('Rua Antiga')).toBeTruthy()
+  expect(within(table).getByText('Rua Nova')).toBeTruthy()
+  expect(updateProfile).not.toHaveBeenCalled()
+  await user.click(within(dialog).getByRole('button', { name: 'Voltar' }))
+  expect(updateProfile).not.toHaveBeenCalled()
+
+  await user.click(screen.getByRole('button', { name: 'Salvar alterações' }))
+  const repeatedDialog = await screen.findByRole('dialog', { name: 'Confirmar alterações do perfil' })
+  await user.click(within(repeatedDialog).getByRole('button', { name: 'Salvar alterações' }))
+  await waitFor(() => expect(updateProfile).toHaveBeenCalledWith(expect.objectContaining({ address: 'Rua Nova' }), expect.anything()))
 })
