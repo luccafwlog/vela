@@ -86,7 +86,7 @@ Se os novos DSNs ainda não forem configurados, ambas as entradas usam o DSN
 legado para não interromper a captura existente. Esse fallback é compatibilidade
 temporária, não evidência de que a separação de projetos já foi concluída.
 
-As garantias atuais permanecem: `sendDefaultPii: false`, redação de query
+As garantias atuais permanecem: `dataCollection` com PII desabilitado, redação de query
 strings/tokens e de CNPJ, CPF e e-mail, `sourcemap: 'hidden'` e tags de
 superfície. O Portal também aplica `area=portal` depois de hidratar a sessão.
 

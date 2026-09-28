@@ -141,8 +141,16 @@ export function initTelemetry(surface?: TelemetrySurface): void {
     environment: resolveSentryEnvironment(),
     release: (import.meta.env.VITE_APP_COMMIT_SHA as string | undefined) || undefined,
     // Sem replay/tracing: só captura de erros, mantendo payloads mínimos.
-    sendDefaultPii: false,
-    // Erros do banco podem ecoar valores de linhas; sendDefaultPii nao cobre
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: false,
+      httpBodies: [],
+      urlQueryParams: false,
+      databaseQueryData: false,
+      stackFrameVariables: false,
+    },
+    // Erros do banco podem ecoar valores de linhas; dataCollection nao cobre
     // conteudo enviado manualmente em message/extra/breadcrumbs.
     beforeSend(event) {
       event.exception?.values?.forEach((value) => {
