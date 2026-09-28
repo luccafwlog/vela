@@ -192,8 +192,11 @@ A inspeção do `posthog-js` instalado encontrou a causa: `before_send` removia
 `token` e `distinct_id`, campos de transporte que o SDK acrescenta e dos quais a
 ingestão depende. A correção preserva somente esses campos do SDK e as
 propriedades de produto autorizadas, descartando URL e e-mail. Teste focado
-passou localmente. **Ainda falta publicar a correção, reabrir a fatura e
-confirmar `invoice_viewed` no PostHog; depois, cancelar a fatura de QA.**
+passou e a primeira publicação gerou `invoice_viewed` real. A inspeção desse
+evento revelou enriquecimento de geolocalização pelo IP no servidor PostHog;
+uma nova correção envia `$geoip_disable` junto aos eventos e mantém a
+redaction. Falta publicar e conferir que o próximo evento não recebe
+geolocalização; então cancelar a fatura e remover os dados de QA.
 
 ---
 

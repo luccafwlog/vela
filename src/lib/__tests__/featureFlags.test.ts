@@ -61,6 +61,7 @@ describe('feature flags', () => {
     })
 
     expect(event?.properties).toEqual({
+      '$geoip_disable': true,
       token: 'public-project-token',
       distinct_id: 'anonymous-sdk-id',
       surface: 'portal',
