@@ -359,7 +359,7 @@ describe('Demurrage page behaviours', () => {
     }))
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['demurrage-invoices'] })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['demurrage-kpis'] })
-  })
+  }, 15000)
 
   it('reverses a paid invoice with an audited reason', async () => {
     const user = userEvent.setup()

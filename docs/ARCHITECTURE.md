@@ -629,7 +629,7 @@ Erros globais de queries e mutations TanStack Query são reportados ao Sentry vi
 `mutationKey` serializada em `extra`. O `PortalAuthProvider` define
 `Sentry.setUser({ id: customer_id })` e a tag `area=portal` quando o overview do
 cliente é carregado; no logout ou `SIGNED_OUT`, limpa o usuário com
-`Sentry.setUser(null)`. O projeto mantém `sendDefaultPii: false` e não envia
+`Sentry.setUser(null)`. O projeto mantém `dataCollection` com PII desabilitado e não envia
 email, nome, documento ou contato do cliente como identidade Sentry.
 
 Domínios usados pelo navegador precisam permanecer compatíveis com a CSP de
