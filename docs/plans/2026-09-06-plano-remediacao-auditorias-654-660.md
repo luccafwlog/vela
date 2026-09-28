@@ -483,12 +483,20 @@ registrada.
   Supabase Preview no SHA `6ac5c165`.
 - Após `102`, a Edge retornou 200 e criou um convite pendente. A tentativa ficou
   `aceito` sem `provider_message_id`: o runtime executou dry-run, então nenhum
-  email foi enviado. O usuário da fixture não recebeu nem precisa de outro
-  convite ainda. A migration `103` e o consumidor agora distinguem esse estado
-  como `Não confirmado`; aceite pelo provedor exige `provider_message_id`.
-- **Pendente:** aplicar `103`, confirmar o estado pelo RPC e obter configuração
-  de envio real no Preview para repetir o convite autorizado. Só registrar email
-  enviado quando houver confirmação do provedor.
+  email foi entregue. A migration `103` altera a RPC e o consumidor para expor
+  `Não confirmado`; aceite pelo provedor exige `provider_message_id`.
+- **Evidência de Preview:** migrations `101`–`103` aplicadas; CI passou replay
+  real do Postgres e Supabase Preview no SHA `3a8a18a6`. O run Cloudflare Pages
+  `36492565185` publicou Vela e Portal; uma aba limpa confirmou a versão
+  `3a8a18a6` e a fila exibiu `Não confirmado`. Consulta somente leitura no
+  Preview em 2026-09-28 confirmou conta/convite pendentes, última tentativa
+  `aceito`, sem `provider_message_id` e sem erro. A interface agora não sugere
+  entrega confirmada nesse dry-run.
+- **Pendente:** configurar `RESEND_API_KEY`, `PORTAL_FROM_EMAIL` e
+  `PORTAL_REPLY_TO` nos secrets da branch Preview; então repetir o convite já
+  autorizado e verificar `provider_message_id` antes de considerar o Portal
+  acessível. Nenhum email enviado deve ser registrado sem confirmação do
+  provedor; o link e a criação de senha ainda não foram usados para login.
 
 ### 1.1 Baseline e alcance da evidência
 
