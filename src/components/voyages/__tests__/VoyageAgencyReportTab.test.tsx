@@ -420,6 +420,7 @@ it('fecha o ADR apenas quando os 3 departamentos assinaram e envia o snapshot ex
   const closeButton = screen.getByRole('button', { name: 'Fechar ADR' })
   expect((closeButton as HTMLButtonElement).disabled).toBe(false)
   fireEvent.click(closeButton)
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar fechamento' }))
   expect(closeMutateMock).toHaveBeenCalledWith(expect.objectContaining({
     voyageId: 7,
     port: 'BRVIX',
