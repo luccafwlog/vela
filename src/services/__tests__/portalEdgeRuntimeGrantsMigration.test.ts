@@ -7,9 +7,14 @@ describe('grants de runtime das Edge Functions do Portal', () => {
     path.resolve(process.cwd(), 'supabase/migrations/101_portal_edge_runtime_table_grants.sql'),
     'utf8',
   )
+  const customerReadMigration = fs.readFileSync(
+    path.resolve(process.cwd(), 'supabase/migrations/102_portal_edge_customers_read.sql'),
+    'utf8',
+  )
 
   it('concede ao service_role apenas as operacoes diretas usadas pelo runtime', () => {
     expect(migration).toMatch(/GRANT SELECT, UPDATE ON TABLE public\.customer_portal_accounts TO service_role;/)
+    expect(customerReadMigration).toMatch(/GRANT SELECT ON TABLE public\.customers TO service_role;/)
     expect(migration).toMatch(/GRANT SELECT, INSERT, UPDATE ON TABLE public\.portal_invites TO service_role;/)
     expect(migration).toMatch(/GRANT SELECT, INSERT, UPDATE ON TABLE public\.portal_email_attempts TO service_role;/)
     expect(migration).toMatch(/GRANT SELECT, INSERT ON TABLE public\.alerts TO service_role;/)

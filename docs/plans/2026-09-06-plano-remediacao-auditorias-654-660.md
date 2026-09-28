@@ -478,7 +478,11 @@ registrada.
   e timeout de 15 s.
 - **Pendente:** publicar esta migration no Supabase Preview, conferir os ACLs
   efetivos no mesmo SHA do Pages e repetir uma vez o convite autorizado para
-  `luccajuliatti@gmail.com`. Só registrar entrega de email se o provedor confirmar.
+  `luccajuliatti@gmail.com`. A primeira repetição encontrou também `42501` em
+  `customers`, usado pela relação aninhada do mesmo SELECT; nenhum convite nem
+  tentativa de email foi persistido. Como a `101` já havia sido aplicada no
+  Preview, o grant somente de leitura para `customers` ficou isolado na migration
+  `102`. Só registrar entrega se o provedor confirmar.
 
 ### 1.1 Baseline e alcance da evidência
 
