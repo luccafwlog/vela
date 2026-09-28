@@ -460,6 +460,26 @@ registrada.
   carga; o mesmo arquivo passou isoladamente. Não registrar o gate integral
   como totalmente verde até uma execução sem timeouts.
 
+### 1.0.17 Grants do runtime do Portal descobertos no Preview — 2026-09-28
+
+- O primeiro convite da fixture `QA Portal - PR 790` falhou sem criar convite:
+  a Edge Function respondeu 404 porque `service_role` não tinha `SELECT` em
+  `customer_portal_accounts`; o log Postgres registrou `42501`. A tentativa
+  não enviou email. A causa também afetava gravações/leituras necessárias nas
+  tabelas de convite, tentativas e alertas.
+- A migration `101_portal_edge_runtime_table_grants.sql` concede somente os
+  privilégios diretos usados pelas Edge Functions e sequences de `portal_invites`,
+  `portal_email_attempts` e `alerts`; não abre grants para `PUBLIC`, `anon` ou
+  `authenticated`. `seguranca.md` registra o contrato.
+- **Evidência local:** teste focado da migration, `migrations:check`,
+  `docs:check`, `typecheck`, `lint` e `build` passaram. A suíte completa teve
+  um timeout sob carga em `Clientes.behavior.test.tsx` (3.638 testes passaram,
+  207 ignorados); os 11 testes desse arquivo passaram isoladamente com um worker
+  e timeout de 15 s.
+- **Pendente:** publicar esta migration no Supabase Preview, conferir os ACLs
+  efetivos no mesmo SHA do Pages e repetir uma vez o convite autorizado para
+  `luccajuliatti@gmail.com`. Só registrar entrega de email se o provedor confirmar.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
