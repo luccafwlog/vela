@@ -190,12 +190,13 @@ identificados como teste e sem envio de e-mail ou cobrança. Cliente fictício
 nenhuma mensagem foi enviada. Fatura avulsa de QA `INV-2026-0001` emitida pela
 interface em 2026-09-28, total e saldo em aberto de R$ 0,01, sem B/L; a lista
 confirma status `EMITIDA`. Nenhuma cobrança ou mensagem foi enviada. Ainda
-falta conta Portal habilitada para abrir a fatura e confirmar `invoice_viewed`
-no PostHog, contendo só `surface` e `invoice_type`; depois da conferência,
-cancelar a fatura. Após a emissão, a página Events do projeto PostHog EU não
-mostrou eventos no intervalo padrão de uma hora, então a evidência ainda falta.
-Não enviar convite/e-mail sem autorização. No console do navegador não pode
-haver erro de CSP do PostHog.
+convite de ativação enviado para `luccajuliatti@gmail.com` em 2026-09-28 e
+entregue à caixa de entrada. A ativação requer que o destinatário crie a própria
+senha; ainda falta concluir essa ativação, abrir a fatura e confirmar
+`invoice_viewed` no PostHog, contendo só `surface` e `invoice_type`; depois da
+conferência, cancelar a fatura. Após a emissão, a página Events do projeto
+PostHog EU não mostrou eventos no intervalo padrão de uma hora. No console do
+navegador não pode haver erro de CSP do PostHog.
 
 ---
 
@@ -525,6 +526,7 @@ foram conferidas na Etapa 6.
 | 4 | 2026-09-24 | Dono + Claude Code | `SENTRY_DSN` (projeto `vela`) e `SENTRY_ENVIRONMENT=production` no Supabase às 13:59 UTC. Um alerta único (novo issue ou regressão) para `vela` e `portal`, e-mail ao dono. Passos 2–4 (Vercel) dispensados; Pages já configurado na Etapa 8. Não verificado: um erro real de Edge Function chegando ao Sentry |
 | 5 | 2026-09-24 | Dono | Pages: requisições a `eu-assets.i.posthog.com` e `eu.i.posthog.com` com 200, sem erro de CSP. Não havia fatura para gerar `invoice_viewed`; a limpeza das propriedades é coberta por `featureFlags.test.ts`. Pendente: conferir o primeiro `invoice_viewed` real |
 | 5 | 2026-09-28 | Claude Code | Após emitir `INV-2026-0001`, a página Events do projeto PostHog EU não mostrou eventos no intervalo padrão de uma hora. `invoice_viewed` não foi observado; continua pendente abrir a fatura por uma conta Portal habilitada. |
+| 5 | 2026-09-28 | Dono + Claude Code | Convite de ativação do Portal para `luccajuliatti@gmail.com` enviado pelo provisionamento e recebido na caixa de entrada. O destinatário precisa criar a própria senha no link de uso único (48 horas); não ativado nesta execução. Após ativar, abrir `INV-2026-0001`, conferir `invoice_viewed` e cancelar a fatura. |
 | 6 | 2026-09-24 | Dono + Claude Code | Bucket e regra "Expire backups after 90 days" (prefixo `vela/database`) já existiam. Chaves do R2 lidas do Gerenciador de Credenciais; chave de cifragem nova, guardada no Gerenciador de Credenciais e no iCloud Senhas; senha do banco resetada. Primeiro backup às 15:01 UTC e execução pela tarefa agendada às 15:11 UTC (0x0), ambos no R2. Corrigido `scripts/backup-r2.mjs`: `--file=-` fazia o `pg_dump` do Windows gravar o banco sem cifragem num arquivo `-` (apagado na hora, não saiu da máquina) |
 | 7 | 2026-09-24 | Dono + Claude Code | Aplicações do Access `*.vela-internal.pages.dev` e `*.vela-portal.pages.dev` com Include só `luccafwlog@gmail.com` (login pela conta Cloudflare); `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`. PR #753: sem sessão, os dois `pr-753` redirecionam para o Access; janela anônima barrada no login da Cloudflare. A preview abria em branco: o GitHub descartava o output `supabase_anon_key` ("may contain secret"); corrigido na #753 (artefato + recusa de build sem chave). Na #754 (já com a correção): dono entrou no Vela da preview até `/painel` e viu o login do Portal, sem erro de configuração do Supabase. Resta no console só o manifest bloqueado pelo redirecionamento do Access (inofensivo, só nas previews) |
 | 9 | 2026-09-24 | Dono + Claude Code | Concluída. Foto do DNS: só `A 216.198.79.1` e DNSSEC nos dois domínios; e-mail só em `transhippingdesk.com.br`. Zonas já existiam na Cloudflare (Free); `A` passado para DNS only. `vela.app.br`: SPF `-all` e DMARC `reject`. `portalfwlog.com.br`: ImprovMX (`suporte@` → `importacao@fwlog.com.br`, `lucca.juliatti@fwlog.com.br`), MX, SPF, DKIM e CNAMEs do Resend, DMARC; conferidos nos servidores da Cloudflare. `DEMURRAGE_REPLY_TO`=`eqp@fwlog.com.br` e `COMMUNICATIONS_REPLY_TO`=`importacao@fwlog.com.br` (16:53–16:54 UTC; `demurrage-dunning` publicada da #755). Servidores trocados no Registro.br para `ariadne`/`pablo` (publicados no `.br` por volta das 16:15 de Brasília); as duas zonas Active. Resend Verified para `portalfwlog.com.br`. E-mail externo para `suporte@portalfwlog.com.br` chegou nas duas caixas. `PORTAL_FROM_EMAIL`=`Portal Fwlog <no-reply@portalfwlog.com.br>`, `PORTAL_REPLY_TO` e `PORTAL_SUPPORT_EMAIL`=`suporte@portalfwlog.com.br`; "Esqueci minha senha" no Portal chegou com remetente e responder-para certos. DNSSEC ligado na Cloudflare e DS no Registro.br nos dois domínios (keytag 2371, digests diferentes), conferido com a DNSKEY publicada. Sites no Vercel respondem 200 com certificado válido. `www`: `A www 192.0.2.1` com proxy e Redirect Rule "www para raiz" (301, preserva caminho e query) nos dois domínios. Conferido com `curl`: `www.<domínio>/teste?x=1` → 301 para `https://<domínio>/teste?x=1`. A regra do Portal tinha o destino errado (voltava para o próprio `www`) e foi corrigida. Convite real do Portal enviado depois da Etapa 10 chegou na caixa de entrada, fora do spam |
