@@ -6,7 +6,7 @@ segredos e o que quebra se cada uma parar. Escrito para quem assumir a operaçã
 sem ter participado da configuração.
 
 - **Estado em:** 2026-09-28, após a migração da Vercel para o Cloudflare
-  Pages ([roteiro](../plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md)).
+  Pages ([roteiro executado](../archive/plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md)).
 - **Nunca** escreva valores de segredo aqui. Este documento lista **nomes** e
   **onde** o valor está guardado.
 - Ao mudar qualquer configuração de serviço, atualize esta página na mesma PR.
@@ -269,17 +269,10 @@ Demurrage, sempre pelas Edge Functions (o navegador nunca chama o Resend).
   e-mails de login do Auth saem pelo serviço do próprio Supabase). Para trocar a
   chave: crie a nova, troque o secret, teste com "Esqueci minha senha" no Portal
   e só então apague a antiga.
-- **Microsoft 365 da Fwlog (`fwlog.com.br`):** o filtro anti-spam do Microsoft 365 da Fwlog
-  pôs em quarentena, como **Phishing**, e-mails do Portal para caixas
-  `@fwlog.com.br` (convite e recuperação de 2026-09-24, ainda do remetente
-  antigo). O "Resumo do Portal" de 2026-09-25 aparece como **Delivered** no Resend, mas não
-  chegou a nenhuma pasta nem à quarentena visível ao usuário. Confirmado no mesmo
-  dia com uma recuperação de senha da conta de teste para `lucca.juliatti@fwlog.com.br`, já
-  com o remetente novo: **Delivered** no Resend e nada na caixa nem na
-  quarentena do usuário. O bloqueio, que parece ser "phishing de alta confiança",
-  vale também para clientes que usam Microsoft 365. Só um
-  administrador do Microsoft 365 da Fwlog pode rastrear a mensagem e liberar os domínios
-  `portalfwlog.com.br` e `transhippingdesk.com.br`; pedido enviado à TI.
+- **Microsoft 365 da Fwlog (`fwlog.com.br`):** em 2026-09-28, o responsável
+  confirmou que o problema de entrega de e-mails do Portal foi solucionado. O
+  histórico anterior de mensagens marcadas **Delivered** no Resend sem entrega
+  nas caixas foi encerrado; não há ação de TI pendente registrada.
 
 ### ImprovMX (recebimento)
 
