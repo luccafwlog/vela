@@ -1378,7 +1378,7 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 - [x] Fazer EmbarqueVazios, `agencyDepartureReport` e a leitura de Baplie consumirem a projeção/serviço comum, preservando terminais e relatórios fechados.
 - [x] Oferecer janela/“carregar mais” no Painel acima de 60 viagens e paginação com total/filtros nas listas de PortalBilling, incluindo wrappers de Inspeção.
 - [ ] Comprovar refresh de 30 s sem refazer a cadeia inteira em Preview. A sessão autenticada do Portal abriu em produção, mas o intervalo e o número de requests não foram medidos.
-- [ ] Se a medição S06 confirmar teto de supressão por cliente, adicionar RPC server-side filtrada/paginada; até lá manter a mitigação atual e registrar o gatilho.
+- [x] Revalidar o gatilho de paginação de supressões: a medição S06 de 2026-09-29 encontrou 0 linhas em produção e Preview e nenhum cliente próximo de 1000. Não criar RPC sem volume que justifique o custo; manter a mitigação atual e reavaliar quando houver dados operacionais reais.
 - [ ] Comparar profiler antes/depois e só aplicar memoização/virtualização onde custo e invalidação forem demonstrados.
 - [x] Executar os testes de listas/projeções e os gates da PR relacionados a filtros/contagens.
 - [ ] Executar `npm run perf:authenticated-startup` com credenciais de teste do Preview e anexar o resultado; o benchmark local 100/1.000/10.000 foi concluído em commit separado desta continuação. A sessão autenticada de produção mostrou somente listas vazias e uma invoice; não é benchmark.
