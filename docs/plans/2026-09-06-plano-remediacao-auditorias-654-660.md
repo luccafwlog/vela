@@ -1152,9 +1152,10 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
   modal de resultado, e reabrir o resultado após recarregar. O painel lista
   status, tentativas, erro sanitizado, resultado concluído e retry auditado.
 - [x] O consumidor `demurrage_billing` existe e fica fail-closed/inativo até S08-B e rollout operacional.
-- [ ] Não ativar cron/worker sem prova Preview e autorização D10. Consulta de
-  produção em 2026-09-29 encontrou Edge ativa, sem job `import-effects-runner`
-  em `cron.job`; nenhum worker foi disparado nem ativado nesta execução.
+- [ ] Não ativar cron/worker sem prova Preview e autorização D10. Consulta
+  somente leitura em produção em 2026-09-29 confirmou `import-effects-runner`
+  ativa, sem job em `cron.job` e sem o nome `IMPORT_EFFECTS_CRON_SECRET` no
+  Vault; `communications_enabled = false`. Nenhum worker foi invocado.
 - [x] Executar testes unitários/integração de efeitos, crash, timeout, dois workers, replay, dependência e lease; commits de referência: `d85a0558`, `ff44e1bb`.
 
 **Job proposto:** `import-effects-runner`, a cada cinco minutos (`*/5 * * * *`), via `ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET')`. Segredo homônimo no Vault e Edge, autenticação própria fail-closed e `verify_jwt` coerente, provados em Preview antes de ativação.
@@ -1270,8 +1271,9 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Tornar fetch BCB limitado e recuperável: timeout por tentativa, três tentativas para timeout/429/5xx com backoff/jitter, validação de schema/valor e alerta interno idempotente em falha persistente. A última cotação fica marcada como desatualizada e não é apresentada como nova.
 - [x] Implementar o contrato fail-closed do gateway/dispatcher e manter `verify_jwt` coerente com a autenticação própria; o código não aceita anon nem registra segredo.
 - [ ] Publicar/validar essa combinação no Preview real antes de ativar o job.
-  Produção tem Edge ativa e nenhum job `recalc-demurrage-ptax` em `cron.job`;
-  a execução agendada continua sem prova.
+  Consulta somente leitura em produção em 2026-09-29 confirmou Edge
+  `recalc-demurrage-ptax` ativa (v109), sem job em `cron.job` e sem o nome
+  `RECALC_CRON_SECRET` no Vault; a execução agendada continua sem prova.
 - [x] Deixar o job nomeado e idempotente, com `RECALC_CRON_SECRET` referenciado pelo nome no SQL e sem `service_role` como segredo de cron; o agendamento saiu da migration por exigir privilégio operacional.
 - [ ] Criar/ativar o job no Vault/Edge/`pg_cron` do ambiente depois do aceite operacional.
 
