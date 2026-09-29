@@ -229,7 +229,7 @@ Visível: nenhum papel "admin" nas telas de usuários; nada muda no dia a dia.
 ## Decisões pendentes
 
 - **Fase 6, backup:** o agendamento diário é a Etapa 6 do
-  [plano de serviços e Cloudflare](2026-09-24-configuracao-servicos-e-migracao-cloudflare.md),
+  [plano executado de serviços e Cloudflare](../archive/plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md),
   executada pelo dono no painel; esta fase só confirma que ela foi concluída
   e que uma restauração foi testada.
 - ~~Fase 6, anonimização em `audit_logs`~~: decidido não anonimizar
