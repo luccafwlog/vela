@@ -1,10 +1,16 @@
 # Plano — Remediação da auditoria de segurança run-2
 
 Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 tomadas
-(ver "Decisões"). Fase 2 e item 4.5 implementados em 2026-09-29 na branch
-`claude/remediacao-run-2-fase-2` (migration `106`, suíte
-`auditoriaRun2.local-pg.test.ts`), aguardando PR e aplicação em produção.
-Fases 1, 3, 4 (exceto 4.5) e 5 e os reforços adicionais seguem pendentes.
+(ver "Decisões").
+
+| Parte | Situação |
+|---|---|
+| Fase 1 — configuração de terceiros | pendente (dono, no painel) |
+| Fase 2 — migration `106` e item 4.5 | código entregue pela PR luccafwlog/vela#799 (suíte `auditoriaRun2.local-pg.test.ts`); **falta aplicar a `106` em produção** e conferir na Preview a política de Storage de 2.2 e o modal de Disputa |
+| Fase 3 — Edge Functions | pendente (usa `internal_revoke_sessions` da `106`) |
+| Fase 4 — front-end (exceto 4.5) | pendente |
+| Fase 5 — CI e hospedagem | pendente |
+| Reforços adicionais (D4 = b) | pendentes |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
 (commit auditado `17da824a`). A auditoria está **incompleta**: nenhum dos 15
