@@ -718,8 +718,10 @@ registrada.
   o foco ao botão. Se o foco estiver num controle expandido, como `Combobox`,
   o primeiro Escape permanece com o controle interno e o seguinte fecha a
   barra. `src/components/ui/__tests__/FilterBar.behavior.test.tsx` cobre os
-  dois fluxos. O teste focado, lint direcionado e typecheck passaram. Preview
-  autenticado ainda precisa confirmar a correção publicada.
+  dois fluxos. Na branch baseada em `3b17d559`, passaram o teste focado,
+  `npm test` (667 arquivos, 3.633 passaram, 209 ignorados), lint completo,
+  typecheck, build, `docs:check` e `git diff --check`. Preview autenticado ainda
+  precisa confirmar a correção publicada.
 
 ### 1.1 Baseline e alcance da evidência
 
