@@ -2,9 +2,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const migrationPath = resolve(process.cwd(), 'supabase/migrations/044_restore_app_settings_singleton.sql')
+describe.each([
+  '044_restore_app_settings_singleton.sql',
+  '104_restore_app_settings_singleton.sql',
+])('migration %s — reparo do singleton app_settings', (filename) => {
+  const migrationPath = resolve(process.cwd(), 'supabase/migrations', filename)
 
-describe('migration 044 — reparo do singleton app_settings', () => {
   it('recria a linha padrão sem sobrescrever uma configuração existente', () => {
     expect(existsSync(migrationPath)).toBe(true)
     if (!existsSync(migrationPath)) return
