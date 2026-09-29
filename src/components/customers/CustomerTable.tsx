@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileText, MoreHorizontal, Power, ReceiptText, Trash2 } from 'lucide-react'
 import { Badge } from '../ui/Badge'
-import { Card, EmptyState, InlineError } from '../ui/Card'
+import { Card, EmptyState } from '../ui/Card'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
 import { summarizeChargeStatuses } from '../../lib/chargeStatus'
 import {
@@ -35,7 +35,6 @@ type CustomerRows = {
 export function CustomerTable({
   data,
   isLoading,
-  error,
   canDeleteCustomers,
   selection,
   filters,
@@ -53,7 +52,6 @@ export function CustomerTable({
 }: {
   data: CustomerRows | undefined
   isLoading: boolean
-  error: unknown
   canDeleteCustomers: boolean
   selection: {
     isSelected: (id: number) => boolean
@@ -157,7 +155,6 @@ export function CustomerTable({
   return (
     <>
       <Card className="overflow-hidden p-0">
-        {error ? <InlineError message="Erro ao carregar clientes." /> : null}
         <div className="app-table-scroll app-table-scroll--sticky">
           <table className="app-table app-table--compact app-table--sticky-actions min-w-[1140px] table-fixed text-left text-sm">
             <caption className="sr-only">Clientes filtrados</caption>

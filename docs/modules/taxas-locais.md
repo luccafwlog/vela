@@ -1,6 +1,6 @@
 # Taxas Locais
 
-> **Status:** ativo · **Atualizado:** 2026-09-28 · **Rotas:** operação em `/taxas-locais`; cadastro em `/taxas-locais/tabelas`; ações operacionais também partem de `/revisao` e `/bls/:blId`
+> **Status:** ativo · **Atualizado:** 2026-09-29 · **Rotas:** operação em `/taxas-locais`; cadastro em `/taxas-locais/tabelas`; ações operacionais também partem de `/revisao` e `/bls/:blId`
 
 ## Propósito e escopo
 
@@ -31,6 +31,16 @@ operações do mesmo domínio disparadas por outras telas.
 - Granito aparece na fila operacional unificada, mas usa
   `src/services/graniteCharges.ts` e `granite_bls`; não compartilha o motor
   `calculate_bl_local_charges`.
+
+### Fatura avulsa QA no Preview
+
+No Preview autenticado da PR #797 (SHA `70f3933`), a fixture `QA S10 Financial
+Battery` recebeu `INV-2026-0001` de R$ 1,00, sem B/L ou viagem. A tela mostrou
+status emitida, pago R$ 0,00 e saldo aberto R$ 1,00. Esse smoke valida a leitura
+do saldo da fatura avulsa no painel interno; não valida wrappers de faturamento,
+Portal, comunicação ou impressão de PDF. O modal de detalhes exibiu um item QA
+manual, total/saldo e zero pagamentos (seção 1.0.40 do plano); o botão de PDF
+não foi acionado. Registro detalhado no plano de remediação, seção 1.0.39.
 
 ## Anatomia das telas
 

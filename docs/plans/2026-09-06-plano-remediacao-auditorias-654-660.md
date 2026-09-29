@@ -811,6 +811,95 @@ registrada.
   ou alteração de registros durante este smoke. O fluxo prova login e leitura
   básica dessas telas; não substitui os casos financeiros/operacionais de S10.
 
+### 1.0.32 Escape na barra de filtros — 2026-09-29
+
+- Na revisão manual de teclado da produção, Escape não fechava a barra de filtros
+  quando o foco estava em um campo comum nem devolvia o foco ao acionador. O
+  primeiro Escape dentro de um Combobox deve continuar fechando somente o
+  controle expandido.
+- `FilterBar` agora fecha a barra no Escape e devolve o foco ao acionador; o
+  controle expandido consome o primeiro Escape. `FilterBar.behavior.test.tsx`
+  cobre ambos os fluxos. Na branch baseada no SHA `3b17d559`, passaram teste
+  focado, suíte integral (667 arquivos, 3.633 aprovados, 209 ignorados), lint,
+  typecheck, build, `docs:check` e `git diff --check`. Após integrar a `main`, o
+  SHA `e4aa9da8` passou no run `36549454964`: docs/lint, build, três shards de
+  testes, replay PostgreSQL, segurança, Supabase Preview e agregador. Smoke
+  autenticado no Preview e roteiro S13 completo continuam abertos.
+
+### 1.0.33 Bateria financeira no replay serial de PostgreSQL — 2026-09-29
+
+- A PR #797 incluiu `financialBattery.local-pg.test.ts` por último no replay
+  serial do PostgreSQL real. A bateria H13/H15/H16/H17 exercita consolidação,
+  pagamentos parciais, estorno, cancelamento/reemissão, disputa, PTAX e recusa
+  de PIX excedente.
+- A primeira execução encontrou uma linha residual em `pricing_rule_versions`;
+  a limpeza agora limita a exclusão à tabela, item e cliente sintéticos
+  identificados. Asserções confirmam que cálculos, overrides, itens e versões
+  tarifárias não vazam para o seed seguinte.
+- Na CI da PR #797 no SHA `1f79237f` (run `36549466966`), passaram replay
+  PostgreSQL, os três shards de testes, lint/docs, build, guard de segurança,
+  Supabase Preview e o agregador. Isso prova os cenários SQL locais no CI; os
+  wrappers financeiros, BRL/USD/misto/COD, gate e documentos em runtime
+  autenticado Preview continuam abertos.
+
+### 1.0.34 Publicação e smoke do saldo avulso em produção — 2026-09-29
+
+- Após o merge da PR #795 (`65228627`), o histórico do projeto Supabase `main`
+  de produção passou a listar a migration `105`
+  (`portal_manual_invoice_pending_balance`).
+- Na sessão autenticada do cliente, `/portal/billing` passou a mostrar saldo
+  pendente de R$ 1,00, igual ao saldo da fatura emitida
+  `INV-2026-0001`. A leitura foi repetida após a tela terminar de carregar.
+  Não houve pagamento nem outra mutação. Isto comprova a correção do KPI em
+  produção; não substitui os demais cenários de S10.
+
+### 1.0.35 ACL das candidatas S14 no Preview #797 — 2026-09-29
+
+- Consulta somente leitura ao catálogo do branch Supabase `pubojmlzfykpfatfjynj` confirmou que as 14 funções candidatas existem em `public`; `anon` e `authenticated` não têm `EXECUTE` em nenhuma, e `service_role` tem em `reconcile_bl_review_alerts_item` somente. Isso atualiza a evidência de ACL do Preview, sem provar ausência de consumidores externos ou uso em produção. Nenhuma função foi removida; a investigação das quatro colunas e a decisão D09 permanecem abertas.
+
+### 1.0.36 Refresh autenticado S12 na TV — 2026-09-29
+
+- No Preview #797 (`d8c2f11267e7bc2b6f18f47f2a0eedd2ba346cac`), sessão `Preview Admin`, `/line-up-tv/display` estava visível e em foco. A captura read-only por CDP registrou ciclos de `fetchLineUpSnapshot` iniciados em 58.241,986 s e 58.272,206 s do relógio monotônico do browser: intervalo 30,219 s.
+- Cada ciclo emitiu 15 GETs PostgREST: 11 leituras do snapshot e 4 para `lastChangedAt` (incluindo `voyages`, `bls`, `bl_containers`, `vehicles` e `audit_logs`). A tela manteve `Atualizado às` porque a resposta era estruturalmente igual; o rótulo sozinho não mede polling.
+- A periodicidade foi comprovada, mas a cadeia completa de leituras se repete a cada 30 s. S12 não passou o critério de refresh sem refazer a cadeia; falta reduzir essa carga e medir novamente. O cenário contém uma viagem e não prova custo constante até o limite de 60.
+
+### 1.0.37 S13 offline e teclado — 2026-09-29
+
+- No Preview #797, `/bls` com dados em cache manteve a tabela e exibiu “Você está offline. Exibindo dados salvos”; após reconectar, o aviso desapareceu e o mesmo B/L continuou visível. Em `/clientes`, sem cache, o modo offline exibiu 0 e “Nenhum cliente encontrado”; após reconectar, carregou 1 cliente. Essa observação confirmou um defeito específico em Clientes: a tela não usava `QueryStateGate`.
+- No mesmo Preview, em `/viagens`, Tab percorreu skip-link, PTAX, versão, cabeçalho, notificações, perfil e links de navegação. `Nova Viagem` sem alterações fechou sem confirmação. Com texto temporário no campo Navio, Escape abriu confirmação; continuar manteve o foco no campo e descartar devolveu foco ao acionador. O formulário não foi salvo.
+- Correção local S13 incluída nesta mudança: Clientes passa a usar o `QueryStateGate` compartilhado, resumo indisponível deixa de aparecer como zero, e a tabela não duplica o alerta de erro. `Clientes.behavior.test.tsx` passou 13 testes (incluindo offline sem cache e com cache); `docs:check`, typecheck, lint, suíte completa (3.633 passaram, 210 ignorados) e build passaram. A correção ainda não foi publicada no Preview para repetir o cenário offline. Leitor de tela, light/dark e as demais tabelas/interações permanecem pendentes; S13 não está concluído.
+
+### 1.0.38 Teclado no menu de Clientes — 2026-09-29
+
+- Após login, a sessão `Preview Admin` no Preview #797 (`d8c2f11267e7bc2b6f18f47f2a0eedd2ba346cac`) foi confirmada em `/clientes`, com a fixture `QA S10 Financial Battery` visível. No menu “Mais ações”, `ArrowDown` moveu o foco de “Copiar CNPJ” para “Copiar e-mail”; `Escape` fechou o menu e devolveu o foco ao acionador. Nenhuma ação do menu foi executada.
+- Essa prova cobre teclado/foco do menu de Clientes. Não comprova anúncio por leitor de tela, outras tabelas, contraste/estados light-dark nem o reteste offline da correção local; roteiro S13 segue aberto.
+
+### 1.0.39 Reteste S13 offline no SHA publicado — 2026-09-29
+
+- Após o commit `70f39333e8a750cabc5aaf0c9f91014b25bf601b`, os checks de CI, Supabase Preview e publicação Cloudflare Pages para a PR #797 passaram. O Preview autenticado exibiu a versão `70f3933` em `/clientes`.
+- Com rede offline e query original em cache, a página conservou o cliente e os resumos e anunciou dados salvos. Para testar query sem cache sem recarregar o shell da aplicação, foi aplicado o filtro exclusivo `offline-sem-cache-qa`: a página mostrou “Sem conexão no momento”, omitiu KPIs/tabela e não anunciou lista vazia. Reconectar retomou a leitura; limpar o filtro restaurou a fixture e o saldo original. Não houve gravação de dados.
+- Isso fecha o reteste de offline/reconnect em Clientes. Leitor de tela, light/dark, outras tabelas/interações e o roteiro S13 completo continuam pendentes.
+
+### 1.0.40 Smoke S10 de fatura avulsa no Preview #797 — 2026-09-29
+
+- No Preview autenticado da PR #797, SHA `70f3933`, a tela `/taxas-locais` iniciou sem faturas e saldo aberto zero. Foi emitida pelo fluxo de interface uma fatura manual QA de R$ 1,00 para `QA S10 Financial Battery`, sem B/L, viagem, pagamento ou envio de email.
+- O resultado visível foi `INV-2026-0001`, status `EMITIDA`, total e saldo aberto de R$ 1,00, pago R$ 0,00; o resumo da tela também passou a mostrar saldo R$ 1,00 e uma fatura. O formulário confirmou que a emissão não cria recebível de taxa local; não houve pagamento.
+- Evidência comprova emissão avulsa e leitura do saldo no painel interno, não valida os wrappers BRL/USD/misto/COD, gate completo, comunicação, Portal ou renderização do documento. Esses critérios S10 continuam pendentes. A fixture permanece no banco Preview para a matriz seguinte; produção não foi alterada.
+
+### 1.0.41 Detalhes da fatura avulsa no Preview #797 — 2026-09-29
+
+- O modal de detalhes da `INV-2026-0001` carregou no mesmo Preview e exibiu cliente, descrição QA, um item manual de R$ 1,00, total/saldo de R$ 1,00 e nenhum pagamento. A superfície oferece `Imprimir PDF`, mas não foi acionada; portanto esta observação comprova a renderização dos detalhes internos, não o PDF nem o Portal.
+- O login informado pelo usuário ainda não está presente na sessão do Portal Preview aberta para esta verificação: `pr-797.vela-portal.pages.dev/portal/login` mostra os campos de CNPJ e senha vazios. O site interno e o Portal são sessões separadas. A verificação de visibilidade da fatura no Portal aguarda login manual nesse Preview.
+
+### 1.0.42 Segundo reteste de refresh S12 no Preview #797 — 2026-09-29
+
+- Na TV autenticada `pr-797.vela-internal.pages.dev/line-up-tv/display`, versão `70f3933`, a captura CDP observou dois ciclos sucessivos de refresh de 30 s no projeto Supabase Preview `pubojmlzfykpfatfjynj`. Cada ciclo repetiu 15 GETs PostgREST: 11 leituras do snapshot (incluindo a consulta-base de viagens) e quatro leituras de timestamps para `voyages`, `bls`, `bl_containers` e `vehicles`. No segundo ciclo, a mesma viagem/B/L foi relida e a hora da última alteração permaneceu igual.
+- A observação reproduz no Preview #797 o refresh periódico sem alteração de dados; o critério de evitar a cadeia completa permanece reprovado. A amostra tem uma viagem e um B/L QA, portanto não determina custo sob volume nem p95. Não houve escrita.
+
+### 1.0.43 Teclado do modal de fatura no Preview #797 — 2026-09-29
+
+- No detalhe da fatura QA em `/taxas-locais`, `Escape` fechou o modal e devolveu o foco ao botão `Detalhes` que o abriu. Não houve edição, emissão ou pagamento. É evidência de um fluxo de teclado/foco em Financeiro; o roteiro S13 das outras tabelas, leitor de tela, temas e estados continua aberto.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
@@ -893,17 +982,20 @@ como registro da execução.
    job `import-effects-runner`. Falta provar worker, retry, alertas e atualização
    por unidade no Preview com as dependências S04/S08/S10; manter fail-closed até
    aceite operacional específico.
-6. **P2 — S12, volume e leitura.** Provar refresh de 30 s e startup autenticado
-   no Preview; o Portal abriu com sessão ativa em produção, sem medição temporal
-   nem de carga. Revisar materialização de exportações explícitas; medir o
-   profiler antes de memoizar/virtualizar. Só criar paginação de supressões se
-   dados operacionais demonstrarem o teto; a base atual contém apenas fixtures.
+6. **P2 — S12, volume e leitura.** A TV no Preview autenticado repete 15 GETs a
+   cada ciclo de 30 s (1.0.42); falta reduzir a cadeia e revalidar. O benchmark
+   autenticado de startup exige credenciais de teste do Preview; o Portal Preview
+   aberto nesta rodada ainda está no formulário de login. Revisar materialização
+   de exportações explícitas; medir o profiler antes de memoizar/virtualizar. Só
+   criar paginação de supressões se dados operacionais demonstrarem o teto; a
+   base atual contém apenas fixtures.
 7. **P2 — S13, interação e acessibilidade.** A inspeção estática de 2026-09-29
    nomeou as tabelas principais de operação, financeiro, importação e Portal; as
    colunas ordenáveis já expõem `aria-sort` e os demais controles de cabeçalho
-   encontrados selecionam linhas. Continua pendente o roteiro autenticado em
-   Preview com leitor de tela, foco, teclado, modal sujo, offline/reconnect e
-   temas claro/escuro.
+   encontrados selecionam linhas. No Preview #797 SHA `70f39333`, teclado do menu
+   de Clientes e offline/reconnect sem e com cache passaram. Faltam leitor de
+   tela, foco/teclado nas demais superfícies, temas claro/escuro, estados hover/
+   disabled e o roteiro manual completo.
 8. **P2 — S14, rastreabilidade e legado.** Completar evidência de roles/RPCs e
    apurar consumidores externos das funções/colunas. Sem prova de ausência
    externa, manter funções fechadas e colunas; sem decisão D09, não restringir
@@ -1257,7 +1349,9 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
   a Edge `import-effects-runner` estava ativa em produção e Preview, mas nenhum
   dos ambientes tinha esse job em `cron.job`; não houve execução do worker.
   No Preview da PR #795, `communications_enabled=false`, 0 customers/invoices,
-  e 0 tentativas de email nos últimos 24 h.
+  0 tentativas de email nos últimos 24 h e o nome
+  `IMPORT_EFFECTS_CRON_SECRET` ausente do Vault. Nenhum worker foi invocado nem
+  ativado.
 - [x] Executar testes unitários/integração de efeitos, crash, timeout, dois workers, replay, dependência e lease; commits de referência: `d85a0558`, `ff44e1bb`.
 
 **Job proposto:** `import-effects-runner`, a cada cinco minutos (`*/5 * * * *`), via `ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET')`. Segredo homônimo no Vault e Edge, autenticação própria fail-closed e `verify_jwt` coerente, provados em Preview antes de ativação.
@@ -1391,8 +1485,9 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
   autorizada no Preview antes de ativar o job.
   Em 2026-09-29, a Edge estava ativa em produção e no Preview da PR #795; não
   havia job `recalc-demurrage-ptax` em `cron.job` em nenhum deles. A branch
-  Preview tem jobs legados de comunicação ativos, mas `communications_enabled`
-  está falsa e não há dados elegíveis; isso não valida gateway/Vault nem uma
+  Preview não tinha o nome `RECALC_CRON_SECRET` no Vault. Ela tem jobs legados
+  de comunicação ativos, mas `communications_enabled` está falsa e não há dados
+  elegíveis; isso não valida gateway/Vault nem uma
   execução agendada de PTAX.
 - [x] Deixar o job nomeado e idempotente, com `RECALC_CRON_SECRET` referenciado pelo nome no SQL e sem `service_role` como segredo de cron; o agendamento saiu da migration por exigir privilégio operacional.
 - [ ] Criar/ativar o job no Vault/Edge/`pg_cron` do ambiente depois do aceite operacional.
@@ -1440,7 +1535,7 @@ SELECT cron.schedule(
 - [x] Fazer overloads de pendências delegarem ao mesmo contrato, com precedência cliente → cálculo → CE → Portal e motivo Portal distinto de “Cálculo incompleto”. CE não foi introduzido no gate de revisão que deliberadamente não o exige.
 - [x] Fechar readiness de `ce_mercante_taxas`: todos os B/Ls do cliente/viagem com CE, revisão liberada e financeiro concluído na criação/claim/envio, com advisory/row lock e identidade `service_role`. O gate de emissão/Portal continua separado e a validação de runtime permanece pendente.
 - [x] Executar a cobertura local de ledger, readiness e `InvoiceDocumentLocal`; os gates da PR passaram.
-- [x] Reexecutar/estender a cobertura local após a implementação do readiness: replay PostgreSQL descartável e seis suítes S08/S09/S10, 17 testes verdes em 2026-09-29 (seção 1.0.28). As provas operacionais de runtime permanecem em bullets separados.
+- [x] Reexecutar/estender a cobertura local após a implementação do readiness: replay PostgreSQL descartável e seis suítes S08/S09/S10, 17 testes verdes em 2026-09-29 (seção 1.0.28); a bateria financeira adversarial foi incluída no replay serial do CI (seção 1.0.33). As provas operacionais de runtime permanecem em bullets separados.
 
 **Compatibilidade / rollout:** RPCs antigas delegam ao mesmo núcleo durante transição; mudança de política financeira exige ADR antes da migration. Auditar divergências existentes em relatório somente leitura; backfill de saldo só com origem comprovada e ato financeiro autorizado. **Runtime:** simulação com recebimento parcial/estorno/COD e Portal bloqueado; comparação de SQL, tela, impresso, QR e fila de comunicado. **Aceite:** `saldo = devido − liquidações − ajustes` em centavos e coerente com status; zero emissão sem gate; nenhuma mensagem enviada com prontidão invalidada antes do claim. **Residual:** corrida entre validação final e entrega HTTP é inevitável sem API transacional externa; snapshot de decisão torna-a auditável. **Ordem:** readiness pode preceder ledger para liberar S07; políticas financeiras não se misturam na mesma PR com UI.
 
@@ -1482,7 +1577,7 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 - [x] Separar resumo de viagem dos embeds de detalhe e concluir o snapshot/consulta de Line Up com omissões, POL documental, escala/atracação, somente embarque e vazios sem a consulta secundária B/L → containers.
 - [x] Fazer EmbarqueVazios, `agencyDepartureReport` e a leitura de Baplie consumirem a projeção/serviço comum, preservando terminais e relatórios fechados.
 - [x] Oferecer janela/“carregar mais” no Painel acima de 60 viagens e paginação com total/filtros nas listas de PortalBilling, incluindo wrappers de Inspeção.
-- [ ] Comprovar refresh de 30 s sem refazer a cadeia inteira em Preview. A sessão autenticada do Portal abriu em produção, mas o intervalo e o número de requests não foram medidos.
+- [ ] Reduzir as leituras repetidas no refresh de 30 s e comprovar em Preview. Retestes na TV em produção e no Preview #797 observaram 15 GETs PostgREST por ciclo (seções 1.0.36 e 1.0.42); a hora de alteração permaneceu igual, mas a cadeia foi refeita. A captura confirma frequência/carga, não satisfaz o aceite de refresh eficiente.
 - [x] Revalidar o gatilho de paginação de supressões: a medição S06 de 2026-09-29 encontrou 0 linhas em produção e Preview e nenhum cliente próximo de 1000. Não criar RPC sem volume que justifique o custo; manter a mitigação atual e reavaliar quando houver dados operacionais reais.
 - [ ] Comparar profiler antes/depois e só aplicar memoização/virtualização onde custo e invalidação forem demonstrados.
 - [x] Executar os testes de listas/projeções e os gates da PR relacionados a filtros/contagens.
@@ -1498,6 +1593,7 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 
 - [x] Cobrir busca com relógio falso: várias teclas em menos de 300 ms geram uma mudança de query após a pausa; filtro não espera debounce de texto. O helper compartilhado e os callers auditados preservam URL, limpeza, página inicial e ignoram respostas antigas.
 - [x] Testar query pausada offline sem cache e offline com dados anteriores. O gate mostra indisponibilidade ou conserva dados com indicação, sem converter falha em “nenhum registro”; reconnect retoma a leitura e escrita offline não é anunciada como salva.
+- [x] Estender o contrato para `/clientes`: a página usa o mesmo gate para esconder tabela/resumos sem cache offline e conservar linhas em cache; resumo ainda não carregado não aparece como zero. A regressão de `Clientes.behavior.test.tsx` passou sem cache e com cache. O Preview anterior confirmou o defeito, então falta repetir o cenário depois da publicação da correção.
 - [x] No sino, erro de marcar lida mostra aviso acionável, restaura estado otimista/contador e permite retry sem duplicação, preservando logging e invalidando somente as chaves pertinentes.
 - [x] Implementar a separação `loading`/`error`/`unauthorized` na hidratação, troca de usuário, timeout e perfil inativo/removido; erro transitório permite retry com ações bloqueadas e perfil revogado elimina acesso sem reutilizar autorização anterior.
 - [ ] Executar o roteiro completo no Preview autenticado.
@@ -1517,6 +1613,10 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
   colunas com botão de ordenação em Clientes e Histórico de Conciliações já
   declaram `aria-sort`; o outro botão de cabeçalho encontrado seleciona linhas,
   não ordena. Inspeção estática não substitui leitor de tela.
+- [x] Na barra compartilhada de filtros, fechar com Escape e devolver o foco ao
+  acionador; um controle expandido interno consome Escape primeiro. Evidência:
+  `FilterBar.behavior.test.tsx` (dois casos). A publicação e a validação
+  autenticada desta correção continuam pendentes.
 - [ ] Verificar caption, anúncio da ordenação e retorno de foco com leitor de
   tela no Preview autenticado; não criar grid ARIA sem necessidade.
 - [x] Nos uploads múltiplos que usam `FileImportModal`, exibir progresso por
@@ -1528,7 +1628,7 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
   navegador entre arquivos; [ ] medir long tasks próximo do limite antes de
   decidir por worker ou mudança do teto de Baplie.
 - [x] Executar os testes de hidratação, modal, comunicação, debounce, `QueryStateGate` e sino; typecheck, lint, build e suíte integral da PR passaram.
-- [ ] Completar a evidência manual de teclado, leitor de tela, offline/reconnect e light/dark. Evidência parcial em produção: `Tab` focou Filtros e `Enter` expandiu os controles de B/L/container; leitor de tela, modal sujo, foco de retorno e temas não foram cobertos.
+- [ ] Completar a evidência manual de teclado, leitor de tela, offline/reconnect e light/dark. No Preview #797 SHA `70f39333`, offline com/sem cache, reconnect e foco do menu de Clientes foram verificados (seções 1.0.38–1.0.39); `Tab`/`Enter` em produção e modal sujo em `/viagens` também têm evidência anterior. Faltam anúncio com leitor de tela, tema claro/escuro, estados hover/disabled e demais tabelas/interações.
 
 **Compatibilidade / rollout:** sem schema, alterações reversíveis; mensagens usam linguagem operacional, sem expor SQL/stacktrace. **Runtime:** teclado sem mouse, leitor de tela, duas abas, offline/reconnect, formulário sujo e light/dark em Preview autenticado; medir contraste e número de requests. **Aceite:** nenhuma falha de rede parece lista vazia/sucesso; todas as ações auditadas alcançáveis por teclado; foco retorna ao acionador; busca respeita 300 ms; listeners permanecem estáveis após mount/unmount. **Residual:** leitores de tela/latência reais não são cobertos só por jsdom; registrar teste manual. **Ordem:** entregar partes independentes cedo, sem esperar S12 completo.
 
@@ -1625,7 +1725,7 @@ Os nomes abaixo registram a sequência planejada e o estado observado na linha a
 | 13 | `mitigado` + `[ ] runtime` | Persistir efeitos e relatório de import | S05; `017_import_effects_outbox.sql` + `025_import_effect_worker.sql` + `026_import_effect_alert.sql` + `031_import_effect_consumers.sql` | Outbox/claim/lease/retry, consumidores server-side e painel reabrível por unidade passaram na prova local; Preview, secrets/Vault/Edge e ativação controlada do worker continuam pendentes. |
 | 14 | `[x]` + `[ ]` runtime | Fechar readiness de emissão e comunicação | S10/F12; `033_customer_communication_readiness_guards.sql` | Guarda server-side de comunicação aplicada em criação/claim/envio, com lock e identidade de sistema; gate de emissão/Portal e prova de runtime continuam pendentes. |
 | 15 | `[x]` + `[ ]` runtime | Persistir inbox e estados de envio | S07; migrations `022`, `032`, `038` e `100` | Inbox, dedup, stale events, recuperação, estado `parcial` e agregação da última tentativa estão implementados; migration 100, replay real no CI, Supabase Preview e publicação Pages pareada ao PR passaram. Execução autenticada dos fluxos, jobs, secrets e prova do provedor continuam pendentes. |
-| 16 | `[x]` + `[ ]` | Fechar ledger, status/itens, saldo avulso e rateio do impresso | S10/F14; `019_local_billing_integrity.sql`, `105_portal_manual_invoice_pending_balance.sql` | D05/R$0,01 e integração local passaram; a discrepância do KPI foi reproduzida e a RPC passou a agregar as mesmas origens canônicas de saldo mais invoices avulsas. Replay real, CI e Preview passaram no SHA `317a463b`; deploys Vela/Portal pareados confirmados. Falta smoke autenticado no Preview e pós-publicação em produção. Casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
+| 16 | `[x]` + `[ ]` | Fechar ledger, status/itens, saldo avulso e rateio do impresso | S10/F14; `019_local_billing_integrity.sql`, `105_portal_manual_invoice_pending_balance.sql` | D05/R$0,01 e integração local passaram; a migration 105 foi aplicada em produção e o smoke autenticado confirmou KPI/fatura avulsa em R$ 1,00 (seção 1.0.34). O smoke interno no Preview #797 confirmou `INV-2026-0001`, total/saldo R$ 1,00 (seção 1.0.40). A regressão, replay real, CI e Preview passaram. Permanecem matriz ampla de wrappers BRL/USD/misto/COD, gate completo, Portal e comunicação. |
 | 17 | `mitigado` + `[ ]` | Paginar listas e concluir projeção compartilhada | S12; `020_operational_read_pages.sql`, `035_operational_voyage_summaries.sql`, `036_operational_breakbulk_summary_metrics.sql`, `037_operational_voyage_summary_null_status.sql` e páginas Portal | Projeções, paginação/window, resumo de viagem sob demanda, Line Up sem waterfall de containers, resumo BB server-side, fallback forward de status nullable e filtros principais estão entregues; exportações sob demanda, refresh de Preview e profiler faltam. |
 | 18 | `mitigado` + `[ ]` | Debounce, offline, feedback e acessibilidade | S13; sem migration | Debounce, estados de erro/offline, hidratação, confirmações/menu e progresso/cancelamento nos modais múltiplos e customizados estão entregues; contraste, leitor de tela/foco manual e cessão entre blocos faltam. |
 | 19 | `[x]` + `[ ]` | Completar índice e gate de catálogo | S14/#659.7; scripts de docs/RPC catalog | `docs:check`, catálogo, replay, tipos e inspeção local das 14 candidatas passaram; famílias ausentes e prova externa ainda faltam. |

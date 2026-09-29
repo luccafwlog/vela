@@ -12,6 +12,7 @@ import { WorkspaceNav } from '../components/ui/WorkspaceNav'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
+import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { CreateCustomerModal } from '../components/customers/CreateCustomerModal'
 import { CustomerTable, type CustomerActionsMenu } from '../components/customers/CustomerTable'
 import { ImportBaseModal } from '../components/customers/ImportBaseModal'
@@ -148,7 +149,7 @@ export function Clientes() {
   const [parsedBase, setParsedBase] = useState<ParsedCustomerBase | null>(null)
   const [parsingBase, setParsingBase] = useState(false)
   const [importingBase, setImportingBase] = useState(false)
-  const { data, isLoading, error } = useCustomers(filters)
+  const { data, isLoading, error, fetchStatus, refetch } = useCustomers(filters)
   const { data: summary } = useCustomerSummary(filters)
   const canSeePortalQueue = ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole ?? '')
   const { data: portalRows } = usePortalProvisioning(canSeePortalQueue)
@@ -497,103 +498,111 @@ export function Clientes() {
         ]}
       />
 
-      <div className="mb-5">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          <MetricCard label="Saldo pendente" value={formatBRL(summary?.pendingBalance ?? 0)} tone="primary" />
-          <MetricCard label="Clientes" value={String(summary?.totalCustomers ?? 0)} />
-          <MetricCard label="B/Ls vinculados" value={String(summary?.totalBls ?? 0)} />
-          <MetricCard label="Taxas pendentes" value={String(summary?.chargePending ?? 0)} />
-          <MetricCard label="Faturados" value={String(summary?.chargeReady ?? 0)} />
-        </div>
-      </div>
-
-      <FilterBar activeCount={activeFilterCount} onClear={clearFilters}>
-        <div className="app-filter-grid">
-          <Field label="Buscar por nome ou CNPJ">
-            <Input
-              value={filters.search}
-              onChange={(event) => setFilterField('search', event.target.value)}
-              placeholder="Razao social, fantasia ou documento"
-            />
-          </Field>
-          <Field label="Buscar por e-mail do contato">
-            <Input
-              type="email"
-              value={filters.contactEmail}
-              onChange={(event) => setFilterField('contactEmail', event.target.value)}
-              placeholder="email@cliente.com"
-            />
-          </Field>
-          <Field label="E-mails vinculados">
-            <Select value={filters.emailStatus} onChange={(event) => setFilterField('emailStatus', event.target.value as CustomerFilters['emailStatus'])}>
-              <option value="">Todos</option>
-              <option value="with">Com e-mails</option>
-              <option value="without">Sem e-mails</option>
-            </Select>
-          </Field>
-          <Field label="BLs vinculados">
-            <Select value={filters.blStatus} onChange={(event) => setFilterField('blStatus', event.target.value as CustomerFilters['blStatus'])}>
-              <option value="">Todos</option>
-              <option value="with">Com B/Ls</option>
-              <option value="without">Sem B/Ls</option>
-            </Select>
-          </Field>
-          <Field label="Valores pendentes">
-            <Select value={filters.pendingStatus} onChange={(event) => setFilterField('pendingStatus', event.target.value as CustomerFilters['pendingStatus'])}>
-              <option value="">Todos</option>
-              <option value="with">Com saldo pendente</option>
-              <option value="without">Sem saldo pendente</option>
-            </Select>
-          </Field>
-        </div>
-      </FilterBar>
-
-      {filterChips.length ? (
-        <div className="app-filter-chips">
-          {filterChips.map((chip) => (
-            <button key={chip.key} type="button" className="app-filter-chip" onClick={() => setFilterField(chip.key, '' as never)}>
-              {chip.label}
-              <span aria-hidden="true">×</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {canDeleteCustomers ? (
-        <BulkActionsBar
-          count={selection.count}
-          onClear={selection.clear}
-          onDelete={() => runCustomerDelete([...selection.selected])}
-          deleting={deleting}
-          noun={['cliente', 'clientes']}
-        />
-      ) : null}
-
-      <CustomerTable
-        data={data}
+      <QueryStateGate
         isLoading={isLoading}
-        error={error}
-        canDeleteCustomers={canDeleteCustomers}
-        selection={selection}
-        filters={filters}
-        totalPages={totalPages}
-        actionsMenu={actionsMenu}
-        deleting={deleting}
-        onToggleSort={toggleSort}
-        onPageChange={(page) => setFilters((current) => ({ ...current, page }))}
-        onOpenActionsMenu={openActionsMenu}
-        onCloseActionsMenu={() => setActionsMenu(null)}
-        onCopy={copyText}
-        onDeleteCustomer={(id) => {
-          setActionsMenu(null)
-          void runCustomerDelete([id])
-        }}
-        onToggleCustomerActive={(id, deactivated) => {
-          setActionsMenu(null)
-          void handleToggleCustomerActive(id, deactivated)
-        }}
-        portalRows={portalRows ?? undefined}
-      />
+        isError={Boolean(error)}
+        isPaused={fetchStatus === 'paused'}
+        hasData={data !== undefined}
+        errorMessage="Erro ao carregar clientes."
+        onRetry={() => void refetch()}
+      >
+        <div className="mb-5">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            <MetricCard label="Saldo pendente" value={summary ? formatBRL(summary.pendingBalance) : '—'} tone="primary" />
+            <MetricCard label="Clientes" value={summary ? String(summary.totalCustomers) : '—'} />
+            <MetricCard label="B/Ls vinculados" value={summary ? String(summary.totalBls) : '—'} />
+            <MetricCard label="Taxas pendentes" value={summary ? String(summary.chargePending) : '—'} />
+            <MetricCard label="Faturados" value={summary ? String(summary.chargeReady) : '—'} />
+          </div>
+        </div>
+
+        <FilterBar activeCount={activeFilterCount} onClear={clearFilters}>
+          <div className="app-filter-grid">
+            <Field label="Buscar por nome ou CNPJ">
+              <Input
+                value={filters.search}
+                onChange={(event) => setFilterField('search', event.target.value)}
+                placeholder="Razao social, fantasia ou documento"
+              />
+            </Field>
+            <Field label="Buscar por e-mail do contato">
+              <Input
+                type="email"
+                value={filters.contactEmail}
+                onChange={(event) => setFilterField('contactEmail', event.target.value)}
+                placeholder="email@cliente.com"
+              />
+            </Field>
+            <Field label="E-mails vinculados">
+              <Select value={filters.emailStatus} onChange={(event) => setFilterField('emailStatus', event.target.value as CustomerFilters['emailStatus'])}>
+                <option value="">Todos</option>
+                <option value="with">Com e-mails</option>
+                <option value="without">Sem e-mails</option>
+              </Select>
+            </Field>
+            <Field label="BLs vinculados">
+              <Select value={filters.blStatus} onChange={(event) => setFilterField('blStatus', event.target.value as CustomerFilters['blStatus'])}>
+                <option value="">Todos</option>
+                <option value="with">Com B/Ls</option>
+                <option value="without">Sem B/Ls</option>
+              </Select>
+            </Field>
+            <Field label="Valores pendentes">
+              <Select value={filters.pendingStatus} onChange={(event) => setFilterField('pendingStatus', event.target.value as CustomerFilters['pendingStatus'])}>
+                <option value="">Todos</option>
+                <option value="with">Com saldo pendente</option>
+                <option value="without">Sem saldo pendente</option>
+              </Select>
+            </Field>
+          </div>
+        </FilterBar>
+
+        {filterChips.length ? (
+          <div className="app-filter-chips">
+            {filterChips.map((chip) => (
+              <button key={chip.key} type="button" className="app-filter-chip" onClick={() => setFilterField(chip.key, '' as never)}>
+                {chip.label}
+                <span aria-hidden="true">×</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {canDeleteCustomers ? (
+          <BulkActionsBar
+            count={selection.count}
+            onClear={selection.clear}
+            onDelete={() => runCustomerDelete([...selection.selected])}
+            deleting={deleting}
+            noun={['cliente', 'clientes']}
+          />
+        ) : null}
+
+        <CustomerTable
+          data={data}
+          isLoading={isLoading}
+          canDeleteCustomers={canDeleteCustomers}
+          selection={selection}
+          filters={filters}
+          totalPages={totalPages}
+          actionsMenu={actionsMenu}
+          deleting={deleting}
+          onToggleSort={toggleSort}
+          onPageChange={(page) => setFilters((current) => ({ ...current, page }))}
+          onOpenActionsMenu={openActionsMenu}
+          onCloseActionsMenu={() => setActionsMenu(null)}
+          onCopy={copyText}
+          onDeleteCustomer={(id) => {
+            setActionsMenu(null)
+            void runCustomerDelete([id])
+          }}
+          onToggleCustomerActive={(id, deactivated) => {
+            setActionsMenu(null)
+            void handleToggleCustomerActive(id, deactivated)
+          }}
+          portalRows={portalRows ?? undefined}
+        />
+      </QueryStateGate>
 
       <CreateCustomerModal
         open={createOpen}

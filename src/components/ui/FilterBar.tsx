@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -32,11 +32,24 @@ export function FilterBar({
   defaultOpen,
 }: FilterBarProps) {
   const [open, setOpen] = useState(defaultOpen ?? activeCount > 0)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
 
   return (
-    <div className={cn('app-filter-bar', open && 'app-filter-bar--open')}>
+    <div
+      className={cn('app-filter-bar', open && 'app-filter-bar--open')}
+      onKeyDown={(event) => {
+        const target = event.target
+        if (event.key !== 'Escape' || !open || !(target instanceof HTMLElement) || !bodyRef.current?.contains(target)) return
+        if (target.getAttribute('aria-expanded') === 'true') return
+        event.preventDefault()
+        setOpen(false)
+        toggleRef.current?.focus()
+      }}
+    >
       <div className="app-filter-bar__head">
         <button
+          ref={toggleRef}
           type="button"
           className="app-filter-bar__toggle"
           aria-expanded={open}
@@ -59,7 +72,7 @@ export function FilterBar({
           </button>
         ) : null}
       </div>
-      {open ? <div className="app-filter-bar__body">{children}</div> : null}
+      {open ? <div ref={bodyRef} className="app-filter-bar__body">{children}</div> : null}
     </div>
   )
 }

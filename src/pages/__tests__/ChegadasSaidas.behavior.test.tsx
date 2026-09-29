@@ -303,4 +303,3 @@ describe('ChegadasSaidas user behaviours', () => {
     expect(mocks.createOrAttach).toHaveBeenCalled()
   })
 })
-
