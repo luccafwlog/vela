@@ -708,7 +708,7 @@ registrada.
   mergeada. O upload da fixture B/L continua sem execução: o seletor de arquivo
   não abriu no navegador integrado. Nenhum B/L ou container foi criado.
 
-### 1.0.26 Bateria financeira no replay CI de Postgres — 2026-09-29
+### 1.0.27 Bateria financeira no replay CI de Postgres — 2026-09-29
 
 - A PR draft #797 passou a executar `financialBattery.local-pg.test.ts` por último no replay serial de Postgres real. A bateria H13/H15/H16/H17 cobre consolidação, pagamentos, estorno, cancelamento/reemissão, disputa, PTAX e excedente PIX.
 - A primeira execução revelou uma `pricing_rule_versions` residual ligada à tarifa da fixture; o cleanup agora apaga somente a versão identificada pela tabela, item e cliente sintéticos. A asserção do seed continua verificando que nenhuma referência tarifária operacional vaza.
