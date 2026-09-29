@@ -97,6 +97,7 @@ export function CodAdjustmentsPanel() {
       {rows.length > 0 ? (
         <div className="app-table-scroll">
           <table className="app-table app-table--compact min-w-[980px] text-left text-sm">
+            <caption className="sr-only">Pendências de ajuste COD</caption>
             <thead>
               <tr>
                 <th className="px-4 py-3">B/L</th>

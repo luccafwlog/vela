@@ -450,6 +450,7 @@ export function Veiculos() {
         {error ? <InlineError message="Erro ao carregar veiculos." /> : null}
         <div className="app-table-scroll app-table-scroll--sticky">
           <table className="app-table app-table--compact min-w-[980px] text-left text-sm whitespace-nowrap">
+            <caption className="sr-only">Veículos importados e cadastrados</caption>
             <thead>
               <tr>
                 {canDeleteVehicles ? (
@@ -628,6 +629,7 @@ export function Veiculos() {
 
               <div className="app-table-scroll max-h-72 rounded-xl border border-[var(--app-border)]">
                 <table className="app-table app-table--compact min-w-[980px] text-left text-sm">
+                  <caption className="sr-only">Prévia da importação de veículos</caption>
                   <thead>
                     <tr>
                       <th scope="col" className="px-3 py-2">Chassi</th>

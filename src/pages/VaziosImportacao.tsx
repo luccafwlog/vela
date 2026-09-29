@@ -55,6 +55,7 @@ function VaziosImportacaoPreview({ manifest }: { manifest: ParsedVaziosImportaca
       </div>
       <div className="app-table-scroll max-h-64 rounded-xl border border-[#30363d]">
         <table className="app-table app-table--compact min-w-[480px] text-left text-sm whitespace-nowrap">
+          <caption className="sr-only">Prévia do manifesto de containers vazios</caption>
           <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500"><tr><th scope="col" className="px-3 py-2">Container</th><th scope="col" className="px-3 py-2">Tipo</th><th scope="col" className="px-3 py-2">Tara (kg)</th></tr></thead>
           <tbody className="divide-y divide-[#30363d]">{manifest.containers.slice(0, 25).map((container, index) => <tr key={`${container.container_number}-${index}`}><td className="px-3 py-2 font-semibold text-white">{container.container_number}</td><td className="px-3 py-2">{container.container_type ?? '-'}</td><td className="px-3 py-2">{container.tare_kg != null ? Number(container.tare_kg).toLocaleString('pt-BR') : '-'}</td></tr>)}</tbody>
         </table>
@@ -319,6 +320,7 @@ export function VaziosImportacao() {
 
         <div className="app-table-scroll app-table-scroll--sticky">
           <table className="app-table app-table--compact min-w-[600px] text-left text-sm whitespace-nowrap">
+            <caption className="sr-only">Containers vazios de importação</caption>
             <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
               <tr>
                 {canImport ? (

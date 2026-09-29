@@ -63,6 +63,7 @@ export function ChargeTablesList({
       ) : null}
       <div className="app-table-scroll">
         <table className="app-table app-table--compact min-w-[860px] text-left text-sm whitespace-nowrap">
+          <caption className="sr-only">Tabelas de taxas locais cadastradas</caption>
           <thead>
             <tr>
               <th scope="col" className="px-4 py-3">Tabela</th>
@@ -172,6 +173,7 @@ export function ChargeTablesList({
                           <div className="py-4 text-center text-sm text-[var(--app-muted)]">Nenhum item cadastrado nesta tabela.</div>
                         ) : (
                           <table className="w-full text-left text-sm">
+                            <caption className="sr-only">Itens da tabela {table.name}</caption>
                             <thead className="text-xs uppercase tracking-wider text-[var(--app-muted)]">
                               <tr>
                                 <th scope="col" className="py-2 pr-4">Item</th>

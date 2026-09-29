@@ -155,6 +155,7 @@ export function ReviewGroupBlock({
           ) : null}
           <div className="app-table-scroll review-group__table-scroll">
           <table className="app-table app-table--compact review-group__table min-w-[760px] text-left text-sm">
+            <caption className="sr-only">B/Ls do grupo de revisão</caption>
             <tbody className="divide-y">
               {group.items.map((item) => (
                 <tr key={item.id} className="hover:bg-[var(--app-surface-hover)]">
