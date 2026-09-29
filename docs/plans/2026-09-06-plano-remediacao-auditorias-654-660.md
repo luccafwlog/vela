@@ -1190,7 +1190,11 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Implementar D11: grupos por cliente/ciclo, membership exata por invoice, uma entrega por destinatário, fixture de 12 invoices/3 contatos e grupos que atravessam o limite do claim.
 - [ ] Provar limites/provedor e ativação real conforme D10. O convite canário
   aceito em produção prova apenas o fluxo de convite, não o dunning.
-- [ ] Inventariar contagens acima de 1000 por cliente para decidir paginação server-side de supressões; não remover a mitigação atual antes da medição. Medição somente leitura em produção em 2026-09-26: `customer_communication_suppressions` = 0 e `portal_suppressed_emails` = 0; nenhum cliente perto de 1000. Inconclusivo por falta de volume (produção só tem fixture, ver AGENTS.md); repetir quando houver dados reais.
+- [x] Revalidar o gatilho de paginação server-side de supressões: em 2026-09-29,
+  `customer_communication_suppressions` e `portal_suppressed_emails` têm 0 linhas
+  em produção e no Preview; nenhum cliente se aproxima de 1000. Não há volume
+  real para justificar paginação; manter a mitigação atual e reavaliar quando
+  houver dados operacionais reais.
 - [x] Implementar D04: aviso externo de bounce respeita `communications_enabled`, enquanto supressão, reparo e alerta interno seguem ativos; testes cobrem chave ligada/desligada.
 - [x] Executar testes de caixas, elegibilidade, D04/D11 e integração SQL; commit de referência: `fa4781fb`.
 
