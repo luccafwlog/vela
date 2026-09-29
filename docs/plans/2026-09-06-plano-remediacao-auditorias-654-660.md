@@ -788,6 +788,18 @@ registrada.
   flag de ativação e job continuam sem prova operacional; nenhuma ativação foi
   feita. O runtime S04 por importação via UI também continua pendente.
 
+### 1.0.30 Dispatcher PTAX fail-closed no Preview — 2026-09-29
+
+- No banco Preview da PR #795, consulta confirmou ausência de `SUPABASE_URL`,
+  `RECALC_CRON_SECRET` e do job `recalc-demurrage-ptax`. A chamada manual somente
+  ao dispatcher `ops.dispatch_edge_job('recalc-demurrage-ptax',
+  'RECALC_CRON_SECRET')` retornou `NULL`, sem enfileirar HTTP; o log Postgres às
+  `2026-09-29T06:18:05Z` registrou `Vault sem SUPABASE_URL e/ou
+  RECALC_CRON_SECRET; job recalc-demurrage-ptax nao disparado`.
+- Isso comprova somente a recusa e o aviso quando o Vault está vazio. Gateway
+  com bearer válido, atualização de invoice aberta/paga, recuperação idempotente
+  e execução agendada permanecem pendentes; nenhum secret/job foi criado.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
@@ -861,10 +873,11 @@ como registro da execução.
    executaram sem registros de email. Isso não prova limites do provedor,
    readiness, inbox/outbox ou retry. As migrations `100`–`104` constam na
    produção; manter envios globais desligados.
-4. **P1 — S09, PTAX.** Edge ativa em produção e Preview; não há job
-   `recalc-demurrage-ptax` em `cron.job`. Falta provar gateway JWT, Vault,
-   falha/recuperação e execução agendada idempotente; ativação operacional segue
-   sujeita à autorização D08.
+4. **P1 — S09, PTAX.** Edge ativa em produção e Preview; o dispatcher no Preview
+   agora foi observado recusando e avisando quando Vault/secret faltam. Não há
+   job `recalc-demurrage-ptax`; bearer válido, atualização financeira, recuperação
+   idempotente e execução agendada continuam sem prova. Ativação operacional
+   segue sujeita à autorização D08.
 5. **P1 — S05, efeitos pós-commit.** Edge ativa em produção e Preview; não há
    job `import-effects-runner`. Falta provar worker, retry, alertas e atualização
    por unidade no Preview com as dependências S04/S08/S10; manter fail-closed até
@@ -1360,7 +1373,11 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Usar dia de negócio `(now() AT TIME ZONE 'America/Sao_Paulo')::date` na primeira emissão/âncoras da régua, separando timestamp UTC de auditoria e data de publicação BCB. Os casos de horário/fim de semana ficam nos testes locais; não há backfill de datas antigas.
 - [x] Tornar fetch BCB limitado e recuperável: timeout por tentativa, três tentativas para timeout/429/5xx com backoff/jitter, validação de schema/valor e alerta interno idempotente em falha persistente. A última cotação fica marcada como desatualizada e não é apresentada como nova.
 - [x] Implementar o contrato fail-closed do gateway/dispatcher e manter `verify_jwt` coerente com a autenticação própria; o código não aceita anon nem registra segredo.
-- [ ] Publicar/validar essa combinação no Preview real antes de ativar o job.
+- [x] Verificar fail-closed do dispatcher e alerta de Vault ausente no Preview:
+  chamada de 2026-09-29 retornou `NULL` e o log registrou que o POST não foi
+  disparado (seção 1.0.30). Isso não prova o caminho autorizado.
+- [ ] Publicar/validar bearer válido, secrets pareados e execução financeira
+  autorizada no Preview antes de ativar o job.
   Em 2026-09-29, a Edge estava ativa em produção e no Preview da PR #795; não
   havia job `recalc-demurrage-ptax` em `cron.job` em nenhum deles. A branch
   Preview tem jobs legados de comunicação ativos, mas `communications_enabled`
@@ -1384,7 +1401,8 @@ SELECT cron.schedule(
 -- WHERE jobname = 'recalc-demurrage-ptax';
 ```
 
-- [ ] Verificar dispatcher/Vault e job em Preview real: sem segredo deve falhar fechado e alertar; autorizado atualiza uma invoice aberta e preserva paga. Repetição da mesma publicação não cria outra foto idêntica. Só então ativar pelo procedimento operacional registrado e comprovar uma execução agendada real, não apenas chamada manual.
+- [ ] Com bearer válido, provar no Preview que o recálculo atualiza invoice aberta, preserva paga e que repetição não cria foto idêntica.
+- [ ] Criar/ativar o job somente após o aceite operacional e comprovar uma execução agendada real, não apenas chamada manual.
 - [x] Executar `npm test -- src/services/__tests__/recalcDemurragePtax.test.ts src/integration/exchangeRateIntegrity.local-pg.test.ts src/services/__tests__/demurrageRecalcAndPixWindowMigration.test.ts`; os testes locais e o gate integral da PR passaram. A evidência operacional do ambiente continua aberta.
 
 **Compatibilidade / rollout:** dois estágios no mesmo subprojeto, procedência e job; a implementação está no código/migration 018, mas a ativação remota permanece separada. **Aceite ainda pendente:** exatamente um job por ambiente com agenda/config/secret coerentes e execução real confirmada; a falha BCB deve gerar sinal persistente e replay não pode duplicar história. **Residual:** publicação atrasada e indisponibilidade externa continuam possíveis; fallback manual precisa de procedência e sanity check. Não aplicar uma variação máxima arbitrária como regra comercial sem D06. **Ordem:** primeira onda financeira, antes de emissão durável autônoma.
