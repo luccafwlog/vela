@@ -5,7 +5,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { TabButton } from '../components/ui/TabButton'
-import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { Field, Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
@@ -41,6 +41,7 @@ const EMPTY_FORM: DemurrageRateForm = {
 export function DemurrageRates() {
   const { isAdmin } = useAuth()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
   const [searchParams, setSearchParams] = useSearchParams()
   const currentTab = searchParams.get('tab') === 'acordos' ? 'acordos' : 'padrao'
@@ -76,11 +77,47 @@ export function DemurrageRates() {
     return (value: DemurrageRateForm[K]) => setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.container_type) {
       showToast('Informe o tipo de container.', 'error')
       return
     }
+
+    const originalRate = form.id ? rates?.find((r) => r.id === form.id) : null
+    const changes = originalRate
+      ? [
+          { field: 'Tipo de container', before: originalRate.container_type, after: form.container_type },
+          { field: 'Free Time', before: `${originalRate.free_days} dias`, after: `${form.free_days} dias` },
+          { field: 'Período P1 (dias)', before: `${originalRate.p1_day_from} a ${originalRate.p1_day_to}`, after: `${form.p1_day_from} a ${form.p1_day_to}` },
+          { field: 'Tarifa P1', before: `USD ${originalRate.p1_usd}`, after: `USD ${form.p1_usd}` },
+          { field: 'Período P2 (a partir do dia)', before: String(originalRate.p2_day_from), after: String(form.p2_day_from) },
+          { field: 'Tarifa P2', before: `USD ${originalRate.p2_usd}`, after: `USD ${form.p2_usd}` },
+          { field: 'Vigência de', before: originalRate.valid_from ? originalRate.valid_from.slice(0, 10) : '', after: form.valid_from ? form.valid_from.slice(0, 10) : '' },
+          { field: 'Vigência até', before: originalRate.valid_to ? originalRate.valid_to.slice(0, 10) : '', after: form.valid_to ? form.valid_to.slice(0, 10) : '' },
+          { field: 'Status', before: originalRate.active ? 'Ativa' : 'Inativa', after: form.active ? 'Ativa' : 'Inativa' },
+        ].filter((c) => c.before !== c.after)
+      : []
+
+    if (originalRate && changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: form.id ? 'Salvar tarifa de Demurrage' : 'Cadastrar tarifa de Demurrage',
+      message: form.id
+        ? `Salvar as alterações da tarifa padrão para container ${form.container_type}?`
+        : `Cadastrar nova tarifa padrão para container ${form.container_type}?`,
+      confirmLabel: form.id ? 'Salvar alterações' : 'Cadastrar tarifa',
+      changes: originalRate ? changes : undefined,
+      affected: !originalRate
+        ? { summary: `${form.container_type} · Free Time ${form.free_days} dias · P1 USD ${form.p1_usd} · P2 USD ${form.p2_usd}` }
+        : undefined,
+      consequence: 'A tarifa padrão será utilizada nos cálculos de Demurrage para este tipo de container quando o cliente não possuir acordo específico.',
+      reversibility: 'A tarifa pode ser editada ou desativada no cadastro.',
+    })
+    if (!confirmed) return
+
     saveMutation.mutate(form, {
       onSuccess: () => {
         showToast(form.id ? 'Tarifa atualizada.' : 'Tarifa criada.', 'success')
@@ -99,9 +136,24 @@ export function DemurrageRates() {
     })
   }
 
-  function handleToggleActive(rate: DemurrageRate) {
+  async function handleToggleActive(rate: DemurrageRate) {
+    const nextActive = !rate.active
+    const confirmed = await confirm({
+      title: nextActive ? 'Reativar tarifa de Demurrage' : 'Desativar tarifa de Demurrage',
+      message: nextActive
+        ? `Reativar a tarifa padrão do container ${rate.container_type}?`
+        : `Desativar a tarifa padrão do container ${rate.container_type}?`,
+      confirmLabel: nextActive ? 'Reativar' : 'Desativar',
+      tone: nextActive ? 'primary' : 'danger',
+      consequence: nextActive
+        ? 'A tarifa padrão volta a ser considerada nos cálculos de Demurrage.'
+        : 'A tarifa não será aplicada a novos cálculos de Demurrage; faturamentos anteriores não são afetados.',
+      reversibility: nextActive ? 'Desative novamente se necessário.' : 'Reative a tarifa quando precisar.',
+    })
+    if (!confirmed) return
+
     toggleMutation.mutate(
-      { id: rate.id, active: !rate.active },
+      { id: rate.id, active: nextActive },
       { onError: () => showToast('Falha ao alterar status.', 'error') },
     )
   }
