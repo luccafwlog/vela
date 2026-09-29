@@ -94,7 +94,12 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
 
   async function assistedEmailChange() {
     if (!hasValidRecoveryEmail || !reason.trim()) { setError('Informe um email de recuperação válido e a justificativa.'); return }
-    try { await assistedEmailMutation.mutateAsync({ customerId: row.customer_id, email: email.trim(), reason: reason.trim() }); showToast('Email alterado por atendimento.', 'success'); onSaved?.() }
+    try {
+      const notice = await assistedEmailMutation.mutateAsync({ customerId: row.customer_id, email: email.trim(), reason: reason.trim() })
+      if (notice === 'falhou') showToast('Email alterado, mas o aviso ao endereço anterior não pôde ser enviado.', 'error')
+      else showToast(notice === 'enviado' ? 'Email alterado. O endereço anterior foi avisado.' : 'Email alterado por atendimento.', 'success')
+      onSaved?.()
+    }
     catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível alterar o email.') }
   }
 

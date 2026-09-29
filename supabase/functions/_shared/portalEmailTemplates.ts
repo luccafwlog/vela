@@ -179,6 +179,22 @@ export function emailChangeAlertTemplate(i: { portalUrl: string; supportEmail: s
   }
 }
 
+// Troca assistida: ao contrário do pedido pelo Perfil, já está valendo quando
+// este aviso sai, então o texto não promete que o endereço segue válido.
+export function emailChangeAssistedAlertTemplate(i: { portalUrl: string; supportEmail: string }) {
+  const text = ['O Email de Recuperação da sua conta no Portal do Cliente foi trocado pela equipe da Fwlog.', 'Este endereço deixou de receber convites e links de recuperação, e as sessões abertas foram encerradas.', `Se você não pediu esta troca, fale com ${i.supportEmail} imediatamente.`].join('\n')
+  return {
+    subject: 'Seu Email de Recuperação foi trocado',
+    text,
+    html: layout({
+      title: 'Email de Recuperação trocado',
+      paragraphs: ['O Email de Recuperação da sua conta no Portal do Cliente foi trocado pela equipe da Fwlog.', 'Este endereço deixou de receber convites e links de recuperação, e as sessões abertas foram encerradas.', `Se você não pediu esta troca, fale com ${i.supportEmail} imediatamente.`],
+      portalUrl: i.portalUrl,
+      supportEmail: i.supportEmail,
+    }),
+  }
+}
+
 export function dailyDigestTemplate(i: { date: string; failures: number; activity: number; pending: number; portalUrl: string; supportEmail: string }) {
   const list = [`Falhas/supressões: ${i.failures}`, `Atividade de provisionamento: ${i.activity}`, `Ativação pendente: ${i.pending}`]
   const text = [`Resumo do Portal — ${i.date}`, '', ...list].join('\n')

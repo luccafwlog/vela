@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { comparePriority, effectiveSituation, listPortalProvisioningQueue, sendPortalInvite, type QueueRow } from '../portalProvisioning'
+import { assistedPortalEmailChange, comparePriority, effectiveSituation, listPortalProvisioningQueue, sendPortalInvite, type QueueRow } from '../portalProvisioning'
 
 const rpc = vi.hoisted(() => vi.fn())
 const invoke = vi.hoisted(() => vi.fn())
@@ -101,5 +101,23 @@ describe('sendPortalInvite', () => {
     invoke.mockResolvedValueOnce({ data: null, error: null })
 
     await expect(sendPortalInvite(7, 'cliente@example.com')).rejects.toThrow('Não foi possível confirmar o resultado')
+  })
+})
+
+describe('assistedPortalEmailChange', () => {
+  it('troca pelo servidor e devolve se o endereço anterior foi avisado', async () => {
+    invoke.mockResolvedValueOnce({ data: { previous_notified: 'enviado' }, error: null })
+
+    await expect(assistedPortalEmailChange(7, ' Novo@Example.com ', 'Cliente pediu por telefone')).resolves.toBe('enviado')
+    expect(invoke).toHaveBeenLastCalledWith('portal-recovery-email-change', {
+      body: { action: 'assisted', customer_id: 7, new_email: 'novo@example.com', reason: 'Cliente pediu por telefone' },
+    })
+  })
+
+  it('mostra a recusa da regra em vez da mensagem genérica', async () => {
+    const context = new Response(JSON.stringify({ error: 'Endereço suprimido por bounce/complaint. Informe outro.' }), { status: 422 })
+    invoke.mockResolvedValueOnce({ data: null, error: Object.assign(new Error('non-2xx'), { context }) })
+
+    await expect(assistedPortalEmailChange(7, 'x@example.com', 'motivo')).rejects.toThrow('Endereço suprimido por bounce/complaint. Informe outro.')
   })
 })
