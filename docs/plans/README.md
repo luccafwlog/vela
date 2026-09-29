@@ -12,7 +12,6 @@ verdade sobre o estado atual.
 
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — não iniciado; cinco fases (configuração de terceiros, migration 100, Edge Functions, front-end, CI) cobrindo os 15 candidatos da run-2; decisões D1–D4 aguardam o dono.
 - [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — implementa as ADRs 0071–0074 em seis fases: proteções do banco, falso sucesso e cascata atômica, diálogo de confirmação, trava do CE Mercante, cadastros, e usuários/retenção/backup.
-- [2026-09-24 — Configuração de serviços e migração para Cloudflare](2026-09-24-configuracao-servicos-e-migracao-cloudflare.md) — roteiro em 10 etapas, na ordem segura: Upstash, Turnstile, Better Stack, Sentry, PostHog, backup R2, previews e produção no Pages, DNS e desligamento da Vercel.
 - [2026-09-06 — Remediação das auditorias #654–#660](2026-09-06-plano-remediacao-auditorias-654-660.md) — S03 agora inclui fixture COSCO/Granito real anonimizada e gate de parsers; runtimes S05–S10, refresh/performance autenticada S12, acessibilidade manual S13 e consumidores externos/colunas/DV S14 continuam em fila por prioridade.
 
 O plano [2026-09-23 — Alinhamento entre apresentação, documentação e código](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md) foi concluído e arquivado.

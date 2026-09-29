@@ -54,7 +54,7 @@ substituem este baseline.
 - default-deny de funções privilegiadas, com exceção pré-login documentada;
 - sessões interna e do Portal isoladas;
 - CI com documentação, lint, build e testes antes do merge;
-- squash merge e deploy automatizado na Vercel;
+- squash merge e deploy automatizado no Cloudflare Pages;
 - Sentry inicializado em produção;
 - `@e965/xlsx` para planilhas, com limite de upload antes do parsing;
 - auditorias técnica, funcional e visual preservadas como snapshots.

@@ -28,11 +28,10 @@ VITE_SUPABASE_URL=https://<projeto>.supabase.co
 VITE_SUPABASE_ANON_KEY=<anon key>
 ```
 
-No Vercel, `main` usa as credenciais públicas de produção. Nos Previews, a
-integração de branching do Supabase sincroniza essas mesmas variáveis com a
-branch Supabase automática correspondente à PR; não cadastre um valor global
-fixo para Preview. Como todo `VITE_*` chega ao bundle do navegador, não coloque
-segredos server-side nelas.
+Em `main`, o Cloudflare Pages usa as credenciais públicas de produção. Nos
+Previews, o workflow usa as variáveis da branch Supabase automática
+correspondente à PR; não cadastre um valor global fixo para Preview. Como todo
+`VITE_*` chega ao bundle do navegador, não coloque segredos server-side nelas.
 
 Sem `VITE_SUPABASE_*` a aplicação loga erro e o cliente Supabase fica vazio. As demais variáveis (`SUPABASE_*`) são usadas apenas nos [testes de integração](testing.md).
 
@@ -44,7 +43,7 @@ Aplique **todas** as migrations em ordem, no **SQL Editor** do Supabase:
 supabase/migrations/001_*.sql  →  último arquivo numerado em `supabase/migrations/`
 ```
 
-> As migrations são numeradas sequencialmente (schema + RLS + RPCs); ver ADR 0016. O CI e a Vercel **não** aplicam migrations no Supabase — ver [deploy.md](deploy.md); o job `migration-replay` do CI aplica as migrations do zero num PostgreSQL 16 descartável só para travar invariantes, sem tocar em nenhum projeto. Para criar uma nova migration, siga a seção de migrations do `WORKFLOW.md` e derive o próximo número do repositório com `ls supabase/migrations/ | sort | tail -1`.
+> As migrations são numeradas sequencialmente (schema + RLS + RPCs); ver ADR 0016. O CI e o Cloudflare Pages **não** aplicam migrations no Supabase — ver [deploy.md](deploy.md); o job `migration-replay` do CI aplica as migrations do zero num PostgreSQL 16 descartável só para travar invariantes, sem tocar em nenhum projeto. Para criar uma nova migration, siga a seção de migrations do `WORKFLOW.md` e derive o próximo número do repositório com `ls supabase/migrations/ | sort | tail -1`.
 
 ## 4. Usuário interno
 
@@ -67,7 +66,7 @@ Variáveis necessárias nas Edge Functions do Supabase:
 | `FROM_EMAIL` | Remetente (ex: `Transhipping <noreply@…>`) |
 | `PORTAL_URL` | URL base do portal do cliente |
 | `APP_URL` | URL do app usada pelas Edge Functions do Portal |
-| `VERCEL_PREVIEW_ORIGINS` | Opcional; URLs HTTPS exatas de Preview, separadas por vírgula, para CORS sem wildcard |
+| `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` | Opcional; URLs HTTPS exatas de Preview, separadas por vírgula, para CORS sem wildcard |
 | `PORTAL_LOGIN_DUMMY_AUTH_USER_ID` | UUID de identidade técnica confirmada, sem vínculo em `customer_portal_accounts`, usada para equalizar o custo de logins com CNPJ inexistente |
 
 ## 6. Rodar

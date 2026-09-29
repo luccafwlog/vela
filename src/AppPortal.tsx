@@ -1,13 +1,12 @@
 import { Suspense, useEffect, type ReactNode } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { Analytics } from '@vercel/analytics/react'
 import { portalRouteTitle } from './lib/portalPageTitle'
 import { PortalProtectedRoute } from './components/layout/PortalProtectedRoute'
 import { PortalLayout } from './components/layout/PortalLayout'
 import { PortalScopeProvider } from './hooks/usePortalScope'
 import { lazyPage } from './lib/lazyPage'
 import { matchRoutePreload, type RoutePreloadTable } from './lib/routePreload'
-import { markStartupStage, redactVercelTelemetryEvent, vercelTelemetryEnabled } from './lib/telemetry'
+import { markStartupStage } from './lib/telemetry'
 
 const PortalLogin = lazyPage(() => import('./pages/PortalLogin'), 'PortalLogin')
 const PortalBilling = lazyPage(() => import('./pages/PortalBilling'), 'PortalBilling')
@@ -85,7 +84,6 @@ export default function AppPortal() {
         </Route>
         <Route path="*" element={<Navigate to="/portal" replace />} />
       </Routes>
-      {vercelTelemetryEnabled && <Analytics beforeSend={redactVercelTelemetryEvent} />}
     </>
   )
 }
