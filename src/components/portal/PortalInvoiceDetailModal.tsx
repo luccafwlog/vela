@@ -76,6 +76,7 @@ export function PortalInvoiceDetailModal({
 
             {detail?.bls.length ? <DetailSection title="B/Ls" subtitle="Conhecimentos de embarque desta fatura">
               <table className="app-table app-table--compact min-w-[620px] text-left text-sm">
+                <caption className="sr-only">B/Ls incluídos na invoice</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="px-3 py-2">B/L</th>

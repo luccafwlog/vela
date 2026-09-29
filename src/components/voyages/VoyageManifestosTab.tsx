@@ -65,6 +65,7 @@ export function VoyageManifestosTab({
       <div className="app-voyage-table-frame">
           <div className="app-table-scroll">
             <table className="app-table app-table--compact app-table--dense w-full table-fixed text-left text-sm">
+              <caption className="sr-only">Rotas e manifestos da viagem</caption>
               <colgroup>
                 <col className="w-[46%]" />
                 <col className="w-[13%]" />

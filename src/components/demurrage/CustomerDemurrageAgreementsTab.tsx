@@ -139,6 +139,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
         <Card className="overflow-hidden p-0">
           <div className="app-table-scroll">
             <table className="app-table w-full text-left text-sm">
+              <caption className="sr-only">Acordos de demurrage por cliente</caption>
               <thead className="bg-[#0d1117] text-xs uppercase text-slate-400">
                 <tr>
                   <th scope="col" className="px-4 py-3">Cliente</th>

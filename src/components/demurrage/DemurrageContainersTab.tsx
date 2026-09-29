@@ -59,6 +59,7 @@ export function DemurrageContainersTab({
         <Card className="overflow-hidden p-0">
           <div className="overflow-x-auto">
             <table className="app-table app-table--compact min-w-[1100px] text-left text-sm">
+              <caption className="sr-only">Containers em demurrage</caption>
               <thead className="bg-[#0d1117] text-xs uppercase text-slate-500">
                 <tr>
                   <th scope="col" className="px-4 py-2">Container</th>

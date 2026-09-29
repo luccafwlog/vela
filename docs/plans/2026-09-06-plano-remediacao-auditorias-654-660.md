@@ -813,10 +813,12 @@ como registro da execução.
    nem de carga. Revisar materialização de exportações explícitas; medir o
    profiler antes de memoizar/virtualizar. Só criar paginação de supressões se
    dados operacionais demonstrarem o teto; a base atual contém apenas fixtures.
-7. **P2 — S13, interação e acessibilidade.** Evidência autenticada parcial em
-   produção: teclado abriu filtros do Portal e submeteu os formulários já
-   registrados em 1.0.22; completar leitor de tela, tabelas restantes, foco,
-   modal sujo, offline/reconnect e temas claro/escuro.
+7. **P2 — S13, interação e acessibilidade.** A inspeção estática de 2026-09-29
+   nomeou as tabelas principais de operação, financeiro, importação e Portal; as
+   colunas ordenáveis já expõem `aria-sort` e os demais controles de cabeçalho
+   encontrados selecionam linhas. Continua pendente o roteiro autenticado em
+   Preview com leitor de tela, foco, teclado, modal sujo, offline/reconnect e
+   temas claro/escuro.
 8. **P2 — S14, rastreabilidade e legado.** Completar evidência de roles/RPCs e
    apurar consumidores externos das funções/colunas. Sem prova de ausência
    externa, manter funções fechadas e colunas; sem decisão D09, não restringir
@@ -1405,8 +1407,15 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
   ordenáveis de Clientes/conciliação; o menu de ações de Clientes agora move o
   foco com setas/Home/End e o devolve ao acionador em Escape. Evidência local:
   `Clientes.behavior.test.tsx` e `ReconciliationHistoryTable.behavior.test.tsx`.
-- [ ] Inventariar as demais tabelas relevantes e verificar caption, `aria-sort`
-  e foco com leitor de tela no Preview; não criar grid ARIA sem necessidade.
+- [x] Inspecionar a árvore JSX das tabelas de `src/pages/` e `src/components/`;
+  acrescentar caption acessível às listas relevantes de Admin, B/Ls, Baplie,
+  Chegadas/Saídas, Clientes, Demurrage, Embarque de Vazios, Granito, Line Up,
+  Portal, Reconciliação, Relatórios, Taxas Locais, Veículos e Vazios IMP. As
+  colunas com botão de ordenação em Clientes e Histórico de Conciliações já
+  declaram `aria-sort`; o outro botão de cabeçalho encontrado seleciona linhas,
+  não ordena. Inspeção estática não substitui leitor de tela.
+- [ ] Verificar caption, anúncio da ordenação e retorno de foco com leitor de
+  tela no Preview autenticado; não criar grid ARIA sem necessidade.
 - [x] Nos uploads múltiplos que usam `FileImportModal`, exibir progresso por
   arquivo e permitir cancelamento entre unidades; o cancelamento não inicia a
   etapa de importação. Evidência: `FileImportModal.test.tsx`.
