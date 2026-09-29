@@ -428,9 +428,10 @@ registrada.
   foi removida para evitar custo duplicado.
 - O preflight confirmou novamente que falta `app_settings.id = 1`, apesar da
   migration 044 aplicada. A migration forward `104_restore_app_settings_singleton.sql`
-  foi preparada para restaurar o padrão fechado (`communications_enabled = false`)
-  sem sobrescrever configuração existente. Preview e aplicação em produção
-  ainda dependem de publicação/merge; nenhuma escrita foi feita remotamente.
+  foi aplicada no Supabase Preview da PR #794; consulta somente leitura confirmou
+  `communications_enabled = false` e intervalo 7, sem sobrescrever configuração
+  existente. A aplicação em produção ainda depende do merge; nenhuma escrita foi
+  feita diretamente em produção.
 - O PR draft #790 (`f4d625b6`) recebeu Preview Supabase próprio
   (`codex/remediacao-auditorias-654-660`, projeto `rxubmafnlnhhvldalbni`):
   configurações, migrations, seed e Edge Functions passaram; o replay real de
