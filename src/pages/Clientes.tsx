@@ -26,7 +26,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useRowSelection } from '../hooks/useRowSelection'
 import { filterCustomerRowsByClientSideFilters, useCustomers, useCustomerSummary, type CustomerFilters } from '../hooks/useCustomers'
 import { usePortalProvisioning } from '../hooks/usePortalProvisioning'
-import { escapeFilterTerm, formatBRL, formatCountLabel } from '../lib/utils'
+import { escapeFilterTerm, formatBRL, formatCnpjCpf, formatCountLabel } from '../lib/utils'
 import { isValidCnpj } from '../lib/cnpj'
 import { getCustomerFilterChips, type CustomerSortKey } from '../lib/customerTableViewModel'
 import { BLS_OF_CUSTOMER } from '../lib/supabaseEmbeds'
@@ -188,6 +188,19 @@ export function Clientes() {
       showToast('O cliente precisa ter ao menos um contato principal com e-mail válido.', 'error')
       return
     }
+
+    const confirmed = await confirm({
+      title: 'Cadastrar cliente',
+      message: `Cadastrar o cliente "${createForm.name}" (${formatCnpjCpf(createForm.cnpjCpf)})?`,
+      confirmLabel: 'Cadastrar cliente',
+      affected: {
+        summary: `${createForm.name} · CNPJ/CPF ${formatCnpjCpf(createForm.cnpjCpf)} · ${activeContacts.length} contato(s)`,
+        items: activeContacts.map((c) => `${c.name} (${c.email || 'sem e-mail'})${c.is_primary ? ' · Principal' : ''}`),
+      },
+      consequence: 'O cliente será inserido no cadastro ativo e estará disponível para vinculação operacional em B/Ls e faturamento.',
+      reversibility: 'Os dados do cliente podem ser editados na tela de detalhe; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',
+    })
+    if (!confirmed) return
 
     setSaving(true)
     try {

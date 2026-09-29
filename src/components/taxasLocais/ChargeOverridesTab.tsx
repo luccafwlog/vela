@@ -55,6 +55,36 @@ export function ChargeOverridesTab({
       return
     }
 
+    const originalOverride = overrideForm.id ? overrideRows?.find((item) => item.id === overrideForm.id) : null
+    const changes = originalOverride
+      ? [
+          { field: 'Valor override', before: String(Number(originalOverride.override_value ?? 0)), after: String(result.value.overrideValue) },
+          { field: 'Vigência de', before: originalOverride.valid_from ? originalOverride.valid_from.slice(0, 10) : '', after: result.value.validFrom || '' },
+          { field: 'Vigência até', before: originalOverride.valid_to ? originalOverride.valid_to.slice(0, 10) : '', after: result.value.validTo || '' },
+          { field: 'Observações', before: originalOverride.notes ?? '', after: result.value.notes ?? '' },
+        ].filter((c) => c.before !== c.after)
+      : []
+
+    if (originalOverride && changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: overrideForm.id ? 'Salvar override de taxa' : 'Cadastrar override de taxa',
+      message: overrideForm.id
+        ? 'Salvar as alterações no override de cliente?'
+        : 'Cadastrar override de taxa para o cliente?',
+      confirmLabel: overrideForm.id ? 'Salvar alterações' : 'Cadastrar override',
+      changes: originalOverride ? changes : undefined,
+      affected: !originalOverride
+        ? { summary: `Valor: ${result.value.overrideValue} · Vigência: ${result.value.validFrom} a ${result.value.validTo || 'sem data final'}` }
+        : undefined,
+      consequence: 'O valor sobrescreverá a taxa padrão nos cálculos de faturamento deste cliente dentro da vigência.',
+      reversibility: 'O override pode ser editado ou desativado a qualquer momento.',
+    })
+    if (!confirmed) return
+
     setOverrideSaving(true)
     try {
       await saveOverrideMutation.mutateAsync({

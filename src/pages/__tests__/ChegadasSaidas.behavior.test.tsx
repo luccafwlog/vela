@@ -101,6 +101,9 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getAllByTitle('Editar')[0])
+    const dateInput = screen.getByLabelText(/SALVADOR/) as HTMLInputElement
+    await user.clear(dateInput)
+    await user.type(dateInput, '2026-01-25')
     await user.click(screen.getByRole('button', { name: /Salvar/ }))
 
     expect(mocks.createOrAttach).toHaveBeenCalledWith(
@@ -233,4 +236,71 @@ describe('ChegadasSaidas user behaviours', () => {
       expect.anything(),
     )
   })
+
+  it('exibe diálogo de confirmação com diff antes e depois ao editar datas da viagem', async () => {
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+
+    await user.click(screen.getAllByTitle('Editar')[0])
+    const dateInput = screen.getByLabelText(/SALVADOR/) as HTMLInputElement
+    await user.clear(dateInput)
+    await user.type(dateInput, '2026-02-15')
+
+    await user.click(screen.getByRole('button', { name: /Salvar/ }))
+
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Salvar programação da viagem',
+        changes: expect.arrayContaining([
+          expect.objectContaining({
+            field: 'Data SALVADOR',
+            before: '2026-01-22',
+            after: '2026-02-15',
+          }),
+        ]),
+        consequence: expect.stringContaining('Portal'),
+        reversibility: expect.any(String),
+      }),
+    )
+    expect(mocks.createOrAttach).toHaveBeenCalled()
+  })
+
+  it('não abre diálogo de confirmação nem chama API ao tentar salvar sem alterações', async () => {
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+
+    await user.click(screen.getAllByTitle('Editar')[0])
+    await user.click(screen.getByRole('button', { name: /Salvar/ }))
+
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.createOrAttach).not.toHaveBeenCalled()
+    expect(mocks.showToast).toHaveBeenCalledWith('Nenhuma alteração para salvar.', 'info')
+  })
+
+  it('consolida aviso de "não escala" no mesmo diálogo de confirmação com tom de perigo', async () => {
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+
+    await user.click(screen.getAllByTitle('Editar')[0])
+    // Desmarca "Não escala" em VITÓRIA (index 6, preenche data automaticamente)
+    const vitoriaCheckbox = screen.getAllByLabelText('Não escala')[6] as HTMLInputElement
+    await user.click(vitoriaCheckbox)
+
+    // Marca SALVADOR (index 5) como não escala
+    const salvadorCheckbox = screen.getAllByLabelText('Não escala')[5] as HTMLInputElement
+    await user.click(salvadorCheckbox)
+
+    await user.click(screen.getByRole('button', { name: /Salvar/ }))
+
+    expect(mocks.confirm).toHaveBeenCalledTimes(1)
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Salvar programação da viagem',
+        tone: 'danger',
+        consequence: expect.stringContaining('não escala'),
+      }),
+    )
+    expect(mocks.createOrAttach).toHaveBeenCalled()
+  })
 })
+

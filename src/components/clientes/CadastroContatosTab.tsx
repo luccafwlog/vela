@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
+import { useConfirm } from '../ui/ConfirmDialog'
 import { Field, Input, Textarea } from '../ui/Input'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
@@ -24,6 +25,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
   const canEdit = Boolean(profile || user)
   const canEditContacts = can('customer_communications')
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const { data: portalRow } = usePortalProvisioningForCustomer(data.id)
   const [portalOpen, setPortalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -45,6 +47,31 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
       showToast('Informe a justificativa para salvar o cadastro.', 'error')
       return
     }
+
+    const changes = [
+      { field: 'Razão Social', before: data.name ?? '', after: form.name.trim() },
+      { field: 'Nome fantasia', before: data.trade_name ?? '', after: form.trade_name.trim() },
+      { field: 'Endereço', before: data.address ?? '', after: form.address.trim() },
+      { field: 'Cidade', before: data.city ?? '', after: form.city.trim() },
+      { field: 'UF', before: data.state ?? '', after: form.state.trim() },
+      { field: 'CEP', before: data.zip ?? '', after: form.zip.trim() },
+      { field: 'Notas', before: data.notes ?? '', after: form.notes.trim() },
+    ].filter((c) => c.before !== c.after)
+
+    if (changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: 'Salvar cadastro do cliente',
+      message: `Salvar as alterações cadastrais do cliente "${data.name}"?`,
+      confirmLabel: 'Salvar alterações',
+      changes,
+      consequence: 'Os dados cadastrais atualizados serão refletidos em todo o sistema e nas novas faturas emitidas.',
+      reversibility: 'Os dados do cliente podem ser editados novamente pelo perfil autorizado com nova justificativa.',
+    })
+    if (!confirmed) return
     setSaving(true)
     try {
       const changed = await updateCustomerWithAudit({

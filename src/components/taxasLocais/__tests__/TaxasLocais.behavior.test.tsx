@@ -274,4 +274,65 @@ describe('Taxas Locais user behaviours', () => {
     expect(screen.queryByRole('button', { name: 'Criar override' })).toBeNull()
     expect(screen.queryByLabelText('Editar override')).toBeNull()
   })
+
+  it('exibe diálogo de confirmação com diff antes/depois ao editar tabela de taxas', async () => {
+    const user = userEvent.setup()
+    render(
+      <ChargeTablesTab
+        cargoModeFilter=""
+        setCargoModeFilter={vi.fn()}
+        podFilter=""
+        setPodFilter={vi.fn()}
+        canEdit={true}
+        canDelete={true}
+      />,
+    )
+
+    await user.click(screen.getByLabelText('Editar tabela'))
+    const nameInput = screen.getByLabelText('Nome da tabela')
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Tabela Vitória Atualizada')
+
+    await user.click(screen.getByRole('button', { name: 'Salvar tabela' }))
+
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Salvar tabela de taxas',
+        confirmLabel: 'Salvar alterações',
+        changes: expect.arrayContaining([
+          expect.objectContaining({
+            field: 'Nome da tabela',
+            before: 'Tabela Vitória',
+            after: 'Tabela Vitória Atualizada',
+          }),
+        ]),
+      }),
+    )
+    expect(mocks.saveTable).toHaveBeenCalled()
+  })
+
+  it('exibe diálogo de confirmação ao alternar status da tabela', async () => {
+    const user = userEvent.setup()
+    render(
+      <ChargeTablesTab
+        cargoModeFilter=""
+        setCargoModeFilter={vi.fn()}
+        podFilter=""
+        setPodFilter={vi.fn()}
+        canEdit={true}
+        canDelete={true}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Desativar tabela' }))
+
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Desativar tabela de taxas',
+        confirmLabel: 'Desativar',
+        tone: 'danger',
+      }),
+    )
+    expect(mocks.toggleTable).toHaveBeenCalledWith({ id: 1, active: false })
+  })
 })

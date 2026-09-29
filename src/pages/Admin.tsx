@@ -148,6 +148,8 @@ export function Admin() {
   })
 
   async function handleToggleActive(id: string, current: boolean) {
+    const targetUser = users.find((u) => u.id === id)
+    const userName = targetUser?.full_name ?? 'este usuário'
     const confirmed = await confirm({
       title: current ? 'Desativar usuário' : 'Ativar usuário',
       message: current
@@ -155,6 +157,12 @@ export function Admin() {
         : 'Reativar este usuário restaura o acesso dele ao sistema. Confirmar?',
       confirmLabel: current ? 'Desativar' : 'Ativar',
       tone: current ? 'danger' : 'primary',
+      consequence: current
+        ? `O acesso de ${userName} será revogado e sua sessão no sistema será encerrada imediatamente.`
+        : `O acesso de ${userName} será reativado e o usuário poderá fazer login novamente.`,
+      reversibility: current
+        ? 'O usuário pode ser reativado a qualquer momento no painel administrativo.'
+        : 'O usuário pode ser desativado novamente caso necessário.',
     })
     if (!confirmed) return
     setPendingId(id)
@@ -166,11 +174,21 @@ export function Admin() {
   }
 
   async function handleSetProfile(user: AdminUserRow, role: UserProfileRole) {
+    if (user.role === role) return
     const confirmed = await confirm({
       title: 'Alterar setor',
       message: `${user.full_name} passa a ter o acesso de ${PROFILE_LABELS[role]}: ${PROFILE_SCOPES[role]}`,
       confirmLabel: 'Alterar setor',
       tone: 'primary',
+      changes: [
+        {
+          field: 'Setor de acesso',
+          before: PROFILE_LABELS[user.role] ?? user.role,
+          after: PROFILE_LABELS[role],
+        },
+      ],
+      consequence: `O usuário passará a ter permissões correspondentes ao perfil ${PROFILE_LABELS[role]}.`,
+      reversibility: 'O setor de acesso pode ser redefinido novamente a qualquer momento no painel administrativo.',
     })
     if (!confirmed) return
     setPendingId(user.id)
@@ -343,7 +361,18 @@ export function Admin() {
             <NovoUsuarioModal
               open
               onClose={() => setNovoAberto(false)}
-              onSubmit={(input) => createMutation.mutate(input)}
+              onSubmit={async (input) => {
+                const confirmed = await confirm({
+                  title: 'Criar usuário interno',
+                  message: `Criar acesso para ${input.full_name} com o perfil ${PROFILE_LABELS[input.role]}?`,
+                  confirmLabel: 'Criar usuário',
+                  affected: { summary: `${input.full_name} · ${input.email} · Perfil: ${PROFILE_LABELS[input.role]}` },
+                  consequence: `O usuário receberá permissão de acesso ao sistema correspondente ao perfil ${PROFILE_LABELS[input.role]}.`,
+                  reversibility: 'O usuário pode ser desativado ou ter seu perfil alterado no painel administrativo.',
+                })
+                if (!confirmed) return
+                createMutation.mutate(input)
+              }}
               submitting={createMutation.isPending}
             />
           ) : null}
@@ -353,7 +382,26 @@ export function Admin() {
               userName={editando.full_name}
               currentEmail={editando.email}
               onClose={() => setEditando(null)}
-              onSubmit={(updates) => credentialsMutation.mutate({ userId: editando.id, updates })}
+              onSubmit={async (updates) => {
+                const emailChanged = updates.email && updates.email !== editando.email
+                const passChanged = Boolean(updates.password)
+                const changes = [
+                  ...(emailChanged ? [{ field: 'E-mail', before: editando.email ?? '', after: updates.email! }] : []),
+                  ...(passChanged ? [{ field: 'Senha', before: '••••••••', after: 'Nova senha definida' }] : []),
+                ]
+                const confirmed = await confirm({
+                  title: 'Alterar credenciais de acesso',
+                  message: `Atualizar as credenciais de acesso de ${editando.full_name}?`,
+                  confirmLabel: 'Atualizar credenciais',
+                  changes,
+                  consequence: passChanged
+                    ? 'A senha será redefinida imediatamente. Se o e-mail mudou, o novo e-mail passará a ser exigido no login.'
+                    : 'O e-mail de acesso do usuário será alterado.',
+                  reversibility: 'As credenciais podem ser atualizadas novamente no painel administrativo.',
+                })
+                if (!confirmed) return
+                credentialsMutation.mutate({ userId: editando.id, updates })
+              }}
               submitting={credentialsMutation.isPending}
             />
           ) : null}
