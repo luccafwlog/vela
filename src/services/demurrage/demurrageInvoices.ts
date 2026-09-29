@@ -275,7 +275,7 @@ export async function applyDemurrageDiscount(input: {
   if (error) throw error
 }
 
-export async function updateDemurrageInvoice(invoiceId: number, patch: Partial<Pick<DemurrageInvoice, 'dispute_open' | 'dispute_subject' | 'dispute_reason' | 'dispute_status' | 'dispute_notes' | 'notes' | 'due_date'>>): Promise<void> {
+export async function updateDemurrageInvoice(invoiceId: number, patch: Partial<Pick<DemurrageInvoice, 'dispute_subject' | 'dispute_reason' | 'dispute_notes' | 'notes' | 'due_date'>>): Promise<void> {
   const { error } = await supabase.from('demurrage_invoices').update(patch).eq('id', invoiceId)
   if (error) throw error
 }

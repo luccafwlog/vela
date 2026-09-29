@@ -173,10 +173,8 @@ export function Demurrage() {
 
   function openDispute(invoice: DemurrageInvoice) {
     setDisputeForm({
-      dispute_open: invoice.dispute_open ?? false,
       dispute_subject: invoice.dispute_subject ?? '',
       dispute_reason: invoice.dispute_reason ?? '',
-      dispute_status: invoice.dispute_status,
       dispute_notes: invoice.dispute_notes ?? '',
     })
     setDisputeInvoiceId(invoice.id)
@@ -256,10 +254,8 @@ export function Demurrage() {
   })
   const disputeMutation = useMutation({
     mutationFn: ({ id, form }: { id: number; form: DisputeForm }) => updateDemurrageInvoice(id, {
-      dispute_open: form.dispute_open,
       dispute_subject: form.dispute_subject || null,
       dispute_reason: form.dispute_reason || null,
-      dispute_status: form.dispute_status,
       dispute_notes: form.dispute_notes || null,
     }),
     onSuccess: () => {
