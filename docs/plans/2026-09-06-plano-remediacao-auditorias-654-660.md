@@ -379,15 +379,18 @@ ser promovido a concluído apenas porque o caminho principal está verde.
   sujo/offline e ceder execução entre blocos. O progresso/cancelamento dos
   uploads customizados está implementado; não introduzir worker ou
   virtualização sem benchmark.
-- [ ] **S14 residual:** completar mapa literal rota → hook → service → RPC →
-  tabela → teste; provar consumidores externos e dados das quatro colunas antes
-  de qualquer `DROP RESTRICT`; manter funções fechadas se a ausência externa não
-  puder ser provada e deixar DV sem bloqueio até decisão de dados reais.
+- [x] **S14 — disposição da rodada atual (sem `DROP`):** mapa e gates executados;
+  busca externa cobriu todos os heads/tags acessíveis, ACL confirmou as funções
+  fechadas para `anon`/`authenticated`, e contagens cobriram colunas e CNPJ em
+  produção/Preview. Como a ausência em integrações não observáveis não pode ser
+  provada e as tabelas têm pouco volume, funções/colunas são retidas, sem
+  endurecer login; essa investigação aceita deve reabrir se surgirem dados reais
+  ou consumidores observáveis.
 
 **Regra de encerramento:** marcar um bullet como `[x]` somente depois de
 implementar, testar e registrar a evidência específica. Não marcar uma seção
-inteira por herança: S04/S05, S08-C, S09 runtime, S10, S12, S13 e S14 ainda
-têm bullets abertos. O plano só pode ser arquivado quando esses bullets
+inteira por herança: S04/S05, S08-C, S09 runtime, S10, S12 e S13 ainda têm
+bullets abertos. O plano só pode ser arquivado quando esses bullets
 estiverem concluídos, aceitos formalmente ou reclassificados com uma decisão
 registrada.
 
@@ -707,6 +710,23 @@ registrada.
   anterior à migration `105` em produção. A PR #795 segue draft e não foi
   mergeada. O upload da fixture B/L continua sem execução: o seletor de arquivo
   não abriu no navegador integrado. Nenhum B/L ou container foi criado.
+
+### 1.0.26 Disposição S14 e recontagem de DV — 2026-09-29
+
+- Busca literal nos três repositórios externos acessíveis (somente `main`, sem
+  outras branches ou tags), com hashes registrados na seção S14, não encontrou
+  consumidores das 14 funções nem referências às quatro colunas. Em produção e
+  Preview, `anon`/`authenticated` têm `EXECUTE = false` nas 14 funções.
+- Contagem somente leitura: produção tem 1 cliente e 1 conta Portal, ambos com
+  DV válido; zero ausentes/inválidos. Preview não tem clientes/contas. São
+  fixtures conforme `AGENTS.md`.
+- As quatro colunas tiveram 0 valores preenchidos (produção: `alerts.notified_at`
+  0/2; demais 0/0; Preview todas 0/0). A busca no código vivo encontrou somente
+  tipos gerados. Permanecem retidas por falta de evidência para descarte; não
+  houve `DROP`, alteração de grants ou endurecimento do login.
+- O comentário do contrato de login foi alinhado ao estado atual. `npm run
+  docs:check` e `git diff --check` passaram. Limite registrado: não há prova de
+  ausência em integrações externas fora dos repositórios acessíveis.
 
 ### 1.1 Baseline e alcance da evidência
 
@@ -1441,18 +1461,30 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 | `close_legacy_agency_report_alerts_for_scale` | bigint, text |
 | `reconcile_bl_review_alerts_item` | text, text, text, text, text[], text |
 
-- [ ] Remover candidatas somente após prova externa e `DROP FUNCTION assinatura RESTRICT` em migration nova. `portal_list_operation_bls_legacy()` continua candidata à retirada, nunca à restauração; preservar os sete elos vivos de import, jobs e event triggers.
-- [ ] Decidir sobre remoção das quatro colunas somente se houver prova de
-  utilidade descartada e backup específico; `consignee_address` ainda pode
-  exigir correção de captura. Contagem somente leitura em produção em
-  2026-09-26 (preenchidas/total): `alerts.notified_at` 0/2,
-  `bls.consignee_address` 0/0, `charge_calculations.reviewed_at` 0/0,
-  `customer_portal_sessions.last_seen_at` 0/0. Busca literal nos três
-  repositórios externos observáveis acima não encontrou esses nomes; o escopo
-  não prova ausência em integrações/configurações externas e não há volume para
-  concluir utilidade. Manter colunas e não criar migration de remoção.
-- [ ] Para DV, consultar contagens de documentos válidos/inválidos, separar sintético/real e validar formato conforme contrato antes de ativar restrição. Sem decisão sobre fixtures e clientes existentes, não bloquear login; preservar resposta genérica, anti-enumeração e rate limit. Contagem somente leitura em produção em 2026-09-26: 3 clientes, todos com CNPJ de 14 dígitos e DV válido (`is_valid_cnpj`), 0 inválidos, 0 em outro formato; todos são fixture. Decisão sobre ativar a restrição continua pendente.
-- [x] Executar `npm run docs:check`, os testes de catálogo/definições/invariantes e `LOCAL_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/transhipping_test node scripts/check-rpc-catalog.mjs`; o script recusa variável ausente e acusa assinatura incompatível. O gate passou sem autorizar DROP; os itens externos acima continuam pendentes.
+- [x] Avaliar a retirada das 14 funções: em 2026-09-29, produção e Preview
+  confirmaram `EXECUTE = false` para `anon` e `authenticated` nas 14 assinaturas;
+  a busca externa observável acima não encontrou consumidores nos heads
+  acessíveis. Como não há prova de ausência em integrações externas não
+  observáveis, a disposição é manter as funções fechadas para esses roles e não
+  criar `DROP FUNCTION ... RESTRICT`. Esta investigação não declara a remoção
+  concluída; qualquer futura remoção exige nova prova externa.
+- [x] Investigar e reter as quatro colunas, sem propor remoção: contagem
+  somente leitura em 2026-09-29 (produção/Preview, preenchidas/total) foi
+  `alerts.notified_at` 0/2 e 0/0, `bls.consignee_address` 0/0 e 0/0,
+  `charge_calculations.reviewed_at` 0/0 e 0/0, e
+  `customer_portal_sessions.last_seen_at` 0/0 e 0/0. A busca no código vivo
+  encontrou apenas os tipos gerados, sem caller de aplicação para esses nomes;
+  o volume vazio não descarta utilidade futura, e `consignee_address` também
+  depende da decisão D09. Retenção é a decisão segura atual; não criar migration
+  de remoção nem declarar utilidade descartada.
+- [x] Revalidar DV antes de qualquer endurecimento: em 2026-09-29, produção
+  tinha 1 `customers.cnpj_cpf` e 1 `customer_portal_accounts.login_cnpj`, ambos
+  válidos por `is_valid_cnpj`; 0 inválidos/ausentes; o Preview tinha zero
+  registros. São fixtures conforme `AGENTS.md`. Manter o contrato atual de
+  formato/comprimento e a resposta genérica, anti-enumeração e rate limit; não
+  endurecer login sem decisão D09, que só volta a ser necessária quando houver
+  dado real ou solicitação de mudança de política.
+- [x] Executar `npm run docs:check`, os testes de catálogo/definições/invariantes e `LOCAL_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/transhipping_test node scripts/check-rpc-catalog.mjs`; o script recusa variável ausente e acusa assinatura incompatível. O gate passou sem autorizar `DROP`; funções e colunas foram mantidas conforme a prova limitada acima.
 
 **Compatibilidade / rollout:** primeiro observar/medir, depois retirar; `DROP RESTRICT`, sem CASCADE. Arquivar corpo original e preflight de dependências no PR para restauração em migration nova se necessário. Não alterar migrations_archive nem fatos históricos. **Aceite:** todos os contratos chamados têm linha/mapa/teste de existência; grants/jobs finais são verificados por SQL real; nenhuma função viva removida. **Residual:** consumidores externos sem telemetria impedem provar ausência absoluta; manter função fechada é alternativa aceitável e deve constar como investigação, não remoção concluída. **Ordem:** checker cedo, índice ao longo dos PRs, limpeza por último.
 
