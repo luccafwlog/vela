@@ -1413,7 +1413,15 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 - [x] Criar e executar o gate de catálogo: RPCs chamadas, assinaturas, wrappers dinâmicos, grants default-deny e jobs obrigatórios são conferidos contra o schema final; combinado com o security checker, não depende só de regex/contagem.
 - [x] Manter testes históricos ativo+archive identificados como históricos e migrar invariantes críticas para replay 001–última; replay local, tipos e invariantes da PR passaram. Não remover testes históricos em lote.
 - [x] Conferir localmente as 14 candidatas contra dependências, corpos, mapa, triggers, jobs e scripts, registrando assinaturas e resultado.
-- [ ] Repetir a prova para consumidores externos observáveis antes de qualquer remoção.
+- [x] Repetir a busca por consumidores externos observáveis: inventário do GitHub
+  encontrou quatro repositórios acessíveis no org `luccafwlog`; busca literal
+  (`rg --hidden`, excluindo `.git`) nos três repositórios além de `vela`, em
+  seus `main` capturados em 2026-09-29, não encontrou as 14 RPCs candidatas.
+  SHAs: `demurrage-manager` `11178806b3a11f8c007d4c568078e46fa9d04163`,
+  `ship-track-widget` `5278f40e0bfb79c1a3d46c5fee9b82cf6aa68c38` e
+  `portmacsimoa` `752d81682a1d14eba2010d4c6286130fb799cdc9`. Isso cobre somente
+  esses snapshots de repositórios; branches, tags, configurações e integrações
+  externas não observáveis continuam sem prova. Nenhuma função foi removida.
 
 | Candidata | Argumentos de identidade |
 |---|---|
@@ -1433,7 +1441,15 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 | `reconcile_bl_review_alerts_item` | text, text, text, text, text[], text |
 
 - [ ] Remover candidatas somente após prova externa e `DROP FUNCTION assinatura RESTRICT` em migration nova. `portal_list_operation_bls_legacy()` continua candidata à retirada, nunca à restauração; preservar os sete elos vivos de import, jobs e event triggers.
-- [ ] Investigar `alerts.notified_at`, `bls.consignee_address`, `charge_calculations.reviewed_at`, `customer_portal_sessions.last_seen_at` com contagem/preenchimento/consumidores externos. Só propor remoção com utilidade descartada e backup específico; `consignee_address` pode exigir correção de captura. As duas colunas write-only permanecem. Contagem somente leitura em produção em 2026-09-26 (preenchidas/total): `alerts.notified_at` 0/2, `bls.consignee_address` 0/0, `charge_calculations.reviewed_at` 0/0, `customer_portal_sessions.last_seen_at` 0/0. Sem volume para concluir utilidade; consumidores externos continuam sem prova.
+- [ ] Decidir sobre remoção das quatro colunas somente se houver prova de
+  utilidade descartada e backup específico; `consignee_address` ainda pode
+  exigir correção de captura. Contagem somente leitura em produção em
+  2026-09-26 (preenchidas/total): `alerts.notified_at` 0/2,
+  `bls.consignee_address` 0/0, `charge_calculations.reviewed_at` 0/0,
+  `customer_portal_sessions.last_seen_at` 0/0. Busca literal nos três
+  repositórios externos observáveis acima não encontrou esses nomes; o escopo
+  não prova ausência em integrações/configurações externas e não há volume para
+  concluir utilidade. Manter colunas e não criar migration de remoção.
 - [ ] Para DV, consultar contagens de documentos válidos/inválidos, separar sintético/real e validar formato conforme contrato antes de ativar restrição. Sem decisão sobre fixtures e clientes existentes, não bloquear login; preservar resposta genérica, anti-enumeração e rate limit. Contagem somente leitura em produção em 2026-09-26: 3 clientes, todos com CNPJ de 14 dígitos e DV válido (`is_valid_cnpj`), 0 inválidos, 0 em outro formato; todos são fixture. Decisão sobre ativar a restrição continua pendente.
 - [x] Executar `npm run docs:check`, os testes de catálogo/definições/invariantes e `LOCAL_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/transhipping_test node scripts/check-rpc-catalog.mjs`; o script recusa variável ausente e acusa assinatura incompatível. O gate passou sem autorizar DROP; os itens externos acima continuam pendentes.
 
