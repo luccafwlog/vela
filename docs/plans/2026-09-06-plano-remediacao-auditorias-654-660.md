@@ -675,9 +675,11 @@ registrada.
 - No SHA `e4a83110`, o replay Postgres e o Supabase Preview passaram; a revisão
   dos logs revelou que o job SQL não incluía esta regressão na sua lista
   explícita. O workflow foi atualizado para executar
-  `manualInvoice.local-pg.test.ts`; o novo SHA ainda aguarda CI. A confirmação
-  runtime do KPI no Portal Preview e a publicação continuam pendentes; produção
-  não foi alterada por esta correção.
+  `manualInvoice.local-pg.test.ts`. Essa suite expôs um perfil de teste usando
+  o papel removido `admin` após a migration 093; a fixture foi atualizada para
+  `administrativo` e o novo SHA aguarda CI. A confirmação runtime do KPI no
+  Portal Preview e a publicação continuam pendentes; produção não foi alterada
+  por esta correção.
 
 ### 1.1 Baseline e alcance da evidência
 

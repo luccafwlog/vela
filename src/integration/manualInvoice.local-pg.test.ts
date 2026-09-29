@@ -99,7 +99,7 @@ describeLocal('fatura avulsa flexível — PostgreSQL local', () => {
         ('${portalAId}', 'portal-a-097@example.test'),
         ('${portalBId}', 'portal-b-097@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${adminId}', 'Admin 097', 'admin', true),
+        ('${adminId}', 'Admin 097', 'administrativo', true),
         ('${operatorId}', 'Operator 097', 'operator', true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
         (${customerA}, '${customerACnpj}', 'Cliente manual A'),
