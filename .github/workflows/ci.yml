@@ -170,6 +170,7 @@ jobs:
           LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
         run: |
           npx vitest run --no-file-parallelism \
+            src/integration/appSettingsSingleton.local-pg.test.ts \
             src/integration/auditSecurityBoundaries.local-pg.test.ts \
             src/integration/communicationEligibility.local-pg.test.ts \
             src/integration/demurrageAuthority.local-pg.test.ts \
