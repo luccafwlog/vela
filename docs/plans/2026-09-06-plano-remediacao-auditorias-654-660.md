@@ -800,6 +800,17 @@ registrada.
   com bearer válido, atualização de invoice aberta/paga, recuperação idempotente
   e execução agendada permanecem pendentes; nenhum secret/job foi criado.
 
+### 1.0.31 Smoke autenticado após login do cliente — 2026-09-29
+
+- Após o usuário concluir o login autorizado, `/portal/billing` carregou com
+  sessão autenticada. A tela listou `INV-2026-0001`, emitida, com saldo de
+  R$ 1,00, enquanto o KPI `Saldo pendente` continuou em R$ 0,00. É confirmação
+  visual em produção da divergência descrita em 1.0.24, antes da publicação da
+  migration `105`; não é falha do código ainda não publicado.
+- `/portal/operacao` carregou e mostrou zero B/Ls. Não houve pagamento, criação
+  ou alteração de registros durante este smoke. O fluxo prova login e leitura
+  básica dessas telas; não substitui os casos financeiros/operacionais de S10.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
