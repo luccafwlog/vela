@@ -144,6 +144,14 @@ describe('troca assistida avisa o endereço anterior', () => {
     expect(assisted).not.toContain("admin.rpc('portal_assisted_email_change'")
   })
 
+  // O Vela lê `previous_notified`; sem Content-Type JSON o supabase-js entrega
+  // texto e a tela dizia "aviso não enviado" para um aviso entregue.
+  it('responde ao Vela com Content-Type JSON', () => {
+    const branch = assisted.slice(0, assisted.indexOf('\n  }\n'))
+    expect(branch).not.toContain('new Response(')
+    expect(emailChange).toContain("const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })")
+  })
+
   it('manda o aviso só depois da troca aplicada e para o endereço anterior', () => {
     expect(indexOf(assisted, 'if (changeError) return')).toBeLessThan(indexOf(assisted, 'sendPortalEmail('))
     expect(assisted).toContain('to: previous')

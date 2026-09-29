@@ -13,6 +13,10 @@ import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '.
 // refazer uma troca que outro caminho já resolveu.
 const ALREADY_RESOLVED = 'Este pedido de troca de email já foi resolvido. Nenhuma alteração era necessária.'
 const RATE_LIMITED = 'Muitas tentativas com a senha atual. Aguarde alguns minutos e tente de novo.'
+// Resposta que o Vela lê: sem Content-Type JSON o supabase-js entrega o corpo
+// como texto, e `previous_notified` sumia -- o operador via "aviso não
+// enviado" para um aviso entregue.
+const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 const SEND_FAILED = 'Não conseguimos enviar o email de confirmação. Nenhuma troca foi iniciada; tente novamente mais tarde.'
 
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
@@ -104,13 +108,13 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     const caller = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: jwt } } })
     const { data: before } = await admin.from('customer_portal_accounts').select('id, recovery_email').eq('customer_id', body.customer_id ?? 0).maybeSingle()
     const { error: changeError } = await caller.rpc('portal_assisted_email_change', { p_customer_id: body.customer_id, p_new_email: body.new_email, p_reason: body.reason })
-    if (changeError) return new Response(JSON.stringify({ error: changeError.code === '42501' ? 'Permissão negada.' : changeError.message }), { status: changeError.code === '42501' ? 403 : 422 })
+    if (changeError) return json(changeError.code === '42501' ? 403 : 422, { error: changeError.code === '42501' ? 'Permissão negada.' : changeError.message })
     const previous = before?.recovery_email?.toLowerCase()
-    if (!before || !previous || previous === body.new_email?.trim().toLowerCase()) return new Response(JSON.stringify({ previous_notified: 'sem_anterior' }), { status: 200 })
+    if (!before || !previous || previous === body.new_email?.trim().toLowerCase()) return json(200, { previous_notified: 'sem_anterior' })
     const alert = emailChangeAssistedAlertTemplate({ portalUrl: canonicalPortalOrigin(), supportEmail: portalSupportEmail() })
     // A troca já foi aplicada; falhar o aviso não a desfaz, só é relatado.
     const sent = await sendPortalEmail({ admin, kind: 'alteracao_email', to: previous, subject: alert.subject, html: alert.html, text: alert.text, idempotencyKey: `alteracao_email_assistida:${before.id}:${crypto.randomUUID()}`, accountId: before.id })
-    return new Response(JSON.stringify({ previous_notified: sent.ok ? 'enviado' : 'falhou' }), { status: 200 })
+    return json(200, { previous_notified: sent.ok ? 'enviado' : 'falhou' })
   }
   return new Response(JSON.stringify({ error: 'Dados inválidos.' }), { status: 422 })
 }))
