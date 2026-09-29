@@ -72,8 +72,12 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
   const attempt = await input.recordAttempt({ kind: input.kind, to: input.to, idempotencyKey: input.idempotencyKey })
 
   if (!input.resendApiKey) {
-    console.log(`[dry-run] ${input.kind} para ${maskEmail(input.to)} (attempt ${attempt.id})`)
-    return { ok: true }
+    await input.updateAttempt(attempt.id, {
+      retryCount: 0,
+      status: 'falha_permanente',
+      lastError: 'RESEND_API_KEY não está configurada; email não enviado.',
+    })
+    return { ok: false }
   }
 
   // `aceito` is written before contacting the provider. It is only terminal

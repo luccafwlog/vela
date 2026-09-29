@@ -159,8 +159,11 @@ vencido em `convite_expirado` quando o job periódico está atrasado.
 
 Na fila de provisionamento, `Aceito pelo provedor` exige `provider_message_id`.
 Uma tentativa com status `aceito` mas sem esse identificador aparece como
-`Não confirmado`: pode ser dry-run sem provedor ou interrupção antes da chamada,
-e não prova que a mensagem saiu.
+`Não confirmado`: indica interrupção antes da chamada ou aceite sem identificador
+do provedor, e não prova que a mensagem saiu. Sem `RESEND_API_KEY`, a tentativa
+fica como falha permanente e o convite não é apresentado como enviado. A
+confirmação na interface significa que o provedor aceitou a mensagem; a entrega
+à caixa do destinatário depende dos eventos posteriores do Resend.
 
 `portal_repair_missing_accounts()` é uma função interna da migration `198`:
 cria apenas a linha inicial da fila para Clientes sem registro, sem Auth, convite,

@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { comparePriority, effectiveSituation, listPortalProvisioningQueue, type QueueRow } from '../portalProvisioning'
+import { comparePriority, effectiveSituation, listPortalProvisioningQueue, sendPortalInvite, type QueueRow } from '../portalProvisioning'
 
 const rpc = vi.hoisted(() => vi.fn())
-vi.mock('../supabase', () => ({ supabase: { rpc } }))
+const invoke = vi.hoisted(() => vi.fn())
+vi.mock('../supabase', () => ({ supabase: { rpc, functions: { invoke } } }))
 
 function row(partial: Partial<QueueRow>): QueueRow {
   return {
@@ -77,5 +78,28 @@ describe('listPortalProvisioningQueue', () => {
     await expect(listPortalProvisioningQueue()).rejects.toThrow(
       'Resposta inválida de portal_list_provisioning_console',
     )
+  })
+})
+
+describe('sendPortalInvite', () => {
+  it('reports success only when the Edge Function confirms a pending invite', async () => {
+    invoke.mockResolvedValueOnce({ data: { situation: 'convite_pendente' }, error: null })
+
+    await expect(sendPortalInvite(7, ' Cliente@Example.com ')).resolves.toBeUndefined()
+    expect(invoke).toHaveBeenCalledWith('portal-invite-send', {
+      body: { customer_id: 7, recovery_email: 'cliente@example.com', recovery_email_source: 'informado_manualmente' },
+    })
+  })
+
+  it('surfaces a provider failure returned as HTTP 200 instead of reporting success', async () => {
+    invoke.mockResolvedValueOnce({ data: { situation: 'falha_no_envio' }, error: null })
+
+    await expect(sendPortalInvite(7, 'cliente@example.com')).rejects.toThrow('O envio do email falhou')
+  })
+
+  it('does not report success when the function response is missing', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: null })
+
+    await expect(sendPortalInvite(7, 'cliente@example.com')).rejects.toThrow('Não foi possível confirmar o resultado')
   })
 })
