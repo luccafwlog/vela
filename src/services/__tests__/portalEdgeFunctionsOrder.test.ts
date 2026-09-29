@@ -132,3 +132,14 @@ describe('recuperação reusa o convite vivo em vez de enviar email novo', () =>
     expect(indexOf(recovery, 'EdgeRuntime.waitUntil(recoveryWork)')).toBeLessThan(recovery.lastIndexOf('return accepted()'))
   })
 })
+
+describe('troca de Email de Recuperação não responde "enviamos" quando o link não sai', () => {
+  it('desfaz o pedido e responde 502 antes de avisar o endereço antigo', () => {
+    const failure = indexOf(emailChange, 'if (!sent.ok) {')
+    expect(failure).toBeLessThan(indexOf(emailChange, "idempotencyKey: `alteracao_email_alerta:"))
+    const branch = emailChange.slice(failure, emailChange.indexOf('\n    }\n', failure))
+    expect(branch).toContain(".update({ status: 'cancelado' }).eq('id', invite.id)")
+    expect(branch).toContain('pending_recovery_email: null')
+    expect(branch).toContain('{ status: 502 }')
+  })
+})

@@ -13,6 +13,7 @@ import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '.
 // refazer uma troca que outro caminho já resolveu.
 const ALREADY_RESOLVED = 'Este pedido de troca de email já foi resolvido. Nenhuma alteração era necessária.'
 const RATE_LIMITED = 'Muitas tentativas com a senha atual. Aguarde alguns minutos e tente de novo.'
+const SEND_FAILED = 'Não conseguimos enviar o email de confirmação. Nenhuma troca foi iniciada; tente novamente mais tarde.'
 
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
@@ -68,7 +69,15 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     const urlConfirm = canonicalPortalUrl(`confirmar-email?token=${encodeURIComponent(token)}`)
     const customer = account.customers as { name?: string } | null
     const confirmTemplate = emailChangeConfirmTemplate({ companyName: customer?.name ?? 'sua empresa', confirmUrl: urlConfirm, portalUrl, supportEmail })
-    await sendPortalEmail({ admin, kind: 'alteracao_email', to: email, subject: confirmTemplate.subject, html: confirmTemplate.html, text: confirmTemplate.text, idempotencyKey: `alteracao_email:${invite.id}`, accountId: account.id, inviteId: invite.id })
+    const sent = await sendPortalEmail({ admin, kind: 'alteracao_email', to: email, subject: confirmTemplate.subject, html: confirmTemplate.html, text: confirmTemplate.text, idempotencyKey: `alteracao_email:${invite.id}`, accountId: account.id, inviteId: invite.id })
+    // Sem o link no novo endereço não existe troca em andamento: desfaz o
+    // pedido e diz isso ao cliente, em vez de responder "enviamos um link".
+    // O aviso ao endereço antigo só sai quando há o que avisar.
+    if (!sent.ok) {
+      await admin.from('portal_invites').update({ status: 'cancelado' }).eq('id', invite.id)
+      await admin.from('customer_portal_accounts').update({ pending_recovery_email: null }).eq('id', account.id).eq('pending_recovery_email', email)
+      return new Response(JSON.stringify({ error: SEND_FAILED }), { status: 502 })
+    }
     if (account.recovery_email && account.recovery_email.toLowerCase() !== email) {
       const alertTemplate = emailChangeAlertTemplate({ portalUrl, supportEmail })
       await sendPortalEmail({ admin, kind: 'alteracao_email', to: account.recovery_email, subject: alertTemplate.subject, html: alertTemplate.html, text: alertTemplate.text, idempotencyKey: `alteracao_email_alerta:${invite.id}`, accountId: account.id })
