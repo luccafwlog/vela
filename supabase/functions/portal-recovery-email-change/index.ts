@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { generateToken, hashToken } from '../_shared/portalToken.ts'
-import { emailChangeAlertTemplate, emailChangeConfirmTemplate } from '../_shared/portalEmailTemplates.ts'
+import { emailChangeAlertTemplate, emailChangeAssistedAlertTemplate, emailChangeConfirmTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { revokePortalSessions } from '../_shared/revokePortalSessions.ts'
 import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
@@ -16,7 +16,7 @@ const RATE_LIMITED = 'Muitas tentativas com a senha atual. Aguarde alguns minuto
 
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
-  const body = await req.json().catch(() => ({})) as { action?: string; current_password?: string; new_email?: string; token?: string }
+  const body = await req.json().catch(() => ({})) as { action?: string; current_password?: string; new_email?: string; token?: string; customer_id?: number; reason?: string }
   const url = Deno.env.get('SUPABASE_URL')!; const jwt = req.headers.get('Authorization') ?? ''; const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   if (body.action === 'request') {
     const portal = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: jwt } } })
@@ -86,6 +86,22 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     if (account.auth_user_id) await revokePortalSessions(account.auth_user_id)
     await admin.rpc('_portal_log_event', { p_customer_id: account.customer_id, p_account_id: account.id, p_invite_id: inviteId, p_prev_decision: account.provisioning_decision, p_new_decision: account.provisioning_decision, p_prev_situation: account.account_situation, p_new_situation: account.account_situation, p_actor_type: 'cliente', p_reason: 'Email de recuperação confirmado pelo cliente; sessões anteriores encerradas', p_request_id: null })
     return new Response(JSON.stringify({ confirmed: true }), { status: 200 })
+  }
+  // Troca assistida (Vela, Documentação/Administrativo). A RPC continua sendo
+  // quem autoriza e aplica, com o JWT de quem chamou; a função só existe para
+  // avisar o endereço anterior, que a RPC apaga e que o navegador não deve
+  // poder escolher. O endereço é lido antes da troca, no servidor.
+  if (body.action === 'assisted') {
+    const caller = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: jwt } } })
+    const { data: before } = await admin.from('customer_portal_accounts').select('id, recovery_email').eq('customer_id', body.customer_id ?? 0).maybeSingle()
+    const { error: changeError } = await caller.rpc('portal_assisted_email_change', { p_customer_id: body.customer_id, p_new_email: body.new_email, p_reason: body.reason })
+    if (changeError) return new Response(JSON.stringify({ error: changeError.code === '42501' ? 'Permissão negada.' : changeError.message }), { status: changeError.code === '42501' ? 403 : 422 })
+    const previous = before?.recovery_email?.toLowerCase()
+    if (!before || !previous || previous === body.new_email?.trim().toLowerCase()) return new Response(JSON.stringify({ previous_notified: 'sem_anterior' }), { status: 200 })
+    const alert = emailChangeAssistedAlertTemplate({ portalUrl: canonicalPortalOrigin(), supportEmail: portalSupportEmail() })
+    // A troca já foi aplicada; falhar o aviso não a desfaz, só é relatado.
+    const sent = await sendPortalEmail({ admin, kind: 'alteracao_email', to: previous, subject: alert.subject, html: alert.html, text: alert.text, idempotencyKey: `alteracao_email_assistida:${before.id}:${crypto.randomUUID()}`, accountId: before.id })
+    return new Response(JSON.stringify({ previous_notified: sent.ok ? 'enviado' : 'falhou' }), { status: 200 })
   }
   return new Response(JSON.stringify({ error: 'Dados inválidos.' }), { status: 422 })
 }))

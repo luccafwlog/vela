@@ -3,6 +3,7 @@ import {
   bounceNotificationTemplate,
   dailyDigestTemplate,
   emailChangeAlertTemplate,
+  emailChangeAssistedAlertTemplate,
   emailChangeConfirmTemplate,
   inviteTemplate,
   recoveryTemplate,
@@ -69,6 +70,13 @@ describe('Identidade visual dos emails do Portal', () => {
     expect(text).not.toMatch(/https?:\/\//)
   })
 
+  it('aviso da troca assistida não promete que o endereço antigo segue valendo', () => {
+    const { text } = emailChangeAssistedAlertTemplate({ portalUrl, supportEmail })
+    expect(text).not.toContain('continua válido')
+    expect(text).toContain('deixou de receber')
+    expect(text).not.toMatch(/https?:\/\//)
+  })
+
   it('todos os templates referenciam o mesmo email de suporte no rodapé', () => {
     for (const { html } of [
       inviteTemplate({ companyName: 'ACME', cnpjMasked: '***', activationUrl: 'https://x', portalUrl, supportEmail }),
@@ -76,6 +84,7 @@ describe('Identidade visual dos emails do Portal', () => {
       recoveryTemplate({ companyName: 'ACME', cnpjMasked: '***', recoveryUrl: 'https://x', portalUrl, supportEmail }),
       emailChangeConfirmTemplate({ companyName: 'ACME', confirmUrl: 'https://x', portalUrl, supportEmail }),
       emailChangeAlertTemplate({ portalUrl, supportEmail }),
+      emailChangeAssistedAlertTemplate({ portalUrl, supportEmail }),
       dailyDigestTemplate({ date: '2026-01-01', failures: 0, activity: 0, pending: 0, portalUrl, supportEmail }),
     ]) {
       expect(html).toContain(`mailto:${supportEmail}`)

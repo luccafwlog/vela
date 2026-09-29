@@ -49,6 +49,23 @@ export async function sendPortalInvite(customerId: number, recoveryEmail: string
   if (data?.situation !== 'convite_pendente') throw new Error('Não foi possível confirmar o resultado do envio do convite.')
 }
 
+export type AssistedEmailChangeNotice = 'enviado' | 'falhou' | 'sem_anterior'
+
+/** Troca assistida do Email de Recuperação; o endereço anterior é avisado no servidor. */
+export async function assistedPortalEmailChange(customerId: number, newEmail: string, reason: string): Promise<AssistedEmailChangeNotice> {
+  const { data, error } = await supabase.functions.invoke('portal-recovery-email-change', {
+    body: { action: 'assisted', customer_id: customerId, new_email: newEmail.trim().toLowerCase(), reason },
+  })
+  if (error) {
+    // Em resposta não-2xx o corpo fica em error.context; é ali que chegam
+    // "Justificativa é obrigatória." e "Endereço suprimido...".
+    const context = (error as { context?: Response }).context
+    const parsed = context ? await context.json().catch(() => null) as { error?: string } | null : null
+    throw new Error(parsed?.error ?? 'Não foi possível alterar o email.')
+  }
+  return (data as { previous_notified?: AssistedEmailChangeNotice } | null)?.previous_notified ?? 'falhou'
+}
+
 export type PortalProvisioningConsolePayload = {
   account_id: number
   customer_id: number

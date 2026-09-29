@@ -246,6 +246,12 @@ consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave de Resend
 a tentativa é gravada como `falha_permanente` e nenhum email é enviado.
 
+A troca assistida do Email de Recuperação (Vela, `/clientes/portal`) passa por
+`portal-recovery-email-change` com `action: 'assisted'`: a RPC
+`portal_assisted_email_change` aplica a troca com o JWT do operador e, em
+seguida, o endereço anterior recebe um aviso de que deixou de valer. Falha nesse
+aviso não desfaz a troca; a tela informa o operador.
+
 #### Inspeção do Portal
 
 `/clientes/portal/inspecao/:customerId/*` é uma visão interna somente leitura

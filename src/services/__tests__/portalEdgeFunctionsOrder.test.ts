@@ -132,3 +132,20 @@ describe('recuperação reusa o convite vivo em vez de enviar email novo', () =>
     expect(indexOf(recovery, 'EdgeRuntime.waitUntil(recoveryWork)')).toBeLessThan(recovery.lastIndexOf('return accepted()'))
   })
 })
+
+describe('troca assistida avisa o endereço anterior', () => {
+  const assisted = emailChange.slice(indexOf(emailChange, "if (body.action === 'assisted')"))
+
+  it('lê o endereço anterior no servidor antes de a RPC apagá-lo', () => {
+    expect(indexOf(assisted, ".select('id, recovery_email')")).toBeLessThan(indexOf(assisted, "caller.rpc('portal_assisted_email_change'"))
+  })
+
+  it('aplica a troca com o JWT de quem chamou, nunca com service_role', () => {
+    expect(assisted).not.toContain("admin.rpc('portal_assisted_email_change'")
+  })
+
+  it('manda o aviso só depois da troca aplicada e para o endereço anterior', () => {
+    expect(indexOf(assisted, 'if (changeError) return')).toBeLessThan(indexOf(assisted, 'sendPortalEmail('))
+    expect(assisted).toContain('to: previous')
+  })
+})
