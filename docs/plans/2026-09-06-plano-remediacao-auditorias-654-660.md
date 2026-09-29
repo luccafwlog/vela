@@ -881,6 +881,10 @@ registrada.
 - Na TV autenticada `pr-797.vela-internal.pages.dev/line-up-tv/display`, versão `70f3933`, a captura CDP observou dois ciclos sucessivos de refresh de 30 s no projeto Supabase Preview `pubojmlzfykpfatfjynj`. Cada ciclo repetiu 15 GETs PostgREST: 11 leituras do snapshot (incluindo a consulta-base de viagens) e quatro leituras de timestamps para `voyages`, `bls`, `bl_containers` e `vehicles`. No segundo ciclo, a mesma viagem/B/L foi relida e a hora da última alteração permaneceu igual.
 - A observação reproduz no Preview #797 o refresh periódico sem alteração de dados; o critério de evitar a cadeia completa permanece reprovado. A amostra tem uma viagem e um B/L QA, portanto não determina custo sob volume nem p95. Não houve escrita.
 
+### 1.0.42 Teclado do modal de fatura no Preview #797 — 2026-09-29
+
+- No detalhe da fatura QA em `/taxas-locais`, `Escape` fechou o modal e devolveu o foco ao botão `Detalhes` que o abriu. Não houve edição, emissão ou pagamento. É evidência de um fluxo de teclado/foco em Financeiro; o roteiro S13 das outras tabelas, leitor de tela, temas e estados continua aberto.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
