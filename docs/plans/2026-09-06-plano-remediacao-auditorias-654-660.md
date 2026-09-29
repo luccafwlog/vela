@@ -811,6 +811,21 @@ registrada.
   ou alteração de registros durante este smoke. O fluxo prova login e leitura
   básica dessas telas; não substitui os casos financeiros/operacionais de S10.
 
+### 1.0.32 Escape na barra de filtros — 2026-09-29
+
+- Na revisão manual de teclado da produção, Escape não fechava a barra de filtros
+  quando o foco estava em um campo comum nem devolvia o foco ao acionador. O
+  primeiro Escape dentro de um Combobox deve continuar fechando somente o
+  controle expandido.
+- `FilterBar` agora fecha a barra no Escape e devolve o foco ao acionador; o
+  controle expandido consome o primeiro Escape. `FilterBar.behavior.test.tsx`
+  cobre ambos os fluxos. Na branch baseada no SHA `3b17d559`, passaram teste
+  focado, suíte integral (667 arquivos, 3.633 aprovados, 209 ignorados), lint,
+  typecheck, build, `docs:check` e `git diff --check`. Após integrar a `main`, o
+  SHA `e4aa9da8` passou no run `36549454964`: docs/lint, build, três shards de
+  testes, replay PostgreSQL, segurança, Supabase Preview e agregador. Smoke
+  autenticado no Preview e roteiro S13 completo continuam abertos.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
@@ -1517,6 +1532,10 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
   colunas com botão de ordenação em Clientes e Histórico de Conciliações já
   declaram `aria-sort`; o outro botão de cabeçalho encontrado seleciona linhas,
   não ordena. Inspeção estática não substitui leitor de tela.
+- [x] Na barra compartilhada de filtros, fechar com Escape e devolver o foco ao
+  acionador; um controle expandido interno consome Escape primeiro. Evidência:
+  `FilterBar.behavior.test.tsx` (dois casos). A publicação e a validação
+  autenticada desta correção continuam pendentes.
 - [ ] Verificar caption, anúncio da ordenação e retorno de foco com leitor de
   tela no Preview autenticado; não criar grid ARIA sem necessidade.
 - [x] Nos uploads múltiplos que usam `FileImportModal`, exibir progresso por
