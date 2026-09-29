@@ -838,6 +838,27 @@ registrada.
   Não houve pagamento nem outra mutação. Isto comprova a correção do KPI em
   produção; não substitui os demais cenários de S10.
 
+### 1.0.34 ACL das candidatas S14 no Preview #797 — 2026-09-29
+
+- Consulta somente leitura ao catálogo do branch Supabase `pubojmlzfykpfatfjynj` confirmou que as 14 funções candidatas existem em `public`; `anon` e `authenticated` não têm `EXECUTE` em nenhuma, e `service_role` tem em `reconcile_bl_review_alerts_item` somente. Isso atualiza a evidência de ACL do Preview, sem provar ausência de consumidores externos ou uso em produção. Nenhuma função foi removida; a investigação das quatro colunas e a decisão D09 permanecem abertas.
+
+### 1.0.35 Refresh autenticado S12 na TV — 2026-09-29
+
+- No Preview #797 (`d8c2f11267e7bc2b6f18f47f2a0eedd2ba346cac`), sessão `Preview Admin`, `/line-up-tv/display` estava visível e em foco. A captura read-only por CDP registrou ciclos de `fetchLineUpSnapshot` iniciados em 58.241,986 s e 58.272,206 s do relógio monotônico do browser: intervalo 30,219 s.
+- Cada ciclo emitiu 15 GETs PostgREST: 11 leituras do snapshot e 4 para `lastChangedAt` (incluindo `voyages`, `bls`, `bl_containers`, `vehicles` e `audit_logs`). A tela manteve `Atualizado às` porque a resposta era estruturalmente igual; o rótulo sozinho não mede polling.
+- A periodicidade foi comprovada, mas a cadeia completa de leituras se repete a cada 30 s. S12 não passou o critério de refresh sem refazer a cadeia; falta reduzir essa carga e medir novamente. O cenário contém uma viagem e não prova custo constante até o limite de 60.
+
+### 1.0.36 S13 offline e teclado — 2026-09-29
+
+- No Preview #797, `/bls` com dados em cache manteve a tabela e exibiu “Você está offline. Exibindo dados salvos”; após reconectar, o aviso desapareceu e o mesmo B/L continuou visível. Em `/clientes`, sem cache, o modo offline exibiu 0 e “Nenhum cliente encontrado”; após reconectar, carregou 1 cliente. Essa observação confirmou um defeito específico em Clientes: a tela não usava `QueryStateGate`.
+- No mesmo Preview, em `/viagens`, Tab percorreu skip-link, PTAX, versão, cabeçalho, notificações, perfil e links de navegação. `Nova Viagem` sem alterações fechou sem confirmação. Com texto temporário no campo Navio, Escape abriu confirmação; continuar manteve o foco no campo e descartar devolveu foco ao acionador. O formulário não foi salvo.
+- Correção local S13 incluída nesta mudança: Clientes passa a usar o `QueryStateGate` compartilhado, resumo indisponível deixa de aparecer como zero, e a tabela não duplica o alerta de erro. `Clientes.behavior.test.tsx` passou 13 testes (incluindo offline sem cache e com cache); `docs:check`, typecheck, lint, suíte completa (3.633 passaram, 210 ignorados) e build passaram. A correção ainda não foi publicada no Preview para repetir o cenário offline. Leitor de tela, light/dark e as demais tabelas/interações permanecem pendentes; S13 não está concluído.
+
+### 1.0.37 Teclado no menu de Clientes — 2026-09-29
+
+- Após login, a sessão `Preview Admin` no Preview #797 (`d8c2f11267e7bc2b6f18f47f2a0eedd2ba346cac`) foi confirmada em `/clientes`, com a fixture `QA S10 Financial Battery` visível. No menu “Mais ações”, `ArrowDown` moveu o foco de “Copiar CNPJ” para “Copiar e-mail”; `Escape` fechou o menu e devolveu o foco ao acionador. Nenhuma ação do menu foi executada.
+- Essa prova cobre teclado/foco do menu de Clientes. Não comprova anúncio por leitor de tela, outras tabelas, contraste/estados light-dark nem o reteste offline da correção local; roteiro S13 segue aberto.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
@@ -1528,6 +1549,7 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 
 - [x] Cobrir busca com relógio falso: várias teclas em menos de 300 ms geram uma mudança de query após a pausa; filtro não espera debounce de texto. O helper compartilhado e os callers auditados preservam URL, limpeza, página inicial e ignoram respostas antigas.
 - [x] Testar query pausada offline sem cache e offline com dados anteriores. O gate mostra indisponibilidade ou conserva dados com indicação, sem converter falha em “nenhum registro”; reconnect retoma a leitura e escrita offline não é anunciada como salva.
+- [x] Estender o contrato para `/clientes`: a página usa o mesmo gate para esconder tabela/resumos sem cache offline e conservar linhas em cache; resumo ainda não carregado não aparece como zero. A regressão de `Clientes.behavior.test.tsx` passou sem cache e com cache. O Preview anterior confirmou o defeito, então falta repetir o cenário depois da publicação da correção.
 - [x] No sino, erro de marcar lida mostra aviso acionável, restaura estado otimista/contador e permite retry sem duplicação, preservando logging e invalidando somente as chaves pertinentes.
 - [x] Implementar a separação `loading`/`error`/`unauthorized` na hidratação, troca de usuário, timeout e perfil inativo/removido; erro transitório permite retry com ações bloqueadas e perfil revogado elimina acesso sem reutilizar autorização anterior.
 - [ ] Executar o roteiro completo no Preview autenticado.
