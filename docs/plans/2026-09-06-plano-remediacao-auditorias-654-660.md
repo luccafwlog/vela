@@ -773,6 +773,21 @@ registrada.
   a prova operacional combinada e renderização autenticada seguem pendentes.
   S08/S09 mantêm os bullets de runtime/Preview e job real abertos.
 
+### 1.0.29 Reteste local S04/S05 e barreira HTTP do Preview — 2026-09-29
+
+- No mesmo PostgreSQL 16 descartável, `importEffects.local-pg.test.ts` e
+  `importAtomicity.local-pg.test.ts` passaram: 8 testes para recuperação,
+  dependências, lease, alerta, consumidor Granito e atomicidade da importação.
+- No Supabase Preview da PR #795, um POST sem autorização a
+  `import-effects-runner` retornou HTTP 401 `unauthorized`. Consulta posterior
+  confirmou 0 jobs alvo, 0 entradas Vault com nomes do runner/PTAX, 0 clientes,
+  0 efeitos pendentes e a resposta 401 armazenada. A chamada não criou fixture
+  nem alterou a configuração; confirma somente a recusa anônima.
+- **S04/S05 runtime ainda aberto:** não foi enviado bearer válido nem processado
+  efeito no Preview. Retry/alerta após falha, atualização por unidade, segredo,
+  flag de ativação e job continuam sem prova operacional; nenhuma ativação foi
+  feita. O runtime S04 por importação via UI também continua pendente.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
