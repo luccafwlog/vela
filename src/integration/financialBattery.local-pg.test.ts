@@ -146,6 +146,10 @@ function cleanup(): void {
     DELETE FROM public.portal_provisioning_events WHERE customer_id = ${customerId};
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
     DELETE FROM public.bls WHERE id = ANY(ARRAY['${allBlIds.join("','")}']::text[]);
+    DELETE FROM public.pricing_rule_versions
+    WHERE charge_table_id = ${chargeTableId}
+      AND charge_item_id = ${chargeItemId}
+      AND customer_id = ${customerId};
     DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
     DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
     DELETE FROM public.voyages WHERE id = ${voyageId};
