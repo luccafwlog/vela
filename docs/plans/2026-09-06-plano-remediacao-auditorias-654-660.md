@@ -255,7 +255,7 @@ As entregas desta etapa foram feitas no worktree isolado, preservando a ordem Pa
 - O documento de Demurrage recebeu um DTO explícito. A impressão da Conciliação PIX passou a achatar corretamente `{ invoice, items }`, removendo casts que mascaravam a ausência de `doc_number`, totais e dados do cliente no recibo.
 - O replay limpo `001`–`013` e `015`–`030` aplicou 29 migrations; as 17 suítes SQL seriais passaram com 64 testes. O smoke autenticado no Preview confirmou importação de `01/08/2026` como `2026-08-01`, emissão/baixa de Demurrage com desconto de 10% (`DEM-2026-O5K9531`, R$ 1.319,32), documento com ROE/subtotal/desconto/total persistidos e paridade Portal/Inspeção com paginação.
 
-O resultado não encerra o plano: a matriz abaixo ainda contém itens **Pendente** ou **Precisa de investigação**, incluindo validações estruturais/fixtures reais de parsers (S03), readiness de emissão/comunicação, BR Code/cache e execução real de PTAX (S08–S10), fallbacks e benchmarks de leitura (S12), contraste e validação manual de acessibilidade (S13) e prova de consumidores externos antes de qualquer `DROP` (S14). A ausência de deploy/execução remota de Edge, Vault, Resend, BCB e cron também permanece uma lacuna operacional; a chave de Comunicados, workers e cron continuam desligados.
+O resultado não encerra o plano: a matriz abaixo ainda contém itens **Pendente** ou **Precisa de investigação**, incluindo provas de emissão/comunicação e execução real de PTAX (S08–S10), fallbacks e benchmarks de leitura (S12), roteiro manual de acessibilidade (S13) e prova de consumidores externos antes de qualquer `DROP` (S14). A fixture COSCO anonimizada e os contratos estruturais S03 já foram concluídos. Em produção, houve um convite canário aceito pelo provedor e confirmado na caixa autorizada; isso não substitui a prova de Comunicados, dunning, worker/outbox ou digest. `communications_enabled` permanece `false`; cron/worker não foi ativado.
 
 Validação anterior do baseline está preservada no histórico abaixo. Nesta
 integração, `npm test -- --run` passou com 558 arquivos, 2.954 testes aprovados
@@ -430,8 +430,8 @@ registrada.
   migration 044 aplicada. A migration forward `104_restore_app_settings_singleton.sql`
   foi aplicada no Supabase Preview da PR #794; consulta somente leitura confirmou
   `communications_enabled = false` e intervalo 7, sem sobrescrever configuração
-  existente. A aplicação em produção ainda depende do merge; nenhuma escrita foi
-  feita diretamente em produção.
+  existente. Após o merge da PR #794, a integração de migrations aplicou a
+  versão 104 em produção; nenhuma escrita manual foi feita no banco de produção.
 - O PR draft #790 (`f4d625b6`) recebeu Preview Supabase próprio
   (`codex/remediacao-auditorias-654-660`, projeto `rxubmafnlnhhvldalbni`):
   configurações, migrations, seed e Edge Functions passaram; o replay real de
@@ -523,14 +523,169 @@ registrada.
   executou profiler autenticado, ensaio manual completo de acessibilidade nem
   investigação de consumidores externos.
 
+### 1.0.19 Pós-merge da PR #794 — 2026-09-28
+
+- A PR #794 foi mergeada no commit `3b17d559`; CI e deploy Cloudflare de
+  produção passaram. O job de cleanup falhou ao listar previews na API Cloudflare
+  (HTTP 400), então não se presume que a URL de Preview tenha sido removida.
+- A migration 104 consta no histórico aplicado do Supabase de produção. Consulta
+  somente leitura confirmou `app_settings.id = 1`,
+  `communications_enabled = false` e `demurrage_dunning_interval_days = 7`.
+  Nenhuma escrita direta foi executada em produção.
+- As URLs Cloudflare de Preview da PR #794 ainda carregam as telas públicas de
+  login, mas o projeto Supabase de Preview `opmpbojvvrslfiajoozu` não existe mais
+  após o fechamento da PR; a listagem da produção mostra somente `main`. Assim,
+  não há backend de Preview pareado para QA autenticado. A tela interna exibe
+  “Serviço de autenticação indisponível no momento”; o Portal solicita
+  verificação de segurança. Nenhum login, envio de credencial ou CAPTCHA foi
+  automatizado.
+- S05–S14 permanecem abertos conforme seus critérios. `communications_enabled`
+  segue `false`; cron/worker, email real, PIX em PSP e novas fixtures QA
+  continuam fora de produção.
+
+### 1.0.20 Escopo excepcional de QA em produção — 2026-09-28
+
+- O usuário autorizou dados sintéticos de QA em produção e fará o reset do banco
+  depois dos testes. O agente não executará reset, seed amplo nem limpeza
+  destrutiva.
+- O escopo de email confirmado é um único convite real do Portal ao destinatário
+  de QA indicado pelo usuário. Manter `communications_enabled = false` e não
+  liberar régua, dunning, digest ou outros envios automáticos para a base toda.
+- Preflight somente leitura: nove jobs `pg_cron` ativos; chave global desligada;
+  zero linhas em `customer_communications`, zero contatos com o endereço de QA
+  e endereço não suprimido. Não há tentativas de email do Portal nos últimos 30
+  dias. O usuário autorizou também que o próximo digest alcance os dois
+  administradores ativos. Não se altera `communications_enabled` nem os crons.
+- O painel de produção abriu com commit `3b17d559`. O usuário confirmou que já
+  entrou com perfil administrativo e `/clientes` carrega sem o aviso de perfil.
+  A rota mostra zero clientes. A tentativa de abrir “Novo Cliente” não alterou
+  a interface: cliques semânticos e coordenados deixaram a mesma tela; não há
+  erro de console. Nenhuma fixture ou convite foi criado. O bloqueio atual é
+  reproduzir a ação na UI sem contornar o fluxo de produção.
+
+### 1.0.21 Resultado da tentativa de QA em produção — 2026-09-29
+
+- A captura autenticada confirma `/clientes`, versão `2.0.0 (3b17d55)`, perfil
+  `Lucca Juliatti` e tabela vazia. “Novo Cliente” está habilitado no DOM, mas
+  não abre o formulário após ações de clique suportadas; “Filtros” também não
+  responde. Nenhum registro nem email foi criado/enviado.
+- O escopo aprovado permanece: um cliente sintético com convite real ao
+  destinatário de QA indicado pelo usuário e um digest aos dois administradores
+  ativos; manter `communications_enabled = false` e envios globais desligados.
+  O reset fica
+  a cargo do usuário.
+- Próxima ação: investigar o runtime da página/rota em produção e restaurar o
+  fluxo de escrita pelo caminho normal; então executar o convite e registrar a
+  evidência. Não contornar a UI com DML manual nem considerar este QA concluído.
+
+### 1.0.22 Fixture e convite canário em produção — 2026-09-29
+
+- Pelo formulário autenticado normal, foi criado o cliente sintético
+  `QA - Plano Auditorias 654-660`, uma viagem `QA-654660-01` com escala em
+  Santos (`BRSSZ`) e a invoice avulsa `INV-2026-0001` de R$ 1,00. Não há B/L,
+  container, cálculo de taxa local, demurrage ou pagamento. A confirmação da
+  invoice informou que não cria recebível de taxa local. `communications_enabled`
+  permaneceu `false`; nenhuma escrita direta no banco foi executada.
+- A primeira tentativa ao email autorizado falhou permanentemente no Resend
+  (`HTTP 409`), sem `provider_message_id`. Após confirmar que não havia convite
+  dessa fixture no Gmail, o fluxo normal invalidou o link anterior, emitiu novo
+  convite e gerou a tentativa 2, status `aceito`, sem erro e com identificador
+  do provedor registrado. O Gmail do destinatário recebeu “Novo convite para
+  ativar seu acesso ao Portal do Cliente” para a fixture. O estado observado no
+  Vela é “Ativação pendente” / “Aceito pelo provedor”.
+- O link foi aberto e o usuário criou/enviou a senha. A ativação retornou à tela
+  de login; o usuário está entrando no Portal com a credencial que mantém
+  privada. Não registrar nem solicitar a senha. O smoke autenticado ainda não
+  foi executado.
+- Um único convite ao destinatário aprovado foi aceito pelo provedor; isso não
+  prova a entrega de Comunicados, dunning, worker/outbox ou digest. O digest
+  aos dois administradores ativos foi autorizado, mas ainda aguarda o job
+  `portal-daily-digest` das 08:00 BRT. Nenhum cron ou chave global foi alterado.
+- Consulta somente leitura depois da invoice: 1 cliente, 1 viagem, 0 B/Ls,
+  0 cálculos locais, 0 invoices de Demurrage, 1 invoice total,
+  0 `customer_communications` e 2 tentativas do Portal (uma falha sem envio e
+  uma aceita pelo provedor). A tabela de faturamento exibiu total/saldo
+  R$ 1,00 e nenhum pagamento. A invoice foi aberta em detalhe; pagamento real
+  não foi iniciado.
+- Começou a verificação manual de teclado em produção: `Tab`/`Enter` permitiu
+  abrir os formulários e cadastrar a viagem e a invoice. Isso cobre só foco e
+  envio por teclado nesses dois fluxos; leitor de tela, foco de retorno, offline,
+  reconnect, outras tabelas e modal sujo continuam pendentes em S13.
+- Próximas ações: o usuário entrar no Portal; executar o smoke e os roteiros por
+  domínio que dependem da conta; verificar o resultado do digest agendado sem
+  disparos manuais nem ampliação de destinatários.
+
+### 1.0.23 Login autenticado e smoke do Portal em produção — 2026-09-29
+
+- O usuário ativou a conta e entrou manualmente no Portal de produção como
+  `QA - Plano Auditorias 654-660`; a senha permaneceu privada. O painel autenticado
+  abriu sem erro de perfil.
+- Em `/portal/billing`, após o carregamento, apareceu `INV-2026-0001`: avulsa,
+  emitida, total R$ 1,00, pago R$ 0, saldo R$ 1,00. O detalhe mostrou o payload
+  PIX estático. Nenhum pagamento foi iniciado. No primeiro carregamento do
+  painel os totais ainda estavam em zero; ao voltar/recarregar a rota, exibiu
+  R$ 1,00 e 1 fatura aberta. A hipótese mais compatível com a observação é
+  hidratação/cache inicial atrasado; não reclassificar como defeito sem reproduzir.
+- `/portal/operacao` mostrou os vazios corretos para B/Ls e containers (0/0),
+  coerentes com a ausência desses registros na fixture. Isso não prova o caminho
+  de listas preenchidas. Pela navegação de teclado, `Tab` focou Filtros e `Enter`
+  expandiu os controles de filtros e paginação. Leitor de tela, foco de retorno,
+  modal sujo, offline/reconnect, tabelas restantes e temas continuam pendentes.
+- Leitura somente leitura em produção confirmou migrations `001`–`013` e
+  `015`–`104` (a `014` continua ausente por decisão do replay),
+  `communications_enabled = false`, intervalo de dunning 7 dias, zero
+  `customer_communications`, 2 tentativas de email do Portal, 2 perfis elegíveis
+  para o digest, 0 contas pendentes e 4 eventos de provisionamento nas últimas
+  24 h. `portal-daily-digest` está ativo às 08:00 BRT (`0 11 * * *`); a execução
+  seguinte está autorizada somente aos dois administradores ativos. Nenhum
+  segredo, chave ou valor de comando foi consultado, nenhum cron foi alterado e
+  nenhum disparo manual foi feito. `demurrage-dunning` segue ativo por hora,
+  mas lê a chave global desligada e registra modo simulado; não houve comunicado.
+- As Edge Functions `portal-daily-digest`, `import-effects-runner` e
+  `recalc-demurrage-ptax` aparecem ativas no projeto, mas os dois últimos não
+  têm job correspondente em `cron.job`; a execução agendada de S05/S09 continua
+  sem prova. A última execução do digest foi bem-sucedida em 2026-09-28; a janela
+  de hoje ainda não havia ocorrido na consulta às 00:11 BRT.
+- Não foi criado B/L/container: o único caminho existente identificado é o
+  importador por arquivo. Uma planilha sintética controlada foi preparada em
+  `%LOCALAPPDATA%/Temp/vela-plan-qa/qa-bl-single-container.xlsx`, mas o seletor
+  de arquivo não abriu pela automação de navegador. O preview e a confirmação
+  ainda dependem de o usuário selecionar essa fixture no modal; não usar DML
+  direto nem o `.xls` original anexado pelo usuário.
+- **Resultado:** smoke autenticado parcial aprovado para sessão, fatura avulsa,
+  leitura PIX estática e vazios operacionais. Permanecem pendentes emissão de
+  Demurrage, ledger/readiness com B/L/container, Inspeção, worker/outbox,
+  execução real de PTAX, validação PIX em PSP e o restante de S12–S14.
+
+### 1.0.24 Inconsistência no saldo da fatura avulsa — 2026-09-29
+
+- Em `/portal/billing`, com sessão autenticada e após carga completa, o KPI
+  mostrou R$ 0,00 enquanto a única invoice aberta listada mostrou saldo de
+  R$ 1,00. A observação foi repetida na tela. Não houve pagamento nem mutação.
+- Causa no código: `portal_get_session_overview_v2()` lê a coluna antiga
+  `customers.pending_balance`; o saldo atual é derivado de recebíveis locais e
+  invoices de Demurrage por `get_customer_pending_balances()`. A migration `097`
+  define faturas `manual` como invoices fora do ledger. A lista inclui essas
+  faturas, mas o KPI não consultava nenhuma dessas origens canônicas. A diferença
+  é reproduzível e não depende da hidratação/cache inicialmente suspeitados.
+- Correção local em `105_portal_manual_invoice_pending_balance.sql`: calcular o
+  resumo autenticado a partir de recebíveis locais abertos, Demurrage emitida/em
+  atraso e saldo positivo de invoices `manual` abertas, mantendo as faturas
+  manuais fora do ledger. Regressão de integração cobre o RPC autenticado.
+- A migration ainda não foi executada. O teste de integração não pôde rodar
+  neste Windows: o banco local `vela_test` não existe e WSL não está instalado.
+  A validação SQL em Preview/CI e a confirmação do KPI após deploy permanecem
+  obrigatórias; produção segue sem alteração por esta correção.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
 - Fonte dos identificadores: [auditoria consolidada](../archive/audits/2026-09-06-auditoria-consolidada-prs-654-660.md). Preservar esse registro integralmente. Nas seções sem ID, usar o número e o título original; os sufixos deste plano apenas desdobram causas diferentes.
 - Fontes de decisão: [AGENTS.md](../../AGENTS.md), [CONTEXT.md](../../CONTEXT.md), [WORKFLOW.md](../../WORKFLOW.md), [arquitetura](../ARCHITECTURE.md), [rastreabilidade](../RASTREABILIDADE.md), [convenções](../CONVENCOES.md) e [índice de ADRs](../adr/README.md).
 - **Código** significa confirmação estática no baseline. **Teste de contrato SQL** significa inspeção textual de SQL; não prova execução, concorrência, grants efetivos ou PostgREST. Testes citados abaixo são existentes ou propostos, com essa distinção explícita; não foram executados para afirmar que uma remediação funciona.
-- **Runtime histórico:** catálogo, volumetria e jobs citados na #659 pertencem à auditoria original. Não foi feita nova consulta ao banco de produção nesta sessão. Não presumir que a base continua vazia, que há exatamente 216 RPCs expostas ou que os volumes históricos representam a operação atual.
-- **Runtime nesta sessão:** a PR #670 teve smoke autenticado no Preview e os checks do SHA `fb5db0c5` passaram. Não foram ativados cron, Edge Function, Vault, Resend, BCB ou envio real; essa ausência continua sendo uma pendência operacional quando o plano exigir prova remota.
+- **Runtime histórico:** catálogo, volumetria e jobs citados na #659 pertencem à auditoria original. Não presumir que a base continua vazia, que há exatamente 216 RPCs expostas ou que os volumes históricos representam a operação atual.
+- **Runtime na PR #670:** smoke autenticado no Preview e checks do SHA `fb5db0c5` passaram. Não foram ativados cron, Edge Function, Vault, Resend, BCB ou envio real naquela execução.
+- **Runtime em produção — 2026-09-29:** após autorização excepcional registrada em 1.0.20, a fixture recebeu um convite canário e passou por smoke autenticado parcial no Portal. Migrations `001`–`013` e `015`–`104` constam aplicadas; `communications_enabled` segue `false`. O banco Preview da PR #794 foi removido, então as provas de roles, jobs e runtime que exigem Preview continuam pendentes. Detalhes e limites em 1.0.22–1.0.23.
 
 ### 1.2 Ordem por risco
 
@@ -562,7 +717,7 @@ continuam como histórico de diagnóstico, não como estado atual.
 precisa comprovar secret/Vault/Edge e login QA no ambiente correto; nenhuma
 credencial de produção deve ser usada como fallback.
 
-### 1.4 Fila consolidada das pendências — 2026-09-28
+### 1.4 Fila consolidada das pendências — 2026-09-29
 
 As caixas abertas nas seções executivas, tarefas e validação repetem provas.
 Esta fila as consolida por risco e dependência; os checklists detalhados seguem
@@ -574,30 +729,40 @@ como registro da execução.
    162 testes focados e a suíte completa passou 3.638 testes, com 207 ignorados.
 2. **P1 — S08/S10, fronteiras financeiras.** A revisão normativa dos campos
    cobertos foi concluída contra MPI 2.10.0/BR Code 2.0.1 em 2026-09-28;
-   repetir Demurrage sob roles reais no Preview; provar os
-   wrappers de ledger/readiness com BRL, USD, misto, revisão, cancelamento e
-   COD; reordenar/renderizar documentos. A impressão já explica a fração do
+   invoice avulsa de R$ 1,00 e payload PIX estático ficaram visíveis no Portal
+   autenticado em produção, sem pagamento. Foi reproduzido o KPI em R$ 0,00
+   contra saldo da invoice em R$ 1,00; a correção da RPC e a regressão autenticada
+   estão locais na migration `105`, ainda sem replay por ausência de PostgreSQL
+   local/WSL. Preview/CI e confirmação pós-publicação seguem pendentes. Também
+   falta repetir Demurrage sob roles reais no Preview; provar wrappers de
+   ledger/readiness com BRL, USD, misto, revisão, cancelamento e COD; e
+   reordenar/renderizar documentos. A impressão já explica a fração do
    container compartilhado. A consulta diagnóstica de 2026-09-28 encontrou
    zero grupos compartilhados na base de fixtures, resultado inconclusivo para
    ocorrências reais; reabrir a decisão se houver evidência operacional.
 3. **P1 — S06/S07, comunicação.** Migration 100 remove `status` da identidade
    única após preflight; a consulta somente leitura encontrou zero comunicados
-   e zero identidades duplicadas. Falta replay local/Preview, além de validar
-   limites do provedor, Edge e readiness. Manter `communications_enabled`
-   sem ativação: envio real depende da decisão D10 depois dos gates.
+   e zero identidades duplicadas. Um convite canário autorizado foi aceito pelo
+   provedor, entregue e ativado; isso não valida os limites do provedor, Edge,
+   readiness, inbox/outbox nem dunning automático. As migrations `100`–`104`
+   constam na produção. Manter `communications_enabled = false`.
 4. **P1 — S09, PTAX.** Validar Edge, gateway JWT, Vault e falha/recuperação no
-   Preview; provar uma execução agendada e idempotente antes de ativar o job.
-   A ativação operacional permanece sujeita à autorização D08.
+   Preview; a Edge consta ativa em produção, mas não há job em `cron.job`.
+   Provar uma execução agendada e idempotente antes de ativar o job; a ativação
+   operacional permanece sujeita à autorização D08.
 5. **P1 — S05, efeitos pós-commit.** Provar worker, retry, alertas e atualização
-   por unidade no Preview após as dependências S04/S08/S10; manter fail-closed
-   até aprovação específica de rollout.
+   por unidade no Preview após as dependências S04/S08/S10. A Edge consta ativa
+   em produção, sem job em `cron.job`; manter fail-closed até aprovação específica
+   de rollout.
 6. **P2 — S12, volume e leitura.** Provar refresh de 30 s e startup autenticado
-   no Preview; revisar materialização de exportações explícitas; medir o
+   no Preview; o Portal abriu com sessão ativa em produção, sem medição temporal
+   nem de carga. Revisar materialização de exportações explícitas; medir o
    profiler antes de memoizar/virtualizar. Só criar paginação de supressões se
    dados operacionais demonstrarem o teto; a base atual contém apenas fixtures.
-7. **P2 — S13, interação e acessibilidade.** Completar roteiro manual
-   autenticado de teclado, leitor de tela, tabelas restantes, modal sujo,
-   offline/reconnect e temas claro/escuro.
+7. **P2 — S13, interação e acessibilidade.** Evidência autenticada parcial em
+   produção: teclado abriu filtros do Portal e submeteu os formulários já
+   registrados em 1.0.22; completar leitor de tela, tabelas restantes, foco,
+   modal sujo, offline/reconnect e temas claro/escuro.
 8. **P2 — S14, rastreabilidade e legado.** Completar evidência de roles/RPCs e
    apurar consumidores externos das funções/colunas. Sem prova de ausência
    externa, manter funções fechadas e colunas; sem decisão D09, não restringir
@@ -607,8 +772,9 @@ como registro da execução.
    e site da mesma PR/SHA (a hospedagem corrente é Cloudflare Pages, conforme
    `docs/operations/servicos-externos.md`), migrations/Edge, perfis A/B e
    roteiro por domínio; comprovar SQL, roles, rollback/upgrade e atualizar a
-   documentação viva. Smoke de produção só após deploy autorizado, somente
-   leitura e sem fixtures ou mensagens de teste.
+   documentação viva. Foi autorizada e executada a exceção de produção descrita
+   em 1.0.20–1.0.23; fora desse recorte, manter o preflight read-only e não criar
+   fixtures nem enviar mensagens de teste sem autorização específica.
 
 Não marcar prova de runtime como concluída por código, teste local ou
 configuração gravada. Se ambiente, fixture, decisão ou observabilidade
@@ -946,8 +1112,9 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
   modal de resultado, e reabrir o resultado após recarregar. O painel lista
   status, tentativas, erro sanitizado, resultado concluído e retry auditado.
 - [x] O consumidor `demurrage_billing` existe e fica fail-closed/inativo até S08-B e rollout operacional.
-- [ ] Não ativar cron/worker sem prova Preview e autorização D10. O código e o
-  endpoint permanecem pausados por configuração, sem ativação nesta execução.
+- [ ] Não ativar cron/worker sem prova Preview e autorização D10. Consulta de
+  produção em 2026-09-29 encontrou Edge ativa, sem job `import-effects-runner`
+  em `cron.job`; nenhum worker foi disparado nem ativado nesta execução.
 - [x] Executar testes unitários/integração de efeitos, crash, timeout, dois workers, replay, dependência e lease; commits de referência: `d85a0558`, `ff44e1bb`.
 
 **Job proposto:** `import-effects-runner`, a cada cinco minutos (`*/5 * * * *`), via `ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET')`. Segredo homônimo no Vault e Edge, autenticação própria fail-closed e `verify_jwt` coerente, provados em Preview antes de ativação.
@@ -967,7 +1134,8 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Alinhar claim/sendable com desativação, caixas e supressões; retirar leitura de produção a `customer_contact_preferences` e revalidar antes do envio.
 - [x] Cobrir lote com inelegíveis à frente, sem starvation; claims pausados são liberados e regularização reabre elegibilidade.
 - [x] Implementar D11: grupos por cliente/ciclo, membership exata por invoice, uma entrega por destinatário, fixture de 12 invoices/3 contatos e grupos que atravessam o limite do claim.
-- [ ] Provar limites/provedor e ativação real conforme D10.
+- [ ] Provar limites/provedor e ativação real conforme D10. O convite canário
+  aceito em produção prova apenas o fluxo de convite, não o dunning.
 - [ ] Inventariar contagens acima de 1000 por cliente para decidir paginação server-side de supressões; não remover a mitigação atual antes da medição. Medição somente leitura em produção em 2026-09-26: `customer_communication_suppressions` = 0 e `portal_suppressed_emails` = 0; nenhum cliente perto de 1000. Inconclusivo por falta de volume (produção só tem fixture, ver AGENTS.md); repetir quando houver dados reais.
 - [x] Implementar D04: aviso externo de bounce respeita `communications_enabled`, enquanto supressão, reparo e alerta interno seguem ativos; testes cobrem chave ligada/desligada.
 - [x] Executar testes de caixas, elegibilidade, D04/D11 e integração SQL; commit de referência: `fa4781fb`.
@@ -989,6 +1157,9 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Trocar novas chaves de dunning para comunicação/contato/versão do destinatário, sem email em claro; não reescrever identidades históricas.
 - [x] Aplicar e validar a migration 100 em Supabase Preview descartável: preflight sem duplicatas, índice único sem `status` e `NULLS NOT DISTINCT` confirmados no catálogo, sem linhas copiadas; replay real no CI e Preview pareado ao SHA do PR passaram. A migration falha fechada sem apagar ou fundir comunicados e mantém referências às tentativas.
 - [x] Fechar readiness de `ce_mercante_taxas` na criação/claim/envio; a RPC server-side com locks e a revalidação do Edge impedem criação/claim/dispatch sem CE, revisão liberada e financeiro concluído para todos os B/Ls ativos. A prova de Preview/provedor permanece pendente.
+- [ ] Revalidar em runtime autorizado: um convite real foi aceito/ativado, mas
+  nenhuma comunicação de cliente foi criada; isso não cobre inbox, webhook nem
+  dispatch de `send-customer-communication`.
 - [x] Executar testes de webhook, dispatch, dunning e inbox; commit de referência: `ff44e1bb`.
 
 **Job proposto:** `portal-email-events-runner`, a cada minuto (`* * * * *`), via `ops.dispatch_edge_job('portal-email-events-runner', 'PORTAL_EMAIL_EVENTS_CRON_SECRET')`. Usar segredo dedicado homônimo no Vault/Edge e mesmas provas de autenticação de S09. Retry de processamento em 1, 5, 15, 60 e 360 minutos, seis tentativas totais; após esgotamento, manter registro bloqueado e alertar para investigação, sem descartar. Ajustar janela somente com evidência da latência real de vínculo de tentativa.
@@ -1059,6 +1230,8 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Tornar fetch BCB limitado e recuperável: timeout por tentativa, três tentativas para timeout/429/5xx com backoff/jitter, validação de schema/valor e alerta interno idempotente em falha persistente. A última cotação fica marcada como desatualizada e não é apresentada como nova.
 - [x] Implementar o contrato fail-closed do gateway/dispatcher e manter `verify_jwt` coerente com a autenticação própria; o código não aceita anon nem registra segredo.
 - [ ] Publicar/validar essa combinação no Preview real antes de ativar o job.
+  Produção tem Edge ativa e nenhum job `recalc-demurrage-ptax` em `cron.job`;
+  a execução agendada continua sem prova.
 - [x] Deixar o job nomeado e idempotente, com `RECALC_CRON_SECRET` referenciado pelo nome no SQL e sem `service_role` como segredo de cron; o agendamento saiu da migration por exigir privilégio operacional.
 - [ ] Criar/ativar o job no Vault/Edge/`pg_cron` do ambiente depois do aceite operacional.
 
@@ -1093,7 +1266,7 @@ SELECT cron.schedule(
 - [x] Criar teste de invoice local R$ 100,00, pagamento R$ 99,99 e comparação entre status, recebido e saldo do ledger, cobrindo caminho manual/PIX. A regressão do fechamento inconsistente de um centavo está coberta em `localBillingIntegrity.local-pg.test.ts`.
 - [x] Implementar D05 aprovada no núcleo SQL: qualquer saldo positivo, inclusive R$ 0,01, continua em aberto e a invoice parcialmente paga; manual e PIX local preservam recebido/saldo reais. A tolerância da janela Demurrage ADR 0015 permanece separada.
 - [x] Implementar reconciliação transacional, idempotência por evento e locks ordenados para pagamentos parciais, excedente/restituição, estorno e consolidação.
-- [ ] Ampliar a matriz de casos de runtime/COD e comprovar cada fluxo sob dados reais de Preview.
+- [ ] Ampliar a matriz de casos de runtime/COD e comprovar cada fluxo sob dados reais de Preview. A invoice avulsa de QA visível no Portal não exercita estes wrappers.
 - [x] Usar conjunto consistente de linhas elegíveis para necessidade de ROE, itens e totalização; isentos não entram no faturável e invoices vazias são bloqueadas.
 - [ ] Completar a prova operacional combinada BRL/USD/misto/review/cancelado em todos os wrappers.
 - [x] Manter precisão do rateio e a distribuição SQL do resíduo; o impresso identifica a fração e usa o total persistido. A cobertura local inclui compartilhamento/centavos.
@@ -1146,11 +1319,11 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 - [x] Separar resumo de viagem dos embeds de detalhe e concluir o snapshot/consulta de Line Up com omissões, POL documental, escala/atracação, somente embarque e vazios sem a consulta secundária B/L → containers.
 - [x] Fazer EmbarqueVazios, `agencyDepartureReport` e a leitura de Baplie consumirem a projeção/serviço comum, preservando terminais e relatórios fechados.
 - [x] Oferecer janela/“carregar mais” no Painel acima de 60 viagens e paginação com total/filtros nas listas de PortalBilling, incluindo wrappers de Inspeção.
-- [ ] Comprovar refresh de 30 s sem refazer a cadeia inteira em Preview.
+- [ ] Comprovar refresh de 30 s sem refazer a cadeia inteira em Preview. A sessão autenticada do Portal abriu em produção, mas o intervalo e o número de requests não foram medidos.
 - [ ] Se a medição S06 confirmar teto de supressão por cliente, adicionar RPC server-side filtrada/paginada; até lá manter a mitigação atual e registrar o gatilho.
 - [ ] Comparar profiler antes/depois e só aplicar memoização/virtualização onde custo e invalidação forem demonstrados.
 - [x] Executar os testes de listas/projeções e os gates da PR relacionados a filtros/contagens.
-- [ ] Executar `npm run perf:authenticated-startup` com credenciais de teste do Preview e anexar o resultado; o benchmark local 100/1.000/10.000 foi concluído em commit separado desta continuação.
+- [ ] Executar `npm run perf:authenticated-startup` com credenciais de teste do Preview e anexar o resultado; o benchmark local 100/1.000/10.000 foi concluído em commit separado desta continuação. A sessão autenticada de produção mostrou somente listas vazias e uma invoice; não é benchmark.
 
 **Compatibilidade / rollout:** RPCs de leitura novas antes dos hooks; remover consultas antigas depois de paridade. Novos índices com plano e custo conhecidos; migração não deve incluir alteração monetária. **Aceite:** página de 100 não transfere a tabela completa; requests por refresh permanecem limitados independentemente do número de linhas; histórico >60 é acessível; Portal A/B continua isolado; em 10000 B/Ls há redução mensurável de bytes e p95 vs baseline, com alvo definido no primeiro benchmark. **Residual:** totalizações ainda podem custar O(tabela) no servidor; EXPLAIN determina índice/cache, não promessa de custo constante. **Ordem:** depois de riscos de integridade; pode ser dividido em três PRs independentes por consumidor.
 
@@ -1185,7 +1358,7 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
   navegador entre arquivos; [ ] medir long tasks próximo do limite antes de
   decidir por worker ou mudança do teto de Baplie.
 - [x] Executar os testes de hidratação, modal, comunicação, debounce, `QueryStateGate` e sino; typecheck, lint, build e suíte integral da PR passaram.
-- [ ] Completar a evidência manual de teclado, leitor de tela, offline/reconnect e light/dark.
+- [ ] Completar a evidência manual de teclado, leitor de tela, offline/reconnect e light/dark. Evidência parcial em produção: `Tab` focou Filtros e `Enter` expandiu os controles de B/L/container; leitor de tela, modal sujo, foco de retorno e temas não foram cobertos.
 
 **Compatibilidade / rollout:** sem schema, alterações reversíveis; mensagens usam linguagem operacional, sem expor SQL/stacktrace. **Runtime:** teclado sem mouse, leitor de tela, duas abas, offline/reconnect, formulário sujo e light/dark em Preview autenticado; medir contraste e número de requests. **Aceite:** nenhuma falha de rede parece lista vazia/sucesso; todas as ações auditadas alcançáveis por teclado; foco retorna ao acionador; busca respeita 300 ms; listeners permanecem estáveis após mount/unmount. **Residual:** leitores de tela/latência reais não são cobertos só por jsdom; registrar teste manual. **Ordem:** entregar partes independentes cedo, sem esperar S12 completo.
 
@@ -1253,7 +1426,7 @@ Os nomes abaixo registram a sequência planejada e o estado observado na linha a
 | 13 | `mitigado` + `[ ] runtime` | Persistir efeitos e relatório de import | S05; `017_import_effects_outbox.sql` + `025_import_effect_worker.sql` + `026_import_effect_alert.sql` + `031_import_effect_consumers.sql` | Outbox/claim/lease/retry, consumidores server-side e painel reabrível por unidade passaram na prova local; Preview, secrets/Vault/Edge e ativação controlada do worker continuam pendentes. |
 | 14 | `[x]` + `[ ]` runtime | Fechar readiness de emissão e comunicação | S10/F12; `033_customer_communication_readiness_guards.sql` | Guarda server-side de comunicação aplicada em criação/claim/envio, com lock e identidade de sistema; gate de emissão/Portal e prova de runtime continuam pendentes. |
 | 15 | `[x]` + `[ ]` runtime | Persistir inbox e estados de envio | S07; migrations `022`, `032`, `038` e `100` | Inbox, dedup, stale events, recuperação, estado `parcial` e agregação da última tentativa estão implementados; migration 100, replay real no CI, Supabase Preview e publicação Pages pareada ao PR passaram. Execução autenticada dos fluxos, jobs, secrets e prova do provedor continuam pendentes. |
-| 16 | `[x]` + `[ ]` | Fechar ledger, status/itens e rateio do impresso | S10/F14; `019_local_billing_integrity.sql` | D05/R$0,01 e integração local passaram; casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
+| 16 | `[x]` + `[ ]` | Fechar ledger, status/itens, saldo avulso e rateio do impresso | S10/F14; `019_local_billing_integrity.sql`, `105_portal_manual_invoice_pending_balance.sql` | D05/R$0,01 e integração local passaram; a discrepância do KPI foi reproduzida e a RPC passou a agregar as mesmas origens canônicas de saldo mais invoices avulsas. Migration 105 ainda precisa de replay/CI e verificação runtime em Preview. Casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
 | 17 | `mitigado` + `[ ]` | Paginar listas e concluir projeção compartilhada | S12; `020_operational_read_pages.sql`, `035_operational_voyage_summaries.sql`, `036_operational_breakbulk_summary_metrics.sql`, `037_operational_voyage_summary_null_status.sql` e páginas Portal | Projeções, paginação/window, resumo de viagem sob demanda, Line Up sem waterfall de containers, resumo BB server-side, fallback forward de status nullable e filtros principais estão entregues; exportações sob demanda, refresh de Preview e profiler faltam. |
 | 18 | `mitigado` + `[ ]` | Debounce, offline, feedback e acessibilidade | S13; sem migration | Debounce, estados de erro/offline, hidratação, confirmações/menu e progresso/cancelamento nos modais múltiplos e customizados estão entregues; contraste, leitor de tela/foco manual e cessão entre blocos faltam. |
 | 19 | `[x]` + `[ ]` | Completar índice e gate de catálogo | S14/#659.7; scripts de docs/RPC catalog | `docs:check`, catálogo, replay, tipos e inspeção local das 14 candidatas passaram; famílias ausentes e prova externa ainda faltam. |
@@ -1358,7 +1531,7 @@ Os testes existentes de listeners, guarda de Preview e HSTS são **regressão**,
 - [ ] Usar clientes A/B e perfis internos sintéticos, faturas/containers e endereços QA controlados. Exercitar Inspeção sem sessão de Portal emprestada.
 - [ ] Executar roteiro por domínio, registrando SHA, migration, ambiente, passos, resultado e evidência; falha impeditiva permanece aberta. “Não executado” deve ter motivo, nunca ser apresentado como PASS.
 - [x] No PR, reportar checks do SHA efetivamente enviado. Seguir CLAUDE: acompanhar CI até concluir, corrigir falhas; não manter monitoramento até merge nem criar automação sem pedido. Evidência: PR #683 reporta o SHA `a2cb627c` e o run `34553981173`, acompanhado até todos os checks concluírem com sucesso.
-- [ ] Após deploy autorizado, produção recebe preflight somente leitura e smoke do fluxo permitido, sem fixtures QA nem mensagens reais de teste. Operação financeira real ou envio ao cliente exige autorização e caso de negócio apropriado.
+- [x] Preflight somente leitura e smoke autenticado parcial executados sob a exceção autorizada: fixture sintética, um convite real ao email de QA indicado, abertura de invoice/Pix sem pagamento e leitura de listas no Portal. `communications_enabled` permanece `false`; digest somente aos dois administradores ativos, conforme autorização específica; reset permanece com o usuário. Evidência em 1.0.20–1.0.23.
 
 ## 7. Estratégia de rollout, migração e rollback
 

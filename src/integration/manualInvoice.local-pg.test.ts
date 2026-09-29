@@ -124,6 +124,13 @@ describeLocal('fatura avulsa flexível — PostgreSQL local', () => {
 
   afterAll(cleanup)
 
+  it('inclui o saldo das faturas avulsas no resumo autenticado do Portal', () => {
+    createInvoice(customerA, 'Saldo avulso no Portal', { quantity: 1, unitValue: 1 })
+    const overview = JSON.parse(asUser(`SELECT public.portal_get_session_overview_v2();`, portalAId)) as { pending_balance: number }
+
+    expect(overview.pending_balance).toBe(1)
+  })
+
   it('emite sem contexto, com viagem e com BL, calculando o total no banco', () => {
     const noContext = createInvoice(customerA, 'Taxa administrativa', { description: 'Sem referência operacional', quantity: 2, unitValue: 125.5 })
     const voyageOnly = createInvoice(customerA, 'Acompanhamento', { voyageId: voyageA })
