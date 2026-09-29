@@ -675,11 +675,14 @@ registrada.
 - No SHA `e4a83110`, o replay Postgres e o Supabase Preview passaram; a revisão
   dos logs revelou que o job SQL não incluía esta regressão na sua lista
   explícita. O workflow foi atualizado para executar
-  `manualInvoice.local-pg.test.ts`. Essa suite expôs um perfil de teste usando
-  o papel removido `admin` após a migration 093; a fixture foi atualizada para
-  `administrativo` e o novo SHA aguarda CI. A confirmação runtime do KPI no
-  Portal Preview e a publicação continuam pendentes; produção não foi alterada
-  por esta correção.
+  `manualInvoice.local-pg.test.ts`. Essa suíte expôs um perfil de teste usando
+  o papel removido `admin` após a migration 093 e, em seguida, um `UPDATE` de
+  fixture sem filtro por cliente. A fixture agora usa `administrativo` e altera
+  somente os dois clientes sintéticos que cria. No SHA `572b9c02`, build,
+  lint/docs, testes, guard de segurança, replay real do Postgres e Supabase
+  Preview passaram. A PR #795 está aberta como draft e mergeable. A confirmação
+  runtime do KPI no Portal Preview e a publicação continuam pendentes; produção
+  não foi alterada por esta correção.
 
 ### 1.1 Baseline e alcance da evidência
 
@@ -736,8 +739,9 @@ como registro da execução.
    invoice avulsa de R$ 1,00 e payload PIX estático ficaram visíveis no Portal
    autenticado em produção, sem pagamento. Foi reproduzido o KPI em R$ 0,00
    contra saldo da invoice em R$ 1,00; a correção da RPC e a regressão autenticada
-   estão locais na migration `105`, ainda sem replay por ausência de PostgreSQL
-   local/WSL. Preview/CI e confirmação pós-publicação seguem pendentes. Também
+   estão na PR #795 (`105`). Replay PostgreSQL e CI passaram no SHA `572b9c02`,
+   e a migration foi aplicada no Supabase Preview. Falta confirmar o KPI no site
+   Preview após merge/publicação; produção não foi alterada por esta correção. Também
    falta repetir Demurrage sob roles reais no Preview; provar wrappers de
    ledger/readiness com BRL, USD, misto, revisão, cancelamento e COD; e
    reordenar/renderizar documentos. A impressão já explica a fração do
