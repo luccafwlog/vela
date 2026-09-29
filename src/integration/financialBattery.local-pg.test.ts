@@ -146,6 +146,10 @@ function cleanup(): void {
     DELETE FROM public.portal_provisioning_events WHERE customer_id = ${customerId};
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
     DELETE FROM public.bls WHERE id = ANY(ARRAY['${allBlIds.join("','")}']::text[]);
+    DELETE FROM public.pricing_rule_versions
+    WHERE charge_table_id = ${chargeTableId}
+      AND charge_item_id = ${chargeItemId}
+      AND customer_id = ${customerId};
     DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
     DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
     DELETE FROM public.voyages WHERE id = ${voyageId};
@@ -296,6 +300,20 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
         : 'DELETE FROM public.exchange_rate_reference WHERE id = 1;'}
     `)
     cleanup()
+    const seedGuardCounts = JSON.parse(psql(`
+      SELECT json_build_object(
+        'charge_calculations', (SELECT count(*) FROM public.charge_calculations),
+        'customer_rate_overrides', (SELECT count(*) FROM public.customer_rate_overrides),
+        'invoice_items_with_tariffs', (SELECT count(*) FROM public.invoice_items WHERE charge_table_id IS NOT NULL OR charge_item_id IS NOT NULL),
+        'pricing_rule_versions_with_tariffs', (SELECT count(*) FROM public.pricing_rule_versions WHERE charge_table_id IS NOT NULL OR charge_item_id IS NOT NULL)
+      );
+    `)) as Record<string, number>
+    expect(seedGuardCounts).toEqual({
+      charge_calculations: 0,
+      customer_rate_overrides: 0,
+      invoice_items_with_tariffs: 0,
+      pricing_rule_versions_with_tariffs: 0,
+    })
   })
 
   it('H13 — consolida, congela rateio, cobre individuais e permite estorno/reemissao auditados', () => {

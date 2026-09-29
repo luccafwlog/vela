@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   showToast: vi.fn(),
   confirm: vi.fn(),
   useCustomers: vi.fn(),
+  useCustomerSummary: vi.fn(),
   createCustomer: vi.fn(),
   parseCustomerBaseFile: vi.fn(),
   compareCustomerBaseWithExisting: vi.fn(),
@@ -39,9 +40,7 @@ vi.mock('../../hooks/useAuth', () => ({
 }))
 vi.mock('../../hooks/useCustomers', () => ({
   useCustomers: mocks.useCustomers,
-  useCustomerSummary: () => ({
-    data: { pendingBalance: 150, totalCustomers: 1, totalBls: 1, chargePending: 1, chargeReady: 0 },
-  }),
+  useCustomerSummary: mocks.useCustomerSummary,
   filterCustomerRowsByClientSideFilters: (rows: unknown[]) => rows,
 }))
 vi.mock('../../hooks/usePortalProvisioning', () => ({
@@ -121,7 +120,12 @@ describe('Clientes page behaviours', () => {
       data: { rows: [customer], totalCount: 101 },
       isLoading: false,
       error: null,
+      fetchStatus: 'idle',
+      refetch: vi.fn(),
     }))
+    mocks.useCustomerSummary.mockReturnValue({
+      data: { pendingBalance: 150, totalCustomers: 1, totalBls: 1, chargePending: 1, chargeReady: 0 },
+    })
     mocks.createCustomer.mockResolvedValue({ cnpj_cpf: '12345678000195' })
     mocks.parseCustomerBaseFile.mockResolvedValue(parsedBase)
     mocks.compareCustomerBaseWithExisting.mockResolvedValue(parsedBase)
@@ -147,7 +151,38 @@ describe('Clientes page behaviours', () => {
     mocks.supabaseFrom.mockReturnValue(exportQuery)
   })
 
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true })
+  })
+
+  it('does not present an uncached customer list as empty while offline', () => {
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false })
+    mocks.useCustomers.mockReturnValue({ data: undefined, isLoading: false, error: null, fetchStatus: 'paused', refetch: vi.fn() })
+    mocks.useCustomerSummary.mockReturnValue({ data: undefined })
+
+    renderPage()
+
+    expect(screen.getByRole('status').textContent).toContain('Sem conexão no momento.')
+    expect(screen.queryByText('Nenhum cliente encontrado.')).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Clientes filtrados' })).toBeNull()
+  })
+
+  it('keeps cached customer rows visible with an offline notice', () => {
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false })
+    mocks.useCustomers.mockReturnValue({
+      data: { rows: [customer], totalCount: 1 },
+      isLoading: false,
+      error: null,
+      fetchStatus: 'paused',
+      refetch: vi.fn(),
+    })
+
+    renderPage()
+
+    expect(screen.getByRole('status').textContent).toContain('Você está offline. Exibindo dados salvos')
+    expect(screen.getByRole('row', { name: /Cliente Teste/ })).toBeTruthy()
+  })
 
   it('creates a customer, invalidates customer caches, closes and resets the modal', async () => {
     const user = userEvent.setup()

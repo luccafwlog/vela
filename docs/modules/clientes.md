@@ -1,6 +1,6 @@
 # Clientes
 
-> **Status:** ativo · **Atualizado:** 2026-09-23 · **Rotas:** `/clientes`, `/clientes/:cnpj`, `/clientes/comunicacao`
+> **Status:** ativo · **Atualizado:** 2026-09-29 · **Rotas:** `/clientes`, `/clientes/:cnpj`, `/clientes/comunicacao`
 
 ## Propósito e escopo
 
@@ -30,7 +30,8 @@ Fontes executáveis principais: `src/pages/Clientes.tsx`, `src/pages/ClientesCom
 - tabela paginada em 50 linhas, ordenável por cliente, quantidade de B/Ls e saldo;
 - seleção por linha/página e exclusão controlada, visíveis somente para admin;
 - atalhos para ficha e faturamento, criação manual, importação da base e exportação XLSX;
-- estados explícitos de loading, erro e vazio; modais de cadastro e preview da planilha.
+- estados explícitos de carregamento, erro, vazio e indisponibilidade; com cache offline, a tabela continua visível com aviso de desatualização; sem cache, os dados derivados e a tabela são substituídos pelo estado de conexão, não por zeros/lista vazia;
+- modais de cadastro e preview da planilha.
 
 A consulta usa paginação no Supabase apenas no caso simples. Filtros dependentes de contatos/saldo e ordenações calculadas carregam o conjunto candidato, filtram/ordenam no cliente e só depois recortam a página (`src/hooks/useCustomers.ts`).
 
@@ -248,8 +249,9 @@ Os testes históricos abaixo foram inspecionados na cartografia; os contratos do
 | `src/services/__tests__/sendCustomerCommunicationFunction.test.ts` | **Teste de contrato** | Auth/permissão, natureza, preferência, supressões, RPC atômica e simulação sem Resend | Contrato textual da Function; não prova deploy ou envio externo. |
 | `src/services/__tests__/comunicadosAnexosMigration.test.ts` | **Teste de contrato SQL** | Bucket privado, limites/MIME, RLS de Storage/templates e RPC atômica | Não executa PostgreSQL nem confirma migration aplicada. |
 | `src/services/__tests__/comunicadosAlertasMigration.test.ts` | **Teste de contrato SQL** | Catálogo e detectores NOA/NOR/NOB/bounce, janelas e runner server-only | Não executa o scheduler remoto. |
+| `src/pages/__tests__/Clientes.behavior.test.tsx` | **Teste** de comportamento | Sem cache offline mostra indisponibilidade; com cache mantém linhas e avisa que estão salvas | Não simula browser/rede real; Preview é validado separadamente. |
 
-**Runtime não executado.** Validação futura precisa registrar ambiente e dados controlados para: criar cliente e contatos; importar XLSX/CSV com duplicatas, erros e B/L retroativo; editar mestre e conferir `audit_logs`; provisionar/criar/resetar/desativar usuário Auth real; tentar ativação sem `auth_user_id`; excluir lote misto e conferir bloqueios, RLS, cascatas/SET NULL e auditoria.
+**Runtime:** no Preview #797, SHA `70f39333`, em 2026-09-29, foi testado `/clientes` autenticado como `Preview Admin`. Offline com cache, o cliente e os resumos permaneceram visíveis com aviso de dados salvos. Um filtro novo em modo offline, sem cache para a query, mostrou indisponibilidade sem tabela nem KPIs; ao reconectar, a leitura retomou e limpar o filtro restaurou o cliente. A validação cadastral restante precisa registrar ambiente e dados controlados para: criar cliente e contatos; importar XLSX/CSV com duplicatas, erros e B/L retroativo; editar mestre e conferir `audit_logs`; provisionar/criar/resetar/desativar usuário Auth real; tentar ativação sem `auth_user_id`; excluir lote misto e conferir bloqueios, RLS, cascatas/SET NULL e auditoria.
 
 ### Provisionamento do Portal
 
