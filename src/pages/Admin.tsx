@@ -148,6 +148,8 @@ export function Admin() {
   })
 
   async function handleToggleActive(id: string, current: boolean) {
+    const targetUser = users.find((u) => u.id === id)
+    const userName = targetUser?.full_name ?? 'este usuário'
     const confirmed = await confirm({
       title: current ? 'Desativar usuário' : 'Ativar usuário',
       message: current
@@ -155,6 +157,12 @@ export function Admin() {
         : 'Reativar este usuário restaura o acesso dele ao sistema. Confirmar?',
       confirmLabel: current ? 'Desativar' : 'Ativar',
       tone: current ? 'danger' : 'primary',
+      consequence: current
+        ? `O acesso de ${userName} será revogado e sua sessão no sistema será encerrada imediatamente.`
+        : `O acesso de ${userName} será reativado e o usuário poderá fazer login novamente.`,
+      reversibility: current
+        ? 'O usuário pode ser reativado a qualquer momento no painel administrativo.'
+        : 'O usuário pode ser desativado novamente caso necessário.',
     })
     if (!confirmed) return
     setPendingId(id)
@@ -166,11 +174,21 @@ export function Admin() {
   }
 
   async function handleSetProfile(user: AdminUserRow, role: UserProfileRole) {
+    if (user.role === role) return
     const confirmed = await confirm({
       title: 'Alterar setor',
       message: `${user.full_name} passa a ter o acesso de ${PROFILE_LABELS[role]}: ${PROFILE_SCOPES[role]}`,
       confirmLabel: 'Alterar setor',
       tone: 'primary',
+      changes: [
+        {
+          field: 'Setor de acesso',
+          before: PROFILE_LABELS[user.role] ?? user.role,
+          after: PROFILE_LABELS[role],
+        },
+      ],
+      consequence: `O usuário passará a ter permissões correspondentes ao perfil ${PROFILE_LABELS[role]}.`,
+      reversibility: 'O setor de acesso pode ser redefinido novamente a qualquer momento no painel administrativo.',
     })
     if (!confirmed) return
     setPendingId(user.id)

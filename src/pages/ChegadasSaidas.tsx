@@ -287,15 +287,6 @@ export function ChegadasSaidas() {
       return
     }
     const cleared = editingId && originalForm ? clearedPodLabels(originalForm, formData) : []
-    if (cleared.length > 0) {
-      const confirmed = await confirm({
-        title: 'Marcar como “não escala”',
-        message: `${cleared.join(', ')}: a escala sai da Viagem e do Line-Up quando não tem B/L, ATA nem manifesto. Com vínculo, só a data sai do Portal.`,
-        confirmLabel: 'Confirmar',
-        tone: 'danger',
-      })
-      if (!confirmed) return
-    }
 
     const changes = editingId && originalForm
       ? [
@@ -310,19 +301,27 @@ export function ChegadasSaidas() {
         ].filter((c) => c.before !== c.after)
       : []
 
+    if (editingId && changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return
+    }
+
+    const consequence = cleared.length > 0
+      ? `A programação atualizada será visível publicamente no Portal em Chegadas e Saídas. Escalas marcadas como “não escala” (${cleared.join(', ')}): a escala sai da Viagem e do Line-Up quando não tem B/L, ATA nem manifesto; com vínculo, só a data sai do Portal.`
+      : 'A programação atualizada será visível publicamente no Portal em Chegadas e Saídas.'
+
     const saveConfirmed = await confirm({
       title: editingId ? 'Salvar programação da viagem' : 'Publicar programação da viagem',
       message: editingId
         ? `Salvar as alterações na programação do navio ${formData.vesselName} (VOY ${formData.voyageNumber})?`
         : `Publicar a viagem do navio ${formData.vesselName} (VOY ${formData.voyageNumber}) no Portal?`,
       confirmLabel: editingId ? 'Salvar alterações' : 'Publicar viagem',
+      tone: cleared.length > 0 ? 'danger' : 'primary',
       changes: changes.length > 0 ? changes : undefined,
       affected: !editingId
         ? { summary: `${formData.vesselName} · VOY ${formData.voyageNumber} · ${pods.length} porto(s) com data prevista` }
-        : changes.length === 0
-          ? { summary: 'Nenhum campo foi alterado nesta edição.' }
-          : undefined,
-      consequence: 'A programação atualizada será visível publicamente no Portal em Chegadas e Saídas.',
+        : undefined,
+      consequence,
       reversibility: 'A viagem e suas datas podem ser editadas novamente na programação.',
     })
     if (!saveConfirmed) return

@@ -101,7 +101,6 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
     if (manualChargeForm.editingChargeCalculationId) {
       const line = localChargeSummary.lines.find((entry) => entry.id === manualChargeForm.editingChargeCalculationId)
       const changes = [
-        { field: 'Item de taxa', before: line?.charge_name ?? '', after: itemName },
         { field: 'Quantidade', before: String(Number(line?.quantity ?? 1)), after: String(quantity) },
         { field: 'Observações', before: line?.notes ?? '', after: manualChargeForm.notes.trim() },
       ].filter((c) => c.before !== c.after)
