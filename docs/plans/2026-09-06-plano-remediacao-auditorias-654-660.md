@@ -379,15 +379,18 @@ ser promovido a concluído apenas porque o caminho principal está verde.
   sujo/offline e ceder execução entre blocos. O progresso/cancelamento dos
   uploads customizados está implementado; não introduzir worker ou
   virtualização sem benchmark.
-- [ ] **S14 residual:** completar mapa literal rota → hook → service → RPC →
-  tabela → teste; provar consumidores externos e dados das quatro colunas antes
-  de qualquer `DROP RESTRICT`; manter funções fechadas se a ausência externa não
-  puder ser provada e deixar DV sem bloqueio até decisão de dados reais.
+- [x] **S14 — disposição da rodada atual (sem `DROP`):** mapa e gates executados;
+  busca externa cobriu todos os heads/tags acessíveis, ACL confirmou as funções
+  fechadas para `anon`/`authenticated`, e contagens cobriram colunas e CNPJ em
+  produção/Preview. Como a ausência em integrações não observáveis não pode ser
+  provada e as tabelas têm pouco volume, funções/colunas são retidas, sem
+  endurecer login; essa investigação aceita deve reabrir se surgirem dados reais
+  ou consumidores observáveis.
 
 **Regra de encerramento:** marcar um bullet como `[x]` somente depois de
 implementar, testar e registrar a evidência específica. Não marcar uma seção
-inteira por herança: S04/S05, S08-C, S09 runtime, S10, S12, S13 e S14 ainda
-têm bullets abertos. O plano só pode ser arquivado quando esses bullets
+inteira por herança: S04/S05, S08-C, S09 runtime, S10, S12 e S13 ainda têm
+bullets abertos. O plano só pode ser arquivado quando esses bullets
 estiverem concluídos, aceitos formalmente ou reclassificados com uma decisão
 registrada.
 
@@ -708,23 +711,107 @@ registrada.
   mergeada. O upload da fixture B/L continua sem execução: o seletor de arquivo
   não abriu no navegador integrado. Nenhum B/L ou container foi criado.
 
-### 1.0.26 Escape na barra de filtros — 2026-09-29
+### 1.0.26 Disposição S14 e recontagem de DV — 2026-09-29
 
-- **Runtime — produção, diagnóstico:** a barra de filtros abria por teclado,
-  mas Escape não a fechava quando o foco estava em um campo comum nem devolvia
-  o foco ao acionador. A observação identifica um problema compartilhado; não
-  representa validação da correção publicada. Reproduzido em 2026-09-29 na
-  sessão autenticada de produção, app `3b17d559`: Escape em “Buscar B/L ou
-  cliente” deixou a barra aberta e o foco no campo; no combobox “Viagem”, o
-  primeiro Escape fechou a lista e o segundo não fechou a barra nem moveu foco.
-- **Código/Teste local:** `FilterBar` fecha com Escape dentro do corpo e devolve
-  o foco ao botão. Se o foco estiver num controle expandido, como `Combobox`,
-  o primeiro Escape permanece com o controle interno e o seguinte fecha a
-  barra. `src/components/ui/__tests__/FilterBar.behavior.test.tsx` cobre os
-  dois fluxos. Na branch baseada em `3b17d559`, passaram o teste focado,
-  `npm test` (667 arquivos, 3.633 passaram, 209 ignorados), lint completo,
-  typecheck, build, `docs:check` e `git diff --check`. Preview autenticado ainda
-  precisa confirmar a correção publicada.
+- Busca literal nos três repositórios externos acessíveis (somente `main`, sem
+  outras branches ou tags), com hashes registrados na seção S14, não encontrou
+  consumidores das 14 funções nem referências às quatro colunas. Em produção e
+  Preview, `anon`/`authenticated` têm `EXECUTE = false` nas 14 funções.
+- Contagem somente leitura: produção tem 1 cliente e 1 conta Portal, ambos com
+  DV válido; zero ausentes/inválidos. Preview não tem clientes/contas. São
+  fixtures conforme `AGENTS.md`.
+- As quatro colunas tiveram 0 valores preenchidos (produção: `alerts.notified_at`
+  0/2; demais 0/0; Preview todas 0/0). A busca no código vivo encontrou somente
+  tipos gerados. Permanecem retidas por falta de evidência para descarte; não
+  houve `DROP`, alteração de grants ou endurecimento do login.
+- O comentário do contrato de login foi alinhado ao estado atual. `npm run
+  docs:check` e `git diff --check` passaram. Limite registrado: não há prova de
+  ausência em integrações externas fora dos repositórios acessíveis.
+
+### 1.0.27 Reteste operacional de S05/S09/S12/S13 — 2026-09-29
+
+- A branch Supabase da PR #795 permanece `ACTIVE_HEALTHY`, sem clone dos dados
+  de produção; Pages e banco continuam pareados no Preview. A consulta somente
+  leitura confirmou `communications_enabled = false`, zero clientes/B/Ls/
+  containers/invoices, o perfil sintético administrativo presente e somente
+  três jobs ativos: `customer-communication-auto-runner`, `demurrage-dunning`
+  e `portal-daily-digest`. Os jobs `import-effects-runner`,
+  `portal-email-events-runner` e `recalc-demurrage-ptax` continuam ausentes.
+  Nenhuma configuração ou job foi alterado.
+- S12: captura de rede somente leitura por 31 s na tela `/bls` de produção
+  registrou uma chamada `count_unread_internal_notifications` e nenhuma chamada
+  de lista B/L. A rota alvo `/line-up-tv/display`, aberta em nova aba e depois
+  na aba anterior, exibiu “Perfil não provisionado”. A janela medida não foi a
+  TV autenticada nem o Preview; portanto não prova o refresh de 30 s, o volume
+  do read model ou o startup autenticado e não fecha S12.
+- S13: a sessão de runtime deixou de apresentar um perfil interno ativo ao
+  navegar por rota direta. Não foi possível executar o roteiro de teclado,
+  leitor de tela, modal sujo, offline/reconnect e temas no Preview autenticado.
+- A seleção da fixture sintética `.xlsx` no modal de produção não disparou um
+  file chooser controlável pela sessão do navegador; o arquivo não foi enviado,
+  a prévia não foi gerada e nenhum B/L/container novo foi gravado. Nenhuma
+  permissão da extensão foi alterada. S03/S04/S05 runtime permanecem abertos.
+- Sem autenticação utilizável no Preview, credenciais não disponíveis para o
+  harness e dependências de segredo/aceite operacional ausentes, S05–S10 e os
+  roteiros completos S12/S13 permanecem pendentes. A evidência desta tentativa
+  não substitui os respectivos critérios de aceite.
+
+### 1.0.28 Revalidação local S08/S09/S10 — 2026-09-29
+
+- PostgreSQL 16 descartável `vela_plan_qa`, isolado dos bancos existentes,
+  recebeu os shims locais e replay limpo das 104 migrations ativas.
+- Seis suítes locais passaram: `localBillingIntegrity`,
+  `customerCommunicationReadinessGuards`, `financialBattery`,
+  `demurrageMoney`, `demurrageAuthority` e `exchangeRateIntegrity` — 17 testes.
+  A evidência exercita contratos SQL, rollback e roles simuladas no Postgres
+  local; não substitui Auth/PostgREST/RLS/Edge do Supabase Preview nem runtime.
+- O contrato do teste de readiness agora verifica `ce_mercante_ausente`, código
+  estável presente no detalhe estruturado, em vez de depender da mensagem
+  localizada pelo PostgreSQL. Isso permite a asserção sob a codificação de
+  mensagens do host Windows.
+- S10: a reexecução condicionada ao readiness já implementado está concluída;
+  a prova operacional combinada e renderização autenticada seguem pendentes.
+  S08/S09 mantêm os bullets de runtime/Preview e job real abertos.
+
+### 1.0.29 Reteste local S04/S05 e barreira HTTP do Preview — 2026-09-29
+
+- No mesmo PostgreSQL 16 descartável, `importEffects.local-pg.test.ts` e
+  `importAtomicity.local-pg.test.ts` passaram: 8 testes para recuperação,
+  dependências, lease, alerta, consumidor Granito e atomicidade da importação.
+- No Supabase Preview da PR #795, um POST sem autorização a
+  `import-effects-runner` retornou HTTP 401 `unauthorized`. Consulta posterior
+  confirmou 0 jobs alvo, 0 entradas Vault com nomes do runner/PTAX, 0 clientes,
+  0 efeitos pendentes e a resposta 401 armazenada. A chamada não criou fixture
+  nem alterou a configuração; confirma somente a recusa anônima.
+- **S04/S05 runtime ainda aberto:** não foi enviado bearer válido nem processado
+  efeito no Preview. Retry/alerta após falha, atualização por unidade, segredo,
+  flag de ativação e job continuam sem prova operacional; nenhuma ativação foi
+  feita. O runtime S04 por importação via UI também continua pendente.
+
+### 1.0.30 Dispatcher PTAX fail-closed no Preview — 2026-09-29
+
+- No banco Preview da PR #795, consulta confirmou ausência de `SUPABASE_URL`,
+  `RECALC_CRON_SECRET` e do job `recalc-demurrage-ptax`. A chamada manual somente
+  ao dispatcher `ops.dispatch_edge_job('recalc-demurrage-ptax',
+  'RECALC_CRON_SECRET')` retornou `NULL`, sem enfileirar HTTP; o log Postgres às
+  `2026-09-29T06:18:05Z` registrou `Vault sem SUPABASE_URL e/ou
+  RECALC_CRON_SECRET; job recalc-demurrage-ptax nao disparado`.
+- Isso comprova somente a recusa e o aviso quando o Vault está vazio. Gateway
+  com bearer válido, atualização de invoice aberta/paga, recuperação idempotente
+  e execução agendada permanecem pendentes; nenhum secret/job foi criado.
+
+### 1.0.31 Escape na barra de filtros — 2026-09-29
+
+- Na revisão manual de teclado da produção, Escape não fechava a barra de filtros
+  quando o foco estava em um campo comum nem devolvia o foco ao acionador. O
+  primeiro Escape dentro de um Combobox deve continuar fechando somente o
+  controle expandido.
+- `FilterBar` agora fecha a barra no Escape e devolve o foco ao acionador; o
+  controle expandido consome o primeiro Escape. `FilterBar.behavior.test.tsx`
+  cobre ambos os fluxos. Na branch baseada no SHA `3b17d559`, passaram teste
+  focado, suíte integral (667 arquivos, 3.633 aprovados, 209 ignorados), lint,
+  typecheck, build, `docs:check` e `git diff --check`. Revalidar CI após integrar
+  a base atual. Publicação e confirmação autenticada no Preview continuam abertas.
 
 ### 1.1 Baseline e alcance da evidência
 
@@ -793,28 +880,32 @@ como registro da execução.
    zero grupos compartilhados na base de fixtures, resultado inconclusivo para
    ocorrências reais; reabrir a decisão se houver evidência operacional.
 3. **P1 — S06/S07, comunicação.** Migration 100 remove `status` da identidade
-   única após preflight; a consulta somente leitura encontrou zero comunicados
-   e zero identidades duplicadas. Um convite canário autorizado foi aceito pelo
-   provedor, entregue e ativado; isso não valida os limites do provedor, Edge,
-   readiness, inbox/outbox nem dunning automático. As migrations `100`–`104`
-   constam na produção. Manter `communications_enabled = false`.
-4. **P1 — S09, PTAX.** Validar Edge, gateway JWT, Vault e falha/recuperação no
-   Preview; a Edge consta ativa em produção, mas não há job em `cron.job`.
-   Provar uma execução agendada e idempotente antes de ativar o job; a ativação
-   operacional permanece sujeita à autorização D08.
-5. **P1 — S05, efeitos pós-commit.** Provar worker, retry, alertas e atualização
-   por unidade no Preview após as dependências S04/S08/S10. A Edge consta ativa
-   em produção, sem job em `cron.job`; manter fail-closed até aprovação específica
-   de rollout.
+   única após preflight; um convite canário autorizado foi entregue/ativado, mas
+   não valida dunning nem envio automático. No Preview da PR #795, a chave está
+   falsa, não há customers/invoices/attempts, e jobs legados de comunicação
+   executaram sem registros de email. Isso não prova limites do provedor,
+   readiness, inbox/outbox ou retry. As migrations `100`–`104` constam na
+   produção; manter envios globais desligados.
+4. **P1 — S09, PTAX.** Edge ativa em produção e Preview; o dispatcher no Preview
+   agora foi observado recusando e avisando quando Vault/secret faltam. Não há
+   job `recalc-demurrage-ptax`; bearer válido, atualização financeira, recuperação
+   idempotente e execução agendada continuam sem prova. Ativação operacional
+   segue sujeita à autorização D08.
+5. **P1 — S05, efeitos pós-commit.** Edge ativa em produção e Preview; não há
+   job `import-effects-runner`. Falta provar worker, retry, alertas e atualização
+   por unidade no Preview com as dependências S04/S08/S10; manter fail-closed até
+   aceite operacional específico.
 6. **P2 — S12, volume e leitura.** Provar refresh de 30 s e startup autenticado
    no Preview; o Portal abriu com sessão ativa em produção, sem medição temporal
    nem de carga. Revisar materialização de exportações explícitas; medir o
    profiler antes de memoizar/virtualizar. Só criar paginação de supressões se
    dados operacionais demonstrarem o teto; a base atual contém apenas fixtures.
-7. **P2 — S13, interação e acessibilidade.** Evidência autenticada parcial em
-   produção: teclado abriu filtros do Portal e submeteu os formulários já
-   registrados em 1.0.22; completar leitor de tela, tabelas restantes, foco,
-   modal sujo, offline/reconnect e temas claro/escuro.
+7. **P2 — S13, interação e acessibilidade.** A inspeção estática de 2026-09-29
+   nomeou as tabelas principais de operação, financeiro, importação e Portal; as
+   colunas ordenáveis já expõem `aria-sort` e os demais controles de cabeçalho
+   encontrados selecionam linhas. Continua pendente o roteiro autenticado em
+   Preview com leitor de tela, foco, teclado, modal sujo, offline/reconnect e
+   temas claro/escuro.
 8. **P2 — S14, rastreabilidade e legado.** Completar evidência de roles/RPCs e
    apurar consumidores externos das funções/colunas. Sem prova de ausência
    externa, manter funções fechadas e colunas; sem decisão D09, não restringir
@@ -1164,9 +1255,11 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
   modal de resultado, e reabrir o resultado após recarregar. O painel lista
   status, tentativas, erro sanitizado, resultado concluído e retry auditado.
 - [x] O consumidor `demurrage_billing` existe e fica fail-closed/inativo até S08-B e rollout operacional.
-- [ ] Não ativar cron/worker sem prova Preview e autorização D10. Consulta de
-  produção em 2026-09-29 encontrou Edge ativa, sem job `import-effects-runner`
-  em `cron.job`; nenhum worker foi disparado nem ativado nesta execução.
+- [ ] Não ativar cron/worker sem prova Preview e autorização D10. Em 2026-09-29,
+  a Edge `import-effects-runner` estava ativa em produção e Preview, mas nenhum
+  dos ambientes tinha esse job em `cron.job`; não houve execução do worker.
+  No Preview da PR #795, `communications_enabled=false`, 0 customers/invoices,
+  e 0 tentativas de email nos últimos 24 h.
 - [x] Executar testes unitários/integração de efeitos, crash, timeout, dois workers, replay, dependência e lease; commits de referência: `d85a0558`, `ff44e1bb`.
 
 **Job proposto:** `import-effects-runner`, a cada cinco minutos (`*/5 * * * *`), via `ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET')`. Segredo homônimo no Vault e Edge, autenticação própria fail-closed e `verify_jwt` coerente, provados em Preview antes de ativação.
@@ -1187,8 +1280,15 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Cobrir lote com inelegíveis à frente, sem starvation; claims pausados são liberados e regularização reabre elegibilidade.
 - [x] Implementar D11: grupos por cliente/ciclo, membership exata por invoice, uma entrega por destinatário, fixture de 12 invoices/3 contatos e grupos que atravessam o limite do claim.
 - [ ] Provar limites/provedor e ativação real conforme D10. O convite canário
-  aceito em produção prova apenas o fluxo de convite, não o dunning.
-- [ ] Inventariar contagens acima de 1000 por cliente para decidir paginação server-side de supressões; não remover a mitigação atual antes da medição. Medição somente leitura em produção em 2026-09-26: `customer_communication_suppressions` = 0 e `portal_suppressed_emails` = 0; nenhum cliente perto de 1000. Inconclusivo por falta de volume (produção só tem fixture, ver AGENTS.md); repetir quando houver dados reais.
+  aceito em produção prova apenas o fluxo de convite, não o dunning. Em 2026-09-29,
+  o Preview da PR #795 tinha `communications_enabled=false`, sem customers,
+  invoices ou comunicações; isso não exercita provider/readiness nem autoriza
+  liberar envios de clientes.
+- [x] Revalidar o gatilho de paginação server-side de supressões: em 2026-09-29,
+  `customer_communication_suppressions` e `portal_suppressed_emails` têm 0 linhas
+  em produção e no Preview; nenhum cliente se aproxima de 1000. Não há volume
+  real para justificar paginação; manter a mitigação atual e reavaliar quando
+  houver dados operacionais reais.
 - [x] Implementar D04: aviso externo de bounce respeita `communications_enabled`, enquanto supressão, reparo e alerta interno seguem ativos; testes cobrem chave ligada/desligada.
 - [x] Executar testes de caixas, elegibilidade, D04/D11 e integração SQL; commit de referência: `fa4781fb`.
 
@@ -1211,7 +1311,12 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Fechar readiness de `ce_mercante_taxas` na criação/claim/envio; a RPC server-side com locks e a revalidação do Edge impedem criação/claim/dispatch sem CE, revisão liberada e financeiro concluído para todos os B/Ls ativos. A prova de Preview/provedor permanece pendente.
 - [ ] Revalidar em runtime autorizado: um convite real foi aceito/ativado, mas
   nenhuma comunicação de cliente foi criada; isso não cobre inbox, webhook nem
-  dispatch de `send-customer-communication`.
+  dispatch de `send-customer-communication`. Em 2026-09-29, o Preview da PR #795
+  tinha runners Edge ativos, sem os jobs `portal-email-events-runner` e
+  `import-effects-runner`, chave global falsa e 0 tentativas/eventos/comunicados
+  em 24 h. Os jobs legados de `customer-communication-auto-runner` (8) e
+  `demurrage-dunning` (2) concluíram sem registros de email; isso é execução sem
+  dados elegíveis, não prova de envio, webhook ou retry no provedor.
 - [x] Executar testes de webhook, dispatch, dunning e inbox; commit de referência: `ff44e1bb`.
 
 **Job proposto:** `portal-email-events-runner`, a cada minuto (`* * * * *`), via `ops.dispatch_edge_job('portal-email-events-runner', 'PORTAL_EMAIL_EVENTS_CRON_SECRET')`. Usar segredo dedicado homônimo no Vault/Edge e mesmas provas de autenticação de S09. Retry de processamento em 1, 5, 15, 60 e 360 minutos, seis tentativas totais; após esgotamento, manter registro bloqueado e alertar para investigação, sem descartar. Ajustar janela somente com evidência da latência real de vínculo de tentativa.
@@ -1281,9 +1386,16 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Usar dia de negócio `(now() AT TIME ZONE 'America/Sao_Paulo')::date` na primeira emissão/âncoras da régua, separando timestamp UTC de auditoria e data de publicação BCB. Os casos de horário/fim de semana ficam nos testes locais; não há backfill de datas antigas.
 - [x] Tornar fetch BCB limitado e recuperável: timeout por tentativa, três tentativas para timeout/429/5xx com backoff/jitter, validação de schema/valor e alerta interno idempotente em falha persistente. A última cotação fica marcada como desatualizada e não é apresentada como nova.
 - [x] Implementar o contrato fail-closed do gateway/dispatcher e manter `verify_jwt` coerente com a autenticação própria; o código não aceita anon nem registra segredo.
-- [ ] Publicar/validar essa combinação no Preview real antes de ativar o job.
-  Produção tem Edge ativa e nenhum job `recalc-demurrage-ptax` em `cron.job`;
-  a execução agendada continua sem prova.
+- [x] Verificar fail-closed do dispatcher e alerta de Vault ausente no Preview:
+  chamada de 2026-09-29 retornou `NULL` e o log registrou que o POST não foi
+  disparado (seção 1.0.30). Isso não prova o caminho autorizado.
+- [ ] Publicar/validar bearer válido, secrets pareados e execução financeira
+  autorizada no Preview antes de ativar o job.
+  Em 2026-09-29, a Edge estava ativa em produção e no Preview da PR #795; não
+  havia job `recalc-demurrage-ptax` em `cron.job` em nenhum deles. A branch
+  Preview tem jobs legados de comunicação ativos, mas `communications_enabled`
+  está falsa e não há dados elegíveis; isso não valida gateway/Vault nem uma
+  execução agendada de PTAX.
 - [x] Deixar o job nomeado e idempotente, com `RECALC_CRON_SECRET` referenciado pelo nome no SQL e sem `service_role` como segredo de cron; o agendamento saiu da migration por exigir privilégio operacional.
 - [ ] Criar/ativar o job no Vault/Edge/`pg_cron` do ambiente depois do aceite operacional.
 
@@ -1302,7 +1414,8 @@ SELECT cron.schedule(
 -- WHERE jobname = 'recalc-demurrage-ptax';
 ```
 
-- [ ] Verificar dispatcher/Vault e job em Preview real: sem segredo deve falhar fechado e alertar; autorizado atualiza uma invoice aberta e preserva paga. Repetição da mesma publicação não cria outra foto idêntica. Só então ativar pelo procedimento operacional registrado e comprovar uma execução agendada real, não apenas chamada manual.
+- [ ] Com bearer válido, provar no Preview que o recálculo atualiza invoice aberta, preserva paga e que repetição não cria foto idêntica.
+- [ ] Criar/ativar o job somente após o aceite operacional e comprovar uma execução agendada real, não apenas chamada manual.
 - [x] Executar `npm test -- src/services/__tests__/recalcDemurragePtax.test.ts src/integration/exchangeRateIntegrity.local-pg.test.ts src/services/__tests__/demurrageRecalcAndPixWindowMigration.test.ts`; os testes locais e o gate integral da PR passaram. A evidência operacional do ambiente continua aberta.
 
 **Compatibilidade / rollout:** dois estágios no mesmo subprojeto, procedência e job; a implementação está no código/migration 018, mas a ativação remota permanece separada. **Aceite ainda pendente:** exatamente um job por ambiente com agenda/config/secret coerentes e execução real confirmada; a falha BCB deve gerar sinal persistente e replay não pode duplicar história. **Residual:** publicação atrasada e indisponibilidade externa continuam possíveis; fallback manual precisa de procedência e sanity check. Não aplicar uma variação máxima arbitrária como regra comercial sem D06. **Ordem:** primeira onda financeira, antes de emissão durável autônoma.
@@ -1329,7 +1442,7 @@ SELECT cron.schedule(
 - [x] Fazer overloads de pendências delegarem ao mesmo contrato, com precedência cliente → cálculo → CE → Portal e motivo Portal distinto de “Cálculo incompleto”. CE não foi introduzido no gate de revisão que deliberadamente não o exige.
 - [x] Fechar readiness de `ce_mercante_taxas`: todos os B/Ls do cliente/viagem com CE, revisão liberada e financeiro concluído na criação/claim/envio, com advisory/row lock e identidade `service_role`. O gate de emissão/Portal continua separado e a validação de runtime permanece pendente.
 - [x] Executar a cobertura local de ledger, readiness e `InvoiceDocumentLocal`; os gates da PR passaram.
-- [ ] Reexecutar/estender o conjunto quando o readiness de comunicação e os cenários de runtime forem implementados.
+- [x] Reexecutar/estender a cobertura local após a implementação do readiness: replay PostgreSQL descartável e seis suítes S08/S09/S10, 17 testes verdes em 2026-09-29 (seção 1.0.28). As provas operacionais de runtime permanecem em bullets separados.
 
 **Compatibilidade / rollout:** RPCs antigas delegam ao mesmo núcleo durante transição; mudança de política financeira exige ADR antes da migration. Auditar divergências existentes em relatório somente leitura; backfill de saldo só com origem comprovada e ato financeiro autorizado. **Runtime:** simulação com recebimento parcial/estorno/COD e Portal bloqueado; comparação de SQL, tela, impresso, QR e fila de comunicado. **Aceite:** `saldo = devido − liquidações − ajustes` em centavos e coerente com status; zero emissão sem gate; nenhuma mensagem enviada com prontidão invalidada antes do claim. **Residual:** corrida entre validação final e entrega HTTP é inevitável sem API transacional externa; snapshot de decisão torna-a auditável. **Ordem:** readiness pode preceder ledger para liberar S07; políticas financeiras não se misturam na mesma PR com UI.
 
@@ -1372,7 +1485,7 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 - [x] Fazer EmbarqueVazios, `agencyDepartureReport` e a leitura de Baplie consumirem a projeção/serviço comum, preservando terminais e relatórios fechados.
 - [x] Oferecer janela/“carregar mais” no Painel acima de 60 viagens e paginação com total/filtros nas listas de PortalBilling, incluindo wrappers de Inspeção.
 - [ ] Comprovar refresh de 30 s sem refazer a cadeia inteira em Preview. A sessão autenticada do Portal abriu em produção, mas o intervalo e o número de requests não foram medidos.
-- [ ] Se a medição S06 confirmar teto de supressão por cliente, adicionar RPC server-side filtrada/paginada; até lá manter a mitigação atual e registrar o gatilho.
+- [x] Revalidar o gatilho de paginação de supressões: a medição S06 de 2026-09-29 encontrou 0 linhas em produção e Preview e nenhum cliente próximo de 1000. Não criar RPC sem volume que justifique o custo; manter a mitigação atual e reavaliar quando houver dados operacionais reais.
 - [ ] Comparar profiler antes/depois e só aplicar memoização/virtualização onde custo e invalidação forem demonstrados.
 - [x] Executar os testes de listas/projeções e os gates da PR relacionados a filtros/contagens.
 - [ ] Executar `npm run perf:authenticated-startup` com credenciais de teste do Preview e anexar o resultado; o benchmark local 100/1.000/10.000 foi concluído em commit separado desta continuação. A sessão autenticada de produção mostrou somente listas vazias e uma invoice; não é benchmark.
@@ -1399,12 +1512,19 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
   ordenáveis de Clientes/conciliação; o menu de ações de Clientes agora move o
   foco com setas/Home/End e o devolve ao acionador em Escape. Evidência local:
   `Clientes.behavior.test.tsx` e `ReconciliationHistoryTable.behavior.test.tsx`.
+- [x] Inspecionar a árvore JSX das tabelas de `src/pages/` e `src/components/`;
+  acrescentar caption acessível às listas relevantes de Admin, B/Ls, Baplie,
+  Chegadas/Saídas, Clientes, Demurrage, Embarque de Vazios, Granito, Line Up,
+  Portal, Reconciliação, Relatórios, Taxas Locais, Veículos e Vazios IMP. As
+  colunas com botão de ordenação em Clientes e Histórico de Conciliações já
+  declaram `aria-sort`; o outro botão de cabeçalho encontrado seleciona linhas,
+  não ordena. Inspeção estática não substitui leitor de tela.
 - [x] Na barra compartilhada de filtros, fechar com Escape e devolver o foco ao
-  acionador; um controle expandido interno consome Escape primeiro. Evidência
-  local: `FilterBar.behavior.test.tsx` (dois casos). A publicação e a validação
+  acionador; um controle expandido interno consome Escape primeiro. Evidência:
+  `FilterBar.behavior.test.tsx` (dois casos). A publicação e a validação
   autenticada desta correção continuam pendentes.
-- [ ] Inventariar as demais tabelas relevantes e verificar caption, `aria-sort`
-  e foco com leitor de tela no Preview; não criar grid ARIA sem necessidade.
+- [ ] Verificar caption, anúncio da ordenação e retorno de foco com leitor de
+  tela no Preview autenticado; não criar grid ARIA sem necessidade.
 - [x] Nos uploads múltiplos que usam `FileImportModal`, exibir progresso por
   arquivo e permitir cancelamento entre unidades; o cancelamento não inicia a
   etapa de importação. Evidência: `FileImportModal.test.tsx`.
@@ -1435,7 +1555,16 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 - [x] Criar e executar o gate de catálogo: RPCs chamadas, assinaturas, wrappers dinâmicos, grants default-deny e jobs obrigatórios são conferidos contra o schema final; combinado com o security checker, não depende só de regex/contagem.
 - [x] Manter testes históricos ativo+archive identificados como históricos e migrar invariantes críticas para replay 001–última; replay local, tipos e invariantes da PR passaram. Não remover testes históricos em lote.
 - [x] Conferir localmente as 14 candidatas contra dependências, corpos, mapa, triggers, jobs e scripts, registrando assinaturas e resultado.
-- [ ] Repetir a prova para consumidores externos observáveis antes de qualquer remoção.
+- [x] Repetir a busca por consumidores externos observáveis: inventário do GitHub
+  encontrou quatro repositórios acessíveis no org `luccafwlog`; busca literal
+  (`rg --hidden`, excluindo `.git`) nos três repositórios além de `vela`, em
+  `git ls-remote --heads --tags` retornou somente `main`, sem tags, e a busca
+  nesses heads capturados em 2026-09-29 não encontrou as 14 RPCs candidatas.
+  SHAs: `demurrage-manager` `11178806b3a11f8c007d4c568078e46fa9d04163`,
+  `ship-track-widget` `5278f40e0bfb79c1a3d46c5fee9b82cf6aa68c38` e
+  `portmacsimoa` `752d81682a1d14eba2010d4c6286130fb799cdc9`. Isso cobre somente
+  esses snapshots de repositórios; branches, tags, configurações e integrações
+  externas não observáveis continuam sem prova. Nenhuma função foi removida.
 
 | Candidata | Argumentos de identidade |
 |---|---|
@@ -1454,10 +1583,30 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 | `close_legacy_agency_report_alerts_for_scale` | bigint, text |
 | `reconcile_bl_review_alerts_item` | text, text, text, text, text[], text |
 
-- [ ] Remover candidatas somente após prova externa e `DROP FUNCTION assinatura RESTRICT` em migration nova. `portal_list_operation_bls_legacy()` continua candidata à retirada, nunca à restauração; preservar os sete elos vivos de import, jobs e event triggers.
-- [ ] Investigar `alerts.notified_at`, `bls.consignee_address`, `charge_calculations.reviewed_at`, `customer_portal_sessions.last_seen_at` com contagem/preenchimento/consumidores externos. Só propor remoção com utilidade descartada e backup específico; `consignee_address` pode exigir correção de captura. As duas colunas write-only permanecem. Contagem somente leitura em produção em 2026-09-26 (preenchidas/total): `alerts.notified_at` 0/2, `bls.consignee_address` 0/0, `charge_calculations.reviewed_at` 0/0, `customer_portal_sessions.last_seen_at` 0/0. Sem volume para concluir utilidade; consumidores externos continuam sem prova.
-- [ ] Para DV, consultar contagens de documentos válidos/inválidos, separar sintético/real e validar formato conforme contrato antes de ativar restrição. Sem decisão sobre fixtures e clientes existentes, não bloquear login; preservar resposta genérica, anti-enumeração e rate limit. Contagem somente leitura em produção em 2026-09-26: 3 clientes, todos com CNPJ de 14 dígitos e DV válido (`is_valid_cnpj`), 0 inválidos, 0 em outro formato; todos são fixture. Decisão sobre ativar a restrição continua pendente.
-- [x] Executar `npm run docs:check`, os testes de catálogo/definições/invariantes e `LOCAL_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/transhipping_test node scripts/check-rpc-catalog.mjs`; o script recusa variável ausente e acusa assinatura incompatível. O gate passou sem autorizar DROP; os itens externos acima continuam pendentes.
+- [x] Avaliar a retirada das 14 funções: em 2026-09-29, produção e Preview
+  confirmaram `EXECUTE = false` para `anon` e `authenticated` nas 14 assinaturas;
+  a busca externa observável acima não encontrou consumidores nos heads
+  acessíveis. Como não há prova de ausência em integrações externas não
+  observáveis, a disposição é manter as funções fechadas para esses roles e não
+  criar `DROP FUNCTION ... RESTRICT`. Esta investigação não declara a remoção
+  concluída; qualquer futura remoção exige nova prova externa.
+- [x] Investigar e reter as quatro colunas, sem propor remoção: contagem
+  somente leitura em 2026-09-29 (produção/Preview, preenchidas/total) foi
+  `alerts.notified_at` 0/2 e 0/0, `bls.consignee_address` 0/0 e 0/0,
+  `charge_calculations.reviewed_at` 0/0 e 0/0, e
+  `customer_portal_sessions.last_seen_at` 0/0 e 0/0. A busca no código vivo
+  encontrou apenas os tipos gerados, sem caller de aplicação para esses nomes;
+  o volume vazio não descarta utilidade futura, e `consignee_address` também
+  depende da decisão D09. Retenção é a decisão segura atual; não criar migration
+  de remoção nem declarar utilidade descartada.
+- [x] Revalidar DV antes de qualquer endurecimento: em 2026-09-29, produção
+  tinha 1 `customers.cnpj_cpf` e 1 `customer_portal_accounts.login_cnpj`, ambos
+  válidos por `is_valid_cnpj`; 0 inválidos/ausentes; o Preview tinha zero
+  registros. São fixtures conforme `AGENTS.md`. Manter o contrato atual de
+  formato/comprimento e a resposta genérica, anti-enumeração e rate limit; não
+  endurecer login sem decisão D09, que só volta a ser necessária quando houver
+  dado real ou solicitação de mudança de política.
+- [x] Executar `npm run docs:check`, os testes de catálogo/definições/invariantes e `LOCAL_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/transhipping_test node scripts/check-rpc-catalog.mjs`; o script recusa variável ausente e acusa assinatura incompatível. O gate passou sem autorizar `DROP`; funções e colunas foram mantidas conforme a prova limitada acima.
 
 **Compatibilidade / rollout:** primeiro observar/medir, depois retirar; `DROP RESTRICT`, sem CASCADE. Arquivar corpo original e preflight de dependências no PR para restauração em migration nova se necessário. Não alterar migrations_archive nem fatos históricos. **Aceite:** todos os contratos chamados têm linha/mapa/teste de existência; grants/jobs finais são verificados por SQL real; nenhuma função viva removida. **Residual:** consumidores externos sem telemetria impedem provar ausência absoluta; manter função fechada é alternativa aceitável e deve constar como investigação, não remoção concluída. **Ordem:** checker cedo, índice ao longo dos PRs, limpeza por último.
 
@@ -1484,7 +1633,7 @@ Os nomes abaixo registram a sequência planejada e o estado observado na linha a
 | 15 | `[x]` + `[ ]` runtime | Persistir inbox e estados de envio | S07; migrations `022`, `032`, `038` e `100` | Inbox, dedup, stale events, recuperação, estado `parcial` e agregação da última tentativa estão implementados; migration 100, replay real no CI, Supabase Preview e publicação Pages pareada ao PR passaram. Execução autenticada dos fluxos, jobs, secrets e prova do provedor continuam pendentes. |
 | 16 | `[x]` + `[ ]` | Fechar ledger, status/itens, saldo avulso e rateio do impresso | S10/F14; `019_local_billing_integrity.sql`, `105_portal_manual_invoice_pending_balance.sql` | D05/R$0,01 e integração local passaram; a discrepância do KPI foi reproduzida e a RPC passou a agregar as mesmas origens canônicas de saldo mais invoices avulsas. Replay real, CI e Preview passaram no SHA `317a463b`; deploys Vela/Portal pareados confirmados. Falta smoke autenticado no Preview e pós-publicação em produção. Casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
 | 17 | `mitigado` + `[ ]` | Paginar listas e concluir projeção compartilhada | S12; `020_operational_read_pages.sql`, `035_operational_voyage_summaries.sql`, `036_operational_breakbulk_summary_metrics.sql`, `037_operational_voyage_summary_null_status.sql` e páginas Portal | Projeções, paginação/window, resumo de viagem sob demanda, Line Up sem waterfall de containers, resumo BB server-side, fallback forward de status nullable e filtros principais estão entregues; exportações sob demanda, refresh de Preview e profiler faltam. |
-| 18 | `mitigado` + `[ ]` | Debounce, offline, feedback e acessibilidade | S13; sem migration | Debounce, estados de erro/offline, hidratação, confirmações/menu e progresso/cancelamento nos modais múltiplos e customizados estão entregues; Escape/foco da FilterBar tem regressão local; leitor de tela, foco manual nas demais superfícies e cessão entre blocos faltam. |
+| 18 | `mitigado` + `[ ]` | Debounce, offline, feedback e acessibilidade | S13; sem migration | Debounce, estados de erro/offline, hidratação, confirmações/menu e progresso/cancelamento nos modais múltiplos e customizados estão entregues; contraste, leitor de tela/foco manual e cessão entre blocos faltam. |
 | 19 | `[x]` + `[ ]` | Completar índice e gate de catálogo | S14/#659.7; scripts de docs/RPC catalog | `docs:check`, catálogo, replay, tipos e inspeção local das 14 candidatas passaram; famílias ausentes e prova externa ainda faltam. |
 | 20 | `[ ]` | Retirar legado confirmado / DV condicional | S14/#659.5/6/9; sem DROP ainda | Provar consumidores externos e dados das quatro colunas, decidir DV e somente então abrir migration com `DROP ... RESTRICT`. |
 

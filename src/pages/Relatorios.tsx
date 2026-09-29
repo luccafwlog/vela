@@ -218,6 +218,7 @@ function OperationalReportTab() {
         {error ? <InlineError message="Erro ao carregar relatório operacional." /> : null}
         <div className="app-table-scroll">
           <table className="app-table app-table--compact min-w-[1100px] text-left text-sm">
+            <caption className="sr-only">B/Ls do relatório de cobrança</caption>
             <thead>
               <tr>
                 <th scope="col" className="px-4 py-3">B/L</th>
@@ -393,6 +394,7 @@ function FinancialReportTab() {
             {error ? <InlineError message="Erro ao carregar relatório financeiro." /> : null}
             <div className="app-table-scroll">
               <table className="app-table app-table--compact min-w-[980px] text-left text-sm">
+                <caption className="sr-only">Invoices do relatório financeiro</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="px-4 py-3">Invoice</th>
@@ -546,6 +548,7 @@ function CustomerReportTab() {
         {error ? <InlineError message="Erro ao carregar relatório por cliente." /> : null}
         <div className="app-table-scroll">
           <table className="app-table app-table--compact min-w-[1020px] text-left text-sm">
+            <caption className="sr-only">Clientes por faturamento</caption>
             <thead>
               <tr>
                 <th scope="col" className="px-4 py-3">Cliente</th>
@@ -703,6 +706,7 @@ function DemurrageReportTab() {
         {error ? <InlineError message="Erro ao carregar relatório de demurrage." /> : null}
         <div className="app-table-scroll">
           <table className="app-table app-table--compact min-w-[900px] text-left text-sm">
+            <caption className="sr-only">Invoices do relatório de demurrage</caption>
             <thead>
               <tr>
                 <th scope="col" className="px-4 py-3">Doc</th>

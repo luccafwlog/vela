@@ -225,6 +225,7 @@ export function Admin() {
             <Card className="overflow-hidden p-0">
               <div className="app-table-scroll">
               <table className="app-table app-table--compact min-w-[760px] text-left text-sm">
+                <caption className="sr-only">Usuários internos</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="px-4 py-3">Nome</th>
@@ -375,6 +376,7 @@ export function Admin() {
             ) : (
               <div className="app-table-scroll">
                 <table className="app-table app-table--compact min-w-[800px] text-left text-sm">
+                  <caption className="sr-only">Falhas de roteamento de notificações</caption>
                   <thead>
                     <tr>
                       <th scope="col" className="px-4 py-3">Data/Hora</th>
@@ -531,6 +533,7 @@ export function Admin() {
             ) : (
               <div className="app-table-scroll">
               <table className="app-table app-table--compact min-w-[920px] text-left text-sm">
+                <caption className="sr-only">Logs de ações administrativas</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="px-4 py-3">Data/Hora</th>
@@ -682,6 +685,7 @@ export function Admin() {
             <Card className="overflow-hidden p-0">
               <div className="app-table-scroll">
               <table className="app-table app-table--compact min-w-[980px] text-left text-sm">
+                <caption className="sr-only">Resumo de SLA por viagem</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="px-4 py-3">Navio / Viagem</th>

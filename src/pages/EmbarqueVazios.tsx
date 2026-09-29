@@ -763,6 +763,7 @@ export function EmbarqueVazios() {
               ) : null}
               <div className="app-table-scroll">
                 <table className="app-table app-table--compact min-w-[760px] text-left text-sm whitespace-nowrap">
+                  <caption className="sr-only">Containers vazios da viagem</caption>
                   <thead>
                     <tr>
                       <th>Container</th>
@@ -1074,6 +1075,7 @@ export function EmbarqueVazios() {
                 </div>
                 <div className="app-table-scroll">
                   <table className="app-table app-table--compact min-w-[900px] text-left text-sm whitespace-nowrap">
+                    <caption className="sr-only">Linhas de serviço do relatório de saída</caption>
                     <thead>
                       <tr>
                         <th>Serviço</th>

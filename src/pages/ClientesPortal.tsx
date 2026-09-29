@@ -116,7 +116,7 @@ export function ClientesPortal() {
       {selected && !rows.some((row) => row.customer_id === selected.customer_id) ? <div className="mb-3 flex items-center justify-between rounded-lg border border-cyan-400/30 bg-cyan-400/5 px-3 py-2 text-sm">Cliente selecionado fora do filtro atual.<button type="button" className="text-cyan-300 underline" onClick={returnToQueue}>Voltar para a fila</button></div> : null}
       {error ? <InlineError message="Erro ao carregar a fila do Portal." /> : null}
       <Card className="overflow-hidden p-0">
-        <div className="app-table-scroll"><table className="app-table app-table--compact min-w-[900px] text-left text-sm"><thead><tr><th>Cliente</th><th>Situação</th><th>Decisão</th><th>Email de Recuperação</th><th>Alertas</th><th>Próxima ação</th></tr></thead><tbody>
+        <div className="app-table-scroll"><table className="app-table app-table--compact min-w-[900px] text-left text-sm"><caption className="sr-only">Fila de acesso ao Portal por cliente</caption><thead><tr><th>Cliente</th><th>Situação</th><th>Decisão</th><th>Email de Recuperação</th><th>Alertas</th><th>Próxima ação</th></tr></thead><tbody>
           {isLoading ? <tr><td colSpan={6} className="px-4 py-8 text-center">Carregando fila...</td></tr> : null}
           {!isLoading && !visibleRows.length ? <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--app-muted)]">Nenhum cliente neste filtro.</td></tr> : null}
           {visibleRows.map((row) => {
