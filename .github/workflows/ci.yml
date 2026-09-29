@@ -179,6 +179,7 @@ jobs:
             src/integration/exchangeRateIntegrity.local-pg.test.ts \
             src/integration/importAtomicity.local-pg.test.ts \
             src/integration/importEffects.local-pg.test.ts \
+            src/integration/financialBattery.local-pg.test.ts \
             src/integration/localBillingIntegrity.local-pg.test.ts \
             src/integration/manualInvoice.local-pg.test.ts \
             src/integration/operationalLists.local-pg.test.ts \
