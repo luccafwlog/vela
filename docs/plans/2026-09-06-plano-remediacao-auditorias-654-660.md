@@ -672,10 +672,12 @@ registrada.
   resumo autenticado a partir de recebíveis locais abertos, Demurrage emitida/em
   atraso e saldo positivo de invoices `manual` abertas, mantendo as faturas
   manuais fora do ledger. Regressão de integração cobre o RPC autenticado.
-- A migration ainda não foi executada. O teste de integração não pôde rodar
-  neste Windows: o banco local `vela_test` não existe e WSL não está instalado.
-  A validação SQL em Preview/CI e a confirmação do KPI após deploy permanecem
-  obrigatórias; produção segue sem alteração por esta correção.
+- No SHA `e4a83110`, o replay Postgres e o Supabase Preview passaram; a revisão
+  dos logs revelou que o job SQL não incluía esta regressão na sua lista
+  explícita. O workflow foi atualizado para executar
+  `manualInvoice.local-pg.test.ts`; o novo SHA ainda aguarda CI. A confirmação
+  runtime do KPI no Portal Preview e a publicação continuam pendentes; produção
+  não foi alterada por esta correção.
 
 ### 1.1 Baseline e alcance da evidência
 
@@ -1426,7 +1428,7 @@ Os nomes abaixo registram a sequência planejada e o estado observado na linha a
 | 13 | `mitigado` + `[ ] runtime` | Persistir efeitos e relatório de import | S05; `017_import_effects_outbox.sql` + `025_import_effect_worker.sql` + `026_import_effect_alert.sql` + `031_import_effect_consumers.sql` | Outbox/claim/lease/retry, consumidores server-side e painel reabrível por unidade passaram na prova local; Preview, secrets/Vault/Edge e ativação controlada do worker continuam pendentes. |
 | 14 | `[x]` + `[ ]` runtime | Fechar readiness de emissão e comunicação | S10/F12; `033_customer_communication_readiness_guards.sql` | Guarda server-side de comunicação aplicada em criação/claim/envio, com lock e identidade de sistema; gate de emissão/Portal e prova de runtime continuam pendentes. |
 | 15 | `[x]` + `[ ]` runtime | Persistir inbox e estados de envio | S07; migrations `022`, `032`, `038` e `100` | Inbox, dedup, stale events, recuperação, estado `parcial` e agregação da última tentativa estão implementados; migration 100, replay real no CI, Supabase Preview e publicação Pages pareada ao PR passaram. Execução autenticada dos fluxos, jobs, secrets e prova do provedor continuam pendentes. |
-| 16 | `[x]` + `[ ]` | Fechar ledger, status/itens, saldo avulso e rateio do impresso | S10/F14; `019_local_billing_integrity.sql`, `105_portal_manual_invoice_pending_balance.sql` | D05/R$0,01 e integração local passaram; a discrepância do KPI foi reproduzida e a RPC passou a agregar as mesmas origens canônicas de saldo mais invoices avulsas. Migration 105 ainda precisa de replay/CI e verificação runtime em Preview. Casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
+| 16 | `[x]` + `[ ]` | Fechar ledger, status/itens, saldo avulso e rateio do impresso | S10/F14; `019_local_billing_integrity.sql`, `105_portal_manual_invoice_pending_balance.sql` | D05/R$0,01 e integração local passaram; a discrepância do KPI foi reproduzida e a RPC passou a agregar as mesmas origens canônicas de saldo mais invoices avulsas. Replay e Preview passaram no SHA `e4a83110`; o workflow agora inclui a nova regressão autenticada e aguarda novo CI. Verificação runtime do KPI permanece aberta. Casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
 | 17 | `mitigado` + `[ ]` | Paginar listas e concluir projeção compartilhada | S12; `020_operational_read_pages.sql`, `035_operational_voyage_summaries.sql`, `036_operational_breakbulk_summary_metrics.sql`, `037_operational_voyage_summary_null_status.sql` e páginas Portal | Projeções, paginação/window, resumo de viagem sob demanda, Line Up sem waterfall de containers, resumo BB server-side, fallback forward de status nullable e filtros principais estão entregues; exportações sob demanda, refresh de Preview e profiler faltam. |
 | 18 | `mitigado` + `[ ]` | Debounce, offline, feedback e acessibilidade | S13; sem migration | Debounce, estados de erro/offline, hidratação, confirmações/menu e progresso/cancelamento nos modais múltiplos e customizados estão entregues; contraste, leitor de tela/foco manual e cessão entre blocos faltam. |
 | 19 | `[x]` + `[ ]` | Completar índice e gate de catálogo | S14/#659.7; scripts de docs/RPC catalog | `docs:check`, catálogo, replay, tipos e inspeção local das 14 candidatas passaram; famílias ausentes e prova externa ainda faltam. |
