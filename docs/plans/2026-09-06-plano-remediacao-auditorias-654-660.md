@@ -713,7 +713,10 @@ registrada.
 - **Runtime — produção, diagnóstico:** a barra de filtros abria por teclado,
   mas Escape não a fechava quando o foco estava em um campo comum nem devolvia
   o foco ao acionador. A observação identifica um problema compartilhado; não
-  representa validação da correção publicada.
+  representa validação da correção publicada. Reproduzido em 2026-09-29 na
+  sessão autenticada de produção, app `3b17d559`: Escape em “Buscar B/L ou
+  cliente” deixou a barra aberta e o foco no campo; no combobox “Viagem”, o
+  primeiro Escape fechou a lista e o segundo não fechou a barra nem moveu foco.
 - **Código/Teste local:** `FilterBar` fecha com Escape dentro do corpo e devolve
   o foco ao botão. Se o foco estiver num controle expandido, como `Combobox`,
   o primeiro Escape permanece com o controle interno e o seguinte fecha a
