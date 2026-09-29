@@ -4,7 +4,9 @@ import { useAuth, type Permission } from '../../hooks/useAuth'
 export function ProtectedRoute({ adminOnly = false, permission }: { adminOnly?: boolean; permission?: Permission }) {
   const { user, profile, loading, isAdmin, can, profileStatus, profileError, refreshProfile, signOut } = useAuth()
 
-  if (loading) {
+  // Perfil ainda hidratando (getSession e INITIAL_SESSION correm em paralelo e
+  // `loading` pode cair antes do perfil chegar): não é "não provisionado".
+  if (loading || (user && !profile && profileStatus === 'loading')) {
     return <div className="grid min-h-screen place-items-center bg-[#0d1117] text-slate-300">Carregando sessão...</div>
   }
 
