@@ -55,10 +55,20 @@ export function maskEmail(email: string): string {
   return `${local[0]}***@${domainName[0]}***${dot > 0 ? domain.slice(dot) : ''}`
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 export async function recipientKey(email: string): Promise<string> {
-  const normalized = email.trim().toLowerCase()
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(normalized))
-  return `sha256:${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`
+  return `sha256:${await sha256Hex(email.trim().toLowerCase())}`
+}
+
+// O `name` da Resend (ex.: invalid_idempotent_request) distingue causas que o
+// status sozinho esconde; não carrega dados do destinatário.
+async function providerErrorName(response: Response): Promise<string> {
+  const body = await response.json().catch(() => null) as { name?: unknown } | null
+  return typeof body?.name === 'string' ? ` ${body.name}` : ''
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }> {
@@ -87,7 +97,29 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
   if (attempt.existing && ['falha_permanente', 'bounce', 'complaint'].includes(attempt.status)) return { ok: false }
 
   const fetchImpl = input.fetchImpl ?? fetch
-  const providerIdempotencyKey = attempt.idempotencyKey ?? input.idempotencyKey
+  const body = JSON.stringify({
+    from: input.from,
+    to: [input.to],
+    reply_to: input.replyTo,
+    subject: input.subject,
+    html: input.html,
+    text: input.text,
+    ...(input.attachments?.length
+      ? { attachments: input.attachments.map((attachment) => ({
+          filename: attachment.filename,
+          content: attachment.content,
+          ...(attachment.contentType ? { content_type: attachment.contentType } : {}),
+        })) }
+      : {}),
+  })
+  // A Resend guarda a chave por 24h no time inteiro e responde 409 quando ela
+  // volta com outro conteúdo. As chaves locais usam ids sequenciais, que se
+  // repetem depois de um reset do banco -- foi o que recusou `convite:1` em
+  // produção. O hash do corpo mantém a deduplicação do mesmo envio e separa
+  // envios diferentes que herdaram a mesma chave.
+  // ponytail: retry de crash que regenere conteúdo diferente vira envio novo
+  // em vez de 409; gravar um nonce por tentativa se isso passar a importar.
+  const providerIdempotencyKey = `${attempt.idempotencyKey ?? input.idempotencyKey}:${(await sha256Hex(body)).slice(0, 32)}`
   for (let index = 0; index < 3; index += 1) {
     const response = await fetchImpl('https://api.resend.com/emails', {
       method: 'POST',
@@ -96,27 +128,13 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
         'Content-Type': 'application/json',
         'Idempotency-Key': providerIdempotencyKey,
       },
-      body: JSON.stringify({
-        from: input.from,
-        to: [input.to],
-        reply_to: input.replyTo,
-        subject: input.subject,
-        html: input.html,
-        text: input.text,
-        ...(input.attachments?.length
-          ? { attachments: input.attachments.map((attachment) => ({
-              filename: attachment.filename,
-              content: attachment.content,
-              ...(attachment.contentType ? { content_type: attachment.contentType } : {}),
-            })) }
-          : {}),
-      }),
+      body,
     })
 
     if (response.ok) {
-      const body = await response.json() as { id?: string }
+      const accepted = await response.json() as { id?: string }
       await input.updateAttempt(attempt.id, {
-        providerMessageId: body.id ?? null,
+        providerMessageId: accepted.id ?? null,
         retryCount: index,
         status: 'aceito',
         lastError: undefined,
@@ -129,7 +147,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
       await input.updateAttempt(attempt.id, {
         retryCount: index,
         status: transient ? 'falha_transitoria' : 'falha_permanente',
-        lastError: `HTTP ${response.status}`,
+        lastError: `HTTP ${response.status}${await providerErrorName(response)}`,
       })
       return { ok: false }
     }

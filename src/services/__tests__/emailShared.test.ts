@@ -121,9 +121,37 @@ describe('sendEmail', () => {
 
 		expect(result).toEqual({ ok: true })
 		expect(fetchMock).toHaveBeenCalledWith('https://api.resend.com/emails', expect.objectContaining({
-			headers: expect.objectContaining({ 'Idempotency-Key': 'demurrage:1:2:sha(raw-email)' }),
+			headers: expect.objectContaining({ 'Idempotency-Key': expect.stringMatching(/^demurrage:1:2:sha\(raw-email\):[0-9a-f]{32}$/) }),
 		}))
 	})
+
+  it('separa na Resend envios diferentes que herdaram a mesma chave local e mantém a do mesmo envio', async () => {
+    const keyOf = async (html: string) => {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'provider-1' }), { status: 200 }))
+      await sendEmail({ ...baseInput, html, fetchImpl: fetchMock })
+      return (fetchMock.mock.calls[0][1] as RequestInit & { headers: Record<string, string> }).headers['Idempotency-Key']
+    }
+
+    // Depois de um reset do banco, `convite:1` volta com outro token no link.
+    const beforeReset = await keyOf('<a href="/ativar?token=antigo">Ativar</a>')
+    const afterReset = await keyOf('<a href="/ativar?token=novo">Ativar</a>')
+
+    expect(afterReset).not.toBe(beforeReset)
+    expect(await keyOf('<a href="/ativar?token=novo">Ativar</a>')).toBe(afterReset)
+    expect(afterReset.startsWith('convite:1:')).toBe(true)
+  })
+
+  it('registra o motivo informado pela Resend na falha permanente', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ name: 'invalid_idempotent_request' }), { status: 409 }))
+
+    await sendEmail({ ...baseInput, fetchImpl: fetchMock })
+
+    expect(baseInput.updateAttempt).toHaveBeenCalledWith(7, {
+      status: 'falha_permanente',
+      retryCount: 0,
+      lastError: 'HTTP 409 invalid_idempotent_request',
+    })
+  })
 
   it('aborta antes de registrar a tentativa quando o endereço está suprimido', async () => {
     const checkSuppression = vi.fn(async () => ({ suppressed: true, reason: 'bounce_permanente' }))

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -34,5 +34,23 @@ describe('S07 — inbox durável de eventos do Portal', () => {
     expect(portalEmail).toContain("if (error?.code === '23505')")
     expect(portalEmail).toContain(".eq('idempotency_key', idempotencyKey)")
     expect(portalEmail).toContain('existing: true')
+  })
+})
+
+describe('agendamento dos runners (107)', () => {
+  it('testa a função de disparo pela assinatura e agenda os dois runners', () => {
+    const sql = readFileSync(resolve(root, 'supabase/migrations/107_schedule_email_events_and_import_effects_runners.sql'), 'utf8')
+    expect(sql).toContain("to_regprocedure('ops.dispatch_edge_job(text,text,text,text)')")
+    expect(sql).toContain("ops.dispatch_edge_job('portal-email-events-runner', 'PORTAL_EMAIL_EVENTS_CRON_SECRET')")
+    expect(sql).toContain("ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET')")
+  })
+
+  it('não usa to_regproc com assinatura em migration nova (sempre NULL no Postgres)', () => {
+    // 022 e 025 são históricas e protegidas; 107 corrige o efeito delas.
+    const dir = resolve(root, 'supabase/migrations')
+    const offenders = readdirSync(dir)
+      .filter((name) => name.endsWith('.sql') && !/^0(22|25)_/.test(name))
+      .filter((name) => /to_regproc\('[^']*\(/.test(readFileSync(resolve(dir, name), 'utf8')))
+    expect(offenders).toEqual([])
   })
 })
