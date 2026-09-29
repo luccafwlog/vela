@@ -800,7 +800,18 @@ registrada.
   com bearer válido, atualização de invoice aberta/paga, recuperação idempotente
   e execução agendada permanecem pendentes; nenhum secret/job foi criado.
 
-### 1.0.31 Escape na barra de filtros — 2026-09-29
+### 1.0.31 Smoke autenticado após login do cliente — 2026-09-29
+
+- Após o usuário concluir o login autorizado, `/portal/billing` carregou com
+  sessão autenticada. A tela listou `INV-2026-0001`, emitida, com saldo de
+  R$ 1,00, enquanto o KPI `Saldo pendente` continuou em R$ 0,00. É confirmação
+  visual em produção da divergência descrita em 1.0.24, antes da publicação da
+  migration `105`; não é falha do código ainda não publicado.
+- `/portal/operacao` carregou e mostrou zero B/Ls. Não houve pagamento, criação
+  ou alteração de registros durante este smoke. O fluxo prova login e leitura
+  básica dessas telas; não substitui os casos financeiros/operacionais de S10.
+
+### 1.0.32 Escape na barra de filtros — 2026-09-29
 
 - Na revisão manual de teclado da produção, Escape não fechava a barra de filtros
   quando o foco estava em um campo comum nem devolvia o foco ao acionador. O
