@@ -708,6 +708,12 @@ registrada.
   mergeada. O upload da fixture B/L continua sem execução: o seletor de arquivo
   não abriu no navegador integrado. Nenhum B/L ou container foi criado.
 
+### 1.0.26 Bateria financeira no replay CI de Postgres — 2026-09-29
+
+- A PR draft #797 passou a executar `financialBattery.local-pg.test.ts` por último no replay serial de Postgres real. A bateria H13/H15/H16/H17 cobre consolidação, pagamentos, estorno, cancelamento/reemissão, disputa, PTAX e excedente PIX.
+- A primeira execução revelou uma `pricing_rule_versions` residual ligada à tarifa da fixture; o cleanup agora apaga somente a versão identificada pela tabela, item e cliente sintéticos. A asserção do seed continua verificando que nenhuma referência tarifária operacional vaza.
+- No SHA `e39cdcd0`, a CI `36522445067` passou integralmente: replay Postgres, três shards de testes, lint/docs, build, guard de segurança e Supabase Preview. Isso comprova a bateria local no CI; não substitui os roteiros BRL/USD/misto/COD nos wrappers em runtime Preview, que seguem pendentes.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
@@ -1310,7 +1316,7 @@ SELECT cron.schedule(
 - [ ] Validar o gate completo no ambiente operacional.
 - [x] Fazer overloads de pendências delegarem ao mesmo contrato, com precedência cliente → cálculo → CE → Portal e motivo Portal distinto de “Cálculo incompleto”. CE não foi introduzido no gate de revisão que deliberadamente não o exige.
 - [x] Fechar readiness de `ce_mercante_taxas`: todos os B/Ls do cliente/viagem com CE, revisão liberada e financeiro concluído na criação/claim/envio, com advisory/row lock e identidade `service_role`. O gate de emissão/Portal continua separado e a validação de runtime permanece pendente.
-- [x] Executar a cobertura local de ledger, readiness e `InvoiceDocumentLocal`; os gates da PR passaram.
+- [x] Executar a cobertura local de ledger, readiness e `InvoiceDocumentLocal`; a bateria adversarial H13/H15/H16/H17 foi adicionada ao replay serial de Postgres real da CI.
 - [ ] Reexecutar/estender o conjunto quando o readiness de comunicação e os cenários de runtime forem implementados.
 
 **Compatibilidade / rollout:** RPCs antigas delegam ao mesmo núcleo durante transição; mudança de política financeira exige ADR antes da migration. Auditar divergências existentes em relatório somente leitura; backfill de saldo só com origem comprovada e ato financeiro autorizado. **Runtime:** simulação com recebimento parcial/estorno/COD e Portal bloqueado; comparação de SQL, tela, impresso, QR e fila de comunicado. **Aceite:** `saldo = devido − liquidações − ajustes` em centavos e coerente com status; zero emissão sem gate; nenhuma mensagem enviada com prontidão invalidada antes do claim. **Residual:** corrida entre validação final e entrega HTTP é inevitável sem API transacional externa; snapshot de decisão torna-a auditável. **Ordem:** readiness pode preceder ledger para liberar S07; políticas financeiras não se misturam na mesma PR com UI.
