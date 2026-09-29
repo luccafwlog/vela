@@ -821,8 +821,10 @@ registrada.
   controle expandido consome o primeiro Escape. `FilterBar.behavior.test.tsx`
   cobre ambos os fluxos. Na branch baseada no SHA `3b17d559`, passaram teste
   focado, suíte integral (667 arquivos, 3.633 aprovados, 209 ignorados), lint,
-  typecheck, build, `docs:check` e `git diff --check`. Revalidar CI após integrar
-  a base atual. Publicação e confirmação autenticada no Preview continuam abertas.
+  typecheck, build, `docs:check` e `git diff --check`. Após integrar a `main`, o
+  SHA `e4aa9da8` passou no run `36549454964`: docs/lint, build, três shards de
+  testes, replay PostgreSQL, segurança, Supabase Preview e agregador. Smoke
+  autenticado no Preview e roteiro S13 completo continuam abertos.
 
 ### 1.1 Baseline e alcance da evidência
 
