@@ -728,6 +728,34 @@ registrada.
   docs:check` e `git diff --check` passaram. Limite registrado: não há prova de
   ausência em integrações externas fora dos repositórios acessíveis.
 
+### 1.0.27 Reteste operacional de S05/S09/S12/S13 — 2026-09-29
+
+- A branch Supabase da PR #795 permanece `ACTIVE_HEALTHY`, sem clone dos dados
+  de produção; Pages e banco continuam pareados no Preview. A consulta somente
+  leitura confirmou `communications_enabled = false`, zero clientes/B/Ls/
+  containers/invoices, o perfil sintético administrativo presente e somente
+  três jobs ativos: `customer-communication-auto-runner`, `demurrage-dunning`
+  e `portal-daily-digest`. Os jobs `import-effects-runner`,
+  `portal-email-events-runner` e `recalc-demurrage-ptax` continuam ausentes.
+  Nenhuma configuração ou job foi alterado.
+- S12: captura de rede somente leitura por 31 s na tela `/bls` de produção
+  registrou uma chamada `count_unread_internal_notifications` e nenhuma chamada
+  de lista B/L. A rota alvo `/line-up-tv/display`, aberta em nova aba e depois
+  na aba anterior, exibiu “Perfil não provisionado”. A janela medida não foi a
+  TV autenticada nem o Preview; portanto não prova o refresh de 30 s, o volume
+  do read model ou o startup autenticado e não fecha S12.
+- S13: a sessão de runtime deixou de apresentar um perfil interno ativo ao
+  navegar por rota direta. Não foi possível executar o roteiro de teclado,
+  leitor de tela, modal sujo, offline/reconnect e temas no Preview autenticado.
+- A seleção da fixture sintética `.xlsx` no modal de produção não disparou um
+  file chooser controlável pela sessão do navegador; o arquivo não foi enviado,
+  a prévia não foi gerada e nenhum B/L/container novo foi gravado. Nenhuma
+  permissão da extensão foi alterada. S03/S04/S05 runtime permanecem abertos.
+- Sem autenticação utilizável no Preview, credenciais não disponíveis para o
+  harness e dependências de segredo/aceite operacional ausentes, S05–S10 e os
+  roteiros completos S12/S13 permanecem pendentes. A evidência desta tentativa
+  não substitui os respectivos critérios de aceite.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
