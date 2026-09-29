@@ -1416,7 +1416,8 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 - [x] Repetir a busca por consumidores externos observáveis: inventário do GitHub
   encontrou quatro repositórios acessíveis no org `luccafwlog`; busca literal
   (`rg --hidden`, excluindo `.git`) nos três repositórios além de `vela`, em
-  seus `main` capturados em 2026-09-29, não encontrou as 14 RPCs candidatas.
+  `git ls-remote --heads --tags` retornou somente `main`, sem tags, e a busca
+  nesses heads capturados em 2026-09-29 não encontrou as 14 RPCs candidatas.
   SHAs: `demurrage-manager` `11178806b3a11f8c007d4c568078e46fa9d04163`,
   `ship-track-widget` `5278f40e0bfb79c1a3d46c5fee9b82cf6aa68c38` e
   `portmacsimoa` `752d81682a1d14eba2010d4c6286130fb799cdc9`. Isso cobre somente
