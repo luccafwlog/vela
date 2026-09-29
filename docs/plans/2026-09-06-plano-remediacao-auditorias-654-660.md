@@ -859,6 +859,12 @@ registrada.
 - Após login, a sessão `Preview Admin` no Preview #797 (`d8c2f11267e7bc2b6f18f47f2a0eedd2ba346cac`) foi confirmada em `/clientes`, com a fixture `QA S10 Financial Battery` visível. No menu “Mais ações”, `ArrowDown` moveu o foco de “Copiar CNPJ” para “Copiar e-mail”; `Escape` fechou o menu e devolveu o foco ao acionador. Nenhuma ação do menu foi executada.
 - Essa prova cobre teclado/foco do menu de Clientes. Não comprova anúncio por leitor de tela, outras tabelas, contraste/estados light-dark nem o reteste offline da correção local; roteiro S13 segue aberto.
 
+### 1.0.38 Reteste S13 offline no SHA publicado — 2026-09-29
+
+- Após o commit `70f39333e8a750cabc5aaf0c9f91014b25bf601b`, os checks de CI, Supabase Preview e publicação Cloudflare Pages para a PR #797 passaram. O Preview autenticado exibiu a versão `70f3933` em `/clientes`.
+- Com rede offline e query original em cache, a página conservou o cliente e os resumos e anunciou dados salvos. Para testar query sem cache sem recarregar o shell da aplicação, foi aplicado o filtro exclusivo `offline-sem-cache-qa`: a página mostrou “Sem conexão no momento”, omitiu KPIs/tabela e não anunciou lista vazia. Reconectar retomou a leitura; limpar o filtro restaurou a fixture e o saldo original. Não houve gravação de dados.
+- Isso fecha o reteste de offline/reconnect em Clientes. Leitor de tela, light/dark, outras tabelas/interações e o roteiro S13 completo continuam pendentes.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
@@ -949,9 +955,10 @@ como registro da execução.
 7. **P2 — S13, interação e acessibilidade.** A inspeção estática de 2026-09-29
    nomeou as tabelas principais de operação, financeiro, importação e Portal; as
    colunas ordenáveis já expõem `aria-sort` e os demais controles de cabeçalho
-   encontrados selecionam linhas. Continua pendente o roteiro autenticado em
-   Preview com leitor de tela, foco, teclado, modal sujo, offline/reconnect e
-   temas claro/escuro.
+   encontrados selecionam linhas. No Preview #797 SHA `70f39333`, teclado do menu
+   de Clientes e offline/reconnect sem e com cache passaram. Faltam leitor de
+   tela, foco/teclado nas demais superfícies, temas claro/escuro, estados hover/
+   disabled e o roteiro manual completo.
 8. **P2 — S14, rastreabilidade e legado.** Completar evidência de roles/RPCs e
    apurar consumidores externos das funções/colunas. Sem prova de ausência
    externa, manter funções fechadas e colunas; sem decisão D09, não restringir
@@ -1580,7 +1587,7 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
   navegador entre arquivos; [ ] medir long tasks próximo do limite antes de
   decidir por worker ou mudança do teto de Baplie.
 - [x] Executar os testes de hidratação, modal, comunicação, debounce, `QueryStateGate` e sino; typecheck, lint, build e suíte integral da PR passaram.
-- [ ] Completar a evidência manual de teclado, leitor de tela, offline/reconnect e light/dark. Evidência parcial em produção: `Tab` focou Filtros e `Enter` expandiu os controles de B/L/container; leitor de tela, modal sujo, foco de retorno e temas não foram cobertos.
+- [ ] Completar a evidência manual de teclado, leitor de tela, offline/reconnect e light/dark. No Preview #797 SHA `70f39333`, offline com/sem cache, reconnect e foco do menu de Clientes foram verificados (seções 1.0.37–1.0.38); `Tab`/`Enter` em produção e modal sujo em `/viagens` também têm evidência anterior. Faltam anúncio com leitor de tela, tema claro/escuro, estados hover/disabled e demais tabelas/interações.
 
 **Compatibilidade / rollout:** sem schema, alterações reversíveis; mensagens usam linguagem operacional, sem expor SQL/stacktrace. **Runtime:** teclado sem mouse, leitor de tela, duas abas, offline/reconnect, formulário sujo e light/dark em Preview autenticado; medir contraste e número de requests. **Aceite:** nenhuma falha de rede parece lista vazia/sucesso; todas as ações auditadas alcançáveis por teclado; foco retorna ao acionador; busca respeita 300 ms; listeners permanecem estáveis após mount/unmount. **Residual:** leitores de tela/latência reais não são cobertos só por jsdom; registrar teste manual. **Ordem:** entregar partes independentes cedo, sem esperar S12 completo.
 
