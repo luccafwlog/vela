@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   showToast: vi.fn(),
+  confirm: vi.fn(),
   updateCustomerWithAudit: vi.fn(() => Promise.resolve(true)),
   lastOnSaved: null as (() => void) | null,
 }))
@@ -22,6 +23,9 @@ vi.mock('../../../hooks/usePortalProvisioning', () => ({
   usePortalProvisioningForCustomer: () => ({ data: undefined }),
 }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
+vi.mock('../../ui/ConfirmDialog', () => ({
+  useConfirm: () => mocks.confirm,
+}))
 vi.mock('../../../services/customers', () => ({
   updateCustomerWithAudit: mocks.updateCustomerWithAudit,
 }))
@@ -57,6 +61,7 @@ afterEach(() => {
   cleanup()
   mocks.invalidateQueries.mockClear()
   mocks.showToast.mockClear()
+  mocks.confirm.mockClear()
   mocks.lastOnSaved = null
 })
 
@@ -79,7 +84,8 @@ describe('CadastroContatosTab', () => {
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['customer-ficha', 'timeline', 101] })
   })
 
-  it('salva cadastro do cliente com justificativa e atualiza queries', async () => {
+  it('salva cadastro do cliente com diff antes/depois e justificativa', async () => {
+    mocks.confirm.mockResolvedValue(true)
     const user = userEvent.setup()
     render(
       <MemoryRouter>
@@ -87,16 +93,68 @@ describe('CadastroContatosTab', () => {
       </MemoryRouter>,
     )
 
-    await user.type(screen.getByLabelText(/justificativa/i), 'Atualização de endereço')
+    const tradeNameInput = screen.getByLabelText(/Nome fantasia/i)
+    await user.type(tradeNameInput, 'ACME Brasil')
+
+    await user.type(screen.getByLabelText(/justificativa/i), 'Atualização de nome fantasia')
     await user.click(screen.getByRole('button', { name: 'Salvar cadastro' }))
+
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Salvar cadastro do cliente',
+        changes: expect.arrayContaining([
+          expect.objectContaining({
+            field: 'Nome fantasia',
+            before: '',
+            after: 'ACME Brasil',
+          }),
+        ]),
+        consequence: expect.stringContaining('faturas emitidas'),
+        reversibility: expect.stringContaining('justificativa'),
+      }),
+    )
 
     expect(mocks.updateCustomerWithAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         customerId: 101,
-        justification: 'Atualização de endereço',
+        values: expect.objectContaining({ trade_name: 'ACME Brasil' }),
+        justification: 'Atualização de nome fantasia',
       }),
     )
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['customer-detail', '12345678000195'] })
     expect(mocks.showToast).toHaveBeenCalledWith('Cadastro do cliente atualizado.', 'success')
+  })
+
+  it('não executa atualização se usuário cancelar no Voltar do diálogo de confirmação', async () => {
+    mocks.confirm.mockResolvedValue(false)
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <CadastroContatosTab data={baseData} cnpj="12345678000195" />
+      </MemoryRouter>,
+    )
+
+    await user.type(screen.getByLabelText(/Nome fantasia/i), 'ACME Brasil')
+    await user.type(screen.getByLabelText(/justificativa/i), 'Atualização')
+    await user.click(screen.getByRole('button', { name: 'Salvar cadastro' }))
+
+    expect(mocks.confirm).toHaveBeenCalled()
+    expect(mocks.updateCustomerWithAudit).not.toHaveBeenCalled()
+  })
+
+  it('avisa e não abre confirmação quando não há alterações', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <CadastroContatosTab data={baseData} cnpj="12345678000195" />
+      </MemoryRouter>,
+    )
+
+    await user.type(screen.getByLabelText(/justificativa/i), 'Sem alteração de campos')
+    await user.click(screen.getByRole('button', { name: 'Salvar cadastro' }))
+
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.updateCustomerWithAudit).not.toHaveBeenCalled()
+    expect(mocks.showToast).toHaveBeenCalledWith('Nenhuma alteração para salvar.', 'info')
   })
 })

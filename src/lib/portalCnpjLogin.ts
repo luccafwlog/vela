@@ -9,11 +9,10 @@ export const INCOMPLETE_CNPJ_MESSAGE = 'Informe o CNPJ completo, com 14 caracter
 //
 // ponytail: teto conhecido — não checa dígito verificador, embora
 // `isValidCnpj` exista e siga a regra da Receita (numérico e alfanumérico).
-// O motivo é de dados, não de regra: `customer_portal_accounts.login_cnpj` é
-// cópia literal de `customers.cnpj_cpf`, e o cadastro atual ainda carrega
-// documentos que não fecham DV, remanescentes de teste. O upgrade para
-// `isValidCnpj` fica liberado quando o cadastro estiver limpo — a partir daí
-// nenhum documento inválido entra, porque `createCustomer` já barra.
+// `customer_portal_accounts.login_cnpj` é cópia literal de
+// `customers.cnpj_cpf`. A última contagem de produção encontrou apenas uma
+// conta QA válida; ainda não existe decisão D09 para endurecer o login. Rever
+// quando entrar dado real ou quando Administrativo/Produto aprovar a mudança.
 export function isCompleteCnpjLogin(value: string): boolean {
   return canonicalizeDocument(value).length === 14
 }

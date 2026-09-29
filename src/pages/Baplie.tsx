@@ -490,6 +490,7 @@ function ReconciliacaoSection({
           </div>
           <div className="max-h-[360px] overflow-auto rounded-xl border border-[#30363d]">
             <table className="app-table app-table--compact min-w-[400px] text-left text-sm">
+              <caption className="sr-only">Containers no Baplie sem B/L</caption>
               <thead className="sticky top-0 bg-[#0d1117] text-xs uppercase text-slate-500 z-10">
                 <tr>
                   <th scope="col" className="px-3 py-2">Container</th>
@@ -519,6 +520,7 @@ function ReconciliacaoSection({
           </div>
           <div className="max-h-[360px] overflow-auto rounded-xl border border-[#30363d]">
             <table className="app-table app-table--compact min-w-[400px] text-left text-sm">
+              <caption className="sr-only">Containers em B/L ausentes do Baplie</caption>
               <thead className="sticky top-0 bg-[#0d1117] text-xs uppercase text-slate-500 z-10">
                 <tr>
                   <th scope="col" className="px-3 py-2">Container</th>
@@ -621,6 +623,7 @@ function ContainerList({ containers, filters }: { containers: BaplieContainer[];
       </div>
       <div className="app-table-scroll">
         <table className="app-table app-table--compact min-w-[760px] text-left text-sm whitespace-nowrap">
+          <caption className="sr-only">Containers em staging do Baplie</caption>
           <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
             <tr>
               <th scope="col" className="px-4 py-3">Container</th>

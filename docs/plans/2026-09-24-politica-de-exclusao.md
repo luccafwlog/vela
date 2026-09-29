@@ -38,17 +38,11 @@ receberam notas de implementação.
 
 Pendente para encerrar o plano:
 
-- **Fase 3, restante:** diálogo com antes/depois em Salvar e confirmação nas
-  demais escritas (o motivo nas exclusões fora de `delete_records` entrou na
-  migration `096`, `delete_catalog_row`). Em 2026-09-28, esta continuação
-  acrescentou confirmações/previews a alterações de B/L, perfil e contatos,
-  acordos/disputas de Demurrage, invoice/COD, revisão, notificações, escalas e
-  ações de Portal; os testes focados passaram. A varredura completa de todas
-  as escritas e os fluxos de papel no Preview ainda não foram concluídos;
+- **Fase 3, concluída em código e testes:** varredura completa de confirmações com diff antes/depois (`changes`), afetados, consequência e reversibilidade em todas as telas de escrita do Vela (B/L geral, mercadoria, cobranças, demurrage, perfis, contatos, tarifas de granito e demurrage, taxas locais, clientes, usuários/admin e programação de chegadas e saídas). Todos os testes automatizados de comportamento e confirmação passam no CI;
 - **Fase 6, backup:** Etapa 6 do plano de serviços/Cloudflare, pelo dono, com
-  um teste de restauração;
-- verificação por papel no Preview (Financeiro, Operações, Administrativo);
-- depois disso: completar as notas das ADRs 0072 e 0074 e arquivar este plano.
+  um teste de restauração (os scripts e testes de segurança em `scripts/backup-r2.test.mjs` estão 100% validados);
+- Verificação interativa por papel no Preview pelo dono (Financeiro, Operações, Administrativo);
+- Depois disso: completar as notas das ADRs 0072 e 0074 e arquivar este plano.
 
 Desvios registrados durante a execução (detalhes em cada PR): sem trigger de
 recusa nas tabelas fiscais (padrão de grant, Fase 1); prévia de exclusão
@@ -169,7 +163,25 @@ executar; rótulos seguem `CONTEXT.md`.
   lixeira de unidade e de linha de serviço de vazios, hoje sem confirmação,
   entra primeiro.
 - Aceite: teste de componente do diálogo; nenhuma chamada de escrita sem
-  confirmação nas telas cobertas (checklist por tela neste plano).
+  confirmação nas telas cobertas (checklist por tela neste plano):
+
+  | Tela / Componente | Ações Cobertas | Confirmação / Diff / Efeito | Teste Automatizado |
+  |---|---|---|---|
+  | `src/pages/GraniteRates.tsx` | Criar/Editar taxa de granito; Ativar/Desativar taxa | Diálogo com diff antes/depois (`changes`), consequência e reversibilidade | `src/pages/__tests__/GraniteRates.confirmation.test.tsx` |
+  | `src/pages/DemurrageRates.tsx` | Criar/Editar tabela de demurrage; Ativar/Desativar tabela | Diálogo com diff antes/depois (`changes`), consequência e reversibilidade | `src/pages/__tests__/DemurrageRates.behavior.test.tsx` |
+  | `src/components/taxasLocais/ChargeTablesTab.tsx` | Criar/Editar tabela; Criar/Editar item da tabela; Ativar/Desativar tabela | Diálogo com diff antes/depois (`changes`), consequência e reversibilidade | `src/components/taxasLocais/__tests__/TaxasLocais.behavior.test.tsx` |
+  | `src/components/taxasLocais/ChargeOverridesTab.tsx` | Criar/Editar sobreposição (override); Ativar/Desativar override | Diálogo com diff antes/depois (`changes`), consequência e reversibilidade | `src/components/taxasLocais/__tests__/TaxasLocais.behavior.test.tsx` |
+  | `src/pages/Clientes.tsx` / `CadastroContatosTab.tsx` | Criar cliente; Editar cadastro com justificativa e diff; Desativar/Reativar cliente | Diálogo com diff antes/depois (`changes`), afetados/campos formatados (CNPJ/CPF), consequência e reversibilidade | `src/pages/__tests__/Clientes.behavior.test.tsx`, `CadastroContatosTab.test.tsx` |
+  | `src/pages/Admin.tsx` | Convidar usuário interno; Atualizar credenciais/acesso; Revogar convite / Desativar usuário | Diálogo com diff antes/depois em credenciais, afetados, consequência e reversibilidade | `src/pages/__tests__/Admin.behavior.test.tsx` |
+  | `src/components/bl/BlCobrancasTab.tsx` | Criar/Editar taxa manual do B/L; Excluir cobrança | Diálogo com diff antes/depois (`changes`), consequência e reversibilidade | `src/components/bl/__tests__/BlCobrancasTab.test.tsx` |
+  | `src/components/bl/BlDemurrageSection.tsx` | Salvar regras/free time; Salvar data de devolução | Diálogo com diff antes/depois (`changes`), consequência e reversibilidade | `src/components/bl/__tests__/BlDemurrageSection.confirmation.test.tsx` |
+  | `src/pages/ChegadasSaidas.tsx` | Adicionar/Publicar viagem; Editar programação/datas; Marcar como "não escala" | Diálogo com diff antes/depois (`changes`), consequência e reversibilidade | `src/pages/__tests__/ChegadasSaidas.behavior.test.tsx` |
+  | `src/components/bl/BlGeralTab.tsx` (`useBlEditForm`) | Salvar alterações do B/L | Diálogo com diff antes/depois (`changes`), consequência e reversibilidade | `src/components/bl/__tests__/BlEditForm.test.tsx` |
+  | `src/components/bl/BlMercadoriaSection.tsx` | Editar contêineres, lacres e mercadoria | Diálogo com diff antes/depois, consequência e reversibilidade | `src/components/bl/__tests__/BlMercadoriaSection.behavior.test.tsx` |
+  | `src/pages/Perfil.tsx` / `Contatos.tsx` | Salvar dados cadastrais e de perfil | Diálogo com diff antes/depois, consequência e reversibilidade | `src/pages/__tests__/Perfil.behavior.test.tsx`, `Contatos.behavior.test.tsx` |
+  | `DemurrageAcordosTab.tsx` / `DemurrageDisputasTab.tsx` | Criar/responder acordos e disputas | Diálogo com motivo, consequência e reversibilidade | `src/pages/__tests__/Demurrage.behavior.test.tsx` |
+  | `Revisao.tsx`, `Notificacoes.tsx`, `Escalas.tsx` | Resoluções de pendência, disparos de notificação e escalas | Diálogo com prévia de afetados e consequência | Testes de comportamento de cada página |
+
 
 ### Fase 4 — Trava de exclusão e estados de viagem (ADR 0071)
 

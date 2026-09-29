@@ -181,6 +181,7 @@ jobs:
             src/integration/importAtomicity.local-pg.test.ts \
             src/integration/importEffects.local-pg.test.ts \
             src/integration/localBillingIntegrity.local-pg.test.ts \
+            src/integration/manualInvoice.local-pg.test.ts \
             src/integration/operationalLists.local-pg.test.ts \
             src/integration/portalInspectionParity.local-pg.test.ts \
             src/integration/rpcCatalog.local-pg.test.ts \

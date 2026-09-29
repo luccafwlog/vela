@@ -193,6 +193,7 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
         <>
           <div className="hidden app-table-scroll md:block">
             <table className="app-table app-table--compact min-w-[1040px] text-left text-sm">
+              <caption className="sr-only">B/Ls da operação do cliente</caption>
               <thead>
                 <tr>
                   <th scope="col" className="px-4 py-3">B/L</th>
@@ -366,6 +367,7 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
         <>
           <div className="hidden app-table-scroll md:block">
             <table className="app-table app-table--compact min-w-[1200px] text-left text-sm">
+              <caption className="sr-only">Containers da operação do cliente</caption>
               <thead>
                 <tr>
                   <th scope="col" className="px-4 py-3">Container</th>

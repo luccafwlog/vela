@@ -4,6 +4,7 @@ import { Save } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Field, Input } from '../ui/Input'
+import { useConfirm } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import { useCustomerDemurrageAgreements } from '../../hooks/useCustomerDemurrageAgreements'
@@ -21,6 +22,7 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
+  const confirm = useConfirm()
 
   // Sem cliente vinculado nao ha acordo a aplicar. O `enabled` e o que impede
   // a consulta de voltar com os acordos de TODOS os clientes (o filtro por
@@ -85,6 +87,39 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
       return
     }
 
+    const changes = [
+      {
+        field: 'Free Time',
+        before: bl.free_time_override != null ? `${bl.free_time_override} dias` : 'Padrão',
+        after: freeTimeVal != null ? `${freeTimeVal} dias` : 'Padrão',
+      },
+      {
+        field: 'Tarifa P1 (USD)',
+        before: bl.demurrage_rate_override_p1_usd != null ? `USD ${Number(bl.demurrage_rate_override_p1_usd)}` : 'Padrão',
+        after: p1Val != null ? `USD ${p1Val}` : 'Padrão',
+      },
+      {
+        field: 'Tarifa P2 (USD)',
+        before: bl.demurrage_rate_override_p2_usd != null ? `USD ${Number(bl.demurrage_rate_override_p2_usd)}` : 'Padrão',
+        after: p2Val != null ? `USD ${p2Val}` : 'Padrão',
+      },
+    ].filter((c) => c.before !== c.after)
+
+    if (changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: 'Salvar configuração de Demurrage',
+      message: `Salvar os overrides de Demurrage do B/L ${bl.id}?`,
+      confirmLabel: 'Salvar alterações',
+      changes,
+      consequence: 'Os valores configurados sobrescreverão os acordos e a tabela padrão no cálculo de demurrage dos containers deste B/L.',
+      reversibility: 'Os valores de override podem ser editados ou limpos a qualquer momento.',
+    })
+    if (!confirmed) return
+
     setSavingConfig(true)
     try {
       await saveBlDemurrageConfig({
@@ -119,6 +154,25 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
 
   async function handleSaveReturnDate(containerId: number) {
     const returnDate = returnDates[containerId] ?? null
+    const container = bl.bl_containers?.find((c) => c.id === containerId)
+    const beforeDate = container?.return_date ? formatDate(container.return_date) : 'Sem devolução'
+    const afterDate = returnDate ? formatDate(returnDate) : 'Sem devolução'
+
+    if (beforeDate === afterDate) {
+      showToast('Nenhuma alteração na data de devolução.', 'info')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: 'Salvar data de devolução',
+      message: `Atualizar data de devolução do container ${container?.container_number ?? containerId}?`,
+      confirmLabel: 'Salvar data',
+      changes: [{ field: 'Data de devolução', before: beforeDate, after: afterDate }],
+      consequence: 'O cálculo de Demurrage deste container considerará a devolução nesta data para apuração de dias excedentes e valores devidos.',
+      reversibility: 'A data pode ser alterada ou desfeita novamente.',
+    })
+    if (!confirmed) return
+
     setSavingReturnDate(containerId)
     try {
       await updateContainerReturnDate(containerId, returnDate || null)
@@ -234,6 +288,8 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
                           />
                           <button
                             type="button"
+                            title="Salvar devolução"
+                            aria-label="Salvar devolução"
                             className="rounded bg-blue-700 px-1.5 py-0.5 text-xs text-white hover:bg-blue-600 disabled:opacity-50"
                             disabled={savingReturnDate === container.id}
                             onClick={() => void handleSaveReturnDate(container.id)}

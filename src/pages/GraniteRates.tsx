@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { Field, Input, Select } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
-import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { listGraniteRates, upsertGraniteRate, deleteGraniteRate } from '../services/graniteCharges'
@@ -25,6 +25,7 @@ export function GraniteRates() {
   const queryClient = useQueryClient()
   const { isAdmin } = useAuth()
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<Omit<GraniteRate, 'id' | 'created_at'> & { id?: string }>(EMPTY_FORM)
@@ -48,6 +49,39 @@ export function GraniteRates() {
 
   async function handleSave() {
     if (!form.description || !form.charge_type || form.unit_value === undefined) return
+
+    const originalRate = form.id ? rates?.find((r) => r.id === form.id) : null
+    const changes = originalRate
+      ? [
+          { field: 'Descrição', before: originalRate.description, after: form.description },
+          { field: 'Tipo', before: chargeTypeLabel[originalRate.charge_type], after: chargeTypeLabel[form.charge_type] },
+          { field: 'Valor unitário', before: `${originalRate.currency} ${originalRate.unit_value}`, after: `${form.currency} ${form.unit_value}` },
+          { field: 'Vigência de', before: originalRate.valid_from ? originalRate.valid_from.slice(0, 10) : '', after: form.valid_from ? form.valid_from.slice(0, 10) : '' },
+          { field: 'Vigência até', before: originalRate.valid_to ? originalRate.valid_to.slice(0, 10) : '', after: form.valid_to ? form.valid_to.slice(0, 10) : '' },
+          { field: 'Status', before: originalRate.active ? 'Ativa' : 'Inativa', after: form.active ? 'Ativa' : 'Inativa' },
+        ].filter((c) => c.before !== c.after)
+      : []
+
+    if (originalRate && changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: form.id ? 'Salvar taxa de Granito' : 'Cadastrar taxa de Granito',
+      message: form.id
+        ? `Salvar as alterações da taxa "${form.description}"?`
+        : `Cadastrar a taxa "${form.description}" (${chargeTypeLabel[form.charge_type]})?`,
+      confirmLabel: form.id ? 'Salvar alterações' : 'Cadastrar taxa',
+      changes: originalRate ? changes : undefined,
+      affected: !originalRate
+        ? { summary: `${form.description} · ${chargeTypeLabel[form.charge_type]} · ${form.currency} ${form.unit_value}` }
+        : undefined,
+      consequence: 'A taxa será utilizada nos cálculos de faturamento de B/Ls de granito conforme o tipo de cobrança e vigência.',
+      reversibility: 'A taxa cadastrada pode ser editada ou desativada no cadastro.',
+    })
+    if (!confirmed) return
+
     setSaving(true)
     try {
       await upsertGraniteRate(form)
@@ -77,9 +111,25 @@ export function GraniteRates() {
   }
 
   async function handleToggleActive(rate: GraniteRate) {
+    const nextActive = !rate.active
+    const confirmed = await confirm({
+      title: nextActive ? 'Reativar taxa de Granito' : 'Desativar taxa de Granito',
+      message: nextActive
+        ? `Reativar a taxa "${rate.description}"?`
+        : `Desativar a taxa "${rate.description}"?`,
+      confirmLabel: nextActive ? 'Reativar' : 'Desativar',
+      tone: nextActive ? 'primary' : 'danger',
+      consequence: nextActive
+        ? 'A taxa volta a entrar nos cálculos de novos B/Ls de granito.'
+        : 'A taxa não será aplicada a novos cálculos; faturamentos antigos permanecem inalterados.',
+      reversibility: nextActive ? 'Desative novamente se necessário.' : 'Reative a taxa quando precisar.',
+    })
+    if (!confirmed) return
+
     try {
-      await upsertGraniteRate({ ...rate, active: !rate.active })
+      await upsertGraniteRate({ ...rate, active: nextActive })
       await queryClient.invalidateQueries({ queryKey: ['granite-rates'] })
+      showToast(nextActive ? 'Taxa reativada.' : 'Taxa desativada.', 'success')
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Erro ao atualizar.', 'error')
     }
@@ -112,6 +162,7 @@ export function GraniteRates() {
 
         <div className="app-table-scroll">
           <table className="app-table app-table--compact min-w-[800px] text-left text-sm whitespace-nowrap">
+            <caption className="sr-only">Tabela de tarifas de granito</caption>
             <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
               <tr>
                 <th scope="col" className="px-4 py-3">Descrição</th>

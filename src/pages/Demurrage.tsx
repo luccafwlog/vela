@@ -407,6 +407,7 @@ export function Demurrage() {
             </div></div>
             <div className="overflow-x-auto">
               <table className="app-table app-table--compact min-w-[700px] text-left text-sm">
+                <caption className="sr-only">Containers vinculados à invoice de demurrage</caption>
                 <thead className="bg-[#0d1117] text-xs uppercase text-slate-500"><tr><th scope="col" className="py-2">Container</th><th scope="col" className="py-2">Tipo</th><th scope="col" className="py-2">Descarga</th><th scope="col" className="py-2">Devolução</th><th scope="col" className="py-2">Dias</th><th scope="col" className="py-2">Free</th><th scope="col" className="py-2">P1</th><th scope="col" className="py-2">P2</th><th scope="col" className="py-2">Subtotal</th></tr></thead>
                 <tbody className="divide-y divide-[#30363d]">
                   {(breakdownDetail.items as DemurrageInvoiceItem[]).map((item) => (
