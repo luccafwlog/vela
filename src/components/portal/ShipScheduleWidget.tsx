@@ -40,6 +40,7 @@ export function ShipScheduleWidget() {
         <>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse min-w-[900px]">
+              <caption className="sr-only">Programação de navios no Portal</caption>
               <thead>
                 <tr className="bg-[var(--app-blue-btn)]">
                   <th className="px-3 py-3 text-center text-xs font-bold text-[var(--app-thead-text)] uppercase tracking-wider border-r border-[color-mix(in_srgb,var(--app-thead-text)_20%,transparent)] min-w-[160px]">

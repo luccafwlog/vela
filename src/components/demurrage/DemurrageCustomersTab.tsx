@@ -52,6 +52,7 @@ export function DemurrageCustomersTab({ summary, detail, expandedCustomer, onExp
                 {isExpanded && (
                   <div id={panelId} className="border-t border-[#30363d] px-4 py-2">
                     <table className="w-full text-sm">
+                      <caption className="sr-only">Invoices de demurrage de {customer.customer_name}</caption>
                       <thead className="text-xs uppercase text-slate-500">
                         <tr>
                           <th className="py-1 text-left">Nº Doc</th>

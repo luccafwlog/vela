@@ -133,6 +133,7 @@ export function DemurrageRates() {
           <Card className="overflow-hidden p-0">
             <div className="app-table-scroll">
               <table className="app-table app-table--compact min-w-[800px] text-left text-sm whitespace-nowrap">
+                <caption className="sr-only">Tabela padrão de tarifas de demurrage</caption>
                 <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
                   <tr>
                     <th scope="col" className="px-4 py-3">Tipo Container</th>

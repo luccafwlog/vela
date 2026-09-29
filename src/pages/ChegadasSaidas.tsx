@@ -340,6 +340,7 @@ export function ChegadasSaidas() {
       <div className="app-soft-panel" style={{ padding: 0 }}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
+            <caption className="sr-only">Programação de chegadas e saídas</caption>
             <thead>
               <tr className="bg-[var(--app-navy)] text-white">
                 <th scope="col" className="px-3 py-3 text-left text-xs font-bold uppercase tracking-wider border-r border-white/10">Navio</th>

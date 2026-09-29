@@ -421,6 +421,7 @@ function ReconciliacaoContent() {
               </div>
               <div className="app-table-scroll">
                 <table className="app-table app-table--compact min-w-[760px] text-sm">
+                  <caption className="sr-only">Correspondências confirmadas do extrato PIX</caption>
                   <thead className="text-xs uppercase tracking-wider text-slate-500">
                     <tr>
                       <th scope="col" className="px-3 py-2">Tipo</th>

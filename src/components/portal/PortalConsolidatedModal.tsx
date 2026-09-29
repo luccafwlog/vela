@@ -90,6 +90,7 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
             <EmptyState title="Sem B/Ls" description="Você não possui B/Ls com saldo aberto para consolidar." />
           ) : (
             <table className="app-table app-table--compact min-w-[640px] text-left text-sm">
+              <caption className="sr-only">B/Ls com saldo aberto para consolidação</caption>
               <thead>
                 <tr>
                   <th scope="col" className="px-3 py-2">Sel.</th>

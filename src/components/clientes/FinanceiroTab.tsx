@@ -56,6 +56,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
         </div>
         {data.invoices_access_denied ? restrictedText : (
           <table className="app-table app-table--compact w-full text-left text-sm">
+            <caption className="sr-only">Invoices locais do cliente</caption>
             <thead><tr><th>Invoice</th><th>Emissão</th><th>Total</th><th>Status</th></tr></thead>
             <tbody>
               {data.invoices?.length ? data.invoices.map((row) => (
@@ -78,6 +79,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
         </div>
         {dem.isLoading ? loadingText : dem.isError ? errorText : restricted(dem.data?.denied) ? restrictedText : (
           <table className="app-table app-table--compact w-full text-left text-sm">
+            <caption className="sr-only">Invoices de demurrage do cliente</caption>
             <thead><tr><th>Documento</th><th>B/L</th><th>Emissão</th><th>USD</th><th>BRL atual</th><th>Status</th><th>Disputa</th></tr></thead>
             <tbody>
               {dem.data?.rows.length ? dem.data.rows.map((row) => (
@@ -100,6 +102,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
         <h2 className="mb-4 text-lg font-semibold text-white">Recebíveis (Ledger Local)</h2>
         {rec.isLoading ? loadingText : rec.isError ? errorText : restricted(rec.data?.denied) ? restrictedText : (
           <table className="app-table app-table--compact w-full text-left text-sm">
+            <caption className="sr-only">Recebíveis do ledger local do cliente</caption>
             <thead><tr><th>B/L</th><th>Original</th><th>Liquidado</th><th>Saldo</th><th>Status</th></tr></thead>
             <tbody>
               {rec.data?.rows.length ? rec.data.rows.map((row) => (
@@ -120,6 +123,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
         <h2 className="mb-4 text-lg font-semibold text-white">Pagamentos</h2>
         {pay.isLoading ? loadingText : pay.isError ? errorText : restricted(pay.data?.denied) ? restrictedText : (
           <table className="app-table app-table--compact w-full text-left text-sm">
+            <caption className="sr-only">Pagamentos registrados para o cliente</caption>
             <thead><tr><th>Data</th><th>Invoice</th><th>Valor</th><th>Método</th></tr></thead>
             <tbody>
               {pay.data?.rows.length ? pay.data.rows.map((row) => (

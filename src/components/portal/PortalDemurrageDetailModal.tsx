@@ -49,6 +49,7 @@ export function PortalDemurrageDetailModal({
             <Card className="overflow-hidden p-0">
               <div className="app-table-scroll">
                 <table className="app-table app-table--compact min-w-[720px] text-sm">
+                  <caption className="sr-only">Containers e valores da invoice de demurrage</caption>
                   <thead>
                     <tr>
                       <th scope="col" className="px-3 py-2">Container</th>

@@ -245,6 +245,7 @@ export function ChargeOverridesTab({
         {overridesError ? <InlineError message="Falha ao consultar overrides." /> : null}
         <div className="app-table-scroll">
           <table className="app-table app-table--compact min-w-[1220px] text-left text-sm whitespace-nowrap">
+            <caption className="sr-only">Overrides de taxas locais</caption>
             <thead>
               <tr>
                 <th scope="col" className="px-4 py-3">Cliente</th>

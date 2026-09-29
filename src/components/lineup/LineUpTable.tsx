@@ -38,6 +38,7 @@ export function LineUpTable({
         className={`app-table app-table--dense app-table--lineup ${isDisplay ? 'app-table--lineup-display' : ''} min-w-full table-fixed text-left`}
         style={isDisplay && rowHeight ? ({ ['--lineup-display-row-height' as string]: `${rowHeight}px` } as CSSProperties) : undefined}
       >
+        <caption className="sr-only">Programação de viagens e escalas</caption>
         <colgroup>
           <col className={isDisplay ? 'w-[20%]' : 'w-[19%]'} />
           <col className={isDisplay ? 'w-[5%]' : 'w-[5%]'} />
