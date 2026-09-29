@@ -800,16 +800,27 @@ registrada.
   com bearer válido, atualização de invoice aberta/paga, recuperação idempotente
   e execução agendada permanecem pendentes; nenhum secret/job foi criado.
 
+### 1.0.31 Smoke autenticado após login do cliente — 2026-09-29
+
+- Após o usuário concluir o login autorizado, `/portal/billing` carregou com
+  sessão autenticada. A tela listou `INV-2026-0001`, emitida, com saldo de
+  R$ 1,00, enquanto o KPI `Saldo pendente` continuou em R$ 0,00. É confirmação
+  visual em produção da divergência descrita em 1.0.24, antes da publicação da
+  migration `105`; não é falha do código ainda não publicado.
+- `/portal/operacao` carregou e mostrou zero B/Ls. Não houve pagamento, criação
+  ou alteração de registros durante este smoke. O fluxo prova login e leitura
+  básica dessas telas; não substitui os casos financeiros/operacionais de S10.
+
 ### 1.0.32 Bateria financeira no replay serial de PostgreSQL — 2026-09-29
 
-- A PR draft #797 incluiu `financialBattery.local-pg.test.ts` por último no
-  replay serial do PostgreSQL real. A bateria H13/H15/H16/H17 exercita
-  consolidação, pagamentos parciais, estorno, cancelamento/reemissão, disputa,
-  PTAX e recusa de PIX excedente.
-- A primeira execução encontrou uma linha residual em
-  `pricing_rule_versions`; a limpeza agora limita a exclusão à tabela, item e
-  cliente sintéticos identificados. Asserções confirmam que cálculos,
-  overrides, itens e versões tarifárias não vazam para o seed seguinte.
+- A PR #797 incluiu `financialBattery.local-pg.test.ts` por último no replay
+  serial do PostgreSQL real. A bateria H13/H15/H16/H17 exercita consolidação,
+  pagamentos parciais, estorno, cancelamento/reemissão, disputa, PTAX e recusa
+  de PIX excedente.
+- A primeira execução encontrou uma linha residual em `pricing_rule_versions`;
+  a limpeza agora limita a exclusão à tabela, item e cliente sintéticos
+  identificados. Asserções confirmam que cálculos, overrides, itens e versões
+  tarifárias não vazam para o seed seguinte.
 - A CI da PR #797 no SHA `21df8e2c` (run `36523820461`) passou: replay Postgres,
   três shards de testes, lint/docs, build, guard de segurança e Supabase Preview.
   Isso prova os cenários SQL locais no CI; os wrappers financeiros, BRL/USD/
