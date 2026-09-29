@@ -75,10 +75,10 @@ it('US-045: cancela a invoice', async () => {
   expect(rpcMock).toHaveBeenCalledWith('cancel_demurrage_invoice', expect.objectContaining({ p_invoice_id: 5 }))
 })
 
-it('US-047: abre/atualiza disputa via patch', async () => {
+it('US-047: atualiza assunto da disputa via patch, sem mexer no estado', async () => {
   results.demurrage_invoices = { data: null, error: null }
-  await updateDemurrageInvoice(5, { dispute_open: true, dispute_subject: 'Cobranca indevida', dispute_status: 'aberto' })
-  expect(lastUpdate('demurrage_invoices')).toMatchObject({ dispute_open: true, dispute_subject: 'Cobranca indevida' })
+  await updateDemurrageInvoice(5, { dispute_subject: 'Cobranca indevida' })
+  expect(lastUpdate('demurrage_invoices')).toEqual({ dispute_subject: 'Cobranca indevida' })
 })
 
 it('US-040: abre o detalhe da invoice com header e itens', async () => {

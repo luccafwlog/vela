@@ -1,6 +1,16 @@
 # Plano — Remediação da auditoria de segurança run-2
 
-Data: 2026-09-28. Estado: não iniciado; quatro decisões (D1–D4) aguardam o dono.
+Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 tomadas
+(ver "Decisões").
+
+| Parte | Situação |
+|---|---|
+| Fase 1 — configuração de terceiros | pendente (dono, no painel) |
+| Fase 2 — migration `106` e item 4.5 | código entregue pela PR luccafwlog/vela#799 (suíte `auditoriaRun2.local-pg.test.ts`); **falta aplicar a `106` em produção** e conferir na Preview a política de Storage de 2.2 e o modal de Disputa |
+| Fase 3 — Edge Functions | pendente (usa `internal_revoke_sessions` da `106`) |
+| Fase 4 — front-end (exceto 4.5) | pendente |
+| Fase 5 — CI e hospedagem | pendente |
+| Reforços adicionais (D4 = b) | pendentes |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
 (commit auditado `17da824a`). A auditoria está **incompleta**: nenhum dos 15
@@ -18,7 +28,16 @@ O repositório é público e os candidatos estão abertos. A ordem abaixo segue 
 risco: primeiro o que o dono resolve no painel sem código (#14), depois o
 defeito que trava a importação (#13b) e as regras de negócio no banco.
 
-## Decisões pendentes
+## Decisões
+
+Respondidas pelo dono em 2026-09-29: **D1 = (b)** (cai para (a) se o plano
+do Supabase não oferecer o hook), **D2 = (c)** (manter como hoje; o item 2.8
+só remove o INSERT duplicado), **D3 = (a)**, **D4 = (b)** (todos os reforços
+da auditoria; ver "Reforços adicionais (D4 = b)").
+
+Drift mecânico: as migrations `100`–`105` já existem em `main`; a migration
+desta fase é `106_remediacao_auditoria_run_2.sql` (a `105` foi ocupada pela
+fatura avulsa enquanto esta PR estava aberta).
 
 | # | Pergunta | Opções | Recomendação | Bloqueia |
 |---|---|---|---|---|
@@ -54,9 +73,9 @@ na mesma PR que a documenta; nomes e locais de secrets, nunca valores.
 Verificação: capturas do painel anexadas à PR de documentação; nenhum workflow
 de Preview ou produção quebrado no primeiro push após a mudança.
 
-## Fase 2 — Migration `100` (banco)
+## Fase 2 — Migration `106` (banco)
 
-Uma migration nova, `supabase/migrations/100_remediacao_auditoria_run_2.sql`,
+Uma migration nova, `supabase/migrations/106_remediacao_auditoria_run_2.sql`,
 com um teste `src/integration/auditoriaRun2.local-pg.test.ts` no padrão das
 suítes `local-pg`. Cada item abaixo tem um caso que falha antes e passa depois.
 Se o item 2.8 inativar contatos já existentes, o cabeçalho da migration declara
@@ -85,6 +104,17 @@ Observação da auditoria a conferir no mesmo teste: um `SELECT` direto de
 usuário interno em `demurrage_disputes` lança "Sessao do portal invalida". Se
 alguma tela interna lê a tabela direto, corrigir a política para devolver
 nulo em vez de lançar.
+
+Execução (2026-09-29): os 10 casos falharam antes da `106` e passam depois,
+em Postgres 16 local (Windows, replay equivalente ao `setup-local-pg.sh`).
+Diferenças do desenho: 2.4 virou envelope das definições vigentes renomeadas
+para `_*_impl_106` com a checagem `_assert_actor_is_caller`; a política
+`app_settings_administrativo_update` foi removida (não há grant de UPDATE em
+`app_settings` para `authenticated`); o gatilho de 2.5 só age quando
+`current_user = 'authenticated'` (INSERT direto), preservando o que funções
+SECURITY DEFINER gravam. Nenhuma tela interna lê `demurrage_disputes` direto,
+então a política dessa tabela ficou como está. A política de storage de 2.2
+não roda localmente (sem `storage.objects`): só verificada em Preview.
 
 Verificação: gates de schema do [WORKFLOW.md](../../WORKFLOW.md) §11
 (`migrations:check`, `rpc:check`, suíte `local-pg` nova e as existentes de
@@ -153,6 +183,34 @@ de Dispute observado na Preview.
 
 Verificação: um push de teste numa branch sem acesso ao environment não recebe
 os tokens; Preview e produção publicam normalmente.
+
+## Reforços adicionais (D4 = b)
+
+Com D4 = (b), entram também os reforços do anexo da auditoria que não estavam
+listados acima. Cada um segue a regra do plano: reproduzir antes de corrigir.
+Os que dependem de regra de negócio ficam anotados, não implementados.
+
+- Banco (migration própria depois da `106`): `recalculate_demurrage_invoices_manual`
+  restrita a Financeiro e Administrativo; `portal_add_dispute_message` e
+  `portal_invoice_details` com a trava de liberação do Portal; mensagens de
+  Dispute sem `author_id`/`uploaded_by` para o Portal; bounce temporário não
+  vira `bounce_permanente`; DELETE direto de viagem vazia exige motivo; ordem
+  de travas entre baixa e estorno de fatura local; `portal_obsolete_consolidation`
+  recusa com PIX pendente; contagem deduplicada na notificação de consolidada.
+- Edge Functions: anexos de Comunicado com checagem de assinatura e extensão;
+  campos cosméticos do histórico de cobrança derivados do banco; cliente
+  desativado ignorado em recuperação, convite, Comunicados e resumo diário;
+  reativar a conta do Portal apaga ou bane o usuário antigo do Auth;
+  `portal-recovery-email-change` com cota e conta ativa; `portal-login` checa
+  `active`; `portal-invite-activate:41` com `.eq('status','consumido')`;
+  limpeza de anexos órfãos de Dispute; cota e sessão checadas antes do upload
+  de 10 MB.
+- Front-end: `beforeSend` do Sentry reaproveita `VERCEL_DYNAMIC_ROUTE_REDACTIONS`;
+  `FORMULA_INJECTION_PREFIX` cobre espaço à esquerda e caracteres de largura total.
+- Operação (dono): rotacionar os segredos de cron do Vault; `.mcp.json` e
+  `opencode.json` com versões fixas; backup em conta ou pasta dedicada.
+- Precisa de regra de negócio antes: `recalculate_demurrage_invoices` também
+  para `overdue`.
 
 ## Encerramento
 

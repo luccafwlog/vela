@@ -8,11 +8,11 @@ export type DiscountForm = {
   discount_approver: string
 }
 
+// Estado da Dispute (aberta/resolvida) só muda pelas RPCs da conversa de
+// Disputes; o banco não aceita UPDATE direto dessas colunas (migration 106).
 export type DisputeForm = {
-  dispute_open: boolean
   dispute_subject: string
   dispute_reason: string
-  dispute_status: DemurrageInvoice['dispute_status']
   dispute_notes: string
 }
 
@@ -24,12 +24,6 @@ export const DISCOUNT_TYPE_LABELS: Record<NonNullable<DemurrageInvoice['discount
   erro: 'Erro',
 }
 
-export const DISPUTE_STATUS_LABELS: Record<NonNullable<DemurrageInvoice['dispute_status']>, string> = {
-  aberto: 'Aberto',
-  resolvido: 'Resolvido',
-  cancelado: 'Cancelado',
-}
-
 export const EMPTY_DISCOUNT: DiscountForm = {
   discount_type: null,
   discount_value: '',
@@ -39,9 +33,7 @@ export const EMPTY_DISCOUNT: DiscountForm = {
 }
 
 export const EMPTY_DISPUTE: DisputeForm = {
-  dispute_open: false,
   dispute_subject: '',
   dispute_reason: '',
-  dispute_status: null,
   dispute_notes: '',
 }

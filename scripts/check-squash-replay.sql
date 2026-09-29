@@ -80,9 +80,11 @@ BEGIN
   END IF;
   SELECT COUNT(*) INTO v_policies FROM pg_policies WHERE schemaname = 'public';
   -- A 096 removeu as 7 policies de DELETE dos cadastros (274 -> 267;
-  -- exclusão passa por delete_catalog_row).
-  IF v_policies < 267 THEN
-    RAISE EXCEPTION 'Policies RLS em public: % (piso 267).', v_policies;
+  -- exclusão passa por delete_catalog_row). A 106 removeu mais 3 (267 -> 264):
+  -- DELETE direto de customers/customer_contacts e a política morta de
+  -- app_settings.
+  IF v_policies < 264 THEN
+    RAISE EXCEPTION 'Policies RLS em public: % (piso 264).', v_policies;
   END IF;
   -- A 008 aposentou trg_seed_customer_contact_preferences (144 -> 143 triggers).
   SELECT COUNT(*) INTO v_triggers FROM pg_trigger t
@@ -151,14 +153,16 @@ BEGIN
     RAISE EXCEPTION 'demurrage_invoices recebeu mutacao ampla para authenticated.';
   END IF;
   FOREACH v_table IN ARRAY ARRAY[
-    'due_date', 'dispute_open', 'dispute_subject',
-    'dispute_reason', 'dispute_status', 'dispute_notes', 'notes'
+    'due_date', 'dispute_subject', 'dispute_reason', 'dispute_notes', 'notes'
   ] LOOP
     IF NOT has_column_privilege('authenticated', 'public.demurrage_invoices', v_table, 'UPDATE') THEN
       RAISE EXCEPTION 'authenticated sem UPDATE operacional em demurrage_invoices.%', v_table;
     END IF;
   END LOOP;
+  -- A 106 tirou o estado da Dispute do UPDATE direto: só as RPCs com regra
+  -- de papel (add_demurrage_dispute_message/reopen_demurrage_dispute) mudam.
   FOREACH v_table IN ARRAY ARRAY[
+    'dispute_open', 'dispute_status',
     'status', 'total_usd', 'current_total_brl', 'pix_txid',
     'current_roe', 'roe', 'roe_manual', 'roe_source'
   ] LOOP
