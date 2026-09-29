@@ -323,17 +323,13 @@ describe('Demurrage page behaviours', () => {
     await user.click(screen.getByRole('button', { name: 'Detalhes' }))
     await screen.findByRole('dialog', { name: 'Detalhes da invoice' })
     await user.click(screen.getByRole('button', { name: 'Disputa' }))
-    await user.click(screen.getByRole('checkbox', { name: 'Disputa em aberto' }))
     await user.type(screen.getByLabelText('Assunto'), 'Contestação')
-    await user.selectOptions(screen.getByLabelText('Status'), 'aberto')
     await user.type(screen.getByLabelText('Motivo'), 'Data divergente')
     await user.type(screen.getByLabelText('Notas'), 'Aguardando comprovante')
     await user.click(screen.getByRole('button', { name: 'Salvar' }))
     await waitFor(() => expect(mocks.updateInvoice).toHaveBeenCalledWith(21, {
-      dispute_open: true,
       dispute_subject: 'Contestação',
       dispute_reason: 'Data divergente',
-      dispute_status: 'aberto',
       dispute_notes: 'Aguardando comprovante',
     }))
     expect(screen.queryByRole('dialog', { name: 'Disputa' })).toBeNull()

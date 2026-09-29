@@ -95,6 +95,44 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
       return
     }
 
+    const item = manualChargeItems?.find((i) => i.charge_item_id === chargeItemId)
+    const itemName = item?.charge_item_name ?? `Item #${chargeItemId}`
+
+    if (manualChargeForm.editingChargeCalculationId) {
+      const line = localChargeSummary.lines.find((entry) => entry.id === manualChargeForm.editingChargeCalculationId)
+      const changes = [
+        { field: 'Quantidade', before: String(Number(line?.quantity ?? 1)), after: String(quantity) },
+        { field: 'Observações', before: line?.notes ?? '', after: manualChargeForm.notes.trim() },
+      ].filter((c) => c.before !== c.after)
+
+      if (changes.length === 0) {
+        showToast('Nenhuma alteração para salvar.', 'info')
+        return
+      }
+
+      const confirmed = await confirm({
+        title: 'Salvar taxa manual',
+        message: `Salvar alterações na cobrança manual "${itemName}" deste B/L?`,
+        confirmLabel: 'Salvar alterações',
+        changes,
+        consequence: 'O valor da cobrança manual será recalculado e refletido no total de taxas locais deste B/L.',
+        reversibility: 'A linha manual pode ser editada ou excluída enquanto o faturamento não for fechado.',
+      })
+      if (!confirmed) return
+    } else {
+      const confirmed = await confirm({
+        title: 'Adicionar taxa manual',
+        message: `Adicionar cobrança manual de "${itemName}" a este B/L?`,
+        confirmLabel: 'Adicionar cobrança',
+        affected: {
+          summary: `${itemName} · Quantidade: ${quantity}${manualChargeForm.notes.trim() ? ` · Obs: ${manualChargeForm.notes.trim()}` : ''}`,
+        },
+        consequence: 'A taxa manual será somada às taxas locais do B/L.',
+        reversibility: 'A cobrança manual pode ser editada ou excluída antes da emissão de fatura.',
+      })
+      if (!confirmed) return
+    }
+
     try {
       if (manualChargeForm.editingChargeCalculationId) {
         await updateManualChargeMutation.mutateAsync({
