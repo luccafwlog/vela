@@ -708,6 +708,19 @@ registrada.
   mergeada. O upload da fixture B/L continua sem execução: o seletor de arquivo
   não abriu no navegador integrado. Nenhum B/L ou container foi criado.
 
+### 1.0.26 Escape na barra de filtros — 2026-09-29
+
+- **Runtime — produção, diagnóstico:** a barra de filtros abria por teclado,
+  mas Escape não a fechava quando o foco estava em um campo comum nem devolvia
+  o foco ao acionador. A observação identifica um problema compartilhado; não
+  representa validação da correção publicada.
+- **Código/Teste local:** `FilterBar` fecha com Escape dentro do corpo e devolve
+  o foco ao botão. Se o foco estiver num controle expandido, como `Combobox`,
+  o primeiro Escape permanece com o controle interno e o seguinte fecha a
+  barra. `src/components/ui/__tests__/FilterBar.behavior.test.tsx` cobre os
+  dois fluxos. O teste focado, lint direcionado e typecheck passaram. Preview
+  autenticado ainda precisa confirmar a correção publicada.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
@@ -1381,6 +1394,10 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
   ordenáveis de Clientes/conciliação; o menu de ações de Clientes agora move o
   foco com setas/Home/End e o devolve ao acionador em Escape. Evidência local:
   `Clientes.behavior.test.tsx` e `ReconciliationHistoryTable.behavior.test.tsx`.
+- [x] Na barra compartilhada de filtros, fechar com Escape e devolver o foco ao
+  acionador; um controle expandido interno consome Escape primeiro. Evidência
+  local: `FilterBar.behavior.test.tsx` (dois casos). A publicação e a validação
+  autenticada desta correção continuam pendentes.
 - [ ] Inventariar as demais tabelas relevantes e verificar caption, `aria-sort`
   e foco com leitor de tela no Preview; não criar grid ARIA sem necessidade.
 - [x] Nos uploads múltiplos que usam `FileImportModal`, exibir progresso por
@@ -1462,7 +1479,7 @@ Os nomes abaixo registram a sequência planejada e o estado observado na linha a
 | 15 | `[x]` + `[ ]` runtime | Persistir inbox e estados de envio | S07; migrations `022`, `032`, `038` e `100` | Inbox, dedup, stale events, recuperação, estado `parcial` e agregação da última tentativa estão implementados; migration 100, replay real no CI, Supabase Preview e publicação Pages pareada ao PR passaram. Execução autenticada dos fluxos, jobs, secrets e prova do provedor continuam pendentes. |
 | 16 | `[x]` + `[ ]` | Fechar ledger, status/itens, saldo avulso e rateio do impresso | S10/F14; `019_local_billing_integrity.sql`, `105_portal_manual_invoice_pending_balance.sql` | D05/R$0,01 e integração local passaram; a discrepância do KPI foi reproduzida e a RPC passou a agregar as mesmas origens canônicas de saldo mais invoices avulsas. Replay real, CI e Preview passaram no SHA `317a463b`; deploys Vela/Portal pareados confirmados. Falta smoke autenticado no Preview e pós-publicação em produção. Casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
 | 17 | `mitigado` + `[ ]` | Paginar listas e concluir projeção compartilhada | S12; `020_operational_read_pages.sql`, `035_operational_voyage_summaries.sql`, `036_operational_breakbulk_summary_metrics.sql`, `037_operational_voyage_summary_null_status.sql` e páginas Portal | Projeções, paginação/window, resumo de viagem sob demanda, Line Up sem waterfall de containers, resumo BB server-side, fallback forward de status nullable e filtros principais estão entregues; exportações sob demanda, refresh de Preview e profiler faltam. |
-| 18 | `mitigado` + `[ ]` | Debounce, offline, feedback e acessibilidade | S13; sem migration | Debounce, estados de erro/offline, hidratação, confirmações/menu e progresso/cancelamento nos modais múltiplos e customizados estão entregues; contraste, leitor de tela/foco manual e cessão entre blocos faltam. |
+| 18 | `mitigado` + `[ ]` | Debounce, offline, feedback e acessibilidade | S13; sem migration | Debounce, estados de erro/offline, hidratação, confirmações/menu e progresso/cancelamento nos modais múltiplos e customizados estão entregues; Escape/foco da FilterBar tem regressão local; leitor de tela, foco manual nas demais superfícies e cessão entre blocos faltam. |
 | 19 | `[x]` + `[ ]` | Completar índice e gate de catálogo | S14/#659.7; scripts de docs/RPC catalog | `docs:check`, catálogo, replay, tipos e inspeção local das 14 candidatas passaram; famílias ausentes e prova externa ainda faltam. |
 | 20 | `[ ]` | Retirar legado confirmado / DV condicional | S14/#659.5/6/9; sem DROP ainda | Provar consumidores externos e dados das quatro colunas, decidir DV e somente então abrir migration com `DROP ... RESTRICT`. |
 
