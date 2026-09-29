@@ -59,7 +59,7 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
     if (!authorized) return
     try {
       await sendInviteMutation.mutateAsync({ customerId: row.customer_id, recoveryEmail: email.trim(), source: row.candidates.some((candidate) => candidate.email === email.trim()) ? 'candidato' : 'informado_manualmente' })
-      showToast('Convite enviado.', 'success'); onSaved?.()
+      showToast('Convite aceito pelo provedor de email.', 'success'); onSaved?.()
     } catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível enviar o convite.') }
   }
 

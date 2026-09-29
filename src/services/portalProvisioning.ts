@@ -41,10 +41,12 @@ export type QueueRow = PortalProvisioningRow & {
 }
 
 export async function sendPortalInvite(customerId: number, recoveryEmail: string, source: RecoveryEmailSource = 'informado_manualmente') {
-  const { error } = await supabase.functions.invoke('portal-invite-send', {
+  const { data, error } = await supabase.functions.invoke('portal-invite-send', {
     body: { customer_id: customerId, recovery_email: recoveryEmail.trim().toLowerCase(), recovery_email_source: source },
   })
   if (error) throw error
+  if (data?.situation === 'falha_no_envio') throw new Error('O envio do email falhou. Verifique o status do convite antes de tentar novamente.')
+  if (data?.situation !== 'convite_pendente') throw new Error('Não foi possível confirmar o resultado do envio do convite.')
 }
 
 export type PortalProvisioningConsolePayload = {
