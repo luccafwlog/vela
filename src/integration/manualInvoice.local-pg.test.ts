@@ -6,20 +6,20 @@ const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
-const adminId = '00000000-0000-0000-0000-000000097101'
-const operatorId = '00000000-0000-0000-0000-000000097102'
-const portalAId = '00000000-0000-0000-0000-000000097103'
-const portalBId = '00000000-0000-0000-0000-000000097104'
-const customerA = 997101
-const customerB = 997102
-const carrierId = 997103
-const vesselId = 997104
-const voyageA = 997105
-const voyageB = 997106
-const blA = 'MAN-097-A'
-const blB = 'MAN-097-B'
-const customerACnpj = syntheticCnpj(97101)
-const customerBCnpj = syntheticCnpj(97102)
+const adminId = '00000000-0000-0000-0000-000000098701'
+const operatorId = '00000000-0000-0000-0000-000000098702'
+const portalAId = '00000000-0000-0000-0000-000000098703'
+const portalBId = '00000000-0000-0000-0000-000000098704'
+const customerA = 998701
+const customerB = 998702
+const carrierId = 998703
+const vesselId = 998704
+const voyageA = 998705
+const voyageB = 998706
+const blA = 'MAN-098-A'
+const blB = 'MAN-098-B'
+const customerACnpj = syntheticCnpj(98701)
+const customerBCnpj = syntheticCnpj(98702)
 
 function psql(sql: string, role: 'service_role' | 'authenticated' = 'service_role', sub = adminId): string {
   return execFileSync('psql', [
@@ -51,7 +51,7 @@ function cleanup(): void {
     DELETE FROM public.invoice_items WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id IN (${customerA}, ${customerB}));
     DELETE FROM public.payments WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id IN (${customerA}, ${customerB}));
     DELETE FROM public.invoices WHERE customer_id IN (${customerA}, ${customerB});
-    DELETE FROM public.audit_logs WHERE entity_type = 'invoice' AND entity_id IN ('MAN-097-A', 'MAN-097-B');
+    DELETE FROM public.audit_logs WHERE entity_type = 'invoice' AND entity_id IN ('MAN-098-A', 'MAN-098-B');
     DELETE FROM public.bls WHERE id IN ('${blA}', '${blB}');
     DELETE FROM public.voyages WHERE id IN (${voyageA}, ${voyageB});
     DELETE FROM public.vessels WHERE id = ${vesselId};
@@ -94,13 +94,13 @@ describeLocal('fatura avulsa flexível — PostgreSQL local', () => {
     cleanup()
     psql(`
       INSERT INTO auth.users (id, email) VALUES
-        ('${adminId}', 'admin-097@example.test'),
-        ('${operatorId}', 'operator-097@example.test'),
-        ('${portalAId}', 'portal-a-097@example.test'),
-        ('${portalBId}', 'portal-b-097@example.test');
+        ('${adminId}', 'admin-098@example.test'),
+        ('${operatorId}', 'operator-098@example.test'),
+        ('${portalAId}', 'portal-a-098@example.test'),
+        ('${portalBId}', 'portal-b-098@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${adminId}', 'Admin 097', 'administrativo', true),
-        ('${operatorId}', 'Operator 097', 'operator', true);
+        ('${adminId}', 'Admin 098', 'administrativo', true),
+        ('${operatorId}', 'Operator 098', 'operator', true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
         (${customerA}, '${customerACnpj}', 'Cliente manual A'),
         (${customerB}, '${customerBCnpj}', 'Cliente manual B');
@@ -108,13 +108,13 @@ describeLocal('fatura avulsa flexível — PostgreSQL local', () => {
       SET auth_user_id = CASE customer_id WHEN ${customerA} THEN '${portalAId}'::uuid ELSE '${portalBId}'::uuid END,
           active = true,
           account_situation = 'ativo',
-          recovery_email = CASE customer_id WHEN ${customerA} THEN 'portal-a-097@example.test' ELSE 'portal-b-097@example.test' END,
+          recovery_email = CASE customer_id WHEN ${customerA} THEN 'portal-a-098@example.test' ELSE 'portal-b-098@example.test' END,
           recovery_email_status = 'ok';
-      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier manual 097');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel manual 097', ${carrierId});
+      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier manual 098');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel manual 098', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
-        (${voyageA}, ${vesselId}, 'MANUAL-097-A', 'active'),
-        (${voyageB}, ${vesselId}, 'MANUAL-097-B', 'active');
+        (${voyageA}, ${vesselId}, 'MANUAL-098-A', 'active'),
+        (${voyageB}, ${vesselId}, 'MANUAL-098-B', 'active');
       INSERT INTO public.bls (id, voyage_id, customer_id, pod, cargo_mode, financial_status, charge_status, customer_reconciliation_status, ce_mercante)
       VALUES
         ('${blA}', ${voyageA}, ${customerA}, 'BRSSZ', 'container', 'pending', 'not_calculated', 'reconciled', NULL),
@@ -156,7 +156,7 @@ describeLocal('fatura avulsa flexível — PostgreSQL local', () => {
 
   it('cancela sem alterar o status financeiro do BL e reconcilia pelo pagamento genérico', () => {
     const cancellable = createInvoice(customerA, 'Cancelável', { blId: blA })
-    expect(JSON.parse(psql(`SELECT public.cancel_invoice(${cancellable.invoice_id}, 'Teste manual 097', '${adminId}'::uuid);`))).toMatchObject({ status: 'cancelled' })
+    expect(JSON.parse(psql(`SELECT public.cancel_invoice(${cancellable.invoice_id}, 'Teste manual 098', '${adminId}'::uuid);`))).toMatchObject({ status: 'cancelled' })
     expect(psql(`SELECT status FROM public.invoices WHERE id = ${cancellable.invoice_id};`)).toBe('cancelled')
     expect(psql(`SELECT financial_status FROM public.bls WHERE id = '${blA}';`)).toBe('pending')
 
