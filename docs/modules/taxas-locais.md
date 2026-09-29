@@ -38,8 +38,9 @@ No Preview autenticado da PR #797 (SHA `70f3933`), a fixture `QA S10 Financial
 Battery` recebeu `INV-2026-0001` de R$ 1,00, sem B/L ou viagem. A tela mostrou
 status emitida, pago R$ 0,00 e saldo aberto R$ 1,00. Esse smoke valida a leitura
 do saldo da fatura avulsa no painel interno; não valida wrappers de faturamento,
-Portal, comunicação ou renderização do documento. Registro detalhado no plano
-de remediação, seção 1.0.39.
+Portal, comunicação ou impressão de PDF. O modal de detalhes exibiu um item QA
+manual, total/saldo e zero pagamentos (seção 1.0.40 do plano); o botão de PDF
+não foi acionado. Registro detalhado no plano de remediação, seção 1.0.39.
 
 ## Anatomia das telas
 

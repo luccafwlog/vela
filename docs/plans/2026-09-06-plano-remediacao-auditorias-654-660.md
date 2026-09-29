@@ -871,6 +871,11 @@ registrada.
 - O resultado visível foi `INV-2026-0001`, status `EMITIDA`, total e saldo aberto de R$ 1,00, pago R$ 0,00; o resumo da tela também passou a mostrar saldo R$ 1,00 e uma fatura. O formulário confirmou que a emissão não cria recebível de taxa local; não houve pagamento.
 - Evidência comprova emissão avulsa e leitura do saldo no painel interno, não valida os wrappers BRL/USD/misto/COD, gate completo, comunicação, Portal ou renderização do documento. Esses critérios S10 continuam pendentes. A fixture permanece no banco Preview para a matriz seguinte; produção não foi alterada.
 
+### 1.0.40 Detalhes da fatura avulsa no Preview #797 — 2026-09-29
+
+- O modal de detalhes da `INV-2026-0001` carregou no mesmo Preview e exibiu cliente, descrição QA, um item manual de R$ 1,00, total/saldo de R$ 1,00 e nenhum pagamento. A superfície oferece `Imprimir PDF`, mas não foi acionada; portanto esta observação comprova a renderização dos detalhes internos, não o PDF nem o Portal.
+- O login informado pelo usuário ainda não está presente na sessão do Portal Preview aberta para esta verificação: `pr-797.vela-portal.pages.dev/portal/login` mostra os campos de CNPJ e senha vazios. O site interno e o Portal são sessões separadas. A verificação de visibilidade da fatura no Portal aguarda login manual nesse Preview.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
