@@ -684,6 +684,30 @@ registrada.
   runtime do KPI no Portal Preview e a publicação continuam pendentes; produção
   não foi alterada por esta correção.
 
+### 1.0.25 Preview pareado e prontidão operacional — 2026-09-29
+
+- No SHA `317a463b`, os checks obrigatórios da PR #795 passaram. O Supabase
+  Preview contém a migration `105`; o workflow Cloudflare `36519203626` publicou
+  Vela e Portal nos aliases `pr-795.vela-internal.pages.dev` e
+  `pr-795.vela-portal.pages.dev` para o mesmo SHA. O perfil sintético
+  `qa-admin@example.test` existe no Preview com papel `administrativo` ativo.
+- A branch Preview contém zero clientes da fixture de produção, zero faturas
+  avulsas, zero B/Ls e zero containers; nenhuma linha foi criada para esta
+  inspeção. O site interno abriu no login, sem sessão autenticada; a senha do
+  perfil sintético não foi lida nem exposta.
+- Consulta somente leitura no Preview confirmou
+  `communications_enabled = false`, `customer-communication-auto-runner` e
+  `portal-daily-digest` ativos, e ausência de jobs `import-effects-runner` e
+  `recalc-demurrage-ptax`. As Edge Functions dos dois últimos aparecem ativas,
+  mas nenhum dos nove nomes de secrets/Vault consultados para esses consumidores
+  foi encontrado. Não disparar jobs, alterar Vault ou liberar comunicações sem
+  concluir D10 e a autorização operacional específica.
+- Na sessão Portal de produção já autenticada, a leitura atual ainda mostra
+  KPI R$ 0,00 e a invoice avulsa `INV-2026-0001` com saldo R$ 1,00; é o estado
+  anterior à migration `105` em produção. A PR #795 segue draft e não foi
+  mergeada. O upload da fixture B/L continua sem execução: o seletor de arquivo
+  não abriu no navegador integrado. Nenhum B/L ou container foi criado.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
@@ -739,9 +763,11 @@ como registro da execução.
    invoice avulsa de R$ 1,00 e payload PIX estático ficaram visíveis no Portal
    autenticado em produção, sem pagamento. Foi reproduzido o KPI em R$ 0,00
    contra saldo da invoice em R$ 1,00; a correção da RPC e a regressão autenticada
-   estão na PR #795 (`105`). Replay PostgreSQL e CI passaram no SHA `572b9c02`,
-   e a migration foi aplicada no Supabase Preview. Falta confirmar o KPI no site
-   Preview após merge/publicação; produção não foi alterada por esta correção. Também
+   estão na PR #795 (`105`). Replay PostgreSQL, CI, Supabase Preview e ambos os
+   deploys Cloudflare passaram no SHA `317a463b`; a branch publicou os sites
+   pareados e aplicou a migration. Falta autenticar no site Preview e confirmar
+   o KPI; a PR continua draft e produção ainda apresenta o valor anterior.
+   Também
    falta repetir Demurrage sob roles reais no Preview; provar wrappers de
    ledger/readiness com BRL, USD, misto, revisão, cancelamento e COD; e
    reordenar/renderizar documentos. A impressão já explica a fração do
@@ -1434,7 +1460,7 @@ Os nomes abaixo registram a sequência planejada e o estado observado na linha a
 | 13 | `mitigado` + `[ ] runtime` | Persistir efeitos e relatório de import | S05; `017_import_effects_outbox.sql` + `025_import_effect_worker.sql` + `026_import_effect_alert.sql` + `031_import_effect_consumers.sql` | Outbox/claim/lease/retry, consumidores server-side e painel reabrível por unidade passaram na prova local; Preview, secrets/Vault/Edge e ativação controlada do worker continuam pendentes. |
 | 14 | `[x]` + `[ ]` runtime | Fechar readiness de emissão e comunicação | S10/F12; `033_customer_communication_readiness_guards.sql` | Guarda server-side de comunicação aplicada em criação/claim/envio, com lock e identidade de sistema; gate de emissão/Portal e prova de runtime continuam pendentes. |
 | 15 | `[x]` + `[ ]` runtime | Persistir inbox e estados de envio | S07; migrations `022`, `032`, `038` e `100` | Inbox, dedup, stale events, recuperação, estado `parcial` e agregação da última tentativa estão implementados; migration 100, replay real no CI, Supabase Preview e publicação Pages pareada ao PR passaram. Execução autenticada dos fluxos, jobs, secrets e prova do provedor continuam pendentes. |
-| 16 | `[x]` + `[ ]` | Fechar ledger, status/itens, saldo avulso e rateio do impresso | S10/F14; `019_local_billing_integrity.sql`, `105_portal_manual_invoice_pending_balance.sql` | D05/R$0,01 e integração local passaram; a discrepância do KPI foi reproduzida e a RPC passou a agregar as mesmas origens canônicas de saldo mais invoices avulsas. Replay e Preview passaram no SHA `e4a83110`; o workflow agora inclui a nova regressão autenticada e aguarda novo CI. Verificação runtime do KPI permanece aberta. Casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
+| 16 | `[x]` + `[ ]` | Fechar ledger, status/itens, saldo avulso e rateio do impresso | S10/F14; `019_local_billing_integrity.sql`, `105_portal_manual_invoice_pending_balance.sql` | D05/R$0,01 e integração local passaram; a discrepância do KPI foi reproduzida e a RPC passou a agregar as mesmas origens canônicas de saldo mais invoices avulsas. Replay real, CI e Preview passaram no SHA `317a463b`; deploys Vela/Portal pareados confirmados. Falta smoke autenticado no Preview e pós-publicação em produção. Casos amplos, diagnóstico de irmãos e gate completo de comunicação continuam abertos. |
 | 17 | `mitigado` + `[ ]` | Paginar listas e concluir projeção compartilhada | S12; `020_operational_read_pages.sql`, `035_operational_voyage_summaries.sql`, `036_operational_breakbulk_summary_metrics.sql`, `037_operational_voyage_summary_null_status.sql` e páginas Portal | Projeções, paginação/window, resumo de viagem sob demanda, Line Up sem waterfall de containers, resumo BB server-side, fallback forward de status nullable e filtros principais estão entregues; exportações sob demanda, refresh de Preview e profiler faltam. |
 | 18 | `mitigado` + `[ ]` | Debounce, offline, feedback e acessibilidade | S13; sem migration | Debounce, estados de erro/offline, hidratação, confirmações/menu e progresso/cancelamento nos modais múltiplos e customizados estão entregues; contraste, leitor de tela/foco manual e cessão entre blocos faltam. |
 | 19 | `[x]` + `[ ]` | Completar índice e gate de catálogo | S14/#659.7; scripts de docs/RPC catalog | `docs:check`, catálogo, replay, tipos e inspeção local das 14 candidatas passaram; famílias ausentes e prova externa ainda faltam. |
