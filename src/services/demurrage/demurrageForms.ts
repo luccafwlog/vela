@@ -9,7 +9,7 @@ export type DiscountForm = {
 }
 
 // Estado da Dispute (aberta/resolvida) só muda pelas RPCs da conversa de
-// Disputes; o banco não aceita UPDATE direto dessas colunas (migration 105).
+// Disputes; o banco não aceita UPDATE direto dessas colunas (migration 106).
 export type DisputeForm = {
   dispute_subject: string
   dispute_reason: string

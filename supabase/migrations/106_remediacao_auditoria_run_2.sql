@@ -1,4 +1,4 @@
--- Migration 105: remediação da auditoria de segurança run-2 (Fase 2 do plano
+-- Migration 106: remediação da auditoria de segurança run-2 (Fase 2 do plano
 -- docs/plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md).
 --
 -- Cada bloco corresponde a um item do plano e tem um caso em
@@ -224,21 +224,21 @@ END;
 $function$;
 REVOKE ALL ON FUNCTION public._assert_actor_is_caller(uuid) FROM PUBLIC, anon, authenticated, service_role;
 
-ALTER FUNCTION public.reject_customer_reconciliation(bigint, text, uuid) RENAME TO _reject_customer_reconciliation_impl_105;
-ALTER FUNCTION public.add_manual_bl_charge(text, bigint, numeric, text, uuid) RENAME TO _add_manual_bl_charge_impl_105;
-ALTER FUNCTION public.calculate_bl_local_charges(text, uuid, boolean) RENAME TO _calculate_bl_local_charges_impl_105;
-ALTER FUNCTION public.run_billing_for_import_batch(bigint, uuid, boolean) RENAME TO _run_billing_for_import_batch_impl_105;
-REVOKE ALL ON FUNCTION public._reject_customer_reconciliation_impl_105(bigint, text, uuid) FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public._add_manual_bl_charge_impl_105(text, bigint, numeric, text, uuid) FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public._calculate_bl_local_charges_impl_105(text, uuid, boolean) FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION public._run_billing_for_import_batch_impl_105(bigint, uuid, boolean) FROM PUBLIC, anon, authenticated, service_role;
+ALTER FUNCTION public.reject_customer_reconciliation(bigint, text, uuid) RENAME TO _reject_customer_reconciliation_impl_106;
+ALTER FUNCTION public.add_manual_bl_charge(text, bigint, numeric, text, uuid) RENAME TO _add_manual_bl_charge_impl_106;
+ALTER FUNCTION public.calculate_bl_local_charges(text, uuid, boolean) RENAME TO _calculate_bl_local_charges_impl_106;
+ALTER FUNCTION public.run_billing_for_import_batch(bigint, uuid, boolean) RENAME TO _run_billing_for_import_batch_impl_106;
+REVOKE ALL ON FUNCTION public._reject_customer_reconciliation_impl_106(bigint, text, uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._add_manual_bl_charge_impl_106(text, bigint, numeric, text, uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._calculate_bl_local_charges_impl_106(text, uuid, boolean) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public._run_billing_for_import_batch_impl_106(bigint, uuid, boolean) FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE FUNCTION public.reject_customer_reconciliation(p_queue_id bigint, p_notes text DEFAULT NULL::text, p_actor uuid DEFAULT NULL::uuid)
  RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public', 'pg_temp'
 AS $function$
 BEGIN
   PERFORM public._assert_actor_is_caller(p_actor);
-  RETURN public._reject_customer_reconciliation_impl_105(p_queue_id, p_notes, p_actor);
+  RETURN public._reject_customer_reconciliation_impl_106(p_queue_id, p_notes, p_actor);
 END;
 $function$;
 
@@ -247,7 +247,7 @@ CREATE FUNCTION public.add_manual_bl_charge(p_bl_id text, p_charge_item_id bigin
 AS $function$
 BEGIN
   PERFORM public._assert_actor_is_caller(p_actor);
-  RETURN public._add_manual_bl_charge_impl_105(p_bl_id, p_charge_item_id, p_quantity, p_notes, p_actor);
+  RETURN public._add_manual_bl_charge_impl_106(p_bl_id, p_charge_item_id, p_quantity, p_notes, p_actor);
 END;
 $function$;
 
@@ -256,7 +256,7 @@ CREATE FUNCTION public.calculate_bl_local_charges(p_bl_id text, p_actor uuid DEF
 AS $function$
 BEGIN
   PERFORM public._assert_actor_is_caller(p_actor);
-  RETURN public._calculate_bl_local_charges_impl_105(p_bl_id, p_actor, p_recalculate);
+  RETURN public._calculate_bl_local_charges_impl_106(p_bl_id, p_actor, p_recalculate);
 END;
 $function$;
 
@@ -265,7 +265,7 @@ CREATE FUNCTION public.run_billing_for_import_batch(p_batch_id bigint, p_actor u
 AS $function$
 BEGIN
   PERFORM public._assert_actor_is_caller(p_actor);
-  RETURN public._run_billing_for_import_batch_impl_105(p_batch_id, p_actor, p_recalculate);
+  RETURN public._run_billing_for_import_batch_impl_106(p_batch_id, p_actor, p_recalculate);
 END;
 $function$;
 

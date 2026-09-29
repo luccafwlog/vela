@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 
 // Plano docs/plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md, Fase 2
-// (migration 105). Cada caso reproduz um candidato da auditoria run-2 e falha
-// no schema anterior à 105. Tudo roda numa transação descartada no fim.
+// (migration 106). Cada caso reproduz um candidato da auditoria run-2 e falha
+// no schema anterior à 106. Tudo roda numa transação descartada no fim.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -60,7 +60,7 @@ function scenario(sql: string): string[] {
   ], { encoding: 'utf8' }).trim().split(/\r?\n/)
 }
 
-describeLocal('migration 105 — remediação da auditoria run-2', () => {
+describeLocal('migration 106 — remediação da auditoria run-2', () => {
   it('2.1 Financeiro não encerra a Dispute por UPDATE; Equipamentos encerra pela RPC', () => {
     expect(scenario(`
       ${as(FIN)}

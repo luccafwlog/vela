@@ -36,7 +36,7 @@
 ## Rate limiting
 
 - **Provisão de portal**: convites e recuperação usam tokens opacos de uso único, com expiração e hash persistido; o login e a recuperação aplicam rate limit por CNPJ.
-- **Login/resolução de portal:** tentativas registradas em `portal_login_attempts` / `portal_login_resolution_attempts`; limites em `portal_rate_limits` (RPC `check_portal_rate_limit`, executável só pelas RPCs do Portal desde a migration `105`).
+- **Login/resolução de portal:** tentativas registradas em `portal_login_attempts` / `portal_login_resolution_attempts`; limites em `portal_rate_limits` (RPC `check_portal_rate_limit`, executável só pelas RPCs do Portal desde a migration `106`).
 - **Anexos de disputa de demurrage:** cota máxima cumulativa de 100 MB por cliente em disputas abertas e limite de taxa de 20 uploads a cada 24 horas por cliente (G-PAF1), verificados pela RPC `add_demurrage_dispute_attachment` sob lock transacional por cliente para prevenir condições de corrida (TOCTOU).
 - **Camada distribuída opcional:** `portal-login`, troca de senha no Portal,
   recuperação e ativação consultam o Upstash Redis por par IP+CNPJ. A chave é
