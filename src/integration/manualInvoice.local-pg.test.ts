@@ -109,7 +109,8 @@ describeLocal('fatura avulsa flexível — PostgreSQL local', () => {
           active = true,
           account_situation = 'ativo',
           recovery_email = CASE customer_id WHEN ${customerA} THEN 'portal-a-098@example.test' ELSE 'portal-b-098@example.test' END,
-          recovery_email_status = 'ok';
+          recovery_email_status = 'ok'
+      WHERE customer_id IN (${customerA}, ${customerB});
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier manual 098');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel manual 098', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
