@@ -756,6 +756,23 @@ registrada.
   roteiros completos S12/S13 permanecem pendentes. A evidência desta tentativa
   não substitui os respectivos critérios de aceite.
 
+### 1.0.28 Revalidação local S08/S09/S10 — 2026-09-29
+
+- PostgreSQL 16 descartável `vela_plan_qa`, isolado dos bancos existentes,
+  recebeu os shims locais e replay limpo das 104 migrations ativas.
+- Seis suítes locais passaram: `localBillingIntegrity`,
+  `customerCommunicationReadinessGuards`, `financialBattery`,
+  `demurrageMoney`, `demurrageAuthority` e `exchangeRateIntegrity` — 17 testes.
+  A evidência exercita contratos SQL, rollback e roles simuladas no Postgres
+  local; não substitui Auth/PostgREST/RLS/Edge do Supabase Preview nem runtime.
+- O contrato do teste de readiness agora verifica `ce_mercante_ausente`, código
+  estável presente no detalhe estruturado, em vez de depender da mensagem
+  localizada pelo PostgreSQL. Isso permite a asserção sob a codificação de
+  mensagens do host Windows.
+- S10: a reexecução condicionada ao readiness já implementado está concluída;
+  a prova operacional combinada e renderização autenticada seguem pendentes.
+  S08/S09 mantêm os bullets de runtime/Preview e job real abertos.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
@@ -1379,7 +1396,7 @@ SELECT cron.schedule(
 - [x] Fazer overloads de pendências delegarem ao mesmo contrato, com precedência cliente → cálculo → CE → Portal e motivo Portal distinto de “Cálculo incompleto”. CE não foi introduzido no gate de revisão que deliberadamente não o exige.
 - [x] Fechar readiness de `ce_mercante_taxas`: todos os B/Ls do cliente/viagem com CE, revisão liberada e financeiro concluído na criação/claim/envio, com advisory/row lock e identidade `service_role`. O gate de emissão/Portal continua separado e a validação de runtime permanece pendente.
 - [x] Executar a cobertura local de ledger, readiness e `InvoiceDocumentLocal`; os gates da PR passaram.
-- [ ] Reexecutar/estender o conjunto quando o readiness de comunicação e os cenários de runtime forem implementados.
+- [x] Reexecutar/estender a cobertura local após a implementação do readiness: replay PostgreSQL descartável e seis suítes S08/S09/S10, 17 testes verdes em 2026-09-29 (seção 1.0.28). As provas operacionais de runtime permanecem em bullets separados.
 
 **Compatibilidade / rollout:** RPCs antigas delegam ao mesmo núcleo durante transição; mudança de política financeira exige ADR antes da migration. Auditar divergências existentes em relatório somente leitura; backfill de saldo só com origem comprovada e ato financeiro autorizado. **Runtime:** simulação com recebimento parcial/estorno/COD e Portal bloqueado; comparação de SQL, tela, impresso, QR e fila de comunicado. **Aceite:** `saldo = devido − liquidações − ajustes` em centavos e coerente com status; zero emissão sem gate; nenhuma mensagem enviada com prontidão invalidada antes do claim. **Residual:** corrida entre validação final e entrega HTTP é inevitável sem API transacional externa; snapshot de decisão torna-a auditável. **Ordem:** readiness pode preceder ledger para liberar S07; políticas financeiras não se misturam na mesma PR com UI.
 

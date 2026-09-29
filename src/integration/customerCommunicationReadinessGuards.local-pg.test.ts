@@ -74,14 +74,14 @@ describeLocal('S10 — guardas de readiness de CE Mercante', () => {
     expect(psql(`SELECT public.customer_local_charges_communication_dispatch_ready(${voyageId}, ${customerId})->>'ready';`)).toBe('true')
 
     psql(`UPDATE public.bls SET ce_mercante = NULL WHERE id = '${blId}';`)
-    expect(() => psql(`SELECT public.customer_local_charges_communication_dispatch_ready(${voyageId}, ${customerId});`)).toThrow(/Prontidão financeira bloqueada|P0003/)
+    expect(() => psql(`SELECT public.customer_local_charges_communication_dispatch_ready(${voyageId}, ${customerId});`)).toThrow(/ce_mercante_ausente|P0003/)
     expect(() => psql(`
       INSERT INTO public.customer_communications (
         customer_id, kind, nature, anchor_voyage_id, attempt_discriminator, status
       ) VALUES (
         ${customerId}, 'ce_mercante_taxas', 'documentacao', ${voyageId}, 1, 'simulado'
       );
-    `)).toThrow(/Prontidão financeira bloqueada|P0003/)
+    `)).toThrow(/ce_mercante_ausente|P0003/)
 
     expect(psql(`
       INSERT INTO public.customer_communication_automation_claims (claim_key)
