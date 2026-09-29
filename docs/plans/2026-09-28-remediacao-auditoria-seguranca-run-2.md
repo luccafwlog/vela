@@ -5,8 +5,8 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 
 | Parte | Situação |
 |---|---|
-| Fase 1 — configuração de terceiros | pendente (dono, no painel) |
-| Fase 2 — migration `106` e item 4.5 | código entregue pela PR luccafwlog/vela#799 (suíte `auditoriaRun2.local-pg.test.ts`); **falta aplicar a `106` em produção** e conferir na Preview a política de Storage de 2.2 e o modal de Disputa |
+| Fase 1 — configuração de terceiros | pendente (dono, no painel); item 4 respondido em 2026-09-29 |
+| Fase 2 — migration `106` e item 4.5 | código entregue pela PR luccafwlog/vela#799 (suíte `auditoriaRun2.local-pg.test.ts`) e `106` aplicada em produção em 2026-09-29; falta conferir em uso a política de Storage de 2.2, o modal de Disputa e uma importação com e-mail de consignatário novo |
 | Fase 3 — Edge Functions | pendente (usa `internal_revoke_sessions` da `106`) |
 | Fase 4 — front-end (exceto 4.5) | pendente |
 | Fase 5 — CI e hospedagem | pendente |
@@ -64,6 +64,8 @@ na mesma PR que a documenta; nomes e locais de secrets, nunca valores.
 4. **#13b, fato que falta.** No banco de produção, só leitura: confirmar se o
    gatilho `trg_seed_customer_contact_box_links` existe. Se existir, a
    importação com e-mail de consignatário novo está falhando hoje.
+   **Resposta (2026-09-29, leitura em produção):** o gatilho existe. Até a
+   `106`, essas importações falhavam por inteiro; a `106` corrigiu o caminho.
 5. **#7, fato que falta.** Anotar em Authentication → Attack Protection se o
    captcha está desligado; não ligar sem a Fase 3 (o `portal-login` não envia
    `captchaToken` e passaria a falhar para todos).
@@ -120,6 +122,13 @@ Verificação: gates de schema do [WORKFLOW.md](../../WORKFLOW.md) §11
 (`migrations:check`, `rpc:check`, suíte `local-pg` nova e as existentes de
 Demurrage, importação e exclusão). Aplicação em produção só depois do merge,
 pelo procedimento normal; registrar a confirmação em `schema_migrations`.
+
+Produção (2026-09-29, leitura no projeto `fgmkhbzhaeebrsizwccx`): a integração
+GitHub do Supabase aplicou a `106` após o merge da luccafwlog/vela#799;
+`schema_migrations` registra `106 remediacao_auditoria_run_2`,
+`internal_revoke_sessions` existe e `authenticated` não tem UPDATE em
+`demurrage_invoices.dispute_open`. Não observado em produção: fluxo de tela,
+Storage e importação real.
 
 ## Fase 3 — Edge Functions
 
