@@ -233,12 +233,18 @@ os componentes PortalDisputeConversation e DemurrageDisputeConversation.
 
 `_shared/portalEmail.ts` registra cada tentativa por chave idempotente, não
 envia para endereços suprimidos e repete somente respostas transitórias do
-Resend (máximo de três tentativas). `portal-email-webhook` valida assinatura
-Svix, janela de cinco minutos e deduplicação por evento. `portal-daily-digest`
+Resend (máximo de três tentativas). A chave enviada à Resend é a chave local
+seguida de um hash do conteúdo: a Resend guarda chaves por 24h e recusa com 409
+a mesma chave com outro conteúdo, o que acontecia quando ids sequenciais se
+repetiam após um reset do banco. A falha grava o motivo da Resend em
+`last_error` (ex.: `HTTP 409 invalid_idempotent_request`).
+`portal-email-webhook` valida assinatura Svix, janela de cinco minutos e
+deduplicação por evento; `portal-email-events-runner` (job a cada minuto,
+migration `107`) aplica os eventos às tentativas. `portal-daily-digest`
 consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e
-`RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave de Resend o
-ambiente opera em dry-run e nenhum email real é enviado.
+`RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave de Resend
+a tentativa é gravada como `falha_permanente` e nenhum email é enviado.
 
 #### Inspeção do Portal
 

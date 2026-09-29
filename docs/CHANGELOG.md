@@ -4,6 +4,16 @@
 
 ## 2026-09
 
+- **Email do Portal recusado pela Resend (2026-09-29):** o primeiro convite do
+  Portal após o reset do banco voltou com HTTP 409: a chave `convite:1` já
+  tinha sido usada nas 24h anteriores com outro link, e a Resend recusa chave
+  repetida com conteúdo diferente. `_shared/email.ts` (todos os emails: Portal,
+  comunicados e cobrança de Demurrage) passa a enviar a chave local seguida de
+  um hash do conteúdo e grava o motivo da Resend em `last_error`. A migration
+  `107` agenda `portal-email-events-runner` e `import-effects-runner`, que 022
+  e 025 nunca criaram (`to_regproc` com assinatura devolve NULL); sem eles os
+  eventos de entrega e bounce ficavam parados em `pending`.
+
 - **Fatura avulsa flexível (2026-09-27):** operador do Financeiro pode emitir
   contra um Cliente com nome e descrição de item livres, quantidade e valor;
   B/L e Viagem são opcionais. A invoice compartilha número, PIX, pagamento,
