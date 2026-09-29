@@ -876,6 +876,11 @@ registrada.
 - O modal de detalhes da `INV-2026-0001` carregou no mesmo Preview e exibiu cliente, descrição QA, um item manual de R$ 1,00, total/saldo de R$ 1,00 e nenhum pagamento. A superfície oferece `Imprimir PDF`, mas não foi acionada; portanto esta observação comprova a renderização dos detalhes internos, não o PDF nem o Portal.
 - O login informado pelo usuário ainda não está presente na sessão do Portal Preview aberta para esta verificação: `pr-797.vela-portal.pages.dev/portal/login` mostra os campos de CNPJ e senha vazios. O site interno e o Portal são sessões separadas. A verificação de visibilidade da fatura no Portal aguarda login manual nesse Preview.
 
+### 1.0.41 Segundo reteste de refresh S12 no Preview #797 — 2026-09-29
+
+- Na TV autenticada `pr-797.vela-internal.pages.dev/line-up-tv/display`, versão `70f3933`, a captura CDP observou dois ciclos sucessivos de refresh de 30 s no projeto Supabase Preview `pubojmlzfykpfatfjynj`. Cada ciclo repetiu 15 GETs PostgREST: 11 leituras do snapshot (incluindo a consulta-base de viagens) e quatro leituras de timestamps para `voyages`, `bls`, `bl_containers` e `vehicles`. No segundo ciclo, a mesma viagem/B/L foi relida e a hora da última alteração permaneceu igual.
+- A observação reproduz no Preview #797 o refresh periódico sem alteração de dados; o critério de evitar a cadeia completa permanece reprovado. A amostra tem uma viagem e um B/L QA, portanto não determina custo sob volume nem p95. Não houve escrita.
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Código:** o baseline de `main` foi conferido no merge da PR #661 e a PR #669 foi adotada como baseline de integração. A árvore original estava limpa; nesta branch as migrations ativas relevantes incluem `009`–`013`, `015`–`041` (a numeração `014` permanece ausente). O arquivo histórico não é a definição final do banco.
@@ -958,11 +963,13 @@ como registro da execução.
    job `import-effects-runner`. Falta provar worker, retry, alertas e atualização
    por unidade no Preview com as dependências S04/S08/S10; manter fail-closed até
    aceite operacional específico.
-6. **P2 — S12, volume e leitura.** Provar refresh de 30 s e startup autenticado
-   no Preview; o Portal abriu com sessão ativa em produção, sem medição temporal
-   nem de carga. Revisar materialização de exportações explícitas; medir o
-   profiler antes de memoizar/virtualizar. Só criar paginação de supressões se
-   dados operacionais demonstrarem o teto; a base atual contém apenas fixtures.
+6. **P2 — S12, volume e leitura.** A TV no Preview autenticado repete 15 GETs a
+   cada ciclo de 30 s (1.0.41); falta reduzir a cadeia e revalidar. O benchmark
+   autenticado de startup exige credenciais de teste do Preview; o Portal Preview
+   aberto nesta rodada ainda está no formulário de login. Revisar materialização
+   de exportações explícitas; medir o profiler antes de memoizar/virtualizar. Só
+   criar paginação de supressões se dados operacionais demonstrarem o teto; a
+   base atual contém apenas fixtures.
 7. **P2 — S13, interação e acessibilidade.** A inspeção estática de 2026-09-29
    nomeou as tabelas principais de operação, financeiro, importação e Portal; as
    colunas ordenáveis já expõem `aria-sort` e os demais controles de cabeçalho
@@ -1551,7 +1558,7 @@ Este comando é somente de execução futura, para o banco descartável de §6; 
 - [x] Separar resumo de viagem dos embeds de detalhe e concluir o snapshot/consulta de Line Up com omissões, POL documental, escala/atracação, somente embarque e vazios sem a consulta secundária B/L → containers.
 - [x] Fazer EmbarqueVazios, `agencyDepartureReport` e a leitura de Baplie consumirem a projeção/serviço comum, preservando terminais e relatórios fechados.
 - [x] Oferecer janela/“carregar mais” no Painel acima de 60 viagens e paginação com total/filtros nas listas de PortalBilling, incluindo wrappers de Inspeção.
-- [ ] Comprovar refresh de 30 s sem refazer a cadeia inteira em Preview. A sessão autenticada do Portal abriu em produção, mas o intervalo e o número de requests não foram medidos.
+- [ ] Reduzir as leituras repetidas no refresh de 30 s e comprovar em Preview. Retestes na TV em produção e no Preview #797 observaram 15 GETs PostgREST por ciclo (seções 1.0.35 e 1.0.41); a hora de alteração permaneceu igual, mas a cadeia foi refeita. A captura confirma frequência/carga, não satisfaz o aceite de refresh eficiente.
 - [x] Revalidar o gatilho de paginação de supressões: a medição S06 de 2026-09-29 encontrou 0 linhas em produção e Preview e nenhum cliente próximo de 1000. Não criar RPC sem volume que justifique o custo; manter a mitigação atual e reavaliar quando houver dados operacionais reais.
 - [ ] Comparar profiler antes/depois e só aplicar memoização/virtualização onde custo e invalidação forem demonstrados.
 - [x] Executar os testes de listas/projeções e os gates da PR relacionados a filtros/contagens.
