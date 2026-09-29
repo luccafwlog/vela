@@ -149,3 +149,14 @@ describe('troca assistida avisa o endereço anterior', () => {
     expect(assisted).toContain('to: previous')
   })
 })
+
+describe('troca de Email de Recuperação não responde "enviamos" quando o link não sai', () => {
+  it('desfaz o pedido e responde 502 antes de avisar o endereço antigo', () => {
+    const failure = indexOf(emailChange, 'if (!sent.ok) {')
+    expect(failure).toBeLessThan(indexOf(emailChange, "idempotencyKey: `alteracao_email_alerta:"))
+    const branch = emailChange.slice(failure, emailChange.indexOf('\n    }\n', failure))
+    expect(branch).toContain(".update({ status: 'cancelado' }).eq('id', invite.id)")
+    expect(branch).toContain('pending_recovery_email: null')
+    expect(branch).toContain('{ status: 502 }')
+  })
+})

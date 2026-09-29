@@ -16,6 +16,9 @@ import { isPortalReadOnly } from '../services/portalScope'
 export const RECOVERY_EMAIL_RATE_LIMIT_MESSAGE =
   'Muitas tentativas com a senha atual. Este limite é o mesmo do login do Portal, então aguarde alguns minutos antes de tentar de novo — aqui e no login.'
 
+export const RECOVERY_EMAIL_SEND_FAILED_MESSAGE =
+  'Não conseguimos enviar o email de confirmação. Nenhuma troca foi iniciada; tente novamente mais tarde.'
+
 export function PortalProfile() {
   const profile = usePortalProfile()
   const scope = usePortalScope()
@@ -159,7 +162,9 @@ function PortalProfileForm({
     setEmailSubmitting(true)
     try {
       const { error: invokeError } = await supabasePortal.functions.invoke('portal-recovery-email-change', { body: { action: 'request', current_password: currentPassword, new_email: nextRecoveryEmail } })
-      if ((invokeError as { context?: { status?: number } } | null)?.context?.status === 429) { setError(RECOVERY_EMAIL_RATE_LIMIT_MESSAGE); return }
+      const status = (invokeError as { context?: { status?: number } } | null)?.context?.status
+      if (status === 429) { setError(RECOVERY_EMAIL_RATE_LIMIT_MESSAGE); return }
+      if (status === 502) { setError(RECOVERY_EMAIL_SEND_FAILED_MESSAGE); return }
       if (invokeError) throw invokeError
       showToast('Enviamos um link para confirmar o novo email.', 'success')
       setCurrentPassword(''); setNewRecoveryEmail(''); setConfirmRecoveryEmail('')
