@@ -795,19 +795,20 @@ como registro da execução.
    zero grupos compartilhados na base de fixtures, resultado inconclusivo para
    ocorrências reais; reabrir a decisão se houver evidência operacional.
 3. **P1 — S06/S07, comunicação.** Migration 100 remove `status` da identidade
-   única após preflight; a consulta somente leitura encontrou zero comunicados
-   e zero identidades duplicadas. Um convite canário autorizado foi aceito pelo
-   provedor, entregue e ativado; isso não valida os limites do provedor, Edge,
-   readiness, inbox/outbox nem dunning automático. As migrations `100`–`104`
-   constam na produção. Manter `communications_enabled = false`.
-4. **P1 — S09, PTAX.** Validar Edge, gateway JWT, Vault e falha/recuperação no
-   Preview; a Edge consta ativa em produção, mas não há job em `cron.job`.
-   Provar uma execução agendada e idempotente antes de ativar o job; a ativação
-   operacional permanece sujeita à autorização D08.
-5. **P1 — S05, efeitos pós-commit.** Provar worker, retry, alertas e atualização
-   por unidade no Preview após as dependências S04/S08/S10. A Edge consta ativa
-   em produção, sem job em `cron.job`; manter fail-closed até aprovação específica
-   de rollout.
+   única após preflight; um convite canário autorizado foi entregue/ativado, mas
+   não valida dunning nem envio automático. No Preview da PR #795, a chave está
+   falsa, não há customers/invoices/attempts, e jobs legados de comunicação
+   executaram sem registros de email. Isso não prova limites do provedor,
+   readiness, inbox/outbox ou retry. As migrations `100`–`104` constam na
+   produção; manter envios globais desligados.
+4. **P1 — S09, PTAX.** Edge ativa em produção e Preview; não há job
+   `recalc-demurrage-ptax` em `cron.job`. Falta provar gateway JWT, Vault,
+   falha/recuperação e execução agendada idempotente; ativação operacional segue
+   sujeita à autorização D08.
+5. **P1 — S05, efeitos pós-commit.** Edge ativa em produção e Preview; não há
+   job `import-effects-runner`. Falta provar worker, retry, alertas e atualização
+   por unidade no Preview com as dependências S04/S08/S10; manter fail-closed até
+   aceite operacional específico.
 6. **P2 — S12, volume e leitura.** Provar refresh de 30 s e startup autenticado
    no Preview; o Portal abriu com sessão ativa em produção, sem medição temporal
    nem de carga. Revisar materialização de exportações explícitas; medir o
@@ -1168,9 +1169,11 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
   modal de resultado, e reabrir o resultado após recarregar. O painel lista
   status, tentativas, erro sanitizado, resultado concluído e retry auditado.
 - [x] O consumidor `demurrage_billing` existe e fica fail-closed/inativo até S08-B e rollout operacional.
-- [ ] Não ativar cron/worker sem prova Preview e autorização D10. Consulta de
-  produção em 2026-09-29 encontrou Edge ativa, sem job `import-effects-runner`
-  em `cron.job`; nenhum worker foi disparado nem ativado nesta execução.
+- [ ] Não ativar cron/worker sem prova Preview e autorização D10. Em 2026-09-29,
+  a Edge `import-effects-runner` estava ativa em produção e Preview, mas nenhum
+  dos ambientes tinha esse job em `cron.job`; não houve execução do worker.
+  No Preview da PR #795, `communications_enabled=false`, 0 customers/invoices,
+  e 0 tentativas de email nos últimos 24 h.
 - [x] Executar testes unitários/integração de efeitos, crash, timeout, dois workers, replay, dependência e lease; commits de referência: `d85a0558`, `ff44e1bb`.
 
 **Job proposto:** `import-effects-runner`, a cada cinco minutos (`*/5 * * * *`), via `ops.dispatch_edge_job('import-effects-runner', 'IMPORT_EFFECTS_CRON_SECRET')`. Segredo homônimo no Vault e Edge, autenticação própria fail-closed e `verify_jwt` coerente, provados em Preview antes de ativação.
@@ -1191,7 +1194,10 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Cobrir lote com inelegíveis à frente, sem starvation; claims pausados são liberados e regularização reabre elegibilidade.
 - [x] Implementar D11: grupos por cliente/ciclo, membership exata por invoice, uma entrega por destinatário, fixture de 12 invoices/3 contatos e grupos que atravessam o limite do claim.
 - [ ] Provar limites/provedor e ativação real conforme D10. O convite canário
-  aceito em produção prova apenas o fluxo de convite, não o dunning.
+  aceito em produção prova apenas o fluxo de convite, não o dunning. Em 2026-09-29,
+  o Preview da PR #795 tinha `communications_enabled=false`, sem customers,
+  invoices ou comunicações; isso não exercita provider/readiness nem autoriza
+  liberar envios de clientes.
 - [x] Revalidar o gatilho de paginação server-side de supressões: em 2026-09-29,
   `customer_communication_suppressions` e `portal_suppressed_emails` têm 0 linhas
   em produção e no Preview; nenhum cliente se aproxima de 1000. Não há volume
@@ -1219,7 +1225,12 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Fechar readiness de `ce_mercante_taxas` na criação/claim/envio; a RPC server-side com locks e a revalidação do Edge impedem criação/claim/dispatch sem CE, revisão liberada e financeiro concluído para todos os B/Ls ativos. A prova de Preview/provedor permanece pendente.
 - [ ] Revalidar em runtime autorizado: um convite real foi aceito/ativado, mas
   nenhuma comunicação de cliente foi criada; isso não cobre inbox, webhook nem
-  dispatch de `send-customer-communication`.
+  dispatch de `send-customer-communication`. Em 2026-09-29, o Preview da PR #795
+  tinha runners Edge ativos, sem os jobs `portal-email-events-runner` e
+  `import-effects-runner`, chave global falsa e 0 tentativas/eventos/comunicados
+  em 24 h. Os jobs legados de `customer-communication-auto-runner` (8) e
+  `demurrage-dunning` (2) concluíram sem registros de email; isso é execução sem
+  dados elegíveis, não prova de envio, webhook ou retry no provedor.
 - [x] Executar testes de webhook, dispatch, dunning e inbox; commit de referência: `ff44e1bb`.
 
 **Job proposto:** `portal-email-events-runner`, a cada minuto (`* * * * *`), via `ops.dispatch_edge_job('portal-email-events-runner', 'PORTAL_EMAIL_EVENTS_CRON_SECRET')`. Usar segredo dedicado homônimo no Vault/Edge e mesmas provas de autenticação de S09. Retry de processamento em 1, 5, 15, 60 e 360 minutos, seis tentativas totais; após esgotamento, manter registro bloqueado e alertar para investigação, sem descartar. Ajustar janela somente com evidência da latência real de vínculo de tentativa.
@@ -1290,8 +1301,11 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Tornar fetch BCB limitado e recuperável: timeout por tentativa, três tentativas para timeout/429/5xx com backoff/jitter, validação de schema/valor e alerta interno idempotente em falha persistente. A última cotação fica marcada como desatualizada e não é apresentada como nova.
 - [x] Implementar o contrato fail-closed do gateway/dispatcher e manter `verify_jwt` coerente com a autenticação própria; o código não aceita anon nem registra segredo.
 - [ ] Publicar/validar essa combinação no Preview real antes de ativar o job.
-  Produção tem Edge ativa e nenhum job `recalc-demurrage-ptax` em `cron.job`;
-  a execução agendada continua sem prova.
+  Em 2026-09-29, a Edge estava ativa em produção e no Preview da PR #795; não
+  havia job `recalc-demurrage-ptax` em `cron.job` em nenhum deles. A branch
+  Preview tem jobs legados de comunicação ativos, mas `communications_enabled`
+  está falsa e não há dados elegíveis; isso não valida gateway/Vault nem uma
+  execução agendada de PTAX.
 - [x] Deixar o job nomeado e idempotente, com `RECALC_CRON_SECRET` referenciado pelo nome no SQL e sem `service_role` como segredo de cron; o agendamento saiu da migration por exigir privilégio operacional.
 - [ ] Criar/ativar o job no Vault/Edge/`pg_cron` do ambiente depois do aceite operacional.
 
