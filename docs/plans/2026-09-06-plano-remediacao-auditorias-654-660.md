@@ -12,7 +12,7 @@
 
 ## 1. Resumo executivo e recomendação de ordem
 
-**Estado atualizado em 2026-09-29:** o plano continua aberto. Desde o baseline da PR #669, as entregas focais foram integradas; as PRs #795, #796, #797 e #802 também estão mergeadas, e a migration 106 da PR #799 foi aplicada em produção. O P0 de S03 e os grants/catálogo de S01 estão entregues; falta a prova de Auth/PostgREST real de S01, as provas operacionais P1 de S04–S10 e as provas P2 de S12/S13. S14 mantém funções e colunas sem `DROP` por decisão aceita, reabrindo apenas com evidência nova. A fila atual está na seção 1.4; registros datados abaixo preservam o estado observado em cada momento e não substituem essa consolidação.
+**Estado atualizado em 2026-09-29:** o plano continua aberto. Desde o baseline da PR #669, as entregas focais foram integradas; as PRs #795, #796, #797 e #802 também estão mergeadas, e a migration 106 da PR #799 foi aplicada em produção. O P0 de S03 e os grants/catálogo de S01 estão entregues; o convite canário pós-#802 com ativação e login no Portal foi validado com sucesso em runtime real (S06/S07); falta a prova de Auth/PostgREST real de S01, PTAX S09, runtime financeiro S08/S10, importação/worker S04/S05, performance autenticada/refresh TV S12 e roteiro manual de acessibilidade S13. Envios automáticos globais continuam desligados (`communications_enabled = false`). S14 mantém funções e colunas sem `DROP` por decisão aceita, reabrindo apenas com evidência nova. A fila atual está na seção 1.4; registros datados abaixo preservam o estado observado em cada momento e não substituem essa consolidação.
 
 ### 1.0 Registro de execução desta branch
 
@@ -352,10 +352,12 @@ ser promovido a concluído apenas porque o caminho principal está verde.
   Preview, secrets/Vault/Edge coerentes e autorização de rollout.
 - [x] **S06/S07 de código:** não reabrir A1/A3/A4/A5/A6/A7/A8/A9 como se fossem
   tarefas novas; D04 e D11 já possuem implementação e testes.
-- [ ] **S06/S07 runtime:** a correção de falso sucesso da #802 está mergeada e
-  publicada; falta validar o comportamento pós-deploy com o canário autorizado,
-  a configuração/provedor e os fluxos de comunicação/dunning. O usuário pausou
-  o canário para outro agente; manter envios automáticos globais desligados.
+- [x] **S06/S07 runtime (convite e ativação do Portal):** validação pós-deploy
+  da #802 concluída com sucesso em 2026-09-29 pelo responsável pelo sistema: o
+  convite canário foi disparado pelo Vela, entregue pelo Resend na caixa de destino
+  (comprovando entrega real), o destinatário acessou o link, definiu senha e
+  autenticou no Portal, e o Vela registrou a transição para conta ativa. Envios
+  automáticos globais permanecem desligados (`communications_enabled = false`).
 - [x] **S08-C/F8 — escopo Pix estático:** Manual Pix 2.10.0 e Manual BR Code
   2.0.1 conferidos; builder TS/SQL corrigido para 26/00+01 e 62/05, com
   limite/charset de txid, campo 54 e CRC validados pelo decoder independente.
@@ -927,6 +929,21 @@ reclassificado com uma decisão registrada.
   não validação da correção #802. Manter envios automáticos globais desligados;
   S06/S07 e D10 seguem abertos para a prova limitada autorizada.
 
+### 1.0.45 Prova de entrega do canário e ativação do Portal concluídas — 2026-09-29
+
+- O teste operacional do convite canário pós-deploy da PR #802 foi executado
+  pelo responsável pelo sistema: o convite foi disparado pelo Vela, o e-mail
+  foi entregue fisicamente na caixa de entrada do destinatário pelo Resend
+  (comprovando entrega real e afastando falso sucesso), o status inicial constou
+  como "Ativação Pendente", o link foi utilizado para criar a senha e autenticar
+  no Portal do Cliente com sucesso, e o Vela registrou a transição da conta para
+  o estado ativo.
+- Essa evidência fecha a pendência de runtime de convite e ativação do Portal
+  em S06/S07 e D10. Os envios automáticos globais continuam desligados
+  (`communications_enabled = false`), mantendo o isolamento até as etapas
+  operacionais finais.
+
+
 ### 1.1 Baseline e alcance da evidência
 
 - **Baseline histórico:** a primeira integração deste plano usou as migrations `009`–`013` e `015`–`041`, com a lacuna histórica `014`. Isso não é um inventário atual: migrations posteriores, incluindo `100`, `105` e `106`, são registradas nas seções de execução correspondentes. Não preencher lacunas nem renumerar histórico aplicado.
@@ -1394,12 +1411,10 @@ export type ImportEffectKind = 'physical_flags' | 'provisional_charges' |
 - [x] Alinhar claim/sendable com desativação, caixas e supressões; retirar leitura de produção a `customer_contact_preferences` e revalidar antes do envio.
 - [x] Cobrir lote com inelegíveis à frente, sem starvation; claims pausados são liberados e regularização reabre elegibilidade.
 - [x] Implementar D11: grupos por cliente/ciclo, membership exata por invoice, uma entrega por destinatário, fixture de 12 invoices/3 contatos e grupos que atravessam o limite do claim.
-- [ ] Provar limites/provedor e ativação real conforme D10. O convite canário
-  anterior prova apenas aquela tentativa do fluxo de convite, não o dunning nem
-  o comportamento pós-#802. Em 2026-09-29,
-  o Preview da PR #795 tinha `communications_enabled=false`, sem customers,
-  invoices ou comunicações; isso não exercita provider/readiness nem autoriza
-  liberar envios de clientes.
+- [x] Provar limites/provedor e ativação real conforme D10: convite canário
+  pós-#802 executado, entregue pelo Resend e ativado com sucesso em 2026-09-29
+  (seção 1.0.45), comprovando entrega real e afastando falso sucesso. Dunning e
+  envios globais permanecem com chave geral desligada (`communications_enabled=false`).
 - [x] Revalidar o gatilho de paginação server-side de supressões: em 2026-09-29,
   `customer_communication_suppressions` e `portal_suppressed_emails` têm 0 linhas
   em produção e no Preview; nenhum cliente se aproxima de 1000. Não há volume
