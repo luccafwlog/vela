@@ -10,7 +10,7 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
-- [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — em execução; decisões D1–D4 tomadas; Fase 2 (migration 106) e item 4.5 entregues pela PR #799, falta aplicar a 106 em produção; Fases 1, 3, 4 e 5 e os reforços adicionais pendentes.
+- [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — em execução; decisões D1–D4 tomadas; Fase 2 (migration 106) e item 4.5 entregues pela PR #799 e aplicados em produção em 2026-09-29; Fases 1, 3, 4 e 5 e os reforços adicionais pendentes.
 - [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — implementa as ADRs 0071–0074 em seis fases: proteções do banco, falso sucesso e cascata atômica, diálogo de confirmação, trava do CE Mercante, cadastros, e usuários/retenção/backup.
 - [2026-09-06 — Remediação das auditorias #654–#660](2026-09-06-plano-remediacao-auditorias-654-660.md) — S03 agora inclui fixture COSCO/Granito real anonimizada e gate de parsers; runtimes S05–S10, refresh/performance autenticada S12, acessibilidade manual S13 e consumidores externos/colunas/DV S14 continuam em fila por prioridade.
 
