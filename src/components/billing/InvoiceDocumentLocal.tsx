@@ -24,13 +24,27 @@ import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle } from '../shared/I
 
 type Props = { detail: InvoiceDetail; type?: 'invoice' | 'receipt' }
 
-function displayQuantity(item: InvoiceItem): string | number {
+function sharedQuantityLabel(item: InvoiceItem): string | null {
   const snapshot = item.snapshot_payload
   if (snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)) {
-    const sharedQuantityLabel = (snapshot as Record<string, unknown>).shared_quantity_label
-    if (typeof sharedQuantityLabel === 'string' && sharedQuantityLabel.trim()) return sharedQuantityLabel
+    const label = (snapshot as Record<string, unknown>).shared_quantity_label
+    if (typeof label === 'string' && label.trim()) return label
   }
-  return item.quantity ?? 1
+  return null
+}
+
+function invoiceQuantity(item: InvoiceItem) {
+  const sharedQuantity = sharedQuantityLabel(item)
+  return (
+    <>
+      {sharedQuantity ?? item.quantity ?? 1}
+      {sharedQuantity && (
+        <div style={{ marginTop: 2, fontSize: '9px', lineHeight: 1.2, color: DOC_MUTED }}>
+          Fração do container compartilhado
+        </div>
+      )}
+    </>
+  )
 }
 
 function formatContainersMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[]): string | null {
@@ -125,7 +139,7 @@ function renderCategoryBlock(
               {stripBlPrefix(item.description, item.bl_id)}
               {usdNote && <div style={{ fontSize: '10px', color: DOC_MUTED }}>{usdNote}</div>}
             </td>
-            <td style={{ padding: '8px 7px', textAlign: 'center' }}>{displayQuantity(item)}</td>
+            <td style={{ padding: '8px 7px', textAlign: 'center' }}>{invoiceQuantity(item)}</td>
             <td style={{ padding: '8px 7px', textAlign: 'right' }}>{fmtBRL(item.unit_value_brl)}</td>
             <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600 }}>{fmtBRL(item.total_value_brl)}</td>
           </tr>
@@ -258,7 +272,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                       {stripBlPrefix(item.description, item.bl_id)}
                       {usdNote && <div style={{ fontSize: '10px', color: DOC_MUTED }}>{usdNote}</div>}
                     </td>
-                    <td style={{ padding: '8px 7px', textAlign: 'center' }}>{displayQuantity(item)}</td>
+                    <td style={{ padding: '8px 7px', textAlign: 'center' }}>{invoiceQuantity(item)}</td>
                     <td style={{ padding: '8px 7px', textAlign: 'right' }}>{fmtBRL(item.unit_value_brl)}</td>
                     <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600 }}>{fmtBRL(item.total_value_brl)}</td>
                   </tr>

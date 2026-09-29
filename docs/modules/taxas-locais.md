@@ -1,6 +1,6 @@
 # Taxas Locais
 
-> **Status:** ativo · **Atualizado:** 2026-09-23 · **Rotas:** operação em `/taxas-locais`; cadastro em `/taxas-locais/tabelas`; ações operacionais também partem de `/revisao` e `/bls/:blId`
+> **Status:** ativo · **Atualizado:** 2026-09-28 · **Rotas:** operação em `/taxas-locais`; cadastro em `/taxas-locais/tabelas`; ações operacionais também partem de `/revisao` e `/bls/:blId`
 
 ## Propósito e escopo
 
@@ -262,7 +262,9 @@ flowchart LR
   sendo a soma informativa de `1/share_count` — só o total em dinheiro mudou
   de fórmula, então o produto visual "unitário × quantidade" pode não bater
   exatamente com o total exibido para o B/L que absorveu o resto (a soma do
-  grupo inteiro é que fecha, não cada linha isolada).
+  grupo inteiro é que fecha, não cada linha isolada). A fatura impressa marca
+  a quantidade como fração do container compartilhado para que `1/7` não seja
+  lido como unidade inteira.
 - **Cálculo inicial e vinculação posterior de cliente (migration `072`):** `sync_local_charge_receivable` não aborta com erro quando `v_bl.customer_id IS NULL`. Retorna `NULL`, permitindo o cálculo e armazenamento imediato de linhas e subtotais tarifários na importação de B/Ls com base nas tabelas vigentes. Assim que o cliente é vinculado ou alterado (`approve_customer_reconciliation` ou `relink_bl_customer`), o B/L pendente é recalculado automaticamente com as eventuais Condições de Cliente cadastradas e o recebível no ledger (`bl_receivables`) é gerado/sincronizado.
 - O estado aceito na migration atual é `matched_document` ou `reconciled`;
   `ValidacaoTab` usa o mesmo helper canônico e mantém `matched_name` como

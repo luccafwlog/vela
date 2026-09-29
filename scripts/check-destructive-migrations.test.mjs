@@ -1,6 +1,7 @@
 // Um gate que nunca reprovou não é um gate. Este teste exercita os dois lados:
 // o que deve passar e o que deve falhar.
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -76,4 +77,6 @@ assert.equal(auditMigration('-- 099: TRUNCATE sai de anon\nREVOKE TRUNCATE ON TA
 assert.equal(auditMigration('-- 099\nBEGIN; TRUNCATE public.bls; COMMIT;\n').destructive, true, 'TRUNCATE depois de BEGIN')
 assert.equal(auditMigration('-- 099\nGRANT SELECT, TRUNCATE ON TABLE public.bls TO service_role;\n').destructive, false)
 assert.equal(auditMigration('-- 099\n-- aqui não se faz TRUNCATE public.bls\nSELECT 1;\n').destructive, false, 'comentário não conta')
-console.log('check-destructive-migrations: 16 cenários passaram (AGENTS.md e compatibilidade histórica).')
+const cliOutput = execFileSync(process.execPath, [path.join(root, 'scripts/check-destructive-migrations.mjs')], { encoding: 'utf8' })
+assert.match(cliOutput, /Destructive migration check passed:/, 'CLI precisa executar o gate também no Windows')
+console.log('check-destructive-migrations: 17 cenários passaram (AGENTS.md, compatibilidade histórica e CLI).')

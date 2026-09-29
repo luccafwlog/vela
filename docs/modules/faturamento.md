@@ -1,6 +1,6 @@
 # Faturamento
 
-> **Status:** ativo · **Atualizado:** 2026-09-27 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e estorno de pagamentos também são abertos por `/reconciliacao`
+> **Status:** ativo · **Atualizado:** 2026-09-28 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e estorno de pagamentos também são abertos por `/reconciliacao`
 
 ## Propósito e escopo
 
@@ -118,7 +118,9 @@ O filtro Tipo inclui **Avulsa**. Linhas sem B/L continuam na lista; se houver
 Viagem direta, o navio e a viagem são exibidos a partir de `invoices.voyage_id`.
 O detalhe apresenta item, descrição da cobrança e contexto opcional. A impressão
 usa o mesmo modelo da invoice local, com título **FATURA AVULSA** e sem criar
-um B/L artificial.
+um B/L artificial. Quando a quantidade de um item é fracionária por container
+compartilhado, o documento identifica a razão (por exemplo, `1/7`) como fração
+do container compartilhado.
 
 ### Validação
 
