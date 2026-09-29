@@ -233,4 +233,33 @@ describe('ChegadasSaidas user behaviours', () => {
       expect.anything(),
     )
   })
+
+  it('exibe diálogo de confirmação com diff antes e depois ao editar datas da viagem', async () => {
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+
+    await user.click(screen.getAllByTitle('Editar')[0])
+    const dateInput = screen.getByLabelText(/SALVADOR/) as HTMLInputElement
+    await user.clear(dateInput)
+    await user.type(dateInput, '2026-02-15')
+
+    await user.click(screen.getByRole('button', { name: /Salvar/ }))
+
+    expect(mocks.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Salvar programação da viagem',
+        changes: expect.arrayContaining([
+          expect.objectContaining({
+            field: 'Data SALVADOR',
+            before: '2026-01-22',
+            after: '2026-02-15',
+          }),
+        ]),
+        consequence: expect.stringContaining('Portal'),
+        reversibility: expect.any(String),
+      }),
+    )
+    expect(mocks.createOrAttach).toHaveBeenCalled()
+  })
 })
+

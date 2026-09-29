@@ -221,3 +221,18 @@ it('mostra as informacoes do sistema na aba Metricas, nao no topo da tela', () =
   fireEvent.click(screen.getByRole('tab', { name: 'Métricas' }))
   expect(screen.getByText('Informações do sistema')).toBeTruthy()
 })
+
+it('solicita confirmação com diff ao alterar credenciais de acesso', async () => {
+  mocks.updateUserCredentials.mockResolvedValue(undefined)
+  renderAdmin()
+  fireEvent.click(screen.getAllByRole('button', { name: 'Editar acesso' })[0])
+  fireEvent.change(screen.getByLabelText(/E-mail de login/), { target: { value: 'novo@fwlog.com.br' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
+    title: 'Alterar credenciais de acesso',
+    changes: expect.arrayContaining([
+      expect.objectContaining({ field: 'E-mail', after: 'novo@fwlog.com.br' }),
+    ]),
+  })))
+  expect(mocks.updateUserCredentials).toHaveBeenCalled()
+})

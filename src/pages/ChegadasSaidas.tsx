@@ -296,6 +296,37 @@ export function ChegadasSaidas() {
       })
       if (!confirmed) return
     }
+
+    const changes = editingId && originalForm
+      ? [
+          { field: 'Navio', before: originalForm.vesselName, after: formData.vesselName },
+          { field: 'IMO', before: originalForm.vesselImo, after: formData.vesselImo },
+          { field: 'Número da viagem', before: originalForm.voyageNumber, after: formData.voyageNumber },
+          ...PORTAL_SCHEDULE_LANES.map((lane) => ({
+            field: `Data ${lane.label}`,
+            before: originalForm.dates[lane.label] || 'Sem data',
+            after: formData.dates[lane.label] || 'Sem data',
+          })),
+        ].filter((c) => c.before !== c.after)
+      : []
+
+    const saveConfirmed = await confirm({
+      title: editingId ? 'Salvar programação da viagem' : 'Publicar programação da viagem',
+      message: editingId
+        ? `Salvar as alterações na programação do navio ${formData.vesselName} (VOY ${formData.voyageNumber})?`
+        : `Publicar a viagem do navio ${formData.vesselName} (VOY ${formData.voyageNumber}) no Portal?`,
+      confirmLabel: editingId ? 'Salvar alterações' : 'Publicar viagem',
+      changes: changes.length > 0 ? changes : undefined,
+      affected: !editingId
+        ? { summary: `${formData.vesselName} · VOY ${formData.voyageNumber} · ${pods.length} porto(s) com data prevista` }
+        : changes.length === 0
+          ? { summary: 'Nenhum campo foi alterado nesta edição.' }
+          : undefined,
+      consequence: 'A programação atualizada será visível publicamente no Portal em Chegadas e Saídas.',
+      reversibility: 'A viagem e suas datas podem ser editadas novamente na programação.',
+    })
+    if (!saveConfirmed) return
+
     try {
       await createOrAttachVoyageFromSchedule({
         vesselName: formData.vesselName,

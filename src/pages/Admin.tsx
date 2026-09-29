@@ -342,7 +342,18 @@ export function Admin() {
             <NovoUsuarioModal
               open
               onClose={() => setNovoAberto(false)}
-              onSubmit={(input) => createMutation.mutate(input)}
+              onSubmit={async (input) => {
+                const confirmed = await confirm({
+                  title: 'Criar usuário interno',
+                  message: `Criar acesso para ${input.full_name} com o perfil ${PROFILE_LABELS[input.role]}?`,
+                  confirmLabel: 'Criar usuário',
+                  affected: { summary: `${input.full_name} · ${input.email} · Perfil: ${PROFILE_LABELS[input.role]}` },
+                  consequence: `O usuário receberá permissão de acesso ao sistema correspondente ao perfil ${PROFILE_LABELS[input.role]}.`,
+                  reversibility: 'O usuário pode ser desativado ou ter seu perfil alterado no painel administrativo.',
+                })
+                if (!confirmed) return
+                createMutation.mutate(input)
+              }}
               submitting={createMutation.isPending}
             />
           ) : null}
@@ -352,7 +363,26 @@ export function Admin() {
               userName={editando.full_name}
               currentEmail={editando.email}
               onClose={() => setEditando(null)}
-              onSubmit={(updates) => credentialsMutation.mutate({ userId: editando.id, updates })}
+              onSubmit={async (updates) => {
+                const emailChanged = updates.email && updates.email !== editando.email
+                const passChanged = Boolean(updates.password)
+                const changes = [
+                  ...(emailChanged ? [{ field: 'E-mail', before: editando.email ?? '', after: updates.email! }] : []),
+                  ...(passChanged ? [{ field: 'Senha', before: '••••••••', after: 'Nova senha definida' }] : []),
+                ]
+                const confirmed = await confirm({
+                  title: 'Alterar credenciais de acesso',
+                  message: `Atualizar as credenciais de acesso de ${editando.full_name}?`,
+                  confirmLabel: 'Atualizar credenciais',
+                  changes,
+                  consequence: passChanged
+                    ? 'A senha será redefinida imediatamente. Se o e-mail mudou, o novo e-mail passará a ser exigido no login.'
+                    : 'O e-mail de acesso do usuário será alterado.',
+                  reversibility: 'As credenciais podem ser atualizadas novamente no painel administrativo.',
+                })
+                if (!confirmed) return
+                credentialsMutation.mutate({ userId: editando.id, updates })
+              }}
               submitting={credentialsMutation.isPending}
             />
           ) : null}

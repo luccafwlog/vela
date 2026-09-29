@@ -82,6 +82,39 @@ export function ChargeTablesTab({
       return
     }
 
+    const originalTable = tableForm.id ? currentTables.find((row) => row.id === tableForm.id) : null
+    const changes = originalTable
+      ? [
+          { field: 'Nome da tabela', before: originalTable.name ?? '', after: tableForm.name },
+          { field: 'Modalidade', before: originalTable.cargo_mode ?? '', after: tableForm.cargoMode },
+          { field: 'Porto de descarga (POD)', before: originalTable.pod ?? '', after: tableForm.pod },
+          { field: 'Vigência de', before: originalTable.valid_from ? originalTable.valid_from.slice(0, 10) : '', after: tableForm.validFrom },
+          { field: 'Vigência até', before: originalTable.valid_to ? originalTable.valid_to.slice(0, 10) : '', after: result.value.validTo ?? '' },
+          { field: 'Status', before: originalTable.active ? 'Ativa' : 'Inativa', after: tableForm.active ? 'Ativa' : 'Inativa' },
+          { field: 'Observações', before: originalTable.notes ?? '', after: tableForm.notes },
+        ].filter((c) => c.before !== c.after)
+      : []
+
+    if (originalTable && changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: tableForm.id ? 'Salvar tabela de taxas' : 'Cadastrar tabela de taxas',
+      message: tableForm.id
+        ? `Salvar as alterações da tabela "${tableForm.name}"?`
+        : `Cadastrar a nova tabela de taxas "${tableForm.name}"?`,
+      confirmLabel: tableForm.id ? 'Salvar alterações' : 'Cadastrar tabela',
+      changes: originalTable ? changes : undefined,
+      affected: !originalTable
+        ? { summary: `${tableForm.name} · ${tableForm.cargoMode} · POD ${tableForm.pod} · ${tableForm.validFrom} a ${result.value.validTo || 'sem data final'}` }
+        : undefined,
+      consequence: 'A tabela define as taxas locais aplicáveis aos B/Ls da respectiva modalidade e porto dentro da vigência.',
+      reversibility: 'A tabela pode ser editada ou desativada no cadastro.',
+    })
+    if (!confirmed) return
+
     try {
       const savedTableId = await saveChargeTableMutation.mutateAsync({
         id: tableForm.id,
@@ -123,6 +156,21 @@ export function ChargeTablesTab({
 
   async function handleToggleTableActive(id: number, current: boolean | null) {
     const nextActive = current !== true
+    const table = currentTables.find((row) => row.id === id)
+    const confirmed = await confirm({
+      title: nextActive ? 'Reativar tabela de taxas' : 'Desativar tabela de taxas',
+      message: nextActive
+        ? `Reativar a tabela "${table?.name ?? id}"?`
+        : `Desativar a tabela "${table?.name ?? id}"?`,
+      confirmLabel: nextActive ? 'Reativar' : 'Desativar',
+      tone: nextActive ? 'primary' : 'danger',
+      consequence: nextActive
+        ? 'A tabela volta a ser utilizada nos cálculos de novos faturamentos.'
+        : 'A tabela não será aplicada a novos cálculos; faturamentos já emitidos ou calculados não são afetados.',
+      reversibility: nextActive ? 'Desative de novo se precisar.' : 'Reative a tabela quando precisar.',
+    })
+    if (!confirmed) return
+
     try {
       await setChargeTableActiveMutation.mutateAsync({ id, active: nextActive })
       showToast(nextActive ? 'Tabela reativada.' : 'Tabela desativada.', 'success')
@@ -159,6 +207,44 @@ export function ChargeTablesTab({
       return
     }
     const { chargeTableId, unitValue, sortOrder } = result.value
+
+    const table = currentTables.find((row) => row.id === chargeTableId)
+    const originalItem = tableItemForm.id
+      ? table?.charge_table_items.find((row) => row.id === tableItemForm.id)
+      : null
+
+    const changes = originalItem
+      ? [
+          { field: 'Nome do item', before: originalItem.name ?? '', after: tableItemForm.name },
+          { field: 'Categoria', before: originalItem.category === 'other_charge' ? 'Other Charge' : 'Taxa Base', after: tableItemForm.category === 'other_charge' ? 'Other Charge' : 'Taxa Base' },
+          { field: 'Base de aplicação', before: originalItem.application_basis ?? '', after: tableItemForm.applicationBasis },
+          { field: 'Perfil de carga', before: originalItem.cargo_profile ?? '', after: tableItemForm.cargoProfile },
+          { field: 'Moeda', before: originalItem.currency ?? '', after: tableItemForm.currency },
+          { field: 'Valor unitário', before: `${originalItem.currency} ${originalItem.currency === 'USD' ? originalItem.unit_value_usd : originalItem.unit_value_brl}`, after: `${tableItemForm.currency} ${unitValue}` },
+          { field: 'Somente manual', before: originalItem.manual_only ? 'Sim' : 'Não', after: tableItemForm.manualOnly ? 'Sim' : 'Não' },
+          { field: 'Status', before: originalItem.active ? 'Ativo' : 'Inativo', after: tableItemForm.active ? 'Ativo' : 'Inativo' },
+        ].filter((c) => c.before !== c.after)
+      : []
+
+    if (originalItem && changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return
+    }
+
+    const confirmed = await confirm({
+      title: tableItemForm.id ? 'Salvar item de taxa' : 'Cadastrar item de taxa',
+      message: tableItemForm.id
+        ? `Salvar as alterações do item "${tableItemForm.name}"?`
+        : `Cadastrar o item "${tableItemForm.name}" na tabela "${table?.name ?? chargeTableId}"?`,
+      confirmLabel: tableItemForm.id ? 'Salvar alterações' : 'Cadastrar item',
+      changes: originalItem ? changes : undefined,
+      affected: !originalItem
+        ? { summary: `${tableItemForm.name} · ${tableItemForm.currency} ${unitValue} · Base: ${tableItemForm.applicationBasis}` }
+        : undefined,
+      consequence: 'O item será considerado na composição do cálculo de taxas locais para os B/Ls da tabela.',
+      reversibility: 'O item pode ser editado ou desativado na tabela de taxas.',
+    })
+    if (!confirmed) return
 
     try {
       await saveChargeTableItemMutation.mutateAsync({
