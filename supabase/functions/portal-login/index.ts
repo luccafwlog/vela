@@ -1,9 +1,10 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { openAlertOnce } from '../_shared/portalAlerts.ts'
 import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { authenticatePortalLoginIdentity } from '../_shared/portalLoginIdentity.ts'
 import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
+import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
 
 const GENERIC_ERROR = 'CNPJ ou senha inválidos.'
 
@@ -42,6 +43,7 @@ if (typeof Deno !== 'undefined') {
       const dummyUserId = Deno.env.get('PORTAL_LOGIN_DUMMY_AUTH_USER_ID')
       if (!url || !serviceKey || !anonKey || !dummyUserId) return json(500, { error: 'Portal indisponível.' }, origin)
 
+      const pepper = portalPasswordPepper()
       const admin = createClient(url, serviceKey)
       const rateLimitContext = { ip: requestIp(req) }
       if (await isLoginRateLimited(admin, normalized, rateLimitContext)) {
@@ -76,6 +78,12 @@ if (typeof Deno !== 'undefined') {
         signIn: async (email, password) => {
           const { data, error } = await authClient.auth.signInWithPassword({ email, password })
           return error ? null : data.session
+        },
+        derivePassword: (password) => derivePortalAuthPassword(password, pepper),
+        migrateLegacyPassword: async (userId, derivedPassword) => {
+          const { error } = await admin.auth.admin.updateUserById(userId, { password: derivedPassword })
+          // A sessão já foi emitida; a migração tenta de novo no próximo login.
+          if (error) console.error('[portal-login] falha ao migrar senha legada', error)
         },
       })
       if (!authentication.accepted || !authentication.session) {

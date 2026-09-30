@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { processPortalEmailEvent } from '../_shared/portalEmailEventProcessor.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 

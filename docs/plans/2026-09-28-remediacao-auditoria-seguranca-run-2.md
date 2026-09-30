@@ -7,7 +7,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 |---|---|
 | Fase 1 — configuração de terceiros | pendente (dono, no painel); item 4 respondido em 2026-09-29 |
 | Fase 2 — migration `106` e item 4.5 | código entregue pela PR luccafwlog/vela#799 (suíte `auditoriaRun2.local-pg.test.ts`) e `106` aplicada em produção em 2026-09-29; falta conferir em uso a política de Storage de 2.2, o modal de Disputa e uma importação com e-mail de consignatário novo |
-| Fase 3 — Edge Functions | pendente (usa `internal_revoke_sessions` da `106`) |
+| Fase 3 — Edge Functions | código entregue (PR da branch `claude/remediacao-run-2-fase-3`, migration `108`); falta o dono criar `PORTAL_PASSWORD_PEPPER`, conferir `TURNSTILE_SECRET_KEY`, publicar as Functions e observar na Preview |
 | Fase 4 — front-end (exceto 4.5) | pendente |
 | Fase 5 — CI e hospedagem | pendente |
 | Reforços adicionais (D4 = b) | pendentes |
@@ -157,6 +157,22 @@ Storage e importação real.
 Verificação: testes Deno/unitários existentes das funções tocadas mais um caso
 por item; o comportamento contra GoTrue real (itens 2 e 4) fica registrado como
 não verificado até rodar na Preview.
+
+Execução (2026-09-29): a organização Supabase está no plano **Pro**, e o
+*Password Verification Hook* só existe em Teams/Enterprise; D1 caiu para (a).
+O GoTrue passa a guardar `HMAC(PORTAL_PASSWORD_PEPPER, senha)`
+(`_shared/portalPasswordSecret.ts`); conta com senha pura entra pelo
+`portal-login` e migra nesse login. Drift mecânico: a coluna do item 3 entrou
+na migration `108_customer_communication_rendered_copy.sql` (a `100` já
+existia); o registro guarda assunto, texto e SHA-256 do HTML enviados. Na
+reativação, o usuário técnico antigo é banido (não apagado: há registros que o
+referenciam). `deno.lock` gerado com Deno 2.9.6; `deno check` das funções
+tocadas não acrescenta erros aos que `main` já tinha.
+Evidência: `src/services/__tests__/edgeFunctionsRun2.test.ts` e
+`portalLoginIdentity.test.ts` (unitário + contrato no fonte); gates do
+`WORKFLOW.md` §11 verdes, `rpc:check` em Postgres 16 local. Não observado:
+GoTrue real, Turnstile real, publicação das Functions (manual, depois do
+secret).
 
 ## Fase 4 — Front-end
 

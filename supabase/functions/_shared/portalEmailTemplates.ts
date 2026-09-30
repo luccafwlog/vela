@@ -1,6 +1,6 @@
 type InviteTemplateInput = { companyName: string; cnpjMasked: string; activationUrl: string; supportEmail: string; portalUrl: string }
 
-const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] ?? char)
+export const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] ?? char)
 
 const NAVY = '#152238'
 const GOLD = '#d4882e'

@@ -1,6 +1,7 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { corsHeaders } from '../_shared/cors.ts'
 
+import { decideInternalTarget } from '../_shared/internalUserTarget.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 
 const MANAGED_PROFILES = ['administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos']
@@ -43,8 +44,9 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
   // service_role restrito ao que exige privilégio de autenticação.
   const admin = createClient(url, service)
 
-  const audit = (entityId: string, field: string, oldValue: string | null, newValue: string | null) =>
-    caller.from('audit_logs').insert({
+  // Falha de auditoria é falha da operação (auditoria run-2, reforço de #9).
+  const audit = async (entityId: string, field: string, oldValue: string | null, newValue: string | null) => {
+    const { error } = await caller.from('audit_logs').insert({
       entity_type: 'user_profile',
       entity_id: entityId,
       field_name: field,
@@ -52,6 +54,33 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
       new_value: newValue,
       changed_by: actorId,
     })
+    if (error) throw new Error(`audit_logs: ${error.message}`)
+  }
+
+  // Alvo de update_credentials/deactivate: só usuário interno com perfil (#8).
+  const checkInternalTarget = async (userId: string) => {
+    if (!userId) return decideInternalTarget({ userId, dummyUserId: null, hasProfile: false, isPortalAccount: false })
+    const [{ data: profile, error: profileError }, { data: portal, error: portalError }] = await Promise.all([
+      admin.from('user_profiles').select('id').eq('id', userId).maybeSingle(),
+      admin.from('customer_portal_accounts').select('id').eq('auth_user_id', userId).limit(1).maybeSingle(),
+    ])
+    if (profileError || portalError) throw new Error('Não foi possível conferir o usuário.')
+    return decideInternalTarget({
+      userId,
+      dummyUserId: Deno.env.get('PORTAL_LOGIN_DUMMY_AUTH_USER_ID') ?? null,
+      hasProfile: Boolean(profile),
+      isPortalAccount: Boolean(portal),
+    })
+  }
+
+  // Sessões e refresh tokens saem pela RPC da migration 106; o signOut do
+  // GoTrue só revoga o JWT do próprio chamador (#9).
+  const revokeSessions = async (userId: string) => {
+    const { error } = await admin.rpc('internal_revoke_sessions', { p_user_id: userId })
+    if (error) throw new Error(`internal_revoke_sessions: ${error.message}`)
+  }
+
+  try {
 
   if (body.action === 'create') {
     const fullName = (body.full_name ?? '').trim()
@@ -95,7 +124,8 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
 
   if (body.action === 'update_credentials') {
     const userId = body.user_id ?? ''
-    if (!userId) return json(422, { error: 'Usuário não informado.' }, origin)
+    const target = await checkInternalTarget(userId)
+    if (!target.ok) return json(target.status, { error: target.error }, origin)
 
     const email = body.email?.trim().toLowerCase()
     const password = body.password
@@ -118,6 +148,9 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
       }, origin)
     }
 
+    // Credencial trocada derruba as sessões abertas com a credencial antiga.
+    await revokeSessions(userId)
+
     if (email && email !== previousEmail) await audit(userId, 'email', previousEmail, email)
     // A senha nunca é registrada, só o fato de ter sido trocada.
     if (password) await audit(userId, 'password', null, 'redefinida pelo administrador')
@@ -126,7 +159,8 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
 
   if (body.action === 'deactivate') {
     const userId = body.user_id ?? ''
-    if (!userId) return json(422, { error: 'Usuário não informado.' }, origin)
+    const target = await checkInternalTarget(userId)
+    if (!target.ok) return json(target.status, { error: target.error }, origin)
     if (userId === actorId) return json(422, { error: 'Você não pode desativar o próprio acesso.' }, origin)
 
     // Escrita pelo cliente do chamador: a policy de admin continua valendo e o
@@ -137,11 +171,14 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
       .eq('id', userId)
     if (profileError) return json(500, { error: 'Não foi possível desativar o usuário.' }, origin)
 
-    // O flag sozinho não derruba a sessão: o token segue válido até expirar.
-    const { error: signOutError } = await admin.auth.admin.signOut(userId)
-    if (signOutError) console.error('admin-users: falha ao encerrar sessões', signOutError)
+    // O flag sozinho não derruba a sessão: o refresh token seguiria válido.
+    await revokeSessions(userId)
 
-    return json(200, { ok: true, sessions_revoked: !signOutError }, origin)
+    return json(200, { ok: true, sessions_revoked: true }, origin)
+  }
+  } catch (error) {
+    console.error('admin-users: falha', error)
+    return json(500, { error: 'Não foi possível concluir a operação.' }, origin)
   }
 
   return json(400, { error: 'Ação desconhecida.' }, origin)

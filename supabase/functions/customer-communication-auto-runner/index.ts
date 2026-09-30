@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { renderCustomerCommunicationTemplate } from '../_shared/customerCommunicationTemplates.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'

@@ -86,6 +86,15 @@ function configuredHostnames(raw: string | undefined): string[] {
   return list
 }
 
+export function isLocalSupabase(url: string | undefined): boolean {
+  if (!url) return false
+  try {
+    return ['localhost', '127.0.0.1', 'kong', 'host.docker.internal'].includes(new URL(url).hostname)
+  } catch {
+    return false
+  }
+}
+
 export async function verifyTurnstileRequest(
   request: Request,
   token: unknown,
@@ -97,8 +106,9 @@ export async function verifyTurnstileRequest(
   }).Deno
 
   const secret = deno?.env.get('TURNSTILE_SECRET_KEY')?.trim() ?? ''
-  // Se ainda não configurado no ambiente, não bloqueia o acesso legítimo
-  if (!secret) return true
+  // Sem secret só passa no stack local; fora dele nega (auditoria run-2,
+  // reforço). Preview usa a chave de teste do Turnstile, não a ausência dela.
+  if (!secret) return isLocalSupabase(deno?.env.get('SUPABASE_URL'))
 
   return verifyTurnstileToken({
     token,

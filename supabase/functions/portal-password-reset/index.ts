@@ -1,9 +1,10 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { hashToken } from '../_shared/portalToken.ts'
 import { revokePortalSessions } from '../_shared/revokePortalSessions.ts'
 import { resetPortalPasswordFailClosed } from '../_shared/portalPasswordResetFlow.ts'
 import { withCors } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
+import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
   const body = await req.json().catch(() => ({})) as { token?: string; password?: string }
@@ -11,6 +12,8 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   // A regra da senha não é oráculo de token: dizer o que falta na senha não revela
   // nada sobre o link, e a mensagem genérica acima continua cobrindo o token.
   if (!isValidPassword(body.password)) return new Response(JSON.stringify({ error: PASSWORD_RULE_MESSAGE }), { status: 422 })
+  // O GoTrue guarda HMAC(pepper, senha) (auditoria run-2, #7); sem pepper, não consome o link.
+  const authPassword = await derivePortalAuthPassword(body.password, portalPasswordPepper())
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const { data: invite } = await admin.from('portal_invites').select('id, account_id, expires_at, status').eq('token_hash', await hashToken(body.token)).eq('purpose', 'recuperacao').maybeSingle()
   if (!invite || invite.status !== 'pendente' || new Date(invite.expires_at).getTime() <= Date.now()) return new Response(JSON.stringify({ error: 'Link inválido ou expirado. Solicite uma nova recuperação.' }), { status: 410 })
@@ -18,7 +21,7 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   if (!consumed) return new Response(JSON.stringify({ error: 'Link inválido ou expirado. Solicite uma nova recuperação.' }), { status: 410 })
   const { data: account } = await admin.from('customer_portal_accounts').select('auth_user_id, customer_id, provisioning_decision, account_situation').eq('id', invite.account_id).single()
   if (!account?.auth_user_id) return new Response(JSON.stringify({ error: 'Link inválido ou expirado. Solicite uma nova recuperação.' }), { status: 410 })
-  await resetPortalPasswordFailClosed(account.auth_user_id, body.password, {
+  await resetPortalPasswordFailClosed(account.auth_user_id, authPassword, {
     now: () => Date.now(),
     revokeSessions: revokePortalSessions,
     quarantineSessions: async (userId, revokedUntil) => {

@@ -466,6 +466,7 @@ export function ClientesComunicacao() {
             subject: rendered.subject,
             html: rendered.html,
             text: rendered.text,
+            messageBody: userWritten ? institutionalBody : undefined,
             blIds: row.bls.map((bl) => bl.id),
             anchorVoyageId: dispatchAnchored ? null : row.sourceBls[0]?.voyageId ?? null,
             anchorPort: dispatchAnchored ? null : row.sourceBls[0]?.pod ?? null,
