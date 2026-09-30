@@ -3,7 +3,8 @@ import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 Deno.serve(instrumentEdgeHandler('itau-pix-simulation', async (request: Request) => {
   const secret = Deno.env.get('PIX_SIMULATION_RUNNER_SECRET') ?? ''
-  const supplied = request.headers.get('authorization')?.replace(/^Bearer /, '') ?? ''
+  const authorization = request.headers.get('authorization') ?? ''
+  const supplied = authorization.startsWith('Bearer ') ? authorization.slice(7) : ''
   // O segredo não é uma credencial bancária; nenhuma sessão do navegador é aceita.
   const a = new TextEncoder().encode(secret)
   const b = new TextEncoder().encode(supplied)
