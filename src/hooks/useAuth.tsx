@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { useQueryClient } from '@tanstack/react-query'
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../services/supabase'
@@ -92,6 +93,7 @@ async function loadProfile(userId: string): Promise<UserProfile> {
 const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000 // 8 horas
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const queryClient = useQueryClient()
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -143,6 +145,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       // silenciosa. Reativar `loading` faz o ProtectedRoute desmontar a árvore
       // de páginas, perdendo aba ativa, modais abertos e formulários em edição.
       setSession(nextSession)
+      // Sem sessão, nada do usuário anterior fica no cache do TanStack Query
+      // (logout, expiração ou saída em outra aba; auditoria run-2, reforço).
+      if (!nextSession) queryClient.clear()
 
       try {
         const nextUserId = nextSession?.user?.id ?? null
@@ -214,7 +219,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       window.clearTimeout(fallbackTimer)
       subscription.subscription.unsubscribe()
     }
-  }, [])
+  }, [queryClient])
 
   const value = useMemo<AuthContextValue>(() => {
     const role = profile?.role

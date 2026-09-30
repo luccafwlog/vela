@@ -8,7 +8,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 | Fase 1 — configuração de terceiros | pendente (dono, no painel); item 4 respondido em 2026-09-29 |
 | Fase 2 — migration `106` e item 4.5 | código entregue pela PR luccafwlog/vela#799 (suíte `auditoriaRun2.local-pg.test.ts`) e `106` aplicada em produção em 2026-09-29; falta conferir em uso a política de Storage de 2.2, o modal de Disputa e uma importação com e-mail de consignatário novo |
 | Fase 3 — Edge Functions | pendente (usa `internal_revoke_sessions` da `106`) |
-| Fase 4 — front-end (exceto 4.5) | pendente |
+| Fase 4 — front-end (exceto 4.5) | código entregue (branch `claude/remediacao-run-2-fase-4`); falta observar na Preview a troca de e-mail com PKCE |
 | Fase 5 — CI e hospedagem | pendente |
 | Reforços adicionais (D4 = b) | pendentes |
 
@@ -176,6 +176,16 @@ não verificado até rodar na Preview.
 
 Verificação: `typecheck`, `lint`, `test`, `build`; fluxo de troca de e-mail e
 de Dispute observado na Preview.
+
+Execução (2026-09-29): itens 1–4 feitos; `formatIssuesAsCsv` e
+`downloadIssuesCsv` passam por `formatCsv`/`downloadCsv` de `src/lib/csv.ts`.
+Entraram junto os dois reforços de front-end da lista D4 = b: CNPJ no caminho
+de `event.request.url` sai pelo `scrubPii` (drift mecânico:
+`VERCEL_DYNAMIC_ROUTE_REDACTIONS` não existe mais no repositório após a saída
+da Vercel) e `FORMULA_INJECTION_PREFIX` cobre espaço à esquerda e `＝＋－＠`.
+Evidência: `src/lib/__tests__/run2FrontendHardening.test.ts` e o caso novo de
+`useAuthHydrationFailure.test.tsx`. Não observado: link de troca de e-mail com
+PKCE num navegador real.
 
 ## Fase 5 — CI e hospedagem
 

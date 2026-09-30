@@ -2,6 +2,7 @@
 // ImportIssue é a única forma de reportar divergência: sem `raw` (nunca vai
 // à telemetria), com severidade explícita para canImport.
 import { z } from 'zod'
+import { downloadCsv, formatCsv } from '../lib/csv'
 
 export type ImportIssueCode =
   | 'invalid_number'
@@ -70,22 +71,20 @@ export function sanitizeIssueMessage(message: string): string {
   return message.replace(EMAIL_PATTERN, '[email]')
 }
 
+const ISSUE_CSV_HEADERS = ['row', 'field', 'code', 'severity', 'message']
+
+function issueCsvRows(issues: readonly ImportIssue[]): string[][] {
+  return issues.map((issue) => [String(issue.row), issue.field, issue.code, issue.severity, sanitizeIssueMessage(issue.message)])
+}
+
+// Mesmo escape de downloadCsv: aspas, CR/LF e prefixo de fórmula (auditoria
+// run-2, reforço; o campo vem da planilha importada).
 export function formatIssuesAsCsv(issues: readonly ImportIssue[]): string {
-  const header = 'row,field,code,severity,message'
-  const lines = issues.map((issue) =>
-    [issue.row, issue.field, issue.code, issue.severity, `"${sanitizeIssueMessage(issue.message).replace(/"/g, '""')}"`].join(','),
-  )
-  return [header, ...lines].join('\n')
+  return formatCsv(ISSUE_CSV_HEADERS, issueCsvRows(issues))
 }
 
 export function downloadIssuesCsv(filename: string, issues: readonly ImportIssue[]): void {
-  const blob = new Blob([formatIssuesAsCsv(issues)], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
-  URL.revokeObjectURL(url)
+  downloadCsv(filename, ISSUE_CSV_HEADERS, issueCsvRows(issues))
 }
 
 // Schemas Zod concretos de saída (S03 §6.2): primitivas compartilhadas,

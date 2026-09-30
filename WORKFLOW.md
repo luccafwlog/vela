@@ -123,6 +123,12 @@ O usuário autentica pelo Supabase Auth e precisa de perfil ativo em
 segurança. Policies e funções do banco precisam continuar corretas mesmo para
 uma chamada direta à API.
 
+O cliente interno usa `flowType: 'pkce'`: links do Auth (confirmação de troca
+de e-mail em Meu perfil) chegam com `?code=` e só são trocados por sessão no
+mesmo navegador que pediu a ação, que guarda o verificador. Abrir o link em
+outro navegador ou depois de limpar o armazenamento não confirma a troca; é
+preciso pedir de novo. Sem sessão, `useAuth` limpa o cache do TanStack Query.
+
 ### Sessão do Portal
 
 O Portal usa Supabase Auth com cliente e chave de storage próprios. A tela aceita
