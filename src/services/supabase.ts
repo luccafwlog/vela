@@ -20,6 +20,10 @@ export const supabase = createClient<AppDatabase>(supabaseUrl ?? fallbackSupabas
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    // PKCE (auditoria run-2, #12, D3 = a): o link de confirmação da troca de
+    // e-mail traz um código, não tokens no fragmento, e só vale no navegador
+    // que pediu a troca.
+    flowType: 'pkce',
   },
 })
 

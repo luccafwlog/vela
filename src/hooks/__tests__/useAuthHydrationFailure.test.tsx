@@ -40,6 +40,7 @@ vi.mock('../../services/supabase', () => ({
   },
 }))
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, classifyProfileHydrationError, useAuth } from '../useAuth'
 
 function Probe() {
@@ -85,9 +86,9 @@ describe('useAuth hidratação do perfil', () => {
     profileResult = { data: null, error: new TypeError('Failed to fetch') }
 
     render(
-      <AuthProvider>
+      <QueryClientProvider client={new QueryClient()}><AuthProvider>
         <Probe />
-      </AuthProvider>,
+      </AuthProvider></QueryClientProvider>,
     )
 
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('pronto'))
@@ -111,9 +112,9 @@ describe('useAuth hidratação do perfil', () => {
     profileResult = { data: profileRow('user-1'), error: null }
 
     render(
-      <AuthProvider>
+      <QueryClientProvider client={new QueryClient()}><AuthProvider>
         <Probe />
-      </AuthProvider>,
+      </AuthProvider></QueryClientProvider>,
     )
     await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('ready'))
     expect(screen.getByTestId('profile').textContent).toBe('user-1:operacoes')
@@ -126,5 +127,24 @@ describe('useAuth hidratação do perfil', () => {
     await waitFor(() => expect(signOutMock).toHaveBeenCalled())
     expect(screen.getByTestId('profile').textContent).toBe('sem-perfil')
     expect(screen.queryByText('user-1:operacoes')).toBeNull()
+  })
+
+  it('saída da sessão limpa o cache do TanStack Query (auditoria run-2, reforço)', async () => {
+    currentSession = sessionFor('user-1')
+    profileResult = { data: profileRow('user-1'), error: null }
+    const client = new QueryClient()
+    client.setQueryData(['faturas', 'user-1'], [{ id: 1 }])
+
+    render(
+      <QueryClientProvider client={client}><AuthProvider>
+        <Probe />
+      </AuthProvider></QueryClientProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('ready'))
+    expect(client.getQueryData(['faturas', 'user-1'])).toBeDefined()
+
+    authListener?.('SIGNED_OUT', null)
+
+    await waitFor(() => expect(client.getQueryData(['faturas', 'user-1'])).toBeUndefined())
   })
 })
