@@ -357,17 +357,33 @@ async function loadBlOperationalRows(
     totalsMap.set(blId, current)
   }
 
-  const { data: auditRows, error: auditError } = await supabase
-    .from('audit_logs')
-    .select('id,entity_type,entity_id,field_name,new_value,changed_by,changed_at')
-    .in('entity_id', blIds)
-    .in('entity_type', ['bl', 'charge_calculation'])
-    .order('changed_at', { ascending: false })
-    .limit(Math.min(blIds.length * 8, 4000))
-
-  if (auditError && classifyDbError(auditError).kind !== 'permissao') {
-    throw auditError
+  // Em lotes de B/Ls: um .in() único com a fila inteira estoura o teto de 1000
+  // linhas por resposta e o último evento dos B/Ls mais antigos sumia.
+  // Cada lote traz até 8 eventos por B/L (800 < 1000), do mais novo ao mais antigo.
+  const auditRows: Array<{
+    entity_type: string | null
+    entity_id: string | null
+    field_name: string | null
+    new_value: string | null
+    changed_by: string | null
+    changed_at: string | null
+  }> = []
+  for (let i = 0; i < blIds.length; i += LOCAL_CHARGE_BATCH_SIZE) {
+    const chunk = blIds.slice(i, i + LOCAL_CHARGE_BATCH_SIZE)
+    const { data, error: auditError } = await supabase
+      .from('audit_logs')
+      .select('id,entity_type,entity_id,field_name,new_value,changed_by,changed_at')
+      .in('entity_id', chunk)
+      .in('entity_type', ['bl', 'charge_calculation'])
+      .order('changed_at', { ascending: false })
+      .limit(chunk.length * 8)
+    if (auditError) {
+      if (classifyDbError(auditError).kind !== 'permissao') throw auditError
+      break
+    }
+    auditRows.push(...(data ?? []))
   }
+  auditRows.sort((left, right) => String(right.changed_at ?? '').localeCompare(String(left.changed_at ?? '')))
 
   const trailMap = new Map<
     string,
