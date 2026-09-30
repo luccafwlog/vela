@@ -10,7 +10,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 | Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); falta o dono criar `PORTAL_PASSWORD_PEPPER`, conferir `TURNSTILE_SECRET_KEY`, publicar as Functions e observar na Preview |
 | Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; falta observar na Preview a troca de e-mail com PKCE |
 | Fase 5 — CI e hospedagem | itens 1 e 2 entregues pela luccafwlog/vela#814; item 3 entregue em código (branch `claude/remediacao-run-2-ptax-equipamentos-cors`) após o dono confirmar a Vercel desligada |
-| Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pela luccafwlog/vela#815 (migration `109`); itens de operação são do dono; `recalculate_demurrage_invoices` para `overdue` aguarda regra de negócio |
+| Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pela luccafwlog/vela#815 (migration `109`); itens de operação são do dono; recálculo só de `issued` confirmado como regra de negócio |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
 (commit auditado `17da824a`). A auditoria está **incompleta**: nenhum dos 15
@@ -263,8 +263,10 @@ Os que dependem de regra de negócio ficam anotados, não implementados.
   `FORMULA_INJECTION_PREFIX` cobre espaço à esquerda e caracteres de largura total.
 - Operação (dono): rotacionar os segredos de cron do Vault; `.mcp.json` e
   `opencode.json` com versões fixas; backup em conta ou pasta dedicada.
-- Precisa de regra de negócio antes: `recalculate_demurrage_invoices` também
-  para `overdue`.
+- ~~Precisa de regra de negócio antes: `recalculate_demurrage_invoices` também
+  para `overdue`.~~ Decisão do dono (2026-09-29): o recálculo diário atualiza
+  só as faturas `issued`, para que elas nunca vençam; `overdue` fica fora de
+  propósito. Nada a implementar.
 
 Execução (2026-09-29): banco na migration `109_reforcos_auditoria_run_2.sql`
 com a suíte `src/integration/auditoriaRun2Reforcos.local-pg.test.ts` (7 casos
