@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 
 // Revoga todas as sessões do usuário do Portal. O endpoint admin do GoTrue
 // (POST /admin/users/{id}/logout) retorna 404 nesta versão, então usamos a RPC

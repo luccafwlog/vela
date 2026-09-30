@@ -1,8 +1,9 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { renderDemurrageTemplate } from '../_shared/customerCommunicationTemplates.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttemptRecord } from '../_shared/email.ts'
+import { escapeHtml } from '../_shared/portalEmailTemplates.ts'
 
 type DunningCandidate = {
   invoice_id: number
@@ -492,11 +493,11 @@ async function sendCandidateGroup(
     ? `Cobrança de Demurrage — ${sendable[0]!.doc_number} — ${vesselName} / ${voyageNumber}`
     : `Cobrança de Demurrage — ${sendable.length} faturas — ${vesselName} / ${voyageNumber}`
   const textList = lines.map((line) => `• ${line.candidate.doc_number} (B/L ${line.candidate.bl_id}): USD ${line.candidate.total_usd.toFixed(2)} / BRL ${line.totalBrl.toFixed(2)}`).join('\n')
-  const htmlList = lines.map((line) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${line.candidate.doc_number} <span style="color:#6b7280">(${line.candidate.bl_id})</span></td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right">USD ${line.candidate.total_usd.toFixed(2)} · BRL ${line.totalBrl.toFixed(2)}</td></tr>`).join('')
+  const htmlList = lines.map((line) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${escapeHtml(line.candidate.doc_number)} <span style="color:#6b7280">(${escapeHtml(line.candidate.bl_id)})</span></td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right">USD ${line.candidate.total_usd.toFixed(2)} · BRL ${line.totalBrl.toFixed(2)}</td></tr>`).join('')
   const portalUrl = portalBillingUrl()
   const template = {
     subject,
-    html: `<p>Olá, ${anchor.customer!.name}.</p><p>${sendable.length} cobrança(s) de Demurrage disponíveis (total USD ${totalUsd.toFixed(2)} — valores por fatura, sem consolidação):</p><table style="width:100%;border-collapse:collapse">${htmlList}</table><p><a href="${portalUrl}">Consultar detalhes no Portal do Cliente</a></p>`,
+    html: `<p>Olá, ${escapeHtml(anchor.customer!.name)}.</p><p>${sendable.length} cobrança(s) de Demurrage disponíveis (total USD ${totalUsd.toFixed(2)} — valores por fatura, sem consolidação):</p><table style="width:100%;border-collapse:collapse">${htmlList}</table><p><a href="${escapeHtml(portalUrl)}">Consultar detalhes no Portal do Cliente</a></p>`,
     text: `Olá, ${anchor.customer!.name}.\n\n${sendable.length} cobrança(s) de Demurrage disponíveis:\n${textList}\n\nConsulte os detalhes no Portal do Cliente: ${portalUrl}`,
   }
   const resendApiKey = communicationsEnabled ? Deno.env.get('RESEND_API_KEY') : null
