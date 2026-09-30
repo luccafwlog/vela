@@ -166,6 +166,26 @@ export async function importVehicleRows({
   const uniqueChassis = Array.from(new Set(validRows.map((row) => row.chassis)))
   const uniqueBls = Array.from(new Set(validRows.map((row) => row.bl_id)))
 
+  // O Daily Report traz o B/L "mestre" (sufixo 00) em todas as linhas, mas o
+  // manifesto o desdobra em B/Ls irmãos (…01, …02) quando passa de N containers.
+  // Carrega os irmãos da viagem para casar o veículo pelo container.
+  // ponytail: convenção COSCO (mestre termina em 00, irmãos = mesmo prefixo + 2 dígitos).
+  const masterPrefixes = Array.from(new Set(uniqueBls.map((bl) => bl.match(/^(.+)00$/)?.[1]).filter((p): p is string => Boolean(p))))
+  const siblingBlIds = new Map<string, string[]>()
+  for (const prefix of masterPrefixes) {
+    const { data, error } = await supabase
+      .from('bls')
+      .select('id')
+      .eq('voyage_id', voyageId)
+      .like('id', `${prefix}%`)
+    if (error) throw error
+    const ids = ((data ?? []) as Array<{ id: string }>)
+      .map((bl) => normalizeKey(bl.id))
+      .filter((id) => id !== `${prefix}00` && new RegExp(`^${escapeRegExp(prefix)}\\d\\d$`).test(id))
+    if (ids.length) siblingBlIds.set(`${prefix}00`, ids)
+  }
+  const blsToLoad = Array.from(new Set([...uniqueBls, ...[...siblingBlIds.values()].flat()]))
+
   const existingVehicles = await fetchInChunks(uniqueChassis, 250, async (chunk) => {
     const { data, error } = await supabase
       .from('vehicles')
@@ -178,7 +198,7 @@ export async function importVehicleRows({
 
   const existingVehicleChassis = new Set((existingVehicles ?? []).map((vehicle) => normalizeKey(vehicle.chassis)))
 
-  const matchedBls = await fetchInChunks(uniqueBls, 250, async (chunk) => {
+  const matchedBls = await fetchInChunks(blsToLoad, 250, async (chunk) => {
     const { data, error } = await supabase
       .from('bls')
       .select('id, voyage_id')
@@ -203,7 +223,7 @@ export async function importVehicleRows({
   const containersByBlAndNumber = new Map<string, ContainerCandidate[]>()
   const containerNumbersInVoyage = new Set<string>()
 
-  for (const blChunk of chunkArray(uniqueBls, 200)) {
+  for (const blChunk of chunkArray(blsToLoad, 200)) {
     let offset = 0
     while (true) {
       const { data, error } = await supabase
@@ -251,14 +271,24 @@ export async function importVehicleRows({
       continue
     }
 
-    const matchedBl = blMap.get(normalizeKey(row.bl_id))
+    let matchedBl = blMap.get(normalizeKey(row.bl_id))
     if (!matchedBl) {
       errors.push({ row: row.rowNumber, message: 'BL nao encontrado na viagem selecionada.' })
       continue
     }
 
-    const containerKey = `${normalizeKey(row.bl_id)}|${row.container_number}`
-    const containerCandidates = containersByBlAndNumber.get(containerKey) ?? []
+    let containerCandidates = containersByBlAndNumber.get(`${normalizeKey(row.bl_id)}|${row.container_number}`) ?? []
+    if (!containerCandidates.length) {
+      // B/L mestre desdobrado: o container só existe em exatamente um irmão.
+      const siblings = (siblingBlIds.get(normalizeKey(row.bl_id)) ?? []).filter((id) =>
+        containersByBlAndNumber.has(`${id}|${row.container_number}`),
+      )
+      const sibling = siblings.length === 1 ? blMap.get(siblings[0]) : undefined
+      if (sibling) {
+        matchedBl = sibling
+        containerCandidates = containersByBlAndNumber.get(`${normalizeKey(sibling.id)}|${row.container_number}`) ?? []
+      }
+    }
     if (!containerCandidates.length) {
       if (!containerNumbersInVoyage.has(row.container_number)) {
         errors.push({ row: row.rowNumber, message: 'Container nao encontrado no sistema.' })
@@ -465,6 +495,10 @@ function inferVehicleNumberFormat(headers: readonly string[]): ImportNumberForma
     '体积',
   ])
   return normalized.some((header) => carrierMarkers.has(header)) ? 'en-US' : 'pt-BR'
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function normalizeKey(value: unknown) {
