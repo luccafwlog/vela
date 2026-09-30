@@ -65,8 +65,8 @@ const TAB_TO_STATUS = Object.fromEntries(
 export function Demurrage() {
   const queryClient = useQueryClient()
   const { effectiveRole } = useAuth()
-  // A RPC só aceita Financeiro e Administrativo (migration 109); o botão segue a mesma regra.
-  const canInformPtax = effectiveRole === 'financeiro' || effectiveRole === 'administrativo'
+  // A RPC aceita Financeiro, Administrativo e Equipamentos (migration 110); o botão segue a mesma regra.
+  const canInformPtax = effectiveRole === 'financeiro' || effectiveRole === 'administrativo' || effectiveRole === 'equipamentos'
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [tab, setTab] = useState<DemurrageTab>('containers')
