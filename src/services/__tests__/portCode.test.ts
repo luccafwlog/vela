@@ -51,6 +51,7 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(resolvePortCode('CNCAN')).toEqual({ code: 'CNNSA', recognized: true })
     expect(resolvePortCode('TAO')).toEqual({ code: 'CNTAO', recognized: true })
     expect(resolvePortCode('VIX')).toEqual({ code: 'BRVIX', recognized: true })
+    expect(resolvePortCode('VIT')).toEqual({ code: 'BRVIX', recognized: true })
     expect(resolvePortCode('SPB')).toEqual({ code: 'BRSEP', recognized: true })
     expect(resolvePortCode('BRSPB')).toEqual({ code: 'BRSEP', recognized: true })
     expect(resolvePortCode('CNTCA')).toEqual({ code: 'CNTAC', recognized: true })
@@ -69,7 +70,7 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
   })
 
   it('retorna aliases persistidos para consultas sem duplicar o porto', () => {
-    expect(portCodeVariants('BRVIX')).toEqual(expect.arrayContaining(['BRVIX', 'VITORIA', 'BRVIT']))
+    expect(portCodeVariants('BRVIX')).toEqual(expect.arrayContaining(['BRVIX', 'VITORIA', 'BRVIT', 'VIX', 'VIT']))
     expect(portCodeVariants('CNTAO')).toEqual(expect.arrayContaining(['CNTAO', 'QINGDAO', 'QINDGAO']))
     expect(portCodeVariants('PECEM')).toEqual(expect.arrayContaining(['BRPEC', 'PECEM']))
     expect(portCodeVariants('CNTAC')).toEqual(expect.arrayContaining(['CNTAC', 'TAICANG', 'CNTAG']))

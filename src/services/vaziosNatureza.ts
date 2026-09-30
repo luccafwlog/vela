@@ -74,6 +74,22 @@ export async function fetchVaziosImportacaoContainerIds(filters: {
   return (data ?? []).map((r: { id: string }) => r.id)
 }
 
+export type ContainerProfile = 'standard' | 'oog' | 'imo' | 'imo_oog'
+
+/** Perfil de carga do container (Standard/OOG/IMO). Sair de IMO limpa classe e UN. */
+export async function setContainerProfile(containerId: number, profile: ContainerProfile) {
+  const isImo = profile === 'imo' || profile === 'imo_oog'
+  const { error } = await supabase
+    .from('bl_containers')
+    .update({
+      is_imo: isImo,
+      is_oog: profile === 'oog' || profile === 'imo_oog',
+      ...(isImo ? {} : { imo_class: null, un_number: null }),
+    })
+    .eq('id', containerId)
+  if (error) throw error
+}
+
 export async function setContainerUnpackingLocation(
   containerId: number,
   unpackingLocation: string | null,

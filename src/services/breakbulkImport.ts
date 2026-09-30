@@ -1,5 +1,6 @@
 import { extractNcmCodes } from '../lib/ncm'
 import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink } from './customerReconciliation'
+import { calculateLocalChargesBatch } from './charges/chargeOperationsService'
 import { supabase } from './supabase'
 import type { Json } from '../types/database'
 import {
@@ -150,6 +151,11 @@ export async function importBreakbulkManifest({
   if (!Number.isFinite(batchId) || batchId <= 0) {
     throw new Error('A importacao BB nao retornou um lote valido.')
   }
+
+  // A RPC BB nao calcula taxas locais (a de container calcula); sem isto o B/L
+  // ficava `not_calculated` para sempre. Falha de calculo nao desfaz o import:
+  // o B/L segue para a fila de revisao e pode ser recalculado.
+  await calculateLocalChargesBatch(blRows.map((bl) => bl.id), { actorId: uploadedBy, recalculate: false }).catch(() => undefined)
 
   return batchId
 }

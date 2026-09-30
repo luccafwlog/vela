@@ -78,7 +78,7 @@ export function Modal({
   if (!open) return null
 
   return (
-    <div className="app-modal-backdrop" onClick={onClose}>
+    <div className="app-modal-backdrop">
       <div
         ref={dialogRef}
         className={['app-modal', className].filter(Boolean).join(' ')}

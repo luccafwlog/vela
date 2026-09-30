@@ -10,6 +10,7 @@ import { Modal } from '../components/ui/Modal'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useAppSettings, useSetCommunicationsEnabled } from '../hooks/useAppSettings'
 import { useAuth } from '../hooks/useAuth'
+import { useVoyageOptions } from '../hooks/useBls'
 import { useCustomerCommunicationConference, useCustomerCommunicationHistory, useCustomerCommunicationSavedTemplates, useDispatchCustomerCommunication, useSaveCustomerCommunicationSavedTemplate, useVoyageCommunicationCoverage } from '../hooks/useCustomerCommunications'
 import {
   DEFAULT_CUSTOMER_COMMUNICATION_FILTERS,
@@ -190,6 +191,11 @@ export function ClientesComunicacao() {
   const [templateName, setTemplateName] = useState('')
   const [previewModalOpen, setPreviewModalOpen] = useState(false)
   const [customPreviewRow, setCustomPreviewRow] = useState<CustomerCommunicationConferenceRow | null>(null)
+  const { data: voyageOptions } = useVoyageOptions()
+  const vesselVoyageSuggestions = useMemo(
+    () => [...new Set((voyageOptions ?? []).map((voyage) => [voyage.vessel?.name, voyage.voyage_number].filter(Boolean).join(' / ')).filter(Boolean))],
+    [voyageOptions],
+  )
   const [coverageFilters, setCoverageFilters] = useState({ vessel: '', voyage: '', month: '' })
   const [historyFilters, setHistoryFilters] = useState({ vessel: '', month: '', kind: '', status: '', origin: '' })
   // Só o Comunicado livre deixa o operador escolher o público; os demais modelos
@@ -628,7 +634,7 @@ export function ClientesComunicacao() {
           </div>
           {coverageQuery.isLoading ? <div className="mt-5 text-sm text-[var(--app-muted)]">Carregando cobertura...</div> : null}
           {coverageQuery.isError ? <div className="mt-5"><InlineError message="Não foi possível carregar a cobertura." /></div> : null}
-          <div className="mt-5 app-table-scroll rounded-xl border border-[var(--app-border)]"><table className="app-table text-sm"><caption className="sr-only">Cobertura de comunicados por viagem</caption><thead><tr><th scope="col" className="p-3">Viagem</th><th scope="col" className="p-3">Clientes</th><th scope="col" className="p-3">NOA</th><th scope="col" className="p-3">NOR</th><th scope="col" className="p-3">NOB</th><th scope="col" className="p-3">CE / Taxas</th></tr></thead><tbody>{(coverageQuery.data ?? []).map((row) => <tr key={row.voyageId}><td className="p-3 font-medium">{row.vesselName} · {row.voyageNumber}</td><td className="p-3">{row.customers}</td><td className="p-3"><Badge tone={row.noa.sent >= row.noa.total ? 'green' : 'yellow'}>{row.noa.sent}/{row.noa.total}</Badge></td><td className="p-3"><Badge tone={row.nor.sent >= row.nor.total ? 'green' : 'yellow'}>{row.nor.sent}/{row.nor.total}</Badge></td><td className="p-3"><Badge tone={row.nob.sent >= row.nob.total ? 'green' : 'yellow'}>{row.nob.sent}/{row.nob.total}</Badge></td><td className="p-3"><Badge tone={row.finance.pending ? 'yellow' : 'green'}>{row.finance.sent}/{row.finance.ready} enviados · {row.finance.pending} pendentes</Badge></td></tr>)}{!coverageQuery.data?.length ? <tr><td colSpan={6} className="p-8 text-center text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}</tbody></table></div>
+          <div className="mt-5 app-table-scroll rounded-xl border border-[var(--app-border)]"><table className="app-table text-sm"><caption className="sr-only">Cobertura de comunicados por viagem</caption><thead><tr><th scope="col" className="p-3 text-center">Viagem</th><th scope="col" className="p-3 text-center">Clientes</th><th scope="col" className="p-3 text-center">CE / Taxas</th><th scope="col" className="p-3 text-center">NOA</th><th scope="col" className="p-3 text-center">NOR</th><th scope="col" className="p-3 text-center">NOB</th></tr></thead><tbody>{(coverageQuery.data ?? []).map((row) => <tr key={row.voyageId}><td className="p-3 text-center font-medium">{row.vesselName} · {row.voyageNumber}</td><td className="p-3 text-center">{row.customers}</td><td className="p-3 text-center"><Badge tone={row.finance.pending ? 'yellow' : 'green'}>{row.finance.sent}/{row.finance.ready} enviados · {row.finance.pending} pendentes</Badge></td><td className="p-3 text-center"><Badge tone={row.noa.sent >= row.noa.total ? 'green' : 'yellow'}>{row.noa.sent}/{row.noa.total}</Badge></td><td className="p-3 text-center"><Badge tone={row.nor.sent >= row.nor.total ? 'green' : 'yellow'}>{row.nor.sent}/{row.nor.total}</Badge></td><td className="p-3 text-center"><Badge tone={row.nob.sent >= row.nob.total ? 'green' : 'yellow'}>{row.nob.sent}/{row.nob.total}</Badge></td></tr>)}{!coverageQuery.data?.length ? <tr><td colSpan={6} className="p-8 text-center text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}</tbody></table></div>
         </Card>
       ) : tab === 'disparo' ? (
         <div className="space-y-5">
@@ -831,7 +837,11 @@ export function ClientesComunicacao() {
                             value={filters.vesselVoyage}
                             onChange={(event) => updateFilter('vesselVoyage', event.target.value)}
                             placeholder="Busque por navio ou viagem"
+                            list="comunicacao-navios-viagens"
                           />
+                          <datalist id="comunicacao-navios-viagens">
+                            {vesselVoyageSuggestions.map((label) => <option key={label} value={label} />)}
+                          </datalist>
                         </Field>
                       </div>
                       <div className="sm:col-span-2">
