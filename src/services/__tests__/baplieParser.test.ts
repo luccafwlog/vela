@@ -32,6 +32,17 @@ describe('baplieParser', () => {
     })
   })
 
+  it('lê o nome do navio no C222 e não o código da transportadora (COSCO)', () => {
+    const parsed = parseBaplieText([
+      "UNB+UNOA:1+CNCAN+COSA+260821:1201++++++COT'",
+      "TDT+20+22++BPCF5:103::COSCO SHIPPING FAN RONG++COT:172:20'",
+      "UNT+2+1'",
+    ].join('\n'))
+
+    expect(parsed.vessel_name).toBe('COSCO SHIPPING FAN RONG')
+    expect(parsed.voyage_number).toBe('22')
+  })
+
   // Dialeto SMDG D95B usado pelo Baplie da GREEN PARANAGUA V12: o local vem
   // em LOC+9/LOC+11 (e não LOC+6/LOC+12), o peso em MEA+VGM (e não MEA+WT) e
   // o navio no último composto do TDT. Lendo só o outro dialeto, POL, POD e
