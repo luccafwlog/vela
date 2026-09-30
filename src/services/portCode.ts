@@ -74,6 +74,8 @@ const EXACT_PORT_ALIASES: Record<string, string> = {
   CNCAN: 'CNNSA', // Guangzhou, tratado como Nansha (mesma regra de 'guangzhou')
   TAO: 'CNTAO',
   VIX: 'BRVIX',
+  CNTCA: 'CNTAC', // Taicang (variante COSCO)
+  BRSPB: 'BRSEP', // Sepetiba (variante COSCO de 5 letras)
   SPB: 'BRSEP', // Sepetiba
   SEP: 'BRSEP',
 }
