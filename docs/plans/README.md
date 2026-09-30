@@ -10,7 +10,7 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
-- [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — em execução; código das Fases 2–5 e dos reforços entregue (PRs #799, #812–#815; migrations 106, 108, 109 e 110). Pendente: Fase 1 e itens de operação (dono, no painel), publicação das Edge Functions depois do secret `PORTAL_PASSWORD_PEPPER`, observação em Preview e a regra de `overdue` no recálculo por PTAX.
+- [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — em execução; código das Fases 2–5 e dos reforços entregue (PRs #799, #812–#815; migrations 106, 108, 109 e 110). Pendente: Fase 1 e itens de operação (dono, no painel), publicação das Edge Functions depois do secret `PORTAL_PASSWORD_PEPPER` e observação em Preview.
 - [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — implementa as ADRs 0071–0074 em seis fases: proteções do banco, falso sucesso e cascata atômica, diálogo de confirmação, trava do CE Mercante, cadastros, e usuários/retenção/backup.
 
 O plano [2026-09-06 — Remediação das auditorias #654–#660](../archive/plans/2026-09-06-plano-remediacao-auditorias-654-660.md) foi concluído e arquivado em 2026-09-29 após validação de todas as provas de runtime em produção e otimização do TV refresh.
