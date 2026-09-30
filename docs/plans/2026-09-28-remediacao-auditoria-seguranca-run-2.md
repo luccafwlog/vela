@@ -7,7 +7,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 |---|---|
 | Fase 1 — configuração de terceiros | pendente (dono, no painel); item 4 respondido em 2026-09-29 |
 | Fase 2 — migration `106` e item 4.5 | código entregue pela PR luccafwlog/vela#799 (suíte `auditoriaRun2.local-pg.test.ts`) e `106` aplicada em produção em 2026-09-29; falta conferir em uso a política de Storage de 2.2, o modal de Disputa e uma importação com e-mail de consignatário novo |
-| Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); falta o dono criar `PORTAL_PASSWORD_PEPPER`, conferir `TURNSTILE_SECRET_KEY`, publicar as Functions e observar na Preview |
+| Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); secret `PORTAL_PASSWORD_PEPPER` criado, `TURNSTILE_SECRET_KEY` conferido e as 18 Functions publicadas pelo dono em 2026-09-29; testes em produção aprovados, exceto o Comunicado (ver "Estado em 2026-09-29") |
 | Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; falta observar na Preview a troca de e-mail com PKCE |
 | Fase 5 — CI e hospedagem | itens 1 e 2 entregues pela luccafwlog/vela#814; item 3 entregue em código (branch `claude/remediacao-run-2-ptax-equipamentos-cors`) após o dono confirmar a Vercel desligada |
 | Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pela luccafwlog/vela#815 (migration `109`); itens de operação são do dono; recálculo só de `issued` confirmado como regra de negócio |
@@ -27,6 +27,43 @@ funções, políticas ou grants citados. `src/services/supabase.ts`,
 O repositório é público e os candidatos estão abertos. A ordem abaixo segue o
 risco: primeiro o que o dono resolve no painel sem código (#14), depois o
 defeito que trava a importação (#13b) e as regras de negócio no banco.
+
+## Estado em 2026-09-29 (fim da sessão)
+
+Feito pelo dono, em produção: `PORTAL_PASSWORD_PEPPER` criado, `TURNSTILE_SECRET_KEY`
+conferido, as 18 Edge Functions publicadas e a Etapa 2 do roteiro testada com
+sucesso (login e relogin do Portal, senha errada, recuperação, convite e
+ativação, desativação de usuário interno derrubando a sessão, botão Informar
+PTAX para Equipamentos). Migrations `106`, `108`, `109` e `110` aplicadas.
+
+Falta, nesta ordem:
+
+1. **Comunicado (teste 2.7):** enviar um Comunicado em simulação (chave de envio
+   desligada) e pedir a conferência no banco de `rendered_subject`,
+   `rendered_text`, `rendered_html_sha256` e navio/viagem vindos dos B/Ls; testar
+   a recusa de `.txt` renomeado para `.pdf`. O institucional só alcança Cliente
+   Comunicável (regra mantida pelo dono): o Cliente de teste precisa de B/L com
+   ETA nos últimos 12 meses, ou usar o tipo livre num Cliente com B/L. Repetir
+   com envio real quando a chave for ligada.
+2. **Fase 1 / Etapa 3 do roteiro:** environments `cloudflare-pages` e
+   `supabase-branches` (deployment branch `main`), secrets neles e cópia de
+   `CLOUDFLARE_PAGES_API_TOKEN` em `cloudflare-production`; testar Preview e
+   produção; só então apagar os Repository secrets (inclusive o legado
+   `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`), revogar os tokens antigos,
+   criar o ruleset de `.github/workflows/**` e revisar quem tem push. Anotar se
+   o captcha do Auth está desligado (item 5).
+3. **Etapa 4 (Preview):** troca de e-mail com PKCE no mesmo navegador e em
+   outro; Dispute (Equipamentos anexa, Financeiro é recusado); importação com
+   e-mail novo de consignatário; header `connect-src` sem `*.supabase.co`.
+4. **Etapa 5 (operação):** rotacionar os segredos de cron do Vault
+   (`docs/operations/segredos-cron.md`); PR fixando versões em `.mcp.json` e
+   `opencode.json`; backup em bucket/chave R2 dedicados.
+5. Com 1–4 feitos: registrar as evidências aqui, mover o plano para
+   `docs/archive/plans/`, tirar a linha de `docs/plans/README.md` e registrar no
+   `docs/CHANGELOG.md`.
+
+A mensagem da conferência vazia no modo Institucional passou a explicar a regra
+de Cliente Comunicável em vez de falar em "carga".
 
 ## Decisões
 

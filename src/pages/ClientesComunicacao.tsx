@@ -61,7 +61,7 @@ const KIND_OPTIONS: Array<{ value: CustomerCommunicationKind; title: string; hin
 
 const MODE_OPTIONS: Array<{ value: CustomerCommunicationDispatchMode; title: string; hint: string }> = [
   { value: 'carga', title: 'Carga', hint: 'Clientes dos B/Ls de uma viagem' },
-  { value: 'institucional', title: 'Institucional', hint: 'Cliente cadastrado, com ou sem carga a bordo' },
+  { value: 'institucional', title: 'Institucional', hint: 'Cliente com contato e B/L com ETA nos últimos 12 meses' },
 ]
 
 function kindOptionsForMode(mode: CustomerCommunicationDispatchMode) {
@@ -718,7 +718,9 @@ export function ClientesComunicacao() {
                   </div>
                 ) : (
                   <div className="px-5 pb-8 text-center text-sm text-[var(--app-muted)]">
-                    Nenhuma carga atende aos critérios informados.
+                    {dispatchMode === 'institucional'
+                      ? 'Nenhum Cliente Comunicável: é preciso ter contato com e-mail e ao menos um B/L com ETA nos últimos 12 meses (ou em viagem futura).'
+                      : 'Nenhuma carga atende aos critérios informados.'}
                   </div>
                 )}
               </Card>
