@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { maskEmail, sendPortalEmail } from './portalEmail.ts'
 import { bounceNotificationTemplate } from './portalEmailTemplates.ts'
 import { resolveBounceCascade, type BounceContact } from './portalBounceCascade.ts'

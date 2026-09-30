@@ -1,5 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { Webhook } from 'https://esm.sh/svix@1'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { Webhook } from 'https://esm.sh/svix@1.99.1'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 type ResendEvent = {

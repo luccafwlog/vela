@@ -20,7 +20,7 @@
 //
 // Env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RECALC_CRON_SECRET
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 // Comparação em tempo constante para evitar timing attacks no bearer secret.

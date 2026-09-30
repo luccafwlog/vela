@@ -4,7 +4,7 @@
 // coordena lotes pequenos; a transação, a classificação de erro e a conclusão
 // idempotente vivem em `process_import_effect`.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 function timingSafeEqual(leftValue: string, rightValue: string): boolean {

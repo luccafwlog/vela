@@ -1,9 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { authenticatePortalLoginIdentity } from '../../../supabase/functions/_shared/portalLoginIdentity'
+import { derivePortalAuthPassword } from '../../../supabase/functions/_shared/portalPasswordSecret'
 
 type Session = { access_token: string }
 
-function dependencies(events: string[]) {
+// `stored` é o que o GoTrue guarda para o usuário real: a senha derivada
+// (conta migrada) ou a senha pura (conta legada).
+function dependencies(events: string[], stored: string) {
   return {
     lookupEmail: async (userId: string) => {
       events.push(`lookup:${userId}`)
@@ -11,37 +14,51 @@ function dependencies(events: string[]) {
     },
     signIn: async (email: string, password: string): Promise<Session | null> => {
       events.push(`signin:${email}:${password}`)
-      return email.startsWith('real@') ? { access_token: 'real-session' } : null
+      return email.startsWith('real@') && password === stored ? { access_token: 'real-session' } : null
     },
+    derivePassword: async (password: string) => `H(${password})`,
+    migrateLegacyPassword: vi.fn(async (userId: string, derived: string) => {
+      events.push(`migrate:${userId}:${derived}`)
+    }),
   }
 }
 
+const real = { auth_user_id: 'real-user', account_situation: 'ativo' }
+
 describe('authenticatePortalLoginIdentity', () => {
-  it('faz um lookup e uma tentativa de senha para uma conta elegível', async () => {
+  it('conta migrada entra com a senha derivada numa única tentativa', async () => {
     const events: string[] = []
+    const result = await authenticatePortalLoginIdentity<Session>(real, 'dummy-user', 'Senha1', dependencies(events, 'H(Senha1)'))
 
-    const result = await authenticatePortalLoginIdentity<Session>(
-      { auth_user_id: 'real-user', account_situation: 'ativo' },
-      'dummy-user',
-      'Senha1',
-      dependencies(events),
-    )
-
-    expect(events).toEqual(['lookup:real-user', 'signin:real@technical.invalid:Senha1'])
+    expect(events).toEqual(['lookup:real-user', 'signin:real@technical.invalid:H(Senha1)'])
     expect(result).toEqual({ accepted: true, session: { access_token: 'real-session' } })
   })
 
-  it('faz o mesmo lookup e tentativa de senha usando a identidade dummy quando o CNPJ não existe', async () => {
+  it('conta legada entra com a senha pura e migra para a derivada', async () => {
     const events: string[] = []
+    const result = await authenticatePortalLoginIdentity<Session>(real, 'dummy-user', 'Senha1', dependencies(events, 'Senha1'))
 
-    const result = await authenticatePortalLoginIdentity<Session>(
-      null,
-      'dummy-user',
-      'Senha1',
-      dependencies(events),
-    )
+    expect(events).toEqual([
+      'lookup:real-user',
+      'signin:real@technical.invalid:H(Senha1)',
+      'signin:real@technical.invalid:Senha1',
+      'migrate:real-user:H(Senha1)',
+    ])
+    expect(result.accepted).toBe(true)
+  })
 
-    expect(events).toEqual(['lookup:dummy-user', 'signin:dummy@technical.invalid:Senha1'])
+  it('senha errada e CNPJ inexistente fazem as mesmas duas tentativas, sem migrar', async () => {
+    const wrong: string[] = []
+    await authenticatePortalLoginIdentity<Session>(real, 'dummy-user', 'Errada1', dependencies(wrong, 'H(Senha1)'))
+    const missing: string[] = []
+    const result = await authenticatePortalLoginIdentity<Session>(null, 'dummy-user', 'Senha1', dependencies(missing, 'H(Senha1)'))
+
+    expect(wrong.filter((event) => event.startsWith('signin:'))).toHaveLength(2)
+    expect(missing).toEqual([
+      'lookup:dummy-user',
+      'signin:dummy@technical.invalid:H(Senha1)',
+      'signin:dummy@technical.invalid:Senha1',
+    ])
     expect(result).toEqual({ accepted: false, session: null })
   })
 
@@ -53,9 +70,24 @@ describe('authenticatePortalLoginIdentity', () => {
       {
         lookupEmail: async () => 'dummy@technical.invalid',
         signIn: async () => ({ access_token: 'dummy-session' }),
+        derivePassword: async (password) => password,
+        migrateLegacyPassword: async () => { throw new Error('não deve migrar') },
       },
     )
 
     expect(result).toEqual({ accepted: false, session: null })
+  })
+})
+
+describe('derivePortalAuthPassword', () => {
+  const pepper = 'p'.repeat(32)
+
+  it('é determinística, depende do pepper e cabe no limite do bcrypt', async () => {
+    const a = await derivePortalAuthPassword('Senha1', pepper)
+    expect(await derivePortalAuthPassword('Senha1', pepper)).toBe(a)
+    expect(await derivePortalAuthPassword('Senha1', 'q'.repeat(32))).not.toBe(a)
+    expect(a).not.toContain('Senha1')
+    expect(a.startsWith('p1.')).toBe(true)
+    expect(new TextEncoder().encode(a).length).toBeLessThanOrEqual(72)
   })
 })
