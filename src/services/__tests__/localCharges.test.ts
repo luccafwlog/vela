@@ -341,7 +341,9 @@ describe('localCharges service', () => {
       if (table === 'charge_calculations') {
         return {
           select: vi.fn(() => ({
-            in: vi.fn(() => Promise.resolve({ data: [], error: null })),
+            in: vi.fn(() => ({
+              order: vi.fn(() => ({ range: vi.fn(() => Promise.resolve({ data: [], error: null })) })),
+            })),
           })),
         }
       }

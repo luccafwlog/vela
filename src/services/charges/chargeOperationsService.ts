@@ -235,6 +235,29 @@ export async function listLocalChargeOperationalRowsWithMeta(
   return { rows: [...blRows.rows, ...graniteRows.rows], truncated: blRows.truncated || graniteRows.truncated }
 }
 
+/**
+ * Lê as linhas filhas de uma lista de B/Ls sem esbarrar no teto de 1000 linhas
+ * por resposta do PostgREST: um `.in()` único com centenas de B/Ls devolvia só
+ * as primeiras 1000 linhas e os demais B/Ls apareciam com subtotal zero.
+ */
+export async function fetchForBlIds<T>(
+  blIds: string[],
+  loadPage: (chunk: string[], from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const out: T[] = []
+  for (let i = 0; i < blIds.length; i += LOCAL_CHARGE_BATCH_SIZE) {
+    const chunk = blIds.slice(i, i + LOCAL_CHARGE_BATCH_SIZE)
+    for (let from = 0; ; from += OPERATIONAL_PAGE_SIZE) {
+      const { data, error } = await loadPage(chunk, from, from + OPERATIONAL_PAGE_SIZE - 1)
+      if (error) throw error
+      const page = data ?? []
+      out.push(...page)
+      if (page.length < OPERATIONAL_PAGE_SIZE) break
+    }
+  }
+  return out
+}
+
 async function loadBlOperationalRows(
   filters?: LocalChargeOperationalFilters,
 ): Promise<LocalChargeOperationalRowsResult> {
@@ -307,12 +330,14 @@ async function loadBlOperationalRows(
 
   const blIds = rows.map((row) => row.id)
 
-  const { data: calcRows, error: calcError } = await supabase
-    .from('charge_calculations')
-    .select('bl_id,total_value_brl,total_value_usd,status')
-    .in('bl_id', blIds)
-
-  if (calcError) throw calcError
+  const calcRows = await fetchForBlIds(blIds, (chunk, from, to) =>
+    supabase
+      .from('charge_calculations')
+      .select('id,bl_id,total_value_brl,total_value_usd,status')
+      .in('bl_id', chunk)
+      .order('id')
+      .range(from, to),
+  )
 
   const totalsMap = new Map<
     string,
@@ -467,11 +492,14 @@ async function loadGraniteOperationalRows(
   if (granRows.length === 0) return { rows: [], truncated }
 
   const graniteIds = granRows.map((row) => row.id)
-  const { data: chargeRows, error: chargeErr } = await supabase
-    .from('granite_bl_charges')
-    .select('bl_id,subtotal,currency')
-    .in('bl_id', graniteIds)
-  if (chargeErr) throw chargeErr
+  const chargeRows = await fetchForBlIds(graniteIds, (chunk, from, to) =>
+    supabase
+      .from('granite_bl_charges')
+      .select('id,bl_id,subtotal,currency')
+      .in('bl_id', chunk)
+      .order('id')
+      .range(from, to),
+  )
 
   const totalsMap = new Map<
     string,

@@ -162,3 +162,18 @@ describe('calculateLocalChargesBatch', () => {
     expect(result.successCount).toBe(1)
   })
 })
+
+describe('fetchForBlIds', () => {
+  it('não perde linhas além do teto de 1000 por resposta nem de 100 B/Ls por lote', async () => {
+    const { fetchForBlIds } = await import('../chargeOperationsService')
+    const blIds = Array.from({ length: 250 }, (_, i) => `BL${i}`)
+    // 5 linhas por B/L = 1250 linhas; um único .in() devolveria só 1000.
+    const fake = (chunk: string[], from: number, to: number) => {
+      const all = chunk.flatMap((bl) => Array.from({ length: 5 }, (_, n) => ({ bl_id: bl, n })))
+      return Promise.resolve({ data: all.slice(from, to + 1), error: null })
+    }
+    const rows = await fetchForBlIds(blIds, fake)
+    expect(rows).toHaveLength(1250)
+    expect(new Set(rows.map((r) => r.bl_id)).size).toBe(250)
+  })
+})
