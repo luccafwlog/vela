@@ -15,9 +15,11 @@ export function scrubTelemetryText(text: string): string {
     .replace(BARE_CPF_RE, '[digits11]')
 }
 
+// Remove query e fragmento: o fragmento carrega `#access_token=` nos links do
+// Auth (auditoria run-2, reforço).
 export function redactTelemetryUrl(url: string): string {
-  const queryIndex = url.indexOf('?')
-  return queryIndex === -1 ? url : url.slice(0, queryIndex)
+  const cut = url.search(/[?#]/)
+  return cut === -1 ? url : url.slice(0, cut)
 }
 
 export function scrubTelemetryValue(value: unknown, depth = 0): unknown {

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { decodeEnvDocument, decodeEnvLine } from './load-branch-env.mjs'
+import { decodeEnvDocument, decodeEnvLine, maskCommands } from './load-branch-env.mjs'
 
 // Trava de regressão do provisionamento da Preview (PR 652): o
 // `supabase branches get -o env` emite `KEY="valor"` e o $GITHUB_ENV precisa
@@ -42,4 +42,10 @@ test('aborta em linha fora do formato KEY=valor', () => {
 
 test('aborta em valor com aspas inválidas em vez de corromper', () => {
   assert.throws(() => decodeEnvLine('A="\\q"'), /aspas inválidas/)
+})
+
+test('mascara no log toda credencial da branch antes de exportar', () => {
+  assert.deepEqual(maskCommands([['SUPABASE_SERVICE_ROLE_KEY', 'eyJ-segredo-longo'], ['FLAG', 'true']]), [
+    '::add-mask::eyJ-segredo-longo',
+  ])
 })
