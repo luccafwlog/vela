@@ -10,7 +10,12 @@ CREATE TABLE public.pix_simulation_settings (
   local_expiration_seconds integer NOT NULL DEFAULT 86400 CHECK (local_expiration_seconds BETWEEN 60 AND 31536000),
   extend_expired boolean NOT NULL DEFAULT true
 );
-INSERT INTO public.pix_simulation_settings(singleton) VALUES (true);
+-- Calendário de Vitória/ES 2026 enviado pelo dono em 2026-09-30: feriados
+-- nacionais e municipais; pontos facultativos (Carnaval, Cinzas, 30/10, 24/12,
+-- 31/12) não suspendem o prazo. Outro ano exige calendário validado.
+INSERT INTO public.pix_simulation_settings(singleton, calendar_years, holidays) VALUES (true, ARRAY[2026],
+  ARRAY['2026-01-01','2026-04-03','2026-04-13','2026-04-21','2026-05-01','2026-06-04','2026-09-07',
+    '2026-09-08','2026-10-12','2026-11-02','2026-11-15','2026-11-20','2026-12-25']::date[]);
 -- pix_review segue pix_unreconciled: Administrativo trata na Conciliação PIX;
 -- Documentação e Equipamentos são notificados porque pode ser Demurrage.
 INSERT INTO public.alert_type_catalog(type, severity, responsible_department, audience_departments, default_destination)

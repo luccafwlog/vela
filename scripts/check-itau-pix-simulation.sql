@@ -15,6 +15,12 @@ DECLARE
   v_manual bigint; v_manual_charge uuid; v_alert_charge uuid; v_over uuid;
 BEGIN
   IF (SELECT enabled FROM public.pix_simulation_settings) THEN RAISE EXCEPTION 'Teste exige simulação inicialmente desativada.'; END IF;
+  -- Calendário 2026 real: sexta 20/11 (Consciência Negra) empurra quinta 19/11 para segunda 23/11;
+  -- ponto facultativo 30/10 não empurra quinta 29/10.
+  UPDATE public.pix_simulation_settings SET enabled=true;
+  IF public.pix_simulation_cutoff('2026-11-19 10:00-03') IS DISTINCT FROM '2026-11-23 14:30:00-03'::timestamptz
+    OR public.pix_simulation_cutoff('2026-10-29 10:00-03') IS DISTINCT FROM '2026-10-30 14:30:00-03'::timestamptz THEN RAISE EXCEPTION 'Calendário 2026 aplicado incorretamente.'; END IF;
+  UPDATE public.pix_simulation_settings SET enabled=false;
   BEGIN PERFORM public.run_pix_simulation(v_at); RAISE EXCEPTION 'Modo desligado aceitou execução.';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
   INSERT INTO auth.users(id,email) VALUES(v_actor,'pix-simulation@example.test');

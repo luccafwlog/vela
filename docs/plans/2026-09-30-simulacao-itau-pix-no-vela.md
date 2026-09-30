@@ -113,7 +113,7 @@ confirmação de comandos e recuperação de respostas incertas. Não basta colo
 um token para transformar a simulação em operação real.
 
 Permanecem pendentes: validação do transporte/headers/limites com a conta Itaú;
-calendário oficial de Vitória/ES (os testes usam um feriado sintético);
+calendário de Vitória/ES a partir de 2027 (o de 2026, enviado pelo dono, está na migration `114`; pontos facultativos não contam);
 ligação do transporte real ao processamento e agendamento de cinco minutos em
 ambiente autorizado. A função de simulação contém bloqueio adicional contra o
 projeto produtivo do Vela e nenhum cron novo é criado pela migration.
