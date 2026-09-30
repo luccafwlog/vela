@@ -115,7 +115,7 @@ export type ChargeTableAlert = {
 export function normalizeChargeTablePod(value: string | null | undefined) {
   const normalized = String(value ?? '').trim().toUpperCase()
   if (!normalized) return ''
-  if (normalized.includes('BRVIT') || normalized.includes('BRVIX') || normalized.includes('VITORIA')) {
+  if (normalized.includes('BRVIT') || normalized.includes('BRVIX') || normalized.includes('VITORIA') || normalized === 'VIX' || normalized === 'VIT') {
     return 'BRVIT'
   }
   if (normalized.includes('BRSSA') || normalized.includes('SALVADOR')) {

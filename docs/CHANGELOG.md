@@ -12,7 +12,8 @@
   linha do tempo da viagem. Natureza do container (Standard/OOG/IMO) editável na aba Carga
   do B/L. A importação de carga solta passa a calcular as taxas locais (antes ficava
   `not_calculated`). Filtro Navio/Viagem do modo Carga sugere os navios do sistema;
-  Cobertura de Viagens centralizada, com CE / Taxas logo após Clientes.
+  Cobertura de Viagens centralizada, com CE / Taxas logo após Clientes. Migration `113`:
+  `VIT` vira alias de Vitória (junto de VIX, BRVIT e BRVIX), que usam a tabela de taxas de BRVIX.
 
 - **Conclusão da remediação das auditorias #654–#660 e otimização do LineUp TV (2026-09-29):**
   todas as etapas do plano de remediação foram concluídas e comprovadas com testes e

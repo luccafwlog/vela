@@ -74,6 +74,7 @@ const EXACT_PORT_ALIASES: Record<string, string> = {
   CNCAN: 'CNNSA', // Guangzhou, tratado como Nansha (mesma regra de 'guangzhou')
   TAO: 'CNTAO',
   VIX: 'BRVIX',
+  VIT: 'BRVIX', // Vitória: VIX, VIT, BRVIT e BRVIX são o mesmo porto
   SPB: 'BRSEP', // Sepetiba
   SEP: 'BRSEP',
 }
@@ -122,6 +123,6 @@ export function portCodeVariants(value: string | null | undefined): string[] {
   for (const [name, code] of PORT_NAME_TO_LOCODE) {
     if (code === canonical) variants.add(name.toUpperCase())
   }
-  if (canonical === 'BRVIX') variants.add('BRVIT')
+  if (canonical === 'BRVIX') ['BRVIT', 'VIX', 'VIT'].forEach((alias) => variants.add(alias))
   return [...variants]
 }
