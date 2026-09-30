@@ -313,7 +313,7 @@ flowchart LR
 ## Notas e divergências
 
 - **Simulação Pix Itaú:** somente faturas habilitadas pelo backend usam o
-  simulador das migrations `114` e `115`. A PTAX registra atualização pendente
+  simulador da migration `114`. A PTAX registra atualização pendente
   no mesmo TXID; o pagamento confirmado pode quitar uma revisão anterior
   persistida. O corte simulado é 14h30 do próximo dia útil de Vitória/ES; o
   calendário precisa estar explicitamente validado para o ano. No corte, a
