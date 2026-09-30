@@ -9,6 +9,11 @@ por documento; o que cada entrega produziu está resumido no
 
 ## Conteúdo
 
+- [`2026-09-06-plano-remediacao-auditorias-654-660.md`](2026-09-06-plano-remediacao-auditorias-654-660.md)
+  — remediação das auditorias #654–#660: S01–S14 concluídos com provas em produção
+  (Pix estático em PSP bancário real, convite e entrega Resend pós-PR #802, emissão e
+  paridade de saldo no Portal, ingestão de arquivos, acessibilidade por teclado e
+  otimização do TV display refresh); concluído e arquivado em 2026-09-29.
 - [`2026-09-26-fatura-avulsa-flexivel.md`](2026-09-26-fatura-avulsa-flexivel.md)
   — emissão de invoice avulsa com tipo `manual`, contexto opcional de B/L/Viagem,
   leitura segura no Portal e integração com PIX; gates locais concluídos, com
