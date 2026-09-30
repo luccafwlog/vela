@@ -25,6 +25,9 @@ jobs:
       github.event.workflow_run.pull_requests[0].head.repo.id == github.event.repository.id &&
       github.event.workflow_run.pull_requests[0].number
     runs-on: ubuntu-latest
+    # Environment com deployment branch = main (auditoria run-2, #14): o token
+    # só existe para jobs que rodam a partir de main.
+    environment: supabase-branches
     permissions:
       contents: read
       checks: read
@@ -45,12 +48,12 @@ jobs:
       PRODUCTION_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
     steps:
       - name: Checkout trusted workflow helpers
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.repository.default_branch }}
 
       - name: Set up Supabase CLI
-        uses: supabase/setup-cli@v3
+        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3
         with:
           version: 2.113.0
 
@@ -143,7 +146,7 @@ jobs:
 
       - name: Upload public branch endpoint
         if: steps.readiness.outputs.readiness == 'ready'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: preview-supabase-env
           path: preview-supabase-env
@@ -160,13 +163,13 @@ jobs:
       # This is the only job that checks out and executes PR-controlled code.
       # It receives only the public Supabase URL and anon/publishable key.
       - name: Checkout PR source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.prepare.outputs.pr_head_sha }}
           persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '24'
           cache: npm
@@ -175,7 +178,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Download public branch endpoint
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: preview-supabase-env
           path: ${{ runner.temp }}/preview-supabase-env
@@ -198,7 +201,7 @@ jobs:
           VITE_SENTRY_ENVIRONMENT: preview
 
       - name: Upload internal site artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cloudflare-pages-internal
           path: dist/pages-internal
@@ -206,7 +209,7 @@ jobs:
           retention-days: 3
 
       - name: Upload Portal site artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cloudflare-pages-portal
           path: dist/pages-portal
@@ -222,6 +225,9 @@ jobs:
       needs.build.result == 'success' &&
       vars.CLOUDFLARE_PAGES_ACCESS_CONFIGURED == 'true'
     runs-on: ubuntu-latest
+    # Environment com deployment branch = main (auditoria run-2, #14): o token
+    # só existe para jobs que rodam a partir de main.
+    environment: cloudflare-pages
     permissions:
       contents: read
       pull-requests: read
@@ -230,12 +236,12 @@ jobs:
       # Run only trusted Wrangler from the default branch. Never execute PR code
       # in the job that receives the Cloudflare write token.
       - name: Checkout trusted deployment tooling
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.repository.default_branch }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '24'
           cache: npm
@@ -244,16 +250,26 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Download internal site artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: cloudflare-pages-internal
           path: pages-internal
 
       - name: Download Portal site artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: cloudflare-pages-portal
           path: pages-portal
+
+      # O build roda código da PR; `_worker.js`/`_routes.json` virariam código
+      # executado no domínio de preview com o token de publicação (auditoria
+      # run-2, reforço). Os sites do Vela são estáticos.
+      - name: Refuse Pages Functions shipped by the PR build
+        shell: bash
+        run: |
+          set -euo pipefail
+          found="$(find pages-internal pages-portal \( -name '_worker.js' -o -name '_routes.json' -o -path '*/functions/*' \) -print)"
+          [[ -z "$found" ]] || { printf 'Refusing Pages Functions in the PR build:\n%s\n' "$found"; exit 1; }
 
       - name: Revalidate the PR SHA before protected preview publication
         env:

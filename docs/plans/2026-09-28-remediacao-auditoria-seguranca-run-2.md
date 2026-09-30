@@ -9,7 +9,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 | Fase 2 — migration `106` e item 4.5 | código entregue pela PR luccafwlog/vela#799 (suíte `auditoriaRun2.local-pg.test.ts`) e `106` aplicada em produção em 2026-09-29; falta conferir em uso a política de Storage de 2.2, o modal de Disputa e uma importação com e-mail de consignatário novo |
 | Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`); falta o dono criar `PORTAL_PASSWORD_PEPPER`, conferir `TURNSTILE_SECRET_KEY`, publicar as Functions e observar na Preview |
 | Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; falta observar na Preview a troca de e-mail com PKCE |
-| Fase 5 — CI e hospedagem | pendente |
+| Fase 5 — CI e hospedagem | itens 1 e 2 entregues pela luccafwlog/vela#814; item 3 aguarda o desligamento da Vercel em 2026-10-01 |
 | Reforços adicionais (D4 = b) | pendentes |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
@@ -218,6 +218,18 @@ PKCE num navegador real.
 
 Verificação: um push de teste numa branch sem acesso ao environment não recebe
 os tokens; Preview e produção publicam normalmente.
+
+Execução (2026-09-29): `environment:` em `prepare` (`supabase-branches`) e
+`publish` (`cloudflare-pages`) da preview, na limpeza, em
+`provision-preview-admin.yml` (secrets movidos para o `env` dos steps) e, por
+drift mecânico, também em `cloudflare-pages-provision.yml`, que usa o mesmo
+token. O workflow de produção já usa `cloudflare-production`: ao mover o token
+para environments, ele precisa de uma cópia lá (registrado em serviços
+externos). O `publish` recusa `_worker.js`, `_routes.json` e `functions/` nos
+artefatos; `load-branch-env.mjs` emite `::add-mask::`. Evidência:
+`scripts/cloudflare-pages-workflow.test.mjs` e `load-branch-env.test.mjs`.
+Não observado: execução dos workflows com os environments configurados
+(depende da Fase 1).
 
 ## Reforços adicionais (D4 = b)
 

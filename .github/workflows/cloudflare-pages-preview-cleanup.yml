@@ -19,14 +19,17 @@ jobs:
       github.event.pull_request.head.repo.id == github.event.repository.id &&
       vars.CLOUDFLARE_PAGES_ACCESS_CONFIGURED == 'true'
     runs-on: ubuntu-latest
+    # Environment com deployment branch = main (auditoria run-2, #14): o token
+    # só existe para jobs que rodam a partir de main.
+    environment: cloudflare-pages
     steps:
       - name: Checkout trusted cleanup script
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.repository.default_branch }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '24'
 

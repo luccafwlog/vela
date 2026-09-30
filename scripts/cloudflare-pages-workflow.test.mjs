@@ -50,3 +50,32 @@ test('Supabase access token is scoped only to steps that invoke the Supabase CLI
   assert.doesNotMatch(prepare, /^      SUPABASE_ACCESS_TOKEN:/m)
   assert.equal((prepare.match(/SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/g) ?? []).length, 2)
 })
+
+const readWorkflow = (name) => readFile(new URL(`../.github/workflows/${name}`, import.meta.url), 'utf8')
+
+test('jobs com token declaram o environment restrito a main (auditoria run-2, #14)', async () => {
+  assert.match(jobBlock('prepare'), /environment: supabase-branches/)
+  assert.match(jobBlock('publish'), /environment: cloudflare-pages/)
+  assert.doesNotMatch(jobBlock('build'), /environment:|secrets\./)
+  assert.match(await readWorkflow('cloudflare-pages-preview-cleanup.yml'), /environment: cloudflare-pages/)
+  assert.match(await readWorkflow('cloudflare-pages-provision.yml'), /environment: cloudflare-pages/)
+  const admin = await readWorkflow('provision-preview-admin.yml')
+  assert.match(admin, /environment: supabase-branches/)
+  // Secrets fora do env do job: só nos steps que os usam.
+  const jobEnv = admin.slice(admin.indexOf('    env:\n'), admin.indexOf('    steps:'))
+  assert.doesNotMatch(jobEnv, /SUPABASE_ACCESS_TOKEN|PREVIEW_ADMIN_PASSWORD/)
+})
+
+test('actions dos workflows com token fixadas por SHA', async () => {
+  for (const name of ['cloudflare-pages-preview.yml', 'cloudflare-pages-preview-cleanup.yml', 'provision-preview-admin.yml', 'cloudflare-pages-production.yml', 'cloudflare-pages-provision.yml']) {
+    for (const [, ref] of (await readWorkflow(name)).matchAll(/uses: [\w./-]+@(\S+)/g)) {
+      assert.match(ref, /^[0-9a-f]{40}$/, `${name} usa ${ref}`)
+    }
+  }
+})
+
+test('publish recusa Pages Functions vindas do build da PR', () => {
+  const publish = jobBlock('publish')
+  assert.match(publish, /_worker\.js/)
+  assert.ok(publish.indexOf('_worker.js') < publish.indexOf('Publish Vela preview'))
+})
