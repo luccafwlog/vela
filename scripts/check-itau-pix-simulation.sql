@@ -19,7 +19,10 @@ BEGIN
   -- ponto facultativo 30/10 não empurra quinta 29/10.
   UPDATE public.pix_simulation_settings SET enabled=true;
   IF public.pix_simulation_cutoff('2026-11-19 10:00-03') IS DISTINCT FROM '2026-11-23 14:30:00-03'::timestamptz
-    OR public.pix_simulation_cutoff('2026-10-29 10:00-03') IS DISTINCT FROM '2026-10-30 14:30:00-03'::timestamptz THEN RAISE EXCEPTION 'Calendário 2026 aplicado incorretamente.'; END IF;
+    OR public.pix_simulation_cutoff('2026-10-29 10:00-03') IS DISTINCT FROM '2026-10-30 14:30:00-03'::timestamptz
+    -- 2027: Paixão (26/03) e virada de ano (01/01 sexta) empurram para segunda.
+    OR public.pix_simulation_cutoff('2027-03-25 10:00-03') IS DISTINCT FROM '2027-03-29 14:30:00-03'::timestamptz
+    OR public.pix_simulation_cutoff('2026-12-31 10:00-03') IS DISTINCT FROM '2027-01-04 14:30:00-03'::timestamptz THEN RAISE EXCEPTION 'Calendário 2026 aplicado incorretamente.'; END IF;
   UPDATE public.pix_simulation_settings SET enabled=false;
   BEGIN PERFORM public.run_pix_simulation(v_at); RAISE EXCEPTION 'Modo desligado aceitou execução.';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
@@ -47,7 +50,7 @@ BEGIN
   UPDATE public.pix_simulation_settings SET enabled=true, calendar_years=ARRAY[2026], holidays=ARRAY['2026-10-05'::date];
   -- Segunda-feira marcada como feriado SINTÉTICO, não calendário oficial.
   IF public.pix_simulation_cutoff(v_at) IS DISTINCT FROM '2026-10-06 14:30:00-03'::timestamptz THEN RAISE EXCEPTION 'Fim de semana/feriado calculado incorretamente.'; END IF;
-  BEGIN PERFORM public.pix_simulation_cutoff('2026-12-31 10:00-03'); RAISE EXCEPTION 'Calendário ausente foi aceito.';
+  BEGIN PERFORM public.pix_simulation_cutoff('2027-12-31 10:00-03'); RAISE EXCEPTION 'Calendário ausente foi aceito.';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
   v_dem := public.enroll_pix_simulation('demurrage',99114001,v_actor,v_at);
   IF public.enroll_pix_simulation('demurrage',99114001,v_actor,v_at) <> v_dem THEN RAISE EXCEPTION 'Emissão duplicou cobrança.'; END IF;

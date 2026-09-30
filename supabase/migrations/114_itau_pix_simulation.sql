@@ -11,11 +11,16 @@ CREATE TABLE public.pix_simulation_settings (
   extend_expired boolean NOT NULL DEFAULT true
 );
 -- Calendário de Vitória/ES 2026 enviado pelo dono em 2026-09-30: feriados
--- nacionais e municipais; pontos facultativos (Carnaval, Cinzas, 30/10, 24/12,
--- 31/12) não suspendem o prazo. Outro ano exige calendário validado.
-INSERT INTO public.pix_simulation_settings(singleton, calendar_years, holidays) VALUES (true, ARRAY[2026],
+-- nacionais e municipais (que já cobrem os estaduais); pontos facultativos
+-- (Carnaval, Cinzas, 30/10, 24/12, 31/12) não suspendem o prazo.
+-- 2027 derivado das mesmas leis, autorizado pelo dono: datas fixas iguais e
+-- móveis pela Páscoa de 28/03 (Paixão -2, N. Sra. da Penha +8, Corpus +60).
+-- Conferir com a publicação oficial da Prefeitura. Outro ano exige calendário.
+INSERT INTO public.pix_simulation_settings(singleton, calendar_years, holidays) VALUES (true, ARRAY[2026,2027],
   ARRAY['2026-01-01','2026-04-03','2026-04-13','2026-04-21','2026-05-01','2026-06-04','2026-09-07',
-    '2026-09-08','2026-10-12','2026-11-02','2026-11-15','2026-11-20','2026-12-25']::date[]);
+    '2026-09-08','2026-10-12','2026-11-02','2026-11-15','2026-11-20','2026-12-25',
+    '2027-01-01','2027-03-26','2027-04-05','2027-04-21','2027-05-01','2027-05-27','2027-09-07',
+    '2027-09-08','2027-10-12','2027-11-02','2027-11-15','2027-11-20','2027-12-25']::date[]);
 -- pix_review segue pix_unreconciled: Administrativo trata na Conciliação PIX;
 -- Documentação e Equipamentos são notificados porque pode ser Demurrage.
 INSERT INTO public.alert_type_catalog(type, severity, responsible_department, audience_departments, default_destination)
