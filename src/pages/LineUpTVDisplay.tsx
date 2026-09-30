@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchLineUpSnapshot, type LineUpRow } from '../services/lineup'
+import { fetchLineUpSnapshot, type LineUpRow, type LineUpSnapshot } from '../services/lineup'
 import { formatDateOnlyToBRShort, formatShortDateSafe } from '../lib/utils'
 import { arrivalDisplay, deriveEscalaState } from '../lib/escalaState'
 import { isCycleStartRow } from '../lib/lineupCycle'
@@ -42,10 +42,15 @@ export function LineUpTVDisplay() {
 
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null)
   const [flashRefresh, setFlashRefresh] = useState(false)
+  const previousSnapshotRef = useRef<LineUpSnapshot | null>(null)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['lineup-tv-display-v2'],
-    queryFn: () => fetchLineUpSnapshot(),
+    queryFn: async () => {
+      const snapshot = await fetchLineUpSnapshot(60, previousSnapshotRef.current)
+      previousSnapshotRef.current = snapshot
+      return snapshot
+    },
     staleTime: 30_000,
     refetchInterval: 30_000,
   })

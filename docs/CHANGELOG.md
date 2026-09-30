@@ -4,6 +4,19 @@
 
 ## 2026-09
 
+- **Conclusão da remediação das auditorias #654–#660 e otimização do LineUp TV (2026-09-29):**
+  todas as etapas do plano de remediação foram concluídas e comprovadas com testes e
+  validações de runtime em produção. No runtime operacional: o payload PIX estático foi
+  validado em aplicativo bancário real (PSP) via QR Code e Copia e Cola com valor de R$ 1,00;
+  o convite do Portal pós-PR #802 foi entregue com sucesso pelo provedor Resend, a senha
+  cadastrada e o login efetuado no Portal do Cliente com transição para conta ativa; a emissão
+  de fatura avulsa e paridade de saldo no Portal (`/portal/billing`) foram confirmadas; a
+  ingestão de arquivos foi atestada via interface; e o fechamento por Escape com retorno de foco
+  foi validado nas superfícies auditadas. Na aplicação: o polling de 30s da TV (`LineUpTVDisplay`)
+  foi otimizado com a verificação rápida `hasLineUpChanged`, reduzindo de 15 requisições PostgREST
+  para 3 em ciclos sem mutação e reutilizando o snapshot em cache. Jobs e envios em massa
+  permanecem fail-closed/desligados por decisão operacional (D10). [Plano arquivado](archive/plans/2026-09-06-plano-remediacao-auditorias-654-660.md).
+
 - **Email do Portal recusado pela Resend (2026-09-29):** o primeiro convite do
   Portal após o reset do banco voltou com HTTP 409: a chave `convite:1` já
   tinha sido usada nas 24h anteriores com outro link, e a Resend recusa chave

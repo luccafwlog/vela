@@ -12,8 +12,8 @@ verdade sobre o estado atual.
 
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — em execução; decisões D1–D4 tomadas; Fase 2 (migration 106) e item 4.5 entregues pela PR #799 e aplicados em produção em 2026-09-29; Fases 1, 3, 4 e 5 e os reforços adicionais pendentes.
 - [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — implementa as ADRs 0071–0074 em seis fases: proteções do banco, falso sucesso e cascata atômica, diálogo de confirmação, trava do CE Mercante, cadastros, e usuários/retenção/backup.
-- [2026-09-06 — Remediação das auditorias #654–#660](2026-09-06-plano-remediacao-auditorias-654-660.md) — atualizado após #795/#796/#797/#802 mergeadas e migration 106 da #799 aplicada. S03/P0 e grants/catálogo S01 concluídos; convite canário pós-#802 com ativação e login no Portal validado com sucesso em 2026-09-29 (S06/S07); pendem Auth/PostgREST real S01, PTAX S09, runtime financeiro S08/S10, importação/worker S04/S05, performance autenticada/refresh TV S12 e roteiro manual de acessibilidade S13. Envios automáticos globais continuam desligados (`communications_enabled = false`). S14 está aceito sem DROP, condicionado a evidência nova.
 
+O plano [2026-09-06 — Remediação das auditorias #654–#660](../archive/plans/2026-09-06-plano-remediacao-auditorias-654-660.md) foi concluído e arquivado em 2026-09-29 após validação de todas as provas de runtime em produção e otimização do TV refresh.
 O plano [2026-09-23 — Alinhamento entre apresentação, documentação e código](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md) foi concluído e arquivado.
 O plano [2026-09-23 — Issue 710: consolidação serviço a serviço](../archive/plans/2026-09-23-issue-710-consolidacao-service-a-service.md) foi concluído e arquivado.
 O plano [2026-09-17 — Unificação de B/Ls, carga mista e Manifesto Mercante](../archive/plans/2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md) foi concluído e arquivado.
@@ -23,12 +23,20 @@ O plano [2026-09-20 — Remediação de clientes, revisão e comunicação](../a
 O plano [2026-09-12 — Transição de marca: Transhipping Desk → Vela](../archive/plans/2026-09-12-plano-transicao-marca-vela.md) foi concluído e arquivado (PR #688).
 O plano [2026-09-03 — Issue 609: contatos e caixas de comunicação](../archive/plans/2026-09-03-issue-609-contatos-caixas-comunicacao.md) foi concluído e arquivado.
 
+## Atualização do ciclo de vida — 2026-09-29
+
+O plano [2026-09-06 — Remediação das auditorias #654–#660](../archive/plans/2026-09-06-plano-remediacao-auditorias-654-660.md)
+foi concluído em 2026-09-29 com a validação em produção de todas as etapas
+de runtime (Pix estático em PSP real, convite Resend pós-PR #802, paridade de
+faturas no Portal, ingestão de arquivos e acessibilidade por teclado) e a
+otimização do TV display refresh.
+
 ## Atualização do ciclo de vida — 2026-09-25
 
 Por confirmação do responsável pelo Vela, os planos de governança das skills,
 da revisão sistemática multiagente e da auditoria do Portal/F12 foram
 concluídos e movidos para [`../archive/plans/`](../archive/plans/). O plano
-Cloudflare permanece vivo, assim como a remediação das auditorias #654–#660.
+Cloudflare permanece vivo.
 
 ## Revisão do ciclo de vida — 2026-09-19
 

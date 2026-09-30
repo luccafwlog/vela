@@ -298,6 +298,23 @@ describe('fetchLineUpSnapshot', () => {
     expect(rows.find((row) => row.rowType === 'import')).toMatchObject({ importTerminal: 'TVV', exportTerminal: 'TBC' })
     expect(rows.find((row) => row.rowType === 'export')).toMatchObject({ importTerminal: 'TBC', exportTerminal: 'PORTMAC' })
   })
+
+  it('reutiliza o snapshot anterior sem refazer a cadeia completa quando não houve alteração', async () => {
+    const { fetchLineUpSnapshot } = await import('../lineup')
+    const initialSnapshot = {
+      rows: [{ voyageId: 24, id: '24::BRVIX' } as unknown as import('../lineup').LineUpRow],
+      lastChangedAt: '2026-08-01T12:00:00Z',
+    }
+    from.mockImplementation(byTable({
+      audit_logs: [{ entity_type: 'voyage_pod_schedule', changed_at: '2026-07-20T00:00:00Z' }],
+      voyages: [{ id: 24, created_at: '2026-07-01T00:00:00Z', status: 'active' }],
+      bls: [{ id: 'BL1', updated_at: '2026-07-15T00:00:00Z' }],
+    }))
+
+    const result = await fetchLineUpSnapshot(60, initialSnapshot)
+    expect(result).toBe(initialSnapshot)
+    expect(from.mock.calls.map(([table]) => table)).toEqual(['audit_logs', 'voyages', 'bls'])
+  })
 })
 
 describe('compareLineUpRows', () => {

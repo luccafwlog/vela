@@ -213,7 +213,77 @@ export function lineUpScheduleDates(schedule: { ata?: string | null; atb?: strin
   }
 }
 
-export async function fetchLineUpSnapshot(voyageLimit = 60): Promise<LineUpSnapshot> {
+export async function hasLineUpChanged(
+  lastChangedAt: string | null,
+  knownVoyageIds: number[],
+): Promise<boolean> {
+  if (!lastChangedAt || !knownVoyageIds.length) {
+    return true
+  }
+
+  try {
+    const [auditRes, voyageRes, blRes] = await Promise.all([
+      supabase
+        .from('audit_logs')
+        .select('changed_at')
+        .in('entity_type', ['voyage_pod_schedule', 'voyage_pol_schedule'])
+        .order('changed_at', { ascending: false })
+        .limit(1),
+      supabase
+        .from('voyages')
+        .select('id, created_at, status')
+        .in('status', ['active', 'completed', 'cancelled'])
+        .order('created_at', { ascending: false })
+        .limit(1),
+      supabase
+        .from('bls')
+        .select('updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1),
+    ])
+
+    if (auditRes.error || voyageRes.error || blRes.error) {
+      return true
+    }
+
+    const latestAudit = (auditRes.data as Array<{ changed_at: string | null }> | null)?.[0]?.changed_at
+    if (latestAudit && latestAudit > lastChangedAt) {
+      return true
+    }
+
+    const latestVoyage = (voyageRes.data as Array<{ id: number; created_at: string | null; status: string | null }> | null)?.[0]
+    if (latestVoyage) {
+      if (latestVoyage.created_at && latestVoyage.created_at > lastChangedAt) {
+        return true
+      }
+      if (!knownVoyageIds.includes(latestVoyage.id)) {
+        return true
+      }
+    }
+
+    const latestBl = (blRes.data as Array<{ updated_at: string | null }> | null)?.[0]?.updated_at
+    if (latestBl && latestBl > lastChangedAt) {
+      return true
+    }
+
+    return false
+  } catch {
+    return true
+  }
+}
+
+export async function fetchLineUpSnapshot(
+  voyageLimit = 60,
+  previousSnapshot?: LineUpSnapshot | null,
+): Promise<LineUpSnapshot> {
+  if (previousSnapshot && previousSnapshot.lastChangedAt && previousSnapshot.rows.length > 0) {
+    const knownVoyageIds = Array.from(new Set(previousSnapshot.rows.map((r) => r.voyageId)))
+    const changed = await hasLineUpChanged(previousSnapshot.lastChangedAt, knownVoyageIds)
+    if (!changed) {
+      return previousSnapshot
+    }
+  }
+
   const voyageResult = await fetchVoyages(voyageLimit)
   const voyages = voyageResult.rows
   const pageMeta = voyageResult.totalCount > voyages.length
