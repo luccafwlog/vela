@@ -365,6 +365,46 @@ describe('vehicleImport', () => {
     expect(mockRpc).not.toHaveBeenCalledWith('cancel_invoice', expect.anything())
   })
 
+  it('casa o veículo com o B/L irmão quando o mestre (…00) foi desdobrado no manifesto', async () => {
+    const inserted: Array<Record<string, unknown>> = []
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'vehicles') return { select: () => ({ eq: () => ({ in: async () => ({ data: [], error: null }) }) }) }
+      if (table === 'bls') {
+        const all = ['CSC00', 'CSC01', 'CSC02'].map((id) => ({ id, voyage_id: 7 }))
+        return {
+          select: () => ({
+            eq: () => ({
+              like: async () => ({ data: all, error: null }),
+              in: async (_c: string, values: string[]) => ({ data: all.filter((b) => values.includes(b.id)), error: null }),
+            }),
+          }),
+        }
+      }
+      if (table === 'bl_containers') {
+        const data = [
+          { id: 1, bl_id: 'CSC00', container_number: 'CAXU0000001', type: '40FP', seal_number: 'S1', bl: { voyage_id: 7 } },
+          { id: 2, bl_id: 'CSC02', container_number: 'CAXU0000002', type: '48FR', seal_number: 'S2', bl: { voyage_id: 7 } },
+        ]
+        return { select: () => ({ in: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data, error: null }) }) }) }) }) }
+      }
+      throw new Error(`Tabela nao mockada: ${table}`)
+    })
+    mockRpc.mockImplementation((_name: string, args: { p_rows?: Array<Record<string, unknown>> }) => {
+      inserted.push(...(args.p_rows ?? []))
+      return Promise.resolve({ data: null, error: null })
+    })
+    const base = { brand: 'BYD', model: 'X', weight_kg: 1400, cbm: 11, bl_id: 'CSC00' }
+    const result = await importVehicleRows({
+      voyageId: 7,
+      rows: [
+        { ...base, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40FP', seal_number: 'S1' },
+        { ...base, rowNumber: 3, chassis: 'V2', container_number: 'CAXU0000002', container_type: '48FR', seal_number: 'S2' },
+      ],
+    })
+    expect(result.errors).toEqual([])
+    expect(inserted.map((r) => [r.chassis, r.bl_id, r.container_id])).toEqual([['V1', 'CSC00', 1], ['V2', 'CSC02', 2]])
+  })
+
   it('persiste o follow-up quando o BL ja estava faturado', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'vehicles') {

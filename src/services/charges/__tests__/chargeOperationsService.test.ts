@@ -162,3 +162,51 @@ describe('calculateLocalChargesBatch', () => {
     expect(result.successCount).toBe(1)
   })
 })
+
+describe('fetchForBlIds', () => {
+  it('não perde linhas além do teto de 1000 por resposta nem de 100 B/Ls por lote', async () => {
+    const { fetchForBlIds } = await import('../chargeOperationsService')
+    const blIds = Array.from({ length: 250 }, (_, i) => `BL${i}`)
+    // 5 linhas por B/L = 1250 linhas; um único .in() devolveria só 1000.
+    const fake = (chunk: string[], from: number, to: number) => {
+      const all = chunk.flatMap((bl) => Array.from({ length: 5 }, (_, n) => ({ bl_id: bl, n })))
+      return Promise.resolve({ data: all.slice(from, to + 1), error: null })
+    }
+    const rows = await fetchForBlIds(blIds, fake)
+    expect(rows).toHaveLength(1250)
+    expect(new Set(rows.map((r) => r.bl_id)).size).toBe(250)
+  })
+})
+
+describe('trilha de auditoria da fila', () => {
+  it('consulta audit_logs em lotes de 100 B/Ls e mantém o evento mais recente de cada um', async () => {
+    from.mockReset()
+    const { listLocalChargeOperationalRows } = await import('../chargeOperationsService')
+    const bls = Array.from({ length: 250 }, (_, i) => ({ id: `BL${i}`, cargo_mode: 'container' }))
+    const limits: number[] = []
+    from.mockImplementation((table: string) => {
+      if (table === 'bls') return builder({ data: bls, error: null })
+      if (table === 'audit_logs') {
+        const chain = builder({ data: [], error: null })
+        let ids: string[] = []
+        chain.in = vi.fn((column: string, values: string[]) => {
+          if (column === 'entity_id') ids = values
+          return chain
+        })
+        chain.limit = vi.fn((n: number) => {
+          limits.push(n)
+          return Promise.resolve({
+            data: ids.map((id) => ({ entity_type: 'bl', entity_id: id, field_name: 'f', new_value: `m-${id}`, changed_by: null, changed_at: '2026-09-30' })),
+            error: null,
+          })
+        })
+        return chain
+      }
+      return builder({ data: [], error: null })
+    })
+    const rows = await listLocalChargeOperationalRows({ cargoMode: 'container' })
+    expect(limits).toEqual([800, 800, 400])
+    expect(rows).toHaveLength(250)
+    expect(rows.every((row) => row.trail.last_event_message === `m-${row.id}`)).toBe(true)
+  })
+})
