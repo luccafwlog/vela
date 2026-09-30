@@ -275,7 +275,7 @@ describe('Demurrage page behaviours', () => {
   })
 
   it('hides manual PTAX for roles the RPC refuses', () => {
-    mocks.role = 'equipamentos'
+    mocks.role = 'operacoes'
     renderPage()
     expect(screen.queryByRole('button', { name: 'Informar PTAX' })).toBeNull()
     mocks.role = 'administrativo'

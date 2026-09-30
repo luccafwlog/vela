@@ -9,7 +9,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 | Fase 2 — migration `106` e item 4.5 | código entregue pela PR luccafwlog/vela#799 (suíte `auditoriaRun2.local-pg.test.ts`) e `106` aplicada em produção em 2026-09-29; falta conferir em uso a política de Storage de 2.2, o modal de Disputa e uma importação com e-mail de consignatário novo |
 | Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); falta o dono criar `PORTAL_PASSWORD_PEPPER`, conferir `TURNSTILE_SECRET_KEY`, publicar as Functions e observar na Preview |
 | Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; falta observar na Preview a troca de e-mail com PKCE |
-| Fase 5 — CI e hospedagem | itens 1 e 2 entregues pela luccafwlog/vela#814; item 3 aguarda o desligamento da Vercel em 2026-10-01 |
+| Fase 5 — CI e hospedagem | itens 1 e 2 entregues pela luccafwlog/vela#814; item 3 entregue em código (branch `claude/remediacao-run-2-ptax-equipamentos-cors`) após o dono confirmar a Vercel desligada |
 | Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pela luccafwlog/vela#815 (migration `109`); itens de operação são do dono; `recalculate_demurrage_invoices` para `overdue` aguarda regra de negócio |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
@@ -231,6 +231,13 @@ artefatos; `load-branch-env.mjs` emite `::add-mask::`. Evidência:
 Não observado: execução dos workflows com os environments configurados
 (depende da Fase 1).
 
+Item 3 (2026-09-29, Vercel já desligada, confirmado pelo dono): a allowlist
+de `_shared/cors.ts` não tinha mais origem da Vercel e `vercel.json` não existe
+(drift mecânico). O `connect-src` gerado por `cloudflare-pages-stage.mjs` passa
+a liberar só o projeto Supabase de `VITE_SUPABASE_URL` do build (produção ou
+branch de Preview), não `*.supabase.co`; o CI usa um projeto fictício quando a
+PR não tem acesso a secrets. Evidência: `cloudflare-pages-stage.test.mjs`.
+
 ## Reforços adicionais (D4 = b)
 
 Com D4 = (b), entram também os reforços do anexo da auditoria que não estavam
@@ -270,7 +277,9 @@ foram removidas. A viagem vazia deixou de ter DELETE direto (sai só por
 pega o advisory por B/L e trava os recebíveis antes da implementação
 renomeada `_reverse_invoice_payment_impl_109`. "PIX em trânsito" é exceção
 PIX ativa com o TXID da fatura. O botão **Informar PTAX** em `/demurrage` só
-aparece para Financeiro e Administrativo. Edge Functions: helper
+aparece para Financeiro e Administrativo. Correção do dono (2026-09-29):
+Equipamentos também informa PTAX; a migration `110_ptax_manual_equipamentos.sql`
+e a tela incluem o setor. Edge Functions: helper
 `_shared/fileSignature.ts` (anexos de Comunicado e de Dispute); navio e viagem
 do histórico de Comunicado vêm dos B/Ls; Cliente desativado fica fora de
 recuperação, convite, Comunicados e resumo diário; troca do Email de

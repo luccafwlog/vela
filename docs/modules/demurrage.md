@@ -194,8 +194,9 @@ excluir para admin, conforme
   busca a PTAX (política do `demurrage-manager`: `CotacaoDolarPeriodo`, ~10 dias,
   `top 1` desc) e chama a RPC em dias úteis. Quando o BCB está fora, o operador usa
   o botão **Informar PTAX** em `/demurrage` →
-  `recalculate_demurrage_invoices_manual`, restrita a Financeiro e
-  Administrativo desde a migration `109` (o botão só aparece para eles). Um banner de staleness
+  `recalculate_demurrage_invoices_manual`, restrita a Financeiro,
+  Administrativo e Equipamentos (migrations `109` e `110`; o botão só aparece
+  para eles). Um banner de staleness
   aparece quando há faturas aguardando pagamento e o último recálculo é anterior ao
   último dia útil.
 - **Régua de cobrança:** as migrations `378_demurrage_dunning_communication.sql`,

@@ -73,7 +73,9 @@ jobs:
       - name: Build Vite bundles and stage both Cloudflare Pages sites
         run: npm run cloudflare:build:sites
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          # O stage exige a URL do projeto para o connect-src do CSP; PR sem
+          # acesso a secrets (Dependabot) usa um projeto fictício.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://ciplaceholder.supabase.co' }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Bundle size budget

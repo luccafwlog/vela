@@ -12,6 +12,7 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 const ADM = '10900000-0000-4000-8000-000000000001'
 const FIN = '10900000-0000-4000-8000-000000000002'
 const OPS = '10900000-0000-4000-8000-000000000003'
+const EQP = '10900000-0000-4000-8000-000000000005'
 const PORTAL = '10900000-0000-4000-8000-000000000004'
 const CUSTOMER = 99109001
 const BL_NO_RELEASE = 'R2-109-BL-SEM-CE'
@@ -25,11 +26,12 @@ const FIXTURES = `
   SET LOCAL request.jwt.claim.role = 'service_role';
   INSERT INTO auth.users (id, email) VALUES
     ('${ADM}', 'adm-109@example.test'), ('${FIN}', 'fin-109@example.test'),
-    ('${OPS}', 'ops-109@example.test'), ('${PORTAL}', 'portal-109@example.test');
+    ('${OPS}', 'ops-109@example.test'), ('${PORTAL}', 'portal-109@example.test'), ('${EQP}', 'eqp-109@example.test');
   INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
     ('${ADM}', 'Administrativo 109', 'administrativo', true),
     ('${FIN}', 'Financeiro 109', 'financeiro', true),
-    ('${OPS}', 'Operações 109', 'operacoes', true);
+    ('${OPS}', 'Operações 109', 'operacoes', true),
+    ('${EQP}', 'Equipamentos 109', 'equipamentos', true);
   INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${CUSTOMER}, '99109001000136', 'Cliente 109');
   UPDATE public.customer_portal_accounts
      SET auth_user_id = '${PORTAL}', active = true, account_situation = 'ativo', recovery_email = 'rec-109@example.test', recovery_email_status = 'ok'
@@ -74,11 +76,12 @@ function scenario(sql: string): string[] {
 }
 
 describeLocal('migration 109 — reforços adicionais da auditoria run-2', () => {
-  it('recálculo manual por PTAX só para Financeiro e Administrativo', () => {
+  it('recálculo manual por PTAX só para Financeiro, Administrativo e Equipamentos (109 + 110)', () => {
     expect(scenario(`
       ${as(OPS)} ${try_(`SELECT public.recalculate_demurrage_invoices_manual(5.5)`)}
       ${as(FIN)} ${try_(`SELECT public.recalculate_demurrage_invoices_manual(5.5)`)}
-    `)).toEqual(['42501', 'ok'])
+      ${as(EQP)} ${try_(`SELECT public.recalculate_demurrage_invoices_manual(5.5)`)}
+    `)).toEqual(['42501', 'ok', 'ok'])
   })
 
   it('Portal não abre Dispute nem lê detalhe de fatura de B/L sem liberação', () => {

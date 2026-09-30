@@ -5,6 +5,8 @@ import path from 'node:path'
 import test from 'node:test'
 import { stagePagesSite } from './cloudflare-pages-stage.mjs'
 
+const SUPABASE = 'https://abcdefgh.supabase.co'
+
 test('stages separate internal and Portal Pages sites with SPA routing and security headers', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'vela-pages-stage-'))
   const input = path.join(root, 'dist')
@@ -24,7 +26,7 @@ test('stages separate internal and Portal Pages sites with SPA routing and secur
   await writeFile(path.join(input, 'favicon.svg'), '<svg/>')
 
   try {
-    await stagePagesSite({ app: 'internal', input, output: internalOutput })
+    await stagePagesSite({ app: 'internal', input, output: internalOutput, supabaseUrl: SUPABASE })
     assert.equal(await readFile(path.join(internalOutput, 'index.html'), 'utf8'), '<html>internal</html>')
     assert.equal(await readFile(path.join(internalOutput, 'assets', 'app.js'), 'utf8'), 'bundle')
     await assert.rejects(readFile(path.join(internalOutput, 'assets', 'app.js.map')), { code: 'ENOENT' })
@@ -41,6 +43,7 @@ test('stages separate internal and Portal Pages sites with SPA routing and secur
       input,
       output: internalOutput,
       portalOrigin: 'https://pr-123.vela-portal.pages.dev',
+      supabaseUrl: SUPABASE,
     })
     const previewRedirects = await readFile(path.join(internalOutput, '_redirects'), 'utf8')
     assert.match(previewRedirects, /^\/portal\s+https:\/\/pr-123\.vela-portal\.pages\.dev\/portal\s+302/m)
@@ -50,9 +53,11 @@ test('stages separate internal and Portal Pages sites with SPA routing and secur
     for (const header of ['Content-Security-Policy:', 'X-Frame-Options: DENY', 'Strict-Transport-Security:', 'Cache-Control: public, max-age=31536000, immutable']) {
       assert.ok(headers.includes(header), `missing ${header}`)
     }
+    assert.ok(headers.includes("connect-src 'self' https://abcdefgh.supabase.co wss://abcdefgh.supabase.co "))
+    assert.ok(!headers.includes('*.supabase.co'))
     assert.match(headers, /^\/index\.html\s*\n(?:  .*\n)*  Cache-Control: no-cache, no-store, must-revalidate/m)
 
-    await stagePagesSite({ app: 'portal', input, output: portalOutput })
+    await stagePagesSite({ app: 'portal', input, output: portalOutput, supabaseUrl: SUPABASE })
     assert.equal(await readFile(path.join(portalOutput, 'index.html'), 'utf8'), '<html>portal</html>')
     const portalRedirects = await readFile(path.join(portalOutput, '_redirects'), 'utf8')
     assert.match(portalRedirects, /^\/\s+\/portal\s+302/m)
@@ -68,7 +73,7 @@ test('rejects invalid app names and missing entrypoints', async () => {
   const input = path.join(root, 'dist')
   try {
     await assert.rejects(stagePagesSite({ app: 'other', input: root, output: path.join(root, 'pages-other') }), /app must be internal or portal/i)
-    await assert.rejects(stagePagesSite({ app: 'internal', input, output: path.join(input, 'pages-internal') }), /index\.html/)
+    await assert.rejects(stagePagesSite({ app: 'internal', input, output: path.join(input, 'pages-internal'), supabaseUrl: SUPABASE }), /index\.html/)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -95,5 +100,13 @@ test('rejects Portal redirect origins outside the production domain and Pages pr
     assert.equal(await readFile(path.join(output, 'keep.txt'), 'utf8'), 'existing output')
   } finally {
     await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('connect-src exige a URL HTTPS do projeto Supabase', async () => {
+  const { resolveSupabaseOrigin } = await import('./cloudflare-pages-stage.mjs')
+  assert.equal(resolveSupabaseOrigin('https://abcdefgh.supabase.co/'), 'https://abcdefgh.supabase.co')
+  for (const bad of [undefined, '', 'http://abcdefgh.supabase.co', 'https://evil.example', 'https://a.b.supabase.co']) {
+    assert.throws(() => resolveSupabaseOrigin(bad), /VITE_SUPABASE_URL/)
   }
 })
