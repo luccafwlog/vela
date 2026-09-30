@@ -204,8 +204,11 @@ export function parseBaplieText(text: string): ParsedBaplie {
     if (seg.tag !== 'TDT') continue
     voyage_number = seg.components[2]?.[0]?.trim() || null
     const flat = seg.components.flat().map((c) => c.trim()).filter(Boolean)
-    const vessel = [...flat].reverse().find((part) => /[A-Z]/.test(part) && part !== '20')
-    // O nome é o último composto alfabético do TDT; o número da viagem já saiu acima.
+    // Identificação do transporte (C222): call sign:código:agência:NOME. Preferir o
+    // 4º subcampo evita pegar o código da transportadora (ex.: COT:172:20), que vem depois.
+    const named = seg.components.map((c) => c[3]?.trim()).find(Boolean)
+    // ponytail: sem C222 completo, cai na heurística do último composto alfabético.
+    const vessel = named ?? [...flat].reverse().find((part) => /[A-Z]/.test(part) && part !== '20')
     if (vessel && vessel !== voyage_number) {
       vessel_name = vessel.replace(/:/g, ' ').trim() || null
     }
