@@ -68,7 +68,7 @@ if (typeof Deno !== 'undefined') {
         return json(401, { error: GENERIC_ERROR }, origin)
       }
 
-      const { data: account } = await admin.from('customer_portal_accounts').select('auth_user_id, account_situation').eq('login_cnpj', normalized).maybeSingle()
+      const { data: account } = await admin.from('customer_portal_accounts').select('auth_user_id, account_situation, active').eq('login_cnpj', normalized).maybeSingle()
       const authClient = createClient(url, anonKey)
       const authentication = await authenticatePortalLoginIdentity(account, dummyUserId, body.password, {
         lookupEmail: async (userId) => {

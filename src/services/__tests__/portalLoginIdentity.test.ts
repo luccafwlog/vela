@@ -23,7 +23,7 @@ function dependencies(events: string[], stored: string) {
   }
 }
 
-const real = { auth_user_id: 'real-user', account_situation: 'ativo' }
+const real = { auth_user_id: 'real-user', account_situation: 'ativo', active: true }
 
 describe('authenticatePortalLoginIdentity', () => {
   it('conta migrada entra com a senha derivada numa única tentativa', async () => {
@@ -64,7 +64,7 @@ describe('authenticatePortalLoginIdentity', () => {
 
   it('nunca aceita a sessão dummy mesmo se a senha coincidir', async () => {
     const result = await authenticatePortalLoginIdentity<Session>(
-      { auth_user_id: null, account_situation: 'sem_conta' },
+      { auth_user_id: null, account_situation: 'sem_conta', active: false },
       'dummy-user',
       'SenhaDummy1',
       {
@@ -89,5 +89,19 @@ describe('derivePortalAuthPassword', () => {
     expect(a).not.toContain('Senha1')
     expect(a.startsWith('p1.')).toBe(true)
     expect(new TextEncoder().encode(a).length).toBeLessThanOrEqual(72)
+  })
+})
+
+describe('conta inativa (auditoria run-2, reforço)', () => {
+  it('conta ativo mas com active = false não entra, com as mesmas tentativas da conta inexistente', async () => {
+    const events: string[] = []
+    const result = await authenticatePortalLoginIdentity<Session>(
+      { auth_user_id: 'real-user', account_situation: 'ativo', active: false },
+      'dummy-user',
+      'Senha1',
+      dependencies(events, 'H(Senha1)'),
+    )
+    expect(result).toEqual({ accepted: false, session: null })
+    expect(events[0]).toBe('lookup:dummy-user')
   })
 })

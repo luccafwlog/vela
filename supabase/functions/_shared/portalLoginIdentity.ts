@@ -1,6 +1,8 @@
 export type PortalLoginAccount = {
   auth_user_id: string | null
   account_situation: string
+  /** O banco (current_portal_customer_id) exige active; o login também. */
+  active: boolean
 } | null
 
 export type PortalLoginIdentityDependencies<TSession> = {
@@ -21,7 +23,7 @@ export async function authenticatePortalLoginIdentity<TSession>(
   dependencies: PortalLoginIdentityDependencies<TSession>,
 ): Promise<{ accepted: boolean; session: TSession | null }> {
   const accountEligible = Boolean(
-    account && account.account_situation === 'ativo' && account.auth_user_id,
+    account && account.account_situation === 'ativo' && account.active && account.auth_user_id,
   )
   const lookupUserId = accountEligible ? account!.auth_user_id! : dummyUserId
   const technicalEmail = await dependencies.lookupEmail(lookupUserId)

@@ -28,7 +28,8 @@ if (typeof Deno !== 'undefined') {
     const [{ data: failures }, { data: events }, { data: pending }, { data: users }] = await Promise.all([
       admin.from('portal_email_attempts').select('id').in('status', ['bounce', 'complaint', 'falha_transitoria', 'falha_permanente']).gte('created_at', since),
       admin.from('portal_provisioning_events').select('id').gte('created_at', since),
-      admin.from('customer_portal_accounts').select('id').eq('account_situation', 'convite_pendente'),
+      // Cliente desativado não entra na contagem de convites pendentes.
+      admin.from('customer_portal_accounts').select('id, customers!inner(deactivated_at)').eq('account_situation', 'convite_pendente').is('customers.deactivated_at', null),
       admin.from('user_profiles').select('id').eq('active', true).in('role', ['admin', 'administrativo', 'documentacao']),
     ])
     const counts = { failures: failures?.length ?? 0, activity: events?.length ?? 0, pending: pending?.length ?? 0 }

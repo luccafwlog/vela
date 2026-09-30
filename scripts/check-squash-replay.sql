@@ -82,9 +82,10 @@ BEGIN
   -- A 096 removeu as 7 policies de DELETE dos cadastros (274 -> 267;
   -- exclusão passa por delete_catalog_row). A 106 removeu mais 3 (267 -> 264):
   -- DELETE direto de customers/customer_contacts e a política morta de
-  -- app_settings.
-  IF v_policies < 264 THEN
-    RAISE EXCEPTION 'Policies RLS em public: % (piso 264).', v_policies;
+  -- app_settings. A 109 removeu mais 3 (264 -> 261): leitura direta do Portal
+  -- em mensagens/anexos de Dispute e o DELETE direto de voyages.
+  IF v_policies < 261 THEN
+    RAISE EXCEPTION 'Policies RLS em public: % (piso 261).', v_policies;
   END IF;
   -- A 008 aposentou trg_seed_customer_contact_preferences (144 -> 143 triggers).
   SELECT COUNT(*) INTO v_triggers FROM pg_trigger t

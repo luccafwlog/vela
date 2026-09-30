@@ -48,6 +48,7 @@ import type { DemurrageContainerListItem, DemurrageInvoice, DemurrageInvoiceItem
 import { describeActiveFilters } from '../lib/operationalState'
 import { printDocumentElement } from '../lib/printDocument'
 import { formatDate } from '../lib/utils'
+import { useAuth } from '../hooks/useAuth'
 
 type DemurrageTab = 'containers' | 'clientes' | (typeof DEMURRAGE_INVOICE_TABS)[number]['key']
 
@@ -63,6 +64,9 @@ const TAB_TO_STATUS = Object.fromEntries(
 
 export function Demurrage() {
   const queryClient = useQueryClient()
+  const { effectiveRole } = useAuth()
+  // A RPC só aceita Financeiro e Administrativo (migration 109); o botão segue a mesma regra.
+  const canInformPtax = effectiveRole === 'financeiro' || effectiveRole === 'administrativo'
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [tab, setTab] = useState<DemurrageTab>('containers')
@@ -315,7 +319,7 @@ export function Demurrage() {
             </Link>
             <Button variant="secondary" onClick={() => setDunningModalOpen(true)}><Mail size={15} />Régua de Cobrança</Button>
             <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload size={15} />Importar Datas</Button>
-            <Button variant="secondary" onClick={() => setPtaxModalOpen(true)}><DollarSign size={15} />Informar PTAX</Button>
+            {canInformPtax ? <Button variant="secondary" onClick={() => setPtaxModalOpen(true)}><DollarSign size={15} />Informar PTAX</Button> : null}
           </>
         }
       />
@@ -329,7 +333,7 @@ export function Demurrage() {
       {recalcStale ? (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
           <span className="flex items-center gap-2"><AlertTriangle size={16} />PTAX de hoje não obtida do BCB. Os valores em BRL podem estar desatualizados.</span>
-          <Button variant="secondary" onClick={() => setPtaxModalOpen(true)}>Informar PTAX</Button>
+          {canInformPtax ? <Button variant="secondary" onClick={() => setPtaxModalOpen(true)}>Informar PTAX</Button> : null}
         </div>
       ) : null}
       <DemurrageDisputeConversation />

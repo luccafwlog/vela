@@ -18,6 +18,7 @@ const RATE_LIMITED = 'Muitas tentativas com a senha atual. Aguarde alguns minuto
 // como texto, e `previous_notified` sumia -- o operador via "aviso não
 // enviado" para um aviso entregue.
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+const EMAIL_CHANGE_DAILY_LIMIT = 5
 const SEND_FAILED = 'Não conseguimos enviar o email de confirmação. Nenhuma troca foi iniciada; tente novamente mais tarde.'
 
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
@@ -28,8 +29,14 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     const portal = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: jwt } } })
     const { data: userData } = await portal.auth.getUser(); const authId = userData.user?.id
     if (!authId || !body.current_password || !body.new_email?.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) return new Response(JSON.stringify({ error: 'Dados inválidos.' }), { status: 422 })
-    const { data: account } = await admin.from('customer_portal_accounts').select('id, customer_id, login_cnpj, recovery_email, auth_user_id, customers(name, cnpj_cpf)').eq('auth_user_id', authId).single()
+    const { data: account } = await admin.from('customer_portal_accounts').select('id, customer_id, login_cnpj, recovery_email, auth_user_id, active, account_situation, customers(name, cnpj_cpf)').eq('auth_user_id', authId).single()
     if (!account?.login_cnpj) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 422 })
+    // Só conta ativa, e no máximo 5 pedidos por dia: cada pedido manda e-mail
+    // a um endereço escolhido pelo cliente (auditoria run-2, reforço).
+    if (!account.active || account.account_situation !== 'ativo') return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 403 })
+    const { count: recentRequests, error: quotaError } = await admin.from('portal_invites').select('id', { count: 'exact', head: true }).eq('account_id', account.id).eq('purpose', 'confirmacao_email').gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    if (quotaError) return new Response(JSON.stringify({ error: 'Não foi possível iniciar a troca de email.' }), { status: 500 })
+    if ((recentRequests ?? 0) >= EMAIL_CHANGE_DAILY_LIMIT) return new Response(JSON.stringify({ error: 'Limite de pedidos de troca de email atingido. Tente novamente amanhã.' }), { status: 429 })
     // Este caminho recebe a senha atual e a verifica. Sem consultar a trava,
     // quem tivesse uma sessão do Portal aberta (navegador compartilhado,
     // notebook emprestado) testaria senha sem limite por aqui, contornando as
