@@ -67,6 +67,17 @@ const KNOWN_PORT_CODES = new Set([
   'BRNVT', 'BRREC', 'BRSLZ', 'BRSFS', 'ITGOA', 'NLRTM',
 ])
 
+// Códigos de 3 letras (sem prefixo de país) e LOCODEs alternativos que o Baplie
+// da COSCO usa em LOC+6/LOC+12. Só casam com o valor inteiro: como substring
+// ("sep", "vix") capturariam texto livre de manifesto.
+const EXACT_PORT_ALIASES: Record<string, string> = {
+  CNCAN: 'CNNSA', // Guangzhou, tratado como Nansha (mesma regra de 'guangzhou')
+  TAO: 'CNTAO',
+  VIX: 'BRVIX',
+  SPB: 'BRSEP', // Sepetiba
+  SEP: 'BRSEP',
+}
+
 export function normalizePortCode(value: string | null | undefined) {
   return resolvePortCode(value).code
 }
@@ -77,6 +88,8 @@ export function resolvePortCode(value: string | null | undefined): { code: strin
   if (!normalized) return { code: null, recognized: false }
 
   if (normalized === 'BRVIT') return { code: 'BRVIX', recognized: true }
+  const exact = EXACT_PORT_ALIASES[normalized]
+  if (exact) return { code: exact, recognized: true }
   const text = normalizeText(normalized)
   const match = PORT_NAME_TO_LOCODE
     .map(([name, code]) => ({ code, index: text.indexOf(normalizeText(name)) }))

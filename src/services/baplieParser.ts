@@ -309,6 +309,8 @@ export function parseBaplieText(text: string): ParsedBaplie {
       ]
       const ownPol = lastPort(ownItems, POL_QUALIFIERS)
       const ownPod = lastPort(ownItems, POD_QUALIFIERS)
+      const polRaw = rawPort(ownItems, POL_QUALIFIERS)
+      const podRaw = rawPort(ownItems, POD_QUALIFIERS)
       const ownFinal = lastPort(ownItems, FINAL_DEST_QUALIFIERS)
       const ownBl = lastValue(ownItems.filter((i) => i.tag === 'RFF' && (i.components[1]?.[0] ?? '') === 'BM').map((i) => i.components[1]?.[1]?.trim() || null))
       const weightValues = ownItems
@@ -395,7 +397,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
           field: 'pol',
           code: 'unknown_port',
           severity: 'error',
-          message: `Container ${container_number}: POL ${ownPol.code ? 'não reconhecido' : 'ausente'} no conjunto ${group.order}.`,
+          message: `Container ${container_number}: POL ${polRaw ? `não reconhecido (${polRaw})` : 'ausente'} no conjunto ${group.order}.`,
         })
       }
       if (eqdPos === 0 && (!ownPod.code || !ownPod.recognized)) {
@@ -404,7 +406,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
           field: 'pod',
           code: 'unknown_port',
           severity: 'error',
-          message: `Container ${container_number}: POD ${ownPod.code ? 'não reconhecido' : 'ausente'} no conjunto ${group.order}.`,
+          message: `Container ${container_number}: POD ${podRaw ? `não reconhecido (${podRaw})` : 'ausente'} no conjunto ${group.order}.`,
         })
       }
       if (eqdPos === 0 && ownWeightResult?.issue) {
@@ -440,10 +442,14 @@ function lastValue<T>(values: Array<T | null>): T | null {
 
 type ParsedPort = { code: string | null; recognized: boolean }
 
-function lastPort(items: ParsedSegment[], qualifiers: ReadonlySet<string>): ParsedPort {
-  const raw = lastValue(items
+function rawPort(items: ParsedSegment[], qualifiers: ReadonlySet<string>): string | null {
+  return lastValue(items
     .filter((item) => item.tag === 'LOC' && qualifiers.has(qualifierOf(item)))
     .map(locCodeOf))
+}
+
+function lastPort(items: ParsedSegment[], qualifiers: ReadonlySet<string>): ParsedPort {
+  const raw = rawPort(items, qualifiers)
   if (!raw) return { code: null, recognized: false }
   const resolved = resolvePortCode(raw)
   return { code: resolved.code, recognized: resolved.recognized }
