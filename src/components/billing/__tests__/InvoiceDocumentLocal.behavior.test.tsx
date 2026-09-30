@@ -3,6 +3,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
 import { InvoiceDocumentLocal } from '../InvoiceDocumentLocal'
+import type { InvoiceDetail } from '../../../services/billing'
 
 const pixPayload = '00020101021226880014br.gov.bcb.pix'
 const detail = {
@@ -24,6 +25,14 @@ const detail = {
 } as never
 
 afterEach(cleanup)
+
+it('marca pagamento simulado na fatura local e não apresenta QR legado', () => {
+  const original: InvoiceDetail = detail
+  const simulated = { ...original, invoice: { ...original.invoice!, pix_integration_state: 'simulation:paid' } }
+  render(<InvoiceDocumentLocal detail={simulated} />)
+  expect(screen.getByTestId('pix-simulation-notice').textContent).toContain('Pagamento simulado conciliado')
+  expect(screen.queryByText(pixPayload)).toBeNull()
+})
 
 it('imprime recibo de taxas locais sem PIX e com o mesmo conteúdo da fatura', () => {
   render(<InvoiceDocumentLocal detail={detail} type="receipt" />)

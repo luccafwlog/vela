@@ -181,6 +181,7 @@ export type PortalDemurrageInvoice = {
   updated_at: string | null
   status: string
   pix_payload: string | null
+  pix_integration_state?: string | null
   dispute_open: boolean | null
   discount_type: string | null
   discount_value: number | null

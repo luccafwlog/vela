@@ -83,6 +83,7 @@ export type InvoiceListRow = Pick<
 }
 export type InvoiceDetail = {
   invoice: (InvoiceSummary & {
+    pix_integration_state?: string | null
     customer_name?: string | null
     customer_cnpj_cpf?: string | null
     notes?: string | null

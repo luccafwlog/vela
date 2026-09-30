@@ -21,6 +21,7 @@ import {
   zebraRow,
 } from '../shared/invoiceFormat'
 import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle } from '../shared/InvoiceDocumentKit'
+import { PixSimulationNotice } from '../shared/PixSimulationNotice'
 
 type Props = { detail: InvoiceDetail; type?: 'invoice' | 'receipt' }
 
@@ -347,7 +348,8 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
       </table>
 
       {/* PIX */}
-      {type === 'invoice' && invoice.pix_payload && (
+      <PixSimulationNotice state={invoice.pix_integration_state} />
+      {type === 'invoice' && !invoice.pix_integration_state?.startsWith('simulation:') && invoice.pix_payload && (
         <div data-testid="invoice-pix-box" className="invoice-document__pix-box" style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${DOC_BORDER}` }}>
           <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
             <div style={{ flexShrink: 0 }}>

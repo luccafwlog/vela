@@ -434,6 +434,13 @@ Não há evidência de Runtime registrada neste documento.
 
 ## Notas e divergências
 
+- **Faturas habilitadas para simulação Pix:** os documentos exibem um aviso de
+  simulação e suprimem o QR e o Copia e Cola, inclusive se vier um payload
+  legado no detalhe. Emissão/atualização e cancelamento ficam pendentes até a
+  confirmação do simulador. Detalhes abertos acompanham a simulação a cada
+  cinco segundos e atualizam os caches financeiros ao mudar o estado/valor.
+  Não há transferência bancária; faturas não habilitadas mantêm o fluxo atual.
+
 - **Divergência de tipo legado — Código.** `InvoiceDocumentStatus` e `blRails.ts`
   ainda carregam o literal `overdue` e o traduzem para “Emitida”, embora o
   constraint atual de `invoices.status` não grave mais esse estado. É código

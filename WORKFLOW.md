@@ -606,6 +606,16 @@ Use a lista explícita de `.github/workflows/ci.yml` para reproduzir o gate
 completo. As suítes compartilham banco e precisam rodar em série; cada uma deve
 usar seu próprio namespace de IDs e documentos nas fixtures.
 
+A simulação Pix possui também uma prova transacional dos comandos financeiros,
+executada pelo CI após o replay. Contra `vela_test` local e descartável:
+
+```powershell
+psql -X -v ON_ERROR_STOP=1 -d 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test' -f scripts/check-itau-pix-simulation.sql
+```
+
+O script recusa outro nome de banco/host e reverte fixtures/configuração com
+ROLLBACK. Não habilita simulação no Supabase nem testa transferência bancária.
+
 `npm run rpc:check` requer `psql` e banco já preparado. Configure explicitamente
 `LOCAL_DATABASE_URL` para o alvo descartável; o script também aceita
 `DATABASE_URL` e possui fallback local. Ele compara nomes chamados com

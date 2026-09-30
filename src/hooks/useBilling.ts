@@ -12,6 +12,7 @@ import {
   type InvoiceFilters,
 } from '../services/billing'
 import { queryKeys } from '../services/queryKeys'
+import { pixSimulationRefetchInterval, usePixSimulationRefresh } from './usePixSimulationRefresh'
 
 export function useInvoices(filters: InvoiceFilters) {
   return useQuery({
@@ -21,11 +22,14 @@ export function useInvoices(filters: InvoiceFilters) {
 }
 
 export function useInvoiceDetail(invoiceId?: number | null) {
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.invoices.detail(invoiceId),
     enabled: Boolean(invoiceId),
     queryFn: () => listInvoiceDetails(Number(invoiceId)),
+    refetchInterval: (current) => pixSimulationRefetchInterval(current.state.data?.invoice?.pix_integration_state),
   })
+  usePixSimulationRefresh(query.data?.invoice)
+  return query
 }
 export function useInvoiceLinks(blIds: string[]) {
   return useQuery({

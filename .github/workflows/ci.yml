@@ -147,6 +147,9 @@ jobs:
       - name: Assert comunicados routing and NOB behaviour
         run: sudo -u postgres psql -d vela_test -v ON_ERROR_STOP=1 -q -f - < scripts/check-comunicados-caixas-nob.sql
 
+      - name: Test Pix simulation against Vela financial commands
+        run: sudo -u postgres psql -d vela_test -v ON_ERROR_STOP=1 -q -f - < scripts/check-itau-pix-simulation.sql
+
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
