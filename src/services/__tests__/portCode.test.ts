@@ -47,6 +47,15 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(resolvePortCode('BRSEP')).toEqual({ code: 'BRSEP', recognized: true })
   })
 
+  it('reconhece códigos curtos do Baplie da COSCO só por valor inteiro', () => {
+    expect(resolvePortCode('CNCAN')).toEqual({ code: 'CNNSA', recognized: true })
+    expect(resolvePortCode('TAO')).toEqual({ code: 'CNTAO', recognized: true })
+    expect(resolvePortCode('VIX')).toEqual({ code: 'BRVIX', recognized: true })
+    expect(resolvePortCode('SPB')).toEqual({ code: 'BRSEP', recognized: true })
+    expect(resolvePortCode('SEP')).toEqual({ code: 'BRSEP', recognized: true })
+    expect(resolvePortCode('SEPTEMBER')).toEqual({ code: null, recognized: false })
+  })
+
   it('reconhece LOCODE embutido nas descrições operacionais', () => {
     expect(resolvePortCode('Port of Singapore (SGSIN)')).toEqual({ code: 'SGSIN', recognized: true })
     expect(resolvePortCode('New York / USNYC')).toEqual({ code: 'USNYC', recognized: true })
