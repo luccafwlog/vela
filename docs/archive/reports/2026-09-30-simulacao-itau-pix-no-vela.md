@@ -11,7 +11,13 @@ PostgreSQL 16 descartável, `127.0.0.1:55439`, banco `vela_test`, criado para
 esta execução com initdb nativo do Windows. Replay integral das migrations com
 os shims de Auth/Vault/cron do procedimento local existente. Não é um Supabase
 completo: não comprova PostgREST, JWT do gateway, cron hospedado nem pagamento
-bancário. Nenhum deploy, migration ou segredo aplicado no Supabase.
+bancário. Nenhum deploy, migration ou segredo aplicado manualmente no Supabase.
+
+Após abrir a [PR #827](https://github.com/luccafwlog/vela/pull/827), a integração
+GitHub do Supabase criou automaticamente o Preview `teglnsdxuyparhucokkw`.
+O check estava em andamento durante este registro. Não houve merge nem
+alteração do ambiente produtivo por esta execução; não confundir criação de
+Preview com validação observada da aplicação ou da conta Itaú.
 
 `scripts/check-itau-pix-simulation.sql` aprovado com fixtures/configuração
 revertidas por ROLLBACK. Provas observadas:

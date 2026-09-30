@@ -40,7 +40,7 @@ BEGIN
     VALUES(99114001,99114001,'PIX-SIM-LOCAL',100),(99114003,99114003,'PIX-SIM-RECOVER',100);
   UPDATE public.pix_simulation_settings SET enabled=true, calendar_years=ARRAY[2026], holidays=ARRAY['2026-10-05'::date];
   -- Segunda-feira marcada como feriado SINTÉTICO, não calendário oficial.
-  IF public.pix_simulation_cutoff(v_at) <> '2026-10-06 14:30:00-03'::timestamptz THEN RAISE EXCEPTION 'Fim de semana/feriado calculado incorretamente.'; END IF;
+  IF public.pix_simulation_cutoff(v_at) IS DISTINCT FROM '2026-10-06 14:30:00-03'::timestamptz THEN RAISE EXCEPTION 'Fim de semana/feriado calculado incorretamente.'; END IF;
   BEGIN PERFORM public.pix_simulation_cutoff('2026-12-31 10:00-03'); RAISE EXCEPTION 'Calendário ausente foi aceito.';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
   v_dem := public.enroll_pix_simulation('demurrage',99114001,v_actor,v_at);
@@ -50,7 +50,7 @@ BEGIN
   v_recover := public.enroll_pix_simulation('local',99114003,v_actor,v_at);
   PERFORM public.run_pix_simulation(v_at);
   IF EXISTS(SELECT 1 FROM public.pix_charges WHERE state <> 'active') THEN RAISE EXCEPTION 'Emissão não confirmou.'; END IF;
-  IF public._portal_get_demurrage_invoice_detail_core(99114001,99114001)->'invoice'->>'pix_integration_state' <> 'simulation:active' THEN RAISE EXCEPTION 'Estado Pix não chegou ao detalhe Portal.'; END IF;
+  IF public._portal_get_demurrage_invoice_detail_core(99114001,99114001)->'invoice'->>'pix_integration_state' IS DISTINCT FROM 'simulation:active' THEN RAISE EXCEPTION 'Estado Pix não chegou ao detalhe Portal.'; END IF;
   IF EXISTS(SELECT 1 FROM public.invoices WHERE id BETWEEN 99114001 AND 99114003 AND pix_payload IS NOT NULL) THEN RAISE EXCEPTION 'Simulação expôs QR pagável.'; END IF;
   SELECT txid INTO v_original FROM public.pix_charges WHERE id=v_dem;
   PERFORM public.recalculate_demurrage_invoices(5.6338,'2026-10-02','manual');
@@ -106,7 +106,7 @@ BEGIN
   v_manual := (v_result->>'invoice_id')::bigint;
   v_manual_charge := public.enroll_pix_simulation('local',v_manual,v_actor,v_at + interval '49 hours');
   PERFORM public.run_pix_simulation(v_at + interval '49 hours');
-  IF public.list_invoice_details(v_manual)->'invoice'->>'pix_integration_state' <> 'simulation:active' THEN RAISE EXCEPTION 'Detalhe do Vela não recebeu estado Pix.'; END IF;
+  IF public.list_invoice_details(v_manual)->'invoice'->>'pix_integration_state' IS DISTINCT FROM 'simulation:active' THEN RAISE EXCEPTION 'Detalhe do Vela não recebeu estado Pix.'; END IF;
   PERFORM public.cancel_invoice(v_manual,'Cancelamento de teste Pix',v_actor);
   PERFORM public.run_pix_simulation(v_at + interval '49 hours');
   IF NOT EXISTS(SELECT 1 FROM public.pix_charges WHERE id=v_manual_charge AND state='cancelled') THEN RAISE EXCEPTION 'Cancelamento não confirmou.'; END IF;
