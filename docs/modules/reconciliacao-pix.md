@@ -203,9 +203,17 @@ Estes testes verificam texto de migrations, não um banco aplicado:
 - **Preparação Pix Itaú em simulação:** a migration `114` permite habilitar
   explicitamente faturas de fixture e simular recebimentos por endToEndId.
   `run_pix_simulation` reutiliza os comandos financeiros de baixa, preserva
-  revisões pagas e envia conflitos com cancelamento para Alerta/análise. A
-  simulação vem desligada e não substitui a importação de extratos nem consulta
-  o Itaú real. Ver [plano e pendências](../plans/2026-09-30-simulacao-itau-pix-no-vela.md).
+  revisões pagas e envia para análise o recebimento que a baixa recusa (fatura
+  fechada, valor acima do saldo), sem devolução automática. O Alerta
+  `pix_review` segue `pix_unreconciled`: Administrativo trata; Documentação e
+  Equipamentos são notificados. Falha ou incerteza também gera `pix_review`,
+  que resolve quando um novo processamento conclui a cobrança. A simulação vem
+  desligada e não substitui a importação de extratos nem consulta o Itaú real.
+  Ver [plano e pendências](../plans/2026-09-30-simulacao-itau-pix-no-vela.md).
+- **Direção com a API Itaú (decisão de 2026-09-30):** com a conciliação
+  automática ativa, esta tela passa a ser principalmente de monitoramento
+  (cobranças, recebimentos e análises); o registro manual de baixa vira
+  exceção. Ainda não implementado.
 
 - **Unmatched é uma classificação somente de revisão.** Permanece visível na
   página, mas não é persistida e não entra no payload de confirmação.

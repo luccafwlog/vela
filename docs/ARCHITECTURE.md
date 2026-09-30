@@ -604,7 +604,7 @@ separada. Não generalizar a exceção para chamadas do navegador.
 
 ## Integrações externas
 
-O Pix Itaú está em preparação por simulação: a migration `114` conserva
+O Pix Itaú está em preparação por simulação: as migrations `114`/`115` conservam
 cobranças, revisões e recebimentos fictícios no backend e acompanha alterações
 das faturas habilitadas por trigger. O processador simulado reutiliza os RPCs
 financeiros, sem chamar o banco. O transporte de COB real permanece separado e

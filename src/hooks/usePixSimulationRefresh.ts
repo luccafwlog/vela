@@ -10,8 +10,12 @@ type Invoice = {
   balance_brl?: number | null
 }
 
+// Emissão e cancelamento pendentes mudam em segundos; a cobrança ativa de
+// Taxas Locais pode durar enquanto a fatura estiver aberta, então só espera o
+// pagamento sem martelar o backend.
 export function pixSimulationRefetchInterval(state?: string | null) {
-  return state && ['simulation:pending','simulation:active','simulation:cancel_pending'].includes(state) ? 5000 : false
+  if (state === 'simulation:pending' || state === 'simulation:cancel_pending') return 5000
+  return state === 'simulation:active' ? 30000 : false
 }
 
 export function usePixSimulationRefresh(invoice?: Invoice | null) {

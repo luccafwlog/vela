@@ -387,6 +387,12 @@ testes está descrita no [plano de simulação](2026-09-30-simulacao-itau-pix-no
   expiração da mesma COB quando possível. Limites técnicos reais ainda não
   comprovados.
 - Pagamento aceito durante troca de PTAX quita pelo valor da revisão paga.
+- Demurrage após o corte das 14h30: a mesma fatura recebe imediatamente nova
+  cobrança (novo TXID) com a PTAX do dia; não se emite nova fatura.
+- Recebimentos que exigem análise (`pix_review`) são tratados pelo
+  Administrativo, com Documentação e Equipamentos notificados.
+- Com a API Itaú integrada, a Conciliação PIX passa a ser principalmente tela
+  de monitoramento; baixa manual vira exceção.
 - Próximo dia útil considera fins de semana e feriados nacionais, estaduais do
   Espírito Santo e municipais de Vitória, no fuso America/Sao_Paulo. O Vela
   calcula a prorrogação; não presumir comportamento automático do Itaú.

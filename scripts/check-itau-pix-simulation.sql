@@ -12,7 +12,7 @@ DECLARE
   v_actor uuid := '00000000-0000-0000-0000-000000114001';
   v_dem uuid; v_local uuid; v_cancel uuid; v_recover uuid; v_txid text; v_original text;
   v_value numeric; v_at timestamptz := '2026-10-02 10:00:00-03'; v_result jsonb;
-  v_manual bigint; v_manual_charge uuid; v_alert_charge uuid;
+  v_manual bigint; v_manual_charge uuid; v_alert_charge uuid; v_over uuid;
 BEGIN
   IF (SELECT enabled FROM public.pix_simulation_settings) THEN RAISE EXCEPTION 'Teste exige simulação inicialmente desativada.'; END IF;
   BEGIN PERFORM public.run_pix_simulation(v_at); RAISE EXCEPTION 'Modo desligado aceitou execução.';
@@ -84,7 +84,7 @@ BEGIN
   IF NOT EXISTS(SELECT 1 FROM public.invoices WHERE id=99114002 AND status='cancelled') THEN RAISE EXCEPTION 'Recebimento reabriu fatura cancelada.'; END IF;
   UPDATE public.pix_simulation_settings SET extend_expired=false;
   PERFORM public.run_pix_simulation(v_at + interval '25 hours');
-  IF NOT EXISTS(SELECT 1 FROM public.pix_charges WHERE predecessor_id=v_recover AND state='pending') THEN RAISE EXCEPTION 'Recuperação não preservou vínculo.'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.pix_charges WHERE predecessor_id=v_recover AND state='active') THEN RAISE EXCEPTION 'Recuperação não emitiu nova cobrança na mesma execução.'; END IF;
   SELECT txid INTO v_txid FROM public.pix_charges WHERE id=v_recover;
   BEGIN PERFORM public.pay_pix_simulation(v_txid,'E-EXPIRED',v_at + interval '25 hours'); RAISE EXCEPTION 'COB expirada aceitou pagamento.';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
@@ -122,13 +122,45 @@ BEGIN
   UPDATE public.pix_charges SET fail_next=true WHERE id=v_alert_charge;
   PERFORM public.run_pix_simulation(v_at + interval '76 hours');
   IF NOT EXISTS(SELECT 1 FROM public.alert_items WHERE item_type='pix_ptax_pending' AND status='active') THEN RAISE EXCEPTION 'PTAX pendente às 14h não gerou Alerta.'; END IF;
+  -- Resposta incerta vai para o Administrativo, que abre a Conciliação PIX.
+  IF NOT EXISTS(SELECT 1 FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE i.item_type='pix_review'
+      AND a.entity_id=v_alert_charge::text AND i.status='active' AND i.department='administrativo') THEN RAISE EXCEPTION 'Falha incerta não gerou Alerta ao Administrativo.'; END IF;
   PERFORM public.run_pix_simulation(v_at + interval '76 hours' + interval '5 minutes');
   IF EXISTS(SELECT 1 FROM public.alert_items WHERE item_type='pix_ptax_pending' AND status='active') THEN RAISE EXCEPTION 'Alerta não resolveu após confirmação.'; END IF;
+  IF EXISTS(SELECT 1 FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE i.item_type='pix_review'
+      AND a.entity_id=v_alert_charge::text AND i.status='active') THEN RAISE EXCEPTION 'Alerta de falha não resolveu após reprocessar.'; END IF;
   PERFORM public.run_pix_simulation('2026-10-06 14:30:00-03');
   SELECT txid INTO v_txid FROM public.pix_charges WHERE id=v_alert_charge;
   BEGIN PERFORM public.pay_pix_simulation(v_txid,'E-CUTOFF','2026-10-06 14:30:00-03'); RAISE EXCEPTION 'Corte das 14h30 aceitou pagamento.';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
   IF NOT EXISTS(SELECT 1 FROM public.demurrage_invoices WHERE id=99114002 AND status='issued') THEN RAISE EXCEPTION 'Expiração alterou status financeiro.'; END IF;
+  -- Após o corte, a mesma fatura recebe nova cobrança com o valor vigente.
+  IF NOT EXISTS(SELECT 1 FROM public.pix_charges WHERE predecessor_id=v_alert_charge AND demurrage_invoice_id=99114002
+      AND state='active' AND amount_brl=600 AND expires_at='2026-10-07 14:30:00-03' AND txid<>v_txid) THEN RAISE EXCEPTION 'Corte não emitiu nova cobrança na mesma fatura.'; END IF;
+  IF (SELECT pix_integration_state FROM public.demurrage_invoices WHERE id=99114002) IS DISTINCT FROM 'simulation:active' THEN RAISE EXCEPTION 'Fatura ficou sem cobrança ativa após o corte.'; END IF;
+  -- Pix pago acima do saldo (baixa parcial manual antes da revisão): análise, não repetição.
+  INSERT INTO public.bls(id,voyage_id,customer_id,cargo_mode,ce_mercante) VALUES('PIX-SIM-OVER',99114001,99114001,'container','991140000000004');
+  INSERT INTO public.invoices(id,invoice_number,customer_id,total_brl,balance_brl,status) VALUES(99114004,'SIM-OVER',99114001,100,100,'issued');
+  INSERT INTO public.bl_receivables(id,bl_id,customer_id,original_amount_brl,balance_brl) VALUES(99114004,'PIX-SIM-OVER',99114001,100,100);
+  INSERT INTO public.invoice_receivable_links(invoice_id,receivable_id,bl_id,subtotal_brl) VALUES(99114004,99114004,'PIX-SIM-OVER',100);
+  v_over := public.enroll_pix_simulation('local',99114004,v_actor,'2026-10-06 15:00:00-03');
+  PERFORM public.run_pix_simulation('2026-10-06 15:00:00-03');
+  PERFORM set_config('request.jwt.claim.role','authenticated',true);
+  PERFORM public.register_ledger_invoice_payment(99114004,30,'ted','2026-10-06 15:01:00-03',NULL,'manual','Parcial de teste',v_actor,gen_random_uuid());
+  PERFORM set_config('request.jwt.claim.role','service_role',true);
+  SELECT txid INTO v_txid FROM public.pix_charges WHERE id=v_over;
+  PERFORM public.pay_pix_simulation(v_txid,'E-SIM-OVER','2026-10-06 15:02:00-03');
+  PERFORM public.run_pix_simulation('2026-10-06 15:05:00-03');
+  IF current_setting('request.jwt.claim.role') <> 'service_role' THEN RAISE EXCEPTION 'Contexto financeiro vazou após recusa.'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.pix_receipts WHERE end_to_end_id='E-SIM-OVER' AND state='review')
+    OR NOT EXISTS(SELECT 1 FROM public.pix_charges WHERE id=v_over AND state='review') THEN RAISE EXCEPTION 'Recebimento acima do saldo ficou pendente.'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.invoices WHERE id=99114004 AND status='partially_paid' AND balance_brl=70) THEN RAISE EXCEPTION 'Recusa alterou a baixa parcial.'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE i.item_type='pix_review'
+      AND a.entity_id=v_over::text AND i.status='active') THEN RAISE EXCEPTION 'Recebimento em análise sem Alerta.'; END IF;
+  PERFORM set_config('request.jwt.claim.role','authenticated',true);
+  PERFORM public.register_ledger_invoice_payment(99114004,70,'ted','2026-10-06 15:10:00-03',NULL,'manual','Quitação de teste',v_actor,gen_random_uuid());
+  PERFORM set_config('request.jwt.claim.role','service_role',true);
+  IF NOT EXISTS(SELECT 1 FROM public.pix_charges WHERE id=v_over AND state='review') THEN RAISE EXCEPTION 'Quitação manual descartou a análise.'; END IF;
   IF has_table_privilege('authenticated','public.pix_receipts','INSERT') OR has_function_privilege('authenticated','public.run_pix_simulation(timestamptz)','EXECUTE')
     OR has_function_privilege('authenticated','public.import_pix_simulated_receipt(text,integer,text,timestamptz)','EXECUTE')
     OR has_function_privilege('anon','public.pay_pix_simulation(text,text,timestamptz)','EXECUTE') THEN RAISE EXCEPTION 'Backend exposto ao navegador.'; END IF;

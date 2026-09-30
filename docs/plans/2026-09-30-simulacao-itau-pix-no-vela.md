@@ -95,6 +95,17 @@ continuam responsáveis por gravar a baixa. O histórico confirmado do Pix é um
 prova adicional para a revisão paga da Demurrage, sem ampliar a tolerância dos
 extratos manuais.
 
+Revisão de 2026-09-30 (migration `115`, sem editar a `114`): após o corte, a
+Demurrage aberta recebe nova cobrança na mesma fatura, na mesma execução, e a
+recuperação de Taxas Locais também confirma na hora; recusa de baixa (ex.: Pix
+acima do saldo após baixa parcial) e resposta incerta vão para `pix_review`,
+tratado pelo Administrativo e resolvido quando o reprocessamento conclui; a
+cobrança em análise não é alterada pelo trigger; o processador não espera
+fatura travada por outra transação, evitando deadlock com edição e recálculo
+da PTAX. Decisão registrada: com a API Itaú, a Conciliação PIX vira tela de
+monitoramento. A `114` pode ser consolidada com a `115` antes do merge, se o
+dono autorizar editar a migration ainda não aplicada.
+
 O módulo `itauPixTransport.ts` prepara criação, consulta, alteração e cancelamento
 de COB com fetch mTLS fornecido pelo backend, ativação e validação explícitas.
 Ele ainda não está conectado ao processador persistido. O modo real permanece

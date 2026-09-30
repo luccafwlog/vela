@@ -437,8 +437,10 @@ Não há evidência de Runtime registrada neste documento.
 - **Faturas habilitadas para simulação Pix:** os documentos exibem um aviso de
   simulação e suprimem o QR e o Copia e Cola, inclusive se vier um payload
   legado no detalhe. Emissão/atualização e cancelamento ficam pendentes até a
-  confirmação do simulador. Detalhes abertos acompanham a simulação a cada
-  cinco segundos e atualizam os caches financeiros ao mudar o estado/valor.
+  confirmação do simulador. Detalhes abertos (Vela e Portal, Taxas Locais e
+  Demurrage) consultam a cada cinco segundos enquanto emissão ou cancelamento
+  estão pendentes e a cada 30 segundos com a cobrança ativa; ao mudar o
+  estado/valor, atualizam os caches financeiros.
   Não há transferência bancária; faturas não habilitadas mantêm o fluxo atual.
 
 - **Divergência de tipo legado — Código.** `InvoiceDocumentStatus` e `blRails.ts`

@@ -5,6 +5,7 @@ import { portalInvoiceStatusLabel } from '../../lib/portalInvoiceStatus'
 import { formatBRL, formatDate } from '../../lib/utils'
 import type { PortalDemurrageInvoiceDetail } from '../../services/portalBilling'
 import { PortalPixPaymentBlock } from './PortalPixPaymentBlock'
+import { PixSimulationNotice } from '../shared/PixSimulationNotice'
 import { Button } from '../ui/Button'
 
 type PortalDemurrageDetailModalProps = {
@@ -76,7 +77,8 @@ export function PortalDemurrageDetailModal({
               </div>
             </Card>
 
-            {invoice.pix_payload ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
+            <PixSimulationNotice state={invoice.pix_integration_state} />
+            {!invoice.pix_integration_state?.startsWith('simulation:') && invoice.pix_payload ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
             </>
           )
         })() : null}

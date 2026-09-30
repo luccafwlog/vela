@@ -15,6 +15,8 @@ export type ActiveAlertType =
   | 'portal_dispute_opened'
   | 'demurrage'
   | 'pix_unreconciled'
+  | 'pix_review'
+  | 'pix_ptax_pending'
   | 'billing_calculation_blocked'
   | 'billing_auto_issue_failed'
   | 'import_effect_blocked'
@@ -56,6 +58,8 @@ export const TYPE_LABELS: Record<string, string> = {
   portal_dispute_opened: 'Disputa de invoice Demurrage',
   demurrage: 'Demurrage',
   pix_unreconciled: 'PIX sem conciliação segura',
+  pix_review: 'Cobrança Pix em análise',
+  pix_ptax_pending: 'PTAX pendente na cobrança Pix',
   billing_calculation_blocked: 'Cálculo bloqueado',
   billing_auto_issue_failed: 'Falha de emissão automática',
   import_effect_blocked: 'Efeito de importação bloqueado',
@@ -101,6 +105,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   exchange_rate_reference: 'Referência cambial',
   import_effect: 'Efeito de importação',
   pix_transaction: 'Transação PIX',
+  pix_charge: 'Cobrança Pix',
 }
 
 export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'administrativo'
@@ -279,7 +284,7 @@ export function alertEntityLink(alert: {
     return alert.destination ?? '/clientes/comunicacao'
   }
 
-  if (alert.entity_type === 'pix_transaction') return '/reconciliacao'
+  if (alert.entity_type === 'pix_transaction' || alert.entity_type === 'pix_charge') return '/reconciliacao'
   if (effectiveType === 'portal_dispute_opened' && alert.entity_type === 'demurrage_invoice') {
     const disputeId = alert.metadata?.dispute_id
     return typeof disputeId === 'string' || typeof disputeId === 'number'
@@ -379,7 +384,7 @@ export function alertEntityLinkLabel(alert: {
   if (effectiveType === 'review_portal_not_ready') return 'Abrir Portal'
   if (effectiveType === 'review_granite_customer_unlinked') return 'Abrir Granito'
   if (effectiveType.startsWith('review_')) return 'Revisar B/Ls'
-  if (alert.entity_type === 'pix_transaction') return 'Abrir Reconciliação'
+  if (alert.entity_type === 'pix_transaction' || alert.entity_type === 'pix_charge') return 'Abrir Reconciliação'
   if (alert.entity_type === 'customer') return 'Abrir Portal'
   if (alert.entity_type === 'invoice') return 'Ver Fatura'
   if (alert.entity_type === 'demurrage_invoice') return 'Ver Demurrage'

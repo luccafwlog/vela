@@ -46,6 +46,7 @@ export async function itauPixRequest(
     if (operation.method === 'PUT' && (!operation.amount || !operation.expiresAt)) throw new Error('Criação Pix exige valor e expiração.')
     if (operation.method === 'PATCH' && operation.expiresAt && !operation.createdAt) throw new Error('Renovação Pix exige data original de criação.')
   }
+  // ponytail: hosts de produção fixos; o sandbox exige base configurável antes de ligar ao processador.
   const tokenResponse = await config.fetchWithMtls('https://sts.itau.com.br/api/oauth/token', {
     method: 'POST', signal: AbortSignal.timeout(15000),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -67,7 +68,9 @@ export async function itauPixRequest(
   if (!cob || cob.txid !== operation.txid || !Number.isSafeInteger(cob.revisao) || (cob.revisao ?? -1) < 0 || typeof cob.status !== 'string' ||
       !cob.calendario || !Number.isFinite(Date.parse(cob.calendario.criacao)) || !Number.isSafeInteger(cob.calendario.expiracao) ||
       !cob.valor || typeof cob.valor.original !== 'string' || !/^\d+\.\d{2}$/.test(cob.valor.original) ||
-      (operation.amount !== undefined && cob.valor.original !== operation.amount && cob.status === 'ATIVA') ||
+      // Escrita só confirma cobrança ATIVA com o valor pedido; CONCLUIDA ou
+      // outro estado exige consulta e decisão do processador, nunca sucesso.
+      (operation.method !== 'GET' && !operation.cancel && (cob.status !== 'ATIVA' || (operation.amount !== undefined && cob.valor.original !== operation.amount))) ||
       (operation.cancel && !['REMOVIDA_PELO_USUARIO_RECEBEDOR','CONCLUIDA'].includes(cob.status))) {
     throw new Error('Resposta Itaú não confirma a cobrança solicitada; consultar antes de repetir.')
   }

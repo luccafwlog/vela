@@ -429,7 +429,7 @@ para eles vale o backup do próprio Supabase.
 ## Simulação Pix Itaú — somente ambiente controlado
 
 - Código: `supabase/functions/itau-pix-simulation/index.ts`; não publicado nesta
-  preparação. A migration `114` não agenda cron nem ativa integração bancária.
+  preparação. As migrations `114` e `115` não agendam cron nem ativam integração bancária.
 - Configuração backend: `PIX_SIMULATION_ENABLED` (exige `true`) e
   `PIX_SIMULATION_RUNNER_SECRET` (mínimo 32 caracteres). Guardar no arquivo de
   ambiente local do Supabase, fora do Git; em eventual Preview autorizada,

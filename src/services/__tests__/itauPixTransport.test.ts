@@ -35,3 +35,12 @@ it('consulta e cancela com transporte mTLS fornecido, sem repetir a escrita', as
   expect(JSON.parse(fetchWithMtls.mock.calls[3][1].body)).toEqual({ status: 'REMOVIDA_PELO_USUARIO_RECEBEDOR' })
   expect(fetchWithMtls.mock.calls[3][1].headers.auth).toBe('token-ficticio')
 })
+
+it('não trata como confirmada a alteração que encontra a cobrança já concluída', async () => {
+  const txid = 'c'.repeat(32)
+  const fetchWithMtls = vi.fn()
+    .mockResolvedValueOnce(Response.json({ access_token: 'token-ficticio' }))
+    .mockResolvedValueOnce(Response.json({ txid, revisao: 1, status: 'CONCLUIDA', calendario: { criacao: '2026-10-02T13:00:00Z', expiracao: 86400 }, valor: { original: '100.00' } }))
+  const config = { enabled: true, validated: true, clientId: 'ficticio', clientSecret: 'ficticio', pixKey: 'ficticia', authHeader: 'auth' as const, tokenFormat: 'raw' as const, fetchWithMtls }
+  await expect(itauPixRequest(config, { method: 'PATCH', txid, amount: '125.00' })).rejects.toThrow('não confirma')
+})
