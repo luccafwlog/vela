@@ -947,8 +947,10 @@ function timelineTerminalDatesLabel(parsed: Record<string, unknown>): string {
     .filter(([, value]) => value !== null && value !== undefined && String(value).trim())
     .map(([label, value]) => `${label}: ${label === 'Restow' ? value : formatDate(String(value))}`)
 
-  return dates.length ? dates.join(' · ') : 'Datas operacionais atualizadas'
+  return dates.length ? dates.join(' · ') : NO_TERMINAL_DATES
 }
+
+const NO_TERMINAL_DATES = 'Datas operacionais atualizadas'
 
 function buildScheduleTimeline(
   scheduleEvents: TimelineAuditEvent[] | null | undefined,
@@ -973,6 +975,11 @@ function buildScheduleTimeline(
       const operation = timelineOperationLabel(parsed) ?? timelineOperationLabel(previous)
       let title: string
       let detail: string
+
+      // Registros antigos de inicialização implícita (sem data / sem terminal)
+      // não representam ação do operador.
+      if (row.field_name === 'terminal_dates' && timelineTerminalDatesLabel(parsed) === NO_TERMINAL_DATES && timelineTerminalDatesLabel(previous) === NO_TERMINAL_DATES) continue
+      if (row.field_name === 'front_created' && !parsed.terminal_id) continue
 
       if (row.field_name === 'front_created') {
         const terminal = timelineTerminalLabel(parsed)
@@ -1145,6 +1152,18 @@ function buildAuditTimeline(
         at,
         title: `Escala de ${omittedPod} omitida · Porto de Transbordo — ${value}${suffix}`,
         detail: appendActor('Omissão registrada', row),
+      })
+      continue
+    }
+
+    if (row.field_name === 'bl_deleted') {
+      const reason = String(row.justification ?? '').trim()
+      events.push({
+        id: `audit-bl-deleted-${index}`,
+        kind: 'voyage-data',
+        at,
+        title: `B/L ${oldValue || '—'} excluído`,
+        detail: appendActor(reason ? `Motivo: ${reason}` : 'Exclusão registrada', row),
       })
       continue
     }

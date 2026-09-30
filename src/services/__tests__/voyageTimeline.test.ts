@@ -38,14 +38,33 @@ describe('timeline operacional de transbordo', () => {
         entity_id: '9::BRSSA',
         field_name: 'front_created',
         old_value: null,
-        new_value: JSON.stringify({ sentido: 'importacao', modalidade: 'carga_cheia', terminal_code: 'TBC' }),
+        new_value: JSON.stringify({ sentido: 'importacao', modalidade: 'carga_cheia', terminal_id: 't-1', terminal_code: 'TCP' }),
         changed_at: '2026-08-24T21:41:00Z',
       }],
     })
 
-    expect(events[0].title).toBe('Carga cheia de importação registrada · BRSSA')
-    expect(events[0].detail).toBe('Terminal: TBC (pendente de atribuição)')
+    expect(events[0].title).toBe('Terminal definido para carga cheia de importação · BRSSA')
+    expect(events[0].detail).toBe('Terminal: TCP')
     expect(events[0].detail).not.toContain('carga_cheia')
+  })
+
+  it('registra a exclusão de B/L com número e motivo', () => {
+    const events = buildVoyageTimeline({
+      auditEvents: [{ entity_type: 'voyages', entity_id: '9', field_name: 'bl_deleted', old_value: 'BL123', new_value: 'excluído', justification: 'duplicado', changed_at: '2026-08-24T21:41:00Z' }],
+    })
+    expect(events[0].title).toBe('B/L BL123 excluído')
+    expect(events[0].detail).toContain('Motivo: duplicado')
+  })
+
+  it('não exibe inicialização implícita: frente sem terminal e terminal sem datas', () => {
+    const base = { entity_type: 'voyage_pod_schedule', entity_id: '9::BRVIX', old_value: null, changed_at: '2026-08-24T21:41:00Z' }
+    const events = buildVoyageTimeline({
+      scheduleEvents: [
+        { ...base, field_name: 'front_created', new_value: JSON.stringify({ sentido: 'importacao', modalidade: 'carga_cheia', terminal_id: null }) },
+        { ...base, field_name: 'terminal_dates', new_value: JSON.stringify({ terminal_id: 't-1', terminal_atb: null, terminal_atd: null, terminal_rtw: null }) },
+      ],
+    })
+    expect(events).toEqual([])
   })
 
   it('não exibe alteração de CE quando o valor novo é igual ao anterior', () => {

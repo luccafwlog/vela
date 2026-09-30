@@ -460,7 +460,7 @@ describe('EscalaModal', () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('ETB T-NORTE')))
   })
 
-  it('exige justificativa para alterar expectativa em escala já revisionada mesmo sem terminal atribuído', async () => {
+  it('não exige justificativa para declarar a exportação pela primeira vez em escala já revisionada', async () => {
     const user = userEvent.setup()
     const onSaved = renderEscala({
       ...escalaBase,
@@ -476,8 +476,8 @@ describe('EscalaModal', () => {
     await user.click(screen.getByRole('button', { name: 'Granito' }))
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
 
-    expect(onSaved).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert').textContent).toContain('justificativa')
+    await waitFor(() => expect(onSaved).toHaveBeenCalled())
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('não exige justificativa por diferença de formato nas datas nem por resíduos com exportação desligada', async () => {

@@ -134,6 +134,10 @@ vi.mock('../../hooks/useAppSettings', () => ({
   useSetCommunicationsEnabled: () => mockSetCommunicationsMutation,
 }))
 
+vi.mock('../../hooks/useBls', () => ({
+  useVoyageOptions: () => ({ data: [{ id: 1, voyage_number: '123', vessel: { name: 'COSCO SHIPPING XING WANG' } }] }),
+}))
+
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
     effectiveRole: 'administrativo',
@@ -281,7 +285,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent?.trim())).toEqual([
-      'Viagem', 'Clientes', 'NOA', 'NOR', 'NOB', 'CE / Taxas',
+      'Viagem', 'Clientes', 'CE / Taxas', 'NOA', 'NOR', 'NOB',
     ])
   })
 

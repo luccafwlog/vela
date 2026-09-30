@@ -4,6 +4,16 @@
 
 ## 2026-09
 
+- **Ajustes de Escala, B/L e Comunicação (2026-09-30):** modais só fecham pelo botão ou Esc
+  (não mais ao clicar fora). Migration `111`: salvar a escala não audita mais terminal
+  sem datas nem frente sem terminal, e a justificativa só é exigida ao alterar dado já
+  informado (troca/remoção de terminal, data preenchida, exportação já declarada), não ao
+  preencher pela primeira vez. Migration `112`: excluir B/L grava o evento `bl_deleted` na
+  linha do tempo da viagem. Natureza do container (Standard/OOG/IMO) editável na aba Carga
+  do B/L. A importação de carga solta passa a calcular as taxas locais (antes ficava
+  `not_calculated`). Filtro Navio/Viagem do modo Carga sugere os navios do sistema;
+  Cobertura de Viagens centralizada, com CE / Taxas logo após Clientes.
+
 - **Conclusão da remediação das auditorias #654–#660 e otimização do LineUp TV (2026-09-29):**
   todas as etapas do plano de remediação foram concluídas e comprovadas com testes e
   validações de runtime em produção. No runtime operacional: o payload PIX estático foi

@@ -354,7 +354,7 @@ export function ChegadasSaidas() {
       />
 
       {dialogOpen && canWrite && (
-        <div className="app-modal-backdrop" onClick={closeDialog}>
+        <div className="app-modal-backdrop">
           <div className="app-modal" onClick={(event) => event.stopPropagation()} style={{ maxWidth: 760 }}>
             <div className="app-modal__header">
               <h2 className="app-modal__title">{editingId ? 'Editar Viagem Publicada' : 'Adicionar Navio'}</h2>

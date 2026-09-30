@@ -314,11 +314,6 @@ function orderTerminalIds(
   }))).map((terminal) => terminal.terminalId as string)
 }
 
-function sameDraft(left: Record<string, unknown>, right: Record<string, unknown>) {
-  const normalize = (value: Record<string, unknown>) => Object.entries(value).sort(([a], [b]) => a.localeCompare(b))
-  return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right))
-}
-
 function sameExportExpectation(left: Record<string, unknown>, right: Record<string, unknown>) {
   const normalize = (value: Record<string, unknown>) => ({
     ...value,
@@ -347,7 +342,6 @@ function buildTerminalPayload({
   terminalScale,
   terminalFronts,
   terminalDates,
-  terminalStateChanged,
   justification,
   exportExpectation,
   initialExportExpectation,
@@ -355,7 +349,6 @@ function buildTerminalPayload({
   terminalScale: EscalaModalTerminalScale | null
   terminalFronts: Record<string, string>
   terminalDates: Record<string, TerminalDatesDraft>
-  terminalStateChanged: boolean
   justification: string
   exportExpectation: Record<string, unknown>
   initialExportExpectation: Record<string, unknown>
@@ -428,21 +421,19 @@ function buildTerminalPayload({
     })
   }
 
-  const submittedFronts = fronts
-    .map((front) => `${front.sentido}:${front.modalidade}:${front.terminalId ?? ''}:${front.source}`)
-    .sort()
-  const persistedFronts = terminalScale.fronts
-    .map((front) => `${front.sentido}:${front.modalidade}:${front.terminalId ?? ''}:${front.source}`)
-    .sort()
-  const realizedDateChanged = terminals.some((terminal) => {
-    const previous = terminalScale.terminals.find((candidate) => candidate.terminalId === terminal.terminalId)
-    return (previous?.atb != null && !sameDateTimeValue(previous.atb, terminal.atb))
-      || (previous?.atd != null && !sameDateTimeValue(previous.atd, terminal.atd))
+  // Justificativa só para alterar dado já informado; preencher vazio não exige.
+  const assignedTerminalAltered = terminalScale.fronts.some((persisted) =>
+    persisted.terminalId != null
+    && fronts.find((front) => frontKey(front) === frontKey(persisted))?.terminalId !== persisted.terminalId)
+  const datesAltered = terminalScale.terminals.some((previous) => {
+    const current = terminals.find((terminal) => terminal.terminalId === previous.terminalId)
+    return (['etb', 'atb', 'etd', 'atd'] as const).some((field) =>
+      previous[field] != null && !sameDateTimeValue(previous[field], current?.[field]))
+      || (previous.restow != null && previous.restow !== current?.restow)
   })
-  const terminalizedStateChanged = terminalStateChanged
-    || JSON.stringify(submittedFronts) !== JSON.stringify(persistedFronts)
-  const exportExpectationChanged = !sameExportExpectation(exportExpectation, initialExportExpectation)
-  if (terminalScale.revision > 0 && (terminalizedStateChanged || exportExpectationChanged || realizedDateChanged) && !justification.trim()) {
+  const exportExpectationChanged = initialExportExpectation.tem_exportacao === true
+    && !sameExportExpectation(exportExpectation, initialExportExpectation)
+  if (terminalScale.revision > 0 && (assignedTerminalAltered || datesAltered || exportExpectationChanged) && !justification.trim()) {
     return { error: 'Informe a justificativa para alterar o estado terminalizado existente da escala.' }
   }
 
@@ -778,15 +769,6 @@ export function EscalaModal({
   const terminalIds = terminalScale
     ? orderTerminalIds(terminalScale, terminalFronts, terminalDates, terminalById)
     : []
-  const initialTerminalFronts = Object.fromEntries(
-    (terminalScale?.fronts ?? []).map((front) => [frontKey(front), front.terminalId ?? '']),
-  )
-  const initialTerminalDates = Object.fromEntries(
-    (terminalScale?.terminals ?? []).map((terminal) => [terminal.terminalId ?? '__tbc__', terminalToDatesDraft(terminal)]),
-  )
-  const terminalStateChanged = terminalScale
-    ? !sameDraft(terminalFronts, initialTerminalFronts) || !sameDraft(terminalDates, initialTerminalDates)
-    : false
   const hasPriorTerminalAssignment = Boolean(
     terminalScale?.fronts.some((front) => front.terminalId !== null) || terminalScale?.terminals.length,
   )
@@ -899,7 +881,6 @@ export function EscalaModal({
       terminalScale,
       terminalFronts,
       terminalDates,
-      terminalStateChanged,
       justification,
       exportExpectation: {
         tem_exportacao: temExportacao,

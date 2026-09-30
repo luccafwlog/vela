@@ -33,6 +33,7 @@ import { extractReviewReasons } from '../hooks/useReview'
 import { listDemurrageInvoices } from '../services/demurrage/demurrageInvoices'
 import { listDepots } from '../services/depots'
 import { setBlTerminalOverride } from '../services/blTerminal'
+import { setContainerProfile, type ContainerProfile } from '../services/vaziosNatureza'
 import { buildDocumentalRail, buildOperationalRail, pickNextAction, summarizeDocumentalRail } from '../services/blRails'
 import { getBlPortalStatus } from '../services/blPortalStatus'
 import { queryKeys } from '../services/queryKeys'
@@ -155,6 +156,18 @@ export function BlDetalhe() {
         queryClient.invalidateQueries({ queryKey: queryKeys.auditLogs.detail('bl', bl?.id) }),
       ])
     },
+  })
+  const containerProfileMutation = useMutation({
+    mutationFn: (input: { containerId: number; profile: ContainerProfile }) => setContainerProfile(input.containerId, input.profile),
+    onSuccess: async () => {
+      await Promise.all([
+        afterBlEstadoAlterado(queryClient, { blId: bl!.id, voyageId: bl!.voyage_id }),
+        queryClient.invalidateQueries({ queryKey: ['containers'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.auditLogs.detail('bl', bl?.id) }),
+      ])
+      showToast('Natureza do container atualizada.', 'success')
+    },
+    onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao alterar a natureza do container.'), 'error'),
   })
   const cargoMode = useMemo(() => resolveCargoMode(bl), [bl])
   const isContainerMode = cargoMode === 'container'
@@ -371,6 +384,7 @@ export function BlDetalhe() {
         isContainerMode={isContainerMode}
         containerSummary={containerSummary}
         breakbulkSummary={breakbulkSummary}
+        onChangeProfile={cancelledAt ? undefined : (containerId, profile) => containerProfileMutation.mutate({ containerId, profile })}
       />
 
       <BlDetalhesTab

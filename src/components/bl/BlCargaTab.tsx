@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Badge } from '../ui/Badge'
 import { Card } from '../ui/Card'
-import { Field, Input } from '../ui/Input'
+import { Field, Input, Select } from '../ui/Input'
 import { formatDate, normalizeText } from '../../lib/utils'
+import type { ContainerProfile } from '../../services/vaziosNatureza'
 import { formatNumber } from '../../pages/blDetalheHelpers'
 import type { BLDetail } from '../../types/database'
 
@@ -30,7 +31,9 @@ export function BlCargaTab({
   isContainerMode,
   containerSummary,
   breakbulkSummary,
+  onChangeProfile,
 }: {
+  onChangeProfile?: (containerId: number, profile: ContainerProfile) => void
   active: boolean
   bl: BLDetail
   blId?: string
@@ -79,6 +82,7 @@ export function BlCargaTab({
                   <th scope="col" className="py-2">CBM</th>
                   <th scope="col" className="py-2">OOG</th>
                   <th scope="col" className="py-2">IMO</th>
+                  {onChangeProfile ? <th scope="col" className="py-2">Natureza</th> : null}
                   <th scope="col" className="py-2">Descarga</th>
                 </tr>
               </thead>
@@ -94,12 +98,26 @@ export function BlCargaTab({
                       <td className="py-2">{formatNumber(container.cbm)}</td>
                       <td className="py-2">{container.is_oog ? <Badge tone="yellow">OOG</Badge> : '-'}</td>
                       <td className="py-2">{container.is_imo ? <Badge tone="red">IMO</Badge> : '-'}</td>
+                      {onChangeProfile ? (
+                        <td className="py-2">
+                          <Select
+                            aria-label={`Perfil do container ${container.container_number}`}
+                            value={container.is_imo ? (container.is_oog ? 'imo_oog' : 'imo') : container.is_oog ? 'oog' : 'standard'}
+                            onChange={(event) => onChangeProfile(container.id, event.target.value as ContainerProfile)}
+                          >
+                            <option value="standard">Standard</option>
+                            <option value="oog">OOG</option>
+                            <option value="imo">IMO</option>
+                            <option value="imo_oog">IMO + OOG</option>
+                          </Select>
+                        </td>
+                      ) : null}
                       <td className="py-2 text-slate-300">{container.discharge_date ? formatDate(container.discharge_date) : <span className="text-slate-500">—</span>}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td className="py-3 text-slate-400" colSpan={9}>
+                    <td className="py-3 text-slate-400" colSpan={10}>
                       Nenhum container vinculado a este B/L.
                     </td>
                   </tr>
