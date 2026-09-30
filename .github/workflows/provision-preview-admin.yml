@@ -25,11 +25,13 @@ jobs:
       github.event.workflow_run.pull_requests[0].head.repo.id == github.event.repository.id &&
       github.event.workflow_run.pull_requests[0].number
     runs-on: ubuntu-latest
+    # Environment com deployment branch = main (auditoria run-2, #14): o token
+    # só existe para jobs que rodam a partir de main.
+    environment: supabase-branches
     env:
       GH_TOKEN: ${{ github.token }}
       PR_HEAD_REF: ${{ github.event.workflow_run.pull_requests[0].head.ref }}
       PR_HEAD_SHA: ${{ github.event.workflow_run.pull_requests[0].head.sha }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       # Cópia sob nome próprio: o step "Load branch credentials" despeja a saída
       # do CLI em $GITHUB_ENV, e uma chave `SUPABASE_PROJECT_REF` vinda de lá
@@ -38,17 +40,18 @@ jobs:
       PRODUCTION_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       PREVIEW_ADMIN_EMAIL: qa-admin@example.test
       PREVIEW_ADMIN_FULL_NAME: Preview Admin
-      PREVIEW_ADMIN_PASSWORD: ${{ secrets.PREVIEW_ADMIN_PASSWORD }}
+    # Secrets só no `env` dos steps que os usam (auditoria run-2, #14): npm ci
+    # e os demais steps não os recebem.
     steps:
       # workflow_run executa no contexto padrão; explicitar a branch impede que
       # o script seja substituído pelo conteúdo não confiável da PR.
       - name: Checkout trusted provisioning code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.repository.default_branch }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '24'
           cache: npm
@@ -57,7 +60,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v3
+        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3
         with:
           version: 2.113.0
 
@@ -76,6 +79,7 @@ jobs:
         shell: bash
         env:
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
           : "${PR_NUMBER:?PR_NUMBER ausente}"
@@ -156,6 +160,8 @@ jobs:
 
       - name: Load branch credentials
         if: steps.readiness.outputs.readiness == 'ready'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         # O `-o env` do CLI emite formato dotenv (`KEY="valor"`). O $GITHUB_ENV
         # espera `KEY=valor` cru e não remove aspas: anexar sem decodificar
         # deixava cada credencial com aspas literais e o provisionamento
@@ -171,4 +177,6 @@ jobs:
 
       - name: Provision test admin
         if: steps.readiness.outputs.readiness == 'ready'
+        env:
+          PREVIEW_ADMIN_PASSWORD: ${{ secrets.PREVIEW_ADMIN_PASSWORD }}
         run: node scripts/provision-preview-admin.mjs

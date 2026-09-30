@@ -57,6 +57,8 @@ Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-re
 | Supabase → **Vault** (`vault.secrets`) | segredos que os jobs `pg_cron` enviam às Functions | só o banco; ver [segredos-cron.md](segredos-cron.md) |
 | GitHub → **Settings → Secrets and variables → Actions** | tokens de deploy e valores públicos de build | workflows |
 | GitHub → environment **`cloudflare-production`** | as 7 variáveis `VITE_*` do build de produção do Pages | só o workflow de produção, só na branch `main` |
+| GitHub → environment **`cloudflare-pages`** (a criar, Fase 1 da run-2) | `CLOUDFLARE_PAGES_API_TOKEN` | jobs `publish` da preview, limpeza e provisionamento do Pages; deployment branch = `main` |
+| GitHub → environment **`supabase-branches`** (a criar, Fase 1 da run-2) | `SUPABASE_ACCESS_TOKEN`, `PREVIEW_ADMIN_PASSWORD` | job `prepare` da preview e `provision-preview-admin`; deployment branch = `main` |
 | Windows do computador do backup → **variáveis do usuário** | `SUPABASE_DB_URL`, `BACKUP_ENCRYPTION_KEY_HEX`, `R2_*`, `BACKUP_ALLOW_PRODUCTION` | tarefa agendada do backup |
 | Windows → **Gerenciador de Credenciais** | `VelaBackup/R2AccessKeyId`, `VelaBackup/R2SecretAccessKey`, `VelaBackup/EncryptionKey` | o dono, para reconfigurar o backup |
 | iCloud Senhas do dono | `vela-backup` (chave de cifragem), `supabase-db-vela` (senha do banco) | cópia fora do computador |
@@ -390,6 +392,13 @@ para eles vale o backup do próprio Supabase.
   candidato a remoção).
 - **Variables:** `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_ACCESS_CONFIGURED`,
   `CLOUDFLARE_PAGES_PRODUCTION_ENABLED`.
+- **Environments (auditoria run-2, #14):** os workflows já declaram
+  `cloudflare-pages` e `supabase-branches`. Enquanto os environments não
+  tiverem os secrets, os jobs leem as cópias em Repository secrets. Ao mover:
+  criar os dois com *deployment branch* = `main`, pôr os secrets neles, pôr
+  também `CLOUDFLARE_PAGES_API_TOKEN` em `cloudflare-production` (o workflow de
+  produção usa esse environment) e só então apagar as cópias do repositório.
+  As actions dos workflows com token estão fixadas por SHA.
 - **Regras:** o `main` exige revisão; merges sem revisor usam `--admin`, com
   autorização do dono a cada PR.
 
