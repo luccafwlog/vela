@@ -121,8 +121,9 @@ export function initTelemetry(surface?: TelemetrySurface): void {
         if (breadcrumb.data) breadcrumb.data = scrubBreadcrumbData(breadcrumb.data)
       })
       if (event.request) {
-        if (event.request.url) event.request.url = redactUrlQueryString(event.request.url)
-        if (event.request.headers?.Referer) event.request.headers.Referer = redactUrlQueryString(event.request.headers.Referer)
+        // scrubPii também cobre CNPJ no caminho (/clientes/<cnpj>).
+        if (event.request.url) event.request.url = scrubPii(redactUrlQueryString(event.request.url))
+        if (event.request.headers?.Referer) event.request.headers.Referer = scrubPii(redactUrlQueryString(event.request.headers.Referer))
       }
       if (event.tags) {
         Object.entries(event.tags).forEach(([key, val]) => {

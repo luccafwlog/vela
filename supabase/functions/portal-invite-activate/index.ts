@@ -1,9 +1,11 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { hashToken } from '../_shared/portalToken.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
+import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
 import { isActivationRateLimited, registerActivationFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
 
+const PENDING_SITUATIONS = ['convite_pendente', 'convite_expirado', 'falha_no_envio']
 const GENERIC_INVALID = 'Link inválido ou expirado. Solicite um novo convite à empresa.'
 
 if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
@@ -26,22 +28,27 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
   }
   if (!valid) return cors(410, { error: GENERIC_INVALID })
   if (body.action !== 'activate' || typeof body.password !== 'string') return cors(400, { error: GENERIC_INVALID })
-  const { data: accountForRateLimit } = await admin.from('customer_portal_accounts').select('login_cnpj').eq('id', invite.account_id).maybeSingle()
+  const { data: accountForRateLimit } = await admin.from('customer_portal_accounts').select('login_cnpj, account_situation, auth_user_id').eq('id', invite.account_id).maybeSingle()
+  // Só ativa conta à espera do convite e ainda sem usuário técnico (auditoria
+  // run-2, reforço): convite de conta suspensa ou já ativa não vale.
+  if (!accountForRateLimit || accountForRateLimit.auth_user_id || !PENDING_SITUATIONS.includes(accountForRateLimit.account_situation)) return cors(410, { error: GENERIC_INVALID })
   const loginCnpj = typeof accountForRateLimit?.login_cnpj === 'string' ? accountForRateLimit.login_cnpj : ''
   if (!loginCnpj || await isActivationRateLimited(admin, loginCnpj, { ip: requestIp(req) })) return cors(429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' })
   if (!isValidPassword(body.password)) {
     await registerActivationFailure(admin, loginCnpj, { ip: requestIp(req) })
     return cors(422, { error: PASSWORD_RULE_MESSAGE })
   }
+  // O GoTrue guarda HMAC(pepper, senha) (auditoria run-2, #7); sem pepper, não ativa.
+  const authPassword = await derivePortalAuthPassword(body.password, portalPasswordPepper())
   const { data: consumed } = await admin.from('portal_invites').update({ status: 'consumido', consumed_at: new Date().toISOString() }).eq('id', invite.id).eq('status', 'pendente').gt('expires_at', new Date().toISOString()).select('id').maybeSingle()
   if (!consumed) return cors(410, { error: GENERIC_INVALID })
   const technicalEmail = `p-${crypto.randomUUID()}@${Deno.env.get('PORTAL_TECH_EMAIL_DOMAIN') ?? 'portal-interno.transhippingdesk.invalid'}`
-  const { data: created, error: createError } = await admin.auth.admin.createUser({ email: technicalEmail, password: body.password, email_confirm: true })
+  const { data: created, error: createError } = await admin.auth.admin.createUser({ email: technicalEmail, password: authPassword, email_confirm: true })
   if (createError || !created.user) {
-    await admin.from('portal_invites').update({ status: 'pendente', consumed_at: null }).eq('id', invite.id)
+    await admin.from('portal_invites').update({ status: 'pendente', consumed_at: null }).eq('id', invite.id).eq('status', 'consumido')
     return cors(500, { error: 'Não foi possível ativar. Tente novamente.' })
   }
-  const { data: account, error: accountError } = await admin.from('customer_portal_accounts').update({ auth_user_id: created.user.id, active: true, account_situation: 'ativo' }).eq('id', invite.account_id).select('customer_id, provisioning_decision, account_situation').single()
+  const { data: account, error: accountError } = await admin.from('customer_portal_accounts').update({ auth_user_id: created.user.id, active: true, account_situation: 'ativo' }).eq('id', invite.account_id).is('auth_user_id', null).in('account_situation', PENDING_SITUATIONS).select('customer_id, provisioning_decision, account_situation').single()
   if (accountError || !account) {
     await admin.auth.admin.deleteUser(created.user.id)
     await admin.from('portal_invites').update({ status: 'pendente', consumed_at: null }).eq('id', invite.id).eq('status', 'consumido')

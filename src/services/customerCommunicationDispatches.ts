@@ -19,6 +19,8 @@ export type CustomerCommunicationDispatchInput = {
   recipient: string
   subject: string
   html: string
+  /** Texto escrito pela equipe em `livre`/`institucional`; o servidor renderiza a partir dele. */
+  messageBody?: string
   text: string
   blIds?: readonly string[]
   anchorVoyageId?: number | null
@@ -88,6 +90,7 @@ export function customerCommunicationDispatchPayload(input: CustomerCommunicatio
     subject: input.subject,
     html: input.html,
     text: input.text,
+    message_body: input.messageBody ?? null,
     bl_ids: [...(input.blIds ?? [])],
     anchor_voyage_id: input.anchorVoyageId ?? null,
     anchor_port: input.anchorPort?.trim().toUpperCase() || null,

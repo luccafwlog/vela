@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { corsHeaders, withCors } from '../_shared/cors.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttachment, type EmailAttemptRecord } from '../_shared/email.ts'
@@ -29,6 +29,9 @@ type DispatchPayload = {
   subject?: string
   html?: string
   text?: string
+  // Texto escrito pela equipe em `livre`/`institucional`; o servidor renderiza
+  // o e-mail a partir dele e ignora html/text do navegador (auditoria run-2, #10).
+  message_body?: string
   bl_ids?: string[]
   anchor_voyage_id?: number | null
   anchor_port?: string | null
@@ -66,6 +69,48 @@ function normalizeEmail(value: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+// Renderiza `livre`/`institucional` com o nome do Cliente e o escopo lidos do
+// banco; o HTML enviado pelo navegador nunca chega ao destinatário.
+async function renderUserWrittenCommunication(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cliente sem tipos do banco, como os demais helpers daqui
+  admin: any,
+  input: { kind: 'livre' | 'institucional'; customerId: number; subject: string; messageBody: string; blIds: string[]; port: string | null },
+): Promise<{ subject: string; html: string; text: string; blIds: string[] }> {
+  const { data: customer, error: customerError } = await admin
+    .from('customers')
+    .select('name')
+    .eq('id', input.customerId)
+    .single()
+  if (customerError || !customer?.name) throw new Error('Cliente não encontrado para o comunicado.')
+  let vesselName = ''
+  let voyageNumber = ''
+  let port = input.port?.trim() ?? ''
+  if (input.blIds.length > 0) {
+    const { data: bl, error: blError } = await admin
+      .from('bls')
+      .select('pod, voyage:voyages(voyage_number, vessel:vessels(name))')
+      .eq('id', input.blIds[0])
+      .single()
+    if (blError || !bl) throw new Error('Não foi possível conferir os B/Ls do comunicado.')
+    const row = bl as unknown as { pod: string | null; voyage: { voyage_number: string | null; vessel: { name: string | null } | null } | null }
+    vesselName = row.voyage?.vessel?.name ?? ''
+    voyageNumber = row.voyage?.voyage_number ?? ''
+    port = port || (row.pod ?? '')
+  }
+  const rendered = renderCustomerCommunicationTemplate(input.kind, {
+    customerId: input.customerId,
+    customerName: customer.name,
+    vesselName,
+    voyageNumber,
+    port,
+    milestoneAt: '',
+    subject: input.subject,
+    body: input.messageBody,
+    bls: input.blIds.map((id) => ({ id, customerId: input.customerId })),
+  })
+  return { subject: rendered.subject, html: rendered.html, text: rendered.text, blIds: rendered.blIds }
 }
 
 function parsePayload(value: unknown): DispatchPayload {
@@ -400,6 +445,9 @@ async function handler(req: Request): Promise<Response> {
     canonicalPayload = { subject: rendered.subject, html: rendered.html, text: rendered.text, blIds: rendered.blIds }
   }
   let effectiveBlIds = canonicalPayload?.blIds ?? blIds
+  const userWrittenKind = kind === 'livre' || kind === 'institucional'
+  const messageBody = String(body.message_body ?? '').trim()
+  if (userWrittenKind && !messageBody) return json(422, { error: 'Assunto e conteúdo do comunicado são obrigatórios.' }, origin)
   const isFixedOperationalAudience = ['aviso_chegada_noa', 'aviso_prontidao_nor', 'aviso_atracacao_nob', 'ce_mercante_taxas'].includes(kind)
   const effectiveAudienceMode = kind === 'institucional'
     ? 'todos'
@@ -490,6 +538,20 @@ async function handler(req: Request): Promise<Response> {
       effectiveBlIds = rendered.blIds
     }
   }
+  if (userWrittenKind) {
+    try {
+      canonicalPayload = await renderUserWrittenCommunication(admin, {
+        kind: kind as 'livre' | 'institucional',
+        customerId,
+        subject,
+        messageBody,
+        blIds: effectiveBlIds,
+        port: body.anchor_port ?? null,
+      })
+    } catch (error) {
+      return json(422, { error: error instanceof Error ? error.message : 'Não foi possível renderizar o comunicado.' }, origin)
+    }
+  }
   const effectiveSubject = canonicalPayload?.subject ?? subject
   const effectiveHtml = canonicalPayload?.html ?? html
   const effectiveText = canonicalPayload?.text ?? text
@@ -562,6 +624,22 @@ async function handler(req: Request): Promise<Response> {
     if (isUniqueViolation(createError)) return json(200, { status: 'simulado', message: 'Comunicado já registrado.' }, origin)
     console.error('customer communication atomic record failed', createError)
     return json(500, { error: 'Não foi possível registrar o comunicado.' }, origin)
+  }
+
+  // Cópia do que saiu: o registro do comunicado guarda assunto, texto e o
+  // hash do HTML efetivamente enviados (auditoria run-2, #10).
+  const { error: renderedError } = await admin
+    .from('customer_communications')
+    .update({
+      rendered_subject: effectiveSubject,
+      rendered_text: effectiveText,
+      rendered_html_sha256: await sha256Hex(effectiveHtml),
+    })
+    .eq('id', communicationId)
+    .is('rendered_subject', null)
+  if (renderedError) {
+    console.error('customer communication rendered copy persistence failed', renderedError)
+    return json(500, { error: 'Não foi possível registrar o conteúdo do comunicado.' }, origin)
   }
 
   if (isAutomation && existingCommunicationId == null) {
