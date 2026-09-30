@@ -52,11 +52,13 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
 async function processRecoveryInBackground(admin: ReturnType<typeof createClient>, cnpj: string) {
   const { data: account } = await admin
     .from('customer_portal_accounts')
-    .select('id, customer_id, account_situation, recovery_email, customers(name, cnpj_cpf)')
+    .select('id, customer_id, account_situation, recovery_email, customers(name, cnpj_cpf, deactivated_at)')
     .eq('login_cnpj', cnpj)
     .maybeSingle()
   if (!account) return
   if (account.account_situation !== 'ativo' || !account.recovery_email) return
+  // Cliente desativado não recebe link (auditoria run-2, reforço).
+  if ((account.customers as { deactivated_at?: string | null } | null)?.deactivated_at) return
   const { data: suppressed } = await admin
     .from('portal_suppressed_emails')
     .select('id')

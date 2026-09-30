@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
+  role: 'administrativo' as string,
   showToast: vi.fn(),
   confirm: vi.fn(),
   listContainers: vi.fn(),
@@ -28,7 +29,7 @@ const mocks = vi.hoisted(() => ({
   print: vi.fn(),
 }))
 
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true, effectiveRole: mocks.role }) }))
 vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
 }))
@@ -271,6 +272,13 @@ describe('Demurrage page behaviours', () => {
     expect(mocks.print).toHaveBeenCalled()
     await user.click(within(report).getByRole('button', { name: 'Fechar modal' }))
     expect(screen.queryByRole('dialog', { name: 'Demurrage em aberto por consignatário' })).toBeNull()
+  })
+
+  it('hides manual PTAX for roles the RPC refuses', () => {
+    mocks.role = 'equipamentos'
+    renderPage()
+    expect(screen.queryByRole('button', { name: 'Informar PTAX' })).toBeNull()
+    mocks.role = 'administrativo'
   })
 
   it('submits manual PTAX, invalidates recalc state, closes and resets the modal', async () => {

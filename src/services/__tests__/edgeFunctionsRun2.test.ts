@@ -101,3 +101,49 @@ describe('reforços da Fase 3', () => {
     expect(sources).not.toMatch(/esm\.sh\/[^'"]+@\d+['"]/)
   })
 })
+
+describe('reforços adicionais das Edge Functions (D4 = b)', () => {
+  it('assinatura e extensão de arquivo', async () => {
+    const { base64Head, matchesExtension, matchesMagicBytes } = await import('../../../supabase/functions/_shared/fileSignature')
+    const pdf = Buffer.from('%PDF-1.7 conteudo').toString('base64')
+    expect(matchesMagicBytes(base64Head(pdf), 'application/pdf')).toBe(true)
+    expect(matchesMagicBytes(base64Head(Buffer.from('<html>').toString('base64')), 'application/pdf')).toBe(false)
+    expect(matchesExtension('fatura.PDF', 'application/pdf')).toBe(true)
+    expect(matchesExtension('fatura.html', 'application/pdf')).toBe(false)
+    expect(matchesExtension('foto.jpeg', 'image/jpeg')).toBe(true)
+  })
+
+  it('anexos de Comunicado e de Dispute conferem conteúdo e extensão', () => {
+    expect(fn('send-customer-communication')).toContain('matchesMagicBytes(base64Head(contentBase64), contentType)')
+    expect(fn('portal-dispute-attachment')).toContain('matchesExtension(file.name, file.type)')
+  })
+
+  it('Dispute confere sessão e cota antes de ler e gravar o arquivo', () => {
+    const source = fn('portal-dispute-attachment')
+    expect(source.indexOf("portal.rpc('portal_check_dispute_attachment_eligibility'")).toBeLessThan(source.indexOf('await file.arrayBuffer()'))
+    expect(source.indexOf("req.headers.get('Content-Length')")).toBeLessThan(source.indexOf('await req.formData()'))
+  })
+
+  it('histórico do Comunicado grava navio e viagem derivados dos B/Ls', () => {
+    const source = fn('send-customer-communication')
+    expect(source).toContain('p_vessel_name: derivedVesselName')
+    expect(source).not.toContain('body.vessel_name')
+  })
+
+  it('Cliente desativado fica fora de recuperação, convite, Comunicados e resumo', () => {
+    expect(fn('portal-password-recovery')).toContain('deactivated_at) return')
+    expect(fn('portal-invite-send')).toContain('Cliente desativado não recebe convite.')
+    expect(fn('send-customer-communication')).toContain('Cliente desativado não recebe Comunicados.')
+    expect(fn('portal-daily-digest')).toContain(".is('customers.deactivated_at', null)")
+  })
+
+  it('troca de e-mail de recuperação exige conta ativa e tem cota diária', () => {
+    const source = fn('portal-recovery-email-change')
+    expect(source).toContain("account.account_situation !== 'ativo'")
+    expect(source).toContain('>= EMAIL_CHANGE_DAILY_LIMIT')
+  })
+
+  it('anexos órfãos de Dispute são removidos pelo job do detector', () => {
+    expect(fn('alerts-detector')).toContain("admin.rpc('list_orphaned_dispute_attachments'")
+  })
+})

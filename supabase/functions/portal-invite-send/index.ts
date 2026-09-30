@@ -25,8 +25,9 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   const email = body.recovery_email.toLowerCase()
   const { data: suppressed } = await admin.from('portal_suppressed_emails').select('id').eq('email', email).maybeSingle()
   if (suppressed) return json(422, { error: 'Endereço suprimido por bounce/complaint. Informe outro.' }, origin)
-  const { data: account } = await admin.from('customer_portal_accounts').select('id, customer_id, account_situation, provisioning_decision, customers(name, cnpj_cpf)').eq('customer_id', body.customer_id).single()
+  const { data: account } = await admin.from('customer_portal_accounts').select('id, customer_id, account_situation, provisioning_decision, customers(name, cnpj_cpf, deactivated_at)').eq('customer_id', body.customer_id).single()
   if (!account) return json(404, { error: 'Cliente não encontrado.' }, origin)
+  if ((account.customers as { deactivated_at?: string | null } | null)?.deactivated_at) return json(409, { error: 'Cliente desativado não recebe convite.' }, origin)
   const resend = account.account_situation === 'convite_pendente' || account.account_situation === 'convite_expirado' || account.account_situation === 'falha_no_envio'
   if (!resend && account.account_situation !== 'sem_conta') return json(409, { error: 'Conta ativa usa recuperação de senha.' }, origin)
   await admin.from('portal_invites').update({ status: 'invalidado_por_reenvio' }).eq('account_id', account.id).eq('status', 'pendente')

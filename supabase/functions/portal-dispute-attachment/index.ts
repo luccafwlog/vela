@@ -1,29 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { withCors } from '../_shared/cors.ts'
+import { matchesExtension, matchesMagicBytes } from '../_shared/fileSignature.ts'
 
 const ALLOWED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'text/plain'])
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
-
-// ponytail: validação de magic bytes em memória para os 4 MIME types permitidos.
-// Teto conhecido: não inspeciona macros ou embeds profundos em PDF;
-// caminho de upgrade é verificação antivírus assíncrona/sandboxed se visualização inline for introduzida.
-function matchesMagicBytes(buffer: Uint8Array, mime: string): boolean {
-  if (buffer.length < 4) return false
-  if (mime === 'application/pdf') {
-    return buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46 // %PDF
-  }
-  if (mime === 'image/png') {
-    return buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47
-  }
-  if (mime === 'image/jpeg') {
-    return buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF
-  }
-  if (mime === 'text/plain') {
-    const slice = buffer.subarray(0, Math.min(buffer.length, 512))
-    return !slice.includes(0x00)
-  }
-  return false
-}
 
 function json(body: { error?: string; code?: string; [key: string]: unknown }, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -58,6 +38,13 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     return json({ error: 'Acesso negado ao Portal.', code: 'FORBIDDEN' }, 403)
   }
 
+  // Corpo acima do teto nem é lido (auditoria run-2, reforço); a folga
+  // cobre o envelope multipart.
+  const declaredLength = Number(req.headers.get('Content-Length') ?? '0')
+  if (declaredLength > MAX_FILE_SIZE + 64 * 1024) {
+    return json({ error: 'Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.', code: 'INVALID_FILE' }, 413)
+  }
+
   const formData = await req.formData().catch(() => null)
   if (!formData) {
     return json({ error: 'Requisição inválida (esperado multipart/form-data).', code: 'BAD_REQUEST' }, 400)
@@ -74,8 +61,19 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     return json({ error: 'Arquivo ou IDs de mensagem/disputa inválidos.', code: 'INVALID_INPUT' }, 422)
   }
 
-  if (!ALLOWED_MIME_TYPES.has(file.type) || file.size <= 0 || file.size > MAX_FILE_SIZE) {
+  if (!ALLOWED_MIME_TYPES.has(file.type) || file.size <= 0 || file.size > MAX_FILE_SIZE || !matchesExtension(file.name, file.type)) {
     return json({ error: 'Anexo inválido. Use PDF, JPG, PNG ou TXT de até 10 MB.', code: 'INVALID_FILE' }, 422)
+  }
+
+  // Sessão revogada, Dispute fechada, cota e limite diário são conferidos
+  // pelo banco antes de o arquivo ser lido e gravado no Storage.
+  const { error: eligibilityError } = await portal.rpc('portal_check_dispute_attachment_eligibility', {
+    p_dispute_id: disputeId,
+    p_size_bytes: file.size,
+  })
+  if (eligibilityError) {
+    const status = eligibilityError.code === '42501' ? 403 : eligibilityError.code === 'P0002' ? 404 : 422
+    return json({ error: eligibilityError.message || 'Anexo não permitido.', code: eligibilityError.code || 'NOT_ELIGIBLE' }, status)
   }
 
   const fileBuffer = await file.arrayBuffer()

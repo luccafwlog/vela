@@ -12,6 +12,31 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
+// Upload do Portal que não virou anexo registrado fica no Storage sem dono
+// (auditoria run-2, reforço). Roda junto do detector, que já tem job; falha
+// aqui não derruba os alertas.
+// ponytail: até 100 objetos por execução; a fila esvazia em poucas rodadas.
+type StorageAdmin = {
+  rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>
+  storage: { from: (bucket: string) => { remove: (paths: string[]) => PromiseLike<{ error: unknown }> } }
+}
+
+async function removeOrphanedDisputeAttachments(admin: StorageAdmin): Promise<number> {
+  const { data, error } = await admin.rpc('list_orphaned_dispute_attachments', { p_older_than: '1 day' })
+  if (error) {
+    console.error('orphaned dispute attachments listing failed', error)
+    return 0
+  }
+  const paths = ((data ?? []) as Array<{ storage_path: string }>).slice(0, 100).map((row) => row.storage_path)
+  if (paths.length === 0) return 0
+  const { error: removeError } = await admin.storage.from('demurrage-disputes').remove(paths)
+  if (removeError) {
+    console.error('orphaned dispute attachments removal failed', removeError)
+    return 0
+  }
+  return paths.length
+}
+
 if (typeof Deno !== 'undefined') {
   const edgeHandler = instrumentEdgeHandler('alerts-detector', async (req) => {
     if (req.method !== 'POST') return new Response(null, { status: 405 })
@@ -31,7 +56,8 @@ if (typeof Deno !== 'undefined') {
       console.error('alerts detector failed', error)
       return new Response(JSON.stringify({ error: 'Detector execution failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
     }
-    return new Response(JSON.stringify(data ?? {}), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    const orphanedDisputeAttachments = await removeOrphanedDisputeAttachments(admin as unknown as StorageAdmin)
+    return new Response(JSON.stringify({ ...(data ?? {}), orphaned_dispute_attachments_removed: orphanedDisputeAttachments }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   })
 
   Deno.serve((req) => {

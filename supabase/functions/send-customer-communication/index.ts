@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { corsHeaders, withCors } from '../_shared/cors.ts'
+import { base64Head, matchesExtension, matchesMagicBytes } from '../_shared/fileSignature.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttachment, type EmailAttemptRecord } from '../_shared/email.ts'
 import {
@@ -383,6 +384,10 @@ async function handler(req: Request): Promise<Response> {
       const actualSize = decodeBase64ByteLength(contentBase64)
       const declaredSize = Number(attachment.size ?? actualSize)
       if (declaredSize !== actualSize) return json(422, { error: `Tamanho inconsistente no anexo ${index + 1}.` }, origin)
+      // Tipo declarado precisa bater com conteúdo e extensão (auditoria run-2, reforço).
+      if (!matchesExtension(filename, contentType) || !matchesMagicBytes(base64Head(contentBase64), contentType)) {
+        return json(422, { error: `O conteúdo do anexo ${index + 1} não corresponde ao tipo informado.` }, origin)
+      }
       attachments.push({ filename, contentType, size: actualSize, contentBase64 })
       emailAttachments.push({ filename, content: contentBase64, contentType })
     }
@@ -396,6 +401,12 @@ async function handler(req: Request): Promise<Response> {
   }
 
   const admin = createClient(url, serviceKey)
+  // Cliente desativado não recebe Comunicado (auditoria run-2, reforço).
+  const { data: targetCustomer, error: targetCustomerError } = await admin.from('customers').select('deactivated_at').eq('id', customerId).maybeSingle()
+  if (targetCustomerError) return json(500, { error: 'Não foi possível conferir o cliente.' }, origin)
+  if (!targetCustomer) return json(422, { error: 'Cliente inválido.' }, origin)
+  if (targetCustomer.deactivated_at) return json(422, { error: 'Cliente desativado não recebe Comunicados.' }, origin)
+
   let canonicalPayload: { subject: string; html: string; text: string; blIds: string[] } | null = null
   // No NOB o histórico grava o terminal que o servidor pôs no e-mail, não o
   // que o navegador mandou.
@@ -459,6 +470,10 @@ async function handler(req: Request): Promise<Response> {
     : effectiveAudienceMode === 'caixa'
       ? body.recipient_box_code ?? null
       : null
+  // Navio e viagem gravados no histórico vêm dos B/Ls, não do navegador
+  // (auditoria run-2, reforço); institucional não tem B/L e grava nulo.
+  let derivedVesselName: string | null = null
+  let derivedVoyageNumber: string | null = null
   if (effectiveBlIds.length > 0) {
     const uniqueBlIds = Array.from(new Set(effectiveBlIds))
     const { data: ownedBls, error: ownedBlsError } = await admin
@@ -470,6 +485,8 @@ async function handler(req: Request): Promise<Response> {
     if (validBls.length !== uniqueBlIds.length || validBls.some((bl) => bl.customer_id !== customerId)) {
       return json(422, { error: 'Um ou mais B/Ls não pertencem ao cliente selecionado.' }, origin)
     }
+    derivedVesselName = validBls[0]?.voyage?.vessel?.name ?? null
+    derivedVoyageNumber = validBls[0]?.voyage?.voyage_number ?? null
     if (body.anchor_voyage_id != null && validBls.some((bl) => bl.voyage_id !== Number(body.anchor_voyage_id))) {
       return json(422, { error: 'A viagem-âncora não corresponde aos B/Ls selecionados.' }, origin)
     }
@@ -614,9 +631,9 @@ async function handler(req: Request): Promise<Response> {
     p_anchor_invoice_id: body.anchor_invoice_id ?? null,
     p_attempt_discriminator: attemptDiscriminator,
     p_dispatch_id: body.dispatch_id ?? null,
-    p_vessel_name: body.vessel_name ?? null,
-    p_voyage_number: body.voyage_number ?? null,
-    p_terminal_name: canonicalTerminalName ?? body.terminal_name ?? null,
+    p_vessel_name: derivedVesselName,
+    p_voyage_number: derivedVoyageNumber,
+    p_terminal_name: canonicalTerminalName,
     p_created_by: callerUser.user?.id ?? null,
     p_bl_ids: effectiveBlIds,
   })

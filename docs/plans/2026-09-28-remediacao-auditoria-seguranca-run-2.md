@@ -10,7 +10,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 | Fase 3 — Edge Functions | código entregue (PR da branch `claude/remediacao-run-2-fase-3`, migration `108`); falta o dono criar `PORTAL_PASSWORD_PEPPER`, conferir `TURNSTILE_SECRET_KEY`, publicar as Functions e observar na Preview |
 | Fase 4 — front-end (exceto 4.5) | pendente |
 | Fase 5 — CI e hospedagem | pendente |
-| Reforços adicionais (D4 = b) | pendentes |
+| Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código (branch `claude/remediacao-run-2-reforcos`, migration `109`); itens de operação são do dono; `recalculate_demurrage_invoices` para `overdue` aguarda regra de negócio |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
 (commit auditado `17da824a`). A auditoria está **incompleta**: nenhum dos 15
@@ -236,6 +236,27 @@ Os que dependem de regra de negócio ficam anotados, não implementados.
   `opencode.json` com versões fixas; backup em conta ou pasta dedicada.
 - Precisa de regra de negócio antes: `recalculate_demurrage_invoices` também
   para `overdue`.
+
+Execução (2026-09-29): banco na migration `109_reforcos_auditoria_run_2.sql`
+com a suíte `src/integration/auditoriaRun2Reforcos.local-pg.test.ts` (7 casos
+falham sem a `109` e passam com ela, Postgres 16 local; lista serializada do
+CI atualizada). Diferenças do desenho: as mensagens e anexos de Dispute já
+saíam do `portal_list_disputes` sem `author_id`/`uploaded_by`; o que expunha o
+UUID era o SELECT direto, e as políticas `*_portal_read` dessas duas tabelas
+foram removidas. A viagem vazia deixou de ter DELETE direto (sai só por
+`delete_records`, com motivo). O estorno de baixa local virou envelope que
+pega o advisory por B/L e trava os recebíveis antes da implementação
+renomeada `_reverse_invoice_payment_impl_109`. "PIX em trânsito" é exceção
+PIX ativa com o TXID da fatura. O botão **Informar PTAX** em `/demurrage` só
+aparece para Financeiro e Administrativo. Edge Functions: helper
+`_shared/fileSignature.ts` (anexos de Comunicado e de Dispute); navio e viagem
+do histórico de Comunicado vêm dos B/Ls; Cliente desativado fica fora de
+recuperação, convite, Comunicados e resumo diário; troca do Email de
+Recuperação exige conta ativa e aceita 5 pedidos por dia; `portal-login` exige
+`active`; anexo de Dispute confere `Content-Length`, sessão e cota antes de ler
+o arquivo; `alerts-detector` remove até 100 anexos órfãos por execução. Os
+dois reforços de front-end entraram na luccafwlog/vela#813. Não observado:
+Functions publicadas, Storage real e e-mails reais.
 
 ## Encerramento
 
