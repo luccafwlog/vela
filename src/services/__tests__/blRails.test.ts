@@ -54,6 +54,19 @@ describe('B/L rails', () => {
     expect(rail[3].detail).toBe('1/2 devolvidos')
   })
 
+  it('SOC não espera devolução', () => {
+    const rail = buildOperationalRail({ bl: baseBl, polSchedule: null, podSchedule: null, omission: null, containers: [
+      { container_number: 'ABCD1234567', discharge_date: '2026-07-21', return_date: null, ownership: 'SOC' },
+      { container_number: 'ABCD7654321', discharge_date: '2026-07-21', return_date: '2026-07-25', ownership: 'COC' },
+    ] })
+    expect(rail[3]).toMatchObject({ detail: '1/1 devolvidos', state: 'done' })
+
+    const onlySoc = buildOperationalRail({ bl: baseBl, polSchedule: null, podSchedule: null, omission: null, containers: [
+      { container_number: 'ABCD1234567', discharge_date: '2026-07-21', return_date: null, ownership: 'SOC' },
+    ] })
+    expect(onlySoc[3]).toMatchObject({ detail: 'Só SOC, sem devolução', state: 'done' })
+  })
+
   it('não deixa etapas sem containers pendentes como 0/0', () => {
     const rail = buildOperationalRail({ bl: baseBl, polSchedule: null, podSchedule: null, omission: null, containers: [] })
     expect(rail[2]).toMatchObject({ detail: 'Sem containers', state: 'done' })

@@ -29,6 +29,11 @@ export function flattenContainers(bls: PortalOperationBL[]): PortalFlatContainer
 // B/L) quanto na aba Containers (por container) e nos links do Painel.
 export type ReturnSituation = '' | 'todos_devolvidos' | 'sem_devolucao' | 'em_demurrage' | 'sem_descarga'
 
+// SOC é do cliente e não volta ao estoque: não conta como devolução pendente.
+function awaitsReturn(container: PortalOperationContainer): boolean {
+  return container.status !== 'soc' && container.return_date == null
+}
+
 function isInDemurrage(container: PortalOperationContainer): boolean {
   return container.return_date == null && (container.demurrage_days ?? 0) > 0
 }
@@ -37,9 +42,9 @@ export function blMatchesReturnSituation(bl: PortalOperationBL, situation: Retur
   if (!situation) return true
   switch (situation) {
     case 'todos_devolvidos':
-      return bl.container_count > 0 && bl.containers_returned >= bl.container_count
+      return bl.containers.length > 0 && !bl.containers.some(awaitsReturn)
     case 'sem_devolucao':
-      return bl.container_count - bl.containers_returned > 0
+      return bl.containers.some(awaitsReturn)
     case 'em_demurrage':
       return bl.containers.some(isInDemurrage)
     case 'sem_descarga':
@@ -56,7 +61,7 @@ export function containerMatchesReturnSituation(
     case 'todos_devolvidos':
       return container.status === 'devolvido'
     case 'sem_devolucao':
-      return container.return_date == null
+      return awaitsReturn(container)
     case 'em_demurrage':
       return isInDemurrage(container)
     case 'sem_descarga':
@@ -65,7 +70,7 @@ export function containerMatchesReturnSituation(
 }
 
 export function countContainersWithoutReturn(bls: PortalOperationBL[]): number {
-  return flattenContainers(bls).filter((c) => c.return_date == null).length
+  return flattenContainers(bls).filter(awaitsReturn).length
 }
 
 export function countContainersInDemurrage(bls: PortalOperationBL[]): number {

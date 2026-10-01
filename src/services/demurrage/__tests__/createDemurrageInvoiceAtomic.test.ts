@@ -36,6 +36,7 @@ function listQuery(result: unknown) {
   const builder = {
     select: vi.fn(),
     eq: vi.fn(),
+    or: vi.fn(),
     in: vi.fn(),
     limit: vi.fn(),
     then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
@@ -43,6 +44,7 @@ function listQuery(result: unknown) {
   }
   builder.select.mockReturnValue(builder)
   builder.eq.mockReturnValue(builder)
+  builder.or.mockReturnValue(builder)
   builder.in.mockReturnValue(builder)
   builder.limit.mockReturnValue(builder)
   return builder

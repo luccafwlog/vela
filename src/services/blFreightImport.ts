@@ -151,6 +151,8 @@ export type BlFreightRpcPayload = {
     is_imo: boolean
     imo_class: string | null
     un_number: string | null
+    /** SOC/COC declarado no B/L; o B/L é soberano sobre o Baplie (migration 120) */
+    ownership: 'SOC' | 'COC' | null
   }>
   vehicles: Array<{
     chassis: string
@@ -197,7 +199,7 @@ type ExistingBl = Pick<
   manifest_customer_email?: string | null
   ncm_codes?: string[] | null
   vehicles?: Pick<Vehicle, 'chassis'>[] | null
-  bl_containers?: Pick<BLContainer, 'container_number' | 'seal_number' | 'type' | 'tare_weight_kg' | 'gross_weight_kg' | 'cbm' | 'is_imo' | 'is_oog' | 'imo_class' | 'un_number'>[] | null
+  bl_containers?: (Pick<BLContainer, 'container_number' | 'seal_number' | 'type' | 'tare_weight_kg' | 'gross_weight_kg' | 'cbm' | 'is_imo' | 'is_oog' | 'imo_class' | 'un_number'> & { ownership?: string | null })[] | null
   bl_freight_lines?: Pick<BlFreightLine, 'seq' | 'description' | 'category' | 'mercante_code' | 'currency' | 'amount' | 'payment'>[] | null
 }
 
@@ -560,6 +562,7 @@ export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | 
       is_imo: isImoFromBl,
       imo_class: doc.cargo.dgClass,
       un_number: doc.cargo.unNumber,
+      ownership: container.ownership,
     }]
   })
   const oceanFreight = doc.freightCharges.find((line) => normalizeFreightCategory(line.description) === 'OCEAN_FREIGHT')
@@ -703,6 +706,18 @@ function computeBillingImpact(
     messages.push('Perfil IMO/OOG dos containers muda')
   }
 
+  // SOC/COC decide Drop Off e Damage Protection. Linha sem declaração no B/L
+  // não muda nada por si (o Baplie preenche depois).
+  const existingOwnership = new Map(existingContainers.map((container) => [normalizeIsoContainerNumber(container.container_number), container.ownership ?? null]))
+  const ownershipChanged = payload.containers.some((container) => {
+    if (!container.ownership) return false
+    const before = existingOwnership.get(normalizeIsoContainerNumber(container.container_number))
+    return before !== undefined && before !== container.ownership
+  })
+  if (ownershipChanged) {
+    messages.push('SOC/COC dos containers muda')
+  }
+
   // Veiculo e unidade faturada por si (chassis), e a reimportacao sem anexo de
   // veiculos apaga a lista inteira (migration 205). Sem entrar aqui, o diff saia
   // como mudanca comum e o override vinha ligado por padrao.
@@ -740,7 +755,7 @@ function computeBillingImpact(
 
   return {
     messages,
-    container: countChanged || shared.length > 0 || imoOogChanged,
+    container: countChanged || shared.length > 0 || imoOogChanged || ownershipChanged,
     vehicles,
     weight,
     cnpj,
@@ -980,7 +995,7 @@ async function fetchExistingBls(blNumbers: string[]): Promise<ExistingBl[]> {
       place_of_receipt, movement_from, movement_to, issue_place,
       customer_id, shipper_block, consignee_block, notify_block, notify2_block, notify_cnpj_cpf,
       manifest_customer_email, ncm_codes,
-      bl_containers(container_number, seal_number, type, tare_weight_kg, gross_weight_kg, cbm, is_imo, is_oog, imo_class, un_number),
+      bl_containers(container_number, seal_number, type, tare_weight_kg, gross_weight_kg, cbm, is_imo, is_oog, imo_class, un_number, ownership),
       bl_freight_lines(seq, description, category, mercante_code, currency, amount, payment),
       vehicles(chassis)
     `)

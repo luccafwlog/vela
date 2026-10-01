@@ -5,6 +5,8 @@ export type PortalOperationContainerStatus =
   | 'dentro_free_time'
   | 'em_demurrage'
   | 'devolvido'
+  /** container do próprio cliente: sem devolução nem Demurrage */
+  | 'soc'
 
 export type PortalOperationContainer = {
   id: number
@@ -75,7 +77,8 @@ function asStatus(value: unknown): PortalOperationContainerStatus {
     value === 'sem_descarga' ||
     value === 'dentro_free_time' ||
     value === 'em_demurrage' ||
-    value === 'devolvido'
+    value === 'devolvido' ||
+    value === 'soc'
   ) {
     return value
   }

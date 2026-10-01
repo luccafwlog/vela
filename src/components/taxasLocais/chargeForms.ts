@@ -37,6 +37,8 @@ export type ChargeTableItemForm = {
   currency: 'BRL' | 'USD'
   unitValue: string
   manualOnly: boolean
+  /** false: o motor não conta containers SOC (Drop Off, Damage Protection) */
+  appliesToSoc: boolean
   active: boolean
   sortOrder: string
 }
@@ -72,6 +74,7 @@ export const EMPTY_TABLE_ITEM_FORM: ChargeTableItemForm = {
   currency: 'BRL',
   unitValue: '',
   manualOnly: false,
+  appliesToSoc: true,
   active: true,
   sortOrder: '100',
 }

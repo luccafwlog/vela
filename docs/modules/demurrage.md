@@ -63,6 +63,15 @@ Cliente (`src/services/demurrage/demurrageInvoiceTabs.ts`); os fluxos de PTAX, p
 relatório são renderizados pelos modais homônimos. Sob recálculo diário (ADR
 0014) não há `draft` nem `overdue`: a fatura nasce `issued`.
 
+Container SOC (do cliente; ver SOC / COC no [CONTEXT](../../CONTEXT.md)) não
+volta ao estoque e fica fora da Demurrage (migration `120`): o banco nunca o
+deixa `overdue` (`trg_soc_container_never_overdue`), recusa item de fatura de
+Demurrage para ele (`trg_guard_demurrage_item_not_soc`) e o exclui do conjunto
+"todos os containers devolvidos" que `assert_demurrage_invoice_complete` exige.
+A aba `Containers` e a emissão (`createInvoiceForBL`,
+`createInvoiceForReturnedBL`) também o deixam de fora, salvo container já
+congelado numa fatura ativa.
+
 - A aba `Containers` é **monitoramento operacional** (ADR 0014): mostra containers
   ainda fora (`overdue`, demurrage correndo até hoje) **e** devolvidos com
   demurrage > 0. Os devolvidos dentro do free time são excluídos no frontend.

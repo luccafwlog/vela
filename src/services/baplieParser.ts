@@ -1,5 +1,6 @@
 import { assertUploadFile } from '../lib/fileGuard'
 import { normalizeIsoContainerNumber } from '../lib/containerNumber'
+import { ownershipFromEquipmentSupplier, type ContainerOwnership } from '../lib/containerOwnership'
 import { parseImportNumber } from '../lib/importNumber'
 import { resolvePortCode } from './portCode'
 import { decodeImportBytes, detectImportFormat, type ImportTextEncoding } from './importText'
@@ -19,6 +20,8 @@ export type BaplieContainer = {
   imo_class: string | null
   un_number: string | null
   is_oog: boolean
+  /** EQD 8077: 1 = SOC, 2 = COC; vazio = não informado */
+  ownership?: ContainerOwnership | null
 }
 
 export type ParsedBaplie = {
@@ -283,6 +286,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
     existing.imo_class = existing.imo_class ?? next.imo_class
     existing.un_number = existing.un_number ?? next.un_number
     existing.is_oog = existing.is_oog || next.is_oog
+    existing.ownership = existing.ownership ?? next.ownership
     return existing
   }
 
@@ -373,6 +377,8 @@ export function parseBaplieText(text: string): ParsedBaplie {
         imo_class: dgs?.imo_class ?? null,
         un_number: dgs?.un_number ?? null,
         is_oog: ownOog,
+        // EQD 8077 (equipment supplier) mora no elemento 4, antes do 8249.
+        ownership: ownershipFromEquipmentSupplier(eqd.components[4]?.[0]),
       }
       const created = upsert(next)
       // Garante que duplicata preserve atributos físicos (compat) sem herdar

@@ -4,6 +4,15 @@
 
 ## 2026-10
 
+- **SOC/COC do container (2026-10-01):** migration `120`. O container passa a ser SOC (do
+  cliente) ou COC (do armador), lido do B/L e do Baplie (EQD 8077). O B/L é soberano; o
+  Baplie só preenche o que o B/L não declarou, e a discordância aparece na conciliação do
+  Baplie e na aba Carga do B/L. Itens de taxa local ganham a opção "Cobra de container SOC",
+  já desligada em Drop Off Fee e Damage Protection Fee. SOC não espera devolução nem gera
+  Demurrage (inclusive no Portal). Aparece na tela do Baplie, em `/containers`, nos
+  totalizadores da aba Importação de Viagens e na ficha do B/L, onde pode ser corrigido
+  com justificativa (`set_bl_container_ownership`).
+
 - **IMO/OOG do Baplie no B/L importado depois (2026-10-01):** migration `118`. Importar o
   B/L numa viagem que já tem Baplie passa a aplicar as flags IMO/OOG do Baplie na mesma
   operação, antes do cálculo das taxas locais; antes, isso dependia do

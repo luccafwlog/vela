@@ -3,6 +3,7 @@ import { canonicalizeValidCnpj } from '../lib/cnpj'
 import { parseImportNumber } from '../lib/importNumber'
 import { asString } from '../lib/utils'
 import { normalizeIsoContainerNumber } from '../lib/containerNumber'
+import { normalizeContainerOwnership, type ContainerOwnership } from '../lib/containerOwnership'
 import { detectImportFormat } from './importText'
 
 export type BLFreightCharge = {
@@ -19,7 +20,7 @@ export type ParsedBLContainer = {
   containerNumber: string
   sealNumber: string | null
   tareKg: number | null
-  ownership: string | null
+  ownership: ContainerOwnership | null
   packages: string | null
   type: string | null
   grossWeightKg: number | null
@@ -273,7 +274,7 @@ function parseContainers(rows: RawSheetRow[]): ParsedBLContainer[] {
       containerNumber,
       sealNumber: parts[1] || null,
       tareKg: parseNumber(parts[2], 'pt-BR'),
-      ownership: parts[3] || null,
+      ownership: normalizeContainerOwnership(parts[3]),
       packages: parts[4] || null,
       type: parts[5] || null,
       grossWeightKg: parseNumber(parts[6], 'pt-BR'),
