@@ -23,6 +23,52 @@ export function extractErrorText(error: unknown): string {
   }
   return ''
 }
+
+export class DatabaseError extends Error {
+  readonly code?: string
+  readonly details?: string
+  readonly hint?: string
+
+  constructor(
+    message: string,
+    options?: { code?: string; details?: string; hint?: string; cause?: unknown },
+  ) {
+    super(message)
+    this.name = 'DatabaseError'
+    this.code = options?.code
+    this.details = options?.details
+    this.hint = options?.hint
+    if (options?.cause !== undefined) {
+      this.cause = options?.cause
+    }
+    Object.setPrototypeOf(this, DatabaseError.prototype)
+  }
+}
+
+export function toError(error: unknown): Error {
+  if (error instanceof Error) return error
+  if (typeof error === 'string') return new Error(error)
+  if (error && typeof error === 'object') {
+    const candidate = error as {
+      code?: string | null
+      message?: string | null
+      details?: string | null
+      hint?: string | null
+    }
+    const message = candidate.message || extractErrorText(error) || 'Erro na operação do banco de dados'
+    return new DatabaseError(message, {
+      code: candidate.code ?? undefined,
+      details: candidate.details ?? undefined,
+      hint: candidate.hint ?? undefined,
+      cause: error,
+    })
+  }
+  return new Error('Erro inesperado')
+}
+
+export function assertNoError(error: unknown): asserts error is null | undefined {
+  if (error) throw toError(error)
+}
 export type DbErrorKind = 'permissao' | 'sessao_expirada' | 'conflito' | 'limite' | 'validacao' | 'nao_encontrado' | 'desconhecido'
 export type ClassifiedDbError = { kind: DbErrorKind; message: string }
 

@@ -1,5 +1,6 @@
 import { escapeFilterTerm } from '../lib/utils'
 import { supabase } from './supabase'
+import { toError } from '../lib/errors'
 
 export async function setVazioImportacaoNatureza(
   id: string,
@@ -9,7 +10,7 @@ export async function setVazioImportacaoNatureza(
     .from('vazios_importacao_containers')
     .update({ natureza })
     .eq('id', id)
-  if (error) throw error
+  if (error) throw toError(error)
 }
 
 export async function setVaziosImportacaoNaturezaMany(
@@ -103,13 +104,12 @@ export async function setContainerProfile(input: {
   justification: string
   changedBy?: string | null
 }) {
-  const rpc = supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message?: string } | null }>
-  const { error } = await rpc('set_bl_container_profile', {
+  const { error } = await supabase.rpc('set_bl_container_profile' as never, {
     p_container_id: input.containerId,
     p_profile: input.profile,
     p_justification: input.justification,
     p_changed_by: input.changedBy ?? null,
-  })
+  } as never)
   if (error) throw new Error(error.message ?? 'Não foi possível alterar o perfil do container.')
 }
 
@@ -121,5 +121,5 @@ export async function setContainerUnpackingLocation(
     .from('bl_containers')
     .update({ unpacking_location: unpackingLocation })
     .eq('id', containerId)
-  if (error) throw error
+  if (error) throw toError(error)
 }

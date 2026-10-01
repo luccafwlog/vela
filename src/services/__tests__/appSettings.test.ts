@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchAppSettings, setCommunicationsEnabled } from '../appSettings'
+import { DEFAULT_APP_SETTINGS, fetchAppSettings, setCommunicationsEnabled } from '../appSettings'
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
@@ -18,6 +18,7 @@ function settingsBuilder(result: { data: unknown; error: unknown }) {
     select: vi.fn(() => value),
     eq: vi.fn(() => value),
     single: vi.fn(async () => result),
+    maybeSingle: vi.fn(async () => result),
   }
   return value
 }
@@ -41,8 +42,17 @@ describe('app settings service', () => {
     expect(mockFrom).toHaveBeenCalledWith('app_settings')
   })
 
-  it('propaga erro na leitura', async () => {
-    mockFrom.mockReturnValue(settingsBuilder({ data: null, error: new Error('settings unavailable') }))
+  it('retorna DEFAULT_APP_SETTINGS quando a linha não existe (evita 406 do PGRST116 / VELA-13)', async () => {
+    mockFrom.mockReturnValue(settingsBuilder({ data: null, error: null }))
+
+    const result = await fetchAppSettings()
+    expect(result).toEqual(DEFAULT_APP_SETTINGS)
+    expect(result.communications_enabled).toBe(false)
+    expect(result.demurrage_dunning_interval_days).toBe(7)
+  })
+
+  it('propaga erro normalizado na leitura quando o banco falha', async () => {
+    mockFrom.mockReturnValue(settingsBuilder({ data: null, error: { message: 'settings unavailable', code: '42501' } }))
 
     await expect(fetchAppSettings()).rejects.toThrow('settings unavailable')
   })

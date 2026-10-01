@@ -8,7 +8,6 @@ export type SetBlTerminalOverrideInput = {
   changedBy?: string | null
 }
 
-type RpcResult = { data: unknown; error: { message?: string } | null }
 
 /**
  * A exceção de terminal é uma mutação de domínio: não fazemos UPDATE direto
@@ -16,14 +15,13 @@ type RpcResult = { data: unknown; error: { message?: string } | null }
  * justificativa numa única transação.
  */
 export async function setBlTerminalOverride(input: SetBlTerminalOverrideInput): Promise<unknown> {
-  const rpc = supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => PromiseLike<RpcResult>
-  const { data, error } = await rpc('set_bl_terminal_override', {
+  const { data, error } = await supabase.rpc('set_bl_terminal_override' as never, {
     p_bl_id: input.blId,
     p_terminal_id: input.terminalId,
     p_pod_port_id: input.podPortId,
     p_justification: input.justification,
     p_changed_by: input.changedBy ?? null,
-  })
-  if (error) throw new Error(error.message ?? 'Não foi possível atualizar a exceção de terminal.')
+  } as never)
+  if (error) throw new Error((error as { message?: string }).message ?? 'Não foi possível atualizar a exceção de terminal.')
   return data
 }

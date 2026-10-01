@@ -197,13 +197,28 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     void (async () => {
       try {
-        const { data } = await supabase.auth.getSession()
+        const { data, error } = await supabase.auth.getSession()
+        if (error) {
+          const msg = error.message ?? ''
+          if (/invalid refresh token/i.test(msg) || /invalid_grant/i.test(msg)) {
+            await signOutSupabaseClient(supabase).catch(() => {})
+            await hydrateSession(null)
+            return
+          }
+          throw error
+        }
         markStartupStage('session')
-        await hydrateSession(data.session)
+        await hydrateSession(data?.session ?? null)
       } catch (error) {
         if (mounted) {
+          const msg = extractErrorText(error)
+          if (/invalid refresh token/i.test(msg) || /invalid_grant/i.test(msg)) {
+            await signOutSupabaseClient(supabase).catch(() => {})
+            await hydrateSession(null)
+            return
+          }
           setProfile(null)
-          setProfileError(extractErrorText(error) || 'Falha ao carregar a sessão.')
+          setProfileError(msg || 'Falha ao carregar a sessão.')
           setProfileStatus('transient-error')
           setLoading(false)
         }
