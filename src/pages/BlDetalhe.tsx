@@ -33,7 +33,8 @@ import { extractReviewReasons } from '../hooks/useReview'
 import { listDemurrageInvoices } from '../services/demurrage/demurrageInvoices'
 import { listDepots } from '../services/depots'
 import { setBlTerminalOverride } from '../services/blTerminal'
-import { CONTAINER_PROFILE_LABELS, containerProfileLabel, setContainerProfile, type ContainerProfile } from '../services/vaziosNatureza'
+import { CONTAINER_PROFILE_LABELS, containerProfileLabel, setContainerOwnership, setContainerProfile, type ContainerProfile } from '../services/vaziosNatureza'
+import { containerOwnershipLabel, type ContainerOwnership } from '../lib/containerOwnership'
 import { isBlFinanciallyLocked } from '../lib/chargeStatus'
 import { buildDocumentalRail, buildOperationalRail, pickNextAction, summarizeDocumentalRail } from '../services/blRails'
 import { getBlPortalStatus } from '../services/blPortalStatus'
@@ -191,6 +192,39 @@ export function BlDetalhe() {
     if (justification === null) return
     containerProfileMutation.mutate({ containerId, profile, justification })
   }
+  const containerOwnershipMutation = useMutation({
+    mutationFn: (input: { containerId: number; ownership: ContainerOwnership; justification: string }) => setContainerOwnership({ ...input, changedBy: user?.id }),
+    onSuccess: async () => {
+      await Promise.all([
+        afterBlEstadoAlterado(queryClient, { blId: bl!.id, voyageId: bl!.voyage_id }),
+        queryClient.invalidateQueries({ queryKey: ['containers'] }),
+        queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.auditLogs.detail('bl', bl?.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines(bl!.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
+      ])
+      showToast('SOC/COC do container atualizado e taxas recalculadas.', 'success')
+    },
+    onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao alterar SOC/COC do container.'), 'error'),
+  })
+  async function handleChangeContainerOwnership(containerId: number, ownership: ContainerOwnership) {
+    const container = bl?.bl_containers?.find((item) => item.id === containerId)
+    if (!container || container.ownership === ownership) return
+    const justification = await confirmWithReason({
+      title: 'Alterar SOC/COC do container',
+      message: `Marcar o container ${container.container_number} como ${ownership}?`,
+      changes: [{ field: 'SOC/COC', before: containerOwnershipLabel(container.ownership), after: ownership }],
+      consequence: ownership === 'SOC'
+        ? 'As taxas locais deste B/L são recalculadas sem Drop Off e Damage Protection para este container, e ele deixa de esperar devolução e Demurrage. A alteração fica no histórico com autor e justificativa.'
+        : 'As taxas locais deste B/L são recalculadas cobrando Drop Off e Damage Protection deste container, e ele passa a esperar devolução. A alteração fica no histórico com autor e justificativa.',
+      reversibility: 'Pode ser revertida com nova justificativa. Reimportar o B/L volta ao que o B/L declara ou, sem declaração, ao que o Baplie informa.',
+      confirmLabel: 'Alterar e recalcular',
+      reasonLabel: 'Justificativa',
+    })
+    if (justification === null) return
+    containerOwnershipMutation.mutate({ containerId, ownership, justification })
+  }
   const cargoMode = useMemo(() => resolveCargoMode(bl), [bl])
   const isContainerMode = cargoMode === 'container'
   const isMixedMode = cargoMode === 'misto'
@@ -212,6 +246,7 @@ export function BlDetalhe() {
     container_number: container.container_number,
     discharge_date: container.discharge_date,
     return_date: container.return_date,
+    ownership: container.ownership,
   })), [bl?.bl_containers])
   const operational = useMemo(() => bl ? buildOperationalRail({ bl, polSchedule: cockpitQuery.data?.polSchedule ?? null, podSchedule: cockpitQuery.data?.podSchedule ?? null, containers: railContainers, omission: cockpitQuery.data?.omission ?? null }) : [], [bl, cockpitQuery.data, railContainers])
   const latestInvoice = bl ? invoiceLinksByBl?.[bl.id]?.[0] ?? null : null
@@ -233,8 +268,15 @@ export function BlDetalhe() {
   const blDivergenceCount = useMemo(() => {
     if (!reconciliation || !bl) return 0
     const numbers = new Set((bl.bl_containers ?? []).map((container) => container.container_number))
-    return reconciliation.items.filter((item) => item.kind === 'missing_in_baplie' ? item.bl_id === bl.id : item.baplie_bl_ref === bl.id || numbers.has(item.container_number)).length
+    return reconciliation.items.filter((item) => item.kind === 'missing_in_manifest' ? item.baplie_bl_ref === bl.id || numbers.has(item.container_number) : item.bl_id === bl.id).length
   }, [reconciliation, bl])
+
+  // SOC/COC em que o Baplie discorda do B/L: o B/L vale, a aba Carga avisa.
+  const ownershipDivergences = useMemo(() => new Map(
+    (reconciliation?.items ?? []).flatMap((item) => item.kind === 'ownership_mismatch' && item.bl_id === bl?.id
+      ? [[item.container_number, item.baplie_ownership] as const]
+      : []),
+  ), [reconciliation, bl?.id])
 
   const baplieStatus = useMemo((): BaplieStatus => {
     if (!hasContainers) return { state: 'not_imported', divergenceCount: 0 }
@@ -249,6 +291,8 @@ export function BlDetalhe() {
       distinct: countDistinctContainerNumbers(bl?.bl_containers),
       imo: countDistinctContainerNumbersBy(bl?.bl_containers, (container) => Boolean(container.is_imo)),
       oog: countDistinctContainerNumbersBy(bl?.bl_containers, (container) => Boolean(container.is_oog)),
+      soc: countDistinctContainerNumbersBy(bl?.bl_containers, (container) => container.ownership === 'SOC'),
+      coc: countDistinctContainerNumbersBy(bl?.bl_containers, (container) => container.ownership === 'COC'),
     }),
     [bl?.bl_containers],
   )
@@ -407,6 +451,8 @@ export function BlDetalhe() {
         containerSummary={containerSummary}
         breakbulkSummary={breakbulkSummary}
         onChangeProfile={cancelledAt || isBlFinanciallyLocked(bl.financial_status) ? undefined : handleChangeContainerProfile}
+        onChangeOwnership={cancelledAt || isBlFinanciallyLocked(bl.financial_status) ? undefined : handleChangeContainerOwnership}
+        ownershipDivergences={ownershipDivergences}
       />
 
       <BlDetalhesTab

@@ -54,7 +54,7 @@ const voyageDetailSelect = `
   ),
   bls(
     *,
-    bl_containers(id, container_number, seal_number, type, tare_weight_kg, gross_weight_kg, cbm, is_oog, is_imo, imo_class, un_number),
+    bl_containers(id, container_number, seal_number, type, tare_weight_kg, gross_weight_kg, cbm, is_oog, is_imo, imo_class, un_number, ownership),
     bl_breakbulk_items(id, gross_weight_kg, cbm)
   )
 `

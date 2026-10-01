@@ -5,6 +5,8 @@ import { Field, Input, Select } from '../ui/Input'
 import { formatDate, normalizeText } from '../../lib/utils'
 import { CONTAINER_PROFILE_LABELS, containerProfileOf, type ContainerProfile } from '../../services/vaziosNatureza'
 import { formatNumber } from '../../pages/blDetalheHelpers'
+import { ContainerOwnershipBadge } from '../shared/OperationalBadges'
+import { CONTAINER_OWNERSHIP_SOURCE_LABELS, type ContainerOwnership } from '../../lib/containerOwnership'
 import type { BLDetail } from '../../types/database'
 
 import type { CargoMode } from '../../pages/blDetalheHelpers'
@@ -13,6 +15,8 @@ export type ContainerSummary = {
   distinct: number
   imo: number
   oog: number
+  soc: number
+  coc: number
 }
 
 export type BreakbulkSummary = {
@@ -32,8 +36,13 @@ export function BlCargaTab({
   containerSummary,
   breakbulkSummary,
   onChangeProfile,
+  onChangeOwnership,
+  ownershipDivergences,
 }: {
   onChangeProfile?: (containerId: number, profile: ContainerProfile) => void
+  onChangeOwnership?: (containerId: number, ownership: ContainerOwnership) => void
+  /** container_number → SOC/COC que o Baplie declara, quando discorda do B/L */
+  ownershipDivergences?: ReadonlyMap<string, string>
   active: boolean
   bl: BLDetail
   blId?: string
@@ -67,11 +76,13 @@ export function BlCargaTab({
               <Badge tone="blue">{containerSummary.distinct} CNTRS</Badge>
               <Badge tone="red">{containerSummary.imo} IMO</Badge>
               <Badge tone="yellow">{containerSummary.oog} OOG</Badge>
+              <Badge tone="green">{containerSummary.soc} SOC</Badge>
+              <Badge tone="blue">{containerSummary.coc} COC</Badge>
             </div>
           </div>
 
           <div className="app-table-scroll">
-            <table className="app-table app-table--compact min-w-[800px] text-left text-sm">
+            <table className="app-table app-table--compact min-w-[900px] text-left text-sm">
               <thead className="bg-[#0d1117] text-xs uppercase text-slate-500">
                 <tr>
                   <th scope="col" className="py-2">No. Container</th>
@@ -81,6 +92,7 @@ export function BlCargaTab({
                   <th scope="col" className="py-2">Peso bruto</th>
                   <th scope="col" className="py-2">CBM</th>
                   <th scope="col" className="py-2">Perfil</th>
+                  <th scope="col" className="py-2">SOC/COC</th>
                   <th scope="col" className="py-2">Descarga</th>
                 </tr>
               </thead>
@@ -114,12 +126,35 @@ export function BlCargaTab({
                           'Standard'
                         )}
                       </td>
+                      <td className="py-2">
+                        <div className="flex flex-wrap items-center gap-1">
+                          {onChangeOwnership ? (
+                            <Select
+                              aria-label={`SOC/COC do container ${container.container_number}`}
+                              value={container.ownership ?? ''}
+                              onChange={(event) => onChangeOwnership(container.id, event.target.value as ContainerOwnership)}
+                            >
+                              {container.ownership ? null : <option value="" disabled>Não informado</option>}
+                              <option value="COC">COC</option>
+                              <option value="SOC">SOC</option>
+                            </Select>
+                          ) : (
+                            <ContainerOwnershipBadge
+                              ownership={container.ownership}
+                              title={container.ownership_source ? `Origem: ${CONTAINER_OWNERSHIP_SOURCE_LABELS[container.ownership_source] ?? container.ownership_source}` : undefined}
+                            />
+                          )}
+                          {ownershipDivergences?.has(container.container_number) ? (
+                            <Badge tone="yellow" title="O B/L prevalece nas taxas e na Demurrage">Baplie diz {ownershipDivergences.get(container.container_number)}</Badge>
+                          ) : null}
+                        </div>
+                      </td>
                       <td className="py-2 text-slate-300">{container.discharge_date ? formatDate(container.discharge_date) : <span className="text-slate-500">—</span>}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td className="py-3 text-slate-400" colSpan={8}>
+                    <td className="py-3 text-slate-400" colSpan={9}>
                       Nenhum container vinculado a este B/L.
                     </td>
                   </tr>

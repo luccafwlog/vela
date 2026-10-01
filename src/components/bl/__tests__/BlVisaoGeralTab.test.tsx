@@ -17,7 +17,7 @@ const baseBl = {
   total_cbm: 0,
 } as never
 
-const containerSummary = { distinct: 0, imo: 0, oog: 0 }
+const containerSummary = { distinct: 0, imo: 0, oog: 0, soc: 0, coc: 0 }
 const breakbulkSummary = { machines: 0, packages: 0, packagesTotal: 0, weightTon: 0, cbm: 0 }
 const omittedVoyage = { id: 9, voyageId: 7, omittedPod: 'BRSSA', dischargePod: 'BRVIX', reason: null, onwardVesselName: null, onwardCarrier: null, onwardVoyageNumber: null, onwardEtd: null, onwardEta: null }
 

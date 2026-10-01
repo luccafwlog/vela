@@ -27,11 +27,20 @@ export function VoyageImportacaoTab({ voyage, voyageLabel, vehicleStats, vaziosI
   const { containerBls } = splitVoyageBls(voyage.bls)
   const containers = containerBls.flatMap((bl) => bl.bl_containers ?? [])
   const totalWeightTon = summarizeBreakbulk(voyage.bls).weightTon
+  const distinctContainers = countDistinctContainerNumbers(containers)
+  const socCount = countDistinctContainerNumbersBy(containers, (container) => container.ownership === 'SOC')
+  const cocCount = countDistinctContainerNumbersBy(containers, (container) => container.ownership === 'COC')
+  // Sem SOC/COC no B/L nem no Baplie: tratado como COC, mas contado à parte
+  // para a pendência de cadastro ficar visível.
+  const unknownOwnership = Math.max(0, distinctContainers - socCount - cocCount)
   const totals = [
     ['B/Ls', formatMetric(voyage.bls?.length ?? 0)],
-    ['CNTRs distintos', formatMetric(countDistinctContainerNumbers(containers))],
+    ['CNTRs distintos', formatMetric(distinctContainers)],
     ['IMO', formatMetric(countDistinctContainerNumbersBy(containers, (container) => Boolean(container.is_imo)))],
     ['OOG', formatMetric(countDistinctContainerNumbersBy(containers, (container) => Boolean(container.is_oog)))],
+    ['SOC', formatMetric(socCount)],
+    ['COC', formatMetric(cocCount)],
+    ...(unknownOwnership > 0 ? [['SOC/COC não informado', formatMetric(unknownOwnership)]] : []),
     ['Veículos', formatMetric(vehicleStats.totalVehicles)],
     ['Carga solta', `${formatMetric(totalWeightTon)} ton`],
   ] as Array<[string, string]>
@@ -99,7 +108,7 @@ function PodBlock({ pod, summary, vehicle, vazios }: {
   vehicle: VoyageVehicleStat['byPod'][string] | undefined
   vazios: VoyageVaziosImportacaoStat['byPod'][string] | undefined
 }) {
-  const containers = summary?.containers ?? { distinct: 0, imo: 0, oog: 0, types: '' }
+  const containers = summary?.containers ?? { distinct: 0, imo: 0, oog: 0, soc: 0, coc: 0, types: '' }
   const generalCargo = summary?.generalCargo ?? { distinct: 0, imo: 0, oog: 0 }
   const breakbulk = summary?.breakbulk ?? { bls: 0, machines: 0, packages: 0, weightTon: 0, cbm: 0 }
   const vehicleContainers = summary?.vehicles.distinctContainers ?? vehicle?.distinctContainerCount ?? 0
@@ -113,7 +122,7 @@ function PodBlock({ pod, summary, vehicle, vazios }: {
     <div className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="inline-flex items-baseline gap-2"><span className="text-[15px] font-bold text-[var(--app-text-strong)]">{pod}</span><span className="text-xs text-[var(--app-muted-soft)]">{formatPortDisplayName(pod)}</span></span><span className="text-xs text-[var(--app-muted)]">{summaryLabel}</span></div>
       <div className="grid gap-3 xl:grid-cols-2">
-        <Panel title="Containers" icon={<Box size={15} />} lead={containers.distinct} leadUnit="distintos"><MiniStats stats={[['Carga geral', generalCargo.distinct], ['C/ veículos', vehicleContainers], ['IMO', containers.imo], ['OOG', containers.oog]]} /><CountPills values={parseCountSummary(containers.types)} /></Panel>
+        <Panel title="Containers" icon={<Box size={15} />} lead={containers.distinct} leadUnit="distintos"><MiniStats stats={[['Carga geral', generalCargo.distinct], ['C/ veículos', vehicleContainers], ['IMO', containers.imo], ['OOG', containers.oog], ['SOC', containers.soc], ['COC', containers.coc]]} /><CountPills values={parseCountSummary(containers.types)} /></Panel>
         {breakbulk.bls ? <Panel title="Carga solta" icon={<FileText size={15} />} lead={breakbulk.weightTon} leadUnit="ton"><MiniStats stats={[['B/Ls', breakbulk.bls], ['Máquinas', breakbulk.machines], ['Packages', breakbulk.packages], ['CBM', breakbulk.cbm]]} /></Panel> : <Panel title="Carga solta" icon={<FileText size={15} />} empty="Sem carga solta nesta escala" />}
       </div>
       {vehicleCount ? <ScaleStrip title="Veículos" icon={<Car size={15} />} lead={vehicleCount} leadUnit="unidades" blocks={[{ label: 'CNTRs', value: vehicleContainers }, { label: 'Marcas', value: <CountPills values={parseCountSummary(vehicle?.brandSummary)} /> }, { label: 'Tipo de container', value: <CountPills values={parseCountSummary(vehicle?.vehicleByContainerTypeSummary)} />, grow: true }]} /> : <EmptyScaleStrip title="Veículos" icon={<Car size={15} />} text="Sem veículos descarregados nesta escala" />}

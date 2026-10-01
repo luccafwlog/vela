@@ -11,6 +11,7 @@ import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
+import { ContainerOwnershipBadge } from '../components/shared/OperationalBadges'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
@@ -467,11 +468,15 @@ function ReconciliacaoSection({
     (item): item is Extract<BaplieReconciliationItem, { kind: 'missing_in_baplie' }> =>
       item.kind === 'missing_in_baplie',
   )
+  const ownershipMismatch = items.filter(
+    (item): item is Extract<BaplieReconciliationItem, { kind: 'ownership_mismatch' }> =>
+      item.kind === 'ownership_mismatch',
+  )
 
   if (!items.length) {
     return (
       <Card className="mb-5">
-        <div className="py-4 text-center text-sm text-emerald-400">Sem divergências de existência entre Baplie e B/Ls. Flags físicas (IMO/OOG) do Baplie aplicadas automaticamente.</div>
+        <div className="py-4 text-center text-sm text-emerald-400">Sem divergências entre Baplie e B/Ls. Flags físicas (IMO/OOG) do Baplie aplicadas automaticamente.</div>
         <div className="text-center"><PendingRoutesNote routes={pendingRoutes} /></div>
       </Card>
     )
@@ -481,12 +486,12 @@ function ReconciliacaoSection({
     <Card className="mb-5 overflow-hidden p-0">
       <div className="border-b border-[#30363d] px-4 py-3">
         <div className="text-sm font-semibold text-white">
-          Divergências de existência Baplie × B/L
+          Divergências Baplie × B/L
           <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-normal text-amber-400">
             {items.length}
           </span>
         </div>
-        <div className="text-xs text-slate-500 mt-0.5">Baplie é soberano nas flags físicas (IMO/OOG) e já foram aplicadas ao B/L. Aqui só aparecem containers presentes em uma fonte e ausentes na outra.</div>
+        <div className="text-xs text-slate-500 mt-0.5">Baplie é soberano nas flags físicas (IMO/OOG) e já foram aplicadas ao B/L. Aqui aparecem containers presentes em uma fonte e ausentes na outra, e SOC/COC divergente (o B/L prevalece).</div>
         <PendingRoutesNote routes={pendingRoutes} />
       </div>
 
@@ -547,6 +552,38 @@ function ReconciliacaoSection({
           <p className="mt-1 text-xs text-slate-500">Ação: conferir se o container foi embarcado / atualizar o Baplie.</p>
         </div>
       ) : null}
+
+      {ownershipMismatch.length > 0 ? (
+        <div className="border-t border-[#30363d] p-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-amber-400">
+            SOC/COC divergente entre B/L e Baplie ({ownershipMismatch.length})
+          </div>
+          <div className="max-h-[360px] overflow-auto rounded-xl border border-[#30363d]">
+            <table className="app-table app-table--compact min-w-[400px] text-left text-sm">
+              <caption className="sr-only">SOC/COC divergente entre B/L e Baplie</caption>
+              <thead className="sticky top-0 bg-[#0d1117] text-xs uppercase text-slate-500 z-10">
+                <tr>
+                  <th scope="col" className="px-3 py-2">Container</th>
+                  <th scope="col" className="px-3 py-2">B/L</th>
+                  <th scope="col" className="px-3 py-2">No B/L (vale)</th>
+                  <th scope="col" className="px-3 py-2">No Baplie</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#30363d]">
+                {ownershipMismatch.map((item) => (
+                  <tr key={item.container_number}>
+                    <td className="px-3 py-2 font-semibold text-white">{item.container_number}</td>
+                    <td className="px-3 py-2">{item.bl_id ?? '-'}</td>
+                    <td className="px-3 py-2"><ContainerOwnershipBadge ownership={item.bl_ownership} /></td>
+                    <td className="px-3 py-2"><ContainerOwnershipBadge ownership={item.baplie_ownership} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">O B/L prevalece nas taxas e na Demurrage. Ação: confirmar com o armador e, se o B/L estiver errado, corrigir na aba Carga do B/L.</p>
+        </div>
+      ) : null}
     </Card>
   )
 }
@@ -559,10 +596,11 @@ type ContainerFilters = {
   pod: string
   slot: string
   profile: string
+  ownership: string
 }
 
 const EMPTY_CONTAINER_FILTERS: ContainerFilters = {
-  container: '', status: '', type: '', pol: '', pod: '', slot: '', profile: '',
+  container: '', status: '', type: '', pol: '', pod: '', slot: '', profile: '', ownership: '',
 }
 
 function ContainerFiltersBar({
@@ -590,6 +628,7 @@ function ContainerFiltersBar({
         <Field label="POD"><Select value={filters.pod} onChange={(event) => update('pod', event.target.value)}><option value="">Todos</option>{options('pod').map((value) => <option key={value} value={value}>{value}</option>)}</Select></Field>
         <Field label="Slot"><Input value={filters.slot} onChange={(event) => update('slot', event.target.value)} placeholder="Buscar slot" /></Field>
         <Field label="Perfil"><Select value={filters.profile} onChange={(event) => update('profile', event.target.value)}><option value="">Todos</option><option value="imo">IMO</option><option value="oog">OOG</option><option value="standard">Padrão</option></Select></Field>
+        <Field label="SOC/COC"><Select value={filters.ownership} onChange={(event) => update('ownership', event.target.value)}><option value="">Todos</option><option value="SOC">SOC</option><option value="COC">COC</option><option value="none">Não informado</option></Select></Field>
       </div>
     </Card>
   )
@@ -606,6 +645,7 @@ function filterBaplieContainers(containers: BaplieContainer[], filters: Containe
       && (!filters.pod || container.pod === filters.pod)
       && normalized(container.slot ?? '').includes(normalized(filters.slot))
       && (!filters.profile || profile === filters.profile)
+      && (!filters.ownership || (container.ownership ?? 'none') === filters.ownership)
   })
 }
 
@@ -640,6 +680,7 @@ function ContainerList({ containers, filters }: { containers: BaplieContainer[];
               <th scope="col" className="px-4 py-3">POD</th>
               <th scope="col" className="px-4 py-3">Slot</th>
               <th scope="col" className="px-4 py-3">Perfil</th>
+              <th scope="col" className="px-4 py-3">SOC/COC</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#30363d]">
@@ -664,6 +705,7 @@ function ContainerList({ containers, filters }: { containers: BaplieContainer[];
                     <Badge tone="blue">Padrao</Badge>
                   )}
                 </td>
+                <td className="px-4 py-3"><ContainerOwnershipBadge ownership={c.ownership} /></td>
               </tr>
             ))}
           </tbody>

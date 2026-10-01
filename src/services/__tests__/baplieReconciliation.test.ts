@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   computeBapliePhysicalUpdates,
   computeExistenceDivergences,
+  computeOwnershipDivergences,
   isBaplieReconciliationD7,
   reconcileBaplieWithManifest,
   applyBapliePhysicalFlags,
@@ -317,6 +318,28 @@ describe('reconcileBaplieWithManifest', () => {
     expect(result.source).toBe('reconciled')
     expect(result.items).toEqual([
       { kind: 'missing_in_manifest', container_number: 'CTAC1000002', baplie_bl_ref: null, slot: null },
+    ])
+  })
+})
+
+describe('computeOwnershipDivergences — SOC/COC (B/L soberano)', () => {
+  it('aponta SOC/COC divergente só quando as duas fontes informam valores diferentes', () => {
+    const items = computeOwnershipDivergences(
+      staged([
+        { container_number: 'ABCD1234567', status: 'full', ownership: 'SOC' },
+        { container_number: 'ABCD7654321', status: 'full', ownership: 'SOC' },
+        { container_number: 'ABCD1111111', status: 'full', ownership: null },
+        { container_number: 'ABCD2222222', status: 'empty', ownership: 'SOC' },
+      ]),
+      blcs([
+        { id: 1, bl_id: 'BL1', container_number: 'ABCD1234567', ownership: 'COC' },
+        { id: 2, bl_id: 'BL1', container_number: 'ABCD7654321', ownership: 'SOC' },
+        { id: 3, bl_id: 'BL1', container_number: 'ABCD1111111', ownership: 'COC' },
+        { id: 4, bl_id: 'BL1', container_number: 'ABCD2222222', ownership: 'COC' },
+      ]),
+    )
+    expect(items).toEqual([
+      { kind: 'ownership_mismatch', container_number: 'ABCD1234567', bl_container_id: 1, bl_id: 'BL1', bl_ownership: 'COC', baplie_ownership: 'SOC' },
     ])
   })
 })

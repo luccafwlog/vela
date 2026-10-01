@@ -200,6 +200,7 @@ export function ChargeTablesList({
                                   </td>
                                   <td className="py-2 pr-4">
                                     {item.manual_only ? <Badge tone="yellow">Manual</Badge> : <Badge tone="blue">Auto</Badge>}
+                                    {item.applies_to_soc === false ? <Badge tone="slate" className="ml-1" title="Containers SOC ficam fora da quantidade">Não cobra SOC</Badge> : null}
                                   </td>
                                   {canEdit ? (
                                     <td className="py-2">

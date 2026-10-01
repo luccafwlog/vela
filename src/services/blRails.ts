@@ -20,7 +20,7 @@ type RailBl = Pick<
   | 'customer_reconciliation_status' | 'customer_id' | 'charge_status' | 'financial_status' | 'billing_hold_reason' | 'bb_weight_ton'
 >
 
-export type RailContainer = { container_number: string; discharge_date: string | null; return_date: string | null }
+export type RailContainer = { container_number: string; discharge_date: string | null; return_date: string | null; ownership?: string | null }
 export type RailSchedule = { etd?: string | null; atd?: string | null; eta?: string | null; ata?: string | null }
 export type RailOmission = { omittedPod: string; dischargePod: string }
 export type RailInvoice = {
@@ -112,12 +112,17 @@ export function buildOperationalRail(input: {
 
   if (!isContainerCargoMode(bl.cargo_mode)) return [pol, pod]
   const discharge = distinct(containers, (c) => Boolean(c.discharge_date))
-  const returned = distinct(containers, (c) => Boolean(c.return_date))
+  // SOC é do cliente e nunca volta ao estoque: não há devolução a esperar.
+  const returnable = containers.filter((c) => c.ownership !== 'SOC')
+  const returned = distinct(returnable, (c) => Boolean(c.return_date))
+  const returnDetail = returned.total > 0
+    ? `${returned.done}/${returned.total} devolvidos`
+    : containers.length > 0 ? 'Só SOC, sem devolução' : 'Sem containers'
   return [
     pol,
     pod,
     { key: 'discharge', label: 'Descarga', detail: discharge.total === 0 ? 'Sem containers' : `${discharge.done}/${discharge.total} descarregados`, state: discharge.total === 0 || discharge.done === discharge.total ? 'done' : 'pending', href: '/containers' },
-    { key: 'return', label: 'Devolução', detail: returned.total === 0 ? 'Sem containers' : `${returned.done}/${returned.total} devolvidos`, state: returned.total === 0 || returned.done === returned.total ? 'done' : 'pending', href: `/bls/${bl.id}?tab=faturamento` },
+    { key: 'return', label: 'Devolução', detail: returnDetail, state: returned.total === 0 || returned.done === returned.total ? 'done' : 'pending', href: `/bls/${bl.id}?tab=faturamento` },
   ]
 }
 

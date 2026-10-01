@@ -6,6 +6,9 @@ import type { BLContainer, BaplieContainer as BaplieContainerRow } from '../type
 // atributo: o valor do Baplie é aplicado automaticamente ao B/L. A única
 // divergência apontada é de EXISTÊNCIA: container no Baplie e em nenhum B/L, ou
 // em B/L e ausente do Baplie (#306).
+//
+// SOC/COC é a exceção: o B/L é soberano (migration 121), então o valor do B/L
+// fica, mas a discordância com o Baplie aparece como `ownership_mismatch`.
 export type BaplieReconciliationItem =
   | {
       kind: 'missing_in_manifest'
@@ -22,6 +25,14 @@ export type BaplieReconciliationItem =
       // desenho de schema, mas o nome do campo sugeria uma resolucao que
       // nunca existiu).
       bl_id: string | null
+    }
+  | {
+      kind: 'ownership_mismatch'
+      container_number: string
+      bl_container_id: number
+      bl_id: string | null
+      bl_ownership: string
+      baplie_ownership: string
     }
 
 export type BaplieReconciliationResult = {
@@ -81,7 +92,7 @@ export function hasCompleteBaplieRouteCoverage(staged: RouteRow[], bls: RouteRow
 type BlContainerPhysical = Pick<
   BLContainer,
   'id' | 'bl_id' | 'container_number' | 'is_imo' | 'imo_class' | 'un_number' | 'is_oog'
->
+> & Partial<Pick<BLContainer, 'ownership'>>
 
 export type BapliePhysicalUpdate = {
   bl_container_id: number
@@ -157,6 +168,39 @@ export function computeExistenceDivergences(
     }
   }
 
+  return items
+}
+
+/**
+ * SOC/COC divergente (pura, testável): container cheio do Baplie que casa com
+ * exatamente um bl_container, os dois informados e diferentes. O valor do B/L
+ * prevalece; aqui só se aponta a discordância.
+ */
+export function computeOwnershipDivergences(
+  staged: Array<Pick<BaplieContainerRow, 'container_number' | 'status'> & { ownership?: string | null }>,
+  blContainers: BlContainerPhysical[],
+): BaplieReconciliationItem[] {
+  const blByNumber = new Map<string, BlContainerPhysical[]>()
+  for (const c of blContainers) {
+    const key = normalizeContainerNumber(c.container_number)
+    blByNumber.set(key, [...(blByNumber.get(key) ?? []), c])
+  }
+  const items: BaplieReconciliationItem[] = []
+  for (const b of staged) {
+    if (b.status === 'empty' || !b.ownership) continue
+    const matches = blByNumber.get(normalizeContainerNumber(b.container_number))
+    if (!matches || matches.length !== 1) continue
+    const mc = matches[0]
+    if (!mc.ownership || mc.ownership === b.ownership) continue
+    items.push({
+      kind: 'ownership_mismatch',
+      container_number: mc.container_number,
+      bl_container_id: mc.id,
+      bl_id: mc.bl_id ?? null,
+      bl_ownership: mc.ownership,
+      baplie_ownership: b.ownership,
+    })
+  }
   return items
 }
 
@@ -241,7 +285,7 @@ async function fetchStagingAndBlContainers(voyageId: number) {
     while (true) {
       const { data, error } = await supabase
         .from('bl_containers')
-        .select('id, bl_id, container_number, is_imo, imo_class, un_number, is_oog')
+        .select('id, bl_id, container_number, is_imo, imo_class, un_number, is_oog, ownership')
         .in('bl_id', blIds)
         .range(fromC, fromC + PAGE - 1)
       if (error) throw error
@@ -328,7 +372,10 @@ export async function reconcileBaplieWithManifest(
   }
 
   return {
-    items: computeExistenceDivergences(staged, blContainers, new Set(pendingRoutes)),
+    items: [
+      ...computeExistenceDivergences(staged, blContainers, new Set(pendingRoutes)),
+      ...computeOwnershipDivergences(staged, blContainers),
+    ],
     source: 'reconciled',
     pendingRoutes,
   }
@@ -379,6 +426,7 @@ function dedupeBaplieContainers(rows: BaplieContainerRow[]) {
     existing.imo_class = row.imo_class ?? existing.imo_class
     existing.un_number = row.un_number ?? existing.un_number
     existing.is_oog = Boolean(existing.is_oog || row.is_oog)
+    existing.ownership = existing.ownership ?? row.ownership
   }
 
   return Array.from(byNumber.values())

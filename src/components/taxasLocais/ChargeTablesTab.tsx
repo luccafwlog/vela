@@ -222,6 +222,7 @@ export function ChargeTablesTab({
           { field: 'Moeda', before: originalItem.currency ?? '', after: tableItemForm.currency },
           { field: 'Valor unitário', before: `${originalItem.currency} ${originalItem.currency === 'USD' ? originalItem.unit_value_usd : originalItem.unit_value_brl}`, after: `${tableItemForm.currency} ${unitValue}` },
           { field: 'Somente manual', before: originalItem.manual_only ? 'Sim' : 'Não', after: tableItemForm.manualOnly ? 'Sim' : 'Não' },
+          { field: 'Cobra de container SOC', before: originalItem.applies_to_soc === false ? 'Não' : 'Sim', after: tableItemForm.appliesToSoc ? 'Sim' : 'Não' },
           { field: 'Status', before: originalItem.active ? 'Ativo' : 'Inativo', after: tableItemForm.active ? 'Ativo' : 'Inativo' },
         ].filter((c) => c.before !== c.after)
       : []
@@ -257,6 +258,7 @@ export function ChargeTablesTab({
         currency: tableItemForm.currency,
         unitValue,
         manualOnly: tableItemForm.manualOnly,
+        appliesToSoc: tableItemForm.appliesToSoc,
         active: tableItemForm.active,
         sortOrder,
       })
@@ -284,6 +286,7 @@ export function ChargeTablesTab({
       currency: (item.currency === 'USD' ? 'USD' : 'BRL') as 'BRL' | 'USD',
       unitValue: String(unitValue),
       manualOnly: Boolean(item.manual_only),
+      appliesToSoc: item.applies_to_soc !== false,
       active: Boolean(item.active),
       sortOrder: String(Number(item.sort_order ?? 100)),
     })
