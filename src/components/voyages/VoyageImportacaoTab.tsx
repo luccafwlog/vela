@@ -4,7 +4,7 @@ import type { VoyageVehicleStat } from '../../hooks/useVehicles'
 import type { VoyageVaziosImportacaoStat } from '../../hooks/useVaziosImportacaoStats'
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../../lib/containerCounts'
 import { formatMetric, formatPortDisplayName } from '../../lib/voyageFormat'
-import { splitVoyageBls, summarizeImportByPod, type PodImportSummary } from '../../services/voyageSummaries'
+import { splitVoyageBls, summarizeBreakbulk, summarizeImportByPod, type PodImportSummary } from '../../services/voyageSummaries'
 import { VoyageImportActions } from '../shared/VoyageImportActions'
 import type { Voyage } from './voyageCardTypes'
 
@@ -24,12 +24,9 @@ export function VoyageImportacaoTab({ voyage, voyageLabel, vehicleStats, vaziosI
     ...Object.keys(vehicleStats.byPod),
     ...Object.keys(vaziosImpStats.byPod),
   ])).sort((left, right) => left.localeCompare(right, 'pt-BR'))
-  const { containerBls, breakbulkBls } = splitVoyageBls(voyage.bls)
+  const { containerBls } = splitVoyageBls(voyage.bls)
   const containers = containerBls.flatMap((bl) => bl.bl_containers ?? [])
-  const totalWeightTon = breakbulkBls.reduce(
-    (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
-    0,
-  )
+  const totalWeightTon = summarizeBreakbulk(voyage.bls).weightTon
   const totals = [
     ['B/Ls', formatMetric(voyage.bls?.length ?? 0)],
     ['CNTRs distintos', formatMetric(countDistinctContainerNumbers(containers))],

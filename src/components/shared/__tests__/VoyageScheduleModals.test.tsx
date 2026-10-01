@@ -203,7 +203,7 @@ describe('EscalaModal', () => {
     const user = userEvent.setup()
     const onSaved = renderEscala(escalaBase)
 
-    expect(screen.getByText('Escala: BRSSZ')).toBeTruthy()
+    expect(screen.getByText('BRSSZ')).toBeTruthy()
     expect(screen.queryByLabelText('Porto da escala')).toBeNull()
     expect((screen.getByLabelText('ETA') as HTMLInputElement).value).toBe('2026-03-01')
     expect(screen.queryByLabelText('RESTOW')).toBeNull()
@@ -521,7 +521,6 @@ describe('EscalaModal', () => {
     await user.selectOptions(vazioImport, 't-norte')
     await user.selectOptions(screen.getByLabelText('Terminal da operação Exportação Vazios'), 't-sul')
     await user.type(screen.getByLabelText('ATD T-NORTE'), '2026-03-03')
-    await user.type(screen.getByLabelText('Justificativa da alteração'), 'distribuição operacional')
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
 
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
@@ -546,7 +545,6 @@ describe('EscalaModal', () => {
     const onSaved = renderEscala(terminalEscala())
 
     await user.selectOptions(screen.getByLabelText('Terminal da operação Exportação Granito'), 't-norte')
-    await user.type(screen.getByLabelText('Justificativa da alteração'), 'migração de operação')
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
 
     const payload = onSaved.mock.calls[0][0]
@@ -595,6 +593,25 @@ describe('EscalaModal', () => {
     expect(screen.getByRole('alert').textContent).toContain('Informe o ATB')
   })
 
+  it('mostra a justificativa só quando a alteração a exige e bloqueia o salvamento sem ela', async () => {
+    const user = userEvent.setup()
+    const onSaved = renderEscala(terminalEscala({ terminalScale: { ...terminalScaleBase, revision: 1 } }))
+
+    expect(screen.queryByLabelText('Justificativa da alteração')).toBeNull()
+    await user.selectOptions(screen.getByLabelText('Terminal da operação Importação Carga cheia'), 't-sul')
+    expect(screen.getByLabelText('Justificativa da alteração')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('justificativa')
+
+    await user.type(screen.getByLabelText('Justificativa da alteração'), 'troca de berço')
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      terminalState: expect.objectContaining({ justification: 'troca de berço' }),
+    }))
+  })
+
   it('preserva a edição no conflito de revisão e bloqueia ADR fechado com ação de reabertura', async () => {
     const user = userEvent.setup()
     const onSaved = vi.fn().mockRejectedValueOnce(Object.assign(new Error('REVISAO_OBSOLETA'), { code: 'P0001' }))
@@ -613,7 +630,6 @@ describe('EscalaModal', () => {
     cleanup()
     renderEscala(terminalEscala(), blocked)
     await user.selectOptions(screen.getByLabelText('Terminal da operação Importação Carga cheia'), 't-sul')
-    await user.type(screen.getByLabelText('Justificativa da alteração'), 'ajuste com ADR fechado')
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
     expect(screen.getByRole('alert').textContent).toContain('ADR fechado')
     expect(screen.getByText(/terminal T-SUL/)).toBeTruthy()

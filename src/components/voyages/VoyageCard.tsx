@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Ban, Pencil, Trash2 } from 'lucide-react'
+import { ArrowRight, Ban, Box, Package, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Badge } from '../ui/Badge'
@@ -11,7 +11,6 @@ import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante
 import type { VoyageVehicleStat } from '../../hooks/useVehicles'
 import type { VoyageVaziosImportacaoStat } from '../../hooks/useVaziosImportacaoStats'
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../../lib/containerCounts'
-import { calculateTeu } from '../../services/containerTeu'
 import { formatDate } from '../../lib/utils'
 import {
   collectVoyagePorts,
@@ -23,7 +22,9 @@ import {
   isEtaOverdue,
   summarizeExportByEmbarkPort,
   splitVoyageBls,
+  summarizeBreakbulk,
   voyageCeCoverage,
+  type BreakbulkSummary,
 } from '../../services/voyageSummaries'
 import { formatMetric, normalizePortName } from '../../lib/voyageFormat'
 import { normalizePortCode } from '../../services/portCode'
@@ -89,6 +90,70 @@ function DirectionKpiTile({
             <strong>{metric.value}</strong>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Importação é o foco da operação: o tile ocupa duas colunas e separa a carga
+ * em contêineres e carga solta, para a carga solta nunca sumir do cabeçalho.
+ */
+function ImportKpiTile({
+  totalBls,
+  containerBlCount,
+  containers,
+  imo,
+  oog,
+  vehicles,
+  breakbulk,
+}: {
+  totalBls: number
+  containerBlCount: number
+  containers: number
+  imo: number
+  oog: number
+  vehicles: number
+  breakbulk: BreakbulkSummary
+}) {
+  const hasBreakbulk = breakbulk.bls > 0
+  return (
+    <div className="app-voyage-kpi-tile app-voyage-kpi-tile--import">
+      <div className="app-voyage-kpi-tile__head">
+        <Badge tone="blue">Importação</Badge>
+        <div className="app-voyage-kpi-tile__primary">
+          <span className="app-voyage-kpi-tile__value">{formatMetric(totalBls)}</span>
+          <span className="app-voyage-kpi-tile__unit">B/Ls</span>
+        </div>
+      </div>
+      <div className="app-voyage-kpi-split">
+        <section className="app-voyage-kpi-split__panel" aria-label="Contêineres">
+          <div className="app-voyage-kpi-split__title"><Box size={14} aria-hidden="true" />Contêineres</div>
+          <div className="app-voyage-kpi-split__lead">
+            <span>{formatMetric(containers)}</span>
+            <small>CNTRs distintos</small>
+          </div>
+          <div className="app-voyage-kpi-tile__support">
+            <div className="app-voyage-kpi-tile__metric"><span>B/Ls</span><strong>{formatMetric(containerBlCount)}</strong></div>
+            <div className="app-voyage-kpi-tile__metric"><span>IMO / OOG</span><strong>{`${imo} / ${oog}`}</strong></div>
+            <div className="app-voyage-kpi-tile__metric"><span>Veículos</span><strong>{formatMetric(vehicles)}</strong></div>
+          </div>
+        </section>
+        <section
+          className={`app-voyage-kpi-split__panel${hasBreakbulk ? '' : ' app-voyage-kpi-split__panel--empty'}`}
+          aria-label="Carga solta"
+        >
+          <div className="app-voyage-kpi-split__title"><Package size={14} aria-hidden="true" />Carga solta</div>
+          <div className="app-voyage-kpi-split__lead">
+            <span>{hasBreakbulk ? formatMetric(Math.round(breakbulk.weightTon * 100) / 100) : '—'}</span>
+            <small>{hasBreakbulk ? 'toneladas' : 'sem carga solta'}</small>
+          </div>
+          <div className="app-voyage-kpi-tile__support">
+            <div className="app-voyage-kpi-tile__metric"><span>B/Ls carga solta</span><strong>{formatMetric(breakbulk.bls)}</strong></div>
+            <div className="app-voyage-kpi-tile__metric"><span>Máquinas / Volumes</span><strong>{`${formatMetric(breakbulk.machines)} / ${formatMetric(breakbulk.packages)}`}</strong></div>
+            <div className="app-voyage-kpi-tile__metric"><span>CBM</span><strong>{formatMetric(Math.round(breakbulk.cbm * 100) / 100)}</strong></div>
+          </div>
+        </section>
       </div>
     </div>
   )
@@ -182,12 +247,7 @@ export function VoyageCard({
   const totalImoContainers = countDistinctContainerNumbersBy(flatContainers, (container) => Boolean(container.is_imo))
   const totalOogContainers = countDistinctContainerNumbersBy(flatContainers, (container) => Boolean(container.is_oog))
   const totalImportVehicles = vehicleStats.totalVehicles
-  const distinctContainerTypes = Array.from(new Map(
-    flatContainers
-      .map((container) => [String(container.container_number ?? '').trim().toUpperCase(), container.type ?? null] as const)
-      .filter(([containerNumber]) => Boolean(containerNumber)),
-  ).values())
-  const totalTeu = calculateTeu(distinctContainerTypes)
+  const breakbulkSummary = summarizeBreakbulk(voyage.bls)
   const exportSummary = summarizeExportByEmbarkPort(voyage.granite_manifests, voyage.vazios_manifests)
   // Mesma fonte da aba Exportação (`summarizeExportByEmbarkPort`): contar
   // `vazios_manifests.total_bookings` aqui fazia o KPI divergir da faixa
@@ -417,17 +477,15 @@ export function VoyageCard({
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <DirectionKpiTile
-          direction="Importação"
-          tone="blue"
-          primary={{ value: String(totalBls), unit: 'B/Ls' }}
-          metrics={[
-            { label: 'CNTRs distintos', value: String(totalContainers) },
-            { label: 'TEU', value: totalTeu.unknownTypeCount ? `${totalTeu.teu} (+${totalTeu.unknownTypeCount} diverg.)` : String(totalTeu.teu) },
-            { label: 'IMO / OOG', value: `${totalImoContainers} / ${totalOogContainers}` },
-            { label: 'Veículos', value: String(totalImportVehicles) },
-          ]}
+      <section className="app-voyage-kpi-grid" aria-label="Indicadores da viagem">
+        <ImportKpiTile
+          totalBls={totalBls}
+          containerBlCount={containerBls.length}
+          containers={totalContainers}
+          imo={totalImoContainers}
+          oog={totalOogContainers}
+          vehicles={totalImportVehicles}
+          breakbulk={breakbulkSummary}
         />
         <DirectionKpiTile
           direction="Exportação"

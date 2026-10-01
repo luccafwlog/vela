@@ -1231,12 +1231,30 @@ function isUuid(value: string) {
 
 // --- Importação por POD ------------------------------------------------------
 
+export type BreakbulkSummary = { bls: number; machines: number; packages: number; weightTon: number; cbm: number }
+
+/**
+ * Totais de carga solta de um conjunto de B/Ls. B/L misto entra pela parte
+ * solta (`splitVoyageBls`) e o peso usa `breakbulkWeightTon`, para o card da
+ * viagem, a aba Importação e o resumo por POD lerem o mesmo número.
+ */
+export function summarizeBreakbulk(bls: VoyageBl[] | null | undefined): BreakbulkSummary {
+  const { breakbulkBls } = splitVoyageBls(bls)
+  return {
+    bls: breakbulkBls.length,
+    machines: breakbulkBls.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0),
+    packages: breakbulkBls.reduce((sum, bl) => sum + Number(bl.bb_packages_qty ?? 0), 0),
+    weightTon: breakbulkBls.reduce((sum, bl) => sum + breakbulkWeightTon(bl), 0),
+    cbm: breakbulkBls.reduce((sum, bl) => sum + Number(bl.bb_cbm ?? 0), 0),
+  }
+}
+
 export type PodImportSummary = {
   pod: string
   containers: { distinct: number; imo: number; oog: number; types: string }
   generalCargo: { distinct: number; imo: number; oog: number }
   vehicles: { distinctContainers: number }
-  breakbulk: { bls: number; machines: number; packages: number; weightTon: number; cbm: number }
+  breakbulk: BreakbulkSummary
 }
 
 /**
@@ -1283,13 +1301,7 @@ export function summarizeImportByPod(
         oog: countDistinctContainerNumbersBy(general, (container) => Boolean(container.is_oog)),
       },
       vehicles: { distinctContainers: countDistinctContainerNumbers(vehicles) },
-      breakbulk: {
-        bls: podBreakbulk.length,
-        machines: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0),
-        packages: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_packages_qty ?? 0), 0),
-        weightTon: podBreakbulk.reduce((sum, bl) => sum + breakbulkWeightTon(bl), 0),
-        cbm: podBreakbulk.reduce((sum, bl) => sum + Number(bl.bb_cbm ?? 0), 0),
-      },
+      breakbulk: summarizeBreakbulk(podBreakbulk),
     }
   })
 }
