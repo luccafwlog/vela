@@ -222,8 +222,7 @@ export async function importVaziosImportacaoManifest({
     p_uploaded_by: uploadedBy,
     p_containers: containers,
     p_manifest_numero: numero,
-    // ponytail: cast até regenerar src/types/database.ts (protegido) com p_manifest_numero.
-  } as never)
+  })
   if (error) throw error
   const result = data as { manifest_id: string; mercante_manifest_id: string }
   return { manifestId: result.manifest_id, mercanteManifestId: result.mercante_manifest_id }
