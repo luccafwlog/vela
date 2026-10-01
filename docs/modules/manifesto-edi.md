@@ -135,8 +135,8 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
   o mesmo número em dois portos. Cada número vira um registro de
   `manifestos_mercante` com `natureza='vazio'` e é o que a aba Rotas e Manifestos
   exibe na linha VAZIOS da rota (a linha de carga da mesma rota continua com o
-  manifesto `natureza='carga'`). Como `manifestos_mercante.numero` é único e cada
-  manifesto pertence a uma rota, um mesmo POL com dois POD pede dois números.
+  manifesto `natureza='carga'`). A regra é um número por rota: um mesmo POL com
+  dois POD pede dois números (confirmado em 2026-10-01).
 - **Reimportar por planilha** é permitido e soma os containers como um novo
   manifesto de vazios; só bloqueia quando algum número informado já está
   cadastrado (decisão de 2026-10-01).

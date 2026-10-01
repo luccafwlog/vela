@@ -941,9 +941,10 @@ a tabela legada `voyage_route_ce_master`, preservada para compatibilidade retroa
 com importadores existentes. É distinto dos CEs individuais dos
 B/Ls e não se confunde com o número de viagem interna da agência.
 
-- **Vazios de Importação:** cada porto de origem dos vazios tem o seu Nº de
-  Manifesto Mercante (natureza `vazio`); vazios de vários portos de origem
-  pedem um número para cada um. O número é obrigatório: a importação por
+- **Vazios de Importação:** cada rota dos vazios (porto de origem → porto de
+  destino) tem o seu Nº de Manifesto Mercante (natureza `vazio`); vazios de
+  vários portos de origem, ou de uma origem para dois destinos, pedem um número
+  por rota. O número é obrigatório: a importação por
   planilha o exige; os vazios vindos do Baplie entram sem número e a pendência
   aparece no alerta CE Mercante pendente. Reimportar só é bloqueado quando o
   número informado já está cadastrado (decisões de 2026-10-01).
