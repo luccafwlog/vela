@@ -1,6 +1,7 @@
 import { assertUploadFile } from '../lib/fileGuard'
 import { createHeaderMapper, createRowErrorCollector, matchHeaders, readSheet, type HeaderSpec, type RowError } from './importCore'
 import { supabase } from './supabase'
+import { createManifestoMercante } from './manifestosMercanteService'
 import { escapeFilterTerm } from '../lib/utils'
 import { parseImportNumber } from '../lib/importNumber'
 import { IsoContainerSchema, LocodeSchema } from './importValidation'
@@ -147,10 +148,48 @@ function resolveVaziosPort(
   return resolved.code
 }
 
+/** Colunas que a planilha de Vazios de Importação precisa ter (modelo e modal usam esta lista). */
+export const VAZIOS_IMPORTACAO_REQUIRED_COLUMNS = ['Container', 'POL', 'POD'] as const
+export const VAZIOS_IMPORTACAO_OPTIONAL_COLUMNS = ['Tipo', 'Tara (kg)'] as const
+
+export type VaziosImportacaoRoute = { pol: string; pod: string }
+
+/**
+ * O Nº de manifesto Mercante pertence a UMA rota (POL/POD). Por isso a planilha
+ * precisa trazer POL e POD em todas as linhas e uma única rota; um arquivo com
+ * várias rotas teria que repartir um número só entre elas.
+ */
+export function resolveVaziosManifestRoute(
+  manifest: Pick<ParsedVaziosImportacaoManifest, 'containers'>,
+): { route: VaziosImportacaoRoute; error: null } | { route: null; error: string } {
+  if (!manifest.containers.length) return { route: null, error: 'Nenhum container na planilha.' }
+  if (manifest.containers.some((container) => !container.pol || !container.pod)) {
+    return {
+      route: null,
+      error: 'POL e POD são obrigatórios em todas as linhas: o Nº de manifesto Mercante pertence à rota.',
+    }
+  }
+  const routes = new Map<string, VaziosImportacaoRoute>()
+  for (const container of manifest.containers) {
+    const route = { pol: container.pol as string, pod: container.pod as string }
+    routes.set(`${route.pol}__${route.pod}`, route)
+  }
+  if (routes.size > 1) {
+    const labels = Array.from(routes.values()).map((route) => `${route.pol} → ${route.pod}`)
+    return {
+      route: null,
+      error: `A planilha tem ${routes.size} rotas (${labels.join('; ')}). Importe uma planilha por rota, cada uma com o seu manifesto.`,
+    }
+  }
+  return { route: routes.values().next().value as VaziosImportacaoRoute, error: null }
+}
+
 export type ImportVaziosImportacaoArgs = {
   manifest: ParsedVaziosImportacaoManifest
   uploadedBy: string
   voyageId: number
+  /** Nº do manifesto Mercante dos vazios desta rota (obrigatório). */
+  manifestNumber: string
   description?: string
   /** Permite persistir as linhas válidas quando o preview tem erros de linha. */
   allowRowErrors?: boolean
@@ -160,10 +199,15 @@ export async function importVaziosImportacaoManifest({
   manifest,
   uploadedBy,
   voyageId,
+  manifestNumber,
   description,
   allowRowErrors = false,
-}: ImportVaziosImportacaoArgs): Promise<{ manifestId: string }> {
+}: ImportVaziosImportacaoArgs): Promise<{ manifestId: string; mercanteManifestId: string }> {
   if (manifest.rowErrors.length && !allowRowErrors) throw new Error(formatImportacaoRowErrors(manifest.rowErrors))
+  const numero = manifestNumber.trim()
+  if (!numero) throw new Error('Número do manifesto Mercante é obrigatório.')
+  const { route, error: routeError } = resolveVaziosManifestRoute(manifest)
+  if (!route) throw new Error(routeError)
 
   const containers = manifest.containers.map((container) => ({
     container_number: container.container_number,
@@ -172,15 +216,29 @@ export async function importVaziosImportacaoManifest({
     pol: container.pol ?? null,
     pod: container.pod ?? null,
   }))
+  // O manifesto nasce antes: número repetido (UNIQUE) recusa sem tocar nos containers.
+  const mercante = await createManifestoMercante({
+    voyage_id: voyageId,
+    pol: route.pol,
+    pod: route.pod,
+    numero,
+    natureza: 'vazio',
+  })
   const { data, error } = await supabase.rpc('import_vazios_importacao_transactional', {
     p_voyage_id: voyageId,
     p_description: description ?? null,
     p_uploaded_by: uploadedBy,
     p_containers: containers,
   })
-  if (error) throw error
+  if (error) {
+    // ponytail: duas gravações, sem transação única. Se a segunda falhar, desfazemos a
+    // primeira aqui; um corte de rede entre as duas pode deixar o manifesto órfão.
+    // Upgrade: p_manifest_numero na RPC (migration + tipos) para gravar tudo junto.
+    await supabase.from('manifestos_mercante').delete().eq('id', mercante.id)
+    throw error
+  }
   const result = data as { manifest_id: string }
-  return { manifestId: result.manifest_id }
+  return { manifestId: result.manifest_id, mercanteManifestId: mercante.id }
 }
 
 function formatImportacaoRowErrors(rowErrors: readonly RowError[]): string {

@@ -11,6 +11,7 @@ import { useToast } from '../components/ui/Toast'
 import { TruncationNote } from '../components/shared/TruncationNote'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { FileImportModal } from '../components/shared/FileImportModal'
+import { VaziosImportacaoGuide, VaziosImportacaoManifestNumberField, VaziosImportacaoRouteNotice } from '../components/shared/VaziosImportacaoImportParts'
 import { useAuth } from '../hooks/useAuth'
 import { PAGE_SIZES, usePageFilters } from '../hooks/usePageFilters'
 import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
@@ -20,6 +21,7 @@ import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import {
   parseVaziosImportacaoFile,
   importVaziosImportacaoManifest,
+  resolveVaziosManifestRoute,
   listVaziosImportacaoContainers,
   listVaziosImportacaoManifests,
   type ParsedVaziosImportacaoManifest,
@@ -61,6 +63,7 @@ function VaziosImportacaoPreview({ manifest }: { manifest: ParsedVaziosImportaca
         </table>
       </div>
       <TruncationNote shown={25} total={manifest.containers.length} noun="container" nounPlural="containers" />
+      <VaziosImportacaoRouteNotice manifest={manifest} />
       <ImportIssuesPanel issues={rowErrorsToImportIssues(manifest.rowErrors)} filename="vazios-importacao-issues.csv" />
     </div>
   )
@@ -85,6 +88,7 @@ export function VaziosImportacao() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [voyageId, setVoyageId] = useState(searchParams.get('voyage') ?? '')
   const [description, setDescription] = useState('')
+  const [manifestNumber, setManifestNumber] = useState('')
   const [exporting, setExporting] = useState(false)
   const [updatingNaturezaId, setUpdatingNaturezaId] = useState<string | null>(null)
   const [bulkUpdating, setBulkUpdating] = useState(false)
@@ -132,6 +136,7 @@ export function VaziosImportacao() {
     setUploadOpen(false)
     setVoyageId('')
     setDescription('')
+    setManifestNumber('')
   }
 
   async function handleSelectAllFiltered() {
@@ -426,17 +431,22 @@ export function VaziosImportacao() {
           inspectFile={inspectImportUpload}
           importer={async (nextManifest, _file, override) => {
             if (!user || !voyageId) return
-            await importVaziosImportacaoManifest({ manifest: nextManifest, uploadedBy: user.id, voyageId: Number(voyageId), description: description.trim() || undefined, allowRowErrors: Boolean(override) })
+            await importVaziosImportacaoManifest({ manifest: nextManifest, uploadedBy: user.id, voyageId: Number(voyageId), manifestNumber, description: description.trim() || undefined, allowRowErrors: Boolean(override) })
             await afterManifestoImportado(queryClient, { voyageId })
             showToast(`${nextManifest.containers.length} containers importados.`, 'success')
           }}
-          canImport={(nextManifest, override) => nextManifest.containers.length > 0 && (nextManifest.rowErrors.length === 0 || Boolean(override))}
+          canImport={(nextManifest, override) => resolveVaziosManifestRoute(nextManifest).route !== null && (nextManifest.rowErrors.length === 0 || Boolean(override))}
           getIssues={(nextManifest) => rowErrorsToImportIssues(nextManifest.rowErrors)}
-          ready={Boolean(voyageId && user)}
-          prerequisite={<VoyageCombobox required label="Viagem de destino" selectedVoyageId={voyageId} onSelect={(id) => setVoyageId(id == null ? '' : String(id))} />}
+          ready={Boolean(voyageId && user && manifestNumber.trim())}
+          prerequisite={
+            <>
+              <VoyageCombobox required label="Viagem de destino" selectedVoyageId={voyageId} onSelect={(id) => setVoyageId(id == null ? '' : String(id))} />
+              <VaziosImportacaoManifestNumberField value={manifestNumber} onChange={setManifestNumber} />
+            </>
+          }
           helper={
             <>
-              <div className="rounded-xl border border-[#30363d] bg-[#0d1117] p-4 text-sm text-slate-300"><div className="font-semibold text-white">Formato esperado</div><div className="mt-2 text-slate-400">Colunas: <strong>Container</strong> (obrigatorio), <strong>Tipo</strong>, <strong>Tara</strong> (kg).</div></div>
+              <VaziosImportacaoGuide />
               <Field label="Descricao (opcional)"><Input placeholder="Ex: Importacao semana 15" value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
             </>
           }

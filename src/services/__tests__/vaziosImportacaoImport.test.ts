@@ -1,11 +1,25 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer } from '../vaziosImportacaoImport'
+import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer, resolveVaziosManifestRoute } from '../vaziosImportacaoImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
-const rpcMock = vi.hoisted(() => vi.fn())
-vi.mock('../supabase', () => ({ supabase: { rpc: (...args: unknown[]) => rpcMock(...args) } }))
+const { rpcMock, createManifestoMock, deleteEqMock } = vi.hoisted(() => ({
+  rpcMock: vi.fn(),
+  createManifestoMock: vi.fn(),
+  deleteEqMock: vi.fn(),
+}))
+vi.mock('../supabase', () => ({
+  supabase: {
+    rpc: (...args: unknown[]) => rpcMock(...args),
+    from: () => ({ delete: () => ({ eq: (...args: unknown[]) => deleteEqMock(...args) }) }),
+  },
+}))
+vi.mock('../manifestosMercanteService', () => ({ createManifestoMercante: createManifestoMock }))
+
+const ROTA = { pol: 'CNTAC', pod: 'BRVIX' }
+const container = (n: string, rota: { pol?: string; pod?: string } = ROTA) =>
+  ({ rowNumber: 2, container_number: n, container_type: '40HC', tare_kg: 3800, ...rota })
 
 describe('parseVaziosImportacaoBuffer', () => {
   it('mapeia cabecalhos com acentos/variacoes e normaliza tara e rotas (Origem / Destino)', async () => {
@@ -135,24 +149,93 @@ describe('parseVaziosImportacaoBuffer', () => {
       },
       uploadedBy: 'user-1',
       voyageId: 7,
+      manifestNumber: '1226501801342',
     })).rejects.toThrow('Linha 2')
 
 		expect(rpcMock).not.toHaveBeenCalled()
 	})
 
 	it('só permite importar divergências quando o override de erros de linha é explícito', async () => {
+		createManifestoMock.mockResolvedValue({ id: 'mercante-1' })
 		rpcMock.mockResolvedValue({ data: { manifest_id: 'manifest-1' }, error: null })
 
 		await importVaziosImportacaoManifest({
 			manifest: {
-				containers: [{ rowNumber: 2, container_number: 'MSCU1234567', container_type: '40HC', tare_kg: 3800 }],
+				containers: [container('MSCU1234567')],
 				rowErrors: [{ row: 2, message: 'Container inválido.', raw: { Container: 'MSCU1234567' } }],
 			},
 			uploadedBy: 'user-1',
 			voyageId: 7,
+			manifestNumber: '1226501801342',
 			allowRowErrors: true,
 		})
 
 		expect(rpcMock).toHaveBeenCalledWith('import_vazios_importacao_transactional', expect.anything())
 	})
+})
+
+describe('Nº do manifesto Mercante dos vazios (obrigatório, por rota)', () => {
+  const base = { uploadedBy: 'user-1', voyageId: 7 }
+
+  beforeEach(() => {
+    rpcMock.mockReset()
+    createManifestoMock.mockReset()
+    deleteEqMock.mockReset()
+  })
+
+  it('recusa número vazio ou só espaços sem gravar nada', async () => {
+    for (const manifestNumber of ['', '   ']) {
+      await expect(importVaziosImportacaoManifest({
+        ...base, manifestNumber, manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
+      })).rejects.toThrow('Número do manifesto Mercante é obrigatório')
+    }
+    expect(createManifestoMock).not.toHaveBeenCalled()
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('recusa planilha sem POL/POD ou com mais de uma rota, sem gravar nada', async () => {
+    await expect(importVaziosImportacaoManifest({
+      ...base, manifestNumber: '1', manifest: { containers: [container('MSCU1234567', {})], rowErrors: [] },
+    })).rejects.toThrow('POL e POD são obrigatórios')
+    await expect(importVaziosImportacaoManifest({
+      ...base,
+      manifestNumber: '1',
+      manifest: { containers: [container('MSCU1234567'), container('TGHU7654325', { pol: 'CNSHA', pod: 'BRVIX' })], rowErrors: [] },
+    })).rejects.toThrow('2 rotas')
+    expect(createManifestoMock).not.toHaveBeenCalled()
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('número já usado por outro manifesto recusa antes de importar os containers', async () => {
+    createManifestoMock.mockRejectedValue(new Error('O número de manifesto Mercante "1" já foi cadastrado no sistema.'))
+    await expect(importVaziosImportacaoManifest({
+      ...base, manifestNumber: '1', manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
+    })).rejects.toThrow('já foi cadastrado')
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('desfaz o manifesto criado quando a RPC dos containers falha', async () => {
+    createManifestoMock.mockResolvedValue({ id: 'mercante-9' })
+    rpcMock.mockResolvedValue({ data: null, error: new Error('falha na RPC') })
+    deleteEqMock.mockResolvedValue({ error: null })
+
+    await expect(importVaziosImportacaoManifest({
+      ...base, manifestNumber: '1', manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
+    })).rejects.toThrow('falha na RPC')
+    expect(deleteEqMock).toHaveBeenCalledWith('id', 'mercante-9')
+  })
+})
+
+describe('resolveVaziosManifestRoute', () => {
+  it('devolve a rota única da planilha', () => {
+    expect(resolveVaziosManifestRoute({ containers: [container('A'), container('B')] }).route).toEqual(ROTA)
+  })
+
+  it('explica o bloqueio quando falta POL/POD, há várias rotas ou não há containers', () => {
+    expect(resolveVaziosManifestRoute({ containers: [container('A', { pol: 'CNTAC' })] }).error).toMatch(/POL e POD/)
+    expect(resolveVaziosManifestRoute({
+      containers: [container('A'), container('B', { pol: 'CNSHA', pod: 'BRVIX' })],
+    }).error).toMatch(/2 rotas.*CNTAC → BRVIX.*CNSHA → BRVIX/)
+    expect(resolveVaziosManifestRoute({ containers: [] }).error).toMatch(/Nenhum container/)
+  })
 })

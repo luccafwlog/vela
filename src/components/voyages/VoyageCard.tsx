@@ -361,7 +361,9 @@ export function VoyageCard({
   // número avulso (#322) OU quando há lançamento em `manifestos_mercante` (aba Rotas e Manifestos).
   const ceMasterCount = manifestRows.filter((row) => {
     if (String(row.ceMaster ?? '').trim().length > 0) return true
-    return (dbManifestos ?? []).some((m) => m.pol === row.pol && m.pod === row.pod)
+    // Vazios e carga dividem POL/POD, mas cada um tem o seu manifesto.
+    const natureza = row.isVazios ? 'vazio' : 'carga'
+    return (dbManifestos ?? []).some((m) => m.pol === row.pol && m.pod === row.pod && m.natureza === natureza)
   }).length
   const ceMasterTotal = manifestRows.length
   const proximaEscala = getProximaEscala(podRows)

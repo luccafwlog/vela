@@ -353,7 +353,7 @@ describe('VoyageManifestosTab', () => {
     })
   })
 
-  it('renderiza multiplos manifestos mercante para a mesma rota com badges de natureza', () => {
+  it('mostra cada manifesto mercante na linha da sua natureza (carga e vazios na mesma rota)', () => {
     const voyage = {
       id: 14,
       voyage_number: '001',
@@ -395,6 +395,7 @@ describe('VoyageManifestosTab', () => {
           ])}
           routeCeMasters={undefined}
           ceCoverage={{ filled: 1, total: 1 }}
+          vaziosRoutes={[{ pol: 'CNTAC', pod: 'BRVIX', containerCount: 3 }]}
           onEditPol={vi.fn()}
         />
       </MemoryRouter>,

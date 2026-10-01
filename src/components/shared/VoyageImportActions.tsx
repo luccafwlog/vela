@@ -20,7 +20,8 @@ import {
   type ParseBreakbulkOptions,
 } from '../../services/breakbulkImport'
 import { importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoFile } from '../../services/vaziosImportacaoImport'
+import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestRoute } from '../../services/vaziosImportacaoImport'
+import { VaziosImportacaoGuide, VaziosImportacaoManifestNumberField, VaziosImportacaoRouteNotice } from './VaziosImportacaoImportParts'
 import { importVehicleRows, parseVehicleImportFile } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
 import { baplieReplacementMessage, countBaplieStaging, importBaplieStaging } from '../../services/baplieImport'
@@ -89,6 +90,7 @@ export function VoyageImportActions({
 }) {
   const [activeType, setActiveType] = useState<ImportType | null>(null)
   const [bbNumberFormat, setBbNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
+  const [vaziosManifestNumber, setVaziosManifestNumber] = useState('')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -246,15 +248,20 @@ export function VoyageImportActions({
           accept=".xlsx,.xls,.csv"
           parser={parseVaziosImportacaoFile}
           inspectFile={inspectImportUpload}
-          canImport={(p, override) => p.containers.length > 0 && (p.rowErrors.length === 0 || Boolean(override))}
+          prerequisite={<VaziosImportacaoManifestNumberField value={vaziosManifestNumber} onChange={setVaziosManifestNumber} />}
+          helper={<VaziosImportacaoGuide />}
+          ready={vaziosManifestNumber.trim().length > 0}
+          canImport={(p, override) => resolveVaziosManifestRoute(p).route !== null && (p.rowErrors.length === 0 || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
           importer={async (preview, _file, override) => {
-            await importVaziosImportacaoManifest({ manifest: preview, uploadedBy: userId, voyageId, allowRowErrors: Boolean(override) })
+            await importVaziosImportacaoManifest({ manifest: preview, uploadedBy: userId, voyageId, manifestNumber: vaziosManifestNumber, allowRowErrors: Boolean(override) })
+            setVaziosManifestNumber('')
             await Promise.all([
               queryClient.invalidateQueries({ queryKey: ['voyages'] }),
               queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
               queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] }),
               queryClient.invalidateQueries({ queryKey: ['vazios-importacao-manifests'] }),
+              queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.byVoyage(voyageId) }),
               queryClient.invalidateQueries({ queryKey: ['vazios-importacao-containers'] }),
               queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] }),
               queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] }),
@@ -264,12 +271,15 @@ export function VoyageImportActions({
             showToast(`Manifesto Vazios Imp. importado: ${preview.containers.length} container(s).`, 'success')
           }}
           renderPreview={(preview) => (
-            <div className="grid grid-cols-2 gap-3">
-              <Stat label="Containers" value={preview.containers.length} />
-              <Stat label="Erros" value={preview.rowErrors.length} />
+            <div className="grid gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Stat label="Containers" value={preview.containers.length} />
+                <Stat label="Erros" value={preview.rowErrors.length} />
+              </div>
+              <VaziosImportacaoRouteNotice manifest={preview} />
             </div>
           )}
-          onClose={() => setActiveType(null)}
+          onClose={() => { setVaziosManifestNumber(''); setActiveType(null) }}
         />
       ) : null}
 

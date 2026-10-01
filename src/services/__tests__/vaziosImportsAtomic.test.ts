@@ -13,7 +13,10 @@ const { fromMock, rpcMock } = vi.hoisted(() => ({
   rpcMock: vi.fn(),
 }))
 
+const { createManifestoMock } = vi.hoisted(() => ({ createManifestoMock: vi.fn() }))
+
 vi.mock('../supabase', () => ({ supabase: { from: fromMock, rpc: rpcMock } }))
+vi.mock('../manifestosMercanteService', () => ({ createManifestoMercante: createManifestoMock }))
 
 beforeEach(() => {
   fromMock.mockReset()
@@ -59,22 +62,30 @@ describe('imports de vazios transacionais', () => {
     expect(fromMock).not.toHaveBeenCalled()
   })
 
-  it('importa planilha de vazios em uma unica RPC', async () => {
+  it('importa planilha de vazios: manifesto Mercante da rota + uma RPC para os containers', async () => {
+    createManifestoMock.mockResolvedValue({ id: 'mercante-1' })
     rpcMock.mockResolvedValue({ data: { manifest_id: 'empty-manifest' }, error: null })
 
     await expect(importVaziosImportacaoManifest({
       voyageId: 8,
       uploadedBy: 'user-2',
+      manifestNumber: ' 1226501801342 ',
       manifest: {
         containers: [{
           rowNumber: 2,
           container_number: 'EFGH1234567',
           container_type: '20DV',
           tare_kg: 2200,
+          pol: 'CNTAC',
+          pod: 'BRVIX',
         }],
         rowErrors: [],
       },
-    })).resolves.toEqual({ manifestId: 'empty-manifest' })
+    })).resolves.toEqual({ manifestId: 'empty-manifest', mercanteManifestId: 'mercante-1' })
+
+    expect(createManifestoMock).toHaveBeenCalledWith({
+      voyage_id: 8, pol: 'CNTAC', pod: 'BRVIX', numero: '1226501801342', natureza: 'vazio',
+    })
 
     expect(rpcMock).toHaveBeenCalledWith('import_vazios_importacao_transactional', expect.objectContaining({
       p_voyage_id: 8,

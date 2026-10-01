@@ -44,12 +44,17 @@ export function VoyageManifestosTab({
     vaziosRoutes,
   })
   const totalBls = manifestRows.reduce((total, row) => total + row.blCount, 0)
-  const hasRouteManifest = (pol: string, pod: string, ceMaster: string | null) => {
-    if (ceMaster) return true
-    return (dbManifestos ?? []).some((m) => m.pol === pol && m.pod === pod)
+  // A rota de vazios compartilha POL/POD com a de carga (ex.: Taicang -> Vitória),
+  // mas o manifesto Mercante é outro: casar só por POL/POD fazia a linha VAZIOS
+  // exibir o número da carga.
+  const manifestosOfRow = (row: { pol: string; pod: string; isVazios: boolean }) => {
+    const natureza = row.isVazios ? 'vazio' : 'carga'
+    return (dbManifestos ?? []).filter((m) => m.pol === row.pol && m.pod === row.pod && m.natureza === natureza)
   }
+  const hasRouteManifest = (row: { pol: string; pod: string; isVazios: boolean; ceMaster: string | null }) =>
+    Boolean(row.ceMaster) || manifestosOfRow(row).length > 0
   const pendingManifestCount = manifestRows.filter(
-    (row) => (row.blCount > 0 || row.isVazios) && !hasRouteManifest(row.pol, row.pod, row.ceMaster),
+    (row) => (row.blCount > 0 || row.isVazios) && !hasRouteManifest(row),
   ).length
 
   return (
@@ -135,9 +140,7 @@ export function VoyageManifestosTab({
                       </td>
                       <td className="px-3 py-2 text-center">
                         {(() => {
-                          const routeManifestos = (dbManifestos ?? []).filter(
-                            (m) => m.pol === row.pol && m.pod === row.pod,
-                          )
+                          const routeManifestos = manifestosOfRow(row)
                           if (routeManifestos.length > 0) {
                             return (
                               <div className="flex flex-wrap items-center justify-center gap-1.5">
