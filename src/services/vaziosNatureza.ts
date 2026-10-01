@@ -76,18 +76,41 @@ export async function fetchVaziosImportacaoContainerIds(filters: {
 
 export type ContainerProfile = 'standard' | 'oog' | 'imo' | 'imo_oog'
 
-/** Perfil de carga do container (Standard/OOG/IMO). Sair de IMO limpa classe e UN. */
-export async function setContainerProfile(containerId: number, profile: ContainerProfile) {
-  const isImo = profile === 'imo' || profile === 'imo_oog'
-  const { error } = await supabase
-    .from('bl_containers')
-    .update({
-      is_imo: isImo,
-      is_oog: profile === 'oog' || profile === 'imo_oog',
-      ...(isImo ? {} : { imo_class: null, un_number: null }),
-    })
-    .eq('id', containerId)
-  if (error) throw error
+export const CONTAINER_PROFILE_LABELS: Record<ContainerProfile, string> = {
+  standard: 'Standard',
+  oog: 'OOG',
+  imo: 'IMO',
+  imo_oog: 'IMO + OOG',
+}
+
+export function containerProfileOf(container: { is_imo?: boolean | null; is_oog?: boolean | null }): ContainerProfile {
+  if (container.is_imo) return container.is_oog ? 'imo_oog' : 'imo'
+  return container.is_oog ? 'oog' : 'standard'
+}
+
+export function containerProfileLabel(container: { is_imo?: boolean | null; is_oog?: boolean | null }) {
+  return CONTAINER_PROFILE_LABELS[containerProfileOf(container)]
+}
+
+/**
+ * Perfil de carga do container (Standard/OOG/IMO). É uma mutação de domínio:
+ * a RPC exige justificativa, registra o histórico, limpa classe/UN ao sair de
+ * IMO e recalcula as taxas locais do B/L na mesma transação.
+ */
+export async function setContainerProfile(input: {
+  containerId: number
+  profile: ContainerProfile
+  justification: string
+  changedBy?: string | null
+}) {
+  const rpc = supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message?: string } | null }>
+  const { error } = await rpc('set_bl_container_profile', {
+    p_container_id: input.containerId,
+    p_profile: input.profile,
+    p_justification: input.justification,
+    p_changed_by: input.changedBy ?? null,
+  })
+  if (error) throw new Error(error.message ?? 'Não foi possível alterar o perfil do container.')
 }
 
 export async function setContainerUnpackingLocation(

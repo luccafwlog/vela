@@ -3,7 +3,7 @@ import { Badge } from '../ui/Badge'
 import { Card } from '../ui/Card'
 import { Field, Input, Select } from '../ui/Input'
 import { formatDate, normalizeText } from '../../lib/utils'
-import type { ContainerProfile } from '../../services/vaziosNatureza'
+import { CONTAINER_PROFILE_LABELS, containerProfileOf, type ContainerProfile } from '../../services/vaziosNatureza'
 import { formatNumber } from '../../pages/blDetalheHelpers'
 import type { BLDetail } from '../../types/database'
 
@@ -80,9 +80,7 @@ export function BlCargaTab({
                   <th scope="col" className="py-2">Tara</th>
                   <th scope="col" className="py-2">Peso bruto</th>
                   <th scope="col" className="py-2">CBM</th>
-                  <th scope="col" className="py-2">OOG</th>
-                  <th scope="col" className="py-2">IMO</th>
-                  {onChangeProfile ? <th scope="col" className="py-2">Natureza</th> : null}
+                  <th scope="col" className="py-2">Perfil</th>
                   <th scope="col" className="py-2">Descarga</th>
                 </tr>
               </thead>
@@ -96,28 +94,32 @@ export function BlCargaTab({
                       <td className="py-2">{container.tare_weight_kg == null ? '-' : `${formatNumber(container.tare_weight_kg)} kg`}</td>
                       <td className="py-2">{formatNumber(container.gross_weight_kg)} kg</td>
                       <td className="py-2">{formatNumber(container.cbm)}</td>
-                      <td className="py-2">{container.is_oog ? <Badge tone="yellow">OOG</Badge> : '-'}</td>
-                      <td className="py-2">{container.is_imo ? <Badge tone="red">IMO</Badge> : '-'}</td>
-                      {onChangeProfile ? (
-                        <td className="py-2">
+                      <td className="py-2">
+                        {onChangeProfile ? (
                           <Select
                             aria-label={`Perfil do container ${container.container_number}`}
-                            value={container.is_imo ? (container.is_oog ? 'imo_oog' : 'imo') : container.is_oog ? 'oog' : 'standard'}
+                            value={containerProfileOf(container)}
                             onChange={(event) => onChangeProfile(container.id, event.target.value as ContainerProfile)}
                           >
-                            <option value="standard">Standard</option>
-                            <option value="oog">OOG</option>
-                            <option value="imo">IMO</option>
-                            <option value="imo_oog">IMO + OOG</option>
+                            {Object.entries(CONTAINER_PROFILE_LABELS).map(([value, label]) => (
+                              <option key={value} value={value}>{label}</option>
+                            ))}
                           </Select>
-                        </td>
-                      ) : null}
+                        ) : container.is_imo || container.is_oog ? (
+                          <span className="flex gap-1">
+                            {container.is_imo ? <Badge tone="red">IMO</Badge> : null}
+                            {container.is_oog ? <Badge tone="yellow">OOG</Badge> : null}
+                          </span>
+                        ) : (
+                          'Standard'
+                        )}
+                      </td>
                       <td className="py-2 text-slate-300">{container.discharge_date ? formatDate(container.discharge_date) : <span className="text-slate-500">—</span>}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td className="py-3 text-slate-400" colSpan={10}>
+                    <td className="py-3 text-slate-400" colSpan={8}>
                       Nenhum container vinculado a este B/L.
                     </td>
                   </tr>
