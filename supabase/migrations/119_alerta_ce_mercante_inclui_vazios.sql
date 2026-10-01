@@ -1,4 +1,4 @@
--- 118: O alerta "CE Mercante pendente" (voyage_ce_mercante_missing) passa a
+-- 119: O alerta "CE Mercante pendente" (voyage_ce_mercante_missing) passa a
 -- contar também as rotas de Vazios de Importação sem Nº de manifesto Mercante.
 -- Vazios vindos do Baplie não pedem o número na importação (decisão de
 -- 2026-10-01), mas o número continua obrigatório: a pendência aparece neste
