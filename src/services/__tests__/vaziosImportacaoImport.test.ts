@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer, resolveVaziosManifestRoute } from '../vaziosImportacaoImport'
+import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes } from '../vaziosImportacaoImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
 const { rpcMock, fromMock } = vi.hoisted(() => ({ rpcMock: vi.fn(), fromMock: vi.fn() }))
@@ -144,14 +144,14 @@ describe('parseVaziosImportacaoBuffer', () => {
       },
       uploadedBy: 'user-1',
       voyageId: 7,
-      manifestNumber: '1226501801342',
+      manifestNumbers: { CNTAC__BRVIX: '1226501801342' },
     })).rejects.toThrow('Linha 2')
 
 		expect(rpcMock).not.toHaveBeenCalled()
 	})
 
 	it('só permite importar divergências quando o override de erros de linha é explícito', async () => {
-		rpcMock.mockResolvedValue({ data: { manifest_id: 'manifest-1', mercante_manifest_id: 'mercante-1' }, error: null })
+		rpcMock.mockResolvedValue({ data: { manifest_id: 'manifest-1', mercante_manifest_ids: ['mercante-1'] }, error: null })
 
 		await importVaziosImportacaoManifest({
 			manifest: {
@@ -160,7 +160,7 @@ describe('parseVaziosImportacaoBuffer', () => {
 			},
 			uploadedBy: 'user-1',
 			voyageId: 7,
-			manifestNumber: '1226501801342',
+			manifestNumbers: { CNTAC__BRVIX: '1226501801342' },
 			allowRowErrors: true,
 		})
 
@@ -168,8 +168,10 @@ describe('parseVaziosImportacaoBuffer', () => {
 	})
 })
 
-describe('Nº do manifesto Mercante dos vazios (obrigatório, por rota)', () => {
+describe('Nº do manifesto Mercante dos vazios (um por porto de origem)', () => {
   const base = { uploadedBy: 'user-1', voyageId: 7 }
+  const OUTRA = { pol: 'CNSHA', pod: 'BRVIX' }
+  const doisPortos = { containers: [container('MSCU1234567'), container('TGHU7654325', OUTRA)], rowErrors: [] }
 
   beforeEach(() => {
     rpcMock.mockReset()
@@ -177,60 +179,66 @@ describe('Nº do manifesto Mercante dos vazios (obrigatório, por rota)', () => 
   })
 
   it('recusa número vazio ou só espaços sem gravar nada', async () => {
-    for (const manifestNumber of ['', '   ']) {
+    for (const numero of ['', '   ']) {
       await expect(importVaziosImportacaoManifest({
-        ...base, manifestNumber, manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
-      })).rejects.toThrow('Número do manifesto Mercante é obrigatório')
+        ...base, manifestNumbers: { CNTAC__BRVIX: numero }, manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
+      })).rejects.toThrow('Informe o Nº do manifesto Mercante de CNTAC → BRVIX')
     }
     expect(rpcMock).not.toHaveBeenCalled()
   })
 
-  it('recusa planilha sem POL/POD ou com mais de uma rota, sem gravar nada', async () => {
+  it('com dois portos de origem exige um número para cada um', async () => {
     await expect(importVaziosImportacaoManifest({
-      ...base, manifestNumber: '1', manifest: { containers: [container('MSCU1234567', {})], rowErrors: [] },
+      ...base, manifestNumbers: { CNTAC__BRVIX: '111' }, manifest: doisPortos,
+    })).rejects.toThrow('CNSHA → BRVIX')
+    await expect(importVaziosImportacaoManifest({
+      ...base, manifestNumbers: { CNTAC__BRVIX: '111', CNSHA__BRVIX: ' 111 ' }, manifest: doisPortos,
+    })).rejects.toThrow('mais de um porto de origem')
+    await expect(importVaziosImportacaoManifest({
+      ...base, manifestNumbers: { CNTAC__BRVIX: '1' }, manifest: { containers: [container('MSCU1234567', {})], rowErrors: [] },
     })).rejects.toThrow('POL e POD são obrigatórios')
-    await expect(importVaziosImportacaoManifest({
-      ...base,
-      manifestNumber: '1',
-      manifest: { containers: [container('MSCU1234567'), container('TGHU7654325', { pol: 'CNSHA', pod: 'BRVIX' })], rowErrors: [] },
-    })).rejects.toThrow('2 rotas')
     expect(rpcMock).not.toHaveBeenCalled()
   })
 
-  it('grava número e containers numa única RPC, sem escrita separada em manifestos_mercante', async () => {
-    rpcMock.mockResolvedValue({ data: { manifest_id: 'manifest-1', mercante_manifest_id: 'mercante-1' }, error: null })
+  it('grava os números de cada porto e os containers numa única RPC', async () => {
+    rpcMock.mockResolvedValue({ data: { manifest_id: 'manifest-1', mercante_manifest_ids: ['m1', 'm2'] }, error: null })
 
     await expect(importVaziosImportacaoManifest({
-      ...base, manifestNumber: ' 1226501801342 ', manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
-    })).resolves.toEqual({ manifestId: 'manifest-1', mercanteManifestId: 'mercante-1' })
+      ...base, manifestNumbers: { CNTAC__BRVIX: ' 111 ', CNSHA__BRVIX: '222' }, manifest: doisPortos,
+    })).resolves.toEqual({ manifestId: 'manifest-1', mercanteManifestIds: ['m1', 'm2'] })
     expect(rpcMock).toHaveBeenCalledTimes(1)
     expect(rpcMock).toHaveBeenCalledWith('import_vazios_importacao_transactional', expect.objectContaining({
-      p_manifest_numero: '1226501801342',
+      p_manifestos: [
+        { pol: 'CNSHA', pod: 'BRVIX', numero: '222' },
+        { pol: 'CNTAC', pod: 'BRVIX', numero: '111' },
+      ],
     }))
     expect(fromMock).not.toHaveBeenCalled()
   })
 
-  it('número repetido recusado pela RPC chega ao usuário e nada fica para desfazer', async () => {
+  it('número já cadastrado é recusado pela RPC e chega ao usuário', async () => {
     const duplicate = { code: '23505', message: 'O número de manifesto Mercante "1" já foi cadastrado no sistema.' }
     rpcMock.mockResolvedValue({ data: null, error: duplicate })
 
     await expect(importVaziosImportacaoManifest({
-      ...base, manifestNumber: '1', manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
+      ...base, manifestNumbers: { CNTAC__BRVIX: '1' }, manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
     })).rejects.toBe(duplicate)
-    expect(fromMock).not.toHaveBeenCalled()
   })
 })
 
-describe('resolveVaziosManifestRoute', () => {
-  it('devolve a rota única da planilha', () => {
-    expect(resolveVaziosManifestRoute({ containers: [container('A'), container('B')] }).route).toEqual(ROTA)
+describe('resolveVaziosManifestRoutes', () => {
+  it('lista cada porto de origem da planilha uma vez', () => {
+    expect(resolveVaziosManifestRoutes({
+      containers: [container('A'), container('B'), container('C', { pol: 'CNSHA', pod: 'BRVIX' })],
+    }).routes).toEqual([{ pol: 'CNSHA', pod: 'BRVIX' }, ROTA])
   })
 
-  it('explica o bloqueio quando falta POL/POD, há várias rotas ou não há containers', () => {
-    expect(resolveVaziosManifestRoute({ containers: [container('A', { pol: 'CNTAC' })] }).error).toMatch(/POL e POD/)
-    expect(resolveVaziosManifestRoute({
-      containers: [container('A'), container('B', { pol: 'CNSHA', pod: 'BRVIX' })],
-    }).error).toMatch(/2 rotas.*CNTAC → BRVIX.*CNSHA → BRVIX/)
-    expect(resolveVaziosManifestRoute({ containers: [] }).error).toMatch(/Nenhum container/)
+  it('explica o bloqueio quando falta POL/POD ou não há containers', () => {
+    expect(resolveVaziosManifestRoutes({ containers: [container('A', { pol: 'CNTAC' })] }).error).toMatch(/POL e POD/)
+    expect(resolveVaziosManifestRoutes({ containers: [] }).error).toMatch(/Nenhum container/)
+  })
+
+  it('aceita os números quando cada porto tem o seu', () => {
+    expect(resolveVaziosManifestNumbers({ containers: [container('A')] }, { CNTAC__BRVIX: '9' }).manifestos).toEqual([{ ...ROTA, numero: '9' }])
   })
 })

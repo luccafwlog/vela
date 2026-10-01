@@ -60,12 +60,12 @@ describe('imports de vazios transacionais', () => {
   })
 
   it('importa planilha de vazios e o manifesto Mercante da rota em uma unica RPC', async () => {
-    rpcMock.mockResolvedValue({ data: { manifest_id: 'empty-manifest', mercante_manifest_id: 'mercante-1' }, error: null })
+    rpcMock.mockResolvedValue({ data: { manifest_id: 'empty-manifest', mercante_manifest_ids: ['mercante-1'] }, error: null })
 
     await expect(importVaziosImportacaoManifest({
       voyageId: 8,
       uploadedBy: 'user-2',
-      manifestNumber: ' 1226501801342 ',
+      manifestNumbers: { CNTAC__BRVIX: ' 1226501801342 ' },
       manifest: {
         containers: [{
           rowNumber: 2,
@@ -77,7 +77,7 @@ describe('imports de vazios transacionais', () => {
         }],
         rowErrors: [],
       },
-    })).resolves.toEqual({ manifestId: 'empty-manifest', mercanteManifestId: 'mercante-1' })
+    })).resolves.toEqual({ manifestId: 'empty-manifest', mercanteManifestIds: ['mercante-1'] })
 
     expect(rpcMock).toHaveBeenCalledWith('import_vazios_importacao_transactional', expect.objectContaining({
       p_voyage_id: 8,
@@ -140,12 +140,12 @@ it('grava o manifesto Mercante de vazio na mesma RPC dos containers (migration 1
   )
   const body = sql.slice(sql.indexOf('CREATE FUNCTION public.import_vazios_importacao_transactional'))
 
-  expect(body).toMatch(/p_manifest_numero text/)
+  expect(body).toMatch(/p_manifestos jsonb/)
   expect(body).toMatch(/INSERT INTO public\.manifestos_mercante[\s\S]*'vazio'[\s\S]*INSERT INTO public\.vazios_importacao_containers/)
-  expect(body).toMatch(/v_rotas > 1/)
+  expect(body).toMatch(/para cada porto de origem[\s\S]*mais de um porto de origem/)
   expect(body).toMatch(/ERRCODE = '23505'/)
   expect(body).toMatch(/p_uploaded_by IS DISTINCT FROM auth\.uid\(\)/)
-  expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.import_vazios_importacao_transactional\(bigint, text, uuid, jsonb, text\) TO authenticated/)
+  expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.import_vazios_importacao_transactional\(bigint, text, uuid, jsonb, jsonb\) TO authenticated/)
 })
 
 it('o alerta CE Mercante pendente conta rotas de vazios sem manifesto vazio (migration 118)', () => {

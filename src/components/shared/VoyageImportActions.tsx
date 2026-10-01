@@ -20,8 +20,8 @@ import {
   type ParseBreakbulkOptions,
 } from '../../services/breakbulkImport'
 import { importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestRoute } from '../../services/vaziosImportacaoImport'
-import { VaziosImportacaoGuide, VaziosImportacaoManifestNumberField, VaziosImportacaoRouteNotice } from './VaziosImportacaoImportParts'
+import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestNumbers } from '../../services/vaziosImportacaoImport'
+import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from './VaziosImportacaoImportParts'
 import { importVehicleRows, parseVehicleImportFile } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
 import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie } from '../../services/baplieImport'
@@ -90,7 +90,7 @@ export function VoyageImportActions({
 }) {
   const [activeType, setActiveType] = useState<ImportType | null>(null)
   const [bbNumberFormat, setBbNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
-  const [vaziosManifestNumber, setVaziosManifestNumber] = useState('')
+  const [vaziosManifestNumbers, setVaziosManifestNumbers] = useState<Record<string, string>>({})
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -248,14 +248,12 @@ export function VoyageImportActions({
           accept=".xlsx,.xls,.csv"
           parser={parseVaziosImportacaoFile}
           inspectFile={inspectImportUpload}
-          prerequisite={<VaziosImportacaoManifestNumberField value={vaziosManifestNumber} onChange={setVaziosManifestNumber} />}
           helper={<VaziosImportacaoGuide />}
-          ready={vaziosManifestNumber.trim().length > 0}
-          canImport={(p, override) => resolveVaziosManifestRoute(p).route !== null && (p.rowErrors.length === 0 || Boolean(override))}
+          canImport={(p, override) => resolveVaziosManifestNumbers(p, vaziosManifestNumbers).manifestos !== null && (p.rowErrors.length === 0 || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
           importer={async (preview, _file, override) => {
-            await importVaziosImportacaoManifest({ manifest: preview, uploadedBy: userId, voyageId, manifestNumber: vaziosManifestNumber, allowRowErrors: Boolean(override) })
-            setVaziosManifestNumber('')
+            await importVaziosImportacaoManifest({ manifest: preview, uploadedBy: userId, voyageId, manifestNumbers: vaziosManifestNumbers, allowRowErrors: Boolean(override) })
+            setVaziosManifestNumbers({})
             await Promise.all([
               queryClient.invalidateQueries({ queryKey: ['voyages'] }),
               queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
@@ -276,10 +274,10 @@ export function VoyageImportActions({
                 <Stat label="Containers" value={preview.containers.length} />
                 <Stat label="Erros" value={preview.rowErrors.length} />
               </div>
-              <VaziosImportacaoRouteNotice manifest={preview} />
+              <VaziosImportacaoManifestNumbers manifest={preview} values={vaziosManifestNumbers} onChange={setVaziosManifestNumbers} />
             </div>
           )}
-          onClose={() => { setVaziosManifestNumber(''); setActiveType(null) }}
+          onClose={() => { setVaziosManifestNumbers({}); setActiveType(null) }}
         />
       ) : null}
 

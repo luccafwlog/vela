@@ -153,42 +153,63 @@ export const VAZIOS_IMPORTACAO_OPTIONAL_COLUMNS = ['Tipo', 'Tara (kg)'] as const
 
 export type VaziosImportacaoRoute = { pol: string; pod: string }
 
+/** Chave de rota usada no mapa de números do modal. */
+export const vaziosRouteKey = (route: VaziosImportacaoRoute) => `${route.pol}__${route.pod}`
+
 /**
- * O Nº de manifesto Mercante pertence a UMA rota (POL/POD). Por isso a planilha
- * precisa trazer POL e POD em todas as linhas e uma única rota; um arquivo com
- * várias rotas teria que repartir um número só entre elas.
+ * Um Nº de manifesto Mercante para cada porto de origem dos vazios (decisão de
+ * 2026-10-01). O manifesto pertence à rota POL/POD, então a planilha precisa de
+ * POL e POD em todas as linhas; cada rota encontrada pede o seu número.
  */
-export function resolveVaziosManifestRoute(
+export function resolveVaziosManifestRoutes(
   manifest: Pick<ParsedVaziosImportacaoManifest, 'containers'>,
-): { route: VaziosImportacaoRoute; error: null } | { route: null; error: string } {
-  if (!manifest.containers.length) return { route: null, error: 'Nenhum container na planilha.' }
+): { routes: VaziosImportacaoRoute[]; error: null } | { routes: null; error: string } {
+  if (!manifest.containers.length) return { routes: null, error: 'Nenhum container na planilha.' }
   if (manifest.containers.some((container) => !container.pol || !container.pod)) {
     return {
-      route: null,
-      error: 'POL e POD são obrigatórios em todas as linhas: o Nº de manifesto Mercante pertence à rota.',
+      routes: null,
+      error: 'POL e POD são obrigatórios em todas as linhas: o Nº de manifesto Mercante pertence ao porto de origem.',
     }
   }
   const routes = new Map<string, VaziosImportacaoRoute>()
   for (const container of manifest.containers) {
     const route = { pol: container.pol as string, pod: container.pod as string }
-    routes.set(`${route.pol}__${route.pod}`, route)
+    routes.set(vaziosRouteKey(route), route)
   }
-  if (routes.size > 1) {
-    const labels = Array.from(routes.values()).map((route) => `${route.pol} → ${route.pod}`)
+  return { routes: [...routes.values()].sort((a, b) => vaziosRouteKey(a).localeCompare(vaziosRouteKey(b))), error: null }
+}
+
+/**
+ * Confere os números digitados contra as rotas da planilha. Só bloqueia número
+ * ausente ou o mesmo número em duas rotas; número já cadastrado é recusado pela RPC.
+ */
+export function resolveVaziosManifestNumbers(
+  manifest: Pick<ParsedVaziosImportacaoManifest, 'containers'>,
+  numbers: Readonly<Record<string, string>>,
+): { manifestos: Array<VaziosImportacaoRoute & { numero: string }>; error: null } | { manifestos: null; error: string } {
+  const { routes, error } = resolveVaziosManifestRoutes(manifest)
+  if (!routes) return { manifestos: null, error }
+  const manifestos = routes.map((route) => ({ ...route, numero: (numbers[vaziosRouteKey(route)] ?? '').trim() }))
+  const missing = manifestos.filter((m) => !m.numero)
+  if (missing.length) {
     return {
-      route: null,
-      error: `A planilha tem ${routes.size} rotas (${labels.join('; ')}). Importe uma planilha por rota, cada uma com o seu manifesto.`,
+      manifestos: null,
+      error: `Informe o Nº do manifesto Mercante de ${missing.map((m) => `${m.pol} → ${m.pod}`).join(', ')}.`,
     }
   }
-  return { route: routes.values().next().value as VaziosImportacaoRoute, error: null }
+  const repeated = manifestos.find((m, index) => manifestos.findIndex((other) => other.numero === m.numero) !== index)
+  if (repeated) {
+    return { manifestos: null, error: `O número ${repeated.numero} foi informado para mais de um porto de origem.` }
+  }
+  return { manifestos, error: null }
 }
 
 export type ImportVaziosImportacaoArgs = {
   manifest: ParsedVaziosImportacaoManifest
   uploadedBy: string
   voyageId: number
-  /** Nº do manifesto Mercante dos vazios desta rota (obrigatório). */
-  manifestNumber: string
+  /** Nº do manifesto Mercante por rota da planilha (chave `vaziosRouteKey`), obrigatório em todas. */
+  manifestNumbers: Readonly<Record<string, string>>
   description?: string
   /** Permite persistir as linhas válidas quando o preview tem erros de linha. */
   allowRowErrors?: boolean
@@ -198,15 +219,13 @@ export async function importVaziosImportacaoManifest({
   manifest,
   uploadedBy,
   voyageId,
-  manifestNumber,
+  manifestNumbers,
   description,
   allowRowErrors = false,
-}: ImportVaziosImportacaoArgs): Promise<{ manifestId: string; mercanteManifestId: string }> {
+}: ImportVaziosImportacaoArgs): Promise<{ manifestId: string; mercanteManifestIds: string[] }> {
   if (manifest.rowErrors.length && !allowRowErrors) throw new Error(formatImportacaoRowErrors(manifest.rowErrors))
-  const numero = manifestNumber.trim()
-  if (!numero) throw new Error('Número do manifesto Mercante é obrigatório.')
-  const { route, error: routeError } = resolveVaziosManifestRoute(manifest)
-  if (!route) throw new Error(routeError)
+  const { manifestos, error: numbersError } = resolveVaziosManifestNumbers(manifest, manifestNumbers)
+  if (!manifestos) throw new Error(numbersError)
 
   const containers = manifest.containers.map((container) => ({
     container_number: container.container_number,
@@ -215,17 +234,17 @@ export async function importVaziosImportacaoManifest({
     pol: container.pol ?? null,
     pod: container.pod ?? null,
   }))
-  // Manifesto Mercante (natureza 'vazio') e containers na mesma transação (migration 117).
+  // Manifestos Mercante (natureza 'vazio') e containers na mesma transação (migration 117).
   const { data, error } = await supabase.rpc('import_vazios_importacao_transactional', {
     p_voyage_id: voyageId,
     p_description: description ?? null,
     p_uploaded_by: uploadedBy,
     p_containers: containers,
-    p_manifest_numero: numero,
+    p_manifestos: manifestos,
   })
   if (error) throw error
-  const result = data as { manifest_id: string; mercante_manifest_id: string }
-  return { manifestId: result.manifest_id, mercanteManifestId: result.mercante_manifest_id }
+  const result = data as { manifest_id: string; mercante_manifest_ids: string[] | null }
+  return { manifestId: result.manifest_id, mercanteManifestIds: result.mercante_manifest_ids ?? [] }
 }
 
 function formatImportacaoRowErrors(rowErrors: readonly RowError[]): string {

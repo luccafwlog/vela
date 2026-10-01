@@ -57,7 +57,9 @@ vi.mock('../../services/vaziosImportacaoImport', () => ({
   listVaziosImportacaoManifests: () => mocks.listVaziosImportacaoManifests(),
   parseVaziosImportacaoFile: vi.fn(),
   importVaziosImportacaoManifest: vi.fn(),
-  resolveVaziosManifestRoute: vi.fn(() => ({ route: null, error: 'sem rota' })),
+  resolveVaziosManifestNumbers: vi.fn(() => ({ manifestos: null, error: 'sem número' })),
+  resolveVaziosManifestRoutes: vi.fn(() => ({ routes: null, error: 'sem rota' })),
+  vaziosRouteKey: (route: { pol: string; pod: string }) => `${route.pol}__${route.pod}`,
   VAZIOS_IMPORTACAO_REQUIRED_COLUMNS: ['Container', 'POL', 'POD'],
   VAZIOS_IMPORTACAO_OPTIONAL_COLUMNS: ['Tipo', 'Tara (kg)'],
 }))

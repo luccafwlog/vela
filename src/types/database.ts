@@ -7507,7 +7507,7 @@ export type Database = {
         Args: {
           p_containers: Json
           p_description: string
-          p_manifest_numero?: string
+          p_manifestos?: Json
           p_uploaded_by: string
           p_voyage_id: number
         }
