@@ -1,7 +1,6 @@
 import { assertUploadFile } from '../lib/fileGuard'
 import { createHeaderMapper, createRowErrorCollector, matchHeaders, readSheet, type HeaderSpec, type RowError } from './importCore'
 import { supabase } from './supabase'
-import { createManifestoMercante } from './manifestosMercanteService'
 import { escapeFilterTerm } from '../lib/utils'
 import { parseImportNumber } from '../lib/importNumber'
 import { IsoContainerSchema, LocodeSchema } from './importValidation'
@@ -216,29 +215,18 @@ export async function importVaziosImportacaoManifest({
     pol: container.pol ?? null,
     pod: container.pod ?? null,
   }))
-  // O manifesto nasce antes: número repetido (UNIQUE) recusa sem tocar nos containers.
-  const mercante = await createManifestoMercante({
-    voyage_id: voyageId,
-    pol: route.pol,
-    pod: route.pod,
-    numero,
-    natureza: 'vazio',
-  })
+  // Manifesto Mercante (natureza 'vazio') e containers na mesma transação (migration 117).
   const { data, error } = await supabase.rpc('import_vazios_importacao_transactional', {
     p_voyage_id: voyageId,
     p_description: description ?? null,
     p_uploaded_by: uploadedBy,
     p_containers: containers,
-  })
-  if (error) {
-    // ponytail: duas gravações, sem transação única. Se a segunda falhar, desfazemos a
-    // primeira aqui; um corte de rede entre as duas pode deixar o manifesto órfão.
-    // Upgrade: p_manifest_numero na RPC (migration + tipos) para gravar tudo junto.
-    await supabase.from('manifestos_mercante').delete().eq('id', mercante.id)
-    throw error
-  }
-  const result = data as { manifest_id: string }
-  return { manifestId: result.manifest_id, mercanteManifestId: mercante.id }
+    p_manifest_numero: numero,
+    // ponytail: cast até regenerar src/types/database.ts (protegido) com p_manifest_numero.
+  } as never)
+  if (error) throw error
+  const result = data as { manifest_id: string; mercante_manifest_id: string }
+  return { manifestId: result.manifest_id, mercanteManifestId: result.mercante_manifest_id }
 }
 
 function formatImportacaoRowErrors(rowErrors: readonly RowError[]): string {

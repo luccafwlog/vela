@@ -4,18 +4,13 @@ import { resolve } from 'node:path'
 import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer, resolveVaziosManifestRoute } from '../vaziosImportacaoImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
-const { rpcMock, createManifestoMock, deleteEqMock } = vi.hoisted(() => ({
-  rpcMock: vi.fn(),
-  createManifestoMock: vi.fn(),
-  deleteEqMock: vi.fn(),
-}))
+const { rpcMock, fromMock } = vi.hoisted(() => ({ rpcMock: vi.fn(), fromMock: vi.fn() }))
 vi.mock('../supabase', () => ({
   supabase: {
     rpc: (...args: unknown[]) => rpcMock(...args),
-    from: () => ({ delete: () => ({ eq: (...args: unknown[]) => deleteEqMock(...args) }) }),
+    from: (...args: unknown[]) => fromMock(...args),
   },
 }))
-vi.mock('../manifestosMercanteService', () => ({ createManifestoMercante: createManifestoMock }))
 
 const ROTA = { pol: 'CNTAC', pod: 'BRVIX' }
 const container = (n: string, rota: { pol?: string; pod?: string } = ROTA) =>
@@ -156,8 +151,7 @@ describe('parseVaziosImportacaoBuffer', () => {
 	})
 
 	it('só permite importar divergências quando o override de erros de linha é explícito', async () => {
-		createManifestoMock.mockResolvedValue({ id: 'mercante-1' })
-		rpcMock.mockResolvedValue({ data: { manifest_id: 'manifest-1' }, error: null })
+		rpcMock.mockResolvedValue({ data: { manifest_id: 'manifest-1', mercante_manifest_id: 'mercante-1' }, error: null })
 
 		await importVaziosImportacaoManifest({
 			manifest: {
@@ -179,8 +173,7 @@ describe('Nº do manifesto Mercante dos vazios (obrigatório, por rota)', () => 
 
   beforeEach(() => {
     rpcMock.mockReset()
-    createManifestoMock.mockReset()
-    deleteEqMock.mockReset()
+    fromMock.mockReset()
   })
 
   it('recusa número vazio ou só espaços sem gravar nada', async () => {
@@ -189,7 +182,6 @@ describe('Nº do manifesto Mercante dos vazios (obrigatório, por rota)', () => 
         ...base, manifestNumber, manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
       })).rejects.toThrow('Número do manifesto Mercante é obrigatório')
     }
-    expect(createManifestoMock).not.toHaveBeenCalled()
     expect(rpcMock).not.toHaveBeenCalled()
   })
 
@@ -202,27 +194,30 @@ describe('Nº do manifesto Mercante dos vazios (obrigatório, por rota)', () => 
       manifestNumber: '1',
       manifest: { containers: [container('MSCU1234567'), container('TGHU7654325', { pol: 'CNSHA', pod: 'BRVIX' })], rowErrors: [] },
     })).rejects.toThrow('2 rotas')
-    expect(createManifestoMock).not.toHaveBeenCalled()
     expect(rpcMock).not.toHaveBeenCalled()
   })
 
-  it('número já usado por outro manifesto recusa antes de importar os containers', async () => {
-    createManifestoMock.mockRejectedValue(new Error('O número de manifesto Mercante "1" já foi cadastrado no sistema.'))
+  it('grava número e containers numa única RPC, sem escrita separada em manifestos_mercante', async () => {
+    rpcMock.mockResolvedValue({ data: { manifest_id: 'manifest-1', mercante_manifest_id: 'mercante-1' }, error: null })
+
     await expect(importVaziosImportacaoManifest({
-      ...base, manifestNumber: '1', manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
-    })).rejects.toThrow('já foi cadastrado')
-    expect(rpcMock).not.toHaveBeenCalled()
+      ...base, manifestNumber: ' 1226501801342 ', manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
+    })).resolves.toEqual({ manifestId: 'manifest-1', mercanteManifestId: 'mercante-1' })
+    expect(rpcMock).toHaveBeenCalledTimes(1)
+    expect(rpcMock).toHaveBeenCalledWith('import_vazios_importacao_transactional', expect.objectContaining({
+      p_manifest_numero: '1226501801342',
+    }))
+    expect(fromMock).not.toHaveBeenCalled()
   })
 
-  it('desfaz o manifesto criado quando a RPC dos containers falha', async () => {
-    createManifestoMock.mockResolvedValue({ id: 'mercante-9' })
-    rpcMock.mockResolvedValue({ data: null, error: new Error('falha na RPC') })
-    deleteEqMock.mockResolvedValue({ error: null })
+  it('número repetido recusado pela RPC chega ao usuário e nada fica para desfazer', async () => {
+    const duplicate = { code: '23505', message: 'O número de manifesto Mercante "1" já foi cadastrado no sistema.' }
+    rpcMock.mockResolvedValue({ data: null, error: duplicate })
 
     await expect(importVaziosImportacaoManifest({
       ...base, manifestNumber: '1', manifest: { containers: [container('MSCU1234567')], rowErrors: [] },
-    })).rejects.toThrow('falha na RPC')
-    expect(deleteEqMock).toHaveBeenCalledWith('id', 'mercante-9')
+    })).rejects.toBe(duplicate)
+    expect(fromMock).not.toHaveBeenCalled()
   })
 })
 

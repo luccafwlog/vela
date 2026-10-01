@@ -13,10 +13,7 @@ const { fromMock, rpcMock } = vi.hoisted(() => ({
   rpcMock: vi.fn(),
 }))
 
-const { createManifestoMock } = vi.hoisted(() => ({ createManifestoMock: vi.fn() }))
-
 vi.mock('../supabase', () => ({ supabase: { from: fromMock, rpc: rpcMock } }))
-vi.mock('../manifestosMercanteService', () => ({ createManifestoMercante: createManifestoMock }))
 
 beforeEach(() => {
   fromMock.mockReset()
@@ -62,9 +59,8 @@ describe('imports de vazios transacionais', () => {
     expect(fromMock).not.toHaveBeenCalled()
   })
 
-  it('importa planilha de vazios: manifesto Mercante da rota + uma RPC para os containers', async () => {
-    createManifestoMock.mockResolvedValue({ id: 'mercante-1' })
-    rpcMock.mockResolvedValue({ data: { manifest_id: 'empty-manifest' }, error: null })
+  it('importa planilha de vazios e o manifesto Mercante da rota em uma unica RPC', async () => {
+    rpcMock.mockResolvedValue({ data: { manifest_id: 'empty-manifest', mercante_manifest_id: 'mercante-1' }, error: null })
 
     await expect(importVaziosImportacaoManifest({
       voyageId: 8,
@@ -82,10 +78,6 @@ describe('imports de vazios transacionais', () => {
         rowErrors: [],
       },
     })).resolves.toEqual({ manifestId: 'empty-manifest', mercanteManifestId: 'mercante-1' })
-
-    expect(createManifestoMock).toHaveBeenCalledWith({
-      voyage_id: 8, pol: 'CNTAC', pod: 'BRVIX', numero: '1226501801342', natureza: 'vazio',
-    })
 
     expect(rpcMock).toHaveBeenCalledWith('import_vazios_importacao_transactional', expect.objectContaining({
       p_voyage_id: 8,
@@ -139,4 +131,19 @@ it('define RPCs transacionais protegidas para os tres fluxos', () => {
   expect(sql).toMatch(/SECURITY DEFINER/i)
   expect(sql).toMatch(/FROM PUBLIC, anon/i)
   expect(sql).toMatch(/TO authenticated/i)
+})
+
+it('grava o manifesto Mercante de vazio na mesma RPC dos containers (migration 117)', () => {
+  const sql = fs.readFileSync(
+    path.resolve('supabase/migrations/117_vazios_importacao_com_manifesto_mercante.sql'),
+    'utf8',
+  )
+  const body = sql.slice(sql.indexOf('CREATE FUNCTION public.import_vazios_importacao_transactional'))
+
+  expect(body).toMatch(/p_manifest_numero text/)
+  expect(body).toMatch(/INSERT INTO public\.manifestos_mercante[\s\S]*'vazio'[\s\S]*INSERT INTO public\.vazios_importacao_containers/)
+  expect(body).toMatch(/v_rotas > 1/)
+  expect(body).toMatch(/ERRCODE = '23505'/)
+  expect(body).toMatch(/p_uploaded_by IS DISTINCT FROM auth\.uid\(\)/)
+  expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.import_vazios_importacao_transactional\(bigint, text, uuid, jsonb, text\) TO authenticated/)
 })
