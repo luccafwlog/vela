@@ -56,6 +56,8 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, opt
     ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
     ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
     ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
+    // Vazios IMP cria o manifesto Mercante da rota; a aba Rotas e Manifestos lê esta família.
+    ['manifestos-mercante'],
     ['baplie-reconciliation', vId], ['baplie-staging', vId],
     // Taxas locais e reconciliação de clientes: após importar novos B/Ls,
     // as filas operacionais de validação e conferência refletem imediatamente o cálculo.

@@ -20,10 +20,11 @@ import {
   type ParseBreakbulkOptions,
 } from '../../services/breakbulkImport'
 import { importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoFile } from '../../services/vaziosImportacaoImport'
+import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestNumbers } from '../../services/vaziosImportacaoImport'
+import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from './VaziosImportacaoImportParts'
 import { importVehicleRows, parseVehicleImportFile } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
-import { baplieReplacementMessage, countBaplieStaging, importBaplieStaging } from '../../services/baplieImport'
+import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie } from '../../services/baplieImport'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { canImportPreview, rowErrorsToImportIssues } from '../../services/importValidation'
 import { inspectImportUpload } from '../../services/importText'
@@ -89,6 +90,7 @@ export function VoyageImportActions({
 }) {
   const [activeType, setActiveType] = useState<ImportType | null>(null)
   const [bbNumberFormat, setBbNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
+  const [vaziosManifestNumbers, setVaziosManifestNumbers] = useState<Record<string, string>>({})
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -246,15 +248,18 @@ export function VoyageImportActions({
           accept=".xlsx,.xls,.csv"
           parser={parseVaziosImportacaoFile}
           inspectFile={inspectImportUpload}
-          canImport={(p, override) => p.containers.length > 0 && (p.rowErrors.length === 0 || Boolean(override))}
+          helper={<VaziosImportacaoGuide />}
+          canImport={(p, override) => resolveVaziosManifestNumbers(p, vaziosManifestNumbers).manifestos !== null && (p.rowErrors.length === 0 || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
           importer={async (preview, _file, override) => {
-            await importVaziosImportacaoManifest({ manifest: preview, uploadedBy: userId, voyageId, allowRowErrors: Boolean(override) })
+            await importVaziosImportacaoManifest({ manifest: preview, uploadedBy: userId, voyageId, manifestNumbers: vaziosManifestNumbers, allowRowErrors: Boolean(override) })
+            setVaziosManifestNumbers({})
             await Promise.all([
               queryClient.invalidateQueries({ queryKey: ['voyages'] }),
               queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
               queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] }),
               queryClient.invalidateQueries({ queryKey: ['vazios-importacao-manifests'] }),
+              queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.byVoyage(voyageId) }),
               queryClient.invalidateQueries({ queryKey: ['vazios-importacao-containers'] }),
               queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] }),
               queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] }),
@@ -264,12 +269,15 @@ export function VoyageImportActions({
             showToast(`Manifesto Vazios Imp. importado: ${preview.containers.length} container(s).`, 'success')
           }}
           renderPreview={(preview) => (
-            <div className="grid grid-cols-2 gap-3">
-              <Stat label="Containers" value={preview.containers.length} />
-              <Stat label="Erros" value={preview.rowErrors.length} />
+            <div className="grid gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Stat label="Containers" value={preview.containers.length} />
+                <Stat label="Erros" value={preview.rowErrors.length} />
+              </div>
+              <VaziosImportacaoManifestNumbers manifest={preview} values={vaziosManifestNumbers} onChange={setVaziosManifestNumbers} />
             </div>
           )}
-          onClose={() => setActiveType(null)}
+          onClose={() => { setVaziosManifestNumbers({}); setActiveType(null) }}
         />
       ) : null}
 
@@ -366,22 +374,24 @@ function BaplieImportModal({
     if (!canImport) return
     setImporting(true)
     try {
-      const existing = await countBaplieStaging(voyageId)
-      if (existing > 0 && !(await confirm({
-        title: 'Substituir o Baplie da viagem',
-        message: baplieReplacementMessage(existing, filteredContainers.length),
-        confirmLabel: 'Substituir',
-        tone: 'danger',
-      }))) return
-      const { staged } = await importBaplieStaging(voyageId, filteredContainers, userId)
+      const result = await reimportBaplie({
+        voyageId,
+        containers: filteredContainers,
+        actorId: userId,
+        confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
+      })
+      if (result.status === 'cancelled') return
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['baplie-staging', voyageId] }),
         queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] }),
+        queryClient.invalidateQueries({ queryKey: ['baplie-vazios-manifest', String(voyageId)] }),
+        queryClient.invalidateQueries({ queryKey: ['vazios-importacao'] }),
+        queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] }),
         // P0-4: alimenta a divergencia de existencia de Carga descarregada e
         // Vazios descarregados no ADR.
         queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
       ])
-      showToast(`Baplie importado: ${staged} container(s) em staging.`, 'success')
+      showToast(baplieImportToast(result), 'success')
       handleClose()
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Falha ao importar Baplie EDI.', 'error')

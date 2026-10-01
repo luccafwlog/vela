@@ -1,6 +1,6 @@
 # Viagens
 
-> **Status:** ativo · **Atualizado:** 2026-09-23 · **Rotas:** `/viagens`, `/viagens/:voyageId`
+> **Status:** ativo · **Atualizado:** 2026-10-01 · **Rotas:** `/viagens`, `/viagens/:voyageId`
 
 ## Propósito e escopo
 
@@ -39,6 +39,7 @@ Fontes principais: `src/pages/Viagens.tsx`, `src/services/voyageSummaries.ts`, `
   - `/granito?voyage=<id>`, só quando a viagem tem B/Ls de Granito;
   - `/embarquevazios?voyage=<id>`, pelo botão da aba Exportação (Embarque aberto com a viagem selecionada e travada);
   - `/bls?voyage=<id>&pol=<pol>&pod=<pod>` e `/vazios-importacao?voyage=<id>&pod=<pod>`, por linha da aba Rotas e Manifestos.
+- **Rotas e Manifestos:** a linha de carga e a linha VAZIOS podem ter o mesmo POL/POD, mas cada uma mostra só o Nº de manifesto Mercante da sua natureza (`carga` ou `vazio`). O número dos vazios é informado, obrigatoriamente, no modal de Vazios IMP (ver [Manifestos & EDI](manifesto-edi.md)).
 
 ## Catálogo de ações
 

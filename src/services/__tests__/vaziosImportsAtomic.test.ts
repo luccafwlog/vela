@@ -59,22 +59,25 @@ describe('imports de vazios transacionais', () => {
     expect(fromMock).not.toHaveBeenCalled()
   })
 
-  it('importa planilha de vazios em uma unica RPC', async () => {
-    rpcMock.mockResolvedValue({ data: { manifest_id: 'empty-manifest' }, error: null })
+  it('importa planilha de vazios e o manifesto Mercante da rota em uma unica RPC', async () => {
+    rpcMock.mockResolvedValue({ data: { manifest_id: 'empty-manifest', mercante_manifest_ids: ['mercante-1'] }, error: null })
 
     await expect(importVaziosImportacaoManifest({
       voyageId: 8,
       uploadedBy: 'user-2',
+      manifestNumbers: { CNTAC__BRVIX: ' 1226501801342 ' },
       manifest: {
         containers: [{
           rowNumber: 2,
           container_number: 'EFGH1234567',
           container_type: '20DV',
           tare_kg: 2200,
+          pol: 'CNTAC',
+          pod: 'BRVIX',
         }],
         rowErrors: [],
       },
-    })).resolves.toEqual({ manifestId: 'empty-manifest' })
+    })).resolves.toEqual({ manifestId: 'empty-manifest', mercanteManifestIds: ['mercante-1'] })
 
     expect(rpcMock).toHaveBeenCalledWith('import_vazios_importacao_transactional', expect.objectContaining({
       p_voyage_id: 8,
@@ -128,4 +131,30 @@ it('define RPCs transacionais protegidas para os tres fluxos', () => {
   expect(sql).toMatch(/SECURITY DEFINER/i)
   expect(sql).toMatch(/FROM PUBLIC, anon/i)
   expect(sql).toMatch(/TO authenticated/i)
+})
+
+it('grava o manifesto Mercante de vazio na mesma RPC dos containers (migration 117)', () => {
+  const sql = fs.readFileSync(
+    path.resolve('supabase/migrations/117_vazios_importacao_com_manifesto_mercante.sql'),
+    'utf8',
+  )
+  const body = sql.slice(sql.indexOf('CREATE FUNCTION public.import_vazios_importacao_transactional'))
+
+  expect(body).toMatch(/p_manifestos jsonb/)
+  expect(body).toMatch(/INSERT INTO public\.manifestos_mercante[\s\S]*'vazio'[\s\S]*INSERT INTO public\.vazios_importacao_containers/)
+  expect(body).toMatch(/para cada porto de origem[\s\S]*mais de um porto de origem/)
+  expect(body).toMatch(/ERRCODE = '23505'/)
+  expect(body).toMatch(/p_uploaded_by IS DISTINCT FROM auth\.uid\(\)/)
+  expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.import_vazios_importacao_transactional\(bigint, text, uuid, jsonb, jsonb\) TO authenticated/)
+})
+
+it('o alerta CE Mercante pendente conta rotas de vazios sem manifesto vazio (migration 119)', () => {
+  const sql = fs.readFileSync(path.resolve('supabase/migrations/119_alerta_ce_mercante_inclui_vazios.sql'), 'utf8')
+
+  expect(sql).toContain('CREATE OR REPLACE FUNCTION public.reconcile_voyage_ce_mercante_missing_alerts(')
+  expect(sql).toMatch(/FROM public\.vazios_importacao_containers[\s\S]*get_voyage_eligible_pods/)
+  expect(sql).toMatch(/mm\.natureza = 'vazio'/)
+  expect(sql).toMatch(/lower\(ce\.cargo_mode\) = 'vazios'/)
+  expect(sql).toContain("'missing_vazios_manifest_count'")
+  expect(sql).not.toMatch(/GRANT .* TO authenticated/)
 })

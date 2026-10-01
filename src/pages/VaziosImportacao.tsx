@@ -11,6 +11,7 @@ import { useToast } from '../components/ui/Toast'
 import { TruncationNote } from '../components/shared/TruncationNote'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { FileImportModal } from '../components/shared/FileImportModal'
+import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from '../components/shared/VaziosImportacaoImportParts'
 import { useAuth } from '../hooks/useAuth'
 import { PAGE_SIZES, usePageFilters } from '../hooks/usePageFilters'
 import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
@@ -20,6 +21,7 @@ import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import {
   parseVaziosImportacaoFile,
   importVaziosImportacaoManifest,
+  resolveVaziosManifestNumbers,
   listVaziosImportacaoContainers,
   listVaziosImportacaoManifests,
   type ParsedVaziosImportacaoManifest,
@@ -46,7 +48,15 @@ type Filters = {
   pageSize: number
 }
 
-function VaziosImportacaoPreview({ manifest }: { manifest: ParsedVaziosImportacaoManifest }) {
+function VaziosImportacaoPreview({
+  manifest,
+  manifestNumbers,
+  onManifestNumbersChange,
+}: {
+  manifest: ParsedVaziosImportacaoManifest
+  manifestNumbers: Record<string, string>
+  onManifestNumbersChange: (values: Record<string, string>) => void
+}) {
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 md:grid-cols-2">
@@ -61,6 +71,7 @@ function VaziosImportacaoPreview({ manifest }: { manifest: ParsedVaziosImportaca
         </table>
       </div>
       <TruncationNote shown={25} total={manifest.containers.length} noun="container" nounPlural="containers" />
+      <VaziosImportacaoManifestNumbers manifest={manifest} values={manifestNumbers} onChange={onManifestNumbersChange} />
       <ImportIssuesPanel issues={rowErrorsToImportIssues(manifest.rowErrors)} filename="vazios-importacao-issues.csv" />
     </div>
   )
@@ -85,6 +96,7 @@ export function VaziosImportacao() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [voyageId, setVoyageId] = useState(searchParams.get('voyage') ?? '')
   const [description, setDescription] = useState('')
+  const [manifestNumbers, setManifestNumbers] = useState<Record<string, string>>({})
   const [exporting, setExporting] = useState(false)
   const [updatingNaturezaId, setUpdatingNaturezaId] = useState<string | null>(null)
   const [bulkUpdating, setBulkUpdating] = useState(false)
@@ -132,6 +144,7 @@ export function VaziosImportacao() {
     setUploadOpen(false)
     setVoyageId('')
     setDescription('')
+    setManifestNumbers({})
   }
 
   async function handleSelectAllFiltered() {
@@ -426,21 +439,21 @@ export function VaziosImportacao() {
           inspectFile={inspectImportUpload}
           importer={async (nextManifest, _file, override) => {
             if (!user || !voyageId) return
-            await importVaziosImportacaoManifest({ manifest: nextManifest, uploadedBy: user.id, voyageId: Number(voyageId), description: description.trim() || undefined, allowRowErrors: Boolean(override) })
+            await importVaziosImportacaoManifest({ manifest: nextManifest, uploadedBy: user.id, voyageId: Number(voyageId), manifestNumbers, description: description.trim() || undefined, allowRowErrors: Boolean(override) })
             await afterManifestoImportado(queryClient, { voyageId })
             showToast(`${nextManifest.containers.length} containers importados.`, 'success')
           }}
-          canImport={(nextManifest, override) => nextManifest.containers.length > 0 && (nextManifest.rowErrors.length === 0 || Boolean(override))}
+          canImport={(nextManifest, override) => resolveVaziosManifestNumbers(nextManifest, manifestNumbers).manifestos !== null && (nextManifest.rowErrors.length === 0 || Boolean(override))}
           getIssues={(nextManifest) => rowErrorsToImportIssues(nextManifest.rowErrors)}
           ready={Boolean(voyageId && user)}
           prerequisite={<VoyageCombobox required label="Viagem de destino" selectedVoyageId={voyageId} onSelect={(id) => setVoyageId(id == null ? '' : String(id))} />}
           helper={
             <>
-              <div className="rounded-xl border border-[#30363d] bg-[#0d1117] p-4 text-sm text-slate-300"><div className="font-semibold text-white">Formato esperado</div><div className="mt-2 text-slate-400">Colunas: <strong>Container</strong> (obrigatorio), <strong>Tipo</strong>, <strong>Tara</strong> (kg).</div></div>
+              <VaziosImportacaoGuide />
               <Field label="Descricao (opcional)"><Input placeholder="Ex: Importacao semana 15" value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
             </>
           }
-          renderPreview={(nextManifest) => <VaziosImportacaoPreview manifest={nextManifest} />}
+          renderPreview={(nextManifest) => <VaziosImportacaoPreview manifest={nextManifest} manifestNumbers={manifestNumbers} onManifestNumbersChange={setManifestNumbers} />}
           onClose={resetUpload}
         />
       ) : null}

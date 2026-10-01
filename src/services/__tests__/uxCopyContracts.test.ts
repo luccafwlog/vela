@@ -34,12 +34,12 @@ it('uses the voyage-backed schedule flow instead of the legacy schedule export',
 })
 
 // Migration 077 (decisão R1 de 2026-09-23): todo Departamento ativo importa o
-// Baplie; a substituição de um Baplie existente pede confirmação.
+// Baplie; a substituição de um Baplie existente com diferença pede confirmação.
 it('exposes Baplie import and reimport controls to every active internal user', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/pages/Baplie.tsx'), 'utf8')
   expect(source).not.toMatch(/canUploadManifests = isAdmin/)
   expect(source).toContain('const canUploadManifests = Boolean(profile || user)')
-  expect(source).toContain('baplieReplacementMessage(existing, filteredContainers.length)')
+  expect(source).toContain('confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length))')
   expect(source).toContain('<StateA canImport={canUploadManifests}')
   expect(source).toContain('canUploadManifests ?')
   expect(source).toContain('A importação do Baplie exige um usuário interno ativo.')

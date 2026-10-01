@@ -8,7 +8,7 @@ vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: false, use
 let mockDivergences: unknown[] = []
 vi.mock('../../../hooks/useVoyageReconciliation', () => ({ useVoyageReconciliation: () => ({ data: { items: mockDivergences } }) }))
 vi.mock('../../../hooks/useAgencyReport', () => ({ useClosedAgencyReportPorts: () => ({ data: [] }) }))
-let mockManifestos: Array<{ pol: string; pod: string; numero: string }> = []
+let mockManifestos: Array<{ pol: string; pod: string; numero: string; natureza: 'carga' | 'vazio' }> = []
 vi.mock('../../../hooks/useManifestosMercante', () => ({
   useManifestosMercanteByVoyage: () => ({ data: mockManifestos }),
 }))
@@ -104,12 +104,21 @@ describe('KPIs do cabeçalho da viagem', () => {
   })
 
   it('conta Manifestos Mercante registrados na tabela manifestos_mercante', () => {
-    mockManifestos = [{ pol: 'CNSHA', pod: 'BRVIX', numero: 'MAN-555' }]
+    mockManifestos = [{ pol: 'CNSHA', pod: 'BRVIX', numero: 'MAN-555', natureza: 'carga' }]
     renderCard({
       bls: [{ id: 'bl-1', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [] }],
     } as unknown as Partial<Voyage>)
 
     expect(kpiValue('Manifestos Mercante')).toBe('1/1')
+  })
+
+  it('manifesto de vazios não conta como manifesto da rota de carga com o mesmo POL/POD', () => {
+    mockManifestos = [{ pol: 'CNSHA', pod: 'BRVIX', numero: 'MAN-VAZIO', natureza: 'vazio' }]
+    renderCard({
+      bls: [{ id: 'bl-1', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [] }],
+    } as unknown as Partial<Voyage>)
+
+    expect(kpiValue('Manifestos Mercante')).toBe('0/1')
   })
 
   it('usa os bookings realmente vinculados como total de vazios embarcados', () => {

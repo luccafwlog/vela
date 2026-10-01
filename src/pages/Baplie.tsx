@@ -15,7 +15,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { parseBaplieFile } from '../services/baplieParser'
-import { baplieReplacementMessage, countBaplieStaging, importBaplieStaging } from '../services/baplieImport'
+import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie } from '../services/baplieImport'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { hasBlsForVoyage, listBaplieStaging } from '../services/baplieReadModel'
 import {
@@ -251,6 +251,10 @@ export function Baplie() {
         onClose={() => setUploadOpen(false)}
         onImported={async () => {
           await queryClient.invalidateQueries({ queryKey: ['baplie-staging', voyageId] })
+          // A reimportação com diferença pode recadastrar os vazios do Baplie.
+          await queryClient.invalidateQueries({ queryKey: ['baplie-vazios-manifest', voyageId] })
+          await queryClient.invalidateQueries({ queryKey: ['vazios-importacao'] })
+          await queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] })
           // Baplie soberano: aplica automaticamente as flags físicas (IMO/OOG) aos
           // bl_containers da viagem, para contagem e EDI refletirem o Baplie (#306).
           if (voyageId && user) {
@@ -737,19 +741,19 @@ function BaplieUploadModal({
     if (!canImport || !user) return
     setSubmitting(true)
     try {
-      const existing = await countBaplieStaging(Number(voyageId))
-      if (existing > 0 && !(await confirm({
-        title: 'Substituir o Baplie da viagem',
-        message: baplieReplacementMessage(existing, filteredContainers.length),
-        confirmLabel: 'Substituir',
-        tone: 'danger',
-      }))) return
-      const { staged } = await importBaplieStaging(Number(voyageId), filteredContainers, user.id)
-      showToast(`Baplie importado: ${staged} container(s) em staging.`, 'success')
+      const result = await reimportBaplie({
+        voyageId: Number(voyageId),
+        containers: filteredContainers,
+        actorId: user.id,
+        confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
+      })
+      if (result.status === 'cancelled') return
+      showToast(baplieImportToast(result), 'success')
       onImported()
       handleClose()
-    } catch {
-      showToast('Falha ao importar Baplie EDI.', 'error')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Falha ao importar Baplie EDI.', 'error')
+      onImported()
     } finally {
       setSubmitting(false)
     }

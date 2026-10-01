@@ -9,9 +9,10 @@ const mocks = vi.hoisted(() => ({
   parseBreakbulkManifestFile: vi.fn(),
   importBreakbulkManifest: vi.fn(() => Promise.resolve()),
   parseBaplieFile: vi.fn(),
-  importBaplieStaging: vi.fn(() => Promise.resolve({ staged: 1 })),
-  countBaplieStaging: vi.fn(() => Promise.resolve(0)),
+  reimportBaplie: vi.fn(),
+  bapliePlan: null as null | { existing: number },
   confirm: vi.fn(() => Promise.resolve(true)),
+  importedBaplie: vi.fn(),
   can: vi.fn<(permission: string) => boolean>(() => true),
   effectiveRole: vi.fn(() => 'documentacao'),
   profile: { id: 'user-1' },
@@ -40,9 +41,9 @@ vi.mock('../../../services/baplieParser', () => ({
 }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('../../../services/baplieImport', () => ({
-  importBaplieStaging: mocks.importBaplieStaging,
-  countBaplieStaging: mocks.countBaplieStaging,
-  baplieReplacementMessage: (existing: number, incoming: number) => `${existing}->${incoming}`,
+  reimportBaplie: mocks.reimportBaplie,
+  baplieReplacementConfirmOptions: (plan: { existing: number }, incoming: number) => ({ message: `${plan.existing}->${incoming}` }),
+  baplieImportToast: () => 'Baplie importado.',
 }))
 vi.mock('../CeMercanteImportModal', () => ({
   CeMercanteImportModal: ({ lockedVoyageId, target }: { lockedVoyageId?: number; target?: string }) => <div>CE travado: {lockedVoyageId} · {target ?? 'bls'}</div>,
@@ -57,9 +58,14 @@ beforeEach(() => {
   mocks.invalidateQueries.mockResolvedValue(undefined)
   mocks.importBreakbulkManifest.mockResolvedValue(undefined)
   mocks.parseBaplieFile.mockReset()
-  mocks.importBaplieStaging.mockReset()
-  mocks.importBaplieStaging.mockResolvedValue({ staged: 1 })
-  mocks.countBaplieStaging.mockResolvedValue(0)
+  mocks.bapliePlan = null
+  // Simula o serviço: com Baplie anterior e diferença, pergunta antes de gravar.
+  mocks.reimportBaplie.mockReset()
+  mocks.reimportBaplie.mockImplementation(async ({ confirmReplacement }: { confirmReplacement: (plan: unknown) => Promise<boolean> }) => {
+    if (mocks.bapliePlan && !(await confirmReplacement(mocks.bapliePlan))) return { status: 'cancelled' }
+    mocks.importedBaplie()
+    return { status: mocks.bapliePlan ? 'replaced' : 'imported', staged: 1, vaziosReplaced: false }
+  })
   mocks.confirm.mockReset()
   mocks.confirm.mockResolvedValue(true)
   mocks.navigate.mockReset()
@@ -195,7 +201,7 @@ it('bloqueia staging quando a prévia do Baplie contém issue bloqueante', async
   expect(confirm.disabled).toBe(true)
 
   fireEvent.click(confirm)
-  expect(mocks.importBaplieStaging).not.toHaveBeenCalled()
+  expect(mocks.reimportBaplie).not.toHaveBeenCalled()
 })
 
 it('ordena as importacoes e abre CE Mercante travado na viagem', () => {
@@ -367,13 +373,13 @@ async function openBaplieWithFile() {
 
 it('pede confirmação antes de substituir o Baplie que a viagem já tem', async () => {
   mocks.parseBaplieFile.mockResolvedValue(validBaplie)
-  mocks.countBaplieStaging.mockResolvedValue(612)
+  mocks.bapliePlan = { existing: 612 }
   mocks.confirm.mockResolvedValue(false)
 
   await openBaplieWithFile()
 
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ message: '612->1' })))
-  expect(mocks.importBaplieStaging).not.toHaveBeenCalled()
+  expect(mocks.importedBaplie).not.toHaveBeenCalled()
 })
 
 it('importa direto quando a viagem ainda não tem Baplie', async () => {
@@ -381,6 +387,6 @@ it('importa direto quando a viagem ainda não tem Baplie', async () => {
 
   await openBaplieWithFile()
 
-  await waitFor(() => expect(mocks.importBaplieStaging).toHaveBeenCalledTimes(1))
+  await waitFor(() => expect(mocks.importedBaplie).toHaveBeenCalledTimes(1))
   expect(mocks.confirm).not.toHaveBeenCalled()
 })
