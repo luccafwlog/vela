@@ -84,4 +84,26 @@ A partir desta atualização, todo erro reportado pelo Vela inclui tags padroniz
   * `categoria_falha = Erro de Código / Runtime`
   * `user_role = administrativo`
 * **Resumo Didático no evento:** *"Falha ao executar 'Listar pendências PIX' na tela 'Conciliação PIX' (Financeiro)."*
-* **Rastreabilidade de Código:** Graças ao `sourcemap: 'hidden'` habilitado no Vite, o Sentry mapeia o arquivo TypeScript original (ex: `Reconciliacao.tsx`) em vez de arquivos compactados.
+* **Títulos legíveis para erros de banco:** em vez do objeto cru ou do nome minificado (`qi`, `Gi`), a issue abre com `[Sessão expirada] PGRST301`, `[Sem permissão] 42501` etc., com agrupamento estável por categoria+código e seção estruturada `database` (tipo, código, mensagem, detalhes) na página da issue.
+* **Rastreabilidade de Código:** o Vite gera sourcemaps (`sourcemap: 'hidden'`), mas eles ainda não são enviados ao Sentry — por isso os stacks continuam minificados (`at Ki (featureFlags-*.js:7:7109)`). O upload de sourcemaps é o follow-up recomendado (ver §6).
+
+---
+
+## 6. Upload de Sourcemaps (follow-up recomendado)
+
+Hoje os stacks chegam minificados (`at Ki (featureFlags-*.js:7:7109)`) porque,
+embora o Vite gere os sourcemaps (`sourcemap: 'hidden'`), nada os envia ao
+Sentry. O caminho recomendado:
+
+1. `npm install --save-dev @sentry/vite-plugin` e registrar o plugin no
+   `vite.config.ts` com `org: 'fwlog'`, `project: ['vela', 'portal']` e
+   `release.name` igual ao `VITE_APP_COMMIT_SHA` (12 caracteres), ativado
+   apenas quando `SENTRY_AUTH_TOKEN` existir no ambiente.
+2. Criar um **User Auth Token** em [sentry.io/settings/account/api/auth-tokens](https://sentry.io/settings/account/api/auth-tokens/) com o escopo `project:releases`.
+3. No GitHub, em **Settings → Secrets and variables → Actions**, criar o
+   secret `SENTRY_AUTH_TOKEN` e expô-lo como env no step de build dos
+   workflows `cloudflare-pages-production.yml` e `cloudflare-pages-preview.yml`.
+4. No próximo deploy, conferir em **Sentry → projeto → Settings → Source Maps**
+   que o artefato do release aparece como *"uploaded"*.
+
+Referência de código: `humanizeDatabaseError` em [`src/lib/telemetry.ts`](../../src/lib/telemetry.ts) (títulos legíveis e contexto `database`).
