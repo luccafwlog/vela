@@ -30,6 +30,7 @@ it('envia dispensa temporária ao RPC central com motivo e revisão futura', asy
 
 it('busca cada entidade financeira, deduplica, ordena e exclui Granito/Portal/Demurrage', async () => {
   const rowsByEntityType = {
+    invoice: [],
     bl: [
       { id: 10, type: 'aggregate', item_type: 'billing_calculation_blocked', entity_type: 'bl', created_at: '2026-08-18T10:00:00Z' },
       { id: 10, type: 'aggregate', item_type: 'billing_calculation_blocked', entity_type: 'bl', created_at: '2026-08-18T10:00:00Z' },
@@ -47,20 +48,20 @@ it('busca cada entidade financeira, deduplica, ordena e exclui Granito/Portal/De
     error: null,
   }))
 
-  // Nenhum tipo financeiro ativo aponta para 'invoice' desde a 348, então a
-  // fila não consulta mais essa entidade.
+  // Fatura desatualizada devolve a entidade invoice à fila financeira.
   await expect(listFinancialAlerts()).resolves.toEqual([
     rowsByEntityType.pix_transaction[0],
     rowsByEntityType.bl[0],
   ])
-  expect(rpcMock).toHaveBeenCalledTimes(3)
-  expect(rpcMock).toHaveBeenNthCalledWith(1, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'bl', p_offset: 0, p_limit: 100 })
-  expect(rpcMock).toHaveBeenNthCalledWith(2, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'pix_transaction', p_offset: 0, p_limit: 100 })
-  expect(rpcMock).toHaveBeenNthCalledWith(3, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'exchange_rate_reference', p_offset: 0, p_limit: 100 })
+  expect(rpcMock).toHaveBeenCalledTimes(4)
+  expect(rpcMock).toHaveBeenNthCalledWith(2, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'bl', p_offset: 0, p_limit: 100 })
+  expect(rpcMock).toHaveBeenNthCalledWith(3, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'pix_transaction', p_offset: 0, p_limit: 100 })
+  expect(rpcMock).toHaveBeenNthCalledWith(4, 'list_alert_queue_page', { p_filter: 'active', p_entity_type: 'exchange_rate_reference', p_offset: 0, p_limit: 100 })
 })
 
 it('combina as entidades financeiras antes de cortar a fila em 200 itens', async () => {
   const rowsByEntityType = {
+    invoice: [],
     bl: Array.from({ length: 200 }, (_, index) => ({
       id: index + 1,
       type: 'billing_calculation_blocked',
@@ -92,6 +93,7 @@ it('combina as entidades financeiras antes de cortar a fila em 200 itens', async
 it('expõe somente os tipos financeiros ativos do contrato', () => {
   // invoice_overdue saiu na 348: taxa local não tem vencimento praticado (#605).
   expect(FINANCIAL_ALERT_TYPES).toEqual([
+    'fatura_desatualizada',
     'billing_calculation_blocked',
     'billing_auto_issue_failed',
     'demurrage_ptax_recalc_failed',
@@ -99,6 +101,7 @@ it('expõe somente os tipos financeiros ativos do contrato', () => {
   ])
 
   expect(FINANCIAL_ALERT_EVENTS).toEqual({
+    fatura_desatualizada: { audience: ['administrativo'], unit: 'invoice' },
     billing_calculation_blocked: {
       audience: ['documentacao'],
       unit: 'bl',

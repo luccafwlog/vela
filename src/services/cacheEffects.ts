@@ -54,7 +54,7 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, opt
     // Este e o unico efeito pos-importacao para que cada modal nao mantenha
     // uma lista parcial de caches.
     ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
-    ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
+    ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
     ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
     // Vazios IMP cria o manifesto Mercante da rota; a aba Rotas e Manifestos lê esta família.
     ['manifestos-mercante'],

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../services/queryKeys'
 import {
+  quoteManualInvoiceCharge,
   addManualBlCharge,
   calculateBlLocalCharges,
   calculateLocalChargesBatch,
@@ -349,5 +350,13 @@ export function useBatchCalculateLocalCharges() {
         queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() }),
       ])
     },
+  })
+}
+
+export function useManualInvoiceQuote(blId: string | null, itemId: number | null) {
+  return useQuery({
+    queryKey: [...queryKeys.bls.manualChargeItems(blId ?? ''), 'invoice-quote', itemId],
+    enabled: Boolean(blId && itemId),
+    queryFn: () => quoteManualInvoiceCharge(blId!, itemId!),
   })
 }

@@ -382,6 +382,11 @@ fechada por conta ativa ou exceção formal.
 
 ## Fluxos e invariantes
 
+### Correção de B/L após faturamento
+
+Correção após pagamento mantém o total original e o dinheiro recebido, mas atualiza o saldo a pagar. O detalhe exibe Ajustes por correção com abatimento e restituição por B/L, por leitura escopada ao Cliente. Avulsas com item de tabela aparecem para o Cliente do B/L. Faturas canceladas permanecem no histórico; o status as separa da cobrança vigente. Ver [ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md).
+
+
 ```mermaid
 sequenceDiagram
     actor Identifier as identifier

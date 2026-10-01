@@ -125,6 +125,7 @@ type BillingCustomerOption = {
 }
 
 export type ManualInvoiceInput = {
+  chargeItemId?: number | null
   customerId: number
   itemName: string
   description?: string | null
@@ -916,6 +917,7 @@ export async function createManualInvoice(input: ManualInvoiceInput): Promise<Ma
   // ponytail: a migration-only RPC is intentionally cast locally until the
   // protected generated database types are regenerated from the deployed schema.
   const { data, error } = await supabase.rpc('create_manual_invoice' as never, {
+    ...(input.chargeItemId == null ? {} : { p_charge_item_id: input.chargeItemId }),
     p_customer_id: parsed.customerId,
     p_item_name: parsed.itemName,
     p_quantity: parsed.quantity,

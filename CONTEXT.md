@@ -2048,3 +2048,26 @@ não substituem a leitura da última definição na cadeia ativa de migrations.
 | Calendário do prazo do ADR | [agencyReportDeadline.ts](src/services/agencyReportDeadline.ts) |
 | ATD do terminal, ajuste de COD e prontidão do Portal | Funções `reconcile_agency_report_alerts`, `apply_cod_financial_effect` e `customer_portal_access_ready` na [base consolidada](supabase/migrations/002_business_logic_and_security.sql) |
 | Inbox e resposta a webhook duplicado | [portal-email-webhook](supabase/functions/portal-email-webhook/index.ts) |
+
+## Correção de B/L após faturamento
+
+A fatura é disponibilizada ao Cliente na emissão e preserva seu total e itens.
+Sem pagamento, **Cancelar e reemitir** cancela a individual ou consolidada,
+permite corrigir o B/L e mantém **Reemissão pendente** até a emissão sucessora.
+Com pagamento parcial ou integral, a fatura não pode ser cancelada/reemitida.
+Taxa adicional ou aumento de cobrança usa **Fatura avulsa** vinculada ao B/L.
+
+Para redução após pagamento, **Correção após pagamento** recebe o total correto
+do B/L e motivo. A diferença abate primeiro o saldo aberto; só o excedente já
+recebido gera **Restituição por correção**, liquidada após devolver o dinheiro.
+Exemplo: total original R$ 1.000, pago R$ 400, total correto R$ 800: abate
+R$ 200 do saldo, restam R$ 400, sem restituição. Se já recebeu R$ 900, abate
+R$ 100 em aberto e registra R$ 100 para restituir. Total original e dinheiro
+recebido continuam no histórico; o Portal mostra saldo e ajustes separadamente.
+O operador confirma a prévia antes de registrar correção ou pagamento.
+
+**Fatura desatualizada** avisa que uma alteração efetiva do B/L ou de flags do
+Baplie mudou as bases faturadas. Orienta o caminho conforme existência de
+pagamento. Reemissão resolve automaticamente; avulsa ou correção é encerrada
+com justificativa. Ver [ADR 0077](docs/adr/0077-fatura-emitida-nao-muda-de-valor.md)
+e [Faturamento](docs/modules/faturamento.md).

@@ -236,3 +236,30 @@ export async function reconcileInvoicePaymentByTxid(input: {
   if (error) throw error
   return parseRpcResult(reconcileByTxidResultSchema, data, 'reconcile_invoice_payment_by_txid')
 }
+
+export type InvoiceCorrectionSummary = {
+  stale?: boolean
+  receivables: Array<{ id: number; bl_id: string; original_brl: number; corrected_brl: number; paid_brl: number; balance_brl: number }>
+  corrections: Array<{ id: number; bl_id: string; amount_brl: number; offset_brl: number; refund_brl: number; corrected_total_brl: number; reason: string; created_at: string }>
+}
+export async function getInvoiceCorrectionSummary(invoiceId: number): Promise<InvoiceCorrectionSummary> {
+  // ponytail: cast local até regenerar os tipos protegidos do schema implantado.
+  const { data, error } = await supabase.rpc('get_invoice_correction_summary' as never, { p_invoice_id: invoiceId } as never)
+  if (error) throw error
+  return data as unknown as InvoiceCorrectionSummary
+}
+export async function registerInvoiceCorrection(input: { invoiceId: number; receivableId: number; correctedTotalBrl: number; reason: string }) {
+  const { data, error } = await supabase.rpc('register_invoice_correction' as never, {
+    p_invoice_id: input.invoiceId, p_receivable_id: input.receivableId,
+    p_corrected_total_brl: input.correctedTotalBrl, p_reason: input.reason,
+  } as never)
+  if (error) throw error
+  return data as unknown as { offset_brl: number; refund_brl: number; balance_brl: number }
+}
+
+export async function resolveStaleInvoice(input: { invoiceId: number; reason: string }) {
+  const { error } = await supabase.rpc('resolve_stale_invoice' as never, {
+    p_invoice_id: input.invoiceId, p_reason: input.reason,
+  } as never)
+  if (error) throw error
+}

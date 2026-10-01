@@ -52,9 +52,12 @@ function adminJson<T>(sql: string): T {
   return JSON.parse(line ?? '{}') as T
 }
 
+let initialPricingVersionIds: string[] | null = null
+
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
+    DELETE FROM public.charge_calculations WHERE bl_id = ANY(ARRAY['${blIds.join("','")}']::text[]);
     DELETE FROM public.invoice_lifecycle_events WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.invoice_items WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.invoice_receivable_links WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
@@ -62,6 +65,7 @@ function cleanup() {
     DELETE FROM public.payments WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.billing_batches WHERE customer_id = ${customerId};
     DELETE FROM public.invoices WHERE customer_id = ${customerId};
+    ${initialPricingVersionIds === null ? '' : `DELETE FROM public.pricing_rule_versions p WHERE p.id <> ALL(ARRAY[${initialPricingVersionIds.join(',')}]::bigint[]) AND NOT EXISTS (SELECT 1 FROM public.invoice_items i WHERE i.pricing_rule_version_id = p.id) AND NOT EXISTS (SELECT 1 FROM public.charge_calculations c WHERE c.pricing_rule_version_id = p.id);`}
     DELETE FROM public.bl_receivables WHERE customer_id = ${customerId};
     DELETE FROM public.bls WHERE id = ANY(ARRAY['${blIds.join("','")}']::text[]);
     DELETE FROM public.voyages WHERE id = ${voyageId};
@@ -79,6 +83,7 @@ function cleanup() {
 
 describeLocal('121 — fatura emitida não muda de valor; correção cancela e reemite', () => {
   beforeAll(() => {
+    initialPricingVersionIds = psql('SELECT id FROM public.pricing_rule_versions ORDER BY id').split('\n').filter(Boolean)
     cleanup()
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'reissue-121@example.test');

@@ -581,6 +581,17 @@ const ALERT_RULES_BASE = [
     afterResolution: derivedResolution,
     dismissal: temporaryDismissal,
   },
+  {
+    type: 'fatura_desatualizada', domain: 'Financeiro', responsible: 'administrativo',
+    catalogAudience: ['administrativo'], entityType: 'invoice', severity: 'normal',
+    summary: 'Uma correção do B/L alterou as bases de uma fatura já emitida.',
+    trigger: 'Mudança efetiva de rota, peso, containers, veículos ou flags físicas do Baplie em B/L faturado.',
+    timing: 'Na mesma transação da correção.',
+    resolution: 'Sem pagamento: Cancelar e reemitir. Com pagamento: aumento usa fatura avulsa; redução abate o saldo e depois registra restituição.',
+    destination: '/taxas-locais', destinationLabel: 'Taxas Locais',
+    afterResolution: 'A reemissão fecha o alerta. Para avulsa ou correção, registre a resolução com justificativa.',
+    dismissal: temporaryDismissal,
+  },
 ] satisfies AlertRuleDraft[]
 
 function sortDepartments(departments: Iterable<AlertRuleDepartment>): AlertRuleDepartment[] {

@@ -1,6 +1,6 @@
 # Plano — Correção de B/L depois da fatura de Taxas Locais
 
-Data: 2026-10-01. Estado: decisões do dono confirmadas; execução não iniciada.
+Data: 2026-10-01. Estado: implementação local concluída e arquivada em 2026-10-01. Fases 1 e 3 já estavam na branch; demais fases concluídas nesta execução. Publicação e observação em Preview não realizadas.
 
 ## Resultado pretendido
 
@@ -197,9 +197,30 @@ execução nem RLS; registrar o que foi observado em Preview.
 - Rollback de cada fase: migration reversa restaurando as definições
   anteriores das RPCs; colunas novas são nullable e podem ficar.
 
-## Pendente
+## Decisão complementar confirmada nesta execução
 
-- Parcialmente paga cuja correção reduz o valor para menos do que já foi pago:
-  vira restituição do excedente (regra 6). Se a redução não ultrapassar o
-  pago, o saldo aberto não muda pela regra de imutabilidade — confirmar com o
-  dono se esse saldo deve ser abatido por restituição/ajuste ou permanecer.
+Redução após pagamento parcial abate primeiro o saldo aberto e restitui somente
+o excedente já recebido. Total/itens originais permanecem intactos. Operador
+informa total correto por B/L e motivo; o sistema mostra abatimento, restituição
+e saldo antes da confirmação. Registrar pagamento explica o impedimento de
+cancelar/reemitir e confirma valor recebido/saldo. Esta decisão substitui a
+pendência original e complementa a Fase 5 com `invoice_corrections` e saldo do
+recebível, inclusive em consolidada.
+
+Adaptação mecânica: execução em patch local na branch existente; nenhuma PR ou
+publicação solicitada. Nova cadeia `122`/`123`, respeitando os prefixos numéricos
+do WORKFLOW. Fases 1/3 não foram reimplementadas. O alerta do import compara
+snapshots reais antes/depois, para não alertar em reimportação idêntica.
+
+## Evidência de encerramento local
+
+Typecheck, lint, build, docs:check, migrations:check, rpc:check e diff sem
+erros. Suíte geral: 3.792 testes passaram (245 testes dependentes de ambiente
+foram ignorados), incluindo a confirmação de baixa parcial.
+Replay completo das migrations em Postgres local descartável e seis suítes
+financeiras/importação/Portal: 30 testes passaram. Cenários incluem abatimento
+antes da restituição, pagamento subsequente, estorno bloqueado quando compromete
+a restituição, consolidada, preço/ROE da avulsa e alerta apenas em alteração real.
+Mocks de componentes verificam a orientação e confirmação ao operador.
+Não houve observação de navegador, publicação das migrations, mutação de
+produção, integração real Itaú ou prova de runtime em Preview.

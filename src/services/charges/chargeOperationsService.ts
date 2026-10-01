@@ -1049,3 +1049,20 @@ export async function getInvoicedSubtotalForBl(blId: string): Promise<InvoicedBl
     throw error
   }
 }
+
+export type ManualInvoiceQuote = {
+  charge_item_name: string
+  currency: string
+  quantity: number
+  unit_value_brl: number
+  total_brl: number
+  roe: number | null
+}
+export async function quoteManualInvoiceCharge(blId: string, chargeItemId: number): Promise<ManualInvoiceQuote> {
+  // ponytail: cast local até regenerar os tipos protegidos do schema implantado.
+  const { data, error } = await supabase.rpc('quote_manual_invoice_charge' as never, {
+    p_bl_id: blId, p_charge_item_id: chargeItemId,
+  } as never)
+  if (error) throw error
+  return data as unknown as ManualInvoiceQuote
+}

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Ban, DollarSign, Printer, RefreshCw, RotateCcw } from 'lucide-react'
+import { StaleInvoiceResolutionPanel } from './StaleInvoiceResolutionPanel'
+import { InvoiceCorrectionPanel } from './InvoiceCorrectionPanel'
 import { InvoiceDocumentLocal } from './InvoiceDocumentLocal'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -119,6 +121,19 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       return
     }
     const payment = paymentValidation.data
+    if (isLedgerPayable && payment.amountBrl > ledgerBalance) {
+      showToast('O valor recebido excede o saldo aberto. Confira o pagamento antes de registrar.', 'error')
+      return
+    }
+    const remaining = Math.max(ledgerBalance - payment.amountBrl, 0)
+    const accepted = await confirm({
+      title: remaining > 0 ? 'Registrar pagamento parcial?' : 'Registrar pagamento?',
+      message: `Valor recebido: ${formatBRL(payment.amountBrl)}. Saldo após o pagamento: ${formatBRL(remaining)}.`,
+      consequence: 'Registre somente o dinheiro efetivamente recebido. Com qualquer pagamento, esta fatura não poderá ser cancelada para reemissão. Taxas adicionais usam fatura avulsa; reduções usam Correção após pagamento.',
+      reversibility: 'Cancelar a baixa exige justificativa e permissão. Isso registra que o dinheiro não foi recebido.',
+      confirmLabel: 'Confirmar pagamento recebido',
+    })
+    if (!accepted) return
     try {
       if (isLedgerPayable) {
         const requestId = ledgerPaymentRequestId ?? crypto.randomUUID()
@@ -392,6 +407,10 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   </table>
                 </div>
               </Card>
+              <StaleInvoiceResolutionPanel key={`stale-${invoiceId}`} invoiceId={Number(invoiceId)} hasPayment={Number(detailInvoice?.total_paid_brl ?? 0) > 0} canResolve={isAdmin} />
+              {detailInvoice && ['individual', 'consolidated'].includes(detailInvoice.invoice_type ?? '') && Number(detailInvoice.total_paid_brl ?? 0) > 0 && ['paid', 'partially_paid'].includes(detailInvoice.status ?? '') ? (
+                <InvoiceCorrectionPanel key={invoiceId} invoiceId={Number(invoiceId)} canCorrect={canSettleRefund} />
+              ) : null}
               {refunds.length > 0 ? (
                 <Card className="overflow-hidden p-0">
                   <div className="border-b border-[#30363d] px-4 py-3">
@@ -412,7 +431,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                         {refunds.map((refund) => (
                           <tr key={refund.id}>
                             <td className="px-3 py-2">{formatDate(refund.created_at)}</td>
-                            <td className="px-3 py-2">{formatBRL(refund.amount_brl)}</td>
+<td className="px-3 py-2">{formatBRL(refund.amount_brl)}{refund.notes ? <p className="text-xs">{refund.notes}</p> : null}</td>
                             <td className="px-3 py-2">
                               {refund.status === 'pending' && canSettleRefund ? (
                                 <Badge tone="yellow">Pendente</Badge>
@@ -510,7 +529,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   </div>
                   {isLedgerPayable ? (
                     <div className="mt-2 text-xs text-slate-400">
-                      Saldo aberto: {formatBRL(ledgerBalance)}. Valores menores registram baixa parcial; valor acima do saldo e bloqueado pelo ledger.
+                      Saldo aberto: {formatBRL(ledgerBalance)}. Informe somente o valor recebido.
+                      {Number(paymentAmount.replace(',', '.')) > 0 ? <> Após esta baixa: {formatBRL(Math.max(ledgerBalance - Number(paymentAmount.replace(',', '.')), 0))} em aberto.</> : null}
+                      {' '}Pagamento parcial impede cancelar e reemitir. Para taxas adicionais, use fatura avulsa; para reduzir a cobrança, use Correção após pagamento.
                     </div>
                   ) : null}
                   <div className="mt-4 flex justify-end">

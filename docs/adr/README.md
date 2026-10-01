@@ -91,3 +91,5 @@ vigentes e onde uma decisão posterior alterou parte de uma ADR anterior.
 - **obsoleta**: decisão sem superfície executável atual;
 - novas mudanças arquiteturais devem criar uma ADR ou atualizar explicitamente
   a relação de supersessão neste índice.
+
+| [0077](./0077-fatura-emitida-nao-muda-de-valor.md) | Fatura emitida não muda de valor | aceito | Cancelar e reemitir sem pagamento; avulsa para acréscimos; redução após pagamento abate saldo antes de restituir, com fluxo guiado. Estende 0038 e 0075; migrations `121`–`123`. |

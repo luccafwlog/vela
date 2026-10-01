@@ -7,6 +7,9 @@ export async function invalidateBaplieDependentQueries(
   voyageId: string,
 ) {
   await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+    queryClient.invalidateQueries({ queryKey: ['financial-alerts'] }),
+    queryClient.invalidateQueries({ queryKey: ['invoice-corrections'] }),
     queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] }),
     queryClient.invalidateQueries({ queryKey: ['bls'] }),
     queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),

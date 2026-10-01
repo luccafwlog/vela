@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
+  getInvoiceCorrectionSummary,
+  registerInvoiceCorrection,
   createConsolidatedInvoice,
   listConsolidatableReceivables,
   listInvoiceRefunds,
@@ -28,8 +30,13 @@ export function invalidateBillingLedgerQueries(qc: Pick<QueryClient, 'invalidate
   qc.invalidateQueries({ queryKey: queryKeys.customers.detail() })
   qc.invalidateQueries({ queryKey: ['invoice-detail'] })
   qc.invalidateQueries({ queryKey: ['invoice-refunds'] })
+  qc.invalidateQueries({ queryKey: queryKeys.invoices.corrections() })
   qc.invalidateQueries({ queryKey: ['cod-adjustments'] })
   qc.invalidateQueries({ queryKey: ['financial-alerts'] })
+  qc.invalidateQueries({ queryKey: ['alerts'] })
+  qc.invalidateQueries({ queryKey: ['portal-invoice-detail'] })
+  qc.invalidateQueries({ queryKey: ['portal-invoices'] })
+  qc.invalidateQueries({ queryKey: ['portal-invoices-page'] })
   qc.invalidateQueries({ queryKey: ['op-count'] })
   qc.invalidateQueries({ queryKey: ['reconciliation-history'] })
 }
@@ -92,4 +99,13 @@ export function useRegisterLedgerInvoicePayment() {
     mutationFn: registerLedgerInvoicePayment,
     onSuccess: invalidate,
   })
+}
+
+export function useInvoiceCorrectionSummary(invoiceId?: number | null) {
+  return useQuery({ queryKey: queryKeys.invoices.corrections(invoiceId), enabled: Boolean(invoiceId),
+    queryFn: () => getInvoiceCorrectionSummary(Number(invoiceId)) })
+}
+export function useRegisterInvoiceCorrection() {
+  const invalidate = useLedgerInvalidation()
+  return useMutation({ mutationFn: registerInvoiceCorrection, onSuccess: invalidate })
 }

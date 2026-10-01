@@ -371,6 +371,12 @@ export function buildBlFreightPreview({
       ? computeBillingImpact(existing, payload, sharedContainerNumbers)
       : { messages: [], container: false, vehicles: false, weight: false, cnpj: false, route: false }
     const requiresBillingOverride = impact.messages.length > 0
+    if (requiresBillingOverride && existing) {
+      const invoices = (invoicesByBl?.get(existing.id) ?? []).filter((invoice) => invoice.kind === 'local')
+      for (const invoice of invoices) {
+        impact.messages.push(`Fatura ${invoice.invoiceNumber} ficará desatualizada. ${Number(invoice.totalPaidBrl ?? 0) > 0 ? 'Com pagamento: aumento usa avulsa; redução abate o saldo e depois restitui.' : 'Sem pagamento: cancelar e reemitir.'}`)
+      }
+    }
 
     // Linha bloqueada nao importa nada (o payload vira null adiante): anunciar a
     // troca de consignatario dela faria o operador confirmar um relink que a

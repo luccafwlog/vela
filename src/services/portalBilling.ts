@@ -47,6 +47,7 @@ type PortalInvoiceContainer = {
 }
 
 export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice'> & {
+  corrections?: Array<{ amount_brl: number; offset_brl: number; refund_brl: number; bl_id: string; created_at: string }>
   invoice: (NonNullable<InvoiceDetail['invoice']> & { pix_payload: string | null }) | null
   containers: PortalInvoiceContainer[]
 }
@@ -146,11 +147,13 @@ export async function portalInvoiceDetails(invoiceId: number, scope: PortalScope
     bls?: InvoiceDetail['bls']
     items?: InvoiceDetail['items']
     containers?: PortalInvoiceContainer[]
+    corrections?: PortalInvoiceDetail['corrections']
     payments?: InvoiceDetail['payments']
   }
 
   const invoice = payload.invoice
   return {
+    corrections: payload.corrections ?? [],
     invoice: invoice
       ? {
           ...invoice,

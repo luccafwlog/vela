@@ -4,6 +4,15 @@
 
 ## 2026-10
 
+- **Correção de B/L após faturamento (2026-10-01, implementação local):** fatura
+  emitida preserva valor/itens; Cancelar e reemitir sem pagamento e vínculo entre
+  documentos (`121`). Avulsa por Tipo de cobrança com tabela/Condição do Cliente,
+  B/L obrigatório e ROE congelado (`122`). Com pagamento, redução guiada por B/L
+  abate saldo antes de registrar restituição; Portal discrimina os ajustes.
+  Fatura desatualizada acompanha mudanças efetivas e orienta o próximo ato (`123`).
+  [ADR 0077](adr/0077-fatura-emitida-nao-muda-de-valor.md); rollout remoto não verificado.
+
+
 - **IMO/OOG do Baplie no B/L importado depois (2026-10-01):** migration `118`. Importar o
   B/L numa viagem que já tem Baplie passa a aplicar as flags IMO/OOG do Baplie na mesma
   operação, antes do cálculo das taxas locais; antes, isso dependia do

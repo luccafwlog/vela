@@ -206,6 +206,11 @@ Definidas em `src/services/queryKeys.ts`:
 
 ## Fluxos e invariantes
 
+### Correção de B/L após faturamento
+
+Após emissão, a cobrança fica congelada. Correção sem pagamento exige Cancelar e reemitir; com pagamento, acréscimos usam avulsa e reduções abatem saldo antes de restituir. A avulsa pode selecionar itens manuais desta tabela, exigindo B/L e usando Condição do Cliente; USD converte por ROE na emissão. Ver [Faturamento](faturamento.md#correção-após-emissão-adr-0077).
+
+
 B/L misto consome as tabelas container e carga solta através de
 `resolve_bl_local_charge_table_ids` (`056`). A taxa com `application_basis = 'bl'`
 incide só do lado container; falta parcial de tabela gera pendência específica.

@@ -69,6 +69,8 @@ vi.mock('../../hooks/useBillingLedger', () => ({
 }))
 
 vi.mock('../../hooks/useLocalCharges', () => ({
+  useManualChargeItemsForBl: () => ({ data: [] }),
+  useManualInvoiceQuote: () => ({ data: undefined }),
   useBatchCalculateLocalCharges: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useLocalChargeOperations: () => ({
     data: [],
