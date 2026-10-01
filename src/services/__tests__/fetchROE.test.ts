@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { reportBestEffortFailure, rpc } = vi.hoisted(() => ({ reportBestEffortFailure: vi.fn(), rpc: vi.fn() }))
+const { reportBestEffortFailure, rpc, from } = vi.hoisted(() => ({
+  reportBestEffortFailure: vi.fn(),
+  rpc: vi.fn(),
+  from: vi.fn(),
+}))
 vi.mock('../../lib/telemetry', () => ({ reportBestEffortFailure }))
-vi.mock('../supabase', () => ({ supabase: { rpc } }))
+vi.mock('../supabase', () => ({ supabase: { rpc, from } }))
 
 import { fetchROE } from '../demurrage/demurrageKpis'
 
@@ -20,6 +24,7 @@ afterEach(() => {
   vi.restoreAllMocks()
   reportBestEffortFailure.mockClear()
   rpc.mockClear()
+  from.mockClear()
   localStorage.clear()
 })
 
@@ -27,6 +32,13 @@ describe('fetchROE', () => {
   beforeEach(() => {
     localStorage.clear()
     rpc.mockResolvedValue({ error: null })
+    from.mockImplementation(() => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () => Promise.resolve({ data: null, error: null }),
+        }),
+      }),
+    }))
   })
 
   it('não registra falha best-effort quando o BCB responde', async () => {
@@ -49,18 +61,77 @@ describe('fetchROE', () => {
     expect(reportBestEffortFailure).not.toHaveBeenCalled()
   })
 
-  it('registra a queda do BCB e cai para o cache quando disponível', async () => {
+  it('cai para a cotação do banco quando o BCB cai e não reporta erro (VELA-A)', async () => {
+    from.mockImplementation(() => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () => Promise.resolve({
+            data: { source: 'bcb_live', ptax: 5.25, roe: 5.5913, effective_date: '2026-09-30', updated_at: '2026-09-30T17:00:00.000Z' },
+            error: null,
+          }),
+        }),
+      }),
+    }))
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))))
+
+    const result = await fetchROE()
+
+    expect(result).toEqual({
+      roe: 5.5913,
+      ptax: 5.25,
+      effectiveDate: '2026-09-30',
+      offline: true,
+      cachedAt: '2026-09-30T17:00:00.000Z',
+      source: 'cached',
+    })
+    // Não reporta como erro no Sentry quando o fallback para o banco funciona
+    expect(reportBestEffortFailure).not.toHaveBeenCalled()
+    // Atualiza o cache do localStorage
+    expect(localStorage.getItem(ROE_CACHE_KEY)).toContain('5.5913')
+  })
+
+  it.each([
+    { source: 'manual', ptax: null, roe: 5.9 },
+    { source: 'manual', ptax: 5, roe: 5.9 },
+    { source: 'cached', ptax: 0, roe: 5.325 },
+    { source: 'cached', ptax: 5, roe: 0 },
+    { source: 'cached', ptax: 5, roe: 5.9 },
+  ])('ignora referência sem PTAX canônica: %j', async (reference) => {
+    from.mockImplementation(() => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({
+        data: { ...reference, effective_date: '2026-09-30', updated_at: '2026-09-30T17:00:00.000Z' },
+        error: null,
+      }) }) }),
+    }))
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))))
+
+    await expect(fetchROE()).rejects.toThrow('BCB offline e sem cache de PTAX disponivel')
+    expect(localStorage.getItem(ROE_CACHE_KEY)).toBeNull()
+  })
+
+  it('preserva a data de obtenção do banco ao reutilizar o cache local', async () => {
+    from.mockImplementationOnce(() => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({
+        data: { source: 'bcb_live', ptax: 5, roe: 5.325, effective_date: '2026-09-30', updated_at: '2026-09-30T17:00:00.000Z' },
+        error: null,
+      }) }) }),
+    }))
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))))
+
+    await fetchROE()
+    const result = await fetchROE()
+
+    expect(result.cachedAt).toBe('2026-09-30T17:00:00.000Z')
+  })
+
+  it('cai para o cache local quando banco e BCB não respondem e não reporta erro (VELA-A)', async () => {
     localStorage.setItem(ROE_CACHE_KEY, JSON.stringify({ roe: 5.32, ptax: 4.9953, effectiveDate: '2026-06-19', fetchedAt: '2026-06-20T00:00:00.000Z' }))
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))))
 
     const result = await fetchROE()
 
     expect(result).toEqual({ roe: 5.32, ptax: 4.9953, effectiveDate: '2026-06-19', offline: true, cachedAt: '2026-06-20T00:00:00.000Z', source: 'cached' })
-    expect(reportBestEffortFailure).toHaveBeenCalledTimes(1)
-    const [context, error, meta] = reportBestEffortFailure.mock.calls[0]
-    expect(context).toBe('fetchROE: BCB PTAX indisponivel')
-    expect((error as Error).message).toBe('network down')
-    expect(meta).toEqual({ fellBackToCache: true })
+    expect(reportBestEffortFailure).not.toHaveBeenCalled()
     expect(rpc).toHaveBeenCalledWith('save_exchange_rate_reference_v2', {
       p_ptax: 4.9953,
       p_roe: 5.32,
@@ -78,11 +149,12 @@ describe('fetchROE', () => {
     expect(reportBestEffortFailure.mock.calls[0][2]).toEqual({ fellBackToCache: false })
   })
 
-  it('registra a falha mesmo sem cache antes de propagar o erro', async () => {
+  it('registra a falha no Sentry somente quando não há nenhum fallback disponível', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 503 } as Response)))
 
     await expect(fetchROE()).rejects.toThrow('BCB offline e sem cache de PTAX disponivel')
     expect(reportBestEffortFailure).toHaveBeenCalledTimes(1)
+    expect(reportBestEffortFailure.mock.calls[0][0]).toBe('fetchROE: BCB PTAX indisponivel e sem cache')
     expect(reportBestEffortFailure.mock.calls[0][2]).toEqual({ fellBackToCache: false })
   })
 })

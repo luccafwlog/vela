@@ -11,6 +11,7 @@ const sentryMock = vi.hoisted(() => ({
 vi.mock('@sentry/react', () => sentryMock)
 
 import {
+  isIgnoredAuthError,
   markStartupStage,
   redactUrlQueryString,
   reportBestEffortFailure,
@@ -21,6 +22,7 @@ import {
   scrubBreadcrumbData,
   scrubEventValue,
   scrubPii,
+  telemetryBeforeSend,
 } from '../telemetry'
 
 afterEach(() => {
@@ -216,5 +218,131 @@ describe('reportCaughtException', () => {
       },
       extra: { queryKey: '["bls"]' },
     })
+  })
+
+  it('converte objeto plano em DatabaseError antes de enviar ao Sentry', () => {
+    const rawError = { code: '42501', message: 'permission denied' }
+
+    reportCaughtException(rawError, 'Mutation')
+
+    expect(sentryMock.captureException).toHaveBeenCalledTimes(1)
+    const [captured] = sentryMock.captureException.mock.calls[0]
+    expect(captured).toBeInstanceOf(Error)
+    expect(captured.name).toBe('DatabaseError')
+    expect(captured.message).toBe('permission denied')
+    expect(captured.code).toBe('42501')
+  })
+})
+
+type MockSentryEvent = NonNullable<Parameters<typeof telemetryBeforeSend>[0]>
+const mockEvent = (event: Record<string, unknown> = {}): MockSentryEvent =>
+  event as unknown as MockSentryEvent
+
+describe('isIgnoredAuthError', () => {
+  it('detecta erro de refresh token expirado / revogado no hint', () => {
+    expect(
+      isIgnoredAuthError(mockEvent(), {
+        originalException: new Error('Invalid Refresh Token: Refresh Token Not Found'),
+      }),
+    ).toBe(true)
+    expect(
+      isIgnoredAuthError(mockEvent(), {
+        originalException: { error_description: 'invalid_grant: Invalid Refresh Token' },
+      }),
+    ).toBe(true)
+  })
+
+  it('detecta erro de refresh token na mensagem do evento', () => {
+    expect(
+      isIgnoredAuthError(
+        mockEvent({
+          message: 'AuthApiError: Invalid Refresh Token',
+        }),
+      ),
+    ).toBe(true)
+  })
+
+  it('retorna false para outros erros', () => {
+    expect(
+      isIgnoredAuthError(mockEvent(), {
+        originalException: new Error('Network timeout'),
+      }),
+    ).toBe(false)
+  })
+})
+
+describe('telemetryBeforeSend', () => {
+  it('descarta eventos de Invalid Refresh Token retornando null (VELA-5)', () => {
+    const event = mockEvent({
+      message: 'Invalid Refresh Token',
+      exception: { values: [{ type: 'AuthApiError', value: 'Invalid Refresh Token' }] },
+    })
+
+    const result = telemetryBeforeSend(event, {
+      originalException: new Error('Invalid Refresh Token'),
+    })
+
+    expect(result).toBeNull()
+  })
+
+  it('normaliza exceções com títulos minificados ou de objetos crus (VELA-16 etc.)', () => {
+    const event = mockEvent({
+      exception: {
+        values: [
+          {
+            type: 'qi',
+            value: '',
+          },
+        ],
+      },
+    })
+
+    const result = telemetryBeforeSend(event, {
+      originalException: {
+        code: '23505',
+        message: 'duplicate key value violates unique constraint',
+        details: 'Key (id)=(1) already exists.',
+      },
+    })
+
+    expect(result).not.toBeNull()
+    expect(result!.exception!.values![0].type).toBe('DatabaseError')
+    expect(result!.exception!.values![0].value).toContain('duplicate key value violates unique constraint')
+  })
+
+  it('preserva causas e erros genéricos ao normalizar o objeto original', () => {
+    const result = telemetryBeforeSend(mockEvent({
+      exception: { values: [
+        { type: 'TypeError', value: 'Falha na causa' },
+        { type: 'Object', value: 'Objeto original' },
+      ] },
+    }), { originalException: { code: '23505', message: 'Chave duplicada' } })
+
+    expect(result!.exception!.values![0]).toEqual({ type: 'TypeError', value: 'Falha na causa' })
+    expect(result!.exception!.values![1].type).toBe('DatabaseError')
+
+    const generic = telemetryBeforeSend(mockEvent({
+      exception: { values: [{ type: 'Object', value: 'Falha de rede' }] },
+    }), { originalException: { message: 'Falha de rede' } })
+    expect(generic!.exception!.values![0].type).toBe('Error')
+  })
+
+  it('usa Error para type minificado sem evidência de banco preservando value', () => {
+    const event = mockEvent({
+      exception: {
+        values: [
+          {
+            type: 'Gi',
+            value: 'Falha ao processar registro',
+          },
+        ],
+      },
+    })
+
+    const result = telemetryBeforeSend(event)
+
+    expect(result).not.toBeNull()
+    expect(result!.exception!.values![0].type).toBe('Error')
+    expect(result!.exception!.values![0].value).toBe('Falha ao processar registro')
   })
 })

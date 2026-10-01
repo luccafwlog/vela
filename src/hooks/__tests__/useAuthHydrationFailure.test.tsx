@@ -11,6 +11,7 @@ vi.mock('../../services/supabaseAuth', () => ({
 type ProfileResult = { data: unknown; error: unknown }
 let profileResult: ProfileResult = { data: null, error: null }
 let currentSession: Session | null = null
+let sessionError: unknown = null
 let authListener: ((event: string, session: Session | null) => void) | null = null
 
 function sessionFor(userId: string): Session {
@@ -20,7 +21,7 @@ function sessionFor(userId: string): Session {
 vi.mock('../../services/supabase', () => ({
   supabase: {
     auth: {
-      getSession: () => Promise.resolve({ data: { session: currentSession } }),
+      getSession: () => (sessionError ? Promise.resolve({ data: { session: null }, error: sessionError }) : Promise.resolve({ data: { session: currentSession }, error: null })),
       onAuthStateChange: (listener: (event: string, session: Session | null) => void) => {
         authListener = listener
         return { data: { subscription: { unsubscribe: () => undefined } } }
@@ -68,6 +69,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   authListener = null
   currentSession = null
+  sessionError = null
   profileResult = { data: null, error: null }
 })
 
@@ -146,5 +148,22 @@ describe('useAuth hidratação do perfil', () => {
     authListener?.('SIGNED_OUT', null)
 
     await waitFor(() => expect(client.getQueryData(['faturas', 'user-1'])).toBeUndefined())
+  })
+
+  it('trata Invalid Refresh Token silenciosamente sem erro transitório (VELA-5)', async () => {
+    sessionError = { message: 'Invalid Refresh Token: Refresh Token Not Found' }
+
+    render(
+      <QueryClientProvider client={new QueryClient()}><AuthProvider>
+        <Probe />
+      </AuthProvider></QueryClientProvider>,
+    )
+
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('pronto'))
+    expect(screen.getByTestId('user').textContent).toBe('sem-usuario')
+    expect(screen.getByTestId('profile').textContent).toBe('sem-perfil')
+    expect(screen.getByTestId('status').textContent).toBe('signed-out')
+    expect(screen.getByTestId('error').textContent).toBe('sem-erro')
+    expect(signOutMock).toHaveBeenCalled()
   })
 })

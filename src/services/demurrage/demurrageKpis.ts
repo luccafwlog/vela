@@ -247,9 +247,9 @@ function loadCachedROE(): RoeCache | null {
   }
 }
 
-function saveROECache(roe: number, ptax: number, effectiveDate: string) {
+function saveROECache(roe: number, ptax: number, effectiveDate: string, fetchedAt = new Date().toISOString()) {
   try {
-    const payload: RoeCache = { roe, ptax, effectiveDate, fetchedAt: new Date().toISOString() }
+    const payload: RoeCache = { roe, ptax, effectiveDate, fetchedAt }
     localStorage.setItem(ROE_CACHE_KEY, JSON.stringify(payload))
   } catch {
     // localStorage unavailable — ignore
@@ -272,6 +272,37 @@ export async function persistExchangeRateReference(
   } catch (error) {
     reportBestEffortFailure('exchange rate reference persistence failed', error)
     if (options.required) throw error
+  }
+}
+
+async function loadDbExchangeRateReference(): Promise<RoeCache | null> {
+  try {
+    if (typeof supabase?.from !== 'function') return null
+    const { data, error } = await supabase
+      .from('exchange_rate_reference')
+      .select('ptax, roe, effective_date, updated_at, source')
+      .eq('id', 1)
+      .maybeSingle()
+    if (error || !data || !['bcb_live', 'cached'].includes(data.source) || data.ptax == null) return null
+    const roeNum = Number(data.roe)
+    const ptaxNum = Number(data.ptax)
+    if (
+      Number.isFinite(roeNum) && roeNum > 0 && roeNum <= 1000 &&
+      Number.isFinite(ptaxNum) && ptaxNum > 0 && ptaxNum <= 1000 &&
+      // numeric do Postgres e float do JS podem arredondar empates diferentemente.
+      Math.abs(roeNum - ptaxNum * DEMURRAGE_ROE_MARKUP) <= 0.00005 + Number.EPSILON * 1000 &&
+      data.effective_date
+    ) {
+      return {
+        roe: roeNum,
+        ptax: ptaxNum,
+        effectiveDate: String(data.effective_date),
+        fetchedAt: String(data.updated_at ?? new Date().toISOString()),
+      }
+    }
+    return null
+  } catch {
+    return null
   }
 }
 
@@ -307,12 +338,22 @@ export async function fetchROE(options: { ensurePersistence?: boolean } = {}): P
     else await persist
     return { roe, ptax, effectiveDate, offline: false, cachedAt: null, source: 'bcb_live' }
   } catch (error) {
+    // 1. Tenta recuperar a última cotação registrada no banco pelo backend (recalc-demurrage-ptax)
+    const dbRef = await loadDbExchangeRateReference()
+    if (dbRef) {
+      saveROECache(dbRef.roe, dbRef.ptax, dbRef.effectiveDate, dbRef.fetchedAt)
+      return {
+        roe: dbRef.roe,
+        ptax: dbRef.ptax,
+        effectiveDate: dbRef.effectiveDate,
+        offline: true,
+        cachedAt: dbRef.fetchedAt,
+        source: 'cached',
+      }
+    }
+
+    // 2. Se o banco não respondeu ou não tem cotação, tenta o cache local do navegador
     const cached = loadCachedROE()
-    // PTAX alimenta a conversão da cobrança de demurrage: a queda do BCB precisa
-    // ser observável mesmo quando o cache evita interromper o operador.
-    reportBestEffortFailure('fetchROE: BCB PTAX indisponivel', error, {
-      fellBackToCache: cached != null,
-    })
     if (cached) {
       const persist = persistExchangeRateReference(
         { ptax: cached.ptax, roe: cached.roe, effectiveDate: cached.effectiveDate, source: 'cached' },
@@ -322,6 +363,11 @@ export async function fetchROE(options: { ensurePersistence?: boolean } = {}): P
       else await persist
       return { roe: cached.roe, ptax: cached.ptax, effectiveDate: cached.effectiveDate, offline: true, cachedAt: cached.fetchedAt, source: 'cached' }
     }
+
+    // 3. Falha total (sem BCB, sem banco e sem cache local) -> reporta e interrompe
+    reportBestEffortFailure('fetchROE: BCB PTAX indisponivel e sem cache', error, {
+      fellBackToCache: false,
+    })
     throw new Error('BCB offline e sem cache de PTAX disponivel. Informe a taxa manualmente.', { cause: error })
   }
 }

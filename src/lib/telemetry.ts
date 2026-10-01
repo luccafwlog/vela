@@ -2,6 +2,7 @@
 // (alertas, trilha de auditoria, payload PIX e escritas auxiliares).
 
 import * as Sentry from '@sentry/react'
+import { extractErrorText, toError } from './errors'
 import {
   redactTelemetryUrl,
   scrubTelemetryText,
@@ -89,6 +90,88 @@ export function scrubEventValue(value: unknown, depth = 0): unknown {
   return scrubTelemetryValue(value, depth)
 }
 
+export function isIgnoredAuthError(event: Sentry.ErrorEvent, hint?: Sentry.EventHint): boolean {
+  const orig = hint?.originalException
+  const origMessage =
+    orig instanceof Error
+      ? orig.message
+      : orig && typeof orig === 'object'
+        ? String((orig as { message?: unknown; error_description?: unknown }).message ?? (orig as { error_description?: unknown }).error_description ?? '')
+        : typeof orig === 'string'
+          ? orig
+          : ''
+
+  if (/invalid refresh token/i.test(origMessage) || /invalid_grant/i.test(origMessage)) {
+    return true
+  }
+
+  const hasMatchingException = event.exception?.values?.some((val) => {
+    const text = `${val.type ?? ''} ${val.value ?? ''}`
+    return /invalid refresh token/i.test(text) || /invalid_grant/i.test(text)
+  })
+  if (hasMatchingException) return true
+
+  if (event.message && (/invalid refresh token/i.test(event.message) || /invalid_grant/i.test(event.message))) {
+    return true
+  }
+
+  return false
+}
+
+export function telemetryBeforeSend(
+  event: Sentry.ErrorEvent,
+  hint?: Sentry.EventHint,
+): Sentry.ErrorEvent | null {
+  // Ignora erros conhecidos e inócuos de sessão expirada (VELA-5)
+  if (isIgnoredAuthError(event, hint)) {
+    return null
+  }
+
+  // Normaliza exceções com títulos minificados ou objetos crus de erro (VELA-16/1C etc.)
+  if (event.exception?.values) {
+    const rawOrig = hint?.originalException
+    const isDbObj = rawOrig && typeof rawOrig === 'object' && !(rawOrig instanceof Error) &&
+      'code' in rawOrig && typeof rawOrig.code === 'string'
+    const dbText = isDbObj ? extractErrorText(rawOrig) : ''
+
+    event.exception.values.forEach((value, index, values) => {
+      if (isDbObj && dbText && index === values.length - 1) {
+        value.type = 'DatabaseError'
+        value.value = scrubPii(dbText)
+      } else {
+        const isObscuredType = !value.type || value.type === 'Object' || /^[a-zA-Z]{1,2}$/.test(value.type)
+        if (isObscuredType) {
+          value.type = rawOrig instanceof Error ? rawOrig.name : 'Error'
+        }
+        if (value.value) {
+          value.value = scrubPii(value.value)
+        }
+      }
+    })
+  }
+
+  if (event.message) event.message = scrubPii(event.message)
+  if (event.extra) event.extra = scrubEventValue(event.extra) as typeof event.extra
+  event.breadcrumbs?.forEach((breadcrumb) => {
+    if (breadcrumb.message) breadcrumb.message = scrubPii(breadcrumb.message)
+    if (breadcrumb.data) breadcrumb.data = scrubBreadcrumbData(breadcrumb.data)
+  })
+  if (event.request) {
+    // scrubPii também cobre CNPJ no caminho (/clientes/<cnpj>).
+    if (event.request.url) event.request.url = scrubPii(redactUrlQueryString(event.request.url))
+    if (event.request.headers?.Referer) event.request.headers.Referer = scrubPii(redactUrlQueryString(event.request.headers.Referer))
+  }
+  if (event.tags) {
+    Object.entries(event.tags).forEach(([key, val]) => {
+      if (typeof val === 'string') event.tags![key] = scrubPii(val)
+    })
+    if (event.tags.modulo && event.tags.tarefa) {
+      event.fingerprint = [String(event.tags.modulo), String(event.tags.tarefa)]
+    }
+  }
+  return event
+}
+
 // Inicializa o relatório de erros em produção. Os default integrations do
 // @sentry/react já capturam window.onerror e onunhandledrejection; o release
 // usa o commit injetado no build (VITE_APP_COMMIT_SHA) para rastrear regressões.
@@ -98,6 +181,7 @@ export function initTelemetry(surface?: TelemetrySurface): void {
     dsn: resolveSentryDsn(surface),
     environment: resolveSentryEnvironment(),
     release: (import.meta.env.VITE_APP_COMMIT_SHA as string | undefined) || undefined,
+    ignoreErrors: [/invalid refresh token/i, /invalid_grant/i],
     // Sem replay/tracing: só captura de erros, mantendo payloads mínimos.
     dataCollection: {
       userInfo: false,
@@ -110,31 +194,7 @@ export function initTelemetry(surface?: TelemetrySurface): void {
     },
     // Erros do banco podem ecoar valores de linhas; dataCollection nao cobre
     // conteudo enviado manualmente em message/extra/breadcrumbs.
-    beforeSend(event) {
-      event.exception?.values?.forEach((value) => {
-        if (value.value) value.value = scrubPii(value.value)
-      })
-      if (event.message) event.message = scrubPii(event.message)
-      if (event.extra) event.extra = scrubEventValue(event.extra) as typeof event.extra
-      event.breadcrumbs?.forEach((breadcrumb) => {
-        if (breadcrumb.message) breadcrumb.message = scrubPii(breadcrumb.message)
-        if (breadcrumb.data) breadcrumb.data = scrubBreadcrumbData(breadcrumb.data)
-      })
-      if (event.request) {
-        // scrubPii também cobre CNPJ no caminho (/clientes/<cnpj>).
-        if (event.request.url) event.request.url = scrubPii(redactUrlQueryString(event.request.url))
-        if (event.request.headers?.Referer) event.request.headers.Referer = scrubPii(redactUrlQueryString(event.request.headers.Referer))
-      }
-      if (event.tags) {
-        Object.entries(event.tags).forEach(([key, val]) => {
-          if (typeof val === 'string') event.tags![key] = scrubPii(val)
-        })
-        if (event.tags.modulo && event.tags.tarefa) {
-          event.fingerprint = [String(event.tags.modulo), String(event.tags.tarefa)]
-        }
-      }
-      return event
-    },
+    beforeSend: telemetryBeforeSend,
   })
   if (surface) Sentry.setTag('surface', surface)
 }
@@ -156,11 +216,12 @@ export function reportCaughtException(
   extra?: Record<string, unknown>,
   tags?: Record<string, string>,
 ): void {
+  const err = toError(error)
   const mergedTags: Record<string, string> = {
     ...(context ? { context } : {}),
     ...(tags ?? {}),
   }
-  Sentry.captureException(error, {
+  Sentry.captureException(err, {
     tags: Object.keys(mergedTags).length > 0 ? mergedTags : undefined,
     extra,
   })
@@ -168,7 +229,8 @@ export function reportCaughtException(
 
 function normalizeError(error: unknown) {
   if (error instanceof Error) {
-    return { name: error.name, message: error.message }
+    const code = (error as Error & { code?: unknown }).code
+    return { name: error.name, message: error.message, ...(code != null ? { code } : {}) }
   }
   if (error && typeof error === 'object') {
     const maybe = error as { message?: unknown; code?: unknown }
@@ -185,7 +247,7 @@ export function reportBestEffortFailure(
   meta?: Record<string, unknown>,
 ): void {
   console.warn(`[best-effort] ${context}`, { ...meta, error: normalizeError(error) })
-  Sentry.captureException(error, {
+  Sentry.captureException(toError(error), {
     tags: { context, kind: 'best-effort' },
     extra: meta,
   })

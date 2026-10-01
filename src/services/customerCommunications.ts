@@ -8,6 +8,7 @@ import { sanitizeLikeTerm } from '../lib/utils'
 import { operationFrontKindsForCargoMode } from './escalaTerminalAllocation'
 import { listVoyageEscalaSchedulesByVoyageIds, type VoyageEscalaSchedule } from './voyageRouteSchedules'
 import { supabase } from './supabase'
+import { toError } from '../lib/errors'
 import type { CustomerCommunicationKind, CustomerCommunicationTemplateInput } from './customerCommunicationTemplates'
 import {
   type CommunicationBoxCode,
@@ -975,21 +976,20 @@ export type CustomerCommunicationSavedTemplate = {
 }
 
 export async function fetchCustomerCommunicationSavedTemplates(): Promise<CustomerCommunicationSavedTemplate[]> {
-  const result = await (supabase.rpc as unknown as (name: string, args?: Record<string, unknown>) => Promise<{ data: CustomerCommunicationSavedTemplate[] | null; error: unknown }>)(
-    'list_customer_communication_saved_templates',
-  )
-  if (result.error) throw result.error
-  return result.data ?? []
+  const { data, error } = await supabase.rpc('list_customer_communication_saved_templates' as never)
+  if (error) throw toError(error)
+  return (data as CustomerCommunicationSavedTemplate[] | null) ?? []
 }
 
 export async function saveCustomerCommunicationSavedTemplate(input: { name: string; subject: string; body: string }): Promise<number> {
-  const result = await (supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: number | null; error: unknown }>)(
-    'save_customer_communication_saved_template',
-    { p_name: input.name, p_subject: input.subject, p_body: input.body },
-  )
-  if (result.error) throw result.error
-  if (result.data == null) throw new Error('Não foi possível salvar o modelo.')
-  return result.data
+  const { data, error } = await supabase.rpc('save_customer_communication_saved_template' as never, {
+    p_name: input.name,
+    p_subject: input.subject,
+    p_body: input.body,
+  } as never)
+  if (error) throw toError(error)
+  if (data == null) throw new Error('Não foi possível salvar o modelo.')
+  return data as number
 }
 
 const COMMUNICATION_HISTORY_SELECT = 'id, customer_id, kind, nature, anchor_voyage_id, anchor_port, anchor_atracacao_id, anchor_invoice_id, attempt_discriminator, status, dispatch_id, vessel_name, voyage_number, terminal_name, created_by, origin, created_at, customer:customers(id, name, cnpj_cpf), attempts:customer_communication_attempts(id, recipient_masked, dispatch_mode, status, retry_count, provider_message_id, last_error, created_at, updated_at), bl_links:customer_communication_bls(bl_id), attachments:customer_communication_attachments(id, file_name, mime_type, storage_path, size_bytes, created_at)'
@@ -1090,12 +1090,12 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
     const key = `${bl.voyage_id}:${bl.customer_id}`
     if (!rowsByVoyageCustomer.has(key)) {
       rowsByVoyageCustomer.set(key, (async () => {
-        const result = await (supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: { ready?: boolean } | null; error: unknown }>)(
-          'customer_local_charges_communication_readiness',
-          { p_voyage_id: bl.voyage_id, p_customer_id: bl.customer_id },
+        const { data, error } = await supabase.rpc(
+          'customer_local_charges_communication_readiness' as never,
+          { p_voyage_id: bl.voyage_id, p_customer_id: bl.customer_id } as never,
         )
-        if (result.error) throw result.error
-        return result.data?.ready === true
+        if (error) throw toError(error)
+        return (data as { ready?: boolean } | null)?.ready === true
       })())
     }
   }

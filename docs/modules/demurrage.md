@@ -185,7 +185,12 @@ excluir para admin, conforme
   no momento de criação da invoice.
 - **ROE e recálculo diário:** `fetchROE` consulta a PTAX dos últimos dez dias,
   aplica o markup canônico `DEMURRAGE_ROE_MARKUP` (`1,065`, ADR 0014) e usa
-  `localStorage['demurrage_roe_cache']` como fallback. Sob recálculo diário, o
+  primeiro a referência persistida em `exchange_rate_reference` e depois
+  `localStorage['demurrage_roe_cache']` como fallback. A referência do banco
+  precisa ter origem `bcb_live`/`cached`, PTAX e ROE positivas e compatíveis
+  com o markup; taxa manual não é apresentada como PTAX. O cache preserva
+  `updated_at` do banco como data de obtenção. Uma falha do BCB só é reportada
+  quando nenhum fallback está disponível. Sob recálculo diário, o
   valor em BRL não é congelado na emissão: a RPC `recalculate_demurrage_invoices`
   (`service_role`) reprecifica toda fatura `issued` e não paga quando a PTAX muda,
   grava `current_roe`/`current_total_brl`/`roe_source`, regenera o `pix_payload` e

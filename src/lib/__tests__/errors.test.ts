@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { classifyDbError, extractErrorText, isRetriableDbError, userFacingErrorMessage } from '../errors'
+import {
+  DatabaseError,
+  assertNoError,
+  classifyDbError,
+  extractErrorText,
+  isRetriableDbError,
+  toError,
+  userFacingErrorMessage,
+} from '../errors'
 
 describe('extractErrorText', () => {
   it('junta os campos de um erro do Supabase preservando o casing', () => {
@@ -152,5 +160,83 @@ describe('userFacingErrorMessage', () => {
     expect(userFacingErrorMessage(new Error('relation internal_table does not exist'), 'Não foi possível excluir.')).toBe(
       'Não foi possível excluir.',
     )
+  })
+})
+
+describe('DatabaseError', () => {
+  it('instancia um Error com name DatabaseError e preserva code, details, hint', () => {
+    const err = new DatabaseError('falha no banco', {
+      code: '42501',
+      details: 'detalhe',
+      hint: 'dica',
+    })
+
+    expect(err).toBeInstanceOf(Error)
+    expect(err).toBeInstanceOf(DatabaseError)
+    expect(err.name).toBe('DatabaseError')
+    expect(err.message).toBe('falha no banco')
+    expect(err.code).toBe('42501')
+    expect(err.details).toBe('detalhe')
+    expect(err.hint).toBe('dica')
+  })
+})
+
+describe('toError', () => {
+  it('retorna a própria instância se já for um Error', () => {
+    const original = new TypeError('conexão perdida')
+    expect(toError(original)).toBe(original)
+  })
+
+  it('converte string em Error', () => {
+    const err = toError('falha genérica')
+    expect(err).toBeInstanceOf(Error)
+    expect(err.message).toBe('falha genérica')
+  })
+
+  it('converte objeto PostgREST ({ code, message, details, hint }) em DatabaseError', () => {
+    const postgrestErr = {
+      code: 'PGRST116',
+      message: 'JSON object requested, multiple (or no) rows returned',
+      details: 'The result contains 0 rows',
+      hint: null,
+    }
+    const err = toError(postgrestErr)
+
+    expect(err).toBeInstanceOf(Error)
+    expect(err).toBeInstanceOf(DatabaseError)
+    expect((err as DatabaseError).code).toBe('PGRST116')
+    expect((err as DatabaseError).details).toBe('The result contains 0 rows')
+    expect(err.message).toBe('JSON object requested, multiple (or no) rows returned')
+  })
+
+  it('cria DatabaseError com extractErrorText quando o objeto não possui message explícita', () => {
+    const rawObj = { code: '42501', details: 'Acesso negado pela política' }
+    const err = toError(rawObj)
+
+    expect(err).toBeInstanceOf(DatabaseError)
+    expect((err as DatabaseError).code).toBe('42501')
+    expect(err.message).toBe('42501 Acesso negado pela política')
+  })
+
+  it('preserva mensagem de erro genérico sem classificá-lo como banco', () => {
+    const err = toError({ message: 'Falha de rede' })
+    expect(err.name).toBe('Error')
+    expect(err.message).toBe('Falha de rede')
+  })
+
+  it('retorna Error com mensagem padrão para valores nulos ou vazios', () => {
+    expect(toError(null).message).toBe('Erro inesperado')
+    expect(toError(undefined).message).toBe('Erro inesperado')
+  })
+})
+
+describe('assertNoError', () => {
+  it('não lança nada se o erro for nulo ou indefinido', () => {
+    expect(() => assertNoError(null)).not.toThrow()
+    expect(() => assertNoError(undefined)).not.toThrow()
+  })
+
+  it('lança um Error normalizado se houver erro', () => {
+    expect(() => assertNoError({ message: 'violation', code: '23505' })).toThrowError(DatabaseError)
   })
 })

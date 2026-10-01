@@ -3,6 +3,7 @@ import type { VoyageFormValues } from './voyageForm'
 import { canonicalizeVesselName, normalizeVesselImo } from '../lib/vesselAlias'
 import { deleteRecords } from './deleteRecords'
 import type { DeleteDependencyReport } from './deleteDependencies'
+import { toError } from '../lib/errors'
 
 export async function createVoyage(form: VoyageFormValues, changedBy: string | null) {
   const carrierId = await getOrCreateCarrier(form.carrierName, form.carrierScac)
@@ -80,13 +81,12 @@ export async function cancelVoyage({
   const normalizedReason = reason.trim()
   if (!normalizedReason) throw new Error('Informe o motivo do cancelamento.')
 
-  const cancelRpc = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ error: Error | null }>
-  const { error } = await cancelRpc('cancel_voyage', {
+  const { error } = await supabase.rpc('cancel_voyage' as never, {
     p_voyage_id: voyageId,
     p_reason: normalizedReason,
     p_changed_by: changedBy,
-  })
-  if (error) throw error
+  } as never)
+  if (error) throw toError(error)
 }
 
 export type VoyageDeletePreview = {

@@ -128,6 +128,9 @@ de e-mail em Meu perfil) chegam com `?code=` e só são trocados por sessão no
 mesmo navegador que pediu a ação, que guarda o verificador. Abrir o link em
 outro navegador ou depois de limpar o armazenamento não confirma a troca; é
 preciso pedir de novo. Sem sessão, `useAuth` limpa o cache do TanStack Query.
+Na inicialização, `Invalid Refresh Token`/`invalid_grant` provoca limpeza da
+sessão e estado `signed-out`, permitindo novo login; outras falhas de sessão
+mantêm o estado `transient-error` para não mascarar indisponibilidade.
 
 ### Sessão do Portal
 
