@@ -255,12 +255,12 @@ function readPackages(description: string, sayTotal: string | null, warnings: st
   const unit = match ? match[2].toUpperCase() : null
 
   if (quantity === null) {
-    warnings.push('Quantidade de volumes não identificada na descrição da carga.')
+    warnings.push('Quantidade de packages não identificada na descrição da carga.')
   }
 
   const declared = readSayTotal(sayTotal)
   if (quantity !== null && declared !== null && declared !== quantity) {
-    warnings.push(`Volumes divergem do total por extenso: ${quantity} na descrição e ${declared} em "${sayTotal}".`)
+    warnings.push(`Packages divergem do total por extenso: ${quantity} na descrição e ${declared} em "${sayTotal}".`)
   }
 
   return { quantity: quantity ?? declared, unit }

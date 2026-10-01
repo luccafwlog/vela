@@ -330,6 +330,14 @@ function orderTerminalIds(
   }))).map((terminal) => terminal.terminalId as string)
 }
 
+// BLs e CEs e Vinculada viajam na expectativa de exportação, mas são status
+// documental da escala, não declaração de exportação.
+function withoutDocumentalStatus(value: Record<string, unknown>) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { ce_status, linked, ...rest } = value
+  return rest
+}
+
 function sameExportExpectation(left: Record<string, unknown>, right: Record<string, unknown>) {
   const normalize = (value: Record<string, unknown>) => ({
     ...value,
@@ -441,17 +449,19 @@ function buildTerminalPayload({
   }
 
   // Justificativa só para alterar dado já informado; preencher vazio não exige.
+  // Previsões (ETB/ETD) e a seção BLs e CEs mudam no dia a dia e não pedem
+  // justificativa (decisão do dono, 2026-10-01; migration 120 no banco).
   const assignedTerminalAltered = terminalScale.fronts.some((persisted) =>
     persisted.terminalId != null
     && fronts.find((front) => frontKey(front) === frontKey(persisted))?.terminalId !== persisted.terminalId)
   const datesAltered = terminalScale.terminals.some((previous) => {
     const current = terminals.find((terminal) => terminal.terminalId === previous.terminalId)
-    return (['etb', 'atb', 'etd', 'atd'] as const).some((field) =>
+    return (['atb', 'atd'] as const).some((field) =>
       previous[field] != null && !sameDateTimeValue(previous[field], current?.[field]))
       || (previous.restow != null && previous.restow !== current?.restow)
   })
   const exportExpectationChanged = initialExportExpectation.tem_exportacao === true
-    && !sameExportExpectation(exportExpectation, initialExportExpectation)
+    && !sameExportExpectation(withoutDocumentalStatus(exportExpectation), withoutDocumentalStatus(initialExportExpectation))
   const needsJustification = terminalScale.revision > 0 && (assignedTerminalAltered || datesAltered || exportExpectationChanged)
   if (validationError) return { error: validationError, needsJustification }
   if (needsJustification && !justification.trim()) {
@@ -717,7 +727,6 @@ export function EscalaModal({
   const [terminalFronts, setTerminalFronts] = useState<Record<string, string>>({})
   const [terminalDates, setTerminalDates] = useState<Record<string, TerminalDatesDraft>>({})
   const [justification, setJustification] = useState('')
-  const [justificationOpen, setJustificationOpen] = useState(false)
   const [terminalError, setTerminalError] = useState<string | null>(null)
   const [closedBlockers, setClosedBlockers] = useState<ClosedAdrBlocker[]>([])
   const [saving, setSaving] = useState(false)
@@ -794,7 +803,6 @@ export function EscalaModal({
     setTerminalError(null)
     setClosedBlockers([])
     setJustification('')
-    setJustificationOpen(false)
     const state = escala.terminalScale
     setTerminalFronts(Object.fromEntries(
       (state?.fronts ?? []).map((front) => [frontKey(front), front.terminalId ?? '']),
@@ -838,9 +846,6 @@ export function EscalaModal({
   const terminalIds = terminalScale
     ? orderTerminalIds(terminalScale, terminalFronts, terminalDates, terminalById)
     : []
-  const hasPriorTerminalAssignment = Boolean(
-    terminalScale?.fronts.some((front) => front.terminalId !== null) || terminalScale?.terminals.length,
-  )
   const operationMode: EscalaOperationMode = temImportacao && temExportacao
     ? 'both'
     : temExportacao
@@ -954,7 +959,12 @@ export function EscalaModal({
     initialExportExpectation,
   })
   const needsJustification = Boolean(terminalPreview.needsJustification)
-  const showJustification = needsJustification || justificationOpen || justification.trim() !== ''
+  // Justificativa é de alteração: só aparece quando um dado realizado já
+  // registrado muda. Preencher o que estava vazio (criar) não abre o campo, e
+  // ETA e a seção BLs e CEs não pedem justificativa.
+  const scheduleAltered = Boolean(escala?.port && escala.ata)
+    && !sameDateTimeValue(escala?.ata, combineIsoDateTime(ataDate, ataTime))
+  const showJustification = needsJustification || scheduleAltered
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -1009,7 +1019,10 @@ export function EscalaModal({
           dischargePorts: temExportacao ? normalizeDischargePorts(dischargePorts.split(/[,;/\s]+/)) : [],
         },
         exportExistingId: escala.exportExistingId,
-        terminalState: terminalPayload.value,
+        // Texto digitado numa alteração desfeita não vira justificativa.
+        terminalState: terminalPayload.value && !showJustification
+          ? { ...terminalPayload.value, justification: null }
+          : terminalPayload.value,
       })
       setTerminalError(null)
       setClosedBlockers([])
@@ -1228,10 +1241,6 @@ export function EscalaModal({
                 <Textarea rows={2} required={false} aria-label="Justificativa da alteração" value={justification} onChange={(event) => setJustification(event.target.value)} placeholder="Explique a troca de terminal, remoção ou ajuste de data" />
               </Field>
             </div>
-          ) : hasPriorTerminalAssignment ? (
-            <button type="button" className="app-escala-link" onClick={() => setJustificationOpen(true)}>
-              Adicionar justificativa à alteração
-            </button>
           ) : null}
 
           {feedbackError || closedBlockers.length > 0 ? (

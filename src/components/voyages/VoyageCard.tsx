@@ -36,7 +36,7 @@ import {
 import type { VoyageExportSchedule } from '../../services/voyageExportSchedules'
 import { ESTADO_CONCILIACAO_META, statusLabel, VOYAGE_STATUS_BADGE_TONE, VOYAGE_STATUS_LABELS } from '../../lib/statusLabels'
 import { TabButton } from '../ui/TabButton'
-import { buildVoyageRouteLegs, collectVoyageManifestBatchRows, type VoyageImportBatch } from './voyageCardHelpers'
+import { buildVoyageRouteLegs, collectVoyageManifestBatchRows, countRouteManifestNumbers, type VoyageImportBatch } from './voyageCardHelpers'
 import { VoyageVisaoTab } from './VoyageVisaoTab'
 import { VoyageImportacaoTab } from './VoyageImportacaoTab'
 import { VoyageExportacaoTab } from './VoyageExportacaoTab'
@@ -150,7 +150,7 @@ function ImportKpiTile({
           </div>
           <div className="app-voyage-kpi-tile__support">
             <div className="app-voyage-kpi-tile__metric"><span>B/Ls carga solta</span><strong>{formatMetric(breakbulk.bls)}</strong></div>
-            <div className="app-voyage-kpi-tile__metric"><span>Máquinas / Volumes</span><strong>{`${formatMetric(breakbulk.machines)} / ${formatMetric(breakbulk.packages)}`}</strong></div>
+            <div className="app-voyage-kpi-tile__metric"><span>Máquinas / Packages</span><strong>{`${formatMetric(breakbulk.machines)} / ${formatMetric(breakbulk.packages)}`}</strong></div>
             <div className="app-voyage-kpi-tile__metric"><span>CBM</span><strong>{formatMetric(Math.round(breakbulk.cbm * 100) / 100)}</strong></div>
           </div>
         </section>
@@ -357,15 +357,14 @@ export function VoyageCard({
   const divergenceCount = reconciliation?.items.length ?? 0
   const ceCoverage = voyageCeCoverage(voyage.bls)
   const { data: dbManifestos } = useManifestosMercanteByVoyage(voyage.id)
-  // Uma rota tem manifesto quando o lote traz `ce_master`, quando a rota recebeu
-  // número avulso (#322) OU quando há lançamento em `manifestos_mercante` (aba Rotas e Manifestos).
-  const ceMasterCount = manifestRows.filter((row) => {
-    if (String(row.ceMaster ?? '').trim().length > 0) return true
-    // Vazios e carga dividem POL/POD, mas cada um tem o seu manifesto.
-    const natureza = row.isVazios ? 'vazio' : 'carga'
-    return (dbManifestos ?? []).some((m) => m.pol === row.pol && m.pod === row.pod && m.natureza === natureza)
-  }).length
-  const ceMasterTotal = manifestRows.length
+  // Mesma contagem da aba Rotas e Manifestos: cada número exibido nela conta,
+  // e uma rota pode ter mais de um manifesto. Rota com B/L (ou vazios) ainda
+  // sem número segue sinalizada como "a informar".
+  const routeManifestCounts = manifestRows.map((row) => ({ row, count: countRouteManifestNumbers(row, dbManifestos) }))
+  const manifestNumberCount = routeManifestCounts.reduce((total, entry) => total + entry.count, 0)
+  const pendingManifestCount = routeManifestCounts.filter(
+    ({ row, count }) => count === 0 && (row.blCount > 0 || row.isVazios),
+  ).length
   const proximaEscala = getProximaEscala(podRows)
   const reconciliationState = deriveEstadoConciliacao({
     hasOpenDivergences: divergenceCount > 0,
@@ -519,7 +518,7 @@ export function VoyageCard({
           primary={{ value: reconciliationMeta.label, color: reconciliationMeta.color, variant: 'text' }}
           metrics={[
             { label: 'CE Mercante', value: `${ceCoverage.filled}/${ceCoverage.total}` },
-            { label: 'Manifestos Mercante', value: `${ceMasterCount}/${ceMasterTotal}` },
+            { label: 'Manifestos Mercante', value: pendingManifestCount > 0 ? `${manifestNumberCount} · ${pendingManifestCount} a informar` : String(manifestNumberCount) },
             { label: 'Divergências EDIxBLs', value: String(divergenceCount) },
           ]}
         />

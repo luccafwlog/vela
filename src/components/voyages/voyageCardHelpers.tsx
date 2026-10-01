@@ -6,6 +6,23 @@ import {
 import { formatPortDisplayName } from '../../lib/voyageFormat'
 import { normalizePortCode } from '../../services/portCode'
 import { collectVoyagePorts, type VoyageBl } from '../../services/voyageSummaries'
+import type { ManifestoMercante } from '../../services/manifestosMercanteService'
+
+type ManifestRouteRef = { pol: string; pod: string; isVazios: boolean; ceMaster: string | null }
+
+// A rota de vazios compartilha POL/POD com a de carga (ex.: Taicang -> Vitória),
+// mas o manifesto Mercante é outro: casar só por POL/POD exibia o número da carga.
+export function manifestosOfRoute(row: ManifestRouteRef, manifestos: ManifestoMercante[] | undefined) {
+  const natureza = row.isVazios ? 'vazio' : 'carga'
+  return (manifestos ?? []).filter((m) => m.pol === row.pol && m.pod === row.pod && m.natureza === natureza)
+}
+
+/** Quantos números de manifesto a aba Rotas e Manifestos exibe para a rota. */
+export function countRouteManifestNumbers(row: ManifestRouteRef, manifestos: ManifestoMercante[] | undefined) {
+  const registered = manifestosOfRoute(row, manifestos).length
+  if (registered > 0) return registered
+  return String(row.ceMaster ?? '').trim() ? 1 : 0
+}
 
 export function renderEscalaNumber(value: string | null) {
   if (!value) return <span className="text-[var(--app-muted-soft)]">-</span>

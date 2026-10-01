@@ -612,6 +612,45 @@ describe('EscalaModal', () => {
     }))
   })
 
+  it('abre a justificativa ao alterar dado realizado, não ao preencher nem em ETA ou BLs e CEs', async () => {
+    const user = userEvent.setup()
+    renderEscala({ ...escalaBase, ceStatus: 'approved', linked: true }) // ETA 01/03 registrado, ATA vazio
+
+    expect(screen.queryByRole('button', { name: /Adicionar justificativa/ })).toBeNull()
+    const eta = screen.getByLabelText('ETA')
+    await user.clear(eta)
+    await user.type(eta, '2026-03-05')
+    await user.click(screen.getByRole('radio', { name: 'Não' }))
+    expect(screen.queryByLabelText('Justificativa da alteração')).toBeNull()
+
+    cleanup()
+    renderEscala({ ...escalaBase, ata: '2026-03-02T10:00:00-03:00' })
+    const ata = screen.getByLabelText('ATA')
+    await user.clear(ata)
+    await user.type(ata, '2026-03-03')
+    expect(screen.getByLabelText('Justificativa da alteração')).toBeTruthy()
+  })
+
+  it('não exige justificativa para ETB/ETD de atracação já registrada', async () => {
+    const user = userEvent.setup()
+    const onSaved = renderEscala(terminalEscala({
+      terminalScale: {
+        ...terminalScaleBase,
+        revision: 1,
+        terminals: [
+          { terminalId: 't-norte', etb: '2026-03-01T08:00:00Z', atb: '2026-03-02T08:00:00Z', atd: null, restow: null },
+          { terminalId: 't-sul', atb: null, atd: null, restow: 2 },
+        ],
+      },
+    }))
+    const etb = screen.getByLabelText('ETB T-NORTE')
+    await user.clear(etb)
+    await user.type(etb, '2026-03-04')
+    expect(screen.queryByLabelText('Justificativa da alteração')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).toHaveBeenCalled()
+  })
+
   it('preserva a edição no conflito de revisão e bloqueia ADR fechado com ação de reabertura', async () => {
     const user = userEvent.setup()
     const onSaved = vi.fn().mockRejectedValueOnce(Object.assign(new Error('REVISAO_OBSOLETA'), { code: 'P0001' }))

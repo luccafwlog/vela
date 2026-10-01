@@ -291,7 +291,7 @@ describe('PortalOperacao (BLs e Containers)', () => {
     // Exibe sumário de carga solta (breakbulk)
     expect(screen.getByTestId('portal-breakbulk-summary')).toBeTruthy()
     expect(screen.getByText('12.5 ton')).toBeTruthy()
-    expect(screen.getByText('4 volume(s)')).toBeTruthy()
+    expect(screen.getByText('4 package(s)')).toBeTruthy()
 
     // Exibe contêiner e status normalmente
     expect(screen.getByText('MIXU9999999')).toBeTruthy()
