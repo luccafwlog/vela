@@ -10,6 +10,7 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
+- [2026-10-01 — Correção de B/L depois da fatura de Taxas Locais](2026-10-01-correcao-de-bl-apos-faturamento.md) — fatura emitida não muda de valor: cancelar e reemitir, fatura avulsa por tipo de cobrança vinculada ao B/L, Alerta de fatura desatualizada e restituição por correção. Decisões confirmadas; execução não iniciada.
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — em execução; código entregue (PRs #799, #812–#815, #818; migrations 106, 108, 109 e 110) e Edge Functions publicadas em 2026-09-29. Pendente (dono): teste do Comunicado, Fase 1 no GitHub, conferência na Preview e itens de operação — lista em "Estado em 2026-09-29".
 - [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — implementa as ADRs 0071–0074 em seis fases: proteções do banco, falso sucesso e cascata atômica, diálogo de confirmação, trava do CE Mercante, cadastros, e usuários/retenção/backup.
 
