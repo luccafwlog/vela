@@ -14,6 +14,7 @@ import {
   type PortalContactDraft,
 } from '../../services/customerContactConfiguration'
 import { extractErrorText } from '../../lib/errors'
+import { hasEligibleContactReplacement, isEligibleContact, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
 
 function formatOrigin(origin?: string): string {
   if (origin === 'bl_automatico') return 'Capturado do B/L'
@@ -56,26 +57,25 @@ export function CustomerContactConfiguration({
     setErrorMsg('')
     try {
       const data = await fetchCustomerContactConfiguration(customerId)
-      setDrafts(
-        data.contacts.map((c) => ({
-          id: c.id,
-          name: c.name,
-          email: c.email,
-          phone: c.phone,
-          isPrimary: c.is_primary,
-          active: c.active,
-          origin: c.origin,
-          boxCodes: [...c.box_codes],
-          suppressionReason: c.suppression_reason,
-          sendable: c.sendable,
-        })),
-      )
+      const loadedDrafts: PortalContactDraft[] = data.contacts.map((c) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        isPrimary: c.is_primary,
+        active: c.active,
+        origin: c.origin,
+        boxCodes: [...c.box_codes],
+        suppressionReason: c.suppression_reason,
+        sendable: c.sendable,
+      }))
+      setDrafts(canEdit ? normalizePrimaryContactBoxes(loadedDrafts) : loadedDrafts)
     } catch (err) {
       setErrorMsg(extractErrorText(err) || 'Falha ao carregar contatos do cliente.')
     } finally {
       setLoading(false)
     }
-  }, [customerId])
+  }, [customerId, canEdit])
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -163,15 +163,15 @@ export function CustomerContactConfiguration({
     if (!target) return
     const hasBox = target.boxCodes.includes(boxCode)
     if (hasBox && target.isPrimary) {
-      const otherHasBox = drafts.some(
-        (d, i) => i !== index && d.active && d.boxCodes.includes(boxCode),
-      )
+      const otherHasBox = hasEligibleContactReplacement(drafts, index, boxCode)
       if (!otherHasBox) {
         setErrorMsg(
-          'Para retirar o contato principal desta caixa, selecione outro e-mail para substituí-lo.',
+          'Para retirar o contato principal desta caixa, selecione outro e-mail ativo e apto a receber mensagens para substituí-lo.',
         )
+        return
       }
     }
+    setErrorMsg('')
     setDrafts((current) => {
       const currentTarget = current[index]
       if (!currentTarget) return current
@@ -217,7 +217,7 @@ export function CustomerContactConfiguration({
 
     for (const box of CUSTOMER_COMMUNICATION_BOXES) {
       const hasCoverage = activeContacts.some(
-        (d) => d.boxCodes.includes(box.code) && d.sendable !== false && !d.suppressionReason,
+        (d) => d.boxCodes.includes(box.code) && isEligibleContact(d),
       )
       if (!hasCoverage) {
         setErrorMsg(`A caixa "${box.label}" não pode ficar sem nenhum contato ativo e elegível vinculado.`)
@@ -400,6 +400,11 @@ export function CustomerContactConfiguration({
                 <span className="text-xs font-semibold text-[var(--app-text-strong)]">
                   Caixas de recebimento vinculadas:
                 </span>
+                {contact.isPrimary ? (
+                  <p className="mt-1 text-xs text-[var(--app-muted)]">
+                    Para desmarcar uma caixa, vincule antes outro contato ativo e apto a receber mensagens.
+                  </p>
+                ) : null}
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
                   {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
                     const checked = contact.boxCodes.includes(box.code)
