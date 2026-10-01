@@ -4,7 +4,6 @@ import { execSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 const appCommitSha = resolveCommitSha()
 
@@ -33,30 +32,11 @@ function originOf(value: string | undefined) {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  // Upload de sourcemaps para o Sentry: transforma `at Ki (featureFlags-*.js:7:7109)`
-  // em nome de função/arquivo/linha reais nas issues. Só ativa no CI, onde
-  // SENTRY_AUTH_TOKEN está presente; builds locais seguem sem o plugin.
-  const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN
 
   return {
     plugins: [
       react(),
       tailwindcss(),
-      ...(sentryAuthToken
-        ? [
-            sentryVitePlugin({
-              org: 'fwlog',
-              project: ['vela', 'portal'],
-              authToken: sentryAuthToken,
-              release: { name: appCommitSha },
-              sourcemaps: {
-                assets: ['dist/**/*.js', 'dist/**/*.mjs'],
-                filesToDeleteAfterUpload: ['dist/**/*.map'],
-              },
-              telemetry: false,
-            }),
-          ]
-        : []),
       {
         name: 'inject-external-preconnects',
         configureServer(server) {
