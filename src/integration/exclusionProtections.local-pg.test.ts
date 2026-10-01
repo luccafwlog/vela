@@ -53,6 +53,7 @@ function cleanup() {
   psql(`
     SET session_replication_role = replica;
     DELETE FROM public.audit_logs WHERE entity_type = 'voyages' AND entity_id = '${VOYAGE_ID}';
+    DELETE FROM public.invoice_items WHERE invoice_id IN (SELECT id FROM public.invoices WHERE invoice_number = '${INVOICE_NUMBER}');
     DELETE FROM public.invoices WHERE invoice_number = '${INVOICE_NUMBER}';
     DELETE FROM public.portal_provisioning_events WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER_ID};
@@ -112,13 +113,13 @@ describeLocal('086 — documento fiscal e auditoria não se apagam; viagem deixa
     expect(upd.stderr).toMatch(/permission denied/i)
   })
 
-  it('mantém Excluir cobrança manual funcionando para o Administrativo', () => {
+  it('preserva a cobrança manual da fatura mesmo para o Administrativo (ADR 0077)', () => {
     const itemId = psql(`INSERT INTO public.invoice_items (invoice_id, description, total_value_brl, source)
       SELECT id, 'Cobrança manual 086', 3, 'manual' FROM public.invoices WHERE invoice_number = '${INVOICE_NUMBER}'
       RETURNING id;`)
     const call = asAdmin(`SELECT public.delete_manual_invoice_charge(${itemId}, NULL);`)
-    expect(call.stderr).toBe('')
-    expect(psql(`SELECT count(*) FROM public.invoice_items WHERE id = ${itemId};`)).toBe('0')
+    expect(call.stderr).toMatch(/permission denied/i)
+    expect(psql(`SELECT count(*) FROM public.invoice_items WHERE id = ${itemId};`)).toBe('1')
   })
 
   it('mantém Cancelar baixa como função do dono', () => {
