@@ -147,3 +147,14 @@ it('grava o manifesto Mercante de vazio na mesma RPC dos containers (migration 1
   expect(body).toMatch(/p_uploaded_by IS DISTINCT FROM auth\.uid\(\)/)
   expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.import_vazios_importacao_transactional\(bigint, text, uuid, jsonb, text\) TO authenticated/)
 })
+
+it('o alerta CE Mercante pendente conta rotas de vazios sem manifesto vazio (migration 118)', () => {
+  const sql = fs.readFileSync(path.resolve('supabase/migrations/118_alerta_ce_mercante_inclui_vazios.sql'), 'utf8')
+
+  expect(sql).toContain('CREATE OR REPLACE FUNCTION public.reconcile_voyage_ce_mercante_missing_alerts(')
+  expect(sql).toMatch(/FROM public\.vazios_importacao_containers[\s\S]*get_voyage_eligible_pods/)
+  expect(sql).toMatch(/mm\.natureza = 'vazio'/)
+  expect(sql).toMatch(/lower\(ce\.cargo_mode\) = 'vazios'/)
+  expect(sql).toContain("'missing_vazios_manifest_count'")
+  expect(sql).not.toMatch(/GRANT .* TO authenticated/)
+})

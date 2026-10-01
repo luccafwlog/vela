@@ -24,7 +24,7 @@ import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVazio
 import { VaziosImportacaoGuide, VaziosImportacaoManifestNumberField, VaziosImportacaoRouteNotice } from './VaziosImportacaoImportParts'
 import { importVehicleRows, parseVehicleImportFile } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
-import { baplieReplacementMessage, countBaplieStaging, importBaplieStaging } from '../../services/baplieImport'
+import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie } from '../../services/baplieImport'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { canImportPreview, rowErrorsToImportIssues } from '../../services/importValidation'
 import { inspectImportUpload } from '../../services/importText'
@@ -376,22 +376,24 @@ function BaplieImportModal({
     if (!canImport) return
     setImporting(true)
     try {
-      const existing = await countBaplieStaging(voyageId)
-      if (existing > 0 && !(await confirm({
-        title: 'Substituir o Baplie da viagem',
-        message: baplieReplacementMessage(existing, filteredContainers.length),
-        confirmLabel: 'Substituir',
-        tone: 'danger',
-      }))) return
-      const { staged } = await importBaplieStaging(voyageId, filteredContainers, userId)
+      const result = await reimportBaplie({
+        voyageId,
+        containers: filteredContainers,
+        actorId: userId,
+        confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
+      })
+      if (result.status === 'cancelled') return
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['baplie-staging', voyageId] }),
         queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] }),
+        queryClient.invalidateQueries({ queryKey: ['baplie-vazios-manifest', String(voyageId)] }),
+        queryClient.invalidateQueries({ queryKey: ['vazios-importacao'] }),
+        queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] }),
         // P0-4: alimenta a divergencia de existencia de Carga descarregada e
         // Vazios descarregados no ADR.
         queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
       ])
-      showToast(`Baplie importado: ${staged} container(s) em staging.`, 'success')
+      showToast(baplieImportToast(result), 'success')
       handleClose()
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Falha ao importar Baplie EDI.', 'error')
