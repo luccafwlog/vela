@@ -2,6 +2,14 @@
 
 > Histórico curado de entregas relevantes. Sintetizado dos planos de execução (arquivados em [archive/](archive/README.md)) e do histórico git. Não substitui o `git log`.
 
+## 2026-10
+
+- **IMO/OOG do Baplie no B/L importado depois (2026-10-01):** migration `118`. Importar o
+  B/L numa viagem que já tem Baplie passa a aplicar as flags IMO/OOG do Baplie na mesma
+  operação, antes do cálculo das taxas locais; antes, isso dependia do
+  `import-effects-runner`, que não roda em produção, e a viagem ficava com menos IMO/OOG
+  que o Baplie. Aplicar as flags do Baplie também recalcula as taxas dos B/Ls afetados.
+
 ## 2026-09
 
 - **Ajustes de Escala, B/L e Comunicação (2026-09-30):** modais só fecham pelo botão ou Esc
