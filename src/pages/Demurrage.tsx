@@ -1,3 +1,4 @@
+import { pixSimulationRefetchInterval, usePixSimulationRefresh } from '../hooks/usePixSimulationRefresh'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -134,8 +135,10 @@ export function Demurrage() {
   const { data: invoiceDetail } = useQuery({
     queryKey: ['demurrage-invoice-detail', viewInvoiceId],
     queryFn: () => getInvoiceDetail(viewInvoiceId!),
+    refetchInterval: (current) => pixSimulationRefetchInterval(current.state.data?.invoice?.pix_integration_state),
     enabled: viewInvoiceId != null,
   })
+  usePixSimulationRefresh(invoiceDetail?.invoice)
   const { data: breakdownDetail } = useQuery({
     queryKey: ['demurrage-invoice-detail', detailInvoiceId],
     queryFn: () => getInvoiceDetail(detailInvoiceId!),

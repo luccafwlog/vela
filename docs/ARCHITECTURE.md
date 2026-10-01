@@ -604,6 +604,14 @@ separada. Não generalizar a exceção para chamadas do navegador.
 
 ## Integrações externas
 
+O Pix Itaú está em preparação por simulação: a migration `114` conserva
+cobranças, revisões e recebimentos fictícios no backend e acompanha alterações
+das faturas habilitadas por trigger. O processador simulado reutiliza os RPCs
+financeiros, sem chamar o banco. O transporte de COB real permanece separado e
+desativado; ainda não há processador bancário ou cron instalado. Ver o
+[plano de simulação](plans/2026-09-30-simulacao-itau-pix-no-vela.md) e o
+[procedimento de ambiente](operations/servicos-externos.md#simulação-pix-itaú--somente-ambiente-controlado).
+
 - **Resend:** email transacional do Portal e fundação do canal de Comunicados
   passam por `supabase/functions/_shared/email.ts`; o envio global de
   Comunicados continua desligado em `app_settings` até decisão operacional;

@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { COMPANY } from '../../config/company'
 import { cell, documentRoot, fmtBRL, fmtCNPJ, labelCell } from '../shared/invoiceFormat'
 import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle } from '../shared/InvoiceDocumentKit'
+import { PixSimulationNotice } from '../shared/PixSimulationNotice'
 
 export type DemurrageInvoiceDocumentItem = {
   id: number
@@ -29,6 +30,7 @@ export type DemurrageInvoiceDocumentDetail = {
   due_date: string | null
   paid_at: string | null
   pix_payload: string | null
+  pix_integration_state?: string | null
   items: DemurrageInvoiceDocumentItem[]
   customer?: {
     name: string
@@ -126,7 +128,8 @@ export function InvoiceDocument({ detail, type }: Props) {
       </table>
 
       {/* ── PIX section ── */}
-      {isInvoice && invoice.pix_payload && (
+      <PixSimulationNotice state={invoice.pix_integration_state} />
+      {isInvoice && !invoice.pix_integration_state?.startsWith('simulation:') && invoice.pix_payload && (
         <div style={{ display: 'flex', gap: 18, marginTop: 20, paddingTop: 16, borderTop: '1px solid #e5e7eb', alignItems: 'flex-start' }}>
           <div style={{ flexShrink: 0 }}>
             <QRCodeSVG aria-label="QR Code Pix" value={invoice.pix_payload} size={90} level="M" />

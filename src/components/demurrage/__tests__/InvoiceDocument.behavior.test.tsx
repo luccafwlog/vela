@@ -27,6 +27,13 @@ const detail: DemurrageInvoiceDocumentDetail = {
 
 afterEach(cleanup)
 
+it('identifica simulação e suprime payload legado mesmo se vier no detalhe', () => {
+  render(<InvoiceDocument detail={{ ...detail, pix_integration_state: 'simulation:cancel_pending' }} type="invoice" />)
+  expect(screen.getByTestId('pix-simulation-notice').textContent).toContain('Cancelamento aguardando confirmação')
+  expect(screen.queryByText(detail.pix_payload!)).toBeNull()
+  expect(screen.queryByLabelText('QR Code Pix')).toBeNull()
+})
+
 it('US-048: imprime a fatura de demurrage com numero, BL e cliente', () => {
   render(<InvoiceDocument detail={detail} type="invoice" />)
 

@@ -8,6 +8,15 @@ export type QueryInvalidator = {
 }
 
 const LINEUP_KEYS: readonly (readonly unknown[])[] = [['lineup-tv-v3'], ['lineup-tv-display-v2']]
+
+export async function afterPixSimulationChanged(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [
+    queryKeys.invoices.all(), queryKeys.bls.all(), queryKeys.customers.all(),
+    queryKeys.reconciliation.history(), queryKeys.alerts.all(),
+    ['demurrage-invoices'], ['demurrage-kpis'], ['demurrage-customer-summary'],
+    ['portal-invoices'], ['portal-demurrage-invoices'], ['customer-ficha'],
+  ])
+}
 const SCHEDULE_KEYS: readonly (readonly unknown[])[] = [
   ['voyage-pod-schedules'],
   ['voyage-pol-schedules'],

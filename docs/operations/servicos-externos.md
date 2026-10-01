@@ -13,6 +13,22 @@ sem ter participado da configuração.
 
 ## Mapa geral
 
+### Itaú Recebimentos Pix — preparação de acesso
+
+Integração ainda não ativada nesta preparação. O [plano de acesso Itaú](../plans/2026-09-30-preparacao-acesso-itau-pix.md)
+acompanha material de ativação, CSR, certificado, OAuth e receptor webhook
+mTLS. O fluxo de fornecimento está documentado nos e-mails locais do dono;
+Saída mTLS comprovada em 2026-09-30 no Supabase Vela com certificado público
+de teste badssl; função temporária excluída ao concluir. A validade atual das
+credenciais Itaú ainda precisa ser comprovada. Em 2026-09-30, o dono escolheu
+consulta periódica pelo Supabase para evitar nova contratação agora: webhook
+e Access pago adiados; nenhum job de consulta implantado. Consumo das plataformas
+e condições Itaú continuam sujeitos aos contratos existentes.
+Nenhum nome ou destino de segredo Itaú foi configurado nesta
+etapa. Quando definidos, registrar aqui nomes, local de custódia, ambiente,
+responsável e rotação, sem valores. Regras comerciais de cobrança ficam
+separadas da preparação do acesso.
+
 ```mermaid
 flowchart LR
     U["Usuário interno<br/>vela.app.br"] --> DNS["Cloudflare DNS"]
@@ -413,6 +429,24 @@ para eles vale o backup do próprio Supabase.
   As actions dos workflows com token estão fixadas por SHA.
 - **Regras:** o `main` exige revisão; merges sem revisor usam `--admin`, com
   autorização do dono a cada PR.
+
+## Simulação Pix Itaú — somente ambiente controlado
+
+- Código: `supabase/functions/itau-pix-simulation/index.ts`; não publicado nesta
+  preparação. A migration `114` não agenda cron nem ativa integração bancária.
+- Configuração backend: `PIX_SIMULATION_ENABLED` (exige `true`) e
+  `PIX_SIMULATION_RUNNER_SECRET` (mínimo 32 caracteres). Guardar no arquivo de
+  ambiente local do Supabase, fora do Git; em eventual Preview autorizada,
+  somente nos Secrets das Edge Functions desse ambiente. Nenhum valor criado
+  ou instalado remotamente nesta etapa.
+- A função exige POST com o segredo no Bearer, além da configuração habilitada
+  no banco. Recusa o projeto produtivo `fgmkhbzhaeebrsizwccx`.
+- Habilitação de cada fixture via `enroll_pix_simulation`; relógio, feriados e
+  recebimentos fictícios controlados nos testes SQL. Não usar em faturas reais.
+- O transporte de COB em `itauPixTransport.ts` está desacoplado e desativado;
+  requer fetch com mTLS, material vigente e validação explícita. Header `auth`
+  versus `Authorization` e formato do token continuam sujeitos à confirmação
+  na conta. Ainda falta ligá-lo ao processamento persistido e à consulta real.
 
 ## Serviços públicos sem conta
 

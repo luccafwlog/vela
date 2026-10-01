@@ -317,6 +317,16 @@ flowchart LR
 
 ## Notas e divergências
 
+- **Simulação Pix Itaú:** somente faturas habilitadas pelo backend usam o
+  simulador da migration `114`. A PTAX registra atualização pendente
+  no mesmo TXID; o pagamento confirmado pode quitar uma revisão anterior
+  persistida. O corte simulado é 14h30 do próximo dia útil de Vitória/ES; o
+  calendário precisa estar explicitamente validado para o ano. No corte, a
+  mesma invoice recebe imediatamente nova cobrança (novo TXID) com o valor
+  vigente; PTAX aplicada depois vira revisão desse TXID. O TXID anterior segue
+  vinculado para recebimentos tardios. O Alerta das 14h (Equipamentos) resolve
+  após confirmar a revisão. O modo real ainda não está conectado ao processador.
+
 - O recálculo automático depende da ativação e configuração do job remoto; o código da Edge Function e seus testes não demonstram execução diária em produção (ADR 0065).
 
 - **Corrigido (2026-06-25) — P2 não conta dias livres do override:** quando o

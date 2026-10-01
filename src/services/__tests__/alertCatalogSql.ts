@@ -23,6 +23,7 @@ const CATALOG_MIGRATIONS = [
   '377_portal_invoice_exception_audience.sql',
   '024_demurrage_ptax_alert.sql',
   '026_import_effect_alert.sql',
+  '114_itau_pix_simulation.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto
@@ -42,7 +43,7 @@ const CATALOG_UPDATE_MIGRATIONS = [
 
 const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi
 
-const ENTRY_PATTERN = /\(\s*'([a-z0-9_]+)',\s*'(critical|normal)',\s*'([a-z_]+)',\s*ARRAY\[([^\]]*)\],\s*'([^']+)'\s*\)/g
+const ENTRY_PATTERN = /\(\s*'([a-z0-9_]+)',\s*'(critical|normal)',\s*'([a-z_]+)',\s*ARRAY\[([^\]]*)\],\s*'([^']+)'(?:\s*,\s*(true|false))?\s*\)/g
 const DEACTIVATION_PATTERN = /SET\s+active\s*=\s*false\s+WHERE\s+type\s+(?:IN\s*\(([^)]*)\)|=\s*('[a-z0-9_]+'))/i
 const AUDIENCE_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+audience_departments\s*=\s*ARRAY\[([^\]]*)\][^;]*?WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi
 
@@ -56,14 +57,14 @@ export function readSqlAlertCatalog(): SqlAlertCatalogEntry[] {
   for (const fileName of CATALOG_MIGRATIONS) {
     const migration = readMigration(fileName)
     for (const match of migration.matchAll(ENTRY_PATTERN)) {
-      const [, type, severity, responsibleDepartment, audience, defaultDestination] = match
+      const [, type, severity, responsibleDepartment, audience, defaultDestination, activeFlag] = match
       entries.set(type, {
         type,
         severity: severity as 'critical' | 'normal',
         responsibleDepartment,
         audienceDepartments: Array.from(audience.matchAll(/'([a-z_]+)'/g), (item) => item[1]),
         defaultDestination,
-        active: true,
+        active: activeFlag !== 'false',
       })
     }
     for (const match of migration.matchAll(AUDIENCE_UPDATE_PATTERN)) {

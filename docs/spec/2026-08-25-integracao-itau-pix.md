@@ -2,6 +2,15 @@
 
 **Status:** planejamento futuro — não aprovado para execução
 
+> **Nota editorial — 2026-09-30:** a preparação documental do acesso está em
+> andamento no [plano de acesso Itaú](../plans/2026-09-30-preparacao-acesso-itau-pix.md),
+> separadamente das regras comerciais e implementação de cobranças. A coleção
+> e os endpoints históricos abaixo não são a referência vigente: usar OpenAPI
+> 2.27.2 e o portal atual identificados no plano. A proposta original é
+> preservada; não comprova integração entregue.
+> O dono escolheu consulta periódica de recebimentos pelo Supabase nesta fase,
+> sem nova contratação; as propostas de webhook abaixo são alternativas futuras.
+
 **Objetivo:** substituir, quando priorizado, a geração local de cobrança PIX e a conciliação manual do extrato do Itaú por uma integração com a API PIX Recebimentos do Itaú, usando QR Code dinâmico e confirmação automática de pagamento.
 
 ## 1. Contexto

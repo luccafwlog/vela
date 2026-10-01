@@ -11,6 +11,7 @@ export type DemurrageInvoiceFilters = {
 }
 
 export type DemurrageInvoiceListItem = DemurrageInvoice & {
+  pix_integration_state?: string | null
   customer?: { id: number; name: string; cnpj_cpf: string } | null
   bl?: { id: string; pol: string | null; pod: string | null; voyage?: { id: number; voyage_number: string; vessel?: { id: number; name: string } | null } | null } | null
 }

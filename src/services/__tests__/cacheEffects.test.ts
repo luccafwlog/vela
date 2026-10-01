@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
+import { afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada, afterPixSimulationChanged } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -11,6 +11,13 @@ function keySet(keys: (readonly unknown[])[]): string[] {
 }
 
 describe('cache effects', () => {
+  it('atualiza listas e histórico quando uma simulação confirma mudança financeira', async () => {
+    const { client, keys } = fakeQueryClient()
+    await afterPixSimulationChanged(client)
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
+      ['invoices'], ['demurrage-invoices'], ['portal-invoices'], ['reconciliation-history'], ['alerts'],
+    ])))
+  })
   it('invalidates exactly the voyage superset and normalizes timeline id', async () => {
     const { client, keys } = fakeQueryClient()
     await afterViagemAlterada(client, { voyageId: 24 })

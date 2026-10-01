@@ -8,6 +8,7 @@ import { formatBRL, stripBlPrefix } from '../../lib/utils'
 import { invoiceTypeLabel } from '../../services/billing'
 import type { PortalInvoiceDetail } from '../../services/portalBilling'
 import { PortalPixPaymentBlock } from './PortalPixPaymentBlock'
+import { PixSimulationNotice } from '../shared/PixSimulationNotice'
 
 type PortalInvoiceDetailModalProps = {
   open: boolean
@@ -172,7 +173,8 @@ export function PortalInvoiceDetailModal({
               </DetailSection>
             ) : null}
 
-            {invoice.pix_payload ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
+            <PixSimulationNotice state={invoice.pix_integration_state} />
+            {!invoice.pix_integration_state?.startsWith('simulation:') && invoice.pix_payload ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
           </>
         ) : null}
       </div>

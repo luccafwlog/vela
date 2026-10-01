@@ -1,3 +1,4 @@
+import { pixSimulationRefetchInterval, usePixSimulationRefresh } from './usePixSimulationRefresh'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePortalAuth } from './usePortalAuth'
 import { usePortalScope } from './usePortalScope'
@@ -71,11 +72,14 @@ export function usePortalInvoiceDetail(invoiceId?: number | null) {
   const scope = usePortalScope()
   const readOnly = isPortalReadOnly(scope)
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['portal-invoice-detail', scope.mode, scope.customerId, invoiceId],
     enabled: Boolean((isAuthenticated || readOnly) && invoiceId),
     queryFn: () => portalInvoiceDetails(Number(invoiceId), scope),
+    refetchInterval: (current) => pixSimulationRefetchInterval(current.state.data?.invoice?.pix_integration_state),
   })
+  usePixSimulationRefresh(query.data?.invoice)
+  return query
 }
 
 export function usePortalDemurrageInvoices() {
@@ -109,11 +113,14 @@ export function usePortalDemurrageInvoiceDetail(invoiceId?: number | null) {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
   const readOnly = isPortalReadOnly(scope)
-  return useQuery({
+  const query = useQuery({
     queryKey: ['portal-demurrage-invoice-detail', scope.mode, scope.customerId, invoiceId],
     enabled: Boolean((isAuthenticated || readOnly) && invoiceId),
     queryFn: () => portalGetDemurrageInvoiceDetail(Number(invoiceId), scope),
+    refetchInterval: (current) => pixSimulationRefetchInterval(current.state.data?.invoice?.pix_integration_state),
   })
+  usePixSimulationRefresh(query.data?.invoice)
+  return query
 }
 
 export function usePortalCreateConsolidation() {
