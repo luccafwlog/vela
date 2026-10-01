@@ -262,6 +262,9 @@ export function Baplie() {
                 // Os badges IMO/OOG do container aparecem na ficha do B/L
                 // (bl-detail); sem isso, o operador via o valor antigo até F5.
                 await queryClient.invalidateQueries({ queryKey: ['bl-detail'] })
+                // A RPC recalcula as taxas locais dos B/Ls que mudaram de perfil.
+                await queryClient.invalidateQueries({ queryKey: ['local-charge-operations'] })
+                await queryClient.invalidateQueries({ queryKey: ['bl-local-charge-lines'] })
               }
             } catch {
               showToast('Baplie importado, mas falha ao aplicar flags físicas ao B/L.', 'error')
