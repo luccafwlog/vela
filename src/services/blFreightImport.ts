@@ -151,7 +151,7 @@ export type BlFreightRpcPayload = {
     is_imo: boolean
     imo_class: string | null
     un_number: string | null
-    /** SOC/COC declarado no B/L; o B/L é soberano sobre o Baplie (migration 120) */
+    /** SOC/COC declarado no B/L; o B/L é soberano sobre o Baplie (migration 121) */
     ownership: 'SOC' | 'COC' | null
   }>
   vehicles: Array<{
@@ -793,8 +793,8 @@ export const BL_FREIGHT_DIFF_LABELS: Record<string, string> = {
   notify2_block: 'Notify 2 (bloco completo)',
   notify_cnpj_cpf: 'CNPJ/CPF do notify',
   cargo_description: 'Descricao da carga (origem do NCM)',
-  total_packages: 'Total de volumes',
-  packages_unit: 'Unidade dos volumes',
+  total_packages: 'Total de packages',
+  packages_unit: 'Unidade dos packages',
   consignee_phone: 'Telefone do consignatario',
   pol: 'POL',
   pod: 'POD',

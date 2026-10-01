@@ -171,7 +171,7 @@ export function BlCargaTab({
             <h2 className="text-lg font-semibold text-white">Resumo da carga solta</h2>
             <div className="flex flex-wrap gap-2">
               <Badge tone="green">{formatNumber(breakbulkSummary.machines)} maquinas</Badge>
-              <Badge tone="blue">{formatNumber(breakbulkSummary.packagesTotal)} volumes</Badge>
+              <Badge tone="blue">{formatNumber(breakbulkSummary.packagesTotal)} packages</Badge>
               <Badge tone="yellow">{formatNumber(breakbulkSummary.weightTon)} ton</Badge>
               <Badge tone="slate">{formatNumber(breakbulkSummary.cbm)} CBM</Badge>
             </div>
@@ -184,8 +184,8 @@ export function BlCargaTab({
                   <tr>
                     <th scope="col" className="py-2">CE</th>
                     <th scope="col" className="py-2">Máquinas</th>
-                    <th scope="col" className="py-2">Volumes</th>
-                    <th scope="col" className="py-2">Total de volumes</th>
+                    <th scope="col" className="py-2">Packages</th>
+                    <th scope="col" className="py-2">Total de packages</th>
                     <th scope="col" className="py-2">Peso (ton)</th>
                     <th scope="col" className="py-2">CBM (M3)</th>
                   </tr>
@@ -209,7 +209,7 @@ export function BlCargaTab({
                     <thead className="bg-[#0d1117] text-xs uppercase text-slate-500">
                       <tr>
                         <th scope="col" className="py-2">Descrição</th>
-                        <th scope="col" className="py-2">Volumes</th>
+                        <th scope="col" className="py-2">Packages</th>
                         <th scope="col" className="py-2">Unidade</th>
                         <th scope="col" className="py-2">Peso bruto</th>
                         <th scope="col" className="py-2">CBM</th>

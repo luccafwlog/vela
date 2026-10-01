@@ -103,7 +103,7 @@ export async function createInvoiceForBL(blId: string): Promise<number> {
     .select('id')
     .eq('bl_id', blId)
     .eq('demurrage_status', 'overdue')
-    // SOC é do cliente: sem devolução nem Demurrage (migration 120).
+    // SOC é do cliente: sem devolução nem Demurrage (migration 121).
     .or('ownership.is.null,ownership.neq.SOC')
   if (cErr) throw cErr
   if (!containers?.length) throw new Error('Nenhum container em atraso para este BL')

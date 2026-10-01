@@ -423,7 +423,7 @@ function parseLegacyRows(rows: SheetRow[], options: ParseBreakbulkOptions = {}):
     }
 
     if (package_qty <= 0 || gross_weight_kg <= 0 || cbm < 0) {
-      rowErrors.push({ row: rowNumber, message: 'Volumes, peso e CBM devem ser numericos validos.', raw: row })
+      rowErrors.push({ row: rowNumber, message: 'Packages, peso e CBM devem ser numericos validos.', raw: row })
       return
     }
 

@@ -176,7 +176,7 @@ describe('blFreightImport', () => {
       is_imo: true,
       imo_class: '9',
       un_number: '3556',
-      // SOC/COC do B/L segue para a RPC, que o grava como soberano (migration 120)
+      // SOC/COC do B/L segue para a RPC, que o grava como soberano (migration 121)
       ownership: 'COC',
     })
     expect(payload.vehicles[0]).toMatchObject({ chassis: '9BWZZZ377VT004251', container_number: 'TCLU1234567', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 })

@@ -7,7 +7,7 @@ import type { BLContainer, BaplieContainer as BaplieContainerRow } from '../type
 // divergência apontada é de EXISTÊNCIA: container no Baplie e em nenhum B/L, ou
 // em B/L e ausente do Baplie (#306).
 //
-// SOC/COC é a exceção: o B/L é soberano (migration 120), então o valor do B/L
+// SOC/COC é a exceção: o B/L é soberano (migration 121), então o valor do B/L
 // fica, mas a discordância com o Baplie aparece como `ownership_mismatch`.
 export type BaplieReconciliationItem =
   | {

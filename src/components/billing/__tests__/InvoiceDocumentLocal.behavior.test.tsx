@@ -77,7 +77,7 @@ it('renderiza fatura adaptativa para B/L Misto com três blocos e subtotais', ()
 
   // Metadados do cabeçalho
   expect(screen.getByText(/CSNU1234567 \(40'HC\), COSU9876543 \(20'DC\)/)).toBeTruthy()
-  expect(screen.getByText(/Peso BB: 15,400 ton \| 4 volumes/)).toBeTruthy()
+  expect(screen.getByText(/Peso BB: 15,400 ton \| 4 packages/)).toBeTruthy()
 
   // Bloco 1: Carga Conteinerizada
   expect(screen.getByText(/1\. CARGA CONTEINERIZADA/)).toBeTruthy()

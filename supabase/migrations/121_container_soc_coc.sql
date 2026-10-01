@@ -1,4 +1,4 @@
--- 120: propriedade do container (SOC/COC).
+-- 121: propriedade do container (SOC/COC).
 --
 -- COC (carrier owned) e o container do armador; SOC (shipper owned) pertence
 -- ao proprio cliente. O dado vem do B/L (coluna de propriedade na linha do
@@ -631,7 +631,7 @@ BEGIN
         CONTINUE;
       END IF;
 
-      -- 120: item que nao cobra de SOC (Drop Off, Damage Protection) conta
+      -- 121: item que nao cobra de SOC (Drop Off, Damage Protection) conta
       -- so os containers COC, com o mesmo rateio e o mesmo filtro de perfil.
       IF item.application_basis = 'container_distinct_voyage'
          AND v_bl.cargo_mode IN ('container', 'misto')

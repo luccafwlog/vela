@@ -4,7 +4,7 @@
 
 ## 2026-10
 
-- **SOC/COC do container (2026-10-01):** migration `120`. O container passa a ser SOC (do
+- **SOC/COC do container (2026-10-01):** migration `121`. O container passa a ser SOC (do
   cliente) ou COC (do armador), lido do B/L e do Baplie (EQD 8077). O B/L é soberano; o
   Baplie só preenche o que o B/L não declarou, e a discordância aparece na conciliação do
   Baplie e na aba Carga do B/L. Itens de taxa local ganham a opção "Cobra de container SOC",

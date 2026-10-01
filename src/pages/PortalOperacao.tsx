@@ -465,7 +465,7 @@ function ContainerDetails({ row }: { row: PortalOperationBL }) {
             <Badge tone="slate">Breakbulk</Badge>
           </div>
           <p className="text-sm text-[var(--app-muted)]">
-            Resumo dos volumes de carga solta vinculados a este B/L.
+            Resumo dos packages de carga solta vinculados a este B/L.
           </p>
           <div className="mt-2 flex flex-wrap gap-6 text-sm">
             <div>
@@ -473,9 +473,9 @@ function ContainerDetails({ row }: { row: PortalOperationBL }) {
               <span className="font-semibold">{row.bb_weight_ton != null ? `${row.bb_weight_ton} ton` : '—'}</span>
             </div>
             <div>
-              <span className="text-xs text-[var(--app-muted)]">Volumes: </span>
+              <span className="text-xs text-[var(--app-muted)]">Packages: </span>
               <span className="font-semibold">
-                {row.bb_packages_qty != null ? `${row.bb_packages_qty} volume(s)` : '—'}
+                {row.bb_packages_qty != null ? `${row.bb_packages_qty} package(s)` : '—'}
               </span>
             </div>
           </div>

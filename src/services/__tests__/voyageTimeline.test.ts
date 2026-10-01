@@ -18,6 +18,19 @@ describe('timeline operacional de transbordo', () => {
     expect(events[0].detail).toBe('26/08/2026')
   })
 
+  it('leva a justificativa da edição da escala para a linha do tempo', () => {
+    const events = buildVoyageTimeline({
+      scheduleEvents: [
+        { entity_type: 'voyage_pod_schedule', entity_id: '9::BRVIX', field_name: 'terminal_dates', old_value: JSON.stringify({ terminal_etb: '2026-08-20' }), new_value: JSON.stringify({ terminal_etb: '2026-08-22' }), justification: 'Berço ocupado pelo navio anterior', changed_at: '2026-08-18T11:00:00Z' },
+        { entity_type: 'voyage_pod_schedule', entity_id: '9::BRVIX', field_name: 'eta', old_value: '2026-08-19', new_value: '2026-08-21', justification: 'Atualizacao manual de ETA por POD', changed_at: '2026-08-18T10:00:00Z' },
+      ],
+    })
+
+    expect(events.find((event) => event.title.includes('Datas do terminal'))?.detail).toContain('Justificativa: Berço ocupado pelo navio anterior')
+    // Texto automático do sistema não é justificativa do operador.
+    expect(events.find((event) => event.title.startsWith('ETA'))?.detail).not.toContain('Justificativa')
+  })
+
   it('humaniza alterações de operações e datas terminalizadas', () => {
     const events = buildVoyageTimeline({
       scheduleEvents: [

@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-// Migration 120: SOC/COC. O B/L é soberano, o Baplie preenche o que o B/L não
+// Migration 121: SOC/COC. O B/L é soberano, o Baplie preenche o que o B/L não
 // declarou, item com applies_to_soc = false não conta container SOC e
 // container SOC não entra em fatura de Demurrage.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'

@@ -510,13 +510,13 @@ export function Bls() {
             label="Carga Solta"
             value={isSummaryLoading ? '...' : `${(summary?.breakbulkWeightTon ?? 0).toLocaleString('pt-BR')} ton`}
           />
-          {/* Máquinas, volumes e CBM eram calculados pela RPC e descartados sem
+          {/* Máquinas, packages e CBM eram calculados pela RPC e descartados sem
               renderizar desde a unificação — eram três das colunas que a tela de
               carga solta tinha. Só aparecem fora da lente de contêiner puro. */}
           {showBreakbulkMetrics ? (
             <>
               <MetricCard label="Máquinas" value={isSummaryLoading ? '...' : (summary?.totalMachines ?? 0).toLocaleString('pt-BR')} />
-              <MetricCard label="Total de volumes" value={isSummaryLoading ? '...' : (summary?.totalPackages ?? 0).toLocaleString('pt-BR')} />
+              <MetricCard label="Total de packages" value={isSummaryLoading ? '...' : (summary?.totalPackages ?? 0).toLocaleString('pt-BR')} />
               <MetricCard
                 label="CBM carga solta"
                 value={isSummaryLoading ? '...' : `${(summary?.breakbulkCbm ?? 0).toLocaleString('pt-BR')} m³`}
@@ -941,7 +941,7 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
           variant="metric-strip"
         />
         <PreviewBox
-          label="Total de volumes"
+          label="Total de packages"
           value={manifest.bls.reduce((sum, bl) => sum + Number(bl.bb_packages_total ?? bl.bb_packages_qty ?? 0), 0)}
           variant="metric-strip"
         />
@@ -964,9 +964,9 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
         <table className="app-table app-table--compact min-w-[1220px] text-left text-sm whitespace-nowrap">
           <thead>
             <tr>
-              {['BL', 'CE', 'Máquinas', 'Volumes', 'Total de volumes', 'Peso (ton)', 'CBM (M3)', 'Shipper', 'Consignee', 'Notify'].map(
+              {['BL', 'CE', 'Máquinas', 'Packages', 'Total de packages', 'Peso (ton)', 'CBM (M3)', 'Shipper', 'Consignee', 'Notify'].map(
                 (label) => (
-                  <th key={label} scope="col" className={`px-3 py-2 ${['Máquinas', 'Volumes', 'Total de volumes', 'Peso (ton)', 'CBM (M3)'].includes(label) ? 'text-right' : ''}`}>
+                  <th key={label} scope="col" className={`px-3 py-2 ${['Máquinas', 'Packages', 'Total de packages', 'Peso (ton)', 'CBM (M3)'].includes(label) ? 'text-right' : ''}`}>
                     {label}
                   </th>
                 ),

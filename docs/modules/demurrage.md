@@ -64,7 +64,7 @@ relatório são renderizados pelos modais homônimos. Sob recálculo diário (AD
 0014) não há `draft` nem `overdue`: a fatura nasce `issued`.
 
 Container SOC (do cliente; ver SOC / COC no [CONTEXT](../../CONTEXT.md)) não
-volta ao estoque e fica fora da Demurrage (migration `120`): o banco nunca o
+volta ao estoque e fica fora da Demurrage (migration `121`): o banco nunca o
 deixa `overdue` (`trg_soc_container_never_overdue`), recusa item de fatura de
 Demurrage para ele (`trg_guard_demurrage_item_not_soc`) e o exclui do conjunto
 "todos os containers devolvidos" que `assert_demurrage_invoice_complete` exige.

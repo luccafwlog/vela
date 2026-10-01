@@ -143,7 +143,7 @@ function BlDocumentPreview({
         <PreviewBox label="B/L" value={document.bl_id || '-'} variant="metric-strip" />
         <PreviewBox label="Navio / Viagem" value={formatVessel(document)} variant="metric-strip" />
         <PreviewBox label="Rota" value={`${document.pol ?? '-'} → ${document.pod ?? '-'}`} variant="metric-strip" />
-        <PreviewBox label="Volumes" value={formatNumber(document.packages_qty)} variant="metric-strip" />
+        <PreviewBox label="Packages" value={formatNumber(document.packages_qty)} variant="metric-strip" />
         <PreviewBox label="Peso (kg)" value={formatNumber(document.gross_weight_kg)} variant="metric-strip" />
         <PreviewBox label="CBM (M3)" value={formatNumber(document.total_cbm)} variant="metric-strip" />
       </div>
