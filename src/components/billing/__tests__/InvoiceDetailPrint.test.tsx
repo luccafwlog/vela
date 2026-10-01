@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 
-const deleteCharge = vi.fn()
+const cancelForReissue = vi.fn()
 const cancelInvoice = vi.fn()
 const confirm = vi.fn()
 const showToast = vi.fn()
@@ -18,6 +18,7 @@ vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => confirm }))
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }))
+let mockReissueLinks: Record<string, unknown> | null = null
 let mockDetailData: Record<string, unknown> | null = {
   invoice: {
     id: 9,
@@ -44,8 +45,8 @@ vi.mock('../../../hooks/useBilling', () => ({
   }),
   useRegisterInvoicePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCancelInvoice: () => ({ mutateAsync: cancelInvoice, isPending: false }),
-  useAddManualInvoiceCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useDeleteManualInvoiceCharge: () => ({ mutateAsync: deleteCharge, isPending: false }),
+  useCancelInvoiceForReissue: () => ({ mutateAsync: cancelForReissue, isPending: false }),
+  useInvoiceReissueLinks: () => ({ data: mockReissueLinks }),
 }))
 vi.mock('../../../hooks/useBillingLedger', () => ({
   useInvoiceRefunds: () => ({ data: [] }),
@@ -71,15 +72,36 @@ it('opens the printable invoice only after the user requests printing', async ()
   expect(screen.getByTestId('print-document')).toBeTruthy()
 })
 
-it('pede confirmação antes de excluir uma cobrança manual', async () => {
-  confirm.mockResolvedValueOnce(false)
+it('fatura emitida não oferece inclusão nem remoção de item manual', () => {
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+
+  expect(screen.getByText('Taxa manual')).toBeTruthy()
+  expect(screen.queryByText('Outras cobranças (manuais)')).toBeNull()
+  expect(screen.queryByRole('button', { name: /Adicionar cobrança manual/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: /Remover/ })).toBeNull()
+})
+
+it('cancela e reemite fatura sem pagamento depois da confirmação com os B/Ls afetados', async () => {
+  confirm.mockResolvedValueOnce(true)
+  cancelForReissue.mockResolvedValueOnce({ cancelled_invoice_ids: [9], bl_ids: [] })
   const user = userEvent.setup()
   render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
 
-  await user.click(screen.getByRole('button', { name: /Remover Taxa manual/ }))
+  const button = screen.getByRole('button', { name: /Cancelar e reemitir/ })
+  expect((button as HTMLButtonElement).disabled).toBe(true)
+  await user.type(screen.getByLabelText('Motivo da correção'), 'Peso corrigido')
+  await user.click(button)
 
-  expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ tone: 'danger' }))
-  expect(deleteCharge).not.toHaveBeenCalled()
+  expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Cancelar e reemitir', affected: expect.any(Object) }))
+  expect(cancelForReissue).toHaveBeenCalledWith({ invoiceId: 9, reason: 'Peso corrigido', correctBlIds: [] })
+})
+
+it('mostra o vínculo com a fatura substituída', () => {
+  mockReissueLinks = { replaces: { id: 7, invoice_number: 'INV-7' }, replaced_by: null, reissue_pending: false }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+
+  expect(screen.getByTestId('invoice-reissue-links').textContent).toContain('Substitui a fatura INV-7')
+  mockReissueLinks = null
 })
 
 it('usa terminologia em português (fatura) no modal de detalhe e cancelamento', async () => {

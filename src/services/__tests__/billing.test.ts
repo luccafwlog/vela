@@ -12,11 +12,9 @@ vi.mock('../supabase', () => ({ supabase: { from: supabaseMocks.from, rpc: supab
 vi.mock('../../lib/pix', () => ({ buildTransshippingPixPayload: supabaseMocks.buildPix }))
 
 import {
-  addManualInvoiceCharge,
   cancelInvoice,
   createManualInvoice,
   createInvoiceFromBls,
-  deleteManualInvoiceCharge,
   getInvoiceBls,
   getInvoiceCommunicationContext,
   getInvoicePaymentDate,
@@ -431,53 +429,6 @@ describe('cancelInvoice', () => {
   it('recusa justificativa vazia antes de chamar o RPC', async () => {
     await expect(cancelInvoice({ invoiceId: 5, reason: '  ' })).rejects.toThrow('Informe a justificativa')
     expect(supabaseMocks.rpc).not.toHaveBeenCalled()
-  })
-})
-
-describe('addManualInvoiceCharge', () => {
-  it('chama o RPC add_manual_invoice_charge com payload exato', async () => {
-    supabaseMocks.rpc.mockResolvedValueOnce({ data: { item_id: 11 }, error: null })
-
-    const result = await addManualInvoiceCharge({
-      invoiceId: 8,
-      description: 'Taxa extra',
-      quantity: 2,
-      unitValueBrl: 75.25,
-    })
-
-    expect(supabaseMocks.rpc).toHaveBeenCalledWith('add_manual_invoice_charge', {
-      p_invoice_id: 8,
-      p_description: 'Taxa extra',
-      p_quantity: 2,
-      p_unit_value_brl: 75.25,
-    })
-    expect(result).toEqual({ item_id: 11 })
-  })
-
-  it('propaga erro do RPC', async () => {
-    supabaseMocks.rpc.mockResolvedValueOnce({ data: null, error: new Error('charge falhou') })
-    await expect(
-      addManualInvoiceCharge({ invoiceId: 8, description: 'X', quantity: 1, unitValueBrl: 1 }),
-    ).rejects.toThrow('charge falhou')
-  })
-})
-
-describe('deleteManualInvoiceCharge', () => {
-  it('chama o RPC delete_manual_invoice_charge com payload exato', async () => {
-    supabaseMocks.rpc.mockResolvedValueOnce({ data: { deleted: true }, error: null })
-
-    const result = await deleteManualInvoiceCharge({ itemId: 31, actorId: 'user-5' })
-
-    expect(supabaseMocks.rpc).toHaveBeenCalledWith('delete_manual_invoice_charge', {
-      p_item_id: 31,
-      p_actor: 'user-5',
-    })
-    expect(result).toEqual({ deleted: true })
-  })
-
-  it('propaga erro do RPC', async () => {
-    supabaseMocks.rpc.mockResolvedValueOnce({ data: null, error: new Error('delete falhou') })
-    await expect(deleteManualInvoiceCharge({ itemId: 31 })).rejects.toThrow('delete falhou')
   })
 })
 

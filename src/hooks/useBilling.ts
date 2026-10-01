@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  addManualInvoiceCharge,
   cancelInvoice,
+  cancelInvoiceForReissue,
   createManualInvoice,
-  deleteManualInvoiceCharge,
+  getInvoiceReissueLinks,
+  listPendingReissues,
   listBillingCustomers,
   listInvoiceDetails,
   listInvoiceLinksByBls,
@@ -86,29 +87,39 @@ export function useRegisterInvoicePayment() {
   })
 }
 
-export function useAddManualInvoiceCharge() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: addManualInvoiceCharge,
-    onSuccess: async (_data, variables) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.detail(variables.invoiceId) }),
-      ])
-    },
+export function useInvoiceReissueLinks(invoiceId?: number | null) {
+  return useQuery({
+    queryKey: queryKeys.invoices.reissueLinks(invoiceId),
+    enabled: Boolean(invoiceId),
+    queryFn: () => getInvoiceReissueLinks(Number(invoiceId)),
   })
 }
 
-export function useDeleteManualInvoiceCharge(invoiceId?: number | null) {
+export function usePendingReissues() {
+  return useQuery({
+    queryKey: queryKeys.invoices.pendingReissues(),
+    queryFn: listPendingReissues,
+  })
+}
+
+export function useCancelInvoiceForReissue() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: deleteManualInvoiceCharge,
-    onSuccess: async () => {
+    mutationFn: cancelInvoiceForReissue,
+    onSuccess: async (data) => {
+      // queryKeys.invoices.all() cobre a lista e a Reemissão pendente; o detalhe
+      // de cada fatura cancelada (inclusive individuais da consolidada) muda.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.detail(invoiceId) }),
+        ...data.cancelled_invoice_ids.map((id) => queryClient.invalidateQueries({ queryKey: queryKeys.invoices.detail(id) })),
+        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.links(data.bl_ids) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.billingReady.all() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.billingLedger.all() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail() }),
       ])
     },
   })

@@ -1007,38 +1007,63 @@ export async function cancelInvoice(input: {
   return (data ?? {}) as Json
 }
 
-export async function addManualInvoiceCharge(input: {
-  invoiceId: number
-  description: string
-  quantity: number
-  unitValueBrl: number
-  notes?: string | null
-  actorId?: string | null
-}) {
-  const { data, error } = await supabase.rpc('add_manual_invoice_charge', {
-    p_invoice_id: input.invoiceId,
-    p_description: input.description,
-    p_quantity: input.quantity,
-    p_unit_value_brl: input.unitValueBrl,
-    ...(input.notes == null ? {} : { p_notes: input.notes }),
-    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
-  })
-
-  if (error) throw error
-  return (data ?? {}) as Json
+export type InvoiceReissueResult = {
+  invoice_id: number
+  invoice_type: 'individual' | 'consolidated'
+  customer_id: number
+  bl_ids: string[]
+  cancelled_invoice_ids: number[]
 }
 
-export async function deleteManualInvoiceCharge(input: {
-  itemId: number
-  actorId?: string | null
-}) {
-  const { data, error } = await supabase.rpc('delete_manual_invoice_charge', {
-    p_item_id: input.itemId,
-    ...(input.actorId == null ? {} : { p_actor: input.actorId }),
-  })
+// Cancelar e reemitir (ADR 0077): cancela a fatura de Taxas Locais sem
+// pagamento e deixa a Reemissão pendente até a próxima emissão do B/L.
+export async function cancelInvoiceForReissue(input: {
+  invoiceId: number
+  reason: string
+  correctBlIds?: string[]
+}): Promise<InvoiceReissueResult> {
+  const reason = input.reason.trim()
+  if (!reason) throw new Error('Informe o motivo para cancelar e reemitir a fatura.')
+
+  // ponytail: RPC da migration 121 tipada localmente até a regeneração dos tipos protegidos.
+  const { data, error } = await supabase.rpc('cancel_invoice_for_reissue' as never, {
+    p_invoice_id: input.invoiceId,
+    p_reason: reason,
+    ...(input.correctBlIds?.length ? { p_correct_bl_ids: input.correctBlIds } : {}),
+  } as never)
 
   if (error) throw error
-  return (data ?? {}) as Json
+  return data as unknown as InvoiceReissueResult
+}
+
+export type PendingReissue = {
+  invoice_id: number
+  invoice_number: string
+  invoice_type: 'individual' | 'consolidated'
+  customer_id: number
+  customer_name: string | null
+  cancelled_at: string | null
+  cancel_reason: string | null
+  bl_ids: string[]
+  receivable_ids: number[]
+}
+
+export async function listPendingReissues(): Promise<PendingReissue[]> {
+  const { data, error } = await supabase.rpc('list_pending_reissues' as never)
+  if (error) throw error
+  return (data ?? []) as unknown as PendingReissue[]
+}
+
+export type InvoiceReissueLinks = {
+  replaces: { id: number; invoice_number: string } | null
+  replaced_by: { id: number; invoice_number: string } | null
+  reissue_pending: boolean
+}
+
+export async function getInvoiceReissueLinks(invoiceId: number): Promise<InvoiceReissueLinks> {
+  const { data, error } = await supabase.rpc('get_invoice_reissue_links' as never, { p_invoice_id: invoiceId } as never)
+  if (error) throw error
+  return data as unknown as InvoiceReissueLinks
 }
 
 export async function listInvoiceLinksByBls(blIds: string[]) {
