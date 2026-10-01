@@ -7,7 +7,7 @@ import { Badge } from '../ui/Badge'
 import { formatDate } from '../../lib/utils'
 import { formatPortDisplayName } from '../../lib/voyageFormat'
 import type { VoyagePolSchedule } from '../../services/voyageRouteSchedules'
-import { collectVoyageManifestBatchRows, formatPolDeparture, renderCeCoverage, type VoyageImportBatch } from './voyageCardHelpers'
+import { collectVoyageManifestBatchRows, countRouteManifestNumbers, formatPolDeparture, manifestosOfRoute, renderCeCoverage, type VoyageImportBatch } from './voyageCardHelpers'
 import type { EditingPolPayload, Voyage } from './voyageCardTypes'
 
 export function VoyageManifestosTab({
@@ -44,15 +44,10 @@ export function VoyageManifestosTab({
     vaziosRoutes,
   })
   const totalBls = manifestRows.reduce((total, row) => total + row.blCount, 0)
-  // A rota de vazios compartilha POL/POD com a de carga (ex.: Taicang -> Vitória),
-  // mas o manifesto Mercante é outro: casar só por POL/POD fazia a linha VAZIOS
-  // exibir o número da carga.
-  const manifestosOfRow = (row: { pol: string; pod: string; isVazios: boolean }) => {
-    const natureza = row.isVazios ? 'vazio' : 'carga'
-    return (dbManifestos ?? []).filter((m) => m.pol === row.pol && m.pod === row.pod && m.natureza === natureza)
-  }
+  const manifestosOfRow = (row: { pol: string; pod: string; isVazios: boolean; ceMaster: string | null }) =>
+    manifestosOfRoute(row, dbManifestos)
   const hasRouteManifest = (row: { pol: string; pod: string; isVazios: boolean; ceMaster: string | null }) =>
-    Boolean(row.ceMaster) || manifestosOfRow(row).length > 0
+    countRouteManifestNumbers(row, dbManifestos) > 0
   const pendingManifestCount = manifestRows.filter(
     (row) => (row.blCount > 0 || row.isVazios) && !hasRouteManifest(row),
   ).length

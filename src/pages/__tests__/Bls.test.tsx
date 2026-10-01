@@ -465,7 +465,7 @@ describe('Página Bls (unificada)', () => {
 
     // totalMachines, totalPackages e breakbulkCbm eram buscados e descartados.
     expect(screen.getByText('Máquinas')).toBeTruthy()
-    expect(screen.getByText('Total de volumes')).toBeTruthy()
+    expect(screen.getByText('Total de packages')).toBeTruthy()
     expect(screen.getByText('CBM carga solta')).toBeTruthy()
   })
 })

@@ -952,10 +952,26 @@ function timelineTerminalDatesLabel(parsed: Record<string, unknown>): string {
 
 const NO_TERMINAL_DATES = 'Datas operacionais atualizadas'
 
+// ponytail: textos que o próprio sistema grava quando o operador não escreve
+// justificativa (voyageRouteSchedules.ts). Reconhecidos pelo prefixo; se surgir
+// outro texto automático, acrescentá-lo aqui.
+const AUTOMATIC_SCHEDULE_JUSTIFICATION = /^(Atualizacao manual |Reinclusao de POD |Remocao de POD )/
+
+function scheduleJustification(row: TimelineAuditEvent) {
+  const reason = String(row.justification ?? '').trim()
+  return reason && !AUTOMATIC_SCHEDULE_JUSTIFICATION.test(reason) ? reason : null
+}
+
 function buildScheduleTimeline(
   scheduleEvents: TimelineAuditEvent[] | null | undefined,
-  appendActor: (detail: string, row: TimelineAuditEvent) => string,
+  appendActorBase: (detail: string, row: TimelineAuditEvent) => string,
 ): VoyageTimelineEvent[] {
+  // A justificativa da edição da escala vai para cada linha de auditoria do
+  // salvamento; sem isto ela ficava gravada, mas fora da linha do tempo.
+  const appendActor = (detail: string, row: TimelineAuditEvent) => {
+    const reason = scheduleJustification(row)
+    return appendActorBase(reason ? `${detail} · Justificativa: ${reason}` : detail, row)
+  }
   const events: VoyageTimelineEvent[] = []
   for (const [index, row] of (scheduleEvents ?? []).entries()) {
     const at = row.changed_at

@@ -55,7 +55,7 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
             <section className="grid gap-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">Carga solta</h3>
               <DetailTable
-                headers={['Máquinas', 'Volumes', 'Total de volumes', 'Peso (ton)', 'CBM (m³)']}
+                headers={['Máquinas', 'Packages', 'Total de packages', 'Peso (ton)', 'CBM (m³)']}
                 rows={[{
                   key: 'resumo',
                   cells: [
@@ -69,7 +69,7 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
               />
               {items.length ? (
                 <DetailTable
-                  headers={['Descrição', 'Volumes', 'Unidade', 'Peso (kg)', 'CBM', 'Marcas']}
+                  headers={['Descrição', 'Packages', 'Unidade', 'Peso (kg)', 'CBM', 'Marcas']}
                   rows={items.map((item, index) => ({
                     key: String(item.id ?? `${item.item_description}-${index}`),
                     cells: [

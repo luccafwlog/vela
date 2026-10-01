@@ -96,7 +96,7 @@ function formatBreakbulkMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[]
     const packagesQty = (bl as Record<string, unknown>).bb_packages_qty
     if (weightTon != null && Number(weightTon) > 0) {
       const wFormatted = Number(weightTon).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
-      const pkgStr = packagesQty != null && Number(packagesQty) > 0 ? ` | ${packagesQty} volumes` : ''
+      const pkgStr = packagesQty != null && Number(packagesQty) > 0 ? ` | ${packagesQty} packages` : ''
       list.push(`Peso BB: ${wFormatted} ton${pkgStr}`)
     }
   }

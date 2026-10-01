@@ -75,7 +75,7 @@ describe('KPIs do cabeçalho da viagem', () => {
 
     expect(screen.getByText('CONCILIAÇÃO')).toBeTruthy()
     expect(kpiValue('CE Mercante')).toBe('1/2')
-    expect(kpiValue('Manifestos Mercante')).toBe('0/1')
+    expect(kpiValue('Manifestos Mercante')).toBe('0 · 1 a informar')
     expect(kpiValue('Divergências EDIxBLs')).toBe('0')
   })
 
@@ -91,7 +91,7 @@ describe('KPIs do cabeçalho da viagem', () => {
       ],
     } as unknown as Partial<Voyage>)
 
-    expect(kpiValue('Manifestos Mercante')).toBe('1/1')
+    expect(kpiValue('Manifestos Mercante')).toBe('1')
   })
 
   it('conta Manifestos Mercante avulso por rota quando a viagem nasce só de B/Ls', () => {
@@ -100,7 +100,7 @@ describe('KPIs do cabeçalho da viagem', () => {
       new Map([['7::CNSHA__BRVIX', 'CE-999']]),
     )
 
-    expect(kpiValue('Manifestos Mercante')).toBe('1/1')
+    expect(kpiValue('Manifestos Mercante')).toBe('1')
   })
 
   it('conta Manifestos Mercante registrados na tabela manifestos_mercante', () => {
@@ -109,7 +109,20 @@ describe('KPIs do cabeçalho da viagem', () => {
       bls: [{ id: 'bl-1', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [] }],
     } as unknown as Partial<Voyage>)
 
-    expect(kpiValue('Manifestos Mercante')).toBe('1/1')
+    expect(kpiValue('Manifestos Mercante')).toBe('1')
+  })
+
+  it('conta cada manifesto da rota, não a quantidade de rotas', () => {
+    // Rota NANSHA -> VITORIA com dois manifestos de carga: a aba mostra dois números.
+    mockManifestos = [
+      { pol: 'CNSHA', pod: 'BRVIX', numero: 'MAN-1', natureza: 'carga' },
+      { pol: 'CNSHA', pod: 'BRVIX', numero: 'MAN-2', natureza: 'carga' },
+    ]
+    renderCard({
+      bls: [{ id: 'bl-1', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [] }],
+    } as unknown as Partial<Voyage>)
+
+    expect(kpiValue('Manifestos Mercante')).toBe('2')
   })
 
   it('manifesto de vazios não conta como manifesto da rota de carga com o mesmo POL/POD', () => {
@@ -118,7 +131,7 @@ describe('KPIs do cabeçalho da viagem', () => {
       bls: [{ id: 'bl-1', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [] }],
     } as unknown as Partial<Voyage>)
 
-    expect(kpiValue('Manifestos Mercante')).toBe('0/1')
+    expect(kpiValue('Manifestos Mercante')).toBe('0 · 1 a informar')
   })
 
   it('usa os bookings realmente vinculados como total de vazios embarcados', () => {
@@ -162,7 +175,7 @@ describe('KPI de Importação', () => {
     expect(within(containers).getByText('IMO / OOG').parentElement?.querySelector('strong')?.textContent).toBe('1 / 1')
     expect(breakbulk.textContent).toContain('20toneladas')
     expect(within(breakbulk).getByText('B/Ls carga solta').parentElement?.querySelector('strong')?.textContent).toBe('2')
-    expect(within(breakbulk).getByText('Máquinas / Volumes').parentElement?.querySelector('strong')?.textContent).toBe('3 / 10')
+    expect(within(breakbulk).getByText('Máquinas / Packages').parentElement?.querySelector('strong')?.textContent).toBe('3 / 10')
     expect(within(breakbulk).getByText('CBM').parentElement?.querySelector('strong')?.textContent).toBe('30')
     expect(screen.queryByText('TEU')).toBeNull()
   })
