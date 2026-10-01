@@ -33,7 +33,8 @@ import { extractReviewReasons } from '../hooks/useReview'
 import { listDemurrageInvoices } from '../services/demurrage/demurrageInvoices'
 import { listDepots } from '../services/depots'
 import { setBlTerminalOverride } from '../services/blTerminal'
-import { setContainerProfile, type ContainerProfile } from '../services/vaziosNatureza'
+import { CONTAINER_PROFILE_LABELS, containerProfileLabel, setContainerProfile, type ContainerProfile } from '../services/vaziosNatureza'
+import { isBlFinanciallyLocked } from '../lib/chargeStatus'
 import { buildDocumentalRail, buildOperationalRail, pickNextAction, summarizeDocumentalRail } from '../services/blRails'
 import { getBlPortalStatus } from '../services/blPortalStatus'
 import { queryKeys } from '../services/queryKeys'
@@ -158,17 +159,38 @@ export function BlDetalhe() {
     },
   })
   const containerProfileMutation = useMutation({
-    mutationFn: (input: { containerId: number; profile: ContainerProfile }) => setContainerProfile(input.containerId, input.profile),
+    mutationFn: (input: { containerId: number; profile: ContainerProfile; justification: string }) => setContainerProfile({ ...input, changedBy: user?.id }),
     onSuccess: async () => {
       await Promise.all([
         afterBlEstadoAlterado(queryClient, { blId: bl!.id, voyageId: bl!.voyage_id }),
         queryClient.invalidateQueries({ queryKey: ['containers'] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.auditLogs.detail('bl', bl?.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines(bl!.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
       ])
-      showToast('Natureza do container atualizada.', 'success')
+      showToast('Perfil do container atualizado e taxas recalculadas.', 'success')
     },
-    onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao alterar a natureza do container.'), 'error'),
+    onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao alterar o perfil do container.'), 'error'),
   })
+  async function handleChangeContainerProfile(containerId: number, profile: ContainerProfile) {
+    const container = bl?.bl_containers?.find((item) => item.id === containerId)
+    if (!container) return
+    const before = containerProfileLabel(container)
+    const after = CONTAINER_PROFILE_LABELS[profile]
+    if (before === after) return
+    const justification = await confirmWithReason({
+      title: 'Alterar perfil do container',
+      message: `Alterar o perfil do container ${container.container_number}?`,
+      changes: [{ field: 'Perfil', before, after }],
+      consequence: 'As taxas locais deste B/L são recalculadas com o novo perfil. A alteração fica no histórico com autor e justificativa.',
+      reversibility: 'Pode ser revertida escolhendo o perfil anterior, com nova justificativa. Uma reimportação do Baplie volta ao perfil do arquivo.',
+      confirmLabel: 'Alterar e recalcular',
+      reasonLabel: 'Justificativa',
+    })
+    if (justification === null) return
+    containerProfileMutation.mutate({ containerId, profile, justification })
+  }
   const cargoMode = useMemo(() => resolveCargoMode(bl), [bl])
   const isContainerMode = cargoMode === 'container'
   const isMixedMode = cargoMode === 'misto'
@@ -384,7 +406,7 @@ export function BlDetalhe() {
         isContainerMode={isContainerMode}
         containerSummary={containerSummary}
         breakbulkSummary={breakbulkSummary}
-        onChangeProfile={cancelledAt ? undefined : (containerId, profile) => containerProfileMutation.mutate({ containerId, profile })}
+        onChangeProfile={cancelledAt || isBlFinanciallyLocked(bl.financial_status) ? undefined : handleChangeContainerProfile}
       />
 
       <BlDetalhesTab
