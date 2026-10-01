@@ -1,6 +1,20 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type HTMLAttributes, type ReactNode, type Ref } from 'react'
+import {
+  AlertTriangle,
+  ArrowDownToLine,
+  ArrowLeftRight,
+  ArrowUpFromLine,
+  Check,
+  Clock,
+  FileText,
+  Lock,
+  MapPin,
+  Ship,
+  Warehouse,
+} from 'lucide-react'
 import { Modal } from '../ui/Modal'
-import { Field, Input } from '../ui/Input'
+import { Field, Input, Select, Textarea } from '../ui/Input'
+import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { useConfirm } from '../ui/ConfirmDialog'
 import {
@@ -12,6 +26,7 @@ import {
 } from '../../services/voyageRouteSchedules'
 import { formatDateTimeBR, splitIsoDateTime, combineIsoDateTime } from '../../lib/utils'
 import { normalizePortCode } from '../../services/portCode'
+import { formatPortDisplayName } from '../../lib/voyageFormat'
 import { normalizeDischargePorts } from '../../services/voyageExportSchedules'
 import type {
   ClosedAdrBlocker,
@@ -171,12 +186,13 @@ export function PolScheduleModal({
       {polSchedule ? (
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <div className="app-escala-summary">
-            <div>
-              <div className="app-escala-summary__voyage">{polSchedule.voyageLabel}</div>
+            <span className="app-escala-summary__icon" aria-hidden="true"><Ship size={20} /></span>
+            <div className="min-w-0 flex-1">
+              <div className="app-escala-summary__port"><span>{polSchedule.voyageLabel}</span></div>
               <div className="app-escala-summary__meta">Rota: {polSchedule.pol} -&gt; {polSchedule.pod}</div>
             </div>
-            <div className="app-escala-summary__status">
-              {polSchedule.cargoMode === 'vazios' ? 'Manifesto de Vazios' : 'Rota / Manifesto'}
+            <div className="app-escala-summary__chips">
+              <Badge tone="blue">{polSchedule.cargoMode === 'vazios' ? 'Manifesto de Vazios' : 'Rota / Manifesto'}</Badge>
             </div>
           </div>
 
@@ -352,7 +368,7 @@ function buildTerminalPayload({
   justification: string
   exportExpectation: Record<string, unknown>
   initialExportExpectation: Record<string, unknown>
-}): { value?: EscalaModalPayload['terminalState']; error?: string } {
+}): { value?: EscalaModalPayload['terminalState']; error?: string; needsJustification?: boolean } {
   if (!terminalScale) return {}
   if (terminalScale.loading) return { error: 'Aguarde o carregamento das frentes e terminais antes de salvar a escala.' }
   if (terminalScale.error) return { error: terminalScale.error }
@@ -380,28 +396,31 @@ function buildTerminalPayload({
     fronts.flatMap((front) => front.terminalId ? [front.terminalId] : []),
   )
   const terminals: NonNullable<EscalaModalPayload['terminalState']>['terminals'] = []
+  // A primeira falha de validação é guardada, não devolvida na hora: o modal
+  // também usa este cálculo a cada render para saber se a justificativa é
+  // exigida, mesmo enquanto o operador ainda preenche uma data incompleta.
+  let validationError: string | null = null
   for (const terminalId of terminalIds) {
     const draft = terminalDates[terminalId] ?? emptyTerminalDatesDraft()
     const code = [...terminalScale.activeTerminals, ...terminalScale.historicalTerminals].find((option) => option.id === terminalId)?.code ?? 'TBC'
-
-    if (draft.atbDate && !draft.atbTime.trim()) {
-      return { error: `A hora do ATB é obrigatória quando a data estiver preenchida para o terminal ${code}.` }
-    }
 
     const etb = combineIsoDateTime(draft.etbDate, draft.etbTime)
     const atb = combineIsoDateTime(draft.atbDate, draft.atbTime)
     const etd = combineIsoDateTime(draft.etdDate, draft.etdTime)
     const atd = combineIsoDateTime(draft.atdDate, draft.atdTime)
-
-    if (atd && (!atb || atd < atb)) {
-      return { error: `Informe o ATB antes do ATD do terminal ${code}; o ATD não pode ser anterior ao ATB.` }
-    }
     const restow = draft.restow.trim() ? Number(draft.restow) : null
-    if (restow !== null && (!Number.isInteger(restow) || restow < 0)) {
-      return { error: `Restow inválido para o terminal ${terminalId}.` }
+
+    if (!validationError && draft.atbDate && !draft.atbTime.trim()) {
+      validationError = `A hora do ATB é obrigatória quando a data estiver preenchida para o terminal ${code}.`
     }
-    if (etd && (!etb || etd < etb)) {
-      return { error: `Informe o ETB antes do ETD do terminal ${code}; o ETD não pode ser anterior ao ETB.` }
+    if (!validationError && atd && (!atb || atd < atb)) {
+      validationError = `Informe o ATB antes do ATD do terminal ${code}; o ATD não pode ser anterior ao ATB.`
+    }
+    if (!validationError && restow !== null && (!Number.isInteger(restow) || restow < 0)) {
+      validationError = `Restow inválido para o terminal ${code}.`
+    }
+    if (!validationError && etd && (!etb || etd < etb)) {
+      validationError = `Informe o ETB antes do ETD do terminal ${code}; o ETD não pode ser anterior ao ETB.`
     }
     terminals.push({ terminalId, etb, atb, etd, atd, restow })
   }
@@ -433,11 +452,14 @@ function buildTerminalPayload({
   })
   const exportExpectationChanged = initialExportExpectation.tem_exportacao === true
     && !sameExportExpectation(exportExpectation, initialExportExpectation)
-  if (terminalScale.revision > 0 && (assignedTerminalAltered || datesAltered || exportExpectationChanged) && !justification.trim()) {
-    return { error: 'Informe a justificativa para alterar o estado terminalizado existente da escala.' }
+  const needsJustification = terminalScale.revision > 0 && (assignedTerminalAltered || datesAltered || exportExpectationChanged)
+  if (validationError) return { error: validationError, needsJustification }
+  if (needsJustification && !justification.trim()) {
+    return { error: 'Informe a justificativa para alterar o estado terminalizado existente da escala.', needsJustification }
   }
 
   return {
+    needsJustification,
     value: {
       expectedRevision: terminalScale.revision,
       fronts,
@@ -446,6 +468,64 @@ function buildTerminalPayload({
       justification: justification.trim() || null,
     },
   }
+}
+
+function DateTimeField({
+  label,
+  ariaLabel,
+  hint,
+  date,
+  time,
+  onDateChange,
+  onTimeChange,
+}: {
+  label: string
+  ariaLabel: string
+  hint?: string
+  date: string
+  time: string
+  onDateChange: (value: string) => void
+  onTimeChange: (value: string) => void
+}) {
+  return (
+    <Field label={label} hint={hint}>
+      <div className="app-datetime">
+        <Input type="date" aria-label={ariaLabel} value={date} onChange={(event) => onDateChange(event.target.value)} />
+        <Input type="time" aria-label={`${ariaLabel} Hora`} value={time} onChange={(event) => onTimeChange(event.target.value)} />
+      </div>
+    </Field>
+  )
+}
+
+function EscalaSection({
+  icon,
+  title,
+  description,
+  aside,
+  children,
+  ref,
+  ...rest
+}: {
+  icon: ReactNode
+  title: string
+  description?: string
+  aside?: ReactNode
+  children: ReactNode
+  ref?: Ref<HTMLElement>
+} & Omit<HTMLAttributes<HTMLElement>, 'title'>) {
+  return (
+    <section ref={ref} {...rest} className={`app-escala-section${rest.className ? ` ${rest.className}` : ''}`}>
+      <header className="app-escala-section__heading">
+        <span className="app-escala-section__icon" aria-hidden="true">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <h3 className="app-escala-section__title">{title}</h3>
+          {description ? <p className="app-escala-section__description">{description}</p> : null}
+        </div>
+        {aside ? <div className="app-escala-section__aside">{aside}</div> : null}
+      </header>
+      {children}
+    </section>
+  )
 }
 
 function TerminalFrontEditor({
@@ -457,12 +537,6 @@ function TerminalFrontEditor({
   terminalIds,
   onTerminalChange,
   onDateChange,
-  justification,
-  onJustificationChange,
-  showJustification,
-  error,
-  blockers,
-  onReopenAdr,
   focusTerminalId,
 }: {
   scale: EscalaModalTerminalScale
@@ -473,143 +547,136 @@ function TerminalFrontEditor({
   terminalIds: string[]
   onTerminalChange: (front: OperationFront, terminalId: string) => void
   onDateChange: (terminalId: string, field: keyof TerminalDatesDraft, value: string) => void
-  justification: string
-  onJustificationChange: (value: string) => void
-  showJustification: boolean
-  error: string | null
-  blockers: ClosedAdrBlocker[]
-  onReopenAdr?: (blocker: ClosedAdrBlocker) => void
   focusTerminalId?: string | null
 }) {
   const sectionRef = useRef<HTMLElement>(null)
   const terminalRowRefs = useRef(new Map<string, HTMLDivElement>())
-  const grouped = (['importacao', 'exportacao'] as OperationFrontDirection[]).map((sentido) => ({
-    sentido,
-    fronts: scale.fronts.filter((front) => front.sentido === sentido),
-  })).filter((group) => group.fronts.length > 0)
+  const fronts = (['importacao', 'exportacao'] as OperationFrontDirection[])
+    .flatMap((sentido) => scale.fronts.filter((front) => front.sentido === sentido))
   const terminalIdsKey = terminalIds.join('|')
+  const pendingCount = fronts.filter((front) => !terminalFronts[frontKey(front)]).length
 
   useEffect(() => {
     if (focusTerminalId === undefined) return
     const target = (focusTerminalId ? terminalRowRefs.current.get(focusTerminalId) : null) ?? sectionRef.current
     if (!target) return
     target.scrollIntoView?.({ block: 'center' })
-    const focusTarget = (focusTerminalId ? target.querySelector<HTMLElement>('input, select') : null) ?? sectionRef.current
+    // O Restow vem antes das datas no cartão; a ação da Visão geral pede a data.
+    const focusTarget = (focusTerminalId
+      ? target.querySelector<HTMLElement>('input[type="date"]') ?? target.querySelector<HTMLElement>('input, select')
+      : null) ?? sectionRef.current
     const timeoutId = window.setTimeout(() => focusTarget?.focus(), 0)
     return () => window.clearTimeout(timeoutId)
   }, [focusTerminalId, terminalIdsKey])
 
   return (
-    <section ref={sectionRef} tabIndex={-1} aria-label="Terminais por operação" className="app-escala-section app-escala-terminals">
-      <div>
-        <h3 className="app-escala-section__title">Terminais por operação</h3>
-        <p className="app-escala-section__description">Cada operação ativa recebe seu próprio terminal. Sem atribuição, ela permanece em TBC e não cria uma atracação no planejamento.</p>
-      </div>
-      {grouped.map((group) => (
-        <div key={group.sentido} className="app-escala-operation-group">
-          <h4 className="app-escala-operation-group__title">{DIRECTION_LABELS[group.sentido]}</h4>
-          {group.fronts.map((front) => {
+    <EscalaSection
+      ref={sectionRef}
+      tabIndex={-1}
+      aria-label="Terminais por operação"
+      icon={<Warehouse size={16} />}
+      title="Terminais e atracações"
+      description="Cada operação ativa recebe seu próprio terminal. Sem atribuição, ela permanece em TBC e não cria uma atracação no planejamento."
+      aside={fronts.length > 0 ? (
+        <span className={`app-escala-pill ${pendingCount > 0 ? 'app-escala-pill--warning' : 'app-escala-pill--success'}`}>
+          {pendingCount > 0 ? `${pendingCount} em TBC` : 'Todas atribuídas'}
+        </span>
+      ) : null}
+    >
+      {fronts.length > 0 ? (
+        <div className="app-escala-fronts" role="list" aria-label="Operações da escala">
+          {fronts.map((front) => {
             const selected = terminalFronts[frontKey(front)] ?? ''
             return (
-              <div key={frontKey(front)} className="app-escala-operation-row">
-                <div>
-                  <div className="app-escala-operation-row__title">{DIRECTION_LABELS[front.sentido]} · {FRONT_LABELS[front.modalidade]}</div>
-                  <div className={selected ? 'app-escala-operation-row__meta' : 'app-escala-operation-row__meta app-escala-operation-row__meta--pending'}>
-                    {selected ? 'Terminal atribuído para esta operação' : 'TBC — pendente de atribuição de terminal'}
-                  </div>
+              <div key={frontKey(front)} role="listitem" className="app-escala-front">
+                <div className="app-escala-front__name">
+                  <Badge tone={front.sentido === 'importacao' ? 'blue' : 'green'}>{DIRECTION_LABELS[front.sentido]}</Badge>
+                  <span className="app-escala-front__kind">{FRONT_LABELS[front.modalidade]}</span>
                 </div>
-                <label className="app-escala-field app-escala-field--compact">
-                  Terminal
-                  <select
-                    aria-label={`Terminal da operação ${DIRECTION_LABELS[front.sentido]} ${FRONT_LABELS[front.modalidade]}`}
-                    className="app-input mt-1"
-                    value={selected}
-                    onChange={(event) => onTerminalChange(front, event.target.value)}
-                  >
-                    <option value="">TBC</option>
-                    {terminalOptions.map((option) => {
-                      const isCurrent = option.id === selected
-                      return (
-                        <option key={option.id} value={option.id} disabled={!option.active && !isCurrent}>
-                          {option.code}{!option.active ? ' (inativo · histórico)' : ''}
-                        </option>
-                      )
-                    })}
-                  </select>
-                </label>
+                <span className={selected ? 'app-escala-front__status' : 'app-escala-front__status app-escala-front__status--pending'}>
+                  {selected ? 'Terminal atribuído' : 'TBC — pendente'}
+                </span>
+                <select
+                  aria-label={`Terminal da operação ${DIRECTION_LABELS[front.sentido]} ${FRONT_LABELS[front.modalidade]}`}
+                  className="app-input app-select app-escala-front__select"
+                  value={selected}
+                  onChange={(event) => onTerminalChange(front, event.target.value)}
+                >
+                  <option value="">TBC</option>
+                  {terminalOptions.map((option) => {
+                    const isCurrent = option.id === selected
+                    return (
+                      <option key={option.id} value={option.id} disabled={!option.active && !isCurrent}>
+                        {option.code}{!option.active ? ' (inativo · histórico)' : ''}
+                      </option>
+                    )
+                  })}
+                </select>
               </div>
             )
           })}
         </div>
-      ))}
+      ) : (
+        <p className="app-escala-empty">Nenhuma operação ativa nesta escala ainda.</p>
+      )}
 
-      <div className="app-escala-terminal-dates">
-        <h4 className="app-escala-operation-group__title">Datas por terminal</h4>
-        {terminalIds.length === 0 ? <p className="app-escala-section__description">Nenhum terminal atribuído ainda. A chegada ETA/ATA permanece na escala.</p> : null}
-        {terminalIds.map((terminalId) => {
-          const option = terminalId === '__tbc__' ? undefined : terminalById.get(terminalId)
-          const draft = terminalDates[terminalId] ?? emptyTerminalDatesDraft()
-          const code = terminalId === '__tbc__' ? 'TBC' : option?.code ?? 'TBC'
-          return (
-            <div
-              key={terminalId}
-              ref={(node) => {
-                if (node) terminalRowRefs.current.set(terminalId, node)
-                else terminalRowRefs.current.delete(terminalId)
-              }}
-              className="app-escala-terminal-date-row"
-            >
-              <div className="app-escala-terminal-date-row__name">
-                {code}
-                {option?.active === false ? <div className="app-escala-operation-row__meta app-escala-operation-row__meta--pending">Terminal inativo · histórico</div> : null}
+      <div className="app-escala-subsection-title">Atracações por terminal</div>
+      {terminalIds.length === 0 ? (
+        <p className="app-escala-empty">Nenhum terminal atribuído ainda. A chegada ETA/ATA permanece na escala.</p>
+      ) : (
+        <div className="app-escala-berths">
+          {terminalIds.map((terminalId) => {
+            const option = terminalId === '__tbc__' ? undefined : terminalById.get(terminalId)
+            const draft = terminalDates[terminalId] ?? emptyTerminalDatesDraft()
+            const code = terminalId === '__tbc__' ? 'TBC' : option?.code ?? 'TBC'
+            const servedFronts = fronts.filter((front) => {
+              const selected = terminalFronts[frontKey(front)] || '__tbc__'
+              return selected === terminalId
+            })
+            const field = (key: keyof TerminalDatesDraft) => (value: string) => onDateChange(terminalId, key, value)
+            return (
+              <div
+                key={terminalId}
+                ref={(node) => {
+                  if (node) terminalRowRefs.current.set(terminalId, node)
+                  else terminalRowRefs.current.delete(terminalId)
+                }}
+                className="app-escala-berth"
+              >
+                <div className="app-escala-berth__head">
+                  <div className="min-w-0">
+                    <div className="app-escala-berth__code">
+                      {code}
+                      {option?.name && option.name !== code ? <span className="app-escala-berth__name">{option.name}</span> : null}
+                    </div>
+                    {option?.active === false ? <div className="app-escala-front__status app-escala-front__status--pending">Terminal inativo · histórico</div> : null}
+                    {servedFronts.length > 0 ? (
+                      <div className="app-escala-berth__fronts">
+                        {servedFronts.map((front) => (
+                          <span key={frontKey(front)} className="app-escala-berth__front">
+                            {DIRECTION_LABELS[front.sentido]} · {FRONT_LABELS[front.modalidade]}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <label className="app-escala-berth__restow">
+                    <span>Restow</span>
+                    <Input type="number" min="0" step="1" inputMode="numeric" aria-label={`Restow ${code}`} value={draft.restow} onChange={(event) => onDateChange(terminalId, 'restow', event.target.value)} placeholder="—" />
+                  </label>
+                </div>
+                <div className="app-escala-berth__grid">
+                  <DateTimeField label="ETB · previsto" ariaLabel={`ETB ${code}`} date={draft.etbDate} time={draft.etbTime} onDateChange={field('etbDate')} onTimeChange={field('etbTime')} />
+                  <DateTimeField label="ETD · previsto" ariaLabel={`ETD ${code}`} date={draft.etdDate} time={draft.etdTime} onDateChange={field('etdDate')} onTimeChange={field('etdTime')} />
+                  <DateTimeField label="ATB · realizado" ariaLabel={`ATB ${code}`} date={draft.atbDate} time={draft.atbTime} onDateChange={field('atbDate')} onTimeChange={field('atbTime')} />
+                  <DateTimeField label="ATD · realizado" ariaLabel={`ATD ${code}`} date={draft.atdDate} time={draft.atdTime} onDateChange={field('atdDate')} onTimeChange={field('atdTime')} />
+                </div>
               </div>
-              <Field label={`ETB ${code}`}>
-                <div className="flex gap-1">
-                  <Input type="date" aria-label={`ETB ${code}`} value={draft.etbDate} onChange={(event) => onDateChange(terminalId, 'etbDate', event.target.value)} />
-                  <Input type="time" aria-label={`ETB ${code} Hora`} value={draft.etbTime} onChange={(event) => onDateChange(terminalId, 'etbTime', event.target.value)} />
-                </div>
-              </Field>
-              <Field label={`ATB ${code}`}>
-                <div className="flex gap-1">
-                  <Input type="date" aria-label={`ATB ${code}`} value={draft.atbDate} onChange={(event) => onDateChange(terminalId, 'atbDate', event.target.value)} />
-                  <Input type="time" aria-label={`ATB ${code} Hora`} value={draft.atbTime} onChange={(event) => onDateChange(terminalId, 'atbTime', event.target.value)} />
-                </div>
-              </Field>
-              <Field label={`ETD ${code}`}>
-                <div className="flex gap-1">
-                  <Input type="date" aria-label={`ETD ${code}`} value={draft.etdDate} onChange={(event) => onDateChange(terminalId, 'etdDate', event.target.value)} />
-                  <Input type="time" aria-label={`ETD ${code} Hora`} value={draft.etdTime} onChange={(event) => onDateChange(terminalId, 'etdTime', event.target.value)} />
-                </div>
-              </Field>
-              <Field label={`ATD ${code}`}>
-                <div className="flex gap-1">
-                  <Input type="date" aria-label={`ATD ${code}`} value={draft.atdDate} onChange={(event) => onDateChange(terminalId, 'atdDate', event.target.value)} />
-                  <Input type="time" aria-label={`ATD ${code} Hora`} value={draft.atdTime} onChange={(event) => onDateChange(terminalId, 'atdTime', event.target.value)} />
-                </div>
-              </Field>
-              <Field label={`Restow ${code}`}><Input type="number" min="0" step="1" value={draft.restow} onChange={(event) => onDateChange(terminalId, 'restow', event.target.value)} /></Field>
-            </div>
-          )
-        })}
-      </div>
-
-      {showJustification ? (
-        <Field label="Justificativa da alteração">
-          <Input value={justification} onChange={(event) => onJustificationChange(event.target.value)} placeholder="Explique a troca de terminal, remoção ou ajuste de data" />
-        </Field>
-      ) : null}
-      {error ? <p role="alert" className="text-xs text-red-300">{error}</p> : null}
-      {blockers.length > 0 ? (
-        <div className="grid gap-2 rounded-md border border-red-400/30 bg-red-950/20 p-2 text-xs text-red-100">
-          {blockers.map((blocker) => (
-            <div key={`${blocker.reportId ?? 'report'}-${blocker.terminalId ?? 'terminal'}`} className="flex flex-wrap items-center justify-between gap-2">
-              <span>ADR fechado{blocker.terminalCode ? ` · terminal ${blocker.terminalCode}` : ''}{blocker.reportId ? ` · ${blocker.reportId}` : ''}</span>
-              <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => onReopenAdr?.(blocker)}>Reabrir ADR</Button>
-            </div>
-          ))}
+            )
+          })}
         </div>
-      ) : null}
-    </section>
+      )}
+    </EscalaSection>
   )
 }
 
@@ -650,6 +717,7 @@ export function EscalaModal({
   const [terminalFronts, setTerminalFronts] = useState<Record<string, string>>({})
   const [terminalDates, setTerminalDates] = useState<Record<string, TerminalDatesDraft>>({})
   const [justification, setJustification] = useState('')
+  const [justificationOpen, setJustificationOpen] = useState(false)
   const [terminalError, setTerminalError] = useState<string | null>(null)
   const [closedBlockers, setClosedBlockers] = useState<ClosedAdrBlocker[]>([])
   const [saving, setSaving] = useState(false)
@@ -726,6 +794,7 @@ export function EscalaModal({
     setTerminalError(null)
     setClosedBlockers([])
     setJustification('')
+    setJustificationOpen(false)
     const state = escala.terminalScale
     setTerminalFronts(Object.fromEntries(
       (state?.fronts ?? []).map((front) => [frontKey(front), front.terminalId ?? '']),
@@ -850,6 +919,43 @@ export function EscalaModal({
     setClosedBlockers([])
   }
 
+  const currentExportExpectation: Record<string, unknown> = {
+    tem_exportacao: temExportacao,
+    granito: temExportacao ? hasGranite : false,
+    vazios: temExportacao ? hasEmpty : false,
+    has_empty: temExportacao ? hasEmpty : false,
+    containers_qty: temExportacao && containersQty.trim() ? Number(containersQty) : null,
+    movements_qty: temExportacao && movementsQty.trim() ? Number(movementsQty) : null,
+    discharge_ports: temExportacao ? normalizeDischargePorts(dischargePorts.split(/[,;/\s]+/)) : [],
+    ce_status: ceStatus,
+    linked: linked === 'true',
+  }
+  const initialExportExpectation: Record<string, unknown> = escala
+    ? {
+        tem_exportacao: escala.temExportacao,
+        granito: escala.temExportacao ? escala.hasGranite : false,
+        vazios: escala.temExportacao ? escala.hasEmpty : false,
+        has_empty: escala.temExportacao ? escala.hasEmpty : false,
+        containers_qty: escala.temExportacao ? escala.containersQty : null,
+        movements_qty: escala.temExportacao ? escala.movementsQty : null,
+        discharge_ports: escala.temExportacao ? escala.dischargePorts : [],
+        ce_status: getEditableVoyagePodCeStatus(escala.ceStatus),
+        linked: Boolean(escala.linked),
+      }
+    : {}
+  // Mesmo cálculo do salvamento, refeito a cada render: o campo de
+  // justificativa aparece no instante em que a alteração passa a exigi-la.
+  const terminalPreview = buildTerminalPayload({
+    terminalScale,
+    terminalFronts,
+    terminalDates,
+    justification,
+    exportExpectation: currentExportExpectation,
+    initialExportExpectation,
+  })
+  const needsJustification = Boolean(terminalPreview.needsJustification)
+  const showJustification = needsJustification || justificationOpen || justification.trim() !== ''
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!escala) return
@@ -877,34 +983,7 @@ export function EscalaModal({
       setExportError('Uma nova declaração de exportação exige granito ou vazios.')
       return
     }
-    const terminalPayload = buildTerminalPayload({
-      terminalScale,
-      terminalFronts,
-      terminalDates,
-      justification,
-      exportExpectation: {
-        tem_exportacao: temExportacao,
-        granito: temExportacao ? hasGranite : false,
-        vazios: temExportacao ? hasEmpty : false,
-        has_empty: temExportacao ? hasEmpty : false,
-        containers_qty: temExportacao && containersQty.trim() ? Number(containersQty) : null,
-        movements_qty: temExportacao && movementsQty.trim() ? Number(movementsQty) : null,
-        discharge_ports: temExportacao ? normalizeDischargePorts(dischargePorts.split(/[,;/\s]+/)) : [],
-        ce_status: ceStatus,
-        linked: linked === 'true',
-      },
-      initialExportExpectation: {
-        tem_exportacao: escala.temExportacao,
-        granito: escala.temExportacao ? escala.hasGranite : false,
-        vazios: escala.temExportacao ? escala.hasEmpty : false,
-        has_empty: escala.temExportacao ? escala.hasEmpty : false,
-        containers_qty: escala.temExportacao ? escala.containersQty : null,
-        movements_qty: escala.temExportacao ? escala.movementsQty : null,
-        discharge_ports: escala.temExportacao ? escala.dischargePorts : [],
-        ce_status: getEditableVoyagePodCeStatus(escala.ceStatus),
-        linked: Boolean(escala.linked),
-      },
-    })
+    const terminalPayload = terminalPreview
     if (terminalPayload.error) {
       setTerminalError(terminalPayload.error)
       return
@@ -948,6 +1027,12 @@ export function EscalaModal({
     }
   }
 
+  const portCode = isNew ? (normalizePortCode(port) ?? port.trim().toUpperCase()) : escala?.port ?? ''
+  const portName = portCode ? formatPortDisplayName(portCode) : ''
+  const feedbackError = terminalError ?? terminalScale?.error ?? null
+  const graniteLocked = Boolean((escala?.graniteLocked ?? escala?.exportLocked) && hasGranite)
+  const emptyLocked = Boolean((escala?.emptyLocked ?? escala?.exportLocked) && hasEmpty)
+
   return (
     <Modal
       open={open}
@@ -959,72 +1044,61 @@ export function EscalaModal({
       {escala ? (
         <form className="app-escala-form" onSubmit={handleSubmit}>
           <div className="app-escala-summary">
-            <div>
-              <div className="app-escala-summary__voyage">{escala.voyageLabel}</div>
+            <span className="app-escala-summary__icon" aria-hidden="true"><MapPin size={20} /></span>
+            <div className="min-w-0 flex-1">
+              <div className="app-escala-summary__port">
+                <span>{portCode || 'Nova escala'}</span>
+                {portName && portName !== portCode ? <small>{portName}</small> : null}
+              </div>
               <div className="app-escala-summary__meta">
-              {isNew
-                ? 'Uma escala pode descarregar importação, embarcar exportação ou as duas.'
-                : `Escala: ${escala.port}`}
+                <Ship size={13} aria-hidden="true" />
+                {escala.voyageLabel}
               </div>
             </div>
-            <div className="app-escala-summary__status">{operationMode === 'both' ? 'Importação + exportação' : operationMode === 'import' ? 'Importação' : 'Exportação'}</div>
+            <div className="app-escala-summary__chips">
+              {temImportacao ? <Badge tone="blue">Importação</Badge> : null}
+              {temExportacao ? <Badge tone="green">Exportação</Badge> : null}
+            </div>
           </div>
 
           {isNew ? (
-            <div className="app-escala-section"><Field label="Porto da escala" error={portError ?? undefined}>
-              <Input
-                list="escala-port-suggestions"
-                value={port}
-                onChange={(event) => setPort(event.target.value.toUpperCase())}
-                placeholder="Ex.: BRVIX"
-              />
+            <EscalaSection icon={<MapPin size={16} />} title="Porto da escala" description="Uma escala pode descarregar importação, embarcar exportação ou as duas.">
+              <div className="app-escala-field-grid app-escala-field-grid--port">
+                <Field label="Porto da escala" error={portError ?? undefined}>
+                  <Input
+                    list="escala-port-suggestions"
+                    value={port}
+                    onChange={(event) => setPort(event.target.value.toUpperCase())}
+                    placeholder="Ex.: BRVIX"
+                    autoComplete="off"
+                  />
+                </Field>
+              </div>
               <datalist id="escala-port-suggestions">
                 {ESCALA_PORT_SUGGESTIONS.map((value) => (
                   <option key={value} value={value} />
                 ))}
               </datalist>
-            </Field></div>
+            </EscalaSection>
           ) : null}
 
-          <section aria-label="Chegada ao porto" className="app-escala-section">
-            <div className="app-escala-section__heading">
-              <div>
-                <h3 className="app-escala-section__title">Chegada ao porto</h3>
-                <p className="app-escala-section__description">Datas gerais da escala.</p>
-              </div>
-            </div>
+          <EscalaSection aria-label="Chegada ao porto" icon={<Clock size={16} />} title="Chegada ao porto" description="Previsão e chegada real do navio. O ATD da escala nasce das atracações.">
             <div className="app-escala-field-grid app-escala-field-grid--three">
-              <Field label="ETA">
-                <div className="flex gap-1">
-                  <Input type="date" aria-label="ETA" value={etaDate} onChange={(event) => setEtaDate(event.target.value)} />
-                  <Input type="time" aria-label="ETA Hora" value={etaTime} onChange={(event) => setEtaTime(event.target.value)} />
-                </div>
-              </Field>
-              <Field label="ATA">
-                <div className="flex gap-1">
-                  <Input type="date" aria-label="ATA" value={ataDate} onChange={(event) => setAtaDate(event.target.value)} />
-                  <Input type="time" aria-label="ATA Hora" value={ataTime} onChange={(event) => setAtaTime(event.target.value)} />
-                </div>
-              </Field>
-              <Field label="ATD derivado" hint={derivedTerminalAtdHint}>
-                <Input value={derivedTerminalAtd ? formatDateTimeBR(derivedTerminalAtd) : '—'} readOnly aria-readonly="true" aria-label="ATD derivado" />
+              <DateTimeField label="ETA · previsto" ariaLabel="ETA" date={etaDate} time={etaTime} onDateChange={setEtaDate} onTimeChange={setEtaTime} />
+              <DateTimeField label="ATA · realizado" ariaLabel="ATA" date={ataDate} time={ataTime} onDateChange={setAtaDate} onTimeChange={setAtaTime} />
+              <Field label="ATD da escala" hint={derivedTerminalAtdHint}>
+                <Input value={derivedTerminalAtd ? formatDateTimeBR(derivedTerminalAtd) : '—'} readOnly aria-readonly="true" aria-label="ATD derivado" tabIndex={-1} />
               </Field>
             </div>
-          </section>
+          </EscalaSection>
 
-          <section aria-label="Operação da escala" className="app-escala-section">
-            <div className="app-escala-section__heading">
-              <div>
-                <h3 className="app-escala-section__title">Operação da escala</h3>
-                <p className="app-escala-section__description">Escolha o que será operado nesta escala. Isso define as operações e os terminais que precisam ser planejados.</p>
-              </div>
-            </div>
+          <EscalaSection aria-label="Operação da escala" icon={<ArrowLeftRight size={16} />} title="Operação da escala" description="Define as operações e os terminais que precisam ser planejados nesta escala.">
             <div className="app-escala-operation-modes" role="group" aria-label="Modo de operação">
               {([
-                ['import', 'Somente importação', 'Descarregamento no porto da escala'],
-                ['both', 'Importação + exportação', 'Descarregamento e embarque na mesma escala'],
-                ['export', 'Somente exportação', 'Embarque de carga nesta escala'],
-              ] as const).map(([mode, title, description]) => (
+                ['import', 'Somente importação', 'Descarga no porto da escala', <ArrowDownToLine key="i" size={18} />],
+                ['both', 'Importação + exportação', 'Descarga e embarque na mesma escala', <ArrowLeftRight key="b" size={18} />],
+                ['export', 'Somente exportação', 'Embarque de carga nesta escala', <ArrowUpFromLine key="e" size={18} />],
+              ] as const).map(([mode, title, description, icon]) => (
                 <button
                   key={mode}
                   type="button"
@@ -1033,8 +1107,12 @@ export function EscalaModal({
                   aria-pressed={operationMode === mode}
                   onClick={() => { void handleOperationModeChange(mode) }}
                 >
-                  <span className="app-escala-operation-mode__title">{title}</span>
-                  <span className="app-escala-operation-mode__description">{description}</span>
+                  <span className="app-escala-operation-mode__icon" aria-hidden="true">{icon}</span>
+                  <span className="app-escala-operation-mode__text">
+                    <span className="app-escala-operation-mode__title">{title}</span>
+                    <span className="app-escala-operation-mode__description">{description}</span>
+                  </span>
+                  <span className="app-escala-operation-mode__check" aria-hidden="true"><Check size={14} /></span>
                 </button>
               ))}
             </div>
@@ -1043,124 +1121,132 @@ export function EscalaModal({
               <div className="app-escala-export-block">
                 <div className="app-escala-subsection-title">Carga de exportação</div>
                 <div className="app-escala-cargo-options">
-                  <button
-                    type="button"
-                    className={`app-escala-cargo-option${hasGranite ? ' app-escala-cargo-option--active' : ''}`}
-                    aria-pressed={hasGranite}
-                    disabled={Boolean((escala.graniteLocked ?? escala.exportLocked) && hasGranite)}
-                    onClick={() => { void handleDeclarationChange('granito', !hasGranite) }}
-                  >
-                    Granito
-                  </button>
-                  <button
-                    type="button"
-                    className={`app-escala-cargo-option${hasEmpty ? ' app-escala-cargo-option--active' : ''}`}
-                    aria-pressed={hasEmpty}
-                    disabled={Boolean((escala.emptyLocked ?? escala.exportLocked) && hasEmpty)}
-                    onClick={() => { void handleDeclarationChange('vazios', !hasEmpty) }}
-                  >
-                    Embarque de vazios
-                  </button>
+                  {([
+                    ['granito', 'Granito', hasGranite, graniteLocked],
+                    ['vazios', 'Embarque de vazios', hasEmpty, emptyLocked],
+                  ] as const).map(([kind, label, active, locked]) => (
+                    <button
+                      key={kind}
+                      type="button"
+                      className={`app-escala-cargo-option${active ? ' app-escala-cargo-option--active' : ''}`}
+                      aria-pressed={active}
+                      disabled={locked}
+                      title={locked ? 'Há carga vinculada; a declaração não pode ser retirada.' : undefined}
+                      onClick={() => { void handleDeclarationChange(kind, !active) }}
+                    >
+                      <span className="app-escala-cargo-option__box" aria-hidden="true">
+                        {locked ? <Lock size={12} /> : active ? <Check size={13} /> : null}
+                      </span>
+                      {label}
+                    </button>
+                  ))}
                 </div>
-                {hasEmpty ? (
-                  <div className="app-escala-empty-planning">
-                    <div className="app-escala-subsection-title">Planejamento do embarque de vazios</div>
-                    <div className="app-escala-field-grid app-escala-field-grid--two">
-                      <Field label="Quantidade de CNTR vazios">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={containersQty}
-                          onChange={(event) => setContainersQty(event.target.value)}
-                          placeholder="Opcional; quantidade operada"
-                        />
-                      </Field>
-                      <Field label="Movimentos">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={movementsQty}
-                          onChange={(event) => setMovementsQty(event.target.value)}
-                          placeholder="Opcional; quantidade operada"
-                        />
-                      </Field>
-                    </div>
-                  </div>
+                {escala.exportLocked && (hasGranite || hasEmpty) ? (
+                  <p className="app-escala-note"><Lock size={13} aria-hidden="true" />Há carga de exportação vinculada a esta escala; a declaração só pode ser retirada depois que a carga deixar de existir.</p>
                 ) : null}
                 {(hasGranite || hasEmpty) ? (
-                  <div className="app-escala-export-destination">
-                    <Field label="Portos de descarga">
-                      <Input
-                        value={dischargePorts}
-                        onChange={(event) => setDischargePorts(event.target.value.toUpperCase())}
-                        placeholder="Ex.: ITGOA, NLRTM"
-                      />
+                  <div className={`app-escala-field-grid ${hasEmpty ? 'app-escala-field-grid--three' : 'app-escala-field-grid--one'}`}>
+                    {hasEmpty ? (
+                      <>
+                        <Field label="Quantidade de CNTR vazios">
+                          <Input type="number" min="0" step="1" inputMode="numeric" value={containersQty} onChange={(event) => setContainersQty(event.target.value)} placeholder="Opcional" />
+                        </Field>
+                        <Field label="Movimentos">
+                          <Input type="number" min="0" step="1" inputMode="numeric" value={movementsQty} onChange={(event) => setMovementsQty(event.target.value)} placeholder="Opcional" />
+                        </Field>
+                      </>
+                    ) : null}
+                    <Field label="Portos de descarga" hint="Separe por vírgula. Forma a perna de exportação da rota.">
+                      <Input aria-label="Portos de descarga" value={dischargePorts} onChange={(event) => setDischargePorts(event.target.value.toUpperCase())} placeholder="Ex.: ITGOA, NLRTM" autoComplete="off" />
                     </Field>
-                    <p className="app-escala-section__description">Destino da carga embarcada nesta escala. Separe por vírgula; isso forma a perna de exportação da rota.</p>
                   </div>
-                ) : null}
+                ) : (
+                  <p className="app-escala-note">Selecione o que será embarcado nesta escala.</p>
+                )}
               </div>
             ) : null}
             {exportError ? <p role="alert" className="app-escala-error">{exportError}</p> : null}
-            {escala.exportLocked && (hasGranite || hasEmpty) ? (
-              <p className="app-escala-section__description">Há carga de exportação vinculada a esta escala; a declaração só pode ser retirada depois que a carga deixar de existir.</p>
-            ) : null}
-          </section>
+          </EscalaSection>
 
-          <section aria-label="BLs e CEs" className="app-escala-section">
-            <div className="app-escala-section__heading">
-              <div>
-                <h3 className="app-escala-section__title">BLs e CEs</h3>
-                <p className="app-escala-section__description">Status documental da importação e vínculo da escala.</p>
-              </div>
-            </div>
+          <EscalaSection aria-label="BLs e CEs" icon={<FileText size={16} />} title="BLs e CEs" description="Status documental da importação e vínculo da escala no Mercante.">
             <div className="app-escala-field-grid app-escala-field-grid--three">
               <Field label="BLs e CEs">
-                <select className="app-input" value={ceStatus} onChange={(event) => setCeStatus(event.target.value as EditableVoyagePodCeStatus)}>
+                <Select value={ceStatus} onChange={(event) => setCeStatus(event.target.value as EditableVoyagePodCeStatus)}>
                   {POD_CE_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </Select>
               </Field>
-              <Field label="Vinculada">
-                <select className="app-input" value={linked} onChange={(event) => setLinked(event.target.value as 'true' | 'false')}>
-                  <option value="true">SIM</option>
-                  <option value="false">NÃO</option>
-                </select>
-              </Field>
+              <div className="app-field">
+                <span className="app-field__label" id="escala-linked-label">Vinculada</span>
+                <div className="app-escala-segmented" role="radiogroup" aria-labelledby="escala-linked-label">
+                  {([['true', 'Sim'], ['false', 'Não']] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={linked === value}
+                      className={`app-escala-segmented__option${linked === value ? ' app-escala-segmented__option--active' : ''}`}
+                      onClick={() => setLinked(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Field label="Nº escala (Mercante)">
-                <Input value={escalaNumber} onChange={(event) => setEscalaNumber(event.target.value)} placeholder="Ex.: 25BR00481" />
+                <Input value={escalaNumber} onChange={(event) => setEscalaNumber(event.target.value)} placeholder="Ex.: 25BR00481" autoComplete="off" />
               </Field>
             </div>
-          </section>
+          </EscalaSection>
 
-          <div className="app-escala-terminal-container">
-            {terminalScale?.loading ? (
-              <div className="app-escala-section app-escala-loading">Carregando operações e terminais da escala…</div>
-            ) : terminalScale ? (
-              <TerminalFrontEditor
-                scale={terminalScale}
-                terminalFronts={terminalFronts}
-                terminalDates={terminalDates}
-                terminalOptions={terminalOptions}
-                terminalById={terminalById}
-                terminalIds={terminalIds}
-                onTerminalChange={handleTerminalChange}
-                onDateChange={handleTerminalDateChange}
-                justification={justification}
-                onJustificationChange={setJustification}
-                showJustification={hasPriorTerminalAssignment || terminalScale.revision > 0}
-                error={terminalError ?? terminalScale.error ?? null}
-                blockers={closedBlockers}
-                onReopenAdr={onReopenAdr}
-                focusTerminalId={escala.focusTerminalId}
-              />
-            ) : terminalError ? (
-              <p role="alert" className="text-xs text-red-300 px-4 py-2">{terminalError}</p>
-            ) : null}
-          </div>
+          {terminalScale?.loading ? (
+            <div className="app-escala-section app-escala-loading" role="status">Carregando operações e terminais da escala…</div>
+          ) : terminalScale ? (
+            <TerminalFrontEditor
+              scale={terminalScale}
+              terminalFronts={terminalFronts}
+              terminalDates={terminalDates}
+              terminalOptions={terminalOptions}
+              terminalById={terminalById}
+              terminalIds={terminalIds}
+              onTerminalChange={handleTerminalChange}
+              onDateChange={handleTerminalDateChange}
+              focusTerminalId={escala.focusTerminalId}
+            />
+          ) : null}
+
+          {showJustification ? (
+            <div className={`app-escala-justification${needsJustification ? ' app-escala-justification--required' : ''}`}>
+              <Field
+                label="Justificativa da alteração"
+                required={needsJustification}
+                hint={needsJustification ? 'Obrigatória: você alterou terminal, data ou exportação já registrados nesta escala.' : undefined}
+              >
+                {/* required={false}: a validação nativa do navegador atropelaria o
+                    alerta do modal, que diz por que a justificativa é exigida. */}
+                <Textarea rows={2} required={false} aria-label="Justificativa da alteração" value={justification} onChange={(event) => setJustification(event.target.value)} placeholder="Explique a troca de terminal, remoção ou ajuste de data" />
+              </Field>
+            </div>
+          ) : hasPriorTerminalAssignment ? (
+            <button type="button" className="app-escala-link" onClick={() => setJustificationOpen(true)}>
+              Adicionar justificativa à alteração
+            </button>
+          ) : null}
+
+          {feedbackError || closedBlockers.length > 0 ? (
+            <div className="app-escala-feedback">
+              {feedbackError ? (
+                <p role="alert" className="app-escala-feedback__message"><AlertTriangle size={15} aria-hidden="true" />{feedbackError}</p>
+              ) : null}
+              {closedBlockers.map((blocker) => (
+                <div key={`${blocker.reportId ?? 'report'}-${blocker.terminalId ?? 'terminal'}`} className="app-escala-feedback__blocker">
+                  <span>ADR fechado{blocker.terminalCode ? ` · terminal ${blocker.terminalCode}` : ''}{blocker.reportId ? ` · ${blocker.reportId}` : ''}</span>
+                  <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => onReopenAdr?.(blocker)}>Reabrir ADR</Button>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           <div className="app-modal__actions app-escala-actions">
             <Button variant="secondary" type="button" onClick={onClose}>

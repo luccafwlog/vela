@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../../../services/supabase', () => ({ supabase: {}, isSupabaseConfigured: true }))
@@ -131,6 +131,39 @@ describe('KPIs do cabeçalho da viagem', () => {
     } as unknown as Partial<Voyage>)
 
     expect(screen.getByText('vazios embarcados').previousElementSibling?.textContent).toBe('2')
+  })
+})
+
+describe('KPI de Importação', () => {
+  it('mostra contêineres e carga solta lado a lado, sem linha de TEU', () => {
+    renderCard({
+      bls: [
+        { id: 'bl-c', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [{ container_number: 'AAAU1000001', type: '40HC', is_imo: true, is_oog: false }] },
+        // Misto: o peso do B/L é dos contêineres; a carga solta é só bb_weight_ton.
+        { id: 'bl-m', batch_id: null, cargo_mode: 'misto', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bb_weight_ton: 12.5, total_weight_kg: 30000, bb_machine_qty: 1, bb_packages_qty: 4, bb_cbm: 20, bl_containers: [{ container_number: 'AAAU1000002', type: '20GP', is_imo: false, is_oog: true }] },
+        // B/L Avulso só com total_weight_kg: carga solta usa o fallback (7,5 t).
+        { id: 'bl-s', batch_id: null, cargo_mode: 'carga_solta', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bb_weight_ton: null, total_weight_kg: 7500, bb_machine_qty: 2, bb_packages_qty: 6, bb_cbm: 10, bl_containers: [] },
+      ],
+    } as unknown as Partial<Voyage>)
+
+    const containers = screen.getByRole('region', { name: 'Contêineres' })
+    const breakbulk = screen.getByRole('region', { name: 'Carga solta' })
+    expect(containers.textContent).toContain('2CNTRs distintos')
+    expect(within(containers).getByText('B/Ls').parentElement?.querySelector('strong')?.textContent).toBe('2')
+    expect(within(containers).getByText('IMO / OOG').parentElement?.querySelector('strong')?.textContent).toBe('1 / 1')
+    expect(breakbulk.textContent).toContain('20toneladas')
+    expect(within(breakbulk).getByText('B/Ls carga solta').parentElement?.querySelector('strong')?.textContent).toBe('2')
+    expect(within(breakbulk).getByText('Máquinas / Volumes').parentElement?.querySelector('strong')?.textContent).toBe('3 / 10')
+    expect(within(breakbulk).getByText('CBM').parentElement?.querySelector('strong')?.textContent).toBe('30')
+    expect(screen.queryByText('TEU')).toBeNull()
+  })
+
+  it('declara a ausência de carga solta em vez de esconder o bloco', () => {
+    renderCard({
+      bls: [{ id: 'bl-c', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [] }],
+    } as unknown as Partial<Voyage>)
+
+    expect(screen.getByRole('region', { name: 'Carga solta' }).textContent).toContain('sem carga solta')
   })
 })
 
