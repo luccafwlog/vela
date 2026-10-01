@@ -18,7 +18,7 @@ import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { ContainerDatesImportModal } from '../components/shared/ContainerDatesImportModal'
-import { CargoProfileBadge, ChargeStatusBadge } from '../components/shared/OperationalBadges'
+import { CargoProfileBadge, ChargeStatusBadge, ContainerOwnershipBadge } from '../components/shared/OperationalBadges'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { checkContainerDependencies, deleteContainers } from '../services/containers'
 import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
@@ -195,8 +195,8 @@ export function Containers() {
 
   const pageContainerIds = (data?.rows ?? []).map((row) => row.id)
   const allPageSelected = pageContainerIds.length > 0 && pageContainerIds.every((id) => selection.isSelected(id))
-  const containerColumnCount = isAdmin ? 11 : 10
-  const containerSkeletonTemplate = `${isAdmin ? '44px ' : ''}1.2fr repeat(9, 1fr)`
+  const containerColumnCount = isAdmin ? 12 : 11
+  const containerSkeletonTemplate = `${isAdmin ? '44px ' : ''}1.2fr repeat(10, 1fr)`
 
   return (
     <>
@@ -391,6 +391,7 @@ export function Containers() {
                 <th scope="col" className="px-4 py-3">POD</th>
                 <th scope="col" className="px-4 py-3">Tipo</th>
                 <th scope="col" className="px-4 py-3">Perfil</th>
+                <th scope="col" className="px-4 py-3">SOC/COC</th>
                 <th scope="col" className="px-4 py-3">Taxas locais</th>
                 <th scope="col" className="px-4 py-3">Ações</th>
               </tr>
@@ -455,6 +456,9 @@ export function Containers() {
                   <td className="px-4 py-3">{container.type ?? '-'}</td>
                   <td className="px-4 py-3">
                     <CargoProfileBadge isImo={Boolean(container.is_imo)} isOog={Boolean(container.is_oog)} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <ContainerOwnershipBadge ownership={container.ownership} />
                   </td>
                   <td className="px-4 py-3">
                     <ChargeStatusBadge status={container.bl?.charge_status ?? null} />

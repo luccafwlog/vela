@@ -113,6 +113,27 @@ export async function setContainerProfile(input: {
   if (error) throw new Error(error.message ?? 'Não foi possível alterar o perfil do container.')
 }
 
+/**
+ * SOC/COC do container. Mesmo contrato do perfil: justificativa obrigatória,
+ * histórico e recálculo das taxas locais (Drop Off e Damage Protection não
+ * cobram de SOC). A correção manual não é sobrescrita pelo Baplie; uma
+ * reimportação do B/L volta ao que o B/L declara.
+ */
+export async function setContainerOwnership(input: {
+  containerId: number
+  ownership: 'SOC' | 'COC'
+  justification: string
+  changedBy?: string | null
+}) {
+  const { error } = await supabase.rpc('set_bl_container_ownership', {
+    p_container_id: input.containerId,
+    p_ownership: input.ownership,
+    p_justification: input.justification,
+    p_changed_by: input.changedBy ?? undefined,
+  })
+  if (error) throw new Error(error.message ?? 'Não foi possível alterar SOC/COC do container.')
+}
+
 export async function setContainerUnpackingLocation(
   containerId: number,
   unpackingLocation: string | null,

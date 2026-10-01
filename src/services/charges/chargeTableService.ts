@@ -21,6 +21,7 @@ export type LocalChargeTableWithItems = {
     unit_value_brl: number | null
     unit_value_usd: number | null
     manual_only: boolean | null
+    applies_to_soc: boolean
     active: boolean | null
     sort_order: number | null
   }>
@@ -47,6 +48,8 @@ export type ChargeTableItemInput = {
   currency: 'BRL' | 'USD'
   unitValue: number
   manualOnly: boolean
+  /** false: o motor de taxas não conta containers SOC para este item */
+  appliesToSoc?: boolean
   active?: boolean
   sortOrder?: number
 }
@@ -77,6 +80,7 @@ export async function listLocalChargeTables(filters?: {
         unit_value_brl,
         unit_value_usd,
         manual_only,
+        applies_to_soc,
         active,
         sort_order
       )
@@ -170,6 +174,7 @@ export async function saveChargeTableItem(input: ChargeTableItemInput) {
     unit_value_usd: input.currency === 'USD' ? normalizedUnitValue : null,
     value_brl: input.currency === 'BRL' ? normalizedUnitValue : 0,
     manual_only: input.manualOnly,
+    applies_to_soc: input.appliesToSoc ?? true,
     active: input.active ?? true,
     sort_order: Number(input.sortOrder ?? 100),
   }

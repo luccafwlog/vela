@@ -187,6 +187,12 @@ Definidas em `src/services/queryKeys.ts`:
   uma tabela do cálculo.
 - `charge_table_items` possui categoria, base de aplicação, perfil, moeda e
   valor unitário; `manual_only` separa itens automáticos dos adicionáveis.
+  `applies_to_soc` (migration `121`, padrão `true`; opção "Cobra de container
+  SOC" no item) com `false` faz `resolve_bl_local_charge_items` contar só os
+  containers que não são SOC, com o mesmo rateio de container compartilhado e o
+  mesmo filtro de perfil. A migration marcou `false` nos itens Drop Off Fee e
+  Damage Protection Fee existentes; item novo com essa regra precisa da opção
+  desligada no cadastro.
 - `customer_rate_overrides` possui a substituição por cliente/item/vigência e,
   desde a migration `091`, `active`: override desativado não entra em cálculos
   novos nem disputa a vigência com um override novo.

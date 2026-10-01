@@ -97,10 +97,12 @@ export function BlVisaoGeralTab({ active, bl, cockpit, cargoMode, containerSumma
             {showBothLenses ? (
               <div className="mb-1 text-xs font-semibold text-[var(--app-muted)]">Contêineres</div>
             ) : null}
-            <dl className="grid gap-2 text-sm sm:grid-cols-3">
+            <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
               <Item label="Containers">{String(containerSummary.distinct)}</Item>
               <Item label="IMO">{String(containerSummary.imo)}</Item>
               <Item label="OOG">{String(containerSummary.oog)}</Item>
+              <Item label="SOC">{String(containerSummary.soc)}</Item>
+              <Item label="COC">{String(containerSummary.coc)}</Item>
             </dl>
             {bl.voyage_id && baplieStatus ? (
               <Link to={`/baplie?voyage=${bl.voyage_id}`} className="mt-3 inline-block">

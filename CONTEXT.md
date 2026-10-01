@@ -903,6 +903,17 @@ Classificação de carga perigosa segundo a International Maritime Organization.
 **OOG (Out of Gauge)**
 Container com dimensões fora do padrão ISO.
 
+**SOC / COC**
+Propriedade do container. **COC** (carrier owned) é do armador; **SOC**
+(shipper owned) é do próprio cliente. O B/L informa na linha do container e o
+Baplie no EQD (8077: 1 = SOC, 2 = COC). O B/L é soberano: o Baplie só preenche
+o que o B/L não declarou, e a discordância entre os dois aparece na conciliação
+do Baplie e na aba Carga do B/L, sem trocar o valor. Sem informação em nenhuma
+fonte, o container é tratado como COC e aparece como "Não informado".
+Container SOC não volta ao estoque: não tem devolução a esperar nem Demurrage,
+e não paga as taxas locais marcadas como "não cobra de SOC" (Drop Off Fee e
+Damage Protection Fee).
+
 ## Mercante
 
 **NCM**
