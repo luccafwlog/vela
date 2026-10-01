@@ -218,6 +218,12 @@ describe('toError', () => {
     expect(err.message).toBe('42501 Acesso negado pela política')
   })
 
+  it('preserva mensagem de erro genérico sem classificá-lo como banco', () => {
+    const err = toError({ message: 'Falha de rede' })
+    expect(err.name).toBe('Error')
+    expect(err.message).toBe('Falha de rede')
+  })
+
   it('retorna Error com mensagem padrão para valores nulos ou vazios', () => {
     expect(toError(null).message).toBe('Erro inesperado')
     expect(toError(undefined).message).toBe('Erro inesperado')

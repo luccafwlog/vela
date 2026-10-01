@@ -56,6 +56,9 @@ export function toError(error: unknown): Error {
       hint?: string | null
     }
     const message = candidate.message || extractErrorText(error) || 'Erro na operação do banco de dados'
+    if (typeof candidate.code !== 'string' || !candidate.code) {
+      return new Error(message, { cause: error })
+    }
     return new DatabaseError(message, {
       code: candidate.code ?? undefined,
       details: candidate.details ?? undefined,

@@ -247,9 +247,9 @@ function loadCachedROE(): RoeCache | null {
   }
 }
 
-function saveROECache(roe: number, ptax: number, effectiveDate: string) {
+function saveROECache(roe: number, ptax: number, effectiveDate: string, fetchedAt = new Date().toISOString()) {
   try {
-    const payload: RoeCache = { roe, ptax, effectiveDate, fetchedAt: new Date().toISOString() }
+    const payload: RoeCache = { roe, ptax, effectiveDate, fetchedAt }
     localStorage.setItem(ROE_CACHE_KEY, JSON.stringify(payload))
   } catch {
     // localStorage unavailable — ignore
@@ -280,13 +280,19 @@ async function loadDbExchangeRateReference(): Promise<RoeCache | null> {
     if (typeof supabase?.from !== 'function') return null
     const { data, error } = await supabase
       .from('exchange_rate_reference')
-      .select('ptax, roe, effective_date, updated_at')
+      .select('ptax, roe, effective_date, updated_at, source')
       .eq('id', 1)
       .maybeSingle()
-    if (error || !data) return null
+    if (error || !data || !['bcb_live', 'cached'].includes(data.source) || data.ptax == null) return null
     const roeNum = Number(data.roe)
     const ptaxNum = Number(data.ptax)
-    if (Number.isFinite(roeNum) && Number.isFinite(ptaxNum) && data.effective_date) {
+    if (
+      Number.isFinite(roeNum) && roeNum > 0 && roeNum <= 1000 &&
+      Number.isFinite(ptaxNum) && ptaxNum > 0 && ptaxNum <= 1000 &&
+      // numeric do Postgres e float do JS podem arredondar empates diferentemente.
+      Math.abs(roeNum - ptaxNum * DEMURRAGE_ROE_MARKUP) <= 0.00005 + Number.EPSILON * 1000 &&
+      data.effective_date
+    ) {
       return {
         roe: roeNum,
         ptax: ptaxNum,
@@ -335,7 +341,7 @@ export async function fetchROE(options: { ensurePersistence?: boolean } = {}): P
     // 1. Tenta recuperar a última cotação registrada no banco pelo backend (recalc-demurrage-ptax)
     const dbRef = await loadDbExchangeRateReference()
     if (dbRef) {
-      saveROECache(dbRef.roe, dbRef.ptax, dbRef.effectiveDate)
+      saveROECache(dbRef.roe, dbRef.ptax, dbRef.effectiveDate, dbRef.fetchedAt)
       return {
         roe: dbRef.roe,
         ptax: dbRef.ptax,

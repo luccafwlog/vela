@@ -66,7 +66,7 @@ describe('fetchROE', () => {
       select: () => ({
         eq: () => ({
           maybeSingle: () => Promise.resolve({
-            data: { ptax: 5.25, roe: 5.5913, effective_date: '2026-09-30', updated_at: '2026-09-30T17:00:00.000Z' },
+            data: { source: 'bcb_live', ptax: 5.25, roe: 5.5913, effective_date: '2026-09-30', updated_at: '2026-09-30T17:00:00.000Z' },
             error: null,
           }),
         }),
@@ -88,6 +88,40 @@ describe('fetchROE', () => {
     expect(reportBestEffortFailure).not.toHaveBeenCalled()
     // Atualiza o cache do localStorage
     expect(localStorage.getItem(ROE_CACHE_KEY)).toContain('5.5913')
+  })
+
+  it.each([
+    { source: 'manual', ptax: null, roe: 5.9 },
+    { source: 'manual', ptax: 5, roe: 5.9 },
+    { source: 'cached', ptax: 0, roe: 5.325 },
+    { source: 'cached', ptax: 5, roe: 0 },
+    { source: 'cached', ptax: 5, roe: 5.9 },
+  ])('ignora referência sem PTAX canônica: %j', async (reference) => {
+    from.mockImplementation(() => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({
+        data: { ...reference, effective_date: '2026-09-30', updated_at: '2026-09-30T17:00:00.000Z' },
+        error: null,
+      }) }) }),
+    }))
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))))
+
+    await expect(fetchROE()).rejects.toThrow('BCB offline e sem cache de PTAX disponivel')
+    expect(localStorage.getItem(ROE_CACHE_KEY)).toBeNull()
+  })
+
+  it('preserva a data de obtenção do banco ao reutilizar o cache local', async () => {
+    from.mockImplementationOnce(() => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({
+        data: { source: 'bcb_live', ptax: 5, roe: 5.325, effective_date: '2026-09-30', updated_at: '2026-09-30T17:00:00.000Z' },
+        error: null,
+      }) }) }),
+    }))
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))))
+
+    await fetchROE()
+    const result = await fetchROE()
+
+    expect(result.cachedAt).toBe('2026-09-30T17:00:00.000Z')
   })
 
   it('cai para o cache local quando banco e BCB não respondem e não reporta erro (VELA-A)', async () => {

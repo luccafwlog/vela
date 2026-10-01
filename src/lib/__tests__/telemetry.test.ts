@@ -310,7 +310,24 @@ describe('telemetryBeforeSend', () => {
     expect(result!.exception!.values![0].value).toContain('duplicate key value violates unique constraint')
   })
 
-  it('corrige type minificado de uma letra para DatabaseError preservando value', () => {
+  it('preserva causas e erros genéricos ao normalizar o objeto original', () => {
+    const result = telemetryBeforeSend(mockEvent({
+      exception: { values: [
+        { type: 'TypeError', value: 'Falha na causa' },
+        { type: 'Object', value: 'Objeto original' },
+      ] },
+    }), { originalException: { code: '23505', message: 'Chave duplicada' } })
+
+    expect(result!.exception!.values![0]).toEqual({ type: 'TypeError', value: 'Falha na causa' })
+    expect(result!.exception!.values![1].type).toBe('DatabaseError')
+
+    const generic = telemetryBeforeSend(mockEvent({
+      exception: { values: [{ type: 'Object', value: 'Falha de rede' }] },
+    }), { originalException: { message: 'Falha de rede' } })
+    expect(generic!.exception!.values![0].type).toBe('Error')
+  })
+
+  it('usa Error para type minificado sem evidência de banco preservando value', () => {
     const event = mockEvent({
       exception: {
         values: [
@@ -325,7 +342,7 @@ describe('telemetryBeforeSend', () => {
     const result = telemetryBeforeSend(event)
 
     expect(result).not.toBeNull()
-    expect(result!.exception!.values![0].type).toBe('DatabaseError')
+    expect(result!.exception!.values![0].type).toBe('Error')
     expect(result!.exception!.values![0].value).toBe('Falha ao processar registro')
   })
 })

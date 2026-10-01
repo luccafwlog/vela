@@ -343,6 +343,10 @@ ao responsável) e os alertas automáticos de alta prioridade. O build do Cloudf
 Pages usa os DSNs separados `VITE_SENTRY_DSN_INTERNAL` e
 `VITE_SENTRY_DSN_PORTAL`; o projeto interno também recebe os erros de Edge
 Functions via `SENTRY_DSN`.
+No navegador, erros conhecidos de refresh token inválido são descartados.
+Erros PostgREST recebem título legível; a normalização preserva as causas
+encadeadas e a sanitização de PII. Falha de PTAX com fallback disponível não
+gera evento de erro; falhas de persistência continuam observáveis.
 Mais: [sentry-configuracao.md](sentry-configuracao.md), [observabilidade.md](observabilidade.md).
 
 ### PostHog (eventos de produto)

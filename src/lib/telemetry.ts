@@ -130,17 +130,18 @@ export function telemetryBeforeSend(
   // Normaliza exceções com títulos minificados ou objetos crus de erro (VELA-16/1C etc.)
   if (event.exception?.values) {
     const rawOrig = hint?.originalException
-    const isDbObj = rawOrig && typeof rawOrig === 'object' && !(rawOrig instanceof Error)
+    const isDbObj = rawOrig && typeof rawOrig === 'object' && !(rawOrig instanceof Error) &&
+      'code' in rawOrig && typeof rawOrig.code === 'string'
     const dbText = isDbObj ? extractErrorText(rawOrig) : ''
 
-    event.exception.values.forEach((value) => {
-      if (isDbObj && dbText) {
+    event.exception.values.forEach((value, index, values) => {
+      if (isDbObj && dbText && index === values.length - 1) {
         value.type = 'DatabaseError'
         value.value = scrubPii(dbText)
       } else {
         const isObscuredType = !value.type || value.type === 'Object' || /^[a-zA-Z]{1,2}$/.test(value.type)
         if (isObscuredType) {
-          value.type = 'DatabaseError'
+          value.type = rawOrig instanceof Error ? rawOrig.name : 'Error'
         }
         if (value.value) {
           value.value = scrubPii(value.value)
