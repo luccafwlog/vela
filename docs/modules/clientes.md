@@ -272,3 +272,7 @@ chave global de envio e registra a origem como `automatico`; a chave de claim
 impede duplicação em execuções concorrentes. O histórico principal filtra
 navio, mês, modelo, status e origem; a viagem pode ser restringida pela ficha
 do cliente.
+
+### Caixas do contato principal
+
+O editor interno de contatos aplica a mesma regra do Perfil no Portal, compartilhada em `src/lib/customerContactDrafts.ts`: o principal sem vínculos começa com as três caixas marcadas; caixas sem substituto elegível são repostas no rascunho, e delegações salvas com cobertura são preservadas. Uma caixa do principal só pode ser desmarcada quando outro contato ativo, com e-mail e sem bloqueio de entrega, cobre aquela caixa. As alterações dependem de salvar; usuários sem permissão de edição visualizam os vínculos armazenados.

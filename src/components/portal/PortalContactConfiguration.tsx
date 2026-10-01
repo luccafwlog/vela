@@ -12,6 +12,7 @@ import {
 } from '../../services/customerCommunicationBoxes'
 import type { PortalContactDraft } from '../../services/portalContactConfiguration'
 import { isPortalReadOnly } from '../../services/portalScope'
+import { hasEligibleContactReplacement, isEligibleContact, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
 
 function formatOrigin(origin?: string): string {
   if (origin === 'bl_automatico') return 'Capturado do B/L'
@@ -48,22 +49,21 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
 
   useEffect(() => {
     if (data?.contacts && !dirtyRef.current) {
-      setDrafts(
-        data.contacts.map((c) => ({
-          id: c.id,
-          name: c.name,
-          email: c.email,
-          phone: c.phone,
-          isPrimary: c.is_primary,
-          active: c.active,
-          origin: c.origin,
-          boxCodes: [...c.box_codes],
-          suppressionReason: c.suppression_reason,
-          sendable: c.sendable,
-        })),
-      )
+      const loadedDrafts: PortalContactDraft[] = data.contacts.map((c) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        isPrimary: c.is_primary,
+        active: c.active,
+        origin: c.origin,
+        boxCodes: [...c.box_codes],
+        suppressionReason: c.suppression_reason,
+        sendable: c.sendable,
+      }))
+      setDrafts(isInspect ? loadedDrafts : normalizePrimaryContactBoxes(loadedDrafts))
     }
-  }, [data])
+  }, [data, isInspect])
 
   function markDirty() {
     dirtyRef.current = true
@@ -145,19 +145,19 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
   function handleToggleBox(index: number, boxCode: CommunicationBoxCode) {
     const target = drafts[index]
     if (!target) return
-    markDirty()
     const hasBox = target.boxCodes.includes(boxCode)
     if (hasBox && target.isPrimary) {
       // Se for o contato principal, verificar se há outro contato ativo cobrindo esta caixa
-      const otherHasBox = drafts.some(
-        (d, i) => i !== index && d.active && d.boxCodes.includes(boxCode),
-      )
+      const otherHasBox = hasEligibleContactReplacement(drafts, index, boxCode)
       if (!otherHasBox) {
         setLocalError(
-          'Para retirar o contato principal desta caixa, selecione outro e-mail para substituí-lo.',
+          'Para retirar o contato principal desta caixa, selecione outro e-mail ativo e apto a receber mensagens para substituí-lo.',
         )
+        return
       }
     }
+    markDirty()
+    setLocalError('')
     setDrafts((current) => {
       const currentTarget = current[index]
       if (!currentTarget) return current
@@ -207,7 +207,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
     // Checar se todas as caixas continuam cobertas por contatos ativos e elegíveis
     for (const box of CUSTOMER_COMMUNICATION_BOXES) {
       const hasCoverage = activeContacts.some(
-        (d) => d.boxCodes.includes(box.code) && d.sendable !== false && !d.suppressionReason,
+        (d) => d.boxCodes.includes(box.code) && isEligibleContact(d),
       )
       if (!hasCoverage) {
         setLocalError(
@@ -278,7 +278,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
   }
 
   return (
-    <div className="mt-8 border-t border-[var(--app-border)] pt-5">
+    <div className="min-w-0">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-[var(--app-text-strong)]">
@@ -293,7 +293,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
             type="button"
             variant="secondary"
             onClick={handleAddContact}
-            className="mt-2 sm:mt-0"
+            className="mt-2 shrink-0 sm:mt-0"
           >
             + Novo contato
           </Button>
@@ -315,7 +315,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
               }`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--app-border)]">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {contact.isPrimary ? (
                     <span className="inline-flex items-center rounded-md bg-blue-100 dark:bg-blue-900/60 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:text-blue-200">
                       Contato Principal
@@ -336,7 +336,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
                 </div>
 
                 {!isInspect && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {!contact.isPrimary && contact.active && (
                       <button
                         type="button"
@@ -363,7 +363,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
                 </div>
               )}
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)]">
                 <Field label="Nome">
                   <Input
                     type="text"
@@ -397,13 +397,18 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
                 <span className="text-xs font-semibold text-[var(--app-text-strong)]">
                   Caixas de recebimento:
                 </span>
+                {contact.isPrimary ? (
+                  <p className="mt-1 text-xs text-[var(--app-muted)]">
+                    Para desmarcar uma caixa, vincule antes outro contato ativo e apto a receber mensagens.
+                  </p>
+                ) : null}
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
                   {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
                     const checked = contact.boxCodes.includes(box.code)
                     return (
                       <label
                         key={box.code}
-                        className={`flex items-start gap-2 p-2 rounded border text-xs cursor-pointer ${
+                        className={`flex items-start gap-3 p-3 rounded border text-sm cursor-pointer ${
                           checked
                             ? 'border-blue-400 bg-blue-50/30 dark:bg-blue-900/20'
                             : 'border-[var(--app-border)] opacity-80'
@@ -420,7 +425,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
                           <div className="font-medium text-[var(--app-text-strong)]">
                             {box.label}
                           </div>
-                          <div className="text-[10px] text-[var(--app-muted)] mt-0.5">
+                          <div className="text-xs text-[var(--app-muted)] mt-1">
                             {box.description}
                           </div>
                         </div>

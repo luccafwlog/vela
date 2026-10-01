@@ -90,7 +90,7 @@ Portal.
 
 ### `/portal/perfil`
 
-`src/pages/PortalProfile.tsx` carrega email de contato, telefone e endereço via RPC, mantém os campos em estado local e salva somente o conjunto permitido. `NotificationBell`, em `PortalLayout`, fica disponível em todas as rotas protegidas.
+`src/pages/PortalProfile.tsx` carrega email de contato, telefone e endereço via RPC, mantém os campos em estado local e salva somente o conjunto permitido. A página usa a largura padrão do Portal: em telas grandes, Contatos e recebimento ocupa a coluna maior, com Dados cadastrais e Email de Recuperação em cartões na coluna lateral; em telas menores, as seções ficam empilhadas. Cada formulário mantém seu próprio botão de salvar e seus erros próximos aos campos. No Portal, o contato principal sem vínculos começa com as três caixas marcadas; vínculos ausentes sem outro destinatário elegível são repostos no rascunho, enquanto delegações já salvas com cobertura são preservadas. Só é possível desmarcar uma caixa do principal quando outro contato ativo, com e-mail e sem bloqueio de entrega, cobre aquela caixa. A gravação continua dependendo de Salvar contatos; o Modo Inspeção exibe os vínculos armazenados sem normalizar o rascunho. `NotificationBell`, em `PortalLayout`, fica disponível em todas as rotas protegidas.
 
 ### Provisionamento operacional
 

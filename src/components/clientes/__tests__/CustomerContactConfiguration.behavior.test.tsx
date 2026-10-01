@@ -55,7 +55,7 @@ describe('CustomerContactConfiguration (behavior)', () => {
     const user = userEvent.setup()
     fetchConfig.mockResolvedValueOnce({
       boxes: BOXES,
-      contacts: [primaryContact({ box_codes: ['documentacao_operacao'] })],
+      contacts: [primaryContact({ sendable: false })],
     })
     render(<CustomerContactConfiguration customerId={10} canEdit />)
     await screen.findByDisplayValue('principal@cliente.com')
@@ -108,4 +108,56 @@ describe('CustomerContactConfiguration (behavior)', () => {
     expect(screen.queryByRole('button', { name: 'Salvar alterações de contatos' })).toBeNull()
     expect(screen.queryByRole('button', { name: '+ Novo contato' })).toBeNull()
   })
+  it('principal sem vínculos carrega com as três caixas marcadas', async () => {
+    fetchConfig.mockResolvedValueOnce({ boxes: BOXES, contacts: [primaryContact({ box_codes: [] })] })
+    render(<CustomerContactConfiguration customerId={10} canEdit />)
+    await screen.findByDisplayValue('principal@cliente.com')
+    expect((screen.getAllByRole('checkbox') as HTMLInputElement[]).every((box) => box.checked)).toBe(true)
+  })
+
+  it('não desmarca caixa do principal sem substituto', async () => {
+    const user = userEvent.setup()
+    fetchConfig.mockResolvedValueOnce({ boxes: BOXES, contacts: [primaryContact()] })
+    render(<CustomerContactConfiguration customerId={10} canEdit />)
+    await screen.findByDisplayValue('principal@cliente.com')
+    const checkbox = screen.getAllByRole('checkbox')[1] as HTMLInputElement
+    await user.click(checkbox)
+    expect(checkbox.checked).toBe(true)
+    expect(screen.getByRole('alert').textContent).toContain('selecione outro e-mail')
+  })
+
+  it.each([{ active: false }, { sendable: false }, { suppression_reason: 'suprimido_bounce' }, { email: '' }])(
+    'não aceita substituto inelegível: %j', async (override) => {
+      const user = userEvent.setup()
+      fetchConfig.mockResolvedValueOnce({ boxes: BOXES, contacts: [primaryContact(), primaryContact({
+        id: 2, is_primary: false, email: 'outro@cliente.com', box_codes: ['financeiro'], ...override,
+      })] })
+      render(<CustomerContactConfiguration customerId={10} canEdit />)
+      await screen.findByDisplayValue('principal@cliente.com')
+      const checkbox = screen.getAllByRole('checkbox')[1] as HTMLInputElement
+      await user.click(checkbox)
+      expect(checkbox.checked).toBe(true)
+    },
+  )
+
+  it('permite delegar caixa a outro contato ativo e elegível', async () => {
+    const user = userEvent.setup()
+    fetchConfig.mockResolvedValueOnce({ boxes: BOXES, contacts: [primaryContact(), primaryContact({
+      id: 2, is_primary: false, email: 'outro@cliente.com', box_codes: ['financeiro'],
+    })] })
+    render(<CustomerContactConfiguration customerId={10} canEdit />)
+    await screen.findByDisplayValue('principal@cliente.com')
+    const checkbox = screen.getAllByRole('checkbox')[1] as HTMLInputElement
+    await user.click(checkbox)
+    expect(checkbox.checked).toBe(false)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('mantém vínculos armazenados para usuário sem permissão de edição', async () => {
+    fetchConfig.mockResolvedValueOnce({ boxes: BOXES, contacts: [primaryContact({ box_codes: [] })] })
+    render(<CustomerContactConfiguration customerId={10} canEdit={false} />)
+    await screen.findByDisplayValue('principal@cliente.com')
+    expect((screen.getAllByRole('checkbox') as HTMLInputElement[]).every((box) => !box.checked && box.disabled)).toBe(true)
+  })
+
 })

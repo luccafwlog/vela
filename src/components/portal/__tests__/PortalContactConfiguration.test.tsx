@@ -263,6 +263,7 @@ describe('PortalContactConfiguration', () => {
 
     renderComponent(true)
     await screen.findByDisplayValue('insp@cliente.com')
+    expect((screen.getAllByRole('checkbox') as HTMLInputElement[]).map((box) => box.checked)).toEqual([true, false, false])
     const form = document.querySelector('form')
     form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
 
@@ -288,9 +289,9 @@ describe('PortalContactConfiguration', () => {
           is_primary: true,
           active: true,
           origin: 'portal',
-          box_codes: ['documentacao_operacao'],
+          box_codes: ['documentacao_operacao', 'financeiro', 'demurrage'],
           suppression_reason: null,
-          sendable: true,
+          sendable: false,
         },
       ],
     })
@@ -305,4 +306,73 @@ describe('PortalContactConfiguration', () => {
     expect(await screen.findByText(/não pode ficar sem nenhum contato/i)).toBeTruthy()
     expect(saveContactConfig).not.toHaveBeenCalled()
   })
+  const allBoxes = ['documentacao_operacao', 'financeiro', 'demurrage']
+  const principal = {
+    id: 1, name: 'Principal', email: 'principal@cliente.com', phone: null,
+    is_primary: true, active: true, origin: 'portal', box_codes: allBoxes,
+    suppression_reason: null, sendable: true,
+  }
+  const additional = {
+    ...principal, id: 2, name: 'Financeiro', email: 'financeiro@cliente.com',
+    is_primary: false, box_codes: ['financeiro'],
+  }
+
+  it('marca as três caixas ao carregar principal sem vínculos', async () => {
+    getContactConfig.mockResolvedValueOnce({ boxes: [], contacts: [{ ...principal, box_codes: [] }] })
+    renderComponent()
+    await screen.findByDisplayValue(principal.email)
+    expect(screen.getAllByRole('checkbox').every((box) => (box as HTMLInputElement).checked)).toBe(true)
+  })
+
+  it('mantém marcada a caixa do principal quando não existe substituto', async () => {
+    const user = userEvent.setup()
+    getContactConfig.mockResolvedValueOnce({ boxes: [], contacts: [principal] })
+    renderComponent()
+    await screen.findByDisplayValue(principal.email)
+    const checkbox = screen.getAllByRole('checkbox')[1] as HTMLInputElement
+    await user.click(checkbox)
+    expect(checkbox.checked).toBe(true)
+    expect(screen.getByRole('alert').textContent).toContain('selecione outro e-mail')
+  })
+
+  it.each([
+    { active: false },
+    { sendable: false },
+    { suppression_reason: 'suprimido_bounce' },
+    { email: '' },
+  ])('não aceita substituto inelegível: %j', async (override) => {
+    const user = userEvent.setup()
+    getContactConfig.mockResolvedValueOnce({ boxes: [], contacts: [principal, { ...additional, ...override }] })
+    renderComponent()
+    await screen.findByDisplayValue(principal.email)
+    const checkbox = screen.getAllByRole('checkbox')[1] as HTMLInputElement
+    await user.click(checkbox)
+    expect(checkbox.checked).toBe(true)
+  })
+
+  it('permite desmarcar somente a caixa coberta por outro contato elegível', async () => {
+    const user = userEvent.setup()
+    getContactConfig.mockResolvedValueOnce({ boxes: [], contacts: [principal, additional] })
+    renderComponent()
+    await screen.findByDisplayValue(principal.email)
+    const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[]
+    await user.click(checkboxes[1])
+    expect(checkboxes[1].checked).toBe(false)
+    expect(screen.queryByRole('alert')).toBeNull()
+    await user.click(checkboxes[1])
+    expect(checkboxes[1].checked).toBe(true)
+    await user.click(checkboxes[0])
+    expect(checkboxes[0].checked).toBe(true)
+  })
+
+  it('preserva delegação salva e repõe caixa sem substituto no carregamento', async () => {
+    getContactConfig.mockResolvedValueOnce({ boxes: [], contacts: [
+      { ...principal, box_codes: ['documentacao_operacao'] }, additional,
+    ] })
+    renderComponent()
+    await screen.findByDisplayValue(principal.email)
+    const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[]
+    expect(checkboxes.slice(0, 3).map((box) => box.checked)).toEqual([true, false, true])
+  })
+
 })

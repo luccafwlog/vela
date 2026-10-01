@@ -120,4 +120,8 @@ it('avisa que a troca não começou quando o email de confirmação não sai', a
   await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Enviar link' }))
 
   expect(await screen.findByText(RECOVERY_EMAIL_SEND_FAILED_MESSAGE)).toBeTruthy()
+  const recoveryForm = screen.getByLabelText('Senha atual').closest('form')!
+  const addressForm = screen.getByLabelText('Endereço').closest('form')!
+  expect(within(recoveryForm).getByRole('alert').textContent).toContain(RECOVERY_EMAIL_SEND_FAILED_MESSAGE)
+  expect(within(addressForm).queryByRole('alert')).toBeNull()
 })

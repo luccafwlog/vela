@@ -44,26 +44,26 @@ export function PortalProfile() {
 
   return (
     <>
-      <PageHeader title="Meu perfil" description="Atualize seus dados de contato e endereco." />
+      <PageHeader title="Meu perfil" description="Atualize seus contatos, endereço e e-mail de recuperação." />
 
-      <Card className="max-w-xl p-5">
-        {profile.data ? (
-          <PortalProfileForm
-            profile={profile.data}
-            updateProfile={profile.updateProfile.mutateAsync}
-            loadError={loadError}
-            loadFailed={profile.isError}
-            readOnly={readOnly}
-          />
-        ) : (
+      {profile.data ? (
+        <PortalProfileForm
+          profile={profile.data}
+          updateProfile={profile.updateProfile.mutateAsync}
+          loadError={loadError}
+          loadFailed={profile.isError}
+          readOnly={readOnly}
+        />
+      ) : (
+        <Card className="p-5">
           <div className="grid gap-4">
             {loadError ? <InlineError message={loadError} /> : <div className="text-sm text-[var(--app-muted)]">Carregando perfil...</div>}
             <div className="flex justify-end">
               <Button disabled type="button">Salvar alteracoes</Button>
             </div>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
     </>
   )
 }
@@ -100,6 +100,7 @@ function PortalProfileForm({
   const [newRecoveryEmail, setNewRecoveryEmail] = useState('')
   const [confirmRecoveryEmail, setConfirmRecoveryEmail] = useState('')
   const [emailSubmitting, setEmailSubmitting] = useState(false)
+  const [recoveryError, setRecoveryError] = useState('')
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -146,8 +147,8 @@ function PortalProfileForm({
   }
 
   async function handleRecoveryEmailChange(event: FormEvent) {
-    event.preventDefault(); setError('')
-    if (newRecoveryEmail.trim().toLowerCase() !== confirmRecoveryEmail.trim().toLowerCase()) { setError('Os emails de recuperação não conferem.'); return }
+    event.preventDefault(); setRecoveryError('')
+    if (newRecoveryEmail.trim().toLowerCase() !== confirmRecoveryEmail.trim().toLowerCase()) { setRecoveryError('Os emails de recuperação não conferem.'); return }
     if (readOnly) return
     const nextRecoveryEmail = newRecoveryEmail.trim().toLowerCase()
     const confirmed = await confirm({
@@ -163,48 +164,55 @@ function PortalProfileForm({
     try {
       const { error: invokeError } = await supabasePortal.functions.invoke('portal-recovery-email-change', { body: { action: 'request', current_password: currentPassword, new_email: nextRecoveryEmail } })
       const status = (invokeError as { context?: { status?: number } } | null)?.context?.status
-      if (status === 429) { setError(RECOVERY_EMAIL_RATE_LIMIT_MESSAGE); return }
-      if (status === 502) { setError(RECOVERY_EMAIL_SEND_FAILED_MESSAGE); return }
+      if (status === 429) { setRecoveryError(RECOVERY_EMAIL_RATE_LIMIT_MESSAGE); return }
+      if (status === 502) { setRecoveryError(RECOVERY_EMAIL_SEND_FAILED_MESSAGE); return }
       if (invokeError) throw invokeError
       showToast('Enviamos um link para confirmar o novo email.', 'success')
       setCurrentPassword(''); setNewRecoveryEmail(''); setConfirmRecoveryEmail('')
-    } catch (err) { setError(portalErrorMessage(err, 'Não foi possível iniciar a troca de email.')) } finally { setEmailSubmitting(false) }
+    } catch (err) { setRecoveryError(portalErrorMessage(err, 'Não foi possível iniciar a troca de email.')) } finally { setEmailSubmitting(false) }
   }
 
   return (
-    <>
-      <form className="grid gap-4" onSubmit={handleSubmit}>
-        <h2 className="text-lg font-semibold text-[var(--app-text-strong)]">Dados cadastrais</h2>
-        <Field label="Endereço">
-          <Input
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Rua, numero, complemento"
-          />
-        </Field>
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <Card className="min-w-0 p-5">
+        <PortalContactConfiguration readOnly={readOnly} />
+      </Card>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Cidade">
-            <Input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Sao Paulo" />
-          </Field>
-          <Field label="Estado">
-            <Input type="text" value={state} onChange={(e) => setState(e.target.value)} placeholder="SP" maxLength={2} />
-          </Field>
-          <Field label="CEP">
-            <Input type="text" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="01000-000" />
-          </Field>
-        </div>
+      <div className="grid min-w-0 gap-6">
+        <Card className="min-w-0 p-5">
+          <form className="grid gap-4" onSubmit={handleSubmit}>
+            <h2 className="text-lg font-semibold text-[var(--app-text-strong)]">Dados cadastrais</h2>
+            <Field label="Endereço">
+              <Input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Rua, número, complemento"
+              />
+            </Field>
 
-        {loadError || error ? <InlineError message={error || loadError} /> : null}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <Field label="Cidade">
+                  <Input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="São Paulo" />
+                </Field>
+              </div>
+              <Field label="Estado">
+                <Input type="text" value={state} onChange={(e) => setState(e.target.value)} placeholder="SP" maxLength={2} />
+              </Field>
+              <Field label="CEP">
+                <Input type="text" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="01000-000" />
+              </Field>
+            </div>
 
-        <div className="flex justify-end">
-          <Button disabled={readOnly || loadFailed} loading={submitting} type="submit" title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Salvar alterações</Button>
-        </div>
-      </form>
+            {loadError || error ? <InlineError message={error || loadError} /> : null}
 
-      <PortalContactConfiguration readOnly={readOnly} />
-        <div className="mt-8 border-t border-[var(--app-border)] pt-5">
+            <div className="flex justify-end">
+              <Button disabled={readOnly || loadFailed} loading={submitting} type="submit" title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Salvar alterações</Button>
+            </div>
+          </form>
+        </Card>
+        <Card className="min-w-0 p-5">
           <h2 className="text-lg font-semibold">Email de Recuperação</h2>
           <p className="mt-1 text-sm text-[var(--app-muted)]">O endereço atual permanece válido até a confirmação do novo.</p>
           <form className="mt-4 grid gap-4" onSubmit={handleRecoveryEmailChange}>
@@ -212,9 +220,11 @@ function PortalProfileForm({
             <p className="-mt-2 text-xs text-[var(--app-muted)]">Errar a senha aqui consome as mesmas tentativas do login do Portal.</p>
             <Field label="Novo email"><Input type="email" value={newRecoveryEmail} onChange={(e) => setNewRecoveryEmail(e.target.value)} /></Field>
             <Field label="Confirmar novo email"><Input type="email" value={confirmRecoveryEmail} onChange={(e) => setConfirmRecoveryEmail(e.target.value)} /></Field>
+            {recoveryError ? <InlineError message={recoveryError} /> : null}
             <div className="flex justify-end"><Button disabled={readOnly} loading={emailSubmitting} type="submit" title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Solicitar troca de email</Button></div>
           </form>
-        </div>
-    </>
+        </Card>
+      </div>
+    </div>
   )
 }

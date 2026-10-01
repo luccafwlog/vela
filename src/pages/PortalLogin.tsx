@@ -97,7 +97,7 @@ export function PortalLogin() {
           />
           <div>
             <h1 className="app-auth__title">Portal do cliente</h1>
-            <p className="app-auth__subtitle">Consulte faturas emitidas e consolide B/Ls prontos para faturamento.</p>
+            <p className="app-auth__subtitle">Consulte informações sobre navios, cargas e faturas.</p>
           </div>
         </div>
 
@@ -157,9 +157,12 @@ export function PortalLogin() {
         </div>
 
         <p className="app-auth__meta">
-          Acesso provisionado internamente por cliente. Não há cadastro público.
+          Acesso provisionado exclusivamente pela FWLOG.
           <br />
-          Problemas para acessar? Solicite um novo acesso ao seu contato comercial na Transhipping.
+          Problemas para acessar? Solicite um novo acesso com nossa equipe através do{' '}
+          <a href="mailto:suporte@fwlog.com.br" className="text-[var(--app-link)] underline">
+            suporte
+          </a>
         </p>
       </Card>
     </main>
