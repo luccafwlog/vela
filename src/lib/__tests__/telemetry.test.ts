@@ -11,6 +11,7 @@ const sentryMock = vi.hoisted(() => ({
 vi.mock('@sentry/react', () => sentryMock)
 
 import {
+  humanizeDatabaseError,
   isIgnoredAuthError,
   markStartupStage,
   redactUrlQueryString,
@@ -24,6 +25,7 @@ import {
   scrubPii,
   telemetryBeforeSend,
 } from '../telemetry'
+import { DatabaseError } from '../errors'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -307,7 +309,13 @@ describe('telemetryBeforeSend', () => {
 
     expect(result).not.toBeNull()
     expect(result!.exception!.values![0].type).toBe('DatabaseError')
-    expect(result!.exception!.values![0].value).toContain('duplicate key value violates unique constraint')
+    // Título legível por humanos em vez do texto cru do banco.
+    expect(result!.exception!.values![0].value).toBe('[Conflito de dados] 23505')
+    expect(result!.fingerprint).toEqual(['erro-banco', 'conflito', '23505'])
+    expect(result!.contexts!.database).toMatchObject({
+      tipo: 'Conflito de dados',
+      codigo: '23505',
+    })
   })
 
   it('preserva causas e erros genéricos ao normalizar o objeto original', () => {
@@ -344,5 +352,58 @@ describe('telemetryBeforeSend', () => {
     expect(result).not.toBeNull()
     expect(result!.exception!.values![0].type).toBe('Error')
     expect(result!.exception!.values![0].value).toBe('Falha ao processar registro')
+  })
+})
+
+describe('humanizeDatabaseError', () => {
+  it('gera título legível para sessão expirada (caso PORTAL-2)', () => {
+    const humanized = humanizeDatabaseError(
+      new DatabaseError('JWT expired', { code: 'PGRST301' }),
+    )
+
+    expect(humanized).not.toBeNull()
+    expect(humanized!.title).toBe('[Sessão expirada] PGRST301')
+    expect(humanized!.fingerprint).toEqual(['erro-banco', 'sessao_expirada', 'PGRST301'])
+    expect(humanized!.context.tipo).toBe('Sessão expirada')
+    expect(humanized!.context.codigo).toBe('PGRST301')
+    expect(humanized!.context.mensagem).toContain('sessao expirou')
+  })
+
+  it('aceita objeto cru do Supabase/PostgREST além da instância', () => {
+    const humanized = humanizeDatabaseError({
+      code: '42501',
+      message: 'permission denied for table faturas',
+    })
+
+    expect(humanized!.title).toBe('[Sem permissão] 42501')
+    expect(humanized!.fingerprint).toEqual(['erro-banco', 'permissao', '42501'])
+  })
+
+  it('retorna null para erros que não são de banco', () => {
+    expect(humanizeDatabaseError(new Error('boom'))).toBeNull()
+    expect(humanizeDatabaseError('texto')).toBeNull()
+    expect(humanizeDatabaseError({ message: 'sem code' })).toBeNull()
+    expect(humanizeDatabaseError(null)).toBeNull()
+  })
+
+  it('redige PII do contexto antes de enviar', () => {
+    const humanized = humanizeDatabaseError({
+      code: '23505',
+      message: 'duplicate key',
+      details: 'Key (cnpj)=(12.345.678/0001-90) already exists.',
+    })
+
+    expect(humanized!.context.detalhes).not.toContain('12.345.678/0001-90')
+  })
+
+  it('anexa o contexto database no evento do beforeSend', () => {
+    const result = telemetryBeforeSend(
+      mockEvent({ exception: { values: [{ type: 'Ki', value: '' }] } }),
+      { originalException: new DatabaseError('JWT expired', { code: 'PGRST301' }) },
+    )
+
+    expect(result!.exception!.values![0].value).toBe('[Sessão expirada] PGRST301')
+    const dbContext = result!.contexts?.database as Record<string, string> | undefined
+    expect(dbContext?.tipo).toBe('Sessão expirada')
   })
 })

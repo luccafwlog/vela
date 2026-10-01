@@ -2,7 +2,8 @@
 // (alertas, trilha de auditoria, payload PIX e escritas auxiliares).
 
 import * as Sentry from '@sentry/react'
-import { extractErrorText, toError } from './errors'
+import { DatabaseError, classifyDbError, toError } from './errors'
+import type { DbErrorKind } from './errors'
 import {
   redactTelemetryUrl,
   scrubTelemetryText,
@@ -118,6 +119,58 @@ export function isIgnoredAuthError(event: Sentry.ErrorEvent, hint?: Sentry.Event
   return false
 }
 
+/** Rótulos curtos e legíveis por humanos para cada categoria de erro de banco.
+ * Viram o título da issue no Sentry: `[Sessão expirada] PGRST301`. */
+const DB_KIND_LABELS: Record<DbErrorKind, string> = {
+  permissao: 'Sem permissão',
+  sessao_expirada: 'Sessão expirada',
+  conflito: 'Conflito de dados',
+  limite: 'Limite excedido',
+  validacao: 'Dados inválidos',
+  nao_encontrado: 'Não encontrado',
+  desconhecido: 'Erro de banco',
+}
+
+export type HumanizedDatabaseError = {
+  /** Título da issue, ex.: `[Sessão expirada] PGRST301`. */
+  title: string
+  /** Agrupamento estável por categoria+código, independente do texto. */
+  fingerprint: string[]
+  /** Seção "database" exibida na página da issue, já sem PII. */
+  context: Record<string, string>
+}
+
+/**
+ * Extrai de um erro de banco (instância `DatabaseError` ou objeto cru do
+ * Supabase/PostgREST) um título legível, um fingerprint estável e um
+ * contexto estruturado para a issue do Sentry. Retorna null para qualquer
+ * outra coisa — nesses casos a normalização padrão do beforeSend se aplica.
+ */
+export function humanizeDatabaseError(error: unknown): HumanizedDatabaseError | null {
+  const instance = error instanceof DatabaseError ? error : null
+  const rawCode = !instance && error && typeof error === 'object' && 'code' in error
+    ? (error as { code?: unknown }).code
+    : undefined
+  if (!instance && typeof rawCode !== 'string') return null
+  const code = instance?.code ?? (typeof rawCode === 'string' ? rawCode : undefined)
+
+  const classified = classifyDbError(error)
+  const label = DB_KIND_LABELS[classified.kind]
+  const title = code ? `[${label}] ${code}` : `[${label}]`
+  const fingerprint = ['erro-banco', classified.kind, code ?? 'sem-codigo']
+
+  const rawDetails = instance?.details ?? (error as { details?: unknown } | null)?.details
+  const rawHint = instance?.hint ?? (error as { hint?: unknown } | null)?.hint
+  const context: Record<string, string> = {
+    tipo: label,
+    mensagem: scrubPii(classified.message),
+  }
+  if (code) context.codigo = code
+  if (typeof rawDetails === 'string' && rawDetails) context.detalhes = scrubPii(rawDetails)
+  if (typeof rawHint === 'string' && rawHint) context.dica = scrubPii(rawHint)
+  return { title, fingerprint, context }
+}
+
 export function telemetryBeforeSend(
   event: Sentry.ErrorEvent,
   hint?: Sentry.EventHint,
@@ -127,17 +180,20 @@ export function telemetryBeforeSend(
     return null
   }
 
-  // Normaliza exceções com títulos minificados ou objetos crus de erro (VELA-16/1C etc.)
+  // Erros de banco ganham título legível, agrupamento estável e contexto
+  // estruturado ("[Sessão expirada] PGRST301") em vez do objeto cru ou do
+  // nome minificado ("qi", "Gi"). Demais exceções passam pela normalização
+  // padrão abaixo.
   if (event.exception?.values) {
     const rawOrig = hint?.originalException
-    const isDbObj = rawOrig && typeof rawOrig === 'object' && !(rawOrig instanceof Error) &&
-      'code' in rawOrig && typeof rawOrig.code === 'string'
-    const dbText = isDbObj ? extractErrorText(rawOrig) : ''
+    const humanized = humanizeDatabaseError(rawOrig)
 
     event.exception.values.forEach((value, index, values) => {
-      if (isDbObj && dbText && index === values.length - 1) {
+      if (humanized && index === values.length - 1) {
         value.type = 'DatabaseError'
-        value.value = scrubPii(dbText)
+        value.value = humanized.title
+        event.fingerprint = humanized.fingerprint
+        event.contexts = { ...event.contexts, database: humanized.context }
       } else {
         const isObscuredType = !value.type || value.type === 'Object' || /^[a-zA-Z]{1,2}$/.test(value.type)
         if (isObscuredType) {
