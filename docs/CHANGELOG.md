@@ -15,6 +15,8 @@
   Reemissão automática (`126`): reimportação com override ou flags do Baplie que
   mudam a base de B/L faturado sem pagamento cancelam e reemitem a individual e a
   consolidada; recálculo depois do cancelamento não esbarra mais nos itens cancelados.
+  Ficha do B/L: saem **Marcar revisado** (RPC sem `EXECUTE`, `127`) e **Pronto para
+  faturar**; entra **Emitir fatura**, com confirmação e só para o Administrativo.
   [ADR 0077](adr/0077-fatura-emitida-nao-muda-de-valor.md); rollout remoto não verificado.
 
 - **SOC/COC do container (2026-10-01):** migration `121`. O container passa a ser SOC (do

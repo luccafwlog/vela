@@ -119,6 +119,8 @@ describeLocal('122 — fatura emitida não muda de valor; correção cancela e r
     expect(add.status).not.toBe(0)
     expect(add.stderr).toMatch(/permission denied/)
     expect(remove.stderr).toMatch(/permission denied/)
+    // 127: Marcar revisado saiu; a RPC não aceita chamada direta.
+    expect(asAdmin(`SELECT public.mark_bl_charges_reviewed('${blIds[0]}', NULL)`).stderr).toMatch(/permission denied/)
     expect(psql(`SELECT total_brl FROM public.invoices WHERE id = ${invoiceIds[0]};`)).toBe('100.00')
   })
 

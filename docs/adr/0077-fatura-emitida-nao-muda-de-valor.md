@@ -1,6 +1,6 @@
 # 0077 — Fatura emitida não muda de valor
 
-Status: aceito — 2026-10-01. Implementação local nas migrations `122` a `126`; deploy remoto não verificado.
+Status: aceito — 2026-10-01. Implementação local nas migrations `122` a `127`; deploy remoto não verificado.
 
 ## Contexto
 
@@ -27,6 +27,11 @@ A edição de itens manuais em fatura emitida contradizia o congelamento da
    emissão automática do CE e com as mesmas travas. Se uma trava impedir a
    emissão, as faturas ficam em Reemissão pendente e o alerta diz o motivo.
    O Cancelar e reemitir manual continua para correções fora desses fluxos.
+   A ficha do B/L perde **Marcar revisado** e **Pronto para faturar** (migration
+   `127`): a confirmação do cálculo é o CE Mercante. **Emitir fatura**
+   (Administrativo, com confirmação) cobre só a emissão que o automático não fez
+   ou desfez: reemissão depois de Cancelar e reemitir, Reemissão pendente com a
+   trava resolvida e falha da emissão automática.
 3. Serviço eventual é decisão do operador. Pode acompanhar a reemissão sem
    pagamento ou gerar avulsa; com pagamento, só avulsa. **Tipo de cobrança**
    resolve itens `manual_only` da tabela do B/L e a Condição do Cliente.
@@ -68,7 +73,7 @@ que o cancelamento da COB anterior foi confirmado. Este checkout usa Pix estáti
 ## Evidência
 
 Código: `InvoiceDetailModal`, `InvoiceCorrectionPanel`, `ManualInvoiceModal`,
-`PortalInvoiceDetailModal`, migrations `122`–`126`.
+`PortalInvoiceDetailModal`, migrations `122`–`127`.
 Testes: `invoiceCorrection.local-pg.test.ts`, `invoiceReissue.local-pg.test.ts`,
 `InvoiceCorrectionPanel.test.tsx`, `ManualInvoiceModal.test.tsx`.
 Postgres local usa shims; não comprova Auth/API nem rollout remoto.

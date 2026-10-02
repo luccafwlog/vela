@@ -618,26 +618,6 @@ export async function deleteManualBlCharge(chargeCalculationId: number, actorId?
   return data
 }
 
-export async function markBlChargesReviewed(blId: string, actorId?: string | null) {
-  const { data, error } = await supabase.rpc('mark_bl_charges_reviewed', {
-    p_bl_id: blId,
-    ...(actorId == null ? {} : { p_actor: actorId }),
-  })
-
-  if (error) throw error
-  return data
-}
-
-export async function markBlReadyForBilling(blId: string, actorId?: string | null) {
-  const { data, error } = await supabase.rpc('mark_bl_ready_for_billing', {
-    p_bl_id: blId,
-    ...(actorId == null ? {} : { p_actor: actorId }),
-  })
-
-  if (error) throw error
-  return data
-}
-
 export async function calculateLocalChargesBatch(
   blIds: string[],
   options?: {
