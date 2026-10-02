@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { afterViagemAlterada } from '../../services/cacheEffects'
 import { Button } from '../ui/Button'
 import { Field, Input, Select } from '../ui/Input'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -117,15 +118,7 @@ export function VoyageCreateModal({
         ? await updateVoyage(voyageId, normalizedForm, user?.id ?? null)
         : await createVoyage(normalizedForm, user?.id ?? null)
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyage-options'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyage-pod-schedules'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyage-escala-schedules'] }),
-        queryClient.invalidateQueries({ queryKey: ['bls'] }),
-        queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] }),
-        queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] }),
-      ])
+      await afterViagemAlterada(queryClient, { voyageId: saved.id })
 
       showToast(voyageId ? 'Viagem atualizada com sucesso.' : 'Viagem cadastrada com sucesso.', 'success')
       onSaved?.(saved.id)

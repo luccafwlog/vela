@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type ChangeEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { afterCargaAlterada, afterManifestoImportado, afterBaplieImportado } from '../../services/cacheEffects'
 import { useNavigate } from 'react-router-dom'
 import { Box, Car, Download, FileText, Mountain, Package, PackageOpen, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { Button } from '../ui/Button'
@@ -119,17 +120,7 @@ export function VoyageImportActions({
     else actionGroups.push({ group, types: [type] })
   }
 
-  const invalidateAfterBLImport = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['bls'] }),
-      queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
-      queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] }),
-      queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] }),
-      // P0-4: Manifesto BB alimenta "Carga descarregada" (carga solta) no ADR.
-      queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-    ])
-  }
+  const invalidateAfterBLImport = () => afterManifestoImportado(queryClient, { voyageId })
 
   return (
     <>
@@ -381,19 +372,11 @@ function BaplieImportModal({
         confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
       })
       if (result.status === 'cancelled') return
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['baplie-staging', voyageId] }),
-        queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] }),
-        queryClient.invalidateQueries({ queryKey: ['baplie-vazios-manifest', String(voyageId)] }),
-        queryClient.invalidateQueries({ queryKey: ['vazios-importacao'] }),
-        queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] }),
-        // P0-4: alimenta a divergencia de existencia de Carga descarregada e
-        // Vazios descarregados no ADR.
-        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-      ])
+      await afterBaplieImportado(queryClient, { voyageId: String(voyageId) })
       showToast(baplieImportToast(result), 'success')
       handleClose()
     } catch (err) {
+      await afterBaplieImportado(queryClient, { voyageId: String(voyageId) })
       showToast(err instanceof Error ? err.message : 'Falha ao importar Baplie EDI.', 'error')
     } finally {
       setImporting(false)
@@ -507,17 +490,7 @@ function VehiclesImportModal({
     setImporting(true)
     try {
       const result = await importVehicleRows({ voyageId, rows: preview.rows })
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
-        queryClient.invalidateQueries({ queryKey: ['vehicle-stats'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyage-vehicle-stats'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
-        queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] }),
-        queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] }),
-        // P0-4: alimenta a secao "Veiculos" no ADR.
-        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-      ])
+      await afterCargaAlterada(queryClient)
       showToast(`Veiculos importados: ${result.successCount} sucesso(s), ${result.errorCount} erro(s).`, result.errorCount ? 'info' : 'success')
       if (!result.errorCount) onClose()
     } catch (err) {

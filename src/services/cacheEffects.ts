@@ -1,7 +1,6 @@
+import { INVOICE_BASIS_CACHE_KEYS } from './invoiceBasisCacheKeys'
 import type { QueryClient } from '@tanstack/react-query'
 import { invalidateReviewQueueCaches, type ReviewCacheScope } from '../components/review/reviewCaches'
-import { INVOICE_BASIS_CACHE_KEYS } from './invoiceBasisCacheKeys'
-import { invalidateBaplieDependentQueries } from './baplieInvalidation'
 import { queryKeys } from './queryKeys'
 
 export type QueryInvalidator = {
@@ -17,6 +16,47 @@ const SCHEDULE_KEYS: readonly (readonly unknown[])[] = [
   ['portal-schedule-voyages'],
 ]
 
+// Listas, cards e fichas são consultas independentes: invalidar a lista não
+// atualiza o resumo nem os joins materializados nas telas consumidoras.
+const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
+  queryKeys.bls.all(), queryKeys.bls.summary(), queryKeys.bls.detail(), queryKeys.bls.cockpit(), queryKeys.portal.blStatus(),
+  ['containers'], ['container-type-options'], queryKeys.bls.portOptions(),
+  queryKeys.vehicles.all(), ['vehicle-stats'], ['voyage-vehicle-stats'],
+  queryKeys.voyages.all(), queryKeys.voyages.detail(), ['voyage-billing-status'],
+  ['baplie-bls-exist'], ['baplie-reconciliation'], ['bl-timeline'], ['voyage-timeline'],
+  ['agency-report'], ['review-queue'], ['op-count'], ['report-operational'],
+  ['customer-detail'], ['customer-ficha'], ['customers-summary'],
+  ['customer-communications'], queryKeys.dashboard(),
+  ['demurrage-containers'], ['demurrage-invoices'], ['demurrage-invoice-detail'],
+  ['demurrage-kpis'], ['demurrage-customer-summary'], ['demurrage-customer-detail'],
+  ['demurrage-report'], ['header-alert'],
+]
+const FINANCIAL_READ_KEYS: readonly (readonly unknown[])[] = [
+  ...INVOICE_BASIS_CACHE_KEYS,
+  ['alerts'], ['alert-department-summary'], ['financial-alerts'], ['invoice-corrections'],
+  ['invoices'], ['invoice-detail'], ['invoice-links'], ['invoice-bl-subtotal'], ['billing-ledger'],
+  queryKeys.billingReady.all(), ['billing-ready-bl-diagnostics'],
+  ['local-charge-operations'], ['local-charge-pendencies'], ['bl-local-charge-lines'],
+  ['customer-reconciliation-queue'], ['report-financial'], ['report-customers'],
+]
+const CARD_SCHEDULE_KEYS: readonly (readonly unknown[])[] = [
+  ['baplie-voyage-card-schedules'], ['vehicles-voyage-card-schedules'],
+]
+const EMPTY_IMPORT_KEYS: readonly (readonly unknown[])[] = [
+  ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
+  ['baplie-vazios-manifest'], queryKeys.manifestosMercante.all(),
+]
+
+/** Cadastro, edição ou exclusão de B/L/container/veículo, inclusive filhos removidos. */
+export async function afterCargaAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...LINEUP_KEYS])
+}
+
+/** Descarga/devolução também pode emitir demurrage; inclui seus consumidores. */
+export async function afterDatasContainerAlteradas(queryClient: QueryInvalidator): Promise<void> {
+  await afterCargaAlterada(queryClient)
+}
+
 function voyageTimelineKey(voyageId: number | string): readonly unknown[] {
   return ['voyage-timeline', String(voyageId)]
 }
@@ -29,53 +69,46 @@ async function invalidate(queryClient: QueryInvalidator, keys: readonly (readonl
     seen.add(id)
     return true
   })
-  await Promise.all(unique.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
+  // ponytail: catálogo curto de famílias; scan O(n²) evita refetch duplicado
+  // de ID + família. Se o catálogo crescer, indexar os prefixos numa trie.
+  const prefixes = unique.filter((key) => !unique.some((parent) =>
+    parent.length < key.length && parent.every((part, index) => JSON.stringify(part) === JSON.stringify(key[index])),
+  ))
+  await Promise.all(prefixes.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
 }
 
 export async function afterViagemAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
   await invalidate(queryClient, [
     ['voyages'], ['voyage-options'], ['voyage-pod-schedules'], ['voyage-escala-schedules'], ['portal-schedule-voyages'], ['bls'], ['containers'], ['dashboard'],
     voyageTimelineKey(options.voyageId), ...LINEUP_KEYS,
+    ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS,
+    queryKeys.voyages.options(), ['vehicle-voyage-options'], ['voyage-indicated-first-port'],
+    ...EMPTY_IMPORT_KEYS, ['baplie-staging'],
   ])
 }
 
 export async function afterEscalaAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
-  await invalidate(queryClient, [...SCHEDULE_KEYS, voyageTimelineKey(options.voyageId), ['voyages'], ...LINEUP_KEYS])
+  await invalidate(queryClient, [...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, voyageTimelineKey(options.voyageId), ['voyages'], queryKeys.voyages.detail(Number(options.voyageId)), ['baplie-reconciliation'], ['bl-cockpit'], ['agency-report'], ...LINEUP_KEYS])
 }
 
 export async function afterRotaAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
-  await invalidate(queryClient, [['voyage-route-ce-masters'], ['voyage-pol-schedules'], ['voyage-pod-schedules'], ['voyage-escala-schedules'], voyageTimelineKey(options.voyageId), ['voyages'], ...LINEUP_KEYS])
+  await invalidate(queryClient, [queryKeys.voyages.detail(Number(options.voyageId)), ...CARD_SCHEDULE_KEYS, ['voyage-route-ce-masters'], ['voyage-pol-schedules'], ['voyage-pod-schedules'], ['voyage-escala-schedules'], voyageTimelineKey(options.voyageId), ['voyages'], ...LINEUP_KEYS])
 }
 
-export async function afterManifestoImportado(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
-  const vId = String(options.voyageId)
+export async function afterManifestoImportado(queryClient: QueryInvalidator, _options: { voyageId: number | string }): Promise<void> {
+  void _options // Mantém o contrato dos chamadores; os joins exigem invalidar famílias inteiras.
   await invalidate(queryClient, [
-    // Um manifesto CNTR pode alterar os cards do B/L, fisico (containers,
-    // veiculos), vinculos de fatura e o cliente exibido nas telas consumidoras.
-    // Este e o unico efeito pos-importacao para que cada modal nao mantenha
-    // uma lista parcial de caches.
-    ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
-    // A reimportação com override reemite faturas sem pagamento (migration 126).
-    ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['invoice-links'], ['billing-ledger'], ['customers'], ['voyages'], ['port-options'],
-    ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
-    // Vazios IMP cria o manifesto Mercante da rota; a aba Rotas e Manifestos lê esta família.
-    ['manifestos-mercante'],
-    ['baplie-reconciliation', vId], ['baplie-staging', vId],
-    // Taxas locais e reconciliação de clientes: após importar novos B/Ls,
-    // as filas operacionais de validação e conferência refletem imediatamente o cálculo.
-    ['local-charge-operations'], ['customer-reconciliation-queue'], ['bl-local-charge-lines'],
-    // P0-4: Importar B/L, CE Mercante e Manifesto BB alimentam as seções
-    // "Carga descarregada" e "Veículos" do ADR (agencyDepartureReport.ts),
-    // mas nenhuma dessas invalidava a família 'agency-report' — a aba
-    // continuava mostrando "nada operado" depois de um import concluído.
-    ['agency-report'],
-    ['voyage-pol-schedules'], ['voyage-escala-schedules'], voyageTimelineKey(options.voyageId), ...LINEUP_KEYS,
-    ...INVOICE_BASIS_CACHE_KEYS,
+    ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS,
+    ...EMPTY_IMPORT_KEYS, ...LINEUP_KEYS, ['customers'], ['customer-lookup'],
+    queryKeys.voyages.options(), ['vehicle-voyage-options'], ['baplie-staging'],
   ])
 }
 
 export async function afterBaplieImportado(queryClient: QueryInvalidator, options: { voyageId: string }): Promise<void> {
-  await invalidateBaplieDependentQueries(queryClient, options.voyageId)
+  await invalidate(queryClient, [
+    ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...EMPTY_IMPORT_KEYS,
+    ['baplie-staging', String(options.voyageId)], ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, ...LINEUP_KEYS,
+  ])
 }
 
 /**
@@ -91,8 +124,7 @@ export async function afterBlEstadoAlterado(
     queryKeys.bls.cockpit(options.blId),
     queryKeys.bls.all(),
     queryKeys.bls.summary(),
-    queryKeys.billingReady.bls(),
-    ...INVOICE_BASIS_CACHE_KEYS,
+    ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS,
     ...(options.voyageId === null ? [] : [queryKeys.voyages.detail(Number(options.voyageId))]),
   ])
 }

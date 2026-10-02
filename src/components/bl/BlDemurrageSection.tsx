@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { afterDatasContainerAlteradas } from '../../services/cacheEffects'
 import { Save } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
@@ -176,11 +177,12 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
     setSavingReturnDate(containerId)
     try {
       await updateContainerReturnDate(containerId, returnDate || null)
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
-        queryClient.invalidateQueries({ queryKey: ['demurrage-containers'] }),
-      ])
+      await afterDatasContainerAlteradas(queryClient)
+      setReturnDates((current) => {
+        const next = { ...current }
+        delete next[containerId]
+        return next
+      })
       showToast('Data de devolucao salva.', 'success')
     } catch {
       showToast('Erro ao salvar data de devolucao.', 'error')

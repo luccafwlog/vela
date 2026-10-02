@@ -2,6 +2,15 @@
 
 > **Status:** ativo · **Atualizado:** 2026-10-01 · **Rotas:** `/viagens`, `/viagens/:voyageId`
 
+Após cadastrar, editar ou excluir uma Viagem, as listas, a ficha selecionada e
+os seletores de B/Ls e Veículos são atualizados pelo efeito `afterViagemAlterada`.
+Importações e alterações de carga também atualizam os cards e a ficha, que têm
+consultas independentes. Editar Escala atualiza as cópias da programação usadas
+nos cards de Baplie e Veículos. O fluxo aguarda as consultas abertas; telas
+fechadas consultam novamente ao reabrir. Não há sincronização entre usuários.
+**Teste:** `operationalCacheRefresh.test.ts` verifica esses consumidores com
+QueryClient real e fonte local, sem execução Supabase.
+
 ## Propósito e escopo
 
 Centro operacional da **Viagem**: um navio identificado por número de viagem, acompanhado em suas escalas, agendas, documentos e cargas. O módulo é o agregador master-detail de planejamento POL/POD, exportação, CE Master, indicadores Mercante, timeline e conciliação Baplie × B/L; a persistência dos imports pertence a [Manifestos & EDI](manifesto-edi.md), Granito e Vazios.

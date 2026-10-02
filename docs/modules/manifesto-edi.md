@@ -63,6 +63,38 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
 - Admin pode excluir B/Ls elegíveis, individualmente ou em lote, após pré-checagem fiscal.
 - O Nº de Manifesto Mercante é gerenciado na tabela `manifestos_mercante`, associado a rotas e viagens, com suporte a múltiplos manifestos por escala e indicação de vazios (`is_empty`). A edição é realizada na aba de Manifestos de `/viagens/:voyageId`.
 
+### Atualização após ações próprias
+
+- Importar B/L container, B/L carga solta, Manifesto BB ou CE Mercante atualiza
+  listas e cards de B/Ls, Containers, Veículos e Viagens, além da ficha da Viagem,
+  conciliação do Baplie, filtros por porto/tipo, Revisão, Taxas Locais, ADR,
+  Relatórios e fichas consumidoras. Importação rápida da Viagem usa o mesmo
+  efeito de cache que o modal da lista.
+- Exclusões de B/Ls, Containers e Veículos atualizam também os totalizadores e
+  vínculos dependentes, incluindo veículos removidos junto com um Container.
+  Edição manual e vínculo/desvínculo de Cliente atualizam as projeções do B/L.
+- Importar/reimportar Baplie atualiza os cards mesmo sem alteração de flags
+  físicas. As duas entradas de importação usam `afterBaplieImportado`; o upload
+  da página aguarda a aplicação física e a atualização da viagem **escolhida no
+  modal**, que pode diferir da viagem aberta. Cadastro/substituição de vazios
+  atualiza as famílias reais de Vazios IMP e Rotas e Manifestos.
+- Salvar Local de desova atualiza também seus cards em Veículos; o campo deixa
+  de guardar uma cópia do valor salvo após a atualização. Datas de descarga e
+  devolução (planilha, ficha do B/L ou Demurrage) atualizam os consumidores de
+  Demurrage, incluindo cards, faturas e ficha do Cliente. O campo de devolução
+  também libera o rascunho salvo para acompanhar importações seguintes.
+- A atualização ocorre após as próprias ações, sem recarregar a página.
+  Consultas abertas são refeitas; telas fechadas consultam novamente ao abrir.
+  Isso não implementa sincronização entre usuários nem antecipa efeitos ainda
+  pendentes no worker de importação.
+- **Teste:** `operationalCacheRefresh.test.ts` usa QueryClient/QueryObserver reais
+  e fontes locais alteradas para verificar listas/cards abertos e reabertura.
+  `Baplie.cacheRefresh.test.tsx` exercita o upload com outra viagem no seletor;
+  `EquipmentPermissionGates.test.tsx` verifica desova salva seguida de novo dado.
+  `Containers.cacheRefresh.test.tsx` exclui uma linha pela tela real e verifica
+  o card de Containers e os resumos consumidores de B/Ls e Viagens sem remontar.
+  Esses testes usam serviços simulados, sem provar execução de RPC/RLS no Supabase.
+
 ### `/bls/:blId`
 
 - `src/pages/BlDetalhe.tsx` resolve o modo container/BB e monta as abas `visao-geral`, `carga`, `detalhes`, `faturamento` e `historico`.

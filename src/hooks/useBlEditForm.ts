@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { afterCargaAlterada } from '../services/cacheEffects'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { logOperationalEvent } from '../services/operationalEvents'
@@ -7,8 +8,6 @@ import { supabase } from '../services/supabase'
 import { formatNcm } from '../lib/ncm'
 import type { BL, BLDetail, Json } from '../types/database'
 import { useAuth } from './useAuth'
-import { afterBlInvoiceBasisAlterada } from '../services/cacheEffects'
-import { queryKeys } from '../services/queryKeys'
 
 type BlDocumentFields = {
   place_of_receipt: string | null
@@ -239,14 +238,8 @@ export function useBlEditForm(bl: BLDetail | undefined) {
       }
 
       await Promise.all([
-        afterBlInvoiceBasisAlterada(queryClient),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.portal.blStatus(bl.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.demurrage.invoices({ blId: bl.id }) }),
+        afterCargaAlterada(queryClient),
         queryClient.invalidateQueries({ queryKey: ['audit-logs', 'bl', bl.id] }),
-        queryClient.invalidateQueries({ queryKey: ['bls'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.customerCommunications.statusRoot() }),
       ])
 
       setJustification('')
