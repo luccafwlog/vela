@@ -550,3 +550,23 @@ Não há evidência de Runtime registrada neste documento.
   por tipo, status e saldo da invoice. Documento local com vínculos ledger
   incompletos pode cair no RPC legado; não houve validação em Runtime desse
   cenário.
+
+### Segurança da correção automática — migration 130
+
+O saldo pagável determina o QR local, sem alterar total/itens emitidos; versões
+anteriores permanecem rastreáveis. Faturas pagas/canceladas não oferecem QR.
+Restituição de correção usa os settlements do recebível e pode ser distribuída
+entre individual e consolidada. Pagamento de outro B/L não financia essa
+restituição. A baixa que sustenta uma restituição não pode ser estornada.
+
+O evento COD criado na mesma operação é vinculado à correção automática e
+marcado liquidado, sem repetir abatimento ou devolução. O alerta Fatura
+desatualizada só fecha quando todos os recebíveis relacionados concordam com
+Cliente e cálculo atuais. Alteração de participação em container compartilhado
+também verifica os B/Ls vizinhos, preservando as travas de edição existentes.
+
+Se o efeito financeiro falhar, `invoice_basis_pending_changes` conserva a
+pendência; o Administrativo usa **Tentar aplicar correção** no histórico da
+fatura. `retry_invoice_basis_changes` reexecuta o cálculo atual e mantém a
+pendência se houver erro. Salvar B/L invalida também faturas, vínculos,
+restituições, alertas, ledger e consultas do Portal.

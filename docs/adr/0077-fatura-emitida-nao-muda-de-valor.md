@@ -1,7 +1,7 @@
 # 0077 — Fatura emitida não muda de valor
 
 Status: aceito — 2026-10-01, revisado em 2026-10-02 (decisões do dono).
-Implementação local nas migrations `122` a `129`; deploy remoto não verificado.
+Implementação local nas migrations `122` a `130`; deploy remoto não verificado.
 
 ## Contexto
 
@@ -96,3 +96,17 @@ Testes: `thdImoOog.local-pg.test.ts`, `invoiceBasisCorrection.local-pg.test.ts`,
 `invoiceReissue.local-pg.test.ts`, `InvoiceCorrectionPanel.test.tsx`,
 `ManualInvoiceModal.test.tsx`.
 Postgres local usa shims; não comprova Auth/API nem rollout remoto.
+
+## Correções da revisão da PR 839 — 2026-10-02
+
+A migration 130 preserva versões de cobranças Pix locais e apresenta QR pelo
+saldo atual; documentos quitados/cancelados não apresentam cobrança. Pix
+histórico somente liquida sucessora de mesmo Cliente e composição, com
+restituição do excedente. Cancelamento local não invalida QR estático no PSP.
+
+Restituições são distribuídas pelas invoices cujos settlements financiaram o
+recebível. COD usa a mesma correção monetária. Alertas resolvem apenas quando
+todas as obrigações conferem, e falhas conservam pendência recuperável sem
+exigir nova edição do B/L. O botão de retry repete a operação automática e não
+permite digitar valores. Esses contratos são pré-requisitos locais da integração
+Itaú futura, não a implementação da API bancária.

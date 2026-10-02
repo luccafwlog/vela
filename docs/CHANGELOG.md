@@ -25,6 +25,13 @@
   consolidada do B/L isento; datas de Demurrage deixam de gerar alerta.
   THD de container IMO e OOG ao mesmo tempo (`129`): THD normal com 150% de
   majoração, sem revisão manual.
+  Remediação da PR 839 (`130`): QR local acompanha saldo e conserva versões;
+  Pix histórico passa somente para sucessora de mesmo Cliente/composição,
+  restituindo excedente. Restituições usam pagamentos do recebível, inclusive
+  repartidos; COD não repete o efeito monetário; falha financeira conserva
+  pendência recuperável. Alertas e caches financeiros acompanham todos os donos,
+  e rateio verifica vizinhos nas viagens de origem e destino. Itaú bancário segue
+  futuro, com seus contratos locais documentados.
   [ADR 0077](adr/0077-fatura-emitida-nao-muda-de-valor.md); rollout remoto não verificado.
 
 - **SOC/COC do container (2026-10-01):** migration `121`. O container passa a ser SOC (do

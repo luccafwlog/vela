@@ -22,6 +22,7 @@ vi.mock('../../services/transshipments', () => ({
 }))
 
 const expectedSharedKeys = [
+  ['invoice-refunds'], ['invoice-links'], ['invoice-corrections'], ['billing-ledger'], ['portal-invoices-page'],
   ['bl-cockpit'],
   ['bl-detail'],
   ['bl-timeline'],

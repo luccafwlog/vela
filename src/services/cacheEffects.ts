@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { invalidateReviewQueueCaches, type ReviewCacheScope } from '../components/review/reviewCaches'
+import { INVOICE_BASIS_CACHE_KEYS } from './invoiceBasisCacheKeys'
 import { invalidateBaplieDependentQueries } from './baplieInvalidation'
 import { queryKeys } from './queryKeys'
 
@@ -69,6 +70,7 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, opt
     // continuava mostrando "nada operado" depois de um import concluído.
     ['agency-report'],
     ['voyage-pol-schedules'], ['voyage-escala-schedules'], voyageTimelineKey(options.voyageId), ...LINEUP_KEYS,
+    ...INVOICE_BASIS_CACHE_KEYS,
   ])
 }
 
@@ -90,6 +92,7 @@ export async function afterBlEstadoAlterado(
     queryKeys.bls.all(),
     queryKeys.bls.summary(),
     queryKeys.billingReady.bls(),
+    ...INVOICE_BASIS_CACHE_KEYS,
     ...(options.voyageId === null ? [] : [queryKeys.voyages.detail(Number(options.voyageId))]),
   ])
 }
@@ -128,4 +131,9 @@ export async function afterLiberacaoFaturamentoPortal(
     ['alerts'],
     ['financial-alerts'],
   ])
+}
+
+/** B/L corrections may reissue invoices, correct balances or create refunds. */
+export async function afterBlInvoiceBasisAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, INVOICE_BASIS_CACHE_KEYS)
 }

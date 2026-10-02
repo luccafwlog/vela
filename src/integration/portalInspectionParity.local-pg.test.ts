@@ -241,7 +241,8 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
       items: Array<Record<string, unknown>>
       payments: Array<Record<string, unknown>>
     }
-    expect(localPayload.invoice).toMatchObject({ invoice_number: 'S11-INV-A', pix_payload: 'PIX-S11' })
+    // Rascunho conserva a allowlist, mas não oferece cobrança Pix.
+    expect(localPayload.invoice).toMatchObject({ invoice_number: 'S11-INV-A', pix_payload: null })
     expect(localPayload.invoice).not.toHaveProperty('notes')
     expect(localPayload.invoice).not.toHaveProperty('pix_txid')
     expect(localPayload.invoice).not.toHaveProperty('issued_by')

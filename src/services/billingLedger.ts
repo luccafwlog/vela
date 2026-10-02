@@ -238,6 +238,7 @@ export async function reconcileInvoicePaymentByTxid(input: {
 }
 
 export type InvoiceCorrectionSummary = {
+  pending_bl_ids?: string[]
   stale?: boolean
   receivables: Array<{ id: number; bl_id: string; original_brl: number; corrected_brl: number; paid_brl: number; balance_brl: number }>
   corrections: Array<{ id: number; bl_id: string; amount_brl: number; offset_brl: number; refund_brl: number; corrected_total_brl: number; reason: string; created_at: string }>
@@ -252,5 +253,10 @@ export async function resolveStaleInvoice(input: { invoiceId: number; reason: st
   const { error } = await supabase.rpc('resolve_stale_invoice' as never, {
     p_invoice_id: input.invoiceId, p_reason: input.reason,
   } as never)
+  if (error) throw error
+}
+
+export async function retryInvoiceBasisChanges(blId: string): Promise<void> {
+  const { error } = await supabase.rpc('retry_invoice_basis_changes' as never, { p_bl_id: blId } as never)
   if (error) throw error
 }

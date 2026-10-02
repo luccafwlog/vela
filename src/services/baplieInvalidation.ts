@@ -1,3 +1,5 @@
+import { INVOICE_BASIS_CACHE_KEYS } from './invoiceBasisCacheKeys'
+
 type QueryInvalidator = {
   invalidateQueries: (input: { queryKey: readonly unknown[] }) => Promise<unknown>
 }
@@ -7,13 +9,7 @@ export async function invalidateBaplieDependentQueries(
   voyageId: string,
 ) {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['alerts'] }),
-    queryClient.invalidateQueries({ queryKey: ['financial-alerts'] }),
-    queryClient.invalidateQueries({ queryKey: ['invoice-corrections'] }),
-    // Flags do Baplie em B/L faturado sem pagamento reemitem a fatura (126).
-    queryClient.invalidateQueries({ queryKey: ['invoices'] }),
-    queryClient.invalidateQueries({ queryKey: ['invoice-detail'] }),
-    queryClient.invalidateQueries({ queryKey: ['billing-ledger'] }),
+    ...INVOICE_BASIS_CACHE_KEYS.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
     queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] }),
     queryClient.invalidateQueries({ queryKey: ['bls'] }),
     queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),

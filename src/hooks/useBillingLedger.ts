@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   getInvoiceCorrectionSummary,
+  retryInvoiceBasisChanges,
   resolveStaleInvoice,
   createConsolidatedInvoice,
   listConsolidatableReceivables,
@@ -11,6 +12,7 @@ import {
   settleInvoiceRefund,
   type ConsolidatableReceivableFilters,
 } from '../services/billingLedger'
+import { afterBlInvoiceBasisAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
 import { reverseLocalInvoicePayment } from '../services/reconciliacao'
 
@@ -23,22 +25,7 @@ export function useConsolidatableReceivables(filters: ConsolidatableReceivableFi
 }
 
 export function invalidateBillingLedgerQueries(qc: Pick<QueryClient, 'invalidateQueries'>) {
-  qc.invalidateQueries({ queryKey: queryKeys.billingLedger.all() })
-  qc.invalidateQueries({ queryKey: queryKeys.invoices.all() })
-  qc.invalidateQueries({ queryKey: queryKeys.bls.all() })
-  qc.invalidateQueries({ queryKey: queryKeys.customers.all() })
-  qc.invalidateQueries({ queryKey: queryKeys.customers.detail() })
-  qc.invalidateQueries({ queryKey: ['invoice-detail'] })
-  qc.invalidateQueries({ queryKey: ['invoice-refunds'] })
-  qc.invalidateQueries({ queryKey: queryKeys.invoices.corrections() })
-  qc.invalidateQueries({ queryKey: ['cod-adjustments'] })
-  qc.invalidateQueries({ queryKey: ['financial-alerts'] })
-  qc.invalidateQueries({ queryKey: ['alerts'] })
-  qc.invalidateQueries({ queryKey: ['portal-invoice-detail'] })
-  qc.invalidateQueries({ queryKey: ['portal-invoices'] })
-  qc.invalidateQueries({ queryKey: ['portal-invoices-page'] })
-  qc.invalidateQueries({ queryKey: ['op-count'] })
-  qc.invalidateQueries({ queryKey: ['reconciliation-history'] })
+  return afterBlInvoiceBasisAlterada(qc)
 }
 
 export async function reverseLocalPaymentAndInvalidate(
@@ -47,7 +34,7 @@ export async function reverseLocalPaymentAndInvalidate(
   reason: string,
 ) {
   await reverseLocalInvoicePayment(paymentId, reason)
-  invalidateBillingLedgerQueries(qc)
+  await invalidateBillingLedgerQueries(qc)
 }
 
 function useLedgerInvalidation() {
@@ -109,4 +96,9 @@ export function useInvoiceCorrectionSummary(invoiceId?: number | null) {
 export function useResolveStaleInvoice() {
   const invalidate = useLedgerInvalidation()
   return useMutation({ mutationFn: resolveStaleInvoice, onSuccess: invalidate })
+}
+
+export function useRetryInvoiceBasisChanges() {
+  const invalidate = useLedgerInvalidation()
+  return useMutation({ mutationFn: retryInvoiceBasisChanges, onSuccess: invalidate })
 }

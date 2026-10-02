@@ -209,6 +209,7 @@ jobs:
             src/integration/invoiceCorrection.local-pg.test.ts \
             src/integration/invoiceReissue.local-pg.test.ts \
             src/integration/invoiceBasisCorrection.local-pg.test.ts \
+            src/integration/invoicePostBillingSafety.local-pg.test.ts \
             src/integration/thdImoOog.local-pg.test.ts \
             src/integration/financialBattery.local-pg.test.ts
 

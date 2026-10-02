@@ -76,7 +76,7 @@ const demurrageOkItems = [
 describe('reconciliacao PIX unificada', () => {
   beforeEach(() => {
     mockFrom.mockReset()
-    mockRpc.mockReset()
+    mockRpc.mockReset().mockResolvedValue({ data: [], error: null })
     mockInvoiceUpdate.mockReset()
     mockDemurrageUpdate.mockReset()
   })
@@ -544,5 +544,26 @@ describe('reconciliacao PIX unificada', () => {
     ]
 
     await expect(confirmUnifiedPixReconciliation(matches)).rejects.toThrow(/atualizou 1 de 2/)
+  })
+})
+
+
+describe('versões de cobranças Pix locais', () => {
+  beforeEach(() => {
+    mockFrom.mockReset()
+    mockRpc.mockReset()
+    installFromMock({})
+  })
+  it('usa o valor do QR histórico e a sucessora retornada pelo banco', async () => {
+    mockRpc.mockResolvedValue({ data: [{ txid: 'OLDQR', id: 42, invoice_number: 'NEW42', amount_brl: 600,
+      customer: { name: 'Cliente', cnpj_cpf: '12345678000199' } }], error: null })
+    const matches = await matchUnifiedPixTransactions([{ txid: 'OLDQR', date: '2026-10-02', amount: 600, cnpj: '12345678000199' }])
+    expect(matches[0]).toMatchObject({ source: 'local', invoiceId: 42, amount: 600, ambiguous: false })
+    expect(mockRpc).toHaveBeenCalledWith('list_local_pix_candidates', { p_txids: ['OLDQR'] })
+  })
+  it('não oculta falhas da consulta autoritativa', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: new Error('Consulta indisponível') })
+    await expect(matchUnifiedPixTransactions([{ txid: 'OLDQR', date: '2026-10-02', amount: 600, cnpj: '' }]))
+      .rejects.toThrow('Consulta indisponível')
   })
 })

@@ -222,3 +222,17 @@ it('InvoiceDocumentLocal omite Navio/Voy. quando fatura avulsa não tem navio ne
   expect(screen.queryByText('Navio/Voy.:')).toBeNull()
   expect(screen.queryByText('B/Ls:')).toBeNull()
 })
+
+
+it('mantém total documental e apresenta saldo corrigido no bloco Pix', () => {
+  const issued = { ...detail as object, invoice: { ...(detail as {invoice:object}).invoice, status: 'partially_paid', balance_brl: 40 } } as never
+  render(<InvoiceDocumentLocal detail={issued} />)
+  expect(screen.getByTestId('invoice-totals').textContent).toContain('100,00')
+  expect(screen.getByTestId('invoice-pix-box').textContent).toContain('Saldo a pagar:')
+  expect(screen.getByTestId('invoice-pix-box').textContent).toContain('40,00')
+})
+
+it('não oferece QR de uma fatura paga, mesmo com payload legado', () => {
+  render(<InvoiceDocumentLocal detail={detail} />)
+  expect(screen.queryByTestId('invoice-pix-box')).toBeNull()
+})

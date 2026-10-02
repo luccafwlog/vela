@@ -56,3 +56,5 @@ As notas de execução intermediária de agosto/setembro foram preservadas no
 3. Se a spec originária estiver em `docs/spec/`, movê-la para `docs/archive/specs/`.
 4. Registrar a entrega no [`../CHANGELOG.md`](../CHANGELOG.md).
 5. Rodar `npm run docs:check`.
+
+O plano [2026-10-02 — Correção dos achados da PR 839](../archive/plans/2026-10-02-correcao-achados-pr-839.md) foi encerrado com implementação e validação local concluídas; publicação e CI ficam registrados na PR.

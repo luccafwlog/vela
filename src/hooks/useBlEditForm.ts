@@ -7,6 +7,7 @@ import { supabase } from '../services/supabase'
 import { formatNcm } from '../lib/ncm'
 import type { BL, BLDetail, Json } from '../types/database'
 import { useAuth } from './useAuth'
+import { afterBlInvoiceBasisAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
 
 type BlDocumentFields = {
@@ -238,6 +239,7 @@ export function useBlEditForm(bl: BLDetail | undefined) {
       }
 
       await Promise.all([
+        afterBlInvoiceBasisAlterada(queryClient),
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.portal.blStatus(bl.id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.demurrage.invoices({ blId: bl.id }) }),
