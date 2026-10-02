@@ -122,6 +122,29 @@ describe('vehicleImport', () => {
 			expect(parsed.rows[0]).toMatchObject({ weight_kg: 1234, cbm: 12 })
 		})
 
+  it('lê o Volume do Daily Report da COSCO quando a célula traz a unidade (12.681m³)', async () => {
+    // GREEN ITAQUI V14: as linhas da ARCFOX vieram com Volume em texto e a
+    // unidade colada; antes caíam em "Todos os campos obrigatorios".
+    const buffer = jsonToBuffer([
+      {
+        'VIN NO.': 'LNBSC1AK6VR312271',
+        Brand: 'ARCFOX',
+        Model: 'BJ7000T373BEV',
+        'GW(kg)': 1435,
+        Volume: '12.681m³',
+        'BL NUMBER': 'CSC4537090FN00',
+        'Cntr Type': '40HC',
+        'Cntr No.': 'GCXU6154855',
+        Seal: 147759,
+      },
+    ])
+
+    const parsed = await parseVehicleImportBuffer(buffer)
+
+    expect(parsed.rowErrors).toEqual([])
+    expect(parsed.rows[0]).toMatchObject({ weight_kg: 1435, cbm: 12.681 })
+  })
+
   it('mapeia a lista de VINs dos terminais chineses da COSCO (cabecalhos em chines)', async () => {
     const buffer = jsonToBuffer([
       {

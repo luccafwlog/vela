@@ -76,6 +76,7 @@ const EXACT_PORT_ALIASES: Record<string, string> = {
   VIX: 'BRVIX',
   VIT: 'BRVIX', // Vitória: VIX, VIT, BRVIT e BRVIX são o mesmo porto
   CNTCA: 'CNTAC', // Taicang (variante COSCO)
+  TCA: 'CNTAC', // Taicang (LOC+6 do Baplie da COSCO)
   BRSPB: 'BRSEP', // Sepetiba (variante COSCO de 5 letras)
   SPB: 'BRSEP', // Sepetiba
   SEP: 'BRSEP',

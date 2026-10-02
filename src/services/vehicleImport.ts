@@ -471,7 +471,10 @@ function mapRow(row: Record<string, unknown>) {
 // obrigatórios já bloqueia — em vez de ser relida sob uma convenção
 // diferente da que o cabeçalho do arquivo indicou.
 function parseSpreadsheetNumber(value: unknown, format: ImportNumberFormat) {
-  const parsed = parseImportNumber(value, format)
+  // O Daily Report da COSCO às vezes traz a unidade colada ("12.681m³").
+  // Só a unidade conhecida sai; qualquer outra letra continua sintaxe inválida.
+  const text = typeof value === 'string' ? value.trim().replace(/\s*(m³|m3|cbm|kgs?)$/i, '') : value
+  const parsed = parseImportNumber(text, format)
   if (parsed.kind !== 'value') return null
   const number = Number(parsed.decimal)
   return Number.isFinite(number) ? number : null
