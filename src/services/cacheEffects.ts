@@ -32,6 +32,7 @@ const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   ['demurrage-report'], ['header-alert'],
 ]
 const FINANCIAL_READ_KEYS: readonly (readonly unknown[])[] = [
+  // Correções de B/L também afetam restituições, COD e as faturas do Portal.
   ...INVOICE_BASIS_CACHE_KEYS,
   ['alerts'], ['alert-department-summary'], ['financial-alerts'], ['invoice-corrections'],
   ['invoices'], ['invoice-detail'], ['invoice-links'], ['invoice-bl-subtotal'], ['billing-ledger'],

@@ -65,6 +65,10 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
 
 ### Atualização após ações próprias
 
+- Os efeitos financeiros reutilizam `INVOICE_BASIS_CACHE_KEYS`: alterações de
+  carga, viagem, Baplie e cancelamento de B/L atualizam também restituições,
+  ajustes de COD, histórico de conciliação e consultas de faturas do Portal.
+  Essa lista preserva os consumidores das correções de faturamento da PR 839.
 - Importar B/L container, B/L carga solta, Manifesto BB ou CE Mercante atualiza
   listas e cards de B/Ls, Containers, Veículos e Viagens, além da ficha da Viagem,
   conciliação do Baplie, filtros por porto/tipo, Revisão, Taxas Locais, ADR,

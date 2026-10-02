@@ -23,6 +23,20 @@ async function expectRefresh(effect: (client: QueryClient) => Promise<void>, key
 }
 
 describe('atualização operacional sem reload', () => {
+  it.each([
+    ['edição de carga', afterCargaAlterada],
+    ['importação de manifesto', (client: QueryClient) => afterManifestoImportado(client, { voyageId: 24 })],
+    ['importação de Baplie', (client: QueryClient) => afterBaplieImportado(client, { voyageId: '24' })],
+    ['cancelamento de B/L', (client: QueryClient) => afterBlEstadoAlterado(client, { blId: 'BL1', voyageId: 24 })],
+    ['alteração de viagem', (client: QueryClient) => afterViagemAlterada(client, { voyageId: 24 })],
+  ] as const)('%s preserva a atualização financeira da PR 839', async (_name, effect) => {
+    await expectRefresh(effect, [
+      ['invoice-refunds', 7], ['cod-adjustments', 'pending'],
+      ['portal-invoice-detail', 7], ['portal-invoices', 3],
+      ['portal-invoices-page', 'customer', 3, {}, 1, 20], ['reconciliation-history'],
+    ])
+  })
+
   it('importar B/L atualiza totalizadores, ficha da viagem, filtros e habilitação da conciliação', async () => {
     await expectRefresh((client) => afterManifestoImportado(client, { voyageId: 24 }), [
       ['bl-summary', { pod: 'BRSSZ' }], ['voyage-detail', 24], ['baplie-bls-exist', '24'],
