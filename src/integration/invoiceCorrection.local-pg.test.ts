@@ -75,6 +75,7 @@ function cleanup() {
     DELETE FROM public.bl_receivables WHERE customer_id = ${customerId};
     DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId};
     DELETE FROM public.bl_containers WHERE bl_id = ANY(ARRAY['${blIds.join("','")}']::text[]);
+    DELETE FROM public.charge_calculations WHERE bl_id LIKE 'R124-%';
     DELETE FROM public.bls WHERE id = ANY(ARRAY['${blIds.join("','")}', 'R124-BL-5']::text[]);
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
