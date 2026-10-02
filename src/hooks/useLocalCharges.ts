@@ -1,14 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../services/queryKeys'
 import {
+  quoteManualInvoiceCharge,
   addManualBlCharge,
   calculateBlLocalCharges,
   calculateLocalChargesBatch,
   listLocalChargeOperationalRowsWithMeta,
   deleteManualBlCharge,
   listManualChargeItemsForBl,
-  markBlChargesReviewed,
-  markBlReadyForBilling,
   listBlLocalChargeLines,
   getInvoicedSubtotalForBl,
   updateManualBlCharge,
@@ -110,41 +109,6 @@ export function useDeleteManualBlCharge(blId?: string) {
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(blId ?? '') }),
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
-      ])
-    },
-  })
-}
-
-export function useMarkBlChargesReviewed(blId?: string) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (payload?: { actorId?: string | null }) => markBlChargesReviewed(blId!, payload?.actorId),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines(blId ?? '') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(blId ?? '') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() }),
-      ])
-    },
-  })
-}
-
-export function useMarkBlReadyForBilling(blId?: string) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (payload?: { actorId?: string | null }) => markBlReadyForBilling(blId!, payload?.actorId),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines(blId ?? '') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(blId ?? '') }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all() }),
       ])
     },
   })
@@ -349,5 +313,13 @@ export function useBatchCalculateLocalCharges() {
         queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() }),
       ])
     },
+  })
+}
+
+export function useManualInvoiceQuote(blId: string | null, itemId: number | null) {
+  return useQuery({
+    queryKey: [...queryKeys.bls.manualChargeItems(blId ?? ''), 'invoice-quote', itemId],
+    enabled: Boolean(blId && itemId),
+    queryFn: () => quoteManualInvoiceCharge(blId!, itemId!),
   })
 }

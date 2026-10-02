@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 
-const deleteCharge = vi.fn()
 const cancelInvoice = vi.fn()
 const confirm = vi.fn()
 const showToast = vi.fn()
+const registerLedgerPayment = vi.fn()
 
 vi.mock('../../../hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'admin-1' }, isAdmin: true, can: () => true }),
@@ -18,6 +18,7 @@ vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => confirm }))
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }))
+let mockReissueLinks: Record<string, unknown> | null = null
 let mockDetailData: Record<string, unknown> | null = {
   invoice: {
     id: 9,
@@ -44,14 +45,15 @@ vi.mock('../../../hooks/useBilling', () => ({
   }),
   useRegisterInvoicePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCancelInvoice: () => ({ mutateAsync: cancelInvoice, isPending: false }),
-  useAddManualInvoiceCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useDeleteManualInvoiceCharge: () => ({ mutateAsync: deleteCharge, isPending: false }),
+  useInvoiceReissueLinks: () => ({ data: mockReissueLinks }),
 }))
 vi.mock('../../../hooks/useBillingLedger', () => ({
+  useInvoiceCorrectionSummary: () => ({ data: { receivables: [], corrections: [] } }),
   useInvoiceRefunds: () => ({ data: [] }),
-  useRegisterLedgerInvoicePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRegisterLedgerInvoicePayment: () => ({ mutateAsync: registerLedgerPayment, isPending: false }),
   useSettleInvoiceRefund: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+vi.mock('../StaleInvoiceResolutionPanel', () => ({ StaleInvoiceResolutionPanel: () => null }))
 vi.mock('../InvoiceDocumentLocal', () => ({
   InvoiceDocumentLocal: () => <div data-testid="print-document">printable invoice</div>,
 }))
@@ -71,15 +73,55 @@ it('opens the printable invoice only after the user requests printing', async ()
   expect(screen.getByTestId('print-document')).toBeTruthy()
 })
 
-it('pede confirmação antes de excluir uma cobrança manual', async () => {
+it('fatura emitida não oferece inclusão nem remoção de item manual', () => {
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+
+  expect(screen.getByText('Taxa manual')).toBeTruthy()
+  expect(screen.queryByText('Outras cobranças (manuais)')).toBeNull()
+  expect(screen.queryByRole('button', { name: /Adicionar cobrança manual/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: /Remover/ })).toBeNull()
+})
+
+it('não oferece Cancelar e reemitir: a correção do B/L reemite sozinha', () => {
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+  expect(screen.queryByRole('button', { name: /Cancelar e reemitir/ })).toBeNull()
+})
+
+it('mostra o vínculo com a fatura substituída', () => {
+  mockReissueLinks = { replaces: { id: 7, invoice_number: 'INV-7' }, replaced_by: null, reissue_pending: false }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+
+  expect(screen.getByTestId('invoice-reissue-links').textContent).toContain('Substitui a fatura INV-7')
+  mockReissueLinks = null
+})
+
+it('mostra por que a fatura cancelada não foi reemitida', () => {
+  mockReissueLinks = { replaces: null, replaced_by: null, reissue_pending: false, reissue_closed_reason: 'Nao reemitida: B/L BL-1 cancelado.' }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+
+  expect(screen.getByTestId('invoice-reissue-links').textContent).toContain('B/L BL-1 cancelado')
+  mockReissueLinks = null
+})
+
+it('explica as consequências da baixa parcial e aguarda confirmação antes de registrar', async () => {
+  confirm.mockClear()
+  registerLedgerPayment.mockClear()
   confirm.mockResolvedValueOnce(false)
   const user = userEvent.setup()
   render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
-
-  await user.click(screen.getByRole('button', { name: /Remover Taxa manual/ }))
-
-  expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ tone: 'danger' }))
-  expect(deleteCharge).not.toHaveBeenCalled()
+  const amount = screen.getByLabelText('Valor BRL (aceita parcial)')
+  await user.clear(amount)
+  await user.type(amount, '40')
+  expect(screen.getByText(/Após esta baixa/).textContent).toContain('60,00')
+  fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-10-01' } })
+  expect(screen.getByText(/a correção do B\/L não reemite a fatura/)).toBeTruthy()
+  await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
+  expect(confirm).toHaveBeenCalledWith(expect.objectContaining({
+    title: 'Registrar pagamento parcial?',
+    message: expect.stringMatching(/40.*60/),
+    consequence: expect.stringContaining('aumento vira fatura avulsa e redução abate o saldo'),
+  }))
+  expect(registerLedgerPayment).not.toHaveBeenCalled()
 })
 
 it('usa terminologia em português (fatura) no modal de detalhe e cancelamento', async () => {

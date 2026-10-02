@@ -581,6 +581,28 @@ const ALERT_RULES_BASE = [
     afterResolution: derivedResolution,
     dismissal: temporaryDismissal,
   },
+  {
+    type: 'fatura_desatualizada', domain: 'Financeiro', responsible: 'administrativo',
+    catalogAudience: ['administrativo'], entityType: 'invoice', severity: 'normal',
+    summary: 'A correção do B/L mudou a cobrança de uma fatura e o sistema não conseguiu resolver sozinho.',
+    trigger: 'Correção do B/L em fatura com pagamento que aumenta o valor, troca o Cliente ou precisa de revisão; ou reemissão automática travada.',
+    timing: 'No fim da transação da correção.',
+    resolution: 'Aumento com pagamento: fatura avulsa da diferença. Reemissão travada: resolver o motivo e emitir pela ficha do B/L.',
+    destination: '/taxas-locais', destinationLabel: 'Taxas Locais',
+    afterResolution: 'A reemissão ou o cancelamento fecham o alerta. Para avulsa, registre a resolução com justificativa.',
+    dismissal: temporaryDismissal,
+  },
+  {
+    type: 'restituicao_pendente', domain: 'Financeiro', responsible: 'administrativo',
+    catalogAudience: ['administrativo'], entityType: 'invoice', severity: 'normal',
+    summary: 'A correção do B/L reduziu uma fatura além do saldo aberto: há dinheiro a devolver ao Cliente.',
+    trigger: 'Correção do B/L em fatura paga cuja redução passa do saldo em aberto.',
+    timing: 'No fim da transação da correção.',
+    resolution: 'Devolver o valor ao Cliente e marcar a restituição como efetuada no detalhe da fatura.',
+    destination: '/taxas-locais', destinationLabel: 'Taxas Locais',
+    afterResolution: 'Fecha sozinho quando não resta restituição pendente na fatura.',
+    dismissal: temporaryDismissal,
+  },
 ] satisfies AlertRuleDraft[]
 
 function sortDepartments(departments: Iterable<AlertRuleDepartment>): AlertRuleDepartment[] {

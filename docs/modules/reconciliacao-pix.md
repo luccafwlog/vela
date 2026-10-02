@@ -113,7 +113,7 @@ Depois da RPC, a página substitui os matches por um cartão de resultado com:
 
 | Domínio | Leitura para matching | Escrita de confirmação | TXID persistido |
 |---|---|---|---|
-| Local com ledger | `invoices` em estado pagável; tipos `individual`/`consolidated`; valor esperado = saldo do ledger | `reconcile_invoice_payment_by_txid` delega a `register_ledger_invoice_payment` | `invoices.pix_txid` e uma linha de `ledger_settlements.pix_txid` |
+| Local com ledger | `list_local_pix_candidates` resolve `local_pix_charge_versions` e sucessoras compatíveis; valor esperado = valor fixo daquela cobrança | `reconcile_invoice_payment_by_txid` delega a `register_ledger_invoice_payment` | `invoices.pix_txid` e uma linha de `ledger_settlements.pix_txid` |
 | Invoice avulsa | `invoices.invoice_type='manual'` em estado pagável; valor esperado = saldo da invoice | `reconcile_invoice_payment_by_txid` chama pagamento genérico `register_invoice_payment` | `invoices.pix_txid` e `payments`; sem settlement por recebível |
 | Demurrage | `demurrage_invoices.status = issued`; valor esperado = `current_total_brl` | Update em lote por `confirm_demurrage_pix_matches` | `demurrage_invoices.pix_txid` |
 
@@ -153,8 +153,8 @@ flowchart TD
 - A RPC unificada não recebe um campo `ambiguous`. Para local, ela reexecuta o
   matching no banco e exige uma única invoice; para Demurrage, valida ID e
   valor, mas não reexecuta a política de unicidade cruzada entre domínios.
-- Local exige que o PIX quite o saldo aberto do ledger, aceitando apenas margem
-  numérica de `0,01`. Demurrage compara o valor ao `current_total_brl` com
+- Local valida o valor exato da versão do QR. A baixa aloca até o saldo atual;
+  excedente de cobrança histórica gera restituição, sem mudar o total emitido. Demurrage compara o valor ao `current_total_brl` com
   tolerância de `0,01`.
 - Um TXID repetido no mesmo extrato é marcado ambíguo a partir da segunda linha.
 - Quando o mesmo TXID existe em documento local e Demurrage, o mapa contém dois
@@ -220,3 +220,23 @@ Estes testes verificam texto de migrations, não um banco aplicado:
   `conciliated_by_extract = false`.
 - **Filtro “Único BL” alinhado.** O valor visual `single` é normalizado para
   `individual` antes da comparação.
+
+### Cobranças locais após correção — migration 130
+
+A apresentação Pix acompanha o saldo pagável, enquanto total e itens da fatura
+permanecem históricos. Cada nova apresentação usa outro TXID; `invoices.pix_txid`
+continua registrando o TXID recebido. `local_pix_charge_versions` conserva valor,
+payload e fatura de origem. A prévia usa `list_local_pix_candidates`; a baixa
+revalida a mesma resolução em `reconcile_invoice_payment_by_txid`, com lock e
+controle de repetição. Não há fallback por Cliente, CNPJ ou semelhança de valor.
+
+QR antigo de fatura cancelada só passa para a sucessora com o mesmo Cliente e
+os mesmos B/Ls, através da cadeia `replaces_invoice_id`. O valor recebido deve
+ser o da cobrança histórica: R$ 600 recebidos em uma sucessora de R$ 500 quitam
+R$ 500 e geram restituição de R$ 100. Sem sucessora compatível, composição
+alterada ou documento já quitado, o extrato conserva uma exceção para revisão;
+não inventa uma baixa em outro documento. Repetição de TXID já liquidado é
+recusada. Esse histórico não cancela um QR estático no PSP.
+
+Cobertura executável: `invoicePostBillingSafety.local-pg.test.ts` e os testes
+comportamentais de reconciliação, documento e salvar B/L.

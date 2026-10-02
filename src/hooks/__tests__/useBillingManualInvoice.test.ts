@@ -7,10 +7,11 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../services/billing', () => ({
-  addManualInvoiceCharge: vi.fn(),
   cancelInvoice: vi.fn(),
+  cancelInvoiceForReissue: vi.fn(),
   createManualInvoice: mocks.createManualInvoice,
-  deleteManualInvoiceCharge: vi.fn(),
+  getInvoiceReissueLinks: vi.fn(),
+  listPendingReissues: vi.fn(),
   listBillingCustomers: vi.fn(),
   listInvoiceDetails: vi.fn(),
   listInvoiceLinksByBls: vi.fn(),

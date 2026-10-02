@@ -347,7 +347,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
       </table>
 
       {/* PIX */}
-      {type === 'invoice' && invoice.pix_payload && (
+      {type === 'invoice' && invoice.pix_payload && ['issued', 'partially_paid', 'overdue'].includes(invoice.status ?? 'issued') && (
         <div data-testid="invoice-pix-box" className="invoice-document__pix-box" style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${DOC_BORDER}` }}>
           <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
             <div style={{ flexShrink: 0 }}>
@@ -356,8 +356,8 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
             <div style={{ flex: 1, fontSize: '12px', color: '#333', lineHeight: 1.6 }}>
               <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: 4 }}>PAGAMENTO VIA PIX</div>
               <div>Escaneie o QR Code ao lado ou utilize o código Pix Copia e Cola abaixo para realizar o pagamento.</div>
-              <div style={{ marginTop: 4 }}>Valor da fatura:</div>
-              <div style={{ fontWeight: 700 }}>{fmtBRL(invoice.total_brl)}</div>
+              <div style={{ marginTop: 4 }}>Saldo a pagar:</div>
+              <div style={{ fontWeight: 700 }}>{fmtBRL(invoice.balance_brl ?? invoice.total_brl)}</div>
             </div>
           </div>
           <div style={{ fontSize: '10px', color: DOC_MUTED, fontWeight: 600, letterSpacing: '0.05em', margin: '10px 0 3px' }}>PIX COPIA E COLA</div>

@@ -257,6 +257,11 @@ Campos físicos que o Baplie aplica: `bl_containers.is_imo`, `imo_class`, `un_nu
 
 ## Fluxos e invariantes
 
+### Correção de B/L após faturamento
+
+Reimportação ou Baplie que altera o valor de B/L faturado (inclusive SOC/COC) reemite sozinha a fatura sem pagamento; com pagamento, abate o saldo e restitui o excedente, ou abre Fatura desatualizada para aumento (migration `128`). O preview identifica as faturas locais associadas. Reimportação idêntica, ou que não muda o valor, não reemite nem alerta. Ver [Faturamento](faturamento.md#correção-após-emissão-adr-0077).
+
+
 ```mermaid
 flowchart LR
     BLFile["B/L COSCO .xlsx"] --> BLGuard["assertUploadSize"]

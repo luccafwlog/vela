@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { formatDate } from '../lib/utils'
 import { sanitizeSheetRows } from '../lib/spreadsheetSafe'
@@ -241,7 +242,7 @@ export async function matchUnifiedPixTransactions(transactions: PixTransaction[]
     customer: { name: string; cnpj_cpf: string } | null
   }
 
-  const [localRes, demurrageRes] = await Promise.all([
+  const [localRes, demurrageRes, chargesRes] = await Promise.all([
     supabase
       .from('invoices')
       .select('id, invoice_number, total_brl, balance_brl, status, pix_txid, customer:customers(id, name, cnpj_cpf)')
@@ -253,8 +254,14 @@ export async function matchUnifiedPixTransactions(transactions: PixTransaction[]
       .select('id, doc_number, current_total_brl, status, pix_txid, customer:customers(id, name, cnpj_cpf)')
       .eq('status', 'issued')
       .overrideTypes<DemurrageInv[], { merge: false }>(),
+    supabase.rpc('list_local_pix_candidates' as never, { p_txids: [...new Set(transactions.map((tx) => tx.txid))] } as never),
   ])
 
+  if (chargesRes.error) throw chargesRes.error
+  const charges = z.array(z.object({
+    txid: z.string(), id: z.number(), invoice_number: z.string().nullable(), amount_brl: z.number(),
+    customer: z.object({ name: z.string(), cnpj_cpf: z.string().nullable() }),
+  })).parse(chargesRes.data)
   if (localRes.error) throw localRes.error
   if (demurrageRes.error) throw demurrageRes.error
 
@@ -313,7 +320,15 @@ export async function matchUnifiedPixTransactions(transactions: PixTransaction[]
     // O TXID normalizado é a identidade primária do PIX. O número da invoice
     // permanece apenas como rótulo; nunca deve ser usado como chave de match.
     const key = normTxid(inv.pix_txid ?? '')
-    if (key) txidMap.set(key, [...(txidMap.get(key) ?? []), entry])
+    if (key && !charges.some((charge) => normTxid(charge.txid) === key)) txidMap.set(key, [...(txidMap.get(key) ?? []), entry])
+  }
+  for (const charge of charges) {
+    const key = normTxid(charge.txid)
+    txidMap.set(key, [...(txidMap.get(key) ?? []), {
+      source: 'local', id: charge.id, docNumber: charge.invoice_number ?? String(charge.id),
+      customerName: charge.customer.name, customerCnpj: canonicalizeDocument(charge.customer.cnpj_cpf ?? ''),
+      amount: charge.amount_brl,
+    }])
   }
 
   for (const inv of demurrageInvoices) {

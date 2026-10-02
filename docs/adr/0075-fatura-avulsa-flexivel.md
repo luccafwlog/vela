@@ -54,3 +54,10 @@ consulta do Cliente no Portal.
   [Faturamento](../modules/faturamento.md), [Portal do Cliente](../modules/portal-cliente.md)
   e [Reconciliação PIX](../modules/reconciliacao-pix.md). A migration e o
   contrato são evidência local; não comprovam aplicação em produção.
+
+## Nota editorial — 2026-10-01
+
+A [ADR 0077](0077-fatura-emitida-nao-muda-de-valor.md) estende a avulsa com
+**Tipo de cobrança**: itens manuais da tabela exigem B/L do Cliente e preço
+resolvido no servidor, incluindo Condição do Cliente e ROE. A opção **Outra**
+preserva o item livre e B/L/Viagem opcionais da decisão original.

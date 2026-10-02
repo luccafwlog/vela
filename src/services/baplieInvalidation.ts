@@ -1,3 +1,5 @@
+import { INVOICE_BASIS_CACHE_KEYS } from './invoiceBasisCacheKeys'
+
 type QueryInvalidator = {
   invalidateQueries: (input: { queryKey: readonly unknown[] }) => Promise<unknown>
 }
@@ -7,6 +9,7 @@ export async function invalidateBaplieDependentQueries(
   voyageId: string,
 ) {
   await Promise.all([
+    ...INVOICE_BASIS_CACHE_KEYS.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
     queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] }),
     queryClient.invalidateQueries({ queryKey: ['bls'] }),
     queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),

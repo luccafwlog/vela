@@ -1,3 +1,4 @@
+import { afterBaplieImportado } from '../services/cacheEffects'
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -276,11 +277,7 @@ export function Baplie() {
             }
           }
           await queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] })
-          // P0-4: reimportar Baplie muda a divergencia de existencia de Carga
-          // descarregada e a contagem de Vazios descarregados no ADR — este e
-          // o callback real do import (afterBaplieImportado/
-          // invalidateBaplieDependentQueries nao tem chamador na aplicacao).
-          await queryClient.invalidateQueries({ queryKey: ['agency-report'] })
+          await afterBaplieImportado(queryClient, { voyageId })
         }}
         initialVoyageId={voyageId}
       />

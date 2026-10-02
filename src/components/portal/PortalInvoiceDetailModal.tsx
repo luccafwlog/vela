@@ -74,6 +74,11 @@ export function PortalInvoiceDetailModal({
               ) : null}
             </div>
 
+            {detail?.corrections?.length ? <Card>
+              <h3 className="font-semibold">Ajustes por correção</h3>
+              <p>O total e os itens originais da fatura foram preservados. O saldo a pagar considera os abatimentos abaixo.</p>
+              {detail.corrections.map((correction, index) => <p key={index}>B/L {correction.bl_id}: redução de {formatBRL(correction.amount_brl)}, com {formatBRL(correction.offset_brl)} abatidos do saldo e {formatBRL(correction.refund_brl)} registrados para restituição.</p>)}
+            </Card> : null}
             {detail?.bls.length ? <DetailSection title="B/Ls" subtitle="Conhecimentos de embarque desta fatura">
               <table className="app-table app-table--compact min-w-[620px] text-left text-sm">
                 <caption className="sr-only">B/Ls incluídos na invoice</caption>
@@ -172,7 +177,7 @@ export function PortalInvoiceDetailModal({
               </DetailSection>
             ) : null}
 
-            {invoice.pix_payload ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
+            {invoice.pix_payload && ['issued', 'partially_paid', 'overdue'].includes(invoice.status ?? 'issued') ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
           </>
         ) : null}
       </div>

@@ -15,8 +15,6 @@ import {
   useCalculateBlLocalCharges,
   useDeleteManualBlCharge,
   useManualChargeItemsForBl,
-  useMarkBlChargesReviewed,
-  useMarkBlReadyForBilling,
   useUpdateManualBlCharge,
 } from '../../hooks/useLocalCharges'
 import { formatBRL, formatUSD, normalizeText } from '../../lib/utils'
@@ -58,8 +56,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   const addManualChargeMutation = useAddManualBlCharge(bl.id)
   const updateManualChargeMutation = useUpdateManualBlCharge(bl.id)
   const deleteManualChargeMutation = useDeleteManualBlCharge(bl.id)
-  const markReviewedMutation = useMarkBlChargesReviewed(bl.id)
-  const markReadyForBillingMutation = useMarkBlReadyForBilling(bl.id)
+  const [issuing, setIssuing] = useState(false)
   const calculateChargesMutation = useCalculateBlLocalCharges(bl.id)
   const [manualChargeForm, setManualChargeForm] = useState<ManualChargeForm>(EMPTY_MANUAL_CHARGE_FORM)
   const [manualFormOpen, setManualFormOpen] = useState(false)
@@ -205,53 +202,51 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     }
   }
 
-  async function handleMarkChargesReviewed() {
-    if (!user) return
-    try {
-      await markReviewedMutation.mutateAsync({ actorId: user.id })
-      showToast('Taxas marcadas como revisadas.', 'success')
-    } catch {
-      showToast('Falha ao marcar taxas como revisadas.', 'error')
-    }
-  }
+  // Emissão manual (ADR 0077): o caminho normal é automático (CE Mercante,
+  // Portal pronto, correção do B/L). Este botão cobre a emissão que o
+  // automático não fez: Reemissão pendente cuja trava foi resolvida ou falha
+  // da emissão automática.
+  const canIssue = Boolean(
+    isAdmin && !chargesLocked && bl.customer_id && bl.ce_mercante
+      && bl.charge_status !== 'not_calculated' && bl.charge_status !== 'exempt',
+  )
 
-  async function handleMarkReadyForBilling() {
-    if (!user || !bl) return
+  async function handleIssueInvoice() {
+    if (!user || !bl.customer_id) return
+    const confirmed = await confirm({
+      title: 'Emitir fatura',
+      message: `Emitir a fatura de Taxas Locais do B/L ${bl.id}?`,
+      affected: {
+        summary: `B/L ${bl.id} · ${formatBRL(localChargeSummary.totalBrl)}${localChargeSummary.totalUsd ? ` + ${formatUSD(localChargeSummary.totalUsd)} (convertido pelo ROE na emissão)` : ''}`,
+        items: [`${localChargeSummary.lines.length} linha(s) de cobrança`],
+      },
+      consequence: 'Cria e emite a fatura, que aparece no Portal do Cliente. O B/L passa a faturado e deixa de aceitar recálculo.',
+      reversibility: 'A fatura não pode ser apagada. Se o B/L for corrigido depois, a fatura é reemitida automaticamente (sem pagamento) ou ajustada pelo saldo e restituição (com pagamento).',
+      confirmLabel: 'Emitir fatura',
+    })
+    if (!confirmed) return
+    setIssuing(true)
     try {
-      if (bl.customer_id) {
-        await markBlReadyAndCreateInvoice({ blId: bl.id, customerId: bl.customer_id, actorId: user.id })
-        await queryClient.invalidateQueries({ queryKey: ['invoices'] })
-        await queryClient.invalidateQueries({ queryKey: ['bl-detail', bl.id] })
-        await queryClient.invalidateQueries({ queryKey: ['bls'] })
-        await queryClient.invalidateQueries({ queryKey: ['review-queue'] })
-        await queryClient.invalidateQueries({ queryKey: ['op-count'] })
-        showToast('B/L pronto para faturar. Fatura emitida automaticamente.', 'success')
-      } else {
-        await markReadyForBillingMutation.mutateAsync({ actorId: user.id })
-        showToast('B/L marcado como pronto para faturar. Sem cliente vinculado — gere a fatura manualmente em Faturamento.', 'success')
-      }
+      await markBlReadyAndCreateInvoice({ blId: bl.id, customerId: bl.customer_id, actorId: user.id })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['invoices'] }),
+        queryClient.invalidateQueries({ queryKey: ['bl-detail', bl.id] }),
+        queryClient.invalidateQueries({ queryKey: ['bls'] }),
+        queryClient.invalidateQueries({ queryKey: ['review-queue'] }),
+        queryClient.invalidateQueries({ queryKey: ['op-count'] }),
+        queryClient.invalidateQueries({ queryKey: ['local-charge-operations'] }),
+      ])
+      showToast('Fatura emitida.', 'success')
     } catch (error) {
-      const classified = classifyDbError(error)
-      const message = classified.message
+      const message = classifyDbError(error).message
       const normalizedMessage = normalizeText(message)
       if (normalizedMessage.includes('pendencia de revisao')) {
-        showToast('Ainda existem linhas com pendência de revisão.', 'error')
+        showToast('Há linhas que precisam de revisão: corrija o B/L e recalcule antes de emitir.', 'error')
         return
       }
-      if (normalizedMessage.includes('nao possui cliente vinculado') || normalizedMessage.includes('p0003')) {
-        showToast('B/L sem cliente vinculado. Vincule o cliente na Visão Geral antes de faturar.', 'error')
-        return
-      }
-      if (normalizedMessage.includes('faturamento bloqueado pelo portal')) {
-        showToast(message, 'error')
-        return
-      }
-      showToast(
-        message
-          ? `Falha ao marcar B/L como pronto para faturar: ${message}`
-          : 'Falha ao marcar B/L como pronto para faturar.',
-        'error',
-      )
+      showToast(message ? `Falha ao emitir a fatura: ${message}` : 'Falha ao emitir a fatura.', 'error')
+    } finally {
+      setIssuing(false)
     }
   }
 
@@ -264,7 +259,6 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   const hasManualLines = localChargeSummary.lines.some((line) => line.source === 'manual')
   const showActionsColumn = !chargesLocked && hasManualLines
   const reviewPendingCount = localChargeSummary.lines.filter((line) => line.status === 'review_required').length
-  const busy = markReviewedMutation.isPending || markReadyForBillingMutation.isPending
   const columnCount = showActionsColumn ? 8 : 7
 
   return (
@@ -284,15 +278,16 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
             </Link>
           ) : null}
         </div>
-        {!chargesLocked ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" onClick={handleMarkChargesReviewed} loading={markReviewedMutation.isPending} disabled={busy} type="button">
-              Marcar revisado
-            </Button>
-            <Button onClick={handleMarkReadyForBilling} loading={markReadyForBillingMutation.isPending} disabled={busy} type="button">
-              Pronto para faturar
-            </Button>
-          </div>
+        {canIssue ? (
+          <Button
+            onClick={handleIssueInvoice}
+            loading={issuing}
+            disabled={issuing || localChargeSummary.hasReviewRequired}
+            title={localChargeSummary.hasReviewRequired ? 'Há linhas que precisam de revisão: corrija o B/L e recalcule.' : undefined}
+            type="button"
+          >
+            Emitir fatura
+          </Button>
         ) : null}
       </div>
 
@@ -315,7 +310,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         <Notice tone="warn">As taxas mudaram depois da emissão: o total atual difere da fatura ativa.</Notice>
       ) : null}
       {chargesLocked ? (
-        <Notice>Este B/L já foi faturado. As taxas estão bloqueadas para edição; para alterar, cancele a fatura em Faturamento.</Notice>
+        <Notice>Este B/L já foi faturado. As taxas estão bloqueadas para edição direta. Correções no B/L atualizam o faturamento automaticamente.</Notice>
       ) : null}
 
       <div className="app-table-scroll">
