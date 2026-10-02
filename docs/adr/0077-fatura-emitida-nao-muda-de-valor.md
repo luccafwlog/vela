@@ -1,7 +1,7 @@
 # 0077 — Fatura emitida não muda de valor
 
 Status: aceito — 2026-10-01, revisado em 2026-10-02 (decisões do dono).
-Implementação local nas migrations `122` a `128`; deploy remoto não verificado.
+Implementação local nas migrations `122` a `129`; deploy remoto não verificado.
 
 ## Contexto
 
@@ -60,7 +60,10 @@ A edição de itens manuais em fatura emitida contradizia o congelamento da
 7. A ficha do B/L perde **Marcar revisado** e **Pronto para faturar**
    (migration `127`): a confirmação do cálculo é o CE Mercante. **Emitir
    fatura** (Administrativo, com confirmação) cobre só a emissão que o
-   automático não fez.
+   automático não fez. Sem Marcar revisado, o container IMO e OOG ao mesmo
+   tempo deixou de travar o cálculo: paga o THD normal com 150% de majoração
+   (× 2,5), derivado do THD normal da tabela ou da Condição do Cliente
+   (migration `129`).
 8. **Portal:** a fatura cancelada continua acessível ao Cliente, que já a viu,
    mas não aparece por padrão; só pelo filtro **Cancelada**.
 
@@ -87,8 +90,8 @@ viagem não é reavaliado no B/L vizinho quando só um deles é corrigido.
 ## Evidência
 
 Código: `InvoiceDetailModal`, `InvoiceCorrectionPanel`, `PendingReissuesPanel`,
-`ManualInvoiceModal`, `PortalInvoiceDetailModal`, migrations `122`–`128`.
-Testes: `invoiceBasisCorrection.local-pg.test.ts`,
+`ManualInvoiceModal`, `PortalInvoiceDetailModal`, migrations `122`–`129`.
+Testes: `thdImoOog.local-pg.test.ts`, `invoiceBasisCorrection.local-pg.test.ts`,
 `invoiceAutoReissue.local-pg.test.ts`, `invoiceCorrection.local-pg.test.ts`,
 `invoiceReissue.local-pg.test.ts`, `InvoiceCorrectionPanel.test.tsx`,
 `ManualInvoiceModal.test.tsx`.

@@ -903,6 +903,13 @@ Classificação de carga perigosa segundo a International Maritime Organization.
 **OOG (Out of Gauge)**
 Container com dimensões fora do padrão ISO.
 
+**THD por perfil de carga**
+A tabela de taxas guarda o THD normal, o THD IMO (normal + 50%) e o THD OOG
+(normal + 100%) como valores próprios. Container IMO e OOG ao mesmo tempo paga
+o THD normal com 150% de majoração (normal × 2,5), calculado a partir do THD
+normal da tabela ou da Condição do Cliente — sem revisão manual. Exemplo: THD
+normal de R$ 1.420 → R$ 3.550. Decidido em 2026-10-02 (migration `129`).
+
 **SOC / COC**
 Propriedade do container. **COC** (carrier owned) é do armador; **SOC**
 (shipper owned) é do próprio cliente. O B/L informa na linha do container e o

@@ -23,6 +23,8 @@
   **Restituição pendente**; a consolidada volta uma vez só e apenas com os mesmos
   B/Ls; o Portal esconde canceladas por padrão; o efeito de veículos encerra a
   consolidada do B/L isento; datas de Demurrage deixam de gerar alerta.
+  THD de container IMO e OOG ao mesmo tempo (`129`): THD normal com 150% de
+  majoração, sem revisão manual.
   [ADR 0077](adr/0077-fatura-emitida-nao-muda-de-valor.md); rollout remoto não verificado.
 
 - **SOC/COC do container (2026-10-01):** migration `121`. O container passa a ser SOC (do
