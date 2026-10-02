@@ -20,7 +20,8 @@ export function BlFreightSection({ freightLines }: { freightLines: BlFreightLine
   const sorted = [...freightLines].sort((a, b) => a.seq - b.seq)
   return (
     <Card>
-      <h3 className="mb-3 text-sm font-semibold text-[var(--app-text-strong)]">Frete &amp; Despesas do BL</h3>
+      <h2 className="mb-1 text-lg font-semibold text-[var(--app-text-strong)]">Frete e despesas</h2>
+      <p className="mb-4 text-sm text-[var(--app-muted)]">Declarado pelo armador no B/L. Não é Taxa Local.</p>
       {sorted.length === 0 ? (
         <p className="text-sm text-[var(--app-muted)]">Nenhuma linha de frete importada. Use &quot;Importar B/L&quot; para carregar o documento.</p>
       ) : (
@@ -29,8 +30,8 @@ export function BlFreightSection({ freightLines }: { freightLines: BlFreightLine
             <thead>
               <tr className="text-left text-xs uppercase text-[var(--app-muted)]">
                 <th className="py-1 pr-3">#</th>
-                <th className="py-1 pr-3">Descricao</th>
-                <th className="py-1 pr-3">Valor</th>
+                <th className="py-1 pr-3">Descrição</th>
+                <th className="py-1 pr-3 text-right">Valor</th>
                 <th className="py-1 pr-3">Pagamento</th>
               </tr>
             </thead>
@@ -39,7 +40,7 @@ export function BlFreightSection({ freightLines }: { freightLines: BlFreightLine
                 <tr key={line.seq} className="border-t border-[var(--app-border)]">
                   <td className="py-1 pr-3 text-[var(--app-muted)]">{line.seq}</td>
                   <td className="py-1 pr-3">{line.description}</td>
-                  <td className="py-1 pr-3">{money(line.currency, line.amount)}</td>
+                  <td className="py-1 pr-3 text-right tabular-nums">{money(line.currency, line.amount)}</td>
                   <td className="py-1 pr-3">{line.payment ?? '—'}</td>
                 </tr>
               ))}

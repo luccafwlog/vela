@@ -350,9 +350,8 @@ export function BlDetalhe() {
           { label: `B/L ${bl.id}` },
         ]}
       />
-      {/* A modalidade estava só no texto do título, concatenada com um hífen.
-          Agora é um badge com tom próprio, ao lado do identificador — a mesma
-          leitura de relance que a coluna Carga dá na lista. */}
+      {/* Modalidade e cancelamento como badges acima do identificador — a
+          mesma leitura de relance que a coluna Carga dá na lista. */}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Badge tone={cargoMode === 'misto' ? 'yellow' : cargoMode === 'carga_solta' ? 'green' : 'blue'}>
           {cargoModeLabel(cargoMode)}
@@ -361,31 +360,25 @@ export function BlDetalhe() {
       </div>
       <PageHeader
         title={`B/L ${bl.id}`}
-        description={
-          isMixedMode
-            ? 'Edição manual com auditoria. Esta tela exibe containers, carga solta e veículos vinculados a este B/L misto.'
-            : isContainerMode
-              ? 'Edição manual com auditoria. Esta tela exibe containers e veículos vinculados a este B/L.'
-              : 'Edição manual com auditoria. Esta tela exibe o resumo operacional do manifesto BB vinculado a este B/L.'
-        }
+        description={[voyageLabel, bl.pol || bl.pod ? `${bl.pol ?? '—'} → ${bl.pod ?? '—'}` : null, bl.customer?.name ?? 'Sem cliente vinculado'].filter(Boolean).join(' · ')}
         action={
-          <div className="flex flex-wrap justify-end gap-2">
-            {isAdmin && bl.ce_mercante && !cancelledAt ? (
-              <Button variant="danger" onClick={() => void handleCancelBl()}>Cancelar B/L</Button>
-            ) : null}
-            {isAdmin && cancelledAt ? (
-              <Button variant="secondary" onClick={() => void handleReactivateBl()}>Reativar B/L</Button>
-            ) : null}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Link className="app-btn app-btn--ghost" to={backHref}>
+              <ArrowLeft size={16} />
+              {backLabel}
+            </Link>
             {hasContainers && canImport ? (
               <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
                 <Upload size={16} />
                 Importar B/L
               </Button>
             ) : null}
-            <Link className="text-sm font-semibold text-[#58a6ff] hover:underline" to={backHref}>
-              <ArrowLeft className="mr-1 inline" size={16} />
-              {backLabel}
-            </Link>
+            {isAdmin && cancelledAt ? (
+              <Button variant="secondary" onClick={() => void handleReactivateBl()}>Reativar B/L</Button>
+            ) : null}
+            {isAdmin && bl.ce_mercante && !cancelledAt ? (
+              <Button variant="danger" onClick={() => void handleCancelBl()}>Cancelar B/L</Button>
+            ) : null}
           </div>
         }
       />
@@ -421,7 +414,6 @@ export function BlDetalhe() {
       <BlVisaoGeralTab
         active={activeTab === 'visao-geral'}
         bl={bl}
-        cockpit={cockpitQuery.data}
         cargoMode={cargoMode}
         containerSummary={containerSummary}
         breakbulkSummary={breakbulkSummary}
@@ -471,7 +463,7 @@ export function BlDetalhe() {
         onSubmit={handleSubmit}
       />
 
-      <BlFaturamentoTab active={activeTab === 'faturamento'} bl={bl} />
+      <BlFaturamentoTab active={activeTab === 'faturamento'} bl={bl} activeInvoice={latestInvoice} />
 
       <BlHistoricoTab active={activeTab === 'historico'} blId={blId} />
 

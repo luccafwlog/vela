@@ -34,8 +34,8 @@ export function ManualChargeFormFields({
   const isEditing = Boolean(form.editingChargeCalculationId)
 
   return (
-    <div className="mb-4 rounded-xl border border-[#30363d] bg-[#0d1117] p-4">
-      <div className="mb-3 text-sm font-semibold text-white">Outras cobranças (manuais)</div>
+    <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+      <div className="mb-3 text-sm font-semibold text-[var(--app-text-strong)]">{isEditing ? 'Editar cobrança manual' : 'Nova cobrança manual'}</div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <Field label="Item">
           <Select
@@ -70,14 +70,12 @@ export function ManualChargeFormFields({
         <div className="flex items-end gap-2 xl:col-span-2">
           <Button type="button" onClick={onSave} loading={saving} disabled={deleting}>
             {isEditing ? <Pencil size={16} /> : <Save size={16} />}
-            {isEditing ? 'Salvar edição' : 'Adicionar cobrança manual'}
+            {isEditing ? 'Salvar edição' : 'Adicionar'}
           </Button>
-          {isEditing ? (
-            <Button variant="ghost" type="button" onClick={onCancel}>
-              <X size={15} />
-              Voltar
-            </Button>
-          ) : null}
+          <Button variant="ghost" type="button" onClick={onCancel}>
+            <X size={15} />
+            Cancelar
+          </Button>
         </div>
       </div>
     </div>

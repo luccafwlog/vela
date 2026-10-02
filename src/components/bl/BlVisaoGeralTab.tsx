@@ -4,16 +4,13 @@ import { Card } from '../ui/Card'
 import { Badge } from '../ui/Badge'
 import type { BLDetail } from '../../types/database'
 import type { ContainerSummary, BreakbulkSummary } from './BlCargaTab'
-import type { useBlCockpit } from '../../hooks/useBlCockpit'
 import { BlTransshipmentCard } from './BlTransshipmentCard'
 import type { BlDisposition, VoyageOmission } from '../../services/transshipments'
 import { BlPortalCard, type BlPortalStatus } from './BlPortalCard'
-import { resolveChargeStatusLabel, formatNumber, type CargoMode } from '../../pages/blDetalheHelpers'
-import { cargoModeLabel, isBreakbulkCargoMode, isContainerCargoMode } from '../../lib/cargoMode'
-import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
+import { BlClienteSection } from './BlClienteSection'
+import { formatNumber, type CargoMode } from '../../pages/blDetalheHelpers'
+import { isBreakbulkCargoMode, isContainerCargoMode } from '../../lib/cargoMode'
 import { BlTerminalOverrideCard, type BlTerminalOverrideOption } from './BlTerminalOverrideCard'
-
-const dt = (value: string | null | undefined) => value ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(value)) : '—'
 
 export type BaplieStatus = {
   state: 'loading' | 'error' | 'not_imported' | 'reconciled'
@@ -35,10 +32,12 @@ function BaplieBadge({ status }: { status: BaplieStatus }) {
   }
 }
 
-export function BlVisaoGeralTab({ active, bl, cockpit, cargoMode, containerSummary, breakbulkSummary, onCod, onRestore, disposition, omission, savingDisposition, portalStatus, baplieStatus, terminalOptions, canEditTerminal, terminalOverrideSaving, terminalOverrideError, onSaveTerminalOverride }: {
+// Visão Geral: o que identifica o embarque, quem é o cliente e onde a carga
+// descarrega. Datas de POL/POD e situação de taxas/fatura ficam só na linha do
+// tempo acima das abas; aqui não se repetem.
+export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, breakbulkSummary, onCod, onRestore, disposition, omission, savingDisposition, portalStatus, baplieStatus, terminalOptions, canEditTerminal, terminalOverrideSaving, terminalOverrideError, onSaveTerminalOverride }: {
   active: boolean
   bl: BLDetail
-  cockpit: ReturnType<typeof useBlCockpit>['data']
   cargoMode: CargoMode
   containerSummary: ContainerSummary
   breakbulkSummary: BreakbulkSummary
@@ -57,106 +56,61 @@ export function BlVisaoGeralTab({ active, bl, cockpit, cargoMode, containerSumma
 }) {
   if (!active) return null
   const effectiveDisposition: BlDisposition = disposition ?? 'transshipment'
-  const showBothLenses = isContainerCargoMode(cargoMode) && isBreakbulkCargoMode(cargoMode)
+  const showContainers = isContainerCargoMode(cargoMode)
+  const showBreakbulk = isBreakbulkCargoMode(cargoMode)
+  const voyageText = [bl.voyage?.vessel?.carrier?.name, bl.voyage?.vessel?.name, bl.voyage?.voyage_number].filter(Boolean).join(' / ') || '—'
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       {omission ? (
-        <BlTransshipmentCard omission={omission} disposition={effectiveDisposition} saving={savingDisposition ?? false} onCod={onCod} onRestore={onRestore} />
+        <div className="lg:col-span-2">
+          <BlTransshipmentCard omission={omission} disposition={effectiveDisposition} saving={savingDisposition ?? false} onCod={onCod} onRestore={onRestore} />
+        </div>
       ) : null}
-      <Card>
-        <h3 className="mb-3 text-sm font-semibold">Viagem &amp; Escala</h3>
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
-          <Item label="Armador / Navio / Viagem">
+
+      <Card className="lg:col-span-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold">Embarque</h3>
+          {showContainers && bl.voyage_id && baplieStatus ? (
+            <Link to={`/baplie?voyage=${bl.voyage_id}`} aria-label="Abrir conciliação do Baplie">
+              <BaplieBadge status={baplieStatus} />
+            </Link>
+          ) : null}
+        </div>
+        {/* Contêiner e carga solta seguem os predicados compartilhados de
+            modalidade: um B/L misto satisfaz os dois e mostra os dois blocos. */}
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-4 xl:grid-cols-6">
+          <Item label="Armador / Navio / Viagem" className="col-span-2">
             {bl.voyage_id ? (
-              <Link className="font-semibold text-[#58a6ff] hover:underline" to={`/viagens/${bl.voyage_id}`}>
-                {[bl.voyage?.vessel?.carrier?.name, bl.voyage?.vessel?.name, bl.voyage?.voyage_number].filter(Boolean).join(' / ') || '—'}
-              </Link>
+              <Link className="font-semibold text-[var(--app-link)] hover:underline" to={`/viagens/${bl.voyage_id}`}>{voyageText}</Link>
             ) : '—'}
           </Item>
-          <Item label="Trecho">{`${bl.pol ?? '—'} → ${bl.pod ?? '—'}`}</Item>
-          <Item label="Terminal de Descarga">
-            {bl.terminal?.name ?? (bl.terminal_id ? `Terminal #${bl.terminal_id}` : 'Padrão da Escala')}
-          </Item>
-          <Item label="Saída do POL">{cockpit?.polSchedule?.atd ? `ATD ${dt(cockpit.polSchedule.atd)}` : `ETD ${dt(cockpit?.polSchedule?.etd)}`}</Item>
-          <Item label="Chegada ao POD">{cockpit?.podSchedule?.ata ? `ATA ${dt(cockpit.podSchedule.ata)}` : `ETA ${dt(cockpit?.podSchedule?.eta)}`}</Item>
-        </dl>
-      </Card>
-    <Card>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Carga</h3>
-        <CargoModeBadge mode={cargoMode} />
-      </div>
-      {/* As duas seções são governadas pelos predicados compartilhados, e não
-          por uma terceira regra local: este card decidia a modalidade por conta
-          própria (`cargo_mode === 'misto' || (distinct > 0 && ...)`), diferente
-          do trigger do banco e de resolveCargoMode. Um B/L misto satisfaz os
-          dois predicados e mostra as duas seções, sem ramo extra. */}
-      <div className="space-y-4">
-        {isContainerCargoMode(cargoMode) ? (
-          <div>
-            {showBothLenses ? (
-              <div className="mb-1 text-xs font-semibold text-[var(--app-muted)]">Contêineres</div>
-            ) : null}
-            <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
+          <Item label="Trecho" className="col-span-2">{`${bl.pol ?? '—'} → ${bl.pod ?? '—'}`}</Item>
+          {showContainers ? (
+            <>
               <Item label="Containers">{String(containerSummary.distinct)}</Item>
-              <Item label="IMO">{String(containerSummary.imo)}</Item>
-              <Item label="OOG">{String(containerSummary.oog)}</Item>
-              <Item label="SOC">{String(containerSummary.soc)}</Item>
-              <Item label="COC">{String(containerSummary.coc)}</Item>
-            </dl>
-            {bl.voyage_id && baplieStatus ? (
-              <Link to={`/baplie?voyage=${bl.voyage_id}`} className="mt-3 inline-block">
-                <BaplieBadge status={baplieStatus} />
-              </Link>
-            ) : null}
-          </div>
-        ) : null}
-        {isBreakbulkCargoMode(cargoMode) ? (
-          <div>
-            {showBothLenses ? (
-              <div className="mb-1 text-xs font-semibold text-[var(--app-muted)]">Carga Solta</div>
-            ) : null}
-            <dl className="grid gap-2 text-sm sm:grid-cols-4">
+              <Item label="IMO / OOG">{`${containerSummary.imo} / ${containerSummary.oog}`}</Item>
+              <Item label="SOC / COC">{`${containerSummary.soc} / ${containerSummary.coc}`}</Item>
+            </>
+          ) : null}
+          {showBreakbulk ? (
+            <>
               <Item label="Máquinas">{formatNumber(breakbulkSummary.machines)}</Item>
               <Item label="Packages">{formatNumber(breakbulkSummary.packagesTotal)}</Item>
               <Item label="Peso (t)">{formatNumber(breakbulkSummary.weightTon)}</Item>
-              {/* CBM não aparecia em nenhum dos ramos, embora seja um dos cinco
-                  números do resumo de carga solta. */}
               <Item label="CBM (m³)">{formatNumber(breakbulkSummary.cbm)}</Item>
-            </dl>
-          </div>
-        ) : null}
-      </div>
-    </Card>
-      <Card>
-        <div className="flex h-full flex-col justify-between gap-3">
-          <div>
-            <h3 className="mb-2 text-sm font-semibold">Cliente</h3>
-            {bl.customer ? (
-              <div className="text-sm">
-                <div className="font-semibold text-[var(--app-text-strong)]">{bl.customer.name}</div>
-                <div className="font-mono text-xs text-[var(--app-muted)]">{bl.customer.cnpj_cpf}</div>
-              </div>
-            ) : (
-              <div>
-                <Badge tone="yellow">Sem cliente vinculado</Badge>
-              </div>
-            )}
-          </div>
-          <div className="border-t border-[var(--app-border)] pt-2">
-            <Link
-              className="inline-flex items-center gap-1 text-sm font-medium text-[var(--app-link,#58a6ff)] hover:underline"
-              to={`/bls/${bl.id}?tab=faturamento`}
-            >
-              Abrir Faturamento →
-            </Link>
-          </div>
-        </div>
+            </>
+          ) : null}
+        </dl>
       </Card>
+
+      <BlClienteSection bl={bl} />
+      {portalStatus ? <BlPortalCard status={portalStatus} /> : <Card><h3 className="text-sm font-semibold">Portal</h3><p className="mt-2 text-sm text-[var(--app-muted)]">Verificando…</p></Card>}
+
       {terminalOptions ? (
         <div className="lg:col-span-2">
           <BlTerminalOverrideCard
             key={`${bl.id}:${bl.terminal_id ?? 'inherit'}:${bl.pod_port_id ?? 'none'}`}
+            currentLabel={bl.terminal?.name ?? (bl.terminal_id ? `Terminal #${bl.terminal_id}` : 'Padrão da escala')}
             terminalId={bl.terminal_id}
             podPortId={bl.pod_port_id}
             options={terminalOptions}
@@ -167,22 +121,15 @@ export function BlVisaoGeralTab({ active, bl, cockpit, cargoMode, containerSumma
           />
         </div>
       ) : null}
-      <Card>
-        <h3 className="mb-3 text-sm font-semibold">Financeiro</h3>
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
-          <Item label="Taxas">{resolveChargeStatusLabel(bl.charge_status)}</Item>
-          <Item label="Status">{statusLabel(FINANCIAL_STATUS_LABELS, bl.financial_status ?? 'pending')}</Item>
-        </dl>
-      </Card>
-      {portalStatus ? <BlPortalCard status={portalStatus} /> : null}
     </div>
   )
 }
 
-function CargoModeBadge({ mode }: { mode: CargoMode }) {
-  return <Badge tone={mode === 'misto' ? 'yellow' : mode === 'carga_solta' ? 'green' : 'blue'}>{cargoModeLabel(mode)}</Badge>
-}
-
-function Item({ label, children }: { label: string; children: ReactNode }) {
-  return <div><dt className="text-xs text-[var(--app-muted)]">{label}</dt><dd className="font-medium text-[var(--app-text-strong)]">{children}</dd></div>
+function Item({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+  return (
+    <div className={className}>
+      <dt className="text-xs text-[var(--app-muted)]">{label}</dt>
+      <dd className="mt-0.5 font-medium text-[var(--app-text-strong)]">{children}</dd>
+    </div>
+  )
 }

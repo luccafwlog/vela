@@ -13,7 +13,7 @@ const FAMILY_TONE: Record<BlTimelineFamily, 'blue' | 'slate' | 'green' | 'yellow
   container: 'slate',
   taxas: 'green',
   fatura: 'yellow',
-  sistema: 'red',
+  sistema: 'slate',
 }
 
 export function familyLabel(family: BlTimelineFamily): string {

@@ -2,6 +2,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 
 const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
@@ -66,5 +67,16 @@ describe('cobranças do B/L', () => {
         'error',
       )
     })
+  })
+
+  it('abre a fatura ativa pela URL esperada', () => {
+    render(
+      <MemoryRouter>
+        <BlCobrancasSection bl={bl} activeInvoice={{ id: 77, invoice_number: 'INV-077' } as never} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('link', { name: /Fatura ativa: INV-077/i }).getAttribute('href'))
+      .toBe('/taxas-locais?invoice=77')
   })
 })
