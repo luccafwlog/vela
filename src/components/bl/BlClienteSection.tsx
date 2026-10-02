@@ -19,7 +19,7 @@ import { groupReviewItems } from '../../pages/revisaoHelpers'
 import { canonicalizeDocument } from '../../lib/cnpj'
 import { formatBRL, formatCnpjCpf } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
-import { afterBlEstadoAlterado, afterBlRevisado } from '../../services/cacheEffects'
+import { afterCargaAlterada, afterBlRevisado } from '../../services/cacheEffects'
 import { sendReviewPortalInvite } from '../../services/reviewCustomerGroup'
 import { tryAutoIssueInvoice } from '../../services/reviewBillingAutomation'
 import { createCustomer, findCustomerIdByDocument } from '../../services/customers'
@@ -72,7 +72,7 @@ export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalSta
   async function refresh() {
     await Promise.all([
       afterBlRevisado(queryClient, { blId: bl.id, includeCustomers: true, includeCharges: true, includeInvoices: true, includePortal: true }),
-      afterBlEstadoAlterado(queryClient, { blId: bl.id, voyageId: bl.voyage_id }),
+      afterCargaAlterada(queryClient),
       queryClient.invalidateQueries({ queryKey: queryKeys.portal.blStatus(bl.id) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.bls.timeline(bl.id) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines(bl.id) }),
@@ -170,7 +170,7 @@ export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalSta
       expectedUpdatedAt: bl.updated_at ?? null,
     })
     await Promise.all([
-      afterBlEstadoAlterado(queryClient, { blId: bl.id, voyageId: bl.voyage_id }),
+      afterCargaAlterada(queryClient),
       queryClient.invalidateQueries({ queryKey: queryKeys.portal.blStatus(bl.id) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.bls.timeline(bl.id) }),
     ])

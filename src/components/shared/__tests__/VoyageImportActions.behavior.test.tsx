@@ -388,5 +388,7 @@ it('importa direto quando a viagem ainda não tem Baplie', async () => {
   await openBaplieWithFile()
 
   await waitFor(() => expect(mocks.importedBaplie).toHaveBeenCalledTimes(1))
+  await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyages'] }))
+  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['baplie-staging', '7'] })
   expect(mocks.confirm).not.toHaveBeenCalled()
 })

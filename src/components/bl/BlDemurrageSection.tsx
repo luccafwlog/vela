@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { afterDatasContainerAlteradas } from '../../services/cacheEffects'
 import { Save } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -177,11 +178,19 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
     setSavingReturnDate(containerId)
     try {
       await updateContainerReturnDate(containerId, returnDate || null)
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
-        queryClient.invalidateQueries({ queryKey: ['demurrage-containers'] }),
-      ])
+      // A escrita já foi confirmada; uma falha na releitura não deve expor a data antiga.
+      queryClient.setQueryData<BLDetail>(queryKeys.bls.detail(bl.id), (cached) => cached && ({
+        ...cached,
+        bl_containers: cached.bl_containers?.map((item) => item.id === containerId
+          ? { ...item, return_date: returnDate || null }
+          : item),
+      }))
+      await afterDatasContainerAlteradas(queryClient)
+      setReturnDates((current) => {
+        const next = { ...current }
+        if (current[containerId] === returnDate) delete next[containerId]
+        return next
+      })
       showToast('Data de devolução salva.', 'success')
     } catch {
       showToast('Erro ao salvar a data de devolução.', 'error')

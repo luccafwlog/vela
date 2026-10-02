@@ -9,11 +9,11 @@ describe('invalidateBaplieDependentQueries', () => {
 
     expect(invalidateQueries.mock.calls.map(([input]) => input.queryKey)).toEqual(expect.arrayContaining([
       ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['billing-ledger'],
-      ['baplie-reconciliation', '24'],
+      ['baplie-reconciliation'],
       ['bls'],
       ['bl-detail'],
       ['voyages'],
-      ['voyage-timeline', '24'],
+      ['voyage-timeline'],
       ['agency-report'],
     ]))
   })

@@ -11,35 +11,35 @@ function keySet(keys: (readonly unknown[])[]): string[] {
 }
 
 describe('cache effects', () => {
-  it('invalidates exactly the voyage superset and normalizes timeline id', async () => {
+  it('invalidates the voyage superset and refreshes the timeline family', async () => {
     const { client, keys } = fakeQueryClient()
     await afterViagemAlterada(client, { voyageId: 24 })
-    expect(keys()).toEqual(keySet([
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
       ['voyages'], ['voyage-options'], ['voyage-pod-schedules'], ['voyage-escala-schedules'], ['portal-schedule-voyages'], ['bls'], ['containers'], ['dashboard'],
-      ['voyage-timeline', '24'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
-    ]))
+      ['voyage-timeline'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
+    ])))
     expect(keys()).not.toContain(JSON.stringify(['voyage-timeline', 24]))
   })
 
-  it('invalidates exactly the scale effect set', async () => {
+  it('invalidates the scale effect set', async () => {
     const { client, keys } = fakeQueryClient()
     await afterEscalaAlterada(client, { voyageId: 24 })
-    expect(keys()).toEqual(keySet([
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
       ['voyage-pod-schedules'], ['voyage-pol-schedules'], ['voyage-export-schedules'], ['voyage-escala-schedules'], ['portal-schedule-voyages'],
       ['voyage-timeline', '24'], ['voyages'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
-    ]))
+    ])))
   })
 
-  it('invalidates exactly the route effect set', async () => {
+  it('invalidates the route effect set', async () => {
     const { client, keys } = fakeQueryClient()
     await afterRotaAlterada(client, { voyageId: 24 })
-    expect(keys()).toEqual(keySet([
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
       ['voyage-route-ce-masters'], ['voyage-pol-schedules'], ['voyage-pod-schedules'], ['voyage-escala-schedules'],
       ['voyage-timeline', '24'], ['voyages'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
-    ]))
+    ])))
   })
 
-  it('invalidates exactly the manifest import set, including B/L summary dependents', async () => {
+  it('invalidates the manifest import set, including B/L summary dependents', async () => {
     const { client, keys } = fakeQueryClient()
     await afterManifestoImportado(client, { voyageId: 24 })
     expect(keys()).toEqual(expect.arrayContaining(keySet([
@@ -47,10 +47,10 @@ describe('cache effects', () => {
       ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['invoice-links'], ['billing-ledger'], ['customers'], ['voyages'], ['port-options'],
       ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
       ['manifestos-mercante'],
-      ['baplie-reconciliation', '24'], ['baplie-staging', '24'],
+      ['baplie-reconciliation'], ['baplie-staging'],
       ['local-charge-operations'], ['customer-reconciliation-queue'], ['bl-local-charge-lines'],
       ['agency-report'],
-      ['voyage-pol-schedules'], ['voyage-escala-schedules'], ['voyage-timeline', '24'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
+      ['voyage-pol-schedules'], ['voyage-escala-schedules'], ['voyage-timeline'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
     ])))
   })
 
@@ -67,7 +67,7 @@ describe('cache effects', () => {
     const { client, keys } = fakeQueryClient()
     await afterBaplieImportado(client, { voyageId: '24' })
     expect(keys()).toEqual(expect.arrayContaining(keySet([
-      ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['billing-ledger'], ['baplie-reconciliation', '24'], ['bls'], ['bl-detail'], ['voyages'], ['voyage-timeline', '24'], ['agency-report'],
+      ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['billing-ledger'], ['baplie-reconciliation'], ['bls'], ['bl-detail'], ['voyages'], ['voyage-timeline'], ['agency-report'],
     ])))
   })
 

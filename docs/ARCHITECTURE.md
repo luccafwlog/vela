@@ -259,7 +259,7 @@ rota tem um orçamento de **50 ms** de parse/compile de JS, verificável por
 - `src/pages/`: composição de rotas, estado visual e fluxos de tela;
 - `src/hooks/`: queries e mutations reutilizáveis com TanStack Query;
 - `src/services/`: acesso ao Supabase, parsers, importadores e domínio;
-- `src/services/cacheEffects.ts`: seam de invalidação de cache por eventos de domínio (`afterViagemAlterada`, `afterEscalaAlterada`, `afterRotaAlterada`, `afterBaplieImportado`, `afterBlRevisado`, `afterManifestoImportado`); os adapters históricos permanecem atrás dele;
+- `src/services/cacheEffects.ts`: invalidação por eventos de domínio (`afterViagemAlterada`, `afterEscalaAlterada`, `afterRotaAlterada`, `afterBaplieImportado`, `afterBlRevisado`, `afterManifestoImportado`, `afterCargaAlterada`, `afterDatasContainerAlteradas`); o adapter histórico de Baplie encaminha para esse owner. Importações, edições e exclusões atualizam listas, cards, fichas e consumidores derivados, incluindo Revisão, Taxas Locais, ADR e Relatórios. Consultas ativas são refeitas e consultas desmontadas ficam obsoletas para a próxima abertura. O efeito é aguardado pelo fluxo de gravação; não há sincronização entre usuários neste mecanismo;
 - `src/services/importCore.ts`: leitor único de planilhas por `readSheet` e casamento de cabeçalhos por `HeaderSpec`/`matchHeaders`;
 - `src/components/ui/`: primitivas visuais;
 - `src/components/shared/`: componentes reutilizados por módulos;

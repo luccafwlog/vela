@@ -1,5 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { afterCargaAlterada } from '../../services/cacheEffects'
 import { Download, Upload } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Field, Input } from '../ui/Input'
@@ -228,10 +229,8 @@ export function CeMercanteImportModal({
 
   function invalidateBls() {
     const invalidations = [
-      queryClient.invalidateQueries({ queryKey: ['bls'] }),
-      queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),
+      afterCargaAlterada(queryClient),
       queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.all() }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.customerCommunications.statusRoot() }),
     ]
     if (target === 'granite') {
       invalidations.push(

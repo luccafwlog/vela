@@ -1,5 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { afterDatasContainerAlteradas } from '../../services/cacheEffects'
 import { Button } from '../ui/Button'
 import { Field, Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
@@ -42,12 +43,7 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
     try {
       const result = await importContainerDates(preview.rows)
       setReport(result)
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['containers'] }),
-        queryClient.invalidateQueries({ queryKey: ['demurrage-containers'] }),
-        queryClient.invalidateQueries({ queryKey: ['demurrage-invoices'] }),
-        queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),
-      ])
+      await afterDatasContainerAlteradas(queryClient)
       // Erros de estrutura vem do parse; os de gravacao vem do lote parcial.
       // Somar os dois evita fechar o modal escondendo linhas que nao entraram.
       const errors = preview.rowErrors.length + result.errors.length

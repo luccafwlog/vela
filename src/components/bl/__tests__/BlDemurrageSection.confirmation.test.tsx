@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { BlDemurrageSection } from '../BlDemurrageSection'
@@ -128,6 +128,52 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
 
     expect(mocks.confirm).toHaveBeenCalled()
     expect(mocks.saveBlDemurrageConfig).not.toHaveBeenCalled()
+  })
+
+  it('devolução salva acompanha a data de uma importação seguinte', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    try {
+      const view = render(<QueryClientProvider client={client}><BlDemurrageSection bl={mockBl} /></QueryClientProvider>)
+      fireEvent.change(screen.getByDisplayValue('2026-05-10'), { target: { value: '2026-05-20' } })
+      fireEvent.click(screen.getByRole('button', { name: /Salvar devolução/ }))
+      await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Data de devolução salva.', 'success'))
+      const imported = { ...mockBl, bl_containers: [{ ...mockContainer, return_date: '2026-05-25' }] } as unknown as BLDetail
+      view.rerender(<QueryClientProvider client={client}><BlDemurrageSection bl={imported} /></QueryClientProvider>)
+      expect(screen.getByDisplayValue('2026-05-25')).toBeTruthy()
+      expect(screen.queryByDisplayValue('2026-05-20')).toBeNull()
+    } finally { client.clear() }
+  })
+
+  it('mantém a data confirmada quando a releitura da ficha falha', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+    function Detail() {
+      const { data } = useQuery({ queryKey: ['bl-detail', mockBl.id], initialData: mockBl, queryFn: async (): Promise<BLDetail> => { throw new Error('Falha na consulta') } })
+      return <BlDemurrageSection bl={data} />
+    }
+    try {
+      render(<QueryClientProvider client={client}><Detail /></QueryClientProvider>)
+      fireEvent.change(screen.getByDisplayValue('2026-05-10'), { target: { value: '2026-05-20' } })
+      fireEvent.click(screen.getByRole('button', { name: /Salvar devolução/ }))
+      await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Data de devolução salva.', 'success'))
+      expect(screen.getByDisplayValue('2026-05-20')).toBeTruthy()
+      expect(client.getQueryState(['bl-detail', mockBl.id])?.status).toBe('error')
+    } finally { client.clear() }
+  })
+
+  it('preserva a próxima edição enquanto a devolução anterior é salva', async () => {
+    let finish!: () => void
+    mocks.updateContainerReturnDate.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+    const client = new QueryClient()
+    try {
+      render(<QueryClientProvider client={client}><BlDemurrageSection bl={mockBl} /></QueryClientProvider>)
+      fireEvent.change(screen.getByDisplayValue('2026-05-10'), { target: { value: '2026-05-20' } })
+      fireEvent.click(screen.getByRole('button', { name: /Salvar devolução/ }))
+      await waitFor(() => expect(mocks.updateContainerReturnDate).toHaveBeenCalled())
+      fireEvent.change(screen.getByDisplayValue('2026-05-20'), { target: { value: '2026-05-25' } })
+      await act(async () => { finish() })
+      await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Data de devolução salva.', 'success'))
+      expect(screen.getByDisplayValue('2026-05-25')).toBeTruthy()
+    } finally { client.clear() }
   })
 
   it('exibe diálogo de confirmação com diff ao salvar data de devolução do container', async () => {

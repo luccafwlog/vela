@@ -1,6 +1,6 @@
 # Manifestos & EDI
 
-> **Status:** ativo · **Atualizado:** 2026-10-01 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`
+> **Status:** ativo · **Atualizado:** 2026-10-02 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`
 
 ## Propósito e escopo
 
@@ -62,6 +62,45 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
 - Pela ADR 0025, `Laden on Board` persiste o ATD do POL. Entre B/Ls da mesma Viagem e POL prevalece automaticamente a data mais antiga. ETD e ATD permanecem distintos; telas sem coluna própria mostram ATD em verde na célula de ETD.
 - Admin pode excluir B/Ls elegíveis, individualmente ou em lote, após pré-checagem fiscal.
 - O Nº de Manifesto Mercante é gerenciado na tabela `manifestos_mercante`, associado a rotas e viagens, com suporte a múltiplos manifestos por escala e indicação de vazios (`is_empty`). A edição é realizada na aba de Manifestos de `/viagens/:voyageId`.
+
+### Atualização após ações próprias
+
+- Os efeitos financeiros reutilizam `INVOICE_BASIS_CACHE_KEYS`: alterações de
+  carga, viagem, Baplie e cancelamento de B/L atualizam também restituições,
+  ajustes de COD, histórico de conciliação e consultas de faturas do Portal.
+  Essa lista preserva os consumidores das correções de faturamento da PR 839.
+- Importar B/L container, B/L carga solta, Manifesto BB ou CE Mercante atualiza
+  listas e cards de B/Ls, Containers, Veículos e Viagens, além da ficha da Viagem,
+  conciliação do Baplie, filtros por porto/tipo, Revisão, Taxas Locais, ADR,
+  Relatórios e fichas consumidoras. Importação rápida da Viagem usa o mesmo
+  efeito de cache que o modal da lista.
+- Exclusões de B/Ls, Containers e Veículos atualizam também os totalizadores e
+  vínculos dependentes, incluindo veículos removidos junto com um Container.
+  Edição manual e vínculo/desvínculo de Cliente atualizam as projeções do B/L.
+- Importar/reimportar Baplie atualiza os cards mesmo sem alteração de flags
+  físicas. As duas entradas de importação usam `afterBaplieImportado`; o upload
+  da página aguarda a aplicação física e a atualização da viagem **escolhida no
+  modal**, que pode diferir da viagem aberta. Cadastro/substituição de vazios
+  atualiza as famílias reais de Vazios IMP e Rotas e Manifestos.
+- Salvar Local de desova atualiza também seus cards em Veículos; o campo deixa
+  de guardar uma cópia do valor salvo após a atualização. Datas de descarga e
+  devolução (planilha, ficha do B/L ou Demurrage) atualizam os consumidores de
+  Demurrage, incluindo cards, faturas e ficha do Cliente. O campo de devolução
+  também libera o rascunho salvo para acompanhar importações seguintes. Desova
+  e devolução confirmadas são refletidas no cache antes da releitura: se ela
+  falhar, o campo mantém o valor salvo. A conclusão de uma gravação não apaga
+  um rascunho mais recente editado durante a operação.
+- A atualização ocorre após as próprias ações, sem recarregar a página.
+  Consultas abertas são refeitas; telas fechadas consultam novamente ao abrir.
+  Isso não implementa sincronização entre usuários nem antecipa efeitos ainda
+  pendentes no worker de importação.
+- **Teste:** `operationalCacheRefresh.test.ts` usa QueryClient/QueryObserver reais
+  e fontes locais alteradas para verificar listas/cards abertos e reabertura.
+  `Baplie.cacheRefresh.test.tsx` exercita o upload com outra viagem no seletor;
+  `EquipmentPermissionGates.test.tsx` verifica desova salva seguida de novo dado.
+  `Containers.cacheRefresh.test.tsx` exclui uma linha pela tela real e verifica
+  o card de Containers e os resumos consumidores de B/Ls e Viagens sem remontar.
+  Esses testes usam serviços simulados, sem provar execução de RPC/RLS no Supabase.
 
 ### `/bls/:blId`
 

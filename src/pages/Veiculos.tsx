@@ -1,6 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { afterCargaAlterada } from '../services/cacheEffects'
 import { Download, Trash2, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
@@ -169,15 +170,7 @@ export function Veiculos() {
       const result = await importVehicleRows({ voyageId: importTargetVoyageId, rows: parsedImport.rows })
       setImportReport(result)
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
-        queryClient.invalidateQueries({ queryKey: ['vehicle-stats'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyage-vehicle-stats'] }),
-        queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),
-        // P0-4: a seção "Veículos" do ADR conta por marca/VIN a partir de
-        // `vehicles`; sem esta linha, importar veículos não atualizava a aba.
-        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-      ])
+      await afterCargaAlterada(queryClient)
 
       showToast(
         `Importacao concluida: ${result.successCount} sucesso(s), ${result.errorCount} erro(s), ${result.processed} processado(s).`,
@@ -208,13 +201,18 @@ export function Veiculos() {
   }
 
   async function invalidateAfterDelete() {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
-      queryClient.invalidateQueries({ queryKey: ['vehicle-stats'] }),
-      queryClient.invalidateQueries({ queryKey: ['voyage-vehicle-stats'] }),
-      queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),
-      queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-    ])
+    await afterCargaAlterada(queryClient)
+  }
+
+  function cacheSavedUnpackingLocations(containerIds: readonly number[], value: string | null) {
+    const ids = new Set(containerIds)
+    // Atualiza só consultas existentes com a escrita confirmada, antes da releitura.
+    queryClient.setQueriesData<typeof data>({ queryKey: ['vehicles'] }, (cached) => cached && ({
+      ...cached,
+      rows: cached.rows.map((row) => row.container && ids.has(row.container.id)
+        ? { ...row, container: { ...row.container, unpacking_location: value } }
+        : row),
+    }))
   }
 
   async function handleUnpackingLocationSave(containerId: number, value: string, currentValue: string | null) {
@@ -224,11 +222,13 @@ export function Veiculos() {
     setSavingContainerId(containerId)
     try {
       await setContainerUnpackingLocation(containerId, unpackingLocation)
-      setUnpackingLocations((current) => ({ ...current, [containerId]: unpackingLocation ?? '' }))
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
-        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-      ])
+      cacheSavedUnpackingLocations([containerId], unpackingLocation)
+      await afterCargaAlterada(queryClient)
+      setUnpackingLocations((current) => {
+        const next = { ...current }
+        if (current[containerId] === value) delete next[containerId]
+        return next
+      })
       showToast('Local de desova atualizado.', 'success')
     } catch (err) {
       setUnpackingLocations((current) => ({ ...current, [containerId]: currentValue ?? '' }))
@@ -250,18 +250,21 @@ export function Veiculos() {
       showToast('Nenhum container nas linhas selecionadas.', 'info')
       return
     }
+    const submittedDrafts = unpackingLocations
     setBulkDesovaSaving(true)
     try {
-      await Promise.all(containerIds.map((containerId) => setContainerUnpackingLocation(containerId, value)))
+      await Promise.all(containerIds.map(async (containerId) => {
+        await setContainerUnpackingLocation(containerId, value)
+        cacheSavedUnpackingLocations([containerId], value)
+      }))
+      await afterCargaAlterada(queryClient)
       setUnpackingLocations((current) => {
         const next = { ...current }
-        for (const containerId of containerIds) next[containerId] = value ?? ''
+        for (const containerId of containerIds) {
+          if (current[containerId] === submittedDrafts[containerId]) delete next[containerId]
+        }
         return next
       })
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
-        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-      ])
       showToast(`Local de desova aplicado a ${containerIds.length} container(s).`, 'success')
       setBulkDesovaOpen(false)
       setBulkDesovaValue('')
