@@ -20,7 +20,7 @@
 
 As policies de leitura e marcação de notificações internas exigem destinatário
 igual a `auth.uid()` e perfil interno ativo (`is_active_read_user()`, migration
-`121`), inclusive para acesso direto com um JWT ainda válido após desativação.
+`122`), inclusive para acesso direto com um JWT ainda válido após desativação.
 
 `administrativo` · `financeiro` · `operacoes` · `documentacao` · `equipamentos`, em `user_profiles` (`role`, `active`). Geridas em `/admin/usuarios`. Ver [Admin Usuários](../modules/operacao-suporte.md#admin-usuários).
 
@@ -67,7 +67,7 @@ token emitido antes do marco final é recusado, inclusive dentro dos cinco
 segundos antes tolerados. Token sem `iat` válido também é recusado enquanto o
 marco estiver ativo.
 
-Desde a migration `121`, reset e confirmação do Email de Recuperação usam RPCs
+Desde a migration `122`, reset e confirmação do Email de Recuperação usam RPCs
 exclusivas de `service_role` com lock por conta. O reset aceita somente convite
 pendente, não expirado e destinado ao email atual, consome-o e registra
 `recovery_reset_invite_id` antes de chamar o Auth. A confirmação aplica o email,
@@ -76,7 +76,7 @@ O trigger cobre também a troca assistida. Enquanto o reset está em andamento,
 qualquer alteração do Email de Recuperação é recusada; o marcador só é removido
 depois da alteração da senha e da revogação final confirmadas.
 
-**Publicação:** aplicar a migration `121` antes de publicar `portal-password-reset`
+**Publicação:** aplicar a migration `122` antes de publicar `portal-password-reset`
 e `portal-recovery-email-change`. **Falha de reset:** não há desbloqueio por tempo.
 O operador deve confirmar nos logs que a execução terminou e que nenhuma chamada
 ao Auth continua pendente, verificar o resultado da alteração e revogar as sessões
