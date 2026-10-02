@@ -1,6 +1,6 @@
 # Onboarding Itaú Pix — estado da integração (código + processo)
 
-**Atualizado em:** 2026-10-01.
+**Atualizado em:** 2026-10-02.
 **Propósito:** dar a qualquer agente que abrir a PR 827 o estado atual do
 processo com o Itaú em paralelo ao código. Os planos existentes descrevem o
 passo a passo; este documento diz onde a bola está parada e quem é o dono de
@@ -38,24 +38,42 @@ e-mails é o início da razão social da titular da conta (TRANSHIPPING
 AGENCIAMENTO MARITIMO LTDA) — os e-mails são da integração do Vela, não de
 outro sistema.
 
-## Fluxo do certificado (mapeado em 2026-10-01)
+## Fluxo do certificado (revisado em 2026-10-02)
 
-1. Gerar o par de chaves localmente (RSA 2048; a privada nunca sai da máquina
-   do dono). Não precisa de nada do Itaú — pode ser feito agora.
-2. Responder o e-mail de boas-vindas pedindo o cadastro; perguntar qual
-   identificador usar no CN do CSR e para onde enviar a chave pública/CSR.
-3. O e-mail "Credenciais Itaú" traz o token temporário (7 dias) e o
-   client_secret criptografado. O client_id viaja no `sub` do token.
-4. Gerar o CSR com `CN=<client_id>`; POST no STS
-   (`/seguranca/v1/certificado/solicitacao`) usando o token como Bearer.
-5. A resposta devolve o `.crt` assinado (1 ano) — a emissão **é** a
-   confirmação; não há trava manual posterior documentada.
-6. Avisar o Itaú por e-mail quando o fluxo produtivo estiver rodando
-   (acompanhamento deles).
+**Evidência documental:** [guia atual do Itaú para certificado dinâmico](https://devportal.itau.com.br/certificado-dinamico-demais-produtos),
+consultado em 2026-10-02. Corrige a descrição anterior: o e-mail entrega
+client_id, token temporário e chave de sessão criptografados; o client_secret
+é devolvido pelo STS junto com o certificado, não presumido no e-mail.
 
-**Custódia definida:** privada gerada e guardada localmente pelo dono; em
-runtime, o trio (privada + .crt + client_secret) vai para o Supabase Vault.
-Nada no repo, no frontend, no chat ou no e-mail.
+1. Preparar o par RSA 2048 localmente, sem depender do banco. **Concluído em
+   2026-10-02:** `private.pem` (PKCS#8) e `public.pem`, fora do repositório,
+   com permissões Windows restritas ao dono. Integridade da privada,
+   correspondência da pública e assinatura/verificação local aprovadas.
+2. Responder o e-mail de boas-vindas para solicitar cadastro, confirmar se há
+   certificado vigente reutilizável e o ponto focal/canal para a pública.
+3. Enviar somente `public.pem` ao ponto focal confirmado. O guia recomenda
+   e-mail; nenhum envio foi realizado nesta preparação.
+4. Receber o e-mail "Credenciais Itaú" e descriptografar localmente client_id
+   e token temporário usando a chave privada e a chave de sessão recebida.
+   O token de onboarding vale 7 dias; material antigo não foi reutilizado.
+5. Gerar e validar o CSR final com `CN=<client_id>` decifrado. O CSR segue
+   para o STS, não substitui a pública enviada ao ponto focal. O guia gera
+   uma chave própria para o CSR: se esse fluxo for seguido, manter também a
+   privada de descriptografia, sem sobrescrever os arquivos desta preparação.
+6. POST do CSR no STS (`/seguranca/v1/certificado/solicitacao`), com token
+   temporário como Bearer e TLS validado. A resposta traz `.crt` e client_secret.
+   Conferir validade, cadeia e correspondência com a privada do CSR.
+7. Validar OAuth e consultas autorizadas na conta antes de considerar o acesso
+   operacional; avisar o Itaú quando o fluxo produtivo estiver rodando.
+
+**Custódia:** o material preparado está em
+`C:\Users\Lucca\.itau\IT-000245617\2026-10-02`, sob responsabilidade do dono;
+`LEIA-ME.txt` registra a validação e o uso de cada arquivo. Nenhum CSR,
+certificado ou segredo bancário foi emitido. Se o banco confirmar certificado
+vigente reutilizável, o novo par pode não ser necessário.
+Em runtime, o destino definido para privada do CSR + `.crt` + client_secret
+é o Supabase Vault; nomes, acesso pela função e instalação ainda pendentes.
+Nenhum valor sensível entra no repo, frontend, chat ou e-mail.
 
 ## Fatos técnicos confirmados (2026-09-30/10-01)
 
@@ -79,23 +97,24 @@ Nada no repo, no frontend, no chat ou no e-mail.
 
 | Trava | Dono | Estado |
 |---|---|---|
-| Responder o e-mail de boas-vindas (cadastro + identificador do CN + canal de envio da pública/CSR) | Dono | Pendente |
-| Cadastro da empresa / identificador para o CSR | Implantação Técnica Itaú | Aguardando a resposta do dono |
+| Responder o e-mail de boas-vindas (cadastro + canal de envio da pública + certificado existente) | Dono | Pendente |
+| Cadastro da empresa / emissão do material de ativação | Implantação Técnica Itaú | Aguardando a resposta do dono |
 | Acesso à "nova experiência" de certificados/credenciais | Time comercial Itaú | Portal só consulta; modal dispensado em 01/10 — vale revisitar e clicar "começar" |
-| Confirmar se a empresa já tem certificado API Itaú (reutilizar em vez de gerar) | Dono + Itaú | Pergunta incluída na resposta ao e-mail |
+| Confirmar se a empresa já tem certificado API Itaú (reutilizar em vez de gerar) | Dono + Itaú | Pergunta incluída no rascunho; envio pendente |
 | Ligar o transporte real + polling GET com paginação/checkpoint + cron autorizado | Código (PR futura) | Bloqueado até credenciais vigentes |
 
 ## Próximos passos (ordem)
 
-1. Dono responde o e-mail de boas-vindas (mesmo thread, sem alterar o assunto),
-   citando IT-000245617: pede o cadastro, pergunta o identificador do CN, o
-   canal de envio da pública/CSR e o acesso à "nova experiência".
-2. Dono gera o par de chaves localmente (pode fazer agora; não depende do Itaú).
-3. Com o identificador: gera o CSR final e envia pelo canal indicado.
-4. Recebe o "Credenciais Itaú": descriptografa o client_secret, solicita o
-   certificado no STS, guarda o trio no Supabase Vault.
-5. Valida OAuth/escopos na conta real; liga o transporte; implementa polling
-   GET `/pix` com paginação/checkpoint; cria cron autorizado.
+1. Dono responde no mesmo thread, citando IT-000245617: solicita cadastro,
+   confirmação de certificado existente, ponto focal para `public.pem` e acesso
+   à gestão de certificados/credenciais. Rascunho preparado; envio pendente.
+2. Confirmado o canal, envia a pública já preparada e recebe material vigente.
+3. Descriptografa client_id/token localmente; gera e valida o CSR final;
+   solicita certificado e client_secret no STS, com autorização específica.
+4. Valida cadeia, validade e correspondência da chave; instala o material no
+   destino aprovado. Nada foi instalado no Supabase nesta preparação.
+5. Valida OAuth/escopos e consulta real autorizada; liga o transporte;
+   implementa polling GET `/pix` com paginação/checkpoint e cron autorizado.
 
 ## Arquivos relacionados
 
