@@ -227,8 +227,8 @@ isolada em `src/components/billing/consolidatedInvoiceSelection.ts`.
 - métricas, cliente, B/Ls, itens e pagamentos;
 - breakdown reconstruído de consolidadas;
 - formulário de pagamento com decisão ledger versus legado;
-- Cancelar e reemitir em fatura local sem pagamento; vínculo da sucessora e Reemissão pendente;
-- Correção após pagamento com prévia de abatimento, restituição e saldo;
+- vínculo com a fatura substituída ou sucessora, Reemissão pendente e motivo de encerramento sem reemissão;
+- histórico dos ajustes que a correção do B/L fez em fatura com pagamento (abatimento e restituição);
 - lista de `invoice_refunds` e ação “Marcar estornado”;
 - cancelamento de invoice sem pagamentos;
 - cancelamento de baixa quando aberto pelo histórico de `/reconciliacao`;
@@ -283,8 +283,7 @@ impressão e chama `window.print()`; o nome sugerido é calculado por
 | Modal consolidada · emitir | Cliente, ao menos um receivable elegível e CE Mercante em cada B/L selecionado | `ConsolidatedInvoiceModal.submit` | `useCreateConsolidatedInvoice` → `createConsolidatedInvoice` | RPC `create_local_consolidated_invoice` cria invoice, links, evento e auditoria; `047_bl_documental_gates.sql` guarda links e transição para emissão | Invalidação ledger comum: ledger, invoices, B/Ls, clientes, detalhes, refunds, alertas e contagem | RPC trava receivables e rejeita cliente divergente, saldo inválido, consolidada aberta ou B/L sem CE | **Código:** `src/services/billingLedger.ts`, `supabase/migrations_archive/067_local_billing_ledger_phase2.sql`, `supabase/migrations/047_bl_documental_gates.sql` · **Teste:** `src/services/__tests__/billingLedger.test.ts`, `src/services/__tests__/blDocumentalGatesMigration.test.ts` |
 | Detalhe · registrar pagamento ledger | `isLedgerInvoicePayable`: tipo individual/consolidated, status `issued`/`partially_paid`, saldo positivo | `InvoiceDetailModal.handleRegisterPayment` | `useRegisterLedgerInvoicePayment` → `registerLedgerInvoicePayment` | RPC `register_ledger_invoice_payment` → `payments`, `ledger_settlements`, receivables, invoice, B/Ls, eventos e possível refund | Invalidação ledger comum | Valor/data validados; RPC rejeita estado, ausência de links, TXID duplicado e regras de valor | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/services/__tests__/billingLedger.test.ts` |
 | Detalhe · registrar pagamento legado | Invoice não classificada como ledger payable | Mesmo handler, ramo `else` | `useRegisterInvoicePayment` → `registerInvoicePayment` | RPC `register_invoice_payment` → `payments`, agregados de `invoices`, `bls.financial_status`, auditoria | Invalida invoices, detalhe, B/Ls e clientes | Bloqueia valor não positivo, acima do saldo, invoice paga/cancelada | **Código:** `src/hooks/useBilling.ts`, `supabase/migrations_archive/020_billing_hybrid_workflow.sql` · **Teste:** `src/services/__tests__/billing.test.ts` |
-| Detalhe · Cancelar e reemitir | Taxas Locais sem pagamento; admin; motivo | `InvoiceDetailModal` | `useCancelInvoiceForReissue` | `cancel_invoice_for_reissue`; `replaces_invoice_id` na próxima emissão | Retorna B/Ls para correção e exibe Reemissão pendente; invalida invoices/B/Ls/ledger | Pagamento ou B/L fora da consolidada bloqueia | **Teste:** `invoiceReissue.local-pg.test.ts`, `InvoiceDetailPrint.test.tsx` |
-| Detalhe · Registrar correção da cobrança | Local paga/parcial; Financeiro ou Administrativo; B/L e motivo | `InvoiceCorrectionPanel` | `useRegisterInvoiceCorrection` | `register_invoice_correction`; `invoice_corrections`, saldo do recebível e eventual `invoice_refunds.origin='correction'` | Abate saldo antes de restituir; invalida detalhe, ledger, correções e Portal; total/itens originais preservados | Aumento exige avulsa; restituição acima do disponível é recusada | **Teste:** `invoiceCorrection.local-pg.test.ts`, `InvoiceCorrectionPanel.test.tsx` |
+| Taxas Locais · Reemissão pendente · Tentar reemitir | Consolidada cancelada pela correção do B/L; Administrativo | `PendingReissuesPanel` | `useRetryPendingConsolidatedReissue` → `retryPendingConsolidatedReissue` | RPC `retry_pending_consolidated_reissue` → `_try_recreate_consolidated` (128): recria com os mesmos B/Ls, encerra se já não são os mesmos ou aguarda a individual | Invalida invoices (inclui Reemissão pendente), detalhe, ledger e clientes | Trava (Portal não pronto) mantém a pendência com o motivo no alerta | **Teste:** `invoiceBasisCorrection.local-pg.test.ts` |
 | Detalhe · Resolver alerta com justificativa | Fatura desatualizada tratada; admin; motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo vazio e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts` |
 | Detalhe · cancelar invoice | Admin; invoice sem pagamentos | `handleCancelInvoice` | `useCancelInvoice` → `cancelInvoice` | RPC protegida `cancel_invoice` (executa como `SECURITY DEFINER` após validar sessão ativa e papel admin) → invoice, batch, B/Ls e auditoria; implementação mais recente também preserva regras de Granito | Invalida invoices, detalhe, billing-ready, B/Ls e clientes | Pagamentos bloqueiam cancelamento; tabelas internas não são expostas diretamente; falha cria alerta/evento best-effort | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts`, `supabase/migrations_archive/064_fix_granite_invoice_cancel_reissue.sql`, `supabase/migrations_archive/142_secure_cancel_invoice_wrapper.sql` |
 | Detalhe · liquidar restituição | `invoice_refunds.status = pending`; admin | `handleSettleRefund` | `useSettleInvoiceRefund` → `settleInvoiceRefund` | RPC `settle_invoice_refund` atualiza refund e auditoria | Invalidação ledger comum | Refund ausente ou não pendente é rejeitado | **Código:** `src/services/billingLedger.ts`, `supabase/migrations_archive/112_settle_invoice_refunds.sql` · **Teste de contrato SQL:** `src/services/__tests__/settleInvoiceRefundsMigration.test.ts` |
@@ -345,38 +344,58 @@ menores e específicas descritas no catálogo.
 ### Correção após emissão (ADR 0077)
 
 Fatura emitida não oferece edição manual de itens; as RPCs antigas foram
-revogadas para a API pela migration `122`. Sem pagamento, Cancelar e reemitir
-permite a correção e mantém o vínculo entre documentos. B/L numa consolidada
-aberta reemite pela consolidada, marcando o B/L; fatura com correção registrada
-não é cancelada, nem depois de cancelar a baixa (migration `125`). Com pagamento, acréscimo
-ou serviço usa avulsa. Redução recebe o total correto por B/L e motivo; o sistema
-mostra redução, abatimento do saldo, restituição e saldo restante antes da confirmação.
-Em consolidada, só o recebível escolhido é corrigido. O Portal recebe o saldo
-ajustado e discrimina abatimentos/restituições; total original permanece visível.
+revogadas para a API pela migration `122`. Não há Cancelar e reemitir nem
+correção digitada: a `128` removeu `cancel_invoice_for_reissue` e
+`register_invoice_correction` (decisão de 2026-10-02).
 
-Registrar pagamento informa que qualquer baixa impede cancelar/reemitir e
-confirma valor recebido e saldo restante. A correção não cria pagamento fictício.
-Restituição é registro de dinheiro a devolver, liquidado no fluxo existente.
-Cancelar uma baixa que financia uma restituição por correção é recusado quando
-o dinheiro restante não cobrir a devolução comprometida; sem restituição,
-a reversão preserva o abatimento e recompõe somente o saldo real.
+Toda alteração que muda a base faturada de um B/L com fatura de Taxas Locais
+viva é tratada no fim da transação. Gatilhos `BEFORE` em `bls`,
+`bl_containers` e `vehicles` guardam a base anterior (`bl_invoice_basis_snapshot`,
+só campos lidos pelo motor, inclusive SOC/COC) e gatilhos de restrição
+adiados chamam `process_invoice_basis_changes` no commit; reimportação e Baplie
+chamam a mesma função antes de responder (`invoice_reissues` no retorno).
+`apply_invoice_basis_changes` compara o valor do B/L (`_quote_bl_local_charges`,
+com o ROE congelado no recebível) e o Cliente:
+
+- sem mudança de valor nem de Cliente: nada acontece;
+- sem pagamento: cancela todas as consolidadas e individuais afetadas antes de
+  emitir, reemite cada individual pelo núcleo da emissão automática do CE
+  (`_auto_bill_bl_core`, ROE do dia) e recria cada consolidada uma única vez,
+  só com os mesmos B/Ls (`_try_recreate_consolidated`); B/L cancelado, isento,
+  quitado ou de outro Cliente encerra a consolidada sem reemissão
+  (`reissue_closed_at`/`reissue_closed_reason`);
+- com pagamento e valor menor: `_register_invoice_correction_core` abate o saldo
+  e registra restituição do excedente; o alerta **Restituição pendente** fecha
+  quando não resta restituição pendente na fatura;
+- com pagamento e valor maior, troca de Cliente ou cálculo em revisão: Fatura
+  desatualizada; a diferença a maior vai em avulsa.
+
+Travas de emissão deixam Reemissão pendente com o motivo no alerta; resolvida a
+trava, Emitir fatura na ficha do B/L reemite a individual e o gatilho de
+`invoice_receivable_links` recria a consolidada. B/L cancelado ou isento
+encerra a pendência. Fatura cancelada resolve Fatura desatualizada. Uma falha
+nesse processamento não desfaz a correção do B/L: vira Fatura desatualizada.
+Em consolidada, só o recebível do B/L corrigido é ajustado. O Portal recebe o
+saldo ajustado e discrimina abatimentos/restituições; total original permanece
+visível. Fatura com ajuste registrado não é cancelada (migration `125`).
+
+Registrar pagamento confirma valor recebido e saldo restante e avisa que, com
+pagamento, a correção do B/L passa a abater saldo ou gerar avulsa. O ajuste não
+cria pagamento fictício. Restituição é registro de dinheiro a devolver,
+liquidado no fluxo existente. Cancelar uma baixa que financia uma restituição
+por correção é recusado quando o dinheiro restante não cobrir a devolução
+comprometida; sem restituição, a reversão preserva o abatimento e recompõe
+somente o saldo real.
 Itens da tabela na avulsa são resolvidos na emissão pelo mesmo catálogo manual
 do B/L, com Condição do Cliente, base B/L/TEU e USD convertido pelo ROE congelado
 no snapshot. Outra mantém o item livre. Nada é cobrado automaticamente.
 
-Reimportação do B/L com override ou flags do Baplie que alteram a base de B/L
-faturado sem pagamento cancelam e reemitem automaticamente a individual e a
-consolidada que o incluem (`auto_reissue_invoices_for_bl`, migration `126`),
-pelo mesmo núcleo da emissão automática do CE (`_auto_bill_bl_core`). Travas
-deixam a fatura em Reemissão pendente com o motivo no alerta. Depois de um
-cancelamento, o recálculo desvincula os itens da fatura cancelada das linhas
-de cálculo antigas. Cancelar fatura individual coberta por consolidada aberta é
-recusado; cancele ou reemita pela consolidada.
-
-Com pagamento, alteração efetiva das bases faturadas abre Fatura desatualizada. Reemissão resolve
-automaticamente; correção ou avulsa exige justificativa de resolução. Leituras e
-escritas estão nas migrations `123` a `126`; o recálculo indireto não reescreve
-recebível com fatura viva.
+Depois de um cancelamento, o recálculo desvincula os itens da fatura cancelada
+das linhas de cálculo antigas (`126`). Cancelar fatura individual coberta por
+consolidada aberta é recusado; o efeito de veículos cancela a consolidada do B/L
+isento e a encerra sem reemissão (`128`). Erro de preço (tabela ou Condição do
+Cliente) não reemite: vale para faturas futuras. Limite conhecido: o rateio de
+container compartilhado não reavalia o B/L vizinho.
 
 
 ```mermaid

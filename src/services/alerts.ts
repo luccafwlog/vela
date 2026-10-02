@@ -8,6 +8,7 @@ import { queryKeys } from './queryKeys'
 // Catálogo vivo de alertas suportados pela aplicação.
 export type ActiveAlertType =
   | 'fatura_desatualizada'
+  | 'restituicao_pendente'
   | 'invoice_overdue'
   | 'invoice_payment_invalid'
   | 'invoice_cancel_blocked'
@@ -48,6 +49,7 @@ export type ActiveAlertType =
 
 export const TYPE_LABELS: Record<string, string> = {
   fatura_desatualizada: 'Fatura desatualizada',
+  restituicao_pendente: 'Restituição pendente',
   // Aposentado pela 348 (issue #605): sem produtor, mas o rótulo permanece para
   // os itens históricos, como os tipos aposentados pela 327/347.
   invoice_overdue: 'Fatura vencida',
@@ -110,6 +112,7 @@ export type AlertEventUnit = 'bl' | 'invoice' | 'pix_transaction' | 'demurrage_i
 
 export const FINANCIAL_ALERT_EVENTS = {
   fatura_desatualizada: { audience: ['administrativo'], unit: 'invoice' },
+  restituicao_pendente: { audience: ['administrativo'], unit: 'invoice' },
   billing_calculation_blocked: { audience: ['documentacao'], unit: 'bl' },
   billing_auto_issue_failed: { audience: ['documentacao'], unit: 'bl' },
   demurrage_ptax_recalc_failed: { audience: ['documentacao'], unit: 'exchange_rate_reference' },
@@ -119,6 +122,7 @@ export const FINANCIAL_ALERT_EVENTS = {
 
 export const FINANCIAL_ALERT_TYPES = [
   'fatura_desatualizada',
+  'restituicao_pendente',
   'billing_calculation_blocked',
   'billing_auto_issue_failed',
   'demurrage_ptax_recalc_failed',
@@ -250,7 +254,7 @@ export function alertEntityLink(alert: {
 }): string | null {
   if (!alert.entity_id) return alert.destination ?? null
   const effectiveType = getEffectiveAlertType(alert)
-  if (effectiveType === 'fatura_desatualizada' && alert.entity_type === 'invoice') return `/taxas-locais?invoice=${encodeURIComponent(alert.entity_id)}`
+  if ((effectiveType === 'fatura_desatualizada' || effectiveType === 'restituicao_pendente') && alert.entity_type === 'invoice') return `/taxas-locais?invoice=${encodeURIComponent(alert.entity_id)}`
 
   if (
     (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')

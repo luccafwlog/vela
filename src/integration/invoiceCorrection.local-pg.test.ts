@@ -2,8 +2,9 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
-// Migration 124 (ADR 0077; plano 2026-10-01-correcao-de-bl-apos-faturamento,
-// Fases 1 e 3): fatura emitida não muda de valor; a correção cancela e reemite.
+// Migrations 123/124/128 (ADR 0077): avulsa com item da tabela e o núcleo que
+// a correção do B/L usa em fatura com pagamento (abate o saldo, restitui o
+// excedente). O disparo pela correção está em invoiceBasisCorrection.
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -41,6 +42,11 @@ function adminJson<T>(sql: string): T {
   expect(result.status, result.stderr).toBe(0)
   const line = result.stdout.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith('{') || l.startsWith('[')).at(-1)
   return JSON.parse(line ?? '{}') as T
+}
+
+// Núcleo do sistema: sem RPC pública desde a 128.
+function correct(invoiceId: number, receivableId: number, total: number, reason: string) {
+  return JSON.parse(psql(`SELECT public._register_invoice_correction_core(${invoiceId}, ${receivableId}, ${total}, '${reason}', '${actorId}'::uuid)`))
 }
 
 let initialPricingVersionIds: string[] | null = null
@@ -95,7 +101,7 @@ describeLocal('123/124 — avulsa da tabela, abatimento guiado e restituição p
     initialPricingVersionIds = psql('SELECT id FROM public.pricing_rule_versions ORDER BY id').split('\n').filter(Boolean)
     exchangeRateSnapshot = psql('SELECT row_to_json(r)::text FROM public.exchange_rate_reference r WHERE id = 1;') || null
     cleanup()
-    expect(psql(`SELECT to_regproc('public.register_invoice_correction') IS NOT NULL;`)).toBe('t')
+    expect(psql(`SELECT to_regproc('public._register_invoice_correction_core') IS NOT NULL;`)).toBe('t')
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'reissue-124@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active)
@@ -111,6 +117,8 @@ describeLocal('123/124 — avulsa da tabela, abatimento guiado e restituição p
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R124', 'active');
       INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode, pod, financial_status, review_status, charge_status, customer_reconciliation_status, ce_mercante)
       VALUES ${blIds.map((bl, i) => `('${bl}', ${voyageId}, ${customerId}, 'container', 'BRSSZ', 'invoiced', 'ok', 'ready_for_billing', 'reconciled', 'CE-124-${i}')`).join(', ')};
+      -- Containers antes das faturas: inserir carga em B/L faturado já é uma correção (128).
+      INSERT INTO public.bl_containers(bl_id, container_number, type) VALUES ('${blIds[0]}', 'TSTU1240001', '22G1'), ('${blIds[0]}', 'TSTU1240002', '42G1');
       INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, total_paid_brl, balance_brl, status, invoice_type, issued_by, issued_at)
       VALUES ${invoiceIds.map((id, i) => `(${id}, 'R124-IND-${i + 1}', ${customerId}, '${blIds[i]}', 100, 0, 100, 'issued', 'individual', '${actorId}', now())`).join(', ')};
       INSERT INTO public.invoice_bls (invoice_id, bl_id, charge_status_snapshot, financial_status_snapshot, subtotal_brl)
@@ -128,7 +136,6 @@ describeLocal('123/124 — avulsa da tabela, abatimento guiado e restituição p
       INSERT INTO public.charge_table_items(id, charge_table_id, name, application_basis, applies_to, currency, unit_value_brl, unit_value_usd, value_brl, manual_only, active)
         VALUES (99212451, 99212450, 'Correction Letter', 'bl', 'bl', 'BRL', 600, NULL, 600, true, true),
         (99212452, 99212450, 'Booking Cancelation Fee', 'teu', 'teu', 'USD', NULL, 150, 0, true, true);
-      INSERT INTO public.bl_containers(bl_id, container_number, type) VALUES ('${blIds[0]}', 'TSTU1240001', '22G1'), ('${blIds[0]}', 'TSTU1240002', '42G1');
     `)
   })
 
@@ -165,7 +172,7 @@ describeLocal('123/124 — avulsa da tabela, abatimento guiado e restituição p
   })
   it('parcial: abate saldo e permite pagar somente o restante sem alterar a fatura', () => {
     adminJson(`SELECT public.register_ledger_invoice_payment(${invoiceIds[0]}, 40)`)
-    const correction = adminJson(`SELECT public.register_invoice_correction(${invoiceIds[0]}, ${receivableIds[0]}, 80, 'Peso correto')`)
+    const correction = correct(invoiceIds[0], receivableIds[0], 80, 'Peso correto')
     expect(correction).toMatchObject({offset_brl: 20, refund_brl: 0, balance_brl: 40})
     expect(psql(`SELECT total_brl || '|' || total_paid_brl || '|' || balance_brl FROM public.invoices WHERE id = ${invoiceIds[0]}`)).toBe('100.00|40.00|40.00')
     expect(asAdmin(`SELECT public.register_ledger_invoice_payment(${invoiceIds[0]}, 41, 'pix', now(), NULL, 'pix_extract')`).stderr).toMatch(/excede/)
@@ -174,15 +181,20 @@ describeLocal('123/124 — avulsa da tabela, abatimento guiado e restituição p
   })
   it('abate primeiro o saldo e restitui apenas o que já foi recebido a mais; liquida pela RPC existente', () => {
     adminJson(`SELECT public.register_ledger_invoice_payment(${invoiceIds[1]}, 90)`)
-    expect(adminJson(`SELECT public.register_invoice_correction(${invoiceIds[1]}, ${receivableIds[1]}, 80, 'Correcao de valor')`)).toMatchObject({offset_brl: 10, refund_brl: 10, balance_brl: 0})
+    expect(correct(invoiceIds[1], receivableIds[1], 80, 'Correcao de valor')).toMatchObject({offset_brl: 10, refund_brl: 10, balance_brl: 0})
     const refund = Number(psql(`SELECT id FROM public.invoice_refunds WHERE invoice_id = ${invoiceIds[1]}`))
     expect(psql(`SELECT origin || '|' || notes FROM public.invoice_refunds WHERE id = ${refund}`)).toBe('correction|Correcao de valor')
+    expect(psql(`SELECT count(*) FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id
+      WHERE ai.item_type = 'restituicao_pendente' AND ai.status = 'active' AND a.entity_id = '${invoiceIds[1]}'`)).toBe('1')
     expect(adminJson(`SELECT public.settle_invoice_refund(${refund})`)).toMatchObject({status: 'settled'})
     const payment = psql(`SELECT id FROM public.payments WHERE invoice_id = ${invoiceIds[1]}`)
     expect(asAdmin(`SELECT public.reverse_invoice_payment(${payment}, 'Baixa incorreta')`).stderr).toMatch(/restituicao por correcao/)
     expect(asAdmin(`SELECT public.register_invoice_correction_refund(${invoiceIds[1]}, 100, 'x')`).stderr).toMatch(/permission denied/)
-    expect(asAdmin(`SELECT public.register_invoice_correction(${invoiceIds[1]}, ${receivableIds[1]}, 90, 'xpto')`).stderr).toMatch(/menor/)
-    expect(asAdmin(`SELECT public.register_invoice_correction(${invoiceIds[1]}, ${receivableIds[0]}, 50, 'xpto')`).stderr).toMatch(/nao pertence/)
+    expect(() => correct(invoiceIds[1], receivableIds[1], 90, 'xpto')).toThrow(/menor/)
+    expect(asAdmin(`SELECT public._register_invoice_correction_core(${invoiceIds[1]}, ${receivableIds[1]}, 50, 'xpto', NULL)`).stderr).toMatch(/permission denied/)
+    // A restituição abre o alerta e a confirmação dela o fecha.
+    expect(psql(`SELECT count(*) FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id
+      WHERE ai.item_type = 'restituicao_pendente' AND ai.status = 'active' AND a.entity_id = '${invoiceIds[1]}'`)).toBe('0')
     const portal = JSON.parse(psql(`SELECT public._portal_invoice_details_core(${customerId}, ${invoiceIds[1]})`))
     expect(portal.corrections[0]).toMatchObject({offset_brl: 10, refund_brl: 10})
   })
@@ -202,18 +214,15 @@ describeLocal('123/124 — avulsa da tabela, abatimento guiado e restituição p
         VALUES (99212415, 99212425, 'R124-BL-5', 100, 'active');
     `)
     adminJson(`SELECT public.register_ledger_invoice_payment(99212415, 40)`)
-    adminJson(`SELECT public.register_invoice_correction(99212415, 99212425, 80, 'Peso correto')`)
+    correct(99212415, 99212425, 80, 'Peso correto')
     const payment = psql(`SELECT id FROM public.payments WHERE invoice_id = 99212415`)
     const reversal = asAdmin(`SELECT public.reverse_invoice_payment(${payment}, 'Baixa lancada na fatura errada')`)
     expect(reversal.status, reversal.stderr).toBe(0)
     expect(psql(`SELECT balance_brl FROM public.bl_receivables WHERE id = 99212425`)).toBe('80.00')
-    expect(asAdmin(`SELECT public.cancel_invoice_for_reissue(99212415, 'Corrigir de novo', NULL)`).stderr).toMatch(/corre..o registrada/)
     expect(asAdmin(`SELECT public.cancel_invoice(99212415, 'Cancelamento simples', NULL)`).stderr).toMatch(/corre..o registrada/)
     expect(psql(`SELECT status FROM public.invoices WHERE id = 99212415`)).not.toBe('cancelled')
   })
-  it('sem permissão financeira não registra correção nem lê dados de outros Clientes', () => {
-    psql(`SET session_replication_role = replica; UPDATE public.user_profiles SET role = 'operacoes' WHERE id = '${actorId}'; SET session_replication_role = origin;`)
-    expect(asAdmin(`SELECT public.register_invoice_correction(${invoiceIds[0]}, ${receivableIds[0]}, 70, 'xpto')`).stderr).toMatch(/permissao/)
+  it('sem usuário ativo não lê as correções', () => {
     psql(`SET session_replication_role = replica; UPDATE public.user_profiles SET active = false WHERE id = '${actorId}'; SET session_replication_role = origin;`)
     expect(asAdmin(`SELECT public.get_invoice_correction_summary(${invoiceIds[0]})`).status).not.toBe(0)
     psql(`SET session_replication_role = replica; UPDATE public.user_profiles SET role = 'administrativo', active = true WHERE id = '${actorId}'; SET session_replication_role = origin;`)
@@ -221,34 +230,16 @@ describeLocal('123/124 — avulsa da tabela, abatimento guiado e restituição p
   it('consolidada parcialmente paga corrige só o B/L selecionado e preserva o restante', () => {
     const consolidated = adminJson<{invoice_id: number}>(`SELECT public.create_local_consolidated_invoice(${customerId}, ARRAY[${receivableIds[2]}, ${receivableIds[3]}]::bigint[], NULL, '${actorId}'::uuid)`)
     adminJson(`SELECT public.register_ledger_invoice_payment(${consolidated.invoice_id}, 40)`)
-    expect(adminJson(`SELECT public.register_invoice_correction(${consolidated.invoice_id}, ${receivableIds[2]}, 80, 'Peso correto na consolidada')`)).toMatchObject({offset_brl: 20, refund_brl: 0, balance_brl: 40})
+    expect(correct(consolidated.invoice_id, receivableIds[2], 80, 'Peso correto na consolidada')).toMatchObject({offset_brl: 20, refund_brl: 0, balance_brl: 40})
     expect(psql(`SELECT total_brl || '|' || balance_brl FROM public.invoices WHERE id = ${consolidated.invoice_id}`)).toBe('200.00|140.00')
     expect(psql(`SELECT balance_brl FROM public.bl_receivables WHERE id = ${receivableIds[3]}`)).toBe('100.00')
     expect(psql(`SELECT balance_brl FROM public._portal_list_invoices_core(${customerId}) WHERE id = ${consolidated.invoice_id}`)).toBe('140.00')
     expect(adminJson(`SELECT public.get_invoice_correction_summary(${consolidated.invoice_id})`)).toHaveProperty('corrections')
   })
-  it('reimportação idêntica não abre alerta; mudança efetiva abre sem alterar o valor emitido', () => {
-    expect(asAdmin(`SELECT public.resolve_stale_invoice(${invoiceIds[0]}, 'Correcao registrada')`).status).toBe(0)
-    const payload = psql(`SELECT jsonb_build_array(to_jsonb(b) || jsonb_build_object(
-      'override_billing', true, 'billing_impact', false,
-      'containers', (SELECT jsonb_agg(to_jsonb(c) ORDER BY c.container_number) FROM public.bl_containers c WHERE c.bl_id = b.id),
-      'vehicles', '[]'::jsonb, 'freight_lines', '[]'::jsonb)) FROM public.bls b WHERE id = '${blIds[0]}'`)
-    expect(asAdmin(`SELECT public.import_bl_freight_transactional('${payload}'::jsonb, '${actorId}'::uuid)`).status).toBe(0)
-    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND metadata->>'invoice_id' = '${invoiceIds[0]}' AND status = 'active'`)).toBe('0')
-    const changed = JSON.parse(payload)
-    changed[0].containers[0].type = '42G1'
-    changed[0].billing_impact = true
-    const changedResult = asAdmin(`SELECT public.import_bl_freight_transactional('${JSON.stringify(changed)}'::jsonb, '${actorId}'::uuid)`)
-    expect(changedResult.status, changedResult.stderr).toBe(0)
-    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND metadata->>'invoice_id' = '${invoiceIds[0]}' AND status = 'active'`)).toBe('1')
-    expect(psql(`SELECT total_brl FROM public.invoices WHERE id = ${invoiceIds[0]}`)).toBe('100.00')
-  })
-  it('Baplie/alteração física abre o alerta e reemissão resolve; resolução manual exige motivo', () => {
-    psql(`INSERT INTO public.baplie_containers(voyage_id, container_number, status, is_oog, is_imo) VALUES (${voyageId}, 'TSTU1240001', 'full', true, false);`)
-    adminJson(`SELECT public.apply_baplie_physical_flags_atomic(${voyageId}, NULL, '${actorId}'::uuid)`)
-    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND metadata->>'invoice_id' = '${invoiceIds[0]}' AND status = 'active'`)).toBe('1')
+  it('resolução manual da Fatura desatualizada exige justificativa', () => {
+    psql(`SELECT public.alert_stale_invoice_for_bl('${blIds[0]}', 'teste');`)
     expect(asAdmin(`SELECT public.resolve_stale_invoice(${invoiceIds[0]}, '')`).stderr).toMatch(/justificativa/)
-    asAdmin(`SELECT public.resolve_stale_invoice(${invoiceIds[0]}, 'Correcao registrada no sistema')`)
+    asAdmin(`SELECT public.resolve_stale_invoice(${invoiceIds[0]}, 'Avulsa da diferenca emitida')`)
     expect(psql(`SELECT status FROM public.alert_items WHERE item_type = 'fatura_desatualizada' AND metadata->>'invoice_id' = '${invoiceIds[0]}'`)).toBe('resolved')
   })
 })

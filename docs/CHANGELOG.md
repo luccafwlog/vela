@@ -17,6 +17,12 @@
   consolidada; recálculo depois do cancelamento não esbarra mais nos itens cancelados.
   Ficha do B/L: saem **Marcar revisado** (RPC sem `EXECUTE`, `127`) e **Pronto para
   faturar**; entra **Emitir fatura**, com confirmação e só para o Administrativo.
+  Decisões de 2026-10-02 (`128`): saem Cancelar e reemitir e a Correção após
+  pagamento digitada; toda correção do B/L (inclusive alteração direta e SOC/COC)
+  reemite sem pagamento ou abate o saldo e restitui com pagamento, com o alerta
+  **Restituição pendente**; a consolidada volta uma vez só e apenas com os mesmos
+  B/Ls; o Portal esconde canceladas por padrão; o efeito de veículos encerra a
+  consolidada do B/L isento; datas de Demurrage deixam de gerar alerta.
   [ADR 0077](adr/0077-fatura-emitida-nao-muda-de-valor.md); rollout remoto não verificado.
 
 - **SOC/COC do container (2026-10-01):** migration `121`. O container passa a ser SOC (do

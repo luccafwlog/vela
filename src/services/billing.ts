@@ -1009,35 +1009,6 @@ export async function cancelInvoice(input: {
   return (data ?? {}) as Json
 }
 
-export type InvoiceReissueResult = {
-  invoice_id: number
-  invoice_type: 'individual' | 'consolidated'
-  customer_id: number
-  bl_ids: string[]
-  cancelled_invoice_ids: number[]
-}
-
-// Cancelar e reemitir (ADR 0077): cancela a fatura de Taxas Locais sem
-// pagamento e deixa a Reemissão pendente até a próxima emissão do B/L.
-export async function cancelInvoiceForReissue(input: {
-  invoiceId: number
-  reason: string
-  correctBlIds?: string[]
-}): Promise<InvoiceReissueResult> {
-  const reason = input.reason.trim()
-  if (!reason) throw new Error('Informe o motivo para cancelar e reemitir a fatura.')
-
-  // ponytail: RPC da migration 122 tipada localmente até a regeneração dos tipos protegidos.
-  const { data, error } = await supabase.rpc('cancel_invoice_for_reissue' as never, {
-    p_invoice_id: input.invoiceId,
-    p_reason: reason,
-    ...(input.correctBlIds?.length ? { p_correct_bl_ids: input.correctBlIds } : {}),
-  } as never)
-
-  if (error) throw error
-  return data as unknown as InvoiceReissueResult
-}
-
 export type PendingReissue = {
   invoice_id: number
   invoice_number: string
@@ -1056,10 +1027,18 @@ export async function listPendingReissues(): Promise<PendingReissue[]> {
   return (data ?? []) as unknown as PendingReissue[]
 }
 
+// Consolidada em Reemissão pendente por trava já resolvida (ADR 0077, 128).
+export async function retryPendingConsolidatedReissue(invoiceId: number): Promise<{ status: string; replaced_by: number | null }> {
+  const { data, error } = await supabase.rpc('retry_pending_consolidated_reissue' as never, { p_invoice_id: invoiceId } as never)
+  if (error) throw error
+  return data as unknown as { status: string; replaced_by: number | null }
+}
+
 export type InvoiceReissueLinks = {
   replaces: { id: number; invoice_number: string } | null
   replaced_by: { id: number; invoice_number: string } | null
   reissue_pending: boolean
+  reissue_closed_reason: string | null
 }
 
 export async function getInvoiceReissueLinks(invoiceId: number): Promise<InvoiceReissueLinks> {

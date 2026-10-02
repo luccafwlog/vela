@@ -15,13 +15,9 @@ function fmtBRL(v: number | null | undefined) {
   return 'R$ ' + Number(v ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-// Reemissão de consolidada cancelada para correção: mesmo cliente e mesmos
-// recebíveis pré-selecionados; os não elegíveis ficam desmarcados no envio.
-export type ConsolidatedPrefill = { customerId: number; customerName: string; receivableIds: number[] }
+type Props = { open: boolean; onClose: () => void }
 
-type Props = { open: boolean; onClose: () => void; prefill?: ConsolidatedPrefill | null }
-
-export function ConsolidatedInvoiceModal({ open, onClose, prefill = null }: Props) {
+export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [customerId, setCustomerId] = useState<number | null>(null)
@@ -31,16 +27,6 @@ export function ConsolidatedInvoiceModal({ open, onClose, prefill = null }: Prop
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<number[]>([])
   const [error, setError] = useState('')
-  // Ajuste durante o render (em vez de useEffect) quando chega outro prefill.
-  const [appliedPrefill, setAppliedPrefill] = useState<ConsolidatedPrefill | null>(null)
-  if (open && prefill && prefill !== appliedPrefill) {
-    setAppliedPrefill(prefill)
-    setCustomerId(prefill.customerId)
-    setCustomerSearch(prefill.customerName)
-    setVoyageId(null)
-    setSearch('')
-    setSelected(prefill.receivableIds)
-  }
 
   const { data: customerOptions } = useBillingCustomers(customerSearch)
   const { data: receivables, isLoading } = useConsolidatableReceivables({
@@ -94,7 +80,6 @@ export function ConsolidatedInvoiceModal({ open, onClose, prefill = null }: Prop
 
   function close() {
     reset()
-    setAppliedPrefill(null)
     onClose()
   }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Ban, DollarSign, Printer, RefreshCw, RotateCcw } from 'lucide-react'
+import { Ban, DollarSign, Printer, RotateCcw } from 'lucide-react'
 import { StaleInvoiceResolutionPanel } from './StaleInvoiceResolutionPanel'
 import { InvoiceCorrectionPanel } from './InvoiceCorrectionPanel'
 import { InvoiceDocumentLocal } from './InvoiceDocumentLocal'
@@ -17,7 +17,6 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useAuth } from '../../hooks/useAuth'
 import {
   useCancelInvoice,
-  useCancelInvoiceForReissue,
   useInvoiceDetail,
   useInvoiceReissueLinks,
   useRegisterInvoicePayment,
@@ -28,7 +27,8 @@ import {
   useRegisterLedgerInvoicePayment,
   useSettleInvoiceRefund,
 } from '../../hooks/useBillingLedger'
-import { invoiceTypeLabel, isConsolidatedInvoice, isManualInvoice } from '../../services/billing'
+import { invoiceTypeLabel, isManualInvoice } from '../../services/billing'
+import { parseImportNumber } from '../../lib/importNumber'
 import { buildInvoiceFileBaseName, describeInvoiceItemsFreezeNote, describeUsdConversionNote } from '../shared/invoiceFormat'
 import { formatValidationError, paymentFormSchema } from '../../services/financialValidation'
 import { logOperationalEvent } from '../../services/operationalEvents'
@@ -63,8 +63,6 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const [cancelReason, setCancelReason] = useState('')
   const [reversalReason, setReversalReason] = useState('')
   const [reversalLoading, setReversalLoading] = useState(false)
-  const [reissueReason, setReissueReason] = useState('')
-  const [reissueBlIds, setReissueBlIds] = useState<string[]>([])
 
   const detailQuery = useInvoiceDetail(invoiceId)
   const refundsQuery = useInvoiceRefunds(invoiceId)
@@ -84,21 +82,13 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const registerPaymentMutation = useRegisterInvoicePayment()
   const registerLedgerPaymentMutation = useRegisterLedgerInvoicePayment()
   const cancelInvoiceMutation = useCancelInvoice()
-  const cancelForReissueMutation = useCancelInvoiceForReissue()
   const reissueLinksQuery = useInvoiceReissueLinks(invoiceId)
   const reissueLinks = reissueLinksQuery.data ?? null
 
-  // ADR 0077: fatura emitida não muda de valor. Fatura de Taxas Locais sem
-  // pagamento corrige-se por Cancelar e reemitir; paga, por fatura avulsa ou
-  // restituição. O banco recusa os demais casos.
-  const canReissue = Boolean(
-    detailInvoice &&
-      (detailInvoice.invoice_type === 'individual' || isConsolidatedInvoice(detailInvoice)) &&
-      ['draft', 'issued', 'overdue'].includes(detailInvoice.status ?? '') &&
-      (detailQuery.data?.payments.length ?? 0) === 0,
-  )
-
   const ledgerBalance = Number(detailInvoice?.balance_brl ?? detailInvoice?.total_brl ?? 0)
+  // Valor em pt-BR ("1.234,56"), como no registro do pagamento.
+  const parsedPayment = parseImportNumber(paymentAmount, 'pt-BR')
+  const typedPayment = parsedPayment.kind === 'value' ? Number(parsedPayment.decimal) : 0
   // Ajuste durante o render (em vez de useEffect) quando o alvo do prefill muda.
   const ledgerPrefill = isLedgerPayable ? `${invoiceId}:${ledgerBalance}` : null
   const [prevLedgerPrefill, setPrevLedgerPrefill] = useState<string | null>(null)
@@ -129,7 +119,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
     const accepted = await confirm({
       title: remaining > 0 ? 'Registrar pagamento parcial?' : 'Registrar pagamento?',
       message: `Valor recebido: ${formatBRL(payment.amountBrl)}. Saldo após o pagamento: ${formatBRL(remaining)}.`,
-      consequence: 'Registre somente o dinheiro efetivamente recebido. Com qualquer pagamento, esta fatura não poderá ser cancelada para reemissão. Taxas adicionais usam fatura avulsa; reduções usam Correção após pagamento.',
+      consequence: 'Registre somente o dinheiro efetivamente recebido. Se o B/L for corrigido depois, a fatura com pagamento não é reemitida: aumento vira fatura avulsa e redução abate o saldo, com restituição do que passar dele.',
       reversibility: 'Cancelar a baixa exige justificativa e permissão. Isso registra que o dinheiro não foi recebido.',
       confirmLabel: 'Confirmar pagamento recebido',
     })
@@ -167,40 +157,6 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       const msg = userFacingErrorMessage(error, 'Falha ao registrar pagamento.')
       showToast(msg, 'error')
       void logOperationalEvent({ code: 'invoice_payment_invalid', message: msg, changedBy: user?.id ?? null, entityId: String(invoiceId ?? '') })
-    }
-  }
-
-  async function handleCancelForReissue() {
-    if (!invoiceId || !detailQuery.data) return
-    const reason = reissueReason.trim()
-    if (!reason) {
-      showToast('Informe o motivo para cancelar e reemitir a fatura.', 'error')
-      return
-    }
-    const consolidated = isConsolidatedInvoice(detailQuery.data.invoice ?? {})
-    const blIds = detailQuery.data.bls.map((row) => row.bl_id)
-    const confirmed = await confirm({
-      title: 'Cancelar e reemitir',
-      message: `Cancelar a fatura ${detailQuery.data.invoice?.invoice_number ?? invoiceId} para reemitir com a correção?`,
-      affected: {
-        summary: `${blIds.length} B/L(s) afetado(s)`,
-        items: blIds.map((blId) => (reissueBlIds.includes(blId) ? `B/L ${blId} · fatura individual também cancelada` : `B/L ${blId}`)),
-      },
-      consequence: consolidated
-        ? 'A consolidada sai do Portal. Os B/Ls marcados voltam a aceitar recálculo; depois de corrigidos, emita a individual e a nova consolidada com os mesmos B/Ls.'
-        : 'A fatura sai do Portal e o B/L volta a aceitar recálculo. Corrija o B/L e emita a nova fatura; até lá ele fica em Reemissão pendente.',
-      reversibility: 'A fatura cancelada não volta; a nova emissão fica vinculada a ela.',
-      confirmLabel: 'Cancelar e reemitir',
-      tone: 'danger',
-    })
-    if (!confirmed) return
-    try {
-      await cancelForReissueMutation.mutateAsync({ invoiceId, reason, correctBlIds: reissueBlIds })
-      setReissueReason('')
-      setReissueBlIds([])
-      showToast('Fatura cancelada. Corrija o B/L e reemita.', 'success')
-    } catch (error) {
-      showToast(userFacingErrorMessage(error, 'Falha ao cancelar e reemitir a fatura.'), 'error')
     }
   }
 
@@ -309,12 +265,13 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   <SelectionMetric label="Saldo BRL" value={formatBRL(detailQuery.data.invoice.balance_brl)} />
                 </div>
               </Card>
-              {reissueLinks && (reissueLinks.replaces || reissueLinks.replaced_by || reissueLinks.reissue_pending) ? (
+              {reissueLinks && (reissueLinks.replaces || reissueLinks.replaced_by || reissueLinks.reissue_pending || reissueLinks.reissue_closed_reason) ? (
                 <Card>
                   <div className="grid gap-1 text-sm text-slate-200" data-testid="invoice-reissue-links">
                     {reissueLinks.replaces ? <div>Substitui a fatura <strong>{reissueLinks.replaces.invoice_number}</strong>, cancelada para correção.</div> : null}
                     {reissueLinks.replaced_by ? <div>Substituída pela fatura <strong>{reissueLinks.replaced_by.invoice_number}</strong>.</div> : null}
-                    {reissueLinks.reissue_pending ? <div><Badge tone="yellow">Reemissão pendente</Badge> Corrija o B/L e emita a nova fatura.</div> : null}
+                    {reissueLinks.reissue_pending ? <div><Badge tone="yellow">Reemissão pendente</Badge> A nova emissão travou; o alerta da fatura diz o motivo.</div> : null}
+                    {reissueLinks.reissue_closed_reason ? <div>{reissueLinks.reissue_closed_reason}</div> : null}
                   </div>
                 </Card>
               ) : null}
@@ -409,7 +366,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
               </Card>
               <StaleInvoiceResolutionPanel key={`stale-${invoiceId}`} invoiceId={Number(invoiceId)} hasPayment={Number(detailInvoice?.total_paid_brl ?? 0) > 0} canResolve={isAdmin} />
               {detailInvoice && ['individual', 'consolidated'].includes(detailInvoice.invoice_type ?? '') && Number(detailInvoice.total_paid_brl ?? 0) > 0 && ['paid', 'partially_paid'].includes(detailInvoice.status ?? '') ? (
-                <InvoiceCorrectionPanel key={invoiceId} invoiceId={Number(invoiceId)} canCorrect={canSettleRefund} />
+                <InvoiceCorrectionPanel key={invoiceId} invoiceId={Number(invoiceId)} />
               ) : null}
               {refunds.length > 0 ? (
                 <Card className="overflow-hidden p-0">
@@ -530,8 +487,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   {isLedgerPayable ? (
                     <div className="mt-2 text-xs text-slate-400">
                       Saldo aberto: {formatBRL(ledgerBalance)}. Informe somente o valor recebido.
-                      {Number(paymentAmount.replace(',', '.')) > 0 ? <> Após esta baixa: {formatBRL(Math.max(ledgerBalance - Number(paymentAmount.replace(',', '.')), 0))} em aberto.</> : null}
-                      {' '}Pagamento parcial impede cancelar e reemitir. Para taxas adicionais, use fatura avulsa; para reduzir a cobrança, use Correção após pagamento.
+                      {typedPayment > 0 ? <> Após esta baixa: {formatBRL(Math.max(ledgerBalance - typedPayment, 0))} em aberto.</> : null}
+                      {' '}Com pagamento, a correção do B/L não reemite a fatura: aumento vira fatura avulsa e redução abate o saldo antes de restituir.
                     </div>
                   ) : null}
                   <div className="mt-4 flex justify-end">
@@ -541,35 +498,6 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   </div>
                 </Card>
                 <Card><h2 className="mb-3 text-base font-semibold text-white">Cancelar fatura</h2><Field label="Motivo"><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></Field><div className="mt-4 flex justify-end"><Button variant="danger" loading={cancelInvoiceMutation.isPending} disabled={detailQuery.data.payments.length > 0 || !cancelReason.trim()} onClick={handleCancelInvoice}><Ban size={16} />Cancelar fatura</Button></div></Card>
-                {canReissue ? (
-                  <Card>
-                    <h2 className="mb-3 text-base font-semibold text-white">Cancelar e reemitir</h2>
-                    <p className="mb-3 text-xs text-slate-400">Fatura emitida não muda de valor. Para corrigir o B/L, cancele esta fatura e emita outra com o valor atualizado.</p>
-                    <Field label="Motivo da correção">
-                      <Textarea value={reissueReason} onChange={(event) => setReissueReason(event.target.value)} />
-                    </Field>
-                    {isConsolidatedInvoice(detailQuery.data.invoice) && detailQuery.data.bls.length > 0 ? (
-                      <fieldset className="mt-3 grid gap-1 text-sm text-slate-200">
-                        <legend className="mb-1 text-xs text-slate-400">B/Ls a corrigir (cancela também a fatura individual)</legend>
-                        {detailQuery.data.bls.map((row) => (
-                          <label key={row.bl_id} className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={reissueBlIds.includes(row.bl_id)}
-                              onChange={() => setReissueBlIds((prev) => (prev.includes(row.bl_id) ? prev.filter((id) => id !== row.bl_id) : [...prev, row.bl_id]))}
-                            />
-                            {row.bl_id}
-                          </label>
-                        ))}
-                      </fieldset>
-                    ) : null}
-                    <div className="mt-4 flex justify-end">
-                      <Button variant="danger" loading={cancelForReissueMutation.isPending} disabled={!reissueReason.trim()} onClick={handleCancelForReissue}>
-                        <RefreshCw size={16} />Cancelar e reemitir
-                      </Button>
-                    </div>
-                  </Card>
-                ) : null}
               </div>
               )}
             </>

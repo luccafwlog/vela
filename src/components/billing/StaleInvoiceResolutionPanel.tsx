@@ -22,9 +22,9 @@ export function StaleInvoiceResolutionPanel({ invoiceId, hasPayment, canResolve 
     catch (error) { showToast(userFacingErrorMessage(error, 'Falha ao resolver alerta.'), 'error') }
   }
   return <Card><h2 className="font-semibold">Fatura desatualizada</h2>
-    <p>{hasPayment ? 'Com pagamento: emita avulsa para aumento ou taxa adicional. Para redução, use Correção após pagamento; o sistema abate o saldo antes de restituir.' : 'Sem pagamento: use Cancelar e reemitir. A reemissão resolverá este alerta.'}</p>
+    <p>{hasPayment ? 'Com pagamento: a diferença a maior vai em fatura avulsa. Reduções o sistema já abate do saldo e restitui o excedente.' : 'A correção do B/L reemite esta fatura sozinha; se o alerta continuar, a nova emissão travou e o motivo está acima.'}</p>
     {canResolve ? <div className="mt-3 grid gap-3">
-      <Field label="Justificativa da resolução"><Textarea aria-label="Justificativa da resolução" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Informe a avulsa emitida ou a correção/restituição registrada." /></Field>
+      <Field label="Justificativa da resolução"><Textarea aria-label="Justificativa da resolução" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Informe a avulsa emitida ou como a diferença foi tratada." /></Field>
       <Button disabled={reason.trim().length < 3} loading={mutation.isPending} onClick={() => void resolve()}>Resolver alerta com justificativa</Button>
     </div> : null}
   </Card>

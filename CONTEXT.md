@@ -2063,35 +2063,32 @@ não substituem a leitura da última definição na cadeia ativa de migrations.
 ## Correção de B/L após faturamento
 
 A fatura é disponibilizada ao Cliente na emissão e preserva seu total e itens.
-Sem pagamento, **Cancelar e reemitir** cancela a individual ou consolidada,
-permite corrigir o B/L e mantém **Reemissão pendente** até a emissão sucessora.
-Com pagamento parcial ou integral, a fatura não pode ser cancelada/reemitida.
-B/L que também está numa consolidada aberta reemite pela consolidada, marcando
-o B/L a corrigir. Fatura com correção registrada não é mais cancelada, nem
-depois de cancelar a baixa: o abatimento já está no saldo do B/L.
-Taxa adicional ou aumento de cobrança usa **Fatura avulsa** vinculada ao B/L.
+A correção nasce sempre do B/L: o operador reimporta o B/L, aplica o Baplie ou
+altera o B/L, os containers ou os veículos, e o sistema trata a fatura sozinho,
+em segundos, sem botão de fatura. Só conta o que muda o valor do B/L (rota,
+peso, containers, IMO/OOG, SOC/COC, veículos) ou o Cliente; uma data de
+Demurrage não é correção.
 
-Para redução após pagamento, **Correção após pagamento** recebe o total correto
-do B/L e motivo. A diferença abate primeiro o saldo aberto; só o excedente já
-recebido gera **Restituição por correção**, liquidada após devolver o dinheiro.
-Exemplo: total original R$ 1.000, pago R$ 400, total correto R$ 800: abate
-R$ 200 do saldo, restam R$ 400, sem restituição. Se já recebeu R$ 900, abate
-R$ 100 em aberto e registra R$ 100 para restituir. Total original e dinheiro
-recebido continuam no histórico; o Portal mostra saldo e ajustes separadamente.
-O operador confirma a prévia antes de registrar correção ou pagamento.
+**Sem pagamento**, a individual e a consolidada que cobram o B/L são canceladas
+e reemitidas com o valor novo e o ROE do dia. Exemplo: BL-A faturado em R$ 500
+dentro de uma consolidada de R$ 1.000; acrescentar um container de R$ 500 gera
+individual nova de R$ 1.000 e consolidada nova de R$ 1.500, cada uma ligada à
+que substitui. A consolidada só volta com os mesmos B/Ls: se um B/L dela foi
+cancelado, ficou isento, foi quitado ou mudou de Cliente, ela é encerrada sem
+reemissão e os demais B/Ls seguem cobrados pelas individuais. Se a emissão for
+barrada (Portal não pronto, revisão pendente), a fatura fica em **Reemissão
+pendente** e o alerta explica o motivo; resolvido, o Administrativo usa
+**Emitir fatura** na ficha do B/L.
 
-**Reemissão automática**: reimportação do B/L com override, ou flags do Baplie,
-que muda a base faturada de um B/L sem pagamento cancela a fatura individual e
-a consolidada que o incluem e reemite as duas com o valor novo, sem ação do
-operador. Exemplo: BL-A faturado em R$ 500 dentro da consolidada de R$ 1.000;
-a reimportação acrescenta um container de R$ 500 → individual nova de R$ 1.000
-e consolidada nova de R$ 1.500, cada uma ligada à que substitui. Se a emissão
-for barrada (Portal não pronto, revisão pendente, CE ausente), as faturas ficam
-em Reemissão pendente e o alerta explica o motivo.
+**Com pagamento**, a fatura não é reemitida. Redução abate primeiro o saldo em
+aberto; só o que passar dele vira restituição e abre **Restituição pendente**,
+que fecha quando o Administrativo confirma que devolveu o dinheiro. Exemplo:
+fatura de R$ 3.000 com R$ 1.000 pagos e valor correto de R$ 2.400: o saldo cai
+de R$ 2.000 para R$ 1.400, sem restituição. Paga inteira, os R$ 600 viram
+restituição. Aumento com pagamento abre **Fatura desatualizada** e a diferença
+vai em **Fatura avulsa**. Ninguém digita valor de correção nem concede desconto.
 
-**Fatura desatualizada** avisa que uma alteração efetiva do B/L ou de flags do
-Baplie mudou as bases faturadas de fatura com pagamento, ou que a reemissão
-automática não saiu. Orienta o caminho conforme existência de
-pagamento. Reemissão resolve automaticamente; avulsa ou correção é encerrada
-com justificativa. Ver [ADR 0077](docs/adr/0077-fatura-emitida-nao-muda-de-valor.md)
+Erro de preço (tabela ou Condição do Cliente) não reemite: vale para as próximas
+faturas. No Portal, a fatura cancelada não aparece por padrão, só pelo filtro
+Cancelada. Ver [ADR 0077](docs/adr/0077-fatura-emitida-nao-muda-de-valor.md)
 e [Faturamento](docs/modules/faturamento.md).

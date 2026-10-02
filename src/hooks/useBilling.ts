@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   cancelInvoice,
-  cancelInvoiceForReissue,
   createManualInvoice,
   getInvoiceReissueLinks,
   listPendingReissues,
+  retryPendingConsolidatedReissue,
   listBillingCustomers,
   listInvoiceDetails,
   listInvoiceLinksByBls,
@@ -102,24 +102,18 @@ export function usePendingReissues() {
   })
 }
 
-export function useCancelInvoiceForReissue() {
+export function useRetryPendingConsolidatedReissue() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: cancelInvoiceForReissue,
-    onSuccess: async (data) => {
-      // queryKeys.invoices.all() cobre a lista e a Reemissão pendente; o detalhe
-      // de cada fatura cancelada (inclusive individuais da consolidada) muda.
+    mutationFn: retryPendingConsolidatedReissue,
+    onSuccess: async (_data, invoiceId) => {
+      // queryKeys.invoices.all() cobre a lista e a Reemissão pendente.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all() }),
-        ...data.cancelled_invoice_ids.map((id) => queryClient.invalidateQueries({ queryKey: queryKeys.invoices.detail(id) })),
-        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.links(data.bl_ids) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.billingReady.all() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.detail(invoiceId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.billingLedger.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail() }),
       ])
     },
   })

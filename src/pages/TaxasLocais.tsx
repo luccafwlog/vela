@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Download, FilePlus2 } from 'lucide-react'
-import { ConsolidatedInvoiceModal, type ConsolidatedPrefill } from '../components/billing/ConsolidatedInvoiceModal'
+import { ConsolidatedInvoiceModal } from '../components/billing/ConsolidatedInvoiceModal'
 import { PendingReissuesPanel } from '../components/billing/PendingReissuesPanel'
 import { ManualInvoiceModal } from '../components/billing/ManualInvoiceModal'
 import { ValidacaoTab } from '../components/billing/ValidacaoTab'
@@ -65,7 +65,6 @@ export function TaxasLocais() {
 
   const [exporting, setExporting] = useState(false)
   const [consolidatedOpen, setConsolidatedOpen] = useState(false)
-  const [consolidatedPrefill, setConsolidatedPrefill] = useState<ConsolidatedPrefill | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
 
   // Sincroniza estado com a URL — ajuste durante o render (sem useEffect),
@@ -203,14 +202,7 @@ export function TaxasLocais() {
         }
       />
 
-      <ConsolidatedInvoiceModal
-        open={consolidatedOpen}
-        prefill={consolidatedPrefill}
-        onClose={() => {
-          setConsolidatedOpen(false)
-          setConsolidatedPrefill(null)
-        }}
-      />
+      <ConsolidatedInvoiceModal open={consolidatedOpen} onClose={() => setConsolidatedOpen(false)} />
       <ManualInvoiceModal open={manualOpen} onClose={() => setManualOpen(false)} />
 
       <FinancialAlertsPanel
@@ -220,13 +212,7 @@ export function TaxasLocais() {
 
       <CodAdjustmentsPanel />
 
-      <PendingReissuesPanel
-        onOpenInvoice={setSelectedInvoiceId}
-        onReissueConsolidated={(pending) => {
-          setConsolidatedPrefill({ customerId: pending.customer_id, customerName: pending.customer_name ?? '', receivableIds: pending.receivable_ids })
-          setConsolidatedOpen(true)
-        }}
-      />
+      <PendingReissuesPanel onOpenInvoice={setSelectedInvoiceId} />
 
       <div className="billing-page__tabs mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Módulos de faturamento">
         <TabButton active={activeTab === 'invoices'} label="Faturas" onClick={() => setActiveTab('invoices')} />

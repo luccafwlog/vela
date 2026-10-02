@@ -208,6 +208,7 @@ jobs:
             src/integration/invoiceAutoReissue.local-pg.test.ts \
             src/integration/invoiceCorrection.local-pg.test.ts \
             src/integration/invoiceReissue.local-pg.test.ts \
+            src/integration/invoiceBasisCorrection.local-pg.test.ts \
             src/integration/financialBattery.local-pg.test.ts
 
       - name: Verify the executed RPC catalog

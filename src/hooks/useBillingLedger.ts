@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   getInvoiceCorrectionSummary,
-  registerInvoiceCorrection,
   resolveStaleInvoice,
   createConsolidatedInvoice,
   listConsolidatableReceivables,
@@ -105,10 +104,6 @@ export function useRegisterLedgerInvoicePayment() {
 export function useInvoiceCorrectionSummary(invoiceId?: number | null) {
   return useQuery({ queryKey: queryKeys.invoices.corrections(invoiceId), enabled: Boolean(invoiceId),
     queryFn: () => getInvoiceCorrectionSummary(Number(invoiceId)) })
-}
-export function useRegisterInvoiceCorrection() {
-  const invalidate = useLedgerInvalidation()
-  return useMutation({ mutationFn: registerInvoiceCorrection, onSuccess: invalidate })
 }
 
 export function useResolveStaleInvoice() {

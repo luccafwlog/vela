@@ -200,9 +200,9 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
   }
 
   // Emissão manual (ADR 0077): o caminho normal é automático (CE Mercante,
-  // Portal pronto, reimportação). Este botão cobre a emissão que o automático
-  // não fez ou desfez: reemissão depois de Cancelar e reemitir, Reemissão
-  // pendente cuja trava foi resolvida, ou falha da emissão automática.
+  // Portal pronto, correção do B/L). Este botão cobre a emissão que o
+  // automático não fez: Reemissão pendente cuja trava foi resolvida ou falha
+  // da emissão automática.
   const canIssue = Boolean(
     isAdmin && !chargesLocked && bl.customer_id && bl.ce_mercante
       && bl.charge_status !== 'not_calculated' && bl.charge_status !== 'exempt',
@@ -218,7 +218,7 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
         items: [`${localChargeSummary.lines.length} linha(s) de cobrança`],
       },
       consequence: 'Cria e emite a fatura, que aparece no Portal do Cliente. O B/L passa a faturado e deixa de aceitar recálculo.',
-      reversibility: 'A fatura não pode ser apagada. Sem pagamento, o Administrativo pode cancelar e reemitir.',
+      reversibility: 'A fatura não pode ser apagada. Se o B/L for corrigido depois, a fatura é reemitida automaticamente (sem pagamento) ou ajustada pelo saldo e restituição (com pagamento).',
       confirmLabel: 'Emitir fatura',
     })
     if (!confirmed) return

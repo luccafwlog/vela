@@ -5,7 +5,6 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 
-const cancelForReissue = vi.fn()
 const cancelInvoice = vi.fn()
 const confirm = vi.fn()
 const showToast = vi.fn()
@@ -46,12 +45,10 @@ vi.mock('../../../hooks/useBilling', () => ({
   }),
   useRegisterInvoicePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCancelInvoice: () => ({ mutateAsync: cancelInvoice, isPending: false }),
-  useCancelInvoiceForReissue: () => ({ mutateAsync: cancelForReissue, isPending: false }),
   useInvoiceReissueLinks: () => ({ data: mockReissueLinks }),
 }))
 vi.mock('../../../hooks/useBillingLedger', () => ({
   useInvoiceCorrectionSummary: () => ({ data: { receivables: [], corrections: [] } }),
-  useRegisterInvoiceCorrection: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useInvoiceRefunds: () => ({ data: [] }),
   useRegisterLedgerInvoicePayment: () => ({ mutateAsync: registerLedgerPayment, isPending: false }),
   useSettleInvoiceRefund: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -85,19 +82,9 @@ it('fatura emitida não oferece inclusão nem remoção de item manual', () => {
   expect(screen.queryByRole('button', { name: /Remover/ })).toBeNull()
 })
 
-it('cancela e reemite fatura sem pagamento depois da confirmação com os B/Ls afetados', async () => {
-  confirm.mockResolvedValueOnce(true)
-  cancelForReissue.mockResolvedValueOnce({ cancelled_invoice_ids: [9], bl_ids: [] })
-  const user = userEvent.setup()
+it('não oferece Cancelar e reemitir: a correção do B/L reemite sozinha', () => {
   render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
-
-  const button = screen.getByRole('button', { name: /Cancelar e reemitir/ })
-  expect((button as HTMLButtonElement).disabled).toBe(true)
-  await user.type(screen.getByLabelText('Motivo da correção'), 'Peso corrigido')
-  await user.click(button)
-
-  expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Cancelar e reemitir', affected: expect.any(Object) }))
-  expect(cancelForReissue).toHaveBeenCalledWith({ invoiceId: 9, reason: 'Peso corrigido', correctBlIds: [] })
+  expect(screen.queryByRole('button', { name: /Cancelar e reemitir/ })).toBeNull()
 })
 
 it('mostra o vínculo com a fatura substituída', () => {
@@ -105,6 +92,14 @@ it('mostra o vínculo com a fatura substituída', () => {
   render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
 
   expect(screen.getByTestId('invoice-reissue-links').textContent).toContain('Substitui a fatura INV-7')
+  mockReissueLinks = null
+})
+
+it('mostra por que a fatura cancelada não foi reemitida', () => {
+  mockReissueLinks = { replaces: null, replaced_by: null, reissue_pending: false, reissue_closed_reason: 'Nao reemitida: B/L BL-1 cancelado.' }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+
+  expect(screen.getByTestId('invoice-reissue-links').textContent).toContain('B/L BL-1 cancelado')
   mockReissueLinks = null
 })
 
@@ -117,13 +112,14 @@ it('explica as consequências da baixa parcial e aguarda confirmação antes de 
   const amount = screen.getByLabelText('Valor BRL (aceita parcial)')
   await user.clear(amount)
   await user.type(amount, '40')
+  expect(screen.getByText(/Após esta baixa/).textContent).toContain('60,00')
   fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-10-01' } })
-  expect(screen.getByText(/Pagamento parcial impede cancelar e reemitir/)).toBeTruthy()
+  expect(screen.getByText(/a correção do B\/L não reemite a fatura/)).toBeTruthy()
   await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
   expect(confirm).toHaveBeenCalledWith(expect.objectContaining({
     title: 'Registrar pagamento parcial?',
     message: expect.stringMatching(/40.*60/),
-    consequence: expect.stringContaining('Taxas adicionais usam fatura avulsa; reduções usam Correção após pagamento'),
+    consequence: expect.stringContaining('aumento vira fatura avulsa e redução abate o saldo'),
   }))
   expect(registerLedgerPayment).not.toHaveBeenCalled()
 })

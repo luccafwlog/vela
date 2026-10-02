@@ -94,6 +94,7 @@ it('expõe somente os tipos financeiros ativos do contrato', () => {
   // invoice_overdue saiu na 348: taxa local não tem vencimento praticado (#605).
   expect(FINANCIAL_ALERT_TYPES).toEqual([
     'fatura_desatualizada',
+    'restituicao_pendente',
     'billing_calculation_blocked',
     'billing_auto_issue_failed',
     'demurrage_ptax_recalc_failed',
@@ -102,6 +103,7 @@ it('expõe somente os tipos financeiros ativos do contrato', () => {
 
   expect(FINANCIAL_ALERT_EVENTS).toEqual({
     fatura_desatualizada: { audience: ['administrativo'], unit: 'invoice' },
+    restituicao_pendente: { audience: ['administrativo'], unit: 'invoice' },
     billing_calculation_blocked: {
       audience: ['documentacao'],
       unit: 'bl',

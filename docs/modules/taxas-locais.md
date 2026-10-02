@@ -214,7 +214,7 @@ Definidas em `src/services/queryKeys.ts`:
 
 ### Correção de B/L após faturamento
 
-Após emissão, a cobrança fica congelada. Correção sem pagamento exige Cancelar e reemitir; com pagamento, acréscimos usam avulsa e reduções abatem saldo antes de restituir. A avulsa pode selecionar itens manuais desta tabela, exigindo B/L e usando Condição do Cliente; USD converte por ROE na emissão. Ver [Faturamento](faturamento.md#correção-após-emissão-adr-0077).
+Após emissão, a cobrança fica congelada. Correção do B/L (reimportação, Baplie ou alteração direta) reemite sozinha a fatura sem pagamento; com pagamento, acréscimos usam avulsa e reduções abatem saldo antes de restituir, automaticamente. A avulsa pode selecionar itens manuais desta tabela, exigindo B/L e usando Condição do Cliente; USD converte por ROE na emissão. Ver [Faturamento](faturamento.md#correção-após-emissão-adr-0077).
 
 
 B/L misto consome as tabelas container e carga solta através de

@@ -2,8 +2,9 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
-// Migration 122 (ADR 0077; plano 2026-10-01-correcao-de-bl-apos-faturamento,
-// Fases 1 e 3): fatura emitida não muda de valor; a correção cancela e reemite.
+// Migrations 122 e 128 (ADR 0077): fatura emitida não muda de valor; a
+// reemissão aponta para a cancelada e a pendência some quando não há o que
+// reemitir. O cancelamento em si é automático (invoiceBasisCorrection).
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -17,7 +18,7 @@ function psql(sql: string): string {
 function migrationApplied() {
   if (!enabled) return false
   try {
-    return psql(`SELECT to_regproc('public.cancel_invoice_for_reissue') IS NOT NULL;`) === 't'
+    return psql(`SELECT to_regproc('public._close_pending_reissue') IS NOT NULL;`) === 't'
   } catch {
     return false
   }
@@ -57,6 +58,11 @@ let initialPricingVersionIds: string[] | null = null
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
+    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT ai.id FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id
+      WHERE a.entity_type = 'invoice' AND a.entity_id IN (SELECT id::text FROM public.invoices WHERE customer_id = ${customerId}));
+    DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_type = 'invoice'
+      AND entity_id IN (SELECT id::text FROM public.invoices WHERE customer_id = ${customerId}));
+    DELETE FROM public.alerts WHERE entity_type = 'invoice' AND entity_id IN (SELECT id::text FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.charge_calculations WHERE bl_id = ANY(ARRAY['${blIds.join("','")}']::text[]);
     DELETE FROM public.invoice_lifecycle_events WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.invoice_items WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
@@ -81,7 +87,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('122 — fatura emitida não muda de valor; correção cancela e reemite', () => {
+describeLocal('122/128 — fatura emitida não muda de valor; vínculo e fim da Reemissão pendente', () => {
   beforeAll(() => {
     initialPricingVersionIds = psql('SELECT id FROM public.pricing_rule_versions ORDER BY id').split('\n').filter(Boolean)
     cleanup()
@@ -113,7 +119,17 @@ describeLocal('122 — fatura emitida não muda de valor; correção cancela e r
 
   afterAll(cleanup)
 
-  it('recusa no banco a edição de itens de fatura emitida', () => {
+  // A correção do B/L deixa a fatura assim; aqui o estado é montado direto.
+  function markPending(invoiceId: number) {
+    psql(`UPDATE public.invoices SET status = 'cancelled', cancelled_at = now(), cancel_reason = 'Correcao do B/L',
+      reissue_requested_at = now() WHERE id = ${invoiceId};`)
+  }
+
+  function pendingIds() {
+    return asAdmin(`SELECT invoice_id FROM public.list_pending_reissues() WHERE customer_id = ${customerId}`).stdout.split('\n')
+  }
+
+  it('recusa no banco a edição de itens de fatura emitida e não tem caminho manual de correção', () => {
     const add = asAdmin(`SELECT public.add_manual_invoice_charge(${invoiceIds[0]}, 'Correction Letter', 1, 600, NULL, NULL)`)
     const remove = asAdmin(`SELECT public.delete_manual_invoice_charge(1, NULL)`)
     expect(add.status).not.toBe(0)
@@ -121,19 +137,15 @@ describeLocal('122 — fatura emitida não muda de valor; correção cancela e r
     expect(remove.stderr).toMatch(/permission denied/)
     // 127: Marcar revisado saiu; a RPC não aceita chamada direta.
     expect(asAdmin(`SELECT public.mark_bl_charges_reviewed('${blIds[0]}', NULL)`).stderr).toMatch(/permission denied/)
+    // 128: Cancelar e reemitir e a correção digitada deixaram de existir.
+    expect(psql(`SELECT to_regprocedure('public.cancel_invoice_for_reissue(bigint, text, text[])') IS NULL
+      AND to_regprocedure('public.register_invoice_correction(bigint, bigint, numeric, text)') IS NULL;`)).toBe('t')
     expect(psql(`SELECT total_brl FROM public.invoices WHERE id = ${invoiceIds[0]};`)).toBe('100.00')
   })
 
-  it('individual: cancela, devolve o B/L, fica pendente e a reemissão aponta para a anterior', () => {
-    const result = adminJson<{ bl_ids: string[]; cancelled_invoice_ids: number[] }>(
-      `SELECT public.cancel_invoice_for_reissue(${invoiceIds[0]}, 'Correção de peso', NULL)`,
-    )
-    expect(result).toMatchObject({ bl_ids: [blIds[0]], cancelled_invoice_ids: [invoiceIds[0]] })
-    expect(psql(`SELECT status || '|' || (reissue_requested_at IS NOT NULL) FROM public.invoices WHERE id = ${invoiceIds[0]};`)).toBe('cancelled|true')
-    expect(psql(`SELECT financial_status FROM public.bls WHERE id = '${blIds[0]}';`)).toBe('pending')
-
-    const pending = asAdmin(`SELECT invoice_id FROM public.list_pending_reissues() WHERE customer_id = ${customerId}`)
-    expect(pending.stdout.split('\n')).toContain(String(invoiceIds[0]))
+  it('a reemissão aponta para a cancelada e tira a fatura da Reemissão pendente', () => {
+    markPending(invoiceIds[0])
+    expect(pendingIds()).toContain(String(invoiceIds[0]))
 
     psql(`
       INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, total_paid_brl, balance_brl, status, invoice_type, issued_by, issued_at)
@@ -142,8 +154,7 @@ describeLocal('122 — fatura emitida não muda de valor; correção cancela e r
         VALUES (99212119, '${blIds[0]}', 'ready_for_billing', 'invoiced', 120);
     `)
     expect(psql(`SELECT replaces_invoice_id FROM public.invoices WHERE id = 99212119;`)).toBe(String(invoiceIds[0]))
-    const after = asAdmin(`SELECT invoice_id FROM public.list_pending_reissues() WHERE customer_id = ${customerId}`)
-    expect(after.stdout.split('\n')).not.toContain(String(invoiceIds[0]))
+    expect(pendingIds()).not.toContain(String(invoiceIds[0]))
 
     const oldLinks = adminJson<{ replaced_by: { invoice_number: string } | null; reissue_pending: boolean }>(
       `SELECT public.get_invoice_reissue_links(${invoiceIds[0]})`,
@@ -153,54 +164,29 @@ describeLocal('122 — fatura emitida não muda de valor; correção cancela e r
     expect(newLinks.replaces?.invoice_number).toBe('R121-IND-1')
   })
 
-  it('recusa fatura com pagamento, fatura avulsa e motivo vazio', () => {
-    psql(`INSERT INTO public.payments (invoice_id, amount_brl, payment_method, paid_at) VALUES (${invoiceIds[3]}, 10, 'pix', now());`)
-    expect(asAdmin(`SELECT public.cancel_invoice_for_reissue(${invoiceIds[3]}, 'x', NULL)`).stderr).toMatch(/pagamento/)
-    expect(asAdmin(`SELECT public.cancel_invoice_for_reissue(${invoiceIds[1]}, '  ', NULL)`).stderr).toMatch(/motivo/)
-    psql(`UPDATE public.invoices SET invoice_type = 'manual' WHERE id = 99212119;`)
-    expect(asAdmin(`SELECT public.cancel_invoice_for_reissue(99212119, 'x', NULL)`).stderr).toMatch(/Taxas Locais/)
-    psql(`UPDATE public.invoices SET invoice_type = 'individual' WHERE id = 99212119;`)
+  it('B/L isento encerra a pendência com o motivo; a emissão seguinte não aponta para ela', () => {
+    markPending(invoiceIds[1])
+    psql(`UPDATE public.bls SET charge_status = 'exempt' WHERE id = '${blIds[1]}';`)
+    expect(pendingIds()).not.toContain(String(invoiceIds[1]))
+    const links = adminJson<{ reissue_pending: boolean; reissue_closed_reason: string | null }>(`SELECT public.get_invoice_reissue_links(${invoiceIds[1]})`)
+    expect(links.reissue_pending).toBe(false)
+    expect(links.reissue_closed_reason).toMatch(/isento/)
+
+    psql(`
+      INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, total_paid_brl, balance_brl, status, invoice_type, issued_by, issued_at)
+        VALUES (99212118, 'R121-IND-2B', ${customerId}, '${blIds[1]}', 120, 0, 120, 'issued', 'individual', '${actorId}', now());
+      INSERT INTO public.invoice_bls (invoice_id, bl_id, charge_status_snapshot, financial_status_snapshot, subtotal_brl)
+        VALUES (99212118, '${blIds[1]}', 'ready_for_billing', 'invoiced', 120);
+    `)
+    expect(psql(`SELECT coalesce(replaces_invoice_id::text, '') FROM public.invoices WHERE id = 99212118;`)).toBe('')
   })
 
-  it('consolidada: cancela com a individual do B/L corrigido e a nova consolidada substitui a anterior', () => {
-    const consolidated = adminJson<{ invoice_id: number }>(
-      `SELECT public.create_local_consolidated_invoice(${customerId}, ARRAY[${receivableIds[1]}, ${receivableIds[2]}]::bigint[], NULL, '${actorId}'::uuid)`,
-    )
-    const result = adminJson<{ bl_ids: string[]; cancelled_invoice_ids: number[] }>(
-      `SELECT public.cancel_invoice_for_reissue(${consolidated.invoice_id}, 'B/L 2 corrigido', ARRAY['${blIds[1]}'])`,
-    )
-    expect(result.bl_ids).toEqual([blIds[1], blIds[2]])
-    expect(result.cancelled_invoice_ids).toEqual([consolidated.invoice_id, invoiceIds[1]])
-    expect(psql(`SELECT status FROM public.invoices WHERE id = ${invoiceIds[2]};`)).toBe('issued')
-    expect(psql(`SELECT financial_status FROM public.bls WHERE id = '${blIds[1]}';`)).toBe('pending')
-
-    expect(asAdmin(`SELECT public.cancel_invoice_for_reissue(${invoiceIds[2]}, 'x', ARRAY['${blIds[0]}'])`).status).toBe(0)
-
-    const reissued = adminJson<{ invoice_id: number }>(
-      `SELECT public.create_local_consolidated_invoice(${customerId}, ARRAY[${receivableIds[1]}, ${receivableIds[2]}]::bigint[], NULL, '${actorId}'::uuid)`,
-    )
-    expect(psql(`SELECT replaces_invoice_id FROM public.invoices WHERE id = ${reissued.invoice_id};`)).toBe(String(consolidated.invoice_id))
-  })
-
-  it('individual em consolidada viva reemite pela consolidada', () => {
-    // Migration 125: a consolidada continuaria cobrando o valor antigo do B/L.
-    const consolidated = adminJson<{ invoice_id: number; invoice_number: string }>(
-      `SELECT public.create_local_consolidated_invoice(${customerId}, ARRAY[${receivableIds[3]}]::bigint[], NULL, '${actorId}'::uuid)`,
-    )
-    psql(`DELETE FROM public.payments WHERE invoice_id = ${invoiceIds[3]};`)
-    const refused = asAdmin(`SELECT public.cancel_invoice_for_reissue(${invoiceIds[3]}, 'Peso corrigido', NULL)`)
-    expect(refused.stderr).toMatch(/consolidada/)
-    expect(psql(`SELECT status FROM public.invoices WHERE id = ${invoiceIds[3]};`)).toBe('issued')
-    expect(asAdmin(`SELECT public.cancel_invoice_for_reissue(${consolidated.invoice_id}, 'Peso corrigido', ARRAY['${blIds[3]}'])`).status).toBe(0)
-    expect(psql(`SELECT status FROM public.invoices WHERE id = ${invoiceIds[3]};`)).toBe('cancelled')
-  })
-
-  it('consolidada recusa B/L que não pertence a ela', () => {
-    const consolidated = adminJson<{ invoice_id: number }>(
-      `SELECT public.create_local_consolidated_invoice(${customerId}, ARRAY[${receivableIds[0]}]::bigint[], NULL, '${actorId}'::uuid)`,
-    )
-    const refused = asAdmin(`SELECT public.cancel_invoice_for_reissue(${consolidated.invoice_id}, 'x', ARRAY['${blIds[3]}'])`)
-    expect(refused.stderr).toMatch(/nao pertence/)
-    expect(psql(`SELECT status FROM public.invoices WHERE id = ${consolidated.invoice_id};`)).toBe('issued')
+  it('fatura cancelada não mantém Fatura desatualizada aberta', () => {
+    psql(`SELECT public.alert_stale_invoice_for_bl('${blIds[2]}', 'teste');`)
+    expect(psql(`SELECT count(*) FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id
+      WHERE ai.item_type = 'fatura_desatualizada' AND ai.status = 'active' AND a.entity_id = '${invoiceIds[2]}'`)).toBe('1')
+    expect(asAdmin(`SELECT public.cancel_invoice(${invoiceIds[2]}, 'Emitida por engano', NULL)`).status).toBe(0)
+    expect(psql(`SELECT count(*) FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id
+      WHERE ai.item_type = 'fatura_desatualizada' AND ai.status = 'active' AND a.entity_id = '${invoiceIds[2]}'`)).toBe('0')
   })
 })

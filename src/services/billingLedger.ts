@@ -248,15 +248,6 @@ export async function getInvoiceCorrectionSummary(invoiceId: number): Promise<In
   if (error) throw error
   return data as unknown as InvoiceCorrectionSummary
 }
-export async function registerInvoiceCorrection(input: { invoiceId: number; receivableId: number; correctedTotalBrl: number; reason: string }) {
-  const { data, error } = await supabase.rpc('register_invoice_correction' as never, {
-    p_invoice_id: input.invoiceId, p_receivable_id: input.receivableId,
-    p_corrected_total_brl: input.correctedTotalBrl, p_reason: input.reason,
-  } as never)
-  if (error) throw error
-  return data as unknown as { offset_brl: number; refund_brl: number; balance_brl: number }
-}
-
 export async function resolveStaleInvoice(input: { invoiceId: number; reason: string }) {
   const { error } = await supabase.rpc('resolve_stale_invoice' as never, {
     p_invoice_id: input.invoiceId, p_reason: input.reason,
