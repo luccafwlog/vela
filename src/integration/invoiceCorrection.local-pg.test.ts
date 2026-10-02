@@ -44,6 +44,7 @@ function adminJson<T>(sql: string): T {
 }
 
 let initialPricingVersionIds: string[] | null = null
+let exchangeRateSnapshot: string | null = null
 
 function cleanup() {
   psql(`
@@ -74,7 +75,7 @@ function cleanup() {
     DELETE FROM public.bl_receivables WHERE customer_id = ${customerId};
     DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId};
     DELETE FROM public.bl_containers WHERE bl_id = ANY(ARRAY['${blIds.join("','")}']::text[]);
-    DELETE FROM public.bls WHERE id = ANY(ARRAY['${blIds.join("','")}']::text[]);
+    DELETE FROM public.bls WHERE id = ANY(ARRAY['${blIds.join("','")}', 'R124-BL-5']::text[]);
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
@@ -88,9 +89,10 @@ function cleanup() {
   `)
 }
 
-describeLocal('122/123 — avulsa da tabela, abatimento guiado e restituição por correção', () => {
+describeLocal('123/124 — avulsa da tabela, abatimento guiado e restituição por correção', () => {
   beforeAll(() => {
     initialPricingVersionIds = psql('SELECT id FROM public.pricing_rule_versions ORDER BY id').split('\n').filter(Boolean)
+    exchangeRateSnapshot = psql('SELECT row_to_json(r)::text FROM public.exchange_rate_reference r WHERE id = 1;') || null
     cleanup()
     expect(psql(`SELECT to_regproc('public.register_invoice_correction') IS NOT NULL;`)).toBe('t')
     psql(`
@@ -116,7 +118,10 @@ describeLocal('122/123 — avulsa da tabela, abatimento guiado e restituição p
       VALUES ${receivableIds.map((id, i) => `(${id}, '${blIds[i]}', ${customerId}, 'local_charges', 100, 0, 100, 'open', ${voyageId}, 'container')`).join(', ')};
       INSERT INTO public.invoice_receivable_links (invoice_id, receivable_id, bl_id, subtotal_brl, status)
       VALUES ${invoiceIds.map((id, i) => `(${id}, ${receivableIds[i]}, '${blIds[i]}', 100, 'active')`).join(', ')};
-      INSERT INTO public.exchange_rate_reference(id, roe, ptax, effective_date) VALUES (1, 5, 5, current_date) ON CONFLICT(id) DO NOTHING;
+      -- ROE com quatro casas: 150 USD × ROE tem terceira casa e expõe a
+      -- diferença entre quantidade × unitário e o total convertido.
+      INSERT INTO public.exchange_rate_reference(id, roe, ptax, effective_date) VALUES (1, 5.4321, 5.1, current_date)
+        ON CONFLICT(id) DO UPDATE SET roe = EXCLUDED.roe, ptax = EXCLUDED.ptax, effective_date = EXCLUDED.effective_date;
       INSERT INTO public.charge_tables(id, name, cargo_mode, pod, valid_from, active)
         VALUES (99212450, 'Tarifa de correcao', 'container', 'BRSSZ', '2020-01-01', true);
       INSERT INTO public.charge_table_items(id, charge_table_id, name, application_basis, applies_to, currency, unit_value_brl, unit_value_usd, value_brl, manual_only, active)
@@ -126,7 +131,15 @@ describeLocal('122/123 — avulsa da tabela, abatimento guiado e restituição p
     `)
   })
 
-  afterAll(cleanup)
+  afterAll(() => {
+    // Restaura o câmbio global que este teste fixou, antes de remover o ator
+    // que a auditoria da tabela registra.
+    psql(exchangeRateSnapshot
+      ? `UPDATE public.exchange_rate_reference r SET roe = s.roe, ptax = s.ptax, effective_date = s.effective_date
+           FROM json_populate_record(NULL::public.exchange_rate_reference, '${exchangeRateSnapshot}'::json) s WHERE r.id = 1;`
+      : 'DELETE FROM public.exchange_rate_reference WHERE id = 1;')
+    cleanup()
+  })
 
 
   it('resolve o valor da tabela, override, USD/TEU e ignora valores do navegador', () => {
@@ -144,6 +157,8 @@ describeLocal('122/123 — avulsa da tabela, abatimento guiado e restituição p
     const manual = adminJson<{invoice_id: number; total_brl: number}>(`SELECT public.create_manual_invoice(${customerId}, 'x', 1, 1, NULL, '${blIds[0]}', NULL, NULL, 99212452)`)
     expect(manual.total_brl).toBe(usd.total_brl)
     expect(Number(psql(`SELECT snapshot_payload->>'roe' FROM public.invoice_items WHERE invoice_id = ${manual.invoice_id}`))).toBe(usd.roe)
+    // O Pix cobra o total da fatura, não o total do INSERT anterior ao snapshot.
+    expect(psql(`SELECT pix_payload = public.build_transshipping_pix_payload(total_brl, invoice_number) FROM public.invoices WHERE id = ${manual.invoice_id}`)).toBe('t')
     expect(psql(`SELECT count(*) FROM public.invoice_receivable_links WHERE invoice_id = ${manual.invoice_id}`)).toBe('0')
     expect(psql(`SELECT count(*) FROM public._portal_list_invoices_core(${customerId}) WHERE id = ${manual.invoice_id}`)).toBe('1')
   })
@@ -169,6 +184,31 @@ describeLocal('122/123 — avulsa da tabela, abatimento guiado e restituição p
     expect(asAdmin(`SELECT public.register_invoice_correction(${invoiceIds[1]}, ${receivableIds[0]}, 50, 'xpto')`).stderr).toMatch(/nao pertence/)
     const portal = JSON.parse(psql(`SELECT public._portal_invoice_details_core(${customerId}, ${invoiceIds[1]})`))
     expect(portal.corrections[0]).toMatchObject({offset_brl: 10, refund_brl: 10})
+  })
+  it('fatura com correção registrada não é cancelada, mesmo depois de estornar a baixa', () => {
+    // Sem a trava, o abatimento ficaria no recebível depois do cancelamento e a
+    // reemissão cobraria o B/L recalculado menos uma correção já superada.
+    psql(`
+      INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode, pod, financial_status, review_status, charge_status, customer_reconciliation_status, ce_mercante)
+        VALUES ('R124-BL-5', ${voyageId}, ${customerId}, 'container', 'BRSSZ', 'invoiced', 'ok', 'ready_for_billing', 'reconciled', 'CE-124-5');
+      INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, total_paid_brl, balance_brl, status, invoice_type, issued_by, issued_at)
+        VALUES (99212415, 'R124-IND-5', ${customerId}, 'R124-BL-5', 100, 0, 100, 'issued', 'individual', '${actorId}', now());
+      INSERT INTO public.invoice_bls (invoice_id, bl_id, charge_status_snapshot, financial_status_snapshot, subtotal_brl)
+        VALUES (99212415, 'R124-BL-5', 'ready_for_billing', 'invoiced', 100);
+      INSERT INTO public.bl_receivables (id, bl_id, customer_id, source, original_amount_brl, settled_amount_brl, balance_brl, status, voyage_id, cargo_mode)
+        VALUES (99212425, 'R124-BL-5', ${customerId}, 'local_charges', 100, 0, 100, 'open', ${voyageId}, 'container');
+      INSERT INTO public.invoice_receivable_links (invoice_id, receivable_id, bl_id, subtotal_brl, status)
+        VALUES (99212415, 99212425, 'R124-BL-5', 100, 'active');
+    `)
+    adminJson(`SELECT public.register_ledger_invoice_payment(99212415, 40)`)
+    adminJson(`SELECT public.register_invoice_correction(99212415, 99212425, 80, 'Peso correto')`)
+    const payment = psql(`SELECT id FROM public.payments WHERE invoice_id = 99212415`)
+    const reversal = asAdmin(`SELECT public.reverse_invoice_payment(${payment}, 'Baixa lancada na fatura errada')`)
+    expect(reversal.status, reversal.stderr).toBe(0)
+    expect(psql(`SELECT balance_brl FROM public.bl_receivables WHERE id = 99212425`)).toBe('80.00')
+    expect(asAdmin(`SELECT public.cancel_invoice_for_reissue(99212415, 'Corrigir de novo', NULL)`).stderr).toMatch(/corre..o registrada/)
+    expect(asAdmin(`SELECT public.cancel_invoice(99212415, 'Cancelamento simples', NULL)`).stderr).toMatch(/corre..o registrada/)
+    expect(psql(`SELECT status FROM public.invoices WHERE id = 99212415`)).not.toBe('cancelled')
   })
   it('sem permissão financeira não registra correção nem lê dados de outros Clientes', () => {
     psql(`SET session_replication_role = replica; UPDATE public.user_profiles SET role = 'operacoes' WHERE id = '${actorId}'; SET session_replication_role = origin;`)

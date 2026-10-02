@@ -1,4 +1,4 @@
--- 121: fatura emitida não muda de valor (ADR 0077; plano
+-- 122: fatura emitida não muda de valor (ADR 0077; plano
 -- 2026-10-01-correcao-de-bl-apos-faturamento, Fases 1 e 3).
 --
 -- 1. As RPCs de "Outras cobranças (manuais)" deixam de ser chamáveis pela

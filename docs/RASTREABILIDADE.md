@@ -662,11 +662,11 @@ de contrato `portalInspectionMigration.test.ts`. Nenhum selo de runtime remoto
 
 | Ação | Origem e orquestração | Persistência | Evidência |
 | --- | --- | --- | --- |
-| Cancelar e reemitir / Reemissão pendente | `InvoiceDetailModal`, `PendingReissuesPanel`, `useBilling`, `billing` | Migration `121`: `cancel_invoice_for_reissue`, `list_pending_reissues`, `get_invoice_reissue_links`; triggers do vínculo | **Teste:** `invoiceReissue.local-pg.test.ts` |
-| Tipo de cobrança na avulsa | `ManualInvoiceModal`, `useLocalCharges`, `chargeOperationsService`, `billing` | Migration `122`: `quote_manual_invoice_charge`, `create_manual_invoice(...,p_charge_item_id)`; snapshot do preço/ROE | **Teste:** `ManualInvoiceModal.test.tsx`, `invoiceCorrection.local-pg.test.ts` |
-| Correção após pagamento | `InvoiceCorrectionPanel`, `useBillingLedger`, `billingLedger` | Migration `123`: `register_invoice_correction`, `get_invoice_correction_summary`; `invoice_corrections`, `bl_receivables`, origem correction em `invoice_refunds` | **Teste:** `InvoiceCorrectionPanel.test.tsx`, `invoiceCorrection.local-pg.test.ts` |
-| Fatura desatualizada | Import transacional compara snapshots; triggers físicos/Baplie; `StaleInvoiceResolutionPanel` | Migration `123`: `upsert_alert_item`, `resolve_stale_invoice`; reemissão resolve pelo vínculo | **Teste:** `invoiceCorrection.local-pg.test.ts`, catálogo de Alertas |
+| Cancelar e reemitir / Reemissão pendente | `InvoiceDetailModal`, `PendingReissuesPanel`, `useBilling`, `billing` | Migration `122`: `cancel_invoice_for_reissue`, `list_pending_reissues`, `get_invoice_reissue_links`; triggers do vínculo. Migration `125`: recusa individual em consolidada aberta e fatura com correção registrada | **Teste:** `invoiceReissue.local-pg.test.ts` |
+| Tipo de cobrança na avulsa | `ManualInvoiceModal`, `useLocalCharges`, `chargeOperationsService`, `billing` | Migration `123`: `quote_manual_invoice_charge`, `create_manual_invoice(...,p_charge_item_id)`; snapshot do preço/ROE. Migration `125`: Pix e evento de emissão com o total final | **Teste:** `ManualInvoiceModal.test.tsx`, `invoiceCorrection.local-pg.test.ts` |
+| Correção após pagamento | `InvoiceCorrectionPanel`, `useBillingLedger`, `billingLedger` | Migration `124`: `register_invoice_correction`, `get_invoice_correction_summary`; `invoice_corrections`, `bl_receivables`, origem correction em `invoice_refunds` | **Teste:** `InvoiceCorrectionPanel.test.tsx`, `invoiceCorrection.local-pg.test.ts` |
+| Fatura desatualizada | Import transacional compara snapshots; triggers físicos/Baplie; `StaleInvoiceResolutionPanel` | Migration `124`: `upsert_alert_item`, `resolve_stale_invoice`; reemissão resolve pelo vínculo | **Teste:** `invoiceCorrection.local-pg.test.ts`, catálogo de Alertas |
 | Ajustes por correção no Portal | `portalBilling`, `PortalInvoiceDetailModal` | `_portal_invoice_details_core` expõe ajustes no escopo previamente validado; lista lê saldo do ledger | **Teste:** `invoiceCorrection.local-pg.test.ts`; shims locais, sem comprovar Auth/API |
 
 As RPCs antigas `add_manual_invoice_charge` e `delete_manual_invoice_charge`
-estão sem `EXECUTE` para a API desde `121`; serviços/hooks foram retirados.
+estão sem `EXECUTE` para a API desde `122`; serviços/hooks foram retirados.

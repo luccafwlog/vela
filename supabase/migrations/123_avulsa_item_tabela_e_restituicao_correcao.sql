@@ -1,4 +1,4 @@
--- 122: itens da tabela em avulsas e restituição por correção (ADR 0077).
+-- 123: itens da tabela em avulsas e restituição por correção (ADR 0077).
 -- Não reescreve linhas existentes. A avulsa continua sem recebível local.
 CREATE FUNCTION public.quote_manual_invoice_charge(p_bl_id text, p_charge_item_id bigint)
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER

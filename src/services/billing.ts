@@ -1027,7 +1027,7 @@ export async function cancelInvoiceForReissue(input: {
   const reason = input.reason.trim()
   if (!reason) throw new Error('Informe o motivo para cancelar e reemitir a fatura.')
 
-  // ponytail: RPC da migration 121 tipada localmente até a regeneração dos tipos protegidos.
+  // ponytail: RPC da migration 122 tipada localmente até a regeneração dos tipos protegidos.
   const { data, error } = await supabase.rpc('cancel_invoice_for_reissue' as never, {
     p_invoice_id: input.invoiceId,
     p_reason: reason,

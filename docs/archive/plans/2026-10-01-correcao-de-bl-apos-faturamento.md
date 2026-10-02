@@ -212,6 +212,10 @@ publicação solicitada. Nova cadeia `122`/`123`, respeitando os prefixos numér
 do WORKFLOW. Fases 1/3 não foram reimplementadas. O alerta do import compara
 snapshots reais antes/depois, para não alertar em reimportação idêntica.
 
+Nota editorial (revisão da PR #839, 2026-10-01): a main recebeu
+`121_container_soc_coc.sql` durante a execução; a cadeia desta entrega passou a
+`122` (antes `121`), `123` (antes `122`) e `124` (antes `123`).
+
 ## Evidência de encerramento local
 
 Typecheck, lint, build, docs:check, migrations:check, rpc:check e diff sem

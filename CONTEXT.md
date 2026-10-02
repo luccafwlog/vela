@@ -2066,6 +2066,9 @@ A fatura é disponibilizada ao Cliente na emissão e preserva seu total e itens.
 Sem pagamento, **Cancelar e reemitir** cancela a individual ou consolidada,
 permite corrigir o B/L e mantém **Reemissão pendente** até a emissão sucessora.
 Com pagamento parcial ou integral, a fatura não pode ser cancelada/reemitida.
+B/L que também está numa consolidada aberta reemite pela consolidada, marcando
+o B/L a corrigir. Fatura com correção registrada não é mais cancelada, nem
+depois de cancelar a baixa: o abatimento já está no saldo do B/L.
 Taxa adicional ou aumento de cobrança usa **Fatura avulsa** vinculada ao B/L.
 
 Para redução após pagamento, **Correção após pagamento** recebe o total correto

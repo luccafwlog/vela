@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
-// Migration 121 (ADR 0077; plano 2026-10-01-correcao-de-bl-apos-faturamento,
+// Migration 122 (ADR 0077; plano 2026-10-01-correcao-de-bl-apos-faturamento,
 // Fases 1 e 3): fatura emitida não muda de valor; a correção cancela e reemite.
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -81,7 +81,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('121 — fatura emitida não muda de valor; correção cancela e reemite', () => {
+describeLocal('122 — fatura emitida não muda de valor; correção cancela e reemite', () => {
   beforeAll(() => {
     initialPricingVersionIds = psql('SELECT id FROM public.pricing_rule_versions ORDER BY id').split('\n').filter(Boolean)
     cleanup()
@@ -178,6 +178,19 @@ describeLocal('121 — fatura emitida não muda de valor; correção cancela e r
       `SELECT public.create_local_consolidated_invoice(${customerId}, ARRAY[${receivableIds[1]}, ${receivableIds[2]}]::bigint[], NULL, '${actorId}'::uuid)`,
     )
     expect(psql(`SELECT replaces_invoice_id FROM public.invoices WHERE id = ${reissued.invoice_id};`)).toBe(String(consolidated.invoice_id))
+  })
+
+  it('individual em consolidada viva reemite pela consolidada', () => {
+    // Migration 125: a consolidada continuaria cobrando o valor antigo do B/L.
+    const consolidated = adminJson<{ invoice_id: number; invoice_number: string }>(
+      `SELECT public.create_local_consolidated_invoice(${customerId}, ARRAY[${receivableIds[3]}]::bigint[], NULL, '${actorId}'::uuid)`,
+    )
+    psql(`DELETE FROM public.payments WHERE invoice_id = ${invoiceIds[3]};`)
+    const refused = asAdmin(`SELECT public.cancel_invoice_for_reissue(${invoiceIds[3]}, 'Peso corrigido', NULL)`)
+    expect(refused.stderr).toMatch(/consolidada/)
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${invoiceIds[3]};`)).toBe('issued')
+    expect(asAdmin(`SELECT public.cancel_invoice_for_reissue(${consolidated.invoice_id}, 'Peso corrigido', ARRAY['${blIds[3]}'])`).status).toBe(0)
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${invoiceIds[3]};`)).toBe('cancelled')
   })
 
   it('consolidada recusa B/L que não pertence a ela', () => {

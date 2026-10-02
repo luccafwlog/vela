@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useInvoiceCorrectionSummary, useRegisterInvoiceCorrection } from '../../hooks/useBillingLedger'
 import { previewInvoiceCorrection } from '../../services/invoiceCorrection'
 import { formatBRL } from '../../lib/utils'
+import { parseImportNumber } from '../../lib/importNumber'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { Card } from '../ui/Card'
 import { Field, Input, Select, Textarea } from '../ui/Input'
@@ -18,7 +19,9 @@ export function InvoiceCorrectionPanel({ invoiceId, canCorrect }: { invoiceId: n
   const [correctedTotal, setCorrectedTotal] = useState('')
   const [reason, setReason] = useState('')
   const row = summary.data?.receivables.find((item) => item.id === Number(receivableId))
-  const total = correctedTotal.trim() ? Number(correctedTotal.replace(',', '.')) : NaN
+  // Valor em pt-BR ("1.234,56"), como nos demais campos financeiros.
+  const parsedTotal = parseImportNumber(correctedTotal, 'pt-BR')
+  const total = parsedTotal.kind === 'value' ? Number(parsedTotal.decimal) : NaN
   const preview = row ? previewInvoiceCorrection(Number(row.corrected_brl), Number(row.balance_brl), total) : null
   async function submit() {
     if (!row || !preview || reason.trim().length < 3) return

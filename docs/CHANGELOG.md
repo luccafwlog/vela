@@ -6,10 +6,12 @@
 
 - **Correção de B/L após faturamento (2026-10-01, implementação local):** fatura
   emitida preserva valor/itens; Cancelar e reemitir sem pagamento e vínculo entre
-  documentos (`121`). Avulsa por Tipo de cobrança com tabela/Condição do Cliente,
-  B/L obrigatório e ROE congelado (`122`). Com pagamento, redução guiada por B/L
+  documentos (`122`). Avulsa por Tipo de cobrança com tabela/Condição do Cliente,
+  B/L obrigatório e ROE congelado (`123`). Com pagamento, redução guiada por B/L
   abate saldo antes de registrar restituição; Portal discrimina os ajustes.
-  Fatura desatualizada acompanha mudanças efetivas e orienta o próximo ato (`123`).
+  Fatura desatualizada acompanha mudanças efetivas e orienta o próximo ato (`124`).
+  Revisão (`125`): Pix da avulsa em USD segue o total final; fatura com correção
+  não é cancelada; individual em consolidada aberta reemite pela consolidada.
   [ADR 0077](adr/0077-fatura-emitida-nao-muda-de-valor.md); rollout remoto não verificado.
 
 - **SOC/COC do container (2026-10-01):** migration `121`. O container passa a ser SOC (do

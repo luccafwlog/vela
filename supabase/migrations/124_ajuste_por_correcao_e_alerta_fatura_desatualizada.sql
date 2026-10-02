@@ -1,4 +1,4 @@
--- 123: redução após pagamento abate saldo antes de restituir (ADR 0077).
+-- 124: redução após pagamento abate saldo antes de restituir (ADR 0077).
 -- Não reescreve dados existentes. Total/itens emitidos e valores recebidos são preservados.
 ALTER TABLE public.bl_receivables ADD COLUMN correction_amount_brl numeric(14,2) NOT NULL DEFAULT 0
   CHECK (correction_amount_brl >= 0 AND correction_amount_brl <= original_amount_brl);

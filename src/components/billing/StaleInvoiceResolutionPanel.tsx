@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useInvoiceCorrectionSummary, invalidateBillingLedgerQueries } from '../../hooks/useBillingLedger'
-import { resolveStaleInvoice } from '../../services/billingLedger'
+import { useInvoiceCorrectionSummary, useResolveStaleInvoice } from '../../hooks/useBillingLedger'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { Card } from '../ui/Card'
@@ -11,8 +9,7 @@ import { userFacingErrorMessage } from '../../lib/errors'
 
 export function StaleInvoiceResolutionPanel({ invoiceId, hasPayment, canResolve }: { invoiceId: number; hasPayment: boolean; canResolve: boolean }) {
   const query = useInvoiceCorrectionSummary(invoiceId)
-  const qc = useQueryClient()
-  const mutation = useMutation({ mutationFn: resolveStaleInvoice, onSuccess: () => invalidateBillingLedgerQueries(qc) })
+  const mutation = useResolveStaleInvoice()
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [reason, setReason] = useState('')

@@ -270,7 +270,7 @@ impressão e chama `window.print()`; o nome sugerido é calculado por
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
 | `/taxas-locais` · filtrar/listar invoices | Sessão interna; filtros opcionais | `TaxasLocais` → `InvoiceFiltersBar` / `InvoicesTable` | `useInvoices` → `listInvoices` | `SELECT invoices`, `invoice_bls`, `invoice_receivable_links`, `payments`; filtros auxiliares consultam B/Ls/viagens | Query `queryKeys.invoices.list(filters)`; paginação remota da lista principal | Erro principal vira `InlineError`; filtros sem IDs retornam vazio sem consultar invoices | **Código:** `src/pages/TaxasLocais.tsx`, `src/services/billing.ts` · **Teste:** `src/services/__tests__/billing.test.ts` |
-| `/taxas-locais` · emitir Fatura Avulsa | Usuário interno ativo/admin autorizado pela RPC; Cliente; Outra com item/quantidade/valor livres e contexto opcional; item da tabela exige B/L e valor resolvido | Botão “Gerar fatura avulsa” → `ManualInvoiceModal` | `useCreateManualInvoice` → `createManualInvoice` → RPC `create_manual_invoice` | Cria `invoices.invoice_type='manual'` e um `invoice_items.source='manual'`; `notes` guarda a descrição; não cria relações de ledger | Invalida lista/detalhe de invoices, histórico de reconciliação e dados relacionados ao B/L/Cliente quando informados | RPC valida valores, Cliente/B/L/Viagem e coerência; falha transacional não deixa documento/item parcial | **Código:** `src/components/billing/ManualInvoiceModal.tsx`, `src/hooks/useBilling.ts`, `src/services/billing.ts`, migrations `097` e `122`; **Teste:** `src/components/billing/__tests__/ManualInvoiceModal.test.tsx`, `src/hooks/__tests__/useBillingManualInvoice.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
+| `/taxas-locais` · emitir Fatura Avulsa | Usuário interno ativo/admin autorizado pela RPC; Cliente; Outra com item/quantidade/valor livres e contexto opcional; item da tabela exige B/L e valor resolvido | Botão “Gerar fatura avulsa” → `ManualInvoiceModal` | `useCreateManualInvoice` → `createManualInvoice` → RPC `create_manual_invoice` | Cria `invoices.invoice_type='manual'` e um `invoice_items.source='manual'`; `notes` guarda a descrição; não cria relações de ledger | Invalida lista/detalhe de invoices, histórico de reconciliação e dados relacionados ao B/L/Cliente quando informados | RPC valida valores, Cliente/B/L/Viagem e coerência; falha transacional não deixa documento/item parcial | **Código:** `src/components/billing/ManualInvoiceModal.tsx`, `src/hooks/useBilling.ts`, `src/services/billing.ts`, migrations `097` e `123`; **Teste:** `src/components/billing/__tests__/ManualInvoiceModal.test.tsx`, `src/hooks/__tests__/useBillingManualInvoice.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
 | `/taxas-locais` · exportar lista | Mesmos filtros; ao menos uma invoice | `TaxasLocais.handleExport` | `listInvoicesForExport` → `exportInvoicesWorkbook` | Leituras paginadas de 1000; arquivo XLSX local | Não altera cache | Sem linhas gera aviso; leitura/geração propaga erro | **Código:** `src/pages/TaxasLocais.tsx`, `src/services/billing.ts`, `src/services/exports.ts` · **Teste:** `src/services/__tests__/billingHelpers.test.ts` |
 | `/taxas-locais` · abrir invoice | ID selecionado pela tabela ou query string | `InvoicesTable.onSelectInvoice` | `useInvoiceDetail` → `listInvoiceDetails` | RPC `list_invoice_details` lê documento, links diretos, itens e pagamentos | Query `queryKeys.invoices.detail(id)` | ID ausente desabilita query; erro mostra falha no modal | **Código:** `src/components/billing/InvoicesTable.tsx`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts` · **Teste:** `src/pages/__tests__/TaxasLocais.behavior.test.tsx` |
 | Detalhe · carregar breakdown consolidado | Invoice sem itens diretos e com `invoice_receivable_links` | `listInvoiceDetails` após RPC base | Lê links/snapshots; RPC `get_consolidated_invoice_item_breakdown`; valida com Zod | `invoice_receivable_links`, `voyages`, leitura protegida de `charge_calculations` | Reusa `invoice-detail`; usa linha agregada por B/L se breakdown não reconciliar com subtotal | Erro/shape inválido do breakdown é best-effort e cai no agregado | **Código:** `src/services/billing.ts`, `supabase/migrations_archive/086_consolidated_invoice_item_breakdown.sql`, `supabase/migrations_archive/090_restrict_consolidated_invoice_breakdown.sql` |
@@ -345,8 +345,10 @@ menores e específicas descritas no catálogo.
 ### Correção após emissão (ADR 0077)
 
 Fatura emitida não oferece edição manual de itens; as RPCs antigas foram
-revogadas para a API pela migration `121`. Sem pagamento, Cancelar e reemitir
-permite a correção e mantém o vínculo entre documentos. Com pagamento, acréscimo
+revogadas para a API pela migration `122`. Sem pagamento, Cancelar e reemitir
+permite a correção e mantém o vínculo entre documentos. B/L numa consolidada
+aberta reemite pela consolidada, marcando o B/L; fatura com correção registrada
+não é cancelada, nem depois de cancelar a baixa (migration `125`). Com pagamento, acréscimo
 ou serviço usa avulsa. Redução recebe o total correto por B/L e motivo; o sistema
 mostra redução, abatimento do saldo, restituição e saldo restante antes da confirmação.
 Em consolidada, só o recebível escolhido é corrigido. O Portal recebe o saldo
@@ -364,7 +366,7 @@ no snapshot. Outra mantém o item livre. Nada é cobrado automaticamente.
 
 Alteração efetiva das bases faturadas abre Fatura desatualizada. Reemissão resolve
 automaticamente; correção ou avulsa exige justificativa de resolução. Leituras e
-escritas estão nas migrations `122` e `123`; o recálculo indireto não reescreve
+escritas estão nas migrations `123`, `124` e `125`; o recálculo indireto não reescreve
 recebível com fatura viva.
 
 

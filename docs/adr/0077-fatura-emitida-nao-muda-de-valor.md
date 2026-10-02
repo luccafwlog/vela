@@ -1,7 +1,7 @@
 # 0077 — Fatura emitida não muda de valor
 
-Status: aceito — 2026-10-01. Implementação local nas migrations `121`, `122`
-e `123`; deploy remoto não verificado.
+Status: aceito — 2026-10-01. Implementação local nas migrations `122`, `123`,
+`124` e `125`; deploy remoto não verificado.
 
 ## Contexto
 
@@ -18,6 +18,9 @@ A edição de itens manuais em fatura emitida contradizia o congelamento da
    reemitir**, com motivo e B/Ls afetados. A emissão sucessora aponta para a
    cancelada; **Reemissão pendente** acompanha o intervalo para corrigir o B/L.
    Não há vencimento a herdar. Com qualquer pagamento, esse caminho é recusado.
+   Individual cujo B/L está numa consolidada aberta reemite pela consolidada,
+   marcando o B/L a corrigir. Fatura com correção registrada não é cancelada,
+   mesmo depois de cancelar a baixa (migration `125`).
 3. Serviço eventual é decisão do operador. Pode acompanhar a reemissão sem
    pagamento ou gerar avulsa; com pagamento, só avulsa. **Tipo de cobrança**
    resolve itens `manual_only` da tabela do B/L e a Condição do Cliente.
@@ -58,7 +61,7 @@ que o cancelamento da COB anterior foi confirmado. Este checkout usa Pix estáti
 ## Evidência
 
 Código: `InvoiceDetailModal`, `InvoiceCorrectionPanel`, `ManualInvoiceModal`,
-`PortalInvoiceDetailModal`, migrations `121`–`123`.
+`PortalInvoiceDetailModal`, migrations `122`–`125`.
 Testes: `invoiceCorrection.local-pg.test.ts`, `invoiceReissue.local-pg.test.ts`,
 `InvoiceCorrectionPanel.test.tsx`, `ManualInvoiceModal.test.tsx`.
 Postgres local usa shims; não comprova Auth/API nem rollout remoto.

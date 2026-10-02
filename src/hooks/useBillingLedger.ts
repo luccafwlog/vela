@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import {
   getInvoiceCorrectionSummary,
   registerInvoiceCorrection,
+  resolveStaleInvoice,
   createConsolidatedInvoice,
   listConsolidatableReceivables,
   listInvoiceRefunds,
@@ -108,4 +109,9 @@ export function useInvoiceCorrectionSummary(invoiceId?: number | null) {
 export function useRegisterInvoiceCorrection() {
   const invalidate = useLedgerInvalidation()
   return useMutation({ mutationFn: registerInvoiceCorrection, onSuccess: invalidate })
+}
+
+export function useResolveStaleInvoice() {
+  const invalidate = useLedgerInvalidation()
+  return useMutation({ mutationFn: resolveStaleInvoice, onSuccess: invalidate })
 }
