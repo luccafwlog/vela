@@ -18,6 +18,10 @@
 
 ## Roles internas
 
+As policies de leitura e marcação de notificações internas exigem destinatário
+igual a `auth.uid()` e perfil interno ativo (`is_active_read_user()`, migration
+`121`), inclusive para acesso direto com um JWT ainda válido após desativação.
+
 `administrativo` · `financeiro` · `operacoes` · `documentacao` · `equipamentos`, em `user_profiles` (`role`, `active`). Geridas em `/admin/usuarios`. Ver [Admin Usuários](../modules/operacao-suporte.md#admin-usuários).
 
 ## Duas fronteiras de autenticação
@@ -62,6 +66,24 @@ O corte de `iat` é estrito desde a migration `069`: qualquer access
 token emitido antes do marco final é recusado, inclusive dentro dos cinco
 segundos antes tolerados. Token sem `iat` válido também é recusado enquanto o
 marco estiver ativo.
+
+Desde a migration `121`, reset e confirmação do Email de Recuperação usam RPCs
+exclusivas de `service_role` com lock por conta. O reset aceita somente convite
+pendente, não expirado e destinado ao email atual, consome-o e registra
+`recovery_reset_invite_id` antes de chamar o Auth. A confirmação aplica o email,
+cancela os links de recuperação anteriores e revoga sessões na mesma transação.
+O trigger cobre também a troca assistida. Enquanto o reset está em andamento,
+qualquer alteração do Email de Recuperação é recusada; o marcador só é removido
+depois da alteração da senha e da revogação final confirmadas.
+
+**Publicação:** aplicar a migration `121` antes de publicar `portal-password-reset`
+e `portal-recovery-email-change`. **Falha de reset:** não há desbloqueio por tempo.
+O operador deve confirmar nos logs que a execução terminou e que nenhuma chamada
+ao Auth continua pendente, verificar o resultado da alteração e revogar as sessões
+antes de concluir a operação com `portal_finish_password_reset(account_id,
+invite_id)` usando `service_role`. Não reutilizar o convite consumido: depois de
+resolver a operação, emitir uma nova recuperação. Sem confirmação desses passos,
+manter o bloqueio e investigar. A quarentena de credenciais permanece válida.
 
 As RPCs `SECURITY DEFINER` de provisionamento vigentes (`portal_set_exception`, `portal_return_to_analysis`, `portal_admin_change_cnpj`, `portal_cancel_invite`, `portal_assisted_email_change`) autorizam em duas camadas: EXECUTE concedido só a `authenticated`/`service_role` (o herdado do `PUBLIC` foi revogado na migration `192`) e guarda NULL-safe sobre `_portal_actor_role()`, negando role indefinido — inclusive clientes do Portal, que também são role `authenticated`. As RPCs temporárias de pré-voo e backfill foram revogadas e removidas pela migration `201`. Correção da falha *fail-open* encontrada em teste de isolamento por CNPJ (2026-07-14): a comparação com role NULL não disparava o `permission denied`, e o `REVOKE ... FROM anon` original não removia o EXECUTE do `PUBLIC`.
 

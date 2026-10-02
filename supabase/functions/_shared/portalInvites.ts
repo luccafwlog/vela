@@ -82,72 +82,16 @@ export type EmailChangeAccount = {
 export type EmailChangeConfirmation =
   | { outcome: 'link_invalido' }
   | { outcome: 'pedido_ja_resolvido' }
+  | { outcome: 'recuperacao_em_andamento' }
   | { outcome: 'aplicar'; inviteId: number; account: EmailChangeAccount }
 
-// Ordem do `confirm`: LER a conta antes de queimar o convite.
-//
-// Antes, a sequência era validar o convite → marcar como consumido → ler a
-// conta → devolver 410 se `pending_recovery_email` fosse nulo. O convite era
-// destruído no passo 2 para se descobrir no passo 3 que não havia nada a
-// aplicar, e a mensagem devolvida ("Link inválido ou expirado") era falsa: o
-// link estava válido, quem o destruiu foi a própria chamada. O caminho que
-// produzia isso é a troca assistida, que zera `pending_recovery_email` — a
-// migration 300 passou a encerrar o convite junto, e esta ordem cobre os links
-// que já estavam em trânsito.
-//
-// Por isso o que decide entre 409 e 410 é a CONTA, não o status do convite: a
-// troca assistida encerra o convite no mesmo UPDATE em que zera o pedido, então
-// exigir `status = 'pendente'` antes de olhar a conta devolvia 410 "link
-// inválido" exatamente no caso que o 409 existe para descrever — o cliente
-// clicaria num link que estava válido e ouviria que nunca esteve. Sem pedido
-// pendente não há o que aplicar nem o que invalidar: o desfecho é "já foi
-// resolvido", tenha o convite sido encerrado pela troca assistida, por uma
-// confirmação anterior deste mesmo link, ou nem isso.
-//
-// A proteção contra confirmação dupla continua vindo do UPDATE condicional
-// (`status = 'pendente'`), que é o ponto de serialização real: só um chamador
-// vence, e o perdedor não queima nada — e, tendo perdido para quem aplicou a
-// troca, o que ele tem a dizer também é "já foi resolvido".
-export async function resolveEmailChangeConfirmation(db: PortalDb, tokenHash: string, now: number): Promise<EmailChangeConfirmation> {
-  const { data: invite } = await db
-    .from('portal_invites')
-    .select('id, account_id, expires_at, status')
-    .eq('token_hash', tokenHash)
-    .eq('purpose', 'confirmacao_email')
-    .maybeSingle()
-  if (!invite) return { outcome: 'link_invalido' }
-
-  const { data: account } = await db
-    .from('customer_portal_accounts')
-    .select('id, customer_id, auth_user_id, pending_recovery_email, provisioning_decision, account_situation')
-    .eq('id', invite.account_id)
-    .maybeSingle()
-  if (!account?.pending_recovery_email) return { outcome: 'pedido_ja_resolvido' }
-
-  // Há pedido pendente: o convite precisa estar de pé para aplicá-lo. Encerrado
-  // ou vencido com troca pendente é link superado por um pedido mais novo — aí
-  // "inválido" é verdade.
-  if (invite.status !== 'pendente' || new Date(String(invite.expires_at)).getTime() <= now) return { outcome: 'link_invalido' }
-
-  const { data: consumed } = await db
-    .from('portal_invites')
-    .update({ status: 'consumido', consumed_at: new Date(now).toISOString() })
-    .eq('id', invite.id)
-    .eq('status', 'pendente')
-    .select('id')
-    .maybeSingle()
-  if (!consumed) return { outcome: 'pedido_ja_resolvido' }
-
-  return {
-    outcome: 'aplicar',
-    inviteId: Number(invite.id),
-    account: {
-      id: Number(account.id),
-      customer_id: Number(account.customer_id),
-      auth_user_id: account.auth_user_id === null || account.auth_user_id === undefined ? null : String(account.auth_user_id),
-      pending_recovery_email: String(account.pending_recovery_email),
-      provisioning_decision: account.provisioning_decision === null || account.provisioning_decision === undefined ? null : String(account.provisioning_decision),
-      account_situation: account.account_situation === null || account.account_situation === undefined ? null : String(account.account_situation),
-    },
+// O banco confirma o endereço e encerra a autoridade antiga na mesma transação.
+export async function resolveEmailChangeConfirmation(db: PortalDb, tokenHash: string): Promise<EmailChangeConfirmation> {
+  const { data, error } = await db.rpc('portal_confirm_recovery_email', { p_token_hash: tokenHash })
+  if (error) {
+    if ((error as { code?: string }).code === '55000') return { outcome: 'recuperacao_em_andamento' }
+    throw new Error('Could not confirm recovery email')
   }
+  if (!data) throw new Error('Missing recovery email confirmation result')
+  return data as EmailChangeConfirmation
 }
