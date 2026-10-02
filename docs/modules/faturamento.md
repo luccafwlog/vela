@@ -364,9 +364,18 @@ Itens da tabela na avulsa são resolvidos na emissão pelo mesmo catálogo manua
 do B/L, com Condição do Cliente, base B/L/TEU e USD convertido pelo ROE congelado
 no snapshot. Outra mantém o item livre. Nada é cobrado automaticamente.
 
-Alteração efetiva das bases faturadas abre Fatura desatualizada. Reemissão resolve
+Reimportação do B/L com override ou flags do Baplie que alteram a base de B/L
+faturado sem pagamento cancelam e reemitem automaticamente a individual e a
+consolidada que o incluem (`auto_reissue_invoices_for_bl`, migration `126`),
+pelo mesmo núcleo da emissão automática do CE (`_auto_bill_bl_core`). Travas
+deixam a fatura em Reemissão pendente com o motivo no alerta. Depois de um
+cancelamento, o recálculo desvincula os itens da fatura cancelada das linhas
+de cálculo antigas. Cancelar fatura individual coberta por consolidada aberta é
+recusado; cancele ou reemita pela consolidada.
+
+Com pagamento, alteração efetiva das bases faturadas abre Fatura desatualizada. Reemissão resolve
 automaticamente; correção ou avulsa exige justificativa de resolução. Leituras e
-escritas estão nas migrations `123`, `124` e `125`; o recálculo indireto não reescreve
+escritas estão nas migrations `123` a `126`; o recálculo indireto não reescreve
 recebível com fatura viva.
 
 

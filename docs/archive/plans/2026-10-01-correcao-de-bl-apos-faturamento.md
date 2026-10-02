@@ -228,3 +228,9 @@ a restituição, consolidada, preço/ROE da avulsa e alerta apenas em alteraçã
 Mocks de componentes verificam a orientação e confirmação ao operador.
 Não houve observação de navegador, publicação das migrations, mutação de
 produção, integração real Itaú ou prova de runtime em Preview.
+
+Nota editorial (2026-10-01, decisão do dono durante a revisão da PR #839): a
+decisão 2 ("correção com impacto sempre cancela e reemite") passa a ser
+automática na reimportação do B/L e nas flags do Baplie, sem ação do operador,
+para a individual e a consolidada que incluem o B/L. Implementada na migration
+`126`; ver ADR 0077, decisão 2.

@@ -376,7 +376,9 @@ export function buildBlFreightPreview({
     if (requiresBillingOverride && existing) {
       const invoices = (invoicesByBl?.get(existing.id) ?? []).filter((invoice) => invoice.kind === 'local')
       for (const invoice of invoices) {
-        impact.messages.push(`Fatura ${invoice.invoiceNumber} ficará desatualizada. ${Number(invoice.totalPaidBrl ?? 0) > 0 ? 'Com pagamento: aumento usa avulsa; redução abate o saldo e depois restitui.' : 'Sem pagamento: cancelar e reemitir.'}`)
+        impact.messages.push(Number(invoice.totalPaidBrl ?? 0) > 0
+          ? `Fatura ${invoice.invoiceNumber} ficará desatualizada. Com pagamento: aumento usa avulsa; redução abate o saldo e depois restitui.`
+          : `Fatura ${invoice.invoiceNumber} será cancelada e reemitida automaticamente com o valor novo (com a consolidada que incluir o B/L).`)
       }
     }
 

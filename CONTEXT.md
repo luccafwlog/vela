@@ -2080,8 +2080,18 @@ R$ 100 em aberto e registra R$ 100 para restituir. Total original e dinheiro
 recebido continuam no histórico; o Portal mostra saldo e ajustes separadamente.
 O operador confirma a prévia antes de registrar correção ou pagamento.
 
+**Reemissão automática**: reimportação do B/L com override, ou flags do Baplie,
+que muda a base faturada de um B/L sem pagamento cancela a fatura individual e
+a consolidada que o incluem e reemite as duas com o valor novo, sem ação do
+operador. Exemplo: BL-A faturado em R$ 500 dentro da consolidada de R$ 1.000;
+a reimportação acrescenta um container de R$ 500 → individual nova de R$ 1.000
+e consolidada nova de R$ 1.500, cada uma ligada à que substitui. Se a emissão
+for barrada (Portal não pronto, revisão pendente, CE ausente), as faturas ficam
+em Reemissão pendente e o alerta explica o motivo.
+
 **Fatura desatualizada** avisa que uma alteração efetiva do B/L ou de flags do
-Baplie mudou as bases faturadas. Orienta o caminho conforme existência de
+Baplie mudou as bases faturadas de fatura com pagamento, ou que a reemissão
+automática não saiu. Orienta o caminho conforme existência de
 pagamento. Reemissão resolve automaticamente; avulsa ou correção é encerrada
 com justificativa. Ver [ADR 0077](docs/adr/0077-fatura-emitida-nao-muda-de-valor.md)
 e [Faturamento](docs/modules/faturamento.md).

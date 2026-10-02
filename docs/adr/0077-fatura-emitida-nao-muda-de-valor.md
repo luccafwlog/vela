@@ -1,7 +1,6 @@
 # 0077 — Fatura emitida não muda de valor
 
-Status: aceito — 2026-10-01. Implementação local nas migrations `122`, `123`,
-`124` e `125`; deploy remoto não verificado.
+Status: aceito — 2026-10-01. Implementação local nas migrations `122` a `126`; deploy remoto não verificado.
 
 ## Contexto
 
@@ -21,6 +20,13 @@ A edição de itens manuais em fatura emitida contradizia o congelamento da
    Individual cujo B/L está numa consolidada aberta reemite pela consolidada,
    marcando o B/L a corrigir. Fatura com correção registrada não é cancelada,
    mesmo depois de cancelar a baixa (migration `125`).
+   **Reemissão automática** (decisão do dono, 2026-10-01; migration `126`):
+   reimportação do B/L com override ou flags do Baplie que alteram a base
+   faturada de um B/L sem pagamento cancelam a individual e a consolidada que
+   o incluem e as reemitem com o valor recalculado, pelo mesmo núcleo da
+   emissão automática do CE e com as mesmas travas. Se uma trava impedir a
+   emissão, as faturas ficam em Reemissão pendente e o alerta diz o motivo.
+   O Cancelar e reemitir manual continua para correções fora desses fluxos.
 3. Serviço eventual é decisão do operador. Pode acompanhar a reemissão sem
    pagamento ou gerar avulsa; com pagamento, só avulsa. **Tipo de cobrança**
    resolve itens `manual_only` da tabela do B/L e a Condição do Cliente.
@@ -43,8 +49,9 @@ A edição de itens manuais em fatura emitida contradizia o congelamento da
    cancelamento/reemissão. Cancelar baixa não serve para corrigir preços. A baixa
    que financia restituição não pode ser desfeita se o restante recebido não
    cobrir a devolução comprometida; sem restituição, a reversão preserva o abatimento.
-7. Mudanças efetivas na base faturada geram **Fatura desatualizada**, com
-   orientação e acesso à fatura. Reimportação compara snapshots reais antes e
+7. Mudanças efetivas na base faturada de fatura com pagamento, ou reemissão
+   automática bloqueada, geram **Fatura desatualizada**, com orientação e
+   acesso à fatura. Reimportação compara snapshots reais antes e
    depois, evitando alerta por substituição idêntica dos filhos. Baplie segue
    o mesmo produtor. Reemissão resolve automaticamente; avulsa/correção exige
    resolução manual justificada. O recebível emitido permanece congelado nos
@@ -61,7 +68,7 @@ que o cancelamento da COB anterior foi confirmado. Este checkout usa Pix estáti
 ## Evidência
 
 Código: `InvoiceDetailModal`, `InvoiceCorrectionPanel`, `ManualInvoiceModal`,
-`PortalInvoiceDetailModal`, migrations `122`–`125`.
+`PortalInvoiceDetailModal`, migrations `122`–`126`.
 Testes: `invoiceCorrection.local-pg.test.ts`, `invoiceReissue.local-pg.test.ts`,
 `InvoiceCorrectionPanel.test.tsx`, `ManualInvoiceModal.test.tsx`.
 Postgres local usa shims; não comprova Auth/API nem rollout remoto.

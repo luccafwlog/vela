@@ -10,6 +10,10 @@ export async function invalidateBaplieDependentQueries(
     queryClient.invalidateQueries({ queryKey: ['alerts'] }),
     queryClient.invalidateQueries({ queryKey: ['financial-alerts'] }),
     queryClient.invalidateQueries({ queryKey: ['invoice-corrections'] }),
+    // Flags do Baplie em B/L faturado sem pagamento reemitem a fatura (126).
+    queryClient.invalidateQueries({ queryKey: ['invoices'] }),
+    queryClient.invalidateQueries({ queryKey: ['invoice-detail'] }),
+    queryClient.invalidateQueries({ queryKey: ['billing-ledger'] }),
     queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] }),
     queryClient.invalidateQueries({ queryKey: ['bls'] }),
     queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),

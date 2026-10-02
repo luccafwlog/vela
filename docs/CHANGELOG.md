@@ -12,6 +12,9 @@
   Fatura desatualizada acompanha mudanças efetivas e orienta o próximo ato (`124`).
   Revisão (`125`): Pix da avulsa em USD segue o total final; fatura com correção
   não é cancelada; individual em consolidada aberta reemite pela consolidada.
+  Reemissão automática (`126`): reimportação com override ou flags do Baplie que
+  mudam a base de B/L faturado sem pagamento cancelam e reemitem a individual e a
+  consolidada; recálculo depois do cancelamento não esbarra mais nos itens cancelados.
   [ADR 0077](adr/0077-fatura-emitida-nao-muda-de-valor.md); rollout remoto não verificado.
 
 - **SOC/COC do container (2026-10-01):** migration `121`. O container passa a ser SOC (do

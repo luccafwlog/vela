@@ -44,7 +44,7 @@ describe('cache effects', () => {
     await afterManifestoImportado(client, { voyageId: 24 })
     expect(keys()).toEqual(keySet([
       ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
-      ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
+      ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['invoice-links'], ['billing-ledger'], ['customers'], ['voyages'], ['port-options'],
       ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
       ['manifestos-mercante'],
       ['baplie-reconciliation', '24'], ['baplie-staging', '24'],
@@ -67,7 +67,7 @@ describe('cache effects', () => {
     const { client, keys } = fakeQueryClient()
     await afterBaplieImportado(client, { voyageId: '24' })
     expect(keys()).toEqual(keySet([
-      ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['baplie-reconciliation', '24'], ['bls'], ['bl-detail'], ['voyages'], ['voyage-timeline', '24'], ['agency-report'],
+      ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['billing-ledger'], ['baplie-reconciliation', '24'], ['bls'], ['bl-detail'], ['voyages'], ['voyage-timeline', '24'], ['agency-report'],
     ]))
   })
 

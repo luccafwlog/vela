@@ -8,7 +8,7 @@ describe('invalidateBaplieDependentQueries', () => {
     await invalidateBaplieDependentQueries({ invalidateQueries }, '24')
 
     expect(invalidateQueries.mock.calls.map(([input]) => input.queryKey)).toEqual([
-      ['alerts'], ['financial-alerts'], ['invoice-corrections'],
+      ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['billing-ledger'],
       ['baplie-reconciliation', '24'],
       ['bls'],
       ['bl-detail'],
