@@ -14,6 +14,8 @@ verdade sobre o estado atual.
 
 - [2026-09-30 — Preparação do acesso Itaú Pix](2026-09-30-preparacao-acesso-itau-pix.md) — saída mTLS e consultas sandbox comprovadas; consulta periódica escolhida, webhook adiado; ativação e acesso real Itaú pendentes.
 
+- [2026-10-01 — Onboarding Itaú Pix: estado da integração](2026-10-01-onboarding-itau-pix-status.md) — onde a bola está parada com o Itaú em paralelo ao código: protocolo IT-000245617, fluxo do certificado mapeado, fatos técnicos confirmados, bloqueadores com dono e próximos passos.
+
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — em execução; código entregue (PRs #799, #812–#815, #818; migrations 106, 108, 109 e 110) e Edge Functions publicadas em 2026-09-29. Pendente (dono): teste do Comunicado, Fase 1 no GitHub, conferência na Preview e itens de operação — lista em "Estado em 2026-09-29".
 - [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — implementa as ADRs 0071–0074 em seis fases: proteções do banco, falso sucesso e cascata atômica, diálogo de confirmação, trava do CE Mercante, cadastros, e usuários/retenção/backup.
 
