@@ -16,8 +16,8 @@ ficam fora do repo, na pasta local do dono; nunca versionar.
   "Regulatório Pix v2" mas isolado e desconectado por desenho. Nada aqui
   movimenta dinheiro de verdade.
 - **Itaú:** protocolo novo **IT-000245617** recebido em 2026-10-01 (e-mail de
-  boas-vindas + e-mail de tracking). Cadastro da empresa pendente — depende de
-  resposta ao e-mail de boas-vindas.
+  boas-vindas + e-mail de tracking). Dono informou em 2026-10-02 que respondeu ao e-mail de boas-vindas;
+  cadastro e orientação sobre envio da pública aguardam retorno do Itaú.
 - **Certificados:** portal do desenvolvedor só permite consulta (nada em
   homologação/produção); a "nova experiência" de gestão de
   certificados/credenciais foi oferecida em modal numa sessão autenticada em
@@ -38,6 +38,13 @@ e-mails é o início da razão social da titular da conta (TRANSHIPPING
 AGENCIAMENTO MARITIMO LTDA) — os e-mails são da integração do Vela, não de
 outro sistema.
 
+**Atualização informada pelo dono em 2026-10-02:** resposta ao e-mail de
+boas-vindas enviada no protocolo IT-000245617; privada de onboarding salva
+no Supabase Vault do projeto Vela sob `ITAU_ONBOARDING_PRIVATE_KEY`.
+Registro baseado na confirmação do dono, sem leitura do segredo ou verificação
+remota do cadastro, das permissões ou da correspondência com o arquivo local.
+Nenhuma resposta do banco ou envio da pública foi confirmado.
+
 ## Fluxo do certificado (revisado em 2026-10-02)
 
 **Evidência documental:** [guia atual do Itaú para certificado dinâmico](https://devportal.itau.com.br/certificado-dinamico-demais-produtos),
@@ -51,6 +58,7 @@ client_id, token temporário e chave de sessão criptografados; o client_secret
    correspondência da pública e assinatura/verificação local aprovadas.
 2. Responder o e-mail de boas-vindas para solicitar cadastro, confirmar se há
    certificado vigente reutilizável e o ponto focal/canal para a pública.
+   **Resposta enviada, conforme informado pelo dono em 2026-10-02; retorno pendente.**
 3. Enviar somente `public.pem` ao ponto focal confirmado. O guia recomenda
    e-mail; nenhum envio foi realizado nesta preparação.
 4. Receber o e-mail "Credenciais Itaú" e descriptografar localmente client_id
@@ -72,7 +80,10 @@ client_id, token temporário e chave de sessão criptografados; o client_secret
 certificado ou segredo bancário foi emitido. Se o banco confirmar certificado
 vigente reutilizável, o novo par pode não ser necessário.
 Em runtime, o destino definido para privada do CSR + `.crt` + client_secret
-é o Supabase Vault; nomes, acesso pela função e instalação ainda pendentes.
+é o Supabase Vault; nomes e acesso pela função ainda pendentes para esse trio.
+A privada de onboarding já foi armazenada no Vault como
+`ITAU_ONBOARDING_PRIVATE_KEY`, conforme informado pelo dono em 2026-10-02;
+isso não comprova instalação da chave do certificado final nem acesso operacional.
 Nenhum valor sensível entra no repo, frontend, chat ou e-mail.
 
 ## Fatos técnicos confirmados (2026-09-30/10-01)
@@ -97,22 +108,23 @@ Nenhum valor sensível entra no repo, frontend, chat ou e-mail.
 
 | Trava | Dono | Estado |
 |---|---|---|
-| Responder o e-mail de boas-vindas (cadastro + canal de envio da pública + certificado existente) | Dono | Pendente |
-| Cadastro da empresa / emissão do material de ativação | Implantação Técnica Itaú | Aguardando a resposta do dono |
+| Responder o e-mail de boas-vindas (cadastro + canal de envio da pública + certificado existente) | Dono | Resposta enviada em 2026-10-02, informada pelo dono; retorno pendente |
+| Cadastro da empresa / emissão do material de ativação | Implantação Técnica Itaú | Aguardando retorno do Itaú após resposta informada pelo dono em 2026-10-02 |
 | Acesso à "nova experiência" de certificados/credenciais | Time comercial Itaú | Portal só consulta; modal dispensado em 01/10 — vale revisitar e clicar "começar" |
-| Confirmar se a empresa já tem certificado API Itaú (reutilizar em vez de gerar) | Dono + Itaú | Pergunta incluída no rascunho; envio pendente |
+| Confirmar se a empresa já tem certificado API Itaú (reutilizar em vez de gerar) | Dono + Itaú | Resposta ao e-mail informada pelo dono; confirmação do Itaú pendente |
 | Ligar o transporte real + polling GET com paginação/checkpoint + cron autorizado | Código (PR futura) | Bloqueado até credenciais vigentes |
 
 ## Próximos passos (ordem)
 
 1. Dono responde no mesmo thread, citando IT-000245617: solicita cadastro,
    confirmação de certificado existente, ponto focal para `public.pem` e acesso
-   à gestão de certificados/credenciais. Rascunho preparado; envio pendente.
+   à gestão de certificados/credenciais. Resposta enviada em 2026-10-02, conforme informado pelo dono; aguardar retorno.
 2. Confirmado o canal, envia a pública já preparada e recebe material vigente.
 3. Descriptografa client_id/token localmente; gera e valida o CSR final;
    solicita certificado e client_secret no STS, com autorização específica.
 4. Valida cadeia, validade e correspondência da chave; instala o material no
-   destino aprovado. Nada foi instalado no Supabase nesta preparação.
+   destino aprovado. Somente a privada de onboarding foi informada como salva no Vault;
+   certificado e client_secret permanecem pendentes.
 5. Valida OAuth/escopos e consulta real autorizada; liga o transporte;
    implementa polling GET `/pix` com paginação/checkpoint e cron autorizado.
 

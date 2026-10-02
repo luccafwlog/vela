@@ -27,9 +27,13 @@ e condições Itaú continuam sujeitos aos contratos existentes.
 Em 2026-10-02, o par RSA 2048 de preparação (`private.pem` PKCS#8 e
 `public.pem`) foi gerado e validado localmente em
 `C:\Users\Lucca\.itau\IT-000245617\2026-10-02`, fora do repositório e com
-ACL restrita ao usuário Windows do dono (Lucca). A privada permanece local;
-somente a pública poderá ser enviada ao ponto focal confirmado. Não houve
-envio, CSR, emissão de certificado nem instalação no backend. O destino
+ACL restrita ao usuário Windows do dono (Lucca). A cópia original da privada permanece local;
+somente a pública poderá ser enviada ao ponto focal confirmado. O dono informou em 2026-10-02 que salvou a privada de onboarding no
+Supabase Vault do projeto Vela como `ITAU_ONBOARDING_PRIVATE_KEY` e respondeu
+ao e-mail IT-000245617. O registro não inclui valores e não houve leitura do
+segredo nem verificação remota de cadastro, permissões ou correspondência com
+o arquivo local. Aguardar retorno do banco; nenhum envio da pública, CSR ou
+emissão de certificado foi confirmado. O destino
 previsto para a privada do CSR, certificado e client_secret é o Supabase
 Vault; nomes, acesso e rotação ainda precisam ser configurados e validados.
 O [estado do onboarding](../plans/2026-10-01-onboarding-itau-pix-status.md)
