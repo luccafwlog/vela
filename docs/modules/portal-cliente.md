@@ -67,6 +67,10 @@ tanto no 410 da função quanto no fetch que não saiu, e só o status decide.
 Decisão registrada na
 [ADR 0048](../adr/0048-confirmacao-de-email-do-portal-em-rota-publica.md).
 
+Se uma confirmação de Email de Recuperação ocorrer durante o reset, recebe
+HTTP `423`: o endereço continua inalterado e o link deve ser reaberto após a
+conclusão. A página distingue esse estado de HTTP `409` (pedido já resolvido).
+
 ### `/portal/recuperar-senha`
 
 `src/pages/PortalResetPassword.tsx` lê o `token` de convite de recuperação da

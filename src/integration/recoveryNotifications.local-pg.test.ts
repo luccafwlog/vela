@@ -29,6 +29,21 @@ function scenario(sql: string) {
 }
 
 describeLocal('recovery authority and inactive notification policies', () => {
+  it('revokes JWTs issued after transaction start but before email confirmation', () => {
+    expect(scenario(`
+      SELECT pg_sleep(1.1);
+      DO $f$ BEGIN
+        PERFORM set_config('request.jwt.claims', jsonb_build_object(
+          'sub','${user}','role','authenticated',
+          'iat',floor(extract(epoch FROM clock_timestamp())))::text, true);
+      END $f$;
+      ${service}
+      SELECT public.portal_confirm_recovery_email('confirm121')->>'outcome';
+      RESET ROLE; ${member}
+      SELECT pg_temp.try($q$SELECT public.current_portal_customer_id()$q$);
+    `)).toEqual(['aplicar', '28000'])
+  })
+
   it('email confirmation cancels old recovery authority and is single-use', () => {
     expect(scenario(`${service}
       SELECT public.portal_confirm_recovery_email('confirm121')->>'outcome';

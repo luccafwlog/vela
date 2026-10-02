@@ -101,7 +101,7 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     const resolution = await resolveEmailChangeConfirmation(admin, await hashToken(body.token))
     if (resolution.outcome === 'link_invalido') return new Response(JSON.stringify({ error: 'Link inválido ou expirado.' }), { status: 410 })
     if (resolution.outcome === 'pedido_ja_resolvido') return new Response(JSON.stringify({ error: ALREADY_RESOLVED }), { status: 409 })
-    if (resolution.outcome === 'recuperacao_em_andamento') return json(409, { error: 'Recuperação de senha em andamento. Tente novamente após sua conclusão.' })
+    if (resolution.outcome === 'recuperacao_em_andamento') return json(423, { error: 'Recuperação de senha em andamento. Tente novamente após sua conclusão.' })
     const { account, inviteId } = resolution
     // A RPC já confirmou o endereço, invalidou os links antigos e revogou
     // as sessões na mesma transação, sob lock da conta.

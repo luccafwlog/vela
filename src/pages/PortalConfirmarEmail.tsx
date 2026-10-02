@@ -6,6 +6,7 @@ import { supabasePortal } from '../services/supabase'
 
 const INVALID_LINK_MESSAGE = 'Link de confirmacao invalido ou expirado. Peca a troca novamente pelo Portal.'
 const TRANSIENT_MESSAGE = 'Nao foi possivel confirmar agora. Abra o link do email novamente em instantes.'
+const RESET_IN_PROGRESS_MESSAGE = 'Recuperação de senha em andamento. O novo email ainda não foi confirmado. Abra o link do email novamente após sua conclusão.'
 // 409: o link estava valido, mas o pedido de troca ja tinha sido resolvido por
 // outro caminho (tipicamente a troca assistida pelo atendimento). Dizer "link
 // invalido" aqui mandaria o cliente refazer uma troca que ja aconteceu.
@@ -23,6 +24,7 @@ function invokeStatus(invokeError: unknown): number | undefined {
 function errorMessageFor(invokeError: unknown): string {
   const status = invokeStatus(invokeError)
   if (status === 409) return ALREADY_RESOLVED_MESSAGE
+  if (status === 423) return RESET_IN_PROGRESS_MESSAGE
   return status === 410 || status === 422 ? INVALID_LINK_MESSAGE : TRANSIENT_MESSAGE
 }
 
