@@ -109,6 +109,9 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
       </QueryClientProvider>,
     )
 
+    expect(screen.queryByRole('region', { name: 'Processamento físico da viagem' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Processamento pós-importação' })).toBeNull()
+
     // Título / Modalidade
     // Rótulo único: a lista, o export e o detalhe escreviam nomes diferentes
     // para a mesma modalidade.
@@ -122,7 +125,7 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
     expect(screen.getByText('Terminal TVV')).toBeTruthy()
   })
 
-  it('mantém a vitrine do processamento físico da viagem para B/L com containers', () => {
+  it('não expõe painéis técnicos de processamento na ficha do B/L', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -134,8 +137,8 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
       </QueryClientProvider>,
     )
 
-    const panel = screen.getByRole('region', { name: 'Processamento físico da viagem' })
-    expect(panel.getAttribute('data-entity-id')).toBe('10')
+    expect(screen.queryByRole('region', { name: 'Processamento físico da viagem' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Processamento pós-importação' })).toBeNull()
   })
 
   it('renderiza painel conjunto de containers e carga solta na aba Carga', () => {

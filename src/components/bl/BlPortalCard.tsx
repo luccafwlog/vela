@@ -8,9 +8,10 @@ export type BlPortalStatus = {
   openDisputes: Array<{ id: number; doc_number: string | null; dispute_status: string | null }>
 }
 
-export function BlPortalCard({ status }: { status: BlPortalStatus }) {
+export function BlPortalCard({ status, embedded = false }: { status: BlPortalStatus; embedded?: boolean }) {
+  const Wrapper = embedded ? 'div' : Card
   return (
-    <Card className="h-full">
+    <Wrapper className="h-full">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Portal</h3>
         <Badge tone={status.visibility.visible ? 'green' : 'yellow'}>
@@ -42,6 +43,6 @@ export function BlPortalCard({ status }: { status: BlPortalStatus }) {
           </dd>
         </div>
       </dl>
-    </Card>
+    </Wrapper>
   )
 }

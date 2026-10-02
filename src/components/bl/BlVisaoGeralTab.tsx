@@ -6,7 +6,7 @@ import type { BLDetail } from '../../types/database'
 import type { ContainerSummary, BreakbulkSummary } from './BlCargaTab'
 import { BlTransshipmentCard } from './BlTransshipmentCard'
 import type { BlDisposition, VoyageOmission } from '../../services/transshipments'
-import { BlPortalCard, type BlPortalStatus } from './BlPortalCard'
+import type { BlPortalStatus } from './BlPortalCard'
 import { BlClienteSection } from './BlClienteSection'
 import { formatNumber, type CargoMode } from '../../pages/blDetalheHelpers'
 import { isBreakbulkCargoMode, isContainerCargoMode } from '../../lib/cargoMode'
@@ -103,8 +103,7 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
         </dl>
       </Card>
 
-      <BlClienteSection bl={bl} />
-      {portalStatus ? <BlPortalCard status={portalStatus} /> : <Card><h3 className="text-sm font-semibold">Portal</h3><p className="mt-2 text-sm text-[var(--app-muted)]">Verificando…</p></Card>}
+      <BlClienteSection key={bl.id} bl={bl} portalStatus={portalStatus} />
 
       {terminalOptions ? (
         <div className="lg:col-span-2">

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   markBlReadyAndCreateInvoice: vi.fn(),
   showToast: vi.fn(),
+  lines: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -23,7 +24,7 @@ vi.mock('../../ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
 }))
 vi.mock('../../../hooks/useLocalCharges', () => ({
-  useBlLocalChargeLines: () => ({ data: [], isLoading: false }),
+  useBlLocalChargeLines: mocks.lines,
   useManualChargeItemsForBl: () => ({ data: [], isLoading: false }),
   useAddManualBlCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateManualBlCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -49,6 +50,7 @@ afterEach(cleanup)
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.lines.mockReturnValue({ data: [], isLoading: false })
   mocks.markBlReadyAndCreateInvoice.mockRejectedValue({
     code: 'P0003',
     message: 'Faturamento bloqueado pelo Portal: Portal do Cliente não está ativo.',
@@ -79,4 +81,14 @@ describe('cobranças do B/L', () => {
     expect(screen.getByRole('link', { name: /Fatura ativa: INV-077/i }).getAttribute('href'))
       .toBe('/taxas-locais?invoice=77')
   })
+})
+
+it('não anuncia divergência de fatura enquanto as taxas estão indisponíveis', () => {
+  mocks.lines.mockReturnValue({ data: undefined, isLoading: true })
+  const { rerender } = render(<MemoryRouter><BlCobrancasSection bl={bl} activeInvoice={{ id: 77, status: 'issued', total_brl: 100 } as never} /></MemoryRouter>)
+  expect(screen.getByText('Carregando taxas…')).toBeTruthy()
+  expect(screen.queryByText(/As taxas mudaram depois da emissão/)).toBeNull()
+  mocks.lines.mockReturnValue({ data: [{ total_value_brl: 100 }], isLoading: false })
+  rerender(<MemoryRouter><BlCobrancasSection bl={bl} activeInvoice={{ id: 77, status: 'issued', total_brl: 100 } as never} /></MemoryRouter>)
+  expect(screen.queryByText(/As taxas mudaram depois da emissão/)).toBeNull()
 })

@@ -175,6 +175,7 @@ jobs:
         run: |
           npx vitest run --no-file-parallelism \
             src/integration/appSettingsSingleton.local-pg.test.ts \
+            src/integration/alinhamentoPermissoes.local-pg.test.ts \
             src/integration/auditoriaRun2.local-pg.test.ts \
             src/integration/auditoriaRun2Reforcos.local-pg.test.ts \
             src/integration/auditSecurityBoundaries.local-pg.test.ts \

@@ -256,7 +256,8 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   }
 
   const invoiceDiverges = Boolean(
-    activeInvoice?.status === 'issued'
+    localChargeLines != null
+    && activeInvoice?.status === 'issued'
     && activeInvoice.total_brl != null
     && Math.abs(localChargeSummary.lines.filter((line) => line.status !== 'exempt').reduce((sum, line) => sum + Number(line.total_value_brl ?? 0), 0) - activeInvoice.total_brl) > 0.01,
   )

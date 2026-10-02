@@ -16,7 +16,6 @@ import { BlHistoricoTab } from '../components/bl/BlHistoricoTab'
 import { BlVisaoGeralTab, type BaplieStatus } from '../components/bl/BlVisaoGeralTab'
 import type { BlTerminalOverrideOption } from '../components/bl/BlTerminalOverrideCard'
 import { BlRailsPipeline } from '../components/bl/BlRailsPipeline'
-import { ImportResultPanel } from '../components/shared/ImportResultPanel'
 import { Button } from '../components/ui/Button'
 import { useBlDetail } from '../hooks/useBls'
 import { useBlEditForm } from '../hooks/useBlEditForm'
@@ -385,13 +384,6 @@ export function BlDetalhe() {
 
       <div className="mb-5">
         <BlRailsPipeline operational={operational} documental={documental} documentalSummary={documentalSummary} nextAction={pickNextAction(documental)} />
-      </div>
-
-      <div className="mb-5 grid gap-3">
-        <ImportResultPanel entityId={bl.id} />
-        {hasContainers && bl.voyage_id != null ? (
-          <ImportResultPanel entityId={String(bl.voyage_id)} title="Processamento físico da viagem" />
-        ) : null}
       </div>
 
       <div className="mb-5 flex flex-wrap gap-2" role="tablist">
