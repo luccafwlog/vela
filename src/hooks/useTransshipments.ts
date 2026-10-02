@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { afterBlInvoiceBasisAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
 import {
   listBlTransshipments,
@@ -79,12 +80,13 @@ function invalidateVoyageOmissionCaches(
   }
   queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] })
   queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] })
+  return afterBlInvoiceBasisAlterada(queryClient)
 }
 
 export function useSetBlDisposition(voyageId: number) {
   const queryClient = useQueryClient()
   const invalidate = (variables: { blId: string }) => {
-    invalidateVoyageOmissionCaches(queryClient, voyageId, variables.blId)
+    return invalidateVoyageOmissionCaches(queryClient, voyageId, variables.blId)
   }
   return {
     setTransshipment: useMutation({ mutationFn: setBlTransshipment, onSuccess: (_, variables) => invalidate(variables) }),

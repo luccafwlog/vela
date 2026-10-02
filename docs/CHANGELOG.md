@@ -4,6 +4,36 @@
 
 ## 2026-10
 
+- **Correção de B/L após faturamento (2026-10-01, implementação local):** fatura
+  emitida preserva valor/itens; Cancelar e reemitir sem pagamento e vínculo entre
+  documentos (`122`). Avulsa por Tipo de cobrança com tabela/Condição do Cliente,
+  B/L obrigatório e ROE congelado (`123`). Com pagamento, redução guiada por B/L
+  abate saldo antes de registrar restituição; Portal discrimina os ajustes.
+  Fatura desatualizada acompanha mudanças efetivas e orienta o próximo ato (`124`).
+  Revisão (`125`): Pix da avulsa em USD segue o total final; fatura com correção
+  não é cancelada; individual em consolidada aberta reemite pela consolidada.
+  Reemissão automática (`126`): reimportação com override ou flags do Baplie que
+  mudam a base de B/L faturado sem pagamento cancelam e reemitem a individual e a
+  consolidada; recálculo depois do cancelamento não esbarra mais nos itens cancelados.
+  Ficha do B/L: saem **Marcar revisado** (RPC sem `EXECUTE`, `127`) e **Pronto para
+  faturar**; entra **Emitir fatura**, com confirmação e só para o Administrativo.
+  Decisões de 2026-10-02 (`128`): saem Cancelar e reemitir e a Correção após
+  pagamento digitada; toda correção do B/L (inclusive alteração direta e SOC/COC)
+  reemite sem pagamento ou abate o saldo e restitui com pagamento, com o alerta
+  **Restituição pendente**; a consolidada volta uma vez só e apenas com os mesmos
+  B/Ls; o Portal esconde canceladas por padrão; o efeito de veículos encerra a
+  consolidada do B/L isento; datas de Demurrage deixam de gerar alerta.
+  THD de container IMO e OOG ao mesmo tempo (`129`): THD normal com 150% de
+  majoração, sem revisão manual.
+  Remediação da PR 839 (`130`): QR local acompanha saldo e conserva versões;
+  Pix histórico passa somente para sucessora de mesmo Cliente/composição,
+  restituindo excedente. Restituições usam pagamentos do recebível, inclusive
+  repartidos; COD não repete o efeito monetário; falha financeira conserva
+  pendência recuperável. Alertas e caches financeiros acompanham todos os donos,
+  e rateio verifica vizinhos nas viagens de origem e destino. Itaú bancário segue
+  futuro, com seus contratos locais documentados.
+  [ADR 0077](adr/0077-fatura-emitida-nao-muda-de-valor.md); rollout remoto não verificado.
+
 - **SOC/COC do container (2026-10-01):** migration `121`. O container passa a ser SOC (do
   cliente) ou COC (do armador), lido do B/L e do Baplie (EQD 8077). O B/L é soberano; o
   Baplie só preenche o que o B/L não declarou, e a discordância aparece na conciliação do

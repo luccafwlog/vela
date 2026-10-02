@@ -25,6 +25,8 @@ it('invalidates every financial consumer after a local payment reversal', () => 
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['customer-detail'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['invoice-detail'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['invoice-refunds'] })
+  expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['invoice-links'] })
+  expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['customer-ficha'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['financial-alerts'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['op-count'] })
   expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['reconciliation-history'] })

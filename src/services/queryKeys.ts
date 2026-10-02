@@ -19,6 +19,9 @@ export const queryKeys = {
     detail: (id: number | null | undefined) => ['invoice-detail', id] as const,
     links: (blIds: string[]) => ['invoice-links', blIds.slice().sort().join(',')] as const,
     blSubtotal: (blId: string) => ['invoice-bl-subtotal', blId] as const,
+    reissueLinks: (id: number | null | undefined) => ['invoice-detail', id, 'reissue-links'] as const,
+    corrections: (id?: number | null) => id === undefined ? ['invoice-corrections'] as const : ['invoice-corrections', id] as const,
+    pendingReissues: () => ['invoices', 'pending-reissues'] as const,
   },
   billingReady: {
     all: () => ['billing-ready-bls'] as const,

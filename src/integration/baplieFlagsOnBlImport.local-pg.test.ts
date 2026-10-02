@@ -15,6 +15,7 @@ const vesselId = 1180012
 const voyageId = 1180013
 const imoContainer = 'BPFU1180001'
 const oogContainer = 'BPFU1180002'
+let initialPricingVersionIds: string[] | null = null
 
 function psql(sql: string): string {
   return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
@@ -34,6 +35,7 @@ function cleanup() {
     DELETE FROM public.import_pending_effects WHERE entity_id IN ('${voyageId}', '${blId}');
     DELETE FROM public.audit_logs WHERE entity_id IN ('${voyageId}', '${blId}');
     DELETE FROM public.charge_calculations WHERE bl_id = '${blId}';
+    ${initialPricingVersionIds === null ? '' : `DELETE FROM public.pricing_rule_versions p WHERE p.id <> ALL(ARRAY[${initialPricingVersionIds.join(',')}]::bigint[]) AND NOT EXISTS (SELECT 1 FROM public.invoice_items i WHERE i.pricing_rule_version_id = p.id) AND NOT EXISTS (SELECT 1 FROM public.charge_calculations c WHERE c.pricing_rule_version_id = p.id);`}
     DELETE FROM public.bl_containers WHERE bl_id = '${blId}';
     DELETE FROM public.bls WHERE id = '${blId}';
     DELETE FROM public.import_batches WHERE voyage_id = ${voyageId};
@@ -54,6 +56,7 @@ function flags(containerNumber: string): string {
 
 describeLocal('import_bl_freight_with_metadata — flags do Baplie em qualquer ordem', () => {
   beforeAll(() => {
+    initialPricingVersionIds = psql('SELECT id FROM public.pricing_rule_versions ORDER BY id').split('\n').filter(Boolean)
     cleanup()
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'baplie118@example.test');

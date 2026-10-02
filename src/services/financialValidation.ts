@@ -60,12 +60,6 @@ export const paymentFormSchema = z.object({
   paidAt: requiredDateSchema,
 })
 
-export const manualInvoiceChargeSchema = z.object({
-  description: z.string().trim().min(1, 'Descricao obrigatoria.'),
-  quantity: positiveNumberSchema,
-  unitValueBrl: positiveNumberSchema,
-})
-
 export const manualInvoiceCreationSchema = z.object({
   customerId: z.preprocess(
     parseNumberInput,

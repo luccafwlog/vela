@@ -7,6 +7,8 @@ import { queryKeys } from './queryKeys'
 
 // Catálogo vivo de alertas suportados pela aplicação.
 export type ActiveAlertType =
+  | 'fatura_desatualizada'
+  | 'restituicao_pendente'
   | 'invoice_overdue'
   | 'invoice_payment_invalid'
   | 'invoice_cancel_blocked'
@@ -46,6 +48,8 @@ export type ActiveAlertType =
   | 'voyage_export_after_atd'
 
 export const TYPE_LABELS: Record<string, string> = {
+  fatura_desatualizada: 'Fatura desatualizada',
+  restituicao_pendente: 'Restituição pendente',
   // Aposentado pela 348 (issue #605): sem produtor, mas o rótulo permanece para
   // os itens históricos, como os tipos aposentados pela 327/347.
   invoice_overdue: 'Fatura vencida',
@@ -107,6 +111,8 @@ export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'adm
 export type AlertEventUnit = 'bl' | 'invoice' | 'pix_transaction' | 'demurrage_invoice' | 'exchange_rate_reference'
 
 export const FINANCIAL_ALERT_EVENTS = {
+  fatura_desatualizada: { audience: ['administrativo'], unit: 'invoice' },
+  restituicao_pendente: { audience: ['administrativo'], unit: 'invoice' },
   billing_calculation_blocked: { audience: ['documentacao'], unit: 'bl' },
   billing_auto_issue_failed: { audience: ['documentacao'], unit: 'bl' },
   demurrage_ptax_recalc_failed: { audience: ['documentacao'], unit: 'exchange_rate_reference' },
@@ -115,6 +121,8 @@ export const FINANCIAL_ALERT_EVENTS = {
 } as const satisfies Record<string, { audience: readonly AlertAudience[]; unit: AlertEventUnit }>
 
 export const FINANCIAL_ALERT_TYPES = [
+  'fatura_desatualizada',
+  'restituicao_pendente',
   'billing_calculation_blocked',
   'billing_auto_issue_failed',
   'demurrage_ptax_recalc_failed',
@@ -246,6 +254,7 @@ export function alertEntityLink(alert: {
 }): string | null {
   if (!alert.entity_id) return alert.destination ?? null
   const effectiveType = getEffectiveAlertType(alert)
+  if ((effectiveType === 'fatura_desatualizada' || effectiveType === 'restituicao_pendente') && alert.entity_type === 'invoice') return `/taxas-locais?invoice=${encodeURIComponent(alert.entity_id)}`
 
   if (
     (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')
@@ -504,9 +513,8 @@ export async function resolveAlertItem(input: {
 }
 
 export async function listFinancialAlerts(): Promise<AlertQueueRow[]> {
-  // 'invoice' saiu da lista na 348 (#605): nenhum tipo financeiro ativo aponta
-  // para faturas desde que invoice_overdue foi aposentado.
-  const financialEntityTypes = ['bl', 'pix_transaction', 'exchange_rate_reference'] as const
+  // Fatura desatualizada voltou a usar invoice; vencimento segue aposentado.
+  const financialEntityTypes = ['invoice', 'bl', 'pix_transaction', 'exchange_rate_reference'] as const
   const financialTypes = new Set<string>(FINANCIAL_ALERT_TYPES)
   const alertsByEntityType = await Promise.all(financialEntityTypes.map(async (entityType) => {
     const rows: AlertQueueRow[] = []

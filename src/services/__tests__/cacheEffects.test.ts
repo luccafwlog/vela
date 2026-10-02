@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
+import { afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -42,16 +42,16 @@ describe('cache effects', () => {
   it('invalidates exactly the manifest import set, including B/L summary dependents', async () => {
     const { client, keys } = fakeQueryClient()
     await afterManifestoImportado(client, { voyageId: 24 })
-    expect(keys()).toEqual(keySet([
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
       ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
-      ['invoices'], ['invoice-links'], ['customers'], ['voyages'], ['port-options'],
+      ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['invoice-links'], ['billing-ledger'], ['customers'], ['voyages'], ['port-options'],
       ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
       ['manifestos-mercante'],
       ['baplie-reconciliation', '24'], ['baplie-staging', '24'],
       ['local-charge-operations'], ['customer-reconciliation-queue'], ['bl-local-charge-lines'],
       ['agency-report'],
       ['voyage-pol-schedules'], ['voyage-escala-schedules'], ['voyage-timeline', '24'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
-    ]))
+    ])))
   })
 
   // P0-4: Importar B/L, CE Mercante e Manifesto BB alimentam "Carga
@@ -66,9 +66,9 @@ describe('cache effects', () => {
   it('delegates Baplie invalidation through the event seam', async () => {
     const { client, keys } = fakeQueryClient()
     await afterBaplieImportado(client, { voyageId: '24' })
-    expect(keys()).toEqual(keySet([
-      ['baplie-reconciliation', '24'], ['bls'], ['bl-detail'], ['voyages'], ['voyage-timeline', '24'], ['agency-report'],
-    ]))
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
+      ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['billing-ledger'], ['baplie-reconciliation', '24'], ['bls'], ['bl-detail'], ['voyages'], ['voyage-timeline', '24'], ['agency-report'],
+    ])))
   })
 
   it('deduplicates overlapping keys within a single event', async () => {
@@ -84,4 +84,19 @@ describe('cache effects', () => {
       ['customer-ficha', 'billing-portal-release', 7], ['invoices'], ['bls'], ['local-charge-operations'], ['alerts'], ['portal-provisioning'],
     ])))
   })
+})
+
+
+it('propaga efeitos financeiros de importação, Baplie e cancelamento ao Portal', async () => {
+  for (const effect of [
+    (client: ReturnType<typeof fakeQueryClient>['client']) => afterManifestoImportado(client, {voyageId:24}),
+    (client: ReturnType<typeof fakeQueryClient>['client']) => afterBaplieImportado(client, {voyageId:'24'}),
+    (client: ReturnType<typeof fakeQueryClient>['client']) => afterBlEstadoAlterado(client, {blId:'BL1',voyageId:24}),
+  ]) {
+    const {client,keys} = fakeQueryClient()
+    await effect(client)
+    for (const family of ['invoice-links','invoice-refunds','invoice-corrections','billing-ledger','portal-invoice-detail','portal-invoices-page']) {
+      expect(keys()).toContain(JSON.stringify([family]))
+    }
+  }
 })

@@ -221,3 +221,20 @@ As funções devem autorizar o usuário no endpoint de criação/consulta e trat
 - [Como fazer a primeira chamada a uma API — Itaú for Developers](https://devportal.itau.com.br/como-fazer-a-primeira-chamada-a-uma-api)
 - [APIs de pagamentos e recebimentos — Itaú Empresas](https://www.itau.com.br/empresas/pagamentos-recebimentos/gestao-financeira)
 - [Guia de uso do Pix — Itaú](https://www.itau.com.br/media/dam/m/53743b305ecd3bd7/original/Guia-de-Uso-Pix_LP.pdf)
+
+## Contratos locais após a revisão da PR 839 (migration 130)
+
+A integração futura deve separar o documento imutável da cobrança bancária:
+valor da cobrança vem do saldo pagável, e não de `invoices.total_brl`. O histórico
+local de versões/TXIDs e a resolução de pagamentos tardios já preservam origem,
+Cliente, composição e restituição do excedente. Casos incompatíveis ou já
+quitados ficam para revisão. COD e correção compartilham um efeito monetário.
+
+A geração/cancelamento no Itaú, webhook, consulta de recuperação, outbox,
+identificação por endToEndId e idempotência entre webhook/extrato continuam
+pendentes desta integração. A implementação deverá desativar a emissão local
+para cobranças do provedor, guardar o QR retornado pelo banco, cancelar a
+cobrança anterior com confirmação/recuperação e preservar pagamentos recebidos
+enquanto o cancelamento estiver em trânsito. `local_pix_charge_versions` não
+representa confirmação de cancelamento bancário nem substitui o histórico de
+recebimentos do provedor. Não há chamada Itaú ou credencial adicionada na PR.

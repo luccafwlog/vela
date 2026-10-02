@@ -11,11 +11,10 @@ Para taxas locais, o saldo canônico é o ledger por recebível; a tabela
 `invoices` continua sendo o documento emitido.
 
 Desde a migration `097`, o Financeiro também pode emitir Fatura Avulsa pelo
-botão **Gerar fatura avulsa** nesta rota. O operador escolhe o Cliente, nomeia
-o item, descreve a cobrança e informa quantidade e valor unitário. B/L e
+botão **Gerar fatura avulsa** nesta rota. O operador escolhe o Cliente e o Tipo de cobrança. Item da tabela exige B/L e traz preço/quantidade calculados no servidor; Outra permite nome, descrição, quantidade e valor livres. Em Outra, B/L e
 Viagem são opcionais; um B/L informado precisa pertencer ao Cliente e ser
 compatível com a Viagem. A RPC `create_manual_invoice` grava uma invoice
-`manual` e seu item em transação, sem tabela de taxas, CE Mercante ou gate local
+`manual` e seu item em transação, sem exigir CE Mercante ou gate local
 do Portal. Não cria `invoice_bls`, vínculo de recebível, `bl_receivables` nem
 settlement de ledger. Use a [ADR 0075](../adr/0075-fatura-avulsa-flexivel.md)
 para a decisão completa.
@@ -228,7 +227,8 @@ isolada em `src/components/billing/consolidatedInvoiceSelection.ts`.
 - métricas, cliente, B/Ls, itens e pagamentos;
 - breakdown reconstruído de consolidadas;
 - formulário de pagamento com decisão ledger versus legado;
-- inclusão/exclusão de other charges em invoice individual elegível;
+- vínculo com a fatura substituída ou sucessora, Reemissão pendente e motivo de encerramento sem reemissão;
+- histórico dos ajustes que a correção do B/L fez em fatura com pagamento (abatimento e restituição);
 - lista de `invoice_refunds` e ação “Marcar estornado”;
 - cancelamento de invoice sem pagamentos;
 - cancelamento de baixa quando aberto pelo histórico de `/reconciliacao`;
@@ -270,7 +270,7 @@ impressão e chama `window.print()`; o nome sugerido é calculado por
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
 | `/taxas-locais` · filtrar/listar invoices | Sessão interna; filtros opcionais | `TaxasLocais` → `InvoiceFiltersBar` / `InvoicesTable` | `useInvoices` → `listInvoices` | `SELECT invoices`, `invoice_bls`, `invoice_receivable_links`, `payments`; filtros auxiliares consultam B/Ls/viagens | Query `queryKeys.invoices.list(filters)`; paginação remota da lista principal | Erro principal vira `InlineError`; filtros sem IDs retornam vazio sem consultar invoices | **Código:** `src/pages/TaxasLocais.tsx`, `src/services/billing.ts` · **Teste:** `src/services/__tests__/billing.test.ts` |
-| `/taxas-locais` · emitir Fatura Avulsa | Usuário interno ativo/admin autorizado pela RPC; Cliente, item, quantidade e valor válidos; B/L/Viagem opcionais | Botão “Gerar fatura avulsa” → `ManualInvoiceModal` | `useCreateManualInvoice` → `createManualInvoice` → RPC `create_manual_invoice` | Cria `invoices.invoice_type='manual'` e um `invoice_items.source='manual'`; `notes` guarda a descrição; não cria relações de ledger | Invalida lista/detalhe de invoices, histórico de reconciliação e dados relacionados ao B/L/Cliente quando informados | RPC valida valores, Cliente/B/L/Viagem e coerência; falha transacional não deixa documento/item parcial | **Código:** `src/components/billing/ManualInvoiceModal.tsx`, `src/hooks/useBilling.ts`, `src/services/billing.ts`, migration `097`; **Teste:** `src/components/billing/__tests__/ManualInvoiceModal.test.tsx`, `src/hooks/__tests__/useBillingManualInvoice.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
+| `/taxas-locais` · emitir Fatura Avulsa | Usuário interno ativo/admin autorizado pela RPC; Cliente; Outra com item/quantidade/valor livres e contexto opcional; item da tabela exige B/L e valor resolvido | Botão “Gerar fatura avulsa” → `ManualInvoiceModal` | `useCreateManualInvoice` → `createManualInvoice` → RPC `create_manual_invoice` | Cria `invoices.invoice_type='manual'` e um `invoice_items.source='manual'`; `notes` guarda a descrição; não cria relações de ledger | Invalida lista/detalhe de invoices, histórico de reconciliação e dados relacionados ao B/L/Cliente quando informados | RPC valida valores, Cliente/B/L/Viagem e coerência; falha transacional não deixa documento/item parcial | **Código:** `src/components/billing/ManualInvoiceModal.tsx`, `src/hooks/useBilling.ts`, `src/services/billing.ts`, migrations `097` e `123`; **Teste:** `src/components/billing/__tests__/ManualInvoiceModal.test.tsx`, `src/hooks/__tests__/useBillingManualInvoice.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
 | `/taxas-locais` · exportar lista | Mesmos filtros; ao menos uma invoice | `TaxasLocais.handleExport` | `listInvoicesForExport` → `exportInvoicesWorkbook` | Leituras paginadas de 1000; arquivo XLSX local | Não altera cache | Sem linhas gera aviso; leitura/geração propaga erro | **Código:** `src/pages/TaxasLocais.tsx`, `src/services/billing.ts`, `src/services/exports.ts` · **Teste:** `src/services/__tests__/billingHelpers.test.ts` |
 | `/taxas-locais` · abrir invoice | ID selecionado pela tabela ou query string | `InvoicesTable.onSelectInvoice` | `useInvoiceDetail` → `listInvoiceDetails` | RPC `list_invoice_details` lê documento, links diretos, itens e pagamentos | Query `queryKeys.invoices.detail(id)` | ID ausente desabilita query; erro mostra falha no modal | **Código:** `src/components/billing/InvoicesTable.tsx`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts` · **Teste:** `src/pages/__tests__/TaxasLocais.behavior.test.tsx` |
 | Detalhe · carregar breakdown consolidado | Invoice sem itens diretos e com `invoice_receivable_links` | `listInvoiceDetails` após RPC base | Lê links/snapshots; RPC `get_consolidated_invoice_item_breakdown`; valida com Zod | `invoice_receivable_links`, `voyages`, leitura protegida de `charge_calculations` | Reusa `invoice-detail`; usa linha agregada por B/L se breakdown não reconciliar com subtotal | Erro/shape inválido do breakdown é best-effort e cai no agregado | **Código:** `src/services/billing.ts`, `supabase/migrations_archive/086_consolidated_invoice_item_breakdown.sql`, `supabase/migrations_archive/090_restrict_consolidated_invoice_breakdown.sql` |
@@ -278,13 +278,13 @@ impressão e chama `window.print()`; o nome sugerido é calculado por
 | Validação · apoio operacional de Granito | Não aplicável a Granito; a fila oferece apenas recálculo | `runBatchOperation('recalculate')` | `runGraniteBatch` chama exclusivamente `calculateGraniteBlCharges` | Snapshot quantitativo operacional | Invalida operações, B/Ls e resumo | Falhas são isoladas por B/L; nenhum estado financeiro é promovido | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/services/graniteBillingWorkflow.ts` · **Teste:** `src/services/__tests__/graniteBillingWorkflow.test.ts` |
 | Validação · marcar pronto selecionados | Seleção; gates de cliente/taxas/CE Mercante | `runBatchOperation('ready')` | Agrupa locais por cliente e usa `markBlsReadyAndCreateInvoice` | RPC `mark_bls_ready_and_create_invoice` promove e emite atomicamente por grupo; `047_bl_documental_gates.sql` impede pronto/emissão sem CE em qualquer modo de carga | Invalida operações, invoices, B/Ls e resumo | Qualquer falha reverte promoção e emissão do grupo | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/services/localBatchBillingWorkflow.ts`, `src/services/billing.ts`, `supabase/migrations_archive/133_mark_bls_ready_and_create_invoice_atomic.sql`, `supabase/migrations/047_bl_documental_gates.sql` |
 | Validação · emitir invoice individual | B/L local elegível, não faturado e com cliente | `handleIssueSingleInvoice` | `createInvoiceFromBls`; Granito é somente apoio operacional e não oferece emissão | RPC local para B/Ls financeiros; nenhum caminho financeiro novo para Granito | Invalida operações, invoices, B/Ls e resumo após emissão local | RPC revalida estado, cliente e vínculos; Granito não exibe o botão “Emitir” | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/components/billing/ValidacaoOperationsTable.tsx` · **Teste:** `src/components/billing/__tests__/ValidacaoOperationsTable.test.tsx` |
-| B/L · marcar pronto e emitir atomicamente | Um B/L com cliente reconciliado, taxas elegíveis e CE Mercante | `BlCobrancasTab`, `reviewBillingAutomation` | `markBlReadyAndCreateInvoice` | RPC `mark_bl_ready_and_create_invoice` chama promoção + criação ledger na mesma transação; `047_bl_documental_gates.sql` reforça CE na prontidão e emissão | Chamadores invalidam seus domínios após sucesso | Qualquer falha aborta promoção e emissão juntas | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/reviewBillingAutomation.ts`, `supabase/migrations_archive/102_mark_ready_and_invoice_atomic.sql`, `supabase/migrations/047_bl_documental_gates.sql` |
+| B/L · Emitir fatura (marca pronto e emite atomicamente) | Um B/L com cliente reconciliado, taxas elegíveis e CE Mercante | `BlCobrancasTab` (botão **Emitir fatura**, Administrativo, com confirmação), `reviewBillingAutomation` | `markBlReadyAndCreateInvoice` | RPC `mark_bl_ready_and_create_invoice` chama promoção + criação ledger na mesma transação; `047_bl_documental_gates.sql` reforça CE na prontidão e emissão | Chamadores invalidam seus domínios após sucesso | Qualquer falha aborta promoção e emissão juntas | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/reviewBillingAutomation.ts`, `supabase/migrations_archive/102_mark_ready_and_invoice_atomic.sql`, `supabase/migrations/047_bl_documental_gates.sql` |
 | Modal consolidada · listar elegíveis | Cliente selecionado; filtros opcionais | `ConsolidatedInvoiceModal` | `useConsolidatableReceivables` → `listConsolidatableReceivables` | RPC `list_consolidatable_receivables` lê ledger e links | Query `queryKeys.billingLedger.consolidatableReceivables(filters)` | Sem cliente não consulta; rows pagas/sem saldo/em consolidada aberta ficam desabilitadas | **Código:** `src/components/billing/ConsolidatedInvoiceModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/components/billing/__tests__/ConsolidatedInvoiceSelection.test.ts` |
 | Modal consolidada · emitir | Cliente, ao menos um receivable elegível e CE Mercante em cada B/L selecionado | `ConsolidatedInvoiceModal.submit` | `useCreateConsolidatedInvoice` → `createConsolidatedInvoice` | RPC `create_local_consolidated_invoice` cria invoice, links, evento e auditoria; `047_bl_documental_gates.sql` guarda links e transição para emissão | Invalidação ledger comum: ledger, invoices, B/Ls, clientes, detalhes, refunds, alertas e contagem | RPC trava receivables e rejeita cliente divergente, saldo inválido, consolidada aberta ou B/L sem CE | **Código:** `src/services/billingLedger.ts`, `supabase/migrations_archive/067_local_billing_ledger_phase2.sql`, `supabase/migrations/047_bl_documental_gates.sql` · **Teste:** `src/services/__tests__/billingLedger.test.ts`, `src/services/__tests__/blDocumentalGatesMigration.test.ts` |
 | Detalhe · registrar pagamento ledger | `isLedgerInvoicePayable`: tipo individual/consolidated, status `issued`/`partially_paid`, saldo positivo | `InvoiceDetailModal.handleRegisterPayment` | `useRegisterLedgerInvoicePayment` → `registerLedgerInvoicePayment` | RPC `register_ledger_invoice_payment` → `payments`, `ledger_settlements`, receivables, invoice, B/Ls, eventos e possível refund | Invalidação ledger comum | Valor/data validados; RPC rejeita estado, ausência de links, TXID duplicado e regras de valor | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/services/__tests__/billingLedger.test.ts` |
 | Detalhe · registrar pagamento legado | Invoice não classificada como ledger payable | Mesmo handler, ramo `else` | `useRegisterInvoicePayment` → `registerInvoicePayment` | RPC `register_invoice_payment` → `payments`, agregados de `invoices`, `bls.financial_status`, auditoria | Invalida invoices, detalhe, B/Ls e clientes | Bloqueia valor não positivo, acima do saldo, invoice paga/cancelada | **Código:** `src/hooks/useBilling.ts`, `supabase/migrations_archive/020_billing_hybrid_workflow.sql` · **Teste:** `src/services/__tests__/billing.test.ts` |
-| Detalhe · adicionar other charge | Invoice não consolidada, status `draft`/`issued`, sem pagamentos | `handleAddCharge` | Zod `manualInvoiceChargeSchema` → `useAddManualInvoiceCharge` | RPC `add_manual_invoice_charge` → `invoice_items` e totais | Invalida invoices e detalhe | Validação de descrição/quantidade/valor; RPC guarda estado e pagamentos | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/services/financialValidation.ts`, `supabase/migrations_archive/108_guard_manual_charges_and_clear_pix_on_reversal.sql` |
-| Detalhe · excluir other charge | Mesmas condições; item `source = manual` | `handleDeleteCharge` | `useDeleteManualInvoiceCharge` | RPC `delete_manual_invoice_charge` | Invalida invoices e detalhe | RPC rejeita item automático ou invoice protegida | **Código:** `src/services/billing.ts`, `src/hooks/useBilling.ts` · **Teste de contrato SQL:** `src/services/__tests__/guardManualChargesMigration.test.ts` |
+| Taxas Locais · Reemissão pendente · Tentar reemitir | Consolidada cancelada pela correção do B/L; Administrativo | `PendingReissuesPanel` | `useRetryPendingConsolidatedReissue` → `retryPendingConsolidatedReissue` | RPC `retry_pending_consolidated_reissue` → `_try_recreate_consolidated` (128): recria com os mesmos B/Ls, encerra se já não são os mesmos ou aguarda a individual | Invalida invoices (inclui Reemissão pendente), detalhe, ledger e clientes | Trava (Portal não pronto) mantém a pendência com o motivo no alerta | **Teste:** `invoiceBasisCorrection.local-pg.test.ts` |
+| Detalhe · Resolver alerta com justificativa | Fatura desatualizada tratada; admin; motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo vazio e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts` |
 | Detalhe · cancelar invoice | Admin; invoice sem pagamentos | `handleCancelInvoice` | `useCancelInvoice` → `cancelInvoice` | RPC protegida `cancel_invoice` (executa como `SECURITY DEFINER` após validar sessão ativa e papel admin) → invoice, batch, B/Ls e auditoria; implementação mais recente também preserva regras de Granito | Invalida invoices, detalhe, billing-ready, B/Ls e clientes | Pagamentos bloqueiam cancelamento; tabelas internas não são expostas diretamente; falha cria alerta/evento best-effort | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts`, `supabase/migrations_archive/064_fix_granite_invoice_cancel_reissue.sql`, `supabase/migrations_archive/142_secure_cancel_invoice_wrapper.sql` |
 | Detalhe · liquidar restituição | `invoice_refunds.status = pending`; admin | `handleSettleRefund` | `useSettleInvoiceRefund` → `settleInvoiceRefund` | RPC `settle_invoice_refund` atualiza refund e auditoria | Invalidação ledger comum | Refund ausente ou não pendente é rejeitado | **Código:** `src/services/billingLedger.ts`, `supabase/migrations_archive/112_settle_invoice_refunds.sql` · **Teste de contrato SQL:** `src/services/__tests__/settleInvoiceRefundsMigration.test.ts` |
 | Detalhe · imprimir invoice | Detalhe carregado | `handlePrintInvoice` | Abre `InvoiceDocumentLocal`; `window.print()` | Sem persistência; documento usa snapshot/detalhe e `pix_payload` | Sem invalidação | Sem detalhe, ação não abre; falha de impressão é do navegador | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/components/billing/InvoiceDocumentLocal.tsx`, `src/index.css` · **Teste:** `src/components/billing/__tests__/InvoiceDetailPrint.test.tsx` |
@@ -341,6 +341,63 @@ menores e específicas descritas no catálogo.
 
 ## Fluxos e invariantes
 
+### Correção após emissão (ADR 0077)
+
+Fatura emitida não oferece edição manual de itens; as RPCs antigas foram
+revogadas para a API pela migration `122`. Não há Cancelar e reemitir nem
+correção digitada: a `128` removeu `cancel_invoice_for_reissue` e
+`register_invoice_correction` (decisão de 2026-10-02).
+
+Toda alteração que muda a base faturada de um B/L com fatura de Taxas Locais
+viva é tratada no fim da transação. Gatilhos `BEFORE` em `bls`,
+`bl_containers` e `vehicles` guardam a base anterior (`bl_invoice_basis_snapshot`,
+só campos lidos pelo motor, inclusive SOC/COC) e gatilhos de restrição
+adiados chamam `process_invoice_basis_changes` no commit; reimportação e Baplie
+chamam a mesma função antes de responder (`invoice_reissues` no retorno).
+`apply_invoice_basis_changes` compara o valor do B/L (`_quote_bl_local_charges`,
+com o ROE congelado no recebível) e o Cliente:
+
+- sem mudança de valor nem de Cliente: nada acontece;
+- sem pagamento: cancela todas as consolidadas e individuais afetadas antes de
+  emitir, reemite cada individual pelo núcleo da emissão automática do CE
+  (`_auto_bill_bl_core`, ROE do dia) e recria cada consolidada uma única vez,
+  só com os mesmos B/Ls (`_try_recreate_consolidated`); B/L cancelado, isento,
+  quitado ou de outro Cliente encerra a consolidada sem reemissão
+  (`reissue_closed_at`/`reissue_closed_reason`);
+- com pagamento e valor menor: `_register_invoice_correction_core` abate o saldo
+  e registra restituição do excedente; o alerta **Restituição pendente** fecha
+  quando não resta restituição pendente na fatura;
+- com pagamento e valor maior, troca de Cliente ou cálculo em revisão: Fatura
+  desatualizada; a diferença a maior vai em avulsa.
+
+Travas de emissão deixam Reemissão pendente com o motivo no alerta; resolvida a
+trava, Emitir fatura na ficha do B/L reemite a individual e o gatilho de
+`invoice_receivable_links` recria a consolidada. B/L cancelado ou isento
+encerra a pendência. Fatura cancelada resolve Fatura desatualizada. Uma falha
+nesse processamento não desfaz a correção do B/L: vira Fatura desatualizada.
+Em consolidada, só o recebível do B/L corrigido é ajustado. O Portal recebe o
+saldo ajustado e discrimina abatimentos/restituições; total original permanece
+visível. Fatura com ajuste registrado não é cancelada (migration `125`).
+
+Registrar pagamento confirma valor recebido e saldo restante e avisa que, com
+pagamento, a correção do B/L passa a abater saldo ou gerar avulsa. O ajuste não
+cria pagamento fictício. Restituição é registro de dinheiro a devolver,
+liquidado no fluxo existente. Cancelar uma baixa que financia uma restituição
+por correção é recusado quando o dinheiro restante não cobrir a devolução
+comprometida; sem restituição, a reversão preserva o abatimento e recompõe
+somente o saldo real.
+Itens da tabela na avulsa são resolvidos na emissão pelo mesmo catálogo manual
+do B/L, com Condição do Cliente, base B/L/TEU e USD convertido pelo ROE congelado
+no snapshot. Outra mantém o item livre. Nada é cobrado automaticamente.
+
+Depois de um cancelamento, o recálculo desvincula os itens da fatura cancelada
+das linhas de cálculo antigas (`126`). Cancelar fatura individual coberta por
+consolidada aberta é recusado; o efeito de veículos cancela a consolidada do B/L
+isento e a encerra sem reemissão (`128`). Erro de preço (tabela ou Condição do
+Cliente) não reemite: vale para faturas futuras. Limite conhecido: o rateio de
+container compartilhado não reavalia o B/L vizinho.
+
+
 ```mermaid
 flowchart TD
     Open["invoice aberta no detalhe"] --> Decide{"isLedgerInvoicePayable?"}
@@ -390,6 +447,14 @@ flowchart TD
   `overdue` saiu do domínio na migration `348` (ADR 0055).
 
 ## Testes e validação
+
+A suíte `src/integration/invoiceCorrection.local-pg.test.ts` exercita em
+PostgreSQL local: tabela/override, USD/TEU, B/L obrigatório, abatimento com
+pagamento parcial, restituição do excedente, consolidação, orientação e resolução
+de alerta. `invoiceReissue.local-pg.test.ts` verifica cancelamento e vínculo.
+`InvoiceCorrectionPanel.test.tsx` e `ManualInvoiceModal.test.tsx` exercitam o
+fluxo guiado. São evidências locais com shims, sem deploy ou Preview remoto.
+
 
 Os testes não foram executados nesta cartografia, por instrução do coordenador.
 
@@ -485,3 +550,23 @@ Não há evidência de Runtime registrada neste documento.
   por tipo, status e saldo da invoice. Documento local com vínculos ledger
   incompletos pode cair no RPC legado; não houve validação em Runtime desse
   cenário.
+
+### Segurança da correção automática — migration 130
+
+O saldo pagável determina o QR local, sem alterar total/itens emitidos; versões
+anteriores permanecem rastreáveis. Faturas pagas/canceladas não oferecem QR.
+Restituição de correção usa os settlements do recebível e pode ser distribuída
+entre individual e consolidada. Pagamento de outro B/L não financia essa
+restituição. A baixa que sustenta uma restituição não pode ser estornada.
+
+O evento COD criado na mesma operação é vinculado à correção automática e
+marcado liquidado, sem repetir abatimento ou devolução. O alerta Fatura
+desatualizada só fecha quando todos os recebíveis relacionados concordam com
+Cliente e cálculo atuais. Alteração de participação em container compartilhado
+também verifica os B/Ls vizinhos, preservando as travas de edição existentes.
+
+Se o efeito financeiro falhar, `invoice_basis_pending_changes` conserva a
+pendência; o Administrativo usa **Tentar aplicar correção** no histórico da
+fatura. `retry_invoice_basis_changes` reexecuta o cálculo atual e mantém a
+pendência se houver erro. Salvar B/L invalida também faturas, vínculos,
+restituições, alertas, ledger e consultas do Portal.

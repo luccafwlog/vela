@@ -21,6 +21,8 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn().
 vi.mock('../../hooks/useBilling', () => ({
   useInvoices: () => ({ data: { rows: [], count: 0 }, isLoading: false, error: null }),
   useBillingCustomers: () => ({ data: [] }),
+  usePendingReissues: () => ({ data: [] }),
+  useRetryPendingConsolidatedReissue: () => ({ mutateAsync: vi.fn(), isPending: false, variables: undefined }),
   useCreateManualInvoice: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 vi.mock('../../services/alerts', () => ({

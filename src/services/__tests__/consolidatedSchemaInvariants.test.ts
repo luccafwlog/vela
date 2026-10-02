@@ -181,9 +181,12 @@ describe('schema consolidado v1.0 (arquivos realmente aplicados)', () => {
     // #660.3: guarda de import (ator = chamador) antes de ler payload/delegar.
     const blImport = definicaoFinal('import_bl_freight_transactional')
     expect(blImport.indexOf('p_changed_by IS DISTINCT FROM auth.uid()')).toBeGreaterThan(-1)
-    expect(blImport.indexOf('p_changed_by IS DISTINCT FROM auth.uid()')).toBeLessThan(
-      blImport.indexOf('jsonb_array_elements'),
+    // A primeira leitura do payload pode ser jsonb_typeof (wrapper da 128) ou
+    // jsonb_array_elements (versões anteriores); a guarda vem antes de ambas.
+    const firstPayloadRead = Math.min(
+      ...['jsonb_typeof(p_bls)', 'jsonb_array_elements'].map((token) => blImport.indexOf(token)).filter((index) => index > -1),
     )
+    expect(blImport.indexOf('p_changed_by IS DISTINCT FROM auth.uid()')).toBeLessThan(firstPayloadRead)
 
     // #660.3: permissão do núcleo de escala antes de delegar ao corpo que
     // cria/reutiliza o porto. A migration 049 envolve esse corpo para garantir

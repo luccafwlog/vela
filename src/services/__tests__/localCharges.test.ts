@@ -7,7 +7,6 @@ import {
   listManualChargeItemsForBl,
   listLocalChargePendencies,
   listLocalChargeOperationalRows,
-  markBlReadyForBilling,
 } from '../charges/chargeOperationsService'
 import { listLocalChargeTables } from '../charges/chargeTableService'
 
@@ -381,24 +380,5 @@ describe('localCharges service', () => {
       [0, 999],
       [1000, 1004],
     ])
-  })
-
-  it('marca B/L como ready_for_billing via RPC dedicada', async () => {
-    mockRpc.mockResolvedValue({
-      data: { bl_id: 'CSC001', status: 'ready_for_billing', changed: true },
-      error: null,
-    })
-
-    const result = (await markBlReadyForBilling('CSC001', 'user-id')) as {
-      status: string
-      changed: boolean
-    }
-
-    expect(result.status).toBe('ready_for_billing')
-    expect(result.changed).toBe(true)
-    expect(mockRpc).toHaveBeenCalledWith('mark_bl_ready_for_billing', {
-      p_bl_id: 'CSC001',
-      p_actor: 'user-id',
-    })
   })
 })
