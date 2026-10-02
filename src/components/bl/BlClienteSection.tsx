@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { afterCargaAlterada } from '../../services/cacheEffects'
 import { Save, X } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -11,7 +12,6 @@ import { useOverrideCustomers } from '../../hooks/useLocalCharges'
 import { formatBRL } from '../../lib/utils'
 import { createCustomer, findCustomerIdByDocument } from '../../services/customers'
 import { linkBlCustomer } from '../../services/review'
-import { queryKeys } from '../../services/queryKeys'
 import type { BLDetail } from '../../types/database'
 
 export function BlClienteSection({ bl }: { bl: BLDetail }) {
@@ -35,10 +35,7 @@ export function BlClienteSection({ bl }: { bl: BLDetail }) {
         changedBy: user.id,
         expectedUpdatedAt: bl.updated_at ?? null,
       })
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.portal.blStatus(bl.id) }),
-      ])
+      await afterCargaAlterada(queryClient)
       showToast(customerId != null ? 'Cliente vinculado com sucesso.' : 'Cliente desvinculado.', 'success')
       setCustomerSearch('')
       setSelectedCustomerId(null)
@@ -73,6 +70,8 @@ export function BlClienteSection({ bl }: { bl: BLDetail }) {
         },
       ]
       const customer = await createCustomer({ cnpjCpf: cnpj, name, contacts })
+      await queryClient.invalidateQueries({ queryKey: ['customers'] })
+      await queryClient.invalidateQueries({ queryKey: ['local-charge-override-customers'] })
       await handleLinkCustomer(customer.id)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase()

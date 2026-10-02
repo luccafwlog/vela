@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { invalidateReviewQueueCaches } from '../components/review/reviewCaches'
 import { sendReviewPortalInvite, completeReviewCustomerGroup, type CompleteReviewCustomerGroupInput, type ReviewCustomerGroupResult } from '../services/reviewCustomerGroup'
 import { PORTAL_PROVISIONING_QUERY_KEY } from './usePortalProvisioning'
 
@@ -22,11 +23,7 @@ export function useReviewCustomerGroup() {
     },
     onSuccess: async ({ portalInvite }) => {
       const invalidations = [
-        queryClient.invalidateQueries({ queryKey: ['review-queue'] }),
-        queryClient.invalidateQueries({ queryKey: ['customers'] }),
-        queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
-        queryClient.invalidateQueries({ queryKey: ['bls'] }),
-        queryClient.invalidateQueries({ queryKey: ['local-charge-pendencies'] }),
+        invalidateReviewQueueCaches(queryClient, { includeCustomers: true, includeCharges: true, includeInvoices: true }),
       ]
       if (portalInvite !== 'not_requested') invalidations.push(queryClient.invalidateQueries({ queryKey: PORTAL_PROVISIONING_QUERY_KEY }))
       await Promise.all(invalidations)

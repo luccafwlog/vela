@@ -123,13 +123,7 @@ export function Baplie() {
     if (existingVaziosManifest) return
     try {
       await importVaziosFromBaplie({ voyageId: Number(voyageId), uploadedBy: user.id })
-      await queryClient.invalidateQueries({ queryKey: ['baplie-vazios-manifest', voyageId] })
-      await queryClient.invalidateQueries({ queryKey: ['baplie-staging', voyageId] })
-      await queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] })
-      await queryClient.invalidateQueries({ queryKey: ['vazios-importacao'] })
-      await queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] })
-      // P0-4: alimenta "Vazios descarregados" no ADR.
-      await queryClient.invalidateQueries({ queryKey: ['agency-report'] })
+      await afterBaplieImportado(queryClient, { voyageId })
       showToast(`${emptyContainers.length} container(s) vazio(s) cadastrados em Vazios Importacao.`, 'success')
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Falha ao cadastrar vazios.', 'error')
@@ -140,12 +134,7 @@ export function Baplie() {
     if (!user || !voyageId || !existingVaziosManifest) return
     try {
       await replaceVaziosFromBaplie({ voyageId: Number(voyageId), uploadedBy: user.id })
-      await queryClient.invalidateQueries({ queryKey: ['baplie-vazios-manifest', voyageId] })
-      await queryClient.invalidateQueries({ queryKey: ['baplie-staging', voyageId] })
-      await queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] })
-      await queryClient.invalidateQueries({ queryKey: ['vazios-importacao'] })
-      await queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] })
-      await queryClient.invalidateQueries({ queryKey: ['agency-report'] })
+      await afterBaplieImportado(queryClient, { voyageId })
       showToast(`Manifesto de vazios substituido. ${emptyContainers.length} container(s) recadastrado(s).`, 'success')
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Falha ao substituir vazios.', 'error')
@@ -251,33 +240,16 @@ export function Baplie() {
       <BaplieUploadModal
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
-        onImported={async () => {
-          await queryClient.invalidateQueries({ queryKey: ['baplie-staging', voyageId] })
-          // A reimportação com diferença pode recadastrar os vazios do Baplie.
-          await queryClient.invalidateQueries({ queryKey: ['baplie-vazios-manifest', voyageId] })
-          await queryClient.invalidateQueries({ queryKey: ['vazios-importacao'] })
-          await queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] })
-          // Baplie soberano: aplica automaticamente as flags físicas (IMO/OOG) aos
-          // bl_containers da viagem, para contagem e EDI refletirem o Baplie (#306).
-          if (voyageId && user) {
+        onImported={async (importedVoyageId) => {
+          // O seletor do modal pode apontar para outra viagem que a página.
+          if (user) {
             try {
-              const applied = await applyBapliePhysicalFlags(Number(voyageId), user.id)
-              if (applied > 0) {
-                await queryClient.invalidateQueries({ queryKey: ['containers'] })
-                await queryClient.invalidateQueries({ queryKey: ['voyages'] })
-                // Os badges IMO/OOG do container aparecem na ficha do B/L
-                // (bl-detail); sem isso, o operador via o valor antigo até F5.
-                await queryClient.invalidateQueries({ queryKey: ['bl-detail'] })
-                // A RPC recalcula as taxas locais dos B/Ls que mudaram de perfil.
-                await queryClient.invalidateQueries({ queryKey: ['local-charge-operations'] })
-                await queryClient.invalidateQueries({ queryKey: ['bl-local-charge-lines'] })
-              }
+              await applyBapliePhysicalFlags(Number(importedVoyageId), user.id)
             } catch {
               showToast('Baplie importado, mas falha ao aplicar flags físicas ao B/L.', 'error')
             }
           }
-          await queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation', voyageId] })
-          await afterBaplieImportado(queryClient, { voyageId })
+          await afterBaplieImportado(queryClient, { voyageId: importedVoyageId })
         }}
         initialVoyageId={voyageId}
       />
@@ -729,7 +701,7 @@ function BaplieUploadModal({
 }: {
   open: boolean
   onClose: () => void
-  onImported: () => void
+  onImported: (importedVoyageId: string) => Promise<void>
   initialVoyageId: string
 }) {
   const { user } = useAuth()
@@ -788,11 +760,11 @@ function BaplieUploadModal({
       })
       if (result.status === 'cancelled') return
       showToast(baplieImportToast(result), 'success')
-      onImported()
+      await onImported(voyageId)
       handleClose()
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Falha ao importar Baplie EDI.', 'error')
-      onImported()
+      await onImported(voyageId)
     } finally {
       setSubmitting(false)
     }

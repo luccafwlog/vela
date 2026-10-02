@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { afterDatasContainerAlteradas } from '../services/cacheEffects'
 import { AlertTriangle, DollarSign, Mail, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, PageHeader } from '../components/ui/Card'
@@ -197,8 +198,8 @@ export function Demurrage() {
   })
   const containerDatesMutation = useMutation({
     mutationFn: ({ id, discharge, ret }: { id: number; discharge: string; ret: string | null }) => updateContainerDates(id, discharge, ret),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['demurrage-containers'] })
+    onSuccess: async () => {
+      await afterDatasContainerAlteradas(queryClient)
       setEditingContainer(null)
       showToast('Datas atualizadas.', 'success')
     },
