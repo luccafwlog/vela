@@ -23,6 +23,7 @@ export async function importBaplieStaging(
     imo_class: c.imo_class,
     un_number: c.un_number,
     is_oog: c.is_oog,
+    ownership: c.ownership ?? null,
     imported_by: actorId ?? null,
   }))
 
@@ -44,7 +45,7 @@ export function baplieReplacementMessage(existing: number, incoming: number): st
   return `Esta viagem já tem um Baplie com ${existing} container(s). O arquivo novo, com ${incoming} container(s), substitui o anterior por inteiro.`
 }
 
-type BaplieDiffFields = Pick<BaplieContainer, 'container_number' | 'status' | 'size_type' | 'pol' | 'pod' | 'is_imo' | 'is_oog'>
+type BaplieDiffFields = Pick<BaplieContainer, 'container_number' | 'status' | 'size_type' | 'pol' | 'pod' | 'is_imo' | 'is_oog' | 'ownership'>
 
 export type BaplieReplacementDiff = {
   /** Uma linha legível por container incluído, removido ou alterado. */
@@ -57,7 +58,7 @@ export type BaplieReplacementDiff = {
 }
 
 const describeContainer = (c: BaplieDiffFields) =>
-  `${c.status === 'empty' ? 'vazio' : 'cheio'}, ${c.pol ?? '?'} → ${c.pod ?? '?'}${c.size_type ? `, ${c.size_type}` : ''}${c.is_imo ? ', IMO' : ''}${c.is_oog ? ', OOG' : ''}`
+  `${c.status === 'empty' ? 'vazio' : 'cheio'}, ${c.pol ?? '?'} → ${c.pod ?? '?'}${c.size_type ? `, ${c.size_type}` : ''}${c.is_imo ? ', IMO' : ''}${c.is_oog ? ', OOG' : ''}${c.ownership ? `, ${c.ownership}` : ''}`
 
 /** Compara o Baplie atual da viagem com o arquivo novo. Slot, peso e B/L ref. não contam como diferença. */
 export function diffBaplieStaging(existing: BaplieDiffFields[], incoming: BaplieDiffFields[]): BaplieReplacementDiff {
@@ -91,7 +92,7 @@ export function diffBaplieStaging(existing: BaplieDiffFields[], incoming: Baplie
 export async function listBaplieStagingForDiff(voyageId: number): Promise<BaplieDiffFields[]> {
   const { data, error } = await supabase
     .from('baplie_containers')
-    .select('container_number, status, size_type, pol, pod, is_imo, is_oog')
+    .select('container_number, status, size_type, pol, pod, is_imo, is_oog, ownership')
     .eq('voyage_id', voyageId)
   if (error) throw error
   return (data ?? []) as BaplieDiffFields[]

@@ -543,6 +543,7 @@ export type Database = {
           imported_by: string | null
           is_imo: boolean
           is_oog: boolean
+          ownership: string | null
           pod: string | null
           pol: string | null
           size_type: string | null
@@ -562,6 +563,7 @@ export type Database = {
           imported_by?: string | null
           is_imo?: boolean
           is_oog?: boolean
+          ownership?: string | null
           pod?: string | null
           pol?: string | null
           size_type?: string | null
@@ -581,6 +583,7 @@ export type Database = {
           imported_by?: string | null
           is_imo?: boolean
           is_oog?: boolean
+          ownership?: string | null
           pod?: string | null
           pol?: string | null
           size_type?: string | null
@@ -892,6 +895,8 @@ export type Database = {
           imo_class: string | null
           is_imo: boolean | null
           is_oog: boolean | null
+          ownership: string | null
+          ownership_source: string | null
           return_date: string | null
           seal_number: string | null
           tare_weight_kg: number | null
@@ -911,6 +916,8 @@ export type Database = {
           imo_class?: string | null
           is_imo?: boolean | null
           is_oog?: boolean | null
+          ownership?: string | null
+          ownership_source?: string | null
           return_date?: string | null
           seal_number?: string | null
           tare_weight_kg?: number | null
@@ -930,6 +937,8 @@ export type Database = {
           imo_class?: string | null
           is_imo?: boolean | null
           is_oog?: boolean | null
+          ownership?: string | null
+          ownership_source?: string | null
           return_date?: string | null
           seal_number?: string | null
           tare_weight_kg?: number | null
@@ -1527,6 +1536,7 @@ export type Database = {
           active: boolean | null
           application_basis: string | null
           applies_to: string
+          applies_to_soc: boolean
           cargo_profile: string | null
           category: string | null
           charge_table_id: number | null
@@ -1545,6 +1555,7 @@ export type Database = {
           active?: boolean | null
           application_basis?: string | null
           applies_to: string
+          applies_to_soc?: boolean
           cargo_profile?: string | null
           category?: string | null
           charge_table_id?: number | null
@@ -1563,6 +1574,7 @@ export type Database = {
           active?: boolean | null
           application_basis?: string | null
           applies_to?: string
+          applies_to_soc?: boolean
           cargo_profile?: string | null
           category?: string | null
           charge_table_id?: number | null
@@ -8934,6 +8946,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_bl_container_ownership: {
+        Args: {
+          p_changed_by?: string
+          p_container_id: number
+          p_justification: string
+          p_ownership: string
+        }
+        Returns: Json
+      }
       set_bl_terminal_override: {
         Args: {
           p_bl_id: string
@@ -9694,6 +9715,7 @@ export type BLListItem = BL & {
     | 'imo_class'
     | 'un_number'
     | 'created_at'
+    | 'ownership'
     // A linha expansivel de /bls mostra a data de descarga. A RPC
     // operational_list_bls ja projetava a coluna (to_jsonb(bc) devolve a linha
     // inteira); quem nao a trazia era o select de export, corrigido junto.
@@ -9734,6 +9756,7 @@ export type ContainerListItem = Pick<
   | 'is_imo'
   | 'imo_class'
   | 'un_number'
+  | 'ownership'
   | 'created_at'
 > & {
   bl?: (Pick<BL, 'id' | 'pol' | 'pod' | 'review_status' | 'financial_status' | 'charge_status' | 'consignee'> & {

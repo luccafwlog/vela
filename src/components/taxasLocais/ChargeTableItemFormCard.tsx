@@ -180,6 +180,20 @@ export function ChargeTableItemFormCard({
             <option value="1">Sim</option>
           </Select>
         </Field>
+        <Field label="Cobra de container SOC" hint="Não: containers SOC (do cliente) ficam fora da quantidade, como Drop Off e Damage Protection.">
+          <Select
+            value={tableItemForm.appliesToSoc ? '1' : '0'}
+            onChange={(event) =>
+              setTableItemForm((current) => ({
+                ...current,
+                appliesToSoc: event.target.value === '1',
+              }))
+            }
+          >
+            <option value="1">Sim</option>
+            <option value="0">Nao</option>
+          </Select>
+        </Field>
         <Field label="Ativo">
           <Select
             value={tableItemForm.active ? '1' : '0'}

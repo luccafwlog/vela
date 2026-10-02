@@ -38,6 +38,7 @@ const STATUS_OPTIONS: { value: OpStatus; label: string }[] = [
   { value: 'dentro_free_time', label: 'Dentro do free time' },
   { value: 'em_demurrage', label: 'Em demurrage' },
   { value: 'devolvido', label: 'Devolvido' },
+  { value: 'soc', label: 'SOC (sem devolução)' },
 ]
 
 function includesText(value: string | null | undefined, term: string) {
@@ -553,6 +554,7 @@ function formatNumber(value: number | null) {
 
 function renderStatus(status: PortalOperationContainerStatus) {
   if (status === 'devolvido') return <Badge tone="green">Devolvido</Badge>
+  if (status === 'soc') return <Badge tone="slate" title="Container do próprio cliente: sem devolução nem demurrage">SOC</Badge>
   if (status === 'em_demurrage') return <Badge tone="red">Em demurrage</Badge>
   if (status === 'dentro_free_time') return <Badge tone="blue">Dentro free time</Badge>
   return <Badge tone="slate">Sem descarga</Badge>

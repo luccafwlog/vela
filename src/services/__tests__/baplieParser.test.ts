@@ -174,3 +174,17 @@ describe('baplieParser — P0-2: unidade de peso do MEA (UN/ECE R20)', () => {
     expect(parsed.issues.some((i) => i.field === 'weight_kg' && i.severity === 'error')).toBe(true)
   })
 })
+
+describe('baplieParser — SOC/COC (EQD 8077, elemento 4)', () => {
+  const head = "UNB+UNOA:2+X+Y+260101:0000+1'TDT+20+0012+++:::GREEN VITORIA'"
+  const unit = (number: string, supplier: string) => `LOC+147+0101${number.slice(-2)}'LOC+9+CNTAO'LOC+11+BRVIX'MEA+WT++KGM:20000'EQD+CN+${number}+45G1+${supplier}+2+5'`
+
+  it('1 = SOC, 2 = COC, vazio = não informado; o 8249 ao lado não interfere', () => {
+    const parsed = parseBaplieText(`${head}${unit('TCLU1234567', '1')}${unit('TGHU7654325', '2')}${unit('CSNU2049996', '')}`)
+    expect(parsed.containers.map((c) => [c.container_number, c.ownership, c.status])).toEqual([
+      ['TCLU1234567', 'SOC', 'full'],
+      ['TGHU7654325', 'COC', 'full'],
+      ['CSNU2049996', null, 'full'],
+    ])
+  })
+})

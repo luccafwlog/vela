@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 // A tela de Baplie precisa destas colunas para os cards, filtros, conciliação
 // visual e exportação. O limite é aplicado por viagem e a paginação continua
 // explícita para não depender do limite padrão do PostgREST.
-export const BAPLIE_STAGING_COLUMNS = 'id, voyage_id, container_number, bl_ref, pol, pod, final_dest, size_type, status, slot, weight_kg, is_imo, is_oog, imo_class, un_number, imported_at, imported_by'
+export const BAPLIE_STAGING_COLUMNS = 'id, voyage_id, container_number, bl_ref, pol, pod, final_dest, size_type, status, slot, weight_kg, is_imo, is_oog, imo_class, un_number, ownership, imported_at, imported_by'
 
 export async function listBaplieStaging(voyageId: number, pageSize = 1000): Promise<BaplieContainer[]> {
   if (!Number.isInteger(voyageId) || voyageId < 1) {

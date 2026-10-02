@@ -12,6 +12,7 @@ export type DemurrageContainerFilters = {
 }
 
 type DemurrageContainerQueryRow = DemurrageContainerListItem & {
+  ownership?: string | null
   bl?: (NonNullable<DemurrageContainerListItem['bl']> & { voyage_id?: number | null }) | null
 }
 
@@ -43,7 +44,7 @@ export async function listDemurrageContainers(filters?: DemurrageContainerFilter
   let query = supabase
     .from('bl_containers')
     .select(`
-      id, bl_id, container_number, type, discharge_date, return_date, demurrage_status,
+      id, bl_id, container_number, type, discharge_date, return_date, demurrage_status, ownership,
       bl:bls(
         id, pol, pod, free_time_override,
         demurrage_rate_override_p1_usd, demurrage_rate_override_p2_usd,
@@ -67,7 +68,9 @@ export async function listDemurrageContainers(filters?: DemurrageContainerFilter
   const { data, error } = await query.overrideTypes<DemurrageContainerQueryRow[], { merge: false }>()
   if (error) throw error
 
-  let rows = data ?? []
+  // SOC é do cliente e não volta ao estoque: fica fora da Demurrage, salvo se
+  // já estiver congelado numa fatura ativa (rastreabilidade acima).
+  let rows = (data ?? []).filter((r) => r.ownership !== 'SOC' || invoicedContainerIds.includes(r.id))
 
   if (filters?.customerId) {
     rows = rows.filter((r) => r.bl?.customer?.id === filters.customerId)

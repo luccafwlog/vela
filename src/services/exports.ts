@@ -1,4 +1,5 @@
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../lib/containerCounts'
+import { containerOwnershipLabel } from '../lib/containerOwnership'
 import type { BLListItem, ContainerListItem, CustomerListItem, VehicleListItem, VaziosImportacaoContainerListItem } from '../types/database'
 import type { BaplieContainer } from '../types/database'
 import type { LocalChargeConferenceRow, LocalChargeOperationalRow } from './charges/chargeOperationsService'
@@ -131,6 +132,7 @@ export async function exportContainerWorkbook(rows: ContainerListItem[]) {
     IMO: row.is_imo ? 'SIM' : 'NAO',
     IMOClass: row.imo_class ?? '',
     UNNumber: row.un_number ?? '',
+    'SOC/COC': containerOwnershipLabel(row.ownership),
     RevisaoBL: row.bl?.review_status ?? '',
     FinanceiroBL: row.bl?.financial_status ?? '',
   }))
@@ -430,6 +432,7 @@ export async function exportBaplieWorkbook(rows: BaplieContainer[]) {
     'Classe IMO': row.imo_class ?? '',
     'UN Number': row.un_number ?? '',
     OOG: row.is_oog ? 'SIM' : 'NAO',
+    'SOC/COC': containerOwnershipLabel(row.ownership),
     'Peso (kg)': row.weight_kg ?? '',
     'Importado em': row.imported_at ? formatDate(row.imported_at) : '',
   }))

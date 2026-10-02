@@ -67,3 +67,24 @@ describe('containerMatchesReturnSituation', () => {
     expect(flat.filter((c) => containerMatchesReturnSituation(c, 'em_demurrage')).map((c) => c.container_number)).toEqual(['C2'])
   })
 })
+
+describe('portalOperationViews — SOC', () => {
+  const socBl: PortalOperationBL = {
+    ...bls[0],
+    bl_id: 'BL-SOC',
+    container_count: 2,
+    containers_returned: 1,
+    containers: [
+      { id: 10, container_number: 'S1', type: '40GP', discharge_date: '2026-06-01', return_date: null, usage_days: 60, free_time_days: 21, demurrage_days: null, status: 'soc' },
+      { id: 11, container_number: 'C1', type: '40GP', discharge_date: '2026-06-01', return_date: '2026-06-10', usage_days: 9, free_time_days: 21, demurrage_days: 0, status: 'devolvido' },
+    ],
+  }
+
+  it('SOC não conta como devolução pendente nem impede "todos devolvidos"', () => {
+    expect(blMatchesReturnSituation(socBl, 'todos_devolvidos')).toBe(true)
+    expect(blMatchesReturnSituation(socBl, 'sem_devolucao')).toBe(false)
+    expect(containerMatchesReturnSituation(socBl.containers[0], 'sem_devolucao')).toBe(false)
+    expect(countContainersWithoutReturn([socBl])).toBe(0)
+    expect(countContainersInDemurrage([socBl])).toBe(0)
+  })
+})

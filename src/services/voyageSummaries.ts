@@ -95,6 +95,7 @@ export type VoyageBl = {
     type?: string | null
     is_oog?: boolean | null
     is_imo?: boolean | null
+    ownership?: string | null
   }> | null
   bl_breakbulk_items?: Array<{
     id: number
@@ -1267,7 +1268,7 @@ export function summarizeBreakbulk(bls: VoyageBl[] | null | undefined): Breakbul
 
 export type PodImportSummary = {
   pod: string
-  containers: { distinct: number; imo: number; oog: number; types: string }
+  containers: { distinct: number; imo: number; oog: number; soc: number; coc: number; types: string }
   generalCargo: { distinct: number; imo: number; oog: number }
   vehicles: { distinctContainers: number }
   breakbulk: BreakbulkSummary
@@ -1309,6 +1310,8 @@ export function summarizeImportByPod(
         distinct: countDistinctContainerNumbers(flat),
         imo: countDistinctContainerNumbersBy(flat, (container) => Boolean(container.is_imo)),
         oog: countDistinctContainerNumbersBy(flat, (container) => Boolean(container.is_oog)),
+        soc: countDistinctContainerNumbersBy(flat, (container) => container.ownership === 'SOC'),
+        coc: countDistinctContainerNumbersBy(flat, (container) => container.ownership === 'COC'),
         types: summarizeContainerTypes(flat),
       },
       generalCargo: {
