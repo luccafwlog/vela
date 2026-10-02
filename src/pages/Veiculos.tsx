@@ -204,6 +204,17 @@ export function Veiculos() {
     await afterCargaAlterada(queryClient)
   }
 
+  function cacheSavedUnpackingLocations(containerIds: readonly number[], value: string | null) {
+    const ids = new Set(containerIds)
+    // Atualiza só consultas existentes com a escrita confirmada, antes da releitura.
+    queryClient.setQueriesData<typeof data>({ queryKey: ['vehicles'] }, (cached) => cached && ({
+      ...cached,
+      rows: cached.rows.map((row) => row.container && ids.has(row.container.id)
+        ? { ...row, container: { ...row.container, unpacking_location: value } }
+        : row),
+    }))
+  }
+
   async function handleUnpackingLocationSave(containerId: number, value: string, currentValue: string | null) {
     const unpackingLocation = value.trim() || null
     if (unpackingLocation === currentValue) return
@@ -211,10 +222,11 @@ export function Veiculos() {
     setSavingContainerId(containerId)
     try {
       await setContainerUnpackingLocation(containerId, unpackingLocation)
+      cacheSavedUnpackingLocations([containerId], unpackingLocation)
       await afterCargaAlterada(queryClient)
       setUnpackingLocations((current) => {
         const next = { ...current }
-        delete next[containerId]
+        if (current[containerId] === value) delete next[containerId]
         return next
       })
       showToast('Local de desova atualizado.', 'success')
@@ -238,13 +250,19 @@ export function Veiculos() {
       showToast('Nenhum container nas linhas selecionadas.', 'info')
       return
     }
+    const submittedDrafts = unpackingLocations
     setBulkDesovaSaving(true)
     try {
-      await Promise.all(containerIds.map((containerId) => setContainerUnpackingLocation(containerId, value)))
+      await Promise.all(containerIds.map(async (containerId) => {
+        await setContainerUnpackingLocation(containerId, value)
+        cacheSavedUnpackingLocations([containerId], value)
+      }))
       await afterCargaAlterada(queryClient)
       setUnpackingLocations((current) => {
         const next = { ...current }
-        for (const containerId of containerIds) delete next[containerId]
+        for (const containerId of containerIds) {
+          if (current[containerId] === submittedDrafts[containerId]) delete next[containerId]
+        }
         return next
       })
       showToast(`Local de desova aplicado a ${containerIds.length} container(s).`, 'success')

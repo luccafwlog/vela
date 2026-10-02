@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   unpackingLocation: 'Terminal A',
   saveLocation: vi.fn(),
   profile: { id: 'user-1' } as { id: string } | null,
+  setQueriesData: vi.fn(),
   invalidateQueries: vi.fn(() => Promise.resolve()),
   updateVaziosBooking: vi.fn(() => Promise.resolve()),
   upsertVaziosExportOperation: vi.fn(() => Promise.resolve({ id: 'operation-1' })),
@@ -21,7 +22,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
+  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, setQueriesData: mocks.setQueriesData }),
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
     if (queryKey[0] === 'vazios-importacao-manifests') {
       return { data: [], isLoading: false, error: null }

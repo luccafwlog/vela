@@ -82,7 +82,10 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
   de guardar uma cópia do valor salvo após a atualização. Datas de descarga e
   devolução (planilha, ficha do B/L ou Demurrage) atualizam os consumidores de
   Demurrage, incluindo cards, faturas e ficha do Cliente. O campo de devolução
-  também libera o rascunho salvo para acompanhar importações seguintes.
+  também libera o rascunho salvo para acompanhar importações seguintes. Desova
+  e devolução confirmadas são refletidas no cache antes da releitura: se ela
+  falhar, o campo mantém o valor salvo. A conclusão de uma gravação não apaga
+  um rascunho mais recente editado durante a operação.
 - A atualização ocorre após as próprias ações, sem recarregar a página.
   Consultas abertas são refeitas; telas fechadas consultam novamente ao abrir.
   Isso não implementa sincronização entre usuários nem antecipa efeitos ainda

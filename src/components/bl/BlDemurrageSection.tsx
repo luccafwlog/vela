@@ -177,10 +177,17 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
     setSavingReturnDate(containerId)
     try {
       await updateContainerReturnDate(containerId, returnDate || null)
+      // A escrita já foi confirmada; uma falha na releitura não deve expor a data antiga.
+      queryClient.setQueryData<BLDetail>(queryKeys.bls.detail(bl.id), (cached) => cached && ({
+        ...cached,
+        bl_containers: cached.bl_containers?.map((item) => item.id === containerId
+          ? { ...item, return_date: returnDate || null }
+          : item),
+      }))
       await afterDatasContainerAlteradas(queryClient)
       setReturnDates((current) => {
         const next = { ...current }
-        delete next[containerId]
+        if (current[containerId] === returnDate) delete next[containerId]
         return next
       })
       showToast('Data de devolucao salva.', 'success')
