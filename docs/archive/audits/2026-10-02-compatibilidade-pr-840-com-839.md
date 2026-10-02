@@ -19,8 +19,9 @@ PR 839. Registro histórico da remediação; o estado de publicação e CI está
 Os cinco cenários adicionais em `operationalCacheRefresh.test.ts` usam
 QueryClient e QueryObserver reais, com consultas abertas e `staleTime` infinito.
 Contra o serviço original da 840, os cinco falharam porque a restituição
-continuava com o dado anterior. Com a lista financeira preservada, o efeito
-também deve atualizar COD, faturas do Portal e histórico de conciliação.
+continuava com o dado anterior. Com a lista financeira preservada, os cinco
+passaram: restituições, COD, faturas do Portal e histórico de conciliação foram
+atualizados sem recarregar a página.
 
 ## Evidência e limites
 
