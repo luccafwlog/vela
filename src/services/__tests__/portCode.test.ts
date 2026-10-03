@@ -55,6 +55,7 @@ describe('normalizePortCode - portos-vitrine do servico CSSC', () => {
     expect(resolvePortCode('SPB')).toEqual({ code: 'BRSEP', recognized: true })
     expect(resolvePortCode('BRSPB')).toEqual({ code: 'BRSEP', recognized: true })
     expect(resolvePortCode('CNTCA')).toEqual({ code: 'CNTAC', recognized: true })
+    expect(resolvePortCode('TCA')).toEqual({ code: 'CNTAC', recognized: true })
     expect(resolvePortCode('SEP')).toEqual({ code: 'BRSEP', recognized: true })
     expect(resolvePortCode('SEPTEMBER')).toEqual({ code: null, recognized: false })
   })

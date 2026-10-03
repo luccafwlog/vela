@@ -15,12 +15,10 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   // O GoTrue guarda HMAC(pepper, senha) (auditoria run-2, #7); sem pepper, não consome o link.
   const authPassword = await derivePortalAuthPassword(body.password, portalPasswordPepper())
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-  const { data: invite } = await admin.from('portal_invites').select('id, account_id, expires_at, status').eq('token_hash', await hashToken(body.token)).eq('purpose', 'recuperacao').maybeSingle()
-  if (!invite || invite.status !== 'pendente' || new Date(invite.expires_at).getTime() <= Date.now()) return new Response(JSON.stringify({ error: 'Link inválido ou expirado. Solicite uma nova recuperação.' }), { status: 410 })
-  const { data: consumed } = await admin.from('portal_invites').update({ status: 'consumido', consumed_at: new Date().toISOString() }).eq('id', invite.id).eq('status', 'pendente').gt('expires_at', new Date().toISOString()).select('id').maybeSingle()
-  if (!consumed) return new Response(JSON.stringify({ error: 'Link inválido ou expirado. Solicite uma nova recuperação.' }), { status: 410 })
-  const { data: account } = await admin.from('customer_portal_accounts').select('auth_user_id, customer_id, provisioning_decision, account_situation').eq('id', invite.account_id).single()
-  if (!account?.auth_user_id) return new Response(JSON.stringify({ error: 'Link inválido ou expirado. Solicite uma nova recuperação.' }), { status: 410 })
+  const { data: reset, error: beginError } = await admin.rpc('portal_begin_password_reset', { p_token_hash: await hashToken(body.token) })
+  if (beginError) throw new Error('Could not authorize portal password reset')
+  if (!reset) return new Response(JSON.stringify({ error: 'Link inválido ou expirado. Solicite uma nova recuperação.' }), { status: 410 })
+  const { account, inviteId } = reset
   await resetPortalPasswordFailClosed(account.auth_user_id, authPassword, {
     now: () => Date.now(),
     revokeSessions: revokePortalSessions,
@@ -37,7 +35,11 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
       const { error } = await admin.auth.admin.updateUserById(userId, { password })
       if (error) throw new Error('Could not update portal password')
     },
+    completeReset: async () => {
+      const { error } = await admin.rpc('portal_finish_password_reset', { p_account_id: account.id, p_invite_id: inviteId })
+      if (error) throw new Error('Could not complete portal password reset')
+    },
   })
-  await admin.rpc('_portal_log_event', { p_customer_id: account.customer_id, p_account_id: invite.account_id, p_invite_id: invite.id, p_prev_decision: account.provisioning_decision, p_new_decision: account.provisioning_decision, p_prev_situation: account.account_situation, p_new_situation: account.account_situation, p_actor_type: 'cliente', p_reason: 'Recuperação de senha concluída pelo cliente', p_request_id: null })
+  await admin.rpc('_portal_log_event', { p_customer_id: account.customer_id, p_account_id: account.id, p_invite_id: inviteId, p_prev_decision: account.provisioning_decision, p_new_decision: account.provisioning_decision, p_prev_situation: account.account_situation, p_new_situation: account.account_situation, p_actor_type: 'cliente', p_reason: 'Recuperação de senha concluída pelo cliente', p_request_id: null })
   return new Response(JSON.stringify({ reset: true }), { status: 200 })
 }))

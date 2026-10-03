@@ -20,6 +20,22 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+it('reset em andamento mantém a troca pendente e orienta tentar novamente', async () => {
+  auth.functions.invoke.mockResolvedValueOnce({
+    data: null,
+    error: { name: 'FunctionsHttpError', context: { status: 423 } },
+  })
+  render(
+    <MemoryRouter initialEntries={['/portal/confirmar-email?token=PENDENTE']}>
+      <PortalConfirmarEmail />
+    </MemoryRouter>,
+  )
+  await waitFor(() => expect(screen.getByText(/Recuperação de senha em andamento/)).toBeTruthy())
+  expect(screen.getByText(/Abra o link do email novamente após sua conclusão/)).toBeTruthy()
+  expect(screen.queryByText(/pedido de troca de email ja foi resolvido/)).toBeNull()
+  expect(screen.queryByRole('heading', { name: 'Email confirmado' })).toBeNull()
+})
+
 it('confirma o novo email sem exigir sessao do Portal', async () => {
   render(
     <MemoryRouter initialEntries={['/portal/confirmar-email?token=TOKEN']}>

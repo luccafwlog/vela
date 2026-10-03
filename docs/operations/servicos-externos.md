@@ -199,6 +199,11 @@ Publicação manual: `supabase functions deploy <nome> --project-ref fgmkhbzhaee
 Um merge **não** publica Functions. Para conferir, baixe o código publicado com
 `supabase functions download` e compare com o `main`.
 
+Para publicar a proteção de recuperação da PR 841, aplique as migrations `131`
+e `132` antes de publicar `portal-password-reset` e
+`portal-recovery-email-change`. O procedimento de triagem de reset interrompido
+está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
+
 ### Secrets das Edge Functions
 
 | Grupo | Nomes | Serviço de origem |
