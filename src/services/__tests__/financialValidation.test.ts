@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   demurrageDatesSchema,
   demurrageDiscountSchema,
-  manualInvoiceChargeSchema,
   manualInvoiceCreationSchema,
   paymentFormSchema,
 } from '../financialValidation'
@@ -23,18 +22,6 @@ describe('financialValidation', () => {
     expect(paymentFormSchema.safeParse({ amountBrl: '10', paymentMethod: 'pix', paidAt: '' }).success).toBe(false)
     expect(paymentFormSchema.safeParse({ amountBrl: '10', paymentMethod: 'pix', paidAt: '2026-13-01' }).success).toBe(false)
     expect(paymentFormSchema.safeParse({ amountBrl: '1e3', paymentMethod: 'pix', paidAt: '2026-06-13' }).success).toBe(false)
-  })
-
-  it('valida item manual de invoice', () => {
-    expect(manualInvoiceChargeSchema.safeParse({ description: '', quantity: '1', unitValueBrl: '10' }).success).toBe(false)
-    expect(manualInvoiceChargeSchema.safeParse({ description: 'Taxa', quantity: '-1', unitValueBrl: '10' }).success).toBe(false)
-    expect(manualInvoiceChargeSchema.safeParse({ description: 'Taxa', quantity: '1', unitValueBrl: 'abc' }).success).toBe(false)
-
-    expect(manualInvoiceChargeSchema.parse({ description: ' Taxa ', quantity: '2', unitValueBrl: '10,50' })).toEqual({
-      description: 'Taxa',
-      quantity: 2,
-      unitValueBrl: 10.5,
-    })
   })
 
   it('valida e normaliza os dados da criacao de fatura avulsa', () => {

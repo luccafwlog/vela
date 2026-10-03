@@ -20,7 +20,7 @@
 
 As policies de leitura e marcação de notificações internas exigem destinatário
 igual a `auth.uid()` e perfil interno ativo (`is_active_read_user()`, migration
-`122`), inclusive para acesso direto com um JWT ainda válido após desativação.
+`131`), inclusive para acesso direto com um JWT ainda válido após desativação.
 
 `administrativo` · `financeiro` · `operacoes` · `documentacao` · `equipamentos`, em `user_profiles` (`role`, `active`). Geridas em `/admin/usuarios`. Ver [Admin Usuários](../modules/operacao-suporte.md#admin-usuários).
 
@@ -67,12 +67,12 @@ token emitido antes do marco final é recusado, inclusive dentro dos cinco
 segundos antes tolerados. Token sem `iat` válido também é recusado enquanto o
 marco estiver ativo.
 
-A migration `123` faz `portal_revoke_sessions` adquirir o lock da conta antes
+A migration `132` faz `portal_revoke_sessions` adquirir o lock da conta antes
 de revogar sessões e gravar o marco final com `clock_timestamp()`. JWTs emitidos
 durante a espera também ficam anteriores ao corte; `now()` representaria o
 início da transação e deixaria essa janela aberta.
 
-Desde a migration `122`, reset e confirmação do Email de Recuperação usam RPCs
+Desde a migration `131`, reset e confirmação do Email de Recuperação usam RPCs
 exclusivas de `service_role` com lock por conta. O reset aceita somente convite
 pendente, não expirado e destinado ao email atual, consome-o e registra
 `recovery_reset_invite_id` antes de chamar o Auth. A confirmação aplica o email,
@@ -85,7 +85,7 @@ Na confirmação pública, reset em andamento retorna HTTP `423` e a tela inform
 que o novo email ainda não foi confirmado, orientando reabrir o link depois.
 HTTP `409` permanece reservado ao pedido já resolvido por outro caminho.
 
-**Publicação:** aplicar as migrations `122` e `123` antes de publicar `portal-password-reset`
+**Publicação:** aplicar as migrations `131` e `132` antes de publicar `portal-password-reset`
 e `portal-recovery-email-change`. **Falha de reset:** não há desbloqueio por tempo.
 O operador deve confirmar nos logs que a execução terminou e que nenhuma chamada
 ao Auth continua pendente, verificar o resultado da alteração e revogar as sessões

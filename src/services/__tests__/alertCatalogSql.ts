@@ -23,6 +23,8 @@ const CATALOG_MIGRATIONS = [
   '377_portal_invoice_exception_audience.sql',
   '024_demurrage_ptax_alert.sql',
   '026_import_effect_alert.sql',
+  '124_ajuste_por_correcao_e_alerta_fatura_desatualizada.sql',
+  '128_correcao_do_bl_sempre_automatica.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

@@ -26,9 +26,13 @@ export async function invalidateReviewQueueCaches(
   queryClient: QueryClient,
   scope: ReviewCacheScope = {},
 ): Promise<void> {
-  const keys: QueryKey[] = [['review-queue'], ['bls'], ['op-count']]
+  const keys: QueryKey[] = [
+    ['review-queue'], queryKeys.bls.all(), queryKeys.bls.summary(), queryKeys.bls.cockpit(), queryKeys.bls.detail(),
+    ['op-count'], queryKeys.voyages.all(), queryKeys.voyages.detail(), ['voyage-billing-status'],
+    ['containers'], ['vehicles'], ['report-operational'], ['customer-detail'], ['customer-ficha'],
+    ['customer-communications'], queryKeys.billingReady.all(), ['billing-ready-bl-diagnostics'],
+  ]
   if (scope.includeGranite ?? true) keys.push(['granite-bls'])
-  if (scope.blId) keys.push(['bl-detail', scope.blId])
   if (scope.includeAudit && scope.blId) keys.push(['audit-logs', 'bl', scope.blId])
   if (scope.includeCustomers) keys.push(['customers'])
   if (scope.includeCharges) keys.push(queryKeys.charges.operations())

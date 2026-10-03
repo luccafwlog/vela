@@ -53,8 +53,9 @@ vi.mock('../../hooks/useBilling', () => ({
   useInvoiceDetail: () => ({ data: null, isLoading: false, error: null }),
   useInvoices: () => ({ data: { rows: [], count: 0 }, isLoading: false, error: null }),
   useRegisterInvoicePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useAddManualInvoiceCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useDeleteManualInvoiceCharge: () => ({ mutateAsync: vi.fn(), isPending: false, variables: undefined }),
+  useRetryPendingConsolidatedReissue: () => ({ mutateAsync: vi.fn(), isPending: false, variables: undefined }),
+  useInvoiceReissueLinks: () => ({ data: null }),
+  usePendingReissues: () => ({ data: [] }),
 }))
 
 vi.mock('../../hooks/useBillingLedger', () => ({
@@ -68,6 +69,8 @@ vi.mock('../../hooks/useBillingLedger', () => ({
 }))
 
 vi.mock('../../hooks/useLocalCharges', () => ({
+  useManualChargeItemsForBl: () => ({ data: [] }),
+  useManualInvoiceQuote: () => ({ data: undefined }),
   useBatchCalculateLocalCharges: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useLocalChargeOperations: () => ({
     data: [],

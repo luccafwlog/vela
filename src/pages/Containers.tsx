@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
+import { afterCargaAlterada } from '../services/cacheEffects'
 import { Boxes, CalendarDays, Download, Trash2, MoreVertical } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { MetricCard } from '../components/ui/MetricCard'
@@ -177,12 +178,7 @@ export function Containers() {
 
       const result = await deleteContainers(report.deletableIds, reason)
       selection.clear()
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['containers'] }),
-        queryClient.invalidateQueries({ queryKey: ['bls'] }),
-        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
-        queryClient.invalidateQueries({ queryKey: ['bl-detail'] }),
-      ])
+      await afterCargaAlterada(queryClient)
       const outcome = formatDeleteOutcome('container(es)', result)
       showToast(outcome.message, outcome.tone)
     } catch (err) {

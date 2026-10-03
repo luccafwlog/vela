@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  addManualInvoiceCharge,
   cancelInvoice,
   createManualInvoice,
-  deleteManualInvoiceCharge,
+  getInvoiceReissueLinks,
+  listPendingReissues,
+  retryPendingConsolidatedReissue,
   listBillingCustomers,
   listInvoiceDetails,
   listInvoiceLinksByBls,
@@ -86,29 +87,33 @@ export function useRegisterInvoicePayment() {
   })
 }
 
-export function useAddManualInvoiceCharge() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: addManualInvoiceCharge,
-    onSuccess: async (_data, variables) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.detail(variables.invoiceId) }),
-      ])
-    },
+export function useInvoiceReissueLinks(invoiceId?: number | null) {
+  return useQuery({
+    queryKey: queryKeys.invoices.reissueLinks(invoiceId),
+    enabled: Boolean(invoiceId),
+    queryFn: () => getInvoiceReissueLinks(Number(invoiceId)),
   })
 }
 
-export function useDeleteManualInvoiceCharge(invoiceId?: number | null) {
+export function usePendingReissues() {
+  return useQuery({
+    queryKey: queryKeys.invoices.pendingReissues(),
+    queryFn: listPendingReissues,
+  })
+}
+
+export function useRetryPendingConsolidatedReissue() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: deleteManualInvoiceCharge,
-    onSuccess: async () => {
+    mutationFn: retryPendingConsolidatedReissue,
+    onSuccess: async (_data, invoiceId) => {
+      // queryKeys.invoices.all() cobre a lista e a Reemissão pendente.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.invoices.detail(invoiceId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.billingLedger.all() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() }),
       ])
     },
   })

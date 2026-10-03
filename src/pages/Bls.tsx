@@ -42,7 +42,7 @@ import {
   type ParseBreakbulkOptions,
   type ParsedBreakbulkManifest,
 } from '../services/breakbulkImport'
-import { afterManifestoImportado } from '../services/cacheEffects'
+import { afterCargaAlterada, afterManifestoImportado } from '../services/cacheEffects'
 import { inspectImportUpload } from '../services/importText'
 import { rowErrorsToImportIssues } from '../services/importValidation'
 import type { InvoiceLinkInfo } from '../services/billing'
@@ -318,15 +318,7 @@ export function Bls() {
 
       const result = await deleteBls(report.deletableIds, reason)
       selection.clear()
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['bls'] }),
-        queryClient.invalidateQueries({ queryKey: ['bl-summary'] }),
-        queryClient.invalidateQueries({ queryKey: ['containers'] }),
-        queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
-        queryClient.invalidateQueries({ queryKey: ['invoice-links'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-        queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation'] }),
-      ])
+      await afterCargaAlterada(queryClient)
       const outcome = formatDeleteOutcome('B/L(s)', result)
       showToast(outcome.message, outcome.tone)
     } catch (err) {

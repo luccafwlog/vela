@@ -903,6 +903,13 @@ Classificação de carga perigosa segundo a International Maritime Organization.
 **OOG (Out of Gauge)**
 Container com dimensões fora do padrão ISO.
 
+**THD por perfil de carga**
+A tabela de taxas guarda o THD normal, o THD IMO (normal + 50%) e o THD OOG
+(normal + 100%) como valores próprios. Container IMO e OOG ao mesmo tempo paga
+o THD normal com 150% de majoração (normal × 2,5), calculado a partir do THD
+normal da tabela ou da Condição do Cliente — sem revisão manual. Exemplo: THD
+normal de R$ 1.420 → R$ 3.550. Decidido em 2026-10-02 (migration `129`).
+
 **SOC / COC**
 Propriedade do container. **COC** (carrier owned) é do armador; **SOC**
 (shipper owned) é do próprio cliente. O B/L informa na linha do container e o
@@ -2059,3 +2066,36 @@ não substituem a leitura da última definição na cadeia ativa de migrations.
 | Calendário do prazo do ADR | [agencyReportDeadline.ts](src/services/agencyReportDeadline.ts) |
 | ATD do terminal, ajuste de COD e prontidão do Portal | Funções `reconcile_agency_report_alerts`, `apply_cod_financial_effect` e `customer_portal_access_ready` na [base consolidada](supabase/migrations/002_business_logic_and_security.sql) |
 | Inbox e resposta a webhook duplicado | [portal-email-webhook](supabase/functions/portal-email-webhook/index.ts) |
+
+## Correção de B/L após faturamento
+
+A fatura é disponibilizada ao Cliente na emissão e preserva seu total e itens.
+A correção nasce sempre do B/L: o operador reimporta o B/L, aplica o Baplie ou
+altera o B/L, os containers ou os veículos, e o sistema trata a fatura sozinho,
+em segundos, sem botão de fatura. Só conta o que muda o valor do B/L (rota,
+peso, containers, IMO/OOG, SOC/COC, veículos) ou o Cliente; uma data de
+Demurrage não é correção.
+
+**Sem pagamento**, a individual e a consolidada que cobram o B/L são canceladas
+e reemitidas com o valor novo e o ROE do dia. Exemplo: BL-A faturado em R$ 500
+dentro de uma consolidada de R$ 1.000; acrescentar um container de R$ 500 gera
+individual nova de R$ 1.000 e consolidada nova de R$ 1.500, cada uma ligada à
+que substitui. A consolidada só volta com os mesmos B/Ls: se um B/L dela foi
+cancelado, ficou isento, foi quitado ou mudou de Cliente, ela é encerrada sem
+reemissão e os demais B/Ls seguem cobrados pelas individuais. Se a emissão for
+barrada (Portal não pronto, revisão pendente), a fatura fica em **Reemissão
+pendente** e o alerta explica o motivo; resolvido, o Administrativo usa
+**Emitir fatura** na ficha do B/L.
+
+**Com pagamento**, a fatura não é reemitida. Redução abate primeiro o saldo em
+aberto; só o que passar dele vira restituição e abre **Restituição pendente**,
+que fecha quando o Administrativo confirma que devolveu o dinheiro. Exemplo:
+fatura de R$ 3.000 com R$ 1.000 pagos e valor correto de R$ 2.400: o saldo cai
+de R$ 2.000 para R$ 1.400, sem restituição. Paga inteira, os R$ 600 viram
+restituição. Aumento com pagamento abre **Fatura desatualizada** e a diferença
+vai em **Fatura avulsa**. Ninguém digita valor de correção nem concede desconto.
+
+Erro de preço (tabela ou Condição do Cliente) não reemite: vale para as próximas
+faturas. No Portal, a fatura cancelada não aparece por padrão, só pelo filtro
+Cancelada. Ver [ADR 0077](docs/adr/0077-fatura-emitida-nao-muda-de-valor.md)
+e [Faturamento](docs/modules/faturamento.md).

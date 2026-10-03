@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Download, FilePlus2 } from 'lucide-react'
 import { ConsolidatedInvoiceModal } from '../components/billing/ConsolidatedInvoiceModal'
+import { PendingReissuesPanel } from '../components/billing/PendingReissuesPanel'
 import { ManualInvoiceModal } from '../components/billing/ManualInvoiceModal'
 import { ValidacaoTab } from '../components/billing/ValidacaoTab'
 import { FinancialAlertsPanel } from '../components/billing/FinancialAlertsPanel'
@@ -210,6 +211,8 @@ export function TaxasLocais() {
       />
 
       <CodAdjustmentsPanel />
+
+      <PendingReissuesPanel onOpenInvoice={setSelectedInvoiceId} />
 
       <div className="billing-page__tabs mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Módulos de faturamento">
         <TabButton active={activeTab === 'invoices'} label="Faturas" onClick={() => setActiveTab('invoices')} />

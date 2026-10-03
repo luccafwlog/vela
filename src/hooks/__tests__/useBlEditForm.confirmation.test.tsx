@@ -44,8 +44,12 @@ const bl = {
   notes: null,
 } as unknown as BLDetail
 
+let currentClient: QueryClient
+
 function makeWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  vi.spyOn(queryClient, 'invalidateQueries')
+  currentClient = queryClient
   return function Wrapper({ children }: PropsWithChildren) {
     return (
       <QueryClientProvider client={queryClient}>
@@ -107,4 +111,7 @@ it('saves only after the user confirms the displayed changes', async () => {
     p_bl_id: 'bl-1',
     p_update_payload: { shipper: 'Armador novo' },
   }))
+  for (const family of ['invoices', 'invoice-links', 'invoice-refunds', 'billing-ledger', 'invoice-corrections', 'alerts', 'portal-invoices-page']) {
+    expect(currentClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: [family] })
+  }
 })

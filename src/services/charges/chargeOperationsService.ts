@@ -618,26 +618,6 @@ export async function deleteManualBlCharge(chargeCalculationId: number, actorId?
   return data
 }
 
-export async function markBlChargesReviewed(blId: string, actorId?: string | null) {
-  const { data, error } = await supabase.rpc('mark_bl_charges_reviewed', {
-    p_bl_id: blId,
-    ...(actorId == null ? {} : { p_actor: actorId }),
-  })
-
-  if (error) throw error
-  return data
-}
-
-export async function markBlReadyForBilling(blId: string, actorId?: string | null) {
-  const { data, error } = await supabase.rpc('mark_bl_ready_for_billing', {
-    p_bl_id: blId,
-    ...(actorId == null ? {} : { p_actor: actorId }),
-  })
-
-  if (error) throw error
-  return data
-}
-
 export async function calculateLocalChargesBatch(
   blIds: string[],
   options?: {
@@ -1048,4 +1028,21 @@ export async function getInvoicedSubtotalForBl(blId: string): Promise<InvoicedBl
     if (classifyDbError(error).kind === 'permissao') return null
     throw error
   }
+}
+
+export type ManualInvoiceQuote = {
+  charge_item_name: string
+  currency: string
+  quantity: number
+  unit_value_brl: number
+  total_brl: number
+  roe: number | null
+}
+export async function quoteManualInvoiceCharge(blId: string, chargeItemId: number): Promise<ManualInvoiceQuote> {
+  // ponytail: cast local até regenerar os tipos protegidos do schema implantado.
+  const { data, error } = await supabase.rpc('quote_manual_invoice_charge' as never, {
+    p_bl_id: blId, p_charge_item_id: chargeItemId,
+  } as never)
+  if (error) throw error
+  return data as unknown as ManualInvoiceQuote
 }

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Ban, DollarSign, Plus, Printer, RotateCcw, Trash2 } from 'lucide-react'
+import { Ban, DollarSign, Printer, RotateCcw } from 'lucide-react'
+import { StaleInvoiceResolutionPanel } from './StaleInvoiceResolutionPanel'
+import { InvoiceCorrectionPanel } from './InvoiceCorrectionPanel'
 import { InvoiceDocumentLocal } from './InvoiceDocumentLocal'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
@@ -14,10 +16,9 @@ import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useAuth } from '../../hooks/useAuth'
 import {
-  useAddManualInvoiceCharge,
   useCancelInvoice,
-  useDeleteManualInvoiceCharge,
   useInvoiceDetail,
+  useInvoiceReissueLinks,
   useRegisterInvoicePayment,
 } from '../../hooks/useBilling'
 import {
@@ -26,14 +27,15 @@ import {
   useRegisterLedgerInvoicePayment,
   useSettleInvoiceRefund,
 } from '../../hooks/useBillingLedger'
-import { invoiceTypeLabel, isConsolidatedInvoice, isManualInvoice } from '../../services/billing'
+import { invoiceTypeLabel, isManualInvoice } from '../../services/billing'
+import { parseImportNumber } from '../../lib/importNumber'
 import { buildInvoiceFileBaseName, describeInvoiceItemsFreezeNote, describeUsdConversionNote } from '../shared/invoiceFormat'
-import { formatValidationError, manualInvoiceChargeSchema, paymentFormSchema } from '../../services/financialValidation'
+import { formatValidationError, paymentFormSchema } from '../../services/financialValidation'
 import { logOperationalEvent } from '../../services/operationalEvents'
 import { formatBRL, formatDate, stripBlPrefix } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { isLedgerInvoicePayable } from '../../pages/faturamentoLedgerPayment'
-import { invoiceStatusLabel, isOpenInvoiceStatus } from '../../pages/faturamentoInvoiceStatus'
+import { invoiceStatusLabel } from '../../pages/faturamentoInvoiceStatus'
 import { printDocumentElement } from '../../lib/printDocument'
 
 type PaymentMethod = 'pix' | 'ted' | 'doc' | 'boleto' | 'outros'
@@ -61,10 +63,6 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const [cancelReason, setCancelReason] = useState('')
   const [reversalReason, setReversalReason] = useState('')
   const [reversalLoading, setReversalLoading] = useState(false)
-  const [chargeDescription, setChargeDescription] = useState('')
-  const [chargeQuantity, setChargeQuantity] = useState('1')
-  const [chargeUnitValue, setChargeUnitValue] = useState('')
-  const [chargeNotes, setChargeNotes] = useState('')
 
   const detailQuery = useInvoiceDetail(invoiceId)
   const refundsQuery = useInvoiceRefunds(invoiceId)
@@ -84,20 +82,13 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const registerPaymentMutation = useRegisterInvoicePayment()
   const registerLedgerPaymentMutation = useRegisterLedgerInvoicePayment()
   const cancelInvoiceMutation = useCancelInvoice()
-  const addChargeMutation = useAddManualInvoiceCharge()
-  const deleteChargeMutation = useDeleteManualInvoiceCharge(invoiceId)
-
-  // Other Charges so podem ser editados em faturas individuais, em aberto e sem pagamentos.
-  // Status 'covered'/'obsolete'/'paid' representam faturas ja quitadas (direta ou via
-  // consolidada/individual) e nao podem receber itens manuais.
-  const canEditCharges = Boolean(
-    detailInvoice &&
-      !isConsolidatedInvoice(detailInvoice) &&
-      isOpenInvoiceStatus(detailInvoice.status) &&
-      (detailQuery.data?.payments.length ?? 0) === 0,
-  )
+  const reissueLinksQuery = useInvoiceReissueLinks(invoiceId)
+  const reissueLinks = reissueLinksQuery.data ?? null
 
   const ledgerBalance = Number(detailInvoice?.balance_brl ?? detailInvoice?.total_brl ?? 0)
+  // Valor em pt-BR ("1.234,56"), como no registro do pagamento.
+  const parsedPayment = parseImportNumber(paymentAmount, 'pt-BR')
+  const typedPayment = parsedPayment.kind === 'value' ? Number(parsedPayment.decimal) : 0
   // Ajuste durante o render (em vez de useEffect) quando o alvo do prefill muda.
   const ledgerPrefill = isLedgerPayable ? `${invoiceId}:${ledgerBalance}` : null
   const [prevLedgerPrefill, setPrevLedgerPrefill] = useState<string | null>(null)
@@ -120,6 +111,19 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       return
     }
     const payment = paymentValidation.data
+    if (isLedgerPayable && payment.amountBrl > ledgerBalance) {
+      showToast('O valor recebido excede o saldo aberto. Confira o pagamento antes de registrar.', 'error')
+      return
+    }
+    const remaining = Math.max(ledgerBalance - payment.amountBrl, 0)
+    const accepted = await confirm({
+      title: remaining > 0 ? 'Registrar pagamento parcial?' : 'Registrar pagamento?',
+      message: `Valor recebido: ${formatBRL(payment.amountBrl)}. Saldo após o pagamento: ${formatBRL(remaining)}.`,
+      consequence: 'Registre somente o dinheiro efetivamente recebido. Se o B/L for corrigido depois, a fatura com pagamento não é reemitida: aumento vira fatura avulsa e redução abate o saldo, com restituição do que passar dele.',
+      reversibility: 'Cancelar a baixa exige justificativa e permissão. Isso registra que o dinheiro não foi recebido.',
+      confirmLabel: 'Confirmar pagamento recebido',
+    })
+    if (!accepted) return
     try {
       if (isLedgerPayable) {
         const requestId = ledgerPaymentRequestId ?? crypto.randomUUID()
@@ -153,55 +157,6 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       const msg = userFacingErrorMessage(error, 'Falha ao registrar pagamento.')
       showToast(msg, 'error')
       void logOperationalEvent({ code: 'invoice_payment_invalid', message: msg, changedBy: user?.id ?? null, entityId: String(invoiceId ?? '') })
-    }
-  }
-
-  async function handleAddCharge() {
-    if (!invoiceId) return
-    const chargeValidation = manualInvoiceChargeSchema.safeParse({
-      description: chargeDescription,
-      quantity: chargeQuantity,
-      unitValueBrl: chargeUnitValue,
-    })
-    if (!chargeValidation.success) {
-      showToast(formatValidationError(chargeValidation.error, 'Item invalido.'), 'error')
-      return
-    }
-    const charge = chargeValidation.data
-    try {
-      await addChargeMutation.mutateAsync({
-        invoiceId,
-        description: charge.description,
-        quantity: charge.quantity,
-        unitValueBrl: charge.unitValueBrl,
-        notes: chargeNotes.trim() || null,
-        actorId: user?.id ?? null,
-      })
-      setChargeDescription('')
-      setChargeQuantity('1')
-      setChargeUnitValue('')
-      setChargeNotes('')
-      showToast('Item adicionado a fatura.', 'success')
-    } catch (error) {
-      showToast(userFacingErrorMessage(error, 'Falha ao adicionar item.'), 'error')
-    }
-  }
-
-  async function handleDeleteCharge(itemId: number, description: string) {
-    const confirmed = await confirm({
-      title: 'Excluir cobrança manual',
-      message: `Excluir a cobrança manual “${description}” desta fatura?`,
-      consequence: 'O total e o saldo da fatura são recalculados, e o QR Code PIX é gerado de novo.',
-      reversibility: 'Não é possível desfazer; lance a cobrança de novo se precisar.',
-      confirmLabel: 'Excluir',
-      tone: 'danger',
-    })
-    if (!confirmed) return
-    try {
-      await deleteChargeMutation.mutateAsync({ itemId, actorId: user?.id ?? null })
-      showToast('Cobrança manual excluída.', 'success')
-    } catch (error) {
-      showToast(userFacingErrorMessage(error, 'Falha ao remover item.'), 'error')
     }
   }
 
@@ -310,6 +265,16 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   <SelectionMetric label="Saldo BRL" value={formatBRL(detailQuery.data.invoice.balance_brl)} />
                 </div>
               </Card>
+              {reissueLinks && (reissueLinks.replaces || reissueLinks.replaced_by || reissueLinks.reissue_pending || reissueLinks.reissue_closed_reason) ? (
+                <Card>
+                  <div className="grid gap-1 text-sm text-slate-200" data-testid="invoice-reissue-links">
+                    {reissueLinks.replaces ? <div>Substitui a fatura <strong>{reissueLinks.replaces.invoice_number}</strong>, cancelada para correção.</div> : null}
+                    {reissueLinks.replaced_by ? <div>Substituída pela fatura <strong>{reissueLinks.replaced_by.invoice_number}</strong>.</div> : null}
+                    {reissueLinks.reissue_pending ? <div><Badge tone="yellow">Reemissão pendente</Badge> A nova emissão travou; o alerta da fatura diz o motivo.</div> : null}
+                    {reissueLinks.reissue_closed_reason ? <div>{reissueLinks.reissue_closed_reason}</div> : null}
+                  </div>
+                </Card>
+              ) : null}
               {detailQuery.data.bls.length > 0 ? <Card className="overflow-hidden p-0">
                 <div className="app-table-scroll">
                   <table className="app-table app-table--compact min-w-[620px] text-left text-sm"><thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500"><tr><th scope="col" className="px-3 py-2">B/L</th><th scope="col" className="px-3 py-2">Trecho</th><th scope="col" className="px-3 py-2">Subtotal BRL</th></tr></thead><tbody className="divide-y divide-[#30363d]">{detailQuery.data.bls.map((row) => <tr key={row.id}><td className="px-3 py-2 font-semibold text-[#58a6ff]"><Link className="hover:underline" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></td><td className="px-3 py-2">{row.pol ?? '-'} - {row.pod ?? '-'}</td><td className="px-3 py-2">{formatBRL(row.subtotal_brl)}</td></tr>)}</tbody></table>
@@ -320,38 +285,6 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Itens da fatura</h2>
                   <p className="mt-1 text-xs text-slate-500">{describeInvoiceItemsFreezeNote(detailQuery.data.invoice)}</p>
                 </div>
-                {canEditCharges ? (
-                  <div className="border-b border-[#30363d] px-4 py-4">
-                    <div className="mb-3 text-sm font-semibold text-white">Outras cobranças (manuais)</div>
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                      <Field label="Descrição">
-                        <Input
-                          value={chargeDescription}
-                          onChange={(event) => setChargeDescription(event.target.value)}
-                          placeholder="Ex: Ajuste manual"
-                        />
-                      </Field>
-                      <Field label="Quantidade">
-                        <Input value={chargeQuantity} onChange={(event) => setChargeQuantity(event.target.value)} />
-                      </Field>
-                      <Field label="Valor unitário (BRL)">
-                        <Input value={chargeUnitValue} onChange={(event) => setChargeUnitValue(event.target.value)} placeholder="0,00" />
-                      </Field>
-                      <Field label="Observação">
-                        <Input
-                          value={chargeNotes}
-                          onChange={(event) => setChargeNotes(event.target.value)}
-                          placeholder="Justificativa operacional"
-                        />
-                      </Field>
-                      <div className="flex items-end">
-                        <Button type="button" onClick={handleAddCharge} loading={addChargeMutation.isPending}>
-                          <Plus size={16} />Adicionar cobrança manual
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
                 <div className="app-table-scroll">
                   <table className="app-table app-table--compact min-w-[860px] text-left text-sm">
                     <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
@@ -361,13 +294,12 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                         <th scope="col" className="px-3 py-2">Origem</th>
                         <th scope="col" className="px-3 py-2">Unitário</th>
                         <th scope="col" className="px-3 py-2">Total</th>
-                        <th scope="col" className="px-3 py-2">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#30363d]">
                       {detailQuery.data.items.length === 0 ? (
                         <tr>
-                          <td className="px-3 py-6 text-center text-slate-400" colSpan={6}>
+                          <td className="px-3 py-6 text-center text-slate-400" colSpan={5}>
                             Nenhum item encontrado nesta invoice.
                           </td>
                         </tr>
@@ -389,21 +321,6 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                             <td className="px-3 py-2">{item.source === 'manual' ? <Badge tone="yellow">Manual</Badge> : <Badge tone="blue">Auto</Badge>}</td>
                             <td className="px-3 py-2">{formatBRL(item.unit_value_brl)}</td>
                             <td className="px-3 py-2">{formatBRL(item.total_value_brl)}</td>
-                            <td className="px-3 py-2">
-                              {canEditCharges && item.source === 'manual' ? (
-                                <Button
-                                  variant="ghost"
-                                  type="button"
-                              aria-label={`Remover ${item.description}`}
-                              onClick={() => handleDeleteCharge(item.id, item.description)}
-                                  loading={deleteChargeMutation.isPending && deleteChargeMutation.variables?.itemId === item.id}
-                                >
-                                  <Trash2 size={15} />Remover
-                                </Button>
-                              ) : (
-                                <span className="text-slate-500">—</span>
-                              )}
-                            </td>
                           </tr>
                           )
                         })
@@ -447,6 +364,10 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   </table>
                 </div>
               </Card>
+              <StaleInvoiceResolutionPanel key={`stale-${invoiceId}`} invoiceId={Number(invoiceId)} hasPayment={Number(detailInvoice?.total_paid_brl ?? 0) > 0} canResolve={isAdmin} />
+              {detailInvoice && ['individual', 'consolidated'].includes(detailInvoice.invoice_type ?? '') && Number(detailInvoice.total_paid_brl ?? 0) > 0 && ['paid', 'partially_paid'].includes(detailInvoice.status ?? '') ? (
+                <InvoiceCorrectionPanel key={invoiceId} invoiceId={Number(invoiceId)} />
+              ) : null}
               {refunds.length > 0 ? (
                 <Card className="overflow-hidden p-0">
                   <div className="border-b border-[#30363d] px-4 py-3">
@@ -467,7 +388,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                         {refunds.map((refund) => (
                           <tr key={refund.id}>
                             <td className="px-3 py-2">{formatDate(refund.created_at)}</td>
-                            <td className="px-3 py-2">{formatBRL(refund.amount_brl)}</td>
+<td className="px-3 py-2">{formatBRL(refund.amount_brl)}{refund.notes ? <p className="text-xs">{refund.notes}</p> : null}</td>
                             <td className="px-3 py-2">
                               {refund.status === 'pending' && canSettleRefund ? (
                                 <Badge tone="yellow">Pendente</Badge>
@@ -565,7 +486,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   </div>
                   {isLedgerPayable ? (
                     <div className="mt-2 text-xs text-slate-400">
-                      Saldo aberto: {formatBRL(ledgerBalance)}. Valores menores registram baixa parcial; valor acima do saldo e bloqueado pelo ledger.
+                      Saldo aberto: {formatBRL(ledgerBalance)}. Informe somente o valor recebido.
+                      {typedPayment > 0 ? <> Após esta baixa: {formatBRL(Math.max(ledgerBalance - typedPayment, 0))} em aberto.</> : null}
+                      {' '}Com pagamento, a correção do B/L não reemite a fatura: aumento vira fatura avulsa e redução abate o saldo antes de restituir.
                     </div>
                   ) : null}
                   <div className="mt-4 flex justify-end">

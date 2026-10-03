@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Combobox, type ComboOption } from '../ui/Combobox'
 import { Button } from '../ui/Button'
-import { Field, Input, Textarea } from '../ui/Input'
+import { Field, Input, Select, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -9,6 +9,7 @@ import { VoyageCombobox } from '../shared/VoyageCombobox'
 import { useBillingCustomers, useCreateManualInvoice } from '../../hooks/useBilling'
 import { listBlSuggestions } from '../../services/billing'
 import type { ManualInvoiceInput } from '../../services/billing'
+import { useManualChargeItemsForBl, useManualInvoiceQuote } from '../../hooks/useLocalCharges'
 import { supabase } from '../../services/supabase'
 import { formatValidationError, manualInvoiceCreationSchema } from '../../services/financialValidation'
 
@@ -32,10 +33,15 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
   const [description, setDescription] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [unitValueBrl, setUnitValueBrl] = useState('')
+  const [chargeItemId, setChargeItemId] = useState<number | null>(null)
+  const [tableCharge, setTableCharge] = useState(false)
   const [blId, setBlId] = useState<string | null>(null)
   const [voyageId, setVoyageId] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [formResetKey, setFormResetKey] = useState(0)
+  const manualItems = useManualChargeItemsForBl(blId ?? undefined)
+  const quoteQuery = useManualInvoiceQuote(blId, chargeItemId)
+  const quote = tableCharge ? quoteQuery.data : undefined
   const customerPickerRef = useRef<HTMLDivElement>(null)
   const wasOpenRef = useRef(open)
   const { data: customerOptions } = useBillingCustomers(customerSearch)
@@ -72,6 +78,8 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
     setDescription('')
     setQuantity('1')
     setUnitValueBrl('')
+    setChargeItemId(null)
+    setTableCharge(false)
     setBlId(null)
     setVoyageId(null)
     setError('')
@@ -79,6 +87,8 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
   }, [open])
 
   function resetContext() {
+    setChargeItemId(null)
+    setTableCharge(false)
     setBlId(null)
     setVoyageId(null)
   }
@@ -101,12 +111,16 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
       return
     }
 
+    if (tableCharge && (!blId || !chargeItemId || !quote || quoteQuery.isFetching)) {
+      setError(!blId ? 'B/L obrigatório para item da tabela.' : 'Selecione um item e aguarde o valor da tabela.')
+      return
+    }
     const parsed = manualInvoiceCreationSchema.safeParse({
       customerId,
-      itemName,
+      itemName: quote?.charge_item_name ?? itemName,
       description,
-      quantity,
-      unitValueBrl,
+      quantity: quote?.quantity ?? quantity,
+      unitValueBrl: quote?.unit_value_brl ?? unitValueBrl,
       blId,
       voyageId,
     })
@@ -119,12 +133,13 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
       title: 'Emitir fatura avulsa?',
       message: `Emitir fatura avulsa para ${customerSearch || 'o cliente selecionado'}?`,
       confirmLabel: 'Emitir fatura',
-      consequence: 'Será criada uma fatura emitida com um item flexível e os contextos informados, sem criar recebível de taxa local.',
+      consequence: `Será criada uma fatura emitida de ${fmtBRL(quote?.total_brl ?? parsed.data.quantity * parsed.data.unitValueBrl)}, com o item ${parsed.data.itemName}${parsed.data.blId ? ` para o B/L ${parsed.data.blId}` : ''}. ${quote?.currency === 'USD' ? 'O ROE vigente será conferido na emissão. ' : ''}Esta cobrança é adicional e não altera a fatura de Taxas Locais.`,
       reversibility: 'A fatura poderá ser cancelada depois, conforme a permissão financeira vigente.',
     })
     if (!confirmed) return
 
     const input: ManualInvoiceInput = {
+      ...(tableCharge && chargeItemId != null ? { chargeItemId } : {}),
       customerId: parsed.data.customerId,
       itemName: parsed.data.itemName,
       quantity: parsed.data.quantity,
@@ -213,8 +228,25 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
               </div>
             </div>
 
+            <Field label="Tipo de cobrança" required>
+              <Select aria-label="Tipo de cobrança" value={tableCharge ? String(chargeItemId ?? 'table') : 'other'}
+                onChange={(event) => {
+                  const value = event.target.value
+                  setTableCharge(value !== 'other')
+                  setChargeItemId(value === 'other' || value === 'table' ? null : Number(value))
+                }}>
+                <option value="other">Outra</option>
+                <option value="table">Item da tabela (B/L obrigatório)</option>
+                {(manualItems.data ?? []).map((item) => <option key={item.charge_item_id} value={item.charge_item_id}>{item.charge_item_name}</option>)}
+              </Select>
+              {tableCharge && !blId ? <p role="alert">B/L obrigatório para item da tabela. Selecione o B/L para consultar os itens vigentes.</p> : null}
+              {tableCharge && quoteQuery.error ? <p role="alert">{quoteQuery.error.message}</p> : null}
+              {tableCharge && manualItems.error ? <p role="alert">Falha ao consultar os itens da tabela. Tente novamente.</p> : null}
+              {quote ? <p>Valor da tabela e Condição do Cliente: {fmtBRL(quote.total_brl)}. {quote.currency === 'USD' ? `Convertido pelo ROE ${quote.roe}; o câmbio vigente será conferido na emissão.` : ''}</p> : null}
+            </Field>
+
             <Field label="Nome do item" required>
-              <Input aria-label="Nome do item" value={itemName} onChange={(event) => setItemName(event.target.value)} />
+              <Input aria-label="Nome do item" readOnly={tableCharge} value={tableCharge ? quote?.charge_item_name ?? '' : itemName} onChange={(event) => setItemName(event.target.value)} />
             </Field>
 
             <Field label="Descrição da cobrança">
@@ -222,20 +254,20 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
             </Field>
 
             <Field label="Quantidade" required>
-              <Input aria-label="Quantidade" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+              <Input aria-label="Quantidade" inputMode="decimal" readOnly={tableCharge} value={tableCharge ? quote ? String(quote.quantity) : '' : quantity} onChange={(event) => setQuantity(event.target.value)} />
             </Field>
 
             <Field label="Valor unitário (BRL)" required>
-              <Input aria-label="Valor unitário (BRL)" inputMode="decimal" value={unitValueBrl} onChange={(event) => setUnitValueBrl(event.target.value)} />
+              <Input aria-label="Valor unitário (BRL)" inputMode="decimal" readOnly={tableCharge} value={tableCharge ? quote ? String(quote.unit_value_brl) : '' : unitValueBrl} onChange={(event) => setUnitValueBrl(event.target.value)} />
             </Field>
 
             <div className="invoice-create-modal__field--bl">
               <Combobox
                 key={`manual-bl-${formResetKey}-${customerId ?? 'none'}`}
-                label="B/L (opcional)"
+                label={tableCharge ? 'B/L (obrigatório)' : 'B/L (opcional)'}
                 placeholder={customerId ? 'Buscar B/L...' : 'Selecione o cliente primeiro'}
                 disabled={customerId == null}
-                onValueChange={(value) => setBlId(value.trim() ? value.trim().toUpperCase() : null)}
+                onValueChange={(value) => { setChargeItemId(null); setVoyageId(null); setBlId(value.trim() ? value.trim().toUpperCase() : null) }}
                 fetchOptions={async (query) => (await listBlSuggestions(query, customerId)).map((id): ComboOption => ({ value: id, label: id }))}
                 onSelectOption={async (option) => {
                   const selectedBl = option.value.trim().toUpperCase()
@@ -271,7 +303,7 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <Button type="button" variant="ghost" onClick={close}>Voltar</Button>
-            <Button type="submit" loading={createMutation.isPending}>Emitir fatura avulsa</Button>
+            <Button type="submit" disabled={tableCharge && (!blId || !quote || quoteQuery.isFetching)} loading={createMutation.isPending}>Emitir fatura avulsa</Button>
           </div>
         </div>
       </form>

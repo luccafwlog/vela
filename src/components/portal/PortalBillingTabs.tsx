@@ -266,7 +266,7 @@ function FiltersControls({ filters, onFilters, vesselOptions, pods }: { filters:
       <div className="app-filter-grid">
         <Field label="Status">
           <Select value={filters.status} onChange={(e) => onFilters({ ...filters, status: e.target.value as PortalBillingFilters['status'] })}>
-            <option value="">Todos</option>
+            <option value="">Em vigor (sem canceladas)</option>
             <option value="issued">Emitida</option>
             <option value="paid">Paga</option>
             <option value="cancelled">Cancelada</option>

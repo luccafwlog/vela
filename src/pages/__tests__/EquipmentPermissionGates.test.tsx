@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -8,7 +8,10 @@ const mocks = vi.hoisted(() => ({
   can: vi.fn<(permission: string) => boolean>(),
   effectiveRole: vi.fn(() => 'documentacao'),
   isAdmin: vi.fn(() => false),
+  unpackingLocation: 'Terminal A',
+  saveLocation: vi.fn(),
   profile: { id: 'user-1' } as { id: string } | null,
+  setQueriesData: vi.fn(),
   invalidateQueries: vi.fn(() => Promise.resolve()),
   updateVaziosBooking: vi.fn(() => Promise.resolve()),
   upsertVaziosExportOperation: vi.fn(() => Promise.resolve({ id: 'operation-1' })),
@@ -19,7 +22,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
+  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, setQueriesData: mocks.setQueriesData }),
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
     if (queryKey[0] === 'vazios-importacao-manifests') {
       return { data: [], isLoading: false, error: null }
@@ -67,7 +70,7 @@ vi.mock('../../hooks/useVehicles', () => ({
         model: 'Modelo',
         weight_kg: 1200,
         cbm: 10,
-        container: { container_number: 'CXRU1234567', type: '40HC', seal_number: 'L1' },
+        container: { id: 33, unpacking_location: mocks.unpackingLocation, container_number: 'CXRU1234567', type: '40HC', seal_number: 'L1' },
         bl: { id: 'BL-1' },
       }],
       count: 1,
@@ -85,6 +88,7 @@ vi.mock('../../hooks/useVehicles', () => ({
 vi.mock('../../components/shared/VoyageCombobox', () => ({ VoyageCombobox: () => <div /> }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
+vi.mock('../../services/vaziosNatureza', async (importOriginal) => ({ ...await importOriginal<object>(), setContainerUnpackingLocation: mocks.saveLocation }))
 vi.mock('../../services/vehicles', () => ({ deleteVehicles: vi.fn() }))
 vi.mock('../../services/vehicleImport', () => ({
   importVehicleRows: vi.fn(),
@@ -113,6 +117,8 @@ beforeEach(() => {
   mocks.effectiveRole.mockReturnValue('documentacao')
   mocks.isAdmin.mockReturnValue(false)
   mocks.profile = { id: 'user-1' }
+  mocks.unpackingLocation = 'Terminal A'
+  mocks.saveLocation.mockImplementation(async (_id: number, value: string) => { mocks.unpackingLocation = value })
   mocks.vaziosRows = []
   mocks.vaziosOperation = null
   mocks.vaziosOperationError = null
@@ -121,10 +127,24 @@ beforeEach(() => {
 afterEach(cleanup)
 
 function renderPage(page: React.ReactNode, initialEntry = '/') {
-  render(<MemoryRouter initialEntries={[initialEntry]}>{page}</MemoryRouter>)
+  return render(<MemoryRouter initialEntries={[initialEntry]}>{page}</MemoryRouter>)
 }
 
 describe('controles de Veiculos', () => {
+  it('desova salva volta a acompanhar o dado recarregado após outra importação', async () => {
+    const view = renderPage(<Veiculos />, '/?voyage=7')
+    const input = screen.getByRole('textbox', { name: 'Local de desova do container CXRU1234567' }) as HTMLInputElement
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'Terminal B' } })
+    fireEvent.blur(input)
+    await waitFor(() => expect(mocks.saveLocation).toHaveBeenCalledWith(33, 'Terminal B'))
+    await waitFor(() => expect(input.disabled).toBe(false))
+    mocks.unpackingLocation = 'Terminal C'
+    view.rerender(<MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter>)
+    expect((screen.getByRole('textbox', { name: 'Local de desova do container CXRU1234567' }) as HTMLInputElement).value).toBe('Terminal C')
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['vehicle-stats'] })
+  })
+
   it('Equipamentos importa, mas nao recebe exclusao reservada ao admin', () => {
     mocks.effectiveRole.mockReturnValue('equipamentos')
     mocks.can.mockImplementation((permission) => permission === 'veiculos_edit')

@@ -9,6 +9,10 @@ por documento; o que cada entrega produziu está resumido no
 
 ## Conteúdo
 
+- [2026-10-02 — Correção dos achados da PR 839](2026-10-02-correcao-achados-pr-839.md) — Pix, restituições repartidas, COD, alertas, caches, rateio e recuperação; replay/testes/gates locais concluídos. Publicação/CI registrados na PR.
+
+- [2026-10-01 — Correção de B/L após faturamento](2026-10-01-correcao-de-bl-apos-faturamento.md) — implementação e gates locais concluídos; fluxo guiado de correção após pagamento, avulsa por tabela e alerta. Publicação e Preview não realizados.
+
 - [`2026-09-06-plano-remediacao-auditorias-654-660.md`](2026-09-06-plano-remediacao-auditorias-654-660.md)
   — remediação das auditorias #654–#660: S01–S14 concluídos com provas em produção
   (Pix estático em PSP bancário real, convite e entrega Resend pós-PR #802, emissão e
