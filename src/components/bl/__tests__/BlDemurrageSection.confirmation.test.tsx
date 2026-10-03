@@ -96,12 +96,12 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     await user.clear(freeTimeInput)
     await user.type(freeTimeInput, '15')
 
-    const saveBtn = screen.getByRole('button', { name: /salvar config/i })
+    const saveBtn = screen.getByRole('button', { name: /salvar condições/i })
     await user.click(saveBtn)
 
     expect(mocks.confirm).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: 'Salvar configuração de Demurrage',
+        title: 'Salvar condições de Demurrage',
         changes: expect.arrayContaining([
           expect.objectContaining({
             field: 'Free Time',
@@ -123,7 +123,7 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     await user.clear(freeTimeInput)
     await user.type(freeTimeInput, '20')
 
-    const saveBtn = screen.getByRole('button', { name: /salvar config/i })
+    const saveBtn = screen.getByRole('button', { name: /salvar condições/i })
     await user.click(saveBtn)
 
     expect(mocks.confirm).toHaveBeenCalled()
@@ -135,8 +135,8 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     try {
       const view = render(<QueryClientProvider client={client}><BlDemurrageSection bl={mockBl} /></QueryClientProvider>)
       fireEvent.change(screen.getByDisplayValue('2026-05-10'), { target: { value: '2026-05-20' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Salvar devolução' }))
-      await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Data de devolucao salva.', 'success'))
+      fireEvent.click(screen.getByRole('button', { name: /Salvar devolução/ }))
+      await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Data de devolução salva.', 'success'))
       const imported = { ...mockBl, bl_containers: [{ ...mockContainer, return_date: '2026-05-25' }] } as unknown as BLDetail
       view.rerender(<QueryClientProvider client={client}><BlDemurrageSection bl={imported} /></QueryClientProvider>)
       expect(screen.getByDisplayValue('2026-05-25')).toBeTruthy()
@@ -153,8 +153,8 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     try {
       render(<QueryClientProvider client={client}><Detail /></QueryClientProvider>)
       fireEvent.change(screen.getByDisplayValue('2026-05-10'), { target: { value: '2026-05-20' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Salvar devolução' }))
-      await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Data de devolucao salva.', 'success'))
+      fireEvent.click(screen.getByRole('button', { name: /Salvar devolução/ }))
+      await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Data de devolução salva.', 'success'))
       expect(screen.getByDisplayValue('2026-05-20')).toBeTruthy()
       expect(client.getQueryState(['bl-detail', mockBl.id])?.status).toBe('error')
     } finally { client.clear() }
@@ -167,11 +167,11 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     try {
       render(<QueryClientProvider client={client}><BlDemurrageSection bl={mockBl} /></QueryClientProvider>)
       fireEvent.change(screen.getByDisplayValue('2026-05-10'), { target: { value: '2026-05-20' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Salvar devolução' }))
+      fireEvent.click(screen.getByRole('button', { name: /Salvar devolução/ }))
       await waitFor(() => expect(mocks.updateContainerReturnDate).toHaveBeenCalled())
       fireEvent.change(screen.getByDisplayValue('2026-05-20'), { target: { value: '2026-05-25' } })
       await act(async () => { finish() })
-      await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Data de devolucao salva.', 'success'))
+      await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Data de devolução salva.', 'success'))
       expect(screen.getByDisplayValue('2026-05-25')).toBeTruthy()
     } finally { client.clear() }
   })
@@ -184,7 +184,7 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     await user.clear(dateInput)
     await user.type(dateInput, '2026-05-20')
 
-    const saveBtn = screen.getByRole('button', { name: 'Salvar devolução' })
+    const saveBtn = screen.getByRole('button', { name: /Salvar devolução/ })
     await user.click(saveBtn)
 
     expect(mocks.confirm).toHaveBeenCalledWith(

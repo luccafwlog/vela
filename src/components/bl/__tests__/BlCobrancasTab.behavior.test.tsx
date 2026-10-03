@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -9,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   showToast: vi.fn(),
   confirm: vi.fn(),
   isAdmin: true,
-  lines: [] as Array<{ status: string }>,
+  lines: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -25,7 +26,7 @@ vi.mock('../../ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
 }))
 vi.mock('../../../hooks/useLocalCharges', () => ({
-  useBlLocalChargeLines: () => ({ data: mocks.lines, isLoading: false }),
+  useBlLocalChargeLines: mocks.lines,
   useManualChargeItemsForBl: () => ({ data: [], isLoading: false }),
   useAddManualBlCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateManualBlCharge: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -51,7 +52,7 @@ afterEach(cleanup)
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.isAdmin = true
-  mocks.lines = []
+  mocks.lines.mockReturnValue({ data: [], isLoading: false })
   mocks.confirm.mockResolvedValue(true)
   mocks.markBlReadyAndCreateInvoice.mockRejectedValue({
     code: 'P0003',
@@ -100,8 +101,18 @@ describe('cobranças do B/L', () => {
   })
 
   it('linha que precisa de revisão bloqueia a emissão', () => {
-    mocks.lines = [{ status: 'review_required' }]
+    mocks.lines.mockReturnValue({ data: [{ status: 'review_required' }], isLoading: false })
     render(<BlCobrancasSection bl={bl} />)
     expect((screen.getByRole('button', { name: 'Emitir fatura' }) as HTMLButtonElement).disabled).toBe(true)
   })
+})
+
+it('não anuncia divergência de fatura enquanto as taxas estão indisponíveis', () => {
+  mocks.lines.mockReturnValue({ data: undefined, isLoading: true })
+  const { rerender } = render(<MemoryRouter><BlCobrancasSection bl={bl} activeInvoice={{ id: 77, status: 'issued', total_brl: 100 } as never} /></MemoryRouter>)
+  expect(screen.getByText('Carregando taxas…')).toBeTruthy()
+  expect(screen.queryByText(/As taxas mudaram depois da emissão/)).toBeNull()
+  mocks.lines.mockReturnValue({ data: [{ total_value_brl: 100 }], isLoading: false })
+  rerender(<MemoryRouter><BlCobrancasSection bl={bl} activeInvoice={{ id: 77, status: 'issued', total_brl: 100 } as never} /></MemoryRouter>)
+  expect(screen.queryByText(/As taxas mudaram depois da emissão/)).toBeNull()
 })

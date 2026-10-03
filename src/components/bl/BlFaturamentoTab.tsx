@@ -1,34 +1,18 @@
-import { Link } from 'react-router-dom'
-import { Badge } from '../ui/Badge'
-import { Card } from '../ui/Card'
-import { BlClienteSection } from './BlClienteSection'
 import { BlCobrancasSection } from './BlCobrancasTab'
 import { BlDemurrageSection } from './BlDemurrageSection'
-import { useInvoiceLinks } from '../../hooks/useBilling'
-import { FINANCIAL_STATUS_LABELS } from '../../lib/statusLabels'
+import { isContainerCargoMode } from '../../lib/cargoMode'
+import { resolveCargoMode } from '../../pages/blDetalheHelpers'
+import type { InvoiceLinkInfo } from '../../services/billing'
 import type { BLDetail } from '../../types/database'
 
-export function BlFaturamentoTab({ active, bl }: { active: boolean; bl: BLDetail }) {
-  const { data: invoiceLinksByBl } = useInvoiceLinks([bl.id])
-  const latestInvoice = invoiceLinksByBl?.[bl.id]?.[0] ?? null
+// Faturamento do B/L: Taxas Locais (com a fatura ativa no cabeçalho) e
+// Demurrage. O vínculo de cliente fica na Visão Geral.
+export function BlFaturamentoTab({ active, bl, activeInvoice = null }: { active: boolean; bl: BLDetail; activeInvoice?: InvoiceLinkInfo | null }) {
   if (!active) return null
   return (
     <div className="grid gap-5">
-      <Card>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="blue">
-            Financeiro: {FINANCIAL_STATUS_LABELS[bl.financial_status ?? 'pending'] ?? bl.financial_status ?? 'pending'}
-          </Badge>
-          {latestInvoice ? (
-            <Link className="text-sm font-semibold text-[#58a6ff] hover:underline" to={`/taxas-locais?invoice=${latestInvoice.id}`}>
-              Fatura ativa: {latestInvoice.invoice_number ?? `INV-${latestInvoice.id}`}
-            </Link>
-          ) : null}
-        </div>
-      </Card>
-      <BlClienteSection bl={bl} />
-      <BlCobrancasSection bl={bl} />
-      <BlDemurrageSection bl={bl} />
+      <BlCobrancasSection bl={bl} activeInvoice={activeInvoice} />
+      {isContainerCargoMode(resolveCargoMode(bl)) ? <BlDemurrageSection bl={bl} /> : null}
     </div>
   )
 }

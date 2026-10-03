@@ -219,6 +219,74 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
   })
 })
 
+function migration133Applied() {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('bl_created' IN prosrc) > 0 FROM pg_proc WHERE proname = 'bl_timeline';`) === 't'
+  } catch {
+    return false
+  }
+}
+
+const describe133 = migration133Applied() ? describe : describe.skip
+
+describe133('133 — Histórico do B/L sem alterações fictícias da criação', () => {
+  const BL_ID = 'BL122LOCALPG'
+  const USER = '77777777-0000-4000-8000-000000000122'
+
+  function clean() {
+    psql(`
+      SET session_replication_role = replica;
+      DELETE FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id = '${BL_ID}';
+      DELETE FROM public.bls WHERE id = '${BL_ID}';
+      DELETE FROM public.voyages WHERE id = 12293;
+      DELETE FROM public.vessels WHERE id = 12292;
+      DELETE FROM public.carriers WHERE id = 12291;
+      DELETE FROM public.user_profiles WHERE id = '${USER}';
+      DELETE FROM auth.users WHERE id = '${USER}';
+      SET session_replication_role = origin;
+    `)
+  }
+
+  beforeAll(() => {
+    clean()
+    psql(`
+      INSERT INTO auth.users (id, email) VALUES ('${USER}', 'ops-122@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${USER}', 'Operacao 122', 'equipamentos', true);
+    `)
+    psql(`
+      INSERT INTO public.carriers (id, name) VALUES (12291, 'Carrier 122');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (12292, 'Vessel 122', 12291);
+      INSERT INTO public.voyages (id, vessel_id, voyage_number) VALUES (12293, 12292, 'V122');
+    `)
+    // Como a importação: cria o B/L e grava o gate de revisão na mesma transação.
+    psql(`
+      BEGIN;
+      INSERT INTO public.bls (id, voyage_id) VALUES ('${BL_ID}', 12293);
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, justification)
+      VALUES ('bl', '${BL_ID}', 'review_status', 'ok', 'pending_review', 'Gate canonico aplicado apos importacao');
+      COMMIT;
+    `)
+    // Alteração real, em outra transação.
+    psql(`
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, justification)
+      VALUES ('bl', '${BL_ID}', 'ce_mercante', '', '122600000000001', 'Importacao CE Mercante');
+    `)
+  })
+  afterAll(clean)
+
+  it('troca o ruído da criação por um evento "B/L criado" e mantém a alteração real', () => {
+    const rows = psql(`
+      BEGIN;
+      SELECT set_config('request.jwt.claim.sub', '${USER}', true);
+      SELECT field_name FROM public.bl_timeline('${BL_ID}', 50, 0);
+      COMMIT;
+    `)
+    const fields = rows.split('\n').filter((line) => ['review_status', 'ce_mercante', 'bl_created'].includes(line))
+    expect(fields).toEqual(['ce_mercante', 'bl_created'])
+  })
+})
+
 function migration080Applied() {
   if (!enabled) return false
   try {

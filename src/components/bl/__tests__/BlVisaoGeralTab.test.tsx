@@ -5,6 +5,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { BlVisaoGeralTab, type BaplieStatus } from '../BlVisaoGeralTab'
 
+vi.mock('../BlClienteSection', () => ({ BlClienteSection: () => <div>Cliente</div> }))
+
 const baseBl = {
   id: 'BL1',
   voyage_id: 7,
@@ -27,7 +29,6 @@ function renderTab(baplieStatus: BaplieStatus) {
       <BlVisaoGeralTab
         active
         bl={baseBl}
-        cockpit={undefined}
         cargoMode="container"
         containerSummary={containerSummary}
         breakbulkSummary={breakbulkSummary}
@@ -74,7 +75,6 @@ describe('BlVisaoGeralTab — transbordo e COD', () => {
         <BlVisaoGeralTab
           active
           bl={baseBl}
-          cockpit={{ omission: omittedVoyage, transshipment: null } as never}
           omission={omittedVoyage}
           cargoMode="container"
           containerSummary={containerSummary}

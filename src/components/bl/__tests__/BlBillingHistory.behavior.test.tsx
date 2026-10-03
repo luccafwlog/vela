@@ -47,15 +47,32 @@ beforeEach(() => {
 })
 
 describe('faturamento e historico do B/L', () => {
-  it('abre a invoice ativa pela URL esperada', () => {
-    render(
+  it('mostra Demurrage só quando o B/L tem container', () => {
+    const { rerender } = render(
       <MemoryRouter>
-        <BlFaturamentoTab active bl={{ id: 'BL-1', financial_status: 'invoiced' } as BLDetail} />
+        <BlFaturamentoTab active bl={{ id: 'BL-1', cargo_mode: 'container' } as BLDetail} />
       </MemoryRouter>,
     )
+    expect(screen.getByText('Demurrage')).toBeTruthy()
+    expect(screen.queryByText('Cliente')).toBeNull()
 
-    expect(screen.getByRole('link', { name: /Fatura ativa: INV-077/i }).getAttribute('href'))
-      .toBe('/taxas-locais?invoice=77')
+    rerender(
+      <MemoryRouter>
+        <BlFaturamentoTab active bl={{ id: 'BL-1', cargo_mode: 'carga_solta' } as BLDetail} />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByText('Demurrage')).toBeNull()
+  })
+
+  it('lista eventos e comunicados do mais recente ao mais antigo', () => {
+    useBlCommunicationHistoryMock.mockReturnValue({
+      data: [{ id: 9, kind: 'chegada', status: 'enviado', created_at: '2026-06-24T10:00:00Z', anchor_port: null, attachments: [] }],
+    })
+    render(<MemoryRouter><BlHistoricoTab active blId="BL-1" /></MemoryRouter>)
+
+    const items = screen.getAllByRole('listitem').map((item) => item.textContent ?? '')
+    expect(items[0]).toContain('Comunicado')
+    expect(items[1]).toContain('Shipper')
   })
 
   it('renderiza eventos e carrega a proxima pagina', () => {

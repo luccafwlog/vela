@@ -25,6 +25,7 @@ export function ReviewCustomerOnboarding({
   initialCnpj,
   initialEmail,
   saving,
+  embedded = false,
   onSelectExistingCustomer,
   onSubmit,
 }: {
@@ -35,6 +36,7 @@ export function ReviewCustomerOnboarding({
   initialCnpj: string
   initialEmail: string
   saving: boolean
+  embedded?: boolean
   onSelectExistingCustomer: (customer: ReviewCustomer) => void
   onSubmit: (input: ReviewCustomerOnboardingInput) => void
 }) {
@@ -76,11 +78,14 @@ export function ReviewCustomerOnboarding({
     onSelectExistingCustomer(next)
   }
 
+  const targetLabel = embedded ? 'este B/L' : `${count} B/Ls`
+  const Wrapper = embedded ? 'div' : Card
+
   return (
-    <Card className="review-onboarding-card grid gap-4">
+    <Wrapper className={embedded ? 'grid gap-4' : 'review-onboarding-card grid gap-4'}>
       <div>
         <div className="review-onboarding-card__title">Cadastrar ou vincular cliente</div>
-        <p className="review-onboarding-card__intro">A ação vale para {count} B/Ls deste grupo. O vínculo só ocorre depois da confirmação do CNPJ.</p>
+        <p className="review-onboarding-card__intro">{embedded ? 'A ação vale somente para este B/L.' : `A ação vale para ${count} B/Ls deste grupo.`} O vínculo só ocorre depois da confirmação do CNPJ.</p>
       </div>
       <Field label="Buscar cliente existente">
         <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Digite ao menos 2 caracteres" />
@@ -104,11 +109,11 @@ export function ReviewCustomerOnboarding({
         </label>
         <div className="review-onboarding-card__footer">
           <Button disabled={!canSubmit} loading={saving} onClick={() => onSubmit({ customerId: selectedId, cnpjCpf: validCnpj!, name: name.trim(), email: email.trim().toLowerCase(), sendPortalInvite })}>
-            {selectedId ? `Adicionar e-mail e vincular ${count} B/Ls` : `Criar cliente e vincular ${count} B/Ls`}
+            {selectedId ? `Adicionar e-mail e vincular ${targetLabel}` : `Criar cliente e vincular ${targetLabel}`}
           </Button>
         </div>
       </div>
       {selectedId && selectedCustomer && customerAlreadyHasEmail ? <div className="review-onboarding-card__existing-note">Cliente existente selecionado. O e-mail informado será mantido como contato adicional se ainda não existir.</div> : null}
-    </Card>
+    </Wrapper>
   )
 }

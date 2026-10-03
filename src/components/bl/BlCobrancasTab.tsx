@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
@@ -20,7 +21,7 @@ import { formatBRL, formatUSD, normalizeText } from '../../lib/utils'
 import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 import { classifyDbError } from '../../lib/errors'
-import { markBlReadyAndCreateInvoice } from '../../services/billing'
+import { markBlReadyAndCreateInvoice, type InvoiceLinkInfo } from '../../services/billing'
 import {
   formatNumber,
   resolveChargeLineStatusLabel,
@@ -44,8 +45,8 @@ const EMPTY_MANUAL_CHARGE_FORM: ManualChargeForm = {
   editingChargeCalculationId: null,
 }
 
-// Aba Cobrancas: linhas de taxas locais do B/L, other charges manuais e fluxo de revisão/faturamento.
-export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
+// Taxas Locais do B/L: linhas calculadas, cobranças manuais e fluxo de revisão/faturamento.
+export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail; activeInvoice?: InvoiceLinkInfo | null }) {
   const queryClient = useQueryClient()
   const { user, isAdmin } = useAuth()
   const { showToast } = useToast()
@@ -58,6 +59,7 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
   const [issuing, setIssuing] = useState(false)
   const calculateChargesMutation = useCalculateBlLocalCharges(bl.id)
   const [manualChargeForm, setManualChargeForm] = useState<ManualChargeForm>(EMPTY_MANUAL_CHARGE_FORM)
+  const [manualFormOpen, setManualFormOpen] = useState(false)
 
   const localChargeSummary = useMemo(() => {
     const lines = localChargeLines ?? []
@@ -150,6 +152,7 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
       }
 
       setManualChargeForm(EMPTY_MANUAL_CHARGE_FORM)
+      setManualFormOpen(false)
     } catch {
       showToast('Falha ao salvar linha manual de taxa.', 'error')
     }
@@ -247,14 +250,33 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
     }
   }
 
+  const invoiceDiverges = Boolean(
+    localChargeLines != null
+    && activeInvoice?.status === 'issued'
+    && activeInvoice.total_brl != null
+    && Math.abs(localChargeSummary.lines.filter((line) => line.status !== 'exempt').reduce((sum, line) => sum + Number(line.total_value_brl ?? 0), 0) - activeInvoice.total_brl) > 0.01,
+  )
+  const hasManualLines = localChargeSummary.lines.some((line) => line.source === 'manual')
+  const showActionsColumn = !chargesLocked && hasManualLines
+  const reviewPendingCount = localChargeSummary.lines.filter((line) => line.status === 'review_required').length
+  const columnCount = showActionsColumn ? 8 : 7
+
   return (
     <Card>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Taxas Locais</h2>
-          <div className="mt-1 text-sm text-slate-400">
-            Motor Etapa A: cálculo automático por B/L com base em POD, modo de carga e perfil IMO/OOG.
+        <div className="grid gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-[var(--app-text-strong)]">Taxas Locais</h2>
+            {chargesLocked
+              ? <Badge tone="green">{statusLabel(FINANCIAL_STATUS_LABELS, bl.financial_status ?? 'invoiced')}</Badge>
+              : <Badge tone={resolveChargeStatusTone(bl.charge_status)}>{resolveChargeStatusLabel(bl.charge_status)}</Badge>}
+            {bl.charge_exemption_reason ? <Badge tone="slate">{bl.charge_exemption_reason}</Badge> : null}
           </div>
+          {activeInvoice ? (
+            <Link className="text-sm font-semibold text-[var(--app-link)] hover:underline" to={`/taxas-locais?invoice=${activeInvoice.id}`}>
+              Fatura ativa: {activeInvoice.invoice_number ?? `INV-${activeInvoice.id}`}
+            </Link>
+          ) : null}
         </div>
         {canIssue ? (
           <Button
@@ -269,138 +291,146 @@ export function BlCobrancasSection({ bl }: { bl: BLDetail }) {
         ) : null}
       </div>
 
+      <dl className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label="Total BRL" value={formatBRL(localChargeSummary.totalBrl)} />
+        <Stat label="Total USD" value={formatUSD(localChargeSummary.totalUsd)} />
+        <Stat label="Linhas" value={String(localChargeSummary.lines.length)} />
+        <Stat label="Pendências de revisão" value={String(reviewPendingCount)} warn={reviewPendingCount > 0} />
+      </dl>
+
       {bl.charge_status === 'not_calculated' ? (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
+        <Notice tone="warn">
           <span>As taxas deste B/L ainda não foram calculadas.</span>
-          <Button
-            variant="secondary"
-            onClick={handleCalculateCharges}
-            loading={calculateChargesMutation.isPending}
-            type="button"
-          >
+          <Button variant="secondary" onClick={handleCalculateCharges} loading={calculateChargesMutation.isPending} type="button">
             Calcular taxas
           </Button>
-        </div>
+        </Notice>
+      ) : null}
+      {invoiceDiverges ? (
+        <Notice tone="warn">As taxas mudaram depois da emissão: o total atual difere da fatura ativa.</Notice>
+      ) : null}
+      {chargesLocked ? (
+        <Notice>Este B/L já foi faturado. As taxas estão bloqueadas para edição direta. Correções no B/L atualizam o faturamento automaticamente.</Notice>
       ) : null}
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {chargesLocked
-          ? <Badge tone="green">{statusLabel(FINANCIAL_STATUS_LABELS, bl.financial_status ?? 'invoiced')}</Badge>
-          : <Badge tone={resolveChargeStatusTone(bl.charge_status)}>{resolveChargeStatusLabel(bl.charge_status)}</Badge>}
-        <Badge tone="green">Subtotal BRL: {formatBRL(localChargeSummary.totalBrl)}</Badge>
-        <Badge tone="blue">Subtotal USD: {formatUSD(localChargeSummary.totalUsd)}</Badge>
-        {localChargeSummary.hasReviewRequired ? <Badge tone="yellow">Com pendências de revisão</Badge> : null}
-        {bl.charge_exemption_reason ? <Badge tone="slate">{bl.charge_exemption_reason}</Badge> : null}
-      </div>
-
-      {chargesLocked ? (
-        <div className="mb-4 rounded-xl border border-[#30363d] bg-[#0d1117] px-4 py-3 text-sm text-slate-400">
-          Este B/L já foi faturado. As taxas estão bloqueadas para edição — para alterar,
-          cancele a fatura correspondente em Faturamento.
-        </div>
-      ) : (
-        <ManualChargeFormFields
-          form={manualChargeForm}
-          items={manualChargeItems ?? []}
-          itemsLoading={isManualChargeItemsLoading}
-          saving={addManualChargeMutation.isPending || updateManualChargeMutation.isPending}
-          deleting={deleteManualChargeMutation.isPending}
-          onPatch={(patch) => setManualChargeForm((current) => ({ ...current, ...patch }))}
-          onSave={handleSaveManualCharge}
-          onCancel={handleCancelManualChargeEdit}
-        />
-      )}
-
       <div className="app-table-scroll">
-        <table className="app-table app-table--compact min-w-[980px] text-left text-sm">
-          <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
+        <table className="app-table app-table--compact min-w-[860px] text-left text-sm">
+          <thead>
             <tr>
-              <th scope="col" className="py-2">Taxa</th>
-              <th scope="col" className="py-2">Origem</th>
-              <th scope="col" className="py-2">Status</th>
-              <th scope="col" className="py-2">Qtd.</th>
-              <th scope="col" className="py-2">Moeda</th>
-              <th scope="col" className="py-2">Unitário</th>
-              <th scope="col" className="py-2">Total</th>
-              <th scope="col" className="py-2">Observacao</th>
-              <th scope="col" className="py-2">Ações</th>
+              <th scope="col">Taxa</th>
+              <th scope="col">Origem</th>
+              <th scope="col">Status</th>
+              <th scope="col" className="text-right">Qtd.</th>
+              <th scope="col" className="text-right">Unitário</th>
+              <th scope="col" className="text-right">Total</th>
+              <th scope="col">Observação</th>
+              {showActionsColumn ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#30363d]">
+          <tbody>
             {isLocalChargeLinesLoading ? (
               <tr>
-                <td className="py-3 text-slate-400" colSpan={9}>
-                  Carregando linhas de taxas...
-                </td>
+                <td className="text-[var(--app-muted)]" colSpan={columnCount}>Carregando taxas…</td>
               </tr>
             ) : localChargeSummary.lines.length ? (
               localChargeSummary.lines.map((line) => (
                 <tr key={line.id}>
-                  <td className="py-2 font-semibold text-white">{line.charge_name}</td>
-                  <td className="py-2">{line.source ?? '-'}</td>
-                  <td className="py-2">
+                  <td className="font-semibold text-[var(--app-text-strong)]">{line.charge_name}</td>
+                  <td>{line.source === 'manual' ? 'Manual' : 'Automática'}</td>
+                  <td>
                     <Badge tone={resolveChargeLineStatusTone(line.status)}>{resolveChargeLineStatusLabel(line.status)}</Badge>
                   </td>
-                  <td className="py-2">{formatNumber(line.quantity)}</td>
-                  <td className="py-2">{line.currency ?? '-'}</td>
-                  <td className="py-2">
-                    {line.currency === 'USD'
-                      ? formatUSD(line.unit_value_usd ?? 0)
-                      : formatBRL(line.unit_value_brl ?? 0)}
+                  <td className="text-right tabular-nums">{formatNumber(line.quantity)}</td>
+                  <td className="text-right tabular-nums">
+                    {line.currency === 'USD' ? formatUSD(line.unit_value_usd ?? 0) : formatBRL(line.unit_value_brl ?? 0)}
                   </td>
-                  <td className="py-2">
-                    {line.currency === 'USD'
-                      ? formatUSD(line.total_value_usd ?? 0)
-                      : formatBRL(line.total_value_brl ?? 0)}
+                  <td className="text-right font-medium tabular-nums">
+                    {line.currency === 'USD' ? formatUSD(line.total_value_usd ?? 0) : formatBRL(line.total_value_brl ?? 0)}
                   </td>
-                  <td className="py-2">{line.review_reason ?? line.notes ?? '-'}</td>
-                  <td className="py-2">
-                    {line.source === 'manual' && !chargesLocked ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="app-table__icon-button"
-                          type="button"
-                          onClick={() => handleEditManualCharge(line.id)}
-                          title="Editar linha manual"
-                          aria-label="Editar linha manual"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        {isAdmin ? (
-                          // Excluir taxa manual e do Administrativo (migration 088; ADR 0071).
-                        <button
-                          className="app-table__icon-button app-table__icon-button--danger"
-                          type="button"
-                          onClick={() => handleDeleteManualCharge(line.id)}
-                          title="Excluir linha manual"
-                          aria-label="Excluir linha manual"
-                          disabled={deleteManualChargeMutation.isPending}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                        ) : null}
-                      </div>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
+                  <td className="text-[var(--app-muted)]">{line.review_reason ?? line.notes ?? '—'}</td>
+                  {showActionsColumn ? (
+                    <td>
+                      {line.source === 'manual' ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            className="app-table__icon-button"
+                            type="button"
+                            onClick={() => handleEditManualCharge(line.id)}
+                            title="Editar cobrança manual"
+                            aria-label="Editar cobrança manual"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          {isAdmin ? (
+                            // Excluir taxa manual é do Administrativo (migration 088; ADR 0071).
+                            <button
+                              className="app-table__icon-button app-table__icon-button--danger"
+                              type="button"
+                              onClick={() => handleDeleteManualCharge(line.id)}
+                              title="Excluir cobrança manual"
+                              aria-label="Excluir cobrança manual"
+                              disabled={deleteManualChargeMutation.isPending}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </td>
+                  ) : null}
                 </tr>
               ))
             ) : (
               <tr>
-                <td className="py-3 text-slate-400" colSpan={9}>
-                  Nenhuma taxa calculada ainda para este B/L.
-                </td>
+                <td className="text-[var(--app-muted)]" colSpan={columnCount}>Nenhuma taxa calculada para este B/L.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {chargesLocked ? null : manualFormOpen || manualChargeForm.editingChargeCalculationId ? (
+        <div className="mt-4">
+          <ManualChargeFormFields
+            form={manualChargeForm}
+            items={manualChargeItems ?? []}
+            itemsLoading={isManualChargeItemsLoading}
+            saving={addManualChargeMutation.isPending || updateManualChargeMutation.isPending}
+            deleting={deleteManualChargeMutation.isPending}
+            onPatch={(patch) => setManualChargeForm((current) => ({ ...current, ...patch }))}
+            onSave={handleSaveManualCharge}
+            onCancel={() => { handleCancelManualChargeEdit(); setManualFormOpen(false) }}
+          />
+        </div>
+      ) : (
+        <div className="mt-4">
+          <Button type="button" variant="secondary" onClick={() => setManualFormOpen(true)}>
+            <Plus size={15} />
+            Adicionar cobrança manual
+          </Button>
+        </div>
+      )}
     </Card>
   )
 }
 
-export function BlCobrancasTab({ active, bl }: { active: boolean; bl: BLDetail }) {
-  if (!active) return null
-  return <BlCobrancasSection bl={bl} />
+function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-2">
+      <dt className="text-xs text-[var(--app-muted)]">{label}</dt>
+      <dd className={`text-base font-semibold tabular-nums ${warn ? 'text-amber-500' : 'text-[var(--app-text-strong)]'}`}>{value}</dd>
+    </div>
+  )
+}
+
+function Notice({ tone, children }: { tone?: 'warn'; children: ReactNode }) {
+  return (
+    <div
+      className={`mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${tone === 'warn'
+        ? 'border-amber-400/40 bg-amber-400/10 text-[var(--app-text)]'
+        : 'border-[var(--app-border)] bg-[var(--app-surface-muted)] text-[var(--app-muted)]'}`}
+    >
+      {children}
+    </div>
+  )
 }
