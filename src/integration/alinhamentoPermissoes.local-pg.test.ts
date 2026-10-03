@@ -219,7 +219,7 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
   })
 })
 
-function migration131Applied() {
+function migration133Applied() {
   if (!enabled) return false
   try {
     return psql(`SELECT position('bl_created' IN prosrc) > 0 FROM pg_proc WHERE proname = 'bl_timeline';`) === 't'
@@ -228,9 +228,9 @@ function migration131Applied() {
   }
 }
 
-const describe131 = migration131Applied() ? describe : describe.skip
+const describe133 = migration133Applied() ? describe : describe.skip
 
-describe131('131 — Histórico do B/L sem alterações fictícias da criação', () => {
+describe133('133 — Histórico do B/L sem alterações fictícias da criação', () => {
   const BL_ID = 'BL122LOCALPG'
   const USER = '77777777-0000-4000-8000-000000000122'
 

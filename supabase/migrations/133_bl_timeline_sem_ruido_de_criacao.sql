@@ -1,4 +1,4 @@
--- 131: o Histórico do B/L deixa de mostrar como "alteração" o que a
+-- 133: o Histórico do B/L deixa de mostrar como "alteração" o que a
 -- importação grava ao criar o B/L.
 --
 -- A importação cria o B/L e, na mesma transação, grava em audit_logs
