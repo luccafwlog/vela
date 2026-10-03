@@ -5,6 +5,7 @@ export type PortalPasswordResetDependencies = {
   revokeSessions: (userId: string) => Promise<void>
   quarantineSessions: (userId: string, revokedUntil: string) => Promise<void>
   updatePassword: (userId: string, password: string) => Promise<void>
+  completeReset: () => Promise<void>
 }
 
 // GoTrue e Postgres não compartilham uma transação. A ordem abaixo nega
@@ -21,4 +22,5 @@ export async function resetPortalPasswordFailClosed(
   await dependencies.quarantineSessions(userId, revokedUntil)
   await dependencies.updatePassword(userId, password)
   await dependencies.revokeSessions(userId)
+  await dependencies.completeReset()
 }

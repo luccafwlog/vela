@@ -24,6 +24,7 @@ function controlledDependencies(options: { failAt?: 'first-revoke' | 'quarantine
       events.push('password')
       if (options.failAt === 'password') throw new Error('password failed')
     },
+    completeReset: async () => { events.push('complete') },
   }
   return { dependencies, events }
 }
@@ -39,6 +40,7 @@ describe('resetPortalPasswordFailClosed', () => {
       `quarantine:${new Date(Date.parse('2026-09-20T12:00:00.000Z') + PORTAL_PASSWORD_RESET_QUARANTINE_MS).toISOString()}`,
       'password',
       'revoke:2',
+      'complete',
     ])
   })
 
@@ -50,6 +52,7 @@ describe('resetPortalPasswordFailClosed', () => {
       await expect(resetPortalPasswordFailClosed('user-1', 'NovaSenha1', dependencies)).rejects.toThrow()
 
       expect(events).not.toContain('password')
+      expect(events).not.toContain('complete')
     },
   )
 
@@ -64,5 +67,11 @@ describe('resetPortalPasswordFailClosed', () => {
       'password',
       'revoke:2',
     ])
+  })
+
+  it('não libera a troca de email quando a atualização da senha falha', async () => {
+    const { dependencies, events } = controlledDependencies({ failAt: 'password' })
+    await expect(resetPortalPasswordFailClosed('user-1', 'NovaSenha1', dependencies)).rejects.toThrow()
+    expect(events).not.toContain('complete')
   })
 })

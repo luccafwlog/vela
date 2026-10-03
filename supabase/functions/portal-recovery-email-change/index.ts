@@ -2,7 +2,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { generateToken, hashToken } from '../_shared/portalToken.ts'
 import { emailChangeAlertTemplate, emailChangeAssistedAlertTemplate, emailChangeConfirmTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
-import { revokePortalSessions } from '../_shared/revokePortalSessions.ts'
 import { isLoginRateLimited, registerLoginFailure, registerLoginSuccess, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { resolveEmailChangeConfirmation } from '../_shared/portalInvites.ts'
 import { withCors } from '../_shared/cors.ts'
@@ -99,14 +98,13 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     return new Response(JSON.stringify({ pending: true }), { status: 200 })
   }
   if (body.action === 'confirm' && body.token) {
-    const resolution = await resolveEmailChangeConfirmation(admin, await hashToken(body.token), Date.now())
+    const resolution = await resolveEmailChangeConfirmation(admin, await hashToken(body.token))
     if (resolution.outcome === 'link_invalido') return new Response(JSON.stringify({ error: 'Link inválido ou expirado.' }), { status: 410 })
     if (resolution.outcome === 'pedido_ja_resolvido') return new Response(JSON.stringify({ error: ALREADY_RESOLVED }), { status: 409 })
+    if (resolution.outcome === 'recuperacao_em_andamento') return json(423, { error: 'Recuperação de senha em andamento. Tente novamente após sua conclusão.' })
     const { account, inviteId } = resolution
-    // O endereço novo entra sem histórico de bounce; manter o sinal do anterior
-    // acusaria de quebrado um endereço que nunca foi testado.
-    await admin.from('customer_portal_accounts').update({ recovery_email: account.pending_recovery_email, pending_recovery_email: null, recovery_email_source: 'informado_manualmente', recovery_email_status: 'ok' }).eq('id', account.id)
-    if (account.auth_user_id) await revokePortalSessions(account.auth_user_id)
+    // A RPC já confirmou o endereço, invalidou os links antigos e revogou
+    // as sessões na mesma transação, sob lock da conta.
     await admin.rpc('_portal_log_event', { p_customer_id: account.customer_id, p_account_id: account.id, p_invite_id: inviteId, p_prev_decision: account.provisioning_decision, p_new_decision: account.provisioning_decision, p_prev_situation: account.account_situation, p_new_situation: account.account_situation, p_actor_type: 'cliente', p_reason: 'Email de recuperação confirmado pelo cliente; sessões anteriores encerradas', p_request_id: null })
     return new Response(JSON.stringify({ confirmed: true }), { status: 200 })
   }
