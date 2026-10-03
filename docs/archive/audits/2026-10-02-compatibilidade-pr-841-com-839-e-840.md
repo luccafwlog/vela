@@ -4,6 +4,10 @@ Revisão do head original `bce96266` contra `main` em `d2f794bb`, que contém
 as PRs 839 e 840. A publicação e o CI finais são registrados na
 [PR 841](https://github.com/luccafwlog/vela/pull/841).
 
+Antes da publicação, a `main` avançou para `162daaf8` (PRs 843 e 844).
+Essas mudanças também foram incorporadas; 94 testes focados da combinação
+atual passaram, incluindo recuperação, caches e importações.
+
 ## Conflito resolvido
 
 Não havia conflitos textuais. Havia duas versões de migration duplicadas:
