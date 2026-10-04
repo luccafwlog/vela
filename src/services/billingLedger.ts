@@ -117,13 +117,24 @@ export async function registerLedgerInvoicePayment(input: {
   actorId?: string | null
   /** Stable key reused by the UI when a network retry follows a timeout. */
   requestId?: string
+  bankReference?: string
 }) {
   const requestId = input.requestId ?? crypto.randomUUID()
+  if (input.bankReference !== undefined) {
+    const rpc = supabase as unknown as { rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }> }
+    const { data, error } = await rpc.rpc('register_verified_invoice_payment', {
+      p_invoice_id: input.invoiceId, p_amount_brl: input.amountBrl, p_method: input.method ?? 'pix',
+      p_paid_at: input.paidAt ?? null, p_notes: input.notes?.trim() || null,
+      p_request_id: requestId, p_bank_reference: input.bankReference.trim(),
+    })
+    if (error) throw error
+    return parseRpcResult(ledgerPaymentResultSchema, data, 'register_verified_invoice_payment')
+  }
   const { data, error } = await supabase.rpc('register_ledger_invoice_payment', {
     p_invoice_id: input.invoiceId,
     p_amount_brl: input.amountBrl,
     p_method: input.method ?? 'pix',
-    p_paid_at: input.paidAt ?? new Date().toISOString(),
+    p_paid_at: input.paidAt ?? null,
     p_pix_txid: input.pixTxid ?? null,
     p_source: input.source ?? 'manual',
     p_notes: input.notes?.trim() || null,
@@ -142,10 +153,13 @@ export type InvoiceRefund = {
   notes: string | null
   payment_id?: number | null
   cod_adjustment_id?: number | null
+  bank_reference?: string | null
+  beneficiary?: string | null
 }
 
 export async function listInvoiceRefunds(invoiceId: number): Promise<InvoiceRefund[]> {
-  const { data, error } = await supabase.rpc('list_invoice_refunds', {
+  const rpc = supabase as unknown as { rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }> }
+  const { data, error } = await rpc.rpc('list_invoice_refunds_with_evidence', {
     p_invoice_id: invoiceId,
   })
   if (error) throw error
@@ -158,9 +172,20 @@ export async function listInvoiceRefunds(invoiceId: number): Promise<InvoiceRefu
   }))
 }
 
-export async function settleInvoiceRefund(refundId: number): Promise<void> {
-  const { error } = await supabase.rpc('settle_invoice_refund', {
-    p_refund_id: refundId,
+export type ConfirmInvoiceRefundInput = {
+  refundId: number
+  bankReference: string
+  beneficiary: string
+  paidAt: string
+}
+
+export async function settleInvoiceRefund(input: ConfirmInvoiceRefundInput): Promise<void> {
+  const rpc = supabase as unknown as { rpc(name: string, args: Record<string, unknown>): Promise<{ error: unknown }> }
+  const { error } = await rpc.rpc('confirm_invoice_refund', {
+    p_refund_id: input.refundId,
+    p_bank_reference: input.bankReference.trim(),
+    p_beneficiary: input.beneficiary.trim(),
+    p_paid_at: input.paidAt,
   })
   if (error) throw error
 }
@@ -238,6 +263,7 @@ export async function reconcileInvoicePaymentByTxid(input: {
 }
 
 export type InvoiceCorrectionSummary = {
+  customer_changes?: Array<{ bl_id: string; status: 'pending_refund' | 'reissue_pending' | 'completed'; new_invoice_id: number | null }>
   pending_bl_ids?: string[]
   stale?: boolean
   receivables: Array<{ id: number; bl_id: string; original_brl: number; corrected_brl: number; paid_brl: number; balance_brl: number }>
@@ -258,5 +284,13 @@ export async function resolveStaleInvoice(input: { invoiceId: number; reason: st
 
 export async function retryInvoiceBasisChanges(blId: string): Promise<void> {
   const { error } = await supabase.rpc('retry_invoice_basis_changes' as never, { p_bl_id: blId } as never)
+  if (error) throw error
+}
+
+export async function prepareBlFinancialCancellation(input: { invoiceId: number; blId: string; reason: string }): Promise<void> {
+  const rpc = supabase as unknown as { rpc(name: string, args: Record<string, unknown>): Promise<{ error: unknown }> }
+  const { error } = await rpc.rpc('prepare_bl_financial_cancellation', {
+    p_invoice_id: input.invoiceId, p_bl_id: input.blId, p_reason: input.reason.trim(),
+  })
   if (error) throw error
 }

@@ -956,7 +956,7 @@ describe('blFreightImport', () => {
     expect(row?.customerChange?.blockedReasons).toEqual([])
   })
 
-  it('impede a troca automatica quando a fatura e consolidada ou ja foi paga', () => {
+  it('exige confirmação da troca e restituição/reemissão sem transferir documento recebido', () => {
     const doc = parsedBL()
     doc.parties.consigneeTaxId = '98765432000110'
 
@@ -982,11 +982,9 @@ describe('blFreightImport', () => {
     })
 
     const row = preview.rows[0]
-    expect(row?.requiresCustomerConfirmation).toBe(false)
-    expect(row?.customerChange?.blockedReasons).toEqual([
-      'Fatura INV-CONS: consolidada com outros B/Ls; separe a cobranca antes de trocar o cliente.',
-      'Fatura INV-PAGA: ja tem pagamento registrado; estorne ou cancele antes de trocar o cliente.',
-    ])
+    expect(row?.requiresCustomerConfirmation).toBe(true)
+    expect(row?.customerChange?.blockedReasons).toEqual([])
+    expect(row?.customerChange?.messages.join(' ')).toContain('devolver ao Cliente original antes da nova cobrança')
   })
 
   it('bloqueia a troca quando o novo consignatario ainda nao e cliente e ha fatura', () => {
@@ -1116,7 +1114,7 @@ describe('blFreightImport', () => {
     })
   })
 
-  it('bloqueia a troca por recebivel do razao: com baixa, e sem cliente de destino cadastrado', () => {
+  it('recebível pago usa restituição e destino sem cadastro continua bloqueado', () => {
     const doc = parsedBL()
     doc.parties.consigneeTaxId = '98765432000110'
 
@@ -1135,10 +1133,9 @@ describe('blFreightImport', () => {
       ]),
     })
 
-    expect(comBaixa.rows[0]?.customerChange?.blockedReasons).toEqual([
-      'Recebivel do B/L ja tem baixa registrada; estorne no razao antes de trocar o cliente.',
-    ])
-    expect(comBaixa.rows[0]?.requiresCustomerConfirmation).toBe(false)
+    expect(comBaixa.rows[0]?.customerChange?.blockedReasons).toEqual([])
+    expect(comBaixa.rows[0]?.requiresCustomerConfirmation).toBe(true)
+    expect(comBaixa.rows[0]?.customerChange?.messages).toContain('Devolver o recebido ao Cliente original; a nova cobrança local aguarda a confirmação da restituição.')
 
     // sem fatura viva, mas com recebivel aberto: a RPC recusa por falta de cliente de destino
     const semCliente = buildBlFreightPreview({

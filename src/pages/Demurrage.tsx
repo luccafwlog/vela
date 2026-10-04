@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { FinancialRefundsPanel } from '../components/billing/FinancialRefundsPanel'
+import { useFinancialRefunds } from '../hooks/useFinancialRefunds'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { afterDatasContainerAlteradas } from '../services/cacheEffects'
@@ -132,6 +134,7 @@ export function Demurrage() {
     staleTime: 30_000,
     enabled: invoiceStatus != null,
   })
+  const receiptRefunds = useFinancialRefunds('demurrage', viewInvoiceId)
   const { data: invoiceDetail } = useQuery({
     queryKey: ['demurrage-invoice-detail', viewInvoiceId],
     queryFn: () => getInvoiceDetail(viewInvoiceId!),
@@ -154,6 +157,7 @@ export function Demurrage() {
   }
 
   function printInvoiceDocument() {
+    if (docType === 'receipt' && !receiptRefunds.data) return
     const content = document.querySelector<HTMLElement>('.invoice-print-content')
     if (!content) return
     printDocumentElement(content, 'Fatura de Demurrage')
@@ -408,7 +412,7 @@ export function Demurrage() {
               <Button variant="secondary" onClick={() => { setDetailInvoiceId(null); openDiscount(breakdownDetail.invoice as DemurrageInvoice) }}>Desconto</Button>
               <Button variant="secondary" onClick={() => { setDetailInvoiceId(null); openDispute(breakdownDetail.invoice as DemurrageInvoice) }}>Disputa</Button>
               {breakdownDetail.invoice.status === 'issued' && <><Button variant="secondary" onClick={() => { setDetailInvoiceId(null); setPayingId(breakdownDetail.invoice.id) }}>Registrar Pgto</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); void handleCancelInvoice(breakdownDetail.invoice.id) }}>Voltar</Button></>}
-              {breakdownDetail.invoice.status === 'paid' && <><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('receipt') }}>Recibo</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setReversingPayment({ id: breakdownDetail.invoice.id, docNumber: breakdownDetail.invoice.doc_number }) }}>Cancelar baixa</Button></>}
+              {(breakdownDetail.invoice.status === 'paid' || breakdownDetail.invoice.status === 'cancelled' && breakdownDetail.invoice.paid_at) && <><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('receipt') }}>Recibo</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button>{breakdownDetail.invoice.status === 'paid' ? <Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setReversingPayment({ id: breakdownDetail.invoice.id, docNumber: breakdownDetail.invoice.doc_number }) }}>Cancelar baixa</Button> : null}</>}
             </div></div>
             <div className="overflow-x-auto">
               <table className="app-table app-table--compact min-w-[700px] text-left text-sm">
@@ -424,6 +428,7 @@ export function Demurrage() {
                 </tbody>
               </table>
             </div>
+            <FinancialRefundsPanel key={breakdownDetail.invoice.id} source="demurrage" invoiceId={breakdownDetail.invoice.id} />
             <div className="mt-3 flex justify-end text-sm font-semibold text-amber-400">Total: {fmtUSD(breakdownDetail.invoice.total_usd)}</div>
           </div>
         ) : <div className="p-4 text-sm text-slate-400">Carregando...</div>}
@@ -436,8 +441,9 @@ export function Demurrage() {
       {reversingPayment != null && <DemurragePaymentReversalModal open docNumber={reversingPayment.docNumber} loading={unpayMutation.isPending} onClose={() => setReversingPayment(null)} onSubmit={(reason) => unpayMutation.mutate({ id: reversingPayment.id, reason })} />}
       {viewInvoiceId && invoiceDetail && (
         <Modal open onClose={() => setViewInvoiceId(null)} title={docType === 'invoice' ? 'Fatura de Demurrage' : 'Recibo de Demurrage'}>
-          <div className="mb-2 flex justify-end gap-2"><Button variant="secondary" onClick={printInvoiceDocument}>Imprimir</Button></div>
-          <div className="invoice-print-content"><InvoiceDocument detail={{ ...invoiceDetail.invoice, items: invoiceDetail.items } satisfies DemurrageInvoiceDocumentDetail} type={docType} /></div>
+          <div className="mb-2 flex justify-end gap-2"><Button variant="secondary" disabled={docType === 'receipt' && !receiptRefunds.data} onClick={printInvoiceDocument}>Imprimir</Button></div>
+          {docType === 'receipt' && !receiptRefunds.data ? <p role="status">{receiptRefunds.error ? 'Falha ao consultar restituições. Recarregue antes de emitir o recibo.' : 'Consultando restituições...'}</p> : null}
+          <div className="invoice-print-content"><InvoiceDocument detail={{ ...invoiceDetail.invoice, items: invoiceDetail.items, refund_summary: receiptRefunds.data } satisfies DemurrageInvoiceDocumentDetail} type={docType} /></div>
         </Modal>
       )}
       {customerReportOpen && customerSummary && <CustomerReportModal open rows={customerSummary} onClose={() => setCustomerReportOpen(false)} />}

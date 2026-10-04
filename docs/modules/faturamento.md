@@ -4,6 +4,11 @@
 
 ## Propósito e escopo
 
+Para a ação do usuário em cada exceção, consulte o
+[manual financeiro](../operations/manual-financeiro.md). A
+[revisão de 2026-10-04](../archive/audits/2026-10-04-revisao-fluxo-financeiro.md)
+registra evidências locais e lacunas de recibo, restituição e mudança de Cliente.
+
 Faturamento é o processo compartilhado de invoices que transforma B/Ls elegíveis em documentos financeiros, mantém a
 lista e o detalhe de invoices, cria consolidadas, registra pagamentos,
 cancelamentos e restituições. Demurrage tem operação própria em `/demurrage`.
@@ -21,9 +26,9 @@ para a decisão completa.
 
 - `/taxas-locais` é a rota interna definida em `src/AppInterno.tsx` e composta por
   `src/pages/TaxasLocais.tsx`; `/faturamento` apenas preserva links legados.
-- Alterações financeiras exigem usuário ativo/admin nas RPCs. A capacidade
-  `faturamento_edit` existe em `src/hooks/useAuth.tsx`, mas
-  `src/pages/TaxasLocais.tsx` não a usa como gate da rota ou das abas.
+- As RPCs de baixa manual local exigem Administrativo ativo. Avulsa e
+  liquidação de restituição também aceitam Financeiro. As capacidades atuais
+  estão em `src/hooks/useAuth.tsx`; não há `faturamento_edit` nesse contrato.
 - [Taxas Locais](taxas-locais.md) é dona do cálculo e do estado
   `ready_for_billing`.
 - Para B/Ls de container, carga solta e misto, emissão automática de taxas
@@ -229,9 +234,9 @@ isolada em `src/components/billing/consolidatedInvoiceSelection.ts`.
 - formulário de pagamento com decisão ledger versus legado;
 - vínculo com a fatura substituída ou sucessora, Reemissão pendente e motivo de encerramento sem reemissão;
 - histórico dos ajustes que a correção do B/L fez em fatura com pagamento (abatimento e restituição);
-- lista de `invoice_refunds` e ação “Marcar estornado”;
+- lista de `invoice_refunds` e confirmação de devolução com comprovante, favorecido e data;
 - cancelamento de invoice sem pagamentos;
-- cancelamento de baixa quando aberto pelo histórico de `/reconciliacao`;
+- seleção de qualquer baixa e cancelamento com conferência de valor/data, no detalhe ou histórico;
 - abertura do documento imprimível.
 
 ### Demurrage
@@ -286,7 +291,7 @@ impressão e chama `window.print()`; o nome sugerido é calculado por
 | Taxas Locais · Reemissão pendente · Tentar reemitir | Consolidada cancelada pela correção do B/L; Administrativo | `PendingReissuesPanel` | `useRetryPendingConsolidatedReissue` → `retryPendingConsolidatedReissue` | RPC `retry_pending_consolidated_reissue` → `_try_recreate_consolidated` (128): recria com os mesmos B/Ls, encerra se já não são os mesmos ou aguarda a individual | Invalida invoices (inclui Reemissão pendente), detalhe, ledger e clientes | Trava (Portal não pronto) mantém a pendência com o motivo no alerta | **Teste:** `invoiceBasisCorrection.local-pg.test.ts` |
 | Detalhe · Resolver alerta com justificativa | Fatura desatualizada tratada; admin; motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo vazio e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts` |
 | Detalhe · cancelar invoice | Admin; invoice sem pagamentos | `handleCancelInvoice` | `useCancelInvoice` → `cancelInvoice` | RPC protegida `cancel_invoice` (executa como `SECURITY DEFINER` após validar sessão ativa e papel admin) → invoice, batch, B/Ls e auditoria; implementação mais recente também preserva regras de Granito | Invalida invoices, detalhe, billing-ready, B/Ls e clientes | Pagamentos bloqueiam cancelamento; tabelas internas não são expostas diretamente; falha cria alerta/evento best-effort | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts`, `supabase/migrations_archive/064_fix_granite_invoice_cancel_reissue.sql`, `supabase/migrations_archive/142_secure_cancel_invoice_wrapper.sql` |
-| Detalhe · liquidar restituição | `invoice_refunds.status = pending`; admin | `handleSettleRefund` | `useSettleInvoiceRefund` → `settleInvoiceRefund` | RPC `settle_invoice_refund` atualiza refund e auditoria | Invalidação ledger comum | Refund ausente ou não pendente é rejeitado | **Código:** `src/services/billingLedger.ts`, `supabase/migrations_archive/112_settle_invoice_refunds.sql` · **Teste de contrato SQL:** `src/services/__tests__/settleInvoiceRefundsMigration.test.ts` |
+| Detalhe · confirmar devolução | Refund pendente; Financeiro/Administrativo; comprovante, favorecido e data | `handleSettleRefund` com conferência | `useSettleInvoiceRefund` → `settleInvoiceRefund` | RPC `confirm_invoice_refund` (134), com evidência/auditoria | Invalidação financeira comum, inclusive Portal e Demurrage | Sem permissão, evidência ou lastro é rejeitado; repetição idêntica é idempotente | **Código:** `src/services/billingLedger.ts` · **Teste local:** `invoicePostBillingSafety.local-pg.test.ts` · **Migration 134:** [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md) |
 | Detalhe · imprimir invoice | Detalhe carregado | `handlePrintInvoice` | Abre `InvoiceDocumentLocal`; `window.print()` | Sem persistência; documento usa snapshot/detalhe e `pix_payload` | Sem invalidação | Sem detalhe, ação não abre; falha de impressão é do navegador | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/components/billing/InvoiceDocumentLocal.tsx`, `src/index.css` · **Teste:** `src/components/billing/__tests__/InvoiceDetailPrint.test.tsx` |
 | Histórico de reconciliação · filtrar/exportar/abrir detalhe | Superfície `/reconciliacao` | `ReconciliationHistoryTable` | `listReconciliationHistory`, `exportReconciliationHistoryExcel` | Leituras de invoices/payments/links e Demurrage; export XLSX local | Query `['reconciliation-history', filters]` | Erros de leitura aparecem na tabela; export reaplica filtros | **Código:** `src/components/billing/ReconciliationHistoryTable.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/components/billing/__tests__/ReconciliationHistoryTable.behavior.test.tsx` |
 
@@ -498,6 +503,8 @@ Esses resultados são evidência local, não comprovam deploy ou execução remo
 Não há evidência de Runtime registrada neste documento.
 
 ## Notas e divergências
+
+- **Correções implementadas — Código/Teste local, sem implantação comprovada.** A tela aceita excedente, exige referência bancária e congela tentativas após timeout. O recibo distingue bruto, abatimento, devolvido, pendente e líquido; cobertura tem data e valor por B/L. Restituições excepcionais, cancelamento financeiro e a regra de CNPJ usam a migration 134, incluída após autorização explícita; ver [decisões implementadas](../archive/specs/2026-10-04-controles-financeiros-design.md). O [manual](../operations/manual-financeiro.md) explicita os procedimentos e esse estado de entrega.
 
 - **Divergência de tipo legado — Código.** `InvoiceDocumentStatus` e `blRails.ts`
   ainda carregam o literal `overdue` e o traduzem para “Emitida”, embora o

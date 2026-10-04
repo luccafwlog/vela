@@ -19,6 +19,14 @@ beforeEach(() => {
   supabaseMocks.rpc.mockReset()
 })
 
+it('repete pedido sem data com null estável em vez de gerar nova data a cada envio', async () => {
+  supabaseMocks.rpc.mockResolvedValue({ data: paymentPayload(), error: null })
+  await registerLedgerInvoicePayment({ invoiceId: 9, amountBrl: 20, requestId: 'stable-key' })
+  await registerLedgerInvoicePayment({ invoiceId: 9, amountBrl: 20, requestId: 'stable-key' })
+  expect(supabaseMocks.rpc.mock.calls[0][1].p_paid_at).toBeNull()
+  expect(supabaseMocks.rpc.mock.calls[1][1]).toEqual(supabaseMocks.rpc.mock.calls[0][1])
+})
+
 function consolidatedPayload(overrides: Record<string, unknown> = {}) {
   return {
     invoice_id: 7,
@@ -231,7 +239,7 @@ describe('registerLedgerInvoicePayment', () => {
       p_invoice_id: 1,
       p_amount_brl: 50,
       p_method: 'pix',
-      p_paid_at: expect.any(String),
+      p_paid_at: null,
       p_pix_txid: null,
       p_source: 'manual',
       p_notes: null,
@@ -271,7 +279,7 @@ describe('registerLedgerInvoicePayment', () => {
       p_invoice_id: 2,
       p_amount_brl: 1,
       p_method: 'pix',
-      p_paid_at: expect.any(String),
+      p_paid_at: null,
       p_pix_txid: null,
       p_source: 'manual',
       p_notes: null,
