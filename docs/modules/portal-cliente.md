@@ -307,7 +307,7 @@ escopada por Cliente. Nenhuma escrita recebe invólucro de inspeção.
 ### Central de Informações (implementação local, 2026-10-04)
 
 O Portal oferece `/informacoes` e seis seções: `taxas`, `devolucao`,
-`demurrage`, `agentes`, `atendimento` e `tracking`. Há atalhos em Operação,
+`demurrage`, `agentes`, `atendimento` (aba **Contato**) e `tracking`. Há atalhos em Operação,
 Faturas e no painel; o Modo Inspeção usa a mesma interface e RPCs de leitura
 com guarda do cliente. Componentes, tokens, navegação e tipografia existentes
 foram preservados.
