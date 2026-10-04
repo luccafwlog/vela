@@ -319,10 +319,16 @@ planilhas. A página de taxas lê `charge_tables`/`charge_table_items`, pelo
 resolver oficial de importação. Demurrage lê `demurrage_rates`; free time em
 Operação segue exceção do B/L, acordo do cliente vigente na descarga e tarifa
 geral. Sem referência oficial, exibe tarifa indisponível, sem número fixo.
-Não inclui tabelas de exportação nem Detention.
+Não inclui tabelas de exportação nem Detention. Devolução e Taxas Locais
+exibem apenas BRVIX, BRSSA e BRSUA, incluindo a consulta sem filtro e os
+containers selecionáveis. Agentes por porto mantém os demais portos. Taxas
+Locais não exibe o badge “Aplicação manual” nem o texto “Inclui SOC”; as
+regras de cobrança permanecem nos cadastros oficiais.
 
-Em `/clientes/informacoes`, Equipamentos e Administrativo editam a publicação
-e instruções dos depots existentes. Somente Administrativo altera agentes,
+O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
+na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas
+oficiais, além da edição das observações. Equipamentos e Administrativo editam
+a publicação e instruções dos depots existentes. Somente Administrativo altera agentes,
 contatos, tracking e observações. O acesso usa `is_active_read_user()` e as
 mutações conferem o papel no banco, além da interface. Alterações geram auditoria.
 Links externos admitem apenas HTTP/HTTPS sem credenciais; o tracking permite

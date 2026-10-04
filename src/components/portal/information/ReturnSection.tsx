@@ -4,16 +4,23 @@ import { Button } from '../../ui/Button'
 import { Field, Select } from '../../ui/Input'
 import { usePortalOperationBls } from '../../../hooks/usePortalOperation'
 import { usePortalReturnGuidance } from '../../../hooks/usePortalInformation'
-import { normalizeInformationPort } from '../../../services/informationPort'
-import type { PortalInformation } from '../../../services/portalInformation'
+import { isPortalServicePort, normalizeInformationPort } from '../../../services/informationPort'
+import type { PortalDepot, PortalInformation } from '../../../services/portalInformation'
 import { DepotCards } from './DepotCards'
 import { ReturnGuidanceView } from './ReturnGuidanceView'
+
+function supportedDepots(depots: PortalDepot[]) {
+  return depots.map(depot => ({
+    ...depot,
+    ports: depot.ports.map(port => normalizeInformationPort(port) ?? port).filter(isPortalServicePort),
+  })).filter(depot => depot.ports.length > 0)
+}
 
 export function ReturnSection({ information, pod }: { information: PortalInformation; pod: string }) {
   const [params, setParams] = useSearchParams()
   const operation = usePortalOperationBls()
   const blFilter = params.get('bl') ?? ''
-  const containers = (operation.data ?? []).filter((bl) => (!pod || (normalizeInformationPort(bl.pod) ?? bl.pod) === (normalizeInformationPort(pod) ?? pod)) && (!blFilter || bl.bl_id === blFilter)).flatMap((bl) => bl.containers.map((container) => ({ ...container, bl: bl.bl_id })))
+  const containers = (operation.data ?? []).filter((bl) => isPortalServicePort(bl.pod) && (!pod || (normalizeInformationPort(bl.pod) ?? bl.pod) === (normalizeInformationPort(pod) ?? pod)) && (!blFilter || bl.bl_id === blFilter)).flatMap((bl) => bl.containers.map((container) => ({ ...container, bl: bl.bl_id })))
   const requestedId = Number(params.get('containerId'))
   const selectedId = !operation.error && containers.some((container) => container.id === requestedId) ? requestedId : null
   const guidance = usePortalReturnGuidance(selectedId)
@@ -27,6 +34,6 @@ export function ReturnSection({ information, pod }: { information: PortalInforma
       {!operation.isLoading && !operation.error && !containers.length && <p className="mt-3 text-sm text-[var(--app-muted)]">Nenhum container visível para os filtros atuais.</p>}
       {params.has('containerId') && selectedId == null && !operation.isLoading && !operation.error && <InlineError message="Container indisponível na sua operação. Selecione uma unidade da lista para consultar a orientação." />}
     </Card>
-    {selectedId != null ? guidance.isLoading ? <EmptyState title="Carregando orientação..." /> : guidance.error ? <Card><InlineError message="Falha ao consultar a orientação de devolução. Confirme com o atendimento antes da entrega." /><Button className="mt-3" variant="secondary" onClick={() => void guidance.refetch()}>Tentar novamente</Button></Card> : guidance.data ? <ReturnGuidanceView guidance={guidance.data} /> : <EmptyState title="Orientação indisponível" /> : !params.has('containerId') && <DepotCards depots={information.depots.filter((depot) => depot.active && depot.published && (!pod || depot.ports.includes(pod)))} />}
+    {selectedId != null ? guidance.isLoading ? <EmptyState title="Carregando orientação..." /> : guidance.error ? <Card><InlineError message="Falha ao consultar a orientação de devolução. Confirme com o atendimento antes da entrega." /><Button className="mt-3" variant="secondary" onClick={() => void guidance.refetch()}>Tentar novamente</Button></Card> : guidance.data ? <ReturnGuidanceView guidance={{ ...guidance.data, depots: supportedDepots(guidance.data.depots) }} /> : <EmptyState title="Orientação indisponível" /> : !params.has('containerId') && <DepotCards depots={supportedDepots(information.depots).filter((depot) => depot.active && depot.published && (!pod || depot.ports.includes(pod)))} />}
   </div>
 }

@@ -18,6 +18,17 @@ describe('Página Central de Informações', () => {
     expect(screen.getAllByRole('link')).toHaveLength(6)
     expect(screen.getByRole('link', { name: /Taxas Locais/ }).getAttribute('href')).toBe('/portal/informacoes/taxas?pod=BRSSZ')
   })
+  it.each(['taxas', 'devolucao'])('limita os portos de %s aos atendidos, mesmo com POD externo na URL', (section) => {
+    catalog.hook.mockReturnValue({ data: { ...empty, ports: [{ code: 'BRSSZ', name: 'Santos' }, { code: 'BRVIX', name: 'Vitória' }, { code: 'BRSSA', name: 'Salvador' }, { code: 'BRSUA', name: 'Suape' }] }, isLoading: false, error: null })
+    show(`/portal/informacoes/${section}?pod=BRSSZ`)
+    const options = Array.from(screen.getByLabelText('Porto de destino (POD)').querySelectorAll('option')).map(option => option.value)
+    expect(options).toEqual(['', 'BRVIX', 'BRSSA', 'BRSUA'])
+  })
+  it('mantém os demais portos na aba Agentes por porto', () => {
+    catalog.hook.mockReturnValue({ data: { ...empty, ports: [{ code: 'BRSSZ', name: 'Santos' }] }, isLoading: false, error: null })
+    show('/portal/informacoes/agentes')
+    expect(screen.getByRole('option', { name: 'BRSSZ · Santos' })).toBeTruthy()
+  })
   it('mostra carregamento sem confundir ausência de cadastro', () => {
     catalog.hook.mockReturnValue({ isLoading: true })
     show('/portal/informacoes/taxas')

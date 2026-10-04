@@ -8,6 +8,8 @@ import { Card, PageHeader } from '../components/ui/Card'
 import { InformationEditor, type InformationField } from '../components/portal-information/InformationEditor'
 import { externalInformationUrl, type InformationKind, type PortalInformation } from '../services/portalInformation'
 
+import { DemurrageSection } from '../components/portal/information/ReferenceSections'
+
 type Section = 'depots' | 'agents' | 'contacts' | 'carriers' | 'notes'
 const contactSubjects = [{ value: 'importacao', label: 'Importação' }, { value: 'exportacao', label: 'Exportação' }, { value: 'containers', label: 'Containers' }, { value: 'geral', label: 'Geral' }]
 const sections: { key: Section; label: string }[] = [{ key: 'depots', label: 'Depots' }, { key: 'agents', label: 'Agentes' }, { key: 'contacts', label: 'Atendimento' }, { key: 'carriers', label: 'Tracking' }, { key: 'notes', label: 'Demurrage' }]
@@ -40,7 +42,7 @@ export function ClientesInformacoes() {
   const editorFields = section === 'contacts' ? fields.contacts.map(field => field.key === 'key' ? { ...field, label: 'Assunto', readOnly: !creatingContact, options: creatingContact ? missingSubjects : contactSubjects } : field) : fields[section]
   const rows = catalog.data ? rowsFor(catalog.data, section) : []
   return <div className="grid gap-5">
-    <PageHeader title="Informações do Portal" description="Informações de devolução, agentes, atendimento e tracking publicadas para os clientes." />
+    <PageHeader title="Informações do Portal" description="Informações de devolução, agentes, atendimento e tracking e tarifas de Demurrage publicadas para os clientes." />
     <Card>
       <nav aria-label="Seções das informações do Portal" className="flex flex-wrap gap-2">{sections.map(s => <Button key={s.key} variant={section === s.key ? 'primary' : 'secondary'} aria-pressed={section === s.key} onClick={() => { setSection(s.key); setEditing(null); setSaved(false) }}>{s.label}</Button>)}</nav>
     </Card>
@@ -48,7 +50,8 @@ export function ClientesInformacoes() {
       {saved ? <p role="status" className="text-sm text-emerald-400">Informações salvas.</p> : null}
       {section === 'depots' ? <Card><p className="text-sm text-slate-400">Os depots abaixo pertencem ao cadastro do Vela. A publicação e os portos de devolução complementam esse cadastro.</p><Link className="text-sm text-blue-400" to="/embarquevazios/depots">Abrir cadastro de depots</Link><p className="mt-3 text-sm text-slate-400">Portos disponíveis: {catalog.data.ports.map(p => `${p.code} · ${p.name}`).join('; ') || 'Nenhum porto cadastrado.'}</p></Card> : null}
       {canEdit && (section === 'agents' || (section === 'contacts' && missingSubjects.length > 0)) ? <div><Button onClick={() => { setCreatingContact(section === 'contacts'); setEditing(section === 'agents' ? { name: '', ports: [], emails: [], active: true } : { key: missingSubjects[0]?.value, title: '', description: '', emails: [], phones: [], whatsapp: null, address: '', active: true }) }}>Adicionar {section === 'agents' ? 'agente' : 'atendimento'}</Button></div> : null}
-      {!rows.length ? <Card>Nenhuma informação cadastrada nesta seção.</Card> : <div className="grid gap-4 md:grid-cols-2">{rows.map((row, index) => {
+      {section === 'notes' && <DemurrageSection information={catalog.data} showNotes={false} />}
+      {!rows.length ? <Card>Nenhuma informação cadastrada nesta seção.</Card> : <div className={section === 'notes' ? 'grid gap-4' : 'grid gap-4 md:grid-cols-2'}>{rows.map((row, index) => {
         const title = String(row.name ?? row.title ?? 'Observações de Demurrage')
         const url = externalInformationUrl(typeof row.tracking_url === 'string' ? row.tracking_url : typeof row.scheduling_url === 'string' ? row.scheduling_url : null)
         return <Card key={String(row.id ?? row.key ?? row.carrier_id ?? index)}>

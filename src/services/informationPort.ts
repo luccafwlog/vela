@@ -12,3 +12,13 @@ export function normalizeInformationPort(value: string | null | undefined): stri
   const raw = value?.trim().toUpperCase() || null
   return raw ? aliases[raw] ?? normalizePortCode(raw) ?? raw : null
 }
+
+/** Portos atendidos nas consultas de Taxas Locais e Devolução do Portal. */
+export const portalServicePorts = [
+  { code: 'BRVIX', name: 'Vitória' },
+  { code: 'BRSSA', name: 'Salvador' },
+  { code: 'BRSUA', name: 'Suape' },
+]
+export function isPortalServicePort(value: string | null | undefined): boolean {
+  return portalServicePorts.some(port => port.code === normalizeInformationPort(value))
+}

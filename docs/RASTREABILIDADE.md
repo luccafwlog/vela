@@ -682,7 +682,7 @@ estão sem `EXECUTE` para a API desde `122`; serviços/hooks foram retirados.
 | `/portal/informacoes/:section` | Taxas Locais, Devolução, Demurrage, Agentes, Atendimento e Tracking |
 | `/clientes/portal/inspecao/:customerId/informacoes` | Mesma central no escopo somente leitura de inspeção |
 | `/clientes/portal/inspecao/:customerId/informacoes/:section` | Seções no escopo de inspeção |
-| `/clientes/informacoes` | ClientesInformacoes: cadastros internos e publicação |
+| `/clientes/informacoes` | ClientesInformacoes: cadastros internos, tarifas de Demurrage e publicação; acesso pelo botão em `/clientes/portal` |
 
 Serviço `portalInformation.ts`, hooks `usePortalInformation.ts` e migration
 `134_portal_information.sql` e `135_portal_information_review_fixes.sql`; preços vêm das tabelas vigentes do Vela.

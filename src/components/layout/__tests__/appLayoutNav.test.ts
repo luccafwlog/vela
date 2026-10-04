@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { importNavItems } from '../appLayoutNav'
+import { importNavItems, primaryNavItems } from '../appLayoutNav'
 
 describe('appLayoutNav - rota canonica BLs', () => {
+  it('mantém Informações do Portal fora da barra superior', () => {
+    expect(primaryNavItems.some(item => item.to === '/clientes/informacoes')).toBe(false)
+  })
+
   it('contém item BLs apontando para /bls na secao de importacao', () => {
     const blItem = importNavItems.find((item) => item.to === '/bls')
     expect(blItem).toBeDefined()

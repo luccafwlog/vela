@@ -6,11 +6,18 @@ import { ClientesInformacoes } from '../ClientesInformacoes'
 const mocks = vi.hoisted(() => ({ role: 'equipamentos', isAdmin: false, contacts: [] as { key: string; title: string; active: boolean }[] }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ profile: { role: mocks.role, active: true }, isAdmin: mocks.isAdmin }) }))
 vi.mock('../../hooks/usePortalInformation', () => ({
-  useInternalPortalInformation: () => ({ data: { depots: [{ id: 'existing', name: 'Depot Vela', active: true, published: false, ports: ['BRSSZ'] }], agents: [{ id: 'a', name: 'Agente', active: true }], contacts: mocks.contacts, carriers: [], ports: [{ code: 'BRSSZ', name: 'Santos' }], demurrage_notes: '' }, isLoading: false }),
+  useInternalPortalInformation: () => ({ data: { depots: [{ id: 'existing', name: 'Depot Vela', active: true, published: false, ports: ['BRSSZ'] }], agents: [{ id: 'a', name: 'Agente', active: true }], contacts: mocks.contacts, carriers: [], ports: [{ code: 'BRSSZ', name: 'Santos' }], demurrage_notes: '', demurrage_rates: [{ id: 1, container_type: '20DC', free_days: 7, p1_day_from: 8, p1_day_to: 14, p1_usd: 50, p2_day_from: 15, p2_usd: 100, valid_from: '2026-01-01', valid_to: null }] }, isLoading: false }),
   useSavePortalInformation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 afterEach(() => { cleanup(); mocks.role = 'equipamentos'; mocks.isAdmin = false; mocks.contacts = [] })
 describe('Administração de informações do Portal', () => {
+  it('mostra as tarifas oficiais na aba Demurrage junto das observações', () => {
+    render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'Demurrage' }))
+    expect(screen.getByRole('table', { name: 'Tarifas gerais de demurrage' })).toBeTruthy()
+    expect(screen.getByText('20DC')).toBeTruthy()
+    expect(screen.getByText('7 dias')).toBeTruthy()
+  })
   it('mantém identificador existente e oferece somente assuntos ainda ausentes', () => {
     mocks.isAdmin = true; mocks.contacts = [{ key: 'geral', title: 'Atendimento geral', active: true }]
     render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)

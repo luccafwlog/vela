@@ -7,7 +7,6 @@ import {
   Clock,
   FileSpreadsheet,
   Home,
-  Info,
   Mountain,
   ReceiptText,
   RefreshCw,
@@ -44,7 +43,6 @@ export const primaryNavItems: NavItem[] = [
   { to: '/painel', label: 'Painel', icon: Home },
   { to: '/viagens', label: 'Viagens', icon: Ship },
   { to: '/clientes', label: 'Clientes', icon: Users },
-  { to: '/clientes/informacoes', label: 'Informações do Portal', icon: Info },
   { to: '/alertas', label: 'Alertas', icon: Bell },
 ]
 
