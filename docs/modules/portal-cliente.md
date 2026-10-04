@@ -325,6 +325,10 @@ containers selecionáveis. Agentes por porto mantém os demais portos. Taxas
 Locais não exibe o badge “Aplicação manual” nem o texto “Inclui SOC”; as
 regras de cobrança permanecem nos cadastros oficiais.
 
+Na Operação, “Onde devolver” aparece na coluna Devolução, com ícone e texto
+sem quebra de linha, separado do número do container. A administração de
+Depots não exibe o card explicativo com a lista de portos do cadastro.
+
 O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
 na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas
 oficiais, além da edição das observações. Equipamentos e Administrativo editam

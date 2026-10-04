@@ -18,3 +18,10 @@ fictícios; a persistência e as RPCs foram verificadas separadamente em Postgre
 os cenários e limites. Não houve erros de runtime ou transbordamento horizontal
 da página; no modal, seleção múltipla e retirada enviaram os payloads esperados
 somente aos stubs locais. Os harnesses temporários foram removidos.
+
+### Ajustes de apresentação em 2026-10-04
+
+- `operation-return-desktop.png` e `operation-return-mobile.png`: link “Onde devolver” com ícone e texto em uma linha; na tabela fica na coluna Devolução, separado do número do container.
+- `internal-depots-adjusted-mobile.png`: aba Depots sem o card explicativo e sem a lista de portos do cadastro.
+
+Capturas dos componentes reais `PortalOperacao` e `ClientesInformacoes`, com CSS original e hooks substituídos por fixtures locais. Chromium/Playwright verificou viewports de 1440 e 390 pixels, ausência de erros de runtime e de overflow horizontal no celular. Não verifica autenticação, RPCs ou persistência remota.

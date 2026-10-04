@@ -165,6 +165,15 @@ function renderOperacao(initialEntry = '/portal/operacao') {
 }
 
 describe('PortalOperacao (BLs e Containers)', () => {
+  it('mantém o número do container separado do acesso à devolução', () => {
+    renderOperacao('/portal/operacao?tab=containers')
+    const table = screen.getByRole('table', { name: 'Containers da operação do cliente' })
+    const row = within(table).getByText('ABCD1234567').closest('tr')!
+    const cells = within(row).getAllByRole('cell')
+    expect(cells[0].textContent).toBe('ABCD1234567')
+    const link = within(cells[9]).getByRole('link', { name: 'Onde devolver' })
+    expect(link.getAttribute('href')).toContain('containerId=1')
+  })
   it('distingue tarifa indisponível de dentro do free time e permite filtrar a unidade', async () => {
     const container = rows[0].containers[1]
     const previous = { ...container }
