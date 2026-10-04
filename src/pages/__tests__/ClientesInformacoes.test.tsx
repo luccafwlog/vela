@@ -1,0 +1,50 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ClientesInformacoes } from '../ClientesInformacoes'
+const mocks = vi.hoisted(() => ({ role: 'equipamentos', isAdmin: false, contacts: [] as { key: string; title: string; active: boolean }[] }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ profile: { role: mocks.role, active: true }, isAdmin: mocks.isAdmin }) }))
+vi.mock('../../hooks/usePortalInformation', () => ({
+  useInternalPortalInformation: () => ({ data: { depots: [{ id: 'existing', name: 'Depot Vela', active: true, published: false, ports: ['BRSSZ'] }], agents: [{ id: 'a', name: 'Agente', active: true }], contacts: mocks.contacts, carriers: [], ports: [{ code: 'BRSSZ', name: 'Santos' }], demurrage_notes: '' }, isLoading: false }),
+  useSavePortalInformation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
+afterEach(() => { cleanup(); mocks.role = 'equipamentos'; mocks.isAdmin = false; mocks.contacts = [] })
+describe('Administração de informações do Portal', () => {
+  it('mantém identificador existente e oferece somente assuntos ainda ausentes', () => {
+    mocks.isAdmin = true; mocks.contacts = [{ key: 'geral', title: 'Atendimento geral', active: true }]
+    render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'Atendimento' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Atendimento geral' }))
+    expect(screen.queryByRole('textbox', { name: /Identificador/ })).toBeNull()
+    expect(screen.queryByRole('combobox')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar atendimento' }))
+    expect(screen.getByRole('combobox', { name: /Assunto/ })).toBeTruthy()
+    expect(screen.queryByRole('option', { name: 'Geral' })).toBeNull()
+  })
+  it('não oferece adicionar atendimento quando os quatro assuntos já existem', () => {
+    mocks.isAdmin = true; mocks.contacts = ['geral', 'importacao', 'exportacao', 'containers'].map(key => ({ key, title: key, active: true }))
+    render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'Atendimento' }))
+    expect(screen.queryByRole('button', { name: 'Adicionar atendimento' })).toBeNull()
+  })
+  it('Equipamentos edita informações do depot cadastrado, mas somente consulta agentes', () => {
+    render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)
+    expect(screen.getByRole('button', { name: 'Editar Depot Vela' })).toBeTruthy()
+    expect(screen.getByText('Não publicado')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Abrir cadastro de depots' }).getAttribute('href')).toBe('/embarquevazios/depots')
+    fireEvent.click(screen.getByRole('button', { name: 'Agentes' }))
+    expect(screen.queryByRole('button', { name: 'Editar Agente' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Adicionar agente' })).toBeNull()
+  })
+  it('Administrativo mantém agentes e atendimento', () => {
+    mocks.role = 'administrativo'; mocks.isAdmin = true
+    render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'Agentes' }))
+    expect(screen.getByRole('button', { name: 'Adicionar agente' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Atendimento' }))
+    expect(screen.getByRole('button', { name: 'Adicionar atendimento' })).toBeTruthy()
+    expect(screen.getByText('Nenhuma informação cadastrada nesta seção.')).toBeTruthy()
+  })
+})

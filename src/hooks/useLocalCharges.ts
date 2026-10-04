@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { afterReferenciaPortalAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
 import {
   quoteManualInvoiceCharge,
@@ -149,7 +150,10 @@ export function useSaveChargeTable() {
   return useMutation({
     mutationFn: saveChargeTable,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
+        afterReferenciaPortalAlterada(queryClient),
+      ])
     },
   })
 }
@@ -160,7 +164,10 @@ export function useSetChargeTableActive() {
   return useMutation({
     mutationFn: ({ id, active }: { id: number; active: boolean }) => setChargeTableActive(id, active),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
+        afterReferenciaPortalAlterada(queryClient),
+      ])
     },
   })
 }
@@ -171,7 +178,10 @@ export function useSetChargeTableItemActive() {
   return useMutation({
     mutationFn: ({ id, active }: { id: number; active: boolean }) => setChargeTableItemActive(id, active),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
+        afterReferenciaPortalAlterada(queryClient),
+      ])
     },
   })
 }
@@ -198,6 +208,7 @@ export function useSaveChargeTableItem() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
+        afterReferenciaPortalAlterada(queryClient),
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.manualChargeItems('') }),
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrideItems() }),
       ])
@@ -213,6 +224,7 @@ export function useDeleteChargeTableItem() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
+        afterReferenciaPortalAlterada(queryClient),
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.manualChargeItems('') }),
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrideItems() }),
       ])

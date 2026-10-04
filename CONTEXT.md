@@ -2099,3 +2099,21 @@ Erro de preço (tabela ou Condição do Cliente) não reemite: vale para as pró
 faturas. No Portal, a fatura cancelada não aparece por padrão, só pelo filtro
 Cancelada. Ver [ADR 0077](docs/adr/0077-fatura-emitida-nao-muda-de-valor.md)
 e [Faturamento](docs/modules/faturamento.md).
+
+
+## Central de Informações e indicação de devolução
+
+O Vela é a fonte oficial das informações do Portal. Taxas Locais de importação
+e Demurrage vêm dos cadastros vigentes; planilhas não são referência operacional.
+Depots, agentes por porto, atendimento e links de tracking são mantidos no Vela,
+com dados iniciais das páginas FWLOG. Tracking abre o site oficial do armador
+com o B/L disponível para cópia.
+
+A regra geral é devolver em qualquer depot ativo publicado no porto de destino.
+Uma indicação específica é uma exceção opcional por unidade física na viagem,
+com um ou mais depots e justificativa auditada. A identidade é viagem + número
+do container, compartilhada pelos B/Ls; mudar o registro para outra viagem ou
+outro número não leva a indicação antiga. A criação exige POD comum às unidades
+vinculadas e ausência de SOC. Retirá-la restaura a regra geral; desativar/despublicar
+seus depots não libera automaticamente outras alternativas. Container SOC
+não tem devolução. Tarifas de exportação e Detention não pertencem a esta central.

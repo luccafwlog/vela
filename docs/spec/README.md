@@ -16,3 +16,7 @@ são snapshots históricos em [archive/specs](../archive/specs/), não uma spec
 canônica viva. Para regenerar uma edição histórica, forneça seu caminho
 explicitamente a `scripts/build-behavioral-spec.mjs`; não há CSV vivo para o
 modo sem argumentos.
+
+A Central de Informações aprovada em 2026-10-04 foi implementada e validada
+localmente: [registro arquivado](../archive/specs/2026-10-04-portal-informacoes.md).
+Publicação remota não realizada.

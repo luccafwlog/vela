@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { Button } from '../ui/Button'
+import { ContainerReturnInstruction } from '../portal-information/ContainerReturnInstruction'
 import { Badge } from '../ui/Badge'
 import { Card } from '../ui/Card'
 import { Field, Input, Select } from '../ui/Input'
@@ -51,6 +53,7 @@ export function BlCargaTab({
   containerSummary: ContainerSummary
   breakbulkSummary: BreakbulkSummary
 }) {
+  const [returnContainer, setReturnContainer] = useState<{ id: number; number: string } | null>(null)
   const [vehicleSearch, setVehicleSearch] = useState('')
 
   const showContainers = cargoMode === 'container' || cargoMode === 'misto' || isContainerMode
@@ -68,6 +71,7 @@ export function BlCargaTab({
 
   return (
     <div className="grid gap-5">
+      {returnContainer ? <ContainerReturnInstruction containerId={returnContainer.id} containerNumber={returnContainer.number} onClose={() => setReturnContainer(null)} /> : null}
       {showContainers ? (
         <Card>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -94,6 +98,7 @@ export function BlCargaTab({
                   <th scope="col" className="py-2">Perfil</th>
                   <th scope="col" className="py-2">SOC/COC</th>
                   <th scope="col" className="py-2">Descarga</th>
+                  <th scope="col" className="py-2">Devolução</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#30363d]">
@@ -150,11 +155,12 @@ export function BlCargaTab({
                         </div>
                       </td>
                       <td className="py-2 text-slate-300">{container.discharge_date ? formatDate(container.discharge_date) : <span className="text-slate-500">—</span>}</td>
+                      <td className="py-2"><Button variant="ghost" aria-label={`Orientação de devolução ${container.container_number}`} onClick={() => setReturnContainer({ id: container.id, number: container.container_number })}>Devolução</Button></td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td className="py-3 text-slate-400" colSpan={9}>
+                    <td className="py-3 text-slate-400" colSpan={10}>
                       Nenhum container vinculado a este B/L.
                     </td>
                   </tr>

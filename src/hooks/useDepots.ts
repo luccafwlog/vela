@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { afterDepotAlterado } from '../services/cacheEffects'
 import { deleteDepot, listDepots, upsertDepot } from '../services/depots'
 
 export const depotQueryKeys = {
@@ -12,10 +13,10 @@ export function useDepots() {
 
 export function useUpsertDepot() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: upsertDepot, onSuccess: () => queryClient.invalidateQueries({ queryKey: depotQueryKeys.all }) })
+  return useMutation({ mutationFn: upsertDepot, onSuccess: () => afterDepotAlterado(queryClient) })
 }
 
 export function useDeleteDepot() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: ({ id, reason }: { id: string; reason: string }) => deleteDepot(id, reason), onSuccess: () => queryClient.invalidateQueries({ queryKey: depotQueryKeys.all }) })
+  return useMutation({ mutationFn: ({ id, reason }: { id: string; reason: string }) => deleteDepot(id, reason), onSuccess: () => afterDepotAlterado(queryClient) })
 }

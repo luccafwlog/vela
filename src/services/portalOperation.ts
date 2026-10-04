@@ -1,3 +1,4 @@
+import { normalizeInformationPort } from './informationPort'
 import { callPortalRpc, clientPortalScope, type PortalScope } from './portalScope'
 
 export type PortalOperationContainerStatus =
@@ -7,6 +8,7 @@ export type PortalOperationContainerStatus =
   | 'devolvido'
   /** container do próprio cliente: sem devolução nem Demurrage */
   | 'soc'
+  | 'tarifa_indisponivel'
 
 export type PortalOperationContainer = {
   id: number
@@ -28,6 +30,9 @@ export type PortalOperationBL = {
   voyage_id: number | null
   voyage_number: string | null
   vessel_name: string | null
+  carrier_id?: number | null
+  carrier_name?: string | null
+  tracking_url?: string | null
   transshipment?: PortalOperationTransshipment | null
   container_count: number
   containers_in_demurrage: number
@@ -78,7 +83,8 @@ function asStatus(value: unknown): PortalOperationContainerStatus {
     value === 'dentro_free_time' ||
     value === 'em_demurrage' ||
     value === 'devolvido' ||
-    value === 'soc'
+    value === 'soc' ||
+    value === 'tarifa_indisponivel'
   ) {
     return value
   }
@@ -129,10 +135,13 @@ export function normalizePortalOperationRows(data: unknown): PortalOperationBL[]
       bl_id: asStringOrNull(row.bl_id) ?? '',
       ce_mercante: asStringOrNull(row.ce_mercante),
       pol: asStringOrNull(row.pol),
-      pod: asStringOrNull(row.pod),
+      pod: normalizeInformationPort(asStringOrNull(row.pod)),
       voyage_id: asNumberOrNull(row.voyage_id),
       voyage_number: asStringOrNull(row.voyage_number),
       vessel_name: asStringOrNull(row.vessel_name),
+      carrier_id: asNumberOrNull(row.carrier_id),
+      carrier_name: asStringOrNull(row.carrier_name),
+      tracking_url: asStringOrNull(row.tracking_url),
       transshipment: normalizeTransshipment(row.transshipment),
       container_count: asCount(row.container_count),
       containers_in_demurrage: asCount(row.containers_in_demurrage),

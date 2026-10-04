@@ -10,6 +10,7 @@ import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { InvoiceDocumentLocal } from '../components/billing/InvoiceDocumentLocal'
 import { InvoiceDocument as DemurrageInvoiceDocument, type DemurrageInvoiceDocumentDetail } from '../components/demurrage/InvoiceDocument'
+import { InformationLinks } from '../components/portal/information/InformationLinks'
 import { PortalConsolidatedModal } from '../components/portal/PortalConsolidatedModal'
 import { DisputeModal } from '../components/portal/DisputeModal'
 import { PortalDemurrageDetailModal } from '../components/portal/PortalDemurrageDetailModal'
@@ -209,6 +210,8 @@ export function PortalBilling() {
         <MetricCard label="Faturas emitidas" value={String(localInvoiceCount)} />
         <MetricCard label="B/Ls elegíveis" value={String(eligibleCount)} />
       </div>
+
+      <div className="mb-4"><InformationLinks sections={[tab === 'local' ? 'taxas' : 'demurrage', 'atendimento']} pod={(tab === 'local' ? localFilters : demFilters).pod} /></div>
 
       <div className="mb-4 flex gap-2 border-b border-[var(--app-border)]" role="tablist">
         <TabButton active={tab === 'local'} label="Taxas Locais" onClick={() => setTab('local')} />

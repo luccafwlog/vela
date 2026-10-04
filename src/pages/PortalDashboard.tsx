@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { ShipScheduleWidget } from '../components/portal/ShipScheduleWidget'
 import { usePortalInvoices, usePortalDemurrageInvoices } from '../hooks/usePortalBilling'
@@ -93,6 +93,12 @@ export function PortalDashboard() {
           ))}
         </div>
       )}
+
+      <Card className="mt-6">
+        <h2 className="text-base font-semibold">Central de Informações</h2>
+        <p className="my-2 text-sm text-[var(--app-muted)]">Taxas Locais, depots de devolução, Demurrage, agentes, atendimento e tracking.</p>
+        <Link to={portalPath(scope, '/informacoes')} className="text-sm text-[var(--app-link)] underline">Consultar informações</Link>
+      </Card>
 
       <section className="mt-8">
         <h2 className="text-base font-semibold mb-4">Chegadas e Saídas</h2>

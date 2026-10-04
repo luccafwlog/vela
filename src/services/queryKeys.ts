@@ -1,4 +1,11 @@
 export const queryKeys = {
+  portalInformation: {
+    all: () => ['portal-information'] as const,
+    catalog: (mode: string, customerId: number | null) => ['portal-information', 'catalog', mode, customerId] as const,
+    guidance: (mode: string, customerId: number | null, containerId: number | null) => ['portal-information', 'guidance', mode, customerId, containerId] as const,
+    internal: () => ['portal-information', 'internal'] as const,
+    internalGuidance: (containerId: number | null) => ['portal-information', 'internal-guidance', containerId] as const,
+  },
   bls: {
     all: () => ['bls'] as const,
     list: (filters: unknown) => ['bls', filters] as const,

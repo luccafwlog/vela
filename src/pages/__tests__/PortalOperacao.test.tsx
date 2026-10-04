@@ -165,6 +165,24 @@ function renderOperacao(initialEntry = '/portal/operacao') {
 }
 
 describe('PortalOperacao (BLs e Containers)', () => {
+  it('distingue tarifa indisponível de dentro do free time e permite filtrar a unidade', async () => {
+    const container = rows[0].containers[1]
+    const previous = { ...container }
+    Object.assign(container, { status: 'tarifa_indisponivel', free_time_days: null, demurrage_days: null })
+    try {
+      const user = userEvent.setup()
+      renderOperacao('/portal/operacao?tab=containers')
+      const table = screen.getByRole('table')
+      const row = within(table).getByText(container.container_number).closest('tr') as HTMLElement
+      expect(within(row).getByText('Tarifa indisponível')).toBeTruthy()
+      expect(within(row).queryByText('Dentro free time')).toBeNull()
+      await user.click(screen.getByRole('button', { name: /Filtros/i }))
+      await user.selectOptions(screen.getByLabelText('Status operacional'), 'tarifa_indisponivel')
+      expect(within(table).getByText(container.container_number)).toBeTruthy()
+      expect(within(table).queryByText('ABCD1234567')).toBeNull()
+    } finally { Object.assign(container, previous) }
+  })
+
   it('mostra as abas BLs e Containers e a coluna POL na aba BLs', () => {
     renderOperacao()
     expect(screen.getByRole('heading', { name: 'BLs e Containers' })).toBeTruthy()

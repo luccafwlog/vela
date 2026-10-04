@@ -1,0 +1,104 @@
+{
+  "evidence": "Actual PortalLayout and PortalInformation; fixture hooks only, no authenticated backend. Fixture values are illustrative.",
+  "screenshots": [
+    {
+      "name": "portal-hub-desktop",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "portal-taxas-desktop",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "portal-devolucao-desktop",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "portal-demurrage-desktop",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "portal-agentes-desktop",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "portal-atendimento-desktop",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "portal-tracking-desktop",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "portal-devolucao-specific-desktop",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "portal-devolucao-unavailable-desktop",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "portal-hub-mobile",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "portal-taxas-mobile",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "portal-devolucao-mobile",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "portal-demurrage-mobile",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "portal-agentes-mobile",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "portal-atendimento-mobile",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "portal-tracking-mobile",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "portal-devolucao-specific-mobile",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "portal-devolucao-unavailable-mobile",
+      "width": 390,
+      "scroll": 390
+    }
+  ],
+  "checks": [
+    "Six hub sections desktop/mobile",
+    "All six sections rendered desktop/mobile",
+    "Specific indication shows only provided depot",
+    "Unavailable indication exposes no depot fallback",
+    "Mobile Menu exposes Central nav link",
+    "No page horizontal overflow",
+    "No browser page errors"
+  ]
+}

@@ -769,3 +769,29 @@ compartilhado.
 
 O índice da inspeção `/clientes/portal/inspecao/:customerId` monta
 `PortalDashboard`, compartilhando os hooks e RPCs de leitura da inspeção.
+
+
+### Central de Informações — rotas (2026-10-04)
+
+| Rota | Tela / fonte |
+|---|---|
+| `/portal/informacoes` | PortalInformation: central com seis seções |
+| `/portal/informacoes/:section` | Taxas Locais, Devolução, Demurrage, Agentes, Atendimento e Tracking |
+| `/clientes/portal/inspecao/:customerId/informacoes` | Mesma central no escopo somente leitura de inspeção |
+| `/clientes/portal/inspecao/:customerId/informacoes/:section` | Seções no escopo de inspeção |
+| `/clientes/informacoes` | ClientesInformacoes: cadastros internos e publicação |
+
+Serviço `portalInformation.ts`, hooks `usePortalInformation.ts` e migration
+`134_portal_information.sql` e `135_portal_information_review_fixes.sql`; preços vêm das tabelas vigentes do Vela.
+Orientação de devolução é consultada por container, com gate de cliente/CE;
+indicação específica é administrada na aba Carga do B/L e auditada.
+Testes: `portalInformation.local-pg.test.ts`, `portalInformation.test.ts`,
+`InformationSections.test.tsx`, `ReturnGuidanceView.test.tsx`,
+`ContainerReturnInstruction.test.tsx` e `ClientesInformacoes.test.tsx`.
+
+
+A revisão de 2026-10-04 separa indicação física por viagem/container do registro
+individual do B/L; inclui a dependência na exclusão permitida de viagem e usa
+resolver SQL comum para tipos equivalentes das tarifas de Demurrage. Edições
+existentes de carga, depot e tarifas invalidam as novas consultas. Evidências e
+achados: [revisão extensa](archive/reports/2026-10-04-revisao-portal-informacoes.md).
