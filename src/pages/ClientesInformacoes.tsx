@@ -55,7 +55,7 @@ export function ClientesInformacoes() {
         const url = externalInformationUrl(typeof row.tracking_url === 'string' ? row.tracking_url : typeof row.scheduling_url === 'string' ? row.scheduling_url : null)
         return <Card key={String(row.id ?? row.key ?? row.carrier_id ?? index)}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold text-white">{title}</h2>{section === 'depots' ? <Badge tone={row.active && row.published ? 'green' : 'slate'}>{!row.active ? 'Inativo' : row.published ? 'Publicado' : 'Não publicado'}</Badge> : typeof row.active === 'boolean' ? <Badge tone={row.active ? 'green' : 'slate'}>{row.active ? 'Ativo' : 'Inativo'}</Badge> : null}</div>
-          <div className="grid gap-2 text-sm text-slate-400">{fields[section].filter(f => f.type !== 'boolean').map(f => {
+          <div className="grid gap-2 text-sm text-slate-400">{fields[section].filter(f => f.type !== 'boolean' && f.key !== 'tracking_url').map(f => {
             const value = row[f.key]
             return value ? <p key={f.key} className="whitespace-pre-wrap break-words"><span className="font-medium">{f.label}: </span>{Array.isArray(value) ? value.join(', ') : String(value)}</p> : null
           })}</div>

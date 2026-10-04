@@ -335,6 +335,8 @@ oficiais, além da edição das observações. Equipamentos e Administrativo edi
 a publicação e instruções dos depots existentes. Somente Administrativo altera agentes,
 contatos, tracking e observações. O acesso usa `is_active_read_user()` e as
 mutações conferem o papel no banco, além da interface. Alterações geram auditoria.
+Na aba interna Tracking, o endereço aparece apenas no link “Abrir tracking”;
+a URL completa fica no editor do armador.
 Links externos admitem apenas HTTP/HTTPS sem credenciais; o tracking permite
 copiar o B/L e abrir o armador.
 
