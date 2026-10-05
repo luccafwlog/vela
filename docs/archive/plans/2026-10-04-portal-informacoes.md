@@ -107,3 +107,6 @@ tentativa adicional para absorver a variação do ambiente, sem mudar os testes.
 Resultado final da suíte completa: 693 arquivos / 3.875 testes aprovados;
 52 arquivos / 303 testes condicionais ignorados. Os 18 testes PostgreSQL
 foram ativados e executados separadamente com LOCAL_PG_INTEGRATION=1.
+
+
+Nota de integração — 2026-10-05: migrations de Informações renumeradas de 134/135 para 135/136 antes da publicação, preservando a ordem e o SQL.

@@ -782,7 +782,7 @@ O índice da inspeção `/clientes/portal/inspecao/:customerId` monta
 | `/clientes/informacoes` | ClientesInformacoes: cadastros internos e publicação |
 
 Serviço `portalInformation.ts`, hooks `usePortalInformation.ts` e migration
-`134_portal_information.sql` e `135_portal_information_review_fixes.sql`; preços vêm das tabelas vigentes do Vela.
+`135_portal_information.sql` e `136_portal_information_review_fixes.sql`; preços vêm das tabelas vigentes do Vela.
 Orientação de devolução é consultada por container, com gate de cliente/CE;
 indicação específica é administrada na aba Carga do B/L e auditada.
 Testes: `portalInformation.local-pg.test.ts`, `portalInformation.test.ts`,
