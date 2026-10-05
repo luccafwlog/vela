@@ -54,6 +54,26 @@ describe('fetchLineUpSnapshot', () => {
     await expect(fetchLineUpSnapshot()).rejects.toBeTruthy()
   })
 
+  it('carrega muitos BLs sem exceder o filtro HTTP e preserva a alteração mais recente', async () => {
+    const { fetchLineUpSnapshot } = await import('../lineup')
+    const bls = Array.from({ length: 250 }, (_, index) => ({
+      id: `BL${index}`, voyage_id: 24, pod: 'BRVIX',
+      updated_at: index === 200 ? '2026-10-05T18:00:00Z' : '2026-10-01T00:00:00Z',
+    }))
+    from.mockImplementation((table: string) => {
+      const query = builder({ data: table === 'voyages' ? [VOYAGE] : table === 'bls' ? bls : [], error: null })
+      const filter = query.in as (field: string, values: unknown[]) => unknown
+      query.in = vi.fn((field: string, values: unknown[]) => {
+        if (values.length > 100) throw new Error('HTTP filter too long')
+        return filter(field, values)
+      })
+      return query
+    })
+    const snapshot = await fetchLineUpSnapshot()
+    expect(snapshot.rows).toHaveLength(1)
+    expect(snapshot.lastChangedAt).toBe('2026-10-05T18:00:00Z')
+  })
+
   it('monta uma linha de importacao por Escala da viagem', async () => {
     const { fetchLineUpSnapshot } = await import('../lineup')
     from.mockImplementation(byTable({

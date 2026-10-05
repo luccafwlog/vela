@@ -648,30 +648,10 @@ async function fetchVaziosImportacaoMtyByVoyageIds(voyageIds: number[]) {
 
 async function fetchLastLineUpChangeAt(voyageIds: number[], blIds: string[], scheduleEntityIds: string[]) {
   const [voyageLatest, blLatest, containerLatest, vehicleLatest, scheduleLatest] = await Promise.all([
-    fetchLatestTimestampForVoyages('voyages', 'id', voyageIds, 'created_at'),
-    blIds.length
-      ? fetchLatestTimestamp(
-          supabase
-            .from('bls')
-            .select('updated_at')
-            .in('id', blIds)
-            .order('updated_at', { ascending: false })
-            .limit(1),
-          'updated_at',
-        )
-      : Promise.resolve<string | null>(null),
-    blIds.length
-      ? fetchLatestTimestamp(
-          supabase
-            .from('bl_containers')
-            .select('created_at')
-            .in('bl_id', blIds)
-            .order('created_at', { ascending: false })
-            .limit(1),
-          'created_at',
-        )
-      : Promise.resolve<string | null>(null),
-    fetchLatestTimestampForVoyages('vehicles', 'voyage_id', voyageIds, 'created_at'),
+    fetchLatestTimestampForIds('voyages', 'id', voyageIds, 'created_at'),
+    fetchLatestTimestampForIds('bls', 'id', blIds, 'updated_at'),
+    fetchLatestTimestampForIds('bl_containers', 'bl_id', blIds, 'created_at'),
+    fetchLatestTimestampForIds('vehicles', 'voyage_id', voyageIds, 'created_at'),
     scheduleEntityIds.length
       ? fetchLatestTimestamp(
           supabase
@@ -691,12 +671,12 @@ async function fetchLastLineUpChangeAt(voyageIds: number[], blIds: string[], sch
     .sort((left, right) => new Date(right!).getTime() - new Date(left!).getTime())[0] ?? null
 }
 
-async function fetchLatestTimestampForVoyages(table: string, column: string, voyageIds: number[], field: string) {
-  const values = await Promise.all(chunkArray(voyageIds, 25).map((voyageChunk) => fetchLatestTimestamp(
+async function fetchLatestTimestampForIds(table: string, column: string, ids: number[] | string[], field: string) {
+  const values = await Promise.all(chunkArray<number | string>(ids, 100).map((idChunk) => fetchLatestTimestamp(
     (supabase.from as unknown as (tableName: string) => {
-      select: (columns: string) => { in: (name: string, ids: number[]) => { order: (fieldName: string, options: { ascending: boolean }) => { limit: (limit: number) => PromiseLike<{ data: Array<Record<string, unknown>> | null; error: { message: string } | null }> } } }
+      select: (columns: string) => { in: (name: string, ids: Array<number | string>) => { order: (fieldName: string, options: { ascending: boolean }) => { limit: (limit: number) => PromiseLike<{ data: Array<Record<string, unknown>> | null; error: { message: string } | null }> } } }
     }
-    )(table).select(field).in(column, voyageChunk).order(field, { ascending: false }).limit(1),
+    )(table).select(field).in(column, idChunk).order(field, { ascending: false }).limit(1),
     field,
   )))
   return values.filter(Boolean).sort((left, right) => new Date(right!).getTime() - new Date(left!).getTime())[0] ?? null
