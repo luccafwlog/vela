@@ -141,6 +141,8 @@ em banco descartável, com usuário interno autenticado: cobertura parcial/compl
 separação por porto, CEs completos, override justificado, regressão após exclusão,
 Granito e Vazios EXP manuais. A suíte está na lista explícita do CI de PostgreSQL.
 `VoyageScheduleModals.test.tsx` verifica a exigência e o envio da justificativa.
+O estado documental derivado é cache descartável: sua presença não bloqueia a
+exclusão de uma viagem sem dados de negócio; a FK o remove junto da viagem.
 
 Evidência estática localizada:
 

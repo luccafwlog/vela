@@ -10,7 +10,7 @@ de carga e a alteração manual com justificativa estão em
 [BLs e CEs da Escala](../../CONTEXT.md#operação-marítima) e no
 [módulo de Viagens](viagens.md#fluxos-e-invariantes).
 
-A auditoria de escrita direta usa o instante da inserção imposto pelo servidor,
+A auditoria de escrita direta do status documental usa o instante da inserção imposto pelo servidor,
 para que uma alteração manual posterior à automação mantenha a ordem correta.
 O primeiro evento de um porto inicializa o objeto da agenda, garantindo que o
 snapshot da viagem acompanhe o status registrado na auditoria.

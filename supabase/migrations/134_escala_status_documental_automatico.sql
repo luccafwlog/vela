@@ -20,7 +20,10 @@ BEGIN
   IF current_user = 'authenticated' THEN
     NEW.actor_role := public.current_actor_role();
     NEW.actor_department := NEW.actor_role;
-    NEW.changed_at := clock_timestamp();
+    NEW.changed_at := CASE
+      WHEN NEW.entity_type = 'voyage_pod_schedule' AND NEW.field_name IN ('ces', 'export_ces') THEN clock_timestamp()
+      ELSE now()
+    END;
   END IF;
   RETURN NEW;
 END;
@@ -41,6 +44,17 @@ BEGIN
   EXECUTE v_def;
 END;
 $snapshot$;
+
+-- O estado derivado é cache descartável, não uma operação vinculada: a FK
+-- o apaga junto da viagem. Todas as travas de dados de negócio permanecem.
+DO $delete_guard$
+DECLARE v_def text; v_old text := 'AND c.table_name <> ''voyages''';
+BEGIN
+  v_def := pg_get_functiondef('public.guard_voyage_hard_delete()'::regprocedure);
+  IF position(v_old IN v_def) = 0 THEN RAISE EXCEPTION 'Migration 134: catálogo da trava de viagem não encontrado'; END IF;
+  EXECUTE replace(v_def, v_old, v_old || ' AND c.table_name <> ''voyage_documental_state''');
+END;
+$delete_guard$;
 
 CREATE FUNCTION public.sync_voyage_documental_status(p_voyage_id bigint, p_backfill boolean DEFAULT false)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
