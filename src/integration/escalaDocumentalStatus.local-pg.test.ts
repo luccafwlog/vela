@@ -125,14 +125,16 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
         UPDATE public.bls SET ce_mercante = '134004' WHERE id = 'DOC134C';
         SELECT pg_temp.check_status('BRSSA', 'approved');
 
-        INSERT INTO public.voyage_export_schedules(voyage_id, pol, has_granite, has_empty) VALUES (13400001, 'BRSSA', true, true);
+        SELECT set_config('vela.documental_justification', 'Recebimento manual inicial de Granito', true);
+        INSERT INTO public.voyage_export_schedules(voyage_id, pol, has_granite, has_empty, ce_status)
+        VALUES (13400001, 'BRSSA', true, true, 'received');
         INSERT INTO public.granite_manifests(id, voyage_id, vessel_voyage, loading_port)
         VALUES ('13400000-0000-4000-8000-000000000001', 13400001, '134TEST', 'BRSSA');
         INSERT INTO public.granite_bls(manifest_id, bl_number, loading_port)
         VALUES ('13400000-0000-4000-8000-000000000001', 'GR134', 'BRSSA');
         DO $$ BEGIN
-          IF (SELECT ce_status FROM public.voyage_export_schedules WHERE voyage_id = 13400001 AND pol = 'BRSSA') <> 'waiting' THEN
-            RAISE EXCEPTION 'Granito recebeu automaticamente sem CE';
+          IF (SELECT ce_status FROM public.voyage_export_schedules WHERE voyage_id = 13400001 AND pol = 'BRSSA') <> 'received' THEN
+            RAISE EXCEPTION 'Granito perdeu recebimento manual inicial';
           END IF;
         END; $$;
         SELECT set_config('vela.documental_justification', 'BLs de Granito conferidos', true);

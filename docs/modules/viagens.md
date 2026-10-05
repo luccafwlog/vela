@@ -143,6 +143,8 @@ Granito e Vazios EXP manuais. A suíte está na lista explícita do CI de Postgr
 `VoyageScheduleModals.test.tsx` verifica a exigência e o envio da justificativa.
 O estado documental derivado é cache descartável: sua presença não bloqueia a
 exclusão de uma viagem sem dados de negócio; a FK o remove junto da viagem.
+Estabelecer a primeira base Aguardando não desfaz uma marcação manual feita na
+criação da escala; Recebido/Aprovado derivados continuam sendo gatilhos reais.
 
 Evidência estática localizada:
 

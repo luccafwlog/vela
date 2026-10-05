@@ -11,9 +11,12 @@ CREATE TABLE public.voyage_documental_state (
 ALTER TABLE public.voyage_documental_state ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.voyage_documental_state FROM PUBLIC, anon, authenticated;
 
--- Um lote marca cada viagem uma vez; a fila é consumida antes do commit.
+-- Um lote marca cada viagem uma vez por transação. A chave não faz uma escrita
+-- concorrente esperar pela fila de outra; a avaliação serializa no lock da viagem.
 CREATE TABLE public.voyage_documental_pending (
-  voyage_id bigint PRIMARY KEY REFERENCES public.voyages(id) ON DELETE CASCADE
+  transaction_id bigint NOT NULL DEFAULT txid_current(),
+  voyage_id bigint NOT NULL REFERENCES public.voyages(id) ON DELETE CASCADE,
+  PRIMARY KEY (transaction_id, voyage_id)
 );
 ALTER TABLE public.voyage_documental_pending ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.voyage_documental_pending FROM PUBLIC, anon, authenticated;
@@ -143,6 +146,9 @@ BEGIN
     INSERT INTO public.voyage_documental_state VALUES (p_voyage_id, r.port, r.direction, v_status)
     ON CONFLICT (voyage_id, port, direction) DO UPDATE SET status = EXCLUDED.status;
     IF p_backfill AND v_current IS NOT NULL THEN CONTINUE; END IF;
+    -- Estabelecer a primeira base Aguardando não é um novo fato documental:
+    -- não desfaz Recebido manual na criação da exportação de Granito.
+    IF v_previous IS NULL AND v_status = 'waiting' THEN CONTINUE; END IF;
     IF coalesce(v_current, 'waiting') = v_status THEN CONTINUE; END IF;
 
     IF r.direction = 'import' THEN
@@ -194,7 +200,8 @@ $$;
 CREATE FUNCTION public.flush_voyage_documental_status() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
-  DELETE FROM public.voyage_documental_pending WHERE voyage_id = NEW.voyage_id;
+  DELETE FROM public.voyage_documental_pending
+  WHERE transaction_id = NEW.transaction_id AND voyage_id = NEW.voyage_id;
   IF FOUND THEN PERFORM public.sync_voyage_documental_status(NEW.voyage_id); END IF;
   RETURN NULL;
 END;
