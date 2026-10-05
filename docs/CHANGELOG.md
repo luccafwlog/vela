@@ -843,7 +843,8 @@
 
 ## Integração das PRs 845, 846 e 847 — 2026-10-05
 
-Migrations financeiras 134, Informações 135–136 e CE 137–147 com versões únicas.
+Escala documental 134 (main), Informações 135–136, CE 137–147 e financeiras 148,
+com versões únicas; a 147 só lê `invoice_customer_changes` em tempo de execução.
 Menu, rotas e Modo Inspeção preservam ambos os módulos. Pagamento CE exige
 recebível vigente do Cliente atual e bloqueia troca de CNPJ não concluída;
 restituição normal de excedente mantém a regra do valor corrigido. As ações
