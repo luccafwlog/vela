@@ -179,6 +179,17 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
             RAISE EXCEPTION 'Vazios perderam o status manual';
           END IF;
         END; $$;
+        -- 135: salvar escala sem tocar em BLs e CEs não exige justificativa.
+        -- O editor sempre faz upsert da exportação, mesmo só com importação.
+        SELECT set_config('vela.documental_justification', '', true);
+        SELECT public.save_voyage_escala_terminal_state_v2(13400001, 'BRVIX', 0, '[]', '[]',
+          '{"tem_exportacao":false,"granito":false,"vazios":false,"has_empty":false,"discharge_ports":[],"linked":false,"schedule":{"tem_importacao":true}}', NULL);
+        SELECT public.save_voyage_escala_terminal_state_v2(13400001, 'BRVIX', 1, '[]', '[]',
+          '{"tem_exportacao":false,"granito":false,"vazios":false,"has_empty":false,"discharge_ports":[],"linked":false,"schedule":{"tem_importacao":true}}', NULL);
+        SELECT set_config('vela.documental_justification', '', true);
+        INSERT INTO public.voyage_export_schedules(voyage_id, pol, has_empty, ce_status)
+        VALUES (13400001, 'BRPEC', true, 'approved')
+        ON CONFLICT (voyage_id, pol) DO UPDATE SET ce_status = EXCLUDED.ce_status;
         -- O lote tem uma única avaliação pendente e publica só o estado final.
         SET CONSTRAINTS ALL DEFERRED;
         INSERT INTO public.bls(id, voyage_id, pol, pod, ce_mercante)
