@@ -143,9 +143,15 @@ Supabase e a API S3-compatible do R2.
 O [manual de serviços externos](servicos-externos.md#backup) registra o
 agendamento e a primeira execução em 2026-09-24. A tarefa Windows
 `Backup Diario Vela R2` foi encontrada nesta máquina, com próxima execução
-em 2026-10-06 às 09:00. A última execução, em 2026-10-05 às 09:00:01,
-retornou `LastTaskResult = 2`: o agendamento existe, mas esse resultado não
-comprova um backup bem-sucedido. É necessário diagnosticar a falha, conferir
-os objetos privados no R2 e testar uma restauração em alvo descartável.
-`--verify` executa somente `pg_restore --list`; não restaura o banco e não
-satisfaz o aceite de restauração da ADR 0074.
+em 2026-10-06 às 09:00. A execução agendada de 2026-10-05 às 09:00:01
+retornou `LastTaskResult = 2`, o código genérico de falha do script. A causa
+foi o fechamento antecipado de `pg_restore --list` (`EPIPE`) na verificação,
+corrigido em `consumeArchive`. Com a correção, uma execução manual no mesmo
+dia cifrou, verificou e enviou o dump ao R2, e ele foi restaurado no banco
+local descartável `vela_restore_20261005` (nota de encerramento da ADR 0074).
+
+A tarefa executa o script da cópia local do repositório, que precisa conter a
+correção. A primeira execução agendada que a comprova é a de 2026-10-06; se
+ela retornar código diferente de 0, diagnostique antes de considerar o backup
+diário ativo. `--verify` executa somente `pg_restore --list`; não restaura o
+banco e não substitui o teste de restauração em alvo descartável.
