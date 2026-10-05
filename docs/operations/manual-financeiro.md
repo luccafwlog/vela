@@ -1,6 +1,6 @@
 # Manual de faturamento, pagamentos e correções
 
-Edição atualizada em 2026-10-04, após as correções locais e a inclusão autorizada da migration 134. **Esta edição não comprova implantação.** Use os novos procedimentos no ambiente publicado somente depois da aplicação conjunta de banco e telas. A integração bancária real não foi exercitada.
+Edição atualizada em 2026-10-04, após as correções locais e a inclusão autorizada da migration 135. **Esta edição não comprova implantação.** Use os novos procedimentos no ambiente publicado somente depois da aplicação conjunta de banco e telas. A integração bancária real não foi exercitada.
 
 ## 1. Quem faz e onde
 

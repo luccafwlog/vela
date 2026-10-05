@@ -204,7 +204,7 @@ Estes testes verificam texto de migrations, não um banco aplicado:
 
 ## Notas e divergências
 
-- **Correções implementadas — Código/Teste local.** A baixa escolhida no detalhe pode ser antiga, com confirmação de valor/data/ID. Registro manual usa referência bancária única e tentativa estável; a conciliação PIX mantém TXID próprio. Excedente pendente de uma baixa falsa pode acompanhar sua reversão; devolução confirmada ou ajuste que depende da baixa permanece protegido. Banco implementado na migration 134: [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md).
+- **Correções implementadas — Código/Teste local.** A baixa escolhida no detalhe pode ser antiga, com confirmação de valor/data/ID. Registro manual usa referência bancária única e tentativa estável; a conciliação PIX mantém TXID próprio. Excedente pendente de uma baixa falsa pode acompanhar sua reversão; devolução confirmada ou ajuste que depende da baixa permanece protegido. Banco implementado na migration 135: [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md).
 
 - **Pendências PIX são persistidas — Código.** `persistUnresolvedPixMatches`
   conserva linhas sem candidata e ambíguas por importação/linha, inclusive sem

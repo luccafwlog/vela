@@ -58,7 +58,7 @@ export function FinancialRefundsPanel({ source, invoiceId }: { source: RefundSou
     if (!refund || !mayConfirm || bankReference.trim().length < 3 || beneficiary.trim().length < 3 || !paidAt) return
     if (!await confirm({ title: 'Confirmar devolução realizada?', message: `${formatBRL(refund.amount_brl)} para ${beneficiary}, em ${formatDate(paidAt)}. Referência: ${bankReference}.`,
       consequence: 'Registra uma devolução já realizada no banco ao Cliente original. Confira o comprovante.', reversibility: 'A confirmação permanece no histórico financeiro.', confirmLabel: 'Confirmar devolução' })) return
-    try { await settle.mutateAsync({ refundId: refund.id, bankReference, beneficiary, paidAt: `${paidAt}T12:00:00.000Z` }); setSelectedRefundId(null); setBankReference(''); setBeneficiary(''); setPaidAt(''); showToast('Devolução confirmada.', 'success') }
+    try { await settle.mutateAsync({ refundId: refund.id, bankReference, beneficiary, paidAt: new Date(`${paidAt}T00:00:00`).toISOString() }); setSelectedRefundId(null); setBankReference(''); setBeneficiary(''); setPaidAt(''); showToast('Devolução confirmada.', 'success') }
     catch (error) { showToast(userFacingErrorMessage(error, 'Falha ao confirmar devolução.'), 'error') }
   }
   async function handleCancelAuthorization() {

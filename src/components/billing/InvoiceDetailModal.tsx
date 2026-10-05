@@ -248,7 +248,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       reversibility: 'A devolução confirmada fica registrada no histórico financeiro.', confirmLabel: 'Confirmar devolução' })) return
     try {
       await settleRefundMutation.mutateAsync({ refundId: refund.id, bankReference: refundReference,
-        beneficiary: refundBeneficiary, paidAt: `${refundDate}T12:00:00.000Z` })
+        beneficiary: refundBeneficiary, paidAt: new Date(`${refundDate}T00:00:00`).toISOString() })
       setRefundToConfirm(null)
       setRefundReference('')
       setRefundBeneficiary('')

@@ -123,6 +123,6 @@ confirmação da devolução para emitir a nova cobrança. Falha de emissão ap�
 devolver conserva uma pendência recuperável. Para avulsa e Demurrage, a
 restituição excepcional deve preceder a mudança de Cliente.
 
-A implementação está validada apenas localmente; a migration 134 foi incluída
+A implementação está validada apenas localmente; a migration 135 foi incluída
 após autorização explícita. Ver as [decisões implementadas](../archive/specs/2026-10-04-controles-financeiros-design.md)
 e o [manual financeiro](../operations/manual-financeiro.md).
