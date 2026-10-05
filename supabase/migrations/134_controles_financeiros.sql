@@ -587,4 +587,127 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.relink_bl_customer(text,bigint,uuid,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.relink_bl_customer(text,bigint,uuid,text) TO service_role;
+
+-- Integração: arquivo financeiro permanece void e recebimento antigo não liquida
+-- a nova cobrança, inclusive quando o B/L retorna ao mesmo CNPJ.
+CREATE OR REPLACE FUNCTION public.guard_corrected_receivable_balance() RETURNS trigger
+LANGUAGE plpgsql SET search_path=public,pg_temp AS $$
+BEGIN
+ IF NEW.source = 'local_charges_archived:' || NEW.id::text THEN
+   NEW.balance_brl := 0; NEW.status := 'void';
+ ELSIF NEW.correction_amount_brl > 0 THEN
+   NEW.balance_brl := greatest(NEW.original_amount_brl - NEW.settled_amount_brl - NEW.correction_amount_brl,0);
+   NEW.status := CASE WHEN NEW.balance_brl=0 THEN 'settled' WHEN NEW.settled_amount_brl>0 THEN 'partially_settled' ELSE 'open' END;
+ END IF;
+ RETURN NEW;
+END $$;
+
+CREATE OR REPLACE FUNCTION public._sync_local_charge_receivable_before_correction_123(p_bl_id text) RETURNS bigint
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_bl RECORD;
+  v_amount NUMERIC(14,2);
+  v_roe NUMERIC(10,4);
+  v_roe_effective_date DATE;
+  v_paid_amount NUMERIC(14,2);
+  v_receivable_id BIGINT;
+  v_status TEXT;
+BEGIN
+  IF auth.uid() IS NOT NULL
+     AND NOT public.is_active_user() THEN
+    RAISE EXCEPTION 'Credenciais invalidas ou sem permissao de faturamento.' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT id, customer_id, voyage_id, cargo_mode, pol, pod
+  INTO v_bl
+  FROM public.bls
+  WHERE id = btrim(p_bl_id)
+     OR UPPER(id) = UPPER(btrim(p_bl_id))
+  ORDER BY (id = btrim(p_bl_id)) DESC
+  LIMIT 1;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'B/L % nao encontrado.', p_bl_id USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Se o B/L ainda nao tem cliente vinculado, a sincronizacao de recebivel
+  -- aguarda a conciliacao cadastral (reconcile/relink). O calculo das taxas
+  -- locais permanece preservado.
+  IF v_bl.customer_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT roe, effective_date INTO v_roe, v_roe_effective_date
+  FROM public.exchange_rate_reference WHERE id = 1;
+
+  IF v_roe IS NULL AND EXISTS (
+    SELECT 1 FROM public.charge_calculations AS cc
+    WHERE cc.bl_id = v_bl.id
+      AND COALESCE(cc.total_value_usd, 0) > 0
+      AND COALESCE(cc.status, 'calculated') IN ('calculated', 'reviewed', 'ready_for_billing')
+  ) THEN
+    RAISE EXCEPTION 'Cambio (ROE) nao configurado; nao e possivel calcular o saldo de linhas em USD.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT COALESCE(SUM(
+    COALESCE(cc.total_value_brl, CASE WHEN COALESCE(cc.total_value_usd, 0) > 0 THEN ROUND(cc.total_value_usd * v_roe, 2) END, 0)
+  ), 0)
+  INTO v_amount
+  FROM public.charge_calculations AS cc
+  WHERE cc.bl_id = v_bl.id
+    AND COALESCE(cc.status, 'calculated') IN ('calculated', 'reviewed', 'ready_for_billing');
+
+  SELECT COALESCE(SUM(p.amount_brl), 0)
+  INTO v_paid_amount
+  FROM public.invoice_bls ib
+  JOIN public.invoices i ON i.id = ib.invoice_id
+  JOIN public.payments p ON p.invoice_id = i.id
+  WHERE ib.bl_id = v_bl.id
+    AND COALESCE(i.status, 'issued') = 'paid'
+    AND i.customer_id = v_bl.customer_id
+    AND NOT EXISTS (SELECT 1 FROM public.invoice_customer_changes c
+      WHERE c.bl_id = v_bl.id AND i.id = ANY(c.original_invoice_ids)
+        AND c.status IN ('reissue_pending', 'completed'));
+
+  v_paid_amount := LEAST(v_paid_amount, v_amount);
+  v_status := CASE
+    WHEN v_amount <= 0 THEN 'void'
+    WHEN v_paid_amount >= v_amount THEN 'settled'
+    WHEN v_paid_amount > 0 THEN 'partially_settled'
+    ELSE 'open'
+  END;
+
+  INSERT INTO public.bl_receivables (
+    bl_id, customer_id, source, original_amount_brl, settled_amount_brl, balance_brl,
+    status, voyage_id, cargo_mode, pol, pod, roe_frozen, roe_effective_date_frozen, updated_at
+  )
+  VALUES (
+    v_bl.id, v_bl.customer_id, 'local_charges', v_amount, v_paid_amount,
+    GREATEST(v_amount - v_paid_amount, 0), v_status, v_bl.voyage_id,
+    v_bl.cargo_mode, v_bl.pol, v_bl.pod, v_roe, v_roe_effective_date, now()
+  )
+  ON CONFLICT (source, bl_id)
+  DO UPDATE SET
+    customer_id = EXCLUDED.customer_id,
+    original_amount_brl = EXCLUDED.original_amount_brl,
+    settled_amount_brl = EXCLUDED.settled_amount_brl,
+    balance_brl = EXCLUDED.balance_brl,
+    status = EXCLUDED.status,
+    voyage_id = EXCLUDED.voyage_id,
+    cargo_mode = EXCLUDED.cargo_mode,
+    pol = EXCLUDED.pol,
+    pod = EXCLUDED.pod,
+    roe_frozen = EXCLUDED.roe_frozen,
+    roe_effective_date_frozen = EXCLUDED.roe_effective_date_frozen,
+    updated_at = now()
+  RETURNING id INTO v_receivable_id;
+
+  RETURN v_receivable_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public._sync_local_charge_receivable_before_correction_123(text) FROM PUBLIC,anon,authenticated;
+
 COMMIT;

@@ -97,6 +97,23 @@ export function auditMigration(sql, { legacy = false } = {}) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql')).sort()
+  const versions = new Map()
+  for (const name of files) {
+    const version = /^(\d+)_/.exec(name)?.[1]
+    if (!version) {
+      console.error(`Nome de migration sem versão: ${name}`)
+      process.exit(1)
+    }
+    const names = versions.get(version) ?? []
+    names.push(name)
+    versions.set(version, names)
+  }
+  const duplicates = [...versions].filter(([, names]) => names.length > 1)
+  if (duplicates.length > 0) {
+    console.error('Versões de migrations duplicadas (o Supabase identifica pelo prefixo):')
+    for (const [version, names] of duplicates) console.error(`  ${version}: ${names.join(', ')}`)
+    process.exit(1)
+  }
   const offenders = []
   let destructiveCount = 0
   let legacyCount = 0

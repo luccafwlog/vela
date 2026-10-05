@@ -330,6 +330,8 @@ deve rodar na raiz do repositório:
   Não execute sua sintaxe diretamente no PowerShell.
 
 O alvo é `vela_test`, com porta configurável por `LOCAL_PG_PORT` (padrão 5432).
+`npm run migrations:check` também recusa versões repetidas: o prefixo numérico
+antes de `_` precisa ser único, mesmo quando os nomes dos arquivos diferem.
 `--reset` recria esse banco; no macOS também recria o cluster temporário.
 O caminho Debian usa um cluster existente e ajusta a senha local de `postgres`:
 reserve um ambiente de testes. Sem `--reset`, o script pode retornar ao encontrar
