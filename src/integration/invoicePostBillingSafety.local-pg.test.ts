@@ -697,4 +697,25 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     expect(JSON.parse(psql(`SELECT ce_unlock_private.item('${bl.full}')`))).toMatchObject({ paid: true, can_submit: true })
   })
 
+  it.each([200, 600])('nova cobrança após devolver R$ %s conserva saldo e permite pagamento próprio', (amount) => {
+    const original = issueByCe(bl.full, '839000000000083')
+    adminJson(`SELECT public.register_ledger_invoice_payment(${original},${amount})`)
+    const old = receivableId(bl.full)
+    psql(`UPDATE public.bls SET customer_id=${otherCustomerId} WHERE id='${bl.full}'`)
+    const refund = Number(psql(`SELECT id FROM public.invoice_refunds WHERE correction_receivable_id=${old}`))
+    adminJson(`SELECT public.confirm_invoice_refund(${refund},'NEW-CNPJ-REF-${refund}','Cliente original','2026-10-01T12:00:00Z')`)
+    const current = receivableId(bl.full)
+    expect(psql(`SELECT status FROM public.bl_receivables WHERE id=${old}`)).toBe('void')
+    expect(psql(`SELECT settled_amount_brl||'|'||balance_brl||'|'||status FROM public.bl_receivables WHERE id=${current}`)).toBe('0.00|600.00|open')
+    const next = Number(psql(`SELECT id FROM public.invoices WHERE customer_id=${otherCustomerId} AND status='issued' AND invoice_type='individual'`))
+    adminJson(`SELECT public.register_ledger_invoice_payment(${next},600)`)
+    expect(psql(`SELECT sum(amount_brl) FROM public.ledger_settlements WHERE receivable_id=${current}`)).toBe('600.00')
+    expect(psql(`SELECT total_paid_brl FROM public.invoices WHERE id=${original}`)).toBe(`${amount}.00`)
+    // Voltar ao CNPJ inicial não reutiliza nenhum recebimento já restituído.
+    psql(`UPDATE public.bls SET customer_id=${customerId} WHERE id='${bl.full}'`)
+    const second = Number(psql(`SELECT id FROM public.invoice_refunds WHERE correction_receivable_id=${current}`))
+    adminJson(`SELECT public.confirm_invoice_refund(${second},'BACK-CNPJ-REF-${second}','Cliente anterior','2026-10-01T12:00:00Z')`)
+    expect(psql(`SELECT settled_amount_brl||'|'||balance_brl FROM public.bl_receivables WHERE id=${receivableId(bl.full)}`)).toBe('0.00|600.00')
+  })
+
 });
