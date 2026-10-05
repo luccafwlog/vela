@@ -230,6 +230,21 @@ describe('EscalaModal', () => {
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ ceStatus: 'received' }))
   })
 
+  it('exige e envia a justificativa da alteração manual de BLs e CEs', async () => {
+    const user = userEvent.setup()
+    const onSaved = renderEscala(terminalEscala({ ceStatus: 'received' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: 'BLs e CEs' }), 'approved')
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('justificativa')
+    await user.type(screen.getByLabelText('Justificativa da alteração'), 'Conferido pelo time')
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      ceStatus: 'approved', justification: 'Conferido pelo time',
+      terminalState: expect.objectContaining({ justification: 'Conferido pelo time' }),
+    }))
+  })
+
   it('normaliza o porto por extenso antes de enviar', async () => {
     const user = userEvent.setup()
     const onSaved = renderEscala({ ...escalaBase, port: 'Vitoria', temImportacao: false })
@@ -612,7 +627,7 @@ describe('EscalaModal', () => {
     }))
   })
 
-  it('abre a justificativa ao alterar dado realizado, não ao preencher nem em ETA ou BLs e CEs', async () => {
+  it('abre a justificativa ao alterar dado realizado, não ao preencher nem em ETA ou Vinculada', async () => {
     const user = userEvent.setup()
     renderEscala({ ...escalaBase, ceStatus: 'approved', linked: true }) // ETA 01/03 registrado, ATA vazio
 

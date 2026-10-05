@@ -54,6 +54,7 @@ export type EscalaExportPayload = {
 }
 
 export type EscalaModalPayload = {
+  justification?: string | null
   voyageId: number
   port: string
   temImportacao: boolean
@@ -449,8 +450,8 @@ function buildTerminalPayload({
   }
 
   // Justificativa só para alterar dado já informado; preencher vazio não exige.
-  // Previsões (ETB/ETD) e a seção BLs e CEs mudam no dia a dia e não pedem
-  // justificativa (decisão do dono, 2026-10-01; migration 120 no banco).
+  // Previsões (ETB/ETD) não pedem justificativa. A alteração de BLs e CEs
+  // é validada pelo editor além deste payload de terminais.
   const assignedTerminalAltered = terminalScale.fronts.some((persisted) =>
     persisted.terminalId != null
     && fronts.find((front) => frontKey(front) === frontKey(persisted))?.terminalId !== persisted.terminalId)
@@ -958,10 +959,8 @@ export function EscalaModal({
     exportExpectation: currentExportExpectation,
     initialExportExpectation,
   })
-  const needsJustification = Boolean(terminalPreview.needsJustification)
-  // Justificativa é de alteração: só aparece quando um dado realizado já
-  // registrado muda. Preencher o que estava vazio (criar) não abre o campo, e
-  // ETA e a seção BLs e CEs não pedem justificativa.
+  const documentalAltered = ceStatus !== getEditableVoyagePodCeStatus(escala?.ceStatus)
+  const needsJustification = Boolean(terminalPreview.needsJustification) || documentalAltered
   const scheduleAltered = Boolean(escala?.port && escala.ata)
     && !sameDateTimeValue(escala?.ata, combineIsoDateTime(ataDate, ataTime))
   const showJustification = needsJustification || scheduleAltered
@@ -998,10 +997,15 @@ export function EscalaModal({
       setTerminalError(terminalPayload.error)
       return
     }
+    if (documentalAltered && !justification.trim()) {
+      setTerminalError('Informe a justificativa para alterar BLs e CEs.')
+      return
+    }
 
     setSaving(true)
     try {
       await onSaved({
+        justification: showJustification ? justification.trim() || null : null,
         voyageId: escala.voyageId,
         port: normalizedPort,
         temImportacao,
@@ -1020,8 +1024,8 @@ export function EscalaModal({
         },
         exportExistingId: escala.exportExistingId,
         // Texto digitado numa alteração desfeita não vira justificativa.
-        terminalState: terminalPayload.value && !showJustification
-          ? { ...terminalPayload.value, justification: null }
+        terminalState: terminalPayload.value
+          ? { ...terminalPayload.value, justification: showJustification ? justification.trim() || null : null }
           : terminalPayload.value,
       })
       setTerminalError(null)
@@ -1181,7 +1185,7 @@ export function EscalaModal({
             {exportError ? <p role="alert" className="app-escala-error">{exportError}</p> : null}
           </EscalaSection>
 
-          <EscalaSection aria-label="BLs e CEs" icon={<FileText size={16} />} title="BLs e CEs" description="Status documental da importação e vínculo da escala no Mercante.">
+          <EscalaSection aria-label="BLs e CEs" icon={<FileText size={16} />} title="BLs e CEs" description="Status atualizado pela conciliação documental. Alterações manuais exigem justificativa.">
             <div className="app-escala-field-grid app-escala-field-grid--three">
               <Field label="BLs e CEs">
                 <Select value={ceStatus} onChange={(event) => setCeStatus(event.target.value as EditableVoyagePodCeStatus)}>
@@ -1234,7 +1238,7 @@ export function EscalaModal({
               <Field
                 label="Justificativa da alteração"
                 required={needsJustification}
-                hint={needsJustification ? 'Obrigatória: você alterou terminal, data ou exportação já registrados nesta escala.' : undefined}
+                hint={needsJustification ? 'Obrigatória: você alterou BLs e CEs, terminal, data ou exportação já registrados nesta escala.' : undefined}
               >
                 {/* required={false}: a validação nativa do navegador atropelaria o
                     alerta do modal, que diz por que a justificativa é exigida. */}

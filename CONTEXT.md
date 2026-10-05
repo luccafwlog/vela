@@ -206,6 +206,20 @@ conhecida. Retirar a declaração é impossível enquanto houver carga de
 exportação vinculada à escala (granito ou Embarque de Vazios); sem carga, a
 retirada descarta os dados de planejamento.
 
+**BLs e CEs da Escala**
+Status documental por viagem e porto, inicialmente **Aguardando**. Na importação
+de containers, passa a **Recebido** quando há Baplie com containers cheios e todos
+eles estão cobertos por B/Ls ativos da mesma rota POL/POD. Containers vazios do
+EDI não exigem B/L de importação. Carga solta passa a **Recebido** com pelo menos
+um B/L; em escala mista, a cobertura de containers também é necessária.
+Passa a **Aprovado** quando a carga está recebida e todos os B/Ls ativos têm CE
+Mercante. Granito mantém o recebimento manual e aprova quando todos os seus B/Ls
+têm CE. Exportação de Vazios permanece manual, pois não possui B/L/CE individual
+no modelo; exportação conjunta de Granito e Vazios também mantém o status manual.
+A edição manual exige justificativa e prevalece até a próxima mudança do estado
+documental derivado. Correções podem devolver o estado automático a Recebido ou
+Aguardando. Lançando e Em aprovação continuam disponíveis para marcação manual.
+
 **Próxima Escala**
 Escala não omitida, com ETA informado e ainda sem ATA, que possui o menor ETA
 entre as escalas pendentes da Viagem. Um ETA já vencido não retira a escala

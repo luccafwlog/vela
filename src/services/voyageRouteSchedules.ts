@@ -146,13 +146,6 @@ export function getVoyagePodCeStatusLabel(status: VoyagePodCeStatus | null | und
   return 'Aguardando'
 }
 
-export function deriveAutomaticVoyagePodCeStatus(ceFilledCount: number, blCount: number): VoyagePodCeStatus | null {
-  if (blCount <= 0) return null
-  if (ceFilledCount >= blCount) return 'approving'
-  if (ceFilledCount > 0) return 'launching'
-  return 'missing'
-}
-
 export function buildVoyagePolEntityId(voyageId: number, pol: string | null | undefined) {
   return `${voyageId}::${normalizePortValue(pol)}`
 }
@@ -495,6 +488,7 @@ export async function saveVoyagePolSchedule({
 }
 
 export async function saveVoyagePodSchedule({
+  justification,
   voyageId,
   pod,
   eta,
@@ -510,6 +504,7 @@ export async function saveVoyagePodSchedule({
   temImportacao = true,
   changedBy,
 }: {
+  justification?: string | null
   voyageId: number
   pod: string
   eta: string | null
@@ -555,7 +550,7 @@ export async function saveVoyagePodSchedule({
       current.ceStatus,
       ceStatus,
       changedBy,
-      'Atualizacao manual de status de CEs por POD',
+      justification?.trim() ?? '',
     ),
     makeAuditRow(
       POD_ENTITY_TYPE,
@@ -604,6 +599,7 @@ export async function saveVoyagePodSchedule({
 }
 
 export async function saveVoyageEscalaSchedule({
+  justification,
   voyageId,
   port,
   eta,
@@ -614,6 +610,7 @@ export async function saveVoyageEscalaSchedule({
   temImportacao,
   changedBy,
 }: {
+  justification?: string | null
   voyageId: number
   port: string
   eta: string | null
@@ -627,6 +624,7 @@ export async function saveVoyageEscalaSchedule({
   // ponytail: o entity_type fisico continua `voyage_pod_schedule` por compatibilidade
   // historica; upgrade = promover a escala a tabela propria como previsto na ADR 0027.
   await saveVoyagePodSchedule({
+    justification,
     voyageId,
     pod: normalizePortValue(port),
     eta,

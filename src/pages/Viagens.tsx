@@ -509,6 +509,7 @@ export function Viagens() {
                 // O modal legado não edita estado terminalizado, mas a escala
                 // pode já ter uma revisão criada por outra tela/usuário.
                 expectedRevision,
+                justification: payload.justification,
               })
             }
             if (!payload.terminalState) await saveVoyageEscalaSchedule({
@@ -521,6 +522,7 @@ export function Viagens() {
               escalaNumber: payload.escalaNumber,
               temImportacao: payload.temImportacao,
               changedBy: user.id,
+              justification: payload.justification,
             })
             await afterEscalaAlterada(queryClient, { voyageId: payload.voyageId })
             showToast('Escala salva com sucesso.', 'success')

@@ -1,5 +1,4 @@
 import {
-  deriveAutomaticVoyagePodCeStatus,
   listVoyageEscalaSchedulesByVoyageIds,
   listVoyageTerminalScaleStatesByVoyageIds,
   compareAtracacoes,
@@ -402,8 +401,6 @@ export async function fetchLineUpSnapshot(
 
       const totalContainers = distinctContainers.size
       const carContainers = vehicleContainerKeys.size
-      const ceFilledCount = routeBls.filter((bl) => String(bl.ce_mercante ?? '').trim()).length
-      const autoCeStatus = deriveAutomaticVoyagePodCeStatus(ceFilledCount, routeBls.length) ?? 'missing'
 
       const bbMachines = routeBls.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0)
       const bbPackages = routeBls.reduce((sum, bl) => sum + Number(bl.bb_packages_qty ?? 0), 0)
@@ -432,7 +429,7 @@ export async function fetchLineUpSnapshot(
           bbMachines,
           bbPackages,
           bbTotal: bbMachines + bbPackages,
-          ceStatus: (schedule?.ceStatus as VoyagePodCeStatus | null) ?? autoCeStatus,
+          ceStatus: (schedule?.ceStatus as VoyagePodCeStatus | null) ?? 'waiting',
           linked: schedule?.linked ?? false,
           exportHasGranite: null,
           exportContainersQty: null,
