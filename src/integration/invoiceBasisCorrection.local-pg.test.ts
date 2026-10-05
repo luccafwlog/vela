@@ -243,7 +243,7 @@ describeLocal('128 — correção do B/L sempre automática', () => {
     const refund = psql(`SELECT id || '|' || amount_brl || '|' || status FROM public.invoice_refunds WHERE invoice_id = ${invoice}`)
     expect(refund).toMatch(/\|200\.00\|pending$/)
     expect(activeAlerts('restituicao_pendente', invoice)).toBe('1')
-    adminJson(`SELECT public.settle_invoice_refund(${refund.split('|')[0]})`)
+    adminJson(`SELECT public.confirm_invoice_refund(${refund.split('|')[0]},'BASIS-REF-${refund.split('|')[0]}','Cliente original','2026-10-01T12:00:00Z')`)
     expect(activeAlerts('restituicao_pendente', invoice)).toBe('0')
   })
 

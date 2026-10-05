@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Ban, DollarSign, Printer, RotateCcw } from 'lucide-react'
 import { StaleInvoiceResolutionPanel } from './StaleInvoiceResolutionPanel'
+import { FinancialRefundsPanel } from './FinancialRefundsPanel'
 import { InvoiceCorrectionPanel } from './InvoiceCorrectionPanel'
 import { InvoiceDocumentLocal } from './InvoiceDocumentLocal'
 import { Badge } from '../ui/Badge'
@@ -59,10 +60,33 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix')
   const [paymentDate, setPaymentDate] = useState('')
   const [paymentNotes, setPaymentNotes] = useState('')
+  const [paymentReference, setPaymentReference] = useState('')
   const [ledgerPaymentRequestId, setLedgerPaymentRequestId] = useState<string | null>(null)
+  const [paymentAttempt, setPaymentAttempt] = useState<{ invoiceId: number; amountBrl: number; method: PaymentMethod; paidAt: string; notes: string | null; requestId: string; bankReference: string } | null>(null)
+  const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [reversalReason, setReversalReason] = useState('')
   const [reversalLoading, setReversalLoading] = useState(false)
+  const [refundToConfirm, setRefundToConfirm] = useState<number | null>(null)
+  const [refundReference, setRefundReference] = useState('')
+  const [refundBeneficiary, setRefundBeneficiary] = useState('')
+  const [refundDate, setRefundDate] = useState('')
+
+  const [previousInvoiceId, setPreviousInvoiceId] = useState(invoiceId)
+  if (previousInvoiceId !== invoiceId) {
+    setPreviousInvoiceId(invoiceId)
+    setPaymentAttempt(null)
+    setLedgerPaymentRequestId(null)
+    setSelectedPaymentId(null)
+    setPaymentAmount('')
+    setPaymentDate('')
+    setPaymentNotes('')
+    setPaymentReference('')
+    setRefundToConfirm(null)
+    setRefundReference('')
+    setRefundBeneficiary('')
+    setRefundDate('')
+  }
 
   const detailQuery = useInvoiceDetail(invoiceId)
   const refundsQuery = useInvoiceRefunds(invoiceId)
@@ -86,6 +110,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const reissueLinks = reissueLinksQuery.data ?? null
 
   const ledgerBalance = Number(detailInvoice?.balance_brl ?? detailInvoice?.total_brl ?? 0)
+  const reversalPayment = detailQuery.data?.payments.find((payment) => payment.id === (selectedPaymentId ?? paymentId))
+  const reversalPaymentId = reversalPayment?.id ?? null
   // Valor em pt-BR ("1.234,56"), como no registro do pagamento.
   const parsedPayment = parseImportNumber(paymentAmount, 'pt-BR')
   const typedPayment = parsedPayment.kind === 'value' ? Number(parsedPayment.decimal) : 0
@@ -94,13 +120,14 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const [prevLedgerPrefill, setPrevLedgerPrefill] = useState<string | null>(null)
   if (ledgerPrefill !== prevLedgerPrefill) {
     setPrevLedgerPrefill(ledgerPrefill)
-    if (ledgerPrefill !== null) {
+    if (ledgerPrefill !== null && (!paymentAttempt || paymentAttempt.invoiceId !== invoiceId)) {
       setPaymentAmount(ledgerBalance ? String(ledgerBalance) : '')
     }
   }
 
   async function handleRegisterPayment() {
     if (!invoiceId) return
+    if (paymentReference.trim().length < 3) { showToast('Informe a referência única do recebimento no extrato bancário.', 'error'); return }
     const paymentValidation = paymentFormSchema.safeParse({
       amountBrl: paymentAmount,
       paymentMethod,
@@ -111,53 +138,56 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       return
     }
     const payment = paymentValidation.data
-    if (isLedgerPayable && payment.amountBrl > ledgerBalance) {
-      showToast('O valor recebido excede o saldo aberto. Confira o pagamento antes de registrar.', 'error')
-      return
-    }
+    const retryAttempt = paymentAttempt?.invoiceId === invoiceId ? paymentAttempt : null
+    const amountBrl = retryAttempt?.amountBrl ?? payment.amountBrl
+    const duplicates = !retryAttempt && detailQuery.data?.payments.some((existing) =>
+      Number(existing.amount_brl) === amountBrl && existing.payment_method === payment.paymentMethod &&
+      (!payment.paidAt || existing.paid_at?.slice(0, 10) === payment.paidAt))
     const remaining = Math.max(ledgerBalance - payment.amountBrl, 0)
     const accepted = await confirm({
-      title: remaining > 0 ? 'Registrar pagamento parcial?' : 'Registrar pagamento?',
-      message: `Valor recebido: ${formatBRL(payment.amountBrl)}. Saldo após o pagamento: ${formatBRL(remaining)}.`,
+      title: duplicates ? 'Possível pagamento duplicado' : remaining > 0 ? 'Registrar pagamento parcial?' : 'Registrar pagamento?',
+      message: `${duplicates ? 'Já existe pagamento com valor, método e data compatíveis. Confira se são recebimentos distintos. ' : ''}Valor recebido: ${formatBRL(amountBrl)}. Saldo após o pagamento: ${formatBRL(remaining)}.${amountBrl > ledgerBalance ? ` Será registrada restituição de ${formatBRL(amountBrl - ledgerBalance)} pelo excedente.` : ''}`,
       consequence: 'Registre somente o dinheiro efetivamente recebido. Se o B/L for corrigido depois, a fatura com pagamento não é reemitida: aumento vira fatura avulsa e redução abate o saldo, com restituição do que passar dele.',
       reversibility: 'Cancelar a baixa exige justificativa e permissão. Isso registra que o dinheiro não foi recebido.',
       confirmLabel: 'Confirmar pagamento recebido',
     })
     if (!accepted) return
     try {
-      if (isLedgerPayable) {
-        const requestId = ledgerPaymentRequestId ?? crypto.randomUUID()
-        setLedgerPaymentRequestId(requestId)
-        await registerLedgerPaymentMutation.mutateAsync({
-          invoiceId,
-          amountBrl: payment.amountBrl,
-          method: payment.paymentMethod,
-          paidAt: payment.paidAt ? new Date(`${payment.paidAt}T12:00:00`).toISOString() : null,
-          source: 'manual',
-          notes: paymentNotes.trim() || null,
-          actorId: user?.id ?? null,
-          requestId,
-        })
+      const requestId = ledgerPaymentRequestId ?? crypto.randomUUID()
+      setLedgerPaymentRequestId(requestId)
+      const attempt = retryAttempt ?? {
+        invoiceId, amountBrl: payment.amountBrl, method: payment.paymentMethod,
+        paidAt: new Date(`${payment.paidAt}T12:00:00`).toISOString(),
+        notes: paymentNotes.trim() || null, requestId, bankReference: paymentReference.trim(),
+      }
+      setPaymentAttempt(attempt)
+      if (!detailIsManual) {
+        await registerLedgerPaymentMutation.mutateAsync({ ...attempt, source: 'manual', actorId: user?.id ?? null })
       } else {
-        await registerPaymentMutation.mutateAsync({
-          invoiceId,
-          amountBrl: payment.amountBrl,
-          paymentMethod: payment.paymentMethod,
-          paidAt: payment.paidAt ? new Date(`${payment.paidAt}T12:00:00`).toISOString() : null,
-          notes: paymentNotes.trim() || null,
-          actorId: user?.id ?? null,
-        })
+        await registerPaymentMutation.mutateAsync({ ...attempt, paymentMethod: attempt.method, actorId: user?.id ?? null })
       }
       setPaymentAmount('')
       setPaymentDate('')
       setPaymentNotes('')
+      setPaymentReference('')
       setLedgerPaymentRequestId(null)
+      setPaymentAttempt(null)
       showToast('Pagamento registrado.', 'success')
     } catch (error) {
       const msg = userFacingErrorMessage(error, 'Falha ao registrar pagamento.')
       showToast(msg, 'error')
       void logOperationalEvent({ code: 'invoice_payment_invalid', message: msg, changedBy: user?.id ?? null, entityId: String(invoiceId ?? '') })
     }
+  }
+
+  async function handleReleasePaymentAttempt() {
+    if (!paymentAttempt) return
+    if (!await confirm({ title: 'Encerrar tentativa após conferir o histórico?',
+      message: `${formatBRL(paymentAttempt.amountBrl)} · referência ${paymentAttempt.bankReference}.`,
+      consequence: 'Confira primeiro se o banco e o histórico já mostram este recebimento. Encerrar a tentativa libera os campos; não cancela uma baixa nem devolve dinheiro.',
+      reversibility: 'Uma nova operação terá outra chave. A referência bancária continua protegida contra duplicação.', confirmLabel: 'Conferi; liberar campos' })) return
+    setPaymentAttempt(null)
+    setLedgerPaymentRequestId(null)
   }
 
   async function handleCancelInvoice() {
@@ -183,15 +213,19 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   }
 
   async function handleReversePayment() {
-    if (!paymentId) return
+    if (!reversalPaymentId) return
     const reason = reversalReason.trim()
     if (!reason) {
       showToast('Informe a justificativa para cancelar a baixa.', 'error')
       return
     }
+    if (!await confirm({ title: 'Cancelar esta baixa?',
+      message: `Baixa de ${formatBRL(reversalPayment?.amount_brl ?? 0)} em ${formatDate(reversalPayment?.paid_at)}, da fatura ${detailInvoice?.invoice_number ?? invoiceId}.`,
+      consequence: 'O recebimento selecionado será desfeito e os saldos serão recalculados. Esta ação não devolve dinheiro ao Cliente.',
+      reversibility: 'Se necessário, registre o pagamento correto após conferir o extrato.', confirmLabel: 'Cancelar baixa' })) return
     setReversalLoading(true)
     try {
-      await reverseLocalPaymentAndInvalidate(queryClient, paymentId, reason)
+      await reverseLocalPaymentAndInvalidate(queryClient, reversalPaymentId, reason)
       showToast('Baixa cancelada.', 'success')
       onClose()
     } catch (error) {
@@ -201,12 +235,27 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
     }
   }
 
-  async function handleSettleRefund(refundId: number) {
+  async function handleSettleRefund() {
+    const refund = refunds.find((row) => row.id === refundToConfirm)
+    if (!refund || !canSettleRefund) return
+    if (refundReference.trim().length < 3 || refundBeneficiary.trim().length < 3 || !refundDate) {
+      showToast('Informe a referência bancária, o favorecido e a data da devolução.', 'error')
+      return
+    }
+    if (!await confirm({ title: 'Confirmar devolução realizada?',
+      message: `${formatBRL(refund.amount_brl)} para ${refundBeneficiary.trim()}, em ${formatDate(refundDate)}. Referência: ${refundReference.trim()}.`,
+      consequence: 'Esta ação registra uma transferência já realizada no banco. Confira o comprovante e o Cliente original antes de confirmar.',
+      reversibility: 'A devolução confirmada fica registrada no histórico financeiro.', confirmLabel: 'Confirmar devolução' })) return
     try {
-      await settleRefundMutation.mutateAsync(refundId)
-      showToast('Estorno marcado como efetuado.', 'success')
+      await settleRefundMutation.mutateAsync({ refundId: refund.id, bankReference: refundReference,
+        beneficiary: refundBeneficiary, paidAt: `${refundDate}T12:00:00.000Z` })
+      setRefundToConfirm(null)
+      setRefundReference('')
+      setRefundBeneficiary('')
+      setRefundDate('')
+      showToast('Devolução confirmada.', 'success')
     } catch (error) {
-      showToast(userFacingErrorMessage(error, 'Falha ao marcar o estorno como efetuado.'), 'error')
+      showToast(userFacingErrorMessage(error, 'Falha ao confirmar a devolução.'), 'error')
     }
   }
 
@@ -228,7 +277,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                 <Button variant="secondary" onClick={() => handlePrintInvoice()}>
                   <Printer size={16} />Imprimir PDF
                 </Button>
-                {['paid', 'covered'].includes(detailQuery.data.invoice.status ?? '') ? (
+                {(['paid', 'covered'].includes(detailQuery.data.invoice.status ?? '') || detailQuery.data.invoice.status === 'cancelled' && Number(detailQuery.data.invoice.total_paid_brl ?? 0) > 0) ? (
                   <Button variant="secondary" onClick={() => handlePrintInvoice('receipt')}>
                     <Printer size={16} />Imprimir recibo
                   </Button>
@@ -368,6 +417,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
               {detailInvoice && ['individual', 'consolidated'].includes(detailInvoice.invoice_type ?? '') && Number(detailInvoice.total_paid_brl ?? 0) > 0 && ['paid', 'partially_paid'].includes(detailInvoice.status ?? '') ? (
                 <InvoiceCorrectionPanel key={invoiceId} invoiceId={Number(invoiceId)} />
               ) : null}
+              {detailIsManual ? <FinancialRefundsPanel source="manual" invoiceId={Number(invoiceId)} /> : null}
               {refunds.length > 0 ? (
                 <Card className="overflow-hidden p-0">
                   <div className="border-b border-[#30363d] px-4 py-3">
@@ -388,7 +438,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                         {refunds.map((refund) => (
                           <tr key={refund.id}>
                             <td className="px-3 py-2">{formatDate(refund.created_at)}</td>
-<td className="px-3 py-2">{formatBRL(refund.amount_brl)}{refund.notes ? <p className="text-xs">{refund.notes}</p> : null}</td>
+                            <td className="px-3 py-2">{formatBRL(refund.amount_brl)}{refund.notes ? <p className="text-xs">{refund.notes}</p> : null}</td>
                             <td className="px-3 py-2">
                               {refund.status === 'pending' && canSettleRefund ? (
                                 <Badge tone="yellow">Pendente</Badge>
@@ -400,16 +450,16 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                                 <Badge tone="red">Cancelada</Badge>
                               )}
                             </td>
-                            <td className="px-3 py-2">{refund.settled_at ? formatDate(refund.settled_at) : '—'}</td>
+                            <td className="px-3 py-2">{refund.settled_at ? formatDate(refund.settled_at) : '—'}{refund.bank_reference ? <p className="text-xs">{refund.bank_reference} · {refund.beneficiary}</p> : null}</td>
                             <td className="px-3 py-2">
-                              {refund.status === 'pending' ? (
+                              {refund.status === 'pending' && canSettleRefund ? (
                                 <Button
                                   variant="secondary"
                                   type="button"
-                                  onClick={() => handleSettleRefund(refund.id)}
-                                  loading={settleRefundMutation.isPending && settleRefundMutation.variables === refund.id}
+                                  onClick={() => { setRefundToConfirm(refund.id); setRefundReference(''); setRefundBeneficiary(''); setRefundDate('') }}
+                                  disabled={settleRefundMutation.isPending}
                                 >
-                                  Marcar estornado
+                                  Confirmar devolução
                                 </Button>
                               ) : (
                                 <span className="text-slate-500">—</span>
@@ -422,12 +472,18 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   </div>
                 </Card>
               ) : null}
-              {enablePaymentReversal ? (
+              {enablePaymentReversal || detailQuery.data.payments.length > 0 ? (
                 <Card>
                   <h2 className="mb-3 text-base font-semibold text-white">Cancelar baixa</h2>
-                  {paymentId ? (
+                  {detailQuery.data.payments.length > 0 ? (
                     isAdmin ? (
                       <>
+                        <Field label="Baixa a cancelar">
+                          <Select value={reversalPaymentId ?? ''} onChange={(event) => setSelectedPaymentId(Number(event.target.value))}>
+                            <option value="" disabled>Selecione o recebimento</option>
+                            {detailQuery.data.payments.map((payment) => <option key={payment.id} value={payment.id}>{formatDate(payment.paid_at)} · {formatBRL(payment.amount_brl)} · {renderPaymentMethod(payment.payment_method)} · #{payment.id}</option>)}
+                          </Select>
+                        </Field>
                         <Field label="Justificativa (obrigatória)">
                           <Textarea
                             value={reversalReason}
@@ -436,14 +492,14 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                           />
                         </Field>
                         <div className="mt-2 text-xs text-slate-400">
-                          Cancelar a baixa registra que o valor não foi pago: reabre a fatura e libera o TXID para nova conciliação. Fica registrado em auditoria.
+                          Use para corrigir um lançamento que não corresponde a recebimento verdadeiro. A ação não devolve dinheiro; restituições e correções podem impedir o cancelamento para preservar o lastro.
                         </div>
                         <div className="mt-4 flex justify-end">
                           <Button
                             variant="danger"
                             onClick={handleReversePayment}
                             loading={reversalLoading}
-                            disabled={!reversalReason.trim()}
+                            disabled={!reversalReason.trim() || !reversalPaymentId}
                           >
                             <RotateCcw size={16} />Cancelar baixa
                           </Button>
@@ -460,16 +516,17 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                     </div>
                   )}
                 </Card>
-              ) : (
+              ) : null}
+              {!enablePaymentReversal ? (
               <div className="grid gap-4 xl:grid-cols-2">
                 <Card>
                   <h2 className="mb-3 text-base font-semibold text-white">Registrar pagamento</h2>
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label={isLedgerPayable ? 'Valor BRL (aceita parcial)' : 'Valor BRL'}>
-                      <Input value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} />
+                      <Input disabled={Boolean(paymentAttempt)} value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} />
                     </Field>
                     <Field label="Metodo">
-                      <Select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
+                      <Select disabled={Boolean(paymentAttempt)} value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
                         <option value="pix">PIX</option>
                         <option value="ted">TED</option>
                         <option value="doc">DOC</option>
@@ -478,10 +535,11 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                       </Select>
                     </Field>
                     <Field label="Data">
-                      <Input type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} />
+                      <Input disabled={Boolean(paymentAttempt)} type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} />
                     </Field>
+                    <Field label="Referência do recebimento bancário"><Input disabled={Boolean(paymentAttempt)} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Identificador único do extrato ou comprovante" /></Field>
                     <Field label="Notas">
-                      <Input value={paymentNotes} onChange={(event) => setPaymentNotes(event.target.value)} />
+                      <Input disabled={Boolean(paymentAttempt)} value={paymentNotes} onChange={(event) => setPaymentNotes(event.target.value)} />
                     </Field>
                   </div>
                   {isLedgerPayable ? (
@@ -491,17 +549,28 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                       {' '}Com pagamento, a correção do B/L não reemite a fatura: aumento vira fatura avulsa e redução abate o saldo antes de restituir.
                     </div>
                   ) : null}
-                  <div className="mt-4 flex justify-end">
+                  <div className="mt-4 flex justify-end gap-2">
+                    {paymentAttempt ? <Button variant="secondary" disabled={registerPaymentMutation.isPending || registerLedgerPaymentMutation.isPending} onClick={handleReleasePaymentAttempt}>Encerrar tentativa após conferir</Button> : null}
                     <Button loading={registerPaymentMutation.isPending || registerLedgerPaymentMutation.isPending} onClick={handleRegisterPayment}>
-                      <DollarSign size={16} />Registrar pagamento
+                      <DollarSign size={16} />{paymentAttempt ? 'Tentar novamente' : 'Registrar pagamento'}
                     </Button>
                   </div>
                 </Card>
                 <Card><h2 className="mb-3 text-base font-semibold text-white">Cancelar fatura</h2><Field label="Motivo"><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></Field><div className="mt-4 flex justify-end"><Button variant="danger" loading={cancelInvoiceMutation.isPending} disabled={detailQuery.data.payments.length > 0 || !cancelReason.trim()} onClick={handleCancelInvoice}><Ban size={16} />Cancelar fatura</Button></div></Card>
               </div>
-              )}
+              ) : null}
             </>
           ) : null}
+        </div>
+      </Modal>
+
+      <Modal open={refundToConfirm !== null} onClose={() => setRefundToConfirm(null)} title="Registrar devolução bancária">
+        <div className="grid gap-4">
+          <p className="text-sm">Confirme somente depois de devolver ao Cliente original. Valor: {formatBRL(refunds.find((row) => row.id === refundToConfirm)?.amount_brl ?? 0)}.</p>
+          <Field label="Referência do comprovante bancário"><Input value={refundReference} onChange={(event) => setRefundReference(event.target.value)} /></Field>
+          <Field label="Favorecido (Cliente original / CNPJ)"><Input value={refundBeneficiary} onChange={(event) => setRefundBeneficiary(event.target.value)} /></Field>
+          <Field label="Data da devolução"><Input type="date" value={refundDate} onChange={(event) => setRefundDate(event.target.value)} /></Field>
+          <Button onClick={handleSettleRefund} loading={settleRefundMutation.isPending} disabled={!canSettleRefund || !refundReference.trim() || !refundBeneficiary.trim() || !refundDate}>Confirmar devolução realizada</Button>
         </div>
       </Modal>
 

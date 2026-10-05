@@ -25,6 +25,40 @@ const detail = {
 
 afterEach(cleanup)
 
+it('recibo distingue o total emitido do dinheiro efetivamente recebido após abatimento', () => {
+  const adjustedDetail = {
+    invoice: {
+      id: 19, invoice_number: 'INV-19', status: 'paid',
+      total_brl: 600, total_paid_brl: 500, balance_brl: 0,
+      customer_name: 'Cliente com abatimento', issued_at: '2026-10-04',
+    },
+    bls: [{ bl_id: 'BL-19' }],
+    items: [{ id: 39, description: 'Taxas originais', quantity: 1, unit_value_brl: 600, total_value_brl: 600 }],
+    payments: [{ amount_brl: 500, paid_at: '2026-10-04' }],
+  } as never
+  render(<InvoiceDocumentLocal detail={adjustedDetail} type="receipt" />)
+  expect(screen.getByText('RECIBO DE TAXAS LOCAIS')).toBeTruthy()
+  expect(screen.getByTestId('invoice-totals').textContent).toContain('R$ 600,00')
+  expect(screen.getByText('Valor recebido:')).toBeTruthy()
+  expect(screen.getAllByText('R$ 500,00').length).toBeGreaterThan(0)
+})
+
+it('recibo mostra devolução confirmada, pendente e valor líquido sem confundir cobertura', () => {
+  const covered = {
+    invoice: { id: 20, invoice_number: 'INV-20', status: 'covered', total_brl: 600, total_paid_brl: 0, balance_brl: 0 },
+    bls: [], items: [], payments: [],
+    financial_summary: { gross_received_brl: 600, offset_brl: 0, refunded_brl: 50,
+      pending_refund_brl: 50, net_received_brl: 550, paid_at: '2026-10-04', covered_by_invoice_number: 'CON-21' },
+  } as never
+  render(<InvoiceDocumentLocal detail={covered} type="receipt" />)
+  expect(screen.getByText('Devolvido ao Cliente:')).toBeTruthy()
+  expect(screen.getByText('Restituição pendente:')).toBeTruthy()
+  expect(screen.getByText('Valor líquido recebido:')).toBeTruthy()
+  expect(screen.getByText('R$ 550,00')).toBeTruthy()
+  expect(screen.getByText(/CON-21/)).toBeTruthy()
+  expect(screen.getByText('Pago em 04/10/2026')).toBeTruthy()
+})
+
 it('imprime recibo de taxas locais sem PIX e com o mesmo conteúdo da fatura', () => {
   render(<InvoiceDocumentLocal detail={detail} type="receipt" />)
 
