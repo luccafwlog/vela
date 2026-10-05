@@ -170,6 +170,22 @@ function renderEscala(escala: EscalaModalData, onSaved = vi.fn().mockResolvedVal
 }
 
 describe('EscalaModal', () => {
+  it('preserva o status independente da exportação ao salvar e alterar a importação de uma escala mista', async () => {
+    const user = userEvent.setup()
+    const onSaved = renderEscala(terminalEscala({
+      ceStatus: 'received', exportCeStatus: 'approved', temExportacao: true, hasGranite: true,
+    }))
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).toHaveBeenLastCalledWith(expect.objectContaining({
+      ceStatus: 'received', ceStatusChanged: false, justification: null,
+    }))
+    expect(onSaved.mock.lastCall?.[0].terminalState.exportExpectation).not.toHaveProperty('ce_status')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'BLs e CEs' }), 'approving')
+    await user.type(screen.getByLabelText('Justificativa da alteração'), 'Conferência dos BLs de importação')
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).toHaveBeenLastCalledWith(expect.objectContaining({ ceStatus: 'approving', ceStatusChanged: true }))
+    expect(onSaved.mock.lastCall?.[0].terminalState.exportExpectation).not.toHaveProperty('ce_status')
+  })
   it('usa modos de operação e mostra o planejamento de vazios sem checkbox solto', async () => {
     const user = userEvent.setup()
     renderEscala({ ...escalaBase, port: null })
@@ -228,6 +244,21 @@ describe('EscalaModal', () => {
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
 
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ ceStatus: 'received' }))
+  })
+
+  it('exige e envia a justificativa da alteração manual de BLs e CEs', async () => {
+    const user = userEvent.setup()
+    const onSaved = renderEscala(terminalEscala({ ceStatus: 'received' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: 'BLs e CEs' }), 'approved')
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('justificativa')
+    await user.type(screen.getByLabelText('Justificativa da alteração'), 'Conferido pelo time')
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      ceStatus: 'approved', justification: 'Conferido pelo time',
+      terminalState: expect.objectContaining({ justification: 'Conferido pelo time' }),
+    }))
   })
 
   it('normaliza o porto por extenso antes de enviar', async () => {
@@ -612,7 +643,7 @@ describe('EscalaModal', () => {
     }))
   })
 
-  it('abre a justificativa ao alterar dado realizado, não ao preencher nem em ETA ou BLs e CEs', async () => {
+  it('abre a justificativa ao alterar dado realizado, não ao preencher nem em ETA ou Vinculada', async () => {
     const user = userEvent.setup()
     renderEscala({ ...escalaBase, ceStatus: 'approved', linked: true }) // ETA 01/03 registrado, ATA vazio
 

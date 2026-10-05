@@ -30,7 +30,7 @@
   seções com taxas oficiais do Vela, depots, Demurrage, agentes, atendimento e
   tracking; mesmos componentes e identidade visual. Cadastros internos por
   papel e indicação opcional de devolução por unidade física compartilhada,
-  com auditoria e retirada justificada. Migration `135`, isolamento por cliente
+  com auditoria e retirada justificada. Migrations `135` e `136`, isolamento por cliente
   e CE, sem planilhas, tabelas de exportação ou Detention. Free time segue
   B/L → acordo → tarifa geral, sem fallback fixo. Validação PostgreSQL 16 e
   testes locais; publicação em produção não realizada.

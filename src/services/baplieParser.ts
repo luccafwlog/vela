@@ -319,6 +319,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
       const polRaw = rawPort(ownItems, POL_QUALIFIERS)
       const podRaw = rawPort(ownItems, POD_QUALIFIERS)
       const ownFinal = lastPort(ownItems, FINAL_DEST_QUALIFIERS)
+      const useDeliveryAsPod = !ownPod.code && ownFinal.recognized && Boolean(ownFinal.code)
       const ownBl = lastValue(ownItems.filter((i) => i.tag === 'RFF' && (i.components[1]?.[0] ?? '') === 'BM').map((i) => i.components[1]?.[1]?.trim() || null))
       const weightValues = ownItems
         .filter((i) => i.tag === 'MEA' && WEIGHT_QUALIFIERS.has((i.components[1]?.[0] ?? '').trim()))
@@ -369,7 +370,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
         status,
         weight_kg: ownWeight,
         pol: ownPol.code,
-        pod: ownPod.code,
+        pod: useDeliveryAsPod ? ownFinal.code : ownPod.code,
         final_dest: ownFinal.code,
         bl_ref: ownBl,
         slot: group.slot,
@@ -409,13 +410,13 @@ export function parseBaplieText(text: string): ParsedBaplie {
           message: `Container ${container_number}: POL ${polRaw ? `não reconhecido (${polRaw})` : 'ausente'} no conjunto ${group.order}.`,
         })
       }
-      if (eqdPos === 0 && (!ownPod.code || !ownPod.recognized)) {
+      if (useDeliveryAsPod || (eqdPos === 0 && (!ownPod.code || !ownPod.recognized))) {
         issues.push({
           row: group.order,
           field: 'pod',
           code: 'unknown_port',
-          severity: 'error',
-          message: `Container ${container_number}: POD ${podRaw ? `não reconhecido (${podRaw})` : 'ausente'} no conjunto ${group.order}.`,
+          severity: useDeliveryAsPod ? 'warning' : 'error',
+          message: `Container ${container_number}: POD ${podRaw ? `não reconhecido (${podRaw})` : 'ausente'} no conjunto ${group.order}.${useDeliveryAsPod ? ` Utilizado o local de entrega ${ownFinal.code} (LOC+83) como porto de descarga; confira a descarga real.` : ''}`,
         })
       }
       if (eqdPos === 0 && ownWeightResult?.issue) {

@@ -189,6 +189,7 @@ jobs:
             src/integration/demurrageAuthority.local-pg.test.ts \
             src/integration/demurrageMoney.local-pg.test.ts \
             src/integration/emailInbox.local-pg.test.ts \
+            src/integration/escalaDocumentalStatus.local-pg.test.ts \
             src/integration/exchangeRateIntegrity.local-pg.test.ts \
             src/integration/importAtomicity.local-pg.test.ts \
             src/integration/importEffects.local-pg.test.ts \

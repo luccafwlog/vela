@@ -171,7 +171,7 @@ export type SaveVoyageExportScheduleTransactionalInput = {
   containersQty: number | null
   movementsQty: number | null
   dischargePorts: string[]
-  ceStatus: ExportCeStatus | null
+  ceStatus?: ExportCeStatus | null
   linked: boolean
   /** Revisão capturada pelo editor antes da edição; não é relida aqui. */
   expectedRevision: number
@@ -241,7 +241,7 @@ export async function saveVoyageExportScheduleTransactional(
     containers_qty: input.containersQty,
     movements_qty: input.movementsQty,
     discharge_ports: normalizeDischargePorts(input.dischargePorts),
-    ce_status: input.ceStatus,
+    ...(input.ceStatus === undefined ? {} : { ce_status: input.ceStatus }),
     linked: input.linked,
     // A RPC terminalizada também precisa reutilizar a linha legada que o
     // editor abriu; sem esse identificador, um POL histórico não canônico

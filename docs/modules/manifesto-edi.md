@@ -4,6 +4,17 @@
 
 ## Propósito e escopo
 
+Importações e correções de B/L, container, Baplie e CE atualizam o campo **BLs e
+CEs** da Escala ao final da transação, pela migration `134`. As regras por tipo
+de carga e a alteração manual com justificativa estão em
+[BLs e CEs da Escala](../../CONTEXT.md#operação-marítima) e no
+[módulo de Viagens](viagens.md#fluxos-e-invariantes).
+
+A auditoria de escrita direta do status documental usa o instante da inserção imposto pelo servidor,
+para que uma alteração manual posterior à automação mantenha a ordem correta.
+O primeiro evento de um porto inicializa o objeto da agenda, garantindo que o
+snapshot da viagem acompanhe o status registrado na auditoria.
+
 Pipeline de ingestão e revisão operacional do Vela. O módulo recebe planilhas e EDI/EDIFACT, limita o arquivo, faz parse e preview no cliente, persiste em tabelas de domínio e expõe as superfícies de B/L, containers, veículos, Baplie e vazios. A viagem é o eixo operacional; o arquivo de B/L é a fonte documental da carga de container e alimenta Frete & Despesas do BL e o ATD do POL; o Baplie é a fonte física de staging e conciliação. Conforme a ADR 0025, a importação de Manifesto CNTR e a geração local de EDI Mercante foram removidas.
 
 Quando o importador de CE Mercante é iniciado no contexto de uma viagem, seu
@@ -57,6 +68,14 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
 - O modal **Importar B/L** aceita Excel COSCO, exige a viagem declarada pelo operador, bloqueia divergência entre navio/viagem do arquivo e a viagem escolhida, mostra preview de novos/atualizados/bloqueados e confirma via RPC transacional (`import_bl_freight_transactional`). O parser aceita somente numeração ISO de container (`AAAA9999999`), ignorando cláusulas/textos do B/L que apareçam no bloco físico; o payload reaplica a mesma normalização antes da RPC. Também captura descrição, total de volumes, telefone do consignatário, DG Class e número ONU. Quando reimporta um B/L existente, o preview preserva `IMO/OOG`, classe IMO e número ONU dos containers cujo número já existia, para o B/L não apagar atributos físicos vindos de Baplie ou de dados históricos. O preview vincula cliente por documento ou nome do consignatário; a RPC grava o estado de reconciliação, aplica o review gate e mantém match por nome em validação manual. Com a viagem declarada, a confirmação passa por `import_bl_freight_with_metadata` (migration `072`), que calcula as taxas locais provisórias de cada B/L na mesma chamada; falha de cálculo fica em `audit_logs` e na fila de efeitos como recuperação. Emissão exige CE Mercante e os gates server-side. Mudanças com impacto em faturamento (quantidade de containers, container compartilhado, IMO/OOG, lista de veículos por chassi, peso de carga solta, CNPJ faturado, POL/POD, viagem e modo de carga) são informadas e só são aplicadas com override do operador, auditado; sem override, os demais campos são aplicados e o B/L não é descartado. O diff cobre todos os campos que a RPC grava — inclusive os blocos completos de partes, `notify_cnpj_cpf`, e-mail do consignatário, veículos, viagem e modo de carga — e cada linha é rotulada na língua da operação. Quando o arquivo traz **outro consignatário**, o preview alerta a troca de cliente (de quem para quem, com CNPJ) e lista as faturas que a acompanham; com o aceite do operador, `relink_bl_customer` move o B/L, as faturas abertas de taxa local, o recebível do ledger e a demurrage viva para o novo cliente, **sem alterar valores**. Fatura consolidada com outros B/Ls, fatura com pagamento registrado, recebível do razão já baixado ou consignatário ainda não cadastrado (com qualquer cobrança viva, inclusive só recebível) impedem a troca automática — o motivo aparece no preview e os demais campos seguem sendo aplicados. A linha bloqueada (arquivo de outra viagem ou de outro B/L) não anuncia troca de consignatário, porque não importa nada; e quando o servidor recusa uma troca aceita no preview, a recusa (`customer_relinks`) é mostrada ao operador em vez de "importação concluída" (migration `360`). O CE Mercante não faz parte do payload do import e permanece como está. O **NCM** é campo próprio do B/L (`bls.ncm_codes`, ADR 0057): a importação grava o que o documento declara e preserva o cadastro manual quando o documento não declara nenhum, porque a descrição de container vem de uma célula só e a de carga solta descarta as linhas `NCM NUMBER`. A ação em lote fica na lista; a mesma entrada existe como ação rápida da viagem e como atalho filtrado na ficha do B/L.
 - O importador de **Manifesto BB** aceita layout resumido, legado e formatos de carrier; faz preview, suporta B/L de carga solta ou transiciona B/L existente com contêineres para `misto`, e registra erros no batch. Os modais de planilha mostram o formato/encoding detectados antes da prévia do domínio, exibem o relatório completo de erros aplicáveis e permitem exportá-lo sem `raw`.
 - A confirmação do Manifesto BB pode aceitar explicitamente os erros de linha aplicáveis por `allowRowErrors`; isso não libera B/L incompatível com a viagem, documento inválido ou qualquer erro central da transação.
+- **Sequência para carga solta:** importe primeiro os B/Ls pelo Manifesto BB
+  ou pelo B/L avulso. Depois, use **Importar CE Mercante** para os CEs e informe
+  o **Nº de Manifesto Mercante** oficial no mesmo modal. Os B/Ls precisam
+  existir antes da importação separada de CE. A planilha BB também pode trazer
+  os CEs já na primeira importação; não é obrigatório separá-los. O número do
+  manifesto é distinto do CE de cada B/L e não é extraído do nome do arquivo.
+  Reimportar um B/L atualiza o cadastro e seu lote; os totais históricos do lote
+  anterior não representam B/Ls adicionais na aba **Rotas e Manifestos**.
 - O modal **Importar B/Ls (PDF/DOCX)** recebe o conhecimento avulso do armador — um arquivo por B/L, vários de uma vez. Exige a viagem declarada pelo operador e bloqueia o arquivo cujo navio/viagem divirja da viagem escolhida, no mesmo contrato da importação documental de B/L de container. O preview mostra partes, rota, volumes, peso, cubagem, marcas, NCM, frete e ressalvas do navio, além dos avisos de leitura.
 - Para listagens e reconciliação por nome, o consignatário curto termina na natureza jurídica (`LTDA`, `S.A.`, `EIRELI`, `EI`, `MEI`, `SLU`, `EPP`, `ME`, incluindo combinações); sem marcador reconhecido, usa a primeira linha não vazia. O bloco completo permanece intacto como dado documental e para auditoria.
 - Pela ADR 0025, `Laden on Board` persiste o ATD do POL. Entre B/Ls da mesma Viagem e POL prevalece automaticamente a data mais antiga. ETD e ATD permanecem distintos; telas sem coluna própria mostram ATD em verde na célula de ETD.
@@ -326,7 +345,7 @@ flowchart LR
     A migration `060` permite complementar um B/L com carga solta, preservando
     sua carga container e estado financeiro; os triggers recalculam a modalidade
     por statement. Não existe mais a proibição geral de cruzar modalidades.
-12. **Baplie substitui por viagem.** A RPC apaga e reinsere o staging em uma transação. Containers `empty` não entram na conciliação de B/L; alimentam Vazios de Importação.
+12. **Baplie substitui por viagem.** A RPC apaga e reinsere o staging em uma transação. Containers `empty` não entram na conciliação de B/L; alimentam Vazios de Importação. O parser mantém o POD reconhecido de `LOC+11/12`; se estiver ausente ou inválido, usa o porto reconhecido de `LOC+83` da mesma unidade, preserva o destino final e mostra aviso para conferir a descarga real. Sem nenhum porto utilizável, o erro de POD permanece bloqueante.
 13. **Baplie é soberano sobre os atributos físicos.** Não existe mais resolução “manter valor do B/L”: a cada importação ou reimportação, IMO, classe, ONU e OOG do Baplie são aplicados aos containers dos B/Ls da viagem. As resoluções que restam em `baplie_reconciliation_resolutions` tratam só divergência de existência.
 14. **Veículos têm fronteira dividida.** A inserção do lote é transacional; cancelamento de invoices e recálculo de taxas ocorrem depois, por B/L. Falha nessa fase não desfaz veículos já inseridos.
 15. **Datas de container afetam demurrage.** Devolução anterior à descarga é rejeitada; todos retornados podem criar e emitir invoice de demurrage.

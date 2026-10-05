@@ -235,7 +235,7 @@ segue [Testes](../../setup/testing.md).
 
 ## Nota editorial — implementação posterior em 2026-10-04
 
-O relatório acima preserva a revisão inicial. Após autorização para corrigir, as telas e serviços passaram a incorporar os controles descritos na [decisões implementadas](../specs/2026-10-04-controles-financeiros-design.md). O [manual](../../operations/manual-financeiro.md) passou a descrever a edição corrigida. Após autorização explícita, a migration 134 foi incluída e validada na cadeia local; isso não comprova implantação.
+O relatório acima preserva a revisão inicial. Após autorização para corrigir, as telas e serviços passaram a incorporar os controles descritos na [decisões implementadas](../specs/2026-10-04-controles-financeiros-design.md). O [manual](../../operations/manual-financeiro.md) passou a descrever a edição corrigida. Após autorização explícita, a migration 148 foi incluída e validada na cadeia local; isso não comprova implantação.
 
 A investigação de F02 confirmou a instabilidade do serviço ao preencher uma data opcional com o instante de cada chamada. A hipótese de enviar data em branco pela tela foi descartada: `paymentFormSchema` já exige a data. O teste da tela usa data preenchida e verifica preservação de chave, data, valor e referência após timeout. Não se deve interpretar o diagnóstico inicial como prova de que a tela aceitava data vazia.
 
