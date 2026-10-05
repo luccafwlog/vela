@@ -144,7 +144,7 @@ A migration `196_portal_provisioning_console_read_model.sql` usa `SECURITY DEFIN
 
 ## Desbloqueio de CE Mercante
 
-As migrations `134`–`143` usam schema privado para implementação e RPCs públicas
+As migrations `137`–`146` usam schema privado para implementação e RPCs públicas
 com allowlists e `search_path` fixo. Não há grants de tabela para o navegador.
 Portal resolve CNPJ pela sessão/conta ativa, nunca pelo payload. Administrativo
 e Documentação gerenciam; Financeiro e Operações consultam sem PDFs. Inspeção

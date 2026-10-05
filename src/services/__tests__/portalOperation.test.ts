@@ -59,6 +59,7 @@ describe('portalOperation', () => {
         voyage_id: 10,
         voyage_number: '001W',
         vessel_name: 'NAVIO TESTE',
+        carrier_id: null, carrier_name: null, tracking_url: null,
         transshipment: {
           omission_id: 9, disposition: 'transshipment', omitted_pod: 'VITÓRIA', discharge_pod: 'SANTOS',
           onward_vessel_name: 'COSCO STAR', onward_carrier: 'COSCO', onward_voyage_number: 'T-1',
@@ -86,6 +87,17 @@ describe('portalOperation', () => {
         cancelled_at: null,
       },
     ])
+  })
+
+  it('normaliza PODs equivalentes e conserva o estado sem tarifa oficial', () => {
+    const rows = normalizePortalOperationRows([{ bl_id: 'ALIAS', pod: 'BRVIT', carrier_id: '10', carrier_name: 'Armador', tracking_url: 'https://example.org/tracking', containers: [{ id: 1, status: 'tarifa_indisponivel', free_time_days: null }] }])
+    expect(rows[0]).toMatchObject({ pod: 'BRVIX', carrier_id: 10, carrier_name: 'Armador', tracking_url: 'https://example.org/tracking' })
+    expect(rows[0].containers[0]).toMatchObject({ status: 'tarifa_indisponivel', free_time_days: null })
+  })
+
+  it('mantém portos fora da lista de importação e aliases do banco', () => {
+    const rows = normalizePortalOperationRows(['BRNVT', 'BRREC', 'SSA', 'BRXYZ'].map((pod) => ({ bl_id: pod, pod })))
+    expect(rows.map((row) => row.pod)).toEqual(['BRITJ', 'BRSUA', 'BRSSA', 'BRXYZ'])
   })
 
   it('normaliza B/Ls operacionais com dados de carga mista', () => {

@@ -16,7 +16,7 @@ local. Publicação, PDF oficial e homologação externa ainda pendentes.
 Contratos executados usam tipos snake_case, `ce_unlock_read` e dispatchers
 `ce_unlock_command`/`portal_ce_unlock_command` com allowlists, em vez das funções
 individuais propostas abaixo. Regras/layout estão em `ceUnlockRules.ts`.
-Migrations `134`–`141` são novas; tipos gerados e migrations anteriores preservados.
+Migrations `137`–`144` são novas; tipos gerados e migrations anteriores preservados.
 As listas de testes abaixo são metas do plano: checkbox aberto não comprova
 ausência de implementação; a evidência da execução está no módulo e no relatório.
 

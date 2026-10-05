@@ -446,7 +446,7 @@ Ao entregar a operação para outra pessoa:
 ## Desbloqueio de CE Mercante
 
 **Implementação local, publicação pendente.** Publicar na ordem: migrations
-`134`–`143`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
+`137`–`146`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
 de produção. As funções são `portal-ce-unlock-document`,
 `ce-unlock-document-download`, `ce-unlock-export` e `ce-unlock-cleanup`.
 As três primeiras autenticam a sessão com `auth.getUser()`; `verify_jwt=false`

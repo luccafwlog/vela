@@ -4,6 +4,7 @@ import { portalPath } from '../services/portalScope'
 import { Fragment, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronUp, Download } from 'lucide-react'
+import { InformationLinks } from '../components/portal/information/InformationLinks'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
@@ -41,6 +42,7 @@ const STATUS_OPTIONS: { value: OpStatus; label: string }[] = [
   { value: 'dentro_free_time', label: 'Dentro do free time' },
   { value: 'em_demurrage', label: 'Em demurrage' },
   { value: 'devolvido', label: 'Devolvido' },
+  { value: 'tarifa_indisponivel', label: 'Tarifa indisponível' },
   { value: 'soc', label: 'SOC (sem devolução)' },
 ]
 
@@ -104,6 +106,8 @@ export function PortalOperacao() {
         title="BLs e Containers"
         description="Consulte seus B/Ls e containers: descarga, devolução, free time e dias de demurrage."
       />
+
+      <div className="mb-4"><InformationLinks sections={['devolucao', 'tracking', 'agentes']} /></div>
 
       <div className="mb-4 flex gap-2 border-b border-[var(--app-border)]" role="tablist">
         <TabButton active={tab === 'bls'} label="BLs" onClick={() => setTab('bls')} />
@@ -257,11 +261,11 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
             {paginated.map((row) => {
               const noReturn = row.container_count - row.containers_returned
               return (
+                <div key={row.bl_id}>
                 <button
-                  key={row.bl_id}
                   type="button"
                   onClick={() => setOpenBl(openBl === row.bl_id ? null : row.bl_id)}
-                  className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 text-left"
+                  className="w-full rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 text-left"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold">B/L {row.bl_id}</span>
@@ -278,6 +282,8 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                     <span>Dem. {row.containers_in_demurrage}</span>
                   </div>
                 </button>
+                <div className="mt-2"><InformationLinks sections={['devolucao', 'tracking']} bl={row.bl_id} pod={row.pod} /></div>
+                </div>
               )
             })}
           </div>
@@ -404,7 +410,7 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
                     <td className="px-4 py-3">{c.pol ?? '-'}</td>
                     <td className="px-4 py-3">{c.pod ?? '-'}</td>
                     <td className="px-4 py-3">{formatDate(c.discharge_date)}</td>
-                    <td className="px-4 py-3">{c.return_date ? formatDate(c.return_date) : 'Pendente'}</td>
+                    <td className="px-4 py-3">{c.return_date ? formatDate(c.return_date) : 'Pendente'}<InformationLinks sections={['devolucao']} containerId={c.id} bl={c.bl_id} pod={c.pod} /></td>
                     <td className="px-4 py-3">{formatNumber(c.usage_days)}</td>
                     <td className="px-4 py-3">{formatNumber(c.free_time_days)}</td>
                     <td className="px-4 py-3">{formatNumber(c.demurrage_days)}</td>
@@ -434,6 +440,7 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
                   <span>Free {formatNumber(c.free_time_days)}</span>
                   <span>Dem. {formatNumber(c.demurrage_days)}</span>
                 </div>
+                <div className="mt-3"><InformationLinks sections={['devolucao', 'tracking']} containerId={c.id} bl={c.bl_id} pod={c.pod} /></div>
               </div>
             ))}
           </div>
@@ -459,6 +466,7 @@ function ContainerDetails({ row }: { row: PortalOperationBL }) {
 
   return (
     <div className="border-t border-[var(--app-border)]">
+      <div className="px-5 py-4"><InformationLinks sections={['taxas', 'devolucao', 'tracking', 'agentes']} bl={row.bl_id} pod={row.pod} /></div>
       {row.transshipment ? <PortalTransshipmentCard transshipment={row.transshipment} /> : null}
       {hasBreakbulk ? (
         <section
@@ -508,7 +516,7 @@ function ContainerDetails({ row }: { row: PortalOperationBL }) {
               <td className="px-4 py-3 font-semibold">{container.container_number}</td>
               <td className="px-4 py-3">{container.type ?? '-'}</td>
               <td className="px-4 py-3">{formatDate(container.discharge_date)}</td>
-              <td className="px-4 py-3">{container.return_date ? formatDate(container.return_date) : 'Pendente'}</td>
+              <td className="px-4 py-3">{container.return_date ? formatDate(container.return_date) : 'Pendente'}<InformationLinks sections={['devolucao']} containerId={container.id} bl={row.bl_id} pod={row.pod} /></td>
               <td className="px-4 py-3">{formatNumber(container.usage_days)}</td>
               <td className="px-4 py-3">{formatNumber(container.free_time_days)}</td>
               <td className="px-4 py-3">{formatNumber(container.demurrage_days)}</td>
@@ -560,6 +568,7 @@ function formatNumber(value: number | null) {
 function renderStatus(status: PortalOperationContainerStatus) {
   if (status === 'devolvido') return <Badge tone="green">Devolvido</Badge>
   if (status === 'soc') return <Badge tone="slate" title="Container do próprio cliente: sem devolução nem demurrage">SOC</Badge>
+  if (status === 'tarifa_indisponivel') return <Badge tone="yellow" title="Free time oficial indisponível. Consulte o atendimento.">Tarifa indisponível</Badge>
   if (status === 'em_demurrage') return <Badge tone="red">Em demurrage</Badge>
   if (status === 'dentro_free_time') return <Badge tone="blue">Dentro free time</Badge>
   return <Badge tone="slate">Sem descarga</Badge>

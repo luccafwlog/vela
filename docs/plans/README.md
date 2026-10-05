@@ -10,6 +10,8 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
+- [2026-10-05 — Integração das PRs 845, 846 e 847](2026-10-05-integracao-prs-845-846-847.md) — correções, regressões e validação conjunta em execução.
+
 - [2026-10-04 — Desbloqueio de CE Mercante (Issue 557)](2026-10-04-desbloqueio-ce-mercante.md) — execução autorizada, implementação local; publicação/homologação pendentes; Portal, gestão em Importação, documentos anuais VIP até 31/12 por CNPJ e planilha ZPT com cinco colunas; detalhes documentais/operacionais a homologar.
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — em execução; código entregue (PRs #799, #812–#815, #818; migrations 106, 108, 109 e 110) e Edge Functions publicadas em 2026-09-29. Pendente (dono): teste do Comunicado, Fase 1 no GitHub, conferência na Preview e itens de operação — lista em "Estado em 2026-09-29".
 - [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — implementa as ADRs 0071–0074 em seis fases: proteções do banco, falso sucesso e cascata atômica, diálogo de confirmação, trava do CE Mercante, cadastros, e usuários/retenção/backup.
@@ -59,3 +61,7 @@ As notas de execução intermediária de agosto/setembro foram preservadas no
 5. Rodar `npm run docs:check`.
 
 O plano [2026-10-02 — Correção dos achados da PR 839](../archive/plans/2026-10-02-correcao-achados-pr-839.md) foi encerrado com implementação e validação local concluídas; publicação e CI ficam registrados na PR.
+
+A Central de Informações aprovada em 2026-10-04 foi implementada e validada
+localmente: [registro arquivado](../archive/plans/2026-10-04-portal-informacoes.md).
+Publicação remota não realizada.

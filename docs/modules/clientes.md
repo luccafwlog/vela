@@ -282,3 +282,7 @@ O editor interno de contatos aplica a mesma regra do Perfil no Portal, compartil
 O módulo de [Desbloqueio de CE](desbloqueio-ce.md) introduz pedidos no Portal,
 gestão em Importação e condição VIP/documentos anuais na ficha do Cliente.
 Implementado no checkout; publicação ainda não executada.
+
+O botão **Informações do Portal** em `/clientes/portal` abre `/clientes/informacoes`;
+esse acesso não ocupa a barra superior. A aba Demurrage exibe a tabela oficial
+de tarifas e permite editar as observações públicas conforme as permissões.

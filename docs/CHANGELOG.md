@@ -7,15 +7,33 @@
 - **Correções da PR 847 (2026-10-05):** CE aceita liquidação do valor corrigido;
   referência externa permanece privada também no histórico; tentativas de upload
   não substituem PDFs registrados e são compensadas em falhas de armazenamento.
-  Migration corretiva `143`, regressões SQL/Deno e checks de Inspeção/segurança
+  Migration corretiva `146`, regressões SQL/Deno e checks de Inspeção/segurança
   atualizados. Publicação remota do backend continua pendente.
 
 - **Desbloqueio de CE Mercante (2026-10-04, implementação local):** página em
   Importação e no Portal, solicitações de BLs pagos, análise de termo/procuração
   e entrega original. VIP por CNPJ com documentos anuais até 31/12. Lotes XLSX
   ZPT de cinco colunas, envio e confirmação por BL separados, anexos privados e
-  expurgo agendado inicialmente desativado (migrations `134`–`141`). Ver
+  expurgo agendado inicialmente desativado (migrations `137`–`144`). Ver
   [módulo](modules/desbloqueio-ce.md); publicação e aceite externo pendentes.
+
+- **Revisão extensa da Central de Informações (2026-10-04, local):** migration
+  `136` corrige indicação por identidade física, valida POD/SOC compartilhados,
+  leitura de justificativa tardia e integração com exclusão de viagem. Resolver
+  comum elimina diferenças por aliases de tarifas sem mudar faturas existentes.
+  Corrigidos sobrescrita de assuntos, seleção indisponível, filtros ocultos,
+  tracking antigo, recuperação de erros e atualização dos caches dependentes.
+  [Achados e validação](archive/reports/2026-10-04-revisao-portal-informacoes.md).
+  Sem implantação remota.
+
+- **Central de Informações do Portal (2026-10-04, implementação local):** seis
+  seções com taxas oficiais do Vela, depots, Demurrage, agentes, atendimento e
+  tracking; mesmos componentes e identidade visual. Cadastros internos por
+  papel e indicação opcional de devolução por unidade física compartilhada,
+  com auditoria e retirada justificada. Migration `135`, isolamento por cliente
+  e CE, sem planilhas, tabelas de exportação ou Detention. Free time segue
+  B/L → acordo → tarifa geral, sem fallback fixo. Validação PostgreSQL 16 e
+  testes locais; publicação em produção não realizada.
 
 - **Correção de B/L após faturamento (2026-10-01, implementação local):** fatura
   emitida preserva valor/itens; Cancelar e reemitir sem pagamento e vínculo entre
@@ -821,3 +839,12 @@
 # Próxima versão
 
 - Comunicados: motor server-side de elegibilidade, runner protegido por segredo, painel de cobertura de viagens e filtros de origem/status no histórico.
+
+
+## Integração das PRs 845, 846 e 847 — 2026-10-05
+
+Migrations financeiras 134, Informações 135–136 e CE 137–147 com versões únicas.
+Menu, rotas e Modo Inspeção preservam ambos os módulos. Pagamento CE exige
+recebível vigente do Cliente atual e bloqueia troca de CNPJ não concluída;
+restituição normal de excedente mantém a regra do valor corrigido. As ações
+financeiras atualizam consultas CE no mesmo cache. Publicação remota pendente.

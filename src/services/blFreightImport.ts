@@ -377,7 +377,7 @@ export function buildBlFreightPreview({
       const invoices = (invoicesByBl?.get(existing.id) ?? []).filter((invoice) => invoice.kind === 'local')
       for (const invoice of invoices) {
         impact.messages.push(Number(invoice.totalPaidBrl ?? 0) > 0
-          ? `Fatura ${invoice.invoiceNumber} ficará desatualizada. Com pagamento: aumento usa avulsa; redução abate o saldo e depois restitui.`
+          ? impact.cnpj ? `Fatura ${invoice.invoiceNumber}: devolver ao Cliente original; nova cobrança aguarda confirmação da restituição.` : `Fatura ${invoice.invoiceNumber} ficará desatualizada. Com pagamento: aumento usa avulsa; redução abate o saldo e depois restitui.`
           : `Fatura ${invoice.invoiceNumber} será cancelada e reemitida automaticamente com o valor novo (com a consolidada que incluir o B/L).`)
       }
     }
@@ -511,7 +511,7 @@ export async function confirmBlFreightImport(
     if (!row.payload) return []
     // Rows that touch a billing variable only apply the physical change when the operator overrode.
     const base = row.requiresBillingOverride ? { ...row.payload, override_billing: overrideBilling } : row.payload
-    // A troca de consignatario move o B/L e a fatura de dono: so acontece com
+    // A troca muda o B/L; documentos e recebimentos anteriores ficam preservados. Só acontece com
     // aceite explicito, e nunca quando o preview ja apontou um impedimento.
     if (!row.requiresCustomerConfirmation) return [base]
     return [{ ...base, relink_customer: confirmCustomerChange }]
@@ -942,11 +942,10 @@ function describeCustomerChange(
     if (invoice.blockedReason) blockedReasons.push(`Fatura ${invoice.invoiceNumber}: ${invoice.blockedReason}`)
   }
 
-  // Recebivel do razao segue a mesma regra da fatura: com baixa registrada ele
-  // carrega historico de recebimento e nao troca de dono (migration 360).
+  // O histórico do recebível fica com o pagador original; o novo Cliente terá outra cobrança.
   const liveReceivables = receivables.filter((receivable) => receivable.status !== 'void')
   if (liveReceivables.some((receivable) => (receivable.settledAmountBrl ?? 0) > 0)) {
-    blockedReasons.push('Recebivel do B/L ja tem baixa registrada; estorne no razao antes de trocar o cliente.')
+    messages.push('Devolver o recebido ao Cliente original; a nova cobrança local aguarda a confirmação da restituição.')
   }
 
   if (targetMissing) {
@@ -961,7 +960,7 @@ function describeCustomerChange(
     }
   } else if (invoiceRows.length) {
     messages.push(
-      `Fatura(s) que acompanham o novo cliente, com o mesmo valor: ${invoiceRows.map((invoice) => invoice.invoiceNumber).join(', ')}`,
+      `Documentos preservados: ${invoiceRows.map((invoice) => invoice.invoiceNumber).join(', ')}. Taxas locais sem pagamento são reemitidas; com pagamento, devolver ao Cliente original antes da nova cobrança.`,
     )
   }
 
@@ -980,14 +979,11 @@ function describeCustomerChange(
 }
 
 /**
- * Uma fatura so troca de dono enquanto ninguem pagou nada nela e ela cobre
- * apenas este B/L. Consolidada ou com pagamento, a troca vira trabalho manual
- * do financeiro — automatizar aqui reescreveria historico de recebimento.
+ * Taxas locais usam restituição/reemissão; Demurrage recebida exige devolver
+ * primeiro pelo fluxo excepcional. Nenhum pagamento muda de Cliente.
  */
 function describeInvoiceTransferBlock(invoice: BlInvoiceSnapshot): string | null {
-  if (invoice.blCount > 1) return 'consolidada com outros B/Ls; separe a cobranca antes de trocar o cliente.'
-  if ((invoice.totalPaidBrl ?? 0) > 0) return 'ja tem pagamento registrado; estorne ou cancele antes de trocar o cliente.'
-  if (invoice.status === 'paid') return 'ja quitada; cancele ou emita nota de correcao antes de trocar o cliente.'
+  if (invoice.kind === 'demurrage' && (invoice.status === 'paid' || (invoice.totalPaidBrl ?? 0) > 0)) return 'devolva ao Cliente original e confirme a restituição excepcional antes de trocar o CNPJ.'
   return null
 }
 

@@ -13,5 +13,8 @@ export function usePortalOperationBls() {
     queryKey: ['portal-operation-bls', scope.mode, scope.customerId],
     enabled: isAuthenticated || readOnly,
     queryFn: () => portalListOperationBls(scope),
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    staleTime: 0,
   })
 }

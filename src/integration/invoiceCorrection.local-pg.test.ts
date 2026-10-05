@@ -186,7 +186,7 @@ describeLocal('123/124 — avulsa da tabela, abatimento guiado e restituição p
     expect(psql(`SELECT origin || '|' || notes FROM public.invoice_refunds WHERE id = ${refund}`)).toBe('correction|Correcao de valor')
     expect(psql(`SELECT count(*) FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id
       WHERE ai.item_type = 'restituicao_pendente' AND ai.status = 'active' AND a.entity_id = '${invoiceIds[1]}'`)).toBe('1')
-    expect(adminJson(`SELECT public.settle_invoice_refund(${refund})`)).toMatchObject({status: 'settled'})
+    expect(adminJson(`SELECT public.confirm_invoice_refund(${refund},'CORRECTION-REF-${refund}','Cliente original','2026-10-01T12:00:00Z')`)).toMatchObject({status: 'settled'})
     const payment = psql(`SELECT id FROM public.payments WHERE invoice_id = ${invoiceIds[1]}`)
     expect(asAdmin(`SELECT public.reverse_invoice_payment(${payment}, 'Baixa incorreta')`).stderr).toMatch(/restituicao por correcao/)
     expect(asAdmin(`SELECT public.register_invoice_correction_refund(${invoiceIds[1]}, 100, 'x')`).stderr).toMatch(/permission denied/)

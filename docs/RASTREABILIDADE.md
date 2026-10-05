@@ -103,7 +103,7 @@ as divergências permanecem no documento vivo do módulo indicado.
 | `/portal/billing` | Listar, detalhar e imprimir faturas avulsas `manual`, com ou sem B/L | `PortalBillingTabs`, `PortalInvoiceDetailModal` | `usePortalInvoicesPage`, `usePortalInvoiceDetail`, `portalBilling.ts` | Núcleos `portal_list_invoices_page` e `portal_invoice_details`, migration `097` | Cliente vem de `current_portal_customer_id()`; apresenta item, descrição, contexto opcional e PIX; não oferece reconsolidação para `manual` | **Código**, **Teste** de Portal, **Teste de contrato SQL** e **Teste local-pg**; runtime remoto não executado | [Portal do Cliente](modules/portal-cliente.md#catálogo-de-ações) |
 | `/portal/billing` | Criar ou tornar obsoleta consolidação | `src/components/portal/PortalConsolidatedModal.tsx` | `usePortalBilling` | `portal_create_consolidation`, `portal_obsolete_consolidation` | Invalida listas, overview e recebíveis consolidáveis | **Código**, **Teste de contrato SQL** | [Portal do Cliente](modules/portal-cliente.md#catálogo-de-ações) |
 | `/portal/operacao` | Consultar B/Ls, containers e Informações de Transbordo | `src/pages/PortalOperacao.tsx` | `usePortalOperation` / `portalOperation.ts` | `portal_list_operation_bls`; projeção de `bl_transshipments` + `voyage_omissions` | Expansão do B/L mostra o card global vigente; COD é distinto e não publica justificativa, navio ou datas internas | **Código**, **Teste**, **Teste de contrato SQL** | [Portal do Cliente](modules/portal-cliente.md#catálogo-de-ações) |
-| `/desbloqueio-ce` | Gerenciar requisitos, entrega, análise e exportação ZPT | `src/pages/DesbloqueioCe.tsx`, `src/services/ceUnlockService.ts` | `useCeUnlock` | `ce_unlock_read`, `ce_unlock_command`; migrations 134–136 | Requisitos por BL, pagamento derivado, exportação sem confirmação automática | **Código**, **Teste SQL local** | [Desbloqueio de CE](modules/desbloqueio-ce.md) |
+| `/desbloqueio-ce` | Gerenciar requisitos, entrega, análise e exportação ZPT | `src/pages/DesbloqueioCe.tsx`, `src/services/ceUnlockService.ts` | `useCeUnlock` | `ce_unlock_read`, `ce_unlock_command`; migrations 137–147 | Requisitos por BL, pagamento derivado, exportação sem confirmação automática | **Código**, **Teste SQL local** | [Desbloqueio de CE](modules/desbloqueio-ce.md) |
 | `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce` | Solicitar/acompanhar CE e documentos anuais VIP | `src/pages/PortalDesbloqueioCe.tsx` | `usePortalCeUnlock`, `PortalScope` | `portal_*ce_unlock*`; wrappers inspect | Próprio CNPJ; inspeção somente leitura | **Código**, **Teste UI/SQL local** | [Desbloqueio de CE](modules/desbloqueio-ce.md) |
 | `/portal/perfil` | Atualizar perfil e contatos permitidos | `src/pages/PortalProfile.tsx` | `usePortalAuth` | `portal_update_profile` | Atualiza somente campos autorizados e recarrega overview | **Código**; runtime não executado | [Portal do Cliente](modules/portal-cliente.md#catálogo-de-ações) |
 | `/line-up-tv/display` | Exibir e atualizar o Line-Up protegido | `src/pages/LineUpTVDisplay.tsx` | `fetchLineUpSnapshot`, `listVoyageEscalaSchedulesByVoyageIds`, `arrivalDisplay`, `deriveEscalaState` | projeção unificada de escalas + tabelas operacionais agregadas pelo serviço | Cache `['lineup-tv-display-v2']`; ATA precede ETA; escala atracada fica verde; viagens só de exportação entram pelo porto da escala unificada; borda do ciclo acompanha a primeira linha no desktop/mobile | **Código**, **Teste**; runtime visual não executado | [Operação e suporte](modules/operacao-suporte.md#catálogo-de-ações) |
@@ -674,3 +674,29 @@ de contrato `portalInspectionMigration.test.ts`. Nenhum selo de runtime remoto
 
 As RPCs antigas `add_manual_invoice_charge` e `delete_manual_invoice_charge`
 estão sem `EXECUTE` para a API desde `122`; serviços/hooks foram retirados.
+
+
+### Central de Informações — rotas (2026-10-04)
+
+| Rota | Tela / fonte |
+|---|---|
+| `/portal/informacoes` | PortalInformation: central com seis seções |
+| `/portal/informacoes/:section` | Taxas Locais, Devolução, Demurrage, Agentes, Atendimento e Tracking |
+| `/clientes/portal/inspecao/:customerId/informacoes` | Mesma central no escopo somente leitura de inspeção |
+| `/clientes/portal/inspecao/:customerId/informacoes/:section` | Seções no escopo de inspeção |
+| `/clientes/informacoes` | ClientesInformacoes: cadastros internos, tarifas de Demurrage e publicação; acesso pelo botão em `/clientes/portal` |
+
+Serviço `portalInformation.ts`, hooks `usePortalInformation.ts` e migration
+`135_portal_information.sql` e `136_portal_information_review_fixes.sql`; preços vêm das tabelas vigentes do Vela.
+Orientação de devolução é consultada por container, com gate de cliente/CE;
+indicação específica é administrada na aba Carga do B/L e auditada.
+Testes: `portalInformation.local-pg.test.ts`, `portalInformation.test.ts`,
+`InformationSections.test.tsx`, `ReturnGuidanceView.test.tsx`,
+`ContainerReturnInstruction.test.tsx` e `ClientesInformacoes.test.tsx`.
+
+
+A revisão de 2026-10-04 separa indicação física por viagem/container do registro
+individual do B/L; inclui a dependência na exclusão permitida de viagem e usa
+resolver SQL comum para tipos equivalentes das tarifas de Demurrage. Edições
+existentes de carga, depot e tarifas invalidam as novas consultas. Evidências e
+achados: [revisão extensa](archive/reports/2026-10-04-revisao-portal-informacoes.md).

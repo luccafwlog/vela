@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   getInvoiceCorrectionSummary,
+  prepareBlFinancialCancellation,
   retryInvoiceBasisChanges,
   resolveStaleInvoice,
   createConsolidatedInvoice,
@@ -101,4 +102,9 @@ export function useResolveStaleInvoice() {
 export function useRetryInvoiceBasisChanges() {
   const invalidate = useLedgerInvalidation()
   return useMutation({ mutationFn: retryInvoiceBasisChanges, onSuccess: invalidate })
+}
+
+export function usePrepareBlFinancialCancellation() {
+  const invalidate = useLedgerInvalidation()
+  return useMutation({ mutationFn: prepareBlFinancialCancellation, onSuccess: invalidate })
 }

@@ -39,7 +39,12 @@ Reserva de upload sem PDF registrado não substitui a versão enviada nem
 consome quota ativa após compensação/expurgo. Documento novo em análise não revoga o anterior vigente; renovação pode ser
 aplicada aos pedidos pendentes pelo desk, com histórico.
 
-Taxas locais usam recebíveis/settlements, não status isolado de fatura. Pagamento
+Taxas locais usam recebíveis/settlements vigentes do Cliente atual, não status
+isolado de fatura. Troca de CNPJ com devolução ou reemissão pendente bloqueia
+solicitação e atos posteriores; o recebimento antigo permanece no histórico e
+não financia o novo Cliente. A nova cobrança precisa de liquidação própria.
+Restituição de excedente por redução normal do mesmo Cliente não bloqueia
+aptidão quando o valor corrigido já está coberto. Pagamento
 parcial, ausência de liquidação, nova obrigação de COD ou cancelamento de baixa
 impedem aptidão. Demurrage/avulsas não fazem parte do requisito local. Correções para menor
 reduzem o valor exigível: a liquidação cobre o valor original menos a correção,
@@ -59,7 +64,7 @@ externo confirmado não é apagado por mudança financeira posterior.
 
 ## Persistência e segurança
 
-Migrations `134`–`143`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
+Migrations `137`–`147`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
 RLS sem acesso direto do navegador e RPCs com escopo server-side. Escritas
 cliente/internal usam dispatchers distintos com allowlists; retries compartilham
 chave idempotente e recusam alteração de payload. Inspeção tem wrappers de leitura.
@@ -102,3 +107,6 @@ cancelamento libera uma nova solicitação para o Cliente atual, sem expor
 histórico privado. Falha na resposta de finalização do upload não remove PDF
 já registrado; compensação e expurgo reivindicam o documento no banco antes
 da remoção. O logout do Portal remove seu cache privado de CE.
+
+Ações financeiras de baixa, cancelamento, restituição e retry invalidam também
+as consultas de CE no mesmo cliente de cache; os comandos revalidam no banco.

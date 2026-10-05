@@ -3,12 +3,13 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const cancelInvoice = vi.fn()
 const confirm = vi.fn()
 const showToast = vi.fn()
 const registerLedgerPayment = vi.fn()
+const reversePayment = vi.fn()
 
 vi.mock('../../../hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'admin-1' }, isAdmin: true, can: () => true }),
@@ -48,11 +49,15 @@ vi.mock('../../../hooks/useBilling', () => ({
   useInvoiceReissueLinks: () => ({ data: mockReissueLinks }),
 }))
 vi.mock('../../../hooks/useBillingLedger', () => ({
+  usePrepareBlFinancialCancellation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRetryInvoiceBasisChanges: () => ({ mutate: vi.fn(), isPending: false }),
+  reverseLocalPaymentAndInvalidate: (...args: unknown[]) => reversePayment(...args),
   useInvoiceCorrectionSummary: () => ({ data: { receivables: [], corrections: [] } }),
   useInvoiceRefunds: () => ({ data: [] }),
   useRegisterLedgerInvoicePayment: () => ({ mutateAsync: registerLedgerPayment, isPending: false }),
   useSettleInvoiceRefund: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+vi.mock('../FinancialRefundsPanel', () => ({ FinancialRefundsPanel: () => null }))
 vi.mock('../StaleInvoiceResolutionPanel', () => ({ StaleInvoiceResolutionPanel: () => null }))
 vi.mock('../InvoiceDocumentLocal', () => ({
   InvoiceDocumentLocal: () => <div data-testid="print-document">printable invoice</div>,
@@ -62,7 +67,45 @@ vi.mock('../../../services/operationalEvents', () => ({ logOperationalEvent: vi.
 
 import { InvoiceDetailModal } from '../InvoiceDetailModal'
 
+const initialDetail = mockDetailData
+beforeEach(() => {
+  vi.resetAllMocks()
+  mockDetailData = initialDetail
+  mockReissueLinks = null
+})
 afterEach(cleanup)
+
+it('repetição após timeout mantém chave, valor e data da tentativa', async () => {
+  mockDetailData = { invoice: { id: 9, invoice_number: 'INV-9', invoice_type: 'individual', status: 'issued', total_brl: 100, balance_brl: 100, total_paid_brl: 0 }, bls: [], items: [], payments: [] }
+  confirm.mockResolvedValue(true)
+  registerLedgerPayment.mockClear()
+  registerLedgerPayment.mockRejectedValueOnce(new Error('Timeout')).mockResolvedValueOnce({})
+  const user = userEvent.setup()
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+  fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-10-04' } })
+  fireEvent.change(screen.getByLabelText('Referência do recebimento bancário'), { target: { value: 'BANCO-TESTE-9' } })
+  await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
+  await user.click(screen.getByRole('button', { name: /Registrar pagamento|Tentar novamente/ }))
+  const first = registerLedgerPayment.mock.calls[0][0]
+  const second = registerLedgerPayment.mock.calls[1][0]
+  expect(first.paidAt).toEqual(expect.any(String))
+  expect(second).toEqual(first)
+})
+
+it('o Administrativo pode selecionar e cancelar uma baixa antiga com confirmação do valor', async () => {
+  mockDetailData = { invoice: { id: 9, invoice_number: 'INV-9', invoice_type: 'individual', status: 'partially_paid', total_brl: 100, balance_brl: 50, total_paid_brl: 50 }, bls: [], items: [],
+    payments: [{ id: 1, amount_brl: 20, paid_at: '2026-10-01', payment_method: 'ted' }, { id: 2, amount_brl: 30, paid_at: '2026-10-02', payment_method: 'ted' }] }
+  confirm.mockClear()
+  confirm.mockResolvedValue(true)
+  reversePayment.mockResolvedValue({})
+  const user = userEvent.setup()
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} enablePaymentReversal paymentId={2} /></MemoryRouter>)
+  await user.selectOptions(screen.getByLabelText('Baixa a cancelar'), '1')
+  await user.type(screen.getByLabelText('Justificativa (obrigatória)'), 'Duplicada no extrato')
+  await user.click(screen.getByRole('button', { name: 'Cancelar baixa' }))
+  expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('20,00') }))
+  expect(reversePayment).toHaveBeenCalledWith(expect.anything(), 1, 'Duplicada no extrato')
+})
 
 it('opens the printable invoice only after the user requests printing', async () => {
   const user = userEvent.setup()
@@ -115,6 +158,7 @@ it('explica as consequências da baixa parcial e aguarda confirmação antes de 
   expect(screen.getByText(/Após esta baixa/).textContent).toContain('60,00')
   fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-10-01' } })
   expect(screen.getByText(/a correção do B\/L não reemite a fatura/)).toBeTruthy()
+  fireEvent.change(screen.getByLabelText('Referência do recebimento bancário'), { target: { value: 'BANCO-TESTE-9' } })
   await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
   expect(confirm).toHaveBeenCalledWith(expect.objectContaining({
     title: 'Registrar pagamento parcial?',

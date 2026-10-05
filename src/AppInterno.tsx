@@ -15,6 +15,8 @@ const PortalDashboard = lazyPage(() => import('./pages/PortalDashboard'), 'Porta
 const PortalBilling = lazyPage(() => import('./pages/PortalBilling'), 'PortalBilling')
 const PortalOperacao = lazyPage(() => import('./pages/PortalOperacao'), 'PortalOperacao')
 const PortalProfile = lazyPage(() => import('./pages/PortalProfile'), 'PortalProfile')
+const PortalInformation = lazyPage(() => import('./pages/PortalInformation'), 'PortalInformation')
+const ClientesInformacoes = lazyPage(() => import('./pages/ClientesInformacoes'), 'ClientesInformacoes')
 const PortalInspection = lazyPage(() => import('./pages/PortalInspection'), 'PortalInspection')
 const Painel = lazyPage(() => import('./pages/Painel'), 'Painel')
 const Viagens = lazyPage(() => import('./pages/Viagens'), 'Viagens')
@@ -89,12 +91,14 @@ const defaultPreload = Painel.preload
 
 const routePreloads: RoutePreloadTable = [
   ['/login', Login.preload], ['/line-up-tv/display', LineUpTVDisplay.preload],
+  ['/clientes/portal/inspecao/:customerId/informacoes/:section', PortalInformation.preload],
+  ['/clientes/portal/inspecao/:customerId/informacoes', PortalInformation.preload],
   ['/clientes/portal/inspecao/:customerId', PortalInspection.preload],
   ['/painel', Painel.preload], ['/viagens/:voyageId', Viagens.preload], ['/viagens', Viagens.preload],
   ['/desbloqueio-ce', DesbloqueioCe.preload],
   ['/bls/:blId', BlDetalhe.preload], ['/bls', Bls.preload], ['/containers', Containers.preload],
   ['/veiculos', Veiculos.preload], ['/revisao', Revisao.preload],
-  ['/clientes/comunicacao', ClientesComunicacao.preload], ['/clientes/portal', ClientesPortal.preload], ['/clientes/:cnpj', ClienteFicha.preload], ['/clientes', Clientes.preload],
+  ['/clientes/informacoes', ClientesInformacoes.preload], ['/clientes/comunicacao', ClientesComunicacao.preload], ['/clientes/portal', ClientesPortal.preload], ['/clientes/:cnpj', ClienteFicha.preload], ['/clientes', Clientes.preload],
   ['/taxas-locais/tabelas', TaxasLocaisTabelas.preload], ['/taxas-locais', TaxasLocais.preload],
   ['/faturamento', TaxasLocais.preload], ['/alertas/regras', AlertasRegras.preload], ['/alertas', Alertas.preload],
   ['/relatorios', Relatorios.preload], ['/demurrage', Demurrage.preload], ['/reconciliacao', Reconciliacao.preload],
@@ -131,6 +135,8 @@ export default function AppInterno() {
             <Route path="operacao" element={withSuspense(<PortalOperacao />)} />
             <Route path="desbloqueio-ce" element={withSuspense(<PortalDesbloqueioCe />)} />
             <Route path="perfil" element={withSuspense(<PortalProfile />)} />
+            <Route path="informacoes" element={withSuspense(<PortalInformation />)} />
+            <Route path="informacoes/:section" element={withSuspense(<PortalInformation />)} />
           </Route>
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/painel" replace />} />
@@ -146,6 +152,7 @@ export default function AppInterno() {
             <Route path="/veiculos" element={withSuspense(<Veiculos />)} />
             <Route path="/revisao" element={withSuspense(<Revisao />)} />
             <Route path="/clientes" element={withSuspense(<Clientes />)} />
+            <Route path="/clientes/informacoes" element={withSuspense(<ClientesInformacoes />)} />
             <Route path="/clientes/portal" element={withSuspense(<ClientesPortal />)} />
             <Route element={<ProtectedRoute permission="customer_communications" />}>
               <Route path="/clientes/comunicacao" element={withSuspense(<ClientesComunicacao />)} />

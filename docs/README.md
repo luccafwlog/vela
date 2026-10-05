@@ -16,6 +16,7 @@
 | Entender segurança (RLS, auth, CSP) | [operations/seguranca.md](operations/seguranca.md) |
 | Saber quais serviços externos o sistema usa, onde estão as contas e os segredos | [operations/servicos-externos.md](operations/servicos-externos.md) |
 | Validar um fluxo manualmente | [operations/validacao.md](operations/validacao.md) |
+| Resolver faturamento, baixa, restituição, cancelamento ou correção de B/L | [Manual financeiro](operations/manual-financeiro.md) |
 | Saber por que algo foi decidido | [adr/](adr/) |
 
 ## Visão geral
@@ -66,6 +67,13 @@ O ciclo de vida plano/spec → archive está definido em
 [CONVENCOES.md](CONVENCOES.md#ciclo-de-vida-de-planos-e-specs).
 
 ## Auditoria documental
+
+A [revisão financeira de 2026-10-04](archive/audits/2026-10-04-revisao-fluxo-financeiro.md)
+registra testes locais de emissão, pagamento, conciliação, correção e cancelamento,
+com lacunas e procedimentos no [manual financeiro](operations/manual-financeiro.md).
+O [relatório de correções](archive/reports/2026-10-04-correcoes-fluxo-financeiro.md)
+registra as correções implementadas, os testes finais e a inclusão autorizada
+da migration 134.
 
 A [revisão de 2026-09-19](archive/audits/2026-09-19-overhaul-documental.md)
 registra os contratos encontrados, as 69 decisões revisadas, o inventário da

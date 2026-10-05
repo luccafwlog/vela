@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { afterReferenciaDemurrageAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
 import {
   deleteCustomerDemurrageAgreement,
@@ -26,11 +27,12 @@ export function useCustomerDemurrageAgreements(
 
 function useInvalidateCustomerAgreements() {
   const queryClient = useQueryClient()
-  return (customerId?: number) => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.demurrage.customerAgreements() })
-    if (customerId) {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.demurrageAgreements(customerId) })
-    }
+  return async (customerId?: number) => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.demurrage.customerAgreements() }),
+      afterReferenciaDemurrageAlterada(queryClient),
+      ...(customerId ? [queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.demurrageAgreements(customerId) })] : []),
+    ])
   }
 }
 

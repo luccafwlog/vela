@@ -17,6 +17,7 @@ const PortalForgotPassword = lazyPage(() => import('./pages/PortalForgotPassword
 const PortalResetPassword = lazyPage(() => import('./pages/PortalResetPassword'), 'PortalResetPassword')
 const PortalAtivacao = lazyPage(() => import('./pages/PortalAtivacao'), 'PortalAtivacao')
 const PortalConfirmarEmail = lazyPage(() => import('./pages/PortalConfirmarEmail'), 'PortalConfirmarEmail')
+const PortalInformation = lazyPage(() => import('./pages/PortalInformation'), 'PortalInformation')
 const PortalProfile = lazyPage(() => import('./pages/PortalProfile'), 'PortalProfile')
 
 function RouteLoading() {
@@ -48,6 +49,7 @@ const routePreloads: RoutePreloadTable = [
   ['/portal/recuperar-senha', PortalResetPassword.preload], ['/portal/ativar', PortalAtivacao.preload],
   ['/portal/confirmar-email', PortalConfirmarEmail.preload], ['/portal', PortalDashboard.preload],
   ['/portal/billing', PortalBilling.preload], ['/portal/operacao', PortalOperacao.preload],
+  ['/portal/informacoes/:section', PortalInformation.preload], ['/portal/informacoes', PortalInformation.preload],
   ['/portal/desbloqueio-ce', PortalDesbloqueioCe.preload], ['/portal/perfil', PortalProfile.preload], ['*', defaultPreload],
 ]
 
@@ -80,6 +82,8 @@ export default function AppPortal() {
               <Route path="/portal/billing" element={withSuspense(<PortalBilling />)} />
               <Route path="/portal/operacao" element={withSuspense(<PortalOperacao />)} />
               <Route path="/portal/desbloqueio-ce" element={withSuspense(<PortalDesbloqueioCe />)} />
+              <Route path="/portal/informacoes" element={withSuspense(<PortalInformation />)} />
+              <Route path="/portal/informacoes/:section" element={withSuspense(<PortalInformation />)} />
               <Route path="/portal/perfil" element={withSuspense(<PortalProfile />)} />
             </Route>
           </Route>

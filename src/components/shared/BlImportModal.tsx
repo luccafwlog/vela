@@ -216,7 +216,7 @@ export function BlImportModal({
                 />
                 <span>
                   Confirmo a troca de cliente em {customerChangeCount} B/L(s): o B/L passa a pertencer ao novo
-                  consignatario e a fatura aberta acompanha, com o mesmo valor. Sem marcar, os demais campos sao
+                  consignatario. Taxas locais são reemitidas; com recebimento, devolver ao Cliente original antes da nova cobrança. Sem marcar, os demais campos sao
                   aplicados e o vinculo de cliente fica como esta.
                 </span>
               </label>

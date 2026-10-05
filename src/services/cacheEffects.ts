@@ -20,6 +20,7 @@ const SCHEDULE_KEYS: readonly (readonly unknown[])[] = [
 // atualiza o resumo nem os joins materializados nas telas consumidoras.
 const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   queryKeys.ceUnlock.all(),
+  queryKeys.portalInformation.all(), ['portal-operation-bls'],
   queryKeys.bls.all(), queryKeys.bls.summary(), queryKeys.bls.detail(), queryKeys.bls.cockpit(), queryKeys.portal.blStatus(),
   ['containers'], ['container-type-options'], queryKeys.bls.portOptions(),
   queryKeys.vehicles.all(), ['vehicle-stats'], ['voyage-vehicle-stats'],
@@ -170,9 +171,24 @@ export async function afterLiberacaoFaturamentoPortal(
 
 /** B/L corrections may reissue invoices, correct balances or create refunds. */
 export async function afterBlInvoiceBasisAlterada(queryClient: QueryInvalidator): Promise<void> {
-  await invalidate(queryClient, INVOICE_BASIS_CACHE_KEYS)
+  await invalidate(queryClient, [...INVOICE_BASIS_CACHE_KEYS, queryKeys.ceUnlock.all()])
 }
 
 export async function afterCeUnlockChanged(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [queryKeys.ceUnlock.all(), ['customer-detail'], ['customer-ficha']])
+}
+
+/** Mudanças no cadastro de depósitos afetam catálogo e orientações de devolução. */
+export async function afterDepotAlterado(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [['depots'], queryKeys.portalInformation.all(), ['portal-operation-bls']])
+}
+
+/** Referências publicadas no Portal dependem das tabelas e acordos internos. */
+export async function afterReferenciaPortalAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [queryKeys.portalInformation.all()])
+}
+
+/** Tarifas e acordos mudam o free time e o status calculados na operação. */
+export async function afterReferenciaDemurrageAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [queryKeys.portalInformation.all(), ['portal-operation-bls']])
 }
