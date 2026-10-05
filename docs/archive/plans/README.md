@@ -1,5 +1,7 @@
 # Planos históricos (archive)
 
+- [2026-10-05 — Integração das PRs 845, 846 e 847](2026-10-05-integracao-prs-845-846-847.md) — correções entregues; evidências e Preview no relatório de execução.
+
 - [2026-10-04 — Central de Informações do Portal](2026-10-04-portal-informacoes.md) — implementação e validação locais; produção não publicada.
 
 Planos concluídos, encerrados ou superados, consolidados aqui em 2026-07-18

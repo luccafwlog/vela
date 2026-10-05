@@ -251,19 +251,32 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       expect(moved).toMatchObject({request_id:null,protocol:null,termo:false,procuracao:false})
     } finally {sql("UPDATE public.bls SET customer_id=998557 WHERE id='CE557-A';")}
   })
-  it('cancelar pedido antigo libera novo pedido para o Cliente atual do BL',()=>{
+  it('cancelar pedido antigo só libera novo pedido após liquidação do Cliente atual',()=>{
     const old=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.find((r:{state:string})=>r.state==='submitted')
     sql("UPDATE public.bls SET customer_id=998558 WHERE id='CE557-SECOND';")
     let newRequest:{id:string;version:number}|undefined
     try {
       command('cancel',{request_id:old.id,expected_version:old.version,reason:'Consignatário alterado',request_key:crypto.randomUUID()})
       const current=JSON.parse(sql("SELECT public.portal_list_ce_unlock_bls('{}',1);",foreign)).items.find((i:{bl_id:string})=>i.bl_id==='CE557-SECOND')
-      expect(current.can_submit).toBe(true)
+      expect(current.can_submit).toBe(false)
+      // O pagamento anterior permanece histórico; o Cliente atual tem sua própria liquidação.
+      sql(`SET session_replication_role=replica;
+        UPDATE public.bl_receivables SET source='local_charges_archived:998559',status='void' WHERE id=998559;
+        INSERT INTO public.bl_receivables(id,bl_id,customer_id,original_amount_brl,settled_amount_brl,balance_brl,status) VALUES(998560,'CE557-SECOND',998558,100,100,0,'settled');
+        INSERT INTO public.ledger_settlements(receivable_id,amount_brl,source) VALUES(998560,100,'manual');
+        SET session_replication_role=origin;`)
+      const paid=JSON.parse(sql("SELECT public.portal_list_ce_unlock_bls('{}',1);",foreign)).items.find((i:{bl_id:string})=>i.bl_id==='CE557-SECOND')
+      expect(paid.can_submit).toBe(true)
       newRequest=JSON.parse(sql(`SELECT public.portal_ce_unlock_command('draft','${JSON.stringify({bl_ids:['CE557-SECOND'],request_key:crypto.randomUUID()})}'::jsonb);`,foreign))
       expect(newRequest?.id).toBeTruthy()
     } finally {
       if(newRequest) command('cancel',{request_id:newRequest.id,expected_version:newRequest.version,reason:'Encerrar fixture',request_key:crypto.randomUUID()})
-      sql("UPDATE public.bls SET customer_id=998557 WHERE id='CE557-SECOND';")
+      sql(`SET session_replication_role=replica;
+        DELETE FROM public.ledger_settlements WHERE receivable_id=998560;
+        DELETE FROM public.bl_receivables WHERE id=998560;
+        UPDATE public.bl_receivables SET source='local_charges',status='settled' WHERE id=998559;
+        UPDATE public.bls SET customer_id=998557 WHERE id='CE557-SECOND';
+        SET session_replication_role=origin;`)
     }
   })
   it('cleanup de falha de upload não reivindica documento já registrado',()=>{
