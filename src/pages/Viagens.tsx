@@ -479,7 +479,7 @@ export function Viagens() {
                     eta: payload.eta,
                     ata: payload.ata,
                     // O leitor do snapshot/auditoria usa o nome canônico `ces`.
-                    ces: payload.ceStatus,
+                    ...(payload.ceStatusChanged ? { ces: payload.ceStatus } : {}),
                     linked: payload.linked,
                     escala_number: payload.escalaNumber,
                     tem_importacao: payload.temImportacao,
@@ -504,7 +504,7 @@ export function Viagens() {
                 containersQty: payload.exportacao.containersQty,
                 movementsQty: payload.exportacao.movementsQty,
                 dischargePorts: payload.exportacao.dischargePorts,
-                ceStatus: payload.ceStatus,
+                ceStatus: !payload.temImportacao && payload.ceStatusChanged ? payload.ceStatus : undefined,
                 linked: payload.linked,
                 // O modal legado não edita estado terminalizado, mas a escala
                 // pode já ter uma revisão criada por outra tela/usuário.
@@ -517,7 +517,7 @@ export function Viagens() {
               port: payload.port,
               eta: payload.eta,
               ata: payload.ata,
-              ceStatus: payload.ceStatus,
+              ceStatus: payload.ceStatusChanged ? payload.ceStatus : undefined,
               linked: payload.linked,
               escalaNumber: payload.escalaNumber,
               temImportacao: payload.temImportacao,

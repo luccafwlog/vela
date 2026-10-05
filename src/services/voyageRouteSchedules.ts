@@ -514,7 +514,7 @@ export async function saveVoyagePodSchedule({
   etd?: string | null
   atd?: string | null
   rtw?: number | null
-  ceStatus: VoyagePodCeStatus | null
+  ceStatus?: VoyagePodCeStatus | null
   linked: boolean | null
   escalaNumber?: string | null
   temImportacao?: boolean
@@ -543,7 +543,7 @@ export async function saveVoyagePodSchedule({
       changedBy,
       'Atualizacao manual de RTW por POD',
     ),
-    makeAuditRow(
+    ceStatus === undefined ? null : makeAuditRow(
       POD_ENTITY_TYPE,
       entityId,
       'ces',
@@ -615,7 +615,7 @@ export async function saveVoyageEscalaSchedule({
   port: string
   eta: string | null
   ata: string | null
-  ceStatus: VoyagePodCeStatus | null
+  ceStatus?: VoyagePodCeStatus | null
   linked: boolean | null
   escalaNumber?: string | null
   temImportacao: boolean

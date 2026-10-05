@@ -150,6 +150,7 @@ export function VoyageVisaoTab({
       // status do POD. `row.ceStatus` pode carregar o status da exportação em
       // payloads legados e não pode reabrir o modal como se fosse um CE recebido.
       ceStatus: (row?.temImportacao ? row.podCeStatus : row?.ceStatus ?? null) as EscalaModalData['ceStatus'],
+      exportCeStatus: row?.exportCeStatus ?? exportSchedule?.ceStatus ?? null,
       linked: row?.linked ?? null,
       escalaNumber: row?.escalaNumber ?? null,
       exportExistingId: exportSchedule?.id ?? null,

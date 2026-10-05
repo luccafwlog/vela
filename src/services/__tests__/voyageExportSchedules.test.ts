@@ -50,6 +50,15 @@ beforeEach(() => {
 })
 
 describe('saveVoyageExportScheduleTransactional', () => {
+  it('omite status documental não editado, preservando a aprovação ocorrida enquanto o editor estava aberto', async () => {
+    configureState()
+    rpcMock.mockResolvedValue({ data: { revision: 8, fronts: [], terminals: [], closed_blockers: [], blocked: false }, error: null })
+    await saveVoyageExportScheduleTransactional({
+      voyageId: 12, pol: 'BRVIX', temExportacao: true, hasGranite: true, hasEmpty: false,
+      containersQty: null, movementsQty: null, dischargePorts: [], linked: false, expectedRevision: 7,
+    })
+    expect(rpcMock.mock.lastCall?.[1].p_export_expectation).not.toHaveProperty('ce_status')
+  })
   it('preserva importação, terminais e revisão e altera somente frentes exportadoras', async () => {
     configureState()
     rpcMock.mockResolvedValue({

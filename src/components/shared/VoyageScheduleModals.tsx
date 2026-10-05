@@ -61,6 +61,7 @@ export type EscalaModalPayload = {
   eta: string | null
   ata: string | null
   ceStatus: EditableVoyagePodCeStatus
+  ceStatusChanged: boolean
   linked: boolean
   escalaNumber: string | null
   exportacao: EscalaExportPayload
@@ -100,6 +101,7 @@ export type EscalaModalData = {
   eta: string | null
   ata: string | null
   ceStatus: VoyagePodCeStatus | null
+  exportCeStatus?: VoyagePodCeStatus | null
   linked: boolean | null
   escalaNumber: string | null
   exportExistingId: string | null
@@ -933,7 +935,7 @@ export function EscalaModal({
     containers_qty: temExportacao && containersQty.trim() ? Number(containersQty) : null,
     movements_qty: temExportacao && movementsQty.trim() ? Number(movementsQty) : null,
     discharge_ports: temExportacao ? normalizeDischargePorts(dischargePorts.split(/[,;/\s]+/)) : [],
-    ce_status: ceStatus,
+    ce_status: temImportacao ? getEditableVoyagePodCeStatus(escala?.exportCeStatus) : ceStatus,
     linked: linked === 'true',
   }
   const initialExportExpectation: Record<string, unknown> = escala
@@ -945,7 +947,7 @@ export function EscalaModal({
         containers_qty: escala.temExportacao ? escala.containersQty : null,
         movements_qty: escala.temExportacao ? escala.movementsQty : null,
         discharge_ports: escala.temExportacao ? escala.dischargePorts : [],
-        ce_status: getEditableVoyagePodCeStatus(escala.ceStatus),
+        ce_status: getEditableVoyagePodCeStatus(escala.temImportacao ? escala.exportCeStatus : escala.ceStatus),
         linked: Boolean(escala.linked),
       }
     : {}
@@ -1002,6 +1004,9 @@ export function EscalaModal({
       return
     }
 
+    const exportExpectation = { ...terminalPayload.value?.exportExpectation }
+    if (temImportacao || !documentalAltered) delete exportExpectation.ce_status
+
     setSaving(true)
     try {
       await onSaved({
@@ -1012,6 +1017,7 @@ export function EscalaModal({
         eta: combineIsoDateTime(etaDate, etaTime),
         ata: combineIsoDateTime(ataDate, ataTime),
         ceStatus,
+        ceStatusChanged: documentalAltered,
         linked: linked === 'true',
         escalaNumber: escalaNumber.trim() || null,
         exportacao: {
@@ -1025,7 +1031,7 @@ export function EscalaModal({
         exportExistingId: escala.exportExistingId,
         // Texto digitado numa alteração desfeita não vira justificativa.
         terminalState: terminalPayload.value
-          ? { ...terminalPayload.value, justification: showJustification ? justification.trim() || null : null }
+          ? { ...terminalPayload.value, exportExpectation, justification: showJustification ? justification.trim() || null : null }
           : terminalPayload.value,
       })
       setTerminalError(null)

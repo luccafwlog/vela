@@ -743,13 +743,18 @@ it('grava audit rows de ATB e ETD por POD', async () => {
   ]))
 })
 
-it('não grava CE aguardando ao salvar uma escala sem status de CE anterior', async () => {
+it.each([
+  { previous: null, next: 'waiting' },
+  { previous: 'approved', next: undefined },
+] as const)('preserva o status $previous ao salvar sem alteração documental', async ({ previous, next }) => {
   const insertMock = vi.fn(async () => ({ error: null }))
   const auditLogs = {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
         in: vi.fn(() => ({
-          order: vi.fn(() => ({ range: vi.fn(async () => ({ data: [], error: null })) })),
+          order: vi.fn(() => ({ range: vi.fn(async () => ({
+            data: previous ? [{ entity_id: '12::BRSSZ', field_name: 'ces', new_value: previous }] : [], error: null,
+          })) })),
         })),
       })),
     })),
@@ -767,7 +772,7 @@ it('não grava CE aguardando ao salvar uma escala sem status de CE anterior', as
     pod: 'BRSSZ',
     eta: null,
     ata: null,
-    ceStatus: 'waiting',
+    ceStatus: next,
     linked: null,
     changedBy: 'user-1',
   })

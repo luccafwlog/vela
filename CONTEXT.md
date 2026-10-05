@@ -215,7 +215,8 @@ um B/L; em escala mista, a cobertura de containers também é necessária.
 Passa a **Aprovado** quando a carga está recebida e todos os B/Ls ativos têm CE
 Mercante. Granito mantém o recebimento manual e aprova quando todos os seus B/Ls
 têm CE. Exportação de Vazios permanece manual, pois não possui B/L/CE individual
-no modelo; exportação conjunta de Granito e Vazios também mantém o status manual.
+no modelo. Na exportação conjunta de Granito e Vazios, o recebimento permanece
+manual e a aprovação depende de CE em todos os B/Ls de Granito.
 A edição manual exige justificativa e prevalece até a próxima mudança do estado
 documental derivado. Correções podem devolver o estado automático a Recebido ou
 Aguardando. Lançando e Em aprovação continuam disponíveis para marcação manual.

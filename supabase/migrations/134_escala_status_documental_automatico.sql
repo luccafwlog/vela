@@ -11,6 +11,13 @@ CREATE TABLE public.voyage_documental_state (
 ALTER TABLE public.voyage_documental_state ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.voyage_documental_state FROM PUBLIC, anon, authenticated;
 
+-- Um lote marca cada viagem uma vez; a fila é consumida antes do commit.
+CREATE TABLE public.voyage_documental_pending (
+  voyage_id bigint PRIMARY KEY REFERENCES public.voyages(id) ON DELETE CASCADE
+);
+ALTER TABLE public.voyage_documental_pending ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.voyage_documental_pending FROM PUBLIC, anon, authenticated;
+
 -- O instante da escrita, e não o início da transação, mantém um override
 -- manual posterior ao evento automático que ele substitui. O ator continua
 -- imposto pelo servidor, sem aceitar data/departamento enviados pelo cliente.
@@ -52,7 +59,7 @@ DECLARE v_def text; v_old text := 'AND c.table_name <> ''voyages''';
 BEGIN
   v_def := pg_get_functiondef('public.guard_voyage_hard_delete()'::regprocedure);
   IF position(v_old IN v_def) = 0 THEN RAISE EXCEPTION 'Migration 134: catálogo da trava de viagem não encontrado'; END IF;
-  EXECUTE replace(v_def, v_old, v_old || ' AND c.table_name <> ''voyage_documental_state''');
+  EXECUTE replace(v_def, v_old, v_old || ' AND c.table_name NOT IN (''voyage_documental_state'', ''voyage_documental_pending'')');
 END;
 $delete_guard$;
 
@@ -73,40 +80,40 @@ BEGIN
   PERFORM 1 FROM public.voyages WHERE id = p_voyage_id FOR UPDATE;
   IF NOT FOUND THEN RETURN; END IF;
   FOR r IN
-    SELECT DISTINCT upper(btrim(pod)) AS port, 'import'::text AS direction
+    SELECT DISTINCT public.normalize_port_code(pod) AS port, 'import'::text AS direction
     FROM public.bls WHERE voyage_id = p_voyage_id
     UNION
-    SELECT DISTINCT upper(btrim(pod)), 'import' FROM public.baplie_containers WHERE voyage_id = p_voyage_id
+    SELECT DISTINCT public.normalize_port_code(pod), 'import' FROM public.baplie_containers WHERE voyage_id = p_voyage_id
     UNION
     SELECT port, direction FROM public.voyage_documental_state WHERE voyage_id = p_voyage_id
     UNION
-    SELECT upper(btrim(pol)), 'export' FROM public.voyage_export_schedules WHERE voyage_id = p_voyage_id
+    SELECT public.normalize_port_code(pol), 'export' FROM public.voyage_export_schedules WHERE voyage_id = p_voyage_id
   LOOP
     IF r.port IS NULL OR r.port !~ '^BR[A-Z0-9]{3}$' THEN CONTINUE; END IF;
     IF r.direction = 'import' THEN
       SELECT count(*), count(*) FILTER (WHERE nullif(btrim(ce_mercante), '') IS NULL)
       INTO v_total, v_missing FROM public.bls
-      WHERE voyage_id = p_voyage_id AND upper(btrim(pod)) = r.port
-        AND financial_status IS DISTINCT FROM 'cancelled';
+      WHERE voyage_id = p_voyage_id AND public.normalize_port_code(pod) = r.port
+        AND cancelled_at IS NULL AND financial_status IS DISTINCT FROM 'cancelled';
 
       -- Carga solta não depende do EDI. Na escala mista, ambas as frentes precisam estar recebidas.
       v_received := v_total > 0 AND (
         (NOT EXISTS (SELECT 1 FROM public.bls WHERE voyage_id = p_voyage_id
-          AND upper(btrim(pod)) = r.port AND cargo_mode = 'container'
-          AND financial_status IS DISTINCT FROM 'cancelled')
+          AND public.normalize_port_code(pod) = r.port AND cargo_mode = 'container'
+          AND cancelled_at IS NULL AND financial_status IS DISTINCT FROM 'cancelled')
          AND NOT EXISTS (SELECT 1 FROM public.baplie_containers WHERE voyage_id = p_voyage_id
-           AND upper(btrim(pod)) = r.port AND status = 'full'))
+           AND public.normalize_port_code(pod) = r.port AND status = 'full'))
         OR (
           EXISTS (SELECT 1 FROM public.baplie_containers WHERE voyage_id = p_voyage_id
-            AND upper(btrim(pod)) = r.port AND status = 'full')
+            AND public.normalize_port_code(pod) = r.port AND status = 'full')
           AND NOT EXISTS (
             SELECT 1 FROM public.baplie_containers e
-            WHERE e.voyage_id = p_voyage_id AND upper(btrim(e.pod)) = r.port AND e.status = 'full'
+            WHERE e.voyage_id = p_voyage_id AND public.normalize_port_code(e.pod) = r.port AND e.status = 'full'
               AND NOT EXISTS (
                 SELECT 1 FROM public.bl_containers c JOIN public.bls b ON b.id = c.bl_id
-                WHERE b.voyage_id = p_voyage_id AND upper(btrim(b.pod)) = r.port
-                  AND upper(btrim(b.pol)) = upper(btrim(e.pol))
-                  AND b.cargo_mode = 'container' AND b.financial_status IS DISTINCT FROM 'cancelled'
+                WHERE b.voyage_id = p_voyage_id AND public.normalize_port_code(b.pod) = r.port
+                  AND public.normalize_port_code(b.pol) = public.normalize_port_code(e.pol)
+                  AND b.cargo_mode = 'container' AND b.cancelled_at IS NULL AND b.financial_status IS DISTINCT FROM 'cancelled'
                   AND upper(regexp_replace(c.container_number, '\s', '', 'g'))
                     = upper(regexp_replace(e.container_number, '\s', '', 'g'))
               )
@@ -119,14 +126,14 @@ BEGIN
       WHERE entity_type = 'voyage_pod_schedule' AND entity_id = p_voyage_id::text || '::' || r.port AND field_name = 'ces'
       ORDER BY changed_at DESC, id DESC LIMIT 1;
     ELSE
-      -- Vazios EXP não têm B/L/CE individual no modelo: continuam manuais.
+      -- Vazios EXP isolados não têm B/L/CE individual no modelo: continuam manuais.
       -- Granito só automatiza Aprovado, nunca Recebido.
       SELECT count(*), count(*) FILTER (WHERE nullif(btrim(b.ce_mercante), '') IS NULL)
       INTO v_total, v_missing FROM public.granite_bls b JOIN public.granite_manifests m ON m.id = b.manifest_id
-      WHERE m.voyage_id = p_voyage_id AND upper(btrim(coalesce(nullif(b.loading_port, ''), m.loading_port))) = r.port;
+      WHERE m.voyage_id = p_voyage_id AND public.normalize_port_code(coalesce(nullif(b.loading_port, ''), m.loading_port)) = r.port;
       v_status := CASE WHEN v_total > 0 AND v_missing = 0 THEN 'approved' ELSE 'waiting' END;
       SELECT ce_status INTO v_current FROM public.voyage_export_schedules
-      WHERE voyage_id = p_voyage_id AND upper(btrim(pol)) = r.port AND has_granite AND NOT has_empty AND tem_exportacao;
+      WHERE voyage_id = p_voyage_id AND public.normalize_port_code(pol) = r.port AND has_granite AND tem_exportacao;
       IF NOT FOUND THEN CONTINUE; END IF;
     END IF;
 
@@ -144,7 +151,7 @@ BEGIN
     ELSE
       PERFORM set_config('vela.documental_justification', v_reason, true);
       UPDATE public.voyage_export_schedules SET ce_status = v_status
-      WHERE voyage_id = p_voyage_id AND upper(btrim(pol)) = r.port;
+      WHERE voyage_id = p_voyage_id AND public.normalize_port_code(pol) = r.port;
       PERFORM set_config('vela.documental_justification', coalesce(v_saved_reason, ''), true);
     END IF;
   END LOOP;
@@ -158,7 +165,6 @@ DECLARE
   v_old bigint;
   v_new bigint;
 BEGIN
-  -- ponytail: avaliação por linha diferida; se lotes grandes pesarem, agrupar por viagem com transition tables.
   IF TG_TABLE_NAME = 'bl_containers' THEN
     IF TG_OP <> 'INSERT' THEN SELECT voyage_id INTO v_old FROM public.bls WHERE id = OLD.bl_id; END IF;
     IF TG_OP <> 'DELETE' THEN SELECT voyage_id INTO v_new FROM public.bls WHERE id = NEW.bl_id; END IF;
@@ -169,8 +175,9 @@ BEGIN
     IF TG_OP <> 'INSERT' THEN v_old := OLD.voyage_id; END IF;
     IF TG_OP <> 'DELETE' THEN v_new := NEW.voyage_id; END IF;
   END IF;
-  IF v_old IS NOT NULL THEN PERFORM public.sync_voyage_documental_status(v_old); END IF;
-  IF v_new IS NOT NULL AND v_new IS DISTINCT FROM v_old THEN PERFORM public.sync_voyage_documental_status(v_new); END IF;
+  INSERT INTO public.voyage_documental_pending(voyage_id)
+  SELECT id FROM public.voyages WHERE id IN (v_old, v_new) ORDER BY id
+  ON CONFLICT DO NOTHING;
   RETURN NULL;
 END;
 $$;
@@ -179,10 +186,22 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['bls', 'bl_containers', 'baplie_containers', 'granite_bls', 'granite_manifests', 'voyage_export_schedules'] LOOP
-    EXECUTE format('CREATE CONSTRAINT TRIGGER trg_documental_status AFTER INSERT OR UPDATE OR DELETE ON public.%I DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.trg_sync_voyage_documental_status()', t);
+    EXECUTE format('CREATE TRIGGER trg_documental_status AFTER INSERT OR UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.trg_sync_voyage_documental_status()', t);
   END LOOP;
 END;
 $$;
+
+CREATE FUNCTION public.flush_voyage_documental_status() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  DELETE FROM public.voyage_documental_pending WHERE voyage_id = NEW.voyage_id;
+  IF FOUND THEN PERFORM public.sync_voyage_documental_status(NEW.voyage_id); END IF;
+  RETURN NULL;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.flush_voyage_documental_status() FROM PUBLIC, anon, authenticated;
+CREATE CONSTRAINT TRIGGER flush_documental_status AFTER INSERT ON public.voyage_documental_pending
+DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.flush_voyage_documental_status();
 
 CREATE FUNCTION public.guard_manual_documental_status() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -190,6 +209,9 @@ DECLARE v_reason text; v_current text;
 BEGIN
   IF TG_TABLE_NAME = 'audit_logs' THEN
     IF NEW.entity_type <> 'voyage_pod_schedule' OR NEW.field_name <> 'ces' THEN RETURN NEW; END IF;
+    IF coalesce(NEW.new_value, 'waiting') NOT IN ('waiting', 'received', 'launching', 'approving', 'approved', 'missing', 'partial') THEN
+      RAISE EXCEPTION 'Status de BLs e CEs inválido.' USING ERRCODE = '22023';
+    END IF;
     SELECT new_value INTO v_current FROM public.audit_logs
     WHERE entity_type = 'voyage_pod_schedule' AND entity_id = NEW.entity_id AND field_name = 'ces'
     ORDER BY changed_at DESC, id DESC LIMIT 1;
@@ -204,7 +226,7 @@ BEGIN
     v_reason := nullif(btrim(current_setting('vela.documental_justification', true)), '');
     IF v_reason IS NULL THEN RAISE EXCEPTION 'Informe a justificativa para alterar BLs e CEs.' USING ERRCODE = '22023'; END IF;
     INSERT INTO public.audit_logs(entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at, justification)
-    VALUES ('voyage_pod_schedule', NEW.voyage_id::text || '::' || upper(btrim(NEW.pol)), 'export_ces', CASE WHEN TG_OP = 'INSERT' THEN 'waiting' ELSE OLD.ce_status END, NEW.ce_status, auth.uid(), clock_timestamp(), v_reason);
+    VALUES ('voyage_pod_schedule', NEW.voyage_id::text || '::' || public.normalize_port_code(NEW.pol), 'export_ces', CASE WHEN TG_OP = 'INSERT' THEN 'waiting' ELSE OLD.ce_status END, NEW.ce_status, auth.uid(), clock_timestamp(), v_reason);
   END IF;
   RETURN NEW;
 END;
