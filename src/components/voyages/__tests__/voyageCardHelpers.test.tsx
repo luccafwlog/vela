@@ -8,7 +8,7 @@ import { useManifestosMercanteByVoyage } from '../../../hooks/useManifestosMerca
 import type { VoyageBl } from '../../../services/voyageSummaries'
 import { buildVoyagePolEntityId } from '../../../services/voyageRouteSchedules'
 import { VoyageManifestosTab } from '../VoyageManifestosTab'
-import { buildVoyageRouteLegs, collectVoyageManifestBatchRows, formatPolDeparture, type VoyageImportBatch } from '../voyageCardHelpers'
+import { buildVoyageRouteLegs, collectVoyageManifestBatchRows, countRouteManifestNumbers, formatPolDeparture, manifestosOfRoute, type VoyageImportBatch } from '../voyageCardHelpers'
 import type { Voyage } from '../voyageCardTypes'
 
 vi.mock('../../../services/supabase', () => ({ supabase: {}, isSupabaseConfigured: true }))
@@ -42,6 +42,36 @@ function makeBl(overrides: Partial<VoyageBl> = {}): VoyageBl {
 }
 
 describe('collectVoyageManifestBatchRows', () => {
+  it('não cria rota ou pendência para o lote de 16 B/Ls substituído pela reimportação de 18', () => {
+    const batches: VoyageImportBatch[] = [8, 23].map((id) => ({
+      id, voyage_id: 5, cargo_mode: 'carga_solta', filename: 'bb.xlsx',
+      uploaded_at: null, status: 'completed', total_bls: id === 8 ? 16 : 18, ce_master: null,
+    }))
+    const rows = collectVoyageManifestBatchRows({
+      voyageId: 5,
+      batches,
+      bls: Array.from({ length: 18 }, (_, index) => makeBl({
+        id: `BB-${index}`, batch_id: 23, cargo_mode: 'carga_solta',
+        pol: 'CNTAG', pod: 'BRVIT', ce_mercante: `CE-${index}`,
+      })),
+    })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ pol: 'CNTAC', pod: 'BRVIX', blCount: 18, ceFilled: 18, batchIds: [23] })
+    expect(collectVoyageManifestBatchRows({ voyageId: 5, batches, bls: [] })).toEqual([])
+  })
+
+  it('exibe os manifestos CNTR e BB da mesma rota mesmo com aliases históricos de porto', () => {
+    const row = { pol: 'CNTAC', pod: 'BRVIX', isVazios: false, ceMaster: null }
+    const manifestos = [
+      { id: 'cntr', voyage_id: 5, pol: 'CNTAC', pod: 'BRVIX', numero: '1226501801342', natureza: 'carga' as const, created_at: '' },
+      { id: 'bb', voyage_id: 5, pol: 'CNTAG', pod: 'BRVIT', numero: '1226501816960', natureza: 'carga' as const, created_at: '' },
+      { id: 'vazios', voyage_id: 5, pol: 'CNTAG', pod: 'BRVIT', numero: '1226501824130', natureza: 'vazio' as const, created_at: '' },
+    ]
+    expect(manifestosOfRoute(row, manifestos).map((m) => m.numero)).toEqual(['1226501801342', '1226501816960'])
+    expect(countRouteManifestNumbers(row, manifestos)).toBe(2)
+    expect(countRouteManifestNumbers({ ...row, isVazios: true }, manifestos)).toBe(1)
+  })
+
   it('deriva linhas de manifesto pelas rotas dos B/Ls mesmo sem batch', () => {
     const rows = collectVoyageManifestBatchRows({
       voyageId: 14,

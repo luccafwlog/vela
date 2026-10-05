@@ -6,6 +6,30 @@ function baplieFile(text: string) {
 }
 
 describe('baplieParser', () => {
+  it.each([
+    ['12', '  N', 'BRSEP', 'BRSEP', 'warning'],
+    ['11', 'N', 'BRSEP', 'BRSEP', 'warning'],
+    ['12', null, 'BRSEP', 'BRSEP', 'warning'],
+    ['12', 'BRVIX', 'BRSEP', 'BRVIX', null],
+    ['11', 'BRVIX', 'BRSEP', 'BRVIX', null],
+    ['12', 'N', 'XXXXX', null, 'error'],
+    ['12', 'N', null, null, 'error'],
+  ])('resolve POD de LOC+%s (%s) com Delivery %s', (qualifier, pod, delivery, expectedPod, severity) => {
+    const parsed = parseBaplieText([
+      "LOC+147+010101'",
+      "LOC+6+TAO'",
+      ...(pod === null ? [] : [`LOC+${qualifier}+${pod}'`]),
+      ...(delivery === null ? [] : [`LOC+83+${delivery}'`]),
+      "MEA+VGM++KGM:12000'",
+      "EQD+CN+CAAU2184518+45G1+++5'",
+    ].join('\n'))
+
+    expect(parsed.containers[0]).toMatchObject({ pod: expectedPod, final_dest: delivery === 'BRSEP' ? 'BRSEP' : null })
+    expect(parsed.pods).toEqual(expectedPod ? [expectedPod] : [])
+    expect(parsed.issues).toEqual(severity ? [expect.objectContaining({ field: 'pod', severity })] : [])
+    if (severity === 'warning') expect(parsed.issues[0].message).toContain('Utilizado o local de entrega BRSEP (LOC+83)')
+  })
+
   it('deduplica containers repetidos no EDI preservando atributos fisicos', async () => {
     const parsed = await parseBaplieFile(baplieFile([
       "UNB+UNOA:2+X+Y+260701:1200+1'",

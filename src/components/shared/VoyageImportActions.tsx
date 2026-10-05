@@ -198,6 +198,7 @@ export function VoyageImportActions({
           importer={async (preview, file, override) => {
             const result = await importGraniteManifest({ filename: file.name, voyageId, manifest: preview, uploadedBy: userId, allowRowErrors: Boolean(override) })
             await Promise.all([
+              invalidateAfterBLImport(),
               queryClient.invalidateQueries({ queryKey: ['voyages'] }),
               queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
               queryClient.invalidateQueries({ queryKey: ['granite-manifests'] }),
