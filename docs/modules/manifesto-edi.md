@@ -4,6 +4,17 @@
 
 ## Propósito e escopo
 
+Importações e correções de B/L, container, Baplie e CE atualizam o campo **BLs e
+CEs** da Escala ao final da transação, pela migration `134`. As regras por tipo
+de carga e a alteração manual com justificativa estão em
+[BLs e CEs da Escala](../../CONTEXT.md#operação-marítima) e no
+[módulo de Viagens](viagens.md#fluxos-e-invariantes).
+
+A auditoria de escrita direta do status documental usa o instante da inserção imposto pelo servidor,
+para que uma alteração manual posterior à automação mantenha a ordem correta.
+O primeiro evento de um porto inicializa o objeto da agenda, garantindo que o
+snapshot da viagem acompanhe o status registrado na auditoria.
+
 Pipeline de ingestão e revisão operacional do Vela. O módulo recebe planilhas e EDI/EDIFACT, limita o arquivo, faz parse e preview no cliente, persiste em tabelas de domínio e expõe as superfícies de B/L, containers, veículos, Baplie e vazios. A viagem é o eixo operacional; o arquivo de B/L é a fonte documental da carga de container e alimenta Frete & Despesas do BL e o ATD do POL; o Baplie é a fonte física de staging e conciliação. Conforme a ADR 0025, a importação de Manifesto CNTR e a geração local de EDI Mercante foram removidas.
 
 Quando o importador de CE Mercante é iniciado no contexto de uma viagem, seu

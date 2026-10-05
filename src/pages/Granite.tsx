@@ -14,6 +14,7 @@ import { CeMercanteImportModal } from '../components/shared/CeMercanteImportModa
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { useAuth } from '../hooks/useAuth'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
+import { afterManifestoImportado } from '../services/cacheEffects'
 import { PAGE_SIZES, usePageFilters } from '../hooks/usePageFilters'
 import {
   parseGraniteManifestFile,
@@ -122,6 +123,7 @@ export function Granite() {
         uploadedBy: user.id,
       })
       await Promise.all([
+        afterManifestoImportado(queryClient, { voyageId: Number(voyageId) }),
         queryClient.invalidateQueries({ queryKey: ['granite-bls'] }),
         queryClient.invalidateQueries({ queryKey: ['voyages'] }),
         // P0-4: a seção "Carga carregada" do ADR soma peso/blocos de

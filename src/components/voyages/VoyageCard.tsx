@@ -29,7 +29,6 @@ import {
 import { formatMetric, normalizePortName } from '../../lib/voyageFormat'
 import { normalizePortCode } from '../../services/portCode'
 import {
-  deriveAutomaticVoyagePodCeStatus,
   type VoyageEscalaSchedule,
   type VoyagePolSchedule,
 } from '../../services/voyageRouteSchedules'
@@ -291,9 +290,6 @@ export function VoyageCard({
   const escalasByPort = new Map(scheduledEscalaRows.map((schedule) => [normalizePortCode(schedule.port) ?? normalizePortName(schedule.port), schedule]))
   const podRows: VoyagePodRow[] = destinationPorts.map((pod) => {
     const schedule = escalasByPort.get(normalizePortCode(pod) ?? normalizePortName(pod))
-    const routeBls = (voyage.bls ?? []).filter((bl) => (normalizePortCode(bl.pod) ?? normalizePortName(bl.pod)) === (normalizePortCode(pod) ?? normalizePortName(pod)))
-    const routeCeFilledCount = routeBls.filter((bl) => String(bl.ce_mercante ?? '').trim()).length
-    const autoCeStatus = deriveAutomaticVoyagePodCeStatus(routeCeFilledCount, routeBls.length)
     return {
       pod: schedule?.port ?? pod,
       blCount: blCountByPod.get(normalizePortCode(pod) ?? normalizePortName(pod)) ?? 0,
@@ -306,7 +302,7 @@ export function VoyageCard({
       ), null) ?? null,
       atd: schedule?.atd ?? null,
       rtw: schedule?.atracacoes.reduce((total, atracacao) => total + (atracacao.rtw ?? 0), 0) || null,
-      ceStatus: schedule?.ceStatus ?? autoCeStatus,
+      ceStatus: schedule?.ceStatus ?? 'waiting',
       linked: schedule?.linked ?? false,
       escalaNumber: schedule?.escalaNumber ?? null,
       omitted: schedule?.omitted ?? false,
