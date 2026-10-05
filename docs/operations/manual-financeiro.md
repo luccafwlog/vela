@@ -1,6 +1,6 @@
 # Manual de faturamento, pagamentos e correções
 
-Edição atualizada em 2026-10-04, após as correções locais e a inclusão autorizada da migration 134. **Esta edição não comprova implantação.** Use os novos procedimentos no ambiente publicado somente depois da aplicação conjunta de banco e telas. A integração bancária real não foi exercitada.
+Edição atualizada em 2026-10-04, após as correções locais e a inclusão autorizada da migration 148. **Esta edição não comprova implantação.** Use os novos procedimentos no ambiente publicado somente depois da aplicação conjunta de banco e telas. A integração bancária real não foi exercitada.
 
 ## 1. Quem faz e onde
 
@@ -33,7 +33,7 @@ Edição atualizada em 2026-10-04, após as correções locais e a inclusão aut
 1. Confira Cliente/CNPJ, viagem, carga, CE, cálculo e pendências do B/L.
 2. Verifique a emissão individual. Consolide somente recebíveis elegíveis do Cliente correto. Leia a retenção quando a emissão não ocorrer.
 3. Disponibilize a cobrança válida, com saldo e QR atuais.
-4. Após conferir o recebimento no banco, concilie o PIX ou registre manualmente **valor, método, data e referência bancária única**. Use banco/conta/identificador da transação quando necessário para distinguir referências.
+4. Após conferir o recebimento no banco, concilie o PIX ou registre manualmente **valor, método, data e referência bancária**. Quando um PIX paga mais de uma cobrança, repita a mesma referência em cada baixa; o sistema não barra referência repetida, então confira o histórico antes de lançar.
 5. Confirme a baixa e reabra o detalhe: confira pagamento, saldo, B/Ls, individuais cobertas e restituições.
 6. Emita o recibo quando houver quitação. Para documento restituído ou cancelado, o recibo serve como histórico do recebido e devolvido; confira o líquido.
 
@@ -49,14 +49,14 @@ Edição atualizada em 2026-10-04, após as correções locais e a inclusão aut
 | Serviço adicional eventual | Gerar avulsa para Cliente correto, com descrição/contexto exigidos | Cobrança adicional rastreável |
 | Emissão em lote falhou | Consultar os documentos efetivamente emitidos antes de repetir | Repetir apenas as pendências |
 | PIX com TXID e valor compatíveis | Importar, revisar e confirmar na Conciliação PIX | Uma baixa para a transação e saldo atualizado |
-| TED/recebimento fora do extrato | Administrativo registra no detalhe, com referência única do banco | Valor verdadeiro e uma baixa no histórico |
+| TED/recebimento fora do extrato | Administrativo registra no detalhe, com a referência do banco | Valor verdadeiro e uma baixa no histórico |
 | Pagamento parcial | Registrar só o recebido e cobrar o saldo restante | Saldo positivo; não presumir quitação |
 | Sobrou R$ 0,01 | Regularizar o centavo pelo procedimento financeiro aplicável | Saldo efetivamente zerado |
 | Recebimento manual local acima do saldo | Registrar o valor integral recebido; conferir o aviso e a restituição automática do excedente | Bruto correto, saldo zero e excedente Pendente |
 | PIX divergente do valor da cobrança | Conferir QR/versão, extrato e documento; tratar a exceção | Associação autoritativa válida; não forçar candidata |
 | TXID ausente, ambíguo ou sem candidata | Usar Pendências PIX; escolher candidata somente quando segura. Sem candidata segura, investigar com banco/Cliente | Destinação documentada, sem associação por mera semelhança de valor/CNPJ |
 | Mesma linha/TXID reapareceu | Conferir o histórico antes de confirmar novamente | Uma única baixa |
-| Baixa manual parece repetida | Conferir extrato e referência. Mesmo valor/método/data pode representar duas transações distintas | Uma baixa por referência bancária real |
+| Baixa manual parece repetida | Conferir extrato e referência. Mesmo valor/método/data pode representar duas transações distintas | Cada baixa corresponde a um recebimento real; a mesma referência só se repete quando um PIX pagou mais de uma cobrança |
 | Timeout ou resposta perdida ao registrar | Conferir o histórico; se necessário, usar Tentar novamente, mantendo a tentativa congelada. Para corrigir dados após conferir, use Encerrar tentativa após conferir | Mesma chave/conteúdo; uma baixa. Referência já registrada exige conferir o lançamento existente |
 | Tentativa antiga cuja baixa foi cancelada | Conferir o extrato e iniciar nova operação somente se cabível | Tentativa antiga não reaparece como sucesso |
 | Uma linha invalidou o lote PIX | Corrigir/separar a linha e consultar o histórico antes de reenviar | Lote transacional; nenhuma baixa parcial de lote rejeitado |

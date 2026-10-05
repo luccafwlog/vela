@@ -1069,7 +1069,7 @@ function buildScheduleTimeline(
         title: `Manifestos vinculados · ${port}`,
         detail: appendActor('ESCALA = SIM', row),
       })
-    } else if (row.field_name === 'ces' && value) {
+    } else if ((row.field_name === 'ces' || row.field_name === 'export_ces') && value) {
       events.push({
         id: `sched-${index}`,
         kind: 'ce-status',

@@ -42,5 +42,5 @@ it('confirma devolução somente depois de informar evidência e aceitar a confe
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalled())
   expect(mocks.settle).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button',{name:'Confirmar devolução realizada'}))
-  await waitFor(() => expect(mocks.settle).toHaveBeenCalledWith({refundId:1,bankReference:'BANCO-REF-100',beneficiary:'Cliente original',paidAt:'2026-10-01T12:00:00.000Z'},expect.anything()))
+  await waitFor(() => expect(mocks.settle).toHaveBeenCalledWith({refundId:1,bankReference:'BANCO-REF-100',beneficiary:'Cliente original',paidAt:new Date('2026-10-01T00:00:00').toISOString()},expect.anything()))
 })

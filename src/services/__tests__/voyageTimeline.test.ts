@@ -143,12 +143,12 @@ describe('timeline operacional de transbordo', () => {
     expect(events[0].detail).not.toContain('terminal')
   })
 
-  it('resume a mudança de CE sem repetir o contexto no título e no detalhe', () => {
+  it.each(['ces', 'export_ces'])('resume a mudança de CE (%s) sem repetir o contexto no título e no detalhe', (field) => {
     const events = buildVoyageTimeline({
       scheduleEvents: [{
         entity_type: 'voyage_pod_schedule',
         entity_id: '9::BRSSA',
-        field_name: 'ces',
+        field_name: field,
         old_value: 'waiting',
         new_value: 'received',
         changed_at: '2026-08-24T21:41:00Z',

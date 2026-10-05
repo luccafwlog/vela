@@ -1,5 +1,6 @@
 -- Controles financeiros: evidência de restituição e resumo de recebimentos.
 -- Preserva valores e documentos históricos; não remove dados existentes.
+-- Renumerada de 134 para 148 (134 é da escala; 135-147 das PRs 845/847); os sufixos _legacy_134 são só nomes.
 BEGIN;
 ALTER TABLE public.invoice_refunds ADD COLUMN bank_reference text, ADD COLUMN beneficiary text,
   ADD COLUMN settled_by uuid REFERENCES public.user_profiles(id);
@@ -238,7 +239,7 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.prevent_duplicate_active_invoice_bl_link() FROM PUBLIC, anon, authenticated;
 ALTER TABLE public.payments ADD COLUMN bank_reference text;
-CREATE UNIQUE INDEX payments_bank_reference ON public.payments(lower(btrim(bank_reference))) WHERE bank_reference IS NOT NULL;
+-- A referência pode se repetir: um PIX pode pagar mais de uma cobrança (decisão de 2026-10-05).
 CREATE TABLE public.financial_payment_attempts(request_id uuid PRIMARY KEY,payload_hash text NOT NULL,payment_id bigint, result jsonb,created_by uuid NOT NULL REFERENCES public.user_profiles(id));
 ALTER TABLE public.financial_payment_attempts ENABLE ROW LEVEL SECURITY;
 
@@ -248,12 +249,11 @@ DECLARE h text; attempt public.financial_payment_attempts%ROWTYPE; v_result json
 BEGIN
  IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'Sem permissão para registrar pagamento.' USING ERRCODE = '42501'; END IF;
  IF p_amount_brl IS NULL OR p_amount_brl::text IN ('NaN','Infinity','-Infinity') OR p_amount_brl<=0 OR p_amount_brl<>round(p_amount_brl,2) THEN RAISE EXCEPTION 'Informe valor positivo com até duas casas decimais.' USING ERRCODE='22023'; END IF;
- IF p_request_id IS NULL OR length(btrim(coalesce(p_bank_reference,''))) < 3 THEN RAISE EXCEPTION 'Informe a referência única do recebimento bancário.' USING ERRCODE = '22023'; END IF;
+ IF p_request_id IS NULL OR length(btrim(coalesce(p_bank_reference,''))) < 3 THEN RAISE EXCEPTION 'Informe a referência do recebimento bancário.' USING ERRCODE = '22023'; END IF;
  -- Ordem compartilhada com importação e conciliação: B/Ls antes das linhas financeiras.
  FOR bl_id IN SELECT DISTINCT l.bl_id FROM public.invoice_receivable_links l WHERE l.invoice_id=p_invoice_id
  UNION SELECT ib.bl_id FROM public.invoice_bls ib WHERE ib.invoice_id=p_invoice_id ORDER BY 1 LOOP
    PERFORM pg_advisory_xact_lock(hashtextextended('bl:'||bl_id,0)); END LOOP;
- PERFORM pg_advisory_xact_lock(hashtextextended('bank-receipt:'||lower(btrim(p_bank_reference)),0));
  h := md5(jsonb_build_object('invoice',p_invoice_id,'amount',round(p_amount_brl,2),'method',p_method,'paid_at',p_paid_at,'notes',p_notes,'reference',lower(btrim(p_bank_reference)))::text);
  INSERT INTO public.financial_payment_attempts(request_id,payload_hash,created_by) VALUES(p_request_id,h,auth.uid()) ON CONFLICT DO NOTHING;
  SELECT * INTO attempt FROM public.financial_payment_attempts WHERE request_id=p_request_id FOR UPDATE;
@@ -261,8 +261,6 @@ BEGIN
  IF attempt.result IS NOT NULL THEN
    IF NOT EXISTS(SELECT 1 FROM public.payments p WHERE p.id=attempt.payment_id) THEN RAISE EXCEPTION 'Esta baixa foi cancelada. Confira o extrato e inicie uma nova operação.' USING ERRCODE='22023'; END IF;
    RETURN attempt.result; END IF;
- IF EXISTS(SELECT 1 FROM public.payments p WHERE lower(btrim(p.bank_reference))=lower(btrim(p_bank_reference))) THEN
-   RAISE EXCEPTION 'Recebimento bancário já registrado. Confira o histórico; não duplique a baixa.' USING ERRCODE='23505'; END IF;
  IF (SELECT invoice_type FROM public.invoices WHERE id=p_invoice_id) = 'manual' THEN
    SELECT * INTO manual_invoice FROM public.invoices WHERE id=p_invoice_id AND status IN ('issued','overdue','partially_paid','paid') FOR UPDATE;
    IF NOT FOUND THEN RAISE EXCEPTION 'Fatura avulsa não está disponível para receber pagamento.' USING ERRCODE='22023'; END IF;

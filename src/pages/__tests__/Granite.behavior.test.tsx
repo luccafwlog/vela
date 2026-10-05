@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   loadMaps: vi.fn(() => Promise.resolve({})),
   findMatch: vi.fn(),
   showToast: vi.fn(),
+  invalidate: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -18,7 +19,7 @@ vi.mock('@tanstack/react-query', () => ({
     queryKey[0] === 'granite-bls'
       ? { data: { rows: [], count: 0 }, isLoading: false, error: null }
       : { data: undefined },
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({ invalidateQueries: mocks.invalidate }),
 }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }))
 vi.mock('../../hooks/useBls', () => ({
@@ -123,6 +124,9 @@ it('US-079: importar com pendencias chama importGraniteManifest e reporta a pend
     expect.objectContaining({ voyageId: 7, uploadedBy: 'u1', filename: 'cosco.xlsx' }),
   )
   // A pendência de cliente é operacional; Granito não promete faturamento.
+  for (const queryKey of [['voyage-export-schedules'], ['voyage-escala-schedules'], ['lineup-tv-v3']]) {
+    expect(mocks.invalidate).toHaveBeenCalledWith({ queryKey })
+  }
   expect(mocks.showToast).toHaveBeenCalledWith(
     expect.stringContaining('2 com reconciliação pendente'),
     'success',

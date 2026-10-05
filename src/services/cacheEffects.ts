@@ -126,7 +126,7 @@ export async function afterBlEstadoAlterado(
     queryKeys.bls.cockpit(options.blId),
     queryKeys.bls.all(),
     queryKeys.bls.summary(),
-    ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS,
+    ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...LINEUP_KEYS,
     ...(options.voyageId === null ? [] : [queryKeys.voyages.detail(Number(options.voyageId))]),
   ])
 }
