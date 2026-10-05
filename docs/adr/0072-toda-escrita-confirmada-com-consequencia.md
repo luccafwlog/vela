@@ -1,6 +1,6 @@
 # 0072 — Toda escrita é confirmada com o que faz e a consequência
 
-Status: aceito — 2026-09-24. Implementação parcial (ver nota).
+Status: aceito — 2026-09-24. Implementação concluída (ver notas).
 
 > **Nota de implementação — 2026-09-25.** Em luccafwlog/vela#764 o diálogo
 > (`ConfirmDialog`, `useConfirmWithReason`) ganhou registros afetados, lista
@@ -11,7 +11,7 @@ Status: aceito — 2026-09-24. Implementação parcial (ver nota).
 > `delete_records` (taxas, tarifas e acordos, locais e serviços, linhas de
 > serviço de vazios): a RPC `delete_catalog_row` exige o motivo e o grava em
 > `audit_logs`. Pendente, no
-> [plano da política de exclusão](../plans/2026-09-24-politica-de-exclusao.md):
+> [plano da política de exclusão](../archive/plans/2026-09-24-politica-de-exclusao.md):
 > antes/depois em Salvar e diálogo nas demais escritas.
 >
 > **Nota — 2026-09-26.** O diálogo ganhou a identidade visual do sistema
@@ -21,6 +21,12 @@ Status: aceito — 2026-09-24. Implementação parcial (ver nota).
 > bloqueados (acima de 5) aparecem agrupados por motivo, com a lista completa
 > sob demanda. Com motivo obrigatório, o foco abre no campo de motivo; sem ele,
 > em Voltar.
+
+> **Nota de encerramento — 2026-10-05.** A varredura das telas de escrita foi
+> concluída e os testes automatizados de confirmação passaram. Em produção,
+> foram conferidos sem execução: bloqueio de exclusão de cliente usado,
+> confirmação de desativação de usuário, diff antes/depois em Meu perfil e
+> prévia com motivo obrigatório e consequência na exclusão de viagem.
 
 ## Contexto
 

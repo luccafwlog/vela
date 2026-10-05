@@ -1,6 +1,7 @@
 # 0074 — Usuário não se exclui; retenção definida; backup diário sem PITR
 
-Status: aceito — 2026-09-24. Implementação parcial (ver nota).
+Status: aceito — 2026-09-24. Implementação concluída, com validação local do
+backup e do restore (ver nota).
 
 > **Nota de implementação — 2026-09-25.** Itens 1 a 3 implementados em
 > luccafwlog/vela#769 (migrations 093 e 094) e aplicados em produção: o papel
@@ -9,6 +10,13 @@ Status: aceito — 2026-09-24. Implementação parcial (ver nota).
 > preserva as marcas de escala e o primeiro porto brasileiro indicado da
 > viagem. Pendente o item 4: agendar o backup diário e testar uma
 > restauração (Etapa 6 do plano de serviços e Cloudflare).
+
+> **Nota de encerramento — 2026-10-05.** Após corrigir o fechamento antecipado
+> de `pg_restore --list` (`EPIPE`), uma execução de produção cifrou e enviou o
+> dump ao R2. O arquivo foi restaurado em `vela_restore_20261005` (PostgreSQL
+> 16), recuperando 26 viagens, 33.921 eventos de auditoria e 2 clientes. A
+> validação não recriou as FKs de `auth.users`, pois o schema Auth gerenciado
+> não está no dump lógico de `public`.
 
 > **Nota editorial — 2026-09-25.** O dono do negócio decidiu **não anonimizar**
 > dados pessoais: o item 3 fica só com os expurgos por prazo (auditoria 5 anos,

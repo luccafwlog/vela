@@ -3,7 +3,9 @@ import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildObjectNames, parseDatabaseUrl, parseEncryptionKey, planFor } from './backup-r2.mjs'
+import { createCipheriv, createDecipheriv } from 'node:crypto'
+import { Readable, Writable } from 'node:stream'
+import { buildObjectNames, consumeArchive, parseDatabaseUrl, parseEncryptionKey, planFor } from './backup-r2.mjs'
 
 const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'backup-r2.mjs')
 
@@ -56,6 +58,28 @@ test('nomeia objetos por ambiente, projeto e instante sem credenciais', () => {
     mode: 'dry-run', environment: 'staging', projectRef: 'testref', prefix: 'vela/database',
     retentionDays: 90, outputDir: '.tmp',
   })), /password|segredo|postgresql:\/\//i)
+})
+
+test('catálogo fecha cedo sem EPIPE, mas dados posteriores ainda exigem autenticação', async () => {
+  const key = Buffer.alloc(32, 1)
+  const iv = Buffer.alloc(12, 2)
+  const cipher = createCipheriv('aes-256-gcm', key, iv)
+  const encrypted = Buffer.concat([cipher.update(Buffer.alloc(1024 * 1024, 3)), cipher.final()])
+  const tag = cipher.getAuthTag()
+  async function verify(bytes) {
+    const decipher = createDecipheriv('aes-256-gcm', key, iv)
+    decipher.setAuthTag(tag)
+    const earlyClosingInput = new Writable({
+      write(_chunk, _encoding, callback) {
+        callback(Object.assign(new Error('catálogo já lido'), { code: 'EPIPE' }))
+      },
+    })
+    await consumeArchive(Readable.from([bytes.subarray(0, 65536), bytes.subarray(65536)]), decipher, earlyClosingInput)
+  }
+  await verify(encrypted)
+  const corrupted = Buffer.from(encrypted)
+  corrupted[corrupted.length - 1] ^= 1
+  await assert.rejects(verify(corrupted), /authenticate|authentication/i)
 })
 
 console.log('OK — backup-r2: contratos de segurança e dry-run conferidos')
