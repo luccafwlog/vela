@@ -14,7 +14,12 @@ type ManifestRouteRef = { pol: string; pod: string; isVazios: boolean; ceMaster:
 // mas o manifesto Mercante é outro: casar só por POL/POD exibia o número da carga.
 export function manifestosOfRoute(row: ManifestRouteRef, manifestos: ManifestoMercante[] | undefined) {
   const natureza = row.isVazios ? 'vazio' : 'carga'
-  return (manifestos ?? []).filter((m) => m.pol === row.pol && m.pod === row.pod && m.natureza === natureza)
+  const pol = normalizePortCode(row.pol) ?? row.pol
+  const pod = normalizePortCode(row.pod) ?? row.pod
+  return (manifestos ?? []).filter((m) =>
+    (normalizePortCode(m.pol) ?? m.pol) === pol &&
+    (normalizePortCode(m.pod) ?? m.pod) === pod && m.natureza === natureza,
+  )
 }
 
 /** Quantos números de manifesto a aba Rotas e Manifestos exibe para a rota. */
@@ -101,14 +106,6 @@ export function collectVoyageManifestBatchRows({
   const batchesById = new Map<number, VoyageImportBatch>()
   for (const batch of batches ?? []) {
     batchesById.set(batch.id, batch)
-  }
-
-  const blsByBatch = new Map<number, VoyageBl[]>()
-  for (const bl of bls ?? []) {
-    if (bl.batch_id === null || bl.batch_id === undefined) continue
-    const current = blsByBatch.get(bl.batch_id) ?? []
-    current.push(bl)
-    blsByBatch.set(bl.batch_id, current)
   }
 
   // A linha nasce da rota dos B/Ls; batches entram como metadados quando existem.
@@ -206,17 +203,6 @@ export function collectVoyageManifestBatchRows({
       const batch = batchesById.get(bl.batch_id)
       if (batch) attachBatchMetadata(group, batch)
     }
-  }
-
-  for (const batch of batches ?? []) {
-    if (Array.from(groups.values()).some((group) => group.batchIds.includes(batch.id))) continue
-
-    const batchBls = blsByBatch.get(batch.id) ?? []
-    const group = getGroup(batchBls[0]?.pol, batchBls[0]?.pod)
-    attachBatchMetadata(group, batch)
-    group.blCount += Number(batch.total_bls ?? batchBls.length)
-    group.ceFilled += batchBls.filter((bl) => String(bl.ce_mercante ?? '').trim()).length
-    group.ceTotal += batchBls.length
   }
 
   for (const vazio of vaziosRoutes ?? []) {
