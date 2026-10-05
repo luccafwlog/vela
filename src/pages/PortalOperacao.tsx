@@ -1,3 +1,6 @@
+import { Link } from 'react-router-dom'
+import { usePortalScope } from '../hooks/usePortalScope'
+import { portalPath } from '../services/portalScope'
 import { Fragment, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronUp, Download } from 'lucide-react'
@@ -73,6 +76,7 @@ const EMPTY_BL_FILTERS: BlFilters = { bl: '', ce: '', vessel: '', voyage: '', po
 const EMPTY_CONTAINER_FILTERS: ContainerFilters = { container: '', bl: '', ce: '', vessel: '', voyage: '', pol: '', pod: '', devolucao: '', status: '' }
 
 export function PortalOperacao() {
+  const scope = usePortalScope()
   const { data, isLoading, error } = usePortalOperationBls()
   const rows = useMemo(() => data ?? [], [data])
 
@@ -95,6 +99,7 @@ export function PortalOperacao() {
 
   return (
     <>
+      <Link className="mb-3 inline-block text-[var(--app-link)]" to={portalPath(scope, '/desbloqueio-ce')}>Solicitar desbloqueio de CE</Link>
       <PageHeader
         title="BLs e Containers"
         description="Consulte seus B/Ls e containers: descarga, devolução, free time e dias de demurrage."

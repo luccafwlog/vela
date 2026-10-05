@@ -28,6 +28,7 @@ export type NavItem = {
 export const importNavItems: NavItem[] = [
   { to: '/baplie', label: 'Baplie EDI', icon: FileSpreadsheet },
   { to: '/bls', label: 'BLs', icon: FileSpreadsheet },
+  { to: '/desbloqueio-ce', label: 'Desbloqueio de CE', icon: ShieldCheck },
   { to: '/containers', label: 'Containers', icon: ContainersIcon },
   { to: '/veiculos', label: 'Veículos', icon: Car },
   { to: '/vazios-importacao', label: 'Vazios IMP', icon: VaziosImpIcon },

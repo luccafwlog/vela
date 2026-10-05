@@ -442,3 +442,35 @@ Ao entregar a operação para outra pessoa:
 7. Confirmar que os alertas do Sentry e do Better Stack chegam ao novo
    responsável.
 8. Remover o acesso do responsável anterior.
+
+## Desbloqueio de CE Mercante
+
+**Implementação local, publicação pendente.** Publicar na ordem: migrations
+`134`–`141`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
+de produção. As funções são `portal-ce-unlock-document`,
+`ce-unlock-document-download`, `ce-unlock-export` e `ce-unlock-cleanup`.
+As três primeiras autenticam a sessão com `auth.getUser()`; `verify_jwt=false`
+permite CORS e não dispensa autenticação na função. O bucket privado
+`ce-unlock-documents` recebe PDFs somente pelo servidor.
+
+Cadastrar o PDF oficial em Importação → Desbloqueio de CE → Modelo do termo.
+Não há modelo jurídico inventado/embutido no código. Homologar uma planilha
+com a ZPT: BL, Termo, Procuração, Entrega de BL, Pagamento das taxas, nessa
+ordem; quatro requisitos Sim/Não. Não há API externa automática nem envio de
+e-mail pela função de exportação. Registrar envio e confirmação no Vela.
+
+O job `ce-unlock-cleanup` nasce **inativo** (`0 6 * * *`, UTC). Antes de ativar,
+configurar `CE_UNLOCK_CLEANUP_SECRET` nas variáveis da Edge Function e no Vault
+Supabase com exatamente esse nome/valor, por canal seguro. O cron chama
+`ops.dispatch_edge_job` com esse segredo dedicado; a função compara o bearer
+com o valor configurado e não aceita token de sessão/serviço em seu lugar.
+Confirmar também a configuração existente de URL do dispatcher. Nunca colocar
+valores de segredos em git, documentação ou comandos compartilhados.
+
+Validar expurgo em Preview e somente então ativar pelo painel de Cron. Uploads
+órfãos são elegíveis após um dia; documentos de rascunhos abandonados após
+sete dias; arquivos encerrados/inativos após cinco anos, desde que sem vínculo
+a pedido aberto. Remoção física usa Storage API, seguida de marcação auditável
+e liberação de rascunhos expirados. Histórico de pedidos/lotes não é apagado.
+Para interromper expurgo, desativar o job. Para reverter publicação funcional,
+retirar as novas rotas do frontend e preservar tabelas/histórico, sem reset.

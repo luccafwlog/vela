@@ -650,6 +650,8 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/portal/billing` | Faturas de taxas locais/avulsas e demurrage |
 | `/portal/operacao` | B/Ls e containers |
 | `/portal/perfil` | Contatos e perfil |
+| `/portal/desbloqueio-ce` | Solicitar CE e consultar documentos anuais VIP |
+| `/clientes/portal/inspecao/:customerId/desbloqueio-ce` | Inspeção de CE somente leitura |
 
 ### Aplicação interna
 
@@ -662,6 +664,7 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/baplie` | Importação e conciliação Baplie |
 | `/bls` | Painel unificado de B/Ls (contêiner, carga solta e misto); importação documental e CE Mercante |
 | `/bls/:blId` | Detalhe do B/L |
+| `/desbloqueio-ce` | Importação: pedidos de CE, documentos, entrega física e ZPT |
 | `/carga-solta` | Redirect legado para `/bls` |
 | `/carga-solta/:blId` | Redirect legado para `/bls/:blId` |
 | `/manifestos` | Redirect legado para `/bls` |

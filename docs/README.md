@@ -45,6 +45,7 @@ O fluxo canônico detalhado está em [ARCHITECTURE.md](ARCHITECTURE.md#fluxo-ope
 | Faturamento | [modules/faturamento.md](modules/faturamento.md) | operação em `/taxas-locais`; `/faturamento` é redirect legado |
 | Demurrage | [modules/demurrage.md](modules/demurrage.md) | `/demurrage`, `/demurrage/taxas` |
 | Conciliação PIX | [modules/reconciliacao-pix.md](modules/reconciliacao-pix.md) | `/reconciliacao` |
+| Desbloqueio de CE | [modules/desbloqueio-ce.md](modules/desbloqueio-ce.md) | `/desbloqueio-ce`, `/portal/desbloqueio-ce` |
 | Portal do Cliente | [modules/portal-cliente.md](modules/portal-cliente.md) | `/portal/*` |
 | Operação & Suporte | [modules/operacao-suporte.md](modules/operacao-suporte.md) | `/painel`, `/revisao`, `/alertas`, `/alertas/regras`, `/relatorios`, `/line-up-tv/display`, `/admin` |
 

@@ -483,3 +483,9 @@ atualização, sem expor PTAX, fórmula ou botão de atualização. Exemplo:
 `ROE vigente: R$ 5,4288 · atualizado em 16/07/2026`. O valor vem da mesma
 referência autoritativa usada no recálculo global; o detalhe da invoice continua
 mostrando o ROE efetivamente aplicado e preserva o valor congelado após pagamento.
+
+### Desbloqueio de CE Mercante — 2026-10-04
+
+O módulo de [Desbloqueio de CE](desbloqueio-ce.md) introduz pedidos no Portal,
+gestão em Importação e condição VIP/documentos anuais na ficha do Cliente.
+Implementado no checkout; publicação ainda não executada.

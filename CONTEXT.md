@@ -2099,3 +2099,12 @@ Erro de preço (tabela ou Condição do Cliente) não reemite: vale para as pró
 faturas. No Portal, a fatura cancelada não aparece por padrão, só pelo filtro
 Cancelada. Ver [ADR 0077](docs/adr/0077-fatura-emitida-nao-muda-de-valor.md)
 e [Faturamento](docs/modules/faturamento.md).
+
+## Desbloqueio de CE e condição VIP
+
+Pedido de cliente para um ou vários B/Ls do mesmo CNPJ com CE e taxas locais
+pagas. Aptidão exige também termo/procuração aprovados e original entregue.
+VIP é condição por CNPJ: documentos anuais aprovados substituem os anexos por
+pedido até 31/12 do ano declarado; pagamento e entrega continuam por B/L.
+Exportação ZPT contém BL e quatro requisitos; não comprova desbloqueio.
+Ver [módulo](docs/modules/desbloqueio-ce.md).

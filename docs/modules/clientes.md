@@ -276,3 +276,9 @@ do cliente.
 ### Caixas do contato principal
 
 O editor interno de contatos aplica a mesma regra do Perfil no Portal, compartilhada em `src/lib/customerContactDrafts.ts`: o principal sem vínculos começa com as três caixas marcadas; caixas sem substituto elegível são repostas no rascunho, e delegações salvas com cobertura são preservadas. Uma caixa do principal só pode ser desmarcada quando outro contato ativo, com e-mail e sem bloqueio de entrega, cobre aquela caixa. As alterações dependem de salvar; usuários sem permissão de edição visualizam os vínculos armazenados.
+
+### Desbloqueio de CE Mercante — 2026-10-04
+
+O módulo de [Desbloqueio de CE](desbloqueio-ce.md) introduz pedidos no Portal,
+gestão em Importação e condição VIP/documentos anuais na ficha do Cliente.
+Implementado no checkout; publicação ainda não executada.

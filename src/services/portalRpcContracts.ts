@@ -3,6 +3,11 @@
 // Leitura tem wrapper portal_inspect_*; escrita nunca ganha variante; ship_schedule
 // é a exceção sem escopo de cliente e mantém o nome nas duas modalidades.
 export const PORTAL_READ_INSPECT_MAP = {
+  portal_list_ce_unlock_bls: 'portal_inspect_list_ce_unlock_bls',
+  portal_list_ce_unlock_requests: 'portal_inspect_list_ce_unlock_requests',
+  portal_get_ce_unlock_request: 'portal_inspect_get_ce_unlock_request',
+  portal_get_ce_unlock_vip_coverage: 'portal_inspect_get_ce_unlock_vip_coverage',
+  portal_get_ce_unlock_model: 'portal_inspect_get_ce_unlock_model',
   portal_list_consolidatable_receivables: 'portal_inspect_list_consolidatable_receivables',
   portal_list_invoices: 'portal_inspect_list_invoices',
   portal_list_invoices_page: 'portal_inspect_list_invoices_page',
@@ -23,6 +28,7 @@ export const PORTAL_READ_INSPECT_MAP = {
 export type PortalReadContract = keyof typeof PORTAL_READ_INSPECT_MAP
 
 export const PORTAL_WRITE_CONTRACTS = [
+  'portal_ce_unlock_command',
   'portal_open_demurrage_dispute',
   'portal_add_dispute_message',
   'add_demurrage_dispute_attachment',

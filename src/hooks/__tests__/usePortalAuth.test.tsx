@@ -112,6 +112,10 @@ describe('usePortalAuth', () => {
       return { data: { subscription: { unsubscribe: vi.fn() } } }
     })
     queryClient.setQueryData(['portal-invoices'], [{ id: 1 }])
+    const ceClientKey = ['ce-unlock', 'request', { mode: 'client', authCustomer: 10 }, 'ce-private']
+    const ceInternalKey = ['ce-unlock', 'request', 'internal', 'ce-internal']
+    queryClient.setQueryData(ceClientKey, { protocol: 'PRIVATE-10' })
+    queryClient.setQueryData(ceInternalKey, { protocol: 'INTERNAL' })
 
     const { result } = renderHook(() => usePortalAuth(), { wrapper })
     await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
@@ -123,6 +127,8 @@ describe('usePortalAuth', () => {
     await waitFor(() => expect(result.current.isAuthenticated).toBe(false))
     expect(sentry.setUser).toHaveBeenCalledWith(null)
     expect(queryClient.getQueryData(['portal-invoices'])).toBeUndefined()
+    expect(queryClient.getQueryData(ceClientKey)).toBeUndefined()
+    expect(queryClient.getQueryData(ceInternalKey)).toEqual({ protocol: 'INTERNAL' })
   })
 
   it('remove queries do portal ao sair pela UI', async () => {

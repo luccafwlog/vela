@@ -1,4 +1,10 @@
 export const queryKeys = {
+  ceUnlock: {
+    all: () => ['ce-unlock'] as const,
+    list: (scope: unknown, filters: unknown, page: number) => ['ce-unlock', 'list', scope, filters, page] as const,
+    request: (scope: unknown, id: string | null) => ['ce-unlock', 'request', scope, id] as const,
+    vip: (scope: unknown) => ['ce-unlock', 'vip', scope] as const,
+  },
   bls: {
     all: () => ['bls'] as const,
     list: (filters: unknown) => ['bls', filters] as const,

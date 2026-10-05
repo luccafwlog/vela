@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **Desbloqueio de CE Mercante (2026-10-04, implementação local):** página em
+  Importação e no Portal, solicitações de BLs pagos, análise de termo/procuração
+  e entrega original. VIP por CNPJ com documentos anuais até 31/12. Lotes XLSX
+  ZPT de cinco colunas, envio e confirmação por BL separados, anexos privados e
+  expurgo agendado inicialmente desativado (migrations `134`–`141`). Ver
+  [módulo](modules/desbloqueio-ce.md); publicação e aceite externo pendentes.
+
 - **Correção de B/L após faturamento (2026-10-01, implementação local):** fatura
   emitida preserva valor/itens; Cancelar e reemitir sem pagamento e vínculo entre
   documentos (`122`). Avulsa por Tipo de cobrança com tabela/Condição do Cliente,

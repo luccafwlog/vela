@@ -375,3 +375,9 @@ bloqueadas no preview; nenhum veículo é criado com valores zero artificiais.
 - O pós-processamento financeiro que ocorre depois de alguns imports permanece fora da transação central e deve ser validado separadamente.
   financeiro de veículos. Para carga solta, a garantia cobre a persistência
   central; o cálculo posterior de taxas continua fora da transação.
+
+### Desbloqueio de CE Mercante — 2026-10-04
+
+O módulo de [Desbloqueio de CE](desbloqueio-ce.md) introduz pedidos no Portal,
+gestão em Importação e condição VIP/documentos anuais na ficha do Cliente.
+Implementado no checkout; publicação ainda não executada.

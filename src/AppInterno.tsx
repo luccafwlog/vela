@@ -8,6 +8,8 @@ import { matchRoutePreload, type RoutePreloadTable } from './lib/routePreload'
 import { resolveLegacyFaturamentoRedirect, resolveTaxasLocaisRedirect, toRouteTarget } from './lib/routeRedirects'
 import { markStartupStage } from './lib/telemetry'
 
+const DesbloqueioCe = lazyPage(() => import('./pages/DesbloqueioCe'), 'DesbloqueioCe')
+const PortalDesbloqueioCe = lazyPage(() => import('./pages/PortalDesbloqueioCe'), 'PortalDesbloqueioCe')
 const Login = lazyPage(() => import('./pages/Login'), 'Login')
 const PortalDashboard = lazyPage(() => import('./pages/PortalDashboard'), 'PortalDashboard')
 const PortalBilling = lazyPage(() => import('./pages/PortalBilling'), 'PortalBilling')
@@ -89,6 +91,7 @@ const routePreloads: RoutePreloadTable = [
   ['/login', Login.preload], ['/line-up-tv/display', LineUpTVDisplay.preload],
   ['/clientes/portal/inspecao/:customerId', PortalInspection.preload],
   ['/painel', Painel.preload], ['/viagens/:voyageId', Viagens.preload], ['/viagens', Viagens.preload],
+  ['/desbloqueio-ce', DesbloqueioCe.preload],
   ['/bls/:blId', BlDetalhe.preload], ['/bls', Bls.preload], ['/containers', Containers.preload],
   ['/veiculos', Veiculos.preload], ['/revisao', Revisao.preload],
   ['/clientes/comunicacao', ClientesComunicacao.preload], ['/clientes/portal', ClientesPortal.preload], ['/clientes/:cnpj', ClienteFicha.preload], ['/clientes', Clientes.preload],
@@ -126,6 +129,7 @@ export default function AppInterno() {
             <Route index element={withSuspense(<PortalDashboard />)} />
             <Route path="billing" element={withSuspense(<PortalBilling />)} />
             <Route path="operacao" element={withSuspense(<PortalOperacao />)} />
+            <Route path="desbloqueio-ce" element={withSuspense(<PortalDesbloqueioCe />)} />
             <Route path="perfil" element={withSuspense(<PortalProfile />)} />
           </Route>
           <Route element={<AppLayout />}>
@@ -133,6 +137,9 @@ export default function AppInterno() {
             <Route path="/painel" element={withSuspense(<Painel />)} />
             <Route path="/viagens" element={withSuspense(<Viagens />)} />
             <Route path="/viagens/:voyageId" element={withSuspense(<Viagens />)} />
+            <Route element={<ProtectedRoute permission="ce_unlock_read" />}>
+              <Route path="/desbloqueio-ce" element={withSuspense(<DesbloqueioCe />)} />
+            </Route>
             <Route path="/bls" element={withSuspense(<Bls />)} />
             <Route path="/bls/:blId" element={withSuspense(<BlDetalhe />)} />
             <Route path="/containers" element={withSuspense(<Containers />)} />

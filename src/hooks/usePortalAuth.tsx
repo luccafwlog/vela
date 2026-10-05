@@ -61,7 +61,11 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
 
   const clearPortalQueries = useCallback(() => {
     queryClient.removeQueries({
-      predicate: (query) => String(query.queryKey[0]).startsWith('portal-'),
+      predicate: (query) => String(query.queryKey[0]).startsWith('portal-') || (
+        query.queryKey[0] === 'ce-unlock' && query.queryKey.some(segment =>
+          typeof segment === 'object' && segment !== null && 'mode' in segment && segment.mode === 'client',
+        )
+      ),
     })
   }, [queryClient])
 
