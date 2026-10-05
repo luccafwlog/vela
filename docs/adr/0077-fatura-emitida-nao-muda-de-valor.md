@@ -123,6 +123,20 @@ confirmação da devolução para emitir a nova cobrança. Falha de emissão ap�
 devolver conserva uma pendência recuperável. Para avulsa e Demurrage, a
 restituição excepcional deve preceder a mudança de Cliente.
 
-A implementação está validada apenas localmente; a migration 135 foi incluída
+A implementação está validada apenas localmente; a migration 148 foi incluída
 após autorização explícita. Ver as [decisões implementadas](../archive/specs/2026-10-04-controles-financeiros-design.md)
 e o [manual financeiro](../operations/manual-financeiro.md).
+
+## Exceções controladas definidas em 2026-10-05
+
+"Ninguém digita correção" continua valendo para a correção pela base do B/L.
+O usuário aceitou duas exceções, ambas com autorização do Administrativo e
+confirmação da devolução pelo Financeiro com comprovante, favorecido e data:
+
+- **Cancelamento financeiro de um B/L** em fatura paga ou parcialmente paga:
+  a pessoa decide cancelar, mas não digita valor; a cobrança daquele B/L vai a
+  zero e o recebido vira restituição, preservando os outros B/Ls da
+  consolidada. O cancelamento operacional continua na ficha do B/L.
+- **Restituição excepcional de avulsa e Demurrage**, que não têm base de B/L
+  para recalcular: o Administrativo informa valor e justificativa, limitados
+  ao recebido ainda não reservado para devolução.

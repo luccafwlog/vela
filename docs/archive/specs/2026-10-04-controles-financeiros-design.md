@@ -6,14 +6,14 @@ Estado: implementação local concluída e validada. A nova migration foi inclu�
 
 - CNPJ de B/L com recebimento verdadeiro: devolver ao Cliente original, preservar pagamentos/documentos e emitir para o novo Cliente somente após a confirmação da devolução. A regra foi definida pelo usuário em 2026-10-04.
 - A confirmação registra a declaração do Financeiro de que o dinheiro foi devolvido no banco; exige referência do comprovante, favorecido e data. Não executa transferência bancária.
-- Baixas manuais pela tela exigem referência bancária e reutilizam chave e conteúdo após timeout. Uma referência não pode financiar dois pagamentos no caminho verificado. Uma tentativa cuja baixa foi cancelada não pode reaparecer como sucesso.
+- Baixas manuais pela tela exigem referência bancária e reutilizam chave e conteúdo após timeout. A referência pode se repetir: um PIX pode pagar mais de uma cobrança (decisão do usuário em 2026-10-05; a unicidade original foi retirada antes do merge). Uma tentativa cuja baixa foi cancelada não pode reaparecer como sucesso.
 - Restituições excepcionais de avulsa e Demurrage exigem autorização do Administrativo, justificativa e lastro. Financeiro confirma a devolução. Cancelamento integral preserva recebimento/documento/câmbio e cancela a fatura após devolver o total recebido.
 - Cancelamento financeiro de um B/L parcialmente pago abate seu saldo e prepara devolução do recebido, preservando os outros B/Ls de uma consolidada. O cancelamento operacional continua na ficha do B/L, pelo Administrativo.
 - Recibos discriminam bruto, abatimento de saldo, devolvido, pendente e líquido. Individual coberta recebe data e valores atribuídos aos seus B/Ls, com referência à consolidada.
 
 ## Entrega implementada
 
-A [migration 135](../../../supabase/migrations/135_controles_financeiros.sql) contém o SQL validado e autorizado. Ele inclui os contratos das telas já alteradas, autorização no banco, auditoria, preservação de documentos e recuperação de reemissão. O rascunho foi exercitado somente em PostgreSQL descartável.
+A [migration 148](../../../supabase/migrations/148_controles_financeiros.sql) contém o SQL validado e autorizado. Ele inclui os contratos das telas já alteradas, autorização no banco, auditoria, preservação de documentos e recuperação de reemissão. O rascunho foi exercitado somente em PostgreSQL descartável.
 
 A confirmação de CNPJ não desfaz a devolução caso a nova emissão encontre uma retenção: persiste `reissue_pending` e permite recuperação. O cálculo que será substituído ganha snapshot nos itens do documento original. Recebíveis anteriores são arquivados, mantendo seus settlements; o novo Cliente recebe um novo recebível sem pagamento herdado.
 

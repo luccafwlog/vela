@@ -127,7 +127,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
 
   async function handleRegisterPayment() {
     if (!invoiceId) return
-    if (paymentReference.trim().length < 3) { showToast('Informe a referência única do recebimento no extrato bancário.', 'error'); return }
+    if (paymentReference.trim().length < 3) { showToast('Informe a referência do recebimento no extrato bancário.', 'error'); return }
     const paymentValidation = paymentFormSchema.safeParse({
       amountBrl: paymentAmount,
       paymentMethod,
@@ -537,7 +537,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                     <Field label="Data">
                       <Input disabled={Boolean(paymentAttempt)} type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} />
                     </Field>
-                    <Field label="Referência do recebimento bancário"><Input disabled={Boolean(paymentAttempt)} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Identificador único do extrato ou comprovante" /></Field>
+                    <Field label="Referência do recebimento bancário"><Input disabled={Boolean(paymentAttempt)} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Identificador do extrato ou comprovante" /></Field>
                     <Field label="Notas">
                       <Input disabled={Boolean(paymentAttempt)} value={paymentNotes} onChange={(event) => setPaymentNotes(event.target.value)} />
                     </Field>

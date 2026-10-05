@@ -489,15 +489,16 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     expect(psql(`SELECT count(*) FROM public.invoices WHERE customer_id=${otherCustomerId}`)).toBe('1')
   })
 
-  it('referência bancária impede duplicação com duas chaves e replay de baixa cancelada', () => {
+  it('mesma referência bancária financia duas baixas; replay de baixa cancelada é recusado', () => {
     const inv = issueByCe(bl.full, '839000000000030')
-    const sql = `SELECT public.register_verified_invoice_payment(${inv},200,'ted','2026-10-01T12:00:00Z',NULL,'00000000-0000-0000-0000-000000839030','BANCO-UNICO-30')`
+    const sql = `SELECT public.register_verified_invoice_payment(${inv},150,'ted','2026-10-01T12:00:00Z',NULL,'00000000-0000-0000-0000-000000839030','BANCO-UNICO-30')`
     const first = adminJson<{payment_id:number}>(sql)
     expect(adminJson(sql)).toMatchObject({payment_id:first.payment_id})
-    const duplicate = asAdmin(sql.replace('000000839030','000000839031'))
-    expect(duplicate.status).toBe(1)
-    expect(duplicate.stderr).toContain('já registrado')
-    expect(psql(`SELECT count(*) FROM public.payments WHERE invoice_id=${inv}`)).toBe('1')
+    // Um PIX pode pagar mais de uma cobrança: a referência se repete com outra chave de tentativa.
+    const second = adminJson<{payment_id:number}>(sql.replace('000000839030','000000839031').replace(',150,',',50,'))
+    expect(second.payment_id).not.toBe(first.payment_id)
+    expect(psql(`SELECT count(*) FROM public.payments WHERE invoice_id=${inv} AND bank_reference='BANCO-UNICO-30'`)).toBe('2')
+    adminJson(`SELECT public.reverse_invoice_payment(${second.payment_id},'Baixa lançada sem recebimento')`)
     adminJson(`SELECT public.reverse_invoice_payment(${first.payment_id},'Baixa lançada sem recebimento')`)
     const replay = asAdmin(sql)
     expect(replay.status).toBe(1)
