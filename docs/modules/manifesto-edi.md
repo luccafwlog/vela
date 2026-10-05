@@ -334,7 +334,7 @@ flowchart LR
     A migration `060` permite complementar um B/L com carga solta, preservando
     sua carga container e estado financeiro; os triggers recalculam a modalidade
     por statement. Não existe mais a proibição geral de cruzar modalidades.
-12. **Baplie substitui por viagem.** A RPC apaga e reinsere o staging em uma transação. Containers `empty` não entram na conciliação de B/L; alimentam Vazios de Importação.
+12. **Baplie substitui por viagem.** A RPC apaga e reinsere o staging em uma transação. Containers `empty` não entram na conciliação de B/L; alimentam Vazios de Importação. O parser mantém o POD reconhecido de `LOC+11/12`; se estiver ausente ou inválido, usa o porto reconhecido de `LOC+83` da mesma unidade, preserva o destino final e mostra aviso para conferir a descarga real. Sem nenhum porto utilizável, o erro de POD permanece bloqueante.
 13. **Baplie é soberano sobre os atributos físicos.** Não existe mais resolução “manter valor do B/L”: a cada importação ou reimportação, IMO, classe, ONU e OOG do Baplie são aplicados aos containers dos B/Ls da viagem. As resoluções que restam em `baplie_reconciliation_resolutions` tratam só divergência de existência.
 14. **Veículos têm fronteira dividida.** A inserção do lote é transacional; cancelamento de invoices e recálculo de taxas ocorrem depois, por B/L. Falha nessa fase não desfaz veículos já inseridos.
 15. **Datas de container afetam demurrage.** Devolução anterior à descarga é rejeitada; todos retornados podem criar e emitir invoice de demurrage.
