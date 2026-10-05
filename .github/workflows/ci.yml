@@ -39,6 +39,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: CE document upload contract
+        run: npx --yes deno@2.9.6 test --frozen --allow-env --allow-net supabase/functions/portal-ce-unlock-document/index.test.ts
+
       - name: Squash generator self-check
         run: node scripts/build-squash-migrations.mjs --self-check
 
@@ -113,7 +116,9 @@ jobs:
           python-version: '3.12'
 
       - name: Verify database security guards
-        run: python scripts/security/verificar_guardas.py --ci
+        run: |
+          python -B -m unittest discover -s scripts/security -p 'test_*.py'
+          python -B scripts/security/verificar_guardas.py --ci
 
   # Aplica de verdade as migrations num Postgres 16 descartável. Docs, lint,
   # build, vitest e o replay estático leem o texto das migrations sem executar:
@@ -180,6 +185,7 @@ jobs:
             src/integration/auditoriaRun2Reforcos.local-pg.test.ts \
             src/integration/auditSecurityBoundaries.local-pg.test.ts \
             src/integration/communicationEligibility.local-pg.test.ts \
+            src/integration/ceUnlock.local-pg.test.ts \
             src/integration/demurrageAuthority.local-pg.test.ts \
             src/integration/demurrageMoney.local-pg.test.ts \
             src/integration/emailInbox.local-pg.test.ts \

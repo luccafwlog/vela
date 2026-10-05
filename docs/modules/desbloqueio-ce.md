@@ -25,7 +25,9 @@ atos diferentes. O sistema não chama API da ZPT para liberar a carga.
 - Histórico ZPT: baixar lote preservado e registrar envio externo. Confirmar
   desbloqueio é feito no protocolo por B/L e exige CE atual e referência externa.
   O desk consulta data/CE/referência na seção Confirmações externas do detalhe;
-  essas referências internas não são projetadas ao Portal nem às leituras resumidas.
+  essas referências internas não são projetadas ao Portal nem às leituras resumidas,
+  inclusive pelos motivos dos eventos históricos de confirmação e pelos snapshots
+  antigos devolvidos em repetições idempotentes de comandos do Portal.
 
 ## Regras de negócio
 
@@ -33,12 +35,15 @@ Os quatro requisitos são termo aprovado, procuração aprovada, taxas locais
 integralmente liquidadas e B/L original entregue. Selo VIP não dispensa documento:
 exige termo e procuração anuais aprovados/vigentes para o mesmo CNPJ. Validade
 até 31/12 do ano declarado, inclusive em America/Sao_Paulo; não renova em janeiro.
-Documento novo em análise não revoga o anterior vigente; renovação pode ser
+Reserva de upload sem PDF registrado não substitui a versão enviada nem
+consome quota ativa após compensação/expurgo. Documento novo em análise não revoga o anterior vigente; renovação pode ser
 aplicada aos pedidos pendentes pelo desk, com histórico.
 
 Taxas locais usam recebíveis/settlements, não status isolado de fatura. Pagamento
 parcial, ausência de liquidação, nova obrigação de COD ou cancelamento de baixa
-impedem aptidão. Demurrage/avulsas não fazem parte do requisito local.
+impedem aptidão. Demurrage/avulsas não fazem parte do requisito local. Correções para menor
+reduzem o valor exigível: a liquidação cobre o valor original menos a correção,
+com saldo zero e evidência real no ledger.
 Cancelamento de B/L e correção do CE também exigem nova conferência. Histórico
 externo confirmado não é apagado por mudança financeira posterior.
 
@@ -54,7 +59,7 @@ externo confirmado não é apagado por mudança financeira posterior.
 
 ## Persistência e segurança
 
-Migrations `134`–`141`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
+Migrations `134`–`143`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
 RLS sem acesso direto do navegador e RPCs com escopo server-side. Escritas
 cliente/internal usam dispatchers distintos com allowlists; retries compartilham
 chave idempotente e recusam alteração de payload. Inspeção tem wrappers de leitura.
@@ -69,7 +74,8 @@ Funções: `portal-ce-unlock-document`, `ce-unlock-document-download`,
 ## Validação e operação
 
 Testes SQL reais: `src/integration/ceUnlock.local-pg.test.ts`; regras VIP/ZPT e
-PDF em `src/services/__tests__/ceUnlock*.test.ts`; componentes e Portal em seus
+PDF em `src/services/__tests__/ceUnlock*.test.ts`; o handler de upload é exercitado
+em Deno por `supabase/functions/portal-ce-unlock-document/index.test.ts`; componentes e Portal em seus
 harnesses existentes. Postgres local usa shims de Auth/Storage/cron, que não
 comprovam o gateway Supabase nem envio ZPT. Publicação e arquivo ZPT em operação
 real precisam de validação no ambiente autorizado.

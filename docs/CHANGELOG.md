@@ -4,6 +4,12 @@
 
 ## 2026-10
 
+- **Correções da PR 847 (2026-10-05):** CE aceita liquidação do valor corrigido;
+  referência externa permanece privada também no histórico; tentativas de upload
+  não substituem PDFs registrados e são compensadas em falhas de armazenamento.
+  Migration corretiva `143`, regressões SQL/Deno e checks de Inspeção/segurança
+  atualizados. Publicação remota do backend continua pendente.
+
 - **Desbloqueio de CE Mercante (2026-10-04, implementação local):** página em
   Importação e no Portal, solicitações de BLs pagos, análise de termo/procuração
   e entrega original. VIP por CNPJ com documentos anuais até 31/12. Lotes XLSX

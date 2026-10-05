@@ -446,7 +446,7 @@ Ao entregar a operação para outra pessoa:
 ## Desbloqueio de CE Mercante
 
 **Implementação local, publicação pendente.** Publicar na ordem: migrations
-`134`–`141`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
+`134`–`143`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
 de produção. As funções são `portal-ce-unlock-document`,
 `ce-unlock-document-download`, `ce-unlock-export` e `ce-unlock-cleanup`.
 As três primeiras autenticam a sessão com `auth.getUser()`; `verify_jwt=false`
@@ -474,3 +474,9 @@ a pedido aberto. Remoção física usa Storage API, seguida de marcação audit�
 e liberação de rascunhos expirados. Histórico de pedidos/lotes não é apagado.
 Para interromper expurgo, desativar o job. Para reverter publicação funcional,
 retirar as novas rotas do frontend e preservar tabelas/histórico, sem reset.
+
+A correção da PR 847 exige a migration `143` antes de republicar
+`portal-ce-unlock-document` e os frontends. Valide em Preview a compensação
+de falhas de upload e a preservação de PDFs registrados após resposta perdida;
+os testes locais do handler usam backend HTTP simulado e não comprovam Storage
+gerenciado. Não há alteração de nomes de segredos ou do agendamento de expurgo.

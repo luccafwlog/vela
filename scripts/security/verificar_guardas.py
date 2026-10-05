@@ -24,6 +24,16 @@ MIGRATIONS = os.path.join(RAIZ, 'supabase', 'migrations')
 # Cache de leitura: estado_final() e o check [4] varrem os mesmos arquivos.
 _CONTEUDO: dict[str, str] = {}
 
+SQL_IDENTIFIER = r'(?:"(?:[^"]|"")+"|[A-Za-z_]\w*)'
+QUALIFIED_TABLE = rf'(?:({SQL_IDENTIFIER})\s*\.\s*)?({SQL_IDENTIFIER})(?![\w.])'
+
+
+def table_key(match: re.Match) -> str:
+    def identifier(value: str) -> str:
+        return value[1:-1].replace('""', '"') if value.startswith('"') else value.lower()
+    schema, table = match.groups()
+    return f'{identifier(schema or "public")}.{identifier(table)}'
+
 
 def ler(caminho: str) -> str:
     if caminho not in _CONTEUDO:
@@ -281,12 +291,13 @@ def estado_final():
             exp,
             flags=re.I | re.S,
         )
-        for m in re.finditer(r'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?"?(\w+)"?', exp_sem_tags, re.I):
-            tabelas.setdefault(m.group(1), base)
-        for m in re.finditer(r'DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:public\.)?"?(\w+)"?', exp, re.I):
-            tabelas.pop(m.group(1), None)
-        for m in re.finditer(r'ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:public\.)?"?(\w+)"?\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY', exp, re.I):
-            rls.add(m.group(1))
+        for m in re.finditer(r'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?' + QUALIFIED_TABLE, exp_sem_tags, re.I):
+            tabelas.setdefault(table_key(m), base)
+        for m in re.finditer(r'DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?' + QUALIFIED_TABLE, exp, re.I):
+            tabelas.pop(table_key(m), None)
+            rls.discard(table_key(m))
+        for m in re.finditer(r'ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?' + QUALIFIED_TABLE + r'\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY', exp, re.I):
+            rls.add(table_key(m))
         for m in re.finditer(r'DROP\s+POLICY\s+(?:IF\s+EXISTS\s+)?"?(\w+)"?\s+ON\s+(?:(public|storage)\.)?"?(\w+)"?', exp, re.I):
             policies.pop(((m.group(2) or 'public').lower(), m.group(3), m.group(1)), None)
         for m in re.finditer(r'CREATE\s+POLICY\s+"?(\w+)"?\s+ON\s+(?:(public|storage)\.)?"?(\w+)"?(.*?)(?=;)', exp, re.S | re.I):

@@ -57,7 +57,7 @@ export function CeUnlockRequestDetail({
         ...payload,
         request_id: request.id,
         expected_version: request.version,
-        reason,
+        reason: action === "confirm" ? null : reason,
         ...(action === "confirm" ? { reference: reason } : {}),
       });
     } catch (e) {
@@ -90,9 +90,9 @@ export function CeUnlockRequestDetail({
   }
   const latestDocuments = request.documents.filter(
     (d) =>
-      d.source === "request" &&
+      d.source === "request" && d.status !== "uploading" &&
       !request.documents.some(
-        (other) => other.type === d.type && other.created_at > d.created_at,
+        (other) => other.type === d.type && other.status !== "uploading" && other.created_at > d.created_at,
       ),
   );
   return (

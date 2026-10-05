@@ -606,7 +606,7 @@ Há dois caminhos distintos:
 Para Postgres local, depois do replay, execute as suítes relevantes com
 `npx vitest run --no-file-parallelism <arquivos.local-pg.test.ts>`.
 Use a lista explícita de `.github/workflows/ci.yml` para reproduzir o gate
-completo. As suítes compartilham banco e precisam rodar em série; cada uma deve
+completo; ela inclui `ceUnlock.local-pg.test.ts` e a paridade de Inspeção. As suítes compartilham banco e precisam rodar em série; cada uma deve
 usar seu próprio namespace de IDs e documentos nas fixtures.
 
 `npm run rpc:check` requer `psql` e banco já preparado. Configure explicitamente
@@ -656,9 +656,12 @@ requer PostgreSQL 16:
 
 1. `quality` — verificação documental e autotestes, lint, self-check do gerador
    de squash, declaração de migration destrutiva e autotestes desse checker;
+   inclui o contrato de upload CE em Deno 2.9.6, com HTTP simulado e
+   dependências remotas verificadas por `deno.lock` (`--frozen`);
 2. `build` — build (`tsc` + `vite`) e orçamento de bundle;
 3. `test` — suíte Vitest dividida em 3 shards (`--shard=N/3`);
-4. `security-audit` — replay estático de autorização (`verificar_guardas.py`);
+4. `security-audit` — autotestes do analisador e replay estático de autorização
+   (`verificar_guardas.py`), distinguindo tabelas de schemas diferentes;
 5. `migration-replay` — aplica as migrations do zero num PostgreSQL 16
    descartável (`setup-local-pg.sh --reset`) e trava invariantes em banco real
    (`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), roda as

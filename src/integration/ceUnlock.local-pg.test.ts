@@ -18,6 +18,28 @@ async function heldTransaction(q:string) {
   await new Promise<void>((resolve,reject)=> { process.stdout.on('data',chunk=> { if(String(chunk).includes('LOCKED')) resolve() }); process.on('error',reject) })
   return { done }
 }
+
+// All review regressions roll back their isolated scenario, including receipts/events.
+const reviewRequest = '00000000-0000-0000-0000-000000557847'
+const reviewTerm = '00000000-0000-0000-0000-000000557848'
+function reviewScenario(query: string) {
+  return sql(`BEGIN;
+    SET LOCAL session_replication_role=replica;
+    INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante) VALUES('CE557-REVIEW',998557,998557,'123456789018470');
+    INSERT INTO public.bl_receivables(id,bl_id,customer_id,original_amount_brl,settled_amount_brl,balance_brl,status) VALUES(998847,'CE557-REVIEW',998557,100,100,0,'settled');
+    INSERT INTO public.ledger_settlements(receivable_id,amount_brl,source) VALUES(998847,100,'manual');
+    SET LOCAL session_replication_role=origin;
+    INSERT INTO public.ce_unlock_requests(id,customer_id,source,state,created_by) VALUES('${reviewRequest}',998557,'request','draft','${client}');
+    INSERT INTO public.ce_unlock_documents(id,customer_id,request_id,type,source,status,storage_path,file_name,size_bytes,hash,uploaded_by,created_at) VALUES
+      ('${reviewTerm}',998557,'${reviewRequest}','termo','request','uploaded','review/term','term.pdf',10,repeat('a',64),'${client}',now()-interval '2 days'),
+      ('00000000-0000-0000-0000-000000557849',998557,'${reviewRequest}','procuracao','request','uploaded','review/proc','proc.pdf',10,repeat('b',64),'${client}',now()-interval '2 days');
+    INSERT INTO public.ce_unlock_request_bls(request_id,bl_id,ce_at_request,termo_document_id,procuracao_document_id,termo_approved,procuracao_approved) VALUES
+      ('${reviewRequest}','CE557-REVIEW','123456789018470','${reviewTerm}','00000000-0000-0000-0000-000000557849',true,true);
+    INSERT INTO public.ce_unlock_bl_deliveries(bl_id,delivered) VALUES('CE557-REVIEW',true);
+    ${query}
+    ROLLBACK;`)
+}
+
 local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
   beforeAll(()=> {
     sql(`SET session_replication_role=replica;
@@ -253,4 +275,69 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(sql(`SELECT status FROM public.ce_unlock_documents WHERE id='${pending}';`)).toBe('revoked')
     expect(error(`SELECT public.ce_unlock_abort_upload('${pending}');`,client)).toContain('permission denied')
   })
+  it('pagamento integral considera o valor corrigido e ainda exige liquidação real',()=>{
+    const result=reviewScenario(`
+      UPDATE public.bl_receivables SET correction_amount_brl=20,settled_amount_brl=80 WHERE id=998847;
+      UPDATE public.ledger_settlements SET amount_brl=80 WHERE receivable_id=998847;
+      SELECT ce_unlock_private.item('CE557-REVIEW')->'paid';
+      DELETE FROM public.ledger_settlements WHERE receivable_id=998847;
+      SELECT ce_unlock_private.item('CE557-REVIEW')->'paid';`)
+    expect(result.split('\n')).toEqual(['true','false'])
+  })
+  it('histórico do cliente e do Financeiro não revela a referência enviada pela UI do desk',()=>{
+    const payload=JSON.stringify({request_id:reviewRequest,expected_version:0,bl_id:'CE557-REVIEW',ce_mercante:'123456789018470',reason:'CE-PRIVATE-REFERENCE',reference:'CE-PRIVATE-REFERENCE',request_key:crypto.randomUUID()})
+    const result=reviewScenario(`
+      UPDATE public.ce_unlock_requests SET state='submitted' WHERE id='${reviewRequest}';
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';
+      DO $$ BEGIN PERFORM public.ce_unlock_command('confirm','${payload}'::jsonb); END $$;
+      SELECT public.ce_unlock_read('request',jsonb_build_object('request_id','${reviewRequest}'));
+      SET LOCAL request.jwt.claim.sub='${client}';
+      SELECT public.portal_get_ce_unlock_request('${reviewRequest}');
+      SET LOCAL request.jwt.claim.sub='${finance}';
+      SELECT public.ce_unlock_read('request',jsonb_build_object('request_id','${reviewRequest}'));`)
+    const [desk,portal,summary]=result.split('\n').map(line=>JSON.parse(line))
+    expect(desk.confirmation_records[0].reference).toBe('CE-PRIVATE-REFERENCE')
+    for(const view of [portal,summary]) {
+      expect(view.events.some((e:{action:string})=>e.action==='confirm')).toBe(true)
+      expect(JSON.stringify(view)).not.toContain('CE-PRIVATE-REFERENCE')
+    }
+  })
+  it('repetição de comando sanitiza referências em respostas históricas sem alterar o snapshot',()=>{
+    const key=crypto.randomUUID()
+    const payload=JSON.stringify({request_id:reviewRequest,expected_version:0,request_key:key})
+    const result=reviewScenario(`
+      INSERT INTO ce_unlock_private.receipts(actor_id,action,request_key,payload,result)
+        VALUES('${client}','submit','${key}','${payload}'::jsonb,
+          jsonb_build_object('id','${reviewRequest}','version',7,'state','submitted','events',
+            jsonb_build_array(jsonb_build_object('action','confirm','reason','CE-PRIVATE-REFERENCE'),jsonb_build_object('action','reject','reason','Documento ilegível'))));
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}';
+      SELECT public.portal_ce_unlock_command('submit','${payload}'::jsonb);`)
+    const snapshot=JSON.parse(result)
+    expect(snapshot).toEqual({id:reviewRequest,version:7,state:'submitted',events:[{action:'confirm',reason:null},{action:'reject',reason:'Documento ilegível'}]})
+  })
+  it('tentativa expurgada sem PDF registrado não substitui o termo enviado nem impede sua revisão',()=>{
+    const submit=JSON.stringify({request_id:reviewRequest,expected_version:0,request_key:crypto.randomUUID()})
+    const review=JSON.stringify({request_id:reviewRequest,expected_version:1,document_id:reviewTerm,expected_document_version:0,bl_ids:['CE557-REVIEW'],decision:'approved',request_key:crypto.randomUUID()})
+    const result=reviewScenario(`
+      INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,storage_path,file_name,size_bytes,uploaded_by,created_at)
+        VALUES(998557,'${reviewRequest}','termo','request','uploading','review/failed','failed.pdf',10,'${client}',now()-interval '25 hours');
+      SELECT public.ce_unlock_cleanup_claim(id) FROM public.ce_unlock_documents WHERE storage_path='review/failed';
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}';
+      SELECT public.portal_ce_unlock_command('submit','${submit}'::jsonb);
+      SET LOCAL request.jwt.claim.sub='${admin}';
+      SELECT public.ce_unlock_command('review','${review}'::jsonb);`)
+    const request=JSON.parse(result.split('\n').at(-1)!)
+    expect(request.items[0].termo).toBe(true)
+    expect(request.documents.some((d:{file_name:string})=>d.file_name==='failed.pdf')).toBe(false)
+  })
+
+  it('reservas abortadas não consomem a quota ativa de PDFs',()=>{
+    const result=reviewScenario(`
+      INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,storage_path,file_name,size_bytes,uploaded_by,cleanup_claimed_at,purged_at)
+        SELECT 998557,'${reviewRequest}','termo','request','revoked','review/aborted-'||n,'failed.pdf',10485760,'${client}',now(),now() FROM generate_series(1,10) n;
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}';
+      SELECT public.ce_unlock_prepare_upload(jsonb_build_object('source','request','type','termo','request_id','${reviewRequest}','file_name','new.pdf','size_bytes',100))->>'id';`)
+    expect(result).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
 })

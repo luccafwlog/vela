@@ -144,7 +144,7 @@ A migration `196_portal_provisioning_console_read_model.sql` usa `SECURITY DEFIN
 
 ## Desbloqueio de CE Mercante
 
-As migrations `134`–`141` usam schema privado para implementação e RPCs públicas
+As migrations `134`–`143` usam schema privado para implementação e RPCs públicas
 com allowlists e `search_path` fixo. Não há grants de tabela para o navegador.
 Portal resolve CNPJ pela sessão/conta ativa, nunca pelo payload. Administrativo
 e Documentação gerenciam; Financeiro e Operações consultam sem PDFs. Inspeção
@@ -154,7 +154,10 @@ consulta pelo cliente selecionado e recusa comandos de escrita.
 aceita PDFs de até 10 MiB com extensão, MIME e assinatura `%PDF-`, e reserva
 caminho/quota no servidor (20 tentativas/24 h; 100 MiB ativos por cliente).
 Autentica com `getUser`, grava com cliente de serviço e finaliza com RPC do
-usuário que revalida autoria, contexto e metadados reais do objeto. Download
+usuário que revalida autoria, contexto e metadados reais do objeto. PDF inválido
+é recusado antes da reserva; falha de armazenamento reivindica e compensa a
+reserva pendente sem remover um PDF já registrado. Tentativas nunca finalizadas
+não entram na projeção dos documentos nem substituem a versão submetida. Download
 autorizado em RPC gera URL privada com 60 segundos; nunca há leitura direta
 no bucket `ce-unlock-documents`. O modelo oficial é o único PDF global do Portal.
 
@@ -169,3 +172,8 @@ fechado se ausente. `service_role` é usado apenas dentro do servidor, nunca
 como segredo do cron ou no navegador. A agenda nasce desativada. Consulte
 [serviços externos](servicos-externos.md#desbloqueio-de-ce-mercante) para rollout
 e retenção. Código no checkout não comprova publicação destas funções/policies.
+
+A evidência externa de confirmação permanece restrita ao desk também no
+histórico: motivos legados de eventos `confirm` são omitidos no Portal e nas
+leituras resumidas de Financeiro/Operações. A UI envia a referência em campo
+próprio, sem copiá-la para o motivo público.

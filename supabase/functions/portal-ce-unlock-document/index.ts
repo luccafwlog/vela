@@ -37,6 +37,12 @@ if (typeof Deno !== "undefined")
       } catch {
         return json({ error: "Contexto inválido" }, 422);
       }
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      try {
+        validateCePdf(file.name, file.type, bytes);
+      } catch {
+        return json({ error: "Use PDF válido de até 10 MiB" }, 422);
+      }
       const reserved = await user.rpc("ce_unlock_prepare_upload", {
         p_context: { ...context, file_name: file.name, size_bytes: file.size },
       });
@@ -45,21 +51,28 @@ if (typeof Deno !== "undefined")
           { error: reserved.error.message },
           reserved.error.code === "42501" ? 403 : 422,
         );
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      try {
-        validateCePdf(file.name, file.type, bytes);
-      } catch {
-        return json({ error: "Use PDF válido de até 10 MiB" }, 422);
-      }
       const admin = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
       const path = reserved.data.storage_path;
+      const abortUpload = async () => {
+        // Claim only pending uploads: a lost acknowledgement may hide a committed finish.
+        const aborted = await admin.rpc("ce_unlock_abort_upload", {
+          p_document_id: reserved.data.id,
+        });
+        if (aborted.error || !aborted.data) return;
+        const removed = await admin.storage.from("ce-unlock-documents").remove([aborted.data]);
+        if (!removed.error)
+          await admin.rpc("ce_unlock_cleanup_record", { p_document_id: reserved.data.id });
+      };
       const stored = await admin.storage
         .from("ce-unlock-documents")
         .upload(path, bytes, { contentType: "application/pdf", upsert: false });
-      if (stored.error) return json({ error: "Falha ao armazenar PDF" }, 500);
+      if (stored.error) {
+        await abortUpload();
+        return json({ error: "Falha ao armazenar PDF" }, 500);
+      }
       const hash = Array.from(
         new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
       )
@@ -70,19 +83,7 @@ if (typeof Deno !== "undefined")
         p_hash: hash,
       });
       if (result.error) {
-        // Claim only a still-pending upload; finish may have committed despite a lost response.
-        const aborted = await admin.rpc("ce_unlock_abort_upload", {
-          p_document_id: reserved.data.id,
-        });
-        if (!aborted.error && aborted.data) {
-          const removed = await admin.storage
-            .from("ce-unlock-documents")
-            .remove([aborted.data]);
-          if (!removed.error)
-            await admin.rpc("ce_unlock_cleanup_record", {
-              p_document_id: reserved.data.id,
-            });
-        }
+        await abortUpload();
         return json({ error: result.error.message }, 422);
       }
       return json(result.data, 201);
