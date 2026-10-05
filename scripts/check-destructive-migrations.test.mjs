@@ -1,6 +1,7 @@
 // Um gate que nunca reprovou não é um gate. Este teste exercita os dois lados:
 // o que deve passar e o que deve falhar.
 import assert from 'node:assert/strict'
+import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -79,4 +80,21 @@ assert.equal(auditMigration('-- 099\nGRANT SELECT, TRUNCATE ON TABLE public.bls 
 assert.equal(auditMigration('-- 099\n-- aqui não se faz TRUNCATE public.bls\nSELECT 1;\n').destructive, false, 'comentário não conta')
 const cliOutput = execFileSync(process.execPath, [path.join(root, 'scripts/check-destructive-migrations.mjs')], { encoding: 'utf8' })
 assert.match(cliOutput, /Destructive migration check passed:/, 'CLI precisa executar o gate também no Windows')
-console.log('check-destructive-migrations: 17 cenários passaram (AGENTS.md, compatibilidade histórica e CLI).')
+
+// Diferentes nomes não podem compartilhar a versão usada pelo Supabase.
+const temporaryRoot = fs.mkdtempSync(path.join(tmpdir(), 'vela-migration-versions-'))
+try {
+  fs.mkdirSync(path.join(temporaryRoot, 'scripts'))
+  fs.mkdirSync(path.join(temporaryRoot, 'supabase/migrations'), { recursive: true })
+  fs.copyFileSync(path.join(root, 'scripts/check-destructive-migrations.mjs'), path.join(temporaryRoot, 'scripts/check-destructive-migrations.mjs'))
+  for (const name of ['134_financial.sql', '134_ce.sql']) fs.writeFileSync(path.join(temporaryRoot, 'supabase/migrations', name), 'SELECT 1;')
+  let failure
+  try { execFileSync(process.execPath, [path.join(temporaryRoot, 'scripts/check-destructive-migrations.mjs')], { encoding: 'utf8', stdio: 'pipe' }) } catch (error) { failure = error }
+  assert.equal(failure?.status, 1, 'gate deve recusar versão 134 duplicada mesmo em migrations aditivas')
+  assert.match(String(failure.stderr), /134_financial\.sql/)
+  assert.match(String(failure.stderr), /134_ce\.sql/)
+  fs.renameSync(path.join(temporaryRoot, 'supabase/migrations/134_ce.sql'), path.join(temporaryRoot, 'supabase/migrations/135_ce.sql'))
+  assert.match(execFileSync(process.execPath, [path.join(temporaryRoot, 'scripts/check-destructive-migrations.mjs')], { encoding: 'utf8' }), /check passed/)
+} finally { fs.rmSync(temporaryRoot, { recursive: true, force: true }) }
+
+console.log('check-destructive-migrations: 19 cenários passaram (AGENTS.md, versões únicas e CLI).')

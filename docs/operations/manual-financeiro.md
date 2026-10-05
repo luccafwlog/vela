@@ -139,3 +139,11 @@ Registre Cliente/CNPJ original e atual, B/L/viagem, faturas anterior/nova, emiti
 Encerre somente após conferir documento válido, saldo correto, uma baixa por recebimento, devoluções comprovadas, vínculos corretos, pendências resolvidas e visibilidade adequada no Portal. Permissão ausente ou confirmação errada deve seguir ao responsável/suporte com essas evidências.
 
 Referências: [Faturamento](../modules/faturamento.md), [Conciliação PIX](../modules/reconciliacao-pix.md), [Demurrage](../modules/demurrage.md), [revisão inicial](../archive/audits/2026-10-04-revisao-fluxo-financeiro.md), [decisões implementadas](../archive/specs/2026-10-04-controles-financeiros-design.md) e [relatório de validação](../archive/reports/2026-10-04-correcoes-fluxo-financeiro.md).
+
+
+### Saldo da nova cobrança após troca de CNPJ
+
+O recebível original é arquivado como `void`, com pagamentos/settlements
+preservados. A nova cobrança começa sem reaproveitar os recebimentos devolvidos
+do Cliente anterior. Isso vale também se o B/L voltar ao mesmo CNPJ em uma
+correção posterior. A baixa da nova fatura financia seu próprio recebível.
