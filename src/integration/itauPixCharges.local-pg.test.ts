@@ -362,4 +362,23 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(asAuthenticated('SELECT count(*) FROM public.itau_pix_receipts')).toMatch(/permission denied|permissão negada/)
     expect(asAuthenticated('SELECT public.itau_pix_maintain()')).toMatch(/permission denied|permissão negada/)
   })
+
+  // ---- Fase 5 (migration 153): monitoramento na Conciliação PIX ----
+  it('Admin lê o monitoramento com cancelamento pendente; outro perfil não', () => {
+    setProvider('itau')
+    const id = manualInvoice('ITAU153-MON', 0.06)
+    activate(`invoice_id = ${id}`, '000201ITAU153')
+    psql(`SET request.jwt.claim.sub = '${userId}'; UPDATE public.invoices SET status = 'cancelled' WHERE id = ${id}`)
+    const monitor = JSON.parse(asAuthenticated('SELECT public.itau_pix_monitor()')) as {
+      provider: string; charges: { doc_number: string; status: string }[]
+    }
+    expect(monitor.provider).toBe('itau')
+    expect(monitor.charges).toContainEqual(expect.objectContaining({ doc_number: 'ITAU153-MON', status: 'pending_cancel' }))
+    psql(`UPDATE public.user_profiles SET role = 'operacoes' WHERE id = '${userId}'`)
+    try {
+      expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/Sem permissao/)
+    } finally {
+      psql(`UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${userId}'`)
+    }
+  })
 })
