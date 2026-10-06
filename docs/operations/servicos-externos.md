@@ -487,3 +487,25 @@ A correção da PR 847 exige a migration `143` antes de republicar
 de falhas de upload e a preservação de PDFs registrados após resposta perdida;
 os testes locais do handler usam backend HTTP simulado e não comprovam Storage
 gerenciado. Não há alteração de nomes de segredos ou do agendamento de expurgo.
+
+## Itaú — API Pix Recebimentos
+
+**Credencial produtiva emitida, certificado pendente.** Conta 0870/37293-5
+(TRANSHIPPING AGENCIAMENTO MARITIMO LTDA, CNPJ 06.352.972/0001-21),
+protocolo IT-000245617 com a Implantação Técnica do Itaú
+(`implantacao_cash_varejo@itau-unibanco.com.br`; responder sempre no mesmo
+assunto). Em 2026-10-06 o banco enviou CLIENT ID e token de ativação (vence
+13/10/2026 08:44) numa planilha guardada fora do repositório pelo dono.
+
+O token troca um CSR por certificado (365 dias) e client_secret em
+`sts.itau.com.br`; o procedimento está na Fase 0 do
+[plano da integração](../plans/2026-10-06-integracao-itau-pix.md). Destino
+previsto dos segredos, em Supabase → Edge Functions → Secrets (ainda **não
+cadastrados**): `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`,
+`ITAU_KEY_B64`, `ITAU_PIX_KEY`. Cópia da chave e do certificado no iCloud
+Senhas do dono. O item `ITAU_ONBOARDING_PRIVATE_KEY` do Vault não tem uso
+(o Itaú não pediu chave pública) e deve ser removido.
+
+Renovar o certificado 30 dias antes do vencimento. Documentação:
+[Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
+Nenhuma função, job ou webhook do Itaú está publicado.
