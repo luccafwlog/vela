@@ -277,8 +277,10 @@ roteiro de teste.
 da fila e passou a enviar PATCH e a confirmar vencimentos.
 
 - **Calendário:** `business_holidays` com Vitória/ES 2026–2027 (dados da PR
-  827). `itau_pix_cutoff` dá 14h30 do próximo dia útil. Ano sem calendário
-  falha alto, e a partir de 1º/11 um Alerta pede o cadastro do ano seguinte.
+  827). `itau_pix_cutoff` dá 14h30 do próximo dia útil. Ano sem calendário conta
+  só fins de semana (decisão do dono em 2026-10-06: a integração não para), e
+  a partir de 1º/11 o Alerta `calendario_feriados_pendente` pede o cadastro do
+  ano seguinte.
 - **Demurrage:** PTAX nova ou prazo novo alteram a mesma cobrança (PATCH,
   mesmo TXID, validade até o próximo corte). O QR segue visível durante a
   alteração. Quando o ROE não muda, a manutenção estende a validade se a
@@ -295,8 +297,9 @@ da fila e passou a enviar PATCH e a confirmar vencimentos.
 - **Alerta das 14h:** em dia útil, Demurrage aberta sem a PTAX de hoje
   confirmada na cobrança abre `demurrage_ptax_recalc_failed` (Documentação,
   entidade `itau-pix-14h`); fecha quando tudo estiver refletido.
-- Desvio: o Alerta das 14h reaproveita o tipo existente da Documentação. O
-  plano da PR 827 previa um tipo novo para Equipamentos.
+- Desvio: o Alerta das 14h reaproveita o tipo existente da Documentação
+  (`demurrage_ptax_recalc_failed`). O plano da PR 827 previa um tipo novo para
+  Equipamentos. O do calendário tem tipo próprio.
 - Limite: depois do corte sem PTAX do dia, a nova cobrança sai com o último
   valor disponível e o Alerta continua aberto. A Demurrage depende do job
   `recalc-demurrage-ptax` agendado.
@@ -339,3 +342,4 @@ SQL não prova execução nem RLS; a prova de pagamento é o teste de centavos.
 | 2026-10-06 | Revisão da Fase 1: dono decide que a cobrança de uma fatura só muda pela própria fatura no Vela. As ações de diagnóstico de `itau-pix` passam a alterar e cancelar só cobranças de teste (`VELAT…`; as de fatura são `VELA` + hexadecimal, que nunca tem `T`), e `list_pix` devolve só os Pix do Vela, sem `infoPagador`, com a contagem dos demais. |
 | 2026-10-06 | Revisão da Fase 2. Dono decide: na virada, todas as faturas abertas ganham cobrança Itaú (só há 2 faturas, ambas de teste; procedimento no manual de serviços externos); voltar para `static` não é procedimento operacional. Correções: cancelamento repetido consulta a cobrança antes de pedir de novo; aviso "QR em preparação" da Demurrage só para fatura emitida ou vencida. Com autorização do dono para editar as migrations 150–153 da pilha (não aplicadas em nenhum ambiente), o pedido de cancelamento deixa de encurtar a reserva de uma chamada em andamento. |
 | 2026-10-06 | Revisão da Fase 3. Dono confirma: sem botão "Já paguei", só a atualização automática do Portal; baixas automáticas assinadas por conta Admin dedicada "API Itaú", criada pelo dono. Correção: erro passageiro do banco na baixa falha a chamada para nova tentativa, em vez de mandar o Pix para análise. |
+| 2026-10-06 | Revisão da Fase 4. Dono decide: sem calendário cadastrado, a integração segue contando só fins de semana. Correções: Alerta próprio `calendario_feriados_pendente` (fecha ao cadastrar o ano); alteração repetida consulta a cobrança antes de novo PATCH. |

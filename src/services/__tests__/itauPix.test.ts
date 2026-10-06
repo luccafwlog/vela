@@ -220,6 +220,13 @@ describe('processador da fila de cobranças', () => {
     expect((await stepCharge(createItauPixClient(config, paid), c)).outcome).toBe('concluded')
   })
 
+  it('alteração repetida consulta antes e reconhece a cobrança paga sem novo PATCH', async () => {
+    const c = charge({ status: 'pending_update', amount_brl: '3.1', attempts: 2 })
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid, { status: 'CONCLUIDA' }))
+    expect((await stepCharge(createItauPixClient(config, fetchMtls), c)).outcome).toBe('concluded')
+    expect(fetchMtls.mock.calls.map((call) => call[1].method)).toEqual(['POST', 'GET'])
+  })
+
   it('vencida: só vira expired depois de o banco confirmar que não foi paga', async () => {
     const c = charge({ status: 'pending_expire_check' })
     const now = new Date('2026-10-06T14:00:00Z')

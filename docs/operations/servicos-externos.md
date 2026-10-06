@@ -551,8 +551,10 @@ acompanha mais as cobranças que estiverem ativas no banco.
 
 Manutenção anual: os prazos da Demurrage usam o calendário
 `business_holidays` (migration `152`, anos 2026 e 2027). Cadastre os feriados
-de Vitória/ES do ano seguinte antes de 1º/11; a partir dessa data um Alerta
-da Documentação lembra. A Demurrage também depende do job
+de Vitória/ES do ano seguinte antes de 1º/11; a partir dessa data o Alerta
+`calendario_feriados_pendente` (Documentação) lembra e fecha sozinho quando o ano
+é cadastrado. Ano sem cadastro não para a integração: só sábados e domingos
+suspendem o prazo, então a cobrança pode vencer às 14h30 de um feriado. A Demurrage também depende do job
 `recalc-demurrage-ptax` estar agendado ([segredos e cron](segredos-cron.md)).
 
 Renovar o certificado 30 dias antes do vencimento. Documentação:

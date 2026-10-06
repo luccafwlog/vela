@@ -21,6 +21,7 @@ export type ActiveAlertType =
   | 'billing_auto_issue_failed'
   | 'import_effect_blocked'
   | 'demurrage_ptax_recalc_failed'
+  | 'calendario_feriados_pendente'
   | 'portal_pendencia_geral'
   | 'portal_excecao_critica_fatura'
   | 'portal_reprocessamento_falhou'
@@ -64,6 +65,7 @@ export const TYPE_LABELS: Record<string, string> = {
   billing_auto_issue_failed: 'Falha de emissão automática',
   import_effect_blocked: 'Efeito de importação bloqueado',
   demurrage_ptax_recalc_failed: 'Falha na atualização da PTAX Demurrage',
+  calendario_feriados_pendente: 'Calendário de feriados pendente',
   portal_pendencia_geral: 'Portal do Cliente — pendência geral',
   portal_excecao_critica_fatura: 'Portal do Cliente — exceção de fatura',
   portal_reprocessamento_falhou: 'Portal do Cliente — falha no reprocessamento',
