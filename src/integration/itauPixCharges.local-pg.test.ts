@@ -265,6 +265,25 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(cutoff('2026-10-07 09:00-03')).toBe('2026-10-08 14:30') // quarta → quinta
     expect(cutoff('2026-10-09 16:00-03')).toBe('2026-10-13 14:30') // sexta → terça (12/10 feriado)
     expect(cutoff('2026-12-31 12:00-03')).toBe('2027-01-04 14:30') // 1º/01 e fim de semana
+    // Ano sem calendário: não para, só fins de semana contam (1º/01/2028 vira dia útil).
+    expect(cutoff('2027-12-31 15:00-03')).toBe('2028-01-03 14:30') // sexta → segunda
+    expect(cutoff('2027-12-30 15:00-03')).toBe('2027-12-31 14:30')
+  })
+
+  it('calendário do ano seguinte: Alerta próprio a partir de 1º/11, fechado quando o ano é cadastrado', () => {
+    setProvider('itau')
+    const open = () => psql(`SELECT count(*) FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id
+      WHERE a.entity_id = 'itau-pix-calendar' AND ai.item_type = 'calendario_feriados_pendente' AND ai.status = 'active'`)
+    const maintain = (at: string) => psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_maintain('${at}')`)
+    try {
+      maintain('2027-11-03 10:00-03')
+      expect(open()).toBe('1')
+      psql(`INSERT INTO public.business_holidays(day) VALUES ('2028-01-01')`)
+      maintain('2027-11-03 10:05-03')
+      expect(open()).toBe('0')
+    } finally {
+      psql(`DELETE FROM public.business_holidays WHERE day = '2028-01-01'`)
+    }
   })
 
   it('Demurrage: nova PTAX altera a MESMA cobrança e o Pix da revisão anterior ainda quita', () => {

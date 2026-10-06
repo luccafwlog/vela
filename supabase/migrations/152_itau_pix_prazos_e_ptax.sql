@@ -11,11 +11,33 @@
 -- Aditiva: não reescreve nem apaga linhas existentes; nenhum cron é criado.
 BEGIN;
 
+INSERT INTO public.alert_type_catalog (
+  type,
+  severity,
+  responsible_department,
+  audience_departments,
+  default_destination
+)
+VALUES (
+  'calendario_feriados_pendente',
+  'normal',
+  'documentacao',
+  ARRAY['documentacao'],
+  '/demurrage'
+)
+ON CONFLICT (type) DO UPDATE SET
+  severity = EXCLUDED.severity,
+  responsible_department = EXCLUDED.responsible_department,
+  audience_departments = EXCLUDED.audience_departments,
+  default_destination = EXCLUDED.default_destination,
+  active = EXCLUDED.active;
+
 -- Calendário de Vitória/ES enviado pelo dono em 2026-09-30 (nacionais e
 -- municipais, que já cobrem os estaduais; pontos facultativos não suspendem
 -- o prazo). 2027 derivado das mesmas leis, autorizado pelo dono; conferir com
--- a publicação oficial da Prefeitura. Outro ano exige cadastro: sem ele o
--- corte falha alto (e o Alerta avisa 60 dias antes).
+-- a publicação oficial da Prefeitura. Ano sem cadastro conta só sábados e
+-- domingos como não úteis (decisão do dono, 2026-10-06: a integração não para),
+-- e o Alerta `calendario_feriados_pendente` avisa desde 1º/11 do ano anterior.
 CREATE TABLE public.business_holidays (day date PRIMARY KEY);
 ALTER TABLE public.business_holidays ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.business_holidays FROM PUBLIC, anon, authenticated;
@@ -28,10 +50,8 @@ INSERT INTO public.business_holidays(day) SELECT unnest(ARRAY[
 CREATE FUNCTION public.itau_pix_business_day(p_day date) RETURNS boolean
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.business_holidays WHERE extract(year FROM day) = extract(year FROM p_day)) THEN
-    RAISE EXCEPTION 'Calendário de feriados de % não cadastrado (business_holidays).', extract(year FROM p_day)
-      USING ERRCODE = 'P0001';
-  END IF;
+  -- ponytail: sem o ano cadastrado, feriado conta como dia útil (corte mais cedo,
+  -- nova cobrança com a última PTAX); cadastrar o ano resolve.
   RETURN extract(isodow FROM p_day) < 6 AND NOT EXISTS (SELECT 1 FROM public.business_holidays WHERE day = p_day);
 END;
 $$;
@@ -316,10 +336,13 @@ BEGIN
   -- 5. Calendário do ano seguinte, 60 dias antes da virada.
   IF v_local_day >= make_date(extract(year FROM v_local_day)::int, 11, 1)
      AND NOT EXISTS (SELECT 1 FROM public.business_holidays WHERE extract(year FROM day) = extract(year FROM v_local_day) + 1) THEN
-    PERFORM public.upsert_alert_item('demurrage_ptax_recalc_failed', 'exchange_rate_reference', 'itau-pix-calendar',
+    PERFORM public.upsert_alert_item('calendario_feriados_pendente', 'business_holidays', 'itau-pix-calendar',
       'Cadastre os feriados de Vitória/ES de ' || (extract(year FROM v_local_day) + 1) || ' em business_holidays: '
-        || 'sem eles o prazo das cobranças Pix da Demurrage não pode ser calculado.',
+        || 'sem eles o prazo das cobranças Pix da Demurrage conta só fins de semana e vence às 14h30 de feriados.',
       'itau_pix', 'documentacao', jsonb_build_object('year', extract(year FROM v_local_day) + 1), '/demurrage');
+  ELSIF EXISTS (SELECT 1 FROM public.business_holidays WHERE extract(year FROM day) = extract(year FROM v_local_day) + 1) THEN
+    PERFORM public.resolve_alert_item('calendario_feriados_pendente', 'business_holidays', 'itau-pix-calendar',
+      'itau_pix', jsonb_build_object('year', extract(year FROM v_local_day) + 1));
   END IF;
 
   RETURN jsonb_build_object('expired', v_expired, 'renewed', v_renewed, 'extended', coalesce(v_extended, 0), 'ptax_pending', v_pending);

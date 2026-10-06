@@ -263,6 +263,12 @@ export async function stepCharge(client: ItauPixClient, charge: QueuedCharge, no
       return cob.status === 'ATIVA' && validUntil > now.getTime() ? active(cob) : { outcome: 'expired' }
     }
     if (charge.status === 'pending_update') {
+      // Nova tentativa: a cobrança pode ter sido paga entretanto, e o Itaú pode recusar
+      // a alteração sem devolver a cobrança. Consultar antes.
+      if (charge.uncertain || charge.attempts > 1) {
+        const existing = await client.getCob(charge.txid)
+        if (existing.status === 'CONCLUIDA') return { outcome: 'concluded' }
+      }
       // PATCH com valores absolutos: repetir após resposta perdida é seguro.
       return active(await client.updateCob(charge.txid, { amount, expirationSeconds: charge.expiration_seconds }))
     }
