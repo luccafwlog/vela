@@ -72,6 +72,19 @@ Nada na `main` contradiz a integração; os pontos 3–6 são adaptações
 obrigatórias. O ponto de atenção de negócio é a baixa manual da `136`: com o
 Itaú, ela vira **exceção** (TED, depósito, pagamento fora do QR), não some.
 
+## Convivência com o sistema de terceiro (decisão de 2026-10-06)
+
+O sistema de terceiro ativado em julho continua em uso na mesma conta e na
+mesma chave Pix. O Vela terá credencial própria; não revogar o certificado
+dele. Consequências:
+
+- `GET /pix` por período pode trazer recebimentos do terceiro. O Vela só
+  baixa TXID criado por ele; TXID desconhecido é ignorado, sem `pix_review`.
+- TXIDs do Vela levam prefixo fixo próprio (ex.: `VELA`), dentro de 26–35
+  caracteres `[A-Z0-9]`, para não colidir com os do terceiro.
+- Webhook é um por chave Pix: cadastrar o do Vela derrubaria o do terceiro.
+  A Fase 6 só é possível com outra chave Pix ou acordo com o terceiro.
+
 ## Regras de cobrança (aprovadas em 2026-09-30, mantidas)
 
 - Demurrage: uma COB ativa por fatura; nova PTAX altera a **mesma** COB
@@ -206,3 +219,4 @@ SQL não prova execução nem RLS; a prova de pagamento é o teste de centavos.
 | 2026-10-02 | Dono pergunta ao Itaú sobre certificado existente, envio de chave pública e limites de consulta. |
 | 2026-10-06 | Itaú envia credenciais produtivas, token de ativação (vence 13/10 08:44) e guias. Sem envio de chave pública. Plano criado; PR 827 declarada defasada. |
 | 2026-10-06 | Envio do CSR recusado: HTTP 409, `C700a`, "O certificado ainda está válido. A emissão de um novo não é permitida." O CLIENT ID é o mesmo da credencial de julho (IT-000205325, comparado por hash). A coleção do fornecedor anterior contém CSRs com esse CN, então o certificado vigente foi emitido em julho pelo terceiro; a afirmação da PR 827 de que o token de julho expirou sem uso estava errada. Chave e certificado vigentes não estão com o Vela. Fase 0 bloqueada até o Itaú liberar uma nova emissão. Chave e CSR gerados hoje foram mantidos e o token não foi reenviado. |
+| 2026-10-06 | Dono confirma que o sistema de terceiro segue em uso. Decisão: pedir ao Itaú uma credencial nova, dedicada ao Vela, sem revogar a atual. Chave e CSR de hoje (CN do CLIENT ID antigo) ficam arquivados e sem uso. |
