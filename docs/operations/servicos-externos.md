@@ -193,7 +193,8 @@ banco próprio (check "Supabase Preview").
 `portal-email-webhook`, `portal-invite-activate`, `portal-invite-send`,
 `portal-login`, `portal-password-recovery`, `portal-password-reset`,
 `portal-recovery-email-change`, `recalc-demurrage-ptax`,
-`send-customer-communication`.
+`send-customer-communication`. Ainda não publicada: `itau-pix` (seção
+[Itaú](#itaú--api-pix-recebimentos)).
 
 Publicação manual: `supabase functions deploy <nome> --project-ref fgmkhbzhaeebrsizwccx`.
 Um merge **não** publica Functions. Para conferir, baixe o código publicado com
@@ -505,6 +506,14 @@ cadastrados**): `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`,
 `ITAU_KEY_B64`, `ITAU_PIX_KEY`. Cópia da chave e do certificado no iCloud
 Senhas do dono. O item `ITAU_ONBOARDING_PRIVATE_KEY` do Vault não tem uso
 (o Itaú não pediu chave pública) e deve ser removido.
+
+A função `itau-pix` (Fase 1, diagnóstico e prova de centavos) existe no
+código e **não está publicada**. Ela exige também `ITAU_PIX_ADMIN_SECRET`
+(bearer próprio, ≥ 32 caracteres aleatórios, nunca `service_role`). Os
+overrides opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL` e
+`ITAU_AUTH_HEADER` só existem para ajustar host e header se o Itaú divergir
+do guia. Ela só cria cobranças de teste de até R$ 1,00 e só altera, cancela ou
+consulta TXIDs com prefixo `VELA`, então nunca toca cobranças do sistema de terceiro.
 
 Renovar o certificado 30 dias antes do vencimento. Documentação:
 [Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
