@@ -12,6 +12,8 @@ const vesselId = 998803
 const voyageId = 998804
 const blId = 'ITAU-150-BL'
 const demurrageId = 998805
+const demurrage2Id = 998806
+const bl2Id = 'ITAU-152-BL'
 const userId = '00000000-0000-0000-0000-000000098801'
 
 function psql(sql: string): string {
@@ -52,15 +54,16 @@ function cleanup() {
     DELETE FROM public.itau_pix_receipts WHERE end_to_end_id LIKE 'E151%';
     DELETE FROM public.financial_payment_attempts WHERE created_by = '${userId}';
     DELETE FROM public.payments WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
-    DELETE FROM public.demurrage_mutation_requests WHERE invoice_id = ${demurrageId};
-    DELETE FROM public.demurrage_invoice_history WHERE invoice_id = ${demurrageId};
+    DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_type = 'exchange_rate_reference' AND entity_id LIKE 'itau-pix-%');
+    DELETE FROM public.demurrage_mutation_requests WHERE invoice_id IN (${demurrageId}, ${demurrage2Id});
+    DELETE FROM public.demurrage_invoice_history WHERE invoice_id IN (${demurrageId}, ${demurrage2Id});
     DELETE FROM public.itau_pix_charges WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId})
-      OR demurrage_invoice_id = ${demurrageId};
+      OR demurrage_invoice_id IN (${demurrageId}, ${demurrage2Id});
     DELETE FROM public.local_pix_charge_versions WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.invoices WHERE customer_id = ${customerId};
-    DELETE FROM public.demurrage_calculation_snapshots WHERE demurrage_invoice_id = ${demurrageId};
-    DELETE FROM public.demurrage_invoices WHERE id = ${demurrageId};
-    DELETE FROM public.bls WHERE id = '${blId}';
+    DELETE FROM public.demurrage_calculation_snapshots WHERE demurrage_invoice_id IN (${demurrageId}, ${demurrage2Id});
+    DELETE FROM public.demurrage_invoices WHERE id IN (${demurrageId}, ${demurrage2Id});
+    DELETE FROM public.bls WHERE id IN ('${blId}', '${bl2Id}');
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
@@ -82,7 +85,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 150');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 150', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number) VALUES (${voyageId}, ${vesselId}, 'VOY-150');
-      INSERT INTO public.bls (id, voyage_id, customer_id) VALUES ('${blId}', ${voyageId}, ${customerId});
+      INSERT INTO public.bls (id, voyage_id, customer_id) VALUES ('${blId}', ${voyageId}, ${customerId}), ('${bl2Id}', ${voyageId}, ${customerId});
     `)
   })
   afterAll(() => cleanup())
@@ -127,7 +130,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(claimed).toContain(String(charge.id))
     // O lease impede outra execução de pegar a mesma cobrança logo em seguida.
     expect(psql(`SELECT count(*) FROM public.itau_pix_claim(100) WHERE id = ${charge.id}`)).toBe('0')
-    expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'active', 0, '000201ITAUCOB-B')`)).toBe('active')
+    expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'active', 0, '000201ITAUCOB-B', NULL, now())`)).toBe('active')
     expect(psql(`SELECT pix_payload FROM public.invoices WHERE id = ${id}`)).toBe('000201ITAUCOB-B')
     // Espelho em local_pix_charge_versions só para individual/consolidada (151);
     // provado em invoicePostBillingSafety, que baixa a individual pelo resolvedor da 130.
@@ -139,7 +142,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     const id = manualInvoice('ITAU150-C', 3)
     const [first] = charges(`invoice_id = ${id}`)
     psql(`SELECT public.itau_pix_claim(100)`)
-    psql(`SELECT public.itau_pix_record(${first.id}, 'active', 0, '000201ITAUCOB-C1')`)
+    psql(`SELECT public.itau_pix_record(${first.id}, 'active', 0, '000201ITAUCOB-C1', NULL, now())`)
     psql(`UPDATE public.invoices SET balance_brl = 1.25, status = 'partially_paid' WHERE id = ${id}`)
     const after = charges(`invoice_id = ${id}`)
     expect(after.map((c) => [c.amount, c.status])).toEqual([['3.00', 'pending_cancel'], ['1.25', 'pending_create']])
@@ -163,7 +166,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     // A reserva da criação em andamento continua valendo: outra execução não pega o
     // cancelamento antes de a criação responder.
     expect(psql(`SELECT count(*) FROM public.itau_pix_claim(100) WHERE id = ${charge.id}`)).toBe('0')
-    expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'active', 0, '000201ITAUCOB-E')`)).toBe('pending_cancel')
+    expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'active', 0, '000201ITAUCOB-E', NULL, now())`)).toBe('pending_cancel')
     // Criação registrada: a reserva termina e o cancelamento segue na próxima execução.
     expect(psql(`SELECT count(*) FROM public.itau_pix_claim(100) WHERE id = ${charge.id}`)).toBe('1')
     expect(psql(`SELECT coalesce(pix_payload, 'NULL') FROM public.invoices WHERE id = ${id}`)).toBe('NULL')
@@ -179,7 +182,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     const rows = charges(`demurrage_invoice_id = ${demurrageId}`)
     expect(rows.map((c) => [c.amount, c.status])).toEqual([['550.00', 'cancelled'], ['560.00', 'pending_create']])
     psql(`SELECT public.itau_pix_claim(100)`)
-    psql(`SELECT public.itau_pix_record(${rows[1].id}, 'active', 0, '000201ITAUCOB-DEM')`)
+    psql(`SELECT public.itau_pix_record(${rows[1].id}, 'active', 0, '000201ITAUCOB-DEM', NULL, now())`)
     expect(psql(`SELECT pix_payload FROM public.demurrage_invoices WHERE id = ${demurrageId}`)).toBe('000201ITAUCOB-DEM')
   })
 
@@ -196,7 +199,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_settle('${e2e}', '${txid}', ${amount}, now())`)
   const activate = (where: string, payload: string) => {
     const [charge] = charges(`${where} AND status = 'pending_create'`)
-    psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${charge.id}, 'active', 0, '${payload}')`)
+    psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${charge.id}, 'active', 0, '${payload}', NULL, now())`)
     return charge
   }
 
@@ -256,11 +259,88 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
       AND metadata->>'end_to_end_id' = 'E151DESCONHECIDO'`)).toBe('1')
   })
 
+  // ---- Fase 4 (migration 152): prazos, PTAX no mesmo TXID e renovação ----
+  it('corte: 14h30 do próximo dia útil de Vitória (fim de semana e feriados)', () => {
+    const cutoff = (at: string) => psql(`SELECT to_char(public.itau_pix_cutoff('${at}'::timestamptz) AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD HH24:MI')`)
+    expect(cutoff('2026-10-07 09:00-03')).toBe('2026-10-08 14:30') // quarta → quinta
+    expect(cutoff('2026-10-09 16:00-03')).toBe('2026-10-13 14:30') // sexta → terça (12/10 feriado)
+    expect(cutoff('2026-12-31 12:00-03')).toBe('2027-01-04 14:30') // 1º/01 e fim de semana
+  })
+
+  it('Demurrage: nova PTAX altera a MESMA cobrança e o Pix da revisão anterior ainda quita', () => {
+    setProvider('itau')
+    psql(`INSERT INTO public.demurrage_invoices (id, doc_number, bl_id, customer_id, total_usd, current_roe, current_total_brl, roe_source, status)
+      VALUES (${demurrage2Id}, 'ITAU152-DEM', '${bl2Id}', ${customerId}, 100, 5.6, 560, 'manual', 'issued')`)
+    const [charge] = charges(`demurrage_invoice_id = ${demurrage2Id}`)
+    psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${charge.id}, 'active', 0, '000201ITAU152', NULL, now() - interval '1 hour')`)
+    // PTAX do dia: mesma linha, mesmo TXID, valor novo e validade até o próximo corte; QR continua visível.
+    psql(`UPDATE public.demurrage_invoices SET current_roe = 5.7, current_total_brl = 570 WHERE id = ${demurrage2Id}`)
+    const after = charges(`demurrage_invoice_id = ${demurrage2Id}`)
+    expect(after.map((c) => [c.txid, c.amount, c.status])).toEqual([[charge.txid, '570.00', 'pending_update']])
+    expect(psql(`SELECT pix_payload FROM public.demurrage_invoices WHERE id = ${demurrage2Id}`)).toBe('000201ITAU152')
+    expect(psql(`SELECT bank_created_at + make_interval(secs => expiration_seconds) >= public.itau_pix_cutoff(now())
+      FROM public.itau_pix_charges WHERE id = ${charge.id}`)).toBe('t')
+    psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${charge.id}, 'active', 1, '000201ITAU152')`)
+    expect(charges(`id = ${charge.id}`)[0].status).toBe('active')
+    // Cliente pagou a revisão anterior (560) durante a troca: quita pelo valor pago.
+    psql(`INSERT INTO public.demurrage_invoice_history(invoice_id, event_date, ptax_used, roe_used, total_usd, total_brl, discount_usd, source)
+      VALUES (${demurrage2Id}, current_date - 1, 5.5, 5.6, 100, 560, 0, 'manual'), (${demurrage2Id}, current_date, 5.6, 5.7, 100, 570, 0, 'manual')`)
+    expect(settle('E151REVANTERIOR', charge.txid, '560.00')).toBe('settled')
+    expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${demurrage2Id}`)).toBe('paid')
+  })
+
+  it('vencida: confirma no banco e substitui com novo TXID; Taxas Locais renovam a mesma cobrança', () => {
+    setProvider('itau')
+    const expiring = manualInvoice('ITAU152-VENC', 0.04)
+    const old = activate(`invoice_id = ${expiring}`, '000201ITAU152V')
+    psql(`UPDATE public.itau_pix_charges SET expires_at = now() - interval '1 minute' WHERE id = ${old.id}`)
+    const renewing = manualInvoice('ITAU152-REN', 0.05)
+    const kept = activate(`invoice_id = ${renewing}`, '000201ITAU152R')
+    psql(`UPDATE public.itau_pix_charges SET expires_at = now() + interval '2 days' WHERE id = ${kept.id}`)
+    const result = JSON.parse(psql("SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_maintain()")) as { expired: number; renewed: number }
+    expect(result.expired).toBeGreaterThanOrEqual(1)
+    expect(result.renewed).toBeGreaterThanOrEqual(1)
+    expect(charges(`id = ${old.id}`)[0].status).toBe('pending_expire_check')
+    expect(charges(`id = ${kept.id}`)[0].status).toBe('pending_update')
+    expect(psql(`SELECT expiration_seconds > 29 * 86400 FROM public.itau_pix_charges WHERE id = ${kept.id}`)).toBe('t')
+    // Banco confirma: vencida e não paga → nova cobrança, novo TXID, QR em preparação.
+    psql(`SELECT public.itau_pix_record(${old.id}, 'expired')`)
+    const replaced = charges(`invoice_id = ${expiring}`)
+    expect(replaced.map((c) => c.status)).toEqual(['expired', 'pending_create'])
+    expect(replaced[1].txid).not.toBe(old.txid)
+    expect(psql(`SELECT coalesce(pix_payload, 'NULL') FROM public.invoices WHERE id = ${expiring}`)).toBe('NULL')
+  })
+
+  it('às 14h de dia útil, Demurrage sem a PTAX do dia abre Alerta para a Documentação', () => {
+    setProvider('itau')
+    const before = psql("SELECT coalesce(quote_date::text, '') FROM public.exchange_rate_reference WHERE id = 1")
+    try {
+      // Quarta 07/10, 14h10, com a referência de 06/10: a Demurrage aberta não reflete a PTAX do dia.
+      psql("UPDATE public.exchange_rate_reference SET quote_date = DATE '2026-10-06' WHERE id = 1")
+      psql(`INSERT INTO public.bls (id, voyage_id, customer_id) VALUES ('ITAU-152-BL3', ${voyageId}, ${customerId});
+        INSERT INTO public.demurrage_invoices (id, doc_number, bl_id, customer_id, total_usd, current_roe, current_total_brl, roe_source, status)
+        VALUES (998807, 'ITAU152-DEM3', 'ITAU-152-BL3', ${customerId}, 10, 5.6, 56, 'manual', 'issued')`)
+      const result = JSON.parse(psql("SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_maintain('2026-10-07 14:10-03')")) as { ptax_pending: number }
+      expect(result.ptax_pending).toBeGreaterThanOrEqual(1)
+      expect(psql(`SELECT count(*) FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id
+        WHERE a.entity_id = 'itau-pix-14h' AND ai.item_type = 'demurrage_ptax_recalc_failed' AND ai.status = 'active'`)).toBe('1')
+      // Antes das 14h não alerta.
+      expect(JSON.parse(psql("SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_maintain('2026-10-07 13:50-03')")).ptax_pending).toBeNull()
+    } finally {
+      psql(`UPDATE public.exchange_rate_reference SET quote_date = ${before ? `'${before}'` : 'NULL'} WHERE id = 1`)
+      psql(`SET session_replication_role = replica;
+        DELETE FROM public.itau_pix_charges WHERE demurrage_invoice_id = 998807;
+        DELETE FROM public.demurrage_calculation_snapshots WHERE demurrage_invoice_id = 998807;
+        DELETE FROM public.demurrage_invoices WHERE id = 998807; DELETE FROM public.bls WHERE id = 'ITAU-152-BL3'`)
+    }
+  })
+
   it('navegador não lê a fila nem executa o processador', () => {
     expect(asAuthenticated('SELECT count(*) FROM public.itau_pix_charges')).toMatch(/permission denied|permissão negada/)
     expect(asAuthenticated('SELECT public.itau_pix_claim(1)')).toMatch(/permission denied|permissão negada/)
     expect(asAuthenticated(`SELECT public.itau_pix_record(1, 'cancelled')`)).toMatch(/permission denied|permissão negada/)
     expect(asAuthenticated(`SELECT public.itau_pix_settle('E1', 'VELA', 1, now())`)).toMatch(/permission denied|permissão negada/)
     expect(asAuthenticated('SELECT count(*) FROM public.itau_pix_receipts')).toMatch(/permission denied|permissão negada/)
+    expect(asAuthenticated('SELECT public.itau_pix_maintain()')).toMatch(/permission denied|permissão negada/)
   })
 })
