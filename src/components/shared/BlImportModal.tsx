@@ -191,11 +191,6 @@ export function BlImportModal({
           <Input accept=".xlsx,.xls" multiple type="file" onChange={handleFile} />
         </Field>
 
-        {files.length ? (
-          <div className="app-panel__meta">
-            {files.length} arquivo(s) selecionado(s): {files.map((file) => file.name).join(', ')}
-          </div>
-        ) : null}
         {parsing ? <ImportReadProgress progress={progress} /> : null}
 
         {preview ? <BlImportPreview preview={preview} /> : null}
@@ -226,23 +221,23 @@ export function BlImportModal({
           </div>
         ) : null}
 
-        {billingOverrideCount > 0 ? (
-          <label className="app-panel app-panel--padded flex items-start gap-2 text-sm text-amber-200">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={overrideBilling}
-              onChange={(event) => setOverrideBilling(event.target.checked)}
-            />
-            <span>
-              Sobrescrever faturamento em {billingOverrideCount} B/L(s) com impacto (quantidade de containers,
-              container compartilhado, IMO/OOG, peso de carga solta ou CNPJ faturado). Sem marcar, os demais campos
-              sao aplicados e as mudancas com impacto em faturamento sao ignoradas.
-            </span>
-          </label>
-        ) : null}
-
         <div className="app-modal__actions">
+          {/* No rodape fixo: a decisao fica a vista de quem confirma a importacao. */}
+          {billingOverrideCount > 0 ? (
+            <label className="flex basis-full items-start gap-2 text-sm text-amber-200">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={overrideBilling}
+                onChange={(event) => setOverrideBilling(event.target.checked)}
+              />
+              <span>
+                Sobrescrever faturamento em {billingOverrideCount} B/L(s) com impacto (quantidade de containers,
+                container compartilhado, IMO/OOG, peso de carga solta ou CNPJ faturado). Sem marcar, os demais campos
+                sao aplicados e as mudancas com impacto em faturamento sao ignoradas.
+              </span>
+            </label>
+          ) : null}
           <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : resetAndClose}>
             {parsing ? 'Interromper leitura' : 'Voltar'}
           </Button>
