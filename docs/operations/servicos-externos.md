@@ -465,7 +465,8 @@ com a ZPT: BL, Termo, Procuração, Entrega de BL, Pagamento das taxas, nessa
 ordem; quatro requisitos Sim/Não. Não há API externa automática nem envio de
 e-mail pela função de exportação. Registrar envio e confirmação no Vela.
 
-O job `ce-unlock-cleanup` nasce **inativo** (`0 6 * * *`, UTC). Antes de ativar,
+O job `ce-unlock-cleanup` **não existe** até ser agendado manualmente (`0 6 * * *`, UTC;
+ver [segredos e cron](segredos-cron.md)). Antes de agendar,
 configurar `CE_UNLOCK_CLEANUP_SECRET` nas variáveis da Edge Function e no Vault
 Supabase com exatamente esse nome/valor, por canal seguro. O cron chama
 `ops.dispatch_edge_job` com esse segredo dedicado; a função compara o bearer

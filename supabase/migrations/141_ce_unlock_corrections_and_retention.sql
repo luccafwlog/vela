@@ -184,6 +184,6 @@ DECLARE n integer; BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.ce_unlock_expire_drafts() FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.ce_unlock_expire_drafts() TO service_role;
-SELECT cron.schedule('ce-unlock-cleanup','0 6 * * *',$job$SELECT ops.dispatch_edge_job('ce-unlock-cleanup','CE_UNLOCK_CLEANUP_SECRET','Authorization','Bearer ');$job$);
-UPDATE cron.job SET active=false WHERE jobname='ce-unlock-cleanup';
+-- O job ce-unlock-cleanup não é criado aqui: desativá-lo exigiria UPDATE em cron.job, que o papel
+-- das migrations do Supabase não tem (42501). Agendar é passo operacional (docs/operations/segredos-cron.md).
 COMMIT;

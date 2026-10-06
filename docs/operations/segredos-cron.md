@@ -146,6 +146,23 @@ SELECT cron.schedule(
 
 Remover: `SELECT cron.unschedule('recalc-demurrage-ptax');`.
 
+### Agendar o expurgo do desbloqueio de CE
+
+Pelo mesmo motivo, a migration `141` não cria o job `ce-unlock-cleanup`
+(corrigida em 2026-10-06, depois de falhar em produção com o mesmo `42501`).
+Agende somente depois de cadastrar `CE_UNLOCK_CLEANUP_SECRET` no cofre e na Edge
+Function e de validar o expurgo, conforme o [manual de serviços externos](servicos-externos.md):
+
+```sql
+SELECT cron.schedule(
+  'ce-unlock-cleanup',
+  '0 6 * * *',
+  $$SELECT ops.dispatch_edge_job('ce-unlock-cleanup', 'CE_UNLOCK_CLEANUP_SECRET', 'Authorization', 'Bearer ');$$
+);
+```
+
+Remover: `SELECT cron.unschedule('ce-unlock-cleanup');`.
+
 **O cofre tem as oito entradas** — deve retornar `8`:
 
 ```sql
