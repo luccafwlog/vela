@@ -10,6 +10,7 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 
 const actorId = '00000000-0000-0000-0000-000000118001'
 const blId = 'BAPLIE118-BL'
+const otherBlId = 'BAPLIE150-BL'
 const carrierId = 1180011
 const vesselId = 1180012
 const voyageId = 1180013
@@ -32,12 +33,12 @@ function asAuthenticated(sql: string): { ok: boolean; output: string } {
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
-    DELETE FROM public.import_pending_effects WHERE entity_id IN ('${voyageId}', '${blId}');
-    DELETE FROM public.audit_logs WHERE entity_id IN ('${voyageId}', '${blId}');
-    DELETE FROM public.charge_calculations WHERE bl_id = '${blId}';
+    DELETE FROM public.import_pending_effects WHERE entity_id IN ('${voyageId}', '${blId}', '${otherBlId}');
+    DELETE FROM public.audit_logs WHERE entity_id IN ('${voyageId}', '${blId}', '${otherBlId}');
+    DELETE FROM public.charge_calculations WHERE bl_id IN ('${blId}', '${otherBlId}');
     ${initialPricingVersionIds === null ? '' : `DELETE FROM public.pricing_rule_versions p WHERE p.id <> ALL(ARRAY[${initialPricingVersionIds.join(',')}]::bigint[]) AND NOT EXISTS (SELECT 1 FROM public.invoice_items i WHERE i.pricing_rule_version_id = p.id) AND NOT EXISTS (SELECT 1 FROM public.charge_calculations c WHERE c.pricing_rule_version_id = p.id);`}
-    DELETE FROM public.bl_containers WHERE bl_id = '${blId}';
-    DELETE FROM public.bls WHERE id = '${blId}';
+    DELETE FROM public.bl_containers WHERE bl_id IN ('${blId}', '${otherBlId}');
+    DELETE FROM public.bls WHERE id IN ('${blId}', '${otherBlId}');
     DELETE FROM public.import_batches WHERE voyage_id = ${voyageId};
     DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId};
     DELETE FROM public.voyages WHERE id = ${voyageId};
@@ -103,6 +104,22 @@ describeLocal('import_bl_freight_with_metadata — flags do Baplie em qualquer o
     expect(result.ok, result.output).toBe(true)
     expect(result.output).toContain('"applied": 1')
     expect(result.output).toMatch(/"recalculated": 1|"calculation_errors": \[\{"bl_id": "BAPLIE118-BL"/)
+    expect(flags(oogContainer)).toBe('false,false,-,-')
+  })
+
+  it('migration 150: importar outro B/L só reaplica o Baplie aos containers do lote', () => {
+    psql(`UPDATE public.baplie_containers SET is_oog = true WHERE voyage_id = ${voyageId} AND container_number = '${oogContainer}'`)
+    const payload = JSON.stringify([{
+      id: otherBlId,
+      voyage_id: voyageId,
+      pod: 'BRVIX',
+      containers: [{ container_number: 'BPFU1500001', type: '40HC', is_imo: false, is_oog: false }],
+    }])
+    const result = asAuthenticated(`SELECT public.import_bl_freight_with_metadata('${payload}'::jsonb, '${actorId}',
+      '{"filename":"bl-150.xlsx","voyage_id":${voyageId},"cargo_mode":"container"}'::jsonb);`)
+    expect(result.ok, result.output).toBe(true)
+    // O container do outro B/L fica como estava; a varredura da viagem inteira
+    // continua disponível pela importação do Baplie.
     expect(flags(oogContainer)).toBe('false,false,-,-')
   })
 })
