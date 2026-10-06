@@ -84,7 +84,8 @@ BEGIN
       IF v_open.amount_brl <> round(p_amount_brl, 2) OR v_open.expires_at IS NULL OR v_open.expires_at < v_cutoff THEN
         UPDATE public.itau_pix_charges SET amount_brl = round(p_amount_brl, 2), status = 'pending_update',
           expiration_seconds = ceil(extract(epoch FROM v_cutoff - v_open.bank_created_at))::integer,
-          next_attempt_at = now(), updated_at = now()
+          -- Mesma regra da 150: não encurta a reserva de uma chamada em andamento.
+          next_attempt_at = greatest(next_attempt_at, now()), updated_at = now()
         WHERE id = v_open.id;
       END IF;
       -- O QR (location) é o mesmo; o pagador vê o valor da revisão vigente no banco.
@@ -97,7 +98,7 @@ BEGIN
   IF FOUND THEN
     UPDATE public.itau_pix_charges SET
       status = CASE WHEN status = 'pending_create' AND attempts = 0 AND NOT uncertain THEN 'cancelled' ELSE 'pending_cancel' END,
-      next_attempt_at = now(), updated_at = now()
+      next_attempt_at = greatest(next_attempt_at, now()), updated_at = now()
     WHERE id = v_open.id;
   END IF;
   IF p_payable AND round(p_amount_brl, 2) > 0 THEN
@@ -127,7 +128,8 @@ BEGIN
     IF nullif(btrim(p_pix_copia_e_cola), '') IS NULL OR p_revision IS NULL OR coalesce(v.bank_created_at, p_bank_created_at) IS NULL THEN
       RAISE EXCEPTION 'Cobrança ativa exige copia e cola, revisão e criação no banco.' USING ERRCODE = '22023';
     END IF;
-    UPDATE public.itau_pix_charges SET revision = p_revision, pix_copia_e_cola = p_pix_copia_e_cola,
+    -- A chamada terminou: libera a reserva para um cancelamento ou alteração pendente seguir já.
+    UPDATE public.itau_pix_charges SET revision = p_revision, pix_copia_e_cola = p_pix_copia_e_cola, next_attempt_at = now(),
       bank_created_at = coalesce(bank_created_at, p_bank_created_at),
       expires_at = coalesce(bank_created_at, p_bank_created_at) + make_interval(secs => expiration_seconds),
       uncertain = false, last_error = NULL, updated_at = now(),
