@@ -393,6 +393,12 @@ para eles vale o backup do próprio Supabase.
 - **Token R2:** Account API Token `vela-backup-diario` (Access Key ID começa com `5b22`), Object Read & Write só nesse bucket, sem validade. Criado em 2026-09-24; os tokens antigos foram apagados.
 - **Validar um backup:** `node scripts/backup-r2.mjs --verify <arquivo>.dump.enc`
   (trimestral). Procedimento completo: [backup-r2.md](backup-r2.md).
+- **Conferência local — 2026-10-05:** tarefa encontrada e habilitada. A
+  execução das 09:00:01 falhou (`LastTaskResult = 2`) pelo `EPIPE` de
+  `pg_restore --list`, corrigido no script; a execução manual seguinte enviou
+  o backup ao R2 e a restauração local foi testada
+  ([backup-r2.md](backup-r2.md#estado-operacional-conferido-em-2026-10-05)).
+  A tarefa usa a cópia local do repositório, que precisa conter a correção.
 - **Mudar de computador:** instalar os programas, recriar as 7 variáveis do
   usuário (roteiro, Etapa 6) e a tarefa agendada.
 

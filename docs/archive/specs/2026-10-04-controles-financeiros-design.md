@@ -13,7 +13,7 @@ Estado: implementação local concluída e validada. A nova migration foi inclu�
 
 ## Entrega implementada
 
-A [migration 148](../../../supabase/migrations/148_controles_financeiros.sql) contém o SQL validado e autorizado. Ele inclui os contratos das telas já alteradas, autorização no banco, auditoria, preservação de documentos e recuperação de reemissão. O rascunho foi exercitado somente em PostgreSQL descartável.
+A [migration 136](../../../supabase/migrations/136_controles_financeiros.sql) contém o SQL validado e autorizado. Ele inclui os contratos das telas já alteradas, autorização no banco, auditoria, preservação de documentos e recuperação de reemissão. O rascunho foi exercitado somente em PostgreSQL descartável.
 
 A confirmação de CNPJ não desfaz a devolução caso a nova emissão encontre uma retenção: persiste `reissue_pending` e permite recuperação. O cálculo que será substituído ganha snapshot nos itens do documento original. Recebíveis anteriores são arquivados, mantendo seus settlements; o novo Cliente recebe um novo recebível sem pagamento herdado.
 

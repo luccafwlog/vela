@@ -6,6 +6,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { spawn } from 'node:child_process'
 import { pipeline } from 'node:stream/promises'
+import { Writable } from 'node:stream'
 import { pathToFileURL } from 'node:url'
 
 const FORMAT_VERSION = 1
@@ -242,6 +243,19 @@ function requireFileSize(filePath) {
   }
 }
 
+async function consumeArchive(input, decipher, restoreInput) {
+  // pg_restore --list pode fechar stdin ao terminar o catálogo. Continue lendo
+  // o dump inteiro para autenticar também os dados com AES-GCM.
+  restoreInput.on('error', () => {}) // O callback de write e o exit code tratam a falha.
+  await pipeline(input, decipher, new Writable({
+    write(chunk, _encoding, callback) {
+      if (restoreInput.destroyed) return callback()
+      restoreInput.write(chunk, (error) => callback(error?.code === 'EPIPE' ? null : error))
+    },
+  }))
+  restoreInput.end()
+}
+
 async function verifyArchive(filePath, key) {
   const { fileSize, iv, tag } = readArchiveParts(filePath)
   const decipher = createDecipheriv('aes-256-gcm', key, iv)
@@ -253,7 +267,7 @@ async function verifyArchive(filePath, key) {
   drain(restore.stderr)
   const closing = waitForClose(restore, 'pg_restore')
   try {
-    await pipeline(input, decipher, restore.stdin)
+    await consumeArchive(input, decipher, restore.stdin)
   } catch (error) {
     restore.kill()
     await closing.catch(() => {})
@@ -389,4 +403,4 @@ if (isMain) {
   })
 }
 
-export { buildObjectNames, parseArgs, parseDatabaseUrl, parseEncryptionKey, planFor }
+export { buildObjectNames, consumeArchive, parseArgs, parseDatabaseUrl, parseEncryptionKey, planFor }

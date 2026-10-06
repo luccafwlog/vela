@@ -11,7 +11,6 @@ verdade sobre o estado atual.
 ## Planos ativos
 
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — em execução; código entregue (PRs #799, #812–#815, #818; migrations 106, 108, 109 e 110) e Edge Functions publicadas em 2026-09-29. Pendente (dono): teste do Comunicado, Fase 1 no GitHub, conferência na Preview e itens de operação — lista em "Estado em 2026-09-29".
-- [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — implementa as ADRs 0071–0074 em seis fases: proteções do banco, falso sucesso e cascata atômica, diálogo de confirmação, trava do CE Mercante, cadastros, e usuários/retenção/backup.
 
 O plano [2026-09-06 — Remediação das auditorias #654–#660](../archive/plans/2026-09-06-plano-remediacao-auditorias-654-660.md) foi concluído e arquivado em 2026-09-29 após validação de todas as provas de runtime em produção e otimização do TV refresh.
 O plano [2026-09-23 — Alinhamento entre apresentação, documentação e código](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md) foi concluído e arquivado.
