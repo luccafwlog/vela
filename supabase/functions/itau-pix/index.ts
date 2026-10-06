@@ -38,10 +38,14 @@ if (typeof Deno !== "undefined")
               p_revision: result.outcome === "active" ? result.revision : null,
               p_pix_copia_e_cola: result.outcome === "active" ? result.pixCopiaECola : null,
               p_error: result.outcome === "active" ? null : result.error ?? null,
+              p_bank_created_at: result.outcome === "active" ? result.bankCreatedAt : null,
             });
             if (error) throw new Error("Falha ao registrar resultado Itaú.");
           },
         };
+        // Prazos (vencimento, renovação, PTAX do dia e Alerta das 14h) antes da fila.
+        const { data: maintenance, error: maintenanceError } = await admin.rpc("itau_pix_maintain", {});
+        if (maintenanceError) throw new Error("Falha na manutenção dos prazos Itaú.");
         const charges = await processItauPixQueue(client, queue);
         // Recebimentos falham isolados: a fila de cobranças já foi processada.
         const receipts = await pollItauPixReceipts(client, {
@@ -62,7 +66,7 @@ if (typeof Deno !== "undefined")
             if (error) throw new Error("Falha ao salvar o checkpoint Itaú.");
           },
         }).catch((error) => ({ error: error instanceof Error ? error.message : "Falha na consulta de recebimentos" }));
-        return Response.json({ charges, receipts });
+        return Response.json({ maintenance, charges, receipts });
       }
       return Response.json(await runItauPixAction(client, input));
     } catch (error) {

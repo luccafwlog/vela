@@ -157,7 +157,7 @@ describe('processador da fila de cobranças', () => {
   it('primeira tentativa cria a COB com o valor formatado', async () => {
     const c = charge()
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid))
-    expect(await stepCharge(createItauPixClient(config, fetchMtls), c)).toEqual({ outcome: 'active', revision: 0, pixCopiaECola: '000201...' })
+    expect(await stepCharge(createItauPixClient(config, fetchMtls), c)).toEqual({ outcome: 'active', revision: 0, pixCopiaECola: '000201...', bankCreatedAt: '2026-10-06T12:00:00Z' })
     expect(fetchMtls.mock.calls[1][1].method).toBe('PUT')
     expect(JSON.parse(fetchMtls.mock.calls[1][1].body).valor).toEqual({ original: '2.50' })
   })
@@ -208,6 +208,29 @@ describe('processador da fila de cobranças', () => {
       .mockResolvedValueOnce(ativa(c.txid, { status: 'REMOVIDA_PELO_USUARIO_RECEBEDOR' }))
     expect((await stepCharge(createItauPixClient(config, fetchMtls), c)).outcome).toBe('cancelled')
     expect(fetchMtls.mock.calls.map((call) => call[1].method)).toEqual(['POST', 'GET', 'PATCH'])
+  })
+
+  it('PTAX/renovação: PATCH no mesmo TXID com valor e validade; paga antes vira concluded', async () => {
+    const c = charge({ status: 'pending_update', amount_brl: '3.1', expiration_seconds: 90000 })
+    const ok = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid, { revisao: 1, valor: { original: '3.10' } }))
+    expect(await stepCharge(createItauPixClient(config, ok), c)).toMatchObject({ outcome: 'active', revision: 1 })
+    expect(ok.mock.calls[1][1].method).toBe('PATCH')
+    expect(JSON.parse(ok.mock.calls[1][1].body)).toEqual({ valor: { original: '3.10' }, calendario: { expiracao: 90000 } })
+    const paid = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid, { status: 'CONCLUIDA' }))
+    expect((await stepCharge(createItauPixClient(config, paid), c)).outcome).toBe('concluded')
+  })
+
+  it('vencida: só vira expired depois de o banco confirmar que não foi paga', async () => {
+    const c = charge({ status: 'pending_expire_check' })
+    const now = new Date('2026-10-06T14:00:00Z')
+    const run = (body: Response) => stepCharge(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(body)), c, now)
+    // criação 12:00 + 3600 s = 13:00 < 14:00
+    expect((await run(ativa(c.txid))).outcome).toBe('expired')
+    expect((await run(ativa(c.txid, { status: 'CONCLUIDA' }))).outcome).toBe('concluded')
+    expect((await run(Response.json({}, { status: 404 }))).outcome).toBe('expired')
+    // Banco ainda considera válida (relógios diferentes): continua ativa.
+    expect((await run(ativa(c.txid, { calendario: { criacao: '2026-10-06T12:00:00Z', expiracao: 9000 } }))).outcome).toBe('active')
+    expect((await stepCharge(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockRejectedValueOnce(new TypeError('x'))), c, now)).outcome).toBe('uncertain')
   })
 
   it('processa o que foi reservado e registra cada resultado', async () => {

@@ -223,31 +223,49 @@ export type QueuedCharge = {
   txid: string
   amount_brl: number | string
   expiration_seconds: number
-  status: 'pending_create' | 'pending_cancel'
+  status: 'pending_create' | 'pending_update' | 'pending_expire_check' | 'pending_cancel'
   uncertain: boolean
   attempts: number
 }
 
 export type ChargeOutcome =
-  | { outcome: 'active'; revision: number; pixCopiaECola: string }
-  | { outcome: 'cancelled' | 'concluded' | 'uncertain' | 'error'; error?: string }
+  | { outcome: 'active'; revision: number; pixCopiaECola: string; bankCreatedAt: string }
+  | { outcome: 'cancelled' | 'concluded' | 'expired' | 'uncertain' | 'error'; error?: string }
 
 export type ChargeQueue = {
   claim(limit: number): Promise<QueuedCharge[]>
   record(id: number, outcome: ChargeOutcome): Promise<void>
 }
 
+function active(cob: ItauCob): ChargeOutcome {
+  if (!cob.pixCopiaECola) return { outcome: 'error', error: 'Itaú não devolveu o copia e cola.' }
+  return { outcome: 'active', revision: cob.revisao, pixCopiaECola: cob.pixCopiaECola, bankCreatedAt: cob.calendario.criacao }
+}
+
 function outcomeFromCob(cob: ItauCob, amount: string): ChargeOutcome {
   if (cob.status === 'CONCLUIDA') return { outcome: 'concluded' }
-  if (cob.status === 'ATIVA' && cob.valor.original === amount && cob.pixCopiaECola) {
-    return { outcome: 'active', revision: cob.revisao, pixCopiaECola: cob.pixCopiaECola }
-  }
+  if (cob.status === 'ATIVA' && cob.valor.original === amount) return active(cob)
   return { outcome: 'error', error: `Cobrança existente em estado ${cob.status} / ${cob.valor.original}.` }
 }
 
-export async function stepCharge(client: ItauPixClient, charge: QueuedCharge): Promise<ChargeOutcome> {
+export async function stepCharge(client: ItauPixClient, charge: QueuedCharge, now = new Date()): Promise<ChargeOutcome> {
   const amount = Number(charge.amount_brl).toFixed(2)
   try {
+    if (charge.status === 'pending_expire_check') {
+      // Só substituir a cobrança vencida depois de confirmar que não foi paga.
+      const cob = await client.getCob(charge.txid).catch((error) => {
+        if (error instanceof ItauPixError && error.status === 404) return null
+        throw error
+      })
+      if (!cob) return { outcome: 'expired' }
+      if (cob.status === 'CONCLUIDA') return { outcome: 'concluded' }
+      const validUntil = Date.parse(cob.calendario.criacao) + cob.calendario.expiracao * 1000
+      return cob.status === 'ATIVA' && validUntil > now.getTime() ? active(cob) : { outcome: 'expired' }
+    }
+    if (charge.status === 'pending_update') {
+      // PATCH com valores absolutos: repetir após resposta perdida é seguro.
+      return active(await client.updateCob(charge.txid, { amount, expirationSeconds: charge.expiration_seconds }))
+    }
     if (charge.status === 'pending_create') {
       // Já houve tentativa: a resposta anterior pode ter se perdido, então
       // consultar antes de criar de novo.
@@ -258,9 +276,7 @@ export async function stepCharge(client: ItauPixClient, charge: QueuedCharge): P
         })
         if (existing) return outcomeFromCob(existing, amount)
       }
-      const cob = await client.createCob(charge.txid, amount, charge.expiration_seconds)
-      if (!cob.pixCopiaECola) return { outcome: 'error', error: 'Itaú não devolveu o copia e cola.' }
-      return { outcome: 'active', revision: cob.revisao, pixCopiaECola: cob.pixCopiaECola }
+      return active(await client.createCob(charge.txid, amount, charge.expiration_seconds))
     }
     // Cancelamento repetido: a resposta anterior pode ter se perdido com a cobrança já
     // removida ou paga, e pedir de novo poderia falhar para sempre. Consultar antes.
@@ -277,18 +293,16 @@ export async function stepCharge(client: ItauPixClient, charge: QueuedCharge): P
   } catch (error) {
     if (!(error instanceof ItauPixError)) return { outcome: 'error', error: 'Falha inesperada no processador.' }
     if (error.status === 0) return { outcome: 'uncertain', error: error.message }
-    if (charge.status === 'pending_cancel') {
-      // Nunca chegou a existir no banco: nada a cancelar.
-      if (error.status === 404) return { outcome: 'cancelled' }
-      // Paga antes do cancelamento: preservar para a baixa/análise (Fase 3).
-      if ((error.body as Partial<ItauCob> | null)?.status === 'CONCLUIDA') return { outcome: 'concluded' }
-    }
+    // Paga antes do cancelamento ou da alteração: preservar para a baixa/análise.
+    if (charge.status !== 'pending_create' && (error.body as Partial<ItauCob> | null)?.status === 'CONCLUIDA') return { outcome: 'concluded' }
+    // Nunca chegou a existir no banco: nada a cancelar.
+    if (charge.status === 'pending_cancel' && error.status === 404) return { outcome: 'cancelled' }
     return { outcome: 'error', error: `${error.message}${error.body ? ' ' + JSON.stringify(error.body).slice(0, 300) : ''}` }
   }
 }
 
 export async function processItauPixQueue(client: ItauPixClient, queue: ChargeQueue, limit = 20) {
-  const summary: Record<ChargeOutcome['outcome'], number> = { active: 0, cancelled: 0, concluded: 0, uncertain: 0, error: 0 }
+  const summary: Record<ChargeOutcome['outcome'], number> = { active: 0, cancelled: 0, concluded: 0, expired: 0, uncertain: 0, error: 0 }
   // ponytail: sequencial; paralelizar só se a fila passar de dezenas por minuto.
   for (const charge of await queue.claim(limit)) {
     const outcome = await stepCharge(client, charge)

@@ -2,7 +2,7 @@
 
 **Estado:** plano aprovado para execução em 2026-10-06. Fase 0 (certificado)
 aguardando a credencial dedicada pedida ao Itaú em 06/10 (ver "Quando o Itaú
-responder"); Fases 1 a 3 prontas no código, sem publicação.
+responder"); Fases 1 a 4 prontas no código, sem publicação.
 **Substitui:** a PR 827 (`codex/itau-pix-simulation`) como caminho de entrega.
 Os planos daquela branch nunca chegaram à `main`; o que vale deles está
 incorporado aqui.
@@ -271,6 +271,41 @@ PTAX no mesmo TXID, corte 14h30 com calendário, nova COB após o corte,
 Alerta das 14h, renovação de Taxas Locais, cancelamento com retentativa,
 pagamento concorrente ao cancelamento. Cenários da PR 827 reaproveitados como
 roteiro de teste.
+
+**Entregue em 2026-10-06 (Código/Teste local, sem implantação):** migration
+`152_itau_pix_prazos_e_ptax.sql`; `itau-pix` roda `itau_pix_maintain` antes
+da fila e passou a enviar PATCH e a confirmar vencimentos.
+
+- **Calendário:** `business_holidays` com Vitória/ES 2026–2027 (dados da PR
+  827). `itau_pix_cutoff` dá 14h30 do próximo dia útil. Ano sem calendário
+  falha alto, e a partir de 1º/11 um Alerta pede o cadastro do ano seguinte.
+- **Demurrage:** PTAX nova ou prazo novo alteram a mesma cobrança (PATCH,
+  mesmo TXID, validade até o próximo corte). O QR segue visível durante a
+  alteração. Quando o ROE não muda, a manutenção estende a validade se a
+  fatura já reflete a PTAX de hoje.
+- **Vencimento:** passada a validade, a cobrança é consultada no banco. Se
+  não foi paga, vira `expired` e a fatura ganha nova cobrança com novo TXID.
+  Se foi paga, fica `concluded` e segue para a baixa.
+- **Revisão anterior:** a baixa de Demurrage deixou de exigir o valor exato da
+  cobrança; `register_demurrage_payment` confere as duas últimas fotos de PTAX.
+  Pix da revisão anterior pago durante a troca quita pelo valor pago.
+- **Taxas Locais:** a cobrança ativa é renovada no mesmo TXID quando faltam 7
+  dias, por mais `itau_pix_expiration_seconds` (30 dias). O limite máximo do
+  Itaú ainda será conferido no teste de centavos.
+- **Alerta das 14h:** em dia útil, Demurrage aberta sem a PTAX de hoje
+  confirmada na cobrança abre `demurrage_ptax_recalc_failed` (Documentação,
+  entidade `itau-pix-14h`); fecha quando tudo estiver refletido.
+- Desvio: o Alerta das 14h reaproveita o tipo existente da Documentação. O
+  plano da PR 827 previa um tipo novo para Equipamentos.
+- Limite: depois do corte sem PTAX do dia, a nova cobrança sai com o último
+  valor disponível e o Alerta continua aberto. A Demurrage depende do job
+  `recalc-demurrage-ptax` agendado.
+
+Provas: suíte `itauPixCharges.local-pg.test.ts` com 16 casos (corte e
+feriados, PTAX no mesmo TXID, Pix da revisão anterior, vencimento confirmado e
+substituição, renovação local, Alerta das 14h, permissões), repetida duas
+vezes no mesmo banco. Mais 19 testes do processador. Suítes financeiras com
+`150`–`152`: as mesmas 21 falhas locais de ambiente, nome a nome.
 
 ### Fase 5 — Virada e encerramento
 

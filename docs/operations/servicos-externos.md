@@ -549,6 +549,12 @@ Voltar a chave para `static` não é procedimento operacional: o QR estático n�
 cancelar antes, no Itaú, as cobranças abertas, porque o modo `static` não
 acompanha mais as cobranças que estiverem ativas no banco.
 
+Manutenção anual: os prazos da Demurrage usam o calendário
+`business_holidays` (migration `152`, anos 2026 e 2027). Cadastre os feriados
+de Vitória/ES do ano seguinte antes de 1º/11; a partir dessa data um Alerta
+da Documentação lembra. A Demurrage também depende do job
+`recalc-demurrage-ptax` estar agendado ([segredos e cron](segredos-cron.md)).
+
 Renovar o certificado 30 dias antes do vencimento. Documentação:
 [Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
 Nenhuma função, job ou webhook do Itaú está publicado.

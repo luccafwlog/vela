@@ -191,7 +191,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
       const invoice = issueByCe(bl.full, '839000000000151')
       expect(psql(`SELECT coalesce(pix_payload, 'NULL') FROM public.invoices WHERE id = ${invoice}`)).toBe('NULL')
       const [chargeId, txid] = psql(`SELECT id || '|' || txid FROM public.itau_pix_charges WHERE invoice_id = ${invoice} AND status = 'pending_create'`).split('|')
-      psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${chargeId}, 'active', 0, '000201ITAU151')`)
+      psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${chargeId}, 'active', 0, '000201ITAU151', NULL, now())`)
       // Pix de valor diferente da cobrança: análise, sem baixa.
       expect(psql(`SELECT public.itau_pix_settle('E151DIVERGENTE', '${txid}', 599.99, now())`)).toBe('review')
       expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'pix_unreconciled' AND status = 'active'
