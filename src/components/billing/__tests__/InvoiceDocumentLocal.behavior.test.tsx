@@ -270,3 +270,14 @@ it('não oferece QR de uma fatura paga, mesmo com payload legado', () => {
   render(<InvoiceDocumentLocal detail={detail} />)
   expect(screen.queryByTestId('invoice-pix-box')).toBeNull()
 })
+
+it('fatura pagável sem cobrança confirmada mostra QR em preparação; paga não mostra aviso', () => {
+  const pending = { ...(detail as { invoice: object }), invoice: { ...(detail as { invoice: object }).invoice, status: 'issued', balance_brl: 100, total_paid_brl: 0, pix_payload: null } } as never
+  render(<InvoiceDocumentLocal detail={pending} type="invoice" />)
+  expect(screen.getByTestId('pix-preparing').textContent).toContain('QR Code em preparação')
+  expect(screen.queryByTestId('invoice-pix-box')).toBeNull()
+  cleanup()
+  const paid = { ...(detail as { invoice: object }), invoice: { ...(detail as { invoice: object }).invoice, pix_payload: null } } as never
+  render(<InvoiceDocumentLocal detail={paid} type="invoice" />)
+  expect(screen.queryByTestId('pix-preparing')).toBeNull()
+})

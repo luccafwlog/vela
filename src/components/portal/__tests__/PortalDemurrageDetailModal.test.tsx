@@ -52,5 +52,7 @@ describe('PortalDemurrageDetailModal', () => {
     expect(screen.getByText('ROE aplicado')).toBeTruthy()
     expect(screen.getByText(/5,75/)).toBeTruthy()
     expect(screen.queryByText('PTAX ref.')).toBeNull()
+    // Emitida sem cobrança confirmada: Portal avisa em vez de esconder o Pix.
+    expect(screen.getByRole('status').textContent).toContain('QR Code Pix em preparação')
   })
 })

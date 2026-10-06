@@ -177,7 +177,7 @@ export function PortalInvoiceDetailModal({
               </DetailSection>
             ) : null}
 
-            {invoice.pix_payload && ['issued', 'partially_paid', 'overdue'].includes(invoice.status ?? 'issued') ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
+            {['issued', 'partially_paid', 'overdue'].includes(invoice.status ?? 'issued') && (invoice.pix_payload || Number(invoice.balance_brl ?? invoice.total_brl) > 0) ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
           </>
         ) : null}
       </div>

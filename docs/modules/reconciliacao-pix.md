@@ -230,6 +230,21 @@ Estes testes verificam texto de migrations, não um banco aplicado:
 - **Filtro “Único BL” alinhado.** O valor visual `single` é normalizado para
   `individual` antes da comparação.
 
+### Cobrança dinâmica Itaú — migration 150 (desligada)
+
+**Código/Teste local, sem implantação.** `app_settings.pix_provider` escolhe o
+autor do QR: `static` (padrão, comportamento desta página inalterado) ou
+`itau`. Com `itau`, os gatilhos que hoje montam o QR estático (faturas locais
+e avulsas em `populate_local_invoice_pix_payload`, Demurrage em
+`zz_itau_pix_demurrage_payload`) abrem ou cancelam cobranças em
+`itau_pix_charges`, com no máximo uma aberta por fatura e TXID `VELA…`. A
+função `itau-pix` processa a fila (`itau_pix_claim`/`itau_pix_record`) e grava
+o copia e cola em `pix_payload`; até lá Vela e Portal mostram "QR em
+preparação". Faturas locais ativas também entram em
+`local_pix_charge_versions`, então a conciliação por extrato continua
+resolvendo o TXID. A baixa automática pela API ainda não existe (Fase 3 do
+[plano](../plans/2026-10-06-integracao-itau-pix.md)).
+
 ### Cobranças locais após correção — migration 130
 
 A apresentação Pix acompanha o saldo pagável, enquanto total e itens da fatura

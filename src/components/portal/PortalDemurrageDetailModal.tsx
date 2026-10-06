@@ -76,7 +76,8 @@ export function PortalDemurrageDetailModal({
               </div>
             </Card>
 
-            {invoice.pix_payload ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
+            {invoice.pix_payload || (['issued', 'overdue'].includes(invoice.status) && Number(invoice.current_total_brl) > 0)
+              ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
             </>
           )
         })() : null}

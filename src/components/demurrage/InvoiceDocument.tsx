@@ -2,7 +2,7 @@ import type { FinancialRefundSummary } from '../../services/financialRefunds'
 import { QRCodeSVG } from 'qrcode.react'
 import { COMPANY } from '../../config/company'
 import { cell, documentRoot, fmtBRL, fmtCNPJ, labelCell } from '../shared/invoiceFormat'
-import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle } from '../shared/InvoiceDocumentKit'
+import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle, PixPreparingNotice } from '../shared/InvoiceDocumentKit'
 
 export type DemurrageInvoiceDocumentItem = {
   id: number
@@ -134,6 +134,7 @@ export function InvoiceDocument({ detail, type }: Props) {
       </table>
 
       {/* ── PIX section ── */}
+      {isInvoice && !invoice.pix_payload && !invoice.paid_at && Number(invoice.current_total_brl) > 0 && <PixPreparingNotice />}
       {isInvoice && invoice.pix_payload && (
         <div style={{ display: 'flex', gap: 18, marginTop: 20, paddingTop: 16, borderTop: '1px solid #e5e7eb', alignItems: 'flex-start' }}>
           <div style={{ flexShrink: 0 }}>

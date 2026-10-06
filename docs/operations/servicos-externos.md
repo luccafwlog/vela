@@ -519,6 +519,14 @@ do guia. Ela cria cobranças de teste de até R$ 1,00 com TXID `VELAT…` e só
 altera ou cancela essas; consulta qualquer TXID `VELA`, então nunca toca
 cobranças do sistema de terceiro nem muda a cobrança de uma fatura.
 
+A fila de cobranças das faturas (migration `150`) só tem trabalho quando
+`app_settings.pix_provider = 'itau'`; o padrão é `static`. Para operar,
+na ordem: publicar `itau-pix`; gravar `ITAU_PIX_ADMIN_SECRET` também no Vault,
+com o mesmo nome e valor; agendar o job `itau-pix-queue` a cada minuto
+(`* * * * *`, `select ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`,
+ver [segredos e cron](segredos-cron.md)). Só então virar a chave. Nenhum
+desses passos foi executado.
+
 Renovar o certificado 30 dias antes do vencimento. Documentação:
 [Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
 Nenhuma função, job ou webhook do Itaú está publicado.

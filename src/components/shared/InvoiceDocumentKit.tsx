@@ -58,3 +58,12 @@ export function InvoiceDocFooter({ marginTop = 24 }: { marginTop?: number }) {
     </div>
   )
 }
+
+// Fatura pagável cuja cobrança Pix do Itaú ainda não foi confirmada pelo banco.
+export function PixPreparingNotice() {
+  return (
+    <div role="status" data-testid="pix-preparing" style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #e5e7eb', fontSize: '12px', color: '#333' }}>
+      <strong>PAGAMENTO VIA PIX:</strong> QR Code em preparação. Gere o documento novamente em alguns minutos.
+    </div>
+  )
+}
