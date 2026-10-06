@@ -280,7 +280,7 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
         continue
       }
       const pageSignature = inspect.includes('_page') ? 'bigint, integer, integer, text, text, text, text, date, date' : null
-      expect(procExists(`public.${inspect}(${pageSignature ?? (inspect.includes('invoice_details') || inspect.includes('invoice_detail') || inspect.includes('get_return_guidance') ? 'bigint, bigint' : inspect.includes('list_notifications') ? 'bigint, integer' : 'bigint')})`)).toBe(true)
+      expect(procExists(`public.${inspect}(${pageSignature ?? (inspect.includes('invoice_details') || inspect.includes('invoice_detail') ? 'bigint, bigint' : inspect.includes('list_notifications') ? 'bigint, integer' : 'bigint')})`)).toBe(true)
     }
     for (const write of writes) {
       const candidate = write.startsWith('portal_') ? `public.portal_inspect_${write.slice(7)}` : `public.portal_inspect_${write}`

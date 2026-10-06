@@ -165,14 +165,13 @@ function renderOperacao(initialEntry = '/portal/operacao') {
 }
 
 describe('PortalOperacao (BLs e Containers)', () => {
-  it('mantém o número do container separado do acesso à devolução', () => {
+  it('disponibiliza acesso aos depósitos de devolução por B/L e porto', () => {
     renderOperacao('/portal/operacao?tab=containers')
-    const table = screen.getByRole('table', { name: 'Containers da operação do cliente' })
-    const row = within(table).getByText('ABCD1234567').closest('tr')!
-    const cells = within(row).getAllByRole('cell')
-    expect(cells[0].textContent).toBe('ABCD1234567')
-    const link = within(cells[9]).getByRole('link', { name: 'Onde devolver' })
-    expect(link.getAttribute('href')).toContain('containerId=1')
+    const links = screen.getAllByRole('link', { name: 'Depósitos de devolução' })
+    expect(links.length).toBeGreaterThan(0)
+    const blLink = links.find(l => l.getAttribute('href')?.includes('bl=BL001'))
+    expect(blLink).toBeDefined()
+    expect(blLink!.getAttribute('href')).toContain('/portal/informacoes/devolucao?pod=BRVIX&bl=BL001')
   })
   it('distingue tarifa indisponível de dentro do free time e permite filtrar a unidade', async () => {
     const container = rows[0].containers[1]

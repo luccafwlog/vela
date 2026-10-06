@@ -112,3 +112,5 @@ foram ativados e executados separadamente com LOCAL_PG_INTEGRATION=1.
 Nota de integração — 2026-10-05: migrations de Informações renumeradas de 134/135 para 135/136 antes da publicação, preservando a ordem e o SQL.
 
 Nota de integração — 2026-10-06: a main publicou sua própria 135; as migrations de Informações passaram a 137/138 (a 136 ficou com os controles financeiros da PR 846), preservando a ordem e o SQL.
+
+Nota de integração — 2026-10-06: a indicação específica por container e planilha de devolução foi descontinuada por decisão de negócio antes da implantação em produção. A devolução passa a ser fluida por porto de descarga atendido, aproveitando os depósitos publicados do Vela.

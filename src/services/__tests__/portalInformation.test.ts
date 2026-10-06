@@ -7,7 +7,7 @@ vi.mock('../portalScope', () => ({
   callPortalRpc,
 }))
 
-import { externalInformationUrl, portalGetInformation, portalGetReturnGuidance, setContainerReturnInstruction } from '../portalInformation'
+import { externalInformationUrl, portalGetInformation } from '../portalInformation'
 
 describe('Informações do Portal', () => {
   beforeEach(() => { vi.clearAllMocks(); rpc.mockResolvedValue({ data: {}, error: null }); callPortalRpc.mockResolvedValue({ depots: [] }) })
@@ -20,18 +20,5 @@ describe('Informações do Portal', () => {
     const scope = { mode: 'inspect' as const, customerId: 7, overview: null, basePath: '/inspecao/7' }
     await portalGetInformation(scope)
     expect(callPortalRpc).toHaveBeenCalledWith(scope, 'portal_get_information')
-  })
-  it('consulta unidade por ID sem enviar identidade de cliente do navegador', async () => {
-    await portalGetReturnGuidance(42)
-    expect(callPortalRpc).toHaveBeenCalledWith(expect.anything(), 'portal_get_return_guidance', { p_container_id: 42 })
-  })
-  it('a lista vazia retira a indicação mantendo a justificativa', async () => {
-    await setContainerReturnInstruction(42, [], 'Retirada da restrição de ocupação')
-    expect(rpc).toHaveBeenCalledWith('set_container_return_instruction', { p_container_id: 42, p_depot_ids: [], p_reason: 'Retirada da restrição de ocupação' })
-  })
-  it('propaga erro de gravação e recusa justificativa vazia', async () => {
-    await expect(setContainerReturnInstruction(42, [], ' ')).rejects.toThrow('justificativa')
-    rpc.mockResolvedValue({ error: new Error('Sem permissão') })
-    await expect(setContainerReturnInstruction(42, [], 'Retirada')).rejects.toThrow('Sem permissão')
   })
 })

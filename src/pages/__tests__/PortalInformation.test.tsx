@@ -5,11 +5,11 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { PortalInformation } from '../PortalInformation'
 
-const catalog = vi.hoisted(() => ({ hook: vi.fn(), refetch: vi.fn(), operation: vi.fn(), guidance: vi.fn() }))
-vi.mock('../../hooks/usePortalInformation', () => ({ usePortalInformation: catalog.hook, usePortalReturnGuidance: catalog.guidance }))
+const catalog = vi.hoisted(() => ({ hook: vi.fn(), refetch: vi.fn(), operation: vi.fn() }))
+vi.mock('../../hooks/usePortalInformation', () => ({ usePortalInformation: catalog.hook }))
 vi.mock('../../hooks/usePortalOperation', () => ({ usePortalOperationBls: catalog.operation }))
 const empty = { depots: [], agents: [], contacts: [], carriers: [], local_tables: [], demurrage_rates: [], demurrage_notes: '', ports: [] }
-beforeEach(() => { catalog.hook.mockReturnValue({ data: empty, isLoading: false, error: null, refetch: catalog.refetch }); catalog.operation.mockReturnValue({ data: [], isLoading: false, error: null }); catalog.guidance.mockReturnValue({ data: null, isLoading: false, error: null }) })
+beforeEach(() => { catalog.hook.mockReturnValue({ data: empty, isLoading: false, error: null, refetch: catalog.refetch }); catalog.operation.mockReturnValue({ data: [], isLoading: false, error: null }) })
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 function show(path = '/portal/informacoes') { render(<MemoryRouter initialEntries={[path]}><Routes><Route path="/portal/informacoes/:section?" element={<PortalInformation />} /></Routes></MemoryRouter>) }
 describe('Página Central de Informações', () => {
@@ -42,13 +42,14 @@ describe('Página Central de Informações', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
     expect(catalog.refetch).toHaveBeenCalledOnce()
   })
-  it('libera a busca de unidades de outro B/L ao mudar o porto do atalho', async () => {
-    catalog.hook.mockReturnValue({ data: { ...empty, ports: [{ code: 'BRSSZ', name: 'Santos' }, { code: 'BRVIX', name: 'Vitória' }] }, isLoading: false, error: null })
-    catalog.operation.mockReturnValue({ data: [{ bl_id: 'BL1', pod: 'BRSSZ', containers: [{ id: 10, container_number: 'UNIT1' }] }, { bl_id: 'BL2', pod: 'BRVIX', containers: [{ id: 20, container_number: 'UNIT2' }] }], isLoading: false, error: null })
-    show('/portal/informacoes/devolucao?bl=BL1&pod=BRSSZ&containerId=10')
-    await userEvent.selectOptions(screen.getByLabelText('Porto de destino (POD)'), 'BRVIX')
-    expect(screen.getByRole('option', { name: 'UNIT2 · B/L BL2' })).toBeTruthy()
-    expect(screen.queryByText('Nenhum container visível para os filtros atuais.')).toBeNull()
+  it('exibe depósitos do porto ao selecionar POD em devolução', async () => {
+    const portDepots = [
+      { id: '1', code: 'DEP1', name: 'Depot Vitória', ports: ['BRVIX'], address: 'Rua 1', opening_hours: '8-18', emails: [], phones: [], scheduling_url: null, instructions: '', restrictions: '', published: true, active: true, updated_at: null },
+    ]
+    catalog.hook.mockReturnValue({ data: { ...empty, depots: portDepots, ports: [{ code: 'BRSSZ', name: 'Santos' }, { code: 'BRVIX', name: 'Vitória' }, { code: 'BRSSA', name: 'Salvador' }, { code: 'BRSUA', name: 'Suape' }] }, isLoading: false, error: null })
+    show('/portal/informacoes/devolucao?pod=BRVIX')
+    expect(screen.getByText('Depot Vitória')).toBeTruthy()
+    expect(screen.getByText('Depósitos para devolução')).toBeTruthy()
   })
   it('distingue tarifa ausente de free time zero', () => {
     show('/portal/informacoes/demurrage')

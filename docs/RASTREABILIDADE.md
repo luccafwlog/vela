@@ -685,17 +685,15 @@ estão sem `EXECUTE` para a API desde `122`; serviços/hooks foram retirados.
 | `/clientes/portal/inspecao/:customerId/informacoes/:section` | Seções no escopo de inspeção |
 | `/clientes/informacoes` | ClientesInformacoes: cadastros internos, tarifas de Demurrage e publicação; acesso pelo botão em `/clientes/portal` |
 
-Serviço `portalInformation.ts`, hooks `usePortalInformation.ts` e migration
+Serviço `portalInformation.ts`, hooks `usePortalInformation.ts` e migrations
 `137_portal_information.sql` e `138_portal_information_review_fixes.sql`; preços vêm das tabelas vigentes do Vela.
-Orientação de devolução é consultada por container, com gate de cliente/CE;
-indicação específica é administrada na aba Carga do B/L e auditada.
+Orientação de devolução é fluida por porto de descarga atendido: os containers descarregados
+em um porto podem ser devolvidos em qualquer depósito disponível publicado do porto.
 Testes: `portalInformation.local-pg.test.ts`, `portalInformation.test.ts`,
-`InformationSections.test.tsx`, `ReturnGuidanceView.test.tsx`,
-`ContainerReturnInstruction.test.tsx` e `ClientesInformacoes.test.tsx`.
+`InformationSections.test.tsx` e `ClientesInformacoes.test.tsx`.
 
-
-A revisão de 2026-10-04 separa indicação física por viagem/container do registro
-individual do B/L; inclui a dependência na exclusão permitida de viagem e usa
-resolver SQL comum para tipos equivalentes das tarifas de Demurrage. Edições
-existentes de carga, depot e tarifas invalidam as novas consultas. Evidências e
+A revisão inicial de 2026-10-04 e a decisão de negócio de 2026-10-06 simplificam o fluxo:
+a indicação específica por container e planilha foi removida antes de ir para produção,
+mantendo a devolução orientada por porto e os depósitos publicados do Vela.
+Evidências e achados: [revisão extensa](archive/reports/2026-10-04-revisao-portal-informacoes.md).
 achados: [revisão extensa](archive/reports/2026-10-04-revisao-portal-informacoes.md).

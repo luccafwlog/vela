@@ -43,3 +43,5 @@ prova de login ou persistência remota.
 - Revisão independente final das correções concluída; não identificou outro achado acionável no escopo examinado.
 
 As validações de identidade e locks foram conferidas no SQL; não houve ensaio de carga ou execução concorrente de sessões. Nenhuma ação remota ou envio de mensagem foi realizado.
+
+Nota de integração — 2026-10-06: a indicação específica por container e planilha de devolução foi descontinuada por decisão de negócio antes da implantação em produção. A devolução passa a ser fluida por porto de descarga atendido, aproveitando os depósitos publicados do Vela.

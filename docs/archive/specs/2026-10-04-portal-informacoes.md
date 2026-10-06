@@ -69,3 +69,5 @@ renderização mobile e identidade visual. Publicação remota é etapa separada
 
 > Estado: implementada e validada localmente em 2026-10-04; arquivada. Regras
 > vigentes em CONTEXT.md e docs/modules/portal-cliente.md. Produção não publicada.
+
+Nota de integração — 2026-10-06: a indicação específica por container e planilha de devolução foi descontinuada por decisão de negócio antes da implantação em produção. A devolução passa a ser fluida por porto de descarga atendido, aproveitando os depósitos publicados do Vela.

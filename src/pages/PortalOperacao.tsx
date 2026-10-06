@@ -405,7 +405,7 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
                     <td className="px-4 py-3">{c.pol ?? '-'}</td>
                     <td className="px-4 py-3">{c.pod ?? '-'}</td>
                     <td className="px-4 py-3">{formatDate(c.discharge_date)}</td>
-                    <td className="px-4 py-3">{c.return_date ? formatDate(c.return_date) : 'Pendente'}<InformationLinks sections={['devolucao']} containerId={c.id} bl={c.bl_id} pod={c.pod} /></td>
+                    <td className="px-4 py-3">{c.return_date ? formatDate(c.return_date) : 'Pendente'}</td>
                     <td className="px-4 py-3">{formatNumber(c.usage_days)}</td>
                     <td className="px-4 py-3">{formatNumber(c.free_time_days)}</td>
                     <td className="px-4 py-3">{formatNumber(c.demurrage_days)}</td>
@@ -435,7 +435,7 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
                   <span>Free {formatNumber(c.free_time_days)}</span>
                   <span>Dem. {formatNumber(c.demurrage_days)}</span>
                 </div>
-                <div className="mt-3"><InformationLinks sections={['devolucao', 'tracking']} containerId={c.id} bl={c.bl_id} pod={c.pod} /></div>
+                <div className="mt-3"><InformationLinks sections={['devolucao', 'tracking']} bl={c.bl_id} pod={c.pod} /></div>
               </div>
             ))}
           </div>
@@ -511,7 +511,7 @@ function ContainerDetails({ row }: { row: PortalOperationBL }) {
               <td className="px-4 py-3 font-semibold">{container.container_number}</td>
               <td className="px-4 py-3">{container.type ?? '-'}</td>
               <td className="px-4 py-3">{formatDate(container.discharge_date)}</td>
-              <td className="px-4 py-3">{container.return_date ? formatDate(container.return_date) : 'Pendente'}<InformationLinks sections={['devolucao']} containerId={container.id} bl={row.bl_id} pod={row.pod} /></td>
+              <td className="px-4 py-3">{container.return_date ? formatDate(container.return_date) : 'Pendente'}</td>
               <td className="px-4 py-3">{formatNumber(container.usage_days)}</td>
               <td className="px-4 py-3">{formatNumber(container.free_time_days)}</td>
               <td className="px-4 py-3">{formatNumber(container.demurrage_days)}</td>

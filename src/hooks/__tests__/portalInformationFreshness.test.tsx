@@ -9,7 +9,7 @@ vi.mock('../usePortalScope', () => ({ usePortalScope: () => ({ mode: 'inspect', 
 vi.mock('../usePortalAuth', () => ({ usePortalAuth: () => ({ isAuthenticated: true }) }))
 vi.mock('../../services/portalScope', () => ({ isPortalReadOnly: () => true }))
 vi.mock('../../services/portalOperation', () => ({ portalListOperationBls: vi.fn() }))
-vi.mock('../../services/portalInformation', () => ({ internalGetPortalInformation: vi.fn(), internalGetReturnGuidance: vi.fn(), portalGetInformation: vi.fn(), portalGetReturnGuidance: vi.fn(), internalSavePortalInformation: vi.fn(), setContainerReturnInstruction: vi.fn() }))
+vi.mock('../../services/portalInformation', () => ({ internalGetPortalInformation: vi.fn(), portalGetInformation: vi.fn(), internalSavePortalInformation: vi.fn() }))
 vi.mock('../../services/depots', () => ({ listDepots: vi.fn(), upsertDepot: vi.fn(), deleteDepot: vi.fn() }))
 vi.mock('../../services/demurrage/demurrageRates', () => ({ listDemurrageRates: vi.fn(), upsertDemurrageRate: vi.fn(), deleteDemurrageRate: vi.fn(), toggleDemurrageRateActive: vi.fn() }))
 vi.mock('../../services/demurrage/customerDemurrageAgreements', () => ({ listCustomerDemurrageAgreements: vi.fn(), saveCustomerDemurrageAgreement: vi.fn(), deleteCustomerDemurrageAgreement: vi.fn(), toggleCustomerDemurrageAgreementActive: vi.fn() }))
@@ -22,9 +22,9 @@ import { useDeleteDepot, useUpsertDepot } from '../useDepots'
 import { useDeleteDemurrageRate, useSaveDemurrageRate, useToggleDemurrageRateActive } from '../useDemurrageRates'
 import { useSaveCustomerDemurrageAgreement, useDeleteCustomerDemurrageAgreement, useToggleCustomerDemurrageAgreementActive } from '../useCustomerDemurrageAgreements'
 import { useSaveChargeTable, useSaveChargeTableItem, useSetChargeTableActive, useSetChargeTableItemActive, useDeleteChargeTableItem } from '../useLocalCharges'
-import { useInternalPortalInformation, useInternalReturnGuidance, usePortalInformation, usePortalReturnGuidance } from '../usePortalInformation'
+import { useInternalPortalInformation, usePortalInformation } from '../usePortalInformation'
 import { usePortalOperationBls } from '../usePortalOperation'
-import { internalGetPortalInformation, internalGetReturnGuidance, portalGetInformation, portalGetReturnGuidance } from '../../services/portalInformation'
+import { internalGetPortalInformation, portalGetInformation } from '../../services/portalInformation'
 import { portalListOperationBls } from '../../services/portalOperation'
 
 function harness() {
@@ -32,7 +32,7 @@ function harness() {
   const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
   return { client, wrapper }
 }
-const informationKeys = [queryKeys.portalInformation.internal(), queryKeys.portalInformation.catalog('inspect', 7), queryKeys.portalInformation.guidance('inspect', 7, 3), queryKeys.portalInformation.internalGuidance(3)]
+const informationKeys = [queryKeys.portalInformation.internal(), queryKeys.portalInformation.catalog('inspect', 7)]
 const operationKey = ['portal-operation-bls', 'inspect', 7]
 function seed(client: QueryClient) {
   for (const key of [...informationKeys, operationKey, ['unrelated']]) client.setQueryData(key, 'old')
@@ -62,7 +62,7 @@ describe('information cache dependencies', () => {
     ['cargo', (client: QueryClient) => afterCargaAlterada(client)],
     ['voyage', (client: QueryClient) => afterViagemAlterada(client, { voyageId: 1 })],
     ['manifest import', (client: QueryClient) => afterManifestoImportado(client, { voyageId: 1 })],
-  ] as const)('%s updates guidance and operation ownership context', async (_name, effect) => {
+  ] as const)('%s updates information and operation context', async (_name, effect) => {
     const { client } = harness()
     seed(client)
     await effect(client)
@@ -76,9 +76,7 @@ afterEach(() => { focusManager.setFocused(undefined); onlineManager.setOnline(tr
 describe('current operation context freshness', () => {
   it.each([
     ['internal information', useInternalPortalInformation, internalGetPortalInformation],
-    ['internal guidance', () => useInternalReturnGuidance(3), internalGetReturnGuidance],
     ['inspection information', usePortalInformation, portalGetInformation],
-    ['inspection guidance', () => usePortalReturnGuidance(3), portalGetReturnGuidance],
     ['operation B/Ls', usePortalOperationBls, portalListOperationBls],
   ] as const)('%s refetches on focus and reconnect despite global defaults', async (_name, useReadHook, service) => {
     let revision = 1
