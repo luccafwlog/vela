@@ -115,6 +115,69 @@ dele. Consequências:
 | Recibo para baixa manual de exceção | Recibo também sai, porque é baixa verificada pelo Admin com referência bancária. "Só após pagamento confirmado" vale para qualquer baixa, não para fatura emitida. |
 | Valor mínimo de teste | R$ 0,01 em fatura avulsa de teste, cliente fixture. |
 
+## Roteiro de ativação (depois do merge do código)
+
+Ordem única para ligar a integração. Cada passo diz quem faz, o que fazer e
+como conferir. Não pule passos: se a conferência falhar, pare, registre em
+"Registro" e resolva antes de seguir. O agente só executa ações em produção
+(publicar função, agendar job, SQL em `app_settings`) com autorização explícita
+do dono para aquele passo; segredos nunca passam pelo chat nem pelo git.
+
+1. **Credencial dedicada (Itaú → dono).** Aguardar, no thread IT-000245617,
+   CLIENT ID novo e token de ativação (vale cerca de 7 dias). O agente lê a
+   resposta; se o Itaú pedir outra coisa (revogação, formulário), mostra ao
+   dono antes de agir. Conferir: o CLIENT ID é diferente do de julho
+   (comparar por hash com a cópia guardada pelo dono fora do repositório).
+2. **Certificado (dono, no terminal dele).** Fase 0, itens 1–3, com o CLIENT
+   ID novo. Conferir: `openssl x509 -in itau.crt -noout -subject -enddate` e
+   módulo do `.crt` igual ao do `.key`; registrar emissão e validade aqui.
+   Novo `C700a` = parar e voltar ao Itaú.
+3. **Segredos (dono).** Supabase → Edge Functions → Secrets: `ITAU_CLIENT_ID`,
+   `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` e
+   `ITAU_PIX_ADMIN_SECRET` (≥ 32 caracteres aleatórios). O mesmo
+   `ITAU_PIX_ADMIN_SECRET` também no Vault, com o mesmo nome (procedimento em
+   [segredos e cron](../operations/segredos-cron.md)). Remover
+   `ITAU_ONBOARDING_PRIVATE_KEY` do Vault. Conferir pelos nomes no painel e
+   `SELECT count(*) FROM vault.secrets WHERE name = 'ITAU_PIX_ADMIN_SECRET'` = 1.
+4. **Publicar a função (agente).**
+   `supabase functions deploy itau-pix --project-ref fgmkhbzhaeebrsizwccx`
+   (`verify_jwt = false` vem de `supabase/config.toml`; o acesso é pelo bearer
+   próprio). Conferir: `POST` sem bearer → 403; `{"action":"token"}` com o
+   bearer → `token_type` Bearer e `expires_in` perto de 300.
+5. **Conta "API Itaú" (dono, depois agente).** O dono cria em `/admin` → Criar
+   usuário: nome "API Itaú", perfil Administrativo, ativa, senha forte guardada
+   fora do repositório; ninguém entra no Vela com ela. O agente grava o id:
+   `UPDATE public.app_settings SET itau_pix_settlement_actor = '<id>' WHERE id = 1;`
+   Conferir: a consulta de `itau_pix_settlement_actor` devolve o id e a conta
+   está ativa.
+6. **Teste de centavos (agente conduz, dono paga).** Fase 1, só com cobranças
+   de teste (`VELAT…`): `create_test` de `0.01` → o dono paga pelo celular →
+   `get` até `CONCLUIDA` com `pix[].endToEndId` → `list_pix` na janela do
+   pagamento (o Pix aparece; `outros` diz se o banco mistura os recebimentos
+   do terceiro) → noutra cobrança de teste, `update_test` (valor e validade) e
+   `cancel`. Registrar em "Contrato observado" (nova seção deste plano): header
+   aceito, latência entre pagamento e consulta, validade máxima aceita,
+   respostas repetidas, 429 e tamanho de página. Divergência do código = PR de
+   correção antes do passo 7.
+7. **Agendar a fila (agente).**
+   `SELECT cron.schedule('itau-pix-queue', '* * * * *', $$SELECT ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET');$$);`
+   Com a chave ainda `static`, cada execução só consulta recebimentos (os de
+   teste e do terceiro são ignorados). Conferir: `cron.job_run_details` sem
+   erro e, na Conciliação PIX, "Última consulta de recebimentos" avançando.
+8. **Virar a chave (dono decide, agente executa).**
+   `UPDATE public.app_settings SET pix_provider = 'itau' WHERE id = 1;` e, logo
+   em seguida, o SQL do [manual de serviços externos](../operations/servicos-externos.md#itaú--api-pix-recebimentos)
+   que dá cobrança às faturas já abertas. Conferir: em cerca de 1 minuto as
+   faturas abertas mostram o QR do Itaú; uma avulsa de R$ 0,01 para cliente
+   fixture, paga pelo dono, fica paga com recibo no Portal em cerca de 1
+   minuto; repetir com Taxas Locais e Demurrage. Depois: atualizar módulos,
+   manual e `RASTREABILIDADE.md` para "publicado" e arquivar este plano e a
+   spec (Fase 5).
+
+O roteiro `fase0.sh` citado abaixo é um auxiliar local do dono (Windows, fora
+do repositório); qualquer máquina pode seguir os comandos da Fase 0 no lugar
+dele. No macOS, troque `base64 -w0 arquivo` por `base64 < arquivo | tr -d '\n'`.
+
 ## Fases
 
 Cada fase fecha com evidência rotulada (Código / Teste / Runtime) e fica em
@@ -155,7 +218,7 @@ pasta fora do repositório (ex.: `C:\Users\Lucca\.itau\IT-000245617\2026-10-06`)
 4. Cadastrar em Supabase → Edge Functions → Secrets (via painel ou
    `supabase secrets set --env-file`, nunca em chat/git): `ITAU_CLIENT_ID`,
    `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64` (PEM em base64 numa
-   linha: `base64 -w0 itau.crt`) e `ITAU_PIX_KEY`.
+   linha: `base64 -w0 itau.crt`; no macOS `base64 < itau.crt | tr -d '\n'`) e `ITAU_PIX_KEY`.
 5. Guardar cópia de `itau.key`, `itau.crt` e client_secret no iCloud Senhas.
    Apagar `token.txt` depois do uso. Remover `ITAU_ONBOARDING_PRIVATE_KEY` do Vault.
 6. Lembrete de renovação: certificado vence em 365 dias; renovar 30 dias
@@ -331,9 +394,9 @@ fatura fica paga; nos demais casos o Admin marca como tratado com motivo
 pendente; outro perfil recebe recusa), repetida duas vezes; teste de
 comportamento da página.
 
-Falta da Fase 5, tudo dependente da credencial: publicar `itau-pix`, secrets,
-cron, usuário de baixa, teste de centavos em cada tipo de fatura, virar a
-chave, fechar a PR 827 e arquivar plano e spec.
+Falta da Fase 5, tudo dependente da credencial: os passos 1–8 do
+[Roteiro de ativação](#roteiro-de-ativação-depois-do-merge-do-código) e, ao
+fim, arquivar este plano e a spec. A PR 827 já foi fechada.
 
 ### Fase 6 (opcional) — Webhook
 
