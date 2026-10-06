@@ -306,6 +306,10 @@ it('exibe impacto de faturamento e envia override quando o operador marca', asyn
   await screen.findByText('Faturamento: Quantidade de containers: 1 -> 2')
   const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement
   expect(checkbox).toBeTruthy()
+  // Fica no rodape fixo junto do botao, nao perdido na rolagem do preview.
+  expect(checkbox.closest('.app-modal__actions')).toBeTruthy()
+  // Com dezenas de arquivos, a lista de nomes so poluia o modal.
+  expect(screen.queryByText(/arquivo\(s\) selecionado\(s\)/)).toBeNull()
   fireEvent.click(checkbox)
 
   const confirm = await screen.findByRole('button', { name: /Confirmar importacao/ })
