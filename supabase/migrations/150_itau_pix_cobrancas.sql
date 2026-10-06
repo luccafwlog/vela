@@ -187,7 +187,8 @@ BEGIN
     END IF;
     -- Se a fatura mudou durante a chamada, a cobrança já está pending_cancel:
     -- guarda os dados e deixa o cancelamento seguir.
-    UPDATE public.itau_pix_charges SET revision = p_revision, pix_copia_e_cola = p_pix_copia_e_cola,
+    -- A chamada terminou: libera a reserva para um cancelamento ou alteração pendente seguir já.
+    UPDATE public.itau_pix_charges SET revision = p_revision, pix_copia_e_cola = p_pix_copia_e_cola, next_attempt_at = now(),
       uncertain = false, last_error = NULL, updated_at = now(),
       status = CASE WHEN status = 'pending_create' THEN 'active' ELSE status END
     WHERE id = p_id RETURNING * INTO v;
