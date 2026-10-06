@@ -106,8 +106,8 @@ mudança:
 
 1. No Supabase Dashboard, abra o projeto `fgmkhbzhaeebrsizwccx`, entre em
    `Database > Backups` e confirme a cobertura de backup diário e o custo/limite
-   do plano atual. Habilite PITR e escolha a retenção aprovada somente depois de
-   confirmar o impacto financeiro. Não use a tela de restore neste rollout.
+   do plano atual. A ADR 0074 decidiu não contratar PITR; este procedimento
+   não o habilita. Não use a tela de restore neste rollout.
 2. Em `Connect`, obtenha a string de conexão adequada para o runner (Session
    pooler por padrão; conexão direta se a rede tiver IPv4/add-on). Injete-a no
    ambiente do processo, sem colá-la em arquivo, log, issue ou comando salvo.
@@ -137,3 +137,21 @@ Os rótulos do Dashboard podem mudar. A validação remota deve registrar o
 ambiente, a data, o projeto e os objetos encontrados, mas nunca valores de
 segredo. As referências técnicas atuais são a documentação de backup lógico da
 Supabase e a API S3-compatible do R2.
+
+## Estado operacional conferido em 2026-10-05
+
+O [manual de serviços externos](servicos-externos.md#backup) registra o
+agendamento e a primeira execução em 2026-09-24. A tarefa Windows
+`Backup Diario Vela R2` foi encontrada nesta máquina, com próxima execução
+em 2026-10-06 às 09:00. A execução agendada de 2026-10-05 às 09:00:01
+retornou `LastTaskResult = 2`, o código genérico de falha do script. A causa
+foi o fechamento antecipado de `pg_restore --list` (`EPIPE`) na verificação,
+corrigido em `consumeArchive`. Com a correção, uma execução manual no mesmo
+dia cifrou, verificou e enviou o dump ao R2, e ele foi restaurado no banco
+local descartável `vela_restore_20261005` (nota de encerramento da ADR 0074).
+
+A tarefa executa o script da cópia local do repositório, que precisa conter a
+correção. A primeira execução agendada que a comprova é a de 2026-10-06; se
+ela retornar código diferente de 0, diagnostique antes de considerar o backup
+diário ativo. `--verify` executa somente `pg_restore --list`; não restaura o
+banco e não substitui o teste de restauração em alvo descartável.

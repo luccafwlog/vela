@@ -110,3 +110,5 @@ foram ativados e executados separadamente com LOCAL_PG_INTEGRATION=1.
 
 
 Nota de integração — 2026-10-05: migrations de Informações renumeradas de 134/135 para 135/136 antes da publicação, preservando a ordem e o SQL.
+
+Nota de integração — 2026-10-06: a main publicou sua própria 135; as migrations de Informações passaram a 137/138 (a 136 ficou com os controles financeiros da PR 846), preservando a ordem e o SQL.

@@ -73,7 +73,7 @@ registra testes locais de emissão, pagamento, conciliação, correção e cance
 com lacunas e procedimentos no [manual financeiro](operations/manual-financeiro.md).
 O [relatório de correções](archive/reports/2026-10-04-correcoes-fluxo-financeiro.md)
 registra as correções implementadas, os testes finais e a inclusão autorizada
-da migration 148.
+da migration 136.
 
 A [revisão de 2026-09-19](archive/audits/2026-09-19-overhaul-documental.md)
 registra os contratos encontrados, as 69 decisões revisadas, o inventário da
