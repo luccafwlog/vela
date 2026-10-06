@@ -686,7 +686,7 @@ estão sem `EXECUTE` para a API desde `122`; serviços/hooks foram retirados.
 | `/clientes/informacoes` | ClientesInformacoes: cadastros internos, tarifas de Demurrage e publicação; acesso pelo botão em `/clientes/portal` |
 
 Serviço `portalInformation.ts`, hooks `usePortalInformation.ts` e migration
-`135_portal_information.sql` e `136_portal_information_review_fixes.sql`; preços vêm das tabelas vigentes do Vela.
+`137_portal_information.sql` e `138_portal_information_review_fixes.sql`; preços vêm das tabelas vigentes do Vela.
 Orientação de devolução é consultada por container, com gate de cliente/CE;
 indicação específica é administrada na aba Carga do B/L e auditada.
 Testes: `portalInformation.local-pg.test.ts`, `portalInformation.test.ts`,

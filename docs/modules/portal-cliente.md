@@ -312,7 +312,7 @@ Faturas e no painel; o Modo Inspeção usa a mesma interface e RPCs de leitura
 com guarda do cliente. Componentes, tokens, navegação e tipografia existentes
 foram preservados.
 
-A migration `135_portal_information.sql` acrescenta complementos dos depots e
+A migration `137_portal_information.sql` acrescenta complementos dos depots e
 armadores, agentes por porto, contatos e observações. O cadastro inicial usa
 as páginas FWLOG de onde devolver, agentes, contato e Demurrage; não importa
 planilhas. A página de taxas lê `charge_tables`/`charge_table_items`, pelo
@@ -350,7 +350,7 @@ de Containers e não oferece alternativas da regra geral. SOC não exige devolu�
 As RPCs do cliente verificam vínculo e liberação por CE; não retornam justificativa
 interna. As novas tabelas não concedem escrita direta ao cliente.
 
-A migration `136_portal_information_review_fixes.sql` torna
+A migration `138_portal_information_review_fixes.sql` torna
 `container_return_instruction_groups` a fonte da indicação por viagem e número
 do container. Alterar viagem ou número não transfere a indicação anterior;
 vínculos tardios e a remoção de registros de B/L não a apagam para a unidade

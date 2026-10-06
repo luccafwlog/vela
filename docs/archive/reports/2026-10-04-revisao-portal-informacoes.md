@@ -8,7 +8,7 @@ O diff anterior e o mockup foram preservados; não houve publicação remota.
 Foram realizadas três revisões independentes por domínio, reproduções em
 PostgreSQL 16 descartável e testes de comportamento. Uma revisão final
 independente conferiu as correções. As migrations históricas e os tipos gerados
-não foram editados: ajustes de banco estão na nova migration `135`.
+não foram editados: ajustes de banco estão na nova migration `135` (renumerada para `137` em 2026-10-06).
 
 | Achado | Reprodução / efeito | Correção |
 |---|---|---|
