@@ -425,7 +425,7 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
     expect(overpaymentPayload).toMatchObject({ status: 'paid', refund_due_brl: 25 })
     expect(psql(`SELECT status || '|' || amount_brl::text || '|' || payment_id::text FROM public.invoice_refunds WHERE invoice_id = ${localInvoiceIds[3]};`)).toBe(`pending|25.00|${overpaymentPayload.payment_id}`)
     const refundId = Number(psql(`SELECT id FROM public.invoice_refunds WHERE invoice_id = ${localInvoiceIds[3]};`))
-    const settledRefund = callAs(actorId, `SELECT public.settle_invoice_refund(${refundId}, '${actorId}'::uuid);`)
+    const settledRefund = callAs(actorId, `SELECT public.confirm_invoice_refund(${refundId}, 'BATTERY-REF-${refundId}', 'Cliente original', '2026-10-01T12:00:00Z');`)
     expect(settledRefund.status, `${settledRefund.stdout}\n${settledRefund.stderr}`).toBe(0)
     expect(psql(`SELECT status FROM public.invoice_refunds WHERE invoice_id = ${localInvoiceIds[3]};`)).toBe('settled')
 

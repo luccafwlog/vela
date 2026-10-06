@@ -5,8 +5,10 @@ import { afterEach, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({ corrections: [] as Array<Record<string, unknown>>, pending: [] as string[], isAdmin: true, retry: vi.fn() }))
 vi.mock('../../../hooks/useBillingLedger', () => ({
   useRetryInvoiceBasisChanges: () => ({ mutate: mocks.retry, isPending: false }),
+  usePrepareBlFinancialCancellation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useInvoiceCorrectionSummary: () => ({ data: { receivables: [], corrections: mocks.corrections, pending_bl_ids: mocks.pending } }),
 }))
+vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn() }))
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: mocks.isAdmin }) }))
 import { InvoiceCorrectionPanel } from '../InvoiceCorrectionPanel'
 afterEach(() => { cleanup(); mocks.pending = []; mocks.isAdmin = true; mocks.retry.mockReset() })

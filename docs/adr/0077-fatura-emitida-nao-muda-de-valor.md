@@ -110,3 +110,33 @@ todas as obrigações conferem, e falhas conservam pendência recuperável sem
 exigir nova edição do B/L. O botão de retry repete a operação automática e não
 permite digitar valores. Esses contratos são pré-requisitos locais da integração
 Itaú futura, não a implementação da API bancária.
+
+## Regra de CNPJ definida em 2026-10-04
+
+Quando o Cliente/CNPJ do B/L muda após recebimento verdadeiro, deve-se devolver
+o dinheiro ao Cliente original e emitir cobrança para o novo Cliente. O usuário
+definiu essa regra na revisão financeira. O recebimento anterior não deve ser
+cancelado como se fosse falso nem transferido para o novo Cliente.
+
+Os controles implementados conservam os documentos anteriores e aguardam a
+confirmação da devolução para emitir a nova cobrança. Falha de emissão após
+devolver conserva uma pendência recuperável. Para avulsa e Demurrage, a
+restituição excepcional deve preceder a mudança de Cliente.
+
+A implementação está validada apenas localmente; a migration 136 foi incluída
+após autorização explícita. Ver as [decisões implementadas](../archive/specs/2026-10-04-controles-financeiros-design.md)
+e o [manual financeiro](../operations/manual-financeiro.md).
+
+## Exceções controladas definidas em 2026-10-05
+
+"Ninguém digita correção" continua valendo para a correção pela base do B/L.
+O usuário aceitou duas exceções, ambas com autorização do Administrativo e
+confirmação da devolução pelo Financeiro com comprovante, favorecido e data:
+
+- **Cancelamento financeiro de um B/L** em fatura paga ou parcialmente paga:
+  a pessoa decide cancelar, mas não digita valor; a cobrança daquele B/L vai a
+  zero e o recebido vira restituição, preservando os outros B/Ls da
+  consolidada. O cancelamento operacional continua na ficha do B/L.
+- **Restituição excepcional de avulsa e Demurrage**, que não têm base de B/L
+  para recalcular: o Administrativo informa valor e justificativa, limitados
+  ao recebido ainda não reservado para devolução.

@@ -82,6 +82,15 @@ export type InvoiceListRow = Pick<
   payments?: Array<{ paid_at: string | null }> | null
 }
 export type InvoiceDetail = {
+  financial_summary?: {
+    gross_received_brl: number
+    offset_brl: number
+    refunded_brl: number
+    pending_refund_brl: number
+    net_received_brl: number
+    paid_at: string | null
+    covered_by_invoice_number?: string | null
+  }
   invoice: (InvoiceSummary & {
     customer_name?: string | null
     customer_cnpj_cpf?: string | null
@@ -615,6 +624,7 @@ type ConsolidatedCharge = Omit<ConsolidatedBreakdown, 'bl_id' | 'charge_calculat
 
 function createInvoiceDetail(payload: InvoiceDetailPayload): InvoiceDetail {
   return {
+    financial_summary: payload.financial_summary,
     invoice: payload.invoice ?? null,
     bls: payload.bls ?? [],
     items: payload.items ?? [],
@@ -977,7 +987,19 @@ export async function registerInvoicePayment(input: {
   paidAt?: string | null
   notes?: string | null
   actorId?: string | null
+  requestId?: string
+  bankReference?: string
 }) {
+  if (input.bankReference !== undefined) {
+    const rpc = supabase as unknown as { rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }> }
+    const { data, error } = await rpc.rpc('register_verified_invoice_payment', {
+      p_invoice_id: input.invoiceId, p_amount_brl: input.amountBrl, p_method: input.paymentMethod,
+      p_paid_at: input.paidAt ?? null, p_notes: input.notes?.trim() || null,
+      p_request_id: input.requestId ?? crypto.randomUUID(), p_bank_reference: input.bankReference.trim(),
+    })
+    if (error) throw error
+    return (data ?? {}) as Json
+  }
   const { data, error } = await supabase.rpc('register_invoice_payment', {
     p_invoice_id: input.invoiceId,
     p_amount_brl: input.amountBrl,

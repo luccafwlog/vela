@@ -163,7 +163,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
 
   const isManual = invoice.invoice_type === 'manual'
   const isConsolidated = bls.length >= 2
-  const paymentDate = [...(detail.payments ?? [])]
+  const paymentDate = detail.financial_summary?.paid_at ?? [...(detail.payments ?? [])]
     .map((payment) => payment.paid_at)
     .filter((value): value is string => Boolean(value))
     .sort()
@@ -335,9 +335,17 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                 )
               })()}
           <tr style={dataTotalRow} data-testid="invoice-totals" className="invoice-document__totals">
-            <td colSpan={3} style={dataTotalCell}>TOTAL:</td>
+            <td colSpan={3} style={dataTotalCell}>{type === 'receipt' ? 'Total da fatura emitida:' : 'TOTAL:'}</td>
             <td style={dataTotalCell}>{fmtBRL(invoice.total_brl)}</td>
           </tr>
+          {type === 'receipt' ? <>
+            <tr><td colSpan={3} style={cell}>Valor recebido:</td><td style={cell}>{fmtBRL(detail.financial_summary?.gross_received_brl ?? invoice.total_paid_brl ?? 0)}</td></tr>
+            <tr><td colSpan={3} style={cell}>Abatido do saldo:</td><td style={cell}>{fmtBRL(detail.financial_summary?.offset_brl ?? Math.max(Number(invoice.total_brl ?? 0) - Number(invoice.total_paid_brl ?? 0) - Number(invoice.balance_brl ?? 0), 0))}</td></tr>
+            <tr><td colSpan={3} style={cell}>Devolvido ao Cliente:</td><td style={cell}>{fmtBRL(detail.financial_summary?.refunded_brl ?? 0)}</td></tr>
+            <tr><td colSpan={3} style={cell}>Restituição pendente:</td><td style={cell}>{fmtBRL(detail.financial_summary?.pending_refund_brl ?? 0)}</td></tr>
+            <tr style={dataTotalRow}><td colSpan={3} style={dataTotalCell}>Valor líquido recebido:</td><td style={dataTotalCell}>{fmtBRL(detail.financial_summary?.net_received_brl ?? invoice.total_paid_brl ?? 0)}</td></tr>
+            {detail.financial_summary?.covered_by_invoice_number ? <tr><td colSpan={4} style={cell}>Quitação pela fatura consolidada {detail.financial_summary.covered_by_invoice_number}. Valores atribuídos aos B/Ls deste documento.</td></tr> : null}
+          </> : null}
           {type === 'receipt' && paymentDate ? (
             <tr>
               <td colSpan={4} style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>Pago em {formatDate(paymentDate)}</td>

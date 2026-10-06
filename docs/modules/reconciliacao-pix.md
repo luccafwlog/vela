@@ -4,6 +4,9 @@
 
 ## Propósito e escopo
 
+Procedimentos para linhas ambíguas, QR antigo, cancelamento de baixa e
+restituição estão no [manual financeiro](../operations/manual-financeiro.md).
+
 Reconciliação PIX recebe a planilha bancária, extrai transações, casa TXIDs com
 documentos locais ou de Demurrage, separa resultados seguros de ambiguidades,
 confirma o lote, apresenta histórico/exportação e permite cancelar baixas.
@@ -15,7 +18,7 @@ confirma o lote, apresenta histórico/exportação e permite cancelar baixas.
   exportação e chamadas de estorno.
 - Taxas locais são liquidadas pelo ledger descrito em
   [Faturamento](faturamento.md); Demurrage é atualizado em persistência própria.
-- A capacidade visual `reconciliacao_edit` existe em `src/hooks/useAuth.tsx`;
+- O gate visual usa `isAdmin` em `src/pages/Reconciliacao.tsx`;
   as RPCs críticas também exigem sessão ativa/admin. A tela bloqueia o acesso
   para os demais perfis antes do upload ou matching; nenhuma pendência PIX
   fica apenas em memória do browser.
@@ -31,7 +34,7 @@ extrato...” e limpa o resultado anterior antes de processar outro arquivo.
 
 `parsePixExtractFile` valida tamanho antes de `arrayBuffer()`. O parser procura
 a linha que contém a coluna `identificador`, exige `valor pago`, tenta localizar
-CPF/CNPJ e `pago em`, ignora TXID vazio e valor não positivo e normaliza a data
+CPF/CNPJ e `pago em`, preserva TXID vazio para revisão, ignora valor não positivo e normaliza a data
 para `YYYY-MM-DD`.
 
 ### Revisão do resultado
@@ -136,13 +139,13 @@ flowchart TD
     Upload["Upload workbook"] --> Parse["parsePixExtractFile"]
     Parse --> Match["matchUnifiedPixTransactions"]
     Match --> Missing{"TXID tem candidato?"}
-    Missing -->|não| Omitted["Omitido do resultado"]
+    Missing -->|não| Omitted["Sem candidata / pendência persistida"]
     Missing -->|sim| Amb{"Documento único, TXID não repetido<br/>e valor compatível?"}
     Amb -->|não| Review["Ambíguo / ignorado"]
     Amb -->|sim| Submit["confirm_unified_pix_matches"]
     Submit --> Source{"source"}
     Source -->|local| Ledger["reconcile_invoice_payment_by_txid<br/>→ ledger"]
-    Source -->|demurrage| Direct["confirm_demurrage_pix_matches<br/>→ update direto"]
+    Source -->|demurrage| Direct["confirm_demurrage_pix_matches<br/>→ register_demurrage_payment"]
     Ledger --> History["Histórico / detalhe / estorno"]
     Direct --> History
 ```
@@ -154,8 +157,9 @@ flowchart TD
   matching no banco e exige uma única invoice; para Demurrage, valida ID e
   valor, mas não reexecuta a política de unicidade cruzada entre domínios.
 - Local valida o valor exato da versão do QR. A baixa aloca até o saldo atual;
-  excedente de cobrança histórica gera restituição, sem mudar o total emitido. Demurrage compara o valor ao `current_total_brl` com
-  tolerância de `0,01`.
+  excedente de cobrança histórica gera restituição, sem mudar o total emitido.
+  Demurrage valida a janela das duas fotos elegíveis à data de pagamento, com
+  tolerância de `0,01`; não compara somente o total corrente.
 - Um TXID repetido no mesmo extrato é marcado ambíguo a partir da segunda linha.
 - Quando o mesmo TXID existe em documento local e Demurrage, o mapa contém dois
   candidatos e a UI marca o match como ambíguo.
@@ -164,9 +168,9 @@ flowchart TD
 - Invoice local ledger cria `payments` e settlements por recebível. Fatura
   avulsa cria `payments` pelo ramo genérico e não afeta B/L/ledger. Demurrage não cria
   `payments` nem ledger; marca diretamente o documento como pago.
-- Estorno local remove o payment, restaura saldos/links e, por cascade, remove
-  refund ligado ao pagamento. Estorno de Demurrage apenas reabre o documento e
-  registra auditoria.
+- Cancelar baixa local remove o payment e restaura saldos/links, mas a migration
+  `130` bloqueia a ação quando retirar lastro de restituição. Não equivale a
+  devolver dinheiro. Cancelar baixa de Demurrage reabre o documento e audita.
 
 ## Testes e validação
 
@@ -200,8 +204,13 @@ Estes testes verificam texto de migrations, não um banco aplicado:
 
 ## Notas e divergências
 
-- **Unmatched é uma classificação somente de revisão.** Permanece visível na
-  página, mas não é persistida e não entra no payload de confirmação.
+- **Correções implementadas — Código/Teste local.** A baixa escolhida no detalhe pode ser antiga, com confirmação de valor/data/ID. Registro manual exige referência bancária (pode se repetir quando um PIX paga mais de uma cobrança) e tentativa estável; a conciliação PIX mantém TXID próprio. Excedente pendente de uma baixa falsa pode acompanhar sua reversão; devolução confirmada ou ajuste que depende da baixa permanece protegido. Banco implementado na migration 136: [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md).
+
+- **Pendências PIX são persistidas — Código.** `persistUnresolvedPixMatches`
+  conserva linhas sem candidata e ambíguas por importação/linha, inclusive sem
+  TXID. O Administrativo usa Tentar conciliar ou Escolher candidata; a resolução
+  exige prova de baixa autoritativa. Essas linhas não entram automaticamente no
+  lote seguro.
 - **Suspeita sem prova de falha/exploit — ambiguidade é parcialmente
   client-side.** A RPC unificada não recebe a classificação do frontend. Uma
   chamada direta ainda revalida o match local e os valores, mas não demonstra
