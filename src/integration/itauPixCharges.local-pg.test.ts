@@ -152,6 +152,9 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     psql(`SELECT public.itau_pix_claim(100)`) // em andamento no Itaú
     psql(`SET request.jwt.claim.sub = '${userId}'; UPDATE public.invoices SET status = 'cancelled' WHERE id = ${id}`)
     expect(charges(`id = ${charge.id}`)[0].status).toBe('pending_cancel')
+    // A reserva da criação em andamento continua valendo: outra execução não pega o
+    // cancelamento antes de a criação responder.
+    expect(psql(`SELECT count(*) FROM public.itau_pix_claim(100) WHERE id = ${charge.id}`)).toBe('0')
     expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'active', 0, '000201ITAUCOB-E')`)).toBe('pending_cancel')
     expect(psql(`SELECT coalesce(pix_payload, 'NULL') FROM public.invoices WHERE id = ${id}`)).toBe('NULL')
     expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'concluded')`)).toBe('concluded')
