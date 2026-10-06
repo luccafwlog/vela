@@ -126,6 +126,15 @@ describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalida�
     `)
   })
 
+  it('135 — o payload do comunicado de taxas locais lista os B/Ls do cliente sem bl_id ambíguo', () => {
+    const payload = JSON.parse(localPsql(`
+      SELECT public.customer_local_charges_communication_payload(${voyageId}, ${customerId});
+    `)) as { customer_id: number; port: string; bls: Array<{ bl_id: string; ce_mercante: string | null; total_brl: number }> }
+    expect(payload.customer_id).toBe(customerId)
+    expect(payload.port).toBe('—')
+    expect(payload.bls).toEqual(invoiceIds.map((id) => ({ bl_id: `S06-GRP-BL-${id}`, ce_mercante: null, total_brl: 0 })))
+  })
+
   it('D11 — as 12 faturas do mesmo cliente/ciclo saem juntas no 1º lote útil', () => {
     const claimed = claimAll().filter((candidate) => invoiceIds.includes(Number(candidate.invoice_id)))
     expect(claimed).toHaveLength(12)

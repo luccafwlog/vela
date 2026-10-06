@@ -39,10 +39,27 @@ receberam notas de implementação.
 Pendente para encerrar o plano:
 
 - **Fase 3, concluída em código e testes:** varredura completa de confirmações com diff antes/depois (`changes`), afetados, consequência e reversibilidade em todas as telas de escrita do Vela (B/L geral, mercadoria, cobranças, demurrage, perfis, contatos, tarifas de granito e demurrage, taxas locais, clientes, usuários/admin e programação de chegadas e saídas). Todos os testes automatizados de comportamento e confirmação passam no CI;
-- **Fase 6, backup:** Etapa 6 do plano de serviços/Cloudflare, pelo dono, com
-  um teste de restauração (os scripts e testes de segurança em `scripts/backup-r2.test.mjs` estão 100% validados);
-- Verificação interativa por papel no Preview pelo dono (Financeiro, Operações, Administrativo);
-- Depois disso: completar as notas das ADRs 0072 e 0074 e arquivar este plano.
+- **Fase 6, backup:** agendamento registrado na Etapa 6 do plano de
+  serviços/Cloudflare e tarefa Windows conferida em 2026-10-05. A execução
+  manual corrigida cifrou e enviou o backup ao R2; os cinco testes de
+  segurança de `scripts/backup-r2.test.mjs` passaram localmente;
+- **Fase 6, backup — execução e restauração:** em 2026-10-05 o backup de
+  produção foi cifrado, validado com `pg_restore --list` e enviado ao prefixo
+  privado do R2. O dump foi restaurado no banco local descartável
+  `vela_restore_20261005`, recuperando 26 viagens, 33.921 eventos de auditoria
+  e 2 clientes. O restore local usou PostgreSQL 16; `transaction_timeout` e a
+  criação do schema `public` foram removidos por incompatibilidade de versão.
+  As FKs de `auth.users` não fazem parte desta validação porque Auth é schema
+  gerenciado e não entra no dump `public`;
+- Verificação interativa por papel (Financeiro, Operações, Administrativo).
+  Em 2026-10-05 o dono autorizou usar produção em lugar do Preview. As três
+  sessões foram conferidas em produção: Administrativo (Lucca Juliatti),
+  Operações (Albérico Blanes) e Financeiro (Thuani Petri). Em Operações,
+  Administração não aparece; em Financeiro aparecem apenas Taxas Locais,
+  Demurrage e Conciliação PIX no grupo Financeiro. Em Operações e Financeiro,
+  a edição de perfil exibiu diff, consequência, reversibilidade e Voltar; as
+  duas alterações foram canceladas;
+- Depois disso: arquivar este plano.
 
 Desvios registrados durante a execução (detalhes em cada PR): sem trigger de
 recusa nas tabelas fiscais (padrão de grant, Fase 1); prévia de exclusão
@@ -53,11 +70,11 @@ já existia no modal (Fase 4a); unicidade do CE não é imposta pelo banco (Fase
 desvinculam ao excluir a viagem, seguindo a FK SET NULL (Fase 4a, revisão).
 
 Implementa as decisões das
-[ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md),
-[ADR 0072](../adr/0072-toda-escrita-confirmada-com-consequencia.md),
-[ADR 0073](../adr/0073-cadastro-usado-so-se-desativa.md) e
-[ADR 0074](../adr/0074-usuarios-retencao-e-backup-diario.md), tomadas na
-revisão da [auditoria de exclusão](../archive/audits/2026-09-24-revisao-exclusao-de-dados.md)
+[ADR 0071](../../adr/0071-ce-mercante-como-trava-de-exclusao.md),
+[ADR 0072](../../adr/0072-toda-escrita-confirmada-com-consequencia.md),
+[ADR 0073](../../adr/0073-cadastro-usado-so-se-desativa.md) e
+[ADR 0074](../../adr/0074-usuarios-retencao-e-backup-diario.md), tomadas na
+revisão da [auditoria de exclusão](../audits/2026-09-24-revisao-exclusao-de-dados.md)
 (PR luccafwlog/vela#757). O vocabulário está em `CONTEXT.md`, seção "Ações
 sobre registros".
 
@@ -241,9 +258,10 @@ Visível: nenhum papel "admin" nas telas de usuários; nada muda no dia a dia.
 ## Decisões pendentes
 
 - **Fase 6, backup:** o agendamento diário é a Etapa 6 do
-  [plano executado de serviços e Cloudflare](../archive/plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md),
-  executada pelo dono no painel; esta fase só confirma que ela foi concluída
-  e que uma restauração foi testada.
+  [plano executado de serviços e Cloudflare](../plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md),
+  executada e registrada em 2026-09-24. A execução recente e a restauração
+  foram comprovadas em 2026-10-05; a limitação das FKs de Auth está registrada
+  acima.
 - ~~Fase 6, anonimização em `audit_logs`~~: decidido não anonimizar
   (2026-09-25).
 - Nenhuma outra decisão de produto bloqueia as fases 1 a 5.

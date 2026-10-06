@@ -14,7 +14,7 @@ Status: aceito — 2026-09-24. Implementado em 2026-09-25 (ver nota).
 > Desvios aceitos: a unicidade CE × B/L não é imposta pelo banco (item 9);
 > manifestos de Granito e de vazios só se desvinculam da viagem excluída,
 > seguindo a FK SET NULL. Pendente: verificação por papel no Preview; ver o
-> [plano da política de exclusão](../plans/2026-09-24-politica-de-exclusao.md).
+> [plano da política de exclusão](../archive/plans/2026-09-24-politica-de-exclusao.md).
 
 Supersede parcialmente a
 [ADR 0009](./0009-hard-delete-controlado-bloqueios-fiscais-auditoria.md) quanto

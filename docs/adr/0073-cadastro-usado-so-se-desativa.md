@@ -12,7 +12,7 @@ Status: aceito — 2026-09-24. Implementado em 2026-09-25 (ver nota).
 > desativado vai para a Revisão. Desvio aceito: tarifa e acordo de Demurrage
 > contam como usados quando já estão em vigor, porque o cálculo não guarda o
 > id da tarifa. Pendente: verificação por papel no Preview; ver o
-> [plano da política de exclusão](../plans/2026-09-24-politica-de-exclusao.md).
+> [plano da política de exclusão](../archive/plans/2026-09-24-politica-de-exclusao.md).
 
 Complementa a [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md), que
 trata dos dados de viagem, para os cadastros que a operação usa como
