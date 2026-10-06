@@ -1,6 +1,6 @@
 -- Central de Informações: Vela é a fonte oficial do Portal.
 -- Novos complementos não alteram depots.port_id nem tabelas de faturamento.
--- Reversão operacional: despublicar informações e retirar indicações pela RPC.
+-- Reversão operacional: despublicar as informações pela RPC.
 -- Não há alteração de snapshots ou dados financeiros existentes.
 
 CREATE TABLE public.depot_portal_information (
@@ -33,24 +33,17 @@ CREATE TABLE public.carrier_portal_information (
 CREATE TABLE public.portal_information_settings (
   id integer PRIMARY KEY CHECK (id = 1), demurrage_notes text NOT NULL DEFAULT ''
 );
-CREATE TABLE public.container_return_instructions (
-  container_id bigint PRIMARY KEY REFERENCES public.bl_containers(id) ON DELETE CASCADE,
-  depot_ids uuid[] NOT NULL CHECK (cardinality(depot_ids) > 0),
-  reason text NOT NULL CHECK (btrim(reason) <> ''),
-  updated_at timestamptz NOT NULL DEFAULT now(), updated_by uuid NOT NULL REFERENCES auth.users(id)
-);
 
 ALTER TABLE public.depot_portal_information ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.port_agents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.portal_information_contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.carrier_portal_information ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.portal_information_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.container_return_instructions ENABLE ROW LEVEL SECURITY;
 
 DO $$
 DECLARE t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['depot_portal_information','port_agents','portal_information_contacts','carrier_portal_information','portal_information_settings','container_return_instructions'] LOOP
+  FOREACH t IN ARRAY ARRAY['depot_portal_information','port_agents','portal_information_contacts','carrier_portal_information','portal_information_settings'] LOOP
     EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC, anon, authenticated', t);
     EXECUTE format('GRANT SELECT ON public.%I TO authenticated', t);
     EXECUTE format('GRANT ALL ON public.%I TO service_role', t);
@@ -163,90 +156,14 @@ BEGIN
   VALUES('portal_information_'||p_kind,v_key,'information',v_before::text,p_data::text,auth.uid(),'Atualização das informações do Portal no Vela');
 END $$;
 
-CREATE FUNCTION public._container_return_guidance_core(p_container_id bigint) RETURNS jsonb
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO public, pg_temp AS $$
-DECLARE c record; v_instruction record; v_depots jsonb; v_status text; v_catalog jsonb;
-BEGIN
-  SELECT bc.id,bc.container_number,bc.return_date,bc.ownership,bc.bl_id,b.pod,b.voyage_id INTO c
-    FROM public.bl_containers bc JOIN public.bls b ON b.id=bc.bl_id WHERE bc.id=p_container_id;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Container não disponível para consulta.' USING ERRCODE='42501'; END IF;
-  SELECT i.* INTO v_instruction FROM public.container_return_instructions i
-    JOIN public.bl_containers linked ON linked.id=i.container_id JOIN public.bls b ON b.id=linked.bl_id
-    WHERE linked.id=p_container_id OR (c.voyage_id IS NOT NULL AND b.voyage_id=c.voyage_id AND linked.container_number=c.container_number)
-    ORDER BY (linked.id=p_container_id) DESC,i.updated_at DESC LIMIT 1;
-  v_status:=CASE WHEN upper(COALESCE(c.ownership,''))='SOC' THEN 'soc' WHEN v_instruction.container_id IS NOT NULL THEN 'specific' ELSE 'general' END;
-  v_catalog:=public._portal_information_core(false);
-  SELECT COALESCE(jsonb_agg(d ORDER BY d->>'code'),'[]'::jsonb) INTO v_depots
-    FROM jsonb_array_elements(v_catalog->'depots') d
-    WHERE v_status<>'soc' AND (d->'ports') ? public.normalize_port_code(c.pod)
-      AND (v_status='general' OR (d->>'id')::uuid=ANY(v_instruction.depot_ids));
-  IF v_status='specific' AND jsonb_array_length(v_depots)=0 THEN v_status:='unavailable'; END IF;
-  RETURN jsonb_build_object('container_id',c.id,'container_number',c.container_number,'bl_id',c.bl_id,'pod',public.normalize_port_code(c.pod),'return_date',c.return_date,'status',v_status,'depots',v_depots,'updated_at',v_instruction.updated_at);
-END $$;
-CREATE FUNCTION public.portal_get_return_guidance(p_container_id bigint) RETURNS jsonb
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO public, pg_temp AS $$
-DECLARE v_customer bigint:=public.current_portal_customer_id();
-BEGIN
-  IF NOT EXISTS(SELECT 1 FROM public.bl_containers c JOIN public.bls b ON b.id=c.bl_id WHERE c.id=p_container_id AND b.customer_id=v_customer AND public.bl_has_portal_release(b.id)) THEN
-    RAISE EXCEPTION 'Container não disponível para consulta.' USING ERRCODE='42501';
-  END IF;
-  RETURN public._container_return_guidance_core(p_container_id);
-END $$;
-CREATE FUNCTION public.portal_inspect_get_return_guidance(p_customer_id bigint,p_container_id bigint) RETURNS jsonb
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO public, pg_temp AS $$
-DECLARE v_customer bigint:=public._portal_inspect_guard(p_customer_id);
-BEGIN
-  IF NOT EXISTS(SELECT 1 FROM public.bl_containers c JOIN public.bls b ON b.id=c.bl_id WHERE c.id=p_container_id AND b.customer_id=v_customer AND public.bl_has_portal_release(b.id)) THEN
-    RAISE EXCEPTION 'Container não disponível para consulta.' USING ERRCODE='42501';
-  END IF;
-  RETURN public._container_return_guidance_core(p_container_id);
-END $$;
-CREATE FUNCTION public.internal_get_return_guidance(p_container_id bigint) RETURNS jsonb
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO public, pg_temp AS $$
-BEGIN
-  IF NOT public.is_active_read_user() THEN RAISE EXCEPTION 'Sem permissão.' USING ERRCODE='42501'; END IF;
-  RETURN public._container_return_guidance_core(p_container_id) || jsonb_build_object('reason',COALESCE((SELECT reason FROM public.container_return_instructions WHERE container_id=p_container_id),''));
-END $$;
-CREATE FUNCTION public.set_container_return_instruction(p_container_id bigint,p_depot_ids uuid[],p_reason text) RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER SET search_path TO public, pg_temp AS $$
-DECLARE c record; v_ids uuid[]; v_target record; v_before jsonb;
-BEGIN
-  IF NOT public.is_active_read_user() OR public._portal_actor_role() NOT IN ('administrativo','equipamentos') THEN RAISE EXCEPTION 'Sem permissão para indicar devolução.' USING ERRCODE='42501'; END IF;
-  IF NULLIF(btrim(p_reason),'') IS NULL THEN RAISE EXCEPTION 'Informe a justificativa da alteração.' USING ERRCODE='22023'; END IF;
-  SELECT bc.id,bc.container_number,bc.ownership,bc.bl_id,b.pod,b.voyage_id INTO c FROM public.bl_containers bc JOIN public.bls b ON b.id=bc.bl_id WHERE bc.id=p_container_id;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Container inexistente.' USING ERRCODE='22023'; END IF;
-  -- Uma unidade física compartilhada entre BLs da mesma viagem tem uma orientação.
-  PERFORM pg_advisory_xact_lock(hashtextextended(COALESCE(c.voyage_id::text,c.bl_id)||':'||c.container_number,0));
-  SELECT COALESCE(array_agg(DISTINCT id),'{}'::uuid[]) INTO v_ids FROM unnest(COALESCE(p_depot_ids,'{}'::uuid[])) id;
-  IF cardinality(v_ids)>0 AND upper(COALESCE(c.ownership,''))='SOC' THEN RAISE EXCEPTION 'Container SOC não exige devolução.' USING ERRCODE='22023'; END IF;
-  IF EXISTS(SELECT 1 FROM unnest(v_ids) AS selected(depot_id) LEFT JOIN public.depots d ON d.id=selected.depot_id LEFT JOIN public.depot_portal_information i ON i.depot_id=d.id
-    WHERE d.id IS NULL OR NOT d.active OR d.tipo<>'depot' OR NOT COALESCE(i.published,false) OR NOT public.normalize_port_code(c.pod)=ANY(i.ports)) THEN
-    RAISE EXCEPTION 'Selecione depots ativos e publicados no porto de destino.' USING ERRCODE='22023';
-  END IF;
-  FOR v_target IN SELECT bc.id FROM public.bl_containers bc JOIN public.bls b ON b.id=bc.bl_id
-    WHERE bc.id=c.id OR (c.voyage_id IS NOT NULL AND b.voyage_id=c.voyage_id AND bc.container_number=c.container_number)
-    ORDER BY bc.id FOR UPDATE OF bc LOOP
-    SELECT to_jsonb(i) INTO v_before FROM public.container_return_instructions i WHERE container_id=v_target.id;
-    IF cardinality(v_ids)=0 THEN
-      DELETE FROM public.container_return_instructions WHERE container_id=v_target.id;
-    ELSE
-      INSERT INTO public.container_return_instructions(container_id,depot_ids,reason,updated_by) VALUES(v_target.id,v_ids,btrim(p_reason),auth.uid())
-      ON CONFLICT(container_id) DO UPDATE SET depot_ids=EXCLUDED.depot_ids,reason=EXCLUDED.reason,updated_by=EXCLUDED.updated_by,updated_at=now();
-    END IF;
-    INSERT INTO public.audit_logs(entity_type,entity_id,field_name,old_value,new_value,changed_by,justification)
-    VALUES('container_return_instruction',v_target.id::text,'depot_ids',v_before::text,to_jsonb(v_ids)::text,auth.uid(),btrim(p_reason));
-  END LOOP;
-END $$;
-
 DO $$
 DECLARE signature text;
 BEGIN
-  FOREACH signature IN ARRAY ARRAY['_portal_information_core(boolean)','_container_return_guidance_core(bigint)'] LOOP
+  FOREACH signature IN ARRAY ARRAY['_portal_information_core(boolean)'] LOOP
     EXECUTE 'REVOKE ALL ON FUNCTION public.'||signature||' FROM PUBLIC, anon, authenticated';
   END LOOP;
   FOREACH signature IN ARRAY ARRAY['portal_get_information()','portal_inspect_get_information(bigint)','internal_get_portal_information()',
-    'internal_save_portal_information(text,jsonb)','portal_get_return_guidance(bigint)','portal_inspect_get_return_guidance(bigint,bigint)',
-    'internal_get_return_guidance(bigint)','set_container_return_instruction(bigint,uuid[],text)'] LOOP
+    'internal_save_portal_information(text,jsonb)'] LOOP
     EXECUTE 'REVOKE ALL ON FUNCTION public.'||signature||' FROM PUBLIC, anon, authenticated';
     EXECUTE 'GRANT EXECUTE ON FUNCTION public.'||signature||' TO authenticated';
   END LOOP;

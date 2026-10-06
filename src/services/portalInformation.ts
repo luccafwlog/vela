@@ -19,11 +19,6 @@ export type PortalInformation = {
   demurrage_rates: InformationDemurrageRate[]; demurrage_notes: string;
   ports: { code: string; name: string }[];
 }
-export type ReturnGuidance = {
-  container_id: number; container_number: string; bl_id: string; pod: string;
-  return_date: string | null; status: 'general' | 'specific' | 'unavailable' | 'soc';
-  depots: PortalDepot[]; updated_at: string | null; reason?: string;
-}
 export type InformationKind = 'depot' | 'agent' | 'contact' | 'carrier' | 'notes'
 
 /** Links cadastrados jamais podem executar código ou carregar credenciais. */
@@ -40,11 +35,6 @@ export async function portalGetInformation(scope: PortalScope = clientPortalScop
   if (!data) throw new Error('Não foi possível consultar as informações do Portal.')
   return data
 }
-export async function portalGetReturnGuidance(containerId: number, scope: PortalScope = clientPortalScope): Promise<ReturnGuidance> {
-  const data = await callPortalRpc<ReturnGuidance>(scope, 'portal_get_return_guidance', { p_container_id: containerId })
-  if (!data) throw new Error('Não foi possível consultar a orientação de devolução.')
-  return data
-}
 
 // Os tipos gerados são protegidos; os novos contratos têm seus próprios tipos.
 async function internalInformationRpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
@@ -58,11 +48,4 @@ export function internalGetPortalInformation(): Promise<PortalInformation> {
 }
 export function internalSavePortalInformation(kind: InformationKind, data: Record<string, unknown>): Promise<void> {
   return internalInformationRpc('internal_save_portal_information', { p_kind: kind, p_data: data })
-}
-export function internalGetReturnGuidance(containerId: number): Promise<ReturnGuidance> {
-  return internalInformationRpc('internal_get_return_guidance', { p_container_id: containerId })
-}
-export function setContainerReturnInstruction(containerId: number, depotIds: string[], reason: string): Promise<void> {
-  if (!reason.trim()) return Promise.reject(new Error('Informe a justificativa da alteração.'))
-  return internalInformationRpc('set_container_return_instruction', { p_container_id: containerId, p_depot_ids: depotIds, p_reason: reason.trim() })
 }

@@ -9,7 +9,6 @@ export const PORTAL_READ_INSPECT_MAP = {
   portal_get_ce_unlock_vip_coverage: 'portal_inspect_get_ce_unlock_vip_coverage',
   portal_get_ce_unlock_model: 'portal_inspect_get_ce_unlock_model',
   portal_get_information: 'portal_inspect_get_information',
-  portal_get_return_guidance: 'portal_inspect_get_return_guidance',
   portal_list_consolidatable_receivables: 'portal_inspect_list_consolidatable_receivables',
   portal_list_invoices: 'portal_inspect_list_invoices',
   portal_list_invoices_page: 'portal_inspect_list_invoices_page',

@@ -11,66 +11,26 @@ import { InformationLinks } from '../InformationLinks'
 import { PortalScopeProvider } from '../../../../hooks/usePortalScope'
 import type { PortalScope } from '../../../../services/portalScope'
 
-const mocks = vi.hoisted(() => ({ operation: vi.fn(), guidance: vi.fn(), refetchOperation: vi.fn(), refetchGuidance: vi.fn() }))
+const mocks = vi.hoisted(() => ({ operation: vi.fn(), refetchOperation: vi.fn() }))
 vi.mock('../../../../hooks/usePortalOperation', () => ({ usePortalOperationBls: mocks.operation }))
-vi.mock('../../../../hooks/usePortalInformation', () => ({ usePortalReturnGuidance: mocks.guidance }))
 const information: PortalInformation = { depots: [], agents: [], contacts: [], carriers: [{ carrier_id: 1, name: 'Armador inseguro', tracking_url: 'javascript:alert(1)' }, { carrier_id: 2, name: 'Armador seguro', tracking_url: 'https://example.com/tracking' }], local_tables: [
   { id: 1, name: 'Salvador container', pod: 'BRSSA', cargo_mode: 'container', valid_from: '2026-01-01', valid_to: null, items: [{ id: 1, name: 'Adicional IMO', currency: 'USD', unit_value_usd: 12, unit_value_brl: null, application_basis: 'container_distinct_voyage', cargo_profile: 'imo', manual_only: true, applies_to_soc: true }] },
   { id: 2, name: 'Salvador carga solta', pod: 'BRSSA', cargo_mode: 'carga_solta', valid_from: '2026-01-01', valid_to: null, items: [] },
   { id: 3, name: 'Vitória container', pod: 'BRVIX', cargo_mode: 'container', valid_from: '2026-01-01', valid_to: null, items: [] },
 ], demurrage_rates: [], demurrage_notes: '', ports: [] }
 const operationRows = [{ bl_id: 'BL1', pod: 'BRSSA', tracking_url: 'javascript:alert(1)', carrier_id: 1, carrier_name: 'Armador inseguro', containers: [{ id: 10, container_number: 'ABCD1234567' }] }]
-beforeEach(() => { mocks.operation.mockReturnValue({ data: operationRows, isLoading: false, error: null }); mocks.guidance.mockReturnValue({ data: null, isLoading: false, error: null }) })
+beforeEach(() => { mocks.operation.mockReturnValue({ data: operationRows, isLoading: false, error: null }) })
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 describe('Central de Informações', () => {
   it('normaliza alias de porto em atalhos e unidades operacionais', () => {
     mocks.operation.mockReturnValue({ data: [{ ...operationRows[0], pod: 'BRVIT' }], isLoading: false, error: null })
-    render(<MemoryRouter initialEntries={['/?containerId=10']}><InformationLinks sections={['devolucao']} pod="VIX" /><ReturnSection information={information} pod="BRVIX" /></MemoryRouter>)
-    expect(screen.getByRole('link', { name: 'Onde devolver' }).getAttribute('href')).toBe('/portal/informacoes/devolucao?pod=BRVIX')
-    expect(mocks.guidance).toHaveBeenLastCalledWith(10)
+    render(<MemoryRouter initialEntries={['/']}><InformationLinks sections={['devolucao']} pod="VIX" /><ReturnSection information={information} pod="BRVIX" /></MemoryRouter>)
+    expect(screen.getByRole('link', { name: 'Depósitos de devolução' }).getAttribute('href')).toBe('/portal/informacoes/devolucao?pod=BRVIX')
   })
 
   it.each([['BRNVT', 'BRITJ'], ['BRREC', 'BRSUA'], ['SSA', 'BRSSA']])('normaliza o alias %s para %s nos atalhos', (alias, canonical) => {
     render(<MemoryRouter><InformationLinks sections={['devolucao']} pod={alias} /></MemoryRouter>)
-    expect(screen.getByRole('link', { name: 'Onde devolver' }).getAttribute('href')).toBe(`/portal/informacoes/devolucao?pod=${canonical}`)
-  })
-  it('consulta orientação somente depois de validar container na lista visível', async () => {
-    render(<MemoryRouter initialEntries={['/informacoes/devolucao?containerId=999']}><ReturnSection information={information} pod="BRSSA" /></MemoryRouter>)
-    expect(mocks.guidance).toHaveBeenLastCalledWith(null)
-    expect(screen.getByRole('alert').textContent).toContain('indisponível na sua operação')
-    await userEvent.selectOptions(screen.getByLabelText('Container da operação'), '10')
-    expect(mocks.guidance).toHaveBeenLastCalledWith(10)
-  })
-  it('não libera consulta de container quando a operação falha', () => {
-    mocks.operation.mockReturnValue({ error: new Error('network'), isLoading: false })
-    render(<MemoryRouter initialEntries={['/?containerId=10']}><ReturnSection information={information} pod="" /></MemoryRouter>)
-    expect(mocks.guidance).toHaveBeenLastCalledWith(null)
-    expect(screen.queryByRole('combobox')).toBeNull()
-    expect(screen.getByRole('alert').textContent).toContain('Falha ao consultar')
-  })
-  it('mostra o contexto de B/L do atalho e permite consultar as demais unidades', async () => {
-    mocks.operation.mockReturnValue({ data: [...operationRows, { ...operationRows[0], bl_id: 'BL2', containers: [{ id: 20, container_number: 'UNIT2' }] }], isLoading: false, error: null })
-    render(<MemoryRouter initialEntries={['/?bl=BL1&containerId=10']}><ReturnSection information={information} pod="" /></MemoryRouter>)
-    expect(screen.getByText('Consulta limitada ao B/L BL1.')).toBeTruthy()
-    await userEvent.click(screen.getByRole('button', { name: 'Consultar todos os B/Ls' }))
-    expect(screen.getByRole('option', { name: 'UNIT2 · B/L BL2' })).toBeTruthy()
-    expect(screen.queryByText('Consulta limitada ao B/L BL1.')).toBeNull()
-  })
-  it('oculta orientação anterior se a atualização da operação falhar e permite repetir', async () => {
-    mocks.operation.mockReturnValue({ data: operationRows, error: new Error('network'), isLoading: false, refetch: mocks.refetchOperation })
-    mocks.guidance.mockReturnValue({ data: { status: 'specific', container_number: 'ABCD1234567', bl_id: 'BL1', pod: 'BRSSA', depots: [] }, isLoading: false, error: null })
-    render(<MemoryRouter initialEntries={['/?containerId=10']}><ReturnSection information={information} pod="" /></MemoryRouter>)
-    expect(screen.queryByText('Devolva somente em um dos depots indicados abaixo.')).toBeNull()
-    expect(screen.queryByRole('combobox')).toBeNull()
-    await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
-    expect(mocks.refetchOperation).toHaveBeenCalledOnce()
-  })
-  it('oculta orientação anterior se sua atualização falhar e permite repetir', async () => {
-    mocks.guidance.mockReturnValue({ data: { status: 'specific', depots: [] }, isLoading: false, error: new Error('network'), refetch: mocks.refetchGuidance })
-    render(<MemoryRouter initialEntries={['/?containerId=10']}><ReturnSection information={information} pod="" /></MemoryRouter>)
-    expect(screen.queryByText('Devolva somente em um dos depots indicados abaixo.')).toBeNull()
-    await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
-    expect(mocks.refetchGuidance).toHaveBeenCalledOnce()
+    expect(screen.getByRole('link', { name: 'Depósitos de devolução' }).getAttribute('href')).toBe(`/portal/informacoes/devolucao?pod=${canonical}`)
   })
   it('usa somente o tracking vigente do catálogo para o armador do B/L', () => {
     mocks.operation.mockReturnValue({ data: [{ ...operationRows[0], carrier_id: 2, tracking_url: 'https://old.example.com' }], isLoading: false, error: null })
@@ -108,12 +68,6 @@ describe('Central de Informações', () => {
     expect(screen.getByText('MIX · BRVIX')).toBeTruthy()
     expect(screen.queryByText(/BRSSZ/)).toBeNull()
   })
-  it('exclui containers e depots de portos não atendidos mesmo sem filtro', () => {
-    mocks.operation.mockReturnValue({ data: [{ ...operationRows[0], pod: 'BRSSZ' }], isLoading: false, error: null })
-    render(<MemoryRouter initialEntries={['/?containerId=10']}><ReturnSection information={information} pod="" /></MemoryRouter>)
-    expect(mocks.guidance).toHaveBeenLastCalledWith(null)
-    expect(screen.queryByRole('option', { name: /ABCD1234567/ })).toBeNull()
-  })
   it('filtra tabela por porto e modalidade e mostra preço oficial IMO', async () => {
     render(<LocalFeesSection information={information} pod="BRSSA" />)
     expect(screen.queryByText('Vitória container')).toBeNull()
@@ -145,6 +99,6 @@ describe('Central de Informações', () => {
   it('preserva contexto e prefixo do Modo Inspeção nos atalhos', () => {
     const scope: PortalScope = { mode: 'inspect', customerId: 10, basePath: '/clientes/portal/inspecao/10', overview: null }
     render(<MemoryRouter><PortalScopeProvider scope={scope}><InformationLinks sections={['devolucao']} pod="BRSSA" bl="BL1" containerId={10} /></PortalScopeProvider></MemoryRouter>)
-    expect(screen.getByRole('link', { name: 'Onde devolver' }).getAttribute('href')).toBe('/clientes/portal/inspecao/10/informacoes/devolucao?pod=BRSSA&bl=BL1&containerId=10')
+    expect(screen.getByRole('link', { name: 'Depósitos de devolução' }).getAttribute('href')).toBe('/clientes/portal/inspecao/10/informacoes/devolucao?pod=BRSSA&bl=BL1&containerId=10')
   })
 })

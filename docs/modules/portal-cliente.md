@@ -325,8 +325,8 @@ containers selecionáveis. Agentes por porto mantém os demais portos. Taxas
 Locais não exibe o badge “Aplicação manual” nem o texto “Inclui SOC”; as
 regras de cobrança permanecem nos cadastros oficiais.
 
-Na Operação, “Onde devolver” aparece na coluna Devolução, com ícone e texto
-sem quebra de linha, separado do número do container. A administração de
+Na Operação, o link “Depósitos de devolução” aparece no nível do B/L, direcionando
+à seção de devolução com o porto de descarga (POD) já selecionado. A administração de
 Depots não exibe o card explicativo com a lista de portos do cadastro.
 
 O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
@@ -340,30 +340,13 @@ a URL completa fica no editor do armador.
 Links externos admitem apenas HTTP/HTTPS sem credenciais; o tracking permite
 copiar o B/L e abrir o armador.
 
-**Devolução:** normalmente o cliente escolhe entre os depots ativos publicados
-no porto de destino. A ação Devolução na aba Carga do B/L permite selecionar
-um ou mais depots e registrar uma justificativa. Essa orientação se aplica à
-mesma unidade física em todos os B/Ls da viagem, inclusive vínculos criados
-depois. Retirar a indicação requer justificativa e restaura a regra geral.
-Se todos os indicados ficarem indisponíveis, o Portal pede orientação à equipe
-de Containers e não oferece alternativas da regra geral. SOC não exige devolução.
-As RPCs do cliente verificam vínculo e liberação por CE; não retornam justificativa
-interna. As novas tabelas não concedem escrita direta ao cliente.
-
-A migration `138_portal_information_review_fixes.sql` torna
-`container_return_instruction_groups` a fonte da indicação por viagem e número
-do container. Alterar viagem ou número não transfere a indicação anterior;
-vínculos tardios e a remoção de registros de B/L não a apagam para a unidade
-física remanescente. A retirada limpa a indicação do grupo. A tabela inicial
-por registro permanece histórica. A exclusão permitida de uma viagem inclui
-as indicações no catálogo explícito de filhos; as travas por CE continuam.
-
-Indicar exige POD conhecido e unidades compartilhadas com o mesmo POD e sem
-SOC. O setter serializa a unidade e trava os B/Ls/containers em ordem; depois
-confere novamente a identidade para impedir uma edição baseada no contexto
-anterior. A leitura de devolução consulta somente depots e indicação, sem
-agregar contatos ou tabelas financeiras. A justificativa interna usa a mesma
-indicação física, inclusive para vínculos criados depois.
+**Devolução:** regra fluida por porto de descarga atendido. Não há escolha de
+depósito por container ou subplanilha. Os containers de um porto de descarga
+podem ser devolvidos em qualquer depósito disponível publicado daquele porto.
+A seção de Devolução apresenta os depósitos ativos e publicados agrupados por
+porto ou filtrados pelo POD informado. Informações de endereço, horários,
+instruções, restrições e link de agendamento são mantidas pelo Vela. As novas
+tabelas não concedem escrita direta ao cliente.
 
 A seleção das tarifas gerais usa a mesma normalização dos tipos equivalentes
 nos containers e nas linhas de tarifa; escolhe a mais recente da família
