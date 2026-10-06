@@ -184,6 +184,6 @@ DECLARE n integer; BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.ce_unlock_expire_drafts() FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.ce_unlock_expire_drafts() TO service_role;
--- O papel das migrations no Supabase não altera cron.job diretamente; alter_job desativa o job que ele mesmo criou.
-SELECT cron.alter_job(cron.schedule('ce-unlock-cleanup','0 6 * * *',$job$SELECT ops.dispatch_edge_job('ce-unlock-cleanup','CE_UNLOCK_CLEANUP_SECRET','Authorization','Bearer ');$job$), active := false);
+-- O job ce-unlock-cleanup não é criado aqui: desativá-lo exigiria UPDATE em cron.job, que o papel
+-- das migrations do Supabase não tem (42501). Agendar é passo operacional (docs/operations/segredos-cron.md).
 COMMIT;

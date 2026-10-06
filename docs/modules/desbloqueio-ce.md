@@ -91,8 +91,9 @@ O modelo atual e anuais vigentes não são expurgados por mera idade.
 
 Expurgo usa Storage API: uploads abandonados após 1 dia, rascunhos após 7 dias,
 registros documentais inativos após 5 anos, preservando metadados e histórico.
-Não excluir anuais só por não terem pedido. Job `ce-unlock-cleanup` nasce
-inativo; configurar seu segredo no Vault/Edge Functions antes de ativar.
+Não excluir anuais só por não terem pedido. Job `ce-unlock-cleanup` não é
+criado pela migration; configurar seu segredo no Vault/Edge Functions e então
+agendá-lo como passo operacional ([segredos e cron](../operations/segredos-cron.md)).
 
 Evidência da execução e limitações estão no
 [relatório local](../archive/reports/2026-10-04-desbloqueio-ce-implementacao.md).
