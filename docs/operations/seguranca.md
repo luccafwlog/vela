@@ -176,9 +176,12 @@ e retenção. Código no checkout não comprova publicação destas funções/po
 `itau-pix` usa bearer dedicado `ITAU_PIX_ADMIN_SECRET`, sem JWT da plataforma,
 e falha fechado se ele ou a configuração Itaú estiverem ausentes. O
 certificado mTLS e o client_secret ficam só em secrets das Edge Functions;
-respostas e erros nunca contêm o token de acesso. As ações tocam somente
-TXIDs com prefixo `VELA` (a mesma chave Pix é usada por um sistema de
-terceiro), e a criação de teste é limitada a R$ 1,00.
+respostas e erros nunca contêm o token de acesso. As ações de diagnóstico
+consultam somente TXIDs com prefixo `VELA` (a mesma chave Pix é usada por um
+sistema de terceiro) e só alteram ou cancelam cobranças de teste (`VELAT…`,
+até R$ 1,00); a cobrança de uma fatura só muda pela própria fatura. A
+listagem de Pix recebidos devolve apenas os do Vela, sem `infoPagador`, e só
+a contagem dos demais.
 
 A evidência externa de confirmação permanece restrita ao desk também no
 histórico: motivos legados de eventos `confirm` são omitidos no Portal e nas
