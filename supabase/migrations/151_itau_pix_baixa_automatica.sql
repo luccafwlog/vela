@@ -54,7 +54,8 @@ BEGIN
     IF nullif(btrim(p_pix_copia_e_cola), '') IS NULL OR p_revision IS NULL THEN
       RAISE EXCEPTION 'Cobrança ativa exige copia e cola e revisão.' USING ERRCODE = '22023';
     END IF;
-    UPDATE public.itau_pix_charges SET revision = p_revision, pix_copia_e_cola = p_pix_copia_e_cola,
+    -- A chamada terminou: libera a reserva para um cancelamento ou alteração pendente seguir já.
+    UPDATE public.itau_pix_charges SET revision = p_revision, pix_copia_e_cola = p_pix_copia_e_cola, next_attempt_at = now(),
       uncertain = false, last_error = NULL, updated_at = now(),
       status = CASE WHEN status = 'pending_create' THEN 'active' ELSE status END
     WHERE id = p_id RETURNING * INTO v;
