@@ -1,7 +1,8 @@
 # Integração Itaú Pix — QR dinâmico e baixa automática
 
-**Estado:** plano aprovado para execução em 2026-10-06; Fase 0 (certificado)
-depende do dono e tem prazo até **13/10/2026 08:44**.
+**Estado:** plano aprovado para execução em 2026-10-06. Fase 0 (certificado)
+aguardando a credencial dedicada pedida ao Itaú em 06/10 (ver "Quando o Itaú
+responder"); Fase 1 em andamento.
 **Substitui:** a PR 827 (`codex/itau-pix-simulation`) como caminho de entrega.
 Os planos daquela branch nunca chegaram à `main`; o que vale deles está
 incorporado aqui.
@@ -117,7 +118,25 @@ dele. Consequências:
 Cada fase fecha com evidência rotulada (Código / Teste / Runtime) e fica em
 PR própria quando tocar código.
 
-### Fase 0 — Certificado e segredos (dono, até 13/10 08:44)
+### Quando o Itaú responder
+
+O dono só precisa avisar "o Itaú respondeu" e indicar o `.eml`. O resto é
+conduzido pelo agente:
+
+1. Extrair corpo e anexos do `.eml` numa pasta temporária e ler a resposta.
+   Conferir se veio CLIENT ID novo, comparando por hash com
+   `C:\Users\Lucca\.itau\IT-000245617\2026-10-06\client_id.txt`. Se o Itaú
+   pedir outra coisa (revogação, formulário), mostrar ao dono antes de agir.
+2. `bash C:\Users\Lucca\.itau\fase0.sh 0-nova <planilha.xlsx>`: cria
+   `C:\Users\Lucca\.itau\IT-000245617\<data>` e copia a planilha e o roteiro.
+   O roteiro aceita cabeçalho `CLIENT ID` ou `CREDENCIAL`.
+3. O dono roda as etapas `1-preparar` a `7-limpar` no terminal dele, uma por
+   vez; o agente lê só as saídas mascaradas. O token vale cerca de 7 dias.
+
+### Fase 0 — Certificado e segredos (dono)
+
+O roteiro `C:\Users\Lucca\.itau\fase0.sh` (fora do repositório) automatiza
+os passos abaixo sem imprimir segredos; a lista documenta o que ele faz.
 
 Sem o certificado nada do resto roda em produção. Executar em Git Bash, numa
 pasta fora do repositório (ex.: `C:\Users\Lucca\.itau\IT-000245617\2026-10-06`).
