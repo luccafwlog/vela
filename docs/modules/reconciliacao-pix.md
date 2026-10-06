@@ -242,8 +242,17 @@ função `itau-pix` processa a fila (`itau_pix_claim`/`itau_pix_record`) e grava
 o copia e cola em `pix_payload`; até lá Vela e Portal mostram "QR em
 preparação". Faturas locais ativas também entram em
 `local_pix_charge_versions`, então a conciliação por extrato continua
-resolvendo o TXID. A baixa automática pela API ainda não existe (Fase 3 do
-[plano](../plans/2026-10-06-integracao-itau-pix.md)).
+resolvendo o TXID. A avulsa não entra nessa tabela (migration 151).
+
+**Baixa automática (migration 151):** a função consulta `GET /pix` e chama
+`itau_pix_settle` para cada Pix com TXID `VELA…`, que baixa pelos mesmos
+donos desta página (`reconcile_invoice_payment_by_txid`, pagamento verificado
+da avulsa e `register_demurrage_payment`), com o `endToEndId` como referência
+bancária e chave de idempotência (`itau_pix_receipts`). Qualquer recusa (valor
+diferente, fatura não pagável, sem usuário de baixa em
+`app_settings.itau_pix_settlement_actor`) abre o Alerta `pix_unreconciled`
+para o Administrativo, sem baixa. Detalhes no
+[plano](../plans/2026-10-06-integracao-itau-pix.md).
 
 ### Cobranças locais após correção — migration 130
 
