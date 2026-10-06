@@ -19,6 +19,7 @@ const SCHEDULE_KEYS: readonly (readonly unknown[])[] = [
 // Listas, cards e fichas são consultas independentes: invalidar a lista não
 // atualiza o resumo nem os joins materializados nas telas consumidoras.
 const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
+  queryKeys.ceUnlock.all(),
   queryKeys.portalInformation.all(), ['portal-operation-bls'],
   queryKeys.bls.all(), queryKeys.bls.summary(), queryKeys.bls.detail(), queryKeys.bls.cockpit(), queryKeys.portal.blStatus(),
   ['containers'], ['container-type-options'], queryKeys.bls.portOptions(),
@@ -33,6 +34,7 @@ const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   ['demurrage-report'], ['header-alert'],
 ]
 const FINANCIAL_READ_KEYS: readonly (readonly unknown[])[] = [
+  queryKeys.ceUnlock.all(),
   // Correções de B/L também afetam restituições, COD e as faturas do Portal.
   ...INVOICE_BASIS_CACHE_KEYS,
   ['alerts'], ['alert-department-summary'], ['financial-alerts'], ['invoice-corrections'],
@@ -169,7 +171,11 @@ export async function afterLiberacaoFaturamentoPortal(
 
 /** B/L corrections may reissue invoices, correct balances or create refunds. */
 export async function afterBlInvoiceBasisAlterada(queryClient: QueryInvalidator): Promise<void> {
-  await invalidate(queryClient, INVOICE_BASIS_CACHE_KEYS)
+  await invalidate(queryClient, [...INVOICE_BASIS_CACHE_KEYS, queryKeys.ceUnlock.all()])
+}
+
+export async function afterCeUnlockChanged(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [queryKeys.ceUnlock.all(), ['customer-detail'], ['customer-ficha']])
 }
 
 /** Mudanças no cadastro de depósitos afetam catálogo e orientações de devolução. */

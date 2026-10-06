@@ -3,6 +3,7 @@
 const BASE = 'Fwlog'
 
 const ROUTE_TITLES: Array<[RegExp, string]> = [
+  [/^\/portal\/desbloqueio-ce/, 'Portal · Desbloqueio de CE'],
   [/^\/portal\/login/, 'Portal · Login'],
   [/^\/portal\/esqueci-senha/, 'Portal · Recuperar senha'],
   [/^\/portal\/recuperar-senha/, 'Portal · Nova senha'],

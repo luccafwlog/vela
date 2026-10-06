@@ -141,3 +141,39 @@ A migration `196_portal_provisioning_console_read_model.sql` usa `SECURITY DEFIN
 
 - A leitura de planilhas usa `@e965/xlsx` com limite de upload antes do parsing e acesso restrito a usuários autenticados. O `npm audit` do repositório estava limpo em 2026-08-26; manter o limite e revalidar a dependência em atualizações. Ver [ROADMAP](../ROADMAP.md).
 - Snapshots de auditoria de segurança ficam em [archive/](../archive/README.md).
+
+## Desbloqueio de CE Mercante
+
+As migrations `137`–`146` usam schema privado para implementação e RPCs públicas
+com allowlists e `search_path` fixo. Não há grants de tabela para o navegador.
+Portal resolve CNPJ pela sessão/conta ativa, nunca pelo payload. Administrativo
+e Documentação gerenciam; Financeiro e Operações consultam sem PDFs. Inspeção
+consulta pelo cliente selecionado e recusa comandos de escrita.
+
+`portal-ce-unlock-document` limita o corpo multipart mesmo sem Content-Length,
+aceita PDFs de até 10 MiB com extensão, MIME e assinatura `%PDF-`, e reserva
+caminho/quota no servidor (20 tentativas/24 h; 100 MiB ativos por cliente).
+Autentica com `getUser`, grava com cliente de serviço e finaliza com RPC do
+usuário que revalida autoria, contexto e metadados reais do objeto. PDF inválido
+é recusado antes da reserva; falha de armazenamento reivindica e compensa a
+reserva pendente sem remover um PDF já registrado. Tentativas nunca finalizadas
+não entram na projeção dos documentos nem substituem a versão submetida. Download
+autorizado em RPC gera URL privada com 60 segundos; nunca há leitura direta
+no bucket `ce-unlock-documents`. O modelo oficial é o único PDF global do Portal.
+
+Comandos exigem UUID idempotente; repetição com payload diferente é recusada.
+Versões otimistas protegem pedido, revisão documental e entrega. Exportação
+revalida os requisitos em transação e registra snapshot; download ou aprovação
+não confirmam desbloqueio. Arquivos gerados usam sanitização canônica para
+evitar fórmulas de planilha.
+
+`ce-unlock-cleanup` usa bearer dedicado `CE_UNLOCK_CLEANUP_SECRET` e falha
+fechado se ausente. `service_role` é usado apenas dentro do servidor, nunca
+como segredo do cron ou no navegador. A agenda nasce desativada. Consulte
+[serviços externos](servicos-externos.md#desbloqueio-de-ce-mercante) para rollout
+e retenção. Código no checkout não comprova publicação destas funções/policies.
+
+A evidência externa de confirmação permanece restrita ao desk também no
+histórico: motivos legados de eventos `confirm` são omitidos no Portal e nas
+leituras resumidas de Financeiro/Operações. A UI envia a referência em campo
+próprio, sem copiá-la para o motivo público.

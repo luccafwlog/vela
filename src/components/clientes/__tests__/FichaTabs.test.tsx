@@ -9,7 +9,7 @@ describe('FichaTabBar', () => {
     render(<FichaTabBar active="visao-geral" onSelect={onSelect} />)
 
     const tabs = screen.getAllByRole('tab')
-    expect(tabs.length).toBe(5)
+    expect(tabs.length).toBe(6)
 
     const geralTab = screen.getByRole('tab', { name: 'Visão Geral' })
     expect(geralTab.getAttribute('aria-selected')).toBe('true')

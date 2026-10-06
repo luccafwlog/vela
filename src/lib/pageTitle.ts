@@ -7,6 +7,7 @@ import { ADMIN_TABS } from '../pages/adminTabs'
 const BASE = 'Vela'
 
 const ROUTE_TITLES: Array<[RegExp, string]> = [
+  [/^\/desbloqueio-ce/, 'Desbloqueio de CE'],
   [/^\/clientes\/portal\/inspecao\//, 'Portal · Inspeção'],
   [/^\/perfil/, 'Meu perfil'],
   [/^\/login/, 'Login'],

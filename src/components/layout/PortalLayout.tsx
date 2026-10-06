@@ -18,6 +18,7 @@ export function PortalLayout() {
     { to: portalPath(scope), label: 'Painel', icon: LayoutDashboard, end: true },
     { to: portalPath(scope, '/billing'), label: 'Faturas', icon: FileText, end: false },
     { to: portalPath(scope, '/operacao'), label: 'BLs e Containers', icon: Package, end: false },
+    { to: portalPath(scope, '/desbloqueio-ce'), label: 'Desbloqueio de CE', icon: FileText, end: false },
     { to: portalPath(scope, '/informacoes'), label: 'Informações', icon: BookOpen, end: false },
     { to: portalPath(scope, '/perfil'), label: 'Perfil', icon: User, end: false },
   ]

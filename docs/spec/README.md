@@ -5,6 +5,7 @@ Specs descrevem decisões ainda não executadas. O ciclo de vida é definido em
 
 | Spec | Estado |
 |---|---|
+| [Desbloqueio de CE Mercante — Issue 557](2026-10-04-desbloqueio-ce-mercante-design.md) | Implementado localmente; VIP anual até 31/12 e cinco colunas ZPT; publicação/homologação pendentes |
 | [Integração Itaú PIX](2026-08-25-integracao-itau-pix.md) | Planejamento futuro, não aprovado para execução; API dinâmica/webhook não implementados |
 
 As specs de carga mista, Manifesto Mercante, múltiplos terminais e editor de

@@ -8,6 +8,7 @@ import { lazyPage } from './lib/lazyPage'
 import { matchRoutePreload, type RoutePreloadTable } from './lib/routePreload'
 import { markStartupStage } from './lib/telemetry'
 
+const PortalDesbloqueioCe = lazyPage(() => import('./pages/PortalDesbloqueioCe'), 'PortalDesbloqueioCe')
 const PortalLogin = lazyPage(() => import('./pages/PortalLogin'), 'PortalLogin')
 const PortalBilling = lazyPage(() => import('./pages/PortalBilling'), 'PortalBilling')
 const PortalOperacao = lazyPage(() => import('./pages/PortalOperacao'), 'PortalOperacao')
@@ -48,7 +49,8 @@ const routePreloads: RoutePreloadTable = [
   ['/portal/recuperar-senha', PortalResetPassword.preload], ['/portal/ativar', PortalAtivacao.preload],
   ['/portal/confirmar-email', PortalConfirmarEmail.preload], ['/portal', PortalDashboard.preload],
   ['/portal/billing', PortalBilling.preload], ['/portal/operacao', PortalOperacao.preload],
-  ['/portal/informacoes/:section', PortalInformation.preload], ['/portal/informacoes', PortalInformation.preload], ['/portal/perfil', PortalProfile.preload], ['*', defaultPreload],
+  ['/portal/informacoes/:section', PortalInformation.preload], ['/portal/informacoes', PortalInformation.preload],
+  ['/portal/desbloqueio-ce', PortalDesbloqueioCe.preload], ['/portal/perfil', PortalProfile.preload], ['*', defaultPreload],
 ]
 
 function RoutePreloader() {
@@ -79,6 +81,7 @@ export default function AppPortal() {
               <Route path="/portal" element={withSuspense(<PortalDashboard />)} />
               <Route path="/portal/billing" element={withSuspense(<PortalBilling />)} />
               <Route path="/portal/operacao" element={withSuspense(<PortalOperacao />)} />
+              <Route path="/portal/desbloqueio-ce" element={withSuspense(<PortalDesbloqueioCe />)} />
               <Route path="/portal/informacoes" element={withSuspense(<PortalInformation />)} />
               <Route path="/portal/informacoes/:section" element={withSuspense(<PortalInformation />)} />
               <Route path="/portal/perfil" element={withSuspense(<PortalProfile />)} />

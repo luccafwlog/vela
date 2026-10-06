@@ -29,6 +29,9 @@ export function classifyProfileHydrationError(error: unknown): 'transient-error'
 }
 
 export type Permission =
+  | 'ce_unlock_read'
+  | 'ce_unlock_manage'
+  | 'ce_unlock_documents'
   | 'admin_panel'
   | 'manage_users'
   | 'portal_provisioning'
@@ -40,6 +43,8 @@ export function roleHasPermission(role: UserProfileRole | undefined, permission:
   // Papel legado: operator = documentacao. O papel `admin` foi migrado para
   // administrativo e saiu da lista de papeis aceitos (migration 093).
   const effectiveRole: UserProfileRole = role === 'operator' ? 'documentacao' : role
+  if (permission === 'ce_unlock_read') return ['administrativo', 'documentacao', 'financeiro', 'operacoes'].includes(effectiveRole)
+  if (permission === 'ce_unlock_manage' || permission === 'ce_unlock_documents') return ['administrativo', 'documentacao'].includes(effectiveRole)
 
   switch (effectiveRole) {
     case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'customer_communications'

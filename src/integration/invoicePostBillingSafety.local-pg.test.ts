@@ -620,6 +620,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     const refund=Number(psql(`SELECT id FROM public.invoice_refunds WHERE correction_receivable_id=${old}`))
     adminJson(`SELECT public.confirm_invoice_refund(${refund},'RETRY-CNPJ-REF-${refund}','Cliente original','2026-10-01T12:00:00Z')`)
     expect(psql(`SELECT status FROM public.invoice_customer_changes WHERE receivable_id=${old}`)).toBe('reissue_pending')
+    expect(JSON.parse(psql(`SELECT ce_unlock_private.item('${bl.full}')`))).toMatchObject({ paid: false, can_submit: false })
     expect(psql(`SELECT status FROM public.invoice_refunds WHERE id=${refund}`)).toBe('settled')
     psql(`UPDATE public.customer_billing_portal_releases SET review_at=now()+interval '1 day' WHERE customer_id=${otherCustomerId}`)
     expect(adminJson(`SELECT public.retry_invoice_basis_changes('${bl.full}')`)).toMatchObject({status:'completed'})
@@ -666,6 +667,35 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     psql(`UPDATE public.bls SET customer_id=${otherCustomerId} WHERE id='${bl.full}'`)
     expect(psql(`SELECT customer_id FROM public.bls WHERE id='${bl.full}'`)).toBe(String(otherCustomerId))
     expect(psql(`SELECT customer_id FROM public.invoices WHERE id=${inv}`)).toBe(String(customerId))
+  })
+
+  it.each([200, 600])('CE não aproveita R$ %s do Cliente anterior durante troca de CNPJ', (amount) => {
+    const invoice = issueByCe(bl.full, '839000000000081')
+    adminJson(`SELECT public.register_ledger_invoice_payment(${invoice},${amount})`)
+    const old = receivableId(bl.full)
+    expect(JSON.parse(psql(`SELECT ce_unlock_private.item('${bl.full}')`)).paid).toBe(amount === 600)
+    psql(`UPDATE public.bls SET customer_id=${otherCustomerId} WHERE id='${bl.full}'`)
+    expect(psql(`SELECT status FROM public.invoice_customer_changes WHERE receivable_id=${old}`)).toBe('pending_refund')
+    expect(JSON.parse(psql(`SELECT ce_unlock_private.item('${bl.full}')`))).toMatchObject({ paid: false, can_submit: false })
+    const payload = JSON.stringify({ customer_id: otherCustomerId, bl_ids: [bl.full], request_key: '00000000-0000-0000-0000-000000839081' })
+    const draft = asAdmin(`SELECT public.ce_unlock_command('draft','${payload}'::jsonb)`)
+    expect(draft.status, 'rascunho CE deve revalidar a pendência financeira').toBe(1)
+    expect(draft.stderr).toContain('não pode ser solicitado')
+    const refund = Number(psql(`SELECT id FROM public.invoice_refunds WHERE correction_receivable_id=${old}`))
+    adminJson(`SELECT public.confirm_invoice_refund(${refund},'CE-CNPJ-REF-${refund}','Cliente original','2026-10-01T12:00:00Z')`)
+    expect(psql(`SELECT status FROM public.invoice_customer_changes WHERE receivable_id=${old}`)).toBe('completed')
+    expect(JSON.parse(psql(`SELECT ce_unlock_private.item('${bl.full}')`))).toMatchObject({ paid: false, can_submit: false })
+    const next = Number(psql(`SELECT id FROM public.invoices WHERE customer_id=${otherCustomerId} AND status='issued' AND invoice_type='individual'`))
+    adminJson(`SELECT public.register_ledger_invoice_payment(${next},600)`)
+    expect(JSON.parse(psql(`SELECT ce_unlock_private.item('${bl.full}')`))).toMatchObject({ paid: true, can_submit: true })
+  })
+
+  it('CE conserva aptidão por redução normal com restituição de excedente pendente', () => {
+    const invoice = issueByCe(bl.full, '839000000000082')
+    adminJson(`SELECT public.register_ledger_invoice_payment(${invoice},600)`)
+    psql(`UPDATE public.bl_containers SET ownership='SOC' WHERE bl_id='${bl.full}'`)
+    expect(psql(`SELECT sum(amount_brl) FROM public.invoice_refunds WHERE invoice_id=${invoice} AND status='pending'`)).toBe('100.00')
+    expect(JSON.parse(psql(`SELECT ce_unlock_private.item('${bl.full}')`))).toMatchObject({ paid: true, can_submit: true })
   })
 
   it.each([200, 600])('nova cobrança após devolver R$ %s conserva saldo e permite pagamento próprio', (amount) => {

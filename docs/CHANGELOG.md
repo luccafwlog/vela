@@ -4,8 +4,21 @@
 
 ## 2026-10
 
+- **Correções da PR 847 (2026-10-05):** CE aceita liquidação do valor corrigido;
+  referência externa permanece privada também no histórico; tentativas de upload
+  não substituem PDFs registrados e são compensadas em falhas de armazenamento.
+  Migration corretiva `146`, regressões SQL/Deno e checks de Inspeção/segurança
+  atualizados. Publicação remota do backend continua pendente.
+
+- **Desbloqueio de CE Mercante (2026-10-04, implementação local):** página em
+  Importação e no Portal, solicitações de BLs pagos, análise de termo/procuração
+  e entrega original. VIP por CNPJ com documentos anuais até 31/12. Lotes XLSX
+  ZPT de cinco colunas, envio e confirmação por BL separados, anexos privados e
+  expurgo agendado inicialmente desativado (migrations `137`–`144`). Ver
+  [módulo](modules/desbloqueio-ce.md); publicação e aceite externo pendentes.
+
 - **Revisão extensa da Central de Informações (2026-10-04, local):** migration
-  `135` corrige indicação por identidade física, valida POD/SOC compartilhados,
+  `136` corrige indicação por identidade física, valida POD/SOC compartilhados,
   leitura de justificativa tardia e integração com exclusão de viagem. Resolver
   comum elimina diferenças por aliases de tarifas sem mudar faturas existentes.
   Corrigidos sobrescrita de assuntos, seleção indisponível, filtros ocultos,
@@ -826,3 +839,13 @@
 # Próxima versão
 
 - Comunicados: motor server-side de elegibilidade, runner protegido por segredo, painel de cobertura de viagens e filtros de origem/status no histórico.
+
+
+## Integração das PRs 845, 846 e 847 — 2026-10-05
+
+Escala documental 134 (main), Informações 135–136, CE 137–147 e financeiras 148,
+com versões únicas; a 147 só lê `invoice_customer_changes` em tempo de execução.
+Menu, rotas e Modo Inspeção preservam ambos os módulos. Pagamento CE exige
+recebível vigente do Cliente atual e bloqueia troca de CNPJ não concluída;
+restituição normal de excedente mantém a regra do valor corrigido. As ações
+financeiras atualizam consultas CE no mesmo cache. Publicação remota pendente.

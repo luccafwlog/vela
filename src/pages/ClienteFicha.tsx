@@ -1,3 +1,5 @@
+import { CeUnlockVipCoveragePanel } from '../components/ce-unlock/CeUnlockVipCoveragePanel'
+import { useAuth } from '../hooks/useAuth'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Card, PageHeader } from '../components/ui/Card'
@@ -13,6 +15,7 @@ import { FinanceiroTab } from '../components/clientes/FinanceiroTab'
 import { HistoricoTab } from '../components/clientes/HistoricoTab'
 
 export function ClienteFicha() {
+  const { can } = useAuth()
   const { cnpj } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = resolveFichaTab(searchParams.get('tab'))
@@ -82,6 +85,7 @@ export function ClienteFicha() {
       {activeTab === 'cadastro' ? <CadastroContatosTab data={data} cnpj={cnpj!} /> : null}
       {activeTab === 'operacional' ? <OperacionalTab data={data} /> : null}
       {activeTab === 'financeiro' ? <FinanceiroTab data={data} /> : null}
+      {activeTab === 'desbloqueio-ce' && can('ce_unlock_read') ? <Card><CeUnlockVipCoveragePanel customerId={data.id} manage={can('ce_unlock_manage')} /></Card> : null}
       {activeTab === 'historico' ? <HistoricoTab data={data} /> : null}
     </>
   )

@@ -279,8 +279,15 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
         expect(inspect).toBe('portal_ship_schedule')
         continue
       }
-      const pageSignature = inspect.includes('_page') ? 'bigint, integer, integer, text, text, text, text, date, date' : null
-      expect(procExists(`public.${inspect}(${pageSignature ?? (inspect.includes('invoice_details') || inspect.includes('invoice_detail') ? 'bigint, bigint' : inspect.includes('list_notifications') ? 'bigint, integer' : 'bigint')})`)).toBe(true)
+      // Derive wrapper arguments from the real client contract, including overloads.
+      // Inspection adds the customer scope before the existing arguments.
+      const signatures: string[] = JSON.parse(psql(`SELECT coalesce(json_agg(oidvectortypes(p.proargtypes) ORDER BY p.oid),'[]') FROM pg_proc p
+        JOIN pg_namespace n ON n.oid=p.pronamespace
+        WHERE n.nspname='public' AND p.proname='${client}';`))
+      expect(signatures.length).toBeGreaterThan(0)
+      for (const signature of signatures) {
+        expect(procExists(`public.${inspect}(bigint${signature ? `, ${signature}` : ''})`)).toBe(true)
+      }
     }
     for (const write of writes) {
       const candidate = write.startsWith('portal_') ? `public.portal_inspect_${write.slice(7)}` : `public.portal_inspect_${write}`
