@@ -262,6 +262,16 @@ export async function stepCharge(client: ItauPixClient, charge: QueuedCharge): P
       if (!cob.pixCopiaECola) return { outcome: 'error', error: 'Itaú não devolveu o copia e cola.' }
       return { outcome: 'active', revision: cob.revisao, pixCopiaECola: cob.pixCopiaECola }
     }
+    // Cancelamento repetido: a resposta anterior pode ter se perdido com a cobrança já
+    // removida ou paga, e pedir de novo poderia falhar para sempre. Consultar antes.
+    if (charge.uncertain || charge.attempts > 1) {
+      const existing = await client.getCob(charge.txid).catch((error) => {
+        if (error instanceof ItauPixError && error.status === 404) return null
+        throw error
+      })
+      if (!existing || existing.status.startsWith('REMOVIDA')) return { outcome: 'cancelled' }
+      if (existing.status === 'CONCLUIDA') return { outcome: 'concluded' }
+    }
     await client.cancelCob(charge.txid)
     return { outcome: 'cancelled' }
   } catch (error) {

@@ -527,6 +527,25 @@ com o mesmo nome e valor; agendar o job `itau-pix-queue` a cada minuto
 ver [segredos e cron](segredos-cron.md)). Só então virar a chave. Nenhum
 desses passos foi executado.
 
+Na virada, todas as faturas já abertas passam para a cobrança Itaú (decisão
+do dono em 2026-10-06; o sistema ainda não tem faturas reais). Os gatilhos só
+agem quando a fatura muda, então, logo depois de virar a chave, limpe o QR das
+abertas para que cada uma ganhe a sua cobrança:
+
+```sql
+UPDATE public.invoices SET pix_payload = NULL
+WHERE invoice_type IN ('individual', 'consolidated', 'manual')
+  AND status IN ('issued', 'partially_paid', 'overdue');
+UPDATE public.demurrage_invoices SET pix_payload = NULL
+WHERE status IN ('issued', 'overdue');
+```
+
+Voltar a chave para `static` não é procedimento operacional: o QR estático não
+é contingência (ver o plano). Se o Itaú ficar fora do ar, as faturas mostram
+"QR em preparação". Desligar a integração seria uma decisão do dono e exige
+cancelar antes, no Itaú, as cobranças abertas, porque o modo `static` não
+acompanha mais as cobranças que estiverem ativas no banco.
+
 Renovar o certificado 30 dias antes do vencimento. Documentação:
 [Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
 Nenhuma função, job ou webhook do Itaú está publicado.

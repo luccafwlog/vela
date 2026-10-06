@@ -87,6 +87,22 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(charges(`invoice_id = ${id}`)).toEqual([])
   })
 
+  it('virada: fatura aberta antes da chave ganha cobrança pelo procedimento do manual; paga não', () => {
+    setProvider('static')
+    const open = manualInvoice('ITAU150-V1', 7)
+    const paid = manualInvoice('ITAU150-V2', 8)
+    psql(`SET session_replication_role = replica; UPDATE public.invoices SET status = 'paid', balance_brl = 0 WHERE id = ${paid}; SET session_replication_role = origin`)
+    setProvider('itau')
+    expect(charges(`invoice_id IN (${open}, ${paid})`)).toEqual([]) // virar a chave sozinho não basta
+    // Mesmo SQL de docs/operations/servicos-externos.md (Itaú — virada).
+    psql(`UPDATE public.invoices SET pix_payload = NULL
+      WHERE invoice_type IN ('individual', 'consolidated', 'manual') AND status IN ('issued', 'partially_paid', 'overdue')
+        AND customer_id = ${customerId} AND id IN (${open}, ${paid})`)
+    expect(charges(`invoice_id = ${open}`)).toMatchObject([{ amount: '7.00', status: 'pending_create' }])
+    expect(charges(`invoice_id = ${paid}`)).toEqual([])
+    expect(psql(`SELECT coalesce(pix_payload, 'NULL') FROM public.invoices WHERE id = ${open}`)).toBe('NULL')
+  })
+
   it('com o Itaú a fatura nasce sem QR e com uma cobrança pendente de TXID do Vela', () => {
     setProvider('itau')
     const id = manualInvoice('ITAU150-A', 0.01)

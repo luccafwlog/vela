@@ -65,3 +65,15 @@ it('F1: imprime o valor BRL persistido da linha, sem reconverter o USD pelo ROE 
   expect(line?.textContent).toContain('R$ 498,00')
   expect(line?.textContent).not.toContain('R$ 500,00')
 })
+
+it('QR em preparação só para fatura emitida ou vencida sem cobrança; rascunho e cancelada não', () => {
+  const open = { ...detail, paid_at: null, pix_payload: null }
+  render(<InvoiceDocument detail={{ ...open, status: 'issued' }} type="invoice" />)
+  expect(screen.getByTestId('pix-preparing')).toBeTruthy()
+  cleanup()
+  for (const status of ['draft', 'cancelled']) {
+    render(<InvoiceDocument detail={{ ...open, status }} type="invoice" />)
+    expect(screen.queryByTestId('pix-preparing')).toBeNull()
+    cleanup()
+  }
+})
