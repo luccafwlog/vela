@@ -194,6 +194,22 @@ describe('processador da fila de cobranças', () => {
     expect((await run(Response.json({ title: 'Erro' }, { status: 500 }))).outcome).toBe('error')
   })
 
+  it('cancelamento repetido consulta antes: removida ou inexistente = cancelada, paga = concluded', async () => {
+    const c = charge({ status: 'pending_cancel', uncertain: true, attempts: 2 })
+    const run = (response: Response) => {
+      const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(response)
+      return stepCharge(createItauPixClient(config, fetchMtls), c).then((outcome) => ({ outcome: outcome.outcome, methods: fetchMtls.mock.calls.map((call) => call[1].method) }))
+    }
+    expect(await run(ativa(c.txid, { status: 'REMOVIDA_PELO_USUARIO_RECEBEDOR' }))).toEqual({ outcome: 'cancelled', methods: ['POST', 'GET'] })
+    expect(await run(Response.json({}, { status: 404 }))).toEqual({ outcome: 'cancelled', methods: ['POST', 'GET'] })
+    expect(await run(ativa(c.txid, { status: 'CONCLUIDA' }))).toEqual({ outcome: 'concluded', methods: ['POST', 'GET'] })
+    // Ainda ativa no banco: aí sim pede o cancelamento.
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid))
+      .mockResolvedValueOnce(ativa(c.txid, { status: 'REMOVIDA_PELO_USUARIO_RECEBEDOR' }))
+    expect((await stepCharge(createItauPixClient(config, fetchMtls), c)).outcome).toBe('cancelled')
+    expect(fetchMtls.mock.calls.map((call) => call[1].method)).toEqual(['POST', 'GET', 'PATCH'])
+  })
+
   it('processa o que foi reservado e registra cada resultado', async () => {
     const a = charge({ id: 10 })
     const b = charge({ id: 11, status: 'pending_cancel' })
