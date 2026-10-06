@@ -1,4 +1,6 @@
 import { canonicalizeDocument } from '../lib/cnpj'
+import { extractErrorText } from '../lib/errors'
+import { chunkArray } from '../lib/utils'
 import { extractNcmCodes } from '../lib/ncm'
 import { normalizeIsoContainerNumber } from '../lib/containerNumber'
 import { canonicalizeVesselName } from '../lib/vesselAlias'
@@ -457,8 +459,8 @@ export type LocalChargeCalculationError = {
 }
 
 export type BlFreightImportResult = {
-  /** retorno cru da RPC de importacao */
-  result: unknown
+  /** retorno cru da RPC de importacao, um item por lote enviado */
+  result: unknown[]
   /** trocas de cliente pedidas no preview e recusadas pelo servidor */
   refusedCustomerRelinks: RefusedCustomerRelink[]
   /** B/Ls persistidos cuja tentativa de cálculo imediato falhou */
@@ -526,33 +528,47 @@ export async function confirmBlFreightImport(
   // mesma transação. O caminho sem viagem continua avulso (ADR 0017).
   const voyageId = payload.find((bl) => bl.voyage_id != null)?.voyage_id ?? null
   const usesBatchContract = voyageId != null
-  const { data: rawData, error } = usesBatchContract
-    ? await supabase.rpc('import_bl_freight_with_metadata', {
-        p_bls: payload,
-        p_changed_by: changedBy,
-        p_batch: {
-          filename,
-          voyage_id: voyageId,
-          cargo_mode: 'container',
-        },
-      })
-    : await supabase.rpc('import_bl_freight_transactional', {
-        p_bls: payload,
-        p_changed_by: changedBy,
-      })
-  if (error) throw error
-  const wrapped = rawData as { result?: unknown; calculation_errors?: unknown } | null
-  const data = usesBatchContract && wrapped && 'result' in wrapped ? wrapped.result : rawData
-  const calculationErrors = usesBatchContract && wrapped
-    ? readLocalChargeCalculationErrors(wrapped.calculation_errors)
-    : []
-
-  return {
-    result: data,
-    refusedCustomerRelinks: readRefusedCustomerRelinks(data),
-    calculationErrors,
+  const results: unknown[] = []
+  const refusedCustomerRelinks: RefusedCustomerRelink[] = []
+  const calculationErrors: LocalChargeCalculationError[] = []
+  let imported = 0
+  // ponytail: a RPC calcula as taxas de cada B/L (~100-200 ms/B/L) e o papel
+  // authenticated corta a chamada em 8 s (57014). Lotes fixos cabem com folga;
+  // cada lote e uma transacao, entao uma falha no meio preserva os anteriores
+  // (reimportar e idempotente). Upgrade: calculo de taxas fora da transacao.
+  for (const chunk of chunkArray(payload, BL_IMPORT_CHUNK_SIZE)) {
+    const { data: rawData, error } = usesBatchContract
+      ? await supabase.rpc('import_bl_freight_with_metadata', {
+          p_bls: chunk,
+          p_changed_by: changedBy,
+          p_batch: {
+            filename,
+            voyage_id: voyageId,
+            cargo_mode: 'container',
+          },
+        })
+      : await supabase.rpc('import_bl_freight_transactional', {
+          p_bls: chunk,
+          p_changed_by: changedBy,
+        })
+    if (error) {
+      const reason = extractErrorText(error) || 'erro desconhecido'
+      throw new Error(imported
+        ? `${imported} de ${payload.length} B/L(s) foram importados; os demais falharam (${reason}). Importe o arquivo de novo para concluir.`
+        : `Falha ao importar B/L: ${reason}`, { cause: error })
+    }
+    const wrapped = rawData as { result?: unknown; calculation_errors?: unknown } | null
+    const data = usesBatchContract && wrapped && 'result' in wrapped ? wrapped.result : rawData
+    results.push(data)
+    refusedCustomerRelinks.push(...readRefusedCustomerRelinks(data))
+    if (usesBatchContract && wrapped) calculationErrors.push(...readLocalChargeCalculationErrors(wrapped.calculation_errors))
+    imported += chunk.length
   }
+
+  return { result: results, refusedCustomerRelinks, calculationErrors }
 }
+
+const BL_IMPORT_CHUNK_SIZE = 20
 
 export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | null): BlFreightRpcPayload {
   const isImoFromBl = Boolean(doc.cargo.dgClass || doc.cargo.unNumber)

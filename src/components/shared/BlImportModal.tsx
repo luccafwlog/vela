@@ -163,6 +163,8 @@ export function BlImportModal({
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao confirmar importacao de B/L.'
       showToast(message, 'error')
+      // A importacao vai em lotes: os que ja entraram precisam aparecer na tela.
+      void afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
     } finally {
       setSubmitting(false)
     }
