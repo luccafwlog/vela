@@ -231,6 +231,8 @@ BEGIN
         PERFORM set_config('request.jwt.claim.sub', coalesce(v_previous_sub, ''), true);
       END IF;
     EXCEPTION WHEN OTHERS THEN
+      -- Mesma regra da 151: erro passageiro falha a chamada para nova tentativa.
+      IF left(SQLSTATE, 2) IN ('08', '40', '53', '55', '57', 'XX') THEN RAISE; END IF;
       -- Desfaz só a baixa; a cobrança continua 'concluded' (paga no banco).
       PERFORM set_config('request.jwt.claim.sub', coalesce(v_previous_sub, ''), true);
       v_reason := left(SQLERRM, 300);
