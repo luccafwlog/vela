@@ -323,8 +323,9 @@ externos e `RASTREABILIDADE.md`; fechar a PR 827; arquivar este plano e a spec.
 leitura) e a Conciliação PIX abre com o bloco "Cobranças Pix Itaú": chave
 ligada ou não, última consulta de recebimentos, cobranças ativas e a lista do
 que pede atenção (aguardando o banco, cancelamento pendente, resposta incerta,
-erro) mais Pix recebidos em análise. Sem ações na tela: a exceção continua
-pelo extrato ou pelo pagamento verificado. Provas: suíte
+erro) mais Pix recebidos em análise. Pix em análise fecha sozinho quando a
+fatura fica paga; nos demais casos o Admin marca como tratado com motivo
+(`itau_pix_mark_receipt_handled`). Nos dois casos o Alerta fecha. Provas: suíte
 `itauPixCharges.local-pg.test.ts` com 17 casos (Admin lê cancelamento
 pendente; outro perfil recebe recusa), repetida duas vezes; teste de
 comportamento da página.
@@ -359,3 +360,4 @@ SQL não prova execução nem RLS; a prova de pagamento é o teste de centavos.
 | 2026-10-06 | Revisão da Fase 2. Dono decide: na virada, todas as faturas abertas ganham cobrança Itaú (só há 2 faturas, ambas de teste; procedimento no manual de serviços externos); voltar para `static` não é procedimento operacional. Correções: cancelamento repetido consulta a cobrança antes de pedir de novo; aviso "QR em preparação" da Demurrage só para fatura emitida ou vencida. Com autorização do dono para editar as migrations 150–153 da pilha (não aplicadas em nenhum ambiente), o pedido de cancelamento deixa de encurtar a reserva de uma chamada em andamento. |
 | 2026-10-06 | Revisão da Fase 3. Dono confirma: sem botão "Já paguei", só a atualização automática do Portal; baixas automáticas assinadas por conta Admin dedicada "API Itaú", criada pelo dono. Correção: erro passageiro do banco na baixa falha a chamada para nova tentativa, em vez de mandar o Pix para análise. |
 | 2026-10-06 | Revisão da Fase 4. Dono decide: sem calendário cadastrado, a integração segue contando só fins de semana. Correções: Alerta próprio `calendario_feriados_pendente` (fecha ao cadastrar o ano); alteração repetida consulta a cobrança antes de novo PATCH. |
+| 2026-10-06 | Revisão da Fase 5. Dono aprova: Pix em análise fecha sozinho quando a fatura da cobrança fica paga e, nos demais casos, Admin marca como tratado com motivo (fecha o Alerta). Correção: "pedem atenção" lista só cobranças que aguardam o banco. |

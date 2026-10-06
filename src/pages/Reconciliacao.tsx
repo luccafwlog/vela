@@ -15,6 +15,7 @@ import {
   confirmUnifiedPixReconciliation,
   createPixImportKey,
   getItauPixMonitor,
+  markItauPixReceiptHandled,
   getPixLineIdentity,
   linkPixReconciliationCandidate,
   listPixReconciliationCandidates,
@@ -66,6 +67,20 @@ function itauChargeTone(charge: ItauPixMonitorCharge): 'red' | 'yellow' | 'slate
 // Monitoramento das cobranças Itaú: com a chave ligada, a baixa é automática e
 // esta lista mostra só o que ainda depende do banco ou de análise.
 function ItauPixMonitorCard() {
+  const queryClient = useQueryClient()
+  const { showToast } = useToast()
+  const [handling, setHandling] = useState<{ endToEndId: string; note: string } | null>(null)
+  const handleMutation = useMutation({
+    mutationFn: ({ endToEndId, note }: { endToEndId: string; note: string }) => markItauPixReceiptHandled(endToEndId, note.trim()),
+    onSuccess: () => {
+      setHandling(null)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.itauPixMonitor() })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.alerts.financial() })
+      showToast('Pix marcado como tratado.', 'success')
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
   const monitorQuery = useQuery({
     queryKey: queryKeys.reconciliation.itauPixMonitor(),
     queryFn: getItauPixMonitor,
@@ -104,7 +119,32 @@ function ItauPixMonitorCard() {
                 <div className="font-semibold text-white">Pix recebido sem baixa · {fmtBRL(receipt.amount)}</div>
                 <div className="text-xs text-slate-400">{receipt.reason ?? 'Em análise'} · {formatDateTime(receipt.paidAt)}</div>
               </div>
-              <div className="font-mono text-xs text-slate-500" title={receipt.endToEndId}>{receipt.txid}</div>
+              <div className="flex flex-col items-start gap-2 sm:items-end">
+                <div className="font-mono text-xs text-slate-500" title={receipt.endToEndId}>{receipt.txid}</div>
+                {handling?.endToEndId === receipt.endToEndId ? (
+                  <div className="flex w-full flex-col gap-2 sm:w-80">
+                    <Textarea
+                      aria-label="Motivo do tratamento"
+                      placeholder="Ex.: restituição registrada ao cliente"
+                      value={handling.note}
+                      onChange={(event) => setHandling({ endToEndId: receipt.endToEndId, note: event.target.value })}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" onClick={() => setHandling(null)}>Cancelar</Button>
+                      <Button
+                        disabled={handling.note.trim().length < 5 || handleMutation.isPending}
+                        onClick={() => handleMutation.mutate(handling)}
+                      >
+                        Confirmar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button variant="secondary" onClick={() => setHandling({ endToEndId: receipt.endToEndId, note: '' })}>
+                    Marcar como tratado
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
           {monitor.charges.map((charge) => (

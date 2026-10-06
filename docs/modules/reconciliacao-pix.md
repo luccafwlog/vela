@@ -33,9 +33,12 @@ se a cobrança Itaú está ligada e quando foi a última consulta de recebimento
 conta as cobranças ativas e lista só o que pede atenção: cobranças aguardando o
 banco (emissão, alteração, conferência de vencimento, **cancelamento
 pendente**), com resposta incerta ou erro, e Pix recebidos que não deram baixa
-automática, com o motivo. É só leitura: a baixa de exceção continua pelo
-extrato abaixo ou pelo pagamento verificado da fatura, e a recusa também está
-no Alerta `pix_unreconciled`.
+automática, com o motivo. A baixa de exceção continua pelo extrato abaixo ou
+pelo pagamento verificado da fatura; quando a fatura da cobrança fica paga, o
+Pix em análise sai da lista e o Alerta `pix_unreconciled` fecha sozinho. Nos
+outros casos (fatura cancelada a restituir, TXID sem fatura), o Admin usa
+**Marcar como tratado**, com motivo obrigatório
+(`itau_pix_mark_receipt_handled`), que também fecha o Alerta.
 
 ### Upload e matching
 

@@ -192,6 +192,10 @@ mesmas checagens de `auth.uid()`/`is_admin()` das baixas manuais continuam
 valendo. Conta inativa ou ausente faz o Pix ir para análise, sem baixa. Pix
 do sistema de terceiro e dados do pagador não são gravados.
 
+`itau_pix_monitor` (leitura) e `itau_pix_mark_receipt_handled` (encerrar Pix em
+análise com motivo) exigem Admin ativo dentro da função; as tabelas Itaú
+continuam sem acesso direto para `authenticated`.
+
 A evidência externa de confirmação permanece restrita ao desk também no
 histórico: motivos legados de eventos `confirm` são omitidos no Portal e nas
 leituras resumidas de Financeiro/Operações. A UI envia a referência em campo

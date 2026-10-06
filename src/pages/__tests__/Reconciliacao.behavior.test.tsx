@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   getDemurrageDetail: vi.fn(),
   showToast: vi.fn(),
   itauMonitor: vi.fn(),
+  markHandled: vi.fn(),
 }))
 const authState = vi.hoisted(() => ({ isAdmin: true }))
 
@@ -38,6 +39,7 @@ vi.mock('../../services/reconciliacao', () => ({
   confirmUnifiedPixReconciliation: mocks.confirm,
   reverseDemurragePayment: mocks.reverseDemurrage,
   getItauPixMonitor: mocks.itauMonitor,
+  markItauPixReceiptHandled: mocks.markHandled,
 }))
 vi.mock('../../services/demurrage/demurrageInvoices', () => ({
   getInvoiceDetail: mocks.getDemurrageDetail,
@@ -139,6 +141,22 @@ describe('Reconciliacao PIX user behaviours', () => {
     expect(screen.getByText(/Valor recebido difere/)).toBeTruthy()
     expect(screen.getByText('4 ativa(s)')).toBeTruthy()
     expect(screen.getByText(/Baixa automática ligada/)).toBeTruthy()
+  })
+
+  it('Pix Itaú em análise só é marcado como tratado com motivo', async () => {
+    mocks.itauMonitor.mockResolvedValue({
+      provider: 'itau', polledUntil: null, counts: {}, charges: [],
+      receipts: [{ endToEndId: 'E9', txid: 'VELA9', amount: 5, paidAt: '2026-10-06T14:00:00Z', reason: 'Fatura cancelada.' }],
+    })
+    mocks.markHandled.mockResolvedValue(undefined)
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Marcar como tratado' }))
+    const confirm = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
+    expect(confirm.disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText('Motivo do tratamento'), { target: { value: 'Restituição registrada' } })
+    fireEvent.click(confirm)
+    await waitFor(() => expect(mocks.markHandled).toHaveBeenCalledWith('E9', 'Restituição registrada'))
+    expect(mocks.showToast).toHaveBeenCalledWith('Pix marcado como tratado.', 'success')
   })
 
   beforeEach(() => {

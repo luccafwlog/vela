@@ -849,3 +849,9 @@ export async function getItauPixMonitor(): Promise<ItauPixMonitor> {
     })),
   }
 }
+
+// Encerra um Pix Itaú em análise que não se resolve por baixa (ex.: restituição).
+export async function markItauPixReceiptHandled(endToEndId: string, note: string): Promise<void> {
+  const { error } = await callPixRpc('itau_pix_mark_receipt_handled', { p_end_to_end_id: endToEndId, p_note: note })
+  if (error) throw error
+}
