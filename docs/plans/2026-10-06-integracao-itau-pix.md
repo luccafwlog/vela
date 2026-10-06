@@ -2,7 +2,8 @@
 
 **Estado:** plano aprovado para execução em 2026-10-06. Fase 0 (certificado)
 aguardando a credencial dedicada pedida ao Itaú em 06/10 (ver "Quando o Itaú
-responder"); Fases 1 a 4 prontas no código, sem publicação.
+responder"); Fases 1 a 4 e a tela de monitoramento da Fase 5
+prontas no código, sem publicação.
 **Substitui:** a PR 827 (`codex/itau-pix-simulation`) como caminho de entrega.
 Os planos daquela branch nunca chegaram à `main`; o que vale deles está
 incorporado aqui.
@@ -316,6 +317,21 @@ Virar `pix_provider` para `itau` em produção; R$ 0,01 de ponta a ponta em cada
 tipo de fatura; Conciliação PIX como monitoramento; atualizar
 `faturamento.md`, `reconciliacao-pix.md`, `demurrage.md`, manual de serviços
 externos e `RASTREABILIDADE.md`; fechar a PR 827; arquivar este plano e a spec.
+
+**Tela de monitoramento entregue em 2026-10-06 (código, sem publicação).**
+`153_itau_pix_monitoramento.sql` cria `itau_pix_monitor` (só Admin, só
+leitura) e a Conciliação PIX abre com o bloco "Cobranças Pix Itaú": chave
+ligada ou não, última consulta de recebimentos, cobranças ativas e a lista do
+que pede atenção (aguardando o banco, cancelamento pendente, resposta incerta,
+erro) mais Pix recebidos em análise. Sem ações na tela: a exceção continua
+pelo extrato ou pelo pagamento verificado. Provas: suíte
+`itauPixCharges.local-pg.test.ts` com 17 casos (Admin lê cancelamento
+pendente; outro perfil recebe recusa), repetida duas vezes; teste de
+comportamento da página.
+
+Falta da Fase 5, tudo dependente da credencial: publicar `itau-pix`, secrets,
+cron, usuário de baixa, teste de centavos em cada tipo de fatura, virar a
+chave, fechar a PR 827 e arquivar plano e spec.
 
 ### Fase 6 (opcional) — Webhook
 

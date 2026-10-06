@@ -70,6 +70,7 @@ export const queryKeys = {
         : (['customer-reconciliation-queue', status, limit] as const)),
     history: () => ['reconciliation-history'] as const,
     pixExceptions: () => ['pix-reconciliation-exceptions'] as const,
+    itauPixMonitor: () => ['itau-pix-monitor'] as const,
   },
   voyages: {
     all: () => ['voyages'] as const,

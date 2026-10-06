@@ -25,9 +25,21 @@ confirma o lote, apresenta histórico/exportação e permite cancelar baixas.
 
 ## Anatomia das telas
 
+### Monitoramento das cobranças Itaú
+
+`src/pages/Reconciliacao.tsx` começa, para Admin, com o bloco "Cobranças Pix
+Itaú" (`itau_pix_monitor`, migration 153, atualizado a cada minuto). Ele diz
+se a cobrança Itaú está ligada e quando foi a última consulta de recebimentos,
+conta as cobranças ativas e lista só o que pede atenção: cobranças aguardando o
+banco (emissão, alteração, conferência de vencimento, **cancelamento
+pendente**), com resposta incerta ou erro, e Pix recebidos que não deram baixa
+automática, com o motivo. É só leitura: a baixa de exceção continua pelo
+extrato abaixo ou pelo pagamento verificado da fatura, e a recusa também está
+no Alerta `pix_unreconciled`.
+
 ### Upload e matching
 
-`src/pages/Reconciliacao.tsx` começa, para Administrativo/Admin, com uma
+Depois vem uma
 dropzone acessível por clique,
 teclado ou drag-and-drop. Aceita `.xlsx`/`.xls`, mostra estado “Processando
 extrato...” e limpa o resultado anterior antes de processar outro arquivo.
