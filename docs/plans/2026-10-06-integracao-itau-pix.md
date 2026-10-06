@@ -234,7 +234,8 @@ do cliente/processador e testes das telas.
 - A cada execução do cron (depois da fila de cobranças), `GET /pix` cobre a
   janela entre o checkpoint e agora, com 10 min de sobreposição e no máximo 6 h
   por vez. Pix de TXID que não começa com `VELA` (sistema de terceiro) é
-  ignorado e não é gravado. O checkpoint só avança quando a janela inteira foi
+  ignorado e não é gravado; Pix de cobrança de teste (`VELAT…`) só é contado,
+  sem baixa nem Alerta. O checkpoint só avança quando a janela inteira foi
   registrada.
 - `itau_pix_settle` deduplica por `endToEndId` (`itau_pix_receipts`) e baixa
   pelos donos existentes: individual/consolidada por
