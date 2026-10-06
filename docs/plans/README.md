@@ -57,3 +57,7 @@ As notas de execução intermediária de agosto/setembro foram preservadas no
 5. Rodar `npm run docs:check`.
 
 O plano [2026-10-02 — Correção dos achados da PR 839](../archive/plans/2026-10-02-correcao-achados-pr-839.md) foi encerrado com implementação e validação local concluídas; publicação e CI ficam registrados na PR.
+
+A Central de Informações aprovada em 2026-10-04 foi implementada e validada
+localmente: [registro arquivado](../archive/plans/2026-10-04-portal-informacoes.md).
+Publicação remota não realizada.

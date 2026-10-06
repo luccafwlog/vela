@@ -276,3 +276,7 @@ do cliente.
 ### Caixas do contato principal
 
 O editor interno de contatos aplica a mesma regra do Perfil no Portal, compartilhada em `src/lib/customerContactDrafts.ts`: o principal sem vínculos começa com as três caixas marcadas; caixas sem substituto elegível são repostas no rascunho, e delegações salvas com cobertura são preservadas. Uma caixa do principal só pode ser desmarcada quando outro contato ativo, com e-mail e sem bloqueio de entrega, cobre aquela caixa. As alterações dependem de salvar; usuários sem permissão de edição visualizam os vínculos armazenados.
+
+O botão **Informações do Portal** em `/clientes/portal` abre `/clientes/informacoes`;
+esse acesso não ocupa a barra superior. A aba Demurrage exibe a tabela oficial
+de tarifas e permite editar as observações públicas conforme as permissões.

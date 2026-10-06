@@ -673,3 +673,27 @@ de contrato `portalInspectionMigration.test.ts`. Nenhum selo de runtime remoto
 
 As RPCs antigas `add_manual_invoice_charge` e `delete_manual_invoice_charge`
 estão sem `EXECUTE` para a API desde `122`; serviços/hooks foram retirados.
+
+
+### Central de Informações — rotas (2026-10-04)
+
+| Rota | Tela / fonte |
+|---|---|
+| `/portal/informacoes` | PortalInformation: central com seis seções |
+| `/portal/informacoes/:section` | Taxas Locais, Devolução, Demurrage, Agentes, Atendimento e Tracking |
+| `/clientes/portal/inspecao/:customerId/informacoes` | Mesma central no escopo somente leitura de inspeção |
+| `/clientes/portal/inspecao/:customerId/informacoes/:section` | Seções no escopo de inspeção |
+| `/clientes/informacoes` | ClientesInformacoes: cadastros internos, tarifas de Demurrage e publicação; acesso pelo botão em `/clientes/portal` |
+
+Serviço `portalInformation.ts`, hooks `usePortalInformation.ts` e migrations
+`137_portal_information.sql` e `138_portal_information_review_fixes.sql`; preços vêm das tabelas vigentes do Vela.
+Orientação de devolução é fluida por porto de descarga atendido: os containers descarregados
+em um porto podem ser devolvidos em qualquer depósito disponível publicado do porto.
+Testes: `portalInformation.local-pg.test.ts`, `portalInformation.test.ts`,
+`InformationSections.test.tsx` e `ClientesInformacoes.test.tsx`.
+
+A revisão inicial de 2026-10-04 e a decisão de negócio de 2026-10-06 simplificam o fluxo:
+a indicação específica por container e planilha foi removida antes de ir para produção,
+mantendo a devolução orientada por porto e os depósitos publicados do Vela.
+Evidências e achados: [revisão extensa](archive/reports/2026-10-04-revisao-portal-informacoes.md).
+achados: [revisão extensa](archive/reports/2026-10-04-revisao-portal-informacoes.md).

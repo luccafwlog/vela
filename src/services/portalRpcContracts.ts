@@ -3,6 +3,7 @@
 // Leitura tem wrapper portal_inspect_*; escrita nunca ganha variante; ship_schedule
 // é a exceção sem escopo de cliente e mantém o nome nas duas modalidades.
 export const PORTAL_READ_INSPECT_MAP = {
+  portal_get_information: 'portal_inspect_get_information',
   portal_list_consolidatable_receivables: 'portal_inspect_list_consolidatable_receivables',
   portal_list_invoices: 'portal_inspect_list_invoices',
   portal_list_invoices_page: 'portal_inspect_list_invoices_page',

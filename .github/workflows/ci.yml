@@ -191,6 +191,7 @@ jobs:
             src/integration/manualInvoice.local-pg.test.ts \
             src/integration/operationalLists.local-pg.test.ts \
             src/integration/portalInspectionParity.local-pg.test.ts \
+            src/integration/portalInformation.local-pg.test.ts \
             src/integration/recoveryNotifications.local-pg.test.ts \
             src/integration/rpcCatalog.local-pg.test.ts \
             src/integration/adminUsuarios.local-pg.test.ts \

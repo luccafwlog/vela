@@ -1,5 +1,7 @@
 # Specs arquivadas
 
+- [2026-10-04 — Central de Informações do Portal](2026-10-04-portal-informacoes.md) — implementação e validação locais; produção não publicada.
+
 Este diretório contém especificações funcionais e design docs cuja implementação foi concluída ou que foram sucedidas por novas versões da documentação viva:
 
 - [`2026-09-26-fatura-avulsa-flexivel-design.md`](2026-09-26-fatura-avulsa-flexivel-design.md)

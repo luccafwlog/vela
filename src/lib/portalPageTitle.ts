@@ -10,6 +10,7 @@ const ROUTE_TITLES: Array<[RegExp, string]> = [
   [/^\/portal\/confirmar-email/, 'Portal · Confirmar email'],
   [/^\/portal\/billing/, 'Portal · Faturas'],
   [/^\/portal\/operacao/, 'Portal · Operação'],
+  [/^\/portal\/informacoes/, 'Portal · Central de Informações'],
   [/^\/portal\/perfil/, 'Portal · Perfil'],
   [/^\/portal$/, 'Portal · Painel'],
 ]

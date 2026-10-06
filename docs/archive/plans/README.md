@@ -1,5 +1,7 @@
 # Planos históricos (archive)
 
+- [2026-10-04 — Central de Informações do Portal](2026-10-04-portal-informacoes.md) — implementação e validação locais; produção não publicada.
+
 Planos concluídos, encerrados ou superados, consolidados aqui em 2026-07-18
 (antes divididos entre `docs/archive/plans/` e
 `docs/archive/superpowers/plans/`). O estado e o motivo de encerramento variam

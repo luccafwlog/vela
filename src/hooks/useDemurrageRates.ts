@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { afterReferenciaDemurrageAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
 import {
   deleteDemurrageRate,
@@ -14,7 +15,12 @@ export function useDemurrageRates() {
 
 function useInvalidateRates() {
   const queryClient = useQueryClient()
-  return () => queryClient.invalidateQueries({ queryKey: queryKeys.demurrage.rates() })
+  return async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.demurrage.rates() }),
+      afterReferenciaDemurrageAlterada(queryClient),
+    ])
+  }
 }
 
 export function useSaveDemurrageRate() {

@@ -2,7 +2,7 @@
 
 > **Rota interna:** `/clientes/portal/inspecao/:customerId/*` (Modo Inspeção)
 
-> **Status:** ativo · **Atualizado:** 2026-09-27 · **Rotas:** `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/confirmar-email`, `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/perfil`
+> **Status:** ativo · **Atualizado:** 2026-10-04 · **Rotas:** `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/confirmar-email`, `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/perfil`, `/portal/informacoes`, `/portal/informacoes/:section`
 
 ## Propósito e escopo
 
@@ -275,6 +275,7 @@ conta não ativa.
 
 B/L cancelado depois de liberado continua listado em BLs e Containers, com o selo **Cancelado** (`cancelled_at` vindo de `_portal_list_operation_bls_core`, migration `089`; ADR 0071).
 
+
 ##### Catálogo de ações
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
@@ -301,6 +302,78 @@ cliente/inspeção deriva do mapa literal `src/services/portalRpcContracts.ts`
 `last_login_at`; `portal_open_inspection` devolve seu overview sem essa escrita.
 `portal_ship_schedule` é a única leitura chamada diretamente, pois não é
 escopada por Cliente. Nenhuma escrita recebe invólucro de inspeção.
+
+
+### Central de Informações (implementação local, 2026-10-04)
+
+O Portal oferece `/informacoes` e seis seções: `taxas`, `devolucao`,
+`demurrage`, `agentes`, `atendimento` (aba **Contato**) e `tracking`. Há atalhos em Operação,
+Faturas e no painel; o Modo Inspeção usa a mesma interface e RPCs de leitura
+com guarda do cliente. Componentes, tokens, navegação e tipografia existentes
+foram preservados.
+
+A migration `137_portal_information.sql` acrescenta complementos dos depots e
+armadores, agentes por porto, contatos e observações. O cadastro inicial usa
+as páginas FWLOG de onde devolver, agentes, contato e Demurrage; não importa
+planilhas. A página de taxas lê `charge_tables`/`charge_table_items`, pelo
+resolver oficial de importação. Demurrage lê `demurrage_rates`; free time em
+Operação segue exceção do B/L, acordo do cliente vigente na descarga e tarifa
+geral. Sem referência oficial, exibe tarifa indisponível, sem número fixo.
+Não inclui tabelas de exportação nem Detention. Devolução e Taxas Locais
+exibem apenas BRVIX, BRSSA e BRSUA, incluindo a consulta sem filtro e os
+containers selecionáveis. Agentes por porto mantém os demais portos. Taxas
+Locais não exibe o badge “Aplicação manual” nem o texto “Inclui SOC”; as
+regras de cobrança permanecem nos cadastros oficiais.
+
+Na Operação, o link “Depósitos de devolução” aparece no nível do B/L, direcionando
+à seção de devolução com o porto de descarga (POD) já selecionado. A administração de
+Depots não exibe o card explicativo com a lista de portos do cadastro.
+
+O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
+na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas
+oficiais, além da edição das observações. Equipamentos e Administrativo editam
+a publicação e instruções dos depots existentes. Somente Administrativo altera agentes,
+contatos, tracking e observações. O acesso usa `is_active_read_user()` e as
+mutações conferem o papel no banco, além da interface. Alterações geram auditoria.
+Na aba interna Tracking, o endereço aparece apenas no link “Abrir tracking”;
+a URL completa fica no editor do armador.
+Links externos admitem apenas HTTP/HTTPS sem credenciais; o tracking permite
+copiar o B/L e abrir o armador.
+
+**Devolução:** regra fluida por porto de descarga atendido. Não há escolha de
+depósito por container ou subplanilha. Os containers de um porto de descarga
+podem ser devolvidos em qualquer depósito disponível publicado daquele porto.
+A seção de Devolução apresenta os depósitos ativos e publicados agrupados por
+porto ou filtrados pelo POD informado. Informações de endereço, horários,
+instruções, restrições e link de agendamento são mantidas pelo Vela. As novas
+tabelas não concedem escrita direta ao cliente.
+
+A seleção das tarifas gerais usa a mesma normalização dos tipos equivalentes
+nos containers e nas linhas de tarifa; escolhe a mais recente da família
+vigente. Catálogo, operação e cálculo financeiro para novas emissões usam
+esse resolver. Não altera snapshots ou faturas emitidas.
+
+Atendimento mantém a identidade de cada assunto; só admite criar assuntos
+suportados ainda ausentes. O editor valida portos de agentes e depots publicados.
+O banco também valida host, IPv4/IPv6 e porta dos links de agendamento,
+tracking e WhatsApp, além do esquema HTTP(S).
+A seleção de devolução é renovada quando disponibilidade/POD mudam, sem perder
+a justificativa durante uma atualização idêntica.
+
+Ao trocar POD, filtros contextuais de B/L e container são limpos; o filtro de
+B/L também possui retirada explícita. Tracking selecionado usa o cadastro
+atual do armador, inclusive quando o link é retirado. Falha de operação oculta
+orientações e ações antigas; novas consultas oferecem retry e estado vazio.
+
+Leituras do Portal e internas atualizam ao retornar à aba e reconectar. Mudanças
+em depots, carga/viagem, tabelas, tarifas e acordos invalidam também os caches de
+informações e, quando aplicável, operação. Não consulta WordPress em runtime.
+
+Evidência local: testes de serviço/URL, comportamento das seções, permissões
+internas e modal; `portalInformation.local-pg.test.ts` executa as RPCs em
+PostgreSQL 16 com isolamento, auditoria, unidades compartilhadas, SOC e
+precedência de free time. Capturas com dados fictícios ficam em
+`artifacts/portal-informacoes/implementation/`. Não houve implantação em produção.
 
 
 ## Catálogo de ações

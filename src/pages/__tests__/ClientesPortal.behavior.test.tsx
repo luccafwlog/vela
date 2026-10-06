@@ -30,6 +30,7 @@ describe('ClientesPortal', () => {
     render(<MemoryRouter><ClientesPortal /></MemoryRouter>)
     expect(screen.getByRole('button', { name: /^Aguardando análise\s*2$/ })).toBeTruthy()
     expect(screen.getByText('Cliente Portal')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Informações do Portal' }).getAttribute('href')).toBe('/clientes/informacoes')
   })
   it('usa a mesma regra para filtrar e contar a fila de Ativação pendente', () => {
     render(<MemoryRouter><ClientesPortal /></MemoryRouter>)

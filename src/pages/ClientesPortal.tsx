@@ -68,7 +68,8 @@ export function ClientesPortal() {
         title="Provisionamento do Portal"
         description="Fila operacional de análise, convites e situações do Portal."
         action={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link className="app-btn app-btn--secondary app-btn--sm" to="/clientes/informacoes">Informações do Portal</Link>
             <button
               type="button"
               className="app-btn app-btn--ghost app-btn--sm inline-flex items-center gap-1.5"

@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-04",
+  "environment": "Isolated local Vite harness; actual PortalInformationSettings and ContainerReturnInstruction, original src/index.css and public/fonts; auth, query hooks and mutations replaced with local fixtures",
+  "theme": "current",
+  "desktop": { "viewport": [1440, 1000], "documentScrollWidth": 1440 },
+  "mobile": { "viewport": [390, 844], "documentScrollWidth": 390, "returnDialog": { "left": 0, "top": 99, "width": 390, "height": 745, "bottom": 844 } },
+  "visualInspection": "PageHeader, Card, Button, Badge, Field and Modal preserve existing colors, typography and spacing. Desktop two-column depot cards; mobile single column and wrapped section buttons. Modal instructions, restrictions, justification and action buttons fit mobile viewport.",
+  "interactions": [
+    { "containerId": 17, "depotIds": ["local-a", "local-b"], "reason": "Duas opções aprovadas — verificação local" },
+    { "containerId": 17, "depotIds": [], "reason": "Retirar indicação — verificação local" }
+  ],
+  "freshBrowserSession": { "runtimeErrors": [], "fontBodyLoaded": true, "fontHeadingLoaded": true, "externalResourceRequests": [] },
+  "limitations": "Uses local fixtures only; does not prove authentication, RPC execution, persistence, cache behavior or full AppLayout shell against a backend. No production mutation or deployment performed. Temporary harness removed after verification."
+}

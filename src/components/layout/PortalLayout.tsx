@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Building2, FileText, LayoutDashboard, LogOut, Menu, Package, User, X } from 'lucide-react'
+import { Building2, BookOpen, FileText, LayoutDashboard, LogOut, Menu, Package, User, X } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { usePortalAuth } from '../../hooks/usePortalAuth'
 import { usePortalScope } from '../../hooks/usePortalScope'
@@ -18,6 +18,7 @@ export function PortalLayout() {
     { to: portalPath(scope), label: 'Painel', icon: LayoutDashboard, end: true },
     { to: portalPath(scope, '/billing'), label: 'Faturas', icon: FileText, end: false },
     { to: portalPath(scope, '/operacao'), label: 'BLs e Containers', icon: Package, end: false },
+    { to: portalPath(scope, '/informacoes'), label: 'Informações', icon: BookOpen, end: false },
     { to: portalPath(scope, '/perfil'), label: 'Perfil', icon: User, end: false },
   ]
   const { open: mobileNavOpen, setOpen: setMobileNavOpen, toggleRef: mobileNavToggleRef } = useMobileNav()

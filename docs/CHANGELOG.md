@@ -4,6 +4,24 @@
 
 ## 2026-10
 
+- **Revisão extensa da Central de Informações (2026-10-04, local):** migration
+  `135` corrige indicação por identidade física, valida POD/SOC compartilhados,
+  leitura de justificativa tardia e integração com exclusão de viagem. Resolver
+  comum elimina diferenças por aliases de tarifas sem mudar faturas existentes.
+  Corrigidos sobrescrita de assuntos, seleção indisponível, filtros ocultos,
+  tracking antigo, recuperação de erros e atualização dos caches dependentes.
+  [Achados e validação](archive/reports/2026-10-04-revisao-portal-informacoes.md).
+  Sem implantação remota.
+
+- **Central de Informações do Portal (2026-10-04, implementação local):** seis
+  seções com taxas oficiais do Vela, depots, Demurrage, agentes, atendimento e
+  tracking; mesmos componentes e identidade visual. Cadastros internos por
+  papel e indicação opcional de devolução por unidade física compartilhada,
+  com auditoria e retirada justificada. Migrations `135` e `136`, isolamento por cliente
+  e CE, sem planilhas, tabelas de exportação ou Detention. Free time segue
+  B/L → acordo → tarifa geral, sem fallback fixo. Validação PostgreSQL 16 e
+  testes locais; publicação em produção não realizada.
+
 - **Correção de B/L após faturamento (2026-10-01, implementação local):** fatura
   emitida preserva valor/itens; Cancelar e reemitir sem pagamento e vínculo entre
   documentos (`122`). Avulsa por Tipo de cobrança com tabela/Condição do Cliente,
