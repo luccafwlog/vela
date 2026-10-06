@@ -2,7 +2,7 @@
 
 **Estado:** plano aprovado para execução em 2026-10-06. Fase 0 (certificado)
 aguardando a credencial dedicada pedida ao Itaú em 06/10 (ver "Quando o Itaú
-responder"); Fase 1 em andamento.
+responder"); Fases 1 e 2 prontas no código, sem publicação.
 **Substitui:** a PR 827 (`codex/itau-pix-simulation`) como caminho de entrega.
 Os planos daquela branch nunca chegaram à `main`; o que vale deles está
 incorporado aqui.
@@ -193,6 +193,29 @@ Migration `150+` sobre as definições atuais (não reaproveitar o corpo da 114)
 - Vela e Portal exibem o `pixCopiaECola`/QR da COB; "QR em preparação"
   enquanto pendente; cancelamento pendente visível. Invalidação pelos efeitos
   de cache existentes.
+
+**Entregue em 2026-10-06 (Código/Teste local, sem implantação):** migration
+`150_itau_pix_cobrancas.sql`, processador da fila em `itau-pix` e aviso "QR
+em preparação" nos documentos do Vela e no Portal. Desvios do desenho acima:
+
+- Uma tabela só, `itau_pix_charges`, para faturas locais, avulsas e Demurrage;
+  ao ativar, a cobrança local é espelhada em `local_pix_charge_versions` para
+  manter o contrato de conciliação da `130`. Estender a tabela da `130` exigiria
+  outra para a Demurrage.
+- Os chamadores não mudaram: os dois gatilhos donos do QR (`populate_local_invoice_pix_payload`
+  e o novo `zz_itau_pix_demurrage_payload`) cobrem emissão, baixa, correção,
+  reemissão automática, troca de Cliente e PTAX.
+- Sem disparo imediato após emitir: só o cron de 1 minuto. Com isso, o QR leva até cerca de
+  1 minuto para aparecer.
+- "Cancelamento pendente" não aparece na tela; fica em `itau_pix_charges` até
+  a tela de monitoramento (Fase 5).
+- Cron e segredo no Vault não foram criados; ver o manual de serviços externos.
+
+Provas: replay das 148 migrations em Postgres 16 local; suíte
+`itauPixCharges.local-pg.test.ts` (9 casos, inclusive emissão real por
+`create_manual_invoice`, cancelamento e PTAX); suítes financeiras existentes
+com as mesmas falhas locais com e sem a `150` (ambiente Windows); 14 testes
+do cliente/processador e testes das telas.
 
 ### Fase 3 — Baixa automática e recibo
 

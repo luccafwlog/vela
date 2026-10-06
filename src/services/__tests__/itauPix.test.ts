@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  createItauPixClient, isVelaTestTxid, isVelaTxid, ItauPixError, newVelaTestTxid, newVelaTxid, runItauPixAction, type ItauPixConfig,
+  createItauPixClient, isVelaTestTxid, isVelaTxid, ItauPixError, newVelaTestTxid, newVelaTxid, processItauPixQueue, runItauPixAction, stepCharge,
+  type ItauPixConfig, type QueuedCharge,
 } from '../../../supabase/functions/_shared/itauPix'
 
 const config: ItauPixConfig = {
@@ -144,5 +145,66 @@ describe('ações de diagnóstico da Fase 1', () => {
     await expect(runItauPixAction(client, { action: 'cancel', txid: '88ba8ec675e044178d434908d9b2a30a' })).rejects.toMatchObject({ status: 400 })
     await expect(runItauPixAction(client, { action: 'apagar' })).rejects.toMatchObject({ status: 400 })
     expect(fetchMtls).not.toHaveBeenCalled()
+  })
+})
+
+describe('processador da fila de cobranças', () => {
+  const charge = (extra: Partial<QueuedCharge> = {}): QueuedCharge => ({
+    id: 1, txid: newVelaTxid(), amount_brl: '2.5', expiration_seconds: 3600, status: 'pending_create', uncertain: false, attempts: 1, ...extra,
+  })
+  const ativa = (txid: string, extra: Record<string, unknown> = {}) => Response.json(cob(txid, { valor: { original: '2.50' }, ...extra }))
+
+  it('primeira tentativa cria a COB com o valor formatado', async () => {
+    const c = charge()
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid))
+    expect(await stepCharge(createItauPixClient(config, fetchMtls), c)).toEqual({ outcome: 'active', revision: 0, pixCopiaECola: '000201...' })
+    expect(fetchMtls.mock.calls[1][1].method).toBe('PUT')
+    expect(JSON.parse(fetchMtls.mock.calls[1][1].body).valor).toEqual({ original: '2.50' })
+  })
+
+  it('depois de resposta perdida consulta antes e não cria de novo', async () => {
+    const c = charge({ uncertain: true, attempts: 2 })
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid))
+    expect((await stepCharge(createItauPixClient(config, fetchMtls), c)).outcome).toBe('active')
+    expect(fetchMtls.mock.calls.map((call) => call[1].method)).toEqual(['POST', 'GET'])
+  })
+
+  it('consulta 404 numa nova tentativa leva à criação', async () => {
+    const c = charge({ attempts: 2 })
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce(Response.json({ title: 'Não encontrada' }, { status: 404 }))
+      .mockResolvedValueOnce(ativa(c.txid))
+    expect((await stepCharge(createItauPixClient(config, fetchMtls), c)).outcome).toBe('active')
+    expect(fetchMtls.mock.calls.map((call) => call[1].method)).toEqual(['POST', 'GET', 'PUT'])
+  })
+
+  it('cobrança existente já paga vira concluded, nunca active', async () => {
+    const c = charge({ uncertain: true })
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid, { status: 'CONCLUIDA' }))
+    expect((await stepCharge(createItauPixClient(config, fetchMtls), c)).outcome).toBe('concluded')
+  })
+
+  it('cancelamento: inexistente = cancelada, paga = concluded, sem resposta = incerta', async () => {
+    const c = charge({ status: 'pending_cancel' })
+    const run = (response: Response | Error) => stepCharge(createItauPixClient(config,
+      vi.fn().mockResolvedValueOnce(tokenResponse())[response instanceof Error ? 'mockRejectedValueOnce' : 'mockResolvedValueOnce'](response)), c)
+    expect((await run(Response.json({}, { status: 404 }))).outcome).toBe('cancelled')
+    expect((await run(ativa(c.txid, { status: 'CONCLUIDA' }))).outcome).toBe('concluded')
+    expect((await run(new TypeError('timeout'))).outcome).toBe('uncertain')
+    expect((await run(Response.json({ title: 'Erro' }, { status: 500 }))).outcome).toBe('error')
+  })
+
+  it('processa o que foi reservado e registra cada resultado', async () => {
+    const a = charge({ id: 10 })
+    const b = charge({ id: 11, status: 'pending_cancel' })
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(a.txid))
+      .mockResolvedValueOnce(ativa(b.txid, { status: 'REMOVIDA_PELO_USUARIO_RECEBEDOR' }))
+    const recorded: [number, string][] = []
+    const summary = await processItauPixQueue(createItauPixClient(config, fetchMtls), {
+      claim: async () => [a, b],
+      record: async (id, outcome) => { recorded.push([id, outcome.outcome]) },
+    })
+    expect(recorded).toEqual([[10, 'active'], [11, 'cancelled']])
+    expect(summary).toMatchObject({ active: 1, cancelled: 1, error: 0 })
   })
 })
