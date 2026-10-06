@@ -184,7 +184,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
 
   afterEach(cleanup)
 
-  it('151 — Pix Itaú baixa a individual pelo endToEndId uma única vez e diverge para análise', () => {
+  it('152 — Pix Itaú baixa a individual pelo endToEndId uma única vez e diverge para análise', () => {
     if (psql(`SELECT to_regproc('public.itau_pix_settle') IS NOT NULL`) !== 't') return
     psql(`UPDATE public.app_settings SET pix_provider = 'itau', itau_pix_settlement_actor = '${actorId}' WHERE id = 1`)
     try {

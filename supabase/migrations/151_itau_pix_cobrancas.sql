@@ -1,4 +1,4 @@
--- 150: cobranças Pix dinâmicas do Itaú (Fase 2 do plano 2026-10-06-integracao-itau-pix).
+-- 151: cobranças Pix dinâmicas do Itaú (Fase 2 do plano 2026-10-06-integracao-itau-pix).
 --
 -- Chave `app_settings.pix_provider`: 'static' (padrão) mantém o QR estático
 -- exatamente como na 130; 'itau' faz os pontos únicos onde o QR nasce

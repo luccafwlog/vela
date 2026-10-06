@@ -216,7 +216,7 @@ export type ItauPixClient = ReturnType<typeof createItauPixClient>
 
 // ---------------------------------------------------------------------------
 // Fila de cobranças das faturas (Fase 2). O banco decide o que precisa existir
-// (`itau_pix_charges`, migration 150); aqui só se executa e se relata.
+// (`itau_pix_charges`, migration 151); aqui só se executa e se relata.
 
 export type QueuedCharge = {
   id: number

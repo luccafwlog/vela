@@ -1,4 +1,4 @@
--- 151: baixa automática dos Pix recebidos pelo Itaú (Fase 3 do plano
+-- 152: baixa automática dos Pix recebidos pelo Itaú (Fase 3 do plano
 -- 2026-10-06-integracao-itau-pix).
 --
 -- A função `itau-pix` consulta os recebimentos (GET /pix por janela com
@@ -42,7 +42,7 @@ ALTER TABLE public.itau_pix_receipts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.itau_pix_receipts FROM PUBLIC, anon, authenticated;
 
 -- Cobranças de avulsa não entram em local_pix_charge_versions: o resolvedor
--- da 130 leva ao ledger, que não serve à avulsa. Corpo da 150, só esse filtro.
+-- da 130 leva ao ledger, que não serve à avulsa. Corpo da 151, só esse filtro.
 CREATE OR REPLACE FUNCTION public.itau_pix_record(p_id bigint, p_outcome text, p_revision integer DEFAULT NULL,
   p_pix_copia_e_cola text DEFAULT NULL, p_error text DEFAULT NULL)
 RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$

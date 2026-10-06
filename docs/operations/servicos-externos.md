@@ -519,14 +519,14 @@ do guia. Ela cria cobranças de teste de até R$ 1,00 com TXID `VELAT…` e só
 altera ou cancela essas; consulta qualquer TXID `VELA`, então nunca toca
 cobranças do sistema de terceiro nem muda a cobrança de uma fatura.
 
-A fila de cobranças das faturas (migration `150`) só tem trabalho quando
+A fila de cobranças das faturas (migration `151`) só tem trabalho quando
 `app_settings.pix_provider = 'itau'`; o padrão é `static`. Para operar,
 na ordem: publicar `itau-pix`; gravar `ITAU_PIX_ADMIN_SECRET` também no Vault,
 com o mesmo nome e valor; agendar o job `itau-pix-queue` a cada minuto
 (`* * * * *`, `select ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`,
 ver [segredos e cron](segredos-cron.md)); definir em
 `app_settings.itau_pix_settlement_actor` a conta Admin dedicada **"API Itaú"**,
-criada pelo dono, que assina as baixas automáticas (migration `151`; decisão
+criada pelo dono, que assina as baixas automáticas (migration `152`; decisão
 de 2026-10-06: não usar a conta de uma pessoa). Só então virar a chave. Nenhum desses
 passos foi executado.
 
@@ -550,7 +550,7 @@ cancelar antes, no Itaú, as cobranças abertas, porque o modo `static` não
 acompanha mais as cobranças que estiverem ativas no banco.
 
 Manutenção anual: os prazos da Demurrage usam o calendário
-`business_holidays` (migration `152`, anos 2026 e 2027). Cadastre os feriados
+`business_holidays` (migration `153`, anos 2026 e 2027). Cadastre os feriados
 de Vitória/ES do ano seguinte antes de 1º/11; a partir dessa data o Alerta
 `calendario_feriados_pendente` (Documentação) lembra e fecha sozinho quando o ano
 é cadastrado. Ano sem cadastro não para a integração: só sábados e domingos

@@ -75,7 +75,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () => {
+describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local', () => {
   beforeAll(() => {
     cleanup()
     psql(`
@@ -132,7 +132,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(psql(`SELECT count(*) FROM public.itau_pix_claim(100) WHERE id = ${charge.id}`)).toBe('0')
     expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'active', 0, '000201ITAUCOB-B', NULL, now())`)).toBe('active')
     expect(psql(`SELECT pix_payload FROM public.invoices WHERE id = ${id}`)).toBe('000201ITAUCOB-B')
-    // Espelho em local_pix_charge_versions só para individual/consolidada (151);
+    // Espelho em local_pix_charge_versions só para individual/consolidada (152);
     // provado em invoicePostBillingSafety, que baixa a individual pelo resolvedor da 130.
     expect(charges(`id = ${charge.id}`)[0].status).toBe('active')
   })
@@ -194,7 +194,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(charges(`invoice_id = ${result.invoice_id}`).map((c) => [c.amount, c.status])).toEqual([['0.01', 'pending_create']])
   })
 
-  // Baixa (migration 151). Como a Edge Function, roda com o papel service_role.
+  // Baixa (migration 152). Como a Edge Function, roda com o papel service_role.
   const settle = (e2e: string, txid: string, amount: string) =>
     psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_settle('${e2e}', '${txid}', ${amount}, now())`)
   const activate = (where: string, payload: string) => {
@@ -259,7 +259,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
       AND metadata->>'end_to_end_id' = 'E151DESCONHECIDO'`)).toBe('1')
   })
 
-  // ---- Fase 4 (migration 152): prazos, PTAX no mesmo TXID e renovação ----
+  // ---- Fase 4 (migration 153): prazos, PTAX no mesmo TXID e renovação ----
   it('corte: 14h30 do próximo dia útil de Vitória (fim de semana e feriados)', () => {
     const cutoff = (at: string) => psql(`SELECT to_char(public.itau_pix_cutoff('${at}'::timestamptz) AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD HH24:MI')`)
     expect(cutoff('2026-10-07 09:00-03')).toBe('2026-10-08 14:30') // quarta → quinta
@@ -363,7 +363,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(asAuthenticated('SELECT public.itau_pix_maintain()')).toMatch(/permission denied|permissão negada/)
   })
 
-  // ---- Fase 5 (migration 153): monitoramento na Conciliação PIX ----
+  // ---- Fase 5 (migration 154): monitoramento na Conciliação PIX ----
   it('Admin lê o monitoramento com cancelamento pendente; outro perfil não', () => {
     setProvider('itau')
     const id = manualInvoice('ITAU153-MON', 0.06)

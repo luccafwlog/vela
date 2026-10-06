@@ -1,4 +1,4 @@
--- 152: prazos das cobranças Itaú (Fase 4 do plano 2026-10-06-integracao-itau-pix).
+-- 153: prazos das cobranças Itaú (Fase 4 do plano 2026-10-06-integracao-itau-pix).
 -- Regras aprovadas em 2026-09-30:
 --   - Demurrage: uma cobrança por fatura; nova PTAX altera a MESMA cobrança
 --     (mesmo TXID, nova revisão); vale até 14h30 do próximo dia útil em
@@ -104,7 +104,7 @@ BEGIN
       IF v_open.amount_brl <> round(p_amount_brl, 2) OR v_open.expires_at IS NULL OR v_open.expires_at < v_cutoff THEN
         UPDATE public.itau_pix_charges SET amount_brl = round(p_amount_brl, 2), status = 'pending_update',
           expiration_seconds = ceil(extract(epoch FROM v_cutoff - v_open.bank_created_at))::integer,
-          -- Mesma regra da 150: não encurta a reserva de uma chamada em andamento.
+          -- Mesma regra da 151: não encurta a reserva de uma chamada em andamento.
           next_attempt_at = greatest(next_attempt_at, now()), updated_at = now()
         WHERE id = v_open.id;
       END IF;
@@ -190,7 +190,7 @@ $$;
 REVOKE ALL ON FUNCTION public.itau_pix_record(bigint, text, integer, text, text, timestamptz) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.itau_pix_record(bigint, text, integer, text, text, timestamptz) TO service_role;
 
--- Baixa (151) com uma mudança: valor exato só para faturas locais.
+-- Baixa (152) com uma mudança: valor exato só para faturas locais.
 CREATE OR REPLACE FUNCTION public.itau_pix_settle(p_end_to_end_id text, p_txid text, p_amount_brl numeric, p_paid_at timestamptz)
 RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -251,7 +251,7 @@ BEGIN
         PERFORM set_config('request.jwt.claim.sub', coalesce(v_previous_sub, ''), true);
       END IF;
     EXCEPTION WHEN OTHERS THEN
-      -- Mesma regra da 151: erro passageiro falha a chamada para nova tentativa.
+      -- Mesma regra da 152: erro passageiro falha a chamada para nova tentativa.
       IF left(SQLSTATE, 2) IN ('08', '40', '53', '55', '57', 'XX') THEN RAISE; END IF;
       -- Desfaz só a baixa; a cobrança continua 'concluded' (paga no banco).
       PERFORM set_config('request.jwt.claim.sub', coalesce(v_previous_sub, ''), true);

@@ -243,11 +243,11 @@ excluir para admin, conforme
   [`src/lib/pix.ts`](../../src/lib/pix.ts) com valor BRL e `doc_number` como
   TXID. A baixa de demurrage não cria `bl_receivables`,
   `invoice_receivable_links` nem `ledger_settlements`. Com
-  `app_settings.pix_provider = 'itau'` (migration 150, desligada por padrão),
+  `app_settings.pix_provider = 'itau'` (migration 151, desligada por padrão),
   o gatilho `zz_itau_pix_demurrage_payload` substitui o QR estático gravado
   pelas RPCs por uma cobrança Itaú. Nova PTAX altera a mesma cobrança, com o
   mesmo TXID e validade até 14h30 do próximo dia útil de Vitória (migration
-  152, `itau_pix_cutoff`). Vencida e não paga, a cobrança é substituída por
+  153, `itau_pix_cutoff`). Vencida e não paga, a cobrança é substituída por
   outra com novo TXID. Às 14h de dia útil, fatura sem a PTAX do dia abre
   `demurrage_ptax_recalc_failed` (entidade `itau-pix-14h`). Detalhes no
   [plano Itaú](../plans/2026-10-06-integracao-itau-pix.md).

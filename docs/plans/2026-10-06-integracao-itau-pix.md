@@ -3,7 +3,8 @@
 **Estado:** plano aprovado para execução em 2026-10-06. Fase 0 (certificado)
 aguardando a credencial dedicada pedida ao Itaú em 06/10 (ver "Quando o Itaú
 responder"); Fases 1 a 4 e a tela de monitoramento da Fase 5
-prontas no código, sem publicação.
+prontas no código (migrations 151–154), revisadas e unificadas numa PR contra
+a `main`; sem publicação da função, secrets, cron nem virada.
 **Substitui:** a PR 827 (`codex/itau-pix-simulation`) como caminho de entrega.
 Os planos daquela branch nunca chegaram à `main`; o que vale deles está
 incorporado aqui.
@@ -196,7 +197,7 @@ Migration `150+` sobre as definições atuais (não reaproveitar o corpo da 114)
   de cache existentes.
 
 **Entregue em 2026-10-06 (Código/Teste local, sem implantação):** migration
-`150_itau_pix_cobrancas.sql`, processador da fila em `itau-pix` e aviso "QR
+`151_itau_pix_cobrancas.sql`, processador da fila em `itau-pix` e aviso "QR
 em preparação" nos documentos do Vela e no Portal. Desvios do desenho acima:
 
 - Uma tabela só, `itau_pix_charges`, para faturas locais, avulsas e Demurrage;
@@ -215,7 +216,7 @@ em preparação" nos documentos do Vela e no Portal. Desvios do desenho acima:
 Provas: replay das 148 migrations em Postgres 16 local; suíte
 `itauPixCharges.local-pg.test.ts` (9 casos, inclusive emissão real por
 `create_manual_invoice`, cancelamento e PTAX); suítes financeiras existentes
-com as mesmas falhas locais com e sem a `150` (ambiente Windows); 14 testes
+com as mesmas falhas locais com e sem a `151` (ambiente Windows); 14 testes
 do cliente/processador e testes das telas.
 
 ### Fase 3 — Baixa automática e recibo
@@ -230,7 +231,7 @@ do cliente/processador e testes das telas.
 - Botão "Já paguei — verificar" chama a consulta da COB daquela fatura.
 
 **Entregue em 2026-10-06 (Código/Teste local, sem implantação):** migration
-`151_itau_pix_baixa_automatica.sql` e consulta de recebimentos em `itau-pix`.
+`152_itau_pix_baixa_automatica.sql` e consulta de recebimentos em `itau-pix`.
 
 - A cada execução do cron (depois da fila de cobranças), `GET /pix` cobre a
   janela entre o checkpoint e agora, com 10 min de sobreposição e no máximo 6 h
@@ -261,7 +262,7 @@ do cliente/processador e testes das telas.
 
 Provas: suíte `itauPixCharges.local-pg.test.ts` com 12 casos (avulsa,
 Demurrage, sem usuário de baixa, TXID desconhecido, repetição, permissões);
-caso `151` em `invoicePostBillingSafety.local-pg.test.ts` para fatura
+caso `152` em `invoicePostBillingSafety.local-pg.test.ts` para fatura
 individual emitida por CE (valor divergente vai para análise, valor certo
 baixa uma vez com o `endToEndId`). Esse caso foi sabotado para confirmar que
 executa. Mais 17 testes do cliente, processador e consulta.
@@ -274,7 +275,7 @@ pagamento concorrente ao cancelamento. Cenários da PR 827 reaproveitados como
 roteiro de teste.
 
 **Entregue em 2026-10-06 (Código/Teste local, sem implantação):** migration
-`152_itau_pix_prazos_e_ptax.sql`; `itau-pix` roda `itau_pix_maintain` antes
+`153_itau_pix_prazos_e_ptax.sql`; `itau-pix` roda `itau_pix_maintain` antes
 da fila e passou a enviar PATCH e a confirmar vencimentos.
 
 - **Calendário:** `business_holidays` com Vitória/ES 2026–2027 (dados da PR
@@ -309,7 +310,7 @@ Provas: suíte `itauPixCharges.local-pg.test.ts` com 16 casos (corte e
 feriados, PTAX no mesmo TXID, Pix da revisão anterior, vencimento confirmado e
 substituição, renovação local, Alerta das 14h, permissões), repetida duas
 vezes no mesmo banco. Mais 19 testes do processador. Suítes financeiras com
-`150`–`152`: as mesmas 21 falhas locais de ambiente, nome a nome.
+`151`–`153`: as mesmas 21 falhas locais de ambiente, nome a nome.
 
 ### Fase 5 — Virada e encerramento
 
@@ -319,7 +320,7 @@ tipo de fatura; Conciliação PIX como monitoramento; atualizar
 externos e `RASTREABILIDADE.md`; fechar a PR 827; arquivar este plano e a spec.
 
 **Tela de monitoramento entregue em 2026-10-06 (código, sem publicação).**
-`153_itau_pix_monitoramento.sql` cria `itau_pix_monitor` (só Admin, só
+`154_itau_pix_monitoramento.sql` cria `itau_pix_monitor` (só Admin, só
 leitura) e a Conciliação PIX abre com o bloco "Cobranças Pix Itaú": chave
 ligada ou não, última consulta de recebimentos, cobranças ativas e a lista do
 que pede atenção (aguardando o banco, cancelamento pendente, resposta incerta,
@@ -361,3 +362,4 @@ SQL não prova execução nem RLS; a prova de pagamento é o teste de centavos.
 | 2026-10-06 | Revisão da Fase 3. Dono confirma: sem botão "Já paguei", só a atualização automática do Portal; baixas automáticas assinadas por conta Admin dedicada "API Itaú", criada pelo dono. Correção: erro passageiro do banco na baixa falha a chamada para nova tentativa, em vez de mandar o Pix para análise. |
 | 2026-10-06 | Revisão da Fase 4. Dono decide: sem calendário cadastrado, a integração segue contando só fins de semana. Correções: Alerta próprio `calendario_feriados_pendente` (fecha ao cadastrar o ano); alteração repetida consulta a cobrança antes de novo PATCH. |
 | 2026-10-06 | Revisão da Fase 5. Dono aprova: Pix em análise fecha sozinho quando a fatura da cobrança fica paga e, nos demais casos, Admin marca como tratado com motivo (fecha o Alerta). Correção: "pedem atenção" lista só cobranças que aguardam o banco. |
+| 2026-10-06 | Revisão das PRs 861–867 concluída e PR 827 fechada. As seis PRs foram unificadas numa só contra a `main`; as migrations da pilha foram renumeradas de 150–153 para 151–154, porque a `main` recebeu `150_importacao_bl_flags_baplie_so_do_lote.sql`. As menções a 150–153 nas linhas anteriores deste registro referem-se à numeração antiga. |

@@ -558,13 +558,13 @@ Não há evidência de Runtime registrada neste documento.
   incompletos pode cair no RPC legado; não houve validação em Runtime desse
   cenário.
 
-### Cobrança dinâmica Itaú — migration 150 (desligada)
+### Cobrança dinâmica Itaú — migration 151 (desligada)
 
 Com `app_settings.pix_provider = 'itau'`, o gatilho do QR local deixa de
 montar o QR estático e passa a manter uma cobrança Itaú por fatura pagável:
 qualquer mudança de saldo ou status (baixa, correção, reemissão automática,
 troca de Cliente, cancelamento) cancela a cobrança anterior e abre outra.
-Contrato e fila em [Reconciliação PIX](reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-150-desligada).
+Contrato e fila em [Reconciliação PIX](reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151-desligada).
 O padrão continua `static`.
 
 ### Segurança da correção automática — migration 130

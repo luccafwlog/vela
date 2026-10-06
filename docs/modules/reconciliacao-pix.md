@@ -28,7 +28,7 @@ confirma o lote, apresenta histórico/exportação e permite cancelar baixas.
 ### Monitoramento das cobranças Itaú
 
 `src/pages/Reconciliacao.tsx` começa, para Admin, com o bloco "Cobranças Pix
-Itaú" (`itau_pix_monitor`, migration 153, atualizado a cada minuto). Ele diz
+Itaú" (`itau_pix_monitor`, migration 154, atualizado a cada minuto). Ele diz
 se a cobrança Itaú está ligada e quando foi a última consulta de recebimentos,
 conta as cobranças ativas e lista só o que pede atenção: cobranças aguardando o
 banco (emissão, alteração, conferência de vencimento, **cancelamento
@@ -245,7 +245,7 @@ Estes testes verificam texto de migrations, não um banco aplicado:
 - **Filtro “Único BL” alinhado.** O valor visual `single` é normalizado para
   `individual` antes da comparação.
 
-### Cobrança dinâmica Itaú — migration 150 (desligada)
+### Cobrança dinâmica Itaú — migration 151 (desligada)
 
 **Código/Teste local, sem implantação.** `app_settings.pix_provider` escolhe o
 autor do QR: `static` (padrão, comportamento desta página inalterado) ou
@@ -257,9 +257,9 @@ função `itau-pix` processa a fila (`itau_pix_claim`/`itau_pix_record`) e grava
 o copia e cola em `pix_payload`; até lá Vela e Portal mostram "QR em
 preparação". Faturas locais ativas também entram em
 `local_pix_charge_versions`, então a conciliação por extrato continua
-resolvendo o TXID. A avulsa não entra nessa tabela (migration 151).
+resolvendo o TXID. A avulsa não entra nessa tabela (migration 152).
 
-**Baixa automática (migration 151):** a função consulta `GET /pix` e chama
+**Baixa automática (migration 152):** a função consulta `GET /pix` e chama
 `itau_pix_settle` para cada Pix com TXID `VELA…`, que baixa pelos mesmos
 donos desta página (`reconcile_invoice_payment_by_txid`, pagamento verificado
 da avulsa e `register_demurrage_payment`), com o `endToEndId` como referência
