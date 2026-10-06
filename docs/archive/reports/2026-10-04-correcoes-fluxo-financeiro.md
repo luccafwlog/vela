@@ -50,9 +50,9 @@ novo Cliente.
 | Suíte financeira adicional, sequencial | 13 arquivos e 108 testes passaram, incluindo 44 casos de `invoicePostBillingSafety.local-pg.test.ts`. |
 | `npm run typecheck`, `npm run lint`, `npm run build` | Passaram. |
 | `npm run rpc:check`, com `psql` local no PATH | 207 nomes de RPC de produção encontrados no catálogo local, incluindo a migration 136. |
-| `npm run migrations:check` | Passou para as 132 migrations ativas, incluindo a 134. |
+| `npm run migrations:check` | Passou para as 132 migrations ativas, incluindo a 134 (numeração da época; hoje 136). |
 | `python scripts/security/verificar_guardas.py --ci` | Passou. A RPC legada, que recusa devoluções sem comprovante, também declara a guarda de Financeiro/Administrativo. |
-| `auditMigration` aplicado diretamente ao SQL da 134 | Nenhum comando de reescrita destrutiva de dados existentes na aplicação da migration. |
+| `auditMigration` aplicado diretamente ao SQL da 134 (hoje 136) | Nenhum comando de reescrita destrutiva de dados existentes na aplicação da migration. |
 | `npm run docs:check`, `git diff --check` | Passaram após a inclusão deste relatório. |
 
 Os 13 arquivos de banco foram: `invoicePostBillingSafety`, `invoiceCorrection`,
