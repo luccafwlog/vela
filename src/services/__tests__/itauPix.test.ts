@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  createItauPixClient, isVelaTxid, ItauPixError, newVelaTxid, runItauPixAction, type ItauPixConfig,
+  createItauPixClient, isVelaTestTxid, isVelaTxid, ItauPixError, newVelaTestTxid, newVelaTxid, runItauPixAction, type ItauPixConfig,
 } from '../../../supabase/functions/_shared/itauPix'
 
 const config: ItauPixConfig = {
@@ -85,6 +85,53 @@ describe('cliente Itaú Pix', () => {
     const pix = await createItauPixClient(config, fetchMtls).listPix('2026-10-06T00:00:00Z', '2026-10-07T00:00:00Z')
     expect(pix.map((p) => p.endToEndId)).toEqual(['E1', 'E2'])
     expect(fetchMtls.mock.calls[2][0]).toContain('paginacao.paginaAtual=1')
+  })
+})
+
+describe('cobrança de teste x cobrança de fatura', () => {
+  it('o TXID de fatura nunca tem o prefixo de teste', () => {
+    for (let i = 0; i < 200; i++) {
+      const txid = newVelaTxid()
+      expect(txid).toMatch(/^VELA[0-9A-F]{28}$/)
+      expect(isVelaTestTxid(txid)).toBe(false)
+    }
+    const test = newVelaTestTxid()
+    expect(test).toMatch(/^VELAT[A-Z0-9]{27}$/)
+    expect(isVelaTestTxid(test)).toBe(true)
+  })
+
+  it('não altera nem cancela a cobrança de uma fatura, mas consulta', async () => {
+    const invoiceTxid = newVelaTxid()
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json(cob(invoiceTxid)))
+    const client = createItauPixClient(config, fetchMtls)
+    await expect(runItauPixAction(client, { action: 'cancel', txid: invoiceTxid })).rejects.toMatchObject({ status: 400 })
+    await expect(runItauPixAction(client, { action: 'update_test', txid: invoiceTxid, amount: '0.50' })).rejects.toMatchObject({ status: 400 })
+    expect(fetchMtls).not.toHaveBeenCalled()
+    await expect(runItauPixAction(client, { action: 'get', txid: invoiceTxid })).resolves.toMatchObject({ txid: invoiceTxid })
+  })
+
+  it('recusa validade inválida e alteração vazia sem chamar o Itaú', async () => {
+    const fetchMtls = vi.fn()
+    const client = createItauPixClient(config, fetchMtls)
+    const txid = newVelaTestTxid()
+    await expect(runItauPixAction(client, { action: 'update_test', txid, expiration_seconds: 'abc' })).rejects.toMatchObject({ status: 400 })
+    await expect(runItauPixAction(client, { action: 'update_test', txid })).rejects.toMatchObject({ status: 400 })
+    expect(fetchMtls).not.toHaveBeenCalled()
+  })
+
+  it('list_pix devolve só os Pix do Vela, sem dados do pagador, e conta os do terceiro', async () => {
+    const vela = newVelaTxid()
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json({
+      parametros: { paginacao: { paginaAtual: 0, quantidadeDePaginas: 1 } },
+      pix: [
+        { endToEndId: 'E1', txid: vela, valor: '0.01', horario: 'x', infoPagador: 'texto do cliente' },
+        { endToEndId: 'E2', txid: '88ba8ec675e044178d434908d9b2a30a', valor: '9.00', horario: 'y', infoPagador: 'alheio' },
+        { endToEndId: 'E3', valor: '5.00', horario: 'z' },
+      ],
+    }))
+    const result = await runItauPixAction(createItauPixClient(config, fetchMtls),
+      { action: 'list_pix', inicio: '2026-10-06T00:00:00Z', fim: '2026-10-07T00:00:00Z' })
+    expect(result).toEqual({ pix: [{ endToEndId: 'E1', txid: vela, valor: '0.01', horario: 'x' }], outros: 2 })
   })
 })
 

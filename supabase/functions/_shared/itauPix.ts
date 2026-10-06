@@ -62,14 +62,27 @@ export function itauPixConfigFromEnv(get: (name: string) => string | undefined):
 
 // TXID próprio do Vela: prefixo fixo para nunca colidir com cobranças do sistema de terceiro
 // na mesma chave Pix, e só maiúsculas porque a conciliação normaliza TXIDs para maiúsculas.
+// Cobrança de fatura: 'VELA' + 28 hexadecimais, o mesmo formato gerado no banco de dados.
 export function newVelaTxid(): string {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  const bytes = crypto.getRandomValues(new Uint8Array(28))
-  return 'VELA' + Array.from(bytes, (b) => alphabet[b % 36]).join('')
+  const bytes = crypto.getRandomValues(new Uint8Array(14))
+  return 'VELA' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').toUpperCase()
 }
 
 export function isVelaTxid(txid: unknown): txid is string {
   return typeof txid === 'string' && VELA_TXID.test(txid)
+}
+
+// Cobrança de teste: 'VELAT' + 27 caracteres. O 'T' nunca aparece no hexadecimal das
+// cobranças de fatura, então as ações de diagnóstico não alcançam fatura real: a cobrança
+// de uma fatura só muda pela própria fatura no Vela (decisão do dono, 2026-10-06).
+export function newVelaTestTxid(): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const bytes = crypto.getRandomValues(new Uint8Array(27))
+  return 'VELAT' + Array.from(bytes, (b) => alphabet[b % 36]).join('')
+}
+
+export function isVelaTestTxid(txid: unknown): txid is string {
+  return isVelaTxid(txid) && txid.startsWith('VELAT')
 }
 
 function assertMoney(amount: string): void {
@@ -159,6 +172,10 @@ export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fet
     async updateCob(txid: string, change: { amount?: string; expirationSeconds?: number }): Promise<ItauCob> {
       if (!isVelaTxid(txid)) throw new ItauPixError('TXID fora do padrão do Vela.', 400)
       if (change.amount !== undefined) assertMoney(change.amount)
+      if (change.expirationSeconds !== undefined && (!Number.isSafeInteger(change.expirationSeconds) || change.expirationSeconds <= 0)) {
+        throw new ItauPixError('Expiração inválida.', 400)
+      }
+      if (change.amount === undefined && change.expirationSeconds === undefined) throw new ItauPixError('Nada a alterar.', 400)
       const cob = assertCob(await call('PATCH', `/cob/${txid}`, {
         ...(change.amount === undefined ? {} : { valor: { original: change.amount } }),
         ...(change.expirationSeconds === undefined ? {} : { calendario: { expiracao: change.expirationSeconds } }),
@@ -200,9 +217,16 @@ export type ItauPixClient = ReturnType<typeof createItauPixClient>
 // ponytail: teto da Fase 1 (prova de centavos); a cobrança de faturas usa outro caminho na Fase 2.
 export const TEST_MAX_BRL = 1
 
-// Ações de diagnóstico da Fase 1. Só tocam cobranças com TXID do Vela.
+// Ações de diagnóstico da Fase 1. Consultam qualquer cobrança do Vela, mas só alteram ou
+// cancelam cobranças de teste; a listagem não expõe Pix do sistema de terceiro.
 export async function runItauPixAction(client: ItauPixClient, input: Record<string, unknown>): Promise<unknown> {
   const txid = input.txid
+  const testTxid = () => {
+    if (!isVelaTestTxid(txid)) {
+      throw new ItauPixError('Só cobranças de teste (VELAT…) podem ser alteradas ou canceladas aqui; a de uma fatura muda pela fatura.', 400)
+    }
+    return txid
+  }
   const amount = typeof input.amount === 'string' ? input.amount : undefined
   const testAmount = () => {
     if (!amount || !MONEY.test(amount) || Number(amount) <= 0 || Number(amount) > TEST_MAX_BRL) {
@@ -215,15 +239,23 @@ export async function runItauPixAction(client: ItauPixClient, input: Record<stri
     case 'token':
       return client.tokenInfo()
     case 'create_test':
-      return client.createCob(newVelaTxid(), testAmount(), seconds ?? 3600, 'Teste de integração Vela')
+      return client.createCob(newVelaTestTxid(), testAmount(), seconds ?? 3600, 'Teste de integração Vela')
     case 'get':
       return client.getCob(txid as string)
     case 'update_test':
-      return client.updateCob(txid as string, { amount: amount === undefined ? undefined : testAmount(), expirationSeconds: seconds })
+      return client.updateCob(testTxid(), { amount: amount === undefined ? undefined : testAmount(), expirationSeconds: seconds })
     case 'cancel':
-      return client.cancelCob(txid as string)
-    case 'list_pix':
-      return client.listPix(String(input.inicio ?? ''), String(input.fim ?? ''))
+      return client.cancelCob(testTxid())
+    case 'list_pix': {
+      // Do terceiro só a contagem: responde se o GET /pix mistura os recebimentos sem
+      // trazer infoPagador nem dados de pagador alheios.
+      const pix = await client.listPix(String(input.inicio ?? ''), String(input.fim ?? ''))
+      const vela = pix.filter((p) => isVelaTxid(p.txid))
+      return {
+        pix: vela.map(({ endToEndId, txid, valor, horario }) => ({ endToEndId, txid, valor, horario })),
+        outros: pix.length - vela.length,
+      }
+    }
     default:
       throw new ItauPixError('Ação desconhecida.', 400)
   }

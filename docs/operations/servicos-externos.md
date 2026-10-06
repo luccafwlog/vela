@@ -491,12 +491,15 @@ gerenciado. Não há alteração de nomes de segredos ou do agendamento de expur
 
 ## Itaú — API Pix Recebimentos
 
-**Credencial produtiva emitida, certificado pendente.** Conta 0870/37293-5
+**Bloqueado: aguardando credencial dedicada ao Vela.** Conta 0870/37293-5
 (TRANSHIPPING AGENCIAMENTO MARITIMO LTDA, CNPJ 06.352.972/0001-21),
 protocolo IT-000245617 com a Implantação Técnica do Itaú
 (`implantacao_cash_varejo@itau-unibanco.com.br`; responder sempre no mesmo
-assunto). Em 2026-10-06 o banco enviou CLIENT ID e token de ativação (vence
-13/10/2026 08:44) numa planilha guardada fora do repositório pelo dono.
+assunto). Em 2026-10-06 o banco enviou CLIENT ID e token de ativação, mas o
+CLIENT ID é o da credencial de julho, usada pelo sistema de terceiro: a troca
+do CSR foi recusada (HTTP 409, `C700a`, certificado ainda válido). O dono
+pediu no mesmo thread uma credencial nova, dedicada ao Vela, sem revogar a
+atual. O token de 2026-10-06 não tem mais uso.
 
 O token troca um CSR por certificado (365 dias) e client_secret em
 `sts.itau.com.br`; o procedimento está na Fase 0 do
@@ -512,8 +515,9 @@ código e **não está publicada**. Ela exige também `ITAU_PIX_ADMIN_SECRET`
 (bearer próprio, ≥ 32 caracteres aleatórios, nunca `service_role`). Os
 overrides opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL` e
 `ITAU_AUTH_HEADER` só existem para ajustar host e header se o Itaú divergir
-do guia. Ela só cria cobranças de teste de até R$ 1,00 e só altera, cancela ou
-consulta TXIDs com prefixo `VELA`, então nunca toca cobranças do sistema de terceiro.
+do guia. Ela cria cobranças de teste de até R$ 1,00 com TXID `VELAT…` e só
+altera ou cancela essas; consulta qualquer TXID `VELA`, então nunca toca
+cobranças do sistema de terceiro nem muda a cobrança de uma fatura.
 
 Renovar o certificado 30 dias antes do vencimento. Documentação:
 [Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
