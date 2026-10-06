@@ -80,7 +80,10 @@ BEGIN
     -- Nunca enviada (nem reservada pelo processador): basta descartar.
     UPDATE public.itau_pix_charges SET
       status = CASE WHEN status = 'pending_create' AND attempts = 0 AND NOT uncertain THEN 'cancelled' ELSE 'pending_cancel' END,
-      next_attempt_at = now(), updated_at = now()
+      -- Não encurta a reserva de uma chamada em andamento: cancelar antes de a
+      -- criação terminar deixaria a cobrança ativa no Itaú e cancelada aqui.
+      -- ponytail: também adia o cancelamento de uma cobrança em backoff (até 60 min).
+      next_attempt_at = greatest(next_attempt_at, now()), updated_at = now()
     WHERE id = v_open.id;
   END IF;
   IF p_payable AND round(p_amount_brl, 2) > 0 THEN
