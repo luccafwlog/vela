@@ -1233,6 +1233,23 @@ describe('blFreightImport', () => {
     ])
   })
 
+  it('SOC/COC declarado diferente do gravado e mudanca visivel, nao "sem mudanca"', () => {
+    const previewWith = (ownership: string | null) => buildBlFreightPreview({
+      documents: [parsedBL()],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      existingBls: [{ ...existingBl(), bl_containers: [{ ...existingContainer(), ownership }] }],
+    }).rows[0]
+
+    const filled = previewWith(null)
+    expect(filled.status).toBe('updated')
+    expect(filled.diffs).toContainEqual(expect.objectContaining({
+      field: 'container_ownership', from: 'TCLU1234567: -', to: 'TCLU1234567: COC',
+    }))
+
+    const same = previewWith('COC')
+    expect(same.diffs.map((diff) => diff.field)).not.toContain('container_ownership')
+  })
+
   it('normaliza o alias QINDGAO para CNTAO nas rotas do B/L no payload e no preview', () => {
     const doc = parsedBL()
     doc.route.pol = 'QINDGAO'

@@ -732,12 +732,7 @@ function computeBillingImpact(
 
   // SOC/COC decide Drop Off e Damage Protection. Linha sem declaração no B/L
   // não muda nada por si (o Baplie preenche depois).
-  const existingOwnership = new Map(existingContainers.map((container) => [normalizeIsoContainerNumber(container.container_number), container.ownership ?? null]))
-  const ownershipChanged = payload.containers.some((container) => {
-    if (!container.ownership) return false
-    const before = existingOwnership.get(normalizeIsoContainerNumber(container.container_number))
-    return before !== undefined && before !== container.ownership
-  })
+  const ownershipChanged = ownershipChanges(existingContainers, payload.containers).length > 0
   if (ownershipChanged) {
     messages.push('SOC/COC dos containers muda')
   }
@@ -836,6 +831,7 @@ export const BL_FREIGHT_DIFF_LABELS: Record<string, string> = {
   total_weight_kg: 'Peso total (kg)',
   total_cbm: 'CBM total',
   containers: 'Containers',
+  container_ownership: 'SOC/COC dos containers',
   vehicles: 'Veiculos (chassis)',
   bl_freight_lines: 'Frete e despesas',
 }
@@ -880,6 +876,18 @@ function diffExistingBl(existing: ExistingBl, payload: BlFreightRpcPayload, impa
   const existingContainers = normalizeContainerSet(existing.bl_containers ?? [])
   const nextContainers = normalizeContainerSet(payload.containers)
   addDiff(diffs, 'containers', existingContainers, nextContainers, impact.container)
+  // SOC/COC fica fora do conjunto acima; sem esta linha o B/L saia "Sem mudanca"
+  // enquanto o faturamento avisava que a propriedade mudava.
+  const ownership = ownershipChanges(existing.bl_containers ?? [], payload.containers)
+  if (ownership.length) {
+    addDiff(
+      diffs,
+      'container_ownership',
+      ownership.map((change) => `${change.containerNumber}: ${change.from ?? '-'}`).join(', '),
+      ownership.map((change) => `${change.containerNumber}: ${change.to}`).join(', '),
+      impact.container,
+    )
+  }
 
   const existingVehicles = normalizeVehicleSet(existing.vehicles ?? [])
   const nextVehicles = normalizeVehicleSet(payload.vehicles)
@@ -890,6 +898,24 @@ function diffExistingBl(existing: ExistingBl, payload: BlFreightRpcPayload, impa
   addDiff(diffs, 'bl_freight_lines', existingFreight, nextFreight, false)
 
   return diffs
+}
+
+/**
+ * Containers cujo SOC/COC declarado no B/L difere do gravado. Linha sem
+ * declaracao no arquivo nao muda nada (o Baplie preenche depois); container
+ * novo entra pela diferenca de conjunto, nao aqui.
+ */
+function ownershipChanges(
+  existingContainers: NonNullable<ExistingBl['bl_containers']>,
+  nextContainers: BlFreightRpcPayload['containers'],
+) {
+  const existingOwnership = new Map(existingContainers.map((container) => [normalizeIsoContainerNumber(container.container_number), container.ownership ?? null]))
+  return nextContainers.flatMap((container) => {
+    if (!container.ownership) return []
+    const before = existingOwnership.get(normalizeIsoContainerNumber(container.container_number))
+    if (before === undefined || before === container.ownership) return []
+    return [{ containerNumber: container.container_number, from: before, to: container.ownership }]
+  })
 }
 
 function addDiff(
