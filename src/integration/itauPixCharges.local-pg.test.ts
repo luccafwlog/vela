@@ -49,9 +49,9 @@ function charges(where: string): { id: number; txid: string; amount: string; sta
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
-    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E151%');
-    DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E151%';
-    DELETE FROM public.itau_pix_receipts WHERE end_to_end_id LIKE 'E151%';
+    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E15%');
+    DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E15%';
+    DELETE FROM public.itau_pix_receipts WHERE end_to_end_id LIKE 'E15%';
     DELETE FROM public.financial_payment_attempts WHERE created_by = '${userId}';
     DELETE FROM public.payments WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
     DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_type = 'exchange_rate_reference' AND entity_id LIKE 'itau-pix-%');
@@ -380,5 +380,54 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     } finally {
       psql(`UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${userId}'`)
     }
+  })
+
+  const reviewAlertOpen = (e2e: string) => psql(`SELECT count(*) FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id
+    WHERE a.entity_id = '${e2e}' AND ai.item_type = 'pix_unreconciled' AND ai.status = 'active'`)
+  const monitorOf = () => JSON.parse(asAuthenticated('SELECT public.itau_pix_monitor()')) as {
+    charges: { txid: string }[]; receipts: { end_to_end_id: string }[]
+  }
+
+  it('Pix em análise fecha sozinho quando a fatura fica paga por baixa manual', () => {
+    setProvider('itau')
+    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = NULL WHERE id = 1`)
+    const id = manualInvoice('ITAU153-PAGA', 0.07)
+    const charge = activate(`invoice_id = ${id}`, '000201ITAU153P')
+    expect(settle('E153PAGA', charge.txid, '0.07')).toBe('review') // sem usuário de baixa
+    expect(reviewAlertOpen('E153PAGA')).toBe('1')
+    expect(monitorOf().receipts.map((r) => r.end_to_end_id)).toContain('E153PAGA')
+    // Baixa manual de exceção pelo Administrativo.
+    psql(`SET request.jwt.claim.sub = '${userId}'; UPDATE public.invoices SET status = 'paid', balance_brl = 0 WHERE id = ${id}`)
+    expect(psql(`SELECT status || '|' || handled_note FROM public.itau_pix_receipts WHERE end_to_end_id = 'E153PAGA'`))
+      .toBe('handled|Fatura paga por baixa manual.')
+    expect(reviewAlertOpen('E153PAGA')).toBe('0')
+    expect(monitorOf().receipts.map((r) => r.end_to_end_id)).not.toContain('E153PAGA')
+  })
+
+  it('Admin marca como tratado com motivo; sem motivo ou outro perfil é recusado', () => {
+    setProvider('itau')
+    expect(settle('E153TRATAR', 'VELA' + '1'.repeat(28), '2.00')).toBe('review') // TXID sem cobrança
+    expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', ' ')`)).toMatch(/motivo/)
+    psql(`UPDATE public.user_profiles SET role = 'operacoes' WHERE id = '${userId}'`)
+    try {
+      expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'Restituído ao pagador')`)).toMatch(/Sem permissao/)
+    } finally {
+      psql(`UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${userId}'`)
+    }
+    asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'Restituído ao pagador')`)
+    expect(psql(`SELECT status || '|' || handled_by || '|' || handled_note FROM public.itau_pix_receipts WHERE end_to_end_id = 'E153TRATAR'`))
+      .toBe(`handled|${userId}|Restituído ao pagador`)
+    expect(reviewAlertOpen('E153TRATAR')).toBe('0')
+    expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'De novo')`)).toMatch(/não está em análise/)
+  })
+
+  it('cobrança encerrada com erro antigo não aparece em "pedem atenção"', () => {
+    setProvider('itau')
+    const id = manualInvoice('ITAU153-ERRO', 0.08)
+    const charge = activate(`invoice_id = ${id}`, '000201ITAU153E')
+    psql(`UPDATE public.itau_pix_charges SET last_error = 'falha antiga' WHERE id = ${charge.id}`)
+    settle('E153ERRO', charge.txid, '0.08')
+    expect(charges(`id = ${charge.id}`)[0].status).toBe('concluded')
+    expect(monitorOf().charges.map((c) => c.txid)).not.toContain(charge.txid)
   })
 })
