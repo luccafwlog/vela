@@ -248,10 +248,12 @@ do cliente/processador e testes das telas.
   notas do pagamento.
 - Desvio: sem tipo novo `pix_review`. A recusa usa o Alerta existente
   `pix_unreconciled` (Administrativo → Conciliação PIX), com motivo.
-- Baixa local exige `app_settings.itau_pix_settlement_actor`, uma conta Admin
-  ativa escolhida pelo dono e que aparece como autora das baixas automáticas.
-  Sem ela, todo Pix vai para análise.
-- Desvio: sem botão "Já paguei". O detalhe da fatura aberto no Portal se
+- Baixa local exige `app_settings.itau_pix_settlement_actor`: a conta Admin
+  dedicada "API Itaú", criada pelo dono, que aparece como autora das baixas
+  automáticas (decisão de 2026-10-06). Sem ela, todo Pix vai para análise.
+- Erro passageiro do banco (conflito, lock, timeout, conexão) não vira
+  análise: a chamada falha e a próxima consulta tenta de novo.
+- Sem botão "Já paguei" (confirmado pelo dono em 2026-10-06). O detalhe da fatura aberto no Portal se
   atualiza a cada 20 s enquanto ela for pagável; com o cron de 1 min, a baixa
   e o recibo aparecem em cerca de 1 min sem ação do cliente.
 - O recibo continua sendo o existente: só aparece com a fatura paga.
@@ -301,3 +303,4 @@ SQL não prova execução nem RLS; a prova de pagamento é o teste de centavos.
 | 2026-10-06 | Fase 1 implementada no código (função `itau-pix`, não publicada). Incidente: um teste local do roteiro chamou o CLI real e gravou 6 secrets `ITAU_*` com valores fictícios no projeto de produção (13:28 UTC); removidos em seguida com `supabase secrets unset` e a ausência foi conferida (34 secrets, nenhum `ITAU_*`). Nenhuma função lia esses nomes. |
 | 2026-10-06 | Revisão da Fase 1: dono decide que a cobrança de uma fatura só muda pela própria fatura no Vela. As ações de diagnóstico de `itau-pix` passam a alterar e cancelar só cobranças de teste (`VELAT…`; as de fatura são `VELA` + hexadecimal, que nunca tem `T`), e `list_pix` devolve só os Pix do Vela, sem `infoPagador`, com a contagem dos demais. |
 | 2026-10-06 | Revisão da Fase 2. Dono decide: na virada, todas as faturas abertas ganham cobrança Itaú (só há 2 faturas, ambas de teste; procedimento no manual de serviços externos); voltar para `static` não é procedimento operacional. Correções: cancelamento repetido consulta a cobrança antes de pedir de novo; aviso "QR em preparação" da Demurrage só para fatura emitida ou vencida. Com autorização do dono para editar as migrations 150–153 da pilha (não aplicadas em nenhum ambiente), o pedido de cancelamento deixa de encurtar a reserva de uma chamada em andamento. |
+| 2026-10-06 | Revisão da Fase 3. Dono confirma: sem botão "Já paguei", só a atualização automática do Portal; baixas automáticas assinadas por conta Admin dedicada "API Itaú", criada pelo dono. Correção: erro passageiro do banco na baixa falha a chamada para nova tentativa, em vez de mandar o Pix para análise. |

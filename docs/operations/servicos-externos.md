@@ -525,8 +525,9 @@ na ordem: publicar `itau-pix`; gravar `ITAU_PIX_ADMIN_SECRET` também no Vault,
 com o mesmo nome e valor; agendar o job `itau-pix-queue` a cada minuto
 (`* * * * *`, `select ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`,
 ver [segredos e cron](segredos-cron.md)); definir em
-`app_settings.itau_pix_settlement_actor` a conta Admin ativa que assina as
-baixas automáticas (migration `151`). Só então virar a chave. Nenhum desses
+`app_settings.itau_pix_settlement_actor` a conta Admin dedicada **"API Itaú"**,
+criada pelo dono, que assina as baixas automáticas (migration `151`; decisão
+de 2026-10-06: não usar a conta de uma pessoa). Só então virar a chave. Nenhum desses
 passos foi executado.
 
 Na virada, todas as faturas já abertas passam para a cobrança Itaú (decisão
