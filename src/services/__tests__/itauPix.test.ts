@@ -238,11 +238,13 @@ describe('consulta de recebimentos', () => {
       { endToEndId: 'E1', txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },
       { endToEndId: 'E2', txid: '88ba8ec675e044178d434908d9b2a30a', valor: '50.00', horario: '2026-10-06T12:01:00Z' },
       { endToEndId: 'E3', valor: '9.00', horario: '2026-10-06T12:02:00Z' }, // Pix sem TXID
+      { endToEndId: 'E4', txid: newVelaTestTxid(), valor: '0.01', horario: '2026-10-06T12:03:00Z' }, // teste da Fase 1
     ]))
     const s = sink('2026-10-06T12:00:00.000Z')
     const now = new Date('2026-10-06T12:05:00Z')
     const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, now)
-    expect(summary).toMatchObject({ seen: 3, vela: 1, settled: 1, review: 0 })
+    expect(summary).toMatchObject({ seen: 4, vela: 1, test: 1, settled: 1, review: 0 })
+    expect(s.settle).toHaveBeenCalledTimes(1)
     expect(s.settle).toHaveBeenCalledWith({ endToEndId: 'E1', txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' })
     const url = new URL(fetchMtls.mock.calls[1][0])
     expect(url.searchParams.get('inicio')).toBe('2026-10-06T11:50:00.000Z') // 10 min antes do checkpoint

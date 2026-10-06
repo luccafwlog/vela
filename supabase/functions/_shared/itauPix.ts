@@ -316,10 +316,12 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
   const start = (last ? Date.parse(last) : now.getTime() - FIRST_LOOKBACK_MS) - OVERLAP_MS
   const end = Math.min(now.getTime(), start + MAX_WINDOW_MS)
   const pix = await client.listPix(new Date(start).toISOString(), new Date(end).toISOString())
-  const summary = { seen: pix.length, vela: 0, settled: 0, review: 0, until: new Date(end).toISOString() }
+  const summary = { seen: pix.length, vela: 0, test: 0, settled: 0, review: 0, until: new Date(end).toISOString() }
   for (const p of pix) {
     // Pix do sistema de terceiro na mesma chave: ignorado e não persistido.
     if (!isVelaTxid(p.txid)) continue
+    // Cobrança de teste paga (Fase 1): não é fatura, então não vira baixa nem Alerta.
+    if (isVelaTestTxid(p.txid)) { summary.test++; continue }
     if (!/^[A-Za-z0-9]{1,64}$/.test(p.endToEndId ?? '') || !MONEY.test(p.valor ?? '') || !Number.isFinite(Date.parse(p.horario))) {
       // Sem avançar o checkpoint: a próxima execução tenta de novo e o erro fica visível.
       throw new ItauPixError('Recebimento do Itaú em formato inesperado.', 502, { txid: p.txid })
