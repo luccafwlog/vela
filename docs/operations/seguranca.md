@@ -184,8 +184,10 @@ listagem de Pix recebidos devolve apenas os do Vela, sem `infoPagador`, e só
 a contagem dos demais.
 
 A baixa automática (`itau_pix_settle`, só `service_role`) assume dentro da
-transação a identidade da conta Admin configurada em
-`app_settings.itau_pix_settlement_actor` e a restaura ao sair. Assim, as
+transação a identidade da conta Admin dedicada "API Itaú" configurada em
+`app_settings.itau_pix_settlement_actor` e a restaura ao sair (em produção,
+`auth.uid()` lê `request.jwt.claim.sub` antes de `request.jwt.claims`;
+conferido em 2026-10-06). Assim, as
 mesmas checagens de `auth.uid()`/`is_admin()` das baixas manuais continuam
 valendo. Conta inativa ou ausente faz o Pix ir para análise, sem baixa. Pix
 do sistema de terceiro e dados do pagador não são gravados.

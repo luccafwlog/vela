@@ -142,6 +142,10 @@ BEGIN
         PERFORM set_config('request.jwt.claim.sub', coalesce(v_previous_sub, ''), true);
       END IF;
     EXCEPTION WHEN OTHERS THEN
+      -- Erro passageiro (conflito, lock, timeout, recurso, conexão, interno) não é
+      -- recusa: falha a chamada inteira, o checkpoint não avança e a próxima
+      -- consulta tenta de novo. Só recusa de negócio vira análise.
+      IF left(SQLSTATE, 2) IN ('08', '40', '53', '55', '57', 'XX') THEN RAISE; END IF;
       -- Desfaz só a baixa; a cobrança continua 'concluded' (paga no banco).
       PERFORM set_config('request.jwt.claim.sub', coalesce(v_previous_sub, ''), true);
       v_reason := left(SQLERRM, 300);

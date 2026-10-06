@@ -224,6 +224,26 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(psql(`SELECT count(*) FROM public.local_pix_charge_versions WHERE txid = '${charge.txid}'`)).toBe('0')
   })
 
+  it('erro passageiro do banco não manda o Pix para análise: a próxima consulta baixa', () => {
+    setProvider('itau')
+    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${userId}' WHERE id = 1`)
+    const id = manualInvoice('ITAU151-LOCK', 0.04)
+    const charge = activate(`invoice_id = ${id}`, '000201ITAU151LOCK')
+    // Simula lock não obtido (55P03) no momento da baixa.
+    psql(`CREATE FUNCTION pg_temp_itau_lock() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN RAISE EXCEPTION 'lock simulado' USING ERRCODE = '55P03'; END $$;
+      CREATE TRIGGER itau_151_lock BEFORE INSERT ON public.payments FOR EACH ROW EXECUTE FUNCTION pg_temp_itau_lock()`)
+    try {
+      expect(() => settle('E151LOCK', charge.txid, '0.04')).toThrow(/lock simulado/)
+    } finally {
+      psql(`DROP TRIGGER itau_151_lock ON public.payments; DROP FUNCTION pg_temp_itau_lock()`)
+    }
+    expect(psql(`SELECT count(*) FROM public.itau_pix_receipts WHERE end_to_end_id = 'E151LOCK'`)).toBe('0')
+    expect(charges(`id = ${charge.id}`)[0].status).toBe('active') // tudo desfeito
+    expect(settle('E151LOCK', charge.txid, '0.04')).toBe('settled')
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${id}`)).toBe('paid')
+  })
+
   it('Demurrage é baixada pelo valor da cobrança paga; TXID desconhecido vai para análise', () => {
     setProvider('itau')
     // A cobrança de 560 foi ativada no teste de PTAX acima.
