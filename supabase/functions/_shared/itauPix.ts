@@ -298,6 +298,39 @@ export async function processItauPixQueue(client: ItauPixClient, queue: ChargeQu
   return summary
 }
 
+// ---------------------------------------------------------------------------
+// Recebimentos (Fase 3): GET /pix por janela, baixa no banco por itau_pix_settle.
+
+export type ReceiptSink = {
+  checkpoint(): Promise<string | null>
+  settle(pix: { endToEndId: string; txid: string; valor: string; horario: string }): Promise<'settled' | 'review'>
+  saveCheckpoint(until: string): Promise<void>
+}
+
+const OVERLAP_MS = 10 * 60 * 1000 // Pix disponibilizado com atraso entra na janela seguinte.
+const MAX_WINDOW_MS = 6 * 60 * 60 * 1000 // Atraso grande é recuperado em várias execuções.
+const FIRST_LOOKBACK_MS = 24 * 60 * 60 * 1000
+
+export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSink, now = new Date()) {
+  const last = await sink.checkpoint()
+  const start = (last ? Date.parse(last) : now.getTime() - FIRST_LOOKBACK_MS) - OVERLAP_MS
+  const end = Math.min(now.getTime(), start + MAX_WINDOW_MS)
+  const pix = await client.listPix(new Date(start).toISOString(), new Date(end).toISOString())
+  const summary = { seen: pix.length, vela: 0, settled: 0, review: 0, until: new Date(end).toISOString() }
+  for (const p of pix) {
+    // Pix do sistema de terceiro na mesma chave: ignorado e não persistido.
+    if (!isVelaTxid(p.txid)) continue
+    if (!/^[A-Za-z0-9]{1,64}$/.test(p.endToEndId ?? '') || !MONEY.test(p.valor ?? '') || !Number.isFinite(Date.parse(p.horario))) {
+      // Sem avançar o checkpoint: a próxima execução tenta de novo e o erro fica visível.
+      throw new ItauPixError('Recebimento do Itaú em formato inesperado.', 502, { txid: p.txid })
+    }
+    summary.vela++
+    summary[await sink.settle({ endToEndId: p.endToEndId, txid: p.txid, valor: p.valor, horario: p.horario })]++
+  }
+  await sink.saveCheckpoint(summary.until)
+  return summary
+}
+
 // ponytail: teto da Fase 1 (prova de centavos); a cobrança de faturas usa outro caminho na Fase 2.
 export const TEST_MAX_BRL = 1
 

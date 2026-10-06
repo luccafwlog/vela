@@ -1,11 +1,13 @@
 // Integração Itaú Pix. Chamada só pelo cron e pela equipe técnica, com segredo
 // próprio; nunca pelo navegador.
-// Corpo vazio (cron) ou {"action":"process_queue"}: processa a fila de cobranças das faturas.
+// Corpo vazio (cron) ou {"action":"process_queue"}: processa a fila de cobranças das faturas
+// e consulta os recebimentos para a baixa automática.
 // Diagnóstico (Fase 1): token, create_test (até R$ 1,00), get, update_test, cancel, list_pix.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
 import { validCleanupAuthorization as validBearer } from "../_shared/ceUnlockCleanupAuth.ts";
 import {
-  type ChargeQueue, createItauPixClient, ItauPixError, itauPixConfigFromEnv, processItauPixQueue, runItauPixAction,
+  type ChargeQueue, createItauPixClient, ItauPixError, itauPixConfigFromEnv, pollItauPixReceipts, processItauPixQueue,
+  runItauPixAction,
 } from "../_shared/itauPix.ts";
 
 if (typeof Deno !== "undefined")
@@ -40,7 +42,27 @@ if (typeof Deno !== "undefined")
             if (error) throw new Error("Falha ao registrar resultado Itaú.");
           },
         };
-        return Response.json(await processItauPixQueue(client, queue));
+        const charges = await processItauPixQueue(client, queue);
+        // Recebimentos falham isolados: a fila de cobranças já foi processada.
+        const receipts = await pollItauPixReceipts(client, {
+          async checkpoint() {
+            const { data, error } = await admin.rpc("itau_pix_checkpoint", {});
+            if (error) throw new Error("Falha ao ler o checkpoint Itaú.");
+            return data;
+          },
+          async settle(pix) {
+            const { data, error } = await admin.rpc("itau_pix_settle", {
+              p_end_to_end_id: pix.endToEndId, p_txid: pix.txid, p_amount_brl: Number(pix.valor), p_paid_at: pix.horario,
+            });
+            if (error) throw new Error("Falha ao registrar recebimento Itaú.");
+            return data;
+          },
+          async saveCheckpoint(until) {
+            const { error } = await admin.rpc("itau_pix_checkpoint", { p_polled_until: until });
+            if (error) throw new Error("Falha ao salvar o checkpoint Itaú.");
+          },
+        }).catch((error) => ({ error: error instanceof Error ? error.message : "Falha na consulta de recebimentos" }));
+        return Response.json({ charges, receipts });
       }
       return Response.json(await runItauPixAction(client, input));
     } catch (error) {

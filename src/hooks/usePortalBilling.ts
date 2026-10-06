@@ -66,6 +66,12 @@ export function usePortalInvoicesPage(filters: PortalBillingFilters = EMPTY_PORT
   })
 }
 
+// Fatura aberta na tela e ainda pagável: a baixa automática do Pix Itaú (até
+// cerca de 1 min) aparece sem o cliente recarregar a página.
+export function refreshWhilePayable(status: string | null | undefined, payable: string[]): number | false {
+  return status && payable.includes(status) ? 20_000 : false
+}
+
 export function usePortalInvoiceDetail(invoiceId?: number | null) {
   const { isAuthenticated } = usePortalAuth()
   const scope = usePortalScope()
@@ -75,6 +81,7 @@ export function usePortalInvoiceDetail(invoiceId?: number | null) {
     queryKey: ['portal-invoice-detail', scope.mode, scope.customerId, invoiceId],
     enabled: Boolean((isAuthenticated || readOnly) && invoiceId),
     queryFn: () => portalInvoiceDetails(Number(invoiceId), scope),
+    refetchInterval: (query) => refreshWhilePayable(query.state.data?.invoice?.status, ['issued', 'partially_paid', 'overdue']),
   })
 }
 
@@ -113,6 +120,7 @@ export function usePortalDemurrageInvoiceDetail(invoiceId?: number | null) {
     queryKey: ['portal-demurrage-invoice-detail', scope.mode, scope.customerId, invoiceId],
     enabled: Boolean((isAuthenticated || readOnly) && invoiceId),
     queryFn: () => portalGetDemurrageInvoiceDetail(Number(invoiceId), scope),
+    refetchInterval: (query) => refreshWhilePayable(query.state.data?.invoice?.status, ['issued', 'overdue']),
   })
 }
 

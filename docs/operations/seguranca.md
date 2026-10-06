@@ -183,6 +183,13 @@ até R$ 1,00); a cobrança de uma fatura só muda pela própria fatura. A
 listagem de Pix recebidos devolve apenas os do Vela, sem `infoPagador`, e só
 a contagem dos demais.
 
+A baixa automática (`itau_pix_settle`, só `service_role`) assume dentro da
+transação a identidade da conta Admin configurada em
+`app_settings.itau_pix_settlement_actor` e a restaura ao sair. Assim, as
+mesmas checagens de `auth.uid()`/`is_admin()` das baixas manuais continuam
+valendo. Conta inativa ou ausente faz o Pix ir para análise, sem baixa. Pix
+do sistema de terceiro e dados do pagador não são gravados.
+
 A evidência externa de confirmação permanece restrita ao desk também no
 histórico: motivos legados de eventos `confirm` são omitidos no Portal e nas
 leituras resumidas de Financeiro/Operações. A UI envia a referência em campo

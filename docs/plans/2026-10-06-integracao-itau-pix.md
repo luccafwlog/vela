@@ -2,7 +2,7 @@
 
 **Estado:** plano aprovado para execução em 2026-10-06. Fase 0 (certificado)
 aguardando a credencial dedicada pedida ao Itaú em 06/10 (ver "Quando o Itaú
-responder"); Fases 1 e 2 prontas no código, sem publicação.
+responder"); Fases 1 a 3 prontas no código, sem publicação.
 **Substitui:** a PR 827 (`codex/itau-pix-simulation`) como caminho de entrega.
 Os planos daquela branch nunca chegaram à `main`; o que vale deles está
 incorporado aqui.
@@ -227,6 +227,40 @@ do cliente/processador e testes das telas.
   status. Divergência, fatura cancelada ou paga → `pix_review`, sem baixa.
 - Recibo e status "paga" aparecem no Vela e no Portal só após essa baixa.
 - Botão "Já paguei — verificar" chama a consulta da COB daquela fatura.
+
+**Entregue em 2026-10-06 (Código/Teste local, sem implantação):** migration
+`151_itau_pix_baixa_automatica.sql` e consulta de recebimentos em `itau-pix`.
+
+- A cada execução do cron (depois da fila de cobranças), `GET /pix` cobre a
+  janela entre o checkpoint e agora, com 10 min de sobreposição e no máximo 6 h
+  por vez. Pix de TXID que não começa com `VELA` (sistema de terceiro) é
+  ignorado e não é gravado. O checkpoint só avança quando a janela inteira foi
+  registrada.
+- `itau_pix_settle` deduplica por `endToEndId` (`itau_pix_receipts`) e baixa
+  pelos donos existentes: individual/consolidada por
+  `reconcile_invoice_payment_by_txid`, avulsa por
+  `register_verified_invoice_payment` e Demurrage por
+  `register_demurrage_payment`. O `endToEndId` é a referência bancária da baixa.
+- Desvio: a origem não é `itau_api` no ledger. A restrição de
+  `ledger_settlements.source` não foi alterada; a baixa local fica como
+  conciliação por TXID e a origem Itaú aparece na referência bancária e nas
+  notas do pagamento.
+- Desvio: sem tipo novo `pix_review`. A recusa usa o Alerta existente
+  `pix_unreconciled` (Administrativo → Conciliação PIX), com motivo.
+- Baixa local exige `app_settings.itau_pix_settlement_actor`, uma conta Admin
+  ativa escolhida pelo dono e que aparece como autora das baixas automáticas.
+  Sem ela, todo Pix vai para análise.
+- Desvio: sem botão "Já paguei". O detalhe da fatura aberto no Portal se
+  atualiza a cada 20 s enquanto ela for pagável; com o cron de 1 min, a baixa
+  e o recibo aparecem em cerca de 1 min sem ação do cliente.
+- O recibo continua sendo o existente: só aparece com a fatura paga.
+
+Provas: suíte `itauPixCharges.local-pg.test.ts` com 12 casos (avulsa,
+Demurrage, sem usuário de baixa, TXID desconhecido, repetição, permissões);
+caso `151` em `invoicePostBillingSafety.local-pg.test.ts` para fatura
+individual emitida por CE (valor divergente vai para análise, valor certo
+baixa uma vez com o `endToEndId`). Esse caso foi sabotado para confirmar que
+executa. Mais 17 testes do cliente, processador e consulta.
 
 ### Fase 4 — Regras de Demurrage e Taxas Locais
 

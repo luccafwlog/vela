@@ -47,6 +47,13 @@ function charges(where: string): { id: number; txid: string; amount: string; sta
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
+    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E151%');
+    DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E151%';
+    DELETE FROM public.itau_pix_receipts WHERE end_to_end_id LIKE 'E151%';
+    DELETE FROM public.financial_payment_attempts WHERE created_by = '${userId}';
+    DELETE FROM public.payments WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
+    DELETE FROM public.demurrage_mutation_requests WHERE invoice_id = ${demurrageId};
+    DELETE FROM public.demurrage_invoice_history WHERE invoice_id = ${demurrageId};
     DELETE FROM public.itau_pix_charges WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId})
       OR demurrage_invoice_id = ${demurrageId};
     DELETE FROM public.local_pix_charge_versions WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
@@ -61,7 +68,7 @@ function cleanup() {
     DELETE FROM public.user_profiles WHERE id = '${userId}';
     DELETE FROM auth.users WHERE id = '${userId}';
     SET session_replication_role = origin;
-    UPDATE public.app_settings SET pix_provider = 'static' WHERE id = 1;
+    UPDATE public.app_settings SET pix_provider = 'static', itau_pix_settlement_actor = NULL WHERE id = 1;
   `)
 }
 
@@ -112,7 +119,7 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(charge.txid).toMatch(/^VELA[0-9A-F]{28}$/)
   })
 
-  it('reserva, ativa e publica o copia e cola na fatura e na conciliação por TXID', () => {
+  it('reserva, ativa e publica o copia e cola na fatura', () => {
     setProvider('itau')
     const id = manualInvoice('ITAU150-B', 2.5)
     const [charge] = charges(`invoice_id = ${id}`)
@@ -122,8 +129,9 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(psql(`SELECT count(*) FROM public.itau_pix_claim(100) WHERE id = ${charge.id}`)).toBe('0')
     expect(psql(`SELECT public.itau_pix_record(${charge.id}, 'active', 0, '000201ITAUCOB-B')`)).toBe('active')
     expect(psql(`SELECT pix_payload FROM public.invoices WHERE id = ${id}`)).toBe('000201ITAUCOB-B')
-    expect(psql(`SELECT amount_brl || '|' || payload FROM public.local_pix_charge_versions WHERE txid = '${charge.txid}'`))
-      .toBe('2.50|000201ITAUCOB-B')
+    // Espelho em local_pix_charge_versions só para individual/consolidada (151);
+    // provado em invoicePostBillingSafety, que baixa a individual pelo resolvedor da 130.
+    expect(charges(`id = ${charge.id}`)[0].status).toBe('active')
   })
 
   it('saldo novo cancela a cobrança ativa e cria outra; a fatura volta a "QR em preparação"', () => {
@@ -183,9 +191,56 @@ describeLocal('cobranças Itaú Pix (migration 150) — PostgreSQL local', () =>
     expect(charges(`invoice_id = ${result.invoice_id}`).map((c) => [c.amount, c.status])).toEqual([['0.01', 'pending_create']])
   })
 
+  // Baixa (migration 151). Como a Edge Function, roda com o papel service_role.
+  const settle = (e2e: string, txid: string, amount: string) =>
+    psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_settle('${e2e}', '${txid}', ${amount}, now())`)
+  const activate = (where: string, payload: string) => {
+    const [charge] = charges(`${where} AND status = 'pending_create'`)
+    psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${charge.id}, 'active', 0, '${payload}')`)
+    return charge
+  }
+
+  it('sem usuário de baixa configurado o Pix vai para análise e a cobrança fica paga', () => {
+    setProvider('itau')
+    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = NULL WHERE id = 1`)
+    const id = manualInvoice('ITAU151-SEM', 0.03)
+    const charge = activate(`invoice_id = ${id}`, '000201ITAU151SEM')
+    expect(settle('E151SEMATOR', charge.txid, '0.03')).toBe('review')
+    expect(psql(`SELECT reason FROM public.itau_pix_receipts WHERE end_to_end_id = 'E151SEMATOR'`)).toContain('não configurado')
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${id}`)).toBe('issued')
+    expect(charges(`id = ${charge.id}`)[0].status).toBe('concluded')
+  })
+
+  it('avulsa é baixada pelo endToEndId e a repetição não cria segunda baixa', () => {
+    setProvider('itau')
+    psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${userId}' WHERE id = 1`)
+    const id = manualInvoice('ITAU151-AV', 0.02)
+    const charge = activate(`invoice_id = ${id}`, '000201ITAU151AV')
+    expect(settle('E151AVULSA', charge.txid, '0.02')).toBe('settled')
+    expect(settle('E151AVULSA', charge.txid, '0.02')).toBe('settled')
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${id}`)).toBe('paid')
+    expect(psql(`SELECT count(*) || '|' || max(bank_reference) FROM public.payments WHERE invoice_id = ${id}`)).toBe('1|E151AVULSA')
+    // A avulsa não entra no resolvedor da 130 (o extrato não a leva ao ledger).
+    expect(psql(`SELECT count(*) FROM public.local_pix_charge_versions WHERE txid = '${charge.txid}'`)).toBe('0')
+  })
+
+  it('Demurrage é baixada pelo valor da cobrança paga; TXID desconhecido vai para análise', () => {
+    setProvider('itau')
+    // A cobrança de 560 foi ativada no teste de PTAX acima.
+    const [charge] = charges(`demurrage_invoice_id = ${demurrageId} AND status = 'active'`)
+    const amount = charge.amount
+    expect(settle('E151DEM', charge.txid, amount)).toBe('settled')
+    expect(psql(`SELECT status || '|' || pix_txid FROM public.demurrage_invoices WHERE id = ${demurrageId}`)).toBe(`paid|${charge.txid}`)
+    expect(settle('E151DESCONHECIDO', 'VELA' + '0'.repeat(28), '1.00')).toBe('review')
+    expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'pix_unreconciled' AND status = 'active'
+      AND metadata->>'end_to_end_id' = 'E151DESCONHECIDO'`)).toBe('1')
+  })
+
   it('navegador não lê a fila nem executa o processador', () => {
     expect(asAuthenticated('SELECT count(*) FROM public.itau_pix_charges')).toMatch(/permission denied|permissão negada/)
     expect(asAuthenticated('SELECT public.itau_pix_claim(1)')).toMatch(/permission denied|permissão negada/)
     expect(asAuthenticated(`SELECT public.itau_pix_record(1, 'cancelled')`)).toMatch(/permission denied|permissão negada/)
+    expect(asAuthenticated(`SELECT public.itau_pix_settle('E1', 'VELA', 1, now())`)).toMatch(/permission denied|permissão negada/)
+    expect(asAuthenticated('SELECT count(*) FROM public.itau_pix_receipts')).toMatch(/permission denied|permissão negada/)
   })
 })
