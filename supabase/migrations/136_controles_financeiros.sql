@@ -1,6 +1,6 @@
 -- Controles financeiros: evidência de restituição e resumo de recebimentos.
 -- Preserva valores e documentos históricos; não remove dados existentes.
--- Renumerada de 134 para 148 (134 é da escala; 135-147 das PRs 845/847); os sufixos _legacy_134 são só nomes.
+-- Renumerada para 136 (134 e 135 são da main; PRs 845/847 entram depois); os sufixos _legacy_134 são só nomes.
 BEGIN;
 ALTER TABLE public.invoice_refunds ADD COLUMN bank_reference text, ADD COLUMN beneficiary text,
   ADD COLUMN settled_by uuid REFERENCES public.user_profiles(id);

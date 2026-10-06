@@ -151,6 +151,9 @@ export const queryKeys = {
     invoices: (filters?: unknown) => (filters === undefined ? (['demurrage-invoices'] as const) : (['demurrage-invoices', filters] as const)),
     dunning: (invoiceIds: number[]) => ['demurrage-invoices', 'dunning', invoiceIds.slice().sort((a, b) => a - b)] as const,
   },
+  financialRefunds: {
+    byInvoice: (source: string, invoiceId?: number | null) => ['financial-refunds', source, invoiceId] as const,
+  },
   importEffects: {
     all: () => ['import-effects'] as const,
     byEntity: (entityId: string) => ['import-effects', entityId] as const,

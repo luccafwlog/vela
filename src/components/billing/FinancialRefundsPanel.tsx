@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../hooks/useAuth'
 import { useFinancialRefunds } from '../../hooks/useFinancialRefunds'
 import { cancelFinancialRefundAuthorization, confirmDemurrageRefund, requestFinancialRefund, type RefundSource, type RequestFinancialRefundInput } from '../../services/financialRefunds'
-import { afterDatasContainerAlteradas } from '../../services/cacheEffects'
+import { afterBlInvoiceBasisAlterada } from '../../services/cacheEffects'
 import { parseImportNumber } from '../../lib/importNumber'
 import { formatBRL, formatDate } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
@@ -30,7 +30,7 @@ export function FinancialRefundsPanel({ source, invoiceId }: { source: RefundSou
   const [paidAt, setPaidAt] = useState('')
   const [cancelId, setCancelId] = useState<number | null>(null)
   const [cancelReason, setCancelReason] = useState('')
-  const invalidate = () => afterDatasContainerAlteradas(queryClient)
+  const invalidate = () => afterBlInvoiceBasisAlterada(queryClient)
   const request = useMutation({ mutationFn: requestFinancialRefund, onSuccess: invalidate })
   const cancelAuthorization = useMutation({ mutationFn: cancelFinancialRefundAuthorization, onSuccess: invalidate })
   const settle = useMutation({ mutationFn: confirmDemurrageRefund, onSuccess: invalidate })
