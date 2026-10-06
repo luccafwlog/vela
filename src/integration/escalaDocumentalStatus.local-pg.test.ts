@@ -186,10 +186,32 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
           '{"tem_exportacao":false,"granito":false,"vazios":false,"has_empty":false,"discharge_ports":[],"linked":false,"schedule":{"tem_importacao":true}}', NULL);
         SELECT public.save_voyage_escala_terminal_state_v2(13400001, 'BRVIX', 1, '[]', '[]',
           '{"tem_exportacao":false,"granito":false,"vazios":false,"has_empty":false,"discharge_ports":[],"linked":false,"schedule":{"tem_importacao":true}}', NULL);
-        SELECT set_config('vela.documental_justification', '', true);
         INSERT INTO public.voyage_export_schedules(voyage_id, pol, has_empty, ce_status)
         VALUES (13400001, 'BRPEC', true, 'approved')
         ON CONFLICT (voyage_id, pol) DO UPDATE SET ce_status = EXCLUDED.ce_status;
+        DO $$ BEGIN
+          IF EXISTS (SELECT 1 FROM public.audit_logs WHERE entity_id = '13400001::BRVIX' AND field_name = 'export_ces') THEN
+            RAISE EXCEPTION 'Salvar sem alterar BLs e CEs gravou override de exportação';
+          END IF;
+          IF (SELECT coalesce(ce_status, 'waiting') FROM public.voyage_export_schedules WHERE voyage_id = 13400001 AND pol = 'BRVIX') <> 'waiting' THEN
+            RAISE EXCEPTION 'Salvar sem alterar BLs e CEs mudou o status da exportação';
+          END IF;
+          -- O INSERT sobre linha existente não é julgado; o DO UPDATE precisa ser.
+          BEGIN
+            INSERT INTO public.voyage_export_schedules(voyage_id, pol, has_empty, ce_status)
+            VALUES (13400001, 'BRPEC', true, 'received')
+            ON CONFLICT (voyage_id, pol) DO UPDATE SET ce_status = EXCLUDED.ce_status;
+            RAISE EXCEPTION 'Upsert alterou BLs e CEs sem justificativa';
+          EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+          BEGIN
+            INSERT INTO public.voyage_export_schedules(voyage_id, pol, has_empty, ce_status)
+            VALUES (13400001, 'BRITJ', true, 'received');
+            RAISE EXCEPTION 'Exportação nova nasceu com BLs e CEs manual sem justificativa';
+          EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+          IF (SELECT ce_status FROM public.voyage_export_schedules WHERE voyage_id = 13400001 AND pol = 'BRPEC') <> 'approved' THEN
+            RAISE EXCEPTION 'Upsert recusado ainda alterou a exportação';
+          END IF;
+        END; $$;
         -- O lote tem uma única avaliação pendente e publica só o estado final.
         SET CONSTRAINTS ALL DEFERRED;
         INSERT INTO public.bls(id, voyage_id, pol, pod, ce_mercante)
