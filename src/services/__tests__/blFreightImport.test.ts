@@ -687,7 +687,7 @@ describe('blFreightImport', () => {
     }
 
     await expect(confirmBlFreightImport(preview, 'user-1')).resolves.toEqual({
-      result: { bls_received: 1 },
+      result: [{ bls_received: 1 }],
       refusedCustomerRelinks: [],
       calculationErrors: [],
     })
@@ -736,9 +736,40 @@ describe('blFreightImport', () => {
     }
 
     await expect(confirmBlFreightImport(preview, 'user-1')).resolves.toMatchObject({
-      result: { bls_received: 1 },
+      result: [{ bls_received: 1 }],
       calculationErrors: [{ blNumber: 'COSU777', message: 'Nenhuma tabela vigente.' }],
     })
+  })
+
+  it('envia lotes grandes em partes para nao estourar o statement_timeout e informa falha parcial', async () => {
+    const row = (id: string): BlFreightImportPreview['rows'][number] => ({
+      blNumber: id, status: 'new', existing: false, voyageId: 7, voyageNumber: null, pol: null, pod: null,
+      ladenOnBoard: null, consigneeDocumentMatches: null, blockedReasons: [], billingImpacts: [],
+      requiresBillingOverride: false, customerChange: null, requiresCustomerConfirmation: false, diffs: [],
+      payload: { ...buildBlFreightPayload(parsedBL(), 7), id },
+    })
+    const preview: BlFreightImportPreview = {
+      rows: Array.from({ length: 45 }, (_, index) => row(`BL${index}`)),
+      summary: { total: 45, newCount: 45, updatedCount: 0, unchangedCount: 0, blockedCount: 0, billingOverrideCount: 0, customerChangeCount: 0 },
+    }
+
+    mockRpc.mockReset()
+    mockRpc.mockResolvedValue({
+      data: { result: {}, calculation_errors: [{ bl_id: 'X', message: 'sem tabela' }] },
+      error: null,
+    })
+    const outcome = await confirmBlFreightImport(preview, 'user-1')
+    expect(mockRpc.mock.calls.map(([, args]) => (args as { p_bls: unknown[] }).p_bls.length)).toEqual([20, 20, 5])
+    expect(outcome.calculationErrors).toHaveLength(3)
+
+    mockRpc.mockReset()
+    mockRpc
+      .mockResolvedValueOnce({ data: { result: {} }, error: null })
+      .mockResolvedValueOnce({ data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } })
+    await expect(confirmBlFreightImport(preview, 'user-1')).rejects.toThrow(
+      /^20 de 45 B\/L\(s\) foram importados.*57014 canceling statement/,
+    )
+    expect(mockRpc).toHaveBeenCalledTimes(2)
   })
 
   it('does not trigger automatic billing during BL import after ADR 0020', async () => {
