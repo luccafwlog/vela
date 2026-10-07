@@ -416,15 +416,24 @@ para eles vale o backup do próprio Supabase.
   candidato a remoção).
 - **Variables:** `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_ACCESS_CONFIGURED`,
   `CLOUDFLARE_PAGES_PRODUCTION_ENABLED`.
-- **Environments (auditoria run-2, #14):** os workflows já declaram
+- **Environments (auditoria run-2, #14):**
+  **Conferência de 2026-10-06:** os environments existem, mas suas listas de
+  secrets estão vazias e não há restrição de deployment branch nos dois.
+  As credenciais seguem no repositório. O repositório agora é privado; a API
+  de rulesets retorna 403 por limitação do plano GitHub. Rotação, migração de
+  secrets e proteção de workflows continuam pendentes.
+
+  Os workflows já declaram
   `cloudflare-pages` e `supabase-branches`. Enquanto os environments não
   tiverem os secrets, os jobs leem as cópias em Repository secrets. Ao mover:
-  criar os dois com *deployment branch* = `main`, pôr os secrets neles, pôr
+  restringir os dois a *deployment branch* = `main`, pôr os secrets neles, pôr
   também `CLOUDFLARE_PAGES_API_TOKEN` em `cloudflare-production` (o workflow de
   produção usa esse environment) e só então apagar as cópias do repositório.
   As actions dos workflows com token estão fixadas por SHA.
-- **Regras:** o `main` exige revisão; merges sem revisor usam `--admin`, com
-  autorização do dono a cada PR.
+- **Regras:** em 2026-10-06 a API informou `main.protected=false`. A exigência
+  de revisão dos workflows da run-2 ainda não está aplicada; depende do plano
+  GitHub e de revisor elegível. Não presumir proteção nem usar bypass como
+  substituto de configuração.
 
 ## Serviços públicos sem conta
 

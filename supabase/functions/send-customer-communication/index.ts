@@ -708,6 +708,7 @@ async function handler(req: Request): Promise<Response> {
       attachments: emailAttachments,
       idempotencyKey: `comunicado:${communicationId}:${attemptDiscriminator}:${recipient}`,
       resendApiKey: enabled ? resendApiKey : null,
+      simulate: !enabled,
       from: Deno.env.get('PORTAL_FROM_EMAIL'),
       replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO'),
       missingConfigurationMessage: 'PORTAL_FROM_EMAIL e COMMUNICATIONS_REPLY_TO são obrigatórios para envio real',
@@ -781,7 +782,7 @@ async function handler(req: Request): Promise<Response> {
     attemptId: attempt?.id ?? undefined,
     status,
     suppressed: false,
-    message: enabled ? 'Comunicado enviado.' : 'Comunicado registrado em simulação; nenhum e-mail foi enviado.',
+    message: !sent.ok ? 'Falha no envio do comunicado.' : enabled ? 'Comunicado enviado.' : 'Comunicado registrado em simulação; nenhum e-mail foi enviado.',
   }, origin)
 }
 

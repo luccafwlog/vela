@@ -157,6 +157,13 @@ sem alterar preferências ou habilitar envio real. A regressão
 `customerCommunicationCatalog.local-pg.test.ts` simula a perda do catálogo e
 verifica a criação de institucional e livre após reposição idempotente.
 
+O envio com chave global desligada passa `simulate: true` ao helper de e-mail:
+registra uma tentativa aceita em modo simulado, sem chamada ao Resend. Falta de
+credencial em envio real continua sendo falha. A simulação respeita supressões
+e preserva uma confirmação real já existente. **Teste:** `emailShared.test.ts`
+e `emailMissingConfiguration.test.ts`. Publicação e repetição remota desta
+correção ainda pendentes na retomada da run-2.
+
 A identidade única de `customer_communications` combina tipo, cliente, âncoras,
 `dispatch_id` e `attempt_discriminator`; o status fica fora dela porque muda
 conforme as tentativas são projetadas. A migration

@@ -20,6 +20,8 @@ CASCADE` num único comando, exceto a lista `v_preservar` do script:
 - configuração do sistema: `app_settings`, `exchange_rate_reference`,
   `business_holidays`;
 - catálogo de tipos de alerta (`alert_type_catalog`);
+- catálogos e modelos de Comunicados (`customer_communication_kinds`,
+  `customer_communication_boxes`, `customer_communication_templates`);
 - cadastro base: `charge_tables`, `charge_table_items`, `demurrage_rates`,
   `depots`, `depot_services`, `carriers`, `ports`.
 

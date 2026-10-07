@@ -65,6 +65,44 @@ Falta, nesta ordem:
 A mensagem da conferência vazia no modo Institucional passou a explicar a regra
 de Cliente Comunicável em vez de falar em "carga".
 
+## Retomada em 2026-10-06
+
+Plano permanece em execução; não arquivar enquanto os itens abaixo estiverem
+pendentes. Produção observada com frontend `085520e7eb16`, projeto Supabase
+`fgmkhbzhaeebrsizwccx`. A sessão do Vela é Administrativo; a do Portal usa um
+Cliente de teste. Evidência detalhada em
+[relatório da retomada](../archive/reports/2026-10-06-remediacao-run-2-retomada.md).
+
+- **Runtime confirmado:** migrations `106`, `108`, `109`, `110` presentes;
+  `connect-src` dos dois domínios restringe Supabase ao projeto, sem wildcard.
+- **Comunicado parcialmente validado:** conferência institucional chegou ao
+  Cliente de teste; primeiro disparo falhou porque o catálogo estrutural estava
+  vazio. Dono autorizou reposição, executada em produção por INSERT idempotente
+  (dez pares da migration `002`), sem ligar envio real. Migration local `157`
+  registra a correção para replay e deploy pelo fluxo normal. Novo disparo
+  persistiu assunto, texto e hash do HTML, com navio/viagem nulos como exige o
+  institucional; porém a tentativa ficou `falha_permanente` em modo simulado.
+  Correção local distingue simulação explícita de falta de configuração do
+  provedor; publicar `send-customer-communication` e `demurrage-dunning`, depois
+  repetir institucional/livre, arquivo falso e envio real a destinatário
+  controlado. O registro anterior de falha permanece como evidência.
+- **GitHub pendente:** environments `cloudflare-pages` e `supabase-branches`
+  existem, mas sem secrets e sem restrição de deployment branch. As três
+  credenciais e o secret legado continuam em Repository secrets. Repositório
+  agora privado (drift do plano); rulesets recusados com HTTP 403 por limitação
+  da conta. Dono precisa decidir/habilitar plano compatível; não tornar público
+  como alternativa automática. Único colaborador retornado pela API: dono,
+  com admin; deploy keys e aplicativos ainda precisam de revisão.
+- **Operação:** backup já possui bucket/chave dedicados, conforme evidência de
+  2026-10-05 no manual; sucesso da tarefa agendada seguinte ainda não observado.
+  Versões fixadas em `.mcp.json` e `opencode.json` na retomada. Vault mostra os
+  segredos antigos sem atualização; rotação em par com as Edge Functions ainda
+  pendente. `IMPORT_EFFECTS_CRON_SECRET` e `RECALC_CRON_SECRET` ausentes no Vault;
+  verificar procedimento/estado de ativação antes de provisionar ou agendar.
+- **Validação por identidade pendente:** PKCE no mesmo/outro navegador, Storage
+  e modal de Dispute com Equipamentos/Financeiro, importação com e-mail novo,
+  captcha no painel Auth e testes dos workflows com secrets nos environments.
+
 ## Decisões
 
 Respondidas pelo dono em 2026-09-29: **D1 = (b)** (cai para (a) se o plano
