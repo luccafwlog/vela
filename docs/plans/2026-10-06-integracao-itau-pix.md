@@ -128,8 +128,9 @@ Pré-condição de **todos** os passos e de cada sessão nova:
 configuração Itaú mora nessa linha, e sem ela os `UPDATE ... WHERE id = 1` dos
 passos 5 e 8 e o checkpoint de recebimentos não afetam nada, sem erro. A linha
 já sumiu de produção duas vezes por ação externa ao repositório (restaurada
-pelas migrations `104` e `155`); se faltar, pare e avise o dono antes de
-recriá-la.
+pelas migrations `104` e `155`); desde a `156` o banco recusa `DELETE` e
+`TRUNCATE` dela, inclusive em cascata de `user_profiles`. Se faltar mesmo
+assim, pare e avise o dono antes de recriá-la.
 
 1. **Credencial dedicada (Itaú → dono).** Aguardar, no thread IT-000245617,
    CLIENT ID novo e token de ativação (vale cerca de 7 dias). O agente lê a
@@ -435,3 +436,4 @@ SQL não prova execução nem RLS; a prova de pagamento é o teste de centavos.
 | 2026-10-06 | Revisão da Fase 5. Dono aprova: Pix em análise fecha sozinho quando a fatura da cobrança fica paga e, nos demais casos, Admin marca como tratado com motivo (fecha o Alerta). Correção: "pedem atenção" lista só cobranças que aguardam o banco. |
 | 2026-10-06 | Revisão das PRs 861–867 concluída e PR 827 fechada. As seis PRs foram unificadas numa só contra a `main`; as migrations da pilha foram renumeradas de 150–153 para 151–154, porque a `main` recebeu `150_importacao_bl_flags_baplie_so_do_lote.sql`. As menções a 150–153 nas linhas anteriores deste registro referem-se à numeração antiga. |
 | 2026-10-07 | PR 870 mergeada; migrations 151–154 aplicadas em produção (conferido em `supabase_migrations.schema_migrations`, 26 feriados e o tipo `calendario_feriados_pendente` presentes). Na mesma conferência, `app_settings` estava sem a linha `id = 1`, apesar da `104`; a migration `155` a restaura e o Roteiro de ativação ganhou essa pré-condição. Origem da remoção não identificada no repositório. |
+| 2026-10-07 | Origem da remoção de `app_settings` não identificada (logs de 24 h só registram DDL; nada no repositório apaga a linha). Migration `156`: gatilhos recusam `DELETE` e `TRUNCATE` do singleton, inclusive em cascata de `user_profiles`, para que a próxima tentativa falhe com erro visível. |
