@@ -1,7 +1,7 @@
 import { pathToFileURL } from 'node:url'
 
 const API_BASE = 'https://api.cloudflare.com/client/v4'
-const PAGE_SIZE = 100
+const PAGE_SIZE = 25
 export const PAGES_PROJECTS = Object.freeze(['vela-internal', 'vela-portal'])
 
 class CloudflareApiError extends Error {
