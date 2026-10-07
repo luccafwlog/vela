@@ -275,7 +275,7 @@ export function PortalDesbloqueioCe() {
                       {!i.can_submit && (
                         <p>
                           {i.request_id
-                            ? "Solicitação já existente ou desbloqueio confirmado"
+                            ? "Já existe uma solicitação para este BL"
                             : i.reasons.join("; ")}
                         </p>
                       )}
