@@ -120,6 +120,12 @@ ORDER BY jobname;
 
 ### Agendar o recálculo de PTAX
 
+**Agendado em produção em 2026-10-07** (jobid 26), às 17h UTC (14h Brasília)
+de segunda a sexta. Provisão de `RECALC_CRON_SECRET` em par e disparo manual
+validado: HTTP 200, referência cambial de hoje persistida, zero faturas
+alteradas (só havia uma Demurrage em rascunho). Primeiro ciclo agendado ainda
+não observado; o teste comprovou o dispatcher e a função publicados.
+
 A migration `018` deliberadamente **não** cria o job `recalc-demurrage-ptax`.
 Criá-lo e desativá-lo no replay exigiria `UPDATE` em `cron.job`, privilégio que
 o papel de migrations do Supabase não tem — a tentativa anterior abortava a

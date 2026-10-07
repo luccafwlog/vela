@@ -277,11 +277,13 @@ recuperação), então não é um segredo de rotação rotineira.
 `RECALC_CRON_SECRET` existem no código. **Conferência somente de leitura em
 2026-10-07:** `PORTAL_EMAIL_EVENTS_CRON_SECRET` existe no Vault; o segredo
 correspondente na Edge Function não foi conferido. `IMPORT_EFFECTS_CRON_SECRET`
-e `RECALC_CRON_SECRET` não existem no Vault. A migration `107` deixa
+e `RECALC_CRON_SECRET` não existiam no Vault nessa conferência. Nota de execução
+posterior em 07/10: `RECALC_CRON_SECRET` provisionado em par, validado via
+HTTP 200 e job agendado às 17h UTC de segunda a sexta. `IMPORT_EFFECTS_CRON_SECRET`
+continua pendente. A migration `107` deixa
 `portal-email-events-runner` e `import-effects-runner` agendados; para o
 segundo, o dispatcher emite `WARNING` e não chama a Edge Function enquanto o
-segredo do Vault estiver ausente. O job `recalc-demurrage-ptax` continua sem
-agendamento manual. Um `succeeded` em `cron.job_run_details` só comprova que o
+segredo do Vault estiver ausente. O job `recalc-demurrage-ptax` foi agendado manualmente em 07/10 (jobid 26). Um `succeeded` em `cron.job_run_details` só comprova que o
 wrapper do `pg_cron` terminou; confirme também a chamada HTTP conforme
 [segredos e cron](segredos-cron.md#verificação). A rotação/provisão continua
 pendente e deve seguir o procedimento em par.
@@ -581,7 +583,7 @@ gerenciado. Não há alteração de nomes de segredos ou do agendamento de expur
 
 ## Itaú — API Pix Recebimentos
 
-**Bloqueado: aguardando credencial dedicada ao Vela.** Conta 0870/37293-5
+**Provedor Itaú ativado; prova de baixa nas faturas pendente.** Conta 0870/37293-5
 (TRANSHIPPING AGENCIAMENTO MARITIMO LTDA, CNPJ 06.352.972/0001-21),
 protocolo IT-000245617 com a Implantação Técnica do Itaú
 (`implantacao_cash_varejo@itau-unibanco.com.br`; responder sempre no mesmo
@@ -589,19 +591,24 @@ assunto). Em 2026-10-06 o banco enviou CLIENT ID e token de ativação, mas o
 CLIENT ID é o da credencial de julho, usada pelo sistema de terceiro: a troca
 do CSR foi recusada (HTTP 409, `C700a`, certificado ainda válido). O dono
 pediu no mesmo thread uma credencial nova, dedicada ao Vela, sem revogar a
-atual. O token de 2026-10-06 não tem mais uso.
+atual. O token de 2026-10-06 não tem mais uso. Em 07/10 chegou CLIENT ID
+diferente, confirmado por hash; certificado emitido, válido até 07/10/2027
+16:11:50 UTC, e OAuth mTLS validado localmente e pela Edge. Prova de centavos,
+alteração com validade de 30 dias e cancelamento confirmados em produção;
+evidências e limites no "Contrato observado" do plano.
 
 O token troca um CSR por certificado (365 dias) e client_secret em
 `sts.itau.com.br`; o procedimento está na Fase 0 do
 [plano da integração](../plans/2026-10-06-integracao-itau-pix.md). Destino
-previsto dos segredos, em Supabase → Edge Functions → Secrets (ainda **não
-cadastrados**): `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`,
-`ITAU_KEY_B64`, `ITAU_PIX_KEY`. Cópia da chave e do certificado no iCloud
-Senhas do dono. O item `ITAU_ONBOARDING_PRIVATE_KEY` do Vault não tem uso
-(o Itaú não pediu chave pública) e deve ser removido.
+dos segredos, em Supabase → Edge Functions → Secrets (**cadastrados pelo dono
+em 07/10**): `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`,
+`ITAU_KEY_B64`, `ITAU_PIX_KEY` e `ITAU_PIX_ADMIN_SECRET`. Backup PFX cifrado
+validado; senha no iCloud Senhas, cópia externa do arquivo ainda não confirmada.
+O item `ITAU_ONBOARDING_PRIVATE_KEY` do Vault não tem uso
+(o Itaú não pediu chave pública); removido pelo dono e ausência conferida em 07/10.
 
 A função `itau-pix` (Fase 1, diagnóstico e prova de centavos) existe no
-código e **não está publicada**. Ela exige também `ITAU_PIX_ADMIN_SECRET`
+código e **está publicada** (v6 ACTIVE, conferida em 07/10). Ela exige `ITAU_PIX_ADMIN_SECRET`
 (bearer próprio, ≥ 32 caracteres aleatórios, nunca `service_role`). Os
 overrides opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL` e
 `ITAU_AUTH_HEADER` só existem para ajustar host e header se o Itaú divergir
@@ -630,8 +637,39 @@ publicar `itau-pix`; criar a conta Admin dedicada **"API Itaú"** e gravá-la em
 2026-10-06: não usar a conta de uma pessoa); fazer o teste de centavos;
 agendar o job `itau-pix-queue` a cada minuto
 (`select ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`, ver
-[segredos e cron](segredos-cron.md)); só então virar a chave. Nenhum desses
-passos foi executado.
+[segredos e cron](segredos-cron.md)); só então virar a chave. Certificado,
+secrets Edge, publicação e diagnóstico validados; conta `API ITAÚ`
+(Administrativo, ativa) vinculada em `itau_pix_settlement_actor` em 07/10,
+com autorização do dono. `ITAU_PIX_ADMIN_SECRET` cadastrado também no Vault;
+chamada de diagnóstico pelo banco confirmou HTTP 200, Bearer, 300 s em 07/10.
+Job `itau-pix-queue` ativo a cada minuto (jobid 25), autorizado em 07/10;
+primeiro ciclo confirmou cron `succeeded`, Edge HTTP 200 e avanço do checkpoint,
+mantendo `static`, sem processar cobranças ou baixar faturas. Job de
+PTAX agendado e validado em 07/10 (jobid 26, 14h Brasília de segunda a sexta,
+HTTP 200, referência de hoje gravada). Consulta Itaú corrigida e publicada
+na v6: janela vazia encerra pela lista vazia e total zero apesar de 100 páginas
+informadas. Cron confirmado com HTTP 200 e checkpoint até o horário atual,
+sem baixas durante a conferência em `static`. Virada autorizada em 07/10:
+`pix_provider='itau'`, única fatura individual aberta com COB ATIVA e QR
+confirmado no banco e gravado na fatura. Baixa/recibo individual ainda não validados. Diagnóstico de 07/10 confirmou desvio de fuso no Itaú: a janela
+20:00–20:10 UTC não encontrou o Pix pago; a equivalente 17:00–17:10 com
+`-03:00` encontrou. O banco também devolve criação/recebimento em Brasília
+com sufixo `Z` indevido. Correção local envia consultas com `-03:00` e
+normaliza as datas recebidas para UTC, preservando offsets explícitos;
+publicada na v7 com autorização. GET autenticado confirmou o horário UTC
+correto; recuperação por `itau_pix_settle` deixou INV-2026-0004 paga, saldo
+zero, com um único pagamento da conta API ITAÚ. Cron seguinte respondeu
+HTTP 200 e avançou o checkpoint, sem erros. Novo pagamento da avulsa INV-2026-0005, R$ 0,20, foi baixado pelo cron
+em cerca de 58 s, sem reprocessamento manual: saldo zero, pagamento único
+pela conta API ITAÚ, sem análise. Dono confirmou recibo da avulsa no Portal. Demurrage de teste
+DEM-TEST-ITAU-20261007 (R$ 0,16) também baixada pelo cron em cerca de 40 s,
+sem intervenção manual, com histórico de pagamento, PTAX 4,9935 e ROE
+5,3181 congelados; dono confirmou recibo Demurrage no Portal. Criação e
+expiração das duas COBs anteriores à v7 corrigidas com autorização em 07/10,
+sem mudar valores, status ou pagamentos. Individual de teste INV-2026-0006
+emitida por R$ 0,20; pagamento pendente. Timeout do pg_net de 5 s sem
+alteração; evidências no plano. Chave de onboarding sem uso
+removida e ausência conferida.
 
 Na virada, todas as faturas já abertas passam para a cobrança Itaú (decisão
 do dono em 2026-10-06; o sistema ainda não tem faturas reais). Os gatilhos só
@@ -662,7 +700,7 @@ suspendem o prazo, então a cobrança pode vencer às 14h30 de um feriado. A Dem
 
 Renovar o certificado 30 dias antes do vencimento. Documentação:
 [Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
-Nenhuma função, job ou webhook do Itaú está publicado.
+Função e job Itaú publicados; webhook não cadastrado na conferência de 07/10.
 
 ### Correção de simulação de Comunicados — 2026-10-06
 

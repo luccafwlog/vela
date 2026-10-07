@@ -89,6 +89,16 @@ function assertMoney(amount: string): void {
   if (!MONEY.test(amount) || Number(amount) <= 0) throw new ItauPixError('Valor Pix inválido.', 400)
 }
 
+// Contrato produtivo observado em 07/10/2026: Itaú devolve hora de Brasília
+// com Z indevido. Offset explícito é preservado; o restante do Vela usa UTC.
+function itauTimeToUtc(value: string): string {
+  if (typeof value !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(value))
+    throw new ItauPixError('Horário do Itaú em formato inesperado.', 502)
+  const time = Date.parse(value.replace(/Z$/, '-03:00'))
+  if (!Number.isFinite(time)) throw new ItauPixError('Horário do Itaú em formato inesperado.', 502)
+  return new Date(time).toISOString()
+}
+
 function assertCob(cob: unknown, txid: string): ItauCob {
   const c = cob as Partial<ItauCob> | null
   // A especificação diz inteiro, mas o sandbox devolveu "3600" (2026-10-06): aceitar
@@ -100,14 +110,18 @@ function assertCob(cob: unknown, txid: string): ItauCob {
       !c.valor || typeof c.valor.original !== 'string' || !MONEY.test(c.valor.original)) {
     throw new ItauPixError('Resposta do Itaú não confirma a cobrança; consultar antes de repetir.', 502, cob)
   }
-  return { ...c, calendario: { ...c.calendario, expiracao: expiracao as number } } as ItauCob
+  return { ...c, calendario: { ...c.calendario, criacao: itauTimeToUtc(c.calendario.criacao), expiracao: expiracao as number },
+    ...(c.pix ? { pix: c.pix.map(p => ({ ...p, horario: itauTimeToUtc(p.horario) })) } : {}),
+  } as ItauCob
 }
 
 // RFC 3339 sem milissegundos: o sandbox recusou inicio/fim com fração de segundo (2026-10-06).
 // O início arredonda para baixo e o fim para cima, então a janela pedida nunca encolhe.
 function rfc3339Seconds(value: string, roundUp = false): string {
   const seconds = Date.parse(value) / 1000
-  return new Date((roundUp ? Math.ceil(seconds) : Math.floor(seconds)) * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
+  // Produção só encontra a janela equivalente quando enviada com -03:00.
+  return new Date((roundUp ? Math.ceil(seconds) : Math.floor(seconds)) * 1000 - 3 * 60 * 60 * 1000)
+    .toISOString().replace(/\.\d{3}Z$/, '-03:00')
 }
 
 export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fetch) {
@@ -213,8 +227,10 @@ export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fet
       const all: ItauPix[] = []
       for (let page = 0; page < maxPages; page++) {
         const query = new URLSearchParams({ inicio: rfc3339Seconds(inicio), fim: rfc3339Seconds(fim, true), 'paginacao.paginaAtual': String(page) })
-        const body = await call('GET', `/pix?${query}`) as { pix?: ItauPix[]; parametros?: { paginacao?: { quantidadeDePaginas?: number } } }
-        all.push(...(body?.pix ?? []))
+        const body = await call('GET', `/pix?${query}`) as { pix?: ItauPix[]; parametros?: { paginacao?: { quantidadeDePaginas?: number; quantidadeTotalDeItens?: number } } }
+        // Produção (07/10/2026): janela vazia retorna 100 páginas, mas total zero.
+        if (body?.pix?.length === 0 && body.parametros?.paginacao?.quantidadeTotalDeItens === 0) return all
+        all.push(...(body?.pix ?? []).map(p => ({ ...p, horario: itauTimeToUtc(p.horario) })))
         const pages = body?.parametros?.paginacao?.quantidadeDePaginas ?? 1
         if (page + 1 >= pages) return all
       }
