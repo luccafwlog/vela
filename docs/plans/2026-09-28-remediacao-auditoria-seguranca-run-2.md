@@ -148,8 +148,15 @@ As pendências executáveis restantes são:
    `.github/workflows/**`. A conta atual recebeu HTTP 403 ao tentar criar
    rulesets; não tornar o repositório público como atalho.
 3. **Preview:** publicar uma Preview válida após validar as credenciais e
-   testar troca de e-mail com PKCE no mesmo e em outro navegador. O workflow de
-   limpeza já executou em 2026-10-07 após o ajuste `per_page=25`; terminou com
+   testar troca de e-mail com PKCE no mesmo e em outro navegador. A integração
+   Supabase GitHub está conectada, mas `Automatic branching` está desligado;
+   o check `Supabase Preview` é `skipped` por essa configuração. O dono optou
+   por mantê-la desligada. Não há branches Preview existentes. Alternativa
+   pontual: criar uma branch pelo painel e vinculá-la à branch GitHub da PR,
+   sem ativar a criação automática. O painel informa cobrança de US$ 0,01344/h
+   enquanto a branch existir (antes de impostos); obter autorização para essa
+   cobrança antes de criá-la e removê-la após a validação. O workflow de
+   limpeza executou em 2026-10-07 após o ajuste `per_page=25`; terminou com
    sucesso e não encontrou deployments antigos para remover, então o endpoint
    DELETE não foi exercitado.
 4. **Importação:** executar importação real com e-mail novo de consignatário.
@@ -253,6 +260,11 @@ Em 2026-10-06, o dono recusou restringir os environments GitHub à branch
 `main`. Não aplicar essa restrição. O controle fica fora da execução por
 decisão do dono, com risco aceito; não marcar como corrigido. A recusa não
 cancela as demais pendências, inclusive credenciais e validação de workflows.
+
+Em 2026-10-07, o dono decidiu manter desligado `Automatic branching` na
+integração Supabase GitHub. Não ligar essa opção. Uma branch de Preview
+pontual vinculada à branch GitHub da PR continua sendo alternativa, sujeita à
+autorização do custo horário informado pelo painel e à remoção após os testes.
 
 Respondidas pelo dono em 2026-09-29: **D1 = (b)** (cai para (a) se o plano
 do Supabase não oferecer o hook), **D2 = (c)** (manter como hoje; o item 2.8

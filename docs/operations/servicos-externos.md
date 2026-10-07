@@ -187,8 +187,21 @@ Para retomar a Vercel, restaure a configuração de build do Vite, reconecte o G
 ## Supabase
 
 Banco PostgreSQL, Auth, Storage, Edge Functions e jobs agendados. Projeto de
-produção `fgmkhbzhaeebrsizwccx`. Cada PR ganha uma **branch de preview** com
-banco próprio (check "Supabase Preview").
+produção `fgmkhbzhaeebrsizwccx`. O projeto GitHub é `luccafwlog/vela`.
+Automatic branching está **desligado** (conferido em 2026-10-07); portanto,
+abrir uma PR não cria por si só uma branch Supabase nem garante o check
+"Supabase Preview". A integração permite criar uma branch pontual e vinculá-la
+a uma branch GitHub. O painel informa custo de US$ 0,01344 por hora enquanto a
+branch existir, sem impostos; removê-la encerra essa cobrança. Branches novas
+não copiam dados de produção por padrão.
+
+Para uma Preview pontual sem ligar Automatic branching: em Supabase → projeto
+Vela → Branching → Create branch, informe o nome da branch de Preview e a mesma
+branch GitHub da PR em "Sync with Git branch". A integração publica commits
+nessa branch. Manter a PR aberta até o check Supabase Preview e o workflow
+Cloudflare Pages Preview concluírem; remover a branch após os testes para
+encerrar o custo. Conferir a criação e a exclusão no painel. A página Branching
+estava sem branches persistentes ou de Preview na conferência de 2026-10-07.
 
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
