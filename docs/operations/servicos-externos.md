@@ -149,6 +149,14 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
 - **Cabeçalhos de segurança (CSP):** gerados por
   `scripts/cloudflare-pages-stage.mjs`; mudam junto com os workflows e o staging do Pages
   ([deploy.md](../setup/deploy.md#headers-rotas-e-cors)).
+- **Pages Function `functions/assets/[[path]].ts`:** os dois projetos (`wrangler
+  pages deploy` compila `functions/` do diretório de trabalho do workflow, que é a
+  checkout confiável) recebem uma Function em `/assets/*`: arquivo inexistente →
+  `404` com `Cache-Control: no-store`; asset real → `immutable` definido pela
+  Function (`_headers` não vale para respostas de Functions). Cada requisição de
+  `/assets/*` conta na cota de invocações de Functions do plano. O workflow de
+  produção confere o 404 sem cache após publicar (incidente de 2026-10-07: HTML do
+  fallback SPA cacheado como chunk JS, app em branco).
 - **Token:** secret `CLOUDFLARE_PAGES_API_TOKEN` nos environments GitHub
   `cloudflare-pages` e `cloudflare-production` (Cloudflare Pages: Edit, escopo
   da conta Pages). A cópia Repository-level permanece até os workflows serem

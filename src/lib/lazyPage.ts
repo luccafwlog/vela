@@ -24,7 +24,7 @@ function markerKey(pathname?: string) {
   return `chunk-reload:${getPathname(pathname)}`
 }
 
-function isDynamicImportLoadError(error: unknown) {
+function isDynamicImportLoadError(error: unknown): error is TypeError {
   if (!(error instanceof TypeError)) return false
 
   const message = error.message.toLowerCase()
@@ -33,6 +33,15 @@ function isDynamicImportLoadError(error: unknown) {
     message.includes('error loading dynamically imported module') ||
     message.includes('importing a module script failed')
   )
+}
+
+// Um chunk salvo errado no cache HTTP (ex.: HTML do fallback como immutable)
+// sobreviveria a um reload simples; rebuscar com cache 'reload' o sobrescreve.
+function reloadBypassingChunkCache(error: TypeError) {
+  const reload = () => globalThis.location?.reload()
+  const url = /https?:\/\/\S+?\.js/.exec(error.message)?.[0]
+  if (!url || !globalThis.fetch) return reload()
+  void globalThis.fetch(url, { cache: 'reload' }).then(reload, reload)
 }
 
 export function createLazyPageLoader<T extends Record<string, unknown>, K extends keyof T & string>(
@@ -51,7 +60,7 @@ export function createLazyPageLoader<T extends Record<string, unknown>, K extend
     } catch (error) {
       if (isDynamicImportLoadError(error) && storage && storage.getItem(key) !== '1') {
         storage.setItem(key, '1')
-        ;(options.reload ?? globalThis.location?.reload.bind(globalThis.location))?.()
+        ;(options.reload ?? (() => reloadBypassingChunkCache(error)))()
         return new Promise<never>(() => {})
       }
 
