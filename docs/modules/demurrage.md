@@ -378,4 +378,4 @@ legado da Invoice sobrescreva essa decisão quando `dispute_open` e
 `dispute_status` não mudaram. Mudanças reais de lifecycle seguem sincronizadas.
 Reprodução e correção validadas em PostgreSQL local; migration aplicada em
 produção com autorização do dono em 2026-10-06. Repetição pela interface
-com Equipamentos ainda pendente.
+com Equipamentos confirmou próxima ação Cliente, tanto na tela quanto no banco.

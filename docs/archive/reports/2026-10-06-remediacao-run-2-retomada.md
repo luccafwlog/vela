@@ -193,3 +193,18 @@ Com autorização específica do dono, migration `159` aplicada via
 definição publicada confirma o guard de mudança real dos campos. Nenhum
 registro histórico reescrito; a Dispute de teste ainda precisa de nova
 resposta pela sessão real de Equipamentos para comprovar a próxima ação.
+
+## Reteste runtime da próxima ação
+
+Sessão real do André, frontend `2159842`: nova resposta na mesma Dispute de
+teste (mensagem `id=3`) com próxima ação Cliente. A tela mostrou
+`próximo: cliente`; consulta ao banco confirmou Dispute `aberta`,
+`next_responder=cliente`, coerente com a mensagem. Invoice continua `draft`,
+USD 0, sem TXID. Nenhum e-mail, cobrança emitida ou pagamento gerado.
+Captura `/tmp/vela-run2-proxima-acao-cliente.jpg`. Falha do trigger corrigida
+e verificada em produção.
+
+**Runtime no Portal:** após atualização de `/portal/billing`, aba Demurrage,
+a sessão ABF exibiu as três mensagens da Dispute de teste, incluindo a resposta
+da migration `159`. Confirma leitura da conversa pelo cliente destinatário;
+não comprova download do anexo nem isolamento entre duas sessões de clientes.
