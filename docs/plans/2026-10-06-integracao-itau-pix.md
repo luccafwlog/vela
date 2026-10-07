@@ -106,6 +106,28 @@ dele. Consequências:
   consultar antes de repetir; incerteza gera Alerta.
 - Conciliação PIX vira tela de monitoramento; baixa manual é exceção.
 
+## Sandbox do devportal (2026-10-06)
+
+Enquanto a credencial dedicada não chega, o dono criou uma aplicação de sandbox
+no devportal (sem certificado; credencial só de sandbox, fora do repositório).
+O cliente real (`_shared/itauPix.ts`) rodou localmente contra
+`https://sandbox.devportal.itau.com.br`: token em `/api/oauth/jwt`, API em
+`/itau-ep9-api-regulatorio-pix-v2-externo/v2`. Observado:
+
+- Token `client_credentials` aceito; `Bearer`, 300 s. `x-itau-apikey` não fez
+  diferença no sandbox (não prova nada sobre a produção).
+- `PUT /cob/{txid}` com o corpo do Vela: 201 `ATIVA`. A resposta é exemplo
+  fixo (TXID `bbba96…`, não o enviado), então consulta, alteração,
+  cancelamento e pagamento **não** são testáveis no sandbox.
+- `calendario.expiracao` veio como texto (`"3600"`), contra o inteiro da
+  especificação. O cliente passou a aceitar inteiro em texto.
+- `GET /pix` recusou `inicio`/`fim` com milissegundos (400
+  `PixConsultaInvalida`). O cliente passou a enviar RFC 3339 sem fração de
+  segundo, arredondando `inicio` para baixo e `fim` para cima.
+
+Nada disso substitui a Fase 1: mTLS, `sts.itau.com.br`, pagamento real,
+latência e limites só se provam com a credencial de produção.
+
 ## Decisões em aberto (com padrão recomendado)
 
 | Decisão | Padrão adotado se o dono não disser outra coisa |
