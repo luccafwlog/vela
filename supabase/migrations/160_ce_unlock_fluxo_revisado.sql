@@ -432,6 +432,7 @@ END $$;
 CREATE FUNCTION public.ce_unlock_reconcile(p_rows jsonb) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
 DECLARE total integer; unlocked integer; divergent integer; ignored integer; unknown integer; summary jsonb; BEGIN
+ IF NOT public.is_active_user() THEN RAISE EXCEPTION '42501: Acesso negado.' USING ERRCODE='42501'; END IF;
  PERFORM ce_unlock_private.actor(true);
  IF jsonb_typeof(p_rows)<>'array' OR jsonb_array_length(p_rows) NOT BETWEEN 1 AND 20000 THEN RAISE EXCEPTION 'Arquivo da ZPT vazio ou grande demais (máximo de 20000 linhas)'; END IF;
  DROP TABLE IF EXISTS pg_temp.zpt_rows;
