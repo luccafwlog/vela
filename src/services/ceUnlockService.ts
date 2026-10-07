@@ -11,7 +11,9 @@ import type {
   CeUnlockFilters,
   CeUnlockItem,
   CeUnlockPage,
+  CeUnlockReconcileSummary,
   CeUnlockRequest,
+  CeUnlockReviewRow,
   CeUnlockVipCoverage,
 } from "../types/ceUnlock";
 
@@ -40,6 +42,10 @@ export const ceUnlockRead = <T>(
 // move predicates/counts into an indexed read model when operational volume warrants it.
 export const listCeUnlockBls = (filters: CeUnlockFilters, page: number) =>
   ceUnlockRead<CeUnlockPage<CeUnlockItem>>("bls", { filters, page });
+export const listCeUnlockReviewQueue = (page: number) =>
+  ceUnlockRead<CeUnlockPage<CeUnlockReviewRow>>("review_queue", { page });
+export const ceUnlockReconcile = (rows: unknown[]) =>
+  internalRpc<CeUnlockReconcileSummary>("ce_unlock_reconcile", { p_rows: rows });
 export const getCeUnlockRequest = (id: string) =>
   ceUnlockRead<CeUnlockRequest>("request", { request_id: id });
 export const getCeUnlockVip = (customerId: number) =>
@@ -78,7 +84,7 @@ export const getPortalCeUnlockModel = (scope: PortalScope) =>
   callPortalRpc<CeUnlockDocument | null>(scope, "portal_get_ce_unlock_model");
 export const portalCeUnlockCommand = <T>(
   scope: PortalScope,
-  action: "draft" | "submit",
+  action: "draft" | "submit" | "cancel",
   payload: Record<string, unknown>,
 ) =>
   callPortalRpc<T>(scope, "portal_ce_unlock_command", {

@@ -10,6 +10,10 @@
 
 **Spec:** [desenho funcional](../spec/2026-10-04-desbloqueio-ce-mercante-design.md).
 
+**Revisão aprovada em 2026-10-07:** [spec](../archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md)
+e [plano](../archive/plans/2026-10-07-desbloqueio-ce-revisao-fluxo.md), já executados, alteraram validação, envio à ZPT e
+confirmação; itens deste plano que conflitem com ela (confirmação por B/L, registro de envio) estão superados.
+
 **Estado reconciliado em 2026-10-07:** implementação integrada no código da
 `main`; publicação e operação remotas não conferidas nesta reconciliação.
 PDF oficial e homologação externa seguem sem evidência de conclusão.

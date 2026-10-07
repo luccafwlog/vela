@@ -39,7 +39,16 @@ export type CeUnlockItem = {
   can_submit: boolean;
   can_export: boolean;
   confirmed: boolean;
-  export_state: string;
+  /** Só o desk recebe: o Portal nunca vê envio nem conciliação com a ZPT. */
+  export_state?: "not_exported" | "exported" | "confirmed";
+  exported_at?: string | null;
+  zpt_status?: "unlocked" | "divergent" | null;
+  zpt_description?: string | null;
+  zpt_pending?: string[] | null;
+  zpt_updated_at?: string | null;
+  zpt_without_export?: boolean | null;
+  /** Início do prazo (SLA): envio, entrega do original ou liquidação mais recente. */
+  sla_started_at?: string | null;
   reasons: string[];
   source: "request" | "vip_annual";
   delivery_version: number;
@@ -50,6 +59,7 @@ export type CeUnlockRequest = {
   state: string;
   version: number;
   source: "request" | "vip_annual";
+  customer_name?: string;
   items: CeUnlockItem[];
   documents: CeUnlockDocument[];
   confirmation_records?: Array<{ bl_id: string; ce_mercante: string; reference: string; confirmed_at: string }>;
@@ -59,6 +69,27 @@ export type CeUnlockRequest = {
     reason: string | null;
     created_at: string;
   }>;
+};
+/** Linha da aba Solicitações: um pedido com termo de devolução/procuração a validar. */
+export type CeUnlockReviewRow = {
+  id: string;
+  protocol: string;
+  state: string;
+  version: number;
+  created_at: string;
+  customer_name: string;
+  cnpj_cpf: string;
+  sla_started_at: string | null;
+  bl_ids: string[];
+  termo_status: CeUnlockDocument["status"] | null;
+  procuracao_status: CeUnlockDocument["status"] | null;
+};
+export type CeUnlockReconcileSummary = {
+  rows: number;
+  unlocked: number;
+  divergent: number;
+  ignored: number;
+  unknown_ce: number;
 };
 export type CeUnlockVipCoverage = {
   customer_id: number;

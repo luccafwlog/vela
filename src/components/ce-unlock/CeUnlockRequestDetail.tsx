@@ -5,6 +5,9 @@ import { CeUnlockDocumentList } from "./CeUnlockDocuments";
 import { CeUnlockRequirements } from "./CeUnlockRequirements";
 import { ceStateLabel, ceActionLabel } from "../../lib/ceUnlockLabels";
 import type { CeUnlockDocument, CeUnlockRequest } from "../../types/ceUnlock";
+
+const DOCUMENT_NAME = { termo: "Termo de devolução", procuracao: "Procuração" } as const;
+
 export function CeUnlockRequestDetail({
   request,
   manage,
@@ -19,10 +22,10 @@ export function CeUnlockRequestDetail({
   ) => Promise<unknown>;
   busy: boolean;
 }) {
-  const [selected, setSelected] = useState<string[]>([]);
   const confirm = useConfirm();
   const reasonDialog = useConfirmWithReason();
   const [error, setError] = useState("");
+  const blIds = request.items.map((i) => i.bl_id);
   async function act(
     action: string,
     payload: Record<string, unknown>,
@@ -36,16 +39,13 @@ export function CeUnlockRequestDetail({
         consequence:
           "O andamento deste pedido mudará no Vela e no Portal, com histórico.",
         reversibility:
-          "Correções exigem nova análise; fatos externos não são desfeitos automaticamente.",
+          "Uma decisão pode ser revista; o histórico é preservado.",
       });
       if (!reason) return;
     } else if (
       !(await confirm({
         message,
-        affected: {
-          summary: `${selected.length} BL(s) selecionados`,
-          items: selected,
-        },
+        affected: { summary: `${blIds.length} BL(s) do pedido`, items: blIds },
         consequence: "O resultado ficará visível no pedido e no Portal.",
         reversibility: "O histórico será preservado.",
       }))
@@ -57,8 +57,7 @@ export function CeUnlockRequestDetail({
         ...payload,
         request_id: request.id,
         expected_version: request.version,
-        reason: action === "confirm" ? null : reason,
-        ...(action === "confirm" ? { reference: reason } : {}),
+        reason,
       });
     } catch (e) {
       setError(
@@ -66,25 +65,18 @@ export function CeUnlockRequestDetail({
       );
     }
   }
+  // A análise vale para a solicitação inteira: o documento é aprovado ou recusado para todos os BLs.
   function review(
     d: CeUnlockDocument,
     decision: "approved" | "changes_requested" | "revoked",
   ) {
-    if (!selected.length) {
-      setError("Selecione os BLs abrangidos pela análise.");
-      return;
-    }
+    const name = DOCUMENT_NAME[d.type as keyof typeof DOCUMENT_NAME] ?? "Documento";
     void act(
       "review",
-      {
-        document_id: d.id,
-        expected_document_version: d.version,
-        bl_ids: selected,
-        decision,
-      },
+      { document_id: d.id, expected_document_version: d.version, decision },
       decision === "approved"
-        ? "Aprovar documento para os BLs selecionados?"
-        : "Solicitar correção para os BLs selecionados?",
+        ? `Aprovar ${name} para todos os BLs desta solicitação?`
+        : `Recusar ${name}? Informe o que o cliente precisa corrigir.`,
       decision !== "approved",
     );
   }
@@ -95,60 +87,57 @@ export function CeUnlockRequestDetail({
         (other) => other.type === d.type && other.status !== "uploading" && other.created_at > d.created_at,
       ),
   );
+  const approvedFor = (type: string) =>
+    request.items.every((i) => (type === "termo" ? i.termo : i.procuracao));
+  const canReview = (
+    d: CeUnlockDocument,
+    decision: "approved" | "changes_requested" | "revoked",
+  ) =>
+    decision === "approved"
+      ? !approvedFor(d.type)
+      : decision === "changes_requested" && d.status !== "changes_requested";
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">
         {request.protocol} · {ceStateLabel(request.state)}
       </h2>
+      {request.customer_name && <p>{request.customer_name}</p>}
       {error && <p role="alert">{error}</p>}
+      <CeUnlockDocumentList
+        documents={
+          manage && request.source === "request"
+            ? latestDocuments
+            : request.documents
+        }
+        canReview={canReview}
+        onReview={
+          manage &&
+          request.source === "request" &&
+          !busy &&
+          ["submitted", "in_review", "changes_requested", "completed"].includes(
+            request.state,
+          )
+            ? review
+            : undefined
+        }
+      />
+      <h3 className="font-semibold">BLs da solicitação</h3>
       {request.items.map((i) => (
         <article
           className="rounded-lg border border-[var(--app-border)] p-3"
           key={i.bl_id}
         >
-          <label className="flex gap-2">
-            {manage && (
-              <input
-                type="checkbox"
-                aria-label={`Analisar BL ${i.bl_id}`}
-                disabled={i.confirmed || busy}
-                checked={selected.includes(i.bl_id)}
-                onChange={(e) =>
-                  setSelected((prev) =>
-                    e.target.checked
-                      ? [...prev, i.bl_id]
-                      : prev.filter((id) => id !== i.bl_id),
-                  )
-                }
-              />
-            )}
-            <strong>
-              {i.bl_id} · CE {i.ce_mercante}
-            </strong>
-          </label>
+          <strong>
+            {i.bl_id} · CE {i.ce_mercante}
+          </strong>
           <CeUnlockRequirements item={i} />
           <p>
             {i.confirmed
-              ? "Desbloqueio confirmado"
+              ? "Confirmação externa registrada (histórico anterior)"
               : i.can_export
-                ? "Apto para desbloqueio"
+                ? "Apto para envio à ZPT"
                 : i.reasons.join("; ")}
           </p>
-          {manage && i.can_export && (
-            <Button
-              disabled={busy}
-              onClick={() =>
-                void act(
-                  "confirm",
-                  { bl_id: i.bl_id, ce_mercante: i.ce_mercante },
-                  `Confirmar desbloqueio do CE ${i.ce_mercante}? Informe a referência da evidência externa.`,
-                  true,
-                )
-              }
-            >
-              Confirmar desbloqueio
-            </Button>
-          )}
           {manage && i.reasons.some((r) => r.includes("CE alterado")) && (
             <Button
               disabled={busy}
@@ -166,23 +155,6 @@ export function CeUnlockRequestDetail({
           )}
         </article>
       ))}
-      <CeUnlockDocumentList
-        documents={
-          manage && request.source === "request"
-            ? latestDocuments
-            : request.documents
-        }
-        onReview={
-          manage &&
-          request.source === "request" &&
-          !busy &&
-          ["submitted", "in_review", "changes_requested"].includes(
-            request.state,
-          )
-            ? review
-            : undefined
-        }
-      />
       {manage &&
         request.source === "vip_annual" &&
         !["cancelled", "completed", "draft"].includes(request.state) && (
@@ -199,7 +171,7 @@ export function CeUnlockRequestDetail({
             Aplicar renovação VIP
           </Button>
         )}
-      {manage && !["cancelled", "completed"].includes(request.state) && (
+      {manage && request.state !== "cancelled" && (
         <Button
           variant="ghost"
           disabled={busy}
@@ -210,12 +182,17 @@ export function CeUnlockRequestDetail({
           Cancelar pedido
         </Button>
       )}
-      {!!request.confirmation_records?.length && <section>
-        <h3 className="font-semibold">Confirmações externas</h3>
-        {request.confirmation_records.map(record => <p key={record.bl_id}>
-          {record.bl_id} · CE {record.ce_mercante} · {new Date(record.confirmed_at).toLocaleString("pt-BR")} · Referência: {record.reference}
-        </p>)}
-      </section>}
+      {!!request.confirmation_records?.length && (
+        <section>
+          <h3 className="font-semibold">Confirmações externas (histórico anterior)</h3>
+          {request.confirmation_records.map((record) => (
+            <p key={record.bl_id}>
+              {record.bl_id} · CE {record.ce_mercante} ·{" "}
+              {new Date(record.confirmed_at).toLocaleString("pt-BR")} · Referência: {record.reference}
+            </p>
+          ))}
+        </section>
+      )}
       <h3 className="font-semibold">Histórico</h3>
       {request.events.map((e) => (
         <p key={e.id}>

@@ -7,7 +7,8 @@ const client = '00000000-0000-0000-0000-000000557002'
 const foreign = '00000000-0000-0000-0000-000000557003'
 const finance = '00000000-0000-0000-0000-000000557004'
 function sql(q:string, uid?:string):string {
-  return execFileSync('psql',['-X','-Atq','-v','ON_ERROR_STOP=1','-d',db,'-c',uid ? `SET ROLE authenticated; SET request.jwt.claim.sub='${uid}'; ${q}` : q],{encoding:'utf8',stdio:['pipe','pipe','pipe']}).trim()
+  // SQL por stdin: argv do psql no Windows corrompe acentos.
+  return execFileSync('psql',['-X','-Atq','-v','ON_ERROR_STOP=1','-d',db,'-f','-'],{input:uid ? `SET ROLE authenticated; SET request.jwt.claim.sub='${uid}'; ${q}` : q,encoding:'utf8',stdio:['pipe','pipe','pipe']}).replaceAll(String.fromCharCode(13),'').trim()
 }
 function error(q:string, uid:string) { try {sql(q,uid);return ''} catch(e) {return String((e as {stderr:string}).stderr)} }
 const command = (action:string, payload:object, uid=admin) => JSON.parse(sql(`SELECT public.${uid===client?'portal_':''}ce_unlock_command('${action}', '${JSON.stringify(payload)}'::jsonb);`, uid))
@@ -108,15 +109,24 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     command('delivery',{bl_id:'CE557-A',delivered:true,expected_version:0,request_key:crypto.randomUUID()})
     const exp=command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})
     expect(exp.rows).toHaveLength(1)
-    expect(JSON.parse(sql("SELECT public.portal_list_ce_unlock_bls('{}',1);",client)).items.find((i:{bl_id:string})=>i.bl_id==='CE557-A').confirmed).toBe(false)
+    expect(exp.layout_version).toBe('zpt-5-v2')
+    const portalItem=JSON.parse(sql("SELECT public.portal_list_ce_unlock_bls('{}',1);",client)).items.find((i:{bl_id:string})=>i.bl_id==='CE557-A')
+    expect(portalItem.confirmed).toBe(false)
+    // Exportar é o registro do envio: o desk vê, o Portal nunca recebe nada da ZPT.
+    expect(JSON.parse(sql("SELECT public.ce_unlock_read('bls','{\"filters\":{\"search\":\"CE557-A\"}}');",admin)).items[0]).toMatchObject({export_state:'exported',can_export:true})
+    for(const key of ['export_state','exported_at','zpt_status','zpt_description','zpt_pending','zpt_updated_at','zpt_without_export']) expect(portalItem).not.toHaveProperty(key)
     sql("UPDATE public.bl_receivables SET settled_amount_brl=50,balance_brl=50,status='partially_settled' WHERE id=998557;")
     expect(()=>command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})).toThrow()
     sql("UPDATE public.bl_receivables SET settled_amount_brl=100,balance_brl=0,status='settled' WHERE id=998557; UPDATE public.ce_unlock_documents SET status='revoked' WHERE source='vip_annual' AND type='termo' AND customer_id=998557;")
     expect(()=>command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})).toThrow()
+    // Pedido exportado não é cancelável sem tratamento externo; os cenários seguintes recomeçam do zero.
+    const open=JSON.parse(sql("SELECT row_to_json(r) FROM public.ce_unlock_requests r WHERE id=(SELECT request_id FROM public.ce_unlock_request_bls WHERE bl_id='CE557-A' AND active);"))
+    expect(error(`SELECT public.ce_unlock_command('cancel','${JSON.stringify({request_id:open.id,expected_version:open.version,reason:'x',request_key:crypto.randomUUID()})}'::jsonb);`,admin)).toContain('já exportado')
+    sql("UPDATE public.ce_unlock_request_bls SET exported_at=NULL,export_id=NULL WHERE bl_id='CE557-A';")
   })
   it('correção de termo permanece acessível após aprovação da procuração',()=>{
     command('set_vip',{customer_id:998557,enabled:false,reason:'Fluxo comum',request_key:crypto.randomUUID()})
-    const pending=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>!['completed','cancelled'].includes(r.state))
+    const pending=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>r.state!=='cancelled')
     for(const r of pending) command('cancel',{request_id:r.id,expected_version:r.version,reason:'Preparar teste comum',request_key:crypto.randomUUID()})
     const draft=command('draft',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()},client)
     sql(`INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,file_name,storage_path,size_bytes,hash,uploaded_by) VALUES
@@ -140,7 +150,7 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(request.items[0].termo).toBe(true)
   })
   it('mudança de Cliente bloqueia exportação e não expõe dados do novo Cliente ao anterior',()=>{
-    const request=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.find((r:{state:string})=>!['completed','cancelled'].includes(r.state))
+    const request=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.find((r:{state:string})=>r.state!=='cancelled')
     sql("UPDATE public.bls SET customer_id=998558 WHERE id='CE557-A';")
     try {
       const oldCustomer=JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${request.id}');`,client))
@@ -154,26 +164,26 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(()=>command('review',{document_id:doc,expected_document_version:0,decision:'approved',coverage_year:nextYear,valid_from:`${nextYear}-01-01`,valid_until:`${nextYear}-12-31`,request_key:crypto.randomUUID()})).toThrow()
   })
   it('reenvio não reutiliza versão antiga quando o documento mais recente foi rejeitado',()=>{
-    const request=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.find((r:{state:string})=>!['completed','cancelled'].includes(r.state))
+    const request=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.find((r:{state:string})=>r.state!=='cancelled')
     const doc=sql(`SELECT id FROM public.ce_unlock_documents WHERE request_id='${request.id}' AND type='termo' ORDER BY created_at DESC LIMIT 1;`)
     sql(`UPDATE public.ce_unlock_requests SET state='changes_requested' WHERE id='${request.id}'; UPDATE public.ce_unlock_documents SET status='approved' WHERE request_id='${request.id}' AND type='termo' AND id<>'${doc}'; UPDATE public.ce_unlock_documents SET status='changes_requested' WHERE id='${doc}';`)
     try { expect(()=>command('submit',{request_id:request.id,expected_version:request.version,request_key:crypto.randomUUID()},client)).toThrow() }
     finally { sql(`UPDATE public.ce_unlock_requests SET state='in_review' WHERE id='${request.id}'; UPDATE public.ce_unlock_documents SET status='approved' WHERE id='${doc}';`) }
   })
-  it('confirmação aguarda reversão financeira concorrente e recusa requisito perdido',async()=>{
+  it('exportação aguarda reversão financeira concorrente e recusa requisito perdido',async()=>{
     sql("UPDATE public.ce_unlock_request_bls SET termo_approved=true,procuracao_approved=true WHERE bl_id='CE557-A' AND active;")
     expect(JSON.parse(sql("SELECT public.portal_list_ce_unlock_bls('{}',1);",client)).items.find((i:{bl_id:string})=>i.bl_id==='CE557-A').can_export).toBe(true)
-    const request=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.find((r:{state:string})=>!['completed','cancelled'].includes(r.state))
     const worker=await heldTransaction("BEGIN; UPDATE public.bl_receivables SET status='partially_settled',balance_brl=50,settled_amount_brl=50 WHERE id=998557; SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;")
-    try { expect(()=>command('confirm',{request_id:request.id,expected_version:request.version,bl_id:'CE557-A',ce_mercante:'123456789012345',reference:'External proof',request_key:crypto.randomUUID()})).toThrow() }
-    finally { await worker.done; sql(`UPDATE public.bl_receivables SET status='settled',balance_brl=0,settled_amount_brl=100 WHERE id=998557; UPDATE public.ce_unlock_request_bls SET confirmed_at=NULL,confirmed_by=NULL,confirmed_ce=NULL,external_reference=NULL,active=true WHERE request_id='${request.id}'; UPDATE public.ce_unlock_requests SET state='in_review' WHERE id='${request.id}';`) }
+    try { expect(()=>command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})).toThrow() }
+    finally { await worker.done; sql("UPDATE public.bl_receivables SET status='settled',balance_brl=0,settled_amount_brl=100 WHERE id=998557;") }
+    expect(sql("SELECT exported_at IS NULL FROM public.ce_unlock_request_bls WHERE bl_id='CE557-A' AND active;")).toBe('t')
   })
-  it('registro de envio aguarda cancelamento concorrente e recusa lote',async()=>{
-    const exp=command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})
-    const request=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.find((r:{state:string})=>!['completed','cancelled'].includes(r.state))
+  it('exportação aguarda cancelamento concorrente e recusa lote',async()=>{
+    const request=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.find((r:{state:string})=>r.state!=='cancelled')
     const worker=await heldTransaction(`BEGIN; UPDATE public.ce_unlock_requests SET state='cancelled' WHERE id='${request.id}'; SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;`)
-    try { expect(()=>command('sent',{export_id:exp.id,reference:'ZPT evidence',request_key:crypto.randomUUID()})).toThrow() }
-    finally { await worker.done; sql(`UPDATE public.ce_unlock_requests SET state='in_review' WHERE id='${request.id}'; UPDATE public.ce_unlock_exports SET sent_at=NULL,reference=NULL WHERE id='${exp.id}';`) }
+    try { expect(()=>command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})).toThrow() }
+    finally { await worker.done; sql(`UPDATE public.ce_unlock_requests SET state='in_review' WHERE id='${request.id}';`) }
+    expect(sql("SELECT exported_at IS NULL FROM public.ce_unlock_request_bls WHERE bl_id='CE557-A' AND active;")).toBe('t')
   })
   it('expurgo reivindica rascunho sob lock antes de remover arquivo e libera BL',()=>{
     const draft=command('draft',{bl_ids:['CE557-SECOND'],request_key:crypto.randomUUID()},client)
@@ -186,26 +196,37 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     sql(`SELECT public.ce_unlock_cleanup_record('${doc}');`)
     expect(sql(`SELECT purged_at IS NOT NULL FROM public.ce_unlock_documents WHERE id='${doc}';`)).toBe('t')
   })
-  it('pedido com dois BLs só conclui após confirmações individuais e CE divergente é recusado',()=>{
+  it('pedido com dois BLs conclui quando todos atendem os quatro requisitos; CE divergente é recusado até a reconferência',()=>{
     command('set_vip',{customer_id:998557,enabled:true,reason:'Teste misto VIP',request_key:crypto.randomUUID()})
     sql("UPDATE public.ce_unlock_documents SET status='approved' WHERE customer_id=998557 AND source='vip_annual'; UPDATE public.bl_receivables SET status='settled',balance_brl=0,settled_amount_brl=100 WHERE id=998558;")
     const draft=command('draft',{bl_ids:['CE557-SECOND','CE557-PART'],request_key:crypto.randomUUID()},client)
-    let request=command('submit',{request_id:draft.id,expected_version:draft.version,request_key:crypto.randomUUID()},client)
-    for(const bid of ['CE557-SECOND','CE557-PART']) command('delivery',{bl_id:bid,delivered:true,expected_version:0,request_key:crypto.randomUUID()})
-    request=command('confirm',{request_id:request.id,expected_version:request.version,bl_id:'CE557-SECOND',ce_mercante:'123456789012348',reference:'Confirmação ZPT individual',request_key:crypto.randomUUID()})
-    expect(request.state).not.toBe('completed')
-    expect(request.items.filter((i:{confirmed:boolean})=>i.confirmed)).toHaveLength(1)
-    sql("UPDATE public.bls SET ce_mercante='123456789019999' WHERE id='CE557-PART';")
-    expect(()=>command('confirm',{request_id:request.id,expected_version:request.version,bl_id:'CE557-PART',ce_mercante:'123456789012347',reference:'CE antigo',request_key:crypto.randomUUID()})).toThrow()
-    request=command('reconfirm_ce',{request_id:request.id,expected_version:request.version,bl_id:'CE557-PART',reason:'CE corrigido após conferência',request_key:crypto.randomUUID()})
-    request=command('confirm',{request_id:request.id,expected_version:request.version,bl_id:'CE557-PART',ce_mercante:'123456789019999',reference:'Confirmação ZPT CE atual',request_key:crypto.randomUUID()})
+    command('submit',{request_id:draft.id,expected_version:draft.version,request_key:crypto.randomUUID()},client)
+    let request
+    const view=()=>JSON.parse(sql(`SELECT public.ce_unlock_read('request',jsonb_build_object('request_id','${draft.id}'));`,admin))
+    command('delivery',{bl_id:'CE557-SECOND',delivered:true,expected_version:0,request_key:crypto.randomUUID()})
+    expect(view().state).toBe('submitted')
+    command('delivery',{bl_id:'CE557-PART',delivered:true,expected_version:0,request_key:crypto.randomUUID()})
+    request=view()
     expect(request.state).toBe('completed')
-    expect(request.items.every((i:{confirmed:boolean})=>i.confirmed)).toBe(true)
+    // Conclusão avisa o cliente (sino + fila de e-mail), sem citar ZPT nem desbloqueio confirmado.
+    const notice=sql("SELECT message FROM public.portal_notifications WHERE customer_id=998557 AND title LIKE '%documentação validada%' ORDER BY id DESC LIMIT 1;")
+    expect(notice).toContain('Prazo para o desbloqueio: até')
+    expect(notice).not.toMatch(/ZPT/i)
+    expect(sql("SELECT count(*) FROM public.ce_unlock_email_outbox WHERE request_id='"+draft.id+"' AND kind='documentation_validated' AND status='pending';")).toBe('1')
+    sql("UPDATE public.bls SET ce_mercante='123456789019999' WHERE id='CE557-PART';")
+    expect(()=>command('export',{bl_ids:['CE557-PART'],request_key:crypto.randomUUID()})).toThrow()
+    request=command('reconfirm_ce',{request_id:draft.id,expected_version:request.version,bl_id:'CE557-PART',reason:'CE corrigido após conferência',request_key:crypto.randomUUID()})
+    expect(request.state).toBe('completed')
+    const exp=command('export',{bl_ids:['CE557-SECOND','CE557-PART'],request_key:crypto.randomUUID()})
+    expect(exp.rows).toHaveLength(2)
+    expect(view().items.every((i:{export_state:string})=>i.export_state==='exported')).toBe(true)
+    sql("UPDATE public.ce_unlock_request_bls SET exported_at=NULL,export_id=NULL WHERE request_id='"+draft.id+"';")
     sql("UPDATE public.bl_receivables SET status='partially_settled',balance_brl=50,settled_amount_brl=50 WHERE id=998558;")
-    expect(JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${request.id}');`,client)).items.find((i:{bl_id:string})=>i.bl_id==='CE557-PART').confirmed).toBe(true)
+    command('delivery',{bl_id:'CE557-PART',delivered:false,reason:'Teste de reabertura',expected_version:1,request_key:crypto.randomUUID()})
+    expect(view().state).toBe('in_review')
   })
   it('envio VIP aguarda revogação anual concorrente e recusa cobertura perdida',async()=>{
-    const pending=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>!['completed','cancelled'].includes(r.state))
+    const pending=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>r.state!=='cancelled')
     for(const r of pending) command('cancel',{request_id:r.id,expected_version:r.version,reason:'Preparar concorrência VIP',request_key:crypto.randomUUID()})
     const draft=command('draft',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()},client)
     expect(JSON.parse(sql('SELECT public.portal_get_ce_unlock_vip_coverage();',client)).termo).toBe(true)
@@ -213,36 +234,37 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     try { expect(()=>command('submit',{request_id:draft.id,expected_version:draft.version,request_key:crypto.randomUUID()},client)).toThrow() }
     finally { await worker.done; sql("UPDATE public.ce_unlock_documents SET status='approved' WHERE customer_id=998557 AND source='vip_annual' AND type='termo';") }
   })
-  it('reenvio preserva documentos de BL já confirmado e exige pagamento só dos pendentes',()=>{
-    const pending=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>!['completed','cancelled'].includes(r.state))
+  it('recusa de documento avisa o cliente com o motivo, reenvio reinicia o prazo e preserva o outro documento aprovado',()=>{
+    const pending=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>r.state!=='cancelled')
     for(const r of pending) command('cancel',{request_id:r.id,expected_version:r.version,reason:'Teste de reenvio parcial',request_key:crypto.randomUUID()})
     command('set_vip',{customer_id:998557,enabled:false,reason:'Documentos por pedido',request_key:crypto.randomUUID()})
-    sql("UPDATE public.bls SET ce_mercante='123456789018888' WHERE id='CE557-SECOND';")
+    sql("UPDATE public.bls SET ce_mercante='123456789018888' WHERE id='CE557-SECOND'; UPDATE public.bl_receivables SET status='settled',balance_brl=0,settled_amount_brl=100 WHERE id=998557;")
     let request=command('draft',{bl_ids:['CE557-A','CE557-SECOND'],request_key:crypto.randomUUID()},client)
     sql(`INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,file_name,storage_path,size_bytes,hash,uploaded_by) VALUES
       (998557,'${request.id}','termo','request','uploaded','partial-term.pdf','partial/term-${request.id}',10,'hash','${client}'),
       (998557,'${request.id}','procuracao','request','uploaded','partial-proc.pdf','partial/proc-${request.id}',10,'hash','${client}');`)
     request=command('submit',{request_id:request.id,expected_version:request.version,request_key:crypto.randomUUID()},client)
+    const firstStart=request.items[0].sla_started_at
+    expect(firstStart).toBeTruthy()
+    // A análise vale para a solicitação inteira: nenhum bl_ids é necessário.
     for(const type of ['termo','procuracao']) {
       const doc=request.documents.find((d:{type:string})=>d.type===type)
-      request=command('review',{request_id:request.id,expected_version:request.version,document_id:doc.id,expected_document_version:doc.version,bl_ids:['CE557-A','CE557-SECOND'],decision:'approved',request_key:crypto.randomUUID()})
+      request=command('review',{request_id:request.id,expected_version:request.version,document_id:doc.id,expected_document_version:doc.version,decision:'approved',request_key:crypto.randomUUID()})
     }
-    request=command('confirm',{request_id:request.id,expected_version:request.version,bl_id:'CE557-A',ce_mercante:'123456789012345',reference:'Conclusão individual',request_key:crypto.randomUUID()})
+    expect(request.items.every((i:{termo:boolean;procuracao:boolean})=>i.termo&&i.procuracao)).toBe(true)
     const old=request.documents.find((d:{type:string})=>d.type==='procuracao')
-    request=command('review',{request_id:request.id,expected_version:request.version,document_id:old.id,expected_document_version:old.version,bl_ids:['CE557-SECOND'],decision:'changes_requested',reason:'Corrigir aplicabilidade do segundo BL',request_key:crypto.randomUUID()})
+    expect(()=>command('review',{request_id:request.id,expected_version:request.version,document_id:old.id,expected_document_version:old.version,decision:'changes_requested',request_key:crypto.randomUUID()})).toThrow()
+    request=command('review',{request_id:request.id,expected_version:request.version,document_id:old.id,expected_document_version:old.version,decision:'changes_requested',reason:'Corrigir aplicabilidade do segundo BL',request_key:crypto.randomUUID()})
+    expect(request.state).toBe('changes_requested')
+    expect(request.items.every((i:{termo:boolean;procuracao:boolean})=>i.termo&&!i.procuracao)).toBe(true)
+    expect(sql("SELECT message FROM public.portal_notifications WHERE customer_id=998557 ORDER BY id DESC LIMIT 1;")).toContain('Corrigir aplicabilidade do segundo BL')
+    expect(sql("SELECT count(*) FROM public.ce_unlock_email_outbox WHERE request_id='"+request.id+"' AND kind='changes_requested';")).toBe('1')
     const replacement=sql(`INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,file_name,storage_path,size_bytes,hash,uploaded_by) VALUES(998557,'${request.id}','procuracao','request','uploaded','replacement-partial.pdf','partial/new-${request.id}',10,'hash','${client}') RETURNING id;`)
-    sql("UPDATE public.bl_receivables SET status='partially_settled',balance_brl=50,settled_amount_brl=50 WHERE id=998557;")
     request=command('submit',{request_id:request.id,expected_version:request.version,request_key:crypto.randomUUID()},client)
-    expect(sql(`SELECT procuracao_document_id FROM public.ce_unlock_request_bls WHERE request_id='${request.id}' AND bl_id='CE557-A';`)).toBe(old.id)
-    expect(sql(`SELECT procuracao_document_id FROM public.ce_unlock_request_bls WHERE request_id='${request.id}' AND bl_id='CE557-SECOND';`)).toBe(replacement)
-    expect(request.items.find((i:{bl_id:string})=>i.bl_id==='CE557-A').confirmed).toBe(true)
-  })
-  it('referência externa e CE confirmado ficam consultáveis só pelo desk',()=>{
-    const id=sql("SELECT r.id FROM public.ce_unlock_requests r WHERE r.customer_id=998557 AND r.source='request' AND EXISTS(SELECT 1 FROM public.ce_unlock_request_bls i WHERE i.request_id=r.id AND i.confirmed_at IS NOT NULL) ORDER BY r.created_at DESC LIMIT 1;")
-    const internal=JSON.parse(sql(`SELECT public.ce_unlock_read('request',jsonb_build_object('request_id','${id}'));`,admin))
-    expect(internal.confirmation_records).toEqual(expect.arrayContaining([expect.objectContaining({bl_id:'CE557-A',ce_mercante:'123456789012345',reference:'Conclusão individual'})]))
-    expect(JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${id}');`,client)).confirmation_records).toEqual([])
-    expect(JSON.parse(sql(`SELECT public.ce_unlock_read('request',jsonb_build_object('request_id','${id}'));`,finance)).confirmation_records).toEqual([])
+    expect(request.state).toBe('submitted')
+    expect(Date.parse(request.items[0].sla_started_at)).toBeGreaterThan(Date.parse(firstStart))
+    for(const bid of ['CE557-A','CE557-SECOND']) expect(sql(`SELECT procuracao_document_id FROM public.ce_unlock_request_bls WHERE request_id='${request.id}' AND bl_id='${bid}';`)).toBe(replacement)
+    expect(request.items.every((i:{termo:boolean;procuracao:boolean})=>i.termo&&!i.procuracao)).toBe(true)
   })
   it('novo Cliente do BL não recebe protocolo/documentação do Cliente anterior na lista',()=>{
     sql("UPDATE public.bls SET customer_id=998558 WHERE id='CE557-A';")
@@ -297,12 +319,12 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       SELECT ce_unlock_private.item('CE557-REVIEW')->'paid';`)
     expect(result.split('\n')).toEqual(['true','false'])
   })
-  it('histórico do cliente e do Financeiro não revela a referência enviada pela UI do desk',()=>{
-    const payload=JSON.stringify({request_id:reviewRequest,expected_version:0,bl_id:'CE557-REVIEW',ce_mercante:'123456789018470',reason:'CE-PRIVATE-REFERENCE',reference:'CE-PRIVATE-REFERENCE',request_key:crypto.randomUUID()})
+  it('histórico legado de confirmação externa permanece só no desk',()=>{
     const result=reviewScenario(`
       UPDATE public.ce_unlock_requests SET state='submitted' WHERE id='${reviewRequest}';
+      UPDATE public.ce_unlock_request_bls SET confirmed_at=now(),confirmed_ce='123456789018470',external_reference='CE-PRIVATE-REFERENCE',active=false WHERE request_id='${reviewRequest}';
+      INSERT INTO public.ce_unlock_events(customer_id,request_id,bl_id,action,reason,actor_id) VALUES(998557,'${reviewRequest}','CE557-REVIEW','confirm','CE-PRIVATE-REFERENCE','${admin}');
       SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';
-      DO $$ BEGIN PERFORM public.ce_unlock_command('confirm','${payload}'::jsonb); END $$;
       SELECT public.ce_unlock_read('request',jsonb_build_object('request_id','${reviewRequest}'));
       SET LOCAL request.jwt.claim.sub='${client}';
       SELECT public.portal_get_ce_unlock_request('${reviewRequest}');
@@ -334,6 +356,7 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     const result=reviewScenario(`
       INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,storage_path,file_name,size_bytes,uploaded_by,created_at)
         VALUES(998557,'${reviewRequest}','termo','request','uploading','review/failed','failed.pdf',10,'${client}',now()-interval '25 hours');
+      UPDATE public.ce_unlock_request_bls SET termo_approved=false WHERE request_id='${reviewRequest}';
       SELECT public.ce_unlock_cleanup_claim(id) FROM public.ce_unlock_documents WHERE storage_path='review/failed';
       SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}';
       SELECT public.portal_ce_unlock_command('submit','${submit}'::jsonb);
@@ -351,6 +374,103 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}';
       SELECT public.ce_unlock_prepare_upload(jsonb_build_object('source','request','type','termo','request_id','${reviewRequest}','file_name','new.pdf','size_bytes',100))->>'id';`)
     expect(result).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
+  it('cliente cancela rascunho com motivo padrão, mas não um pedido já enviado', () => {
+    const cancel = JSON.stringify({ request_id: reviewRequest, expected_version: 0, request_key: crypto.randomUUID() })
+    const result = reviewScenario(`
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}';
+      SELECT public.portal_ce_unlock_command('cancel','${cancel}'::jsonb)->>'state';
+      SELECT (SELECT reason FROM jsonb_to_recordset(public.portal_get_ce_unlock_request('${reviewRequest}')->'events') AS e(action text,reason text) WHERE action='cancel');`)
+    expect(result.split('\n')).toEqual(['cancelled', 'Cancelado pelo cliente'])
+    const sent = reviewScenario.bind(null)
+    expect(() => sent(`
+      UPDATE public.ce_unlock_requests SET state='submitted' WHERE id='${reviewRequest}';
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}';
+      SELECT public.portal_ce_unlock_command('cancel','${cancel}'::jsonb);`)).toThrow(/não pode ser cancelado pelo cliente/)
+    expect(() => sent(`
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${foreign}';
+      SELECT public.portal_ce_unlock_command('cancel','${cancel}'::jsonb);`)).toThrow(/42501/)
+  })
+  it('fila Solicitações lista pedidos com documento por validar e libera após aprovar os dois', () => {
+    const result = reviewScenario(`
+      UPDATE public.ce_unlock_requests SET state='submitted' WHERE id='${reviewRequest}';
+      UPDATE public.ce_unlock_request_bls SET termo_approved=false WHERE request_id='${reviewRequest}';
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';
+      SELECT public.ce_unlock_read('review_queue','{}');
+      RESET ROLE;
+      UPDATE public.ce_unlock_request_bls SET termo_approved=true WHERE request_id='${reviewRequest}';
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';
+      SELECT public.ce_unlock_read('review_queue','{}');`)
+    const [before, after] = result.split('\n').map(line => JSON.parse(line))
+    const row = before.items.find((r: { id: string }) => r.id === reviewRequest)
+    expect(row).toMatchObject({ bl_ids: ['CE557-REVIEW'], termo_status: 'uploaded', procuracao_status: 'uploaded' })
+    expect(after.items.some((r: { id: string }) => r.id === reviewRequest)).toBe(false)
+  })
+  it('prazo SQL concorda com a regra do SLA da tela (mesmos casos de ceUnlockSla.test.ts)', () => {
+    const cases: Array<[string, string]> = [
+      ['2026-10-07 07:50', '2026-10-07T17:00'], ['2026-10-07 11:59', '2026-10-07T17:00'],
+      ['2026-10-07 12:00', '2026-10-08T12:30'], ['2026-10-07 18:30', '2026-10-08T12:30'],
+      ['2026-10-09 14:00', '2026-10-12T12:30'], ['2026-10-10 15:00', '2026-10-12T17:00'], ['2026-10-11 09:00', '2026-10-12T17:00'],
+    ]
+    const out = sql(cases.map(([start]) => `SELECT to_char(ce_unlock_private.sla_deadline(timestamp '${start}' AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo','YYYY-MM-DD"T"HH24:MI');`).join('\n'))
+    expect(out.split('\n')).toEqual(cases.map(([, deadline]) => deadline))
+  })
+  it('conciliação com a ZPT: desbloqueado, divergente, ignorado; só o desk vê e reexportar limpa a divergência', () => {
+    const rows = JSON.stringify([
+      { ce: '123456789018470', status: 'Bloqueado', description: 'Doc. Procuração', updated_at: '2026-10-07T10:00:00-03:00', pending: ['BL Entrega'] },
+      { ce: '123456789018471', status: 'Desbloqueado', description: 'Cancelamento de Pendência', updated_at: '2026-10-06T15:29:08-03:00', pending: [] },
+      { ce: '123456789018472', status: 'Bloqueado', description: 'Registro de Pendência', pending: ['Financeiro'] },
+      { ce: '999999999999999', status: 'Desbloqueado', pending: [] },
+      { ce: '123456789018473', status: 'Desbloqueado', pending: [] },
+    ])
+    const exportKey = () => JSON.stringify({ bl_ids: ['CE557-REVIEW'], request_key: crypto.randomUUID() })
+    const result = reviewScenario(`
+      SET LOCAL session_replication_role=replica;
+      INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante) VALUES('CE557-ZPT2',998557,998557,'123456789018471'),('CE557-ZPT3',998557,998557,'123456789018472'),('CE557-ZPT4',998557,998557,'0123456789018473');
+      SET LOCAL session_replication_role=origin;
+      UPDATE public.ce_unlock_requests SET state='submitted' WHERE id='${reviewRequest}';
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';
+      SELECT public.ce_unlock_command('export','${exportKey()}'::jsonb)->>'layout_version';
+      SELECT public.ce_unlock_reconcile('${rows}'::jsonb);
+      SELECT public.ce_unlock_read('bls','{"filters":{"situation":"divergent"}}');
+      SELECT public.ce_unlock_read('bls','{"filters":{"search":"CE557-ZPT2"}}');
+      SELECT public.ce_unlock_read('bls','{"filters":{"situation":"ready_not_exported"}}');
+      SELECT public.ce_unlock_command('export','${exportKey()}'::jsonb)->>'layout_version';
+      SELECT public.ce_unlock_read('bls','{"filters":{"search":"CE557-REVIEW"}}');`)
+    const lines = result.split('\n')
+    expect(lines[0]).toBe('zpt-5-v2')
+    expect(JSON.parse(lines[1])).toEqual({ rows: 5, unlocked: 2, divergent: 1, ignored: 1, unknown_ce: 1 })
+    const divergent = JSON.parse(lines[2]).items
+    expect(divergent.map((i: { bl_id: string }) => i.bl_id)).toEqual(['CE557-REVIEW'])
+    expect(divergent[0]).toMatchObject({ zpt_status: 'divergent', zpt_description: 'Doc. Procuração', zpt_pending: ['BL Entrega'] })
+    expect(JSON.parse(lines[3]).items[0]).toMatchObject({ zpt_status: 'unlocked', zpt_without_export: true })
+    expect(JSON.parse(lines[4]).items.map((i: { bl_id: string }) => i.bl_id)).not.toContain('CE557-REVIEW')
+    expect(lines[5]).toBe('zpt-5-v2')
+    expect(JSON.parse(lines[6]).items[0]).toMatchObject({ export_state: 'exported', zpt_status: null })
+    // Portal nunca recebe campos da ZPT, e o Financeiro não concilia.
+    const portal = JSON.parse(sql("SELECT ce_unlock_private.portal_view(ce_unlock_private.item('CE557-A'));"))
+    expect(Object.keys(portal).filter(key => key.startsWith('zpt_') || key.startsWith('export'))).toEqual([])
+    expect(error("SELECT public.ce_unlock_reconcile('[]'::jsonb);", finance)).toContain('42501')
+    expect(error("SELECT public.ce_unlock_reconcile('[{\"ce\":\"1\",\"status\":\"Bloqueado\"}]'::jsonb);", client)).not.toBe('')
+  })
+
+  it('fila de e-mail: aviso gravado com o motivo, só service_role lê e conclui', () => {
+    const result = reviewScenario(`
+      SELECT ce_unlock_private.notify('${reviewRequest}','changes_requested','Procuração: assinatura ausente');
+      SELECT public.ce_unlock_email_pending(100);
+      SELECT public.ce_unlock_email_finish((SELECT max(id) FROM public.ce_unlock_email_outbox),'sent',ARRAY['k:x'],NULL);
+      SELECT status||':'||attempts||':'||done_recipients[1] FROM public.ce_unlock_email_outbox ORDER BY id DESC LIMIT 1;
+      SELECT message FROM public.portal_notifications WHERE customer_id=998557 ORDER BY id DESC LIMIT 1;`)
+    const [pending, , finished, message] = result.split('\n')
+    const row = JSON.parse(pending).find((r: { request_id: string }) => r.request_id === reviewRequest)
+    expect(row).toMatchObject({ customer_id: 998557, request_id: reviewRequest, kind: 'changes_requested', subject: 'Desbloqueio de CE: correção solicitada', attempts: 0 })
+    expect(row.body).toContain('Procuração: assinatura ausente')
+    expect(row.body).not.toMatch(/ZPT/i)
+    expect(finished).toBe('sent:1:k:x')
+    expect(message).toContain('Procuração: assinatura ausente')
+    expect(error('SELECT public.ce_unlock_email_pending(5);', admin)).toContain('permission denied')
+    expect(error("SELECT public.ce_unlock_email_finish(1,'sent',NULL,NULL);", client)).toContain('permission denied')
   })
 
 })

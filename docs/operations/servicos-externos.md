@@ -493,18 +493,27 @@ Ao entregar a operação para outra pessoa:
 ## Desbloqueio de CE Mercante
 
 **Implementação local, publicação pendente.** Publicar na ordem: migrations
-`137`–`146`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
+`137`–`149` e `160`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
 de produção. As funções são `portal-ce-unlock-document`,
-`ce-unlock-document-download`, `ce-unlock-export` e `ce-unlock-cleanup`.
-As três primeiras autenticam a sessão com `auth.getUser()`; `verify_jwt=false`
+`ce-unlock-document-download`, `ce-unlock-export`, `ce-unlock-cleanup` e
+`ce-unlock-notify-email`. As três primeiras autenticam a sessão com `auth.getUser()`; `verify_jwt=false`
 permite CORS e não dispensa autenticação na função. O bucket privado
 `ce-unlock-documents` recebe PDFs somente pelo servidor.
 
-Cadastrar o PDF oficial em Importação → Desbloqueio de CE → Modelo do termo.
-Não há modelo jurídico inventado/embutido no código. Homologar uma planilha
-com a ZPT: BL, Termo, Procuração, Entrega de BL, Pagamento das taxas, nessa
-ordem; quatro requisitos Sim/Não. Não há API externa automática nem envio de
-e-mail pela função de exportação. Registrar envio e confirmação no Vela.
+Cadastrar o PDF oficial em Importação → Desbloqueio de CE → Modelo do termo de devolução.
+Não há modelo jurídico inventado/embutido no código. Homologar a planilha
+`zpt-5-v2` com a ZPT: cabeçalhos `BL`, `Financeiro`, `Term. Devolucao`, `Procuracao`,
+`BL Entrega`, nessa ordem, valores Sim/Não (o modelo de importação da aba "Planilha
+desbloqueio" ainda não foi fornecido; o primeiro upload real é o teste). Não há API
+externa automática. Exportar registra o envio no Vela; a conciliação importa o
+"Exportar Tela" da ZPT.
+
+A função `ce-unlock-notify-email` envia a fila de avisos ao cliente (recusa de documento e
+documentação validada) pela Resend, para a caixa Documentação e Operação. Usa o mesmo
+segredo `CE_UNLOCK_CLEANUP_SECRET` e `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`;
+sem a chave ou o remetente responde 503 e deixa a fila intacta. Respeita a chave global
+de Comunicados (desligada: descarta com motivo), supressão e bounce. O job **não existe**
+até ser agendado (`*/5 * * * *`; ver [segredos e cron](segredos-cron.md)).
 
 O job `ce-unlock-cleanup` **não existe** até ser agendado manualmente (`0 6 * * *`, UTC;
 ver [segredos e cron](segredos-cron.md)). Antes de agendar,

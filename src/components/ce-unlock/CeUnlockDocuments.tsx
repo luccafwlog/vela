@@ -14,6 +14,7 @@ export function CeUnlockDocumentList({
   documents,
   scope,
   onReview,
+  canReview,
 }: {
   documents: CeUnlockDocument[];
   scope?: PortalScope;
@@ -21,7 +22,14 @@ export function CeUnlockDocumentList({
     doc: CeUnlockDocument,
     decision: "approved" | "changes_requested" | "revoked",
   ) => void;
+  /** Esconde decisões que não fazem sentido agora (ex.: aprovar o que já está aprovado). */
+  canReview?: (
+    doc: CeUnlockDocument,
+    decision: "approved" | "changes_requested" | "revoked",
+  ) => boolean;
 }) {
+  const allowed = (d: CeUnlockDocument, decision: "approved" | "changes_requested" | "revoked") =>
+    !canReview || canReview(d, decision);
   const [error, setError] = useState("");
   return (
     <div className="space-y-3">
@@ -35,7 +43,7 @@ export function CeUnlockDocumentList({
           >
             <strong>
               {d.type === "termo"
-                ? "Termo"
+                ? "Termo de devolução"
                 : d.type === "model"
                   ? "Modelo do termo"
                   : "Procuração"}
@@ -72,15 +80,19 @@ export function CeUnlockDocumentList({
               </Button>
               {onReview && d.status !== "revoked" && (
                 <>
-                  <Button onClick={() => onReview(d, "approved")}>
-                    Aprovar {d.type === "termo" ? "termo" : "procuração"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => onReview(d, "changes_requested")}
-                  >
-                    Solicitar correção
-                  </Button>
+                  {allowed(d, "approved") && (
+                    <Button onClick={() => onReview(d, "approved")}>
+                      Aprovar {d.type === "termo" ? "termo de devolução" : "procuração"}
+                    </Button>
+                  )}
+                  {allowed(d, "changes_requested") && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => onReview(d, "changes_requested")}
+                    >
+                      {d.source === "request" ? "Recusar" : "Solicitar correção"}
+                    </Button>
+                  )}
                   {d.source === "vip_annual" && d.status === "approved" && (
                     <Button
                       variant="ghost"
@@ -156,9 +168,9 @@ export function CeUnlockDocumentUploader({
             <Field
               label={
                 type === "model"
-                  ? "Modelo oficial do termo (PDF)"
+                  ? "Modelo oficial do termo de devolução (PDF)"
                   : type === "termo"
-                    ? "Termo assinado (PDF)"
+                    ? "Termo de devolução assinado (PDF)"
                     : "Procuração (PDF)"
               }
               hint="PDF de até 10 MiB"
@@ -178,7 +190,7 @@ export function CeUnlockDocumentUploader({
             >
               {busy
                 ? "Enviando..."
-                : `Enviar ${type === "model" ? "modelo" : type === "termo" ? "termo" : "procuração"}`}
+                : `Enviar ${type === "model" ? "modelo" : type === "termo" ? "termo de devolução" : "procuração"}`}
             </Button>
           </div>
         ),

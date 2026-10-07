@@ -12,7 +12,7 @@ export function CeUnlockRequirements({
   return (
     <dl className="grid gap-2 sm:grid-cols-2">
       <div>
-        <dt>Termo</dt>
+        <dt>Termo de devolução</dt>
         <dd>{item.termo ? approved : "Pendente"}</dd>
       </div>
       <div>

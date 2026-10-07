@@ -14,6 +14,9 @@ import {
 } from "../components/ui/ConfirmDialog";
 import { CeUnlockRequestDetail } from "../components/ce-unlock/CeUnlockRequestDetail";
 import { CeUnlockDocumentUploader } from "../components/ce-unlock/CeUnlockDocuments";
+import { CeUnlockReviewQueue } from "../components/ce-unlock/CeUnlockReviewQueue";
+import { CeUnlockSla } from "../components/ce-unlock/CeUnlockSla";
+import { CeUnlockZptImport } from "../components/ce-unlock/CeUnlockZptImport";
 import { ceStateLabel } from "../lib/ceUnlockLabels";
 import {
   ceUnlockRead,
@@ -26,20 +29,44 @@ import type {
   CeUnlockFilters,
   CeUnlockItem,
 } from "../types/ceUnlock";
+
+type Tab = "solicitacoes" | "controle";
+// Fila de trabalho do dia: BLs prontos que ainda não foram à ZPT.
+const DEFAULT_FILTERS: CeUnlockFilters = { situation: "ready_not_exported" };
+
+/** Caixa de requisito no estilo da tela da ZPT: marcada = requisito atendido. */
+function RequirementBox({ label, bl, checked }: { label: string; bl: string; checked: boolean }) {
+  return (
+    <input
+      type="checkbox"
+      readOnly
+      disabled
+      checked={checked}
+      aria-label={`${label}: ${bl}`}
+    />
+  );
+}
+
 export function DesbloqueioCe() {
   const { can } = useAuth();
   const manage = can("ce_unlock_manage");
   const [params, setParams] = useSearchParams();
   const id = params.get("pedido");
-  const [filters, setFilters] = useState<CeUnlockFilters>({});
+  const tab: Tab = params.get("aba") === "controle" ? "controle" : "solicitacoes";
+  const [filters, setFilters] = useState<CeUnlockFilters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [showExports, setShowExports] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [showModel, setShowModel] = useState(false);
+  const [showZpt, setShowZpt] = useState(false);
   const keys = useRef(new Map<string, string>());
-  const { list, command } = useCeUnlock(filters, page, can("ce_unlock_read"));
+  const { list, command } = useCeUnlock(
+    filters,
+    page,
+    can("ce_unlock_read") && tab === "controle",
+  );
   const request = useCeUnlockRequest(id);
   const client = useQueryClient();
   const confirm = useConfirm();
@@ -57,6 +84,12 @@ export function DesbloqueioCe() {
   function filter(key: keyof CeUnlockFilters, value: string) {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
+  }
+  function openTab(next: Tab) {
+    setParams((p) => {
+      p.set("aba", next);
+      return p;
+    });
   }
   function keyFor(action: string, payload: Record<string, unknown>) {
     const text = JSON.stringify({ action, payload });
@@ -76,8 +109,8 @@ export function DesbloqueioCe() {
     let reason: string | null = null;
     if (i.delivered) {
       reason = await reasonDialog({
-        message: `Reverter entrega física de ${i.bl_id}?`,
-        consequence: "O BL deixará de atender o requisito de entrega física.",
+        message: `Desmarcar a entrega do BL original ${i.bl_id}?`,
+        consequence: "O BL deixará de atender o requisito BL de Entrega.",
         reversibility: "A entrega poderá ser registrada novamente.",
       });
       if (!reason) return;
@@ -85,8 +118,8 @@ export function DesbloqueioCe() {
       !(await confirm({
         message: `Registrar recebimento do BL original ${i.bl_id}?`,
         consequence:
-          "O requisito de entrega física aparecerá como atendido no Vela e no Portal.",
-        reversibility: "Uma marcação incorreta pode ser revertida com motivo.",
+          "O requisito BL de Entrega passa a atendido e o prazo do cliente recomeça a partir de agora.",
+        reversibility: "Uma marcação incorreta pode ser desfeita com motivo.",
       }))
     )
       return;
@@ -105,12 +138,12 @@ export function DesbloqueioCe() {
   async function exportSelected(blIds = selected, reexportOf?: string) {
     if (
       !(await confirm({
-        message: `Exportar ${blIds.length} BL(s) aptos para a ZPT?`,
+        message: `Exportar ${blIds.length} BL(s) para a ZPT?`,
         affected: { summary: `${blIds.length} BL(s)`, items: blIds },
         consequence:
-          "A planilha terá BL e os quatro requisitos. O download não confirma envio nem desbloqueio.",
+          "Exportar registra o envio destes BLs à ZPT. Suba a planilha na ZPT: o desbloqueio só acontece lá.",
         reversibility:
-          "O lote permanece no histórico; nova exportação gera novo lote.",
+          "Se a ZPT recusar algum BL, ele aparece como divergente após a conciliação e pode ser reexportado.",
       }))
     )
       return;
@@ -133,12 +166,15 @@ export function DesbloqueioCe() {
     <>
       <PageHeader
         title="Desbloqueio de CE"
-        description="Gestão dos BLs com CE Mercante, solicitações do Portal e requisitos para ZPT."
+        description="Valide os documentos das solicitações do Portal e controle os requisitos de cada BL para a ZPT."
         action={
           manage ? (
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setShowModel(!showModel)}>
-                Modelo do termo
+                Modelo do termo de devolução
+              </Button>
+              <Button variant="ghost" onClick={() => setShowZpt(!showZpt)}>
+                Conciliar com a ZPT
               </Button>
               <Button
                 variant="ghost"
@@ -150,10 +186,28 @@ export function DesbloqueioCe() {
           ) : undefined
         }
       />
+      <div role="tablist" className="mb-4 flex gap-2">
+        <Button
+          role="tab"
+          aria-selected={tab === "solicitacoes"}
+          variant={tab === "solicitacoes" ? "primary" : "ghost"}
+          onClick={() => openTab("solicitacoes")}
+        >
+          Solicitações
+        </Button>
+        <Button
+          role="tab"
+          aria-selected={tab === "controle"}
+          variant={tab === "controle" ? "primary" : "ghost"}
+          onClick={() => openTab("controle")}
+        >
+          Controle ZPT
+        </Button>
+      </div>
       {error && <p role="alert">{error}</p>}
       {showModel && manage && (
         <Card className="mb-4">
-          <h2>Modelo oficial do termo</h2>
+          <h2>Modelo oficial do termo de devolução</h2>
           <p>{model.data?.file_name ?? "Nenhum modelo oficial cadastrado."}</p>
           <CeUnlockDocumentUploader
             source="model"
@@ -162,205 +216,241 @@ export function DesbloqueioCe() {
           />
         </Card>
       )}
-      <Card>
-        <div className="mb-4 grid gap-3 sm:grid-cols-3">
-          <Field label="Buscar BL, CE ou cliente">
-            <Input
-              value={filters.search ?? ""}
-              onChange={(e) => filter("search", e.target.value)}
+      {showZpt && manage && <CeUnlockZptImport />}
+      {tab === "solicitacoes" ? (
+        <CeUnlockReviewQueue
+          enabled={can("ce_unlock_read")}
+          onOpen={(requestId) =>
+            setParams((p) => {
+              p.set("pedido", requestId);
+              return p;
+            })
+          }
+        />
+      ) : (
+        <Card>
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <Field label="Buscar BL, CE ou cliente">
+              <Input
+                value={filters.search ?? ""}
+                onChange={(e) => filter("search", e.target.value)}
+              />
+            </Field>
+            <Field label="Situação">
+              <Select
+                value={filters.situation ?? ""}
+                onChange={(e) => filter("situation", e.target.value)}
+              >
+                <option value="ready_not_exported">Aptos — não exportados</option>
+                <option value="">Todos</option>
+                <option value="divergent">Divergentes na ZPT</option>
+                <option value="no_request">Sem solicitação</option>
+                <option value="submitted">Enviado</option>
+                <option value="in_review">Em análise</option>
+                <option value="changes_requested">Correção solicitada</option>
+                <option value="ready">Aptos (inclui exportados)</option>
+                <option value="completed">Documentação validada</option>
+              </Select>
+            </Field>
+            <Field label="Requisito pendente">
+              <Select
+                value={filters.pending_requirement ?? ""}
+                onChange={(e) => filter("pending_requirement", e.target.value)}
+              >
+                <option value="">Todos</option>
+                <option value="termo">Termo de devolução</option>
+                <option value="procuracao">Procuração</option>
+                <option value="taxas">Financeiro (taxas locais)</option>
+                <option value="bl_fisico">BL de Entrega</option>
+              </Select>
+            </Field>
+            <Field label="POD">
+              <Input
+                value={filters.pod ?? ""}
+                onChange={(e) => filter("pod", e.target.value)}
+              />
+            </Field>
+            <VoyageCombobox
+              clearable
+              selectedVoyageId={filters.voyage_id}
+              onSelect={next => {
+                setFilters(prev => ({ ...prev, voyage_id: next ?? undefined }));
+                setPage(1);
+              }}
             />
-          </Field>
-          <Field label="Situação">
-            <Select
-              value={filters.situation ?? ""}
-              onChange={(e) => filter("situation", e.target.value)}
-            >
-              <option value="">Todas</option>
-              <option value="no_request">Sem solicitação</option>
-              <option value="submitted">Enviado</option>
-              <option value="in_review">Em análise</option>
-              <option value="changes_requested">Correção solicitada</option>
-              <option value="ready">Apto</option>
-              <option value="completed">Concluído</option>
-            </Select>
-          </Field>
-          <Field label="Requisito pendente">
-            <Select
-              value={filters.pending_requirement ?? ""}
-              onChange={(e) => filter("pending_requirement", e.target.value)}
-            >
-              <option value="">Todos</option>
-              <option value="termo">Termo</option>
-              <option value="procuracao">Procuração</option>
-              <option value="taxas">Taxas locais</option>
-              <option value="bl_fisico">Entrega física</option>
-            </Select>
-          </Field>
-          <Field label="POD">
-            <Input
-              value={filters.pod ?? ""}
-              onChange={(e) => filter("pod", e.target.value)}
-            />
-          </Field>
-          <VoyageCombobox
-            clearable
-            selectedVoyageId={filters.voyage_id}
-            onSelect={next => {
-              setFilters(prev => ({ ...prev, voyage_id: next ?? undefined }));
-              setPage(1);
-            }}
-          />
-        </div>
-        {list.isLoading ? (
-          <p>Carregando BLs...</p>
-        ) : list.error ? (
-          <p role="alert">
-            Falha ao consultar BLs.{" "}
-            <Button onClick={() => void list.refetch()}>
-              Tentar novamente
-            </Button>
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr>
-                  {[
-                    "Seleção",
-                    "BL / CE",
-                    "Cliente",
-                    "Viagem / POD",
-                    "Solicitação",
-                    "Termo",
-                    "Procuração",
-                    "Taxas locais",
-                    "BL físico",
-                    "Andamento",
-                    "Ações",
-                  ].map((c) => (
-                    <th className="p-2" key={c}>
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {list.data?.items.map((i) => (
-                  <tr
-                    className="border-t border-[var(--app-border)]"
-                    key={i.bl_id}
-                  >
-                    <td className="p-2">
-                      <input
-                        type="checkbox"
-                        aria-label={`Exportar BL ${i.bl_id}`}
-                        disabled={!manage || (!i.can_export && !selected.includes(i.bl_id))}
-                        checked={selected.includes(i.bl_id)}
-                        onChange={(e) =>
-                          setSelected((prev) =>
-                            e.target.checked
-                              ? [...prev, i.bl_id]
-                              : prev.filter((b) => b !== i.bl_id),
-                          )
-                        }
-                      />
-                    </td>
-                    <td className="p-2">
-                      <Link to={`/bls/${encodeURIComponent(i.bl_id)}`}>
-                        {i.bl_id}
-                      </Link>
-                      <p>{i.ce_mercante}</p>
-                    </td>
-                    <td className="p-2">
-                      <Link to={`/clientes/${i.cnpj_cpf}?tab=desbloqueio-ce`}>
-                        {i.customer_name}
-                      </Link>
-                      <p>
-                        {i.cnpj_cpf}
-                        {i.vip ? " · VIP" : ""}
-                      </p>
-                    </td>
-                    <td className="p-2">
-                      {i.vessel_name} · {i.voyage_number}
-                      <p>{i.pod}</p>
-                    </td>
-                    <td className="p-2">
-                      {i.request_id ? (
-                        <Button
-                          variant="ghost"
-                          onClick={() => setParams({ pedido: i.request_id! })}
-                        >
-                          {i.protocol}
-                        </Button>
-                      ) : (
-                        "Sem solicitação"
-                      )}
-                      <p>{ceStateLabel(i.state)}</p>
-                      {i.requested_at && <p>{new Date(i.requested_at).toLocaleString("pt-BR")}</p>}
-                    </td>
-                    <td className="p-2">{i.termo ? "Aprovado" : "Pendente"}</td>
-                    <td className="p-2">
-                      {i.procuracao ? "Aprovada" : "Pendente"}
-                    </td>
-                    <td className="p-2">{i.paid ? "Pagas" : "Pendentes"}</td>
-                    <td className="p-2">
-                      {i.delivered ? "Entregue" : "Aguardando"}
-                    </td>
-                    <td className="p-2">
-                      {i.confirmed ? "Concluído" : i.can_export ? "Apto" : "Não apto"}
-                      <p>{ceStateLabel(i.export_state)}</p>
-                      <p>{i.reasons.join("; ")}</p>
-                    </td>
-                    <td className="p-2">
-                      {manage && (
-                        <Button
-                          variant="ghost"
-                          disabled={command.isPending}
-                          onClick={() => void delivery(i)}
-                        >
-                          {i.delivered
-                            ? "Reverter entrega"
-                            : "Registrar entrega"}
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {list.data?.total === 0 && <p>Nenhum BL com CE encontrado.</p>}
           </div>
-        )}
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Button
-            variant="ghost"
-            disabled={page === 1}
-            onClick={() => setPage(page - 1)}
-          >
-            Anterior
-          </Button>
-          <span>
-            Página {page} · {list.data?.total ?? 0} BL(s)
-          </span>
-          <Button
-            variant="ghost"
-            disabled={page * 25 >= (list.data?.total ?? 0)}
-            onClick={() => setPage(page + 1)}
-          >
-            Próxima
-          </Button>
-          {manage && (
-            <Button
-              disabled={
-                !selected.length || selected.length > 100 || command.isPending || exportBusy
-              }
-              onClick={() => void exportSelected()}
-            >
-              Exportar {selected.length} apto(s) para ZPT
-            </Button>
+          {list.isLoading ? (
+            <p>Carregando BLs...</p>
+          ) : list.error ? (
+            <p role="alert">
+              Falha ao consultar BLs.{" "}
+              <Button onClick={() => void list.refetch()}>
+                Tentar novamente
+              </Button>
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr>
+                    {[
+                      "Exportar",
+                      "BL / CE",
+                      "Cliente",
+                      "Viagem / POD",
+                      "Solicitação",
+                      "T. de Devolução",
+                      "Procuração",
+                      "Financeiro",
+                      "BL de Entrega",
+                      "Prazo",
+                      "ZPT",
+                    ].map((c) => (
+                      <th className="p-2" key={c}>
+                        {c}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.data?.items.map((i) => (
+                    <tr
+                      className="border-t border-[var(--app-border)]"
+                      key={i.bl_id}
+                    >
+                      <td className="p-2">
+                        <input
+                          type="checkbox"
+                          aria-label={`Exportar BL ${i.bl_id}`}
+                          disabled={!manage || (!i.can_export && !selected.includes(i.bl_id))}
+                          checked={selected.includes(i.bl_id)}
+                          onChange={(e) =>
+                            setSelected((prev) =>
+                              e.target.checked
+                                ? [...prev, i.bl_id]
+                                : prev.filter((b) => b !== i.bl_id),
+                            )
+                          }
+                        />
+                      </td>
+                      <td className="p-2">
+                        <Link to={`/bls/${encodeURIComponent(i.bl_id)}`}>
+                          {i.bl_id}
+                        </Link>
+                        <p>{i.ce_mercante}</p>
+                      </td>
+                      <td className="p-2">
+                        <Link to={`/clientes/${i.cnpj_cpf}?tab=desbloqueio-ce`}>
+                          {i.customer_name}
+                        </Link>
+                        <p>
+                          {i.cnpj_cpf}
+                          {i.vip ? " · VIP" : ""}
+                        </p>
+                      </td>
+                      <td className="p-2">
+                        {i.vessel_name} · {i.voyage_number}
+                        <p>{i.pod}</p>
+                      </td>
+                      <td className="p-2">
+                        {i.request_id ? (
+                          <Button
+                            variant="ghost"
+                            onClick={() =>
+                              setParams((p) => {
+                                p.set("pedido", i.request_id!);
+                                return p;
+                              })
+                            }
+                          >
+                            {i.protocol}
+                          </Button>
+                        ) : (
+                          "Sem solicitação"
+                        )}
+                        <p>{ceStateLabel(i.state)}</p>
+                        {i.requested_at && <p>{new Date(i.requested_at).toLocaleString("pt-BR")}</p>}
+                      </td>
+                      <td className="p-2">
+                        <RequirementBox label="T. de Devolução" bl={i.bl_id} checked={i.termo} />
+                      </td>
+                      <td className="p-2">
+                        <RequirementBox label="Procuração" bl={i.bl_id} checked={i.procuracao} />
+                      </td>
+                      <td className="p-2">
+                        <RequirementBox label="Financeiro" bl={i.bl_id} checked={i.paid} />
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="checkbox"
+                          aria-label={`BL de Entrega: ${i.bl_id}`}
+                          checked={i.delivered}
+                          disabled={!manage || command.isPending}
+                          onChange={() => void delivery(i)}
+                        />
+                      </td>
+                      <td className="p-2">
+                        <CeUnlockSla start={i.sla_started_at} doneAt={i.exported_at} />
+                      </td>
+                      <td className="p-2">
+                        {i.zpt_status === "divergent" ? (
+                          <>
+                            <strong>{ceStateLabel("divergent")}</strong>
+                            <p>{i.zpt_description}</p>
+                            {!!i.zpt_pending?.length && <p>Pendente na ZPT: {i.zpt_pending.join(", ")}</p>}
+                          </>
+                        ) : i.zpt_status === "unlocked" ? (
+                          <>
+                            <strong>{ceStateLabel("unlocked")}</strong>
+                            {i.zpt_without_export && <p>Sem exportação pelo Vela</p>}
+                          </>
+                        ) : i.can_export ? (
+                          <>
+                            {ceStateLabel(i.export_state ?? "not_exported")}
+                            {i.exported_at && <p>{new Date(i.exported_at).toLocaleString("pt-BR")}</p>}
+                          </>
+                        ) : (
+                          <p>{i.reasons.join("; ")}</p>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {list.data?.total === 0 && <p>Nenhum BL encontrado para este filtro.</p>}
+            </div>
           )}
-        </div>
-      </Card>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button
+              variant="ghost"
+              disabled={page === 1}
+              onClick={() => setPage(page - 1)}
+            >
+              Anterior
+            </Button>
+            <span>
+              Página {page} · {list.data?.total ?? 0} BL(s)
+            </span>
+            <Button
+              variant="ghost"
+              disabled={page * 25 >= (list.data?.total ?? 0)}
+              onClick={() => setPage(page + 1)}
+            >
+              Próxima
+            </Button>
+            {manage && (
+              <Button
+                disabled={
+                  !selected.length || selected.length > 100 || command.isPending || exportBusy
+                }
+                onClick={() => void exportSelected()}
+              >
+                Exportar {selected.length} apto(s) para ZPT
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
       {showExports && manage && (
         <Card className="mt-4">
           <h2>Histórico ZPT</h2>
@@ -369,9 +459,7 @@ export function DesbloqueioCe() {
             <div key={e.id} className="mb-3">
               <p>
                 {new Date(e.created_at).toLocaleString("pt-BR")} ·{" "}
-                {e.rows.length} BL(s) ·{" "}
-                {e.sent_at ? "Envio registrado" : "Arquivo gerado"} ·{" "}
-                {e.reference}
+                {e.rows.length} BL(s) · Exportado
               </p>
               <Button
                 variant="ghost"
@@ -387,33 +475,6 @@ export function DesbloqueioCe() {
                 Reexportar com requisitos atuais
               </Button>
               <p>Arquivo histórico: os requisitos podem ter mudado após a geração.</p>
-              {!e.sent_at && (
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    void (async () => {
-                      const reference = await reasonDialog({
-                        message:
-                          "Registrar envio deste lote à ZPT? Informe a referência do envio.",
-                        consequence:
-                          "O lote ficará marcado como enviado; isso não confirma desbloqueio.",
-                      });
-                      if (!reference) return;
-                      try {
-                        await act("sent", { export_id: e.id, reference });
-                      } catch (err) {
-                        setError(
-                          err instanceof Error
-                            ? err.message
-                            : "Falha ao registrar envio",
-                        );
-                      }
-                    })()
-                  }
-                >
-                  Registrar envio à ZPT
-                </Button>
-              )}
             </div>
           ))}
         </Card>
@@ -421,7 +482,12 @@ export function DesbloqueioCe() {
       <Modal
         open={!!id}
         title="Solicitação de desbloqueio"
-        onClose={() => setParams({})}
+        onClose={() =>
+          setParams((p) => {
+            p.delete("pedido");
+            return p;
+          })
+        }
       >
         {request.isLoading ? (
           <p>Carregando...</p>

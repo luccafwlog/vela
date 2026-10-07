@@ -16,6 +16,7 @@ verdade sobre o estado atual.
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — credenciais cadastradas nos environments; provisionamento Cloudflare falhou com HTTP 400 e correção de paginação aguarda execução em `main`. Preview/PKCE, credenciais em runtime, regras de acesso, importação, tentativa Storage como Financeiro, segredos do Vault e backup agendado seguem pendentes — ver "Conferência adicional em 2026-10-07".
 
 O plano [2026-09-06 — Remediação das auditorias #654–#660](../archive/plans/2026-09-06-plano-remediacao-auditorias-654-660.md) foi concluído e arquivado em 2026-09-29 após validação de todas as provas de runtime em produção e otimização do TV refresh.
+O plano [2026-10-07 — Desbloqueio de CE: revisão do fluxo](../archive/plans/2026-10-07-desbloqueio-ce-revisao-fluxo.md) foi executado localmente e arquivado (publicação, agenda do e-mail e aceite da planilha pela ZPT pendentes).
 O plano [2026-09-23 — Alinhamento entre apresentação, documentação e código](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md) foi concluído e arquivado.
 O plano [2026-09-23 — Issue 710: consolidação serviço a serviço](../archive/plans/2026-09-23-issue-710-consolidacao-service-a-service.md) foi concluído e arquivado.
 O plano [2026-09-17 — Unificação de B/Ls, carga mista e Manifesto Mercante](../archive/plans/2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md) foi concluído e arquivado.

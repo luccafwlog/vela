@@ -239,3 +239,26 @@ export function bounceNotificationTemplate(i: {
     }),
   }
 }
+
+// Avisos do Desbloqueio de CE ao cliente (recusa de documento; documentação validada).
+// Nunca cita ZPT nem desbloqueio confirmado: o cliente confere o resultado no Mercante.
+export function ceUnlockNoticeTemplate(i: {
+  title: string
+  message: string
+  portalUrl: string
+  supportEmail: string
+}) {
+  const origin = i.portalUrl.replace(/\/portal(?:\/.*)?$/, '').replace(/\/+$/, '')
+  const link = `${origin}/portal/desbloqueio-ce`
+  return {
+    subject: i.title,
+    text: [i.message, '', `Acompanhe no Portal: ${link}`, '', `Dúvidas? Entre em contato com ${i.supportEmail}.`].join('\n'),
+    html: layout({
+      title: i.title,
+      paragraphs: [i.message],
+      button: { label: 'Abrir Desbloqueio de CE', url: link },
+      portalUrl: origin,
+      supportEmail: i.supportEmail,
+    }),
+  }
+}

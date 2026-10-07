@@ -1,43 +1,47 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** implementado no checkout, publicação pendente · **Atualizado:** 2026-10-05 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** revisão do fluxo implementada no checkout, publicação e homologação pendentes · **Atualizado:** 2026-10-07 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
-Importação → Desbloqueio de CE reúne B/Ls com CE, com ou sem solicitação.
-O cliente solicita no Portal após liquidação integral das taxas locais. Um
-pedido pode conter até 100 B/Ls do mesmo CNPJ. Termo e procuração são comuns por
-pedido ou anuais de cliente VIP; a entrega física é registrada pelo desk.
-Aprovação documental, exportação, registro de envio e confirmação externa são
-atos diferentes. O sistema não chama API da ZPT para liberar a carga.
+A ZPT desbloqueia o CE Mercante sozinha quando as quatro colunas de uma carga
+estão marcadas. O Vela substitui o controle manual dessas colunas: o cliente
+solicita no Portal, o desk valida documentos e marca a entrega, e a planilha
+exportada do Vela alimenta a ZPT. O sistema não chama API da ZPT.
+Um pedido pode conter até 100 B/Ls do mesmo CNPJ. Termo de devolução e procuração
+são comuns por pedido ou anuais de cliente VIP; a entrega física é registrada pelo desk.
+Aprovação documental, exportação e conciliação são atos diferentes.
 
 ## Anatomia das telas
 
 - Portal: Solicitar desbloqueio, Minhas solicitações e Documentos anuais para VIP.
-  Selecionar BLs prepara um rascunho; anexar PDFs e confirmar envia o pedido.
-  Correção solicitada permite nova versão. Modo Inspeção permanece somente leitura.
-- Vela: tabela por B/L, filtros e requisitos; registrar/reverter entrega, abrir
-  protocolo e selecionar B/Ls para análise documental. Pagamento é somente leitura.
-  Modelo do termo permite cadastrar PDF oficial, sem gerar texto jurídico.
+  Selecionar BLs prepara um rascunho; anexar os dois PDFs e confirmar envia o pedido.
+  O cliente cancela enquanto o pedido está em rascunho ou com correção solicitada.
+  Mostra os quatro requisitos, o prazo e, com tudo atendido, "Documentação validada…
+  consulte o Mercante". Não mostra envio, ZPT nem desbloqueio. Modo Inspeção é somente leitura.
+- Vela, aba **Solicitações**: uma linha por pedido a validar (cliente, BLs, status do
+  termo de devolução e da procuração, prazo). Cada documento é aprovado ou recusado
+  para o pedido inteiro; recusa exige motivo. Pedidos VIP não passam por aqui.
+- Vela, aba **Controle ZPT**: uma linha por B/L com CE, com ou sem pedido. Caixas
+  T. de Devolução, Procuração e Financeiro somente leitura; **BL de Entrega** clicável
+  (confirmação ao marcar, motivo ao desmarcar), inclusive antes de existir pedido.
+  Filtro padrão *Aptos — não exportados*. Coluna Prazo (vencido / vence hoje) e coluna
+  ZPT (exportado, desbloqueado, divergente). Exporta até 100 aptos; histórico de lotes
+  permite baixar e reexportar. **Conciliar com a ZPT** importa o "Exportar Tela".
+  Modelo do termo de devolução permite cadastrar o PDF oficial, sem texto jurídico gerado.
 - Clientes → ficha → Desbloqueio de CE / VIP: habilitar/revogar VIP, apresentar
   documentos anuais, aprovar vigência e renovar. Portal também permite apresentar
   anuais sem B/L/pagamento; somente o desk aprova.
-- Histórico ZPT: baixar lote preservado e registrar envio externo. Confirmar
-  desbloqueio é feito no protocolo por B/L e exige CE atual e referência externa.
-  O desk consulta data/CE/referência na seção Confirmações externas do detalhe;
-  essas referências internas não são projetadas ao Portal nem às leituras resumidas,
-  inclusive pelos motivos dos eventos históricos de confirmação e pelos snapshots
-  antigos devolvidos em repetições idempotentes de comandos do Portal.
 
 ## Regras de negócio
 
-Os quatro requisitos são termo aprovado, procuração aprovada, taxas locais
-integralmente liquidadas e B/L original entregue. Selo VIP não dispensa documento:
-exige termo e procuração anuais aprovados/vigentes para o mesmo CNPJ. Validade
-até 31/12 do ano declarado, inclusive em America/Sao_Paulo; não renova em janeiro.
-Reserva de upload sem PDF registrado não substitui a versão enviada nem
-consome quota ativa após compensação/expurgo. Documento novo em análise não revoga o anterior vigente; renovação pode ser
-aplicada aos pedidos pendentes pelo desk, com histórico.
+Os quatro requisitos são termo de devolução aprovado, procuração aprovada, taxas locais
+integralmente liquidadas (Financeiro) e B/L original entregue (BL de Entrega). Selo VIP
+não dispensa documento: exige termo e procuração anuais aprovados/vigentes para o mesmo
+CNPJ. Validade até 31/12 do ano declarado, inclusive em America/Sao_Paulo; não renova
+em janeiro. Reserva de upload sem PDF registrado não substitui a versão enviada nem
+consome quota ativa após compensação/expurgo. Documento novo em análise não revoga o
+anterior vigente; renovação pode ser aplicada aos pedidos pendentes pelo desk, com histórico.
 
 Taxas locais usam recebíveis/settlements vigentes do Cliente atual, não status
 isolado de fatura. Troca de CNPJ com devolução ou reemissão pendente bloqueia
@@ -49,41 +53,81 @@ parcial, ausência de liquidação, nova obrigação de COD ou cancelamento de b
 impedem aptidão. Demurrage/avulsas não fazem parte do requisito local. Correções para menor
 reduzem o valor exigível: a liquidação cobre o valor original menos a correção,
 com saldo zero e evidência real no ledger.
-Cancelamento de B/L e correção do CE também exigem nova conferência. Histórico
-externo confirmado não é apagado por mudança financeira posterior.
+Cancelamento de B/L e correção do CE também exigem nova conferência.
+
+**Conclusão.** A solicitação passa a *Documentação validada* quando todos os B/Ls
+ativos têm os quatro requisitos; desfazer um requisito a reabre. O desk pode cancelar
+uma solicitação concluída enquanto nenhum B/L tiver sido exportado.
+ponytail: a conclusão é reavaliada nos comandos (aprovação, entrega, VIP, envio); uma
+liquidação posterior, sozinha, só aparece no próximo comando. Upgrade: trigger em `ledger_settlements`.
+
+**Prazo (SLA).** Começa no envio; só dias úteis, sem feriados. Antes das 12:00 vence às
+17:00 do mesmo dia; a partir das 12:00, às 12:30 do próximo dia útil; sábado/domingo
+valem como antes das 08:00 de segunda. Recomeça com a pendência do cliente resolvida
+(reenvio, entrega do original, nova liquidação); aprovar documento não recomeça.
+Calculado na tela (`ceUnlockSla.ts`) e no banco (`ce_unlock_private.sla_deadline`,
+usado no texto do aviso); o teste SQL confere os dois com os mesmos casos. O
+cumprimento é medido pela data da exportação.
+
+**Avisos ao cliente.** Recusa de documento (com o motivo) e documentação validada (com o
+prazo) geram um aviso no sino do Portal e uma linha na fila `ce_unlock_email_outbox`; a
+Edge Function `ce-unlock-notify-email` envia aos contatos da caixa **Documentação e
+Operação**, respeitando a chave global de Comunicados, supressão e bounce. Nenhum
+texto cita ZPT ou desbloqueio confirmado.
+
+**Envio e conciliação.** Só entram na planilha B/Ls com os quatro requisitos. O layout
+`zpt-5-v2` usa os cabeçalhos do "Exportar Tela" da ZPT (`BL`, `Financeiro`,
+`Term. Devolucao`, `Procuracao`, `BL Entrega`; Sim/Não). **Exportar registra o envio**
+(data e usuário por B/L); lotes antigos `zpt-5-v1` mantêm seu layout. Importar o
+.xls da ZPT concilia por CE (ignora zeros à esquerda): *Desbloqueado* vira
+*Desbloqueio conferido* (mesmo sem exportação pelo Vela); exportado e ainda bloqueado
+vira *Divergente* com status, descrição e colunas em "Não"; bloqueado e nunca exportado
+é ignorado. O Vela guarda status, descrição, data e colunas em "Não"; nunca o CPF/nome do
+operador da ZPT. A conciliação não altera o prazo nem o que o Portal mostra.
 
 ## Catálogo de ações
 
 | Ação | Dono | Efeito |
 |---|---|---|
 | Preparar/enviar pedido, corrigir anexos | Portal do próprio CNPJ | Reserva e envio atômico, requisitos financeiros revalidados |
-| Aprovar/corrigir documentos, entrega/reversão, VIP | Administrativo/Documentação | Transições auditadas com versão e confirmação |
+| Cancelar pedido (rascunho ou correção solicitada) | Portal do próprio CNPJ | Libera os B/Ls; motivo padrão "Cancelado pelo cliente" |
+| Aprovar/recusar termo de devolução e procuração | Administrativo/Documentação | Vale para o pedido inteiro; recusa exige motivo e avisa o cliente |
+| Marcar/desmarcar BL de Entrega, VIP, reconferir CE, cancelar | Administrativo/Documentação | Transições auditadas com versão e confirmação |
 | Consultar requisitos | Também Financeiro/Operações | Sem anexos sensíveis nem escrita |
-| Exportar aptos | Administrativo/Documentação | XLSX com BL, Termo, Procuração, Entrega de BL, Pagamento das taxas; Sim/Não |
-| Confirmar desbloqueio | Administrativo/Documentação | Por B/L/CE, com referência externa; só conclui pedido se todos confirmados |
+| Exportar aptos | Administrativo/Documentação | XLSX `zpt-5-v2`; registra o envio por B/L |
+| Conciliar com a ZPT | Administrativo/Documentação | Importa o "Exportar Tela"; resultado só no Vela |
 
 ## Persistência e segurança
 
-Migrations `137`–`147`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
-RLS sem acesso direto do navegador e RPCs com escopo server-side. Escritas
-cliente/internal usam dispatchers distintos com allowlists; retries compartilham
-chave idempotente e recusam alteração de payload. Inspeção tem wrappers de leitura.
+Migrations `137`–`149` e `160`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
+RLS sem acesso direto do navegador e RPCs com escopo server-side. A `160` acrescenta
+`exported_at/exported_by/export_id` em `ce_unlock_request_bls`, `ce_unlock_zpt_status`
+(conciliação) e `ce_unlock_email_outbox`. Escritas
+cliente/internal usam dispatchers distintos com allowlists (Portal: `draft`, `submit`,
+`cancel`); retries compartilham chave idempotente e recusam alteração de payload.
+`ce_unlock_reconcile` é função própria (sem receipts: o payload é grande e a operação é
+idempotente) e só aceita escrita interna. Campos de envio/ZPT são removidos das
+projeções do Portal (`ce_unlock_private.portal_view`). Inspeção tem wrappers de leitura.
+As ações `sent` e `confirm` foram removidas; confirmações externas antigas permanecem
+como histórico do desk.
 
 Bucket privado `ce-unlock-documents`. Upload pela Edge Function valida sessão,
 PDF/MIME/assinatura, 10 MiB, 20 uploads/24h e 100 MiB ativos por cliente. Download
 exige autorização atual e URL assinada por 60 s. Documentos são versionados.
 Funções: `portal-ce-unlock-document`, `ce-unlock-document-download`,
-`ce-unlock-export`, `ce-unlock-cleanup`; config e operação no
+`ce-unlock-export`, `ce-unlock-cleanup`, `ce-unlock-notify-email`; config e operação no
 [manual externo](../operations/servicos-externos.md).
 
 ## Validação e operação
 
-Testes SQL reais: `src/integration/ceUnlock.local-pg.test.ts`; regras VIP/ZPT e
-PDF em `src/services/__tests__/ceUnlock*.test.ts`; o handler de upload é exercitado
-em Deno por `supabase/functions/portal-ce-unlock-document/index.test.ts`; componentes e Portal em seus
-harnesses existentes. Postgres local usa shims de Auth/Storage/cron, que não
-comprovam o gateway Supabase nem envio ZPT. Publicação e arquivo ZPT em operação
-real precisam de validação no ambiente autorizado.
+Testes SQL reais: `src/integration/ceUnlock.local-pg.test.ts` (inclui cancelamento pelo
+cliente, fila de Solicitações, paridade do prazo SQL×tela, conciliação e fila de e-mail);
+regras VIP/ZPT, prazo, leitura do arquivo da ZPT e e-mail em `src/services/__tests__/ceUnlock*.test.ts`;
+o handler de upload é exercitado em Deno por `supabase/functions/portal-ce-unlock-document/index.test.ts`;
+componentes e Portal em seus harnesses existentes. Postgres local usa shims de Auth/Storage/cron,
+que não comprovam o gateway Supabase nem o envio real de e-mail. **Não comprovado:** aceite da
+planilha `zpt-5-v2` pela aba "Planilha desbloqueio" da ZPT (sem modelo oficial de importação; o
+primeiro upload real é o teste) e entrega real dos avisos por e-mail.
 
 O expurgo reivindica/fixa os registros no banco antes de apagar objetos;
 rascunho expirado é cancelado sob lock, e falha física permite retry.
@@ -91,15 +135,17 @@ O modelo atual e anuais vigentes não são expurgados por mera idade.
 
 Expurgo usa Storage API: uploads abandonados após 1 dia, rascunhos após 7 dias,
 registros documentais inativos após 5 anos, preservando metadados e histórico.
-Não excluir anuais só por não terem pedido. Job `ce-unlock-cleanup` não é
-criado pela migration; configurar seu segredo no Vault/Edge Functions e então
-agendá-lo como passo operacional ([segredos e cron](../operations/segredos-cron.md)).
+Não excluir anuais só por não terem pedido. Os jobs `ce-unlock-cleanup` e
+`ce-unlock-notify-email` não são criados pela migration; configurar o segredo no
+Vault/Edge Functions e então agendá-los como passo operacional
+([segredos e cron](../operations/segredos-cron.md)).
 
-Evidência da execução e limitações estão no
-[relatório local](../archive/reports/2026-10-04-desbloqueio-ce-implementacao.md).
-A fila calcula os requisitos dos candidatos antes de paginar; custo O(n),
-indicado como `ponytail` no serviço. Avaliar read model indexado com aumento
-do volume operacional.
+Evidência da execução original e limitações estão no
+[relatório local](../archive/reports/2026-10-04-desbloqueio-ce-implementacao.md); a revisão de
+2026-10-07 segue [spec](../archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md) e
+[plano](../archive/plans/2026-10-07-desbloqueio-ce-revisao-fluxo.md). A fila calcula os requisitos
+dos candidatos antes de paginar; custo O(n), indicado como `ponytail` no serviço. Avaliar read
+model indexado com aumento do volume operacional.
 
 ### Robustez de finalização
 

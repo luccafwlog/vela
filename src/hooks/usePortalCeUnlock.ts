@@ -50,7 +50,7 @@ export function usePortalCeUnlock(
   });
   const command = useMutation({
     mutationFn: (input: {
-      action: "draft" | "submit";
+      action: "draft" | "submit" | "cancel";
       payload: Record<string, unknown>;
     }) =>
       portalCeUnlockCommand<CeUnlockRequest>(

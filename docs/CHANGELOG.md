@@ -4,6 +4,18 @@
 
 ## 2026-10
 
+- **Desbloqueio de CE — revisão do fluxo (2026-10-07, implementação local):** a ZPT desbloqueia
+  sozinha com os quatro requisitos, então o Vela virou o controle dela. Abas **Solicitações**
+  (termo de devolução e procuração validados por pedido, recusa com motivo) e **Controle ZPT**
+  (caixas T. de Devolução, Procuração, Financeiro e BL de Entrega por BL, prazo); cliente cancela
+  rascunho/correção; prazo (SLA) por dias úteis (17:00 / 12:30 do dia útil seguinte); avisos de
+  recusa e de documentação validada no sino e por e-mail (caixa Documentação e Operação);
+  **exportar é o registro do envio** (layout `zpt-5-v2` com os cabeçalhos da ZPT) e importar o
+  "Exportar Tela" da ZPT concilia desbloqueados e divergentes, só no desk. Saem "Registrar envio"
+  e "Confirmar desbloqueio". Migration `160`, Edge Function `ce-unlock-notify-email`.
+  [Módulo](modules/desbloqueio-ce.md). Publicação, agenda do e-mail e aceite da planilha pela
+  ZPT pendentes.
+
 - **Correções da PR 847 (2026-10-05):** CE aceita liquidação do valor corrigido;
   referência externa permanece privada também no histórico; tentativas de upload
   não substituem PDFs registrados e são compensadas em falhas de armazenamento.
