@@ -148,7 +148,9 @@ Remover: `SELECT cron.unschedule('recalc-demurrage-ptax');`.
 
 ### Agendar o expurgo do desbloqueio de CE
 
-Pelo mesmo motivo, a migration `141` não cria o job `ce-unlock-cleanup`
+**Agendado em produção em 2026-10-07** (jobid 24): sem pedidos nem documentos no módulo, um
+disparo manual respondeu HTTP 200 (`removed: 0`, `expired_drafts: 0`); não havia Preview
+disponível para a validação prevista. Pelo mesmo motivo, a migration `141` não cria o job `ce-unlock-cleanup`
 (corrigida em 2026-10-06, depois de falhar em produção com o mesmo `42501`).
 Agende somente depois de cadastrar `CE_UNLOCK_CLEANUP_SECRET` no cofre e na Edge
 Function e de validar o expurgo, conforme o [manual de serviços externos](servicos-externos.md):
@@ -165,7 +167,9 @@ Remover: `SELECT cron.unschedule('ce-unlock-cleanup');`.
 
 ### Agendar o envio dos avisos do desbloqueio de CE
 
-A migration `160` não cria o job `ce-unlock-notify-email`. Agende somente depois de
+**Agendado em produção em 2026-10-07** (jobid 23), após cadastrar o segredo no cofre e na
+Edge Function e de um disparo manual responder HTTP 200. A migration `160` não cria o job
+`ce-unlock-notify-email`; em outro ambiente, agende somente depois de
 cadastrar `CE_UNLOCK_CLEANUP_SECRET` (o mesmo segredo do expurgo), `RESEND_API_KEY`,
 `PORTAL_FROM_EMAIL` e `PORTAL_REPLY_TO` na Edge Function:
 
@@ -173,7 +177,7 @@ cadastrar `CE_UNLOCK_CLEANUP_SECRET` (o mesmo segredo do expurgo), `RESEND_API_K
 SELECT cron.schedule(
   'ce-unlock-notify-email',
   '*/5 * * * *',
-  $SELECT ops.dispatch_edge_job('ce-unlock-notify-email', 'CE_UNLOCK_CLEANUP_SECRET', 'Authorization', 'Bearer ');$
+  $$SELECT ops.dispatch_edge_job('ce-unlock-notify-email', 'CE_UNLOCK_CLEANUP_SECRET', 'Authorization', 'Bearer ');$$
 );
 ```
 
