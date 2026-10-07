@@ -153,10 +153,11 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   `cloudflare-pages` e `cloudflare-production` (Cloudflare Pages: Edit, escopo
   da conta Pages). A cópia Repository-level permanece até os workflows serem
   validados. As execuções `37608023373`, `37619183889` e `37626476950` receberam
-  o secret, mas a listagem de projetos retornou HTTP 400; a última informou o
-  código `80000024`. O token ainda não está validado em runtime. O próximo
-  diagnóstico incluirá mensagens limitadas da API com token e ID de conta
-  removidos dos logs.
+  o secret, mas a listagem de projetos retornou HTTP 400 porque o provisionador
+  enviava `per_page=25`. A [API de listagem Pages](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/list/)
+  documenta `per_page` e mostra `20` em seu exemplo de resposta; a correção
+  local usa `20`. A validade operacional do token segue pendente até uma
+  listagem Pages passar.
 
 ### Cloudflare Access (proteção das previews)
 

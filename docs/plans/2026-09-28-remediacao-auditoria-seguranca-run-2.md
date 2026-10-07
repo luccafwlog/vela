@@ -9,7 +9,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 | Fase 2 — migration `106` e item 4.5 | migrations até `159` em produção; Dispute/Storage e próxima ação validados com Equipamentos; falta importação com e-mail de consignatário novo e tentativa direta de Storage em sessão Financeiro |
 | Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); Comunicado validado em simulação em produção em 2026-10-06; envio real a destinatário controlado continua opcional |
 | Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; troca de e-mail com PKCE ainda sem validação numa Preview publicada |
-| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; cleanup real listou zero deployments antigos; provisionamento Cloudflare segue falhando com HTTP 400/código `80000024`; mensagem sanitizada da API em preparação; Preview publicada pendente |
+| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; cleanup real listou zero deployments antigos; provisionamento Cloudflare usa paginação inválida; correção `per_page=20` em PR; Preview publicada pendente |
 | Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pelas PRs #815 e posteriores; segredos de cron e execução agendada do backup seguem pendentes; recálculo só de `issued` confirmado como regra de negócio |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
@@ -214,11 +214,15 @@ segredos:
   conta correta, com `Cloudflare Pages: Edit`, sem filtro de IP nem expiração.
   As execuções de provisionamento `37608023373`, `37619183889` e
   `37626476950` em 2026-10-07 receberam o secret mascarado e o ID de conta
-  correto, mas a listagem de projetos respondeu HTTP 400 em todas. A terceira
-  execução revelou `errors[].code = 80000024`; a documentação pública consultada
-  não mapeia esse código. O provisionador agora será ajustado para incluir
-  mensagens de erro limitadas, removendo token e ID de conta dos logs. A causa
-  e a validade operacional do token seguem sem confirmação.
+  correto, mas a listagem retornou HTTP 400. A última identificou a causa:
+  `Invalid list options provided. Review the page or per_page parameter.` O
+  provisionador usava `per_page=25`, por analogia indevida com outro endpoint.
+  A [referência oficial da listagem Pages](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/list/)
+  documenta esses parâmetros e mostra `per_page=20`; o código foi alterado
+  para 20 com teste de regressão. Falta
+  validar a nova execução. A correção do parâmetro remove a evidência atual
+  contra o token, mas a validade operacional da credencial só será confirmada
+  quando a listagem Pages passar.
 - **Validação local:** `npm test` em macOS, Node 24.16.0, terminou com 3.975
   testes aprovados e 404 ignorados. Nenhuma alteração de produção foi feita
   nesta conferência.
