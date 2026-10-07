@@ -88,17 +88,18 @@ test('rejects invalid configuration before making a request', async () => {
   assert.equal(requests, 0)
 })
 
-test('does not include the token or API response body in failures', async () => {
+test('reports only Cloudflare error codes and never includes the token or response messages', async () => {
   const ensure = createPagesProvisioner({
     accountId: ACCOUNT_ID,
     apiToken: TOKEN,
     fetchImpl: async (_url, options) => options.method === 'GET'
       ? response({ success: true, result: [], result_info: { total_pages: 1 } })
-      : response({ success: false, errors: [{ message: `secret=${TOKEN}` }] }, 403),
+      : response({ success: false, errors: [{ code: 10000, message: `secret=${TOKEN}` }] }, 403),
   })
 
   await assert.rejects(ensure(), (error) => {
     assert.match(error.message, /HTTP 403/)
+    assert.match(error.message, /Cloudflare error codes: 10000/)
     assert.doesNotMatch(error.message, new RegExp(TOKEN))
     assert.doesNotMatch(error.message, /secret=/)
     return true
