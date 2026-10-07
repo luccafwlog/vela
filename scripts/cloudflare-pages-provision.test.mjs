@@ -30,6 +30,7 @@ test('creates only missing Pages projects as Direct Upload projects on main', as
 
   assert.deepEqual(await ensure(), { created: ['vela-portal'], existing: ['vela-internal'] })
   assert.equal(calls.length, 2)
+  assert.equal(new URL(calls[0].url).searchParams.get('per_page'), '25')
   assert.equal(calls[1].options.method, 'POST')
   assert.deepEqual(JSON.parse(calls[1].options.body), {
     name: 'vela-portal',

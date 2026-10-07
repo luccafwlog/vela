@@ -56,9 +56,9 @@ Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-re
 | Supabase → **Edge Functions → Secrets** | segredos das Edge Functions (lista na seção [Supabase](#supabase)) | Edge Functions; o painel mostra só um *digest*, nunca o valor |
 | Supabase → **Vault** (`vault.secrets`) | segredos que os jobs `pg_cron` enviam às Functions | só o banco; ver [segredos-cron.md](segredos-cron.md) |
 | GitHub → **Settings → Secrets and variables → Actions** | tokens de deploy e valores públicos de build | workflows |
-| GitHub → environment **`cloudflare-production`** | as 7 variáveis `VITE_*` do build de produção do Pages | só o workflow de produção, só na branch `main` |
-| GitHub → environment **`cloudflare-pages`** (a criar, Fase 1 da run-2) | `CLOUDFLARE_PAGES_API_TOKEN` | jobs `publish` da preview, limpeza e provisionamento do Pages; deployment branch = `main` |
-| GitHub → environment **`supabase-branches`** (a criar, Fase 1 da run-2) | `SUPABASE_ACCESS_TOKEN`, `PREVIEW_ADMIN_PASSWORD` | job `prepare` da preview e `provision-preview-admin`; deployment branch = `main` |
+| GitHub → environment **`cloudflare-production`** | 7 variáveis `VITE_*` e secret `CLOUDFLARE_PAGES_API_TOKEN` (2026-10-07); deployment restrito à branch `main` | só o workflow de produção |
+| GitHub → environment **`cloudflare-pages`** | secret `CLOUDFLARE_PAGES_API_TOKEN` (2026-10-07); sem restrição de branch | jobs `publish` da Preview, limpeza e provisionamento do Pages |
+| GitHub → environment **`supabase-branches`** | secrets `SUPABASE_ACCESS_TOKEN` e `PREVIEW_ADMIN_PASSWORD` (2026-10-07); sem restrição de branch | job `prepare` da Preview e `provision-preview-admin` |
 | Windows do computador do backup → **variáveis do usuário** | `SUPABASE_DB_URL`, `BACKUP_ENCRYPTION_KEY_HEX`, `R2_*`, `BACKUP_ALLOW_PRODUCTION` | tarefa agendada do backup |
 | Windows → **Gerenciador de Credenciais** | `VelaBackup/R2AccessKeyId`, `VelaBackup/R2SecretAccessKey`, `VelaBackup/EncryptionKey` | o dono, para reconfigurar o backup |
 | iCloud Senhas do dono | `vela-backup` (chave de cifragem), `supabase-db-vela` (senha do banco) | cópia fora do computador |
@@ -149,7 +149,12 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
 - **Cabeçalhos de segurança (CSP):** gerados por
   `scripts/cloudflare-pages-stage.mjs`; mudam junto com os workflows e o staging do Pages
   ([deploy.md](../setup/deploy.md#headers-rotas-e-cors)).
-- **Token:** GitHub secret `CLOUDFLARE_PAGES_API_TOKEN` (Pages: Edit).
+- **Token:** secret `CLOUDFLARE_PAGES_API_TOKEN` nos environments GitHub
+  `cloudflare-pages` e `cloudflare-production` (Cloudflare Pages: Edit, escopo
+  da conta Pages). A cópia Repository-level permanece até os workflows serem
+  validados. A execução de provisionamento `37608023373` recebeu o secret, mas
+  a listagem de projetos retornou HTTP 400; o token ainda não está validado em
+  runtime.
 
 ### Cloudflare Access (proteção das previews)
 
@@ -178,6 +183,10 @@ banco próprio (check "Supabase Preview").
 
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
+  O environment GitHub `supabase-branches` guarda o PAT escopado ao projeto
+  `fgmkhbzhaeebrsizwccx`, com `Development Branches: Read` e validade de um
+  ano, além de `PREVIEW_ADMIN_PASSWORD`. As cópias Repository-level ainda
+  existem; para jobs desse environment, a credencial dele prevalece.
 - **Senha do banco:** só alfanumérica; guardada em `supabase-db-vela` (iCloud
   Senhas) e usada apenas pelo backup. Nada no repositório usa essa senha.
 - **Usuário técnico do Auth:**
@@ -214,7 +223,7 @@ está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
 | E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | Resend |
 | Anti-robô | `TURNSTILE_SECRET_KEY` (e opcional `TURNSTILE_ALLOWED_HOSTNAMES`) | Cloudflare Turnstile |
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
-| Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET` (par com o Vault) | — |
+| Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET` (par com o Vault quando o job está habilitado) | — |
 | Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (4), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
 | CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
 
@@ -227,8 +236,17 @@ valor invalida a senha de todas as contas migradas (o cliente precisa usar a
 recuperação), então não é um segredo de rotação rotineira.
 
 `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET` e
-`RECALC_CRON_SECRET` existem no código, mas não estão cadastrados em produção:
-os runners correspondentes não têm job agendado.
+`RECALC_CRON_SECRET` existem no código. **Conferência somente de leitura em
+2026-10-07:** `PORTAL_EMAIL_EVENTS_CRON_SECRET` existe no Vault; o segredo
+correspondente na Edge Function não foi conferido. `IMPORT_EFFECTS_CRON_SECRET`
+e `RECALC_CRON_SECRET` não existem no Vault. A migration `107` deixa
+`portal-email-events-runner` e `import-effects-runner` agendados; para o
+segundo, o dispatcher emite `WARNING` e não chama a Edge Function enquanto o
+segredo do Vault estiver ausente. O job `recalc-demurrage-ptax` continua sem
+agendamento manual. Um `succeeded` em `cron.job_run_details` só comprova que o
+wrapper do `pg_cron` terminou; confirme também a chamada HTTP conforme
+[segredos e cron](segredos-cron.md#verificação). A rotação/provisão continua
+pendente e deve seguir o procedimento em par.
 
 ### Jobs agendados (`pg_cron`)
 
@@ -409,27 +427,40 @@ para eles vale o backup do próprio Supabase.
 
 - **Workflows:** `ci.yml` (testes, build, migrations), `cloudflare-pages-*.yml`
   (Pages), `provision-preview-admin.yml` (usuário admin na branch de preview).
-- **Secrets:** `CLOUDFLARE_PAGES_API_TOKEN`, `SUPABASE_ACCESS_TOKEN`,
-  `SUPABASE_PROJECT_REF`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (build do
-  CI), `PREVIEW_ADMIN_PASSWORD` (admin das previews) e
-  `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK` (legado, nenhum workflow usa;
-  candidato a remoção).
+- **Repository secrets:** `CLOUDFLARE_PAGES_API_TOKEN`, `SUPABASE_ACCESS_TOKEN`
+  e `PREVIEW_ADMIN_PASSWORD` ainda duplicam as credenciais novas dos
+  environments; manter até validar os workflows, então apagar as cópias e
+  revogar/aposentar as credenciais antigas. `SUPABASE_PROJECT_REF` continua
+  necessário para Preview. `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` são
+  usados pelo build de CI. `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK` é
+  legado, sem uso em workflow, e ainda aguarda remoção.
+- **Environment secrets e variables:** os jobs referenciam explicitamente os
+  três environments acima. Se um secret existir no escopo do environment e do
+  repositório com o mesmo nome, o GitHub Actions usa o do environment. As 7
+  variáveis `VITE_*` vivem em `cloudflare-production`; os environments antigos
+  `Preview`, `Preview – fwlog-portal`, `Preview – vela`, `Production` e variantes
+  estão vazios e não são referenciados pelos workflows atuais.
 - **Variables:** `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_ACCESS_CONFIGURED`,
   `CLOUDFLARE_PAGES_PRODUCTION_ENABLED`.
 - **Environments (auditoria run-2, #14):**
-  **Conferência de 2026-10-06:** os environments existem, mas suas listas de
-  secrets estão vazias e não há restrição de deployment branch nos dois.
-  As credenciais seguem no repositório. O repositório agora é privado; a API
-  de rulesets retorna 403 por limitação do plano GitHub. Rotação, migração de
-  secrets e proteção de workflows continuam pendentes.
+  **Conferência de 2026-10-07:** os três environments têm secrets nos locais
+  esperados. `cloudflare-pages` e `supabase-branches` não têm restrição de
+  branch; `cloudflare-production` mantém política para `main`. Os environments
+  antigos `Preview`/`Production` e variantes estão vazios e sem uso nos
+  workflows atuais. O dono recusou restringir os environments de Preview à
+  branch `main` em 2026-10-06; manter essa decisão registrada.
 
-  Os workflows já declaram
-  `cloudflare-pages` e `supabase-branches`. Enquanto os environments não
-  tiverem os secrets, os jobs leem as cópias em Repository secrets. Ao mover:
-  restringir os dois a *deployment branch* = `main`, pôr os secrets neles, pôr
-  também `CLOUDFLARE_PAGES_API_TOKEN` em `cloudflare-production` (o workflow de
-  produção usa esse environment) e só então apagar as cópias do repositório.
-  As actions dos workflows com token estão fixadas por SHA.
+  O repositório é privado; a API de rulesets informa que é necessário GitHub
+  Pro ou tornar o repositório público. Não alterar o plano nem a visibilidade
+  como atalho. Rotação, migração de secrets e proteção de workflows continuam
+  pendentes.
+
+  O workflow de provisionamento recebeu a nova credencial Pages mascarada e o
+  ID de conta correto, mas falhou no GET de projetos com HTTP 400. No código
+  local, `per_page=100` foi substituído por `25` com teste de regressão; falta
+  executar a versão atualizada em `main`. A migração e rotação das credenciais
+  só devem ser concluídas depois que os workflows passarem; então apagar as
+  cópias antigas. As actions dos workflows com token estão fixadas por SHA.
 - **Regras:** em 2026-10-06 a API informou `main.protected=false`. A exigência
   de revisão dos workflows da run-2 ainda não está aplicada; depende do plano
   GitHub e de revisor elegível. Não presumir proteção nem usar bypass como

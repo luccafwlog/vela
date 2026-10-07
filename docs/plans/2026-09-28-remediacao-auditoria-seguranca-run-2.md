@@ -5,12 +5,12 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 
 | Parte | Situação |
 |---|---|
-| Fase 1 — configuração de terceiros | parcialmente conferida; secrets, deploy key, ruleset e rotação ainda pendentes; dono recusou restringir environments à `main` |
-| Fase 2 — migration `106` e item 4.5 | migrations aplicadas; Storage/Dispute Equipamentos validado em produção com `158`/`159`; falta importação com e-mail de consignatário novo e recusa direta de Storage em sessão Financeiro |
-| Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); secret `PORTAL_PASSWORD_PEPPER` criado, `TURNSTILE_SECRET_KEY` conferido e as 18 Functions publicadas pelo dono em 2026-09-29; testes em produção aprovados, exceto o Comunicado (ver "Estado em 2026-09-29") |
-| Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; falta observar na Preview a troca de e-mail com PKCE |
-| Fase 5 — CI e hospedagem | itens 1 e 2 entregues pela luccafwlog/vela#814; item 3 entregue em código (branch `claude/remediacao-run-2-ptax-equipamentos-cors`) após o dono confirmar a Vercel desligada |
-| Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pela luccafwlog/vela#815 (migration `109`); itens de operação são do dono; recálculo só de `issued` confirmado como regra de negócio |
+| Fase 1 — configuração de terceiros | secrets cadastrados nos environments; validação, remoção das cópias de Repository secrets, deploy key e ruleset pendentes; o dono recusou restringir Preview à `main` |
+| Fase 2 — migration `106` e item 4.5 | migrations até `159` em produção; Dispute/Storage e próxima ação validados com Equipamentos; falta importação com e-mail de consignatário novo e tentativa direta de Storage em sessão Financeiro |
+| Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); Comunicado validado em simulação em produção em 2026-10-06; envio real a destinatário controlado continua opcional |
+| Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; troca de e-mail com PKCE ainda sem validação numa Preview publicada |
+| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; cleanup real listou zero deployments antigos; provisionamento Cloudflare falhou com HTTP 400; ajuste de paginação local aguarda merge e reexecução; Preview publicada pendente |
+| Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pelas PRs #815 e posteriores; segredos de cron e execução agendada do backup seguem pendentes; recálculo só de `issued` confirmado como regra de negócio |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
 (commit auditado `17da824a`). A auditoria está **incompleta**: nenhum dos 15
@@ -45,13 +45,13 @@ Falta, nesta ordem:
    Comunicável (regra mantida pelo dono): o Cliente de teste precisa de B/L com
    ETA nos últimos 12 meses, ou usar o tipo livre num Cliente com B/L. Repetir
    com envio real quando a chave for ligada.
-2. **Fase 1 / Etapa 3 do roteiro:** environments `cloudflare-pages` e
-   `supabase-branches` (deployment branch `main`), secrets neles e cópia de
-   `CLOUDFLARE_PAGES_API_TOKEN` em `cloudflare-production`; testar Preview e
-   produção; só então apagar os Repository secrets (inclusive o legado
+2. **Fase 1 / Etapa 3 do roteiro:** environments `cloudflare-pages`,
+   `supabase-branches` e `cloudflare-production` e secrets cadastrados. Validar
+   os workflows; só então apagar os Repository secrets (inclusive o legado
    `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`), revogar os tokens antigos,
-   criar o ruleset de `.github/workflows/**` e revisar quem tem push. Anotar se
-   o captcha do Auth está desligado (item 5).
+   criar o ruleset de `.github/workflows/**` e revisar quem tem push. A
+   restrição de Preview à branch `main` foi recusada pelo dono em 2026-10-06.
+   Anotar se o captcha do Auth está desligado (item 5).
 3. **Etapa 4 (Preview):** troca de e-mail com PKCE no mesmo navegador e em
    outro; Dispute (Equipamentos anexa, Financeiro é recusado); importação com
    e-mail novo de consignatário; header `connect-src` sem `*.supabase.co`.
@@ -137,18 +137,21 @@ Nenhuma configuração alterada nesta conferência.
 
 As pendências executáveis restantes são:
 
-1. **GitHub e credenciais:** cadastrar e validar os secrets nos environments
-   `cloudflare-pages`, `supabase-branches` e `cloudflare-production`; depois
-   remover os Repository secrets antigos, inclusive
+1. **GitHub e credenciais:** os secrets foram cadastrados nos environments
+   `cloudflare-pages`, `supabase-branches` e `cloudflare-production`. Validar
+   os workflows; depois remover as cópias antigas dos Repository secrets,
+   inclusive
    `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`, e rotacionar os tokens. Isso
    exige ação do dono sem compartilhar valores no chat.
 2. **Acessos e proteção:** revisar/remover a deploy key
    `Codex workspace - Transhipping Desk` (`read/write`) e criar o ruleset para
    `.github/workflows/**`. A conta atual recebeu HTTP 403 ao tentar criar
    rulesets; não tornar o repositório público como atalho.
-3. **Preview:** executar novamente o workflow de limpeza após o ajuste
-   `per_page=25` e validar a execução real; testar troca de e-mail com PKCE no
-   mesmo e em outro navegador.
+3. **Preview:** publicar uma Preview válida após validar as credenciais e
+   testar troca de e-mail com PKCE no mesmo e em outro navegador. O workflow de
+   limpeza já executou em 2026-10-07 após o ajuste `per_page=25`; terminou com
+   sucesso e não encontrou deployments antigos para remover, então o endpoint
+   DELETE não foi exercitado.
 4. **Importação:** executar importação real com e-mail novo de consignatário.
 5. **Operação:** rotacionar secrets dos jobs no Vault, decidir o procedimento
    para `IMPORT_EFFECTS_CRON_SECRET` e `RECALC_CRON_SECRET`, e observar o
@@ -163,6 +166,67 @@ As pendências executáveis restantes são:
 O dono recusou restringir os environments à branch `main`; essa proteção fica
 como risco aceito e não será aplicada. O plano permanece em `docs/plans/` até
 as pendências acima serem concluídas ou formalmente assumidas.
+
+## Conferência adicional em 2026-10-07
+
+Consultas somente de leitura, sem alterar produção ou exibir valores de
+segredos:
+
+- **Supabase:** projeto `fgmkhbzhaeebrsizwccx`, PostgreSQL `17.6.1.104`, com
+  migrations até `159` registradas. Os seis jobs do manual que chamam Edge
+  Functions estão ativos e usam `ops.dispatch_edge_job`;
+  `recalc-demurrage-ptax` não está
+  agendado. O Vault contém os nomes `SUPABASE_URL`, `PORTAL_DIGEST_SECRET`,
+  `ALERTS_DETECTOR_SECRET`, `DEMURRAGE_DUNNING_SECRET`,
+  `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET` e
+  `PORTAL_EMAIL_EVENTS_CRON_SECRET`; `IMPORT_EFFECTS_CRON_SECRET` e
+  `RECALC_CRON_SECRET` não existem nele. Os detalhes recentes de
+  `portal-email-events-runner` e `import-effects-runner` registram sucesso do
+  wrapper `pg_cron`. Os 12 status HTTP mais recentes de `net._http_response`
+  são 200, mas não foram correlacionados a um job individual. Sem
+  `IMPORT_EFFECTS_CRON_SECRET` no Vault, o dispatcher avisa e não chama a Edge
+  Function; o sucesso do wrapper não comprova processamento de importações.
+  Também não há prova de execução de `recalc-demurrage-ptax` nem de rotação
+  dos pares de segredos.
+- **GitHub:** todos os três environments têm os secrets esperados: o token
+  Pages em `cloudflare-pages` e `cloudflare-production`, e o PAT Supabase e a
+  senha de Preview em `supabase-branches`. O PAT foi criado com escopo de um
+  projeto, `Development Branches: Read` e prazo de um ano. `cloudflare-production`
+  tem política para `main`; os dois environments de Preview não têm restrição
+  de branch, conforme decisão do dono. As cópias Repository-level de
+  `CLOUDFLARE_PAGES_API_TOKEN`, `SUPABASE_ACCESS_TOKEN` e
+  `PREVIEW_ADMIN_PASSWORD` continuam presentes até a validação. Também
+  permanecem `SUPABASE_PROJECT_REF` (usado pelos workflows) e o legado
+  `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`.
+  A API lista somente o dono como colaborador e confirma a deploy key
+  `Codex workspace - Transhipping Desk` com escrita. A consulta de rulesets
+  continua retornando HTTP 403 para o repositório privado; não foi tentada
+  alteração de visibilidade nem de plano.
+- **Workflows:** o cleanup da PR #876 concluiu com sucesso em 2026-10-07
+  02:21 UTC após o ajuste de paginação; o log encontrou zero deployments
+  antigos nos dois projetos Pages e não executou DELETE. A listagem/paginação
+  real passou, mas a exclusão não foi exercitada. O workflow de Preview
+  correspondente não publicou: o job `prepare` recusou prosseguir quando a
+  verificação Supabase Preview terminou como `skipped`, e `build`/`publish`
+  foram ignorados. Uma Preview válida ainda é necessária para PKCE, importação
+  e teste com as identidades autorizadas.
+- **Cloudflare Pages:** o dono conferiu que o token novo está no escopo da
+  conta correta, com `Cloudflare Pages: Edit`, sem filtro de IP nem expiração.
+  A execução de provisionamento `37608023373` em 2026-10-07 recebeu o secret
+  mascarado e o ID de conta correto, mas a listagem de projetos respondeu
+  HTTP 400. O script informa só o status e omite o corpo de erro da API. Uma
+  hipótese em teste é o parâmetro `per_page=100`; localmente ele foi reduzido
+  para `25`, como no cleanup, com regressão reproduzida no teste. Ainda falta
+  executar o código atualizado em `main`; portanto a causa do HTTP 400 e a
+  validade operacional do token seguem sem confirmação.
+- **Validação local:** `npm test` em macOS, Node 24.16.0, terminou com 3.975
+  testes aprovados e 404 ignorados. Nenhuma alteração de produção foi feita
+  nesta conferência.
+
+O backup seguinte ao ajuste de `consumeArchive` ainda depende da tarefa
+agendada no computador Windows descrito em [serviços externos](../operations/servicos-externos.md#backup);
+esta máquina de execução macOS não permite confirmar seu `LastTaskResult`.
+O plano continua aberto.
 
 ## Decisões
 
@@ -192,13 +256,17 @@ fatura avulsa enquanto esta PR estava aberta).
 Registrar cada mudança em [serviços externos](../operations/servicos-externos.md)
 na mesma PR que a documenta; nomes e locais de secrets, nunca valores.
 
-1. **#14 (média).** Criar os environments `cloudflare-pages` e
-   `supabase-branches` com *deployment branch* = `main`; mover para eles
-   `CLOUDFLARE_PAGES_API_TOKEN`, `SUPABASE_ACCESS_TOKEN` e
-   `PREVIEW_ADMIN_PASSWORD`; **apagar** as cópias em Repository secrets (uma
-   cópia no repositório anula o environment). Depois, rotacionar os dois tokens
-   e, se o Supabase oferecer, trocar o token pessoal por um de escopo mínimo.
-   A Fase 5 ajusta os workflows (`environment:` nos jobs) na mesma janela.
+1. **#14 (média).** Environments `cloudflare-pages`, `supabase-branches` e
+   `cloudflare-production` configurados; secrets registrados neles em
+   2026-10-07. O novo PAT Supabase é escopado ao projeto com
+   `Development Branches: Read`; a credencial Cloudflare recebeu
+   `Cloudflare Pages: Edit`. Validar os workflows; só então apagar as cópias
+   Repository-level e revogar os tokens antigos. Para jobs que declaram um
+   environment, o GitHub usa o secret do environment quando há outro de mesmo
+   nome no repositório. Não restringir os environments de Preview à branch
+   `main`, conforme decisão do dono em 2026-10-06. Os workflows da Fase 5 já
+   declaram `environment:`; a correção local da paginação de provisionamento
+   ainda precisa chegar a `main` e ser validada.
 2. **#14.** Conferir quem tem push no repositório (inclusive as credenciais dos
    agentes) e criar um ruleset que exija revisão para `.github/workflows/**`.
 3. Reforço: apagar o secret legado `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`.
