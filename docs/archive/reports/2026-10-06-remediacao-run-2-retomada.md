@@ -227,3 +227,18 @@ URL Configuration: Site URL `https://transhippingdesk.com.br`; oito redirects
 dos projetos legados `transhippingdesk`/`vela` na Vercel, nenhum domínio atual
 visível nessa lista. Drift operacional registrado para diagnóstico dos fluxos
 Auth/PKCE antes de alteração; nenhum redirect adicionado/removido.
+
+## Conferência GitHub Environments no painel autenticado
+
+Environment `cloudflare-pages`: No restriction, zero secrets/variables. API
+confirma `supabase-branches` sem deployment branch policy e sem proteção;
+`cloudflare-production` tem zero secrets. Repository secrets continuam com
+`CLOUDFLARE_PAGES_API_TOKEN`, `SUPABASE_ACCESS_TOKEN`, `PREVIEW_ADMIN_PASSWORD`
+e o legado Firebase. Nenhum valor acessado e nenhum secret alterado/removido.
+Captura `/tmp/vela-run2-github-environment.jpg`.
+
+Workflows da base atual usam environments a partir da branch confiável:
+preview via `workflow_run`, cleanup via `pull_request_target`, provisionamento
+via dispatch. Restrição a `main` preparada, aguardando autorização específica.
+Credenciais novas precisam ser cadastradas pelo dono (handoff); só remover
+as cópias do repositório após deploys dos substitutos aprovados.
