@@ -14,21 +14,26 @@ Aprovação documental, exportação e conciliação são atos diferentes.
 
 ## Anatomia das telas
 
-- Portal: Solicitar desbloqueio, Minhas solicitações e Documentos anuais para VIP.
-  Selecionar BLs prepara um rascunho; anexar os dois PDFs e confirmar envia o pedido.
+- Portal: abas Nova solicitação, Minhas solicitações e Documentos anuais (só VIP).
+  Nova solicitação lista os quatro requisitos (com o modelo do termo para baixar) e uma
+  tabela de BLs; selecionar e continuar cria o rascunho sem confirmação, pois o cliente
+  pode cancelá-lo. A solicitação abre em modal: próximo passo do estado, prazo, documentos
+  (anexar/substituir com o motivo da recusa à vista), requisitos por BL e histórico.
   O cliente cancela enquanto o pedido está em rascunho ou com correção solicitada.
-  Mostra os quatro requisitos, o prazo e, com tudo atendido, "Documentação validada…
-  consulte o Mercante". Não mostra envio, ZPT nem desbloqueio. Modo Inspeção é somente leitura.
+  Com tudo atendido, "Documentação validada… consulte o Mercante". Não mostra envio,
+  ZPT nem desbloqueio. Modo Inspeção é somente leitura (aviso global da inspeção).
 - Vela, aba **Solicitações**: uma linha por pedido a validar (cliente, BLs, status do
   termo de devolução e da procuração, prazo). Cada documento é aprovado ou recusado
   para o pedido inteiro; recusa exige motivo. Pedidos VIP não passam por aqui.
-- Vela, aba **Controle ZPT**: uma linha por B/L com CE, com ou sem pedido. Caixas
-  T. de Devolução, Procuração e Financeiro somente leitura; **BL de Entrega** clicável
-  (confirmação ao marcar, motivo ao desmarcar), inclusive antes de existir pedido.
-  Filtro padrão *Aptos — não exportados*. Coluna Prazo (vencido / vence hoje) e coluna
-  ZPT (exportado, desbloqueado, divergente). Exporta até 100 aptos; histórico de lotes
-  permite baixar e reexportar. **Conciliar com a ZPT** importa o "Exportar Tela".
-  Modelo do termo de devolução permite cadastrar o PDF oficial, sem texto jurídico gerado.
+- Vela, aba **Controle ZPT**: uma linha por B/L com CE, com ou sem pedido. T. de
+  Devolução, Procuração e Financeiro são ícones somente leitura (verde = atendido);
+  **BL de Entrega** é a única caixa clicável (confirmação ao marcar, motivo ao
+  desmarcar), inclusive antes de existir pedido. Filtro padrão *Aptos — não exportados*.
+  Coluna Prazo (vencido / vence hoje) e coluna ZPT (exportado, desbloqueado, divergente).
+  Exporta até 100 aptos (seleção por linha ou dos aptos da página). No cabeçalho, em
+  modais: **Modelo do termo de devolução** (PDF oficial, sem texto jurídico gerado),
+  **Histórico ZPT** (baixar e reexportar lotes) e **Conciliar com a ZPT** (importa o
+  "Exportar Tela").
 - Clientes → ficha → Desbloqueio de CE / VIP: habilitar/revogar VIP, apresentar
   documentos anuais, aprovar vigência e renovar. Portal também permite apresentar
   anuais sem B/L/pagamento; somente o desk aprova.

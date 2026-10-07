@@ -16,15 +16,19 @@ export function CeUnlockSla({
   now?: Date;
 }) {
   const { deadline, state } = ceUnlockSlaState(start, doneAt ? new Date(doneAt) : now);
-  if (!deadline) return <span>—</span>;
+  if (!deadline) return <span className="text-[var(--app-muted)]">—</span>;
   const missed = state === "overdue";
+  const tone = missed
+    ? "text-[var(--app-red)]"
+    : !doneAt && state === "today"
+      ? "text-[#a85309] dark:text-[var(--app-gold-strong)]"
+      : "text-[var(--app-muted)]";
   return (
-    <span
-      data-sla={doneAt ? (missed ? "late" : "met") : state}
-      className={missed ? "font-semibold text-red-600" : !doneAt && state === "today" ? "font-semibold text-amber-600" : undefined}
-    >
-      {formatCeUnlockDeadline(deadline)}
-      <small className="block">{doneAt ? (missed ? "Exportado fora do prazo" : "Exportado no prazo") : LABEL[state]}</small>
+    <span data-sla={doneAt ? (missed ? "late" : "met") : state} className="app-table__cell-stack">
+      <span className="app-table__cell-value whitespace-nowrap">{formatCeUnlockDeadline(deadline)}</span>
+      <small className={`whitespace-normal text-xs font-semibold ${tone}`}>
+        {doneAt ? (missed ? "Exportado fora do prazo" : "Exportado no prazo") : LABEL[state]}
+      </small>
     </span>
   );
 }

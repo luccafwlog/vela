@@ -90,7 +90,7 @@ it("VIP mostra cobertura vigente e aba anual sem exigir anexos na seleção", ()
   mount();
   expect(screen.getByText(/Cobertura VIP vigente/)).toBeTruthy();
   expect(
-    screen.getByRole("button", { name: "Documentos anuais" }),
+    screen.getByRole("tab", { name: "Documentos anuais" }),
   ).toBeTruthy();
   expect(screen.queryByLabelText("Termo assinado (PDF)")).toBeNull();
 });
@@ -177,6 +177,13 @@ it("BL com solicitação em andamento não fala em desbloqueio confirmado", () =
   fixtures.canSubmit = false;
   fixtures.listRequest = true;
   const { container } = mount();
-  expect(container.textContent).toContain("Já existe uma solicitação para este BL");
+  expect(screen.getByText("Em análise")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Abrir solicitação" })).toBeTruthy();
   expect(container.textContent).not.toMatch(/desbloqueio confirmado/i);
+});
+
+it("rascunho sem anexos diz quais documentos faltam para enviar", () => {
+  fixtures.draft = true;
+  mount();
+  expect(screen.getByText("Envie termo de devolução e procuração para continuar.")).toBeTruthy();
 });
