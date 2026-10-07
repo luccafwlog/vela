@@ -9,7 +9,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 | Fase 2 — migration `106` e item 4.5 | migrations até `159` em produção; Dispute/Storage e próxima ação validados com Equipamentos; falta importação com e-mail de consignatário novo e tentativa direta de Storage em sessão Financeiro |
 | Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); Comunicado validado em simulação em produção em 2026-10-06; envio real a destinatário controlado continua opcional |
 | Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; troca de e-mail com PKCE ainda sem validação numa Preview publicada |
-| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; cleanup real listou zero deployments antigos; provisionamento Cloudflare falhou com HTTP 400; ajuste de paginação local aguarda merge e reexecução; Preview publicada pendente |
+| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; cleanup real listou zero deployments antigos; consulta individual por nome validada no run `37631613061` (ambos os projetos já existiam); Preview publicada pendente |
 | Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pelas PRs #815 e posteriores; segredos de cron e execução agendada do backup seguem pendentes; recálculo só de `issued` confirmado como regra de negócio |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
@@ -137,21 +137,37 @@ Nenhuma configuração alterada nesta conferência.
 
 As pendências executáveis restantes são:
 
-1. **GitHub e credenciais:** os secrets foram cadastrados nos environments
-   `cloudflare-pages`, `supabase-branches` e `cloudflare-production`. Validar
-   os workflows; depois remover as cópias antigas dos Repository secrets,
-   inclusive
-   `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`, e rotacionar os tokens. Isso
-   exige ação do dono sem compartilhar valores no chat.
+1. **GitHub e credenciais:** os secrets estão nos environments
+   `cloudflare-pages`, `supabase-branches` e `cloudflare-production`. O secret
+   `SUPABASE_ACCESS_TOKEN` em `supabase-branches` teve atualização registrada
+   em 2026-10-07 após reautenticação, mas a credencial efetiva não está
+   validada: o PAT v3 de 90 dias, escopado ao projeto Vela com
+   `Development Branches: Read` e `API Keys: Read`, ainda aparecia como nunca
+   usado no painel Supabase; o workflow Cloudflare falhou em `branches get`
+   (run `37638412558`). Uma segunda submissão do secret não teve confirmação
+   de conclusão. O valor do PAT v3 apareceu em texto numa saída de
+   acessibilidade; deve ser tratado como exposto. O dono interrompeu a
+   revogação e substituição desse PAT. Não executar novo workflow de Preview
+   até a credencial ser regularizada. Nenhum valor de credencial foi registrado.
+   Depois validar os workflows, remover as cópias antigas dos Repository
+   secrets, inclusive `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`, e
+   aposentar os tokens anteriores.
 2. **Acessos e proteção:** revisar/remover a deploy key
    `Codex workspace - Transhipping Desk` (`read/write`) e criar o ruleset para
    `.github/workflows/**`. A conta atual recebeu HTTP 403 ao tentar criar
    rulesets; não tornar o repositório público como atalho.
-3. **Preview:** publicar uma Preview válida após validar as credenciais e
-   testar troca de e-mail com PKCE no mesmo e em outro navegador. O workflow de
-   limpeza já executou em 2026-10-07 após o ajuste `per_page=25`; terminou com
-   sucesso e não encontrou deployments antigos para remover, então o endpoint
-   DELETE não foi exercitado.
+3. **Preview:** a branch pontual `codex/run2-manual-preview-probe` foi criada
+   no projeto Vela e vinculada à branch GitHub da PR #883; `Automatic
+   branching` continua desligado por decisão do dono. O painel informa cobrança
+   de US$ 0,01344/h antes de impostos. A Preview publicada e os testes de
+   PKCE no mesmo e em outro navegador ainda estão pendentes. O primeiro teste
+   do workflow falhou antes de publicar: o PAT tinha `Development Branches:
+   Read`, mas o CLI também precisa de `API Keys: Read` para `branches get`;
+   o GitHub secret foi atualizado em 2026-10-07 e um novo run ainda precisa
+   confirmar o fluxo. Remover a branch após a validação e registrar a exclusão.
+   O workflow de limpeza executou em 2026-10-07 após o ajuste `per_page=25`;
+   terminou com sucesso e não encontrou deployments antigos para remover,
+   então o endpoint DELETE não foi exercitado.
 4. **Importação:** executar importação real com e-mail novo de consignatário.
 5. **Operação:** rotacionar secrets dos jobs no Vault, decidir o procedimento
    para `IMPORT_EFFECTS_CRON_SECRET` e `RECALC_CRON_SECRET`, e observar o
@@ -212,16 +228,35 @@ segredos:
   e teste com as identidades autorizadas.
 - **Cloudflare Pages:** o dono conferiu que o token novo está no escopo da
   conta correta, com `Cloudflare Pages: Edit`, sem filtro de IP nem expiração.
-  A execução de provisionamento `37608023373` em 2026-10-07 recebeu o secret
-  mascarado e o ID de conta correto, mas a listagem de projetos respondeu
-  HTTP 400. O script informa só o status e omite o corpo de erro da API. Uma
-  hipótese em teste é o parâmetro `per_page=100`; localmente ele foi reduzido
-  para `25`, como no cleanup, com regressão reproduzida no teste. Ainda falta
-  executar o código atualizado em `main`; portanto a causa do HTTP 400 e a
-  validade operacional do token seguem sem confirmação.
+  As execuções `37608023373`, `37619183889`, `37626476950`, `37629073181` e
+  `37630494893` receberam o secret mascarado e o ID de conta correto, mas
+  falharam em `GET /pages/projects` com HTTP 400 / código `80000024`.
+  `37629073181` e `37630494893` informaram `Invalid list options provided`,
+  inclusive após a mudança de `per_page=25` para `per_page=20`; portanto a
+  inferência baseada no exemplo da API de listagem estava errada e o token
+  continuava sem validação operacional. Estratégia revisada: consultar
+  `GET /pages/projects/{project_name}` para cada projeto conhecido e criar
+  apenas quando a consulta retornar HTTP 404; sem listagem nem paginação. A
+  [API individual de Pages](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/get/)
+  documenta a rota e aceita Pages Read/Write. Como a documentação não mostra
+  explicitamente a resposta para nome inexistente, o código trata somente
+  HTTP 404 como ausência e falha fechado nos demais status. Testes locais
+  cobrem o contrato; a execução após merge está registrada abaixo.
 - **Validação local:** `npm test` em macOS, Node 24.16.0, terminou com 3.975
   testes aprovados e 404 ignorados. Nenhuma alteração de produção foi feita
   nesta conferência.
+
+### Atualização operacional de 2026-10-07
+
+Depois do merge da PR #881 (`503298fb`), o run de provisionamento
+[`37631613061`](https://github.com/luccafwlog/vela/actions/runs/37631613061)
+concluiu com sucesso em `main`. A consulta individual confirmou que
+`vela-internal` e `vela-portal` já existiam; nenhum projeto foi criado ou
+alterado. Isso valida a rota individual e o token Pages usado pelo environment
+`cloudflare-pages` para o provisionador. As cópias Repository-level continuam
+até os workflows de Preview, limpeza e produção que usam essas credenciais
+serem validados; a Preview segue sem publicação porque o job Supabase Preview
+foi `skipped`.
 
 O backup seguinte ao ajuste de `consumeArchive` ainda depende da tarefa
 agendada no computador Windows descrito em [serviços externos](../operations/servicos-externos.md#backup);
@@ -234,6 +269,11 @@ Em 2026-10-06, o dono recusou restringir os environments GitHub à branch
 `main`. Não aplicar essa restrição. O controle fica fora da execução por
 decisão do dono, com risco aceito; não marcar como corrigido. A recusa não
 cancela as demais pendências, inclusive credenciais e validação de workflows.
+
+Em 2026-10-07, o dono decidiu manter desligado `Automatic branching` na
+integração Supabase GitHub. Não ligar essa opção. Uma branch de Preview
+pontual vinculada à branch GitHub da PR continua sendo alternativa, sujeita à
+autorização do custo horário informado pelo painel e à remoção após os testes.
 
 Respondidas pelo dono em 2026-09-29: **D1 = (b)** (cai para (a) se o plano
 do Supabase não oferecer o hook), **D2 = (c)** (manter como hoje; o item 2.8
@@ -265,8 +305,9 @@ na mesma PR que a documenta; nomes e locais de secrets, nunca valores.
    environment, o GitHub usa o secret do environment quando há outro de mesmo
    nome no repositório. Não restringir os environments de Preview à branch
    `main`, conforme decisão do dono em 2026-10-06. Os workflows da Fase 5 já
-   declaram `environment:`; a correção local da paginação de provisionamento
-   ainda precisa chegar a `main` e ser validada.
+   declaram `environment:`; o provisionador foi validado no run `37631613061`.
+   Validar também Preview, limpeza e produção antes de apagar as cópias
+   Repository-level e revogar os tokens antigos.
 2. **#14.** Conferir quem tem push no repositório (inclusive as credenciais dos
    agentes) e criar um ruleset que exija revisão para `.github/workflows/**`.
 3. Reforço: apagar o secret legado `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`.

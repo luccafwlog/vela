@@ -13,7 +13,7 @@ function response(body, status = 200) {
   }
 }
 
-test('creates only missing Pages projects as Direct Upload projects on main', async () => {
+test('checks projects by name and creates only those confirmed missing', async () => {
   const calls = []
   const ensure = createPagesProvisioner({
     accountId: ACCOUNT_ID,
@@ -22,21 +22,27 @@ test('creates only missing Pages projects as Direct Upload projects on main', as
     fetchImpl: async (url, options) => {
       calls.push({ url, options })
       if (options.method === 'GET') {
-        return response({ success: true, result: [{ name: 'vela-internal' }], result_info: { total_pages: 1 } })
+        const name = new URL(url).pathname.split('/').at(-1)
+        if (name === 'vela-internal') return response({ success: true, result: { name } })
+        return response({ success: false, errors: [{ code: 8000007, message: 'not found' }] }, 404)
       }
       return response({ success: true, result: { name: JSON.parse(options.body).name } })
     },
   })
 
   assert.deepEqual(await ensure(), { created: ['vela-portal'], existing: ['vela-internal'] })
-  assert.equal(calls.length, 2)
-  assert.equal(new URL(calls[0].url).searchParams.get('per_page'), '25')
-  assert.equal(calls[1].options.method, 'POST')
-  assert.deepEqual(JSON.parse(calls[1].options.body), {
+  assert.equal(calls.length, 3)
+  assert.deepEqual(calls.map(({ url, options }) => [options.method, new URL(url).pathname]), [
+    ['GET', `/client/v4/accounts/${ACCOUNT_ID}/pages/projects/vela-internal`],
+    ['GET', `/client/v4/accounts/${ACCOUNT_ID}/pages/projects/vela-portal`],
+    ['POST', `/client/v4/accounts/${ACCOUNT_ID}/pages/projects`],
+  ])
+  assert.equal(calls.some(({ url }) => new URL(url).search), false)
+  assert.deepEqual(JSON.parse(calls[2].options.body), {
     name: 'vela-portal',
     production_branch: 'main',
   })
-  assert.equal(calls[1].options.headers.Authorization, `Bearer ${TOKEN}`)
+  assert.equal(calls[2].options.headers.Authorization, `Bearer ${TOKEN}`)
 })
 
 test('leaves both existing projects unchanged', async () => {
@@ -44,13 +50,9 @@ test('leaves both existing projects unchanged', async () => {
   const ensure = createPagesProvisioner({
     accountId: ACCOUNT_ID,
     apiToken: TOKEN,
-    fetchImpl: async (_url, options) => {
+    fetchImpl: async (url, options) => {
       if (options.method === 'POST') writes += 1
-      return response({
-        success: true,
-        result: [{ name: 'vela-internal' }, { name: 'vela-portal' }],
-        result_info: { total_pages: 1 },
-      })
+      return response({ success: true, result: { name: new URL(url).pathname.split('/').at(-1) } })
     },
   })
 
@@ -58,7 +60,7 @@ test('leaves both existing projects unchanged', async () => {
   assert.equal(writes, 0)
 })
 
-test('paginates the account project inventory before creating anything', async () => {
+test('recovers from a concurrent create by fetching that named project', async () => {
   const calls = []
   const ensure = createPagesProvisioner({
     accountId: ACCOUNT_ID,
@@ -66,16 +68,18 @@ test('paginates the account project inventory before creating anything', async (
     projects: ['vela-portal'],
     fetchImpl: async (url, options) => {
       calls.push({ url, options })
-      if (options.method === 'POST') return response({ success: true, result: { name: 'vela-portal' } })
-      const page = new URL(url).searchParams.get('page')
-      return page === '1'
-        ? response({ success: true, result: [{ name: 'other-project' }], result_info: { total_pages: 2 } })
-        : response({ success: true, result: [{ name: 'vela-portal' }], result_info: { total_pages: 2 } })
+      if (options.method === 'POST') {
+        return response({ success: false, errors: [{ code: 8000000, message: 'already exists' }] }, 409)
+      }
+      if (calls.filter((call) => call.options.method === 'GET').length === 1) {
+        return response({ success: false, errors: [{ code: 8000007, message: 'not found' }] }, 404)
+      }
+      return response({ success: true, result: { name: 'vela-portal' } })
     },
   })
 
   assert.deepEqual(await ensure(), { created: [], existing: ['vela-portal'] })
-  assert.deepEqual(calls.map(({ url }) => new URL(url).searchParams.get('page')), ['1', '2'])
+  assert.deepEqual(calls.map(({ options }) => options.method), ['GET', 'POST', 'GET'])
 })
 
 test('rejects invalid configuration before making a request', async () => {
@@ -88,19 +92,22 @@ test('rejects invalid configuration before making a request', async () => {
   assert.equal(requests, 0)
 })
 
-test('does not include the token or API response body in failures', async () => {
+test('reports Cloudflare diagnostics while redacting token and account ID', async () => {
   const ensure = createPagesProvisioner({
     accountId: ACCOUNT_ID,
     apiToken: TOKEN,
-    fetchImpl: async (_url, options) => options.method === 'GET'
-      ? response({ success: true, result: [], result_info: { total_pages: 1 } })
-      : response({ success: false, errors: [{ message: `secret=${TOKEN}` }] }, 403),
+    fetchImpl: async () => response({
+      success: false,
+      errors: [{ code: 80000024, message: `Rejected token ${TOKEN}; account ${ACCOUNT_ID}` }],
+    }, 400),
   })
 
   await assert.rejects(ensure(), (error) => {
-    assert.match(error.message, /HTTP 403/)
+    assert.match(error.message, /HTTP 400/)
+    assert.match(error.message, /Cloudflare error codes: 80000024/)
+    assert.match(error.message, /Cloudflare error messages: Rejected token \[redacted-token\]; account \[redacted-account-id\]/)
     assert.doesNotMatch(error.message, new RegExp(TOKEN))
-    assert.doesNotMatch(error.message, /secret=/)
+    assert.doesNotMatch(error.message, new RegExp(ACCOUNT_ID))
     return true
   })
 })
