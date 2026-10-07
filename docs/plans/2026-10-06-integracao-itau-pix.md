@@ -123,7 +123,7 @@ O cliente real (`_shared/itauPix.ts`) rodou localmente contra
   especificação. O cliente passou a aceitar inteiro em texto.
 - `GET /pix` recusou `inicio`/`fim` com milissegundos (400
   `PixConsultaInvalida`). O cliente passou a enviar RFC 3339 sem fração de
-  segundo.
+  segundo, arredondando `inicio` para baixo e `fim` para cima.
 
 Nada disso substitui a Fase 1: mTLS, `sts.itau.com.br`, pagamento real,
 latência e limites só se provam com a credencial de produção.

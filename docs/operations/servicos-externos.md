@@ -519,6 +519,16 @@ do guia. Ela cria cobranças de teste de até R$ 1,00 com TXID `VELAT…` e só
 altera ou cancela essas; consulta qualquer TXID `VELA`, então nunca toca
 cobranças do sistema de terceiro nem muda a cobrança de uma fatura.
 
+**Sandbox (só testes, desde 2026-10-06).** Aplicação de sandbox criada pelo
+dono no [Itaú for Developers](https://devportal.itau.com.br), na conta dele.
+A credencial (client_id e client_secret de sandbox) fica nessa aplicação do
+portal, onde o secret pode ser regenerado; **não** está em nenhum segredo do
+Supabase, no Vault nem no repositório. Endereços:
+`https://sandbox.devportal.itau.com.br/api/oauth/jwt` (token, sem mTLS) e
+`https://sandbox.devportal.itau.com.br/itau-ep9-api-regulatorio-pix-v2-externo/v2`.
+As respostas são exemplos fixos; o que foi observado está na seção "Sandbox do
+devportal" do [plano](../plans/2026-10-06-integracao-itau-pix.md).
+
 A fila de cobranças das faturas (migration `151`) só tem trabalho quando
 `app_settings.pix_provider = 'itau'`; o padrão é `static`. A ordem completa
 para ligar a integração, com quem faz cada passo e como conferir, está no

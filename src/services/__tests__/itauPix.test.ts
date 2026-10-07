@@ -63,11 +63,11 @@ describe('cliente Itaú Pix', () => {
     for (const bad of ['36a0', '-1', '3600.5', '', null]) await expect(reply(bad).getCob(txid)).rejects.toThrow('não confirma')
   })
 
-  it('GET /pix envia o período sem milissegundos, formato aceito pelo Itaú', async () => {
+  it('GET /pix envia o período sem milissegundos, sem encolher a janela pedida', async () => {
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json({ pix: [] }))
     await createItauPixClient(config, fetchMtls).listPix('2026-10-06T01:47:07.506Z', '2026-10-07T01:47:07.506Z')
     const url = new URL(fetchMtls.mock.calls[1][0])
-    expect([url.searchParams.get('inicio'), url.searchParams.get('fim')]).toEqual(['2026-10-06T01:47:07Z', '2026-10-07T01:47:07Z'])
+    expect([url.searchParams.get('inicio'), url.searchParams.get('fim')]).toEqual(['2026-10-06T01:47:07Z', '2026-10-07T01:47:08Z'])
   })
 
   it('alteração que encontra a COB paga não é sucesso', async () => {

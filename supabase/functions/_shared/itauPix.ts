@@ -104,9 +104,10 @@ function assertCob(cob: unknown, txid: string): ItauCob {
 }
 
 // RFC 3339 sem milissegundos: o sandbox recusou inicio/fim com fração de segundo (2026-10-06).
-// Truncar não perde Pix: a consulta de recebimentos já sobrepõe 10 min à janela anterior.
-function rfc3339Seconds(value: string): string {
-  return new Date(value).toISOString().replace(/\.\d{3}Z$/, 'Z')
+// O início arredonda para baixo e o fim para cima, então a janela pedida nunca encolhe.
+function rfc3339Seconds(value: string, roundUp = false): string {
+  const seconds = Date.parse(value) / 1000
+  return new Date((roundUp ? Math.ceil(seconds) : Math.floor(seconds)) * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
 }
 
 export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fetch) {
@@ -211,7 +212,7 @@ export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fet
       if (!Number.isFinite(Date.parse(inicio)) || !Number.isFinite(Date.parse(fim))) throw new ItauPixError('Período inválido.', 400)
       const all: ItauPix[] = []
       for (let page = 0; page < maxPages; page++) {
-        const query = new URLSearchParams({ inicio: rfc3339Seconds(inicio), fim: rfc3339Seconds(fim), 'paginacao.paginaAtual': String(page) })
+        const query = new URLSearchParams({ inicio: rfc3339Seconds(inicio), fim: rfc3339Seconds(fim, true), 'paginacao.paginaAtual': String(page) })
         const body = await call('GET', `/pix?${query}`) as { pix?: ItauPix[]; parametros?: { paginacao?: { quantidadeDePaginas?: number } } }
         all.push(...(body?.pix ?? []))
         const pages = body?.parametros?.paginacao?.quantidadeDePaginas ?? 1
