@@ -152,10 +152,11 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
 - **Token:** secret `CLOUDFLARE_PAGES_API_TOKEN` nos environments GitHub
   `cloudflare-pages` e `cloudflare-production` (Cloudflare Pages: Edit, escopo
   da conta Pages). A cópia Repository-level permanece até os workflows serem
-  validados. As execuções `37608023373` e `37619183889` receberam o secret, mas
-  a listagem de projetos retornou HTTP 400, mesmo após reduzir `per_page` para
-  25. O token ainda não está validado em runtime; o próximo diagnóstico
-  registrará somente códigos numéricos de erro da API.
+  validados. As execuções `37608023373`, `37619183889` e `37626476950` receberam
+  o secret, mas a listagem de projetos retornou HTTP 400; a última informou o
+  código `80000024`. O token ainda não está validado em runtime. O próximo
+  diagnóstico incluirá mensagens limitadas da API com token e ID de conta
+  removidos dos logs.
 
 ### Cloudflare Access (proteção das previews)
 

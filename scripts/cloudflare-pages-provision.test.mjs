@@ -88,20 +88,22 @@ test('rejects invalid configuration before making a request', async () => {
   assert.equal(requests, 0)
 })
 
-test('reports only Cloudflare error codes and never includes the token or response messages', async () => {
+test('reports Cloudflare diagnostics while redacting token and account ID', async () => {
   const ensure = createPagesProvisioner({
     accountId: ACCOUNT_ID,
     apiToken: TOKEN,
-    fetchImpl: async (_url, options) => options.method === 'GET'
-      ? response({ success: true, result: [], result_info: { total_pages: 1 } })
-      : response({ success: false, errors: [{ code: 10000, message: `secret=${TOKEN}` }] }, 403),
+    fetchImpl: async () => response({
+      success: false,
+      errors: [{ code: 80000024, message: `Rejected token ${TOKEN}; account ${ACCOUNT_ID}` }],
+    }, 400),
   })
 
   await assert.rejects(ensure(), (error) => {
-    assert.match(error.message, /HTTP 403/)
-    assert.match(error.message, /Cloudflare error codes: 10000/)
+    assert.match(error.message, /HTTP 400/)
+    assert.match(error.message, /Cloudflare error codes: 80000024/)
+    assert.match(error.message, /Cloudflare error messages: Rejected token \[redacted-token\]; account \[redacted-account-id\]/)
     assert.doesNotMatch(error.message, new RegExp(TOKEN))
-    assert.doesNotMatch(error.message, /secret=/)
+    assert.doesNotMatch(error.message, new RegExp(ACCOUNT_ID))
     return true
   })
 })
