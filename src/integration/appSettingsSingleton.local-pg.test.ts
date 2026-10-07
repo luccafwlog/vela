@@ -6,10 +6,7 @@ import { describe, expect, it } from 'vitest'
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
-const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/104_restore_app_settings_singleton.sql'),
-  'utf8',
-)
+const read = (file: string) => readFileSync(resolve(process.cwd(), 'supabase/migrations', file), 'utf8')
 
 function localPsql(sql: string): string {
   return execFileSync('psql', [
@@ -18,7 +15,10 @@ function localPsql(sql: string): string {
   ], { encoding: 'utf8' }).trim()
 }
 
-describeLocal('migration 104 — reparo do singleton app_settings', () => {
+describeLocal.each([
+  ['104', read('104_restore_app_settings_singleton.sql')],
+  ['155', read('155_restore_app_settings_singleton_again.sql')],
+])('migration %s — reparo do singleton app_settings', (_version, migration) => {
   it('restaura a linha ausente dentro de uma transação descartável', () => {
     const result = localPsql(`
       BEGIN;
@@ -47,5 +47,19 @@ describeLocal('migration 104 — reparo do singleton app_settings', () => {
     `)
 
     expect(result).toBe('1|true|9')
+  })
+
+  it('linha restaurada nasce com a integração Itaú desligada', () => {
+    const result = localPsql(`
+      BEGIN;
+      DELETE FROM public.app_settings WHERE id = 1;
+      ${migration}
+      SELECT concat_ws('|', pix_provider, itau_pix_expiration_seconds::text, coalesce(itau_pix_settlement_actor::text, 'sem-ator'))
+      FROM public.app_settings
+      WHERE id = 1;
+      ROLLBACK;
+    `)
+
+    expect(result).toBe('static|2592000|sem-ator')
   })
 })
