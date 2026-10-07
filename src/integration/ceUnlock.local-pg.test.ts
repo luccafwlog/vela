@@ -12,6 +12,13 @@ function sql(q:string, uid?:string):string {
 }
 function error(q:string, uid:string) { try {sql(q,uid);return ''} catch(e) {return String((e as {stderr:string}).stderr)} }
 const command = (action:string, payload:object, uid=admin) => JSON.parse(sql(`SELECT public.${uid===client?'portal_':''}ce_unlock_command('${action}', '${JSON.stringify(payload)}'::jsonb);`, uid))
+// Preparação dos cenários: pedido com documentação validada não se cancela pela regra; o teste
+// o devolve a 'in_review' antes de cancelar os pedidos abertos do cliente.
+function cancelOpenRequests(reason:string) {
+  sql("UPDATE public.ce_unlock_requests SET state='in_review' WHERE customer_id=998557 AND state='completed';")
+  const open=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>r.state!=='cancelled')
+  for(const r of open) command('cancel',{request_id:r.id,expected_version:r.version,reason,request_key:crypto.randomUUID()})
+}
 async function heldTransaction(q:string) {
   const process = spawn('psql',['-X','-Atq','-v','ON_ERROR_STOP=1','-d',db,'-f','-'],{stdio:['pipe','pipe','pipe']})
   const done = new Promise<void>((resolve,reject)=> { process.on('exit',code => code===0 ? resolve() : reject(new Error('Worker SQL failed'))); process.on('error',reject) })
@@ -130,8 +137,7 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
   })
   it('correção de termo permanece acessível após aprovação da procuração',()=>{
     command('set_vip',{customer_id:998557,enabled:false,reason:'Fluxo comum',request_key:crypto.randomUUID()})
-    const pending=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>r.state!=='cancelled')
-    for(const r of pending) command('cancel',{request_id:r.id,expected_version:r.version,reason:'Preparar teste comum',request_key:crypto.randomUUID()})
+    cancelOpenRequests('Preparar teste comum')
     const draft=command('draft',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()},client)
     sql(`INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,file_name,storage_path,size_bytes,hash,uploaded_by) VALUES
       (998557,'${draft.id}','termo','request','uploaded','term.pdf','request/term-${draft.id}',10,'hash','${client}'),
@@ -239,8 +245,7 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(view().state).toBe('in_review')
   })
   it('envio VIP aguarda revogação anual concorrente e recusa cobertura perdida',async()=>{
-    const pending=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>r.state!=='cancelled')
-    for(const r of pending) command('cancel',{request_id:r.id,expected_version:r.version,reason:'Preparar concorrência VIP',request_key:crypto.randomUUID()})
+    cancelOpenRequests('Preparar concorrência VIP')
     const draft=command('draft',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()},client)
     expect(JSON.parse(sql('SELECT public.portal_get_ce_unlock_vip_coverage();',client)).termo).toBe(true)
     const worker=await heldTransaction("BEGIN; UPDATE public.ce_unlock_documents SET status='revoked' WHERE customer_id=998557 AND source='vip_annual' AND type='termo'; SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;")
@@ -248,8 +253,7 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     finally { await worker.done; sql("UPDATE public.ce_unlock_documents SET status='approved' WHERE customer_id=998557 AND source='vip_annual' AND type='termo';") }
   })
   it('recusa de documento avisa o cliente com o motivo, reenvio reinicia o prazo e preserva o outro documento aprovado',()=>{
-    const pending=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>r.state!=='cancelled')
-    for(const r of pending) command('cancel',{request_id:r.id,expected_version:r.version,reason:'Teste de reenvio parcial',request_key:crypto.randomUUID()})
+    cancelOpenRequests('Teste de reenvio parcial')
     command('set_vip',{customer_id:998557,enabled:false,reason:'Documentos por pedido',request_key:crypto.randomUUID()})
     sql("UPDATE public.bls SET ce_mercante='123456789018888' WHERE id='CE557-SECOND'; UPDATE public.bl_receivables SET status='settled',balance_brl=0,settled_amount_brl=100 WHERE id=998557;")
     let request=command('draft',{bl_ids:['CE557-A','CE557-SECOND'],request_key:crypto.randomUUID()},client)
