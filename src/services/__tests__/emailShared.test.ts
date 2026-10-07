@@ -21,6 +21,39 @@ afterEach(() => {
 })
 
 describe('sendEmail', () => {
+  it('registra simulação explícita sem chamar o provedor, mesmo com credencial presente', async () => {
+    const fetchMock = vi.fn()
+    const updateAttempt = vi.fn()
+    const result = await sendEmail({
+      ...baseInput, simulate: true, from: null, replyTo: null,
+      recordAttempt: async () => ({ id: 42, status: 'aceito' }),
+      updateAttempt, fetchImpl: fetchMock,
+    })
+    expect(result).toEqual({ ok: true })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(updateAttempt).toHaveBeenCalledWith(42, {
+      providerMessageId: null, retryCount: 0, status: 'aceito', lastError: undefined,
+    })
+  })
+
+  it('mantém supressão mesmo em simulação explícita', async () => {
+    const recordAttempt = vi.fn()
+    expect(await sendEmail({ ...baseInput, simulate: true,
+      checkSuppression: async () => ({ suppressed: true }), recordAttempt,
+    })).toEqual({ ok: false })
+    expect(recordAttempt).not.toHaveBeenCalled()
+  })
+
+  it('não apaga confirmação de entrega anterior ao simular uma tentativa existente', async () => {
+    const updateAttempt = vi.fn()
+    const fetchMock = vi.fn()
+    expect(await sendEmail({ ...baseInput, simulate: true, updateAttempt, fetchImpl: fetchMock,
+      recordAttempt: async () => ({ id: 42, status: 'aceito', existing: true, providerMessageId: 'real-42' }),
+    })).toEqual({ ok: true })
+    expect(updateAttempt).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('gera uma identidade estável e não reversível para cada destinatário', async () => {
     const first = await recipientKey(' Cliente@Example.com ')
     const equivalent = await recipientKey('cliente@example.com')

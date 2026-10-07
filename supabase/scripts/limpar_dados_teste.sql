@@ -21,6 +21,10 @@ DECLARE
     'business_holidays',
     -- Catálogo base de tipos de alerta
     'alert_type_catalog',
+    -- Catálogo estrutural necessário para registrar Comunicados
+    'customer_communication_kinds',
+    'customer_communication_boxes',
+    'customer_communication_templates',
     -- Taxas locais gerais
     'charge_tables',
     'charge_table_items',

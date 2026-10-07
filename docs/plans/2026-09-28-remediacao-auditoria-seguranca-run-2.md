@@ -65,6 +65,68 @@ Falta, nesta ordem:
 A mensagem da conferência vazia no modo Institucional passou a explicar a regra
 de Cliente Comunicável em vez de falar em "carga".
 
+## Retomada em 2026-10-06
+
+Plano permanece em execução; não arquivar enquanto os itens abaixo estiverem
+pendentes. Produção observada com frontend `085520e7eb16`, projeto Supabase
+`fgmkhbzhaeebrsizwccx`. A sessão do Vela é Administrativo; a do Portal usa um
+Cliente de teste. Evidência detalhada em
+[relatório da retomada](../archive/reports/2026-10-06-remediacao-run-2-retomada.md).
+
+- **Runtime confirmado:** migrations `106`, `108`, `109`, `110` presentes;
+  `connect-src` dos dois domínios restringe Supabase ao projeto, sem wildcard.
+- **Comunicado parcialmente validado:** conferência institucional chegou ao
+  Cliente de teste; primeiro disparo falhou porque o catálogo estrutural estava
+  vazio. Dono autorizou reposição, executada em produção por INSERT idempotente
+  (dez pares da migration `002`), sem ligar envio real. Migration local `157`
+  registra a correção para replay e deploy pelo fluxo normal. Novo disparo
+  persistiu assunto, texto e hash do HTML, com navio/viagem nulos como exige o
+  institucional; porém a tentativa ficou `falha_permanente` em modo simulado.
+  Correção publicada com autorização do dono em 2026-10-06 (22:19 de Brasília):
+  `send-customer-communication` v169 e `demurrage-dunning` v166. Repetição
+  institucional confirmou comunicado `id=2`, status `simulado`, duas tentativas
+  `aceito`, sem erro/ID do provedor, e chave global desligada. Assunto, texto e
+  hash persistidos; navio/viagem nulos. Livre validado em produção (`id=3`): navio GREEN TAICANG, viagem 4 derivados
+  do B/L `CSC45370901400`, assunto/texto/hash persistidos, duas tentativas
+  aceitas em simulação. Texto simples com extensão `.pdf` recusado pela
+  Function antes da criação do comunicado/anexo. Falta envio real a
+  destinatário controlado. O registro anterior de falha permanece como
+  evidência; o runner Demurrage foi publicado, mas não executado neste teste.
+- **GitHub pendente:** environments `cloudflare-pages` e `supabase-branches`
+  existem, mas sem secrets e sem restrição de deployment branch. As três
+  credenciais e o secret legado continuam em Repository secrets. Repositório
+  agora privado (drift do plano); rulesets recusados com HTTP 403 por limitação
+  da conta. Dono precisa decidir/habilitar plano compatível; não tornar público
+  como alternativa automática. Único colaborador retornado pela API: dono,
+  com admin; deploy keys e aplicativos ainda precisam de revisão.
+- **Operação:** backup já possui bucket/chave dedicados, conforme evidência de
+  2026-10-05 no manual; sucesso da tarefa agendada seguinte ainda não observado.
+  Versões fixadas em `.mcp.json` e `opencode.json` na retomada. Vault mostra os
+  segredos antigos sem atualização; rotação em par com as Edge Functions ainda
+  pendente. `IMPORT_EFFECTS_CRON_SECRET` e `RECALC_CRON_SECRET` ausentes no Vault;
+  verificar procedimento/estado de ativação antes de provisionar ou agendar.
+- **Validação por identidade pendente:** PKCE no mesmo/outro navegador, Storage
+  e modal de Dispute com Equipamentos/Financeiro, importação com e-mail novo,
+  testes dos workflows com secrets nos environments. Captcha Auth conferido desligado no painel em 2026-10-06; sem alteração.
+- **Storage — teste de Equipamentos em 2026-10-06:** dono autorizou fixture ABF
+  sem cobrança/e-mail/pagamento. Invoice `id=1`, rascunho, USD 0, sem TXID;
+  Dispute `id=1`, documento `TEST-RUN2-DISPUTE-20261007`. Sessão real do André
+  (frontend `2159842`) gravou mensagem `id=1`, mas upload TXT retornou HTTP 500.
+  Log do banco: sessão Portal inválida (`28000`). Reproduzido localmente na
+  leitura RLS de Disputes; migration `158` troca a composição booleana por
+  `CASE`, preservando setores/autoria/estado/escopo. Treze testes SQL locais
+  passam, incluindo upload próprio permitido e Financeiro/outra autoria/
+  disputa fechada recusados. Aplicação autorizada em produção concluída em 2026-10-06 (22:45–22:46 de Brasília); reteste pela sessão do André gravou objeto TXT de 94 bytes e metadados de anexo `id=1`, mensagem `id=2`, com autoria correta. Sessão real de Financeiro (Thuani) conferida: fila/resposta/anexo ausentes; recusa direta no Storage com essa sessão ainda não executada (restrição SQL local aprovada).
+  Também observado: trigger de lifecycle devolve próximo responsável para
+  Equipamentos após resposta destinada ao Cliente; reproduzido localmente; migration `159` preparada para sincronizar somente mudanças reais de estado da Invoice, sem sobrescrever a próxima ação da conversa. Migration `159` aplicada em produção com autorização do dono; reteste pela sessão de Equipamentos confirmou `next_responder=cliente` na tela e no banco (mensagem `id=3`).
+
+Auth Hooks conferido no painel em 2026-10-06: organização Pro, sem hooks
+configurados; Password Verification Attempt exige Team/Enterprise. Confirma
+fallback D1(a), já implementado com HMAC/pepper. URL Configuration ainda usa
+Site URL `https://transhippingdesk.com.br` e oito redirects legados Vercel;
+registrado como drift a resolver antes de comprovar redirecionamentos Auth/PKCE.
+Nenhuma configuração alterada nesta conferência.
+
 ## Decisões
 
 Respondidas pelo dono em 2026-09-29: **D1 = (b)** (cai para (a) se o plano
@@ -103,7 +165,7 @@ na mesma PR que a documenta; nomes e locais de secrets, nunca valores.
    importação com e-mail de consignatário novo está falhando hoje.
    **Resposta (2026-09-29, leitura em produção):** o gatilho existe. Até a
    `106`, essas importações falhavam por inteiro; a `106` corrigiu o caminho.
-5. **#7, fato que falta.** Anotar em Authentication → Attack Protection se o
+5. **#7, fato conferido em 2026-10-06.** Captcha desligado no painel de produção. Anotar em Authentication → Attack Protection se o
    captcha está desligado; não ligar sem a Fase 3 (o `portal-login` não envia
    `captchaToken` e passaria a falhar para todos).
 6. Reforço: confirmar que `TURNSTILE_SECRET_KEY` existe nos secrets das Edge

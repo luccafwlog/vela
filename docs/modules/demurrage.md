@@ -369,3 +369,13 @@ flowchart LR
 - **Código — trigger de descarga limitado ao insert:** o trigger não reage a
   mudanças posteriores de `voyages.ata`; correções exigem import ou edição
   explícita das datas.
+
+### Próximo responsável da conversa
+
+A resposta de Equipamentos deve manter a próxima ação escolhida na conversa.
+A migration `159_dispute_preserve_next_responder.sql` impede que o trigger
+legado da Invoice sobrescreva essa decisão quando `dispute_open` e
+`dispute_status` não mudaram. Mudanças reais de lifecycle seguem sincronizadas.
+Reprodução e correção validadas em PostgreSQL local; migration aplicada em
+produção com autorização do dono em 2026-10-06. Repetição pela interface
+com Equipamentos confirmou próxima ação Cliente, tanto na tela quanto no banco.

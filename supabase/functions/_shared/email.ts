@@ -34,6 +34,8 @@ export type SendEmailInput = {
   attachments?: readonly EmailAttachment[]
   idempotencyKey: string
   resendApiKey?: string | null
+  /** Somente produtores com chave de envio desligada podem pedir simulação. */
+  simulate?: boolean
   from?: string | null
   replyTo?: string | null
   missingConfigurationMessage?: string
@@ -75,11 +77,20 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
   const suppression = await input.checkSuppression(input.to.toLowerCase())
   if (suppression.suppressed) return { ok: false }
 
-  if (input.resendApiKey && (!input.from || !input.replyTo)) {
+  if (!input.simulate && input.resendApiKey && (!input.from || !input.replyTo)) {
     throw new Error(input.missingConfigurationMessage ?? 'Remetente e reply-to são obrigatórios para envio real')
   }
 
   const attempt = await input.recordAttempt({ kind: input.kind, to: input.to, idempotencyKey: input.idempotencyKey })
+
+  if (input.simulate) {
+    if (attempt.existing && (attempt.providerMessageId || attempt.status === 'entregue')) return { ok: true }
+    if (attempt.existing && ['falha_permanente', 'bounce', 'complaint'].includes(attempt.status)) return { ok: false }
+    await input.updateAttempt(attempt.id, {
+      providerMessageId: null, retryCount: 0, status: 'aceito', lastError: undefined,
+    })
+    return { ok: true }
+  }
 
   if (!input.resendApiKey) {
     await input.updateAttempt(attempt.id, {
