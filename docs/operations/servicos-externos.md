@@ -209,10 +209,14 @@ estava sem branches persistentes ou de Preview na conferência de 2026-10-07.
   `fgmkhbzhaeebrsizwccx`, com `Development Branches: Read` e `API Keys: Read`,
   validade de 90 dias (até 2027-01-05), além de `PREVIEW_ADMIN_PASSWORD`.
   `API Keys: Read` é necessário para o CLI obter as chaves públicas da branch;
-  `API Key Secrets: Read` não foi concedido. O secret do environment foi
-  atualizado após reautenticação no GitHub em 2026-10-07. As cópias
-  Repository-level ainda existem; para jobs desse environment, a credencial
-  dele prevalece. O PAT anterior permanece até a validação do substituto.
+  `API Key Secrets: Read` não foi concedido. O secret do environment teve
+  atualização registrada em 2026-10-07, mas o workflow Cloudflare seguinte
+  falhou e o painel Supabase ainda mostrava o PAT v3 como nunca usado; portanto,
+  a credencial efetiva não está validada. Uma nova submissão do secret não teve
+  confirmação de conclusão. O PAT v3 apareceu em texto numa saída de
+  acessibilidade e deve ser tratado como exposto; sua revogação ficou pendente
+  por decisão do dono. As cópias Repository-level ainda existem; para jobs
+  desse environment, a credencial dele prevalece.
 - **Senha do banco:** só alfanumérica; guardada em `supabase-db-vela` (iCloud
   Senhas) e usada apenas pelo backup. Nada no repositório usa essa senha.
 - **Usuário técnico do Auth:**

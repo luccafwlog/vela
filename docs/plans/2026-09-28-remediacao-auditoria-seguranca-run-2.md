@@ -139,13 +139,19 @@ As pendências executáveis restantes são:
 
 1. **GitHub e credenciais:** os secrets estão nos environments
    `cloudflare-pages`, `supabase-branches` e `cloudflare-production`. O secret
-   `SUPABASE_ACCESS_TOKEN` em `supabase-branches` foi substituído em
-   2026-10-07 por PAT restrito ao projeto Vela com `Development Branches: Read`
-   e `API Keys: Read`, validade de 90 dias; atualização confirmada nos
-   metadados do GitHub após reautenticação. Validar os workflows; depois
-   remover as cópias antigas dos Repository secrets, inclusive
-   `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`, e aposentar o PAT anterior.
-   Nenhum valor de credencial foi registrado.
+   `SUPABASE_ACCESS_TOKEN` em `supabase-branches` teve atualização registrada
+   em 2026-10-07 após reautenticação, mas a credencial efetiva não está
+   validada: o PAT v3 de 90 dias, escopado ao projeto Vela com
+   `Development Branches: Read` e `API Keys: Read`, ainda aparecia como nunca
+   usado no painel Supabase; o workflow Cloudflare falhou em `branches get`
+   (run `37638412558`). Uma segunda submissão do secret não teve confirmação
+   de conclusão. O valor do PAT v3 apareceu em texto numa saída de
+   acessibilidade; deve ser tratado como exposto. O dono interrompeu a
+   revogação e substituição desse PAT. Não executar novo workflow de Preview
+   até a credencial ser regularizada. Nenhum valor de credencial foi registrado.
+   Depois validar os workflows, remover as cópias antigas dos Repository
+   secrets, inclusive `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`, e
+   aposentar os tokens anteriores.
 2. **Acessos e proteção:** revisar/remover a deploy key
    `Codex workspace - Transhipping Desk` (`read/write`) e criar o ruleset para
    `.github/workflows/**`. A conta atual recebeu HTTP 403 ao tentar criar
