@@ -22,7 +22,10 @@ describeLocal.each([
   it('restaura a linha ausente dentro de uma transação descartável', () => {
     const result = localPsql(`
       BEGIN;
+      -- Simula a linha ausente: o gatilho da 156 bloqueia DELETE.
+      ALTER TABLE public.app_settings DISABLE TRIGGER app_settings_block_delete;
       DELETE FROM public.app_settings WHERE id = 1;
+      ALTER TABLE public.app_settings ENABLE TRIGGER app_settings_block_delete;
       ${migration}
       SELECT concat_ws('|', id::text, communications_enabled::text, demurrage_dunning_interval_days::text)
       FROM public.app_settings
@@ -52,7 +55,10 @@ describeLocal.each([
   it('linha restaurada nasce com a integração Itaú desligada', () => {
     const result = localPsql(`
       BEGIN;
+      -- Simula a linha ausente: o gatilho da 156 bloqueia DELETE.
+      ALTER TABLE public.app_settings DISABLE TRIGGER app_settings_block_delete;
       DELETE FROM public.app_settings WHERE id = 1;
+      ALTER TABLE public.app_settings ENABLE TRIGGER app_settings_block_delete;
       ${migration}
       SELECT concat_ws('|', pix_provider, itau_pix_expiration_seconds::text, coalesce(itau_pix_settlement_actor::text, 'sem-ator'))
       FROM public.app_settings
@@ -61,5 +67,27 @@ describeLocal.each([
     `)
 
     expect(result).toBe('static|2592000|sem-ator')
+  })
+})
+
+describeLocal('migration 156 — singleton app_settings não pode ser apagado', () => {
+  const attempt = (sql: string) => {
+    try {
+      return localPsql(`BEGIN; ${sql}; ROLLBACK;`)
+    } catch (error) {
+      return String((error as { stderr?: string }).stderr ?? error)
+    }
+  }
+
+  it('recusa DELETE, TRUNCATE e TRUNCATE em cascata de user_profiles', () => {
+    expect(attempt('DELETE FROM public.app_settings WHERE id = 1')).toMatch(/não pode ser apagada \(DELETE\)/)
+    expect(attempt('TRUNCATE public.app_settings')).toMatch(/não pode ser apagada \(TRUNCATE\)/)
+    expect(attempt('TRUNCATE public.user_profiles CASCADE')).toMatch(/não pode ser apagada \(TRUNCATE\)/)
+    expect(localPsql('SELECT count(*) FROM public.app_settings WHERE id = 1')).toBe('1')
+  })
+
+  it('UPDATE continua permitido', () => {
+    expect(localPsql(`BEGIN; UPDATE public.app_settings SET demurrage_dunning_interval_days = 9 WHERE id = 1;
+      SELECT demurrage_dunning_interval_days FROM public.app_settings WHERE id = 1; ROLLBACK;`)).toBe('9')
   })
 })
