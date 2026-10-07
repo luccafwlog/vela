@@ -91,12 +91,22 @@ function assertMoney(amount: string): void {
 
 function assertCob(cob: unknown, txid: string): ItauCob {
   const c = cob as Partial<ItauCob> | null
+  // A especificação diz inteiro, mas o sandbox devolveu "3600" (2026-10-06): aceitar
+  // também o inteiro escrito como texto, e só ele.
+  const raw: unknown = c?.calendario?.expiracao
+  const expiracao = typeof raw === 'string' && /^\d{1,9}$/.test(raw) ? Number(raw) : raw
   if (!c || c.txid !== txid || !Number.isSafeInteger(c.revisao) || typeof c.status !== 'string' ||
-      !c.calendario || !Number.isSafeInteger(c.calendario.expiracao) ||
+      !c.calendario || !Number.isSafeInteger(expiracao) ||
       !c.valor || typeof c.valor.original !== 'string' || !MONEY.test(c.valor.original)) {
     throw new ItauPixError('Resposta do Itaú não confirma a cobrança; consultar antes de repetir.', 502, cob)
   }
-  return c as ItauCob
+  return { ...c, calendario: { ...c.calendario, expiracao: expiracao as number } } as ItauCob
+}
+
+// RFC 3339 sem milissegundos: o sandbox recusou inicio/fim com fração de segundo (2026-10-06).
+// Truncar não perde Pix: a consulta de recebimentos já sobrepõe 10 min à janela anterior.
+function rfc3339Seconds(value: string): string {
+  return new Date(value).toISOString().replace(/\.\d{3}Z$/, 'Z')
 }
 
 export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fetch) {
@@ -201,7 +211,7 @@ export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fet
       if (!Number.isFinite(Date.parse(inicio)) || !Number.isFinite(Date.parse(fim))) throw new ItauPixError('Período inválido.', 400)
       const all: ItauPix[] = []
       for (let page = 0; page < maxPages; page++) {
-        const query = new URLSearchParams({ inicio, fim, 'paginacao.paginaAtual': String(page) })
+        const query = new URLSearchParams({ inicio: rfc3339Seconds(inicio), fim: rfc3339Seconds(fim), 'paginacao.paginaAtual': String(page) })
         const body = await call('GET', `/pix?${query}`) as { pix?: ItauPix[]; parametros?: { paginacao?: { quantidadeDePaginas?: number } } }
         all.push(...(body?.pix ?? []))
         const pages = body?.parametros?.paginacao?.quantidadeDePaginas ?? 1

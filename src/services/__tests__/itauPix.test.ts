@@ -55,6 +55,21 @@ describe('cliente Itaú Pix', () => {
     await expect(wrongValue.createCob(txid, '0.01', 3600)).rejects.toThrow('diferente do pedido')
   })
 
+  it('aceita a validade como inteiro em texto, como o sandbox devolveu, e recusa o resto', async () => {
+    const txid = newVelaTxid()
+    const reply = (expiracao: unknown) => createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse())
+      .mockResolvedValueOnce(Response.json(cob(txid, { calendario: { criacao: '2026-10-06T12:00:00Z', expiracao } }))))
+    expect((await reply('3600').createCob(txid, '0.01', 3600)).calendario.expiracao).toBe(3600)
+    for (const bad of ['36a0', '-1', '3600.5', '', null]) await expect(reply(bad).getCob(txid)).rejects.toThrow('não confirma')
+  })
+
+  it('GET /pix envia o período sem milissegundos, formato aceito pelo Itaú', async () => {
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json({ pix: [] }))
+    await createItauPixClient(config, fetchMtls).listPix('2026-10-06T01:47:07.506Z', '2026-10-07T01:47:07.506Z')
+    const url = new URL(fetchMtls.mock.calls[1][0])
+    expect([url.searchParams.get('inicio'), url.searchParams.get('fim')]).toEqual(['2026-10-06T01:47:07Z', '2026-10-07T01:47:07Z'])
+  })
+
   it('alteração que encontra a COB paga não é sucesso', async () => {
     const txid = newVelaTxid()
     const client = createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse())
@@ -277,7 +292,7 @@ describe('consulta de recebimentos', () => {
     expect(s.settle).toHaveBeenCalledTimes(1)
     expect(s.settle).toHaveBeenCalledWith({ endToEndId: 'E1', txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' })
     const url = new URL(fetchMtls.mock.calls[1][0])
-    expect(url.searchParams.get('inicio')).toBe('2026-10-06T11:50:00.000Z') // 10 min antes do checkpoint
+    expect(url.searchParams.get('inicio')).toBe('2026-10-06T11:50:00Z') // 10 min antes do checkpoint, sem milissegundos
     expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
   })
 
@@ -285,7 +300,7 @@ describe('consulta de recebimentos', () => {
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([]))
     const s = sink('2026-10-01T00:00:00.000Z')
     await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:00:00Z'))
-    expect(new URL(fetchMtls.mock.calls[1][0]).searchParams.get('fim')).toBe('2026-10-01T05:50:00.000Z')
+    expect(new URL(fetchMtls.mock.calls[1][0]).searchParams.get('fim')).toBe('2026-10-01T05:50:00Z')
     expect(s.saved).toEqual(['2026-10-01T05:50:00.000Z'])
   })
 
