@@ -5,11 +5,29 @@ const PAGE_SIZE = 25
 export const PAGES_PROJECTS = Object.freeze(['vela-internal', 'vela-portal'])
 
 class CloudflareApiError extends Error {
-  constructor(method, endpoint, status, errors = []) {
+  constructor(method, endpoint, status, errors = [], { accountId, apiToken } = {}) {
     const codes = Array.isArray(errors)
       ? [...new Set(errors.map((error) => error?.code).filter(Number.isInteger))]
       : []
-    const detail = codes.length > 0 ? `; Cloudflare error codes: ${codes.join(', ')}` : ''
+    const messages = Array.isArray(errors)
+      ? errors
+        .map((error) => error?.message)
+        .filter((message) => typeof message === 'string' && message.length > 0)
+        .slice(0, 3)
+        .map((message) => message
+          .replaceAll(apiToken ?? '\0', '[redacted-token]')
+          .replaceAll(accountId ?? '\0', '[redacted-account-id]')
+          .replace(/Bearer\s+\S+/gi, 'Bearer [redacted-token]')
+          .replace(/[\u0000-\u001f\u007f]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 200))
+      : []
+    const details = [
+      ...(codes.length > 0 ? [`Cloudflare error codes: ${codes.join(', ')}`] : []),
+      ...(messages.length > 0 ? [`Cloudflare error messages: ${messages.join(' | ')}`] : []),
+    ]
+    const detail = details.length > 0 ? `; ${details.join('; ')}` : ''
     super(`Cloudflare Pages API ${method} ${endpoint} failed (HTTP ${status}${detail})`)
     this.name = 'CloudflareApiError'
     this.status = status
@@ -60,10 +78,10 @@ export function createPagesProvisioner({ accountId, apiToken, fetchImpl = fetch,
     try {
       payload = await response.json()
     } catch {
-      throw new CloudflareApiError(method, '/pages/projects', response.status)
+      throw new CloudflareApiError(method, '/pages/projects', response.status, [], { accountId, apiToken })
     }
     if (!response.ok || payload?.success !== true) {
-      throw new CloudflareApiError(method, '/pages/projects', response.status, payload?.errors)
+      throw new CloudflareApiError(method, '/pages/projects', response.status, payload?.errors, { accountId, apiToken })
     }
     return payload
   }
