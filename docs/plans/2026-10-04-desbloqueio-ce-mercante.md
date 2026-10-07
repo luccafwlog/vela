@@ -10,15 +10,38 @@
 
 **Spec:** [desenho funcional](../spec/2026-10-04-desbloqueio-ce-mercante-design.md).
 
-Estado: execução autorizada pelo usuário; implementação no checkout em validação
-local. Publicação, PDF oficial e homologação externa ainda pendentes.
+**Estado reconciliado em 2026-10-07:** implementação integrada no código da
+`main`; publicação e operação remotas não conferidas nesta reconciliação.
+PDF oficial e homologação externa seguem sem evidência de conclusão.
+
+**Como ler o checklist:** `[x]` registra o resultado específico comprovado pela
+fonte indicada; `[ ]` registra trabalho ou evidência ainda necessários. Um teste
+existente não equivale a execução recente, e código integrado não comprova deploy.
+Itens que misturavam implementação e aceite foram separados.
 
 Contratos executados usam tipos snake_case, `ce_unlock_read` e dispatchers
-`ce_unlock_command`/`portal_ce_unlock_command` com allowlists, em vez das funções
-individuais propostas abaixo. Regras/layout estão em `ceUnlockRules.ts`.
-Migrations `137`–`144` são novas; tipos gerados e migrations anteriores preservados.
-As listas de testes abaixo são metas do plano: checkbox aberto não comprova
-ausência de implementação; a evidência da execução está no módulo e no relatório.
+`ce_unlock_command`/`portal_ce_unlock_command` com allowlists. Os serviços do
+Portal estão em `ceUnlockService.ts`; regras/layout e seus testes estão em
+`ceUnlockRules.ts` e `ceUnlockRules.test.ts`. Os nomes de interfaces/arquivos
+propostos nas tarefas abaixo são referência do desenho inicial, não arquivos
+faltantes quando substituídos por esses donos. O bloco CE atual é `139`–`149`;
+`137`–`138` pertencem à Central de Informações. Tipos gerados preservados.
+
+Fontes da reconciliação:
+
+- **Código:** [módulo vivo](../modules/desbloqueio-ce.md),
+  [serviço](../../src/services/ceUnlockService.ts),
+  [tipos](../../src/types/ceUnlock.ts) e migrations `139`–`149` no checkout.
+- **Teste:** [suíte SQL local](../../src/integration/ceUnlock.local-pg.test.ts)
+  contém cenários de isolamento, financeiro, VIP, concorrência e histórico;
+  exige ambiente descartável e habilitação explícita. Não executada novamente
+  nesta reconciliação.
+- **Teste:** 20 testes focados em nove arquivos de regras, PDF, serviços, cache,
+  páginas e componentes passaram na análise desta sessão em 2026-10-07.
+- **Teste/Runtime históricos:** [relatório local de 2026-10-05](../archive/reports/2026-10-04-desbloqueio-ce-implementacao.md)
+  registra gates, 21 cenários SQL e navegador local com shims. Sua descrição
+  de branch sem push/PR e numeração antiga de migrations é histórica; não
+  descreve a integração atual na `main`. Não comprova ambiente remoto.
 
 ## Restrições globais
 
@@ -44,17 +67,14 @@ ausência de implementação; a evidência da execução está no módulo e no r
 4. Retry/concorrência/reenvio: evitar pedido duplicado e aprovação de documento antigo.
 5. CE corrigido ou B/L compartilhando pedido com outro pendente: preservar andamento individual e snapshot.
 
-## Evidência e mapa do código atual
+## Mapa do código atual
 
-Inspecionados `src/AppInterno.tsx`, `src/AppPortal.tsx`,
-`src/components/layout/appLayoutNav.ts`, `src/components/layout/PortalLayout.tsx`,
-`src/services/portalScope.ts`, `src/services/portalRpcContracts.ts`,
-`src/services/billingLedger.ts`, `src/services/portalBilling.ts`,
-`src/services/queryKeys.ts`, `src/services/cacheEffects.ts` e
-`supabase/functions/portal-dispute-attachment/index.ts`.
-Não há módulo de solicitação de desbloqueio nesses caminhos. O pagamento local
-usa `bl_receivables`, liquidações e vínculos de invoice; não usar um booleano
-do navegador ou status de invoice como fonte única.
+Portal e Vela têm páginas, hooks e componentes de Desbloqueio de CE, ligados
+às rotas, permissões e famílias de cache existentes. O dono de acesso é
+`ceUnlockService.ts`; o banco revalida pagamento e transições. Pagamento usa
+`bl_receivables`, liquidações e vínculos de invoice do Cliente atual, sem usar
+um booleano do navegador ou status isolado de invoice como prova.
+A ausência do módulo descrita no levantamento inicial foi superada pela implementação.
 
 ## Tarefa 1 — Homologar regras e contratos de domínio
 
@@ -76,13 +96,12 @@ Filtros públicos não recebem `customerId`; listas públicas retornam somente
 dados autorizados pela sessão. Datas de negócio usam timezone do cliente na
 apresentação; timestamps persistidos continuam UTC.
 
-- [ ] Confirmar entrega física, matriz de papéis, modelo oficial e assinatura/validade dos documentos, retenção, isenção e ajustes locais. Registrar cada decisão na spec.
-- [ ] Esclarecer “CS”; se for entidade distinta, revisar spec/contratos antes das tarefas afetadas. Não inferir que significa CE.
-- [x] Registrar o layout ZPT informado pelo usuário: BL e quatro colunas de requisitos, e a regra de documentos anuais VIP por CNPJ.
-- [x] Registrar validade VIP confirmada pelo usuário: até 31/12 do ano correspondente, sem renovação automática em janeiro.
-- [ ] Validar um exemplo das cinco colunas ZPT com status propostos Sim/Não e aprovação anual na spec.
-- [x] Definir tipos acima e mensagens públicas de impedimento, com requisitos separados do andamento externo. Registrar `layoutVersion` e `modelVersion` obrigatórios nos respectivos contratos.
-- [ ] Rever spec/plano com responsável operacional. A confirmação das hipóteses libera execução, não publicação.
+- [x] Registrar os defaults de execução autorizados para entrega, papéis, retenção e indicadores Sim/Não, conforme decisões do relatório local. Isso não substitui aceite operacional/jurídico.
+- [x] Registrar a decisão de execução de não criar entidade distinta “CS”, conforme relatório local.
+- [x] Registrar as cinco colunas ZPT, documentos anuais VIP por CNPJ e validade até 31/12 sem renovação automática.
+- [x] Implementar tipos, versões, requisitos e motivos públicos separados do andamento externo. **Código:** `ceUnlock.ts`; layout usa `layout_version`, e o pedido referencia `model_id`, em vez de exigir os nomes `layoutVersion`/`modelVersion` inicialmente propostos.
+- [ ] Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec; cadastrar o PDF oficial fornecido pelo responsável.
+- [ ] Homologar a amostra XLSX e os indicadores Sim/Não com responsável/ZPT; revisar spec/plano no aceite.
 
 ## Tarefa 2 — Persistência, autorização e requisito financeiro
 
@@ -99,17 +118,16 @@ Resposta paginada `{items, total, page, page_size:25}`.
 `portal_create_ce_unlock_draft(p_bl_ids text[], p_request_key uuid) -> jsonb`;
 `portal_submit_ce_unlock_request(p_request_id uuid, p_expected_version bigint, p_request_key uuid) -> jsonb`.
 
-- [ ] Escrever testes SQL reais: cliente A não acessa B; anonymous/cliente não invocam ação interna; BL sem CE/importação/autorização, sem recebível ou parcialmente pago não envia; consolidada paga liquida os BLs certos; baixa cancelada e obrigação de COD removem aptidão.
-- [x] Rodar esses casos no Postgres local descartável conforme `WORKFLOW.md` §5/§11; verificar falha antes das funções novas. Nenhum teste contra produção.
-- [x] Criar entidades propostas na spec, FKs, RLS/grants, eventos append-only, índices de filtros, limite de seleção e unicidade do pedido ativo. Reservar B/Ls em ordem estável sob lock; enviar é transação indivisível. Rascunho não congela elegibilidade financeira.
-- [x] Criar condição/cobertura anual VIP por CNPJ e referências às versões documentais usadas por item. Guardas cliente/desk aplicam o mesmo escopo a documentos anuais; origem/validade não podem ser declaradas pelo navegador como prova de aprovação.
-- [ ] Testar VIP com dois documentos vigentes enviando vários pedidos sem anexos; ausência, análise pendente, vencimento, revogação, perda de VIP ou documento de outro CNPJ bloqueiam envio sem anexos. VIP continua impedido por pagamento parcial e falta de original na exportação.
-- [x] Implementar o helper pela última definição executável do ledger e ajustes locais homologados. Cobertura exige liquidação e saldo exigível zero; isenção segue a decisão explícita da tarefa 1. Não duplicar cálculo no frontend.
-- [x] Implementar leituras e rascunho/envio; cliente derivado de sessão ativa, payload público por allowlist. Idempotência devolve o mesmo resultado para mesma chave/payload e recusa chave reutilizada com payload diferente.
-- [ ] Testar dois pedidos concorrentes para o mesmo B/L e cancelamento de baixa concorrente ao envio. Coordenar locks com o dono financeiro existente, sem lock global; mudança financeira posterior deve aparecer nas leituras.
-- [ ] Testar B/L cancelado e B/L com CE removido/corrigido: impedir envio/exportação, preservar pedido/histórico e exigir reconferência explícita do CE corrigido; bloquear nova confirmação usando o CE anterior.
-- [x] Rodar `npm run migrations:check`, `npm run rpc:check`, testes focados e replay real do banco local; registrar separadamente limitações dos shims.
-- [x] Commit da fundação com evidência local, sem aplicação remota.
+- [x] Implementar entidades, FKs, RLS/grants, eventos, seleção até 100 B/Ls, reserva ativa, locks, versões e idempotência. **Código:** migrations CE e dispatchers.
+- [x] Implementar cobertura anual por CNPJ e referências documentais por item; envio revalida a elegibilidade, sem congelar o pagamento no rascunho.
+- [x] Implementar pagamento pelo ledger do Cliente atual, com liquidação real e saldo exigível zero; bloquear pendências financeiras de troca de CNPJ. **Código:** migration `149`.
+- [x] Disponibilizar testes SQL de escopo/papéis, pagamento parcial, cobertura VIP, revogação, troca de Cliente, versões e confirmação por B/L. **Teste:** `ceUnlock.local-pg.test.ts`; existência conferida, sem nova execução nesta revisão.
+- [x] Registrar replay local descartável, testes SQL e gates de migrations/RPC da entrega original; registrar limitações dos shims. **Teste histórico:** relatório local, sem aplicação remota.
+- [x] Integrar a fundação e correções na `main`; a antiga etapa de commit isolado está superada.
+- [ ] Completar/demonstrar a matriz SQL originalmente prevista: anonymous, B/L sem importação/CE/recebível, consolidada parcialmente paga e obrigação de COD.
+- [ ] Demonstrar concorrência de dois pedidos para o mesmo B/L e cancelamento de baixa durante envio/exportação; os testes existentes de reversão na confirmação e cancelamento no registro de envio não cobrem essas mesmas transições.
+- [ ] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original.
+- [ ] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa; teste de CE divergente na confirmação não encerra a matriz.
 
 ## Tarefa 3 — Documentos e análise interna auditável
 
@@ -137,17 +155,15 @@ RPCs internas `set_ce_unlock_vip`, `review_ce_unlock_vip_document`,
 `portal_create_ce_unlock_vip_coverage(p_request_key uuid)` e consulta
 `portal_get_ce_unlock_vip_coverage()` com wrapper de inspeção.
 
-- [ ] Criar testes para PDF falso, vazio/acima de 10 MiB, quota/rate limit, caminho de outro cliente, sessão revogada, download sem permissão e escrita por papel não autorizado. Falha de upload/registro não gera pedido enviado.
-- [ ] Rodar testes focados, confirmando falhas iniciais. Usar padrão de teste existente da função de anexos; não criar framework.
-- [ ] Implementar bucket privado e upload server-side autenticado com magic bytes, hash e caminhos gerados no servidor; sem upsert nem escrita direta do Portal. Rate limit atômico cobre tentativas. Limpeza via Storage API, nunca DELETE de `storage.objects`.
-- [ ] Implementar download autenticado para cliente dono e desk autorizado; recusar Financeiro/Operações e acesso via IDs adulterados; incluir leitura autorizada em inspeção. Modelo oficial versionado tem download separado do anexo privado.
-- [ ] Implementar análise por B/L/versionamento. Nova procuração invalida só aprovação de procuração; novo termo invalida só aprovação de termo. Rejeição pede justificativa pública; metadados internos não vazam.
-- [ ] Implementar análise anual separada, com datas explícitas e aprovação/revogação por CNPJ, upload também pelo desk e histórico VIP. Documento novo pendente não substitui documento anual vigente; aplicação de renovação a pedidos pendentes exige ação auditada. Cobertura anual aprovada elimina reaprovação por pedido.
-- [ ] Testar aprovação permitindo uso até 31/12 inclusive em America/Sao_Paulo, expiração em 01/01, fim diferente de 31/12 do ano declarado recusado, termo vigente/procuração vencida, revogação, pedido atravessando vencimento e renovação aplicada a múltiplos itens sem alterar snapshots antigos.
-- [ ] Registrar entrega física por B/L independente do pedido e reversão com motivo. Cancelar mantém histórico, solta reserva ativa; B/L com exportação já enviada exige tratamento operacional e não promessa de desfazer ação externa.
-- [ ] Testar aprovação com versão antiga, reenvio, pedido com dois B/Ls em estados diferentes e retry sem duplicação de eventos.
-- [ ] Validar retenção homologada e expurgo de rascunhos após 7 dias em job server-only com teste de preservação de documentos de pedidos enviados; rodar testes e gates SQL, commit.
-- [ ] Testar que expurgo de rascunhos não apaga documento anual por estar sem pedido; incluir documentos VIP nas quotas e retenção homologadas.
+- [x] Implementar bucket privado, upload autenticado, PDF até 10 MiB, assinatura, hash, caminho server-side, quotas/rate limit e ausência de upsert. **Código:** handler, helper de arquivo e RPCs documentais.
+- [x] Implementar download com autorização atual e URL curta, leitura em inspeção e modelo versionado; análise/versionamento por B/L e análise anual por CNPJ.
+- [x] Implementar entrega/reversão independente por B/L e cancelamento auditado que libera reserva, preservando histórico e separando ação externa.
+- [x] Implementar expurgo server-only com reivindicação antes de remoção via Storage API e preservação de modelo/anuais vigentes; agendamento é etapa operacional separada.
+- [x] Disponibilizar testes de PDF falso/vazio/tamanho/corpo, falha de upload, resposta de finalização perdida, versão antiga/substituída, reenvio, revogação e expurgo sob lock. **Teste:** suites CE, handler Deno e suíte SQL; execução histórica conforme relatório, sem afirmar falha inicial de todos os casos.
+- [ ] Completar/demonstrar matriz de quota/rate limit, caminhos de outro CNPJ, sessão revogada e downloads/papéis no serviço gerenciado real.
+- [ ] Completar matriz anual: termo vigente/procuração vencida, pedido atravessando vencimento e renovação aplicada a múltiplos itens sem alterar snapshots antigos. Limites 31/12–01/01 e ano inválido já têm teste unitário.
+- [ ] Demonstrar retry sem eventos duplicados e preservação de documentos enviados/anuais no expurgo, incluindo anuais sem pedido e quotas VIP.
+- [ ] Homologar retenção e configurar segredo/job de expurgo no ambiente autorizado; validar remoção física e retry no Storage real.
 
 ## Tarefa 4 — Portal: selecionar, solicitar e acompanhar
 
@@ -168,14 +184,13 @@ Testes: `src/pages/__tests__/PortalDesbloqueioCe.test.tsx` e dispatcher existent
 `usePortalCeUnlock(scope)` usa esses contratos; famílias de query keys incluem
 modo, cliente de inspeção, filtros, paginação e ID, sem compartilhar caches entre CNPJs.
 
-- [ ] Escrever testes de UI: um/múltiplos B/Ls pagos, BL com dívida visível/impedido, modelo disponível, dois anexos obrigatórios para cliente comum, confirmação antes do envio, correção/reenvio e falha de rede preservando chave idempotente.
-- [ ] Implementar aba Documentos anuais para VIP: apresentar/corrigir PDFs sem selecionar B/L ou quitar taxas, consultar vigência/status e origem anual nos pedidos. Cliente com cobertura vigente solicita sem campos de upload obrigatório; cobertura irregular orienta regularização. Registrar os contratos de leitura/inspeção e escrita no dispatcher.
-- [ ] Testar VIP válido sem anexos, expirado/pendente com orientação clara, cliente comum com anexos obrigatórios e inspeção VIP somente leitura. Renovação em análise mantém cobertura anterior ainda vigente.
-- [ ] Rodar testes para verificar falha inicial; implementar página e componentes com estados loading/erro/vazio, desktop/mobile e navegação por teclado.
-- [x] Integrar menu/rotas/preload/título, atalho na operação e inspeção. Dispatcher recusa escrita em inspeção; não depender só de botão oculto.
-- [x] Registrar contratos novos no mapa Portal/inspeção e catálogo RPC; invalidar pedido/listas após mutação. Recarregar requisito financeiro no foco da janela e após sucesso financeiro na mesma sessão.
-- [ ] Testar BL que perde pagamento entre seleção e envio: pedido não enviado e motivo por B/L. Testar inspeção sem ações e URLs construídas por `portalPath`.
-- [ ] Rodar testes focados e `npm run typecheck`; commit do Portal.
+- [x] Implementar seleção, rascunho, envio/correção/reenvio, requisitos, histórico e aba Documentos anuais VIP, com cobertura vigente dispensando reanexação. **Código:** página Portal, hook e painel VIP.
+- [x] Integrar menu, rotas, preload, título, atalho e inspeção somente leitura; registrar RPCs e caches, incluindo refetch no foco e invalidação financeira.
+- [x] Disponibilizar testes de seleção paga, cobertura VIP, inspeção sem seleção, anexos obrigatórios, reenvio parcial e remoção de seleção inelegível. **Teste:** `PortalDesbloqueioCe.test.tsx` e serviço; passaram nos checks focados desta sessão.
+- [x] Registrar observação local de seleção/rascunho, envio bloqueado sem anexos e mobile a 390 px. **Runtime histórico:** relatório; login por CNPJ e gateway real não foram cobertos.
+- [x] Integrar Portal na `main`; typecheck da entrega original registrado no relatório.
+- [ ] Completar testes de modelo disponível, confirmação, correção completa e retry de rede preservando chave idempotente; demonstrar VIP expirado/pendente e renovação em análise na UI.
+- [ ] Validar teclado, login real por CNPJ, upload/reenvio e perda de pagamento entre seleção e envio, com atualização visível e URLs de inspeção.
 
 ## Tarefa 5 — Vela: página de gestão por B/L
 
@@ -194,13 +209,13 @@ RPCs `list_ce_unlock_bls(p_filters jsonb, p_page integer)` e
 Capacidades novas `ce_unlock_read`, `ce_unlock_manage`, `ce_unlock_documents`
 aplicam matriz da spec tanto em UI quanto em servidor.
 
-- [ ] Escrever testes de filtro Sem solicitação, exclusão de B/L sem CE, paginação, pedido misto e matriz de ações/documentos. Operações/Financeiro não recebem anexo sensível nem na resposta de detalhes.
-- [ ] Rodar testes e implementar item **Desbloqueio de CE** em Importação, filtros, quatro colunas de requisitos e detalhe do protocolo com histórico.
-- [x] Integrar análise, entrega/reversão e cancelamento com confirmação; lote mostra B/Ls afetados, bloqueados e consequência. Pagamento sempre somente leitura.
-- [x] Implementar seção VIP/documentos anuais na ficha do cliente: habilitar/revogar VIP, registrar documentos, revisar vigência, aprovar/solicitar correção, renovar e aplicar cobertura a itens pendentes, conforme permissões da tarefa 3. Mostrar selo/origem/validade na fila e link à ficha.
-- [ ] Testar que aprovar cobertura anual atende termo/procuração nos pedidos do CNPJ sem cliques por pedido, que VIP não permite marcar pagamento, e que mudança de cobertura invalida caches da ficha, fila e Portal sem afetar outro CNPJ.
-- [x] Adicionar família CE às invalidações financeiras e de carga, com testes para baixa cancelada e CE corrigido. Refetch ao focar/reabrir tela cobre mudanças vindas da outra SPA; backend continua autoritativo.
-- [ ] Rodar testes focados de página, navegação, permissões e cache; commit da gestão.
+- [x] Implementar item Desbloqueio de CE em Importação, filtros, requisitos, protocolo/histórico, análise, entrega/reversão, cancelamento e confirmações. Pagamento somente leitura.
+- [x] Implementar seção VIP na ficha do Cliente, documentos anuais, aprovação/vigência, renovação e aplicação aos itens pendentes, conforme permissões.
+- [x] Integrar cache financeiro/carga, refetch no foco e limpeza do cache privado no logout do Portal. **Código/Teste:** efeitos de cache e teste de atualização financeira CE.
+- [x] Disponibilizar testes de B/L sem pedido, dívida, ações restritas para Financeiro/Operações e remoção de seleção inelegível. **Teste:** página interna e componentes; passaram nos checks focados desta sessão.
+- [x] Integrar gestão na `main`; execução local original de navegação/gates registrada no relatório.
+- [ ] Completar matriz de filtros Sem solicitação, exclusão sem CE, paginação e pedidos mistos, incluindo projeção de anexos sensíveis por papel.
+- [ ] Demonstrar aplicação anual e invalidação de ficha/fila/Portal entre CNPJs; validar atualização observável entre as duas SPAs, não apenas invalidação no mesmo cache.
 
 ## Tarefa 6 — Exportação ZPT e confirmação de desbloqueio
 
@@ -212,20 +227,21 @@ validando um exemplo antes do aceite. Não criar coluna CE/VIP nem exigir API ZP
 criar `supabase/functions/ce-unlock-export/index.ts`,
 `src/services/ceUnlockZptLayout.ts` (descrição tipada do layout homologado),
 `src/services/__tests__/ceUnlockZptLayout.test.ts`; modificar página/hook internos.
-Fixture anonimizada homologada em `test-fixtures/ce-unlock/`.
+Amostra fictícia em `test-fixtures/ce-unlock/`, ainda sem homologação externa.
 
 **Interfaces:** `createCeUnlockExport({blIds, layoutVersion, requestKey}) -> Promise<CeUnlockExport>`;
 `markCeUnlockExportSent({exportId, reference, requestKey}) -> Promise<CeUnlockExport>`;
 `confirmCeUnlock({requestId, blId, ceMercante, externalReference, expectedVersion, requestKey}) -> Promise<CeUnlockItem>`.
 RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock`.
 
-- [ ] Escrever teste da planilha com exatamente as cinco colunas e ordem definidas, B/L como texto preservando zeros, estados Sim/Não e sanitização canônica. VIP com cobertura vigente gera Sim para termo/procuração, e VIP sem cobertura não é exportado como apto. CE e VIP ficam fora do arquivo.
-- [ ] Escrever teste SQL real de bloqueio por cada requisito, cancelamento de baixa concorrente à exportação, CE alterado, snapshot imutável e retry do mesmo lote. Recusar o lote selecionado se ficar inelegível; UI permite revisar seleção e reenviar.
-- [ ] Testar documento anual que vence ou é revogado entre envio do pedido e exportação; bloquear item ainda não desbloqueado, preservar lote anterior e exigir cobertura atual. Lote registra internamente origem/versão/vigência documental.
-- [x] Implementar lote transacional/snapshot e geração server-side. Falha ao gerar arquivo deixa lote em falha recuperável e nunca como enviado; retry usa snapshot e mesmo lote. Download regenerado não representa nova exportação.
-- [x] Implementar reexportação deliberada com chave nova e referência ao lote anterior, revalidando dados atuais. Mostrar data/versão e aviso para arquivo antigo; marcar envio externo somente por ação explícita.
-- [x] Implementar confirmação por B/L/CE com evidência e histórico. Testar que exportar/aprovar não confirma, confirmar um B/L não conclui os outros, CE divergente recusa e reversão financeira posterior gera revisão operacional sem apagar confirmação.
-- [ ] Rodar testes e validar arquivo com responsável/ZPT no ambiente de homologação; registrar aceite externo, commit.
+- [x] Implementar layout em `ceUnlockRules.ts` e teste de cinco colunas, ordem, B/L textual e sanitização. **Teste:** `ceUnlockRules.test.ts`, aprovado nesta sessão; amostra gerada/reaberta no runtime local histórico, sem homologação externa.
+- [x] Implementar lote/snapshot, geração server-side, download preservado, reexportação deliberada e registro explícito de envio.
+- [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Teste:** suíte SQL cobre exportação sem desbloqueio, confirmação individual, CE divergente, revogação e concorrência em confirmação/registro de envio; não reexecutada nesta revisão.
+- [ ] Demonstrar bloqueio por cada requisito e baixa cancelada concorrente à criação da exportação, snapshot imutável e retry do mesmo lote.
+- [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.
+- [ ] Reconciliar o requisito inicial de estado explícito de falha recuperável: a geração pode ser repetida sobre o lote preservado, mas isso não comprova um estado persistido de falha do arquivo.
+- [ ] Resolver/aceitar a limitação registrada de hash do lote sem preenchimento; diferenciar do hash de PDF já implementado.
+- [ ] Homologar a amostra com responsável/ZPT no ambiente autorizado e registrar aceite externo. Código e amostra já estão integrados; não falta um commit separado de exportação.
 
 ## Tarefa 7 — Validação completa, documentação e entrega
 
@@ -234,20 +250,22 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 `docs/RASTREABILIDADE.md`, `docs/operations/seguranca.md`,
 `docs/operations/servicos-externos.md`, `docs/CHANGELOG.md` e catálogo RPC aplicável.
 
-- [ ] Validar no ambiente controlado com clientes A/B e papéis internos: selecionar dois B/Ls pagos, baixar modelo, anexar, enviar, solicitar correção, reenviar, aprovar, entregar só um B/L, exportar apenas aptos e confirmar por evidência externa.
-- [ ] Repetir com pagamento parcial/consolidado, cancelamento de baixa, CE corrigido, múltiplas abas/retry, inspeção, tentativa de download entre CNPJs e experiência mobile/teclado. Verificar atualização visível nas duas SPAs.
-- [ ] Executar `npm run docs:check`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, `npm run migrations:check`, `npm run rpc:check` e `git diff --check`. Testes de banco em ambiente isolado conforme `WORKFLOW.md`; marcar skips explicitamente.
-- [x] Documentar rotas, autorização, retenção, bucket, funções, modelos e procedimento ZPT, separando geração, envio e confirmação. Registrar aprovação documental/financeira e evidência de homologação externa.
-- [x] Preparar rollout backend → funções → frontend, validar Preview e definir reversão por desabilitar novas solicitações/exportação mantendo consulta/histórico. Publicação exige autorização específica do ambiente.
-- [ ] Validar fluxo VIP completo: apresentar documentos uma vez, aprovar vigência no Vela, solicitar dois pedidos sem reanexação, pagar/entregar cada B/L, exportar cinco colunas e tratar vencimento/renovação sem perder histórico.
-- [ ] Quando implementação e aceite terminarem, arquivar plano/spec e remover entradas dos índices na mesma mudança; preservar como ativo se faltar aceite de qualquer requisito.
+- [x] Integrar documentação de rotas, autorização, retenção, bucket, funções, modelos e procedimento ZPT, distinguindo geração, envio e confirmação. Homologação externa não foi registrada como concluída.
+- [x] Registrar gates da entrega local original: docs, tipos, lint, testes, build, migrations e RPC, com skips e limites do banco/shims no relatório. Não equivale à execução atual de todos os gates na árvore integrada.
+- [x] Documentar ordem backend → funções → frontend e reversão preservando consulta/histórico. Preview e publicação são itens separados, ainda sem evidência nesta reconciliação.
+- [ ] Conferir histórico remoto e publicar/validar migrations CE `139`–`149`, funções e frontends compatíveis no ambiente especificamente autorizado; não inferir deploy pela presença na `main`.
+- [ ] Cadastrar PDF oficial, configurar segredo/agendamento e validar expurgo em Preview antes da ativação operacional.
+- [ ] Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
+- [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.
+- [ ] Validar fluxo VIP completo no ambiente controlado, incluindo dois pedidos sem reanexação, vencimento/renovação e preservação de histórico.
+- [ ] Registrar gates da árvore integrada no fechamento técnico e validação de Preview/gateway/Storage; distinguir testes locais, skips e observação remota.
+- [ ] Resolver/aceitar apresentação de versões documentais anteriores na UI interna (persistidas, mas a UI mostra as atuais) e avaliar teto O(n) da fila conforme volume; registrar decisão sem alegar refatoração necessária para o aceite.
+- [ ] Concluir aceite operacional/ZPT; arquivar plano/spec e remover entradas dos índices na mesma mudança. Permanecem ativos enquanto faltarem aceites.
 
-## Verificação deste planejamento
+## Verificação da reconciliação
 
-O planejamento original validou documentação/índices. A execução posterior
-implementou o fluxo e registrou evidência local em
-[relatório de entrega](../archive/reports/2026-10-04-desbloqueio-ce-implementacao.md).
-Checks de cenários ainda abertos acima incluem validações mais amplas do plano;
-não foram convertidos em evidência por inferência. Publicação, PDF oficial e
-homologação real do arquivo permanecem pendentes, por isso plano/spec continuam
-ativos. Contratos específicos executados constam no módulo vivo.
+Reconciliação editorial em 2026-10-07, baseada em código/testes do checkout e
+registros históricos, sem alteração de aplicação ou acesso ao ambiente remoto.
+O plano continua ativo pelo aceite e pela evidência operacional pendentes.
+As propostas originais de contratos acima não substituem o módulo vivo nem
+exigem recriar arquivos/RPCs já atendidos pelos dispatchers existentes.

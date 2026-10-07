@@ -12,7 +12,7 @@ verdade sobre o estado atual.
 
 
 - [2026-10-06 — Integração Itaú Pix: QR dinâmico e baixa automática](2026-10-06-integracao-itau-pix.md) — aprovado para execução; Fase 0 (certificado) aguardando credencial dedicada pedida ao Itaú em 06/10; substitui a PR 827 (simulação, defasada pelas migrations 122–149).
-- [2026-10-04 — Desbloqueio de CE Mercante (Issue 557)](2026-10-04-desbloqueio-ce-mercante.md) — execução autorizada, implementação local; publicação/homologação pendentes; Portal, gestão em Importação, documentos anuais VIP até 31/12 por CNPJ e planilha ZPT com cinco colunas; detalhes documentais/operacionais a homologar.
+- [2026-10-04 — Desbloqueio de CE Mercante (Issue 557)](2026-10-04-desbloqueio-ce-mercante.md) — checklist reconciliado em 2026-10-07, código integrado na `main`; publicação remota não conferida e homologação pendente; Portal, gestão em Importação, documentos anuais VIP até 31/12 por CNPJ e planilha ZPT com cinco colunas; detalhes documentais/operacionais a homologar.
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — retomado em 2026-10-06; CSP confirmada em produção e catálogo de Comunicado reposto com autorização. Correção local da simulação aguarda publicação; GitHub, rotação de segredos, PKCE, Dispute e importação seguem pendentes — ver "Retomada em 2026-10-06".
 
 O plano [2026-09-06 — Remediação das auditorias #654–#660](../archive/plans/2026-09-06-plano-remediacao-auditorias-654-660.md) foi concluído e arquivado em 2026-09-29 após validação de todas as provas de runtime em produção e otimização do TV refresh.
