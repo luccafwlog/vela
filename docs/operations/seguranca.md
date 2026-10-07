@@ -210,5 +210,6 @@ Portal. A política INSERT continua exigindo Equipamentos/Administrativo,
 mensagem própria, Dispute aberta e caminho do cliente/disputa/mensagem.
 Validação SQL local confirma essas restrições. Correção aplicada com autorização
 do dono em produção em 2026-10-06; upload físico e metadados confirmados na
-sessão real de Equipamentos. Recusa na sessão real de Financeiro ainda pendente.
+sessão real de Equipamentos. Interface na sessão real de Financeiro conferida sem resposta/anexo; tentativa
+direta pelo Storage nessa sessão ainda não executada.
 Ver o relatório da retomada run-2.

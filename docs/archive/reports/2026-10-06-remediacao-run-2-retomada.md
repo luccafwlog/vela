@@ -165,3 +165,22 @@ cobrança emitida ou pagamento gerado. Captura: `/tmp/vela-run2-dispute-sucesso.
 Isso encerra a falha de upload interno observada; recusa em sessão real de
 Financeiro ainda depende da troca de login pelo dono. O achado do próximo
 responsável continua separado e pendente.
+
+## Financeiro e próxima ação da Dispute
+
+**Runtime observado:** sessão de Thuani Petri, conta Financeiro fornecida pelo
+dono, frontend `2159842`, `/demurrage`: fila de Disputes, resposta e upload
+ausentes. Captura `/tmp/vela-run2-financeiro-dispute.jpg`. Não houve tentativa
+direta de INSERT no Storage sob essa sessão; a recusa de banco é evidência
+automatizada local, não runtime de produção.
+
+**Teste automatizado:** resposta Equipamentos com próxima ação Cliente retornou
+`aberta`, mas persistiu `equipamentos` antes da correção. Migration `159`
+adiciona retorno antecipado ao trigger quando os dois campos de lifecycle da
+Invoice são iguais aos anteriores. Não altera dados existentes nem permissões.
+Correção local; aplicação em produção depende de autorização específica.
+
+Validação da migration `159`: 23 testes SQL locais aprovados nas suítes run-2
+e reforços; migrations:check, rpc:check, docs:check, typecheck, lint do teste
+alterado e diff --check aprovados. Gates gerais de aplicação já aprovados na
+mesma base da `158`; nenhuma alteração no código de aplicação nesta etapa.

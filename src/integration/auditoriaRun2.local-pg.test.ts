@@ -63,6 +63,14 @@ function scenario(sql: string): string[] {
 }
 
 describeLocal('migration 106 — remediação da auditoria run-2', () => {
+  it('resposta de Equipamentos preserva Cliente como próximo responsável', () => {
+    expect(scenario(`
+      ${as(EQP)}
+      SELECT public.add_demurrage_dispute_message(${DISPUTE}, 'Aguardamos retorno.', 'cliente')->>'state';
+      RESET ROLE;
+      SELECT next_responder FROM public.demurrage_disputes WHERE id = ${DISPUTE};
+    `)).toEqual(['aberta', 'cliente'])
+  })
   it('leitura interna da Dispute não exige sessão do Portal durante o upload', () => {
     expect(scenario(`
       ${as(EQP)}
