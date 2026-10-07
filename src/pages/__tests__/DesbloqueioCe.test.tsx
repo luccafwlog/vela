@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, expect, it, vi } from 'vitest'
 import { DesbloqueioCe } from '../DesbloqueioCe'
+import { ToastProvider } from '../../components/ui/Toast'
 const state = vi.hoisted(() => ({
   manage: true, canExport: false, delivered: false, mutateAsync: vi.fn(async () => ({})), filters: [] as unknown[],
 }))
@@ -35,7 +36,7 @@ vi.mock('../../hooks/useCeUnlock', () => ({
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => async () => true, useConfirmWithReason: () => async () => 'Entrega lançada por engano' }))
 afterEach(() => { cleanup(); state.manage = true; state.canExport = false; state.delivered = false; state.mutateAsync.mockClear(); state.filters.length = 0 })
 function mount(path = '/?aba=controle') {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[path]}><DesbloqueioCe /></MemoryRouter></QueryClientProvider>)
+  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ToastProvider><MemoryRouter initialEntries={[path]}><DesbloqueioCe /></MemoryRouter></ToastProvider></QueryClientProvider>)
 }
 it('abre na aba Solicitações: uma linha por pedido com o status de cada documento', () => {
   mount('/')
@@ -46,16 +47,16 @@ it('abre na aba Solicitações: uma linha por pedido com o status de cada docume
   expect(screen.getByRole('button', { name: 'Analisar CE-ABC' })).toBeTruthy()
   expect(screen.queryByLabelText('Exportar BL BL-557')).toBeNull()
 })
-it('Controle ZPT mostra BL sem pedido com as quatro caixas e impede seleção inelegível', () => {
+it('Controle ZPT mostra BL sem pedido com os quatro requisitos e impede seleção inelegível', () => {
   mount()
   expect(screen.getByRole('link', { name: 'BL-557' })).toBeTruthy()
   expect(screen.getByLabelText('Exportar BL BL-557').hasAttribute('disabled')).toBe(true)
   expect(screen.getByText('Taxas locais sem liquidação integral confirmada')).toBeTruthy()
-  expect((screen.getByLabelText('T. de Devolução: BL-557') as HTMLInputElement).checked).toBe(true)
-  expect((screen.getByLabelText('Procuração: BL-557') as HTMLInputElement).checked).toBe(false)
-  expect((screen.getByLabelText('Financeiro: BL-557') as HTMLInputElement).checked).toBe(false)
+  expect(screen.getByRole('img', { name: 'T. de Devolução BL-557: atendido' })).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Procuração BL-557: pendente' })).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Financeiro BL-557: pendente' })).toBeTruthy()
   // Só BL de Entrega é manual; as demais caixas são resultado do sistema.
-  for (const label of ['T. de Devolução', 'Procuração', 'Financeiro']) expect(screen.getByLabelText(`${label}: BL-557`).hasAttribute('disabled')).toBe(true)
+  for (const label of ['T. de Devolução', 'Procuração', 'Financeiro']) expect(screen.queryByRole('checkbox', { name: new RegExp(`^${label}`) })).toBeNull()
   expect(screen.getByLabelText('BL de Entrega: BL-557').hasAttribute('disabled')).toBe(false)
 })
 it('filtro padrão é "Aptos — não exportados"', () => {
@@ -93,7 +94,7 @@ it('permite tirar da seleção BL que perdeu aptidão, para revisar lote', async
   const view = mount()
   await userEvent.click(screen.getByLabelText('Exportar BL BL-557'))
   state.canExport = false
-  view.rerender(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={['/?aba=controle']}><DesbloqueioCe /></MemoryRouter></QueryClientProvider>)
+  view.rerender(<QueryClientProvider client={new QueryClient()}><ToastProvider><MemoryRouter initialEntries={['/?aba=controle']}><DesbloqueioCe /></MemoryRouter></ToastProvider></QueryClientProvider>)
   expect(screen.getByLabelText('Exportar BL BL-557').hasAttribute('disabled')).toBe(false)
   await userEvent.click(screen.getByLabelText('Exportar BL BL-557'))
   expect((screen.getByLabelText('Exportar BL BL-557') as HTMLInputElement).checked).toBe(false)

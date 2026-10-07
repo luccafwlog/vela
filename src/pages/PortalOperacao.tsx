@@ -3,7 +3,7 @@ import { usePortalScope } from '../hooks/usePortalScope'
 import { portalPath } from '../services/portalScope'
 import { Fragment, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Download } from 'lucide-react'
+import { ChevronDown, ChevronUp, Download, Unlock } from 'lucide-react'
 import { InformationLinks } from '../components/portal/information/InformationLinks'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -101,10 +101,15 @@ export function PortalOperacao() {
 
   return (
     <>
-      <Link className="mb-3 inline-block text-[var(--app-link)]" to={portalPath(scope, '/desbloqueio-ce')}>Solicitar desbloqueio de CE</Link>
       <PageHeader
         title="BLs e Containers"
         description="Consulte seus B/Ls e containers: descarga, devolução, free time e dias de demurrage."
+        action={
+          <Link className="app-btn app-btn--secondary" to={portalPath(scope, '/desbloqueio-ce')}>
+            <Unlock size={16} aria-hidden="true" />
+            Solicitar desbloqueio de CE
+          </Link>
+        }
       />
 
       <div className="mb-4"><InformationLinks sections={['devolucao', 'tracking', 'agentes']} /></div>

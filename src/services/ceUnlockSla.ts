@@ -60,3 +60,10 @@ export const formatCeUnlockDeadline = (deadline: Date) =>
     hour: "2-digit",
     minute: "2-digit",
   });
+
+/** Início de prazo mais recente entre os BLs: o prazo final do pedido parte da última pendência resolvida. */
+export const latestSlaStart = (items: Array<{ sla_started_at?: string | null }>) =>
+  items.reduce<string | null>(
+    (latest, i) => (i.sla_started_at && (!latest || i.sla_started_at > latest) ? i.sla_started_at : latest),
+    null,
+  );

@@ -1,94 +1,118 @@
 import { useState } from "react";
+import { FileCheck2 } from "lucide-react";
+import { Badge, type BadgeTone } from "../ui/Badge";
 import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
+import { Card, EmptyState } from "../ui/Card";
+import { SkeletonTable } from "../ui/Skeleton";
+import { TableFooterPagination } from "../ui/TableFooterPagination";
+import { QueryStateGate } from "../shared/QueryStateGate";
 import { CeUnlockSla } from "./CeUnlockSla";
 import { useCeUnlockReviewQueue } from "../../hooks/useCeUnlock";
-import { ceStateLabel } from "../../lib/ceUnlockLabels";
+import { ceStateLabel, ceStateTone } from "../../lib/ceUnlockLabels";
 import type { CeUnlockReviewRow } from "../../types/ceUnlock";
 
-const DOCUMENT_STATUS: Record<string, string> = {
-  uploaded: "Aguardando análise",
-  approved: "Aprovado",
-  changes_requested: "Recusado — aguardando cliente",
-  revoked: "Revogado",
+const PAGE_SIZE = 25;
+const DOCUMENT_STATUS: Record<string, [string, BadgeTone]> = {
+  uploaded: ["Aguardando análise", "yellow"],
+  approved: ["Aprovado", "green"],
+  changes_requested: ["Recusado — aguardando cliente", "red"],
+  revoked: ["Revogado", "red"],
 };
-const documentLabel = (status: CeUnlockReviewRow["termo_status"]) =>
-  status ? (DOCUMENT_STATUS[status] ?? status) : "Não enviado";
+function DocumentStatus({ status }: { status: CeUnlockReviewRow["termo_status"] }) {
+  const [label, tone] = status ? (DOCUMENT_STATUS[status] ?? [status, "slate"]) : ["Não enviado", "slate" as BadgeTone];
+  return <Badge tone={tone}>{label}</Badge>;
+}
 
 /** Aba Solicitações: uma linha por pedido; termo de devolução e procuração valem para todos os BLs dele. */
-export function CeUnlockReviewQueue({
-  enabled,
-  onOpen,
-}: {
-  enabled: boolean;
-  onOpen: (id: string) => void;
-}) {
+export function CeUnlockReviewQueue({ enabled, onOpen }: { enabled: boolean; onOpen: (id: string) => void }) {
   const [page, setPage] = useState(1);
   const queue = useCeUnlockReviewQueue(page, enabled);
+  const total = queue.data?.total ?? 0;
   return (
-    <Card>
-      {queue.isLoading ? (
-        <p>Carregando solicitações...</p>
-      ) : queue.error ? (
-        <p role="alert">
-          Falha ao consultar solicitações.{" "}
-          <Button onClick={() => void queue.refetch()}>Tentar novamente</Button>
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+    <Card className="overflow-hidden p-0">
+      <QueryStateGate
+        isLoading={false}
+        isError={Boolean(queue.error)}
+        hasData={queue.data !== undefined}
+        errorMessage="Falha ao consultar solicitações."
+        onRetry={() => void queue.refetch()}
+      >
+        <div className="app-table-scroll">
+          <table className="app-table app-table--compact min-w-[860px] text-left text-sm">
+            <caption className="sr-only">Solicitações com documentos a validar</caption>
             <thead>
               <tr>
-                {["Solicitação", "Cliente", "BLs", "Termo de devolução", "Procuração", "Prazo", "Ação"].map((c) => (
-                  <th className="p-2" key={c}>
-                    {c}
+                {["Solicitação", "Cliente", "BLs", "Termo de devolução", "Procuração", "Prazo", ""].map((c) => (
+                  <th scope="col" className="px-3 py-3" key={c || "acao"}>
+                    {c || <span className="sr-only">Ação</span>}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
+              {queue.isLoading && (
+                <tr>
+                  <td colSpan={7} className="p-0">
+                    <SkeletonTable rows={5} cols={7} label="Carregando solicitações" />
+                  </td>
+                </tr>
+              )}
+              {queue.data && total === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-0">
+                    <EmptyState
+                      icon={FileCheck2}
+                      title="Nenhuma solicitação aguardando validação"
+                      description="Pedidos enviados pelo Portal aparecem aqui até o termo de devolução e a procuração serem aprovados."
+                    />
+                  </td>
+                </tr>
+              )}
               {queue.data?.items.map((r) => (
-                <tr className="border-t border-[var(--app-border)]" key={r.id}>
-                  <td className="p-2">
-                    {r.protocol}
-                    <p>{ceStateLabel(r.state)}</p>
+                <tr key={r.id}>
+                  <td className="px-3 py-3">
+                    <span className="app-table__cell-stack">
+                      <span className="app-table__cell-value font-semibold">{r.protocol}</span>
+                      <span><Badge tone={ceStateTone(r.state)}>{ceStateLabel(r.state)}</Badge></span>
+                    </span>
                   </td>
-                  <td className="p-2">
-                    {r.customer_name}
-                    <p>{r.cnpj_cpf}</p>
+                  <td className="px-3 py-3">
+                    <span className="app-table__cell-stack">
+                      <span className="app-table__cell-value">{r.customer_name}</span>
+                      <span className="app-table__cell-meta">{r.cnpj_cpf}</span>
+                    </span>
                   </td>
-                  <td className="p-2">
-                    {r.bl_ids.length} BL(s)
-                    <p>{r.bl_ids.slice(0, 3).join(", ")}{r.bl_ids.length > 3 ? "…" : ""}</p>
+                  <td className="px-3 py-3">
+                    <span className="app-table__cell-stack">
+                      <span className="app-table__cell-value">{r.bl_ids.length} BL(s)</span>
+                      <span className="app-table__cell-meta app-table__truncate app-table__truncate--sm" title={r.bl_ids.join(", ")}>
+                        {r.bl_ids.join(", ")}
+                      </span>
+                    </span>
                   </td>
-                  <td className="p-2">{documentLabel(r.termo_status)}</td>
-                  <td className="p-2">{documentLabel(r.procuracao_status)}</td>
-                  <td className="p-2">
-                    <CeUnlockSla start={r.sla_started_at} />
-                  </td>
-                  <td className="p-2">
-                    <Button variant="ghost" onClick={() => onOpen(r.id)}>
-                      Analisar {r.protocol}
+                  <td className="px-3 py-3"><DocumentStatus status={r.termo_status} /></td>
+                  <td className="px-3 py-3"><DocumentStatus status={r.procuracao_status} /></td>
+                  <td className="px-3 py-3"><CeUnlockSla start={r.sla_started_at} /></td>
+                  <td className="px-3 py-3 text-right">
+                    <Button variant="secondary" className="app-btn--sm" aria-label={`Analisar ${r.protocol}`} onClick={() => onOpen(r.id)}>
+                      Analisar
                     </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {queue.data?.total === 0 && <p>Nenhuma solicitação aguardando validação de documentos.</p>}
         </div>
+      </QueryStateGate>
+      {total > PAGE_SIZE && (
+        <TableFooterPagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={total}
+          totalPages={Math.ceil(total / PAGE_SIZE)}
+          onPageChange={setPage}
+        />
       )}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button variant="ghost" disabled={page === 1} onClick={() => setPage(page - 1)}>
-          Anterior
-        </Button>
-        <span>
-          Página {page} · {queue.data?.total ?? 0} solicitação(ões)
-        </span>
-        <Button variant="ghost" disabled={page * 25 >= (queue.data?.total ?? 0)} onClick={() => setPage(page + 1)}>
-          Próxima
-        </Button>
-      </div>
     </Card>
   );
 }
