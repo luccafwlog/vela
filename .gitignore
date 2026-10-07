@@ -51,3 +51,4 @@ supabase/test_*.sql
 # Amostras HTML temporárias
 fatura-avulsa-exemplo.html
 
+.wrangler/

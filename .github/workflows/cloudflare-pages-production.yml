@@ -83,3 +83,15 @@ jobs:
             --project-name vela-internal --branch main --commit-hash "$COMMIT_SHA"
           npx --no-install wrangler pages deploy dist/pages-portal \
             --project-name vela-portal --branch main --commit-hash "$COMMIT_SHA"
+
+      # Chunk inexistente não pode virar HTML cacheado como immutable
+      # (incidente 2026-10-07; Function em functions/assets/[[path]].ts).
+      - name: Check missing assets return uncached 404
+        run: |
+          set -euo pipefail
+          for origin in https://vela.app.br https://portalfwlog.com.br; do
+            headers="$(curl -sS -o /dev/null -D - "$origin/assets/nao-existe-${GITHUB_RUN_ID}.js")"
+            printf '%s\n%s\n' "$origin" "$headers"
+            grep -qE '^HTTP/[0-9.]+ 404' <<<"$headers" || { echo "::error::$origin/assets/* missing file is not 404"; exit 1; }
+            ! grep -qi 'immutable' <<<"$headers" || { echo "::error::$origin/assets/* 404 is cached as immutable"; exit 1; }
+          done

@@ -48,6 +48,10 @@ Cada preview usa alias `pr-<número>` (`pr-123.vela-internal.pages.dev` e `pr-12
 
 `_headers` é gerado por `scripts/cloudflare-pages-stage.mjs` e contém CSP, HSTS e os demais headers de segurança. Atualize a CSP ali quando um novo serviço passar a ser acessado pelo navegador. `npm run cloudflare:stage:test` protege esse contrato.
 
+`/assets/*` passa pela Pages Function `functions/assets/[[path]].ts` (fora de `dist`, publicada pelo `wrangler pages deploy` a partir da raiz da checkout confiável). Sem ela, um chunk inexistente cairia no fallback SPA e o navegador guardaria `index.html` como JS `immutable` por um ano, deixando o app em branco mesmo após purge do Cloudflare. A Function responde `404` com `no-store` para arquivo inexistente e define o `immutable` dos assets reais. O workflow de produção confere esse 404 após publicar; previews ficam atrás do Access e são conferidos manualmente com sessão autorizada. Como a checkout do job de preview é sempre o `main`, uma mudança na Function só aparece no preview depois do merge; valide antes com `npx wrangler pages dev dist/pages-internal`.
+
+No navegador, `public/chunk-recovery.js` (script clássico carregado antes do entry) e `src/lib/lazyPage.ts` tratam chunk que falha ao carregar: rebuscam o arquivo com `cache: 'reload'` (sobrescrevendo uma cópia ruim no cache HTTP) e recarregam a página uma vez por arquivo na sessão.
+
 As Edge Functions usam a allowlist em `supabase/functions/_shared/cors.ts`: domínios de produção, localhost de desenvolvimento, aliases dos dois projetos Pages e origens HTTPS exatas listadas em `CLOUDFLARE_PAGES_PREVIEW_ORIGINS`. Uma origem rejeitada não recebe `Access-Control-Allow-Origin`.
 
 ## Supabase: Functions e migrations
