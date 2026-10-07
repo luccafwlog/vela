@@ -187,15 +187,36 @@ Para retomar a Vercel, restaure a configuração de build do Vite, reconecte o G
 ## Supabase
 
 Banco PostgreSQL, Auth, Storage, Edge Functions e jobs agendados. Projeto de
-produção `fgmkhbzhaeebrsizwccx`. Cada PR ganha uma **branch de preview** com
-banco próprio (check "Supabase Preview").
+produção `fgmkhbzhaeebrsizwccx`. O projeto GitHub é `luccafwlog/vela`.
+Automatic branching está **desligado** (conferido em 2026-10-07); portanto,
+abrir uma PR não cria por si só uma branch Supabase nem garante o check
+"Supabase Preview". A integração permite criar uma branch pontual e vinculá-la
+a uma branch GitHub. O painel informa custo de US$ 0,01344 por hora enquanto a
+branch existir, sem impostos; removê-la encerra essa cobrança. Branches novas
+não copiam dados de produção por padrão.
+
+Para uma Preview pontual sem ligar Automatic branching: em Supabase → projeto
+Vela → Branching → Create branch, informe o nome da branch de Preview e a mesma
+branch GitHub da PR em "Sync with Git branch". A integração publica commits
+nessa branch. Manter a PR aberta até o check Supabase Preview e o workflow
+Cloudflare Pages Preview concluírem; remover a branch após os testes para
+encerrar o custo. Conferir a criação e a exclusão no painel. A página Branching
+estava sem branches persistentes ou de Preview na conferência de 2026-10-07.
 
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
   O environment GitHub `supabase-branches` guarda o PAT escopado ao projeto
-  `fgmkhbzhaeebrsizwccx`, com `Development Branches: Read` e validade de um
-  ano, além de `PREVIEW_ADMIN_PASSWORD`. As cópias Repository-level ainda
-  existem; para jobs desse environment, a credencial dele prevalece.
+  `fgmkhbzhaeebrsizwccx`, com `Development Branches: Read` e `API Keys: Read`,
+  validade de 90 dias (até 2027-01-05), além de `PREVIEW_ADMIN_PASSWORD`.
+  `API Keys: Read` é necessário para o CLI obter as chaves públicas da branch;
+  `API Key Secrets: Read` não foi concedido. O secret do environment teve
+  atualização registrada em 2026-10-07, mas o workflow Cloudflare seguinte
+  falhou e o painel Supabase ainda mostrava o PAT v3 como nunca usado; portanto,
+  a credencial efetiva não está validada. Uma nova submissão do secret não teve
+  confirmação de conclusão. O PAT v3 apareceu em texto numa saída de
+  acessibilidade e deve ser tratado como exposto; sua revogação ficou pendente
+  por decisão do dono. As cópias Repository-level ainda existem; para jobs
+  desse environment, a credencial dele prevalece.
 - **Senha do banco:** só alfanumérica; guardada em `supabase-db-vela` (iCloud
   Senhas) e usada apenas pelo backup. Nada no repositório usa essa senha.
 - **Usuário técnico do Auth:**

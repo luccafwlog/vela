@@ -137,21 +137,37 @@ Nenhuma configuração alterada nesta conferência.
 
 As pendências executáveis restantes são:
 
-1. **GitHub e credenciais:** os secrets foram cadastrados nos environments
-   `cloudflare-pages`, `supabase-branches` e `cloudflare-production`. Validar
-   os workflows; depois remover as cópias antigas dos Repository secrets,
-   inclusive
-   `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`, e rotacionar os tokens. Isso
-   exige ação do dono sem compartilhar valores no chat.
+1. **GitHub e credenciais:** os secrets estão nos environments
+   `cloudflare-pages`, `supabase-branches` e `cloudflare-production`. O secret
+   `SUPABASE_ACCESS_TOKEN` em `supabase-branches` teve atualização registrada
+   em 2026-10-07 após reautenticação, mas a credencial efetiva não está
+   validada: o PAT v3 de 90 dias, escopado ao projeto Vela com
+   `Development Branches: Read` e `API Keys: Read`, ainda aparecia como nunca
+   usado no painel Supabase; o workflow Cloudflare falhou em `branches get`
+   (run `37638412558`). Uma segunda submissão do secret não teve confirmação
+   de conclusão. O valor do PAT v3 apareceu em texto numa saída de
+   acessibilidade; deve ser tratado como exposto. O dono interrompeu a
+   revogação e substituição desse PAT. Não executar novo workflow de Preview
+   até a credencial ser regularizada. Nenhum valor de credencial foi registrado.
+   Depois validar os workflows, remover as cópias antigas dos Repository
+   secrets, inclusive `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`, e
+   aposentar os tokens anteriores.
 2. **Acessos e proteção:** revisar/remover a deploy key
    `Codex workspace - Transhipping Desk` (`read/write`) e criar o ruleset para
    `.github/workflows/**`. A conta atual recebeu HTTP 403 ao tentar criar
    rulesets; não tornar o repositório público como atalho.
-3. **Preview:** publicar uma Preview válida após validar as credenciais e
-   testar troca de e-mail com PKCE no mesmo e em outro navegador. O workflow de
-   limpeza já executou em 2026-10-07 após o ajuste `per_page=25`; terminou com
-   sucesso e não encontrou deployments antigos para remover, então o endpoint
-   DELETE não foi exercitado.
+3. **Preview:** a branch pontual `codex/run2-manual-preview-probe` foi criada
+   no projeto Vela e vinculada à branch GitHub da PR #883; `Automatic
+   branching` continua desligado por decisão do dono. O painel informa cobrança
+   de US$ 0,01344/h antes de impostos. A Preview publicada e os testes de
+   PKCE no mesmo e em outro navegador ainda estão pendentes. O primeiro teste
+   do workflow falhou antes de publicar: o PAT tinha `Development Branches:
+   Read`, mas o CLI também precisa de `API Keys: Read` para `branches get`;
+   o GitHub secret foi atualizado em 2026-10-07 e um novo run ainda precisa
+   confirmar o fluxo. Remover a branch após a validação e registrar a exclusão.
+   O workflow de limpeza executou em 2026-10-07 após o ajuste `per_page=25`;
+   terminou com sucesso e não encontrou deployments antigos para remover,
+   então o endpoint DELETE não foi exercitado.
 4. **Importação:** executar importação real com e-mail novo de consignatário.
 5. **Operação:** rotacionar secrets dos jobs no Vault, decidir o procedimento
    para `IMPORT_EFFECTS_CRON_SECRET` e `RECALC_CRON_SECRET`, e observar o
@@ -253,6 +269,11 @@ Em 2026-10-06, o dono recusou restringir os environments GitHub à branch
 `main`. Não aplicar essa restrição. O controle fica fora da execução por
 decisão do dono, com risco aceito; não marcar como corrigido. A recusa não
 cancela as demais pendências, inclusive credenciais e validação de workflows.
+
+Em 2026-10-07, o dono decidiu manter desligado `Automatic branching` na
+integração Supabase GitHub. Não ligar essa opção. Uma branch de Preview
+pontual vinculada à branch GitHub da PR continua sendo alternativa, sujeita à
+autorização do custo horário informado pelo painel e à remoção após os testes.
 
 Respondidas pelo dono em 2026-09-29: **D1 = (b)** (cai para (a) se o plano
 do Supabase não oferecer o hook), **D2 = (c)** (manter como hoje; o item 2.8
