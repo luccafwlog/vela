@@ -118,7 +118,7 @@ Cliente de teste. Evidência detalhada em
   passam, incluindo upload próprio permitido e Financeiro/outra autoria/
   disputa fechada recusados. Aplicação autorizada em produção concluída em 2026-10-06 (22:45–22:46 de Brasília); reteste pela sessão do André gravou objeto TXT de 94 bytes e metadados de anexo `id=1`, mensagem `id=2`, com autoria correta. Sessão real de Financeiro (Thuani) conferida: fila/resposta/anexo ausentes; recusa direta no Storage com essa sessão ainda não executada (restrição SQL local aprovada).
   Também observado: trigger de lifecycle devolve próximo responsável para
-  Equipamentos após resposta destinada ao Cliente; reproduzido localmente; migration `159` preparada para sincronizar somente mudanças reais de estado da Invoice, sem sobrescrever a próxima ação da conversa. Publicação pendente de autorização.
+  Equipamentos após resposta destinada ao Cliente; reproduzido localmente; migration `159` preparada para sincronizar somente mudanças reais de estado da Invoice, sem sobrescrever a próxima ação da conversa. Migration `159` aplicada em produção com autorização do dono; reteste pela sessão de Equipamentos pendente.
 
 ## Decisões
 

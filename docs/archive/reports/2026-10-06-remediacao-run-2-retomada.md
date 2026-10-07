@@ -184,3 +184,12 @@ Validação da migration `159`: 23 testes SQL locais aprovados nas suítes run-2
 e reforços; migrations:check, rpc:check, docs:check, typecheck, lint do teste
 alterado e diff --check aprovados. Gates gerais de aplicação já aprovados na
 mesma base da `158`; nenhuma alteração no código de aplicação nesta etapa.
+
+## Publicação da próxima ação
+
+Com autorização específica do dono, migration `159` aplicada via
+`apply_migration` no projeto `fgmkhbzhaeebrsizwccx`, nome remoto
+`dispute_preserve_next_responder`, com retorno de sucesso. Conferência da
+definição publicada confirma o guard de mudança real dos campos. Nenhum
+registro histórico reescrito; a Dispute de teste ainda precisa de nova
+resposta pela sessão real de Equipamentos para comprovar a próxima ação.

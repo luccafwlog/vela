@@ -370,10 +370,12 @@ flowchart LR
   mudanças posteriores de `voyages.ata`; correções exigem import ou edição
   explícita das datas.
 
-### Próximo responsável da conversa — correção pendente de publicação
+### Próximo responsável da conversa
 
 A resposta de Equipamentos deve manter a próxima ação escolhida na conversa.
 A migration `159_dispute_preserve_next_responder.sql` impede que o trigger
 legado da Invoice sobrescreva essa decisão quando `dispute_open` e
 `dispute_status` não mudaram. Mudanças reais de lifecycle seguem sincronizadas.
-Reprodução e correção validadas em PostgreSQL local; produção ainda pendente.
+Reprodução e correção validadas em PostgreSQL local; migration aplicada em
+produção com autorização do dono em 2026-10-06. Repetição pela interface
+com Equipamentos ainda pendente.
