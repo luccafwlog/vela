@@ -193,7 +193,8 @@ banco próprio (check "Supabase Preview").
 `portal-email-webhook`, `portal-invite-activate`, `portal-invite-send`,
 `portal-login`, `portal-password-recovery`, `portal-password-reset`,
 `portal-recovery-email-change`, `recalc-demurrage-ptax`,
-`send-customer-communication`.
+`send-customer-communication`. Ainda não publicada: `itau-pix` (seção
+[Itaú](#itaú--api-pix-recebimentos)).
 
 Publicação manual: `supabase functions deploy <nome> --project-ref fgmkhbzhaeebrsizwccx`.
 Um merge **não** publica Functions. Para conferir, baixe o código publicado com
@@ -487,3 +488,78 @@ A correção da PR 847 exige a migration `143` antes de republicar
 de falhas de upload e a preservação de PDFs registrados após resposta perdida;
 os testes locais do handler usam backend HTTP simulado e não comprovam Storage
 gerenciado. Não há alteração de nomes de segredos ou do agendamento de expurgo.
+
+## Itaú — API Pix Recebimentos
+
+**Bloqueado: aguardando credencial dedicada ao Vela.** Conta 0870/37293-5
+(TRANSHIPPING AGENCIAMENTO MARITIMO LTDA, CNPJ 06.352.972/0001-21),
+protocolo IT-000245617 com a Implantação Técnica do Itaú
+(`implantacao_cash_varejo@itau-unibanco.com.br`; responder sempre no mesmo
+assunto). Em 2026-10-06 o banco enviou CLIENT ID e token de ativação, mas o
+CLIENT ID é o da credencial de julho, usada pelo sistema de terceiro: a troca
+do CSR foi recusada (HTTP 409, `C700a`, certificado ainda válido). O dono
+pediu no mesmo thread uma credencial nova, dedicada ao Vela, sem revogar a
+atual. O token de 2026-10-06 não tem mais uso.
+
+O token troca um CSR por certificado (365 dias) e client_secret em
+`sts.itau.com.br`; o procedimento está na Fase 0 do
+[plano da integração](../plans/2026-10-06-integracao-itau-pix.md). Destino
+previsto dos segredos, em Supabase → Edge Functions → Secrets (ainda **não
+cadastrados**): `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`,
+`ITAU_KEY_B64`, `ITAU_PIX_KEY`. Cópia da chave e do certificado no iCloud
+Senhas do dono. O item `ITAU_ONBOARDING_PRIVATE_KEY` do Vault não tem uso
+(o Itaú não pediu chave pública) e deve ser removido.
+
+A função `itau-pix` (Fase 1, diagnóstico e prova de centavos) existe no
+código e **não está publicada**. Ela exige também `ITAU_PIX_ADMIN_SECRET`
+(bearer próprio, ≥ 32 caracteres aleatórios, nunca `service_role`). Os
+overrides opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL` e
+`ITAU_AUTH_HEADER` só existem para ajustar host e header se o Itaú divergir
+do guia. Ela cria cobranças de teste de até R$ 1,00 com TXID `VELAT…` e só
+altera ou cancela essas; consulta qualquer TXID `VELA`, então nunca toca
+cobranças do sistema de terceiro nem muda a cobrança de uma fatura.
+
+A fila de cobranças das faturas (migration `151`) só tem trabalho quando
+`app_settings.pix_provider = 'itau'`; o padrão é `static`. A ordem completa
+para ligar a integração, com quem faz cada passo e como conferir, está no
+[Roteiro de ativação](../plans/2026-10-06-integracao-itau-pix.md#roteiro-de-ativação-depois-do-merge-do-código)
+do plano. Em resumo, nessa ordem: certificado e segredos (inclusive
+`ITAU_PIX_ADMIN_SECRET`, bearer próprio, também no Vault com o mesmo nome);
+publicar `itau-pix`; criar a conta Admin dedicada **"API Itaú"** e gravá-la em
+`app_settings.itau_pix_settlement_actor` (migration `152`; decisão de
+2026-10-06: não usar a conta de uma pessoa); fazer o teste de centavos;
+agendar o job `itau-pix-queue` a cada minuto
+(`select ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`, ver
+[segredos e cron](segredos-cron.md)); só então virar a chave. Nenhum desses
+passos foi executado.
+
+Na virada, todas as faturas já abertas passam para a cobrança Itaú (decisão
+do dono em 2026-10-06; o sistema ainda não tem faturas reais). Os gatilhos só
+agem quando a fatura muda, então, logo depois de virar a chave, limpe o QR das
+abertas para que cada uma ganhe a sua cobrança:
+
+```sql
+UPDATE public.invoices SET pix_payload = NULL
+WHERE invoice_type IN ('individual', 'consolidated', 'manual')
+  AND status IN ('issued', 'partially_paid', 'overdue');
+UPDATE public.demurrage_invoices SET pix_payload = NULL
+WHERE status IN ('issued', 'overdue');
+```
+
+Voltar a chave para `static` não é procedimento operacional: o QR estático não
+é contingência (ver o plano). Se o Itaú ficar fora do ar, as faturas mostram
+"QR em preparação". Desligar a integração seria uma decisão do dono e exige
+cancelar antes, no Itaú, as cobranças abertas, porque o modo `static` não
+acompanha mais as cobranças que estiverem ativas no banco.
+
+Manutenção anual: os prazos da Demurrage usam o calendário
+`business_holidays` (migration `153`, anos 2026 e 2027). Cadastre os feriados
+de Vitória/ES do ano seguinte antes de 1º/11; a partir dessa data o Alerta
+`calendario_feriados_pendente` (Documentação) lembra e fecha sozinho quando o ano
+é cadastrado. Ano sem cadastro não para a integração: só sábados e domingos
+suspendem o prazo, então a cobrança pode vencer às 14h30 de um feriado. A Demurrage também depende do job
+`recalc-demurrage-ptax` estar agendado ([segredos e cron](segredos-cron.md)).
+
+Renovar o certificado 30 dias antes do vencimento. Documentação:
+[Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
+Nenhuma função, job ou webhook do Itaú está publicado.

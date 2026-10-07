@@ -2,6 +2,11 @@
 
 **Status:** planejamento futuro — não aprovado para execução
 
+> **Nota editorial — 2026-10-06:** execução aprovada pelo dono. Credenciais
+> produtivas recebidas no protocolo IT-000245617 sem envio de chave pública.
+> Plano vivo: [integração Itaú Pix](../plans/2026-10-06-integracao-itau-pix.md),
+> que substitui a PR 827 e registra as decisões abertas desta spec.
+
 **Objetivo:** substituir, quando priorizado, a geração local de cobrança PIX e a conciliação manual do extrato do Itaú por uma integração com a API PIX Recebimentos do Itaú, usando QR Code dinâmico e confirmação automática de pagamento.
 
 ## 1. Contexto

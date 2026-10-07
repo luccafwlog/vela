@@ -25,9 +25,24 @@ confirma o lote, apresenta histórico/exportação e permite cancelar baixas.
 
 ## Anatomia das telas
 
+### Monitoramento das cobranças Itaú
+
+`src/pages/Reconciliacao.tsx` começa, para Admin, com o bloco "Cobranças Pix
+Itaú" (`itau_pix_monitor`, migration 154, atualizado a cada minuto). Ele diz
+se a cobrança Itaú está ligada e quando foi a última consulta de recebimentos,
+conta as cobranças ativas e lista só o que pede atenção: cobranças aguardando o
+banco (emissão, alteração, conferência de vencimento, **cancelamento
+pendente**), com resposta incerta ou erro, e Pix recebidos que não deram baixa
+automática, com o motivo. A baixa de exceção continua pelo extrato abaixo ou
+pelo pagamento verificado da fatura; quando a fatura da cobrança fica paga, o
+Pix em análise sai da lista e o Alerta `pix_unreconciled` fecha sozinho. Nos
+outros casos (fatura cancelada a restituir, TXID sem fatura), o Admin usa
+**Marcar como tratado**, com motivo obrigatório
+(`itau_pix_mark_receipt_handled`), que também fecha o Alerta.
+
 ### Upload e matching
 
-`src/pages/Reconciliacao.tsx` começa, para Administrativo/Admin, com uma
+Depois vem uma
 dropzone acessível por clique,
 teclado ou drag-and-drop. Aceita `.xlsx`/`.xls`, mostra estado “Processando
 extrato...” e limpa o resultado anterior antes de processar outro arquivo.
@@ -229,6 +244,30 @@ Estes testes verificam texto de migrations, não um banco aplicado:
   `conciliated_by_extract = false`.
 - **Filtro “Único BL” alinhado.** O valor visual `single` é normalizado para
   `individual` antes da comparação.
+
+### Cobrança dinâmica Itaú — migration 151 (desligada)
+
+**Código/Teste local, sem implantação.** `app_settings.pix_provider` escolhe o
+autor do QR: `static` (padrão, comportamento desta página inalterado) ou
+`itau`. Com `itau`, os gatilhos que hoje montam o QR estático (faturas locais
+e avulsas em `populate_local_invoice_pix_payload`, Demurrage em
+`zz_itau_pix_demurrage_payload`) abrem ou cancelam cobranças em
+`itau_pix_charges`, com no máximo uma aberta por fatura e TXID `VELA…`. A
+função `itau-pix` processa a fila (`itau_pix_claim`/`itau_pix_record`) e grava
+o copia e cola em `pix_payload`; até lá Vela e Portal mostram "QR em
+preparação". Faturas locais ativas também entram em
+`local_pix_charge_versions`, então a conciliação por extrato continua
+resolvendo o TXID. A avulsa não entra nessa tabela (migration 152).
+
+**Baixa automática (migration 152):** a função consulta `GET /pix` e chama
+`itau_pix_settle` para cada Pix com TXID `VELA…`, que baixa pelos mesmos
+donos desta página (`reconcile_invoice_payment_by_txid`, pagamento verificado
+da avulsa e `register_demurrage_payment`), com o `endToEndId` como referência
+bancária e chave de idempotência (`itau_pix_receipts`). Qualquer recusa (valor
+diferente, fatura não pagável, sem usuário de baixa em
+`app_settings.itau_pix_settlement_actor`) abre o Alerta `pix_unreconciled`
+para o Administrativo, sem baixa. Detalhes no
+[plano](../plans/2026-10-06-integracao-itau-pix.md).
 
 ### Cobranças locais após correção — migration 130
 

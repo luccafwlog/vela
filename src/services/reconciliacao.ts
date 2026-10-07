@@ -782,3 +782,76 @@ export async function reverseDemurragePayment(invoiceId: number, reason?: string
   })
   if (error) throw error
 }
+
+export type ItauPixMonitorCharge = {
+  id: number
+  txid: string
+  status: 'pending_create' | 'pending_update' | 'pending_expire_check' | 'pending_cancel' | 'active' | 'cancelled' | 'concluded' | 'expired'
+  uncertain: boolean
+  attempts: number
+  lastError: string | null
+  amount: number
+  nextAttemptAt: string
+  updatedAt: string
+  source: 'local' | 'demurrage'
+  invoiceId: number | null
+  docNumber: string | null
+}
+
+export type ItauPixMonitor = {
+  provider: 'static' | 'itau'
+  polledUntil: string | null
+  counts: Record<string, number>
+  charges: ItauPixMonitorCharge[]
+  receipts: Array<{ endToEndId: string; txid: string; amount: number; paidAt: string; reason: string | null }>
+}
+
+type ItauPixMonitorRow = {
+  provider: 'static' | 'itau'
+  polled_until: string | null
+  counts: Record<string, number> | null
+  charges: Array<{
+    id: number; txid: string; status: ItauPixMonitorCharge['status']; uncertain: boolean; attempts: number
+    last_error: string | null; amount_brl: number | string; next_attempt_at: string; updated_at: string
+    source: 'local' | 'demurrage'; invoice_id: number | null; doc_number: string | null
+  }> | null
+  receipts: Array<{ end_to_end_id: string; txid: string; amount_brl: number | string; paid_at: string; reason: string | null }> | null
+}
+
+export async function getItauPixMonitor(): Promise<ItauPixMonitor> {
+  const { data, error } = await callPixRpc('itau_pix_monitor', {})
+  if (error) throw error
+  const row = data as ItauPixMonitorRow
+  return {
+    provider: row.provider,
+    polledUntil: row.polled_until,
+    counts: row.counts ?? {},
+    charges: (row.charges ?? []).map((c) => ({
+      id: Number(c.id),
+      txid: c.txid,
+      status: c.status,
+      uncertain: c.uncertain,
+      attempts: Number(c.attempts),
+      lastError: c.last_error,
+      amount: Number(c.amount_brl),
+      nextAttemptAt: c.next_attempt_at,
+      updatedAt: c.updated_at,
+      source: c.source,
+      invoiceId: c.invoice_id == null ? null : Number(c.invoice_id),
+      docNumber: c.doc_number,
+    })),
+    receipts: (row.receipts ?? []).map((r) => ({
+      endToEndId: r.end_to_end_id,
+      txid: r.txid,
+      amount: Number(r.amount_brl),
+      paidAt: r.paid_at,
+      reason: r.reason,
+    })),
+  }
+}
+
+// Encerra um Pix Itaú em análise que não se resolve por baixa (ex.: restituição).
+export async function markItauPixReceiptHandled(endToEndId: string, note: string): Promise<void> {
+  const { error } = await callPixRpc('itau_pix_mark_receipt_handled', { p_end_to_end_id: endToEndId, p_note: note })
+  if (error) throw error
+}

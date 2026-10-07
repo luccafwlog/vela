@@ -184,6 +184,37 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
 
   afterEach(cleanup)
 
+  it('152 — Pix Itaú baixa a individual pelo endToEndId uma única vez e diverge para análise', () => {
+    if (psql(`SELECT to_regproc('public.itau_pix_settle') IS NOT NULL`) !== 't') return
+    psql(`UPDATE public.app_settings SET pix_provider = 'itau', itau_pix_settlement_actor = '${actorId}' WHERE id = 1`)
+    try {
+      const invoice = issueByCe(bl.full, '839000000000151')
+      expect(psql(`SELECT coalesce(pix_payload, 'NULL') FROM public.invoices WHERE id = ${invoice}`)).toBe('NULL')
+      const [chargeId, txid] = psql(`SELECT id || '|' || txid FROM public.itau_pix_charges WHERE invoice_id = ${invoice} AND status = 'pending_create'`).split('|')
+      psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${chargeId}, 'active', 0, '000201ITAU151', NULL, now())`)
+      // Pix de valor diferente da cobrança: análise, sem baixa.
+      expect(psql(`SELECT public.itau_pix_settle('E151DIVERGENTE', '${txid}', 599.99, now())`)).toBe('review')
+      expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'pix_unreconciled' AND status = 'active'
+        AND metadata->>'end_to_end_id' = 'E151DIVERGENTE'`)).toBe('1')
+      expect(psql(`SELECT status FROM public.invoices WHERE id = ${invoice}`)).toBe('issued')
+      // Pix certo: baixa com o endToEndId como referência bancária.
+      expect(psql(`SELECT public.itau_pix_settle('E151CERTO', '${txid}', 600, now())`)).toBe('settled')
+      expect(psql(`SELECT status || '|' || balance_brl FROM public.invoices WHERE id = ${invoice}`)).toBe('paid|0.00')
+      expect(psql(`SELECT count(*) || '|' || max(bank_reference) FROM public.payments WHERE invoice_id = ${invoice}`)).toBe('1|E151CERTO')
+      // Repetição da consulta não baixa de novo.
+      expect(psql(`SELECT public.itau_pix_settle('E151CERTO', '${txid}', 600, now())`)).toBe('settled')
+      expect(psql(`SELECT count(*) FROM public.payments WHERE invoice_id = ${invoice}`)).toBe('1')
+      // Fatura paga não abre nova cobrança nem tenta cancelar a paga.
+      expect(psql(`SELECT string_agg(status, ',' ORDER BY id) FROM public.itau_pix_charges WHERE invoice_id = ${invoice}`)).toBe('concluded')
+    } finally {
+      psql(`DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E151%');
+        DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' LIKE 'E151%';
+        DELETE FROM public.itau_pix_receipts WHERE end_to_end_id LIKE 'E151%';
+        DELETE FROM public.itau_pix_charges WHERE invoice_id IN (SELECT id FROM public.invoices WHERE customer_id = ${customerId});
+        UPDATE public.app_settings SET pix_provider = 'static', itau_pix_settlement_actor = NULL WHERE id = 1`)
+    }
+  })
+
   it('oito confirmações concorrentes do mesmo Pix criam uma única baixa', async () => {
     const invoice = issueByCe(bl.full, '839000000000021')
     const txid = psql(`SELECT txid FROM public.local_pix_charge_versions WHERE invoice_id=${invoice} ORDER BY id DESC LIMIT 1`)

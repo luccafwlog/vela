@@ -173,6 +173,29 @@ como segredo do cron ou no navegador. A agenda nasce desativada. Consulte
 [serviços externos](servicos-externos.md#desbloqueio-de-ce-mercante) para rollout
 e retenção. Código no checkout não comprova publicação destas funções/policies.
 
+`itau-pix` usa bearer dedicado `ITAU_PIX_ADMIN_SECRET`, sem JWT da plataforma,
+e falha fechado se ele ou a configuração Itaú estiverem ausentes. O
+certificado mTLS e o client_secret ficam só em secrets das Edge Functions;
+respostas e erros nunca contêm o token de acesso. As ações de diagnóstico
+consultam somente TXIDs com prefixo `VELA` (a mesma chave Pix é usada por um
+sistema de terceiro) e só alteram ou cancelam cobranças de teste (`VELAT…`,
+até R$ 1,00); a cobrança de uma fatura só muda pela própria fatura. A
+listagem de Pix recebidos devolve apenas os do Vela, sem `infoPagador`, e só
+a contagem dos demais.
+
+A baixa automática (`itau_pix_settle`, só `service_role`) assume dentro da
+transação a identidade da conta Admin dedicada "API Itaú" configurada em
+`app_settings.itau_pix_settlement_actor` e a restaura ao sair (em produção,
+`auth.uid()` lê `request.jwt.claim.sub` antes de `request.jwt.claims`;
+conferido em 2026-10-06). Assim, as
+mesmas checagens de `auth.uid()`/`is_admin()` das baixas manuais continuam
+valendo. Conta inativa ou ausente faz o Pix ir para análise, sem baixa. Pix
+do sistema de terceiro e dados do pagador não são gravados.
+
+`itau_pix_monitor` (leitura) e `itau_pix_mark_receipt_handled` (encerrar Pix em
+análise com motivo) exigem Admin ativo dentro da função; as tabelas Itaú
+continuam sem acesso direto para `authenticated`.
+
 A evidência externa de confirmação permanece restrita ao desk também no
 histórico: motivos legados de eventos `confirm` são omitidos no Portal e nas
 leituras resumidas de Financeiro/Operações. A UI envia a referência em campo

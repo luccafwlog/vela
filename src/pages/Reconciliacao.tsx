@@ -14,6 +14,8 @@ import { parsePixExtractFile } from '../services/demurrage/demurrageKpis'
 import {
   confirmUnifiedPixReconciliation,
   createPixImportKey,
+  getItauPixMonitor,
+  markItauPixReceiptHandled,
   getPixLineIdentity,
   linkPixReconciliationCandidate,
   listPixReconciliationCandidates,
@@ -27,8 +29,9 @@ import { getInvoiceDetail as getDemurrageDetail } from '../services/demurrage/de
 import { InvoiceDetailModal } from '../components/billing/InvoiceDetailModal'
 import { ReconciliationHistoryTable } from '../components/billing/ReconciliationHistoryTable'
 import { InvoiceDocument as DemurrageInvoiceDoc, type DemurrageInvoiceDocumentDetail } from '../components/demurrage/InvoiceDocument'
-import type { PixReconciliationCandidate, PixReconciliationException, UnifiedPixConfirmationResult, UnifiedPixMatch } from '../services/reconciliacao'
+import type { ItauPixMonitorCharge, PixReconciliationCandidate, PixReconciliationException, UnifiedPixConfirmationResult, UnifiedPixMatch } from '../services/reconciliacao'
 import { queryKeys } from '../services/queryKeys'
+import { formatDateTime } from '../lib/utils'
 
 function fmtBRL(v: number) {
   return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -43,6 +46,130 @@ function getAmountStatus(match: UnifiedPixMatch): { tone: 'green' | 'yellow' | '
     return { tone: 'yellow', label: 'Parcial', detail: `Saldo restante apos baixa: ${fmtBRL(Math.abs(diff))}` }
   }
   return { tone: 'red', label: 'Excesso', detail: `Diferenca: ${fmtBRL(Math.abs(diff))}` }
+}
+
+const ITAU_CHARGE_STATUS: Record<ItauPixMonitorCharge['status'], string> = {
+  pending_create: 'Aguardando emissão',
+  pending_update: 'Aguardando alteração',
+  pending_expire_check: 'Conferindo vencimento',
+  pending_cancel: 'Cancelamento pendente',
+  active: 'Ativa',
+  cancelled: 'Cancelada',
+  concluded: 'Paga',
+  expired: 'Vencida',
+}
+
+function itauChargeTone(charge: ItauPixMonitorCharge): 'red' | 'yellow' | 'slate' {
+  if (charge.uncertain || charge.lastError) return 'red'
+  return charge.status === 'active' ? 'slate' : 'yellow'
+}
+
+// Monitoramento das cobranças Itaú: com a chave ligada, a baixa é automática e
+// esta lista mostra só o que ainda depende do banco ou de análise.
+function ItauPixMonitorCard() {
+  const queryClient = useQueryClient()
+  const { showToast } = useToast()
+  const [handling, setHandling] = useState<{ endToEndId: string; note: string } | null>(null)
+  const handleMutation = useMutation({
+    mutationFn: ({ endToEndId, note }: { endToEndId: string; note: string }) => markItauPixReceiptHandled(endToEndId, note.trim()),
+    onSuccess: () => {
+      setHandling(null)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.itauPixMonitor() })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.alerts.financial() })
+      showToast('Pix marcado como tratado.', 'success')
+    },
+    onError: (e: Error) => showToast(e.message, 'error'),
+  })
+  const monitorQuery = useQuery({
+    queryKey: queryKeys.reconciliation.itauPixMonitor(),
+    queryFn: getItauPixMonitor,
+    refetchInterval: 60_000,
+  })
+  const monitor = monitorQuery.data
+
+  return (
+    <Card className="mb-6">
+      <div className="flex flex-col gap-2 border-b border-[#30363d] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-sm font-semibold text-white">Cobranças Pix Itaú</div>
+          <div className="mt-1 text-xs text-slate-400">
+            {monitor?.provider === 'itau'
+              ? `Baixa automática ligada. Última consulta de recebimentos: ${monitor.polledUntil ? formatDateTime(monitor.polledUntil) : 'ainda não feita'}.`
+              : 'Desligada: as faturas usam o QR estático e a baixa vem do extrato abaixo.'}
+          </div>
+        </div>
+        {monitor ? (
+          <div className="flex flex-wrap gap-2">
+            <Badge tone="green">{monitor.counts.active ?? 0} ativa(s)</Badge>
+            <Badge tone={monitor.charges.length ? 'yellow' : 'slate'}>{monitor.charges.length} pedem atenção</Badge>
+            <Badge tone={monitor.receipts.length ? 'red' : 'slate'}>{monitor.receipts.length} recebimento(s) em análise</Badge>
+          </div>
+        ) : null}
+      </div>
+      {monitorQuery.isLoading ? (
+        <div className="p-4 text-sm text-slate-400">Carregando cobranças...</div>
+      ) : monitorQuery.isError ? (
+        <div className="p-4 text-sm text-red-300">Não foi possível carregar as cobranças Itaú.</div>
+      ) : monitor && (monitor.charges.length || monitor.receipts.length) ? (
+        <div className="divide-y divide-[#30363d]">
+          {monitor.receipts.map((receipt) => (
+            <div key={receipt.endToEndId} className="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="font-semibold text-white">Pix recebido sem baixa · {fmtBRL(receipt.amount)}</div>
+                <div className="text-xs text-slate-400">{receipt.reason ?? 'Em análise'} · {formatDateTime(receipt.paidAt)}</div>
+              </div>
+              <div className="flex flex-col items-start gap-2 sm:items-end">
+                <div className="font-mono text-xs text-slate-500" title={receipt.endToEndId}>{receipt.txid}</div>
+                {handling?.endToEndId === receipt.endToEndId ? (
+                  <div className="flex w-full flex-col gap-2 sm:w-80">
+                    <Textarea
+                      aria-label="Motivo do tratamento"
+                      placeholder="Ex.: restituição registrada ao cliente"
+                      value={handling.note}
+                      onChange={(event) => setHandling({ endToEndId: receipt.endToEndId, note: event.target.value })}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" onClick={() => setHandling(null)}>Cancelar</Button>
+                      <Button
+                        disabled={handling.note.trim().length < 5 || handleMutation.isPending}
+                        onClick={() => handleMutation.mutate(handling)}
+                      >
+                        Confirmar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button variant="secondary" onClick={() => setHandling({ endToEndId: receipt.endToEndId, note: '' })}>
+                    Marcar como tratado
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+          {monitor.charges.map((charge) => (
+            <div key={charge.id} className="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <span className="font-semibold text-white">{charge.docNumber ?? 'Fatura removida'}</span>
+                <span className="ml-2 text-xs text-slate-400">
+                  {charge.source === 'demurrage' ? 'Demurrage' : 'Fatura'} · {fmtBRL(charge.amount)}
+                </span>
+                {charge.lastError ? <div className="mt-1 text-xs text-red-300">{charge.lastError}</div> : null}
+              </div>
+              <div className="flex items-center gap-2">
+                {charge.attempts > 1 ? <span className="text-xs text-slate-500">{charge.attempts} tentativas</span> : null}
+                <Badge tone={itauChargeTone(charge)}>
+                  {charge.uncertain ? 'Resposta incerta' : ITAU_CHARGE_STATUS[charge.status]}
+                </Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-4 text-sm text-slate-500">Nada pendente com o Itaú.</div>
+      )}
+    </Card>
+  )
 }
 
 export function Reconciliacao() {
@@ -245,6 +372,8 @@ function ReconciliacaoContent() {
         title="Conciliação PIX"
         description="Conciliação automática de pagamentos PIX de todas as faturas (Container, Break Bulk, Granito e Demurrage)."
       />
+
+      <ItauPixMonitorCard />
 
       <div
         role="button"

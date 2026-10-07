@@ -20,7 +20,7 @@ import {
   labelCell,
   zebraRow,
 } from '../shared/invoiceFormat'
-import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle } from '../shared/InvoiceDocumentKit'
+import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle, PixPreparingNotice } from '../shared/InvoiceDocumentKit'
 
 type Props = { detail: InvoiceDetail; type?: 'invoice' | 'receipt' }
 
@@ -385,6 +385,9 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
           </span>
         </div>
       )}
+
+      {type === 'invoice' && !invoice.pix_payload && ['issued', 'partially_paid', 'overdue'].includes(invoice.status ?? 'issued')
+        && Number(invoice.balance_brl ?? invoice.total_brl) > 0 && <PixPreparingNotice />}
 
       <InvoiceDocFooter marginTop={24} />
     </div>

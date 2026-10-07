@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   reverseDemurrage: vi.fn(),
   getDemurrageDetail: vi.fn(),
   showToast: vi.fn(),
+  itauMonitor: vi.fn(),
+  markHandled: vi.fn(),
 }))
 const authState = vi.hoisted(() => ({ isAdmin: true }))
 
@@ -36,6 +38,8 @@ vi.mock('../../services/reconciliacao', () => ({
   resolvePixReconciliationException: mocks.resolveException,
   confirmUnifiedPixReconciliation: mocks.confirm,
   reverseDemurragePayment: mocks.reverseDemurrage,
+  getItauPixMonitor: mocks.itauMonitor,
+  markItauPixReceiptHandled: mocks.markHandled,
 }))
 vi.mock('../../services/demurrage/demurrageInvoices', () => ({
   getInvoiceDetail: mocks.getDemurrageDetail,
@@ -117,6 +121,44 @@ const unmatchedMatch = {
 describe('Reconciliacao PIX user behaviours', () => {
   afterEach(cleanup)
 
+  it('monitoramento Itaú mostra cancelamento pendente, resposta incerta e Pix sem baixa', async () => {
+    const base = { attempts: 1, lastError: null, amount: 10, nextAttemptAt: '', updatedAt: '', invoiceId: 1, uncertain: false }
+    mocks.itauMonitor.mockResolvedValue({
+      provider: 'itau',
+      polledUntil: '2026-10-06T15:00:00Z',
+      counts: { active: 4 },
+      charges: [
+        { ...base, id: 1, txid: 'VELA1', status: 'pending_cancel', source: 'local', docNumber: 'FL-100' },
+        { ...base, id: 2, txid: 'VELA2', status: 'pending_create', source: 'demurrage', docNumber: 'DM-200', uncertain: true, attempts: 3, lastError: 'timeout' },
+      ],
+      receipts: [{ endToEndId: 'E1', txid: 'VELA9', amount: 5, paidAt: '2026-10-06T14:00:00Z', reason: 'Valor recebido difere do valor da cobrança.' }],
+    })
+    renderPage()
+    expect(await screen.findByText('Cancelamento pendente')).toBeTruthy()
+    expect(screen.getByText('FL-100')).toBeTruthy()
+    expect(screen.getByText('Resposta incerta')).toBeTruthy()
+    expect(screen.getByText('timeout')).toBeTruthy()
+    expect(screen.getByText(/Valor recebido difere/)).toBeTruthy()
+    expect(screen.getByText('4 ativa(s)')).toBeTruthy()
+    expect(screen.getByText(/Baixa automática ligada/)).toBeTruthy()
+  })
+
+  it('Pix Itaú em análise só é marcado como tratado com motivo', async () => {
+    mocks.itauMonitor.mockResolvedValue({
+      provider: 'itau', polledUntil: null, counts: {}, charges: [],
+      receipts: [{ endToEndId: 'E9', txid: 'VELA9', amount: 5, paidAt: '2026-10-06T14:00:00Z', reason: 'Fatura cancelada.' }],
+    })
+    mocks.markHandled.mockResolvedValue(undefined)
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Marcar como tratado' }))
+    const confirm = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
+    expect(confirm.disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText('Motivo do tratamento'), { target: { value: 'Restituição registrada' } })
+    fireEvent.click(confirm)
+    await waitFor(() => expect(mocks.markHandled).toHaveBeenCalledWith('E9', 'Restituição registrada'))
+    expect(mocks.showToast).toHaveBeenCalledWith('Pix marcado como tratado.', 'success')
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     authState.isAdmin = true
@@ -138,6 +180,7 @@ describe('Reconciliacao PIX user behaviours', () => {
       items: [{ source: 'local', invoice_id: 11, doc_number: 'INV-001', status: 'ok' }],
     })
     mocks.reverseDemurrage.mockResolvedValue(undefined)
+    mocks.itauMonitor.mockResolvedValue({ provider: 'static', polledUntil: null, counts: {}, charges: [], receipts: [] })
     mocks.getDemurrageDetail.mockResolvedValue({
       invoice: { id: 31, doc_number: 'DEM-31', status: 'paid', paid_at: '2026-06-25' },
       items: [],
