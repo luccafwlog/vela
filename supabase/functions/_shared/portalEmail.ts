@@ -3,7 +3,7 @@ import { maskEmail, sendEmail } from './email.ts'
 
 export { maskEmail } from './email.ts'
 
-export type PortalEmailKind = 'convite' | 'reenvio' | 'recuperacao' | 'alteracao_email' | 'alerta_critico' | 'resumo_diario' | 'contato_bounced_notificacao'
+export type PortalEmailKind = 'convite' | 'reenvio' | 'recuperacao' | 'alteracao_email' | 'alerta_critico' | 'resumo_diario' | 'contato_bounced_notificacao' | 'ce_unlock_notificacao'
 export type SendPortalEmailInput = {
   admin: SupabaseClient
   kind: PortalEmailKind

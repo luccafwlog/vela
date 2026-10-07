@@ -2138,7 +2138,7 @@ nada da ZPT nem "desbloqueio confirmado": é orientado a conferir no Mercante.
 
 O **prazo (SLA)** conta a partir do envio, só em dias úteis: solicitação antes das
 12:00 vence às 17:00 do mesmo dia; a partir das 12:00, às 12:30 do próximo dia útil;
-sábado e domingo valem como antes das 08:00 de segunda. Recomeça quando o cliente
+sábado e domingo vencem segunda às 12:00. Recomeça quando o cliente
 resolve uma pendência dele (reenvio de documento, entrega do original, nova
 liquidação). O cumprimento é medido pela data da exportação.
 Ver [módulo](docs/modules/desbloqueio-ce.md).

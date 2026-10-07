@@ -12,7 +12,11 @@
   recusa e de documentação validada no sino e por e-mail (caixa Documentação e Operação);
   **exportar é o registro do envio** (layout `zpt-5-v2` com os cabeçalhos da ZPT) e importar o
   "Exportar Tela" da ZPT concilia desbloqueados e divergentes, só no desk. Saem "Registrar envio"
-  e "Confirmar desbloqueio". Migration `160`, Edge Function `ce-unlock-notify-email`.
+  e "Confirmar desbloqueio". Revisão do PR 884 (migration `161`): sábado/domingo vencem segunda
+  às 12:00; solicitação validada não se cancela; Portal só vê a data do prazo e um histórico sem
+  exportação/entrega; cancelar pelo Portal devolve a projeção do cliente; aviso de validação sai
+  uma vez; liquidação fora do módulo é reavaliada pelo job; arquivo da ZPT anterior à exportação
+  não gera divergência; e-mail registra tentativa. Migrations `160`–`161`, Edge Function `ce-unlock-notify-email`.
   [Módulo](modules/desbloqueio-ce.md). Publicação, agenda do e-mail e aceite da planilha pela
   ZPT pendentes.
 

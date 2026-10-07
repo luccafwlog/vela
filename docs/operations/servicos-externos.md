@@ -493,7 +493,7 @@ Ao entregar a operação para outra pessoa:
 ## Desbloqueio de CE Mercante
 
 **Implementação local, publicação pendente.** Publicar na ordem: migrations
-`137`–`149` e `160`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
+`137`–`149`, `160` e `161`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
 de produção. As funções são `portal-ce-unlock-document`,
 `ce-unlock-document-download`, `ce-unlock-export`, `ce-unlock-cleanup` e
 `ce-unlock-notify-email`. As três primeiras autenticam a sessão com `auth.getUser()`; `verify_jwt=false`
@@ -511,7 +511,9 @@ externa automática. Exportar registra o envio no Vela; a conciliação importa 
 A função `ce-unlock-notify-email` envia a fila de avisos ao cliente (recusa de documento e
 documentação validada) pela Resend, para a caixa Documentação e Operação. Usa o mesmo
 segredo `CE_UNLOCK_CLEANUP_SECRET` e `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`;
-sem a chave ou o remetente responde 503 e deixa a fila intacta. Respeita a chave global
+Antes de enviar, reavalia a conclusão das solicitações abertas (`ce_unlock_refresh_open`);
+sem a chave ou o remetente responde 503 e deixa a fila intacta. Cada envio registra tentativa
+em `portal_email_attempts` (kind `ce_unlock_notificacao`), associada pelo webhook da Resend. Respeita a chave global
 de Comunicados (desligada: descarta com motivo), supressão e bounce. O job **não existe**
 até ser agendado (`*/5 * * * *`; ver [segredos e cron](segredos-cron.md)).
 

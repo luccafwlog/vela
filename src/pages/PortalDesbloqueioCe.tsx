@@ -11,7 +11,6 @@ import {
 import { CeUnlockRequirements } from "../components/ce-unlock/CeUnlockRequirements";
 import { ceStateLabel, ceActionLabel } from "../lib/ceUnlockLabels";
 import { CeUnlockVipCoveragePanel } from "../components/ce-unlock/CeUnlockVipCoveragePanel";
-import { CeUnlockSla } from "../components/ce-unlock/CeUnlockSla";
 import { ceUnlockDeadline, formatCeUnlockDeadline } from "../services/ceUnlockSla";
 import { usePortalCeUnlock } from "../hooks/usePortalCeUnlock";
 import { downloadCeUnlockDocument } from "../services/ceUnlockService";
@@ -393,7 +392,8 @@ export function PortalDesbloqueioCe() {
                     <p>{i.can_export ? "Requisitos atendidos" : i.reasons.join("; ")}</p>
                     {i.sla_started_at && (
                       <p>
-                        Prazo: <CeUnlockSla start={i.sla_started_at} />
+                        {/* Só a data: o cliente não vê se o prazo da agência venceu. */}
+                        Prazo: até {formatCeUnlockDeadline(ceUnlockDeadline(i.sla_started_at))}
                       </p>
                     )}
                   </article>

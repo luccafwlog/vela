@@ -1,23 +1,24 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
 import { validCleanupAuthorization } from "../_shared/ceUnlockCleanupAuth.ts";
 import { CE_UNLOCK_BOX, processCeUnlockEmails, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
-import { recipientKey, sendEmail } from "../_shared/email.ts";
+import { recipientKey } from "../_shared/email.ts";
+import { sendPortalEmail } from "../_shared/portalEmail.ts";
 import { ceUnlockNoticeTemplate } from "../_shared/portalEmailTemplates.ts";
 import { canonicalPortalOrigin, portalSupportEmail } from "../_shared/portalUrls.ts";
 // Envia a fila de avisos do Desbloqueio de CE (recusa de documento / documentação validada).
+// Antes, reavalia a conclusão das solicitações abertas (liquidação não passa por comando do módulo).
 // Bearer dedicado e server-only, o mesmo segredo de manutenção do módulo (CE_UNLOCK_CLEANUP_SECRET).
 if (typeof Deno !== "undefined")
   Deno.serve(async (req) => {
     const secret = Deno.env.get("CE_UNLOCK_CLEANUP_SECRET");
     if (req.method !== "POST" || !validCleanupAuthorization(req.headers.get("Authorization"), secret))
       return new Response("Acesso negado", { status: 403 });
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const from = Deno.env.get("PORTAL_FROM_EMAIL");
-    const replyTo = Deno.env.get("PORTAL_REPLY_TO");
-    // Sem chave/remetente nada é consumido: as linhas continuam na fila até a configuração existir.
-    if (!resendApiKey || !from || !replyTo)
-      return new Response("Envio de e-mail não configurado", { status: 503 });
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const refreshed = await admin.rpc("ce_unlock_refresh_open");
+    if (refreshed.error) return new Response("Falha ao reavaliar solicitações", { status: 500 });
+    // Sem chave/remetente nada é consumido: as linhas continuam na fila até a configuração existir.
+    if (!Deno.env.get("RESEND_API_KEY") || !Deno.env.get("PORTAL_FROM_EMAIL") || !Deno.env.get("PORTAL_REPLY_TO"))
+      return new Response("Envio de e-mail não configurado", { status: 503 });
     const summary = await processCeUnlockEmails({
       communicationsEnabled: async () => {
         const { data } = await admin.from("app_settings").select("communications_enabled").eq("id", 1).single();
@@ -45,6 +46,7 @@ if (typeof Deno !== "undefined")
         return Boolean(data);
       },
       recipientKey,
+      // Tentativa registrada em portal_email_attempts: o webhook da Resend associa entrega e bounce.
       send: async ({ row, to, idempotencyKey }) => {
         const mail = ceUnlockNoticeTemplate({
           title: row.subject,
@@ -52,20 +54,14 @@ if (typeof Deno !== "undefined")
           portalUrl: canonicalPortalOrigin(),
           supportEmail: portalSupportEmail(),
         });
-        const result = await sendEmail({
+        const result = await sendPortalEmail({
+          admin,
           kind: "ce_unlock_notificacao",
           to,
           subject: mail.subject,
           html: mail.html,
           text: mail.text,
           idempotencyKey,
-          resendApiKey,
-          from,
-          replyTo,
-          // Supressão e bounce já foram conferidos por customer_communication_recipient_allowed.
-          checkSuppression: async () => ({ suppressed: false }),
-          recordAttempt: async ({ idempotencyKey: key }) => ({ id: key, status: "aceito" }),
-          updateAttempt: async () => {},
         });
         return result.ok;
       },
@@ -79,5 +75,5 @@ if (typeof Deno !== "undefined")
         if (finishError) throw finishError;
       },
     });
-    return Response.json(summary);
+    return Response.json({ ...summary, refreshed: refreshed.data });
   });

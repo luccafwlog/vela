@@ -159,6 +159,8 @@ it("com os requisitos atendidos mostra prazo e orienta consultar o Mercante, sem
   expect(banner.textContent).toContain("Consulte o Mercante");
   expect(container.textContent).not.toMatch(/ZPT/i);
   expect(container.textContent).not.toMatch(/Desbloqueio confirmado/i);
+  // Prazo já passou (07/10 17:00): o cliente vê só a data, nunca se a agência atrasou.
+  expect(container.textContent).not.toMatch(/Vencido|Vence hoje|No prazo/);
 });
 
 it("sem todos os requisitos não mostra o aviso de documentação validada", () => {

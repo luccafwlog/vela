@@ -85,7 +85,7 @@ export async function parseCeUnlockZptFile(buffer: ArrayBuffer): Promise<ParsedC
 const CHUNK = 5000;
 /** Envia em lotes (limite de 20000 por chamada no banco) e soma os resumos. */
 export async function reconcileCeUnlockZpt(rows: CeUnlockZptRow[]): Promise<CeUnlockReconcileSummary> {
-  const total: CeUnlockReconcileSummary = { rows: 0, unlocked: 0, divergent: 0, ignored: 0, unknown_ce: 0 };
+  const total: CeUnlockReconcileSummary = { rows: 0, unlocked: 0, divergent: 0, stale: 0, ignored: 0, unknown_ce: 0 };
   for (const chunk of chunkArray(rows, CHUNK)) {
     const part = await ceUnlockReconcile(chunk);
     for (const key of Object.keys(total) as Array<keyof CeUnlockReconcileSummary>) total[key] += part[key];

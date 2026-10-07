@@ -123,3 +123,12 @@ coluna "Não"; nenhum tem as quatro marcadas. O modelo de **importação** da ab
 - Calendário de feriados.
 - Homologação do arquivo de importação da ZPT: até o primeiro upload real
   aceito, a ponte de envio não está comprovada.
+
+## Nota editorial — decisões da revisão do PR 884 (2026-10-07)
+
+Confirmadas pelo responsável na revisão; implementadas na migration `161`:
+
+- Decisão 16: início em sábado/domingo vence **segunda às 12:00**.
+- Decisão 4: solicitação com documentação validada (`completed`) **não pode mais ser
+  cancelada**, nem pelo desk.
+- Decisão 19: o Portal mostra só a data do prazo; não indica vencido, vence hoje ou no prazo.

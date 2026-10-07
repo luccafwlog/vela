@@ -171,7 +171,8 @@ export function CeUnlockRequestDetail({
             Aplicar renovação VIP
           </Button>
         )}
-      {manage && request.state !== "cancelled" && (
+      {/* Documentação validada não se cancela mais. */}
+      {manage && !["cancelled", "completed"].includes(request.state) && (
         <Button
           variant="ghost"
           disabled={busy}

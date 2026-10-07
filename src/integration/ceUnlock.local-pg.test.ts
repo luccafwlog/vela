@@ -224,6 +224,15 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     sql("UPDATE public.bl_receivables SET status='partially_settled',balance_brl=50,settled_amount_brl=50 WHERE id=998558;")
     command('delivery',{bl_id:'CE557-PART',delivered:false,reason:'Teste de reabertura',expected_version:1,request_key:crypto.randomUUID()})
     expect(view().state).toBe('in_review')
+    // Nova conclusão não repete o aviso de documentação validada; concluída não se cancela.
+    sql("UPDATE public.bl_receivables SET status='settled',balance_brl=0,settled_amount_brl=100 WHERE id=998558;")
+    command('delivery',{bl_id:'CE557-PART',delivered:true,expected_version:2,request_key:crypto.randomUUID()})
+    expect(view().state).toBe('completed')
+    expect(sql("SELECT count(*) FROM public.ce_unlock_email_outbox WHERE request_id='"+draft.id+"' AND kind='documentation_validated';")).toBe('1')
+    expect(()=>command('cancel',{request_id:draft.id,expected_version:view().version,reason:'Desistência',request_key:crypto.randomUUID()})).toThrow(/não pode mais ser cancelada/)
+    // Perda da liquidação sem comando do módulo: a varredura do job reabre.
+    sql("UPDATE public.bl_receivables SET status='partially_settled',balance_brl=50,settled_amount_brl=50 WHERE id=998558; SELECT public.ce_unlock_refresh_open();")
+    expect(view().state).toBe('in_review')
   })
   it('envio VIP aguarda revogação anual concorrente e recusa cobertura perdida',async()=>{
     const pending=JSON.parse(sql("SELECT public.portal_list_ce_unlock_requests('{}',1);",client)).items.filter((r:{state:string})=>r.state!=='cancelled')
@@ -380,9 +389,15 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     const cancel = JSON.stringify({ request_id: reviewRequest, expected_version: 0, request_key: crypto.randomUUID() })
     const result = reviewScenario(`
       SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}';
-      SELECT public.portal_ce_unlock_command('cancel','${cancel}'::jsonb)->>'state';
+      SELECT public.portal_ce_unlock_command('cancel','${cancel}'::jsonb);
       SELECT (SELECT reason FROM jsonb_to_recordset(public.portal_get_ce_unlock_request('${reviewRequest}')->'events') AS e(action text,reason text) WHERE action='cancel');`)
-    expect(result.split('\n')).toEqual(['cancelled', 'Cancelado pelo cliente'])
+    const [cancelled, reason] = result.split('\n')
+    const projection = JSON.parse(cancelled)
+    expect(projection.state).toBe('cancelled')
+    expect(reason).toBe('Cancelado pelo cliente')
+    // O cliente recebe a projeção do Portal, nunca a do desk.
+    expect(projection.confirmation_records).toEqual([])
+    for (const item of projection.items) for (const key of ['export_state', 'exported_at', 'zpt_status']) expect(item).not.toHaveProperty(key)
     const sent = reviewScenario.bind(null)
     expect(() => sent(`
       UPDATE public.ce_unlock_requests SET state='submitted' WHERE id='${reviewRequest}';
@@ -411,19 +426,21 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     const cases: Array<[string, string]> = [
       ['2026-10-07 07:50', '2026-10-07T17:00'], ['2026-10-07 11:59', '2026-10-07T17:00'],
       ['2026-10-07 12:00', '2026-10-08T12:30'], ['2026-10-07 18:30', '2026-10-08T12:30'],
-      ['2026-10-09 14:00', '2026-10-12T12:30'], ['2026-10-10 15:00', '2026-10-12T17:00'], ['2026-10-11 09:00', '2026-10-12T17:00'],
+      ['2026-10-09 14:00', '2026-10-12T12:30'], ['2026-10-10 15:00', '2026-10-12T12:00'], ['2026-10-11 09:00', '2026-10-12T12:00'],
     ]
     const out = sql(cases.map(([start]) => `SELECT to_char(ce_unlock_private.sla_deadline(timestamp '${start}' AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo','YYYY-MM-DD"T"HH24:MI');`).join('\n'))
     expect(out.split('\n')).toEqual(cases.map(([, deadline]) => deadline))
   })
   it('conciliação com a ZPT: desbloqueado, divergente, ignorado; só o desk vê e reexportar limpa a divergência', () => {
     const rows = JSON.stringify([
-      { ce: '123456789018470', status: 'Bloqueado', description: 'Doc. Procuração', updated_at: '2026-10-07T10:00:00-03:00', pending: ['BL Entrega'] },
+      { ce: '123456789018470', status: 'Bloqueado', description: 'Doc. Procuração', pending: ['BL Entrega'] },
       { ce: '123456789018471', status: 'Desbloqueado', description: 'Cancelamento de Pendência', updated_at: '2026-10-06T15:29:08-03:00', pending: [] },
       { ce: '123456789018472', status: 'Bloqueado', description: 'Registro de Pendência', pending: ['Financeiro'] },
       { ce: '999999999999999', status: 'Desbloqueado', pending: [] },
       { ce: '123456789018473', status: 'Desbloqueado', pending: [] },
     ])
+    // Arquivo baixado antes da reexportação: Bloqueado com Data Atualização anterior ao envio.
+    const staleRows = JSON.stringify([{ ce: '123456789018470', status: 'Bloqueado', updated_at: '2026-01-01T10:00:00-03:00', pending: ['BL Entrega'] }])
     const exportKey = () => JSON.stringify({ bl_ids: ['CE557-REVIEW'], request_key: crypto.randomUUID() })
     const result = reviewScenario(`
       SET LOCAL session_replication_role=replica;
@@ -437,10 +454,15 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       SELECT public.ce_unlock_read('bls','{"filters":{"search":"CE557-ZPT2"}}');
       SELECT public.ce_unlock_read('bls','{"filters":{"situation":"ready_not_exported"}}');
       SELECT public.ce_unlock_command('export','${exportKey()}'::jsonb)->>'layout_version';
+      SELECT public.ce_unlock_read('bls','{"filters":{"search":"CE557-REVIEW"}}');
+      SET LOCAL request.jwt.claim.sub='${client}';
+      SELECT public.portal_get_ce_unlock_request('${reviewRequest}')->'events';
+      SET LOCAL request.jwt.claim.sub='${admin}';
+      SELECT public.ce_unlock_reconcile('${staleRows}'::jsonb);
       SELECT public.ce_unlock_read('bls','{"filters":{"search":"CE557-REVIEW"}}');`)
     const lines = result.split('\n')
     expect(lines[0]).toBe('zpt-5-v2')
-    expect(JSON.parse(lines[1])).toEqual({ rows: 5, unlocked: 2, divergent: 1, ignored: 1, unknown_ce: 1 })
+    expect(JSON.parse(lines[1])).toEqual({ rows: 5, unlocked: 2, divergent: 1, stale: 0, ignored: 1, unknown_ce: 1 })
     const divergent = JSON.parse(lines[2]).items
     expect(divergent.map((i: { bl_id: string }) => i.bl_id)).toEqual(['CE557-REVIEW'])
     expect(divergent[0]).toMatchObject({ zpt_status: 'divergent', zpt_description: 'Doc. Procuração', zpt_pending: ['BL Entrega'] })
@@ -448,6 +470,10 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(JSON.parse(lines[4]).items.map((i: { bl_id: string }) => i.bl_id)).not.toContain('CE557-REVIEW')
     expect(lines[5]).toBe('zpt-5-v2')
     expect(JSON.parse(lines[6]).items[0]).toMatchObject({ export_state: 'exported', zpt_status: null })
+    // Histórico do Portal não cita exportação; arquivo anterior ao envio não vira divergência.
+    expect(JSON.parse(lines[7]).map((e: { action: string }) => e.action)).not.toContain('export')
+    expect(JSON.parse(lines[8])).toMatchObject({ divergent: 0, stale: 1 })
+    expect(JSON.parse(lines[9]).items[0]).toMatchObject({ zpt_status: null })
     // Portal nunca recebe campos da ZPT, e o Financeiro não concilia.
     const portal = JSON.parse(sql("SELECT ce_unlock_private.portal_view(ce_unlock_private.item('CE557-A'));"))
     expect(Object.keys(portal).filter(key => key.startsWith('zpt_') || key.startsWith('export'))).toEqual([])

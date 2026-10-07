@@ -88,6 +88,8 @@ export type CeUnlockReconcileSummary = {
   rows: number;
   unlocked: number;
   divergent: number;
+  /** Bloqueado na ZPT com Data Atualização anterior à exportação: ainda não reflete o envio. */
+  stale: number;
   ignored: number;
   unknown_ce: number;
 };

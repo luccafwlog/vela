@@ -64,6 +64,7 @@ export function CeUnlockZptImport() {
       {summary && (
         <p role="status">
           {summary.rows} linha(s): {summary.unlocked} desbloqueada(s), {summary.divergent} divergente(s),{" "}
+          {summary.stale} ainda sem atualização da ZPT após a exportação,{" "}
           {summary.ignored} bloqueada(s) não exportada(s) pelo Vela, {summary.unknown_ce} CE desconhecido(s).
         </p>
       )}

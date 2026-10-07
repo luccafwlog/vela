@@ -17,9 +17,9 @@ describe('prazo de desbloqueio de CE', () => {
   it('sexta à tarde vence na segunda às 12:30', () => {
     expect(at(ceUnlockDeadline(br('2026-10-09T14:00:00')))).toBe(at(br('2026-10-12T12:30:00')))
   })
-  it('sábado e domingo valem como antes das 08:00 de segunda (janela da manhã)', () => {
-    expect(at(ceUnlockDeadline(br('2026-10-10T15:00:00')))).toBe(at(br('2026-10-12T17:00:00')))
-    expect(at(ceUnlockDeadline(br('2026-10-11T09:00:00')))).toBe(at(br('2026-10-12T17:00:00')))
+  it('sábado e domingo vencem segunda às 12:00', () => {
+    expect(at(ceUnlockDeadline(br('2026-10-10T15:00:00')))).toBe(at(br('2026-10-12T12:00:00')))
+    expect(at(ceUnlockDeadline(br('2026-10-11T09:00:00')))).toBe(at(br('2026-10-12T12:00:00')))
   })
   it('classifica vencido, vence hoje e no prazo', () => {
     const start = '2026-10-07T10:00:00-03:00'

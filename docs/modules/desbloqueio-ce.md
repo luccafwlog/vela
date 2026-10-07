@@ -56,14 +56,15 @@ com saldo zero e evidência real no ledger.
 Cancelamento de B/L e correção do CE também exigem nova conferência.
 
 **Conclusão.** A solicitação passa a *Documentação validada* quando todos os B/Ls
-ativos têm os quatro requisitos; desfazer um requisito a reabre. O desk pode cancelar
-uma solicitação concluída enquanto nenhum B/L tiver sido exportado.
-ponytail: a conclusão é reavaliada nos comandos (aprovação, entrega, VIP, envio); uma
-liquidação posterior, sozinha, só aparece no próximo comando. Upgrade: trigger em `ledger_settlements`.
+ativos têm os quatro requisitos; desfazer um requisito a reabre. Solicitação concluída
+não pode mais ser cancelada (nem pelo desk). O aviso "documentação validada" sai só na
+primeira conclusão. A conclusão é reavaliada nos comandos e, para liquidações feitas fora
+do módulo, pela varredura `ce_unlock_refresh_open()` que o job `ce-unlock-notify-email`
+executa a cada 5 minutos (ponytail: O(solicitações abertas); upgrade: fila por trigger).
 
 **Prazo (SLA).** Começa no envio; só dias úteis, sem feriados. Antes das 12:00 vence às
 17:00 do mesmo dia; a partir das 12:00, às 12:30 do próximo dia útil; sábado/domingo
-valem como antes das 08:00 de segunda. Recomeça com a pendência do cliente resolvida
+vencem segunda às 12:00. Recomeça com a pendência do cliente resolvida
 (reenvio, entrega do original, nova liquidação); aprovar documento não recomeça.
 Calculado na tela (`ceUnlockSla.ts`) e no banco (`ce_unlock_private.sla_deadline`,
 usado no texto do aviso); o teste SQL confere os dois com os mesmos casos. O
@@ -72,8 +73,9 @@ cumprimento é medido pela data da exportação.
 **Avisos ao cliente.** Recusa de documento (com o motivo) e documentação validada (com o
 prazo) geram um aviso no sino do Portal e uma linha na fila `ce_unlock_email_outbox`; a
 Edge Function `ce-unlock-notify-email` envia aos contatos da caixa **Documentação e
-Operação**, respeitando a chave global de Comunicados, supressão e bounce. Nenhum
-texto cita ZPT ou desbloqueio confirmado.
+Operação**, respeitando a chave global de Comunicados, supressão e bounce, e registra a tentativa
+em `portal_email_attempts`. Nenhum texto cita ZPT ou desbloqueio confirmado. O Portal mostra
+só a data do prazo (nunca "vencido"), e seu histórico omite exportação, entrega e VIP.
 
 **Envio e conciliação.** Só entram na planilha B/Ls com os quatro requisitos. O layout
 `zpt-5-v2` usa os cabeçalhos do "Exportar Tela" da ZPT (`BL`, `Financeiro`,
@@ -99,7 +101,7 @@ operador da ZPT. A conciliação não altera o prazo nem o que o Portal mostra.
 
 ## Persistência e segurança
 
-Migrations `137`–`149` e `160`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
+Migrations `137`–`149`, `160` e `161`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
 RLS sem acesso direto do navegador e RPCs com escopo server-side. A `160` acrescenta
 `exported_at/exported_by/export_id` em `ce_unlock_request_bls`, `ce_unlock_zpt_status`
 (conciliação) e `ce_unlock_email_outbox`. Escritas
