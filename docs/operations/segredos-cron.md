@@ -148,7 +148,9 @@ Remover: `SELECT cron.unschedule('recalc-demurrage-ptax');`.
 
 ### Agendar o expurgo do desbloqueio de CE
 
-Pelo mesmo motivo, a migration `141` não cria o job `ce-unlock-cleanup`
+**Agendado em produção em 2026-10-07** (jobid 24): sem pedidos nem documentos no módulo, um
+disparo manual respondeu HTTP 200 (`removed: 0`, `expired_drafts: 0`); não havia Preview
+disponível para a validação prevista. Pelo mesmo motivo, a migration `141` não cria o job `ce-unlock-cleanup`
 (corrigida em 2026-10-06, depois de falhar em produção com o mesmo `42501`).
 Agende somente depois de cadastrar `CE_UNLOCK_CLEANUP_SECRET` no cofre e na Edge
 Function e de validar o expurgo, conforme o [manual de serviços externos](servicos-externos.md):

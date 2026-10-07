@@ -548,7 +548,7 @@ de Comunicados (desligada: descarta com motivo), supressão e bounce. Job `ce-un
 agendado em produção em 2026-10-07 (`*/5 * * * *`, jobid 23); `CE_UNLOCK_CLEANUP_SECRET` está no
 cofre (`vault.secrets`) e nas secrets das Edge Functions. Ver [segredos e cron](segredos-cron.md).
 
-O job `ce-unlock-cleanup` **não existe** até ser agendado manualmente (`0 6 * * *`, UTC;
+O job `ce-unlock-cleanup` foi **agendado em produção em 2026-10-07** (`0 6 * * *`, UTC, jobid 24;
 ver [segredos e cron](segredos-cron.md)). Antes de agendar,
 configurar `CE_UNLOCK_CLEANUP_SECRET` nas variáveis da Edge Function e no Vault
 Supabase com exatamente esse nome/valor, por canal seguro. O cron chama
