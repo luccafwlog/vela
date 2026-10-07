@@ -99,6 +99,12 @@ Cliente de teste. Evidência detalhada em
   da conta. Dono precisa decidir/habilitar plano compatível; não tornar público
   como alternativa automática. Único colaborador retornado pela API: dono,
   com admin; deploy keys e aplicativos ainda precisam de revisão.
+- **Acessos revisados em 2026-10-06:** 12 GitHub Apps instalados e uma deploy
+  key `Codex workspace - Transhipping Desk` com `read/write`, usada nos últimos
+  três meses. Nada removido; revisão/remoção da chave fica para o dono. A
+  limpeza de Preview da PR #872 falhou com HTTP 400 no primeiro GET; script
+  ajustado para `per_page=25` e quatro testes passam. Execução real futura ainda
+  necessária.
 - **Operação:** backup já possui bucket/chave dedicados, conforme evidência de
   2026-10-05 no manual; sucesso da tarefa agendada seguinte ainda não observado.
   Versões fixadas em `.mcp.json` e `opencode.json` na retomada. Vault mostra os
@@ -128,6 +134,11 @@ registrado como drift a resolver antes de comprovar redirecionamentos Auth/PKCE.
 Nenhuma configuração alterada nesta conferência.
 
 ## Decisões
+
+Em 2026-10-06, o dono recusou restringir os environments GitHub à branch
+`main`. Não aplicar essa restrição. O controle fica fora da execução por
+decisão do dono, com risco aceito; não marcar como corrigido. A recusa não
+cancela as demais pendências, inclusive credenciais e validação de workflows.
 
 Respondidas pelo dono em 2026-09-29: **D1 = (b)** (cai para (a) se o plano
 do Supabase não oferecer o hook), **D2 = (c)** (manter como hoje; o item 2.8

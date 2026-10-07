@@ -242,3 +242,25 @@ preview via `workflow_run`, cleanup via `pull_request_target`, provisionamento
 via dispatch. Restrição a `main` preparada, aguardando autorização específica.
 Credenciais novas precisam ser cadastradas pelo dono (handoff); só remover
 as cópias do repositório após deploys dos substitutos aprovados.
+
+## Decisão do dono sobre environments
+
+Dono recusou a restrição de deployment branch a `main` após explicação do
+fluxo de Preview. Nenhuma restrição aplicada. Item retirado da execução por
+decisão explícita, com risco aceito, sem comprovação de remediação. Demais
+pendências permanecem no escopo.
+
+## Acessos GitHub e limpeza de Preview
+
+O repositório tem dez GitHub Apps instalados (Codex Connector, Claude, Claude
+Design Import, Cloudflare Workers and Pages, Cursor, Devin.ai, genspark,
+lovable.dev, Meta Muse, Sentry, Supabase e Vercel); a revisão foi somente
+leitura. Há uma única deploy key, `Codex workspace - Transhipping Desk`,
+`read/write`, usada há menos de três meses. Ela precisa de revisão do dono;
+não foi removida.
+
+O workflow de limpeza da PR #872 falhou em 2026-10-07 com HTTP 400 no primeiro
+GET de deployments. Ajustei o script para `per_page=25`, mantendo paginação e
+o comportamento de preservar o deployment mais recente. Os quatro testes
+existentes passam; uma execução futura do workflow é necessária para comprovar
+a chamada real. Nenhuma exclusão ocorreu na execução que falhou.

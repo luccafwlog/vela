@@ -3,7 +3,10 @@ import { resolve } from 'node:path'
 
 const API = 'https://api.cloudflare.com/client/v4'
 const PROJECTS = ['vela-internal', 'vela-portal']
-const PER_PAGE = 100
+// Cloudflare Pages rejeita o tamanho 100 em algumas contas (HTTP 400), embora
+// a resposta de projetos aceite esse valor. 25 é o limite conservador comum
+// ao endpoint de deployments e mantém a paginação explícita.
+const PER_PAGE = 25
 
 async function cloudflareRequest(url, { apiToken, fetchImpl, method = 'GET' }) {
   const response = await fetchImpl(url, {
