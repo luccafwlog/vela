@@ -37,6 +37,9 @@ CREATE TABLE public.ce_unlock_email_outbox (
 );
 CREATE INDEX ce_unlock_email_outbox_pending ON public.ce_unlock_email_outbox(id) WHERE status='pending';
 
+-- Linhas literais: o teste de invariantes do schema exige ENABLE RLS explícito por tabela.
+ALTER TABLE public.ce_unlock_zpt_status ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ce_unlock_email_outbox ENABLE ROW LEVEL SECURITY;
 DO $$ DECLARE t text; BEGIN
  FOREACH t IN ARRAY ARRAY['ce_unlock_zpt_status','ce_unlock_email_outbox'] LOOP
  EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',t);
