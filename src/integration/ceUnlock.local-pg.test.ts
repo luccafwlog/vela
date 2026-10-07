@@ -119,8 +119,12 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(()=>command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})).toThrow()
     sql("UPDATE public.bl_receivables SET settled_amount_brl=100,balance_brl=0,status='settled' WHERE id=998557; UPDATE public.ce_unlock_documents SET status='revoked' WHERE source='vip_annual' AND type='termo' AND customer_id=998557;")
     expect(()=>command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})).toThrow()
-    // Pedido exportado não é cancelável sem tratamento externo; os cenários seguintes recomeçam do zero.
+    // Documentação validada (e exportada) não se cancela; os cenários seguintes recomeçam do zero.
     const open=JSON.parse(sql("SELECT row_to_json(r) FROM public.ce_unlock_requests r WHERE id=(SELECT request_id FROM public.ce_unlock_request_bls WHERE bl_id='CE557-A' AND active);"))
+    expect(open.state).toBe('completed')
+    expect(error(`SELECT public.ce_unlock_command('cancel','${JSON.stringify({request_id:open.id,expected_version:open.version,reason:'x',request_key:crypto.randomUUID()})}'::jsonb);`,admin)).toContain('não pode mais ser cancelada')
+    // Pedido não validado, mas já exportado, também não se cancela sem tratamento externo.
+    sql(`UPDATE public.ce_unlock_requests SET state='in_review' WHERE id='${open.id}';`)
     expect(error(`SELECT public.ce_unlock_command('cancel','${JSON.stringify({request_id:open.id,expected_version:open.version,reason:'x',request_key:crypto.randomUUID()})}'::jsonb);`,admin)).toContain('já exportado')
     sql("UPDATE public.ce_unlock_request_bls SET exported_at=NULL,export_id=NULL WHERE bl_id='CE557-A';")
   })
