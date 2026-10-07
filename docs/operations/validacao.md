@@ -459,13 +459,13 @@ Confirme:
 
 ## 17. Limpeza
 
-O reset amplo está suspenso. Para fixtures:
+Limpeza ampla só com `supabase/scripts/limpar_dados_teste.sql`, enquanto a
+afirmação "Data status" do `AGENTS.md` valer. Para fixtures pontuais:
 
 - use prefixos de QA;
 - registre IDs criados;
 - remova pelo produto ou por SQL revisado para a fixture;
 - confira dependências financeiras antes de excluir;
-- nunca execute `supabase/scripts/reset_operational_data.sql`.
 
 Consulte [`reset-ambiente.md`](./reset-ambiente.md).
 

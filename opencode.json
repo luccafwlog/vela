@@ -1,8 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "plugin": [
-    "@dietrichgebert/ponytail",
-    "github:cesumilo/opencode-skills-as-commands"
+    "@dietrichgebert/ponytail@4.13.0",
+    "github:cesumilo/opencode-skills-as-commands#f9973b2f4271826d6c22a24080cbc9976c28ed1f"
   ],
   "skills": {
     "paths": [

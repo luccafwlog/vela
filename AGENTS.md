@@ -114,9 +114,10 @@ planos e specs"):
 - `src/types/database.ts`, `src/lib/pix.ts`, and existing migration files are
   protected by `.claude/hooks/protect-files.sh`; do not bypass the guard
   without explicit authorization.
-- Never execute the suspended reset script
-  (`supabase/scripts/reset_operational_data.sql`); see
-  `docs/operations/reset-ambiente.md` for the safe alternative.
+- The only broad test-data cleanup is `supabase/scripts/limpar_dados_teste.sql`,
+  allowed only while the "Data status" bullet below holds; follow
+  `docs/operations/reset-ambiente.md`. Never truncate tables ad hoc: the
+  database refuses to delete the `app_settings` singleton (migration `156`).
 - Hooks in `.claude/hooks/` provide additional checks. These protections apply
   even when the current agent or editor does not run those hooks. Inspect
   commands before running them; `npm run sync:hard` resets and cleans the

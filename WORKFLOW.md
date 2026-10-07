@@ -73,6 +73,16 @@ Referência: [documentação oficial do mod agents-md](https://github.com/anthro
 
 ## 1. Stack verificada
 
+### Versões dos auxiliares de agentes
+
+`.mcp.json` fixa Context7 e Playwright por versão exata e usa o servidor oficial
+`shadcn@4.21.3 mcp` (o pacote anterior `@shadcn/mcp` não existe no npm).
+`opencode.json` fixa Ponytail por versão e `opencode-skills-as-commands` por
+commit completo. Atualizações são deliberadas: conferir origem e compatibilidade,
+alterar a referência fixa e validar a inicialização no cliente correspondente.
+Referências: [shadcn MCP](https://ui.shadcn.com/docs/mcp) e
+[plugins OpenCode](https://opencode.ai/v2/docs/plugins).
+
 ### Frontend
 
 - React 19 e React DOM;
