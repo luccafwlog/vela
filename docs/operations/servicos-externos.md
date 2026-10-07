@@ -572,3 +572,14 @@ suspendem o prazo, então a cobrança pode vencer às 14h30 de um feriado. A Dem
 Renovar o certificado 30 dias antes do vencimento. Documentação:
 [Itaú for Developers](https://devportal.itau.com.br/nossas-apis/itau-ep9-api-regulatorio-pix-v2-externo).
 Nenhuma função, job ou webhook do Itaú está publicado.
+
+### Correção de simulação de Comunicados — 2026-10-06
+
+Publicadas com autorização do dono, a partir de `0889e478`, no Supabase
+`fgmkhbzhaeebrsizwccx`: `send-customer-communication` v169 e
+`demurrage-dunning` v166, via `supabase functions deploy` com `--use-api`.
+Ambas ACTIVE, mantendo `verify_jwt=false` e autorização interna da Function.
+A chave `app_settings.communications_enabled` permaneceu desligada.
+Simulação institucional confirmada na tela e no banco (`id=2`, duas tentativas
+aceitas sem ID do provedor); o runner Demurrage não foi executado. Detalhes no
+[relatório da retomada](../archive/reports/2026-10-06-remediacao-run-2-retomada.md).

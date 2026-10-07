@@ -161,8 +161,10 @@ O envio com chave global desligada passa `simulate: true` ao helper de e-mail:
 registra uma tentativa aceita em modo simulado, sem chamada ao Resend. Falta de
 credencial em envio real continua sendo falha. A simulação respeita supressões
 e preserva uma confirmação real já existente. **Teste:** `emailShared.test.ts`
-e `emailMissingConfiguration.test.ts`. Publicação e repetição remota desta
-correção ainda pendentes na retomada da run-2.
+e `emailMissingConfiguration.test.ts`. **Runtime em produção, 2026-10-06:**
+Functions manual v169 e Demurrage v166 publicadas; institucional `id=2` ficou
+`simulado`, com duas tentativas aceitas sem ID do provedor e chave desligada.
+O runner Demurrage não foi executado nessa validação.
 
 A identidade única de `customer_communications` combina tipo, cliente, âncoras,
 `dispatch_id` e `attempt_discriminator`; o status fica fora dela porque muda

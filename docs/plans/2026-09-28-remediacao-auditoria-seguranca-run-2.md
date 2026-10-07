@@ -82,10 +82,13 @@ Cliente de teste. Evidência detalhada em
   registra a correção para replay e deploy pelo fluxo normal. Novo disparo
   persistiu assunto, texto e hash do HTML, com navio/viagem nulos como exige o
   institucional; porém a tentativa ficou `falha_permanente` em modo simulado.
-  Correção local distingue simulação explícita de falta de configuração do
-  provedor; publicar `send-customer-communication` e `demurrage-dunning`, depois
-  repetir institucional/livre, arquivo falso e envio real a destinatário
-  controlado. O registro anterior de falha permanece como evidência.
+  Correção publicada com autorização do dono em 2026-10-06 (22:19 de Brasília):
+  `send-customer-communication` v169 e `demurrage-dunning` v166. Repetição
+  institucional confirmou comunicado `id=2`, status `simulado`, duas tentativas
+  `aceito`, sem erro/ID do provedor, e chave global desligada. Assunto, texto e
+  hash persistidos; navio/viagem nulos. Ainda faltam livre, arquivo falso e envio
+  real a destinatário controlado. O registro anterior de falha permanece como
+  evidência; o runner Demurrage foi publicado, mas não executado neste teste.
 - **GitHub pendente:** environments `cloudflare-pages` e `supabase-branches`
   existem, mas sem secrets e sem restrição de deployment branch. As três
   credenciais e o secret legado continuam em Repository secrets. Repositório

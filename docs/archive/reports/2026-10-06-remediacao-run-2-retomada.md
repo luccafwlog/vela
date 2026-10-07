@@ -1,7 +1,7 @@
 # Retomada da remediação run-2 — 2026-10-06
 
-O Comunicado institucional alcança a conferência do Cliente de teste, mas a
-simulação ainda não tem evidência de sucesso de ponta a ponta. O plano
+O Comunicado institucional teve simulação validada em produção após a
+publicação autorizada da correção. O plano
 [run-2](../../plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md) permanece
 vivo. Nenhum envio real foi autorizado ou habilitado nesta retomada.
 
@@ -79,7 +79,25 @@ ausentes. Backup dedicado já documentado em
 [backup R2](../../operations/backup-r2.md); execução agendada seguinte não foi
 observada nesta máquina macOS.
 
-Faltam publicação da correção de simulação e validação remota, anexos falsos,
+Faltam anexos falsos,
 Comunicado livre com navio/viagem derivados dos B/Ls, envio real controlado,
 PKCE, Dispute com as duas identidades internas, importação e configuração dos
 painéis. Não há evidência para encerrar ou arquivar o plano.
+
+## Publicação autorizada e repetição
+
+Em 2026-10-06, às 22:19 de Brasília (2026-10-07 UTC), publicação pelo CLI
+Supabase com `--use-api`, a partir de `0889e478`, no projeto
+`fgmkhbzhaeebrsizwccx`: `send-customer-communication` v169 e
+`demurrage-dunning` v166, ambas ACTIVE e `verify_jwt=false` preservado.
+Fonte remota confirmou `simulate: !enabled` no manual e as duas chamadas
+`simulate: !communicationsEnabled` no runner.
+
+**Runtime observado:** nova composição institucional pelo Vela, recorte do
+Cliente de teste. A tela informou duas tentativas em simulação. Consulta
+posterior confirmou `customer_communications.id=2`, `status=simulado`, assunto,
+texto e SHA-256 persistidos; navio/viagem nulos. Tentativas `id=2` e `id=3`
+com `status=aceito`, `dispatch_mode=simulado`, `last_error=null`,
+`provider_message_id=null`; `communications_enabled=false`. Nenhum e-mail
+real foi enviado. O runner Demurrage não foi executado: sua publicação e
+contrato foram conferidos, sem evidência runtime de cobrança nesta etapa.
