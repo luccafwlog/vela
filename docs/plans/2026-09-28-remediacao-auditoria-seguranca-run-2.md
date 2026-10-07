@@ -137,28 +137,31 @@ Nenhuma configuração alterada nesta conferência.
 
 As pendências executáveis restantes são:
 
-1. **GitHub e credenciais:** os secrets foram cadastrados nos environments
-   `cloudflare-pages`, `supabase-branches` e `cloudflare-production`. Validar
-   os workflows; depois remover as cópias antigas dos Repository secrets,
-   inclusive
-   `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`, e rotacionar os tokens. Isso
-   exige ação do dono sem compartilhar valores no chat.
+1. **GitHub e credenciais:** os secrets estão nos environments
+   `cloudflare-pages`, `supabase-branches` e `cloudflare-production`. O secret
+   `SUPABASE_ACCESS_TOKEN` em `supabase-branches` foi substituído em
+   2026-10-07 por PAT restrito ao projeto Vela com `Development Branches: Read`
+   e `API Keys: Read`, validade de 90 dias; atualização confirmada nos
+   metadados do GitHub após reautenticação. Validar os workflows; depois
+   remover as cópias antigas dos Repository secrets, inclusive
+   `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`, e aposentar o PAT anterior.
+   Nenhum valor de credencial foi registrado.
 2. **Acessos e proteção:** revisar/remover a deploy key
    `Codex workspace - Transhipping Desk` (`read/write`) e criar o ruleset para
    `.github/workflows/**`. A conta atual recebeu HTTP 403 ao tentar criar
    rulesets; não tornar o repositório público como atalho.
-3. **Preview:** publicar uma Preview válida após validar as credenciais e
-   testar troca de e-mail com PKCE no mesmo e em outro navegador. A integração
-   Supabase GitHub está conectada, mas `Automatic branching` está desligado;
-   o check `Supabase Preview` é `skipped` por essa configuração. O dono optou
-   por mantê-la desligada. Não há branches Preview existentes. Alternativa
-   pontual: criar uma branch pelo painel e vinculá-la à branch GitHub da PR,
-   sem ativar a criação automática. O painel informa cobrança de US$ 0,01344/h
-   enquanto a branch existir (antes de impostos); obter autorização para essa
-   cobrança antes de criá-la e removê-la após a validação. O workflow de
-   limpeza executou em 2026-10-07 após o ajuste `per_page=25`; terminou com
-   sucesso e não encontrou deployments antigos para remover, então o endpoint
-   DELETE não foi exercitado.
+3. **Preview:** a branch pontual `codex/run2-manual-preview-probe` foi criada
+   no projeto Vela e vinculada à branch GitHub da PR #883; `Automatic
+   branching` continua desligado por decisão do dono. O painel informa cobrança
+   de US$ 0,01344/h antes de impostos. A Preview publicada e os testes de
+   PKCE no mesmo e em outro navegador ainda estão pendentes. O primeiro teste
+   do workflow falhou antes de publicar: o PAT tinha `Development Branches:
+   Read`, mas o CLI também precisa de `API Keys: Read` para `branches get`;
+   o GitHub secret foi atualizado em 2026-10-07 e um novo run ainda precisa
+   confirmar o fluxo. Remover a branch após a validação e registrar a exclusão.
+   O workflow de limpeza executou em 2026-10-07 após o ajuste `per_page=25`;
+   terminou com sucesso e não encontrou deployments antigos para remover,
+   então o endpoint DELETE não foi exercitado.
 4. **Importação:** executar importação real com e-mail novo de consignatário.
 5. **Operação:** rotacionar secrets dos jobs no Vault, decidir o procedimento
    para `IMPORT_EFFECTS_CRON_SECRET` e `RECALC_CRON_SECRET`, e observar o

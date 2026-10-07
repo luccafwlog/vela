@@ -206,9 +206,13 @@ estava sem branches persistentes ou de Preview na conferência de 2026-10-07.
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
   O environment GitHub `supabase-branches` guarda o PAT escopado ao projeto
-  `fgmkhbzhaeebrsizwccx`, com `Development Branches: Read` e validade de um
-  ano, além de `PREVIEW_ADMIN_PASSWORD`. As cópias Repository-level ainda
-  existem; para jobs desse environment, a credencial dele prevalece.
+  `fgmkhbzhaeebrsizwccx`, com `Development Branches: Read` e `API Keys: Read`,
+  validade de 90 dias (até 2027-01-05), além de `PREVIEW_ADMIN_PASSWORD`.
+  `API Keys: Read` é necessário para o CLI obter as chaves públicas da branch;
+  `API Key Secrets: Read` não foi concedido. O secret do environment foi
+  atualizado após reautenticação no GitHub em 2026-10-07. As cópias
+  Repository-level ainda existem; para jobs desse environment, a credencial
+  dele prevalece. O PAT anterior permanece até a validação do substituto.
 - **Senha do banco:** só alfanumérica; guardada em `supabase-db-vela` (iCloud
   Senhas) e usada apenas pelo backup. Nada no repositório usa essa senha.
 - **Usuário técnico do Auth:**
