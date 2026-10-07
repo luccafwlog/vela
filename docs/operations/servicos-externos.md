@@ -152,12 +152,16 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
 - **Token:** secret `CLOUDFLARE_PAGES_API_TOKEN` nos environments GitHub
   `cloudflare-pages` e `cloudflare-production` (Cloudflare Pages: Edit, escopo
   da conta Pages). A cópia Repository-level permanece até os workflows serem
-  validados. As execuções `37608023373`, `37619183889` e `37626476950` receberam
-  o secret, mas a listagem de projetos retornou HTTP 400 porque o provisionador
-  enviava `per_page=25`. A [API de listagem Pages](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/list/)
-  documenta `per_page` e mostra `20` em seu exemplo de resposta; a correção
-  local usa `20`. A validade operacional do token segue pendente até uma
-  listagem Pages passar.
+  validados. Os runs `37608023373`, `37619183889`, `37626476950`, `37629073181`
+  e `37630494893` receberam o secret e o ID de conta, mas `GET /pages/projects`
+  falhou com HTTP 400 / código `80000024`; os dois últimos informaram
+  `Invalid list options provided`, mesmo após `per_page` mudar de 25 para 20.
+  A operação foi redesenhada para consultar cada projeto conhecido pela rota
+  individual `GET /pages/projects/{project_name}` documentada pela
+  [Cloudflare Pages API](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/get/),
+  e só criar quando a resposta for HTTP 404. A credencial e a rota individual
+  ainda precisam de validação operacional em `main`; não remover a cópia do
+  Repository secret antes dessa validação.
 
 ### Cloudflare Access (proteção das previews)
 
