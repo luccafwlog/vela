@@ -86,8 +86,11 @@ Cliente de teste. Evidência detalhada em
   `send-customer-communication` v169 e `demurrage-dunning` v166. Repetição
   institucional confirmou comunicado `id=2`, status `simulado`, duas tentativas
   `aceito`, sem erro/ID do provedor, e chave global desligada. Assunto, texto e
-  hash persistidos; navio/viagem nulos. Ainda faltam livre, arquivo falso e envio
-  real a destinatário controlado. O registro anterior de falha permanece como
+  hash persistidos; navio/viagem nulos. Livre validado em produção (`id=3`): navio GREEN TAICANG, viagem 4 derivados
+  do B/L `CSC45370901400`, assunto/texto/hash persistidos, duas tentativas
+  aceitas em simulação. Texto simples com extensão `.pdf` recusado pela
+  Function antes da criação do comunicado/anexo. Falta envio real a
+  destinatário controlado. O registro anterior de falha permanece como
   evidência; o runner Demurrage foi publicado, mas não executado neste teste.
 - **GitHub pendente:** environments `cloudflare-pages` e `supabase-branches`
   existem, mas sem secrets e sem restrição de deployment branch. As três

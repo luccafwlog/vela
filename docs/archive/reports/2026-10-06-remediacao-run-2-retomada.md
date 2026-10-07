@@ -79,8 +79,7 @@ ausentes. Backup dedicado já documentado em
 [backup R2](../../operations/backup-r2.md); execução agendada seguinte não foi
 observada nesta máquina macOS.
 
-Faltam anexos falsos,
-Comunicado livre com navio/viagem derivados dos B/Ls, envio real controlado,
+Falta envio real controlado,
 PKCE, Dispute com as duas identidades internas, importação e configuração dos
 painéis. Não há evidência para encerrar ou arquivar o plano.
 
@@ -101,3 +100,18 @@ com `status=aceito`, `dispatch_mode=simulado`, `last_error=null`,
 `provider_message_id=null`; `communications_enabled=false`. Nenhum e-mail
 real foi enviado. O runner Demurrage não foi executado: sua publicação e
 contrato foram conferidos, sem evidência runtime de cobrança nesta etapa.
+
+## Livre e anexo inválido — continuação em 2026-10-06
+
+**Runtime observado em produção:** Comunicado livre `id=3`, recorte GREEN
+TAICANG e Cliente de teste, vinculado ao B/L `CSC45370901400`. Banco confirmou
+`vessel_name=GREEN TAICANG`, `voyage_number=4`, correspondentes ao B/L,
+assunto/texto/hash persistidos e status `simulado`. Duas tentativas aceitas,
+sem erro nem ID do provedor; chave global desligada.
+
+Arquivo de texto simples de 65 bytes, nome `vela-run2-falso.pdf`, selecionado
+pelo navegador e submetido no teste em simulação. A Function recusou com
+"O conteúdo do anexo 1 não corresponde ao tipo informado." Consulta posterior
+confirmou zero comunicados com o assunto do teste negativo e zero anexos com
+esse nome. Isso comprova rejeição pela assinatura do conteúdo no fluxo real,
+sem envio de e-mail. Evidência visual local: `/tmp/vela-run2-pdf-recusado.jpg`.
