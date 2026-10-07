@@ -252,7 +252,7 @@ pendências permanecem no escopo.
 
 ## Acessos GitHub e limpeza de Preview
 
-O repositório tem dez GitHub Apps instalados (Codex Connector, Claude, Claude
+O repositório tem doze GitHub Apps instalados (Codex Connector, Claude, Claude
 Design Import, Cloudflare Workers and Pages, Cursor, Devin.ai, genspark,
 lovable.dev, Meta Muse, Sentry, Supabase e Vercel); a revisão foi somente
 leitura. Há uma única deploy key, `Codex workspace - Transhipping Desk`,
