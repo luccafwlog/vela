@@ -13,6 +13,7 @@ const fixtures = vi.hoisted(() => ({
   documentsReady: false,
   confirmedUnpaid: false,
   ready: false,
+  listRequest: false,
   state: "draft",
   mutate: vi.fn(async () => ({})),
 }));
@@ -30,7 +31,8 @@ vi.mock("../../hooks/usePortalCeUnlock", () => ({
             ce_mercante: "123",
             paid: true,
             can_submit: fixtures.canSubmit,
-            state: "no_request",
+            state: fixtures.listRequest ? "in_review" : "no_request",
+            ...(fixtures.listRequest ? { request_id: "req-1" } : {}),
             reasons: [],
           },
         ],
@@ -57,6 +59,7 @@ afterEach(() => {
   fixtures.documentsReady = false;
   fixtures.confirmedUnpaid = false;
   fixtures.ready = false;
+  fixtures.listRequest = false;
   fixtures.state = "draft";
   fixtures.mutate.mockClear();
 });
@@ -168,4 +171,12 @@ it("sem todos os requisitos não mostra o aviso de documentação validada", () 
   fixtures.state = "in_review";
   mount();
   expect(screen.queryByRole("status")).toBeNull();
+});
+
+it("BL com solicitação em andamento não fala em desbloqueio confirmado", () => {
+  fixtures.canSubmit = false;
+  fixtures.listRequest = true;
+  const { container } = mount();
+  expect(container.textContent).toContain("Já existe uma solicitação para este BL");
+  expect(container.textContent).not.toMatch(/desbloqueio confirmado/i);
 });
