@@ -5,8 +5,8 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 
 | Parte | Situação |
 |---|---|
-| Fase 1 — configuração de terceiros | pendente (dono, no painel); item 4 respondido em 2026-09-29 |
-| Fase 2 — migration `106` e item 4.5 | código entregue pela PR luccafwlog/vela#799 (suíte `auditoriaRun2.local-pg.test.ts`) e `106` aplicada em produção em 2026-09-29; falta conferir em uso a política de Storage de 2.2, o modal de Disputa e uma importação com e-mail de consignatário novo |
+| Fase 1 — configuração de terceiros | parcialmente conferida; secrets, deploy key, ruleset e rotação ainda pendentes; dono recusou restringir environments à `main` |
+| Fase 2 — migration `106` e item 4.5 | migrations aplicadas; Storage/Dispute Equipamentos validado em produção com `158`/`159`; falta importação com e-mail de consignatário novo e recusa direta de Storage em sessão Financeiro |
 | Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); secret `PORTAL_PASSWORD_PEPPER` criado, `TURNSTILE_SECRET_KEY` conferido e as 18 Functions publicadas pelo dono em 2026-09-29; testes em produção aprovados, exceto o Comunicado (ver "Estado em 2026-09-29") |
 | Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; falta observar na Preview a troca de e-mail com PKCE |
 | Fase 5 — CI e hospedagem | itens 1 e 2 entregues pela luccafwlog/vela#814; item 3 entregue em código (branch `claude/remediacao-run-2-ptax-equipamentos-cors`) após o dono confirmar a Vercel desligada |
@@ -99,6 +99,12 @@ Cliente de teste. Evidência detalhada em
   da conta. Dono precisa decidir/habilitar plano compatível; não tornar público
   como alternativa automática. Único colaborador retornado pela API: dono,
   com admin; deploy keys e aplicativos ainda precisam de revisão.
+- **Acessos revisados em 2026-10-06:** 12 GitHub Apps instalados e uma deploy
+  key `Codex workspace - Transhipping Desk` com `read/write`, usada nos últimos
+  três meses. Nada removido; revisão/remoção da chave fica para o dono. A
+  limpeza de Preview da PR #872 falhou com HTTP 400 no primeiro GET; script
+  ajustado para `per_page=25` e quatro testes passam. Execução real futura ainda
+  necessária.
 - **Operação:** backup já possui bucket/chave dedicados, conforme evidência de
   2026-10-05 no manual; sucesso da tarefa agendada seguinte ainda não observado.
   Versões fixadas em `.mcp.json` e `opencode.json` na retomada. Vault mostra os
@@ -127,7 +133,43 @@ Site URL `https://transhippingdesk.com.br` e oito redirects legados Vercel;
 registrado como drift a resolver antes de comprovar redirecionamentos Auth/PKCE.
 Nenhuma configuração alterada nesta conferência.
 
+## Pendências consolidadas em 2026-10-07
+
+As pendências executáveis restantes são:
+
+1. **GitHub e credenciais:** cadastrar e validar os secrets nos environments
+   `cloudflare-pages`, `supabase-branches` e `cloudflare-production`; depois
+   remover os Repository secrets antigos, inclusive
+   `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`, e rotacionar os tokens. Isso
+   exige ação do dono sem compartilhar valores no chat.
+2. **Acessos e proteção:** revisar/remover a deploy key
+   `Codex workspace - Transhipping Desk` (`read/write`) e criar o ruleset para
+   `.github/workflows/**`. A conta atual recebeu HTTP 403 ao tentar criar
+   rulesets; não tornar o repositório público como atalho.
+3. **Preview:** executar novamente o workflow de limpeza após o ajuste
+   `per_page=25` e validar a execução real; testar troca de e-mail com PKCE no
+   mesmo e em outro navegador.
+4. **Importação:** executar importação real com e-mail novo de consignatário.
+5. **Operação:** rotacionar secrets dos jobs no Vault, decidir o procedimento
+   para `IMPORT_EFFECTS_CRON_SECRET` e `RECALC_CRON_SECRET`, e observar o
+   próximo backup agendado com sucesso.
+6. **Comunicado:** opcionalmente executar um envio real para destinatário
+   controlado; as validações em simulação e a rejeição de PDF falso já estão
+   concluídas.
+7. **Dispute:** a interface do Financeiro foi conferida e não oferece ações;
+   falta apenas a tentativa direta de upload sob essa sessão para fechar a
+   evidência runtime. Storage e próxima ação foram validados com Equipamentos.
+
+O dono recusou restringir os environments à branch `main`; essa proteção fica
+como risco aceito e não será aplicada. O plano permanece em `docs/plans/` até
+as pendências acima serem concluídas ou formalmente assumidas.
+
 ## Decisões
+
+Em 2026-10-06, o dono recusou restringir os environments GitHub à branch
+`main`. Não aplicar essa restrição. O controle fica fora da execução por
+decisão do dono, com risco aceito; não marcar como corrigido. A recusa não
+cancela as demais pendências, inclusive credenciais e validação de workflows.
 
 Respondidas pelo dono em 2026-09-29: **D1 = (b)** (cai para (a) se o plano
 do Supabase não oferecer o hook), **D2 = (c)** (manter como hoje; o item 2.8
