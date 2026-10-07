@@ -107,7 +107,7 @@ Cliente de teste. Evidência detalhada em
   verificar procedimento/estado de ativação antes de provisionar ou agendar.
 - **Validação por identidade pendente:** PKCE no mesmo/outro navegador, Storage
   e modal de Dispute com Equipamentos/Financeiro, importação com e-mail novo,
-  captcha no painel Auth e testes dos workflows com secrets nos environments.
+  testes dos workflows com secrets nos environments. Captcha Auth conferido desligado no painel em 2026-10-06; sem alteração.
 - **Storage — teste de Equipamentos em 2026-10-06:** dono autorizou fixture ABF
   sem cobrança/e-mail/pagamento. Invoice `id=1`, rascunho, USD 0, sem TXID;
   Dispute `id=1`, documento `TEST-RUN2-DISPUTE-20261007`. Sessão real do André
@@ -119,6 +119,13 @@ Cliente de teste. Evidência detalhada em
   disputa fechada recusados. Aplicação autorizada em produção concluída em 2026-10-06 (22:45–22:46 de Brasília); reteste pela sessão do André gravou objeto TXT de 94 bytes e metadados de anexo `id=1`, mensagem `id=2`, com autoria correta. Sessão real de Financeiro (Thuani) conferida: fila/resposta/anexo ausentes; recusa direta no Storage com essa sessão ainda não executada (restrição SQL local aprovada).
   Também observado: trigger de lifecycle devolve próximo responsável para
   Equipamentos após resposta destinada ao Cliente; reproduzido localmente; migration `159` preparada para sincronizar somente mudanças reais de estado da Invoice, sem sobrescrever a próxima ação da conversa. Migration `159` aplicada em produção com autorização do dono; reteste pela sessão de Equipamentos confirmou `next_responder=cliente` na tela e no banco (mensagem `id=3`).
+
+Auth Hooks conferido no painel em 2026-10-06: organização Pro, sem hooks
+configurados; Password Verification Attempt exige Team/Enterprise. Confirma
+fallback D1(a), já implementado com HMAC/pepper. URL Configuration ainda usa
+Site URL `https://transhippingdesk.com.br` e oito redirects legados Vercel;
+registrado como drift a resolver antes de comprovar redirecionamentos Auth/PKCE.
+Nenhuma configuração alterada nesta conferência.
 
 ## Decisões
 
@@ -158,7 +165,7 @@ na mesma PR que a documenta; nomes e locais de secrets, nunca valores.
    importação com e-mail de consignatário novo está falhando hoje.
    **Resposta (2026-09-29, leitura em produção):** o gatilho existe. Até a
    `106`, essas importações falhavam por inteiro; a `106` corrigiu o caminho.
-5. **#7, fato que falta.** Anotar em Authentication → Attack Protection se o
+5. **#7, fato conferido em 2026-10-06.** Captcha desligado no painel de produção. Anotar em Authentication → Attack Protection se o
    captcha está desligado; não ligar sem a Fase 3 (o `portal-login` não envia
    `captchaToken` e passaria a falhar para todos).
 6. Reforço: confirmar que `TURNSTILE_SECRET_KEY` existe nos secrets das Edge

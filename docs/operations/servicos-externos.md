@@ -583,3 +583,12 @@ A chave `app_settings.communications_enabled` permaneceu desligada.
 Simulação institucional confirmada na tela e no banco (`id=2`, duas tentativas
 aceitas sem ID do provedor); o runner Demurrage não foi executado. Detalhes no
 [relatório da retomada](../archive/reports/2026-10-06-remediacao-run-2-retomada.md).
+
+### Conferência Supabase Auth — 2026-10-06
+
+No projeto `fgmkhbzhaeebrsizwccx`, captcha do Auth desligado. Organização Pro
+não disponibiliza Password Verification Attempt Hook (Team/Enterprise);
+Portal segue fallback aprovado de senha derivada com `PORTAL_PASSWORD_PEPPER`.
+Site URL ainda aponta para `https://transhippingdesk.com.br` e Redirect URLs
+contém oito entradas legadas da Vercel. Nenhuma mudança realizada; drift
+pendente de diagnóstico/regularização junto aos testes Auth/PKCE do plano run-2.

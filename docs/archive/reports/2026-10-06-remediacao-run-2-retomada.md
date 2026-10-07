@@ -208,3 +208,22 @@ e verificada em produção.
 a sessão ABF exibiu as três mensagens da Dispute de teste, incluindo a resposta
 da migration `159`. Confirma leitura da conversa pelo cliente destinatário;
 não comprova download do anexo nem isolamento entre duas sessões de clientes.
+
+## Conferência do painel Supabase Auth
+
+**Runtime observado:** painel autenticado do projeto `fgmkhbzhaeebrsizwccx`,
+Authentication → Attack Protection: captcha switch desligado, Save changes
+desabilitado. Item de conferência #7 quitado; nenhuma configuração alterada.
+Captura `/tmp/vela-run2-supabase-captcha.jpg`.
+
+Auth Hooks: nenhum hook configurado; organização Fwlog Pro. Menu mostra
+Password Verification Attempt e MFA Verification Attempt indisponíveis,
+exigindo Team/Enterprise. Confirma fallback D1(a) aprovado; código do
+`portal-login` usa `derivePortalAuthPassword` com `PORTAL_PASSWORD_PEPPER`.
+Essa inspeção não é teste de senha direta no GoTrue. Captura
+`/tmp/vela-run2-supabase-hook-plano.jpg`.
+
+URL Configuration: Site URL `https://transhippingdesk.com.br`; oito redirects
+dos projetos legados `transhippingdesk`/`vela` na Vercel, nenhum domínio atual
+visível nessa lista. Drift operacional registrado para diagnóstico dos fluxos
+Auth/PKCE antes de alteração; nenhum redirect adicionado/removido.
