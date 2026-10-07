@@ -5,8 +5,12 @@ const PAGE_SIZE = 25
 export const PAGES_PROJECTS = Object.freeze(['vela-internal', 'vela-portal'])
 
 class CloudflareApiError extends Error {
-  constructor(method, endpoint, status) {
-    super(`Cloudflare Pages API ${method} ${endpoint} failed (HTTP ${status})`)
+  constructor(method, endpoint, status, errors = []) {
+    const codes = Array.isArray(errors)
+      ? [...new Set(errors.map((error) => error?.code).filter(Number.isInteger))]
+      : []
+    const detail = codes.length > 0 ? `; Cloudflare error codes: ${codes.join(', ')}` : ''
+    super(`Cloudflare Pages API ${method} ${endpoint} failed (HTTP ${status}${detail})`)
     this.name = 'CloudflareApiError'
     this.status = status
   }
@@ -59,7 +63,7 @@ export function createPagesProvisioner({ accountId, apiToken, fetchImpl = fetch,
       throw new CloudflareApiError(method, '/pages/projects', response.status)
     }
     if (!response.ok || payload?.success !== true) {
-      throw new CloudflareApiError(method, '/pages/projects', response.status)
+      throw new CloudflareApiError(method, '/pages/projects', response.status, payload?.errors)
     }
     return payload
   }
