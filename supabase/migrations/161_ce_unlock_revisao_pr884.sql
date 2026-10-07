@@ -10,8 +10,6 @@
 --  * lotes zpt-5-v1 passam a contar como exportados (exported_at/export_id).
 -- O preenchimento de exported_at dos lotes antigos reescreve linhas existentes e depende
 -- da afirmação "Data status" do AGENTS.md (produção sem dados de negócio).
--- Os textos da migration 160 (caminho da spec no cabeçalho, ENABLE RLS repetido) não
--- foram alterados: o arquivo é protegido; esta migration registra a correção.
 BEGIN;
 
 -- Avisos por e-mail do desbloqueio passam a registrar tentativa (bounce/entrega via webhook).

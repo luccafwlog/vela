@@ -1,5 +1,5 @@
 -- Desbloqueio de CE: revisão do fluxo aprovada em 2026-10-07
--- (docs/spec/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md).
+-- (docs/archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md).
 --  * análise documental por solicitação (sem seleção de B/L) com recusa motivada;
 --  * conclusão da solicitação quando os quatro requisitos de todos os B/Ls estão atendidos;
 --  * cancelamento pelo cliente enquanto a solicitação estiver em rascunho/correção;
@@ -37,8 +37,6 @@ CREATE TABLE public.ce_unlock_email_outbox (
 );
 CREATE INDEX ce_unlock_email_outbox_pending ON public.ce_unlock_email_outbox(id) WHERE status='pending';
 
-ALTER TABLE public.ce_unlock_zpt_status ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ce_unlock_email_outbox ENABLE ROW LEVEL SECURITY;
 DO $$ DECLARE t text; BEGIN
  FOREACH t IN ARRAY ARRAY['ce_unlock_zpt_status','ce_unlock_email_outbox'] LOOP
  EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',t);
