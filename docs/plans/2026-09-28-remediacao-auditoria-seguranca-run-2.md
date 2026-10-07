@@ -9,7 +9,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 | Fase 2 — migration `106` e item 4.5 | migrations até `159` em produção; Dispute/Storage e próxima ação validados com Equipamentos; falta importação com e-mail de consignatário novo e tentativa direta de Storage em sessão Financeiro |
 | Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); Comunicado validado em simulação em produção em 2026-10-06; envio real a destinatário controlado continua opcional |
 | Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; troca de e-mail com PKCE ainda sem validação numa Preview publicada |
-| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; cleanup real listou zero deployments antigos; provisionamento Cloudflare usa paginação inválida; correção `per_page=20` em PR; Preview publicada pendente |
+| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; cleanup real listou zero deployments antigos; provisionamento falhou cinco vezes com o mesmo HTTP 400; estratégia alterada para consulta direta por nome, validação em `main` pendente; Preview publicada pendente |
 | Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pelas PRs #815 e posteriores; segredos de cron e execução agendada do backup seguem pendentes; recálculo só de `issued` confirmado como regra de negócio |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
@@ -212,17 +212,20 @@ segredos:
   e teste com as identidades autorizadas.
 - **Cloudflare Pages:** o dono conferiu que o token novo está no escopo da
   conta correta, com `Cloudflare Pages: Edit`, sem filtro de IP nem expiração.
-  As execuções de provisionamento `37608023373`, `37619183889` e
-  `37626476950` em 2026-10-07 receberam o secret mascarado e o ID de conta
-  correto, mas a listagem retornou HTTP 400. A última identificou a causa:
-  `Invalid list options provided. Review the page or per_page parameter.` O
-  provisionador usava `per_page=25`, por analogia indevida com outro endpoint.
-  A [referência oficial da listagem Pages](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/list/)
-  documenta esses parâmetros e mostra `per_page=20`; o código foi alterado
-  para 20 com teste de regressão. Falta
-  validar a nova execução. A correção do parâmetro remove a evidência atual
-  contra o token, mas a validade operacional da credencial só será confirmada
-  quando a listagem Pages passar.
+  As execuções `37608023373`, `37619183889`, `37626476950`, `37629073181` e
+  `37630494893` receberam o secret mascarado e o ID de conta correto, mas
+  falharam em `GET /pages/projects` com HTTP 400 / código `80000024`.
+  `37629073181` e `37630494893` informaram `Invalid list options provided`,
+  inclusive após a mudança de `per_page=25` para `per_page=20`; portanto a
+  inferência baseada no exemplo da API de listagem estava errada e o token
+  continua sem validação operacional. Estratégia revisada: consultar
+  `GET /pages/projects/{project_name}` para cada projeto conhecido e criar
+  apenas quando a consulta retornar HTTP 404; sem listagem nem paginação. A
+  [API individual de Pages](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/get/)
+  documenta a rota e aceita Pages Read/Write. Como a documentação não mostra
+  explicitamente a resposta para nome inexistente, o código trata somente
+  HTTP 404 como ausência e falha fechado nos demais status. Testes locais
+  cobrem o contrato; a execução operacional após merge ainda é necessária.
 - **Validação local:** `npm test` em macOS, Node 24.16.0, terminou com 3.975
   testes aprovados e 404 ignorados. Nenhuma alteração de produção foi feita
   nesta conferência.
@@ -269,8 +272,8 @@ na mesma PR que a documenta; nomes e locais de secrets, nunca valores.
    environment, o GitHub usa o secret do environment quando há outro de mesmo
    nome no repositório. Não restringir os environments de Preview à branch
    `main`, conforme decisão do dono em 2026-10-06. Os workflows da Fase 5 já
-   declaram `environment:`; a correção local da paginação de provisionamento
-   ainda precisa chegar a `main` e ser validada.
+   declaram `environment:`; a implementação revisada do provisionador aguarda
+   CI, publicação em `main` e validação operacional.
 2. **#14.** Conferir quem tem push no repositório (inclusive as credenciais dos
    agentes) e criar um ruleset que exija revisão para `.github/workflows/**`.
 3. Reforço: apagar o secret legado `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`.
