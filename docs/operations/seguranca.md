@@ -201,12 +201,14 @@ histórico: motivos legados de eventos `confirm` são omitidos no Portal e nas
 leituras resumidas de Financeiro/Operações. A UI envia a referência em campo
 próprio, sem copiá-la para o motivo público.
 
-### Leitura RLS de Disputes e Storage — correção pendente de publicação
+### Leitura RLS de Disputes e Storage
 
 A migration `158_dispute_storage_internal_session.sql` usa `CASE` nas políticas
 de leitura para que identidades internas não executem
 `current_portal_customer_id()`, contrato estrito que exige sessão válida do
 Portal. A política INSERT continua exigindo Equipamentos/Administrativo,
 mensagem própria, Dispute aberta e caminho do cliente/disputa/mensagem.
-Validação SQL local confirma essas restrições; aplicação e upload físico em
-produção permanecem pendentes. Ver o relatório da retomada run-2.
+Validação SQL local confirma essas restrições. Correção aplicada com autorização
+do dono em produção em 2026-10-06; upload físico e metadados confirmados na
+sessão real de Equipamentos. Recusa na sessão real de Financeiro ainda pendente.
+Ver o relatório da retomada run-2.

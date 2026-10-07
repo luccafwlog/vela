@@ -116,7 +116,7 @@ Cliente de teste. Evidência detalhada em
   leitura RLS de Disputes; migration `158` troca a composição booleana por
   `CASE`, preservando setores/autoria/estado/escopo. Treze testes SQL locais
   passam, incluindo upload próprio permitido e Financeiro/outra autoria/
-  disputa fechada recusados. Aplicação em produção e repetição pendentes.
+  disputa fechada recusados. Aplicação autorizada em produção concluída em 2026-10-06 (22:45–22:46 de Brasília); reteste pela sessão do André gravou objeto TXT de 94 bytes e metadados de anexo `id=1`, mensagem `id=2`, com autoria correta. Restrição sob sessão real de Financeiro permanece pendente.
   Também observado: trigger de lifecycle devolve próximo responsável para
   Equipamentos após resposta destinada ao Cliente; investigar separadamente.
 

@@ -149,3 +149,19 @@ Checks desta correção: migrations:check, rpc:check, docs:check, typecheck,
 lint, build e diff --check aprovados. Suíte geral: 3973 testes aprovados,
 402 ignorados; caso adicional de escopo/revogação do Portal executado e
 aprovado no PostgreSQL local depois dessa suíte geral.
+
+## Publicação da correção de Storage e reteste
+
+Dono autorizou a aplicação da migration `158` e repetição do upload.
+Supabase `apply_migration` retornou sucesso no projeto `fgmkhbzhaeebrsizwccx`
+(nome remoto `dispute_storage_internal_session`). Reteste real pela sessão
+do André, frontend `2159842`, concluiu sem erro na tela em 2026-10-07
+01:46 UTC. Mensagem `id=2`; anexo `id=1`, `vela-run2-dispute.txt`,
+`text/plain`, 94 bytes. Objeto físico registrado no Storage com tamanho/MIME
+corretos, proprietário e `uploaded_by` correspondentes à sessão Equipamentos.
+Invoice permanece `draft`, USD 0, `pix_txid=null`. Nenhum envio de e-mail,
+cobrança emitida ou pagamento gerado. Captura: `/tmp/vela-run2-dispute-sucesso.jpg`.
+
+Isso encerra a falha de upload interno observada; recusa em sessão real de
+Financeiro ainda depende da troca de login pelo dono. O achado do próximo
+responsável continua separado e pendente.
