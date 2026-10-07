@@ -115,3 +115,37 @@ pelo navegador e submetido no teste em simulação. A Function recusou com
 confirmou zero comunicados com o assunto do teste negativo e zero anexos com
 esse nome. Isso comprova rejeição pela assinatura do conteúdo no fluxo real,
 sem envio de e-mail. Evidência visual local: `/tmp/vela-run2-pdf-recusado.jpg`.
+
+## Dispute e Storage — sessão real de Equipamentos
+
+Com autorização específica do dono, criados Invoice e Dispute `id=1` para ABF,
+documento `TEST-RUN2-DISPUTE-20261007`, B/L `CSC45370901400`. Invoice permanece
+`draft`, USD 0, sem TXID. Sem emissão de cobrança, geração de pagamento ou
+envio de e-mail. A resposta cria notificação dentro do Portal; conferidos
+triggers e fonte publicada do digest, que não consome `portal_notifications`.
+
+**Runtime observado:** Vela `2159842`, André Peres, Equipamentos. Mensagem
+`id=1` persistida com autoria da sessão (`d33d3287-f5d3-4d98-b2a9-a00f157fcf2d`).
+Upload de `vela-run2-dispute.txt` falhou: Storage HTTP 500 em
+2026-10-07 01:39:50 UTC; log PostgreSQL simultâneo informa sessão Portal
+inválida. Nenhum objeto nem metadado de anexo gravado. Captura local:
+`/tmp/vela-run2-dispute-falha.jpg`.
+
+**Teste automatizado:** leitura direta de Disputes como Equipamentos falhou
+com `28000` antes da correção. Migration `158` usa `CASE` nas políticas de
+leitura de Disputes e objetos: identidade interna não chama o contrato estrito
+de sessão Portal. A política INSERT permanece intacta. Após aplicar localmente,
+13 testes da suíte run-2 passam; com os reforços, 22 casos SQL passam. Tabela Storage descartável sob RLS confirma
+INSERT RETURNING próprio permitido e Financeiro, outra autoria, caminho de
+outro cliente e Dispute resolvida recusados (`42501`). O shim não comprova
+upload físico; reteste real depende de aplicação autorizada em produção.
+
+**Achado adicional:** a RPC grava `next_responder=cliente` na mensagem, mas o
+trigger `sync_demurrage_dispute_lifecycle_from_invoice` sobrescreve o próximo
+responsável da Dispute com `equipamentos`. Não corrigido nesta migration;
+permanece pendente de reprodução/correção separada.
+
+Checks desta correção: migrations:check, rpc:check, docs:check, typecheck,
+lint, build e diff --check aprovados. Suíte geral: 3973 testes aprovados,
+402 ignorados; caso adicional de escopo/revogação do Portal executado e
+aprovado no PostgreSQL local depois dessa suíte geral.

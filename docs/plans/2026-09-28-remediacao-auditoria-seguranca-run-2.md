@@ -108,6 +108,17 @@ Cliente de teste. Evidência detalhada em
 - **Validação por identidade pendente:** PKCE no mesmo/outro navegador, Storage
   e modal de Dispute com Equipamentos/Financeiro, importação com e-mail novo,
   captcha no painel Auth e testes dos workflows com secrets nos environments.
+- **Storage — teste de Equipamentos em 2026-10-06:** dono autorizou fixture ABF
+  sem cobrança/e-mail/pagamento. Invoice `id=1`, rascunho, USD 0, sem TXID;
+  Dispute `id=1`, documento `TEST-RUN2-DISPUTE-20261007`. Sessão real do André
+  (frontend `2159842`) gravou mensagem `id=1`, mas upload TXT retornou HTTP 500.
+  Log do banco: sessão Portal inválida (`28000`). Reproduzido localmente na
+  leitura RLS de Disputes; migration `158` troca a composição booleana por
+  `CASE`, preservando setores/autoria/estado/escopo. Treze testes SQL locais
+  passam, incluindo upload próprio permitido e Financeiro/outra autoria/
+  disputa fechada recusados. Aplicação em produção e repetição pendentes.
+  Também observado: trigger de lifecycle devolve próximo responsável para
+  Equipamentos após resposta destinada ao Cliente; investigar separadamente.
 
 ## Decisões
 

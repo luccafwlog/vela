@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 // Plano docs/plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md, Fase 2
@@ -18,6 +19,7 @@ const BL_OTHER = 'R2-105-BL-OUTRO'
 const INVOICE = 99105003
 const DISPUTE = 99105004
 const MESSAGE = 99105005
+const storageSessionMigration = readFileSync(new URL('../../supabase/migrations/158_dispute_storage_internal_session.sql', import.meta.url), 'utf8')
 
 const FIXTURES = `
   INSERT INTO auth.users (id, email) VALUES
@@ -61,6 +63,52 @@ function scenario(sql: string): string[] {
 }
 
 describeLocal('migration 106 — remediação da auditoria run-2', () => {
+  it('leitura interna da Dispute não exige sessão do Portal durante o upload', () => {
+    expect(scenario(`
+      ${as(EQP)}
+      ${try_(`SELECT id FROM public.demurrage_disputes WHERE id = ${DISPUTE}`)}
+    `)).toEqual(['ok'])
+  })
+  it('Storage permite upload próprio de Equipamentos e recusa Financeiro, outra autoria e Dispute fechada', () => {
+    const path = `${CUSTOMER}/disputes/${DISPUTE}/${MESSAGE}/a.txt`
+    const upload = (name = path) => try_(`INSERT INTO storage.objects(bucket_id, name) VALUES ('demurrage-disputes', '${name}') RETURNING name`)
+    expect(scenario(`
+      CREATE SCHEMA IF NOT EXISTS storage;
+      CREATE TABLE storage.objects(bucket_id text, name text);
+      ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+      GRANT USAGE ON SCHEMA storage TO authenticated;
+      GRANT SELECT, INSERT ON storage.objects TO authenticated;
+      CREATE POLICY demurrage_dispute_objects_read ON storage.objects FOR SELECT TO authenticated
+        USING (bucket_id = 'demurrage-disputes' AND (public.is_active_user() OR name LIKE public.current_portal_customer_id()::text || '/%'));
+      CREATE POLICY demurrage_dispute_objects_insert ON storage.objects FOR INSERT TO authenticated
+        WITH CHECK (bucket_id = 'demurrage-disputes' AND public.current_actor_role() IN ('equipamentos', 'administrativo')
+          AND EXISTS (SELECT 1 FROM public.demurrage_dispute_messages m JOIN public.demurrage_disputes d ON d.id = m.dispute_id
+            WHERE d.state = 'aberta' AND m.author_id = auth.uid()
+              AND name LIKE d.customer_id::text || '/disputes/' || d.id::text || '/' || m.id::text || '/%'));
+      ${storageSessionMigration}
+      ${as(EQP)} ${upload()}
+      ${as(FIN)} ${upload()}
+      ${as(ADM)} ${upload()}
+      ${as(EQP)} ${upload(`${OTHER_CUSTOMER}/disputes/${DISPUTE}/${MESSAGE}/a.txt`)}
+      RESET ROLE; UPDATE public.demurrage_disputes SET state = 'resolvida' WHERE id = ${DISPUTE};
+      ${as(EQP)} ${upload()}
+    `)).toEqual(['ok', '42501', '42501', '42501', '42501'])
+  })
+  it('Portal continua lendo apenas sua Dispute e sessão revogada continua recusada', () => {
+    expect(scenario(`
+      INSERT INTO public.demurrage_invoices (id, doc_number, bl_id, customer_id, status)
+        VALUES (${INVOICE + 1}, 'DEM-R2-OUTRO', '${BL_OTHER}', ${OTHER_CUSTOMER}, 'draft');
+      INSERT INTO public.demurrage_disputes (id, demurrage_invoice_id, customer_id, opened_by)
+        VALUES (${DISPUTE + 1}, ${INVOICE + 1}, ${OTHER_CUSTOMER}, 'sistema');
+      ${as(PORTAL)}
+      SELECT count(*) FROM public.demurrage_disputes WHERE id = ${DISPUTE};
+      SELECT count(*) FROM public.demurrage_disputes WHERE id = ${DISPUTE + 1};
+      RESET ROLE;
+      UPDATE public.customer_portal_accounts SET credentials_revoked_at = now() WHERE customer_id = ${CUSTOMER};
+      ${as(PORTAL)}
+      ${try_(`SELECT id FROM public.demurrage_disputes WHERE id = ${DISPUTE}`)}
+    `)).toEqual(['1', '0', '28000'])
+  })
   it('2.1 Financeiro não encerra a Dispute por UPDATE; Equipamentos encerra pela RPC', () => {
     expect(scenario(`
       ${as(FIN)}
