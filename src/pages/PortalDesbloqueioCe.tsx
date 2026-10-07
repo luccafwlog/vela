@@ -11,6 +11,7 @@ import {
 import { CeUnlockRequirements } from "../components/ce-unlock/CeUnlockRequirements";
 import { ceStateLabel, ceActionLabel } from "../lib/ceUnlockLabels";
 import { CeUnlockVipCoveragePanel } from "../components/ce-unlock/CeUnlockVipCoveragePanel";
+import { ceUnlockDeadline, formatCeUnlockDeadline } from "../services/ceUnlockSla";
 import { usePortalCeUnlock } from "../hooks/usePortalCeUnlock";
 import { downloadCeUnlockDocument } from "../services/ceUnlockService";
 import { portalPath } from "../services/portalScope";
@@ -36,6 +37,13 @@ export function PortalDesbloqueioCe() {
       });
   const pendingItems = detail?.items.filter(i => !i.confirmed) ?? [];
   const submitReady = documentsReady && pendingItems.length > 0 && pendingItems.every(i => i.paid);
+  // Com os quatro requisitos atendidos em todos os BLs: o prazo final parte da pendência resolvida mais recente.
+  const allReady = !!detail && detail.items.length > 0 && detail.items.every(i => i.can_export);
+  const latestStart = detail?.items.reduce<string | null>(
+    (latest, i) => (i.sla_started_at && (!latest || i.sla_started_at > latest) ? i.sla_started_at : latest),
+    null,
+  );
+  const cancelKey = useRef(crypto.randomUUID());
   const open = (next: string | null) => {
     setParams((p) => {
       if (next) p.set("pedido", next);
@@ -107,11 +115,44 @@ export function PortalDesbloqueioCe() {
       );
     }
   }
+  async function cancel() {
+    if (!detail) return;
+    if (
+      !(await confirm({
+        message: `Cancelar a solicitação ${detail.protocol}?`,
+        affected: {
+          summary: `${detail.items.length} BL(s)`,
+          items: detail.items.map((i) => i.bl_id),
+        },
+        consequence: "Os BLs ficam livres para uma nova solicitação.",
+        reversibility: "Para pedir o desbloqueio de novo, abra uma nova solicitação.",
+      }))
+    )
+      return;
+    setError("");
+    try {
+      await flow.command.mutateAsync({
+        action: "cancel",
+        payload: {
+          request_id: detail.id,
+          expected_version: detail.version,
+          request_key: cancelKey.current,
+        },
+      });
+      cancelKey.current = crypto.randomUUID();
+      open(null);
+      setTab("requests");
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Não foi possível cancelar a solicitação",
+      );
+    }
+  }
   return (
     <>
       <PageHeader
         title="Desbloqueio de CE"
-        description="Solicite e acompanhe o desbloqueio de CE Mercante. Taxas locais pagas e entrega do BL original são obrigatórias."
+        description="Solicite e acompanhe o desbloqueio de CE Mercante. Taxas locais pagas, termo de devolução, procuração e entrega do BL original são obrigatórios."
       />
       <div className="mb-4 flex flex-wrap gap-2">
         <Button
@@ -169,11 +210,11 @@ export function PortalDesbloqueioCe() {
                       ).catch((e) => setError(e.message))
                     }
                   >
-                    Baixar modelo do termo
+                    Baixar modelo do termo de devolução
                   </Button>
                 ) : (
                   <p>
-                    Modelo oficial do termo ainda não disponibilizado pela
+                    Modelo oficial do termo de devolução ainda não disponibilizado pela
                     agência.
                   </p>
                 )}
@@ -348,16 +389,28 @@ export function PortalDesbloqueioCe() {
                       {i.bl_id} · CE {i.ce_mercante}
                     </h3>
                     <CeUnlockRequirements item={i} />
-                    <p>
-                      {i.can_export
-                        ? "Apto para desbloqueio"
-                        : i.confirmed
-                          ? "Desbloqueio confirmado"
-                          : i.reasons.join("; ")}
-                    </p>
-                    <p>{ceStateLabel(i.export_state)}</p>
+                    <p>{i.can_export ? "Requisitos atendidos" : i.reasons.join("; ")}</p>
+                    {i.sla_started_at && (
+                      <p>
+                        {/* Só a data: o cliente não vê se o prazo da agência venceu. */}
+                        Prazo: até {formatCeUnlockDeadline(ceUnlockDeadline(i.sla_started_at))}
+                      </p>
+                    )}
                   </article>
                 ))}
+                {allReady && latestStart && (
+                  <p role="status" className="font-semibold">
+                    Documentação validada. Prazo para o desbloqueio: até{" "}
+                    {formatCeUnlockDeadline(ceUnlockDeadline(latestStart))}. Consulte o Mercante para verificar o
+                    desbloqueio.
+                  </p>
+                )}
+                {detail.items.some(i => i.sla_started_at) && (
+                  <p>
+                    O prazo é contado a partir da última pendência regularizada: envio da solicitação, reenvio de
+                    documentos, entrega do BL original ou nova liquidação das taxas.
+                  </p>
+                )}
                 <CeUnlockDocumentList
                   documents={detail.documents}
                   scope={flow.scope}
@@ -382,6 +435,13 @@ export function PortalDesbloqueioCe() {
                         {detail.state === "draft"
                           ? "Solicitar desbloqueio"
                           : "Reenviar solicitação"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={flow.command.isPending}
+                        onClick={() => void cancel()}
+                      >
+                        Cancelar solicitação
                       </Button>
                     </>
                   )}

@@ -5,6 +5,8 @@ e publicação pendente. Data: 2026-10-04.
 Fonte: [Issue 557](https://github.com/luccafwlog/vela/issues/557), lida com seus
 critérios complementares de 07/09/2026; não há comentários na issue.
 Plano derivado: [implementação](../plans/2026-10-04-desbloqueio-ce-mercante.md).
+Revisada em 2026-10-07 pela [revisão do fluxo](../archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md),
+que prevalece onde divergir.
 
 ## Resultado pretendido
 

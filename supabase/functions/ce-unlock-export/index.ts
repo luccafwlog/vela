@@ -48,7 +48,7 @@ if (typeof Deno !== "undefined")
       const book = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(
         book,
-        XLSX.utils.json_to_sheet(zptRows(result.data.rows)),
+        XLSX.utils.json_to_sheet(zptRows(result.data.rows, result.data.layout_version)),
         "Desbloqueio CE",
       );
       const bytes = XLSX.write(book, { type: "array", bookType: "xlsx" });

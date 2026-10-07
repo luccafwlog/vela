@@ -2118,10 +2118,29 @@ e [Faturamento](docs/modules/faturamento.md).
 ## Desbloqueio de CE e condição VIP
 
 Pedido de cliente para um ou vários B/Ls do mesmo CNPJ com CE e taxas locais
-pagas. Aptidão exige também termo/procuração aprovados e original entregue.
+pagas. A ZPT é o sistema que efetivamente desbloqueia o CE Mercante, sozinha,
+quando as quatro colunas de uma carga estão marcadas; o Vela é o controle desses
+requisitos e produz a planilha que alimenta a ZPT.
+
+Os **quatro requisitos** são **Financeiro** (taxas locais liquidadas, automático),
+**Termo de devolução**, **Procuração** (os dois anexados pelo cliente e validados
+pelo desk) e **BL de Entrega** (original recebido, marcado pelo desk). O desk valida
+termo e procuração **por solicitação**, cada um separadamente, e toda recusa leva
+um motivo que o cliente vê. A solicitação fica **concluída** (documentação
+validada) quando todos os seus B/Ls têm os quatro requisitos.
+
 VIP é condição por CNPJ: documentos anuais aprovados substituem os anexos por
-pedido até 31/12 do ano declarado; pagamento e entrega continuam por B/L.
-Exportação ZPT contém BL e quatro requisitos; não comprova desbloqueio.
+pedido até 31/12 do ano declarado e a solicitação VIP não passa pela análise;
+pagamento e entrega continuam por B/L. **Exportar é o registro do envio à ZPT**;
+importar o "Exportar Tela" da ZPT **concilia** o que de fato foi desbloqueado
+(*Desbloqueio conferido* ou *Divergente*) e só o desk vê isso. O cliente nunca vê
+nada da ZPT nem "desbloqueio confirmado": é orientado a conferir no Mercante.
+
+O **prazo (SLA)** conta a partir do envio, só em dias úteis: solicitação antes das
+12:00 vence às 17:00 do mesmo dia; a partir das 12:00, às 12:30 do próximo dia útil;
+sábado e domingo vencem segunda às 12:00. Recomeça quando o cliente
+resolve uma pendência dele (reenvio de documento, entrega do original, nova
+liquidação). O cumprimento é medido pela data da exportação.
 Ver [módulo](docs/modules/desbloqueio-ce.md).
 
 

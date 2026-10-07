@@ -167,8 +167,9 @@ revalida os requisitos em transação e registra snapshot; download ou aprovaç�
 não confirmam desbloqueio. Arquivos gerados usam sanitização canônica para
 evitar fórmulas de planilha.
 
-`ce-unlock-cleanup` usa bearer dedicado `CE_UNLOCK_CLEANUP_SECRET` e falha
-fechado se ausente. `service_role` é usado apenas dentro do servidor, nunca
+`ce-unlock-cleanup` e `ce-unlock-notify-email` usam bearer dedicado `CE_UNLOCK_CLEANUP_SECRET` e falham
+fechado se ausente. Envio à ZPT e conciliação (`ce_unlock_zpt_status`, `exported_at`) são
+visíveis só ao desk: o Portal os recebe removidos por `ce_unlock_private.portal_view`. `service_role` é usado apenas dentro do servidor, nunca
 como segredo do cron ou no navegador. A agenda nasce desativada. Consulte
 [serviços externos](servicos-externos.md#desbloqueio-de-ce-mercante) para rollout
 e retenção. Código no checkout não comprova publicação destas funções/policies.

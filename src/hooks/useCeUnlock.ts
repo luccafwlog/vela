@@ -3,6 +3,7 @@ import {
   ceUnlockCommand,
   getCeUnlockRequest,
   listCeUnlockBls,
+  listCeUnlockReviewQueue,
 } from "../services/ceUnlockService";
 import { queryKeys } from "../services/queryKeys";
 import { afterCeUnlockChanged } from "../services/cacheEffects";
@@ -26,6 +27,14 @@ export function useCeUnlock(
     onError: () => afterCeUnlockChanged(client),
   });
   return { list, command };
+}
+export function useCeUnlockReviewQueue(page: number, enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.ceUnlock.all(), "review-queue", page] as const,
+    queryFn: () => listCeUnlockReviewQueue(page),
+    enabled,
+    refetchOnWindowFocus: "always",
+  });
 }
 export function useCeUnlockRequest(id: string | null) {
   return useQuery({

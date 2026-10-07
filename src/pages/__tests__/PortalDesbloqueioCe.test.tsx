@@ -12,6 +12,9 @@ const fixtures = vi.hoisted(() => ({
   draft: false,
   documentsReady: false,
   confirmedUnpaid: false,
+  ready: false,
+  state: "draft",
+  mutate: vi.fn(async () => ({})),
 }));
 vi.mock("../../hooks/usePortalCeUnlock", () => ({
   usePortalCeUnlock: () => ({
@@ -37,8 +40,8 @@ vi.mock("../../hooks/usePortalCeUnlock", () => ({
     requests: { data: { items: [], total: 0 } },
     vip: { data: { enabled: fixtures.vip, termo: true, procuracao: true } },
     model: { data: null },
-    detail: { data: fixtures.draft ? { id: "draft-id", protocol: "CE-DRAFT", state: "draft", source: "request", version: 0, items: [{ bl_id: "BL-A", paid: true, reasons: [], source: "request" }, ...(fixtures.confirmedUnpaid ? [{ bl_id: "BL-DONE", paid: false, confirmed: true, reasons: [], source: "request" }] : [])], documents: fixtures.documentsReady ? [{ id: "term", type: "termo", source: "request", status: "uploaded", file_name: "termo.pdf" }, { id: "proc", type: "procuracao", source: "request", status: "uploaded", file_name: "procuracao.pdf" }] : [], events: [] } : null },
-    command: { isPending: false },
+    detail: { data: fixtures.draft ? { id: "draft-id", protocol: "CE-DRAFT", state: fixtures.state, source: "request", version: 0, items: [{ bl_id: "BL-A", paid: true, reasons: [], source: "request", ...(fixtures.ready ? { can_export: true, sla_started_at: "2026-10-07T10:00:00-03:00" } : {}) }, ...(fixtures.confirmedUnpaid ? [{ bl_id: "BL-DONE", paid: false, confirmed: true, reasons: [], source: "request" }] : [])], documents: fixtures.documentsReady ? [{ id: "term", type: "termo", source: "request", status: "uploaded", file_name: "termo.pdf" }, { id: "proc", type: "procuracao", source: "request", status: "uploaded", file_name: "procuracao.pdf" }] : [], events: [] } : null },
+    command: { isPending: false, mutateAsync: fixtures.mutate },
     refresh: async () => {},
   }),
 }));
@@ -53,6 +56,9 @@ afterEach(() => {
   fixtures.draft = false;
   fixtures.documentsReady = false;
   fixtures.confirmedUnpaid = false;
+  fixtures.ready = false;
+  fixtures.state = "draft";
+  fixtures.mutate.mockClear();
 });
 function mount() {
   return render(
@@ -115,4 +121,51 @@ it("permite remover da seleção BL que perde elegibilidade após atualização"
  expect(screen.getByLabelText("Selecionar BL BL-A").hasAttribute("disabled")).toBe(false);
  await userEvent.click(screen.getByLabelText("Selecionar BL BL-A"));
  expect((screen.getByLabelText("Selecionar BL BL-A") as HTMLInputElement).checked).toBe(false);
+});
+
+it("cliente cancela rascunho: pede confirmação e envia a ação cancel com a versão atual", async () => {
+  fixtures.draft = true;
+  mount();
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar solicitação" }));
+  expect(fixtures.mutate).toHaveBeenCalledWith({
+    action: "cancel",
+    payload: expect.objectContaining({ request_id: "draft-id", expected_version: 0 }),
+  });
+});
+
+it("cancelar também é oferecido com correção solicitada, mas não em Modo Inspeção nem após o envio", () => {
+  fixtures.draft = true;
+  fixtures.state = "changes_requested";
+  mount();
+  expect(screen.getByRole("button", { name: "Cancelar solicitação" })).toBeTruthy();
+  cleanup();
+  fixtures.state = "submitted";
+  mount();
+  expect(screen.queryByRole("button", { name: "Cancelar solicitação" })).toBeNull();
+  cleanup();
+  fixtures.state = "draft";
+  fixtures.readonly = true;
+  mount();
+  expect(screen.queryByRole("button", { name: "Cancelar solicitação" })).toBeNull();
+});
+
+it("com os requisitos atendidos mostra prazo e orienta consultar o Mercante, sem citar ZPT", () => {
+  fixtures.draft = true;
+  fixtures.state = "in_review";
+  fixtures.ready = true;
+  const { container } = mount();
+  const banner = screen.getByRole("status");
+  expect(banner.textContent).toContain("Documentação validada. Prazo para o desbloqueio: até 07/10, 17:00");
+  expect(banner.textContent).toContain("Consulte o Mercante");
+  expect(container.textContent).not.toMatch(/ZPT/i);
+  expect(container.textContent).not.toMatch(/Desbloqueio confirmado/i);
+  // Prazo já passou (07/10 17:00): o cliente vê só a data, nunca se a agência atrasou.
+  expect(container.textContent).not.toMatch(/Vencido|Vence hoje|No prazo/);
+});
+
+it("sem todos os requisitos não mostra o aviso de documentação validada", () => {
+  fixtures.draft = true;
+  fixtures.state = "in_review";
+  mount();
+  expect(screen.queryByRole("status")).toBeNull();
 });
