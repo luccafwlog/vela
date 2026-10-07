@@ -544,8 +544,9 @@ segredo `CE_UNLOCK_CLEANUP_SECRET` e `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `POR
 Antes de enviar, reavalia a conclusão das solicitações abertas (`ce_unlock_refresh_open`);
 sem a chave ou o remetente responde 503 e deixa a fila intacta. Cada envio registra tentativa
 em `portal_email_attempts` (kind `ce_unlock_notificacao`), associada pelo webhook da Resend. Respeita a chave global
-de Comunicados (desligada: descarta com motivo), supressão e bounce. O job **não existe**
-até ser agendado (`*/5 * * * *`; ver [segredos e cron](segredos-cron.md)).
+de Comunicados (desligada: descarta com motivo), supressão e bounce. Job `ce-unlock-notify-email`
+agendado em produção em 2026-10-07 (`*/5 * * * *`, jobid 23); `CE_UNLOCK_CLEANUP_SECRET` está no
+cofre (`vault.secrets`) e nas secrets das Edge Functions. Ver [segredos e cron](segredos-cron.md).
 
 O job `ce-unlock-cleanup` **não existe** até ser agendado manualmente (`0 6 * * *`, UTC;
 ver [segredos e cron](segredos-cron.md)). Antes de agendar,

@@ -165,7 +165,9 @@ Remover: `SELECT cron.unschedule('ce-unlock-cleanup');`.
 
 ### Agendar o envio dos avisos do desbloqueio de CE
 
-A migration `160` não cria o job `ce-unlock-notify-email`. Agende somente depois de
+**Agendado em produção em 2026-10-07** (jobid 23), após cadastrar o segredo no cofre e na
+Edge Function e de um disparo manual responder HTTP 200. A migration `160` não cria o job
+`ce-unlock-notify-email`; em outro ambiente, agende somente depois de
 cadastrar `CE_UNLOCK_CLEANUP_SECRET` (o mesmo segredo do expurgo), `RESEND_API_KEY`,
 `PORTAL_FROM_EMAIL` e `PORTAL_REPLY_TO` na Edge Function:
 
@@ -173,7 +175,7 @@ cadastrar `CE_UNLOCK_CLEANUP_SECRET` (o mesmo segredo do expurgo), `RESEND_API_K
 SELECT cron.schedule(
   'ce-unlock-notify-email',
   '*/5 * * * *',
-  $SELECT ops.dispatch_edge_job('ce-unlock-notify-email', 'CE_UNLOCK_CLEANUP_SECRET', 'Authorization', 'Bearer ');$
+  $$SELECT ops.dispatch_edge_job('ce-unlock-notify-email', 'CE_UNLOCK_CLEANUP_SECRET', 'Authorization', 'Bearer ');$$
 );
 ```
 
