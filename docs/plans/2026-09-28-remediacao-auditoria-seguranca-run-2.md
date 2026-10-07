@@ -9,7 +9,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 | Fase 2 — migration `106` e item 4.5 | migrations até `159` em produção; Dispute/Storage e próxima ação validados com Equipamentos; falta importação com e-mail de consignatário novo e tentativa direta de Storage em sessão Financeiro |
 | Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); Comunicado validado em simulação em produção em 2026-10-06; envio real a destinatário controlado continua opcional |
 | Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; troca de e-mail com PKCE ainda sem validação numa Preview publicada |
-| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; cleanup real listou zero deployments antigos; provisionamento falhou cinco vezes com o mesmo HTTP 400; estratégia alterada para consulta direta por nome, validação em `main` pendente; Preview publicada pendente |
+| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; cleanup real listou zero deployments antigos; consulta individual por nome validada no run `37631613061` (ambos os projetos já existiam); Preview publicada pendente |
 | Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pelas PRs #815 e posteriores; segredos de cron e execução agendada do backup seguem pendentes; recálculo só de `issued` confirmado como regra de negócio |
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
@@ -218,17 +218,29 @@ segredos:
   `37629073181` e `37630494893` informaram `Invalid list options provided`,
   inclusive após a mudança de `per_page=25` para `per_page=20`; portanto a
   inferência baseada no exemplo da API de listagem estava errada e o token
-  continua sem validação operacional. Estratégia revisada: consultar
+  continuava sem validação operacional. Estratégia revisada: consultar
   `GET /pages/projects/{project_name}` para cada projeto conhecido e criar
   apenas quando a consulta retornar HTTP 404; sem listagem nem paginação. A
   [API individual de Pages](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/get/)
   documenta a rota e aceita Pages Read/Write. Como a documentação não mostra
   explicitamente a resposta para nome inexistente, o código trata somente
   HTTP 404 como ausência e falha fechado nos demais status. Testes locais
-  cobrem o contrato; a execução operacional após merge ainda é necessária.
+  cobrem o contrato; a execução após merge está registrada abaixo.
 - **Validação local:** `npm test` em macOS, Node 24.16.0, terminou com 3.975
   testes aprovados e 404 ignorados. Nenhuma alteração de produção foi feita
   nesta conferência.
+
+### Atualização operacional de 2026-10-07
+
+Depois do merge da PR #881 (`503298fb`), o run de provisionamento
+[`37631613061`](https://github.com/luccafwlog/vela/actions/runs/37631613061)
+concluiu com sucesso em `main`. A consulta individual confirmou que
+`vela-internal` e `vela-portal` já existiam; nenhum projeto foi criado ou
+alterado. Isso valida a rota individual e o token Pages usado pelo environment
+`cloudflare-pages` para o provisionador. As cópias Repository-level continuam
+até os workflows de Preview, limpeza e produção que usam essas credenciais
+serem validados; a Preview segue sem publicação porque o job Supabase Preview
+foi `skipped`.
 
 O backup seguinte ao ajuste de `consumeArchive` ainda depende da tarefa
 agendada no computador Windows descrito em [serviços externos](../operations/servicos-externos.md#backup);
@@ -272,8 +284,9 @@ na mesma PR que a documenta; nomes e locais de secrets, nunca valores.
    environment, o GitHub usa o secret do environment quando há outro de mesmo
    nome no repositório. Não restringir os environments de Preview à branch
    `main`, conforme decisão do dono em 2026-10-06. Os workflows da Fase 5 já
-   declaram `environment:`; a implementação revisada do provisionador aguarda
-   CI, publicação em `main` e validação operacional.
+   declaram `environment:`; o provisionador foi validado no run `37631613061`.
+   Validar também Preview, limpeza e produção antes de apagar as cópias
+   Repository-level e revogar os tokens antigos.
 2. **#14.** Conferir quem tem push no repositório (inclusive as credenciais dos
    agentes) e criar um ruleset que exija revisão para `.github/workflows/**`.
 3. Reforço: apagar o secret legado `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`.

@@ -159,9 +159,11 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   A operação foi redesenhada para consultar cada projeto conhecido pela rota
   individual `GET /pages/projects/{project_name}` documentada pela
   [Cloudflare Pages API](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/get/),
-  e só criar quando a resposta for HTTP 404. A credencial e a rota individual
-  ainda precisam de validação operacional em `main`; não remover a cópia do
-  Repository secret antes dessa validação.
+  e só criar quando a resposta for HTTP 404. O run `37631613061` em `main`
+  concluiu com sucesso: os projetos `vela-internal` e `vela-portal` já existiam
+  e foram deixados inalterados. Isso valida a credencial e a consulta individual
+  no provisionador. Não remover a cópia Repository-level ainda: os demais
+  workflows que usam as credenciais ainda precisam ser validados.
 
 ### Cloudflare Access (proteção das previews)
 
