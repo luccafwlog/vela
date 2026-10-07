@@ -470,5 +470,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.ce-unlock-cleanup]
 verify_jwt = false
+[functions.ce-unlock-notify-email]
+verify_jwt = false
 [functions.itau-pix]
 verify_jwt = false
