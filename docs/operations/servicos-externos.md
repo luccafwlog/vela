@@ -220,9 +220,9 @@ estava sem branches persistentes ou de Preview na conferência de 2026-10-07.
   - `Development Branches`: `branches list` e `branches get`;
   - `Connection Pooling` (`database_pooling_config_read`): sem ela, o
     `branches get` do CLI 2.113 responde 403 e as Previews falham.
-  `API Key Secrets` e qualquer permissão de escrita ficam em `None`. A data de
-  expiração não foi registrada aqui: confira no painel Supabase → Account →
-  Access Tokens e renove o PAT antes dela.
+  `API Key Secrets` e qualquer permissão de escrita ficam em `None`. O painel
+  mostra o PAT (`GitHub Actions — Vela Preview branches v2`) sem expiração;
+  revogue-o e gere outro se houver suspeita de exposição.
   Validação: em 2026-10-08, com esse PAT, os workflows Provision Preview Admin e
   Cloudflare Pages Preview da PR 903 concluíram com sucesso.
   Histórico: o PAT anterior, de 2026-10-07, tinha só `API Keys` e
