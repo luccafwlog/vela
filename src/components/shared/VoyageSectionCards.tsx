@@ -28,8 +28,8 @@ export function AccordionSection({
         aria-controls={contentId}
       >
         <div>
-          <div className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">{title}</div>
-          <div className="mt-1 text-sm text-[var(--app-muted)]">{description}</div>
+          <div className="app-voyage-section-card__title">{title}</div>
+          <div className="app-voyage-section-card__description">{description}</div>
         </div>
         <ChevronDown size={18} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -88,13 +88,11 @@ export function MetricSection({
   compact?: boolean
 }) {
   return (
-    <section
-      className={`grid rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] ${compact ? 'gap-1 p-3' : 'gap-4 p-4'}`}
-    >
-      <div className={`flex justify-between gap-4 ${compact ? 'items-center' : 'items-start'}`}>
+    <section className={`app-voyage-section-card${compact ? ' app-voyage-section-card--compact' : ''}`}>
+      <div className={`flex flex-wrap justify-between gap-3 ${compact ? 'items-center' : 'items-start'}`}>
         <div>
-          <div className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">{title}</div>
-          {description ? <div className="mt-1 text-sm text-[var(--app-muted)]">{description}</div> : null}
+          <h3 className="app-voyage-section-card__title">{title}</h3>
+          {description ? <div className="app-voyage-section-card__description">{description}</div> : null}
         </div>
         {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
       </div>

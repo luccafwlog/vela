@@ -35,6 +35,7 @@ import {
 import type { VoyageExportSchedule } from '../../services/voyageExportSchedules'
 import { ESTADO_CONCILIACAO_META, statusLabel, VOYAGE_STATUS_BADGE_TONE, VOYAGE_STATUS_LABELS } from '../../lib/statusLabels'
 import { TabButton } from '../ui/TabButton'
+import { TabList } from '../ui/TabList'
 import { buildVoyageRouteLegs, collectVoyageManifestBatchRows, countRouteManifestNumbers, type VoyageImportBatch } from './voyageCardHelpers'
 import { VoyageVisaoTab } from './VoyageVisaoTab'
 import { VoyageImportacaoTab } from './VoyageImportacaoTab'
@@ -58,18 +59,16 @@ export type VoyageTabKey = 'visao' | 'importacao' | 'exportacao' | 'manifestos' 
 
 function DirectionKpiTile({
   direction,
-  tone,
   primary,
   metrics,
 }: {
   direction: string
-  tone: 'blue' | 'green' | 'yellow' | 'red' | 'slate'
   primary: { value: string; unit?: string; color?: string; variant?: 'number' | 'text' }
   metrics: Array<{ label: string; value: string }>
 }) {
   return (
     <div className="app-voyage-kpi-tile">
-      <Badge tone={tone}>{direction}</Badge>
+      <h3 className="app-voyage-kpi-tile__label">{direction}</h3>
       <div className="app-voyage-kpi-tile__primary">
         <span
           className={`app-voyage-kpi-tile__value${primary.variant === 'text' ? ' app-voyage-kpi-tile__value--text' : ''}`}
@@ -119,7 +118,7 @@ function ImportKpiTile({
   return (
     <div className="app-voyage-kpi-tile app-voyage-kpi-tile--import">
       <div className="app-voyage-kpi-tile__head">
-        <Badge tone="blue">Importação</Badge>
+        <h3 className="app-voyage-kpi-tile__label">Importação</h3>
         <div className="app-voyage-kpi-tile__primary">
           <span className="app-voyage-kpi-tile__value">{formatMetric(totalBls)}</span>
           <span className="app-voyage-kpi-tile__unit">B/Ls</span>
@@ -382,33 +381,29 @@ export function VoyageCard({
   }, [omitTarget, voyage.bls])
 
   return (
-    <Card className="grid gap-5">
-      <section className="app-voyage-hero">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="grid gap-4">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-[var(--app-muted-soft)]">
-                {voyage.vessel?.carrier?.name ?? 'Armador nao informado'}
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-3">
-                <h2 className="text-2xl font-bold text-[var(--app-text-strong)]">
-                  {voyage.vessel?.name ?? 'Navio'} / {voyage.voyage_number}
-                </h2>
-                <Badge tone={VOYAGE_STATUS_BADGE_TONE[voyage.status ?? 'active'] ?? 'blue'}>
-                  {statusLabel(VOYAGE_STATUS_LABELS, voyage.status ?? 'active')}
-                </Badge>
-                {billingClosed ? (
-                  <span
-                    className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300"
-                    title="Todos os B/Ls desta viagem estao quitados ou isentos."
-                  >
-                    Faturamento Encerrado
-                  </span>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="grid gap-2">
+    <Card className="app-voyage-ficha p-0">
+      {/* Faixa de identidade azul-marinho e lisa, como o cabeçalho de modal:
+          navio, estado, rotas e ações da viagem numa só barra. */}
+      <header className="app-voyage-hero">
+        <div className="app-voyage-hero__identity">
+          <div className="app-voyage-hero__carrier">
+            {voyage.vessel?.carrier?.name ?? 'Armador não informado'}
+          </div>
+          <div className="app-voyage-hero__title-row">
+            <h2 className="app-voyage-hero__title">
+              {voyage.vessel?.name ?? 'Navio'} / {voyage.voyage_number}
+            </h2>
+            <Badge tone={VOYAGE_STATUS_BADGE_TONE[voyage.status ?? 'active'] ?? 'blue'}>
+              {statusLabel(VOYAGE_STATUS_LABELS, voyage.status ?? 'active')}
+            </Badge>
+            {billingClosed ? (
+              <Badge tone="success" title="Todos os B/Ls desta viagem estão quitados ou isentos.">
+                Faturamento encerrado
+              </Badge>
+            ) : null}
+          </div>
+          {importLeg || exportLeg ? (
+            <div className="app-voyage-hero__routes">
               {importLeg ? (
                 <VoyageRouteLeg
                   keyPrefix={`${voyage.id}-imp`}
@@ -426,134 +421,138 @@ export function VoyageCard({
                 />
               ) : null}
             </div>
-          </div>
+          ) : null}
+        </div>
 
-          {canReactivateVoyage ? (
-            <div className="flex items-center gap-2 self-start">
-              <Button variant="ghost" className="app-voyage-action-icon" onClick={() => onReactivateVoyage?.(voyage.id)}>
+        {canReactivateVoyage || canEditVoyages || canDeleteVoyage ? (
+          <div className="app-voyage-hero__actions">
+            {canReactivateVoyage ? (
+              <Button variant="ghost" className="app-voyage-hero__action" onClick={() => onReactivateVoyage?.(voyage.id)}>
                 Reativar viagem
               </Button>
-            </div>
-          ) : null}
-          {canEditVoyages || canDeleteVoyage ? (
-            <div className="flex items-center gap-2 self-start">
-              {canEditVoyages ? (
-                <>
-                  <Button variant="ghost" className="app-voyage-action-icon" onClick={() => onEditVoyage(voyage.id)}>
-                    <Pencil size={15} />
-                    Editar
-                  </Button>
-                  {isAdmin ? (
-                    <Button
-                      variant="ghost"
-                      className="app-voyage-action-icon app-voyage-action-icon--danger"
-                      onClick={() => onCancelVoyage(voyage.id)}
-                      disabled={voyage.status === 'cancelled'}
-                    >
-                      <Ban size={15} />
-                      Cancelar viagem
-                    </Button>
-                  ) : null}
-                </>
-              ) : null}
-              {canDeleteVoyage ? (
-                // Excluir viagem e do Administrativo: delete_records('voyage')
-                // exige is_admin() e respeita a trava do CE (ADR 0071).
-                <Button
-                  variant="ghost"
-                  className="app-voyage-action-icon app-voyage-action-icon--danger"
-                  onClick={() => onDeleteVoyage(voyage.id)}
-                  aria-label="Excluir viagem"
-                  title="Excluir viagem"
-                >
-                  <Trash2 size={15} />
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="app-voyage-kpi-grid" aria-label="Indicadores da viagem">
-        <ImportKpiTile
-          totalBls={totalBls}
-          containerBlCount={containerBls.length}
-          containers={totalContainers}
-          imo={totalImoContainers}
-          oog={totalOogContainers}
-          vehicles={totalImportVehicles}
-          breakbulk={breakbulkSummary}
-        />
-        <DirectionKpiTile
-          direction="Exportação"
-          tone="green"
-          primary={{ value: String(totalExportContainers), unit: 'vazios embarcados' }}
-          metrics={[
-            { label: 'Granito · B/Ls', value: String(totalGraniteBls) },
-            { label: 'Granito · ton', value: formatMetric(totalGraniteWeightTon) },
-            { label: 'Embarques de vazios', value: String(totalVaziosManifests) },
-          ]}
-        />
-        <DirectionKpiTile
-          direction="PRÓXIMA ESCALA"
-          tone="blue"
-          primary={{
-            value: proximaEscala?.pod ?? '—',
-            unit: proximaEscala ? `ETA ${formatDate(proximaEscala.eta)}` : undefined,
-            variant: 'text',
-          }}
-          metrics={[
-            { label: 'Planejadas', value: String(plannedPodCount) },
-            { label: 'Atracação', value: proximaEscala?.etb ? `ETB ${formatDate(proximaEscala.etb)}` : 'TBC' },
-            { label: 'Status', value: proximaEscala && isEtaOverdue(proximaEscala.eta) ? 'ETA vencido' : 'Pendente' },
-          ]}
-        />
-        <DirectionKpiTile
-          direction="CONCILIAÇÃO"
-          tone={reconciliationMeta.badgeTone}
-          primary={{ value: reconciliationMeta.label, color: reconciliationMeta.color, variant: 'text' }}
-          metrics={[
-            { label: 'CE Mercante', value: `${ceCoverage.filled}/${ceCoverage.total}` },
-            { label: 'Manifestos Mercante', value: pendingManifestCount > 0 ? `${manifestNumberCount} · ${pendingManifestCount} a informar` : String(manifestNumberCount) },
-            { label: 'Divergências EDIxBLs', value: String(divergenceCount) },
-          ]}
-        />
-      </section>
-
-      <nav aria-label="Atalhos da viagem" className="flex flex-wrap items-center gap-2">
-        {reconciliationState === 'divergente' ? (
-          <Link to={`/baplie?voyage=${voyage.id}`} className="app-btn app-btn--primary app-btn--sm">
-            Resolver divergências ({divergenceCount})
-            <ArrowRight size={14} />
-          </Link>
-        ) : (
-          <Link to={`/baplie?voyage=${voyage.id}`} className="app-btn app-btn--secondary app-btn--sm">
-            Baplie EDI
-          </Link>
-        )}
-        <Link to={`/bls?voyage=${voyage.id}`} className="app-btn app-btn--secondary app-btn--sm">
-          B/Ls da viagem
-        </Link>
-        {totalGraniteBls > 0 ? (
-          <Link to={`/granito?voyage=${voyage.id}`} className="app-btn app-btn--secondary app-btn--sm">
-            Granito
-          </Link>
+            ) : null}
+            {canEditVoyages ? (
+              <Button variant="ghost" className="app-voyage-hero__action" onClick={() => onEditVoyage(voyage.id)}>
+                <Pencil size={15} aria-hidden="true" />
+                Editar
+              </Button>
+            ) : null}
+            {canEditVoyages && isAdmin ? (
+              <Button
+                variant="ghost"
+                className="app-voyage-hero__action app-voyage-hero__action--danger"
+                onClick={() => onCancelVoyage(voyage.id)}
+              >
+                <Ban size={15} aria-hidden="true" />
+                Cancelar viagem
+              </Button>
+            ) : null}
+            {canDeleteVoyage ? (
+              // Excluir viagem é do Administrativo: delete_records('voyage')
+              // exige is_admin() e respeita a trava do CE (ADR 0071).
+              <Button
+                variant="ghost"
+                className="app-voyage-hero__action app-voyage-hero__action--danger app-voyage-hero__action--icon"
+                onClick={() => onDeleteVoyage(voyage.id)}
+                aria-label="Excluir viagem"
+                title="Excluir viagem"
+              >
+                <Trash2 size={15} aria-hidden="true" />
+              </Button>
+            ) : null}
+          </div>
         ) : null}
-      </nav>
+      </header>
 
-      <section className="grid gap-4">
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Seções da viagem">
-          {tabs.map((tab) => (
-            <TabButton
-              key={tab.key}
-              label={tab.label}
-              active={activeTab === tab.key}
-              onClick={() => (onTabChange ? onTabChange(tab.key) : setLocalActiveTab(tab.key))}
-            />
-          ))}
+      <div className="app-voyage-ficha__body">
+        <section className="app-voyage-kpi-grid" aria-label="Indicadores da viagem">
+          <ImportKpiTile
+            totalBls={totalBls}
+            containerBlCount={containerBls.length}
+            containers={totalContainers}
+            imo={totalImoContainers}
+            oog={totalOogContainers}
+            vehicles={totalImportVehicles}
+            breakbulk={breakbulkSummary}
+          />
+          <DirectionKpiTile
+            direction="Exportação"
+            primary={{ value: String(totalExportContainers), unit: 'vazios embarcados' }}
+            metrics={[
+              { label: 'Granito · B/Ls', value: String(totalGraniteBls) },
+              { label: 'Granito · ton', value: formatMetric(totalGraniteWeightTon) },
+              { label: 'Embarques de vazios', value: String(totalVaziosManifests) },
+            ]}
+          />
+          <DirectionKpiTile
+            direction="Próxima escala"
+            primary={{
+              value: proximaEscala?.pod ?? '—',
+              unit: proximaEscala ? `ETA ${formatDate(proximaEscala.eta)}` : undefined,
+              variant: 'text',
+            }}
+            metrics={[
+              { label: 'Planejadas', value: String(plannedPodCount) },
+              { label: 'Atracação', value: proximaEscala?.etb ? `ETB ${formatDate(proximaEscala.etb)}` : 'TBC' },
+              { label: 'Status', value: proximaEscala && isEtaOverdue(proximaEscala.eta) ? 'ETA vencido' : 'Pendente' },
+            ]}
+          />
+          <DirectionKpiTile
+            direction="Conciliação"
+            primary={{ value: reconciliationMeta.label, color: reconciliationMeta.color, variant: 'text' }}
+            metrics={[
+              { label: 'CE Mercante', value: `${ceCoverage.filled}/${ceCoverage.total}` },
+              { label: 'Manifestos Mercante', value: pendingManifestCount > 0 ? `${manifestNumberCount} · ${pendingManifestCount} a informar` : String(manifestNumberCount) },
+              { label: 'Divergências EDI × B/Ls', value: String(divergenceCount) },
+            ]}
+          />
+        </section>
+
+        {/* Abas trocam a vista; atalhos (link com seta) levam a outra página. */}
+        <div className="app-voyage-tabs-row">
+          <TabList label="Seções da viagem">
+            {tabs.map((tab) => (
+              <TabButton
+                key={tab.key}
+                id={`voyage-${voyage.id}-tab-${tab.key}`}
+                controls={`voyage-${voyage.id}-panel`}
+                label={tab.label}
+                active={activeTab === tab.key}
+                onClick={() => (onTabChange ? onTabChange(tab.key) : setLocalActiveTab(tab.key))}
+              />
+            ))}
+          </TabList>
+          <nav aria-label="Atalhos da viagem" className="app-voyage-shortcuts">
+            {reconciliationState === 'divergente' ? (
+              <Link to={`/baplie?voyage=${voyage.id}`} className="app-btn app-btn--primary app-btn--sm">
+                Resolver divergências ({divergenceCount})
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            ) : (
+              <Link to={`/baplie?voyage=${voyage.id}`} className="app-voyage-shortcut">
+                Baplie EDI
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            )}
+            <Link to={`/bls?voyage=${voyage.id}`} className="app-voyage-shortcut">
+              B/Ls da viagem
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+            {totalGraniteBls > 0 ? (
+              <Link to={`/granito?voyage=${voyage.id}`} className="app-voyage-shortcut">
+                Granito
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            ) : null}
+          </nav>
         </div>
 
-        <div className="grid gap-4">
+        <div
+          id={`voyage-${voyage.id}-panel`}
+          role="tabpanel"
+          aria-labelledby={`voyage-${voyage.id}-tab-${activeTab}`}
+          className="grid gap-4"
+        >
           {activeTab === 'visao' ? (
             <VoyageVisaoTab
               voyage={voyage}
@@ -606,7 +605,7 @@ export function VoyageCard({
             />
           ) : null}
         </div>
-      </section>
+      </div>
       {omitTarget ? (
         <OmitEscalaModal
           open
@@ -633,31 +632,31 @@ function VoyageRouteLeg({
   destinationPorts: string[]
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--app-muted)]">
+    <div className="app-voyage-hero__route">
       <Badge tone={kind === 'importacao' ? 'blue' : 'green'} className="flex-none">
         {kind === 'importacao' ? 'Importação' : 'Exportação'}
       </Badge>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="app-voyage-hero__ports">
         {originPorts.length ? (
           originPorts.map((port) => (
-            <span key={`${keyPrefix}-origin-${port}`} className="app-voyage-token">
+            <span key={`${keyPrefix}-origin-${port}`} className="app-voyage-hero__port">
               {port}
             </span>
           ))
         ) : (
-          <span className="app-voyage-token">Origem a definir</span>
+          <span className="app-voyage-hero__port app-voyage-hero__port--pending">Origem a definir</span>
         )}
       </div>
-      <ArrowRight size={16} className="text-[var(--app-muted)]" />
-      <div className="flex flex-wrap items-center gap-2">
+      <ArrowRight size={16} className="app-voyage-hero__arrow" aria-hidden="true" />
+      <div className="app-voyage-hero__ports">
         {destinationPorts.length ? (
           destinationPorts.map((port) => (
-            <span key={`${keyPrefix}-destination-${port}`} className="app-voyage-token">
+            <span key={`${keyPrefix}-destination-${port}`} className="app-voyage-hero__port">
               {port}
             </span>
           ))
         ) : (
-          <span className="app-voyage-token">Destino a definir</span>
+          <span className="app-voyage-hero__port app-voyage-hero__port--pending">Destino a definir</span>
         )}
       </div>
     </div>

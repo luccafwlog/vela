@@ -75,11 +75,11 @@ export function VoyageImportacaoTab({ voyage, voyageLabel, vehicleStats, vaziosI
       {userId ? (
         <section className="mt-1 grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-[0.09em] text-[var(--app-muted)]">Importação rápida</div>
+            <div className="text-xs font-semibold text-[var(--app-muted)]">Importação rápida</div>
             <div className="mt-1 text-[13px] text-[var(--app-muted)]">Importe arquivos diretamente nesta viagem sem sair da tela.</div>
           </div>
           <VoyageImportActions voyageId={voyage.id} voyageLabel={voyageLabel} userId={userId} types={['baplie', 'blFreight', 'blBreakbulk', 'ceMercante', 'vehicles', 'vaziosImp']} />
-          <div className="flex items-start gap-2 text-[11px] leading-5 text-[var(--app-muted-soft)]">
+          <div className="flex items-start gap-2 text-xs leading-5 text-[var(--app-muted-soft)]">
             <ShieldCheck size={13} className="mt-0.5 shrink-0" />
             <span><b className="text-[var(--app-muted)]">CE Mercante serve os dois modos.</b> O import casa por número de B/L contra a tabela <code>bls</code>, que guarda container e carga solta no mesmo lugar (<code>cargo_mode</code>) — um botão só.</span>
           </div>
@@ -92,14 +92,14 @@ export function VoyageImportacaoTab({ voyage, voyageLabel, vehicleStats, vaziosI
 function TotalStrip({ totals }: { totals: Array<[string, string]> }) {
   return (
     <div className="flex flex-wrap items-center gap-y-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-3">
-      <span className="mr-2 shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--app-muted)]">Total da viagem</span>
-      {totals.map(([label, value], index) => <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-border)]' : ''}`}><span className="font-[var(--app-font-mono)] text-[15px] font-semibold text-[var(--app-text-strong)]">{value}</span><span className="text-[11px] text-[var(--app-muted-soft)]">{label}</span></span>)}
+      <span className="mr-2 shrink-0 text-xs font-semibold text-[var(--app-muted)]">Total da viagem</span>
+      {totals.map(([label, value], index) => <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-border)]' : ''}`}><span className="font-[var(--app-font-mono)] text-[15px] font-semibold text-[var(--app-text-strong)]">{value}</span><span className="text-xs text-[var(--app-muted-soft)]">{label}</span></span>)}
     </div>
   )
 }
 
 function SectionLabel({ label }: { label: string }) {
-  return <div className="flex items-center gap-3"><span className="text-[11px] font-bold uppercase tracking-[0.09em] text-[var(--app-muted)]">{label}</span><span className="h-px flex-1 bg-[var(--app-border)]" /></div>
+  return <div className="flex items-center gap-3"><span className="text-xs font-semibold text-[var(--app-muted)]">{label}</span><span className="h-px flex-1 bg-[var(--app-border)]" /></div>
 }
 
 function PodBlock({ pod, summary, vehicle, vazios }: {
@@ -190,11 +190,11 @@ function Panel({ title, icon, lead, leadUnit, empty, children }: {
   empty?: string
   children?: ReactNode
 }) {
-  return <div className="flex min-h-[126px] flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5 px-4"><div className="flex items-center justify-between gap-2"><span className={`inline-flex items-center gap-2 text-[13px] font-bold ${empty ? 'text-[var(--app-muted-soft)]' : 'text-[var(--app-text-strong)]'}`}><span className="text-[var(--app-muted)]">{icon}</span>{title}</span>{empty ? null : <span className="inline-flex items-baseline gap-1.5"><span className="font-[var(--app-font-display)] text-[22px] font-bold leading-none tracking-[-0.03em] text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-[11px] font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>}</div>{empty ? <div className="flex min-h-[68px] flex-1 items-center justify-center rounded-md border border-dashed border-[var(--app-border)] px-3.5 text-center text-xs text-[var(--app-muted-soft)]">{empty}</div> : children}</div>
+  return <div className="flex min-h-[126px] flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5 px-4"><div className="flex items-center justify-between gap-2"><span className={`inline-flex items-center gap-2 text-[13px] font-semibold ${empty ? 'text-[var(--app-muted-soft)]' : 'text-[var(--app-text-strong)]'}`}><span className="text-[var(--app-muted)]">{icon}</span>{title}</span>{empty ? null : <span className="inline-flex items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>}</div>{empty ? <div className="flex min-h-[68px] flex-1 items-center justify-center rounded-md border border-dashed border-[var(--app-border)] px-3.5 text-center text-xs text-[var(--app-muted-soft)]">{empty}</div> : children}</div>
 }
 
 function MiniStats({ stats }: { stats: Array<[string, number]> }) {
-  return <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{stats.map(([label, value]) => <div key={label} className="flex flex-col gap-0.5 border-l-2 border-[var(--app-border)] pl-2.5"><span className="font-[var(--app-font-mono)] text-sm font-semibold text-[var(--app-text-strong)]">{formatMetric(value)}</span><span className="text-[10px] uppercase tracking-[0.05em] text-[var(--app-muted-soft)]">{label}</span></div>)}</div>
+  return <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{stats.map(([label, value]) => <div key={label} className="flex flex-col gap-0.5 border-l-2 border-[var(--app-border)] pl-2.5"><span className="font-[var(--app-font-mono)] text-sm font-semibold text-[var(--app-text-strong)]">{formatMetric(value)}</span><span className="text-xs text-[var(--app-muted-soft)]">{label}</span></div>)}</div>
 }
 
 function CountPills({ values }: { values: CountToken[] }) {
@@ -203,11 +203,11 @@ function CountPills({ values }: { values: CountToken[] }) {
 }
 
 function ScaleStrip({ title, icon, lead, leadUnit, blocks }: { title: string; icon: ReactNode; lead: number; leadUnit: string; blocks: Array<{ label: string; value: ReactNode; grow?: boolean }> }) {
-  return <div className="flex flex-wrap items-center gap-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3.5"><span className="inline-flex shrink-0 items-center gap-2 text-[13px] font-bold text-[var(--app-text-strong)]"><span className="text-[var(--app-muted)]">{icon}</span>{title}</span><span className="inline-flex shrink-0 items-baseline gap-1.5"><span className="font-[var(--app-font-display)] text-[22px] font-bold leading-none tracking-[-0.03em] text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-[11px] font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>{blocks.map((block) => <span key={block.label} className={`flex flex-col gap-1 border-l-2 border-[var(--app-border)] pl-3 ${block.grow ? 'min-w-[180px] flex-1' : ''}`}><span className="flex flex-wrap gap-1.5 text-sm font-semibold text-[var(--app-text-strong)]">{typeof block.value === 'number' ? formatMetric(block.value) : block.value}</span><span className="text-[10px] uppercase tracking-[0.05em] text-[var(--app-muted-soft)]">{block.label}</span></span>)}</div>
+  return <div className="flex flex-wrap items-center gap-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3.5"><span className="inline-flex shrink-0 items-center gap-2 text-[13px] font-semibold text-[var(--app-text-strong)]"><span className="text-[var(--app-muted)]">{icon}</span>{title}</span><span className="inline-flex shrink-0 items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>{blocks.map((block) => <span key={block.label} className={`flex flex-col gap-1 border-l-2 border-[var(--app-border)] pl-3 ${block.grow ? 'min-w-[180px] flex-1' : ''}`}><span className="flex flex-wrap gap-1.5 text-sm font-semibold text-[var(--app-text-strong)]">{typeof block.value === 'number' ? formatMetric(block.value) : block.value}</span><span className="text-xs text-[var(--app-muted-soft)]">{block.label}</span></span>)}</div>
 }
 
 function EmptyScaleStrip({ title, icon, text }: { title: string; icon: ReactNode; text: string }) {
-  return <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-[var(--app-muted-soft)]"><span className="inline-flex shrink-0 items-center gap-2 text-[13px] font-bold"><span>{icon}</span>{title}</span><span className="text-xs">{text}</span></div>
+  return <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-[var(--app-muted-soft)]"><span className="inline-flex shrink-0 items-center gap-2 text-[13px] font-semibold"><span>{icon}</span>{title}</span><span className="text-xs">{text}</span></div>
 }
 
 function parseCountSummary(value: string | null | undefined): CountToken[] {

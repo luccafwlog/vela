@@ -17,6 +17,8 @@
   --app-panel-strong: #e2ddd2;
   --app-border: #bdb7aa;
   --app-border-strong: #a39c8e;
+  /* Filete entre blocos de uma mesma superfície (decorativo; controles usam --app-border-strong). */
+  --app-border-soft: #d9d4ca;
   --app-border-focus: rgba(37, 99, 168, 0.22);
   --app-focus-ring: #1d4d88;
   --app-text: #1c1915;
@@ -94,6 +96,7 @@
   --app-panel-strong: #162641;
   --app-border: #22324d;
   --app-border-strong: #314569;
+  --app-border-soft: #1c2a44;
   --app-border-focus: rgba(96, 165, 250, 0.28);
   --app-focus-ring: #60a5fa;
   --app-text: #eef2ff;
@@ -154,6 +157,8 @@
   --app-panel-strong: #e2ddd2;
   --app-border: #bdb7aa;
   --app-border-strong: #a39c8e;
+  /* Filete entre blocos de uma mesma superfície (decorativo; controles usam --app-border-strong). */
+  --app-border-soft: #d9d4ca;
   --app-border-focus: rgba(37, 99, 168, 0.22);
   --app-focus-ring: #1d4d88;
   --app-text: #1c1915;
@@ -9412,11 +9417,16 @@ a.app-step-rail__link:focus-visible {
   padding: 14px 16px;
 }
 
-.app-voyage-kpi-tile > .app-badge { align-self: flex-start; }
+.app-voyage-kpi-tile__label {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+  font-weight: 600;
+  line-height: 18px;
+}
 
 .app-voyage-kpi-tile--import {
-  border-color: color-mix(in srgb, var(--app-blue) 30%, var(--app-border));
-  background: color-mix(in srgb, var(--app-blue) 4%, var(--app-surface-muted));
+  background: color-mix(in srgb, var(--app-blue) 5%, var(--app-surface-muted));
 }
 
 .app-voyage-kpi-tile__head {
@@ -9439,8 +9449,7 @@ a.app-step-rail__link:focus-visible {
   min-width: 0;
   flex-direction: column;
   gap: 8px;
-  border: 1px solid var(--app-border);
-  border-radius: calc(var(--app-radius) - 2px);
+  border-radius: var(--app-radius-control);
   background: var(--app-surface);
   padding: 10px 12px;
 }
@@ -9449,11 +9458,9 @@ a.app-step-rail__link:focus-visible {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--app-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  color: var(--app-text);
+  font-size: var(--app-size-caption);
+  font-weight: 600;
 }
 
 .app-voyage-kpi-split__title svg { color: var(--app-blue); }
@@ -9467,10 +9474,9 @@ a.app-step-rail__link:focus-visible {
 
 .app-voyage-kpi-split__lead span {
   color: var(--app-text-strong);
-  font-family: var(--app-font-display);
-  font-size: 1.375rem;
+  font-size: var(--app-size-panel);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 
@@ -9504,17 +9510,17 @@ a.app-step-rail__link:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--app-text-strong);
-  font-family: var(--app-font-display);
-  font-size: 1.875rem;
+  font-size: var(--app-size-page);
   font-weight: 700;
-  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
   line-height: 1;
   white-space: nowrap;
 }
 
 .app-voyage-kpi-tile__value--text {
-  font-size: 1.125rem;
-  letter-spacing: -0.01em;
+  font-size: var(--app-size-section);
+  letter-spacing: 0;
   line-height: 1.2;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -9552,9 +9558,9 @@ a.app-step-rail__link:focus-visible {
 
 .app-voyage-kpi-tile__metric strong {
   flex: none;
-  color: var(--app-muted);
-  font-family: var(--app-font-mono);
+  color: var(--app-text);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .app-voyage-metric-panel {
@@ -9562,16 +9568,15 @@ a.app-step-rail__link:focus-visible {
   flex-direction: column;
   gap: 14px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
-  background: linear-gradient(180deg, var(--app-surface) 0%, var(--app-surface-muted) 100%);
-  padding: 18px;
-  box-shadow: var(--app-shadow);
+  border-radius: var(--app-radius);
+  background: var(--app-surface-muted);
+  padding: 16px;
 }
 
 .app-voyage-metric-panel__title {
-  color: var(--app-text);
-  font-size: 17px;
-  font-weight: 700;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-section);
+  font-weight: 600;
 }
 
 .app-voyage-metric-panel dl {
@@ -9627,20 +9632,18 @@ a.app-step-rail__link:focus-visible {
   border-radius: 999px;
   background: var(--app-surface);
   color: var(--app-text);
-  padding: 5px 9px;
-  font-size: 11px;
-  font-weight: 700;
+  padding: 4px 9px;
+  font-size: var(--app-size-caption);
+  font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
-  box-shadow: var(--app-shadow);
 }
 
 .app-voyage-table-frame {
   overflow: hidden;
   border: 1px solid var(--app-border);
-  border-radius: 16px;
+  border-radius: var(--app-radius);
   background: var(--app-surface);
-  box-shadow: var(--app-shadow);
 }
 
 .app-voyage-table-frame .app-table {
@@ -9649,11 +9652,11 @@ a.app-step-rail__link:focus-visible {
 }
 
 .app-voyage-table-frame .app-table thead tr:first-child > th:first-child {
-  border-top-left-radius: 16px;
+  border-top-left-radius: var(--app-radius);
 }
 
 .app-voyage-table-frame .app-table thead tr:first-child > th:last-child {
-  border-top-right-radius: 16px;
+  border-top-right-radius: var(--app-radius);
 }
 
 .app-voyage-table-frame .app-table tbody td {
@@ -9665,82 +9668,259 @@ a.app-step-rail__link:focus-visible {
   color: var(--app-muted);
 }
 
+/* Botão-ícone da tabela da ficha: só a geometria. Cor e contorno vêm da
+   variante (secundário ou destrutivo), como nos demais botões. */
 .app-voyage-icon-btn {
-  width: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--app-control-h);
+  min-width: var(--app-control-h);
+  min-height: var(--app-control-h);
   padding: 0;
-  border-radius: 12px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-  color: var(--app-blue-btn);
-  box-shadow: var(--app-shadow);
 }
 
-.app-voyage-icon-btn:hover:not(:disabled) {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  color: #1d4ed8;
+/*  Ficha da viagem — revisão sobre a versão restaurada (2026-10-08).
+    Mesma composição de antes (identidade, indicadores, abas), com três
+    ajustes: faixa de identidade azul-marinho lisa, filetes internos suaves e
+    nenhuma sombra ou degradê dentro da ficha. */
+.app-voyage-ficha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-voyage-ficha__body {
+  /* Filetes entre blocos ficam suaves; controles seguem com --app-border-strong. */
+  --app-border: var(--app-border-soft);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+  padding: 20px 22px 22px;
 }
 
 .app-voyage-hero {
-  display: grid;
-  gap: 16px;
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  padding: 16px 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 247, 251, 0.98));
-  box-shadow: var(--app-shadow);
-}
-
-.app-voyage-hero-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding: 18px 22px 20px;
+  background: var(--app-navy);
+  color: #ffffff;
 }
 
-.app-voyage-hero-stat {
+:root[data-visual-theme='dark'] .app-voyage-hero {
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-navy-2);
+}
+
+.app-voyage-hero__identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.app-voyage-hero__carrier {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: var(--app-size-caption);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.app-voyage-hero__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.app-voyage-hero__title {
+  margin: 0;
+  min-width: 0;
+  color: #ffffff;
+  font-size: var(--app-size-page);
+  font-weight: 700;
+  line-height: 32px;
+  overflow-wrap: anywhere;
+}
+
+.app-voyage-hero__routes {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.app-voyage-hero__route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  font-size: var(--app-size-table);
+}
+
+.app-voyage-hero__ports {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-voyage-hero__port {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  color: var(--app-text);
-  font-size: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  padding: 3px 10px;
+  font-size: var(--app-size-caption);
   font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
 }
 
-.app-voyage-hero-stat:not(:last-child)::after {
-  content: '';
-  width: 1px;
-  height: 16px;
-  background: var(--app-border);
-}
-
-.app-voyage-action-icon {
-  min-height: 44px;
-  padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid var(--app-border);
+.app-voyage-hero__port--pending {
+  border-style: dashed;
   background: transparent;
-  color: var(--app-text);
+  color: rgba(255, 255, 255, 0.74);
+  font-weight: 500;
 }
 
-.app-voyage-action-icon--danger {
+.app-voyage-hero__arrow {
+  flex: none;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.app-voyage-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-voyage-hero__action.app-btn {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: transparent;
+  color: #ffffff;
+}
+
+.app-voyage-hero__action.app-btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.app-voyage-hero__action.app-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.app-voyage-hero__action--danger.app-btn {
+  border-color: rgba(254, 202, 202, 0.42);
+  color: #fecaca;
+}
+
+.app-voyage-hero__action--danger.app-btn:hover:not(:disabled) {
+  border-color: rgba(254, 202, 202, 0.7);
+  background: rgba(248, 113, 113, 0.2);
+  color: #ffffff;
+}
+
+.app-voyage-hero__action--icon.app-btn {
+  width: var(--app-control-h);
+  min-width: var(--app-control-h);
+  padding: 0;
+}
+
+@media (max-width: 639px) {
+  .app-voyage-hero { padding: 16px; }
+  .app-voyage-hero__title { font-size: var(--app-size-panel); line-height: 28px; }
+  .app-voyage-ficha__body { padding: 16px; }
+}
+
+/* Abas e atalhos na mesma linha: abas trocam a vista, atalhos (com seta) saem. */
+.app-voyage-tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.app-voyage-tabs-row .app-tablist {
+  min-width: 0;
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.app-voyage-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding-bottom: 6px;
+}
+
+.app-voyage-shortcut {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 4px;
+  color: var(--app-link);
+  font-size: var(--app-size-table);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+
+.app-voyage-shortcut:hover,
+.app-voyage-shortcut:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+@media (pointer: coarse) {
+  .app-voyage-shortcut { min-height: 44px; }
+}
+
+/* Bloco de seção dentro das abas: levemente escurecido, filete suave, sem sombra. */
+.app-voyage-section-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface-muted);
+  padding: 16px;
+}
+
+.app-voyage-section-card--compact {
+  gap: 10px;
+  padding: 12px;
+}
+
+.app-voyage-section-card__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-section);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.app-voyage-section-card__description {
+  margin-top: 2px;
   color: var(--app-muted);
-}
-
-.app-voyage-action-icon--danger:hover,
-.app-voyage-action-icon--danger:focus-visible {
-  color: #dc2626;
+  font-size: var(--app-size-table);
 }
 
 .app-voyage-accordion {
   display: grid;
   gap: 16px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
-  padding: 16px 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 247, 251, 0.98));
-  box-shadow: var(--app-shadow);
+  border-radius: var(--app-radius);
+  padding: 16px;
+  background: var(--app-surface-muted);
 }
 
 .app-voyage-accordion__trigger {
@@ -9755,9 +9935,4 @@ a.app-step-rail__link:focus-visible {
 .app-voyage-accordion__content {
   display: grid;
   gap: 16px;
-}
-
-.app-voyage-actions .app-btn {
-  min-height: 38px;
-  box-shadow: var(--app-shadow);
 }

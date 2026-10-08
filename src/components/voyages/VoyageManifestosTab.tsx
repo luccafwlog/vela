@@ -83,8 +83,8 @@ export function VoyageManifestosTab({
                   <th scope="col" rowSpan={2} aria-label="Ações" className="px-3 py-2 text-center" />
                 </tr>
                 <tr>
-                  <th scope="col" className="px-3 py-1.5 text-center text-[10px] uppercase tracking-[0.08em] text-white/70">CE Mercante · cobertura</th>
-                  <th scope="col" className="px-3 py-1.5 text-center text-[10px] uppercase tracking-[0.08em] text-white/70">Nº de manifesto Mercante</th>
+                  <th scope="col" className="px-3 py-1.5 text-center text-xs text-white/80">CE Mercante · cobertura</th>
+                  <th scope="col" className="px-3 py-1.5 text-center text-xs text-white/80">Nº de manifesto Mercante</th>
                 </tr>
               </thead>
               <tbody>
@@ -99,7 +99,7 @@ export function VoyageManifestosTab({
                     <tr key={`${voyage.id}-manifest-${row.routeKey}`}>
                       <td className="px-3 py-2 align-middle">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge tone={modeTone} className="px-2 py-0.5 text-[10px]">{row.modeLabel}</Badge>
+                          <Badge tone={modeTone} className="px-2 py-0.5 text-xs">{row.modeLabel}</Badge>
                           <Link
                             className="font-semibold text-[var(--app-blue-btn)] hover:underline"
                             to={routeTargetUrl}
@@ -112,7 +112,7 @@ export function VoyageManifestosTab({
                                   {formatPortDisplayName(row.omission.omittedPod)}
                                 </span>
                                 <span> → {formatPortDisplayName(row.omission.dischargePod)}</span>
-                                <Badge tone="yellow" className="ml-2 px-2 py-0.5 text-[10px]">Omissão</Badge>
+                                <Badge tone="yellow" className="ml-2 px-2 py-0.5 text-xs">Omissão</Badge>
                               </>
                             ) : row.routeLabel}
                           </Link>
@@ -161,7 +161,7 @@ export function VoyageManifestosTab({
                             return (
                               <button
                                 type="button"
-                                className="app-badge app-badge--yellow cursor-pointer gap-1 px-2 py-0.5 text-[10px] transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="app-badge app-badge--yellow cursor-pointer gap-1 px-2 py-0.5 text-xs transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
                                 aria-label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
                                 title="Informar Nº de Manifesto Mercante"
                                 onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
@@ -202,7 +202,7 @@ export function VoyageManifestosTab({
           </div>
         </div>
 
-      <div className="flex flex-wrap items-center gap-3 px-0.5 text-[11px] leading-5 text-[var(--app-muted-soft)]">
+      <div className="flex flex-wrap items-center gap-3 px-0.5 text-xs leading-5 text-[var(--app-muted-soft)]">
         <span><b className="text-[var(--app-muted)]">CE Mercante</b> é a cobertura por B/L; o <b className="text-[var(--app-muted)]">Nº de manifesto Mercante</b> agrupa a rota. São coisas diferentes.</span>
         <span className="h-3 w-px bg-[var(--app-border)]" />
         <span>ATD em escuro é realizado; em cinza, o ETD previsto.</span>
@@ -214,11 +214,11 @@ export function VoyageManifestosTab({
 function TotalStrip({ totals }: { totals: Array<[string, string]> }) {
   return (
     <div className="flex flex-wrap items-center gap-y-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-3">
-      <span className="mr-2 shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--app-muted)]">Total da viagem</span>
+      <span className="mr-2 shrink-0 text-xs font-semibold text-[var(--app-muted)]">Total da viagem</span>
       {totals.map(([label, value], index) => (
         <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-border)]' : ''}`}>
           <span className="font-[var(--app-font-mono)] text-[15px] font-semibold text-[var(--app-text-strong)]">{value}</span>
-          <span className="text-[11px] text-[var(--app-muted-soft)]">{label}</span>
+          <span className="text-xs text-[var(--app-muted-soft)]">{label}</span>
         </span>
       ))}
     </div>
@@ -228,9 +228,9 @@ function TotalStrip({ totals }: { totals: Array<[string, string]> }) {
 function SectionLabel({ label, note }: { label: string; note: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-[11px] font-bold uppercase tracking-[0.09em] text-[var(--app-muted)]">{label}</span>
+      <span className="text-xs font-semibold text-[var(--app-muted)]">{label}</span>
       <span className="h-px flex-1 bg-[var(--app-border)]" />
-      <span className="text-[11px] text-[var(--app-muted-soft)]">{note}</span>
+      <span className="text-xs text-[var(--app-muted-soft)]">{note}</span>
     </div>
   )
 }

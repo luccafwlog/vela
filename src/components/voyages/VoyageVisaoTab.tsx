@@ -348,9 +348,9 @@ export function VoyageVisaoTab({
                     {atracacoes.length && !collapsedAtracacoes.has(row.port) ? (
                       <tr key={`${voyage.id}-atracacoes-${row.port}`} id={`${voyage.id}-atracacoes-${row.port}`}>
                         <td colSpan={9} className="px-3 pb-3 pt-0 text-center">
-                          <div className="ml-4 overflow-hidden rounded-[10px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] text-xs">
+                          <div className="ml-4 overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] text-xs">
                             <div className="flex items-center justify-between gap-3 border-b border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-2 text-left">
-                              <div className="font-semibold uppercase tracking-wide text-[var(--app-muted)]">Atracações de {row.port}</div>
+                              <div className="font-semibold text-[var(--app-text)]">Atracações de {row.port}</div>
                               {canEditVoyages ? (
                                 <Button
                                   type="button"
@@ -527,14 +527,14 @@ function VoyageTimeline({
   const visibleEvents = expanded ? events : events.slice(0, TIMELINE_COLLAPSED_COUNT)
 
   return (
-    <section className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+    <section className="app-voyage-section-card app-voyage-section-card--compact">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
         className="flex min-h-11 w-full items-center justify-between gap-2 text-left"
       >
-        <span className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
+        <span className="app-voyage-section-card__title flex items-center gap-2">
           <Clock size={16} />
           Linha do tempo
         </span>
@@ -551,7 +551,7 @@ function VoyageTimeline({
               {visibleEvents.map((event) => (
                 <li
                   key={event.id}
-                  className="relative flex flex-col gap-0.5 overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-3 pl-4 sm:flex-row sm:items-baseline sm:gap-3"
+                  className="relative flex flex-col gap-0.5 overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-3 pl-4 sm:flex-row sm:items-baseline sm:gap-3"
                 >
                   <span
                     className="absolute left-0 top-0 h-full w-1"
@@ -571,7 +571,7 @@ function VoyageTimeline({
               <button
                 type="button"
                 onClick={() => setExpanded((value) => !value)}
-                className="mt-3 text-sm font-medium text-[var(--app-link)] hover:underline"
+                className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-[var(--app-link)] hover:underline"
               >
                 {expanded ? 'Mostrar menos' : `Mostrar todos os ${events.length} eventos`}
               </button>
