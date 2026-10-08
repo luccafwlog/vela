@@ -746,21 +746,25 @@ describe('blFreightImport', () => {
     const bl = (id: string, containers: number) => ({ id, containers: Array.from({ length: containers }, (_, n) => n) })
     // 6 B/Ls x 200 conteineres (caso GREEN BRAZIL / 8): 1.200 conteineres numa chamada estouravam 8 s
     const big = ['A', 'B', 'C', 'D', 'E', 'F'].map((id) => bl(id, 200))
-    expect(chunkBlPayload(big).map((chunk) => chunk.map((item) => item.id))).toEqual([['A'], ['B'], ['C'], ['D'], ['E'], ['F']])
+    expect(chunkBlPayload(big).chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['A'], ['B'], ['C'], ['D'], ['E'], ['F']])
     // B/L acima do orcamento vai sozinho, sem ser partido
-    expect(chunkBlPayload([bl('X', 2), bl('Y', 500), bl('Z', 2)]).map((chunk) => chunk.map((item) => item.id))).toEqual([['X'], ['Y'], ['Z']])
+    expect(chunkBlPayload([bl('X', 2), bl('Y', 500), bl('Z', 2)]).chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['X'], ['Y'], ['Z']])
     // B/Ls pequenos continuam em lotes de ate 20
     const small = Array.from({ length: 45 }, (_, n) => bl(`S${n}`, 3))
-    expect(chunkBlPayload(small).map((chunk) => chunk.length)).toEqual([20, 20, 5])
-    expect(chunkBlPayload([])).toEqual([])
+    expect(chunkBlPayload(small).chunks.map((chunk) => chunk.length)).toEqual([20, 20, 5])
+    expect(chunkBlPayload([])).toEqual({ chunks: [], recalculateAfter: [] })
   })
 
   it('mantem no mesmo lote os B/Ls que compartilham conteiner', () => {
     const bl = (id: string, numbers: string[]) => ({ id, containers: numbers.map((container_number) => ({ container_number })) })
     const many = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i}`)
     // A e C dividem SHRD0000001; B fica entre eles no arquivo e estoura o orcamento junto
-    const chunks = chunkBlPayload([bl('A', [...many('A', 150), 'SHRD0000001']), bl('B', many('B', 200)), bl('C', ['SHRD0000001', ...many('C', 100)])])
+    const { chunks } = chunkBlPayload([bl('A', [...many('A', 150), 'SHRD0000001']), bl('B', many('B', 200)), bl('C', ['SHRD0000001', ...many('C', 100)])])
     expect(chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['A', 'C'], ['B']])
+    // grupo grande demais e partido e volta para recalculo depois do ultimo lote
+    const oversized = chunkBlPayload([bl('X', [...many('X', 200), 'SHRD0000002']), bl('Y', ['SHRD0000002', ...many('Y', 200)])])
+    expect(oversized.chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['X'], ['Y']])
+    expect(oversized.recalculateAfter.map((item) => item.id)).toEqual(['X', 'Y'])
   })
 
   it('envia lotes grandes em partes para nao estourar o statement_timeout e informa falha parcial', async () => {
@@ -768,7 +772,8 @@ describe('blFreightImport', () => {
       blNumber: id, status: 'new', existing: false, voyageId: 7, voyageNumber: null, pol: null, pod: null,
       ladenOnBoard: null, consigneeDocumentMatches: null, blockedReasons: [], billingImpacts: [],
       requiresBillingOverride: false, customerChange: null, requiresCustomerConfirmation: false, diffs: [],
-      payload: { ...buildBlFreightPayload(parsedBL(), 7), id },
+      // conteiner proprio por B/L: aqui os B/Ls sao independentes (sem rateio compartilhado)
+      payload: { ...buildBlFreightPayload(parsedBL(), 7), id, containers: [{ ...buildBlFreightPayload(parsedBL(), 7).containers[0], container_number: `${id}CTR` }] },
     })
     const preview: BlFreightImportPreview = {
       rows: Array.from({ length: 45 }, (_, index) => row(`BL${index}`)),

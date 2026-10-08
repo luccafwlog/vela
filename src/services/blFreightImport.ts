@@ -8,6 +8,7 @@ import type { BL, BLContainer, BlFreightLine, Vehicle } from '../types/database'
 import { extractTaxId, type ParsedBLDocument } from './blParser'
 import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, type CustomerMaps } from './customerReconciliation'
 import { normalizePortCode } from './portCode'
+import { calculateLocalChargesBatch } from './charges/chargeOperationsService'
 import { supabase } from './supabase'
 
 export type BlFreightImportDiff = {
@@ -538,7 +539,8 @@ export async function confirmBlFreightImport(
   // entao uma falha no meio preserva os anteriores (reimportar e idempotente).
   // Teto: um único B/L com ~900+ contêineres ainda não cabe numa chamada.
   // Upgrade: calculo de taxas e flags do Baplie fora da transacao.
-  for (const chunk of chunkBlPayload(payload)) {
+  const { chunks, recalculateAfter } = chunkBlPayload(payload)
+  for (const chunk of chunks) {
     const { data: rawData, error } = usesBatchContract
       ? await supabase.rpc('import_bl_freight_with_metadata', {
           p_bls: chunk,
@@ -567,6 +569,13 @@ export async function confirmBlFreightImport(
     imported += chunk.length
   }
 
+  // Grupo de contêiner compartilhado partido entre lotes: os primeiros lotes
+  // calcularam antes de os irmãos existirem; recalcula com o rateio completo.
+  if (usesBatchContract && recalculateAfter.length) {
+    const recalculation = await calculateLocalChargesBatch(recalculateAfter.map((bl) => bl.id), { actorId: changedBy })
+    calculationErrors.push(...recalculation.errors.map((error) => ({ blNumber: error.blId, message: error.message })))
+  }
+
   return { result: results, refusedCustomerRelinks, calculationErrors }
 }
 
@@ -577,13 +586,14 @@ const BL_IMPORT_CHUNK_CONTAINER_BUDGET = 300
  * Divide o payload em lotes de até 20 B/Ls e até 300 contêineres. B/Ls que
  * compartilham contêiner vão no mesmo lote: o cálculo divide o contêiner pelos
  * B/Ls já gravados, e um irmão em lote posterior deixaria o anterior cobrando
- * o contêiner inteiro. Um B/L sozinho acima do orçamento vai num lote próprio.
+ * o contêiner inteiro. Grupo acima dos limites é partido e volta em
+ * `recalculateAfter`; um B/L sozinho acima do orçamento vai num lote próprio.
  */
 export function chunkBlPayload<T extends { containers?: unknown[] }>(
   payload: T[],
   maxBls = BL_IMPORT_CHUNK_SIZE,
   containerBudget = BL_IMPORT_CHUNK_CONTAINER_BUDGET,
-): T[][] {
+): { chunks: T[][]; recalculateAfter: T[] } {
   // agrupa por contêiner compartilhado (union-find), preservando a ordem do arquivo
   const parent = payload.map((_, index) => index)
   const find = (index: number): number => (parent[index] === index ? index : (parent[index] = find(parent[index])))
@@ -604,6 +614,7 @@ export function chunkBlPayload<T extends { containers?: unknown[] }>(
   })
 
   const chunks: T[][] = []
+  const recalculateAfter: T[] = []
   let current: T[] = []
   let containers = 0
   const place = (bls: T[]) => {
@@ -618,14 +629,17 @@ export function chunkBlPayload<T extends { containers?: unknown[] }>(
   }
   for (const group of groups.values()) {
     const count = group.reduce((total, bl) => total + (bl.containers?.length ?? 0), 0)
-    // ponytail: grupo acima dos limites é partido em ordem para não estourar o
-    // timeout; nele o rateio do contêiner compartilhado pode ficar desigual até
-    // o próximo recálculo. Upgrade: recálculo final dos irmãos após o último lote.
-    if (group.length > maxBls || count > containerBudget) group.forEach((bl) => place([bl]))
-    else place(group)
+    // Grupo acima dos limites é partido em ordem para não estourar o timeout;
+    // quem o chama recalcula esses B/Ls depois do último lote.
+    if (group.length > maxBls || count > containerBudget) {
+      group.forEach((bl) => place([bl]))
+      recalculateAfter.push(...group)
+    } else {
+      place(group)
+    }
   }
   if (current.length) chunks.push(current)
-  return chunks
+  return { chunks, recalculateAfter }
 }
 
 export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | null): BlFreightRpcPayload {
