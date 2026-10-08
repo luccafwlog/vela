@@ -1,10 +1,10 @@
 # Correção das pendências da auditoria das etapas 00–05
 
 - **Data:** 2026-10-08
-- **Origem:** "Pendências com dono" da [auditoria de conformidade das etapas 00–05](../archive/audits/2026-10-08-auditoria-contrato-etapas-00-05.md).
-- **Campanha:** [revisão visual e UX](2026-10-07-revisao-visual-ux-prompts.md). Este plano não substitui nenhuma etapa. Ele organiza as "execuções focadas ao owner" previstas no item 7 de "Como enviar sem interferência".
-- **Estado:** em execução (2026-10-08). R1, R2 (salvo R2.6), R4, R5 e R6 feitos localmente; R3 parcialmente revertido pela decisão do responsável sobre a ficha da viagem (ver registro). N1 e N2 em aberto.
-- **Base exigida:** `main` com as correções da auditoria integradas. Hoje elas estão sem commit na branch `claude/auditoria-contrato-etapas-00-05` (passo R0).
+- **Origem:** "Pendências com dono" da [auditoria de conformidade das etapas 00–05](../audits/2026-10-08-auditoria-contrato-etapas-00-05.md).
+- **Campanha:** [revisão visual e UX](../../plans/2026-10-07-revisao-visual-ux-prompts.md). Este plano não substitui nenhuma etapa. Ele organiza as "execuções focadas ao owner" previstas no item 7 de "Como enviar sem interferência".
+- **Estado:** concluído e arquivado em 2026-10-08. R0 integrado pela PR 903 (merge `673f5ee` na `main`); R1 a R6 feitos; R3.4, R3.5 e a parte da ficha/faixa de R3.6 encerrados pela decisão do responsável (ficha da viagem restaurada com melhorias, ver registro); N1 e N2 decididos pelo responsável em 2026-10-08.
+- **Base exigida:** `main` com as correções da auditoria integradas. Cumprida pela PR 903 (passo R0).
 
 ## Resultado pretendido
 
@@ -46,7 +46,13 @@ Ao fim do plano, o que a pessoa vê nas telas das etapas 01–05 segue o contrat
 
 ## Decisões
 
-### Em aberto (bloqueiam só os itens indicados)
+### Decididas pelo responsável em 2026-10-08 (antes em aberto)
+
+- **N1:** alternativa (a). O wordmark "Vela" é marca, não título, e não conta na regra de uma linha em Syne por tela. Exceção registrada no "Contrato visual" da campanha.
+- **N2:** alternativa (a), ampliada. Viagem cancelada sai do Line-Up na TV **e no Painel**. Correção de domínio em `src/services/lineup.ts` (o snapshot só lê viagens ativas e concluídas, e a mudança de status no audit log da viagem dispara a releitura), com teste do serviço; o texto do modal de cancelamento fica.
+
+Tabela original das perguntas, preservada como registro:
+
 
 | Id | Pergunta | Alternativas | Recomendação | Itens travados |
 |---|---|---|---|---|
@@ -176,13 +182,13 @@ Só documentação, no plano da campanha (seção "Prompts por etapa", que é vi
 
 | Passo | Estado | Base / revisão | Resumo, arquivos, checks, evidência e pendências |
 |---|---|---|---|
-| R0 | Em andamento | branch `claude/auditoria-contrato-etapas-00-05` | Commit e push na branch autorizados em 2026-10-08; PR e integração à `main` pendentes |
+| R0 | Feito | branch `claude/auditoria-contrato-etapas-00-05` | Integrado à `main` pela PR 903 em 2026-10-08 (merge `673f5ee`), com CI verde no último commit (`4ae1d8f`) |
 | R1 | Feito | base `2bddc66` + diff da auditoria | `@layer base` no link; `Field` com `htmlFor` (`labelableControls.ts`); `ActionMenu` (ex-`BlMenu`); botão-ícone e `--sm` com `--app-control-h`; 44 px no toque (ícone, segmentado); escala 7 degraus; toasts semânticos; `Textarea` com ref; `TabButton` itinerante; `StepRail` com `diverted`; `metric-strip` removido. Títulos públicos do Portal 32/40. **Teste** e **Runtime** (44 px no toque, 0 texto fora da escala nas rotas 01–05) |
-| R2 | Feito, salvo R2.6 (N1) | idem | Recarregar perfil e Marcar todas com andamento; aviso no painel do sino com Atualizar lista; erro de senha no campo; `DEPARTMENT_LABELS` como fonte única. **Teste** |
-| R3 | Parcial | idem | Feitos: R3.1 (Editar escala em 2 colunas, `SegmentedControl`), R3.2 (cancelamento em confirmação única), R3.7 (picker comum em Chegadas e Saídas), R3.8. Revertidos pela decisão do responsável de 2026-10-08 (faixa, ficha e TV voltam ao anterior à etapa 03): R3.4, R3.5 e a parte da ficha/faixa de R3.6. R3.3 aguarda N2 |
+| R2 | Feito | idem | Recarregar perfil e Marcar todas com andamento; aviso no painel do sino com Atualizar lista; erro de senha no campo; `DEPARTMENT_LABELS` como fonte única. **Teste** R2.6 encerrado por N1 (a): **Runtime** a 360 px em `/login`, `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha` e `/portal/ativar`, com o título em 32/40 e uma linha em Syne por tela, salvo o wordmark de `/login`. |
+| R3 | Feito | idem | Feitos: R3.1 (Editar escala em 2 colunas, `SegmentedControl`), R3.2 (cancelamento em confirmação única), R3.7 (picker comum em Chegadas e Saídas), R3.8. Revertidos pela decisão do responsável de 2026-10-08 (faixa, ficha e TV voltam ao anterior à etapa 03): R3.4, R3.5 e a parte da ficha/faixa de R3.6. R3.3 concluído com a decisão N2: o texto do modal ("sai do Line-Up") passa a ser verdadeiro na TV e no Painel; ver linha N2 |
 | R3 (ficha) | Feito | sobre o R3 acima | Complemento do responsável de 2026-10-08: ficha da viagem com a composição restaurada e melhorias (faixa azul-marinho lisa, filetes `--app-border-soft`, blocos sem sombra nem degradê, `TabList` com atalhos em link, rótulos ≥ 12 px em caixa normal, botões-ícone com a variante e `--app-control-h`, grade com `minmax(0, 1fr)` contra estouro a 360 px). **Teste** (`VoyageCard.kpis`, abas de Viagens) e **Runtime** em `/viagens/10` a 1440, 768 e 360 px e no tema escuro: sem rolagem horizontal, atalhos e "Mostrar todos" com 44 px no toque. Aba ADR no mesmo padrão (pedido do responsável, 2026-10-08): títulos de departamento e de seção em caixa normal, textos em 12 px ou mais, quadros internos sem borda (fundo levemente escurecido), número em DM Sans, sem sombra; o selo de resolução só mostra o estado e "Alterar" abre o menu; a ADR e as linhas de informação não estouram a 360 px. Em Rotas e Manifestos, "Informar" deixa de ser selo clicável e vira botão com o tom de atenção (44 px no toque, `--app-control-h` no mouse) e o link da rota ganha a altura de controle |
 | R4 | Feito | idem | Testes de resultado parcial de veículos (`VoyageImportActions`) e da base de clientes (`ImportBaseModal`) |
 | R5 | Feito | idem | Exclusão bloqueada explicada na lista; erro da consulta do Portal com Tentar novamente; `?page=` fora do total vai à última página; `ActionMenu`; `Textarea` no COD; sobrescritas removidas; trilho com Desvio; coluna do B/L fixa; números à direita. Linha de `/bls` passou de 49 para 53 px com mouse (botão de 36 px do contrato). **Teste** e **Runtime** |
 | R6 | Feito | idem | Itens de aceite nos prompts 13, 19 e 21 |
-| N1 | Em aberto | — | — |
-| N2 | Em aberto | — | — |
+| N1 | Decidido | 2026-10-08 | Alternativa (a): o wordmark "Vela" não conta como linha em Syne; exceção registrada no "Contrato visual" da campanha |
+| N2 | Feito | `main` após a PR 903 | Viagem cancelada sai do Line-Up na TV e no Painel. `lineup.ts` lê só viagens ativas e concluídas (snapshot e detecção de alteração); a mudança de status no audit log da viagem (`entity_type = voyages`, `field_name = status`, gravada por `cancel_voyage` e `reactivate_voyage`) dispara a releitura e entra na última alteração, para a TV em outro aparelho não ficar relendo a cada ciclo. O Painel deixa de oferecer o filtro "Escalas canceladas". **Teste:** `lineupSnapshot.test.ts` (cancelada fora do snapshot; cancelamento posterior relido uma vez e estável depois) e `Painel.behavior.test.tsx` |

@@ -13,6 +13,24 @@ import { listDepots } from './depots'
 
 type VoyageStatus = 'active' | 'completed' | 'cancelled' | null
 
+// Viagem cancelada sai do Line-Up (TV e Painel), decisão N2 de 2026-10-08:
+// o snapshot só lê viagens ativas e concluídas.
+const LINEUP_VOYAGE_STATUSES = ['active', 'completed'] as const
+
+// Cancelar ou reativar não muda `created_at` nem a agenda: a mudança de
+// status só aparece no audit log da viagem (cancel_voyage/reactivate_voyage,
+// migration 089). A busca é global porque a viagem cancelada já não está
+// entre as viagens do snapshot.
+function latestVoyageStatusChangeQuery() {
+  return supabase
+    .from('audit_logs')
+    .select('changed_at')
+    .eq('entity_type', 'voyages')
+    .eq('field_name', 'status')
+    .order('changed_at', { ascending: false })
+    .limit(1)
+}
+
 type LineUpVoyageRow = {
   id: number
   voyage_number: string
@@ -221,7 +239,7 @@ export async function hasLineUpChanged(
   }
 
   try {
-    const [auditRes, voyageRes, blRes] = await Promise.all([
+    const [auditRes, voyageRes, blRes, statusRes] = await Promise.all([
       supabase
         .from('audit_logs')
         .select('changed_at')
@@ -231,7 +249,7 @@ export async function hasLineUpChanged(
       supabase
         .from('voyages')
         .select('id, created_at, status')
-        .in('status', ['active', 'completed', 'cancelled'])
+        .in('status', [...LINEUP_VOYAGE_STATUSES])
         .order('created_at', { ascending: false })
         .limit(1),
       supabase
@@ -239,9 +257,15 @@ export async function hasLineUpChanged(
         .select('updated_at')
         .order('updated_at', { ascending: false })
         .limit(1),
+      latestVoyageStatusChangeQuery(),
     ])
 
-    if (auditRes.error || voyageRes.error || blRes.error) {
+    if (auditRes.error || voyageRes.error || blRes.error || statusRes.error) {
+      return true
+    }
+
+    const latestStatusChange = (statusRes.data as Array<{ changed_at: string | null }> | null)?.[0]?.changed_at
+    if (latestStatusChange && latestStatusChange > lastChangedAt) {
       return true
     }
 
@@ -552,7 +576,7 @@ async function fetchVoyages(limit: number) {
   const { data, error, count } = await supabase
     .from('voyages')
     .select('id, voyage_number, status, vessel:vessels(name), pol:ports!pol_id(name, locode)', { count: 'exact' })
-    .in('status', ['active', 'completed', 'cancelled'])
+    .in('status', [...LINEUP_VOYAGE_STATUSES])
     .order('created_at', { ascending: false })
     .range(0, Math.max(0, Math.min(limit, 500)) - 1)
     .overrideTypes<LineUpVoyageRow[], { merge: false }>()
@@ -647,7 +671,7 @@ async function fetchVaziosImportacaoMtyByVoyageIds(voyageIds: number[]) {
 }
 
 async function fetchLastLineUpChangeAt(voyageIds: number[], blIds: string[], scheduleEntityIds: string[]) {
-  const [voyageLatest, blLatest, containerLatest, vehicleLatest, scheduleLatest] = await Promise.all([
+  const [voyageLatest, blLatest, containerLatest, vehicleLatest, scheduleLatest, statusLatest] = await Promise.all([
     fetchLatestTimestampForIds('voyages', 'id', voyageIds, 'created_at'),
     fetchLatestTimestampForIds('bls', 'id', blIds, 'updated_at'),
     fetchLatestTimestampForIds('bl_containers', 'bl_id', blIds, 'created_at'),
@@ -664,9 +688,12 @@ async function fetchLastLineUpChangeAt(voyageIds: number[], blIds: string[], sch
           'changed_at',
         )
       : Promise.resolve<string | null>(null),
+    // Sem este marco, um cancelamento recente ficaria sempre "mais novo" que o
+    // snapshot e a TV refaria a leitura completa a cada ciclo.
+    fetchLatestTimestamp(latestVoyageStatusChangeQuery(), 'changed_at'),
   ])
 
-  return [voyageLatest, blLatest, containerLatest, vehicleLatest, scheduleLatest]
+  return [voyageLatest, blLatest, containerLatest, vehicleLatest, scheduleLatest, statusLatest]
     .filter(Boolean)
     .sort((left, right) => new Date(right!).getTime() - new Date(left!).getTime())[0] ?? null
 }
@@ -729,10 +756,10 @@ export function compareDateValues(left: string | null, right: string | null) {
  * Operational queue order for the Line-Up. Actual berth work is actionable
  * before an anchored vessel, which is before an ETA-only pending call; closed
  * and explicitly omitted calls remain visible at the end for traceability.
+ * Cancelled voyages never reach the snapshot (LINEUP_VOYAGE_STATUSES).
  */
 export function compareLineUpRows(left: LineUpRow, right: LineUpRow) {
   const priority = (row: LineUpRow) => {
-    if (row.voyageStatus === 'cancelled') return 5
     if (row.omitted) return 4
     if (row.atb && !row.atd) return 0
     if (row.ata && !row.atb) return 1

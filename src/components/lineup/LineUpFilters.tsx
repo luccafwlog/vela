@@ -19,7 +19,6 @@ type LineUpFiltersProps = {
 const STATUS_LABELS: Record<LineUpStatusFilter, string> = {
   active: 'Escalas ativas',
   completed: 'Escalas concluídas',
-  cancelled: 'Escalas canceladas',
   all: 'Todas as escalas',
 }
 
@@ -45,7 +44,6 @@ export function LineUpFilters({ filters, onChange, onClear, activeCount, visible
           <Select value={filters.status} onChange={(event) => onChange({ ...filters, status: event.target.value as LineUpStatusFilter })}>
             <option value="active">Escalas ativas</option>
             <option value="completed">Escalas concluídas</option>
-            <option value="cancelled">Escalas canceladas</option>
             <option value="all">Todas as escalas</option>
           </Select>
         </Field>

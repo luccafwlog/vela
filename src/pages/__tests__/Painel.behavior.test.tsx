@@ -259,14 +259,12 @@ it('US-122: filtra o Line-Up por status de escala', () => {
   expect(screen.getByRole('link', { name: 'Navio ativo' })).toBeTruthy()
 })
 
-it('filtra o Line-Up por escalas canceladas', () => {
+it('não oferece filtro de escalas canceladas, que não entram no Line-Up', () => {
   renderPainel()
   abrirFiltros()
 
-  fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'cancelled' } })
-
-  expect(screen.getByRole('link', { name: 'Navio cancelado' })).toBeTruthy()
-  expect(screen.queryByRole('link', { name: 'Navio ativo' })).toBeNull()
+  const status = screen.getByLabelText('Status') as HTMLSelectElement
+  expect(Array.from(status.options).map((option) => option.value)).toEqual(['active', 'completed', 'all'])
 })
 
 it('combina busca por navio e filtro de veículos no Line-Up', () => {
