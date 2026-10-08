@@ -178,6 +178,35 @@ describe('LineUpTVDisplay behavior (Issue #582)', () => {
     expect(document.querySelectorAll('.app-lineup-card').length).toBe(9)
   })
 
+  it('lê BLs e CEs como o Painel: Lançando, Recebido e Em aprovação não viram "Aguardando"', () => {
+    mockSnapshot = {
+      rows: [
+        createMockRow(1, { ceStatus: 'launching' }),
+        createMockRow(2, { ceStatus: 'received' }),
+        createMockRow(3, { ceStatus: 'approving' }),
+        createMockRow(4, { ceStatus: 'waiting', linked: false }),
+      ],
+      lastChangedAt: '2026-08-31T12:00:00Z',
+    }
+    render(<LineUpTVDisplay />)
+
+    expect(screen.getByText('Lançando')).toBeTruthy()
+    expect(screen.getByText('Recebido')).toBeTruthy()
+    expect(screen.getByText('Em aprovação')).toBeTruthy()
+    expect(screen.getAllByText('Aguardando')).toHaveLength(1)
+    expect(screen.getByText('Não')).toBeTruthy()
+  })
+
+  it('mantém o quadro e avisa no cabeçalho quando a atualização falha com dados anteriores', () => {
+    mockSnapshot = { rows: [createMockRow(1)], lastChangedAt: '2026-08-31T12:00:00Z' }
+    mockError = new Error('rede')
+    render(<LineUpTVDisplay />)
+
+    expect(screen.getByText('VESSEL 1')).toBeTruthy()
+    expect(screen.getByText('Sem atualização desde')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('preserva dados e exibe flash verde temporário quando novo snapshot chega', () => {
     vi.useFakeTimers()
 

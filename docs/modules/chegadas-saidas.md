@@ -1,6 +1,6 @@
 # Chegadas e Saídas
 
-> **Status:** ativo · **Atualizado:** 2026-09-23 · **Rota interna:** `/chegadas-saidas` · **Consumidor:** widget do Dashboard do Portal
+> **Status:** ativo · **Atualizado:** 2026-10-08 · **Rota interna:** `/chegadas-saidas` · **Consumidor:** widget do Dashboard do Portal
 
 ## Propósito e escopo
 
@@ -27,7 +27,7 @@ A página lista viagens com `show_on_portal = true` por
 `PORTAL_SCHEDULE_LANES`: Qingdao, Shanghai, Taicang, Ningbo, Nansha, Salvador,
 Vitória e Pecém.
 
-O modal pede navio, VOY, IMO e uma data ISO por lane. Checkbox "não escala"
+O modal (`Modal` do design system, tamanho `md`) pede navio, VOY, IMO e uma data ISO por lane, agrupadas em **Chegada no Brasil (ETA)** — primeiro, porque ao menos um porto de descarga é obrigatório — e **Saída na origem (ETD)**. O botão principal mostra "Salvando…" e impede repetição. Checkbox "não escala"
 deixa a lane sem data e, portanto, sem schedule. Ao salvar,
 `createOrAttachVoyageFromSchedule` deduplica por VOY + IMO (fallback nome
 canônico), cria ou anexa a viagem, liga `show_on_portal` e grava somente ETD de
@@ -52,7 +52,7 @@ receber o último ATD (passa a Concluída); antes disso, só sai por Excluir ou
 Cancelar em `/viagens` (ADR 0071, item 12; "Remover do Portal" foi retirado na
 Fase 4a da política de exclusão).
 
-O upload em lote baixa um template gerado da mesma constante de lanes. Cada
+O upload em lote baixa um template gerado da mesma constante de lanes. O resultado fica na tela com a contagem e a lista nominal das viagens não atualizadas e das datas ignoradas; o diagnóstico do arquivo fica recolhido. Cada
 linha da planilha (`VESSEL NAME`, `VOY`, `IMO`, lanes ETD/ETA) vira uma chamada
 ao mesmo `createOrAttachVoyageFromSchedule`. Datas aceitas: ISO ou
 `DD/MM/AAAA`; vazio/`X` significa "não escala". Antes do parse, o arquivo é
@@ -63,7 +63,15 @@ tamanho do arquivo.
 ### Widget do Portal
 
 `ShipScheduleWidget` usa `usePortalScheduleVoyages` com query key
-`['portal-schedule-voyages']`. O serviço chama a RPC `portal_ship_schedule`,
+`['portal-schedule-voyages']`. Widget e quadro interno compartilham as regras de célula de
+`src/components/portal/shipScheduleCells.ts` e a apresentação de
+`ShipScheduleWidget.tsx`: data efetiva (ATD no POL, ATA no POD) com `✓` e o verde
+de concluído — o mesmo verde do ATD do POL descrito no `CONTEXT.md` —, previsão
+sem marca, previsão já passada sem data efetiva como "a confirmar", `OMIT` e `X`
+distintos, cada estado também em texto para leitor de tela. Colunas agrupadas em
+Saída na origem (ETD) e Chegada no Brasil (ETA); abaixo de 640 px o widget vira
+cartões por navio. Erro de consulta mostra "Tentar novamente" e não se confunde
+com programação vazia. O serviço chama a RPC `portal_ship_schedule`,
 que é `SECURITY DEFINER` e allowlisted para `anon`, retornando somente viagens
 ativas com `show_on_portal = true`. PODs deletados continuam ocultos; PODs
 omitidos retornam com `omitted=true` e são renderizados como `OMIT`, distinto de

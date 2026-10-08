@@ -412,8 +412,8 @@ export type VoyageRailItem = {
   blCount?: number
   containerCount?: number
   ceCoverage?: { filled: number; total: number }
-  /** Escalas brasileiras (não omitidas) com seus ETAs, ordenadas por ETA ascendente. */
-  escalasBrasileiras: Array<{ port: string; eta: string | null; modules?: Partial<VoyageRailItem['modules']> }>
+  /** Escalas brasileiras (não omitidas) com ETA e ATA, ordenadas por ETA ascendente. */
+  escalasBrasileiras: Array<{ port: string; eta: string | null; ata?: string | null; modules?: Partial<VoyageRailItem['modules']> }>
   /** Presença de cada tipo de carga/módulo na viagem, para os selos do card do rail. */
   modules: {
     container: boolean
@@ -483,8 +483,8 @@ export type VoyageRailModuleStats = {
 /** Escalas brasileiras (não omitidas) por porto, com o menor ETA quando o porto aparece mais de uma vez, ordenadas por ETA ascendente (sem ETA vai ao final). */
 function collectEscalasBrasileiras(
   escalaRows: Array<PodScheduleRow | EscalaScheduleRow>,
-): Array<{ port: string; eta: string | null; modules?: Partial<VoyageRailItem['modules']> }> {
-  const byPort = new Map<string, { eta: string | null; modules: Partial<VoyageRailItem['modules']> }>()
+): Array<{ port: string; eta: string | null; ata: string | null; modules?: Partial<VoyageRailItem['modules']> }> {
+  const byPort = new Map<string, { eta: string | null; ata: string | null; modules: Partial<VoyageRailItem['modules']> }>()
 
   for (const row of escalaRows) {
     if (row.omitted) continue
@@ -497,15 +497,16 @@ function collectEscalasBrasileiras(
           ...(row.hasGranite || row.temGranito ? { granito: true } : {}),
         }
       : {}
-    if (!current) byPort.set(port, { eta: row.eta ?? null, modules })
+    if (!current) byPort.set(port, { eta: row.eta ?? null, ata: row.ata ?? null, modules })
     else {
       if (row.eta && (!current.eta || row.eta < current.eta)) current.eta = row.eta
+      if (row.ata && !current.ata) current.ata = row.ata
       current.modules = { ...current.modules, ...modules }
     }
   }
 
   return Array.from(byPort.entries())
-    .map(([port, value]) => ({ port, eta: value.eta, modules: value.modules }))
+    .map(([port, value]) => ({ port, eta: value.eta, ata: value.ata, modules: value.modules }))
     .sort((left, right) => (left.eta ?? '￿').localeCompare(right.eta ?? '￿'))
 }
 

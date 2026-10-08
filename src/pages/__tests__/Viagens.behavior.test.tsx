@@ -170,8 +170,8 @@ it('US-213: sem selecao mostra "Selecione uma viagem"', () => {
 it('declara granito e vazios no rail mesmo sem quantidades operadas', () => {
   renderAt('/viagens')
 
-  expect(screen.getByLabelText('Vazios EXP')).toBeTruthy()
-  expect(screen.getByLabelText('Granito')).toBeTruthy()
+  expect(screen.getByTitle('Vazios EXP')).toBeTruthy()
+  expect(screen.getByTitle('Granito')).toBeTruthy()
 })
 
 it('seleciona a viagem pelo id do item do rail', () => {

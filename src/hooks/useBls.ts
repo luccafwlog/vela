@@ -333,9 +333,11 @@ export function useVoyageDetail(voyageId?: number | null) {
         .from('voyages')
         .select(voyageDetailSelect)
         .eq('id', Number(voyageId))
-        .single()
+        // Viagem inexistente ou excluída é "não encontrada" (null), não falha
+        // de consulta: `.single()` devolvia 406 e a tela mostrava as duas.
+        .maybeSingle()
       if (error) throw error
-      return data as unknown as VoyageDetail
+      return (data ?? null) as unknown as VoyageDetail | null
     },
   })
 }

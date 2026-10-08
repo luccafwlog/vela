@@ -234,8 +234,10 @@ it('usa ATA na coluna ETA e destaca somente a escala atracada', () => {
   abrirFiltros()
   fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'all' } })
 
-  const actualArrival = screen.getByText('10/07')
-  expect(actualArrival.classList.contains('text-green-600')).toBe(true)
+  // ATA aparece com ✓ e cor de concluído, não só pela cor.
+  const actualArrival = screen.getByTitle('ATA registrada')
+  expect(actualArrival.textContent).toBe('✓ 10/07')
+  expect(actualArrival.classList.contains('app-date--actual')).toBe(true)
 
   const berthedRow = screen.getByRole('link', { name: 'Navio ativo' }).closest('tr')
   const completedRow = screen.getByRole('link', { name: 'Navio cancelado' }).closest('tr')

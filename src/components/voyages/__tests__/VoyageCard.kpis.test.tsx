@@ -65,7 +65,7 @@ function kpiValue(label: string) {
 }
 
 describe('KPIs do cabeçalho da viagem', () => {
-  it('renderiza o card de conciliação com o título CONCILIAÇÃO e métricas estruturadas', () => {
+  it('renderiza o bloco de conciliação com título em caixa normal e métricas estruturadas', () => {
     renderCard({
       bls: [
         { id: 'bl-1', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: '123', bl_containers: [] },
@@ -73,10 +73,10 @@ describe('KPIs do cabeçalho da viagem', () => {
       ],
     } as unknown as Partial<Voyage>)
 
-    expect(screen.getByText('CONCILIAÇÃO')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Conciliação' })).toBeTruthy()
     expect(kpiValue('CE Mercante')).toBe('1/2')
     expect(kpiValue('Manifestos Mercante')).toBe('0 · 1 a informar')
-    expect(kpiValue('Divergências EDIxBLs')).toBe('0')
+    expect(kpiValue('Divergências EDI × B/Ls')).toBe('0')
   })
 
   it('conta Manifestos Mercante do manifesto importado, como a aba Rotas e Manifestos', () => {

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { formatDate } from '../../lib/utils'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { Input, Select } from '../ui/Input'
 import type { ConciliacaoFilter, PeriodoFilter, StatusFilter, VoyageFilters as Filters } from '../../lib/viagensFilters'
@@ -24,6 +25,7 @@ export function VoyageFilters({
   loading,
 }: VoyageFiltersProps) {
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const panelId = useId()
 
   const updateFilters = (next: Partial<Filters>) => onChange({ ...filters, ...next })
   const periodLabel = filters.periodo === 'hoje'
@@ -33,7 +35,7 @@ export function VoyageFilters({
       : filters.periodo === '30d'
         ? 'Próx. 30 dias'
         : filters.periodo === 'custom'
-          ? `Entre ${filters.dataInicio || '...'} e ${filters.dataFim || '...'}`
+          ? `${filters.dataInicio ? formatDate(filters.dataInicio) : '…'} a ${filters.dataFim ? formatDate(filters.dataFim) : '…'}`
           : ''
   const statusLabel = filters.status === 'active'
     ? 'Ativas'
@@ -83,7 +85,7 @@ export function VoyageFilters({
           </div>
         ) : null}
 
-        <button type="button" className="app-btn app-btn--secondary app-btn--sm app-voyage-command-bar__filters" onClick={() => setFiltersOpen((open) => !open)} aria-expanded={filtersOpen}>
+        <button type="button" className="app-btn app-btn--secondary app-btn--sm app-voyage-command-bar__filters" onClick={() => setFiltersOpen((open) => !open)} aria-expanded={filtersOpen} aria-controls={panelId}>
           <SlidersHorizontal size={15} />
           Filtros
           {chips.length > 0 ? <span className="app-filter-bar__count">{chips.length}</span> : null}
@@ -95,11 +97,11 @@ export function VoyageFilters({
             Limpar
           </button>
         ) : null}
-        <span className="app-voyage-command-bar__count">{loading ? '—' : `${visibleCount} de ${totalCount} viagens`}</span>
+        <span className="app-voyage-command-bar__count" aria-live="polite">{loading ? 'Carregando…' : `${visibleCount} de ${totalCount} viagens`}</span>
       </div>
 
       {filtersOpen ? (
-        <div className="app-voyage-command-bar__panel">
+        <div id={panelId} className="app-voyage-command-bar__panel">
           <label className="app-field">
             <span className="app-field__label">Período</span>
             <Select value={filters.periodo} onChange={(e) => updateFilters({ periodo: e.target.value as PeriodoFilter })}>

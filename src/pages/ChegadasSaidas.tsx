@@ -1,40 +1,35 @@
 import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, FileSpreadsheet, Pencil, Plus, Upload } from 'lucide-react'
-import { Card, PageHeader } from '../components/ui/Card'
+import { Download, Pencil, Plus, Upload } from 'lucide-react'
+import { Card, EmptyState, PageHeader } from '../components/ui/Card'
+import { Button } from '../components/ui/Button'
+import { Modal } from '../components/ui/Modal'
+import { SkeletonTable } from '../components/ui/Skeleton'
+import { ScheduleDate, ScheduleLegend, VesselLink } from '../components/portal/ShipScheduleWidget'
+import { scheduleLaneTitle } from '../components/portal/shipScheduleCells'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { assertUploadSize } from '../lib/fileGuard'
 import { useAuth } from '../hooks/useAuth'
 import { userFacingErrorMessage } from '../lib/errors'
 import { emptyScheduleForm, buildScheduleLanes, clearedPodLabels, scheduleFormFromVoyage, type ScheduleForm } from './chegadasSaidasForm'
-import { PORTAL_SCHEDULE_LANES, formatScheduleDate } from '../services/portalScheduleLanes'
+import { PORTAL_SCHEDULE_LANES, type PortalScheduleLane } from '../services/portalScheduleLanes'
 import { parseScheduleRows, scheduleTemplateColumns } from '../services/portalScheduleBulkImport'
 import { fetchPortalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
 import { createOrAttachVoyageFromSchedule } from '../services/voyageFromSchedule'
 import { readSheet } from '../services/importCore'
 import { inspectImportFile, type ImportFileInspection } from '../services/importText'
 
-function DateTd({ value, isActual = false, omitted = false }: { value: string; isActual?: boolean; omitted?: boolean }) {
-  const isX = value === 'X'
-  const isOmitted = omitted
-  return (
-    <td
-      title={isOmitted ? 'Escala omitida pelo armador' : undefined}
-      className={`px-3 py-2.5 text-center text-sm border-r border-[var(--app-border)] ${isOmitted || isX ? 'text-[var(--app-muted-soft)]' : isActual ? 'font-semibold' : ''}`}
-      style={isActual ? { color: 'var(--app-blue)' } : undefined}
-    >
-      {isOmitted ? 'OMIT' : isX ? 'X' : formatScheduleDate(value)}
-    </td>
-  )
-}
+const POL_LANES = PORTAL_SCHEDULE_LANES.filter((lane) => lane.kind === 'pol')
+const POD_LANES = PORTAL_SCHEDULE_LANES.filter((lane) => lane.kind === 'pod')
 
-function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing }: {
+function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing, saving }: {
   formData: ScheduleForm
   onChange: (data: ScheduleForm) => void
   onSubmit: () => void
   onCancel: () => void
   isEditing: boolean
+  saving: boolean
 }) {
   function updateDate(label: string, value: string) {
     onChange({ ...formData, dates: { ...formData.dates, [label]: value } })
@@ -54,65 +49,75 @@ function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing }: {
     })
   }
 
-  return (
-    <form onSubmit={(event) => { event.preventDefault(); onSubmit() }} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="app-field">
-          <label className="app-field__label" htmlFor="vessel_name">Nome do Navio</label>
-          <input id="vessel_name" className="app-input app-input--full" value={formData.vesselName} disabled={isEditing}
-            onChange={(event) => onChange({ ...formData, vesselName: event.target.value })} placeholder="GREEN PECEM" required />
-        </div>
-        <div className="app-field">
-          <label className="app-field__label" htmlFor="voyage">Viagem (VOY)</label>
-          <input id="voyage" className="app-input app-input--full" value={formData.voyageNumber} disabled={isEditing}
-            onChange={(event) => onChange({ ...formData, voyageNumber: event.target.value })} placeholder="6" required />
-        </div>
+  function renderLane(lane: PortalScheduleLane) {
+    const isOmitted = formData.omitted ? (formData.omitted[lane.label] ?? !formData.dates[lane.label]) : !formData.dates[lane.label]
+    const value = formData.dates[lane.label] ?? ''
+    const kindLabel = lane.kind === 'pol' ? 'ETD' : 'ETA'
+    return (
+      <div key={lane.label} className="app-schedule-form__lane">
+        <label className="app-field__label" htmlFor={`lane-${lane.label}`}>{scheduleLaneTitle(lane)} · {kindLabel}</label>
+        <input
+          id={`lane-${lane.label}`}
+          type="date"
+          className="app-input app-input--full"
+          value={value}
+          disabled={isOmitted}
+          onChange={(event) => updateDate(lane.label, event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+            }
+          }}
+        />
+        <label className="app-schedule-form__skip">
+          <input
+            type="checkbox"
+            checked={isOmitted}
+            onChange={(event) => toggleOmitted(lane.label, event.target.checked)}
+          />
+          Não escala
+        </label>
       </div>
-      <div className="app-field">
-        <label className="app-field__label" htmlFor="imo_number">Número IMO</label>
-        <input id="imo_number" className="app-input app-input--full" value={formData.vesselImo} disabled={isEditing}
-          onChange={(event) => onChange({ ...formData, vesselImo: event.target.value })} placeholder="9976501" />
+    )
+  }
+
+  return (
+    <form onSubmit={(event) => { event.preventDefault(); onSubmit() }} className="grid gap-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="app-field">
+          <label className="app-field__label" htmlFor="vessel_name">Nome do Navio<span className="app-field__required" aria-hidden="true"> *</span></label>
+          <input id="vessel_name" className="app-input app-input--full" value={formData.vesselName} disabled={isEditing}
+            onChange={(event) => onChange({ ...formData, vesselName: event.target.value })} placeholder="GREEN PECEM" required aria-required="true" />
+        </div>
+        <div className="app-field">
+          <label className="app-field__label" htmlFor="voyage">Viagem (VOY)<span className="app-field__required" aria-hidden="true"> *</span></label>
+          <input id="voyage" className="app-input app-input--full" value={formData.voyageNumber} disabled={isEditing}
+            onChange={(event) => onChange({ ...formData, voyageNumber: event.target.value })} placeholder="6" required aria-required="true" />
+        </div>
+        <div className="app-field">
+          <label className="app-field__label" htmlFor="imo_number">Número IMO</label>
+          <input id="imo_number" className="app-input app-input--full" value={formData.vesselImo} disabled={isEditing}
+            onChange={(event) => onChange({ ...formData, vesselImo: event.target.value })} placeholder="9976501"
+            aria-describedby={isEditing ? 'vessel-identity-hint' : undefined} />
+        </div>
         {isEditing ? (
-          <div className="mt-1 text-xs text-[var(--app-muted)]">
-            Navio, VOY e IMO se editam na tela Viagens. Aqui você ajusta apenas as datas da programação.
-          </div>
+          <p id="vessel-identity-hint" className="app-field__hint self-end">
+            Navio, viagem e IMO se corrigem em Viagens. Aqui só as datas.
+          </p>
         ) : null}
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {PORTAL_SCHEDULE_LANES.map((lane) => {
-          const isOmitted = formData.omitted ? (formData.omitted[lane.label] ?? !formData.dates[lane.label]) : !formData.dates[lane.label]
-          const value = formData.dates[lane.label] ?? ''
-          return (
-            <div key={lane.label} className="app-field rounded-lg border border-[var(--app-border)] p-3">
-              <label className="app-field__label" htmlFor={`lane-${lane.label}`}>{lane.label} {lane.kind === 'pol' ? 'ETD' : 'ETA'}</label>
-              <input
-                id={`lane-${lane.label}`}
-                type="date"
-                className="app-input app-input--full"
-                value={value}
-                disabled={isOmitted}
-                onChange={(event) => updateDate(lane.label, event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                  }
-                }}
-              />
-              <label className="mt-2 flex items-center gap-2 text-xs text-[var(--app-muted)]">
-                <input
-                  type="checkbox"
-                  checked={isOmitted}
-                  onChange={(event) => toggleOmitted(lane.label, event.target.checked)}
-                />
-                Não escala
-              </label>
-            </div>
-          )
-        })}
-      </div>
-      <div className="flex justify-end gap-2 pt-4">
-        <button type="button" className="app-btn app-btn--secondary" onClick={onCancel}>Voltar</button>
-        <button type="submit" className="app-btn app-btn--primary">{isEditing ? 'Salvar Alterações' : 'Adicionar'}</button>
+      <fieldset className="app-schedule-form__group">
+        <legend>Chegada no Brasil (ETA)<span className="app-field__required" aria-hidden="true"> *</span></legend>
+        <p className="app-field__hint">Ao menos um porto com data.</p>
+        <div className="app-schedule-form__lanes">{POD_LANES.map(renderLane)}</div>
+      </fieldset>
+      <fieldset className="app-schedule-form__group">
+        <legend>Saída na origem (ETD)</legend>
+        <div className="app-schedule-form__lanes">{POL_LANES.map(renderLane)}</div>
+      </fieldset>
+      <div className="app-modal__actions">
+        <Button type="button" variant="secondary" onClick={onCancel}>Voltar</Button>
+        <Button type="submit" loading={saving} loadingLabel="Salvando…">{isEditing ? 'Salvar alterações' : 'Adicionar e publicar'}</Button>
       </div>
     </form>
   )
@@ -185,40 +190,55 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
 
   return (
     <Card className="p-5">
-      <div className="flex items-center gap-3 mb-4">
-        <FileSpreadsheet className="w-5 h-5 text-[var(--app-blue)]" />
-        <h2 className="text-base font-semibold">Atualização em Lote via Planilha</h2>
-      </div>
-      <p className="text-sm text-[var(--app-muted)] mb-4">
-        Baixe a planilha modelo, preencha as datas e faça o upload para atualizar múltiplas viagens.
+      <h2 className="text-base font-semibold">Atualizar várias viagens por planilha</h2>
+      <p className="mt-1 text-sm text-[var(--app-muted)]">
+        Uma linha por viagem, com as datas por porto (ISO ou DD/MM/AAAA). Célula vazia ou "X" deixa o porto como está: a planilha nunca cancela escala.
       </p>
-      <div className="flex flex-wrap gap-3 mb-4">
-        <button type="button" className="app-btn app-btn--secondary app-btn--sm" onClick={downloadTemplate}>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Button type="button" variant="secondary" className="app-btn--sm" onClick={downloadTemplate}>
           <Download size={14} /> Baixar Planilha Modelo
-        </button>
+        </Button>
         {canWrite ? (
           <>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} className="hidden" id="sheet-upload" />
-            <button type="button" className="app-btn app-btn--primary app-btn--sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-              <Upload size={14} /> {uploading ? 'Processando...' : 'Fazer Upload'}
-            </button>
+            <Button type="button" className="app-btn--sm" onClick={() => fileRef.current?.click()} loading={uploading} loadingLabel="Processando…">
+              <Upload size={14} /> Fazer Upload
+            </Button>
           </>
         ) : null}
       </div>
-      {result && (
-        <div className="space-y-2 mt-4 pt-4 border-t border-[var(--app-border)] text-sm">
-          <div className="app-panel app-panel--padded text-xs" role="status" aria-label="Diagnóstico do arquivo">
-            Formato detectado: <strong>{result.inspection.format.toUpperCase()}</strong> · Encoding: <strong>{result.inspection.encoding ?? 'binário'}</strong> · BOM: <strong>{result.inspection.hadBom ? 'presente' : 'ausente'}</strong> · {result.inspection.byteLength.toLocaleString('pt-BR')} bytes
-            {result.inspection.preview ? <pre className="mt-2 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-2 font-mono text-[11px]">{result.inspection.preview}</pre> : null}
-          </div>
-          {result.updated.length > 0 && <div className="text-[var(--app-green)] font-medium">{result.updated.length} atualizada(s)</div>}
-          {result.warnings.length > 0 && <div className="text-[var(--app-gold)]">{result.warnings.length} com datas ilegíveis (ignoradas)</div>}
-          {result.errors.length > 0 && <div className="text-[var(--app-red)]">{result.errors.length} erro(s)</div>}
+      {result ? (
+        <div className="mt-4 grid gap-3 border-t border-[var(--app-border)] pt-4 text-sm" role="status" aria-label="Resultado da planilha">
+          <p className="m-0 font-medium">
+            {result.updated.length} atualizada(s)
+            {result.errors.length ? ` · ${result.errors.length} com erro` : ''}
+            {result.warnings.length ? ` · ${result.warnings.length} com datas ilegíveis (ignoradas)` : ''}
+          </p>
+          {result.errors.length ? (
+            <div>
+              <div className="font-medium text-[var(--app-danger-fg)]">Não atualizadas</div>
+              <ul className="mt-1 list-disc pl-5">
+                {result.errors.map((message) => <li key={message}>{message}</li>)}
+              </ul>
+            </div>
+          ) : null}
+          {result.warnings.length ? (
+            <div>
+              <div className="font-medium text-[var(--app-warning-fg)]">Datas ignoradas</div>
+              <ul className="mt-1 list-disc pl-5">
+                {result.warnings.map((message) => <li key={message}>{message}</li>)}
+              </ul>
+            </div>
+          ) : null}
+          <details className="text-xs text-[var(--app-muted)]">
+            <summary className="cursor-pointer">Diagnóstico do arquivo</summary>
+            <div className="mt-2">
+              Formato detectado: <strong>{result.inspection.format.toUpperCase()}</strong> · Encoding: <strong>{result.inspection.encoding ?? 'binário'}</strong> · BOM: <strong>{result.inspection.hadBom ? 'presente' : 'ausente'}</strong> · {result.inspection.byteLength.toLocaleString('pt-BR')} bytes
+            </div>
+            {result.inspection.preview ? <pre className="mt-2 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-2 font-mono text-xs">{result.inspection.preview}</pre> : null}
+          </details>
         </div>
-      )}
-      <div className="mt-4 text-xs text-[var(--app-muted)] bg-[var(--app-surface-muted)] p-3 rounded-lg">
-        <strong>Dica:</strong> use datas ISO ou DD/MM/AAAA. Célula vazia ou "X" significa "não escala".
-      </div>
+      ) : null}
     </Card>
   )
 }
@@ -233,9 +253,9 @@ export function ChegadasSaidas() {
   const confirm = useConfirm()
   const { user, profile, isAdmin } = useAuth()
   const canWrite = Boolean(profile || user)
-  const tableColumnCount = PORTAL_SCHEDULE_LANES.length + (canWrite ? 3 : 2)
+  const [saving, setSaving] = useState(false)
 
-  const { data: vessels = [], isLoading } = useQuery({
+  const { data: vessels = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['portal-schedule-voyages'],
     queryFn: () => fetchPortalScheduleVoyages(),
   })
@@ -326,6 +346,7 @@ export function ChegadasSaidas() {
     })
     if (!saveConfirmed) return
 
+    setSaving(true)
     try {
       await createOrAttachVoyageFromSchedule({
         vesselName: formData.vesselName,
@@ -333,11 +354,13 @@ export function ChegadasSaidas() {
         voyageNumber: formData.voyageNumber,
         lanes,
       }, user?.id ?? null, { mode: 'form', voyageId: editingId ?? undefined, canRemoveEscala: isAdmin })
-      showToast('Viagem cadastrada e publicada no Portal.', 'success')
+      showToast(editingId ? 'Programação atualizada no Portal.' : 'Viagem cadastrada e publicada no Portal.', 'success')
       invalidateSchedules()
       closeDialog()
     } catch (error) {
-      showToast(userFacingErrorMessage(error, 'Falha ao cadastrar a viagem.'), 'error')
+      showToast(userFacingErrorMessage(error, editingId ? 'Falha ao salvar a programação.' : 'Falha ao cadastrar a viagem.'), 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -345,79 +368,86 @@ export function ChegadasSaidas() {
     <>
       <PageHeader
         title="Chegadas e Saídas"
-        description="Cadastre e publique viagens no quadro de Programação de Navios do Portal."
+        description="Programação de navios publicada no Portal. Cada linha é uma Viagem; datas efetivas vêm de Viagens."
         action={canWrite ? (
-          <button type="button" className="app-btn app-btn--primary app-btn--sm" onClick={openAdd}>
-            <Plus size={14} /> Adicionar Navio
-          </button>
+          <Button type="button" onClick={openAdd}>
+            <Plus size={16} /> Adicionar Navio
+          </Button>
         ) : null}
       />
 
-      {dialogOpen && canWrite && (
-        <div className="app-modal-backdrop">
-          <div className="app-modal" onClick={(event) => event.stopPropagation()} style={{ maxWidth: 760 }}>
-            <div className="app-modal__header">
-              <h2 className="app-modal__title">{editingId ? 'Editar Viagem Publicada' : 'Adicionar Navio'}</h2>
-              <button type="button" className="app-btn app-btn--ghost app-modal__close" onClick={closeDialog}>&times;</button>
-            </div>
-            <div className="app-modal__body">
-              <VesselForm formData={formData} onChange={setFormData} onSubmit={handleSubmit} onCancel={closeDialog} isEditing={!!editingId} />
-            </div>
+      <Modal
+        open={dialogOpen && canWrite}
+        onClose={closeDialog}
+        title={editingId ? `Editar programação · ${formData.vesselName} / ${formData.voyageNumber}` : 'Adicionar navio à programação'}
+        size="md"
+      >
+        <VesselForm formData={formData} onChange={setFormData} onSubmit={handleSubmit} onCancel={closeDialog} isEditing={!!editingId} saving={saving} />
+      </Modal>
+
+      <section className="app-schedule" aria-label="Programação publicada">
+        {isLoading ? (
+          <SkeletonTable rows={4} cols={8} label="Carregando a programação" />
+        ) : isError ? (
+          <div className="app-schedule__state" role="alert">
+            <p>Não foi possível carregar a programação publicada.</p>
+            <Button variant="secondary" className="app-btn--sm" loading={isFetching} loadingLabel="Tentando novamente" onClick={() => void refetch()}>
+              Tentar novamente
+            </Button>
           </div>
-        </div>
-      )}
-
-      <div className="app-soft-panel" style={{ padding: 0 }}>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <caption className="sr-only">Programação de chegadas e saídas</caption>
-            <thead>
-              <tr className="bg-[var(--app-navy)] text-white">
-                <th scope="col" className="px-3 py-3 text-left text-xs font-bold uppercase tracking-wider border-r border-white/10">Navio</th>
-                <th scope="col" className="px-3 py-3 text-center text-xs font-bold uppercase tracking-wider border-r border-white/10 w-14">VOY</th>
-                {PORTAL_SCHEDULE_LANES.map((lane) => (
-                  <th scope="col" key={lane.label} className="px-3 py-3 text-center text-xs font-bold uppercase tracking-wider border-r border-white/10">
-                    {lane.label}
-                  </th>
-                ))}
-                {canWrite ? <th scope="col" className="px-3 py-3 text-center text-xs font-bold uppercase tracking-wider">Ações</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={tableColumnCount} className="text-center py-8 text-sm text-[var(--app-muted)]">Carregando...</td></tr>
-              ) : vessels.length === 0 ? (
-                <tr><td colSpan={tableColumnCount} className="text-center py-8 text-sm text-[var(--app-muted)]">Nenhum navio publicado no Portal.</td></tr>
-              ) : vessels.map((vessel, index) => (
-                <tr key={vessel.voyageId} className={`${index % 2 === 0 ? '' : 'bg-[var(--app-surface-muted)]'} hover:bg-[var(--app-blue-soft)] transition-colors border-b border-[var(--app-border)] last:border-b-0`}>
-                  <td className="px-3 py-2.5 border-r border-[var(--app-border)] text-sm font-semibold text-[var(--app-blue)]">
-                    {vessel.imoNumber ? (
-                      <a href={`https://www.marinetraffic.com/en/ais/details/ships/imo:${vessel.imoNumber}`}
-                        target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">{vessel.vesselName}</a>
-                    ) : vessel.vesselName}
-                  </td>
-                  <td className="px-3 py-2.5 text-center border-r border-[var(--app-border)] text-sm">{vessel.voyage}</td>
-                  {PORTAL_SCHEDULE_LANES.map((lane) => (
-                    <DateTd key={lane.label} value={vessel.datesByLabel[lane.label] ?? 'X'} omitted={Boolean(vessel.omittedByLabel?.[lane.label])} isActual={Boolean(vessel.actualDatesByLabel?.[lane.label])} />
-                  ))}
-                  {canWrite ? (
-                    <td className="px-2 py-2 text-center">
-                      <div className="flex justify-center gap-1">
-                        <button type="button" className="app-btn app-btn--ghost app-btn--sm" style={{ minHeight: 32, minWidth: 32, padding: 0 }}
-                          onClick={() => openEdit(vessel)} title="Editar"><Pencil size={14} /></button>
-                      </div>
-                    </td>
-                  ) : null}
+        ) : vessels.length === 0 ? (
+          <EmptyState
+            title="Nenhum navio publicado no Portal"
+            description="Adicione um navio ou envie a planilha para publicar a programação."
+          />
+        ) : (
+          <div className="app-table-scroll">
+            <table className="app-table app-table--dense">
+              <caption className="sr-only">Programação de chegadas e saídas</caption>
+              <thead>
+                <tr>
+                  <th scope="col" rowSpan={2} className="text-left">Navio</th>
+                  <th scope="col" rowSpan={2} className="text-center">Viagem</th>
+                  <th scope="colgroup" colSpan={POL_LANES.length} className="text-center app-schedule__group">Saída na origem (ETD)</th>
+                  <th scope="colgroup" colSpan={POD_LANES.length} className="text-center app-schedule__group">Chegada no Brasil (ETA)</th>
+                  {canWrite ? <th scope="col" rowSpan={2}><span className="sr-only">Ações</span></th> : null}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="mt-2 text-xs text-[var(--app-muted)]">
-        <span className="text-[var(--app-blue)] font-semibold">Datas em azul</span> = data efetiva confirmada. Datas em preto = data prevista.
-      </div>
+                <tr>
+                  {PORTAL_SCHEDULE_LANES.map((lane) => (
+                    <th scope="col" key={lane.label} className="text-center">{scheduleLaneTitle(lane)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {vessels.map((vessel) => (
+                  <tr key={vessel.voyageId}>
+                    <th scope="row" className="text-left font-semibold"><VesselLink voyage={vessel} /></th>
+                    <td className="text-center">{vessel.voyage}</td>
+                    {PORTAL_SCHEDULE_LANES.map((lane) => (
+                      <td key={lane.label} className="text-center"><ScheduleDate voyage={vessel} lane={lane} /></td>
+                    ))}
+                    {canWrite ? (
+                      <td className="text-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="app-table__icon-button"
+                          aria-label={`Editar programação de ${vessel.vesselName} / ${vessel.voyage}`}
+                          title="Editar"
+                          onClick={() => openEdit(vessel)}
+                        >
+                          <Pencil size={15} />
+                        </Button>
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {vessels.length > 0 && !isError ? <ScheduleLegend /> : null}
+      </section>
 
       <div className="mt-6">
         <SpreadsheetUpload canWrite={canWrite} onUpdate={invalidateSchedules} />
