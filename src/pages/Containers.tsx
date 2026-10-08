@@ -162,6 +162,12 @@ export function Containers() {
   const rows = (data?.rows ?? []) as ContainerRow[]
 
   const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / filters.pageSize))
+  // Página além do resultado (URL antiga ou compartilhada, ou lista que encolheu):
+  // volta para a última página com linhas, em vez de mostrar "nenhum container".
+  const lastPage = data && !error ? totalPages : null
+  useEffect(() => {
+    if (lastPage !== null && filters.page > lastPage) updateFilter('page', lastPage)
+  }, [filters.page, lastPage, updateFilter])
   const activeFilterCount = countActiveContainerFilters(filters)
 
   function clearFilters() {

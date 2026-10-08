@@ -131,7 +131,9 @@ export function Veiculos() {
   const [exporting, setExporting] = useState(false)
   const [unpackingLocations, setUnpackingLocations] = useState<Record<number, string>>({})
   const [desovaStatus, setDesovaStatus] = useState<Record<number, DesovaStatus>>({})
-  const [savingContainerId, setSavingContainerId] = useState<number | null>(null)
+  // Um conjunto, não um id: dois containers podem estar gravando ao mesmo tempo, e o
+  // primeiro a terminar não pode reabrir o campo do outro.
+  const [savingContainerIds, setSavingContainerIds] = useState<ReadonlySet<number>>(new Set())
   // Enter grava e desativa o campo, o que dispara o blur: a segunda chamada não repete a escrita.
   const savingRef = useRef(new Set<number>())
   const [bulkDesovaOpen, setBulkDesovaOpen] = useState(false)
@@ -216,7 +218,7 @@ export function Veiculos() {
     if (unpackingLocation === currentValue || savingRef.current.has(containerId)) return
 
     savingRef.current.add(containerId)
-    setSavingContainerId(containerId)
+    setSavingContainerIds(new Set(savingRef.current))
     setDesovaStatus((current) => {
       const next = { ...current }
       delete next[containerId]
@@ -238,7 +240,7 @@ export function Veiculos() {
       setDesovaStatus((current) => ({ ...current, [containerId]: { kind: 'error', message: `Não salvo: ${message}` } }))
     } finally {
       savingRef.current.delete(containerId)
-      setSavingContainerId(null)
+      setSavingContainerIds(new Set(savingRef.current))
     }
   }
 
@@ -345,7 +347,7 @@ export function Veiculos() {
         value={unpackingLocations[container.id] ?? container.unpacking_location ?? ''}
         savedValue={container.unpacking_location ?? null}
         disabled={!canEditVehicles}
-        saving={savingContainerId === container.id}
+        saving={savingContainerIds.has(container.id)}
         status={desovaStatus[container.id]}
         vehicleCount={data?.vehicleCountByContainerId?.[container.id] ?? 1}
         onChange={(value) => {

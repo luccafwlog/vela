@@ -86,3 +86,16 @@ it('link para /containers com a página aberta troca o recorte em vez de ser sob
     await waitFor(() => expect(screen.getByLabelText('Endereço').textContent).toBe('?pod=BRSSZ'))
   } finally { client.clear() }
 })
+
+it('página além do resultado, vinda da URL, volta para a última página com linhas', async () => {
+  source.exists = true
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+  client.setQueryData(['port-options'], { pols: [], pods: [] })
+  client.setQueryData(['container-type-options'], [])
+  client.setQueryData(['voyage-options'], [])
+  try {
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/containers?page=999']}><Containers /><CurrentSearch /></MemoryRouter></QueryClientProvider>)
+    await waitFor(() => expect(screen.getByLabelText('Endereço').textContent).toBe(''))
+    expect(await screen.findByText('CXRU1234567')).toBeTruthy()
+  } finally { client.clear() }
+})

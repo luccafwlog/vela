@@ -716,7 +716,7 @@ function ContainerList({
                 <div className="app-cargo-card__head">
                   <div className="app-cargo-card__id">
                     <span className="app-cargo-code app-cargo-id">{c.container_number}</span>
-                    <span className="app-cargo-cell__sub">{[c.status === 'empty' ? 'Vazio' : 'Cheio', c.size_type, `${c.pol ?? '—'} → ${c.pod ?? '—'}`, c.slot ? `slot ${c.slot}` : null].filter(Boolean).join(' · ')}</span>
+                    <span className="app-cargo-cell__sub">{[c.status === 'empty' ? 'Vazio' : 'Cheio', c.size_type, `${c.pol ?? '—'} → ${c.pod ?? '—'}`, c.slot ? `slot ${c.slot}` : null, c.bl_ref ? `B/L citado ${c.bl_ref}` : null].filter(Boolean).join(' · ')}</span>
                   </div>
                 </div>
                 <span className="app-cargo-card__status">
