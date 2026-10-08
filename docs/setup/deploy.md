@@ -20,7 +20,7 @@ O staging publica o `index.html` correspondente a cada projeto e copia somente s
 | `.github/workflows/cloudflare-pages-preview-cleanup.yml` | PR interna fechada | Remove deployments antigos de preview da branch; a Cloudflare mantém o deployment mais recente. |
 | `.github/workflows/cloudflare-pages-production.yml` | CI verde de push em `main` ou execução manual | Publica as duas pastas na produção quando `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`. |
 | `.github/workflows/cloudflare-pages-provision.yml` | execução manual | Cria projetos Pages ausentes; não publica nem altera DNS. |
-| Supabase GitHub Integration | PR/merge em `main` | Cria branch de banco para preview e aplica migrations no ciclo configurado. |
+| Supabase GitHub Integration | PR/merge em `main` | Cria branch de banco para preview e aplica migrations no ciclo configurado. Com o Automatic Branching desligado, crie a branch à mão no painel e preencha "Sync with Git branch" com a branch da PR; os workflows de preview acham a branch por esse vínculo, porque o nome da branch Supabase não aceita `/`. Crie-a antes do push que deve gerar o preview, ou envie um commit depois. |
 
 A produção usa o environment GitHub `cloudflare-production`, com variáveis públicas `VITE_*`; o token Cloudflare fica em `CLOUDFLARE_PAGES_API_TOKEN`. O workflow de produção só executa código de `main`. O workflow de preview separa o build do código da PR da etapa confiável que usa o token de publicação. Não coloque segredos server-side em variáveis `VITE_*`.
 

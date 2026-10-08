@@ -82,6 +82,11 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
+          # Branch criada à mão não pode ter `/` no nome; resolve pelo vínculo Git.
+          supabase_branch_id() {
+            supabase --experimental branches list --project-ref "$SUPABASE_PROJECT_REF" -o json \
+              | node scripts/resolve-supabase-branch.mjs "$PR_HEAD_REF"
+          }
           : "${PR_NUMBER:?PR_NUMBER ausente}"
           : "${PR_HEAD_SHA:?PR_HEAD_SHA ausente}"
           : "${PR_HEAD_REF:?PR_HEAD_REF ausente}"
@@ -113,7 +118,7 @@ jobs:
                 end | join(" ")' <<<"$payload")"
             branch_ready=false
             if [[ "$check_conclusion" == "success" ]]; then
-              if supabase --experimental branches get "$PR_HEAD_REF" --project-ref "$SUPABASE_PROJECT_REF" -o env >/dev/null 2>&1; then
+              if supabase --experimental branches get "$(supabase_branch_id)" --project-ref "$SUPABASE_PROJECT_REF" -o env >/dev/null 2>&1; then
                 branch_ready=true
               fi
             fi
@@ -169,10 +174,15 @@ jobs:
         # que uma falha do CLI também reprova o step.
         run: |
           set -euo pipefail
+          # Branch criada à mão não pode ter `/` no nome; resolve pelo vínculo Git.
+          supabase_branch_id() {
+            supabase --experimental branches list --project-ref "$SUPABASE_PROJECT_REF" -o json \
+              | node scripts/resolve-supabase-branch.mjs "$PR_HEAD_REF"
+          }
           : "${SUPABASE_ACCESS_TOKEN:?Configure o secret SUPABASE_ACCESS_TOKEN.}"
           : "${SUPABASE_PROJECT_REF:?Configure o secret SUPABASE_PROJECT_REF.}"
           : "${PR_HEAD_REF:?PR_HEAD_REF ausente}"
-          supabase --experimental branches get "$PR_HEAD_REF" \
+          supabase --experimental branches get "$(supabase_branch_id)" \
             --project-ref "$SUPABASE_PROJECT_REF" -o env | node scripts/load-branch-env.mjs
 
       - name: Provision test admin
