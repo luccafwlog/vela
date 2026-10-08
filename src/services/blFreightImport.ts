@@ -54,6 +54,8 @@ export type BlFreightImportRow = {
   blNumber: string
   status: 'new' | 'updated' | 'unchanged' | 'blocked'
   existing: boolean
+  /** contêineres que o B/L já tem no banco: a reimportação apaga e regrava esse conjunto */
+  existingContainerNumbers?: string[]
   voyageId: number | null
   /** Numero da viagem declarado no B/L (nao o id interno), para exibicao no preview. */
   voyageNumber: string | null
@@ -417,6 +419,10 @@ export function buildBlFreightPreview({
       blNumber: doc.blNumber,
       status,
       existing: Boolean(existing),
+      existingContainerNumbers: (existing?.bl_containers ?? []).flatMap((container) => {
+        const number = normalizeIsoContainerNumber(container.container_number)
+        return number ? [number] : []
+      }),
       voyageId,
       voyageNumber: doc.route.voyage?.trim() || selectedVoyage?.voyageNumber || null,
       pol: payload?.pol ?? normalizePortCode(doc.route.pol),
@@ -539,7 +545,10 @@ export async function confirmBlFreightImport(
   // entao uma falha no meio preserva os anteriores (reimportar e idempotente).
   // Teto: um único B/L com ~900+ contêineres ainda não cabe numa chamada.
   // Upgrade: calculo de taxas e flags do Baplie fora da transacao.
-  const { chunks, recalculateAfter } = chunkBlPayload(payload)
+  const existingContainers = new Map(preview.rows.flatMap((row) => (
+    row.payload && row.existingContainerNumbers?.length ? [[row.payload.id, row.existingContainerNumbers] as const] : []
+  )))
+  const { chunks, recalculateAfter } = chunkBlPayload(payload, existingContainers)
   for (const chunk of chunks) {
     const { data: rawData, error } = usesBatchContract
       ? await supabase.rpc('import_bl_freight_with_metadata', {
@@ -571,9 +580,20 @@ export async function confirmBlFreightImport(
 
   // Grupo de contêiner compartilhado partido entre lotes: os primeiros lotes
   // calcularam antes de os irmãos existirem; recalcula com o rateio completo.
+  // Os lotes já foram gravados: falha aqui é aviso de cálculo, não de importação.
   if (usesBatchContract && recalculateAfter.length) {
-    const recalculation = await calculateLocalChargesBatch(recalculateAfter.map((bl) => bl.id), { actorId: changedBy })
-    calculationErrors.push(...recalculation.errors.map((error) => ({ blNumber: error.blId, message: error.message })))
+    const ids = recalculateAfter.map((bl) => bl.id)
+    const superseded = new Set(ids.map((id) => id.toUpperCase()))
+    const kept = calculationErrors.filter((error) => !superseded.has(error.blNumber.toUpperCase()))
+    calculationErrors.length = 0
+    calculationErrors.push(...kept)
+    try {
+      const recalculation = await calculateLocalChargesBatch(ids, { actorId: changedBy })
+      calculationErrors.push(...recalculation.errors.map((error) => ({ blNumber: error.blId, message: error.message })))
+    } catch (error) {
+      const message = `Recalculo apos a importacao falhou: ${extractErrorText(error) || 'erro desconhecido'}`
+      calculationErrors.push(...ids.map((blNumber) => ({ blNumber, message })))
+    }
   }
 
   return { result: results, refusedCustomerRelinks, calculationErrors }
@@ -589,8 +609,9 @@ const BL_IMPORT_CHUNK_CONTAINER_BUDGET = 300
  * o contêiner inteiro. Grupo acima dos limites é partido e volta em
  * `recalculateAfter`; um B/L sozinho acima do orçamento vai num lote próprio.
  */
-export function chunkBlPayload<T extends { containers?: unknown[] }>(
+export function chunkBlPayload<T extends { id: string; containers?: unknown[] }>(
   payload: T[],
+  existingContainers: ReadonlyMap<string, readonly string[]> = new Map(),
   maxBls = BL_IMPORT_CHUNK_SIZE,
   containerBudget = BL_IMPORT_CHUNK_CONTAINER_BUDGET,
 ): { chunks: T[][]; recalculateAfter: T[] } {
@@ -598,10 +619,15 @@ export function chunkBlPayload<T extends { containers?: unknown[] }>(
   const parent = payload.map((_, index) => index)
   const find = (index: number): number => (parent[index] === index ? index : (parent[index] = find(parent[index])))
   const owner = new Map<string, number>()
+  const incomingNumbers = (bl: T) => (bl.containers ?? []).flatMap((container) => {
+    const number = (container as { container_number?: unknown } | null)?.container_number
+    return typeof number === 'string' && number ? [number] : []
+  })
+  // custo da reimportação: apaga o conjunto atual e grava o novo
+  const weight = (bl: T) => Math.max(bl.containers?.length ?? 0, existingContainers.get(bl.id)?.length ?? 0)
   payload.forEach((bl, index) => {
-    for (const container of bl.containers ?? []) {
-      const number = (container as { container_number?: unknown } | null)?.container_number
-      if (typeof number !== 'string' || !number) continue
+    // vínculo atual também conta: o irmão que perde o contêiner muda o rateio do outro
+    for (const number of [...incomingNumbers(bl), ...(existingContainers.get(bl.id) ?? [])]) {
       const previous = owner.get(number)
       if (previous === undefined) owner.set(number, index)
       else parent[find(index)] = find(previous)
@@ -618,7 +644,7 @@ export function chunkBlPayload<T extends { containers?: unknown[] }>(
   let current: T[] = []
   let containers = 0
   const place = (bls: T[]) => {
-    const count = bls.reduce((total, bl) => total + (bl.containers?.length ?? 0), 0)
+    const count = bls.reduce((total, bl) => total + weight(bl), 0)
     if (current.length && (current.length + bls.length > maxBls || containers + count > containerBudget)) {
       chunks.push(current)
       current = []
@@ -628,7 +654,7 @@ export function chunkBlPayload<T extends { containers?: unknown[] }>(
     containers += count
   }
   for (const group of groups.values()) {
-    const count = group.reduce((total, bl) => total + (bl.containers?.length ?? 0), 0)
+    const count = group.reduce((total, bl) => total + weight(bl), 0)
     // Grupo acima dos limites é partido em ordem para não estourar o timeout;
     // quem o chama recalcula esses B/Ls depois do último lote.
     if (group.length > maxBls || count > containerBudget) {

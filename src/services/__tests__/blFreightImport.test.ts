@@ -767,6 +767,20 @@ describe('blFreightImport', () => {
     expect(oversized.recalculateAfter.map((item) => item.id)).toEqual(['X', 'Y'])
   })
 
+  it('considera os conteineres atuais do B/L na reimportacao', () => {
+    const bl = (id: string, numbers: string[]) => ({ id, containers: numbers.map((container_number) => ({ container_number })) })
+    const many = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i}`)
+    // A e C dividiam K no banco; o arquivo tira K de C. Separados, A ficaria com rateio de 2.
+    const relinked = chunkBlPayload(
+      [bl('A', [...many('A', 150), 'K']), bl('B', many('B', 200)), bl('C', many('C', 100))],
+      new Map([['A', ['K']], ['C', ['K']]]),
+    )
+    expect(relinked.chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['A', 'C'], ['B']])
+    // B/L que encolhe de 400 para 2 conteineres ainda apaga 400: pesa no orcamento
+    const shrinking = chunkBlPayload([bl('S', many('S', 2)), bl('T', many('T', 2))], new Map([['S', many('S', 400)]]))
+    expect(shrinking.chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['S'], ['T']])
+  })
+
   it('envia lotes grandes em partes para nao estourar o statement_timeout e informa falha parcial', async () => {
     const row = (id: string): BlFreightImportPreview['rows'][number] => ({
       blNumber: id, status: 'new', existing: false, voyageId: 7, voyageNumber: null, pol: null, pod: null,
