@@ -1,6 +1,6 @@
 # Demurrage
 
-> **Status:** ativo · **Atualizado:** 2026-09-23 · **Rotas:** `/demurrage`, `/demurrage/taxas`
+> **Status:** ativo · **Atualizado:** 2026-10-08 · **Rotas:** `/demurrage`, `/demurrage/taxas`
 
 ## Propósito e escopo
 
@@ -243,14 +243,18 @@ excluir para admin, conforme
   [`src/lib/pix.ts`](../../src/lib/pix.ts) com valor BRL e `doc_number` como
   TXID. A baixa de demurrage não cria `bl_receivables`,
   `invoice_receivable_links` nem `ledger_settlements`. Com
-  `app_settings.pix_provider = 'itau'` (migration 151, desligada por padrão),
+  `app_settings.pix_provider = 'itau'` (migration 151, ativa em produção desde 2026-10-07),
   o gatilho `zz_itau_pix_demurrage_payload` substitui o QR estático gravado
   pelas RPCs por uma cobrança Itaú. Nova PTAX altera a mesma cobrança, com o
   mesmo TXID e validade até 14h30 do próximo dia útil de Vitória (migration
   153, `itau_pix_cutoff`). Vencida e não paga, a cobrança é substituída por
   outra com novo TXID. Às 14h de dia útil, fatura sem a PTAX do dia abre
-  `demurrage_ptax_recalc_failed` (entidade `itau-pix-14h`). Detalhes no
-  [plano Itaú](../plans/2026-10-06-integracao-itau-pix.md).
+  `demurrage_ptax_recalc_failed` (entidade `itau-pix-14h`). O recálculo de PTAX
+  (`recalc-demurrage-ptax`) está agendado às 14h de Brasília, de segunda a sexta,
+  desde 07/10. Runtime em produção: a Demurrage de teste DEM-TEST-ITAU-20261007
+  (R$ 0,16) foi baixada pelo cron em cerca de 40 s, com câmbio congelado no
+  pagamento. Baixa pelo extrato continua disponível em `/reconciliacao`.
+  Detalhes no [plano Itaú](../plans/2026-10-06-integracao-itau-pix.md).
 - **Portal (push/armazenado):** [`src/services/portalBilling.ts`](../../src/services/portalBilling.ts)
   chama `portal_list_demurrage_invoices()` e
   `portal_get_demurrage_invoice_detail(bigint)`. O cliente resolve pela sessão,
