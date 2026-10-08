@@ -48,9 +48,9 @@ vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('../../../services/baplieImport', () => ({
   reimportBaplie: mocks.reimportBaplie,
   baplieReplacementConfirmOptions: (plan: { existing: number }, incoming: number) => ({ message: `${plan.existing}->${incoming}` }),
-  baplieImportToast: () => 'Baplie importado.',
+  baplieImportToast: (result: { vaziosReplaced: boolean }) => `Baplie importado.${result.vaziosReplaced ? ' Vazios de importação recadastrados.' : ''}`,
   hasBapliePendency: (result: { flagsError: string | null; vaziosError: string | null }) => Boolean(result.flagsError || result.vaziosError),
-  baplieFootnoteForPendency: () => 'Baplie gravado com pendência.',
+  baplieFootnoteForPendency: (result: { flagsError: string | null; vaziosError: string | null }) => (result.flagsError || result.vaziosError ? 'Baplie gravado com pendência.' : 'Baplie gravado, sem pendências.'),
   retryBaplieVazios: mocks.retryBaplieVazios,
 }))
 vi.mock('../../../services/vehicleImport', () => ({
@@ -436,7 +436,11 @@ it('vazios não recadastrados: o aviso refaz só os vazios, porque reimportar o 
   expect(await screen.findByText('ainda falhou')).toBeTruthy()
   mocks.invalidateQueries.mockClear()
   fireEvent.click(screen.getByRole('button', { name: 'Recadastrar vazios' }))
-  expect(await screen.findByText('Vazios de importação recadastrados.')).toBeTruthy()
+  // Título, resumo e rodapé deixam de citar os vazios.
+  expect(await screen.findByText('Baplie importado, sem pendências')).toBeTruthy()
+  expect(screen.getByText('Baplie importado. Vazios de importação recadastrados.')).toBeTruthy()
+  expect(screen.getByText('Baplie gravado, sem pendências.')).toBeTruthy()
+  expect(screen.queryByText('Baplie importado, mas os vazios de importação não foram recadastrados')).toBeNull()
   expect(mocks.retryBaplieVazios).toHaveBeenLastCalledWith({ voyageId: 7, actorId: expect.any(String) })
   await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['baplie-staging', '7'] }))
   expect(screen.queryByRole('button', { name: 'Recadastrar vazios' })).toBeNull()

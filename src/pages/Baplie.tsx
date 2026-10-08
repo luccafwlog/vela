@@ -948,11 +948,14 @@ function BaplieUploadModal({
             result={partial}
             voyageId={Number(voyageId)}
             actorId={user.id}
-            onVaziosRetried={() => onImported(voyageId)}
+            onVaziosRetried={async () => {
+              setPartial((current) => current && { ...current, vaziosError: null, vaziosReplaced: true })
+              await onImported(voyageId)
+            }}
           />
         ) : null}
         <div className="app-modal__actions">
-          <ImportFootnote tone={partial || (parsed && !canImport) ? 'warning' : 'default'}>{footnote}</ImportFootnote>
+          <ImportFootnote tone={(partial ? hasBapliePendency(partial) : parsed && !canImport) ? 'warning' : 'default'}>{footnote}</ImportFootnote>
           {partial ? (
             <Button onClick={handleClose}>Concluir</Button>
           ) : (

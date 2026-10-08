@@ -550,7 +550,7 @@ export function Veiculos() {
                           ) : null}
                           <span className="app-cargo-cell__stack">
                             <span className="app-cargo-code">{row.chassis}</span>
-                            <span className="app-cargo-cell__sub">{[row.brand, row.model].filter(Boolean).join(' ')} · {formatKg(row.weight_kg)}</span>
+                            <span className="app-cargo-cell__sub">{[row.brand, row.model].filter(Boolean).join(' ')} · {formatKg(row.weight_kg)} · {formatCbm(row.cbm)}</span>
                           </span>
                           {canDeleteVehicles ? deleteButton(row) : null}
                         </li>

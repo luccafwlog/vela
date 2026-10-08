@@ -157,6 +157,7 @@ export function hasBapliePendency(result: BaplieImportDone) {
 }
 
 export function baplieFootnoteForPendency(result: BaplieImportDone) {
+  if (!hasBapliePendency(result)) return 'Baplie gravado, sem pendências.'
   if (result.flagsError && result.vaziosError) return 'Baplie gravado; faltam IMO/OOG nos B/Ls e os vazios.'
   if (result.vaziosError) return 'Baplie gravado; faltam os vazios de importação.'
   return 'Baplie gravado; falta aplicar IMO/OOG aos B/Ls.'
