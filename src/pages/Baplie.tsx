@@ -313,7 +313,7 @@ function BaplieOverviewSection({ containers, importedAt }: { containers: BaplieC
         />
       </div>
       <p className="app-cargo-panel__note">
-        O Baplie vale para IMO, classe, ONU e OOG: esses dados já foram aplicados aos containers dos B/Ls na importação. Para SOC/COC, vale o B/L.
+        O Baplie vale para IMO, classe, ONU e OOG: cada importação aplica esses dados aos containers dos B/Ls e, se a aplicação falhar, avisa na hora; importar o mesmo arquivo de novo refaz a aplicação. Para SOC/COC, vale o B/L.
       </p>
     </Card>
   )
@@ -349,7 +349,7 @@ function reconciliationHeadline(overview: ReconciliationOverview, divergences: n
     case 'divergent':
       return { title: `${plural(divergences, 'divergência para resolver', 'divergências para resolver')}`, text: 'Cada grupo abaixo diz o que a diferença significa e o que fazer.', tone: 'warning' }
     case 'clean':
-      return { title: 'Baplie e B/Ls conferem', text: 'Todo container cheio em conciliação está nos dois lados, com o mesmo SOC/COC.', tone: 'success' }
+      return { title: 'Baplie e B/Ls conferem', text: 'Todo container cheio em conciliação está nos dois lados, sem SOC/COC divergente.', tone: 'success' }
   }
 }
 

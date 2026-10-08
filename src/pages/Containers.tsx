@@ -408,7 +408,7 @@ export function Containers() {
                     </span>
                     <span className="app-cargo-card__status">
                       {row.is_imo || row.is_oog ? <CargoProfileBadge isImo={Boolean(row.is_imo)} isOog={Boolean(row.is_oog)} /> : null}
-                      <ContainerOwnershipBadge ownership={row.ownership} />
+                      <OwnershipCell row={row} />
                       <ChargeStatusBadge status={row.bl?.charge_status ?? null} />
                     </span>
                   </div>
