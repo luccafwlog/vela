@@ -106,7 +106,7 @@ WHERE command ~ $re$Bearer ' \|\| '[^']$re$
 **Os jobs HTTP passam pelo dispatcher** — deve retornar `ok = true` em todas as
 linhas. `recalc-demurrage-ptax` e `itau-pix-queue` **não são criados pelas
 migrations** (ver "Agendar o recálculo de PTAX" abaixo e o roteiro de ativação do
-[plano Itaú](../plans/2026-10-06-integracao-itau-pix.md)), então em um banco
+[plano Itaú](../archive/plans/2026-10-06-integracao-itau-pix.md)), então em um banco
 recém-provisionado a consulta devolve seis linhas; oito depois que os dois forem
 agendados manualmente, como em produção desde 07/10:
 

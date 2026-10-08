@@ -574,9 +574,11 @@ Contrato e fila em [Reconciliação PIX](reconciliacao-pix.md#cobrança-dinâmic
 O padrão da coluna continua `static`, valor de um banco novo; voltar para
 `static` em produção não é procedimento operacional.
 
-**Runtime em produção (07/10):** avulsas INV-2026-0004 e INV-2026-0005 e a
-individual INV-2026-0006 foram pagas por QR Itaú e baixadas pelo cron, sem
-análise. A fatura consolidada ainda não teve pagamento de ponta a ponta.
+**Runtime em produção (07 e 08/10):** avulsas INV-2026-0004 e INV-2026-0005, a
+individual INV-2026-0006 e a consolidada INV-2026-0009 foram pagas por QR Itaú
+e baixadas pelo cron, sem análise. Paga a consolidada, as individuais
+INV-2026-0007 e INV-2026-0008 passaram a `covered` e suas cobranças Itaú foram
+canceladas no ciclo seguinte, sem deixar QR pagável.
 
 ### Segurança da correção automática — migration 130
 

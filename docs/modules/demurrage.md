@@ -254,7 +254,7 @@ excluir para admin, conforme
   desde 07/10. Runtime em produção: a Demurrage de teste DEM-TEST-ITAU-20261007
   (R$ 0,16) foi baixada pelo cron em cerca de 40 s, com câmbio congelado no
   pagamento. Baixa pelo extrato continua disponível em `/reconciliacao`.
-  Detalhes no [plano Itaú](../plans/2026-10-06-integracao-itau-pix.md).
+  Detalhes no [plano Itaú](../archive/plans/2026-10-06-integracao-itau-pix.md).
 - **Portal (push/armazenado):** [`src/services/portalBilling.ts`](../../src/services/portalBilling.ts)
   chama `portal_list_demurrage_invoices()` e
   `portal_get_demurrage_invoice_detail(bigint)`. O cliente resolve pela sessão,

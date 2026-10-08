@@ -601,7 +601,7 @@ evidências e limites no "Contrato observado" do plano.
 
 O token troca um CSR por certificado (365 dias) e client_secret em
 `sts.itau.com.br`; o procedimento está na Fase 0 do
-[plano da integração](../plans/2026-10-06-integracao-itau-pix.md). Destino
+[plano da integração](../archive/plans/2026-10-06-integracao-itau-pix.md). Destino
 dos segredos, em Supabase → Edge Functions → Secrets (**cadastrados pelo dono
 em 07/10**): `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`,
 `ITAU_KEY_B64`, `ITAU_PIX_KEY` e `ITAU_PIX_ADMIN_SECRET`. Backup PFX cifrado
@@ -627,12 +627,12 @@ Supabase, no Vault nem no repositório. Endereços:
 `https://sandbox.devportal.itau.com.br/api/oauth/jwt` (token, sem mTLS) e
 `https://sandbox.devportal.itau.com.br/itau-ep9-api-regulatorio-pix-v2-externo/v2`.
 As respostas são exemplos fixos; o que foi observado está na seção "Sandbox do
-devportal" do [plano](../plans/2026-10-06-integracao-itau-pix.md).
+devportal" do [plano](../archive/plans/2026-10-06-integracao-itau-pix.md).
 
 A fila de cobranças das faturas (migration `151`) só tem trabalho quando
 `app_settings.pix_provider = 'itau'`; o padrão é `static`. A ordem completa
 para ligar a integração, com quem faz cada passo e como conferir, está no
-[Roteiro de ativação](../plans/2026-10-06-integracao-itau-pix.md#roteiro-de-ativação-depois-do-merge-do-código)
+[Roteiro de ativação](../archive/plans/2026-10-06-integracao-itau-pix.md#roteiro-de-ativação-depois-do-merge-do-código)
 do plano. Em resumo, nessa ordem: certificado e segredos (inclusive
 `ITAU_PIX_ADMIN_SECRET`, bearer próprio, também no Vault com o mesmo nome);
 publicar `itau-pix`; criar a conta Admin dedicada **"API Itaú"** e gravá-la em
