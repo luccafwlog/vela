@@ -1,7 +1,7 @@
 # Revisão visual e UX do Vela e Portal — pacote de prompts
 
 Data: 2026-10-07. Base inspecionada: `main`, commit `0160605a`, checkout inicialmente sem diff.
-Estado: prompts preparados; campanha de melhorias ainda não executada.
+Estado: etapa 00 concluída em 2026-10-07 (direção visual e inventário registrados abaixo); implementação começa na etapa 01.
 
 ## O que este pacote cobre
 
@@ -104,6 +104,272 @@ Todas as páginas autenticadas do Portal também precisam ser verificadas em `/c
 | Wrapper de inspeção e PortalReviewPanel | 18 | Console e acesso interno à inspeção |
 
 `src/index.css` exige atenção: a etapa 01 possui base/tokens; a 13 somente regras de impressão. Etapas de página não alteram o tema global. A 23 pode corrigir regressões de integração identificadas, sempre registrando owner e consumidores.
+
+#### Complementos de propriedade confirmados na etapa 00
+
+O inventário de 2026-10-07 encontrou superfícies sem dono explícito na tabela acima. Elas passam a ter o owner abaixo; as demais linhas continuam válidas.
+
+| Superfície | Etapa dona | Consumidores que apenas reutilizam |
+|---|---|---|
+| `layout/InternalNotificationBell.tsx` (sino do Vela) e `portal/NotificationBell.tsx` (sino do Portal) | 02 | Shells e inspeção |
+| `security/TurnstileChallenge.tsx` e `PortalErrorBoundary.tsx` | 02 | Login e recuperação do Portal |
+| `shared/DomainIcon.tsx` (ícones de domínio) | 01 | Navegação (02), Viagens (03) |
+| Primitivas novas pedidas por este contrato: resumo compacto, controle segmentado, trilho de etapas e painel lateral genérico, se adotados | 01 | Todas |
+| `billing/ManualChargeFormFields.tsx` | 10 | Cobranças na ficha do B/L (05) |
+| `billing/FinancialRefundsPanel.tsx` | 10 | Demurrage (11) |
+| `demurrage/DemurrageBadges.tsx` | 11 | Relatórios (22) |
+| `review/ReviewCustomerOnboarding.tsx` | 07 | Cliente na ficha do B/L (05) |
+| `voyages/VoyageRail.tsx` (faixa de Viagens) | 03 | Baplie e Veículos (06) |
+| `bl/BlRailsPipeline.tsx` (trilhos da ficha) | 05, até a 01 entregar um trilho genérico; depois 05 migra para a primitiva | Ficha do B/L |
+| `PortalTransshipmentCard`, definido dentro de `PortalOperacao.tsx` | 14 | Portal e inspeção |
+| Arquivos auxiliares em `src/pages/` (`adminTabs.ts`, `blDetalheHelpers.ts`, `faturamentoInvoiceStatus.ts`, `revisaoHelpers.ts` etc.) | Etapa da página que os nomeia | Componentes que os importam |
+| Rotas de redirecionamento e `lib/routeRedirects.ts` | Sem redesenho; cada etapa confere o alias da sua rota e a 23 verifica todos | — |
+
+Dependência em dois sentidos: `BillingPortalReleaseCard` (08) é usado pelo `PortalReviewPanel` (18), que por sua vez é composto em `clientes/CadastroContatosTab.tsx` (08). Cada etapa altera só o próprio componente e confere o outro como consumidor. `bl/BlReviewContextPanel.tsx` não tem consumidor fora do próprio teste (**Código**); a 05 decide entre remover ou reconectar.
+
+## Etapa 00 — direção visual e inventário confirmado
+
+Registro de 2026-10-07 sobre a base `ba7cd09d` (`main` após a PR 894). Esta seção é o contrato visual das etapas 01–23. Ela orienta decisões; não implementa telas.
+
+### Evidência e limites
+
+- **Runtime**, ambiente local descartável: Postgres 16 em diretório temporário, todas as migrations do repositório, `validation_seed.sql`, `seed_audit.sql` e `sb-shim.cjs`; Vite em modo de desenvolvimento; Chromium do Playwright 1.63 sem interface. Login interno de auditoria (Administrativo). Capturas de 41 rotas autenticadas e 6 públicas em 1440×900 e 360×780 com toque, 28 abas/variações por query param em 1440×900, 5 rotas em 768×1024 e no tema escuro, e 6 modais. Nenhum envio, emissão, baixa ou gravação foi confirmado.
+- **Resultado medido:** nenhuma rota teve rolagem horizontal da página em 1440 ou 360 px. O único erro de console foi o 406 da ficha do Cliente, causado pelo seed (abaixo). Os modais abertos têm nome acessível, levam o foco para dentro e fecham com Escape, em desktop e celular. `npm run a11y:contrast` aprovou os 22 pares de tokens verificados.
+- **Artefatos do ambiente, não do produto:** o seed grava CNPJ com máscara e o app consulta a forma canônica, por isso a ficha do Cliente respondia "Cliente não encontrado" até a normalização local dos CNPJs; `customers.pending_balance` não é recalculado pelo seed. O shim não aplica RLS como o PostgREST, não tem realtime e não emula Turnstile nem Edge Functions.
+- **Lacunas:** o login real do Portal não foi exercitado; as telas autenticadas do Portal foram vistas pelo Modo Inspeção, que usa o mesmo `PortalLayout` e as mesmas páginas, com escrita bloqueada. Os dados sintéticos são poucos (12 B/Ls, 8 Clientes, 4 Viagens, 6 faturas de Taxas Locais, nenhuma fatura de Demurrage e nenhum Pix), então listas extensas, conteúdo longo, erro de consulta e falha parcial não foram observados. Também não foram testados zoom de 200%, leitor de tela, impressão, Portal no tema escuro nem o caminho completo de teclado. As capturas ficaram fora do repositório; cada etapa refaz a sua linha de base antes de alterar a tela.
+
+### Diagnóstico transversal
+
+Os produtos já têm identidade: papel quente, azul-marinho, dourado, Syne nos títulos e trilhos de etapa na ficha do B/L. O problema principal não é estética. A interface gasta espaço e atenção antes de entregar o dado de trabalho.
+
+| Padrão observado | Exemplo (**Runtime**, salvo indicação) | Efeito para quem usa |
+|---|---|---|
+| Topo alto | No Vela desktop, faixa de avisos, barra da marca e barra de navegação somam cerca de 140 px. O título com descrição e o traço dourado ocupam outros 120 px. Em BLs a tabela começa perto de 650 px. | O operador rola antes de ver o primeiro registro. |
+| Muitos cards de métrica | BLs mostra 12 cards de igual peso; Taxas Locais mostra 5. Em 360 px os cards de BLs ocupam cerca de 600 px antes da lista. | Números sem prioridade competem com a tarefa. |
+| Card dentro de card | A ficha da Viagem empilha três níveis de borda e cabeçalhos azul-marinho em tabelas aninhadas. | A hierarquia fica pesada e difícil de escanear. |
+| Linhas pouco densas | As linhas de BLs têm cerca de 69 px; as de Taxas Locais, de 120 a 130 px. A coluna "Comunicação financeira" quebra em cinco linhas. | Poucos registros por tela e comparação difícil. |
+| Ações redundantes por linha | Em BLs, a linha tem número do B/L com link, botão "Abrir B/L", menu ⋮ e seta de expansão. | Quatro caminhos para decisões parecidas. |
+| Identificador cortado | Em BLs a 360 px, o número do B/L aparece como "XPDU…" e a coluna de ações fica com a largura. Em 1440 px, o cabeçalho "Fatura" fica cortado e encosta em "Ações". | O dado que identifica a carga some. |
+| Tipografia dispersa | **Código:** cerca de 20 tamanhos em `index.css`, mais 7 tamanhos arbitrários em TSX, incluindo 10 px (40 usos) e 9 px. Há 157 ocorrências de caixa alta e 245 cores hexadecimais em TSX. | Rótulos pequenos e espaçados ficam lentos de ler; o tema fica difícil de manter. |
+| Abas e botões parecidos | Abas com borda (Viagem, B/L, Cliente), controle segmentado próprio (Modalidade) e links com cara de aba ("Baplie EDI", "B/Ls da viagem"). | Não fica claro o que troca a vista e o que navega. |
+| Controles duplicados | **Código:** a lente "Modalidade" de BLs repete o filtro Modalidade do painel de filtros. | Dois estados para a mesma decisão. |
+| Badges em excesso | A ficha do B/L mostra "Conferido por nome", "Não visível no Portal", "Baplie não importado" e "Herdado da escala", todos em caixa alta. | O estado importante perde destaque. |
+| Texto e idioma | Faltam acentos em "Pendencias PIX persistidas", "conciliacao", "DESCRICAO" e "NUMERO DA VIAGEM". O Line Up usa VESSEL, VOY e LINKED. A página "Revisão Manual" aparece como "Revisão" no menu. | Parece inacabado e mistura idiomas. |
+| Paginação incoerente | A Conciliação vazia mostra "Página 1 de 1" no topo e "Página 0 de 0" no rodapé. | O usuário desconfia do dado. |
+| Formulário espremido | A fatura avulsa põe sete campos em uma linha: rótulos quebram em três linhas, a seta do select cobre "Outra" e a descrição tem cerca de 70 px. | Uma tarefa financeira crítica fica difícil de preencher. |
+| Pagamento escondido no Portal | O detalhe da fatura mostra métricas, B/Ls, itens e containers antes do bloco Pix, que fica abaixo da dobra. | A ação principal do Cliente exige rolagem. |
+| Cabeçalho do Portal em 360 px | "Portal do cliente" encosta no sino; a faixa de inspeção ocupa três linhas. | Toque impreciso e conteúdo empurrado para baixo. |
+| Faixa de avisos em 768 px | O aviso "2 demurrages vencidos" é cortado em "vencid". | O alerta perde o sentido. |
+
+Pontos que devem ser preservados: o trilho Operacional/Documental com "Próxima ação" na ficha do B/L, a faixa de inspeção persistente, a TV com barra verde para "atracada", os modais acessíveis, os cards móveis em BLs e Containers do Portal, a ausência de rolagem horizontal e o tema escuro do Vela.
+
+### Direções consideradas
+
+| Direção | Ideia | Decisão |
+|---|---|---|
+| **A — Carta náutica** | Evolui a identidade atual para um instrumento de precisão: papel quente, tinta azul-marinho, filetes finos em vez de caixas, números tabulares, cores de sinalização usadas só para estado e um trilho de etapas como assinatura visual. O Vela fica compacto; o Portal usa a mesma tinta com mais ar e orientação. | **Escolhida** |
+| B — Ponte de comando | Console escuro e de alto contraste, como o passadiço. | Rejeitada como padrão: cansa no trabalho longo, imprime mal e estranha ao Cliente. Fica para a TV e o tema escuro. |
+| C — SaaS neutro | Branco, cinza e azul genéricos com muitos cards. | Rejeitada: perde a identidade e repete o problema dos cards. |
+
+A direção A foi escolhida por quatro razões. Ela corrige os problemas observados (espaço, densidade, hierarquia) sem trocar a marca. Ela reaproveita os tokens e o tema escuro existentes, o que reduz o risco de migração em 22 etapas. Ela dá ao Vela densidade de planilha operacional e ao Portal clareza guiada a partir da mesma base. E o trilho de etapas já existe e expressa bem a viagem da carga: Saída → Chegada → Descarga → Devolução, ou Emitida → Paga.
+
+### Contrato visual
+
+**Princípios**
+
+1. O dado de trabalho aparece na primeira dobra. Topo, título e resumo não podem empurrar a lista para depois de cerca de 260 px no Vela desktop.
+2. Uma superfície por nível. Seções dentro de uma superfície são separadas por filete e título, nunca por outro card.
+3. Cor indica estado ou ação, nunca enfeite. Todo estado também tem texto, e ícone ou forma quando o contraste de cor não basta.
+4. Cada tarefa tem um caminho principal. Ações equivalentes são consolidadas e as secundárias ficam em "Mais ações".
+5. Um rótulo vale mais que uma explicação. Uma descrição só fica se mudar uma decisão; o resto vira ajuda contextual ou sai.
+
+**Tipografia**
+
+| Uso | Família | Tamanho/linha | Peso |
+|---|---|---|---|
+| Título de página (Vela) | Syne | 24/32 | 700 |
+| Título de página e boas-vindas (Portal), tela de login | Syne | 32/40 | 700 |
+| Título de painel, modal ou drawer | DM Sans (Syne nunca, nem com identificador) | 20/28 | 600 |
+| Título de seção | DM Sans | 16/24 | 600 |
+| Corpo do Portal, campos, botões | DM Sans | 14/20 (Portal: 16/24 no corpo) | 400/500 |
+| Tabela e corpo denso do Vela | DM Sans | 13/18 | 400; cabeçalho 500 |
+| Legenda, meta, ajuda | DM Sans | 12/16 | 400/500 |
+| Códigos sujeitos a confusão de caracteres (container, CE, TXID, IMO, código Pix) | IBM Plex Mono | 13/18 | 400 |
+| Números, valores e datas | DM Sans com `tabular-nums`, alinhados à direita | conforme o contexto | 400; total 600 |
+
+- Tamanho mínimo de 12 px. Os tamanhos 9, 10 e 11 px saem.
+- Sete degraus: 12, 13, 14, 16, 20, 24 e 32. A etapa 01 cria tokens e utilitários para eles e remove tamanhos arbitrários nas primitivas. As páginas migram nas suas etapas.
+- Caixa normal (sentence case) em rótulos, cabeçalhos de tabela, badges e abas. Caixa alta fica para códigos que já são maiúsculos (LOCODE, container, B/L) e para um sobretítulo opcional por painel, sem `letter-spacing` acima de 0,04 em.
+- Syne só aparece em uma linha por tela. Identificador longo no título (por exemplo B/L COSU6401234503) usa DM Sans 24/600, com o tipo do documento em legenda.
+
+**Cor e semântica**
+
+Os valores de `--app-*` continuam os mesmos. A etapa 01 acrescenta aliases semânticos de primeiro plano, fundo e borda, com par no tema escuro e verificação em `a11y:contrast`.
+
+| Papel | Base | Uso |
+|---|---|---|
+| Estrutura | `--app-navy`, `--app-topbar` | Shell, TV e cabeçalho de modal. Não usar como fundo de cabeçalho de tabela comum. |
+| Ação | `--app-blue-btn`, `--app-link` | Botão principal e link. Um botão principal por região. |
+| Sucesso / concluído | `--app-green` | Paga, confirmada, atracada, devolvido |
+| Atenção / aguarda ação | `--app-gold`, `--app-gold-strong` | Pendente, aguardando, vence em breve |
+| Bloqueio / erro / vencido / perigo | `--app-red` | Bloqueado, falhou, vencido, excluir |
+| Informativo | `--app-blue-soft` | Emitida, em análise, origem do dado |
+| Neutro | `--app-muted` | Não se aplica, sem dado, rascunho |
+
+- O dourado também é a marca, mas fora de estado só aparece na indicação da navegação ativa. O traço dourado sob todo título de página sai.
+- O padrão de pontos fica no login, na tela vazia e nas faixas de boas-vindas. A área de dados usa papel liso.
+- Cabeçalho de tabela comum: fundo `--app-surface-muted`, texto 12/500 em caixa normal, filete inferior forte e cabeçalho fixo ao rolar. O cabeçalho azul-marinho fica só no Line Up e na TV, que imitam o quadro físico.
+
+**Espaço, densidade e superfícies**
+
+- Escala de 4 px: 4, 8, 12, 16, 24, 32 e 48. Margem lateral de 24 px no desktop e 16 px no celular.
+- Densidade **compacta** (Vela, ponteiro fino): linha de tabela de 40 px e controle de 36 px.
+- Densidade **confortável** (Portal e qualquer ponteiro de toque): linha de 52 px e controle de 44 px. Essa regra substitui os 44 px para todo controle quando o ponteiro é fino no Vela e preserva os 44 px de alvo de toque da remediação de 2026-09-20.
+- Raio de 8 px nas superfícies e de 6 px em controles e tags. Hoje o tema escuro usa 12 px; isso deve ser unificado.
+- Superfícies separadas por borda. Sombra só em sobreposição (menu, popover, modal, toast).
+- Métricas: até quatro cards, e só quando cada um leva a uma decisão ou filtro. Os demais números viram uma **faixa de resumo** de uma linha na barra da tabela (por exemplo "12 B/Ls · 16 CNTRs · 1.069,1 m³"). Card de métrica clicável aplica o filtro correspondente.
+
+**Navegação e cabeçalho de página**
+
+- Vela desktop: marca, navegação e ferramentas do usuário em **uma barra** de até 64 px, mais a faixa de avisos de até 28 px. A versão do app passa para o menu do usuário. Abaixo de 1100 px continua o botão Menu.
+- Portal: uma barra de 64 px com a marca FWLOG, a navegação e as ações da conta; a faixa de inspeção cabe em uma linha a 360 px, com o nome truncado e completo em `title`/texto acessível.
+- Cabeçalho de página no Vela: breadcrumb quando houver profundidade, título 24 px com contexto curto e ações principais na mesma linha, numa altura alvo de até 72 px. O título visível é igual ao rótulo do menu (por exemplo Revisão).
+- Abas: um único padrão, sublinhado com indicação ativa e `role="tablist"`, sempre refletido na URL. O controle segmentado serve para lentes e filtros de 2 a 4 opções. Navegar para outra página é link com seta, nunca botão com cara de aba.
+
+**Tabelas e listas**
+
+- O identificador abre a ficha. Pode haver no máximo uma ação secundária visível; as demais vão para "Mais ações" (⋮). O botão "Abrir X" sai quando o identificador já é link. A expansão da linha só fica se mostrar o que a ficha não mostra.
+- Célula com no máximo duas linhas. Em valores financeiros, o número principal é o que decide (saldo ou total) e os demais aparecem em linha secundária ou dica.
+- Ausência de dado é "—" com significado acessível; zero só quando o sistema sabe que é zero. Datas em dd/mm/aaaa (dd/mm em quadros), moeda em "R$ 1.805,00", CNPJ sempre com máscara.
+- Tabela larga: cabeçalho fixo e primeira coluna fixa. O identificador nunca é truncado: ele quebra a linha ou usa a coluna fixa.
+- Abaixo de 640 px, a lista principal vira cards com identificador, estado, dois ou três fatos e a ação principal. Rolagem lateral fica para tabelas secundárias, com indicação visível.
+- Paginação no formato "Exibindo 1–20 de 132", com o mesmo texto no topo e no rodapé; vazio é "Nenhum registro", nunca "Página 0 de 0".
+
+**Formulários e escolha de controle**
+
+- Rótulo acima do campo, 13/500, em caixa normal. Campo obrigatório leva asterisco e `aria-required`. Ajuda e erro ficam logo abaixo do campo.
+- No máximo duas colunas em modal e três em página. Texto longo ocupa a largura toda. No celular, uma coluna.
+- Lista fixa de até 7 opções: select nativo estilizado. Entidade pesquisável (Cliente, Viagem, B/L, Item da tabela): Combobox. Duas a quatro opções exclusivas que mudam o formulário (por exemplo Item da tabela ou Outra): controle segmentado. Edição inline só para um campo isolado com salvamento por linha e feedback na própria linha.
+- Botões: um principal com verbo e objeto ("Emitir fatura avulsa"), secundário com contorno, terciário como link. Destrutivo com contorno vermelho na tela e vermelho sólido na confirmação. Durante a ação, o rótulo continua visível, há indicador e `aria-busy`, e a largura não muda.
+
+**Modal, drawer, página e confirmação**
+
+| Padrão | Quando usar |
+|---|---|
+| Modal | Tarefa curta e focada (até cerca de 7 campos, uma decisão), como criar Viagem ou emitir fatura avulsa |
+| Drawer / painel lateral | Consultar ou ajustar um registro sem perder a lista e os filtros (Revisão, detalhe de fatura no Vela). A 01 decide se promove um drawer genérico a partir do padrão do `ReviewDrawer`. |
+| Página | Conteúdo com abas, histórico ou várias ações (fichas) |
+| Confirmação | `ConfirmDialog` com consequência, justificativa quando o sistema exige, "Voltar" para fechar e o verbo específico na ação |
+
+- Não abrir modal sobre modal. O foco inicial vai para o primeiro campo quando houver formulário e para o título nos modais de leitura. Hoje o foco cai sempre em "Fechar modal"; a 01 revisa.
+- No Portal, o detalhe financeiro abre com "quanto, até quando e como pagar" antes do detalhamento.
+
+**Estados e feedback**
+
+- Carregamento com skeleton na geometria final. Ação em andamento fica no botão que a disparou. A tela só é bloqueada quando continuar seria inconsistente.
+- Vazio inicial (o que é e como começar), vazio do filtro ("Limpar filtros"), erro de consulta com "Tentar novamente" e sem zeros falsos, acesso restrito com o motivo e falha parcial com o que deu certo e o que falta.
+- Toast só confirma uma ação que já está visível na tela. Resultado relevante (importação, lote, conciliação) fica no conteúdo.
+
+**Responsividade**
+
+- Pontos de quebra: 360 (mínimo), 640 (modal vira folha; listas viram cards), 768 (faixa de abas com rolagem), 1100 (navegação recolhe) e 1440 (referência).
+- Nenhum texto de aviso é cortado sem reticência e sem acesso ao texto completo. O cabeçalho móvel não sobrepõe título e ícones.
+
+**Vela × Portal**
+
+| Aspecto | Vela | Portal |
+|---|---|---|
+| Pergunta da tela | "O que está pendente e onde ajo?" | "O que preciso fazer e quanto devo?" |
+| Densidade | Compacta, tabela como superfície principal | Confortável, largura máxima de cerca de 1200 px centralizada |
+| Topo da página | Título, faixa de resumo e ações | Título, uma frase de orientação e "o que precisa da sua atenção" com ação direta |
+| Linguagem | Vocabulário do CONTEXT.md, siglas operacionais com legenda | Rótulos voltados ao Cliente já existentes, sem jargão interno e sem códigos sem explicação |
+| Cards | Só para resumo decisório e listas móveis | Permitidos para resumos e listas móveis; tabela no desktop |
+| Marca | Vela (veleiro) | FWLOG |
+
+**Superfícies especiais**
+
+- **TV (03):** variante escura de alto contraste, texto mínimo de 28 px a 1920 px de largura, estados por palavra e cor, sem azul claro para números e sem texto de três linhas por célula.
+- **Impressão (13):** papel branco, tinta preta e azul-marinho, sem padrão de fundo, A4, valores alinhados. Recibo distingue o valor recebido do total emitido.
+- **Tema escuro (01):** todo token novo precisa de par escuro e passar em `a11y:contrast`. O Portal continua só com o tema claro.
+- **Modo Inspeção (18):** faixa persistente e compacta e as mesmas telas do Portal. Controles bloqueados ficam desativados com motivo, sem sumir.
+- **Trilho de etapas (assinatura):** uma sequência horizontal de estados com ponto, rótulo e valor, já usada na ficha do B/L. A 01 decide se vira primitiva. Consumidores candidatos: Viagem (03), B/L (05), Desbloqueio de CE (17) e ciclo da fatura no Portal (15).
+
+**Critérios de aceite de cada etapa**
+
+Cada etapa compara a sua tela com este contrato e registra no próprio relato:
+
+- **Primeira dobra:** posição da primeira linha de dado.
+- **Ações:** quantidade de ações por linha.
+- **Tipografia:** tamanhos fora da escala.
+- **Caixa e cor:** uso de caixa alta e de cor como único sinal.
+- **Formulário:** campos por linha.
+- **Estados:** quais foram cobertos.
+- **Larguras:** resultado em 360, 768 e 1440 px.
+
+Divergência intencional exige justificativa no relato.
+
+### Inventário confirmado
+
+**Código:** o inventário foi conferido nos roteadores, nas páginas e em `src/components/` (via `src/AppInterno.tsx` e `src/AppPortal.tsx`). Todas as rotas da matriz existem, e não há rota atual sem etapa.
+
+- **Base `/line-up-tv`:** não é rota e cai em NaoEncontrado, como a matriz já prevê.
+- **`/admin/:tab` inválida:** renderiza NaoEncontrado.
+- **`*` no Portal:** redireciona para `/portal`; o Portal não tem página 404 própria.
+- **Inspeção:** a rota não exige permissão específica além da sessão interna. A autorização real está na RPC `portal_open_inspection`; nenhuma mudança foi feita nesta etapa.
+
+Abas e modais por rota, para conferência das etapas:
+
+| Etapa | Abas (rótulo / parâmetro) e modais confirmados |
+|---|---|
+| 03 | Viagem `?tab=`: Visão geral, Importação, Exportação, Rotas e Manifestos (`manifestos`), ADR. Modais: VoyageCreateModal (criar/editar), Cancelar viagem, EscalaModal, PolScheduleModal, OmitEscalaModal, impressão do ADR. Confirmações de exclusão, reativação, transbordo, observação e terminal do ADR. Chegadas e Saídas: formulário inline e publicação. |
+| 05 | Ficha `?tab=`: Visão Geral, Carga, Detalhes do B/L, Faturamento, Histórico. Confirmações com motivo para cancelar ou reativar B/L, perfil do container e SOC/COC. Lista com expansão (`BlRowDetail`), ações em massa e `BreakbulkManifestUploadModal`. |
+| 06 | Veículos: Importar Veículos e Definir local de desova. Baplie: seções Stats, Vazios e Reconciliação, mais `BaplieUploadModal`. Containers: exclusão e ações em massa. |
+| 07 | `ReviewDrawer`, `ReviewGroupBlock` e cinco confirmações (correção, recálculo, vínculo, cadastro e e-mail). |
+| 08 | Ficha `?tab=`: `visao-geral`, `cadastro`, `operacional`, `financeiro`, `historico`, `desbloqueio-ce`. Lista com CreateCustomerModal, menu de ações e ImportBaseModal (04). |
+| 09 | `?tab=`: Tabelas, Overrides. Formulários de tabela e de item; confirmações de ativar e excluir. |
+| 10 | `?tab=`: Faturas, Validação (`pendencias` abre Validação filtrada). Modais ConsolidatedInvoiceModal, ManualInvoiceModal e InvoiceDetailModal (com correção, restituição e resolução de fatura defasada). Painéis de reemissão, alertas financeiros e ajustes de COD. |
+| 11 | Demurrage: Containers, Faturas, Pagas, Canceladas, Por Cliente. Modais de datas, detalhes, PTAX, desconto, disputa, pagamento, estorno, régua e relatório. Taxas `?tab=`: Tabela Padrão (Armador), Acordos de Clientes. |
+| 12 | Monitor Itaú, upload de extrato, pendências persistidas, histórico. Abre InvoiceDetailModal (10) e a fatura de Demurrage. |
+| 16 | Portal `:section`: taxas, devolucao, demurrage, agentes, atendimento, tracking. Vela: seções de depots, agentes, contato, armadores e observações com `InformationEditor`. |
+| 17 | Vela `?aba=`: Solicitações, Controle ZPT (`controle`). Modais de termo, ZPT, histórico ZPT e solicitação. Portal: Nova solicitação, Minhas solicitações, Documentos anuais (estado local, sem URL) e `?pedido=`. |
+| 18 | Comunicação `?tab=`: Cobertura de viagens, Disparo, Histórico, com prévia e ativação de envio real. Provisionamento com chips de estado e `PortalReviewPanel`. |
+| 19 | Painel com Line Up, filtros e exportação. Alertas e Regras (`?regra=` é preenchido automaticamente). Painel do Portal com quatro cards, Central e ShipScheduleWidget. |
+| 20 | Modais Taxas do B/L, Resultado persistido e Importar Planilha COSCO; taxas com modal. |
+| 21 | Importar Unidades Embarcadas; exclusões de unidade e de serviço; cadastro de depots. |
+| 22 | Relatórios: Operacional, Financeiro, Por Cliente, Demurrage. Admin `/admin/:tab`: `usuarios`, `falhas`, `logs`, `metricas`, `prazo-adr`, mais NovoUsuarioModal e EditarAcessoModal. |
+| 14, 15 | Operação `?tab=bls\|containers` e `?devolucao=`. Faturas `?tab=local\|demurrage` com modais de consolidada, disputa, detalhe da fatura, detalhe de Demurrage, conversa de disputa, impressão e confirmação "Desfazer fatura consolidada". |
+
+Lacunas do Modo Inspeção a conferir nas etapas donas (**Código**, sem alteração):
+
+- "Refazer consolidada" no detalhe da fatura do Portal não é desativado na inspeção; só a RPC bloqueia (15).
+- "Disputar" abre o modal, embora o envio esteja desativado (15).
+- `PortalDesbloqueioCe` verifica `scope.mode` diretamente em vez de `isPortalReadOnly` (17).
+
+### Alvos observados por etapa
+
+São insumo para as etapas donas, não escopo desta. **Runtime** salvo indicação.
+
+| Etapa | Alvo |
+|---|---|
+| 01 | Escala tipográfica; caixa normal; cabeçalho claro de tabela; densidade compacta e confortável; raio único; tag de estado; faixa de resumo; controle segmentado; foco inicial do modal; paginação coerente; aliases semânticos com par escuro. |
+| 02 | Unificar a barra do Vela; versão no menu do usuário; aviso cortado em 768 px; sobreposição do título com o sino no Portal a 360 px; faixa de inspeção com três linhas. |
+| 03 | Cards aninhados e tabelas azul-marinho na ficha da Viagem; "Baplie EDI" e "B/Ls da viagem" com aparência de aba; "NUMERO DA VIAGEM" sem acento; TV com "0 MAQ / 0 PACK / 0 TOTAL" ilegível à distância e número em azul claro. **Suspeita:** na mesma escala, o Painel mostrou CEs "Lançando" e a TV "Aguardando"; conferir a origem antes de redesenhar. |
+| 04 | Botões de importação ocupam quatro linhas em BLs a 360 px. |
+| 05 | 12 cards em BLs; quatro ações por linha; número do B/L cortado a 360 px; coluna Fatura cortada a 1440 px; lente Modalidade duplicada (**Código**); badges em excesso na ficha; `BlReviewContextPanel` sem uso. |
+| 07 | Título "Revisão Manual" diferente do menu; ações de vínculo pouco distinguíveis por grupo. |
+| 10 | Linhas de 120 a 130 px e "Comunicação financeira" em cinco linhas; formulário da fatura avulsa espremido. **Suspeita:** com CNPJ canônico, a lista de faturas mostra o CNPJ sem máscara. |
+| 12 | Acentos ausentes; paginação "1 de 1" e "0 de 0"; "Exportar Excel" ativo sem registros. |
+| 15 | Bloco Pix abaixo da dobra no detalhe; "DESCRICAO" sem acento. **Suspeita:** "Saldo pendente" em Faturas lê `customers.pending_balance`, enquanto o Painel do Portal soma as faturas e a ficha do Cliente usa saldo calculado; com o seed, os valores foram R$ 0,00 e R$ 3.315,00. Confirmar em dados reais de homologação antes de tratar como defeito (15/19). |
+| 19 | Painel do Portal: cards com o mesmo peso e programação vazia ocupando destaque; Line Up com cabeçalhos em inglês. |
+
+### Ambiente local para evidência (macOS)
+
+O `local-stack.ps1` é só para Windows, e `setup-local-pg.sh` cria o banco `vela_test` sem o seed de auditoria. Para reproduzir esta etapa sem tocar no Supabase real:
+
+1. Crie um cluster descartável com `initdb` e inicie-o com `pg_ctl`, usando `LC_ALL=C`, uma porta livre e um diretório de socket curto. O socket não aceita caminho maior que 103 bytes.
+2. No banco `app`, aplique `scripts/design-audit/bootstrap.sql` sem a linha `create extension ... pg_cron`. Aplique também os shims de `cron`, `vault`, `net` e `storage` do bloco SQL de `scripts/setup-local-pg.sh`. Isso evita gravar o stub do pg_cron no Postgres do Homebrew.
+3. Aplique as migrations em ordem, os grants e os seeds descritos em `scripts/design-audit/win/local-stack.ps1`. Normalize `customers.cnpj_cpf` para a forma canônica.
+4. Instale o `pg` fora do repositório (`NODE_PATH`) e inicie `sb-shim.cjs` com `PGPORT` apontando para o cluster. Use `.env` local com `VITE_SUPABASE_URL=http://127.0.0.1:5173/sb-proxy` e rode `npm run dev`. O login de auditoria está em `scripts/README.md`.
 
 ## Prompts por etapa
 
@@ -451,7 +717,7 @@ Preparação deste pacote: inventário estático e divisão de responsabilidades
 
 | Etapa | Estado | Base / revisão de entrega | Resumo, arquivos, decisões, checks e pendências |
 |---|---|---|---|
-| 00 | Não iniciada | — | — |
+| 00 | Concluída em 2026-10-07 | Base `ba7cd09d`; branch `claude/revisao-visual-ux-etapa-00`; só documentação | Direção A, "Carta náutica", escolhida e registrada em "Etapa 00 — direção visual e inventário confirmado"; complementos da matriz de propriedade; inventário de rotas, abas e modais; alvos por etapa. **Runtime** local com dados sintéticos: 47 rotas em 1440 e 360 px, 28 variações de aba, 768 px, tema escuro e 6 modais; nenhuma rolagem horizontal; `a11y:contrast` 22/22. Lacunas: login real do Portal (visto via inspeção), poucos dados sintéticos, zoom, leitor de tela e impressão. Arquivos: este plano, `docs/plans/README.md` e correção da contagem de rotas do Portal em `docs/ARCHITECTURE.md`. Telas não alteradas. Próxima: 01. |
 | 01 | Não iniciada | — | — |
 | 02 | Não iniciada | — | — |
 | 03 | Não iniciada | — | — |
