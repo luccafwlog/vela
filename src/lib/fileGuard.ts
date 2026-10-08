@@ -1,7 +1,7 @@
 // Limite padrão para uploads de planilhas (10 MB).
 // Acima disso o parser do XLSX consome memória rápido demais e pode
 // derrubar a aba do navegador — usado como salvaguarda contra DoS.
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 export function assertUploadSize(file: File, maxBytes: number = MAX_UPLOAD_BYTES) {
   if (file.size > maxBytes) {

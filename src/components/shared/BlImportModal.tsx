@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Upload } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -12,14 +12,23 @@ import {
   type BlFreightImportRow,
 } from '../../services/blFreightImport'
 import { afterManifestoImportado } from '../../services/cacheEffects'
-import { Badge, type BadgeTone } from '../ui/Badge'
+import { Badge, type SemanticBadgeTone } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Field, Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
-import { PreviewBox } from '../ui/PreviewBox'
+import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
 import { VoyageCombobox } from './VoyageCombobox'
 import { ImportReadProgress } from './ImportReadProgress'
+import { ImportContext, ImportFilePicker, ImportFootnote, ImportNotice } from './ImportParts'
+import { plural } from './importPresentation'
+
+/** O que a confirmação gravou e o que ficou de fora, mostrado no próprio modal. */
+type ConfirmOutcome = {
+  imported: number
+  blocked: number
+  refusedRelinks: string[]
+  calculationErrors: string[]
+}
 
 export function BlImportModal({
   open,
@@ -44,6 +53,9 @@ export function BlImportModal({
   const [overrideBilling, setOverrideBilling] = useState(false)
   const [confirmCustomerChange, setConfirmCustomerChange] = useState(false)
   const [selectedVoyageId, setSelectedVoyageId] = useState<number | null>(voyageId)
+  const [readError, setReadError] = useState<string | null>(null)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [outcome, setOutcome] = useState<ConfirmOutcome | null>(null)
 
   const importableCount = useMemo(
     () => preview?.rows.filter((row) => Boolean(row.payload)).length ?? 0,
@@ -64,6 +76,9 @@ export function BlImportModal({
     setOverrideBilling(false)
     setConfirmCustomerChange(false)
     setSelectedVoyageId(voyageId ?? null)
+    setReadError(null)
+    setConfirmError(null)
+    setOutcome(null)
     onClose()
   }
 
@@ -75,23 +90,27 @@ export function BlImportModal({
     setConfirmCustomerChange(false)
   }
 
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    const selectedFiles = Array.from(event.target.files ?? [])
+  async function handleFiles(selectedFiles: File[]) {
     setFiles(selectedFiles)
     setPreview(null)
     setOverrideBilling(false)
     setConfirmCustomerChange(false)
+    setReadError(null)
+    setConfirmError(null)
+    setOutcome(null)
     if (!selectedFiles.length) return
+    // O seletor fica desativado sem viagem; a guarda cobre o caminho por código.
     if (!selectedVoyageId) {
-      showToast('Selecione a viagem antes de carregar o preview do B/L.', 'error')
+      setReadError('Escolha a viagem de destino antes do arquivo: a prévia compara o arquivo com ela.')
       return
     }
 
+    const failures: string[] = []
     try {
       const documents = (await readFiles(selectedFiles, (error, file) => {
-        const message = error instanceof Error ? error.message : 'Falha ao ler arquivo.'
-        showToast(`${file.name}: ${message}`, 'error')
+        failures.push(`${file.name}: ${error instanceof Error ? error.message : 'Falha ao ler o arquivo.'}`)
       })) ?? []
+      if (failures.length) setReadError(failures.join(' | '))
 
       if (!documents.length) return
 
@@ -101,30 +120,17 @@ export function BlImportModal({
         onlyBlId,
       })
       setPreview(nextPreview)
-
-      if (nextPreview.summary.blockedCount > 0 && nextPreview.rows.every((row) => !row.payload)) {
-        showToast(`Importacao bloqueada: ${nextPreview.summary.blockedCount} B/L(s). Nada sera gravado.`, 'error')
-        return
-      }
-
-      showToast(
-        `Preview de B/L carregado: ${nextPreview.summary.total} B/L(s), ${nextPreview.summary.blockedCount} bloqueado(s).`,
-        nextPreview.summary.blockedCount ? 'info' : 'success',
-      )
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Falha ao preparar preview de B/L.'
-      showToast(message, 'error')
+      setReadError(error instanceof Error ? error.message : 'Falha ao preparar a prévia do B/L.')
     }
   }
 
   async function handleConfirm() {
     if (!preview || importableCount === 0) return
-    if (!selectedVoyageId) {
-      showToast('Selecione a viagem antes de confirmar a importação do B/L.', 'error')
-      return
-    }
+    if (!selectedVoyageId) return
 
     setSubmitting(true)
+    setConfirmError(null)
     try {
       const { refusedCustomerRelinks, calculationErrors } = await confirmBlFreightImport(
         preview,
@@ -134,35 +140,31 @@ export function BlImportModal({
         confirmCustomerChange,
       )
       await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
-      const warnings: string[] = []
-      if (refusedCustomerRelinks.length) {
-        // Importou, mas o B/L continua com o cliente antigo: dizer "concluida" aqui
-        // esconderia justamente o que o operador pediu para acontecer.
-        warnings.push(
-          `a troca de cliente foi recusada em ${refusedCustomerRelinks.length} B/L(s): ${refusedCustomerRelinks
-            .map((relink) => `${relink.blNumber} (${relink.blockers.join(' ')})`)
-            .join(' | ')}`,
-        )
+      const refused = refusedCustomerRelinks.map((relink) => `${relink.blNumber} (${relink.blockers.join(' ')})`)
+      const failedCalculations = calculationErrors.map((failure) => `${failure.blNumber} (${failure.message})`)
+      if (refused.length || failedCalculations.length) {
+        // Importou, mas algo pedido não aconteceu: o modal fica aberto com o
+        // resultado parcial. Dizer "concluída" e fechar esconderia justamente o
+        // que o operador precisa resolver.
+        const warnings: string[] = []
+        if (refused.length) warnings.push(`a troca de cliente foi recusada em ${refused.length} B/L(s): ${refused.join(' | ')}`)
+        if (failedCalculations.length) warnings.push(`${failedCalculations.length} B/L(s) ficaram sem cálculo automático: ${failedCalculations.join(' | ')}`)
+        showToast(`Importação gravada, mas ${warnings.join(' | ')}`, 'error')
+        setOutcome({
+          imported: importableCount,
+          blocked: preview.summary.blockedCount,
+          refusedRelinks: refused,
+          calculationErrors: failedCalculations,
+        })
+        return
       }
-      if (calculationErrors.length) {
-        warnings.push(
-          `${calculationErrors.length} B/L(s) ficaram sem cálculo automático: ${calculationErrors
-            .map((failure) => `${failure.blNumber} (${failure.message})`)
-            .join(' | ')}`,
-        )
-      }
-      if (warnings.length) {
-        showToast(`Importacao concluida, mas ${warnings.join(' | ')}`, 'error')
-      } else {
-        showToast(
-          `Importacao de B/L concluida: ${importableCount} B/L(s), ${preview.summary.blockedCount} bloqueado(s).`,
-          'success',
-        )
-      }
+      showToast(
+        `Importação de B/L concluída: ${importableCount} B/L(s), ${preview.summary.blockedCount} bloqueado(s).`,
+        'success',
+      )
       resetAndClose()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Falha ao confirmar importacao de B/L.'
-      showToast(message, 'error')
+      setConfirmError(error instanceof Error ? error.message : 'Falha ao confirmar a importação de B/L.')
       // A importacao vai em lotes: os que ja entraram precisam aparecer na tela.
       void afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
     } finally {
@@ -170,13 +172,20 @@ export function BlImportModal({
     }
   }
 
+  const blockedAll = Boolean(preview && importableCount === 0)
+  let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
+  if (outcome) footnote = 'Importação gravada com pendências; veja acima.'
+  else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (blockedAll) footnote = 'Nenhum B/L pode ser importado; veja os bloqueios na tabela.'
+  else if (preview) footnote = `${plural(importableCount, 'B/L será gravado', 'B/Ls serão gravados')}. Nada foi gravado ainda.`
+
   return (
-    <Modal open={open} onClose={resetAndClose} title="Importar B/L">
-      <div className="grid gap-5">
+    <Modal open={open} onClose={resetAndClose} title="Importar B/L de container">
+      <div className="app-import">
         {onlyBlId ? (
-          <div className="app-panel app-panel--padded text-sm">
-            B/L: <span className="font-semibold text-[var(--app-text-strong)]">{onlyBlId}</span>
-          </div>
+          <ImportContext label="B/L">
+            <span className="app-import-code">{onlyBlId}</span>
+          </ImportContext>
         ) : null}
 
         <VoyageCombobox
@@ -187,81 +196,144 @@ export function BlImportModal({
           onSelect={handleVoyageSelect}
         />
 
-        <Field label="Arquivo .xlsx / .xls">
-          <Input accept=".xlsx,.xls" multiple type="file" onChange={handleFile} />
-        </Field>
+        <ImportFilePicker
+          accept=".xlsx,.xls"
+          multiple
+          files={files}
+          onFiles={(next) => void handleFiles(next)}
+          disabled={!selectedVoyageId || submitting || Boolean(outcome)}
+          disabledReason={!selectedVoyageId ? 'Escolha a viagem de destino: a prévia compara o navio e a viagem do arquivo com ela.' : undefined}
+        />
 
         {parsing ? <ImportReadProgress progress={progress} /> : null}
 
+        {readError ? (
+          <ImportNotice tone="danger" role="alert" title="Não foi possível montar a prévia">
+            <p>{readError}</p>
+            <p>Confira o arquivo e escolha de novo. Nada foi gravado.</p>
+          </ImportNotice>
+        ) : null}
+
         {preview ? <BlImportPreview preview={preview} /> : null}
 
-        {customerChangeRows.length ? (
-          <div className="app-panel app-panel--padded grid gap-3 text-sm">
-            <div className="font-semibold text-amber-200">
-              Troca de consignatario em {customerChangeRows.length} B/L(s)
-            </div>
+        {customerChangeRows.length && !outcome ? (
+          <section className="app-import-section" aria-label="Troca de consignatário">
+            <h3 className="app-import-section__title">
+              Troca de consignatário em {plural(customerChangeRows.length, 'B/L', 'B/Ls')}
+            </h3>
             {customerChangeRows.map((row) => (
               <CustomerChangeCard key={row.blNumber} blNumber={row.blNumber} change={row.customerChange!} />
             ))}
             {customerChangeCount > 0 ? (
-              <label className="flex items-start gap-2 text-amber-200">
+              <label className="app-import-override">
                 <input
                   type="checkbox"
-                  className="mt-1"
                   checked={confirmCustomerChange}
                   onChange={(event) => setConfirmCustomerChange(event.target.checked)}
                 />
                 <span>
-                  Confirmo a troca de cliente em {customerChangeCount} B/L(s): o B/L passa a pertencer ao novo
-                  consignatario. Taxas locais são reemitidas; com recebimento, devolver ao Cliente original antes da nova cobrança. Sem marcar, os demais campos sao
-                  aplicados e o vinculo de cliente fica como esta.
+                  <span className="app-import-override__title">
+                    Confirmo a troca de cliente em {plural(customerChangeCount, 'B/L', 'B/Ls')}
+                  </span>
+                  <span className="app-import-override__hint">
+                    O B/L passa a pertencer ao novo consignatário e as taxas locais são reemitidas; com recebimento,
+                    devolva ao Cliente original antes da nova cobrança. Sem marcar, os demais campos são aplicados e o
+                    vínculo de cliente fica como está.
+                  </span>
                 </span>
               </label>
             ) : null}
-          </div>
+          </section>
+        ) : null}
+
+        {confirmError ? (
+          <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
+            <p>{confirmError}</p>
+            <p>Os lotes que já entraram aparecem na lista. Confira e confirme de novo para o restante.</p>
+          </ImportNotice>
+        ) : null}
+
+        {outcome ? (
+          <ImportNotice tone="warning" role="status" title={`${plural(outcome.imported, 'B/L gravado', 'B/Ls gravados')}, com pendências`}>
+            {outcome.refusedRelinks.length ? (
+              <>
+                <p>A troca de cliente foi recusada; o B/L continua com o cliente anterior:</p>
+                <ul className="app-import-notice__list">
+                  {outcome.refusedRelinks.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </>
+            ) : null}
+            {outcome.calculationErrors.length ? (
+              <>
+                <p>Ficaram sem cálculo automático de taxas locais; recalcule na ficha do B/L:</p>
+                <ul className="app-import-notice__list">
+                  {outcome.calculationErrors.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </>
+            ) : null}
+          </ImportNotice>
         ) : null}
 
         <div className="app-modal__actions">
           {/* No rodape fixo: a decisao fica a vista de quem confirma a importacao. */}
-          {billingOverrideCount > 0 ? (
-            <label className="flex basis-full items-start gap-2 text-sm text-amber-200">
+          {billingOverrideCount > 0 && !outcome ? (
+            <label className="app-import-override basis-full">
               <input
                 type="checkbox"
-                className="mt-1"
                 checked={overrideBilling}
                 onChange={(event) => setOverrideBilling(event.target.checked)}
               />
               <span>
-                Sobrescrever faturamento em {billingOverrideCount} B/L(s) com impacto (quantidade de containers,
-                container compartilhado, IMO/OOG, peso de carga solta ou CNPJ faturado). Sem marcar, os demais campos
-                sao aplicados e as mudancas com impacto em faturamento sao ignoradas.
+                <span className="app-import-override__title">
+                  Sobrescrever faturamento em {plural(billingOverrideCount, 'B/L', 'B/Ls')} com impacto
+                </span>
+                <span className="app-import-override__hint">
+                  Quantidade de containers, container compartilhado, IMO/OOG, peso de carga solta ou CNPJ faturado. Sem
+                  marcar, os demais campos são aplicados e as mudanças com impacto em faturamento são ignoradas.
+                </span>
               </span>
             </label>
           ) : null}
-          <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : resetAndClose}>
-            {parsing ? 'Interromper leitura' : 'Voltar'}
-          </Button>
-          <Button disabled={!selectedVoyageId || importableCount === 0} loading={submitting || parsing} onClick={() => void handleConfirm()}>
-            <Upload size={16} />
-            Confirmar importacao
-          </Button>
+          <ImportFootnote tone={outcome ? 'warning' : blockedAll ? 'warning' : 'default'}>{footnote}</ImportFootnote>
+          {outcome ? (
+            <Button onClick={resetAndClose}>Concluir</Button>
+          ) : (
+            <>
+              <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : resetAndClose}>
+                {parsing ? 'Interromper leitura' : 'Voltar'}
+              </Button>
+              <Button
+                disabled={!selectedVoyageId || importableCount === 0 || parsing}
+                loading={submitting}
+                loadingLabel="Importando…"
+                onClick={() => void handleConfirm()}
+              >
+                <Upload size={16} aria-hidden="true" />
+                {importableCount > 0 ? `Importar ${plural(importableCount, 'B/L', 'B/Ls')}` : 'Importar B/Ls'}
+              </Button>
+            </>
+          )}
         </div>
-        {!selectedVoyageId ? (
-          <div className="text-sm text-amber-700">Selecione uma viagem para habilitar a importacao.</div>
-        ) : null}
       </div>
     </Modal>
   )
 }
 
 function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
+  const { newCount, updatedCount, unchangedCount, blockedCount } = preview.summary
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-3 md:grid-cols-4">
-        <PreviewBox label="Novos" value={preview.summary.newCount} />
-        <PreviewBox label="Atualizados" value={preview.summary.updatedCount} />
-        <PreviewBox label="Sem mudanca" value={preview.summary.unchangedCount} />
-        <PreviewBox label="Bloqueados" value={preview.summary.blockedCount} />
+    <section className="app-import-section" aria-label="Prévia da importação">
+      <div className="app-import-section__head">
+        <h3 className="app-import-section__title">Prévia</h3>
+        <SummaryStrip
+          label="O que a importação faz"
+          items={[
+            { label: newCount === 1 ? 'novo' : 'novos', value: newCount },
+            { label: updatedCount === 1 ? 'atualizado' : 'atualizados', value: updatedCount },
+            { label: 'sem mudança', value: unchangedCount },
+            { label: blockedCount === 1 ? 'bloqueado' : 'bloqueados', value: blockedCount, tone: blockedCount ? 'danger' : 'default' },
+          ]}
+        />
       </div>
 
       {/* Plain app-table-scroll (horizontal only): the modal body is already the
@@ -271,44 +343,44 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
           independent scrollbar inside that one, and its sticky header/footer
           fight the outer sticky actions bar, breaking scrolling and clipping
           rows behind the buttons. */}
-      <div className="app-table-scroll rounded-xl border border-[var(--app-border)]">
-        <table className="app-table app-table--compact min-w-[960px] text-left text-sm">
+      <div className="app-table-scroll rounded-[var(--app-radius)] border border-[var(--app-border)]">
+        <table className="app-table app-table--compact min-w-[880px] text-left">
           <thead>
             <tr>
-              <th scope="col" className="px-3 py-2">B/L</th>
-              <th scope="col" className="px-3 py-2">Status</th>
-              <th scope="col" className="px-3 py-2">Viagem</th>
-              <th scope="col" className="px-3 py-2">POL / POD</th>
-              <th scope="col" className="px-3 py-2">Laden on Board</th>
-              <th scope="col" className="px-3 py-2">Diferencas</th>
-              <th scope="col" className="px-3 py-2">Bloqueios / Faturamento</th>
+              <th scope="col">B/L</th>
+              <th scope="col">Situação</th>
+              <th scope="col">Viagem</th>
+              <th scope="col">POL → POD</th>
+              <th scope="col">Laden on Board</th>
+              <th scope="col">Diferenças</th>
+              <th scope="col">Bloqueios e faturamento</th>
             </tr>
           </thead>
           <tbody>
             {preview.rows.map((row) => (
               <tr key={row.blNumber}>
-                <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{row.blNumber}</td>
-                <td className="px-3 py-2">
+                <td className="app-import-code font-semibold text-[var(--app-text-strong)]">{row.blNumber}</td>
+                <td>
                   <StatusPill status={row.status} />
                 </td>
-                <td className="px-3 py-2">{row.voyageNumber ?? '-'}</td>
-                <td className="px-3 py-2">{row.pol || row.pod ? `${row.pol ?? '-'} / ${row.pod ?? '-'}` : '-'}</td>
-                <td className="px-3 py-2">{row.ladenOnBoard ?? '-'}</td>
-                <td className="px-3 py-2">
+                <td>{row.voyageNumber ?? '—'}</td>
+                <td>{row.pol || row.pod ? `${row.pol ?? '—'} → ${row.pod ?? '—'}` : '—'}</td>
+                <td className="tabular-nums">{row.ladenOnBoard ?? '—'}</td>
+                <td>
                   <DiffList row={row} />
                 </td>
-                <td className="px-3 py-2">
+                <td>
                   {row.blockedReasons.length || row.billingImpacts.length ? (
-                    <ul className="grid gap-1 text-xs">
+                    <ul className="grid gap-1">
                       {row.blockedReasons.map((reason) => (
-                        <li key={reason} className="text-red-300">{reason}</li>
+                        <li key={reason} className="app-import-tone--danger">{reason}</li>
                       ))}
                       {row.billingImpacts.map((reason) => (
-                        <li key={reason} className="text-amber-300">Faturamento: {reason}</li>
+                        <li key={reason} className="app-import-tone--warning">Faturamento: {reason}</li>
                       ))}
                     </ul>
                   ) : (
-                    <span className="text-xs text-[var(--app-muted-soft)]">-</span>
+                    <span className="app-import-tone--muted">—</span>
                   )}
                 </td>
               </tr>
@@ -316,7 +388,7 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -326,40 +398,37 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
  */
 function CustomerChangeCard({ blNumber, change }: { blNumber: string; change: BlCustomerChange }) {
   return (
-    <div className="rounded-lg border border-[var(--app-border)] px-3 py-2">
-      <div className="font-semibold text-[var(--app-text-strong)]">{blNumber}</div>
-      <ul className="mt-1 grid gap-1 text-xs">
+    <ImportNotice tone={change.blockedReasons.length ? 'danger' : 'warning'} title={<span className="app-import-code">{blNumber}</span>}>
+      <ul className="app-import-notice__list">
         {change.messages.map((message) => (
-          <li key={message} className="text-amber-200">{message}</li>
+          <li key={message}>{message}</li>
         ))}
         {change.blockedReasons.map((reason) => (
-          <li key={reason} className="text-red-300">Impedimento: {reason}</li>
+          <li key={reason}>Impedimento: {reason}</li>
         ))}
       </ul>
       {change.blockedReasons.length ? (
-        <div className="mt-1 text-xs text-red-300">
-          O cliente deste B/L nao sera trocado; os demais campos seguem sendo aplicados.
-        </div>
+        <p>O cliente deste B/L não será trocado; os demais campos seguem sendo aplicados.</p>
       ) : null}
-    </div>
+    </ImportNotice>
   )
 }
 
 function DiffList({ row }: { row: BlFreightImportRow }) {
   if (!row.diffs.length) {
-    return <span className="text-xs text-[var(--app-muted-soft)]">-</span>
+    return <span className="app-import-tone--muted">—</span>
   }
 
   return (
-    <div className="grid gap-1">
+    <ul className="grid gap-1">
       {row.diffs.map((diff) => (
-        <div key={`${row.blNumber}-${diff.field}`} className={diff.billingImpact ? 'text-amber-300' : undefined}>
+        <li key={`${row.blNumber}-${diff.field}`} className={diff.billingImpact ? 'app-import-tone--warning' : undefined}>
           <span className="font-semibold">{diff.label}</span>:{' '}
-          <span>{formatDiffValue(diff.from)}</span> {'->'} <span>{formatDiffValue(diff.to)}</span>
-          {diff.billingImpact ? <span className="ml-1 text-xs">(faturamento)</span> : null}
-        </div>
+          <span className="app-import-diff__old">{formatDiffValue(diff.from)}</span>{' → '}<span>{formatDiffValue(diff.to)}</span>
+          {diff.billingImpact ? <span> (faturamento)</span> : null}
+        </li>
       ))}
-    </div>
+    </ul>
   )
 }
 
@@ -367,24 +436,22 @@ function StatusPill({ status }: { status: BlFreightImportRow['status'] }) {
   const labels: Record<BlFreightImportRow['status'], string> = {
     new: 'Novo',
     updated: 'Atualizado',
-    unchanged: 'Sem mudanca',
+    unchanged: 'Sem mudança',
     blocked: 'Bloqueado',
   }
-  // Badge (app-badge--*) instead of ad-hoc Tailwind colors: those hardcoded
-  // light-text-on-light-tint classes were unreadable outside dark theme.
-
-  const tone: BadgeTone = status === 'blocked'
-    ? 'yellow'
+  // Bloqueado é perigo (não entra), não atenção.
+  const tone: SemanticBadgeTone = status === 'blocked'
+    ? 'danger'
     : status === 'new'
-      ? 'green'
+      ? 'success'
       : status === 'updated'
-        ? 'blue'
-        : 'slate'
+        ? 'info'
+        : 'neutral'
 
   return <Badge tone={tone}>{labels[status]}</Badge>
 }
 
 function formatDiffValue(value: string | number | null) {
-  if (value === null || value === '') return '-'
+  if (value === null || value === '') return '—'
   return String(value)
 }

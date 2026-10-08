@@ -202,7 +202,7 @@ it('bloqueia confirmacao quando todos os B/Ls estao bloqueados', async () => {
 
   await screen.findByText('Viagem nao encontrada para criar o B/L.')
 
-  expect((screen.getByRole('button', { name: /Confirmar importacao/ }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(true)
 })
 
 it('mantem confirmacao e preview travados enquanto nenhuma viagem foi escolhida', async () => {
@@ -210,14 +210,17 @@ it('mantem confirmacao e preview travados enquanto nenhuma viagem foi escolhida'
 
   const { container } = renderModal()
 
-  expect((screen.getByRole('button', { name: /Confirmar importacao/ }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(true)
 
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
     target: { files: [new File(['x'], 'bl.xlsx')] },
   })
 
   await waitFor(() => expect(mocks.previewBlFreightImport).not.toHaveBeenCalled())
-  expect(mocks.showToast).toHaveBeenCalledWith('Selecione a viagem antes de carregar o preview do B/L.', 'error')
+  // Sem viagem o seletor fica desativado e diz por quê, em vez de aceitar o
+  // arquivo e reclamar depois num toast.
+  expect((container.querySelector('input[type="file"]') as HTMLInputElement).disabled).toBe(true)
+  expect(screen.getByText(/Escolha a viagem de destino: a prévia compara/)).toBeTruthy()
 })
 
 it('usa o voyageId escolhido pelo operador ao preparar o preview', async () => {
@@ -246,7 +249,7 @@ it('confirma importacao, usa o efeito central de manifesto e fecha modal', async
     target: { files: [new File(['x'], 'bl.xlsx')] },
   })
 
-  const confirm = await screen.findByRole('button', { name: /Confirmar importacao/ })
+  const confirm = await screen.findByRole('button', { name: /^Importar/ })
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
@@ -254,7 +257,7 @@ it('confirma importacao, usa o efeito central de manifesto e fecha modal', async
 
   expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
   expect(mocks.invalidateQueries).not.toHaveBeenCalled()
-  expect(mocks.showToast).toHaveBeenCalledWith('Importacao de B/L concluida: 2 B/L(s), 0 bloqueado(s).', 'success')
+  expect(mocks.showToast).toHaveBeenCalledWith('Importação de B/L concluída: 2 B/L(s), 0 bloqueado(s).', 'success')
   expect(onClose).toHaveBeenCalled()
 })
 
@@ -268,14 +271,14 @@ it('confia na transação do servidor para persistir ATD junto com o import', as
     target: { files: [new File(['x'], 'bl.xlsx')] },
   })
 
-  const confirm = await screen.findByRole('button', { name: /Confirmar importacao/ })
+  const confirm = await screen.findByRole('button', { name: /^Importar/ })
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
   await waitFor(() => expect(onClose).toHaveBeenCalled())
   expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('ATD do POL não pôde ser atualizado'), 'info')
   expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
-  expect(mocks.showToast).toHaveBeenCalledWith('Importacao de B/L concluida: 2 B/L(s), 0 bloqueado(s).', 'success')
+  expect(mocks.showToast).toHaveBeenCalledWith('Importação de B/L concluída: 2 B/L(s), 0 bloqueado(s).', 'success')
 })
 
 it('exibe impacto de faturamento e envia override quando o operador marca', async () => {
@@ -312,7 +315,7 @@ it('exibe impacto de faturamento e envia override quando o operador marca', asyn
   expect(screen.queryByText(/arquivo\(s\) selecionado\(s\)/)).toBeNull()
   fireEvent.click(checkbox)
 
-  const confirm = await screen.findByRole('button', { name: /Confirmar importacao/ })
+  const confirm = await screen.findByRole('button', { name: /^Importar/ })
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
@@ -368,7 +371,7 @@ it('alerta a troca de consignatario e so envia o revinculo quando o operador ace
   const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement
   fireEvent.click(checkbox)
 
-  const confirm = await screen.findByRole('button', { name: /Confirmar importacao/ })
+  const confirm = await screen.findByRole('button', { name: /^Importar/ })
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
@@ -392,7 +395,7 @@ it('nao diz "concluida" quando o servidor recusa a troca de cliente', async () =
   await screen.findByText('Cliente do B/L: IMPORTADOR LTDA -> NOVO IMPORTADOR LTDA')
   fireEvent.click(container.querySelector('input[type="checkbox"]') as HTMLInputElement)
 
-  const confirm = await screen.findByRole('button', { name: /Confirmar importacao/ })
+  const confirm = await screen.findByRole('button', { name: /^Importar/ })
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
@@ -402,7 +405,11 @@ it('nao diz "concluida" quando o servidor recusa a troca de cliente', async () =
       'error',
     ),
   )
-  expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Importacao de B/L concluida'), 'success')
+  expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Importação de B/L concluída'), 'success')
+  // O resultado parcial fica no modal: o operador vê qual B/L manteve o cliente antigo.
+  expect(screen.getByText(/A troca de cliente foi recusada; o B\/L continua com o cliente anterior/)).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Concluir' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /^Importar/ })).toBeNull()
 })
 
 it('informa B/Ls cujo calculo automatico falhou sem esconder a importacao', async () => {
@@ -423,7 +430,7 @@ it('informa B/Ls cujo calculo automatico falhou sem esconder a importacao', asyn
     target: { files: [new File(['x'], 'bl.xlsx')] },
   })
   await screen.findByText('COSU777')
-  const confirm = await screen.findByRole('button', { name: /Confirmar importacao/ })
+  const confirm = await screen.findByRole('button', { name: /^Importar/ })
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
@@ -433,7 +440,7 @@ it('informa B/Ls cujo calculo automatico falhou sem esconder a importacao', asyn
       'error',
     ),
   )
-  expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Importacao de B/L concluida'), 'success')
+  expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Importação de B/L concluída'), 'success')
 })
 
 it('mostra o impedimento quando a fatura nao pode acompanhar a troca de cliente', async () => {

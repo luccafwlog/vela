@@ -1,93 +1,128 @@
-import type { ChangeEvent } from 'react'
-import { Download } from 'lucide-react'
 import { TruncationNote } from '../shared/TruncationNote'
+import { ImportIssuesPanel } from '../shared/ImportIssuesPanel'
+import { ImportReadProgress } from '../shared/ImportReadProgress'
+import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from '../shared/ImportParts'
+import { plural } from '../shared/importPresentation'
 import { Button } from '../ui/Button'
-import { Field, Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
-import { PreviewBox } from '../ui/PreviewBox'
+import { SummaryStrip } from '../ui/SummaryStrip'
 import { formatCnpjCpf } from '../../lib/utils'
+import { rowErrorsToImportIssues } from '../../services/importValidation'
 import type { ParsedCustomerBase } from '../../services/customerBase'
+
+const SAMPLE_SIZE = 15
+
+export type CustomerBaseImportOutcome = {
+  imported: number
+  updated: number
+  contactsCreated: number
+  blsLinked: number
+  errors: Array<{ cnpj_cpf: string; message: string }>
+}
 
 export function ImportBaseModal({
   open,
-  baseFileName,
+  baseFile,
   parsedBase,
   parsingBase,
   importingBase,
+  readError,
+  outcome,
   onClose,
-  onFileChange,
+  onFileSelect,
   onImport,
 }: {
   open: boolean
-  baseFileName: string
+  baseFile: File | null
   parsedBase: ParsedCustomerBase | null
   parsingBase: boolean
   importingBase: boolean
+  /** Falha de leitura, mostrada junto do arquivo. */
+  readError?: string | null
+  /** Resultado com pendências: o modal fica aberto para mostrar o que faltou. */
+  outcome?: CustomerBaseImportOutcome | null
   onClose: () => void
-  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void
+  onFileSelect: (file: File | null) => void
   onImport: () => void
 }) {
+  const validRows = parsedBase?.rows.length ?? 0
+  let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
+  if (outcome) footnote = 'Base gravada em parte. Os clientes pendentes estão acima.'
+  else if (parsingBase) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (parsedBase && validRows === 0) footnote = 'Nenhuma linha válida para importar.'
+  else if (parsedBase) footnote = `${plural(validRows, 'cliente será gravado', 'clientes serão gravados')}. Nada foi gravado ainda.`
+
   return (
     <Modal open={open} onClose={onClose} title="Importar Base de Clientes">
-      <div className="grid gap-5">
-        <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4 text-sm text-[var(--app-muted)]">
-          <div className="font-semibold text-white">Modelo padrao da base</div>
-          <div className="mt-2">
-            As colunas obrigatorias do arquivo sao <span className="font-semibold text-white">CNPJ</span> e{' '}
-            <span className="font-semibold text-white">Razao Social</span>. As colunas opcionais sao Nome Fantasia,
-            Endereco, Cidade, UF, CEP e Email.
-          </div>
-          <div className="mt-2 text-slate-400">
-            Se o mesmo CNPJ aparecer em mais de uma linha com e-mails distintos, todos os e-mails serao criados
-            como contatos do cliente.
-          </div>
-          <div className="mt-2 text-amber-200">
-            CNPJs já cadastrados serão atualizados. O preview identifica cada atualização e os campos que mudarão.
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <a
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#21262d] px-4 text-sm font-semibold text-slate-100 transition hover:bg-[#30363d]"
-              href="/templates/base-clientes-modelo.xlsx"
-              download="base-clientes-modelo.xlsx"
-            >
-              <Download size={16} />
-              Baixar modelo .xlsx
-            </a>
-            <a
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#21262d] px-4 text-sm font-semibold text-slate-100 transition hover:bg-[#30363d]"
-              href="/templates/base-clientes-modelo.csv"
-              download="base-clientes-modelo.csv"
-            >
-              <Download size={16} />
-              Baixar modelo .csv
-            </a>
-          </div>
-        </div>
+      <div className="app-import">
+        <ImportGuide
+          required={<><strong>CNPJ</strong> e <strong>Razão Social</strong>.</>}
+          optional="Nome Fantasia, Endereço, Cidade, UF, CEP e Email."
+          details={
+            <>
+              <p>CNPJ já cadastrado é atualizado; a prévia mostra o que muda em cada um.</p>
+              <p>O mesmo CNPJ em várias linhas com e-mails diferentes cria todos os e-mails como contatos do Cliente.</p>
+              <p>Quando um manifesto trouxer o mesmo CNPJ, o B/L passa a usar o Cliente desta base como cadastro oficial.</p>
+            </>
+          }
+          templates={<ImportTemplateLinks baseName="base-clientes-modelo" />}
+        />
 
-        <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4 text-sm text-[var(--app-muted)]">
-          Quando um manifesto trouxer o mesmo CNPJ, o B/L passa a usar o cliente desta base como cadastro
-          oficial.
-        </div>
+        <ImportFilePicker
+          accept=".xlsx,.xls,.csv"
+          files={baseFile ? [baseFile] : []}
+          onFiles={(files) => onFileSelect(files[0] ?? null)}
+          disabled={importingBase || Boolean(outcome)}
+        />
 
-        <Field label="Arquivo .xlsx, .xls ou .csv">
-          <Input accept=".xlsx,.xls,.csv" type="file" onChange={onFileChange} />
-        </Field>
+        {parsingBase ? (
+          <ImportReadProgress progress={{ completed: 0, total: 1, currentFile: baseFile?.name ?? null }} />
+        ) : null}
 
-        {baseFileName ? <div className="text-sm text-slate-400">Arquivo selecionado: {baseFileName}</div> : null}
-        {parsingBase ? <div className="text-sm text-slate-400">Lendo base com SheetJS...</div> : null}
+        {readError ? (
+          <ImportNotice tone="danger" role="alert" title="Não foi possível ler a base">
+            <p>{readError}</p>
+            <p>Confira o layout pelo modelo e escolha o arquivo de novo.</p>
+          </ImportNotice>
+        ) : null}
 
-        {parsedBase ? <ImportBasePreview parsedBase={parsedBase} /> : null}
+        {outcome ? <ImportBaseOutcome outcome={outcome} /> : parsedBase ? <ImportBasePreview parsedBase={parsedBase} /> : null}
 
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose}>
-            Voltar
-          </Button>
-          <Button disabled={!parsedBase?.rows.length} loading={importingBase} onClick={onImport}>
-            Importar base
-          </Button>
+        <div className="app-modal__actions">
+          <ImportFootnote tone={outcome || (parsedBase && validRows === 0) ? 'warning' : 'default'}>{footnote}</ImportFootnote>
+          {outcome ? (
+            <Button onClick={onClose}>Concluir</Button>
+          ) : (
+            <>
+              <Button variant="secondary" disabled={importingBase} onClick={onClose}>
+                Voltar
+              </Button>
+              <Button disabled={!validRows || parsingBase} loading={importingBase} loadingLabel="Importando…" onClick={onImport}>
+                Importar base
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </Modal>
+  )
+}
+
+function ImportBaseOutcome({ outcome }: { outcome: CustomerBaseImportOutcome }) {
+  return (
+    <ImportNotice tone="warning" role="status" title={`${plural(outcome.errors.length, 'cliente ficou pendente', 'clientes ficaram pendentes')} para correção`}>
+      <p>
+        Gravados: {plural(outcome.imported, 'novo', 'novos')}, {plural(outcome.updated, 'atualizado', 'atualizados')},{' '}
+        {plural(outcome.contactsCreated, 'contato', 'contatos')}
+        {outcome.blsLinked ? ` e ${plural(outcome.blsLinked, 'B/L vinculado', 'B/Ls vinculados')}` : ''}.
+      </p>
+      <ul className="app-import-notice__list">
+        {outcome.errors.map((error) => (
+          <li key={error.cnpj_cpf}><strong>{formatCnpjCpf(error.cnpj_cpf)}:</strong> {error.message}</li>
+        ))}
+      </ul>
+      <p>Corrija esses clientes na planilha e importe de novo; os já gravados não se duplicam.</p>
+    </ImportNotice>
   )
 }
 
@@ -95,66 +130,71 @@ function ImportBasePreview({ parsedBase }: { parsedBase: ParsedCustomerBase }) {
   const updates = parsedBase.rows.filter((row) => row.existingCustomerId && (row.changedFields?.length ?? 0) > 0).length
   const unchanged = parsedBase.rows.filter((row) => row.existingCustomerId && !(row.changedFields?.length ?? 0)).length
   const creates = parsedBase.rows.length - updates - unchanged
+  const emails = parsedBase.rows.reduce((sum, row) => sum + row.emails.length, 0)
+  const ignored = parsedBase.rowErrors.length
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-3 md:grid-cols-3">
-        <PreviewBox variant="surface" label="Clientes validos" value={parsedBase.rows.length} />
-        <PreviewBox variant="surface" label="Linhas ignoradas" value={parsedBase.rowErrors.length} />
-        <PreviewBox label="Emails detectados" value={parsedBase.rows.reduce((sum, row) => sum + row.emails.length, 0)} />
-      </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <PreviewBox variant="surface" label="Criar" value={creates} />
-        <PreviewBox variant="surface" label="Atualizar cadastro" value={updates} />
-        <PreviewBox variant="surface" label="Sem alteração cadastral" value={unchanged} />
-      </div>
-
-      {parsedBase.rowErrors.length ? (
-        <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
-          {parsedBase.rowErrors.length} linha(s) não puderam ser aproveitadas. As primeiras divergências estão listadas abaixo.
-        </div>
-      ) : null}
-
-      <div className="app-table-scroll max-h-72 rounded-xl border border-[var(--app-border)]">
-        <table className="app-table app-table--compact min-w-[760px] text-left text-sm">
-          <thead className="text-xs uppercase tracking-wider">
+    <ImportSection
+      title="Prévia"
+      aside={
+        <SummaryStrip
+          label="O que a importação faz"
+          items={[
+            { label: creates === 1 ? 'novo' : 'novos', value: creates },
+            { label: updates === 1 ? 'atualizado' : 'atualizados', value: updates },
+            { label: 'sem alteração', value: unchanged },
+            { label: emails === 1 ? 'e-mail' : 'e-mails', value: emails },
+            { label: ignored === 1 ? 'linha ignorada' : 'linhas ignoradas', value: ignored, tone: ignored ? 'warning' : 'default' },
+          ]}
+        />
+      }
+    >
+      <div className="app-table-scroll app-import-table">
+        <table className="app-table app-table--compact min-w-[860px] text-left">
+          <caption className="sr-only">Prévia dos clientes lidos</caption>
+          <thead>
             <tr>
-              <th scope="col" className="px-3 py-2">CNPJ</th>
-              <th scope="col" className="px-3 py-2">Ação</th>
-              <th scope="col" className="px-3 py-2">Nome</th>
-              <th scope="col" className="px-3 py-2">Emails</th>
-              <th scope="col" className="px-3 py-2">Cidade/UF</th>
-              <th scope="col" className="px-3 py-2">Endereco</th>
+              <th scope="col">CNPJ</th>
+              <th scope="col">Nome</th>
+              <th scope="col">O que acontece</th>
+              <th scope="col">E-mails</th>
+              <th scope="col">Cidade/UF</th>
+              <th scope="col">Endereço</th>
             </tr>
           </thead>
           <tbody>
-            {parsedBase.rows.slice(0, 15).map((row) => (
+            {parsedBase.rows.slice(0, SAMPLE_SIZE).map((row) => (
               <tr key={row.cnpj_cpf}>
-                <td className="px-3 py-2">{formatCnpjCpf(row.cnpj_cpf)}</td>
-                <td className="px-3 py-2">{row.existingCustomerId ? `Atualizar${row.changedFields?.length ? `: ${row.changedFields.join(', ')}` : ' (sem alteração cadastral)'}` : 'Criar'}</td>
-                <td className="px-3 py-2 font-semibold text-white">{row.name}</td>
-                <td className="px-3 py-2">
+                <td className="tabular-nums whitespace-nowrap">{formatCnpjCpf(row.cnpj_cpf)}</td>
+                <td className="font-semibold text-[var(--app-text-strong)]">{row.name}</td>
+                <td>
+                  {row.existingCustomerId
+                    ? row.changedFields?.length
+                      ? <>Atualiza: <span className="app-import-tone--warning">{row.changedFields.join(', ')}</span></>
+                      : <span className="app-import-tone--muted">Já cadastrado, sem alteração</span>
+                    : 'Cria'}
+                </td>
+                <td>
                   <span className="app-table__truncate app-table__truncate--xl" title={row.emails.join('; ')}>
-                    {row.emails.length ? row.emails.join('; ') : '-'}
+                    {row.emails.length ? row.emails.join('; ') : '—'}
                   </span>
                 </td>
-                <td className="px-3 py-2">{row.city ?? '-'} / {row.state ?? '-'}</td>
-                <td className="px-3 py-2">{row.address ?? '-'}</td>
+                <td>{row.city || row.state ? `${row.city ?? '—'}/${row.state ?? '—'}` : '—'}</td>
+                <td>
+                  <span className="app-table__truncate app-table__truncate--xl" title={row.address ?? undefined}>{row.address ?? '—'}</span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <TruncationNote shown={15} total={parsedBase.rows.length} noun="cliente" nounPlural="clientes" />
+      <TruncationNote shown={SAMPLE_SIZE} total={parsedBase.rows.length} noun="cliente" nounPlural="clientes" />
 
-      {parsedBase.rowErrors.length ? (
-        <div className="grid gap-2 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4 text-sm text-[var(--app-muted)]">
-          {parsedBase.rowErrors.slice(0, 8).map((rowError) => (
-            <div key={`${rowError.row}-${rowError.message}`}>
-              Linha {rowError.row}: {rowError.message}
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
+      <ImportIssuesPanel
+        issues={rowErrorsToImportIssues(parsedBase.rowErrors)}
+        filename="base-clientes-linhas-ignoradas.csv"
+        title={`${plural(ignored, 'linha fica', 'linhas ficam')} de fora`}
+        hint="As demais linhas podem ser importadas. Para incluir estas, corrija a planilha e escolha o arquivo de novo."
+      />
+    </ImportSection>
   )
 }

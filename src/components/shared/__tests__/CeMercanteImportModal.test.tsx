@@ -41,7 +41,7 @@ it('exclui do preview o BL de outra viagem e mostra erro bloqueante', async () =
 
   await waitFor(() => expect(mocks.partition).toHaveBeenCalledWith([row], 7))
   expect(screen.getByText('Linha 2: B/L BL-OUTRA pertence a outra viagem')).toBeTruthy()
-  expect((screen.getByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(true)
 })
 
 it('invalida caches e avisa que nada foi gravado no EDI de Granito com pendência', async () => {
@@ -66,9 +66,9 @@ it('invalida caches e avisa que nada foi gravado no EDI de Granito com pendênci
   // cairia no botao desabilitado antes de parseEdi resolver, e o import nunca
   // rodaria. Esperar por `disabled === false` amarra o clique ao preview pronto.
   await waitFor(() =>
-    expect((screen.getByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement).disabled).toBe(false),
+    expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false),
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Confirmar importação' }))
+  fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
   await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalled())
   expect(mocks.showToast).toHaveBeenCalledWith('Nada foi gravado: 1 pendência(s). Corrija o arquivo e envie de novo.', 'error')
 })
@@ -91,7 +91,7 @@ it('oferece campo de Nº de Manifesto Mercante e nao exibe rotulo equivocado "Ma
   })
 
   await waitFor(() =>
-    expect((screen.getByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement).disabled).toBe(false),
+    expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false),
   )
 
   // NÃO deve exibir o rótulo equivocado "Manifesto detectado:"
@@ -117,9 +117,9 @@ it('envia o Nº de Manifesto Mercante junto com a importação de planilha', asy
   })
 
   await waitFor(() =>
-    expect((screen.getByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement).disabled).toBe(false),
+    expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false),
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Confirmar importação' }))
+  fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
 
   await waitFor(() => expect(mocks.importRows).toHaveBeenCalledWith([row], expect.objectContaining({
     manifestoNumero: '26BR000001',
@@ -137,7 +137,7 @@ it('bloqueia a planilha quando a prévia tem qualquer erro, mesmo com linhas vá
   })
 
   await waitFor(() => expect(mocks.parse).toHaveBeenCalled())
-  const confirm = await screen.findByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement
+  const confirm = await screen.findByRole('button', { name: /^Importar/ }) as HTMLButtonElement
   await waitFor(() => expect(confirm.disabled).toBe(true))
   fireEvent.click(confirm)
   expect(mocks.importRows).not.toHaveBeenCalled()

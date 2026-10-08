@@ -1,7 +1,7 @@
 # Revisão visual e UX do Vela e Portal — pacote de prompts
 
 Data: 2026-10-07. Base inspecionada: `main`, commit `0160605a`, checkout inicialmente sem diff.
-Estado: etapas 00, 01 e 02 concluídas em 2026-10-07 e 03 em 2026-10-08 (direção visual, inventário, tokens, primitivas, shells, acesso e Viagens registrados abaixo); próxima: etapa 04.
+Estado: etapas 00, 01 e 02 concluídas em 2026-10-07 e 03 e 04 em 2026-10-08 (direção visual, inventário, tokens, primitivas, shells, acesso, Viagens e importações registrados abaixo); próxima: etapa 05.
 
 ## O que este pacote cobre
 
@@ -555,6 +555,63 @@ A suspeita da etapa 00 ("Lançando" no Painel × "Aguardando" na TV) foi confirm
 - **Runtime:** antes e depois em 1440, 768 e 360 px (toque) para `/viagens`, `/viagens/10` e suas quatro abas, `/viagens/11` (concluída), `/viagens/999`, `/chegadas-saidas`, o Painel do Portal na inspeção e a TV (1920×1080, 768 e 360); modais Nova viagem e Editar escala abertos sem gravar.
 - **Não verificado:** gravações (salvar escala, omitir, publicar programação, upload) só por teste automatizado; carrossel da TV com mais de oito escalas e por tempo prolongado; tema escuro do Vela nesta etapa; leitor de tela real; zoom de 200%; Portal fora do Modo Inspeção.
 
+## Entrega da etapa 04 — experiência comum de importações
+
+Registro de 2026-10-08 sobre a base `834cc37d` (`main` após a PR 900), branch `claude/revisao-visual-ux-etapa-04`. Ambiente de evidência: o mesmo da etapa 03 (Postgres 16 descartável com todas as migrations, `validation_seed.sql`, `seed_audit.sql`, CNPJs normalizados, `sb-shim.cjs` e Vite), com o `main` servido em paralelo numa worktree para a linha de base. Arquivos sintéticos fora do repositório (base de clientes com um CNPJ inválido, CE Mercante, datas com linhas inválidas, planilha de CE com cabeçalho errado). Nenhuma importação foi confirmada no runtime.
+
+### O que mudou
+
+| Superfície | Antes (**Runtime**, salvo indicação) | Depois |
+|---|---|---|
+| Escolha do arquivo | `<input type="file">` nativo ("Choose File") com o rótulo "Arquivo .xlsx, .xls ou .csv"; sem arraste; escolher de novo o mesmo arquivo corrigido não relia (**Código**) | `ImportFilePicker`: área de clique e arraste com o input real focável, formatos legíveis e o limite de 10 MB do `assertUploadSize`, arquivo e tamanho no lugar do convite com "Trocar"; valor limpo a cada escolha para reler o arquivo corrigido |
+| Pré-requisito | B/L de container aceitava o arquivo sem viagem e reclamava num toast; Manifesto BB e Vazios desativavam o input sem dizer por quê | Seletor desativado com o motivo ("Escolha a viagem de destino…") ligado por `aria-describedby` |
+| Instruções | Cartões com borda dentro do modal, botões "Baixar modelo" com peso de ação, textos sem acento; base de clientes com texto branco e botões `#21262d` no tema claro | `ImportGuide`: colunas obrigatórias numa linha, opcionais em cinza, detalhes em "Como preencher" e modelos como links terciários ("Modelo: .xlsx · .csv") |
+| Leitura | Barra percentual "Processando arquivo 1 de 1…" que só ia de 0 a 100% | Fases: "Lendo arquivo" com barra indeterminada; com vários arquivos, a barra conta arquivos lidos (`aria-valuetext`); "Nada é gravado nesta fase" |
+| Falhas | Leitura e gravação só em toast; a gravação com erro no modal genérico perdia a explicação | `ImportNotice` no modal com o arquivo, o motivo e o que fazer; a prévia continua aberta |
+| Prévia | Três a seis cards de métrica por modal ("Linhas validas", "Erros totais" que repetia a soma) | `SummaryStrip` de uma linha: o que entra, muda, fica igual e fica de fora, com tom só no que pede ação; diagnóstico do arquivo numa linha com "Ver o texto lido" |
+| Erros por linha | Painel dourado com "Linha N · row:"; erro e aviso iguais; no Manifesto de carga solta (BLs) e em Vazios a mesma lista aparecia duas vezes | Título com a consequência ("2 linhas com erro impedem a importação" / "1 aviso para conferir"), tag Erro/Aviso em texto, campo traduzido e omitido quando é a própria linha, relatório baixável; painel duplicado removido dos dois consumidores |
+| Aceite das divergências | Caixa dourada com a frase "forçar a importação", sem dizer o efeito | A mesma frase com a consequência ("Só as linhas válidas são gravadas…"; no B/L avulso, "arquivos com aviso também entram") |
+| Rodapé | "Voltar" e "Confirmar"/"Importar" genéricos | Frase de estado ("Nada foi gravado ainda", "3 B/Ls serão gravados", "Tudo ou nada…") e botão com verbo e objeto: "Importar 2 B/Ls", "Importar 2 CEs", "Importar manifesto", "Importar Baplie (612 containers)", "Importar 1 linha", "Importando…" durante a gravação |
+| Resultado parcial | B/L de container fechava o modal com um toast longo quando a troca de cliente era recusada ou o cálculo falhava; datas de containers mostrava a tabela de recusas mas mantinha "Importar" ativo para o mesmo lote; veículos só dizia "N erro(s)" no toast; base de clientes fechava com "N cliente(s) pendentes" no toast | O modal fica aberto com o que foi gravado e a lista nominal do que faltou; o único botão é "Concluir" |
+| Cores | `text-red-300`, `text-amber-200`, `bg-red-50`, `text-white` e `slate-*` do tema escuro misturados no tema claro (B/L, CE, base de clientes, efeitos) | Aliases semânticos `--app-{danger,warning,success,info}-*` da etapa 01 em `.app-import-*`; verificado também no tema escuro |
+| Barra de importações da Viagem | 360 px: seis botões em cinco linhas (252 px) com separadores soltos; B/Ls com contorno azul próprio | Grade de duas colunas a 360 px (148 px), separadores só no desktop, todos os botões secundários iguais |
+| Efeitos pós-importação (`ImportResultPanel`, consumido em Granito e na ficha do B/L) | Cards por efeito, estados em `text-green-300`/`text-red-300` | Lista com filetes, `Badge` semântico, "1 tentativa", erro em `--app-danger-fg`, "Reprocessar…" só no efeito em reprocessamento |
+| Textos | "Importacao", "Diferencas", "consignatario", "Sem mudanca", "Veiculos", "Vazios Importacao", "Linhas validas" | Acentuados; títulos em caixa normal ("Importar manifesto BB (carga solta)", "Importar planilha de veículos") |
+
+### Medidas antes → depois (**Runtime**)
+
+- Altura do modal, 1440 px: prévia de CE Mercante 798 → 675 px; prévia da base de clientes 860 → 736 px; CE Mercante vazio 516 → 489 px. Os modais vazios de B/L e Baplie cresceram 15–25 px pela área de arraste e pela frase de estado.
+- 360 px: barra de importações da Viagem 252 → 148 px; prévia de CE com rolagem lateral de 198 px → 19 px dentro da tabela (B/L em fonte mono).
+- Menor texto em todos os modais: 12 px (antes 11 px no diagnóstico e no Granito, **Código**). Nenhuma rolagem horizontal da página em 1440 e 360 px; tema escuro sem cor fixa.
+
+### Decisões
+
+- **Componentes novos com dono 04:** `components/shared/ImportParts.tsx` (`ImportFilePicker`, `ImportNotice`, `ImportGuide`, `ImportTemplateLinks`, `ImportContext`, `ImportFootnote`, `ImportSection`) e `components/shared/importPresentation.ts` (formatos, tamanho, limite, campo do problema). O CSS fica no bloco `.app-import*` de `src/index.css`. Leitores, matchers de cabeçalho e parsers não mudaram; `MAX_UPLOAD_BYTES` de `lib/fileGuard.ts` passou a ser exportado para a tela anunciar o mesmo limite que a leitura aplica.
+- **Contratos alterados:** `FileImportModal` ganhou `notReadyReason`, `confirmLabel` e `overrideHint`, e deixou de usar toast para falhas; `ImportIssuesPanel` ganhou `title` e `hint`; `ImportBaseModal` troca `onFileChange(event)`/`baseFileName` por `onFileSelect(file)`/`baseFile` e recebe `readError` e `outcome`.
+- **Toques em consumidores de outras etapas, só de ligação:** `pages/Clientes.tsx` (08: novo contrato, erro de leitura e resultado parcial no modal), `pages/Bls.tsx` (05) e `pages/VaziosImportacao.tsx` (21): painel de problemas duplicado removido e as duas props novas. A composição dessas páginas não foi alterada.
+- **Correção na primitiva da 01:** `.app-summary-strip` punha o separador "·" depois do valor do item seguinte ("2 linhas válidas0 · erros"); uma linha de CSS (`order: -2`). As importações são os primeiros consumidores.
+- **Toast fica para o sucesso completo.** Quando tudo entra, o modal fecha com o toast e a lista atualizada pelos efeitos de cache existentes; qualquer falha ou resultado parcial fica no conteúdo.
+- **Divergência intencional:** a tabela da base de clientes mantém 860 px e rola de lado a 360 px dentro da área, porque é uma prévia secundária de seis colunas.
+
+### Pendências para outros donos
+
+| Dono | Achado |
+|---|---|
+| 05 | `/bls` ainda tem quatro botões de importação no cabeçalho (a 360 px ocupam quatro linhas, alvo da etapa 00). Proposta: um "Importar" com menu, quando a 01 tiver menu, ou a mesma grade de `.app-import-actions`. O modal de Manifesto de carga solta (`BreakbulkManifestUploadModal`) ainda usa cartão de instruções e seis `PreviewBox`; pode adotar `ImportGuide` e `SummaryStrip`. |
+| 21 | `VaziosImportacaoPreview` em `pages/VaziosImportacao.tsx` usa cores fixas do tema escuro (`#0d1117`, `text-white`, `slate-500`) e cabeçalho em caixa alta. |
+| 06 | `pages/Baplie.tsx` e `pages/Veiculos.tsx` têm importação própria (input nativo, toasts); podem adotar `ImportParts` como o modal da Viagem. |
+| 20 | `pages/Granite.tsx` tem leitura própria com `ImportReadProgress`/`ImportIssuesPanel` (herdam a mudança) e input nativo. |
+| 08 | Falha ao gravar a base de clientes ainda é só toast em `handleImportBase`. |
+| 01 | Não há menu "Mais ações"; ver a pendência de `/bls` acima. |
+| Serviços (fora do design) | Mensagens de parser sem acento e com "Planilha invalida. Colunas obrigatorias" (`ceMercanteImport.ts`) e "Data de descarga invalida" (`containerDatesImport.ts`); corrigir o texto não muda a regra, mas os parsers ficaram fora desta etapa. |
+
+### Evidência e limites
+
+- **Gates:** `npm run docs:check`, `typecheck`, `lint`, `build` e `a11y:contrast` (34/34) passaram; `npm test` passou em 715 arquivos (4.066 testes); `size-limit` 240,49 KiB no Vela e 207,68 KiB no Portal.
+- **Teste:** novos `importPresentation.test.ts` (formatos, tamanho, limite igual ao `assertUploadSize`, campo traduzido, contagem), `ImportParts.test.tsx` (arraste, arraste ignorado quando desativado com motivo, releitura do mesmo arquivo, arquivo escolhido, leitura sem porcentagem inventada, contagem de arquivos, aviso sem bloqueio) e `ContainerDatesImportModal.test.tsx` (datas em dd/mm/aaaa, resultado parcial sem reenviar o lote, Concluir); `FileImportModal.test.tsx` ganhou falha de leitura e de gravação no modal; `BlImportModal.test.tsx` passou a exigir o seletor desativado sem viagem e o resultado parcial com Concluir. Testes de rótulo ajustados ao novo texto.
+- **Runtime:** antes (worktree do `main`) e depois em 1440 e 360 px (toque) para os modais de `/bls` (B/L container, B/L carga solta, Manifesto de carga solta, CE Mercante vazio e com prévia), `/clientes` (base vazia e com prévia), `/containers` (datas), a barra da Viagem 10 e os modais de Baplie e Veículos; depois, também datas com erros por linha, CE com cabeçalho inválido e Veículos, em 1440, 360 e tema escuro.
+- **Não verificado:** gravações reais (confirmar importação, resultado parcial vindo do servidor e efeitos pós-importação) só por teste automatizado; arraste real de arquivo no navegador (coberto por teste de DOM); leitor de tela real; zoom de 200%; telas de Baplie, Veículos e Granito fora do modal da Viagem.
+
 ## Prompts por etapa
 
 Cada bloco abaixo é o prompt específico. Em uma sessão nova, envie também o contrato comum acima; com acesso a este arquivo, sua leitura é obrigatória.
@@ -905,7 +962,7 @@ Preparação deste pacote: inventário estático e divisão de responsabilidades
 | 01 | Concluída em 2026-10-07 | Base `74d82566`; branch `claude/revisao-visual-ux-etapa-01` | Tokens (escala, raio, densidade, aliases semânticos com par escuro, cabeçalho claro) e primitivas (`Button`, `Modal`, `TabButton`, `Badge`, `MetricCard`, paginação, `QueryStateGate`, `BulkActionsBar`) revisados; `Drawer`, `TabList`, `SegmentedControl`, `SummaryStrip`, `StepRail` e `describePageRange` criados. Ver "Entrega da etapa 01". Gates locais e `a11y:contrast` 34/34 verdes; runtime antes/depois em 1440, 360 e escuro. Pendências por etapa na tabela "Como cada etapa adota". Próxima: 02. |
 | 02 | Concluída em 2026-10-07 | Base `59dd88d9`; branch `claude/revisao-visual-ux-etapa-02` | Barra única no Vela e no Portal (topo 143→85 px no Vela desktop), versão no menu da conta, faixa de avisos sem corte, sinos com painel comum e estados de erro, telas de acesso e perfis revisados, `PasswordInput`, `PortalAccessHelp` e `StatusScreen` criados, acesso restrito com motivo. Ver "Entrega da etapa 02". Gates locais e `a11y:contrast` 34/34 verdes; runtime antes/depois em 1440, 768 e 360 px. Pendências para 01, 18 e decisões de negócio na mesma seção. Próxima: 03. |
 | 03 | Concluída em 2026-10-08 | Base `521183d3`; branch `claude/revisao-visual-ux-etapa-03` | Ficha da Viagem em superfície única com trilho de escalas, chegada/saída legíveis (prevista, real, vencida, não informada, OMIT, terminal dono), TV escura de alto contraste com CEs iguais ao Painel, programação do Portal e Chegadas e Saídas com células compartilhadas, erro distinto de vazio e cartões no celular; viagem inexistente sem 406. Ver "Entrega da etapa 03". Gates locais verdes: `docs:check`, `typecheck`, `lint`, `build`, `npm test` (712 arquivos, 4.052 testes) e `a11y:contrast` 34/34; paleta local da TV ≥ 7,5:1 sobre a superfície de dados. Runtime antes/depois em 1440, 768, 360 e TV 1920. Pendências para 01, 13, 19 e negócio na mesma seção. Próxima: 04. |
-| 04 | Não iniciada | — | — |
+| 04 | Concluída em 2026-10-08 | Base `834cc37d`; branch `claude/revisao-visual-ux-etapa-04` | Percurso comum de importação: área de arquivo com arraste, formatos e limite, motivo quando falta a viagem, leitura por fases sem porcentagem inventada, falhas e resultado parcial no modal com Concluir (B/L de container, datas, veículos, base de clientes), resumo de uma linha do que entra/muda/fica de fora, erros e avisos distintos, botões com verbo e objeto, cores semânticas no tema claro e escuro; painel de problemas duplicado removido em BLs e Vazios. Ver "Entrega da etapa 04". Gates locais verdes: `docs:check`, `typecheck`, `lint`, `build`, `npm test` (715 arquivos, 4.066 testes) e `a11y:contrast` 34/34. Runtime antes/depois em 1440 e 360 px e tema escuro. Pendências para 05, 06, 08, 20, 21, 01 e serviços na mesma seção. Próxima: 05. |
 | 05 | Não iniciada | — | — |
 | 06 | Não iniciada | — | — |
 | 07 | Não iniciada | — | — |

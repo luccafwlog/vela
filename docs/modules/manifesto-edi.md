@@ -1,6 +1,6 @@
 # Manifestos & EDI
 
-> **Status:** ativo · **Atualizado:** 2026-10-02 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`
+> **Status:** ativo · **Atualizado:** 2026-10-08 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`
 
 ## Propósito e escopo
 
@@ -44,6 +44,19 @@ planilhas descarta linhas realmente vazias sem renumerar os dados e anexa o
 `rowNumber` físico 1-based. Erros de linha bloqueiam a confirmação por padrão;
 as superfícies que permitem decisão manual passam `allowRowErrors` explicitamente,
 enquanto erros documentais ou de viagem continuam bloqueantes.
+
+Os modais de importação seguem um percurso comum (`src/components/shared/ImportParts.tsx`):
+destino (viagem, manifesto) → arquivo → leitura → prévia → confirmação → resultado.
+A área de arquivo aceita clique ou arraste, informa formatos e o limite de 10 MB
+do `assertUploadSize` e fica desativada, com o motivo, enquanto faltar a viagem
+de destino; escolher de novo o mesmo arquivo relê o conteúdo. A leitura mostra
+fases, não porcentagem: com vários arquivos a barra conta arquivos lidos. Falha
+de leitura ou de gravação aparece no próprio modal, sem perder a prévia; o
+rodapé diz se algo já foi gravado. A prévia resume o que entra, muda e fica de
+fora, e o painel de problemas diferencia erro (impede ou exige aceite) de aviso.
+Resultado parcial (troca de cliente recusada ou cálculo pendente no B/L, linhas
+recusadas em datas de containers e veículos, clientes pendentes na base) fica
+na tela com **Concluir**, sem oferecer reenviar o mesmo lote.
 
 As rotas são registradas em `src/AppInterno.tsx`. Os donos executáveis são as páginas em `src/pages/`, os parsers/importadores em `src/services/`, as RPCs e policies em `supabase/migrations/` e as chaves em `src/services/queryKeys.ts`. `docs/adr/0005-pipeline-importacao-viagem-staging-reconciliacao.md` define a separação entre fontes; `docs/adr/0009-hard-delete-controlado-bloqueios-fiscais-auditoria.md` define exclusões controladas.
 
