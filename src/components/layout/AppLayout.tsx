@@ -125,7 +125,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell app-shell--vela">
       <a href="#app-main-content" className="app-skip-link">Ir para o conteúdo principal</a>
 
       <HeaderInfoBar />

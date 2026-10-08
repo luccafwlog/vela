@@ -53,11 +53,18 @@ describe('TableFooterPagination', () => {
     expect(onPageSizeChange).toHaveBeenCalledWith(50)
   })
 
-  it('exibe estado de lista vazia e desabilita navegação quando totalCount for zero', () => {
+  it('mostra só "Nenhum registro" na lista vazia, sem "Página 0 de 0" nem navegação', () => {
     render(<TableFooterPagination page={1} pageSize={20} totalCount={0} totalPages={0} onPageChange={vi.fn()} />)
     expect(screen.getByText('Nenhum registro')).toBeTruthy()
-    expect(screen.getByText('Página 0 de 0')).toBeTruthy()
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Anterior' }).disabled).toBe(true)
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Próxima' }).disabled).toBe(true)
+    expect(screen.queryByText(/Página/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Anterior' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Próxima' })).toBeNull()
+  })
+
+  it('não repete "Página 1 de 1" nem mostra navegação com uma página só', () => {
+    render(<TableFooterPagination page={1} pageSize={20} totalCount={7} totalPages={1} onPageChange={vi.fn()} />)
+    expect(screen.getByText('Exibindo 1–7 de 7')).toBeTruthy()
+    expect(screen.queryByText(/Página/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Próxima' })).toBeNull()
   })
 })

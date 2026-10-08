@@ -102,6 +102,13 @@ const checks = [
   ['red status on red surface', '--app-red', '--app-red-soft'],
   ['navigation badge text on badge', '--app-navy', '--app-gold'],
   ['table heading text on table heading', '--app-thead-text', '--app-thead-bg'],
+  // Aliases semânticos da etapa 01 (tag de estado, alertas, campos com erro).
+  ['success tag text on success tag', '--app-success-fg', '--app-success-bg'],
+  ['warning tag text on warning tag', '--app-warning-fg', '--app-warning-bg'],
+  ['danger tag text on danger tag', '--app-danger-fg', '--app-danger-bg'],
+  ['info tag text on info tag', '--app-info-fg', '--app-info-bg'],
+  ['neutral tag text on neutral tag', '--app-neutral-fg', '--app-neutral-bg'],
+  ['danger text on surface', '--app-danger-fg', '--app-surface-strong'],
 ]
 
 const rows = []

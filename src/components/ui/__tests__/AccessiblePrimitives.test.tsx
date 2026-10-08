@@ -1,19 +1,40 @@
 // @vitest-environment jsdom
 
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { Button } from '../Button'
 import { EmptyState } from '../Card'
 import { Field, Input } from '../Input'
 import { SkeletonTable } from '../Skeleton'
 
 describe('primitives acessíveis', () => {
-  it('preserva o conteúdo no fluxo e anuncia botão ocupado', () => {
+  it('mantém o rótulo visível e o nome da ação enquanto o botão está ocupado', () => {
     render(<Button loading aria-label="Salvar alterações">Salvar</Button>)
-    const button = screen.getByRole('button', { name: 'Carregando…' })
+    const button = screen.getByRole('button', { name: 'Salvar alterações' })
     expect(button.getAttribute('aria-busy')).toBe('true')
-    expect(button.querySelector('[data-button-label]')?.textContent).toBe('Salvar')
-    expect(button.querySelector('[data-button-label]')?.className).toContain('gap-2')
+    expect(button.hasAttribute('disabled')).toBe(true)
+    const label = button.querySelector('[data-button-label]')
+    expect(label?.textContent).toBe('Salvar')
+    expect(label?.className).not.toContain('invisible')
+    expect(button.querySelector('.app-btn__spinner')).toBeTruthy()
+  })
+
+  it('troca para o texto específico da ação sem mudar a célula do rótulo', () => {
+    const { rerender } = render(<Button loading={false} loadingLabel="Emitindo…">Emitir fatura</Button>)
+    // Em repouso, o texto de andamento já reserva a largura, fora da leitura.
+    expect(screen.getByRole('button', { name: 'Emitir fatura' }).hasAttribute('aria-busy')).toBe(false)
+    rerender(<Button loading loadingLabel="Emitindo…">Emitir fatura</Button>)
+    const button = screen.getByRole('button', { name: 'Emitindo…' })
+    expect(button.getAttribute('aria-busy')).toBe('true')
+    expect(button.querySelectorAll('.app-btn__stack > *')).toHaveLength(2)
+  })
+
+  it('não dispara a ação de novo enquanto ocupado', async () => {
+    const onClick = vi.fn()
+    render(<Button loading onClick={onClick}>Salvar</Button>)
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    expect(onClick).not.toHaveBeenCalled()
   })
 
   it('propaga obrigatoriedade e erro do Field para o controle', () => {

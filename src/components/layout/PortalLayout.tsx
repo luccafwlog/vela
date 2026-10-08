@@ -25,7 +25,7 @@ export function PortalLayout() {
   const { open: mobileNavOpen, setOpen: setMobileNavOpen, toggleRef: mobileNavToggleRef } = useMobileNav()
 
   return (
-    <div className="app-shell">
+    <div className="app-shell app-shell--portal">
       <a href="#portal-main-content" className="app-skip-link">Ir para o conteúdo principal</a>
       <header className="app-header">
         <div className="app-header__content">

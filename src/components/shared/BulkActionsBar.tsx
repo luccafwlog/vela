@@ -22,13 +22,15 @@ export function BulkActionsBar({ count, onClear, onDelete, deleting, noun, extra
 
   const label = `${count} ${count === 1 ? noun[0] : noun[1]} selecionado${count === 1 ? '' : 's'}`
 
+  // Fica fixa no topo da área rolável: a seleção continua visível enquanto o
+  // usuário desce a lista marcando linhas.
   return (
-    <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-3">
-      <span className="text-sm text-[var(--app-text)]">{label}</span>
-      <div className="flex items-center gap-2">
+    <div className="app-bulk-bar" role="region" aria-label="Ações em massa">
+      <span className="app-bulk-bar__count" aria-live="polite">{label}</span>
+      <div className="app-bulk-bar__actions">
         <Button variant="ghost" onClick={onClear} disabled={deleting}>
           <X size={15} />
-          Limpar
+          Limpar seleção
         </Button>
         {extraActions}
         {onDelete ? (

@@ -40,9 +40,40 @@
   --app-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.06);
   --app-shadow-strong: 0 4px 12px rgba(15, 23, 42, 0.12), 0 1px 4px rgba(15, 23, 42, 0.08);
   --app-radius: 8px;
+  --app-radius-control: 6px;
   --app-control-h: 44px;
-  --app-thead-bg: var(--app-navy);
-  --app-thead-text: #ffffff;
+  --app-control-h-sm: 44px;
+  --app-row-h: 52px;
+  --app-cell-py: 14px;
+  --app-cell-px: 12px;
+  /* Escala tipográfica (etapa 01 da revisão visual): sete degraus, mínimo 12px. */
+  --app-size-caption: 12px;
+  --app-size-table: 13px;
+  --app-size-body: 14px;
+  --app-size-section: 16px;
+  --app-size-panel: 20px;
+  --app-size-page: 24px;
+  --app-size-hero: 32px;
+  /* Aliases semânticos: cor de estado só por estes pares (texto, fundo, borda). */
+  --app-success-fg: #157a45;
+  --app-success-bg: var(--app-green-soft);
+  --app-success-border: #86efac;
+  --app-warning-fg: #8f4d08;
+  --app-warning-bg: var(--app-gold-soft);
+  --app-warning-border: #f3c77f;
+  --app-danger-fg: #b0343a;
+  --app-danger-bg: var(--app-red-soft);
+  --app-danger-border: #f2b3bb;
+  --app-info-fg: var(--app-blue-btn);
+  --app-info-bg: var(--app-blue-soft);
+  --app-info-border: #bfd3ee;
+  --app-neutral-fg: var(--app-muted);
+  --app-neutral-bg: #f1efe9;
+  --app-neutral-border: #dcd7cc;
+  --app-thead-border: var(--app-border-strong);
+  /* Cabeçalho de tabela claro; azul-marinho só no Line Up e na TV. */
+  --app-thead-bg: var(--app-surface-muted);
+  --app-thead-text: var(--app-text-strong);
   --app-font-display: "Syne", "DM Sans", sans-serif;
   --app-font-body: "DM Sans", "Segoe UI", sans-serif;
   --app-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -84,10 +115,27 @@
   --app-red-soft: rgba(248, 113, 113, 0.16);
   --app-shadow: 0 1px 3px rgba(2, 6, 23, 0.20), 0 2px 8px rgba(2, 6, 23, 0.16);
   --app-shadow-strong: 0 4px 12px rgba(2, 6, 23, 0.28), 0 2px 6px rgba(2, 6, 23, 0.20);
-  --app-radius: 12px;
+  --app-radius: 8px;
   --app-header-height: 56px;
-  --app-thead-bg: var(--app-navy);
-  --app-thead-text: #ffffff;
+  --app-radius-control: 6px;
+  --app-success-fg: #bbf7d0;
+  --app-success-bg: #123c2a;
+  --app-success-border: #286548;
+  --app-warning-fg: #fde68a;
+  --app-warning-bg: #49320a;
+  --app-warning-border: #765514;
+  --app-danger-fg: #fecaca;
+  --app-danger-bg: #44161b;
+  --app-danger-border: #7f2a33;
+  --app-info-fg: #bfdbfe;
+  --app-info-bg: #1e3a5f;
+  --app-info-border: #315784;
+  --app-neutral-fg: #c3cfdf;
+  --app-neutral-bg: #17243a;
+  --app-neutral-border: #2b3c5a;
+  --app-thead-border: var(--app-border-strong);
+  --app-thead-bg: var(--app-surface-muted);
+  --app-thead-text: var(--app-text-strong);
 }
 
 :root[data-visual-theme='light'] {
@@ -127,13 +175,72 @@
   --app-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.06);
   --app-shadow-strong: 0 4px 12px rgba(15, 23, 42, 0.12), 0 1px 4px rgba(15, 23, 42, 0.08);
   --app-radius: 8px;
+  --app-radius-control: 6px;
   --app-control-h: 44px;
-  --app-thead-bg: var(--app-navy);
-  --app-thead-text: #ffffff;
+  --app-control-h-sm: 44px;
+  --app-row-h: 52px;
+  --app-cell-py: 14px;
+  --app-cell-px: 12px;
+  /* Escala tipográfica (etapa 01 da revisão visual): sete degraus, mínimo 12px. */
+  --app-size-caption: 12px;
+  --app-size-table: 13px;
+  --app-size-body: 14px;
+  --app-size-section: 16px;
+  --app-size-panel: 20px;
+  --app-size-page: 24px;
+  --app-size-hero: 32px;
+  /* Aliases semânticos: cor de estado só por estes pares (texto, fundo, borda). */
+  --app-success-fg: #157a45;
+  --app-success-bg: var(--app-green-soft);
+  --app-success-border: #86efac;
+  --app-warning-fg: #8f4d08;
+  --app-warning-bg: var(--app-gold-soft);
+  --app-warning-border: #f3c77f;
+  --app-danger-fg: #b0343a;
+  --app-danger-bg: var(--app-red-soft);
+  --app-danger-border: #f2b3bb;
+  --app-info-fg: var(--app-blue-btn);
+  --app-info-bg: var(--app-blue-soft);
+  --app-info-border: #bfd3ee;
+  --app-neutral-fg: var(--app-muted);
+  --app-neutral-bg: #f1efe9;
+  --app-neutral-border: #dcd7cc;
+  --app-thead-border: var(--app-border-strong);
+  /* Cabeçalho de tabela claro; azul-marinho só no Line Up e na TV. */
+  --app-thead-bg: var(--app-surface-muted);
+  --app-thead-text: var(--app-text-strong);
   --app-font-display: "Syne", "DM Sans", sans-serif;
   --app-font-body: "DM Sans", "Segoe UI", sans-serif;
   --app-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
   font-family: var(--app-font-body);
+}
+
+/* Densidade compacta do Vela (etapa 01): só com ponteiro fino. Toque mantém
+   os 44px de alvo; o Portal, inclusive dentro do Modo Inspeção, redefine a
+   densidade confortável no próprio shell. */
+@media (pointer: fine) {
+  .app-shell--vela {
+    --app-control-h: 36px;
+    --app-control-h-sm: 32px;
+    --app-row-h: 40px;
+    --app-cell-py: 8px;
+  }
+}
+
+.app-shell--portal {
+  --app-control-h: 44px;
+  --app-control-h-sm: 44px;
+  --app-row-h: 52px;
+  --app-cell-py: 14px;
+}
+
+/* Degraus que o Tailwind não tem por padrão. Os demais: 12 = text-xs,
+   14 = text-sm, 16 = text-base, 20 = text-xl, 24 = text-2xl. */
+@theme {
+  --text-table: 13px;
+  --text-table--line-height: 18px;
+  --text-hero: 32px;
+  --text-hero--line-height: 40px;
 }
 
 .app-skip-link {
@@ -1321,8 +1428,8 @@ textarea {
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px 22px;
-  margin-bottom: 28px;
+  gap: 12px 24px;
+  margin-bottom: 20px;
   padding-inline: 2px;
 }
 
@@ -1336,33 +1443,29 @@ textarea {
   gap: 0;
 }
 
-.page-header__copy::after {
-  content: '';
-  display: block;
-  width: 48px;
-  height: 3px;
-  margin-top: 14px;
-  border-radius: 0;
-  background: var(--app-gold);
-}
-
+/* Título da página: Syne 24/32 no Vela; 32/40 no Portal (contrato da etapa 00). */
 .page-header__title {
   margin: 0;
   color: var(--app-text-strong);
   font-family: var(--app-font-display);
-  font-size: clamp(1.7rem, 2vw + 1rem, 2.2rem);
+  font-size: var(--app-size-page);
   font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
+  letter-spacing: -0.02em;
+  line-height: 32px;
   text-wrap: balance;
+}
+
+.app-shell--portal .page-header__title {
+  font-size: var(--app-size-hero);
+  line-height: 40px;
 }
 
 .page-header__description {
   max-width: 880px;
-  margin: 10px 0 0;
+  margin: 4px 0 0;
   color: var(--app-muted);
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: var(--app-size-body);
+  line-height: 20px;
   text-wrap: pretty;
 }
 
@@ -1370,7 +1473,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -1900,10 +2003,9 @@ textarea {
 
 .app-metric-tile__label {
   color: var(--app-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--app-size-caption);
+  font-weight: 500;
+  line-height: 16px;
 }
 
 /* Valores numéricos NUNCA quebram nem são cortados — um valor monetário é
@@ -1912,9 +2014,9 @@ textarea {
 .app-metric-tile__value {
   min-width: 0;
   color: var(--app-text-strong);
-  font-size: 19px;
-  font-weight: 800;
-  line-height: 1.15;
+  font-size: var(--app-size-panel);
+  font-weight: 600;
+  line-height: 28px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -1925,11 +2027,36 @@ textarea {
 }
 
 .app-metric-tile--primary .app-metric-tile__label {
-  color: #58a6ff;
+  color: var(--app-link);
 }
 
 .app-metric-tile--primary .app-metric-tile__value {
-  font-size: 24px;
+  font-size: var(--app-size-page);
+  line-height: 32px;
+}
+
+/* Card de métrica que aplica o filtro correspondente. */
+button.app-metric-tile {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+button.app-metric-tile:hover {
+  border-color: var(--app-link);
+  background: var(--app-surface-hover);
+}
+
+button.app-metric-tile:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+button.app-metric-tile[aria-pressed='true'] {
+  border-color: var(--app-link);
+  box-shadow: inset 0 -3px 0 var(--app-link);
 }
 
 .billing-page {
@@ -2105,10 +2232,10 @@ textarea {
   min-width: 0;
   max-width: 100%;
   min-height: var(--app-control-h);
-  border-radius: 8px;
+  border-radius: var(--app-radius-control);
   border: 1px solid transparent;
-  padding: 10px 16px;
-  font-size: 13px;
+  padding: 6px 16px;
+  font-size: var(--app-size-table);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -2119,10 +2246,59 @@ textarea {
 }
 
 .app-btn--sm {
-  min-height: 44px;
-  padding: 6px 12px;
-  font-size: 12px;
+  min-height: var(--app-control-h-sm);
+  padding: 4px 12px;
+  font-size: var(--app-size-caption);
   gap: 6px;
+}
+
+/* Ação em andamento: rótulo de repouso e de andamento ocupam a mesma célula
+   da grade, então a largura do botão não muda ao alternar. */
+.app-btn__stack {
+  display: inline-grid;
+  align-items: center;
+  justify-items: center;
+}
+
+.app-btn__stack > * {
+  grid-area: 1 / 1;
+}
+
+.app-btn__stack > [aria-hidden='true'] {
+  visibility: hidden;
+}
+
+.app-btn__label {
+  position: relative;
+}
+
+/* Sem ícone inicial, o indicador ocupa o recuo à esquerda do rótulo. */
+.app-btn__spinner {
+  flex-shrink: 0;
+}
+
+.app-btn__label > .app-btn__spinner:first-child {
+  position: absolute;
+  right: calc(100% + 2px);
+  width: 12px;
+  height: 12px;
+}
+
+/* Com ícone inicial, o indicador toma o lugar dele. */
+.app-btn__label > .app-btn__spinner:first-child:has(+ svg) {
+  position: static;
+  width: 14px;
+  height: 14px;
+}
+
+.app-btn__label > .app-btn__spinner + svg {
+  display: none;
+}
+
+.app-btn__stack .app-btn__label > .app-btn__spinner:first-child {
+  position: static;
+  width: 14px;
+  height: 14px;
 }
 
 .app-btn:focus-visible {
@@ -2172,18 +2348,19 @@ textarea {
 
 .app-btn--secondary:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--app-blue-btn) 40%, var(--app-border) 60%);
-  color: var(--app-blue-btn);
-  background: linear-gradient(180deg, #ffffff, #eef4ff);
+  color: var(--app-link);
+  background: var(--app-surface-hover);
 }
 
+/* Destrutivo na tela: contorno vermelho; vermelho sólido só na confirmação. */
 .app-btn--danger {
-  background: linear-gradient(180deg, #fff7f8, #fff0f2);
-  border-color: #f2b3bb;
-  color: var(--app-red);
+  background: var(--app-surface);
+  border-color: var(--app-danger-border);
+  color: var(--app-danger-fg);
 }
 
 .app-btn--danger:hover:not(:disabled) {
-  background: var(--app-red-soft);
+  background: var(--app-danger-bg);
   border-color: var(--app-red);
 }
 
@@ -2199,50 +2376,74 @@ textarea {
   color: var(--app-text);
 }
 
+/* Aba: padrão único sublinhado (etapa 01). Troca a vista da mesma página;
+   navegar para outra página é link, nunca botão com cara de aba. */
+.app-tablist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--app-border);
+}
+
 .app-tab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   min-width: 0;
   max-width: 100%;
   min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--app-border-strong);
-  border-radius: 8px;
-  background: var(--app-surface);
-  color: var(--app-text);
-  font-size: 0.88rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  margin-bottom: -1px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--app-radius-control) var(--app-radius-control) 0 0;
+  background: transparent;
+  color: var(--app-muted);
+  font-size: var(--app-size-body);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   cursor: pointer;
 }
 
 .app-tab:hover {
-  color: var(--app-text);
-  border-color: var(--app-navy);
+  color: var(--app-text-strong);
+  background: var(--app-surface-hover);
 }
 
-.app-tab--active {
-  background: var(--app-navy);
-  border-color: var(--app-navy);
-  box-shadow: inset 0 -2px 0 var(--app-gold);
-  color: #ffffff;
+.app-tab:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -2px;
+}
+
+.app-tab--active,
+.app-tab[aria-selected='true'] {
+  border-bottom-color: var(--app-link);
+  color: var(--app-text-strong);
+  font-weight: 600;
 }
 
 .app-tab--active:hover {
-  color: #ffffff;
+  color: var(--app-text-strong);
+}
+
+@media (pointer: fine) {
+  .app-shell--vela .app-tab {
+    min-height: 40px;
+  }
 }
 
 .app-input {
   min-width: 0;
   min-height: var(--app-control-h);
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
+  border: 1px solid var(--app-border-strong);
+  border-radius: var(--app-radius-control);
   background: var(--app-surface-strong);
   color: var(--app-text-strong);
-  padding: 11px 14px;
-  font-size: 14px;
+  padding: 6px 12px;
+  font-size: var(--app-size-body);
   outline: 0;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
@@ -2285,12 +2486,23 @@ textarea {
 .app-textarea {
   min-width: 0;
   min-height: 112px;
+  padding-block: 8px;
   resize: vertical;
+}
+
+.app-input:disabled {
+  background: var(--app-surface-muted);
+  color: var(--app-muted);
+  cursor: not-allowed;
+}
+
+.app-input[aria-invalid='true'] {
+  border-color: var(--app-red);
 }
 
 .app-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* Os filtros de Relatórios compartilham uma linha com hints somente na primeira
@@ -2310,82 +2522,64 @@ textarea {
   }
 }
 
+/* Rótulo acima do campo, 13/500 em caixa normal; ajuda e erro logo abaixo. */
 .app-field__label {
-  color: var(--app-muted);
-  font-size: 12px;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
   font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  line-height: 18px;
 }
 
 .app-field__error {
-  color: var(--app-red);
-  font-size: 12px;
+  color: var(--app-danger-fg);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
 }
 
 .app-field__hint {
   color: var(--app-muted);
-  font-size: 12px;
+  font-size: var(--app-size-caption);
+  line-height: 16px;
 }
 
+/* Tag de estado: caixa normal, 12/500, raio de controle. As cores vêm dos
+   aliases semânticos, que têm par escuro e passam em a11y:contrast. */
 .app-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  border-radius: var(--app-radius-control);
+  padding: 1px 8px;
+  font-size: var(--app-size-caption);
+  font-weight: 500;
+  line-height: 18px;
   white-space: nowrap;
-  text-transform: uppercase;
 }
 
 .app-badge--blue {
-  background: var(--app-blue-soft);
-  border-color: #bfdbfe;
-  color: var(--app-blue-btn);
+  background: var(--app-info-bg);
+  border-color: var(--app-info-border);
+  color: var(--app-info-fg);
 }
 
 .app-badge--green {
-  background: var(--app-green-soft);
-  border-color: #86efac;
-  /* Tom mais escuro que var(--app-green) só no badge: garante contraste AA
-     (>=4.5:1) do texto 11px sobre o fundo verde-suave (a11y A11Y-001). */
-  color: #157a45;
+  background: var(--app-success-bg);
+  border-color: var(--app-success-border);
+  color: var(--app-success-fg);
 }
 
 .app-badge--red {
-  background: var(--app-red-soft);
-  border-color: #fecaca;
-  color: var(--app-red);
+  background: var(--app-danger-bg);
+  border-color: var(--app-danger-border);
+  color: var(--app-danger-fg);
 }
 
 .app-badge--yellow {
-  background: var(--app-gold-soft);
-  border-color: #fde68a;
-  /* Âmbar levemente mais escuro: contraste AA (>=4.5:1) sobre o gold-suave
-     (antes 4.47:1 — falhava por margem; a11y A11Y-001). */
-  color: #a85309;
-}
-
-:root[data-visual-theme='dark'] .app-badge--blue {
-  background: #1e3a5f;
-  border-color: #315784;
-  color: #bfdbfe;
-}
-
-:root[data-visual-theme='dark'] .app-badge--green {
-  background: #123c2a;
-  border-color: #286548;
-  color: #bbf7d0;
-}
-
-:root[data-visual-theme='dark'] .app-badge--yellow {
-  background: #49320a;
-  border-color: #765514;
-  color: #fde68a;
+  background: var(--app-warning-bg);
+  border-color: var(--app-warning-border);
+  color: var(--app-warning-fg);
 }
 
 /* Segmented control de 3 estados do sign-off do ADR. Concêntrico: raio
@@ -2470,9 +2664,9 @@ textarea {
 }
 
 .app-badge--slate {
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-  color: var(--app-muted);
+  background: var(--app-neutral-bg);
+  border-color: var(--app-neutral-border);
+  color: var(--app-neutral-fg);
 }
 
 .app-modal-backdrop {
@@ -2496,8 +2690,8 @@ textarea {
   flex-direction: column;
   overflow: hidden;
   border: none;
-  border-radius: 16px;
-  background: linear-gradient(180deg, var(--app-surface-strong), var(--app-surface));
+  border-radius: var(--app-radius);
+  background: var(--app-surface-strong);
   box-shadow: var(--app-shadow-strong);
 }
 
@@ -2509,18 +2703,31 @@ textarea {
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--app-radius) var(--app-radius) 0 0;
   background: var(--app-navy);
   color: #ffffff;
-  padding: 18px 24px;
+  padding: 12px 12px 12px 24px;
 }
 
+/* Título de modal/drawer: DM Sans 20/28, nunca Syne (contrato da etapa 00).
+   Recebe o foco inicial nos modais de leitura. */
 .app-modal__title {
   margin: 0;
-  font-family: var(--app-font-display);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  min-width: 0;
+  font-family: var(--app-font-body);
+  font-size: var(--app-size-panel);
+  font-weight: 600;
+  line-height: 28px;
+  overflow-wrap: anywhere;
+}
+
+.app-modal__title:focus {
+  outline: none;
+}
+
+.app-modal__title:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
 }
 
 .app-modal__close {
@@ -2544,6 +2751,14 @@ textarea {
   min-height: 0;
   overflow-y: auto;
   padding: var(--app-modal-pad);
+}
+
+.app-modal--sm {
+  width: min(100%, 480px);
+}
+
+.app-modal--md {
+  width: min(100%, 720px);
 }
 
 /* Variante drawer: reaproveita o Modal (focus-trap/escape) como painel lateral. */
@@ -2581,7 +2796,7 @@ textarea {
   list-style: none;
   padding: 4px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--app-radius);
   background: var(--app-surface-strong);
   box-shadow: var(--app-shadow-strong);
 }
@@ -2597,7 +2812,7 @@ textarea {
   width: 100%;
   flex-direction: column;
   gap: 2px;
-  border-radius: 8px;
+  border-radius: var(--app-radius-control);
   padding: 8px 12px;
   text-align: left;
   background: transparent;
@@ -2618,7 +2833,7 @@ textarea {
 }
 
 .app-combobox__option-meta {
-  font-size: 11px;
+  font-size: var(--app-size-caption);
   color: var(--app-muted);
 }
 
@@ -2926,10 +3141,8 @@ textarea {
   background: var(--app-surface-muted);
   padding: 8px 12px;
   color: var(--app-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--app-size-caption);
+  font-weight: 500;
 }
 
 .app-confirm__changes tbody th,
@@ -4193,17 +4406,28 @@ textarea {
   border-collapse: collapse;
 }
 
+/* Cabeçalho de tabela comum (etapa 01): fundo claro, 12/500 em caixa normal
+   e filete inferior forte. O Line Up e a TV redefinem os tokens para o
+   azul-marinho do quadro físico. Fica fora de camada para vencer as classes
+   utilitárias antigas (uppercase, tracking-*) até cada tela migrar. */
 .app-shell table thead {
-  background: var(--app-navy);
+  background: var(--app-thead-bg);
 }
 
 .app-shell table thead th {
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  border-bottom: 0;
+  color: var(--app-thead-text);
+  font-size: var(--app-size-caption);
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+  border-bottom: 1px solid var(--app-thead-border);
+}
+
+.app-table--lineup {
+  --app-thead-bg: var(--app-navy);
+  --app-thead-text: #ffffff;
+  --app-thead-border: var(--app-navy);
 }
 
 .app-shell table tbody td {
@@ -4297,7 +4521,24 @@ textarea {
 .app-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+/* Densidade padrão das células: 40px de linha no Vela com ponteiro fino e
+   52px no Portal e no toque. Em camada de componentes de propósito: o
+   padding utilitário que cada tela ainda declara (py-3, px-4) continua
+   valendo até a etapa dona da tela migrar para a densidade do contrato. */
+@layer components {
+  .app-table th,
+  .app-table td {
+    padding: var(--app-cell-py) var(--app-cell-px);
+  }
+
+  .app-table thead th {
+    padding-block: 10px;
+    text-align: left;
+  }
 }
 
 .app-table th,
@@ -4907,11 +5148,17 @@ textarea {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   border-top: 1px solid var(--app-border);
-  padding: 16px;
+  padding: 8px 16px;
   color: var(--app-muted);
-  font-size: 13px;
+  font-size: var(--app-size-table);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-table__footer-page {
+  display: block;
+  font-size: var(--app-size-caption);
 }
 
 .app-table__footer-controls {
@@ -5736,14 +5983,14 @@ textarea {
 :root[data-visual-theme='current'] thead[class*='bg-[#0d1117'],
 :root[data-visual-theme='light'] table thead[class*='bg-[#0d1117'],
 :root[data-visual-theme='light'] thead[class*='bg-[#0d1117'] {
-  background: var(--app-navy) !important;
+  background: var(--app-thead-bg) !important;
 }
 
 :root[data-visual-theme='current'] table thead[class*='bg-[#0d1117'] th,
 :root[data-visual-theme='current'] thead[class*='bg-[#0d1117'] th,
 :root[data-visual-theme='light'] table thead[class*='bg-[#0d1117'] th,
 :root[data-visual-theme='light'] thead[class*='bg-[#0d1117'] th {
-  color: #ffffff !important;
+  color: var(--app-thead-text) !important;
 }
 
 :root[data-visual-theme='current'] tr[class*='hover:bg-[#21262d']:hover,
@@ -6086,8 +6333,9 @@ textarea {
     --app-modal-pad: 18px;
   }
 
-  .page-header__title {
-    font-size: 1.8rem;
+  .app-shell--portal .page-header__title {
+    font-size: 28px;
+    line-height: 36px;
   }
 }
 
@@ -6143,11 +6391,11 @@ textarea {
     width: 100%;
     max-height: calc(100vh - 12px);
     max-height: calc(100dvh - 12px);
-    border-radius: 16px 16px 0 0;
+    border-radius: var(--app-radius) var(--app-radius) 0 0;
   }
 
   .app-modal__header {
-    border-radius: 16px 16px 0 0;
+    border-radius: var(--app-radius) var(--app-radius) 0 0;
     padding: 12px 12px 12px 18px;
   }
 
@@ -6665,4 +6913,285 @@ textarea {
 .comunicacao-titulo {
   font-family: var(--app-font-display);
   letter-spacing: -0.01em;
+}
+
+/* ===========================================================================
+   Primitivas da etapa 01 (revisão visual, direção "Carta náutica")
+   ---------------------------------------------------------------------------
+   Contagem em aba, controle segmentado, faixa de resumo, trilho de etapas e
+   barra de ações em massa. Usam só tokens; o tema escuro vem dos aliases.
+   =========================================================================== */
+.app-tab__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--app-neutral-bg);
+  color: var(--app-neutral-fg);
+  font-size: var(--app-size-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-tab--active .app-tab__count {
+  background: var(--app-info-bg);
+  color: var(--app-info-fg);
+}
+
+.app-segmented {
+  display: inline-flex;
+  max-width: 100%;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--app-border-strong);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-muted);
+}
+
+.app-segmented__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: calc(var(--app-control-h) - 6px);
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.app-segmented__option:hover:not(:disabled) {
+  color: var(--app-text-strong);
+}
+
+.app-segmented__option[aria-checked='true'] {
+  background: var(--app-surface-strong);
+  color: var(--app-text-strong);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--app-border-strong);
+}
+
+.app-segmented__option:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 1px;
+}
+
+.app-segmented__option:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.app-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 0;
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-summary-strip__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.app-summary-strip__item + .app-summary-strip__item::before {
+  content: '·';
+  margin: 0 8px;
+  color: var(--app-muted-soft);
+}
+
+.app-summary-strip__value {
+  order: -1;
+  margin: 0;
+  color: var(--app-text-strong);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-summary-strip__label {
+  margin: 0;
+}
+
+.app-summary-strip__item--warning .app-summary-strip__value {
+  color: var(--app-warning-fg);
+}
+
+.app-summary-strip__item--danger .app-summary-strip__value {
+  color: var(--app-danger-fg);
+}
+
+.app-step-rail {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-step-rail__step {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Filete do ponto até a etapa seguinte: tinta cheia depois de etapa
+   concluída, tracejado no resto. */
+.app-step-rail__step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 22px;
+  right: 6px;
+  border-top: 2px dashed var(--app-border-strong);
+}
+
+.app-step-rail__step--done:not(:last-child)::after {
+  border-top-style: solid;
+  border-top-color: var(--app-link);
+}
+
+.app-step-rail__link {
+  display: grid;
+  gap: 2px;
+  padding-right: 12px;
+  color: inherit;
+}
+
+a.app-step-rail__link:hover .app-step-rail__label {
+  color: var(--app-link);
+  text-decoration: underline;
+}
+
+a.app-step-rail__link:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--app-radius-control);
+}
+
+.app-step-rail__dot {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--app-border-strong);
+  border-radius: 999px;
+  background: var(--app-surface-strong);
+}
+
+.app-step-rail__step--done .app-step-rail__dot {
+  border-color: var(--app-link);
+  background: var(--app-link);
+}
+
+.app-step-rail__step--current .app-step-rail__dot {
+  border-color: var(--app-link);
+  box-shadow: inset 0 0 0 3px var(--app-surface-strong), inset 0 0 0 8px var(--app-link);
+}
+
+.app-step-rail__step--pending .app-step-rail__dot {
+  border-color: var(--app-gold);
+}
+
+.app-step-rail__step--blocked .app-step-rail__dot {
+  border-color: var(--app-red);
+  background: var(--app-danger-bg);
+}
+
+.app-step-rail__step--skipped .app-step-rail__dot {
+  border-style: dashed;
+}
+
+.app-step-rail__label {
+  margin-top: 6px;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.app-step-rail__detail {
+  color: var(--app-text-strong);
+  font-size: var(--app-size-table);
+  font-weight: 600;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.app-step-rail__step--current .app-step-rail__label {
+  color: var(--app-text-strong);
+}
+
+.app-step-rail__step--blocked .app-step-rail__detail {
+  color: var(--app-danger-fg);
+}
+
+.app-step-rail__step--skipped .app-step-rail__detail {
+  color: var(--app-muted);
+  font-weight: 500;
+}
+
+@media (max-width: 639px) {
+  .app-step-rail {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .app-step-rail__step:not(:last-child)::after {
+    display: none;
+  }
+
+  .app-step-rail__link {
+    grid-template-columns: 16px 1fr;
+    column-gap: 10px;
+  }
+
+  .app-step-rail__dot {
+    grid-row: span 2;
+    margin-top: 1px;
+  }
+
+  .app-step-rail__label {
+    margin-top: 0;
+  }
+}
+
+.app-bulk-bar {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  padding: 6px 8px 6px 16px;
+  border: 1px solid var(--app-link);
+  border-radius: var(--app-radius);
+  background: var(--app-info-bg);
+  box-shadow: var(--app-shadow);
+}
+
+.app-bulk-bar__count {
+  color: var(--app-text-strong);
+  font-size: var(--app-size-table);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-bulk-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
