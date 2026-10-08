@@ -333,7 +333,52 @@ describe('fetchLineUpSnapshot', () => {
 
     const result = await fetchLineUpSnapshot(60, initialSnapshot)
     expect(result).toBe(initialSnapshot)
-    expect(from.mock.calls.map(([table]) => table)).toEqual(['audit_logs', 'voyages', 'bls'])
+    expect(from.mock.calls.map(([table]) => table)).toEqual(['audit_logs', 'voyages', 'bls', 'audit_logs'])
+  })
+
+  it('deixa viagem cancelada fora do Line-Up', async () => {
+    const { fetchLineUpSnapshot } = await import('../lineup')
+    from.mockImplementation(byTable({
+      voyages: [VOYAGE, { ...VOYAGE, id: 25, voyage_number: '25W', status: 'cancelled', vessel: { name: 'MV CANCELADO' } }],
+      bls: [
+        { id: 'BL1', voyage_id: 24, pod: 'BRSSZ', cargo_mode: 'carga_solta' },
+        { id: 'BL2', voyage_id: 25, pod: 'BRSSZ', cargo_mode: 'carga_solta' },
+      ],
+    }))
+    const snapshot = await fetchLineUpSnapshot()
+    expect(snapshot.rows.map((row) => row.voyageId)).toEqual([24])
+  })
+
+  it('refaz o snapshot quando uma viagem é cancelada depois dele e estabiliza em seguida', async () => {
+    const { fetchLineUpSnapshot } = await import('../lineup')
+    const initialSnapshot = {
+      rows: [
+        { voyageId: 24, id: '24::BRSSZ' },
+        { voyageId: 25, id: '25::BRSSZ' },
+      ] as unknown as import('../lineup').LineUpRow[],
+      lastChangedAt: '2026-08-01T12:00:00Z',
+    }
+    from.mockImplementation(byTable({
+      voyages: [
+        { ...VOYAGE, created_at: '2026-07-01T00:00:00Z' },
+        { ...VOYAGE, id: 25, voyage_number: '25W', status: 'cancelled', created_at: '2026-07-02T00:00:00Z' },
+      ],
+      bls: [
+        { id: 'BL1', voyage_id: 24, pod: 'BRSSZ', cargo_mode: 'carga_solta', updated_at: '2026-07-15T00:00:00Z' },
+        { id: 'BL2', voyage_id: 25, pod: 'BRSSZ', cargo_mode: 'carga_solta', updated_at: '2026-07-15T00:00:00Z' },
+      ],
+      // cancel_voyage (migration 089) só deixa rastro no audit log da viagem.
+      audit_logs: [{ entity_type: 'voyages', entity_id: '25', field_name: 'status', new_value: 'cancelled', changed_at: '2026-08-02T09:00:00Z' }],
+    }))
+
+    const refreshed = await fetchLineUpSnapshot(60, initialSnapshot)
+    expect(refreshed).not.toBe(initialSnapshot)
+    expect(refreshed.rows.map((row) => row.voyageId)).toEqual([24])
+    expect(refreshed.lastChangedAt).toBe('2026-08-02T09:00:00Z')
+
+    from.mockClear()
+    const next = await fetchLineUpSnapshot(60, refreshed)
+    expect(next).toBe(refreshed)
   })
 })
 

@@ -2,7 +2,8 @@ import type { LineUpRow } from '../services/lineup'
 
 export type LineUpPeriodoFilter = 'all' | 'custom'
 export type LineUpCeFilter = 'all' | 'waiting' | 'received' | 'launching' | 'approving' | 'approved'
-export type LineUpStatusFilter = 'all' | 'active' | 'completed' | 'cancelled'
+// Viagem cancelada não entra no Line-Up (lineup.ts), então não há filtro para ela.
+export type LineUpStatusFilter = 'all' | 'active' | 'completed'
 export type LineUpPresenceFilter = 'all' | 'with' | 'without'
 
 export type LineUpFilters = {

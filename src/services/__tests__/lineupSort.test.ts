@@ -64,15 +64,14 @@ describe('compareLineUpRows', () => {
     } as LineUpRow
   }
 
-  it('coloca viagens canceladas no final da fila operacional após ativas e omitidas', () => {
+  it('coloca escalas omitidas no final da fila operacional, depois das ativas', () => {
     const atBerth = makeRow({ id: 'berth', atb: '2026-06-01', voyageStatus: 'active' })
     const pendingEta = makeRow({ id: 'eta', eta: '2026-06-02', voyageStatus: 'active' })
     const omitted = makeRow({ id: 'omitted', omitted: true, voyageStatus: 'active' })
-    const cancelled = makeRow({ id: 'cancelled', atb: '2026-05-30', voyageStatus: 'cancelled' })
 
-    const rows = [cancelled, omitted, pendingEta, atBerth]
+    const rows = [omitted, pendingEta, atBerth]
     const sorted = [...rows].sort(compareLineUpRows)
 
-    expect(sorted.map((r) => r.id)).toEqual(['berth', 'eta', 'omitted', 'cancelled'])
+    expect(sorted.map((r) => r.id)).toEqual(['berth', 'eta', 'omitted'])
   })
 })
