@@ -738,7 +738,7 @@ mostra `NaoEncontrado` sob `ProtectedRoute`; no Portal, `*` redireciona para
 
 As rotas internas exigem sessão e perfil; `/admin` e `/admin/:tab` exigem
 `adminOnly`. `/clientes/comunicacao` exige `customer_communications`.
-As quatro rotas autenticadas do Portal usam `PortalProtectedRoute`,
+As rotas autenticadas do Portal, inclusive a Central de Informações, usam `PortalProtectedRoute`,
 `PortalScopeProvider` e `PortalLayout`. A inspeção é interna e somente leitura.
 Esses guards são UX; grants, RLS e RPCs continuam sendo a autorização real.
 
