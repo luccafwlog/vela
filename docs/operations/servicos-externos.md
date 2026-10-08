@@ -605,7 +605,8 @@ O token troca um CSR por certificado (365 dias) e client_secret em
 dos segredos, em Supabase → Edge Functions → Secrets (**cadastrados pelo dono
 em 07/10**): `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`,
 `ITAU_KEY_B64`, `ITAU_PIX_KEY` e `ITAU_PIX_ADMIN_SECRET`. Backup PFX cifrado
-validado; senha no iCloud Senhas, cópia externa do arquivo ainda não confirmada.
+validado; senha no iCloud Senhas; cópia do arquivo fora do computador feita
+pelo dono (declarada em 08/10, destino escolhido iCloud Drive).
 O item `ITAU_ONBOARDING_PRIVATE_KEY` do Vault não tem uso
 (o Itaú não pediu chave pública); removido pelo dono e ausência conferida em 07/10.
 
