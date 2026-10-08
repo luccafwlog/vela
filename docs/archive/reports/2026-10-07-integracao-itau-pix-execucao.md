@@ -1,6 +1,6 @@
 # Integração Itaú Pix — relatório de execução (06 a 08/10/2026)
 
-Histórico de execução do [plano da integração Itaú Pix](../../plans/2026-10-06-integracao-itau-pix.md),
+Histórico de execução do [plano da integração Itaú Pix](../plans/2026-10-06-integracao-itau-pix.md),
 movido do plano vivo em 2026-10-08 por decisão do dono. O conteúdo abaixo é
 registro histórico: preserve as conclusões e acrescente correções como novas
 linhas datadas, sem reescrever as anteriores. O estado atual e o trabalho
@@ -47,6 +47,12 @@ de COB e leitura de Pix. Seis secrets `ITAU_*` cadastrados pelo dono.
 
 | Data | Evento |
 |---|---|
+| 2026-10-08 | Encerramento: plano e spec arquivados; provedor `itau` segue ativo em produção com `itau-pix` v8. Fase 6 (webhook) opcional, não executada. |
+| 2026-10-08 | Dono recarregou o Portal e confirmou: consolidada INV-2026-0009 paga com recibo; INV-2026-0007 e 0008 como "Coberta pela INV-2026-0009", sem recibo próprio. Leitura no banco confirmou a lista: 0009 `paid`, 0007/0008 `covered` com saldo zero e `covered_by_invoice_number` = INV-2026-0009. |
+| 2026-10-08 | Correção do Portal no PR 895 (decisão do dono, opção 1): consolidada paga sumia da lista e do detalhe porque os vínculos passam a `settled_by_this_invoice`; individuais cobertas apareciam como pagas, com recibo e saldo antigo. Migration `162` aplicada em produção pelo dono (versão `162` conferida no painel); frontend publicado pelo workflow de produção às 01:52 UTC. |
+| 2026-10-08 | Runtime, primeira baixa de pagamento novo pela v8: dono criou no Portal a consolidada INV-2026-0009 (id 9, R$ 0,21) das individuais INV-2026-0007 (R$ 0,10) e INV-2026-0008 (R$ 0,11). COB ATIVA no ciclo seguinte, QR igual ao da fatura. Pago às 01:30:38 UTC, recebimento `E18236120202610080130s004bfcab8f` `settled` às 01:31:00 (23 s), sem análise; minuto do `endToEndId` coincide. Individuais passaram a `covered`; COBs delas `pending_cancel` e `cancelled` às 01:32. B/Ls `settled`, saldo zero, um settlement cada; nenhuma resposta não-200 no intervalo. |
+| 2026-10-08 | Para o teste de consolidada, o dono executou a transação preparada pelo agente (gravação bloqueada pela permissão do agente): B/Ls `TEST-ITAU-CONS1-20261008` e `TEST-ITAU-CONS2-20261008`, cliente 1, containers COC `VELU2610081`/`VELU2610082`, CEs fictícios `000000000000003`/`000000000000004`, item B/L Reissuing com quantidade fracionada; emitidas INV-2026-0007 (R$ 0,10) e INV-2026-0008 (R$ 0,11), com guarda de tipo, cliente, valor e teto R$ 0,25. COBs ativas em cerca de 1 min, válidas por 30 dias. |
+| 2026-10-08 | Dono confirmou o recibo da individual INV-2026-0006 no Portal. |
 | 2026-10-08 | Documentos de módulo atualizados para o provedor `itau` em produção: `faturamento.md`, `reconciliacao-pix.md`, `demurrage.md` e `RASTREABILIDADE.md` (linha da Edge `itau-pix` e PTAX agendado). Nota "PIX tem dois autores" corrigida: `persistPixPayload` já tinha sido removido do frontend no commit `94718d24`. Restam a consolidada de teste e o recibo da individual no Portal. |
 | 2026-10-08 | Dono declarou que a cópia do PFX fora do computador foi feita (destino escolhido em 07/10: iCloud Drive); não verificada pelo agente. Histórico de execução movido do plano vivo para este relatório, por decisão do dono. |
 | 2026-10-08 | Correção do registro: ao contrário das linhas de 08/10 que a dão como pendente, INV-2026-0006 já estava paga. Leitura no banco: pagamento de R$ 0,20 às 20:38:28 UTC de 07/10, recebimento `E18236120202610072038s0016c11e32` gravado `settled` às 20:39:01 UTC (~33 s, ainda na v7), sem análise; um único pagamento (id 4), cobrança id 5 `concluded`, fatura `paid`. Minuto UTC do `endToEndId` coincide com o horário gravado. Prova financeira da individual concluída no banco; recibo no Portal não conferido pelo agente. A baixa de pagamento novo pela v8 segue não observada. |

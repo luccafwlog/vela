@@ -2,6 +2,10 @@
 
 **Status:** planejamento futuro — não aprovado para execução
 
+> **Nota editorial — 2026-10-08:** implementada e arquivada junto com o
+> [plano](../plans/2026-10-06-integracao-itau-pix.md); provedor `itau` ativo em
+> produção desde 2026-10-07. O webhook segue opcional e não implementado.
+>
 > **Nota editorial — 2026-10-06:** execução aprovada pelo dono. Credenciais
 > produtivas recebidas no protocolo IT-000245617 sem envio de chave pública.
 > Plano vivo: [integração Itaú Pix](../plans/2026-10-06-integracao-itau-pix.md),

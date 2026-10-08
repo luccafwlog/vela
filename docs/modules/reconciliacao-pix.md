@@ -267,7 +267,7 @@ bancária e chave de idempotência (`itau_pix_receipts`). Qualquer recusa (valor
 diferente, fatura não pagável, sem usuário de baixa em
 `app_settings.itau_pix_settlement_actor`) abre o Alerta `pix_unreconciled`
 para o Administrativo, sem baixa. Detalhes no
-[plano](../plans/2026-10-06-integracao-itau-pix.md).
+[plano](../archive/plans/2026-10-06-integracao-itau-pix.md).
 
 **Consulta e horários (Edge `itau-pix` v8).** O job `itau-pix-queue` chama a
 função a cada minuto: manutenção de prazos (`itau_pix_maintain`), fila de
@@ -282,9 +282,10 @@ monitoramento acima; a correção é remover a troca de `Z` em
 `supabase/functions/_shared/itauPix.ts`. Operação e segredos no
 [manual de serviços externos](../operations/servicos-externos.md#itaú--api-pix-recebimentos).
 
-**Runtime em produção (07/10):** avulsas, individual e Demurrage de teste
-pagas por QR Itaú foram baixadas pelo cron entre 33 e 58 s depois do
-pagamento. Consolidada ainda sem prova de ponta a ponta.
+**Runtime em produção (07 e 08/10):** avulsas, individual, consolidada e
+Demurrage de teste pagas por QR Itaú foram baixadas pelo cron entre 23 e 58 s
+depois do pagamento; a consolidada (v8) cancelou no ciclo seguinte as
+cobranças das individuais que cobriu.
 
 ### Cobranças locais após correção — migration 130
 

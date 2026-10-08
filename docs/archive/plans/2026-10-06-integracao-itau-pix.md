@@ -1,5 +1,13 @@
 # Integração Itaú Pix — QR dinâmico e baixa automática
 
+> **Concluído e arquivado em 2026-10-08.** Todos os tipos de fatura (avulsa,
+> individual, consolidada e Demurrage) foram pagos por QR Itaú e baixados pelo
+> cron em produção, com recibos confirmados pelo dono no Portal. A Fase 6
+> (webhook) era opcional e não foi executada: a consulta de 1 minuto atendeu.
+> O estado abaixo é o último registro do plano vivo; a evidência está no
+> [relatório de execução](../reports/2026-10-07-integracao-itau-pix-execucao.md).
+> Operação vigente: [manual de serviços externos](../../operations/servicos-externos.md#itaú--api-pix-recebimentos).
+
 **Estado:** plano aprovado para execução em 2026-10-06. Fase 0 (certificado)
 com credencial dedicada recebida em 07/10 e CLIENT ID diferente do anterior
 confirmado por hash; certificado emitido e OAuth mTLS validado. Prova de
@@ -27,7 +35,7 @@ Job de PTAX validado e agendado.
 **Substitui:** a PR 827 (`codex/itau-pix-simulation`) como caminho de entrega.
 Os planos daquela branch nunca chegaram à `main`; o que vale deles está
 incorporado aqui.
-**Spec de origem:** [integração Itaú Pix](../spec/2026-08-25-integracao-itau-pix.md).
+**Spec de origem:** [integração Itaú Pix](../specs/2026-08-25-integracao-itau-pix.md).
 
 ## Resultado esperado
 
@@ -186,7 +194,7 @@ assim, pare e avise o dono antes de recriá-la.
    `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` e
    `ITAU_PIX_ADMIN_SECRET` (≥ 32 caracteres aleatórios). O mesmo
    `ITAU_PIX_ADMIN_SECRET` também no Vault, com o mesmo nome (procedimento em
-   [segredos e cron](../operations/segredos-cron.md)). Remover
+   [segredos e cron](../../operations/segredos-cron.md)). Remover
    `ITAU_ONBOARDING_PRIVATE_KEY` do Vault. Conferir pelos nomes no painel e
    `SELECT count(*) FROM vault.secrets WHERE name = 'ITAU_PIX_ADMIN_SECRET'` = 1.
 4. **Publicar a função (agente).**
@@ -216,7 +224,7 @@ assim, pare e avise o dono antes de recriá-la.
    erro e, na Conciliação PIX, "Última consulta de recebimentos" avançando.
 8. **Virar a chave (dono decide, agente executa).**
    `UPDATE public.app_settings SET pix_provider = 'itau' WHERE id = 1;` e, logo
-   em seguida, o SQL do [manual de serviços externos](../operations/servicos-externos.md#itaú--api-pix-recebimentos)
+   em seguida, o SQL do [manual de serviços externos](../../operations/servicos-externos.md#itaú--api-pix-recebimentos)
    que dá cobrança às faturas já abertas. Conferir: em cerca de 1 minuto as
    faturas abertas mostram o QR do Itaú; uma avulsa de R$ 0,01 para cliente
    fixture, paga pelo dono, fica paga com recibo no Portal em cerca de 1
@@ -466,5 +474,5 @@ SQL não prova execução nem RLS; a prova de pagamento é o teste de centavos.
 ## Histórico de execução
 
 O contrato observado em produção e o registro datado de execução estão no
-[relatório de execução](../archive/reports/2026-10-07-integracao-itau-pix-execucao.md). Novos eventos datados vão para esse
+[relatório de execução](../reports/2026-10-07-integracao-itau-pix-execucao.md). Novos eventos datados vão para esse
 relatório; este plano mantém só o estado atual e o trabalho pendente.
