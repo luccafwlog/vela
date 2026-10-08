@@ -3,6 +3,7 @@ import {
   BL_FREIGHT_DIFF_LABELS,
   buildBlFreightPayload,
   buildBlFreightPreview,
+  chunkBlPayload,
   confirmBlFreightImport,
   type BlFreightImportPreview,
 } from '../blFreightImport'
@@ -739,6 +740,19 @@ describe('blFreightImport', () => {
       result: [{ bls_received: 1 }],
       calculationErrors: [{ blNumber: 'COSU777', message: 'Nenhuma tabela vigente.' }],
     })
+  })
+
+  it('limita cada lote pelo numero de conteineres, nao so de B/Ls', () => {
+    const bl = (id: string, containers: number) => ({ id, containers: Array.from({ length: containers }, (_, n) => n) })
+    // 6 B/Ls x 200 conteineres (caso GREEN BRAZIL / 8): 1.200 conteineres numa chamada estouravam 8 s
+    const big = ['A', 'B', 'C', 'D', 'E', 'F'].map((id) => bl(id, 200))
+    expect(chunkBlPayload(big).map((chunk) => chunk.map((item) => item.id))).toEqual([['A'], ['B'], ['C'], ['D'], ['E'], ['F']])
+    // B/L acima do orcamento vai sozinho, sem ser partido
+    expect(chunkBlPayload([bl('X', 2), bl('Y', 500), bl('Z', 2)]).map((chunk) => chunk.map((item) => item.id))).toEqual([['X'], ['Y'], ['Z']])
+    // B/Ls pequenos continuam em lotes de ate 20
+    const small = Array.from({ length: 45 }, (_, n) => bl(`S${n}`, 3))
+    expect(chunkBlPayload(small).map((chunk) => chunk.length)).toEqual([20, 20, 5])
+    expect(chunkBlPayload([])).toEqual([])
   })
 
   it('envia lotes grandes em partes para nao estourar o statement_timeout e informa falha parcial', async () => {

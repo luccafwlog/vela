@@ -1,6 +1,5 @@
 import { canonicalizeDocument } from '../lib/cnpj'
 import { extractErrorText } from '../lib/errors'
-import { chunkArray } from '../lib/utils'
 import { extractNcmCodes } from '../lib/ncm'
 import { normalizeIsoContainerNumber } from '../lib/containerNumber'
 import { canonicalizeVesselName } from '../lib/vesselAlias'
@@ -532,11 +531,14 @@ export async function confirmBlFreightImport(
   const refusedCustomerRelinks: RefusedCustomerRelink[] = []
   const calculationErrors: LocalChargeCalculationError[] = []
   let imported = 0
-  // ponytail: a RPC calcula as taxas de cada B/L (~100-200 ms/B/L) e o papel
-  // authenticated corta a chamada em 8 s (57014). Lotes fixos cabem com folga;
-  // cada lote e uma transacao, entao uma falha no meio preserva os anteriores
-  // (reimportar e idempotente). Upgrade: calculo de taxas fora da transacao.
-  for (const chunk of chunkArray(payload, BL_IMPORT_CHUNK_SIZE)) {
+  // ponytail: o custo da RPC cresce com os contêineres (insert + triggers,
+  // flags do Baplie e cálculo de taxas, ~8 ms/contêiner medido em 08/10/2026)
+  // e o papel authenticated corta a chamada em 8 s (57014). Lotes limitados
+  // por B/Ls e por contêineres cabem com folga; cada lote e uma transacao,
+  // entao uma falha no meio preserva os anteriores (reimportar e idempotente).
+  // Teto: um único B/L com ~900+ contêineres ainda não cabe numa chamada.
+  // Upgrade: calculo de taxas e flags do Baplie fora da transacao.
+  for (const chunk of chunkBlPayload(payload)) {
     const { data: rawData, error } = usesBatchContract
       ? await supabase.rpc('import_bl_freight_with_metadata', {
           p_bls: chunk,
@@ -569,6 +571,33 @@ export async function confirmBlFreightImport(
 }
 
 const BL_IMPORT_CHUNK_SIZE = 20
+const BL_IMPORT_CHUNK_CONTAINER_BUDGET = 300
+
+/**
+ * Divide o payload em lotes de até 20 B/Ls e até 300 contêineres. Um B/L
+ * maior que o orçamento vai sozinho: B/L não é dividido entre transações.
+ */
+export function chunkBlPayload<T extends { containers?: unknown[] }>(
+  payload: T[],
+  maxBls = BL_IMPORT_CHUNK_SIZE,
+  containerBudget = BL_IMPORT_CHUNK_CONTAINER_BUDGET,
+): T[][] {
+  const chunks: T[][] = []
+  let current: T[] = []
+  let containers = 0
+  for (const bl of payload) {
+    const count = bl.containers?.length ?? 0
+    if (current.length && (current.length >= maxBls || containers + count > containerBudget)) {
+      chunks.push(current)
+      current = []
+      containers = 0
+    }
+    current.push(bl)
+    containers += count
+  }
+  if (current.length) chunks.push(current)
+  return chunks
+}
 
 export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | null): BlFreightRpcPayload {
   const isImoFromBl = Boolean(doc.cargo.dgClass || doc.cargo.unNumber)
