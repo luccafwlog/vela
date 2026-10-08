@@ -320,30 +320,34 @@ textarea {
   color: var(--app-text);
 }
 
+/* ─── Shell (etapa 02) ─────────────────────────────────────────────────────
+   Faixa de avisos de até 28 px e uma barra só, com marca, navegação e conta.
+   O dourado aparece apenas na indicação da navegação ativa. Abaixo de 1100 px
+   a navegação vira a lista do botão Menu, aberta logo abaixo da barra. */
 .app-market-strip {
   position: relative;
   /* Acima do cabeçalho fixo (200), abaixo do fundo de modal (300): com 400 a
      faixa de avisos ficava nítida por cima do desfoque de qualquer modal. */
   z-index: 250;
-  background: linear-gradient(180deg, rgba(8, 17, 27, 0.98), rgba(11, 22, 36, 0.94));
+  background: #0b1624;
   color: #ffffff;
-  backdrop-filter: blur(12px);
 }
 
 .app-market-strip__content {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 5px 34px;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 28px;
+  padding: 0 24px;
 }
 
+/* O aviso operacional não é cortado: quem cede espaço é o câmbio. */
 .app-market-strip__left {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
-  overflow: hidden;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
@@ -351,173 +355,97 @@ textarea {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
-.app-market-strip__right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: flex-end;
-  position: relative;
-}
-
-/* Identidade e ações do usuário ficam no cabeçalho principal (AppLayout).
-   Esta zona carrega a versão publicada da build. */
-.app-version-badge {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
-  padding: 0 8px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.55);
-  font-family: var(--app-font-mono);
-  font-size: 11px;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition: color 0.18s ease, border-color 0.18s ease;
-}
-
-.app-version-badge:hover {
-  color: rgba(255, 255, 255, 0.85);
-  border-color: rgba(255, 255, 255, 0.32);
-}
-
-.app-version-badge:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  outline-offset: 2px;
-}
-
-/* HeaderInfoBar — alert buttons */
 .hib-alert-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: #F59E0B;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
   padding: 0;
+  border: none;
+  background: transparent;
+  color: #f5a524;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
   white-space: nowrap;
-  transition: opacity 0.15s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hib-alert-btn:hover {
-  opacity: 0.8;
+  text-decoration: underline;
 }
 
-/* HeaderInfoBar — separator used across zones */
+.hib-alert-btn:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
 .hib-sep {
-  color: rgba(255, 255, 255, 0.2);
-  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
   flex-shrink: 0;
 }
 
-/* HeaderInfoBar — exchange rate labels and values */
 .hib-currency-label {
-  color: rgba(255, 255, 255, 0.38);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.hib-currency-label--warning {
+  color: #f5a524;
 }
 
 .hib-currency-value {
-  color: rgba(255, 255, 255, 0.88);
-  font-family: var(--app-font-mono);
-  font-size: 11px;
-  font-weight: 500;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
   font-variant-numeric: tabular-nums;
 }
 
-/* Hide exchange rate zone on mobile */
 @media (max-width: 767px) {
   .app-market-strip__center {
     display: none;
   }
-
-  .app-market-strip__content {
-    grid-template-columns: 1fr 1fr;
-  }
 }
-
-.app-market-chip {
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.app-market-value {
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.app-market-meta {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-
-.app-market-separator {
-  color: rgba(255, 255, 255, 0.22);
-  font-size: 12px;
-}
-
-.app-market-divider {
-  width: 1px;
-  height: 14px;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.app-market-strip__right .app-market-meta:first-of-type {
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 500;
-}
-
-.app-market-strip__right .app-market-meta:last-of-type {
-  color: rgba(255, 255, 255, 0.2);
-  font-size: 11px;
-}
-
 
 .app-header {
-  background: linear-gradient(180deg, rgba(22, 36, 64, 0.98), rgba(21, 33, 58, 0.94));
-  color: #ffffff;
   position: sticky;
   top: 0;
   z-index: 200;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--app-navy);
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 1px 4px rgba(10, 17, 29, 0.14);
+  /* Também é o bloco de contenção dos painéis fixos do sino no celular. */
   backdrop-filter: blur(12px);
 }
 
 .app-header__content {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 24px;
   min-height: var(--app-header-height);
-  padding: 0 34px;
+  padding: 0 24px;
 }
 
 .app-header__brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  flex-shrink: 0;
+  gap: 10px;
   min-width: 0;
   min-height: 44px;
   padding: 0;
@@ -527,54 +455,42 @@ textarea {
   cursor: pointer;
 }
 
+.app-header__brand:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .app-header__brand-logo {
   width: auto;
-  height: 32px;
+  height: 28px;
   object-fit: contain;
   flex-shrink: 0;
 }
 
-.app-header__titles {
-  display: grid;
-  gap: 0;
-  justify-items: start;
-  min-width: 0;
-  text-align: left;
+.app-header__brand-logo--fwlog {
+  height: 32px;
 }
 
-.app-header__eyebrow {
-  color: rgba(255, 255, 255, 0.95);
+.app-header__wordmark {
+  color: #ffffff;
   font-family: var(--app-font-display);
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.01em;
   line-height: 1;
-}
-
-.app-header__subtitle {
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  line-height: 1.2;
-  margin-top: 3px;
-  text-transform: uppercase;
 }
 
 .app-header__actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  flex-wrap: nowrap;
-}
-
-/* Ações pessoais vivem no menu do nome no cabeçalho informativo. */
-.app-header__actions > .hidden {
-  display: none !important;
+  flex-shrink: 0;
+  gap: 4px;
+  margin-left: auto;
 }
 
 .app-header__icon-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -583,55 +499,108 @@ textarea {
   min-width: 44px;
   min-height: 44px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--app-radius-control);
   background: transparent;
   color: rgba(255, 255, 255, 0.82);
   cursor: pointer;
 }
 
 .app-header__icon-button:hover,
-.app-header__icon-button:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
+.app-header__icon-button[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
+}
+
+.app-header__icon-button:focus-visible {
   outline: 2px solid var(--app-focus-ring);
   outline-offset: 2px;
+}
+
+/* Contagem de não lidas nos dois sinos: 12 px, com o número por extenso no
+   nome acessível do botão. */
+.app-header__count {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 2px solid var(--app-navy);
+  border-radius: 999px;
+  background: var(--app-red);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .app-header__user-menu {
   position: relative;
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: 44px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.82);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--app-radius-control);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.86);
   cursor: pointer;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .app-header__user-menu:hover,
-.app-header__user-menu:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
-  outline: none;
+.app-header__user-menu[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
-.app-header__user-menu > span,
-.app-header__user-menu > .app-user-pill__name {
-  margin-left: 6px;
+.app-header__user-menu:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+.app-header__user-chevron {
+  opacity: 0.7;
 }
 
 .app-header__user-dropdown {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   right: 0;
   z-index: 350;
-  min-width: 150px;
-  padding: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(31, 47, 79, 0.99), rgba(24, 38, 66, 0.98));
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  display: grid;
+  min-width: 240px;
+  padding: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow-strong);
+}
+
+.app-header__user-identity {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 6px;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.app-header__user-identity-name {
+  color: var(--app-text-strong);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.app-header__user-identity-meta {
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .app-header__user-dropdown button {
@@ -639,62 +608,47 @@ textarea {
   align-items: center;
   width: 100%;
   min-height: 44px;
-  gap: 8px;
+  gap: 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--app-radius-control);
   padding: 8px 10px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--app-text);
   cursor: pointer;
   font: inherit;
+  font-size: 14px;
   text-align: left;
 }
 
 .app-header__user-dropdown button:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--app-surface-hover);
+  color: var(--app-text-strong);
 }
 
 .app-header__user-dropdown button:focus-visible {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
   outline: 2px solid var(--app-focus-ring);
   outline-offset: -2px;
 }
 
-.app-header__quick-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 6px;
-  padding: 6px 12px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.7);
+/* Versão da build no rodapé do menu da conta; o clique copia o commit. */
+.app-header__user-dropdown .app-version-badge {
+  margin-top: 6px;
+  border-top: 1px solid var(--app-border);
+  border-radius: 0 0 var(--app-radius-control) var(--app-radius-control);
+  color: var(--app-muted);
+  font-family: var(--app-font-mono);
   font-size: 12px;
-  font-weight: 600;
-  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
-}
-
-.app-header__quick-link:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
 }
 
 .app-user-pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
-  padding: 8px 13px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  min-height: 44px;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.86);
   cursor: default;
-  user-select: none;
-  backdrop-filter: blur(10px);
 }
 
 .app-user-pill__icon {
@@ -707,38 +661,27 @@ textarea {
 }
 
 .app-user-pill__name {
-  max-width: 160px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.1;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
 }
 
 .app-header__logout {
   min-height: 44px !important;
-  padding: 6px 10px !important;
-  border-radius: 6px !important;
-  color: rgba(255, 255, 255, 0.7) !important;
+  padding: 0 10px !important;
+  border-radius: var(--app-radius-control) !important;
+  color: rgba(255, 255, 255, 0.82) !important;
   font-size: 13px !important;
-  font-weight: 400 !important;
+  font-weight: 500 !important;
 }
 
 .app-header__logout:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
   color: #ffffff !important;
-}
-
-.app-nav-bar {
-  background: var(--app-navy-2);
-  border-bottom: 2px solid rgba(212, 136, 46, 0.85);
-  position: sticky;
-  top: var(--app-header-height);
-  z-index: 190;
-  overflow-x: clip;
-  box-shadow: 0 1px 3px rgba(10, 17, 29, 0.10);
 }
 
 .app-nav-toggle {
@@ -746,31 +689,46 @@ textarea {
   align-items: center;
   gap: 8px;
   min-height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--app-radius-control);
+  padding: 0 12px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.app-nav-toggle:hover {
-  background: rgba(255, 255, 255, 0.08);
+.app-nav-toggle:hover,
+.app-nav-toggle[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
 
+.app-nav-toggle:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Navegação na própria barra: os itens ocupam a altura toda e a página ativa
+   ganha o filete dourado no rodapé da barra. */
 .app-nav-scroll {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 0 34px 12px;
-  overflow: visible;
+  align-items: stretch;
+  align-self: stretch;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
 }
 
 .app-nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Identificação do Cliente dentro da lista do Menu, onde a pílula do
+   cabeçalho não cabe (até 480 px). */
+.app-nav-account {
   display: none;
 }
 
@@ -778,38 +736,36 @@ textarea {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 8px;
-  min-height: 44px;
-  padding: 10px 14px;
-  border: 1px solid transparent;
-  border-bottom: 0;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.7);
+  gap: 6px;
+  min-height: var(--app-header-height);
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.74);
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
+  font-weight: 500;
   white-space: nowrap;
-  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  transition: background-color 0.18s ease, color 0.18s ease;
 }
 
 .app-nav-link--button {
-  border-left: 0;
-  border-right: 0;
-  border-top: 0;
-  background: transparent;
   cursor: pointer;
 }
 
 .app-nav-link:hover {
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.96);
+  color: #ffffff;
+}
+
+.app-nav-link:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -4px;
 }
 
 .app-nav-link.active {
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 -3px 0 rgba(242, 169, 59, 1);
+  box-shadow: inset 0 -3px 0 var(--app-gold);
 }
 
 .app-nav-badge {
@@ -817,40 +773,22 @@ textarea {
   align-items: center;
   justify-content: center;
   min-width: 20px;
-  height: 20px;
-  margin-left: auto;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  height: 18px;
   border-radius: 999px;
   padding: 0 6px;
   background: var(--app-gold);
-  box-shadow: none;
   color: var(--app-navy);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .app-nav-alert-dot {
-  width: 10px;
-  height: 10px;
-  margin-left: auto;
-  border: 2px solid rgba(255, 255, 255, 0.62);
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: var(--app-gold);
-  box-shadow: 0 0 0 2px rgba(212, 136, 46, 0.2);
-}
-
-.app-nav-link--admin {
-  color: rgba(255, 255, 255, 0.68);
-}
-
-.app-nav-divider {
-  width: 1px;
-  height: 28px;
-  margin: 0 6px;
-  background: rgba(255, 255, 255, 0.14);
-  flex-shrink: 0;
 }
 
 .app-nav-dropdown {
@@ -861,7 +799,7 @@ textarea {
 }
 
 .app-nav-dropdown__chevron {
-  opacity: 0.75;
+  opacity: 0.7;
   transition: transform 0.18s ease;
 }
 
@@ -876,27 +814,11 @@ textarea {
   z-index: 260;
   display: none;
   min-width: 240px;
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(31, 47, 79, 0.98), rgba(24, 38, 66, 0.96));
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(12px);
-}
-
-.app-nav-dropdown__menu::before {
-  content: '';
-  position: absolute;
-  top: -10px;
-  left: 0;
-  right: 0;
-  height: 10px;
-}
-
-.app-nav-scroll,
-.app-nav-dropdown,
-.app-nav-dropdown__menu {
-  isolation: auto;
+  padding: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: 0 0 var(--app-radius) var(--app-radius);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-strong);
 }
 
 .app-nav-dropdown.open .app-nav-dropdown__menu {
@@ -908,24 +830,59 @@ textarea {
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: rgba(255, 255, 255, 0.76);
-  font-size: 13px;
-  font-weight: 600;
-  transition: background-color 0.18s ease, color 0.18s ease;
+  border-radius: var(--app-radius-control);
+  padding: 8px 10px;
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.app-nav-dropdown__item:hover,
+.app-nav-dropdown__item:hover {
+  background: var(--app-surface-hover);
+  color: var(--app-text-strong);
+}
+
 .app-nav-dropdown__item:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-  outline: 0;
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -2px;
 }
 
+/* Página ativa dentro do grupo: filete à esquerda, como o dourado da barra. */
 .app-nav-dropdown__item.active {
-  background: rgba(255, 255, 255, 0.14);
-  color: #ffffff;
+  background: var(--app-surface-muted);
+  color: var(--app-text-strong);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--app-gold);
+}
+
+.app-nav-dropdown__item .app-nav-badge,
+.app-nav-dropdown__item .app-nav-alert-dot {
+  margin-left: auto;
+}
+
+/* Entre 1101 e 1399 px a barra perde os ícones da navegação; até 1279 px
+   perde também o nome da conta (que segue como nome acessível). Medido com
+   os nove itens do Vela e o Admin visível. */
+@media (min-width: 1101px) and (max-width: 1399px) {
+  .app-nav-link > svg:first-child {
+    display: none;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1279px) {
+  .app-header__content {
+    gap: 16px;
+  }
+
+  .app-header__user-menu .app-user-pill__name,
+  .app-header__actions .app-user-pill .app-user-pill__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
 
 .app-main {
@@ -4222,10 +4179,134 @@ button.app-metric-tile[aria-pressed='true'] {
   text-wrap: pretty;
 }
 
+/* ─── Painel de estado do shell (etapa 02) ─────────────────────────────────
+   Acesso restrito, perfil ausente, erro de tela e página não encontrada usam o
+   mesmo bloco: ícone, título, explicação e ações, com a cor só no ícone e no
+   filete. */
+.app-status-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  width: min(100%, 560px);
+  padding: 24px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+
+.app-status-panel--warning {
+  border-top: 3px solid var(--app-warning-border);
+}
+
+.app-status-panel--danger {
+  border-top: 3px solid var(--app-danger-border);
+}
+
+.app-status-panel__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--app-radius-control);
+  background: var(--app-neutral-bg);
+  color: var(--app-neutral-fg);
+}
+
+.app-status-panel--warning .app-status-panel__icon {
+  background: var(--app-warning-bg);
+  color: var(--app-warning-fg);
+}
+
+.app-status-panel--danger .app-status-panel__icon {
+  background: var(--app-danger-bg);
+  color: var(--app-danger-fg);
+}
+
+.app-status-panel__body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-status-panel__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.app-status-panel__text {
+  display: grid;
+  gap: 8px;
+  color: var(--app-text);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.app-status-panel__text p {
+  margin: 0;
+}
+
+.app-status-panel__code {
+  overflow-wrap: anywhere;
+  color: var(--app-text-strong);
+  font-family: var(--app-font-mono);
+  font-size: 13px;
+}
+
+.app-status-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.app-status-panel__details {
+  padding: 8px 12px;
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-muted);
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.app-status-panel__details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.app-status-panel__details pre {
+  max-height: 160px;
+  margin: 8px 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.app-status-loading {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 14px;
+}
+
+@media (max-width: 479px) {
+  .app-status-panel {
+    flex-direction: column;
+    padding: 20px;
+  }
+}
+
+/* ─── Telas de acesso (etapa 02) ──────────────────────────────────────────
+   Login interno em dois painéis; telas do Portal em cartão único de 440 px.
+   Título em Syne 32/40 (28/36 no celular), corpo 14/20, ajuda em 12/16. O
+   padrão de pontos fica só no fundo e no painel da marca. */
 .app-auth {
   display: grid;
   place-items: center;
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 24px 16px;
   background-color: var(--app-bg);
   background-image: var(--app-dot-pattern);
@@ -4233,27 +4314,29 @@ button.app-metric-tile[aria-pressed='true'] {
 }
 
 .app-auth__panel {
-  width: min(100%, 900px);
+  width: min(100%, 880px);
   display: grid;
   grid-template-columns: 1fr;
-  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
   overflow: hidden;
-  box-shadow: 0 2px 32px rgba(21, 34, 56, 0.14);
+  background: var(--app-surface);
+  box-shadow: 0 2px 24px rgba(21, 34, 56, 0.1);
 }
 
 @media (min-width: 680px) {
   .app-auth__panel {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 5fr 6fr;
   }
 }
 
 .app-auth__branding {
   background: var(--app-navy);
-  padding: 48px 40px;
+  padding: 40px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 40px;
+  gap: 32px;
   position: relative;
   overflow: hidden;
 }
@@ -4262,98 +4345,86 @@ button.app-metric-tile[aria-pressed='true'] {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(212, 136, 46, 0.12) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
   background-size: 24px 24px;
   pointer-events: none;
 }
 
-.app-auth__branding::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--app-gold);
-}
-
 .app-auth__logo {
-  width: 100%;
-  height: 120px;
-  object-fit: cover;
-  object-position: center center;
-  filter: brightness(0) invert(1);
   position: relative;
   z-index: 1;
 }
 
 .app-auth__logo--vela {
-  width: 76px;
-  height: 76px;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
-  object-position: center;
-  filter: none;
   flex-shrink: 0;
 }
 
 .app-auth__logo-lockup {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   position: relative;
   z-index: 1;
 }
 
 .app-auth__logo-name {
-  color: #eef2ff;
+  color: #ffffff;
   font-family: var(--app-font-display);
-  font-size: 42px;
+  font-size: 32px;
   font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.04em;
+  line-height: 40px;
 }
 
 .app-auth__branding-copy {
   position: relative;
   z-index: 1;
+  display: grid;
+  gap: 6px;
 }
 
 .app-auth__branding-label {
-  margin: 0 0 10px;
-  font-family: var(--app-font-display);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--app-gold);
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
 }
 
 .app-auth__branding-desc {
   margin: 0;
-  font-size: 15px;
-  line-height: 1.65;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 16px;
+  line-height: 24px;
 }
 
-/* Cabeçalho de marca das telas do portal (card claro, sem painel navy) */
+.app-auth__card {
+  width: min(100%, 440px);
+  display: grid;
+  gap: 20px;
+}
+
+.app-auth__card.app-surface--padded {
+  padding: 32px;
+}
+
 .app-auth__brand {
   display: grid;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 20px;
 }
 
 .app-auth__logo--on-light {
   width: auto;
-  max-width: 260px;
-  height: 56px;
+  max-width: 220px;
+  height: 48px;
   object-fit: contain;
   object-position: left center;
-  filter: none;
 }
 
 .app-auth__form-wrap {
-  background: var(--app-surface);
-  padding: 48px 40px;
+  padding: 40px;
   display: grid;
   gap: 24px;
   align-content: center;
@@ -4368,37 +4439,480 @@ button.app-metric-tile[aria-pressed='true'] {
   margin: 0;
   color: var(--app-text-strong);
   font-family: var(--app-font-display);
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  line-height: 40px;
 }
 
 .app-auth__subtitle {
   margin: 0;
   color: var(--app-muted);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 20px;
 }
 
-/* Nota de rodapé do login do Portal (provisionamento, suporte). Sem estilo
-   próprio, herdava o corpo do documento e saía maior que o formulário. */
-.app-auth__meta {
-  margin: 16px 0 0;
+.app-auth__body {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  color: var(--app-text);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.app-auth__body p {
+  margin: 0;
+}
+
+/* Empresa e CNPJ do convite: confirma para quem é o acesso. */
+.app-auth__identity {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-muted);
+}
+
+.app-auth__identity > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+
+.app-auth__identity dt {
+  min-width: 64px;
   color: var(--app-muted);
   font-size: 12px;
-  line-height: 1.55;
+  line-height: 16px;
+}
+
+.app-auth__identity dd {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.app-auth__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.app-auth__actions--center {
+  justify-content: center;
+}
+
+.app-auth__row-link {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -8px;
+}
+
+/* Link das telas de acesso. Classe própria (fora de camada) porque a regra
+   base `a { color: inherit }` vence o utilitário de cor do Tailwind. */
+.app-auth__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--app-link);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.app-auth__link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.app-auth__link:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.app-auth__meta {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 18px;
   text-align: center;
   text-wrap: pretty;
 }
 
+.app-auth__meta .app-auth__link {
+  min-height: 0;
+  font-size: 12px;
+}
+
 @media (max-width: 679px) {
+  /* No celular a marca vira uma faixa curta e o formulário sobe para a
+     primeira dobra. */
   .app-auth__branding {
-    padding: 32px 28px;
-    gap: 24px;
+    flex-direction: row;
+    align-items: center;
+    padding: 20px 24px;
+    gap: 16px;
   }
+
+  .app-auth__branding-copy {
+    display: none;
+  }
+
+  .app-auth__logo--vela {
+    width: 40px;
+    height: 40px;
+  }
+
+  .app-auth__logo-name {
+    font-size: 28px;
+    line-height: 36px;
+  }
+
   .app-auth__form-wrap {
-    padding: 32px 28px;
+    padding: 24px;
   }
+
+  .app-auth__card.app-surface--padded {
+    padding: 24px;
+  }
+
+  .app-auth__title {
+    font-size: 28px;
+    line-height: 36px;
+  }
+}
+
+/* Campo de senha com "Mostrar senha" (PasswordInput). */
+.app-password {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.app-password .app-password__input {
+  padding-right: 48px;
+}
+
+.app-password__toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0 var(--app-radius-control) var(--app-radius-control) 0;
+  background: transparent;
+  color: var(--app-muted);
+  cursor: pointer;
+}
+
+.app-password__toggle:hover {
+  color: var(--app-text-strong);
+}
+
+.app-password__toggle:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -2px;
+}
+
+/* ─── Perfil do Portal (etapa 02) ─────────────────────────────────────────
+   Contatos na coluna larga; endereço e Email de Recuperação ao lado. Cada
+   contato é um grupo com filete, sem card dentro de card. */
+.portal-profile {
+  display: grid;
+  align-items: start;
+  gap: 24px;
+}
+
+@media (min-width: 1280px) {
+  .portal-profile {
+    grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  }
+}
+
+.portal-profile__side {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.portal-profile__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.portal-profile__section-title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.portal-profile__section-intro {
+  margin: 4px 0 0;
+  max-width: 60ch;
+  color: var(--app-muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.portal-profile__fieldset {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.portal-profile__form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.portal-profile__inspection-note {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--app-warning-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-warning-bg);
+  color: var(--app-warning-fg);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.portal-contacts__form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.portal-contact {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+
+.portal-contact[data-primary='true'] {
+  border-color: var(--app-info-border);
+  box-shadow: inset 3px 0 0 var(--app-info-fg);
+}
+
+.portal-contact[data-active='false'] {
+  background: var(--app-surface-muted);
+}
+
+.portal-contact__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.portal-contact__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.portal-contact__origin {
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.portal-contact__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.portal-contact__action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--app-radius-control);
+  background: transparent;
+  color: var(--app-link);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.portal-contact__action:hover {
+  background: var(--app-surface-hover);
+  text-decoration: underline;
+}
+
+.portal-contact__action:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -2px;
+}
+
+.portal-contact__notice {
+  margin: 0;
+}
+
+.portal-contact__fields {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .portal-contact__fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}
+
+.portal-contact__boxes {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-border);
+}
+
+.portal-contact__boxes-title {
+  color: var(--app-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.portal-contact__boxes-hint {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.portal-contact__box-grid {
+  display: grid;
+  gap: 8px;
+}
+
+@media (min-width: 640px) {
+  .portal-contact__box-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.portal-contact__box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface);
+  cursor: pointer;
+}
+
+.portal-contact__box[data-checked='true'] {
+  border-color: var(--app-info-border);
+  background: var(--app-info-bg);
+}
+
+.portal-contact__box[data-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.portal-contact__box input {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--app-blue-btn);
+}
+
+.portal-contact__box:focus-within {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+.portal-contact__box-label {
+  display: block;
+  color: var(--app-text-strong);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.portal-contact__box-desc {
+  display: block;
+  margin-top: 2px;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Perfil interno: dois blocos lado a lado a partir de 1100 px. */
+.vela-profile {
+  display: grid;
+  align-items: start;
+  gap: 16px;
+  max-width: 1080px;
+}
+
+@media (min-width: 1100px) {
+  .vela-profile {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+.vela-profile__facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.vela-profile__facts > div {
+  display: grid;
+  gap: 2px;
+}
+
+.vela-profile__facts dt {
+  color: var(--app-muted);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.vela-profile__facts dd {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .app-shell table {
@@ -4792,152 +5306,222 @@ button.app-metric-tile[aria-pressed='true'] {
   position: relative;
 }
 
-.portal-notifications__trigger,
-.portal-profile-link {
-  display: inline-flex;
-  min-width: 40px;
-  min-height: 40px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.82);
-  transition: background-color 180ms ease-out, color 180ms ease-out, transform 180ms ease-out;
-}
-
-.portal-notifications__trigger:hover,
-.portal-profile-link:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-
-.portal-notifications__trigger:active,
-.portal-profile-link:active {
-  transform: scale(0.96);
-}
-
-.portal-notifications__panel {
+/* Painel dos dois sinos (Vela e Portal), etapa 02: superfície clara com
+   tokens, item não lido com fundo informativo e ponto + texto para leitor de
+   tela, rodapé com o caminho completo. */
+.app-notifications {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 6px);
   right: 0;
   z-index: 400;
-  width: min(390px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  width: min(400px, calc(100vw - 24px));
+  max-height: min(560px, calc(100dvh - 96px));
   overflow: hidden;
   border: 1px solid var(--app-border);
-  border-radius: 16px;
+  border-radius: var(--app-radius);
   background: var(--app-surface);
   color: var(--app-text);
   box-shadow: var(--app-shadow-strong);
-  transform-origin: top right;
 }
 
-.portal-notifications__header {
+.app-notifications__header {
   display: flex;
-  min-height: 54px;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+  min-height: 52px;
+  padding: 6px 8px 6px 16px;
   border-bottom: 1px solid var(--app-border);
-  padding: 10px 16px;
 }
 
-.portal-notifications__title {
-  font-size: 15px;
-  font-weight: 750;
+.app-notifications__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
 }
 
-.portal-notifications__mark-all {
+.app-notifications__mark-all,
+.app-notifications__retry,
+.app-notifications__footer-link,
+.app-notifications__pager button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-height: 40px;
+  padding: 0 8px;
   border: 0;
-  padding: 0 4px;
+  border-radius: var(--app-radius-control);
   background: transparent;
   color: var(--app-link);
-  font-size: 12px;
-  font-weight: 700;
   cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.portal-notifications__list {
-  max-height: min(430px, calc(100vh - 150px));
+.app-notifications__mark-all:hover:not(:disabled),
+.app-notifications__retry:hover,
+.app-notifications__footer-link:hover,
+.app-notifications__pager button:hover:not(:disabled) {
+  background: var(--app-surface-hover);
+  text-decoration: underline;
+}
+
+.app-notifications__mark-all:disabled,
+.app-notifications__pager button:disabled {
+  color: var(--app-muted);
+  cursor: not-allowed;
+}
+
+.app-notifications__mark-all:focus-visible,
+.app-notifications__retry:focus-visible,
+.app-notifications__footer-link:focus-visible,
+.app-notifications__pager button:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -2px;
+}
+
+.app-notifications__retry {
+  min-height: 32px;
+  padding: 0 4px;
+}
+
+.app-notifications__list {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-.portal-notifications__item {
+.app-notifications__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-notifications__items > li + li {
+  border-top: 1px solid var(--app-border);
+}
+
+.app-notifications__item {
   display: grid;
-  width: 100%;
-  min-height: 76px;
-  grid-template-columns: 36px minmax(0, 1fr) 8px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 8px;
+  gap: 12px;
   align-items: start;
+  width: 100%;
+  padding: 12px 16px;
   border: 0;
-  border-bottom: 1px solid var(--app-border);
-  padding: 13px 16px;
   background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
   cursor: pointer;
-  transition: background-color 180ms ease-out;
 }
 
-.portal-notifications__item[data-read='false'] {
-  background: color-mix(in srgb, var(--app-blue-soft) 45%, var(--app-surface));
+.app-notifications__item--icon {
+  grid-template-columns: 32px minmax(0, 1fr) 8px;
 }
 
-.portal-notifications__item:hover,
-.portal-notifications__item:focus-visible {
+.app-notifications__item[data-read='false'] {
+  background: var(--app-info-bg);
+}
+
+.app-notifications__item:hover {
   background: var(--app-surface-hover);
 }
 
-.portal-notifications__item:focus-visible {
-  outline: 0;
-  box-shadow: inset 0 0 0 3px var(--app-border-focus);
+.app-notifications__item:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -2px;
 }
 
-.portal-notifications__icon {
+.app-notifications__icon {
   display: inline-flex;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  background: var(--app-blue-soft);
-  color: var(--app-blue-btn);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-muted);
+  color: var(--app-info-fg);
 }
 
-.portal-notifications__item-title {
+.app-notifications__body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.app-notifications__item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-notifications__item-title {
+  color: var(--app-text-strong);
   font-size: 14px;
-  font-weight: 750;
-  line-height: 1.35;
+  font-weight: 600;
+  line-height: 20px;
 }
 
-.portal-notifications__message {
-  margin-top: 3px;
-  color: var(--app-muted);
+.app-notifications__message {
+  margin: 0;
+  color: var(--app-text);
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 18px;
   text-wrap: pretty;
 }
 
-.portal-notifications__date {
-  margin-top: 5px;
-  color: var(--app-muted-soft);
+.app-notifications__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  color: var(--app-muted);
   font-size: 12px;
+  line-height: 16px;
   font-variant-numeric: tabular-nums;
 }
 
-.portal-notifications__unread {
+.app-notifications__unread {
   width: 8px;
   height: 8px;
-  margin-top: 7px;
+  margin-top: 6px;
   border-radius: 999px;
-  background: var(--app-blue);
+  background: var(--app-blue-btn);
 }
 
-.portal-notifications__state {
-  padding: 28px 18px;
+.app-notifications__state {
+  padding: 28px 16px;
   color: var(--app-muted);
   font-size: 13px;
   text-align: center;
+}
+
+.app-notifications__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--app-border);
+}
+
+.app-notifications__footer-link {
+  margin-left: auto;
+}
+
+.app-notifications__pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--app-muted);
+  font-size: 12px;
 }
 
 .app-table__icon-button:active:not(:disabled) {
@@ -6157,74 +6741,59 @@ button.app-metric-tile[aria-pressed='true'] {
 }
 
 @media (max-width: 1100px) {
-  :root,
-  :root[data-visual-theme='current'],
-  :root[data-visual-theme='light'],
-  :root[data-visual-theme='dark'] {
-    --app-header-height: 64px;
-  }
-
   .app-market-strip__content,
-  .app-header__content,
-  .app-nav-scroll {
+  .app-header__content {
     padding-left: 16px;
     padding-right: 16px;
   }
 
-  .app-header__actions {
-    gap: 4px;
-  }
-
   .app-header__content {
-    min-height: var(--app-header-height);
+    gap: 12px;
   }
 
-  .app-header__subtitle {
-    display: none;
-  }
-
-  /* O botão Menu mora no cabeçalho: sem a barra extra que só carregava o
-     botão, o cabeçalho fixo cede ~60px de tela ao conteúdo no celular. */
+  /* O botão Menu mora no cabeçalho, sem barra extra. */
   .app-nav-toggle {
     display: inline-flex;
   }
 
+  /* A lista aberta fica logo abaixo da barra (o cabeçalho fixo é o bloco de
+     contenção) e rola dentro da tela; 28px folgam a faixa de avisos, que só
+     existe no topo da página. */
   .app-nav-scroll {
     display: none;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-    padding-top: 12px;
-    padding-bottom: 16px;
-    overflow: visible;
   }
 
-  /* A lista aberta rola dentro da tela; 40px folgam a faixa de avisos, que
-     só existe no topo da página. */
   .app-nav-scroll--open {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
     display: flex;
-    max-height: calc(100dvh - var(--app-header-height) - 40px);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    max-height: calc(100dvh - var(--app-header-height) - 28px);
+    padding: 8px 16px 16px;
     overflow-y: auto;
     overscroll-behavior: contain;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--app-navy);
+    box-shadow: 0 12px 24px rgba(10, 17, 29, 0.28);
   }
 
   .app-nav-link {
     width: 100%;
+    min-height: 44px;
     justify-content: flex-start;
-    padding: 11px 12px;
-    border-bottom: 0;
-    margin-bottom: 0;
-    font-size: 13px;
+    gap: 10px;
+    padding: 0 12px;
+    border-radius: var(--app-radius-control);
+    font-size: 14px;
   }
 
   .app-nav-link.active {
-    border-bottom-color: transparent;
-  }
-
-  .app-nav-divider {
-    width: 100%;
-    height: 1px;
-    margin: 8px 0;
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 3px 0 0 var(--app-gold);
   }
 
   .app-nav-dropdown {
@@ -6232,32 +6801,45 @@ button.app-metric-tile[aria-pressed='true'] {
   }
 
   /* Rótulo à esquerda, contagem e seta à direita — igual para link direto e
-     grupo. Antes o link direto usava space-between e o rótulo ia para a
-     direita, desalinhado dos grupos. */
+     grupo. */
+  .app-nav-link .app-nav-badge,
+  .app-nav-link .app-nav-alert-dot {
+    margin-left: auto;
+  }
+
   .app-nav-dropdown__chevron {
     margin-left: auto;
   }
 
-  .app-nav-badge + .app-nav-dropdown__chevron,
-  .app-nav-alert-dot + .app-nav-dropdown__chevron {
+  .app-nav-badge ~ .app-nav-dropdown__chevron,
+  .app-nav-alert-dot ~ .app-nav-dropdown__chevron {
     margin-left: 0;
   }
 
   .app-nav-dropdown__menu {
     position: static;
     min-width: 0;
-    margin: 0 0 8px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
+    margin: 2px 0 6px 22px;
+    padding: 0 0 0 8px;
+    border: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 0;
+    background: transparent;
     box-shadow: none;
   }
 
-  .app-nav-dropdown.open .app-nav-dropdown__menu {
-    display: grid;
+  .app-nav-dropdown__item {
+    color: rgba(255, 255, 255, 0.8);
   }
 
-  .app-nav-dropdown__item {
-    min-height: 44px;
+  .app-nav-dropdown__item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+  }
+
+  .app-nav-dropdown__item.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
   }
 }
 
@@ -6294,27 +6876,32 @@ button.app-metric-tile[aria-pressed='true'] {
     display: none;
   }
 
+  /* Só o ícone de Sair; o texto continua como nome acessível. */
   .app-header__logout {
     font-size: 0 !important;
-    min-width: 40px;
+    min-width: 44px;
     padding: 0 !important;
   }
 
-  .app-header__eyebrow {
-    white-space: nowrap;
+  .app-nav-account {
+    display: grid;
+    gap: 2px;
+    margin: 0 0 8px;
+    padding: 8px 12px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   }
 
-  .app-market-strip__right {
-    display: none;
+  .app-nav-account__name {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
   }
 
-  .app-header__brand-logo {
-    display: none;
-  }
-
-  .app-nav-link {
-    padding: 10px 12px;
-    font-size: 11px;
+  .app-nav-account__meta {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    line-height: 16px;
   }
 
   .app-main {
@@ -6424,6 +7011,7 @@ button.app-metric-tile[aria-pressed='true'] {
     left: 12px;
     right: 12px;
     width: auto;
+    max-height: calc(100dvh - var(--app-header-height) - 40px);
   }
 }
 

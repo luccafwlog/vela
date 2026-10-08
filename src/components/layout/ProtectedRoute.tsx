@@ -1,5 +1,8 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Link, Navigate, Outlet } from 'react-router-dom'
+import { Lock, UserX, WifiOff } from 'lucide-react'
 import { useAuth, type Permission } from '../../hooks/useAuth'
+import { departmentLabel } from '../../lib/departmentLabel'
+import { StatusScreen } from './StatusScreen'
 
 export function ProtectedRoute({ adminOnly = false, permission }: { adminOnly?: boolean; permission?: Permission }) {
   const { user, profile, loading, isAdmin, can, profileStatus, profileError, refreshProfile, signOut } = useAuth()
@@ -7,7 +10,11 @@ export function ProtectedRoute({ adminOnly = false, permission }: { adminOnly?: 
   // Perfil ainda hidratando (getSession e INITIAL_SESSION correm em paralelo e
   // `loading` pode cair antes do perfil chegar): não é "não provisionado".
   if (loading || (user && !profile && profileStatus === 'loading')) {
-    return <div className="grid min-h-screen place-items-center bg-[#0d1117] text-slate-300">Carregando sessão...</div>
+    return (
+      <main className="app-auth">
+        <p className="app-status-loading" role="status">Carregando sessão…</p>
+      </main>
+    )
   }
 
   if (!user) {
@@ -17,51 +24,65 @@ export function ProtectedRoute({ adminOnly = false, permission }: { adminOnly?: 
   if (!profile) {
     if (profileStatus === 'transient-error') {
       return (
-        <div className="grid min-h-screen place-items-center bg-[#0d1117] p-6 text-center text-slate-200">
-          <div className="max-w-md rounded-2xl border border-[#30363d] bg-[#161b22] p-6">
-            <h1 className="text-xl font-semibold">Falha temporária ao carregar o perfil</h1>
-            <p className="mt-2 text-sm text-slate-400">
-              Sua sessão continua válida. {profileError ?? 'Verifique a conexão e recarregue o perfil.'}
-            </p>
-            <div className="mt-4 flex justify-center gap-2">
-              <button
-                type="button"
-                className="app-btn app-btn--primary app-btn--sm"
-                onClick={() => void refreshProfile()}
-              >
+        <StatusScreen
+          fullscreen
+          role="alert"
+          tone="warning"
+          icon={WifiOff}
+          title="Falha temporária ao carregar o perfil"
+          actions={(
+            <>
+              <button type="button" className="app-btn app-btn--primary" onClick={() => void refreshProfile()}>
                 Recarregar perfil
               </button>
-              <button
-                type="button"
-                className="app-btn app-btn--secondary app-btn--sm"
-                onClick={() => void signOut()}
-              >
+              <button type="button" className="app-btn app-btn--secondary" onClick={() => void signOut()}>
                 Sair
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          )}
+        >
+          <p>Sua sessão continua válida. {profileError ?? 'Verifique a conexão e recarregue o perfil.'}</p>
+        </StatusScreen>
       )
     }
     return (
-      <div className="grid min-h-screen place-items-center bg-[#0d1117] p-6 text-center text-slate-200">
-        <div className="max-w-md rounded-2xl border border-[#30363d] bg-[#161b22] p-6">
-          <h1 className="text-xl font-semibold">Perfil não provisionado</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Sua autenticação existe, mas não há um perfil ativo em user_profiles. Peça ao administrador para
-            provisionar seu acesso.
-          </p>
-        </div>
-      </div>
+      <StatusScreen
+        fullscreen
+        role="alert"
+        tone="warning"
+        icon={UserX}
+        title="Acesso ainda não liberado"
+        actions={(
+          <button type="button" className="app-btn app-btn--secondary" onClick={() => void signOut()}>
+            Sair
+          </button>
+        )}
+      >
+        <p>Seu login existe, mas ainda não há um perfil ativo no Vela. Peça ao Administrativo para liberar seu acesso.</p>
+      </StatusScreen>
     )
   }
 
-  if (adminOnly && !isAdmin) {
-    return <Navigate to="/painel" replace />
-  }
-
-  if (permission && !can(permission)) {
-    return <Navigate to="/painel" replace />
+  // A guarda de rota só orienta a navegação; quem barra a leitura e a escrita
+  // são as policies e RPCs. Em vez de devolver ao Painel sem explicação, a
+  // tela diz por que não abriu.
+  if ((adminOnly && !isAdmin) || (permission && !can(permission))) {
+    return (
+      <StatusScreen
+        fullscreen={adminOnly}
+        role="alert"
+        icon={Lock}
+        title="Acesso restrito"
+        actions={<Link to="/painel" className="app-btn app-btn--primary">Voltar para o Painel</Link>}
+      >
+        <p>
+          {adminOnly
+            ? 'A Administração é exclusiva do departamento Administrativo.'
+            : `Esta tela não está liberada para o departamento ${departmentLabel(profile.role)}.`}
+          {' '}Se precisar dela no seu trabalho, fale com o Administrativo.
+        </p>
+      </StatusScreen>
+    )
   }
 
   return <Outlet />

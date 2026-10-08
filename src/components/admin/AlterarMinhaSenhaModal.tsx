@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { Field, Input } from '../ui/Input'
+import { Field } from '../ui/Input'
+import { PasswordInput } from '../auth/PasswordInput'
 import { useToast } from '../ui/Toast'
 import { supabase } from '../../services/supabase'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../../lib/passwordPolicy'
@@ -42,22 +43,29 @@ export function AlterarMinhaSenhaModal({
   }
 
   return (
-    <Modal open={open} title="Alterar minha senha" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="grid gap-3">
+    <Modal open={open} title="Alterar minha senha" onClose={onClose} size="sm">
+      <form onSubmit={handleSubmit} className="grid gap-4">
         <Field label="Senha atual" required>
-          <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoFocus />
+          <PasswordInput autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
         </Field>
-        <Field label="Nova senha" required>
-          <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} />
-        </Field>
+        <div className="grid gap-1.5">
+          <Field label="Nova senha" required>
+            <PasswordInput
+              autoComplete="new-password"
+              aria-describedby="alterar-senha-regra"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+            />
+          </Field>
+          <p id="alterar-senha-regra" className="app-field__hint">{PASSWORD_RULE_MESSAGE}</p>
+        </div>
         <Field label="Confirmar nova senha" required>
-          <Input type="password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
+          <PasswordInput autoComplete="new-password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
         </Field>
-        <p className="text-xs text-[var(--app-muted)]">{PASSWORD_RULE_MESSAGE}</p>
         {error ? <p className="app-field__error" role="alert">{error}</p> : null}
         <div className="mt-2 flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>Voltar</Button>
-          <Button type="submit" loading={submitting}>Alterar senha</Button>
+          <Button type="submit" loading={submitting} loadingLabel="Alterando...">Alterar senha</Button>
         </div>
       </form>
     </Modal>

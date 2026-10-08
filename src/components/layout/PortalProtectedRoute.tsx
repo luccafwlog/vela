@@ -6,7 +6,11 @@ export function PortalProtectedRoute() {
   const location = useLocation()
 
   if (loading) {
-    return <div className="app-shell grid min-h-screen place-items-center text-[var(--app-muted)]">Carregando portal...</div>
+    return (
+      <main className="app-auth">
+        <p className="app-status-loading" role="status">Carregando o Portal…</p>
+      </main>
+    )
   }
 
   if (!isAuthenticated) {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, CheckCheck, ExternalLink, ShieldAlert, Undo2 } from 'lucide-react'
+import { ArrowRight, Bell, CheckCheck, ShieldAlert, Undo2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
   useInternalNotifications,
@@ -14,6 +14,7 @@ import { listAllUnreadInternalNotifications } from '../../services/alerts'
 import { formatDate } from '../../lib/utils'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { Badge } from '../ui/Badge'
 
 export function InternalNotificationBell() {
   const [open, setOpen] = useState(false)
@@ -29,7 +30,7 @@ export function InternalNotificationBell() {
   const unreadCount = Number(countData ?? 0)
 
   const cursor = cursorByPage[page] ?? null
-  const { data = [], isLoading } = useInternalNotifications(open, cursor)
+  const { data = [], isLoading, isError, refetch } = useInternalNotifications(open, cursor)
   const { data: entityLabels } = useInternalNotificationEntityLabels(data, cursor)
   const markRead = useMarkInternalNotificationRead()
   const markAllRead = useMarkAllInternalNotificationsRead()
@@ -85,6 +86,36 @@ export function InternalNotificationBell() {
     }
   }, [open])
 
+  function openNotification(notification: InternalNotification, destination: string) {
+    if (!notification.read_at) {
+      void (async () => {
+        const confirmed = await confirm({
+          title: 'Marcar notificação como lida',
+          message: `Marcar “${notification.title ?? 'Notificação'}” como lida e abrir o registro?`,
+          confirmLabel: 'Marcar como lida',
+          affected: {
+            summary: `1 notificação: ${notification.title ?? 'Notificação'}`,
+            items: [notification.message],
+          },
+          consequence: 'A notificação sai do contador de não lidas. A pendência operacional continua aberta na fila de Alertas.',
+          reversibility: 'Não há ação para marcar esta notificação novamente como não lida. A pendência continua acessível em Alertas.',
+        })
+        if (!confirmed) return
+
+        // A mutation é idempotente por notificação: o hook restaura
+        // o estado otimista no erro para permitir uma nova tentativa.
+        void markRead.mutateAsync(notification.id).catch(() =>
+          showToast('Não foi possível marcar como lida. Toque de novo para tentar.', 'error'),
+        )
+        navigate(destination)
+        setOpen(false)
+      })()
+      return
+    }
+    navigate(destination)
+    setOpen(false)
+  }
+
   return (
     <div ref={wrapperRef} className="relative">
       <button
@@ -100,9 +131,9 @@ export function InternalNotificationBell() {
           setCursorByPage([null])
         }}
       >
-        <Bell size={16} />
+        <Bell size={18} aria-hidden="true" />
         {unreadCount > 0 ? (
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[var(--app-red)] px-1 text-center text-[10px] font-bold text-white">
+          <span className="app-header__count" aria-hidden="true">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         ) : null}
@@ -110,161 +141,137 @@ export function InternalNotificationBell() {
 
       {open ? (
         <div
-          className="internal-notifications__panel absolute right-0 top-10 z-50 w-[min(92vw,400px)] rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-2 shadow-2xl"
+          className="app-notifications internal-notifications__panel"
           id="internal-notifications-panel"
           role="region"
           aria-label="Notificações internas"
         >
-          <div className="flex items-center justify-between border-b border-[var(--app-border)] px-3 py-2">
-            <span className="text-sm font-semibold text-[var(--app-text-strong)]">Notificações internas</span>
+          <div className="app-notifications__header">
+            <h2 className="app-notifications__title">Notificações internas</h2>
             {unreadCount > 0 ? (
               <button
                 type="button"
-                className="inline-flex items-center gap-1 text-xs text-[var(--app-link)] hover:underline disabled:opacity-50"
+                className="app-notifications__mark-all"
                 disabled={markAllRead.isPending}
                 onClick={() => void markEveryUnreadNotificationRead()}
               >
-                <CheckCheck size={14} />
+                <CheckCheck size={16} aria-hidden="true" />
                 <span>Marcar todas como lidas</span>
               </button>
             ) : null}
           </div>
 
-          {isLoading ? (
-            <div className="px-3 py-6 text-center text-xs text-[var(--app-muted)]">Carregando…</div>
-          ) : null}
+          <div className="app-notifications__list">
+            {isLoading ? <div className="app-notifications__state" role="status">Carregando notificações…</div> : null}
 
-          {!isLoading && !data.length ? (
-            <div className="px-3 py-6 text-center text-xs text-[var(--app-muted)]">Nenhuma pendência nova.</div>
-          ) : null}
+            {/* Falha de consulta não pode parecer "nenhuma notificação". */}
+            {!isLoading && isError ? (
+              <div className="app-notifications__state" role="alert">
+                Não foi possível carregar as notificações.{' '}
+                <button type="button" className="app-notifications__retry" onClick={() => void refetch()}>Tentar novamente</button>
+              </div>
+            ) : null}
 
-          <div className="max-h-96 divide-y divide-[var(--app-border)] overflow-auto">
-            {data.map((notification: InternalNotification) => {
-              const isEcho = Boolean(notification.payload?.is_echo)
-              const destination = alertEntityLink({
-                type: notification.item_type ?? notification.type ?? '',
-                entity_type: notification.entity_type,
-                entity_id: notification.entity_id,
-                metadata: notification.payload ?? {},
-                destination: notification.destination,
-              }) ?? '/alertas'
+            {!isLoading && !isError && !data.length ? (
+              <div className="app-notifications__state">Nenhuma notificação não lida.</div>
+            ) : null}
 
-              const entityFormatted = formatAlertEntity(notification.entity_type, notification.entity_id, entityLabels)
-                ?? (notification.entity_type ? (ENTITY_TYPE_LABELS[notification.entity_type] ?? notification.entity_type) : null)
+            {data.length ? (
+              <ul className="app-notifications__items">
+                {data.map((notification: InternalNotification) => {
+                  const isEcho = Boolean(notification.payload?.is_echo)
+                  const destination = alertEntityLink({
+                    type: notification.item_type ?? notification.type ?? '',
+                    entity_type: notification.entity_type,
+                    entity_id: notification.entity_id,
+                    metadata: notification.payload ?? {},
+                    destination: notification.destination,
+                  }) ?? '/alertas'
 
-              return (
-                <button
-                  key={notification.id}
-                  type="button"
-                  className="flex w-full gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-white/5"
-                  onClick={() => {
-                    if (!notification.read_at) {
-                      void (async () => {
-                        const confirmed = await confirm({
-                          title: 'Marcar notificação como lida',
-                          message: `Marcar “${notification.title ?? 'Notificação'}” como lida e abrir o registro?`,
-                          confirmLabel: 'Marcar como lida',
-                          affected: {
-                            summary: `1 notificação: ${notification.title ?? 'Notificação'}`,
-                            items: [notification.message],
-                          },
-                          consequence: 'A notificação sai do contador de não lidas. A pendência operacional continua aberta na fila de Alertas.',
-                          reversibility: 'Não há ação para marcar esta notificação novamente como não lida. A pendência continua acessível em Alertas.',
-                        })
-                        if (!confirmed) return
+                  const entityFormatted = formatAlertEntity(notification.entity_type, notification.entity_id, entityLabels)
+                    ?? (notification.entity_type ? (ENTITY_TYPE_LABELS[notification.entity_type] ?? notification.entity_type) : null)
 
-                        // A mutation é idempotente por notificação: o hook restaura
-                        // o estado otimista no erro para permitir uma nova tentativa.
-                        void markRead.mutateAsync(notification.id).catch(() =>
-                          showToast('Não foi possível marcar como lida. Toque de novo para tentar.', 'error'),
-                        )
-                        navigate(destination)
-                        setOpen(false)
-                      })()
-                      return
-                    }
-                    navigate(destination)
-                    setOpen(false)
-                  }}
-                >
-                  <span
-                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                      notification.read_at
-                        ? 'bg-slate-600'
-                        : notification.severity === 'critical'
-                          ? 'bg-red-400'
-                          : isEcho
-                            ? 'bg-sky-400'
-                            : 'bg-amber-300'
-                    }`}
-                  />
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {isEcho ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-400 border border-sky-500/20">
-                          <Undo2 size={10} />
-                          Eco de Tratamento
-                        </span>
-                      ) : notification.severity === 'critical' ? (
-                        <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-400 border border-rose-500/20">
-                          Crítico
-                        </span>
-                      ) : null}
-
-                      {notification.is_fallback ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400 border border-amber-500/20" title="Entregue por rota alternativa do Administrativo. Responsável pelo tratamento permanece inalterado.">
-                          <ShieldAlert size={10} />
-                          Entrega alternativa
-                        </span>
-                      ) : null}
-
-                      <span className="text-xs font-semibold text-[var(--app-text-strong)]">{notification.title}</span>
-                    </div>
-
-                    <p className="text-xs text-[var(--app-text)]">{notification.message}</p>
-
-                    <div className="flex items-center justify-between text-[11px] text-[var(--app-muted)]">
-                      <span>{entityFormatted ?? 'Geral'}</span>
-                      <span>{formatDate(notification.created_at)}</span>
-                    </div>
-                  </div>
-
-                  <ExternalLink size={13} className="mt-1 shrink-0 text-[var(--app-muted)]" />
-                </button>
-              )
-            })}
+                  return (
+                    <li key={notification.id}>
+                      <button
+                        type="button"
+                        className="app-notifications__item"
+                        data-read={String(Boolean(notification.read_at))}
+                        onClick={() => openNotification(notification, destination)}
+                      >
+                        <div className="app-notifications__body">
+                          <div className="app-notifications__item-head">
+                            <span className="app-notifications__item-title">{notification.title}</span>
+                            {isEcho ? (
+                              <Badge tone="info"><Undo2 size={12} aria-hidden="true" />Eco de Tratamento</Badge>
+                            ) : notification.severity === 'critical' ? (
+                              <Badge tone="danger">Crítico</Badge>
+                            ) : null}
+                            {notification.is_fallback ? (
+                              <Badge tone="warning" title="Entregue por rota alternativa do Administrativo. Responsável pelo tratamento permanece inalterado.">
+                                <ShieldAlert size={12} aria-hidden="true" />
+                                Entrega alternativa
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <p className="app-notifications__message">{notification.message}</p>
+                          <div className="app-notifications__meta">
+                            <span>{entityFormatted ?? 'Geral'}</span>
+                            <span>{formatDate(notification.created_at)}</span>
+                          </div>
+                        </div>
+                        {!notification.read_at ? (
+                          <>
+                            <span className="app-notifications__unread" aria-hidden="true" />
+                            <span className="sr-only">Não lida</span>
+                          </>
+                        ) : <span aria-hidden="true" />}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : null}
           </div>
 
-          {data.length >= 20 || page > 0 ? (
-            <div className="flex items-center justify-between border-t border-[var(--app-border)] px-3 py-2 text-xs text-[var(--app-muted)]">
-              <button
-                type="button"
-                className="text-[var(--app-link)] hover:underline disabled:opacity-40"
-                disabled={page === 0}
-                onClick={() => setPage((current) => Math.max(0, current - 1))}
-              >
-                Anterior
-              </button>
-              <span>Página {page + 1}</span>
-              <button
-                type="button"
-                className="text-[var(--app-link)] hover:underline disabled:opacity-40"
-                disabled={data.length < 20}
-                onClick={() => {
-                  const last = data[data.length - 1]
-                  if (!last) return
-                  setCursorByPage((current) => {
-                    const next = current.slice(0, page + 1)
-                    next[page + 1] = { createdAt: last.created_at, id: last.id }
-                    return next
-                  })
-                  setPage((current) => current + 1)
-                }}
-              >
-                Próxima
-              </button>
-            </div>
-          ) : null}
+          <div className="app-notifications__footer">
+            {data.length >= 20 || page > 0 ? (
+              <div className="app-notifications__pager">
+                <button
+                  type="button"
+                  disabled={page === 0}
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                >
+                  Anterior
+                </button>
+                <span>Página {page + 1}</span>
+                <button
+                  type="button"
+                  disabled={data.length < 20}
+                  onClick={() => {
+                    const last = data[data.length - 1]
+                    if (!last) return
+                    setCursorByPage((current) => {
+                      const next = current.slice(0, page + 1)
+                      next[page + 1] = { createdAt: last.created_at, id: last.id }
+                      return next
+                    })
+                    setPage((current) => current + 1)
+                  }}
+                >
+                  Próxima
+                </button>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              className="app-notifications__footer-link"
+              onClick={() => { navigate('/alertas'); setOpen(false) }}
+            >
+              Abrir fila de Alertas
+              <ArrowRight size={14} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

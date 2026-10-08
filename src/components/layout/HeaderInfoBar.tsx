@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { useOperationalAlerts } from '../../hooks/useOperationalAlerts'
 import { useRoeHeaderRate } from '../../hooks/useRoeHeaderRate'
-import { AppVersionBadge } from './AppVersionBadge'
 
 function formatRate(value: number | null): string {
   if (value === null) return '—'
@@ -32,39 +31,43 @@ export function HeaderInfoBar() {
       ? `Cotação em cache de ${new Intl.DateTimeFormat('pt-BR').format(new Date(rates.cachedAt))}.`
       : 'Cotação PTAX Venda mais recente do Banco Central e ROE com spread fixo de 1,065.'
 
+  const overdueLabel = `${alerts.demurrageOverdue} demurrage${alerts.demurrageOverdue !== 1 ? 's' : ''} vencido${alerts.demurrageOverdue !== 1 ? 's' : ''}`
+
+  // Faixa de avisos de até 28 px (etapa 02): o aviso operacional à esquerda
+  // nunca é cortado; o câmbio cede espaço e some abaixo de 768 px. A versão
+  // da build foi para o menu da conta.
   return (
     <div className="app-market-strip">
       <div className="app-market-strip__content">
-
-        {/* Zona esquerda — alertas operacionais */}
         <div className="app-market-strip__left">
           {hasDemurrage && (
             <button
               type="button"
               className="hib-alert-btn"
               onClick={() => navigate('/demurrage')}
+              title={`${overdueLabel} — abrir Demurrage`}
             >
-              <AlertTriangle size={11} aria-hidden="true" />
-              {alerts.demurrageOverdue} demurrage{alerts.demurrageOverdue !== 1 ? 's' : ''} vencido{alerts.demurrageOverdue !== 1 ? 's' : ''}
+              <AlertTriangle size={14} aria-hidden="true" />
+              {overdueLabel}
             </button>
           )}
         </div>
 
-        {/* Zona central — câmbio do dia (oculta em mobile) */}
         <div className="app-market-strip__center" title={ratesHint}>
           {rates.loading ? (
             <span className="hib-currency-label">Carregando câmbio…</span>
           ) : rates.unavailable ? (
-            <span className="hib-currency-label" style={{ color: '#f0b429' }}>Câmbio indisponível</span>
+            <span className="hib-currency-label hib-currency-label--warning">Câmbio indisponível</span>
           ) : (
             <>
-              <span className="hib-currency-label">PTAX Venda</span>
+              <span className="hib-currency-label">PTAX venda</span>
               <span className="hib-currency-value">R$ {formatRate(rates.ptax)}</span>
-              <span className="hib-sep" aria-hidden="true">→</span>
-              <span className="hib-currency-label">PTAX × 1,065 = ROE</span>
-              <span className="hib-currency-value">R$ {formatRate(rates.roe)} ({formatEffectiveDate(rates.effectiveDate)})</span>
+              <span className="hib-sep" aria-hidden="true">·</span>
+              <span className="hib-currency-label">ROE (PTAX × 1,065)</span>
+              <span className="hib-currency-value">R$ {formatRate(rates.roe)}</span>
+              <span className="hib-currency-label">{formatEffectiveDate(rates.effectiveDate)}</span>
               {rates.offline ? (
-                <span className="hib-currency-label" style={{ color: '#f0b429' }}>em cache</span>
+                <span className="hib-currency-label hib-currency-label--warning">em cache</span>
               ) : null}
             </>
           )}
@@ -74,18 +77,9 @@ export function HeaderInfoBar() {
             aria-label="Atualizar cotação PTAX"
             onClick={() => void rates.refresh()}
           >
-            <RefreshCw size={11} aria-hidden="true" />
+            <RefreshCw size={14} aria-hidden="true" />
           </button>
         </div>
-
-        {/* Zona direita — identidade da build.
-            O menu de usuário vive no cabeçalho principal (AppLayout); esta
-            zona ficou anos com `display: none` carregando uma cópia morta
-            dele. Agora ela mostra a versão publicada, visível em toda tela. */}
-        <div className="app-market-strip__right">
-          <AppVersionBadge />
-        </div>
-
       </div>
     </div>
   )

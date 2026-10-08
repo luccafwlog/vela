@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError } from '../components/ui/Card'
 import { useConfirm } from '../components/ui/ConfirmDialog'
-import { Field, Input } from '../components/ui/Input'
+import { Field } from '../components/ui/Input'
+import { PasswordInput } from '../components/auth/PasswordInput'
+import { PortalAccessHelp } from '../components/auth/PortalAccessHelp'
 import { supabasePortal } from '../services/supabase'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../lib/passwordPolicy'
@@ -73,14 +75,12 @@ export function PortalResetPassword() {
         <Card className="app-auth__card">
           <div className="app-auth__brand">
             <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-            <div>
-              <h1 className="app-auth__title">Senha redefinida</h1>
-            </div>
+            <h1 className="app-auth__title">Senha redefinida</h1>
           </div>
-          <p className="text-sm text-[var(--app-muted)]">
-            Sua senha foi alterada com sucesso e as sessoes anteriores foram encerradas. Entre novamente com a nova senha.
-          </p>
-          <div className="mt-4">
+          <div className="app-auth__body" role="status">
+            <p>Sua senha foi alterada e as sessões anteriores foram encerradas. Entre novamente com a nova senha.</p>
+          </div>
+          <div className="app-auth__actions">
             <Button onClick={() => navigate('/portal/login', { replace: true })}>Ir para o login</Button>
           </div>
         </Card>
@@ -88,15 +88,25 @@ export function PortalResetPassword() {
     )
   }
 
+  // Sem token não há o que redefinir: a tela explica e leva ao pedido de um
+  // novo link, em vez de parar num erro sem saída.
   if (!token) {
     return (
       <main className="app-auth">
         <Card className="app-auth__card">
-          {error ? (
-            <InlineError message={error} />
-          ) : (
-            <p className="text-sm text-[var(--app-muted)]">Verificando link de recuperação…</p>
-          )}
+          <div className="app-auth__brand">
+            <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
+            <h1 className="app-auth__title">Link indisponível</h1>
+          </div>
+          <InlineError message={error || INVALID_LINK_MESSAGE} />
+          <div className="app-auth__body">
+            <p>O link de redefinição vale por 1 hora e só pode ser usado uma vez. Peça um novo para continuar.</p>
+          </div>
+          <div className="app-auth__actions">
+            <Link to="/portal/esqueci-senha" className="app-btn app-btn--primary">Solicitar novo link</Link>
+            <Link to="/portal/login" className="app-auth__link">Voltar para o login</Link>
+          </div>
+          <PortalAccessHelp />
         </Card>
       </main>
     )
@@ -107,41 +117,44 @@ export function PortalResetPassword() {
       <Card className="app-auth__card">
         <div className="app-auth__brand">
           <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-          <div>
+          <div className="app-auth__form-header">
             <h1 className="app-auth__title">Redefinir senha</h1>
-            <p className="app-auth__subtitle">Escolha uma nova senha para acessar o portal.</p>
+            <p className="app-auth__subtitle">Escolha uma nova senha para acessar o Portal.</p>
           </div>
         </div>
 
         <form className="grid gap-4" onSubmit={handleSubmit}>
-          <Field label="Nova senha">
-            <Input
-              required
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Minimo 8 caracteres"
-            />
-          </Field>
+          {/* A regra fica fora do <label> para não entrar no nome do campo. */}
+          <div className="grid gap-1.5">
+            <Field label="Nova senha">
+              <PasswordInput
+                required
+                autoComplete="new-password"
+                aria-describedby="portal-reset-password-rule"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </Field>
+            <p id="portal-reset-password-rule" className="app-field__hint">{PASSWORD_RULE_MESSAGE}</p>
+          </div>
 
           <Field label="Confirmar senha">
-            <Input
+            <PasswordInput
               required
-              type="password"
               autoComplete="new-password"
               value={confirm}
               onChange={(event) => setConfirm(event.target.value)}
-              placeholder="Repita a senha"
             />
           </Field>
 
           {error ? <InlineError message={error} /> : null}
 
-          <Button loading={submitting} type="submit">
+          <Button loading={submitting} loadingLabel="Redefinindo..." type="submit">
             Redefinir senha
           </Button>
         </form>
+
+        <PortalAccessHelp />
       </Card>
     </main>
   )

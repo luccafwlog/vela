@@ -761,7 +761,9 @@ mostra `NaoEncontrado` sob `ProtectedRoute`; no Portal, `*` redireciona para
 `/portal`, onde o guard exige sessão.
 
 As rotas internas exigem sessão e perfil; `/admin` e `/admin/:tab` exigem
-`adminOnly`. `/clientes/comunicacao` exige `customer_communications`.
+`adminOnly`. `/clientes/comunicacao` exige `customer_communications` e
+`/desbloqueio-ce`, `ce_unlock_read`. Sem a permissão, o guard mostra "Acesso
+restrito" com o motivo e o caminho de volta ao Painel, em vez de redirecionar.
 As rotas autenticadas do Portal, inclusive a Central de Informações, usam `PortalProtectedRoute`,
 `PortalScopeProvider` e `PortalLayout`. A inspeção é interna e somente leitura.
 Esses guards são UX; grants, RLS e RPCs continuam sendo a autorização real.

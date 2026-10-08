@@ -61,7 +61,7 @@ it('navigates to a notification link after selection', async () => {
   )
 
   await user.click(screen.getByRole('button', { name: 'Notificações (1 não lidas)' }))
-  await user.click(screen.getByRole('menuitem', { name: /Nova fatura/ }))
+  await user.click(screen.getByRole('button', { name: /Nova fatura/ }))
 
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
   expect(mocks.confirm.mock.calls[0]?.[0]).toMatchObject({
@@ -85,7 +85,7 @@ it('voltar cancela a baixa e a navegação', async () => {
   )
 
   await user.click(screen.getByRole('button', { name: 'Notificações (1 não lidas)' }))
-  await user.click(screen.getByRole('menuitem', { name: /Nova fatura/ }))
+  await user.click(screen.getByRole('button', { name: /Nova fatura/ }))
 
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
   expect(mocks.markRead).not.toHaveBeenCalled()

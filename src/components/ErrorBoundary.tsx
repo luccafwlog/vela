@@ -1,6 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { reportCaughtException } from '../lib/telemetry'
 import { describeRoute } from '../lib/telemetryContext'
+import { AlertTriangle } from 'lucide-react'
+import { StatusScreen } from './layout/StatusScreen'
 
 type Props = {
   children: ReactNode
@@ -60,48 +62,51 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.error) {
+      const detail = import.meta.env.DEV ? (
+        <details className="app-status-panel__details">
+          <summary>Detalhe técnico</summary>
+          <pre>{this.state.error.message}</pre>
+        </details>
+      ) : null
+
       if (this.props.variant === 'route') {
         return (
-          <main className="px-6 py-10">
-            <div className="mx-auto w-full max-w-lg rounded-2xl border border-red-400/40 bg-red-500/10 p-6 text-center">
-              <h1 className="mb-2 text-lg font-semibold text-red-400">Não foi possível exibir esta tela</h1>
-              <p className="mb-4 text-sm text-[var(--app-muted)]">
-                Ocorreu um erro inesperado nesta página. As demais áreas do sistema continuam funcionando.
-              </p>
-              {import.meta.env.DEV ? <details className="mb-4 rounded-lg bg-[var(--app-surface)] p-3 text-left text-xs text-[var(--app-muted)]">
-                <summary className="cursor-pointer font-semibold">Detalhe técnico</summary>
-                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap">{this.state.error.message}</pre>
-              </details> : null}
-              <div className="flex justify-center gap-3">
-                <a href="/painel" className="app-btn app-btn--secondary">Voltar ao Painel</a>
+          <StatusScreen
+            role="alert"
+            tone="danger"
+            icon={AlertTriangle}
+            title="Não foi possível exibir esta tela"
+            actions={(
+              <>
                 <button type="button" className="app-btn app-btn--primary" onClick={() => window.location.reload()}>
                   Recarregar página
                 </button>
-              </div>
-            </div>
-          </main>
+                <a href="/painel" className="app-btn app-btn--secondary">Voltar ao Painel</a>
+              </>
+            )}
+          >
+            <p>Ocorreu um erro inesperado nesta tela. O menu e as demais áreas do sistema continuam funcionando.</p>
+            {detail}
+          </StatusScreen>
         )
       }
 
       return (
-        <div className="flex min-h-screen items-center justify-center bg-[#0d1117] p-8">
-          <div className="w-full max-w-lg rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center">
-            <h1 className="mb-2 text-lg font-semibold text-red-300">Erro inesperado</h1>
-            <p className="mb-4 text-sm text-slate-400">
-              Algo deu errado. Recarregue a página para continuar.
-            </p>
-            {import.meta.env.DEV ? <details className="mb-4 rounded-lg bg-[#0d1117] p-3 text-left text-xs text-slate-400">
-              <summary className="cursor-pointer font-semibold">Detalhe técnico</summary>
-              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap">{this.state.error.message}</pre>
-            </details> : null}
-            <button
-              className="rounded-lg bg-[#21262d] px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-[#30363d]"
-              onClick={() => window.location.reload()}
-            >
+        <StatusScreen
+          fullscreen
+          role="alert"
+          tone="danger"
+          icon={AlertTriangle}
+          title="Erro inesperado"
+          actions={(
+            <button type="button" className="app-btn app-btn--primary" onClick={() => window.location.reload()}>
               Recarregar página
             </button>
-          </div>
-        </div>
+          )}
+        >
+          <p>Algo deu errado ao abrir o Vela. Recarregue a página para continuar.</p>
+          {detail}
+        </StatusScreen>
       )
     }
 

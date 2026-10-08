@@ -1,5 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { reportCaughtException } from '../lib/telemetry'
+import { StatusScreen } from './layout/StatusScreen'
 
 type Props = {
   children: ReactNode
@@ -36,35 +38,29 @@ export class PortalErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-[#0d1117] p-8">
-          <div className="w-full max-w-lg rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center">
-            <h1 className="mb-2 text-lg font-semibold text-red-300">Erro inesperado</h1>
-            <p className="mb-4 text-sm text-slate-400">
-              Algo deu errado. Recarregue a página para continuar.
-            </p>
-            {import.meta.env.DEV ? (
-              <details className="mb-4 rounded-lg bg-[#0d1117] p-3 text-left text-xs text-slate-400">
-                <summary className="cursor-pointer font-semibold">Detalhe técnico</summary>
-                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap">{this.state.error.message}</pre>
-              </details>
-            ) : null}
-            <div className="flex justify-center gap-3">
-              <a
-                href="/portal/login"
-                className="rounded-lg bg-[#21262d] px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-[#30363d]"
-              >
-                Ir para o login
-              </a>
-              <button
-                type="button"
-                className="rounded-lg bg-[#21262d] px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-[#30363d]"
-                onClick={() => window.location.reload()}
-              >
+        <StatusScreen
+          fullscreen
+          role="alert"
+          tone="danger"
+          icon={AlertTriangle}
+          title="Erro inesperado"
+          actions={(
+            <>
+              <button type="button" className="app-btn app-btn--primary" onClick={() => window.location.reload()}>
                 Recarregar página
               </button>
-            </div>
-          </div>
-        </div>
+              <a href="/portal/login" className="app-btn app-btn--secondary">Ir para o login</a>
+            </>
+          )}
+        >
+          <p>Algo deu errado ao abrir o Portal. Recarregue a página para continuar.</p>
+          {import.meta.env.DEV ? (
+            <details className="app-status-panel__details">
+              <summary>Detalhe técnico</summary>
+              <pre>{this.state.error.message}</pre>
+            </details>
+          ) : null}
+        </StatusScreen>
       )
     }
 

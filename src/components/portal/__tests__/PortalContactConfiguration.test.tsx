@@ -136,7 +136,7 @@ describe('PortalContactConfiguration', () => {
     await screen.findByDisplayValue('principal@cliente.com')
 
     // Clica em Novo contato
-    await user.click(screen.getByRole('button', { name: '+ Novo contato' }))
+    await user.click(screen.getByRole('button', { name: 'Adicionar contato' }))
 
     // Preenche email do novo contato sem marcar caixas
     const emailInputs = screen.getAllByPlaceholderText('email@empresa.com')
@@ -235,7 +235,7 @@ describe('PortalContactConfiguration', () => {
     renderComponent(true)
 
     await screen.findByDisplayValue('insp@cliente.com')
-    expect(screen.queryByRole('button', { name: '+ Novo contato' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Adicionar contato' })).toBeNull()
     const saveButton = screen.getByRole('button', { name: 'Salvar contatos' }) as HTMLButtonElement
     expect(saveButton.disabled).toBe(true)
   })

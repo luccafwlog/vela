@@ -10,7 +10,7 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
-- [2026-10-07 — Revisão visual e UX: pacote de prompts](2026-10-07-revisao-visual-ux-prompts.md) — prompts para 24 etapas sequenciais no Vela e Portal; etapas 00 e 01 concluídas em 2026-10-07 (direção "Carta náutica", inventário, tokens e primitivas); próxima: etapa 02.
+- [2026-10-07 — Revisão visual e UX: pacote de prompts](2026-10-07-revisao-visual-ux-prompts.md) — prompts para 24 etapas sequenciais no Vela e Portal; etapas 00, 01 e 02 concluídas em 2026-10-07 (direção "Carta náutica", inventário, tokens, primitivas, shells e acesso); próxima: etapa 03.
 
 
 - [2026-10-04 — Desbloqueio de CE Mercante (Issue 557)](2026-10-04-desbloqueio-ce-mercante.md) — checklist reconciliado em 2026-10-07, código integrado na `main`; publicação remota não conferida e homologação pendente; Portal, gestão em Importação, documentos anuais VIP até 31/12 por CNPJ e planilha ZPT com cinco colunas; detalhes documentais/operacionais a homologar.

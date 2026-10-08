@@ -7,18 +7,7 @@ import { AlterarMinhaSenhaModal } from '../components/admin/AlterarMinhaSenhaMod
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../components/ui/Toast'
 import { supabase } from '../services/supabase'
-
-function departmentLabel(role: string | null | undefined): string {
-  switch (role) {
-    case 'administrativo': return 'Administrativo'
-    case 'financeiro': return 'Financeiro'
-    case 'operacoes': return 'Operações'
-    case 'equipamentos': return 'Equipamentos'
-    case 'operator':
-    case 'documentacao': return 'Documentação'
-    default: return '—'
-  }
-}
+import { departmentLabel } from '../lib/departmentLabel'
 
 export function Profile() {
   const { profile, session, refreshProfile } = useAuth()
@@ -92,23 +81,37 @@ export function Profile() {
 
   return (
     <>
-      <PageHeader title="Meu perfil" description="Consulte e atualize seus dados de acesso ao sistema." />
-      <div className="grid gap-4 xl:grid-cols-2">
+      <PageHeader title="Meu perfil" description="Nome e e-mail de acesso ao Vela e troca de senha." />
+      <div className="vela-profile">
         <Card>
           <form className="grid gap-4" onSubmit={handleSubmit}>
-            <div className="text-sm font-semibold text-[var(--app-text-strong)]">Dados pessoais</div>
+            <h2 className="portal-profile__section-title">Dados pessoais</h2>
             <Field label="Nome" required>
               <Input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
             </Field>
-            <Field label="E-mail" required>
-              <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
-            </Field>
-            <Field label="Departamento">
-              <Input value={departmentLabel(profile?.role)} readOnly aria-readonly="true" />
-            </Field>
+            <div className="grid gap-1.5">
+              <Field label="E-mail" required>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                  aria-describedby="profile-email-note"
+                />
+              </Field>
+              <p id="profile-email-note" className="app-field__hint">
+                É o e-mail de login. Um endereço novo só passa a valer depois da confirmação enviada a ele.
+              </p>
+            </div>
+            <dl className="vela-profile__facts">
+              <div>
+                <dt>Departamento</dt>
+                <dd>{departmentLabel(profile?.role)}</dd>
+              </div>
+            </dl>
             {error ? <InlineError message={error} /> : null}
-            <div className="flex justify-end">
-              <Button type="submit" loading={saving}>Salvar alterações</Button>
+            <div className="portal-profile__form-actions">
+              <Button type="submit" loading={saving} loadingLabel="Salvando...">Salvar alterações</Button>
             </div>
           </form>
         </Card>
@@ -116,8 +119,8 @@ export function Profile() {
         <Card>
           <div className="grid gap-3">
             <div>
-              <div className="text-sm font-semibold text-[var(--app-text-strong)]">Senha</div>
-              <p className="mt-1 text-sm text-[var(--app-muted)]">Altere sua senha informando a senha atual.</p>
+              <h2 className="portal-profile__section-title">Senha</h2>
+              <p className="portal-profile__section-intro">Para trocar, informe a senha atual e a nova.</p>
             </div>
             <div>
               <Button variant="secondary" onClick={() => setPasswordOpen(true)}>Alterar senha</Button>

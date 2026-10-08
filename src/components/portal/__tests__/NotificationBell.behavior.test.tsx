@@ -78,8 +78,9 @@ it('US-173: mostra o contador de nao lidas e lista as notificacoes', async () =>
   await user.click(screen.getByRole('button', { name: 'Notificações (3 não lidas)' }))
   expect(screen.getByText('Nova fatura')).toBeTruthy()
   expect(screen.getByText('Disputa respondida')).toBeTruthy()
-  expect(screen.getByRole('menu', { name: 'Notificações' })).toBeTruthy()
-  expect(screen.getByRole('menuitem', { name: /Nova fatura/ }).getAttribute('data-read')).toBe('false')
+  expect(screen.getByRole('region', { name: 'Notificações' })).toBeTruthy()
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(screen.getByRole('button', { name: /Nova fatura/ }).getAttribute('data-read')).toBe('false')
   expect(screen.getByText('19/08/2026, 12:30')).toBeTruthy()
 })
 
@@ -88,7 +89,7 @@ it('US-174: marca uma notificacao como lida ao seleciona-la', async () => {
   renderBell()
 
   await user.click(screen.getByRole('button', { name: 'Notificações (3 não lidas)' }))
-  await user.click(screen.getByRole('menuitem', { name: /Nova fatura/ }))
+  await user.click(screen.getByRole('button', { name: /Nova fatura/ }))
 
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
   expect(mocks.confirm.mock.calls[0]?.[0]).toMatchObject({
@@ -121,7 +122,7 @@ it('não marca nem abre a notificação quando a pessoa volta da confirmação',
   renderBell()
 
   await user.click(screen.getByRole('button', { name: 'Notificações (3 não lidas)' }))
-  await user.click(screen.getByRole('menuitem', { name: /Nova fatura/ }))
+  await user.click(screen.getByRole('button', { name: /Nova fatura/ }))
 
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
   expect(mocks.markRead).not.toHaveBeenCalled()
@@ -132,7 +133,7 @@ it('fecha o dropdown com Escape e expõe estado expandido', async () => {
   renderBell()
 
   const button = screen.getByRole('button', { name: 'Notificações (3 não lidas)' })
-  expect(button.getAttribute('aria-haspopup')).toBe('menu')
+  expect(button.getAttribute('aria-controls')).toBe('portal-notifications-panel')
   expect(button.getAttribute('aria-expanded')).toBe('false')
 
   await user.click(button)
@@ -142,4 +143,5 @@ it('fecha o dropdown com Escape e expõe estado expandido', async () => {
   await user.keyboard('{Escape}')
   expect(button.getAttribute('aria-expanded')).toBe('false')
   expect(screen.queryByText('Nova fatura')).toBeNull()
+  expect(document.activeElement).toBe(button)
 })

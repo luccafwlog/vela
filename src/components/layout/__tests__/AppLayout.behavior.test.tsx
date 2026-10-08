@@ -7,7 +7,7 @@ import { AppLayout } from '../AppLayout'
 
 vi.mock('../../../hooks/useAuth', () => ({
   useAuth: () => ({
-    profile: { full_name: 'Operador de teste' },
+    profile: { full_name: 'Operador de teste', role: 'administrativo' },
     isAdmin: true,
     signOut: vi.fn(),
   }),
@@ -18,7 +18,7 @@ vi.mock('../../../hooks/useOperationalCounts', () => ({
     pendingReview: 0,
     chargeReviewRequired: 0,
     readyForBilling: 0,
-    openAlerts: 0,
+    openAlerts: 4,
     blsWithoutCustomer: 0,
   }),
 }))
@@ -71,7 +71,7 @@ describe('AppLayout (navegação visível)', () => {
   it('restaura o foco no botão da conta ao fechar o menu com Escape', () => {
     renderLayout()
 
-    const account = screen.getByRole('button', { name: 'Operador de teste' })
+    const account = screen.getByRole('button', { name: /Operador de teste/ })
     fireEvent.click(account)
     expect(screen.getByRole('button', { name: 'Meu perfil' })).toBeTruthy()
 
@@ -94,6 +94,8 @@ describe('AppLayout (navegação visível)', () => {
     fireEvent.click(menu)
     expect(menu.getAttribute('aria-expanded')).toBe('true')
     expect(document.body.style.overflow).toBe('hidden')
+    // A lista vem antes do botão no documento: o foco entra nela ao abrir.
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Painel' }))
 
     const importacao = screen.getByRole('button', { name: /Importação/ })
     fireEvent.click(importacao)
@@ -105,5 +107,23 @@ describe('AppLayout (navegação visível)', () => {
     expect(menu.getAttribute('aria-expanded')).toBe('false')
     expect(document.activeElement).toBe(menu)
     expect(document.body.style.overflow).toBe('')
+  })
+
+  it('reúne marca, navegação e conta numa barra só, com a versão no menu da conta', () => {
+    renderLayout()
+
+    const header = screen.getByRole('banner')
+    const nav = screen.getByRole('navigation', { name: 'Navegação principal' })
+    expect(header.contains(nav)).toBe(true)
+    expect(screen.getByRole('button', { name: 'Vela — ir para o Painel' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /Operador de teste/ }))
+    expect(screen.getByText('Administrativo')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sair' })).toBeTruthy()
+  })
+
+  it('anuncia a contagem do menu por extenso', () => {
+    renderLayout()
+    expect(screen.getByRole('link', { name: 'Alertas, 4 pendentes' })).toBeTruthy()
   })
 })

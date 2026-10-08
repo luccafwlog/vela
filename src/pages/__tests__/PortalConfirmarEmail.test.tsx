@@ -32,7 +32,7 @@ it('reset em andamento mantém a troca pendente e orienta tentar novamente', asy
   )
   await waitFor(() => expect(screen.getByText(/Recuperação de senha em andamento/)).toBeTruthy())
   expect(screen.getByText(/Abra o link do email novamente após sua conclusão/)).toBeTruthy()
-  expect(screen.queryByText(/pedido de troca de email ja foi resolvido/)).toBeNull()
+  expect(screen.queryByText(/pedido de troca de email já foi resolvido/)).toBeNull()
   expect(screen.queryByRole('heading', { name: 'Email confirmado' })).toBeNull()
 })
 
@@ -109,7 +109,7 @@ it('link sem token mostra erro em vez de chamar a Edge Function', () => {
     </MemoryRouter>,
   )
 
-  expect(screen.getByText(/Link de confirmacao invalido ou expirado/)).toBeTruthy()
+  expect(screen.getByText(/Link de confirmação inválido ou expirado/)).toBeTruthy()
   expect(auth.functions.invoke).not.toHaveBeenCalled()
 })
 
@@ -127,7 +127,7 @@ it('token recusado pela Edge Function vira mensagem de link invalido', async () 
     </MemoryRouter>,
   )
 
-  await waitFor(() => expect(screen.getByText(/Link de confirmacao invalido ou expirado/)).toBeTruthy())
+  await waitFor(() => expect(screen.getByText(/Link de confirmação inválido ou expirado/)).toBeTruthy())
 })
 
 it('falha de transporte nao declara o link morto, porque o token continua valido', async () => {
@@ -147,7 +147,7 @@ it('falha de transporte nao declara o link morto, porque o token continua valido
   )
 
   await waitFor(() => expect(screen.getByText(/Abra o link do email novamente em instantes/)).toBeTruthy())
-  expect(screen.queryByText(/Link de confirmacao invalido ou expirado/)).toBeNull()
+  expect(screen.queryByText(/Link de confirmação inválido ou expirado/)).toBeNull()
 })
 
 it('pedido ja resolvido tem mensagem propria, distinta de link invalido', async () => {
@@ -166,7 +166,7 @@ it('pedido ja resolvido tem mensagem propria, distinta de link invalido', async 
     </MemoryRouter>,
   )
 
-  await waitFor(() => expect(screen.getByText(/pedido de troca de email ja foi resolvido/)).toBeTruthy())
-  expect(screen.queryByText(/Link de confirmacao invalido ou expirado/)).toBeNull()
+  await waitFor(() => expect(screen.getByText(/pedido de troca de email já foi resolvido/)).toBeTruthy())
+  expect(screen.queryByText(/Link de confirmação inválido ou expirado/)).toBeNull()
   expect(screen.queryByText(/Abra o link do email novamente em instantes/)).toBeNull()
 })
