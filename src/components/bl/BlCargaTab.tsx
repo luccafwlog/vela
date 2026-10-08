@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Badge } from '../ui/Badge'
 import { Card } from '../ui/Card'
 import { Field, Input, Select } from '../ui/Input'
+import { SummaryStrip } from '../ui/SummaryStrip'
 import { formatDate, normalizeText } from '../../lib/utils'
 import { CONTAINER_PROFILE_LABELS, containerProfileOf, type ContainerProfile } from '../../services/vaziosNatureza'
 import { formatNumber } from '../../pages/blDetalheHelpers'
@@ -66,47 +67,55 @@ export function BlCargaTab({
 
   if (!active) return null
 
+  const vehicles = bl.vehicles ?? []
+
   return (
-    <div className="grid gap-5">
+    <Card className="app-bl-sheet">
       {showContainers ? (
-        <Card>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-white">Containers vinculados</h2>
-            <div className="flex flex-wrap gap-2">
-              <Badge tone="blue">{containerSummary.distinct} CNTRS</Badge>
-              <Badge tone="red">{containerSummary.imo} IMO</Badge>
-              <Badge tone="yellow">{containerSummary.oog} OOG</Badge>
-              <Badge tone="green">{containerSummary.soc} SOC</Badge>
-              <Badge tone="blue">{containerSummary.coc} COC</Badge>
-            </div>
+        <section className="app-bl-sheet__section" aria-labelledby="bl-containers">
+          <div className="app-bl-section-head">
+            <h2 id="bl-containers" className="app-bl-section-title">Containers vinculados</h2>
+            <SummaryStrip
+              label="Resumo dos containers"
+              items={[
+                { label: containerSummary.distinct === 1 ? 'CNTR' : 'CNTRs', value: containerSummary.distinct },
+                { label: 'IMO', value: containerSummary.imo, tone: containerSummary.imo ? 'warning' : 'default' },
+                { label: 'OOG', value: containerSummary.oog, tone: containerSummary.oog ? 'warning' : 'default' },
+                { label: 'SOC', value: containerSummary.soc },
+                { label: 'COC', value: containerSummary.coc },
+              ]}
+            />
           </div>
+          {onChangeProfile || onChangeOwnership ? (
+            <p className="app-bl-facts__sub">Perfil e SOC/COC podem ser corrigidos na linha; cada troca pede justificativa e recalcula as taxas locais.</p>
+          ) : null}
 
           <div className="app-table-scroll">
-            <table className="app-table app-table--compact min-w-[900px] text-left text-sm">
-              <thead className="bg-[#0d1117] text-xs uppercase text-slate-500">
+            <table className="app-table app-table--compact app-bl-subtable min-w-[880px]">
+              <thead>
                 <tr>
-                  <th scope="col" className="py-2">No. Container</th>
-                  <th scope="col" className="py-2">Seal</th>
-                  <th scope="col" className="py-2">Tipo</th>
-                  <th scope="col" className="py-2">Tara</th>
-                  <th scope="col" className="py-2">Peso bruto</th>
-                  <th scope="col" className="py-2">CBM</th>
-                  <th scope="col" className="py-2">Perfil</th>
-                  <th scope="col" className="py-2">SOC/COC</th>
-                  <th scope="col" className="py-2">Descarga</th>
+                  <th scope="col">Container</th>
+                  <th scope="col">Lacre</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col" className="text-right">Tara (kg)</th>
+                  <th scope="col" className="text-right">Peso bruto (kg)</th>
+                  <th scope="col" className="text-right">CBM (m³)</th>
+                  <th scope="col">Perfil</th>
+                  <th scope="col">SOC/COC</th>
+                  <th scope="col">Descarga</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#30363d]">
+              <tbody>
                 {bl.bl_containers?.length ? (
                   bl.bl_containers.map((container) => (
                     <tr key={container.id}>
-                      <td className="py-2 font-semibold text-white">{container.container_number}</td>
-                      <td className="py-2">{container.seal_number ?? '-'}</td>
-                      <td className="py-2">{container.type ?? '-'}</td>
-                      <td className="py-2">{container.tare_weight_kg == null ? '-' : `${formatNumber(container.tare_weight_kg)} kg`}</td>
-                      <td className="py-2">{formatNumber(container.gross_weight_kg)} kg</td>
-                      <td className="py-2">{formatNumber(container.cbm)}</td>
-                      <td className="py-2">
+                      <td className="app-bl-code text-[var(--app-text-strong)]">{container.container_number}</td>
+                      <td className="app-bl-code">{container.seal_number ?? '—'}</td>
+                      <td>{container.type ?? '—'}</td>
+                      <td className="text-right tabular-nums">{container.tare_weight_kg == null ? '—' : formatNumber(container.tare_weight_kg)}</td>
+                      <td className="text-right tabular-nums">{container.gross_weight_kg == null ? '—' : formatNumber(container.gross_weight_kg)}</td>
+                      <td className="text-right tabular-nums">{container.cbm == null ? '—' : formatNumber(container.cbm)}</td>
+                      <td>
                         {onChangeProfile ? (
                           <Select
                             aria-label={`Perfil do container ${container.container_number}`}
@@ -119,14 +128,14 @@ export function BlCargaTab({
                           </Select>
                         ) : container.is_imo || container.is_oog ? (
                           <span className="flex gap-1">
-                            {container.is_imo ? <Badge tone="red">IMO</Badge> : null}
-                            {container.is_oog ? <Badge tone="yellow">OOG</Badge> : null}
+                            {container.is_imo ? <Badge tone="danger">IMO</Badge> : null}
+                            {container.is_oog ? <Badge tone="warning">OOG</Badge> : null}
                           </span>
                         ) : (
-                          'Standard'
+                          'Padrão'
                         )}
                       </td>
-                      <td className="py-2">
+                      <td>
                         <div className="flex flex-wrap items-center gap-1">
                           {onChangeOwnership ? (
                             <Select
@@ -145,146 +154,121 @@ export function BlCargaTab({
                             />
                           )}
                           {ownershipDivergences?.has(container.container_number) ? (
-                            <Badge tone="yellow" title="O B/L prevalece nas taxas e na Demurrage">Baplie diz {ownershipDivergences.get(container.container_number)}</Badge>
+                            <span className="app-bl-facts__sub app-bl-tone--warning">
+                              Baplie diz {ownershipDivergences.get(container.container_number)}; vale o B/L
+                            </span>
                           ) : null}
                         </div>
                       </td>
-                      <td className="py-2 text-slate-300">{container.discharge_date ? formatDate(container.discharge_date) : <span className="text-slate-500">—</span>}</td>
+                      <td className="tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : <span className="app-bl-facts__missing">—</span>}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td className="py-3 text-slate-400" colSpan={9}>
-                      Nenhum container vinculado a este B/L.
-                    </td>
+                    <td className="app-bl-facts__missing" colSpan={9}>Nenhum container vinculado a este B/L.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-        </Card>
+        </section>
       ) : null}
 
       {showBreakbulk ? (
-        <Card>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-white">Resumo da carga solta</h2>
-            <div className="flex flex-wrap gap-2">
-              <Badge tone="green">{formatNumber(breakbulkSummary.machines)} maquinas</Badge>
-              <Badge tone="blue">{formatNumber(breakbulkSummary.packagesTotal)} packages</Badge>
-              <Badge tone="yellow">{formatNumber(breakbulkSummary.weightTon)} ton</Badge>
-              <Badge tone="slate">{formatNumber(breakbulkSummary.cbm)} CBM</Badge>
-            </div>
+        <section className={`app-bl-sheet__section${showContainers ? ' app-bl-sheet__section--ruled' : ''}`} aria-labelledby="bl-breakbulk">
+          <div className="app-bl-section-head">
+            <h2 id="bl-breakbulk" className="app-bl-section-title">Resumo da carga solta</h2>
+            <SummaryStrip
+              label="Resumo da carga solta"
+              items={[
+                { label: breakbulkSummary.machines === 1 ? 'máquina' : 'máquinas', value: formatNumber(breakbulkSummary.machines) },
+                { label: 'packages', value: formatNumber(breakbulkSummary.packagesTotal) },
+                { label: 't', value: formatNumber(breakbulkSummary.weightTon) },
+                { label: 'm³', value: formatNumber(breakbulkSummary.cbm) },
+              ]}
+            />
           </div>
-
-          <div className="app-table-scroll">
-            <div className="grid gap-4">
-              <table className="app-table app-table--compact app-table--dense w-full table-fixed text-left text-sm">
-                <thead className="bg-[#0d1117] text-xs uppercase text-slate-500">
+          {bl.bl_breakbulk_items?.length ? (
+            <div className="app-table-scroll">
+              <table className="app-table app-table--compact app-bl-subtable min-w-[640px]">
+                <thead>
                   <tr>
-                    <th scope="col" className="py-2">CE</th>
-                    <th scope="col" className="py-2">Máquinas</th>
-                    <th scope="col" className="py-2">Packages</th>
-                    <th scope="col" className="py-2">Total de packages</th>
-                    <th scope="col" className="py-2">Peso (ton)</th>
-                    <th scope="col" className="py-2">CBM (M3)</th>
+                    <th scope="col">Descrição</th>
+                    <th scope="col" className="text-right">Packages</th>
+                    <th scope="col">Unidade</th>
+                    <th scope="col" className="text-right">Peso bruto (kg)</th>
+                    <th scope="col" className="text-right">CBM (m³)</th>
+                    <th scope="col">Marcas</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#30363d]">
-                  <tr>
-                    <td className="py-2">{bl.ce_mercante ?? '-'}</td>
-                    <td className="py-2">{formatNumber(bl.bb_machine_qty)}</td>
-                    <td className="py-2">{formatNumber(bl.bb_packages_qty)}</td>
-                    <td className="py-2">{formatNumber(bl.bb_packages_total ?? bl.bb_packages_qty)}</td>
-                    <td className="py-2">{formatNumber(bl.bb_weight_ton)}</td>
-                    <td className="py-2">{formatNumber(bl.bb_cbm)}</td>
-                  </tr>
+                <tbody>
+                  {bl.bl_breakbulk_items.map((item) => (
+                    <tr key={item.id}>
+                      <td className="font-medium text-[var(--app-text-strong)]">{item.item_description}</td>
+                      <td className="text-right tabular-nums">{formatNumber(item.package_qty)}</td>
+                      <td>{item.package_unit ?? '—'}</td>
+                      <td className="text-right tabular-nums">{formatNumber(item.gross_weight_kg)}</td>
+                      <td className="text-right tabular-nums">{formatNumber(item.cbm)}</td>
+                      <td>{item.marks ?? '—'}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-
-              {bl.bl_breakbulk_items?.length ? (
-                <div>
-                  <div className="mb-2 text-sm font-semibold text-slate-300">Itens da carga solta</div>
-                  <table className="app-table app-table--compact app-table--dense w-full table-fixed text-left text-sm">
-                    <thead className="bg-[#0d1117] text-xs uppercase text-slate-500">
-                      <tr>
-                        <th scope="col" className="py-2">Descrição</th>
-                        <th scope="col" className="py-2">Packages</th>
-                        <th scope="col" className="py-2">Unidade</th>
-                        <th scope="col" className="py-2">Peso bruto</th>
-                        <th scope="col" className="py-2">CBM</th>
-                        <th scope="col" className="py-2">Marcas</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#30363d]">
-                      {bl.bl_breakbulk_items.map((item) => (
-                        <tr key={item.id}>
-                          <td className="py-2 font-semibold text-white">{item.item_description}</td>
-                          <td className="py-2">{formatNumber(item.package_qty)}</td>
-                          <td className="py-2">{item.package_unit ?? '-'}</td>
-                          <td className="py-2">{formatNumber(item.gross_weight_kg)} kg</td>
-                          <td className="py-2">{formatNumber(item.cbm)}</td>
-                          <td className="py-2">{item.marks ?? '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-sm text-slate-400">
-                  Nenhum item individual vinculado a este B/L.
-                </div>
-              )}
             </div>
-          </div>
-        </Card>
+          ) : (
+            <p className="app-bl-facts__missing">Nenhum item individual vinculado a este B/L; vale o resumo acima.</p>
+          )}
+        </section>
       ) : null}
 
       {showContainers ? (
-        <Card>
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-lg font-semibold text-white">Veículos vinculados</h2>
-            <div className="w-full max-w-xs">
-              <Field label="Buscar por chassi">
-                <Input value={vehicleSearch} onChange={(event) => setVehicleSearch(event.target.value)} />
-              </Field>
-            </div>
+        <section className="app-bl-sheet__section app-bl-sheet__section--ruled" aria-labelledby="bl-vehicles">
+          <div className="app-bl-section-head">
+            <h2 id="bl-vehicles" className="app-bl-section-title">Veículos vinculados</h2>
+            {vehicles.length > 8 ? (
+              <div className="w-full max-w-xs">
+                <Field label="Buscar por chassi">
+                  <Input value={vehicleSearch} onChange={(event) => setVehicleSearch(event.target.value)} />
+                </Field>
+              </div>
+            ) : null}
           </div>
-
-          <div className="app-table-scroll">
-            <table className="app-table app-table--compact min-w-[760px] text-left text-sm whitespace-nowrap">
-              <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th scope="col" className="py-2">Chassi</th>
-                  <th scope="col" className="py-2">Marca</th>
-                  <th scope="col" className="py-2">Container</th>
-                  <th scope="col" className="py-2">Peso</th>
-                  <th scope="col" className="py-2">Cubagem</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#30363d]">
-                {filteredVehicles.length ? (
-                  filteredVehicles.map((vehicle) => (
-                    <tr key={vehicle.id}>
-                      <td className="py-2 font-semibold text-white">{vehicle.chassis}</td>
-                      <td className="py-2">{vehicle.brand}</td>
-                      <td className="py-2">{vehicle.container?.container_number ?? '-'}</td>
-                      <td className="py-2">{formatNumber(vehicle.weight_kg)} kg</td>
-                      <td className="py-2">{formatNumber(vehicle.cbm)}</td>
-                    </tr>
-                  ))
-                ) : (
+          {vehicles.length === 0 ? (
+            <p className="app-bl-facts__missing">Nenhum veículo vinculado a este B/L.</p>
+          ) : (
+            <div className="app-table-scroll">
+              <table className="app-table app-table--compact app-bl-subtable min-w-[640px] whitespace-nowrap">
+                <thead>
                   <tr>
-                    <td className="py-3 text-slate-400" colSpan={5}>
-                      Nenhum veículo vinculado para este B/L.
-                    </td>
+                    <th scope="col">Chassi</th>
+                    <th scope="col">Marca</th>
+                    <th scope="col">Container</th>
+                    <th scope="col" className="text-right">Peso (kg)</th>
+                    <th scope="col" className="text-right">Cubagem (m³)</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                </thead>
+                <tbody>
+                  {filteredVehicles.length ? (
+                    filteredVehicles.map((vehicle) => (
+                      <tr key={vehicle.id}>
+                        <td className="app-bl-code text-[var(--app-text-strong)]">{vehicle.chassis}</td>
+                        <td>{vehicle.brand}</td>
+                        <td className="app-bl-code">{vehicle.container?.container_number ?? '—'}</td>
+                        <td className="text-right tabular-nums">{formatNumber(vehicle.weight_kg)}</td>
+                        <td className="text-right tabular-nums">{formatNumber(vehicle.cbm)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="app-bl-facts__missing" colSpan={5}>Nenhum chassi com esse trecho.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       ) : null}
-    </div>
+    </Card>
   )
 }

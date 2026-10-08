@@ -55,7 +55,7 @@ export function resolveChargeStatusLabel(status: BL['charge_status']) {
     case 'calculated':
       return 'Calculado (provisório)'
     case 'review_required':
-      return 'Revisao obrigatoria'
+      return 'Revisão obrigatória'
     case 'reviewed':
       return 'Revisado'
     case 'ready_for_billing':
@@ -80,7 +80,7 @@ export function resolveChargeLineStatusLabel(status: string | null) {
     case 'calculated':
       return 'Provisório'
     case 'review_required':
-      return 'Revisao'
+      return 'Revisão'
     case 'reviewed':
       return 'Revisado'
     case 'ready_for_billing':

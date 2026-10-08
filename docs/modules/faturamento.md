@@ -69,7 +69,8 @@ para a decisão completa.
 ### Detalhe do B/L: trilhos Operacional e Documental
 
 `src/pages/BlDetalhe.tsx` monta dois trilhos independentes em
-`BlRailsPipeline`. O trilho **Operacional** permanece com os marcos
+`BlRailsPipeline`, desenhados com o `StepRail` comum (a primeira etapa pendente
+é a atual; bloqueio continua bloqueio). O trilho **Operacional** permanece com os marcos
 `Saída do POL → Chegada ao POD → Descarga → Devolução` para B/Ls de container
 (e os marcos de escala para carga solta).
 

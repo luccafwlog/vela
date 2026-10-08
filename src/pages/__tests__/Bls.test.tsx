@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -122,10 +122,13 @@ describe('Página Bls (unificada)', () => {
       </QueryClientProvider>,
     )
 
-    expect(screen.getByText('BLs filtrados')).toBeTruthy()
-    expect(screen.getByText('CNTRS')).toBeTruthy()
-    expect(screen.getAllByText('Carga Solta').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('50 ton')).toBeTruthy()
+    // Três cards decisórios que filtram; os volumes vão para a faixa de resumo.
+    expect(screen.getByRole('button', { name: /Pendentes de revisão/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Prontos para faturar/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Sem faturamento/ })).toBeTruthy()
+    const strip = screen.getByLabelText('Resumo do recorte')
+    expect(strip.textContent).toContain('B/Ls3')
+    expect(strip.textContent).toContain('de carga solta50 t')
   })
 
   it('renderiza os badges de modalidade corretos (contêiner, carga solta e misto)', () => {
@@ -151,7 +154,7 @@ describe('Página Bls (unificada)', () => {
     expect(linkMisto.getAttribute('href')).toBe('/bls/BL-MISTO')
   })
 
-  it('organiza os atalhos de importação e deixa a exportação apenas como ícone', () => {
+  it('reúne as importações num menu e deixa Exportar com rótulo', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -161,21 +164,38 @@ describe('Página Bls (unificada)', () => {
       </QueryClientProvider>,
     )
 
-    const actionLabels = ['B/L CNTR', 'B/L Carga Solta', 'Manifesto Carga solta', 'CE Mercante']
-    const actionButtons = actionLabels.map((label) => screen.getByRole('button', { name: label }))
-
-    actionButtons.slice(1).forEach((button, index) => {
-      expect(actionButtons[index].compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    })
+    const trigger = screen.getByRole('button', { name: 'Importar' })
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+    fireEvent.click(trigger)
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'B/L de contêiner (.xlsx)',
+      'B/L de carga solta (.pdf, .docx)',
+      'Manifesto de carga solta (BB)',
+      'CE Mercante',
+    ])
     expect(screen.queryByRole('link', { name: 'Containers' })).toBeNull()
-
-    const exportButton = screen.getByRole('button', { name: 'Exportar B/Ls' })
-    expect(exportButton.getAttribute('title')).toBe('Exportar B/Ls')
-    expect(exportButton.textContent).toBe('')
-    expect(exportButton.querySelector('svg')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Exportar' })).toBeTruthy()
   })
 
-  it('alterna o filtro rápido de modalidade [Todos, Contêiner, Carga Solta, Misto]', async () => {
+  it('aplica o filtro do card e o desfaz no segundo clique, refletindo na URL', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    const card = screen.getByRole('button', { name: /Pendentes de revisão/ })
+    fireEvent.click(card)
+    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ reviewStatus: 'pending_review', page: 1 }))
+    expect(card.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(card)
+    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ reviewStatus: '' }))
+  })
+
+  it('alterna a lente de modalidade [Todos, Contêiner, Carga solta, Misto]', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -186,7 +206,7 @@ describe('Página Bls (unificada)', () => {
     )
 
     // Clica em Misto
-    const btnMisto = screen.getByRole('button', { name: 'Misto' })
+    const btnMisto = screen.getByRole('radio', { name: 'Misto' })
     fireEvent.click(btnMisto)
 
     await waitFor(() => {
@@ -194,7 +214,7 @@ describe('Página Bls (unificada)', () => {
     })
 
     // Clica em Carga Solta
-    const btnCargaSolta = screen.getByRole('button', { name: 'Carga Solta' })
+    const btnCargaSolta = screen.getByRole('radio', { name: 'Carga solta' })
     fireEvent.click(btnCargaSolta)
 
     await waitFor(() => {
@@ -202,7 +222,7 @@ describe('Página Bls (unificada)', () => {
     })
 
     // Clica em Contêiner
-    const btnCntr = screen.getByRole('button', { name: 'Contêiner' })
+    const btnCntr = screen.getByRole('radio', { name: 'Contêiner' })
     fireEvent.click(btnCntr)
 
     await waitFor(() => {
@@ -210,7 +230,7 @@ describe('Página Bls (unificada)', () => {
     })
 
     // Clica em Todos
-    const btnTodos = screen.getByRole('button', { name: 'Todos' })
+    const btnTodos = screen.getByRole('radio', { name: 'Todos' })
     fireEvent.click(btnTodos)
 
     await waitFor(() => {
@@ -252,13 +272,12 @@ describe('Página Bls (unificada)', () => {
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
 
     const copyItem = screen.getByRole('menuitem', { name: 'Copiar número do B/L' })
-    const detailsItem = screen.getByRole('menuitem', { name: 'Abrir detalhes' })
     const deleteItem = screen.getByRole('menuitem', { name: 'Excluir B/L' })
     expect(document.activeElement).toBe(copyItem)
+    // "Abrir detalhes" saiu: o número do B/L já é o link para a ficha.
+    expect(screen.queryByRole('menuitem', { name: 'Abrir detalhes' })).toBeNull()
 
     fireEvent.keyDown(copyItem, { key: 'ArrowDown' })
-    expect(document.activeElement).toBe(detailsItem)
-    fireEvent.keyDown(detailsItem, { key: 'ArrowDown' })
     expect(document.activeElement).toBe(deleteItem)
     fireEvent.keyDown(deleteItem, { key: 'ArrowDown' })
     expect(document.activeElement).toBe(copyItem)
@@ -295,7 +314,7 @@ describe('Página Bls (unificada)', () => {
   })
 
 
-  it('abre o menu de ações ao clicar nos três pontinhos e exibe opções de cópia e detalhes', () => {
+  it('abre o menu de ações ao clicar nos três pontinhos; a ficha abre pelo número', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -309,8 +328,8 @@ describe('Página Bls (unificada)', () => {
     fireEvent.click(trigger)
 
     expect(screen.getByRole('menuitem', { name: 'Copiar número do B/L' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Abrir detalhes' })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: 'Excluir B/L' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'BL-CNTR' }).getAttribute('href')).toBe('/bls/BL-CNTR')
   })
 
   it('aplica o POL recebido na URL junto com viagem e POD', () => {
@@ -331,7 +350,7 @@ describe('Página Bls (unificada)', () => {
     })
   })
 
-  it('exibe estritamente o peso de carga solta no card Carga Solta, ignorando peso de contêiner', () => {
+  it('exibe estritamente o peso de carga solta na faixa de resumo, ignorando peso de contêiner', () => {
     useBlSummaryMock.mockReturnValue({
       data: {
         totalBls: 2,
@@ -356,9 +375,10 @@ describe('Página Bls (unificada)', () => {
       </QueryClientProvider>,
     )
 
-    // O card Carga Solta deve exibir 0 ton (breakbulkWeightTon), não 85 ton (totalWeightTon)
-    expect(screen.getByText('0 ton')).toBeTruthy()
-    expect(screen.queryByText('85 ton')).toBeNull()
+    // A faixa mostra 0 t de carga solta (breakbulkWeightTon), não 85 t (totalWeightTon)
+    const strip = screen.getByLabelText('Resumo do recorte')
+    expect(strip.textContent).toContain('de carga solta0 t')
+    expect(strip.textContent).not.toContain('85 t')
   })
 
   it('expande a linha e mostra contêiner e carga solta do B/L misto, sem nova consulta', async () => {
@@ -446,11 +466,13 @@ describe('Página Bls (unificada)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Expandir carga do B/L BL-CNTR' }))
     await waitFor(() => expect(screen.getAllByText('Contêineres (2)').length).toBeGreaterThan(0))
-    expect(screen.queryByText('Carga solta')).toBeNull()
+    expect(within(document.getElementById('bl-detail-BL-CNTR')!).queryByText('Carga solta')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Expandir carga do B/L BL-BB' }))
-    await waitFor(() => expect(screen.getAllByText('Carga solta').length).toBeGreaterThan(0))
-    expect(screen.queryByText(/^Contêineres \(/)).toBeNull()
+    await waitFor(() => expect(document.getElementById('bl-detail-BL-BB')).toBeTruthy())
+    const detail = within(document.getElementById('bl-detail-BL-BB')!)
+    expect(detail.getByText('Carga solta')).toBeTruthy()
+    expect(detail.queryByText(/^Contêineres \(/)).toBeNull()
   })
 
   it('renderiza os KPIs de carga solta que a RPC já devolvia', () => {
@@ -463,9 +485,10 @@ describe('Página Bls (unificada)', () => {
       </QueryClientProvider>,
     )
 
-    // totalMachines, totalPackages e breakbulkCbm eram buscados e descartados.
-    expect(screen.getByText('Máquinas')).toBeTruthy()
-    expect(screen.getByText('Total de packages')).toBeTruthy()
-    expect(screen.getByText('CBM carga solta')).toBeTruthy()
+    // totalMachines, totalPackages e totalCbm eram buscados e descartados.
+    const strip = within(screen.getByLabelText('Resumo do recorte'))
+    expect(strip.getByText('máquinas')).toBeTruthy()
+    expect(strip.getByText('packages')).toBeTruthy()
+    expect(strip.getByText('no total')).toBeTruthy()
   })
 })

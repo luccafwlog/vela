@@ -2,10 +2,10 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Upload } from 'lucide-react'
+import { ArrowLeft, Ban, Copy, MoreHorizontal, RotateCcw, Upload } from 'lucide-react'
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../lib/containerCounts'
 import { Badge } from '../components/ui/Badge'
-import { Card, PageHeader } from '../components/ui/Card'
+import { Card } from '../components/ui/Card'
 import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { BlImportModal } from '../components/shared/BlImportModal'
@@ -40,6 +40,10 @@ import { getBlPortalStatus } from '../services/blPortalStatus'
 import { queryKeys } from '../services/queryKeys'
 import { useVoyageReconciliation } from '../hooks/useVoyageReconciliation'
 import { TabButton } from '../components/ui/TabButton'
+import { TabList } from '../components/ui/TabList'
+import { BlMenu, type BlMenuItem } from '../components/bl/BlMenu'
+import { formatDate } from '../lib/utils'
+import { blsListHref } from './blsListState'
 import { cargoModeLabel, resolveCargoMode } from './blDetalheHelpers'
 
 export type BlTab = 'visao-geral' | 'carga' | 'detalhes' | 'faturamento' | 'historico'
@@ -51,7 +55,7 @@ const BL_TAB_KEYS: BlTab[] = ['visao-geral', 'carga', 'detalhes', 'faturamento',
 // B/L custava quatro interações e uma rolagem. É o dado mais operacional da
 // ficha e agora tem aba própria, logo após a visão geral.
 export const BL_TABS: { key: BlTab; label: string }[] = [
-  { key: 'visao-geral', label: 'Visão Geral' },
+  { key: 'visao-geral', label: 'Visão geral' },
   { key: 'carga', label: 'Carga' },
   { key: 'detalhes', label: 'Detalhes do B/L' },
   { key: 'faturamento', label: 'Faturamento' },
@@ -68,7 +72,9 @@ export function BlDetalhe() {
   const [blFreightOpen, setBlFreightOpen] = useState(false)
   const tabParam = searchParams.get('tab')
   const activeTab: BlTab = isBlTab(tabParam) ? tabParam : 'visao-geral'
-  const { data: bl, isLoading, error } = useBlDetail(blId)
+  const { data: blData, isLoading, error, refetch } = useBlDetail(blId)
+  const bl = blData ?? undefined
+  const listHref = blsListHref()
   const { user, profile, isAdmin } = useAuth()
   const confirmWithReason = useConfirmWithReason()
   const { showToast } = useToast()
@@ -127,6 +133,17 @@ export function BlDetalhe() {
       showToast(userFacingErrorMessage(error, 'Falha ao reativar o B/L.'), 'error')
     }
   }
+  async function copyBlNumber() {
+    if (!bl) return
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard indisponível')
+      await navigator.clipboard.writeText(bl.id)
+      showToast(`Número do B/L copiado: ${bl.id}`, 'success')
+    } catch {
+      showToast('Não foi possível copiar o número do B/L.', 'error')
+    }
+  }
+
   const { data: invoiceLinksByBl } = useInvoiceLinks(bl?.id ? [bl.id] : [])
   const { data: demurrageInvoices } = useQuery({
     queryKey: queryKeys.demurrage.invoices({ blId: bl?.id }),
@@ -229,8 +246,6 @@ export function BlDetalhe() {
   const isMixedMode = cargoMode === 'misto'
   const hasContainers = isContainerMode || isMixedMode
   const { data: reconciliation, isLoading: reconciliationLoading, isError: reconciliationError } = useVoyageReconciliation(hasContainers ? bl?.voyage_id : null)
-  const backHref = '/bls'
-  const backLabel = 'Voltar aos BLs'
   const voyageLabel = [bl?.voyage?.vessel?.name, bl?.voyage?.voyage_number].filter(Boolean).join(' / ')
   const terminalOptions = useMemo<BlTerminalOverrideOption[]>(
     () => (depots ?? [])
@@ -312,84 +327,111 @@ export function BlDetalhe() {
   if (isLoading) {
     return (
       <>
-        <Breadcrumb items={[{ label: 'BLs', to: '/bls' }, { label: 'Carregando...' }]} />
-        <SkeletonCard lines={5} />
+        <Breadcrumb items={[{ label: 'BLs', to: listHref }, { label: 'Carregando…' }]} />
+        <div className="app-bl-skeleton" role="status" aria-label="Carregando o B/L">
+          <SkeletonCard lines={2} />
+          <SkeletonCard lines={4} />
+          <SkeletonCard lines={6} />
+        </div>
       </>
     )
   }
 
-  if (error || !bl || !form) {
+  if (error || blData === null || !bl || !form) {
+    const missing = !error && blData === null
     return (
       <>
-        <Breadcrumb
-          items={[
-            { label: 'BLs', to: '/bls' },
-            { label: 'B/L não encontrado' },
-          ]}
-        />
-        <PageHeader
-          title="Detalhes do B/L"
-          description="Consulta de informações do conhecimento de embarque."
-          action={
-            <Link className="text-sm font-semibold text-[var(--app-link)] hover:underline" to="/bls">
-              <ArrowLeft className="mr-1 inline" size={16} />Voltar para BLs
+        <Breadcrumb items={[{ label: 'BLs', to: listHref }, { label: missing ? 'B/L não encontrado' : `B/L ${blId ?? ''}` }]} />
+        <Card className="app-bl-missing">
+          <h1 className="app-bl-missing__title">{missing ? `B/L ${blId ?? ''} não encontrado` : 'Não foi possível abrir este B/L'}</h1>
+          <p className="app-bl-missing__text">
+            {missing
+              ? 'Confira o número. Um B/L excluído deixa de existir; um cancelado continua aparecendo na lista.'
+              : userFacingErrorMessage(error, 'A consulta falhou. Tente de novo em instantes.')}
+          </p>
+          <div className="app-bl-missing__actions">
+            {missing ? null : <Button variant="secondary" onClick={() => void refetch()}>Tentar novamente</Button>}
+            <Link className="app-btn app-btn--ghost" to={listHref}>
+              <ArrowLeft size={16} aria-hidden="true" />
+              Voltar para BLs
             </Link>
-          }
-        />
-        <Card className="text-red-200">B/L não encontrado ou erro ao consultar o Supabase.</Card>
+          </div>
+        </Card>
       </>
     )
   }
+
+  const headerMenu: BlMenuItem[] = [
+    { key: 'copy', label: 'Copiar número do B/L', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void copyBlNumber() },
+    ...(isAdmin && cancelledAt
+      ? [{ key: 'reactivate', label: 'Reativar B/L', icon: <RotateCcw size={14} aria-hidden="true" />, onSelect: () => void handleReactivateBl() }]
+      : []),
+    ...(isAdmin && bl.ce_mercante && !cancelledAt
+      ? [{ key: 'cancel', label: 'Cancelar B/L', icon: <Ban size={14} aria-hidden="true" />, danger: true, onSelect: () => void handleCancelBl() }]
+      : []),
+  ]
+  const cancelReason = (bl as { cancel_reason?: string | null }).cancel_reason ?? null
 
   return (
     <>
       <Breadcrumb
         items={[
-          { label: 'BLs', to: '/bls' },
+          { label: 'BLs', to: listHref },
           { label: `B/L ${bl.id}` },
         ]}
       />
-      {/* Modalidade e cancelamento como badges acima do identificador — a
-          mesma leitura de relance que a coluna Carga dá na lista. */}
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <Badge tone={cargoMode === 'misto' ? 'yellow' : cargoMode === 'carga_solta' ? 'green' : 'blue'}>
-          {cargoModeLabel(cargoMode)}
-        </Badge>
-        {cancelledAt ? <Badge tone="red">Cancelado</Badge> : null}
-      </div>
-      <PageHeader
-        title={`B/L ${bl.id}`}
-        description={[voyageLabel, bl.pol || bl.pod ? `${bl.pol ?? '—'} → ${bl.pod ?? '—'}` : null, bl.customer?.name ?? 'Sem cliente vinculado'].filter(Boolean).join(' · ')}
-        action={
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Link className="app-btn app-btn--ghost" to={backHref}>
-              <ArrowLeft size={16} />
-              {backLabel}
-            </Link>
-            {hasContainers && canImport ? (
-              <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
-                <Upload size={16} />
-                Importar B/L
-              </Button>
-            ) : null}
-            {isAdmin && cancelledAt ? (
-              <Button variant="secondary" onClick={() => void handleReactivateBl()}>Reativar B/L</Button>
-            ) : null}
-            {isAdmin && bl.ce_mercante && !cancelledAt ? (
-              <Button variant="danger" onClick={() => void handleCancelBl()}>Cancelar B/L</Button>
-            ) : null}
-          </div>
-        }
-      />
+      <header className="app-bl-head">
+        <div className="app-bl-head__copy">
+          <p className="app-bl-head__eyebrow">
+            <span>B/L</span>
+            <span aria-hidden="true">·</span>
+            <span>{cargoModeLabel(cargoMode)}</span>
+            {cancelledAt ? <Badge tone="danger">Cancelado</Badge> : null}
+          </p>
+          <h1 className="app-bl-head__title">{bl.id}</h1>
+          <p className="app-bl-head__context">
+            {bl.voyage_id && voyageLabel ? <Link className="app-bl-link" to={`/viagens/${bl.voyage_id}`}>{voyageLabel}</Link> : <span>Sem viagem</span>}
+            <span>{`${bl.pol ?? '—'} → ${bl.pod ?? '—'}`}</span>
+            {bl.ce_mercante ? <span>CE <span className="app-bl-code">{bl.ce_mercante}</span></span> : null}
+            {bl.customer?.name ? <span>{bl.customer.name}</span> : null}
+          </p>
+        </div>
+        <div className="app-bl-head__actions">
+          {hasContainers && canImport && !cancelledAt ? (
+            <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
+              <Upload size={16} aria-hidden="true" />
+              Reimportar B/L
+            </Button>
+          ) : null}
+          <BlMenu
+            label="Mais ações do B/L"
+            menuId="bl-header-menu"
+            triggerClassName="app-btn app-btn--secondary app-bl-head__more"
+            trigger={<MoreHorizontal size={16} aria-hidden="true" />}
+            items={headerMenu}
+          />
+        </div>
+      </header>
 
-      <div className="mb-5">
-        <BlRailsPipeline operational={operational} documental={documental} documentalSummary={documentalSummary} nextAction={pickNextAction(documental)} />
-      </div>
+      {cancelledAt ? (
+        <div className="app-bl-cancelled" role="status">
+          <p>
+            <strong>B/L cancelado em {formatDate(cancelledAt)}.</strong>{' '}
+            Somente leitura: saiu do faturamento e aparece como Cancelado no Portal.
+            {isAdmin ? ' Para desfazer, use Mais ações › Reativar B/L.' : ''}
+          </p>
+          {cancelReason ? <p className="app-bl-cancelled__reason">Motivo: {cancelReason}</p> : null}
+        </div>
+      ) : null}
 
-      <div className="mb-5 flex flex-wrap gap-2" role="tablist">
+      <BlRailsPipeline operational={operational} documental={documental} documentalSummary={documentalSummary} nextAction={pickNextAction(documental)} />
+
+      <TabList label="Seções do B/L" className="app-bl-tabs">
         {BL_TABS.map((tab) => (
           <TabButton
             key={tab.key}
+            id={`bl-tab-${tab.key}`}
+            controls={`bl-panel-${tab.key}`}
             active={tab.key === activeTab}
             label={tab.label}
             onClick={() => {
@@ -400,8 +442,9 @@ export function BlDetalhe() {
             }}
           />
         ))}
-      </div>
+      </TabList>
 
+      <div id={`bl-panel-${activeTab}`} role="tabpanel" aria-labelledby={`bl-tab-${activeTab}`} className="app-bl-panel">
       {/* Abas montadas incondicionalmente (prop `active`) para preservar estado de formulários ao trocar de aba. */}
       <BlVisaoGeralTab
         active={activeTab === 'visao-geral'}
@@ -455,9 +498,10 @@ export function BlDetalhe() {
         onSubmit={handleSubmit}
       />
 
-      <BlFaturamentoTab active={activeTab === 'faturamento'} bl={bl} activeInvoice={latestInvoice} />
+      <BlFaturamentoTab active={activeTab === 'faturamento'} bl={bl} activeInvoice={latestInvoice} demurrageInvoices={demurrageInvoices} />
 
       <BlHistoricoTab active={activeTab === 'historico'} blId={blId} />
+      </div>
 
       <BlImportModal
         key={`${blFreightOpen ? 'open' : 'closed'}-${bl.voyage_id ?? 'none'}-${bl.id}`}

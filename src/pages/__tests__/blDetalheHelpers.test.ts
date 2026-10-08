@@ -57,7 +57,7 @@ describe('resolveChargeStatusTone', () => {
 describe('resolveChargeStatusLabel', () => {
   it('rotula todos os status conhecidos e o default', () => {
     expect(resolveChargeStatusLabel('calculated')).toBe('Calculado (provisório)')
-    expect(resolveChargeStatusLabel('review_required')).toBe('Revisao obrigatoria')
+    expect(resolveChargeStatusLabel('review_required')).toBe('Revisão obrigatória')
     expect(resolveChargeStatusLabel('reviewed')).toBe('Revisado')
     expect(resolveChargeStatusLabel('ready_for_billing')).toBe('Pronto para faturar')
     expect(resolveChargeStatusLabel('exempt')).toBe('Isento')
@@ -75,7 +75,7 @@ describe('resolveChargeLineStatus*', () => {
 
   it('rótulo curto da linha de cobrança', () => {
     expect(resolveChargeLineStatusLabel('calculated')).toBe('Provisório')
-    expect(resolveChargeLineStatusLabel('review_required')).toBe('Revisao')
+    expect(resolveChargeLineStatusLabel('review_required')).toBe('Revisão')
     expect(resolveChargeLineStatusLabel('ready_for_billing')).toBe('Pronto')
     expect(resolveChargeLineStatusLabel('exempt')).toBe('Isento')
     expect(resolveChargeLineStatusLabel(null)).toBe('Pendente')

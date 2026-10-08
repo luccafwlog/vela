@@ -9165,3 +9165,870 @@ a.app-step-rail__link:focus-visible {
 .app-import-effects__retry {
   justify-self: start;
 }
+
+/* ===========================================================================
+   B/Ls e ficha do B/L (/bls, /bls/:blId) — etapa 05
+   Uma superfície por nível; seções por filete; cor só para estado.
+   =========================================================================== */
+.app-bl-link {
+  color: var(--app-link);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.app-bl-link:hover {
+  text-decoration: underline;
+}
+
+.app-bl-link:focus-visible,
+.app-bl-text-button:focus-visible,
+.app-bl-status__next-link:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.app-bl-id {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* Códigos sujeitos a confusão de caracteres (CE, container, lacre, chassi). */
+.app-bl-code {
+  font-family: var(--app-font-mono);
+  font-size: var(--app-size-table);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-bl-tone--default { color: var(--app-text); }
+.app-bl-tone--success { color: var(--app-success-fg); }
+.app-bl-tone--warning { color: var(--app-warning-fg); }
+.app-bl-tone--danger { color: var(--app-danger-fg); }
+
+.app-bl-text-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--app-link);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.app-bl-text-button:hover {
+  text-decoration: underline;
+}
+
+.app-bl-error {
+  margin: 0;
+  color: var(--app-danger-fg);
+  font-size: var(--app-size-table);
+}
+
+/* ── Lista /bls ─────────────────────────────────────────────────────────── */
+.app-bl-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 720px;
+  margin-bottom: 16px;
+}
+
+.app-bl-metrics .app-metric-tile {
+  padding: 10px 14px;
+}
+
+.app-bl-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  border-bottom: 1px solid var(--app-border);
+  padding: 10px 16px;
+}
+
+.app-bl-toolbar__lens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-bl-toolbar__hint {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+}
+
+.app-bl-table {
+  min-width: 960px;
+  text-align: left;
+}
+
+.app-bl-table td {
+  vertical-align: top;
+}
+
+.app-bl-table__check {
+  width: 40px;
+}
+
+.app-bl-table__row--open > td {
+  background: var(--app-surface-muted);
+}
+
+.app-bl-cell__stack {
+  display: inline-grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.app-bl-cell__inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.app-bl-cell__truncate {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-bl-cell__sub {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-bl-cell__sub--muted { color: var(--app-muted); }
+.app-bl-cell__sub--warning { color: var(--app-warning-fg); font-weight: 500; }
+
+.app-bl-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Ações por linha na densidade compacta: 32 px com mouse (linha de 40 px), 44 px no toque. */
+@media (pointer: fine) {
+  .app-bl-row-actions .app-table__icon-button,
+  .app-bl-card .app-table__icon-button {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+    border-radius: var(--app-radius-control);
+    box-shadow: none;
+  }
+}
+
+.app-bl-row-detail {
+  padding: 12px 16px 16px;
+}
+
+.app-floating-menu--start {
+  transform: none;
+}
+
+/* Lista em cartões abaixo de 640 px. */
+.app-bl-cards {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-bl-card {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid var(--app-border);
+  padding: 12px 16px;
+}
+
+.app-bl-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.app-bl-card__check {
+  margin-top: 4px;
+}
+
+.app-bl-card__id {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+  font-size: var(--app-size-body);
+}
+
+.app-bl-card__id .app-bl-id {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.app-bl-card__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-bl-card__body .app-bl-cell__truncate {
+  max-width: 100%;
+}
+
+.app-bl-card__body .app-bl-cell__sub {
+  overflow-wrap: anywhere;
+}
+
+.app-bl-card__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+
+/* ── Ficha: cabeçalho, situação e abas ──────────────────────────────────── */
+.app-bl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 16px;
+}
+
+.app-bl-head__copy {
+  display: grid;
+  flex: 1 1 360px;
+  min-width: 0;
+  gap: 2px;
+}
+
+.app-bl-head__eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+/* Identificador longo no título: DM Sans 24/600, nunca Syne. */
+.app-bl-head__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-family: var(--app-font-body);
+  font-size: var(--app-size-page);
+  font-weight: 600;
+  line-height: 32px;
+  overflow-wrap: anywhere;
+}
+
+.app-bl-head__context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  margin: 2px 0 0;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-bl-head__context > * + *::before {
+  content: '·';
+  margin: 0 8px;
+  color: var(--app-muted);
+}
+
+.app-bl-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-bl-head__more {
+  padding-inline: 10px;
+}
+
+.app-bl-cancelled {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 16px;
+  border: 1px solid var(--app-danger-border);
+  border-radius: var(--app-radius);
+  background: var(--app-danger-bg);
+  padding: 10px 14px;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+}
+
+.app-bl-cancelled p {
+  margin: 0;
+}
+
+.app-bl-cancelled__reason {
+  color: var(--app-muted);
+}
+
+.app-bl-status {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  padding: 14px 16px 16px;
+}
+
+.app-bl-status__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  border-radius: var(--app-radius-control);
+  padding: 8px 12px;
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-bl-status__next--pending {
+  border: 1px solid var(--app-warning-border);
+  background: var(--app-warning-bg);
+  color: var(--app-warning-fg);
+}
+
+.app-bl-status__next--blocked {
+  border: 1px solid var(--app-danger-border);
+  background: var(--app-danger-bg);
+  color: var(--app-danger-fg);
+}
+
+.app-bl-status__next--done {
+  border: 1px solid var(--app-success-border);
+  background: var(--app-success-bg);
+  color: var(--app-success-fg);
+}
+
+.app-bl-status__next-text {
+  display: flex;
+  flex: 1 1 260px;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 0;
+  color: var(--app-text-strong);
+}
+
+.app-bl-status__next-label {
+  font-weight: 600;
+}
+
+.app-bl-status__next-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--app-link);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.app-bl-status__next-link:hover {
+  text-decoration: underline;
+}
+
+.app-bl-status__rail {
+  display: grid;
+  gap: 8px;
+}
+
+.app-bl-status__rail-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-table);
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.app-bl-status__rail-count {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  font-weight: 500;
+}
+
+.app-bl-tabs {
+  margin-bottom: 16px;
+}
+
+.app-bl-panel,
+.app-bl-overview,
+.app-bl-skeleton {
+  display: grid;
+  gap: 16px;
+}
+
+.app-bl-missing {
+  display: grid;
+  gap: 8px;
+  max-width: 640px;
+}
+
+.app-bl-missing__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-panel);
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.app-bl-missing__text {
+  margin: 0;
+  color: var(--app-text);
+}
+
+.app-bl-missing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* ── Ficha: superfície única com seções ─────────────────────────────────── */
+.app-bl-sheet {
+  display: grid;
+  gap: 0;
+}
+
+.app-bl-sheet__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 16px 32px;
+}
+
+.app-bl-sheet__section {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-bl-sheet__section--ruled {
+  margin-top: 16px;
+  border-top: 1px solid var(--app-border);
+  padding-top: 16px;
+}
+
+.app-bl-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.app-bl-section-head__title-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-bl-section-head__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--app-size-table);
+}
+
+.app-bl-section-head__status {
+  font-size: var(--app-size-table);
+  font-weight: 500;
+}
+
+.app-bl-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-section);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.app-bl-subsection-title {
+  margin: 0 0 8px;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-body);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.app-bl-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px 24px;
+  margin: 0;
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-bl-facts--inline {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.app-bl-facts__item {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-bl-facts__wide {
+  grid-column: 1 / -1;
+}
+
+.app-bl-facts__item dt {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-bl-facts__item dd {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  color: var(--app-text-strong);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.app-bl-facts__item dd.app-bl-facts__hint,
+.app-bl-facts__hint {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.app-bl-facts__sub {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.app-bl-facts__missing {
+  color: var(--app-muted);
+  font-weight: 400;
+}
+
+.app-bl-notice {
+  margin: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-muted);
+  padding: 8px 12px;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-bl-notice--row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.app-bl-notice--warning {
+  border-color: var(--app-warning-border);
+  background: var(--app-warning-bg);
+}
+
+.app-bl-subtable {
+  text-align: left;
+}
+
+.app-bl-subtable td {
+  vertical-align: middle;
+}
+
+/* Terminal de descarga como fato do Embarque. */
+.app-bl-terminal__value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.app-bl-terminal__form {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  border-top: 1px solid var(--app-border);
+  padding-top: 12px;
+  font-weight: 400;
+}
+
+.app-bl-terminal__intro {
+  margin: 0;
+  color: var(--app-muted);
+}
+
+.app-bl-terminal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Omissão de escala: transbordo ou COD. */
+.app-bl-omission {
+  display: grid;
+  gap: 10px;
+  border-left: 3px solid var(--app-info-border);
+}
+
+.app-bl-omission__summary {
+  margin: 0;
+  color: var(--app-text);
+  font-size: var(--app-size-body);
+  line-height: 20px;
+}
+
+.app-bl-omission__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.app-bl-consequences {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--app-text);
+  font-size: var(--app-size-body);
+  line-height: 20px;
+  list-style: disc;
+}
+
+/* Cliente e Portal lado a lado. */
+.app-bl-client {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 16px 32px;
+}
+
+.app-bl-client__portal {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  border-left: 1px solid var(--app-border);
+  padding-left: 24px;
+}
+
+.app-bl-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-muted);
+  padding: 8px 12px;
+}
+
+.app-bl-portal {
+  display: grid;
+  gap: 10px;
+}
+
+.app-bl-portal__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--app-size-table);
+  font-weight: 600;
+}
+
+.app-bl-portal__reasons {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  list-style: disc;
+}
+
+.app-bl-portal__list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Formulário de Detalhes: barra de salvar fixa quando há alteração. */
+.app-bl-savebar {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+  border-top: 1px solid var(--app-border);
+  padding-top: 16px;
+}
+
+.app-bl-savebar--dirty {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  margin-inline: -22px;
+  margin-bottom: -22px;
+  background: var(--app-surface);
+  padding: 12px 22px;
+  box-shadow: 0 -8px 16px -12px rgba(15, 23, 42, 0.35);
+}
+
+@media (min-width: 768px) {
+  .app-bl-savebar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+}
+
+.app-bl-issue {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  max-width: 280px;
+  text-align: right;
+}
+
+.app-bl-invoice-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin: 0 0 8px;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+}
+
+.app-bl-invoice-list {
+  display: grid;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--app-size-table);
+}
+
+.app-bl-invoice-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  border-bottom: 1px solid var(--app-border);
+  padding: 6px 0;
+}
+
+.app-bl-history {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-bl-history__item {
+  display: grid;
+  gap: 2px 16px;
+  border-top: 1px solid var(--app-border);
+  padding: 10px 0;
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-bl-history__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-bl-history__title {
+  color: var(--app-text-strong);
+  font-weight: 500;
+}
+
+@media (min-width: 640px) {
+  .app-bl-history__item {
+    grid-template-columns: 11rem minmax(0, 1fr);
+  }
+
+  .app-bl-history__meta {
+    display: grid;
+    gap: 0;
+  }
+}
+
+@media (max-width: 1023px) {
+  .app-bl-sheet__columns,
+  .app-bl-client {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-bl-client__portal {
+    border-left: 0;
+    border-top: 1px solid var(--app-border);
+    padding-left: 0;
+    padding-top: 16px;
+  }
+}
+
+@media (max-width: 639px) {
+  .app-bl-metrics {
+    gap: 8px;
+  }
+
+  .app-bl-metrics .app-metric-tile {
+    padding: 8px 10px;
+  }
+
+  .app-bl-toolbar {
+    padding: 10px 12px;
+  }
+
+  .app-bl-toolbar__lens,
+  .app-bl-toolbar__lens .app-segmented {
+    width: 100%;
+  }
+
+  .app-bl-toolbar__lens .app-segmented__option {
+    flex: 1 1 0;
+    padding-inline: 6px;
+  }
+
+  .app-bl-issue {
+    justify-items: start;
+    text-align: left;
+  }
+}

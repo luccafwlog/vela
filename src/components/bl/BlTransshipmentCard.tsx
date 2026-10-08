@@ -1,10 +1,18 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ArrowRight, Route } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Modal } from '../ui/Modal'
+import { Field } from '../ui/Input'
+import { formatDate } from '../../lib/utils'
 import type { BlDisposition, VoyageOmission } from '../../services/transshipments'
 
+/**
+ * Omissão de escala na ficha do B/L. O registro global (porto de transbordo,
+ * navio e datas) vem da Viagem e é só consulta; a ação individual deste B/L é
+ * marcar COD ou reverter para transbordo, com justificativa.
+ */
 export function BlTransshipmentCard({ omission, disposition, saving, onCod, onRestore }: {
   omission: VoyageOmission
   disposition: BlDisposition
@@ -15,9 +23,16 @@ export function BlTransshipmentCard({ omission, disposition, saving, onCod, onRe
   const [pendingAction, setPendingAction] = useState<'cod' | 'restore' | null>(null)
   const [justification, setJustification] = useState('')
   const justificationRef = useRef<HTMLTextAreaElement>(null)
-  const values = [omission.onwardVesselName, omission.onwardCarrier, omission.onwardVoyageNumber, omission.onwardEtd?.slice(0, 10), omission.onwardEta?.slice(0, 10)]
   const isCod = pendingAction === 'cod'
   const actionHandler = isCod ? onCod : onRestore
+  const inCod = disposition === 'cod'
+  const onward = [
+    { label: 'Navio', value: omission.onwardVesselName },
+    { label: 'Armador', value: omission.onwardCarrier },
+    { label: 'Viagem', value: omission.onwardVoyageNumber },
+    { label: 'ETD', value: omission.onwardEtd ? formatDate(omission.onwardEtd) : null },
+    { label: 'ETA', value: omission.onwardEta ? formatDate(omission.onwardEta) : null },
+  ]
   const closeDialog = () => {
     setPendingAction(null)
     setJustification('')
@@ -31,56 +46,75 @@ export function BlTransshipmentCard({ omission, disposition, saving, onCod, onRe
 
   return (
     <>
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">Transbordo / COD</h3>
-          <span className="rounded-full bg-[var(--app-surface-muted)] px-2 py-1 text-xs font-semibold uppercase">
-            {disposition === 'cod' ? `COD ${omission.dischargePod}` : 'Transbordo'}
-          </span>
+      <Card className="app-bl-omission">
+        <div className="app-bl-section-head">
+          <h2 className="app-bl-section-title">
+            <Route size={16} aria-hidden="true" />
+            {inCod ? `COD para ${omission.dischargePod}` : 'Transbordo'}
+          </h2>
+          <Link className="app-bl-link app-bl-section-head__link" to={`/viagens/${omission.voyageId}`}>
+            Registro global da omissão
+            <ArrowRight size={14} aria-hidden="true" />
+          </Link>
         </div>
-        <p className="mt-2 text-xs text-[var(--app-muted)]">Escala omitida em {omission.omittedPod}; descarga em {omission.dischargePod}.</p>
-        <p className="mt-2 text-sm">
-          {values.map((value, index) => <span key={`${value ?? 'empty'}-${index}`}>{index ? ' · ' : ''}{value || '—'}</span>)}
+        <p className="app-bl-omission__summary">
+          A escala em <strong>{omission.omittedPod}</strong> foi omitida e a carga descarregou em <strong>{omission.dischargePod}</strong>.{' '}
+          {inCod
+            ? `Destino final alterado para ${omission.dischargePod}: a Taxa Local foi recalculada nesse porto.`
+            : `Segue em transbordo até ${omission.omittedPod}; o destino final e a Taxa Local não mudam.`}
         </p>
-        <Link className="mt-2 inline-block text-xs font-semibold text-[#58a6ff] hover:underline" to={`/viagens/${omission.voyageId}`}>
-          Registro global da omissão →
-        </Link>
-        {disposition === 'transshipment' && onCod ? (
-          <div className="mt-3">
-            <Button variant="secondary" className="app-btn--sm" disabled={saving} onClick={() => { setJustification(''); setPendingAction('cod') }}>Marcar COD</Button>
+        {!inCod ? (
+          <dl className="app-bl-facts app-bl-facts--inline" aria-label="Seguimento em transbordo">
+            {onward.map((item) => (
+              <div key={item.label} className="app-bl-facts__item">
+                <dt>{item.label}</dt>
+                <dd>{item.value || <span className="app-bl-facts__missing">A informar</span>}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+        {!inCod && onCod ? (
+          <div className="app-bl-omission__actions">
+            <Button variant="secondary" disabled={saving} onClick={() => { setJustification(''); setPendingAction('cod') }}>Marcar COD</Button>
           </div>
-        ) : disposition === 'cod' && onRestore ? (
-          <div className="mt-3">
-            <Button variant="secondary" className="app-btn--sm" loading={saving} onClick={() => { setJustification(''); setPendingAction('restore') }}>Reverter para transbordo</Button>
+        ) : inCod && onRestore ? (
+          <div className="app-bl-omission__actions">
+            <Button variant="secondary" loading={saving} onClick={() => { setJustification(''); setPendingAction('restore') }}>Reverter para transbordo</Button>
           </div>
         ) : null}
       </Card>
       <Modal
         open={pendingAction !== null}
-        title={isCod ? 'Confirmar COD' : 'Confirmar reversão de COD'}
+        title={isCod ? 'Marcar COD' : 'Reverter COD para transbordo'}
         onClose={closeDialog}
         initialFocusRef={justificationRef}
-        className="w-[min(100%,520px)]"
+        size="sm"
       >
         <div className="grid gap-4">
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--app-text)' }}>
-            {isCod
-              ? 'Esta ação altera o destino final do B/L para o porto de descarga e notifica o cliente quando houver cliente vinculado.'
-              : 'Esta ação restaura o destino original do B/L e notifica o cliente sobre a correção quando houver cliente vinculado.'}
-          </p>
-          <div className="grid gap-2">
-            <label className="text-sm font-semibold" htmlFor="cod-justification">Justificativa</label>
+          {isCod ? (
+            <ul className="app-bl-consequences">
+              <li>Esta ação altera o destino final do B/L para {omission.dischargePod} e recalcula a Taxa Local nesse porto.</li>
+              <li>Se o B/L já foi faturado, a diferença vira um Ajuste de COD para o Financeiro.</li>
+              <li>O B/L sai do Manifesto Mercante do porto omitido; o CE Mercante não muda.</li>
+              <li>O sistema notifica o cliente quando houver cliente vinculado.</li>
+            </ul>
+          ) : (
+            <ul className="app-bl-consequences">
+              <li>Esta ação restaura o destino original do B/L ({omission.omittedPod}).</li>
+              <li>O sistema notifica o cliente sobre a correção quando houver cliente vinculado.</li>
+            </ul>
+          )}
+          <Field label="Justificativa" required>
+            {/* Textarea nativo: a primitiva não repassa ref, e o foco inicial do modal precisa dele. */}
             <textarea
-              id="cod-justification"
               ref={justificationRef}
-              className="min-h-24 w-full rounded border border-[#30363d] bg-[var(--app-surface-muted)] p-2 text-sm text-[var(--app-text)]"
+              className="app-input app-input--full app-textarea"
               value={justification}
               onChange={(event) => setJustification(event.target.value)}
               placeholder="Explique o motivo da alteração"
-              required
               rows={4}
             />
-          </div>
+          </Field>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={closeDialog}>Voltar</Button>
             <Button variant="primary" disabled={!justification.trim()} onClick={confirmAction}>

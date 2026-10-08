@@ -1,24 +1,23 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, FileText, Loader2, MoreVertical, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, Download, FileText, MoreVertical, Trash2, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { MetricCard } from '../components/ui/MetricCard'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
+import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { SummaryStrip, type SummaryItem } from '../components/ui/SummaryStrip'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { CeMercanteImportModal } from '../components/shared/CeMercanteImportModal'
 import { BlImportModal } from '../components/shared/BlImportModal'
 import { BlDocumentImportModal } from '../components/shared/BlDocumentImportModal'
-import { FileImportModal } from '../components/shared/FileImportModal'
 import { CargoProfileBadge, ChargeStatusBadge } from '../components/shared/OperationalBadges'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { Field, Input, Select } from '../components/ui/Input'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
-import { PreviewBox } from '../components/ui/PreviewBox'
-import { TruncationNote } from '../components/shared/TruncationNote'
 import { useToast } from '../components/ui/Toast'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useAuth } from '../hooks/useAuth'
@@ -31,97 +30,123 @@ import { type BlFilters, fetchAllBls, useBls, useBlSummary, usePortOptions } fro
 import { useInvoiceLinks } from '../hooks/useBilling'
 import { formatBlCargoBadge } from '../lib/blCargoBadge'
 import { BlRowDetail } from '../components/bl/BlRowDetail'
-import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
+import { BlMenu, type BlMenuItem } from '../components/bl/BlMenu'
+import { BreakbulkManifestUploadModal } from '../components/bl/BlBreakbulkManifestModal'
+import { useNarrowViewport } from '../components/bl/useNarrowViewport'
+import { CHARGE_STATUS_FILTER_OPTIONS, blsSearchFromFilters, filtersFromBlsSearch, rememberBlsListSearch } from './blsListState'
+import { describeEmptyState } from '../lib/operationalState'
 import { formatPortDisplayName } from '../lib/voyageFormat'
-import {
-  hasBlockingRowErrors,
-  importBreakbulkManifest,
-  parseBreakbulkManifestFile,
-  type BreakbulkNumberFormat,
-  type ParseBreakbulkOptions,
-  type ParsedBreakbulkManifest,
-} from '../services/breakbulkImport'
-import { afterCargaAlterada, afterManifestoImportado } from '../services/cacheEffects'
-import { inspectImportUpload } from '../services/importText'
-import { rowErrorsToImportIssues } from '../services/importValidation'
+import { afterCargaAlterada } from '../services/cacheEffects'
 import type { InvoiceLinkInfo } from '../services/billing'
+import type { BLListItem } from '../types/database'
 import { userFacingErrorMessage } from '../lib/errors'
 
-function InvoiceLink({ links }: { links: InvoiceLinkInfo[] }) {
-  if (!links.length) return <span>-</span>
+type CargoLens = NonNullable<BlFilters['cargoMode']>
+
+const CARGO_LENSES: { value: CargoLens; label: string }[] = [
+  { value: '', label: 'Todos' },
+  { value: 'container', label: 'Contêiner' },
+  { value: 'carga_solta', label: 'Carga solta' },
+  { value: 'misto', label: 'Misto' },
+]
+
+const EMPTY_FILTERS = {
+  search: '',
+  voyageId: '',
+  cargoMode: '' as CargoLens,
+  pol: '',
+  pod: '',
+  reviewStatus: '',
+  financialStatus: '',
+  chargeStatus: '',
+  cargoProfile: '',
+}
+
+function InvoiceLinks({ links }: { links: InvoiceLinkInfo[] }) {
+  if (!links.length) return null
   return (
-    <div className="flex flex-col gap-0.5">
-      {links.map((link) => (
-        <Link
-          key={link.id}
-          className="text-xs text-[#58a6ff] hover:underline"
-          to={`/taxas-locais?invoice=${link.id}`}
-        >
-          {link.invoice_number ?? `Fat #${link.id}`}
-        </Link>
+    <span className="app-bl-cell__sub">
+      {links.map((link, index) => (
+        <Fragment key={link.id}>
+          {index > 0 ? ', ' : 'Fatura '}
+          <Link className="app-bl-link" to={`/taxas-locais?invoice=${link.id}`}>
+            {link.invoice_number ?? `#${link.id}`}
+          </Link>
+        </Fragment>
       ))}
-    </div>
+    </span>
   )
 }
 
-// Colunas fixas da tabela (sem a caixa de seleção, que só existe para admin):
-// expandir, No. B/L, CE, Navio/Viagem, CNEE, POL, POD, Carga, Perfil, Taxas,
-// Invoice, Ações.
-const BASE_BL_COLUMNS = 12
-
-/** Identidade do conjunto de linhas: muda quando o filtro muda. */
-function activeFilterKey(filters: BlFilters) {
-  return [
-    filters.search, filters.voyageId, filters.cargoMode, filters.pol, filters.pod,
-    filters.reviewStatus, filters.financialStatus, filters.chargeStatus, filters.cargoProfile,
-    filters.pageSize,
-  ].join('|')
+function isCancelled(bl: BLListItem) {
+  return Boolean((bl as { cancelled_at?: string | null }).cancelled_at)
 }
 
-type ActionsMenuState = {
-  id: string
-  top: number
-  left: number
-} | null
+/** Segunda linha do identificador: só o que pede atenção. */
+function BlStateNote({ bl }: { bl: BLListItem }) {
+  if (isCancelled(bl)) return <span className="app-bl-cell__sub app-bl-cell__sub--muted">Cancelado</span>
+  if (bl.review_status === 'pending_review') return <span className="app-bl-cell__sub app-bl-cell__sub--warning">Revisão pendente</span>
+  return null
+}
+
+function CustomerCell({ bl }: { bl: BLListItem }) {
+  const name = bl.customer?.name ?? null
+  if (name) return <span className="app-bl-cell__truncate" title={name}>{name}</span>
+  return (
+    <>
+      <span className="app-bl-cell__truncate app-bl-cell__sub--muted" title={bl.consignee ?? undefined}>{bl.consignee ?? '—'}</span>
+      <span className="app-bl-cell__sub app-bl-cell__sub--warning">Sem cliente vinculado</span>
+    </>
+  )
+}
+
+function CargoCell({ bl }: { bl: BLListItem }) {
+  const isImo = Boolean(bl.bl_containers?.some((container) => container.is_imo))
+  const isOog = Boolean(bl.bl_containers?.some((container) => container.is_oog))
+  return (
+    <span className="app-bl-cell__inline">
+      <span className="tabular-nums">{formatBlCargoBadge(bl)}</span>
+      {isImo || isOog ? <CargoProfileBadge isImo={isImo} isOog={isOog} /> : null}
+    </span>
+  )
+}
+
+function voyageText(bl: BLListItem) {
+  return `${bl.voyage?.vessel?.name ?? '—'} / ${bl.voyage?.voyage_number ?? '—'}`
+}
+
+function routeText(bl: BLListItem) {
+  return `${bl.pol ?? '—'} → ${bl.pod ?? '—'}`
+}
 
 export function Bls() {
-  const [searchParams] = useSearchParams()
-  const initialVoyage = searchParams.get('voyage') ?? ''
-  const initialPol = searchParams.get('pol') ?? ''
-  const initialPod = searchParams.get('pod') ?? ''
-  const initialMode = (searchParams.get('cargoMode') ?? '') as BlFilters['cargoMode']
-
+  const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const confirmWithReason = useConfirmWithReason()
   const { isAdmin, user, profile } = useAuth()
   const canImport = Boolean(profile || user)
   const selection = useRowSelection<string>()
   const [deleting, setDeleting] = useState(false)
+  const narrow = useNarrowViewport()
 
-  const { filters, setFilters, updateFilter } = usePageFilters<BlFilters>({
-    search: '',
-    voyageId: initialVoyage,
-    cargoMode: initialMode || '',
-    pol: initialPol,
-    pod: initialPod,
-    reviewStatus: '',
-    financialStatus: '',
-    chargeStatus: '',
-    cargoProfile: '',
-    page: 1,
-    pageSize: 20,
-  })
+  // Filtros, lente e página vivem na URL: voltar da ficha, recarregar ou
+  // compartilhar o endereço reabre a mesma lista.
+  const { filters, setFilters, updateFilter } = usePageFilters<BlFilters>(filtersFromBlsSearch(searchParams))
 
   const [blFreightOpen, setBlFreightOpen] = useState(false)
   const [ceMercanteOpen, setCeMercanteOpen] = useState(false)
   const [breakbulkOpen, setBreakbulkOpen] = useState(false)
   const [blDocumentOpen, setBlDocumentOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
-  // Uma linha expandida por vez: mantém a página curta e dispensa medir altura
-  // de N painéis. É estado de visualização, não de consulta — por isso fica
-  // fora de usePageFilters e não entra na URL.
+  // Uma linha expandida por vez: estado de visualização, fora da URL.
   const [expandedBlId, setExpandedBlId] = useState<string | null>(null)
   const { showToast } = useToast()
+
+  const listSearch = blsSearchFromFilters(filters)
+  useEffect(() => {
+    if (listSearch !== searchParams.toString()) setSearchParams(new URLSearchParams(listSearch), { replace: true })
+    rememberBlsListSearch(listSearch)
+  }, [listSearch, searchParams, setSearchParams])
 
   const debouncedSearch = useDebouncedValue(filters.search)
   const queryFilters = useMemo(() => ({
@@ -130,150 +155,42 @@ export function Bls() {
     page: debouncedSearch === filters.search ? filters.page : 1,
   }), [debouncedSearch, filters])
 
-  // Trocar de página ou de filtro troca as linhas: manter o id expandido
-  // reabriria uma linha que não está mais na tela, ou nenhuma.
-  const [expandedKey, setExpandedKey] = useState(`${filters.page}:${activeFilterKey(filters)}`)
-  const currentKey = `${filters.page}:${activeFilterKey(filters)}`
-  if (currentKey !== expandedKey) {
-    setExpandedKey(currentKey)
+  // Trocar de página ou de filtro troca as linhas: a linha aberta deixaria de existir.
+  const [expandedKey, setExpandedKey] = useState(listSearch)
+  if (listSearch !== expandedKey) {
+    setExpandedKey(listSearch)
     setExpandedBlId(null)
   }
 
   const { data, isLoading, error, fetchStatus, refetch } = useBls(queryFilters)
-  const { data: summary, isLoading: isSummaryLoading } = useBlSummary(queryFilters)
+  const summaryQuery = useBlSummary(queryFilters)
+  const summary = summaryQuery.data
   const { data: portOptions } = usePortOptions()
   const blIdsOnPage = useMemo(() => (data?.rows ?? []).map((row) => row.id), [data?.rows])
   const { data: invoiceLinksByBl } = useInvoiceLinks(blIdsOnPage)
 
   const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / filters.pageSize))
 
-  const activeFilterCount = (
-    ['search', 'voyageId', 'cargoMode', 'pol', 'pod', 'reviewStatus', 'financialStatus', 'chargeStatus', 'cargoProfile'] as (keyof BlFilters)[]
+  // A lente de modalidade não conta como filtro do painel: ela tem controle próprio, sempre visível.
+  const panelFilterCount = (
+    ['search', 'voyageId', 'pol', 'pod', 'reviewStatus', 'financialStatus', 'chargeStatus', 'cargoProfile'] as (keyof BlFilters)[]
   ).filter((key) => String(filters[key] ?? '').trim() !== '').length
-
-  const filterDescription = describeActiveFilters([
-    { label: 'Texto', value: filters.search },
-    { label: 'Viagem', value: filters.voyageId },
-    { label: 'Modalidade', value: filters.cargoMode },
-    { label: 'POL', value: filters.pol },
-    { label: 'POD', value: filters.pod },
-    { label: 'Revisão', value: filters.reviewStatus },
-    { label: 'Financeiro', value: filters.financialStatus },
-    { label: 'Taxas', value: filters.chargeStatus },
-    { label: 'Perfil', value: filters.cargoProfile },
-  ])
+  const hasAnyFilter = panelFilterCount > 0 || Boolean(filters.cargoMode)
 
   const emptyState = describeEmptyState({
     entitySingular: 'B/L',
     entityPlural: 'B/Ls',
-    hasActiveFilters: activeFilterCount > 0,
+    hasActiveFilters: hasAnyFilter,
     emptyWithoutFilters: 'Nenhum B/L cadastrado ainda.',
     emptyWithFilters: 'Nenhum B/L encontrado.',
   })
 
-  const [actionsMenu, setActionsMenu] = useState<ActionsMenuState>(null)
-  const actionsTriggerRef = useRef<HTMLButtonElement | null>(null)
-  const actionsMenuRef = useRef<HTMLDivElement | null>(null)
-  const actionsItemRefs = useRef<Array<HTMLElement | null>>([])
-
-  function openActionsMenu(id: string, button: HTMLButtonElement) {
-    actionsTriggerRef.current = button
-    const rect = button.getBoundingClientRect()
-    setActionsMenu({
-      id,
-      top: rect.bottom + 4,
-      left: rect.right,
-    })
-  }
-
-  function focusActionsMenuItem(index: number) {
-    const items = actionsItemRefs.current.filter((item): item is HTMLElement => item !== null)
-    if (!items.length) return
-    items[(index + items.length) % items.length]?.focus()
-  }
-
-  function handleActionsMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    const items = actionsItemRefs.current.filter((item): item is HTMLElement => item !== null)
-    const currentIndex = items.indexOf(document.activeElement as HTMLElement)
-    if (currentIndex < 0) return
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      focusActionsMenuItem(currentIndex + 1)
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      focusActionsMenuItem(currentIndex - 1)
-    } else if (event.key === 'Home') {
-      event.preventDefault()
-      focusActionsMenuItem(0)
-    } else if (event.key === 'End') {
-      event.preventDefault()
-      focusActionsMenuItem(items.length - 1)
-    } else if (event.key === 'Escape') {
-      event.preventDefault()
-      setActionsMenu(null)
-    }
-  }
-
-  useEffect(() => {
-    if (!actionsMenu) {
-      actionsTriggerRef.current?.focus()
-      actionsTriggerRef.current = null
-      return
-    }
-    actionsItemRefs.current[0]?.focus()
-  }, [actionsMenu])
-
-  useLayoutEffect(() => {
-    if (!actionsMenu || !actionsMenuRef.current) return
-    const menuRect = actionsMenuRef.current.getBoundingClientRect()
-    const maxTop = Math.max(4, window.innerHeight - menuRect.height - 4)
-    const top = Math.min(Math.max(actionsMenu.top, 4), maxTop)
-    const maxLeft = Math.max(4, window.innerWidth - menuRect.width - 4)
-    const actualLeft = Math.min(Math.max(actionsMenu.left - menuRect.width, 4), maxLeft)
-    const left = actualLeft + menuRect.width
-
-    if (top !== actionsMenu.top || left !== actionsMenu.left) {
-      setActionsMenu({ ...actionsMenu, top, left })
-    }
-  }, [actionsMenu])
-
-  useEffect(() => {
-    if (!actionsMenu) return
-    const close = () => setActionsMenu(null)
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-    }
-    const onPointer = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('[data-actions-menu]') && !target.closest('[data-actions-trigger]')) close()
-    }
-    window.addEventListener('scroll', close, true)
-    window.addEventListener('resize', close)
-    window.addEventListener('keydown', onKey)
-    window.addEventListener('mousedown', onPointer)
-    return () => {
-      window.removeEventListener('scroll', close, true)
-      window.removeEventListener('resize', close)
-      window.removeEventListener('keydown', onKey)
-      window.removeEventListener('mousedown', onPointer)
-    }
-  }, [actionsMenu])
-
   function clearFilters() {
-    setFilters((current) => ({
-      ...current,
-      search: '',
-      voyageId: '',
-      cargoMode: '',
-      pol: '',
-      pod: '',
-      reviewStatus: '',
-      financialStatus: '',
-      chargeStatus: '',
-      cargoProfile: '',
-      page: 1,
-    }))
+    setFilters((current) => ({ ...current, ...EMPTY_FILTERS, page: 1 }))
+  }
+
+  function toggleFilter<K extends 'reviewStatus' | 'financialStatus' | 'chargeStatus'>(key: K, value: string) {
+    updateFilter(key, filters[key] === value ? '' : value)
   }
 
   async function handleExport() {
@@ -329,7 +246,6 @@ export function Bls() {
   }
 
   async function copyBlNumber(targetId: string) {
-    setActionsMenu(null)
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard indisponível')
       await navigator.clipboard.writeText(targetId)
@@ -339,86 +255,101 @@ export function Bls() {
     }
   }
 
+  function rowMenuItems(blId: string): BlMenuItem[] {
+    return [
+      { key: 'copy', label: 'Copiar número do B/L', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void copyBlNumber(blId) },
+      ...(isAdmin
+        ? [{ key: 'delete', label: 'Excluir B/L', icon: <Trash2 size={14} aria-hidden="true" />, danger: true, disabled: deleting, onSelect: () => void runBlDelete([blId]) }]
+        : []),
+    ]
+  }
+
+  const importItems: BlMenuItem[] = [
+    { key: 'cntr', label: 'B/L de contêiner (.xlsx)', icon: <Upload size={14} aria-hidden="true" />, onSelect: () => setBlFreightOpen(true) },
+    { key: 'avulso', label: 'B/L de carga solta (.pdf, .docx)', icon: <FileText size={14} aria-hidden="true" />, onSelect: () => setBlDocumentOpen(true) },
+    { key: 'bb', label: 'Manifesto de carga solta (BB)', icon: <Upload size={14} aria-hidden="true" />, onSelect: () => setBreakbulkOpen(true) },
+    { key: 'ce', label: 'CE Mercante', icon: <Upload size={14} aria-hidden="true" />, onSelect: () => setCeMercanteOpen(true) },
+  ]
+
   const pageBlIds = (data?.rows ?? []).map((row) => row.id)
   const allPageSelected = pageBlIds.length > 0 && pageBlIds.every((id) => selection.isSelected(id))
-  // Uma constante só: o cabeçalho, o colSpan do estado vazio, o do skeleton e o
-  // da linha de detalhe têm de concordar, e antes o número era escrito à mão.
-  const blColumnCount = BASE_BL_COLUMNS + (isAdmin ? 1 : 0)
-  const blSkeletonTemplate = `${isAdmin ? '44px ' : ''}44px 1.2fr 1.2fr 1.4fr 1.6fr repeat(6, 1fr) 96px`
-  const showBreakbulkMetrics = filters.cargoMode !== 'container'
+  // Colunas: B/L, CE, Navio/Viagem, Cliente, Trecho, Carga, Taxas e fatura, ações (+ seleção do Administrativo).
+  const blColumnCount = 8 + (isAdmin ? 1 : 0)
+  const blSkeletonTemplate = `${isAdmin ? '40px ' : ''}1.3fr 1.2fr 1.4fr 1.6fr 1fr 1fr 1.2fr 80px`
+  const lens = (filters.cargoMode ?? '') as CargoLens
+
+  // Faixa de resumo: volumes do recorte. Sem resumo (carregando ou erro), nada de zero falso.
+  const summaryValue = (value: number | undefined, unit = '') => {
+    if (summaryQuery.isError) return '—'
+    if (value === undefined) return '…'
+    return `${value.toLocaleString('pt-BR')}${unit}`
+  }
+  const summaryItems: SummaryItem[] = [
+    { label: summary?.totalBls === 1 ? 'B/L' : 'B/Ls', value: summaryValue(summary?.totalBls) },
+    ...(lens !== 'carga_solta' ? [{ label: 'CNTRs', value: summaryValue(summary?.totalDistinctContainers) }] : []),
+    ...(lens !== 'container'
+      ? [
+          { label: 'de carga solta', value: summaryValue(summary?.breakbulkWeightTon, ' t') },
+          { label: 'máquinas', value: summaryValue(summary?.totalMachines) },
+          { label: 'packages', value: summaryValue(summary?.totalPackages) },
+        ]
+      : []),
+    { label: 'no total', value: summaryValue(summary?.totalCbm, ' m³') },
+    { label: 'com taxas pendentes', value: summaryValue(summary?.chargePending), tone: summary?.chargePending ? 'warning' : 'default' },
+    { label: summary?.chargeExempt === 1 ? 'isento' : 'isentos', value: summaryValue(summary?.chargeExempt) },
+  ]
+  const metric = (value: number | undefined) => (summaryQuery.isError ? '—' : value === undefined ? '…' : value.toLocaleString('pt-BR'))
+
+  const emptyAction = hasAnyFilter
+    ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>
+    : canImport ? <Button onClick={() => setBlFreightOpen(true)}>Importar B/L de contêiner</Button> : undefined
 
   return (
     <>
       <PageHeader
         title="BLs"
-        description="Consulta consolidada de B/Ls de contêiner, carga solta e mistos. Cada B/L registra seu trecho POL/POD, terminal e vincula clientes pela base cadastral."
         action={
           <>
             {canImport ? (
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
-                  <Upload size={16} aria-hidden="true" />
-                  B/L CNTR
-                </Button>
-                <Button variant="secondary" onClick={() => setBlDocumentOpen(true)}>
-                  <FileText size={16} aria-hidden="true" />
-                  B/L Carga Solta
-                </Button>
-                <Button variant="secondary" onClick={() => setBreakbulkOpen(true)}>
-                  <Upload size={16} aria-hidden="true" />
-                  Manifesto Carga solta
-                </Button>
-                <Button variant="secondary" onClick={() => setCeMercanteOpen(true)}>
-                  <Upload size={16} aria-hidden="true" />
-                  CE Mercante
-                </Button>
-              </div>
+              <BlMenu
+                label="Importar"
+                menuId="bls-import-menu"
+                triggerClassName="app-btn app-btn--secondary"
+                trigger={<><Upload size={16} aria-hidden="true" />Importar<ChevronDown size={14} aria-hidden="true" /></>}
+                items={importItems}
+              />
             ) : null}
-            <button
-              type="button"
-              className="app-btn app-btn--ghost app-btn--sm h-10 w-10 shrink-0 p-0"
-              aria-label="Exportar B/Ls"
-              title="Exportar B/Ls"
-              disabled={exporting}
-              onClick={() => void handleExport()}
-            >
-              {exporting ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
-            </button>
+            <Button variant="secondary" loading={exporting} loadingLabel="Exportando…" onClick={() => void handleExport()}>
+              <Download size={16} aria-hidden="true" />
+              Exportar
+            </Button>
           </>
         }
       />
 
-      {/* Filtro Rápido de Modalidade */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-[var(--app-muted)]">Modalidade:</span>
-        <div className="inline-flex rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-0.5 text-xs">
-          {[
-            { label: 'Todos', value: '' },
-            { label: 'Contêiner', value: 'container' },
-            { label: 'Carga Solta', value: 'carga_solta' },
-            { label: 'Misto', value: 'misto' },
-          ].map((mode) => {
-            const active = (filters.cargoMode ?? '') === mode.value
-            return (
-              <button
-                key={mode.value}
-                type="button"
-                className={`min-h-10 rounded-md px-3 py-2 font-medium transition-colors sm:min-h-0 sm:py-1 ${
-                  active
-                    ? 'bg-[#1f6feb] text-white'
-                    : 'text-[var(--app-text)] hover:bg-[var(--app-surface-hover,#21262d)]'
-                }`}
-                aria-pressed={active}
-                onClick={() => updateFilter('cargoMode', mode.value as BlFilters['cargoMode'])}
-              >
-                {mode.label}
-              </button>
-            )
-          })}
-        </div>
+      <div className="app-bl-metrics" aria-label="Pendências do recorte">
+        <MetricCard
+          label="Pendentes de revisão"
+          value={metric(summary?.pendingReview)}
+          tone="primary"
+          selected={filters.reviewStatus === 'pending_review'}
+          onSelect={() => toggleFilter('reviewStatus', 'pending_review')}
+        />
+        <MetricCard
+          label="Prontos para faturar"
+          value={metric(summary?.chargeReady)}
+          selected={filters.chargeStatus === 'ready_for_billing'}
+          onSelect={() => toggleFilter('chargeStatus', 'ready_for_billing')}
+        />
+        <MetricCard
+          label="Sem faturamento"
+          value={metric(summary?.pendingFinancial)}
+          selected={filters.financialStatus === 'pending'}
+          onSelect={() => toggleFilter('financialStatus', 'pending')}
+        />
       </div>
 
-      <FilterBar activeCount={activeFilterCount} onClear={clearFilters}>
+      <FilterBar activeCount={panelFilterCount} onClear={clearFilters}>
         <div className="app-filter-grid">
           <Field label="Buscar B/L ou cliente">
             <Input
@@ -437,9 +368,7 @@ export function Bls() {
             <Select value={filters.pol} onChange={(event) => updateFilter('pol', event.target.value)}>
               <option value="">Todos</option>
               {portOptions?.pols.map((pol) => (
-                <option key={pol} value={pol}>
-                  {formatPortDisplayName(pol)}
-                </option>
+                <option key={pol} value={pol}>{formatPortDisplayName(pol)}</option>
               ))}
             </Select>
           </Field>
@@ -447,90 +376,45 @@ export function Bls() {
             <Select value={filters.pod} onChange={(event) => updateFilter('pod', event.target.value)}>
               <option value="">Todos</option>
               {portOptions?.pods.map((pod) => (
-                <option key={pod} value={pod}>
-                  {formatPortDisplayName(pod)}
-                </option>
+                <option key={pod} value={pod}>{formatPortDisplayName(pod)}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Status revisão">
+          <Field label="Revisão">
             <Select value={filters.reviewStatus} onChange={(event) => updateFilter('reviewStatus', event.target.value)}>
-              <option value="">Todos</option>
-              <option value="ok">OK</option>
+              <option value="">Todas</option>
               <option value="pending_review">Pendente</option>
               <option value="reviewed">Revisado</option>
+              <option value="ok">Sem pendência</option>
             </Select>
           </Field>
-          <Field label="Status financeiro">
-            <Select
-              value={filters.financialStatus}
-              onChange={(event) => updateFilter('financialStatus', event.target.value)}
-            >
+          <Field label="Faturamento">
+            <Select value={filters.financialStatus} onChange={(event) => updateFilter('financialStatus', event.target.value)}>
               <option value="">Todos</option>
-              <option value="pending">Pendente</option>
+              <option value="pending">Sem faturamento</option>
               <option value="invoiced">Faturado</option>
               <option value="paid">Pago</option>
               <option value="cancelled">Cancelado</option>
             </Select>
           </Field>
-          <Field label="Status taxas locais">
+          <Field label="Taxas locais">
             <Select value={filters.chargeStatus} onChange={(event) => updateFilter('chargeStatus', event.target.value)}>
-              <option value="">Todos</option>
-              <option value="review_required">Revisão</option>
-              <option value="exempt">Isento</option>
-              <option value="ready_for_billing">Faturado</option>
+              <option value="">Todas</option>
+              {CHARGE_STATUS_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </Select>
           </Field>
           <Field label="Perfil de carga">
             <Select value={filters.cargoProfile} onChange={(event) => updateFilter('cargoProfile', event.target.value)}>
               <option value="">Todos</option>
-              <option value="standard">Standard</option>
+              <option value="standard">Padrão</option>
               <option value="oog">OOG</option>
               <option value="imo">IMO</option>
             </Select>
           </Field>
         </div>
       </FilterBar>
-
-      <div className="mb-5 flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-          <MetricCard label="Pendentes revisão" value={isSummaryLoading ? '...' : summary?.pendingReview ?? 0} tone="primary" />
-          <MetricCard label="BLs filtrados" value={isSummaryLoading ? '...' : summary?.totalBls ?? 0} />
-          <MetricCard label="CNTRS" value={isSummaryLoading ? '...' : summary?.totalDistinctContainers ?? 0} />
-          <MetricCard
-            label="Carga Solta"
-            value={isSummaryLoading ? '...' : `${(summary?.breakbulkWeightTon ?? 0).toLocaleString('pt-BR')} ton`}
-          />
-          {/* Máquinas, packages e CBM eram calculados pela RPC e descartados sem
-              renderizar desde a unificação — eram três das colunas que a tela de
-              carga solta tinha. Só aparecem fora da lente de contêiner puro. */}
-          {showBreakbulkMetrics ? (
-            <>
-              <MetricCard label="Máquinas" value={isSummaryLoading ? '...' : (summary?.totalMachines ?? 0).toLocaleString('pt-BR')} />
-              <MetricCard label="Total de packages" value={isSummaryLoading ? '...' : (summary?.totalPackages ?? 0).toLocaleString('pt-BR')} />
-              <MetricCard
-                label="CBM carga solta"
-                value={isSummaryLoading ? '...' : `${(summary?.breakbulkCbm ?? 0).toLocaleString('pt-BR')} m³`}
-              />
-            </>
-          ) : null}
-          {/* Cubagem do documento inteiro (contêiner + carga solta), que a
-              migration 064 tornou uma soma aditiva. Vinha da RPC e era
-              descartada sem renderizar — o mesmo defeito dos três cards acima. */}
-          <MetricCard
-            label="CBM total"
-            value={isSummaryLoading ? '...' : `${(summary?.totalCbm ?? 0).toLocaleString('pt-BR')} m³`}
-          />
-          <MetricCard label="Sem faturamento" value={isSummaryLoading ? '...' : summary?.pendingFinancial ?? 0} />
-          <MetricCard label="Taxas pendentes" value={isSummaryLoading ? '...' : summary?.chargePending ?? 0} />
-          <MetricCard label="Faturados" value={isSummaryLoading ? '...' : summary?.chargeReady ?? 0} />
-          <MetricCard label="Isentos" value={isSummaryLoading ? '...' : summary?.chargeExempt ?? 0} />
-        </div>
-        <p className="text-xs text-[var(--app-muted)]">
-          As lentes Contêiner e Carga Solta incluem os B/Ls mistos, que participam das duas — por isso
-          um B/L misto conta uma vez em “BLs filtrados” e aparece nos dois recortes.
-        </p>
-      </div>
 
       {isAdmin ? (
         <BulkActionsBar
@@ -543,183 +427,166 @@ export function Bls() {
       ) : null}
 
       <Card className="overflow-hidden p-0">
-        <div className="flex flex-col gap-1 border-b border-[#30363d] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <span className="font-semibold text-white">{formatResultCount(data?.count ?? 0, 'B/L retornado', 'B/Ls retornados')}</span>
-          <span className="text-xs text-slate-400">{filterDescription}</span>
+        <div className="app-bl-toolbar">
+          <div className="app-bl-toolbar__lens">
+            <SegmentedControl
+              label="Modalidade"
+              options={CARGO_LENSES}
+              value={lens}
+              onChange={(value) => updateFilter('cargoMode', value)}
+            />
+            {lens === 'container' || lens === 'carga_solta' ? (
+              <span className="app-bl-toolbar__hint">Inclui os mistos</span>
+            ) : null}
+          </div>
+          <SummaryStrip label="Resumo do recorte" items={summaryItems} />
         </div>
         <QueryStateGate
           isLoading={false}
           isError={Boolean(error)}
           isPaused={fetchStatus === 'paused'}
           hasData={data !== undefined}
-          errorMessage="Erro ao carregar BLs."
+          errorMessage="Não foi possível carregar os B/Ls."
           onRetry={() => void refetch()}
         >
-        <div className="app-table-scroll app-table-scroll--sticky">
-          <table className="app-table app-table--compact app-table--sticky-actions min-w-[920px] text-left text-sm whitespace-nowrap">
-            <caption className="sr-only">Tabela de BLs filtrados</caption>
-            <thead>
-              <tr>
-                {isAdmin ? (
-                  <th scope="col" className="w-10 px-3 py-3">
-                    <input
-                      type="checkbox"
-                      aria-label="Selecionar todos os B/Ls da pagina"
-                      checked={allPageSelected}
-                      onChange={() => selection.toggleMany(pageBlIds)}
-                    />
-                  </th>
-                ) : null}
-                <th scope="col" className="w-10 px-3 py-3">
-                  <span className="sr-only">Expandir carga</span>
-                </th>
-                <th scope="col" className="px-3 py-3">No. B/L</th>
-                <th scope="col" className="px-3 py-3">CE Mercante</th>
-                <th scope="col" className="px-3 py-3">Navio/Viagem</th>
-                <th scope="col" className="px-3 py-3">CNEE</th>
-                <th scope="col" className="px-3 py-3">POL</th>
-                <th scope="col" className="px-3 py-3">POD</th>
-                <th scope="col" className="px-3 py-3">Carga</th>
-                <th scope="col" className="px-3 py-3">Perfil</th>
-                <th scope="col" className="px-3 py-3">Taxas locais</th>
-                <th scope="col" className="px-3 py-3">Fatura</th>
-                <th scope="col" className="px-3 py-3">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={blColumnCount} className="p-0">
-                    <SkeletonTable rows={8} cols={blColumnCount} columnTemplate={blSkeletonTemplate} label="Carregando B/Ls" />
-                  </td>
-                </tr>
-              ) : null}
-              {!isLoading && data?.rows.length === 0 ? (
-                <tr>
-                  <td colSpan={blColumnCount} className="p-0">
-                    <EmptyState
-                      title={emptyState.title}
-                      description={emptyState.description}
-                      action={activeFilterCount > 0
-                        ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>
-                        : canImport ? <Button onClick={() => setBlFreightOpen(true)}>Importar B/L CNTR</Button> : undefined}
-                    />
-                  </td>
-                </tr>
-              ) : null}
-              {data?.rows.map((bl) => {
-                const isExpanded = expandedBlId === bl.id
-                const detailId = `bl-detail-${bl.id}`
-                return (
-                <Fragment key={bl.id}>
-                <tr className="hover:bg-[#21262d]/60">
-                  {isAdmin ? (
-                    <td className="px-3 py-3">
+          {isLoading ? (
+            <SkeletonTable rows={8} cols={blColumnCount} columnTemplate={blSkeletonTemplate} label="Carregando B/Ls" />
+          ) : data?.rows.length === 0 ? (
+            <EmptyState title={emptyState.title} description={emptyState.description} action={emptyAction} />
+          ) : narrow ? (
+            <ul className="app-bl-cards" aria-label="B/Ls">
+              {data?.rows.map((bl) => (
+                <li key={bl.id} className="app-bl-card" data-bl-card>
+                  <div className="app-bl-card__head">
+                    {isAdmin ? (
                       <input
                         type="checkbox"
+                        className="app-bl-card__check"
                         aria-label={`Selecionar B/L ${bl.id}`}
                         checked={selection.isSelected(bl.id)}
                         onChange={() => selection.toggle(bl.id)}
                       />
-                    </td>
-                  ) : null}
-                  <td className="px-3 py-3">
-                    {/* Botão próprio, e não clique na linha: a seleção em massa
-                        e o link do B/L continuam intactos. */}
-                    <button
-                      type="button"
-                      className="app-table__icon-button"
-                      aria-expanded={isExpanded}
-                      aria-controls={detailId}
-                      aria-label={`${isExpanded ? 'Recolher' : 'Expandir'} carga do B/L ${bl.id}`}
-                      title={isExpanded ? 'Recolher carga' : 'Expandir carga'}
-                      onClick={() => setExpandedBlId(isExpanded ? null : bl.id)}
-                    >
-                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    </button>
-                  </td>
-                  <td className="px-3 py-3 font-semibold">
-                    <Link className="text-[#58a6ff] hover:underline" to={`/bls/${bl.id}`}>
-                      {bl.id}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-3">{bl.ce_mercante ?? '-'}</td>
-                  <td className="px-3 py-3">
-                    <span
-                      className="app-table__truncate app-table__truncate--sm"
-                      title={`${bl.voyage?.vessel?.name ?? '-'} / ${bl.voyage?.voyage_number ?? '-'}`}
-                    >
-                      {bl.voyage?.vessel?.name ?? '-'} / {bl.voyage?.voyage_number ?? '-'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <span
-                      className="app-table__truncate app-table__truncate--sm"
-                      title={bl.customer?.name ?? bl.consignee ?? '-'}
-                    >
-                      {bl.customer?.name ?? bl.consignee ?? '-'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">{bl.pol ?? '-'}</td>
-                  <td className="px-3 py-3">{bl.pod ?? '-'}</td>
-                  <td className="px-3 py-3 font-medium text-slate-200">
-                    {formatBlCargoBadge(bl)}
-                  </td>
-                  <td className="px-3 py-3">
-                    <CargoProfileBadge
-                      isImo={Boolean(bl.bl_containers?.some((container) => container.is_imo))}
-                      isOog={Boolean(bl.bl_containers?.some((container) => container.is_oog))}
-                    />
-                  </td>
-                  <td className="px-3 py-3">
-                    <ChargeStatusBadge status={bl.charge_status} />
-                  </td>
-                  <td className="px-3 py-3">
-                    <InvoiceLink links={invoiceLinksByBl?.[bl.id] ?? []} />
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        className="app-table__action"
-                        to={`/bls/${bl.id}`}
-                      >
-                        Abrir B/L
-                      </Link>
-                      <button
-                        type="button"
-                        data-actions-trigger
-                        className="app-btn app-btn--secondary p-1 leading-none"
-                        aria-label={`Ações para B/L ${bl.id}`}
-                        aria-haspopup="menu"
-                        aria-expanded={actionsMenu?.id === bl.id}
-                        aria-controls="bls-actions-menu"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (actionsMenu?.id === bl.id) {
-                            setActionsMenu(null)
-                          } else {
-                            openActionsMenu(bl.id, e.currentTarget)
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'ArrowDown') {
-                            e.preventDefault()
-                            openActionsMenu(bl.id, e.currentTarget)
-                          }
-                        }}
-                      >
-                        <MoreVertical size={15} />
-                      </button>
+                    ) : null}
+                    <div className="app-bl-card__id">
+                      <Link className="app-bl-link app-bl-id" to={`/bls/${bl.id}`}>{bl.id}</Link>
+                      <BlStateNote bl={bl} />
                     </div>
-                  </td>
-                </tr>
-                {isExpanded ? <BlRowDetail bl={bl} colSpan={blColumnCount} /> : null}
-                </Fragment>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                    <BlMenu
+                      label={`Ações para B/L ${bl.id}`}
+                      menuId={`bl-actions-${bl.id}`}
+                      triggerClassName="app-table__icon-button"
+                      trigger={<MoreVertical size={16} aria-hidden="true" />}
+                      items={rowMenuItems(bl.id)}
+                    />
+                  </div>
+                  <div className="app-bl-card__body">
+                    <span className="app-bl-cell__stack"><CustomerCell bl={bl} /></span>
+                    <span className="app-bl-cell__sub">{voyageText(bl)} · {routeText(bl)}</span>
+                    <span className="app-bl-cell__sub">
+                      <CargoCell bl={bl} />
+                      {' · CE '}
+                      <span className="app-bl-code">{bl.ce_mercante ?? '—'}</span>
+                    </span>
+                    <span className="app-bl-card__status">
+                      <ChargeStatusBadge status={bl.charge_status} />
+                      <InvoiceLinks links={invoiceLinksByBl?.[bl.id] ?? []} />
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="app-table-scroll app-table-scroll--sticky">
+              <table className="app-table app-table--sticky-actions app-bl-table">
+                <caption className="sr-only">B/Ls do recorte atual</caption>
+                <thead>
+                  <tr>
+                    {isAdmin ? (
+                      <th scope="col" className="app-bl-table__check">
+                        <input
+                          type="checkbox"
+                          aria-label="Selecionar todos os B/Ls da página"
+                          checked={allPageSelected}
+                          onChange={() => selection.toggleMany(pageBlIds)}
+                        />
+                      </th>
+                    ) : null}
+                    <th scope="col">B/L</th>
+                    <th scope="col">CE Mercante</th>
+                    <th scope="col">Navio / Viagem</th>
+                    <th scope="col">Cliente</th>
+                    <th scope="col">Trecho</th>
+                    <th scope="col">Carga</th>
+                    <th scope="col">Taxas locais e fatura</th>
+                    <th scope="col"><span className="sr-only">Ações</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data?.rows.map((bl) => {
+                    const isExpanded = expandedBlId === bl.id
+                    const detailId = `bl-detail-${bl.id}`
+                    return (
+                      <Fragment key={bl.id}>
+                        <tr className={isExpanded ? 'app-bl-table__row--open' : undefined}>
+                          {isAdmin ? (
+                            <td className="app-bl-table__check">
+                              <input
+                                type="checkbox"
+                                aria-label={`Selecionar B/L ${bl.id}`}
+                                checked={selection.isSelected(bl.id)}
+                                onChange={() => selection.toggle(bl.id)}
+                              />
+                            </td>
+                          ) : null}
+                          <td>
+                            <span className="app-bl-cell__stack">
+                              <Link className="app-bl-link app-bl-id" to={`/bls/${bl.id}`}>{bl.id}</Link>
+                              <BlStateNote bl={bl} />
+                            </span>
+                          </td>
+                          <td className="app-bl-code">{bl.ce_mercante ?? <span aria-label="Sem CE Mercante">—</span>}</td>
+                          <td><span className="app-bl-cell__truncate" title={voyageText(bl)}>{voyageText(bl)}</span></td>
+                          <td><span className="app-bl-cell__stack"><CustomerCell bl={bl} /></span></td>
+                          <td className="whitespace-nowrap">{routeText(bl)}</td>
+                          <td><CargoCell bl={bl} /></td>
+                          <td>
+                            <span className="app-bl-cell__stack">
+                              <ChargeStatusBadge status={bl.charge_status} />
+                              <InvoiceLinks links={invoiceLinksByBl?.[bl.id] ?? []} />
+                            </span>
+                          </td>
+                          <td>
+                            <span className="app-bl-row-actions">
+                              {/* Única ação secundária visível: compara a carga de vários B/Ls sem sair da lista. */}
+                              <button
+                                type="button"
+                                className="app-table__icon-button"
+                                aria-expanded={isExpanded}
+                                aria-controls={detailId}
+                                aria-label={`${isExpanded ? 'Recolher' : 'Expandir'} carga do B/L ${bl.id}`}
+                                title={isExpanded ? 'Recolher carga' : 'Ver carga'}
+                                onClick={() => setExpandedBlId(isExpanded ? null : bl.id)}
+                              >
+                                {isExpanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
+                              </button>
+                              <BlMenu
+                                label={`Ações para B/L ${bl.id}`}
+                                menuId={`bl-actions-${bl.id}`}
+                                triggerClassName="app-table__icon-button"
+                                trigger={<MoreVertical size={16} aria-hidden="true" />}
+                                items={rowMenuItems(bl.id)}
+                              />
+                            </span>
+                          </td>
+                        </tr>
+                        {isExpanded ? <BlRowDetail bl={bl} colSpan={blColumnCount} /> : null}
+                      </Fragment>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </QueryStateGate>
 
         {data && totalPages > 1 ? (
@@ -734,57 +601,7 @@ export function Bls() {
         ) : null}
       </Card>
 
-      {actionsMenu ? (
-        <div
-          data-actions-menu
-          id="bls-actions-menu"
-          className="app-floating-menu"
-          ref={actionsMenuRef}
-          role="menu"
-          onKeyDown={handleActionsMenuKeyDown}
-          style={{ top: actionsMenu.top, left: actionsMenu.left }}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            ref={(element) => { actionsItemRefs.current[0] = element }}
-            onClick={() => void copyBlNumber(actionsMenu.id)}
-          >
-            <Copy size={14} />
-            <span>Copiar número do B/L</span>
-          </button>
-
-          <Link
-            role="menuitem"
-            ref={(element) => { actionsItemRefs.current[1] = element }}
-            to={`/bls/${actionsMenu.id}`}
-            onClick={() => setActionsMenu(null)}
-          >
-            <ExternalLink size={14} />
-            <span>Abrir detalhes</span>
-          </Link>
-
-          {isAdmin ? (
-            <button
-              type="button"
-              role="menuitem"
-              ref={(element) => { actionsItemRefs.current[2] = element }}
-              className="app-floating-menu__danger"
-              disabled={deleting}
-              onClick={() => {
-                const targetId = actionsMenu.id
-                setActionsMenu(null)
-                void runBlDelete([targetId])
-              }}
-            >
-              <Trash2 size={14} />
-              <span>Excluir B/L</span>
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* Modais de Importação */}
+      {/* Modais de importação (etapa 04) */}
       {blFreightOpen ? (
         <BlImportModal
           open={blFreightOpen}
@@ -817,183 +634,6 @@ export function Bls() {
       ) : null}
     </>
   )
-}
-
-function BreakbulkManifestUploadModal({
-  open,
-  onClose,
-  defaultVoyageId,
-}: {
-  open: boolean
-  onClose: () => void
-  defaultVoyageId?: string
-}) {
-  const [voyageId, setVoyageId] = useState(defaultVoyageId ?? '')
-  // 'auto' lê pela evidência do arquivo e BLOQUEIA o que a evidência não
-  // resolve; declarar o formato é o que desfaz a ambiguidade de vez. Ver
-  // `readNumericColumns` em breakbulkManifestParser.ts.
-  const [numberFormat, setNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
-  const queryClient = useQueryClient()
-  const { user } = useAuth()
-  const { showToast } = useToast()
-  const parseOptions = useMemo<ParseBreakbulkOptions>(
-    () => (numberFormat === 'auto' ? {} : { numberFormat }),
-    [numberFormat],
-  )
-  const parseManifest = useCallback(
-    (file: File) => parseBreakbulkManifestFile(file, parseOptions),
-    [parseOptions],
-  )
-
-  if (!open) return null
-
-  return (
-    <FileImportModal
-      title="Importar Manifesto Breakbulk (Carga Solta)"
-      accept=".xlsx,.xls,.csv"
-      parser={parseManifest}
-      reparseKey={numberFormat}
-      inspectFile={inspectImportUpload}
-      importer={async (nextManifest, file, override) => {
-        if (!user || !voyageId) return
-        await importBreakbulkManifest({
-          filename: file.name,
-          voyageId: Number(voyageId),
-          manifest: nextManifest,
-          uploadedBy: user.id,
-          allowRowErrors: Boolean(override),
-        })
-        await afterManifestoImportado(queryClient, { voyageId })
-        showToast('Manifesto de carga solta importado com sucesso.', 'success')
-        setVoyageId('')
-        setNumberFormat('auto')
-        onClose()
-      }}
-      canImport={(nextManifest, override) =>
-        nextManifest.bls.length > 0 && (!hasBlockingRowErrors(nextManifest.rowErrors) || Boolean(override))
-      }
-      getIssues={(nextManifest) => rowErrorsToImportIssues(nextManifest.rowErrors)}
-      ready={Boolean(voyageId && user)}
-      notReadyReason="Escolha a viagem de destino para liberar o arquivo."
-      confirmLabel="Importar manifesto"
-      prerequisite={
-        <div className="grid gap-3">
-          <VoyageCombobox
-            required
-            label="Viagem de destino"
-            selectedVoyageId={voyageId}
-            onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
-          />
-          <Field
-            label="Formato numérico do arquivo"
-            hint={numberFormat === 'auto'
-              ? 'Detectar usa a evidência do próprio arquivo e recusa a linha quando ela não basta — "259.312" pode ser 259 mil ou 259,312. Declarar o formato resolve.'
-              : 'A leitura inteira usa este separador decimal. Se o arquivo contradisser, a importação é recusada em vez de corrigir sozinha.'}
-          >
-            <Select value={numberFormat} onChange={(event) => setNumberFormat(event.target.value as typeof numberFormat)}>
-              <option value="auto">Detectar pelo arquivo</option>
-              <option value="pt-BR">Vírgula decimal — 259,312 (pt-BR)</option>
-              <option value="en-US">Ponto decimal — 259.312 (en-US)</option>
-            </Select>
-          </Field>
-        </div>
-      }
-      renderPreview={(nextManifest) => <BreakbulkPreview manifest={nextManifest} />}
-      helper={
-        <div className="app-panel app-panel--padded text-sm">
-          <div className="app-panel__title">Estrutura obrigatória da planilha</div>
-          <div className="mt-2">BL, CE, MAQUINAS, PACKAGES, PACKAGES TOTAL, WEIGHT (TON), CBM (M3), SHIPPER, CONSIGNEE, NOTIFY.</div>
-          <div className="app-panel__meta mt-2">Colunas opcionais: CNPJ, POL, POD.</div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <a className="app-btn app-btn--secondary" href="/templates/carga-solta-modelo.xlsx" download="carga-solta-modelo.xlsx">
-              <Download size={16} />Baixar modelo .xlsx
-            </a>
-            <a className="app-btn app-btn--secondary" href="/templates/carga-solta-modelo.csv" download="carga-solta-modelo.csv">
-              <Download size={16} />Baixar modelo .csv
-            </a>
-          </div>
-        </div>
-      }
-      onClose={() => {
-        setVoyageId('')
-        setNumberFormat('auto')
-        onClose()
-      }}
-    />
-  )
-}
-
-function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
-  return (
-    <div className="grid gap-4">
-      <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-        <PreviewBox label="B/Ls válidos" value={manifest.bls.length} variant="metric-strip" />
-        <PreviewBox
-          label="Máquinas"
-          value={manifest.bls.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0)}
-          variant="metric-strip"
-        />
-        <PreviewBox
-          label="Total de packages"
-          value={manifest.bls.reduce((sum, bl) => sum + Number(bl.bb_packages_total ?? bl.bb_packages_qty ?? 0), 0)}
-          variant="metric-strip"
-        />
-        <PreviewBox
-          label="Peso (ton)"
-          value={manifest.bls.reduce(
-            (sum, bl) => sum + Number(bl.bb_weight_ton ?? 0),
-            0,
-          )}
-          variant="metric-strip"
-        />
-        <PreviewBox
-          label="CBM (M3)"
-          value={manifest.bls.reduce((sum, bl) => sum + Number(bl.bb_cbm ?? 0), 0)}
-          variant="metric-strip"
-        />
-        <PreviewBox label="Erros de parser" value={manifest.rowErrors.length} variant="metric-strip" />
-      </div>
-      <div className="app-table-scroll max-h-72 rounded-xl border border-[var(--app-border)]">
-        <table className="app-table app-table--compact min-w-[1220px] text-left text-sm whitespace-nowrap">
-          <thead>
-            <tr>
-              {['BL', 'CE', 'Máquinas', 'Packages', 'Total de packages', 'Peso (ton)', 'CBM (M3)', 'Shipper', 'Consignee', 'Notify'].map(
-                (label) => (
-                  <th key={label} scope="col" className={`px-3 py-2 ${['Máquinas', 'Packages', 'Total de packages', 'Peso (ton)', 'CBM (M3)'].includes(label) ? 'text-right' : ''}`}>
-                    {label}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {manifest.bls.slice(0, 25).map((bl) => (
-              <tr key={bl.bl_id}>
-                <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{bl.bl_id}</td>
-                <td className="px-3 py-2">{bl.ce_mercante ?? '-'}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_machine_qty)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_packages_qty)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_packages_total)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {formatBBNumber(bl.bb_weight_ton)}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatBBNumber(bl.bb_cbm)}</td>
-                <td className="px-3 py-2">{bl.shipper ?? '-'}</td>
-                <td className="px-3 py-2">{bl.consignee ?? '-'}</td>
-                <td className="px-3 py-2">{bl.notify_party ?? '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <TruncationNote shown={25} total={manifest.bls.length} noun="B/L" nounPlural="B/Ls" />
-    </div>
-  )
-}
-
-function formatBBNumber(value: number | null | undefined) {
-  if (value === null || value === undefined) return '-'
-  return Number(value).toLocaleString('pt-BR')
 }
 
 export default Bls

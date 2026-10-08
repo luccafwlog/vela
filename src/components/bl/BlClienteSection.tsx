@@ -2,9 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Search, X } from 'lucide-react'
-import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
 import { Field, Input } from '../ui/Input'
 import { ReviewCustomerOnboarding, type ReviewCustomerOnboardingInput } from '../review/ReviewCustomerOnboarding'
 import { BlPortalCard, type BlPortalStatus } from './BlPortalCard'
@@ -27,11 +25,12 @@ import { linkBlCustomer } from '../../services/review'
 import { queryKeys } from '../../services/queryKeys'
 import type { BLDetail } from '../../types/database'
 
-const RECONCILIATION: Record<string, { label: string; tone: 'green' | 'blue' | 'yellow' | 'red' }> = {
-  reconciled: { label: 'Reconciliado', tone: 'green' },
-  matched_document: { label: 'Conferido por CNPJ', tone: 'blue' },
-  matched_name: { label: 'Conferido por nome', tone: 'yellow' },
-  rejected: { label: 'Rejeitado', tone: 'red' },
+// Estado do vínculo em texto; cor só no que pede atenção.
+const RECONCILIATION: Record<string, { label: string; tone: 'default' | 'success' | 'warning' | 'danger' }> = {
+  reconciled: { label: 'Vínculo reconciliado', tone: 'success' },
+  matched_document: { label: 'Conferido por CNPJ', tone: 'default' },
+  matched_name: { label: 'Conferido só pelo nome', tone: 'warning' },
+  rejected: { label: 'Vínculo rejeitado', tone: 'danger' },
 }
 
 type Candidate = { id: number; name: string; cnpj_cpf: string | null }
@@ -61,7 +60,7 @@ export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalSta
   const manifestDocument = bl.manifest_customer_cnpj_cpf?.trim() || null
   const manifestDiverges = Boolean(linked && manifestDocument && linked.cnpj_cpf
     && canonicalizeDocument(linked.cnpj_cpf) !== canonicalizeDocument(manifestDocument))
-  const reconciliation = RECONCILIATION[bl.customer_reconciliation_status ?? ''] ?? { label: 'Conciliação pendente', tone: 'yellow' as const }
+  const reconciliation = RECONCILIATION[bl.customer_reconciliation_status ?? ''] ?? { label: 'Conciliação pendente', tone: 'warning' as const }
   const showPicker = !linked || picking
   const reviewCustomer = customerLookup.data?.find((customer) => customer.id === linked?.id) ?? linked
   const knownContacts = reviewCustomer && 'customer_contacts' in reviewCustomer ? reviewCustomer.customer_contacts as { email: string | null }[] | null : null
@@ -239,26 +238,27 @@ export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalSta
   }
 
   return (
-    <Card className="lg:col-span-2">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Cliente e Portal</h3>
-        {linked ? <Badge tone={reconciliation.tone}>{reconciliation.label}</Badge> : <Badge tone="yellow">Sem cliente vinculado</Badge>}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="min-w-0">
+    <section className="app-bl-sheet__section app-bl-sheet__section--ruled app-bl-client" aria-label="Cliente e Portal">
+      <div className="min-w-0">
+        {/* O cadastro da Revisão traz o próprio título; sem ele, a seção se apresenta. */}
+        {showOnboarding ? null : (
+          <div className="app-bl-section-head">
+            <h2 className="app-bl-section-title">Cliente</h2>
+            {linked ? <span className={`app-bl-section-head__status app-bl-tone--${reconciliation.tone}`}>{reconciliation.label}</span> : null}
+          </div>
+        )}
 
           {linked ? (
             <div className="grid gap-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 text-sm">
+                <div className="min-w-0">
                   {linked.cnpj_cpf ? (
-                    <Link className="font-semibold text-[var(--app-link)] hover:underline" to={`/clientes/${encodeURIComponent(linked.cnpj_cpf)}`}>
+                    <Link className="app-bl-link font-medium" to={`/clientes/${encodeURIComponent(linked.cnpj_cpf)}`}>
                       {linked.name}
                     </Link>
-                  ) : <span className="font-semibold text-[var(--app-text-strong)]">{linked.name}</span>}
-                  <div className="font-mono text-xs text-[var(--app-muted)]">{formatCnpjCpf(linked.cnpj_cpf)}</div>
-                  <div className="mt-1 text-xs text-[var(--app-muted)]">Saldo pendente: {formatBRL(linked.pending_balance ?? 0)}</div>
+                  ) : <span className="font-medium text-[var(--app-text-strong)]">{linked.name}</span>}
+                  <div className="app-bl-code app-bl-facts__sub">{formatCnpjCpf(linked.cnpj_cpf)}</div>
+                  <div className="app-bl-facts__sub">Saldo em aberto do Cliente: <span className="tabular-nums">{formatBRL(linked.pending_balance ?? 0)}</span></div>
                 </div>
                 {!picking ? (
                   <div className="flex gap-2">
@@ -268,7 +268,7 @@ export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalSta
                 ) : null}
               </div>
               {manifestDiverges ? (
-                <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-[var(--app-text)]">
+                <p className="app-bl-notice app-bl-notice--warning">
                   O manifesto declara outro cliente: {manifestName ?? '—'} ({formatCnpjCpf(manifestDocument)}).
                 </p>
               ) : null}
@@ -292,13 +292,13 @@ export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalSta
           ) : showPicker ? (
             <div className={linked ? 'mt-4 grid gap-3 border-t border-[var(--app-border)] pt-4' : 'grid gap-3'}>
               {!linked && manifestName && manifestDocument ? (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-2">
-                  <div className="min-w-0 text-sm">
-                    <div className="text-xs text-[var(--app-muted)]">Declarado no manifesto</div>
-                    <div className="font-semibold text-[var(--app-text-strong)]">{manifestName}</div>
-                    <div className="font-mono text-xs text-[var(--app-muted)]">{formatCnpjCpf(manifestDocument)}</div>
+                <div className="app-bl-suggestion">
+                  <div className="min-w-0">
+                    <div className="app-bl-facts__sub">Declarado no manifesto</div>
+                    <div className="font-medium text-[var(--app-text-strong)]">{manifestName}</div>
+                    <div className="app-bl-code app-bl-facts__sub">{formatCnpjCpf(manifestDocument)}</div>
                   </div>
-                  <Button type="button" onClick={() => void linkManifestCustomer()} loading={saving}>Vincular</Button>
+                  <Button type="button" onClick={() => void linkManifestCustomer()} loading={saving}>Vincular este cliente</Button>
                 </div>
               ) : null}
               <div className="relative">
@@ -315,9 +315,9 @@ export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalSta
                 <ul className="grid max-h-60 gap-1 overflow-y-auto" aria-label="Clientes encontrados">
                   {(options ?? []).slice(0, 8).map((option) => (
                     <li key={option.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--app-surface-muted)]">
-                      <div className="min-w-0 text-sm">
+                      <div className="min-w-0">
                         <div className="truncate font-medium text-[var(--app-text-strong)]">{option.name}</div>
-                        <div className="font-mono text-xs text-[var(--app-muted)]">{formatCnpjCpf(option.cnpj_cpf)}</div>
+                        <div className="app-bl-code app-bl-facts__sub">{formatCnpjCpf(option.cnpj_cpf)}</div>
                       </div>
                       <Button
                         type="button"
@@ -330,15 +330,15 @@ export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalSta
                     </li>
                   ))}
                   {!isFetching && !(options ?? []).length ? (
-                    <li className="px-2 py-1.5 text-sm text-[var(--app-muted)]">Nenhum cliente encontrado.</li>
+                    <li className="px-2 py-1.5 text-[var(--app-muted)]">Nenhum cliente encontrado. Cadastre-o em Clientes e volte para vincular.</li>
                   ) : null}
                 </ul>
               ) : null}
               {linked ? (
                 <div>
                   <Button type="button" variant="ghost" onClick={() => { setPicking(false); setSearch('') }}>
-                    <X size={14} />
-                    Cancelar troca
+                    <X size={14} aria-hidden="true" />
+                    Voltar
                   </Button>
                 </div>
               ) : null}
@@ -350,24 +350,26 @@ export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalSta
             </Button>
           ) : null}
         </div>
-        <div className="grid content-start gap-3 border-t border-[var(--app-border)] pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-          {portalStatus ? <BlPortalCard status={portalStatus} embedded /> : <p className="text-sm text-[var(--app-muted)]">Verificando situação do Portal…</p>}
+      <div className="app-bl-client__portal">
+          {portalStatus ? <BlPortalCard status={portalStatus} embedded /> : <p className="app-bl-facts__sub">Verificando situação do Portal…</p>}
           {failedInvite ? (
-            <div role="status" className="grid gap-2 text-sm">
-              <p>Cadastro concluído. O convite para {failedInvite.email} precisa de nova tentativa.</p>
+            <div role="status" className="grid gap-2">
+              <p className="app-bl-notice app-bl-notice--warning">Cadastro concluído. O convite para {failedInvite.email} não foi iniciado; tente de novo.</p>
               <Button type="button" variant="secondary" loading={saving} onClick={() => void invite(failedInvite.customerId, failedInvite.email)}>Tentar convite novamente</Button>
             </div>
-          ) : linked && portalStatus?.visibility.reasons.some((reason) => reason.includes('Conta do Portal')) && !showOnboarding ? (
-            <Button type="button" variant="secondary" disabled={saving} onClick={() => { setInviteOpen(!inviteOpen); setInviteEmail(customerEmail) }}>Enviar convite do Portal</Button>
+          ) : linked && portalStatus?.visibility.reasons.some((reason) => reason.includes('Conta do Portal')) && !showOnboarding && !inviteOpen ? (
+            <Button type="button" variant="secondary" disabled={saving} onClick={() => { setInviteOpen(true); setInviteEmail(customerEmail) }}>Enviar convite do Portal</Button>
           ) : null}
           {inviteOpen && linked ? (
             <div className="grid gap-3">
               <Field label="E-mail do convite"><Input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} /></Field>
-              <Button type="button" loading={saving} onClick={() => void invite(linked.id, inviteEmail)}>Confirmar envio do convite</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="ghost" disabled={saving} onClick={() => setInviteOpen(false)}>Voltar</Button>
+                <Button type="button" loading={saving} loadingLabel="Enviando…" onClick={() => void invite(linked.id, inviteEmail)}>Enviar convite</Button>
+              </div>
             </div>
           ) : null}
-        </div>
       </div>
-    </Card>
+    </section>
   )
 }

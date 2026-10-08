@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterDatasContainerAlteradas } from '../../services/cacheEffects'
 import { Save } from 'lucide-react'
-import { Badge } from '../ui/Badge'
+import { Link } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Field, Input } from '../ui/Input'
@@ -16,11 +16,14 @@ import { calculateDemurrage, ensureDemurrageRatesLoaded } from '../../services/d
 import { updateContainerReturnDate } from '../../services/demurrage/demurrageContainers'
 import { queryKeys } from '../../services/queryKeys'
 import { formatDate, formatUSD } from '../../lib/utils'
+import { DEMURRAGE_INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import type { BLDetail } from '../../types/database'
 
 // Seção consolidada de demurrage do B/L: config geral (free time + P1/P2) e
 // tabela por container com devolução editável e demurrage calculado.
-export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
+export type BlDemurrageInvoiceSummary = { id: number; doc_number: string | null; status: string | null; total_usd: number | null }
+
+export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: BlDemurrageInvoiceSummary[] }) {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
@@ -202,11 +205,27 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
   const containers = bl.bl_containers ?? []
 
   return (
-    <Card>
-      <h2 className="mb-1 text-lg font-semibold text-[var(--app-text-strong)]">Demurrage</h2>
-      <p className="mb-4 text-sm text-[var(--app-muted)]">
-        Condições próprias deste B/L. Em branco, vale o acordo do cliente ou a tabela de Demurrage.
-      </p>
+    <Card className="app-bl-sheet">
+      <section className="app-bl-sheet__section" aria-labelledby="bl-demurrage">
+      <div className="app-bl-section-head">
+        <h2 id="bl-demurrage" className="app-bl-section-title">Demurrage</h2>
+        <Link className="app-bl-link app-bl-section-head__link" to={`/demurrage?busca=${encodeURIComponent(bl.id)}`}>Abrir em Demurrage</Link>
+      </div>
+
+      {invoices?.length ? (
+        <ul className="app-bl-invoice-list" aria-label="Faturas de Demurrage do B/L">
+          {invoices.map((invoice) => (
+            <li key={invoice.id}>
+              <span className="app-bl-code">{invoice.doc_number ?? `#${invoice.id}`}</span>
+              <span>{statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, invoice.status, 'Situação não informada')}</span>
+              {invoice.total_usd != null ? <span className="tabular-nums">{formatUSD(invoice.total_usd)}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <h3 className="app-bl-subsection-title">Condições deste B/L</h3>
+      <p className="app-bl-facts__sub mb-3">Em branco, vale o acordo do Cliente ou a tabela de Demurrage. Preenchido, substitui os dois neste B/L.</p>
       <div className="grid gap-3 md:grid-cols-[repeat(3,minmax(0,1fr))_auto] md:items-end">
         <Field label="Free time (dias)">
           <Input inputMode="numeric" value={freeTime} onChange={(e) => setFreeTime(e.target.value)} placeholder="Padrão" />
@@ -217,20 +236,21 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
         <Field label="Tarifa P2 (USD/dia)">
           <Input inputMode="decimal" value={p2} onChange={(e) => setP2(e.target.value)} placeholder="Padrão" />
         </Field>
-        <Button type="button" variant="secondary" onClick={() => void handleSaveDemurrageConfig()} loading={savingConfig}>
-          <Save size={15} />
+        <Button type="button" variant="secondary" onClick={() => void handleSaveDemurrageConfig()} loading={savingConfig} loadingLabel="Salvando…">
+          <Save size={15} aria-hidden="true" />
           Salvar condições
         </Button>
       </div>
 
-      <div className="app-table-scroll mt-5">
-        <table className="app-table app-table--compact min-w-[640px] text-left text-sm">
+      <h3 className="app-bl-subsection-title mt-5">Devolução por container</h3>
+      <div className="app-table-scroll">
+        <table className="app-table app-table--compact app-bl-subtable min-w-[640px]">
           <thead>
             <tr>
               <th scope="col">Container</th>
               <th scope="col">Descarga</th>
               <th scope="col">Devolução</th>
-              <th scope="col">Demurrage</th>
+              <th scope="col">Demurrage prevista</th>
             </tr>
           </thead>
           <tbody>
@@ -261,7 +281,7 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
                 }
                 return (
                   <tr key={container.id}>
-                    <td className="font-semibold text-[var(--app-text-strong)]">{container.container_number}</td>
+                    <td className="app-bl-code text-[var(--app-text-strong)]">{container.container_number}</td>
                     <td>{container.discharge_date ? formatDate(container.discharge_date) : <span className="text-[var(--app-muted)]">—</span>}</td>
                     <td>
                       <div className="flex items-center gap-2">
@@ -288,17 +308,18 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
                     </td>
                     <td>
                       {demError ? (
-                        <span className="text-xs text-red-400">{demError}</span>
+                        <span className="app-bl-error">{demError}</span>
                       ) : demCalc ? (
                         demCalc.status === 'within_free_time' ? (
-                          <Badge tone="green">Dentro do free time</Badge>
+                          <span className="app-bl-tone--success">Dentro do free time</span>
                         ) : (
-                          <span title={`P1: ${demCalc.days_p1}d × $${demCalc.rate_p1_usd} | P2: ${demCalc.days_p2}d × $${demCalc.rate_p2_usd}`}>
-                            <Badge tone="red">{`${demCalc.total_days - demCalc.free_days} dias · ${formatUSD(demCalc.total_usd)}`}</Badge>
+                          <span className="app-bl-cell__stack">
+                            <span className="app-bl-tone--danger tabular-nums">{`${demCalc.total_days - demCalc.free_days} dias excedentes · ${formatUSD(demCalc.total_usd)}`}</span>
+                            <span className="app-bl-facts__sub tabular-nums">{`P1: ${demCalc.days_p1} d × ${formatUSD(demCalc.rate_p1_usd)} · P2: ${demCalc.days_p2} d × ${formatUSD(demCalc.rate_p2_usd)}`}</span>
                           </span>
                         )
                       ) : (
-                        <span className="text-[var(--app-muted)]">—</span>
+                        <span className="app-bl-facts__missing" title="Sem descarga ou devolução informada">—</span>
                       )}
                     </td>
                   </tr>
@@ -312,6 +333,7 @@ export function BlDemurrageSection({ bl }: { bl: BLDetail }) {
           </tbody>
         </table>
       </div>
+      </section>
     </Card>
   )
 }
