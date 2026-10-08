@@ -444,9 +444,12 @@ fatura fica paga; nos demais casos o Admin marca como tratado com motivo
 pendente; outro perfil recebe recusa), repetida duas vezes; teste de
 comportamento da página.
 
-Falta da Fase 5, tudo dependente da credencial: os passos 1–8 do
-[Roteiro de ativação](#roteiro-de-ativação-depois-do-merge-do-código) e, ao
-fim, arquivar este plano e a spec. A PR 827 já foi fechada.
+Estado da Fase 5 em 08/10: virada feita e passos do roteiro executados;
+pagamento de ponta a ponta comprovado em avulsa, individual e Demurrage;
+`faturamento.md`, `reconciliacao-pix.md`, `demurrage.md`, manual de serviços
+externos e `RASTREABILIDADE.md` atualizados. Falta pagar uma fatura consolidada
+de teste, conferir o recibo da individual no Portal e, ao fim, arquivar este
+plano e a spec. A PR 827 já foi fechada.
 
 ### Fase 6 (opcional) — Webhook
 

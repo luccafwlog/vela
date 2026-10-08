@@ -1,6 +1,6 @@
 # Faturamento
 
-> **Status:** ativo · **Atualizado:** 2026-09-28 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e estorno de pagamentos também são abertos por `/reconciliacao`
+> **Status:** ativo · **Atualizado:** 2026-10-08 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e estorno de pagamentos também são abertos por `/reconciliacao`
 
 ## Propósito e escopo
 
@@ -549,23 +549,31 @@ Não há evidência de Runtime registrada neste documento.
   existir apenas na transição explícita do CE Mercante, de forma idempotente,
   pela migration `051`.
 - **Cálculo de taxas locais antes da conciliação de cliente (migration `072`):** `sync_local_charge_receivable` retorna `NULL` sem abortar quando `v_bl.customer_id` é nulo, permitindo cálculo inicial de taxas no B/L recém-importado; o registro financeiro em `bl_receivables` aguarda a conciliação do cliente na Revisão.
-- **PIX tem dois autores.** A migration
-  `074_ledger_invoice_pix_payload.sql` mantém payload por trigger para
-  invoices locais. `createInvoiceFromBls` ainda executa `persistPixPayload`
-  depois da RPC e trata falha de update como best-effort.
+- **PIX tem um autor.** O gatilho `trg_populate_local_invoice_pix_payload`
+  (origem na migration `074_ledger_invoice_pix_payload.sql`) é o único que
+  grava `pix_payload` das invoices locais; a escrita best-effort
+  `persistPixPayload` do frontend foi removida (commit `94718d24`). Com
+  `pix_provider = 'itau'`, o mesmo gatilho abre a cobrança Itaú em vez de
+  montar o QR estático.
 - **Suspeita — caminho legado amplo.** A decisão de pagamento é feita somente
   por tipo, status e saldo da invoice. Documento local com vínculos ledger
   incompletos pode cair no RPC legado; não houve validação em Runtime desse
   cenário.
 
-### Cobrança dinâmica Itaú — migration 151 (desligada)
+### Cobrança dinâmica Itaú — migration 151
 
-Com `app_settings.pix_provider = 'itau'`, o gatilho do QR local deixa de
+**Ativa em produção desde 2026-10-07** (`app_settings.pix_provider = 'itau'`).
+Com essa chave, o gatilho do QR local deixa de
 montar o QR estático e passa a manter uma cobrança Itaú por fatura pagável:
 qualquer mudança de saldo ou status (baixa, correção, reemissão automática,
 troca de Cliente, cancelamento) cancela a cobrança anterior e abre outra.
-Contrato e fila em [Reconciliação PIX](reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151-desligada).
-O padrão continua `static`.
+Contrato e fila em [Reconciliação PIX](reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151).
+O padrão da coluna continua `static`, valor de um banco novo; voltar para
+`static` em produção não é procedimento operacional.
+
+**Runtime em produção (07/10):** avulsas INV-2026-0004 e INV-2026-0005 e a
+individual INV-2026-0006 foram pagas por QR Itaú e baixadas pelo cron, sem
+análise. A fatura consolidada ainda não teve pagamento de ponta a ponta.
 
 ### Segurança da correção automática — migration 130
 

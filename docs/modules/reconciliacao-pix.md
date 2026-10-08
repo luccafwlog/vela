@@ -1,6 +1,6 @@
 # Reconciliação PIX
 
-> **Status:** ativo · **Atualizado:** 2026-09-27 · **Rotas:** `/reconciliacao` (Administrativo/Admin); `/demurrage/reconciliacao` redireciona para esta rota
+> **Status:** ativo · **Atualizado:** 2026-10-08 · **Rotas:** `/reconciliacao` (Administrativo/Admin); `/demurrage/reconciliacao` redireciona para esta rota
 
 ## Propósito e escopo
 
@@ -245,11 +245,11 @@ Estes testes verificam texto de migrations, não um banco aplicado:
 - **Filtro “Único BL” alinhado.** O valor visual `single` é normalizado para
   `individual` antes da comparação.
 
-### Cobrança dinâmica Itaú — migration 151 (desligada)
+### Cobrança dinâmica Itaú — migration 151
 
-**Código/Teste local, sem implantação.** `app_settings.pix_provider` escolhe o
-autor do QR: `static` (padrão, comportamento desta página inalterado) ou
-`itau`. Com `itau`, os gatilhos que hoje montam o QR estático (faturas locais
+**Ativa em produção desde 2026-10-07.** `app_settings.pix_provider` escolhe o
+autor do QR: `static` (padrão de um banco novo; QR estático e conciliação só
+por extrato) ou `itau` (valor em produção). Com `itau`, os gatilhos que hoje montam o QR estático (faturas locais
 e avulsas em `populate_local_invoice_pix_payload`, Demurrage em
 `zz_itau_pix_demurrage_payload`) abrem ou cancelam cobranças em
 `itau_pix_charges`, com no máximo uma aberta por fatura e TXID `VELA…`. A
@@ -268,6 +268,23 @@ diferente, fatura não pagável, sem usuário de baixa em
 `app_settings.itau_pix_settlement_actor`) abre o Alerta `pix_unreconciled`
 para o Administrativo, sem baixa. Detalhes no
 [plano](../plans/2026-10-06-integracao-itau-pix.md).
+
+**Consulta e horários (Edge `itau-pix` v8).** O job `itau-pix-queue` chama a
+função a cada minuto: manutenção de prazos (`itau_pix_maintain`), fila de
+cobranças e consulta de recebimentos desde o checkpoint (`itau_pix_checkpoint`),
+com 10 min de sobreposição e janelas de até 6 h para recuperar atraso. O Itaú
+de produção só encontra a janela pedida em `-03:00` e devolve horários de
+Brasília com `Z` indevido; o cliente envia a janela em Brasília e grava tudo em
+UTC. Duas travas param a consulta sem baixa nem avanço do checkpoint se o banco
+passar a mandar UTC verdadeiro: horário mais de 5 min no futuro e horário do
+recebimento a mais de 1 h do minuto UTC do `endToEndId`. O erro aparece no
+monitoramento acima; a correção é remover a troca de `Z` em
+`supabase/functions/_shared/itauPix.ts`. Operação e segredos no
+[manual de serviços externos](../operations/servicos-externos.md#itaú--api-pix-recebimentos).
+
+**Runtime em produção (07/10):** avulsas, individual e Demurrage de teste
+pagas por QR Itaú foram baixadas pelo cron entre 33 e 58 s depois do
+pagamento. Consolidada ainda sem prova de ponta a ponta.
 
 ### Cobranças locais após correção — migration 130
 
