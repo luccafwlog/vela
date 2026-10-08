@@ -5,7 +5,7 @@ com credencial dedicada recebida em 07/10 e CLIENT ID diferente do anterior
 confirmado por hash; certificado emitido e OAuth mTLS validado. Prova de
 centavos da Fase 1 realizada em produção; Fases 1 a 4 e a tela de monitoramento da Fase 5
 prontas no código (migrations 151–154), revisadas e unificadas numa PR contra
-a `main`. Estado produtivo em 07/10: função `itau-pix` v7 ACTIVE,
+a `main`. Estado produtivo em 08/10: função `itau-pix` v8 ACTIVE,
 `verify_jwt=false`, cron Itaú ativo e provedor `itau`. Segredos
 Edge cadastrados pelo dono e autenticação da função validada nesta retomada.
 Conta administrativa dedicada vinculada para a baixa; token consumido removido pelo dono.
@@ -500,6 +500,7 @@ de COB e leitura de Pix. Seis secrets `ITAU_*` cadastrados pelo dono.
 
 | Data | Evento |
 |---|---|
+| 2026-10-08 | Com autorização explícita do dono, publicada `itau-pix` v8 ACTIVE a partir do commit `2bd161dd` do PR 890 (CI verde), `verify_jwt=false`. Código remoto baixado e idêntico ao do commit, com as travas de horário no futuro e de `endToEndId`. Sem bearer: HTTP 403. Primeiro ciclo do cron com a v8 ainda não conferido no banco. |
 | 2026-10-08 | Revisão do PR 890: cliente passa a recusar horário do Itaú mais de 5 min no futuro (sinal de que o banco corrigiu o `Z` e a conversão de Brasília somaria 3 h). Consulta e fila param com erro visível, sem baixa nem checkpoint. Regressão falhou sem a guarda e passou com ela (31 testes Itaú). Revisão seguinte: a guarda de futuro não pega UTC verdadeiro com mais de 3 h na recuperação de atraso; a baixa passa a conferir o horário com o minuto UTC do `endToEndId` (tolerância 1 h). Regressão de atraso falhou sem a conferência e passou com ela (32 testes Itaú). Não publicado na Edge. |
 | 2026-10-07 | Com autorização específica, corrigidos `bank_created_at`/`expires_at` das cobranças ids 1 e 2 somando 3 h, em transação com guarda por TXID e valores antigos exatos; dois registros conferidos, valores/status/pagamentos preservados. Criada individual INV-2026-0006 (id 6), B/L separado TEST-ITAU-IND-20261007, cliente 1, CE fictício 000000000000002, container COC VELU2610072. RPC `add_manual_bl_charge` usou item elegível B/L Reissuing com quantidade 0,000333 × R$ 600 para arredondar a R$ 0,20, anotada como fixture; `mark_bls_ready_and_create_invoice` emitiu pelo ledger normal, com guarda de tipo/status e teto R$ 0,25. Cron confirmou COB ATIVA VELAC8854B0F284740B9A41FB43EF0A6, QR igual ao da fatura e nenhum erro. Pagamento pendente. |
 | 2026-10-07 | Dono confirmou visualização e recibo Demurrage no Portal. Retomada dos passos finais: PFX local existe (2806 bytes), destino externo escolhido iCloud Drive; upload ainda não confirmado. Conferência produtiva: somente cobranças ids 1 e 2 (anteriores à v7) têm criação/expiração 3 h adiantadas; 3 e 4 estão normalizadas. Individual aberta INV-2026-0001 tem R$ 4.340,00, portanto a prova deve usar fixture separada de centavos, mediante autorização. Nenhuma mutação produtiva nesta conferência. |
