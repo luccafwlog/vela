@@ -9585,8 +9585,10 @@ a.app-step-rail__link:focus-visible {
 
 .app-voyage-info {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  /* O rótulo guarda uma largura mínima; valor longo quebra a linha em vez de cobri-lo. */
+  grid-template-columns: minmax(min(7rem, 40%), 1fr) minmax(0, auto);
   gap: 12px;
+  font-size: var(--app-size-body);
   align-items: start;
   border-bottom: 1px solid var(--app-border);
   padding-bottom: 10px;
@@ -9830,6 +9832,16 @@ a.app-step-rail__link:focus-visible {
   width: var(--app-control-h);
   min-width: var(--app-control-h);
   padding: 0;
+}
+
+/* Conteúdo das abas nunca alarga a ficha: tabelas largas rolam dentro do
+   próprio quadro (.app-table-scroll), não empurram a página. */
+.app-voyage-ficha__body > [role='tabpanel'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-voyage-ficha__body > [role='tabpanel'] > * {
+  min-width: 0;
 }
 
 @media (max-width: 639px) {
