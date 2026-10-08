@@ -37,6 +37,7 @@ import {
   filtersFromContainersSearch,
   ownershipSourceLabel,
 } from './containersListState'
+import { displayAggregateLabel } from './veiculosPresentation'
 
 // A RPC `operational_list_containers` projeta todas as colunas de
 // `bl_containers`; o tipo de lista só nomeia as da época em que foi escrito.
@@ -219,7 +220,7 @@ export function Containers() {
     { label: data?.blCount === 1 ? 'B/L' : 'B/Ls', value: count(data?.blCount) },
     { label: 'OOG', value: count(data?.oogDistinctCount) },
     { label: 'IMO', value: count(data?.imoDistinctCount) },
-    ...(known ? (data?.typeSummary ?? []).map((item) => ({ label: item.type, value: item.distinctCount.toLocaleString('pt-BR') })) : []),
+    ...(known ? (data?.typeSummary ?? []).map((item) => ({ label: displayAggregateLabel(item.type), value: item.distinctCount.toLocaleString('pt-BR') })) : []),
   ]
   const repeatedAcrossBls = known && (data?.count ?? 0) > (data?.distinctCount ?? 0)
 

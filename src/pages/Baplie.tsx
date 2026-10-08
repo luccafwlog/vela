@@ -293,7 +293,7 @@ function StateA({ canImport, onUpload }: { canImport: boolean; onUpload: () => v
 }
 
 function BaplieOverviewSection({ containers, importedAt }: { containers: BaplieContainer[]; importedAt: string | null }) {
-  const full = containers.filter((c) => c.status === 'full')
+  const full = containers.filter((c) => c.status !== 'empty')
   return (
     <Card className="app-cargo-panel p-0">
       <div className="app-cargo-panel__head">
@@ -652,7 +652,7 @@ function ContainerList({
       const profile = container.is_imo ? 'imo' : container.is_oog ? 'oog' : 'standard'
       return (!term || container.container_number.toLowerCase().includes(term) || (container.slot ?? '').toLowerCase().includes(term) || (container.bl_ref ?? '').toLowerCase().includes(term))
         && (!filters.coverage || coverage?.key === filters.coverage)
-        && (!filters.status || container.status === filters.status)
+        && (!filters.status || (container.status === 'empty' ? 'empty' : 'full') === filters.status)
         && (!filters.type || container.size_type === filters.type)
         && (!filters.pol || container.pol === filters.pol)
         && (!filters.pod || container.pod === filters.pod)
@@ -886,6 +886,7 @@ function BaplieUploadModal({
         <VoyageCombobox
           required
           label="Viagem de destino"
+          disabled={submitting || Boolean(partial)}
           selectedVoyageId={voyageId}
           onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
         />

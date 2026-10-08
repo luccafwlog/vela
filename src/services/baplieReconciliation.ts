@@ -53,7 +53,8 @@ import { normalizePortCode } from './portCode'
 type RouteRow = { pol: string | null; pod: string | null }
 type BlRouteRow = RouteRow & { id: string }
 
-function routeKey(row: RouteRow): string | null {
+/** Rota POL::POD normalizada; também usada pela apresentação de /baplie. */
+export function routeKey(row: RouteRow): string | null {
   const pol = normalizePortCode(row.pol) ?? row.pol?.trim().toUpperCase() ?? ''
   const pod = normalizePortCode(row.pod) ?? row.pod?.trim().toUpperCase() ?? ''
   return pol && pod ? `${pol}::${pod}` : null
@@ -402,7 +403,7 @@ function normalizeVal(v: string | null | undefined) {
   return (v ?? '').toUpperCase()
 }
 
-function normalizeContainerNumber(v: string | null | undefined) {
+export function normalizeContainerNumber(v: string | null | undefined) {
   return (v ?? '').replace(/\s+/g, '').toUpperCase()
 }
 

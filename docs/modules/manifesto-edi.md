@@ -180,7 +180,7 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
 ### `/veiculos`
 
 - `src/pages/Veiculos.tsx` exige viagem para visualizar lista, estatísticas e filtros; a viagem fica em `?voyage=` e a faixa de viagens usa o mesmo resumo de Viagens do Baplie. O modal de importação possui seletor próprio de viagem e, nesta página, linha com erro bloqueia o lote (a ação rápida da Viagem permite aceitar as divergências e gravar só as linhas válidas).
-- A lista agrupa os veículos pelo container: o **Local de desova** é atributo do container (CONTEXT.md) e é editado uma vez, no cabeçalho do grupo, gravando ao sair do campo ou com Enter (Escape desfaz o rascunho); "Salvando…", "Salvo" ou a falha aparecem junto do campo. Quem edita veículos também seleciona linhas para definir o local em lote; excluir continua só para o Administrativo. O filtro "Sem local informado" lista os containers ainda sem local.
+- A lista agrupa os veículos pelo container: o **Local de desova** é atributo do container (CONTEXT.md) e é editado uma vez, no cabeçalho do grupo, gravando ao sair do campo ou com Enter (Escape desfaz o rascunho); "Salvando…", "Salvo" ou a falha aparecem junto do campo. Quem edita veículos também seleciona linhas para definir o local em lote; excluir continua só para o Administrativo. O filtro "Sem local informado" lista os containers ainda sem local, e o resumo "veículos sem local de desova" conta os veículos desses containers (veículo sem container não entra: não há local a informar).
 - O parser suporta modelo do sistema, COSCO Daily Report e cabeçalhos chineses.
 - A convenção numérica é escolhida pelos cabeçalhos da origem (pt-BR no modelo
   interno; en-US nos relatórios COSCO/terminais), sem aceitar expoente ou texto

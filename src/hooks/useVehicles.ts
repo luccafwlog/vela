@@ -12,6 +12,24 @@ type VehicleListItemWithUnpackingLocation = Omit<VehicleListItem, 'container'> &
 /** Filtro de desova que pede os containers ainda sem local. */
 export const UNPACKING_LOCATION_NONE = '__none__'
 
+/**
+ * Veículos por Local de desova, com "Nao informado" para container sem local.
+ * O local é do container: veículo sem container não tem local a informar e fica
+ * fora da contagem, como no filtro UNPACKING_LOCATION_NONE.
+ */
+export function countVehiclesByUnpackingLocation(
+  rows: readonly { container?: { unpacking_location?: string | null } | null }[],
+): { label: string; count: number }[] {
+  const counts = new Map<string, number>()
+  for (const row of rows) {
+    if (!row.container) continue
+    const label = String(row.container.unpacking_location ?? '').trim() || 'Nao informado'
+    counts.set(label, (counts.get(label) ?? 0) + 1)
+  }
+  return Array.from(counts, ([label, count]) => ({ label, count }))
+    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, 'pt-BR'))
+}
+
 export type VehiclePageFilters = {
   search: string
   brand: string
@@ -193,7 +211,6 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
     const brandMap = new Map<string, number>()
     const modelMap = new Map<string, number>()
     const vehicleTypeMap = new Map<string, number>()
-    const unpackingLocationMap = new Map<string, number>()
     const containerTypeMap = new Map<string, Set<string>>()
 
     for (const row of all) {
@@ -205,9 +222,6 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
 
       const containerType = String(row.container?.type ?? '').trim() || 'Nao informado'
       vehicleTypeMap.set(containerType, (vehicleTypeMap.get(containerType) ?? 0) + 1)
-
-      const unpackingLocation = String((row.container as (typeof row.container & { unpacking_location?: string | null }) | null)?.unpacking_location ?? '').trim() || 'Nao informado'
-      unpackingLocationMap.set(unpackingLocation, (unpackingLocationMap.get(unpackingLocation) ?? 0) + 1)
 
       const containerNumber = String(row.container?.container_number ?? '').trim().toUpperCase()
       const currentSet = containerTypeMap.get(containerType) ?? new Set<string>()
@@ -229,9 +243,8 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
       vehiclesByContainerType: Array.from(vehicleTypeMap.entries())
         .map(([label, count]) => ({ label, count }))
         .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, 'pt-BR')),
-      unpackingLocations: Array.from(unpackingLocationMap.entries())
-        .map(([label, count]) => ({ label, count }))
-        .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, 'pt-BR')),
+      // A consulta de estatísticas lê `unpacking_location`; o tipo de lista não o nomeia.
+      unpackingLocations: countVehiclesByUnpackingLocation(all as VehicleListItemWithUnpackingLocation[]),
       containersByContainerType: Array.from(containerTypeMap.entries())
         .map(([label, numbers]) => ({ label, count: numbers.size }))
         .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, 'pt-BR')),

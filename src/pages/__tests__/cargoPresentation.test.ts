@@ -10,6 +10,7 @@ import {
 import { groupVehiclesByContainer, unpackingScopeText } from '../veiculosPresentation'
 import { buildReconciliationOverview, describeRowCoverage } from '../bapliePresentation'
 import type { BaplieReconciliationResult } from '../../services/baplieReconciliation'
+import { countVehiclesByUnpackingLocation } from '../../hooks/useVehicles'
 
 describe('estado da lista /containers na URL', () => {
   it('lê os links do Line-Up e da Viagem e faz ida e volta sem perder o recorte', () => {
@@ -58,6 +59,15 @@ describe('veículos agrupados por container', () => {
     expect(groups[2].container).toBeNull()
   })
 
+  it('conta sem local só os veículos em container, como o filtro "Sem local informado"', () => {
+    expect(countVehiclesByUnpackingLocation([
+      { container: { unpacking_location: 'Pátio 3' } },
+      { container: { unpacking_location: '  ' } },
+      { container: { unpacking_location: null } },
+      { container: null },
+    ])).toEqual([{ label: 'Nao informado', count: 2 }, { label: 'Pátio 3', count: 1 }])
+  })
+
   it('diz o alcance real da edição do local de desova', () => {
     expect(unpackingScopeText(1)).toBe('Vale para o veículo deste container')
     expect(unpackingScopeText(3)).toBe('Vale para os 3 veículos deste container')
@@ -94,6 +104,22 @@ describe('conciliação Baplie × B/L', () => {
     const overview = buildReconciliationOverview({ staged, blsExist: true, reconciliation, loading: false, failed: false })
     const labels = staged.map((row) => describeRowCoverage(row, overview, reconciliation)?.label)
     expect(labels).toEqual(['Com B/L', 'Sem B/L', 'Com B/L · SOC/COC diverge', 'Fora · rota sem B/L', 'Fora da conciliação'])
+  })
+
+  it('casa o container pelo número normalizado e trata status ausente como cheio, como a conciliação', () => {
+    const rows = [
+      { container_number: 'AAAU0000003', status: 'full', pol: 'CNSHA', pod: 'BRSSZ' },
+      { container_number: 'AAAU0000006', status: null, pol: 'CNSHA', pod: 'BRSSZ' },
+    ]
+    // O item de SOC/COC traz o número como está no B/L, com outra grafia.
+    const result: BaplieReconciliationResult = {
+      source: 'reconciled',
+      pendingRoutes: [],
+      items: [{ kind: 'ownership_mismatch', container_number: 'aaau 0000003', bl_container_id: 3, bl_id: 'BL-3', bl_ownership: 'COC', baplie_ownership: 'SOC' }],
+    }
+    const overview = buildReconciliationOverview({ staged: rows, blsExist: true, reconciliation: result, loading: false, failed: false })
+    expect(overview).toMatchObject({ full: 2, empty: 0, inScope: 2 })
+    expect(rows.map((row) => describeRowCoverage(row, overview, result)?.label)).toEqual(['Com B/L · SOC/COC diverge', 'Com B/L'])
   })
 
   it('não confunde viagem sem B/L, carregamento ou erro com "sem divergência"', () => {

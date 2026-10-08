@@ -56,6 +56,7 @@ function formatCbm(value: number | null | undefined) {
  * campo, não só no aviso flutuante.
  */
 function UnpackingLocationField({
+  containerId,
   containerNumber,
   value,
   savedValue,
@@ -67,6 +68,7 @@ function UnpackingLocationField({
   onCommit,
   onRevert,
 }: {
+  containerId: number
   containerNumber: string
   value: string
   savedValue: string | null
@@ -78,7 +80,7 @@ function UnpackingLocationField({
   onCommit: (value: string) => void
   onRevert: () => void
 }) {
-  const statusId = `desova-status-${containerNumber}`
+  const statusId = `desova-status-${containerId}`
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Enter') {
       event.preventDefault()
@@ -338,6 +340,7 @@ export function Veiculos() {
   function desovaFieldFor(container: NonNullable<(typeof groups)[number]['container']>) {
     return (
       <UnpackingLocationField
+        containerId={container.id}
         containerNumber={container.container_number}
         value={unpackingLocations[container.id] ?? container.unpacking_location ?? ''}
         savedValue={container.unpacking_location ?? null}
