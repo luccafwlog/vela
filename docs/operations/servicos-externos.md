@@ -216,7 +216,12 @@ estava sem branches persistentes ou de Preview na conferência de 2026-10-07.
   O environment GitHub `supabase-branches` guarda o PAT escopado ao projeto
   `fgmkhbzhaeebrsizwccx`, com `Development Branches: Read` e `API Keys: Read`,
   validade de 90 dias (até 2027-01-05), além de `PREVIEW_ADMIN_PASSWORD`.
-  `API Keys: Read` é necessário para o CLI obter as chaves públicas da branch;
+  `API Keys: Read` é necessário para o CLI obter as chaves públicas da branch.
+  Em 2026-10-08 se confirmou que o `branches get` do CLI 2.113 exige também a
+  permissão `database_pooling_config_read` (leitura da configuração de pooling
+  do banco): sem ela, o CLI responde 403 e os workflows de Preview falham com
+  essa mensagem. O PAT precisa ser recriado ou editado com essa permissão e o
+  secret do environment atualizado; até isso ser feito, nenhuma Preview publica.
   `API Key Secrets: Read` não foi concedido. O secret do environment teve
   atualização registrada em 2026-10-07, mas o workflow Cloudflare seguinte
   falhou e o painel Supabase ainda mostrava o PAT v3 como nunca usado; portanto,

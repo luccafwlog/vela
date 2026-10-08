@@ -89,6 +89,37 @@ jobs:
             supabase --experimental branches list --project-ref "$SUPABASE_PROJECT_REF" -o json \
               | node scripts/resolve-supabase-branch.mjs "$PR_HEAD_REF"
           }
+          # Erro de credencial ou branch sem vínculo não se resolve esperando:
+          # grava o motivo e o loop principal falha na hora, sem gastar 9 min.
+          supabase_fatal="$RUNNER_TEMP/supabase-fatal"
+          supabase_unlinked="$RUNNER_TEMP/supabase-unlinked"
+          rm -f "$supabase_fatal" "$supabase_unlinked"
+          branch_env_ready() {
+            local listing id err
+            if ! listing="$(supabase --experimental branches list --project-ref "$SUPABASE_PROJECT_REF" -o json 2>&1)"; then
+              grep -Eq 'status 40[13]' <<<"$listing" && printf 'branches list: %s\n' "$listing" > "$supabase_fatal"
+              return 1
+            fi
+            if ! id="$(node scripts/resolve-supabase-branch.mjs "$PR_HEAD_REF" <<<"$listing" 2>&1)"; then
+              echo x >> "$supabase_unlinked"
+              if (( $(wc -l < "$supabase_unlinked") >= 3 )); then
+                printf '%s Crie a branch no painel Supabase com "Sync with Git branch" = %s.\n' "$id" "$PR_HEAD_REF" > "$supabase_fatal"
+              fi
+              return 1
+            fi
+            if err="$(supabase --experimental branches get "$id" --project-ref "$SUPABASE_PROJECT_REF" -o env 2>&1 >/dev/null)"; then
+              return 0
+            fi
+            grep -Eq 'status 40[13]' <<<"$err" && printf 'branches get: %s\nO SUPABASE_ACCESS_TOKEN do environment supabase-branches precisa da permissão citada acima.\n' "$err" > "$supabase_fatal"
+            return 1
+          }
+          fail_if_supabase_fatal() {
+            if [[ -s "$supabase_fatal" ]]; then
+              echo "::error::Supabase recusou a branch da Preview; não adianta esperar."
+              cat "$supabase_fatal"
+              exit 1
+            fi
+          }
           # Diagnóstico sem segredos: só metadados da listagem e o stderr do get.
           diagnose_supabase_branch() {
             echo '::group::Diagnóstico da branch Supabase'
@@ -115,7 +146,7 @@ jobs:
                 else (max_by(.completed_at // .started_at // .created_at) | [.status, (.conclusion // "")])
                 end | join(" ")' <<<"$payload")"
             if [[ "$check_status" == completed && "$check_conclusion" == success ]]; then
-              if supabase --experimental branches get "$(supabase_branch_id)" --project-ref "$SUPABASE_PROJECT_REF" -o env >/dev/null 2>&1; then
+              if branch_env_ready; then
                 echo 'readiness=ready' >> "$GITHUB_OUTPUT"
                 exit 0
               fi
@@ -126,6 +157,7 @@ jobs:
               echo 'Supabase Preview was skipped; refusing deployment.'
               exit 1
             fi
+            fail_if_supabase_fatal
             echo "Waiting for Supabase Preview ($attempt/36): status=${check_status:-missing}, conclusion=${check_conclusion:-missing}"
             sleep 10
           done
