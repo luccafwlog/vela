@@ -5,14 +5,25 @@ import { fetchLineUpSnapshot, type LineUpRow, type LineUpSnapshot } from '../ser
 import { formatDateOnlyToBRShort, formatShortDateSafe } from '../lib/utils'
 import { arrivalDisplay, deriveEscalaState } from '../lib/escalaState'
 import { isCycleStartRow } from '../lib/lineupCycle'
+import {
+  formatLineUpInteger,
+  lineUpCeStatus,
+  lineUpExportLabel,
+  lineUpLinked,
+  type LineUpStatusTone,
+} from '../components/lineup/lineUpStatus'
 
 const DISPLAY_VISIBLE_ROWS = 8
 const DISPLAY_MIN_ROW_HEIGHT = 74
-const DISPLAY_ROW_TRAVEL_MS = 3000
-// A coluna Terminal passou a carregar codigo de terminal (PORTMAC) e ate dois
-// codigos separados por ' / '. Com 6fr ela cortava 'PORTMAC' para 'ORTMA'.
-const DISPLAY_GRID_TEMPLATE = '16fr 5fr 7fr 10fr 6fr 6fr 5fr 6fr 6fr 7fr 5fr 5fr 7fr 9fr 6fr'
-const DISPLAY_COLUMNS = ['Vessel', 'Voy', 'POD', 'Terminal', 'ETA', 'ETB', 'VIN', 'VIN CNTR', 'CG', 'Total', 'MTY', 'RTW', 'BB', 'CEs', 'Linked']
+// O quadro para em cada posição e só então desliza uma linha: um rolamento
+// contínuo obrigava a ler um alvo em movimento a vários metros da tela.
+export const DISPLAY_ROW_DWELL_MS = 4000
+export const DISPLAY_ROW_TRAVEL_MS = 900
+// A coluna Terminal carrega código de terminal (PORTMAC) e até dois códigos
+// separados por ' / '; cortar no meio produz outro código.
+const DISPLAY_GRID_TEMPLATE = '15fr 6fr 6.5fr 9fr 6fr 6fr 5fr 6fr 5fr 6fr 5fr 5fr 6.5fr 9.5fr 8fr'
+const DISPLAY_COLUMNS = ['Navio', 'Viagem', 'POD', 'Terminal', 'ETA', 'ETB', 'VIN', 'VIN CNTR', 'CG', 'Total', 'MTY', 'RTW', 'BB', 'CEs', 'Vinculada']
+const TIME_FORMAT = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
 function useIsMobileDisplay() {
   const [isMobile, setIsMobile] = useState(() => {
@@ -33,8 +44,7 @@ function useIsMobileDisplay() {
 
 export function LineUpTVDisplay() {
   const viewportRef = useRef<HTMLDivElement | null>(null)
-  const slideTimeoutRef = useRef<number | null>(null)
-  const restartFrameRef = useRef<number | null>(null)
+  const timeoutRef = useRef<number | null>(null)
   const [rowHeight, setRowHeight] = useState(DISPLAY_MIN_ROW_HEIGHT)
   const [startIndex, setStartIndex] = useState(0)
   const [isSliding, setIsSliding] = useState(false)
@@ -56,8 +66,8 @@ export function LineUpTVDisplay() {
   })
 
   // Marca o refresh quando um novo snapshot chega — os setStates síncronos
-  // saem do effect (ajuste durante o render); o timer que apaga o flash
-  // continua em useEffect, re-armado a cada snapshot como antes.
+  // saem do effect (ajuste durante o render); o timer que apaga o destaque
+  // continua em useEffect, re-armado a cada snapshot.
   const [prevData, setPrevData] = useState<typeof data>(undefined)
   if (data && data !== prevData) {
     setPrevData(data)
@@ -89,18 +99,15 @@ export function LineUpTVDisplay() {
     })
   }, [hasAnimatedLoop, rows, startIndex])
 
-  const lastUpdate = data?.lastChangedAt
-    ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(
-        new Date(data.lastChangedAt),
-      )
-    : '-'
-  const firstRouteLabel = firstRoute ? buildDisplayLeadLabel(firstRoute) : '-'
+  const lastUpdate = data?.lastChangedAt ? TIME_FORMAT.format(new Date(data.lastChangedAt)) : '—'
+  const firstRouteLabel = firstRoute ? buildDisplayLeadLabel(firstRoute) : '—'
   const boardStyle = useMemo(
     () =>
       ({
         ['--lineup-display-columns' as string]: DISPLAY_GRID_TEMPLATE,
         ['--lineup-display-row-height' as string]: `${rowHeight}px`,
         ['--lineup-display-row-shift' as string]: isSliding ? `-${rowHeight}px` : '0px',
+        ['--lineup-display-travel' as string]: `${DISPLAY_ROW_TRAVEL_MS}ms`,
       }) as CSSProperties,
     [isSliding, rowHeight],
   )
@@ -128,7 +135,7 @@ export function LineUpTVDisplay() {
           await element.requestFullscreen()
         }
       } catch {
-        // Browser may require explicit user gesture; keep display usable without blocking.
+        // O navegador pode exigir gesto do usuário; o quadro segue utilizável.
       }
     }
 
@@ -147,29 +154,24 @@ export function LineUpTVDisplay() {
   useEffect(() => {
     if (isMobile || !hasAnimatedLoop || rowHeight <= 0) return
 
-    const runCycle = () => {
+    // Parado → desliza uma linha → avança o índice → parado de novo.
+    const dwell = () => {
+      timeoutRef.current = window.setTimeout(slide, DISPLAY_ROW_DWELL_MS)
+    }
+    const slide = () => {
       setIsSliding(true)
-      slideTimeoutRef.current = window.setTimeout(() => {
+      timeoutRef.current = window.setTimeout(() => {
         setIsSliding(false)
         setStartIndex((currentIndex) => (currentIndex + 1) % rows.length)
-        restartFrameRef.current = window.requestAnimationFrame(() => {
-          restartFrameRef.current = window.requestAnimationFrame(runCycle)
-        })
+        dwell()
       }, DISPLAY_ROW_TRAVEL_MS)
     }
-
-    restartFrameRef.current = window.requestAnimationFrame(() => {
-      restartFrameRef.current = window.requestAnimationFrame(runCycle)
-    })
+    dwell()
 
     return () => {
-      if (slideTimeoutRef.current !== null) {
-        window.clearTimeout(slideTimeoutRef.current)
-        slideTimeoutRef.current = null
-      }
-      if (restartFrameRef.current !== null) {
-        window.cancelAnimationFrame(restartFrameRef.current)
-        restartFrameRef.current = null
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
       }
     }
   }, [hasAnimatedLoop, isMobile, rowHeight, rows.length])
@@ -196,49 +198,57 @@ export function LineUpTVDisplay() {
     return () => observer.disconnect()
   }, [isMobile, rows.length])
 
+  // Falha com dados anteriores não apaga o quadro: avisa no cabeçalho que a
+  // tela está parada e mantém as escalas conhecidas.
+  const staleSince = error && data && refreshedAt ? TIME_FORMAT.format(refreshedAt) : null
+
   return (
     <main className="app-lineup-display-shell">
       <header className="app-lineup-display-header">
         <div className="app-lineup-display-brand">
           <img
-            src="/branding/vela-mark.svg"
-            alt="Símbolo Vela"
+            src="/branding/vela-mark-dark.svg"
+            alt=""
             className="app-lineup-display-brand__logo"
           />
-          <span className="app-lineup-display-brand__name">Vela</span>
+          <h1 className="app-lineup-display-brand__name">Line-Up</h1>
         </div>
-        <div className="app-lineup-display-meta">
-          <div className="app-lineup-display-meta__group">
-            <span className="app-lineup-display-meta__label">Início do ciclo</span>
-            <strong className="app-lineup-display-meta__value app-lineup-display-meta__value--route">{firstRouteLabel}</strong>
+        <dl className="app-lineup-display-meta">
+          <div className="app-lineup-display-meta__group app-lineup-display-meta__group--route">
+            <dt className="app-lineup-display-meta__label">Início do ciclo</dt>
+            <dd className="app-lineup-display-meta__value">{firstRouteLabel}</dd>
           </div>
           <div className="app-lineup-display-meta__group">
-            <span className="app-lineup-display-meta__label">Última alteração</span>
-            <strong className="app-lineup-display-meta__value">{lastUpdate}</strong>
+            <dt className="app-lineup-display-meta__label">Última alteração</dt>
+            <dd className="app-lineup-display-meta__value">{lastUpdate}</dd>
           </div>
-          <div className="app-lineup-display-meta__group">
-            <span className="app-lineup-display-meta__label">Atualizado às</span>
-            <strong
-              className="app-lineup-display-meta__value"
-              style={{ transition: 'color 0.4s', color: flashRefresh ? '#4ade80' : undefined }}
-            >
-              {refreshedAt
-                ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(refreshedAt)
-                : '-'}
-            </strong>
+          <div className="app-lineup-display-meta__group" aria-live="polite">
+            {staleSince ? (
+              <>
+                <dt className="app-lineup-display-meta__label">Sem atualização desde</dt>
+                <dd className="app-lineup-display-meta__value app-lineup-display-meta__value--stale">{staleSince}</dd>
+              </>
+            ) : (
+              <>
+                <dt className="app-lineup-display-meta__label">Atualizado às</dt>
+                <dd className={`app-lineup-display-meta__value${flashRefresh ? ' app-lineup-display-meta__value--fresh' : ''}`}>
+                  {refreshedAt ? TIME_FORMAT.format(refreshedAt) : '—'}
+                </dd>
+              </>
+            )}
           </div>
-        </div>
+        </dl>
       </header>
 
-      <section className="app-lineup-display-body">
-        {error ? (
-          <div className="app-lineup-display-error">Falha ao carregar o quadro da TV.</div>
-        ) : null}
-
-        {isLoading ? (
-          <div className="app-lineup-display-loading">Carregando line up...</div>
+      <section className="app-lineup-display-body" aria-label="Escalas do Line-Up">
+        {error && !data ? (
+          <div className="app-lineup-display-message app-lineup-display-message--error" role="alert">
+            Não foi possível carregar o Line-Up. Nova tentativa a cada 30 segundos.
+          </div>
+        ) : isLoading ? (
+          <div className="app-lineup-display-message" role="status">Carregando o Line-Up…</div>
         ) : rows.length === 0 ? (
-          <div className="app-lineup-display-loading">Nenhuma escala disponivel.</div>
+          <div className="app-lineup-display-message">Nenhuma escala em aberto.</div>
         ) : isMobile ? (
           <div className="app-lineup-mobile">
             {rows.map((row) => (
@@ -262,6 +272,8 @@ export function LineUpTVDisplay() {
                     const arrival = arrivalDisplay({ eta: row.eta, ata: row.ata })
                     const isBerthed = deriveEscalaState({ atb: row.atb, atd: row.atd }) === 'atracada'
                     const isCycleStart = isCycleStartRow(row.id, firstRoute?.id)
+                    const ce = lineUpCeStatus(row.rowType === 'export' ? row.exportCeStatus ?? 'waiting' : row.ceStatus)
+                    const linked = lineUpLinked(row.rowType === 'export' ? row.exportLinked : row.linked)
                     return (
                     <article
                       key={row.id}
@@ -269,58 +281,43 @@ export function LineUpTVDisplay() {
                       style={{ top: `${slotIndex * rowHeight}px` }}
                     >
                       <div className="app-lineup-display-board__cell app-lineup-display-board__cell--vessel">{row.vesselName}</div>
-                      <div className="app-lineup-display-board__cell app-lineup-display-board__cell--accent">{row.voyageNumber}</div>
-                      <div className="app-lineup-display-board__cell app-lineup-display-board__cell--accent">
-                        <div className="flex flex-wrap items-center justify-center gap-1">
-                          <span>{row.pod}</span>
-                          {row.omitted ? <OmittedChip /> : null}
-                        </div>
+                      <div className="app-lineup-display-board__cell">{row.voyageNumber}</div>
+                      <div className="app-lineup-display-board__cell app-lineup-display-board__cell--stack">
+                        <span>{row.pod}</span>
+                        {row.omitted ? <OmittedChip /> : null}
                       </div>
-                      <div className="app-lineup-display-board__cell app-lineup-display-board__cell--accent app-lineup-display-board__cell--terminal">{row.rowType === 'export' ? row.exportTerminal : row.importTerminal}</div>
-                      <div className={`app-lineup-display-board__cell ${arrival.isActual ? 'text-green-600' : ''}`}>{formatShortDate(arrival.value)}</div>
+                      <div className="app-lineup-display-board__cell app-lineup-display-board__cell--terminal">{row.rowType === 'export' ? row.exportTerminal : row.importTerminal}</div>
+                      <div className={`app-lineup-display-board__cell${arrival.isActual ? ' app-lineup-display-board__cell--actual' : ''}`}>
+                        {arrival.isActual ? <span className="sr-only">ATA </span> : null}
+                        {formatShortDate(arrival.value)}
+                      </div>
                       <div className="app-lineup-display-board__cell">{formatShortDate(row.etb)}</div>
                       {row.rowType === 'export' ? (
-                        <>
-                          <div
-                            className="app-lineup-display-board__cell app-lineup-display-board__cell--export-label"
-                            style={{ gridColumn: 'span 7' }}
-                          >
-                            {buildExportLabel(row)}
-                          </div>
-                          <div className="app-lineup-display-board__cell app-lineup-display-board__cell--status">
-                            {renderDisplayCeStatus(row.exportCeStatus ?? 'waiting')}
-                          </div>
-                          <div className="app-lineup-display-board__cell app-lineup-display-board__cell--status">
-                            <span className={`app-lineup-display-status ${row.exportLinked ? 'app-lineup-display-status--green' : 'app-lineup-display-status--amber'}`}>
-                              {row.exportLinked ? 'SIM' : 'NÃO'}
-                            </span>
-                          </div>
-                        </>
+                        <div
+                          className="app-lineup-display-board__cell app-lineup-display-board__cell--export-label"
+                          style={{ gridColumn: 'span 7' }}
+                        >
+                          {lineUpExportLabel(row)}
+                        </div>
                       ) : (
                         <>
-                          <div className="app-lineup-display-board__cell app-lineup-display-board__cell--accent">{formatInteger(row.vin)}</div>
-                          <div className="app-lineup-display-board__cell">{formatInteger(row.car)}</div>
-                          <div className="app-lineup-display-board__cell">{formatInteger(row.cg)}</div>
-                          <div className="app-lineup-display-board__cell app-lineup-display-board__cell--total">{formatInteger(row.total)}</div>
-                          <div className="app-lineup-display-board__cell">{formatInteger(row.mty)}</div>
-                          <div className="app-lineup-display-board__cell">{row.rtw === null ? '-' : formatInteger(row.rtw)}</div>
-                          <div className="app-lineup-display-board__cell app-lineup-display-board__cell--bb">
-                            <div className="app-lineup-display-board__bb">
-                              <span>{formatInteger(row.bbMachines)} MAQ</span>
-                              <span>{formatInteger(row.bbPackages)} PACK</span>
-                              <span>{formatInteger(row.bbTotal)} TOTAL</span>
-                            </div>
-                          </div>
-                          <div className="app-lineup-display-board__cell app-lineup-display-board__cell--status">
-                            {renderDisplayCeStatus(row.ceStatus)}
-                          </div>
-                          <div className="app-lineup-display-board__cell app-lineup-display-board__cell--status">
-                            <span className={`app-lineup-display-status ${row.linked ? 'app-lineup-display-status--green' : 'app-lineup-display-status--amber'}`}>
-                              {row.linked ? 'SIM' : 'NÃO'}
-                            </span>
+                          <div className="app-lineup-display-board__cell">{formatLineUpInteger(row.vin)}</div>
+                          <div className="app-lineup-display-board__cell">{formatLineUpInteger(row.car)}</div>
+                          <div className="app-lineup-display-board__cell">{formatLineUpInteger(row.cg)}</div>
+                          <div className="app-lineup-display-board__cell app-lineup-display-board__cell--total">{formatLineUpInteger(row.total)}</div>
+                          <div className="app-lineup-display-board__cell">{formatLineUpInteger(row.mty)}</div>
+                          <div className="app-lineup-display-board__cell">{row.rtw === null ? '—' : formatLineUpInteger(row.rtw)}</div>
+                          <div className="app-lineup-display-board__cell" title="Máquinas / packages">
+                            {formatBreakbulk(row)}
                           </div>
                         </>
                       )}
+                      <div className="app-lineup-display-board__cell app-lineup-display-board__cell--status">
+                        <DisplayStatus tone={ce.tone}>{ce.label}</DisplayStatus>
+                      </div>
+                      <div className="app-lineup-display-board__cell app-lineup-display-board__cell--status">
+                        <DisplayStatus tone={linked.tone}>{linked.label}</DisplayStatus>
+                      </div>
                     </article>
                     )
                   })}
@@ -349,29 +346,15 @@ export function LineUpTVDisplay() {
   )
 }
 
-function renderDisplayCeStatus(status: LineUpRow['ceStatus']) {
-  if (status === 'approved') return <span className="app-lineup-display-status app-lineup-display-status--green">Aprovado</span>
-  if (status === 'partial') return <span className="app-lineup-display-status app-lineup-display-status--amber">Parcial</span>
-  return <span className="app-lineup-display-status app-lineup-display-status--red">Aguardando</span>
+function DisplayStatus({ tone, children }: { tone: LineUpStatusTone; children: string }) {
+  return <span className={`app-lineup-display-status app-lineup-display-status--${tone}`}>{children}</span>
 }
 
-function ceStatusLabel(status: LineUpRow['ceStatus']) {
-  if (status === 'approved') return 'Aprovado'
-  if (status === 'partial') return 'Parcial'
-  return 'Aguardando'
-}
-
-function ceStatusColorClass(status: LineUpRow['ceStatus']) {
-  if (status === 'approved') return 'app-lineup-card__field-value--green'
-  if (status === 'partial') return 'app-lineup-card__field-value--amber'
-  return 'app-lineup-card__field-value--red'
-}
-
-function CardField({ label, value, accent, actual }: { label: string; value: string; accent?: boolean; actual?: boolean }) {
+function CardField({ label, value, actual, wide }: { label: string; value: React.ReactNode; actual?: boolean; wide?: boolean }) {
   return (
-    <div className="app-lineup-card__field">
+    <div className={`app-lineup-card__field${wide ? ' app-lineup-card__field--wide' : ''}`}>
       <span className="app-lineup-card__field-label">{label}</span>
-      <span className={`app-lineup-card__field-value ${accent ? 'app-lineup-card__field-value--accent' : ''} ${actual ? 'text-green-600' : ''}`}>
+      <span className={`app-lineup-card__field-value${actual ? ' app-lineup-card__field-value--actual' : ''}`}>
         {value}
       </span>
     </div>
@@ -381,76 +364,62 @@ function CardField({ label, value, accent, actual }: { label: string; value: str
 function LineUpMobileCard({ row, cycleStart }: { row: LineUpRow; cycleStart: boolean }) {
   const arrival = arrivalDisplay({ eta: row.eta, ata: row.ata })
   const isBerthed = deriveEscalaState({ atb: row.atb, atd: row.atd }) === 'atracada'
+  const isExport = row.rowType === 'export'
+  const ce = lineUpCeStatus(isExport ? row.exportCeStatus ?? 'waiting' : row.ceStatus)
+  const linked = lineUpLinked(isExport ? row.exportLinked : row.linked)
   return (
     <article className={`app-lineup-card ${isBerthed ? 'app-lineup-card--berthed' : ''} ${cycleStart ? 'app-lineup-display-board__row--cycle-start' : ''}`}>
       <div className="app-lineup-card__head">
         <span className="app-lineup-card__vessel">{row.vesselName}</span>
-        <span className="app-lineup-card__voy">Voy {row.voyageNumber}</span>
+        <span className="app-lineup-card__voy">Viagem {row.voyageNumber}</span>
       </div>
       <div className="app-lineup-card__pod">
         <span className="app-lineup-card__pod-label">POD</span>
         <span>{row.pod}</span>
         {row.omitted ? <OmittedChip /> : null}
+        {isBerthed ? <span className="app-lineup-card__state">Atracado</span> : null}
       </div>
       <div className="app-lineup-card__grid">
-        <CardField label="Terminal" value={row.rowType === 'export' ? row.exportTerminal : row.importTerminal} />
-        <CardField label="ETA" value={formatShortDate(arrival.value)} actual={arrival.isActual} />
+        <CardField label="Terminal" value={isExport ? row.exportTerminal : row.importTerminal} />
+        <CardField label={arrival.isActual ? 'ATA' : 'ETA'} value={formatShortDate(arrival.value)} actual={arrival.isActual} />
         <CardField label="ETB" value={formatShortDate(row.etb)} />
-        <CardField label="VIN" value={formatInteger(row.vin)} />
-        <CardField label="VIN CNTR" value={formatInteger(row.car)} />
-        <CardField label="CG" value={formatInteger(row.cg)} />
-        <CardField label="Total" value={formatInteger(row.total)} accent />
-        <CardField label="MTY" value={formatInteger(row.mty)} />
-        <CardField label="RTW" value={row.rtw === null ? '-' : formatInteger(row.rtw)} />
-        <div className="app-lineup-card__field app-lineup-card__field--wide">
-          <span className="app-lineup-card__field-label">BB</span>
-          <span className="app-lineup-card__field-value">
-            {formatInteger(row.bbMachines)} MAQ · {formatInteger(row.bbPackages)} PACK · {formatInteger(row.bbTotal)} TOTAL
-          </span>
-        </div>
-        <div className="app-lineup-card__field">
-          <span className="app-lineup-card__field-label">CEs</span>
-          <span className={`app-lineup-card__field-value ${ceStatusColorClass(row.ceStatus)}`}>
-            {ceStatusLabel(row.ceStatus)}
-          </span>
-        </div>
-        <div className="app-lineup-card__field">
-          <span className="app-lineup-card__field-label">Linked</span>
-          <span
-            className={`app-lineup-card__field-value ${row.linked ? 'app-lineup-card__field-value--green' : 'app-lineup-card__field-value--amber'}`}
-          >
-            {row.linked ? 'SIM' : 'NÃO'}
-          </span>
-        </div>
+        {isExport ? (
+          <CardField label="Carga" value={lineUpExportLabel(row)} wide />
+        ) : (
+          <>
+            <CardField label="VIN" value={formatLineUpInteger(row.vin)} />
+            <CardField label="VIN CNTR" value={formatLineUpInteger(row.car)} />
+            <CardField label="CG" value={formatLineUpInteger(row.cg)} />
+            <CardField label="Total" value={formatLineUpInteger(row.total)} />
+            <CardField label="MTY" value={formatLineUpInteger(row.mty)} />
+            <CardField label="RTW" value={row.rtw === null ? '—' : formatLineUpInteger(row.rtw)} />
+            <CardField label="BB máq. / packages" value={formatBreakbulk(row)} wide />
+          </>
+        )}
+        <CardField label="CEs" value={<DisplayStatus tone={ce.tone}>{ce.label}</DisplayStatus>} />
+        <CardField label="Vinculada" value={<DisplayStatus tone={linked.tone}>{linked.label}</DisplayStatus>} />
       </div>
     </article>
   )
 }
 
-
-function buildExportLabel(row: LineUpRow) {
-  const parts: string[] = ['EXP']
-  if (row.exportHasGranite) parts.push('GRANITE')
-  if (row.exportContainersQty !== null) {
-    const moves = row.exportMovementsQty !== null ? ` - ${formatInteger(row.exportMovementsQty)} MOVES` : ''
-    parts.push(`${formatInteger(row.exportContainersQty)} CNTRS${moves}`)
-  }
-  return parts.join(' | ')
+/** BB numa linha: máquinas / packages. O total era a soma das duas e ocupava uma terceira linha. */
+function formatBreakbulk(row: Pick<LineUpRow, 'bbMachines' | 'bbPackages'>) {
+  if (!row.bbMachines && !row.bbPackages) return '—'
+  return `${formatLineUpInteger(row.bbMachines)} / ${formatLineUpInteger(row.bbPackages)}`
 }
 
 function OmittedChip() {
   return (
-    <span
-      className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
-      title="Escala omitida — o navio não atracou neste porto."
-    >
-      Omitida
+    <span className="app-lineup-display-omit" title="Escala omitida — o navio não atracará neste porto.">
+      OMIT
     </span>
   )
 }
 
 function buildDisplayLeadLabel(row: LineUpRow) {
-  const etaLabel = formatDisplayLeadDate('ETA', arrivalDisplay({ eta: row.eta, ata: row.ata }).value)
+  const arrival = arrivalDisplay({ eta: row.eta, ata: row.ata })
+  const etaLabel = formatDisplayLeadDate(arrival.isActual ? 'ATA' : 'ETA', arrival.value)
   if (etaLabel) return `${etaLabel} | ${row.vesselName} | ${row.pod}`
 
   const etbLabel = formatDisplayLeadDate('ETB', row.etb)
@@ -459,7 +428,7 @@ function buildDisplayLeadLabel(row: LineUpRow) {
   return `${row.vesselName} | ${row.pod}`
 }
 
-function formatDisplayLeadDate(label: 'ETA' | 'ETB', value: string | null) {
+function formatDisplayLeadDate(label: 'ETA' | 'ATA' | 'ETB', value: string | null) {
   if (!value) return null
   const shortDate = formatDateOnlyToBRShort(value)
   if (shortDate) return `${label} ${shortDate}`
@@ -469,9 +438,6 @@ function formatDisplayLeadDate(label: 'ETA' | 'ETB', value: string | null) {
 }
 
 function formatShortDate(value: string | null) {
-  return formatShortDateSafe(value)
-}
-
-function formatInteger(value: number) {
-  return new Intl.NumberFormat('pt-BR').format(Number(value ?? 0))
+  const formatted = formatShortDateSafe(value)
+  return formatted === '-' ? '—' : formatted
 }

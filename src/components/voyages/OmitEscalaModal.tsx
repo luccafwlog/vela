@@ -70,7 +70,7 @@ export function OmitEscalaModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`Omitir escala de ${omittedPod}`}>
+    <Modal open={open} onClose={onClose} title={`Omitir escala de ${omittedPod}`} size="md">
       <form className="grid gap-4" onSubmit={handleSubmit}>
         {isConfirming ? (
           <>

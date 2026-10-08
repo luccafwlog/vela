@@ -6,8 +6,10 @@ it('does not promise unsupported schedule confirmation or update times', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/components/portal/ShipScheduleWidget.tsx'), 'utf8')
   expect(source).not.toContain('Evento confirmado')
   expect(source).not.toContain('Atualização diária às 09:00')
-  expect(source).toContain('data programada já alcançada')
-  expect(source).toContain('Atualizado conforme os dados publicados')
+  // A data efetiva é a registrada (ATD/ATA), não "a data alcançada": a
+  // legenda diz de onde vem cada data.
+  expect(source).toContain('data efetiva: saída ou chegada registrada')
+  expect(source).toContain('Datas atualizadas conforme os dados publicados')
 })
 
 it('uses neutral report-limit copy instead of claiming one global limit', () => {

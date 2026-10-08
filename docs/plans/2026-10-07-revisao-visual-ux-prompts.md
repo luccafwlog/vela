@@ -1,7 +1,7 @@
 # Revisão visual e UX do Vela e Portal — pacote de prompts
 
 Data: 2026-10-07. Base inspecionada: `main`, commit `0160605a`, checkout inicialmente sem diff.
-Estado: etapas 00, 01 e 02 concluídas em 2026-10-07 (direção visual, inventário, tokens, primitivas, shells e acesso registrados abaixo); próxima: etapa 03.
+Estado: etapas 00, 01 e 02 concluídas em 2026-10-07 e 03 em 2026-10-08 (direção visual, inventário, tokens, primitivas, shells, acesso e Viagens registrados abaixo); próxima: etapa 04.
 
 ## O que este pacote cobre
 
@@ -498,6 +498,63 @@ Registro de 2026-10-07 sobre a base `59dd88d9` (`main` após a PR 898). Ambiente
 - **Runtime:** antes e depois em 1440, 768 e 360 px (toque) para `/login`, as cinco telas públicas do Portal, `/painel`, `/bls`, `/perfil`, rota inexistente, inspeção (painel e perfil), menu da conta, menu móvel e os dois sinos; larguras 1101, 1180, 1280 e 1366 px para a barra. Sem rolagem horizontal.
 - **Não verificado:** login real do Portal e envio de recuperação (Edge Functions e Turnstile fora do shim), leitor de tela real, zoom de 200% e tema escuro do Vela nesta etapa.
 
+## Entrega da etapa 03 — Viagens, escalas, programação e TV
+
+Registro de 2026-10-08 sobre a base `521183d3` (`main` após a PR 899), branch `claude/revisao-visual-ux-etapa-03`. Ambiente de evidência: Postgres 16 descartável com todas as migrations, `validation_seed.sql` e `seed_audit.sql`, `sb-shim.cjs` e Vite, login de auditoria. Dados sintéticos acrescentados só nesse banco: escalas da viagem 10 (BRSSA com ETA vencido, BRPEC prevista, BRIOA omitida), POL com ETD/ATD e `show_on_portal` nas viagens 1 e 10.
+
+### O que mudou
+
+| Superfície | Antes (**Runtime**, salvo indicação) | Depois |
+|---|---|---|
+| Faixa de viagens | Lápis era um `span role="button"` dentro do botão do card (interativo aninhado, **Código**); rótulos de 10 e 11 px em caixa alta; escala só com ETA | Card com dois botões irmãos (abrir e editar); 12/13/14 px em caixa normal; cada escala diz `✓ ATA`, ETA vencido (`!`, vermelho) ou previsão, também em texto para leitor de tela; situação Cancelada/Concluída visível |
+| Cabeçalho da ficha | Caixa com gradiente e sombra dentro do card; armador em caixa alta sem acento; "Faturamento Encerrado" com cores do tema escuro; rotas em fichas | Superfície única com filetes; navio/viagem em DM Sans 24/600; `Badge` "Faturamento encerrado"; rotas em uma linha de texto; Cancelar viagem e Excluir com contorno vermelho |
+| Trilho da viagem | Inexistente | `StepRail` "Escalas no Brasil" em ordem de chegada: Concluída, Atracada, Chegou, ETA vencido, ETA previsto, ETA não informado, OMIT; uma única escala atual |
+| Indicadores | Quatro cards com números em Syne, painéis internos com borda (três níveis), "PRÓXIMA ESCALA"/"CONCILIAÇÃO" em caixa alta, "Status: Pendente" mesmo sem pendência definida, valores cortados a 360 px | Faixa com filetes, DM Sans 20/600 com `tabular-nums`; Próxima escala diz "ETA vencido — ATA pendente" ou "Prevista", "ETB a confirmar", e sem próxima escala "ETA não informado"/"Todas chegaram"; conciliação como `Badge`; nada cortado a 360 px |
+| Abas e atalhos | Abas soltas; "Baplie EDI" e "B/Ls da viagem" como botões que pareciam abas, entre os indicadores e as abas | `TabList` + `tabpanel`; atalhos como links com seta na linha das abas; aba "Relatório de saída (ADR)" para não confundir com decisão arquitetural |
+| Planejamento por escala | Cabeçalho em duas linhas, tudo centralizado, ETA e ATA em colunas separadas sem indicar ETA vencido, ATD da escala sem dizer de qual terminal; ícone de alerta para Omitir; botões de 44 px com sombra; tabela dentro de quadro com sombra dentro da seção com borda | Uma linha de cabeçalho, alinhamento à esquerda; Chegada com data e origem ("ATA real · prev.", "ETA previsto", "ETA vencido — ATA pendente", "ETA não informado", OMIT); Saída com ATD e o terminal dono, ou ETD previsto e terminal; rótulo de estado ao lado do porto; Omitir com ícone de pular; ações de 36 px com mouse; Atracações com colunas "ETB · previsto", "ATB · real" etc. e `✓` nas reais |
+| Linha do tempo | Card por evento com 18 cores hex | Lista com filetes, tom por natureza (sucesso, info, atenção, perda) por token, contagem no título |
+| Reabrir ADR | `textarea` sem estilo, sem Voltar, sem estado em andamento | `Field` + `Textarea` obrigatória, consequência explícita, Voltar e "Reabrindo…" |
+| Viagem inexistente (`/viagens/999`) | 406 no console; erro de carregamento e "não encontrada" ao mesmo tempo | `useVoyageDetail` com `maybeSingle`: só "Viagem não encontrada"; falha real mostra "Não foi possível abrir esta viagem" |
+| Chegadas e Saídas | Modal próprio sem foco preso nem Escape, fechar "×" sem nome; botão Salvar sem estado; erro de consulta sumia; upload só mostrava contagens de erro; cabeçalho azul-marinho; data efetiva em azul | `Modal` `md`; datas agrupadas em Chegada no Brasil (ETA, obrigatório) e Saída na origem (ETD); "Salvando…"; erro com Tentar novamente; vazio com orientação; lista nominal de viagens não atualizadas e datas ignoradas; cabeçalho comum agrupado; células compartilhadas com o Portal |
+| Programação no Portal (widget) | Erro de consulta mostrado como "Nenhum navio programado"; data efetiva só em azul; rodapé contraditório ("efetiva confirmada" × "programada já alcançada"); tabela de 900 px rolando no celular; cabeçalho em inglês | Erro com Tentar novamente; data efetiva com `✓` e o verde do `CONTEXT.md` (ATD do POL); previsão passada "a confirmar"; OMIT e X distintos e explicados numa legenda; cartões por navio abaixo de 640 px; Navio/Viagem e portos em caixa normal |
+| Line-Up na TV | Quadro claro; menor texto 10 px; total em azul claro; BB em três linhas ("0 MAQ / 0 PACK / 0 TOTAL"); cabeçalhos VESSEL/VOY/LINKED; rolamento contínuo; CEs Recebido/Lançando/Em aprovação exibidos como "Aguardando"; erro de atualização trocava a tela | Variante escura: a 1920 px menor texto 28 px (medido), dados ~31 px; BB numa linha "máq. / packages"; Navio, Viagem, Vinculada; para 4 s e desliza 0,9 s; CEs pela mesma função do Painel; falha com dados mantém o quadro e avisa "Sem atualização desde" |
+| Line-Up do Painel (`LineUpTable`, consumido pela 19) | Classes do tema escuro remapeadas; números em azul claro; MAQ/PACK/TOTAL; modo `display` sem consumidor | Tokens; números com sublinhado pontilhado de atalho; ATA com `✓`; BB "máq. / packages"; modo `display` removido; legenda do Painel ajustada para "Vinculada" e "packages" |
+
+A suspeita da etapa 00 ("Lançando" no Painel × "Aguardando" na TV) foi confirmada: era o mapa próprio da TV, não a origem dos dados. `lineUpStatus.ts` passou a ser a única leitura dos dois.
+
+### Medidas antes → depois (**Runtime**, 1440 px salvo indicação)
+
+- Texto abaixo de 12 px: `/viagens/10` 43 → 0; Importação 96 → 0; Exportação 53 → 0; Rotas e Manifestos 53 → 0; ADR 77 → 0. TV a 1920 px: menor fonte 10 → 28 px.
+- Primeira linha do planejamento em `/viagens/10`: 1243 → 1178 px (1440); altura da página 2130 → 1958 px; a 360 px, 3247 → 3011 px.
+- Sem rolagem horizontal em 1440, 768 e 360 px nas 10 rotas/variações capturadas; nenhum erro de console (o 406 sumiu).
+- **Divergência intencional:** a primeira linha de dado continua abaixo de 260 px. A ficha é master-detail: faixa de viagens, cabeçalho, trilho e indicadores vêm antes da tabela por decisão (ADR 0012). Reduzir mais exigiria recolher a faixa, o que é decisão de produto.
+- Ações por linha no planejamento: Editar, Omitir e Excluir (Administrativo) continuam visíveis por serem ações distintas sem menu "Mais ações" no design system.
+
+### Decisões
+
+- **Regras de apresentação em módulo puro:** `components/voyages/escalaPresentation.ts` (`describeArrival`, `describeDeparture`, `escalaStateTag`, `buildEscalaTrail`) e `components/portal/shipScheduleCells.ts` (`scheduleCellState`). Têm testes próprios.
+- **Data efetiva em verde com `✓`** em toda a etapa (planejamento, atracações, Line-Up, TV, programação). O azul anterior da programação contrariava o `CONTEXT.md` (ATD do POL "com destaque verde").
+- **Cores da TV são locais** (`--tv-*` em `.app-lineup-display-shell`): a parede não segue o tema de quem abriu a aba. O cabeçalho usa o símbolo `vela-mark-dark.svg`.
+- **Owners tocados fora da lista:** `hooks/useBls.ts` (`useVoyageDetail`, `maybeSingle`), `services/voyageSummaries.ts` (`escalasBrasileiras` passa a carregar `ata`) e uma linha da legenda em `pages/Painel.tsx` (19), ajustada porque o cabeçalho que ela explica mudou. `designSystemLote2.test.ts` deixou de exigir o quadro arredondado da Viagem, que saiu.
+
+### Pendências para outros donos
+
+| Dono | Achado |
+|---|---|
+| 19 | Painel do Portal: o título da seção "Chegadas e Saídas" fica acima do título interno "Programação de navios" do widget; a 19 decide se mantém os dois. |
+| 19 | O Line-Up do Painel ainda tem 15 colunas e rola de lado abaixo de 1024 px; cartões no celular são decisão da página. |
+| 13 | `AgencyReportDocument` (ADR impresso) não foi alterado. |
+| 01 | Não há "Mais ações" (menu) no design system; quando existir, Omitir e Excluir escala podem sair da linha. |
+| 03 (limite) | A 360 px a tabela de planejamento rola de lado dentro da própria área (Chegada, Saída e ações ficam à direita); cartões por escala no celular ficam como evolução, porque a tabela é a superfície de edição. |
+| Negócio | O nome do serviço "CSSC Container Liner Service Schedule – ECSA" segue fixo no widget; confirmar se deve vir de configuração. |
+
+### Evidência e limites
+
+- **Gates:** `npm run docs:check`, `typecheck`, `lint`, `build` e `a11y:contrast` (34/34) passaram; `npm test` passou em 712 arquivos (4.052 testes) depois de ajustar dois contratos antigos (logo da TV e alvo de 44 px do expansor de atracações, que agora vive no CSS de ponteiro grosso). Contraste da paleta local da TV calculado à parte: mínimo 7,5:1 sobre a superfície de dados e 5,6:1 no pior par teórico (vermelho sobre o cabeçalho, que não ocorre).
+- **Teste:** testes novos `escalaPresentation.test.ts` (chegada vencida/não informada/OMIT/real, terminal dono da saída, estado da escala, trilho com uma escala atual) e `ShipScheduleWidget.test.tsx` (estados de célula, erro × vazio, Tentar novamente); `LineUpTVDisplay.behavior.test.tsx` ganhou os casos de CEs iguais ao Painel e de falha com dados anteriores. Testes de Chegadas e Saídas, Painel, Viagens, KPIs e Planejamento ajustados ao novo texto e estrutura. Resultado dos gates na tabela de registro.
+- **Runtime:** antes e depois em 1440, 768 e 360 px (toque) para `/viagens`, `/viagens/10` e suas quatro abas, `/viagens/11` (concluída), `/viagens/999`, `/chegadas-saidas`, o Painel do Portal na inspeção e a TV (1920×1080, 768 e 360); modais Nova viagem e Editar escala abertos sem gravar.
+- **Não verificado:** gravações (salvar escala, omitir, publicar programação, upload) só por teste automatizado; carrossel da TV com mais de oito escalas e por tempo prolongado; tema escuro do Vela nesta etapa; leitor de tela real; zoom de 200%; Portal fora do Modo Inspeção.
+
 ## Prompts por etapa
 
 Cada bloco abaixo é o prompt específico. Em uma sessão nova, envie também o contrato comum acima; com acesso a este arquivo, sua leitura é obrigatória.
@@ -847,7 +904,7 @@ Preparação deste pacote: inventário estático e divisão de responsabilidades
 | 00 | Concluída em 2026-10-07 | Base `ba7cd09d`; branch `claude/revisao-visual-ux-etapa-00`; só documentação | Direção A, "Carta náutica", escolhida e registrada em "Etapa 00 — direção visual e inventário confirmado"; complementos da matriz de propriedade; inventário de rotas, abas e modais; alvos por etapa. **Runtime** local com dados sintéticos: 47 rotas em 1440 e 360 px, 28 variações de aba, 768 px, tema escuro e 6 modais; nenhuma rolagem horizontal; `a11y:contrast` 22/22. Lacunas: login real do Portal (visto via inspeção), poucos dados sintéticos, zoom, leitor de tela e impressão. Arquivos: este plano, `docs/plans/README.md` e correção da contagem de rotas do Portal em `docs/ARCHITECTURE.md`. Telas não alteradas. Próxima: 01. |
 | 01 | Concluída em 2026-10-07 | Base `74d82566`; branch `claude/revisao-visual-ux-etapa-01` | Tokens (escala, raio, densidade, aliases semânticos com par escuro, cabeçalho claro) e primitivas (`Button`, `Modal`, `TabButton`, `Badge`, `MetricCard`, paginação, `QueryStateGate`, `BulkActionsBar`) revisados; `Drawer`, `TabList`, `SegmentedControl`, `SummaryStrip`, `StepRail` e `describePageRange` criados. Ver "Entrega da etapa 01". Gates locais e `a11y:contrast` 34/34 verdes; runtime antes/depois em 1440, 360 e escuro. Pendências por etapa na tabela "Como cada etapa adota". Próxima: 02. |
 | 02 | Concluída em 2026-10-07 | Base `59dd88d9`; branch `claude/revisao-visual-ux-etapa-02` | Barra única no Vela e no Portal (topo 143→85 px no Vela desktop), versão no menu da conta, faixa de avisos sem corte, sinos com painel comum e estados de erro, telas de acesso e perfis revisados, `PasswordInput`, `PortalAccessHelp` e `StatusScreen` criados, acesso restrito com motivo. Ver "Entrega da etapa 02". Gates locais e `a11y:contrast` 34/34 verdes; runtime antes/depois em 1440, 768 e 360 px. Pendências para 01, 18 e decisões de negócio na mesma seção. Próxima: 03. |
-| 03 | Não iniciada | — | — |
+| 03 | Concluída em 2026-10-08 | Base `521183d3`; branch `claude/revisao-visual-ux-etapa-03` | Ficha da Viagem em superfície única com trilho de escalas, chegada/saída legíveis (prevista, real, vencida, não informada, OMIT, terminal dono), TV escura de alto contraste com CEs iguais ao Painel, programação do Portal e Chegadas e Saídas com células compartilhadas, erro distinto de vazio e cartões no celular; viagem inexistente sem 406. Ver "Entrega da etapa 03". Gates locais verdes: `docs:check`, `typecheck`, `lint`, `build`, `npm test` (712 arquivos, 4.052 testes) e `a11y:contrast` 34/34; paleta local da TV ≥ 7,5:1 sobre a superfície de dados. Runtime antes/depois em 1440, 768, 360 e TV 1920. Pendências para 01, 13, 19 e negócio na mesma seção. Próxima: 04. |
 | 04 | Não iniciada | — | — |
 | 05 | Não iniciada | — | — |
 | 06 | Não iniciada | — | — |

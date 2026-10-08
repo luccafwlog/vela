@@ -185,7 +185,7 @@ export function PolScheduleModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={polSchedule?.cargoMode === 'vazios' ? 'Manifesto de Vazios · Nº de Manifesto Mercante' : 'Editar ETD + ATD e Nº de Manifesto Mercante'}>
+    <Modal size="md" open={open} onClose={onClose} title={polSchedule?.cargoMode === 'vazios' ? 'Manifesto de Vazios · Nº de Manifesto Mercante' : 'Editar ETD + ATD e Nº de Manifesto Mercante'}>
       {polSchedule ? (
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <div className="app-escala-summary">
@@ -215,7 +215,7 @@ export function PolScheduleModal({
             <Button variant="secondary" type="button" onClick={onClose}>
               Voltar
             </Button>
-            <Button loading={saving} type="submit">
+            <Button loading={saving} loadingLabel="Salvando…" type="submit">
               Salvar
             </Button>
           </div>
@@ -1271,7 +1271,7 @@ export function EscalaModal({
             <Button variant="secondary" type="button" onClick={onClose}>
               Voltar
             </Button>
-            <Button loading={saving} disabled={saving || Boolean(terminalScale?.loading || terminalScale?.error)} type="submit">
+            <Button loading={saving} loadingLabel="Salvando…" disabled={saving || Boolean(terminalScale?.loading || terminalScale?.error)} type="submit">
               {isNew ? 'Adicionar escala' : 'Salvar escala'}
             </Button>
           </div>

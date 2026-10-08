@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -75,10 +75,10 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getByRole('button', { name: /Adicionar Navio/ }))
-    await user.type(screen.getByLabelText('Nome do Navio'), 'GAMMA')
-    await user.type(screen.getByLabelText('Viagem (VOY)'), '003')
-    await user.click(screen.getAllByLabelText('Não escala')[5])
-    await user.click(screen.getByRole('button', { name: 'Adicionar' }))
+    await user.type(screen.getByLabelText(/Nome do Navio/), 'GAMMA')
+    await user.type(screen.getByLabelText(/Viagem \(VOY\)/), '003')
+    await user.click(screen.getAllByLabelText('Não escala')[0])
+    await user.click(screen.getByRole('button', { name: 'Adicionar e publicar' }))
 
     expect(mocks.createOrAttach).toHaveBeenCalledWith(expect.objectContaining({
       vesselName: 'GAMMA',
@@ -92,8 +92,8 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getAllByTitle('Editar')[0])
-    expect((screen.getByLabelText('Nome do Navio') as HTMLInputElement).value).toBe('ALPHA')
-    expect((screen.getByLabelText('Viagem (VOY)') as HTMLInputElement).value).toBe('001')
+    expect((screen.getByLabelText(/Nome do Navio/) as HTMLInputElement).value).toBe('ALPHA')
+    expect((screen.getByLabelText(/Viagem \(VOY\)/) as HTMLInputElement).value).toBe('001')
   })
 
   it('edicao salva com mode form e o voyageId conhecido (sem re-dedup)', async () => {
@@ -101,7 +101,7 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getAllByTitle('Editar')[0])
-    const dateInput = screen.getByLabelText(/SALVADOR/) as HTMLInputElement
+    const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
     await user.clear(dateInput)
     await user.type(dateInput, '2026-01-25')
     await user.click(screen.getByRole('button', { name: /Salvar/ }))
@@ -118,8 +118,8 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getAllByTitle('Editar')[0])
-    expect((screen.getByLabelText('Nome do Navio') as HTMLInputElement).disabled).toBe(true)
-    expect((screen.getByLabelText('Viagem (VOY)') as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByLabelText(/Nome do Navio/) as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByLabelText(/Viagem \(VOY\)/) as HTMLInputElement).disabled).toBe(true)
     expect((screen.getByLabelText('Número IMO') as HTMLInputElement).disabled).toBe(true)
   })
 
@@ -133,14 +133,14 @@ describe('ChegadasSaidas user behaviours', () => {
   it('abre MarineTraffic com IMO da viagem', () => {
     render(<ChegadasSaidas />)
 
-    expect(screen.getByRole('link', { name: 'ALPHA' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: /ALPHA/ }).getAttribute('href')).toBe(
       'https://www.marinetraffic.com/en/ais/details/ships/imo:9876543',
     )
   })
 
   it('mostra OMIT para escala omitida, distinto de X', () => {
     render(<ChegadasSaidas />)
-    expect(screen.getByText('OMIT')).toBeTruthy()
+    expect(within(screen.getByRole('table')).getByText('OMIT')).toBeTruthy()
     expect(screen.getAllByText('X').length).toBeGreaterThan(0)
   })
 
@@ -159,8 +159,8 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getAllByTitle('Editar')[0])
-    const dateInput = screen.getByLabelText(/SALVADOR/) as HTMLInputElement
-    const checkbox = screen.getAllByLabelText('Não escala')[5] as HTMLInputElement
+    const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
+    const checkbox = screen.getAllByLabelText('Não escala')[0] as HTMLInputElement
 
     expect(dateInput.disabled).toBe(false)
     expect(checkbox.checked).toBe(false)
@@ -182,7 +182,7 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getAllByTitle('Editar')[0])
-    const dateInput = screen.getByLabelText(/SALVADOR/)
+    const dateInput = screen.getByLabelText(/Salvador/)
 
     await user.type(dateInput, '{Enter}')
     expect(mocks.createOrAttach).not.toHaveBeenCalled()
@@ -193,8 +193,8 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getAllByTitle('Editar')[0])
-    const dateInput = screen.getByLabelText(/SALVADOR/) as HTMLInputElement
-    const checkbox = screen.getAllByLabelText('Não escala')[5] as HTMLInputElement
+    const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
+    const checkbox = screen.getAllByLabelText('Não escala')[0] as HTMLInputElement
 
     expect(checkbox.checked).toBe(false)
     expect(dateInput.disabled).toBe(false)
@@ -210,19 +210,19 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getByRole('button', { name: /Adicionar Navio/ }))
-    await user.type(screen.getByLabelText('Nome do Navio'), 'DELTA')
-    await user.type(screen.getByLabelText('Viagem (VOY)'), '004')
+    await user.type(screen.getByLabelText(/Nome do Navio/), 'DELTA')
+    await user.type(screen.getByLabelText(/Viagem \(VOY\)/), '004')
 
-    // Desmarca "Não escala" em Salvador (lane index 5)
-    await user.click(screen.getAllByLabelText('Não escala')[5])
-    const dateInput = screen.getByLabelText(/SALVADOR/) as HTMLInputElement
+    // Desmarca "Não escala" em Salvador (primeiro porto de chegada)
+    await user.click(screen.getAllByLabelText('Não escala')[0])
+    const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
     expect(dateInput.disabled).toBe(false)
 
     // Altera a data digitando valor com 0
     await user.clear(dateInput)
     await user.type(dateInput, '2026-09-08')
 
-    await user.click(screen.getByRole('button', { name: 'Adicionar' }))
+    await user.click(screen.getByRole('button', { name: 'Adicionar e publicar' }))
 
     expect(mocks.createOrAttach).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -242,7 +242,7 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getAllByTitle('Editar')[0])
-    const dateInput = screen.getByLabelText(/SALVADOR/) as HTMLInputElement
+    const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
     await user.clear(dateInput)
     await user.type(dateInput, '2026-02-15')
 
@@ -282,12 +282,12 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     await user.click(screen.getAllByTitle('Editar')[0])
-    // Desmarca "Não escala" em VITÓRIA (index 6, preenche data automaticamente)
-    const vitoriaCheckbox = screen.getAllByLabelText('Não escala')[6] as HTMLInputElement
+    // Desmarca "Não escala" em Vitória (preenche data automaticamente)
+    const vitoriaCheckbox = screen.getAllByLabelText('Não escala')[1] as HTMLInputElement
     await user.click(vitoriaCheckbox)
 
-    // Marca SALVADOR (index 5) como não escala
-    const salvadorCheckbox = screen.getAllByLabelText('Não escala')[5] as HTMLInputElement
+    // Marca Salvador como não escala
+    const salvadorCheckbox = screen.getAllByLabelText('Não escala')[0] as HTMLInputElement
     await user.click(salvadorCheckbox)
 
     await user.click(screen.getByRole('button', { name: /Salvar/ }))

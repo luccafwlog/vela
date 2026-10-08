@@ -306,7 +306,6 @@ export function Viagens() {
     <>
       <PageHeader
         title="Viagens"
-        description="Cadastro de navio/viagem com planejamento de escalas e visão separada entre operação de importação e exportação."
         action={
           canEditVoyages ? (
             <Button onClick={() => setOpen(true)}>
@@ -324,8 +323,7 @@ export function Viagens() {
         ]} />
       ) : null}
 
-      {error ? <InlineError message="Erro ao carregar viagens." /> : null}
-      {selectedVoyageError ? <InlineError message="Erro ao carregar o detalhe da viagem." /> : null}
+      {error ? <InlineError message="Não foi possível carregar as viagens. Recarregue a página para tentar novamente." /> : null}
 
       <VoyageFilters
         filters={filters}
@@ -337,7 +335,7 @@ export function Viagens() {
         loading={isLoading}
       />
 
-      <div className="grid gap-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
         {isLoading ? (
           <SkeletonCard lines={3} />
         ) : (
@@ -354,10 +352,15 @@ export function Viagens() {
         {!selectedVoyageId ? (
           <EmptyState
             title="Selecione uma viagem"
-            description="Escolha uma viagem na faixa acima para ver o detalhe, planejamento de escalas e os fluxos de importação e exportação."
+            description="Escolha uma viagem na faixa acima para ver escalas, carga, manifestos e ADR."
           />
         ) : isSelectedVoyageLoading ? (
           <SkeletonCard lines={4} />
+        ) : selectedVoyageError ? (
+          <EmptyState
+            title="Não foi possível abrir esta viagem"
+            description="A consulta do detalhe falhou. Recarregue a página para tentar novamente."
+          />
         ) : selectedVoyage ? (
           <VoyageCard
             key={selectedVoyage.id}
@@ -390,7 +393,7 @@ export function Viagens() {
         ) : (
           <EmptyState
             title="Viagem não encontrada"
-            description="A viagem selecionada não existe mais ou foi removida."
+            description="A viagem deste endereço não existe ou foi excluída. Escolha outra na faixa acima."
           />
         )}
       </div>
@@ -420,21 +423,28 @@ export function Viagens() {
           setCancellationReason('')
         }}
         title="Cancelar viagem"
+        size="sm"
       >
-        <div className="grid gap-4">
+        <form
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleCancelVoyage()
+          }}
+        >
           <p className="text-sm text-[var(--app-text)]">
-            O cancelamento preserva a viagem e seus vínculos para rastreabilidade.
+            A viagem fica Cancelada e somente leitura, mantida com seus vínculos para rastreabilidade. Ela sai do Line-Up e da Programação do Portal.
           </p>
-          <Field label="Motivo do cancelamento">
+          <Field label="Motivo do cancelamento" required hint="Fica registrado na auditoria da viagem.">
             <Input value={cancellationReason} onChange={(event) => setCancellationReason(event.target.value)} />
           </Field>
           <div className="app-modal__actions">
-            <Button variant="secondary" onClick={() => setCancellingVoyageId(null)}>Voltar</Button>
-            <Button variant="danger" loading={cancelling} disabled={!cancellationReason.trim()} onClick={handleCancelVoyage}>
+            <Button type="button" variant="secondary" onClick={() => { setCancellingVoyageId(null); setCancellationReason('') }}>Voltar</Button>
+            <Button type="submit" variant="danger" loading={cancelling} loadingLabel="Cancelando…" disabled={!cancellationReason.trim()}>
               Continuar
             </Button>
           </div>
-        </div>
+        </form>
       </Modal>
 
       <EscalaModal

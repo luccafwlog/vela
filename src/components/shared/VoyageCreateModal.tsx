@@ -137,7 +137,7 @@ export function VoyageCreateModal({
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title={title}>
+    <Modal open={open} onClose={handleClose} title={title} size="md">
       <form className="grid gap-4" onSubmit={handleSubmit}>
         <div className="app-panel app-panel--padded text-sm">
           {note ??
@@ -254,7 +254,7 @@ export function VoyageCreateModal({
           <Button variant="secondary" type="button" onClick={handleClose}>
             Voltar
           </Button>
-          <Button loading={saving} type="submit">
+          <Button loading={saving} loadingLabel="Salvando…" type="submit">
             {voyageId ? 'Salvar viagem' : 'Cadastrar viagem'}
           </Button>
         </div>

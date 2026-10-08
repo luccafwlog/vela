@@ -137,7 +137,10 @@ Há exportação XLSX nas quatro abas: operacional, financeiro, clientes e demur
 
 `src/pages/LineUpTVDisplay.tsx` usa `['lineup-tv-display-v2']`, `staleTime` e auto-refresh de 30 segundos. Remove linhas com `atd`, tenta fullscreen na carga, mostra flash verde quando recebe novo snapshot e:
 
-- em desktop, dimensiona oito linhas visíveis e anima um carrossel quando há mais de oito linhas;
+- usa variante escura de alto contraste (revisão de 2026-10-08): os tamanhos crescem com a largura (a 1920 px, rótulos com 28 px e dados com cerca de 31 px), cabeçalhos em português (Navio, Viagem, Vinculada) com as siglas operacionais mantidas, estados em palavra e cor, ATA com `✓` e BB numa linha (`máquinas / packages`; o total era a soma das duas);
+- lê BLs e CEs pela mesma função do Painel (`lineUpCeStatus`, em `src/components/lineup/lineUpStatus.ts`); antes a TV só conhecia Aprovado/Parcial e exibia Recebido, Lançando e Em aprovação como "Aguardando";
+- se a atualização falha com dados já exibidos, mantém o quadro e troca "Atualizado às" por "Sem atualização desde"; sem dados, mostra a falha e a nova tentativa automática;
+- em desktop, dimensiona oito linhas visíveis e, com mais de oito, para 4 s em cada posição e desliza uma linha em 0,9 s (antes rolava sem pausa); `prefers-reduced-motion` remove a transição;
 - em touch/mobile, renderiza cards estáticos;
 - mantém placeholders quando há menos de oito linhas.
 

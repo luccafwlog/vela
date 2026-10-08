@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import { Car, ChevronLeft, ChevronRight, FileSpreadsheet, Mountain, Pencil } from 'lucide-react'
-import { formatDate } from '../../lib/utils'
+import { formatShortDateSafe } from '../../lib/utils'
+import { isEtaOverdue } from '../../services/voyageSummaries'
 import { ESTADO_CONCILIACAO_META } from '../../lib/statusLabels'
 import type { VoyageRailItem } from '../../services/voyageSummaries'
 import { ContainersIcon, VaziosExpIcon, VaziosImpIcon } from '../shared/DomainIcon'
@@ -72,10 +73,20 @@ function ScrollArrow({
   )
 }
 
-function RailPill({ children }: { children: React.ReactNode }) {
+type RailEscala = VoyageRailItem['escalasBrasileiras'][number]
+
+/** Escala no card: porto, data e de onde vem a data (✓ chegou, ! ETA vencido). */
+function RailEscalaPill({ escala }: { escala: RailEscala }) {
+  const overdue = !escala.ata && isEtaOverdue(escala.eta)
+  const date = escala.ata ?? escala.eta
+  const state = escala.ata ? 'actual' : overdue ? 'overdue' : date ? 'forecast' : 'missing'
+  const description = escala.ata ? 'chegou' : overdue ? 'ETA vencido' : date ? 'ETA previsto' : 'ETA não informado'
   return (
-    <span className="rounded-full border border-[var(--app-border)] bg-[var(--app-bg-elevated)] px-2 py-0.5 text-[11px] font-semibold text-[var(--app-muted)]">
-      {children}
+    <span className={`voyage-rail-pill voyage-rail-pill--${state}`} title={`${escala.port}: ${description}`}>
+      {escala.port}
+      {date ? ` · ${escala.ata ? '✓ ' : ''}${formatShortDateSafe(date)}` : ' · sem ETA'}
+      {overdue ? <span aria-hidden="true"> !</span> : null}
+      <span className="sr-only">, {description}</span>
     </span>
   )
 }
@@ -91,8 +102,10 @@ function ScaleBadges({ modules }: { modules: VoyageRailItem['modules'] }) {
   ].filter(Boolean) as Array<{ label: string; icon: ComponentType<{ size?: number; className?: string }> }>
 
   return badges.length ? (
-    <span className="inline-flex items-center gap-1 text-[var(--app-muted)]" aria-label="Operações da escala">
-      {badges.map(({ label, icon: Icon }) => <Icon key={label} size={13} aria-label={label} />)}
+    <span className="inline-flex items-center gap-1 text-[var(--app-muted)]">
+      {badges.map(({ label, icon: Icon }) => (
+        <span key={label} title={label} className="inline-flex"><Icon size={14} aria-hidden="true" /><span className="sr-only">{label}</span></span>
+      ))}
     </span>
   ) : null
 }
@@ -110,7 +123,7 @@ export function VoyageRail({ items, selectedId, onSelect, onEdit }: VoyageRailPr
 
   if (items.length === 0) {
     return (
-      <div className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-5 text-sm text-[var(--app-muted)]">
+      <div className="voyage-rail__empty" role="status">
         Nenhuma viagem para os filtros atuais.
       </div>
     )
@@ -121,10 +134,7 @@ export function VoyageRail({ items, selectedId, onSelect, onEdit }: VoyageRailPr
     // de conteúdo (todos os cards lado a lado) em vez de respeitar a largura
     // do container, e a página inteira alonga em vez de rolar horizontalmente.
     <div className="relative min-w-0">
-      <div className="mb-1.5 flex items-center justify-between px-1">
-        <span className="text-[11px] text-[var(--app-muted-soft)]">Ordenado por próxima escala</span>
-        <span className="text-[11px] text-[var(--app-muted-soft)]">{items.length} viagens</span>
-      </div>
+      <p className="voyage-rail__caption">Ordenadas pela próxima escala</p>
 
       <ScrollArrow side="left" visible={edges.left} onClick={() => scrollBy(-1)} />
       <ScrollArrow side="right" visible={edges.right} onClick={() => scrollBy(1)} />
@@ -137,82 +147,64 @@ export function VoyageRail({ items, selectedId, onSelect, onEdit }: VoyageRailPr
         {items.map((item) => {
           const estado = ESTADO_CONCILIACAO_META[item.estado]
           const isSelected = item.id === selectedId
+          const label = `${item.vesselName} / ${item.voyageNumber}`
           return (
-            <button
+            // O card tem duas ações irmãs: abrir (o card inteiro) e editar. Um
+            // botão dentro de outro não é alcançável de forma confiável por
+            // teclado nem por leitor de tela.
+            <div
               key={item.id}
-              type="button"
-              onClick={() => onSelect(item.id)}
-              aria-current={isSelected}
-              className={`group relative flex min-h-[134px] w-[268px] flex-none snap-start flex-col items-start justify-start rounded-2xl border px-3 py-3 text-left transition-colors ${
-                isSelected
-                  ? 'border-[var(--app-blue-btn)] bg-[var(--app-bg-elevated)]'
-                  : 'border-[var(--app-border)] bg-[var(--app-surface)] hover:bg-[var(--app-surface-muted)]'
-              }`}
+              className={`voyage-rail-card group${isSelected ? ' voyage-rail-card--selected' : ''}${onEdit ? ' voyage-rail-card--editable' : ''}`}
             >
-              {/* w-full + min-w-0: a linha é filha de um flex column com
-                  items-start, então sem largura explícita ela se dimensiona pelo
-                  conteúdo e o rótulo de conciliação vazava do card. */}
-              <div className="flex w-full min-w-0 items-center gap-2">
-                <span
-                  className="h-2 w-2 flex-none rounded-full"
-                  style={{ backgroundColor: estado.color }}
-                  title={`Conciliação: ${estado.label}`}
-                />
-                <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wider text-[var(--app-muted-soft)]">
-                  {item.carrierName || 'Armador não informado'}
-                </span>
-                <span className="voyage-rail-card__state-label flex-none" style={{ color: estado.color }}>
-                  {estado.label}
-                </span>
-                {onEdit ? (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="voyage-rail-card__edit"
-                    title="Editar viagem"
-                    aria-label={`Editar ${item.vesselName} / ${item.voyageNumber}`}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      onEdit(item.id)
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        onEdit(item.id)
-                      }
-                    }}
-                  >
-                    <Pencil size={13} />
+              <button
+                type="button"
+                onClick={() => onSelect(item.id)}
+                aria-current={isSelected ? 'page' : undefined}
+                className="voyage-rail-card__main"
+              >
+                <span className="voyage-rail-card__top">
+                  <span className="voyage-rail-card__carrier">{item.carrierName || 'Armador não informado'}</span>
+                  <span className="voyage-rail-card__state" style={{ color: estado.color }}>
+                    <span className="voyage-rail-card__dot" style={{ backgroundColor: estado.color }} aria-hidden="true" />
+                    <span className="sr-only">Conciliação: </span>{estado.label}
                   </span>
+                </span>
+                <span className="voyage-rail-card__title">{label}</span>
+                {item.status !== 'active' ? (
+                  <span className="voyage-rail-card__status">{item.status === 'cancelled' ? 'Cancelada' : 'Concluída'}</span>
                 ) : null}
-              </div>
-              <div className="mt-0.5 truncate text-sm font-bold text-[var(--app-text-strong)]">
-                {item.vesselName} / {item.voyageNumber}
-              </div>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {item.escalasBrasileiras.length > 0 ? (
-                  item.escalasBrasileiras.map((escala) => (
-                    <span key={escala.port} className="inline-flex items-center gap-1.5">
-                      <RailPill>
-                      {escala.port}
-                      {escala.eta ? ` · ${formatDate(escala.eta)}` : ''}
-                      </RailPill>
-                    <ScaleBadges modules={{ ...item.modules, ...escala.modules }} />
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-xs text-[var(--app-muted-soft)]">Sem escala brasileira prevista</span>
-                )}
-              </div>
-              <div className="voyage-rail-card__footer">
-                <span><strong>{item.blCount ?? 0}</strong> B/L</span>
-                <span aria-hidden="true">·</span>
-                <span><strong>{item.containerCount ?? 0}</strong> CNTR</span>
-                <span aria-hidden="true">·</span>
-                <span>CE {item.ceCoverage?.filled ?? 0}/{item.ceCoverage?.total ?? 0}</span>
-              </div>
-            </button>
+                <span className="voyage-rail-card__escalas">
+                  {item.escalasBrasileiras.length > 0 ? (
+                    item.escalasBrasileiras.map((escala) => (
+                      <span key={escala.port} className="voyage-rail-card__escala">
+                        <RailEscalaPill escala={escala} />
+                        <ScaleBadges modules={{ ...item.modules, ...escala.modules }} />
+                      </span>
+                    ))
+                  ) : (
+                    <span className="voyage-rail-card__empty">Sem escala brasileira prevista</span>
+                  )}
+                </span>
+                <span className="voyage-rail-card__footer">
+                  <span><strong>{item.blCount ?? 0}</strong> B/L</span>
+                  <span aria-hidden="true">·</span>
+                  <span><strong>{item.containerCount ?? 0}</strong> CNTR</span>
+                  <span aria-hidden="true">·</span>
+                  <span>CE {item.ceCoverage?.filled ?? 0}/{item.ceCoverage?.total ?? 0}</span>
+                </span>
+              </button>
+              {onEdit ? (
+                <button
+                  type="button"
+                  className="voyage-rail-card__edit"
+                  title="Editar viagem"
+                  aria-label={`Editar ${label}`}
+                  onClick={() => onEdit(item.id)}
+                >
+                  <Pencil size={14} aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
           )
         })}
       </div>

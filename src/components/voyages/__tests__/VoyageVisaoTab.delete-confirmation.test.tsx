@@ -124,7 +124,8 @@ it('renderiza uma escala mista em uma linha com marcadores de importação e exp
   )
 
   const table = screen.getByRole('table')
-  expect(within(table).getAllByRole('row')).toHaveLength(3)
+  // Um cabeçalho e uma linha por escala.
+  expect(within(table).getAllByRole('row')).toHaveLength(2)
   expect(within(table).getByText('BRVIX')).toBeTruthy()
   expect(within(table).getByText('Importação')).toBeTruthy()
   expect(within(table).getByText('Exportação')).toBeTruthy()
@@ -216,7 +217,8 @@ it('renderiza viagem só de exportação em uma linha sem marcador de importaç�
   )
 
   const table = screen.getByRole('table')
-  expect(within(table).getAllByRole('row')).toHaveLength(3)
+  // Um cabeçalho e uma linha por escala.
+  expect(within(table).getAllByRole('row')).toHaveLength(2)
   expect(within(table).getByText('BRSSZ')).toBeTruthy()
   expect(within(table).getByText('Exportação')).toBeTruthy()
   expect(within(table).queryByText('Importação')).toBeNull()
