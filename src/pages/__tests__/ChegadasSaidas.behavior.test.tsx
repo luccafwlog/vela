@@ -74,7 +74,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getByRole('button', { name: /Adicionar Navio/ }))
+    await user.click(screen.getByRole('button', { name: /Adicionar navio/ }))
     await user.type(screen.getByLabelText(/Nome do Navio/), 'GAMMA')
     await user.type(screen.getByLabelText(/Viagem \(VOY\)/), '003')
     await user.click(screen.getAllByLabelText('Não escala')[0])
@@ -148,10 +148,28 @@ describe('ChegadasSaidas user behaviours', () => {
     mocks.effectiveRole.mockReturnValue('equipamentos')
     render(<ChegadasSaidas />)
 
-    expect(screen.getByRole('button', { name: /Adicionar Navio/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Fazer Upload/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Adicionar navio/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Enviar planilha/ })).toBeTruthy()
     expect(screen.getAllByTitle('Editar').length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: /Baixar Planilha Modelo/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Baixar planilha modelo/ })).toBeTruthy()
+  })
+
+  it('mantém a falha de leitura da planilha no conteúdo, não só no toast', async () => {
+    mocks.effectiveRole.mockReturnValue('equipamentos')
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+    const big = new File(['x'], 'programacao.xlsx')
+    Object.defineProperty(big, 'size', { value: 11 * 1024 * 1024 })
+
+    // Área de arquivo comum: escolher não grava; o envio é um passo explícito.
+    expect((screen.getByRole('button', { name: /Enviar planilha/ }) as HTMLButtonElement).disabled).toBe(true)
+    await user.upload(screen.getByLabelText(/Planilha de programação/), big)
+    expect(screen.getByText('programacao.xlsx')).toBeTruthy()
+    expect(mocks.createOrAttach).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /Enviar planilha/ }))
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(/Não foi possível ler programacao\.xlsx.*Nada foi gravado/)
+    expect(mocks.createOrAttach).not.toHaveBeenCalled()
   })
 
   it('permite digitar datas com zero ou limpar o campo sem desabilitar nem marcar Nao escala involuntariamente', async () => {
@@ -209,7 +227,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getByRole('button', { name: /Adicionar Navio/ }))
+    await user.click(screen.getByRole('button', { name: /Adicionar navio/ }))
     await user.type(screen.getByLabelText(/Nome do Navio/), 'DELTA')
     await user.type(screen.getByLabelText(/Viagem \(VOY\)/), '004')
 

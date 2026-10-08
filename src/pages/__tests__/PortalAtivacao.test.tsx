@@ -46,3 +46,25 @@ it('achado 3.3: remove o token da URL apos a montagem, sem perder o submit', asy
     expect(mocks.invoke).toHaveBeenCalledWith('portal-invite-activate', { body: { action: 'activate', token: 'TOKEN', password: 'senhaSegura1' } }),
   )
 })
+
+it('mostra "As senhas não conferem." no campo de confirmação e leva o foco até ele', async () => {
+  const user = userEvent.setup()
+  render(
+    <MemoryRouter initialEntries={['/portal/ativar?token=TOKEN']}>
+      <PortalAtivacao />
+    </MemoryRouter>,
+  )
+
+  await waitFor(() => expect(screen.getByText('Cliente PoC')).toBeTruthy())
+  await user.type(screen.getByLabelText('Nova senha'), 'senhaSegura1')
+  await user.type(screen.getByLabelText('Confirmar senha'), 'senhaSegura2')
+  await user.click(screen.getByRole('button', { name: 'Ativar acesso' }))
+
+  const confirmField = screen.getByLabelText('Confirmar senha')
+  const alert = screen.getByRole('alert')
+  expect(alert.textContent).toBe('As senhas não conferem.')
+  expect(confirmField.getAttribute('aria-describedby')).toContain(alert.id)
+  expect(confirmField.getAttribute('aria-invalid')).toBe('true')
+  expect(document.activeElement).toBe(confirmField)
+  expect(mocks.invoke).not.toHaveBeenCalledWith('portal-invite-activate', expect.objectContaining({ body: expect.objectContaining({ action: 'activate' }) }))
+})

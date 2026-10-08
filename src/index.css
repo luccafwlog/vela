@@ -11,18 +11,20 @@
   --app-bg-elevated: #ece9e1;
   --app-surface: #ffffff;
   --app-surface-strong: #ffffff;
-  --app-surface-muted: #f8f6f1;
+  --app-surface-muted: #f3f0e9;
   --app-surface-hover: #f1eee7;
   --app-panel: #ede9df;
   --app-panel-strong: #e2ddd2;
-  --app-border: #cdc8bc;
-  --app-border-strong: #b8b2a5;
+  --app-border: #bdb7aa;
+  --app-border-strong: #a39c8e;
+  /* Filete entre blocos de uma mesma superfície (decorativo; controles usam --app-border-strong). */
+  --app-border-soft: #d9d4ca;
   --app-border-focus: rgba(37, 99, 168, 0.22);
   --app-focus-ring: #1d4d88;
   --app-text: #1c1915;
   --app-text-strong: #0e0c0a;
-  --app-muted: #5a5549;
-  --app-muted-soft: #6f6a60;
+  --app-muted: #4d483e;
+  --app-muted-soft: #5f5a50;
   --app-navy: #152238;
   --app-navy-2: #1e3050;
   --app-topbar: #0e1825;
@@ -70,10 +72,11 @@
   --app-neutral-fg: var(--app-muted);
   --app-neutral-bg: #f1efe9;
   --app-neutral-border: #dcd7cc;
-  --app-thead-border: var(--app-border-strong);
+  --app-thead-border: var(--app-navy);
   /* Cabeçalho de tabela claro; azul-marinho só no Line Up e na TV. */
-  --app-thead-bg: var(--app-surface-muted);
-  --app-thead-text: var(--app-text-strong);
+  /* Cabeçalho de tabela azul-marinho com texto branco (restaurado a pedido em 2026-10-08). */
+  --app-thead-bg: var(--app-navy);
+  --app-thead-text: #ffffff;
   --app-font-display: "Syne", "DM Sans", sans-serif;
   --app-font-body: "DM Sans", "Segoe UI", sans-serif;
   --app-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -93,6 +96,7 @@
   --app-panel-strong: #162641;
   --app-border: #22324d;
   --app-border-strong: #314569;
+  --app-border-soft: #1c2a44;
   --app-border-focus: rgba(96, 165, 250, 0.28);
   --app-focus-ring: #60a5fa;
   --app-text: #eef2ff;
@@ -133,9 +137,10 @@
   --app-neutral-fg: #c3cfdf;
   --app-neutral-bg: #17243a;
   --app-neutral-border: #2b3c5a;
-  --app-thead-border: var(--app-border-strong);
-  --app-thead-bg: var(--app-surface-muted);
-  --app-thead-text: var(--app-text-strong);
+  --app-thead-border: var(--app-navy);
+  /* Cabeçalho de tabela azul-marinho com texto branco (restaurado a pedido em 2026-10-08). */
+  --app-thead-bg: var(--app-navy);
+  --app-thead-text: #ffffff;
 }
 
 :root[data-visual-theme='light'] {
@@ -146,18 +151,20 @@
   --app-bg-elevated: #ece9e1;
   --app-surface: #ffffff;
   --app-surface-strong: #ffffff;
-  --app-surface-muted: #f8f6f1;
+  --app-surface-muted: #f3f0e9;
   --app-surface-hover: #f1eee7;
   --app-panel: #ede9df;
   --app-panel-strong: #e2ddd2;
-  --app-border: #cdc8bc;
-  --app-border-strong: #b8b2a5;
+  --app-border: #bdb7aa;
+  --app-border-strong: #a39c8e;
+  /* Filete entre blocos de uma mesma superfície (decorativo; controles usam --app-border-strong). */
+  --app-border-soft: #d9d4ca;
   --app-border-focus: rgba(37, 99, 168, 0.22);
   --app-focus-ring: #1d4d88;
   --app-text: #1c1915;
   --app-text-strong: #0e0c0a;
-  --app-muted: #5a5549;
-  --app-muted-soft: #6f6a60;
+  --app-muted: #4d483e;
+  --app-muted-soft: #5f5a50;
   --app-navy: #152238;
   --app-navy-2: #1e3050;
   --app-topbar: #0e1825;
@@ -205,10 +212,11 @@
   --app-neutral-fg: var(--app-muted);
   --app-neutral-bg: #f1efe9;
   --app-neutral-border: #dcd7cc;
-  --app-thead-border: var(--app-border-strong);
+  --app-thead-border: var(--app-navy);
   /* Cabeçalho de tabela claro; azul-marinho só no Line Up e na TV. */
-  --app-thead-bg: var(--app-surface-muted);
-  --app-thead-text: var(--app-text-strong);
+  /* Cabeçalho de tabela azul-marinho com texto branco (restaurado a pedido em 2026-10-08). */
+  --app-thead-bg: var(--app-navy);
+  --app-thead-text: #ffffff;
   --app-font-display: "Syne", "DM Sans", sans-serif;
   --app-font-body: "DM Sans", "Segoe UI", sans-serif;
   --app-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -292,9 +300,13 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Em camada base: utilitários de cor (text-[var(--app-link)]) vencem esta
+   herança, e o link sem utilitário continua com a cor do texto. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 button,
@@ -1544,7 +1556,7 @@ textarea {
   border-radius: 999px;
   background: var(--app-blue-btn);
   color: #ffffff;
-  font-size: 11px;
+  font-size: var(--app-size-caption);
   font-weight: 700;
   line-height: 1;
 }
@@ -1560,7 +1572,7 @@ textarea {
   border-radius: 999px;
   background: var(--app-surface-muted);
   color: var(--app-muted);
-  font-size: 11px;
+  font-size: var(--app-size-caption);
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -1609,7 +1621,7 @@ textarea {
 }
 
 .app-voyage-command-bar__search .app-input {
-  min-height: 40px;
+  min-height: var(--app-control-h);
   flex: 1 1 auto;
   border-color: transparent;
   padding: 8px 0;
@@ -1903,10 +1915,8 @@ button.app-metric-tile[aria-pressed='true'] {
 
 .app-kpi-card__label {
   color: var(--app-muted-soft);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
+  font-size: var(--app-size-caption);
+  font-weight: 500;
 }
 
 .app-kpi-card__value {
@@ -1942,7 +1952,7 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-kpi-card__sub {
   margin-top: 8px;
   color: var(--app-muted-soft);
-  font-size: 11px;
+  font-size: var(--app-size-caption);
   line-height: 1.45;
 }
 
@@ -2628,7 +2638,7 @@ button.app-metric-tile[aria-pressed='true'] {
   margin: 0;
   padding-top: 8px;
   color: var(--app-text-strong);
-  font-size: 15px;
+  font-size: var(--app-size-body);
   font-weight: 600;
   white-space: pre-line;
   overflow-wrap: anywhere;
@@ -2915,8 +2925,6 @@ button.app-metric-tile[aria-pressed='true'] {
   color: var(--app-muted);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .app-confirm__fact dd {
@@ -3027,20 +3035,17 @@ button.app-metric-tile[aria-pressed='true'] {
   align-items: baseline;
   gap: 2px 10px;
   color: var(--app-text-strong);
-  font-family: var(--app-font-display);
-  font-size: 1.375rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.15;
+  font-family: var(--app-font-body);
+  font-size: var(--app-size-panel);
+  font-weight: 600;
+  line-height: 28px;
 }
 
 .app-escala-summary__port small {
   color: var(--app-muted);
   font-family: var(--app-font-body);
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 500;
 }
 
 .app-escala-summary__meta {
@@ -3061,14 +3066,15 @@ button.app-metric-tile[aria-pressed='true'] {
   gap: 6px;
 }
 
+/* Seções do modal separadas por título e filete, sem cartão dentro do modal. */
 .app-escala-section {
   display: grid;
   gap: 16px;
-  padding: 16px 18px 18px;
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
+  padding: 16px 0 4px;
+}
+
+.app-escala-section + .app-escala-section {
+  border-top: 1px solid var(--app-border);
 }
 
 .app-escala-section:focus { outline: none; }
@@ -3083,9 +3089,9 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-escala-section__title {
   margin: 4px 0 0;
   color: var(--app-text-strong);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.3;
+  font-size: var(--app-size-section);
+  font-weight: 600;
+  line-height: 24px;
 }
 
 .app-escala-section__description,
@@ -3093,8 +3099,8 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-escala-empty {
   margin: 3px 0 0;
   color: var(--app-muted);
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: var(--app-size-caption);
+  line-height: 16px;
 }
 
 .app-escala-section__aside { flex: none; align-self: center; }
@@ -3108,7 +3114,6 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-escala-field-grid .app-field { min-width: 0; align-content: start; }
 .app-escala-field-grid--one { grid-template-columns: minmax(0, 1fr); }
 .app-escala-field-grid--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.app-escala-field-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .app-escala-field-grid--port { grid-template-columns: minmax(0, 320px); }
 
 /* Data e hora como um único controle: a hora tem largura fixa e a data
@@ -3219,10 +3224,8 @@ button.app-metric-tile[aria-pressed='true'] {
 
 .app-escala-subsection-title {
   color: var(--app-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  font-size: var(--app-size-caption);
+  font-weight: 600;
 }
 
 .app-escala-cargo-options { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -3231,14 +3234,14 @@ button.app-metric-tile[aria-pressed='true'] {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 38px;
+  min-height: var(--app-control-h);
   padding: 7px 14px 7px 10px;
   border: 1px solid var(--app-border);
   border-radius: 999px;
   color: var(--app-text);
   background: var(--app-surface);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--app-size-table);
+  font-weight: 600;
   cursor: pointer;
   transition: border-color .15s ease, background .15s ease;
 }
@@ -3284,42 +3287,7 @@ button.app-metric-tile[aria-pressed='true'] {
 
 .app-escala-note svg { flex: none; margin-top: 2px; }
 
-.app-escala-error { margin: 0; color: var(--app-red); font-size: 12.5px; font-weight: 600; }
-
-.app-escala-segmented {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  min-height: var(--app-control-h);
-  padding: 4px;
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
-  background: var(--app-surface-muted);
-}
-
-.app-escala-segmented__option {
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--app-muted);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background .15s ease, color .15s ease;
-}
-
-.app-escala-segmented__option:hover { color: var(--app-text-strong); }
-
-.app-escala-segmented__option:focus-visible {
-  outline: 2px solid var(--app-focus-ring);
-  outline-offset: 1px;
-}
-
-.app-escala-segmented__option--active {
-  background: var(--app-surface-strong);
-  color: var(--app-text-strong);
-  box-shadow: var(--app-shadow);
-}
+.app-escala-error { margin: 0; color: var(--app-danger-fg); font-size: var(--app-size-caption); font-weight: 600; }
 
 .app-escala-pill {
   display: inline-flex;
@@ -3406,9 +3374,9 @@ button.app-metric-tile[aria-pressed='true'] {
   align-items: baseline;
   gap: 2px 8px;
   color: var(--app-text-strong);
-  font-family: var(--app-font-display);
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-family: var(--app-font-body);
+  font-size: var(--app-size-section);
+  font-weight: 600;
 }
 
 .app-escala-berth__name {
@@ -3426,7 +3394,7 @@ button.app-metric-tile[aria-pressed='true'] {
   background: var(--app-surface);
   padding: 2px 8px;
   color: var(--app-muted);
-  font-size: 11px;
+  font-size: var(--app-size-caption);
   font-weight: 600;
 }
 
@@ -3436,10 +3404,8 @@ button.app-metric-tile[aria-pressed='true'] {
   gap: 4px;
   width: 92px;
   color: var(--app-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
+  font-size: var(--app-size-caption);
+  font-weight: 600;
 }
 
 .app-escala-berth__restow .app-input { width: 100%; min-height: 38px; padding: 7px 10px; text-align: center; }
@@ -3494,7 +3460,7 @@ button.app-metric-tile[aria-pressed='true'] {
   justify-content: space-between;
   gap: 8px;
   color: var(--app-text);
-  font-size: 12.5px;
+  font-size: var(--app-size-caption);
 }
 
 .app-escala-loading { color: var(--app-muted); font-size: 13px; }
@@ -3503,13 +3469,11 @@ button.app-metric-tile[aria-pressed='true'] {
 @media (max-width: 900px) {
   .app-escala-operation-modes { grid-template-columns: 1fr; }
   .app-escala-operation-mode { min-height: 0; }
-  .app-escala-field-grid--three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 640px) {
   .app-modal__body--escala { padding: 14px 14px 0; }
   .app-escala-field-grid--two,
-  .app-escala-field-grid--three,
   .app-escala-field-grid--port,
   .app-escala-berth__grid { grid-template-columns: minmax(0, 1fr); }
   .app-escala-summary { flex-wrap: wrap; }
@@ -3810,21 +3774,21 @@ button.app-metric-tile[aria-pressed='true'] {
 }
 
 .app-toast--success {
-  background: #dcfce7;
-  border-color: #86efac;
-  color: #166534;
+  background: var(--app-success-bg);
+  border-color: var(--app-success-border);
+  color: var(--app-success-fg);
 }
 
 .app-toast--error {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  color: #b91c1c;
+  background: var(--app-danger-bg);
+  border-color: var(--app-danger-border);
+  color: var(--app-danger-fg);
 }
 
 .app-toast--info {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  color: #1d4ed8;
+  background: var(--app-info-bg);
+  border-color: var(--app-info-border);
+  color: var(--app-info-fg);
 }
 
 .app-toast__icon {
@@ -3865,7 +3829,7 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-empty-state__title {
   margin: 0;
   color: var(--app-text-strong);
-  font-size: 15px;
+  font-size: var(--app-size-section);
   font-weight: 600;
   text-wrap: balance;
 }
@@ -4341,8 +4305,8 @@ button.app-metric-tile[aria-pressed='true'] {
   }
 
   .app-auth__logo-name {
-    font-size: 28px;
-    line-height: 36px;
+    font-size: var(--app-size-hero);
+    line-height: 40px;
   }
 
   .app-auth__form-wrap {
@@ -4351,11 +4315,6 @@ button.app-metric-tile[aria-pressed='true'] {
 
   .app-auth__card.app-surface--padded {
     padding: 24px;
-  }
-
-  .app-auth__title {
-    font-size: 28px;
-    line-height: 36px;
   }
 }
 
@@ -4686,9 +4645,8 @@ button.app-metric-tile[aria-pressed='true'] {
   border-collapse: collapse;
 }
 
-/* Cabeçalho de tabela comum (etapa 01): fundo claro, 12/500 em caixa normal
-   e filete inferior forte. O Line Up e a TV redefinem os tokens para o
-   azul-marinho do quadro físico. Fica fora de camada para vencer as classes
+/* Cabeçalho de tabela comum: azul-marinho com texto branco 12/600 em caixa
+   normal (o fundo claro da etapa 01 foi revertido a pedido em 2026-10-08). Fica fora de camada para vencer as classes
    utilitárias antigas (uppercase, tracking-*) até cada tela migrar. */
 .app-shell table thead {
   background: var(--app-thead-bg);
@@ -4697,7 +4655,7 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-shell table thead th {
   color: var(--app-thead-text);
   font-size: var(--app-size-caption);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 16px;
   letter-spacing: 0;
   text-transform: none;
@@ -4865,59 +4823,16 @@ button.app-metric-tile[aria-pressed='true'] {
     padding: 6px 12px;
     background: linear-gradient(90deg, var(--app-surface), transparent);
     color: var(--app-muted);
-    font-size: 11px;
+    font-size: var(--app-size-caption);
     pointer-events: none;
   }
 }
 
 /* Table headers use theme tokens; the TV line-up display keeps dedicated styles. */
-.app-table:not(.app-table--lineup-display) thead th {
-  background: var(--app-thead-bg);
-  color: var(--app-thead-text);
-}
 
 /* Re-map table-body utility colors to theme tokens so light mode stays readable. */
-.app-table:not(.app-table--lineup-display) tbody {
-  color: var(--app-text);
-}
-
-.app-table:not(.app-table--lineup-display) tbody .text-white {
-  color: var(--app-text-strong);
-}
-
-.app-table:not(.app-table--lineup-display) tbody .text-slate-200,
-.app-table:not(.app-table--lineup-display) tbody .text-slate-300,
-.app-table:not(.app-table--lineup-display) tbody .text-slate-400,
-.app-table:not(.app-table--lineup-display) tbody .text-slate-500 {
-  color: var(--app-muted);
-}
-
-.app-table:not(.app-table--lineup-display) tbody .text-\[\#58a6ff\],
-.app-table:not(.app-table--lineup-display) tbody .text-\[\#8cc8ff\] {
-  color: var(--app-blue);
-}
-
-.app-table:not(.app-table--lineup-display) tbody .text-green-400,
-.app-table:not(.app-table--lineup-display) tbody .text-emerald-400,
-.app-table:not(.app-table--lineup-display) tbody .text-emerald-300 {
-  color: var(--app-green);
-}
-
-.app-table:not(.app-table--lineup-display) tbody .text-red-200,
-.app-table:not(.app-table--lineup-display) tbody .text-red-300,
-.app-table:not(.app-table--lineup-display) tbody .text-red-400 {
-  color: var(--app-red);
-}
-
-.app-table:not(.app-table--lineup-display) tbody .text-amber-300,
-.app-table:not(.app-table--lineup-display) tbody .text-amber-400 {
-  color: var(--app-gold);
-}
 
 /* Keep table-body dividers on theme tokens. */
-.app-table:not(.app-table--lineup-display) tbody > tr + tr {
-  border-top-color: var(--app-border);
-}
 
 .app-shell table tbody tr + tr td,
 .app-table tbody tr + tr td {
@@ -5032,10 +4947,11 @@ button.app-metric-tile[aria-pressed='true'] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  /* Densidade do contrato: 36px com ponteiro fino, 44px no toque. */
+  width: var(--app-control-h);
+  height: var(--app-control-h);
+  min-width: var(--app-control-h);
+  min-height: var(--app-control-h);
   border: 1px solid var(--app-border);
   border-radius: 10px;
   background: linear-gradient(180deg, #ffffff, var(--app-surface-muted));
@@ -5259,6 +5175,31 @@ button.app-metric-tile[aria-pressed='true'] {
   text-align: center;
 }
 
+/* Falha ou divergência de "Marcar todas": explicada no painel, com a saída. */
+.app-notifications__notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0 8px 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--app-danger-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-danger-bg);
+  color: var(--app-danger-fg);
+  font-size: var(--app-size-table);
+}
+
+.app-notifications__notice-action {
+  min-height: var(--app-control-h-sm);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .app-notifications__footer {
   display: flex;
   flex-wrap: wrap;
@@ -5366,10 +5307,10 @@ button.app-metric-tile[aria-pressed='true'] {
 
 /* Versao reduzida do botao de icone para caber varias acoes na linha da tabela. */
 .app-table__icon-button--sm {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--app-control-h);
+  height: var(--app-control-h);
+  min-width: var(--app-control-h);
+  min-height: var(--app-control-h);
   border-radius: 9px;
 }
 
@@ -5389,6 +5330,11 @@ button.app-metric-tile[aria-pressed='true'] {
   border-radius: 8px;
   background: var(--app-surface);
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+}
+
+/* Alinhamento à esquerda do botão (ActionMenu align="start"). */
+.app-floating-menu--start {
+  transform: none;
 }
 
 .app-floating-menu button,
@@ -5419,6 +5365,14 @@ button.app-metric-tile[aria-pressed='true'] {
 
 .app-floating-menu .app-floating-menu__danger:hover {
   background: rgba(220, 38, 38, 0.1);
+}
+
+/* Alvo de toque do contrato visual: 44 px no ponteiro grosso (36 px com mouse). */
+@media (pointer: coarse) {
+  .app-floating-menu button,
+  .app-floating-menu a {
+    min-height: 44px;
+  }
 }
 
 .app-table__sort {
@@ -5509,82 +5463,11 @@ button.app-metric-tile[aria-pressed='true'] {
   flex-wrap: wrap;
 }
 
-.app-voyage-metric-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  background: linear-gradient(180deg, var(--app-surface) 0%, var(--app-surface-muted) 100%);
-  padding: 18px;
-  box-shadow: var(--app-shadow);
-}
+/* Departamentos da aba ADR: separados por filete, sem moldura própria em
+   volta das seções. */
 
-.app-voyage-metric-panel__title {
-  color: var(--app-text);
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.app-voyage-metric-panel dl {
-  margin: 0;
-}
-
-.app-voyage-info {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: start;
-  border-bottom: 1px solid var(--app-border);
-  padding-bottom: 10px;
-}
-
-.app-voyage-info:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-.app-voyage-info--tokenized {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
-}
-
-.app-voyage-info__label {
-  color: var(--app-muted);
-  min-width: 0;
-  line-height: 1.45;
-}
-
-.app-voyage-info__value {
-  display: block;
-  min-width: 0;
-  color: var(--app-text);
-  font-weight: 700;
-  text-align: right;
-  word-break: break-word;
-}
-
-.app-voyage-token-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  gap: 8px;
-}
-
-.app-voyage-token {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-control, 6px);
-  background: var(--app-surface);
-  color: var(--app-text);
-  padding: 2px 8px;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-  white-space: nowrap;
-}
+/* Bloco de métricas dentro de uma seção já emoldurada: título e linhas, sem
+   segunda moldura nem gradiente (contrato: sem quadro dentro de quadro). */
 
 /* BB no Painel: máquinas / packages numa linha (o total era a soma das duas). */
 .app-lineup-bb {
@@ -5601,303 +5484,11 @@ button.app-metric-tile[aria-pressed='true'] {
    duas linhas. Cores próprias da parede, fora do tema do app (a TV não segue
    o tema claro/escuro de quem abriu a aba).
    =========================================================================== */
-.app-lineup-display-shell {
-  --tv-bg: #08131f;
-  --tv-surface: #0e1d2e;
-  --tv-row-alt: #112338;
-  --tv-head: #1a3352;
-  --tv-rule: #24405f;
-  --tv-text: #f3f6fa;
-  --tv-muted: #b4c3d6;
-  --tv-green: #5ee08d;
-  --tv-amber: #ffc94d;
-  --tv-red: #ff8a80;
-  --tv-info: #9ccfff;
-  --tv-export: #2a2312;
-  --tv-small: max(16px, 1.46vw);
-  --tv-data: max(18px, 1.62vw);
-  display: flex;
-  height: 100vh;
-  height: 100dvh;
-  max-height: 100vh;
-  max-height: 100dvh;
-  overflow: hidden;
-  flex-direction: column;
-  background: var(--tv-bg);
-  color: var(--tv-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.app-lineup-display-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 24px;
-  border-bottom: 3px solid var(--app-gold);
-  padding: 10px 20px;
-}
-
-.app-lineup-display-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.app-lineup-display-brand__logo {
-  height: calc(var(--tv-small) * 1.6);
-  width: calc(var(--tv-small) * 1.6);
-  object-fit: contain;
-}
-
-.app-lineup-display-brand__name {
-  margin: 0;
-  color: var(--tv-text);
-  font-family: var(--app-font-display);
-  font-size: calc(var(--tv-small) * 1.15);
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.app-lineup-display-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 4px 32px;
-  margin: 0;
-  font-size: var(--tv-small);
-  line-height: 1.2;
-}
-
-.app-lineup-display-meta__group {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-
-.app-lineup-display-meta__label {
-  color: var(--tv-muted);
-  font-weight: 500;
-}
-
-.app-lineup-display-meta__value {
-  margin: 0;
-  color: var(--tv-text);
-  font-weight: 700;
-  transition: color 0.4s;
-}
-
-.app-lineup-display-meta__group--route .app-lineup-display-meta__value {
-  overflow-wrap: anywhere;
-}
-
-.app-lineup-display-meta__value--fresh {
-  color: var(--tv-green);
-}
-
-.app-lineup-display-meta__value--stale {
-  color: var(--tv-amber);
-}
-
-.app-lineup-display-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  padding: 8px 10px 10px;
-}
-
-.app-lineup-display-table-frame {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  border: 1px solid var(--tv-rule);
-  border-radius: 8px;
-  background: var(--tv-surface);
-}
-
-.app-lineup-display-board {
-  display: flex;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-  --lineup-display-columns: 15fr 6fr 6.5fr 9fr 6fr 6fr 5fr 6fr 5fr 6fr 5fr 5fr 6.5fr 9.5fr 8fr;
-  --lineup-display-row-height: 78px;
-}
-
-.app-lineup-display-board__header,
-.app-lineup-display-board__row {
-  display: grid;
-  grid-template-columns: var(--lineup-display-columns);
-}
-
-.app-lineup-display-board__header {
-  background: var(--tv-head);
-  border-bottom: 2px solid var(--tv-rule);
-}
-
-.app-lineup-display-board__head {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  padding: 8px 4px;
-  color: var(--tv-muted);
-  text-align: center;
-  font-size: var(--tv-small);
-  font-weight: 600;
-  line-height: 1.05;
-}
-
-.app-lineup-display-board__viewport {
-  position: relative;
-  height: 100%;
-  min-height: 0;
-  flex: 1;
-  overflow: hidden;
-}
-
-.app-lineup-display-board__track {
-  position: relative;
-  height: 100%;
-}
-
-.app-lineup-display-board__row {
-  position: absolute;
-  inset-inline: 0;
-  height: var(--lineup-display-row-height);
-  border-bottom: 1px solid var(--tv-rule);
-  background: var(--tv-surface);
-  transform: translate3d(0, var(--lineup-display-row-shift, 0px), 0);
-  will-change: transform;
-}
-
-.app-lineup-display-board__row--sliding {
-  transition: transform var(--lineup-display-travel, 900ms) ease-in-out;
-}
-
-.app-lineup-display-board__row--placeholder {
-  color: transparent;
-}
-
-.app-lineup-display-board__row--export {
-  background: var(--tv-export);
-}
-
-.app-lineup-display-board__cell {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 4px;
-  color: var(--tv-text);
-  font-size: var(--tv-data);
-  font-weight: 700;
-  line-height: 1.05;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 /* Nome do navio pode quebrar em duas linhas, nunca três. */
-.app-lineup-display-board__cell--vessel {
-  justify-content: flex-start;
-  padding-inline-start: 14px;
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  align-content: center;
-}
-
-.app-lineup-display-board__cell--stack {
-  flex-direction: column;
-  gap: 2px;
-}
 
 /* Código de terminal cortado no meio vira outro código: 'PORTMAC' lido como
    'ORTMA'. Quebrar é sempre preferível a truncar silenciosamente. */
-.app-lineup-display-board__cell--terminal {
-  white-space: normal;
-  overflow-wrap: break-word;
-  text-overflow: clip;
-}
-
-.app-lineup-display-board__cell--total {
-  font-weight: 800;
-}
-
-.app-lineup-display-board__cell--actual {
-  color: var(--tv-green);
-}
-
-.app-lineup-display-board__cell--actual::before {
-  content: '✓';
-  margin-inline-end: 4px;
-  font-size: 0.8em;
-}
-
-.app-lineup-display-board__cell--export-label {
-  justify-content: center;
-  color: var(--tv-amber);
-  white-space: normal;
-}
-
-.app-lineup-display-board__cell--status {
-  white-space: normal;
-}
-
-.app-lineup-display-status {
-  font-size: var(--tv-data);
-  font-weight: 700;
-  line-height: 1.05;
-}
-
-.app-lineup-display-status--success {
-  color: var(--tv-green);
-}
-
-.app-lineup-display-status--info {
-  color: var(--tv-info);
-}
-
-.app-lineup-display-status--warning {
-  color: var(--tv-amber);
-}
-
-.app-lineup-display-status--danger {
-  color: var(--tv-red);
-}
-
-.app-lineup-display-omit {
-  border: 2px solid var(--tv-amber);
-  border-radius: 6px;
-  padding: 0 6px;
-  color: var(--tv-amber);
-  font-size: calc(var(--tv-data) * 0.72);
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.app-lineup-display-message {
-  display: grid;
-  width: 100%;
-  min-height: calc(100vh - 160px);
-  place-items: center;
-  padding: 24px;
-  color: var(--tv-muted);
-  font-size: calc(var(--tv-small) * 1.1);
-  font-weight: 600;
-  text-align: center;
-}
-
-.app-lineup-display-message--error {
-  color: var(--tv-red);
-}
 
 /* Celular e tablet: cartões estáticos, sem carrossel. */
 .app-lineup-mobile {
@@ -5907,166 +5498,12 @@ button.app-metric-tile[aria-pressed='true'] {
   gap: 10px;
 }
 
-.app-lineup-card {
-  overflow: hidden;
-  border: 1px solid var(--tv-rule);
-  border-radius: 8px;
-  background: var(--tv-surface);
-}
-
-.app-lineup-card__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
-  background: var(--tv-head);
-}
-
-.app-lineup-card__vessel {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--tv-text);
-  overflow-wrap: anywhere;
-}
-
-.app-lineup-card__voy {
-  flex-shrink: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--tv-muted);
-}
-
-.app-lineup-card__pod {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--tv-rule);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--tv-text);
-}
-
-.app-lineup-card__pod-label,
-.app-lineup-card__field-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--tv-muted);
-}
-
-.app-lineup-card__state {
-  margin-inline-start: auto;
-  color: var(--tv-green);
-  font-size: 14px;
-}
-
-.app-lineup-card .app-lineup-display-omit {
-  font-size: 13px;
-}
-
-.app-lineup-card__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: var(--tv-rule);
-}
-
-.app-lineup-card__field {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 14px;
-  background: var(--tv-surface);
-}
-
-.app-lineup-card__field--wide {
-  grid-column: 1 / -1;
-}
-
-.app-lineup-card__field-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--tv-text);
-  text-align: right;
-}
-
-.app-lineup-card__field-value .app-lineup-display-status {
-  font-size: 16px;
-}
-
-.app-lineup-card__field-value--actual {
-  color: var(--tv-green);
-}
-
-@media (max-width: 1024px) {
-  .app-lineup-display-shell {
-    --tv-small: 14px;
-    height: auto;
-    min-height: 100svh;
-    max-height: none;
-    overflow: visible;
-  }
-
-  .app-lineup-display-header {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--tv-bg);
-    padding: 8px 14px;
-  }
-
-  .app-lineup-display-meta {
-    justify-content: flex-start;
-    gap: 2px 16px;
-  }
-
-  .app-lineup-display-body {
-    display: block;
-    flex: none;
-    padding: 10px;
-  }
-}
-
 .app-lineup-placeholder-row td {
   padding: 0;
 }
 
 .app-lineup-export-row {
   background-color: var(--app-warning-bg);
-}
-
-
-
-.app-voyage-accordion {
-  display: grid;
-  gap: 16px;
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  padding: 16px 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 247, 251, 0.98));
-  box-shadow: var(--app-shadow);
-}
-
-.app-voyage-accordion__trigger {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  text-align: left;
-}
-
-.app-voyage-accordion__content {
-  display: grid;
-  gap: 16px;
-}
-
-.app-voyage-actions .app-btn {
-  min-height: 38px;
-  box-shadow: var(--app-shadow);
 }
 
 :root[data-visual-theme='current'] .text-white,
@@ -6515,8 +5952,8 @@ button.app-metric-tile[aria-pressed='true'] {
   }
 
   .app-shell--portal .page-header__title {
-    font-size: 28px;
-    line-height: 36px;
+    font-size: var(--app-size-hero);
+    line-height: 40px;
   }
 }
 
@@ -6650,13 +6087,14 @@ button.app-metric-tile[aria-pressed='true'] {
     min-height: 32px;
   }
 
-  /* Botão só com ícone (lápis, lixeira, seta) ganha área de toque mínima
-     de 40px; o ícone continua do mesmo tamanho. */
+  /* Botão só com ícone (lápis, lixeira, seta) ganha a área de toque mínima
+     de 44px do contrato; o ícone continua do mesmo tamanho. */
   button[aria-label]:has(> svg:only-child),
   button[title]:has(> svg:only-child) {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 44px;
+    min-height: 44px;
   }
+
 }
 
 @media print {
@@ -6941,29 +6379,14 @@ button.app-metric-tile[aria-pressed='true'] {
    nao distingue verde. A cor sozinha nao basta — e ela ja significa outra
    coisa na mesma linha (data real). A barra a esquerda e o sinal de forma. */
 .app-lineup-row--berthed > td:not(:nth-last-child(-n + 2)) {
-  color: #16a34a;
+  color: var(--app-success-fg);
 }
 
 .app-lineup-row--berthed > td:first-child {
-  box-shadow: inset 4px 0 0 #16a34a;
-}
-
-.app-lineup-display-board__row--berthed .app-lineup-display-board__cell:not(.app-lineup-display-board__cell--status) {
-  color: var(--tv-green);
-}
-
-.app-lineup-display-board__row--berthed {
-  box-shadow: inset 8px 0 0 var(--tv-green);
-}
-
-.app-lineup-card--berthed {
-  box-shadow: inset 4px 0 0 var(--tv-green);
+  box-shadow: inset 4px 0 0 var(--app-green);
 }
 
 /* Fronteira do ciclo: acompanha a primeira escala durante o deslocamento. */
-.app-lineup-display-board__row--cycle-start {
-  border-top: 4px solid var(--app-gold);
-}
 
 /* ===========================================================================
    Navegação para outros ambientes gerenciais
@@ -7028,7 +6451,7 @@ button.app-metric-tile[aria-pressed='true'] {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.9rem;
+  font-size: var(--app-size-body);
   font-weight: 700;
   color: var(--app-text-strong);
 }
@@ -7043,7 +6466,7 @@ button.app-metric-tile[aria-pressed='true'] {
   border-radius: 999px;
   background: var(--app-blue-btn);
   color: #ffffff;
-  font-size: 11px;
+  font-size: var(--app-size-caption);
   font-weight: 700;
   line-height: 1;
 }
@@ -7169,6 +6592,13 @@ button.app-metric-tile[aria-pressed='true'] {
   opacity: 0.55;
 }
 
+/* No toque a opção ocupa o alvo inteiro de 44px, sem o recuo do trilho. */
+@media (pointer: coarse) {
+  .app-segmented__option {
+    min-height: 44px;
+  }
+}
+
 .app-summary-strip {
   display: flex;
   flex-wrap: wrap;
@@ -7292,6 +6722,14 @@ a.app-step-rail__link:focus-visible {
   border-style: dashed;
 }
 
+/* Desvio (omissão, rota alterada): losango em aviso, para não depender só da cor. */
+.app-step-rail__step--diverted .app-step-rail__dot {
+  border-color: var(--app-warning-fg);
+  border-radius: 2px;
+  background: var(--app-warning-bg);
+  transform: rotate(45deg) scale(0.85);
+}
+
 .app-step-rail__label {
   margin-top: 6px;
   color: var(--app-muted);
@@ -7315,6 +6753,10 @@ a.app-step-rail__link:focus-visible {
 
 .app-step-rail__step--blocked .app-step-rail__detail {
   color: var(--app-danger-fg);
+}
+
+.app-step-rail__step--diverted .app-step-rail__detail {
+  color: var(--app-warning-fg);
 }
 
 .app-step-rail__step--skipped .app-step-rail__detail {
@@ -7349,7 +6791,7 @@ a.app-step-rail__link:focus-visible {
 
 .app-bulk-bar {
   position: sticky;
-  top: 8px;
+  top: calc(var(--app-header-height) + 8px); /* abaixo do cabeçalho fixo (z-index 200) */
   z-index: 5;
   display: flex;
   flex-wrap: wrap;
@@ -7630,214 +7072,36 @@ a.app-step-rail__link:focus-visible {
    seções são separados por filete e título, nunca por outro card.
    =========================================================================== */
 
-/* Faixa de viagens */
-.voyage-rail__caption {
-  margin: 0 0 6px;
-  padding-inline: 4px;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.voyage-rail__empty {
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  padding: 16px;
-  color: var(--app-muted);
-  font-size: 14px;
-}
-
-.voyage-rail-card {
-  position: relative;
-  display: flex;
-  width: 272px;
-  flex: none;
-  scroll-snap-align: start;
-}
-
-.voyage-rail-card__main {
-  display: flex;
-  width: 100%;
-  min-height: 132px;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  padding: 10px 12px;
-  text-align: left;
-  transition: background-color 0.15s, border-color 0.15s;
-}
-
-.voyage-rail-card__main:hover {
-  background: var(--app-surface-muted);
-}
-
-.voyage-rail-card--selected .voyage-rail-card__main {
-  border-color: var(--app-blue-btn);
-  box-shadow: inset 0 0 0 1px var(--app-blue-btn);
-  background: var(--app-surface-muted);
-}
-
-.voyage-rail-card__top {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Espaço para o lápis, que fica sobre o canto superior direito do card. */
-.voyage-rail-card--editable .voyage-rail-card__top {
-  padding-inline-end: 34px;
-}
-
-.voyage-rail-card__carrier {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 16px;
-  text-overflow: ellipsis;
+/* Faixa de viagens: card anterior à etapa 03, restaurado a pedido em 2026-10-08. */
+.voyage-rail-card__state-label {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
   white-space: nowrap;
-}
-
-.voyage-rail-card__state {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-}
-
-.voyage-rail-card__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-}
-
-.voyage-rail-card__title {
-  overflow: hidden;
-  color: var(--app-text-strong);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.voyage-rail-card__status {
-  align-self: flex-start;
-  color: var(--app-muted);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.voyage-rail-card__escalas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 6px;
-}
-
-.voyage-rail-card__escala {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.voyage-rail-card__empty {
-  color: var(--app-muted);
-  font-size: 12px;
-}
-
-.voyage-rail-pill {
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-control, 6px);
-  background: var(--app-surface);
-  padding: 0 6px;
-  color: var(--app-text);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 20px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.voyage-rail-pill--actual {
-  border-color: var(--app-success-border);
-  color: var(--app-success-fg);
-}
-
-.voyage-rail-pill--overdue {
-  border-color: var(--app-danger-border);
-  background: var(--app-danger-bg);
-  color: var(--app-danger-fg);
-}
-
-.voyage-rail-pill--missing {
-  color: var(--app-muted);
-}
-
-.voyage-rail-card__footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: auto;
-  border-top: 1px solid var(--app-border);
-  padding-top: 6px;
-  color: var(--app-muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.voyage-rail-card__footer strong {
-  color: var(--app-text-strong);
-  font-weight: 600;
 }
 
 .voyage-rail-card__edit {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: inline-flex;
-  width: 28px;
-  height: 28px;
+  display: none;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  margin-left: auto;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-control, 6px);
+  border-radius: 6px;
   background: var(--app-surface);
   color: var(--app-muted);
-  opacity: 0;
-  transition: opacity 0.15s;
 }
 
-/* Com mouse o lápis aparece no hover/foco; no toque fica sempre visível. */
-.voyage-rail-card:hover .voyage-rail-card__edit,
-.voyage-rail-card:focus-within .voyage-rail-card__edit,
-.voyage-rail-card--selected .voyage-rail-card__edit {
-  opacity: 1;
+.group:has(.voyage-rail-card__edit):hover .voyage-rail-card__state-label,
+.group:has(.voyage-rail-card__edit:focus-visible) .voyage-rail-card__state-label {
+  display: none;
 }
 
-@media (pointer: coarse) {
-  .voyage-rail-card__edit {
-    width: 44px;
-    height: 44px;
-    top: 0;
-    right: 0;
-    border-color: transparent;
-    background: transparent;
-    opacity: 1;
-  }
-
-  .voyage-rail-card--editable .voyage-rail-card__top {
-    padding-inline-end: 40px;
-  }
+.group:hover .voyage-rail-card__edit,
+.voyage-rail-card__edit:focus-visible {
+  display: inline-flex;
 }
 
 .voyage-rail-card__edit:hover,
@@ -7846,591 +7110,50 @@ a.app-step-rail__link:focus-visible {
   color: var(--app-text);
 }
 
-/* Ficha */
-.app-voyage-detail {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-  min-width: 0;
-}
-
-/* Sem isto, a tabela de planejamento alarga a coluna da grade e o título e os
-   valores dos indicadores saem cortados na borda do card a 360 px. */
-.app-voyage-detail > * {
-  min-width: 0;
-}
-
-.app-voyage-head {
+.voyage-rail-card__footer {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 24px;
-}
-
-.app-voyage-head__identity {
-  display: grid;
-  flex: 1 1 320px;
+  width: 100%;
   min-width: 0;
-  gap: 4px;
-}
-
-.app-voyage-head__carrier {
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.app-voyage-head__title-row {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-}
-
-/* Identificador longo no título: DM Sans 24/600 (contrato visual). */
-.app-voyage-head__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-family: var(--app-font-body);
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 32px;
-  overflow-wrap: anywhere;
-}
-
-.app-voyage-head__routes {
-  display: grid;
-  gap: 2px;
-  margin: 4px 0 0;
-}
-
-.app-voyage-head__route {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.app-voyage-head__route dt {
-  min-width: 80px;
-  color: var(--app-muted);
-}
-
-.app-voyage-head__route dd {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  margin: 0;
-  color: var(--app-text);
-  font-weight: 500;
-}
-
-.app-voyage-head__route dd svg {
-  color: var(--app-muted);
-}
-
-.app-voyage-head__actions {
-  display: flex;
-  flex-wrap: wrap;
   gap: 8px;
-}
-
-.app-voyage-action--danger {
-  border-color: var(--app-danger-border);
-  color: var(--app-danger-fg);
-}
-
-.app-voyage-action--danger:hover:not(:disabled),
-.app-voyage-action--danger:focus-visible {
-  border-color: var(--app-danger-fg);
-  background: var(--app-danger-bg);
-  color: var(--app-danger-fg);
-}
-
-.app-voyage-action--icon {
-  padding-inline: 0;
-  aspect-ratio: 1;
-}
-
-.app-voyage-trail {
-  display: grid;
-  gap: 8px;
+  margin-top: auto;
   border-top: 1px solid var(--app-border);
-  padding-top: 16px;
-}
-
-.app-voyage-trail__title,
-.app-voyage-kpi-tile__label {
-  margin: 0;
+  padding-top: 8px;
   color: var(--app-muted);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-}
-
-/* Indicadores: uma faixa com filetes verticais, sem card por número. */
-.app-voyage-kpi-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  border-top: 1px solid var(--app-border);
-  border-bottom: 1px solid var(--app-border);
-}
-
-.app-voyage-kpi-tile {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 0;
-}
-
-.app-voyage-kpi-tile + .app-voyage-kpi-tile {
-  border-top: 1px solid var(--app-border);
-}
-
-@media (min-width: 640px) {
-  .app-voyage-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .app-voyage-kpi-tile--import { grid-column: 1 / -1; }
-  .app-voyage-kpi-tile { padding: 12px 16px; }
-  .app-voyage-kpi-tile + .app-voyage-kpi-tile { border-top: 0; }
-  .app-voyage-kpi-tile--import { border-bottom: 1px solid var(--app-border); padding-inline: 0; }
-  .app-voyage-kpi-tile:not(.app-voyage-kpi-tile--import) + .app-voyage-kpi-tile { border-left: 1px solid var(--app-border); }
-  .app-voyage-kpi-tile--import + .app-voyage-kpi-tile { padding-inline-start: 0; }
-}
-
-@media (min-width: 1100px) {
-  .app-voyage-kpi-grid { grid-template-columns: minmax(0, 2.1fr) repeat(3, minmax(0, 1fr)); }
-  .app-voyage-kpi-tile--import { grid-column: auto; border-bottom: 0; padding-inline-end: 16px; }
-  .app-voyage-kpi-tile + .app-voyage-kpi-tile { border-left: 1px solid var(--app-border); }
-  .app-voyage-kpi-tile--import + .app-voyage-kpi-tile { padding-inline-start: 16px; }
-}
-
-.app-voyage-kpi-tile__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 16px;
-}
-
-.app-voyage-kpi-split {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 24px;
-}
-
-.app-voyage-kpi-split__panel {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.app-voyage-kpi-split__panel + .app-voyage-kpi-split__panel {
-  border-left: 1px solid var(--app-border);
-  padding-left: 24px;
-}
-
-.app-voyage-kpi-split__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--app-text);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.app-voyage-kpi-split__title svg { color: var(--app-muted); }
-
-.app-voyage-kpi-split__lead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 6px;
-}
-
-.app-voyage-kpi-split__lead span,
-.app-voyage-kpi-tile__value {
-  color: var(--app-text-strong);
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 28px;
-  font-variant-numeric: tabular-nums;
-}
-
-.app-voyage-kpi-split__lead small,
-.app-voyage-kpi-tile__unit {
-  color: var(--app-muted);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.app-voyage-kpi-split__panel--empty .app-voyage-kpi-split__lead span,
-.app-voyage-kpi-split__panel--empty .app-voyage-kpi-tile__metric strong {
-  color: var(--app-muted);
-}
-
-@media (max-width: 420px) {
-  .app-voyage-kpi-split { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .app-voyage-kpi-split__panel + .app-voyage-kpi-split__panel { border-left: 0; padding-left: 0; border-top: 1px solid var(--app-border); padding-top: 12px; }
-}
-
-.app-voyage-kpi-tile__primary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 8px;
-  min-width: 0;
-}
-
-.app-voyage-kpi-tile__value {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.app-voyage-kpi-tile__value--text {
-  font-size: 16px;
-  line-height: 24px;
-}
-
-.app-voyage-kpi-tile__support {
-  display: grid;
-  gap: 2px;
-}
-
-/* Rótulo e valor podem quebrar: nada some cortado na borda (360 px). */
-.app-voyage-kpi-tile__metric {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0 12px;
-  min-width: 0;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.app-voyage-kpi-tile__metric strong {
-  margin-left: auto;
-  color: var(--app-text);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-/* Abas e atalhos na mesma linha: abas trocam a vista, atalhos (com seta) saem. */
-.app-voyage-tabs-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 8px 16px;
-  border-bottom: 1px solid var(--app-border);
-}
-
-.app-voyage-tabs-row .app-tablist {
-  min-width: 0;
-  border-bottom: 0;
-}
-
-.app-voyage-shortcuts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 16px;
-  padding-bottom: 6px;
-}
-
-.app-voyage-shortcut {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
-  gap: 4px;
-  color: var(--app-link);
-  font-size: 13px;
-  font-weight: 500;
-  text-decoration: underline;
-  text-decoration-color: transparent;
-  text-underline-offset: 3px;
-}
-
-.app-voyage-shortcut:hover,
-.app-voyage-shortcut:focus-visible {
-  text-decoration-color: currentColor;
-}
-
-/* Seções dentro das abas */
-.app-voyage-section {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
-.app-voyage-section--compact {
-  gap: 8px;
-}
-
-.app-voyage-section__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 8px 16px;
-}
-
-.app-voyage-section__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 24px;
-}
-
-.app-voyage-section__description {
-  margin: 2px 0 0;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.app-voyage-section__actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
-}
-
-/* Planejamento por escala */
-.app-voyage-plan th,
-.app-voyage-plan td {
-  vertical-align: top;
-}
-
-.app-voyage-plan__port {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-}
-
-.app-voyage-plan__port-code {
-  color: var(--app-text-strong);
-  font-weight: 600;
-}
-
-.app-voyage-plan__toggle {
-  display: inline-flex;
-  min-height: 28px;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  color: var(--app-link);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-/* Alvo de toque de 44 px (remediação de 2026-09-20); 28 px com mouse. */
-@media (pointer: coarse) {
-  .app-voyage-plan__toggle {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
-
-.app-voyage-plan__row--omitted > * {
-  background: var(--app-surface-muted);
-}
-
-.app-voyage-plan__actions {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.app-voyage-plan__delete:hover:not(:disabled) {
-  color: var(--app-danger-fg);
-}
-
-.app-voyage-plan__detail > td {
-  padding-top: 0 !important;
-  background: var(--app-surface-muted);
-}
-
-.app-voyage-plan__empty {
-  padding: 16px !important;
-  color: var(--app-muted);
-}
-
-.app-voyage-date {
-  display: grid;
-  gap: 2px;
-  justify-items: start;
+  font-family: var(--app-font-mono);
+  font-size: 11px;
   white-space: nowrap;
 }
 
-.app-voyage-date__value {
-  font-variant-numeric: tabular-nums;
+.voyage-rail-card__footer strong {
+  color: var(--app-text-strong);
+  font-weight: 700;
 }
 
-.app-voyage-date__caption {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 16px;
-}
+/* Ficha */
 
-.app-voyage-date--overdue .app-voyage-date__caption {
-  color: var(--app-danger-fg);
-  font-weight: 500;
-}
+/* Sem isto, a tabela de planejamento alarga a coluna da grade e o título e os
+   valores dos indicadores saem cortados na borda do card a 360 px. */
 
-.app-voyage-date--missing .app-voyage-date__value {
-  color: var(--app-muted);
-}
+/* Identificador longo no título: DM Sans 24/600 (contrato visual). */
 
-.app-voyage-berths {
-  display: grid;
-  gap: 8px;
-  margin-left: 16px;
-  border-left: 2px solid var(--app-border-strong);
-  padding: 8px 0 8px 12px;
-}
+/* Indicadores: uma faixa com filetes verticais, sem card por número. */
 
-.app-voyage-berths__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
+/* Rótulo e valor podem quebrar: nada some cortado na borda (360 px). */
 
-.app-voyage-berths__title {
-  margin: 0;
-  color: var(--app-text);
-  font-size: 13px;
-  font-weight: 600;
-}
+/* Abas e atalhos na mesma linha: abas trocam a vista, atalhos (com seta) saem. */
+
+/* Seções dentro das abas */
+
+/* Planejamento por escala */
+
+/* Alvo de toque de 44 px (remediação de 2026-09-20); 28 px com mouse. */
 
 /* Linha do tempo */
-.app-voyage-timeline {
-  border-top: 1px solid var(--app-border);
-  padding-top: 8px;
-}
-
-.app-voyage-timeline__heading {
-  margin: 0;
-}
-
-.app-voyage-timeline__toggle {
-  display: flex;
-  width: 100%;
-  min-height: 40px;
-  align-items: center;
-  gap: 8px;
-  color: var(--app-text-strong);
-  font-size: 16px;
-  font-weight: 600;
-  text-align: left;
-}
-
-.app-voyage-timeline__count {
-  color: var(--app-muted);
-  font-size: 13px;
-  font-weight: 400;
-}
-
-.app-voyage-timeline__toggle svg {
-  margin-left: auto;
-  color: var(--app-muted);
-}
-
-.app-voyage-timeline__list {
-  display: grid;
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.app-voyage-timeline__event {
-  display: grid;
-  grid-template-columns: 136px minmax(0, 1fr);
-  gap: 2px 12px;
-  border-bottom: 1px solid var(--app-border);
-  padding: 8px 0 8px 12px;
-  box-shadow: inset 3px 0 0 var(--timeline-tone, var(--app-border-strong));
-}
-
-.app-voyage-timeline__event--success { --timeline-tone: var(--app-success-fg); }
-.app-voyage-timeline__event--info { --timeline-tone: var(--app-blue-btn); }
-.app-voyage-timeline__event--warning { --timeline-tone: var(--app-warning-fg); }
-.app-voyage-timeline__event--danger { --timeline-tone: var(--app-danger-fg); }
-
-.app-voyage-timeline__moment {
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 20px;
-  font-variant-numeric: tabular-nums;
-}
-
-.app-voyage-timeline__body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 8px;
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.app-voyage-timeline__title {
-  color: var(--app-text);
-  font-weight: 600;
-}
-
-.app-voyage-timeline__detail {
-  color: var(--app-muted);
-}
-
-.app-voyage-timeline__more {
-  margin-top: 8px;
-  color: var(--app-link);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.app-voyage-timeline__empty {
-  margin: 8px 0 0;
-  color: var(--app-muted);
-  font-size: 13px;
-}
-
-@media (max-width: 640px) {
-  .app-voyage-timeline__event {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 
 /* Cabeçalho de linha (porto, terminal, navio) com o fundo da própria linha. */
-.app-voyage-plan tbody th,
-.app-voyage-atracacoes-table tbody th,
-.app-schedule tbody th {
-  background: transparent;
-  font-weight: 600;
-}
 
-/* Ações por linha na densidade compacta: alvo de 36 px com mouse, 44 px no toque. */
-.app-voyage-plan .app-table__icon-button,
-.app-voyage-atracacoes-table .app-table__icon-button {
-  width: var(--app-control-h, 36px);
-  min-width: var(--app-control-h, 36px);
-  height: var(--app-control-h, 36px);
-  min-height: var(--app-control-h, 36px);
-  box-shadow: none;
-}
+/* A densidade (36 px com mouse, 44 px no toque) vem do `.app-table__icon-button`. */
 
 /* ── Importações comuns (etapa 04) ────────────────────────────────────────
    Percurso: destino → arquivo → leitura → conferência → confirmação →
@@ -9273,7 +7996,43 @@ a.app-step-rail__link:focus-visible {
   width: 40px;
 }
 
+/* Primeira coluna fixa na rolagem horizontal (contrato: tabela larga com
+   cabeçalho e primeira coluna fixos): seleção e número do B/L continuam
+   visíveis enquanto o resto da linha desliza. */
+.app-bl-table .app-bl-table__check,
+.app-bl-table .app-bl-table__id {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--app-surface);
+}
+
+.app-bl-table .app-bl-table__check {
+  min-width: 40px;
+  max-width: 40px;
+}
+
+.app-bl-table--selectable .app-bl-table__id {
+  left: 40px;
+  box-shadow: 8px 0 8px -8px rgba(15, 23, 42, 0.25);
+}
+
+.app-bl-table:not(.app-bl-table--selectable) .app-bl-table__id {
+  box-shadow: 8px 0 8px -8px rgba(15, 23, 42, 0.25);
+}
+
+.app-bl-table thead .app-bl-table__check,
+.app-bl-table thead .app-bl-table__id {
+  z-index: 3;
+  background: var(--app-thead-bg);
+}
+
 .app-bl-table__row--open > td {
+  background: var(--app-surface-muted);
+}
+
+.app-bl-table .app-bl-table__row--open > .app-bl-table__check,
+.app-bl-table .app-bl-table__row--open > .app-bl-table__id {
   background: var(--app-surface-muted);
 }
 
@@ -9314,25 +8073,15 @@ a.app-step-rail__link:focus-visible {
   gap: 4px;
 }
 
-/* Ações por linha na densidade compacta: 32 px com mouse (linha de 40 px), 44 px no toque. */
-@media (pointer: fine) {
-  .app-bl-row-actions .app-table__icon-button,
-  .app-bl-card .app-table__icon-button {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    min-height: 32px;
-    border-radius: var(--app-radius-control);
-    box-shadow: none;
-  }
+/* A densidade (36 px com mouse, 44 px no toque) vem do `.app-table__icon-button`. */
+.app-bl-row-actions .app-table__icon-button,
+.app-bl-card .app-table__icon-button {
+  border-radius: var(--app-radius-control);
+  box-shadow: none;
 }
 
 .app-bl-row-detail {
   padding: 12px 16px 16px;
-}
-
-.app-floating-menu--start {
-  transform: none;
 }
 
 /* Lista em cartões abaixo de 640 px. */
@@ -9761,6 +8510,12 @@ a.app-step-rail__link:focus-visible {
   background: var(--app-warning-bg);
 }
 
+.app-bl-notice__list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+
 .app-bl-subtable {
   text-align: left;
 }
@@ -9907,6 +8662,21 @@ a.app-step-rail__link:focus-visible {
   box-shadow: 0 -8px 16px -12px rgba(15, 23, 42, 0.35);
 }
 
+/* `.app-surface` corta com overflow: hidden, que vira o contêiner de rolagem
+   do sticky e prendia a barra no fim do cartão. `clip` corta sem criar esse
+   contêiner, então a barra gruda no rodapé da janela enquanto há alteração. */
+.app-bl-form.app-surface {
+  overflow: clip;
+}
+
+@media (max-width: 480px) {
+  .app-bl-savebar--dirty {
+    margin-inline: -18px;
+    margin-bottom: -18px;
+    padding-inline: 18px;
+  }
+}
+
 @media (min-width: 768px) {
   .app-bl-savebar {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -10031,4 +8801,1179 @@ a.app-step-rail__link:focus-visible {
     justify-items: start;
     text-align: left;
   }
+}
+
+/*  Line-Up na TV: quadro anterior à etapa 03, restaurado a pedido em 2026-10-08.  */
+
+.app-table--lineup-display td:first-child {
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-overflow: clip;
+  line-height: 1.15;
+}
+
+.app-table:not(.app-table--lineup-display) thead th {
+  background: var(--app-thead-bg);
+  color: var(--app-thead-text);
+}
+
+.app-table:not(.app-table--lineup-display) tbody {
+  color: var(--app-text);
+}
+
+.app-table:not(.app-table--lineup-display) tbody .text-white {
+  color: var(--app-text-strong);
+}
+
+.app-table:not(.app-table--lineup-display) tbody .text-slate-200,
+.app-table:not(.app-table--lineup-display) tbody .text-slate-300,
+.app-table:not(.app-table--lineup-display) tbody .text-slate-400,
+.app-table:not(.app-table--lineup-display) tbody .text-slate-500 {
+  color: var(--app-muted);
+}
+
+.app-table:not(.app-table--lineup-display) tbody .text-\[\#58a6ff\],
+.app-table:not(.app-table--lineup-display) tbody .text-\[\#8cc8ff\] {
+  color: var(--app-blue);
+}
+
+.app-table:not(.app-table--lineup-display) tbody .text-green-400,
+.app-table:not(.app-table--lineup-display) tbody .text-emerald-400,
+.app-table:not(.app-table--lineup-display) tbody .text-emerald-300 {
+  color: var(--app-green);
+}
+
+.app-table:not(.app-table--lineup-display) tbody .text-red-200,
+.app-table:not(.app-table--lineup-display) tbody .text-red-300,
+.app-table:not(.app-table--lineup-display) tbody .text-red-400 {
+  color: var(--app-red);
+}
+
+.app-table:not(.app-table--lineup-display) tbody .text-amber-300,
+.app-table:not(.app-table--lineup-display) tbody .text-amber-400 {
+  color: var(--app-gold);
+}
+
+.app-table:not(.app-table--lineup-display) tbody > tr + tr {
+  border-top-color: var(--app-border);
+}
+
+.app-table--lineup-display {
+  font-size: 23px;
+  color: #16324e;
+}
+
+.app-table--lineup-display thead th,
+.app-table--lineup-display tbody td {
+  padding: 1px 2px;
+}
+
+.app-table--lineup-display thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #16325f;
+  color: #ffffff !important;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.app-table--lineup-display tbody tr {
+  height: var(--lineup-display-row-height, 78px);
+}
+
+.app-table--lineup-display tbody td {
+  border-color: #d6dfeb;
+  color: #18314f;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 0.96;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.app-table--lineup-display tbody td:first-child {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.app-table--lineup-display .app-lineup-bb {
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 0.94;
+  color: #16324e;
+  justify-items: center;
+}
+
+.app-lineup-display-shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+  flex-direction: column;
+  background:
+    linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+  color: #16324e;
+}
+
+.app-lineup-display-header {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 4px solid #16325f;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f9fe 100%);
+  padding: 6px 22px 6px;
+}
+
+.app-lineup-display-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-lineup-display-brand__logo {
+  height: 48px;
+  width: 48px;
+  object-fit: contain;
+}
+
+.app-lineup-display-brand__name {
+  color: #152238;
+  font-family: var(--app-font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.app-lineup-display-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: min(52vw, 860px);
+}
+
+.app-lineup-display-meta__group {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.app-lineup-display-meta__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5e7696;
+}
+
+.app-lineup-display-meta__value {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+  color: #16325f;
+}
+
+.app-lineup-display-meta__value--route {
+  font-size: 13px;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.app-lineup-display-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 4px 10px 10px;
+}
+
+.app-lineup-display-table-frame {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 2px solid #c2d0e5;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 28px 60px rgba(21, 44, 82, 0.12);
+}
+
+.app-lineup-display-board {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  --lineup-display-columns: 16fr 5fr 7fr 10fr 6fr 6fr 5fr 6fr 6fr 7fr 5fr 5fr 7fr 9fr 6fr;
+  --lineup-display-row-height: 78px;
+}
+
+.app-lineup-display-board__header,
+.app-lineup-display-board__row {
+  display: grid;
+  grid-template-columns: var(--lineup-display-columns);
+}
+
+.app-lineup-display-board__header {
+  background: #16325f;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.app-lineup-display-board__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 9px 4px 8px;
+  color: #ffffff;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.app-lineup-display-board__viewport {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.app-lineup-display-board__track {
+  position: relative;
+  height: 100%;
+}
+
+.app-lineup-display-board__row {
+  position: absolute;
+  inset-inline: 0;
+  height: var(--lineup-display-row-height);
+  border-bottom: 1px solid #d6dfeb;
+  background: #ffffff;
+  transform: translate3d(0, var(--lineup-display-row-shift, 0px), 0);
+  will-change: transform;
+}
+
+.app-lineup-display-board__row--sliding {
+  transition: transform 3000ms linear;
+}
+
+.app-lineup-display-board__row--placeholder {
+  color: transparent;
+}
+
+.app-lineup-display-board__row--export {
+  background-color: color-mix(in srgb, #b45309 10%, white);
+}
+
+.app-lineup-display-board__cell--export-label {
+  font-size: 22px;
+  font-weight: 900;
+  color: #7c4a00;
+  letter-spacing: 0.04em;
+  justify-content: center;
+}
+
+.app-lineup-display-board__cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 2px;
+  color: #18314f;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 0.96;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-lineup-display-board__cell--vessel {
+  justify-content: center;
+  color: #214b2f;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.03;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
+.app-lineup-display-board__cell--accent {
+  color: #214b2f;
+  font-weight: 900;
+}
+
+.app-lineup-display-board__cell--terminal {
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-overflow: clip;
+  line-height: 1.05;
+}
+
+.app-lineup-display-board__cell--total {
+  color: #58a6ff;
+}
+
+.app-lineup-display-board__cell--bb,
+.app-lineup-display-board__cell--status {
+  justify-content: center;
+}
+
+.app-lineup-display-board__bb {
+  display: grid;
+  justify-items: center;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 0.94;
+  color: #16324e;
+}
+
+.app-table--lineup-display .app-badge {
+  min-height: 34px;
+  padding: 4px 12px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.app-lineup-display-status {
+  display: inline-block;
+  /* 20px: "Aguardando" precisa caber na coluna CEs (8%) sem clipar, inclusive
+     no preview 1440; 24px estourava e o texto era cortado nas bordas. */
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.app-lineup-display-status--green {
+  color: #2f7b1f;
+}
+
+.app-lineup-display-status--amber {
+  color: #9f5b00;
+}
+
+.app-lineup-display-status--red {
+  color: #d75b62;
+}
+
+.app-lineup-display-loading,
+.app-lineup-display-error {
+  display: grid;
+  min-height: calc(100vh - 160px);
+  place-items: center;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.app-lineup-display-error {
+  color: #9f1239;
+}
+
+.app-lineup-card {
+  overflow: hidden;
+  border: 1px solid #c2d0e5;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(21, 44, 82, 0.08);
+}
+
+.app-lineup-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 14px;
+  background: #16325f;
+}
+
+.app-lineup-card__vessel {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.app-lineup-card__voy {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9db8de;
+}
+
+.app-lineup-card__pod {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #e3e9f2;
+  font-size: 15px;
+  font-weight: 800;
+  color: #214b2f;
+}
+
+.app-lineup-card__pod-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #5e7696;
+}
+
+.app-lineup-card__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #e3e9f2;
+}
+
+.app-lineup-card__field {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  background: #ffffff;
+}
+
+.app-lineup-card__field--wide {
+  grid-column: 1 / -1;
+}
+
+.app-lineup-card__field-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5e7696;
+}
+
+.app-lineup-card__field-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: #18314f;
+  text-align: right;
+}
+
+.app-lineup-card__field-value--accent {
+  color: #2563a8;
+}
+
+.app-lineup-card__field-value--green {
+  color: #1a8c50;
+}
+
+.app-lineup-card__field-value--amber {
+  color: #9f5b00;
+}
+
+.app-lineup-card__field-value--red {
+  color: #c0393f;
+}
+
+@media (max-width: 1024px) {
+  .app-lineup-display-shell {
+    height: auto;
+    min-height: 100svh;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 1024px) {
+
+  .app-lineup-display-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    min-height: 52px;
+    gap: 12px;
+    padding: 6px 14px;
+  }
+}
+
+@media (max-width: 1024px) {
+
+  .app-lineup-display-brand__logo {
+    height: 34px;
+    width: 34px;
+  }
+}
+
+@media (max-width: 1024px) {
+
+  .app-lineup-display-brand__name {
+    font-size: 21px;
+  }
+}
+
+@media (max-width: 1024px) {
+
+  .app-lineup-display-meta {
+    gap: 3px;
+  }
+}
+
+@media (max-width: 1024px) {
+
+  .app-lineup-display-meta__label {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 1024px) {
+
+  .app-lineup-display-meta__value {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 1024px) {
+
+  .app-lineup-display-meta__value--route {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 1024px) {
+
+  .app-lineup-display-body {
+    display: block;
+    flex: none;
+    padding: 10px;
+  }
+}
+
+.app-lineup-display-board__row--berthed .app-lineup-display-board__cell:not(.app-lineup-display-board__cell--status),
+.app-lineup-card--berthed {
+  color: #16a34a;
+}
+
+.app-lineup-display-board__row--berthed {
+  box-shadow: inset 6px 0 0 #16a34a;
+}
+
+.app-lineup-card--berthed {
+  box-shadow: inset 4px 0 0 #16a34a, 0 2px 10px rgba(21, 44, 82, 0.08);
+}
+
+.app-lineup-display-board__row--cycle-start {
+  border-top: 2px solid var(--app-gold);
+}
+
+/*  Ficha da viagem: estilos anteriores à etapa 03, restaurado a pedido em 2026-10-08.  */
+
+.app-voyage-kpi-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .app-voyage-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (min-width: 640px) {
+  .app-voyage-kpi-tile--import { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1100px) {
+  .app-voyage-kpi-grid { grid-template-columns: minmax(0, 2.1fr) repeat(3, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1100px) {
+  .app-voyage-kpi-tile--import { grid-column: auto; }
+}
+
+.app-voyage-kpi-tile {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface-muted);
+  padding: 14px 16px;
+}
+
+.app-voyage-kpi-tile__label {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.app-voyage-kpi-tile--import {
+  background: color-mix(in srgb, var(--app-blue) 5%, var(--app-surface-muted));
+}
+
+.app-voyage-kpi-tile__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.app-voyage-kpi-split {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.app-voyage-kpi-split__panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface);
+  padding: 10px 12px;
+}
+
+.app-voyage-kpi-split__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-text);
+  font-size: var(--app-size-caption);
+  font-weight: 600;
+}
+
+.app-voyage-kpi-split__title svg { color: var(--app-blue); }
+
+.app-voyage-kpi-split__lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+}
+
+.app-voyage-kpi-split__lead span {
+  color: var(--app-text-strong);
+  font-size: var(--app-size-panel);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.app-voyage-kpi-split__lead small {
+  color: var(--app-muted-soft);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-voyage-kpi-split__panel--empty .app-voyage-kpi-split__lead span,
+.app-voyage-kpi-split__panel--empty .app-voyage-kpi-tile__metric strong {
+  color: var(--app-muted-soft);
+}
+
+.app-voyage-kpi-split__panel .app-voyage-kpi-tile__metric strong { color: var(--app-text); }
+
+@media (max-width: 420px) {
+  .app-voyage-kpi-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+.app-voyage-kpi-tile__primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  min-width: 0;
+}
+
+.app-voyage-kpi-tile__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-page);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.app-voyage-kpi-tile__value--text {
+  font-size: var(--app-size-section);
+  letter-spacing: 0;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.app-voyage-kpi-tile__unit {
+  color: var(--app-muted-soft);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.app-voyage-kpi-tile__support {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--app-border);
+  padding-top: 9px;
+}
+
+.app-voyage-kpi-tile__metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  color: var(--app-muted-soft);
+  font-size: 12px;
+}
+
+.app-voyage-kpi-tile__metric span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-voyage-kpi-tile__metric strong {
+  flex: none;
+  color: var(--app-text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-voyage-metric-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface-muted);
+  padding: 16px;
+}
+
+.app-voyage-metric-panel__title {
+  color: var(--app-text-strong);
+  font-size: var(--app-size-section);
+  font-weight: 600;
+}
+
+.app-voyage-metric-panel dl {
+  margin: 0;
+}
+
+.app-voyage-info {
+  display: grid;
+  /* O rótulo guarda uma largura mínima; valor longo quebra a linha em vez de cobri-lo. */
+  grid-template-columns: minmax(min(7rem, 40%), 1fr) minmax(0, auto);
+  gap: 12px;
+  font-size: var(--app-size-body);
+  align-items: start;
+  border-bottom: 1px solid var(--app-border);
+  padding-bottom: 10px;
+}
+
+.app-voyage-info:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.app-voyage-info--tokenized {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.app-voyage-info__label {
+  color: var(--app-muted);
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.app-voyage-info__value {
+  display: block;
+  min-width: 0;
+  color: var(--app-text);
+  font-weight: 700;
+  text-align: right;
+  word-break: break-word;
+}
+
+.app-voyage-token-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.app-voyage-token {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  padding: 4px 9px;
+  font-size: var(--app-size-caption);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.app-voyage-table-frame {
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+
+.app-voyage-table-frame .app-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.app-voyage-table-frame .app-table thead tr:first-child > th:first-child {
+  border-top-left-radius: var(--app-radius);
+}
+
+.app-voyage-table-frame .app-table thead tr:first-child > th:last-child {
+  border-top-right-radius: var(--app-radius);
+}
+
+.app-voyage-table-frame .app-table tbody td {
+  background: var(--app-surface);
+}
+
+.app-voyage-atracacoes-table thead th {
+  background: var(--app-panel-strong);
+  color: var(--app-muted);
+}
+
+/* Botão-ícone da tabela da ficha: só a geometria. Cor e contorno vêm da
+   variante (secundário ou destrutivo), como nos demais botões. */
+.app-voyage-icon-btn {
+  width: var(--app-control-h);
+  min-width: var(--app-control-h);
+  min-height: var(--app-control-h);
+  padding: 0;
+}
+
+/*  Ficha da viagem — revisão sobre a versão restaurada (2026-10-08).
+    Mesma composição de antes (identidade, indicadores, abas), com três
+    ajustes: faixa de identidade azul-marinho lisa, filetes internos suaves e
+    nenhuma sombra ou degradê dentro da ficha. */
+.app-voyage-ficha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-voyage-ficha__body {
+  /* Filetes entre blocos ficam suaves; controles seguem com --app-border-strong. */
+  --app-border: var(--app-border-soft);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+  padding: 20px 22px 22px;
+}
+
+.app-voyage-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding: 18px 22px 20px;
+  background: var(--app-navy);
+  color: #ffffff;
+}
+
+:root[data-visual-theme='dark'] .app-voyage-hero {
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-navy-2);
+}
+
+.app-voyage-hero__identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.app-voyage-hero__carrier {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: var(--app-size-caption);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.app-voyage-hero__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.app-voyage-hero__title {
+  margin: 0;
+  min-width: 0;
+  color: #ffffff;
+  font-size: var(--app-size-page);
+  font-weight: 700;
+  line-height: 32px;
+  overflow-wrap: anywhere;
+}
+
+.app-voyage-hero__routes {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.app-voyage-hero__route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  font-size: var(--app-size-table);
+}
+
+.app-voyage-hero__ports {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-voyage-hero__port {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  padding: 3px 10px;
+  font-size: var(--app-size-caption);
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.app-voyage-hero__port--pending {
+  border-style: dashed;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.74);
+  font-weight: 500;
+}
+
+.app-voyage-hero__arrow {
+  flex: none;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.app-voyage-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-voyage-hero__action.app-btn {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: transparent;
+  color: #ffffff;
+}
+
+.app-voyage-hero__action.app-btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.app-voyage-hero__action.app-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.app-voyage-hero__action--danger.app-btn {
+  border-color: rgba(254, 202, 202, 0.42);
+  color: #fecaca;
+}
+
+.app-voyage-hero__action--danger.app-btn:hover:not(:disabled) {
+  border-color: rgba(254, 202, 202, 0.7);
+  background: rgba(248, 113, 113, 0.2);
+  color: #ffffff;
+}
+
+.app-voyage-hero__action--icon.app-btn {
+  width: var(--app-control-h);
+  min-width: var(--app-control-h);
+  padding: 0;
+}
+
+/* Conteúdo das abas nunca alarga a ficha: tabelas largas rolam dentro do
+   próprio quadro (.app-table-scroll), não empurram a página. */
+.app-voyage-ficha__body > [role='tabpanel'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-voyage-ficha__body > [role='tabpanel'] > * {
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  .app-voyage-hero { padding: 16px; }
+  .app-voyage-hero__title { font-size: var(--app-size-panel); line-height: 28px; }
+  .app-voyage-ficha__body { padding: 16px; }
+}
+
+/* Abas e atalhos na mesma linha: abas trocam a vista, atalhos (com seta) saem. */
+.app-voyage-tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.app-voyage-tabs-row .app-tablist {
+  min-width: 0;
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.app-voyage-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding-bottom: 6px;
+}
+
+.app-voyage-shortcut {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 4px;
+  color: var(--app-link);
+  font-size: var(--app-size-table);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+}
+
+.app-voyage-shortcut:hover,
+.app-voyage-shortcut:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+/* Rota em Rotas e Manifestos: link com área de clique de controle. */
+.app-voyage-route-link {
+  display: inline-flex;
+  flex-wrap: wrap;
+  min-height: var(--app-control-h);
+  align-items: center;
+  column-gap: 4px;
+  color: var(--app-link);
+  font-weight: 600;
+}
+
+.app-voyage-route-link:hover {
+  text-decoration: underline;
+}
+
+/* Ação de dado pendente (ex.: Nº de manifesto a informar): botão de verdade,
+   com o tom de atenção do selo que substituiu. */
+.app-voyage-pending-action.app-btn {
+  border-color: var(--app-warning-border);
+  background: var(--app-warning-bg);
+  color: var(--app-warning-fg);
+}
+
+.app-voyage-pending-action.app-btn:hover:not(:disabled) {
+  border-color: var(--app-warning-fg);
+  background: var(--app-warning-bg);
+  color: var(--app-warning-fg);
+}
+
+@media (pointer: coarse) {
+  .app-voyage-shortcut { min-height: 44px; }
+}
+
+/* Bloco de seção dentro das abas: levemente escurecido, filete suave, sem sombra. */
+.app-voyage-section-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface-muted);
+  padding: 16px;
+}
+
+.app-voyage-section-card--compact {
+  gap: 10px;
+  padding: 12px;
+}
+
+.app-voyage-section-card__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-section);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.app-voyage-section-card__description {
+  margin-top: 2px;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+}
+
+.app-voyage-accordion {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  padding: 16px;
+  background: var(--app-surface-muted);
+}
+
+.app-voyage-accordion__trigger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  text-align: left;
+}
+
+.app-voyage-accordion__content {
+  display: grid;
+  gap: 16px;
 }

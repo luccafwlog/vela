@@ -4,7 +4,7 @@ type PreviewBoxProps = {
   label: string
   value: number | string
   decimals?: number
-  variant?: 'metric' | 'metric-centered' | 'metric-strip' | 'surface' | 'kpi'
+  variant?: 'metric' | 'metric-centered' | 'surface' | 'kpi'
   tone?: 'navy' | 'blue' | 'green' | 'gold'
 }
 
@@ -18,18 +18,9 @@ export function PreviewBox({ label, value, decimals, variant = 'metric', tone = 
 
   if (variant === 'surface') {
     return (
-      <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
-        <div className="text-xs uppercase tracking-wider text-slate-500">{label}</div>
-        <div className="mt-1 text-2xl font-bold text-white">{displayValue}</div>
-      </div>
-    )
-  }
-
-  if (variant === 'metric-strip') {
-    return (
-      <div className="app-metric-strip">
-        <div className="app-metric-strip__label">{label}</div>
-        <div className="app-metric-strip__value">{displayValue}</div>
+      <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
+        <div className="text-xs font-medium text-[var(--app-muted)]">{label}</div>
+        <div className="mt-1 text-xl font-semibold tabular-nums text-[var(--app-text-strong)]">{displayValue}</div>
       </div>
     )
   }

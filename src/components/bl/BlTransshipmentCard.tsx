@@ -4,7 +4,7 @@ import { ArrowRight, Route } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Modal } from '../ui/Modal'
-import { Field } from '../ui/Input'
+import { Field, Textarea } from '../ui/Input'
 import { formatDate } from '../../lib/utils'
 import type { BlDisposition, VoyageOmission } from '../../services/transshipments'
 
@@ -75,7 +75,7 @@ export function BlTransshipmentCard({ omission, disposition, saving, onCod, onRe
         ) : null}
         {!inCod && onCod ? (
           <div className="app-bl-omission__actions">
-            <Button variant="secondary" disabled={saving} onClick={() => { setJustification(''); setPendingAction('cod') }}>Marcar COD</Button>
+            <Button variant="secondary" loading={saving} loadingLabel="Marcando COD…" onClick={() => { setJustification(''); setPendingAction('cod') }}>Marcar COD</Button>
           </div>
         ) : inCod && onRestore ? (
           <div className="app-bl-omission__actions">
@@ -105,10 +105,8 @@ export function BlTransshipmentCard({ omission, disposition, saving, onCod, onRe
             </ul>
           )}
           <Field label="Justificativa" required>
-            {/* Textarea nativo: a primitiva não repassa ref, e o foco inicial do modal precisa dele. */}
-            <textarea
+            <Textarea
               ref={justificationRef}
-              className="app-input app-input--full app-textarea"
               value={justification}
               onChange={(event) => setJustification(event.target.value)}
               placeholder="Explique o motivo da alteração"

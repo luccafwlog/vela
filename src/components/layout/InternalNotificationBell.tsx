@@ -26,7 +26,10 @@ export function InternalNotificationBell() {
   const { showToast } = useToast()
   const confirm = useConfirm()
 
-  const { data: countData } = useUnreadInternalNotificationCount()
+  const { data: countData, refetch: refetchCount } = useUnreadInternalNotificationCount()
+  // Falha ou divergência de "Marcar todas" fica explicada no próprio painel.
+  const [markAllNotice, setMarkAllNotice] = useState<string | null>(null)
+  const [markingAll, setMarkingAll] = useState(false)
   const unreadCount = Number(countData ?? 0)
 
   const cursor = cursorByPage[page] ?? null
@@ -36,10 +39,12 @@ export function InternalNotificationBell() {
   const markAllRead = useMarkAllInternalNotificationsRead()
 
   async function markEveryUnreadNotificationRead() {
+    setMarkAllNotice(null)
+    setMarkingAll(true)
     try {
       const unreadNotifications = await listAllUnreadInternalNotifications()
       if (unreadNotifications.length !== unreadCount) {
-        showToast('A lista de notificações mudou. Atualize o painel e tente de novo; nenhuma foi marcada.', 'error')
+        setMarkAllNotice('A lista de notificações mudou desde que o painel abriu; nenhuma foi marcada. Atualize a lista e tente de novo.')
         return
       }
       if (unreadNotifications.length === 0) return
@@ -61,8 +66,16 @@ export function InternalNotificationBell() {
 
       await markAllRead.mutateAsync()
     } catch {
-      showToast('Não foi possível marcar todas como lidas. Tente de novo.', 'error')
+      setMarkAllNotice('Não foi possível marcar todas como lidas. Tente de novo.')
+    } finally {
+      setMarkingAll(false)
     }
+  }
+
+  function refreshAfterNotice() {
+    setMarkAllNotice(null)
+    void refetch()
+    void refetchCount()
   }
 
   useEffect(() => {
@@ -152,14 +165,22 @@ export function InternalNotificationBell() {
               <button
                 type="button"
                 className="app-notifications__mark-all"
-                disabled={markAllRead.isPending}
+                disabled={markingAll || markAllRead.isPending}
+                aria-busy={markingAll || undefined}
                 onClick={() => void markEveryUnreadNotificationRead()}
               >
                 <CheckCheck size={16} aria-hidden="true" />
-                <span>Marcar todas como lidas</span>
+                <span>{markingAll ? 'Marcando…' : 'Marcar todas como lidas'}</span>
               </button>
             ) : null}
           </div>
+
+          {markAllNotice ? (
+            <div className="app-notifications__notice" role="alert">
+              <span>{markAllNotice}</span>
+              <button type="button" className="app-notifications__notice-action" onClick={refreshAfterNotice}>Atualizar lista</button>
+            </div>
+          ) : null}
 
           <div className="app-notifications__list">
             {isLoading ? <div className="app-notifications__state" role="status">Carregando notificações…</div> : null}

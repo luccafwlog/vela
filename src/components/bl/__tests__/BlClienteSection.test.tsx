@@ -133,3 +133,12 @@ it('permite convidar o cliente de B/L já revisado sem refazer o vínculo', asyn
   expect(mocks.onboard).not.toHaveBeenCalled()
   expect(mocks.linkBlCustomer).not.toHaveBeenCalled()
 })
+
+it('falha da consulta do Portal mostra erro com Tentar novamente, não "Verificando…" para sempre', () => {
+  const retry = vi.fn()
+  render(<MemoryRouter><BlClienteSection bl={bl as never} portalStatusError onRetryPortalStatus={retry} /></MemoryRouter>)
+  expect(screen.queryByText('Verificando situação do Portal…')).toBeNull()
+  expect(screen.getByRole('alert').textContent).toMatch(/Não foi possível verificar a situação no Portal/)
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+  expect(retry).toHaveBeenCalledTimes(1)
+})

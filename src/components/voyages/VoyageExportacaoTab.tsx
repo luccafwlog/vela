@@ -55,7 +55,7 @@ export function VoyageExportacaoTab({ voyage, voyageLabel, userId }: {
         <section className="mt-1 grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
           <div>
             <div className="text-xs font-semibold text-[var(--app-muted)]">Ações da exportação</div>
-            <div className="mt-1 text-table text-[var(--app-muted)]">Granito importa por planilha; vazios passam pelo Embarque, onde as unidades e as taxas de serviço vivem juntas.</div>
+            <div className="mt-1 text-[13px] text-[var(--app-muted)]">Granito importa por planilha; vazios passam pelo Embarque, onde as unidades e as taxas de serviço vivem juntas.</div>
           </div>
           <VoyageImportActions voyageId={voyage.id} voyageLabel={voyageLabel} userId={userId} types={['granite', 'ceMercanteGranite', 'vaziosExp']} />
           <div className="flex items-start gap-2 text-xs leading-5 text-[var(--app-muted-soft)]">
@@ -112,7 +112,7 @@ function EmptyPanel({ summary, title = 'Vazios EXP', icon = <Box size={15} />, e
     {multi ? <div className="border-t border-[var(--app-border)] pt-1">
       <div className="flex items-center justify-between py-1.5"><span className="text-xs font-semibold text-[var(--app-muted-soft)]">Por depot</span><CountPills value={vazios.types} /></div>
       {vazios.depots.map((depot, index) => <DepotRow key={depot.code} depot={depot} last={index === vazios.depots.length - 1} />)}
-    </div> : <div className="flex items-center justify-between gap-2 border-t border-[var(--app-border)] pt-2.5"><span className="inline-flex min-w-0 items-center gap-2 truncate text-table text-[var(--app-text)]"><Box size={13} className="shrink-0 text-[var(--app-muted-soft)]" />{vazios.depots[0]?.name ?? vazios.depots[0]?.code}</span><CountPills value={vazios.types} /></div>}
+    </div> : <div className="flex items-center justify-between gap-2 border-t border-[var(--app-border)] pt-2.5"><span className="inline-flex min-w-0 items-center gap-2 truncate text-[13px] text-[var(--app-text)]"><Box size={13} className="shrink-0 text-[var(--app-muted-soft)]" />{vazios.depots[0]?.name ?? vazios.depots[0]?.code}</span><CountPills value={vazios.types} /></div>}
   </PanelShell>
 }
 
@@ -127,10 +127,10 @@ function PanelShell({ title, icon, lead, leadUnit, empty, children }: { title: s
   return (
     <div className="flex min-h-[126px] flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5 px-4">
       <div className="flex items-center justify-between gap-2">
-        <span className={`inline-flex items-center gap-2 text-table font-bold ${empty ? 'text-[var(--app-muted-soft)]' : 'text-[var(--app-text-strong)]'}`}>
+        <span className={`inline-flex items-center gap-2 text-[13px] font-semibold ${empty ? 'text-[var(--app-muted-soft)]' : 'text-[var(--app-text-strong)]'}`}>
           <span className="text-[var(--app-muted)]">{icon}</span>{title}
         </span>
-        {empty ? null : <span className="inline-flex items-baseline gap-1.5"><span className="text-xl font-bold leading-none text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>}
+        {empty ? null : <span className="inline-flex items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>}
       </div>
       {empty ? <div className="flex min-h-[68px] flex-1 items-center justify-center rounded-md border border-dashed border-[var(--app-border)] px-3.5 text-center text-xs text-[var(--app-muted-soft)]">{empty}</div> : children}
     </div>
@@ -152,9 +152,9 @@ function MiniStats({ stats, tones = [] }: { stats: Array<[string, number]>; tone
 
 function CountPills({ value }: { value: string }) {
   if (!value || value === '-') return <span className="text-xs text-[var(--app-muted-soft)]">—</span>
-  return <div className="flex flex-wrap gap-1.5">{value.split('|').map((token) => { const [label, count] = token.split(':').map((part) => part.trim()); return <span key={token} className="app-voyage-token gap-1.5 bg-[var(--app-surface-muted)] px-2 py-0.5"><span className="font-semibold text-[var(--app-text)]">{label}</span><span className="tabular-nums text-[var(--app-muted)]">{count}</span></span> })}</div>
+  return <div className="flex flex-wrap gap-1.5">{value.split('|').map((token) => { const [label, count] = token.split(':').map((part) => part.trim()); return <span key={token} className="app-voyage-token gap-1.5 bg-[var(--app-surface-muted)] px-2 py-0.5"><span className="font-semibold text-[var(--app-text)]">{label}</span><span className="font-[var(--app-font-mono)] text-[var(--app-muted-soft)]">{count}</span></span> })}</div>
 }
 
 function DepotRow({ depot, last }: { depot: EmbarkPortExportSummary['vazios']['depots'][number]; last: boolean }) {
-  return <div className={`flex items-center gap-3 py-2 ${last ? '' : 'border-b border-[var(--app-border)]'}`}><span className="inline-flex min-w-0 flex-1 items-center gap-2"><Box size={13} className="shrink-0 text-[var(--app-muted-soft)]" /><span className="truncate text-table font-semibold text-[var(--app-text-strong)]">{depot.name ?? depot.code}</span><span className="shrink-0 font-[var(--app-font-mono)] text-xs text-[var(--app-muted-soft)]">{depot.code}</span></span><CountPills value={depot.types} /><span className="flex w-[62px] shrink-0 items-baseline justify-end gap-1"><span className="font-[var(--app-font-mono)] text-sm font-semibold text-[var(--app-text-strong)]">{formatMetric(depot.units)}</span><span className="text-xs text-[var(--app-muted-soft)]">un.</span></span></div>
+  return <div className={`flex items-center gap-3 py-2 ${last ? '' : 'border-b border-[var(--app-border)]'}`}><span className="inline-flex min-w-0 flex-1 items-center gap-2"><Box size={13} className="shrink-0 text-[var(--app-muted-soft)]" /><span className="truncate text-[13px] font-semibold text-[var(--app-text-strong)]">{depot.name ?? depot.code}</span><span className="shrink-0 font-[var(--app-font-mono)] text-xs text-[var(--app-muted-soft)]">{depot.code}</span></span><CountPills value={depot.types} /><span className="flex w-[62px] shrink-0 items-baseline justify-end gap-1"><span className="font-[var(--app-font-mono)] text-sm font-semibold text-[var(--app-text-strong)]">{formatMetric(depot.units)}</span><span className="text-xs text-[var(--app-muted-soft)]">un.</span></span></div>
 }

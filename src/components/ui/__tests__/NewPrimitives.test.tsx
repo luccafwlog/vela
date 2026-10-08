@@ -69,6 +69,21 @@ describe('TabList', () => {
     await userEvent.keyboard('{End}')
     expect(validacao.getAttribute('aria-selected')).toBe('true')
   })
+
+  it('deixa só a aba ativa na ordem do Tab', async () => {
+    render(
+      <>
+        <Harness />
+        <button type="button">Depois das abas</button>
+      </>,
+    )
+    expect(screen.getByRole('tab', { name: 'Faturas' }).tabIndex).toBe(0)
+    expect(screen.getByRole('tab', { name: 'Validação, 3 pendências' }).tabIndex).toBe(-1)
+    await userEvent.tab()
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Faturas' }))
+    await userEvent.tab()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Depois das abas' }))
+  })
 })
 
 describe('StepRail', () => {
@@ -89,6 +104,17 @@ describe('StepRail', () => {
     expect(items[0].textContent).toContain('Concluída')
     expect(items[1].getAttribute('aria-current')).toBe('step')
     expect(screen.getByRole('link', { name: /Paga.*Em andamento/ }).getAttribute('href')).toBe('/portal/billing')
+  })
+
+  it('lê o desvio em texto, não só pela forma do ponto', () => {
+    render(
+      <MemoryRouter>
+        <StepRail label="Rota" steps={[{ key: 'vix', label: 'Vitória', detail: 'Omitida', state: 'diverted' }]} />
+      </MemoryRouter>,
+    )
+    const item = screen.getByRole('list', { name: 'Rota' }).querySelector('li')
+    expect(item?.textContent).toContain('Desvio')
+    expect(item?.classList.contains('app-step-rail__step--diverted')).toBe(true)
   })
 })
 

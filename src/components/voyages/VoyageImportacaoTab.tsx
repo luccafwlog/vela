@@ -76,7 +76,7 @@ export function VoyageImportacaoTab({ voyage, voyageLabel, vehicleStats, vaziosI
         <section className="mt-1 grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
           <div>
             <div className="text-xs font-semibold text-[var(--app-muted)]">Importação rápida</div>
-            <div className="mt-1 text-table text-[var(--app-muted)]">Importe arquivos diretamente nesta viagem sem sair da tela.</div>
+            <div className="mt-1 text-[13px] text-[var(--app-muted)]">Importe arquivos diretamente nesta viagem sem sair da tela.</div>
           </div>
           <VoyageImportActions voyageId={voyage.id} voyageLabel={voyageLabel} userId={userId} types={['baplie', 'blFreight', 'blBreakbulk', 'ceMercante', 'vehicles', 'vaziosImp']} />
           <div className="flex items-start gap-2 text-xs leading-5 text-[var(--app-muted-soft)]">
@@ -190,7 +190,7 @@ function Panel({ title, icon, lead, leadUnit, empty, children }: {
   empty?: string
   children?: ReactNode
 }) {
-  return <div className="flex min-h-[126px] flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5 px-4"><div className="flex items-center justify-between gap-2"><span className={`inline-flex items-center gap-2 text-table font-bold ${empty ? 'text-[var(--app-muted-soft)]' : 'text-[var(--app-text-strong)]'}`}><span className="text-[var(--app-muted)]">{icon}</span>{title}</span>{empty ? null : <span className="inline-flex items-baseline gap-1.5"><span className="text-xl font-bold leading-none text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>}</div>{empty ? <div className="flex min-h-[68px] flex-1 items-center justify-center rounded-md border border-dashed border-[var(--app-border)] px-3.5 text-center text-xs text-[var(--app-muted-soft)]">{empty}</div> : children}</div>
+  return <div className="flex min-h-[126px] flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5 px-4"><div className="flex items-center justify-between gap-2"><span className={`inline-flex items-center gap-2 text-[13px] font-semibold ${empty ? 'text-[var(--app-muted-soft)]' : 'text-[var(--app-text-strong)]'}`}><span className="text-[var(--app-muted)]">{icon}</span>{title}</span>{empty ? null : <span className="inline-flex items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>}</div>{empty ? <div className="flex min-h-[68px] flex-1 items-center justify-center rounded-md border border-dashed border-[var(--app-border)] px-3.5 text-center text-xs text-[var(--app-muted-soft)]">{empty}</div> : children}</div>
 }
 
 function MiniStats({ stats }: { stats: Array<[string, number]> }) {
@@ -199,15 +199,15 @@ function MiniStats({ stats }: { stats: Array<[string, number]> }) {
 
 function CountPills({ values }: { values: CountToken[] }) {
   if (!values.length) return <span className="text-xs text-[var(--app-muted-soft)]">—</span>
-  return <div className="flex flex-wrap gap-1.5">{values.map(({ label, count }) => <span key={`${label}-${count}`} className="app-voyage-token gap-1.5 bg-[var(--app-surface-muted)] px-2 py-0.5"><span className="font-semibold text-[var(--app-text)]">{label}</span><span className="tabular-nums text-[var(--app-muted)]">{count}</span></span>)}</div>
+  return <div className="flex flex-wrap gap-1.5">{values.map(({ label, count }) => <span key={`${label}-${count}`} className="app-voyage-token gap-1.5 bg-[var(--app-surface-muted)] px-2 py-0.5"><span className="font-semibold text-[var(--app-text)]">{label}</span><span className="font-[var(--app-font-mono)] text-[var(--app-muted-soft)]">{count}</span></span>)}</div>
 }
 
 function ScaleStrip({ title, icon, lead, leadUnit, blocks }: { title: string; icon: ReactNode; lead: number; leadUnit: string; blocks: Array<{ label: string; value: ReactNode; grow?: boolean }> }) {
-  return <div className="flex flex-wrap items-center gap-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3.5"><span className="inline-flex shrink-0 items-center gap-2 text-table font-bold text-[var(--app-text-strong)]"><span className="text-[var(--app-muted)]">{icon}</span>{title}</span><span className="inline-flex shrink-0 items-baseline gap-1.5"><span className="text-xl font-bold leading-none text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>{blocks.map((block) => <span key={block.label} className={`flex flex-col gap-1 border-l-2 border-[var(--app-border)] pl-3 ${block.grow ? 'min-w-[180px] flex-1' : ''}`}><span className="flex flex-wrap gap-1.5 text-sm font-semibold text-[var(--app-text-strong)]">{typeof block.value === 'number' ? formatMetric(block.value) : block.value}</span><span className="text-xs text-[var(--app-muted-soft)]">{block.label}</span></span>)}</div>
+  return <div className="flex flex-wrap items-center gap-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3.5"><span className="inline-flex shrink-0 items-center gap-2 text-[13px] font-semibold text-[var(--app-text-strong)]"><span className="text-[var(--app-muted)]">{icon}</span>{title}</span><span className="inline-flex shrink-0 items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>{blocks.map((block) => <span key={block.label} className={`flex flex-col gap-1 border-l-2 border-[var(--app-border)] pl-3 ${block.grow ? 'min-w-[180px] flex-1' : ''}`}><span className="flex flex-wrap gap-1.5 text-sm font-semibold text-[var(--app-text-strong)]">{typeof block.value === 'number' ? formatMetric(block.value) : block.value}</span><span className="text-xs text-[var(--app-muted-soft)]">{block.label}</span></span>)}</div>
 }
 
 function EmptyScaleStrip({ title, icon, text }: { title: string; icon: ReactNode; text: string }) {
-  return <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-[var(--app-muted-soft)]"><span className="inline-flex shrink-0 items-center gap-2 text-table font-bold"><span>{icon}</span>{title}</span><span className="text-xs">{text}</span></div>
+  return <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-[var(--app-muted-soft)]"><span className="inline-flex shrink-0 items-center gap-2 text-[13px] font-semibold"><span>{icon}</span>{title}</span><span className="text-xs">{text}</span></div>
 }
 
 function parseCountSummary(value: string | null | undefined): CountToken[] {

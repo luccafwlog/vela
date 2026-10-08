@@ -29,6 +29,7 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
               {containers.length ? (
                 <DetailTable
                   headers={['Número', 'Tipo', 'Lacre', 'Tara (kg)', 'Peso bruto (kg)', 'CBM (m³)', 'Perfil', 'Descarga']}
+                  numeric={[3, 4, 5]}
                   rows={containers.map((container, index) => ({
                     key: String(container.id ?? container.container_number ?? index),
                     cells: [
@@ -54,6 +55,7 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
               <h3 className="app-bl-section-title">Carga solta</h3>
               <DetailTable
                 headers={['Máquinas', 'Packages', 'Total de packages', 'Peso (ton)', 'CBM (m³)']}
+                numeric={[0, 1, 2, 3, 4]}
                 rows={[{
                   key: 'resumo',
                   cells: [
@@ -68,6 +70,7 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
               {items.length ? (
                 <DetailTable
                   headers={['Descrição', 'Packages', 'Unidade', 'Peso (kg)', 'CBM (m³)', 'Marcas']}
+                  numeric={[1, 3, 4]}
                   rows={items.map((item, index) => ({
                     key: String(item.id ?? `${item.item_description}-${index}`),
                     cells: [
@@ -113,17 +116,21 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
 function DetailTable({
   headers,
   rows,
+  numeric = [],
 }: {
   headers: string[]
   rows: Array<{ key: string; cells: React.ReactNode[] }>
+  /** Índices das colunas numéricas: alinhadas à direita, com algarismos tabulares. */
+  numeric?: number[]
 }) {
+  const align = (index: number) => (numeric.includes(index) ? 'text-right tabular-nums' : undefined)
   return (
     <>
       <table className="app-table app-table--compact app-table--dense hidden w-full text-left sm:table">
         <thead>
           <tr>
-            {headers.map((header) => (
-              <th key={header} scope="col">
+            {headers.map((header, index) => (
+              <th key={header} scope="col" className={align(index)}>
                 {header}
               </th>
             ))}
@@ -133,7 +140,7 @@ function DetailTable({
           {rows.map((row) => (
             <tr key={row.key}>
               {row.cells.map((cell, index) => (
-                <td key={headers[index]}>{cell}</td>
+                <td key={headers[index]} className={align(index)}>{cell}</td>
               ))}
             </tr>
           ))}

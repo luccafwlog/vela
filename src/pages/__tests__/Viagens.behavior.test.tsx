@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }), useQuery: () => ({ data: null, isLoading: false, error: null }) }))
+const voyagesOverride = vi.hoisted(() => ({ current: null as null | Record<string, unknown> }))
+const authState = vi.hoisted(() => ({ current: { isAdmin: false as boolean, user: null as null | { id: string }, can: (() => false) as () => boolean } }))
+const voyageServiceMocks = vi.hoisted(() => ({ cancelVoyage: vi.fn() }))
+
 vi.mock('../../hooks/useBls', () => ({
-  useVoyages: () => ({
+  useVoyages: () => voyagesOverride.current ?? ({
     data: [
       {
         id: 41,
@@ -101,7 +105,15 @@ vi.mock('../../hooks/useViagemSchedulesAndStats', () => ({
     ]),
   }),
 }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: false, user: null, can: () => false }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => authState.current }))
+vi.mock('../../services/voyages', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/voyages')>()),
+  cancelVoyage: voyageServiceMocks.cancelVoyage,
+}))
+vi.mock('../../services/cacheEffects', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/cacheEffects')>()),
+  afterViagemAlterada: vi.fn().mockResolvedValue(undefined),
+}))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
 
@@ -127,7 +139,12 @@ function renderAt(path: string) {
   )
 }
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  voyagesOverride.current = null
+  authState.current = { isAdmin: false, user: null, can: () => false }
+  voyageServiceMocks.cancelVoyage.mockReset()
+})
 
 it('filtra o rail por viagens canceladas', () => {
   renderAt('/viagens')
@@ -170,8 +187,8 @@ it('US-213: sem selecao mostra "Selecione uma viagem"', () => {
 it('declara granito e vazios no rail mesmo sem quantidades operadas', () => {
   renderAt('/viagens')
 
-  expect(screen.getByTitle('Vazios EXP')).toBeTruthy()
-  expect(screen.getByTitle('Granito')).toBeTruthy()
+  expect(screen.getByLabelText('Vazios EXP')).toBeTruthy()
+  expect(screen.getByLabelText('Granito')).toBeTruthy()
 })
 
 it('seleciona a viagem pelo id do item do rail', () => {
@@ -203,4 +220,34 @@ it('grava a aba da Viagem na URL e a aba padrão remove o parâmetro', () => {
 
   fireEvent.click(screen.getByRole('tab', { name: 'Visão geral' }))
   expect(screen.getByTestId('location').textContent).toBe('/viagens/41')
+})
+
+it('erro na lista de viagens oferece Tentar novamente e não aparece como lista vazia', () => {
+  const refetch = vi.fn()
+  voyagesOverride.current = { data: undefined, isLoading: false, error: new Error('falha'), refetch }
+  renderAt('/viagens')
+
+  expect(screen.getByText('Não foi possível carregar as viagens')).toBeTruthy()
+  expect(screen.queryByText(/Nenhuma viagem/)).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+  expect(refetch).toHaveBeenCalled()
+})
+
+it('cancela a viagem numa única confirmação, com Voltar e o mesmo motivo', async () => {
+  authState.current = { isAdmin: true, user: { id: 'admin-1' }, can: () => true }
+  voyageServiceMocks.cancelVoyage.mockResolvedValue(undefined)
+  renderAt('/viagens/41')
+
+  fireEvent.click(screen.getByRole('button', { name: 'Cancelar viagem' }))
+  expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(voyageServiceMocks.cancelVoyage).not.toHaveBeenCalled()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Cancelar viagem' }))
+  fireEvent.change(screen.getByLabelText(/Motivo do cancelamento/), { target: { value: 'Armador omitiu a viagem' } })
+  const dialog = screen.getByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar viagem' }))
+  await waitFor(() => expect(voyageServiceMocks.cancelVoyage).toHaveBeenCalledWith({ voyageId: 41, reason: 'Armador omitiu a viagem', changedBy: 'admin-1' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 })

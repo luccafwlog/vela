@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Pencil, Plus, Upload } from 'lucide-react'
-import { Card, EmptyState, PageHeader } from '../components/ui/Card'
+import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
+import { ImportFilePicker } from '../components/shared/ImportParts'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { ScheduleDate, ScheduleLegend, VesselLink } from '../components/portal/ShipScheduleWidget'
 import { scheduleLaneTitle } from '../components/portal/shipScheduleCells'
@@ -125,8 +126,9 @@ function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing, saving 
 
 function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate: () => void }) {
   const [uploading, setUploading] = useState(false)
+  const [readError, setReadError] = useState<string | null>(null)
   const [result, setResult] = useState<{ inspection: ImportFileInspection; updated: string[]; errors: string[]; warnings: string[] } | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [chosenFiles, setChosenFiles] = useState<File[]>([])
   const { showToast } = useToast()
   const { user } = useAuth()
 
@@ -148,11 +150,12 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
     showToast('Planilha modelo baixada!', 'info')
   }
 
-  const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+  const handleSubmitSheet = async () => {
+    const file = chosenFiles[0]
     if (!file) return
     setUploading(true)
     setResult(null)
+    setReadError(null)
     try {
       assertUploadSize(file)
       const buf = await file.arrayBuffer()
@@ -181,10 +184,13 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
         showToast('Nenhuma viagem foi atualizada', 'error')
       }
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Erro ao processar planilha', 'error')
+      // A falha de leitura fica no conteúdo; o toast não é a única explicação.
+      const message = error instanceof Error ? error.message : 'Erro ao processar planilha'
+      setReadError(`Não foi possível ler ${file.name}: ${message}. Nada foi gravado; corrija o arquivo e envie de novo.`)
+      showToast(message, 'error')
     } finally {
       setUploading(false)
-      if (fileRef.current) fileRef.current.value = ''
+      setChosenFiles([])
     }
   }
 
@@ -196,17 +202,28 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         <Button type="button" variant="secondary" className="app-btn--sm" onClick={downloadTemplate}>
-          <Download size={14} /> Baixar Planilha Modelo
+          <Download size={14} /> Baixar planilha modelo
         </Button>
-        {canWrite ? (
-          <>
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} className="hidden" id="sheet-upload" />
-            <Button type="button" className="app-btn--sm" onClick={() => fileRef.current?.click()} loading={uploading} loadingLabel="Processando…">
-              <Upload size={14} /> Fazer Upload
-            </Button>
-          </>
-        ) : null}
       </div>
+      {canWrite ? (
+        // Área de arquivo comum das importações (etapa 04): escolher, conferir
+        // o nome e só então enviar.
+        <div className="mt-4 grid gap-3">
+          <ImportFilePicker
+            accept=".xlsx,.xls,.csv"
+            label="Planilha de programação"
+            files={chosenFiles}
+            onFiles={(files) => { setChosenFiles(files); setReadError(null) }}
+            disabled={uploading}
+          />
+          <div>
+            <Button type="button" className="app-btn--sm" onClick={() => void handleSubmitSheet()} disabled={!chosenFiles.length} loading={uploading} loadingLabel="Processando…">
+              <Upload size={14} /> Enviar planilha
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {readError ? <div className="mt-4"><InlineError message={readError} /></div> : null}
       {result ? (
         <div className="mt-4 grid gap-3 border-t border-[var(--app-border)] pt-4 text-sm" role="status" aria-label="Resultado da planilha">
           <p className="m-0 font-medium">
@@ -371,7 +388,7 @@ export function ChegadasSaidas() {
         description="Programação de navios publicada no Portal. Cada linha é uma Viagem; datas efetivas vêm de Viagens."
         action={canWrite ? (
           <Button type="button" onClick={openAdd}>
-            <Plus size={16} /> Adicionar Navio
+            <Plus size={16} /> Adicionar navio
           </Button>
         ) : null}
       />

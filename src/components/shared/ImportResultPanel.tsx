@@ -62,7 +62,7 @@ export function ImportResultPanel({
   alwaysVisible?: boolean
 }) {
   const normalizedEntityId = entityId?.trim() ?? ''
-  const { data: effects, isPending, error, retryMutation } = useImportEffects(normalizedEntityId)
+  const { data: effects, isPending, error, refetch, retryMutation } = useImportEffects(normalizedEntityId)
   const confirm = useConfirm()
   const [retryError, setRetryError] = useState<string | null>(null)
 
@@ -82,8 +82,9 @@ export function ImportResultPanel({
       <section className="app-import-effects" role="alert" aria-label={title}>
         <h2 className="app-import-effects__title">{title}</h2>
         <p className="app-import-effects__error">
-          Não foi possível consultar o resultado gravado. Recarregue a página para tentar de novo; a importação não é desfeita.
+          Não foi possível consultar o resultado gravado. A importação não é desfeita.
         </p>
+        <Button variant="secondary" className="app-btn--sm" onClick={() => void refetch()}>Tentar novamente</Button>
       </section>
     )
   }

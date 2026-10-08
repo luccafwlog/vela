@@ -74,7 +74,7 @@ export function BlOperacionalTab({
 
   return (
     <form onSubmit={onSubmit}>
-      <Card>
+      <Card className="app-bl-form">
         <div className="app-bl-section-head mb-4">
           <h2 className="app-bl-section-title">Dados do B/L</h2>
           <span className="app-bl-facts__sub">Correção manual com justificativa. Reimportar o arquivo do B/L pode atualizar os dados comerciais.</span>

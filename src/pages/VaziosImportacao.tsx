@@ -431,6 +431,7 @@ export function VaziosImportacao() {
 
       {uploadOpen && canImport ? (
         <FileImportModal
+          issuesFilename="vazios-importacao-issues.csv"
           title="Importar Planilha de Vazios (Importacao)"
           accept=".xlsx,.xls,.csv"
           parser={parseVaziosImportacaoFile}

@@ -15,8 +15,8 @@ describe('trilhos do B/L no StepRail', () => {
     expect(steps.map((step) => step.state)).toEqual(['blocked', 'pending', 'done'])
   })
 
-  it('desvio por omissão fica pendente, sem virar concluído', () => {
-    expect(railStagesToSteps([stage('pol', 'done'), stage('pod', 'diverted')])[1].state).toBe('pending')
+  it('desvio por omissão usa o estado de desvio, sem virar concluído nem pendente', () => {
+    expect(railStagesToSteps([stage('pol', 'done'), stage('pod', 'diverted')])[1].state).toBe('diverted')
   })
 
   it('o link da próxima ação diz o destino', () => {

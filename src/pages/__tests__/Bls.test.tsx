@@ -1,14 +1,20 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Bls } from '../Bls'
 
-const { useBlsMock, useBlSummaryMock, showToastMock } = vi.hoisted(() => ({
+const { useBlsMock, useBlSummaryMock, showToastMock, checkBlDependenciesMock } = vi.hoisted(() => ({
   useBlsMock: vi.fn(),
   useBlSummaryMock: vi.fn(),
   showToastMock: vi.fn(),
+  checkBlDependenciesMock: vi.fn(),
+}))
+
+vi.mock('../../services/bls', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/bls')>()),
+  checkBlDependencies: checkBlDependenciesMock,
 }))
 
 vi.mock('../../hooks/useBls', () => ({
@@ -177,7 +183,7 @@ describe('Página Bls (unificada)', () => {
     expect(screen.getByRole('button', { name: 'Exportar' })).toBeTruthy()
   })
 
-  it('aplica o filtro do card e o desfaz no segundo clique, refletindo na URL', async () => {
+  it('aplica o filtro do card e o desfaz no segundo clique', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -490,5 +496,55 @@ describe('Página Bls (unificada)', () => {
     expect(strip.getByText('máquinas')).toBeTruthy()
     expect(strip.getByText('packages')).toBeTruthy()
     expect(strip.getByText('no total')).toBeTruthy()
+  })
+
+  it('exclusão bloqueada explica o motivo na lista, não só no toast, e não abre a confirmação', async () => {
+    checkBlDependenciesMock.mockResolvedValue({
+      deletableIds: [],
+      blockedIds: [{ id: 'BL-CNTR', reasons: ['fatura emitida', 'recebível em aberto'] }],
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ações para B/L BL-CNTR' })[0])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Excluir B/L' }))
+
+    const notice = await screen.findByRole('alert')
+    expect(notice.textContent).toMatch(/Este B\/L não pode ser excluído/)
+    expect(notice.textContent).toMatch(/BL-CNTR: fatura emitida, recebível em aberto/)
+    expect(showToastMock).not.toHaveBeenCalled()
+    fireEvent.click(within(notice).getByRole('button', { name: 'Fechar aviso' }))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('?page= além do total leva à última página existente e corrige a URL', async () => {
+    const baseRows = useBlsMock.getMockImplementation()!({}).data.rows
+    useBlsMock.mockImplementation((filters: { page: number; pageSize: number }) => ({
+      data: { rows: filters.page > 2 ? [] : baseRows, count: filters.pageSize * 2 },
+      isLoading: false,
+      error: null,
+    }))
+    function LocationProbe() {
+      return <output data-testid="search">{useLocation().search}</output>
+    }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/bls?page=99']}>
+          <Bls />
+          <LocationProbe />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => expect(screen.getByTestId('search').textContent).toContain('page=2'))
+    expect(screen.queryByText('Nenhum B/L cadastrado ainda.')).toBeNull()
+    expect(screen.getAllByText('BL-CNTR').length).toBeGreaterThan(0)
   })
 })

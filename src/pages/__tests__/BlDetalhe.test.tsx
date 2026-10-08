@@ -5,8 +5,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { BlDetalhe } from '../BlDetalhe'
 
-const { useBlDetailMock } = vi.hoisted(() => ({
+const { useBlDetailMock, cancelBlMock, authState } = vi.hoisted(() => ({
   useBlDetailMock: vi.fn(),
+  cancelBlMock: vi.fn(),
+  authState: { isAdmin: false },
 }))
 
 vi.mock('../../hooks/useBls', () => ({
@@ -26,7 +28,7 @@ vi.mock('../../hooks/useVoyageReconciliation', () => ({
 }))
 
 vi.mock('../../hooks/useAuth', () => ({
-  useAuth: () => ({ user: { id: 'u1' }, profile: { id: 'u1' } }),
+  useAuth: () => ({ user: { id: 'u1' }, profile: { id: 'u1' }, isAdmin: authState.isAdmin }),
 }))
 
 vi.mock('../../components/ui/Toast', () => ({
@@ -42,6 +44,11 @@ vi.mock('../../components/shared/ImportResultPanel', () => ({
   ImportResultPanel: ({ entityId, title = 'Processamento pós-importação' }: { entityId?: string | null; title?: string }) => (
     <section aria-label={title} data-entity-id={entityId ?? ''}>{title}</section>
   ),
+}))
+
+vi.mock('../../services/blState', () => ({
+  cancelBl: cancelBlMock,
+  reactivateBl: vi.fn(),
 }))
 
 vi.mock('../../hooks/useTransshipments', () => ({
@@ -184,5 +191,39 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
     const historyTab = screen.getByRole('tab', { name: 'Histórico' })
     fireEvent.click(historyTab)
     expect(historyTab.getAttribute('aria-selected')).toBe('true')
+  })
+})
+
+describe('BlDetalhe - cancelamento bloqueado', () => {
+  beforeEach(() => {
+    authState.isAdmin = true
+    cancelBlMock.mockReset()
+    cancelBlMock.mockResolvedValue({ cancelled: false, reasons: ['fatura em aberto'] })
+    useBlDetailMock.mockReturnValue({
+      data: { id: 'BL-BLOQ-1', cargo_mode: 'container', ce_mercante: '152605123456701', pol: 'CNSHA', pod: 'BRSSZ', voyage_id: null, bl_containers: [], bl_breakbulk_items: [] },
+      isLoading: false,
+      error: null,
+    })
+  })
+
+  it('explica o bloqueio na ficha, não só num toast', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/bls/BL-BLOQ-1']}>
+          <Routes>
+            <Route path="/bls/:blId" element={<BlDetalhe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mais ações do B/L' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Cancelar B\/L/ }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('não pode ser cancelado agora')
+    expect(alert.textContent).toContain('fatura em aberto')
+    expect(cancelBlMock).toHaveBeenCalledWith('BL-BLOQ-1', '', { dryRun: true })
   })
 })
