@@ -13,7 +13,7 @@ export function ChargeStatusBadge({ status }: { status: string | null }) {
     case 'exempt':
       return <Badge tone="slate">Isento</Badge>
     default:
-      return <Badge tone="slate">Não calc.</Badge>
+      return <Badge tone="slate">Não calculado</Badge>
   }
 }
 

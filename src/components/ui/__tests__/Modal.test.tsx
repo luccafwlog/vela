@@ -37,3 +37,35 @@ it('inclui foco adicionado depois da abertura no ciclo de Tab e restaura foco ao
   expect(onClose).toHaveBeenCalled()
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Abrir' }))
 })
+
+it('leva o foco ao primeiro campo do formulário e ao título num modal de leitura', () => {
+  const { rerender } = render(
+    <Modal open title="Nova viagem" onClose={() => {}}>
+      <label>Navio <input /></label>
+      <button type="button">Salvar</button>
+    </Modal>,
+  )
+  expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Navio' }))
+
+  rerender(
+    <Modal open={false} title="Nova viagem" onClose={() => {}}>
+      <span />
+    </Modal>,
+  )
+  rerender(
+    <Modal open title="Detalhe da fatura" onClose={() => {}}>
+      <p>Total R$ 10,00</p>
+      <button type="button">Imprimir</button>
+    </Modal>,
+  )
+  expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Detalhe da fatura' }))
+})
+
+it('aplica a largura pedida sem afetar o padrão largo', () => {
+  render(
+    <Modal open title="Confirmar" size="sm" onClose={() => {}}>
+      <p>Texto</p>
+    </Modal>,
+  )
+  expect(screen.getByRole('dialog').className).toContain('app-modal--sm')
+})

@@ -1,7 +1,7 @@
 # Revisão visual e UX do Vela e Portal — pacote de prompts
 
 Data: 2026-10-07. Base inspecionada: `main`, commit `0160605a`, checkout inicialmente sem diff.
-Estado: etapa 00 concluída em 2026-10-07 (direção visual e inventário registrados abaixo); implementação começa na etapa 01.
+Estado: etapas 00 e 01 concluídas em 2026-10-07 (direção visual, inventário, tokens e primitivas registrados abaixo); próxima: etapa 02.
 
 ## O que este pacote cobre
 
@@ -371,6 +371,87 @@ O `local-stack.ps1` é só para Windows, e `setup-local-pg.sh` cria o banco `vel
 3. Aplique as migrations em ordem, os grants e os seeds descritos em `scripts/design-audit/win/local-stack.ps1`. Normalize `customers.cnpj_cpf` para a forma canônica.
 4. Instale o `pg` fora do repositório (`NODE_PATH`) e inicie `sb-shim.cjs` com `PGPORT` apontando para o cluster. Use `.env` local com `VITE_SUPABASE_URL=http://127.0.0.1:5173/sb-proxy` e rode `npm run dev`. O login de auditoria está em `scripts/README.md`.
 
+## Entrega da etapa 01 — tokens e primitivas
+
+Registro de 2026-10-07 sobre a base `74d82566` (`main` após a PR 896). Esta etapa aplica o contrato visual da etapa 00 aos tokens e às primitivas. As telas mudam só pelo que herdam; cada etapa dona migra o próprio conteúdo.
+
+### O que mudou para todas as telas
+
+| Superfície | Antes (**Runtime**, 1440 px) | Depois |
+|---|---|---|
+| Título da página | Syne 35,2 px com traço dourado; cabeçalho termina em 214 px | Syne 24/32 no Vela e 32/40 no Portal (28 abaixo de 640 px), sem traço; termina em 209 px |
+| Cabeçalho de tabela | Azul-marinho, 11 px, peso 800, caixa alta espaçada | Fundo `--app-surface-muted`, 12/500 em caixa normal, filete forte; Line Up mantém azul-marinho; vale também para as classes antigas `bg-[#0d1117]` |
+| Botão, campo e select | 44 px em tudo | 36 px no Vela com mouse; 44 px no toque, no Portal e no Modo Inspeção (**Runtime**: 36 e 44 medidos) |
+| Aba | Botão preenchido azul-marinho | Sublinhado em tinta azul, 40 px no Vela com mouse e 44 px no toque |
+| Tag de estado (`Badge`) | Pílula, 11 px, caixa alta | Raio de 6 px, 12/500, caixa normal, cores por alias semântico |
+| Rótulo de campo | 12 px em caixa alta, cinza | 13/500 em caixa normal, cor de texto |
+| Card de métrica | Rótulo de 11 px em caixa alta; azul claro `#58a6ff` no primário | 12/500 em caixa normal; valor 20/600; primário em `--app-link` |
+| Modal | Raio de 16 px; título em Syne 18 px; foco inicial em "Fechar modal" | Raio de 8 px; título em DM Sans 20/28; foco no primeiro campo ou no título (**Runtime**: Nova viagem e Fatura avulsa focam o primeiro campo) |
+| Paginação | "Página 1 de 1" ou "Página 0 de 0", com Anterior/Próxima inúteis | "Exibindo 1–2 de 2" ou "Nenhum registro"; página e navegação só com mais de uma página |
+| Botão em andamento | Rótulo escondido; nome acessível trocado por "Carregando…" | Rótulo visível, indicador no lugar do ícone, `aria-busy`, largura estável; `loadingLabel` dá o texto da ação |
+| Tema escuro | Raio de 12 px; hover do secundário e botão destrutivo com gradiente claro | Raio de 8 px; hover e destrutivo por token |
+
+As primeiras linhas de dado subiram de 30 a 52 px nas rotas medidas (BLs 737→705; Taxas Locais 684→637; Admin 458→406; Demurrage 651→598). Ainda ficam abaixo dos 260 px do princípio 1, porque a sobra está nas próprias telas: metade da altura vem dos cards e filtros de cada página.
+
+### Tokens e primitivas novos
+
+- **Tokens:**
+  - escala `--app-size-{caption,table,body,section,panel,page,hero}`;
+  - `@theme` com `text-table` (13/18) e `text-hero` (32/40); 12, 14, 16, 20 e 24 são `text-xs`, `text-sm`, `text-base`, `text-xl` e `text-2xl`;
+  - `--app-radius-control`;
+  - densidade em `--app-control-h`, `--app-control-h-sm`, `--app-row-h` e `--app-cell-{py,px}`;
+  - aliases `--app-{success,warning,danger,info,neutral}-{fg,bg,border}` nos três blocos de tema;
+  - `--app-thead-border`.
+- **Densidade:** os shells receberam `app-shell--vela` (`AppLayout`) e `app-shell--portal` (`PortalLayout`); foi a única mudança nesses arquivos, que são da 02. A densidade compacta vale só sob `@media (pointer: fine)`. Assim, o Modo Inspeção, que fica dentro do shell do Vela, volta à densidade do Portal.
+- **Células de `.app-table`:** a densidade padrão está em `@layer components`. O `py-3 px-4` que as telas ainda declaram vence, então as linhas continuam com 64–69 px até cada etapa dona remover esse padding.
+- **Componentes novos em `src/components/ui/`:**
+  - `Drawer`, baseado no Modal e promovido do padrão do `ReviewDrawer`;
+  - `TabList`, com setas, Home/End e ativação automática;
+  - `SegmentedControl`, grupo de rádio com uma única parada de Tab;
+  - `SummaryStrip`, uma lista `<dl>` de uma linha;
+  - `StepRail`, que é a assinatura visual: estado em texto, `aria-current="step"`, coluna abaixo de 640 px;
+  - `src/lib/pagination.ts`, com `describePageRange` para usar o mesmo texto no topo e no rodapé.
+- **Componentes existentes que ganharam props, sem quebrar chamadores:**
+  - `Modal.size`, com `lg` como padrão;
+  - `TabButton.count`, `countLabel`, `id` e `controls`;
+  - `MetricCard.onSelect` e `selected` (com `onSelect`, o card vira botão com `aria-pressed`);
+  - `Badge`, que aceita tons semânticos (`success`, `warning`, `danger`, `info`, `neutral`) além dos nomes de cor.
+- **`QueryStateGate`:** o carregamento passa a ser esqueleto com texto para leitor de tela (`loadingFallback` aceita a geometria final), e "Tentar novamente" usa `Button`.
+- **`BulkActionsBar`:** região nomeada, fixa no topo ao rolar, contagem em `aria-live` e "Limpar seleção".
+- **`OperationalBadges`:** "Não calc." passou a "Não calculado".
+
+Decisões desta etapa:
+
+- **Drawer e trilho viram primitivas.** Os dois têm mais de um consumidor previsto (07/10 e 03/05/15/17).
+- **O botão em andamento continua `disabled`, não só `aria-disabled`.** Mantém a proteção contra repetição e o contrato dos testes existentes. A perda de foco ao desativar fica como limite conhecido.
+- **A aba ativa usa tinta azul, não dourado.** O dourado continua exclusivo da navegação principal.
+- **O cabeçalho de modal continua azul-marinho**, como prevê o papel Estrutura.
+
+### Como cada etapa adota
+
+| Etapa | Adoção pendente (**Código**) |
+|---|---|
+| 03 | `VoyageCard` com `TabList`; trilho da Viagem com `StepRail` |
+| 05 | `BlDetalhe` com `TabList`; `BlRailsPipeline` migra para `StepRail`; lente Modalidade com `SegmentedControl` ou removida; 12 cards → até 4 + `SummaryStrip`; tirar `py-3 px-4` das células |
+| 07 | `ReviewDrawer` usa `Drawer` |
+| 08, 09, 11, 17, 22 | Faixas de abas (`FichaTabs`, `TaxasLocaisTabelas`, `Demurrage`, `DemurrageRates`, `DesbloqueioCe`, `Relatorios`, `Admin`) com `TabList` |
+| 10 | `TaxasLocais` com `TabList`; formulário da fatura avulsa: `.invoice-create-modal__filters` tem 383 px numa folha de 360 px (**Runtime**); "Item da tabela/Outra" com `SegmentedControl`; `Modal size` adequado |
+| 12 | Topo da Conciliação com `describePageRange` |
+| 14, 15 | `PortalOperacao` e `PortalBilling` com `TabList`; ciclo da fatura com `StepRail` |
+| 20 | `Granite.tsx` ainda mostra "Não calc." em `span` próprio; usar `ChargeStatusBadge` |
+| Todas | Remover `uppercase`, `tracking-*` e `text-[10px]`/`text-[11px]` (40 e 65 usos em TSX); escolher `Modal size`; usar `loadingLabel` nas ações críticas |
+
+### Evidência e limites
+
+- **Teste:**
+  - `npm run docs:check`, `typecheck`, `lint` e `build` passaram;
+  - `npm test` passou em 709 arquivos (4.032 testes);
+  - `npm run size-limit` deu 239,96 KiB no Vela e 207,21 KiB no Portal;
+  - `npm run a11y:contrast` passou em 34 de 34 pares, incluindo os 12 novos pares semânticos nos dois temas;
+  - testes novos cobrem a largura e o nome do botão em andamento, a repetição bloqueada, o foco inicial, o tamanho do modal, a paginação vazia e de página única, `describePageRange`, o teclado de `SegmentedControl` e `TabList`, a leitura do `StepRail`, `SummaryStrip`, o `MetricCard` como filtro e o contrato CSS (densidade, cabeçalho, escala e aliases).
+- **Runtime:** mesmo ambiente local da etapa 00, recriado neste checkout. Antes e depois: 10 rotas (Vela e inspeção do Portal) em 1440×900 e 360×780 com toque, 2 rotas no tema escuro e 2 modais. Sem rolagem horizontal da página. A folha da fatura avulsa a 360 px rolava de lado ao receber o foco inicial; corrigido com `preventScroll`, e o transbordo de origem ficou para a 10.
+- **Não verificado:** leitor de tela real, zoom de 200%, Portal fora do Modo Inspeção, impressão (as tabelas de documentos dentro de modal também ficaram com cabeçalho claro na tela; o CSS de impressão é da 13) e telas sem dados extensos.
+
 ## Prompts por etapa
 
 Cada bloco abaixo é o prompt específico. Em uma sessão nova, envie também o contrato comum acima; com acesso a este arquivo, sua leitura é obrigatória.
@@ -718,7 +799,7 @@ Preparação deste pacote: inventário estático e divisão de responsabilidades
 | Etapa | Estado | Base / revisão de entrega | Resumo, arquivos, decisões, checks e pendências |
 |---|---|---|---|
 | 00 | Concluída em 2026-10-07 | Base `ba7cd09d`; branch `claude/revisao-visual-ux-etapa-00`; só documentação | Direção A, "Carta náutica", escolhida e registrada em "Etapa 00 — direção visual e inventário confirmado"; complementos da matriz de propriedade; inventário de rotas, abas e modais; alvos por etapa. **Runtime** local com dados sintéticos: 47 rotas em 1440 e 360 px, 28 variações de aba, 768 px, tema escuro e 6 modais; nenhuma rolagem horizontal; `a11y:contrast` 22/22. Lacunas: login real do Portal (visto via inspeção), poucos dados sintéticos, zoom, leitor de tela e impressão. Arquivos: este plano, `docs/plans/README.md` e correção da contagem de rotas do Portal em `docs/ARCHITECTURE.md`. Telas não alteradas. Próxima: 01. |
-| 01 | Não iniciada | — | — |
+| 01 | Concluída em 2026-10-07 | Base `74d82566`; branch `claude/revisao-visual-ux-etapa-01` | Tokens (escala, raio, densidade, aliases semânticos com par escuro, cabeçalho claro) e primitivas (`Button`, `Modal`, `TabButton`, `Badge`, `MetricCard`, paginação, `QueryStateGate`, `BulkActionsBar`) revisados; `Drawer`, `TabList`, `SegmentedControl`, `SummaryStrip`, `StepRail` e `describePageRange` criados. Ver "Entrega da etapa 01". Gates locais e `a11y:contrast` 34/34 verdes; runtime antes/depois em 1440, 360 e escuro. Pendências por etapa na tabela "Como cada etapa adota". Próxima: 02. |
 | 02 | Não iniciada | — | — |
 | 03 | Não iniciada | — | — |
 | 04 | Não iniciada | — | — |

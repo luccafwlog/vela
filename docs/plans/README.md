@@ -10,7 +10,7 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
-- [2026-10-07 — Revisão visual e UX: pacote de prompts](2026-10-07-revisao-visual-ux-prompts.md) — prompts para 24 etapas sequenciais no Vela e Portal; etapa 00 concluída em 2026-10-07 (direção "Carta náutica", inventário e complementos de propriedade); implementação começa na etapa 01.
+- [2026-10-07 — Revisão visual e UX: pacote de prompts](2026-10-07-revisao-visual-ux-prompts.md) — prompts para 24 etapas sequenciais no Vela e Portal; etapas 00 e 01 concluídas em 2026-10-07 (direção "Carta náutica", inventário, tokens e primitivas); próxima: etapa 02.
 
 
 - [2026-10-06 — Integração Itaú Pix: QR dinâmico e baixa automática](2026-10-06-integracao-itau-pix.md) — em execução; provedor `itau` ativo em produção desde 07/10 (`itau-pix` v8 desde 08/10, baixa por consulta a cada minuto); individual de teste baixada pelo cron; pendentes recibo da individual no Portal e prova da consolidada ([histórico de execução](../archive/reports/2026-10-07-integracao-itau-pix-execucao.md)); substitui a PR 827 (simulação, defasada pelas migrations 122–149).

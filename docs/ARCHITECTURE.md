@@ -285,7 +285,31 @@ utilitárias do Tailwind sem `!important`:
   zoom automático do Safari no iPhone), checkboxes têm 20px e botões só com
   ícone e `aria-label`/`title` têm área mínima de 40px.
 
-Tela nova: use `TabButton`/`role="tablist"`, `Modal` e as classes do design
+### Densidade e primitivas visuais
+
+Os tokens `--app-*` de `src/index.css` têm três blocos (atual, claro e escuro) e
+são a única fonte de cor, escala tipográfica (`--app-size-*`, de 12 a 32px),
+raio (`--app-radius` 8px, `--app-radius-control` 6px) e densidade. A cor de
+estado usa os aliases `--app-{success,warning,danger,info,neutral}-{fg,bg,border}`,
+conferidos por `npm run a11y:contrast` nos dois temas. O shell interno tem a
+classe `app-shell--vela`, que com ponteiro fino aplica a densidade compacta
+(controle de 36px, linha de 40px); o toque e o shell do Portal
+(`app-shell--portal`, inclusive no Modo Inspeção) mantêm 44px e 52px. As
+células de `.app-table` usam essa densidade em `@layer components`, então o
+padding utilitário que uma tela declara continua valendo até a tela migrar.
+
+Primitivas de `src/components/ui/`: `Button` (`loading` desativa, anuncia
+`aria-busy` e mantém a largura; `loadingLabel` dá o texto da ação), `Modal`
+(`size` `sm`/`md`/`lg`; foco inicial no primeiro campo ou no título),
+`Drawer`, `TabList` + `TabButton` (aba sublinhada, setas, Home e End, contagem
+opcional), `SegmentedControl` (duas a quatro opções exclusivas),
+`SummaryStrip` (faixa de resumo de uma linha), `StepRail` (trilho de etapas),
+`MetricCard` (com `onSelect`, aplica o filtro do card) e
+`TableFooterPagination`, cujo texto vem de `describePageRange`
+(`src/lib/pagination.ts`). O contrato visual completo está na etapa 00 do
+[plano de revisão visual](plans/2026-10-07-revisao-visual-ux-prompts.md).
+
+Tela nova: use `TabList`/`TabButton`, `Modal` ou `Drawer` e as classes do design
 system em vez de overlays próprios; grades com três ou mais colunas devem
 começar em uma coluna (`grid sm:grid-cols-3`), e tabelas largas ficam dentro de
 `.app-table-scroll`.

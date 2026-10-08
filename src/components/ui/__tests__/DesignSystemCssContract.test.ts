@@ -28,11 +28,40 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-btn\s*\{[^}]*position:\s*relative/s)
   })
 
-  it('usa superfícies temáticas nos campos e pares escuros explícitos nos badges', () => {
+  it('usa superfícies temáticas nos campos e aliases semânticos com par escuro nas tags', () => {
     expect(css).toMatch(/\.app-input\s*\{[^}]*background:\s*var\(--app-surface-strong\)/s)
-    expect(css).toMatch(/:root\[data-visual-theme='dark'\][\s\S]*?\.app-badge--blue\s*\{[^}]*color:\s*#bfdbfe/s)
-    expect(css).toMatch(/:root\[data-visual-theme='dark'\][\s\S]*?\.app-badge--green\s*\{[^}]*color:\s*#bbf7d0/s)
-    expect(css).toMatch(/:root\[data-visual-theme='dark'\][\s\S]*?\.app-badge--yellow\s*\{[^}]*color:\s*#fde68a/s)
+    for (const role of ['success', 'warning', 'danger', 'info', 'neutral']) {
+      for (const part of ['fg', 'bg', 'border']) {
+        // current, light e dark
+        expect(css.match(new RegExp(`--app-${role}-${part}:`, 'g'))).toHaveLength(3)
+      }
+    }
+    expect(css).toMatch(/\.app-badge--green\s*\{[^}]*color:\s*var\(--app-success-fg\)/s)
+    expect(css).toMatch(/\.app-badge--yellow\s*\{[^}]*color:\s*var\(--app-warning-fg\)/s)
+    expect(css).toMatch(/\.app-badge--blue\s*\{[^}]*color:\s*var\(--app-info-fg\)/s)
+  })
+
+  it('aplica a densidade compacta do Vela só com ponteiro fino e devolve a confortável ao Portal', () => {
+    expect(css).toMatch(/@media \(pointer: fine\)\s*\{\s*\.app-shell--vela\s*\{[^}]*--app-control-h:\s*36px[^}]*--app-row-h:\s*40px/s)
+    expect(css).toMatch(/\.app-shell--portal\s*\{[^}]*--app-control-h:\s*44px[^}]*--app-row-h:\s*52px/s)
+    expect(css).toMatch(/\.app-btn\s*\{[^}]*min-height:\s*var\(--app-control-h\)/s)
+    expect(css).toMatch(/\.app-input\s*\{[^}]*min-height:\s*var\(--app-control-h\)/s)
+  })
+
+  it('usa cabeçalho de tabela claro em caixa normal, com azul-marinho só no Line Up', () => {
+    expect(css.match(/--app-thead-bg:\s*var\(--app-surface-muted\)/g)).toHaveLength(3)
+    expect(css).toMatch(/\.app-shell table thead th\s*\{[^}]*color:\s*var\(--app-thead-text\)[^}]*text-transform:\s*none/s)
+    expect(css).toMatch(/\.app-table--lineup\s*\{[^}]*--app-thead-bg:\s*var\(--app-navy\)/s)
+  })
+
+  it('mantém rótulos, tags e títulos das primitivas na escala tipográfica', () => {
+    for (const selector of ['app-field__label', 'app-badge', 'app-metric-tile__label', 'app-tab', 'app-modal__title', 'page-header__title']) {
+      const block = css.match(new RegExp(`^\\.${selector}\\s*\\{([^}]*)\\}`, 'm'))?.[1] ?? ''
+      expect(block, selector).not.toMatch(/text-transform:\s*uppercase/)
+      expect(block, selector).toMatch(/font-size:\s*var\(--app-size-/)
+    }
+    expect(css).toMatch(/\.app-modal__title\s*\{[^}]*font-family:\s*var\(--app-font-body\)/s)
+    expect(css).not.toMatch(/\.page-header__copy::after/)
   })
 
   it('remove movimento de interacao quando o usuario prefere menos animacao', () => {
