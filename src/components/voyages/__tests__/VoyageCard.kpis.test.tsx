@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../../../services/supabase', () => ({ supabase: {}, isSupabaseConfigured: true }))
@@ -65,7 +66,7 @@ function kpiValue(label: string) {
 }
 
 describe('KPIs do cabeçalho da viagem', () => {
-  it('renderiza o bloco de conciliação com título em caixa normal e métricas estruturadas', () => {
+  it('renderiza o card de conciliação com o título Conciliação e métricas estruturadas', () => {
     renderCard({
       bls: [
         { id: 'bl-1', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: '123', bl_containers: [] },
@@ -202,5 +203,22 @@ describe('Atalhos da viagem', () => {
     mockDivergences = [{}, {}]
     renderCard({})
     expect(screen.getByRole('link', { name: /Resolver divergências \(2\)/ }).getAttribute('href')).toBe('/baplie?voyage=7')
+  })
+})
+
+describe('Abas da viagem', () => {
+  it('liga o painel à aba ativa e troca de aba pelas setas do teclado', async () => {
+    const user = userEvent.setup()
+    renderCard({})
+    const tablist = screen.getByRole('tablist', { name: 'Seções da viagem' })
+    const visao = within(tablist).getByRole('tab', { name: 'Visão geral' })
+    expect(visao.getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(visao.id)
+
+    visao.focus()
+    await user.keyboard('{ArrowRight}')
+    const importacao = within(tablist).getByRole('tab', { name: 'Importação' })
+    expect(importacao.getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(importacao.id)
   })
 })

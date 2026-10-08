@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/utils'
 
-export type StepState = 'done' | 'current' | 'pending' | 'blocked' | 'skipped'
+export type StepState = 'done' | 'current' | 'pending' | 'blocked' | 'skipped' | 'diverted'
 
 export type Step = {
   key: string
@@ -19,6 +19,7 @@ const STEP_STATE_LABEL: Record<StepState, string> = {
   pending: 'Pendente',
   blocked: 'Bloqueada',
   skipped: 'Não se aplica',
+  diverted: 'Desvio',
 }
 
 /**

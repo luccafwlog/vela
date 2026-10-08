@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { DEPARTMENT_LABELS } from '../lib/departmentLabel'
 import type { UserProfile, UserProfileRole } from '../types/database'
 
 export type AdminUserRow = UserProfile & {
@@ -57,11 +58,7 @@ export async function deactivateUser(userId: string): Promise<void> {
 export const PROFILE_LABELS: Record<UserProfileRole, string> = {
   admin: 'Admin (legado)',
   operator: 'Operador (legado)',
-  administrativo: 'Administrativo',
-  financeiro: 'Financeiro',
-  operacoes: 'Operações',
-  documentacao: 'Documentação',
-  equipamentos: 'Equipamentos',
+  ...DEPARTMENT_LABELS,
 }
 
 export const MANAGED_PROFILES: UserProfileRole[] = ['administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos']

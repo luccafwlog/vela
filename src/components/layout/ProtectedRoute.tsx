@@ -1,11 +1,23 @@
+import { useState } from 'react'
 import { Link, Navigate, Outlet } from 'react-router-dom'
 import { Lock, UserX, WifiOff } from 'lucide-react'
 import { useAuth, type Permission } from '../../hooks/useAuth'
 import { departmentLabel } from '../../lib/departmentLabel'
+import { Button } from '../ui/Button'
 import { StatusScreen } from './StatusScreen'
 
 export function ProtectedRoute({ adminOnly = false, permission }: { adminOnly?: boolean; permission?: Permission }) {
   const { user, profile, loading, isAdmin, can, profileStatus, profileError, refreshProfile, signOut } = useAuth()
+  const [reloadingProfile, setReloadingProfile] = useState(false)
+
+  async function reloadProfile() {
+    setReloadingProfile(true)
+    try {
+      await refreshProfile()
+    } finally {
+      setReloadingProfile(false)
+    }
+  }
 
   // Perfil ainda hidratando (getSession e INITIAL_SESSION correm em paralelo e
   // `loading` pode cair antes do perfil chegar): não é "não provisionado".
@@ -32,9 +44,9 @@ export function ProtectedRoute({ adminOnly = false, permission }: { adminOnly?: 
           title="Falha temporária ao carregar o perfil"
           actions={(
             <>
-              <button type="button" className="app-btn app-btn--primary" onClick={() => void refreshProfile()}>
+              <Button type="button" loading={reloadingProfile} loadingLabel="Recarregando…" onClick={() => void reloadProfile()}>
                 Recarregar perfil
-              </button>
+              </Button>
               <button type="button" className="app-btn app-btn--secondary" onClick={() => void signOut()}>
                 Sair
               </button>

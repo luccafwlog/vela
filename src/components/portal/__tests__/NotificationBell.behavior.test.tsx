@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   }),
   listNotifications: vi.fn(),
   unreadCount: vi.fn(),
+  showToast: vi.fn(),
 }))
 
 // `usePortalScope` le `PortalAuthContext` direto (sem Provider, o default do
@@ -31,7 +32,7 @@ vi.mock('../../../hooks/usePortalNotifications', () => ({
     ],
     isLoading: false,
   }),
-  usePortalUnreadCount: () => ({ data: 3 }),
+  usePortalUnreadCount: () => ({ data: 3, refetch: vi.fn() }),
   usePortalMarkRead: () => ({ mutateAsync: mocks.markRead }),
   usePortalMarkAllRead: () => ({ mutateAsync: mocks.markAllRead }),
 }))
@@ -41,7 +42,7 @@ vi.mock('../../../services/portalBilling', async () => ({
   portalNotificationUnreadCount: mocks.unreadCount,
 }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
-vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
+vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 
 import { NotificationBell } from '../NotificationBell'
 
@@ -144,4 +145,15 @@ it('fecha o dropdown com Escape e expõe estado expandido', async () => {
   expect(button.getAttribute('aria-expanded')).toBe('false')
   expect(screen.queryByText('Nova fatura')).toBeNull()
   expect(document.activeElement).toBe(button)
+})
+
+it('avisa quando marcar como lida falha, sem rejeição silenciosa', async () => {
+  mocks.markRead.mockRejectedValueOnce(new Error('rede'))
+  const user = userEvent.setup()
+  renderBell()
+
+  await user.click(screen.getByRole('button', { name: 'Notificações (3 não lidas)' }))
+  await user.click(screen.getByText('Nova fatura'))
+
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Não foi possível marcar como lida. Tente de novo.', 'error'))
 })

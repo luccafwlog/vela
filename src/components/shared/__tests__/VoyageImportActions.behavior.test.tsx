@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   effectiveRole: vi.fn(() => 'documentacao'),
   profile: { id: 'user-1' },
   navigate: vi.fn(),
+  parseVehicleImportFile: vi.fn(),
+  importVehicleRows: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -44,6 +46,10 @@ vi.mock('../../../services/baplieImport', () => ({
   reimportBaplie: mocks.reimportBaplie,
   baplieReplacementConfirmOptions: (plan: { existing: number }, incoming: number) => ({ message: `${plan.existing}->${incoming}` }),
   baplieImportToast: () => 'Baplie importado.',
+}))
+vi.mock('../../../services/vehicleImport', () => ({
+  parseVehicleImportFile: mocks.parseVehicleImportFile,
+  importVehicleRows: mocks.importVehicleRows,
 }))
 vi.mock('../CeMercanteImportModal', () => ({
   CeMercanteImportModal: ({ lockedVoyageId, target }: { lockedVoyageId?: number; target?: string }) => <div>CE travado: {lockedVoyageId} · {target ?? 'bls'}</div>,
@@ -391,4 +397,34 @@ it('importa direto quando a viagem ainda não tem Baplie', async () => {
   await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyages'] }))
   expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['baplie-staging', '7'] })
   expect(mocks.confirm).not.toHaveBeenCalled()
+})
+
+it('resultado parcial de veículos fica no modal com as linhas recusadas e só Concluir', async () => {
+  mocks.parseVehicleImportFile.mockResolvedValue({
+    rows: [{ rowNumber: 2, chassis: 'CH-1' }, { rowNumber: 3, chassis: 'CH-2' }],
+    rowErrors: [],
+  })
+  mocks.importVehicleRows.mockResolvedValue({
+    processed: 2,
+    successCount: 1,
+    errorCount: 1,
+    errors: [{ row: 3, message: 'B/L BL-9 não pertence à viagem' }],
+  })
+  const { container } = render(
+    <VoyageImportActions voyageId={7} voyageLabel="GREEN SANTOS / 14N" userId="user-1" types={['vehicles']} />,
+  )
+
+  fireEvent.click(screen.getByRole('button', { name: /Veículos/ }))
+  const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
+  fireEvent.change(fileInput, { target: { files: [new File(['x'], 'veiculos.xlsx')] } })
+  const confirm = await screen.findByRole('button', { name: 'Importar 2 veículos' })
+  await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(confirm)
+
+  await waitFor(() => expect(mocks.importVehicleRows).toHaveBeenCalledWith({ voyageId: 7, rows: expect.any(Array) }))
+  expect(await screen.findByText(/1 linha recusada ao gravar/)).toBeTruthy()
+  expect(screen.getByText(/BL-9 não pertence à viagem/)).toBeTruthy()
+  expect(screen.getByText('Importação gravada em parte. As linhas recusadas estão acima.')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Concluir' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /Importar 2 veículos/ })).toBeNull()
 })

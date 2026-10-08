@@ -15,8 +15,8 @@ export function TransshipmentInfoCard({ voyageId }: { voyageId: number }) {
   if (!data?.omissions.length) return null
 
   return (
-    <section className="grid gap-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-      <h3 className="text-sm font-semibold text-[var(--app-text-strong)]">Informações de Transbordo</h3>
+    <section className="app-voyage-section-card">
+      <h3 className="app-voyage-section-card__title">Informações de Transbordo</h3>
       {data.omissions.map((omission) => (
         <OmissionInfo
           key={omission.id}
@@ -98,7 +98,7 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
   }
 
   return (
-    <div className="grid gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-3">
+    <div className="grid gap-3 rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm font-semibold">{omission.omittedPod} · Porto de Transbordo — {omission.dischargePod}</div>
         {!editing ? (

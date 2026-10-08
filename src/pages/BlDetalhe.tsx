@@ -41,7 +41,7 @@ import { queryKeys } from '../services/queryKeys'
 import { useVoyageReconciliation } from '../hooks/useVoyageReconciliation'
 import { TabButton } from '../components/ui/TabButton'
 import { TabList } from '../components/ui/TabList'
-import { BlMenu, type BlMenuItem } from '../components/bl/BlMenu'
+import { ActionMenu, type ActionMenuItem } from '../components/ui/ActionMenu'
 import { formatDate } from '../lib/utils'
 import { blsListHref } from './blsListState'
 import { cargoModeLabel, resolveCargoMode } from './blDetalheHelpers'
@@ -70,6 +70,7 @@ export function BlDetalhe() {
   const { blId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const [blFreightOpen, setBlFreightOpen] = useState(false)
+  const [cancelBlockedReasons, setCancelBlockedReasons] = useState<string[] | null>(null)
   const tabParam = searchParams.get('tab')
   const activeTab: BlTab = isBlTab(tabParam) ? tabParam : 'visao-geral'
   const { data: blData, isLoading, error, refetch } = useBlDetail(blId)
@@ -90,9 +91,11 @@ export function BlDetalhe() {
     try {
       const preview = await cancelBl(bl.id, '', { dryRun: true })
       if (preview.reasons.length > 0) {
-        showToast(`O B/L ${bl.id} não pode ser cancelado: ${preview.reasons.join(', ')}. O Financeiro cancela ou estorna antes.`, 'error')
+        // O bloqueio fica na ficha, perto da ação; o toast sumia com o motivo.
+        setCancelBlockedReasons(preview.reasons)
         return
       }
+      setCancelBlockedReasons(null)
       const reason = await confirmWithReason({
         title: 'Cancelar B/L',
         message: `Cancelar o B/L ${bl.id}? Use quando a carga não embarcou ou o armador reemitiu o documento com outro número.`,
@@ -150,7 +153,7 @@ export function BlDetalhe() {
     enabled: Boolean(bl?.id),
     queryFn: () => listDemurrageInvoices({ blId: bl!.id }),
   })
-  const { data: portalStatus } = useQuery({
+  const { data: portalStatus, isError: portalStatusError, refetch: refetchPortalStatus } = useQuery({
     queryKey: queryKeys.portal.blStatus(bl?.id),
     enabled: Boolean(bl?.id),
     queryFn: () => getBlPortalStatus({ blId: bl!.id, ceMercante: bl!.ce_mercante, customerId: bl!.customer_id }),
@@ -361,7 +364,7 @@ export function BlDetalhe() {
     )
   }
 
-  const headerMenu: BlMenuItem[] = [
+  const headerMenu: ActionMenuItem[] = [
     { key: 'copy', label: 'Copiar número do B/L', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void copyBlNumber() },
     ...(isAdmin && cancelledAt
       ? [{ key: 'reactivate', label: 'Reativar B/L', icon: <RotateCcw size={14} aria-hidden="true" />, onSelect: () => void handleReactivateBl() }]
@@ -403,7 +406,7 @@ export function BlDetalhe() {
               Reimportar B/L
             </Button>
           ) : null}
-          <BlMenu
+          <ActionMenu
             label="Mais ações do B/L"
             menuId="bl-header-menu"
             triggerClassName="app-btn app-btn--secondary app-bl-head__more"
@@ -412,6 +415,15 @@ export function BlDetalhe() {
           />
         </div>
       </header>
+
+      {cancelBlockedReasons && !cancelledAt ? (
+        <div className="app-bl-notice app-bl-notice--warning app-bl-notice--row" role="alert">
+          <span>
+            <strong>O B/L {bl.id} não pode ser cancelado agora:</strong> {cancelBlockedReasons.join(', ')}. O Financeiro cancela ou estorna antes.
+          </span>
+          <Button variant="secondary" onClick={() => setCancelBlockedReasons(null)}>Fechar aviso</Button>
+        </div>
+      ) : null}
 
       {cancelledAt ? (
         <div className="app-bl-cancelled" role="status">
@@ -431,7 +443,7 @@ export function BlDetalhe() {
           <TabButton
             key={tab.key}
             id={`bl-tab-${tab.key}`}
-            controls={`bl-panel-${tab.key}`}
+            controls={tab.key === activeTab ? `bl-panel-${tab.key}` : undefined}
             active={tab.key === activeTab}
             label={tab.label}
             onClick={() => {
@@ -462,6 +474,8 @@ export function BlDetalhe() {
           if (user?.id && bl?.voyage_id && cockpitQuery.data?.omission) setTransshipment.mutate({ blId: bl.id, omissionId: cockpitQuery.data.omission.id, justification, changedBy: user.id })
         } : undefined}
         portalStatus={portalStatus}
+        portalStatusError={portalStatusError}
+        onRetryPortalStatus={() => void refetchPortalStatus()}
         baplieStatus={baplieStatus}
         terminalOptions={terminalOptions}
         canEditTerminal={canEditVoyages}

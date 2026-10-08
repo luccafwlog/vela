@@ -62,7 +62,7 @@ export function VoyageManifestosTab({
       ]} />
       <SectionLabel label="Rotas da viagem" note="uma linha por par POL / POD" />
 
-      <div>
+      <div className="app-voyage-table-frame">
           <div className="app-table-scroll">
             <table className="app-table app-table--compact app-table--dense w-full table-fixed text-left text-sm">
               <caption className="sr-only">Rotas e manifestos da viagem</caption>
@@ -83,8 +83,8 @@ export function VoyageManifestosTab({
                   <th scope="col" rowSpan={2} aria-label="Ações" className="px-3 py-2 text-center" />
                 </tr>
                 <tr>
-                  <th scope="col" className="px-3 py-1.5 text-center text-xs">CE Mercante · cobertura</th>
-                  <th scope="col" className="px-3 py-1.5 text-center text-xs">Nº de manifesto Mercante</th>
+                  <th scope="col" className="px-3 py-1.5 text-center text-xs text-white/80">CE Mercante · cobertura</th>
+                  <th scope="col" className="px-3 py-1.5 text-center text-xs text-white/80">Nº de manifesto Mercante</th>
                 </tr>
               </thead>
               <tbody>
@@ -101,18 +101,18 @@ export function VoyageManifestosTab({
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge tone={modeTone} className="px-2 py-0.5 text-xs">{row.modeLabel}</Badge>
                           <Link
-                            className="font-semibold text-[var(--app-blue-btn)] hover:underline"
+                            className="app-voyage-route-link"
                             to={routeTargetUrl}
                             aria-label={row.routeLabel}
                           >
                             {row.omission ? (
                               <>
-                                <span>{formatPortDisplayName(row.pol)} → </span>
+                                <span>{formatPortDisplayName(row.pol)} →</span>
                                 <span className="line-through text-[var(--app-muted-soft)]" title={`POD omitido: ${row.omission.omittedPod}`}>
                                   {formatPortDisplayName(row.omission.omittedPod)}
                                 </span>
-                                <span> → {formatPortDisplayName(row.omission.dischargePod)}</span>
-                                <Badge tone="yellow" className="ml-2 px-2 py-0.5 text-xs">Omissão</Badge>
+                                <span>→ {formatPortDisplayName(row.omission.dischargePod)}</span>
+                                <Badge tone="yellow" className="ml-1 px-2 py-0.5 text-xs">Omissão</Badge>
                               </>
                             ) : row.routeLabel}
                           </Link>
@@ -161,13 +161,13 @@ export function VoyageManifestosTab({
                             return (
                               <button
                                 type="button"
-                                className="app-badge app-badge--yellow cursor-pointer gap-1 px-2 py-0.5 text-xs transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="app-btn app-btn--sm app-voyage-pending-action"
                                 aria-label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
                                 title="Informar Nº de Manifesto Mercante"
                                 onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
                                 disabled={!canEdit || !row.pol || row.pol === '-'}
                               >
-                                <Pencil size={11} aria-hidden="true" />
+                                <Pencil size={14} aria-hidden="true" />
                                 <span>Informar</span>
                               </button>
                             )
@@ -177,8 +177,8 @@ export function VoyageManifestosTab({
                       </td>
                       <td className="px-3 py-2 text-center">
                         <Button
-                          variant="ghost"
-                          className="app-table__icon-button"
+                          variant="secondary"
+                          className="app-voyage-icon-btn"
                           aria-label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
                           title="Editar ETD previsto + ATD POL e Nº de Manifesto Mercante"
                           onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}

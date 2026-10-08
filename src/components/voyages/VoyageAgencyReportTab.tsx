@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { Field, Textarea } from '../ui/Input'
 import { AgencyReportDocument, buildAgencyReportPrintFilename } from './AgencyReportDocument'
 import { Info, MetricPanel } from '../shared/VoyageSectionCards'
 import { SignoffControl } from './SignoffControl'
@@ -104,8 +103,8 @@ function ReportSection({
     <section className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h3 className="text-base font-bold text-[var(--app-text-strong)]">{title}</h3>
-          {terminalView?.fronts?.map((front) => <span key={front} className="app-voyage-token bg-[var(--app-surface-muted)] px-2 py-0.5 text-xs">{front}</span>)}
+          <h3 className="text-base font-semibold text-[var(--app-text-strong)]">{title}</h3>
+          {terminalView?.fronts?.map((front) => <span key={front} className="app-voyage-token bg-[var(--app-surface-muted)] px-2 py-0.5">{front}</span>)}
         </div>
         {section && state ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -191,7 +190,7 @@ function SectionObservationAction({
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             autoFocus
-            className="min-h-32 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3 text-sm shadow-sm"
+            className="min-h-32 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3 text-sm"
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setEditing(false)}>Voltar</Button>
@@ -237,7 +236,7 @@ function SectionObservation({
 
   return (
     <div className="grid gap-1.5 rounded-r-lg border-l-[3px] border-[var(--app-border-strong)] bg-[var(--app-surface-muted)] px-3 py-2.5 text-sm">
-      <span className="text-xs font-semibold text-[var(--app-muted-soft)]">Observação</span>
+      <span className="text-xs font-semibold text-[var(--app-muted)]">Observação</span>
       <p className={`whitespace-pre-line text-[var(--app-text)] ${expanded ? '' : 'max-h-24 overflow-hidden'}`}>{text}</p>
       {text.split('\n').length > 4 || text.length > 200 ? (
         <button type="button" className="justify-self-start text-xs font-semibold text-[var(--app-muted)] underline underline-offset-4 hover:text-[var(--app-text)]" onClick={() => setExpanded((value) => !value)}>
@@ -263,7 +262,7 @@ function Subsection({ title, children }: { title: string; children: ReactNode })
 function Hero({ value, unit }: { value: string; unit?: string }) {
   return (
     <div className="flex items-baseline gap-1.5">
-      <span className="text-[26px] font-bold text-[var(--app-text-strong)]" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+      <span className="text-xl font-bold text-[var(--app-text-strong)]" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       {unit ? <span className="text-xs font-semibold text-[var(--app-muted-soft)]">{unit}</span> : null}
     </div>
   )
@@ -296,7 +295,7 @@ function OrphanDataWarning({ entries, label }: { entries: Array<{ port: string; 
 }
 
 function ReportToken({ label, value }: { label: string; value: string | number }) {
-  return <span className="app-voyage-token gap-1.5 bg-[var(--app-surface-muted)] px-2 py-0.5"><span className="font-semibold text-[var(--app-text)]">{label}</span><span className="tabular-nums text-[var(--app-muted)]">{value}</span></span>
+  return <span className="app-voyage-token gap-1.5 bg-[var(--app-surface)] px-2 py-0.5"><span className="font-semibold text-[var(--app-text)]">{label}</span><span className="font-[var(--app-font-mono)] text-[var(--app-muted-soft)]">{value}</span></span>
 }
 
 function ContainerNatureTable({ rows }: { rows: Record<string, Record<string, number>> }) {
@@ -311,7 +310,7 @@ function ContainerNatureTable({ rows }: { rows: Record<string, Record<string, nu
   return (
     <div className="overflow-x-auto rounded-md border border-[var(--app-border)]">
       <table className="min-w-full border-collapse text-xs">
-        <thead className="bg-[var(--app-surface-muted)] text-xs text-[var(--app-muted-soft)]">
+        <thead className="bg-[var(--app-surface-muted)] text-xs text-[var(--app-muted)]">
           <tr><th className="px-2 py-1.5 text-left font-bold">Tipo</th>{natureKeys.map((key) => <th key={key} className="px-2 py-1.5 text-right font-bold">{labels[key]}</th>)}<th className="px-2 py-1.5 text-right font-bold text-[var(--app-muted)]">Total</th></tr>
         </thead>
         <tbody>
@@ -673,10 +672,10 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const isOmittedEscala = pods.find((entry) => entry.pod === port)?.omitted ?? false
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <div className="flex flex-wrap gap-2" aria-label="Selecionar escala ADR">
         {pods.map(({ pod, omitted }) => (
-          <Button key={pod} variant={port === pod ? 'primary' : 'secondary'} aria-pressed={port === pod} onClick={() => setPort(pod)} className="rounded-full">
+          <Button key={pod} variant={port === pod ? 'primary' : 'secondary'} aria-pressed={port === pod} onClick={() => setPort(pod)} className="app-btn--sm">
             {pod}
             {omitted ? (
               <span
@@ -703,7 +702,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                   variant={resolvedReportId === report.reportId ? 'primary' : 'secondary'}
                   aria-pressed={resolvedReportId === report.reportId}
                   onClick={() => setSelectedReportId(report.reportId)}
-                  className="rounded-full"
+                  className="app-btn--sm"
                 >
                   {label}{name}
                 </Button>
@@ -732,29 +731,12 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             closedByName={ownData?.closed_by_name ?? ownData?.closed_by ?? null}
           />
           <Modal open={printOpen} title="Relatório de Saída do Navio (ADR)" onClose={() => setPrintOpen(false)}><div className="flex justify-end pb-3"><Button variant="secondary" onClick={printClosedReport}>Imprimir</Button></div><AgencyReportDocument snapshot={closedSnapshot} actorNames={actorNames} /></Modal>
-          <Modal open={reopenOpen} title="Reabrir ADR" size="sm" onClose={() => setReopenOpen(false)}>
-            <form
-              className="grid gap-4"
-              onSubmit={(event) => {
-                event.preventDefault()
-                if (!readOnly && port && reopenJustification.trim()) reopenMutation.mutate({ voyageId, port, justification: reopenJustification.trim() }, { onSuccess: () => { setReopenOpen(false); setReopenJustification('') } })
-              }}
-            >
-              <p className="m-0 text-sm">O relatório de saída volta a aberto: os departamentos podem corrigir dados e precisam assinar de novo para fechar. O fechamento anterior fica no histórico.</p>
-              <Field label="Justificativa" required hint="Fica registrada no histórico do ADR.">
-                <Textarea value={reopenJustification} onChange={(event) => setReopenJustification(event.target.value)} rows={3} />
-              </Field>
-              <div className="app-modal__actions">
-                <Button type="button" variant="secondary" onClick={() => setReopenOpen(false)}>Voltar</Button>
-                <Button type="submit" variant="danger" loading={reopenMutation.isPending} loadingLabel="Reabrindo…" disabled={readOnly || !reopenJustification.trim()}>Confirmar reabertura</Button>
-              </div>
-            </form>
-          </Modal>
+          <Modal open={reopenOpen} title="Reabrir ADR" onClose={() => setReopenOpen(false)}><label className="grid gap-2">Justificativa<textarea value={reopenJustification} onChange={(event) => setReopenJustification(event.target.value)} className="min-h-24 rounded border border-[var(--app-border)] bg-transparent p-2" /></label><Button variant="danger" className="mt-3" disabled={readOnly || !reopenJustification.trim() || reopenMutation.isPending} onClick={() => { if (!readOnly && port) reopenMutation.mutate({ voyageId, port, justification: reopenJustification.trim() }, { onSuccess: () => { setReopenOpen(false); setReopenJustification('') } }) }}>Confirmar reabertura</Button></Modal>
         </> : <>
          <div className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
            <div className="flex flex-wrap items-center justify-between gap-3">
              <div className="flex flex-wrap items-center gap-3">
-               <span className="font-[var(--app-font-mono)] text-table font-semibold text-[var(--app-text)]" style={{ fontVariantNumeric: 'tabular-nums' }}>{signedDepartmentsCount}/3 departamentos assinados</span>
+               <span className="font-[var(--app-font-mono)] text-[13px] font-semibold text-[var(--app-text)]" style={{ fontVariantNumeric: 'tabular-nums' }}>{signedDepartmentsCount}/3 departamentos assinados</span>
                <span className="app-badge app-badge--slate">{deadlineDate ? `Prazo ${formatDate(deadlineDate)}` : 'Sem prazo'}</span>
              </div>
              <div className="flex gap-2">
@@ -771,12 +753,12 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
 
         <div className="grid gap-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
-            <h2 className="text-xs font-semibold text-[var(--app-muted)]">Seções por departamento</h2>
+            <h2 className="app-voyage-section-card__title">Seções por departamento</h2>
             <span className="text-xs text-[var(--app-muted-soft)]">quem assina responde pelo grupo inteiro</span>
           </div>
           <div className="app-panel grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3"><h2 className="text-xs font-semibold text-[var(--app-muted)]">Operações</h2><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-green)]">{sectionsOf('operacoes').filter((section) => sectionState(section) !== 'pending').length}/{sectionsOf('operacoes').length} seções</span><span className="flex gap-1">{sectionsOf('operacoes').map((section) => <span key={section} className={`h-1 w-7 rounded-full ${sectionState(section) === 'pending' ? 'bg-[var(--app-panel-strong)]' : 'bg-[var(--app-green)]'}`} />)}</span></div>
+              <div className="flex items-center gap-3"><h2 className="app-voyage-section-card__title">Operações</h2><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-green)]">{sectionsOf('operacoes').filter((section) => sectionState(section) !== 'pending').length}/{sectionsOf('operacoes').length} seções</span><span className="flex gap-1">{sectionsOf('operacoes').map((section) => <span key={section} className={`h-1 w-7 rounded-full ${sectionState(section) === 'pending' ? 'bg-[var(--app-panel-strong)]' : 'bg-[var(--app-green)]'}`} />)}</span></div>
               <div className="flex flex-wrap items-center justify-end gap-2"><span className="app-badge app-badge--slate">{deadlineDate ? `Prazo ${formatDate(deadlineDate)}` : 'Sem prazo'}</span><DepartmentSignoffControl department="operacoes" label="Operações" signed={isDepartmentSigned('operacoes')} attribution={departmentAttribution('operacoes')} canSignoff={canSignDepartment('operacoes')} sectionsPending={departmentSectionsPending('operacoes')} isPending={departmentSignoffMutation.isPending} compact onChange={updateDepartmentSignoff} /></div>
             </div>
             <div className="grid gap-3">
@@ -792,7 +774,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                   {resolvedReportId ? (
                     <Info label="Terminal" value={resolvedTerminalCode ? `${resolvedTerminalCode}${resolvedTerminalName && resolvedTerminalName !== resolvedTerminalCode ? ` — ${resolvedTerminalName}` : ''}` : (ownData?.terminal ?? '—')} />
                   ) : canEditOperations ? (
-                    <div className="grid gap-1"><label htmlFor="legacy-adr-terminal" className="text-xs font-semibold text-[var(--app-muted)]">Terminal</label><div className="flex gap-2"><input id="legacy-adr-terminal" className="app-input min-w-0" value={terminalDraft} onChange={(event) => setTerminalDraft(event.target.value)} placeholder="Informe o terminal" disabled={readOnly || ownData?.status === 'closed' || terminalMutation.isPending} /><Button type="button" variant="secondary" disabled={readOnly || !port || ownData?.status === 'closed' || terminalMutation.isPending || terminalDraft.trim() === (ownData?.terminal ?? '')} onClick={() => void saveTerminal()}>Salvar</Button></div></div>
+                    <div className="grid gap-1"><label htmlFor="legacy-adr-terminal" className="text-xs font-semibold text-[var(--app-muted)]">Terminal</label><div className="flex gap-2"><input id="legacy-adr-terminal" className="app-input w-0 min-w-0 flex-1" value={terminalDraft} onChange={(event) => setTerminalDraft(event.target.value)} placeholder="Informe o terminal" disabled={readOnly || ownData?.status === 'closed' || terminalMutation.isPending} /><Button type="button" variant="secondary" disabled={readOnly || !port || ownData?.status === 'closed' || terminalMutation.isPending || terminalDraft.trim() === (ownData?.terminal ?? '')} onClick={() => void saveTerminal()}>Salvar</Button></div></div>
                   ) : <Info label="Terminal" value={ownData?.terminal ?? '—'} />}
                   <Info label="ATA" value={formatDate(data?.escala?.ata ?? data?.schedule?.ata)} />
                   <Info label="ATB" value={formatDate(terminalAtb)} />
@@ -804,7 +786,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
           </div>
 
           <div className="app-panel grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><h2 className="text-xs font-semibold text-[var(--app-muted)]">Documentação</h2><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-green)]">{sectionsOf('documentacao').filter((section) => sectionState(section) !== 'pending').length}/{sectionsOf('documentacao').length} seções</span><span className="flex gap-1">{sectionsOf('documentacao').map((section) => <span key={section} className={`h-1 w-7 rounded-full ${sectionState(section) === 'pending' ? 'bg-[var(--app-panel-strong)]' : 'bg-[var(--app-green)]'}`} />)}</span></div><DepartmentSignoffControl department="documentacao" label="Documentação" signed={isDepartmentSigned('documentacao')} attribution={departmentAttribution('documentacao')} canSignoff={canSignDepartment('documentacao')} sectionsPending={departmentSectionsPending('documentacao')} isPending={departmentSignoffMutation.isPending} compact onChange={updateDepartmentSignoff} /></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><h2 className="app-voyage-section-card__title">Documentação</h2><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-green)]">{sectionsOf('documentacao').filter((section) => sectionState(section) !== 'pending').length}/{sectionsOf('documentacao').length} seções</span><span className="flex gap-1">{sectionsOf('documentacao').map((section) => <span key={section} className={`h-1 w-7 rounded-full ${sectionState(section) === 'pending' ? 'bg-[var(--app-panel-strong)]' : 'bg-[var(--app-green)]'}`} />)}</span></div><DepartmentSignoffControl department="documentacao" label="Documentação" signed={isDepartmentSigned('documentacao')} attribution={departmentAttribution('documentacao')} canSignoff={canSignDepartment('documentacao')} sectionsPending={departmentSectionsPending('documentacao')} isPending={departmentSignoffMutation.isPending} compact onChange={updateDepartmentSignoff} /></div>
             <div className="grid gap-3">
           <ReportSection
             title="Carga descarregada"
@@ -812,8 +794,8 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             observation={signoffRows.get('carga_descarregada')?.observation} onObservationChange={updateObservation} terminalView={terminalViewFor('carga_descarregada')}
           >
             {containers.length || cargaSoltaTotal?.bls ? <div className="grid gap-3 xl:grid-cols-2">
-              {containers.length ? <div className="grid content-start gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5">
-                <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-semibold text-[var(--app-muted-soft)]">Containers descarregados</span><Hero value={String(containers.length)} unit="unidades" /></div>
+              {containers.length ? <div className="grid content-start gap-3 rounded-md bg-[var(--app-surface-muted)] p-3.5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-semibold text-[var(--app-muted)]">Containers descarregados</span><Hero value={String(containers.length)} unit="unidades" /></div>
                 <div className="flex flex-wrap gap-1.5">{imoCount ? <ReportToken label="IMO" value={imoCount} /> : null}{containers.filter((container) => container.is_oog).length ? <ReportToken label="OOG" value={containers.filter((container) => container.is_oog).length} /> : null}</div>
                 <div className="flex flex-wrap gap-1.5"><ReportToken label="TEU" value={dischargeMatrix.teu} />{dischargeMatrix.unknownTypeCount ? <ReportToken label="Tipo não reconhecido" value={dischargeMatrix.unknownTypeCount} /> : null}</div>
                 <div className="grid gap-2"><span className="text-xs font-semibold text-[var(--app-muted)]">Por tipo</span><div className="flex flex-wrap gap-1.5">{Object.entries(dischargeMatrix.rows).sort(([a], [b]) => a.localeCompare(b)).map(([type, categories]) => <ReportToken key={type} label={type} value={Object.values(categories).reduce((sum, value) => sum + value, 0)} />)}</div></div>
@@ -821,7 +803,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                 <div className="grid gap-2"><span className="text-xs font-semibold text-[var(--app-muted)]">Destino</span><div className="flex flex-wrap gap-1.5"><ReportToken label="Destino final" value={dischargeDestination.destinoFinal} /><ReportToken label="Em transbordo" value={dischargeDestination.transbordo} /></div></div>
                 <p className="m-0 text-xs leading-5 text-[var(--app-muted-soft)]">Só container cheio. Vazios do Baplie vivem em <strong className="text-[var(--app-muted)]">Vazios descarregados</strong>.</p>
               </div> : null}
-              {cargaSoltaTotal?.bls ? <div className="grid content-start gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5"><div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-semibold text-[var(--app-muted-soft)]">Carga solta</span><Hero value={String(cargaSoltaTotal.bls)} unit="B/Ls" /></div><span className="font-[var(--app-font-mono)] text-xs font-semibold text-[var(--app-text)]">{cargaSoltaTotal.weightTon.toLocaleString('pt-BR')} ton</span><div className="grid gap-3 border-t border-[var(--app-border)] pt-3"><div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-semibold text-[var(--app-muted)]">Destino final</span><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-text)]">{cargaSolta?.bls ?? 0} B/Ls · {cargaSolta?.weightTon.toLocaleString('pt-BR') ?? '0'} ton</span></div><div className="flex flex-wrap gap-1.5"><ReportToken label="Máquinas" value={cargaSolta?.machines ?? 0} /><ReportToken label="Packages" value={cargaSolta?.packages ?? 0} /><ReportToken label="CBM" value={cargaSolta?.cbm?.toLocaleString('pt-BR') ?? '0'} /></div></div><div className="grid gap-3 border-t border-[var(--app-border)] pt-3"><div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-semibold text-[var(--app-muted)]">Em transbordo</span><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-text)]">{cargaSoltaTransshipment.bls} B/L · {cargaSoltaTransshipment.weightTon.toLocaleString('pt-BR')} ton</span></div><div className="flex flex-wrap gap-1.5"><ReportToken label="Máquinas" value={cargaSoltaTransshipment.machines} /><ReportToken label="Packages" value={cargaSoltaTransshipment.packages} /><ReportToken label="CBM" value={cargaSoltaTransshipment.cbm.toLocaleString('pt-BR')} /></div></div></div> : null}
+              {cargaSoltaTotal?.bls ? <div className="grid content-start gap-3 rounded-md bg-[var(--app-surface-muted)] p-3.5"><div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-semibold text-[var(--app-muted)]">Carga solta</span><Hero value={String(cargaSoltaTotal.bls)} unit="B/Ls" /></div><span className="font-[var(--app-font-mono)] text-xs font-semibold text-[var(--app-text)]">{cargaSoltaTotal.weightTon.toLocaleString('pt-BR')} ton</span><div className="grid gap-3 border-t border-[var(--app-border)] pt-3"><div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-semibold text-[var(--app-muted)]">Destino final</span><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-text)]">{cargaSolta?.bls ?? 0} B/Ls · {cargaSolta?.weightTon.toLocaleString('pt-BR') ?? '0'} ton</span></div><div className="flex flex-wrap gap-1.5"><ReportToken label="Máquinas" value={cargaSolta?.machines ?? 0} /><ReportToken label="Packages" value={cargaSolta?.packages ?? 0} /><ReportToken label="CBM" value={cargaSolta?.cbm?.toLocaleString('pt-BR') ?? '0'} /></div></div><div className="grid gap-3 border-t border-[var(--app-border)] pt-3"><div className="flex flex-wrap items-baseline justify-between gap-2"><span className="text-xs font-semibold text-[var(--app-muted)]">Em transbordo</span><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-text)]">{cargaSoltaTransshipment.bls} B/L · {cargaSoltaTransshipment.weightTon.toLocaleString('pt-BR')} ton</span></div><div className="flex flex-wrap gap-1.5"><ReportToken label="Máquinas" value={cargaSoltaTransshipment.machines} /><ReportToken label="Packages" value={cargaSoltaTransshipment.packages} /><ReportToken label="CBM" value={cargaSoltaTransshipment.cbm.toLocaleString('pt-BR')} /></div></div></div> : null}
             </div> : <NadaOperado />}
             {data?.dischargeDivergence && data.dischargeDivergence.orphanFullContainers > 0 ? (
               <DivergenceWarning>
@@ -836,9 +818,9 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             observation={signoffRows.get('vazios_descarregados')?.observation} onObservationChange={updateObservation} terminalView={terminalViewFor('vazios_descarregados')}
           >
             {vaziosImp.length || data?.vaziosDivergence?.baplieCount ? (
-              <div className="grid content-start gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5">
+              <div className="grid content-start gap-3 rounded-md bg-[var(--app-surface-muted)] p-3.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-xs font-semibold text-[var(--app-muted-soft)]">
+                  <span className="text-xs font-semibold text-[var(--app-muted)]">
                     Vazios descarregados
                   </span>
                   <Hero value={String(vaziosImp.length || data?.vaziosDivergence?.baplieCount || 0)} unit="vazios descarregados" />
@@ -887,7 +869,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
           </div>
 
           <div className="app-panel grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><h2 className="text-xs font-semibold text-[var(--app-muted)]">Equipamentos</h2><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-green)]">{sectionsOf('equipamentos').filter((section) => sectionState(section) !== 'pending').length}/{sectionsOf('equipamentos').length} seções</span><span className="flex gap-1">{sectionsOf('equipamentos').map((section) => <span key={section} className={`h-1 w-7 rounded-full ${sectionState(section) === 'pending' ? 'bg-[var(--app-panel-strong)]' : 'bg-[var(--app-green)]'}`} />)}</span></div><DepartmentSignoffControl department="equipamentos" label="Equipamentos" signed={isDepartmentSigned('equipamentos')} attribution={departmentAttribution('equipamentos')} canSignoff={canSignDepartment('equipamentos')} sectionsPending={departmentSectionsPending('equipamentos')} isPending={departmentSignoffMutation.isPending} compact onChange={updateDepartmentSignoff} /></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><h2 className="app-voyage-section-card__title">Equipamentos</h2><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-green)]">{sectionsOf('equipamentos').filter((section) => sectionState(section) !== 'pending').length}/{sectionsOf('equipamentos').length} seções</span><span className="flex gap-1">{sectionsOf('equipamentos').map((section) => <span key={section} className={`h-1 w-7 rounded-full ${sectionState(section) === 'pending' ? 'bg-[var(--app-panel-strong)]' : 'bg-[var(--app-green)]'}`} />)}</span></div><DepartmentSignoffControl department="equipamentos" label="Equipamentos" signed={isDepartmentSigned('equipamentos')} attribution={departmentAttribution('equipamentos')} canSignoff={canSignDepartment('equipamentos')} sectionsPending={departmentSectionsPending('equipamentos')} isPending={departmentSignoffMutation.isPending} compact onChange={updateDepartmentSignoff} /></div>
             <div className="grid gap-3">
           <ReportSection
             title="Carga carregada"

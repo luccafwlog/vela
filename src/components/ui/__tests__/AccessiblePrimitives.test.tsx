@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
+import { createRef } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { Button } from '../Button'
 import { EmptyState } from '../Card'
-import { Field, Input } from '../Input'
+import { Field, Input, Textarea } from '../Input'
+import { PasswordInput } from '../../auth/PasswordInput'
 import { SkeletonTable } from '../Skeleton'
 
 describe('primitives acessíveis', () => {
@@ -44,6 +46,30 @@ describe('primitives acessíveis', () => {
     expect(input.getAttribute('aria-required')).toBe('true')
     expect(input.getAttribute('aria-invalid')).toBe('true')
     expect(input.getAttribute('aria-describedby')).toContain('orientacao-externa')
+  })
+
+  it('nomeia o campo só pelo rótulo e não leva o foco ao clicar na ajuda ou no erro', async () => {
+    render(<Field label="Placa" hint="Formato ABC1D23" error="Placa inválida"><Input /></Field>)
+    const input = screen.getByRole('textbox')
+    expect(input.getAttribute('aria-describedby')).toBeTruthy()
+    expect(screen.getByLabelText('Placa')).toBe(input)
+    await userEvent.click(screen.getByText('Formato ABC1D23'))
+    expect(document.activeElement).not.toBe(input)
+    await userEvent.click(screen.getByText('Placa inválida'))
+    expect(document.activeElement).not.toBe(input)
+  })
+
+  it('não inclui "Mostrar senha" no nome do campo de senha', () => {
+    render(<Field label="Nova senha"><PasswordInput /></Field>)
+    const input = screen.getByLabelText('Nova senha')
+    expect(input.tagName).toBe('INPUT')
+    expect(screen.getByRole('button', { name: 'Mostrar senha' }).closest('label')).toBeNull()
+  })
+
+  it('repassa ref do Textarea ao elemento', () => {
+    const ref = createRef<HTMLTextAreaElement>()
+    render(<Field label="Justificativa"><Textarea ref={ref} /></Field>)
+    expect(ref.current).toBe(screen.getByLabelText('Justificativa'))
   })
 
   it('renderiza ação contextual no estado vazio', () => {

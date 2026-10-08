@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Ban, Box, Package, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '../ui/Button'
@@ -36,8 +36,6 @@ import type { VoyageExportSchedule } from '../../services/voyageExportSchedules'
 import { ESTADO_CONCILIACAO_META, statusLabel, VOYAGE_STATUS_BADGE_TONE, VOYAGE_STATUS_LABELS } from '../../lib/statusLabels'
 import { TabButton } from '../ui/TabButton'
 import { TabList } from '../ui/TabList'
-import { StepRail } from '../ui/StepRail'
-import { buildEscalaTrail } from './escalaPresentation'
 import { buildVoyageRouteLegs, collectVoyageManifestBatchRows, countRouteManifestNumbers, type VoyageImportBatch } from './voyageCardHelpers'
 import { VoyageVisaoTab } from './VoyageVisaoTab'
 import { VoyageImportacaoTab } from './VoyageImportacaoTab'
@@ -65,16 +63,17 @@ function DirectionKpiTile({
   metrics,
 }: {
   direction: string
-  primary: { value: ReactNode; unit?: string; variant?: 'number' | 'text'; title?: string }
+  primary: { value: string; unit?: string; color?: string; variant?: 'number' | 'text' }
   metrics: Array<{ label: string; value: string }>
 }) {
   return (
-    <section className="app-voyage-kpi-tile" aria-label={direction}>
+    <div className="app-voyage-kpi-tile">
       <h3 className="app-voyage-kpi-tile__label">{direction}</h3>
       <div className="app-voyage-kpi-tile__primary">
         <span
           className={`app-voyage-kpi-tile__value${primary.variant === 'text' ? ' app-voyage-kpi-tile__value--text' : ''}`}
-          title={primary.title}
+          style={{ color: primary.color }}
+          title={primary.value}
         >
           {primary.value}
         </span>
@@ -90,12 +89,12 @@ function DirectionKpiTile({
           </div>
         ))}
       </div>
-    </section>
+    </div>
   )
 }
 
 /**
- * Importação é o foco da operação: o bloco ocupa duas colunas e separa a carga
+ * Importação é o foco da operação: o tile ocupa duas colunas e separa a carga
  * em contêineres e carga solta, para a carga solta nunca sumir do cabeçalho.
  */
 function ImportKpiTile({
@@ -117,7 +116,7 @@ function ImportKpiTile({
 }) {
   const hasBreakbulk = breakbulk.bls > 0
   return (
-    <section className="app-voyage-kpi-tile app-voyage-kpi-tile--import" aria-label="Importação">
+    <div className="app-voyage-kpi-tile app-voyage-kpi-tile--import">
       <div className="app-voyage-kpi-tile__head">
         <h3 className="app-voyage-kpi-tile__label">Importação</h3>
         <div className="app-voyage-kpi-tile__primary">
@@ -154,7 +153,7 @@ function ImportKpiTile({
           </div>
         </section>
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -374,34 +373,24 @@ export function VoyageCard({
     { key: 'importacao', label: 'Importação' },
     { key: 'exportacao', label: 'Exportação' },
     { key: 'manifestos', label: 'Rotas e Manifestos' },
-    // ADR aqui é o Agency Departure Report (relatório de saída do navio), não
-    // registro de decisão de arquitetura.
-    { key: 'adr', label: 'Relatório de saída (ADR)' },
+    { key: 'adr', label: 'ADR' },
   ]
   const omitAffectedBls = useMemo(() => {
     if (!omitTarget) return []
     return getBlsAffectedByOmittedPod(voyage.bls, omitTarget)
   }, [omitTarget, voyage.bls])
 
-  const trailSteps = buildEscalaTrail(
-    planningEscalaRows.map((row) => ({ port: row.port, eta: row.eta, ata: row.ata, atd: row.atd, omitted: row.omitted, atracacoes: row.atracacoes })),
-    proximaEscala?.pod ?? null,
-  )
-  const proximaOverdue = proximaEscala ? isEtaOverdue(proximaEscala.eta) : false
-  const missingEtaCount = podRows.filter((row) => !row.omitted && !row.ata && !row.eta).length
-  const nextEscalaPrimary = proximaEscala
-    ? { value: proximaEscala.pod, unit: `ETA ${formatDate(proximaEscala.eta)}`, variant: 'text' as const }
-    : { value: missingEtaCount > 0 ? 'ETA não informado' : plannedPodCount > 0 ? 'Todas chegaram' : 'Sem escala', variant: 'text' as const }
-
   return (
-    <Card className="app-voyage-detail">
-      <header className="app-voyage-head">
-        <div className="app-voyage-head__identity">
-          <div className="app-voyage-head__carrier">
+    <Card className="app-voyage-ficha p-0">
+      {/* Faixa de identidade azul-marinho e lisa, como o cabeçalho de modal:
+          navio, estado, rotas e ações da viagem numa só barra. */}
+      <header className="app-voyage-hero">
+        <div className="app-voyage-hero__identity">
+          <div className="app-voyage-hero__carrier">
             {voyage.vessel?.carrier?.name ?? 'Armador não informado'}
           </div>
-          <div className="app-voyage-head__title-row">
-            <h2 className="app-voyage-head__title">
+          <div className="app-voyage-hero__title-row">
+            <h2 className="app-voyage-hero__title">
               {voyage.vessel?.name ?? 'Navio'} / {voyage.voyage_number}
             </h2>
             <Badge tone={VOYAGE_STATUS_BADGE_TONE[voyage.status ?? 'active'] ?? 'blue'}>
@@ -413,31 +402,47 @@ export function VoyageCard({
               </Badge>
             ) : null}
           </div>
-          <dl className="app-voyage-head__routes">
-            {importLeg ? (
-              <VoyageRouteLeg kind="importacao" originPorts={importLeg.originPorts} destinationPorts={importLeg.destinationPorts} />
-            ) : null}
-            {exportLeg ? (
-              <VoyageRouteLeg kind="exportacao" originPorts={exportLeg.originPorts} destinationPorts={exportLeg.destinationPorts} />
-            ) : null}
-          </dl>
+          {importLeg || exportLeg ? (
+            <div className="app-voyage-hero__routes">
+              {importLeg ? (
+                <VoyageRouteLeg
+                  keyPrefix={`${voyage.id}-imp`}
+                  kind="importacao"
+                  originPorts={importLeg.originPorts}
+                  destinationPorts={importLeg.destinationPorts}
+                />
+              ) : null}
+              {exportLeg ? (
+                <VoyageRouteLeg
+                  keyPrefix={`${voyage.id}-exp`}
+                  kind="exportacao"
+                  originPorts={exportLeg.originPorts}
+                  destinationPorts={exportLeg.destinationPorts}
+                />
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {canReactivateVoyage || canEditVoyages || canDeleteVoyage ? (
-          <div className="app-voyage-head__actions">
+          <div className="app-voyage-hero__actions">
             {canReactivateVoyage ? (
-              <Button variant="secondary" className="app-btn--sm" onClick={() => onReactivateVoyage?.(voyage.id)}>
+              <Button variant="ghost" className="app-voyage-hero__action" onClick={() => onReactivateVoyage?.(voyage.id)}>
                 Reativar viagem
               </Button>
             ) : null}
             {canEditVoyages ? (
-              <Button variant="secondary" className="app-btn--sm" onClick={() => onEditVoyage(voyage.id)}>
+              <Button variant="ghost" className="app-voyage-hero__action" onClick={() => onEditVoyage(voyage.id)}>
                 <Pencil size={15} aria-hidden="true" />
                 Editar
               </Button>
             ) : null}
             {canEditVoyages && isAdmin ? (
-              <Button variant="secondary" className="app-btn--sm app-voyage-action--danger" onClick={() => onCancelVoyage(voyage.id)}>
+              <Button
+                variant="ghost"
+                className="app-voyage-hero__action app-voyage-hero__action--danger"
+                onClick={() => onCancelVoyage(voyage.id)}
+              >
                 <Ban size={15} aria-hidden="true" />
                 Cancelar viagem
               </Button>
@@ -446,8 +451,8 @@ export function VoyageCard({
               // Excluir viagem é do Administrativo: delete_records('voyage')
               // exige is_admin() e respeita a trava do CE (ADR 0071).
               <Button
-                variant="secondary"
-                className="app-btn--sm app-voyage-action--danger app-voyage-action--icon"
+                variant="ghost"
+                className="app-voyage-hero__action app-voyage-hero__action--danger app-voyage-hero__action--icon"
                 onClick={() => onDeleteVoyage(voyage.id)}
                 aria-label="Excluir viagem"
                 title="Excluir viagem"
@@ -459,143 +464,147 @@ export function VoyageCard({
         ) : null}
       </header>
 
-      {trailSteps.length ? (
-        <section className="app-voyage-trail" aria-labelledby={`voyage-${voyage.id}-trail`}>
-          <h3 id={`voyage-${voyage.id}-trail`} className="app-voyage-trail__title">Escalas no Brasil</h3>
-          <StepRail label="Escalas no Brasil, na ordem de chegada" steps={trailSteps} />
+      <div className="app-voyage-ficha__body">
+        <section className="app-voyage-kpi-grid" aria-label="Indicadores da viagem">
+          <ImportKpiTile
+            totalBls={totalBls}
+            containerBlCount={containerBls.length}
+            containers={totalContainers}
+            imo={totalImoContainers}
+            oog={totalOogContainers}
+            vehicles={totalImportVehicles}
+            breakbulk={breakbulkSummary}
+          />
+          <DirectionKpiTile
+            direction="Exportação"
+            primary={{ value: String(totalExportContainers), unit: 'vazios embarcados' }}
+            metrics={[
+              { label: 'Granito · B/Ls', value: String(totalGraniteBls) },
+              { label: 'Granito · ton', value: formatMetric(totalGraniteWeightTon) },
+              { label: 'Embarques de vazios', value: String(totalVaziosManifests) },
+            ]}
+          />
+          <DirectionKpiTile
+            direction="Próxima escala"
+            primary={{
+              value: proximaEscala?.pod ?? '—',
+              unit: proximaEscala ? `ETA ${formatDate(proximaEscala.eta)}` : undefined,
+              variant: 'text',
+            }}
+            metrics={[
+              { label: 'Planejadas', value: String(plannedPodCount) },
+              { label: 'Atracação', value: proximaEscala?.etb ? `ETB ${formatDate(proximaEscala.etb)}` : 'TBC' },
+              { label: 'Status', value: proximaEscala && isEtaOverdue(proximaEscala.eta) ? 'ETA vencido' : 'Pendente' },
+            ]}
+          />
+          <DirectionKpiTile
+            direction="Conciliação"
+            primary={{ value: reconciliationMeta.label, color: reconciliationMeta.color, variant: 'text' }}
+            metrics={[
+              { label: 'CE Mercante', value: `${ceCoverage.filled}/${ceCoverage.total}` },
+              { label: 'Manifestos Mercante', value: pendingManifestCount > 0 ? `${manifestNumberCount} · ${pendingManifestCount} a informar` : String(manifestNumberCount) },
+              { label: 'Divergências EDI × B/Ls', value: String(divergenceCount) },
+            ]}
+          />
         </section>
-      ) : null}
 
-      <div className="app-voyage-kpi-grid" role="group" aria-label="Indicadores da viagem">
-        <ImportKpiTile
-          totalBls={totalBls}
-          containerBlCount={containerBls.length}
-          containers={totalContainers}
-          imo={totalImoContainers}
-          oog={totalOogContainers}
-          vehicles={totalImportVehicles}
-          breakbulk={breakbulkSummary}
-        />
-        <DirectionKpiTile
-          direction="Exportação"
-          primary={{ value: String(totalExportContainers), unit: 'vazios embarcados' }}
-          metrics={[
-            { label: 'Granito · B/Ls', value: String(totalGraniteBls) },
-            { label: 'Granito · ton', value: formatMetric(totalGraniteWeightTon) },
-            { label: 'Embarques de vazios', value: String(totalVaziosManifests) },
-          ]}
-        />
-        <DirectionKpiTile
-          direction="Próxima escala"
-          primary={nextEscalaPrimary}
-          metrics={[
-            { label: 'Situação', value: proximaEscala ? (proximaOverdue ? 'ETA vencido — ATA pendente' : 'Prevista') : '—' },
-            { label: 'Atracação', value: proximaEscala?.etb ? `ETB ${formatDate(proximaEscala.etb)}` : 'ETB a confirmar' },
-            { label: 'Escalas planejadas', value: String(plannedPodCount) },
-          ]}
-        />
-        <DirectionKpiTile
-          direction="Conciliação"
-          primary={{ value: <Badge tone={reconciliationMeta.badgeTone}>{reconciliationMeta.label}</Badge>, variant: 'text' }}
-          metrics={[
-            { label: 'CE Mercante', value: `${ceCoverage.filled}/${ceCoverage.total}` },
-            { label: 'Manifestos Mercante', value: pendingManifestCount > 0 ? `${manifestNumberCount} · ${pendingManifestCount} a informar` : String(manifestNumberCount) },
-            { label: 'Divergências EDI × B/Ls', value: String(divergenceCount) },
-          ]}
-        />
-      </div>
+        {/* Abas trocam a vista; atalhos (link com seta) levam a outra página. */}
+        <div className="app-voyage-tabs-row">
+          <TabList label="Seções da viagem">
+            {tabs.map((tab) => (
+              <TabButton
+                key={tab.key}
+                id={`voyage-${voyage.id}-tab-${tab.key}`}
+                controls={`voyage-${voyage.id}-panel`}
+                label={tab.label}
+                active={activeTab === tab.key}
+                onClick={() => (onTabChange ? onTabChange(tab.key) : setLocalActiveTab(tab.key))}
+              />
+            ))}
+          </TabList>
+          <nav aria-label="Atalhos da viagem" className="app-voyage-shortcuts">
+            {reconciliationState === 'divergente' ? (
+              <Link to={`/baplie?voyage=${voyage.id}`} className="app-btn app-btn--primary app-btn--sm">
+                Resolver divergências ({divergenceCount})
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            ) : (
+              <Link to={`/baplie?voyage=${voyage.id}`} className="app-voyage-shortcut">
+                Baplie EDI
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            )}
+            <Link to={`/bls?voyage=${voyage.id}`} className="app-voyage-shortcut">
+              B/Ls da viagem
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+            {totalGraniteBls > 0 ? (
+              <Link to={`/granito?voyage=${voyage.id}`} className="app-voyage-shortcut">
+                Granito
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            ) : null}
+          </nav>
+        </div>
 
-      <div className="app-voyage-tabs-row">
-        <TabList label="Seções da viagem" className="app-voyage-tabs">
-          {tabs.map((tab) => (
-            <TabButton
-              key={tab.key}
-              id={`voyage-tab-${tab.key}`}
-              controls={`voyage-panel-${tab.key}`}
-              label={tab.label}
-              active={activeTab === tab.key}
-              onClick={() => (onTabChange ? onTabChange(tab.key) : setLocalActiveTab(tab.key))}
+        <div
+          id={`voyage-${voyage.id}-panel`}
+          role="tabpanel"
+          aria-labelledby={`voyage-${voyage.id}-tab-${activeTab}`}
+          className="grid gap-4"
+        >
+          {activeTab === 'visao' ? (
+            <VoyageVisaoTab
+              voyage={voyage}
+              voyageLabel={voyageLabel}
+              escalaRows={planningEscalaRows}
+              importBatches={importBatches}
+              exportSchedules={exportSchedules}
+              divergenceCount={divergenceCount}
+              ceCoverage={ceCoverage}
+              canEdit={!isCancelled}
+              onEditEscala={onEditEscala}
+              onOmitPod={(pod) => setOmitTarget(pod)}
             />
-          ))}
-        </TabList>
-        <nav aria-label="Atalhos da viagem" className="app-voyage-shortcuts">
-          {reconciliationState === 'divergente' ? (
-            <Link to={`/baplie?voyage=${voyage.id}`} className="app-btn app-btn--primary app-btn--sm">
-              Resolver divergências ({divergenceCount})
-              <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          ) : (
-            <Link to={`/baplie?voyage=${voyage.id}`} className="app-voyage-shortcut">
-              Baplie EDI
-              <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          )}
-          <Link to={`/bls?voyage=${voyage.id}`} className="app-voyage-shortcut">
-            B/Ls da viagem
-            <ArrowRight size={14} aria-hidden="true" />
-          </Link>
-          {totalGraniteBls > 0 ? (
-            <Link to={`/granito?voyage=${voyage.id}`} className="app-voyage-shortcut">
-              Granito
-              <ArrowRight size={14} aria-hidden="true" />
-            </Link>
           ) : null}
-        </nav>
-      </div>
-
-      <div id={`voyage-panel-${activeTab}`} role="tabpanel" aria-labelledby={`voyage-tab-${activeTab}`} className="grid gap-4">
-        {activeTab === 'visao' ? (
-          <VoyageVisaoTab
-            voyage={voyage}
-            voyageLabel={voyageLabel}
-            escalaRows={planningEscalaRows}
-            nextPort={proximaEscala?.pod ?? null}
-            importBatches={importBatches}
-            exportSchedules={exportSchedules}
-            divergenceCount={divergenceCount}
-            ceCoverage={ceCoverage}
-            canEdit={!isCancelled}
-            onEditEscala={onEditEscala}
-            onOmitPod={(pod) => setOmitTarget(pod)}
-          />
-        ) : null}
-        {activeTab === 'importacao' ? (
-          <VoyageImportacaoTab
-            voyage={voyage}
-            voyageLabel={voyageLabel}
-            vehicleStats={vehicleStats}
-            vaziosImpStats={vaziosImpStats}
-            userId={isCancelled ? undefined : user?.id}
-          />
-        ) : null}
-        {activeTab === 'exportacao' ? (
-          <VoyageExportacaoTab voyage={voyage} voyageLabel={voyageLabel} userId={isCancelled ? undefined : user?.id} />
-        ) : null}
-        {activeTab === 'manifestos' ? (
-          <VoyageManifestosTab
-            voyage={voyage}
-            voyageLabel={voyageLabel}
-            importBatches={importBatches}
-            polSchedules={polSchedules}
-            routeCeMasters={routeCeMasters}
-            ceCoverage={ceCoverage}
-            vaziosRoutes={vaziosImpStats?.routes}
-            canEdit={!isCancelled}
-            onEditPol={onEditPol}
-          />
-        ) : null}
-        {activeTab === 'adr' ? (
-          <VoyageAgencyReportTab
-            voyageId={voyage.id}
-            voyageLabel={voyageLabel}
-            carrierName={voyage.vessel?.carrier?.name ?? 'Armador não informado'}
-            pods={adrPods}
-            initialEscala={initialEscala}
-            reportId={initialReportId}
-            terminalCode={initialTerminalCode}
-            readOnly={isCancelled}
-          />
-        ) : null}
+          {activeTab === 'importacao' ? (
+            <VoyageImportacaoTab
+              voyage={voyage}
+              voyageLabel={voyageLabel}
+              vehicleStats={vehicleStats}
+              vaziosImpStats={vaziosImpStats}
+              userId={isCancelled ? undefined : user?.id}
+            />
+          ) : null}
+          {activeTab === 'exportacao' ? (
+            <VoyageExportacaoTab voyage={voyage} voyageLabel={voyageLabel} userId={isCancelled ? undefined : user?.id} />
+          ) : null}
+          {activeTab === 'manifestos' ? (
+            <VoyageManifestosTab
+              voyage={voyage}
+              voyageLabel={voyageLabel}
+              importBatches={importBatches}
+              polSchedules={polSchedules}
+              routeCeMasters={routeCeMasters}
+              ceCoverage={ceCoverage}
+              vaziosRoutes={vaziosImpStats?.routes}
+              canEdit={!isCancelled}
+              onEditPol={onEditPol}
+            />
+          ) : null}
+          {activeTab === 'adr' ? (
+            <VoyageAgencyReportTab
+              voyageId={voyage.id}
+              voyageLabel={voyageLabel}
+              carrierName={voyage.vessel?.carrier?.name ?? 'Armador não informado'}
+              pods={adrPods}
+              initialEscala={initialEscala}
+              reportId={initialReportId}
+              terminalCode={initialTerminalCode}
+              readOnly={isCancelled}
+            />
+          ) : null}
+        </div>
       </div>
       {omitTarget ? (
         <OmitEscalaModal
@@ -612,22 +621,44 @@ export function VoyageCard({
 }
 
 function VoyageRouteLeg({
+  keyPrefix,
   kind,
   originPorts,
   destinationPorts,
 }: {
+  keyPrefix: string
   kind: 'importacao' | 'exportacao'
   originPorts: string[]
   destinationPorts: string[]
 }) {
   return (
-    <div className="app-voyage-head__route">
-      <dt>{kind === 'importacao' ? 'Importação' : 'Exportação'}</dt>
-      <dd>
-        <span>{originPorts.length ? originPorts.join(' · ') : 'Origem a definir'}</span>
-        <ArrowRight size={14} aria-label="para" />
-        <span>{destinationPorts.length ? destinationPorts.join(' · ') : 'Destino a definir'}</span>
-      </dd>
+    <div className="app-voyage-hero__route">
+      <Badge tone={kind === 'importacao' ? 'blue' : 'green'} className="flex-none">
+        {kind === 'importacao' ? 'Importação' : 'Exportação'}
+      </Badge>
+      <div className="app-voyage-hero__ports">
+        {originPorts.length ? (
+          originPorts.map((port) => (
+            <span key={`${keyPrefix}-origin-${port}`} className="app-voyage-hero__port">
+              {port}
+            </span>
+          ))
+        ) : (
+          <span className="app-voyage-hero__port app-voyage-hero__port--pending">Origem a definir</span>
+        )}
+      </div>
+      <ArrowRight size={16} className="app-voyage-hero__arrow" aria-hidden="true" />
+      <div className="app-voyage-hero__ports">
+        {destinationPorts.length ? (
+          destinationPorts.map((port) => (
+            <span key={`${keyPrefix}-destination-${port}`} className="app-voyage-hero__port">
+              {port}
+            </span>
+          ))
+        ) : (
+          <span className="app-voyage-hero__port app-voyage-hero__port--pending">Destino a definir</span>
+        )}
+      </div>
     </div>
   )
 }

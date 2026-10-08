@@ -3,6 +3,12 @@
 Data: 2026-10-07. Base inspecionada: `main`, commit `0160605a`, checkout inicialmente sem diff.
 Estado: etapas 00, 01 e 02 concluídas em 2026-10-07 e 03, 04 e 05 em 2026-10-08 (direção visual, inventário, tokens, primitivas, shells, acesso, Viagens, importações e B/Ls registrados abaixo); próxima: etapa 06.
 
+> **Nota editorial (2026-10-08):** a conformidade das etapas 00–05 com o contrato comum foi auditada em [2026-10-08 — auditoria de conformidade das etapas 00–05](../archive/audits/2026-10-08-auditoria-contrato-etapas-00-05.md). Desvios pequenos foram corrigidos nos donos das etapas; as pendências novas por dono (01, 02, 03, 04, 05, 13, 19 e 21) estão na seção "Pendências com dono" do relatório e devem ser lidas pelas etapas donas junto com os registros abaixo, que não foram reescritos. A correção está planejada em [2026-10-08 — correção das pendências da auditoria](2026-10-08-correcao-pendencias-auditoria-etapas-00-05.md), cujos passos R0 e R1 precedem a etapa 06.
+
+> **Decisão do responsável (2026-10-08), revisa o "Contrato visual":** (1) cabeçalho de tabela volta ao azul-marinho com texto branco em todas as tabelas, no Vela e no Portal, em caixa normal 12/600; (2) a faixa de viagens (`VoyageRail`) volta ao card anterior à etapa 03, com só a cor do estado corrigida para contraste, e a ficha da viagem (`VoyageCard` e suas abas, `VoyageSectionCards`) também volta à versão anterior à etapa 03, inclusive os botões Omitir/Excluir na linha da escala; (3) o Line-Up na TV volta ao quadro claro anterior à etapa 03, mantendo o status de CE igual ao Painel e o aviso "Sem atualização desde" quando a consulta falha com dados anteriores; (4) bordas, texto secundário e fundo de superfície do tema claro ficam mais escuros (`--app-border`, `--app-border-strong`, `--app-muted`, `--app-muted-soft`, `--app-surface-muted`). As etapas seguintes não reabrem esses pontos sem nova decisão.
+
+> **Complemento do responsável (2026-10-08), refina o item (2):** a ficha da viagem não é cópia literal da versão anterior à etapa 03. Ela mantém a composição antiga (identidade, quatro indicadores, abas e conteúdo das abas) com melhorias: faixa de identidade em azul-marinho liso (`--app-navy`), sem o degradê e a sombra anteriores, com rotas e ações (Editar, Cancelar viagem, Excluir) dentro dela; filetes internos suaves (`--app-border-soft`, só dentro de `.app-voyage-ficha__body`; controles continuam com `--app-border-strong`); blocos levemente escurecidos (`--app-surface-muted`) sem sombra nem degradê e com raio de 8 px; abas no padrão sublinhado (`TabList`) com os atalhos Baplie EDI, B/Ls da viagem e Granito como links com seta na mesma linha; rótulos em caixa normal e no mínimo 12 px em todas as abas, inclusive a ADR, cujos quadros internos perdem a borda e ficam só levemente escurecidos. A faixa de viagens (`VoyageRail`) e a TV continuam como no item (2) e (3).
+
 ## O que este pacote cobre
 
 O inventário foi conferido estaticamente nos roteadores, nas páginas, nos componentes e na documentação dos módulos. Não houve navegação autenticada, screenshots ou auditoria visual de runtime nesta preparação. Os tópicos dos prompts são alvos de investigação, não defeitos já comprovados. A etapa 00 reconfirma o checkout e coleta a evidência visual disponível antes do redesenho.
@@ -868,6 +874,8 @@ Leia primeiro: WORKFLOW.md §10; docs/modules/faturamento.md; docs/modules/demur
 
 Crie uma apresentação consistente e profissional para fatura individual, consolidada, avulsa, Demurrage, recibo, resumo de Cliente e ADR. Revise hierarquia, identidade, dados do emissor/Cliente, números, datas, itens longos, moeda, totais, quebras de página, rodapé e impressão A4. Diferencie total emitido de dinheiro efetivamente recebido, abatimento, cobertura, restituição e líquido; não descreva cobertura como dinheiro pago. Recibo não deve induzir novo pagamento; preserve o contrato que não exibe PIX nesse documento. Confira visualização em tela e saída de impressão/Salvar como PDF, sem adotar biblioteca nova automaticamente. Esta etapa possui o kit e os documentos compartilhados, mas não a lógica de emissão/baixa ou handlers das páginas. Verifique consumidores internos e do Portal; mude handlers somente em uma etapa do respectivo owner se houver necessidade comprovada.
 
+Item de aceite vindo da auditoria de 2026-10-08 (docs/archive/audits/2026-10-08-auditoria-contrato-etapas-00-05.md): `AgencyReportDocument` sem título em caixa alta (`InvoiceDocTitle uppercase` no título "Agency Departure Report").
+
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
 
@@ -952,6 +960,8 @@ Leia primeiro: docs/modules/operacao-suporte.md; docs/modules/portal-cliente.md.
 
 Transforme os painéis em entradas úteis para agir: prioridade, motivo e destino. Revise métricas, resumos, fila de Alertas, filtros, agrupamento, origem, atualização, dispensa e manual de regras. Diferencie Alerta compartilhado de Notificação pessoal. Evite repetir números sem contexto ou usar erro de consulta como zero. No Portal, destaque faturas, Containers sem devolução, Demurrage e programação com caminhos coerentes; não esconda alerta importante em decoração. Integre o ShipScheduleWidget da 03 sem modificá-lo. Os sinos pertencem à 02 e o catálogo/regra produtora do alerta deve ser preservado; melhore sua apresentação, não invente novos eventos de domínio.
 
+Itens de aceite vindos da auditoria de 2026-10-08 (docs/archive/audits/2026-10-08-auditoria-contrato-etapas-00-05.md): `Painel.tsx` sem texto abaixo de 12 px (16 ocorrências no runtime da auditoria) e `PortalDashboard.tsx` sem rótulo dos cards em caixa alta espaçada.
+
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
 
@@ -979,6 +989,8 @@ Owners de apresentação: src/pages/VaziosImportacao.tsx; src/pages/EmbarqueVazi
 Leia primeiro: docs/modules/manifesto-edi.md; docs/modules/viagens.md.
 
 Revise unidades de vazios, filtros, datas, seleção por escala, importação, inclusão manual, serviços, valores sugeridos e cadastro de terminais/depots. Diferencie vazio de importação, Embarque de Vazios e container cheio; explique unidade física e linha de serviço sem misturar totais. Preserve os controles operacionais de ADR e atribuição de terminal. Dê aos formulários campos claros e ações consistentes, com feedback no item afetado. Não crie CE ou faturamento de Cliente para Embarque de Vazios. Consuma importações da 04 e programação da 03. O cadastro operacional é seu; publicação/instruções da Central de Informações são da 16: não faça um segundo editor dessas informações.
+
+Item de aceite vindo da auditoria de 2026-10-08 (docs/archive/audits/2026-10-08-auditoria-contrato-etapas-00-05.md): título do modal de `VaziosImportacao.tsx` em caixa normal e com acento ("Importar planilha de vazios (importação)"), além da pendência já registrada pela 04.
 
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```

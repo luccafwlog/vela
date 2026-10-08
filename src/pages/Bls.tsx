@@ -25,12 +25,12 @@ import { useRowSelection } from '../hooks/useRowSelection'
 import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { checkBlDependencies, deleteBls } from '../services/bls'
-import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
+import { buildDeleteAffected, formatDeleteOutcome } from '../services/deleteDependencies'
 import { type BlFilters, fetchAllBls, useBls, useBlSummary, usePortOptions } from '../hooks/useBls'
 import { useInvoiceLinks } from '../hooks/useBilling'
 import { formatBlCargoBadge } from '../lib/blCargoBadge'
 import { BlRowDetail } from '../components/bl/BlRowDetail'
-import { BlMenu, type BlMenuItem } from '../components/bl/BlMenu'
+import { ActionMenu, type ActionMenuItem } from '../components/ui/ActionMenu'
 import { BreakbulkManifestUploadModal } from '../components/bl/BlBreakbulkManifestModal'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { CHARGE_STATUS_FILTER_OPTIONS, blsSearchFromFilters, filtersFromBlsSearch, rememberBlsListSearch } from './blsListState'
@@ -127,6 +127,8 @@ export function Bls() {
   const canImport = Boolean(profile || user)
   const selection = useRowSelection<string>()
   const [deleting, setDeleting] = useState(false)
+  // Exclusão recusada pelas dependências: o motivo fica na lista, não só no toast.
+  const [deleteBlocked, setDeleteBlocked] = useState<Array<{ id: string; reasons: string[] }> | null>(null)
   const narrow = useNarrowViewport()
 
   // Filtros, lente e página vivem na URL: voltar da ficha, recarregar ou
@@ -171,6 +173,13 @@ export function Bls() {
 
   const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / filters.pageSize))
 
+  // Link com ?page= além do total (lista que encolheu, URL antiga): vai para a
+  // última página que existe, com replace, em vez de mostrar o vazio inicial.
+  const pageOutOfRange = Boolean(data && data.count > 0 && filters.page > totalPages)
+  useEffect(() => {
+    if (pageOutOfRange) setFilters((current) => ({ ...current, page: totalPages }))
+  }, [pageOutOfRange, totalPages, setFilters])
+
   // A lente de modalidade não conta como filtro do painel: ela tem controle próprio, sempre visível.
   const panelFilterCount = (
     ['search', 'voyageId', 'pol', 'pod', 'reviewStatus', 'financialStatus', 'chargeStatus', 'cargoProfile'] as (keyof BlFilters)[]
@@ -214,10 +223,11 @@ export function Bls() {
 
   async function runBlDelete(ids: string[]) {
     setDeleting(true)
+    setDeleteBlocked(null)
     try {
       const report = await checkBlDependencies(ids)
       if (report.deletableIds.length === 0) {
-        showToast(`Nenhum B/L pode ser excluído. ${formatBlockedSummary(report.blockedIds)}`, 'error')
+        setDeleteBlocked(report.blockedIds)
         return
       }
 
@@ -255,7 +265,7 @@ export function Bls() {
     }
   }
 
-  function rowMenuItems(blId: string): BlMenuItem[] {
+  function rowMenuItems(blId: string): ActionMenuItem[] {
     return [
       { key: 'copy', label: 'Copiar número do B/L', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void copyBlNumber(blId) },
       ...(isAdmin
@@ -264,7 +274,7 @@ export function Bls() {
     ]
   }
 
-  const importItems: BlMenuItem[] = [
+  const importItems: ActionMenuItem[] = [
     { key: 'cntr', label: 'B/L de contêiner (.xlsx)', icon: <Upload size={14} aria-hidden="true" />, onSelect: () => setBlFreightOpen(true) },
     { key: 'avulso', label: 'B/L de carga solta (.pdf, .docx)', icon: <FileText size={14} aria-hidden="true" />, onSelect: () => setBlDocumentOpen(true) },
     { key: 'bb', label: 'Manifesto de carga solta (BB)', icon: <Upload size={14} aria-hidden="true" />, onSelect: () => setBreakbulkOpen(true) },
@@ -311,7 +321,7 @@ export function Bls() {
         action={
           <>
             {canImport ? (
-              <BlMenu
+              <ActionMenu
                 label="Importar"
                 menuId="bls-import-menu"
                 triggerClassName="app-btn app-btn--secondary"
@@ -327,7 +337,21 @@ export function Bls() {
         }
       />
 
-      <div className="app-bl-metrics" aria-label="Pendências do recorte">
+      {deleteBlocked?.length ? (
+        <div className="app-bl-notice app-bl-notice--warning app-bl-notice--row" role="alert">
+          <div>
+            <strong>{deleteBlocked.length === 1 ? 'Este B/L não pode ser excluído:' : 'Nenhum destes B/Ls pode ser excluído:'}</strong>
+            <ul className="app-bl-notice__list">
+              {deleteBlocked.map((item) => (
+                <li key={item.id}><span className="font-[var(--app-font-mono)]">{item.id}</span>: {item.reasons.join(', ')}</li>
+              ))}
+            </ul>
+          </div>
+          <Button variant="secondary" onClick={() => setDeleteBlocked(null)}>Fechar aviso</Button>
+        </div>
+      ) : null}
+
+      <div className="app-bl-metrics" role="group" aria-label="Pendências do recorte">
         <MetricCard
           label="Pendentes de revisão"
           value={metric(summary?.pendingReview)}
@@ -440,6 +464,12 @@ export function Bls() {
             ) : null}
           </div>
           <SummaryStrip label="Resumo do recorte" items={summaryItems} />
+          {summaryQuery.isError ? (
+            <p className="app-bl-toolbar__hint" role="alert">
+              Resumo indisponível; os totais aparecem como —.{' '}
+              <button type="button" className="app-bl-text-button" onClick={() => void summaryQuery.refetch()}>Tentar novamente</button>
+            </p>
+          ) : null}
         </div>
         <QueryStateGate
           isLoading={false}
@@ -449,7 +479,7 @@ export function Bls() {
           errorMessage="Não foi possível carregar os B/Ls."
           onRetry={() => void refetch()}
         >
-          {isLoading ? (
+          {isLoading || pageOutOfRange ? (
             <SkeletonTable rows={8} cols={blColumnCount} columnTemplate={blSkeletonTemplate} label="Carregando B/Ls" />
           ) : data?.rows.length === 0 ? (
             <EmptyState title={emptyState.title} description={emptyState.description} action={emptyAction} />
@@ -471,7 +501,7 @@ export function Bls() {
                       <Link className="app-bl-link app-bl-id" to={`/bls/${bl.id}`}>{bl.id}</Link>
                       <BlStateNote bl={bl} />
                     </div>
-                    <BlMenu
+                    <ActionMenu
                       label={`Ações para B/L ${bl.id}`}
                       menuId={`bl-actions-${bl.id}`}
                       triggerClassName="app-table__icon-button"
@@ -497,7 +527,7 @@ export function Bls() {
             </ul>
           ) : (
             <div className="app-table-scroll app-table-scroll--sticky">
-              <table className="app-table app-table--sticky-actions app-bl-table">
+              <table className={`app-table app-table--sticky-actions app-bl-table${isAdmin ? ' app-bl-table--selectable' : ''}`}>
                 <caption className="sr-only">B/Ls do recorte atual</caption>
                 <thead>
                   <tr>
@@ -511,7 +541,7 @@ export function Bls() {
                         />
                       </th>
                     ) : null}
-                    <th scope="col">B/L</th>
+                    <th scope="col" className="app-bl-table__id">B/L</th>
                     <th scope="col">CE Mercante</th>
                     <th scope="col">Navio / Viagem</th>
                     <th scope="col">Cliente</th>
@@ -538,7 +568,7 @@ export function Bls() {
                               />
                             </td>
                           ) : null}
-                          <td>
+                          <td className="app-bl-table__id">
                             <span className="app-bl-cell__stack">
                               <Link className="app-bl-link app-bl-id" to={`/bls/${bl.id}`}>{bl.id}</Link>
                               <BlStateNote bl={bl} />
@@ -569,7 +599,7 @@ export function Bls() {
                               >
                                 {isExpanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
                               </button>
-                              <BlMenu
+                              <ActionMenu
                                 label={`Ações para B/L ${bl.id}`}
                                 menuId={`bl-actions-${bl.id}`}
                                 triggerClassName="app-table__icon-button"

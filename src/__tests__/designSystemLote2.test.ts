@@ -10,11 +10,10 @@ describe('contratos CSS do design system', () => {
     )
   })
 
-  it('a ficha da Viagem não emoldura tabelas em card dentro de card (etapa 03)', () => {
-    // O quadro arredondado com sombra em volta das tabelas da Viagem saiu: a
-    // seção é separada por filete e título, com o cabeçalho de tabela comum.
-    expect(css).not.toContain('.app-voyage-table-frame')
-    expect(css).toContain('.app-voyage-section {')
+  it('mantém o raio do quadro de viagem somente na primeira linha do cabeçalho', () => {
+    expect(css).toContain('.app-voyage-table-frame .app-table thead tr:first-child > th:first-child')
+    expect(css).toContain('.app-voyage-table-frame .app-table thead tr:first-child > th:last-child')
+    expect(css).not.toContain('.app-voyage-table-frame .app-table thead tr:not(:first-child) th')
   })
 
   it('documenta que os tons Tailwind legados têm remapeamento transversal nos temas claros', () => {

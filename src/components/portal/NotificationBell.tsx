@@ -13,7 +13,9 @@ const NOTIFICATION_CONFIRMATION_LIMIT = 10_000
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const { data: notifications, isLoading, isError, refetch } = usePortalNotifications(open)
-  const { data: unreadCount = 0 } = usePortalUnreadCount()
+  const { data: unreadCount = 0, refetch: refetchCount } = usePortalUnreadCount()
+  const [markAllNotice, setMarkAllNotice] = useState<string | null>(null)
+  const [markingAll, setMarkingAll] = useState(false)
   const markRead = usePortalMarkRead()
   const markAllRead = usePortalMarkAllRead()
   const navigate = useNavigate()
@@ -49,6 +51,8 @@ export function NotificationBell() {
 
   const handleMarkAllRead = useCallback(async () => {
     if (scope.mode !== 'client') return
+    setMarkAllNotice(null)
+    setMarkingAll(true)
     try {
       const [snapshot, currentUnreadCount] = await Promise.all([
         portalListNotifications(scope, NOTIFICATION_CONFIRMATION_LIMIT),
@@ -56,7 +60,7 @@ export function NotificationBell() {
       ])
       const unreadNotifications = snapshot.filter((notification) => !notification.read)
       if (snapshot.length === NOTIFICATION_CONFIRMATION_LIMIT || unreadNotifications.length !== currentUnreadCount) {
-        showToast('Não foi possível confirmar a lista completa. Atualize as notificações e tente de novo; nenhuma foi marcada.', 'error')
+        setMarkAllNotice('Não foi possível confirmar a lista completa; nenhuma foi marcada. Atualize a lista e tente de novo.')
         return
       }
       if (unreadNotifications.length === 0) return
@@ -76,9 +80,11 @@ export function NotificationBell() {
 
       await markAllRead.mutateAsync()
     } catch {
-      showToast('Não foi possível marcar todas como lidas. Tente de novo.', 'error')
+      setMarkAllNotice('Não foi possível marcar todas como lidas. Tente de novo.')
+    } finally {
+      setMarkingAll(false)
     }
-  }, [confirm, markAllRead, scope, showToast])
+  }, [confirm, markAllRead, scope])
 
   if (!scope.overview) return null
 
@@ -126,14 +132,28 @@ export function NotificationBell() {
                 type="button"
                 className="app-notifications__mark-all"
                 onClick={handleMarkAllRead}
-                disabled={readOnly || markAllRead.isPending}
+                disabled={readOnly || markingAll || markAllRead.isPending}
+                aria-busy={markingAll || undefined}
                 title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
               >
                 <CheckCheck size={16} aria-hidden="true" />
-                Marcar todas como lidas
+                {markingAll ? 'Marcando…' : 'Marcar todas como lidas'}
               </button>
             ) : null}
           </div>
+
+          {markAllNotice ? (
+            <div className="app-notifications__notice" role="alert">
+              <span>{markAllNotice}</span>
+              <button
+                type="button"
+                className="app-notifications__notice-action"
+                onClick={() => { setMarkAllNotice(null); void refetch(); void refetchCount() }}
+              >
+                Atualizar lista
+              </button>
+            </div>
+          ) : null}
 
           <div className="app-notifications__list">
             {isLoading ? (
@@ -164,7 +184,12 @@ export function NotificationBell() {
                             reversibility: 'Não há ação no Portal para marcar esta notificação novamente como não lida.',
                           })
                           if (!confirmed) return
-                          await markRead.mutateAsync(n.id)
+                          try {
+                            await markRead.mutateAsync(n.id)
+                          } catch {
+                            // Como no sino do Vela: a falha não pode virar rejeição silenciosa.
+                            showToast('Não foi possível marcar como lida. Tente de novo.', 'error')
+                          }
                         }
                         if (n.link?.startsWith('/portal')) navigate(readOnly ? n.link.replace(/^\/portal/, scope.basePath) : n.link)
                         setOpen(false)

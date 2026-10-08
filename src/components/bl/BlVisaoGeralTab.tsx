@@ -18,7 +18,7 @@ type ManifestoMercante = { id: string; numero: string | null } | null
 
 // Visão Geral: o que identifica o embarque, o documento Mercante, a carga e o
 // cliente. Datas de POL/POD, taxas e fatura ficam no trilho acima das abas.
-export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, breakbulkSummary, onCod, onRestore, disposition, omission, savingDisposition, portalStatus, baplieStatus, terminalOptions, canEditTerminal, terminalOverrideSaving, terminalOverrideError, onSaveTerminalOverride }: {
+export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, breakbulkSummary, onCod, onRestore, disposition, omission, savingDisposition, portalStatus, portalStatusError, onRetryPortalStatus, baplieStatus, terminalOptions, canEditTerminal, terminalOverrideSaving, terminalOverrideError, onSaveTerminalOverride }: {
   active: boolean
   bl: BLDetail
   cargoMode: CargoMode
@@ -30,6 +30,9 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
   omission?: VoyageOmission | null
   savingDisposition?: boolean
   portalStatus?: BlPortalStatus
+  /** Falha da consulta de situação no Portal: mostra erro com Tentar novamente. */
+  portalStatusError?: boolean
+  onRetryPortalStatus?: () => void
   baplieStatus?: BaplieStatus
   terminalOptions?: BlTerminalOverrideOption[]
   canEditTerminal?: boolean
@@ -131,7 +134,7 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
           </dl>
         </section>
 
-        <BlClienteSection key={bl.id} bl={bl} portalStatus={portalStatus} />
+        <BlClienteSection key={bl.id} bl={bl} portalStatus={portalStatus} portalStatusError={portalStatusError} onRetryPortalStatus={onRetryPortalStatus} />
       </Card>
     </div>
   )

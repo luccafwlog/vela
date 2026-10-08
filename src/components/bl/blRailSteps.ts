@@ -8,8 +8,8 @@ import type { RailStage } from '../../services/blRails'
  *   para o trilho dizer onde a carga está.
  * - Documental: bloqueio continua bloqueio; a primeira pendência simples vira a
  *   atual, a mesma que a próxima ação aponta.
- * - Desvio por omissão de escala não tem estado próprio no trilho comum: fica
- *   como pendente e o texto da etapa diz para onde a carga foi.
+ * - Desvio por omissão de escala usa o estado "Desvio" do trilho comum, e o
+ *   texto da etapa diz para onde a carga foi.
  */
 export function railStagesToSteps(stages: RailStage[]): Step[] {
   let currentAssigned = false
@@ -17,6 +17,7 @@ export function railStagesToSteps(stages: RailStage[]): Step[] {
     let state: Step['state']
     if (stage.state === 'done') state = 'done'
     else if (stage.state === 'blocked') state = 'blocked'
+    else if (stage.state === 'diverted') state = 'diverted'
     else if (stage.state === 'pending' && !currentAssigned) state = 'current'
     else state = 'pending'
     if (state === 'current' || (state === 'blocked' && !currentAssigned)) currentAssigned = true

@@ -77,7 +77,7 @@ describe('PolScheduleModal', () => {
       <PolScheduleModal open polSchedule={{ ...base, ceMaster: '25BR00481' }} onClose={() => {}} onSaved={onSaved} />,
     )
 
-    expect((screen.getByLabelText('Nº MANIFESTO') as HTMLInputElement).value).toBe('25BR00481')
+    expect((screen.getByLabelText('Nº do manifesto') as HTMLInputElement).value).toBe('25BR00481')
     await user.click(screen.getByRole('button', { name: 'Salvar' }))
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ ceMaster: '25BR00481', batchIds: [11, 12] }))
   })
@@ -95,7 +95,7 @@ describe('PolScheduleModal', () => {
     )
 
     expect(screen.getByText('Editar ETD + ATD e Nº de Manifesto Mercante')).toBeTruthy()
-    expect((screen.getByLabelText('Nº MANIFESTO') as HTMLInputElement).value).toBe('25BR00481')
+    expect((screen.getByLabelText('Nº do manifesto') as HTMLInputElement).value).toBe('25BR00481')
 
     await user.click(screen.getByRole('button', { name: 'Salvar' }))
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ pod: 'BRSSZ', ceMaster: '25BR00481', batchIds: [] }))
@@ -651,8 +651,13 @@ describe('EscalaModal', () => {
     const eta = screen.getByLabelText('ETA')
     await user.clear(eta)
     await user.type(eta, '2026-03-05')
+    const vinculada = screen.getByRole('radiogroup', { name: 'Vinculada' })
+    expect(vinculada.classList.contains('app-segmented')).toBe(true)
     await user.click(screen.getByRole('radio', { name: 'Não' }))
+    expect(screen.getByRole('radio', { name: 'Não' }).getAttribute('aria-checked')).toBe('true')
     expect(screen.queryByLabelText('Justificativa da alteração')).toBeNull()
+    // Contrato visual: no máximo duas colunas em modal.
+    expect(document.querySelector('.app-escala-field-grid--three')).toBeNull()
 
     cleanup()
     renderEscala({ ...escalaBase, ata: '2026-03-02T10:00:00-03:00' })

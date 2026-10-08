@@ -108,17 +108,14 @@ export function SignoffControl({
       {canSignoff ? (
         compact ? (
           <div ref={compactContainerRef} className="relative flex items-center gap-2">
-            <button
-              type="button"
-              className={`app-badge ${state === 'confirmed' ? 'app-badge--green' : state === 'nothing_to_declare' ? 'app-badge--yellow' : 'app-badge--slate'}`}
-              aria-expanded={compactOpen}
-              onClick={() => setCompactOpen((value) => !value)}
-            >
+            {/* O selo só mostra o estado; "Alterar" é o único caminho para o menu. */}
+            <span className={`app-badge ${state === 'confirmed' ? 'app-badge--green' : state === 'nothing_to_declare' ? 'app-badge--yellow' : 'app-badge--slate'}`}>
               {signoffLabels[state]}
-            </button>
+            </span>
             <button
               type="button"
               className="app-btn app-btn--secondary app-btn--sm"
+              aria-expanded={compactOpen}
               onClick={() => setCompactOpen((value) => !value)}
               aria-label={`Alterar resolução de ${departmentLabel}`}
             >

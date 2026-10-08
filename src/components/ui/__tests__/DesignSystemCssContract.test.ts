@@ -14,7 +14,6 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-breadcrumb__link\s*\{[^}]*min-height:\s*44px/s)
     expect(css).toMatch(/\.app-touch-link\s*\{[^}]*min-height:\s*44px/s)
     expect(css).toMatch(/\.app-tab\s*\{[^}]*min-height:\s*44px/s)
-    expect(css).toMatch(/\.app-table__icon-button\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
     expect(css).toMatch(/\.app-market-refresh::after\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/s)
     expect(css).toMatch(/\.app-header__brand\s*\{[^}]*min-height:\s*44px/s)
     expect(css).toMatch(/\.app-header__icon-button\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
@@ -22,6 +21,27 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-nav-dropdown__item\s*\{[^}]*min-height:\s*44px/s)
     expect(css).toMatch(/\.app-modal__close\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/s)
     expect(css).toMatch(/\.app-toast__close\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/s)
+  })
+
+  it('dá ao botão-ícone de tabela a densidade do contrato: 36px com mouse e 44px no toque', () => {
+    expect(css).toMatch(/\.app-table__icon-button\s*\{[^}]*min-width:\s*var\(--app-control-h\)[^}]*min-height:\s*var\(--app-control-h\)/s)
+    expect(css).toMatch(/@media \(pointer: fine\)[^{]*\{[^}]*--app-control-h:\s*36px/s)
+    expect(css).toMatch(/@media \(pointer: coarse\)\s*\{\s*\.app-segmented__option\s*\{\s*min-height:\s*44px/s)
+    expect(css).toMatch(/button\[aria-label\]:has\(> svg:only-child\),\s*button\[title\]:has\(> svg:only-child\)\s*\{\s*min-width:\s*44px;\s*min-height:\s*44px/s)
+  })
+
+  it('deixa a herança de cor do link na camada base, abaixo dos utilitários', () => {
+    expect(css).toMatch(/@layer base\s*\{\s*a\s*\{\s*color:\s*inherit/s)
+    expect(css).not.toMatch(/^a\s*\{\s*color:\s*inherit/m)
+  })
+
+  it('usa a escala de sete degraus e aliases semânticos nos toasts', () => {
+    expect(css).toMatch(/\.app-confirm__message\s*\{[^}]*font-size:\s*var\(--app-size-body\)/s)
+    expect(css).toMatch(/\.app-empty-state__title\s*\{[^}]*font-size:\s*var\(--app-size-section\)/s)
+    expect(css).toMatch(/\.app-workspace-nav__label\s*\{[^}]*font-size:\s*var\(--app-size-body\)/s)
+    for (const [variant, role] of [['success', 'success'], ['error', 'danger'], ['info', 'info']]) {
+      expect(css).toMatch(new RegExp(`\\.app-toast--${variant}\\s*\\{[^}]*background:\\s*var\\(--app-${role}-bg\\)[^}]*color:\\s*var\\(--app-${role}-fg\\)`, 's'))
+    }
   })
 
   it('ancora o indicador de carregamento ao proprio botao', () => {
@@ -48,8 +68,9 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-input\s*\{[^}]*min-height:\s*var\(--app-control-h\)/s)
   })
 
-  it('usa cabeçalho de tabela claro em caixa normal, com azul-marinho só no Line Up', () => {
-    expect(css.match(/--app-thead-bg:\s*var\(--app-surface-muted\)/g)).toHaveLength(3)
+  it('usa cabeçalho de tabela azul-marinho com texto branco, em caixa normal', () => {
+    expect(css.match(/--app-thead-bg:\s*var\(--app-navy\)/g)?.length).toBeGreaterThanOrEqual(3)
+    expect(css.match(/--app-thead-text:\s*#ffffff/g)?.length).toBeGreaterThanOrEqual(3)
     expect(css).toMatch(/\.app-shell table thead th\s*\{[^}]*color:\s*var\(--app-thead-text\)[^}]*text-transform:\s*none/s)
     expect(css).toMatch(/\.app-table--lineup\s*\{[^}]*--app-thead-bg:\s*var\(--app-navy\)/s)
   })

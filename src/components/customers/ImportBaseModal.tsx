@@ -53,7 +53,7 @@ export function ImportBaseModal({
   else if (parsedBase) footnote = `${plural(validRows, 'cliente será gravado', 'clientes serão gravados')}. Nada foi gravado ainda.`
 
   return (
-    <Modal open={open} onClose={onClose} title="Importar Base de Clientes">
+    <Modal open={open} onClose={onClose} title="Importar base de clientes">
       <div className="app-import">
         <ImportGuide
           required={<><strong>CNPJ</strong> e <strong>Razão Social</strong>.</>}

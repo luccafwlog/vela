@@ -194,7 +194,7 @@ describe('LineUpTVDisplay behavior (Issue #582)', () => {
     expect(screen.getByText('Recebido')).toBeTruthy()
     expect(screen.getByText('Em aprovação')).toBeTruthy()
     expect(screen.getAllByText('Aguardando')).toHaveLength(1)
-    expect(screen.getByText('Não')).toBeTruthy()
+    expect(screen.getByText('NÃO')).toBeTruthy()
   })
 
   it('mantém o quadro e avisa no cabeçalho quando a atualização falha com dados anteriores', () => {

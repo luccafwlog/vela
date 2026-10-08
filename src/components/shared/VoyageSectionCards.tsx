@@ -28,8 +28,8 @@ export function AccordionSection({
         aria-controls={contentId}
       >
         <div>
-          <div className="app-voyage-section__title">{title}</div>
-          <div className="mt-1 text-sm text-[var(--app-muted)]">{description}</div>
+          <div className="app-voyage-section-card__title">{title}</div>
+          <div className="app-voyage-section-card__description">{description}</div>
         </div>
         <ChevronDown size={18} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -87,16 +87,14 @@ export function MetricSection({
   actions?: ReactNode
   compact?: boolean
 }) {
-  // Uma superfície por nível: a seção é separada por filete e título, não por
-  // outro card dentro da ficha. `compact` só reduz o respiro.
   return (
-    <section className={`app-voyage-section${compact ? ' app-voyage-section--compact' : ''}`}>
-      <div className="app-voyage-section__head">
+    <section className={`app-voyage-section-card${compact ? ' app-voyage-section-card--compact' : ''}`}>
+      <div className={`flex flex-wrap justify-between gap-3 ${compact ? 'items-center' : 'items-start'}`}>
         <div>
-          <h3 className="app-voyage-section__title">{title}</h3>
-          {description ? <p className="app-voyage-section__description">{description}</p> : null}
+          <h3 className="app-voyage-section-card__title">{title}</h3>
+          {description ? <div className="app-voyage-section-card__description">{description}</div> : null}
         </div>
-        {actions ? <div className="app-voyage-section__actions">{actions}</div> : null}
+        {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
       </div>
       {children}
     </section>
