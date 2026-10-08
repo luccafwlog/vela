@@ -1,12 +1,15 @@
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada } from '../../services/cacheEffects'
-import { Download, Upload } from 'lucide-react'
+import { Upload } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Field, Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
-import { PreviewBox } from '../ui/PreviewBox'
+import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
+import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportTemplateLinks } from './ImportParts'
+import { plural } from './importPresentation'
+import { TruncationNote } from './TruncationNote'
 import { useAuth } from '../../hooks/useAuth'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
 import {
@@ -86,8 +89,9 @@ export function CeMercanteImportModal({
   const [ediErrors, setEdiErrors] = useState<CeMercanteEdiImportResult | null>(null)
   const [numeroManifesto, setNumeroManifesto] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [readError, setReadError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const combinedErrorCount = (preview?.rowErrors.length ?? 0) + (report?.errorCount ?? 0)
   const validCount = preview?.rows.length ?? 0
   const sampleRows = useMemo(() => preview?.rows.slice(0, 25) ?? [], [preview?.rows])
   const ediSampleRows = useMemo(() => ediPreview?.rows.slice(0, 25) ?? [], [ediPreview?.rows])
@@ -98,6 +102,8 @@ export function CeMercanteImportModal({
     setReport(null)
     setEdiPreview(null)
     setEdiErrors(null)
+    setReadError(null)
+    setSubmitError(null)
   }
 
   function resetState() {
@@ -105,18 +111,16 @@ export function CeMercanteImportModal({
     setNumeroManifesto('')
   }
 
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    const nextFile = event.target.files?.[0] ?? null
+  async function handleFiles(files: File[]) {
+    const nextFile = files[0] ?? null
     resetPreviewState()
     try {
       const result = await readFile(nextFile)
       if (!result) return
       if (result.kind === 'sheet') setPreview(result.preview)
       else setEdiPreview(result.preview)
-      showToast('Preview de CE Mercante carregado.', 'success')
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Não foi possível ler o arquivo.'
-      showToast(message, 'error')
+      setReadError(error instanceof Error ? error.message : 'Não foi possível ler o arquivo.')
     }
   }
 
@@ -155,8 +159,8 @@ export function CeMercanteImportModal({
         `Nada foi gravado: ${result.errorCount} erro(s). Corrija a planilha e envie de novo.`,
         'error',
       )
-    } catch {
-      showToast('Falha ao importar CE Mercante.', 'error')
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Falha ao importar CE Mercante.')
     } finally {
       setSubmitting(false)
     }
@@ -216,12 +220,12 @@ export function CeMercanteImportModal({
       setEdiErrors(result)
       showToast(
         result.partial
-          ? `CE Mercante gravado, mas o manifesto não foi vinculado: ${result.errors.length} pendencia(s).`
-          : `Importacao bloqueada: ${result.errors.length} pendencia(s). Nada foi gravado.`,
+          ? `CE Mercante gravado, mas o manifesto não foi vinculado: ${result.errors.length} pendência(s).`
+          : `Importação bloqueada: ${result.errors.length} pendência(s). Nada foi gravado.`,
         'error',
       )
-    } catch {
-      showToast('Falha ao importar CE Mercante (EDI).', 'error')
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Falha ao importar CE Mercante (EDI).')
     } finally {
       setSubmitting(false)
     }
@@ -253,41 +257,22 @@ export function CeMercanteImportModal({
   const sheetBlocked = Boolean(preview && preview.rowErrors.length > 0)
   const canSubmit = ((preview?.rows.length ?? 0) > 0 && !sheetBlocked) || ((ediPreview?.rows.length ?? 0) > 0 && !ediBlocked)
 
+  const sheetReportErrors = report?.errors ?? []
+  const ediPartial = Boolean(ediErrors && !ediErrors.ok && ediErrors.partial)
+  const rejectedAfterSubmit = sheetReportErrors.length > 0 || ediReportErrors.length > 0
+  let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
+  if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (ediPartial) footnote = 'CE gravado; o manifesto ficou sem vínculo. Veja as pendências.'
+  else if (rejectedAfterSubmit) footnote = 'Nada foi gravado. Corrija o arquivo e escolha de novo.'
+  else if (sheetBlocked || ediBlocked) footnote = 'Há erro na prévia: nada pode ser gravado. Corrija o arquivo e escolha de novo.'
+  else if (preview || ediPreview) footnote = 'Tudo ou nada: se algum B/L falhar, nada é gravado.'
+  const submitCount = preview?.rows.length ?? ediPreview?.rows.length ?? 0
+
   return (
     <Modal open={open} onClose={resetAndClose} title="Importar CE Mercante">
-      <div className="grid gap-5">
-        <div className="app-panel app-panel--padded text-sm">
-          <div className="app-panel__title">Formatos aceitos</div>
-          <div className="mt-2">
-            Planilha (.xlsx, .xls, .csv) com colunas <strong>BL, CE MERCANTE</strong>, ou o
-            arquivo <strong>EDI do Mercante</strong> (.edi/.txt) do manifesto.
-          </div>
-          <div className="app-panel__meta mt-2">
-            No EDI, o sistema lê os registros C (CE ↔ BL), confere que todos os B/Ls do manifesto
-            têm CE e que não há CE/BL duplicado. Se algo falhar, nada é gravado.
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <a
-              className="app-btn app-btn--secondary"
-              href="/templates/ce-mercante-modelo.xlsx"
-              download="ce-mercante-modelo.xlsx"
-            >
-              <Download size={16} />
-              Baixar modelo .xlsx
-            </a>
-            <a
-              className="app-btn app-btn--secondary"
-              href="/templates/ce-mercante-modelo.csv"
-              download="ce-mercante-modelo.csv"
-            >
-              <Download size={16} />
-              Baixar modelo .csv
-            </a>
-          </div>
-        </div>
-
+      <div className="app-import">
         {target === 'bls' ? (
-          <Field label="Nº de Manifesto Mercante (opcional)">
+          <Field label="Nº de Manifesto Mercante (opcional)" hint="Vincula os B/Ls importados ao manifesto de carga da viagem. Não é o CE de cada B/L.">
             <Input
               value={numeroManifesto}
               onChange={(e) => setNumeroManifesto(e.target.value)}
@@ -296,75 +281,130 @@ export function CeMercanteImportModal({
           </Field>
         ) : null}
 
-        <Field label="Arquivo .xlsx, .xls, .csv ou EDI (.edi/.txt)">
-          <Input accept=".xlsx,.xls,.csv,.edi,.txt" type="file" onChange={handleFile} />
-        </Field>
+        <ImportGuide
+          requiredLabel="Formato"
+          required={<>planilha com as colunas <strong>BL</strong> e <strong>CE MERCANTE</strong>, ou o EDI do manifesto Mercante.</>}
+          details={
+            <p>
+              No EDI o sistema lê os registros C (CE ↔ B/L), confere que todos os B/Ls do manifesto têm CE e que não
+              há CE ou B/L repetido. Planilha ou EDI, a gravação é tudo ou nada: se algo falhar, nada é gravado.
+            </p>
+          }
+          templates={<ImportTemplateLinks baseName="ce-mercante-modelo" />}
+        />
 
-        {file ? <div className="app-panel__meta">Arquivo selecionado: {file.name}</div> : null}
+        <ImportFilePicker
+          accept=".xlsx,.xls,.csv,.edi,.txt"
+          files={file ? [file] : []}
+          onFiles={(files) => void handleFiles(files)}
+          disabled={submitting}
+        />
+
         {parsing ? <ImportReadProgress progress={progress} /> : null}
 
+        {readError ? (
+          <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
+            <p>{readError}</p>
+            <p>Confira o formato e escolha o arquivo de novo.</p>
+          </ImportNotice>
+        ) : null}
+
         {preview ? (
-          <div className="grid gap-4">
-            <div className="grid gap-3 md:grid-cols-3">
-              <PreviewBox label="Linhas validas" value={validCount} />
-              <PreviewBox label="Erros de estrutura" value={preview.rowErrors.length} />
-              <PreviewBox label="Erros totais" value={combinedErrorCount} />
+          <section className="app-import-section" aria-label="Prévia da planilha">
+            <div className="app-import-section__head">
+              <h3 className="app-import-section__title">Prévia</h3>
+              <SummaryStrip
+                label="Resumo da planilha"
+                items={[
+                  { label: validCount === 1 ? 'linha válida' : 'linhas válidas', value: validCount },
+                  { label: preview.rowErrors.length === 1 ? 'erro de estrutura' : 'erros de estrutura', value: preview.rowErrors.length, tone: preview.rowErrors.length ? 'danger' : 'default' },
+                  ...(report ? [{ label: 'recusados ao gravar', value: report.errorCount, tone: report.errorCount ? 'danger' as const : 'default' as const }] : []),
+                ]}
+              />
             </div>
 
             <PreviewTable rows={sampleRows.map((row) => ({ ref: row.rowNumber, bl: row.bl_id, ce: row.ce_mercante }))} refLabel="Linha" />
+            <TruncationNote shown={sampleRows.length} total={preview.rows.length} noun="linha" />
 
-            {preview.rowErrors.length || report?.errors.length ? (
-              <div className="max-h-48 overflow-auto rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-                {preview.rowErrors.map((item, index) => (
-                  <div key={`preview-${item.row}-${index}`}>Linha {item.row}: {item.message}</div>
-                ))}
-                {report?.errors.map((item, index) => (
-                  <div key={`report-${item.row}-${item.bl_id ?? 'sem-bl'}-${index}`}>
-                    Linha {item.row}: {item.message}
-                  </div>
-                ))}
-              </div>
+            {preview.rowErrors.length || sheetReportErrors.length ? (
+              <ImportNotice
+                tone="danger"
+                role="alert"
+                title={sheetReportErrors.length ? 'Nada foi gravado' : 'Corrija antes de importar'}
+              >
+                <ul className="app-import-notice__list">
+                  {preview.rowErrors.map((item, index) => (
+                    <li key={`preview-${item.row}-${index}`}>Linha {item.row}: {item.message}</li>
+                  ))}
+                  {sheetReportErrors.map((item, index) => (
+                    <li key={`report-${item.row}-${item.bl_id ?? 'sem-bl'}-${index}`}>
+                      Linha {item.row}: {item.message}
+                    </li>
+                  ))}
+                </ul>
+                <p>Corrija a planilha e escolha o arquivo de novo.</p>
+              </ImportNotice>
             ) : null}
-          </div>
+          </section>
         ) : null}
 
         {ediPreview ? (
-          <div className="grid gap-4">
-            <div className="grid gap-3 md:grid-cols-3">
-              <PreviewBox label="Registros (CE ↔ BL)" value={ediPreview.rows.length} />
-              <PreviewBox label="Erros de estrutura" value={ediPreview.rowErrors.length} />
-              <PreviewBox label="Erros de validacao" value={ediReportErrors.length} />
+          <section className="app-import-section" aria-label="Prévia do EDI">
+            <div className="app-import-section__head">
+              <h3 className="app-import-section__title">Prévia</h3>
+              <SummaryStrip
+                label="Resumo do EDI"
+                items={[
+                  { label: ediPreview.rows.length === 1 ? 'registro CE ↔ B/L' : 'registros CE ↔ B/L', value: ediPreview.rows.length },
+                  { label: ediPreview.rowErrors.length === 1 ? 'erro de estrutura' : 'erros de estrutura', value: ediPreview.rowErrors.length, tone: ediPreview.rowErrors.length ? 'danger' : 'default' },
+                  ...(ediErrors ? [{ label: 'pendências de validação', value: ediReportErrors.length, tone: ediReportErrors.length ? 'danger' as const : 'default' as const }] : []),
+                ]}
+              />
             </div>
 
             {ediPreview.encoding ? (
-              <div className="app-panel__meta text-sm">
-                Encoding detectado:{' '}
-                <span className="font-semibold text-[var(--app-text-strong)]">{ediPreview.encoding}</span>
-              </div>
+              <p className="app-import-inspection__line app-import-inspection">
+                <span>Encoding detectado: <strong>{ediPreview.encoding}</strong></span>
+              </p>
             ) : null}
 
             <PreviewTable rows={ediSampleRows.map((row) => ({ ref: row.lineNumber, bl: row.bl_id, ce: row.ce_mercante }))} refLabel="Linha EDI" />
+            <TruncationNote shown={ediSampleRows.length} total={ediPreview.rows.length} noun="registro" />
 
             {ediPreview.rowErrors.length || ediReportErrors.length ? (
-              <div className="max-h-48 overflow-auto rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-                {ediPreview.rowErrors.map((item, index) => (
-                  <div key={`edi-parse-${item.line}-${index}`}>Linha {item.line}: {item.message}</div>
-                ))}
-                {ediReportErrors.map((item, index) => (
-                  <div key={`edi-report-${item.bl_id ?? item.ce ?? 'geral'}-${index}`}>{item.message}</div>
-                ))}
-              </div>
+              <ImportNotice
+                tone={ediPartial ? 'warning' : 'danger'}
+                role="alert"
+                title={ediPartial ? 'CE gravado; o manifesto não foi vinculado' : ediReportErrors.length ? 'Nada foi gravado' : 'Corrija antes de importar'}
+              >
+                <ul className="app-import-notice__list">
+                  {ediPreview.rowErrors.map((item, index) => (
+                    <li key={`edi-parse-${item.line}-${index}`}>Linha {item.line}: {item.message}</li>
+                  ))}
+                  {ediReportErrors.map((item, index) => (
+                    <li key={`edi-report-${item.bl_id ?? item.ce ?? 'geral'}-${index}`}>{item.message}</li>
+                  ))}
+                </ul>
+              </ImportNotice>
             ) : null}
-          </div>
+          </section>
+        ) : null}
+
+        {submitError ? (
+          <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
+            <p>{submitError}</p>
+            <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
+          </ImportNotice>
         ) : null}
 
         <div className="app-modal__actions">
+          <ImportFootnote tone={rejectedAfterSubmit || ediPartial || sheetBlocked || ediBlocked ? 'warning' : 'default'}>{footnote}</ImportFootnote>
           <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : resetAndClose}>
             {parsing ? 'Interromper leitura' : 'Voltar'}
           </Button>
-          <Button disabled={!canSubmit} loading={submitting} onClick={handleImport}>
-            <Upload size={16} />
-            Confirmar importação
+          <Button disabled={!canSubmit || parsing} loading={submitting} loadingLabel="Importando…" onClick={handleImport}>
+            <Upload size={16} aria-hidden="true" />
+            {submitCount > 0 && canSubmit ? `Importar ${plural(submitCount, 'CE', 'CEs')}` : 'Importar CEs'}
           </Button>
         </div>
       </div>
@@ -380,21 +420,21 @@ function PreviewTable({
   refLabel: string
 }) {
   return (
-    <div className="app-table-scroll max-h-72 rounded-xl border border-[var(--app-border)]">
-      <table className="app-table app-table--compact min-w-[520px] text-left text-sm">
+    <div className="app-table-scroll app-import-table">
+      <table className="app-table app-table--compact w-full text-left">
         <thead>
           <tr>
-            <th scope="col" className="px-3 py-2">{refLabel}</th>
-            <th scope="col" className="px-3 py-2">BL</th>
-            <th scope="col" className="px-3 py-2">CE Mercante</th>
+            <th scope="col" className="app-import-num">{refLabel}</th>
+            <th scope="col">B/L</th>
+            <th scope="col">CE Mercante</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={`${row.ref}-${row.bl}`}>
-              <td className="px-3 py-2">{row.ref}</td>
-              <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{row.bl}</td>
-              <td className="px-3 py-2">{row.ce}</td>
+              <td className="app-import-num">{row.ref}</td>
+              <td className="app-import-code font-semibold text-[var(--app-text-strong)]">{row.bl}</td>
+              <td className="app-import-code">{row.ce}</td>
             </tr>
           ))}
         </tbody>

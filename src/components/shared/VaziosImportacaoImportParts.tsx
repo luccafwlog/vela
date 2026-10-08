@@ -1,5 +1,5 @@
-import { Download } from 'lucide-react'
 import { Field, Input } from '../ui/Input'
+import { ImportGuide, ImportNotice, ImportTemplateLinks } from './ImportParts'
 import {
   resolveVaziosManifestNumbers,
   resolveVaziosManifestRoutes,
@@ -13,29 +13,17 @@ const TEMPLATE_BASE_NAME = 'vazios-importacao-modelo'
 
 export function VaziosImportacaoGuide() {
   return (
-    <div className="grid gap-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3 text-sm">
-      <div>
-        <span className="font-semibold text-[var(--app-text-strong)]">Colunas obrigatórias: </span>
-        {VAZIOS_IMPORTACAO_REQUIRED_COLUMNS.join(', ')}.
-      </div>
-      <div className="text-[var(--app-muted)]">
-        Opcionais: {VAZIOS_IMPORTACAO_OPTIONAL_COLUMNS.join(', ')}. POL e POD (código do porto, ex.: CNTAC, BRVIX) são
-        obrigatórios: depois de ler a planilha, informe um Nº de manifesto Mercante para cada porto de origem.
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {['xlsx', 'csv'].map((extension) => (
-          <a
-            key={extension}
-            className="app-btn app-btn--secondary"
-            href={`/templates/${TEMPLATE_BASE_NAME}.${extension}`}
-            download={`${TEMPLATE_BASE_NAME}.${extension}`}
-          >
-            <Download size={16} />
-            Baixar modelo .{extension}
-          </a>
-        ))}
-      </div>
-    </div>
+    <ImportGuide
+      required={<>{VAZIOS_IMPORTACAO_REQUIRED_COLUMNS.join(', ')}.</>}
+      optional={<>{VAZIOS_IMPORTACAO_OPTIONAL_COLUMNS.join(', ')}.</>}
+      details={
+        <p>
+          POL e POD usam o código do porto (ex.: CNTAC, BRVIX). Depois da leitura, informe um Nº de manifesto
+          Mercante para cada porto de origem.
+        </p>
+      }
+      templates={<ImportTemplateLinks baseName={TEMPLATE_BASE_NAME} />}
+    />
   )
 }
 
@@ -54,9 +42,10 @@ export function VaziosImportacaoManifestNumbers({ manifest, values, onChange }: 
   if (!manifest.containers.length) return null
   if (!routes) {
     return (
-      <div role="alert" className="rounded-lg border border-[var(--app-gold)] bg-[var(--app-gold-soft)] p-3 text-xs text-[var(--app-gold-strong)]">
-        <b>Importação bloqueada.</b> {error}
-      </div>
+      <ImportNotice tone="danger" role="alert" title="Importação bloqueada">
+        <p>{error}</p>
+        <p>Corrija POL e POD na planilha e escolha o arquivo de novo.</p>
+      </ImportNotice>
     )
   }
   // Campo vazio já aparece como obrigatório; o aviso cobre o que sobra (mesmo número em dois portos).
@@ -64,16 +53,16 @@ export function VaziosImportacaoManifestNumbers({ manifest, values, onChange }: 
   const repeated = allFilled ? resolveVaziosManifestNumbers(manifest, values).error : null
   const countOf = (key: string) => manifest.containers.filter((c) => vaziosRouteKey({ pol: c.pol as string, pod: c.pod as string }) === key).length
   return (
-    <div className="app-panel app-panel--padded grid gap-3">
-      <div className="text-sm font-semibold text-[var(--app-text-strong)]">
+    <fieldset className="app-import-section grid gap-3 border-x-0 border-b-0 p-0 pt-3">
+      <legend className="app-import-section__title float-left mb-1 w-full">
         Nº do manifesto Mercante por porto de origem
-      </div>
+      </legend>
       {routes.map((route) => {
         const key = vaziosRouteKey(route)
         return (
           <Field
             key={key}
-            label={`${route.pol} → ${route.pod} (${countOf(key)} container(s))`}
+            label={`${route.pol} → ${route.pod} · ${countOf(key)} ${countOf(key) === 1 ? 'container' : 'containers'}`}
             required
             hint="Não pode repetir o número de outro manifesto."
           >
@@ -86,7 +75,7 @@ export function VaziosImportacaoManifestNumbers({ manifest, values, onChange }: 
           </Field>
         )
       })}
-      {repeated ? <div role="alert" className="text-xs text-[var(--app-gold-strong)]">{repeated}</div> : null}
-    </div>
+      {repeated ? <p role="alert" className="app-field__error">{repeated}</p> : null}
+    </fieldset>
   )
 }

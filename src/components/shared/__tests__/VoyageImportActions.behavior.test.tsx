@@ -96,12 +96,12 @@ it('US-223: clicar numa acao abre o importador escopado na viagem', () => {
   renderActions()
 
   // Nenhum modal aberto antes do clique.
-  expect(screen.queryByText('Importar Manifesto BB (Break Bulk)')).toBeNull()
+  expect(screen.queryByText('Importar manifesto BB (carga solta)')).toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: /Manifesto BB/ }))
 
   // O modal abre exibindo o rótulo da viagem — prova de escopo.
-  expect(screen.getByText('Importar Manifesto BB (Break Bulk)')).toBeTruthy()
+  expect(screen.getByText('Importar manifesto BB (carga solta)')).toBeTruthy()
   expect(screen.getByText('GREEN SANTOS / 14N')).toBeTruthy()
 })
 
@@ -128,7 +128,7 @@ it('US-223: confirmar a importacao conecta o importador ao voyageId travado', as
 
   // Aguarda o parser rodar e o botao Confirmar habilitar (prévia válida).
   await waitFor(() => expect(mocks.parseBreakbulkManifestFile).toHaveBeenCalledWith(file))
-  const confirm = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
+  const confirm = screen.getByRole('button', { name: 'Importar manifesto' }) as HTMLButtonElement
   await waitFor(() => expect(confirm.disabled).toBe(false))
 
   fireEvent.click(confirm)
@@ -156,7 +156,7 @@ it('bloqueia manifesto BB quando a previa contem erro de linha', async () => {
   })
 
   await waitFor(() => expect(mocks.parseBreakbulkManifestFile).toHaveBeenCalledTimes(1))
-  expect((screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: 'Importar manifesto' }) as HTMLButtonElement).disabled).toBe(true)
   expect(mocks.importBreakbulkManifest).not.toHaveBeenCalled()
 })
 
@@ -196,7 +196,7 @@ it('bloqueia staging quando a prévia do Baplie contém issue bloqueante', async
   fireEvent.change(fileInput, { target: { files: [new File(['edi'], 'manifesto.edi', { type: 'text/plain' })] } })
 
   await waitFor(() => expect(mocks.parseBaplieFile).toHaveBeenCalledTimes(1))
-  const confirm = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
+  const confirm = screen.getByRole('button', { name: /^Importar Baplie/ }) as HTMLButtonElement
   expect(screen.getByText(/Peso inválido no conjunto 1/)).toBeTruthy()
   expect(confirm.disabled).toBe(true)
 
@@ -314,7 +314,7 @@ it('manifesto BB permite importar sem override quando a prévia contém apenas a
   })
 
   await waitFor(() => expect(mocks.parseBreakbulkManifestFile).toHaveBeenCalled())
-  const confirm = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
+  const confirm = screen.getByRole('button', { name: 'Importar manifesto' }) as HTMLButtonElement
   await waitFor(() => expect(confirm.disabled).toBe(false))
 })
 
@@ -366,7 +366,7 @@ async function openBaplieWithFile() {
     target: { files: [new File(['edi'], 'baplie.edi', { type: 'text/plain' })] },
   })
   await waitFor(() => expect(mocks.parseBaplieFile).toHaveBeenCalledTimes(1))
-  const confirm = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
+  const confirm = screen.getByRole('button', { name: /^Importar Baplie/ }) as HTMLButtonElement
   await waitFor(() => expect(confirm.disabled).toBe(false))
   fireEvent.click(confirm)
 }

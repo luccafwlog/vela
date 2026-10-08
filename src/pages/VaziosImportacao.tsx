@@ -28,7 +28,6 @@ import {
 } from '../services/vaziosImportacaoImport'
 import { exportVaziosImportacaoWorkbook } from '../services/exports'
 import { rowErrorsToImportIssues } from '../services/importValidation'
-import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
 import {
   fetchVaziosImportacaoContainerIds,
   setVazioImportacaoNatureza,
@@ -72,7 +71,6 @@ function VaziosImportacaoPreview({
       </div>
       <TruncationNote shown={25} total={manifest.containers.length} noun="container" nounPlural="containers" />
       <VaziosImportacaoManifestNumbers manifest={manifest} values={manifestNumbers} onChange={onManifestNumbersChange} />
-      <ImportIssuesPanel issues={rowErrorsToImportIssues(manifest.rowErrors)} filename="vazios-importacao-issues.csv" />
     </div>
   )
 }
@@ -446,6 +444,8 @@ export function VaziosImportacao() {
           canImport={(nextManifest, override) => resolveVaziosManifestNumbers(nextManifest, manifestNumbers).manifestos !== null && (nextManifest.rowErrors.length === 0 || Boolean(override))}
           getIssues={(nextManifest) => rowErrorsToImportIssues(nextManifest.rowErrors)}
           ready={Boolean(voyageId && user)}
+          notReadyReason="Escolha a viagem de destino para liberar o arquivo."
+          confirmLabel="Importar manifesto"
           prerequisite={<VoyageCombobox required label="Viagem de destino" selectedVoyageId={voyageId} onSelect={(id) => setVoyageId(id == null ? '' : String(id))} />}
           helper={
             <>

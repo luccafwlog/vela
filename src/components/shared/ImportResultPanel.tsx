@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useImportEffects } from '../../hooks/useImportEffects'
 import { sanitizeIssueMessage } from '../../services/importValidation'
 import type { ImportEffect, ImportEffectKind, ImportEffectState } from '../../services/importEffects'
+import { Badge, type SemanticBadgeTone } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { useConfirm } from '../ui/ConfirmDialog'
 
@@ -32,11 +33,11 @@ function importEffectStatusLabel(status: ImportEffectState): string {
   return STATUS_LABELS[status] ?? status
 }
 
-function statusClass(status: ImportEffectState) {
-  if (status === 'succeeded') return 'text-green-300'
-  if (status === 'blocked') return 'text-red-300'
-  if (status === 'superseded') return 'text-slate-400'
-  return 'text-amber-300'
+function statusTone(status: ImportEffectState): SemanticBadgeTone {
+  if (status === 'succeeded') return 'success'
+  if (status === 'blocked') return 'danger'
+  if (status === 'superseded') return 'neutral'
+  return 'warning'
 }
 
 function formatDate(value: string | null | undefined) {
@@ -69,27 +70,29 @@ export function ImportResultPanel({
 
   if (isPending) {
     return (
-      <section className="app-panel app-panel--padded text-sm" aria-label={title} data-testid="import-result-panel-loading">
-        <strong>{title}</strong>
-        <p className="mt-1 text-[var(--app-muted)]">Consultando o resultado persistido...</p>
+      <section className="app-import-effects" aria-label={title} aria-busy="true" data-testid="import-result-panel-loading">
+        <h2 className="app-import-effects__title">{title}</h2>
+        <p className="app-import-effects__meta">Consultando o resultado gravado…</p>
       </section>
     )
   }
 
   if (error) {
     return (
-      <section className="app-panel app-panel--padded text-sm" role="alert" aria-label={title}>
-        <strong>{title}</strong>
-        <p className="mt-1 text-amber-300">Não foi possível consultar o resultado persistido.</p>
+      <section className="app-import-effects" role="alert" aria-label={title}>
+        <h2 className="app-import-effects__title">{title}</h2>
+        <p className="app-import-effects__error">
+          Não foi possível consultar o resultado gravado. Recarregue a página para tentar de novo; a importação não é desfeita.
+        </p>
       </section>
     )
   }
 
   if (!effects?.length) {
     return alwaysVisible ? (
-      <section className="app-panel app-panel--padded text-sm" aria-label={title} data-testid="import-result-panel-empty">
-        <strong>{title}</strong>
-        <p className="mt-1 text-[var(--app-muted)]">Nenhum efeito persistido para esta unidade.</p>
+      <section className="app-import-effects" aria-label={title} data-testid="import-result-panel-empty">
+        <h2 className="app-import-effects__title">{title}</h2>
+        <p className="app-import-effects__meta">Nenhum processamento pendente ou registrado para este item.</p>
       </section>
     ) : null
   }
@@ -118,43 +121,45 @@ export function ImportResultPanel({
     })()
   }
 
-  return (
-    <section className="app-panel app-panel--padded grid gap-3 text-sm" aria-label={title} data-testid="import-result-panel">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold">{title}</h2>
-          <p className="mt-1 text-xs text-[var(--app-muted)]">
-            Resultado recuperado do servidor para esta unidade. {activeCount ? `${activeCount} efeito(s) ainda em andamento.` : ''}
-            {blockedCount ? ` ${blockedCount} efeito(s) bloqueado(s) exigem atenção.` : ''}
-          </p>
-        </div>
-        <span className="text-xs text-[var(--app-muted)]">Atualizado em {formatDate(effects[0]?.updated_at)}</span>
-      </div>
+  const summary = [
+    activeCount ? `${activeCount} em andamento` : null,
+    blockedCount ? `${blockedCount} ${blockedCount === 1 ? 'bloqueado exige' : 'bloqueados exigem'} ação` : null,
+  ].filter(Boolean).join(' · ')
 
-      <ul className="grid gap-2" aria-label="Efeitos da importação">
+  return (
+    <section className="app-import-effects" aria-label={title} data-testid="import-result-panel">
+      <div className="app-import-effects__head">
+        <h2 className="app-import-effects__title">{title}</h2>
+        <span className="app-import-effects__meta">Atualizado em {formatDate(effects[0]?.updated_at)}</span>
+      </div>
+      <p className="app-import-effects__meta">
+        O que o servidor fez depois da importação.{summary ? ` ${summary}.` : ' Nada pendente.'}
+      </p>
+
+      <ul className="app-import-effects__list" aria-label="Efeitos da importação">
         {effects.map((effect) => {
           const errorMessage = effectError(effect)
           return (
-            <li key={effect.id} className="rounded border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium">{importEffectKindLabel(effect.effect_kind)}</span>
-                <span className={`text-xs font-semibold ${statusClass(effect.status)}`}>
-                  {importEffectStatusLabel(effect.status)}
-                </span>
+            <li key={effect.id} className="app-import-effects__item">
+              <div className="app-import-effects__row">
+                <span className="app-import-effects__name">{importEffectKindLabel(effect.effect_kind)}</span>
+                <Badge tone={statusTone(effect.status)}>{importEffectStatusLabel(effect.status)}</Badge>
               </div>
-              <div className="mt-1 text-xs text-[var(--app-muted)]">
-                Tentativas: {effect.attempts} · Atualizado em {formatDate(effect.updated_at)}
+              <div className="app-import-effects__meta">
+                {effect.attempts} {effect.attempts === 1 ? 'tentativa' : 'tentativas'} · atualizado em {formatDate(effect.updated_at)}
               </div>
-              {errorMessage ? <p className="mt-1 text-xs text-red-300">{errorMessage}</p> : null}
+              {errorMessage ? <p className="app-import-effects__error">{errorMessage}</p> : null}
               {effect.status === 'blocked' ? (
                 <Button
                   type="button"
                   variant="secondary"
-                  className="mt-2"
-                  loading={retryMutation.isPending}
+                  className="app-import-effects__retry"
+                  loading={retryMutation.isPending && retryMutation.variables?.effectId === effect.id}
+                  loadingLabel="Reprocessando…"
+                  disabled={retryMutation.isPending}
                   onClick={() => requestRetry(effect)}
                 >
-                  <RotateCcw size={14} />
+                  <RotateCcw size={14} aria-hidden="true" />
                   Reprocessar efeito
                 </Button>
               ) : null}
@@ -162,7 +167,7 @@ export function ImportResultPanel({
           )
         })}
       </ul>
-      {retryError ? <p className="text-xs text-red-300" role="alert">{sanitizeIssueMessage(retryError)}</p> : null}
+      {retryError ? <p className="app-import-effects__error" role="alert">{sanitizeIssueMessage(retryError)}</p> : null}
     </section>
   )
 }

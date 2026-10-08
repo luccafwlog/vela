@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useState, type ChangeEvent } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada, afterManifestoImportado, afterBaplieImportado } from '../../services/cacheEffects'
 import { useNavigate } from 'react-router-dom'
-import { Box, Car, Download, FileText, Mountain, Package, PackageOpen, ShieldCheck, type LucideIcon } from 'lucide-react'
+import { Box, Car, FileText, Mountain, Package, PackageOpen, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Field, Input, Select } from '../ui/Input'
+import { Field, Select } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
@@ -32,6 +32,9 @@ import { inspectImportUpload } from '../../services/importText'
 import { queryKeys } from '../../services/queryKeys'
 import { ImportIssuesPanel } from './ImportIssuesPanel'
 import { ImportReadProgress } from './ImportReadProgress'
+import { ImportContext, ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from './ImportParts'
+import { plural } from './importPresentation'
+import { SummaryStrip } from '../ui/SummaryStrip'
 
 type ImportType = 'bb' | 'granite' | 'ceMercanteGranite' | 'vaziosImp' | 'vaziosExp' | 'vehicles' | 'baplie' | 'blFreight' | 'blBreakbulk' | 'ceMercante'
 
@@ -124,16 +127,15 @@ export function VoyageImportActions({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="app-import-actions" role="group" aria-label="Importações da viagem">
         {actionGroups.map(({ group, types: groupTypes }, groupIndex) => (
-          <div key={group} className="flex flex-wrap items-center gap-2">
-            {groupIndex > 0 ? <span aria-hidden="true" className="mx-1 h-6 w-px bg-[var(--app-border)]" /> : null}
+          <div key={group} className="app-import-actions__group">
+            {groupIndex > 0 ? <span aria-hidden="true" className="app-import-actions__sep mx-1 h-6 w-px self-center bg-[var(--app-border)]" /> : null}
             {groupTypes.map((type) => {
               const Icon = IMPORT_ICONS[type]
-              const highlight = type === 'blFreight' || type === 'blBreakbulk'
               return (
-                <Button key={type} variant="secondary" className={`text-xs ${highlight ? 'border-[var(--app-blue-btn)] text-[var(--app-blue-btn)]' : ''}`} onClick={() => type === 'vaziosExp' ? navigate(`/embarquevazios?voyage=${voyageId}`) : setActiveType(type)}>
-                  <Icon size={13} />
+                <Button key={type} variant="secondary" onClick={() => type === 'vaziosExp' ? navigate(`/embarquevazios?voyage=${voyageId}`) : setActiveType(type)}>
+                  <Icon size={14} aria-hidden="true" />
                   {IMPORT_LABELS[type]}
                 </Button>
               )
@@ -144,8 +146,9 @@ export function VoyageImportActions({
 
       {activeType === 'bb' ? (
         <FileImportModal
-          title="Importar Manifesto BB (Break Bulk)"
-          subtitle={<>Viagem: <span className="font-semibold text-[var(--app-text-strong)]">{voyageLabel}</span></>}
+          title="Importar manifesto BB (carga solta)"
+          subtitle={<ImportContext label="Viagem">{voyageLabel}</ImportContext>}
+          confirmLabel="Importar manifesto"
           accept=".xlsx,.xls,.csv"
           parser={parseBbManifest}
           reparseKey={bbNumberFormat}
@@ -164,7 +167,7 @@ export function VoyageImportActions({
               </Select>
             </Field>
           }
-          helper={<TemplateLinks baseName="manifesto-bb-modelo" />}
+          helper={<ImportGuide requiredLabel="Formato" required="planilha do manifesto BB (layout resumido, legado ou do armador)." templates={<ImportTemplateLinks baseName="manifesto-bb-modelo" />} />}
           canImport={(p, override) => p.bls.length > 0 && (!hasBlockingRowErrors(p.rowErrors) || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
           importer={async (preview, file, override) => {
@@ -172,13 +175,19 @@ export function VoyageImportActions({
             await invalidateAfterBLImport()
             showToast(`Manifesto BB importado: ${preview.bls.length} B/L(s).`, 'success')
           }}
-          renderPreview={(preview) => (
-            <div className="grid grid-cols-3 gap-3">
-              <Stat label="B/Ls" value={preview.bls.length} />
-              <Stat label="Erros" value={preview.rowErrors.filter((e) => (e.severity ?? 'error') === 'error').length} />
-              <Stat label="Linhas" value={preview.bls.length + preview.rowErrors.length} />
-            </div>
-          )}
+          renderPreview={(preview) => {
+            const errors = preview.rowErrors.filter((e) => (e.severity ?? 'error') === 'error').length
+            return (
+              <SummaryStrip
+                label="Resumo do manifesto"
+                items={[
+                  { label: preview.bls.length === 1 ? 'B/L lido' : 'B/Ls lidos', value: preview.bls.length },
+                  { label: errors === 1 ? 'linha com erro' : 'linhas com erro', value: errors, tone: errors ? 'danger' : 'default' },
+                  { label: 'avisos', value: preview.rowErrors.length - errors, tone: preview.rowErrors.length - errors ? 'warning' : 'default' },
+                ]}
+              />
+            )
+          }}
           onClose={() => {
             setBbNumberFormat('auto')
             setActiveType(null)
@@ -188,8 +197,9 @@ export function VoyageImportActions({
 
       {activeType === 'granite' ? (
         <FileImportModal<Awaited<ReturnType<typeof parseGraniteManifestFile>>, Awaited<ReturnType<typeof importGraniteManifest>>>
-          title="Importar Manifesto Granito"
-          subtitle={<>Viagem: <span className="font-semibold text-[var(--app-text-strong)]">{voyageLabel}</span></>}
+          title="Importar manifesto Granito"
+          subtitle={<ImportContext label="Viagem">{voyageLabel}</ImportContext>}
+          confirmLabel="Importar manifesto"
           accept=".xlsx,.xls"
           parser={parseGraniteManifestFile}
           inspectFile={inspectImportUpload}
@@ -208,35 +218,48 @@ export function VoyageImportActions({
             showToast(`Manifesto Granito importado: ${preview.bls.length} B/L(s).`, 'success')
             return result
           }}
-          renderPreview={(preview) => (
-            <div className="grid gap-3">
-              <div className="app-panel app-panel--padded grid gap-2 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--app-muted)]">Viagem de destino</span><span className="font-semibold text-[var(--app-text-strong)]">{voyageLabel}</span></div>
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--app-border)] pt-2"><span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--app-muted)]">Declarado na planilha</span><span className="font-[var(--app-font-mono)] text-[13px] text-[var(--app-text)]">{preview.vesselVoyage || 'Não informado'}</span></div>
+          renderPreview={(preview) => {
+            const pending = preview.bls.filter((bl) => bl.reconciliationStatus !== 'matched').length
+            return (
+              <div className="grid gap-3">
+                <ImportContext label="Declarado na planilha">
+                  <span className="app-import-code">{preview.vesselVoyage || 'Não informado'}</span>
+                </ImportContext>
+                <SummaryStrip
+                  label="Resumo do manifesto"
+                  items={[
+                    { label: preview.bls.length === 1 ? 'B/L' : 'B/Ls', value: preview.bls.length },
+                    { label: 'blocos', value: preview.bls.reduce((sum, bl) => sum + Number(bl.blocks_qty ?? 0), 0).toLocaleString('pt-BR') },
+                    { label: 't', value: (preview.bls.reduce((sum, bl) => sum + Number(bl.real_weight_kg ?? 0), 0) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) },
+                    { label: preview.rowErrors.length === 1 ? 'erro' : 'erros', value: preview.rowErrors.length, tone: preview.rowErrors.length ? 'danger' : 'default' },
+                  ]}
+                />
+                {pending ? (
+                  <ImportNotice tone="warning" title={`${plural(pending, 'B/L entra pendente', 'B/Ls entram pendentes')} de reconciliação`}>
+                    O consignatário ainda não casou com um Cliente; o vínculo é revisado depois, antes de faturar.
+                  </ImportNotice>
+                ) : null}
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Stat label="B/Ls" value={preview.bls.length} />
-                <Stat label="Blocos" value={preview.bls.reduce((sum, bl) => sum + Number(bl.blocks_qty ?? 0), 0)} />
-                <Stat label="Peso" value={preview.bls.reduce((sum, bl) => sum + Number(bl.real_weight_kg ?? 0), 0) / 1000} suffix="ton" />
-                <Stat label="Erros" value={preview.rowErrors.length} />
-              </div>
-              {preview.bls.some((bl) => bl.reconciliationStatus !== 'matched') ? <div className="flex items-start gap-2 rounded-lg border border-[var(--app-gold)] bg-[var(--app-gold-soft)] p-3 text-xs text-[var(--app-gold-strong)]"><ShieldCheck size={15} className="mt-0.5 shrink-0" /><span><b>{preview.bls.filter((bl) => bl.reconciliationStatus !== 'matched').length} B/L(s) entra(m) pendente(s) de reconciliação.</b> O consignatário ainda não casou com um cliente.</span></div> : null}
-            </div>
-          )}
+            )
+          }}
           renderImportResult={(result) => result.pendingCount > 0 ? (
-            <div className="flex items-start gap-2 rounded-lg border border-[var(--app-gold)] bg-[var(--app-gold-soft)] p-3 text-xs text-[var(--app-gold-strong)]">
-              <ShieldCheck size={15} className="mt-0.5 shrink-0" />
-              <span><b>{result.pendingCount} B/L(s) entra(m) pendente(s) de reconciliação.</b> Revise o vínculo do consignatário antes de faturar.</span>
-            </div>
-          ) : <div className="app-panel__meta">Importação concluída sem pendências de reconciliação.</div>}
+            <ImportNotice tone="warning" role="status" title={`Manifesto gravado; ${plural(result.pendingCount, 'B/L ficou pendente', 'B/Ls ficaram pendentes')} de reconciliação`}>
+              Revise o vínculo do consignatário antes de faturar.
+            </ImportNotice>
+          ) : (
+            <ImportNotice tone="success" role="status" title="Manifesto gravado">
+              Nenhuma pendência de reconciliação.
+            </ImportNotice>
+          )}
           onClose={() => setActiveType(null)}
         />
       ) : null}
 
       {activeType === 'vaziosImp' ? (
         <FileImportModal
-          title="Importar Manifesto Vazios Importacao"
-          subtitle={<>Viagem: <span className="font-semibold text-[var(--app-text-strong)]">{voyageLabel}</span></>}
+          title="Importar manifesto de vazios (importação)"
+          subtitle={<ImportContext label="Viagem">{voyageLabel}</ImportContext>}
+          confirmLabel="Importar manifesto"
           accept=".xlsx,.xls,.csv"
           parser={parseVaziosImportacaoFile}
           inspectFile={inspectImportUpload}
@@ -262,10 +285,13 @@ export function VoyageImportActions({
           }}
           renderPreview={(preview) => (
             <div className="grid gap-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Stat label="Containers" value={preview.containers.length} />
-                <Stat label="Erros" value={preview.rowErrors.length} />
-              </div>
+              <SummaryStrip
+                label="Resumo do manifesto"
+                items={[
+                  { label: preview.containers.length === 1 ? 'container' : 'containers', value: preview.containers.length },
+                  { label: preview.rowErrors.length === 1 ? 'linha com erro' : 'linhas com erro', value: preview.rowErrors.length, tone: preview.rowErrors.length ? 'danger' : 'default' },
+                ]}
+              />
               <VaziosImportacaoManifestNumbers manifest={preview} values={vaziosManifestNumbers} onChange={setVaziosManifestNumbers} />
             </div>
           )}
@@ -328,17 +354,20 @@ function BaplieImportModal({
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const confirm = useConfirm()
-  const { preview: parsed, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<Awaited<ReturnType<typeof parseBaplieFile>>>(parseBaplieFile)
+  const { file, preview: parsed, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<Awaited<ReturnType<typeof parseBaplieFile>>>(parseBaplieFile)
   const [importing, setImporting] = useState(false)
   const [excludedPods, setExcludedPods] = useState<Set<string>>(new Set())
+  const [readError, setReadError] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
 
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    const f = event.target.files?.[0] ?? null
+  async function handleFiles(files: File[]) {
     setExcludedPods(new Set())
+    setReadError(null)
+    setImportError(null)
     try {
-      await readFile(f)
+      await readFile(files[0] ?? null)
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Não foi possível ler o arquivo. Verifique o formato EDI.', 'error')
+      setReadError(err instanceof Error ? err.message : 'Não foi possível ler o arquivo. Verifique o formato EDI.')
     }
   }
 
@@ -365,6 +394,7 @@ function BaplieImportModal({
   async function handleImport() {
     if (!canImport) return
     setImporting(true)
+    setImportError(null)
     try {
       const result = await reimportBaplie({
         voyageId,
@@ -378,81 +408,82 @@ function BaplieImportModal({
       handleClose()
     } catch (err) {
       await afterBaplieImportado(queryClient, { voyageId: String(voyageId) })
-      showToast(err instanceof Error ? err.message : 'Falha ao importar Baplie EDI.', 'error')
+      setImportError(err instanceof Error ? err.message : 'Falha ao importar Baplie EDI.')
     } finally {
       setImporting(false)
     }
   }
 
+  let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
+  if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (parsed && !canImport) footnote = filteredContainers.length ? 'Há erro na prévia; corrija o arquivo e escolha de novo.' : 'Nenhum container selecionado para importar.'
+  else if (parsed) footnote = `${plural(filteredContainers.length, 'container será gravado', 'containers serão gravados')}. Se a viagem já tem Baplie, você confirma a substituição antes.`
+
   return (
     <Modal open onClose={handleClose} title="Importar Baplie EDI">
-      <div className="grid gap-4">
-        <div className="app-panel app-panel--padded text-sm">
-          Viagem: <span className="font-semibold text-[var(--app-text-strong)]">{voyageLabel}</span>
-        </div>
-        <Field label="Arquivo .edi,.txt,.bpl">
-          <Input accept=".edi,.txt,.bpl" type="file" onChange={handleFile} />
-        </Field>
+      <div className="app-import">
+        <ImportContext label="Viagem">{voyageLabel}</ImportContext>
+        <ImportFilePicker accept=".edi,.txt,.edi2,.bpl" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={importing} />
         {parsing ? <ImportReadProgress progress={progress} /> : null}
+        {readError ? (
+          <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
+            <p>{readError}</p>
+            <p>Confira se é o Baplie EDIFACT da viagem e escolha de novo.</p>
+          </ImportNotice>
+        ) : null}
         {parsed ? (
-          <div className="grid gap-3">
+          <ImportSection
+            title="Prévia"
+            aside={
+              <SummaryStrip
+                label="Resumo do Baplie"
+                items={[
+                  { label: filteredContainers.length === 1 ? 'container' : 'containers', value: filteredContainers.length },
+                  { label: 'cheios', value: filteredContainers.filter((c) => c.status === 'full').length },
+                  { label: includedPods === 1 ? 'porto de descarga' : 'portos de descarga', value: includedPods },
+                ]}
+              />
+            }
+          >
+            <p className="app-import-inspection app-import-inspection__line">
+              {parsed.vessel_name || parsed.voyage_number ? (
+                <span>Navio/viagem no arquivo: <strong>{parsed.vessel_name ?? '—'} / {parsed.voyage_number ?? '—'}</strong></span>
+              ) : null}
+              <span>Encoding: <strong>{parsed.encoding}</strong></span>
+            </p>
             {pods.length > 0 ? (
-              <div className="app-panel app-panel--padded">
-                <div className="mb-2 text-xs uppercase tracking-wider text-[var(--app-muted)]">
-                  Portos de descarga — desmarque os que deseja ignorar
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  {pods.map((pod) => (
-                    <label key={pod} className="flex cursor-pointer items-center gap-2 text-sm text-[var(--app-text-strong)]">
-                      <input
-                        type="checkbox"
-                        checked={!excludedPods.has(pod)}
-                        onChange={() => togglePod(pod)}
-                        className="accent-blue-500"
-                      />
-                      {pod}
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <fieldset className="app-import-pods">
+                <legend>Portos de descarga a importar (desmarque os que não são desta operação)</legend>
+                {pods.map((pod) => (
+                  <label key={pod}>
+                    <input
+                      type="checkbox"
+                      checked={!excludedPods.has(pod)}
+                      onChange={() => togglePod(pod)}
+                    />
+                    {pod}
+                  </label>
+                ))}
+              </fieldset>
             ) : null}
-            <div className="grid grid-cols-3 gap-3">
-              <Stat label="Containers" value={filteredContainers.length} />
-              <Stat label="Cheios" value={filteredContainers.filter((c) => c.status === 'full').length} />
-              <Stat label="PODs" value={includedPods} />
-            </div>
-            {parsed.vessel_name || parsed.voyage_number ? (
-              <div className="app-panel__meta text-sm">
-                Navio/Viagem detectado: <span className="font-semibold text-[var(--app-text-strong)]">{parsed.vessel_name ?? '-'} / {parsed.voyage_number ?? '-'}</span>
-              </div>
-            ) : null}
-            <div className="app-panel__meta text-sm">
-              Encoding detectado: <span className="font-semibold text-[var(--app-text-strong)]">{parsed.encoding}</span>
-            </div>
             <ImportIssuesPanel issues={issues} filename="baplie-issues.csv" />
-          </div>
+          </ImportSection>
+        ) : null}
+        {importError ? (
+          <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
+            <p>{importError}</p>
+            <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
+          </ImportNotice>
         ) : null}
         <div className="app-modal__actions">
+          <ImportFootnote tone={parsed && !canImport ? 'warning' : 'default'}>{footnote}</ImportFootnote>
           <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
-          <Button disabled={!canImport} loading={importing} onClick={() => void handleImport()}>
-            Confirmar{excludedPods.size > 0 ? ` (${filteredContainers.length} containers)` : ''}
+          <Button disabled={!canImport || parsing} loading={importing} loadingLabel="Importando…" onClick={() => void handleImport()}>
+            {canImport ? `Importar Baplie (${plural(filteredContainers.length, 'container', 'containers')})` : 'Importar Baplie'}
           </Button>
         </div>
       </div>
     </Modal>
-  )
-}
-
-function TemplateLinks({ baseName }: { baseName: string }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {['xlsx', 'csv'].map((extension) => (
-        <a key={extension} className="app-btn app-btn--secondary" href={`/templates/${baseName}.${extension}`} download={`${baseName}.${extension}`}>
-          <Download size={16} />
-          Baixar modelo .{extension}
-        </a>
-      ))}
-    </div>
   )
 }
 
@@ -467,17 +498,22 @@ function VehiclesImportModal({
 }) {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
-  const { preview, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<Awaited<ReturnType<typeof parseVehicleImportFile>>>(parseVehicleImportFile)
+  const { file, preview, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<Awaited<ReturnType<typeof parseVehicleImportFile>>>(parseVehicleImportFile)
   const [importing, setImporting] = useState(false)
   const [allowOverride, setAllowOverride] = useState(false)
+  const [readError, setReadError] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [result, setResult] = useState<Awaited<ReturnType<typeof importVehicleRows>> | null>(null)
 
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    const f = event.target.files?.[0] ?? null
+  async function handleFiles(files: File[]) {
     setAllowOverride(false)
+    setReadError(null)
+    setImportError(null)
+    setResult(null)
     try {
-      await readFile(f)
+      await readFile(files[0] ?? null)
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Falha ao ler arquivo.', 'error')
+      setReadError(err instanceof Error ? err.message : 'Falha ao ler o arquivo.')
     }
   }
 
@@ -486,68 +522,107 @@ function VehiclesImportModal({
     onClose()
   }
 
+  const rowErrors = preview?.rowErrors.length ?? 0
+  const canConfirm = Boolean(preview?.rows.length) && (rowErrors === 0 || allowOverride)
+
   async function handleImport() {
     if (!preview?.rows.length || (preview.rowErrors.length > 0 && !allowOverride)) return
     setImporting(true)
+    setImportError(null)
     try {
-      const result = await importVehicleRows({ voyageId, rows: preview.rows })
+      const nextResult = await importVehicleRows({ voyageId, rows: preview.rows })
       await afterCargaAlterada(queryClient)
-      showToast(`Veiculos importados: ${result.successCount} sucesso(s), ${result.errorCount} erro(s).`, result.errorCount ? 'info' : 'success')
-      if (!result.errorCount) onClose()
+      showToast(`Veículos importados: ${nextResult.successCount} gravado(s), ${nextResult.errorCount} recusado(s).`, nextResult.errorCount ? 'info' : 'success')
+      // Com recusas o modal fica aberto e lista o que não entrou.
+      if (nextResult.errorCount) setResult(nextResult)
+      else onClose()
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Falha ao importar veiculos.', 'error')
+      setImportError(err instanceof Error ? err.message : 'Falha ao importar veículos.')
     } finally {
       setImporting(false)
     }
   }
 
+  let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
+  if (result) footnote = 'Importação gravada em parte. As linhas recusadas estão acima.'
+  else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (preview && rowErrors && !allowOverride) footnote = 'Há linhas com erro: corrija a planilha ou marque o aceite para importar só as válidas.'
+  else if (preview?.rows.length) footnote = `${plural(preview.rows.length, 'veículo será gravado', 'veículos serão gravados')}. Nada foi gravado ainda.`
+
   return (
-    <Modal open onClose={handleClose} title="Importar Planilha de Veiculos">
-      <div className="grid gap-4">
-        <div className="app-panel app-panel--padded text-sm">
-          Viagem: <span className="font-semibold text-[var(--app-text-strong)]">{voyageLabel}</span>
-        </div>
-        <TemplateLinks baseName="veiculos-modelo" />
-        <Field label="Arquivo .xlsx / .xls / .csv">
-          <Input accept=".xlsx,.xls,.csv" type="file" onChange={handleFile} />
-        </Field>
+    <Modal open onClose={handleClose} title="Importar planilha de veículos">
+      <div className="app-import">
+        <ImportContext label="Viagem">{voyageLabel}</ImportContext>
+        <ImportGuide requiredLabel="Formato" required="Daily Report de veículos do armador (uma linha por chassi)." templates={<ImportTemplateLinks baseName="veiculos-modelo" />} />
+        <ImportFilePicker accept=".xlsx,.xls,.csv" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={importing || Boolean(result)} />
         {parsing ? <ImportReadProgress progress={progress} /> : null}
+        {readError ? (
+          <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
+            <p>{readError}</p>
+            <p>Confira o formato e escolha o arquivo de novo.</p>
+          </ImportNotice>
+        ) : null}
         {preview ? (
-          <div className="grid gap-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Stat label="Veículos" value={preview.rows.length} />
-              <Stat label="Erros" value={preview.rowErrors.length} />
-            </div>
-            <ImportIssuesPanel issues={rowErrorsToImportIssues(preview.rowErrors)} filename="veiculos-issues.csv" />
-            {preview.rows.length > 0 && preview.rowErrors.length > 0 ? (
-              <div className="flex items-center gap-2 rounded-lg border border-[var(--app-gold)] bg-[var(--app-gold-soft)] p-3 text-xs text-[var(--app-gold-strong)]">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={allowOverride}
-                    onChange={(e) => setAllowOverride(e.target.checked)}
-                    className="rounded border-[var(--app-border)]"
-                  />
-                  <span><b>Estou ciente das divergências/erros encontrados e desejo forçar a importação</b></span>
-                </label>
-              </div>
-            ) : null}
-          </div>
+          <ImportSection
+            title={result ? 'Resultado' : 'Prévia'}
+            aside={
+              <SummaryStrip
+                label={result ? 'Resultado da importação' : 'Resumo da planilha'}
+                items={result ? [
+                  { label: 'gravados', value: result.successCount },
+                  { label: 'recusados', value: result.errorCount, tone: result.errorCount ? 'danger' : 'default' },
+                ] : [
+                  { label: preview.rows.length === 1 ? 'veículo' : 'veículos', value: preview.rows.length },
+                  { label: rowErrors === 1 ? 'linha com erro' : 'linhas com erro', value: rowErrors, tone: rowErrors ? 'danger' : 'default' },
+                ]}
+              />
+            }
+          >
+            {result?.errors.length ? (
+              <ImportIssuesPanel
+                issues={rowErrorsToImportIssues(result.errors)}
+                filename="veiculos-recusados.csv"
+                title={`${plural(result.errors.length, 'linha recusada', 'linhas recusadas')} ao gravar`}
+                hint="Os demais veículos foram gravados. Corrija estas linhas e importe uma planilha só com elas."
+              />
+            ) : (
+              <ImportIssuesPanel issues={rowErrorsToImportIssues(preview.rowErrors)} filename="veiculos-issues.csv" />
+            )}
+          </ImportSection>
+        ) : null}
+        {!result && preview && preview.rows.length > 0 && rowErrors > 0 ? (
+          <label className="app-import-override">
+            <input
+              type="checkbox"
+              checked={allowOverride}
+              onChange={(e) => setAllowOverride(e.target.checked)}
+            />
+            <span>
+              <span className="app-import-override__title">Estou ciente das divergências/erros encontrados e desejo forçar a importação</span>
+              <span className="app-import-override__hint">Só as linhas válidas são gravadas; as linhas com erro ficam de fora e continuam no relatório.</span>
+            </span>
+          </label>
+        ) : null}
+        {importError ? (
+          <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
+            <p>{importError}</p>
+            <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
+          </ImportNotice>
         ) : null}
         <div className="app-modal__actions">
-          <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
-          <Button disabled={!preview?.rows.length || (preview.rowErrors.length > 0 && !allowOverride)} loading={importing} onClick={() => void handleImport()}>Confirmar</Button>
+          <ImportFootnote tone={result || (preview && rowErrors && !allowOverride) ? 'warning' : 'default'}>{footnote}</ImportFootnote>
+          {result ? (
+            <Button onClick={onClose}>Concluir</Button>
+          ) : (
+            <>
+              <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
+              <Button disabled={!canConfirm || parsing} loading={importing} loadingLabel="Importando…" onClick={() => void handleImport()}>
+                {preview?.rows.length ? `Importar ${plural(preview.rows.length, 'veículo', 'veículos')}` : 'Importar veículos'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </Modal>
-  )
-}
-
-function Stat({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
-  return (
-    <div className="app-metric-tile text-center">
-      <div className="app-metric-tile__label">{label}</div>
-      <div className="app-metric-tile__value">{value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}{suffix ? ` ${suffix}` : ''}</div>
-    </div>
   )
 }

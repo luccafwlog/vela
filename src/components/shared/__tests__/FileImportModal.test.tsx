@@ -59,7 +59,7 @@ it('mantem a confirmacao desabilitada quando o contrato rejeita a previa', async
   })
 
   await waitFor(() => expect(screen.getByText('Linhas: 1')).toBeTruthy())
-  expect((screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: 'Importar' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
 it('mostra todos os erros convertidos em relatorio no preview', async () => {
@@ -148,7 +148,7 @@ it('permite override manual quando há pendências/erros na prévia', async () =
   })
 
   await waitFor(() => expect(screen.getByText('Linhas: 2')).toBeTruthy())
-  const confirmBtn = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
+  const confirmBtn = screen.getByRole('button', { name: 'Importar' }) as HTMLButtonElement
   expect(confirmBtn.disabled).toBe(true)
 
   const checkbox = screen.getByLabelText(/Estou ciente das divergências\/erros/i) as HTMLInputElement
@@ -164,4 +164,58 @@ it('permite override manual quando há pendências/erros na prévia', async () =
     expect.any(File),
     true,
   ))
+})
+
+it('mostra a falha de leitura na tela, junto do arquivo', async () => {
+  const { container } = render(
+    <ToastProvider>
+      <FileImportModal
+        title="Importar arquivo"
+        accept=".csv"
+        parser={async () => { throw new Error('Cabeçalho BL não encontrado.') }}
+        canImport={() => true}
+        renderPreview={() => null}
+        onClose={vi.fn()}
+      />
+    </ToastProvider>,
+  )
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'ruim.csv')] },
+  })
+
+  const alert = await screen.findByRole('alert')
+  expect(alert.textContent).toContain('Não foi possível ler o arquivo')
+  expect(alert.textContent).toContain('ruim.csv')
+  expect(alert.textContent).toContain('Cabeçalho BL não encontrado.')
+  expect((screen.getByRole('button', { name: 'Importar' }) as HTMLButtonElement).disabled).toBe(true)
+})
+
+it('mantém a prévia aberta e explica quando a gravação falha', async () => {
+  const onClose = vi.fn()
+  const { container } = render(
+    <ToastProvider>
+      <FileImportModal
+        title="Importar arquivo"
+        accept=".csv"
+        confirmLabel="Importar manifesto"
+        parser={async () => ({ rows: 1 })}
+        canImport={() => true}
+        importer={async () => { throw new Error('Viagem não encontrada.') }}
+        renderPreview={(preview) => <div>Linhas: {preview.rows}</div>}
+        onClose={onClose}
+      />
+    </ToastProvider>,
+  )
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'ok.csv')] },
+  })
+  await waitFor(() => expect(screen.getByText('Linhas: 1')).toBeTruthy())
+  fireEvent.click(screen.getByRole('button', { name: 'Importar manifesto' }))
+
+  await waitFor(() => expect(screen.getByText('A importação não foi concluída')).toBeTruthy())
+  expect(screen.getByText('Viagem não encontrada.')).toBeTruthy()
+  expect(screen.getByText('Linhas: 1')).toBeTruthy()
+  expect(onClose).not.toHaveBeenCalled()
 })

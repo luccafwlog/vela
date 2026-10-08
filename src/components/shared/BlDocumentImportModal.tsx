@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { FileImportModal, type FilePreviewEntry } from './FileImportModal'
 import { VoyageCombobox } from './VoyageCombobox'
-import { PreviewBox } from '../ui/PreviewBox'
+import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
+import { ImportGuide, ImportNotice } from './ImportParts'
 import { useAuth } from '../../hooks/useAuth'
 import { useVoyageOptions } from '../../hooks/useBls'
 import { formatCnpj } from '../../lib/cnpj'
@@ -50,6 +51,9 @@ export function BlDocumentImportModal({
       title="Importar B/Ls de carga solta"
       accept=".pdf,.docx"
       ready={Boolean(selectedVoyageId && user)}
+      notReadyReason="Escolha a viagem de destino para liberar o arquivo."
+      confirmLabel="Importar B/Ls"
+      overrideHint="Os arquivos com aviso também entram, como foram lidos. Arquivos com erro ou de outra viagem continuam de fora."
       prerequisite={
         <VoyageCombobox
           required
@@ -90,18 +94,16 @@ export function BlDocumentImportModal({
       )}
       renderPreview={(document) => <BlDocumentPreview document={document} voyage={selectedVoyage} />}
       helper={
-        <div className="app-panel app-panel--padded text-sm">
-          <div className="app-panel__title">Formatos aceitos</div>
-          <div className="mt-2">
-            O B/L do armador em <strong>.pdf</strong> (formulário com os campos numerados) ou em{' '}
-            <strong>.docx</strong> (formulário preenchido em caixas de texto). Vários arquivos podem ser
-            enviados de uma vez — cada um vira um B/L.
-          </div>
-          <div className="app-panel__meta mt-2">
-            O CE Mercante não vem no B/L: continua entrando pela importação de CE Mercante, e uma
-            reimportação do B/L não apaga o CE já gravado.
-          </div>
-        </div>
+        <ImportGuide
+          requiredLabel="Formato"
+          required={<>o B/L do armador em PDF (campos numerados) ou DOCX (caixas de texto). Cada arquivo vira um B/L.</>}
+          details={
+            <p>
+              O CE Mercante não vem no B/L: ele entra depois por Importar CE Mercante, e reimportar o B/L não apaga
+              o CE já gravado.
+            </p>
+          }
+        />
       }
       onClose={close}
     />
@@ -115,16 +117,20 @@ function BatchSummary({
   entries: FilePreviewEntry<ParsedBlDocument>[]
   canImport: (document: ParsedBlDocument, allowOverride?: boolean) => boolean
 }) {
-  const ready = entries.filter((entry) => canImport(entry.preview))
-  const withWarnings = entries.filter((entry) => entry.preview.warnings.length > 0 && canImport(entry.preview, true))
+  const ready = entries.filter((entry) => canImport(entry.preview)).length
+  const withWarnings = entries.filter((entry) => entry.preview.warnings.length > 0 && canImport(entry.preview, true)).length
+  const blocked = entries.length - ready - withWarnings
 
   return (
-    <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-      <PreviewBox label="Arquivos lidos" value={entries.length} variant="metric-strip" />
-      <PreviewBox label="Prontos para importar" value={ready.length} variant="metric-strip" />
-      <PreviewBox label="Com pendência" value={entries.length - ready.length} variant="metric-strip" />
-      <PreviewBox label="Com aviso" value={withWarnings.length} variant="metric-strip" />
-    </div>
+    <SummaryStrip
+      label="Resumo dos arquivos lidos"
+      items={[
+        { label: entries.length === 1 ? 'arquivo lido' : 'arquivos lidos', value: entries.length },
+        { label: 'prontos', value: ready },
+        { label: 'com aviso', value: withWarnings, tone: withWarnings ? 'warning' : 'default' },
+        { label: 'não entram', value: blocked, tone: blocked ? 'danger' : 'default' },
+      ]}
+    />
   )
 }
 
@@ -138,33 +144,29 @@ function BlDocumentPreview({
   const mismatch = describeVoyageMismatch(document, voyage)
 
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-        <PreviewBox label="B/L" value={document.bl_id || '-'} variant="metric-strip" />
-        <PreviewBox label="Navio / Viagem" value={formatVessel(document)} variant="metric-strip" />
-        <PreviewBox label="Rota" value={`${document.pol ?? '-'} → ${document.pod ?? '-'}`} variant="metric-strip" />
-        <PreviewBox label="Packages" value={formatNumber(document.packages_qty)} variant="metric-strip" />
-        <PreviewBox label="Peso (kg)" value={formatNumber(document.gross_weight_kg)} variant="metric-strip" />
-        <PreviewBox label="CBM (M3)" value={formatNumber(document.total_cbm)} variant="metric-strip" />
-      </div>
-
-      {document.errors.length ? (
-        <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">
-          {document.errors.map((message) => (
-            <div key={message}>{message}</div>
-          ))}
-          <div className="mt-1">Este arquivo não será importado.</div>
-        </div>
+    <div className="grid gap-3">
+      {document.errors.length || mismatch ? (
+        <ImportNotice tone="danger" role="alert" title="Este arquivo não será importado">
+          <ul className="app-import-notice__list">
+            {document.errors.map((message) => <li key={message}>{message}</li>)}
+            {mismatch ? <li>{mismatch}</li> : null}
+          </ul>
+        </ImportNotice>
       ) : null}
 
-      {mismatch ? (
-        <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">
-          {mismatch}
-          <div className="mt-1">Este arquivo não será importado.</div>
-        </div>
-      ) : null}
+      <SummaryStrip
+        label="Resumo do B/L"
+        items={[
+          { label: 'B/L', value: <span className="app-import-code">{document.bl_id || '—'}</span> },
+          { label: 'navio / viagem', value: formatVessel(document) },
+          { label: 'rota', value: `${document.pol ?? '—'} → ${document.pod ?? '—'}` },
+          { label: 'packages', value: formatNumber(document.packages_qty) },
+          { label: 'kg', value: formatNumber(document.gross_weight_kg) },
+          { label: 'm³', value: formatNumber(document.total_cbm) },
+        ]}
+      />
 
-      <dl className="grid gap-2 text-sm sm:grid-cols-2">
+      <dl className="app-import-facts">
         <PreviewField label="Shipper" value={document.shipper} />
         <PreviewField label="Consignee" value={document.consignee} />
         <PreviewField label="Notify" value={document.notify_party} />
@@ -175,17 +177,16 @@ function BlDocumentPreview({
         <PreviewField label="Vias originais" value={formatNullable(document.originals)} />
         <PreviewField label="NCM" value={document.ncm_codes.map(formatNcm).join(', ') || null} />
         <PreviewField label="Local e data de emissão" value={document.place_and_date_of_issue} />
+        {document.cargo_description ? <PreviewField label="Descrição da carga" value={document.cargo_description} /> : null}
+        {document.remarks ? <PreviewField label="Ressalvas do navio" value={document.remarks} /> : null}
       </dl>
 
-      <PreviewBlock label="Descrição da carga" value={document.cargo_description} />
-      <PreviewBlock label="Ressalvas do navio" value={document.remarks} />
-
       {document.warnings.length ? (
-        <div className="max-h-44 overflow-auto rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-          {document.warnings.map((message) => (
-            <div key={message}>{message}</div>
-          ))}
-        </div>
+        <ImportNotice tone="warning" title={`${document.warnings.length} ${document.warnings.length === 1 ? 'aviso de leitura' : 'avisos de leitura'}`}>
+          <ul className="app-import-notice__list">
+            {document.warnings.map((message) => <li key={message}>{message}</li>)}
+          </ul>
+        </ImportNotice>
       ) : null}
     </div>
   )
@@ -193,31 +194,20 @@ function BlDocumentPreview({
 
 function PreviewField({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="rounded-lg border border-[var(--app-border)] px-3 py-2">
-      <dt className="text-xs uppercase tracking-wider text-[var(--app-muted)]">{label}</dt>
-      <dd className="mt-0.5 text-[var(--app-text-strong)]">{value || '-'}</dd>
+    <div>
+      <dt>{label}</dt>
+      <dd>{value || '—'}</dd>
     </div>
   )
 }
-
-function PreviewBlock({ label, value }: { label: string; value: string | null }) {
-  if (!value) return null
-  return (
-    <div className="rounded-lg border border-[var(--app-border)] px-3 py-2 text-sm">
-      <div className="text-xs uppercase tracking-wider text-[var(--app-muted)]">{label}</div>
-      <div className="mt-1 whitespace-pre-line text-[var(--app-text-strong)]">{value}</div>
-    </div>
-  )
-}
-
 
 function formatVessel(document: ParsedBlDocument) {
-  if (!document.vessel_name) return '-'
+  if (!document.vessel_name) return '—'
   return document.voyage_number ? `${document.vessel_name} / ${document.voyage_number}` : document.vessel_name
 }
 
 function formatNumber(value: number | null) {
-  return value === null ? '-' : Number(value).toLocaleString('pt-BR')
+  return value === null ? '—' : Number(value).toLocaleString('pt-BR')
 }
 
 function formatNullable(value: number | null) {

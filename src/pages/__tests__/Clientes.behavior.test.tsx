@@ -227,7 +227,7 @@ describe('Clientes page behaviours', () => {
     const file = new File(['cnpj,nome'], 'clientes.csv', { type: 'text/csv' })
 
     await user.click(screen.getByRole('button', { name: 'Importar base' }))
-    await user.upload(screen.getByLabelText('Arquivo .xlsx, .xls ou .csv'), file)
+    await user.upload(screen.getByLabelText('Arquivo (XLSX, XLS ou CSV)'), file)
 
     expect(await screen.findByText('Cliente Importado')).toBeTruthy()
     expect(mocks.parseCustomerBaseFile).toHaveBeenCalledWith(file)

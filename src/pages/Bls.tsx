@@ -19,7 +19,6 @@ import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { PreviewBox } from '../components/ui/PreviewBox'
 import { TruncationNote } from '../components/shared/TruncationNote'
-import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
 import { useToast } from '../components/ui/Toast'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useAuth } from '../hooks/useAuth'
@@ -875,6 +874,8 @@ function BreakbulkManifestUploadModal({
       }
       getIssues={(nextManifest) => rowErrorsToImportIssues(nextManifest.rowErrors)}
       ready={Boolean(voyageId && user)}
+      notReadyReason="Escolha a viagem de destino para liberar o arquivo."
+      confirmLabel="Importar manifesto"
       prerequisite={
         <div className="grid gap-3">
           <VoyageCombobox
@@ -986,7 +987,6 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
         </table>
       </div>
       <TruncationNote shown={25} total={manifest.bls.length} noun="B/L" nounPlural="B/Ls" />
-      <ImportIssuesPanel issues={rowErrorsToImportIssues(manifest.rowErrors)} filename="manifesto-bb-issues.csv" />
     </div>
   )
 }

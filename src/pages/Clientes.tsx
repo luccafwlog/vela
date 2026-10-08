@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react'
+import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
@@ -15,7 +15,7 @@ import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { CreateCustomerModal } from '../components/customers/CreateCustomerModal'
 import { CustomerTable, type CustomerActionsMenu } from '../components/customers/CustomerTable'
-import { ImportBaseModal } from '../components/customers/ImportBaseModal'
+import { ImportBaseModal, type CustomerBaseImportOutcome } from '../components/customers/ImportBaseModal'
 import {
   emptyCreateCustomerForm,
   newCustomerContact,
@@ -145,7 +145,9 @@ export function Clientes() {
   const [createForm, setCreateForm] = useState<CreateCustomerForm>(emptyCreateCustomerForm)
   const [createErrors, setCreateErrors] = useState<CustomerCreateErrors>({})
   const [saving, setSaving] = useState(false)
-  const [baseFileName, setBaseFileName] = useState('')
+  const [baseFile, setBaseFile] = useState<File | null>(null)
+  const [baseReadError, setBaseReadError] = useState<string | null>(null)
+  const [baseOutcome, setBaseOutcome] = useState<CustomerBaseImportOutcome | null>(null)
   const [parsedBase, setParsedBase] = useState<ParsedCustomerBase | null>(null)
   const [parsingBase, setParsingBase] = useState(false)
   const [importingBase, setImportingBase] = useState(false)
@@ -233,10 +235,10 @@ export function Clientes() {
     }
   }
 
-  async function handleBaseFile(event: ChangeEvent<HTMLInputElement>) {
-    const nextFile = event.target.files?.[0] ?? null
-    setBaseFileName(nextFile?.name ?? '')
+  async function handleBaseFile(nextFile: File | null) {
+    setBaseFile(nextFile)
     setParsedBase(null)
+    setBaseReadError(null)
 
     if (!nextFile) return
 
@@ -244,15 +246,8 @@ export function Clientes() {
     try {
       const parsed = await compareCustomerBaseWithExisting(await parseCustomerBaseFile(nextFile))
       setParsedBase(parsed)
-      showToast(
-        parsed.rowErrors.length
-          ? `Base lida com ${parsed.rows.length} clientes validos e ${parsed.rowErrors.length} linhas ignoradas.`
-          : `Base lida com ${parsed.rows.length} clientes validos.`,
-        parsed.rowErrors.length ? 'info' : 'success',
-      )
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Não foi possível ler a base. Confira o layout do arquivo.'
-      showToast(message, 'error')
+      setBaseReadError(error instanceof Error ? error.message : 'Não foi possível ler a base. Confira o layout do arquivo.')
     } finally {
       setParsingBase(false)
     }
@@ -277,7 +272,9 @@ export function Clientes() {
         `Base importada: ${formatCountLabel(result.imported, 'novo', 'novos')}, ${formatCountLabel(result.updated, 'atualizado', 'atualizados')}, ${formatCountLabel(result.contactsCreated, 'contato', 'contatos')}.${linkedMsg}${failedMsg}`,
         result.errors?.length ? 'info' : 'success',
       )
-      resetImportModal()
+      // Com clientes pendentes, o modal fica aberto e lista quais e por quê.
+      if (result.errors?.length) setBaseOutcome({ ...result, errors: result.errors })
+      else resetImportModal()
     } catch {
       showToast('Falha ao importar base de clientes.', 'error')
     } finally {
@@ -325,7 +322,9 @@ export function Clientes() {
 
   function resetImportModal() {
     setImportOpen(false)
-    setBaseFileName('')
+    setBaseFile(null)
+    setBaseReadError(null)
+    setBaseOutcome(null)
     setParsedBase(null)
     setParsingBase(false)
     setImportingBase(false)
@@ -619,12 +618,14 @@ export function Clientes() {
 
       <ImportBaseModal
         open={importOpen}
-        baseFileName={baseFileName}
+        baseFile={baseFile}
+        readError={baseReadError}
+        outcome={baseOutcome}
         parsedBase={parsedBase}
         parsingBase={parsingBase}
         importingBase={importingBase}
         onClose={resetImportModal}
-        onFileChange={(event) => void handleBaseFile(event)}
+        onFileSelect={(file) => void handleBaseFile(file)}
         onImport={() => void handleImportBase()}
       />
     </>
