@@ -755,6 +755,14 @@ describe('blFreightImport', () => {
     expect(chunkBlPayload([])).toEqual([])
   })
 
+  it('mantem no mesmo lote os B/Ls que compartilham conteiner', () => {
+    const bl = (id: string, numbers: string[]) => ({ id, containers: numbers.map((container_number) => ({ container_number })) })
+    const many = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i}`)
+    // A e C dividem SHRD0000001; B fica entre eles no arquivo e estoura o orcamento junto
+    const chunks = chunkBlPayload([bl('A', [...many('A', 150), 'SHRD0000001']), bl('B', many('B', 200)), bl('C', ['SHRD0000001', ...many('C', 100)])])
+    expect(chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['A', 'C'], ['B']])
+  })
+
   it('envia lotes grandes em partes para nao estourar o statement_timeout e informa falha parcial', async () => {
     const row = (id: string): BlFreightImportPreview['rows'][number] => ({
       blNumber: id, status: 'new', existing: false, voyageId: 7, voyageNumber: null, pol: null, pod: null,

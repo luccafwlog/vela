@@ -574,26 +574,55 @@ const BL_IMPORT_CHUNK_SIZE = 20
 const BL_IMPORT_CHUNK_CONTAINER_BUDGET = 300
 
 /**
- * Divide o payload em lotes de até 20 B/Ls e até 300 contêineres. Um B/L
- * maior que o orçamento vai sozinho: B/L não é dividido entre transações.
+ * Divide o payload em lotes de até 20 B/Ls e até 300 contêineres. B/Ls que
+ * compartilham contêiner vão no mesmo lote: o cálculo divide o contêiner pelos
+ * B/Ls já gravados, e um irmão em lote posterior deixaria o anterior cobrando
+ * o contêiner inteiro. Um B/L sozinho acima do orçamento vai num lote próprio.
  */
 export function chunkBlPayload<T extends { containers?: unknown[] }>(
   payload: T[],
   maxBls = BL_IMPORT_CHUNK_SIZE,
   containerBudget = BL_IMPORT_CHUNK_CONTAINER_BUDGET,
 ): T[][] {
+  // agrupa por contêiner compartilhado (union-find), preservando a ordem do arquivo
+  const parent = payload.map((_, index) => index)
+  const find = (index: number): number => (parent[index] === index ? index : (parent[index] = find(parent[index])))
+  const owner = new Map<string, number>()
+  payload.forEach((bl, index) => {
+    for (const container of bl.containers ?? []) {
+      const number = (container as { container_number?: unknown } | null)?.container_number
+      if (typeof number !== 'string' || !number) continue
+      const previous = owner.get(number)
+      if (previous === undefined) owner.set(number, index)
+      else parent[find(index)] = find(previous)
+    }
+  })
+  const groups = new Map<number, T[]>()
+  payload.forEach((bl, index) => {
+    const root = find(index)
+    groups.set(root, [...(groups.get(root) ?? []), bl])
+  })
+
   const chunks: T[][] = []
   let current: T[] = []
   let containers = 0
-  for (const bl of payload) {
-    const count = bl.containers?.length ?? 0
-    if (current.length && (current.length >= maxBls || containers + count > containerBudget)) {
+  const place = (bls: T[]) => {
+    const count = bls.reduce((total, bl) => total + (bl.containers?.length ?? 0), 0)
+    if (current.length && (current.length + bls.length > maxBls || containers + count > containerBudget)) {
       chunks.push(current)
       current = []
       containers = 0
     }
-    current.push(bl)
+    current.push(...bls)
     containers += count
+  }
+  for (const group of groups.values()) {
+    const count = group.reduce((total, bl) => total + (bl.containers?.length ?? 0), 0)
+    // ponytail: grupo acima dos limites é partido em ordem para não estourar o
+    // timeout; nele o rateio do contêiner compartilhado pode ficar desigual até
+    // o próximo recálculo. Upgrade: recálculo final dos irmãos após o último lote.
+    if (group.length > maxBls || count > containerBudget) group.forEach((bl) => place([bl]))
+    else place(group)
   }
   if (current.length) chunks.push(current)
   return chunks
