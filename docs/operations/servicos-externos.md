@@ -301,6 +301,8 @@ pendente e deve seguir o procedimento em par.
 | `cleanup-portal-sessions` | 03:00 | — |
 | `cleanup-provision-rate-limit` | 03:30 | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | — |
+| `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25) | — |
+| `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; agendado manualmente em 07/10, jobid 26) | — |
 
 `data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 
