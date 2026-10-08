@@ -58,7 +58,7 @@ Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-re
 | GitHub → **Settings → Secrets and variables → Actions** | tokens de deploy e valores públicos de build | workflows |
 | GitHub → environment **`cloudflare-production`** | 7 variáveis `VITE_*` e secret `CLOUDFLARE_PAGES_API_TOKEN` (2026-10-07); deployment restrito à branch `main` | só o workflow de produção |
 | GitHub → environment **`cloudflare-pages`** | secret `CLOUDFLARE_PAGES_API_TOKEN` (2026-10-07); sem restrição de branch | jobs `publish` da Preview, limpeza e provisionamento do Pages |
-| GitHub → environment **`supabase-branches`** | secrets `SUPABASE_ACCESS_TOKEN` e `PREVIEW_ADMIN_PASSWORD` (2026-10-07); sem restrição de branch | job `prepare` da Preview e `provision-preview-admin` |
+| GitHub → environment **`supabase-branches`** | secrets `SUPABASE_ACCESS_TOKEN` (PAT de 2026-10-08) e `PREVIEW_ADMIN_PASSWORD` (2026-10-07); sem restrição de branch | job `prepare` da Preview e `provision-preview-admin` |
 | Windows do computador do backup → **variáveis do usuário** | `SUPABASE_DB_URL`, `BACKUP_ENCRYPTION_KEY_HEX`, `R2_*`, `BACKUP_ALLOW_PRODUCTION` | tarefa agendada do backup |
 | Windows → **Gerenciador de Credenciais** | `VelaBackup/R2AccessKeyId`, `VelaBackup/R2SecretAccessKey`, `VelaBackup/EncryptionKey` | o dono, para reconfigurar o backup |
 | iCloud Senhas do dono | `vela-backup` (chave de cifragem), `supabase-db-vela` (senha do banco) | cópia fora do computador |
@@ -213,23 +213,24 @@ estava sem branches persistentes ou de Preview na conferência de 2026-10-07.
 
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
-  O environment GitHub `supabase-branches` guarda o PAT escopado ao projeto
-  `fgmkhbzhaeebrsizwccx`, com `Development Branches: Read` e `API Keys: Read`,
-  validade de 90 dias (até 2027-01-05), além de `PREVIEW_ADMIN_PASSWORD`.
-  `API Keys: Read` é necessário para o CLI obter as chaves públicas da branch.
-  Em 2026-10-08 se confirmou que o `branches get` do CLI 2.113 exige também a
-  permissão `database_pooling_config_read` (leitura da configuração de pooling
-  do banco): sem ela, o CLI responde 403 e os workflows de Preview falham com
-  essa mensagem. O PAT precisa ser recriado ou editado com essa permissão e o
-  secret do environment atualizado; até isso ser feito, nenhuma Preview publica.
-  `API Key Secrets: Read` não foi concedido. O secret do environment teve
-  atualização registrada em 2026-10-07, mas o workflow Cloudflare seguinte
-  falhou e o painel Supabase ainda mostrava o PAT v3 como nunca usado; portanto,
-  a credencial efetiva não está validada. Uma nova submissão do secret não teve
-  confirmação de conclusão. O PAT v3 apareceu em texto numa saída de
-  acessibilidade e deve ser tratado como exposto; sua revogação ficou pendente
-  por decisão do dono. As cópias Repository-level ainda existem; para jobs
-  desse environment, a credencial dele prevalece.
+  O environment GitHub `supabase-branches` guarda, além de
+  `PREVIEW_ADMIN_PASSWORD`, o PAT escopado ao projeto `fgmkhbzhaeebrsizwccx`,
+  criado em 2026-10-08 e com três permissões, todas `Read`:
+  - `API Keys`: o CLI obtém as chaves públicas da branch;
+  - `Development Branches`: `branches list` e `branches get`;
+  - `Connection Pooling` (`database_pooling_config_read`): sem ela, o
+    `branches get` do CLI 2.113 responde 403 e as Previews falham.
+  `API Key Secrets` e qualquer permissão de escrita ficam em `None`. O painel
+  mostra o PAT (`GitHub Actions — Vela Preview branches v2`) sem expiração;
+  revogue-o e gere outro se houver suspeita de exposição.
+  Validação: em 2026-10-08, com esse PAT, os workflows Provision Preview Admin e
+  Cloudflare Pages Preview da PR 903 concluíram com sucesso.
+  Histórico: o PAT anterior, de 2026-10-07, tinha só `API Keys` e
+  `Development Branches` e foi substituído por faltar `Connection Pooling`;
+  revogue-o no painel. O PAT v3 apareceu em texto numa saída de acessibilidade e deve ser tratado
+  como exposto; sua revogação no painel continua pendente por decisão do dono.
+  As cópias Repository-level de `SUPABASE_ACCESS_TOKEN` ainda existem; para
+  jobs desse environment, a credencial dele prevalece.
 - **Senha do banco:** só alfanumérica; guardada em `supabase-db-vela` (iCloud
   Senhas) e usada apenas pelo backup. Nada no repositório usa essa senha.
 - **Usuário técnico do Auth:**
