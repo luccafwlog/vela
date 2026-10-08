@@ -6651,12 +6651,14 @@ export type Database = {
         Args: { p_bl_ids: string[]; p_changed_by: string }
         Returns: number
       }
-      apply_ce_mercante_manifest: {
-        Args: { p_changed_by: string; p_rows: Json }
-        Returns: Json
-      }
       apply_ce_mercante_rows_atomic: {
-        Args: { p_changed_by: string; p_rows: Json; p_target?: string }
+        Args: {
+          p_changed_by: string
+          p_manifesto_numero?: string
+          p_rows: Json
+          p_target?: string
+          p_voyage_id?: number
+        }
         Returns: Json
       }
       apply_ce_mercante_update: {
@@ -9345,12 +9347,6 @@ type FunctionWithArgs<
 > = Omit<Database['public']['Functions'][Name], 'Args'> & { Args: Args }
 
 type AppFunctionOverrides = {
-  apply_ce_mercante_manifest: FunctionWithArgs<
-    'apply_ce_mercante_manifest',
-    Omit<Database['public']['Functions']['apply_ce_mercante_manifest']['Args'], 'p_changed_by'> & {
-      p_changed_by: string | null
-    }
-  >
   apply_ce_mercante_update: FunctionWithArgs<
     'apply_ce_mercante_update',
     Omit<Database['public']['Functions']['apply_ce_mercante_update']['Args'], 'p_changed_by'> & {
