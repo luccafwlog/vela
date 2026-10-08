@@ -94,9 +94,12 @@ const FUTURE_TOLERANCE_MS = 5 * 60 * 1000
 // Contrato produtivo observado em 07/10/2026: Itaú devolve hora de Brasília
 // com Z indevido. Offset explícito é preservado; o restante do Vela usa UTC.
 // ponytail: -03:00 fixo (Brasília sem horário de verão) e reinterpretação de todo Z.
-// Se o Itaú passar a mandar UTC verdadeiro, criação e recebimento novos aparecem
-// ~3 h no futuro; a recusa abaixo para a fila e a consulta, sem gravar horário
-// errado. Upgrade: ao disparar, remover a troca de Z e voltar a ler o horário como veio.
+// Se o Itaú passar a mandar UTC verdadeiro, a leitura soma 3 h. Duas travas param
+// sem gravar horário errado: a recusa de horário no futuro (criação de COB e
+// recebimento recente) e, na baixa, a conferência com o horário UTC do endToEndId,
+// que independe do relógio e cobre a recuperação de atraso. Limite conhecido: o
+// vencimento de uma COB antiga consultada sem nova criação ou baixa no meio só é
+// pego pela primeira trava seguinte. Upgrade: ao disparar, remover a troca de Z.
 function itauTimeToUtc(value: string): string {
   if (typeof value !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(value))
     throw new ItauPixError('Horário do Itaú em formato inesperado.', 502)
@@ -363,6 +366,15 @@ export type ReceiptSink = {
   saveCheckpoint(until: string): Promise<void>
 }
 
+// endToEndId do Pix (BCB): 'E' + ISPB + aaaaMMddHHmm em UTC + 11 caracteres.
+const END_TO_END = /^E[0-9A-Za-z]{8}(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})[0-9A-Za-z]{11}$/
+const END_TO_END_TOLERANCE_MS = 60 * 60 * 1000 // Liquidação segue a iniciação em segundos; 3 h de desvio é fuso.
+
+function endToEndTime(id: string): number | null {
+  const m = END_TO_END.exec(id)
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null
+}
+
 const OVERLAP_MS = 10 * 60 * 1000 // Pix disponibilizado com atraso entra na janela seguinte.
 const MAX_WINDOW_MS = 6 * 60 * 60 * 1000 // Atraso grande é recuperado em várias execuções.
 const FIRST_LOOKBACK_MS = 24 * 60 * 60 * 1000
@@ -378,9 +390,13 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
     if (!isVelaTxid(p.txid)) continue
     // Cobrança de teste paga (Fase 1): não é fatura, então não vira baixa nem Alerta.
     if (isVelaTestTxid(p.txid)) { summary.test++; continue }
-    if (!/^[A-Za-z0-9]{1,64}$/.test(p.endToEndId ?? '') || !MONEY.test(p.valor ?? '') || !Number.isFinite(Date.parse(p.horario))) {
+    const initiatedAt = endToEndTime(p.endToEndId ?? '')
+    if (initiatedAt === null || !MONEY.test(p.valor ?? '') || !Number.isFinite(Date.parse(p.horario))) {
       // Sem avançar o checkpoint: a próxima execução tenta de novo e o erro fica visível.
       throw new ItauPixError('Recebimento do Itaú em formato inesperado.', 502, { txid: p.txid })
+    }
+    if (Math.abs(Date.parse(p.horario) - initiatedAt) > END_TO_END_TOLERANCE_MS) {
+      throw new ItauPixError('Horário do Itaú diverge do endToEndId; conferir se o banco mudou o fuso.', 502, { txid: p.txid })
     }
     summary.vela++
     summary[await sink.settle({ endToEndId: p.endToEndId, txid: p.txid, valor: p.valor, horario: p.horario })]++
