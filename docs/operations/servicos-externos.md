@@ -608,7 +608,7 @@ O item `ITAU_ONBOARDING_PRIVATE_KEY` do Vault não tem uso
 (o Itaú não pediu chave pública); removido pelo dono e ausência conferida em 07/10.
 
 A função `itau-pix` (Fase 1, diagnóstico e prova de centavos) existe no
-código e **está publicada** (v6 ACTIVE, conferida em 07/10). Ela exige `ITAU_PIX_ADMIN_SECRET`
+código e **está publicada** (v7 ACTIVE com a correção de fuso, conferida em 07/10). Ela exige `ITAU_PIX_ADMIN_SECRET`
 (bearer próprio, ≥ 32 caracteres aleatórios, nunca `service_role`). Os
 overrides opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL` e
 `ITAU_AUTH_HEADER` só existem para ajustar host e header se o Itaú divergir
