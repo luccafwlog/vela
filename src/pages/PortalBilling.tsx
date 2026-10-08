@@ -283,6 +283,7 @@ export function PortalBilling() {
         onObsolete={() => void handleObsolete()}
         onPrint={() => setPrintOpen(true)}
         onPrintReceipt={() => setReceiptOpen(true)}
+        onOpenInvoice={setSelectedInvoiceId}
       />
       {printOpen && detailQuery.data?.invoice ? (
         <Modal open onClose={() => setPrintOpen(false)} title={`Imprimir ${detailQuery.data.invoice.invoice_number ?? ''}`}>
@@ -333,7 +334,7 @@ export function PortalBilling() {
           </div>
         </Modal>
       ) : null}
-      {receiptOpen && detailQuery.data?.invoice ? (
+      {receiptOpen && detailQuery.data?.invoice?.status === 'paid' ? (
         <Modal open onClose={() => setReceiptOpen(false)} title={`Recibo ${detailQuery.data.invoice.invoice_number ?? ''}`}>
           <div className="mb-3 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setReceiptOpen(false)}>Fechar</Button>

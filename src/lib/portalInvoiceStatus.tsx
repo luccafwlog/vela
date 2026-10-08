@@ -17,8 +17,10 @@ export function renderDemurrageBadge(status: string | null) {
   return <Badge tone="blue">Emitida</Badge>
 }
 
+// Coberta fica no filtro "Pagas", mas não é Paga: quem recebeu foi a consolidada.
 export function renderInvoiceBadge(status: string | null) {
-  if (status === 'paid' || status === 'covered') return <Badge tone="green">Pago</Badge>
+  if (status === 'paid') return <Badge tone="green">Pago</Badge>
+  if (status === 'covered') return <Badge tone="slate">Coberta</Badge>
   if (status === 'partially_paid') return <Badge tone="blue">Parcial</Badge>
   if (status === 'cancelled') return <Badge tone="slate">Cancelada</Badge>
   if (status === 'obsolete') return <Badge tone="slate">Obsoleta</Badge>
@@ -30,7 +32,8 @@ export function portalInvoiceStatusLabel(status: string | null) {
   if (status === 'partially_paid') return 'Parcial'
   if (status === 'cancelled') return 'Cancelada'
   if (status === 'obsolete') return 'Obsoleta'
-  if (status === 'paid' || status === 'covered') return 'Paga'
+  if (status === 'covered') return 'Coberta'
+  if (status === 'paid') return 'Paga'
   if (status === 'draft') return 'Draft'
   return 'Emitida'
 }
