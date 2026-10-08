@@ -41,6 +41,9 @@ export function TabButton({
       type="button"
       role="tab"
       aria-selected={active}
+      // Tabindex itinerante: só a aba ativa entra na ordem do Tab; as setas
+      // do TabList levam às demais.
+      tabIndex={active ? 0 : -1}
       aria-controls={controls}
     >
       {label}

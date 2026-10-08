@@ -38,7 +38,12 @@ type Candidate = { id: number; name: string; cnpj_cpf: string | null }
 // Vínculo do B/L com o cliente. Um só fluxo: a sugestão do manifesto e a busca
 // no cadastro ficam no mesmo bloco, e o vínculo vive na Visão Geral porque
 // afeta Portal, comunicação e faturamento, não só a fatura.
-export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalStatus?: BlPortalStatus }) {
+export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryPortalStatus }: {
+  bl: BLDetail
+  portalStatus?: BlPortalStatus
+  portalStatusError?: boolean
+  onRetryPortalStatus?: () => void
+}) {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
@@ -351,7 +356,17 @@ export function BlClienteSection({ bl, portalStatus }: { bl: BLDetail; portalSta
           ) : null}
         </div>
       <div className="app-bl-client__portal">
-          {portalStatus ? <BlPortalCard status={portalStatus} embedded /> : <p className="app-bl-facts__sub">Verificando situação do Portal…</p>}
+          {portalStatus ? (
+            <BlPortalCard status={portalStatus} embedded />
+          ) : portalStatusError ? (
+            // Falha de consulta não pode ficar parecendo "verificando" para sempre.
+            <div className="app-inline-error" role="alert">
+              <span>Não foi possível verificar a situação no Portal.</span>
+              {onRetryPortalStatus ? <Button variant="secondary" className="app-btn--sm" onClick={onRetryPortalStatus}>Tentar novamente</Button> : null}
+            </div>
+          ) : (
+            <p className="app-bl-facts__sub" role="status">Verificando situação do Portal…</p>
+          )}
           {failedInvite ? (
             <div role="status" className="grid gap-2">
               <p className="app-bl-notice app-bl-notice--warning">Cadastro concluído. O convite para {failedInvite.email} não foi iniciado; tente de novo.</p>

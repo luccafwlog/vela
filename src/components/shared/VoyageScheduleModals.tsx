@@ -16,6 +16,7 @@ import { Modal } from '../ui/Modal'
 import { Field, Input, Select, Textarea } from '../ui/Input'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { SegmentedControl } from '../ui/SegmentedControl'
 import { useConfirm } from '../ui/ConfirmDialog'
 import {
   getEditableVoyagePodCeStatus,
@@ -199,16 +200,18 @@ export function PolScheduleModal({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="ETD">
               <Input type="date" value={etd} onChange={(event) => setEtd(event.target.value)} />
             </Field>
             <Field label="ATD">
               <Input type="date" value={atd} onChange={(event) => setAtd(event.target.value)} />
             </Field>
-            <Field label="Nº MANIFESTO">
-              <Input value={ceMaster} onChange={(event) => setCeMaster(event.target.value)} placeholder="Ex.: 25BR00481" />
-            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Nº do manifesto">
+                <Input value={ceMaster} onChange={(event) => setCeMaster(event.target.value)} placeholder="Ex.: 25BR00481" />
+              </Field>
+            </div>
           </div>
 
           <div className="app-modal__actions">
@@ -1106,7 +1109,7 @@ export function EscalaModal({
           ) : null}
 
           <EscalaSection aria-label="Chegada ao porto" icon={<Clock size={16} />} title="Chegada ao porto" description="Previsão e chegada real do navio. O ATD da escala nasce das atracações.">
-            <div className="app-escala-field-grid app-escala-field-grid--three">
+            <div className="app-escala-field-grid app-escala-field-grid--two">
               <DateTimeField label="ETA · previsto" ariaLabel="ETA" date={etaDate} time={etaTime} onDateChange={setEtaDate} onTimeChange={setEtaTime} />
               <DateTimeField label="ATA · realizado" ariaLabel="ATA" date={ataDate} time={ataTime} onDateChange={setAtaDate} onTimeChange={setAtaTime} />
               <Field label="ATD da escala" hint={derivedTerminalAtdHint}>
@@ -1168,7 +1171,7 @@ export function EscalaModal({
                   <p className="app-escala-note"><Lock size={13} aria-hidden="true" />Há carga de exportação vinculada a esta escala; a declaração só pode ser retirada depois que a carga deixar de existir.</p>
                 ) : null}
                 {(hasGranite || hasEmpty) ? (
-                  <div className={`app-escala-field-grid ${hasEmpty ? 'app-escala-field-grid--three' : 'app-escala-field-grid--one'}`}>
+                  <div className={`app-escala-field-grid ${hasEmpty ? 'app-escala-field-grid--two' : 'app-escala-field-grid--one'}`}>
                     {hasEmpty ? (
                       <>
                         <Field label="Quantidade de CNTR vazios">
@@ -1192,7 +1195,7 @@ export function EscalaModal({
           </EscalaSection>
 
           <EscalaSection aria-label="BLs e CEs" icon={<FileText size={16} />} title="BLs e CEs" description="Status atualizado pela conciliação documental. Alterações manuais exigem justificativa.">
-            <div className="app-escala-field-grid app-escala-field-grid--three">
+            <div className="app-escala-field-grid app-escala-field-grid--two">
               <Field label="BLs e CEs">
                 <Select value={ceStatus} onChange={(event) => setCeStatus(event.target.value as EditableVoyagePodCeStatus)}>
                   {POD_CE_STATUS_OPTIONS.map((option) => (
@@ -1201,21 +1204,13 @@ export function EscalaModal({
                 </Select>
               </Field>
               <div className="app-field">
-                <span className="app-field__label" id="escala-linked-label">Vinculada</span>
-                <div className="app-escala-segmented" role="radiogroup" aria-labelledby="escala-linked-label">
-                  {([['true', 'Sim'], ['false', 'Não']] as const).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      role="radio"
-                      aria-checked={linked === value}
-                      className={`app-escala-segmented__option${linked === value ? ' app-escala-segmented__option--active' : ''}`}
-                      onClick={() => setLinked(value)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <span className="app-field__label" aria-hidden="true">Vinculada</span>
+                <SegmentedControl
+                  label="Vinculada"
+                  value={linked}
+                  onChange={setLinked}
+                  options={[{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]}
+                />
               </div>
               <Field label="Nº escala (Mercante)">
                 <Input value={escalaNumber} onChange={(event) => setEscalaNumber(event.target.value)} placeholder="Ex.: 25BR00481" autoComplete="off" />

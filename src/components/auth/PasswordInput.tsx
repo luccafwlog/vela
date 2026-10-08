@@ -1,6 +1,7 @@
 import { forwardRef, useState, type InputHTMLAttributes } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { Input } from '../ui/Input'
+import { markLabelableControl } from '../ui/labelableControls'
 
 /**
  * Campo de senha com "Mostrar senha" para as telas de acesso e troca de senha
@@ -28,3 +29,5 @@ export const PasswordInput = forwardRef<HTMLInputElement, Omit<InputHTMLAttribut
     )
   },
 )
+
+markLabelableControl(PasswordInput)

@@ -34,6 +34,8 @@ export function BlTerminalOverrideCard({
 }) {
   const [selectedTerminalId, setSelectedTerminalId] = useState(terminalId ?? '')
   const [justification, setJustification] = useState('')
+  // Qual botão disparou a gravação, para o indicador ficar no botão certo.
+  const [removing, setRemoving] = useState(false)
   const [editing, setEditing] = useState(false)
   const isOverride = Boolean(terminalId)
   const selectedOption = useMemo(
@@ -99,8 +101,10 @@ export function BlTerminalOverrideCard({
               <Button
                 type="button"
                 variant="secondary"
+                loading={saving && removing}
+                loadingLabel="Removendo…"
                 disabled={saving || !justification.trim()}
-                onClick={() => onSave?.({ terminalId: null, podPortId: null, justification: justification.trim() })}
+                onClick={() => { setRemoving(true); onSave?.({ terminalId: null, podPortId: null, justification: justification.trim() }) }}
               >
                 Remover exceção
               </Button>
@@ -108,10 +112,10 @@ export function BlTerminalOverrideCard({
             {selectedTerminalId ? (
               <Button
                 type="button"
-                loading={saving}
+                loading={saving && !removing}
                 loadingLabel="Salvando…"
                 disabled={!canSubmit}
-                onClick={() => onSave?.({ terminalId: selectedTerminalId, podPortId: selectedPortId, justification: justification.trim() })}
+                onClick={() => { setRemoving(false); onSave?.({ terminalId: selectedTerminalId, podPortId: selectedPortId, justification: justification.trim() }) }}
               >
                 Salvar exceção
               </Button>

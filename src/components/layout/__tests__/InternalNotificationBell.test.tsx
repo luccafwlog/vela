@@ -72,7 +72,7 @@ const entityLabels: Record<string, string> = {
 }
 
 vi.mock('../../../hooks/useInternalNotifications', () => ({
-  useUnreadInternalNotificationCount: () => ({ data: 3 }),
+  useUnreadInternalNotificationCount: () => ({ data: 3, refetch: vi.fn() }),
   useInternalNotificationEntityLabels: () => ({ data: entityLabels }),
   useInternalNotifications: (open: boolean) => ({
     data: open && !listState.isError ? [mockNotification, mockEchoNotification, mockFallbackNotification] : [],
@@ -290,7 +290,27 @@ describe('InternalNotificationBell', () => {
     fireEvent.click(screen.getByText('Marcar todas como lidas'))
 
     await waitFor(() => expect(mutateMarkAllReadMock).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(showToastMock).toHaveBeenCalledWith(expect.stringMatching(/todas como lidas/i), 'error'))
+    expect((await screen.findByRole('alert')).textContent).toMatch(/Não foi possível marcar todas como lidas/)
+  })
+
+  it('lista que mudou é explicada no painel, com Atualizar lista', async () => {
+    notificationServiceMocks.listAllUnread.mockResolvedValueOnce([mockNotification])
+    listState.refetch.mockClear()
+    render(
+      <MemoryRouter>
+        <InternalNotificationBell />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
+    fireEvent.click(screen.getByText('Marcar todas como lidas'))
+
+    const notice = await screen.findByRole('alert')
+    expect(notice.textContent).toMatch(/lista de notificações mudou/)
+    expect(confirmMock).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Marcar todas como lidas' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Atualizar lista' }))
+    expect(listState.refetch).toHaveBeenCalled()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('fecha o menu ao clicar fora', () => {

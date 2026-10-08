@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError } from '../components/ui/Card'
@@ -20,6 +20,10 @@ export function PortalAtivacao() {
   const [done, setDone] = useState(false)
   const [loading, setLoading] = useState(Boolean(token))
   const [submitting, setSubmitting] = useState(false)
+  // Erro de validação fica no campo que precisa mudar, não no fim do formulário.
+  const [fieldError, setFieldError] = useState<{ field: 'password' | 'confirm'; message: string } | null>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const confirmRef = useRef<HTMLInputElement>(null)
 
   // Achado 3.3 (auditoria 2026-08-12): o token vaza para a telemetria via
   // event.request.url se permanecer na URL. Removido da barra de enderecos
@@ -42,8 +46,17 @@ export function PortalAtivacao() {
   async function submit(event: FormEvent) {
     event.preventDefault()
     setError('')
-    if (!isValidPassword(password)) { setError(PASSWORD_RULE_MESSAGE); return }
-    if (password !== confirm) { setError('As senhas não conferem.'); return }
+    setFieldError(null)
+    if (!isValidPassword(password)) {
+      setFieldError({ field: 'password', message: PASSWORD_RULE_MESSAGE })
+      passwordRef.current?.focus()
+      return
+    }
+    if (password !== confirm) {
+      setFieldError({ field: 'confirm', message: 'As senhas não conferem.' })
+      confirmRef.current?.focus()
+      return
+    }
     setSubmitting(true)
     try {
       const { error: invokeError } = await supabasePortal.functions.invoke('portal-invite-activate', { body: { action: 'activate', token, password } })
@@ -91,20 +104,20 @@ export function PortalAtivacao() {
               </div>
             </dl>
             <form className="grid gap-4" onSubmit={submit}>
-              {/* A regra fica fora do <label> para não entrar no nome do campo. */}
-              <div className="grid gap-1.5">
-                <Field label="Nova senha">
-                  <PasswordInput
-                    autoComplete="new-password"
-                    aria-describedby="portal-activation-password-rule"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </Field>
-                <p id="portal-activation-password-rule" className="app-field__hint">{PASSWORD_RULE_MESSAGE}</p>
-              </div>
-              <Field label="Confirmar senha">
-                <PasswordInput autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+              <Field
+                label="Nova senha"
+                hint={fieldError?.field === 'password' ? undefined : PASSWORD_RULE_MESSAGE}
+                error={fieldError?.field === 'password' ? fieldError.message : undefined}
+              >
+                <PasswordInput
+                  ref={passwordRef}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </Field>
+              <Field label="Confirmar senha" error={fieldError?.field === 'confirm' ? fieldError.message : undefined}>
+                <PasswordInput ref={confirmRef} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
               </Field>
               {error ? <InlineError message={error} /> : null}
               <Button loading={submitting} loadingLabel="Ativando..." type="submit">Ativar acesso</Button>

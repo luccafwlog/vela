@@ -77,3 +77,20 @@ it('não renderiza uma seção vazia para entidade sem efeito', () => {
 
   expect(screen.queryByTestId('import-result-panel')).toBeNull()
 })
+
+it('erro de consulta oferece Tentar novamente em vez de pedir para recarregar a página', () => {
+  const refetch = vi.fn()
+  useImportEffectsMock.mockReturnValue({
+    data: undefined,
+    isPending: false,
+    error: new Error('falha'),
+    refetch,
+    retryMutation: { isPending: false, mutateAsync: retryMock },
+  })
+
+  render(<ImportResultPanel entityId="BL-17" />)
+
+  expect(screen.getByRole('alert').textContent).toContain('A importação não é desfeita')
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+  expect(refetch).toHaveBeenCalled()
+})

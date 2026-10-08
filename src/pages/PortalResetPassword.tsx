@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError } from '../components/ui/Card'
@@ -30,18 +30,25 @@ export function PortalResetPassword() {
   const [error, setError] = useState(() => (token ? '' : INVALID_LINK_MESSAGE))
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
+  // Erro de validação fica no campo que precisa mudar, não no fim do formulário.
+  const [fieldError, setFieldError] = useState<{ field: 'password' | 'confirm'; message: string } | null>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const confirmRef = useRef<HTMLInputElement>(null)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setFieldError(null)
 
     if (!isValidPassword(password)) {
-      setError(PASSWORD_RULE_MESSAGE)
+      setFieldError({ field: 'password', message: PASSWORD_RULE_MESSAGE })
+      passwordRef.current?.focus()
       return
     }
 
     if (password !== confirm) {
-      setError('As senhas não conferem.')
+      setFieldError({ field: 'confirm', message: 'As senhas não conferem.' })
+      confirmRef.current?.focus()
       return
     }
 
@@ -124,22 +131,23 @@ export function PortalResetPassword() {
         </div>
 
         <form className="grid gap-4" onSubmit={handleSubmit}>
-          {/* A regra fica fora do <label> para não entrar no nome do campo. */}
-          <div className="grid gap-1.5">
-            <Field label="Nova senha">
-              <PasswordInput
-                required
-                autoComplete="new-password"
-                aria-describedby="portal-reset-password-rule"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </Field>
-            <p id="portal-reset-password-rule" className="app-field__hint">{PASSWORD_RULE_MESSAGE}</p>
-          </div>
-
-          <Field label="Confirmar senha">
+          <Field
+            label="Nova senha"
+            hint={fieldError?.field === 'password' ? undefined : PASSWORD_RULE_MESSAGE}
+            error={fieldError?.field === 'password' ? fieldError.message : undefined}
+          >
             <PasswordInput
+              ref={passwordRef}
+              required
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </Field>
+
+          <Field label="Confirmar senha" error={fieldError?.field === 'confirm' ? fieldError.message : undefined}>
+            <PasswordInput
+              ref={confirmRef}
               required
               autoComplete="new-password"
               value={confirm}

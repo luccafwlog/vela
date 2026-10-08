@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronDown, ChevronUp, Pencil, Plus, SkipForward, Trash2 } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, Clock, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { MetricSection } from '../shared/VoyageSectionCards'
@@ -19,7 +19,6 @@ import {
 } from '../../services/voyageSummaries'
 import { deleteEscala, type VoyageEscalaDivergence, type VoyageEscalaSchedule } from '../../services/voyageRouteSchedules'
 import type { VoyageExportSchedule } from '../../services/voyageExportSchedules'
-import { describeArrival, describeDeparture, escalaStateTag, type ArrivalReading, type DepartureReading } from './escalaPresentation'
 import { listVaziosExportEmbarkPorts } from '../../services/vaziosExportOperations'
 import { queryKeys } from '../../services/queryKeys'
 import { afterEscalaAlterada } from '../../services/cacheEffects'
@@ -37,7 +36,6 @@ export function VoyageVisaoTab({
   voyage,
   voyageLabel,
   escalaRows,
-  nextPort = null,
   importBatches,
   exportSchedules,
   divergenceCount,
@@ -49,8 +47,6 @@ export function VoyageVisaoTab({
   voyage: Voyage
   voyageLabel: string
   escalaRows: VoyageEscalaSchedule[]
-  /** Porto da Próxima Escala (`getProximaEscala`), para o rótulo da linha. */
-  nextPort?: string | null
   importBatches: VoyageImportBatch[]
   exportSchedules: VoyageExportSchedule[]
   divergenceCount: number
@@ -230,155 +226,166 @@ export function VoyageVisaoTab({
   const planningContent = (
     <MetricSection
       title="Planejamento por escala"
-      description="Chegada é da Escala (ETA/ATA); atracação e saída são de cada terminal."
+      compact
       actions={canEditVoyages ? (
         <Button variant="secondary" className="app-btn--sm" onClick={() => onEditEscala(buildEscalaModalData(null))}>
-          <Plus size={15} aria-hidden="true" />
+          <Plus size={15} />
           Adicionar escala
         </Button>
       ) : undefined}
     >
-      <div className="app-table-scroll">
-        <table className="app-table app-table--dense app-voyage-plan" aria-label="Planejamento por escala">
-          <thead>
-            <tr>
-              <th scope="col" className="text-left">Escala</th>
-              <th scope="col" className="text-left">Operação</th>
-              <th scope="col" className="text-left">Chegada</th>
-              <th scope="col" className="text-left">Saída</th>
-              <th scope="col" className="text-left">BLs e CEs</th>
-              <th scope="col" className="text-left">Nº Escala</th>
-              <th scope="col" className="text-left">Vinculada</th>
-              <th scope="col" className="text-right"><span className="sr-only">Ações</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {escalaRows.length ? (
-              escalaRows.map((row) => {
-                const atracacoes = (row.atracacoes ?? []).filter((atracacao) => Boolean(
-                  atracacao.terminalId
-                  || atracacao.etb
-                  || atracacao.atb
-                  || atracacao.etd
-                  || atracacao.atd
-                  || atracacao.rtw !== null && atracacao.rtw !== undefined,
-                ))
-                const collapsed = collapsedAtracacoes.has(row.port)
-                const tag = escalaStateTag(row, row.port === nextPort)
-                const atracacoesId = `${voyage.id}-atracacoes-${row.port}`
-                return (
-                  <Fragment key={`${voyage.id}-scale-${row.port}`}>
-                  <tr className={row.omitted ? 'app-voyage-plan__row--omitted' : undefined}>
-                    <th scope="row" className="text-left align-top">
-                      <div className="app-voyage-plan__port">
-                        <span className="app-voyage-plan__port-code">{row.port}</span>
-                        {tag ? <Badge tone={tag.tone}>{tag.label}</Badge> : null}
-                      </div>
-                      {atracacoes.length ? (
-                        <button
-                          type="button"
-                          className="app-voyage-plan__toggle"
-                          aria-controls={atracacoesId}
-                          aria-expanded={!collapsed}
-                          aria-label={`${collapsed ? 'Expandir' : 'Recolher'} atracações de ${row.port}`}
-                          onClick={() => toggleAtracacoes(row.port)}
-                        >
-                          {collapsed ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronUp size={14} aria-hidden="true" />}
-                          {atracacoes.length === 1 ? '1 atracação' : `${atracacoes.length} atracações`}
-                        </button>
-                      ) : null}
-                      {row.divergences.length ? <EscalaDivergenceWarning divergences={row.divergences} /> : null}
-                    </th>
-                    <td className="align-top">
-                      <EscalaOperationMarkers row={row} />
-                    </td>
-                    <td className="align-top"><ArrivalCell reading={describeArrival(row)} /></td>
-                    <td className="align-top"><DepartureCell reading={describeDeparture(row)} /></td>
-                    <td className="align-top">{renderCeStatusLabel(row.ceStatus)}</td>
-                    <td className="align-top tabular-nums">{renderEscalaNumber(row.escalaNumber)}</td>
-                    <td className="align-top"><Badge tone={row.linked ? 'success' : 'neutral'}>{renderLinkedLabel(row.linked)}</Badge></td>
-                    <td className="align-top text-right">
-                      <div className="app-voyage-plan__actions">
-                        {canEditVoyages ? (
-                          <Button
-                            variant="ghost"
-                            className="app-table__icon-button"
-                            aria-label={`Editar planejamento da escala ${row.port}`}
-                            title="Editar escala"
-                            onClick={() => onEditEscala(buildEscalaModalData(row))}
-                          >
-                            <Pencil size={15} aria-hidden="true" />
-                          </Button>
-                        ) : null}
-                        {canEditVoyages && row.temImportacao && !row.omitted ? (
-                          <Button
-                            variant="ghost"
-                            className="app-table__icon-button"
-                            aria-label={`Omitir escala do POD ${row.port}`}
-                            title="Omitir escala (armador não fará o porto)"
-                            onClick={() => onOmitPod(row.port)}
-                          >
-                            <SkipForward size={15} aria-hidden="true" />
-                          </Button>
-                        ) : null}
-                        {canEdit && isAdmin ? (
-                          // Excluir escala é do Administrativo e respeita a trava do CE
-                          // (delete_escala, migration 088; ADR 0071).
-                          <Button
-                            variant="ghost"
-                            className="app-table__icon-button app-voyage-plan__delete"
-                            aria-label={`Excluir escala ${row.port}`}
-                            title="Excluir escala do planejamento"
-                            onClick={() => handleDeleteEscala(row)}
-                          >
-                            <Trash2 size={15} aria-hidden="true" />
-                          </Button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                  {atracacoes.length && !collapsed ? (
-                    <tr id={atracacoesId} className="app-voyage-plan__detail">
-                      <td colSpan={8}>
-                        <div className="app-voyage-berths">
-                          <div className="app-voyage-berths__head">
-                            <h4 className="app-voyage-berths__title">Atracações em {row.port}</h4>
-                            {canEditVoyages ? (
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="app-btn--sm"
-                                aria-label={`Adicionar atracação na escala ${row.port}`}
-                                onClick={() => onEditEscala(buildEscalaModalData(row, null))}
-                              >
-                                <Plus size={13} aria-hidden="true" />
-                                Adicionar atracação
-                              </Button>
-                            ) : null}
-                          </div>
-                          <div className="app-table-scroll">
-                            <table className="app-table app-table--dense app-voyage-atracacoes-table" aria-label={`Atracações de ${row.port}`}>
+      <div className="app-voyage-table-frame">
+        <div className="app-table-scroll">
+          <table className="app-table app-table--compact app-table--dense app-table--sticky-actions w-full text-center text-sm" aria-label="Planejamento por escala">
+            <colgroup>
+              <col className="min-w-[90px]" />
+              <col className="min-w-[150px]" />
+              <col className="min-w-[80px]" />
+              <col className="min-w-[90px]" />
+              <col className="min-w-[100px]" />
+              <col className="min-w-[90px]" />
+              <col className="min-w-[90px]" />
+              <col className="min-w-[90px]" />
+              <col className="w-[1%] whitespace-nowrap" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col" rowSpan={2} className="px-3 py-2 text-center">Escala</th>
+                <th scope="col" rowSpan={2} className="px-3 py-2 text-center">Opera</th>
+                <th scope="col" colSpan={2} className="px-3 py-2 text-center">Chegada</th>
+                <th scope="col" rowSpan={2} className="px-3 py-2 text-center">ATD</th>
+                <th scope="col" rowSpan={2} className="px-3 py-2 text-center">BLs e CEs</th>
+                <th scope="col" rowSpan={2} className="px-3 py-2 text-center">Nº Escala</th>
+                <th scope="col" rowSpan={2} className="px-3 py-2 text-center">Vinculada</th>
+                <th scope="col" rowSpan={2} className="px-3 py-2 text-center">Ações</th>
+              </tr>
+              <tr>
+                <th scope="col" className="px-3 py-2 text-center">ETA · previsto</th>
+                <th scope="col" className="px-3 py-2 text-center">ATA · real</th>
+              </tr>
+            </thead>
+            <tbody>
+              {escalaRows.length ? (
+                escalaRows.map((row) => {
+                  const atracacoes = (row.atracacoes ?? []).filter((atracacao) => Boolean(
+                    atracacao.terminalId
+                    || atracacao.etb
+                    || atracacao.atb
+                    || atracacao.etd
+                    || atracacao.atd
+                    || atracacao.rtw !== null && atracacao.rtw !== undefined,
+                  ))
+                  return (
+                    <Fragment key={`${voyage.id}-scale-${row.port}`}>
+                    <tr key={`${voyage.id}-lineup-${row.port}`}>
+                      <td className="px-3 py-2 align-top text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {atracacoes.length ? (
+                            <button
+                              type="button"
+                              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-[var(--app-muted)] hover:bg-[var(--app-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-border-focus)]"
+                              aria-controls={`${voyage.id}-atracacoes-${row.port}`}
+                              aria-expanded={!collapsedAtracacoes.has(row.port)}
+                              aria-label={`${collapsedAtracacoes.has(row.port) ? 'Expandir' : 'Recolher'} atracações de ${row.port}`}
+                              onClick={() => toggleAtracacoes(row.port)}
+                            >
+                              {collapsedAtracacoes.has(row.port) ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+                            </button>
+                          ) : null}
+                          <span className="font-semibold text-[var(--app-text-strong)]">{row.port}</span>
+                          {row.omitted ? <Badge tone="red">OMIT</Badge> : null}
+                          {atracacoes.length ? <Badge tone="slate">{atracacoes.length} atracações</Badge> : null}
+                        </div>
+                        {row.divergences.length ? <EscalaDivergenceWarning divergences={row.divergences} /> : null}
+                      </td>
+                      <td className="px-3 py-2 align-top text-center">
+                        <EscalaOperationMarkers row={row} />
+                      </td>
+                      <td className="px-3 py-2 text-center text-[var(--app-muted)]">{formatDate(row.eta)}</td>
+                      <td className="px-3 py-2 text-center">{formatDate(row.ata)}</td>
+                      <td className="px-3 py-2 text-center">{formatDate(row.atd)}</td>
+                      <td className="px-3 py-2 text-center">{renderCeStatusLabel(row.ceStatus)}</td>
+                      <td className="px-3 py-2 text-center">{renderEscalaNumber(row.escalaNumber)}</td>
+                      <td className="px-3 py-2 text-center"><Badge tone={row.linked ? 'green' : 'slate'}>{renderLinkedLabel(row.linked)}</Badge></td>
+                      <td className="px-3 py-2 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          {canEditVoyages ? (
+                            <Button
+                              variant="secondary"
+                              className="app-voyage-icon-btn"
+                              aria-label={`Editar planejamento da escala ${row.port}`}
+                              onClick={() => onEditEscala(buildEscalaModalData(row))}
+                            >
+                              <Pencil size={15} />
+                            </Button>
+                          ) : null}
+                          {canEditVoyages && row.temImportacao && !row.omitted ? (
+                            <Button
+                              variant="secondary"
+                              className="app-voyage-icon-btn"
+                              aria-label={`Omitir escala do POD ${row.port}`}
+                              title={`Omitir escala do POD ${row.port}`}
+                              onClick={() => onOmitPod(row.port)}
+                            >
+                              <AlertTriangle size={15} />
+                            </Button>
+                          ) : null}
+                          {canEdit && isAdmin ? (
+                            // Excluir escala e do Administrativo e respeita a trava do CE
+                            // (delete_escala, migration 088; ADR 0071).
+                            <Button
+                              variant="danger"
+                              className="app-voyage-icon-btn"
+                              aria-label={`Excluir escala ${row.port}`}
+                              onClick={() => handleDeleteEscala(row)}
+                            >
+                              <Trash2 size={15} />
+                            </Button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                    {atracacoes.length && !collapsedAtracacoes.has(row.port) ? (
+                      <tr key={`${voyage.id}-atracacoes-${row.port}`} id={`${voyage.id}-atracacoes-${row.port}`}>
+                        <td colSpan={9} className="px-3 pb-3 pt-0 text-center">
+                          <div className="ml-4 overflow-hidden rounded-[10px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] text-xs">
+                            <div className="flex items-center justify-between gap-3 border-b border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-2 text-left">
+                              <div className="font-semibold uppercase tracking-wide text-[var(--app-muted)]">Atracações de {row.port}</div>
+                              {canEditVoyages ? (
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  className="app-btn--sm"
+                                  aria-label={`Adicionar atracação na escala ${row.port}`}
+                                  onClick={() => onEditEscala(buildEscalaModalData(row, null))}
+                                >
+                                  <Plus size={13} />
+                                  Adicionar atracação
+                                </Button>
+                              ) : null}
+                            </div>
+                            <table className="app-table app-table--dense app-voyage-atracacoes-table w-full text-center" aria-label={`Atracações de ${row.port}`}>
                               <thead>
                                 <tr>
-                                  <th scope="col" className="text-left">Terminal</th>
-                                  <th scope="col" className="text-left">ETB · previsto</th>
-                                  <th scope="col" className="text-left">ATB · real</th>
-                                  <th scope="col" className="text-left">ETD · previsto</th>
-                                  <th scope="col" className="text-left">ATD · real</th>
-                                  <th scope="col" className="text-right">Restow</th>
-                                  <th scope="col"><span className="sr-only">Ações</span></th>
+                                  <th scope="col" className="px-3 py-2 text-center">Terminal</th>
+                                  <th scope="col" className="px-3 py-2 text-center">ETB</th>
+                                  <th scope="col" className="px-3 py-2 text-center">ATB</th>
+                                  <th scope="col" className="px-3 py-2 text-center">ETD</th>
+                                  <th scope="col" className="px-3 py-2 text-center">ATD</th>
+                                  <th scope="col" className="px-3 py-2 text-center">Restow</th>
+                                  <th scope="col" className="px-3 py-2 text-center"><span className="sr-only">Ações</span></th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {atracacoes.map((atracacao, index) => (
                                   <tr key={`${atracacao.terminalId ?? 'tbc'}-${index}`}>
-                                    <th scope="row" className="text-left font-medium">{atracacao.terminalCode ?? 'TBC'}</th>
-                                    <td className="tabular-nums">{formatPlanDate(atracacao.etb)}</td>
-                                    <td className="tabular-nums"><ActualDate value={atracacao.atb} /></td>
-                                    <td className="tabular-nums">{formatPlanDate(atracacao.etd)}</td>
-                                    <td className="tabular-nums"><ActualDate value={atracacao.atd} /></td>
-                                    <td className="text-right tabular-nums">{atracacao.rtw ?? '—'}</td>
-                                    <td className="text-right">
+                                    <td className="px-3 py-2 text-center"><span className="rounded-full bg-[var(--app-surface-muted)] px-2 py-1 font-medium text-[var(--app-text-strong)]">{atracacao.terminalCode ?? 'TBC'}</span></td>
+                                    <td className="px-3 py-2 text-center text-[var(--app-muted)]">{formatDate(atracacao.etb)}</td>
+                                    <td className="px-3 py-2 text-center">{formatDate(atracacao.atb)}</td>
+                                    <td className="px-3 py-2 text-center text-[var(--app-muted)]">{formatDate(atracacao.etd)}</td>
+                                    <td className="px-3 py-2 text-center">{formatDate(atracacao.atd)}</td>
+                                    <td className="px-3 py-2 text-center font-mono text-xs">{atracacao.rtw ?? '—'}</td>
+                                    <td className="px-3 py-2 text-center">
                                       {canEditVoyages ? (
                                         <Button
                                           type="button"
@@ -387,7 +394,7 @@ export function VoyageVisaoTab({
                                           aria-label={atracacaoEditLabel(atracacao, row.port)}
                                           onClick={() => onEditEscala(buildEscalaModalData(row, atracacao.terminalId))}
                                         >
-                                          <Pencil size={14} aria-hidden="true" />
+                                          <Pencil size={14} />
                                         </Button>
                                       ) : null}
                                     </td>
@@ -396,22 +403,22 @@ export function VoyageVisaoTab({
                               </tbody>
                             </table>
                           </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : null}
-                  </Fragment>
-                )
-              })
-            ) : (
-              <tr>
-                <td colSpan={8} className="app-voyage-plan__empty">
-                  Nenhuma escala planejada para esta viagem.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                        </td>
+                      </tr>
+                    ) : null}
+                    </Fragment>
+                  )
+                })
+              ) : (
+                <tr>
+                  <td colSpan={9} className="px-3 py-3 text-center text-[var(--app-muted)]">
+                    Nenhuma escala planejada para esta viagem.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </MetricSection>
   )
@@ -425,49 +432,6 @@ export function VoyageVisaoTab({
   )
 }
 
-function formatPlanDate(value: string | null | undefined) {
-  return value ? formatDate(value) : '—'
-}
-
-/** Data efetiva: ✓ e cor de concluído, para não depender só da cor. */
-function ActualDate({ value }: { value: string | null | undefined }) {
-  if (!value) return <>—</>
-  return <span className="app-date--actual">✓ {formatDate(value)}</span>
-}
-
-function ArrivalCell({ reading }: { reading: ArrivalReading }) {
-  if (reading.state === 'omitted') {
-    return (
-      <div className="app-voyage-date">
-        <Badge tone="warning">OMIT</Badge>
-        <span className="app-voyage-date__caption">{reading.caption}</span>
-      </div>
-    )
-  }
-  return (
-    <div className={`app-voyage-date app-voyage-date--${reading.state}`}>
-      <span className="app-voyage-date__value">
-        {reading.state === 'actual' ? <ActualDate value={reading.date} /> : reading.date ? formatDate(reading.date) : '—'}
-      </span>
-      <span className="app-voyage-date__caption">
-        {reading.state === 'overdue' ? <AlertTriangle size={12} aria-hidden="true" /> : null}
-        {reading.caption}
-      </span>
-    </div>
-  )
-}
-
-function DepartureCell({ reading }: { reading: DepartureReading }) {
-  return (
-    <div className={`app-voyage-date app-voyage-date--${reading.state}`}>
-      <span className="app-voyage-date__value">
-        {reading.state === 'actual' ? <ActualDate value={reading.date} /> : reading.date ? formatDate(reading.date) : '—'}
-      </span>
-      {reading.caption !== '—' ? <span className="app-voyage-date__caption">{reading.caption}</span> : null}
-    </div>
-  )
-}
-
 function EscalaOperationMarkers({ row }: { row: VoyageEscalaSchedule }) {
   const markers = [
     row.temImportacao ? <Badge key="importacao" tone="blue">Importação</Badge> : null,
@@ -476,23 +440,22 @@ function EscalaOperationMarkers({ row }: { row: VoyageEscalaSchedule }) {
     // granito é modalidade de carga da exportação, não uma operação à parte.
   ].filter(Boolean)
 
-  if (!markers.length) return <span className="text-[var(--app-muted)]">—</span>
+  if (!markers.length) return <span className="text-[var(--app-muted-soft)]">-</span>
 
   return <div className="flex max-w-[220px] flex-wrap items-center gap-1.5">{markers}</div>
 }
 
 function EscalaDivergenceWarning({ divergences }: { divergences: VoyageEscalaDivergence[] }) {
   return (
-    <div className="mt-1 flex flex-wrap gap-1.5">
+    <div className="mt-1 flex flex-wrap justify-center gap-1.5">
       {divergences.map((divergence, index) => (
         (() => {
           const field = formatDivergenceField(divergence.field)
           const fullMessage = `Divergência ${field}: POD ${formatDivergenceValue(divergence.podValue)} / ${divergence.source === 'pol' ? 'POL' : 'EXP'} ${formatDivergenceValue(divergence.sourceValue)}`
           return (
-            <span key={`${divergence.field}-${divergence.source}-${index}`} className="app-badge app-badge--yellow gap-1" title={fullMessage}>
+            <span key={`${divergence.field}-${divergence.source}-${index}`} className="app-badge app-badge--yellow !text-[var(--app-gold-strong)] gap-1" title={fullMessage}>
               <AlertTriangle size={12} aria-hidden="true" />
               {field} divergente
-              <span className="sr-only">: {fullMessage}</span>
             </span>
           )
         })()
@@ -503,39 +466,36 @@ function EscalaDivergenceWarning({ divergences }: { divergences: VoyageEscalaDiv
 
 function formatDivergenceField(field: VoyageEscalaDivergence['field']) {
   if (field === 'ceStatus') return 'CEs'
-  if (field === 'linked') return 'Vinculada'
+  if (field === 'linked') return 'VINCULADA'
   if (field === 'escalaNumber') return 'Nº Escala'
   return field.toUpperCase()
 }
 
 function formatDivergenceValue(value: VoyageEscalaDivergence['podValue'] | VoyageEscalaDivergence['sourceValue']) {
   if (value === null || value === '') return '-'
-  if (typeof value === 'boolean') return value ? 'Sim' : 'Não'
+  if (typeof value === 'boolean') return value ? 'SIM' : 'NÃO'
   return String(value)
 }
 
-// Cor só sinaliza a natureza do evento (concluído, informativo, atenção,
-// perda); o título do evento continua sendo a informação.
-type TimelineTone = 'success' | 'info' | 'warning' | 'danger'
-const TIMELINE_TONE: Record<VoyageTimelineEvent['kind'], TimelineTone> = {
-  import: 'success',
-  'baplie-import': 'success',
-  'escala-date': 'info',
-  'escala-terminal': 'info',
-  'escala-number': 'info',
-  'manifestos-linked': 'success',
-  'ce-status': 'info',
-  restow: 'warning',
-  'pod-added': 'success',
-  'divergence-resolved': 'success',
-  'divergence-opened': 'warning',
-  'pod-removed': 'danger',
-  'voyage-completed': 'success',
-  'ce-master': 'info',
-  'voyage-data': 'info',
-  'ce-coverage': 'success',
-  omission: 'danger',
-  'transshipment-info': 'info',
+const TIMELINE_DOT: Record<VoyageTimelineEvent['kind'], string> = {
+  import: '#2a9d63',
+  'baplie-import': '#0f766e',
+  'escala-date': '#1d4d88',
+  'escala-terminal': '#0e7490',
+  'escala-number': '#b8860b',
+  'manifestos-linked': '#2563a8',
+  'ce-status': '#7c3aed',
+  restow: '#d97706',
+  'pod-added': '#2a9d63',
+  'divergence-resolved': '#1f7a4d',
+  'divergence-opened': '#b45309',
+  'pod-removed': '#cf4b3f',
+  'voyage-completed': '#1f7a4d',
+  'ce-master': '#5b5fc7',
+  'voyage-data': '#64748b',
+  'ce-coverage': '#15803d',
+  omission: '#dc2626',
+  'transshipment-info': '#0f766e',
 }
 
 function formatTimelineMoment(value: string) {
@@ -567,31 +527,42 @@ function VoyageTimeline({
   const visibleEvents = expanded ? events : events.slice(0, TIMELINE_COLLAPSED_COUNT)
 
   return (
-    <section className="app-voyage-timeline">
-      <h3 className="app-voyage-timeline__heading">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          className="app-voyage-timeline__toggle"
-        >
-          <span>Linha do tempo</span>
-          {events.length ? <span className="app-voyage-timeline__count">{events.length} {events.length === 1 ? 'evento' : 'eventos'}</span> : null}
-          {open ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
-        </button>
-      </h3>
+    <section className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex min-h-11 w-full items-center justify-between gap-2 text-left"
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--app-muted)]">
+          <Clock size={16} />
+          Linha do tempo
+        </span>
+        {open ? (
+          <ChevronUp size={18} className="text-[var(--app-muted)]" />
+        ) : (
+          <ChevronDown size={18} className="text-[var(--app-muted)]" />
+        )}
+      </button>
       {open ? (
         events.length ? (
           <>
-            <ol className="app-voyage-timeline__list">
+            <ol className="mt-4 flex flex-col gap-2">
               {visibleEvents.map((event) => (
-                <li key={event.id} className={`app-voyage-timeline__event app-voyage-timeline__event--${TIMELINE_TONE[event.kind]}`}>
-                  <time className="app-voyage-timeline__moment" dateTime={event.at}>
+                <li
+                  key={event.id}
+                  className="relative flex flex-col gap-0.5 overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-3 pl-4 sm:flex-row sm:items-baseline sm:gap-3"
+                >
+                  <span
+                    className="absolute left-0 top-0 h-full w-1"
+                    style={{ backgroundColor: TIMELINE_DOT[event.kind] }}
+                  />
+                  <div className="shrink-0 text-xs text-[var(--app-muted-soft)] sm:w-36">
                     {formatTimelineMoment(event.at)}
-                  </time>
-                  <div className="app-voyage-timeline__body">
-                    <span className="app-voyage-timeline__title">{event.title}</span>
-                    <span className="app-voyage-timeline__detail">{event.detail}</span>
+                  </div>
+                  <div className="flex flex-1 flex-wrap items-baseline gap-x-2">
+                    <span className="text-sm font-semibold text-[var(--app-text)]">{event.title}</span>
+                    <span className="text-sm leading-snug text-[var(--app-muted)]">{event.detail}</span>
                   </div>
                 </li>
               ))}
@@ -600,14 +571,14 @@ function VoyageTimeline({
               <button
                 type="button"
                 onClick={() => setExpanded((value) => !value)}
-                className="app-voyage-timeline__more"
+                className="mt-3 text-sm font-medium text-[var(--app-link)] hover:underline"
               >
                 {expanded ? 'Mostrar menos' : `Mostrar todos os ${events.length} eventos`}
               </button>
             ) : null}
           </>
         ) : (
-          <p className="app-voyage-timeline__empty">Sem eventos registrados ainda.</p>
+          <div className="mt-3 text-sm text-[var(--app-muted)]">Sem eventos registrados ainda.</div>
         )
       ) : null}
     </section>

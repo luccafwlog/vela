@@ -64,14 +64,16 @@ export function BlHistoricoTab({ active, blId }: { active: boolean; blId?: strin
           <h2 id="bl-historico" className="app-bl-section-title">Histórico</h2>
           <span className="app-bl-facts__sub">Edições, containers, taxas, faturas e comunicados ao Cliente</span>
         </div>
-        {timeline.isLoading ? (
-          <p className="app-bl-facts__missing" role="status">Carregando histórico…</p>
-        ) : timeline.isError && !rows.length ? (
+        {timeline.isError && !timeline.isLoading ? (
+          // Falha parcial: os comunicados podem ter carregado e a linha do tempo não.
           <div className="app-bl-notice app-bl-notice--row" role="alert">
-            <span>Não foi possível carregar o histórico deste B/L.</span>
+            <span>{rows.length ? 'Parte do histórico deste B/L não carregou; a lista abaixo está incompleta.' : 'Não foi possível carregar o histórico deste B/L.'}</span>
             <Button variant="secondary" onClick={() => void timeline.refetch()}>Tentar novamente</Button>
           </div>
-        ) : rows.length ? (
+        ) : null}
+        {timeline.isLoading ? (
+          <p className="app-bl-facts__missing" role="status">Carregando histórico…</p>
+        ) : timeline.isError && !rows.length ? null : rows.length ? (
           <ol className="app-bl-history">
             {rows.map((row) => (
               <li key={row.key} className="app-bl-history__item">

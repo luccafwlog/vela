@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -70,5 +70,21 @@ describe('ProtectedRoute (estados de acesso)', () => {
     expect(screen.queryByText(/user_profiles/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Sair' }))
     expect(signOut).toHaveBeenCalledOnce()
+  })
+
+  it('mostra Recarregar perfil em andamento e impede repetir enquanto recarrega', async () => {
+    let finish: () => void = () => {}
+    const refreshProfile = vi.fn(() => new Promise<void>((resolve) => { finish = resolve }))
+    auth.value = { ...auth.value, profile: null, profileStatus: 'transient-error', refreshProfile }
+    renderAt('/restrita', {})
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recarregar perfil' }))
+    const busy = screen.getByRole('button', { name: /Recarregando|Recarregar perfil/ })
+    expect(busy.getAttribute('aria-busy')).toBe('true')
+    expect((busy as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(busy)
+    expect(refreshProfile).toHaveBeenCalledOnce()
+    await act(async () => { finish() })
+    expect(screen.getByRole('button', { name: 'Recarregar perfil' }).getAttribute('aria-busy')).toBeNull()
   })
 })

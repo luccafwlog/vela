@@ -55,6 +55,7 @@ export function BreakbulkManifestUploadModal({
 
   return (
     <FileImportModal
+      issuesFilename="manifesto-bb-issues.csv"
       title="Importar manifesto de carga solta (BB)"
       accept=".xlsx,.xls,.csv"
       parser={parseManifest}

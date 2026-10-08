@@ -232,13 +232,13 @@ describe('Clientes page behaviours', () => {
     expect(await screen.findByText('Cliente Importado')).toBeTruthy()
     expect(mocks.parseCustomerBaseFile).toHaveBeenCalledWith(file)
     expect(mocks.compareCustomerBaseWithExisting).toHaveBeenCalledWith(parsedBase)
-    await user.click(within(screen.getByRole('dialog', { name: 'Importar Base de Clientes' })).getByRole('button', { name: 'Importar base' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Importar base de clientes' })).getByRole('button', { name: 'Importar base' }))
 
     await waitFor(() => expect(mocks.importCustomerBaseRows).toHaveBeenCalledWith(parsedBase.rows, { changedBy: 'user-1' }))
     for (const queryKey of [['customers'], ['customer-lookup'], ['bls']]) {
       expect(invalidateQueries).toHaveBeenCalledWith({ queryKey })
     }
-    expect(screen.queryByRole('dialog', { name: 'Importar Base de Clientes' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Importar base de clientes' })).toBeNull()
 
     await user.click(screen.getByRole('button', { name: 'Importar base' }))
     expect(screen.queryByText('Arquivo selecionado: clientes.csv')).toBeNull()

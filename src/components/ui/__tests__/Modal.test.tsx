@@ -69,3 +69,21 @@ it('aplica a largura pedida sem afetar o padrão largo', () => {
   )
   expect(screen.getByRole('dialog').className).toContain('app-modal--sm')
 })
+
+it('mantém Shift+Tab dentro do modal quando o foco inicial está no título', async () => {
+  const user = userEvent.setup()
+  render(
+    <>
+      <button type="button">Fora do modal</button>
+      <Modal open title="Detalhe da fatura" onClose={() => {}}>
+        <p>Total R$ 10,00</p>
+        <button type="button">Imprimir</button>
+      </Modal>
+    </>,
+  )
+  expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Detalhe da fatura' }))
+
+  await user.tab({ shift: true })
+
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Imprimir' }))
+})

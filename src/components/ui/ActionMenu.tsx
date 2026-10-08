@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type 
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/utils'
 
-export type BlMenuItem = {
+export type ActionMenuItem = {
   key: string
   label: string
   icon?: ReactNode
@@ -16,17 +16,13 @@ export type BlMenuItem = {
 type Position = { top: number; left: number }
 
 /**
- * Botão com menu suspenso ("Importar", "Mais ações") da lista e da ficha do
- * B/L. O painel é `position: fixed` para não ser recortado pela rolagem da
+ * Menu suspenso do design system ("Importar", "Mais ações", ⋮ da linha). O painel é `position: fixed` para não ser recortado pela rolagem da
  * tabela; abre focando o primeiro item, percorre com setas, Home e End, fecha
  * com Escape ou Tab e devolve o foco ao botão quando o fechamento veio do
  * teclado ou de um item.
- *
- * ponytail: menu local da etapa 05, sobre a classe `app-floating-menu` que a
- * página já usava. O design system ainda não tem menu (pendência da 01); quando
- * tiver, este componente vira um consumidor dele.
+ * Itens têm 44 px no toque (`.app-floating-menu` em index.css).
  */
-export function BlMenu({
+export function ActionMenu({
   label,
   trigger,
   items,
@@ -38,7 +34,7 @@ export function BlMenu({
   label: string
   /** Conteúdo visível do botão (ícone, texto). */
   trigger: ReactNode
-  items: BlMenuItem[]
+  items: ActionMenuItem[]
   triggerClassName?: string
   /** `end` alinha a borda direita do menu ao botão; `start`, a esquerda. */
   align?: 'start' | 'end'

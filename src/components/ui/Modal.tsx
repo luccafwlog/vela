@@ -77,7 +77,9 @@ export function Modal({
       const last = focusable[focusable.length - 1]
       if (focusable.length === 0) { e.preventDefault(); return }
       if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last?.focus() }
+        // O título (tabIndex -1) recebe o foco inicial dos modais de leitura e
+        // fica fora de getFocusable(); sem esta checagem, Shift+Tab saía do modal.
+        if (document.activeElement === first || document.activeElement === titleRef.current) { e.preventDefault(); last?.focus() }
       } else {
         if (document.activeElement === last) { e.preventDefault(); first?.focus() }
       }

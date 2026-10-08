@@ -9,7 +9,7 @@ import { VoyageCreateModal } from '../components/shared/VoyageCreateModal'
 import { EscalaModal, PolScheduleModal, type EscalaModalData } from '../components/shared/VoyageScheduleModals'
 import { Modal } from '../components/ui/Modal'
 import { Field, Input } from '../components/ui/Input'
-import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyageDetail, useVoyages } from '../hooks/useBls'
@@ -82,9 +82,8 @@ export function Viagens() {
   const { showToast } = useToast()
   const { user, profile } = useAuth()
   const canEditVoyages = Boolean(profile || user)
-  const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
-  const { data, isLoading, error } = useVoyages()
+  const { data, isLoading, error, refetch: refetchVoyages } = useVoyages()
   const [open, setOpen] = useState(false)
   const [editingVoyageId, setEditingVoyageId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -150,6 +149,7 @@ export function Viagens() {
     data: selectedVoyageDetail,
     isLoading: isSelectedVoyageLoading,
     error: selectedVoyageError,
+    refetch: refetchSelectedVoyage,
   } = useVoyageDetail(selectedVoyageId)
 
   const voyages = useMemo(() => data ?? [], [data])
@@ -279,15 +279,9 @@ export function Viagens() {
   }
 
   async function handleCancelVoyage() {
+    // O próprio modal de cancelamento é a confirmação: motivo, consequência,
+    // Voltar e "Cancelar viagem"; não abre outro modal por cima.
     if (!cancellingVoyageId || !user?.id || !cancellationReason.trim()) return
-    const accepted = await confirm({
-      title: 'Confirmar cancelamento',
-      message: 'A viagem será mantida para rastreabilidade e ficará com status Cancelada.',
-      confirmLabel: 'Cancelar viagem',
-      tone: 'danger',
-    })
-    if (!accepted) return
-
     setCancelling(true)
     try {
       await cancelVoyage({ voyageId: cancellingVoyageId, reason: cancellationReason, changedBy: user.id })
@@ -323,7 +317,7 @@ export function Viagens() {
         ]} />
       ) : null}
 
-      {error ? <InlineError message="Não foi possível carregar as viagens. Recarregue a página para tentar novamente." /> : null}
+      {error && data ? <InlineError message="Não foi possível atualizar as viagens; a faixa mostra a última lista carregada." /> : null}
 
       <VoyageFilters
         filters={filters}
@@ -338,6 +332,13 @@ export function Viagens() {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
         {isLoading ? (
           <SkeletonCard lines={3} />
+        ) : error && !data ? (
+          // Erro de consulta não pode aparecer como "Nenhuma viagem".
+          <EmptyState
+            title="Não foi possível carregar as viagens"
+            description="A consulta falhou; nenhuma viagem foi alterada."
+            action={<Button variant="secondary" onClick={() => void refetchVoyages()}>Tentar novamente</Button>}
+          />
         ) : (
           <VoyageRail
             items={visibleRailItems}
@@ -359,7 +360,8 @@ export function Viagens() {
         ) : selectedVoyageError ? (
           <EmptyState
             title="Não foi possível abrir esta viagem"
-            description="A consulta do detalhe falhou. Recarregue a página para tentar novamente."
+            description="A consulta do detalhe falhou; nada foi alterado."
+            action={<Button variant="secondary" onClick={() => void refetchSelectedVoyage()}>Tentar novamente</Button>}
           />
         ) : selectedVoyage ? (
           <VoyageCard
@@ -435,13 +437,14 @@ export function Viagens() {
           <p className="text-sm text-[var(--app-text)]">
             A viagem fica Cancelada e somente leitura, mantida com seus vínculos para rastreabilidade. Ela sai do Line-Up e da Programação do Portal.
           </p>
+          <p className="text-sm text-[var(--app-muted)]">Para desfazer, use Reativar viagem na ficha.</p>
           <Field label="Motivo do cancelamento" required hint="Fica registrado na auditoria da viagem.">
             <Input value={cancellationReason} onChange={(event) => setCancellationReason(event.target.value)} />
           </Field>
           <div className="app-modal__actions">
             <Button type="button" variant="secondary" onClick={() => { setCancellingVoyageId(null); setCancellationReason('') }}>Voltar</Button>
             <Button type="submit" variant="danger" loading={cancelling} loadingLabel="Cancelando…" disabled={!cancellationReason.trim()}>
-              Continuar
+              Cancelar viagem
             </Button>
           </div>
         </form>

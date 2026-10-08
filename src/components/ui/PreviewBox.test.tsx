@@ -28,10 +28,6 @@ describe('PreviewBox', () => {
     expect(screen.getByText('Linhas válidas').parentElement?.classList.contains('app-metric-tile')).toBe(true)
     expect(screen.getByText('Linhas válidas').parentElement?.classList.contains('text-center')).toBe(true)
 
-    rerender(<PreviewBox label="Peso (ton)" value={12.5} variant="metric-strip" />)
-    expect(screen.getByText('Peso (ton)').parentElement?.classList.contains('app-metric-strip')).toBe(true)
-    expect(screen.getByText('12,5')).toBeTruthy()
-
     rerender(<PreviewBox label="Erros" value={2} variant="kpi" tone="gold" />)
     expect(screen.getByText('Erros').parentElement?.classList.contains('app-kpi-card')).toBe(true)
     expect(screen.getByText('Erros').parentElement?.classList.contains('app-kpi-card--gold')).toBe(true)

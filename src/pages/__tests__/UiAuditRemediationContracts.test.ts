@@ -19,13 +19,9 @@ describe('contratos das telas remediadas', () => {
   })
 
   it('mantém 44px na área de acionamento do expansor de atracações', () => {
-    // Etapa 03: o expansor virou o texto "N atracações"; o alvo de 44 px no
-    // toque passou para a regra de ponteiro grosso do CSS da Viagem.
     const source = fs.readFileSync('src/components/voyages/VoyageVisaoTab.tsx', 'utf8')
-    const css = fs.readFileSync('src/index.css', 'utf8')
-    expect(source).toContain('className="app-voyage-plan__toggle"')
+    expect(source).toContain('min-h-11 min-w-11')
     expect(source).not.toContain('h-5 w-5')
-    expect(css).toMatch(/@media \(pointer: coarse\) \{\s*\.app-voyage-plan__toggle \{\s*min-height: 44px;\s*min-width: 44px;/)
   })
 
   it('usa mensagens amigáveis e terminologia padronizada em faturas', () => {
