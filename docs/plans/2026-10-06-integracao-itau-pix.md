@@ -18,10 +18,11 @@ pela rotina oficial, fatura paga e saldo zero confirmados no banco.
 Nova avulsa INV-2026-0005 de R$ 0,20 baixada pelo cron em cerca de 58 s,
 sem reprocessamento manual; pagamento único e saldo zero confirmados.
 Dono confirmou visualização e recibo Demurrage no Portal.
-Pendentes: backup externo e prova financeira individual. Baixa Demurrage pelo cron
+Pendentes: backup externo do PFX e conferência do recibo da individual no Portal. Baixa Demurrage pelo cron
 confirmada em cerca de 40 s, com histórico de pagamento e câmbio congelado.
 Criação/expiração das duas cobranças anteriores à v7 corrigidas com autorização.
-Individual de teste INV-2026-0006 emitida por R$ 0,20, pagamento pendente.
+Individual de teste INV-2026-0006 de R$ 0,20 paga às 20:38:28 UTC de 07/10 e baixada
+pelo cron (v7) em cerca de 33 s: fatura paga, pagamento e recebimento únicos.
 Job de PTAX validado e agendado.
 **Substitui:** a PR 827 (`codex/itau-pix-simulation`) como caminho de entrega.
 Os planos daquela branch nunca chegaram à `main`; o que vale deles está
@@ -500,6 +501,7 @@ de COB e leitura de Pix. Seis secrets `ITAU_*` cadastrados pelo dono.
 
 | Data | Evento |
 |---|---|
+| 2026-10-08 | Correção do registro: ao contrário das linhas de 08/10 que a dão como pendente, INV-2026-0006 já estava paga. Leitura no banco: pagamento de R$ 0,20 às 20:38:28 UTC de 07/10, recebimento `E18236120202610072038s0016c11e32` gravado `settled` às 20:39:01 UTC (~33 s, ainda na v7), sem análise; um único pagamento (id 4), cobrança id 5 `concluded`, fatura `paid`. Minuto UTC do `endToEndId` coincide com o horário gravado. Prova financeira da individual concluída no banco; recibo no Portal não conferido pelo agente. A baixa de pagamento novo pela v8 segue não observada. |
 | 2026-10-08 | Conferência somente de leitura do primeiro ciclo com `itau-pix` v8: 10 ciclos de `itau-pix-queue` entre 00:42 e 00:51 UTC, todos `succeeded` com HTTP 200, sem erro em cobranças nem em recebimentos (nenhum "Horário do Itaú no futuro" ou "diverge do endToEndId"); checkpoint avançando a cada minuto até 00:51:00 UTC. Nenhum recebimento nem cobrança nova no intervalo, então a baixa de pagamento novo pela v8 ainda não foi observada. INV-2026-0006 segue com pagamento pendente. |
 | 2026-10-08 | Com autorização explícita do dono, publicada `itau-pix` v8 ACTIVE a partir do commit `2bd161dd` do PR 890 (CI verde), `verify_jwt=false`. Código remoto baixado e idêntico ao do commit, com as travas de horário no futuro e de `endToEndId`. Sem bearer: HTTP 403. Primeiro ciclo do cron com a v8 ainda não conferido no banco. |
 | 2026-10-08 | Revisão do PR 890: cliente passa a recusar horário do Itaú mais de 5 min no futuro (sinal de que o banco corrigiu o `Z` e a conversão de Brasília somaria 3 h). Consulta e fila param com erro visível, sem baixa nem checkpoint. Regressão falhou sem a guarda e passou com ela (31 testes Itaú). Revisão seguinte: a guarda de futuro não pega UTC verdadeiro com mais de 3 h na recuperação de atraso; a baixa passa a conferir o horário com o minuto UTC do `endToEndId` (tolerância 1 h). Regressão de atraso falhou sem a conferência e passou com ela (32 testes Itaú). Não publicado na Edge. |
