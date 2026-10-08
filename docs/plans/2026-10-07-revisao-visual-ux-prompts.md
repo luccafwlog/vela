@@ -1,7 +1,7 @@
 # Revisão visual e UX do Vela e Portal — pacote de prompts
 
 Data: 2026-10-07. Base inspecionada: `main`, commit `0160605a`, checkout inicialmente sem diff.
-Estado: etapas 00, 01 e 02 concluídas em 2026-10-07 e 03 e 04 em 2026-10-08 (direção visual, inventário, tokens, primitivas, shells, acesso, Viagens e importações registrados abaixo); próxima: etapa 05.
+Estado: etapas 00, 01 e 02 concluídas em 2026-10-07 e 03, 04 e 05 em 2026-10-08 (direção visual, inventário, tokens, primitivas, shells, acesso, Viagens, importações e B/Ls registrados abaixo); próxima: etapa 06.
 
 ## O que este pacote cobre
 
@@ -612,6 +612,65 @@ Registro de 2026-10-08 sobre a base `834cc37d` (`main` após a PR 900), branch `
 - **Runtime:** antes (worktree do `main`) e depois em 1440 e 360 px (toque) para os modais de `/bls` (B/L container, B/L carga solta, Manifesto de carga solta, CE Mercante vazio e com prévia), `/clientes` (base vazia e com prévia), `/containers` (datas), a barra da Viagem 10 e os modais de Baplie e Veículos; depois, também datas com erros por linha, CE com cabeçalho inválido e Veículos, em 1440, 360 e tema escuro.
 - **Não verificado:** gravações reais (confirmar importação, resultado parcial vindo do servidor e efeitos pós-importação) só por teste automatizado; arraste real de arquivo no navegador (coberto por teste de DOM); leitor de tela real; zoom de 200%; telas de Baplie, Veículos e Granito fora do modal da Viagem.
 
+## Entrega da etapa 05 — BLs internos e ficha do B/L
+
+Registro de 2026-10-08 sobre a base `e04950db` (`main` após a PR 901), branch `claude/revisao-visual-ux-etapa-05`. Ambiente de evidência: o mesmo das etapas 03 e 04 (Postgres 16 descartável com todas as migrations, `validation_seed.sql`, `seed_audit.sql`, CNPJs normalizados, `sb-shim.cjs` e Vite com `.env.development.local`). Dados sintéticos só nesse banco: B/L de contêiner, carga solta, misto, sem cliente, sem CE, em transbordo (omissão criada pela função real `omit_voyage_escala` numa viagem 20) e 40 B/Ls de preenchimento para paginação. Nenhuma gravação foi confirmada no runtime.
+
+### O que mudou
+
+| Superfície | Antes (**Runtime**, salvo indicação) | Depois |
+|---|---|---|
+| Topo de `/bls` | Descrição de duas linhas; quatro botões de importação e exportação só com ícone; lente de modalidade solta acima dos filtros | Título sem descrição; **Importar** (menu com os quatro arquivos) e **Exportar** com rótulo e "Exportando…" |
+| Métricas | 12 cards de igual peso e uma nota de rodapé sobre os mistos; "Faturados" contava `ready_for_billing` (**Código**) | Três cards que filtram ao clique (Pendentes de revisão, Prontos para faturar, Sem faturamento, com `aria-pressed`); volumes numa `SummaryStrip` na barra da tabela; erro de resumo vira "—", não zero; "Inclui os mistos" só nas lentes que os incluem |
+| Lente de modalidade | Botões com `aria-pressed` e cores fixas. A duplicação com um filtro Modalidade do painel, apontada na 00, não existe no código: a lente era o único controle | `SegmentedControl` na barra da tabela; não conta como filtro do painel |
+| Linha da tabela | Link no número + "Abrir B/L" + ⋮ (com "Abrir detalhes") + seta: quatro caminhos; 69 px; "Padrão" em todas as linhas; cabeçalho "Fatura" cortado a 1440 | Número é o link; uma ação secundária visível (ver carga) e ⋮ com Copiar número e Excluir; colunas Cliente (com "Sem cliente vinculado"), Trecho, Carga (IMO/OOG só quando há) e "Taxas locais e fatura"; "Revisão pendente" e "Cancelado" sob o número; 49 px na primeira página medida |
+| Celular | Tabela de 920 px com o número cortado ("XPDU…") | Cartões: número inteiro, estado, Cliente, navio/viagem e trecho, carga e CE, taxa e fatura, ⋮ |
+| Estado da lista | Filtros só em memória: voltar da ficha perdia o recorte | Filtros, lente e página na URL (`blsListState.ts`); o "BLs" do breadcrumb volta ao último recorte da sessão |
+| Manifesto BB | Cartão de instruções e seis `PreviewBox` (pendência da 04) | `ImportGuide` + `SummaryStrip`; o modal saiu da página para `components/bl/BlBreakbulkManifestModal.tsx` |
+| Cabeçalho da ficha | Badge de modalidade solto, título em Syne, "Voltar aos BLs" repetindo o breadcrumb, Cancelar B/L com peso de ação principal | Tipo e modalidade em legenda, número em DM Sans 24/600, contexto (Navio/Viagem, trecho, CE, Cliente); **Reimportar B/L** e **Mais ações** (Copiar, Cancelar ou Reativar); faixa de B/L cancelado com data e motivo |
+| Situação | Cartões com borda e setas; rótulos em caixa alta; "Próxima ação" sem destino | `StepRail` nos dois trilhos (primeira etapa pendente como atual), próxima ação com o destino no link ("Resolver na Revisão", "Ir para Faturamento"); sem pendência, "Sem pendências documentais" |
+| Visão geral | Quatro cards (Transbordo, Embarque, Cliente e Portal, Terminal); badges "Herdado da escala", "Baplie não importado", "Não visível no Portal", "Conferido por CNPJ"; transbordo sem rótulos e datas ISO | Uma superfície com Embarque (terminal como fato, exceção sob demanda), Documento Mercante (CE do B/L e Manifesto Mercante vinculado), Carga por modalidade com Baplie em texto, Cliente e Portal; estados em texto com cor só quando pedem atenção. Bloco Transbordo/COD explica porto omitido, descarga, seguimento rotulado (dd/mm/aaaa) e o efeito do COD |
+| Carga | Cabeçalhos azul-marinho em caixa alta (`bg-[#0d1117]`), cinco badges de contagem, tabela de uma linha repetindo o resumo de carga solta | Uma superfície por aba, `SummaryStrip`, códigos em IBM Plex Mono, números à direita, divergência do Baplie em texto ("vale o B/L"); busca por chassi só com mais de oito veículos |
+| Detalhes do B/L | Até cinco colunas; Notify 2 e telefone como campos desativados; badge de revisão repetindo o trilho | Até três colunas; os dois campos do documento como dado; barra de salvar fixa enquanto há alteração, com "Salvando…" |
+| Faturamento | Quatro caixas de total; "Fatura ativa" como texto preto (regra `a { color: inherit }`); motivo de emissão bloqueada só no `title`; erro das taxas igual a vazio; faturas de Demurrage do trilho sem lugar na aba | Fatura com número, situação, tipo, total e **Abrir no Faturamento**; faixa de totais; motivo visível; erro com Tentar novamente; faturas de Demurrage do B/L e **Abrir em Demurrage**; Demurrage prevista com P1/P2 à vista |
+| Histórico | Badge de família e "Auditoria" em cada evento; carregando e erro mostravam "Nenhum evento" | Família e "auditado" como texto de apoio; carregando e falha distintos de vazio |
+| B/L inexistente | 406 no console e "B/L não encontrado ou erro ao consultar o Supabase" | `maybeSingle`: "não encontrado" com Voltar; falha real com Tentar novamente |
+
+### Medidas antes → depois (**Runtime**)
+
+- Primeira linha de dado em `/bls`: 647 → 429 px (1440), 924 → 558 px (768), 1358 → 555 px (360, cartões). Linha da tabela 69 → 49 px (1440).
+- `/bls` a 360 px: a tabela de 920 px rolava de lado dentro da área, com o número do B/L cortado; agora cada B/L é um cartão de 155 px, sem rolagem lateral.
+- Texto abaixo de 12 px: 0 em todas as rotas medidas, antes e depois. Nenhuma rolagem horizontal da página em 1440, 768 e 360 px. Nenhum erro de console depois (antes, o 406 do B/L inexistente).
+- **Divergência intencional:** a primeira linha de `/bls` continua abaixo dos 260 px do princípio 1, por causa dos três cards decisórios e da barra de filtros; a ficha é master-detail com trilho acima das abas (preservado pela 00).
+
+### Decisões
+
+- **A expansão da linha fica** como única ação secundária visível: compara a carga de vários B/Ls sem sair da lista, o que a ficha (um B/L) não faz.
+- **`BlReviewContextPanel` foi removido** com seu teste: o trilho Documental, a próxima ação e a seção Cliente cobrem pendência, motivo e caminho de correção.
+- **`BlRailsPipeline` migrou para o `StepRail`** da 01, como previa a matriz.
+- **Componentes novos com dono 05:** `bl/BlMenu.tsx` (menu suspenso local, sobre `app-floating-menu`), `bl/useNarrowViewport.ts`, `bl/blRailSteps.ts`, `bl/blOverviewPresentation.ts`, `bl/BlBreakbulkManifestModal.tsx` e `pages/blsListState.ts`. O CSS fica no bloco `.app-bl-*` no fim de `src/index.css`.
+- **Owners tocados fora da lista, só de leitura de dado:** `hooks/useBls.ts` (`useBlDetail` com `maybeSingle` e o número do Manifesto Mercante vinculado) e `pages/blDetalheHelpers.ts` (acentos de "Revisão obrigatória"). Testes de contrato de fonte (`UiAuditRemediationContracts`, `importOverrideWiring`) seguiram os arquivos movidos.
+- Consumidores conferidos sem alteração: `ReviewCustomerOnboarding` (07), `ManualChargeFormFields` (10), `OperationalBadges` e primitivas (01), modais de importação (04). Os componentes de `components/bl/` não têm consumidor fora de `/bls` e `/bls/:blId`.
+
+### Pendências para outros donos
+
+| Dono | Achado |
+|---|---|
+| 01 | Não há menu no design system; `BlMenu` pode virar a primitiva. `Textarea` não repassa `ref`, e o modal de COD usa o elemento nativo com as mesmas classes para o foco inicial. `StepRail` não tem estado de desvio (omissão), lido aqui como pendente com o texto da etapa. |
+| 01 | A regra `a { color: inherit }` fora de `@layer` (pendência da 02) continua; a 05 usa `.app-bl-link`. |
+| 07 | `ReviewCustomerOnboarding` embutido na ficha traz título próprio ("Cadastrar ou vincular cliente"); a ficha omite o seu para não repetir. |
+| 10 | `/taxas-locais?invoice=` é o destino de "Abrir no Faturamento"; o seed sintético tem fatura emitida sem taxas, o que dispara o aviso de divergência — conferir com dados reais. |
+| 11 | "Abrir em Demurrage" usa `?busca=<B/L>`; um parâmetro que abra a fatura direto seria mais preciso. |
+| 14 | Pendências documentais e motivos do Portal usam texto interno ("Conta do Portal não está ativa/provisionada"); o Portal não deve exibi-los ao Cliente. |
+| Negócio | `customers.pending_balance` aparece como "Saldo em aberto do Cliente"; a suspeita de divergência da 00 (15/19) vale também aqui. |
+
+### Evidência e limites
+
+- **Gates:** `npm run docs:check`, `typecheck`, `lint`, `build` e `a11y:contrast` (34/34) passaram; `npm test` passou em 716 arquivos (4.072 testes); `size-limit` 240,64 KiB no Vela e 207,76 KiB no Portal.
+- **Teste:** novos `blsListState.test.ts` (ida e volta da URL, links antigos, valores inválidos, rótulo "Pronto para faturar") e `blRailSteps.test.ts` (etapa atual, bloqueio, desvio, destino da próxima ação); `Bls.test.tsx` ganhou o menu Importar, o card que filtra e desfaz e a lente como grupo de rádio; `BlRailsPipeline.test.tsx` passou a ler o estado pelo `StepRail` e o caso sem pendência. Testes de rótulo ajustados ao novo texto.
+- **Runtime:** antes e depois em 1440, 768 e 360 px (toque) para `/bls`, a ficha de B/L de contêiner, em transbordo, sem cliente, misto (Carga), faturado (Faturamento), Detalhes, Histórico e B/L inexistente; tema escuro em `/bls`, transbordo, Faturamento e Carga. Interações exercidas: menu Importar (foco no primeiro item, Escape devolve o foco), card de pendentes filtrando e indo para a URL, ida à ficha e volta pelo breadcrumb ao mesmo recorte, modal de COD (foco na justificativa, Voltar), menu Mais ações e formulário de exceção de terminal.
+- **Não verificado:** gravações reais (vínculo de cliente, COD, exceção de terminal, cobrança manual, emissão, devolução, cancelamento) só por teste automatizado; B/L cancelado e com disputa aberta não existiam no seed; leitor de tela real; zoom de 200%; listas com centenas de B/Ls.
+
 ## Prompts por etapa
 
 Cada bloco abaixo é o prompt específico. Em uma sessão nova, envie também o contrato comum acima; com acesso a este arquivo, sua leitura é obrigatória.
@@ -963,7 +1022,7 @@ Preparação deste pacote: inventário estático e divisão de responsabilidades
 | 02 | Concluída em 2026-10-07 | Base `59dd88d9`; branch `claude/revisao-visual-ux-etapa-02` | Barra única no Vela e no Portal (topo 143→85 px no Vela desktop), versão no menu da conta, faixa de avisos sem corte, sinos com painel comum e estados de erro, telas de acesso e perfis revisados, `PasswordInput`, `PortalAccessHelp` e `StatusScreen` criados, acesso restrito com motivo. Ver "Entrega da etapa 02". Gates locais e `a11y:contrast` 34/34 verdes; runtime antes/depois em 1440, 768 e 360 px. Pendências para 01, 18 e decisões de negócio na mesma seção. Próxima: 03. |
 | 03 | Concluída em 2026-10-08 | Base `521183d3`; branch `claude/revisao-visual-ux-etapa-03` | Ficha da Viagem em superfície única com trilho de escalas, chegada/saída legíveis (prevista, real, vencida, não informada, OMIT, terminal dono), TV escura de alto contraste com CEs iguais ao Painel, programação do Portal e Chegadas e Saídas com células compartilhadas, erro distinto de vazio e cartões no celular; viagem inexistente sem 406. Ver "Entrega da etapa 03". Gates locais verdes: `docs:check`, `typecheck`, `lint`, `build`, `npm test` (712 arquivos, 4.052 testes) e `a11y:contrast` 34/34; paleta local da TV ≥ 7,5:1 sobre a superfície de dados. Runtime antes/depois em 1440, 768, 360 e TV 1920. Pendências para 01, 13, 19 e negócio na mesma seção. Próxima: 04. |
 | 04 | Concluída em 2026-10-08 | Base `834cc37d`; branch `claude/revisao-visual-ux-etapa-04` | Percurso comum de importação: área de arquivo com arraste, formatos e limite, motivo quando falta a viagem, leitura por fases sem porcentagem inventada, falhas e resultado parcial no modal com Concluir (B/L de container, datas, veículos, base de clientes), resumo de uma linha do que entra/muda/fica de fora, erros e avisos distintos, botões com verbo e objeto, cores semânticas no tema claro e escuro; painel de problemas duplicado removido em BLs e Vazios. Ver "Entrega da etapa 04". Gates locais verdes: `docs:check`, `typecheck`, `lint`, `build`, `npm test` (715 arquivos, 4.066 testes) e `a11y:contrast` 34/34. Runtime antes/depois em 1440 e 360 px e tema escuro. Pendências para 05, 06, 08, 20, 21, 01 e serviços na mesma seção. Próxima: 05. |
-| 05 | Não iniciada | — | — |
+| 05 | Concluída em 2026-10-08 | Base `e04950db`; branch `claude/revisao-visual-ux-etapa-05` | `/bls` com Importar em menu, três cards que filtram, faixa de resumo, lente segmentada, linha com uma ação secundária, cartões no celular e filtros na URL; ficha com cabeçalho do número, trilhos no `StepRail` e próxima ação com destino, Visão geral numa superfície (Embarque, Documento Mercante, Carga, Cliente e Portal), Transbordo/COD explicado, Faturamento ligado à fatura e à Demurrage, Histórico e B/L inexistente com estados distintos; `BlReviewContextPanel` removido. Ver "Entrega da etapa 05". Gates locais verdes: `docs:check`, `typecheck`, `lint`, `build`, `npm test` (716 arquivos, 4.072 testes) e `a11y:contrast` 34/34. Runtime antes/depois em 1440, 768 e 360 px e tema escuro. Pendências para 01, 07, 10, 11, 14 e negócio na mesma seção. Próxima: 06. |
 | 06 | Não iniciada | — | — |
 | 07 | Não iniciada | — | — |
 | 08 | Não iniciada | — | — |

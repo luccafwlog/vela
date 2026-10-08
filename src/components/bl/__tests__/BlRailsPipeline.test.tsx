@@ -19,10 +19,18 @@ describe('BlRailsPipeline', () => {
     expect(screen.getAllByText(/Pendente · bloqueia emissão e Portal/).length).toBe(2)
   })
 
-  it('expõe o estado do card para tecnologia assistiva mesmo quando o detalhe é curto', () => {
-    render(<MemoryRouter><BlRailsPipeline operational={[]} documental={[stage('customer', 'Cliente', 'blocked', 'Pendente de reconciliação')]} documentalSummary={{ pendingCount: 1, label: '1 pendência' }} nextAction={null} /></MemoryRouter>)
-    const card = screen.getByRole('group', { name: 'Cliente: Bloqueado. Pendente de reconciliação' })
-    expect(card).toBeTruthy()
-    expect(card.getAttribute('aria-label')).toBe('Cliente: Bloqueado. Pendente de reconciliação')
+  it('lê o estado de cada etapa em texto e diz para onde a próxima ação leva', () => {
+    render(<MemoryRouter><BlRailsPipeline operational={[stage('pol', 'Saída do POL', 'done'), stage('pod', 'Chegada ao POD', 'pending')]} documental={[stage('customer', 'Cliente', 'blocked', 'Pendente de reconciliação')]} documentalSummary={{ pendingCount: 1, label: '1 pendência' }} nextAction={{ key: 'customer', label: 'Cliente', detail: 'Pendente de reconciliação', state: 'blocked', href: '/revisao?bl=BL1' }} /></MemoryRouter>)
+    const documental = screen.getByRole('list', { name: 'Trilho documental' })
+    expect(documental.textContent).toContain('Pendente de reconciliação: Bloqueada')
+    const operational = screen.getByRole('list', { name: 'Trilho operacional' })
+    expect(operational.querySelector('[aria-current="step"]')?.textContent).toContain('Chegada ao POD')
+    expect(screen.getByRole('link', { name: /Resolver na Revisão/ }).getAttribute('href')).toBe('/revisao?bl=BL1')
+  })
+
+  it('sem pendência, confirma em vez de mostrar uma próxima ação vazia', () => {
+    render(<MemoryRouter><BlRailsPipeline operational={[]} documental={[stage('customer', 'Cliente', 'done', 'Cliente apto')]} documentalSummary={{ pendingCount: 0, label: 'Sem pendências' }} nextAction={null} /></MemoryRouter>)
+    expect(screen.getByRole('status').textContent).toContain('Sem pendências documentais')
+    expect(screen.queryByText(/Próxima ação/)).toBeNull()
   })
 })

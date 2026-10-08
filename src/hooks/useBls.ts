@@ -203,6 +203,7 @@ export function useBlDetail(blId?: string) {
           customer:customers!bls_customer_id_fkey(*),
           voyage:voyages(*, vessel:vessels(*, carrier:carriers(*))),
           terminal:depots!bls_terminal_pod_port_fk(id, name),
+          manifesto_mercante:manifestos_mercante!bls_manifesto_mercante_id_fkey(id, numero),
           bl_containers(*),
           bl_freight_lines(*),
           bl_breakbulk_items(*),
@@ -210,10 +211,11 @@ export function useBlDetail(blId?: string) {
         `,
         )
         .eq('id', blId!)
-        .single()
+        // maybeSingle: B/L inexistente é "não encontrado" (null), não erro 406.
+        .maybeSingle()
 
       if (error) throw error
-      return supabaseValue<BLDetail>(data)
+      return data ? supabaseValue<BLDetail>(data) : null
     },
   })
 }

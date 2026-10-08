@@ -19,35 +19,39 @@ const money = (currency: string | null, amount: number | null) =>
 export function BlFreightSection({ freightLines }: { freightLines: BlFreightLine[] }) {
   const sorted = [...freightLines].sort((a, b) => a.seq - b.seq)
   return (
-    <Card>
-      <h2 className="mb-1 text-lg font-semibold text-[var(--app-text-strong)]">Frete e despesas</h2>
-      <p className="mb-4 text-sm text-[var(--app-muted)]">Declarado pelo armador no B/L. Não é Taxa Local.</p>
-      {sorted.length === 0 ? (
-        <p className="text-sm text-[var(--app-muted)]">Nenhuma linha de frete importada. Use &quot;Importar B/L&quot; para carregar o documento.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase text-[var(--app-muted)]">
-                <th className="py-1 pr-3">#</th>
-                <th className="py-1 pr-3">Descrição</th>
-                <th className="py-1 pr-3 text-right">Valor</th>
-                <th className="py-1 pr-3">Pagamento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((line) => (
-                <tr key={line.seq} className="border-t border-[var(--app-border)]">
-                  <td className="py-1 pr-3 text-[var(--app-muted)]">{line.seq}</td>
-                  <td className="py-1 pr-3">{line.description}</td>
-                  <td className="py-1 pr-3 text-right tabular-nums">{money(line.currency, line.amount)}</td>
-                  <td className="py-1 pr-3">{line.payment ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <Card className="app-bl-sheet">
+      <section className="app-bl-sheet__section" aria-labelledby="bl-frete">
+        <div className="app-bl-section-head">
+          <h2 id="bl-frete" className="app-bl-section-title">Frete e despesas</h2>
+          <span className="app-bl-facts__sub">Declarado pelo armador no B/L. Não é Taxa Local.</span>
         </div>
-      )}
+        {sorted.length === 0 ? (
+          <p className="app-bl-facts__missing">Nenhuma linha de frete importada. Use &quot;Reimportar B/L&quot; para carregar o documento.</p>
+        ) : (
+          <div className="app-table-scroll">
+            <table className="app-table app-table--compact app-bl-subtable min-w-[520px]">
+              <thead>
+                <tr>
+                  <th scope="col" className="w-12">Nº</th>
+                  <th scope="col">Descrição</th>
+                  <th scope="col" className="text-right">Valor</th>
+                  <th scope="col">Pagamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((line) => (
+                  <tr key={line.seq}>
+                    <td className="tabular-nums text-[var(--app-muted)]">{line.seq}</td>
+                    <td>{line.description}</td>
+                    <td className="text-right tabular-nums">{money(line.currency, line.amount)}</td>
+                    <td>{line.payment ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </Card>
   )
 }

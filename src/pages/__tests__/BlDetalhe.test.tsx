@@ -117,8 +117,8 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
     // para a mesma modalidade.
     expect(screen.getAllByText('Misto').length).toBeGreaterThan(0)
 
-    // Botão Voltar para /bls
-    const backLinks = screen.getAllByRole('link').filter((l) => l.getAttribute('href') === '/bls')
+    // Volta para a lista pelo breadcrumb (o botão "Voltar aos BLs" repetia o caminho)
+    const backLinks = screen.getAllByRole('link').filter((l) => l.getAttribute('href')?.startsWith('/bls'))
     expect(backLinks.length).toBeGreaterThanOrEqual(1)
 
     // Indicação do terminal de descarga unificado
@@ -174,7 +174,7 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
     )
 
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-      'Visão Geral',
+      'Visão geral',
       'Carga',
       'Detalhes do B/L',
       'Faturamento',

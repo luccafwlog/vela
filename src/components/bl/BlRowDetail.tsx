@@ -21,20 +21,18 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
 
   return (
     <tr id={`bl-detail-${bl.id}`} data-row-detail className="bg-[var(--app-surface-muted)]">
-      <td colSpan={colSpan} className="px-4 py-4">
+      <td colSpan={colSpan} className="app-bl-row-detail">
         <div className="grid gap-5">
           {showContainers ? (
             <section className="grid gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">
-                Contêineres ({containers.length})
-              </h3>
+              <h3 className="app-bl-section-title">Contêineres ({containers.length})</h3>
               {containers.length ? (
                 <DetailTable
-                  headers={['Número', 'Tipo', 'Lacre', 'Tara (kg)', 'Peso bruto (kg)', 'CBM', 'Perfil', 'Descarga']}
+                  headers={['Número', 'Tipo', 'Lacre', 'Tara (kg)', 'Peso bruto (kg)', 'CBM (m³)', 'Perfil', 'Descarga']}
                   rows={containers.map((container, index) => ({
                     key: String(container.id ?? container.container_number ?? index),
                     cells: [
-                      <span className="font-semibold text-[var(--app-text-strong)]">{container.container_number || '—'}</span>,
+                      <span className="app-bl-code text-[var(--app-text-strong)]">{container.container_number || '—'}</span>,
                       container.type ?? '—',
                       container.seal_number ?? '—',
                       formatOptionalNumber(container.tare_weight_kg),
@@ -53,7 +51,7 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
 
           {showBreakbulk ? (
             <section className="grid gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--app-muted)]">Carga solta</h3>
+              <h3 className="app-bl-section-title">Carga solta</h3>
               <DetailTable
                 headers={['Máquinas', 'Packages', 'Total de packages', 'Peso (ton)', 'CBM (m³)']}
                 rows={[{
@@ -69,11 +67,11 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
               />
               {items.length ? (
                 <DetailTable
-                  headers={['Descrição', 'Packages', 'Unidade', 'Peso (kg)', 'CBM', 'Marcas']}
+                  headers={['Descrição', 'Packages', 'Unidade', 'Peso (kg)', 'CBM (m³)', 'Marcas']}
                   rows={items.map((item, index) => ({
                     key: String(item.id ?? `${item.item_description}-${index}`),
                     cells: [
-                      <span className="font-semibold text-[var(--app-text-strong)]">{item.item_description || '—'}</span>,
+                      <span className="font-medium text-[var(--app-text-strong)]">{item.item_description || '—'}</span>,
                       formatOptionalNumber(item.package_qty),
                       item.package_unit ?? '—',
                       formatOptionalNumber(item.gross_weight_kg),
@@ -94,7 +92,7 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
 }
 
 function ProfileCell({ isImo, isOog, imoClass }: { isImo: boolean; isOog: boolean; imoClass?: string | null }) {
-  if (!isImo && !isOog) return <span className="text-[var(--app-muted)]">Standard</span>
+  if (!isImo && !isOog) return <span className="text-[var(--app-muted)]">Padrão</span>
   return (
     <span className="flex flex-wrap gap-1">
       {isImo ? <Badge tone="red">{imoClass ? `IMO ${imoClass}` : 'IMO'}</Badge> : null}
@@ -121,11 +119,11 @@ function DetailTable({
 }) {
   return (
     <>
-      <table className="app-table app-table--compact app-table--dense hidden w-full text-left text-sm sm:table">
+      <table className="app-table app-table--compact app-table--dense hidden w-full text-left sm:table">
         <thead>
           <tr>
             {headers.map((header) => (
-              <th key={header} scope="col" className="px-2 py-1.5 text-xs uppercase text-[var(--app-muted)]">
+              <th key={header} scope="col">
                 {header}
               </th>
             ))}
@@ -135,7 +133,7 @@ function DetailTable({
           {rows.map((row) => (
             <tr key={row.key}>
               {row.cells.map((cell, index) => (
-                <td key={headers[index]} className="px-2 py-1.5">{cell}</td>
+                <td key={headers[index]}>{cell}</td>
               ))}
             </tr>
           ))}

@@ -9,7 +9,6 @@ import type { CargoMode } from '../../pages/blDetalheHelpers'
 import { formatNcm, listBlNcms } from '../../lib/ncm'
 import { normalizeText } from '../../lib/utils'
 import { parseNcmInput } from '../../hooks/useBlEditForm'
-import { REVIEW_STATUS_LABELS } from '../../lib/statusLabels'
 import type { BL, BLDetail } from '../../types/database'
 
 // Formulário de edição manual do B/L. O pai (BlDetalhe) mantém o estado do
@@ -62,7 +61,6 @@ export function BlOperacionalTab({
   }, [bl.manifest_customer_name, form.consignee])
   if (!active) return null
 
-  const reviewLabel = REVIEW_STATUS_LABELS[bl.review_status ?? 'ok'] ?? bl.review_status ?? 'ok'
   const number = (field: keyof BlForm, label: string) => (
     <Field label={label}>
       <Input type="number" value={(form[field] as string | number | null) ?? ''} onChange={(event) => onFieldChange(field, event.target.value)} />
@@ -77,9 +75,9 @@ export function BlOperacionalTab({
   return (
     <form onSubmit={onSubmit}>
       <Card>
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-[var(--app-text-strong)]">Dados do B/L</h2>
-          <Badge tone={bl.review_status === 'pending_review' ? 'yellow' : 'green'}>Revisão: {reviewLabel}</Badge>
+        <div className="app-bl-section-head mb-4">
+          <h2 className="app-bl-section-title">Dados do B/L</h2>
+          <span className="app-bl-facts__sub">Correção manual com justificativa. Reimportar o arquivo do B/L pode atualizar os dados comerciais.</span>
         </div>
 
         <div className="grid gap-6">
@@ -89,23 +87,28 @@ export function BlOperacionalTab({
               <Field
                 label="Consignatário"
                 hint={manifestConsigneeDiverges
-                  ? `O último manifesto importado declara "${bl.manifest_customer_name}". A reimportação preserva o consignatário do B/L de propósito (dado comercial), então a divergência fica visível aqui em vez de sobrescrever em silêncio.`
+                  ? `O último manifesto declara "${bl.manifest_customer_name}". A reimportação não sobrescreve o consignatário do B/L.`
                   : undefined}
               >
                 <Input value={form.consignee ?? ''} onChange={(event) => onFieldChange('consignee', event.target.value)} />
               </Field>
               {text('notify_party', 'Notify Party')}
-              <Field label="Notify 2">
-                <Input disabled value={bl.notify2_block ?? ''} />
-              </Field>
-              <Field label="Telefone do consignatário">
-                <Input disabled value={bl.consignee_phone ?? ''} />
-              </Field>
             </div>
+            {/* Vêm só do documento importado: dado, não campo editável. */}
+            <dl className="app-bl-facts mt-3">
+              <div className="app-bl-facts__item">
+                <dt>Notify 2</dt>
+                <dd>{bl.notify2_block || <span className="app-bl-facts__missing">—</span>}</dd>
+              </div>
+              <div className="app-bl-facts__item">
+                <dt>Telefone do consignatário</dt>
+                <dd>{bl.consignee_phone || <span className="app-bl-facts__missing">—</span>}</dd>
+              </div>
+            </dl>
           </Section>
 
           <Section title="Rota">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {text('place_of_receipt', 'Place of Receipt')}
               {text('pol', 'POL')}
               {text('pod', 'POD')}
@@ -116,7 +119,7 @@ export function BlOperacionalTab({
           </Section>
 
           <Section title="Documento">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Data de emissão">
                 <Input type="date" value={(form.bl_emission_date ?? '').slice(0, 10)} onChange={(event) => onFieldChange('bl_emission_date', event.target.value)} />
               </Field>
@@ -140,7 +143,7 @@ export function BlOperacionalTab({
                 as migrations 061 e 064 essas colunas medem só a carga
                 conteinerizada; a carga solta tem as suas. No B/L misto os dois
                 conjuntos aparecem e são independentes. */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {!isContainerMode ? (
                 <>
                   {number('bb_machine_qty', 'Máquinas')}
@@ -169,7 +172,7 @@ export function BlOperacionalTab({
                 />
                 {ncmCadastrado.length ? (
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {ncmCadastrado.map((ncm) => <Badge key={ncm} tone="slate">{ncm}</Badge>)}
+                    {ncmCadastrado.map((ncm) => <Badge key={ncm} tone="neutral">{ncm}</Badge>)}
                   </div>
                 ) : null}
                 {sugestaoAplicavel ? (
@@ -202,8 +205,8 @@ export function BlOperacionalTab({
           </Section>
         </div>
 
-        <div className="mt-6 grid gap-3 border-t border-[var(--app-border)] pt-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-          <Field label="Justificativa da alteração" hint="Obrigatória. Fica no histórico com o autor.">
+        <div className={`app-bl-savebar${changes.length ? ' app-bl-savebar--dirty' : ''}`}>
+          <Field label="Justificativa da alteração" required hint="Fica no histórico com o autor.">
             <Input
               value={justification}
               onChange={(event) => onJustificationChange(event.target.value)}
@@ -212,12 +215,12 @@ export function BlOperacionalTab({
           </Field>
           <div className="flex items-center gap-3">
             {changes.length ? (
-              <span className="text-sm text-[var(--app-muted)]">
+              <span className="app-bl-facts__sub" aria-live="polite">
                 {changes.length} {changes.length === 1 ? 'campo alterado' : 'campos alterados'}
               </span>
             ) : null}
-            <Button loading={saving} type="submit" disabled={!changes.length}>
-              <Save size={16} />
+            <Button loading={saving} loadingLabel="Salvando…" type="submit" disabled={!changes.length}>
+              <Save size={16} aria-hidden="true" />
               Salvar alterações
             </Button>
           </div>
@@ -230,7 +233,7 @@ export function BlOperacionalTab({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--app-muted)]">{title}</h3>
+      <h3 className="app-bl-subsection-title">{title}</h3>
       {children}
     </section>
   )

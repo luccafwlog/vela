@@ -1,8 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, GitBranch, RotateCcw, X } from 'lucide-react'
-import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
 import { Field, Select, Textarea } from '../ui/Input'
 
 export type BlTerminalOverrideOption = {
@@ -12,8 +9,9 @@ export type BlTerminalOverrideOption = {
   portId: number | null
 }
 
-// Terminal de descarga do B/L. Mostra o terminal em uso numa linha; o
-// formulário de exceção só abre quando alguém pede para alterar.
+// Terminal de descarga do B/L, como um fato do Embarque. Mostra o terminal em
+// uso e a origem (escala ou exceção deste B/L) em texto; o formulário de
+// exceção só abre quando alguém pede para alterar.
 export function BlTerminalOverrideCard({
   currentLabel,
   terminalId,
@@ -24,7 +22,8 @@ export function BlTerminalOverrideCard({
   error,
   onSave,
 }: {
-  currentLabel: string
+  /** Nome do terminal aplicado; vazio quando herda e a escala ainda não tem terminal. */
+  currentLabel: string | null
   terminalId: string | null
   podPortId: number | null
   options: BlTerminalOverrideOption[]
@@ -53,32 +52,27 @@ export function BlTerminalOverrideCard({
   }
 
   return (
-    <Card>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <GitBranch size={16} className="text-[var(--app-link)]" aria-hidden="true" />
-          <h3 className="text-sm font-semibold">Terminal de descarga</h3>
-          <span className="text-sm font-medium text-[var(--app-text-strong)]">{currentLabel}</span>
-          <Badge tone={isOverride ? 'yellow' : 'slate'}>{isOverride ? 'Exceção individual' : 'Herdado da escala'}</Badge>
-        </div>
-        {canEdit && !editing ? (
-          <Button type="button" variant="secondary" onClick={() => setEditing(true)}>
-            {isOverride ? 'Alterar exceção' : 'Definir exceção'}
-          </Button>
-        ) : null}
-      </div>
-      {isOverride ? (
-        <p className="mt-2 text-sm text-[var(--app-muted)]">
-          Este B/L está desviado da Frente de Operação. A alteração fica no histórico com autor e justificativa.
-        </p>
-      ) : null}
+    <div className="app-bl-facts__item app-bl-facts__wide app-bl-terminal">
+      <dt>Terminal de descarga</dt>
+      <dd>
+          <span className="app-bl-terminal__value">
+            <span>{currentLabel ?? (isOverride ? 'Terminal da exceção' : 'Padrão da escala')}</span>
+            {canEdit && !editing ? (
+              <button type="button" className="app-bl-text-button" onClick={() => setEditing(true)}>
+                {isOverride ? 'Alterar exceção' : 'Definir exceção'}
+              </button>
+            ) : null}
+          </span>
+          <span className={isOverride ? 'app-bl-facts__sub app-bl-tone--warning' : 'app-bl-facts__sub'}>
+            {isOverride ? 'Exceção deste B/L, fora da Frente de Operação' : 'Herdado da Frente de Operação do POD'}
+          </span>
 
       {editing && canEdit ? (
-        <div className="mt-4 border-t border-[var(--app-border)] pt-4">
-          <p className="mb-4 text-sm text-[var(--app-muted)]">
-            O terminal vem da Frente de Operação do POD. Use uma exceção somente quando este B/L tiver um destino operacional diferente.
+        <div className="app-bl-terminal__form">
+          <p className="app-bl-terminal__intro">
+            Use uma exceção só quando este B/L descarrega em outro terminal. Fica no histórico com autor e justificativa.
           </p>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             <Field label="Terminal aplicado">
               <Select value={selectedTerminalId} onChange={(event) => setSelectedTerminalId(event.target.value)}>
                 <option value="">Herdar da Frente de Operação</option>
@@ -89,20 +83,18 @@ export function BlTerminalOverrideCard({
                 ))}
               </Select>
             </Field>
-            <Field label="Justificativa" hint="Obrigatória para definir ou remover a exceção.">
+            <Field label="Justificativa" required hint="Obrigatória para definir ou remover a exceção.">
               <Textarea
                 rows={2}
+                aria-required="true"
                 value={justification}
                 onChange={(event) => setJustification(event.target.value)}
-                placeholder="Explique por que este B/L deve usar outro terminal."
+                placeholder="Por que este B/L usa outro terminal?"
               />
             </Field>
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={cancel}>
-              <X size={14} />
-              Cancelar
-            </Button>
+          <div className="app-bl-terminal__actions">
+            <Button type="button" variant="ghost" onClick={cancel}>Voltar</Button>
             {isOverride ? (
               <Button
                 type="button"
@@ -110,23 +102,25 @@ export function BlTerminalOverrideCard({
                 disabled={saving || !justification.trim()}
                 onClick={() => onSave?.({ terminalId: null, podPortId: null, justification: justification.trim() })}
               >
-                <RotateCcw size={14} />
-                Voltar à escala
+                Remover exceção
               </Button>
             ) : null}
-            <Button
-              type="button"
-              loading={saving}
-              disabled={!canSubmit}
-              onClick={() => onSave?.({ terminalId: selectedTerminalId || null, podPortId: selectedPortId, justification: justification.trim() })}
-            >
-              <AlertTriangle size={14} />
-              {selectedTerminalId || !isOverride ? 'Salvar exceção' : 'Remover exceção'}
-            </Button>
+            {selectedTerminalId ? (
+              <Button
+                type="button"
+                loading={saving}
+                loadingLabel="Salvando…"
+                disabled={!canSubmit}
+                onClick={() => onSave?.({ terminalId: selectedTerminalId, podPortId: selectedPortId, justification: justification.trim() })}
+              >
+                Salvar exceção
+              </Button>
+            ) : null}
           </div>
         </div>
       ) : null}
-      {error ? <p className="mt-3 text-sm text-red-300" role="alert">{error}</p> : null}
-    </Card>
+      {error ? <p className="app-bl-error" role="alert">{error}</p> : null}
+      </dd>
+    </div>
   )
 }

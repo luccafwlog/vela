@@ -23,13 +23,13 @@ describe('BlTransshipmentCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /Marcar COD/ }))
 
     expect(screen.getByRole('dialog')).toBeTruthy()
-    expect(document.activeElement).toBe(screen.getByLabelText('Justificativa'))
+    expect(document.activeElement).toBe(screen.getByLabelText(/Justificativa/))
     expect(screen.getByText(/altera o destino final/i)).toBeTruthy()
     expect(screen.getByText(/notifica o cliente quando houver cliente vinculado/i)).toBeTruthy()
 
     const confirm = screen.getByRole('button', { name: /Confirmar COD/ }) as HTMLButtonElement
     expect(confirm.disabled).toBe(true)
-    fireEvent.change(screen.getByLabelText('Justificativa'), { target: { value: 'Cliente solicitou o novo destino' } })
+    fireEvent.change(screen.getByLabelText(/Justificativa/), { target: { value: 'Cliente solicitou o novo destino' } })
     expect(confirm.disabled).toBe(false)
     fireEvent.click(confirm)
 
@@ -37,7 +37,7 @@ describe('BlTransshipmentCard', () => {
   })
   it('exibe reversao quando disposicao e COD', () => {
     render(<MemoryRouter><BlTransshipmentCard omission={omission} disposition="cod" saving={false} onCod={vi.fn()} onRestore={vi.fn()} /></MemoryRouter>)
-    expect(screen.getByText(/COD SANTOS/)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'COD para SANTOS' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Reverter para transbordo/ })).toBeTruthy()
   })
   it('exige confirmacao e justificativa para reverter COD', () => {
@@ -47,7 +47,7 @@ describe('BlTransshipmentCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /Reverter para transbordo/ }))
 
     expect(screen.getByRole('dialog')).toBeTruthy()
-    expect(document.activeElement).toBe(screen.getByLabelText('Justificativa'))
+    expect(document.activeElement).toBe(screen.getByLabelText(/Justificativa/))
     expect(screen.getByText(/restaura o destino original/i)).toBeTruthy()
     expect(screen.getByText(/notifica o cliente sobre a correção quando houver cliente vinculado/i)).toBeTruthy()
 
@@ -55,7 +55,7 @@ describe('BlTransshipmentCard', () => {
     expect(confirm.disabled).toBe(true)
     expect(onRestore).not.toHaveBeenCalled()
 
-    fireEvent.change(screen.getByLabelText('Justificativa'), { target: { value: '  Cliente confirmou a restauração do destino  ' } })
+    fireEvent.change(screen.getByLabelText(/Justificativa/), { target: { value: '  Cliente confirmou a restauração do destino  ' } })
     expect(confirm.disabled).toBe(false)
     expect(onRestore).not.toHaveBeenCalled()
 

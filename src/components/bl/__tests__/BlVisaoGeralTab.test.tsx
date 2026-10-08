@@ -64,7 +64,7 @@ describe('BlVisaoGeralTab — status do Baplie', () => {
 
   it('mostra contagem de divergencias quando reconciliado com achados', () => {
     renderTab({ state: 'reconciled', divergenceCount: 3 })
-    expect(screen.getByText('3 divergência(s) Baplie')).toBeTruthy()
+    expect(screen.getByText('3 divergências com o Baplie')).toBeTruthy()
   })
 })
 
@@ -84,7 +84,7 @@ describe('BlVisaoGeralTab — transbordo e COD', () => {
         />
       </MemoryRouter>,
     )
-    expect(screen.getByText('Transbordo / COD')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Transbordo' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Marcar COD/ })).toBeTruthy()
   })
 })

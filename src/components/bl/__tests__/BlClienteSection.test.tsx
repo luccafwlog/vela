@@ -46,7 +46,7 @@ beforeEach(() => vi.clearAllMocks())
 
 function clickManifestLink() {
   render(<MemoryRouter><BlClienteSection bl={bl as never} /></MemoryRouter>)
-  fireEvent.click(screen.getByRole('button', { name: 'Vincular' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Vincular este cliente' }))
 }
 
 describe('vínculo do cliente na ficha do B/L', () => {
@@ -104,10 +104,12 @@ it('preserva o cadastro concluído e oferece nova tentativa quando o convite fal
 })
 
 it('reúne cliente e situação do Portal na mesma superfície', () => {
+  // Seção dentro da superfície da Visão geral: nenhum card próprio.
   const { container } = render(<MemoryRouter><BlClienteSection bl={bl as never} portalStatus={{ visibility: { visible: false, reasons: ['Sem CE Mercante'] }, notifications: [], openDisputes: [] }} /></MemoryRouter>)
-  expect(screen.getByText('Cliente e Portal')).toBeTruthy()
+  expect(screen.getByRole('heading', { name: 'Cliente' })).toBeTruthy()
+  expect(screen.getByRole('heading', { name: 'Portal' })).toBeTruthy()
   expect(screen.getByText('Sem CE Mercante')).toBeTruthy()
-  expect(container.querySelectorAll('section.app-surface').length).toBe(1)
+  expect(container.querySelectorAll('section.app-surface').length).toBe(0)
 })
 
 it('não executa o cadastro da Revisão quando a confirmação é recusada', async () => {
@@ -125,7 +127,7 @@ it('permite convidar o cliente de B/L já revisado sem refazer o vínculo', asyn
   render(<MemoryRouter><BlClienteSection bl={{ ...bl, review_status: 'ok', customer_id: 42, customer: { id: 42, name: 'ACME', cnpj_cpf: bl.manifest_customer_cnpj_cpf } } as never} portalStatus={{ visibility: { visible: false, reasons: ['Conta do Portal não está ativa/provisionada'] }, notifications: [], openDisputes: [] }} /></MemoryRouter>)
   fireEvent.click(screen.getByRole('button', { name: 'Enviar convite do Portal' }))
   fireEvent.change(screen.getByLabelText('E-mail do convite'), { target: { value: ' Portal@acme.test ' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Confirmar envio do convite' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar convite' }))
   await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Convite do Portal iniciado.', 'success'))
   expect(mocks.invite).toHaveBeenCalledWith(42, 'portal@acme.test')
   expect(mocks.onboard).not.toHaveBeenCalled()
