@@ -134,13 +134,32 @@ export type BaplieReimportResult =
       vaziosReplaced: boolean
       /** Baplie gravado, mas IMO/OOG não chegaram aos B/Ls: falha parcial que a tela mostra. */
       flagsError: string | null
+      /**
+       * Baplie gravado, mas o recadastro dos vazios falhou. Reimportar o mesmo
+       * arquivo não refaz os vazios (sem diferença, eles não são tocados): a tela
+       * oferece `retryBaplieVazios`.
+       */
+      vaziosError: string | null
     }
 
-export function baplieImportToast(result: Exclude<BaplieReimportResult, { status: 'cancelled' }>): string {
+export type BaplieImportDone = Exclude<BaplieReimportResult, { status: 'cancelled' }>
+
+export function baplieImportToast(result: BaplieImportDone): string {
   if (result.status === 'unchanged') {
     return `Baplie reimportado sem diferenças (${result.staged} container(s)). Vazios e Nº do manifesto Mercante mantidos.`
   }
   return `Baplie importado: ${result.staged} container(s) em staging.${result.vaziosReplaced ? ' Vazios de importação recadastrados.' : ''}`
+}
+
+/** Baplie gravado com pendência (IMO/OOG ou vazios): o modal fica aberto com este aviso. */
+export function hasBapliePendency(result: BaplieImportDone) {
+  return Boolean(result.flagsError || result.vaziosError)
+}
+
+export function baplieFootnoteForPendency(result: BaplieImportDone) {
+  if (result.flagsError && result.vaziosError) return 'Baplie gravado; faltam IMO/OOG nos B/Ls e os vazios.'
+  if (result.vaziosError) return 'Baplie gravado; faltam os vazios de importação.'
+  return 'Baplie gravado; falta aplicar IMO/OOG aos B/Ls.'
 }
 
 /**
@@ -148,13 +167,22 @@ export function baplieImportToast(result: Exclude<BaplieReimportResult, { status
  * físicas aos bl_containers da viagem. A falha não desfaz o staging já gravado;
  * volta como texto para a tela avisar. Reimportar o mesmo arquivo refaz a aplicação.
  */
+function errorText(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : String((error as { message?: unknown })?.message ?? fallback)
+}
+
 async function applyFlagsAfterStaging(voyageId: number, actorId: string): Promise<string | null> {
   try {
     await applyBapliePhysicalFlags(voyageId, actorId)
     return null
   } catch (error) {
-    return error instanceof Error ? error.message : String((error as { message?: unknown })?.message ?? 'Falha ao aplicar IMO/OOG aos B/Ls.')
+    return errorText(error, 'Falha ao aplicar IMO/OOG aos B/Ls.')
   }
+}
+
+/** Refaz só o recadastro dos vazios a partir do Baplie já gravado (após `vaziosError`). */
+export async function retryBaplieVazios({ voyageId, actorId }: { voyageId: number; actorId: string }): Promise<void> {
+  await replaceVaziosFromBaplie({ voyageId, uploadedBy: actorId })
 }
 
 /**
@@ -163,7 +191,8 @@ async function applyFlagsAfterStaging(voyageId: number, actorId: string): Promis
  * e, se os vazios mudaram e já havia manifesto de vazios do Baplie, recadastra-os.
  * O Nº do manifesto Mercante (manifestos_mercante) não é apagado em nenhum caso.
  * Depois de gravar, aplica IMO/OOG aos B/Ls (`flagsError` diz se falhou), para
- * que a página /baplie e a ação rápida da Viagem tenham o mesmo efeito.
+ * que a página /baplie e a ação rápida da Viagem tenham o mesmo efeito. Falha
+ * no recadastro dos vazios também não desfaz o Baplie: volta em `vaziosError`.
  */
 export async function reimportBaplie({
   voyageId,
@@ -180,7 +209,7 @@ export async function reimportBaplie({
   if (!existingRows.length) {
     const { staged } = await importBaplieStaging(voyageId, containers, actorId)
     const flagsError = await applyFlagsAfterStaging(voyageId, actorId)
-    return { status: 'imported', staged, vaziosReplaced: false, flagsError }
+    return { status: 'imported', staged, vaziosReplaced: false, flagsError, vaziosError: null }
   }
   const diff = diffBaplieStaging(existingRows, containers)
   const plan: BaplieReimportPlan = {
@@ -194,15 +223,15 @@ export async function reimportBaplie({
   // As flags dependem só dos cheios do staging: aplicadas antes dos vazios, não
   // ficam para trás se o recadastro dos vazios falhar.
   const flagsError = await applyFlagsAfterStaging(voyageId, actorId)
-  const vaziosReplaced = plan.hasVaziosManifest && diff.vaziosChanged
-  if (vaziosReplaced) {
+  let vaziosReplaced = false
+  let vaziosError: string | null = null
+  if (plan.hasVaziosManifest && diff.vaziosChanged) {
     try {
       await replaceVaziosFromBaplie({ voyageId, uploadedBy: actorId })
+      vaziosReplaced = true
     } catch (error) {
-      const reason = error instanceof Error ? error.message : String((error as { message?: unknown })?.message ?? error)
-      const flags = flagsError ? ` IMO/OOG também não foram aplicados aos B/Ls: ${flagsError}` : ''
-      throw new Error(`Baplie importado, mas os vazios de importação não foram recadastrados: ${reason}${flags}`, { cause: error })
+      vaziosError = errorText(error, 'Falha ao recadastrar os vazios de importação.')
     }
   }
-  return { status: diff.items.length ? 'replaced' : 'unchanged', staged, vaziosReplaced, flagsError }
+  return { status: diff.items.length ? 'replaced' : 'unchanged', staged, vaziosReplaced, flagsError, vaziosError }
 }

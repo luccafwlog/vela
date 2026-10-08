@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada } from '../services/cacheEffects'
@@ -132,10 +132,23 @@ export function Containers() {
   const [datesImportOpen, setDatesImportOpen] = useState(false)
 
   // Filtros e página vivem na URL: voltar do B/L ou recarregar reabre o recorte.
+  // Uma URL que a própria tela não escreveu (menu lateral, outro link para
+  // /containers com a página aberta) manda nos filtros; senão a tela grava os
+  // filtros na URL.
   const listSearch = containersSearchFromFilters(filters)
+  const writtenSearch = useRef(searchParams.toString())
   useEffect(() => {
-    if (listSearch !== searchParams.toString()) setSearchParams(new URLSearchParams(listSearch), { replace: true })
-  }, [listSearch, searchParams, setSearchParams])
+    const current = searchParams.toString()
+    if (current === listSearch) {
+      writtenSearch.current = current
+    } else if (current !== writtenSearch.current) {
+      writtenSearch.current = current
+      setFilters(filtersFromContainersSearch(searchParams))
+    } else {
+      writtenSearch.current = listSearch
+      setSearchParams(new URLSearchParams(listSearch), { replace: true })
+    }
+  }, [listSearch, searchParams, setFilters, setSearchParams])
 
   const debouncedSearch = useDebouncedValue(filters.search)
   const queryFilters = useMemo(() => ({

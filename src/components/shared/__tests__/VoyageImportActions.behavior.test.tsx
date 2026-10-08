@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   reimportBaplie: vi.fn(),
   bapliePlan: null as null | { existing: number },
   baplieFlagsError: null as null | string,
+  baplieVaziosError: null as null | string,
+  retryBaplieVazios: vi.fn(),
   confirm: vi.fn(() => Promise.resolve(true)),
   importedBaplie: vi.fn(),
   can: vi.fn<(permission: string) => boolean>(() => true),
@@ -47,6 +49,9 @@ vi.mock('../../../services/baplieImport', () => ({
   reimportBaplie: mocks.reimportBaplie,
   baplieReplacementConfirmOptions: (plan: { existing: number }, incoming: number) => ({ message: `${plan.existing}->${incoming}` }),
   baplieImportToast: () => 'Baplie importado.',
+  hasBapliePendency: (result: { flagsError: string | null; vaziosError: string | null }) => Boolean(result.flagsError || result.vaziosError),
+  baplieFootnoteForPendency: () => 'Baplie gravado com pendência.',
+  retryBaplieVazios: mocks.retryBaplieVazios,
 }))
 vi.mock('../../../services/vehicleImport', () => ({
   parseVehicleImportFile: mocks.parseVehicleImportFile,
@@ -67,12 +72,14 @@ beforeEach(() => {
   mocks.parseBaplieFile.mockReset()
   mocks.bapliePlan = null
   mocks.baplieFlagsError = null
+  mocks.baplieVaziosError = null
+  mocks.retryBaplieVazios.mockReset().mockResolvedValue(undefined)
   // Simula o serviço: com Baplie anterior e diferença, pergunta antes de gravar.
   mocks.reimportBaplie.mockReset()
   mocks.reimportBaplie.mockImplementation(async ({ confirmReplacement }: { confirmReplacement: (plan: unknown) => Promise<boolean> }) => {
     if (mocks.bapliePlan && !(await confirmReplacement(mocks.bapliePlan))) return { status: 'cancelled' }
     mocks.importedBaplie()
-    return { status: mocks.bapliePlan ? 'replaced' : 'imported', staged: 1, vaziosReplaced: false, flagsError: mocks.baplieFlagsError }
+    return { status: mocks.bapliePlan ? 'replaced' : 'imported', staged: 1, vaziosReplaced: false, flagsError: mocks.baplieFlagsError, vaziosError: mocks.baplieVaziosError }
   })
   mocks.confirm.mockReset()
   mocks.confirm.mockResolvedValue(true)
@@ -412,6 +419,27 @@ it('Baplie gravado sem IMO/OOG nos B/Ls fica no modal com o aviso e só Concluir
   // O staging foi gravado: a viagem é atualizada mesmo com a falha parcial.
   expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['baplie-staging', '7'] })
   expect(screen.queryByRole('button', { name: /^Importar Baplie/ })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Concluir' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+})
+
+it('vazios não recadastrados: o aviso refaz só os vazios, porque reimportar o mesmo arquivo não os toca', async () => {
+  mocks.parseBaplieFile.mockResolvedValue(validBaplie)
+  mocks.baplieVaziosError = 'falha nos vazios'
+  mocks.retryBaplieVazios.mockRejectedValueOnce(new Error('ainda falhou')).mockResolvedValueOnce(undefined)
+
+  await openBaplieWithFile()
+
+  expect(await screen.findByText('Baplie importado, mas os vazios de importação não foram recadastrados')).toBeTruthy()
+  expect(screen.getByText('falha nos vazios')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Recadastrar vazios' }))
+  expect(await screen.findByText('ainda falhou')).toBeTruthy()
+  mocks.invalidateQueries.mockClear()
+  fireEvent.click(screen.getByRole('button', { name: 'Recadastrar vazios' }))
+  expect(await screen.findByText('Vazios de importação recadastrados.')).toBeTruthy()
+  expect(mocks.retryBaplieVazios).toHaveBeenLastCalledWith({ voyageId: 7, actorId: expect.any(String) })
+  await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['baplie-staging', '7'] }))
+  expect(screen.queryByRole('button', { name: 'Recadastrar vazios' })).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Concluir' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 })

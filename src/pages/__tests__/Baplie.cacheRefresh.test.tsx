@@ -5,8 +5,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  reimport: vi.fn((): Promise<{ status: string; staged: number; vaziosReplaced: boolean; flagsError: string | null }> =>
-    Promise.resolve({ status: 'imported', staged: 1, vaziosReplaced: false, flagsError: null })),
+  reimport: vi.fn((): Promise<{ status: string; staged: number; vaziosReplaced: boolean; flagsError: string | null; vaziosError: string | null }> =>
+    Promise.resolve({ status: 'imported', staged: 1, vaziosReplaced: false, flagsError: null, vaziosError: null })),
   parse: vi.fn(() => Promise.resolve({ containers: [{ container_number: 'CXRU1234567', status: 'full', pod: 'BRSSZ' }], pods: [], issues: [] })),
 }))
 vi.mock('../../services/supabase', () => ({ supabase: {} }))
@@ -20,6 +20,8 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn() 
 vi.mock('../../services/baplieParser', () => ({ parseBaplieFile: mocks.parse }))
 vi.mock('../../services/baplieImport', () => ({
   reimportBaplie: mocks.reimport, baplieImportToast: () => 'Importado', baplieReplacementConfirmOptions: vi.fn(),
+  hasBapliePendency: (result: { flagsError: string | null; vaziosError: string | null }) => Boolean(result.flagsError || result.vaziosError),
+  baplieFootnoteForPendency: () => 'Baplie gravado com pendência.', retryBaplieVazios: vi.fn(),
 }))
 vi.mock('../../services/baplieReconciliation', () => ({ reconcileBaplieWithManifest: vi.fn() }))
 vi.mock('../../services/baplieReadModel', () => ({ hasBlsForVoyage: vi.fn(() => Promise.resolve(false)), listBaplieStaging: vi.fn(() => Promise.resolve([])) }))
@@ -48,7 +50,7 @@ describe('upload na página Baplie', () => {
   })
 
   it('Baplie gravado com falha ao aplicar IMO/OOG fica no modal com o que falta, sem fechar', async () => {
-    mocks.reimport.mockResolvedValueOnce({ status: 'imported', staged: 1, vaziosReplaced: false, flagsError: 'timeout na aplicação' })
+    mocks.reimport.mockResolvedValueOnce({ status: 'imported', staged: 1, vaziosReplaced: false, flagsError: 'timeout na aplicação', vaziosError: null })
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
     try {
       render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=24']}><Baplie /></MemoryRouter></QueryClientProvider>)

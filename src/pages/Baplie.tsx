@@ -23,7 +23,8 @@ import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { parseBaplieFile } from '../services/baplieParser'
-import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie } from '../services/baplieImport'
+import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../services/baplieImport'
+import { BaplieImportPartialNotice } from '../components/shared/BaplieImportPartialNotice'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { hasBlsForVoyage, listBaplieStaging } from '../services/baplieReadModel'
 import {
@@ -812,8 +813,8 @@ function BaplieUploadModal({
   const [excludedPods, setExcludedPods] = useState<Set<string>>(new Set())
   const [readError, setReadError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
-  // Baplie gravado, mas IMO/OOG não aplicados aos B/Ls: falha parcial que fica à vista.
-  const [partial, setPartial] = useState<{ message: string; summary: string } | null>(null)
+  // Baplie gravado com IMO/OOG ou vazios pendentes: falha parcial que fica à vista.
+  const [partial, setPartial] = useState<BaplieImportDone | null>(null)
 
   function handleClose() {
     cancelReading()
@@ -859,8 +860,8 @@ function BaplieUploadModal({
       })
       if (result.status === 'cancelled') return
       await onImported(voyageId)
-      if (result.flagsError) {
-        setPartial({ message: result.flagsError, summary: baplieImportToast(result) })
+      if (hasBapliePendency(result)) {
+        setPartial(result)
         return
       }
       showToast(baplieImportToast(result), 'success')
@@ -874,7 +875,7 @@ function BaplieUploadModal({
   }
 
   let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
-  if (partial) footnote = 'Baplie gravado; falta aplicar IMO/OOG aos B/Ls.'
+  if (partial) footnote = baplieFootnoteForPendency(partial)
   else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
   else if (parsed && !voyageId) footnote = 'Escolha a viagem de destino para importar.'
   else if (parsed && !canImport) footnote = filteredContainers.length ? 'Há erro na prévia; corrija o arquivo e escolha de novo.' : 'Nenhum container selecionado para importar.'
@@ -942,12 +943,13 @@ function BaplieUploadModal({
             <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
           </ImportNotice>
         ) : null}
-        {partial ? (
-          <ImportNotice tone="warning" role="alert" title="Baplie importado, mas IMO/OOG não foram aplicados aos B/Ls">
-            <p>{partial.summary}</p>
-            <p>{partial.message}</p>
-            <p>Para tentar de novo, importe o mesmo arquivo: sem diferença, ele é aceito direto e a aplicação é refeita.</p>
-          </ImportNotice>
+        {partial && user ? (
+          <BaplieImportPartialNotice
+            result={partial}
+            voyageId={Number(voyageId)}
+            actorId={user.id}
+            onVaziosRetried={() => onImported(voyageId)}
+          />
         ) : null}
         <div className="app-modal__actions">
           <ImportFootnote tone={partial || (parsed && !canImport) ? 'warning' : 'default'}>{footnote}</ImportFootnote>

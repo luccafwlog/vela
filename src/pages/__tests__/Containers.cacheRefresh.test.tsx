@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import { expect, it, vi } from 'vitest'
 
 const source = vi.hoisted(() => ({ exists: true }))
@@ -49,5 +49,40 @@ it('excluir Container remove a linha e atualiza os cards abertos de Containers, 
     await waitFor(() => expect(screen.getByLabelText('Containers no resumo de B/Ls').textContent).toBe('0'))
     expect(screen.getByLabelText('Containers no card da Viagem').textContent).toBe('0')
     expect(screen.getByText('containers distintos').parentElement?.textContent).toContain('0')
+  } finally { client.clear() }
+})
+
+function CurrentSearch() {
+  return <output aria-label="Endereço">{useLocation().search}</output>
+}
+
+it('link para /containers com a página aberta troca o recorte em vez de ser sobrescrito pelos filtros antigos', async () => {
+  source.exists = true
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+  client.setQueryData(['port-options'], { pols: [], pods: ['BRSSZ', 'BRVIX'] })
+  client.setQueryData(['container-type-options'], [])
+  client.setQueryData(['voyage-options'], [])
+  try {
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/containers?pod=BRSSZ']}>
+          <Link to="/containers">Menu Containers</Link>
+          <Link to="/containers?pod=BRVIX">Line-Up BRVIX</Link>
+          <Containers />
+          <CurrentSearch />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    const pod = screen.getByLabelText('POD') as HTMLSelectElement
+    expect(pod.value).toBe('BRSSZ')
+    fireEvent.click(screen.getByRole('link', { name: 'Line-Up BRVIX' }))
+    await waitFor(() => expect(pod.value).toBe('BRVIX'))
+    expect(screen.getByLabelText('Endereço').textContent).toBe('?pod=BRVIX')
+    fireEvent.click(screen.getByRole('link', { name: 'Menu Containers' }))
+    await waitFor(() => expect(pod.value).toBe(''))
+    expect(screen.getByLabelText('Endereço').textContent).toBe('')
+    // Mudar o filtro na tela continua gravando na URL.
+    fireEvent.change(pod, { target: { value: 'BRSSZ' } })
+    await waitFor(() => expect(screen.getByLabelText('Endereço').textContent).toBe('?pod=BRSSZ'))
   } finally { client.clear() }
 })
