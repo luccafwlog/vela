@@ -89,13 +89,22 @@ function assertMoney(amount: string): void {
   if (!MONEY.test(amount) || Number(amount) <= 0) throw new ItauPixError('Valor Pix inválido.', 400)
 }
 
+const FUTURE_TOLERANCE_MS = 5 * 60 * 1000
+
 // Contrato produtivo observado em 07/10/2026: Itaú devolve hora de Brasília
 // com Z indevido. Offset explícito é preservado; o restante do Vela usa UTC.
+// ponytail: -03:00 fixo (Brasília sem horário de verão) e reinterpretação de todo Z.
+// Se o Itaú passar a mandar UTC verdadeiro, criação e recebimento novos aparecem
+// ~3 h no futuro; a recusa abaixo para a fila e a consulta, sem gravar horário
+// errado. Upgrade: ao disparar, remover a troca de Z e voltar a ler o horário como veio.
 function itauTimeToUtc(value: string): string {
   if (typeof value !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(value))
     throw new ItauPixError('Horário do Itaú em formato inesperado.', 502)
   const time = Date.parse(value.replace(/Z$/, '-03:00'))
   if (!Number.isFinite(time)) throw new ItauPixError('Horário do Itaú em formato inesperado.', 502)
+  if (time > Date.now() + FUTURE_TOLERANCE_MS) {
+    throw new ItauPixError('Horário do Itaú no futuro; conferir se o banco mudou o fuso.', 502, { horario: value })
+  }
   return new Date(time).toISOString()
 }
 

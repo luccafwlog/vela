@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createItauPixClient, isVelaTestTxid, isVelaTxid, ItauPixError, newVelaTestTxid, newVelaTxid, pollItauPixReceipts, processItauPixQueue, runItauPixAction, stepCharge,
   type ItauPixConfig, type QueuedCharge,
@@ -14,6 +14,10 @@ const cob = (txid: string, extra: Record<string, unknown> = {}) => ({
   txid, revisao: 0, status: 'ATIVA', calendario: { criacao: '2026-10-06T12:00:00Z', expiracao: 3600 },
   valor: { original: '0.01' }, pixCopiaECola: '000201...', ...extra,
 })
+
+// Relógio fixo: o cliente recusa horário do Itaú no futuro, e as datas destes testes são fixas.
+beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-08T00:00:00Z')) })
+afterEach(() => { vi.useRealTimers() })
 
 describe('TXID do Vela', () => {
   it('gera 32 caracteres maiúsculos com prefixo e recusa TXIDs de outros sistemas', () => {
@@ -319,6 +323,27 @@ describe('consulta de recebimentos', () => {
       amount_brl: '0.01', expiration_seconds: 3600, status: 'pending_expire_check', uncertain: false, attempts: 1,
     }, new Date('2026-10-07T20:30:00Z'))
     expect(result).toMatchObject({ outcome: 'active', bankCreatedAt: '2026-10-07T20:04:01.000Z' })
+  })
+
+  it('para sem gravar quando o Itaú passa a mandar UTC verdadeiro', async () => {
+    vi.setSystemTime(new Date('2026-10-07T20:10:00Z'))
+    // Pago às 20:04:50 UTC e enviado corretamente como Z: lido como Brasília, cairia 3 h no futuro.
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: 'E1', txid: vela, valor: '0.15', horario: '2026-10-07T20:04:50Z' },
+    ]))
+    const s = sink('2026-10-07T20:00:00Z')
+    await expect(pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())).rejects.toThrow('no futuro')
+    expect(s.settle).not.toHaveBeenCalled()
+    expect(s.saved).toEqual([])
+
+    const txid = newVelaTxid()
+    const created = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json(cob(txid, {
+      calendario: { criacao: '2026-10-07T20:09:00Z', expiracao: 3600 },
+    })))
+    const result = await stepCharge(createItauPixClient(config, created), { id: 1, txid,
+      amount_brl: '0.01', expiration_seconds: 3600, status: 'pending_create', uncertain: false, attempts: 1,
+    }, new Date())
+    expect(result).toMatchObject({ outcome: 'error', error: expect.stringContaining('no futuro') })
   })
 
   it('baixa só TXID do Vela, ignora o terceiro e avança o checkpoint com sobreposição', async () => {

@@ -656,7 +656,11 @@ confirmado no banco e gravado na fatura. Baixa/recibo individual ainda não vali
 `-03:00` encontrou. O banco também devolve criação/recebimento em Brasília
 com sufixo `Z` indevido. Correção local envia consultas com `-03:00` e
 normaliza as datas recebidas para UTC, preservando offsets explícitos;
-publicada na v7 com autorização. GET autenticado confirmou o horário UTC
+publicada na v7 com autorização. Se o Itaú passar a mandar UTC verdadeiro, a
+leitura cai ~3 h no futuro: o cliente recusa horário mais de 5 min à frente do
+relógio (erro "Horário do Itaú no futuro"), sem baixa nem avanço do
+checkpoint; nesse caso, remover a troca de `Z` em `_shared/itauPix.ts`.
+GET autenticado confirmou o horário UTC
 correto; recuperação por `itau_pix_settle` deixou INV-2026-0004 paga, saldo
 zero, com um único pagamento da conta API ITAÚ. Cron seguinte respondeu
 HTTP 200 e avançou o checkpoint, sem erros. Novo pagamento da avulsa INV-2026-0005, R$ 0,20, foi baixado pelo cron
