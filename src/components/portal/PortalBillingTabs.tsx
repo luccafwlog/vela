@@ -87,7 +87,12 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
                   <div className="font-semibold">{formatBRL(invoice.total_brl)}</div>
                   <div className="text-xs text-[var(--app-muted)]">Saldo {formatBRL(invoice.balance_brl)}</div>
                 </td>
-                <td className="px-4 py-3">{renderInvoiceBadge(invoice.status)}</td>
+                <td className="px-4 py-3">
+                  {renderInvoiceBadge(invoice.status)}
+                  {invoice.covered_by_invoice_number ? (
+                    <div className="mt-1 text-xs text-[var(--app-muted)]">pela {invoice.covered_by_invoice_number}</div>
+                  ) : null}
+                </td>
                 <td className="px-4 py-3">
                   <Button variant="secondary" onClick={() => onOpenDetail(invoice.id)}>Detalhes</Button>
                 </td>
@@ -119,6 +124,9 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
             </div>
             <div className="mt-1 text-sm text-[var(--app-muted)]">{(invoice.vessel_voyages ?? []).join(' / ') || '—'}</div>
             <div className="mt-1 text-sm text-[var(--app-muted)]">B/L: {formatBlList(invoice.bls)}</div>
+            {invoice.covered_by_invoice_number ? (
+              <div className="mt-1 text-sm text-[var(--app-muted)]">Coberta pela {invoice.covered_by_invoice_number}</div>
+            ) : null}
           </button>
         ))}
       </div>

@@ -21,6 +21,7 @@ type PortalInvoiceDetailModalProps = {
   onObsolete: () => void
   onPrint: () => void
   onPrintReceipt: () => void
+  onOpenInvoice?: (invoiceId: number) => void
 }
 
 export function PortalInvoiceDetailModal({
@@ -35,6 +36,7 @@ export function PortalInvoiceDetailModal({
   onObsolete,
   onPrint,
   onPrintReceipt,
+  onOpenInvoice,
 }: PortalInvoiceDetailModalProps) {
   const invoice = detail?.invoice
   const isManual = invoice?.invoice_type === 'manual'
@@ -59,10 +61,25 @@ export function PortalInvoiceDetailModal({
                 <Printer size={16} />
                 Imprimir PDF
               </Button>
-              {invoice.status === 'paid' || invoice.status === 'covered' ? (
+              {invoice.status === 'paid' ? (
                 <Button variant="secondary" onClick={onPrintReceipt}>Imprimir recibo</Button>
               ) : null}
             </div>
+            {invoice.status === 'covered' ? (
+              <Card>
+                <h3 className="font-semibold">
+                  Coberta{invoice.covered_by_invoice_number ? ` pela ${invoice.covered_by_invoice_number}` : ' por uma fatura consolidada'}
+                </h3>
+                <p className="mt-1 text-sm text-[var(--app-muted)]">
+                  O pagamento foi feito na fatura consolidada, que quitou este B/L. O recibo é o da consolidada.
+                </p>
+                {invoice.covered_by_invoice_id && onOpenInvoice ? (
+                  <Button className="mt-3" variant="secondary" onClick={() => onOpenInvoice(invoice.covered_by_invoice_id!)}>
+                    Abrir {invoice.covered_by_invoice_number}
+                  </Button>
+                ) : null}
+              </Card>
+            ) : null}
             <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
               <MetricCard label="Status" value={portalInvoiceStatusLabel(invoice.status)} />
               <MetricCard label="Tipo" value={invoiceTypeLabel(invoice.invoice_type)} />

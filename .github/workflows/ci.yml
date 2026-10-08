@@ -221,6 +221,7 @@ jobs:
             src/integration/invoiceReissue.local-pg.test.ts \
             src/integration/invoiceBasisCorrection.local-pg.test.ts \
             src/integration/invoicePostBillingSafety.local-pg.test.ts \
+            src/integration/portalConsolidadaPaga.local-pg.test.ts \
             src/integration/itauPixCharges.local-pg.test.ts \
             src/integration/thdImoOog.local-pg.test.ts \
             src/integration/financialBattery.local-pg.test.ts

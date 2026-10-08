@@ -446,9 +446,12 @@ flowchart TD
   `invoice_receivable_links` prevalece: se a soma atual de
   `charge_calculations` não reconciliar em `0,01`, a UI mostra uma linha
   agregada.
-- A UI agrupa sete status reais em três rótulos:
+- Os filtros agrupam sete status reais em três grupos:
   `issued|partially_paid|draft → Emitida`,
-  `paid|covered → Paga`, `cancelled|obsolete → Cancelada`.
+  `paid|covered → Paga`, `cancelled|obsolete → Cancelada`. No Portal, o rótulo
+  da linha distingue `paid` ("Paga", com recibo) de `covered` ("Coberta pela
+  <consolidada>", saldo zero, sem recibo próprio); a consolidada paga continua
+  visível com o recibo dela (migration `162`, decisão de 2026-10-08).
   `overdue` saiu do domínio na migration `348` (ADR 0055).
 
 ## Testes e validação

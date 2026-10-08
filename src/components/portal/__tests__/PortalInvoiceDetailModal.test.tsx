@@ -81,4 +81,58 @@ describe('PortalInvoiceDetailModal', () => {
     await user.click(screen.getByRole('button', { name: /Imprimir PDF/ }))
     expect(onPrint).toHaveBeenCalledTimes(1)
   })
+
+  function ledgerDetail(invoice: Record<string, unknown>): PortalInvoiceDetail {
+    return {
+      invoice: { total_paid_brl: 0, customer_name: 'Cliente', customer_cnpj_cpf: '12345678000199', issued_at: '2026-10-08', pix_payload: null, ...invoice },
+      bls: [], items: [], containers: [], payments: [],
+    } as unknown as PortalInvoiceDetail
+  }
+
+  function renderModal(detail: PortalInvoiceDetail, handlers: { onPrintReceipt?: () => void; onOpenInvoice?: (id: number) => void } = {}) {
+    render(
+      <PortalInvoiceDetailModal
+        open
+        invoiceId={Number(detail.invoice?.id)}
+        detail={detail}
+        loading={false}
+        error={null}
+        canObsolete={false}
+        obsoleteLoading={false}
+        onClose={vi.fn()}
+        onObsolete={vi.fn()}
+        onPrint={vi.fn()}
+        onPrintReceipt={handlers.onPrintReceipt ?? vi.fn()}
+        onOpenInvoice={handlers.onOpenInvoice}
+      />,
+    )
+  }
+
+  it('individual coberta não oferece recibo e leva à consolidada que a quitou', async () => {
+    const user = userEvent.setup()
+    const onOpenInvoice = vi.fn()
+    renderModal(ledgerDetail({
+      id: 7, invoice_number: 'INV-2026-0007', invoice_type: 'individual', status: 'covered',
+      total_brl: 0.1, balance_brl: 0, covered_by_invoice_id: 9, covered_by_invoice_number: 'INV-2026-0009',
+    }), { onOpenInvoice })
+
+    expect(screen.queryByRole('button', { name: /Imprimir recibo/ })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Coberta pela INV-2026-0009' })).toBeTruthy()
+    expect(screen.getAllByText('Coberta').length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: 'Abrir INV-2026-0009' }))
+    expect(onOpenInvoice).toHaveBeenCalledWith(9)
+  })
+
+  it('consolidada paga oferece o próprio recibo', async () => {
+    const user = userEvent.setup()
+    const onPrintReceipt = vi.fn()
+    renderModal(ledgerDetail({
+      id: 9, invoice_number: 'INV-2026-0009', invoice_type: 'consolidated', status: 'paid',
+      total_brl: 0.21, total_paid_brl: 0.21, balance_brl: 0,
+    }), { onPrintReceipt })
+
+    expect(screen.getAllByText('Paga').length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: /Imprimir recibo/ }))
+    expect(onPrintReceipt).toHaveBeenCalledTimes(1)
+  })
 })

@@ -28,6 +28,7 @@ export type PortalInvoiceSummary = {
   vessel_voyages: string[]
   bls: string[]
   pods: string[]
+  covered_by_invoice_number?: string | null
 }
 
 export type PortalInvoicePage = {
@@ -48,7 +49,11 @@ type PortalInvoiceContainer = {
 
 export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice'> & {
   corrections?: Array<{ amount_brl: number; offset_brl: number; refund_brl: number; bl_id: string; created_at: string }>
-  invoice: (NonNullable<InvoiceDetail['invoice']> & { pix_payload: string | null }) | null
+  invoice: (NonNullable<InvoiceDetail['invoice']> & {
+    pix_payload: string | null
+    covered_by_invoice_id?: number | null
+    covered_by_invoice_number?: string | null
+  }) | null
   containers: PortalInvoiceContainer[]
 }
 
