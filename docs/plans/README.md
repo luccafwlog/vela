@@ -11,7 +11,7 @@ verdade sobre o estado atual.
 ## Planos ativos
 
 
-- [2026-10-06 — Integração Itaú Pix: QR dinâmico e baixa automática](2026-10-06-integracao-itau-pix.md) — aprovado para execução; Fase 0 (certificado) aguardando credencial dedicada pedida ao Itaú em 06/10; substitui a PR 827 (simulação, defasada pelas migrations 122–149).
+- [2026-10-06 — Integração Itaú Pix: QR dinâmico e baixa automática](2026-10-06-integracao-itau-pix.md) — em execução; provedor `itau` ativo em produção desde 07/10 (`itau-pix` v8 desde 08/10, baixa por consulta a cada minuto); pendentes backup externo do PFX e prova financeira da fatura individual; substitui a PR 827 (simulação, defasada pelas migrations 122–149).
 - [2026-10-04 — Desbloqueio de CE Mercante (Issue 557)](2026-10-04-desbloqueio-ce-mercante.md) — checklist reconciliado em 2026-10-07, código integrado na `main`; publicação remota não conferida e homologação pendente; Portal, gestão em Importação, documentos anuais VIP até 31/12 por CNPJ e planilha ZPT com cinco colunas; detalhes documentais/operacionais a homologar.
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — após cinco falhas HTTP 400, consulta Cloudflare individual por nome passou no run `37631613061`; Preview/PKCE, validação dos outros workflows, credenciais em runtime, regras de acesso, importação, tentativa Storage como Financeiro, segredos do Vault e backup agendado seguem pendentes — ver "Atualização operacional de 2026-10-07".
 

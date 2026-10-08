@@ -1,10 +1,28 @@
 # Integração Itaú Pix — QR dinâmico e baixa automática
 
 **Estado:** plano aprovado para execução em 2026-10-06. Fase 0 (certificado)
-aguardando a credencial dedicada pedida ao Itaú em 06/10 (ver "Quando o Itaú
-responder"); Fases 1 a 4 e a tela de monitoramento da Fase 5
+com credencial dedicada recebida em 07/10 e CLIENT ID diferente do anterior
+confirmado por hash; certificado emitido e OAuth mTLS validado. Prova de
+centavos da Fase 1 realizada em produção; Fases 1 a 4 e a tela de monitoramento da Fase 5
 prontas no código (migrations 151–154), revisadas e unificadas numa PR contra
-a `main`; sem publicação da função, secrets, cron nem virada.
+a `main`. Estado produtivo em 08/10: função `itau-pix` v8 ACTIVE,
+`verify_jwt=false`, cron Itaú ativo e provedor `itau`. Segredos
+Edge cadastrados pelo dono e autenticação da função validada nesta retomada.
+Conta administrativa dedicada vinculada para a baixa; token consumido removido pelo dono.
+Segredo no Vault validado por chamada autenticada à Edge.
+Chave de onboarding sem uso removida do Vault e ausência conferida.
+Correção da consulta paginada publicada na v6 e checkpoint atualizado confirmado.
+Provedor ativado em produção e QR da fatura individual aberta confirmado.
+Correção de fuso publicada na v7; Pix da avulsa INV-2026-0004 recuperado
+pela rotina oficial, fatura paga e saldo zero confirmados no banco.
+Nova avulsa INV-2026-0005 de R$ 0,20 baixada pelo cron em cerca de 58 s,
+sem reprocessamento manual; pagamento único e saldo zero confirmados.
+Dono confirmou visualização e recibo Demurrage no Portal.
+Pendentes: backup externo e prova financeira individual. Baixa Demurrage pelo cron
+confirmada em cerca de 40 s, com histórico de pagamento e câmbio congelado.
+Criação/expiração das duas cobranças anteriores à v7 corrigidas com autorização.
+Individual de teste INV-2026-0006 emitida por R$ 0,20, pagamento pendente.
+Job de PTAX validado e agendado.
 **Substitui:** a PR 827 (`codex/itau-pix-simulation`) como caminho de entrega.
 Os planos daquela branch nunca chegaram à `main`; o que vale deles está
 incorporado aqui.
@@ -441,10 +459,66 @@ com mTLS de entrada (Cloudflare Access pago) → Edge Function → mesma fila.
 `git diff --check`; replay da migration em Postgres controlado. Teste de texto
 SQL não prova execução nem RLS; a prova de pagamento é o teste de centavos.
 
+## Contrato observado — produção, 2026-10-07
+
+**Runtime:** saídas do terminal do dono chamando a função publicada `itau-pix`.
+Certificado corresponde à chave e ao CLIENT ID novo; válido de 07/10/2026
+16:11:50 UTC a 07/10/2027 16:11:50 UTC. Backup PFX abriu sem erro na
+verificação repetida; cópia fora do computador ainda não confirmada.
+OAuth local e pela Edge: HTTP 200, Bearer, 300 s, escopos de leitura e escrita
+de COB e leitura de Pix. Seis secrets `ITAU_*` cadastrados pelo dono.
+
+- COB `VELATUJJOXKGP0QF675V2EV8AWLNFMKU`: criada ATIVA, R$ 0,01,
+  expiração 3600 s; após pagamento, GET retornou CONCLUIDA e endToEndId
+  `E18236120202610071927s0094be5f6d`. GET /pix entre 16:20 e 16:40 UTC
+  retornou o mesmo recebimento; `outros: 0` não prova isolamento entre credenciais.
+- COB `VELAT3DZ9WSNN862PDYOXVKU5VH6TC6Z`: criada ATIVA, revisão 0;
+  PATCH confirmou R$ 0,02, expiração 2592000 s (30 dias), mesmo TXID,
+  revisão 1; cancelamento confirmou REMOVIDA_PELO_USUARIO_RECEBEDOR, revisão 2.
+- Header padrão Authorization funcionou. Trinta dias foram aceitos, sem
+  estabelecer o limite máximo. Latência exata entre pagamento e consulta,
+  limites de frequência, 429, tamanho de página e chamadas repetidas ainda
+  não medidos; não provocar carga para descobrir limites em produção.
+- Janela vazia de 01:19 a 07:19 UTC: páginas pedidas 0 e 1 devolveram
+  `paginaAtual: 1`, `itensPorPagina: 0`, `quantidadeDePaginas: 100`,
+  `quantidadeTotalDeItens: 0` e `pix: []`. O cliente foi corrigido para
+  encerrar quando lista e total confirmam ausência de recebimentos, sem
+  seguir as 100 páginas incoerentes. Teste de regressão reproduziu o erro
+  anterior e passou com a correção, incluindo avanço do checkpoint e zero baixas.
+  Correção publicada na v6 com autorização; convenção de páginas com dados não
+  inferida desse teste vazio. Timeout de 5 s do dispatcher segue sem alteração.
+  Gates locais: docs, typecheck, lint, build e diff check passaram;
+  suíte completa com um worker: 707 arquivos e 4009 testes passaram,
+  56 arquivos/408 testes ignorados (inclui integrações não habilitadas).
+  Suíte Itaú: 28 testes passaram. Esses checks não provam o cron corrigido
+  em produção; publicação e avanço do checkpoint foram conferidos em seguida.
+- As ações de diagnóstico não deram baixa em faturas. Cron agendado e
+  consulta recuperada após correção; provedor ativado, prova financeira de
+  ponta a ponta ainda falta.
+
 ## Registro
 
 | Data | Evento |
 |---|---|
+| 2026-10-08 | Com autorização explícita do dono, publicada `itau-pix` v8 ACTIVE a partir do commit `2bd161dd` do PR 890 (CI verde), `verify_jwt=false`. Código remoto baixado e idêntico ao do commit, com as travas de horário no futuro e de `endToEndId`. Sem bearer: HTTP 403. Primeiro ciclo do cron com a v8 ainda não conferido no banco. |
+| 2026-10-08 | Revisão do PR 890: cliente passa a recusar horário do Itaú mais de 5 min no futuro (sinal de que o banco corrigiu o `Z` e a conversão de Brasília somaria 3 h). Consulta e fila param com erro visível, sem baixa nem checkpoint. Regressão falhou sem a guarda e passou com ela (31 testes Itaú). Revisão seguinte: a guarda de futuro não pega UTC verdadeiro com mais de 3 h na recuperação de atraso; a baixa passa a conferir o horário com o minuto UTC do `endToEndId` (tolerância 1 h). Regressão de atraso falhou sem a conferência e passou com ela (32 testes Itaú). Não publicado na Edge. |
+| 2026-10-07 | Com autorização específica, corrigidos `bank_created_at`/`expires_at` das cobranças ids 1 e 2 somando 3 h, em transação com guarda por TXID e valores antigos exatos; dois registros conferidos, valores/status/pagamentos preservados. Criada individual INV-2026-0006 (id 6), B/L separado TEST-ITAU-IND-20261007, cliente 1, CE fictício 000000000000002, container COC VELU2610072. RPC `add_manual_bl_charge` usou item elegível B/L Reissuing com quantidade 0,000333 × R$ 600 para arredondar a R$ 0,20, anotada como fixture; `mark_bls_ready_and_create_invoice` emitiu pelo ledger normal, com guarda de tipo/status e teto R$ 0,25. Cron confirmou COB ATIVA VELAC8854B0F284740B9A41FB43EF0A6, QR igual ao da fatura e nenhum erro. Pagamento pendente. |
+| 2026-10-07 | Dono confirmou visualização e recibo Demurrage no Portal. Retomada dos passos finais: PFX local existe (2806 bytes), destino externo escolhido iCloud Drive; upload ainda não confirmado. Conferência produtiva: somente cobranças ids 1 e 2 (anteriores à v7) têm criação/expiração 3 h adiantadas; 3 e 4 estão normalizadas. Individual aberta INV-2026-0001 tem R$ 4.340,00, portanto a prova deve usar fixture separada de centavos, mediante autorização. Nenhuma mutação produtiva nesta conferência. |
+| 2026-10-07 | Com autorização específica, completado CE fictício `000000000000001` somente no B/L TEST-ITAU-DEM-20261007, com anotação explícita de teste. Transação conferiu reconciliação ainda pendente, quantidade de invoices inalterada e ausência de cálculos locais positivos; nenhuma cobrança adicional criada. `bl_has_portal_release` passou a true e a consulta core paginada do Portal para cliente 1/status paid retornou uma fatura, DEM-TEST-ITAU-20261007, R$ 0,16. Isso valida a projeção no banco; atualização da tela e recibo ainda aguardam conferência do dono. |
+| 2026-10-07 | Dono não encontrou a Demurrage paga no Portal. Diagnóstico runtime: `_portal_list_demurrage_invoices_core` exige `bl_has_portal_release`, que exige CE Mercante não vazio. B/L de teste TEST-ITAU-DEM-20261007 foi criado sem CE; predicate retorna false. Falha na preparação da fixture, não na baixa Pix ou no filtro Paga. Nenhuma regra de visibilidade foi alterada. Completar o CE da fixture em produção exige conferência do gatilho de faturamento local e autorização específica. |
+| 2026-10-07 | Runtime: dono pagou DEM-TEST-ITAU-20261007, R$ 0,16, às 17:28:21 Brasília. Cron das 20:29 UTC (19487), HTTP 200, registrou recebimento `E18236120202610072028s0095d6e772` às 20:29:01.032 UTC (~40 s). RPC oficial retornou `paid`, sem análise; fatura paga, TXID correspondente, histórico `payment` único, USD 0,03, PTAX 4,9935 e ROE 5,3181 congelados, total BRL 0,16. Nenhum disparo ou reprocessamento manual. Recibo Demurrage no Portal ainda não observado. |
+| 2026-10-07 | Dono confirmou recibo da avulsa no Portal e autorizou emissão de Demurrage em produção. Criado B/L de teste separado `TEST-ITAU-DEM-20261007`, cliente 1, container COC devolvido `VELU2610071`, um dia faturável com override USD 0,03. RPC oficial `create_demurrage_invoice_authoritative` emitiu `DEM-TEST-ITAU-20261007` (id 2): USD 0,03 × ROE factual 5,3181 = R$ 0,16. Transação tinha teto R$ 0,25 e preservou a fixture de disputa existente. Cron criou COB ATIVA `VELAB0F9F52E771048BD96BF501D6974`, R$ 0,16, sem erro; QR gravado na fatura e igual ao da cobrança. Pagamento pendente. |
+| 2026-10-07 | Runtime: dono pagou nova avulsa INV-2026-0005 de R$ 0,20 às 17:21:03 Brasília. Cron das 20:22 UTC (request 19472), HTTP 200, `settled: 1`, sem erro ou análise; recebimento `E18236120202610072020s00089339b3` gravado às 20:22:01.487 UTC, cerca de 58 s depois. Fatura paga, saldo zero, um único pagamento pela conta API ITAÚ. Nenhum disparo ou reprocessamento manual neste teste. Recibo no Portal ainda não observado. |
+| 2026-10-07 | Com autorização explícita, publicada correção de fuso em `itau-pix` v7 ACTIVE, `verify_jwt=false`, código remoto conferido. GET autenticado (19462) HTTP 200 confirmou COB CONCLUIDA, R$ 0,15 e horário normalizado 20:04:50 UTC (17:04:50 Brasília). Reprocessamento por `itau_pix_settle` retornou `settled`: avulsa INV-2026-0004 paga, saldo zero, um único pagamento id 2 de R$ 0,15, autor API ITAÚ e referência bancária correspondente; recebimento sem motivo de análise. Cron das 20:18 UTC HTTP 200, sem erros, checkpoint atualizado e um recebimento de terceiro ignorado. Isso confirma consulta após publicação; esta baixa foi uma recuperação autorizada, não prova de baixa de novo pagamento pelo cron. Criação/expiração já gravadas antes da v7 não foram alteradas. |
+| 2026-10-07 | Dono emitiu avulsa id 4 de R$ 0,15 e pagou; após 4 min, ainda `issued`. Diagnóstico: cron HTTP 200 e checkpoint atual, sem recebimentos. GET da COB `VELAF2D741F01EA04126B5CA18642235` confirmou CONCLUIDA com `E18236120202610072004s0035629b19`, mas horário `17:04:50Z`; endToEndId indica 20:04 UTC. GET /pix na janela `17:00Z`–`17:10Z` encontrou o pagamento, enquanto janelas do cron perto de 20h UTC não encontraram. Evidência de diferença de 3 h no contrato de horários; Dono confirmou em diagnóstico local: `20:00Z`–`20:10Z` retorna zero; `17:00-03:00`–`17:10-03:00` retorna um, com o pagamento presente. Correção local envia a janela equivalente com `-03:00` e normaliza criação/recebimento para UTC, preservando offsets explícitos; regressões de baixa e expiração falharam antes e passaram após a correção (30 testes Itaú). Gates locais passaram: docs, typecheck, lint, build e diff check; suíte completa com dois workers, 707 arquivos/4011 testes passaram e 56 arquivos/408 testes ignorados (integrações não habilitadas). Publicação e recuperação do Pix pendentes. Nenhuma baixa manual ou alteração de checkpoint realizada. |
+| 2026-10-07 | Com autorização explícita para a virada, agente confirmou singleton, conta de baixa ativa, jobs Itaú/PTAX ativos e uma única fatura individual aberta (id 1), sem Demurrage emitida. Na mesma transação, ativou `pix_provider='itau'` e limpou o payload dessa fatura para o gatilho gerar a COB. Cobrança id 1, TXID `VELAAA5883B35910431E8DD690F3C99A`, R$ 4.340,00: banco confirmou ATIVA, revisão 0, QR presente e igual ao gravado na fatura, sem incerteza ou erro. Disparo de conferência 19424 respondeu HTTP 200, manutenção/fila sem erros, consulta atualizada; pagamento dessa fatura não realizado. Provas de baixa e recibo de centavos ainda pendentes. |
+| 2026-10-07 | Com autorização explícita, publicada correção de janela vazia em `itau-pix` v6 ACTIVE, `verify_jwt=false`; código remoto conferido. Sem bearer: HTTP 403. Cron das 20:00 UTC respondeu HTTP 200 (request 19414), sem timeout, checkpoint avançou para 07:19 UTC. Três disparos de conferência (19415–19417) completaram a recuperação: 7 recebimentos fora do padrão Vela ignorados, depois 5 recebimentos (1 de teste, outros ignorados), sem baixa ou análise; último disparo HTTP 200 até 20:00:53 UTC. Cron seguinte avançou até 20:01:00 UTC, cerca de 10 s atrás do momento da leitura. Provedor permaneceu `static`; uma fatura individual aberta, nenhuma Demurrage emitida. Correção permanece no diff local, sem commit ou PR nesta retomada. |
+| 2026-10-07 | Com autorização, recálculo PTAX via dispatcher respondeu HTTP 200 (request 19379), PTAX 4.9935, ROE 5.3181, data 07/10, zero faturas alteradas; referência conferida no banco. Job `recalc-demurrage-ptax` ativo, jobid 26, `0 17 * * 1-5` (14h Brasília). Conferência adicional: checkpoint Itaú estacionado; pg_net com timeout de 5 s, Edge responde após cerca de 5,2 s. Diagnóstico com timeout 30 s (request 19382) revelou HTTP 200 com erro em `receipts`: mais de 50 páginas. Causa da paginação ainda em investigação; não virar o provedor antes de resolver. |
+| 2026-10-07 | Dono removeu `ITAU_ONBOARDING_PRIVATE_KEY`; agente confirmou zero entradas. PTAX: função ACTIVE v200, `verify_jwt=false`, HTTP 401 sem bearer; `RECALC_CRON_SECRET` ausente na Edge e no Vault, job ausente. Provisão em par e prova autenticada necessárias antes do agendamento. |
+| 2026-10-07 | Com autorização explícita, agendado `itau-pix-queue` (jobid 25), ativo a cada minuto, via `ops.dispatch_edge_job` e nome do segredo. Primeiro ciclo às 19:39 UTC: cron `succeeded`, resposta HTTP 200 (request 19359), manutenção ignorada por `provider_static`, zero cobranças processadas, dois recebimentos fora do padrão Vela ignorados, sem baixa ou análise. Checkpoint avançou de nulo para 01:29:00.444 UTC (primeira janela de recuperação; ainda não alcançou o horário atual). Provedor conferido como `static`; `recalc-demurrage-ptax` ainda sem agendamento. |
+| 2026-10-07 | Dono cadastrou `ITAU_PIX_ADMIN_SECRET` no Vault. Agente confirmou uma entrada, pelo menos 32 caracteres, sem espaços nas extremidades, e `SUPABASE_URL` correto. Teste `net.http_post` com segredo lido no banco e ação `token`: request 19357, HTTP 200, Bearer, 300 s, sem timeout; comprova correspondência Vault/Edge e autenticação Itaú sem exibir segredo. Conta de baixa ativa, singleton presente e provedor `static`; jobs Itaú/PTAX ausentes e chave de onboarding sem uso ainda no Vault. |
+| 2026-10-07 | Dono confirmou remoção de `token.txt` e criou a conta `API ITAÚ`. Com autorização explícita, agente vinculou `8b9a263d-6099-4f73-b8ac-a3e4d68201e0` em `app_settings.itau_pix_settlement_actor`; leitura posterior confirmou perfil `administrativo`, ativo, e provedor ainda `static`. Vault e agendamento seguem pendentes. |
+| 2026-10-07 | Retomada: lido o e-mail "NOVA CREDENCIAL: Manual e Boas Vindas - PIX - IT-000245617" e extraída a planilha fora do repositório. CLIENT ID novo confirmado como diferente do de 06/10 por comparação SHA-256, sem registrar os valores. Token vence em 14/10/2026 às 15h51, conforme a planilha. Itaú mantém o acompanhamento da API Pix Recebimentos; não respondeu às perguntas sobre convivência e limites. Pasta da Fase 0 preparada em `C:\Users\Lucca\.itau\IT-000245617\2026-10-07`; emissão ainda não executada. Runtime no Supabase: singleton `app_settings` presente, provedor `static`, ator não configurado, checkpoint nulo, sem jobs `itau-pix-queue` e `recalc-demurrage-ptax`; Vault ainda contém `ITAU_ONBOARDING_PRIVATE_KEY` e não contém `ITAU_PIX_ADMIN_SECRET`. Função `itau-pix` já ACTIVE na versão 3; presença não prova autenticação nem funcionamento. |
 | 2026-10-02 | Dono pergunta ao Itaú sobre certificado existente, envio de chave pública e limites de consulta. |
 | 2026-10-06 | Itaú envia credenciais produtivas, token de ativação (vence 13/10 08:44) e guias. Sem envio de chave pública. Plano criado; PR 827 declarada defasada. |
 | 2026-10-06 | Envio do CSR recusado: HTTP 409, `C700a`, "O certificado ainda está válido. A emissão de um novo não é permitida." O CLIENT ID é o mesmo da credencial de julho (IT-000205325, comparado por hash). A coleção do fornecedor anterior contém CSRs com esse CN, então o certificado vigente foi emitido em julho pelo terceiro; a afirmação da PR 827 de que o token de julho expirou sem uso estava errada. Chave e certificado vigentes não estão com o Vela. Fase 0 bloqueada até o Itaú liberar uma nova emissão. Chave e CSR gerados hoje foram mantidos e o token não foi reenviado. |

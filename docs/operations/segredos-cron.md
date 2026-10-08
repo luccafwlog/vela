@@ -37,6 +37,7 @@ por nome:
 | `PORTAL_EMAIL_EVENTS_CRON_SECRET` | `portal-email-events-runner` | `PORTAL_EMAIL_EVENTS_CRON_SECRET` |
 | `IMPORT_EFFECTS_CRON_SECRET` | `import-effects-runner` | `IMPORT_EFFECTS_CRON_SECRET` |
 | `RECALC_CRON_SECRET` | `recalc-demurrage-ptax` | `RECALC_CRON_SECRET` |
+| `ITAU_PIX_ADMIN_SECRET` | `itau-pix-queue` | `ITAU_PIX_ADMIN_SECRET` |
 
 Os nomes são iguais aos dos Edge Function Secrets de propósito: o par
 banco/Function é o contrato, e rotacionar um sem o outro derruba o job.
@@ -103,9 +104,11 @@ WHERE command ~ $re$Bearer ' \|\| '[^']$re$
 ```
 
 **Os jobs HTTP passam pelo dispatcher** — deve retornar `ok = true` em todas as
-linhas. `recalc-demurrage-ptax` **não é criado pelas migrations** (ver
-"Agendar o recálculo de PTAX" abaixo), então em um banco recém-provisionado a
-consulta devolve seis linhas; sete depois que ele for agendado manualmente:
+linhas. `recalc-demurrage-ptax` e `itau-pix-queue` **não são criados pelas
+migrations** (ver "Agendar o recálculo de PTAX" abaixo e o roteiro de ativação do
+[plano Itaú](../plans/2026-10-06-integracao-itau-pix.md)), então em um banco
+recém-provisionado a consulta devolve seis linhas; oito depois que os dois forem
+agendados manualmente, como em produção desde 07/10:
 
 ```sql
 SELECT jobname, schedule, active,
@@ -114,11 +117,17 @@ FROM cron.job
 WHERE jobname IN ('portal-daily-digest', 'alerts-foundation-detectors',
                   'demurrage-dunning', 'customer-communication-auto-runner',
                   'portal-email-events-runner', 'import-effects-runner',
-                  'recalc-demurrage-ptax')
+                  'recalc-demurrage-ptax', 'itau-pix-queue')
 ORDER BY jobname;
 ```
 
 ### Agendar o recálculo de PTAX
+
+**Agendado em produção em 2026-10-07** (jobid 26), às 17h UTC (14h Brasília)
+de segunda a sexta. Provisão de `RECALC_CRON_SECRET` em par e disparo manual
+validado: HTTP 200, referência cambial de hoje persistida, zero faturas
+alteradas (só havia uma Demurrage em rascunho). Primeiro ciclo agendado ainda
+não observado; o teste comprovou o dispatcher e a função publicados.
 
 A migration `018` deliberadamente **não** cria o job `recalc-demurrage-ptax`.
 Criá-lo e desativá-lo no replay exigiria `UPDATE` em `cron.job`, privilégio que
@@ -184,14 +193,14 @@ SELECT cron.schedule(
 Remover: `SELECT cron.unschedule('ce-unlock-notify-email');`. Sem o job, os avisos do sino
 continuam funcionando e as linhas de e-mail ficam pendentes em `ce_unlock_email_outbox`.
 
-**O cofre tem as oito entradas** — deve retornar `8`:
+**O cofre tem as nove entradas** — deve retornar `9`:
 
 ```sql
 SELECT count(*) FROM vault.secrets
 WHERE name IN ('SUPABASE_URL', 'PORTAL_DIGEST_SECRET', 'ALERTS_DETECTOR_SECRET',
                'DEMURRAGE_DUNNING_SECRET', 'CUSTOMER_COMMUNICATION_AUTOMATION_SECRET',
                'PORTAL_EMAIL_EVENTS_CRON_SECRET', 'IMPORT_EFFECTS_CRON_SECRET',
-               'RECALC_CRON_SECRET');
+               'RECALC_CRON_SECRET', 'ITAU_PIX_ADMIN_SECRET');
 ```
 
 **O cofre está fechado para o cliente** — as quatro colunas devem ser `false`:
@@ -225,7 +234,7 @@ LIMIT 8;
 ## Provisionar um banco novo
 
 Um banco criado só por migrations nasce com o cofre vazio. Depois de aplicar as
-migrations, cadastre as oito entradas uma única vez:
+migrations, cadastre as nove entradas uma única vez:
 
 ```sql
 SELECT vault.create_secret('https://<ref>.supabase.co', 'SUPABASE_URL',
@@ -234,7 +243,7 @@ SELECT vault.create_secret('<valor>', 'PORTAL_DIGEST_SECRET',
   'Espelha o Edge Function Secret de mesmo nome.');
 -- idem para ALERTS_DETECTOR_SECRET, DEMURRAGE_DUNNING_SECRET e
 -- CUSTOMER_COMMUNICATION_AUTOMATION_SECRET, PORTAL_EMAIL_EVENTS_CRON_SECRET,
--- IMPORT_EFFECTS_CRON_SECRET e RECALC_CRON_SECRET.
+-- IMPORT_EFFECTS_CRON_SECRET, RECALC_CRON_SECRET e ITAU_PIX_ADMIN_SECRET.
 ```
 
 Até lá, os jobs ficam agendados e inertes, com `WARNING` no log a cada execução.

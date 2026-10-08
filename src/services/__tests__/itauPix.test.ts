@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createItauPixClient, isVelaTestTxid, isVelaTxid, ItauPixError, newVelaTestTxid, newVelaTxid, pollItauPixReceipts, processItauPixQueue, runItauPixAction, stepCharge,
   type ItauPixConfig, type QueuedCharge,
@@ -9,11 +9,17 @@ const config: ItauPixConfig = {
   baseUrl: 'https://itau.test/v2', tokenUrl: 'https://sts.test/token', authHeader: 'Authorization',
   certPem: '', keyPem: '',
 }
+// endToEndId no padrão BCB com o minuto UTC da iniciação (aaaaMMddHHmm).
+const e2e = (utcMinute: string, n = 1) => `E18236120${utcMinute}s${String(n).padStart(10, '0')}`
 const tokenResponse = () => Response.json({ access_token: 'tok-ficticio', token_type: 'Bearer', expires_in: 300 })
 const cob = (txid: string, extra: Record<string, unknown> = {}) => ({
   txid, revisao: 0, status: 'ATIVA', calendario: { criacao: '2026-10-06T12:00:00Z', expiracao: 3600 },
   valor: { original: '0.01' }, pixCopiaECola: '000201...', ...extra,
 })
+
+// Relógio fixo: o cliente recusa horário do Itaú no futuro, e as datas destes testes são fixas.
+beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-08T00:00:00Z')) })
+afterEach(() => { vi.useRealTimers() })
 
 describe('TXID do Vela', () => {
   it('gera 32 caracteres maiúsculos com prefixo e recusa TXIDs de outros sistemas', () => {
@@ -67,7 +73,7 @@ describe('cliente Itaú Pix', () => {
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json({ pix: [] }))
     await createItauPixClient(config, fetchMtls).listPix('2026-10-06T01:47:07.506Z', '2026-10-07T01:47:07.506Z')
     const url = new URL(fetchMtls.mock.calls[1][0])
-    expect([url.searchParams.get('inicio'), url.searchParams.get('fim')]).toEqual(['2026-10-06T01:47:07Z', '2026-10-07T01:47:08Z'])
+    expect([url.searchParams.get('inicio'), url.searchParams.get('fim')]).toEqual(['2026-10-05T22:47:07-03:00', '2026-10-06T22:47:08-03:00'])
   })
 
   it('alteração que encontra a COB paga não é sucesso', async () => {
@@ -96,11 +102,28 @@ describe('cliente Itaú Pix', () => {
   it('percorre todas as páginas do GET /pix', async () => {
     const page = (n: number, pix: unknown[]) => Response.json({ parametros: { paginacao: { paginaAtual: n, quantidadeDePaginas: 2 } }, pix })
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse())
-      .mockResolvedValueOnce(page(0, [{ endToEndId: 'E1', valor: '0.01', horario: 'x' }]))
-      .mockResolvedValueOnce(page(1, [{ endToEndId: 'E2', valor: '0.02', horario: 'y' }]))
+      .mockResolvedValueOnce(page(0, [{ endToEndId: 'E1', valor: '0.01', horario: '2026-10-06T12:00:00-03:00' }]))
+      .mockResolvedValueOnce(page(1, [{ endToEndId: 'E2', valor: '0.02', horario: '2026-10-06T12:00:00-03:00' }]))
     const pix = await createItauPixClient(config, fetchMtls).listPix('2026-10-06T00:00:00Z', '2026-10-07T00:00:00Z')
     expect(pix.map((p) => p.endToEndId)).toEqual(['E1', 'E2'])
+    expect(pix.map((p) => p.horario)).toEqual(['2026-10-06T15:00:00.000Z', '2026-10-06T15:00:00.000Z'])
     expect(fetchMtls.mock.calls[2][0]).toContain('paginacao.paginaAtual=1')
+  })
+
+  it('avança o checkpoint quando o Itaú informa 100 páginas para zero recebimentos', async () => {
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockImplementation(async () => Response.json({
+      parametros: { paginacao: { paginaAtual: 1, itensPorPagina: 0, quantidadeDePaginas: 100, quantidadeTotalDeItens: 0 } },
+      pix: [],
+    }))
+    const saveCheckpoint = vi.fn()
+    const settle = vi.fn()
+    const result = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), {
+      checkpoint: async () => '2026-10-07T01:29:00.444Z', settle, saveCheckpoint,
+    }, new Date('2026-10-07T07:00:00Z'))
+    expect(result).toMatchObject({ seen: 0, settled: 0, until: '2026-10-07T07:00:00.000Z' })
+    expect(saveCheckpoint).toHaveBeenCalledWith('2026-10-07T07:00:00.000Z')
+    expect(settle).not.toHaveBeenCalled()
+    expect(fetchMtls).toHaveBeenCalledTimes(2)
   })
 })
 
@@ -140,14 +163,14 @@ describe('cobrança de teste x cobrança de fatura', () => {
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json({
       parametros: { paginacao: { paginaAtual: 0, quantidadeDePaginas: 1 } },
       pix: [
-        { endToEndId: 'E1', txid: vela, valor: '0.01', horario: 'x', infoPagador: 'texto do cliente' },
-        { endToEndId: 'E2', txid: '88ba8ec675e044178d434908d9b2a30a', valor: '9.00', horario: 'y', infoPagador: 'alheio' },
-        { endToEndId: 'E3', valor: '5.00', horario: 'z' },
+        { endToEndId: 'E1', txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00-03:00', infoPagador: 'texto do cliente' },
+        { endToEndId: 'E2', txid: '88ba8ec675e044178d434908d9b2a30a', valor: '9.00', horario: '2026-10-06T12:00:00-03:00', infoPagador: 'alheio' },
+        { endToEndId: 'E3', valor: '5.00', horario: '2026-10-06T12:00:00-03:00' },
       ],
     }))
     const result = await runItauPixAction(createItauPixClient(config, fetchMtls),
       { action: 'list_pix', inicio: '2026-10-06T00:00:00Z', fim: '2026-10-07T00:00:00Z' })
-    expect(result).toEqual({ pix: [{ endToEndId: 'E1', txid: vela, valor: '0.01', horario: 'x' }], outros: 2 })
+    expect(result).toEqual({ pix: [{ endToEndId: 'E1', txid: vela, valor: '0.01', horario: '2026-10-06T15:00:00.000Z' }], outros: 2 })
   })
 })
 
@@ -172,7 +195,7 @@ describe('processador da fila de cobranças', () => {
   it('primeira tentativa cria a COB com o valor formatado', async () => {
     const c = charge()
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ativa(c.txid))
-    expect(await stepCharge(createItauPixClient(config, fetchMtls), c)).toEqual({ outcome: 'active', revision: 0, pixCopiaECola: '000201...', bankCreatedAt: '2026-10-06T12:00:00Z' })
+    expect(await stepCharge(createItauPixClient(config, fetchMtls), c)).toEqual({ outcome: 'active', revision: 0, pixCopiaECola: '000201...', bankCreatedAt: '2026-10-06T15:00:00.000Z' })
     expect(fetchMtls.mock.calls[1][1].method).toBe('PUT')
     expect(JSON.parse(fetchMtls.mock.calls[1][1].body).valor).toEqual({ original: '2.50' })
   })
@@ -244,9 +267,9 @@ describe('processador da fila de cobranças', () => {
 
   it('vencida: só vira expired depois de o banco confirmar que não foi paga', async () => {
     const c = charge({ status: 'pending_expire_check' })
-    const now = new Date('2026-10-06T14:00:00Z')
+    const now = new Date('2026-10-06T17:00:00Z')
     const run = (body: Response) => stepCharge(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(body)), c, now)
-    // criação 12:00 + 3600 s = 13:00 < 14:00
+    // criação 12:00 Brasília = 15:00 UTC; validade até 16:00 UTC < 17:00 UTC
     expect((await run(ativa(c.txid))).outcome).toBe('expired')
     expect((await run(ativa(c.txid, { status: 'CONCLUIDA' }))).outcome).toBe('concluded')
     expect((await run(Response.json({}, { status: 404 }))).outcome).toBe('expired')
@@ -278,9 +301,68 @@ describe('consulta de recebimentos', () => {
     return { saved, settle, sink: { checkpoint: async () => last, settle, saveCheckpoint: async (until: string) => { saved.push(until) } } }
   }
 
+  it('consulta em Brasília e baixa o pagamento com o instante UTC correto', async () => {
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockImplementation(async (input: string) => {
+      const url = new URL(input)
+      const correctWindow = url.searchParams.get('inicio') === '2026-10-07T17:00:00-03:00' &&
+        url.searchParams.get('fim') === '2026-10-07T17:10:00-03:00'
+      return pixPage(correctWindow ? [{ endToEndId: 'E18236120202610072004s0035629b19', txid: vela,
+        valor: '0.15', horario: '2026-10-07T17:04:50Z' }] : [])
+    })
+    const s = sink('2026-10-07T20:10:00Z')
+    await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-07T20:10:00Z'))
+    expect(s.settle).toHaveBeenCalledWith({ endToEndId: 'E18236120202610072004s0035629b19', txid: vela,
+      valor: '0.15', horario: '2026-10-07T20:04:50.000Z' })
+    expect(s.saved).toEqual(['2026-10-07T20:10:00.000Z'])
+  })
+
+  it('não considera vencida uma COB criada em Brasília com Z indevido', async () => {
+    const txid = newVelaTxid()
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json(cob(txid, {
+      calendario: { criacao: '2026-10-07T17:04:01Z', expiracao: 3600 },
+    })))
+    const result = await stepCharge(createItauPixClient(config, fetchMtls), { id: 1, txid,
+      amount_brl: '0.01', expiration_seconds: 3600, status: 'pending_expire_check', uncertain: false, attempts: 1,
+    }, new Date('2026-10-07T20:30:00Z'))
+    expect(result).toMatchObject({ outcome: 'active', bankCreatedAt: '2026-10-07T20:04:01.000Z' })
+  })
+
+  it('para sem gravar quando o Itaú passa a mandar UTC verdadeiro', async () => {
+    vi.setSystemTime(new Date('2026-10-07T20:10:00Z'))
+    // Pago às 20:04:50 UTC e enviado corretamente como Z: lido como Brasília, cairia 3 h no futuro.
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: e2e('202610072004'), txid: vela, valor: '0.15', horario: '2026-10-07T20:04:50Z' },
+    ]))
+    const s = sink('2026-10-07T20:00:00Z')
+    await expect(pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())).rejects.toThrow('no futuro')
+    expect(s.settle).not.toHaveBeenCalled()
+    expect(s.saved).toEqual([])
+
+    const txid = newVelaTxid()
+    const created = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json(cob(txid, {
+      calendario: { criacao: '2026-10-07T20:09:00Z', expiracao: 3600 },
+    })))
+    const result = await stepCharge(createItauPixClient(config, created), { id: 1, txid,
+      amount_brl: '0.01', expiration_seconds: 3600, status: 'pending_create', uncertain: false, attempts: 1,
+    }, new Date())
+    expect(result).toMatchObject({ outcome: 'error', error: expect.stringContaining('no futuro') })
+  })
+
+  it('na recuperação de atraso, UTC verdadeiro antigo diverge do endToEndId e não é baixado', async () => {
+    // Pago às 19:00 UTC e enviado como 19:00:30Z; lido como Brasília vira 22:00:30 UTC,
+    // ainda no passado às 00:00, então só o endToEndId revela o desvio.
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: e2e('202610071900'), txid: vela, valor: '0.20', horario: '2026-10-07T19:00:30Z' },
+    ]))
+    const s = sink('2026-10-07T18:00:00Z')
+    await expect(pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())).rejects.toThrow('diverge do endToEndId')
+    expect(s.settle).not.toHaveBeenCalled()
+    expect(s.saved).toEqual([])
+  })
+
   it('baixa só TXID do Vela, ignora o terceiro e avança o checkpoint com sobreposição', async () => {
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
-      { endToEndId: 'E1', txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },
+      { endToEndId: e2e('202610061500'), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },
       { endToEndId: 'E2', txid: '88ba8ec675e044178d434908d9b2a30a', valor: '50.00', horario: '2026-10-06T12:01:00Z' },
       { endToEndId: 'E3', valor: '9.00', horario: '2026-10-06T12:02:00Z' }, // Pix sem TXID
       { endToEndId: 'E4', txid: newVelaTestTxid(), valor: '0.01', horario: '2026-10-06T12:03:00Z' }, // teste da Fase 1
@@ -290,9 +372,9 @@ describe('consulta de recebimentos', () => {
     const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, now)
     expect(summary).toMatchObject({ seen: 4, vela: 1, test: 1, settled: 1, review: 0 })
     expect(s.settle).toHaveBeenCalledTimes(1)
-    expect(s.settle).toHaveBeenCalledWith({ endToEndId: 'E1', txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' })
+    expect(s.settle).toHaveBeenCalledWith({ endToEndId: e2e('202610061500'), txid: vela, valor: '0.01', horario: '2026-10-06T15:00:00.000Z' })
     const url = new URL(fetchMtls.mock.calls[1][0])
-    expect(url.searchParams.get('inicio')).toBe('2026-10-06T11:50:00Z') // 10 min antes do checkpoint, sem milissegundos
+    expect(url.searchParams.get('inicio')).toBe('2026-10-06T08:50:00-03:00') // 10 min antes do checkpoint, sem milissegundos
     expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
   })
 
@@ -300,20 +382,22 @@ describe('consulta de recebimentos', () => {
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([]))
     const s = sink('2026-10-01T00:00:00.000Z')
     await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:00:00Z'))
-    expect(new URL(fetchMtls.mock.calls[1][0]).searchParams.get('fim')).toBe('2026-10-01T05:50:00Z')
+    expect(new URL(fetchMtls.mock.calls[1][0]).searchParams.get('fim')).toBe('2026-10-01T02:50:00-03:00')
     expect(s.saved).toEqual(['2026-10-01T05:50:00.000Z'])
   })
 
   it('falha ao baixar ou Pix malformado não avança o checkpoint', async () => {
-    const ok = { endToEndId: 'E1', txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' }
+    const ok = { endToEndId: e2e('202610061500'), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' }
     const failing = sink('2026-10-06T12:00:00.000Z', vi.fn(async () => { throw new Error('db') }))
     await expect(pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([ok]))),
       failing.sink, new Date('2026-10-06T12:05:00Z'))).rejects.toThrow('db')
     expect(failing.saved).toEqual([])
-    const malformed = sink('2026-10-06T12:00:00.000Z')
-    await expect(pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([{ ...ok, valor: '1' }]))),
-      malformed.sink, new Date('2026-10-06T12:05:00Z'))).rejects.toThrow('formato inesperado')
-    expect(malformed.saved).toEqual([])
-    expect(malformed.settle).not.toHaveBeenCalled()
+    for (const bad of [{ ...ok, valor: '1' }, { ...ok, endToEndId: 'E1' }, { ...ok, horario: 'inválidoZ' }, { ...ok, horario: '2026-10-06T12:00:00' }]) {
+      const malformed = sink('2026-10-06T12:00:00.000Z')
+      await expect(pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([bad]))),
+        malformed.sink, new Date('2026-10-06T12:05:00Z'))).rejects.toThrow('formato inesperado')
+      expect(malformed.saved).toEqual([])
+      expect(malformed.settle).not.toHaveBeenCalled()
+    }
   })
 })

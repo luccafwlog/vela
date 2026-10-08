@@ -89,6 +89,28 @@ function assertMoney(amount: string): void {
   if (!MONEY.test(amount) || Number(amount) <= 0) throw new ItauPixError('Valor Pix inválido.', 400)
 }
 
+const FUTURE_TOLERANCE_MS = 5 * 60 * 1000
+
+// Contrato produtivo observado em 07/10/2026: Itaú devolve hora de Brasília
+// com Z indevido. Offset explícito é preservado; o restante do Vela usa UTC.
+// ponytail: -03:00 fixo (Brasília sem horário de verão) e reinterpretação de todo Z.
+// Se o Itaú passar a mandar UTC verdadeiro, a leitura soma 3 h. Duas travas param
+// sem gravar horário errado: a recusa de horário no futuro (criação de COB e
+// recebimento recente) e, na baixa, a conferência com o horário UTC do endToEndId,
+// que independe do relógio e cobre a recuperação de atraso. Limite conhecido: o
+// vencimento de uma COB antiga consultada sem nova criação ou baixa no meio só é
+// pego pela primeira trava seguinte. Upgrade: ao disparar, remover a troca de Z.
+function itauTimeToUtc(value: string): string {
+  if (typeof value !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(value))
+    throw new ItauPixError('Horário do Itaú em formato inesperado.', 502)
+  const time = Date.parse(value.replace(/Z$/, '-03:00'))
+  if (!Number.isFinite(time)) throw new ItauPixError('Horário do Itaú em formato inesperado.', 502)
+  if (time > Date.now() + FUTURE_TOLERANCE_MS) {
+    throw new ItauPixError('Horário do Itaú no futuro; conferir se o banco mudou o fuso.', 502, { horario: value })
+  }
+  return new Date(time).toISOString()
+}
+
 function assertCob(cob: unknown, txid: string): ItauCob {
   const c = cob as Partial<ItauCob> | null
   // A especificação diz inteiro, mas o sandbox devolveu "3600" (2026-10-06): aceitar
@@ -100,14 +122,18 @@ function assertCob(cob: unknown, txid: string): ItauCob {
       !c.valor || typeof c.valor.original !== 'string' || !MONEY.test(c.valor.original)) {
     throw new ItauPixError('Resposta do Itaú não confirma a cobrança; consultar antes de repetir.', 502, cob)
   }
-  return { ...c, calendario: { ...c.calendario, expiracao: expiracao as number } } as ItauCob
+  return { ...c, calendario: { ...c.calendario, criacao: itauTimeToUtc(c.calendario.criacao), expiracao: expiracao as number },
+    ...(c.pix ? { pix: c.pix.map(p => ({ ...p, horario: itauTimeToUtc(p.horario) })) } : {}),
+  } as ItauCob
 }
 
 // RFC 3339 sem milissegundos: o sandbox recusou inicio/fim com fração de segundo (2026-10-06).
 // O início arredonda para baixo e o fim para cima, então a janela pedida nunca encolhe.
 function rfc3339Seconds(value: string, roundUp = false): string {
   const seconds = Date.parse(value) / 1000
-  return new Date((roundUp ? Math.ceil(seconds) : Math.floor(seconds)) * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
+  // Produção só encontra a janela equivalente quando enviada com -03:00.
+  return new Date((roundUp ? Math.ceil(seconds) : Math.floor(seconds)) * 1000 - 3 * 60 * 60 * 1000)
+    .toISOString().replace(/\.\d{3}Z$/, '-03:00')
 }
 
 export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fetch) {
@@ -213,8 +239,10 @@ export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fet
       const all: ItauPix[] = []
       for (let page = 0; page < maxPages; page++) {
         const query = new URLSearchParams({ inicio: rfc3339Seconds(inicio), fim: rfc3339Seconds(fim, true), 'paginacao.paginaAtual': String(page) })
-        const body = await call('GET', `/pix?${query}`) as { pix?: ItauPix[]; parametros?: { paginacao?: { quantidadeDePaginas?: number } } }
-        all.push(...(body?.pix ?? []))
+        const body = await call('GET', `/pix?${query}`) as { pix?: ItauPix[]; parametros?: { paginacao?: { quantidadeDePaginas?: number; quantidadeTotalDeItens?: number } } }
+        // Produção (07/10/2026): janela vazia retorna 100 páginas, mas total zero.
+        if (body?.pix?.length === 0 && body.parametros?.paginacao?.quantidadeTotalDeItens === 0) return all
+        all.push(...(body?.pix ?? []).map(p => ({ ...p, horario: itauTimeToUtc(p.horario) })))
         const pages = body?.parametros?.paginacao?.quantidadeDePaginas ?? 1
         if (page + 1 >= pages) return all
       }
@@ -338,6 +366,15 @@ export type ReceiptSink = {
   saveCheckpoint(until: string): Promise<void>
 }
 
+// endToEndId do Pix (BCB): 'E' + ISPB + aaaaMMddHHmm em UTC + 11 caracteres.
+const END_TO_END = /^E[0-9A-Za-z]{8}(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})[0-9A-Za-z]{11}$/
+const END_TO_END_TOLERANCE_MS = 60 * 60 * 1000 // Liquidação segue a iniciação em segundos; 3 h de desvio é fuso.
+
+function endToEndTime(id: string): number | null {
+  const m = END_TO_END.exec(id)
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null
+}
+
 const OVERLAP_MS = 10 * 60 * 1000 // Pix disponibilizado com atraso entra na janela seguinte.
 const MAX_WINDOW_MS = 6 * 60 * 60 * 1000 // Atraso grande é recuperado em várias execuções.
 const FIRST_LOOKBACK_MS = 24 * 60 * 60 * 1000
@@ -353,9 +390,13 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
     if (!isVelaTxid(p.txid)) continue
     // Cobrança de teste paga (Fase 1): não é fatura, então não vira baixa nem Alerta.
     if (isVelaTestTxid(p.txid)) { summary.test++; continue }
-    if (!/^[A-Za-z0-9]{1,64}$/.test(p.endToEndId ?? '') || !MONEY.test(p.valor ?? '') || !Number.isFinite(Date.parse(p.horario))) {
+    const initiatedAt = endToEndTime(p.endToEndId ?? '')
+    if (initiatedAt === null || !MONEY.test(p.valor ?? '') || !Number.isFinite(Date.parse(p.horario))) {
       // Sem avançar o checkpoint: a próxima execução tenta de novo e o erro fica visível.
       throw new ItauPixError('Recebimento do Itaú em formato inesperado.', 502, { txid: p.txid })
+    }
+    if (Math.abs(Date.parse(p.horario) - initiatedAt) > END_TO_END_TOLERANCE_MS) {
+      throw new ItauPixError('Horário do Itaú diverge do endToEndId; conferir se o banco mudou o fuso.', 502, { txid: p.txid })
     }
     summary.vela++
     summary[await sink.settle({ endToEndId: p.endToEndId, txid: p.txid, valor: p.valor, horario: p.horario })]++

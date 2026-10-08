@@ -612,7 +612,7 @@ separada. Não generalizar a exceção para chamadas do navegador.
 - **Banco Central:** cotação PTAX;
 - **Sentry:** erros do frontend em produção;
 - **Cloudflare Pages:** distribuição dos dois SPAs e Preview/Production Deployments;
-- **PIX:** BR Code estático persistido e QR renderizado; conciliação por extrato. API Itaú dinâmica/webhook permanece proposta em `docs/spec/2026-08-25-integracao-itau-pix.md`.
+- **PIX:** provedor escolhido em `app_settings.pix_provider`. `static`: BR Code estático persistido, QR renderizado e conciliação por extrato. `itau` (ativo em produção desde 2026-10-07): COB dinâmica pela API Pix Recebimentos do Itaú (mTLS) na Edge `itau-pix`, fila `itau_pix_charges` e baixa por consulta `GET /pix` a cada minuto (job `itau-pix-queue`); ver [plano da integração](plans/2026-10-06-integracao-itau-pix.md). Webhook do Itaú segue opcional e não implementado.
 
 ### Telemetria do Portal
 
