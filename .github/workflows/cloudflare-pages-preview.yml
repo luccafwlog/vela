@@ -89,6 +89,16 @@ jobs:
             supabase --experimental branches list --project-ref "$SUPABASE_PROJECT_REF" -o json \
               | node scripts/resolve-supabase-branch.mjs "$PR_HEAD_REF"
           }
+          # Diagnóstico sem segredos: só metadados da listagem e o stderr do get.
+          diagnose_supabase_branch() {
+            echo '::group::Diagnóstico da branch Supabase'
+            supabase --experimental branches list --project-ref "$SUPABASE_PROJECT_REF" -o json 2>&1 \
+              | jq -c '(if type == "array" then . else (.branches // .) end) | map({id, name, git_branch, status})' 2>&1 || true
+            id="$(supabase_branch_id 2>&1)" || { echo "resolve: $id"; echo '::endgroup::'; return 0; }
+            echo "branch resolvida: $id"
+            supabase --experimental branches get "$id" --project-ref "$SUPABASE_PROJECT_REF" -o env 2>&1 >/dev/null || true
+            echo '::endgroup::'
+          }
           : "${SUPABASE_ACCESS_TOKEN:?Configure the Supabase access-token secret}"
           : "${SUPABASE_PROJECT_REF:?Configure the Supabase project-ref secret}"
           for attempt in $(seq 1 36); do
@@ -119,6 +129,7 @@ jobs:
             echo "Waiting for Supabase Preview ($attempt/36): status=${check_status:-missing}, conclusion=${check_conclusion:-missing}"
             sleep 10
           done
+          diagnose_supabase_branch
           echo 'Timed out waiting for successful Supabase Preview.'
           exit 1
 
