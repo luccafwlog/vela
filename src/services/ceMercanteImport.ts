@@ -1,7 +1,6 @@
 import { assertUploadFile } from '../lib/fileGuard'
 import { asString, chunkArray, onlyDigits } from '../lib/utils'
 import { supabase } from './supabase'
-import type { CeMercanteEdiRow } from './ceMercanteEdiParser'
 import { matchHeaders, readSheet, type HeaderSpec, type SheetRow } from './importCore'
 
 // Resposta de apply_ce_mercante_rows_atomic (migration 082); o tipo gerado é Json.
@@ -61,23 +60,6 @@ export type CeMercanteImportTarget = 'bls' | 'granite'
 
 type GraniteResolution = { id: string; bl_number: string; voyage_id: number | null }
 
-type ImportedBlManifestoRow = {
-  id: string
-  voyage_id: number
-  pol: string | null
-  pod: string | null
-  manifesto_mercante_id: string | null
-}
-
-type ManifestoMercanteRow = {
-  id: string
-  voyage_id: number
-  pol: string
-  pod: string
-  numero: string
-  natureza: string
-}
-
 async function resolveGraniteBlNumbers(numbers: string[], voyageId?: number): Promise<Map<string, GraniteResolution[]>> {
   const matches = new Map<string, GraniteResolution[]>()
   for (const chunk of chunkArray(Array.from(new Set(numbers.map(normalizeBlId))), 400)) {
@@ -100,7 +82,7 @@ async function resolveGraniteBlNumbers(numbers: string[], voyageId?: number): Pr
   return matches
 }
 
-export async function partitionRowsByVoyage<T extends { bl_id: string; rowNumber?: number; lineNumber?: number }>(
+export async function partitionRowsByVoyage<T extends { bl_id: string; rowNumber: number }>(
   rows: T[],
   voyageId: number,
   target: CeMercanteImportTarget = 'bls',
@@ -125,7 +107,7 @@ export async function partitionRowsByVoyage<T extends { bl_id: string; rowNumber
     const rowVoyageId = voyageByBl.get(target === 'granite' ? normalizeBlId(row.bl_id) : row.bl_id)
     if (rowVoyageId === undefined || rowVoyageId === voyageId) return true
     blocked.push({
-      row: row.rowNumber ?? row.lineNumber ?? 0,
+      row: row.rowNumber,
       bl_id: row.bl_id,
       message: `B/L ${row.bl_id} pertence a outra viagem`,
     })
@@ -159,6 +141,14 @@ export async function importCeMercanteRows(
 ): Promise<CeMercanteImportResult> {
   const target = options.target ?? 'bls'
   const errors: CeMercanteImportResult['errors'] = []
+  const manifestoNumero = options.manifestoNumero?.trim() ?? ''
+  // Cada importação de B/L é um manifesto: sem o número, nada é gravado.
+  if (target === 'bls' && !manifestoNumero) {
+    return {
+      processed: rows.length, updated: 0, overwritten: 0, unchanged: 0, errorCount: 1,
+      errors: [{ row: rows[0]?.rowNumber ?? 0, message: 'Informe o número do Manifesto Mercante deste lote antes de importar.' }],
+    }
+  }
   const resolvedIds = new Map<string, string>()
   const existingBlIds = new Set<string>()
   const uniqueBlIds = Array.from(new Set(rows.map((row) => row.bl_id)))
@@ -212,6 +202,9 @@ export async function importCeMercanteRows(
     })),
     p_changed_by: options.changedBy,
     p_target: target,
+    // Migration 164: viagem, rota e manifesto são validados e vinculados na
+    // mesma transação dos CEs.
+    ...(target === 'bls' ? { p_manifesto_numero: manifestoNumero, p_voyage_id: options.voyageId ?? null } : {}),
   })
   if (error) throw error
   const data = rawResult as unknown as CeRowsAtomicResult | null
@@ -226,20 +219,6 @@ export async function importCeMercanteRows(
   const inserted = data.inserted ?? 0
   const overwritten = data.overwritten ?? 0
   const unchanged = data.unchanged ?? 0
-  const successfulBlIds = target === 'bls' ? validRows.map((row) => row.bl_id) : []
-
-  if (target === 'bls' && options.manifestoNumero?.trim() && successfulBlIds.length > 0) {
-    try {
-      await linkImportedBlsToManifestoMercante(successfulBlIds, options.manifestoNumero, options.voyageId)
-    } catch (error) {
-      errors.push({
-        row: validRows[0]?.rowNumber ?? rows[0]?.rowNumber ?? 0,
-        bl_id: successfulBlIds[0],
-        message: error instanceof Error ? error.message : 'Falha ao vincular o manifesto Mercante aos B/Ls importados.',
-      })
-    }
-  }
-
   return {
     processed: rows.length,
     updated: inserted + overwritten,
@@ -248,192 +227,6 @@ export async function importCeMercanteRows(
     errorCount: errors.length,
     errors,
   }
-}
-
-export type CeMercanteEdiImportResult =
-  | {
-      ok: true
-      batchId: number
-      processed: number
-      inserted: number
-      overwritten: number
-      unchanged: number
-    }
-  | {
-      ok: false
-      partial?: boolean
-      errors: Array<{ bl_id?: string; ce?: string; message: string }>
-    }
-
-// Importa o vinculo CE <-> BL a partir do arquivo EDI do manifesto. Toda a
-// validacao quantitativa (cobertura do batch) e qualitativa (CE/BL unicos,
-// existencia) e feita dentro da RPC transacional: ou grava tudo, ou nada.
-export async function importCeMercanteEdi(
-  rows: CeMercanteEdiRow[],
-  options: { changedBy: string | null; manifestoNumero?: string; voyageId?: number } = { changedBy: null },
-): Promise<CeMercanteEdiImportResult> {
-  const payload = rows.map((row) => ({ bl_id: row.bl_id, ce: row.ce_mercante }))
-
-  const { data, error } = await supabase.rpc('apply_ce_mercante_manifest', {
-    p_rows: payload,
-    p_changed_by: options.changedBy,
-  })
-
-  if (error) throw error
-
-  const result = data as {
-    ok?: boolean
-    batch_id?: number
-    processed?: number
-    inserted?: number
-    overwritten?: number
-    unchanged?: number
-    errors?: Array<{ bl_id?: string; ce?: string; message: string }>
-  } | null
-
-  if (result?.ok) {
-    if (options.manifestoNumero?.trim()) {
-      try {
-        await linkImportedBlsToManifestoMercante(
-          rows.map((row) => row.bl_id),
-          options.manifestoNumero,
-          options.voyageId,
-        )
-      } catch (linkError) {
-        return {
-          ok: false,
-          partial: true,
-          errors: [{
-            message: linkError instanceof Error
-              ? linkError.message
-              : 'CE Mercante gravado, mas não foi possível vincular o manifesto aos B/Ls.',
-          }],
-        }
-      }
-    }
-    return {
-      ok: true,
-      batchId: Number(result.batch_id ?? 0),
-      processed: Number(result.processed ?? 0),
-      inserted: Number(result.inserted ?? 0),
-      overwritten: Number(result.overwritten ?? 0),
-      unchanged: Number(result.unchanged ?? 0),
-    }
-  }
-
-  return {
-    ok: false,
-    errors: result?.errors ?? [{ message: 'Falha ao validar o manifesto de CE Mercante.' }],
-  }
-}
-
-async function linkImportedBlsToManifestoMercante(
-  blIds: string[],
-  rawNumero: string,
-  voyageId?: number,
-): Promise<void> {
-  const numero = rawNumero.trim()
-  const uniqueBlIds = Array.from(new Set(blIds.map(normalizeBlId).filter(Boolean)))
-  if (!numero || uniqueBlIds.length === 0) return
-
-  const { data: blRows, error: blError } = await supabase
-    .from('bls')
-    .select('id, voyage_id, pol, pod, manifesto_mercante_id')
-    .in('id', uniqueBlIds)
-
-  if (blError) throw blError
-
-  const importedBls = (blRows ?? []) as ImportedBlManifestoRow[]
-  if (importedBls.length !== uniqueBlIds.length) {
-    throw new Error('Não foi possível localizar todos os B/Ls importados para vincular o manifesto Mercante.')
-  }
-
-  const firstBl = importedBls[0]
-  if (!firstBl) return
-  const routeVoyageId = firstBl.voyage_id
-  const routePol = normalizeRoute(firstBl.pol)
-  const routePod = normalizeRoute(firstBl.pod)
-
-  if (!routePol || !routePod) {
-    throw new Error(`O B/L ${firstBl.id} não possui POL e POD para cadastrar o manifesto Mercante.`)
-  }
-  if (voyageId != null && routeVoyageId !== voyageId) {
-    throw new Error(`O manifesto Mercante informado não pertence à viagem dos B/Ls importados.`)
-  }
-  if (importedBls.some((bl) => bl.voyage_id !== routeVoyageId || normalizeRoute(bl.pol) !== routePol || normalizeRoute(bl.pod) !== routePod)) {
-    throw new Error('Os B/Ls importados precisam pertencer à mesma viagem e à mesma rota para compartilhar um manifesto Mercante.')
-  }
-
-  const { data: existing, error: existingError } = await findManifestoMercanteByNumero(numero)
-  if (existingError) throw existingError
-
-  const conflictingBl = importedBls.find(
-    (bl) => bl.manifesto_mercante_id != null && bl.manifesto_mercante_id !== existing?.id,
-  )
-  if (conflictingBl) {
-    throw new Error(`O B/L ${conflictingBl.id} já está vinculado a outro manifesto Mercante.`)
-  }
-
-  let manifesto = existing
-  if (!manifesto) {
-    const { data: created, error: createError } = await supabase
-      .from('manifestos_mercante')
-      .insert({
-        voyage_id: routeVoyageId,
-        pol: firstBl.pol?.trim() ?? '',
-        pod: firstBl.pod?.trim() ?? '',
-        numero,
-        natureza: 'carga',
-      })
-      .select('*')
-      .single()
-
-    if (createError && createError.code !== '23505') throw createError
-    if (createError) {
-      const { data: raced, error: racedError } = await findManifestoMercanteByNumero(numero)
-      if (racedError) throw racedError
-      manifesto = raced
-    } else {
-      manifesto = created as ManifestoMercanteRow
-    }
-  }
-
-  if (!manifesto) {
-    throw new Error(`Não foi possível localizar ou criar o manifesto Mercante "${numero}".`)
-  }
-  if (
-    manifesto.voyage_id !== routeVoyageId ||
-    normalizeRoute(manifesto.pol) !== routePol ||
-    normalizeRoute(manifesto.pod) !== routePod ||
-    manifesto.natureza !== 'carga'
-  ) {
-    throw new Error(`O número de manifesto Mercante "${numero}" já está associado a outra viagem, rota ou natureza.`)
-  }
-
-  const { error: linkError } = await supabase
-    .from('bls')
-    .update({ manifesto_mercante_id: manifesto.id })
-    .in('id', uniqueBlIds)
-  if (linkError) throw linkError
-}
-
-async function findManifestoMercanteByNumero(
-  numero: string,
-): Promise<{ data: ManifestoMercanteRow | null; error: { code?: string; message: string } | null }> {
-  const { data, error } = await supabase
-    .from('manifestos_mercante')
-    .select('*')
-    .eq('numero', numero)
-    .maybeSingle()
-
-  return {
-    data: data as ManifestoMercanteRow | null,
-    error: error ? { code: error.code, message: error.message } : null,
-  }
-}
-
-function normalizeRoute(value: string | null | undefined): string {
-  return value?.trim().toUpperCase() ?? ''
 }
 
 function parseRows(rows: SheetRow[]): ParsedCeMercanteFile {

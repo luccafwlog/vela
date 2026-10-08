@@ -981,6 +981,13 @@ B/Ls e não se confunde com o número de viagem interna da agência.
   planilha o exige; os vazios vindos do Baplie entram sem número e a pendência
   aparece no alerta CE Mercante pendente. Reimportar só é bloqueado quando o
   número informado já está cadastrado (decisões de 2026-10-01).
+- **Carga (planilha de CE Mercante):** cada importação da planilha é um
+  manifesto. Antes de importar, o operador informa o Nº de Manifesto Mercante
+  daquele lote (obrigatório); manifesto = navio + viagem + rota (par POL → POD)
+  + número, e todos os B/Ls da planilha precisam ser da mesma rota. Uma rota
+  pode ter vários manifestos, importados em momentos distintos, cada um com seu
+  número; repetir um número já cadastrado junta os B/Ls a ele. O CE Mercante
+  entra só por planilha; EDI, no Vela, é o Baplie (decisão de 2026-10-08).
 
 **Frete & Despesas do BL**
 Linhas da seção "Freight & Charges" do conhecimento de embarque (B/L): frete

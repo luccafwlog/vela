@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { importCeMercanteEdi, importCeMercanteRows, parseCeMercanteBuffer, partitionRowsByVoyage, type CeMercanteRow } from '../ceMercanteImport'
+import { importCeMercanteRows, parseCeMercanteBuffer, partitionRowsByVoyage, type CeMercanteRow } from '../ceMercanteImport'
 import { jsonToBuffer } from './testWorkbook'
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({
@@ -70,7 +70,7 @@ describe('ceMercanteImport', () => {
       { rowNumber: 3, bl_id: 'BL999', ce_mercante: '122605051526082' },
     ]
 
-    const result = await importCeMercanteRows(rows)
+    const result = await importCeMercanteRows(rows, { changedBy: null, manifestoNumero: '26BR000001' })
 
     expect(result).toMatchObject({ processed: 2, updated: 0, overwritten: 0, unchanged: 0, errorCount: 1 })
     expect(result.errors[0]?.message).toBe('BL BL999 nao encontrado no sistema.')
@@ -86,7 +86,7 @@ describe('ceMercanteImport', () => {
     const result = await importCeMercanteRows([
       { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' },
       { rowNumber: 3, bl_id: 'BL002', ce_mercante: '122605051526082' },
-    ], { changedBy: 'user-1' })
+    ], { changedBy: 'user-1', voyageId: 7, manifestoNumero: ' 26BR000001 ' })
 
     expect(result).toMatchObject({ processed: 2, updated: 2, overwritten: 1, unchanged: 0, errorCount: 0 })
     expect(mockRpc).toHaveBeenCalledOnce()
@@ -97,6 +97,8 @@ describe('ceMercanteImport', () => {
       ],
       p_changed_by: 'user-1',
       p_target: 'bls',
+      p_manifesto_numero: '26BR000001',
+      p_voyage_id: 7,
     })
   })
 
@@ -196,82 +198,21 @@ describe('ceMercanteImport', () => {
 
     const result = await importCeMercanteRows([
       { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' },
-    ])
+    ], { changedBy: null, manifestoNumero: '26BR000001' })
 
     expect(result).toMatchObject({ updated: 0, errorCount: 1, errors: [{ row: 2, bl_id: 'BL001', message: 'CE invalido' }] })
     expect(mockRpc).toHaveBeenCalledOnce()
   })
 
-  it('deixa o efeito de billing persistido para o import CE por EDI', async () => {
-    mockRpc.mockResolvedValue({
-      data: { ok: true, batch_id: 10, processed: 2, inserted: 2, overwritten: 0, unchanged: 0 },
-      error: null,
-    })
-
-    const result = await importCeMercanteEdi([
-      { lineNumber: 1, bl_id: 'BL001', ce_mercante: '122605051526081' },
-      { lineNumber: 2, bl_id: 'BL002', ce_mercante: '122605051526082' },
-    ], { changedBy: 'user-1' })
-
-    expect(result).toMatchObject({ ok: true, batchId: 10, processed: 2 })
-    expect(mockRpc).toHaveBeenCalledOnce()
-  })
-
-  it('cria e vincula o manifesto Mercante informado aos BLs atualizados', async () => {
-    const bl = {
-      id: 'BL001',
-      voyage_id: 7,
-      pol: 'CNTAC',
-      pod: 'BRVIX',
-      manifesto_mercante_id: null,
-    }
-    const insertManifesto = vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({
-          data: { ...bl, id: 'manifesto-1', numero: '26BR000001', natureza: 'carga' },
-          error: null,
-        }),
-      })),
-    }))
-    const updateBls = vi.fn(() => ({ in: vi.fn().mockResolvedValue({ error: null }) }))
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'bls') {
-        return {
-          select: vi.fn((columns: string) => ({
-            in: vi.fn().mockResolvedValue({
-              data: columns === 'id' ? [{ id: 'BL001' }] : [bl],
-              error: null,
-            }),
-          })),
-          update: updateBls,
-        }
-      }
-      if (table === 'manifestos_mercante') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })),
-          })),
-          insert: insertManifesto,
-        }
-      }
-      throw new Error(`Tabela nao mockada: ${table}`)
-    })
-    mockRpc.mockResolvedValue({ data: { ok: true, processed: 1, inserted: 1, overwritten: 0, unchanged: 0 }, error: null })
-
+  it('exige o numero do manifesto antes de gravar CE de B/L', async () => {
     const result = await importCeMercanteRows(
       [{ rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }],
-      { changedBy: 'user-1', voyageId: 7, manifestoNumero: '26BR000001' },
+      { changedBy: 'user-1', voyageId: 7, manifestoNumero: '   ' },
     )
 
-    expect(result).toMatchObject({ updated: 1, errorCount: 0 })
-    expect(insertManifesto).toHaveBeenCalledWith({
-      voyage_id: 7,
-      pol: 'CNTAC',
-      pod: 'BRVIX',
-      numero: '26BR000001',
-      natureza: 'carga',
-    })
-    expect(updateBls).toHaveBeenCalledWith({ manifesto_mercante_id: 'manifesto-1' })
+    expect(result).toMatchObject({ updated: 0, errorCount: 1 })
+    expect(result.errors[0]?.message).toMatch(/Manifesto Mercante/)
+    expect(mockFrom).not.toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 })
