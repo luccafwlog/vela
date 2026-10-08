@@ -1,6 +1,6 @@
 # Auditoria de conformidade das etapas 00–05 da revisão visual
 
-- **Data:** 2026-10-08
+- **Data:** 2026-10-08 
 - **Base auditada:** `main` em `2bddc66` (merge da PR 902, etapa 05), sem diff local antes desta auditoria.
 - **Critério:** contrato comum, "Contrato visual" e prompts das etapas 00–05 em [`docs/plans/2026-10-07-revisao-visual-ux-prompts.md`](../../plans/2026-10-07-revisao-visual-ux-prompts.md), lidos na revisão-base.
 - **Pergunta:** algumas sessões podem ter começado sem o contrato comum colado. Isso deixou desvios reais? Onde?
