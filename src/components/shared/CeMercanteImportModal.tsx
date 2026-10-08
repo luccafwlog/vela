@@ -13,23 +13,15 @@ import { TruncationNote } from './TruncationNote'
 import { useAuth } from '../../hooks/useAuth'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
 import {
-  importCeMercanteEdi,
   importCeMercanteRows,
   parseCeMercanteFile,
   partitionRowsByVoyage,
-  type CeMercanteEdiImportResult,
   type CeMercanteImportResult,
   type ParsedCeMercanteFile,
   type CeMercanteImportTarget,
 } from '../../services/ceMercanteImport'
-import {
-  parseCeMercanteEdiFile,
-  type ParsedCeMercanteEdi,
-} from '../../services/ceMercanteEdiParser'
 import { queryKeys } from '../../services/queryKeys'
 import { ImportReadProgress } from './ImportReadProgress'
-
-const SHEET_EXTENSIONS = /\.(xlsx|xls|csv)$/i
 
 export function CeMercanteImportModal({
   open,
@@ -45,48 +37,22 @@ export function CeMercanteImportModal({
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const { user } = useAuth()
-  const { file, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<
-    { kind: 'sheet'; preview: ParsedCeMercanteFile } | { kind: 'edi'; preview: ParsedCeMercanteEdi }
-  >(async (nextFile) => {
-    if (SHEET_EXTENSIONS.test(nextFile.name)) {
-      const parsed = await parseCeMercanteFile(nextFile)
-      if (lockedVoyageId == null) return { kind: 'sheet', preview: parsed }
-      const partition = target === 'bls'
-        ? await partitionRowsByVoyage(parsed.rows, lockedVoyageId)
-        : await partitionRowsByVoyage(parsed.rows, lockedVoyageId, target)
-      return {
-        kind: 'sheet',
-        preview: {
-          rows: partition.rows,
-          rowErrors: [
-            ...parsed.rowErrors,
-            ...partition.blocked.map((item) => ({ row: item.row, message: item.message, raw: item.bl_id })),
-          ],
-        },
-      }
-    }
-
-    const parsed = await parseCeMercanteEdiFile(nextFile)
-    if (lockedVoyageId == null) return { kind: 'edi', preview: parsed }
+  const { file, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedCeMercanteFile>(async (nextFile) => {
+    const parsed = await parseCeMercanteFile(nextFile)
+    if (lockedVoyageId == null) return parsed
     const partition = target === 'bls'
       ? await partitionRowsByVoyage(parsed.rows, lockedVoyageId)
       : await partitionRowsByVoyage(parsed.rows, lockedVoyageId, target)
     return {
-      kind: 'edi',
-      preview: {
-        ...parsed,
-        rows: partition.rows,
-        rowErrors: [
-          ...parsed.rowErrors,
-          ...partition.blocked.map((item) => ({ line: item.row, message: item.message, raw: item.bl_id })),
-        ],
-      },
+      rows: partition.rows,
+      rowErrors: [
+        ...parsed.rowErrors,
+        ...partition.blocked.map((item) => ({ row: item.row, message: item.message, raw: item.bl_id })),
+      ],
     }
   })
   const [preview, setPreview] = useState<ParsedCeMercanteFile | null>(null)
   const [report, setReport] = useState<CeMercanteImportResult | null>(null)
-  const [ediPreview, setEdiPreview] = useState<ParsedCeMercanteEdi | null>(null)
-  const [ediErrors, setEdiErrors] = useState<CeMercanteEdiImportResult | null>(null)
   const [numeroManifesto, setNumeroManifesto] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [readError, setReadError] = useState<string | null>(null)
@@ -94,14 +60,10 @@ export function CeMercanteImportModal({
 
   const validCount = preview?.rows.length ?? 0
   const sampleRows = useMemo(() => preview?.rows.slice(0, 25) ?? [], [preview?.rows])
-  const ediSampleRows = useMemo(() => ediPreview?.rows.slice(0, 25) ?? [], [ediPreview?.rows])
-  const ediReportErrors = ediErrors && !ediErrors.ok ? ediErrors.errors : []
 
   function resetPreviewState() {
     setPreview(null)
     setReport(null)
-    setEdiPreview(null)
-    setEdiErrors(null)
     setReadError(null)
     setSubmitError(null)
   }
@@ -116,21 +78,9 @@ export function CeMercanteImportModal({
     resetPreviewState()
     try {
       const result = await readFile(nextFile)
-      if (!result) return
-      if (result.kind === 'sheet') setPreview(result.preview)
-      else setEdiPreview(result.preview)
+      if (result) setPreview(result)
     } catch (error) {
       setReadError(error instanceof Error ? error.message : 'Não foi possível ler o arquivo.')
-    }
-  }
-
-  async function handleImport() {
-    if (preview) {
-      await handleSheetImport()
-      return
-    }
-    if (ediPreview) {
-      await handleEdiImport()
     }
   }
 
@@ -143,7 +93,7 @@ export function CeMercanteImportModal({
         changedBy: user?.id ?? null,
         target,
         voyageId: lockedVoyageId,
-        manifestoNumero: target === 'bls' ? numeroManifesto.trim() || undefined : undefined,
+        manifestoNumero: target === 'bls' ? numeroManifesto.trim() : undefined,
       })
       setReport(result)
 
@@ -161,71 +111,6 @@ export function CeMercanteImportModal({
       )
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Falha ao importar CE Mercante.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleEdiImport() {
-    if (!ediPreview?.rows.length) return
-
-    setSubmitting(true)
-    setEdiErrors(null)
-    try {
-      if (target === 'granite') {
-        const result = await importCeMercanteRows(
-          ediPreview.rows.map((row) => ({
-            rowNumber: row.lineNumber,
-            bl_id: row.bl_id,
-            ce_mercante: row.ce_mercante,
-          })),
-          {
-            changedBy: user?.id ?? null,
-            target,
-            voyageId: lockedVoyageId,
-            manifestoNumero: undefined,
-          },
-        )
-        if (result.errorCount > 0) {
-          setEdiErrors({
-            ok: false,
-            errors: result.errors.map((error) => ({ bl_id: error.bl_id, ce: undefined, message: error.message })),
-          })
-          await invalidateBls()
-          showToast(`Nada foi gravado: ${result.errorCount} pendência(s). Corrija o arquivo e envie de novo.`, 'error')
-          return
-        }
-        await invalidateBls()
-        showToast(`CE Mercante cadastrado em ${result.updated} B/L(s) de Granito.`, 'success')
-        resetAndClose()
-        return
-      }
-
-      const result = await importCeMercanteEdi(ediPreview.rows, {
-        changedBy: user?.id ?? null,
-        manifestoNumero: numeroManifesto.trim() || undefined,
-        voyageId: lockedVoyageId,
-      })
-
-      if (result.ok) {
-        await invalidateBls()
-        showToast(
-          `CE Mercante cadastrado em ${result.inserted + result.overwritten} B/L(s) do manifesto.`,
-          'success',
-        )
-        resetAndClose()
-        return
-      }
-
-      setEdiErrors(result)
-      showToast(
-        result.partial
-          ? `CE Mercante gravado, mas o manifesto não foi vinculado: ${result.errors.length} pendência(s).`
-          : `Importação bloqueada: ${result.errors.length} pendência(s). Nada foi gravado.`,
-        'error',
-      )
-    } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Falha ao importar CE Mercante (EDI).')
     } finally {
       setSubmitting(false)
     }
@@ -251,29 +136,34 @@ export function CeMercanteImportModal({
     onClose()
   }
 
-  const ediBlocked = Boolean(ediPreview && ediPreview.rowErrors.length > 0)
-  // Planilha também é "tudo ou nada" (migration 082): erro de estrutura na
-  // prévia bloqueia a confirmação, como no EDI.
+  // Planilha é "tudo ou nada" (migration 082): erro de estrutura na prévia
+  // bloqueia a confirmação.
   const sheetBlocked = Boolean(preview && preview.rowErrors.length > 0)
-  const canSubmit = ((preview?.rows.length ?? 0) > 0 && !sheetBlocked) || ((ediPreview?.rows.length ?? 0) > 0 && !ediBlocked)
+  // Cada importação de B/L é um manifesto (migration 164): o número vem antes.
+  const missingManifesto = target === 'bls' && !numeroManifesto.trim()
+  const canSubmit = (preview?.rows.length ?? 0) > 0 && !sheetBlocked && !missingManifesto
 
   const sheetReportErrors = report?.errors ?? []
-  const ediPartial = Boolean(ediErrors && !ediErrors.ok && ediErrors.partial)
-  const rejectedAfterSubmit = sheetReportErrors.length > 0 || ediReportErrors.length > 0
+  const rejectedAfterSubmit = sheetReportErrors.length > 0
   let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
   if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
-  else if (ediPartial) footnote = 'CE gravado; o manifesto ficou sem vínculo. Veja as pendências.'
   else if (rejectedAfterSubmit) footnote = 'Nada foi gravado. Corrija o arquivo e escolha de novo.'
-  else if (sheetBlocked || ediBlocked) footnote = 'Há erro na prévia: nada pode ser gravado. Corrija o arquivo e escolha de novo.'
-  else if (preview || ediPreview) footnote = 'Tudo ou nada: se algum B/L falhar, nada é gravado.'
-  const submitCount = preview?.rows.length ?? ediPreview?.rows.length ?? 0
+  else if (sheetBlocked) footnote = 'Há erro na prévia: nada pode ser gravado. Corrija o arquivo e escolha de novo.'
+  else if (preview && missingManifesto) footnote = 'Informe o Nº de Manifesto Mercante para importar.'
+  else if (preview) footnote = 'Tudo ou nada: se algum B/L falhar, nada é gravado.'
+  const submitCount = preview?.rows.length ?? 0
 
   return (
     <Modal open={open} onClose={resetAndClose} title="Importar CE Mercante">
       <div className="app-import">
         {target === 'bls' ? (
-          <Field label="Nº de Manifesto Mercante (opcional)" hint="Vincula os B/Ls importados ao manifesto de carga da viagem. Não é o CE de cada B/L.">
+          <Field
+            label="Nº de Manifesto Mercante"
+            required
+            hint="Cada importação é um manifesto: todos os B/Ls da planilha precisam ser da mesma rota (POL → POD). Para outro manifesto da mesma rota, importe outra planilha com o número dele; repetir um número já cadastrado junta os B/Ls a ele."
+          >
             <Input
+              required
               value={numeroManifesto}
               onChange={(e) => setNumeroManifesto(e.target.value)}
               placeholder="Ex.: 26BR000001"
@@ -283,18 +173,18 @@ export function CeMercanteImportModal({
 
         <ImportGuide
           requiredLabel="Formato"
-          required={<>planilha com as colunas <strong>BL</strong> e <strong>CE MERCANTE</strong>, ou o EDI do manifesto Mercante.</>}
+          required={<>planilha com as colunas <strong>BL</strong> e <strong>CE MERCANTE</strong>.</>}
           details={
             <p>
-              No EDI o sistema lê os registros C (CE ↔ B/L), confere que todos os B/Ls do manifesto têm CE e que não
-              há CE ou B/L repetido. Planilha ou EDI, a gravação é tudo ou nada: se algo falhar, nada é gravado.
+              O CE de 15 dígitos é conferido e não pode haver B/L repetido. A gravação é tudo ou nada: se algo falhar,
+              nada é gravado, nem o vínculo com o manifesto.
             </p>
           }
           templates={<ImportTemplateLinks baseName="ce-mercante-modelo" />}
         />
 
         <ImportFilePicker
-          accept=".xlsx,.xls,.csv,.edi,.txt"
+          accept=".xlsx,.xls,.csv"
           files={file ? [file] : []}
           onFiles={(files) => void handleFiles(files)}
           disabled={submitting}
@@ -348,48 +238,6 @@ export function CeMercanteImportModal({
           </section>
         ) : null}
 
-        {ediPreview ? (
-          <section className="app-import-section" aria-label="Prévia do EDI">
-            <div className="app-import-section__head">
-              <h3 className="app-import-section__title">Prévia</h3>
-              <SummaryStrip
-                label="Resumo do EDI"
-                items={[
-                  { label: ediPreview.rows.length === 1 ? 'registro CE ↔ B/L' : 'registros CE ↔ B/L', value: ediPreview.rows.length },
-                  { label: ediPreview.rowErrors.length === 1 ? 'erro de estrutura' : 'erros de estrutura', value: ediPreview.rowErrors.length, tone: ediPreview.rowErrors.length ? 'danger' : 'default' },
-                  ...(ediErrors ? [{ label: 'pendências de validação', value: ediReportErrors.length, tone: ediReportErrors.length ? 'danger' as const : 'default' as const }] : []),
-                ]}
-              />
-            </div>
-
-            {ediPreview.encoding ? (
-              <p className="app-import-inspection__line app-import-inspection">
-                <span>Encoding detectado: <strong>{ediPreview.encoding}</strong></span>
-              </p>
-            ) : null}
-
-            <PreviewTable rows={ediSampleRows.map((row) => ({ ref: row.lineNumber, bl: row.bl_id, ce: row.ce_mercante }))} refLabel="Linha EDI" />
-            <TruncationNote shown={ediSampleRows.length} total={ediPreview.rows.length} noun="registro" />
-
-            {ediPreview.rowErrors.length || ediReportErrors.length ? (
-              <ImportNotice
-                tone={ediPartial ? 'warning' : 'danger'}
-                role="alert"
-                title={ediPartial ? 'CE gravado; o manifesto não foi vinculado' : ediReportErrors.length ? 'Nada foi gravado' : 'Corrija antes de importar'}
-              >
-                <ul className="app-import-notice__list">
-                  {ediPreview.rowErrors.map((item, index) => (
-                    <li key={`edi-parse-${item.line}-${index}`}>Linha {item.line}: {item.message}</li>
-                  ))}
-                  {ediReportErrors.map((item, index) => (
-                    <li key={`edi-report-${item.bl_id ?? item.ce ?? 'geral'}-${index}`}>{item.message}</li>
-                  ))}
-                </ul>
-              </ImportNotice>
-            ) : null}
-          </section>
-        ) : null}
-
         {submitError ? (
           <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
             <p>{submitError}</p>
@@ -398,11 +246,11 @@ export function CeMercanteImportModal({
         ) : null}
 
         <div className="app-modal__actions">
-          <ImportFootnote tone={rejectedAfterSubmit || ediPartial || sheetBlocked || ediBlocked ? 'warning' : 'default'}>{footnote}</ImportFootnote>
+          <ImportFootnote tone={rejectedAfterSubmit || sheetBlocked ? 'warning' : 'default'}>{footnote}</ImportFootnote>
           <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : resetAndClose}>
             {parsing ? 'Interromper leitura' : 'Voltar'}
           </Button>
-          <Button disabled={!canSubmit || parsing} loading={submitting} loadingLabel="Importando…" onClick={handleImport}>
+          <Button disabled={!canSubmit || parsing} loading={submitting} loadingLabel="Importando…" onClick={handleSheetImport}>
             <Upload size={16} aria-hidden="true" />
             {submitCount > 0 && canSubmit ? `Importar ${plural(submitCount, 'CE', 'CEs')}` : 'Importar CEs'}
           </Button>

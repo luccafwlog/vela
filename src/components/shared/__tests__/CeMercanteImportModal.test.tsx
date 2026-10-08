@@ -4,7 +4,6 @@ import { afterEach, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   parse: vi.fn(),
-  parseEdi: vi.fn(),
   partition: vi.fn(),
   importRows: vi.fn(),
   invalidateQueries: vi.fn(),
@@ -18,9 +17,7 @@ vi.mock('../../../services/ceMercanteImport', () => ({
   parseCeMercanteFile: mocks.parse,
   partitionRowsByVoyage: mocks.partition,
   importCeMercanteRows: mocks.importRows,
-  importCeMercanteEdi: vi.fn(),
 }))
-vi.mock('../../../services/ceMercanteEdiParser', () => ({ parseCeMercanteEdiFile: mocks.parseEdi }))
 
 import { CeMercanteImportModal } from '../CeMercanteImportModal'
 
@@ -44,9 +41,9 @@ it('exclui do preview o BL de outra viagem e mostra erro bloqueante', async () =
   expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-it('invalida caches e avisa que nada foi gravado no EDI de Granito com pendência', async () => {
-  mocks.parseEdi.mockResolvedValue({
-    rows: [{ lineNumber: 1, bl_id: 'GR1', ce_mercante: '122605051526081' }],
+it('invalida caches e avisa que nada foi gravado na planilha de Granito com pendência', async () => {
+  mocks.parse.mockResolvedValue({
+    rows: [{ rowNumber: 2, bl_id: 'GR1', ce_mercante: '122605051526081' }],
     rowErrors: [],
   })
   mocks.importRows.mockResolvedValue({
@@ -55,47 +52,35 @@ it('invalida caches e avisa que nada foi gravado no EDI de Granito com pendênci
     overwritten: 0,
     unchanged: 0,
     errorCount: 1,
-    errors: [{ row: 2, bl_id: 'GR2', message: 'B/L GR2 nao encontrado no manifesto de granito.' }],
+    errors: [{ row: 2, bl_id: 'GR1', message: 'B/L GR1 nao encontrado no manifesto de granito.' }],
   })
   const { container } = render(<CeMercanteImportModal open target="granite" onClose={vi.fn()} />)
+  // Granito não pede Nº de Manifesto Mercante.
+  expect(screen.queryByLabelText(/Nº de Manifesto Mercante/i)).toBeNull()
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
-    target: { files: [new File(['edi'], 'ce.edi')] },
+    target: { files: [new File(['x'], 'ce.xlsx')] },
   })
-  // O botao é sempre renderizado (CeMercanteImportModal.tsx:329 só alterna
-  // `disabled`), entao esperar pela existencia dele nao espera nada: o clique
-  // cairia no botao desabilitado antes de parseEdi resolver, e o import nunca
-  // rodaria. Esperar por `disabled === false` amarra o clique ao preview pronto.
   await waitFor(() =>
     expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false),
   )
   fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
   await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalled())
-  expect(mocks.showToast).toHaveBeenCalledWith('Nada foi gravado: 1 pendência(s). Corrija o arquivo e envie de novo.', 'error')
+  expect(mocks.showToast).toHaveBeenCalledWith('Nada foi gravado: 1 erro(s). Corrija a planilha e envie de novo.', 'error')
 })
 
-it('oferece campo de Nº de Manifesto Mercante e nao exibe rotulo equivocado "Manifesto detectado:"', async () => {
-  mocks.parseEdi.mockResolvedValue({
-    manifestRef: 'M_TOKEN_1',
-    rows: [{ lineNumber: 1, bl_id: 'BL001', ce_mercante: '122605051526081' }],
-    rowErrors: [],
-  })
-
+it('exige o Nº de Manifesto Mercante antes de importar CE de B/L e aceita só planilha', async () => {
+  mocks.parse.mockResolvedValue({ rows: [{ rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }], rowErrors: [] })
   const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
 
-  // Deve haver o campo para informar o Nº de Manifesto Mercante
-  expect(screen.getByLabelText(/Nº de Manifesto Mercante/i)).toBeTruthy()
-
-  // Ao carregar EDI com manifestRef
+  expect((container.querySelector('input[type="file"]') as HTMLInputElement).accept).toBe('.xlsx,.xls,.csv')
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
-    target: { files: [new File(['edi'], 'ce.edi')] },
+    target: { files: [new File(['x'], 'ce.xlsx')] },
   })
+  await waitFor(() => expect(screen.getByText('Informe o Nº de Manifesto Mercante para importar.')).toBeTruthy())
+  expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(true)
 
-  await waitFor(() =>
-    expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false),
-  )
-
-  // NÃO deve exibir o rótulo equivocado "Manifesto detectado:"
-  expect(screen.queryByText(/Manifesto detectado:/i)).toBeNull()
+  fireEvent.change(screen.getByLabelText(/Nº de Manifesto Mercante/i), { target: { value: '26BR000001' } })
+  expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false)
 })
 
 it('envia o Nº de Manifesto Mercante junto com a importação de planilha', async () => {
