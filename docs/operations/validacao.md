@@ -160,7 +160,7 @@ quando relevante e condição para reprodução.
 1. Entre em `/login` com usuário ativo.
 2. Confirme redirecionamento para `/painel`.
 3. Valide menu e rotas para cada perfil disponível.
-4. Tente abrir `/admin` com usuário não administrativo.
+4. Tente abrir `/admin` com usuário não administrativo e confirme a tela "Acesso restrito" com o caminho de volta ao Painel.
 5. Desative um usuário de QA e confirme bloqueio de sessão ou novo login.
 6. Espere ou simule expiração quando o fluxo de sessão for alterado.
 

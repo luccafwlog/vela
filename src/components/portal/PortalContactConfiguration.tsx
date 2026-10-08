@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
+import { Plus } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Card, InlineError } from '../ui/Card'
+import { InlineError } from '../ui/Card'
+import { Badge } from '../ui/Badge'
 import { Field, Input } from '../ui/Input'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -274,83 +276,56 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
     : ''
 
   if (isLoading) {
-    return <div className="text-sm text-[var(--app-muted)]">Carregando contatos...</div>
+    return <div className="text-sm text-[var(--app-muted)]" role="status">Carregando contatos…</div>
   }
 
+  // Cada contato é um grupo nomeado (fieldset + legenda), não um card dentro
+  // do card da seção: o leitor de tela ouve "Contato principal, Maria" antes
+  // de "Nome", "E-mail" e das caixas daquele contato.
   return (
-    <div className="min-w-0">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+    <div className="portal-contacts">
+      <div className="portal-profile__section-head">
         <div>
-          <h2 className="text-lg font-semibold text-[var(--app-text-strong)]">
-            Contatos e recebimento
-          </h2>
-          <p className="mt-1 text-sm text-[var(--app-muted)]">
-            Administre o contato principal e contatos adicionais para recebimento dos comunicados da sua carga.
+          <h2 className="portal-profile__section-title">Contatos e recebimento</h2>
+          <p className="portal-profile__section-intro">
+            Quem recebe os comunicados da FWLOG. Cada caixa de recebimento precisa de pelo menos um contato ativo.
           </p>
         </div>
         {!isInspect && (
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleAddContact}
-            className="mt-2 shrink-0 sm:mt-0"
-          >
-            + Novo contato
+          <Button type="button" variant="secondary" onClick={handleAddContact} className="shrink-0">
+            <Plus size={16} aria-hidden="true" />
+            Adicionar contato
           </Button>
         )}
       </div>
 
-      <form className="mt-6 grid gap-6" onSubmit={handleSubmit}>
+      <form className="portal-contacts__form" onSubmit={handleSubmit}>
         {drafts.map((contact, index) => {
           const suppressionMsg = formatSuppression(contact.suppressionReason)
+          const legendName = contact.name || contact.email || 'novo contato'
           return (
-            <Card
+            <fieldset
               key={contact.id ?? `draft-${index}`}
-              className={`p-4 border transition-colors ${
-                !contact.active
-                  ? 'border-[var(--app-border)] bg-[var(--app-muted)]/10 opacity-75'
-                  : contact.isPrimary
-                  ? 'border-blue-500/50 bg-blue-50/20 dark:bg-blue-950/10'
-                  : 'border-[var(--app-border)]'
-              }`}
+              className="portal-contact"
+              data-primary={contact.isPrimary ? 'true' : undefined}
+              data-active={contact.active ? 'true' : 'false'}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--app-border)]">
-                <div className="flex flex-wrap items-center gap-2">
-                  {contact.isPrimary ? (
-                    <span className="inline-flex items-center rounded-md bg-blue-100 dark:bg-blue-900/60 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:text-blue-200">
-                      Contato Principal
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                      Contato Adicional
-                    </span>
-                  )}
-                  <span className="text-xs text-[var(--app-muted)]">
-                    {formatOrigin(contact.origin)}
-                  </span>
-                  {!contact.active && (
-                    <span className="inline-flex items-center rounded-md bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
-                      Desativado
-                    </span>
-                  )}
+              <legend className="sr-only">{`${contact.isPrimary ? 'Contato principal' : 'Contato adicional'}: ${legendName}`}</legend>
+              <div className="portal-contact__head">
+                <div className="portal-contact__tags">
+                  {contact.isPrimary ? <Badge tone="info">Contato principal</Badge> : <Badge tone="neutral">Contato adicional</Badge>}
+                  {!contact.active ? <Badge tone="warning">Desativado</Badge> : null}
+                  <span className="portal-contact__origin">{formatOrigin(contact.origin)}</span>
                 </div>
 
                 {!isInspect && (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="portal-contact__actions">
                     {!contact.isPrimary && contact.active && (
-                      <button
-                        type="button"
-                        onClick={() => handleSetPrimary(index)}
-                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
-                      >
+                      <button type="button" onClick={() => handleSetPrimary(index)} className="portal-contact__action">
                         Tornar principal
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleActive(index)}
-                      className="text-xs text-[var(--app-muted)] hover:text-red-500 font-medium ml-2"
-                    >
+                    <button type="button" onClick={() => handleToggleActive(index)} className="portal-contact__action">
                       {contact.active ? 'Desativar' : 'Reativar'}
                     </button>
                   </div>
@@ -358,12 +333,12 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
               </div>
 
               {suppressionMsg && (
-                <div className="mt-2 rounded bg-amber-50 dark:bg-amber-950/40 p-2 text-xs text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/40">
+                <div className="app-callout app-callout--warning portal-contact__notice">
                   {suppressionMsg}
                 </div>
               )}
 
-              <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)]">
+              <div className="portal-contact__fields">
                 <Field label="Nome">
                   <Input
                     type="text"
@@ -371,6 +346,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
                     value={contact.name ?? ''}
                     onChange={(e) => handleFieldChange(index, 'name', e.target.value)}
                     placeholder="Nome do contato"
+                    autoComplete="off"
                   />
                 </Field>
                 <Field label="E-mail">
@@ -380,61 +356,55 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
                     value={contact.email ?? ''}
                     onChange={(e) => handleFieldChange(index, 'email', e.target.value)}
                     placeholder="email@empresa.com"
+                    autoComplete="off"
                   />
                 </Field>
                 <Field label="Telefone / WhatsApp">
                   <Input
-                    type="text"
+                    type="tel"
                     disabled={isInspect || !contact.active}
                     value={contact.phone ?? ''}
                     onChange={(e) => handleFieldChange(index, 'phone', e.target.value)}
                     placeholder="(11) 99999-9999"
+                    autoComplete="off"
                   />
                 </Field>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-[var(--app-border)]/60">
-                <span className="text-xs font-semibold text-[var(--app-text-strong)]">
-                  Caixas de recebimento:
-                </span>
+              <div className="portal-contact__boxes">
+                <span className="portal-contact__boxes-title">Caixas de recebimento</span>
                 {contact.isPrimary ? (
-                  <p className="mt-1 text-xs text-[var(--app-muted)]">
-                    Para desmarcar uma caixa, vincule antes outro contato ativo e apto a receber mensagens.
+                  <p className="portal-contact__boxes-hint">
+                    Para desmarcar uma caixa do contato principal, vincule antes outro contato ativo e apto a receber mensagens.
                   </p>
                 ) : null}
-                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                <div className="portal-contact__box-grid">
                   {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
                     const checked = contact.boxCodes.includes(box.code)
+                    const disabled = isInspect || !contact.active
                     return (
                       <label
                         key={box.code}
-                        className={`flex items-start gap-3 p-3 rounded border text-sm cursor-pointer ${
-                          checked
-                            ? 'border-blue-400 bg-blue-50/30 dark:bg-blue-900/20'
-                            : 'border-[var(--app-border)] opacity-80'
-                        } ${!contact.active || isInspect ? 'cursor-not-allowed opacity-60' : ''}`}
+                        className="portal-contact__box"
+                        data-checked={checked ? 'true' : 'false'}
+                        data-disabled={disabled ? 'true' : undefined}
                       >
                         <input
                           type="checkbox"
-                          className="mt-0.5 rounded border-[var(--app-border)] text-blue-600 focus:ring-blue-500"
-                          disabled={isInspect || !contact.active}
+                          disabled={disabled}
                           checked={checked}
                           onChange={() => handleToggleBox(index, box.code)}
                         />
-                        <div>
-                          <div className="font-medium text-[var(--app-text-strong)]">
-                            {box.label}
-                          </div>
-                          <div className="text-xs text-[var(--app-muted)] mt-1">
-                            {box.description}
-                          </div>
-                        </div>
+                        <span>
+                          <span className="portal-contact__box-label">{box.label}</span>
+                          <span className="portal-contact__box-desc">{box.description}</span>
+                        </span>
                       </label>
                     )
                   })}
                 </div>
               </div>
-            </Card>
+            </fieldset>
           )
         })}
 
@@ -442,11 +412,12 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
           <InlineError message={localError || loadErrMsg} />
         ) : null}
 
-        <div className="flex justify-end mt-2">
+        <div className="portal-profile__form-actions">
           <Button
             type="submit"
             disabled={isInspect || isError}
             loading={submitting}
+            loadingLabel="Salvando..."
             title={
               isInspect
                 ? 'Ação do cliente — indisponível em Modo Inspeção'

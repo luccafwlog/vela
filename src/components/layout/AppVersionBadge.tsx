@@ -1,11 +1,11 @@
 import { useState } from 'react'
+import { Copy } from 'lucide-react'
 import { APP_COMMIT_SHA, HAS_APP_COMMIT_SHA, formatAppVersion } from '../../lib/appVersion'
 
-// Versão da build visível em toda tela, no canto direito da barra superior.
-// Antes ficava escondida atrás do menu de usuário (numa zona com display:none,
-// portanto inalcançável) e repetida na aba Métricas. Suporte começa por "qual
-// versão você está vendo?" — a resposta precisa estar à vista, e o clique
-// copia o SHA completo para colar num chamado.
+// Versão da build no menu da conta (etapa 02). Antes ela ocupava o canto
+// direito da faixa de avisos em toda tela; o suporte continua a um clique:
+// "qual versão você está vendo?" se responde abrindo o menu, e o clique copia
+// o SHA completo para colar num chamado.
 export function AppVersionBadge() {
   const [copied, setCopied] = useState(false)
 
@@ -28,9 +28,10 @@ export function AppVersionBadge() {
       className="app-version-badge"
       onClick={() => void copy()}
       title={`Commit ${APP_COMMIT_SHA} — clique para copiar`}
-      aria-label={`Versão da aplicação ${formatAppVersion()}. Clique para copiar o commit completo.`}
+      aria-label={`Versão da aplicação ${formatAppVersion()}. Copiar o commit completo.`}
     >
-      {copied ? 'copiado' : formatAppVersion()}
+      <Copy size={14} aria-hidden="true" />
+      <span>{copied ? 'Commit copiado' : `Versão ${formatAppVersion()}`}</span>
     </button>
   )
 }

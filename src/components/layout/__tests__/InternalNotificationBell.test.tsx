@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InternalNotification } from '../../../services/alerts'
 
@@ -62,6 +62,7 @@ const confirmMock = vi.hoisted(() => vi.fn((options: { title?: string; message: 
   return Promise.resolve(true)
 }))
 const notificationServiceMocks = vi.hoisted(() => ({ listAllUnread: vi.fn() }))
+const listState = vi.hoisted(() => ({ isError: false, refetch: vi.fn() }))
 
 // O sino recebe so a chave surrogate em `entity_id`; os rotulos chegam por uma
 // consulta separada, exatamente como na fila de /alertas.
@@ -74,8 +75,10 @@ vi.mock('../../../hooks/useInternalNotifications', () => ({
   useUnreadInternalNotificationCount: () => ({ data: 3 }),
   useInternalNotificationEntityLabels: () => ({ data: entityLabels }),
   useInternalNotifications: (open: boolean) => ({
-    data: open ? [mockNotification, mockEchoNotification, mockFallbackNotification] : [],
+    data: open && !listState.isError ? [mockNotification, mockEchoNotification, mockFallbackNotification] : [],
     isLoading: false,
+    isError: listState.isError,
+    refetch: listState.refetch,
   }),
   useMarkInternalNotificationRead: () => ({
     mutateAsync: mutateMarkReadMock,
@@ -102,6 +105,7 @@ import { InternalNotificationBell } from '../InternalNotificationBell'
 afterEach(cleanup)
 beforeEach(() => {
   vi.clearAllMocks()
+  listState.isError = false
   confirmMock.mockResolvedValue(true)
   notificationServiceMocks.listAllUnread.mockResolvedValue([
     mockNotification,
@@ -305,4 +309,40 @@ describe('InternalNotificationBell', () => {
     fireEvent.mouseDown(screen.getByText('Fora'))
     expect(screen.queryByText('Notificações internas')).toBeNull()
   })
+
+  it('falha da consulta não aparece como lista vazia e oferece nova tentativa', () => {
+    listState.isError = true
+    render(
+      <MemoryRouter>
+        <InternalNotificationBell />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
+    expect(screen.getByRole('alert').textContent).toMatch(/Não foi possível carregar as notificações/)
+    expect(screen.queryByText('Nenhuma notificação não lida.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+    expect(listState.refetch).toHaveBeenCalledOnce()
+  })
+
+  it('marca a não lida por texto e leva à fila completa de Alertas', () => {
+    render(
+      <MemoryRouter initialEntries={['/painel']}>
+        <Routes>
+          <Route path="*" element={<><InternalNotificationBell /><LocationProbe /></>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByLabelText('Notificações internas (3 não lidas)'))
+    expect(screen.getByRole('button', { name: /Fatura vencida.*Não lida/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir fila de Alertas' }))
+    expect(screen.getByTestId('location').textContent).toBe('/alertas')
+    expect(screen.queryByRole('region', { name: 'Notificações internas' })).toBeNull()
+  })
 })
+
+function LocationProbe() {
+  const location = useLocation()
+  return <span data-testid="location">{location.pathname}</span>
+}

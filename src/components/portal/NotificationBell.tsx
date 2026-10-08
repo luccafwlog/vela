@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bell, FileText, MessageSquare } from 'lucide-react'
+import { Bell, CheckCheck, FileText, MessageSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { usePortalScope } from '../../hooks/usePortalScope'
 import { usePortalMarkAllRead, usePortalMarkRead, usePortalNotifications, usePortalUnreadCount } from '../../hooks/usePortalNotifications'
@@ -12,12 +12,13 @@ const NOTIFICATION_CONFIRMATION_LIMIT = 10_000
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
-  const { data: notifications, isLoading } = usePortalNotifications(open)
+  const { data: notifications, isLoading, isError, refetch } = usePortalNotifications(open)
   const { data: unreadCount = 0 } = usePortalUnreadCount()
   const markRead = usePortalMarkRead()
   const markAllRead = usePortalMarkAllRead()
   const navigate = useNavigate()
   const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const confirm = useConfirm()
   const { showToast } = useToast()
   const scope = usePortalScope()
@@ -38,7 +39,9 @@ export function NotificationBell() {
   useEffect(() => {
     if (!open) return
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      triggerRef.current?.focus()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
@@ -90,82 +93,101 @@ export function NotificationBell() {
     }).format(date)
   }
 
+  const items = notifications ?? []
+
+  // Painel não modal (região), igual ao sino do Vela: a lista tem botões
+  // comuns e "Marcar todas como lidas" no cabeçalho, o que não cabe no papel
+  // de menu. Escape fecha e devolve o foco ao sino.
   return (
     <div ref={containerRef} className="portal-notifications">
       <button
+        ref={triggerRef}
         type="button"
-        className="portal-notifications__trigger"
+        className="app-header__icon-button"
         onClick={() => setOpen(!open)}
         aria-label={`Notificações${unreadCount > 0 ? ` (${unreadCount} não lidas)` : ''}`}
-        aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls="portal-notifications-panel"
       >
-        <Bell size={16} />
+        <Bell size={18} aria-hidden="true" />
         {unreadCount > 0 ? (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--app-red)] px-1 text-[10px] font-bold text-white leading-none">
-            {unreadCount > 9 ? '9+' : unreadCount}
+          <span className="app-header__count" aria-hidden="true">
+            {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         ) : null}
       </button>
 
       {open ? (
-        <div role="menu" aria-label="Notificações" className="portal-notifications__panel">
-          <div className="portal-notifications__header">
-            <span className="portal-notifications__title">Notificações</span>
+        <div id="portal-notifications-panel" role="region" aria-label="Notificações" className="app-notifications portal-notifications__panel">
+          <div className="app-notifications__header">
+            <h2 className="app-notifications__title">Notificações</h2>
             {unreadCount > 0 ? (
               <button
                 type="button"
-                className="portal-notifications__mark-all"
+                className="app-notifications__mark-all"
                 onClick={handleMarkAllRead}
-                disabled={readOnly}
+                disabled={readOnly || markAllRead.isPending}
                 title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
               >
+                <CheckCheck size={16} aria-hidden="true" />
                 Marcar todas como lidas
               </button>
             ) : null}
           </div>
 
-          <div className="portal-notifications__list">
+          <div className="app-notifications__list">
             {isLoading ? (
-              <div className="portal-notifications__state">Carregando notificações…</div>
-            ) : (notifications ?? []).length === 0 ? (
-              <div className="portal-notifications__state">Você não tem novas notificações.</div>
+              <div className="app-notifications__state" role="status">Carregando notificações…</div>
+            ) : isError ? (
+              <div className="app-notifications__state" role="alert">
+                Não foi possível carregar as notificações.{' '}
+                <button type="button" className="app-notifications__retry" onClick={() => void refetch()}>Tentar novamente</button>
+              </div>
+            ) : items.length === 0 ? (
+              <div className="app-notifications__state">Nenhuma notificação por enquanto.</div>
             ) : (
-              (notifications ?? []).map((n) => (
-                <button
-                  key={n.id}
-                  type="button"
-                  role="menuitem"
-                  data-read={String(n.read)}
-                  className="portal-notifications__item"
-                  onClick={async () => {
-                    if (!n.read && scope.mode === 'client') {
-                      const confirmed = await confirm({
-                        title: 'Marcar notificação como lida',
-                        message: `Marcar “${n.title}” como lida e abrir o conteúdo?`,
-                        confirmLabel: 'Marcar como lida',
-                        affected: { summary: `1 notificação: ${n.title}`, items: [n.message] },
-                        consequence: 'A notificação deixa de contar como não lida. O estado da fatura ou disputa não muda.',
-                        reversibility: 'Não há ação no Portal para marcar esta notificação novamente como não lida.',
-                      })
-                      if (!confirmed) return
-                      await markRead.mutateAsync(n.id)
-                    }
-                    if (n.link?.startsWith('/portal')) navigate(readOnly ? n.link.replace(/^\/portal/, scope.basePath) : n.link)
-                    setOpen(false)
-                  }}
-                >
-                  <span className="portal-notifications__icon" aria-hidden="true">
-                    {n.type === 'invoice_issued' || n.type === 'demurrage_issued' ? <FileText size={18} /> : n.type === 'dispute_responded' ? <MessageSquare size={18} /> : <Bell size={18} />}
-                  </span>
-                  <div>
-                    <div className="portal-notifications__item-title">{n.title}</div>
-                    <div className="portal-notifications__message">{n.message}</div>
-                    {formatDate(n.created_at) ? <div className="portal-notifications__date">{formatDate(n.created_at)}</div> : null}
-                  </div>
-                  {!n.read ? <span className="portal-notifications__unread" aria-label="Não lida" /> : <span />}
-                </button>
-              ))
+              <ul className="app-notifications__items">
+                {items.map((n) => (
+                  <li key={n.id}>
+                    <button
+                      type="button"
+                      data-read={String(n.read)}
+                      className="app-notifications__item app-notifications__item--icon"
+                      onClick={async () => {
+                        if (!n.read && scope.mode === 'client') {
+                          const confirmed = await confirm({
+                            title: 'Marcar notificação como lida',
+                            message: `Marcar “${n.title}” como lida e abrir o conteúdo?`,
+                            confirmLabel: 'Marcar como lida',
+                            affected: { summary: `1 notificação: ${n.title}`, items: [n.message] },
+                            consequence: 'A notificação deixa de contar como não lida. O estado da fatura ou disputa não muda.',
+                            reversibility: 'Não há ação no Portal para marcar esta notificação novamente como não lida.',
+                          })
+                          if (!confirmed) return
+                          await markRead.mutateAsync(n.id)
+                        }
+                        if (n.link?.startsWith('/portal')) navigate(readOnly ? n.link.replace(/^\/portal/, scope.basePath) : n.link)
+                        setOpen(false)
+                      }}
+                    >
+                      <span className="app-notifications__icon" aria-hidden="true">
+                        {n.type === 'invoice_issued' || n.type === 'demurrage_issued' ? <FileText size={18} /> : n.type === 'dispute_responded' ? <MessageSquare size={18} /> : <Bell size={18} />}
+                      </span>
+                      <div className="app-notifications__body">
+                        <span className="app-notifications__item-title">{n.title}</span>
+                        <p className="app-notifications__message">{n.message}</p>
+                        {formatDate(n.created_at) ? <div className="app-notifications__meta"><span>{formatDate(n.created_at)}</span></div> : null}
+                      </div>
+                      {!n.read ? (
+                        <>
+                          <span className="app-notifications__unread" aria-hidden="true" />
+                          <span className="sr-only">Não lida</span>
+                        </>
+                      ) : <span aria-hidden="true" />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>

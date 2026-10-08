@@ -14,10 +14,12 @@ import {
 import { ErrorBoundary } from '../ErrorBoundary'
 import { useAuth } from '../../hooks/useAuth'
 import { useOperationalCounts } from '../../hooks/useOperationalCounts'
+import { AppVersionBadge } from './AppVersionBadge'
 import { HeaderInfoBar } from './HeaderInfoBar'
 import { InternalNotificationBell } from './InternalNotificationBell'
 import { NAV_COLLAPSE_WIDTH, useMobileNav } from './useMobileNav'
 import { cn } from '../../lib/utils'
+import { departmentLabel } from '../../lib/departmentLabel'
 import {
   adminNavItem,
   buildFinancialNavItemsForCounts,
@@ -35,7 +37,7 @@ export function AppLayout() {
   const navigate = useNavigate()
   const { profile, signOut, isAdmin } = useAuth()
   const counts = useOperationalCounts()
-  const { open: mobileNavOpen, setOpen: setMobileNavOpen, toggleRef: mobileNavToggleRef } = useMobileNav()
+  const { open: mobileNavOpen, setOpen: setMobileNavOpen, toggleRef: mobileNavToggleRef, navRef: mobileNavRef } = useMobileNav()
   const [mobileImportOpen, setMobileImportOpen] = useState(false)
   const [desktopImportOpen, setDesktopImportOpen] = useState(false)
   const [mobileExportOpen, setMobileExportOpen] = useState(false)
@@ -130,15 +132,75 @@ export function AppLayout() {
 
       <HeaderInfoBar />
 
+      {/* Uma barra só (etapa 02): marca, navegação e conta. Abaixo de 1100 px
+          a navegação vira a lista do botão Menu, aberta logo abaixo da barra. */}
       <header className="app-header">
         <div className="app-header__content">
-          <button className="app-header__brand" onClick={() => navigate('/painel')} type="button">
-            <img className="app-header__brand-logo" src="/branding/vela-mark-dark.svg" alt="Vela" />
-            <div className="app-header__titles">
-              <div className="app-header__eyebrow">Vela</div>
-              <div className="app-header__subtitle">importação, exportação e faturamento</div>
-            </div>
+          <button className="app-header__brand" onClick={() => navigate('/painel')} type="button" aria-label="Vela — ir para o Painel">
+            <img className="app-header__brand-logo" src="/branding/vela-mark-dark.svg" alt="" />
+            <span className="app-header__wordmark" aria-hidden="true">Vela</span>
           </button>
+
+          <nav
+            ref={mobileNavRef}
+            id="app-primary-navigation"
+            aria-label="Navegação principal"
+            className={cn('app-nav-scroll', mobileNavOpen && 'app-nav-scroll--open')}
+          >
+            {primaryNavItemsWithBadges.slice(0, 2).map((item) => (
+              <TopNavLink key={item.to} {...item} onNavigate={closeMobileMenus} />
+            ))}
+
+            <TopNavDropdownMenu
+              label="Importação"
+              icon={FileSpreadsheet}
+              items={importNavItemsWithBadges}
+              isActive={isImportSectionActive}
+              isMobile={isMobileNav}
+              desktopOpen={desktopImportOpen}
+              mobileOpen={mobileImportOpen}
+              onOpenDesktop={() => setDesktopImportOpen(true)}
+              onCloseDesktop={() => setDesktopImportOpen(false)}
+              onToggleMobile={() => setMobileImportOpen((current) => !current)}
+              onNavigate={closeMobileMenus}
+            />
+
+            <TopNavDropdownMenu
+              label="Exportação"
+              icon={Package}
+              items={exportNavItemsWithBadges}
+              isActive={isExportSectionActive}
+              isMobile={isMobileNav}
+              desktopOpen={desktopExportOpen}
+              mobileOpen={mobileExportOpen}
+              onOpenDesktop={() => setDesktopExportOpen(true)}
+              onCloseDesktop={() => setDesktopExportOpen(false)}
+              onToggleMobile={() => setMobileExportOpen((current) => !current)}
+              onNavigate={closeMobileMenus}
+            />
+
+            {primaryNavItemsWithBadges.slice(2).map((item) => (
+              <TopNavLink key={item.to} {...item} onNavigate={closeMobileMenus} />
+            ))}
+
+            <TopNavDropdownMenu
+              label="Financeiro"
+              icon={DollarSign}
+              items={financialNavItemsWithBadges}
+              isActive={isFinancialSectionActive}
+              isMobile={isMobileNav}
+              desktopOpen={desktopFinancialOpen}
+              mobileOpen={mobileFinancialOpen}
+              onOpenDesktop={() => setDesktopFinancialOpen(true)}
+              onCloseDesktop={() => setDesktopFinancialOpen(false)}
+              onToggleMobile={() => setMobileFinancialOpen((current) => !current)}
+              onNavigate={closeMobileMenus}
+            />
+
+            <TopNavLink {...reportsNavItem} onNavigate={closeMobileMenus} />
+
+            {isAdmin && <TopNavLink {...adminNavItem} onNavigate={closeMobileMenus} />}
+          </nav>
 
           <div className="app-header__actions">
             <InternalNotificationBell />
@@ -151,21 +213,27 @@ export function AppLayout() {
                 aria-controls="app-user-dropdown"
                 onClick={() => setUserMenuOpen((current) => !current)}
               >
-              <span className="app-user-pill__icon" aria-hidden="true">
-                <User size={14} />
-              </span>
-              <span className="app-user-pill__name">{profile?.full_name ?? 'Usuário'}</span>
+                <span className="app-user-pill__icon" aria-hidden="true">
+                  <User size={16} />
+                </span>
+                <span className="app-user-pill__name">{profile?.full_name ?? 'Usuário'}</span>
+                <ChevronDown size={14} aria-hidden="true" className="app-header__user-chevron" />
               </button>
               {userMenuOpen ? (
                 <div id="app-user-dropdown" className="app-header__user-dropdown">
+                  <div className="app-header__user-identity">
+                    <span className="app-header__user-identity-name">{profile?.full_name ?? 'Usuário'}</span>
+                    <span className="app-header__user-identity-meta">{departmentLabel(profile?.role)}</span>
+                  </div>
                   <button ref={userMenuFirstItemRef} type="button" onClick={() => { setUserMenuOpen(false); navigate('/perfil') }}>
-                    <UserCircle size={14} aria-hidden="true" />
+                    <UserCircle size={16} aria-hidden="true" />
                     Meu perfil
                   </button>
                   <button type="button" onClick={() => void handleSignOut()}>
-                    <LogOut size={14} aria-hidden="true" />
+                    <LogOut size={16} aria-hidden="true" />
                     Sair
                   </button>
+                  <AppVersionBadge />
                 </div>
               ) : null}
             </div>
@@ -183,66 +251,7 @@ export function AppLayout() {
             </button>
           </div>
         </div>
-
       </header>
-
-      <div className="app-nav-bar">
-        <nav id="app-primary-navigation" className={cn('app-nav-scroll', mobileNavOpen && 'app-nav-scroll--open')}>
-          {primaryNavItemsWithBadges.slice(0, 2).map((item) => (
-            <TopNavLink key={item.to} {...item} onNavigate={closeMobileMenus} />
-          ))}
-
-          <TopNavDropdownMenu
-            label="Importação"
-            icon={FileSpreadsheet}
-            items={importNavItemsWithBadges}
-            isActive={isImportSectionActive}
-            isMobile={isMobileNav}
-            desktopOpen={desktopImportOpen}
-            mobileOpen={mobileImportOpen}
-            onOpenDesktop={() => setDesktopImportOpen(true)}
-            onCloseDesktop={() => setDesktopImportOpen(false)}
-            onToggleMobile={() => setMobileImportOpen((current) => !current)}
-            onNavigate={closeMobileMenus}
-          />
-
-          <TopNavDropdownMenu
-            label="Exportação"
-            icon={Package}
-            items={exportNavItemsWithBadges}
-            isActive={isExportSectionActive}
-            isMobile={isMobileNav}
-            desktopOpen={desktopExportOpen}
-            mobileOpen={mobileExportOpen}
-            onOpenDesktop={() => setDesktopExportOpen(true)}
-            onCloseDesktop={() => setDesktopExportOpen(false)}
-            onToggleMobile={() => setMobileExportOpen((current) => !current)}
-            onNavigate={closeMobileMenus}
-          />
-
-          {primaryNavItemsWithBadges.slice(2).map((item) => (
-            <TopNavLink key={item.to} {...item} onNavigate={closeMobileMenus} />
-          ))}
-
-          <TopNavDropdownMenu
-            label="Financeiro"
-            icon={DollarSign}
-            items={financialNavItemsWithBadges}
-            isActive={isFinancialSectionActive}
-            isMobile={isMobileNav}
-            desktopOpen={desktopFinancialOpen}
-            mobileOpen={mobileFinancialOpen}
-            onOpenDesktop={() => setDesktopFinancialOpen(true)}
-            onCloseDesktop={() => setDesktopFinancialOpen(false)}
-            onToggleMobile={() => setMobileFinancialOpen((current) => !current)}
-            onNavigate={closeMobileMenus}
-          />
-
-          <TopNavLink {...reportsNavItem} onNavigate={closeMobileMenus} />
-
-          {isAdmin && <TopNavLink {...adminNavItem} onNavigate={closeMobileMenus} />}
-        </nav>
-      </div>
 
       <main id="app-main-content" className="app-main">
         <ErrorBoundary variant="route" resetKey={location.pathname}>
@@ -274,7 +283,7 @@ function TopNavLink({
       onClick={onNavigate}
       className={({ isActive }) => cn('app-nav-link', isActive && 'active')}
     >
-      <Icon size={18} />
+      <Icon size={16} aria-hidden="true" />
       {label}
       {alert ? <NavAlertDot /> : badge ? <NavBadge count={badge} /> : null}
     </NavLink>
@@ -346,11 +355,11 @@ function TopNavDropdownMenu({
           }
         }}
       >
-        <Icon size={18} />
+        <Icon size={16} aria-hidden="true" />
         {label}
-        {indicator.type === 'alert' ? <NavAlertDot label={`${label}: alerta pendente`} /> : null}
+        {indicator.type === 'alert' ? <NavAlertDot /> : null}
         {indicator.type === 'badge' ? <NavBadge count={indicator.count} /> : null}
-        <ChevronDown size={16} className="app-nav-dropdown__chevron" />
+        <ChevronDown size={14} aria-hidden="true" className="app-nav-dropdown__chevron" />
       </button>
 
       <div id={`app-nav-${label.toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g, '-')}`} className="app-nav-dropdown__menu" aria-label={label}>
@@ -361,7 +370,7 @@ function TopNavDropdownMenu({
             onClick={onNavigate}
             className={({ isActive }) => cn('app-nav-dropdown__item', isActive && 'active')}
           >
-            <item.icon size={16} />
+            <item.icon size={16} aria-hidden="true" />
             {item.label}
             {item.alert ? <NavAlertDot /> : item.badge ? <NavBadge count={item.badge} /> : null}
           </NavLink>
@@ -371,19 +380,24 @@ function TopNavDropdownMenu({
   )
 }
 
-function NavAlertDot({ label = 'Alerta pendente' }: { label?: string }) {
-  return <span className="app-nav-alert-dot" aria-label={label} />
+// O ponto e o número são só visuais; o leitor de tela recebe o mesmo fato
+// por extenso, junto do nome do link ou do grupo.
+function NavAlertDot({ label = 'alerta pendente' }: { label?: string }) {
+  return (
+    <>
+      <span className="app-nav-alert-dot" aria-hidden="true" />
+      <span className="sr-only">{`, ${label}`}</span>
+    </>
+  )
 }
 
-function NavBadge({ count, label }: { count: number; label?: string }) {
-  const display = count > 99 ? '99+' : count
+function NavBadge({ count }: { count: number }) {
+  const display = count > 99 ? '99+' : String(count)
   return (
-    <span
-      className="app-nav-badge"
-      aria-label={label ? `${display} ${label}` : String(display)}
-    >
-      {display}
-    </span>
+    <>
+      <span className="app-nav-badge" aria-hidden="true">{display}</span>
+      <span className="sr-only">{`, ${display} ${count === 1 ? 'pendente' : 'pendentes'}`}</span>
+    </>
   )
 }
 

@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { PortalAccessHelp } from '../components/auth/PortalAccessHelp'
 import { Card, InlineError } from '../components/ui/Card'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { supabasePortal } from '../services/supabase'
 
-const INVALID_LINK_MESSAGE = 'Link de confirmacao invalido ou expirado. Peca a troca novamente pelo Portal.'
-const TRANSIENT_MESSAGE = 'Nao foi possivel confirmar agora. Abra o link do email novamente em instantes.'
+const INVALID_LINK_MESSAGE = 'Link de confirmação inválido ou expirado. Peça a troca novamente pelo Portal.'
+const TRANSIENT_MESSAGE = 'Não foi possível confirmar agora. Abra o link do email novamente em instantes.'
 const RESET_IN_PROGRESS_MESSAGE = 'Recuperação de senha em andamento. O novo email ainda não foi confirmado. Abra o link do email novamente após sua conclusão.'
 // 409: o link estava valido, mas o pedido de troca ja tinha sido resolvido por
 // outro caminho (tipicamente a troca assistida pelo atendimento). Dizer "link
 // invalido" aqui mandaria o cliente refazer uma troca que ja aconteceu.
-const ALREADY_RESOLVED_MESSAGE = 'Este pedido de troca de email ja foi resolvido. Nenhuma acao e necessaria; o Email de Recuperacao em vigor e o atual.'
+const ALREADY_RESOLVED_MESSAGE = 'Este pedido de troca de email já foi resolvido. Nenhuma ação é necessária; o Email de Recuperação em vigor é o atual.'
 
 // `functions.invoke` nao rejeita em falha de transporte: devolve `{ error }`
 // tanto para a resposta 410 da funcao quanto para rede fora do ar. Tratar as
@@ -90,31 +91,33 @@ export function PortalConfirmarEmail() {
       <Card className="app-auth__card">
         <div className="app-auth__brand">
           <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-          <div>
-            <h1 className="app-auth__title">
-              {state === 'ok' ? 'Email confirmado' : state === 'erro' ? 'Confirmacao de email' : 'Confirmando seu email...'}
-            </h1>
-          </div>
+          <h1 className="app-auth__title">
+            {state === 'ok' ? 'Email confirmado' : state === 'erro' ? 'Confirmação de email' : 'Confirmando seu email…'}
+          </h1>
         </div>
 
         {state === 'confirmando' ? (
-          <p className="text-sm text-[var(--app-muted)]">Estamos confirmando o novo Email de Recuperacao.</p>
+          <p className="app-auth__body" role="status">Estamos confirmando o novo Email de Recuperação.</p>
         ) : null}
 
         {state === 'ok' ? (
-          <p className="text-sm text-[var(--app-muted)]">
-            O novo Email de Recuperacao passou a valer e o endereco anterior deixou de valer. As sessoes abertas em
-            outros dispositivos foram encerradas — entre novamente no Portal.
-          </p>
+          <div className="app-auth__body" role="status">
+            <p>
+              O novo Email de Recuperação passou a valer e o endereço anterior deixou de valer. As sessões abertas em
+              outros dispositivos foram encerradas — entre novamente no Portal.
+            </p>
+          </div>
         ) : null}
 
         {state === 'erro' ? <InlineError message={error} /> : null}
 
-        <div className="mt-4 text-center">
-          <Link to="/portal/login" className="text-sm text-[var(--app-link)] hover:underline">
+        <div className="app-auth__actions">
+          <Link to="/portal/login" className={state === 'ok' ? 'app-btn app-btn--primary' : 'app-auth__link'}>
             Ir para o login
           </Link>
         </div>
+
+        <PortalAccessHelp />
       </Card>
     </main>
   )

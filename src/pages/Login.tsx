@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { InlineError } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Input'
+import { PasswordInput } from '../components/auth/PasswordInput'
 import { isSupabaseConfigured } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -59,19 +60,19 @@ export function Login() {
       <div className="app-auth__panel">
         <div className="app-auth__branding">
           <div className="app-auth__logo-lockup">
-            <img alt="Símbolo Vela" className="app-auth__logo app-auth__logo--vela" src="/branding/vela-mark-dark.svg" />
+            <img alt="" className="app-auth__logo app-auth__logo--vela" src="/branding/vela-mark-dark.svg" />
             <span className="app-auth__logo-name">Vela</span>
           </div>
           <div className="app-auth__branding-copy">
             <p className="app-auth__branding-label">Sistema operacional</p>
-            <p className="app-auth__branding-desc">Gestão de viagens, EDIs, Manifestos, Faturamento, Taxas Locais e Demurrage.</p>
+            <p className="app-auth__branding-desc">Viagens, B/Ls, Taxas Locais, Demurrage e conciliação em um só lugar.</p>
           </div>
         </div>
 
         <div className="app-auth__form-wrap">
           <div className="app-auth__form-header">
             <h1 className="app-auth__title">Acesso interno</h1>
-            <p className="app-auth__subtitle">Entre com as credenciais provisionadas pelo administrador.</p>
+            <p className="app-auth__subtitle">Entre com o e-mail e a senha provisionados pelo Administrativo.</p>
           </div>
 
           {!isSupabaseConfigured ? (
@@ -81,14 +82,21 @@ export function Login() {
           ) : null}
 
           <form className="grid gap-4" onSubmit={handleSubmit}>
-            <Field label="Email">
-              <Input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+            <Field label="E-mail">
+              <Input
+                required
+                type="email"
+                autoComplete="username"
+                autoFocus
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
             </Field>
 
             <Field label="Senha">
-              <Input
+              <PasswordInput
                 required
-                type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
@@ -96,10 +104,12 @@ export function Login() {
 
             {error ? <InlineError message={error} /> : null}
 
-            <Button disabled={!isSupabaseConfigured} loading={submitting} type="submit">
+            <Button disabled={!isSupabaseConfigured} loading={submitting} loadingLabel="Entrando..." type="submit">
               Entrar
             </Button>
           </form>
+
+          <p className="app-auth__meta">Esqueceu a senha ou perdeu o acesso? Peça a redefinição ao Administrativo.</p>
         </div>
       </div>
     </main>

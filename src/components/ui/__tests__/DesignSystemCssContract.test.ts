@@ -84,4 +84,23 @@ describe('contrato visual compartilhado', () => {
   it('define a ação do estado vazio com alinhamento e espaçamento dedicados', () => {
     expect(css).toMatch(/\.app-empty-state__action\s*\{[^}]*display:\s*inline-flex/s)
   })
+
+  it('shell da etapa 02: faixa de 28px, barra única e dourado só na navegação ativa', () => {
+    expect(css).toMatch(/\.app-market-strip__content\s*\{[^}]*min-height:\s*28px/s)
+    // O aviso operacional cede por último; o câmbio encolhe antes.
+    expect(css).toMatch(/\.app-market-strip__center\s*\{[^}]*flex:\s*0 1 auto[^}]*overflow:\s*hidden/s)
+    expect(css).not.toMatch(/\.app-nav-bar\s*\{/)
+    expect(css).toMatch(/\.app-nav-link\.active\s*\{[^}]*box-shadow:\s*inset 0 -3px 0 var\(--app-gold\)/s)
+    expect(css).toMatch(/@media \(max-width: 1100px\)[\s\S]*?\.app-nav-scroll--open\s*\{[^}]*position:\s*absolute[^}]*top:\s*100%/s)
+  })
+
+  it('shell da etapa 02: nenhum texto abaixo de 12px na faixa, na navegação e nos sinos', () => {
+    const shellBlock = css.slice(css.indexOf('/* ─── Shell (etapa 02)'), css.indexOf('.app-main {'))
+    const notificationBlock = css.slice(css.indexOf('.app-notifications {'), css.indexOf('.app-notifications__pager'))
+    for (const block of [shellBlock, notificationBlock]) {
+      expect(block.length).toBeGreaterThan(0)
+      const sizes = [...block.matchAll(/font-size:\s*(\d+)px/g)].map((match) => Number(match[1]))
+      expect(sizes.filter((size) => size < 12)).toEqual([])
+    }
+  })
 })

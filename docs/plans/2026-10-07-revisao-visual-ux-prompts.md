@@ -1,7 +1,7 @@
 # Revisão visual e UX do Vela e Portal — pacote de prompts
 
 Data: 2026-10-07. Base inspecionada: `main`, commit `0160605a`, checkout inicialmente sem diff.
-Estado: etapas 00 e 01 concluídas em 2026-10-07 (direção visual, inventário, tokens e primitivas registrados abaixo); próxima: etapa 02.
+Estado: etapas 00, 01 e 02 concluídas em 2026-10-07 (direção visual, inventário, tokens, primitivas, shells e acesso registrados abaixo); próxima: etapa 03.
 
 ## O que este pacote cobre
 
@@ -452,6 +452,52 @@ Decisões desta etapa:
 - **Runtime:** mesmo ambiente local da etapa 00, recriado neste checkout. Antes e depois: 10 rotas (Vela e inspeção do Portal) em 1440×900 e 360×780 com toque, 2 rotas no tema escuro e 2 modais. Sem rolagem horizontal da página. A folha da fatura avulsa a 360 px rolava de lado ao receber o foco inicial; corrigido com `preventScroll`, e o transbordo de origem ficou para a 10.
 - **Não verificado:** leitor de tela real, zoom de 200%, Portal fora do Modo Inspeção, impressão (as tabelas de documentos dentro de modal também ficaram com cabeçalho claro na tela; o CSS de impressão é da 13) e telas sem dados extensos.
 
+## Entrega da etapa 02 — shells, acesso, perfil e notificações
+
+Registro de 2026-10-07 sobre a base `59dd88d9` (`main` após a PR 898). Ambiente de evidência: o mesmo da etapa 01 (Postgres local, `sb-shim.cjs`, Vite, dados sintéticos, login de auditoria). O login do Portal não roda no shim; o shell do Portal foi observado no Modo Inspeção e as telas públicas sem sessão.
+
+### O que mudou
+
+| Superfície | Antes (**Runtime**) | Depois |
+|---|---|---|
+| Topo do Vela, 1440 px | Faixa 28 + marca 57 + navegação 58 = 143 px; traço dourado sob a navegação; versão no canto da faixa | Faixa 28 + barra única 57 = 85 px. Marca, navegação e conta na mesma barra; dourado só no filete da página ativa; versão no menu da conta (clique copia o commit). Primeira linha do Painel 474→416 px; BLs 705→647 px |
+| Topo do Vela, 768 px | "2 demurrages vencid" cortado | Aviso inteiro; o câmbio cede espaço e some abaixo de 768 px |
+| Navegação | Ícones 18 px, 13/600 com espaçamento; contagens 10 px lidas como número solto; ponto de alerta sem texto | 13/500; contagem 12 px e, para leitor de tela, ", 4 pendentes"; entre 1101 e 1399 px sem ícones e até 1279 px sem o nome da conta (medido: nenhuma sobra em 1101, 1180, 1280 e 1366 px) |
+| Menu móvel (≤1100 px) | Empurrava a página para baixo | Lista sobreposta logo abaixo da barra, foco entra no primeiro item, Escape fecha o grupo e depois o menu devolvendo o foco |
+| Menu da conta (Vela) | Meu perfil e Sair | Nome e departamento, Meu perfil, Sair e versão |
+| Topo do Portal | Barra 57 + navegação 58; ícone de perfil repetindo o item Perfil; "Sair" no Modo Inspeção duplicando "Sair da inspeção"; a 360 px "Portal do cliente" encostava no sino | Barra única de 57 px com logo FWLOG, navegação, sino, Cliente e Sair; sem ícone de perfil; na inspeção o shell não repete a saída; a 360 px só logo, sino, Sair e Menu, com o Cliente no topo da lista aberta |
+| Sinos | Vela com classes de tema escuro, tags de 10 px e sem caminho para a fila; Portal com papel `menu` inválido (botão de cabeçalho dentro do menu), Escape sem devolver o foco, contagem cortada em "9+"; nos dois, erro de consulta aparecia como lista vazia | Painel não modal comum (`.app-notifications`) com tokens, `Badge` semântico, não lida com fundo, ponto e texto "Não lida", erro com Tentar novamente, contagem até 99+, Escape devolve o foco; o do Vela ganhou "Abrir fila de Alertas". A confirmação antes de marcar como lida (ADR 0072) foi mantida |
+| Login interno | Título 26 px; marca ocupava 260 px antes do formulário a 360 px; texto dourado em caixa alta e filete dourado | Syne 32/40 (28 no celular); marca vira uma faixa de 80 px no celular; "Mostrar senha"; `autocomplete` correto; "Entrando..." no botão; orientação de esquecimento de senha (o Administrativo redefine em `/admin`) |
+| Telas públicas do Portal | Link "Esqueci minha senha" e "suporte" pretos (ver pendência da 01); ajuda diferente em cada tela (Transhipping, Fwlog, suporte); `/portal/recuperar-senha` sem token parava num erro sem saída; ativação em uma linha de código, sem marca; confirmação de email sem acentos | Cartão único de 440 px com marca, título, estado e ajuda única (`PortalAccessHelp`); "Mostrar senha"; regra de senha fora do `<label>`; link vencido leva a "Solicitar novo link"; ativação confirma Empresa e CNPJ antes da senha; textos acentuados. Mensagens genéricas de login e recuperação preservadas |
+| Perfil do Portal | Card de contato dentro do card da seção; tags com cores fixas; ações "Tornar principal" e "Desativar" de 12 px sem alvo de toque; papéis das três seções implícitos | Cada contato é um grupo nomeado (`fieldset` + legenda) com filete; `Badge`; ações de 44 px; frase de abertura que separa contatos, endereço e Email de Recuperação; aviso de Modo Inspeção e campos desativados. Salvamento independente e cobertura obrigatória das caixas inalterados |
+| Perfil do Vela | Departamento como campo somente leitura; troca de senha sem "Mostrar senha" | Departamento como dado; nota de que o e-mail novo depende de confirmação; modal `sm` com "Mostrar senha" e regra visível |
+| Estados de acesso | Carregamento da sessão em tela escura `#0d1117` no tema claro; "Perfil não provisionado" citava `user_profiles` e não tinha saída; sem permissão, redirecionamento silencioso ao Painel; erros de tela com cores fixas | `StatusScreen` comum: carregamento no fundo do produto; "Acesso ainda não liberado" com Sair; "Acesso restrito" com o departamento e "Voltar para o Painel"; erro de tela e 404 no mesmo bloco, 404 com "Voltar à página anterior" |
+
+### Decisões
+
+- **O shell possui o CSS do próprio shell.** Os blocos de faixa, barra, navegação, sinos, telas de acesso, perfil e `StatusScreen` em `src/index.css` foram reescritos por esta etapa; tokens e primitivas da 01 não foram alterados.
+- **Componentes novos com dono 02:** `components/auth/PasswordInput.tsx`, `components/auth/PortalAccessHelp.tsx`, `components/layout/StatusScreen.tsx` e `lib/departmentLabel.ts`. Todos os consumidores atuais são desta etapa.
+- **Acesso restrito explica em vez de redirecionar.** A guarda continua sendo só navegação; RLS e RPCs não mudaram.
+- **A barra fica com 56 px** (contrato: até 64) também no celular, onde antes era 64.
+- **O aviso de demurrage tem 40 px de altura em ponteiro de toque** por uma regra transversal de alvo de toque; com mouse a faixa tem 28 px.
+
+### Pendências para outros donos
+
+| Dono | Achado (**Runtime** salvo indicação) |
+|---|---|
+| 01 | A regra base `a { color: inherit }` está fora de `@layer` e vence os utilitários de cor do Tailwind: todo `<a>`/`Link` com `text-[var(--app-link)]` sai na cor do texto (cerca de 20 arquivos). Proposta: mover a regra para `@layer base`. As telas desta etapa usam `.app-auth__link` enquanto isso. |
+| 01 | `Field` põe ajuda e erro dentro do `<label>`, então eles entram no nome acessível do campo (**Código**; o teste de ativação documentava o efeito). Proposta: ajuda e erro como irmãos do `<label>`, ligados por `aria-describedby`. Esta etapa contornou nos próprios campos. |
+| 18 | A faixa do Modo Inspeção (wrapper) tem 61 px no desktop e três linhas (77 px) a 360 px; o contrato pede uma linha com o nome truncado. |
+| Negócio | A ajuda do Portal citava ora Transhipping, ora Fwlog. A tela agora diz "provisionado pela FWLOG" e leva ao suporte já usado no login; confirmar qual marca o Cliente deve ver. |
+| Contrato de dados | O Perfil do Portal não mostra o Email de Recuperação atual porque `portal_get_profile` não o devolve; exibir exige campo novo na RPC. |
+| 02 (limite) | `/portal/ativar` trata qualquer falha da consulta do convite como "Link inválido ou expirado", inclusive falha de rede (**Código**); distinguir exige conhecer os status da Edge Function. |
+
+### Evidência e limites
+
+- **Teste:** `npm run docs:check`, `typecheck`, `lint` e `build` passaram; `npm test` passou em 711 arquivos (4.043 testes); `size-limit` 240,56 KiB no Vela e 207,65 KiB no Portal; `a11y:contrast` 34/34. Testes novos ou ampliados: barra única com versão no menu da conta, foco entrando no menu móvel, contagem por extenso, `ProtectedRoute` (acesso restrito, Administração, perfil ausente com Sair), sino com erro e caminho para Alertas, sino do Portal como região com retorno de foco, `PasswordInput` e o contrato CSS do shell (faixa de 28 px, dourado só na ativa, nenhum texto abaixo de 12 px).
+- **Runtime:** antes e depois em 1440, 768 e 360 px (toque) para `/login`, as cinco telas públicas do Portal, `/painel`, `/bls`, `/perfil`, rota inexistente, inspeção (painel e perfil), menu da conta, menu móvel e os dois sinos; larguras 1101, 1180, 1280 e 1366 px para a barra. Sem rolagem horizontal.
+- **Não verificado:** login real do Portal e envio de recuperação (Edge Functions e Turnstile fora do shim), leitor de tela real, zoom de 200% e tema escuro do Vela nesta etapa.
+
 ## Prompts por etapa
 
 Cada bloco abaixo é o prompt específico. Em uma sessão nova, envie também o contrato comum acima; com acesso a este arquivo, sua leitura é obrigatória.
@@ -800,7 +846,7 @@ Preparação deste pacote: inventário estático e divisão de responsabilidades
 |---|---|---|---|
 | 00 | Concluída em 2026-10-07 | Base `ba7cd09d`; branch `claude/revisao-visual-ux-etapa-00`; só documentação | Direção A, "Carta náutica", escolhida e registrada em "Etapa 00 — direção visual e inventário confirmado"; complementos da matriz de propriedade; inventário de rotas, abas e modais; alvos por etapa. **Runtime** local com dados sintéticos: 47 rotas em 1440 e 360 px, 28 variações de aba, 768 px, tema escuro e 6 modais; nenhuma rolagem horizontal; `a11y:contrast` 22/22. Lacunas: login real do Portal (visto via inspeção), poucos dados sintéticos, zoom, leitor de tela e impressão. Arquivos: este plano, `docs/plans/README.md` e correção da contagem de rotas do Portal em `docs/ARCHITECTURE.md`. Telas não alteradas. Próxima: 01. |
 | 01 | Concluída em 2026-10-07 | Base `74d82566`; branch `claude/revisao-visual-ux-etapa-01` | Tokens (escala, raio, densidade, aliases semânticos com par escuro, cabeçalho claro) e primitivas (`Button`, `Modal`, `TabButton`, `Badge`, `MetricCard`, paginação, `QueryStateGate`, `BulkActionsBar`) revisados; `Drawer`, `TabList`, `SegmentedControl`, `SummaryStrip`, `StepRail` e `describePageRange` criados. Ver "Entrega da etapa 01". Gates locais e `a11y:contrast` 34/34 verdes; runtime antes/depois em 1440, 360 e escuro. Pendências por etapa na tabela "Como cada etapa adota". Próxima: 02. |
-| 02 | Não iniciada | — | — |
+| 02 | Concluída em 2026-10-07 | Base `59dd88d9`; branch `claude/revisao-visual-ux-etapa-02` | Barra única no Vela e no Portal (topo 143→85 px no Vela desktop), versão no menu da conta, faixa de avisos sem corte, sinos com painel comum e estados de erro, telas de acesso e perfis revisados, `PasswordInput`, `PortalAccessHelp` e `StatusScreen` criados, acesso restrito com motivo. Ver "Entrega da etapa 02". Gates locais e `a11y:contrast` 34/34 verdes; runtime antes/depois em 1440, 768 e 360 px. Pendências para 01, 18 e decisões de negócio na mesma seção. Próxima: 03. |
 | 03 | Não iniciada | — | — |
 | 04 | Não iniciada | — | — |
 | 05 | Não iniciada | — | — |

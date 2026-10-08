@@ -60,8 +60,8 @@ describe('PortalLayout', () => {
     expect(screen.getByRole('link', { name: 'Painel' }).getAttribute('href')).toBe('/portal')
     expect(screen.getByRole('link', { name: 'Faturas' }).getAttribute('href')).toBe('/portal/billing')
     expect(screen.getByRole('link', { name: 'BLs e Containers' }).getAttribute('href')).toBe('/portal/operacao')
-    // "Perfil" aparece no header (icone) e na navegacao; ambos apontam para /portal/perfil
-    expect(screen.getAllByRole('link', { name: 'Perfil' }).every((l) => l.getAttribute('href') === '/portal/perfil')).toBe(true)
+    // O atalho de perfil por ícone saiu do cabeçalho: só a navegação leva ao Perfil.
+    expect(screen.getAllByRole('link', { name: 'Perfil' }).map((l) => l.getAttribute('href'))).toEqual(['/portal/perfil'])
     expect(screen.getByRole('link', { name: 'BLs e Containers' }).className).toContain('active')
     expect(screen.getByRole('link', { name: 'Ir para o conteúdo principal' }).getAttribute('href')).toBe('#portal-main-content')
     expect(document.querySelector('main')?.id).toBe('portal-main-content')

@@ -3,6 +3,8 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Input'
+import { PasswordInput } from '../components/auth/PasswordInput'
+import { PortalAccessHelp } from '../components/auth/PortalAccessHelp'
 import { usePortalAuth } from '../hooks/usePortalAuth'
 import { isSupabaseConfigured } from '../services/supabase'
 import { CNPJ_INPUT_MAX_LENGTH, normalizeCnpj } from '../lib/cnpj'
@@ -86,18 +88,10 @@ export function PortalLogin() {
     <main className="app-auth">
       <Card className="app-auth__card">
         <div className="app-auth__brand">
-          <img
-            alt="Fwlog"
-            className="app-auth__logo app-auth__logo--on-light"
-            src="/branding/fwlog-logo.png"
-            onError={(event) => {
-              event.currentTarget.onerror = null
-              event.currentTarget.src = '/branding/fwlog-logo.png'
-            }}
-          />
-          <div>
+          <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
+          <div className="app-auth__form-header">
             <h1 className="app-auth__title">Portal do cliente</h1>
-            <p className="app-auth__subtitle">Consulte informações sobre navios, cargas e faturas.</p>
+            <p className="app-auth__subtitle">Faturas, B/Ls e containers da sua empresa.</p>
           </div>
         </div>
 
@@ -108,7 +102,7 @@ export function PortalLogin() {
         ) : null}
 
         {notice ? (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+          <div className="app-callout app-callout--warning" role="status">
             {notice}
           </div>
         ) : null}
@@ -128,13 +122,19 @@ export function PortalLogin() {
           </Field>
 
           <Field label="Senha">
-            <Input
+            <PasswordInput
               required
-              type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
           </Field>
+
+          <div className="app-auth__row-link">
+            <Link to="/portal/esqueci-senha" className="app-auth__link">
+              Esqueci minha senha
+            </Link>
+          </div>
 
           <TurnstileChallenge
             action="portal_login"
@@ -145,25 +145,12 @@ export function PortalLogin() {
 
           {error ? <InlineError message={error} /> : null}
 
-          <Button loading={submitting} type="submit">
+          <Button loading={submitting} loadingLabel="Entrando..." type="submit">
             Entrar no portal
           </Button>
         </form>
 
-        <div className="mt-3 text-center text-sm">
-          <Link to="/portal/esqueci-senha" className="inline-flex min-h-11 items-center text-[var(--app-link)] hover:underline">
-            Esqueci minha senha
-          </Link>
-        </div>
-
-        <p className="app-auth__meta">
-          Acesso provisionado exclusivamente pela FWLOG.
-          <br />
-          Problemas para acessar? Solicite um novo acesso com nossa equipe através do{' '}
-          <a href="mailto:suporte@fwlog.com.br" className="text-[var(--app-link)] underline">
-            suporte
-          </a>
-        </p>
+        <PortalAccessHelp />
       </Card>
     </main>
   )

@@ -11,10 +11,16 @@ export const NAV_COLLAPSE_WIDTH = 1100
  * Um grupo aberto dentro do menu (Importação, Financeiro...) trata o próprio
  * Escape e interrompe a propagação: o primeiro Escape fecha o grupo, o
  * segundo fecha o menu.
+ *
+ * A navegação fica na mesma barra da marca e vem antes do botão Menu na
+ * ordem do documento (no desktop ela aparece entre a marca e as ações). Ao
+ * abrir, o foco entra no primeiro item; sem isso o Tab sairia do botão para o
+ * conteúdo e pularia a lista recém-aberta.
  */
 export function useMobileNav() {
   const [open, setOpen] = useState(false)
   const toggleRef = useRef<HTMLButtonElement>(null)
+  const navRef = useRef<HTMLElement>(null)
 
   // Acima da largura de celular não há menu para fechar: girar o tablet com o
   // menu aberto deixaria a página travada, sem rolagem e sem botão Menu.
@@ -29,6 +35,7 @@ export function useMobileNav() {
 
   useEffect(() => {
     if (!open) return
+    navRef.current?.querySelector<HTMLElement>('a[href], button:not(:disabled)')?.focus({ preventScroll: true })
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     function handleEscape(event: KeyboardEvent) {
@@ -43,5 +50,5 @@ export function useMobileNav() {
     }
   }, [open])
 
-  return { open, setOpen, toggleRef }
+  return { open, setOpen, toggleRef, navRef }
 }

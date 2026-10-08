@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Input'
+import { PasswordInput } from '../components/auth/PasswordInput'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { usePortalProfile } from '../hooks/usePortalProfile'
@@ -44,7 +45,13 @@ export function PortalProfile() {
 
   return (
     <>
-      <PageHeader title="Meu perfil" description="Atualize seus contatos, endereço e e-mail de recuperação." />
+      <PageHeader title="Meu perfil" description="Contatos que recebem comunicados, endereço da empresa e o email usado para recuperar a senha." />
+
+      {readOnly ? (
+        <p className="portal-profile__inspection-note" role="note">
+          Modo Inspeção: os formulários aparecem como o Cliente vê, mas ficam só para leitura.
+        </p>
+      ) : null}
 
       {profile.data ? (
         <PortalProfileForm
@@ -57,9 +64,9 @@ export function PortalProfile() {
       ) : (
         <Card className="p-5">
           <div className="grid gap-4">
-            {loadError ? <InlineError message={loadError} /> : <div className="text-sm text-[var(--app-muted)]">Carregando perfil...</div>}
+            {loadError ? <InlineError message={loadError} /> : <div className="text-sm text-[var(--app-muted)]" role="status">Carregando perfil…</div>}
             <div className="flex justify-end">
-              <Button disabled type="button">Salvar alteracoes</Button>
+              <Button disabled type="button">Salvar alterações</Button>
             </div>
           </div>
         </Card>
@@ -172,56 +179,82 @@ function PortalProfileForm({
     } catch (err) { setRecoveryError(portalErrorMessage(err, 'Não foi possível iniciar a troca de email.')) } finally { setEmailSubmitting(false) }
   }
 
+  // Três formulários independentes, cada um com o próprio botão e os próprios
+  // erros: contatos (quem recebe comunicados), dados cadastrais (endereço) e
+  // Email de Recuperação (convites e redefinição de senha, separado dos
+  // contatos).
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-      <Card className="min-w-0 p-5">
+    <div className="portal-profile">
+      <Card className="portal-profile__contacts min-w-0">
         <PortalContactConfiguration readOnly={readOnly} />
       </Card>
 
-      <div className="grid min-w-0 gap-6">
-        <Card className="min-w-0 p-5">
+      <div className="portal-profile__side">
+        <Card className="min-w-0">
           <form className="grid gap-4" onSubmit={handleSubmit}>
-            <h2 className="text-lg font-semibold text-[var(--app-text-strong)]">Dados cadastrais</h2>
-            <Field label="Endereço">
-              <Input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Rua, número, complemento"
-              />
-            </Field>
+            <div>
+              <h2 className="portal-profile__section-title">Dados cadastrais</h2>
+              <p className="portal-profile__section-intro">Endereço da empresa no cadastro da FWLOG.</p>
+            </div>
+            <fieldset className="portal-profile__fieldset" disabled={readOnly}>
+              <legend className="sr-only">Endereço</legend>
+              <Field label="Endereço">
+                <Input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Rua, número, complemento"
+                  autoComplete="street-address"
+                />
+              </Field>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Field label="Cidade">
-                  <Input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="São Paulo" />
+              <Field label="Cidade">
+                <Input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="São Paulo" autoComplete="address-level2" />
+              </Field>
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4">
+                <Field label="Estado">
+                  <Input type="text" value={state} onChange={(e) => setState(e.target.value)} placeholder="SP" maxLength={2} autoComplete="address-level1" />
+                </Field>
+                <Field label="CEP">
+                  <Input type="text" inputMode="numeric" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="01000-000" autoComplete="postal-code" />
                 </Field>
               </div>
-              <Field label="Estado">
-                <Input type="text" value={state} onChange={(e) => setState(e.target.value)} placeholder="SP" maxLength={2} />
-              </Field>
-              <Field label="CEP">
-                <Input type="text" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="01000-000" />
-              </Field>
-            </div>
+            </fieldset>
 
             {loadError || error ? <InlineError message={error || loadError} /> : null}
 
-            <div className="flex justify-end">
-              <Button disabled={readOnly || loadFailed} loading={submitting} type="submit" title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Salvar alterações</Button>
+            <div className="portal-profile__form-actions">
+              <Button disabled={readOnly || loadFailed} loading={submitting} loadingLabel="Salvando..." type="submit" title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Salvar alterações</Button>
             </div>
           </form>
         </Card>
-        <Card className="min-w-0 p-5">
-          <h2 className="text-lg font-semibold">Email de Recuperação</h2>
-          <p className="mt-1 text-sm text-[var(--app-muted)]">O endereço atual permanece válido até a confirmação do novo.</p>
-          <form className="mt-4 grid gap-4" onSubmit={handleRecoveryEmailChange}>
-            <Field label="Senha atual"><Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} /></Field>
-            <p className="-mt-2 text-xs text-[var(--app-muted)]">Errar a senha aqui consome as mesmas tentativas do login do Portal.</p>
-            <Field label="Novo email"><Input type="email" value={newRecoveryEmail} onChange={(e) => setNewRecoveryEmail(e.target.value)} /></Field>
-            <Field label="Confirmar novo email"><Input type="email" value={confirmRecoveryEmail} onChange={(e) => setConfirmRecoveryEmail(e.target.value)} /></Field>
+
+        <Card className="min-w-0">
+          <form className="grid gap-4" onSubmit={handleRecoveryEmailChange}>
+            <div>
+              <h2 className="portal-profile__section-title">Email de Recuperação</h2>
+              <p className="portal-profile__section-intro">
+                Recebe convites e links para redefinir a senha do Portal; é separado dos contatos de comunicados. O endereço atual continua valendo até o novo ser confirmado pelo link.
+              </p>
+            </div>
+            <fieldset className="portal-profile__fieldset" disabled={readOnly}>
+              <legend className="sr-only">Trocar Email de Recuperação</legend>
+              <div className="grid gap-1.5">
+                <Field label="Senha atual">
+                  <PasswordInput
+                    autoComplete="current-password"
+                    aria-describedby="portal-recovery-password-note"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                </Field>
+                <p id="portal-recovery-password-note" className="app-field__hint">Errar a senha aqui consome as mesmas tentativas do login do Portal.</p>
+              </div>
+              <Field label="Novo email"><Input type="email" autoComplete="email" value={newRecoveryEmail} onChange={(e) => setNewRecoveryEmail(e.target.value)} /></Field>
+              <Field label="Confirmar novo email"><Input type="email" autoComplete="email" value={confirmRecoveryEmail} onChange={(e) => setConfirmRecoveryEmail(e.target.value)} /></Field>
+            </fieldset>
             {recoveryError ? <InlineError message={recoveryError} /> : null}
-            <div className="flex justify-end"><Button disabled={readOnly} loading={emailSubmitting} type="submit" title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Solicitar troca de email</Button></div>
+            <div className="portal-profile__form-actions"><Button disabled={readOnly} loading={emailSubmitting} loadingLabel="Enviando..." type="submit" title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Solicitar troca de email</Button></div>
           </form>
         </Card>
       </div>

@@ -7,6 +7,7 @@ import { supabasePortal } from '../services/supabase'
 import { CNPJ_INPUT_MAX_LENGTH, normalizeCnpj } from '../lib/cnpj'
 import { INCOMPLETE_CNPJ_MESSAGE, isCompleteCnpjLogin } from '../lib/portalCnpjLogin'
 import { TurnstileChallenge } from '../components/security/TurnstileChallenge'
+import { PortalAccessHelp } from '../components/auth/PortalAccessHelp'
 import { isPortalTurnstileRejection, PORTAL_TURNSTILE_REJECTION_MESSAGE } from '../lib/portalTurnstileError'
 
 export function PortalForgotPassword() {
@@ -71,24 +72,22 @@ export function PortalForgotPassword() {
         <Card className="app-auth__card">
           <div className="app-auth__brand">
             <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-            <div>
-              <h1 className="app-auth__title">Solicitação recebida</h1>
-            </div>
+            <h1 className="app-auth__title">Solicitação recebida</h1>
           </div>
           {/* A tela afirma o envio sem condicionar a "se houver conta": o texto
               condicional devolvia ao cliente o mesmo sinal de enumeração que o
               backend deixou de dar (achado 3.2). Nenhuma variação por CNPJ. */}
-          <p className="text-sm text-[var(--app-muted)]">
-            Enviamos um link de redefinição para o email cadastrado na conta. O link vale por 1 hora.
-          </p>
-          <p className="mt-2 text-sm text-[var(--app-muted)]">
-            Não recebeu em alguns minutos? Confira a caixa de spam ou fale com seu contato comercial na Fwlog.
-          </p>
-          <div className="mt-4 text-center">
-            <Link to="/portal/login" className="text-sm text-[var(--app-link)] hover:underline">
-              Voltar para o login
-            </Link>
+          <div className="app-auth__body" role="status">
+            <p>Enviamos um link de redefinição para o email cadastrado na conta. O link vale por 1 hora.</p>
+            <p>Não recebeu em alguns minutos? Confira a caixa de spam ou solicite de novo.</p>
           </div>
+          <div className="app-auth__actions">
+            <Link to="/portal/login" className="app-btn app-btn--primary">Voltar para o login</Link>
+            <button type="button" className="app-auth__link" onClick={() => setSent(false)}>
+              Solicitar outro link
+            </button>
+          </div>
+          <PortalAccessHelp />
         </Card>
       </main>
     )
@@ -99,9 +98,9 @@ export function PortalForgotPassword() {
       <Card className="app-auth__card">
         <div className="app-auth__brand">
           <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-          <div>
+          <div className="app-auth__form-header">
             <h1 className="app-auth__title">Recuperar senha</h1>
-            <p className="app-auth__subtitle">Informe seu CNPJ cadastrado para receber o link de redefinição.</p>
+            <p className="app-auth__subtitle">Informe o CNPJ da conta. Enviaremos o link de redefinição para o email cadastrado.</p>
           </div>
         </div>
 
@@ -112,6 +111,7 @@ export function PortalForgotPassword() {
               type="text"
               inputMode="text"
               autoComplete="username"
+              autoFocus
               maxLength={CNPJ_INPUT_MAX_LENGTH}
               value={cnpj}
               onChange={(event) => setCnpj(normalizeCnpj(event.target.value))}
@@ -128,22 +128,18 @@ export function PortalForgotPassword() {
 
           {error ? <InlineError message={error} /> : null}
 
-          <Button loading={submitting} type="submit">
+          <Button loading={submitting} loadingLabel="Enviando..." type="submit">
             Enviar link de recuperação
           </Button>
         </form>
 
-        <div className="mt-3 text-center text-sm">
-          <Link to="/portal/login" className="inline-flex min-h-11 items-center text-[var(--app-link)] hover:underline">
+        <div className="app-auth__actions app-auth__actions--center">
+          <Link to="/portal/login" className="app-auth__link">
             Voltar para o login
           </Link>
         </div>
 
-        <p className="app-auth__meta">
-          O link será enviado para o email cadastrado na sua conta de portal.
-          <br />
-          Problemas? Solicite um novo acesso ao seu contato comercial na Transhipping.
-        </p>
+        <PortalAccessHelp />
       </Card>
     </main>
   )

@@ -160,8 +160,8 @@ it('US-157: atualiza a senha e volta para o login', async () => {
   )
 
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Redefinir senha' })).toBeTruthy())
-  await user.type(screen.getByPlaceholderText('Minimo 8 caracteres'), 'senhaSegura1')
-  await user.type(screen.getByPlaceholderText('Repita a senha'), 'senhaSegura1')
+  await user.type(screen.getByLabelText('Nova senha'), 'senhaSegura1')
+  await user.type(screen.getByLabelText('Confirmar senha'), 'senhaSegura1')
   await user.click(screen.getByRole('button', { name: 'Redefinir senha' }))
   const dialog = await screen.findByRole('dialog', { name: 'Redefinir senha do Portal' })
   await user.click(within(dialog).getByRole('button', { name: 'Redefinir senha' }))
@@ -190,8 +190,8 @@ it('achado 3.3 (auditoria 2026-08-12): remove o token da URL apos a montagem, se
 
   await waitFor(() => expect(screen.getByTestId('search').textContent).toBe(''))
 
-  await user.type(screen.getByPlaceholderText('Minimo 8 caracteres'), 'senhaSegura1')
-  await user.type(screen.getByPlaceholderText('Repita a senha'), 'senhaSegura1')
+  await user.type(screen.getByLabelText('Nova senha'), 'senhaSegura1')
+  await user.type(screen.getByLabelText('Confirmar senha'), 'senhaSegura1')
   await user.click(screen.getByRole('button', { name: 'Redefinir senha' }))
   const dialog = await screen.findByRole('dialog', { name: 'Redefinir senha do Portal' })
   await user.click(within(dialog).getByRole('button', { name: 'Redefinir senha' }))
@@ -210,13 +210,14 @@ it('US-157: rejeita senha sem composicao minima', async () => {
   )
 
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Redefinir senha' })).toBeTruthy())
-  await user.type(screen.getByPlaceholderText('Minimo 8 caracteres'), 'senhafraca')
-  await user.type(screen.getByPlaceholderText('Repita a senha'), 'senhafraca')
+  await user.type(screen.getByLabelText('Nova senha'), 'senhafraca')
+  await user.type(screen.getByLabelText('Confirmar senha'), 'senhafraca')
   await user.click(screen.getByRole('button', { name: 'Redefinir senha' }))
 
   // A mensagem passou a vir de src/lib/passwordPolicy.ts (auditoria 2026-08-14,
   // achado A-04): a regra do Portal e a interna são a mesma, e a ADR 0019 já
-  // decidia isso. Antes havia uma cópia sem acentuação só nesta tela.
-  expect(screen.getByText(PASSWORD_RULE_MESSAGE)).toBeTruthy()
+  // decidia isso. Antes havia uma cópia sem acentuação só nesta tela. A regra
+  // também fica visível como ajuda do campo; o erro é o que chega como alerta.
+  expect(screen.getByRole('alert').textContent).toContain(PASSWORD_RULE_MESSAGE)
   expect(auth.functions.invoke).not.toHaveBeenCalledWith('portal-password-reset', expect.anything())
 })
