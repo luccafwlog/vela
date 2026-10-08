@@ -334,6 +334,12 @@ restante do fixture sem expor ou substituir a credencial silenciosamente.
 > `Invalid supabaseUrl`. A decodificação mora em `load-branch-env.mjs`
 > (com regressão em `load-branch-env.test.mjs`, via `node --test`).
 
+> Os dois workflows de preview não passam a branch Git direto ao
+> `branches get`: o nome de uma branch Supabase criada à mão não aceita `/`.
+> `resolve-supabase-branch.mjs` lê `supabase branches list -o json` e devolve o
+> id da branch cujo `git_branch` ("Sync with Git branch") é a branch da PR, ou
+> cujo nome é igual a ela (Automatic Branching).
+
 ---
 
 ## 12. Reconstruir o schema consolidado v1.0 (`build-squash-migrations`)
