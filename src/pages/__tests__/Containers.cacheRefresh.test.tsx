@@ -43,11 +43,11 @@ it('excluir Container remove a linha e atualiza os cards abertos de Containers, 
     await screen.findByText('CXRU1234567')
     await waitFor(() => expect(screen.getByLabelText('Containers no resumo de B/Ls').textContent).toBe('1'))
     expect(screen.getByLabelText('Containers no card da Viagem').textContent).toBe('1')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar todos os containers da pagina' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar todos os containers da página' }))
     fireEvent.click(screen.getByRole('button', { name: /Excluir/ }))
     await waitFor(() => expect(screen.queryByText('CXRU1234567')).toBeNull())
     await waitFor(() => expect(screen.getByLabelText('Containers no resumo de B/Ls').textContent).toBe('0'))
     expect(screen.getByLabelText('Containers no card da Viagem').textContent).toBe('0')
-    expect(screen.getByText('Containers distintos').parentElement?.textContent).toContain('0')
+    expect(screen.getByText('containers distintos').parentElement?.textContent).toContain('0')
   } finally { client.clear() }
 })

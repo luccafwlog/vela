@@ -40,6 +40,9 @@ vi.mock('@tanstack/react-query', () => ({
     if (queryKey[0] === 'vazios-bookings' && queryKey[1] === 'operation-options') {
       return { data: { rows: mocks.vaziosRows }, isLoading: false, error: null }
     }
+    if (queryKey[0] === 'voyages') {
+      return { data: [], isLoading: false, error: null }
+    }
     if (queryKey[0] === 'vehicles-voyage-card-schedules') {
       return { data: new Map(), isLoading: false, error: null }
     }
@@ -59,6 +62,7 @@ vi.mock('../../hooks/useAuth', () => ({
   }),
 }))
 vi.mock('../../hooks/useVehicles', () => ({
+  UNPACKING_LOCATION_NONE: '__none__',
   useVehicleOptions: () => ({ data: { voyages: [{ id: 7, voyage_number: '14N', vessel: { name: 'GREEN SANTOS' } }] } }),
   useVoyageVehicleStats: () => ({ data: { byVoyageId: {} } }),
   useVehicles: () => ({
@@ -151,8 +155,8 @@ describe('controles de Veiculos', () => {
 
     renderPage(<Veiculos />, '/?voyage=7')
 
-    expect(screen.getByRole('button', { name: 'Importar Veículos' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Excluir veiculo CHASSI-1' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Importar veículos' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeNull()
   })
 
   it('Documentacao importa, mas nao recebe exclusao reservada ao admin', () => {
@@ -161,8 +165,8 @@ describe('controles de Veiculos', () => {
 
     renderPage(<Veiculos />, '/?voyage=7')
 
-    expect(screen.getByRole('button', { name: 'Importar Veículos' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Excluir veiculo CHASSI-1' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Importar veículos' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeNull()
   })
 
   it('admin recebe importacao e exclusao', () => {
@@ -171,8 +175,8 @@ describe('controles de Veiculos', () => {
 
     renderPage(<Veiculos />, '/?voyage=7')
 
-    expect(screen.getByRole('button', { name: 'Importar Veículos' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Excluir veiculo CHASSI-1' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Importar veículos' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeTruthy()
   })
 
   it('oculta importacao e exclusao sem veiculos_edit', () => {
@@ -180,8 +184,8 @@ describe('controles de Veiculos', () => {
 
     renderPage(<Veiculos />, '/?voyage=7')
 
-    expect(screen.queryByRole('button', { name: 'Importar Veículos' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Excluir veiculo CHASSI-1' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Importar veículos' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeNull()
   })
 })
 

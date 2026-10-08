@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   parseBaplieFile: vi.fn(),
   reimportBaplie: vi.fn(),
   bapliePlan: null as null | { existing: number },
+  baplieFlagsError: null as null | string,
   confirm: vi.fn(() => Promise.resolve(true)),
   importedBaplie: vi.fn(),
   can: vi.fn<(permission: string) => boolean>(() => true),
@@ -65,12 +66,13 @@ beforeEach(() => {
   mocks.importBreakbulkManifest.mockResolvedValue(undefined)
   mocks.parseBaplieFile.mockReset()
   mocks.bapliePlan = null
+  mocks.baplieFlagsError = null
   // Simula o serviço: com Baplie anterior e diferença, pergunta antes de gravar.
   mocks.reimportBaplie.mockReset()
   mocks.reimportBaplie.mockImplementation(async ({ confirmReplacement }: { confirmReplacement: (plan: unknown) => Promise<boolean> }) => {
     if (mocks.bapliePlan && !(await confirmReplacement(mocks.bapliePlan))) return { status: 'cancelled' }
     mocks.importedBaplie()
-    return { status: mocks.bapliePlan ? 'replaced' : 'imported', staged: 1, vaziosReplaced: false }
+    return { status: mocks.bapliePlan ? 'replaced' : 'imported', staged: 1, vaziosReplaced: false, flagsError: mocks.baplieFlagsError }
   })
   mocks.confirm.mockReset()
   mocks.confirm.mockResolvedValue(true)
@@ -397,6 +399,21 @@ it('importa direto quando a viagem ainda não tem Baplie', async () => {
   await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyages'] }))
   expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['baplie-staging', '7'] })
   expect(mocks.confirm).not.toHaveBeenCalled()
+})
+
+it('Baplie gravado sem IMO/OOG nos B/Ls fica no modal com o aviso e só Concluir', async () => {
+  mocks.parseBaplieFile.mockResolvedValue(validBaplie)
+  mocks.baplieFlagsError = 'timeout na aplicação'
+
+  await openBaplieWithFile()
+
+  expect(await screen.findByText('Baplie importado, mas IMO/OOG não foram aplicados aos B/Ls')).toBeTruthy()
+  expect(screen.getByText('timeout na aplicação')).toBeTruthy()
+  // O staging foi gravado: a viagem é atualizada mesmo com a falha parcial.
+  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['baplie-staging', '7'] })
+  expect(screen.queryByRole('button', { name: /^Importar Baplie/ })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Concluir' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 })
 
 it('resultado parcial de veículos fica no modal com as linhas recusadas e só Concluir', async () => {

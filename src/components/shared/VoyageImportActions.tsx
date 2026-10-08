@@ -359,6 +359,8 @@ function BaplieImportModal({
   const [excludedPods, setExcludedPods] = useState<Set<string>>(new Set())
   const [readError, setReadError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  // Baplie gravado, mas IMO/OOG não aplicados aos B/Ls: falha parcial que fica à vista.
+  const [partial, setPartial] = useState<{ message: string; summary: string } | null>(null)
 
   async function handleFiles(files: File[]) {
     setExcludedPods(new Set())
@@ -404,6 +406,10 @@ function BaplieImportModal({
       })
       if (result.status === 'cancelled') return
       await afterBaplieImportado(queryClient, { voyageId: String(voyageId) })
+      if (result.flagsError) {
+        setPartial({ message: result.flagsError, summary: baplieImportToast(result) })
+        return
+      }
       showToast(baplieImportToast(result), 'success')
       handleClose()
     } catch (err) {
@@ -415,7 +421,8 @@ function BaplieImportModal({
   }
 
   let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
-  if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  if (partial) footnote = 'Baplie gravado; falta aplicar IMO/OOG aos B/Ls.'
+  else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
   else if (parsed && !canImport) footnote = filteredContainers.length ? 'Há erro na prévia; corrija o arquivo e escolha de novo.' : 'Nenhum container selecionado para importar.'
   else if (parsed) footnote = `${plural(filteredContainers.length, 'container será gravado', 'containers serão gravados')}. Se a viagem já tem Baplie, você confirma a substituição antes.`
 
@@ -423,7 +430,7 @@ function BaplieImportModal({
     <Modal open onClose={handleClose} title="Importar Baplie EDI">
       <div className="app-import">
         <ImportContext label="Viagem">{voyageLabel}</ImportContext>
-        <ImportFilePicker accept=".edi,.txt,.edi2,.bpl" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={importing} />
+        <ImportFilePicker accept=".edi,.txt,.edi2,.bpl" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={importing || Boolean(partial)} />
         {parsing ? <ImportReadProgress progress={progress} /> : null}
         {readError ? (
           <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
@@ -460,6 +467,7 @@ function BaplieImportModal({
                       type="checkbox"
                       checked={!excludedPods.has(pod)}
                       onChange={() => togglePod(pod)}
+                      disabled={Boolean(partial)}
                     />
                     {pod}
                   </label>
@@ -475,12 +483,25 @@ function BaplieImportModal({
             <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
           </ImportNotice>
         ) : null}
+        {partial ? (
+          <ImportNotice tone="warning" role="alert" title="Baplie importado, mas IMO/OOG não foram aplicados aos B/Ls">
+            <p>{partial.summary}</p>
+            <p>{partial.message}</p>
+            <p>Para tentar de novo, importe o mesmo arquivo: sem diferença, ele é aceito direto e a aplicação é refeita.</p>
+          </ImportNotice>
+        ) : null}
         <div className="app-modal__actions">
-          <ImportFootnote tone={parsed && !canImport ? 'warning' : 'default'}>{footnote}</ImportFootnote>
-          <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
-          <Button disabled={!canImport || parsing} loading={importing} loadingLabel="Importando…" onClick={() => void handleImport()}>
-            {canImport ? `Importar Baplie (${plural(filteredContainers.length, 'container', 'containers')})` : 'Importar Baplie'}
-          </Button>
+          <ImportFootnote tone={partial || (parsed && !canImport) ? 'warning' : 'default'}>{footnote}</ImportFootnote>
+          {partial ? (
+            <Button onClick={handleClose}>Concluir</Button>
+          ) : (
+            <>
+              <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
+              <Button disabled={!canImport || parsing} loading={importing} loadingLabel="Importando…" onClick={() => void handleImport()}>
+                {canImport ? `Importar Baplie (${plural(filteredContainers.length, 'container', 'containers')})` : 'Importar Baplie'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </Modal>

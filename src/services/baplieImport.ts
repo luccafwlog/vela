@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import type { BaplieContainer } from './baplieParser'
 import { getBaplieManifestForVoyage, replaceVaziosFromBaplie } from './vaziosImportacaoImport'
+import { applyBapliePhysicalFlags } from './baplieReconciliation'
 
 /** Persiste containers do Baplie no staging. Substitui staging anterior da mesma viagem. */
 export async function importBaplieStaging(
@@ -127,7 +128,13 @@ export function baplieReplacementConfirmOptions(plan: BaplieReimportPlan, incomi
 
 export type BaplieReimportResult =
   | { status: 'cancelled' }
-  | { status: 'imported' | 'unchanged' | 'replaced'; staged: number; vaziosReplaced: boolean }
+  | {
+      status: 'imported' | 'unchanged' | 'replaced'
+      staged: number
+      vaziosReplaced: boolean
+      /** Baplie gravado, mas IMO/OOG não chegaram aos B/Ls: falha parcial que a tela mostra. */
+      flagsError: string | null
+    }
 
 export function baplieImportToast(result: Exclude<BaplieReimportResult, { status: 'cancelled' }>): string {
   if (result.status === 'unchanged') {
@@ -137,10 +144,26 @@ export function baplieImportToast(result: Exclude<BaplieReimportResult, { status
 }
 
 /**
+ * O Baplie é soberano sobre IMO/OOG: toda importação gravada aplica as flags
+ * físicas aos bl_containers da viagem. A falha não desfaz o staging já gravado;
+ * volta como texto para a tela avisar. Reimportar o mesmo arquivo refaz a aplicação.
+ */
+async function applyFlagsAfterStaging(voyageId: number, actorId: string): Promise<string | null> {
+  try {
+    await applyBapliePhysicalFlags(voyageId, actorId)
+    return null
+  } catch (error) {
+    return error instanceof Error ? error.message : String((error as { message?: unknown })?.message ?? 'Falha ao aplicar IMO/OOG aos B/Ls.')
+  }
+}
+
+/**
  * Importa ou reimporta o Baplie da viagem. Com Baplie anterior: sem diferença,
  * aceita sem perguntar e não toca nos vazios; com diferença, pede confirmação
  * e, se os vazios mudaram e já havia manifesto de vazios do Baplie, recadastra-os.
  * O Nº do manifesto Mercante (manifestos_mercante) não é apagado em nenhum caso.
+ * Depois de gravar, aplica IMO/OOG aos B/Ls (`flagsError` diz se falhou), para
+ * que a página /baplie e a ação rápida da Viagem tenham o mesmo efeito.
  */
 export async function reimportBaplie({
   voyageId,
@@ -156,7 +179,8 @@ export async function reimportBaplie({
   const existingRows = await listBaplieStagingForDiff(voyageId)
   if (!existingRows.length) {
     const { staged } = await importBaplieStaging(voyageId, containers, actorId)
-    return { status: 'imported', staged, vaziosReplaced: false }
+    const flagsError = await applyFlagsAfterStaging(voyageId, actorId)
+    return { status: 'imported', staged, vaziosReplaced: false, flagsError }
   }
   const diff = diffBaplieStaging(existingRows, containers)
   const plan: BaplieReimportPlan = {
@@ -167,14 +191,18 @@ export async function reimportBaplie({
   if (diff.items.length && !(await confirmReplacement(plan))) return { status: 'cancelled' }
 
   const { staged } = await importBaplieStaging(voyageId, containers, actorId)
+  // As flags dependem só dos cheios do staging: aplicadas antes dos vazios, não
+  // ficam para trás se o recadastro dos vazios falhar.
+  const flagsError = await applyFlagsAfterStaging(voyageId, actorId)
   const vaziosReplaced = plan.hasVaziosManifest && diff.vaziosChanged
   if (vaziosReplaced) {
     try {
       await replaceVaziosFromBaplie({ voyageId, uploadedBy: actorId })
     } catch (error) {
       const reason = error instanceof Error ? error.message : String((error as { message?: unknown })?.message ?? error)
-      throw new Error(`Baplie importado, mas os vazios de importação não foram recadastrados: ${reason}`, { cause: error })
+      const flags = flagsError ? ` IMO/OOG também não foram aplicados aos B/Ls: ${flagsError}` : ''
+      throw new Error(`Baplie importado, mas os vazios de importação não foram recadastrados: ${reason}${flags}`, { cause: error })
     }
   }
-  return { status: diff.items.length ? 'replaced' : 'unchanged', staged, vaziosReplaced }
+  return { status: diff.items.length ? 'replaced' : 'unchanged', staged, vaziosReplaced, flagsError }
 }

@@ -14,6 +14,7 @@ vi.mock('../../services/vaziosNatureza', () => ({ setContainerUnpackingLocation:
 vi.mock('../../hooks/useVehicles', async () => {
   const { useQuery } = await import('@tanstack/react-query')
   return {
+    UNPACKING_LOCATION_NONE: '__none__',
     useVehicleOptions: () => ({ data: { voyages: [] } }),
     useVoyageVehicleStats: () => ({ data: { byVoyageId: {} } }),
     useVehicles: () => useQuery({
@@ -43,5 +44,26 @@ it('mantém a desova salva quando a releitura falha e acompanha uma atualizaçã
       ...cached, rows: cached.rows.map((row) => ({ ...row, container: { ...row.container, unpacking_location: 'Terminal C' } })),
     }))
     await waitFor(() => expect(input.value).toBe('Terminal C'))
+  } finally { client.clear() }
+})
+
+it('Escape desfaz o rascunho do local sem gravar e a falha de gravação aparece junto do campo', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+  try {
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
+    const input = screen.getByRole('textbox', { name: 'Local de desova do container CXRU1234567' }) as HTMLInputElement
+    const saved = input.value
+    mocks.save.mockClear()
+    fireEvent.change(input, { target: { value: 'Rascunho' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(input.value).toBe(saved)
+    expect(mocks.save).not.toHaveBeenCalled()
+
+    mocks.save.mockRejectedValueOnce(new Error('sem permissão'))
+    fireEvent.change(input, { target: { value: 'Pátio 9' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Não salvo: sem permissão')
+    expect(mocks.save).toHaveBeenCalledTimes(1)
+    expect(input.value).toBe(saved)
   } finally { client.clear() }
 })

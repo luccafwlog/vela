@@ -9977,3 +9977,576 @@ a.app-step-rail__link:focus-visible {
   display: grid;
   gap: 16px;
 }
+
+/* ===========================================================================
+   Carga física e conciliação (/containers, /veiculos, /baplie) — etapa 06
+   Uma superfície por nível; seções por filete; cor só para estado, sempre
+   acompanhada de texto.
+   =========================================================================== */
+.app-cargo-link {
+  color: var(--app-link);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.app-cargo-link:hover {
+  text-decoration: underline;
+}
+
+.app-cargo-link:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.app-cargo-id {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Códigos sujeitos a confusão de caracteres (container, chassi, slot, B/L citado). */
+.app-cargo-code {
+  font-family: var(--app-font-mono);
+  font-size: var(--app-size-table);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-cargo-num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+th.app-cargo-num,
+td.app-cargo-num {
+  text-align: right;
+}
+
+.app-cargo-cell__stack {
+  display: inline-grid;
+  justify-items: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-cargo-cell__sub {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-cargo-cell__muted {
+  color: var(--app-muted);
+}
+
+.app-cargo-cell__truncate {
+  display: block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Faixa da viagem ───────────────────────────────────────────────────── */
+.app-cargo-voyage {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 16px;
+}
+
+.app-cargo-voyage__search {
+  max-width: 420px;
+}
+
+.app-cargo-voyage__loading {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+}
+
+/* ── Barra da tabela e superfícies ─────────────────────────────────────── */
+.app-cargo-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  border-bottom: 1px solid var(--app-border);
+  padding: 10px 16px;
+}
+
+.app-cargo-toolbar__secondary {
+  flex-basis: 100%;
+}
+
+.app-cargo-toolbar__hint {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-cargo-error {
+  border-bottom: 1px solid var(--app-danger-border);
+  background: var(--app-danger-bg);
+  padding: 8px 16px;
+  color: var(--app-danger-fg);
+  font-size: var(--app-size-table);
+}
+
+.app-cargo-panel {
+  margin-bottom: 16px;
+}
+
+.app-cargo-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding: 12px 16px;
+}
+
+.app-cargo-panel__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-section);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.app-cargo-panel__meta {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-cargo-panel__note {
+  margin: 0;
+  border-top: 1px solid var(--app-border);
+  padding: 8px 16px;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-cargo-panel__note strong {
+  color: var(--app-text-strong);
+  font-weight: 600;
+}
+
+.app-cargo-panel__body {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--app-border);
+  padding: 12px 16px;
+}
+
+.app-cargo-state {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+.app-cargo-state__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-weight: 600;
+}
+
+.app-cargo-state__text {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+}
+
+/* Linha de situação com texto à esquerda e ações à direita. */
+.app-cargo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.app-cargo-row__text {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  max-width: 72ch;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-cargo-row__text svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--app-success-fg);
+}
+
+.app-cargo-row__text--warning svg {
+  color: var(--app-warning-fg);
+}
+
+.app-cargo-row__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+/* ── Conciliação Baplie × B/L ──────────────────────────────────────────── */
+.app-cargo-verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-top: 1px solid var(--app-border);
+  border-left: 4px solid var(--app-border-strong);
+  padding: 12px 16px;
+}
+
+.app-cargo-verdict--success { border-left-color: var(--app-success-fg); }
+.app-cargo-verdict--warning { border-left-color: var(--app-warning-fg); background: var(--app-warning-bg); }
+.app-cargo-verdict--danger { border-left-color: var(--app-danger-fg); background: var(--app-danger-bg); }
+
+.app-cargo-verdict__icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--app-muted);
+}
+
+.app-cargo-verdict--success .app-cargo-verdict__icon { color: var(--app-success-fg); }
+.app-cargo-verdict--warning .app-cargo-verdict__icon { color: var(--app-warning-fg); }
+.app-cargo-verdict--danger .app-cargo-verdict__icon { color: var(--app-danger-fg); }
+
+.app-cargo-verdict__body {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.app-cargo-verdict__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-weight: 600;
+}
+
+.app-cargo-verdict__text {
+  margin: 0;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-cargo-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--app-border);
+}
+
+.app-cargo-facts__item {
+  display: grid;
+  gap: 2px;
+  padding: 10px 16px;
+}
+
+.app-cargo-facts__item + .app-cargo-facts__item {
+  border-left: 1px solid var(--app-border);
+}
+
+.app-cargo-facts__item dt {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-cargo-facts__item dd {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-section);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-cargo-facts__item--warning dd,
+.app-cargo-facts__item--warning dd .app-cargo-link {
+  color: var(--app-warning-fg);
+}
+
+.app-cargo-divergence {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--app-border);
+  padding: 12px 16px 16px;
+}
+
+.app-cargo-divergence:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -2px;
+}
+
+.app-cargo-divergence__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-body);
+  font-weight: 600;
+}
+
+.app-cargo-divergence__title svg {
+  color: var(--app-warning-fg);
+}
+
+.app-cargo-divergence__text {
+  margin: 0;
+  max-width: 90ch;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-cargo-divergence__table {
+  max-height: 360px;
+  margin-top: 8px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+}
+
+/* ── Tabelas ───────────────────────────────────────────────────────────── */
+.app-cargo-table {
+  min-width: 960px;
+  text-align: left;
+}
+
+.app-cargo-table--sub {
+  min-width: 0;
+}
+
+.app-cargo-table--preview {
+  min-width: 420px;
+}
+
+.app-cargo-card .app-cargo-group__bls {
+  font-size: var(--app-size-table);
+}
+
+.app-cargo-table td {
+  vertical-align: top;
+}
+
+.app-cargo-table__check {
+  width: 40px;
+}
+
+/* Primeira coluna fixa na rolagem horizontal: o identificador não sai de vista. */
+.app-cargo-table .app-cargo-table__check,
+.app-cargo-table .app-cargo-table__id {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--app-surface);
+}
+
+.app-cargo-table--selectable .app-cargo-table__id {
+  left: 40px;
+}
+
+.app-cargo-table .app-cargo-table__id {
+  box-shadow: 8px 0 8px -8px rgba(15, 23, 42, 0.25);
+}
+
+.app-cargo-table thead .app-cargo-table__check,
+.app-cargo-table thead .app-cargo-table__id {
+  z-index: 3;
+  background: var(--app-thead-bg);
+}
+
+/* Veículos agrupados pelo container: o cabeçalho do grupo leva o local de desova. */
+.app-cargo-table--grouped {
+  min-width: 860px;
+}
+
+.app-cargo-group__row > td,
+.app-cargo-group__row > th {
+  background: var(--app-surface-muted);
+  vertical-align: middle;
+}
+
+.app-cargo-table .app-cargo-group__row > .app-cargo-table__check {
+  background: var(--app-surface-muted);
+}
+
+.app-cargo-group__cell {
+  font-weight: 400;
+}
+
+.app-cargo-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.app-cargo-group__id {
+  display: inline-grid;
+  gap: 2px;
+}
+
+.app-cargo-group__bls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.app-cargo-desova {
+  display: grid;
+  gap: 2px;
+  min-width: 220px;
+}
+
+.app-cargo-desova__status {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-cargo-desova__status--error {
+  color: var(--app-danger-fg);
+  font-weight: 500;
+}
+
+.app-cargo-danger-icon {
+  color: var(--app-danger-fg);
+}
+
+/* ── Cartões abaixo de 640 px ──────────────────────────────────────────── */
+.app-cargo-cards {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-cargo-card {
+  display: grid;
+  gap: 6px;
+  border-bottom: 1px solid var(--app-border);
+  padding: 12px 16px;
+}
+
+.app-cargo-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.app-cargo-card__head .app-cargo-group__head {
+  flex: 1 1 auto;
+}
+
+.app-cargo-card__check {
+  margin-top: 4px;
+}
+
+.app-cargo-card__id {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+  font-size: var(--app-size-body);
+}
+
+.app-cargo-card__id .app-cargo-id,
+.app-cargo-card .app-cargo-id {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.app-cargo-card__body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-cargo-card__body .app-cargo-cell__truncate {
+  max-width: 100%;
+}
+
+.app-cargo-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  color: var(--app-muted);
+}
+
+.app-cargo-card__facts > span > span {
+  color: var(--app-text-strong);
+}
+
+.app-cargo-card__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.app-cargo-card__field .app-cargo-desova {
+  min-width: 0;
+}
+
+.app-cargo-card__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-cargo-card__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--app-border);
+  padding: 6px 0;
+}
+
+.app-cargo-card__item .app-cargo-cell__stack {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 1100px) {
+  .app-cargo-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-cargo-facts__item:nth-child(3) {
+    border-left: 0;
+  }
+
+  .app-cargo-facts__item:nth-child(n + 3) {
+    border-top: 1px solid var(--app-border);
+  }
+}
+
+@media (max-width: 639px) {
+  .app-cargo-toolbar,
+  .app-cargo-panel__head,
+  .app-cargo-panel__body,
+  .app-cargo-panel__note,
+  .app-cargo-verdict,
+  .app-cargo-divergence,
+  .app-cargo-card {
+    padding-inline: 12px;
+  }
+
+  .app-cargo-voyage__search {
+    max-width: none;
+  }
+}

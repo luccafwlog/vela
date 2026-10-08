@@ -9,6 +9,9 @@ type VehicleListItemWithUnpackingLocation = Omit<VehicleListItem, 'container'> &
   container?: Pick<BLContainer, 'id' | 'container_number' | 'type' | 'seal_number' | 'unpacking_location'> | null
 }
 
+/** Filtro de desova que pede os containers ainda sem local. */
+export const UNPACKING_LOCATION_NONE = '__none__'
+
 export type VehiclePageFilters = {
   search: string
   brand: string
@@ -138,7 +141,9 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
         const term = filters.bl.toLowerCase()
         rows = rows.filter((r) => (r.bl?.id ?? '').toLowerCase().includes(term))
       }
-      if (filters.unpackingLocation) {
+      if (filters.unpackingLocation === UNPACKING_LOCATION_NONE) {
+        rows = rows.filter((r) => r.container && !(r.container.unpacking_location ?? '').trim())
+      } else if (filters.unpackingLocation) {
         const term = filters.unpackingLocation.toLowerCase()
         rows = rows.filter((r) => (r.container?.unpacking_location ?? '').toLowerCase().includes(term))
       }
