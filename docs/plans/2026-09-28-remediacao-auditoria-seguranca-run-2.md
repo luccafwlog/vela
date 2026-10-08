@@ -10,7 +10,7 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 | Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); Comunicado validado em simulação em produção em 2026-10-06; envio real fora do plano por decisão do dono (2026-10-08) |
 | Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; troca de e-mail com PKCE ainda sem validação numa Preview publicada, que agora publica |
 | Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; Preview, limpeza (com DELETE), admin da Preview, provisionador e produção validados com as credenciais dos environments até 2026-10-08 |
-| Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pelas PRs #815 e posteriores; `RECALC_CRON_SECRET` provisionado e job agendado em 2026-10-07; rotação dos demais segredos de cron, decisão sobre `IMPORT_EFFECTS_CRON_SECRET` e execução agendada do backup seguem pendentes; recálculo só de `issued` confirmado como regra de negócio |
+| Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pelas PRs #815 e posteriores; `RECALC_CRON_SECRET` provisionado e job agendado em 2026-10-07; rotação dos demais segredos de cron e execução agendada do backup seguem pendentes; `IMPORT_EFFECTS_CRON_SECRET` fora do plano por decisão do dono; recálculo só de `issued` confirmado como regra de negócio |
 
 Lista vigente de pendências: [Estado em 2026-10-08](#estado-em-2026-10-08).
 
@@ -329,10 +329,7 @@ configuração alterada nesta conferência.
 4. **Operação (dono):** rotacionar em par os segredos de cron já existentes
    (`ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`,
    `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`,
-   `PORTAL_EMAIL_EVENTS_CRON_SECRET`); decidir o destino de
-   `IMPORT_EFFECTS_CRON_SECRET` (o `import-effects-runner` está pausado de
-   propósito, `IMPORT_EFFECTS_RUNNER_ENABLED` desligado, até os consumidores da
-   fila serem ativados juntos); confirmar no computador Windows uma execução
+   `PORTAL_EMAIL_EVENTS_CRON_SECRET`); confirmar no computador Windows uma execução
    agendada do backup com `LastTaskResult = 0` e o arquivo do dia no R2.
 
 ## Decisões
@@ -341,7 +338,11 @@ Em 2026-10-08, o dono decidiu: remover a deploy key
 `Codex workspace - Transhipping Desk`; tirar deste plano o ruleset de
 `.github/workflows/**`, que ele trata fora daqui (não é pendência para
 arquivar); e deixar fora do plano o envio real de Comunicado a destinatário
-controlado, já que simulação e recusa de PDF falso foram validadas.
+controlado, já que simulação e recusa de PDF falso foram validadas. Também
+tirou do plano o `IMPORT_EFFECTS_CRON_SECRET`: o `import-effects-runner` está
+pausado de propósito (`IMPORT_EFFECTS_RUNNER_ENABLED` desligado) até as filas
+de flags físicas, taxas provisórias e faturamento serem ativadas juntas, e o
+segredo só tem uso nessa ativação; será provisionado em par como parte dela.
 
 Em 2026-10-06, o dono recusou restringir os environments GitHub à branch
 `main`. Não aplicar essa restrição. O controle fica fora da execução por

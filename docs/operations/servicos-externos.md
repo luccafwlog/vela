@@ -287,7 +287,9 @@ correspondente na Edge Function não foi conferido. `IMPORT_EFFECTS_CRON_SECRET`
 e `RECALC_CRON_SECRET` não existiam no Vault nessa conferência. Nota de execução
 posterior em 07/10: `RECALC_CRON_SECRET` provisionado em par, validado via
 HTTP 200 e job agendado às 17h UTC de segunda a sexta. `IMPORT_EFFECTS_CRON_SECRET`
-continua pendente. A migration `107` deixa
+fica sem provisionar de propósito: o `import-effects-runner` está pausado
+(`IMPORT_EFFECTS_RUNNER_ENABLED` desligado) e o segredo será criado em par
+quando o runner for ativado (decisão do dono, 2026-10-08). A migration `107` deixa
 `portal-email-events-runner` e `import-effects-runner` agendados; para o
 segundo, o dispatcher emite `WARNING` e não chama a Edge Function enquanto o
 segredo do Vault estiver ausente. O job `recalc-demurrage-ptax` foi agendado manualmente em 07/10 (jobid 26). Um `succeeded` em `cron.job_run_details` só comprova que o
