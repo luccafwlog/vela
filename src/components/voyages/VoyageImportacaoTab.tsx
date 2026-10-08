@@ -93,7 +93,7 @@ function TotalStrip({ totals }: { totals: Array<[string, string]> }) {
   return (
     <div className="flex flex-wrap items-center gap-y-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-3">
       <span className="mr-2 shrink-0 text-xs font-semibold text-[var(--app-muted)]">Total da viagem</span>
-      {totals.map(([label, value], index) => <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-border)]' : ''}`}><span className="font-[var(--app-font-mono)] text-[15px] font-semibold text-[var(--app-text-strong)]">{value}</span><span className="text-xs text-[var(--app-muted-soft)]">{label}</span></span>)}
+      {totals.map(([label, value], index) => <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-border)]' : ''}`}><span className="font-[var(--app-font-mono)] text-base font-semibold text-[var(--app-text-strong)]">{value}</span><span className="text-xs text-[var(--app-muted-soft)]">{label}</span></span>)}
     </div>
   )
 }
@@ -120,7 +120,7 @@ function PodBlock({ pod, summary, vehicle, vazios }: {
 
   return (
     <div className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="inline-flex items-baseline gap-2"><span className="text-[15px] font-bold text-[var(--app-text-strong)]">{pod}</span><span className="text-xs text-[var(--app-muted-soft)]">{formatPortDisplayName(pod)}</span></span><span className="text-xs text-[var(--app-muted)]">{summaryLabel}</span></div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="inline-flex items-baseline gap-2"><span className="text-base font-bold text-[var(--app-text-strong)]">{pod}</span><span className="text-xs text-[var(--app-muted-soft)]">{formatPortDisplayName(pod)}</span></span><span className="text-xs text-[var(--app-muted)]">{summaryLabel}</span></div>
       <div className="grid gap-3 xl:grid-cols-2">
         <Panel title="Containers" icon={<Box size={15} />} lead={containers.distinct} leadUnit="distintos"><MiniStats stats={[['Carga geral', generalCargo.distinct], ['C/ veículos', vehicleContainers], ['IMO', containers.imo], ['OOG', containers.oog], ['SOC', containers.soc], ['COC', containers.coc]]} /><CountPills values={parseCountSummary(containers.types)} /></Panel>
         {breakbulk.bls ? <Panel title="Carga solta" icon={<FileText size={15} />} lead={breakbulk.weightTon} leadUnit="ton"><MiniStats stats={[['B/Ls', breakbulk.bls], ['Máquinas', breakbulk.machines], ['Packages', breakbulk.packages], ['CBM', breakbulk.cbm]]} /></Panel> : <Panel title="Carga solta" icon={<FileText size={15} />} empty="Sem carga solta nesta escala" />}
@@ -148,7 +148,7 @@ function UnassignedCargoBlock({
     <div className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="inline-flex items-baseline gap-2">
-          <span className="text-[15px] font-bold text-[var(--app-text-strong)]">Sem escala atribuída</span>
+          <span className="text-base font-bold text-[var(--app-text-strong)]">Sem escala atribuída</span>
           <span className="text-xs text-[var(--app-muted-soft)]">Cargas de importação sem porto de descarga (POD) definido</span>
         </span>
         <span className="text-xs text-[var(--app-muted)]">{summaryParts.join(' · ')}</span>

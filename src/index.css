@@ -9892,6 +9892,35 @@ a.app-step-rail__link:focus-visible {
   text-decoration-color: currentColor;
 }
 
+/* Rota em Rotas e Manifestos: link com área de clique de controle. */
+.app-voyage-route-link {
+  display: inline-flex;
+  flex-wrap: wrap;
+  min-height: var(--app-control-h);
+  align-items: center;
+  column-gap: 4px;
+  color: var(--app-link);
+  font-weight: 600;
+}
+
+.app-voyage-route-link:hover {
+  text-decoration: underline;
+}
+
+/* Ação de dado pendente (ex.: Nº de manifesto a informar): botão de verdade,
+   com o tom de atenção do selo que substituiu. */
+.app-voyage-pending-action.app-btn {
+  border-color: var(--app-warning-border);
+  background: var(--app-warning-bg);
+  color: var(--app-warning-fg);
+}
+
+.app-voyage-pending-action.app-btn:hover:not(:disabled) {
+  border-color: var(--app-warning-fg);
+  background: var(--app-warning-bg);
+  color: var(--app-warning-fg);
+}
+
 @media (pointer: coarse) {
   .app-voyage-shortcut { min-height: 44px; }
 }

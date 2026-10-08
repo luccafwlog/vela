@@ -101,18 +101,18 @@ export function VoyageManifestosTab({
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge tone={modeTone} className="px-2 py-0.5 text-xs">{row.modeLabel}</Badge>
                           <Link
-                            className="font-semibold text-[var(--app-blue-btn)] hover:underline"
+                            className="app-voyage-route-link"
                             to={routeTargetUrl}
                             aria-label={row.routeLabel}
                           >
                             {row.omission ? (
                               <>
-                                <span>{formatPortDisplayName(row.pol)} → </span>
+                                <span>{formatPortDisplayName(row.pol)} →</span>
                                 <span className="line-through text-[var(--app-muted-soft)]" title={`POD omitido: ${row.omission.omittedPod}`}>
                                   {formatPortDisplayName(row.omission.omittedPod)}
                                 </span>
-                                <span> → {formatPortDisplayName(row.omission.dischargePod)}</span>
-                                <Badge tone="yellow" className="ml-2 px-2 py-0.5 text-xs">Omissão</Badge>
+                                <span>→ {formatPortDisplayName(row.omission.dischargePod)}</span>
+                                <Badge tone="yellow" className="ml-1 px-2 py-0.5 text-xs">Omissão</Badge>
                               </>
                             ) : row.routeLabel}
                           </Link>
@@ -146,7 +146,7 @@ export function VoyageManifestosTab({
                                     title={`Manifesto Mercante: ${m.numero} (${m.natureza})`}
                                   >
                                     <span>{m.numero}</span>
-                                    <Badge tone={m.natureza === 'vazio' ? 'slate' : 'blue'} className="px-1 py-0 text-[9px] font-sans">
+                                    <Badge tone={m.natureza === 'vazio' ? 'slate' : 'blue'} className="px-1 py-0 text-xs font-sans">
                                       {m.natureza}
                                     </Badge>
                                   </span>
@@ -161,13 +161,13 @@ export function VoyageManifestosTab({
                             return (
                               <button
                                 type="button"
-                                className="app-badge app-badge--yellow cursor-pointer gap-1 px-2 py-0.5 text-xs transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="app-btn app-btn--sm app-voyage-pending-action"
                                 aria-label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
                                 title="Informar Nº de Manifesto Mercante"
                                 onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
                                 disabled={!canEdit || !row.pol || row.pol === '-'}
                               >
-                                <Pencil size={11} aria-hidden="true" />
+                                <Pencil size={14} aria-hidden="true" />
                                 <span>Informar</span>
                               </button>
                             )
@@ -217,7 +217,7 @@ function TotalStrip({ totals }: { totals: Array<[string, string]> }) {
       <span className="mr-2 shrink-0 text-xs font-semibold text-[var(--app-muted)]">Total da viagem</span>
       {totals.map(([label, value], index) => (
         <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-border)]' : ''}`}>
-          <span className="font-[var(--app-font-mono)] text-[15px] font-semibold text-[var(--app-text-strong)]">{value}</span>
+          <span className="font-[var(--app-font-mono)] text-base font-semibold text-[var(--app-text-strong)]">{value}</span>
           <span className="text-xs text-[var(--app-muted-soft)]">{label}</span>
         </span>
       ))}
