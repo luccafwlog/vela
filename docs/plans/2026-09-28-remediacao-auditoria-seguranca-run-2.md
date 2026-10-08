@@ -5,12 +5,14 @@ Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 toma
 
 | Parte | Situação |
 |---|---|
-| Fase 1 — configuração de terceiros | secrets cadastrados nos environments; validação, remoção das cópias de Repository secrets, deploy key e ruleset pendentes; o dono recusou restringir Preview à `main` |
+| Fase 1 — configuração de terceiros | secrets nos environments e todos os workflows que os usam validados em 2026-10-08; falta apagar as cópias Repository-level e o secret legado, revogar os tokens antigos e remover a deploy key (decisão do dono); o dono recusou restringir Preview à `main`; ruleset fora deste plano por decisão do dono |
 | Fase 2 — migration `106` e item 4.5 | migrations até `159` em produção; Dispute/Storage e próxima ação validados com Equipamentos; falta importação com e-mail de consignatário novo e tentativa direta de Storage em sessão Financeiro |
-| Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); Comunicado validado em simulação em produção em 2026-10-06; envio real a destinatário controlado continua opcional |
-| Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; troca de e-mail com PKCE ainda sem validação numa Preview publicada |
-| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; cleanup real listou zero deployments antigos; consulta individual por nome validada no run `37631613061` (ambos os projetos já existiam); Preview publicada pendente |
-| Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pelas PRs #815 e posteriores; segredos de cron e execução agendada do backup seguem pendentes; recálculo só de `issued` confirmado como regra de negócio |
+| Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); Comunicado validado em simulação em produção em 2026-10-06; envio real fora do plano por decisão do dono (2026-10-08) |
+| Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; troca de e-mail com PKCE ainda sem validação numa Preview publicada, que agora publica |
+| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; Preview, limpeza (com DELETE), admin da Preview, provisionador e produção validados com as credenciais dos environments até 2026-10-08 |
+| Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pelas PRs #815 e posteriores; `RECALC_CRON_SECRET` provisionado e job agendado em 2026-10-07; rotação dos demais segredos de cron, decisão sobre `IMPORT_EFFECTS_CRON_SECRET` e execução agendada do backup seguem pendentes; recálculo só de `issued` confirmado como regra de negócio |
+
+Lista vigente de pendências: [Estado em 2026-10-08](#estado-em-2026-10-08).
 
 Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
 (commit auditado `17da824a`). A auditoria está **incompleta**: nenhum dos 15
@@ -135,7 +137,8 @@ Nenhuma configuração alterada nesta conferência.
 
 ## Pendências consolidadas em 2026-10-07
 
-As pendências executáveis restantes são:
+Substituída pela lista de [2026-10-08](#estado-em-2026-10-08); mantida como
+registro do estado naquela data. As pendências executáveis restantes eram:
 
 1. **GitHub e credenciais:** os secrets estão nos environments
    `cloudflare-pages`, `supabase-branches` e `cloudflare-production`. O secret
@@ -263,7 +266,82 @@ agendada no computador Windows descrito em [serviços externos](../operations/se
 esta máquina de execução macOS não permite confirmar seu `LastTaskResult`.
 O plano continua aberto.
 
+## Estado em 2026-10-08
+
+Conferência somente de leitura das execuções do GitHub Actions e do
+[manual de serviços externos](../operations/servicos-externos.md); nenhuma
+configuração alterada nesta conferência.
+
+### Resolvido desde a lista de 2026-10-07
+
+- **Credencial Supabase das Previews:** PAT novo de 2026-10-08
+  (`GitHub Actions — Vela Preview branches v2`), escopado ao projeto, com
+  `API Keys`, `Development Branches` e `Connection Pooling`, todas `Read`, sem
+  expiração. A falta de `Connection Pooling` era o que fazia o `branches get`
+  do CLI responder 403.
+- **Workflows validados com as credenciais dos environments** (condição para
+  apagar as cópias Repository-level):
+  - Preview (`cloudflare-pages` e `supabase-branches`): runs
+    [`37809313379`](https://github.com/luccafwlog/vela/actions/runs/37809313379),
+    `37815788990`, `37817688383` e
+    [`37819195317`](https://github.com/luccafwlog/vela/actions/runs/37819195317),
+    da PR 903, concluíram `prepare`, `build` e `publish` do Vela e do Portal.
+    Runs posteriores com falha não indicam problema de credencial: o run
+    `37850538786`, conferido, parou em "PR closed or superseded" porque a PR já
+    estava mergeada.
+  - Admin da Preview (`supabase-branches`): run `37850539006` com sucesso.
+  - Limpeza (`cloudflare-pages`): run
+    [`37820173005`](https://github.com/luccafwlog/vela/actions/runs/37820173005),
+    da PR 903, removeu três deployments antigos em `vela-internal` e três em
+    `vela-portal`; o DELETE, antes não exercitado, passou.
+  - Produção (`cloudflare-production`): runs `37820554553` a `37850810212` com
+    sucesso em `main`.
+  - Provisionador do Pages: run `37631613061`, já registrado.
+- **Recálculo de PTAX:** `RECALC_CRON_SECRET` provisionado em par (Vault e Edge
+  Function), disparo manual com HTTP 200 e job `recalc-demurrage-ptax`
+  agendado (jobid 26) em 2026-10-07; ver
+  [segredos e cron](../operations/segredos-cron.md#agendar-o-recálculo-de-ptax).
+
+### Pendências para arquivar o plano
+
+1. **Credenciais no GitHub, no Supabase e no Cloudflare (dono):** apagar dos
+   Repository secrets as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,
+   `SUPABASE_ACCESS_TOKEN` e `PREVIEW_ADMIN_PASSWORD` e o legado
+   `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK` (manter `SUPABASE_PROJECT_REF`
+   e as `VITE_*` de build do CI); revogar os PATs Supabase que não são o `v2`
+   em uso, inclusive o PAT exposto, e o token Cloudflare anterior; remover a
+   deploy key `Codex workspace - Transhipping Desk`. Depois, uma Preview
+   publicada confirma que nada dependia das cópias. A API usada nesta
+   conferência não lista secrets nem deploy keys; registrar aqui o que for
+   feito.
+2. **URL Configuration do Supabase Auth (dono):** Site URL ainda é
+   `https://transhippingdesk.com.br` e há oito Redirect URLs legadas da
+   Vercel. Ajustar para o domínio atual e liberar as Previews antes do teste de
+   PKCE; sem isso, o link de confirmação não volta para a Preview.
+3. **Testes numa Preview publicada:** troca de e-mail com PKCE no mesmo
+   navegador (aceita) e em outro (recusada); importação de B/L com e-mail de
+   consignatário novo; tentativa direta de upload no Storage da Dispute com a
+   sessão do Financeiro (recusada). Com `Automatic branching` desligado, a
+   Preview exige uma branch Supabase criada à mão e vinculada à branch da PR
+   ([deploy](../setup/deploy.md)). Depois, remover as branches Supabase
+   criadas para os testes, inclusive `codex/run2-manual-preview-probe` se ainda
+   existir, e registrar a exclusão.
+4. **Operação (dono):** rotacionar em par os segredos de cron já existentes
+   (`ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`,
+   `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`,
+   `PORTAL_EMAIL_EVENTS_CRON_SECRET`); decidir o destino de
+   `IMPORT_EFFECTS_CRON_SECRET` (o `import-effects-runner` está pausado de
+   propósito, `IMPORT_EFFECTS_RUNNER_ENABLED` desligado, até os consumidores da
+   fila serem ativados juntos); confirmar no computador Windows uma execução
+   agendada do backup com `LastTaskResult = 0` e o arquivo do dia no R2.
+
 ## Decisões
+
+Em 2026-10-08, o dono decidiu: remover a deploy key
+`Codex workspace - Transhipping Desk`; tirar deste plano o ruleset de
+`.github/workflows/**`, que ele trata fora daqui (não é pendência para
+arquivar); e deixar fora do plano o envio real de Comunicado a destinatário
+controlado, já que simulação e recusa de PDF falso foram validadas.
 
 Em 2026-10-06, o dono recusou restringir os environments GitHub à branch
 `main`. Não aplicar essa restrição. O controle fica fora da execução por

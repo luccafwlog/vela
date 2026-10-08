@@ -170,8 +170,9 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   e só criar quando a resposta for HTTP 404. O run `37631613061` em `main`
   concluiu com sucesso: os projetos `vela-internal` e `vela-portal` já existiam
   e foram deixados inalterados. Isso valida a credencial e a consulta individual
-  no provisionador. Não remover a cópia Repository-level ainda: os demais
-  workflows que usam as credenciais ainda precisam ser validados.
+  no provisionador. Em 2026-10-08, Preview (run `37819195317`), limpeza (run
+  `37820173005`, que removeu deployments antigos) e produção também passaram
+  com o token dos environments; a cópia Repository-level já pode ser apagada.
 
 ### Cloudflare Access (proteção das previews)
 
@@ -477,8 +478,9 @@ para eles vale o backup do próprio Supabase.
   (Pages), `provision-preview-admin.yml` (usuário admin na branch de preview).
 - **Repository secrets:** `CLOUDFLARE_PAGES_API_TOKEN`, `SUPABASE_ACCESS_TOKEN`
   e `PREVIEW_ADMIN_PASSWORD` ainda duplicam as credenciais novas dos
-  environments; manter até validar os workflows, então apagar as cópias e
-  revogar/aposentar as credenciais antigas. `SUPABASE_PROJECT_REF` continua
+  environments. Todos os workflows que as usam passaram com as credenciais dos
+  environments até 2026-10-08; falta apagar as cópias e revogar/aposentar as
+  credenciais antigas. `SUPABASE_PROJECT_REF` continua
   necessário para Preview. `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` são
   usados pelo build de CI. `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK` é
   legado, sem uso em workflow, e ainda aguarda remoção.
@@ -503,12 +505,14 @@ para eles vale o backup do próprio Supabase.
   como atalho. Rotação, migração de secrets e proteção de workflows continuam
   pendentes.
 
-  O workflow de provisionamento recebeu a nova credencial Pages mascarada e o
-  ID de conta correto, mas falhou no GET de projetos com HTTP 400. No código
-  local, `per_page=100` foi substituído por `25` com teste de regressão; falta
-  executar a versão atualizada em `main`. A migração e rotação das credenciais
-  só devem ser concluídas depois que os workflows passarem; então apagar as
-  cópias antigas. As actions dos workflows com token estão fixadas por SHA.
+  O provisionamento passou a consultar cada projeto Pages pelo nome e foi
+  validado no run `37631613061`; Preview, limpeza, admin da Preview e produção
+  passaram com as credenciais dos environments em 2026-10-08. Com isso, as
+  cópias antigas podem ser apagadas e as credenciais anteriores revogadas. As
+  actions dos workflows com token estão fixadas por SHA.
+- **Deploy keys:** `Codex workspace - Transhipping Desk` (`read/write`),
+  revisada em 2026-10-06; o dono decidiu removê-la em 2026-10-08. Atualize esta
+  linha quando a remoção for feita.
 - **Regras:** em 2026-10-06 a API informou `main.protected=false`. A exigência
   de revisão dos workflows da run-2 ainda não está aplicada; depende do plano
   GitHub e de revisor elegível. Não presumir proteção nem usar bypass como
