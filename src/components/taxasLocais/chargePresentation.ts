@@ -313,8 +313,8 @@ export function conditionPeriodLabel(
 
 /**
  * Por que uma condição cadastrada não muda a cobrança. O motor só olha a
- * condição de item ativo da tabela aplicada, e usa o valor dela no lugar do
- * valor em reais (migration 129); item em dólar continua pelo valor da tabela.
+ * condição de item ativo da tabela aplicada e usa o valor dela na moeda do
+ * item (migration 171; até a 129, item em dólar saía pelo valor da tabela).
  */
 export function conditionEffectNotes(
   item: {
@@ -340,12 +340,6 @@ export function conditionEffectNotes(
   }
   if (item.active === false) {
     notes.push({ tone: 'warning', text: 'O item está inativo: a condição não entra no cálculo.' })
-  }
-  if (item.currency === 'USD') {
-    notes.push({
-      tone: 'warning',
-      text: 'Item em dólar: o cálculo automático ainda cobra o valor da tabela, então esta condição não altera a cobrança.',
-    })
   }
   return notes
 }

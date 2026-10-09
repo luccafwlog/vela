@@ -369,7 +369,8 @@ describe('Condições de Cliente', () => {
 
     const rowC = screen.getByText('Cliente C').closest('tr') as HTMLElement
     expect(within(rowC).getByText('Começa em 01/01/2099')).toBeTruthy()
-    expect(within(rowC).getByText(/Item em dólar: o cálculo automático ainda cobra o valor da tabela/)).toBeTruthy()
+    // Migration 171: condição em item USD muda a cobrança, então não há aviso.
+    expect(within(rowC).queryByText(/dólar/)).toBeNull()
 
     expect(screen.getByText('vigentes sem efeito no cálculo')).toBeTruthy()
   })

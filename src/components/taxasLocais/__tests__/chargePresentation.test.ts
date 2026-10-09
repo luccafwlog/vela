@@ -118,11 +118,11 @@ describe('Condição de Cliente', () => {
     expect(conditionEffectNotes({ currency: 'BRL', active: true, charge_table: { id: 1, name: 'Vigente' } }, states, byId)).toEqual([])
   })
 
-  it('avisa tabela não aplicada, inativa, item inativo e item em dólar', () => {
+  it('avisa tabela não aplicada, inativa e item inativo; item em dólar vale como o em reais (migration 171)', () => {
     expect(conditionEffectNotes({ currency: 'BRL', charge_table: { id: 2, name: 'Antiga' } }, states, byId)[0].text).toContain('"Vigente" vence')
     expect(conditionEffectNotes({ currency: 'BRL', charge_table: { id: 3, name: 'Desligada' } }, states, byId)[0].text).toContain('inativa')
     expect(conditionEffectNotes({ currency: 'BRL', active: false, charge_table: { id: 1, name: 'Vigente' } }, states, byId)[0].text).toContain('item está inativo')
-    expect(conditionEffectNotes({ currency: 'USD', charge_table: { id: 1, name: 'Vigente' } }, states, byId)[0].text).toContain('dólar')
+    expect(conditionEffectNotes({ currency: 'USD', active: true, charge_table: { id: 1, name: 'Vigente' } }, states, byId)).toEqual([])
   })
 
   it('situação pela data de hoje', () => {

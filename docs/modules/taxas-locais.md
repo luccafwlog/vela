@@ -107,7 +107,7 @@ aceita "1.420,50"; cada erro indica o campo).
   valor da tabela e diferença. "Vigente hoje" é a leitura de hoje: o motor
   escolhe a condição pela data de referência do B/L (ETA da escala do POD);
 - aviso quando a condição não muda a cobrança: tabela inativa ou não aplicada,
-  item inativo, ou item em dólar (ver "Notas e divergências");
+  ou item inativo;
 - `src/components/taxasLocais/ChargeOverrideFormModal.tsx`: modal com Cliente
   e item por `Combobox` (Cliente por `useOverrideCustomerLookup`, mesma chave de
   `useOverrideCustomers`), valor da tabela ao lado do negociado, regra de
@@ -305,7 +305,8 @@ flowchart LR
   emissão da fatura (`create_invoice_from_bls_core` /
   `create_local_consolidated_invoice_core`), pelo ROE vigente em
   `exchange_rate_reference`, congelado com o resto da fatura — sem o
-  Recálculo Diário que o Demurrage usa. `mark_bl_ready_for_billing` chama
+  Recálculo Diário que o Demurrage usa. A Condição de Cliente de item em
+  dólar é valor em dólar e entra antes da conversão (migration `171`). `mark_bl_ready_for_billing` chama
   `sync_local_charge_receivable` diretamente para manter o saldo do ledger
   atualizado (inclusive convertendo linhas USD), no lugar do trigger
   `trg_emit_invoice_on_bl_ready` removido na mesma migration (ver
@@ -376,12 +377,15 @@ Comando focado:
 - **Granito é uma agregação visual, não um único domínio de cobrança.** Revisão
   em lote de Granito retorna sucesso sem escrita, e a liberação usa update
   direto de `granite_bls`.
-- **Condição de Cliente em item USD não muda o cálculo automático (Código,
-  2026-10-09, etapa 09).** Em `resolve_bl_local_charge_items` (migration
-  `129`) o valor da condição entra só em `v_unit_brl`; o item em dólar usa
-  `item.unit_value_usd` e grava `override_applied = true` mesmo assim. A tela
-  avisa na condição e no formulário; corrigir é mudança de cálculo, fora do
-  design (proposta registrada no plano da revisão visual, etapa 09).
+- **Condição de Cliente vale na moeda do item (migration `171`, 2026-10-09).**
+  Até a `129`, `resolve_bl_local_charge_items` aplicava `override_value` só ao
+  valor em reais: item em USD saía pelo `unit_value_usd` da tabela e gravava
+  `override_applied = true`. A `171` usa o valor negociado no lado USD quando o
+  item é em dólar, inclusive na linha IMO+OOG (× 2,5), como já faziam o
+  lançamento manual (`list_manual_charge_items_for_bl`) e a fatura avulsa.
+  Cálculos já gravados mudam no próximo cálculo ou recálculo do B/L; B/L
+  faturado não é recalculado. **Teste local-pg:**
+  `src/integration/conditionUsd.local-pg.test.ts`.
 - **Data de referência da avulsa diverge do cálculo (Código).** A cotação da
   fatura avulsa com item da tabela (`quote_manual_invoice_charge`, migration
   `123`) escolhe a condição pela data do lote/criação do B/L, não pela ETA da
