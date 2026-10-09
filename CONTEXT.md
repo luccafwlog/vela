@@ -1062,7 +1062,8 @@ outros dados que impedem o avanço seguro.
 **Reconciliação de Cliente**
 Vínculo confirmado entre o consignatário importado e o cadastro de Cliente. O
 vínculo só pode ser estabelecido por documento exato — CNPJ para pessoa
-jurídica, CPF para pessoa física. Match por nome, por nome canônico ou por
+jurídica. Não existe Cliente pessoa física: CPF não é aceito no cadastro
+(decisão do dono, 2026-10-09; [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)). Match por nome, por nome canônico ou por
 similaridade é sugestão, nunca vínculo. Matching automático incerto deve
 permanecer pendente de decisão humana.
 

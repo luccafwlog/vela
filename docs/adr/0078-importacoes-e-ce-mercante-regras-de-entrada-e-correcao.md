@@ -114,14 +114,21 @@ própria rodada de decisões.
     um alerta registra o B/L e as mudanças. Chassi que está em outro B/L recusa
     só a linha.
 
+17. **B/L de container reimportado (D-11).** Laden on Board ilegível ou vazio
+    não altera a data gravada (aviso na prévia); todos os portos do cadastro são
+    reconhecidos pelo nome, e POD desconhecido recusa a linha; a confirmação de
+    faturamento passa a ser por B/L, na linha da prévia; o NCM do documento
+    vence quando declarado (ADR 0057 mantida); não existe Cliente pessoa física,
+    e CPF continua recusado.
+
 ### Fila de efeitos, datas e Demurrage
 
-17. **Processamento automático (D-12).** Depois da correção das tarefas da
+18. **Processamento automático (D-12).** Depois da correção das tarefas da
     fila, o acumulado roda em simulação; o Administrativo aprova o que estiver
     certo e o resto é descartado com registro. Depois, o `import-effects-runner`
     fica sempre ligado. A ligação em produção é ato do dono, depois do ensaio em
     Preview.
-18. **Datas de container (D-13).**
+19. **Datas de container (D-13).**
     - Célula ou coluna de devolução vazia não mexe na data gravada; remover é
       caso isolado, pela edição do container, com motivo. A prévia mostra
       "antes → depois".
@@ -135,14 +142,14 @@ própria rodada de decisões.
       cancelada e reemitida automaticamente (ou só cancelada, se o valor for
       zero); com pagamento, a diferença segue o item 4 da ADR 0077. Abre alerta
       e a Régua de Cobrança para de cobrar a fatura até a situação se resolver.
-19. **Demurrage de container compartilhado (D-23).** B/Ls do mesmo Cliente
+20. **Demurrage de container compartilhado (D-23).** B/Ls do mesmo Cliente
     ligados por container compartilhado recebem **uma única Invoice de
     Demurrage** com todos os containers do grupo, cada caixa uma vez, emitida
     quando todos estiverem devolvidos.
 
 ### Baplie
 
-20. **Marcas físicas (D-15).**
+21. **Marcas físicas (D-15).**
     - IMO, OOG e SOC do Baplie valem para todos os B/Ls ativos que dividem o
       container (Part Lot sempre tem as mesmas características); cancelados são
       ignorados.
@@ -161,10 +168,10 @@ própria rodada de decisões.
 
 ### Demais importações
 
-21. **Leitura de planilhas (D-16).** Duas colunas para o mesmo campo bloqueiam;
+22. **Leitura de planilhas (D-16).** Duas colunas para o mesmo campo bloqueiam;
     linhas e abas ocultas são ignoradas com aviso (o filtro indica importar só o
     visível); CSV Windows-1252 é aceito com aviso.
-22. **Veículos (D-17).** Na página Veículos, **Mover para outro B/L** e
+23. **Veículos (D-17).** Na página Veículos, **Mover para outro B/L** e
     **Excluir** valem para qualquer usuário, com motivo, mesmo com CE no B/L; o
     efeito na cobrança segue a ADR 0077. A busca do B/L "parecido" sai: B/L
     inexistente recusa a linha. O local de desova da planilha só preenche vazio;
@@ -172,11 +179,11 @@ própria rodada de decisões.
     registro anterior em B/L ou Viagem cancelados). Tipos ISO equivalentes
     (40HQ = 40HC), lacre sem zeros à esquerda e lacre opcional para flat rack e
     plataforma.
-23. **Base de Clientes (D-18).** Vincula só os B/Ls pendentes de Cliente,
+24. **Base de Clientes (D-18).** Vincula só os B/Ls pendentes de Cliente,
     mostrados na prévia, como vínculo por documento; a Revisão é liberada e o
     faturamento segue. B/L rejeitado nunca é vinculado pela Base: recebe o
     Cliente manualmente na Revisão. Razão social diferente pede confirmação.
-24. **Granito e vazios (D-19).** A reimportação de Granito atualiza por número
+25. **Granito e vazios (D-19).** A reimportação de Granito atualiza por número
     de B/L na Viagem, preservando CE e Cliente; a de Vazios de Importação da
     mesma rota substitui o manifesto preservando a natureza; o recadastro de
     vazios pelo Baplie preserva a natureza; o Embarque de Vazios atualiza por
@@ -195,7 +202,7 @@ própria rodada de decisões.
 
 ## Diferença de fatura paga
 
-Quando uma fatura já paga passa a valer menos (itens 11, 14, 16, 18 e 22), vale
+Quando uma fatura já paga passa a valer menos (itens 11, 14, 16, 19 e 23), vale
 o item 4 da ADR 0077: abate-se o saldo ainda aberto da própria fatura e o
 excedente vira **restituição**. Não há crédito para abater em outra fatura
 (decisão do dono, 2026-10-09).

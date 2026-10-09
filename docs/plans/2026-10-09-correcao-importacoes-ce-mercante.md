@@ -12,7 +12,7 @@ Os ids `M01`–`M25` são os problemas-raiz da seção 5 do relatório.
 [ADR 0078](../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
 (citada abaixo como "ADR 0078, item N") e no `CONTEXT.md`. Diferença de fatura
 paga é sempre tratada por restituição (item 4 da ADR 0077), nunca por crédito em
-outra fatura. Pendências de decisão estão na seção "Pendências" ao fim.
+outra fatura. Não há decisão pendente.
 
 **Objetivo:** fazer as importações deixarem de apagar dado válido, de cobrar
 errado e de esconder o que gravaram, e implementar as regras de entrada,
@@ -56,20 +56,20 @@ que as implementa.
 
 | Etapa | Problemas | ADR 0078 | Depende de |
 |---|---|---|---|
-| 0 — Salvaguardas | M04 | 17 | — |
+| 0 — Salvaguardas | M04 | 18 | — |
 | 1 — Carga solta | M01 | 1, 14 | — |
-| 2 — B/L de container | M02, M14 | 16 | — |
-| 3 — Leitura de planilhas | M05 | 21 | — |
-| 4 — Fila de efeitos e Viagem Cancelada | M04, M20 | 17 | — |
+| 2 — B/L de container | M02, M14 | 16, 17 | — |
+| 3 — Leitura de planilhas | M05 | 22 | — |
+| 4 — Fila de efeitos e Viagem Cancelada | M04, M20 | 18 | — |
 | 5 — Container compartilhado | M03, M24 | 11 | — |
 | 6 — Unicidade e portas do CE | M06, M08 | 1–3, 5 | — |
-| 7 — Faturas, Demurrage, datas e Comunicado | M18, M19, M10, M21 | 12, 18, 19 | 5 (datas do irmão) |
+| 7 — Faturas, Demurrage, datas e Comunicado | M18, M19, M10, M21 | 12, 19, 20 | 5 (datas do irmão) |
 | 8 — Contrato da importação de CE | M07, M09, M12, M13 | 4, 6, 7, 9 | 6 |
-| 9 — Baplie | M11 | 20 | 2 |
+| 9 — Baplie | M11 | 21 | 2 |
 | 10 — COD, documento da fatura | M22, M23 | 13, 15 | 2 |
-| 11 — Veículos, Base de Clientes, Granito, vazios | M15, M16, M17 | 8, 22–24 | 3, 4 |
+| 11 — Veículos, Base de Clientes, Granito, vazios | M15, M16, M17 | 8, 23–25 | 3, 4 |
 | 12 — Testes e CI | testes da seção 7 | — | — |
-| 13 — Ligar o processamento automático | M04 | 17 | 4, 7 |
+| 13 — Ligar o processamento automático | M04 | 18 | 4, 7 |
 | 14 — Encerramento | — | — | todas |
 
 As Etapas 1, 2, 3, 5 e 6 são independentes e podem correr em paralelo, cada
@@ -133,7 +133,7 @@ modais `BlBreakbulkManifestModal.tsx`, `BlDocumentImportModal.tsx`,
 lote com B/L faturado e B/L novo é aceito sem cancelar nem reemitir;
 `pr698ClaudeReview`, `importEffects` e `auditoriaRun2` verdes.
 
-## Etapa 2 — Reimportação de B/L de container (M02, M14; ADR 0078, item 16)
+## Etapa 2 — Reimportação de B/L de container (M02, M14; ADR 0078, itens 16 e 17)
 
 **Dono:** `import_bl_freight_transactional_legacy_205` (núcleo efetivo),
 `_import_bl_freight_before_invoice_alert_123`, `guard_shared_container_mutation`,
@@ -160,7 +160,11 @@ lote com B/L faturado e B/L novo é aceito sem cancelar nem reemitir;
 - [ ] Trocar os 6 `it.fails` de `auditoriaImportacaoBlContainer` por `it`.
 - [ ] Checagens novas: arquivo sem aba VIN preserva os veículos; aba VIN com
   chassis diferentes exige confirmação e abre o alerta.
-- [ ] Itens ainda sem decisão (ver Pendências, D-11) entram quando decididos.
+- [ ] **D-11 (ADR 0078, item 17):** Laden on Board ilegível ou vazio não altera
+  a data (aviso); todos os portos do cadastro reconhecidos pelo nome e POD
+  desconhecido recusa a linha; confirmação de faturamento por B/L na prévia; NCM
+  do documento vence quando declarado; CPF continua recusado (não há Cliente
+  pessoa física). Checagens novas para Laden on Board e POD desconhecido.
 
 **Aceitação:** os 6 casos e as checagens novas passam; reimportação "Sem
 mudança" não gera `audit_logs` de exclusão ou criação em `bl_containers` nem em
@@ -168,7 +172,7 @@ mudança" não gera `audit_logs` de exclusão ou criação em `bl_containers` ne
 `baplieFlagsOnBlImport`, `blCbmSemantics`, `thdImoOog`, `importAtomicity`,
 `blFreightImport.test.ts` e `BlImportModal.test.tsx` verdes.
 
-## Etapa 3 — Leitura de planilhas (M05; ADR 0078, item 21)
+## Etapa 3 — Leitura de planilhas (M05; ADR 0078, item 22)
 
 **Dono:** `readSheet` em `src/services/importCore.ts`; parser de data único
 novo em `src/lib/importDate.ts` (análogo a `src/lib/importNumber.ts`).
@@ -190,7 +194,7 @@ novo em `src/lib/importDate.ts` (análogo a `src/lib/importNumber.ts`).
 importação usa `toISOString`, `getUTC*` ou `cellDates` para converter célula;
 `veiculos-modelo.csv` continua aceito.
 
-## Etapa 4 — Fila de efeitos e Viagem Cancelada (M04, M20; ADR 0078, item 17)
+## Etapa 4 — Fila de efeitos e Viagem Cancelada (M04, M20; ADR 0078, item 18)
 
 **Dono:** `_run_import_effect_vehicle_followup`,
 `_run_import_effect_local_charges`, `_run_import_effect_demurrage`,
@@ -275,7 +279,7 @@ linhas; o caso de fração diferente (150%) continua recusado.
 com o mesmo CE recebem a mensagem amigável; a planilha de CE como
 `authenticated` grava o manifesto sem `permission denied`.
 
-## Etapa 7 — Faturas, Demurrage, datas e Comunicado (M18, M19, M10, M21; ADR 0078, itens 12, 18 e 19)
+## Etapa 7 — Faturas, Demurrage, datas e Comunicado (M18, M19, M10, M21; ADR 0078, itens 12, 19 e 20)
 
 **Dono:** `notify_invoice_issued`; `customer_local_charges_communication_readiness`
 e `reconcile_voyage_ce_mercante_missing_alerts`; gatilho de modalidade de carga
@@ -371,7 +375,7 @@ Sequência interna (cada item pode ser uma PR):
 prévia, emissão em lotes) no CI; a prévia mostra antes → depois e a
 sobrescrita exige confirmação.
 
-## Etapa 9 — Baplie (M11; ADR 0078, item 20)
+## Etapa 9 — Baplie (M11; ADR 0078, item 21)
 
 **Dono:** `apply_baplie_physical_flags_atomic`, `set_bl_container_profile`,
 `set_bl_container_ownership`, `src/services/baplieImport.ts`,
@@ -411,7 +415,7 @@ cobrança leem a mesma fonte de IMO/OOG.
 
 **Aceitação:** checagens novas verdes no CI.
 
-## Etapa 11 — Veículos, Base de Clientes, Granito e vazios (M15, M16, M17; ADR 0078, itens 8 e 22–24)
+## Etapa 11 — Veículos, Base de Clientes, Granito e vazios (M15, M16, M17; ADR 0078, itens 8 e 23–25)
 
 - [ ] **Veículos:** Liberação recalcula quando há veículo novo; B/L isento
   anula o recebível sem fatura; na página Veículos, **Mover para outro B/L** e
@@ -456,7 +460,7 @@ Granito ou de vazios não duplica linhas.
 **Aceitação:** todas as suítes `local-pg` no CI, verdes em ordem natural e
 invertida; nenhuma suíte pulada por sonda com a variável ligada.
 
-## Etapa 13 — Ligar o processamento automático (ADR 0078, item 17)
+## Etapa 13 — Ligar o processamento automático (ADR 0078, item 18)
 
 Pré-requisitos: Etapas 4 e 7 em produção.
 
@@ -478,10 +482,3 @@ Pré-requisitos: Etapas 4 e 7 em produção.
   documentação viva da seção 8 do relatório atualizada.
 - [ ] Mover este plano para `docs/archive/plans/` e retirar a linha de
   `docs/plans/README.md` na mesma mudança que concluir a última etapa.
-
-## Pendências
-
-- **D-11 — o que a reimportação de B/L de container pode mudar** (não
-  decidido na rodada de 2026-10-09): Laden on Board ilegível ou vazio, POD fora
-  do catálogo de portos, confirmação de faturamento por linha em vez de global,
-  NCM cadastrado à mão × NCM do documento, Cliente pessoa física (CPF).

@@ -3,7 +3,7 @@
 > **Nota editorial — 2026-10-09.** As decisões da seção 6 foram tomadas pelo
 > dono no mesmo dia e registradas na
 > [ADR 0078](../../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md),
-> exceto a D-11, que segue pendente no plano. Na rodada surgiu a D-23 (Invoice de
+> inclusive a D-11. Na rodada surgiu a D-23 (Invoice de
 > Demurrage única para B/Ls do mesmo Cliente que dividem container). O dono
 > também esclareceu que Clientes diferentes não dividem container FCL; por isso
 > o cenário 2 da checagem de M03 (Clientes diferentes) foi retirado, e as
