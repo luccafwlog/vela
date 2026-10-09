@@ -157,7 +157,10 @@ export function humanizeDatabaseError(error: unknown): HumanizedDatabaseError | 
   const classified = classifyDbError(error)
   const label = DB_KIND_LABELS[classified.kind]
   const title = code ? `[${label}] ${code}` : `[${label}]`
-  const fingerprint = ['erro-banco', classified.kind, code ?? 'sem-codigo']
+  // O mesmo código (22023, P0002, 42501) carrega mensagens de negócio
+  // diferentes; sem a mensagem, falhas sem relação dividem uma issue (VELA-15).
+  // Dígitos viram # para "viagem 38" e "viagem 39" seguirem juntas.
+  const fingerprint = ['erro-banco', classified.kind, code ?? 'sem-codigo', fingerprintMessage(classified.message)]
 
   const rawDetails = instance?.details ?? (error as { details?: unknown } | null)?.details
   const rawHint = instance?.hint ?? (error as { hint?: unknown } | null)?.hint
@@ -169,6 +172,10 @@ export function humanizeDatabaseError(error: unknown): HumanizedDatabaseError | 
   if (typeof rawDetails === 'string' && rawDetails) context.detalhes = scrubPii(rawDetails)
   if (typeof rawHint === 'string' && rawHint) context.dica = scrubPii(rawHint)
   return { title, fingerprint, context }
+}
+
+function fingerprintMessage(message: string): string {
+  return scrubPii(message).replace(/\d+/g, '#').slice(0, 120)
 }
 
 export function telemetryBeforeSend(
@@ -221,8 +228,11 @@ export function telemetryBeforeSend(
     Object.entries(event.tags).forEach(([key, val]) => {
       if (typeof val === 'string') event.tags![key] = scrubPii(val)
     })
+    // Módulo e tarefa refinam o agrupamento sem substituí-lo: mutation sem
+    // mutationKey cai em "Operações / Operação de dados" e, sozinho, esse par
+    // juntava falhas sem relação numa issue só (VELA-15).
     if (event.tags.modulo && event.tags.tarefa) {
-      event.fingerprint = [String(event.tags.modulo), String(event.tags.tarefa)]
+      event.fingerprint = [String(event.tags.modulo), String(event.tags.tarefa), ...(event.fingerprint ?? ['{{ default }}'])]
     }
   }
   return event

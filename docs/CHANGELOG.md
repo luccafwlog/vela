@@ -4,6 +4,17 @@
 
 ## 2026-10
 
+- **Triagem do Sentry de 01–08/10 (2026-10-09, implementação local):** `/admin` e demais telas
+  lazy deixam de quebrar com `reading 'Admin'` quando um chunk falha (VELA-1M:
+  `chunk-recovery.js` só cancela `vite:preloadError` de CSS; `lazyPage` trata módulo `undefined`
+  como chunk ausente). O detalhe da fatura só oferece "Registrar pagamento" nos status que as RPCs
+  aceitam e esconde "Cancelar fatura" em fatura já cancelada (VELA-15: avulsa cancelada em
+  `/taxas-locais`). Issues do Sentry com `modulo`/`tarefa` passam a agrupar também pelo erro e pela
+  mensagem de negócio, em vez de juntar falhas sem relação. Migration `166` concede leitura explícita de
+  `baplie_reconciliation_resolutions` (VELA-16: linha do tempo da viagem com 42501 em preview e no banco
+  montado só pelas migrations; no-op em produção). PORTAL-3 (migration `162`) e VELA-1K
+  (PR 854) já estavam corrigidas. [Agrupamento](operations/sentry-configuracao.md).
+
 - **Jobs HTTP do `pg_cron` sem perder rodada nos minutos cheios (2026-10-09, implementação
   local):** `ops.dispatch_edge_job` passa a dar 30 s ao `pg_net` (o padrão de 5 s incluía DNS e
   expirava nas rajadas de :00/:15/:30/:45) e `alerts-foundation-detectors`,

@@ -1,4 +1,17 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__Supabase",
+      "mcp__Sentry",
+      "mcp__Cloudflare_Developer_Platform",
+      "mcp__Resend",
+      "mcp__PostHog",
+      "mcp__github",
+      "mcp__context7",
+      "mcp__playwright",
+      "mcp__shadcn"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {

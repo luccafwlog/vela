@@ -84,7 +84,8 @@ A partir desta atualização, todo erro reportado pelo Vela inclui tags padroniz
   * `categoria_falha = Erro de Código / Runtime`
   * `user_role = administrativo`
 * **Resumo Didático no evento:** *"Falha ao executar 'Listar pendências PIX' na tela 'Conciliação PIX' (Financeiro)."*
-* **Títulos legíveis para erros de banco:** em vez do objeto cru ou do nome minificado (`qi`, `Gi`), a issue abre com `[Sessão expirada] PGRST301`, `[Sem permissão] 42501` etc., com agrupamento estável por categoria+código e seção estruturada `database` (tipo, código, mensagem, detalhes) na página da issue.
+* **Títulos legíveis para erros de banco:** em vez do objeto cru ou do nome minificado (`qi`, `Gi`), a issue abre com `[Sessão expirada] PGRST301`, `[Sem permissão] 42501` etc., com agrupamento estável por categoria, código e mensagem de negócio (dígitos normalizados, para "viagem 38" e "viagem 39" ficarem juntas) e seção estruturada `database` (tipo, código, mensagem, detalhes) na página da issue.
+* **Agrupamento por módulo e tarefa:** quando o evento traz `modulo` e `tarefa`, o fingerprint vira `[modulo, tarefa, …fingerprint do erro]` — o par refina o agrupamento, não o substitui. Antes de 2026-10-09 o par sozinho era o fingerprint, e toda mutation sem `mutationKey` ("Operações / Operação de dados") caía numa issue só, como a VELA-15, que misturava anexo de comunicado, escala omitida, fatura avulsa e um TypeError já corrigido. Erros que não são de banco usam `{{ default }}` do Sentry após o par.
 * **Rastreabilidade de Código:** o Vite gera sourcemaps (`sourcemap: 'hidden'`), mas eles ainda não são enviados ao Sentry — por isso os stacks continuam minificados (`at Ki (featureFlags-*.js:7:7109)`). O upload de sourcemaps é o follow-up recomendado (ver §6).
 
 ---

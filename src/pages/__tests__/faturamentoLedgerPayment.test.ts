@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isLedgerInvoicePayable } from '../faturamentoLedgerPayment'
+import { canRegisterInvoicePayment, isLedgerInvoicePayable } from '../faturamentoLedgerPayment'
 
 describe('isLedgerInvoicePayable', () => {
   const payable = { invoice_type: 'individual', status: 'issued', balance_brl: 100 }
@@ -38,5 +38,31 @@ describe('isLedgerInvoicePayable', () => {
     expect(isLedgerInvoicePayable({ ...payable, balance_brl: -10 })).toBe(false)
     expect(isLedgerInvoicePayable({ ...payable, balance_brl: null })).toBe(false)
     expect(isLedgerInvoicePayable({ ...payable, balance_brl: 'abc' })).toBe(false)
+  })
+})
+
+describe('canRegisterInvoicePayment', () => {
+  // VELA-15: a fatura avulsa 11 estava cancelada e o modal oferecia a baixa.
+  it('bloqueia avulsa cancelada ou em rascunho, como a RPC', () => {
+    expect(canRegisterInvoicePayment({ invoice_type: 'manual', status: 'cancelled', balance_brl: 0.07 })).toBe(false)
+    expect(canRegisterInvoicePayment({ invoice_type: 'manual', status: 'draft', balance_brl: 10 })).toBe(false)
+  })
+
+  it('aceita avulsa nos estados da RPC, inclusive paga (excedente vira restituição)', () => {
+    for (const status of ['issued', 'overdue', 'partially_paid', 'paid']) {
+      expect(canRegisterInvoicePayment({ invoice_type: 'manual', status, balance_brl: 0 })).toBe(true)
+    }
+  })
+
+  it('exige status pagável e saldo nas faturas do ledger', () => {
+    expect(canRegisterInvoicePayment({ invoice_type: 'individual', status: 'issued', balance_brl: 10 })).toBe(true)
+    expect(canRegisterInvoicePayment({ invoice_type: 'consolidated', status: null, balance_brl: 10 })).toBe(true)
+    expect(canRegisterInvoicePayment({ invoice_type: 'individual', status: 'paid', balance_brl: 0 })).toBe(false)
+    expect(canRegisterInvoicePayment({ invoice_type: 'individual', status: 'covered', balance_brl: 10 })).toBe(false)
+    expect(canRegisterInvoicePayment({ invoice_type: 'consolidated', status: 'cancelled', balance_brl: 10 })).toBe(false)
+  })
+
+  it('rejeita fatura ausente', () => {
+    expect(canRegisterInvoicePayment(null)).toBe(false)
   })
 })

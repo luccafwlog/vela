@@ -788,14 +788,17 @@ fonte de Frete & Despesas do BL, da data de emissão e da data de embarque na
 origem. A operação de container não depende da importação de Manifesto.
 
 **B/L Cancelado** (decidido na
-[ADR 0071](docs/adr/0071-ce-mercante-como-trava-de-exclusao.md), ainda não
-implementado)
+[ADR 0071](docs/adr/0071-ce-mercante-como-trava-de-exclusao.md), implementado
+na migration `089`)
 B/L com CE Mercante que não vai seguir: a carga não embarcou ou o armador
 reemitiu o documento com outro número. O Administrativo cancela, com motivo,
 depois que o Financeiro cancelou ou estornou as faturas e recebíveis abertos
 dele. O B/L sai do faturamento, aparece no Portal como cancelado se já tiver
 sido liberado e libera o CE para o B/L reemitido. Pode ser reativado se o
 cancelamento foi por engano. B/L sem CE não é cancelado: é excluído.
+Cancelado, fica somente leitura e deixa de contar nos Alertas de revisão do
+Cliente; cancelar ou reativar reconcilia esses Alertas na hora (migration
+`169`).
 
 **Razão Social do Consignatário**
 Nome empresarial curto exibido em tabelas e usado como sugestão na reconciliação
@@ -2088,6 +2091,7 @@ não substituem a leitura da última definição na cadeia ativa de migrations.
 | Gate do Portal na emissão automática e Liberação de faturamento sem Portal | [migration 083](supabase/migrations/083_portal_trava_universal_liberacao_faturamento.sql) |
 | Conceder ou revogar a Liberação reavalia a Revisão dos B/Ls do Cliente | [migration 167](supabase/migrations/167_liberacao_reavalia_revisao.sql) |
 | Liberação vencida devolve os B/Ls do Cliente à Revisão (job diário) | [migration 168](supabase/migrations/168_liberacao_vencida_reavalia_revisao.sql) |
+| B/L cancelado fora dos Alertas de revisão do Cliente | [migration 169](supabase/migrations/169_alerta_revisao_ignora_bl_cancelado.sql) |
 | Reavaliação da Revisão em lote reconcilia o Alerta do Cliente uma vez | [migration 170](supabase/migrations/170_revisao_em_lote_reconcilia_alerta_no_fim.sql) |
 | Permissões por Departamento | [useAuth.tsx](src/hooks/useAuth.tsx) e [rotas internas](src/AppInterno.tsx) |
 | Edição interna dos contatos e caixas | [migration 008](supabase/migrations/008_portal_contact_boxes.sql) |

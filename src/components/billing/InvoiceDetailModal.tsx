@@ -35,7 +35,7 @@ import { formatValidationError, paymentFormSchema } from '../../services/financi
 import { logOperationalEvent } from '../../services/operationalEvents'
 import { formatBRL, formatDate, stripBlPrefix } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
-import { isLedgerInvoicePayable } from '../../pages/faturamentoLedgerPayment'
+import { canRegisterInvoicePayment, isLedgerInvoicePayable } from '../../pages/faturamentoLedgerPayment'
 import { invoiceStatusLabel } from '../../pages/faturamentoInvoiceStatus'
 import { printDocumentElement } from '../../lib/printDocument'
 
@@ -103,6 +103,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const detailVoyageLabel = voyageParts || '-'
   const hasDetailVoyage = Boolean(voyageParts)
   const isLedgerPayable = isLedgerInvoicePayable(detailInvoice)
+  const canRegisterPayment = canRegisterInvoicePayment(detailInvoice)
+  const isCancelled = ['cancelled', 'obsolete'].includes(detailInvoice?.status ?? '')
   const registerPaymentMutation = useRegisterInvoicePayment()
   const registerLedgerPaymentMutation = useRegisterLedgerInvoicePayment()
   const cancelInvoiceMutation = useCancelInvoice()
@@ -519,6 +521,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
               ) : null}
               {!enablePaymentReversal ? (
               <div className="grid gap-4 xl:grid-cols-2">
+                {canRegisterPayment ? (
                 <Card>
                   <h2 className="mb-3 text-base font-semibold text-white">Registrar pagamento</h2>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -556,7 +559,13 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                     </Button>
                   </div>
                 </Card>
-                <Card><h2 className="mb-3 text-base font-semibold text-white">Cancelar fatura</h2><Field label="Motivo"><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></Field><div className="mt-4 flex justify-end"><Button variant="danger" loading={cancelInvoiceMutation.isPending} disabled={detailQuery.data.payments.length > 0 || !cancelReason.trim()} onClick={handleCancelInvoice}><Ban size={16} />Cancelar fatura</Button></div></Card>
+                ) : (
+                  <Card>
+                    <h2 className="mb-3 text-base font-semibold text-white">Registrar pagamento</h2>
+                    <p className="text-sm text-slate-400">Esta fatura não aceita registro de pagamento no status atual.</p>
+                  </Card>
+                )}
+                {!isCancelled ? <Card><h2 className="mb-3 text-base font-semibold text-white">Cancelar fatura</h2><Field label="Motivo"><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></Field><div className="mt-4 flex justify-end"><Button variant="danger" loading={cancelInvoiceMutation.isPending} disabled={detailQuery.data.payments.length > 0 || !cancelReason.trim()} onClick={handleCancelInvoice}><Ban size={16} />Cancelar fatura</Button></div></Card> : null}
               </div>
               ) : null}
             </>
