@@ -224,6 +224,7 @@ jobs:
             src/integration/portalConsolidadaPaga.local-pg.test.ts \
             src/integration/itauPixCharges.local-pg.test.ts \
             src/integration/thdImoOog.local-pg.test.ts \
+            src/integration/conditionUsd.local-pg.test.ts \
             src/integration/financialBattery.local-pg.test.ts
 
       - name: Verify the executed RPC catalog

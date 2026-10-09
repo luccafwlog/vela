@@ -1214,6 +1214,10 @@ Valor negociado com um Cliente específico para um Item de Taxa específico,
 substituindo o valor padrão da tabela enquanto estiver vigente. É condição
 comercial, não desconto pontual: aplica-se sozinha a todos os processos daquele
 Cliente no período.
+O valor negociado está na moeda do Item de Taxa: em item cobrado em dólar, é um
+valor em dólar, convertido na emissão como o da tabela.
+Por isso, Item de Taxa com Condição ativa não troca de moeda: para cobrar em
+outra moeda, cadastra-se um item novo e as condições são recadastradas nele.
 
 **Não pode haver duas Condições vigentes** para o mesmo Cliente e o mesmo Item
 de Taxa. Sobreposição é erro de cadastro, não agendamento: são dois acordos

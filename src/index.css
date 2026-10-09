@@ -12325,3 +12325,663 @@ td.app-cargo-num {
     flex: 1 1 auto;
   }
 }
+
+/* ===========================================================================
+   Tabelas de Taxas Locais e Condições de Cliente (/taxas-locais/tabelas) — etapa 09
+   Tabelas agrupadas pelo escopo do motor (modo de carga + POD); a situação no
+   cálculo vem em texto; valores com moeda e unidade, alinhados à direita.
+   =========================================================================== */
+.app-rates-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.app-rates-toolbar__filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
+  flex: 1 1 520px;
+  gap: 12px;
+}
+
+.app-rates-toolbar__filters .app-field {
+  margin: 0;
+}
+
+.app-rates-surface {
+  padding: 0;
+  overflow: hidden;
+}
+
+.app-rates-surface__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  border-bottom: 1px solid var(--app-border);
+  padding: 12px 16px;
+}
+
+.app-rates-surface__rule {
+  margin: 0;
+  border-bottom: 1px solid var(--app-border-soft);
+  background: var(--app-surface-muted);
+  padding: 8px 16px;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-rates-surface__rule strong {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.app-rates-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0;
+  padding: 12px 16px;
+}
+
+.app-rates-help {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-rates-num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.app-rates-unit {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-rates-code {
+  font-family: var(--app-font-mono);
+}
+
+/* Escopo: cabeçalho de grupo com a tabela que vale. */
+.app-rates-scope + .app-rates-scope {
+  border-top: 1px solid var(--app-border-strong);
+}
+
+.app-rates-scope__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 12px 16px 8px;
+}
+
+.app-rates-scope__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-body, 14px);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.app-rates-scope__applied {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.app-rates-scope__applied strong {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.app-rates-scope__none {
+  color: var(--app-warning-fg);
+  font-weight: 500;
+}
+
+.app-rates-tables {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-rates-table {
+  border-top: 1px solid var(--app-border-soft);
+}
+
+.app-rates-table__row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2.2fr) minmax(150px, 1.2fr) minmax(170px, 1.3fr) minmax(150px, 1.1fr) auto;
+  align-items: start;
+  gap: 8px 16px;
+  padding: 10px 16px;
+}
+
+.app-rates-table[data-state='inactive'] .app-rates-table__toggle {
+  color: var(--app-muted);
+}
+
+.app-rates-table__name {
+  min-width: 0;
+}
+
+.app-rates-table__toggle {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--app-text-strong);
+  font: inherit;
+  font-size: var(--app-size-table);
+  font-weight: 600;
+  line-height: 18px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.app-rates-table__toggle > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--app-muted);
+}
+
+.app-rates-table__toggle:hover > span:first-of-type {
+  text-decoration: underline;
+}
+
+.app-rates-table__toggle:focus-visible,
+.app-rates-check input:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.app-rates-table__notes {
+  display: -webkit-box;
+  margin: 2px 0 0 22px;
+  overflow: hidden;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.app-rates-item-card .app-rates-table__notes,
+.app-rates-condition-table .app-rates-table__notes {
+  margin-left: 0;
+}
+
+.app-rates-table__cell {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-rates-table__label {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-rates-table__detail {
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-rates-table__detail--warning {
+  color: var(--app-warning-fg);
+}
+
+.app-rates-table__detail--danger {
+  color: var(--app-danger-fg);
+}
+
+.app-rates-table__actions,
+.app-rates-item__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Itens da tabela aberta. */
+.app-rates-items {
+  border-top: 1px solid var(--app-border-soft);
+  background: var(--app-surface-muted);
+  padding: 8px 16px 12px 38px;
+}
+
+.app-rates-items .app-table-scroll {
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control, 6px);
+  background: var(--app-surface);
+}
+
+.app-rates-item-table,
+.app-rates-condition-table {
+  width: 100%;
+}
+
+.app-rates-item-table td,
+.app-rates-condition-table td {
+  vertical-align: top;
+}
+
+.app-rates-item-table tr[data-inactive] td,
+.app-rates-condition-table tr[data-inactive] td,
+.app-rates-item-card[data-inactive] {
+  color: var(--app-muted);
+}
+
+.app-rates-item__name {
+  color: var(--app-text-strong);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+tr[data-inactive] .app-rates-item__name,
+.app-rates-item-card[data-inactive] strong {
+  color: var(--app-muted);
+}
+
+.app-rates-item__value {
+  margin-right: 4px;
+  color: var(--app-text-strong);
+  font-weight: 600;
+}
+
+tr[data-inactive] .app-rates-item__value {
+  color: var(--app-muted);
+}
+
+.app-rates-item__flag {
+  display: block;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-rates-item__notes {
+  margin-top: 4px;
+}
+
+.app-rates-item__actions-cell {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.app-rates-items__empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+}
+
+.app-rates-items__empty p {
+  margin: 0;
+}
+
+.app-rates-items__footer {
+  margin-top: 6px;
+}
+
+.app-rates-item-cards {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-rates-item-card {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--app-border-soft);
+  padding: 10px 0;
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-rates-surface > .app-rates-item-cards > .app-rates-item-card {
+  padding: 12px 16px;
+}
+
+.app-rates-item-card:first-child {
+  border-top: 0;
+}
+
+.app-rates-item-card p {
+  margin: 0;
+}
+
+.app-rates-item-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.app-rates-item-card__value .app-rates-num {
+  color: var(--app-text-strong);
+  font-weight: 600;
+}
+
+/* Notas do motor: ícone + texto, nunca só cor. */
+.app-rates-notes {
+  display: grid;
+  gap: 4px;
+}
+
+.app-rates-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+  white-space: normal;
+}
+
+.app-rates-note__icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.app-rates-note--danger {
+  color: var(--app-danger-fg);
+}
+
+.app-rates-note--warning {
+  color: var(--app-warning-fg);
+}
+
+.app-rates-note--info {
+  color: var(--app-muted);
+}
+
+/* Condições de Cliente. */
+.app-rates-values {
+  display: grid;
+  justify-items: end;
+  gap: 0;
+}
+
+.app-rates-item-card .app-rates-values {
+  justify-items: start;
+}
+
+.app-rates-values__negotiated {
+  color: var(--app-text-strong);
+  font-weight: 600;
+}
+
+.app-rates-period {
+  font-size: var(--app-size-table);
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.app-rates-period--current {
+  color: var(--app-success-fg);
+}
+
+.app-rates-period--future {
+  color: var(--app-info-fg);
+}
+
+.app-rates-period--ended {
+  color: var(--app-muted);
+}
+
+/* Formulários (modal). */
+.app-rates-form {
+  display: grid;
+  gap: 16px;
+}
+
+.app-rates-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px 16px;
+}
+
+.app-rates-form__grid .app-field {
+  margin: 0;
+}
+
+.app-rates-form__wide {
+  grid-column: 1 / -1;
+}
+
+.app-rates-form__context {
+  margin: 0;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.app-rates-form__footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--app-border);
+  padding-top: 12px;
+}
+
+.app-rates-fixed {
+  display: grid;
+  gap: 2px;
+  font-size: var(--app-size-table);
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.app-rates-fixed__label {
+  color: var(--app-text);
+  font-weight: 500;
+}
+
+.app-rates-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.app-rates-check input {
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  accent-color: var(--app-blue-btn);
+}
+
+.app-rates-check .app-field__hint {
+  display: block;
+}
+
+.app-rates-money {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.app-rates-money__affix {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--app-border-strong);
+  border-right: 0;
+  border-radius: var(--app-radius-control, 6px) 0 0 var(--app-radius-control, 6px);
+  background: var(--app-surface-muted);
+  padding: 0 10px;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+  white-space: nowrap;
+}
+
+.app-rates-money__affix--suffix {
+  border-right: 1px solid var(--app-border-strong);
+  border-left: 0;
+  border-radius: 0 var(--app-radius-control, 6px) var(--app-radius-control, 6px) 0;
+}
+
+.app-rates-money .app-rates-money__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-rates-money .app-rates-money__input:last-child {
+  border-radius: 0 var(--app-radius-control, 6px) var(--app-radius-control, 6px) 0;
+}
+
+.app-rates-changes {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control, 6px);
+  background: var(--app-surface-muted);
+  padding: 10px 12px;
+}
+
+.app-rates-changes__title {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-table);
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.app-rates-changes__list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.app-rates-changes__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 30%) minmax(0, 1fr);
+  gap: 8px;
+  font-size: var(--app-size-table);
+  line-height: 18px;
+}
+
+.app-rates-changes__row dt {
+  color: var(--app-muted);
+}
+
+.app-rates-changes__row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-rates-changes__before {
+  color: var(--app-muted);
+  text-decoration: line-through;
+}
+
+@media (max-width: 1099px) {
+  .app-rates-table__row {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .app-rates-table__name {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+
+  .app-rates-table__actions {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 639px) {
+  .app-rates-toolbar__filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    flex-basis: 100%;
+  }
+
+  .app-rates-toolbar__filters > .app-field:first-child:nth-last-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .app-rates-toolbar__primary {
+    width: 100%;
+  }
+
+  .app-rates-table__row {
+    grid-template-columns: fit-content(55%) minmax(0, 1fr) auto;
+    gap: 8px 16px;
+    padding: 12px 16px;
+  }
+
+  .app-rates-table__cell--items {
+    grid-column: 2 / -1;
+  }
+
+  .app-rates-table__cell--validity {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .app-rates-items {
+    padding: 4px 16px 12px;
+  }
+
+  .app-rates-form__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-rates-form__spacer {
+    display: none;
+  }
+
+  .app-rates-changes__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .app-rates-surface__bar .app-segmented {
+    flex-wrap: wrap;
+  }
+
+  .app-rates-surface__bar .app-segmented__option {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+.app-rates-block {
+  display: block;
+}
