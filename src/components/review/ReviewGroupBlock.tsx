@@ -43,8 +43,9 @@ export function ReviewGroupBlock({
   onToggle,
   onGroupLink,
   onGroupOnboard,
+  onGroupRecheck,
   onCorrect,
-  onInlineField,
+  onInlineWeight,
 }: {
   group: ReviewGroup
   summary: ReviewGroupSummary
@@ -54,8 +55,10 @@ export function ReviewGroupBlock({
   onToggle: () => void
   onGroupLink: (customer: ReviewCustomer) => void
   onGroupOnboard: (input: ReviewCustomerOnboardingInput) => void
+  /** Reavalia o gate dos B/Ls vinculados (Portal ativado ou Liberação concedida). */
+  onGroupRecheck: () => void
   onCorrect: (id: string) => void
-  onInlineField: (item: ReviewQueueItem, field: 'ce_mercante' | 'bb_weight_ton', value: string) => void
+  onInlineWeight: (item: ReviewQueueItem, value: string) => void
 }) {
   const bodyId = useId()
   const [proposedCnpj, setProposedCnpj] = useState<{ cnpj: string; seq: number } | null>(null)
@@ -129,6 +132,9 @@ export function ReviewGroupBlock({
                 <Link className="review-link" to={`/clientes/${encodeURIComponent(summary.linkedCustomer.cnpj_cpf)}?tab=financeiro`}>
                   Liberação na ficha do Cliente <ArrowRight size={14} aria-hidden="true" />
                 </Link>
+                <Button variant="secondary" className="app-btn--sm" loading={savingGroup} loadingLabel="Reavaliando…" onClick={onGroupRecheck}>
+                  Reavaliar os B/Ls
+                </Button>
               </div>
             ) : linked?.customer && nextAction.kind !== 'portal' ? (
               <div className="review-next__links">
@@ -263,13 +269,13 @@ export function ReviewGroupBlock({
                         {item.source === 'bl' && needsWeightFix(item) ? (
                           <InlineFieldEditor
                             key={`${item.id}:${item.updated_at ?? ''}`}
-                            type="number"
+                            type="decimal"
                             label={`Peso da carga solta do B/L ${item.id}, em toneladas`}
                             placeholder="Peso (t)"
                             initial={item.bb_weight_ton != null ? String(item.bb_weight_ton) : ''}
                             saving={savingInlineId === item.id}
                             validate={validateWeightTon}
-                            onSave={(value) => onInlineField(item, 'bb_weight_ton', value)}
+                            onSave={(value) => onInlineWeight(item, value)}
                           />
                         ) : null}
                       </td>

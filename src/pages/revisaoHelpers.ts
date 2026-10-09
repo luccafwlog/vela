@@ -358,7 +358,10 @@ export function summarizeReviewGroup(group: ReviewGroup): ReviewGroupSummary {
     nextAction = {
       kind: 'portal',
       title: 'Ativar o Portal do Cliente',
-      detail: 'A fatura só é emitida com o Portal ativo ou com a Liberação de faturamento sem Portal. Os B/Ls saem da fila sozinhos quando um dos dois acontecer.',
+      // Só a ativação do Portal reavalia os B/Ls no servidor (gatilho em
+      // `customer_portal_accounts`); a concessão da Liberação reprocessa a
+      // emissão, mas não regrava `review_status`.
+      detail: 'A fatura só é emitida com o Portal ativo ou com a Liberação de faturamento sem Portal. Com o Portal ativo, os B/Ls saem da fila sozinhos; depois de uma Liberação, reavalie os B/Ls aqui.',
     }
   } else if (blItems.length === 0) {
     nextAction = {
@@ -475,8 +478,11 @@ export function summarizeRemainingPendencies(pendencias: string[][]): string | n
 }
 
 /** Peso da carga solta em toneladas: número positivo, aceita vírgula decimal. */
+export function parseWeightTon(value: string): number | null {
+  const parsed = Number(value.trim().replace(',', '.'))
+  return value.trim() && Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
 export function validateWeightTon(value: string): string | null {
-  const parsed = Number(value.replace(',', '.'))
-  if (!value.trim() || !Number.isFinite(parsed) || parsed <= 0) return 'Informe o peso em toneladas, maior que zero.'
-  return null
+  return parseWeightTon(value) == null ? 'Informe o peso em toneladas, maior que zero.' : null
 }

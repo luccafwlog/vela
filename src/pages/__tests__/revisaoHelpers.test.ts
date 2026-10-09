@@ -22,6 +22,7 @@ import {
   splitReviewNotes,
   summarizeRemainingPendencies,
   summarizeReviewGroup,
+  parseWeightTon,
   validateWeightTon,
 } from '../revisaoHelpers'
 import { extractCnpjFromText, extractCnpjsFromText } from '../../lib/cnpj'
@@ -453,5 +454,11 @@ describe('validateWeightTon', () => {
     expect(validateWeightTon('12,5')).toBeNull()
     expect(validateWeightTon('0.4')).toBeNull()
     for (const bad of ['', ' ', '0', '-3', 'abc']) expect(validateWeightTon(bad)).toMatch(/maior que zero/)
+  })
+
+  it('o valor gravado é o mesmo que o campo aceitou', () => {
+    expect(parseWeightTon(' 12,5 ')).toBe(12.5)
+    expect(parseWeightTon('0.4')).toBe(0.4)
+    for (const bad of ['', '0', '-3', '1.234,5']) expect(parseWeightTon(bad)).toBeNull()
   })
 })

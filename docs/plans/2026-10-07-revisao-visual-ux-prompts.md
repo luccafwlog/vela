@@ -777,7 +777,7 @@ Quem trabalha a fila precisa responder, por cliente: o que trava a fatura, o que
 | Dono | Achado |
 |---|---|
 | 01 | `SummaryStrip` a 360 px quebra a linha com o separador "·" no começo da linha seguinte ("· 9 B/Ls sem faturamento"). |
-| Serviços | `recomputeBlReviewGate` (`services/review.ts`) ficou sem chamador depois da remoção do campo de e-mail do cabeçalho; remover ou documentar o uso previsto. |
+| Banco | A concessão da Liberação de faturamento sem Portal (`grant_customer_billing_portal_release` → `_reprocess_customer_held_billing`) não regrava `review_status`: o B/L fica na Revisão com "Portal não provisionado" até alguém reavaliar (**Runtime** no Postgres local para o estado depois da Liberação gravada; **Código** para o reprocessamento, que não toca `review_status`). A tela oferece "Reavaliar os B/Ls"; a correção definitiva é reavaliar no servidor ao conceder ou revogar a Liberação, como o gatilho de `customer_portal_accounts` já faz. |
 | 05 / 23 | A ficha do B/L com cliente pendente não foi observada em runtime depois das mudanças no `ReviewCustomerOnboarding` (só o teste da seção). |
 | 23 | Tema escuro da Revisão não observado; o CSS novo usa só tokens com par escuro. |
 
@@ -787,6 +787,17 @@ Quem trabalha a fila precisa responder, por cliente: o que trava a fatura, o que
 - **Teste:** `revisaoHelpers.test.ts` ganhou causas, URL antiga, próxima ação, prioridade e ordem do drawer, evidência por origem, notas técnicas, resumo do que sobrou e peso; `Revisao.test.tsx` ganhou cartões de causa com URL e "Limpar filtros", `?motivo=` antigo, prioridade sobre o alfabeto, links do Portal, erro de consulta com Tentar novamente, "Usar este CNPJ", resultado parcial do cadastro no conteúdo, peso inválido sem gravação e Granito bloqueado até escolher; `ReviewDrawerCargoFields.test.tsx`, `ReviewCustomerOnboarding.test.tsx`, `ReviewDocumentEvidence.test.tsx` e `ReviewInlineEditors.test.tsx` ganharam notas humanas, onde cada pendência se resolve, motivo do bloqueio, CNPJ fora das evidências, CNPJ proposto, teclado e comparação de CNPJ.
 - **Runtime:** antes e depois em 1440, 768 e 360 px (toque) para `/revisao` recolhida e com cada tipo de grupo aberto (CNPJ sem cadastro, conflito, sem CNPJ, peso, só Portal, Granito), filtro por causa na URL, drawer de conflito e de Granito por teclado; gravações no banco local: peso inválido recusado junto do campo, peso válido com "Continua em revisão: Portal não provisionado (1)", cadastro de cliente novo com "Continuam em revisão: Portal não provisionado (3) · Peso da carga solta ausente (1)" e vínculo de Granito com aviso de recálculo.
 - **Não verificado:** sugestão de cliente do Granito em runtime (o shim não devolveu o embed `suggested_customer`; coberto por teste), envio real de convite, conflito concorrente (`PT409`) no navegador, leitor de tela real, zoom de 200%, tema escuro e filas com centenas de registros.
+
+### Correções da revisão rigorosa (2026-10-09)
+
+Revisão da PR 915 antes do merge; correções na mesma branch de entrega.
+
+- **Liberação sem efeito na fila:** a próxima ação do Portal dizia que os B/Ls saíam da fila sozinhos com a Liberação. Só a ativação do Portal reavalia por gatilho; com a Liberação o B/L ficava em `pending_review` com o motivo velho (**Runtime**, Postgres local: com a Liberação gravada, `compute_bl_review_pendencies` volta vazio e `review_status` continua `pending_review`, e `save_bl_review` com payload vazio passa a `reviewed`; **Código**: `_reprocess_customer_held_billing` não toca `review_status`). O grupo ganhou "Reavaliar os B/Ls" (`recomputeBlReviewGate`, que voltou a ter chamador) e o drawer diz que salvar reavalia depois de uma Liberação.
+- **Peso com vírgula:** o editor inline era `<input type="number">`, que descarta "12,5" antes do validador, e o erro dizia para informar o peso. O campo passou a texto com `inputMode="decimal"`; `parseWeightTon` é a mesma regra no campo e na gravação.
+- **Escape nas sugestões de cliente dentro do drawer** fechava o drawer inteiro, com as edições. `Modal` (primitiva da 01) deixa o primeiro Escape para um `combobox` com a lista aberta; o listener nativo do diálogo roda antes do handler React do campo, então o campo não conseguia impedir.
+- **Drawer de B/L que sai do recorte:** com filtro de causa, corrigir o peso de um B/L que continua em revisão pelo Portal fechava o drawer, e ele reabria sozinho ao limpar o filtro. O B/L selecionado agora é buscado na fila inteira.
+- **Resultados para leitor de tela:** a região `aria-live` nascia junto do primeiro resultado e não o anunciava; agora fica montada vazia.
+- **Faturamento após ações em lote:** no cadastro do grupo, um bloqueio do faturamento automático sumia sem aviso; no vínculo em lote, uma falha do faturamento aparecia como "Não vinculado". As três ações em lote usam o mesmo tratamento: o que foi gravado conta como gravado e o bloqueio vira aviso de recálculo.
 
 ## Prompts por etapa
 

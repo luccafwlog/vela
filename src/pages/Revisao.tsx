@@ -21,6 +21,7 @@ import {
   groupReviewItems,
   hasCustomerDocumentConflict,
   needsCustomerLink,
+  parseWeightTon,
   readReviewCauseParam,
   REVIEW_CAUSE_LABELS,
   sortReviewGroupsByPriority,
@@ -41,6 +42,7 @@ import { queryKeys } from '../services/queryKeys'
 import {
   applyInlineBlReviewFix,
   ConcurrentEditError,
+  recomputeBlReviewGate,
   saveGraniteBlReview,
   type SaveBlReviewResult,
 } from '../services/review'
@@ -166,24 +168,17 @@ export function Revisao() {
     setRecalcQueue((current) => current.filter((n) => n.id !== id))
   }
 
-  async function handleInlineField(item: ReviewQueueItem, field: 'ce_mercante' | 'bb_weight_ton', rawValue: string) {
+  async function handleInlineWeight(item: ReviewQueueItem, rawValue: string) {
     if (!user || item.source !== 'bl') return
-    let value: string | number
-    if (field === 'bb_weight_ton') {
-      // O editor já valida junto do campo; aqui só se protege a gravação.
-      const parsed = Number(rawValue.replace(',', '.'))
-      if (!rawValue.trim() || !Number.isFinite(parsed) || parsed <= 0) return
-      value = parsed
-    } else {
-      if (!rawValue.trim()) return
-      value = rawValue.trim()
-    }
-    const fieldLabel = field === 'ce_mercante' ? 'CE Mercante' : 'Peso da carga solta (t)'
+    // O editor já valida junto do campo; aqui só se protege a gravação.
+    const value = parseWeightTon(rawValue)
+    if (value == null) return
+    const fieldLabel = 'Peso da carga solta (t)'
 
-    const before = (item[field] as string | number | null) ?? null
+    const before = item.bb_weight_ton ?? null
     const confirmed = await confirm({
       title: 'Salvar correção da Revisão',
-      message: `Salvar ${field === 'ce_mercante' ? 'o CE Mercante' : 'o peso da carga solta'} do B/L ${item.id}?`,
+      message: `Salvar o peso da carga solta do B/L ${item.id}?`,
       confirmLabel: 'Salvar correção',
       affected: { summary: `B/L ${item.id} · ${item.customer?.name ?? 'sem cliente vinculado'}` },
       changes: [{
@@ -200,13 +195,13 @@ export function Revisao() {
     try {
       const result = await applyInlineBlReviewFix({
         blId: item.id,
-        field,
+        field: 'bb_weight_ton',
         value,
-        previousValue: (item[field] as string | number | null) ?? null,
+        previousValue: before,
         changedBy: user.id,
         expectedUpdatedAt: item.updated_at ?? null,
       })
-      await finishBlCorrection(item, item.customer_id ?? null, result, `${fieldLabel.replace(' (t)', '')} salvo`)
+      await finishBlCorrection(item, item.customer_id ?? null, result, 'Peso da carga solta salvo')
     } catch (err) {
       if (err instanceof ConcurrentEditError) {
         await queryClient.invalidateQueries({ queryKey: ['review-queue'] })
@@ -217,6 +212,20 @@ export function Revisao() {
     } finally {
       setSavingInlineId(null)
     }
+  }
+
+  // Faturamento automático de um B/L que acabou de sair da revisão, nas ações
+  // em lote. A gravação já aconteceu: bloqueio ou falha daqui vira aviso de
+  // recálculo, nunca "não gravado".
+  async function autoInvoiceResolvedBl(blId: string, customerId: number) {
+    try {
+      const autoInvoice = await tryAutoIssueInvoice({ blId, customerId, actorId: user?.id ?? null })
+      if (autoInvoice.status === 'invoiced') return true
+      if (autoInvoice.status === 'blocked') addRecalcNotice({ id: blId, label: blId, source: 'bl' })
+    } catch {
+      addRecalcNotice({ id: blId, label: blId, source: 'bl' })
+    }
+    return false
   }
 
   // Centraliza o pos-correcao de um B/L comum: so tenta faturar quando o gate
@@ -334,7 +343,10 @@ export function Revisao() {
     return openOverrides.get(key) ?? arrivalKeys.has(key)
   }
 
-  const selected = selectedId ? (filteredData.find((item) => item.id === selectedId) ?? null) : null
+  // Busca na fila inteira, não no recorte: um B/L salvo que continua em
+  // revisão por outra causa sai do filtro, mas o drawer segue nele em vez de
+  // fechar e reabrir sozinho quando o filtro for limpo.
+  const selected = selectedId ? (data?.find((item) => item.id === selectedId) ?? null) : null
   const selectedGroup = selected ? groups.find((group) => group.items.some((item) => item.id === selected.id)) ?? null : null
   const currentIndex = selectedId ? orderedIds.indexOf(selectedId) : -1
   const hasActiveFilters = Boolean(searchText.trim() || causeFilter)
@@ -400,9 +412,7 @@ export function Revisao() {
             expectedUpdatedAt: item.updated_at ?? null,
           })
           if (result.resolved) {
-            const autoInvoice = await tryAutoIssueInvoice({ blId: item.id, customerId: customer.id, actorId: user.id })
-            if (autoInvoice.status === 'invoiced') invoiceCount++
-            else if (autoInvoice.status === 'blocked') addRecalcNotice({ id: item.id, label: item.id, source: 'bl' })
+            if (await autoInvoiceResolvedBl(item.id, customer.id)) invoiceCount++
           } else {
             remaining.push(result.pendencias)
           }
@@ -467,16 +477,7 @@ export function Revisao() {
       let invoiceCount = 0
       for (const bl of result.onboarding.bls) {
         if (!bl.resolved || !bl.blId) continue
-        try {
-          const autoInvoice = await tryAutoIssueInvoice({
-            blId: bl.blId,
-            customerId: result.onboarding.customer.id,
-            actorId: user.id,
-          })
-          if (autoInvoice.status === 'invoiced') invoiceCount++
-        } catch {
-          addRecalcNotice({ id: bl.blId, label: bl.blId, source: 'bl' })
-        }
+        if (await autoInvoiceResolvedBl(bl.blId, result.onboarding.customer.id)) invoiceCount++
       }
 
       const graniteTargets = group.items.filter((item) => item.source === 'granite' && needsCustomerLink(item))
@@ -521,6 +522,59 @@ export function Revisao() {
     }
   }
 
+  // Depois de ativar o Portal ou conceder a Liberação na ficha do Cliente,
+  // reavalia o gate dos B/Ls vinculados do grupo. A Liberação não regrava
+  // `review_status` no servidor; sem isto o B/L ficaria na fila com o motivo
+  // velho. O `updated_at` usado é o da fila: um conflito vira falha daquele B/L.
+  async function handleGroupRecheck(group: ReviewGroup) {
+    if (!user) return
+    const targets = group.items.filter((item) => item.source === 'bl' && item.customer_id != null)
+    if (!targets.length) return
+    const confirmed = await confirm({
+      title: 'Reavaliar os B/Ls do cliente',
+      message: `Reavaliar as pendências de ${plural(targets.length, 'B/L', 'B/Ls')} de ${group.displayName}?`,
+      confirmLabel: 'Reavaliar',
+      affected: {
+        summary: `${plural(targets.length, 'B/L', 'B/Ls')} · ${group.displayName}`,
+        items: targets.map((item) => `B/L ${item.id}`),
+      },
+      consequence: 'Nenhum dado do B/L é alterado: o servidor recalcula as pendências. Os B/Ls sem pendência saem da revisão e, se os demais gates estiverem atendidos, a fatura poderá ser emitida automaticamente.',
+      reversibility: 'A reavaliação pode ser repetida. Faturas emitidas não podem ser apagadas e só podem ser canceladas pelo perfil Administrativo quando não houver pagamento.',
+    })
+    if (!confirmed) return
+    setSavingGroupKey(group.key)
+    let resolvedCount = 0
+    let invoiceCount = 0
+    const failed: string[] = []
+    const remaining: string[][] = []
+    for (const item of targets) {
+      try {
+        const result = await recomputeBlReviewGate({ blId: item.id, expectedUpdatedAt: item.updated_at ?? null, changedBy: user.id })
+        if (!result.resolved) {
+          remaining.push(result.pendencias)
+          continue
+        }
+        resolvedCount++
+        if (await autoInvoiceResolvedBl(item.id, item.customer_id!)) invoiceCount++
+      } catch {
+        failed.push(item.id)
+      }
+    }
+    setSavingGroupKey(null)
+    await invalidateReviewQueueCaches(queryClient, { includeGranite: false, includeCharges: true, includeInvoices: true })
+    const lines: string[] = []
+    if (resolvedCount) lines.push(`${plural(resolvedCount, 'B/L saiu', 'B/Ls saíram')} da revisão.`)
+    if (invoiceCount) lines.push(`${plural(invoiceCount, 'fatura emitida', 'faturas emitidas')} automaticamente.`)
+    const remainingText = summarizeRemainingPendencies(remaining)
+    if (remainingText) lines.push(`Continuam em revisão: ${remainingText}.`)
+    if (failed.length) lines.push(`Não reavaliados: ${failed.join(', ')}. A fila foi recarregada; tente de novo.`)
+    pushOutcome({
+      tone: failed.length === targets.length ? 'danger' : failed.length || remainingText ? 'warning' : 'success',
+      title: `${group.displayName}: reavaliação de ${plural(targets.length, 'B/L', 'B/Ls')}`,
+      lines,
+    })
+  }
+
   const summaryItems = data
     ? [
         { label: groups.length === 1 ? 'cliente' : 'clientes', value: groups.length },
@@ -547,16 +601,14 @@ export function Revisao() {
         </div>
       ) : null}
 
-      {outcomes.length || recalcQueue.length ? (
-        <ReviewOutcomes
-          outcomes={outcomes}
-          recalcNotices={recalcQueue}
-          recalcingId={recalcingId}
-          onDismissOutcome={(id) => setOutcomes((current) => current.filter((outcome) => outcome.id !== id))}
-          onDismissRecalc={dismissRecalcNotice}
-          onRecalc={(notice) => void handleRecalc(notice)}
-        />
-      ) : null}
+      <ReviewOutcomes
+        outcomes={outcomes}
+        recalcNotices={recalcQueue}
+        recalcingId={recalcingId}
+        onDismissOutcome={(id) => setOutcomes((current) => current.filter((outcome) => outcome.id !== id))}
+        onDismissRecalc={dismissRecalcNotice}
+        onRecalc={(notice) => void handleRecalc(notice)}
+      />
 
       <section className="review-queue" aria-label="Fila de revisão">
         <div className="review-toolbar">
@@ -637,8 +689,9 @@ export function Revisao() {
                   onToggle={() => toggleGroupCollapsed(group.key)}
                   onGroupLink={(customer) => void handleGroupLinkCustomer(group, customer)}
                   onGroupOnboard={(input) => void handleGroupOnboard(group, input)}
+                  onGroupRecheck={() => void handleGroupRecheck(group)}
                   onCorrect={(id) => setSelectedId(id)}
-                  onInlineField={(item, field, value) => void handleInlineField(item, field, value)}
+                  onInlineWeight={(item, value) => void handleInlineWeight(item, value)}
                 />
               ))}
             </div>

@@ -71,7 +71,7 @@ export function InlineCustomerPicker({
         placeholder="Nome ou CNPJ do cliente"
         role="combobox"
         aria-expanded={options.length > 0}
-        aria-controls={listId}
+        aria-controls={options.length ? listId : undefined}
         aria-autocomplete="list"
         aria-activedescendant={highlight >= 0 ? `${listId}-${highlight}` : undefined}
         autoComplete="off"
@@ -124,7 +124,11 @@ export function InlineFieldEditor({
   label,
   validate,
 }: {
-  type: 'text' | 'number'
+  /**
+   * `decimal` aceita vírgula: um `<input type="number">` descarta "12,5" antes
+   * do validador ver o valor, e o erro diria que o campo está vazio.
+   */
+  type: 'text' | 'number' | 'decimal'
   placeholder: string
   initial: string
   saving: boolean
@@ -149,7 +153,7 @@ export function InlineFieldEditor({
     <div className="review-inline-field">
       <div className="review-inline-field__row">
         <Input
-          type={type}
+          type={type === 'decimal' ? 'text' : type}
           value={value}
           onChange={(event) => {
             setValue(event.target.value)
@@ -168,7 +172,7 @@ export function InlineFieldEditor({
           aria-label={label ?? placeholder}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          inputMode={type === 'number' ? 'decimal' : undefined}
+          inputMode={type === 'text' ? undefined : 'decimal'}
           className="review-inline-field__input w-32"
           disabled={saving}
         />

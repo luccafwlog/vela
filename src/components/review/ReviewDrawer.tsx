@@ -37,7 +37,7 @@ function whereToResolve(cause: ReviewCause, canSelectCustomer: boolean, isGranit
     case 'peso':
       return 'Informe o peso em toneladas abaixo.'
     case 'portal':
-      return 'Depende do Portal do Cliente; não se resolve neste painel.'
+      return 'Depende do Portal ativo ou da Liberação de faturamento sem Portal. Depois de uma Liberação, salvar reavalia o B/L.'
     default:
       return isGranite ? 'Escolha o cliente abaixo.' : 'Salve para o sistema reavaliar o B/L.'
   }

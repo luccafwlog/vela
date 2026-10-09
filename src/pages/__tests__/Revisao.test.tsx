@@ -32,7 +32,7 @@ vi.mock('../../services/reviewBillingAutomation', () => ({
 import { useCustomerLookup } from '../../hooks/useCustomers'
 import { useReviewQueue } from '../../hooks/useReview'
 import { useReviewCustomerGroup } from '../../hooks/useReviewCustomerGroup'
-import { applyInlineBlReviewFix, saveBlReview, saveGraniteBlReview } from '../../services/review'
+import { applyInlineBlReviewFix, recomputeBlReviewGate, saveBlReview, saveGraniteBlReview } from '../../services/review'
 import { tryAutoIssueInvoice } from '../../services/reviewBillingAutomation'
 import { Revisao } from '../Revisao'
 
@@ -43,6 +43,7 @@ const mockedSaveBlReview = vi.mocked(saveBlReview)
 const mockedSaveGraniteBlReview = vi.mocked(saveGraniteBlReview)
 const mockedTryAutoIssueInvoice = vi.mocked(tryAutoIssueInvoice)
 const mockedApplyInlineBlReviewFix = vi.mocked(applyInlineBlReviewFix)
+const mockedRecomputeBlReviewGate = vi.mocked(recomputeBlReviewGate)
 
 function LocationProbe() {
   const location = useLocation()
@@ -184,6 +185,22 @@ describe('Revisao', () => {
     expect(screen.getByRole('link', { name: /Abrir no Provisionamento do Portal/ }).getAttribute('href')).toBe('/clientes/portal?cliente=7')
     expect(screen.getByRole('link', { name: /Liberação na ficha do Cliente/ }).getAttribute('href')).toBe('/clientes/11222333000181?tab=financeiro')
     expect(screen.getByText(/Portal não provisionado — no grupo|Portal não provisionado/, { selector: 'li' })).toBeTruthy()
+  })
+
+  it('reavalia os B/Ls do grupo que esperava o Portal depois de uma Liberação', async () => {
+    const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({ data: [makeLinkedBl('BL7', { emails: ['a@b.com'] })], isLoading: false, error: null } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
+    expect(screen.getByText(/depois de uma Liberação, reavalie os B\/Ls aqui/)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Reavaliar os B/Ls' }))
+
+    await waitFor(() => expect(mockedRecomputeBlReviewGate).toHaveBeenCalledWith({ blId: 'BL7', expectedUpdatedAt: '2026-06-11T12:00:00.7Z', changedBy: 'user-1' }))
+    expect(mockedTryAutoIssueInvoice).toHaveBeenCalledWith({ blId: 'BL7', customerId: 7, actorId: 'user-1' })
+    const results = await screen.findByRole('region', { name: 'Resultados recentes' })
+    expect(results.textContent).toMatch(/1 B\/L saiu da revisão/)
+    expect(results.textContent).toMatch(/1 fatura emitida automaticamente/)
   })
 
   it('mostra erro de consulta com Tentar novamente, sem parecer fila vazia', async () => {
@@ -458,6 +475,50 @@ describe('Revisao', () => {
     expect(mockedTryAutoIssueInvoice).not.toHaveBeenCalled()
   })
 
+  it('mantém o drawer no B/L que saiu do recorte de causa depois de corrigido', async () => {
+    const user = userEvent.setup()
+    const base = makeLinkedBl('BLW', { emails: ['a@b.com'] })
+    const semPeso = { ...base, cargo_mode: 'carga_solta', bb_weight_ton: null, review_reasons: ['Acesso ao portal nao provisionado', 'Peso BB ausente'] }
+    mockedUseReviewQueue.mockReturnValue({ data: [semPeso], isLoading: false, error: null } as never)
+    const view = renderPage(['/revisao?causa=peso'])
+
+    await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
+    await user.click(screen.getByRole('button', { name: /Corrigir dados de BLW/ }))
+    expect(screen.getByRole('dialog', { name: /Revisar B\/L BLW/ })).toBeTruthy()
+
+    // O servidor gravou o peso; o B/L continua em revisão só pelo Portal.
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{ ...semPeso, bb_weight_ton: 5, review_reasons: ['Acesso ao portal nao provisionado'], updated_at: '2026-06-11T13:00:00Z' }],
+      isLoading: false,
+      error: null,
+    } as never)
+    // Mesma árvore: o estado da página (B/L selecionado) é preservado.
+    view.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/revisao?causa=peso']}>
+          <Revisao />
+          <LocationProbe />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(screen.getByRole('dialog', { name: /Revisar B\/L BLW/ })).toBeTruthy()
+  })
+
+  it('avisa o recálculo pendente quando o faturamento do B/L liberado pelo cadastro é bloqueado', async () => {
+    const user = userEvent.setup()
+    mockedTryAutoIssueInvoice.mockResolvedValueOnce({ status: 'blocked', reason: 'review:no_table', message: 'Tabela de taxas locais ausente.' } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /AC Comercial/ }))
+    await user.type(screen.getByPlaceholderText('00.000.000/0000-00'), '11222333000181')
+    await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'financeiro@alfa.com')
+    await user.click(screen.getByRole('button', { name: /criar cliente e vincular 2 b\/ls/i }))
+
+    const results = await screen.findByRole('region', { name: 'Resultados recentes' })
+    await waitFor(() => expect(results.textContent).toMatch(/B\/L BL1: taxas locais ainda por recalcular/))
+    expect(results.textContent).toMatch(/1 fatura emitida automaticamente/)
+  })
+
   it('valida o peso da carga solta junto do campo, sem gravar valor inválido', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
@@ -468,14 +529,15 @@ describe('Revisao', () => {
     renderPage()
 
     await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
-    const field = screen.getByRole('spinbutton', { name: /Peso da carga solta do B\/L BLW/ })
+    const field = screen.getByRole('textbox', { name: /Peso da carga solta do B\/L BLW/ })
     await user.type(field, '0{Enter}')
     expect(screen.getByText('Informe o peso em toneladas, maior que zero.')).toBeTruthy()
     expect(field.getAttribute('aria-invalid')).toBe('true')
     expect(mockedApplyInlineBlReviewFix).not.toHaveBeenCalled()
 
+    // Vírgula decimal, como se digita no Brasil.
     await user.clear(field)
-    await user.type(field, '12.5{Enter}')
+    await user.type(field, '12,5{Enter}')
     await waitFor(() => expect(mockedApplyInlineBlReviewFix).toHaveBeenCalledWith(expect.objectContaining({ blId: 'BLW', field: 'bb_weight_ton', value: 12.5 })))
   })
 })

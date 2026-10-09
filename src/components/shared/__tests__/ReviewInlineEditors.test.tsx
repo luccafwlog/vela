@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event'
 vi.mock('../../../hooks/useCustomers', () => ({ useCustomerLookup: vi.fn() }))
 
 import { useCustomerLookup } from '../../../hooks/useCustomers'
+import { Drawer } from '../../ui/Drawer'
 import { InlineCustomerPicker, InlineFieldEditor } from '../ReviewInlineEditors'
 
 const mockedLookup = vi.mocked(useCustomerLookup)
@@ -40,6 +41,16 @@ describe('InlineFieldEditor', () => {
     expect((input as HTMLInputElement).value).toBe('')
     await user.type(input, '3{Enter}')
     expect(onSave).toHaveBeenCalledWith('3')
+  })
+
+  it('aceita vírgula decimal no modo decimal, sem o navegador descartar o valor', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+    render(<InlineFieldEditor type="decimal" label="Peso" placeholder="Peso (t)" initial="" saving={false} onSave={onSave} />)
+    const input = screen.getByRole('textbox', { name: 'Peso' }) as HTMLInputElement
+    expect(input.getAttribute('inputmode')).toBe('decimal')
+    await user.type(input, '12,5{Enter}')
+    expect(onSave).toHaveBeenCalledWith('12,5')
   })
 
   it('desabilita o input quando saving', () => {
@@ -87,5 +98,20 @@ describe('InlineCustomerPicker', () => {
     const input = screen.getByRole('combobox', { name: 'Cliente' })
     await user.type(input, 'a{ArrowDown}{ArrowDown}{Enter}')
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 9 }))
+  })
+
+  it('dentro do drawer, Escape fecha as sugestões sem fechar o drawer', async () => {
+    const user = userEvent.setup()
+    mockedLookup.mockImplementation((search?: string) => ({
+      data: (search ?? '').trim().length >= 2 ? [{ id: 7, name: 'ACME', cnpj_cpf: '11222333000181' }] : [],
+    } as never))
+    const onClose = vi.fn()
+    render(<Drawer open title="Revisar B/L" onClose={onClose}><InlineCustomerPicker saving={false} onSelect={() => {}} label="Cliente" /></Drawer>)
+
+    await user.type(screen.getByRole('combobox', { name: 'Cliente' }), 'AC')
+    expect(screen.getByRole('option', { name: /ACME/ })).toBeTruthy()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('option')).toBeNull()
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

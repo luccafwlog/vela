@@ -70,7 +70,15 @@ export function Modal({
     ;(initialFocusRef?.current ?? firstField ?? titleRef.current)?.focus({ preventScroll: true })
 
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') { onCloseRef.current(); return }
+      if (e.key === 'Escape') {
+        // Lista de sugestões aberta (padrão combobox): o primeiro Escape é
+        // dela. Este listener nativo roda antes do handler React do campo, então
+        // o campo não consegue impedir o fechamento com stopPropagation.
+        const target = e.target instanceof HTMLElement ? e.target : null
+        if (target?.matches('[role="combobox"][aria-expanded="true"]')) return
+        onCloseRef.current()
+        return
+      }
       if (e.key !== 'Tab') return
       const focusable = getFocusable()
       const first = focusable[0]
