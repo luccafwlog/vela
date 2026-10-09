@@ -148,6 +148,19 @@ BEGIN
   DELETE FROM cron.job WHERE jobid = job_id;
   RETURN true;
 END $f$;
+-- alter_job como no pg_cron: argumento NULL preserva o valor atual.
+CREATE OR REPLACE FUNCTION cron.alter_job(job_id bigint, schedule text DEFAULT NULL, command text DEFAULT NULL, database text DEFAULT NULL, username text DEFAULT NULL, active boolean DEFAULT NULL) RETURNS void
+LANGUAGE plpgsql AS $f$
+BEGIN
+  UPDATE cron.job j
+     SET schedule = COALESCE(alter_job.schedule, j.schedule),
+         command  = COALESCE(alter_job.command, j.command),
+         active   = COALESCE(alter_job.active, j.active)
+   WHERE j.jobid = job_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Job % does not exist or you don''t own it', job_id;
+  END IF;
+END $f$;
 -- Shim do Supabase Vault (extensao supabase_vault; ausente no PG vanilla).
 -- A 007 exige vault.secrets/vault.decrypted_secrets + vault.create_secret;
 -- sem isto o replay aborta em "extensao supabase_vault ausente". Sem cifra
@@ -190,7 +203,10 @@ BEGIN
 END $f$;
 DO $$ BEGIN CREATE PUBLICATION supabase_realtime; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE SCHEMA IF NOT EXISTS net;
-CREATE OR REPLACE FUNCTION net.http_post(url text, body jsonb DEFAULT '{}'::jsonb, params jsonb DEFAULT '{}'::jsonb, headers jsonb DEFAULT '{}'::jsonb)
+-- Assinatura do pg_net real, com timeout_milliseconds (o dispatcher da 165 o
+-- passa por nome). A versao de 4 argumentos sai para a chamada nao ficar ambigua.
+DROP FUNCTION IF EXISTS net.http_post(text, jsonb, jsonb, jsonb);
+CREATE OR REPLACE FUNCTION net.http_post(url text, body jsonb DEFAULT '{}'::jsonb, params jsonb DEFAULT '{}'::jsonb, headers jsonb DEFAULT '{}'::jsonb, timeout_milliseconds integer DEFAULT 5000)
 RETURNS bigint LANGUAGE sql AS $f$ SELECT 0::bigint $f$;
 CREATE SCHEMA IF NOT EXISTS storage;
 CREATE TABLE IF NOT EXISTS storage.buckets (id text PRIMARY KEY, name text, public boolean DEFAULT false);

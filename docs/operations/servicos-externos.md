@@ -319,12 +319,12 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `portal-email-events-runner` | a cada minuto | processa eventos da Resend (entrega, bounce, reclamação), suprime endereços e abre Alertas | — |
 | `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática | — |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente (respeita a chave global) | — |
-| `import-effects-runner` | a cada 5 min | fila de efeitos de importação; pausado (`IMPORT_EFFECTS_RUNNER_ENABLED` desligado, segredo ausente) | — |
-| `alerts-foundation-detectors` | a cada 15 min | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
-| `customer-communication-auto-runner` | a cada 15 min | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global) | `customer-communication-auto-runner` |
+| `import-effects-runner` | a cada 5 min, em :03/:08/…/:58 (`3-59/5 * * * *`, migration `165`) | fila de efeitos de importação; pausado (`IMPORT_EFFECTS_RUNNER_ENABLED` desligado, segredo ausente) | — |
+| `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
+| `customer-communication-auto-runner` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `165`) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global) | `customer-communication-auto-runner` |
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos e abre Alerta de reenvio | — |
 | `portal-refresh-general-pendencies` | a cada 15 min | Alerta para Cliente com B/L ativo sem Portal ativo ou sem e-mail de recuperação | — |
-| `demurrage-dunning` | de hora em hora | Régua de Cobrança de Demurrage (respeita a chave global) | `demurrage-dunning` |
+| `demurrage-dunning` | de hora em hora, no minuto 7 (`7 * * * *`, migration `165`) | Régua de Cobrança de Demurrage (respeita a chave global) | `demurrage-dunning` |
 | `cleanup-portal-sessions` | 03:00 | apaga sessões do Portal expiradas há mais de 1 dia | — |
 | `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
@@ -332,12 +332,17 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
 
-Nos minutos :00/:15/:30/:45, `net._http_response` registra chamadas sem
-resposta (`Timeout of 5000 ms`, em geral gastos em DNS) desde antes de
-2026-10-08; a rodada afetada só volta no ciclo seguinte. Investigação pendente
-fora do plano run-2.
+Até a migration `165`, nos minutos :00/:15/:30/:45 `net._http_response`
+registrava chamadas sem resposta (`Timeout of 5000 ms`, em geral gastos em DNS)
+e a rodada afetada só voltava no ciclo seguinte. Correção e verificação descritas
+abaixo e em [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disparos).
 
 `data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
+
+Os jobs HTTP chamam a Edge Function por `ops.dispatch_edge_job`, que dá 30 s
+ao `pg_net` (antes, o padrão de 5 s incluía DNS e perdia a rodada nos minutos
+cheios). Os horários deslocados evitam que os jobs de 15 min/hora disparem no
+mesmo minuto; ver [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disparos).
 
 Rotação de segredo de job: sempre o **par** Edge Function Secret + Vault
 ([segredos-cron.md](segredos-cron.md)).
