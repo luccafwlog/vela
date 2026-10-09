@@ -1,4 +1,5 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
+// As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
 // Cada it.fails documenta um defeito confirmado e roda no job local-pg do CI; quando a correção entrar, troque it.fails por it.
 //
 // Problema-raiz M04: a fila `import_pending_effects` guarda intenções sem
@@ -28,11 +29,12 @@
 // e Liberação `grant_customer_billing_portal_release` (billingPortalRelease.ts:43-47).
 // A mudança de tabela é um UPDATE no item, como em portalBillingRelease.local-pg.test.ts.
 //
-// Fora daqui, por dependerem de decisão: efeito `physical_flags` da Viagem inteira
+// Fora daqui, por dependerem de decisão na revisão (as decididas na ADR 0078 ganham
+// checagem na etapa do plano que as implementa): efeito `physical_flags` da Viagem inteira
 // que desfaz correção manual de perfil (BAP-V01, precedência manual × Baplie é do
 // M11); efeito 'Concluído' com resultado de domínio bloqueado (INF-07); efeitos
 // duplicados por revisão fixa (INF-14, sem regra de comportamento visível);
-// emissão automática de Demurrage pela fila (DAT-06, decisão pendente). O
+// emissão automática de Demurrage pela fila (DAT-06). O
 // cenário 4 cita DAT-06 só pela parte "erro transitório vira bloqueio".
 //
 // Os cenários 2, 3 e 4 partem do efeito `local_billing` que a planilha de CE

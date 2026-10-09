@@ -5,9 +5,9 @@ Status: aceito — 2026-09-24. Implementado em 2026-09-25 (ver nota).
 > **Nota editorial — 2026-10-09 · supersedida parcialmente.** A
 > [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
 > substitui o item 5 (remover o CE passa a ser ação da ficha, com motivo, só sem
-> fatura viva; "liberado no Portal" deixa de ser critério), a parte do item 9
-> sobre recebível (recebível sem fatura não bloqueia o cancelamento e é anulado
-> com ele) e o "desvio aceito" da unicidade CE × B/L, que passa a ser imposta em
+> fatura viva; "liberado no Portal" deixa de ser critério), a parte dos itens 3
+> e 9 sobre recebível (recebível sem fatura não trava a exclusão nem o
+> cancelamento do B/L e é anulado com eles) e o "desvio aceito" da unicidade CE × B/L, que passa a ser imposta em
 > todas as portas, incluindo Granito. O restante permanece.
 
 > **Nota de implementação — 2026-09-25.** Implementada nas PRs

@@ -1,4 +1,5 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
+// As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
 // Cada it.fails documenta um defeito confirmado e roda no job local-pg do CI; quando a correção entrar, troque it.fails por it.
 //
 // Problema-raiz M01: reimportação de carga solta (Manifesto BB e B/L avulso
@@ -426,11 +427,11 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
   })
 
   // --- 3. Cliente confirmado na Revisão e reimportação sem CNPJ ---------------
-  // Regra por inferência direta do glossário: o vínculo só nasce de documento
-  // exato ou de confirmação humana, e a única troca por reimportação é a Troca
-  // de Consignatário com aceite. A nota de 2026-07-03 da ADR 0017 registrou que
-  // o import de manifesto manteve voyage/customer/review sobrescritos; a
-  // correção precisa registrar a decisão para a carga solta.
+  // O vínculo só nasce de documento exato ou de confirmação humana, e a única
+  // troca por reimportação é a Troca de Consignatário com aceite. A nota de
+  // 2026-07-03 da ADR 0017 registrou que o import de manifesto manteve
+  // voyage/customer/review sobrescritos; a ADR 0078, item 14, estende à carga
+  // solta o contrato do B/L de container.
   let afterReviewReimport: BlState | null = null
 
   it('cenário 3: B/L sem CNPJ vinculado na Revisão e reimportado sem CNPJ', () => {
@@ -486,9 +487,9 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
   })
 
   // --- 5. B/L faturado de outra Viagem ---------------------------------------
-  // A nota de 2026-08-28 da ADR 0017 trata do Importar B/L; aqui vale por
-  // extensão (a viagem é variável de faturamento). Recusar o lote ou ignorar a
-  // linha ainda não foi decidido; a checagem do cenário aceita os dois.
+  // A nota de 2026-08-28 da ADR 0017 trata do Importar B/L; a ADR 0078, item 14,
+  // estende à carga solta: B/L de outra Viagem é recusado na prévia. A RPC pode
+  // recusar o lote ou ignorar a linha; a checagem do cenário aceita os dois.
   let otherVoyage: { error: string | null; bl: BlState | null } | null = null
 
   it('cenário 5: Manifesto BB da Viagem B contém B/L faturado da Viagem A (mesmo CE e CNPJ)', () => {

@@ -686,7 +686,7 @@ tem duas contagens independentes.
 **Local de Desova**
 Local onde um container com veículo foi desovado. Atributo do container,
 agregado por marca no ADR. A planilha de veículos só o preenche quando está
-vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
+vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
 **Ocorrência da Escala**
 Lançamento livre no diário da escala dentro do ADR: texto com autor,
@@ -963,7 +963,7 @@ Baplie no EQD (8077: 1 = SOC, 2 = COC). O B/L é soberano: o Baplie só preenche
 o que o B/L não declarou, e a discordância entre os dois aparece na conciliação
 do Baplie e na aba Carga do B/L, sem trocar o valor. Sem informação em nenhuma
 fonte, o container é tratado como COC e aparece como "Não informado".
-A divergência ganha a ação **Vale o B/L**, com motivo, que a encerra ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
+A divergência ganha a ação **Vale o B/L**, com motivo, que a encerra ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 Container SOC não volta ao estoque: não tem devolução a esperar nem Demurrage,
 e não paga as taxas locais marcadas como "não cobra de SOC" (Drop Off Fee e
 Damage Protection Fee).
@@ -991,14 +991,15 @@ da conta do Cliente. O Comunicado de CE e Taxas depende da prontidão do conjunt
 Cliente/Viagem, da chave de envio e do processamento do canal, não de um envio
 imediato garantido ao salvar o CE. A relação CE × B/L é 1:1: um
 número de CE não pode ser usado por mais de um B/L não cancelado, somando B/Ls
-de carga e de Granito; o [B/L Cancelado](#operação-marítima) libera o CE.
+de carga e de Granito; o [B/L Cancelado](#operação-marítima) libera o CE. Hoje o
+banco não impõe essa unicidade (ADR 0071 e [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
 Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente):
 
 - o CE entra pela planilha de CE Mercante e é corrigido ou removido pela ficha
   do B/L (**Corrigir CE Mercante**, **Remover CE Mercante**), por qualquer
   usuário ativo, com as regras da planilha e motivo no Histórico; o Manifesto BB
-  não grava CE; a unicidade é recusada em todas as portas e na reativação;
+  não grava CE; a repetição do CE é recusada em todas as portas e na reativação;
 - trocar um CE já gravado exige confirmação com motivo na prévia, que mostra o
   CE atual e o novo; a fatura não muda; Comunicado já enviado abre pendência de
   reenvio ao Cliente;
@@ -1041,7 +1042,7 @@ B/Ls e não se confunde com o número de viagem interna da agência.
   entra por planilha (decisão de 2026-10-08) e, pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), é corrigido ou
   removido pela ficha do B/L; EDI, no Vela, é o Baplie. Na planilha, linha sem
   CE é erro e bloqueia a importação, B/L cancelado é ignorado com aviso e mais
-  de uma aba com dados é recusada.
+  de uma aba com dados é recusada (implementação pendente).
 
 **Frete & Despesas do BL**
 Linhas da seção "Freight & Charges" do conhecimento de embarque (B/L): frete
@@ -1092,10 +1093,12 @@ consolidada com outros B/Ls, fatura com pagamento registrado, e consignatário
 ainda não cadastrado como Cliente havendo cobrança. Nesses casos o vínculo fica
 como está e os demais campos do B/L seguem sendo corrigidos. Ver ADR 0017.
 Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), a mesma regra vale para a reimportação de carga solta (Manifesto BB
-e B/L avulso).
+e B/L avulso; implementação pendente — hoje a reimportação troca o Cliente sem
+aceite, ver [Manifesto EDI](docs/modules/manifesto-edi.md#catálogo-de-ações)).
 
 **Cliente**
-Pessoa jurídica ou física responsável por cargas e cobranças no sistema.
+Pessoa jurídica responsável por cargas e cobranças no sistema; não existe
+Cliente pessoa física ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
 
 **Email de Contato**
 Canal de comunicação do Cliente. Cada Cliente tem um Email de Contato Principal,
@@ -1205,12 +1208,12 @@ destino e não reprecifica; o COD é a exceção de ADR 0051: altera o destino f
 e gera um Ajuste de COD pela diferença entre os valores localizados, mantendo o
 CE Mercante inalterado. A emissão do documento financeiro resultante é um ato
 do Financeiro. A fatura de Taxas Locais emitida pela transição do CE é emissão
-automática, registrada como **Sistema — CE Mercante** ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
+automática, registrada como **Sistema — CE Mercante** ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
 Por isso a fatura de taxas locais é emitida dias antes da atracação: o cliente
 precisa dela paga para retirar a carga. O documento emitido preserva seu valor
 e, pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), também a identificação impressa (razão social, CNPJ, endereço do
-Cliente, Viagem, navio, POL e POD);
+Cliente, Viagem, navio, POL e POD; implementação pendente);
 ajustes posteriores, como COD, seguem atos próprios e não reescrevem o snapshot.
 
 B/Ls que dividem um mesmo container **recebem o CE no mesmo momento**. É essa
@@ -1533,7 +1536,7 @@ campos, mudanças em containers, cálculo e revisão de taxas, e emissão e
 pagamento de faturas. É o termo guarda-chuva que abrange a Auditoria — não um
 sinônimo dela. Toda importação registra, em cada registro alterado, quem fez,
 data e hora, o tipo de importação, o contexto (Nº de Manifesto, Viagem, rota),
-o valor anterior e o novo e o motivo quando houver ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
+o valor anterior e o novo e o motivo quando houver ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
 **Auditoria**
 Subconjunto do Histórico: as alterações deliberadas registradas com

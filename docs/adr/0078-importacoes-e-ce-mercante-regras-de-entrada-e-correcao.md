@@ -4,7 +4,8 @@ Status: aceito — 2026-10-09 (decisões do dono). Implementação pendente no
 [plano de correção das importações](../plans/2026-10-09-correcao-importacoes-ce-mercante.md).
 
 Supersede parcialmente a [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md)
-(itens 5 e 9 e o "desvio aceito" da unicidade CE × B/L) e a
+(item 5, a parte dos itens 3 e 9 sobre recebível sem fatura e o "desvio
+aceito" da unicidade CE × B/L) e a
 [ADR 0020](./0020-ce-mercante-gatilho-calculo-taxas-locais.md) quanto ao canal
 e à forma da emissão pelo CE. Estende a
 [ADR 0017](./0017-bl-fonte-ingestao-correcao-autoridade-compartilhada.md) à

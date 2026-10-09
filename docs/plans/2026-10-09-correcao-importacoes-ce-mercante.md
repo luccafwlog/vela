@@ -34,7 +34,7 @@ que as implementa.
   `npm run migrations:check`, `npm run rpc:check` e o replay local
   (`sudo scripts/setup-local-pg.sh --reset` e as suítes `local-pg` do CI com
   `--no-file-parallelism`, duas vezes seguidas, sem resíduo de namespace).
-- **Migrations:** sempre arquivo novo, no próximo número livre (hoje `171`);
+- **Migrations:** sempre arquivo novo, no próximo número livre (hoje `173`);
   nunca editar migration existente (protegida por
   `.claude/hooks/protect-files.sh`). Redefinir a função a partir da definição
   **efetiva** no banco replicado, não da primeira migration que a criou. Se a
