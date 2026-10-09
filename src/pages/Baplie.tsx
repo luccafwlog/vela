@@ -208,7 +208,7 @@ export function Baplie() {
         <Card className="overflow-hidden p-0">
           <EmptyState title="Escolha uma viagem" description="O Baplie é importado e conferido com os B/Ls por viagem. Escolha na faixa acima ou busque pelo navio." />
         </Card>
-      ) : stagingQuery.isError ? (
+      ) : stagingQuery.isError && !stagingData ? (
         <Card>
           <div className="app-cargo-state" role="alert">
             <p className="app-cargo-state__title">Não foi possível ler o Baplie desta viagem.</p>
@@ -224,6 +224,12 @@ export function Baplie() {
         <StateA canImport={canUploadManifests} onUpload={() => setUploadOpen(true)} />
       ) : (
         <>
+          {stagingQuery.isError ? (
+            <ImportNotice tone="warning" role="alert" title="Não foi possível atualizar o Baplie desta viagem">
+              <p>Os dados abaixo são da última leitura e podem estar desatualizados.</p>
+              <Button variant="secondary" className="app-btn--sm" onClick={() => void stagingQuery.refetch()}>Tentar novamente</Button>
+            </ImportNotice>
+          ) : null}
           <BaplieOverviewSection containers={containers} importedAt={importedAt} />
 
           <ReconciliacaoSection
@@ -650,19 +656,21 @@ function ContainerList({
   const filtered = useMemo(() => {
     const term = filters.container.trim().toLowerCase()
     return rows.filter(({ container, coverage }) => {
-      const profile = container.is_imo ? 'imo' : container.is_oog ? 'oog' : 'standard'
       return (!term || container.container_number.toLowerCase().includes(term) || (container.slot ?? '').toLowerCase().includes(term) || (container.bl_ref ?? '').toLowerCase().includes(term))
         && (!filters.coverage || coverage?.key === filters.coverage)
         && (!filters.status || (container.status === 'empty' ? 'empty' : 'full') === filters.status)
         && (!filters.type || container.size_type === filters.type)
         && (!filters.pol || container.pol === filters.pol)
         && (!filters.pod || container.pod === filters.pod)
-        && (!filters.profile || profile === filters.profile)
+        // IMO e OOG são flags independentes: um container com as duas aparece nos dois filtros.
+        && (!filters.profile || (filters.profile === 'imo' ? container.is_imo : filters.profile === 'oog' ? container.is_oog : !container.is_imo && !container.is_oog))
         && (!filters.ownership || (container.ownership ?? 'none') === filters.ownership)
     })
   }, [rows, filters])
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize)
+  // Um Baplie reimportado menor pode deixar a página além do total: fica na última.
+  const currentPage = Math.min(page, totalPages)
+  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   const filterKey = JSON.stringify(filters)
   const [previousFilterKey, setPreviousFilterKey] = useState(filterKey)
   if (filterKey !== previousFilterKey) {
@@ -764,7 +772,7 @@ function ContainerList({
         )}
         {filtered.length > 0 ? (
           <TableFooterPagination
-            page={page}
+            page={currentPage}
             pageSize={pageSize}
             totalCount={filtered.length}
             totalPages={totalPages}

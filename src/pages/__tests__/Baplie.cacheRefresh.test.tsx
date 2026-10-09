@@ -23,11 +23,14 @@ vi.mock('../../services/baplieImport', () => ({
   hasBapliePendency: (result: { flagsError: string | null; vaziosError: string | null }) => Boolean(result.flagsError || result.vaziosError),
   baplieFootnoteForPendency: () => 'Baplie gravado com pendência.', retryBaplieVazios: vi.fn(),
 }))
-vi.mock('../../services/baplieReconciliation', () => ({ reconcileBaplieWithManifest: vi.fn() }))
+vi.mock('../../services/baplieReconciliation', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../services/baplieReconciliation')>(), reconcileBaplieWithManifest: vi.fn(),
+}))
 vi.mock('../../services/baplieReadModel', () => ({ hasBlsForVoyage: vi.fn(() => Promise.resolve(false)), listBaplieStaging: vi.fn(() => Promise.resolve([])) }))
 vi.mock('../../services/vaziosImportacaoImport', () => ({ getBaplieManifestForVoyage: vi.fn(() => Promise.resolve(null)), importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn() }))
 
 import { Baplie } from '../Baplie'
+import { listBaplieStaging } from '../../services/baplieReadModel'
 
 describe('upload na página Baplie', () => {
   it('atualiza a viagem escolhida no modal, mesmo sem mudar flags e com outra viagem aberta', async () => {
@@ -64,5 +67,34 @@ describe('upload na página Baplie', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Concluir' }))
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     } finally { client.clear() }
+  })
+})
+
+describe('lista de containers do Baplie', () => {
+  const staged = [
+    { id: 1, container_number: 'AAAU0000001', status: 'full', size_type: '40HC', pol: 'CNSHA', pod: 'BRSSZ', slot: null, bl_ref: null, is_imo: true, is_oog: true, imo_class: '3', un_number: '1263', ownership: null, imported_at: '2026-10-08T10:00:00Z' },
+    { id: 2, container_number: 'BBBU0000002', status: 'full', size_type: '40HC', pol: 'CNSHA', pod: 'BRSSZ', slot: null, bl_ref: null, is_imo: false, is_oog: false, imo_class: null, un_number: null, ownership: null, imported_at: '2026-10-08T10:00:00Z' },
+  ]
+
+  it('container IMO e OOG aparece no filtro OOG, e falha ao recarregar mantém a última leitura à vista', async () => {
+    vi.mocked(listBaplieStaging).mockResolvedValue(staged as never)
+    const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+    try {
+      render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Baplie /></MemoryRouter></QueryClientProvider>)
+      expect(await screen.findByText('AAAU0000001')).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: /Filtros dos containers/ }))
+      fireEvent.change(screen.getByLabelText('IMO / OOG'), { target: { value: 'oog' } })
+      await waitFor(() => expect(screen.queryByText('BBBU0000002')).toBeNull())
+      expect(screen.getByText('AAAU0000001')).toBeTruthy()
+
+      vi.mocked(listBaplieStaging).mockRejectedValueOnce(new Error('rede'))
+      await client.refetchQueries({ queryKey: ['baplie-staging', '7'] })
+      expect(await screen.findByText('Não foi possível atualizar o Baplie desta viagem')).toBeTruthy()
+      expect(screen.getByText('AAAU0000001')).toBeTruthy()
+      expect(screen.queryByText('Não foi possível ler o Baplie desta viagem.')).toBeNull()
+    } finally {
+      vi.mocked(listBaplieStaging).mockResolvedValue([])
+      client.clear()
+    }
   })
 })

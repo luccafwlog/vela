@@ -116,6 +116,11 @@ function UnpackingLocationField({
   )
 }
 
+/** Container com veículos de mais de um B/L: cada veículo diz o seu, além da lista no cabeçalho. */
+function VehicleBlLink({ blId }: { blId: string }) {
+  return <span className="app-cargo-cell__sub">B/L <Link className="app-cargo-link app-cargo-id" to={`/bls/${blId}`}>{blId}</Link></span>
+}
+
 export function Veiculos() {
   const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
@@ -551,6 +556,7 @@ export function Veiculos() {
                           <span className="app-cargo-cell__stack">
                             <span className="app-cargo-code">{row.chassis}</span>
                             <span className="app-cargo-cell__sub">{[row.brand, row.model].filter(Boolean).join(' ')} · {formatKg(row.weight_kg)} · {formatCbm(row.cbm)}</span>
+                            {group.blIds.length > 1 && row.bl?.id ? <VehicleBlLink blId={row.bl.id} /> : null}
                           </span>
                           {canDeleteVehicles ? deleteButton(row) : null}
                         </li>
@@ -615,7 +621,12 @@ export function Veiculos() {
                                 />
                               </td>
                             ) : null}
-                            <td className="app-cargo-code">{row.chassis}</td>
+                            <td>
+                              <span className="app-cargo-cell__stack">
+                                <span className="app-cargo-code">{row.chassis}</span>
+                                {group.blIds.length > 1 && row.bl?.id ? <VehicleBlLink blId={row.bl.id} /> : null}
+                              </span>
+                            </td>
                             <td>{row.brand ?? '—'}</td>
                             <td>{row.model ?? '—'}</td>
                             <td className="app-cargo-num">{formatKg(row.weight_kg)}</td>

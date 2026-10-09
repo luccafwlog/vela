@@ -23,8 +23,9 @@ vi.mock('../../hooks/useVehicles', async () => {
         rows: [
           { id: 11, chassis: 'CHASSI-1', container: { id: 33, container_number: 'CXRU1234567', unpacking_location: 'Terminal A' }, bl: { id: 'BL-1' } },
           { id: 12, chassis: 'CHASSI-2', container: { id: 44, container_number: 'CXRU7654321', unpacking_location: null }, bl: { id: 'BL-1' } },
+          { id: 13, chassis: 'CHASSI-3', container: { id: 33, container_number: 'CXRU1234567', unpacking_location: 'Terminal A' }, bl: { id: 'BL-2' } },
         ],
-        count: 2, distinctContainerCount: 1, distinctBlCount: 1, totalWeightKg: 0, totalCbm: 0,
+        count: 3, distinctContainerCount: 1, distinctBlCount: 1, totalWeightKg: 0, totalCbm: 0,
         vehiclesByBrand: [], vehiclesByContainerType: [], containersByContainerType: [],
       },
       queryFn: async () => { throw new Error('Falha na consulta') },
@@ -94,4 +95,18 @@ it('dois containers gravando ao mesmo tempo: o primeiro a terminar não reabre o
     mocks.save.mockImplementation(() => Promise.resolve())
     client.clear()
   }
+})
+
+it('container com veículos de dois B/Ls diz o B/L de cada veículo', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+  try {
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
+    const chassis3 = screen.getByText('CHASSI-3').closest('td') as HTMLElement
+    expect(chassis3.textContent).toContain('BL-2')
+    const chassis1 = screen.getByText('CHASSI-1').closest('td') as HTMLElement
+    expect(chassis1.textContent).toContain('BL-1')
+    // Container de um só B/L: o B/L fica só no cabeçalho do grupo.
+    const chassis2 = screen.getByText('CHASSI-2').closest('td') as HTMLElement
+    expect(chassis2.textContent).not.toContain('BL-1')
+  } finally { client.clear() }
 })
