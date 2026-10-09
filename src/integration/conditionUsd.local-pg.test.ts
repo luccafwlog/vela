@@ -1,9 +1,12 @@
 import { execFileSync, spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
 // Migration 171: a Condição de Cliente vale na moeda do item. Antes, item em
 // USD saía pelo valor da tabela e gravava override_applied = true.
+// Migration 172: item com condição ativa não troca de moeda, e os B/Ls não
+// faturados que ainda carregam a linha errada são recalculados.
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -18,7 +21,8 @@ const chargeTableId = 99217105
 const docUsd = 99217106
 const thdUsd = 99217107
 const blFeeBrl = 99217108
-const bl = { usd: 'R171-BL-U', dual: 'R171-BL-D', other: 'R171-BL-O' }
+const bl = { usd: 'R171-BL-U', dual: 'R171-BL-D', other: 'R171-BL-O', stale: 'R171-BL-S', invoiced: 'R171-BL-F' }
+const migration172 = fileURLToPath(new URL('../../supabase/migrations/172_moeda_do_item_com_condicao_e_recalculo_usd.sql', import.meta.url))
 const allBls = Object.values(bl)
 // A linha USD exige ROE configurado para o saldo do recebível; o banco
 // descartável pode não ter. Só o que esta suíte inserir é removido.
@@ -29,16 +33,9 @@ function psql(sql: string): string {
     `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`], { encoding: 'utf8' }).trim()
 }
 
-function migrationApplied() {
-  if (!enabled) return false
-  try {
-    return psql(`SELECT position('171: a condição vale na moeda do item' IN pg_get_functiondef('public.resolve_bl_local_charge_items(text,text)'::regprocedure)) > 0;`) === 't'
-  } catch {
-    return false
-  }
-}
-
-const describeLocal = migrationApplied() ? describe : describe.skip
+// Com a integração ligada, a suíte roda sempre: sem a 171 aplicada ela falha
+// no primeiro teste, em vez de ser pulada em silêncio.
+const describeLocal = enabled ? describe : describe.skip
 
 function calculate(blId: string) {
   const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
@@ -114,11 +111,19 @@ describeLocal('171 — Condição de Cliente em item em dólar', () => {
       INSERT INTO public.bls (id, voyage_id, customer_id, pod, cargo_mode, financial_status, charge_status, customer_reconciliation_status, ce_mercante)
       VALUES ('${bl.usd}', ${voyageId}, ${customerId}, 'R171POD', 'container', 'pending', 'not_calculated', 'reconciled', NULL),
              ('${bl.dual}', ${voyageId}, ${customerId}, 'R171POD', 'container', 'pending', 'not_calculated', 'reconciled', NULL),
-             ('${bl.other}', ${voyageId}, ${otherCustomerId}, 'R171POD', 'container', 'pending', 'not_calculated', 'reconciled', NULL);
+             ('${bl.other}', ${voyageId}, ${otherCustomerId}, 'R171POD', 'container', 'pending', 'not_calculated', 'reconciled', NULL),
+             ('${bl.stale}', ${voyageId}, ${customerId}, 'R171POD', 'container', 'pending', 'calculated', 'reconciled', NULL);
       INSERT INTO public.bl_containers (bl_id, container_number, type, is_imo, is_oog) VALUES
         ('${bl.usd}', 'RUSD1710001', '22G1', false, false),
         ('${bl.dual}', 'RUSD1710002', '22G1', true, true),
-        ('${bl.other}', 'RUSD1710003', '22G1', false, false);
+        ('${bl.other}', 'RUSD1710003', '22G1', false, false),
+        ('${bl.stale}', 'RUSD1710004', '22G1', false, false);
+      SET session_replication_role = replica;
+      -- B/L faturado sem fatura de verdade: as travas de faturamento ficam de fora.
+      INSERT INTO public.bls (id, voyage_id, customer_id, pod, cargo_mode, financial_status, charge_status, customer_reconciliation_status, ce_mercante)
+      VALUES ('${bl.invoiced}', ${voyageId}, ${customerId}, 'R171POD', 'container', 'invoiced', 'calculated', 'reconciled', NULL);
+      INSERT INTO public.bl_containers (bl_id, container_number, type, is_imo, is_oog) VALUES ('${bl.invoiced}', 'RUSD1710005', '22G1', false, false);
+      SET session_replication_role = origin;
     `)
   })
 
@@ -148,5 +153,32 @@ describeLocal('171 — Condição de Cliente em item em dólar', () => {
       `auto:item:${thdUsd}|100.00|100.00|-|-|f`,
       `auto:item:${blFeeBrl}|-|-|600.00|600.00|f`,
     ].join(','))
+  })
+
+  it('172: B/L não faturado com a linha errada é recalculado; o faturado fica como está', () => {
+    // A linha como a 129 gravava: valor da tabela (US$ 35) com a condição dada como aplicada.
+    psql(`
+      SET session_replication_role = replica;
+      INSERT INTO public.charge_calculations (bl_id, charge_table_id, charge_item_id, source, status, calculation_key, quantity,
+        unit_value_usd, total_value_usd, override_applied, calculated_at)
+      VALUES ('${bl.stale}', ${chargeTableId}, ${docUsd}, 'auto', 'calculated', 'auto:item:${docUsd}', 1, 35, 35, true, now()),
+             ('${bl.invoiced}', ${chargeTableId}, ${docUsd}, 'auto', 'calculated', 'auto:item:${docUsd}', 1, 35, 35, true, now());
+      SET session_replication_role = origin;
+    `)
+    execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', databaseUrl, '-f', migration172], { encoding: 'utf8', stdio: 'pipe' })
+    expect(lines(bl.stale)).toContain(`auto:item:${docUsd}|30.00|30.00|-|-|t`)
+    expect(lines(bl.invoiced)).toBe(`auto:item:${docUsd}|35.00|35.00|-|-|t`)
+  })
+
+  it('172: item com condição ativa não troca de moeda; sem condição ativa, troca', () => {
+    const blocked = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+      `UPDATE public.charge_table_items SET currency = 'BRL', unit_value_brl = 150, unit_value_usd = NULL WHERE id = ${docUsd};`], { encoding: 'utf8' })
+    expect(blocked.status).not.toBe(0)
+    expect(blocked.stderr).toContain('condição(ões) de Cliente ativa(s)')
+    expect(psql(`SELECT currency FROM public.charge_table_items WHERE id = ${docUsd}`)).toBe('USD')
+
+    psql(`UPDATE public.customer_rate_overrides SET active = false WHERE charge_item_id = ${docUsd};
+      UPDATE public.charge_table_items SET currency = 'BRL', unit_value_brl = 150, unit_value_usd = NULL WHERE id = ${docUsd};`)
+    expect(psql(`SELECT currency FROM public.charge_table_items WHERE id = ${docUsd}`)).toBe('BRL')
   })
 })

@@ -26,6 +26,7 @@ import {
   deleteCustomerRateOverride,
   setCustomerRateOverrideActive,
   listCustomerRateOverrides,
+  countActiveConditionsForItem,
   listOverrideChargeItems,
   listOverrideCustomers,
   saveCustomerRateOverride,
@@ -270,6 +271,15 @@ export function useOverrideChargeItems() {
   return useQuery({
     queryKey: queryKeys.charges.overrideItems(),
     queryFn: () => listOverrideChargeItems(),
+  })
+}
+
+/** Condições ativas do item em edição; invalidada junto com as condições. */
+export function useActiveConditionCount(chargeItemId: number | null) {
+  return useQuery({
+    queryKey: queryKeys.charges.overrides({ activeForItem: chargeItemId }),
+    queryFn: () => countActiveConditionsForItem(chargeItemId as number),
+    enabled: chargeItemId != null,
   })
 }
 

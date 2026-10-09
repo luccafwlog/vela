@@ -386,6 +386,41 @@ Comando focado:
   Cálculos já gravados mudam no próximo cálculo ou recálculo do B/L; B/L
   faturado não é recalculado. **Teste local-pg:**
   `src/integration/conditionUsd.local-pg.test.ts`.
+- **Efeitos da `171` (migration `172`, 2026-10-09, decisões da revisão da PR
+  923).** Item de Taxa com Condição de Cliente ativa não troca de moeda: o
+  valor negociado guarda só o número, na moeda do item, e trocar a moeda o
+  reinterpretaria (R$ 1.200 viraria US$ 1.200). O banco recusa (trigger
+  `charge_table_items_currency_locked_by_condition`) e o modal de item trava a
+  moeda dizendo quantas condições a usam; para cobrar em outra moeda,
+  cadastra-se um item novo. A `172` também recalcula, uma vez, os B/Ls não
+  faturados e não cancelados que ainda tinham linha automática em item USD com
+  `override_applied = true` (a marca do erro da `129`). B/L faturado não muda;
+  a lista dos que foram faturados acima do negociado sai da consulta abaixo e
+  vai para o financeiro decidir a devolução pelas ferramentas existentes:
+
+  ```sql
+  SELECT b.id AS bl, c.name AS cliente, i.id AS fatura, cti.name AS item,
+         cc.quantity, cc.unit_value_usd AS cobrado_usd, cro.override_value AS negociado_usd,
+         cc.total_value_usd - ROUND(cc.quantity * cro.override_value, 2) AS diferenca_usd
+  FROM charge_calculations cc
+  JOIN charge_table_items cti ON cti.id = cc.charge_item_id AND cti.currency = 'USD'
+  JOIN bls b ON b.id = cc.bl_id
+  JOIN customers c ON c.id = b.customer_id
+  JOIN customer_rate_overrides cro ON cro.customer_id = b.customer_id AND cro.charge_item_id = cti.id
+  LEFT JOIN invoice_bls ib ON ib.bl_id = b.id
+  LEFT JOIN invoices i ON i.id = ib.invoice_id
+  WHERE COALESCE(cc.source, 'auto') = 'auto' AND cc.override_applied
+    AND cc.unit_value_usd IS DISTINCT FROM cro.override_value
+    AND b.financial_status IN ('invoiced', 'partially_paid', 'paid');
+  ```
+
+  Pela afirmação "Data status" do `AGENTS.md`, hoje produção só tem dados de
+  teste; a consulta passa a importar quando houver dado real. **Teste
+  local-pg:** `conditionUsd.local-pg.test.ts` (trava de moeda e recálculo).
+- **Escopo da tabela na tela segue `normalize_port_code` do banco.** A tela
+  agrupa as tabelas pela mesma lista exata de aliases da função do banco
+  (SANTOS/SSZ → BRSSZ, BRVIT/VITORIA/VIX → BRVIX…), sem "contém"; o rótulo do
+  escopo mostra o código canônico do banco.
 - **Data de referência da avulsa diverge do cálculo (Código).** A cotação da
   fatura avulsa com item da tabela (`quote_manual_invoice_charge`, migration
   `123`) escolhe a condição pela data do lote/criação do B/L, não pela ETA da

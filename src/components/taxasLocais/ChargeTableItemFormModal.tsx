@@ -4,6 +4,7 @@ import { InlineError } from '../ui/Card'
 import { Field, Input, Select } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { SegmentedControl } from '../ui/SegmentedControl'
+import { useActiveConditionCount } from '../../hooks/useLocalCharges'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { validateTableItemInput } from '../../pages/taxasLocaisHelpers'
 import type { ChargeTableItemInput } from '../../services/charges/chargeTableService'
@@ -84,6 +85,11 @@ export function ChargeTableItemFormModal({
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const isEdit = Boolean(item)
+  // Condição de Cliente guarda o valor na moeda do item: com alguma ativa, a
+  // moeda fica travada (o banco também recusa, migration 172).
+  const conditions = useActiveConditionCount(item?.id ?? null)
+  const currencyLocked = isEdit && (conditions.data ?? 0) > 0
+  const lockedCurrency = item?.currency === 'USD' ? 'USD' : 'BRL'
 
   const changes = useMemo(() => (item ? itemChanges(item, form) : []), [item, form])
   const notes = useMemo(
@@ -187,9 +193,16 @@ export function ChargeTableItemFormModal({
               label="Moeda"
               value={form.currency}
               onChange={(value) => update('currency', value)}
-              options={[{ value: 'BRL', label: 'Real (R$)' }, { value: 'USD', label: 'Dólar (US$)' }]}
+              options={[
+                { value: 'BRL', label: 'Real (R$)', disabled: currencyLocked && lockedCurrency !== 'BRL' },
+                { value: 'USD', label: 'Dólar (US$)', disabled: currencyLocked && lockedCurrency !== 'USD' },
+              ]}
             />
-            {form.currency === 'USD' ? <span className="app-field__hint">Convertido em reais pelo ROE na emissão da fatura.</span> : null}
+            {currencyLocked ? (
+              <span className="app-field__hint">
+                {conditions.data === 1 ? '1 condição de Cliente ativa usa' : `${conditions.data} condições de Cliente ativas usam`} o valor nesta moeda. Para cobrar em outra moeda, cadastre um item novo e recadastre as condições nele.
+              </span>
+            ) : form.currency === 'USD' ? <span className="app-field__hint">Convertido em reais pelo ROE na emissão da fatura.</span> : null}
           </div>
           <Field label={`Valor unitário (${currencyPrefix(form.currency)})`} required error={errors.unitValue} hint={`Cobrado ${basisUnit(form.applicationBasis)}.`}>
             <MoneyInput
