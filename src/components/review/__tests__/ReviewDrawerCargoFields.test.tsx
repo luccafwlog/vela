@@ -91,11 +91,30 @@ describe('ReviewDrawer: peso e cubagem por modalidade', () => {
     renderDrawer(makeItem({ cargo_mode: 'container', shipper: 'Sany', total_weight_kg: 24000 } as never))
     await user.clear(screen.getByLabelText('Shipper'))
     await user.type(screen.getByLabelText('Shipper'), 'Novo embarcador')
-    await user.click(screen.getByRole('button', { name: 'Marcar como revisado' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar revisão' }))
 
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
     expect(mocks.confirm.mock.calls[0][0].changes).toContainEqual({
       field: 'Shipper', before: 'Sany', after: 'Novo embarcador',
     })
+  })
+
+  // A linha técnica é do gate: mostrá-la como nota editável fazia a pessoa
+  // apagar ou duplicar um texto que a RPC regrava a cada avaliação.
+  it('edita só as notas humanas e não acusa mudança na linha técnica', async () => {
+    const user = userEvent.setup()
+    renderDrawer(makeItem({ cargo_mode: 'container', notes: 'Conferido com o armador\nPendencias de importacao: Cliente nao vinculado' } as never))
+    expect((screen.getByLabelText(/Notas da revisão/) as HTMLTextAreaElement).value).toBe('Conferido com o armador')
+    await user.click(screen.getByRole('button', { name: 'Salvar revisão' }))
+
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
+    expect(mocks.confirm.mock.calls[0][0].changes).toEqual([])
+  })
+
+  it('diz onde cada pendência se resolve', () => {
+    renderDrawer(makeItem({ cargo_mode: 'carga_solta', bb_weight_ton: null, review_reasons: ['Cliente nao vinculado', 'Peso BB ausente'] } as never))
+    expect(screen.getByText('Sem cliente vinculado')).toBeTruthy()
+    expect(screen.getByText(/Resolva no grupo do cliente/)).toBeTruthy()
+    expect(screen.getByText('Peso da carga solta ausente')).toBeTruthy()
   })
 })

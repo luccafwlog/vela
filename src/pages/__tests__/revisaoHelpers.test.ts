@@ -12,7 +12,17 @@ import {
   groupReviewItems,
   needsCustomerLink,
   needsWeightFix,
+  flattenReviewGroupIds,
+  getReviewGroupCnpjEvidence,
+  getReviewItemCauses,
+  readReviewCauseParam,
+  reviewReasonCause,
   reviewReasonLabel,
+  sortReviewGroupsByPriority,
+  splitReviewNotes,
+  summarizeRemainingPendencies,
+  summarizeReviewGroup,
+  validateWeightTon,
 } from '../revisaoHelpers'
 import { extractCnpjFromText, extractCnpjsFromText } from '../../lib/cnpj'
 import type { ReviewQueueItem } from '../../hooks/useReview'
@@ -30,8 +40,10 @@ describe('needsCustomerLink', () => {
 
 describe('rótulos da fila de revisão', () => {
   it('padroniza a pendência de cliente sem alterar o valor bruto do motivo', () => {
-    expect(reviewReasonLabel('Cliente nao vinculado')).toBe('Cadastro de cliente pendente')
-    expect(reviewReasonLabel('Cliente nao vinculado (Granito)')).toBe('Cadastro de cliente pendente (Granito)')
+    expect(reviewReasonLabel('Cliente nao vinculado')).toBe('Sem cliente vinculado')
+    expect(reviewReasonLabel('Cliente nao vinculado (Granito)')).toBe('Granito sem cliente vinculado')
+    expect(reviewReasonLabel('Acesso ao portal nao provisionado')).toBe('Portal não provisionado')
+    expect(reviewReasonLabel('Peso BB ausente')).toBe('Peso da carga solta ausente')
     expect(reviewReasonLabel('CE Mercante ausente')).toBe('CE Mercante ausente')
   })
 
@@ -346,5 +358,100 @@ describe('groupNeedsEmail / groupNeedsPortal', () => {
     // sem cliente vinculado, e-mail/portal nao travam (a trava e "vincular cliente")
     expect(groupNeedsEmail(unlinked)).toBe(false)
     expect(groupNeedsPortal(unlinked)).toBe(false)
+  })
+})
+
+describe('triagem por causa', () => {
+  it('classifica os motivos brutos do gate e ignora a sugestão por nome', () => {
+    expect(reviewReasonCause('Cliente nao vinculado')).toBe('cliente')
+    expect(reviewReasonCause('Cliente nao vinculado (Granito)')).toBe('granito')
+    expect(reviewReasonCause('Acesso ao portal nao provisionado')).toBe('portal')
+    expect(reviewReasonCause('Peso BB ausente')).toBe('peso')
+    expect(reviewReasonCause('Cliente sem e-mail cadastrado')).toBe('outros')
+    expect(reviewReasonCause('Sugerido: Cliente X')).toBeNull()
+  })
+
+  it('deriva as causas do item também pelo vínculo e pela modalidade', () => {
+    // Sem nota técnica, mas sem cliente e carga solta sem peso: o gate trava os dois.
+    expect(getReviewItemCauses(item({ customer_id: null, cargo_mode: 'carga_solta', bb_weight_ton: null, review_reasons: [] }))).toEqual(['cliente', 'peso'])
+    expect(getReviewItemCauses(item({ review_reasons: ['Acesso ao portal nao provisionado'] }))).toEqual(['portal'])
+    expect(getReviewItemCauses(item({ source: 'granite', customer_id: null, review_reasons: ['Cliente nao vinculado (Granito)', 'Sugerido: X'] }))).toEqual(['granito'])
+    expect(getReviewItemCauses(item({ review_reasons: [] }))).toEqual(['outros'])
+  })
+
+  it('lê a causa da URL e aceita o motivo bruto antigo', () => {
+    expect(readReviewCauseParam(new URLSearchParams('causa=portal'))).toBe('portal')
+    expect(readReviewCauseParam(new URLSearchParams('causa=xyz'))).toBeNull()
+    expect(readReviewCauseParam(new URLSearchParams('motivo=Peso%20BB%20ausente'))).toBe('peso')
+    expect(readReviewCauseParam(new URLSearchParams(''))).toBeNull()
+  })
+})
+
+describe('próxima ação e prioridade do grupo', () => {
+  const linkedPortal = item({ id: 'L1', customer_id: 7, customer: { id: 7, name: 'Beta', cnpj_cpf: '11222333000181' }, review_reasons: ['Acesso ao portal nao provisionado'] })
+  const unlinkedDoc = item({ id: 'U1', customer_id: null, manifest_customer_cnpj_cpf: '06352972000121', consignee: 'Zeta', review_reasons: ['Cliente nao vinculado'] })
+  const unlinkedName = item({ id: 'N1', customer_id: null, consignee: 'Sem Doc', review_reasons: ['Cliente nao vinculado'] })
+  const conflict = item({ id: 'C1', customer_id: null, consignee: 'Conf', consignee_block: 'CNPJ: 11.222.333/0001-81', cargo_description: 'CNPJ 06.352.972/0001-21', review_reasons: ['Cliente nao vinculado'] })
+  const weight = item({ id: 'W1', customer_id: 7, customer: { id: 7, name: 'Beta', cnpj_cpf: '11222333000181' }, cargo_mode: 'carga_solta', bb_weight_ton: null, review_reasons: ['Acesso ao portal nao provisionado', 'Peso BB ausente'] })
+  const granite = item({ id: 'g1', source: 'granite', bl_number: 'G-1', customer_id: null, shipper: 'Pedra', review_reasons: ['Cliente nao vinculado (Granito)'] })
+
+  function only(...items: ReviewQueueItem[]) {
+    return groupReviewItems(items)[0]
+  }
+
+  it('escolhe a ação pelo que trava primeiro: cliente, peso, Portal, Granito', () => {
+    expect(summarizeReviewGroup(only(conflict)).nextAction.kind).toBe('conflict')
+    expect(summarizeReviewGroup(only(unlinkedName)).nextAction.kind).toBe('customer-name')
+    const doc = summarizeReviewGroup(only(unlinkedDoc))
+    expect(doc.nextAction.kind).toBe('customer')
+    expect(doc.nextAction.detail).toMatch(/06\.352\.972\/0001-21/)
+    expect(summarizeReviewGroup(only(weight, linkedPortal)).nextAction.kind).toBe('weight')
+    expect(summarizeReviewGroup(only(linkedPortal)).nextAction.kind).toBe('portal')
+    expect(summarizeReviewGroup(only(item({ ...linkedPortal, review_reasons: ['Cliente sem e-mail cadastrado'] } as never))).nextAction.kind).toBe('email')
+    const graniteSummary = summarizeReviewGroup(only(granite))
+    expect(graniteSummary.nextAction.kind).toBe('granite')
+    expect(graniteSummary.blockedBlCount).toBe(0)
+  })
+
+  it('ordena pelo que se resolve aqui, depois Portal, depois Granito, com mais B/Ls na frente', () => {
+    const groups = groupReviewItems([granite, linkedPortal, unlinkedName, unlinkedDoc, item({ ...unlinkedDoc, id: 'U2' } as never)])
+    const ordered = sortReviewGroupsByPriority(groups).map((group) => group.displayName)
+    expect(ordered).toEqual(['Zeta', 'Sem Doc', 'Beta', 'Pedra'])
+    expect(flattenReviewGroupIds(sortReviewGroupsByPriority(groups))).toEqual(['U1', 'U2', 'N1', 'L1', 'g1'])
+  })
+})
+
+describe('evidências, notas e resultado', () => {
+  it('diz em que campo e em quantos B/Ls cada CNPJ foi lido', () => {
+    const group = groupReviewItems([
+      item({ id: 'A', customer_id: null, manifest_customer_cnpj_cpf: '11222333000181', consignee_block: 'CNPJ: 11.222.333/0001-81' }),
+      item({ id: 'B', customer_id: null, manifest_customer_cnpj_cpf: '11222333000181' }),
+    ])[0]
+    expect(getReviewGroupCnpjEvidence(group)).toEqual([{
+      cnpj: '11222333000181',
+      occurrences: [{ blId: 'A', source: 'manifesto' }, { blId: 'A', source: 'consignatario' }, { blId: 'B', source: 'manifesto' }],
+    }])
+  })
+
+  it('separa a nota humana da linha técnica do gate', () => {
+    expect(splitReviewNotes('Ligou o armador\nPendencias de importacao: Cliente nao vinculado')).toBe('Ligou o armador')
+    expect(splitReviewNotes('Pendencias de importacao: Peso BB ausente')).toBe('')
+    expect(splitReviewNotes(null)).toBe('')
+  })
+
+  it('resume o que ficou pendente por motivo, contando cada B/L uma vez', () => {
+    expect(summarizeRemainingPendencies([
+      ['Acesso ao portal nao provisionado', 'Peso BB ausente'],
+      ['Acesso ao portal nao provisionado'],
+    ])).toBe('Portal não provisionado (2) · Peso da carga solta ausente (1)')
+    expect(summarizeRemainingPendencies([[]])).toBeNull()
+  })
+})
+
+describe('validateWeightTon', () => {
+  it('aceita peso positivo com ponto ou vírgula e recusa vazio, zero e texto', () => {
+    expect(validateWeightTon('12,5')).toBeNull()
+    expect(validateWeightTon('0.4')).toBeNull()
+    for (const bad of ['', ' ', '0', '-3', 'abc']) expect(validateWeightTon(bad)).toMatch(/maior que zero/)
   })
 })

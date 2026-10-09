@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ReviewDocumentEvidence } from '../ReviewDocumentEvidence'
 import type { ReviewGroup } from '../../../pages/revisaoHelpers'
 
@@ -12,13 +12,18 @@ function group(overrides: Partial<ReviewGroup>): ReviewGroup {
 describe('ReviewDocumentEvidence', () => {
   it('mostra CNPJs candidatos e textos extraídos do B/L', async () => {
     const user = userEvent.setup()
-    render(<ReviewDocumentEvidence group={group({})} />)
-    expect(screen.getByText(/Há indícios de CNPJs diferentes/)).toBeTruthy()
+    const onUseCnpj = vi.fn()
+    render(<ReviewDocumentEvidence group={group({})} onUseCnpj={onUseCnpj} />)
+    // Com um B/L só, o texto original já vem aberto para comparar.
     const toggle = screen.getByRole('button', { name: /B\/L BL1/ })
-    expect(toggle.getAttribute('aria-expanded')).toBe('false')
-    await user.click(toggle)
     expect(toggle.getAttribute('aria-expanded')).toBe('true')
     expect(screen.getAllByText(/11\.222\.333\/0001-81/).length).toBeGreaterThan(0)
     expect(screen.getByText(/55\.666\.777\/0001-44/)).toBeTruthy()
+    // Cada CNPJ diz onde foi lido.
+    expect(screen.getByText('Lido no campo consignatário')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Usar este CNPJ 11.222.333/0001-81' }))
+    expect(onUseCnpj).toHaveBeenCalledWith('11222333000181')
+    await user.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
   })
 })
