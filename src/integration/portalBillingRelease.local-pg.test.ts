@@ -27,7 +27,9 @@ const activationBlId = 'PORTAL-083-3'
 const reviewBlId = 'PORTAL-083-4'
 // Migration 168: B/L cancelado é somente leitura; a reavaliação passa por ele.
 const cancelledBlId = 'PORTAL-083-5'
-const allBlIds = [heldBlId, secondBlId, activationBlId, reviewBlId, cancelledBlId]
+// Migration 170: segundo B/L no lote do vencimento, para a contagem do Alerta.
+const batchBlId = 'PORTAL-083-6'
+const allBlIds = [heldBlId, secondBlId, activationBlId, reviewBlId, cancelledBlId, batchBlId]
 const blList = `ARRAY['${allBlIds.join("','")}']::text[]`
 const customerCnpj = syntheticCnpj(83101)
 const HOLD = 'Acesso ao portal nao provisionado'
@@ -100,6 +102,7 @@ function portalAlert(): string {
 function cleanup(): void {
   psql(`
     SET session_replication_role = replica;
+    DELETE FROM public.internal_notifications WHERE entity_type = 'customer' AND entity_id = '${customerId}';
     DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT i.id FROM public.alert_items i
       JOIN public.alerts a ON a.id = i.alert_id WHERE a.entity_id = '${customerId}' OR a.entity_id = ANY(${blList}));
     DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts
@@ -265,6 +268,10 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
   it('vencida, a Liberação devolve à Revisão o B/L que tinha saído por ela (168)', () => {
     // Concedida, o gatilho da 167 tira o B/L da Revisão. Uma Liberação aberta
     // por Cliente: a vencida do teste anterior sai antes.
+    psql(`INSERT INTO public.bls (id, voyage_id, customer_id, pod, cargo_mode, financial_status, charge_status,
+        customer_reconciliation_status, review_status)
+      VALUES ('${batchBlId}', ${voyageId}, ${customerId}, 'PTL083', 'container', 'pending', 'not_calculated',
+        'reconciled', 'pending_review');`)
     psql(`UPDATE public.customer_billing_portal_releases SET revoked_at = now(), revoked_by = '${adminId}',
       revoke_reason = 'Troca no teste' WHERE customer_id = ${customerId} AND revoked_at IS NULL;
       INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
@@ -294,6 +301,17 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(result.customers).toBeGreaterThanOrEqual(1)
     expect(reviewState(reviewBlId)).toEqual({ review_status: 'pending_review', notes: `Pendencias de importacao: ${HOLD}` })
     expect(portalAlert()).toBe('active/documentacao')
+    expect(reviewState(batchBlId)).toEqual({ review_status: 'pending_review', notes: `Pendencias de importacao: ${HOLD}` })
+    // 170: a notificação que reabre o Alerta sai com a contagem final do lote,
+    // não com a do primeiro B/L recalculado.
+    expect(psql(`
+      SELECT n.message = ai.message
+      FROM public.internal_notifications n
+      JOIN public.alert_items ai ON ai.id = n.alert_item_id
+      WHERE n.item_type = 'review_portal_not_ready' AND n.entity_type = 'customer' AND n.entity_id = '${customerId}'
+      ORDER BY n.id DESC LIMIT 1;
+    `)).toBe('t')
+
     // O cancelado fica como estava, sem abortar a rodada.
     expect(reviewState(cancelledBlId)).toEqual({ review_status: 'reviewed', notes: null })
 
