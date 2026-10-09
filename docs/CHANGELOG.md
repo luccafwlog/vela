@@ -4,6 +4,15 @@
 
 ## 2026-10
 
+- **Revisão das importações e do CE Mercante (2026-10-09, investigação local):** relatório em
+  [archive/audits](archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md) com mapa das
+  portas de entrada, alcance do CE, matriz de campos, ordens de importação, 25 problemas-raiz e
+  22 decisões de negócio pendentes; [plano de correção](plans/2026-10-09-correcao-importacoes-ce-mercante.md)
+  em 13 etapas. Seis suítes `local-pg` novas (no CI) e uma unitária reproduzem 44 defeitos como
+  `it.fails`. Sem mudança de produto, migration ou produção. Documentação viva corrigida onde
+  descrevia comportamento inexistente: exceção da `051` revogada, CE de Granito sem cálculo,
+  emissão do CE pelo gatilho, Baplie sem exigir administrador, importação de datas atômica por
+  B/L com emissão pela fila pausada, e defeitos conhecidos da reimportação de carga solta.
 - **Triagem do Sentry de 01–08/10 (2026-10-09, implementação local):** `/admin` e demais telas
   lazy deixam de quebrar com `reading 'Admin'` quando um chunk falha (VELA-1M:
   `chunk-recovery.js` só cancela `vite:preloadError` de CSS; `lazyPage` trata módulo `undefined`

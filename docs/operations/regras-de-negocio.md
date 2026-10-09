@@ -12,9 +12,13 @@ emissão individual/consolidada; `056` inclui as duas tabelas do B/L misto.
 O CE também participa da liberação documental para leitura no Portal.
 
 A prontidão do Portal permanece exigida no caminho manual e do cliente. A
-migration `051_ce_mercante_auto_billing.sql` permite à automação de transição
-do CE emitir em contexto interno controlado sem depender do provisionamento.
-Essa exceção não pode ser assumida por uma chamada comum do navegador.
+exceção da migration `051_ce_mercante_auto_billing.sql` (a automação do CE
+emitia sem depender do provisionamento) foi revogada pela
+`083_portal_trava_universal_liberacao_faturamento.sql` e pela
+[ADR 0070](../adr/0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md):
+para Cliente sem Portal ativo, o CE calcula e retém a fatura, que sai na
+ativação do Portal ou quando o Administrativo concede a Liberação de
+faturamento sem Portal.
 Cálculo provisório não equivale a emissão. As pendências são derivadas no banco;
 a Revisão resolve vínculo e correções, sem uma aprovação em lote obrigatória.
 
