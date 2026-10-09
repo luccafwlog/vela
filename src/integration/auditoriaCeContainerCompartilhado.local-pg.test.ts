@@ -20,8 +20,9 @@
 // entram por INSERT direto: o cálculo provisório da importação de B/L não participa
 // do defeito, porque o CE recalcula (`_auto_bill_bl_core(..., false)`).
 //
-// Fora daqui, por dependerem de decisão de negócio: B/L que chega depois do irmão
-// faturado (ORDCE-V03) e B/L cobrado só pela consolidada que segue 'pending' (CED-09).
+// Fora daqui: B/L que chega depois do irmão faturado (ORDCE-V03; a ADR 0078 decidiu
+// tratar a fatura do irmão pela ADR 0077, checagem a escrever na Etapa 5) e B/L
+// cobrado só pela consolidada que segue 'pending' (CED-09).
 // Também fora: B/L sem Cliente que recebe o CE com o irmão e é vinculado na Revisão.
 // Ele cai na mesma guarda, mas `complete_review_customer_group` grava o Cliente
 // (dispara o gatilho do CE) antes de tirar o B/L de 'pending_review', e o gate de
@@ -434,36 +435,9 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
   })
 
   // --- 2. Clientes diferentes, CE dos dois na mesma planilha ------------------
-  let otherCustomers: BillingState | null = null
-
-  it('cenário 2: dois B/Ls de Clientes diferentes dividem um container e recebem o CE na mesma planilha', () => {
-    insertBls([
-      { id: 'A203-D1', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030022' },
-      { id: 'A203-D2', voyageId: voyage.clientesDiferentes, customerId: beta.id, container: 'ADCU2030022' },
-    ])
-    // A ordem das linhas decide quem é faturado hoje: D2 vem primeiro.
-    const result = importCeSheet('A203-MAN-2', voyage.clientesDiferentes, [
-      { blId: 'A203-D2', ce: '203001000000022' },
-      { blId: 'A203-D1', ce: '203001000000021' },
-    ])
-    expect(result).toMatchObject({ ok: true, inserted: 2 })
-
-    otherCustomers = billingState(['A203-D1', 'A203-D2'])
-    expect(otherCustomers.bls['A203-D1'].ce_mercante).toBe('203001000000021')
-    expect(otherCustomers.bls['A203-D2'].ce_mercante).toBe('203001000000022')
-    expect(otherCustomers.lines.length).toBeGreaterThan(0)
-    expect(otherCustomers.lines.every((line) => line.quantity === 0.5)).toBe(true)
-    expectPendingOnlyBySharedContainerGuard(otherCustomers)
-  })
-
-  it.fails('esperado: cada Cliente recebe a sua fatura com 1/2 do container [CED-01, ORDCE-01, ORDCT-V03] — regra: CONTEXT.md:1153-1155, ADR 0020:111-132 e CONTEXT.md:1324-1329 (consolidada só reúne B/Ls do mesmo Cliente: não há emissão conjunta possível)', () => {
-    expect(financialStatuses(otherCustomers)).toEqual({ 'A203-D1': 'invoiced', 'A203-D2': 'invoiced' })
-    expect(otherCustomers?.lines.map((line) => [line.bl_id, line.invoice_customer_id, line.quantity, line.total_brl])).toEqual([
-      ['A203-D1', alfa.id, 0.5, 500],
-      ['A203-D2', beta.id, 0.5, 500],
-    ])
-    expect(billedContainerTotal(otherCustomers)).toBe(containerFee)
-  })
+  // Cenário 2 (Clientes diferentes no mesmo container) saiu na ADR 0078: container
+  // FCL não é dividido entre Clientes diferentes, e a importação de B/L passa a
+  // recusar esse estado. A checagem da recusa entra com a Etapa 5 do plano.
 
   // --- 3. CE retido sem Portal; a Liberação abre o gate depois ----------------
   let afterRelease: { reprocess: { issued: number; blocked: number; failed: number; gate_open: boolean }; state: BillingState } | null = null

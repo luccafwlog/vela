@@ -4,6 +4,15 @@
 
 ## 2026-10
 
+- **Decisões das importações e do CE Mercante (2026-10-09, decisão do dono):** a
+  [ADR 0078](adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) registra as
+  regras de entrada, correção e efeitos das importações (portas e unicidade do CE, troca e
+  remoção com motivo, emissão pelo CE em lotes como "Sistema — CE Mercante", Nº de Manifesto
+  canônico com Mover/Desvincular, rastro no Histórico, datas e Demurrage de container
+  compartilhado, Baplie completo, veículos, Base de Clientes, Granito e vazios). `CONTEXT.md` e o
+  [plano de correção](plans/2026-10-09-correcao-importacoes-ce-mercante.md) atualizados; ADRs
+  0071 e 0020 com nota de supersessão parcial. Checagem de container compartilhado entre Clientes
+  diferentes retirada (caso inexistente em FCL). Sem mudança de produto.
 - **Revisão das importações e do CE Mercante (2026-10-09, investigação local):** relatório em
   [archive/audits](archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md) com mapa das
   portas de entrada, alcance do CE, matriz de campos, ordens de importação, 25 problemas-raiz e

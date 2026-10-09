@@ -70,9 +70,10 @@ O ciclo de vida plano/spec → archive está definido em
 
 A [revisão das importações e do CE Mercante de 2026-10-09](archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md)
 mapeia as portas de entrada, o alcance do CE, a matriz de campos, as ordens de
-importação, 25 problemas-raiz e 22 decisões de negócio pendentes; o
+importação e 25 problemas-raiz; as decisões de negócio estão na
+[ADR 0078](adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), o
 [plano de correção](plans/2026-10-09-correcao-importacoes-ce-mercante.md)
-organiza as etapas, e 44 checagens `it.fails` reproduzem os defeitos no CI.
+organiza as etapas, e 43 checagens `it.fails` reproduzem os defeitos no CI.
 
 A [revisão financeira de 2026-10-04](archive/audits/2026-10-04-revisao-fluxo-financeiro.md)
 registra testes locais de emissão, pagamento, conciliação, correção e cancelamento,
