@@ -54,4 +54,18 @@ describe('public/chunk-recovery.js', () => {
     expect(event.preventDefault).toHaveBeenCalled()
     await vi.waitFor(() => expect(w.location.reload).toHaveBeenCalledTimes(1))
   })
+
+  // VELA-1M: preventDefault() numa falha do próprio JS faz o import() resolver
+  // com undefined; o erro precisa seguir para lazyPage.
+  it('recovers a failed dynamic import without swallowing the rejection', async () => {
+    const { w, listeners } = boot()
+    const event = {
+      payload: new TypeError('Failed to fetch dynamically imported module: https://vela.app.br/assets/Admin-abc.js'),
+      preventDefault: vi.fn(),
+    }
+    listeners['vite:preloadError'](event)
+    expect(event.preventDefault).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(w.location.reload).toHaveBeenCalledTimes(1))
+    expect(w.fetch).toHaveBeenCalledWith('https://vela.app.br/assets/Admin-abc.js', { cache: 'reload' })
+  })
 })

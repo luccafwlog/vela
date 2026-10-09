@@ -23,9 +23,14 @@
     if (el && el.tagName === 'SCRIPT' && el.type === 'module' && el.src.indexOf('/assets/') !== -1) recover(el.src)
     if (el && el.tagName === 'LINK' && el.rel === 'modulepreload' && el.href.indexOf('/assets/') !== -1) recover(el.href)
   }, true)
-  // Falha de preload de import dinâmico emitida pelo Vite.
+  // Falha de preload de import dinâmico emitida pelo Vite. preventDefault()
+  // faz o import() RESOLVER com undefined em vez de rejeitar (VELA-1M:
+  // lazyPage lia undefined['Admin']), então só é seguro quando o módulo ainda
+  // carrega: CSS ausente. Falha do próprio JS segue rejeitando para quem chamou
+  // (lazyPage segura o Suspense até o reload).
   w.addEventListener('vite:preloadError', function (event) {
-    var match = /https?:\/\/\S+?\/assets\/\S+?\.(?:js|css)/.exec(String(event.payload && event.payload.message))
-    if (match && recover(match[0])) event.preventDefault()
+    var message = String(event.payload && event.payload.message)
+    var match = /https?:\/\/\S+?\/assets\/\S+?\.(?:js|css)/.exec(message)
+    if (match && recover(match[0]) && /^Unable to preload CSS/.test(message)) event.preventDefault()
   })
 })(window)
