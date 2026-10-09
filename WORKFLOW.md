@@ -71,6 +71,17 @@ quando Windows e WSL coexistirem.
 
 Referência: [documentação oficial do mod agents-md](https://github.com/anthropics/claude-code/tree/main/mods/agents-md).
 
+### Permissões do conector Supabase
+
+`.claude/settings.json` libera em `permissions.allow` todas as ferramentas do
+conector Supabase (`mcp__Supabase`), inclusive as de escrita como
+`execute_sql`, `apply_migration`, deploy de Edge Functions, secrets e branches.
+Assim, sessões cloud (ambiente Vela Cloud) e locais não pedem confirmação para
+elas. O conector aponta para a produção (`fgmkhbzhaeebrsizwccx`): a ausência de
+prompt não muda as regras deste documento, e `apply_migration` continua vetado
+para produção (seção 5). Para voltar a pedir confirmação, remova a regra.
+A sessão cloud só lê esse arquivo quando tem um único repositório.
+
 ## 1. Stack verificada
 
 ### Versões dos auxiliares de agentes
