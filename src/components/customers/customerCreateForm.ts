@@ -4,7 +4,14 @@ import {
 } from '../../services/customerCommunicationBoxes'
 import type { CustomerContact } from '../../types/database'
 
-export type CustomerCreateErrors = Partial<{ cnpjCpf: string; name: string }>
+export type CustomerCreateErrors = Partial<{
+  cnpjCpf: string
+  name: string
+  /** Regra dos contatos (nome, principal com e-mail), mostrada no bloco de contatos. */
+  contacts: string
+  /** Falha ao gravar, mostrada junto dos botões. */
+  submit: string
+}>
 
 export type CustomerContactForm = {
   _id: string

@@ -64,7 +64,7 @@ describe('CustomerContactConfiguration (behavior)', () => {
     const checkboxes = screen.getAllByRole('checkbox')
     // First checkbox is documentacao_operacao (checked); uncheck it.
     await user.click(checkboxes[0])
-    await user.click(screen.getByRole('button', { name: 'Salvar alterações de contatos' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
 
     expect(await screen.findByRole('alert')).toBeTruthy()
     expect(saveConfig).not.toHaveBeenCalled()
@@ -82,14 +82,14 @@ describe('CustomerContactConfiguration (behavior)', () => {
     render(<CustomerContactConfiguration customerId={10} canEdit />)
     await screen.findByDisplayValue('principal@cliente.com')
 
-    await user.click(screen.getByRole('button', { name: '+ Novo contato' }))
+    await user.click(screen.getByRole('button', { name: 'Adicionar contato' }))
     const emailInputs = screen.getAllByPlaceholderText('email@empresa.com')
     await user.type(emailInputs[emailInputs.length - 1], 'novo@cliente.com')
     // Give the new contact a box so client-side validation passes and the
     // server-side duplicate is what fails.
     const boxes = screen.getAllByRole('checkbox')
     await user.click(boxes[boxes.length - 3])
-    await user.click(screen.getByRole('button', { name: 'Salvar alterações de contatos' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
 
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toMatch(/já cadastrado para o contato/)
@@ -105,8 +105,8 @@ describe('CustomerContactConfiguration (behavior)', () => {
     await screen.findByDisplayValue('principal@cliente.com')
 
     expect(screen.getByText(/não possui permissão para editar/i)).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Salvar alterações de contatos' })).toBeNull()
-    expect(screen.queryByRole('button', { name: '+ Novo contato' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Salvar contatos' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Adicionar contato' })).toBeNull()
   })
   it('principal sem vínculos carrega com as três caixas marcadas', async () => {
     fetchConfig.mockResolvedValueOnce({ boxes: BOXES, contacts: [primaryContact({ box_codes: [] })] })
@@ -160,4 +160,33 @@ describe('CustomerContactConfiguration (behavior)', () => {
     expect((screen.getAllByRole('checkbox') as HTMLInputElement[]).every((box) => !box.checked && box.disabled)).toBe(true)
   })
 
+
+  it('falha ao carregar mostra o motivo e Tentar novamente, sem formulário para salvar vazio', async () => {
+    const user = userEvent.setup()
+    fetchConfig.mockRejectedValueOnce(new Error('rede indisponível'))
+    fetchConfig.mockResolvedValueOnce({ boxes: BOXES, contacts: [primaryContact()] })
+    render(<CustomerContactConfiguration customerId={10} canEdit />)
+
+    expect((await screen.findByRole('alert')).textContent).toContain('rede indisponível')
+    expect(screen.queryByRole('button', { name: 'Salvar contatos' })).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+    expect(await screen.findByDisplayValue('principal@cliente.com')).toBeTruthy()
+  })
+
+  it('avisa alteração não salva e Descartar volta ao que está gravado', async () => {
+    const user = userEvent.setup()
+    fetchConfig.mockResolvedValue({ boxes: BOXES, contacts: [primaryContact()] })
+    render(<CustomerContactConfiguration customerId={10} canEdit />)
+    const name = await screen.findByDisplayValue('Principal')
+    expect(screen.getByText('Sem alterações nos contatos.')).toBeTruthy()
+
+    await user.type(name, ' Silva')
+    expect(screen.getByText('Alterações não salvas nos contatos.')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Descartar' }))
+    expect(await screen.findByDisplayValue('Principal')).toBeTruthy()
+    expect(screen.getByText('Sem alterações nos contatos.')).toBeTruthy()
+    expect(saveConfig).not.toHaveBeenCalled()
+  })
 })

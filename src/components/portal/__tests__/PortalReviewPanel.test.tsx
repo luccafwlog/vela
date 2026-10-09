@@ -7,7 +7,7 @@ import type { QueueRow } from '../../../services/portalProvisioning'
 
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true, can: () => true }) }))
 vi.mock('../../../services/supabase', () => ({ supabase: { functions: { invoke: vi.fn() }, rpc: vi.fn() } }))
-vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn() }))
+vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 
 import { PortalReviewPanel } from '../PortalReviewPanel'

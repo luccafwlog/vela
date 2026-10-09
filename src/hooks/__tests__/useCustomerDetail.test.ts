@@ -39,7 +39,7 @@ describe('useCustomerDetail — invoices e saldo canônico', () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'customers') {
         return {
-          select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { id: 9, cnpj_cpf: '1', customer_contacts: [], bls: [] }, error: null }) }) }),
+          select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: { id: 9, cnpj_cpf: '1', customer_contacts: [], bls: [] }, error: null }) }) }),
         }
       }
       if (table === 'invoices') {

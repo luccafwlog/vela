@@ -10,10 +10,14 @@ const mocks = vi.hoisted(() => ({
   pendingReconciliation: { data: [] as unknown[], isLoading: false, isError: false },
   runningDemurrage: { data: [] as unknown[], isLoading: false, isError: false },
   timeline: { data: [] as unknown[], isLoading: false, isError: false },
+  release: { data: null as unknown, isLoading: false, isError: false },
 }))
 
 vi.mock('../../../hooks/usePortalProvisioning', () => ({
   usePortalProvisioningForCustomer: () => mocks.portal,
+}))
+vi.mock('../../../hooks/useBillingPortalRelease', () => ({
+  useBillingPortalRelease: () => mocks.release,
 }))
 vi.mock('../../../hooks/useCustomerFicha', () => ({
   useCustomerDemurrageInvoices: () => mocks.demurrage,
@@ -33,6 +37,7 @@ afterEach(() => {
   mocks.pendingReconciliation = { data: [], isLoading: false, isError: false }
   mocks.runningDemurrage = { data: [], isLoading: false, isError: false }
   mocks.timeline = { data: [], isLoading: false, isError: false }
+  mocks.release = { data: null, isLoading: false, isError: false }
 })
 
 function renderTab(data = baseData) {
@@ -43,14 +48,15 @@ describe('VisaoGeralTab — pendencias', () => {
   it('mostra estado de carregamento explicito, nao "nenhuma pendencia", enquanto as fontes ainda buscam', () => {
     mocks.pendingReconciliation = { data: [], isLoading: true, isError: false }
     renderTab()
-    expect(screen.getByText('Verificando pendências…')).toBeTruthy()
+    expect(screen.getByText(/Verificando: Reconciliação de cliente…/)).toBeTruthy()
     expect(screen.queryByText('Nenhuma pendência aberta.')).toBeNull()
   })
 
   it('mostra erro explicito, nao "nenhuma pendencia", quando uma fonte falha', () => {
     mocks.runningDemurrage = { data: [], isLoading: false, isError: true }
     renderTab()
-    expect(screen.getByText('Erro ao carregar pendências.')).toBeTruthy()
+    expect(screen.getByText(/Não foi possível verificar: Demurrage correndo/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeTruthy()
     expect(screen.queryByText('Nenhuma pendência aberta.')).toBeNull()
   })
 
@@ -68,7 +74,7 @@ describe('VisaoGeralTab — pendencias', () => {
       isError: false,
     }
     renderTab()
-    expect(screen.getByText(/Portal não ativo/)).toBeTruthy()
+    expect(screen.getByText(/Portal não provisionado/)).toBeTruthy()
   })
 
   it('mantem pendencia de Portal para situacoes realmente pendentes', () => {
@@ -78,7 +84,7 @@ describe('VisaoGeralTab — pendencias', () => {
       isError: false,
     }
     renderTab()
-    expect(screen.getByText(/Portal não ativo/)).toBeTruthy()
+    expect(screen.getByText(/Portal não provisionado/)).toBeTruthy()
   })
 
   it('não conta fatura local como vencida: taxa local não tem vencimento praticado', () => {
@@ -102,8 +108,8 @@ describe('VisaoGeralTab — pendencias', () => {
       }],
     }) as never)
 
-    expect(screen.getByText('Configuração pendente')).toBeTruthy()
-    expect(screen.queryByText(/Contato adicional · adicional@cliente\.com/)).toBeNull()
+    expect(screen.getByText('Sem contato principal com e-mail')).toBeTruthy()
+    expect(screen.queryByText('adicional@cliente.com')).toBeNull()
   })
 
   it('trata um principal ativo sem e-mail como configuração pendente', () => {
@@ -118,7 +124,27 @@ describe('VisaoGeralTab — pendencias', () => {
       }],
     }) as never)
 
-    expect(screen.getByText('Configuração pendente')).toBeTruthy()
+    expect(screen.getByText('Sem contato principal com e-mail')).toBeTruthy()
     expect(screen.queryByText(/Principal incompleto/)).toBeNull()
+  })
+
+  it('com a Liberação vigente, o Portal deixa de ser trava e mostra até quando vale', () => {
+    mocks.portal = { data: { account_situation: 'sem_conta', provisioning_decision: 'aguardando_analise' }, isLoading: false, isError: false }
+    mocks.release = {
+      data: { id: 1, customer_id: 101, justification: 'x', granted_by: 'u', granted_at: '2026-10-01T10:00:00Z', review_at: '2999-12-20T23:59:59-03:00', revoked_at: null, revoked_by: null, revoke_reason: null },
+      isLoading: false,
+      isError: false,
+    }
+    renderTab()
+    expect(screen.getByText(/faturamento liberado sem Portal até \d{2}\/12\/2999/)).toBeTruthy()
+    expect(screen.queryByText(/Portal não provisionado/)).toBeNull()
+  })
+
+  it('falha parcial: mostra o que verificou e diz o que faltou', () => {
+    mocks.portal = { data: { account_situation: 'suspenso', provisioning_decision: 'aguardando_analise' }, isLoading: false, isError: false }
+    mocks.demurrage = { data: { rows: [], denied: false }, isLoading: false, isError: true }
+    renderTab()
+    expect(screen.getByText(/Portal não provisionado/)).toBeTruthy()
+    expect(screen.getByText(/Não foi possível verificar: Faturas de Demurrage/)).toBeTruthy()
   })
 })

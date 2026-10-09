@@ -1,13 +1,14 @@
-import { useLayoutEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileText, MoreHorizontal, Power, ReceiptText, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, Copy, MoreHorizontal, Power, ReceiptText, Trash2 } from 'lucide-react'
+import { ActionMenu, type ActionMenuItem } from '../ui/ActionMenu'
 import { Badge } from '../ui/Badge'
-import { Card, EmptyState } from '../ui/Card'
+import { Card } from '../ui/Card'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
 import { summarizeChargeStatuses } from '../../lib/chargeStatus'
+import { accountSituationLabel } from '../../lib/portalProvisioningViewModel'
 import {
   buildCustomerBillingUrl,
-  getCustomerNextAction,
   summarizeContactsForDisplay,
   type CustomerSortKey,
 } from '../../lib/customerTableViewModel'
@@ -16,42 +17,42 @@ import type { CustomerFilters } from '../../hooks/useCustomers'
 import type { CustomerListItem } from '../../types/database'
 import type { QueueRow } from '../../services/portalProvisioning'
 
-export type CustomerActionsMenu = {
-  id: number
-  top: number
-  left: number
-  name: string
-  cnpj: string
-  email: string | null
-  /** Cliente desativado (ADR 0073; migration 092). */
-  deactivated: boolean
-}
-
 type CustomerRows = {
   rows: CustomerListItem[]
   totalCount: number
 }
 
+type RowHandlers = {
+  canDeleteCustomers: boolean
+  deleting: boolean
+  onCopy: (value: string, label: string) => Promise<void>
+  onDeleteCustomer: (id: number) => void
+  onToggleCustomerActive: (id: number, deactivated: boolean) => void
+}
+
+/**
+ * Lista de Clientes. O nome abre a ficha; a única ação visível é "Mais ações"
+ * (⋮), com faturas, cópias e, para o Administrativo, desativar e excluir.
+ * Abaixo de 640 px a página passa `narrow` e cada Cliente vira um cartão.
+ */
 export function CustomerTable({
   data,
-  isLoading,
   canDeleteCustomers,
   selection,
   filters,
   totalPages,
-  actionsMenu,
   deleting,
+  narrow = false,
+  emptyState,
+  toolbar,
   onToggleSort,
   onPageChange,
-  onOpenActionsMenu,
-  onCloseActionsMenu,
   onCopy,
   onDeleteCustomer,
   onToggleCustomerActive,
   portalRows,
 }: {
   data: CustomerRows | undefined
-  isLoading: boolean
   canDeleteCustomers: boolean
   selection: {
     isSelected: (id: number) => boolean
@@ -60,361 +61,302 @@ export function CustomerTable({
   }
   filters: CustomerFilters
   totalPages: number
-  actionsMenu: CustomerActionsMenu | null
   deleting: boolean
+  narrow?: boolean
+  /** Conteúdo do vazio (inicial ou do filtro), decidido pela página. */
+  emptyState: ReactNode
+  /** Barra acima da lista (resumo do recorte). */
+  toolbar?: ReactNode
   onToggleSort: (sortKey: CustomerSortKey) => void
   onPageChange: (page: number) => void
-  onOpenActionsMenu: (
-    event: ReactMouseEvent<HTMLButtonElement>,
-    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
-  ) => void
-  onCloseActionsMenu: () => void
   onCopy: (value: string, label: string) => Promise<void>
   onDeleteCustomer: (id: number) => void
   onToggleCustomerActive: (id: number, deactivated: boolean) => void
   portalRows?: QueueRow[]
 }) {
-  const pageCustomerIds = (data?.rows ?? []).map((row) => row.id)
+  const rows = data?.rows ?? []
+  const pageCustomerIds = rows.map((row) => row.id)
   const allPageSelected = pageCustomerIds.length > 0 && pageCustomerIds.every((id) => selection.isSelected(id))
-  const menuRef = useRef<HTMLDivElement>(null)
-  const menuTriggerRef = useRef<HTMLButtonElement>(null)
-  const menuWasOpenRef = useRef(false)
-  const restoreFocusOnCloseRef = useRef(false)
+  const portalByCustomer = new Map((portalRows ?? []).map((row) => [row.customer_id, row]))
+  const handlers: RowHandlers = { canDeleteCustomers, deleting, onCopy, onDeleteCustomer, onToggleCustomerActive }
 
-  function handleOpenActionsMenu(
-    event: ReactMouseEvent<HTMLButtonElement>,
-    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
-  ) {
-    if (actionsMenu?.id === row.id) {
-      restoreFocusOnCloseRef.current = true
-      onCloseActionsMenu()
-      return
-    }
-    menuTriggerRef.current = event.currentTarget
-    restoreFocusOnCloseRef.current = false
-    onOpenActionsMenu(event, row)
-  }
-
-  function copyFromMenu(value: string, label: string) {
-    restoreFocusOnCloseRef.current = true
-    void onCopy(value, label)
-  }
-
-  function handleMenuKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'))
-    if (items.length === 0) return
-    const activeIndex = items.indexOf(document.activeElement as HTMLButtonElement)
-    let nextIndex: number
-
-    switch (event.key) {
-      case 'ArrowDown':
-        nextIndex = activeIndex < 0 ? 0 : (activeIndex + 1) % items.length
-        break
-      case 'ArrowUp':
-        nextIndex = activeIndex < 0 ? items.length - 1 : (activeIndex - 1 + items.length) % items.length
-        break
-      case 'Home':
-        nextIndex = 0
-        break
-      case 'End':
-        nextIndex = items.length - 1
-        break
-      case 'Escape':
-        event.preventDefault()
-        event.stopPropagation()
-        restoreFocusOnCloseRef.current = true
-        onCloseActionsMenu()
-        return
-      default:
-        return
-    }
-
-    event.preventDefault()
-    items[nextIndex]?.focus()
-  }
-
-  // O menu abre abaixo do botão; perto do fim da tela ele é empurrado para cima
-  // para que todas as opções (incluindo Excluir cliente) fiquem visíveis.
-  useLayoutEffect(() => {
-    const menu = menuRef.current
-    if (!actionsMenu || !menu) {
-      if (menuWasOpenRef.current && restoreFocusOnCloseRef.current) {
-        menuTriggerRef.current?.focus()
-        restoreFocusOnCloseRef.current = false
-      }
-      menuWasOpenRef.current = false
-      return
-    }
-    const height = menu.getBoundingClientRect().height
-    const maxTop = Math.max(4, window.innerHeight - height - 4)
-    menu.style.top = `${Math.min(Math.max(actionsMenu.top, 4), maxTop)}px`
-    menuWasOpenRef.current = true
-    menu.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus()
-  }, [actionsMenu])
+  const sortHeader = (key: CustomerSortKey, label: string, className?: string) => (
+    <th
+      scope="col"
+      aria-sort={filters.sortKey === key ? (filters.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+      className={className}
+    >
+      <button type="button" className="app-table__sort" onClick={() => onToggleSort(key)}>
+        {label}
+        {renderSortIcon(filters, key)}
+      </button>
+    </th>
+  )
 
   return (
-    <>
-      <Card className="overflow-hidden p-0">
+    <Card className="app-customer-list overflow-hidden p-0">
+      {toolbar}
+      {rows.length === 0 ? (
+        emptyState
+      ) : narrow ? (
+        <ul className="app-customer-cards" aria-label="Clientes filtrados">
+          {rows.map((row) => (
+            <CustomerCard
+              key={row.id}
+              row={row}
+              portalRow={portalByCustomer.get(row.id)}
+              selected={selection.isSelected(row.id)}
+              onToggle={() => selection.toggle(row.id)}
+              {...handlers}
+            />
+          ))}
+        </ul>
+      ) : (
         <div className="app-table-scroll app-table-scroll--sticky">
-          <table className="app-table app-table--compact app-table--sticky-actions min-w-[1140px] table-fixed text-left text-sm">
+          <table className="app-table app-table--compact app-customer-table text-left text-sm">
             <caption className="sr-only">Clientes filtrados</caption>
-            <thead className="text-xs uppercase tracking-wider">
+            <thead>
               <tr>
                 {canDeleteCustomers ? (
-                  <th scope="col" className="w-10 px-4 py-3">
+                  <th scope="col" className="app-customer-table__select">
                     <input
                       type="checkbox"
-                      aria-label="Selecionar todos os clientes da pagina"
+                      aria-label="Selecionar todos os clientes da página"
                       checked={allPageSelected}
                       onChange={() => selection.toggleMany(pageCustomerIds)}
                     />
                   </th>
                 ) : null}
-                <th
-                  scope="col"
-                  aria-sort={filters.sortKey === 'name' ? (filters.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
-                  className="w-[30%] px-4 py-3"
-                >
-                  <button type="button" className="app-table__sort" onClick={() => onToggleSort('name')}>
-                    Cliente
-                    {renderSortIcon(filters, 'name')}
-                  </button>
-                </th>
-                <th scope="col" className="w-[18%] px-4 py-3">Contatos</th>
-                <th
-                  scope="col"
-                  aria-sort={filters.sortKey === 'bls' ? (filters.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
-                  className="w-[20%] px-4 py-3"
-                >
-                  <button type="button" className="app-table__sort" onClick={() => onToggleSort('bls')}>
-                    Operação
-                    {renderSortIcon(filters, 'bls')}
-                  </button>
-                </th>
-                <th
-                  scope="col"
-                  aria-sort={filters.sortKey === 'pendingBalance' ? (filters.sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
-                  className="w-[16%] px-4 py-3"
-                >
-                  <button type="button" className="app-table__sort" onClick={() => onToggleSort('pendingBalance')}>
-                    Financeiro
-                    {renderSortIcon(filters, 'pendingBalance')}
-                  </button>
-                </th>
-                <th scope="col" className="w-[236px] px-3 py-3 text-right">Ações</th>
+                {sortHeader('name', 'Cliente', 'app-customer-table__name')}
+                <th scope="col" className="app-customer-table__contact">Contato principal</th>
+                {sortHeader('bls', 'B/Ls', 'app-customer-table__bls')}
+                {sortHeader('pendingBalance', 'Saldo pendente', 'app-customer-table__balance')}
+                <th scope="col" className="app-customer-table__actions"><span className="sr-only">Ações</span></th>
               </tr>
             </thead>
             <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={canDeleteCustomers ? 6 : 5} className="px-4 py-8 text-center text-slate-400">
-                    Carregando clientes...
-                  </td>
-                </tr>
-              ) : null}
-              {!isLoading && !data?.rows.length ? (
-                <tr>
-                  <td colSpan={canDeleteCustomers ? 6 : 5} className="p-0">
-                    <EmptyState title="Nenhum cliente encontrado." description="Importe uma base de clientes ou cadastre manualmente." />
-                  </td>
-                </tr>
-              ) : null}
-              {data?.rows.map((row) => (
+              {rows.map((row) => (
                 <CustomerTableRow
                   key={row.id}
                   row={row}
-                  canDeleteCustomers={canDeleteCustomers}
+                  portalRow={portalByCustomer.get(row.id)}
                   selected={selection.isSelected(row.id)}
-                  actionsOpen={actionsMenu?.id === row.id}
                   onToggle={() => selection.toggle(row.id)}
-                  onOpenActionsMenu={handleOpenActionsMenu}
-                  portalRow={portalRows?.find((portal) => portal.customer_id === row.id)}
+                  {...handlers}
                 />
               ))}
             </tbody>
           </table>
         </div>
-        {totalPages > 1 ? (
-          <TableFooterPagination
-            page={filters.page}
-            pageBase={0}
-            pageSize={filters.pageSize}
-            totalCount={data?.totalCount ?? 0}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
-          />
-        ) : null}
-      </Card>
-
-      {actionsMenu ? (
-        <div
-          ref={menuRef}
-          data-actions-menu
-          className="app-floating-menu"
-          role="menu"
-          aria-label={`Ações para ${actionsMenu.name}`}
-          onKeyDown={handleMenuKeyDown}
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onCloseActionsMenu()
-          }}
-          style={{ top: actionsMenu.top, left: actionsMenu.left }}
-        >
-          <button type="button" role="menuitem" onClick={() => copyFromMenu(formatCnpjCpf(actionsMenu.cnpj), 'CNPJ')}>
-            <Copy size={14} />
-            Copiar CNPJ
-          </button>
-          {actionsMenu.email ? (
-            <button type="button" role="menuitem" onClick={() => copyFromMenu(actionsMenu.email!, 'E-mail principal')}>
-              <Copy size={14} />
-              Copiar e-mail
-            </button>
-          ) : null}
-          {canDeleteCustomers ? (
-            <button
-              type="button"
-              role="menuitem"
-              className={actionsMenu.deactivated ? undefined : 'app-floating-menu__danger'}
-              onClick={() => onToggleCustomerActive(actionsMenu.id, actionsMenu.deactivated)}
-            >
-              <Power size={14} />
-              {actionsMenu.deactivated ? 'Reativar cliente' : 'Desativar cliente'}
-            </button>
-          ) : null}
-          {canDeleteCustomers ? (
-            <button
-              type="button"
-              role="menuitem"
-              className="app-floating-menu__danger"
-              disabled={deleting}
-              onClick={() => onDeleteCustomer(actionsMenu.id)}
-            >
-              <Trash2 size={14} />
-              Excluir cliente
-            </button>
-          ) : null}
-        </div>
+      )}
+      {totalPages > 1 ? (
+        <TableFooterPagination
+          page={filters.page}
+          pageBase={0}
+          pageSize={filters.pageSize}
+          totalCount={data?.totalCount ?? 0}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+        />
       ) : null}
-    </>
+    </Card>
+  )
+}
+
+function isDeactivated(row: CustomerListItem) {
+  return Boolean((row as { deactivated_at?: string | null }).deactivated_at)
+}
+
+/** Situação do Portal só quando pede atenção: o que trava ou vai travar a fatura. */
+function customerPortalNote(portalRow?: QueueRow) {
+  if (!portalRow) return null
+  if (portalRow.hasCriticalAlert) return 'Portal: alerta crítico'
+  if (portalRow.hasActiveProcess && portalRow.account_situation !== 'ativo') return `Portal: ${accountSituationLabel(portalRow.account_situation).toLowerCase()}`
+  if (portalRow.hasActiveProcess && portalRow.recoveryEmailStatus && portalRow.recoveryEmailStatus !== 'ok') return 'Portal: Email de Recuperação com falha'
+  return null
+}
+
+function rowFacts(row: CustomerListItem, portalRow?: QueueRow) {
+  const charges = summarizeChargeStatuses(row.bls ?? [])
+  const contacts = summarizeContactsForDisplay(row.customer_contacts)
+  const place = row.city && row.state ? `${row.city}/${row.state}` : row.city || row.state
+  return {
+    charges,
+    contacts,
+    blCount: row.bls?.length ?? 0,
+    meta: [formatCnpjCpf(row.cnpj_cpf), row.trade_name, place].filter(Boolean) as string[],
+    deactivated: isDeactivated(row),
+    portalNote: customerPortalNote(portalRow),
+  }
+}
+
+function rowMenuItems(row: CustomerListItem, primaryEmail: string | null, handlers: RowHandlers): ActionMenuItem[] {
+  const deactivated = isDeactivated(row)
+  return [
+    { key: 'faturas', label: 'Ver faturas em Taxas Locais', icon: <ReceiptText size={14} aria-hidden="true" />, to: buildCustomerBillingUrl(row) },
+    { key: 'cnpj', label: 'Copiar CNPJ', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void handlers.onCopy(formatCnpjCpf(row.cnpj_cpf), 'CNPJ') },
+    ...(primaryEmail
+      ? [{ key: 'email', label: 'Copiar e-mail', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void handlers.onCopy(primaryEmail, 'E-mail principal') }]
+      : []),
+    ...(handlers.canDeleteCustomers
+      ? [
+          {
+            key: 'ativo',
+            label: deactivated ? 'Reativar cliente' : 'Desativar cliente',
+            icon: <Power size={14} aria-hidden="true" />,
+            danger: !deactivated,
+            onSelect: () => handlers.onToggleCustomerActive(row.id, deactivated),
+          },
+          {
+            key: 'excluir',
+            label: 'Excluir cliente',
+            icon: <Trash2 size={14} aria-hidden="true" />,
+            danger: true,
+            disabled: handlers.deleting,
+            onSelect: () => handlers.onDeleteCustomer(row.id),
+          },
+        ]
+      : []),
+  ]
+}
+
+function RowMenu({ row, primaryEmail, handlers }: { row: CustomerListItem; primaryEmail: string | null; handlers: RowHandlers }) {
+  return (
+    <ActionMenu
+      label={`Mais ações para ${row.name}`}
+      menuId={`customer-menu-${row.id}`}
+      triggerClassName="app-table__icon-button app-table__icon-button--sm app-customer-menu-trigger"
+      trigger={<MoreHorizontal size={16} aria-hidden="true" />}
+      items={rowMenuItems(row, primaryEmail, handlers)}
+    />
+  )
+}
+
+function NameBlock({ row, facts }: { row: CustomerListItem; facts: ReturnType<typeof rowFacts> }) {
+  return (
+    <div className="app-customer-cell">
+      <Link className="app-customer-link" to={`/clientes/${encodeURIComponent(row.cnpj_cpf)}`}>{row.name}</Link>
+      <span className="app-customer-cell__meta">{facts.meta.join(' · ')}</span>
+      {facts.deactivated || facts.portalNote ? (
+        <span className="app-customer-cell__flags">
+          {facts.deactivated ? <Badge tone="neutral">Desativado</Badge> : null}
+          {facts.portalNote ? <span className="app-customer-note app-customer-note--warning">{facts.portalNote}</span> : null}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+function ContactBlock({ contacts }: { contacts: ReturnType<typeof summarizeContactsForDisplay> }) {
+  if (!contacts.primaryEmail) {
+    return (
+      <div className="app-customer-cell">
+        <span className="app-customer-note app-customer-note--warning">Sem e-mail de contato</span>
+        {contacts.count > 0 ? <span className="app-customer-cell__meta">{formatCountLabel(contacts.count, 'contato sem e-mail', 'contatos sem e-mail')}</span> : null}
+      </div>
+    )
+  }
+  const others = contacts.count - 1
+  return (
+    <div className="app-customer-cell">
+      <span className="app-customer-cell__truncate" title={contacts.primaryEmail}>{contacts.primaryEmail}</span>
+      <span className="app-customer-cell__meta">
+        {contacts.isPrimary ? 'Principal' : 'Sem contato principal'}
+        {others > 0 ? ` · mais ${formatCountLabel(others, 'contato', 'contatos')}` : ''}
+      </span>
+    </div>
+  )
+}
+
+function BlsBlock({ facts }: { facts: ReturnType<typeof rowFacts> }) {
+  const { charges, blCount } = facts
+  return (
+    <div className="app-customer-cell">
+      <span className="tabular-nums">{blCount === 0 ? 'Nenhum' : blCount}</span>
+      {charges.pending > 0 ? <span className="app-customer-note app-customer-note--warning">{formatCountLabel(charges.pending, 'com taxas a revisar', 'com taxas a revisar')}</span> : null}
+      {charges.ready > 0 ? <span className="app-customer-note">{formatCountLabel(charges.ready, 'pronto para faturar', 'prontos para faturar')}</span> : null}
+    </div>
   )
 }
 
 function CustomerTableRow({
   row,
-  canDeleteCustomers,
-  selected,
-  actionsOpen,
-  onToggle,
-  onOpenActionsMenu,
   portalRow,
-}: {
+  selected,
+  onToggle,
+  ...handlers
+}: RowHandlers & {
   row: CustomerListItem
-  canDeleteCustomers: boolean
-  selected: boolean
-  actionsOpen: boolean
-  onToggle: () => void
-  onOpenActionsMenu: (
-    event: ReactMouseEvent<HTMLButtonElement>,
-    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
-  ) => void
   portalRow?: QueueRow
+  selected: boolean
+  onToggle: () => void
 }) {
-  const summary = summarizeChargeStatuses(row.bls ?? [])
-  const customerComplement = [
-    row.trade_name,
-    row.city && row.state ? `${row.city}/${row.state}` : row.city || row.state,
-  ].filter(Boolean).join(' • ')
-  const contactSummary = summarizeContactsForDisplay(row.customer_contacts)
-  const nextAction = getCustomerNextAction({
-    hasEmail: !contactSummary.empty,
-    readyCount: summary.ready,
-    pendingCount: summary.pending,
-    pendingBalance: Number(row.pending_balance ?? 0),
-  })
-  const portalNeedsAttention = Boolean(portalRow && (portalRow.hasCriticalAlert || (portalRow.hasActiveProcess && (portalRow.account_situation !== 'ativo' || portalRow.recoveryEmailStatus !== 'ok'))))
+  const facts = rowFacts(row, portalRow)
+  const balance = Number(row.pending_balance ?? 0)
 
   return (
-    <tr>
-      {canDeleteCustomers ? (
-        <td className="px-4 py-3">
+    <tr data-deactivated={facts.deactivated ? 'true' : undefined}>
+      {handlers.canDeleteCustomers ? (
+        <td className="app-customer-table__select">
           <input type="checkbox" aria-label={`Selecionar cliente ${row.name}`} checked={selected} onChange={onToggle} />
         </td>
       ) : null}
-      <td className="px-4 py-3">
-        <div className="app-table__cell-stack">
-          <div className="app-table__cell-value flex items-center gap-2" title={row.name}>{truncateCustomerName(row.name, 64)}{(row as { deactivated_at?: string | null }).deactivated_at ? <Badge tone="slate">Desativado</Badge> : null}{portalNeedsAttention ? <AlertTriangle size={15} className="text-amber-400" aria-label="Pendência de Portal" /> : null}</div>
-          <div className="app-table__cell-meta">{formatCnpjCpf(row.cnpj_cpf)}</div>
-          {customerComplement ? <div className="app-table__cell-meta">{customerComplement}</div> : null}
-        </div>
+      <td><NameBlock row={row} facts={facts} /></td>
+      <td><ContactBlock contacts={facts.contacts} /></td>
+      <td className="app-customer-table__bls"><BlsBlock facts={facts} /></td>
+      <td className="app-customer-table__balance">
+        <span className={balance > 0 ? 'app-customer-money app-customer-money--due' : 'app-customer-money'}>{formatBRL(balance)}</span>
       </td>
-      <td className="px-4 py-3">
-        <div className="app-table__cell-stack">
-          <div className="app-table__cell-value">{formatCountLabel(contactSummary.count, 'contato', 'contatos')}</div>
-          {contactSummary.primaryEmail ? (
-            <span className="app-table__truncate app-table__truncate--md" title={contactSummary.primaryEmail}>{contactSummary.primaryEmail}</span>
-          ) : (
-            <span className="app-cell-flag app-cell-flag--warn">Sem e-mail</span>
-          )}
-          {contactSummary.isPrimary ? <span className="app-cell-flag">Principal</span> : null}
-          {contactSummary.boxCount !== null && contactSummary.boxCount > 0 ? (
-            <span className="app-cell-flag">
-              {contactSummary.boxCount} {contactSummary.boxCount === 1 ? 'caixa' : 'caixas'}
-            </span>
-          ) : null}
-        </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="app-table__cell-stack">
-          <div className="app-table__cell-value">{formatCountLabel(row.bls?.length ?? 0, 'B/L vinculado', 'B/Ls vinculados')}</div>
-          {summary.pending > 0 || summary.ready > 0 || summary.exempt > 0 ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {summary.pending > 0 ? <Badge tone="yellow">Pend {summary.pending}</Badge> : null}
-              {summary.ready > 0 ? <Badge tone="green">Pronto {summary.ready}</Badge> : null}
-              {summary.exempt > 0 ? <span className="app-cell-flag">Isento {summary.exempt}</span> : null}
-            </div>
-          ) : (
-            <span className="app-cell-flag">Sem taxas</span>
-          )}
-        </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="app-table__cell-stack">
-          <div className="app-table__cell-value app-table__cell-value--financial app-table__cell-value--financial-left">{formatBRL(row.pending_balance)}</div>
-          <Badge tone={nextAction.tone}>{nextAction.label}</Badge>
-        </div>
-      </td>
-      <td className="px-3 py-3 text-right">
-        <div className="app-customer-row-actions">
-          <Link className="app-table__action app-table__action--compact" to={`/clientes/${encodeURIComponent(row.cnpj_cpf)}`} title="Abrir ficha do cliente">
-            <FileText size={14} />
-            Ficha
-          </Link>
-          <Link className="app-table__icon-button app-table__icon-button--sm" to={buildCustomerBillingUrl(row)} title="Ver faturas do cliente" aria-label={`Ver faturas de ${row.name}`}>
-            <ReceiptText size={15} />
-          </Link>
-          <button
-            type="button"
-            data-actions-menu
-            className="app-table__icon-button app-table__icon-button--sm"
-            title="Mais ações"
-            aria-label={`Mais ações para ${row.name}`}
-            aria-haspopup="menu"
-            aria-expanded={actionsOpen}
-            onClick={(event) => onOpenActionsMenu(event, { id: row.id, name: row.name, cnpj_cpf: row.cnpj_cpf, email: contactSummary.primaryEmail, deactivated: Boolean((row as { deactivated_at?: string | null }).deactivated_at) })}
-          >
-            <MoreHorizontal size={15} />
-          </button>
-        </div>
+      <td className="app-customer-table__actions">
+        <RowMenu row={row} primaryEmail={facts.contacts.primaryEmail} handlers={handlers} />
       </td>
     </tr>
   )
 }
 
-function truncateCustomerName(value: string, maxLength: number) {
-  if (value.length <= maxLength) return value
-  return `${value.slice(0, maxLength).trimEnd()}...`
+function CustomerCard({
+  row,
+  portalRow,
+  selected,
+  onToggle,
+  ...handlers
+}: RowHandlers & {
+  row: CustomerListItem
+  portalRow?: QueueRow
+  selected: boolean
+  onToggle: () => void
+}) {
+  const facts = rowFacts(row, portalRow)
+  const balance = Number(row.pending_balance ?? 0)
+
+  return (
+    <li className="app-customer-card" data-deactivated={facts.deactivated ? 'true' : undefined}>
+      <div className="app-customer-card__head">
+        {handlers.canDeleteCustomers ? (
+          <input type="checkbox" aria-label={`Selecionar cliente ${row.name}`} checked={selected} onChange={onToggle} />
+        ) : null}
+        <NameBlock row={row} facts={facts} />
+        <RowMenu row={row} primaryEmail={facts.contacts.primaryEmail} handlers={handlers} />
+      </div>
+      <dl className="app-customer-card__facts">
+        <div>
+          <dt>Contato principal</dt>
+          <dd><ContactBlock contacts={facts.contacts} /></dd>
+        </div>
+        <div>
+          <dt>B/Ls</dt>
+          <dd><BlsBlock facts={facts} /></dd>
+        </div>
+        <div>
+          <dt>Saldo pendente</dt>
+          <dd className={balance > 0 ? 'app-customer-money app-customer-money--due' : 'app-customer-money'}>{formatBRL(balance)}</dd>
+        </div>
+      </dl>
+    </li>
+  )
 }
 
 function renderSortIcon(filters: Pick<CustomerFilters, 'sortKey' | 'sortDirection'>, key: CustomerSortKey) {
-  if (filters.sortKey !== key) return <ArrowUpDown size={13} className="opacity-50" />
-  return filters.sortDirection === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />
+  if (filters.sortKey !== key) return <ArrowUpDown size={13} className="opacity-50" aria-hidden="true" />
+  return filters.sortDirection === 'asc' ? <ArrowUp size={13} aria-hidden="true" /> : <ArrowDown size={13} aria-hidden="true" />
 }

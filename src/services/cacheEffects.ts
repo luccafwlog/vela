@@ -159,6 +159,11 @@ export async function afterLiberacaoFaturamentoPortal(
     ['customer-ficha', 'billing-portal-release', options.customerId],
     ['customer-ficha', 'receivables', options.customerId],
     ['customer-detail'],
+    // Saldo da lista de Clientes: a concessão emite as faturas retidas.
+    ['customers'],
+    ['customers-summary'],
+    // Conceder ou revogar reavalia a Revisão dos B/Ls do Cliente (migration 167).
+    ['review-queue'],
     ['portal-provisioning'],
     ['invoices'],
     ['bls'],

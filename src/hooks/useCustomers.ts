@@ -26,6 +26,10 @@ type CustomerSummary = {
   totalBls: number
   chargePending: number
   chargeReady: number
+  /** Clientes do recorte com saldo pendente (card que filtra "Com saldo"). */
+  customersWithBalance: number
+  /** Clientes do recorte sem nenhum e-mail ativo (card que filtra "Sem e-mail"). */
+  customersWithoutEmail: number
 }
 
 export function summarizeCustomerRows(rows: CustomerListItem[]): CustomerSummary {
@@ -37,6 +41,8 @@ export function summarizeCustomerRows(rows: CustomerListItem[]): CustomerSummary
     totalBls: bls.length,
     chargePending: bls.filter((bl) => bl.charge_status === 'review_required' || bl.charge_status === 'not_calculated').length,
     chargeReady: bls.filter((bl) => bl.charge_status === 'ready_for_billing').length,
+    customersWithBalance: rows.filter((row) => Number(row.pending_balance ?? 0) > 0).length,
+    customersWithoutEmail: rows.filter((row) => !customerHasEmail(row)).length,
   }
 }
 
@@ -208,9 +214,12 @@ export function useCustomerDetail(cnpj?: string) {
         `,
         )
         .eq('cnpj_cpf', canonicalizeDocument(cnpj))
-        .single()
+        .maybeSingle()
 
       if (error) throw error
+      // Cliente inexistente é resposta, não erro: a ficha mostra "não
+      // encontrado" sem o 406 do `.single()`.
+      if (!data) return null
 
       const customer = data as unknown as CustomerDetail
 

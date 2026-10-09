@@ -1068,7 +1068,8 @@ pertinentes sem sobrescrever nome ou telefone já existentes.
 
 **Ficha do Cliente**
 Hub de consulta do Cliente em `/clientes/:cnpj`, organizado em abas (Visão
-Geral, Cadastro & Contatos, Operacional, Financeiro, Histórico). Consolida a
+geral, Cadastro e contatos, Operacional, Financeiro, Histórico e, para quem lê
+o Desbloqueio de CE, Desbloqueio de CE e VIP). Consolida a
 visão de cadastro, operação e financeiro com deep links para agir nas telas
 onde cada fluxo já existe; não duplica fluxos de ação. As únicas operações
 executadas na própria ficha são a edição auditada do cadastro, a gestão de

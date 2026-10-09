@@ -62,6 +62,23 @@ export type ContactChangeEventSource = {
   created_at: string
 }
 
+// Nome legível do campo gravado por `updateCustomerWithAudit` (coluna crua).
+const CUSTOMER_FIELD_LABELS: Record<string, string> = {
+  name: 'Razão social',
+  trade_name: 'Nome fantasia',
+  address: 'Endereço',
+  city: 'Cidade',
+  state: 'UF',
+  zip: 'CEP',
+  notes: 'Notas',
+  cnpj_cpf: 'CNPJ',
+}
+
+function timelineTime(value: string) {
+  const time = Date.parse(value)
+  return Number.isNaN(time) ? 0 : time
+}
+
 function contactChangeSourceLabel(source: string): 'Portal' | 'Equipe' | 'B/L' | 'Sistema' {
   if (source === 'portal') return 'Portal'
   if (source === 'interno') return 'Equipe'
@@ -126,11 +143,11 @@ export function buildCustomerTimeline(sources: TimelineSources): CustomerTimelin
   })
 
   const events: CustomerTimelineEvent[] = [
-    ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: 'cadastro_audit' as const, sourceId: String(row.id), at: row.changed_at!, label: `Cadastro alterado: ${row.field_name}`, detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${row.justification ? ` · ${row.justification}` : ''}`, link: null, actorId: row.changed_by ? (sources.actorNames?.get(row.changed_by) ?? row.changed_by) : null })),
+    ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: 'cadastro_audit' as const, sourceId: String(row.id), at: row.changed_at!, label: `Cadastro alterado: ${CUSTOMER_FIELD_LABELS[row.field_name] ?? row.field_name}`, detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${row.justification ? ` · ${row.justification}` : ''}`, link: null, actorId: row.changed_by ? (sources.actorNames?.get(row.changed_by) ?? row.changed_by) : null })),
     ...sources.portalEvents.map((row) => ({ kind: 'portal_event' as const, sourceId: String(row.id), at: row.created_at, label: `Portal: ${row.new_decision ? provisioningDecisionLabel(row.new_decision) : row.new_situation ? accountSituationLabel(row.new_situation) : 'evento'}`, detail: row.reason, link: null })),
     ...sources.contacts.filter((row) => row.created_at).map((row) => ({ kind: 'contact_created' as const, sourceId: String(row.id), at: row.created_at!, label: `Contato criado: ${row.name ?? '—'}`, detail: null, link: null })),
     ...contactEvents,
-    ...sources.localInvoices.filter((row) => row.issued_at).map((row) => ({ kind: 'local_invoice_issued' as const, sourceId: String(row.id), at: row.issued_at!, label: `Invoice emitida: ${row.invoice_number ?? `INV-${row.id}`}`, detail: null, link: `/taxas-locais?${sources.customerId ? `customer=${sources.customerId}&` : ''}invoice=${row.id}` })),
+    ...sources.localInvoices.filter((row) => row.issued_at).map((row) => ({ kind: 'local_invoice_issued' as const, sourceId: String(row.id), at: row.issued_at!, label: `Fatura emitida: ${row.invoice_number ?? `INV-${row.id}`}`, detail: null, link: `/taxas-locais?${sources.customerId ? `customer=${sources.customerId}&` : ''}invoice=${row.id}` })),
     ...(sources.payments ?? []).filter((row) => row.paid_at).map((row) => ({ kind: 'local_payment' as const, sourceId: String(row.id), at: row.paid_at!, label: `Pagamento recebido: ${row.invoice?.invoice_number ?? (row.invoice ? `INV-${row.invoice.id}` : '—')}`, detail: formatBRL(row.amount_brl), link: row.invoice ? `/taxas-locais?${sources.customerId ? `customer=${sources.customerId}&` : ''}invoice=${row.invoice.id}` : null })),
     ...sources.demurrageInvoices.flatMap((row) => [
       ...(row.billed_at ? [{ kind: 'demurrage_invoice_issued' as const, sourceId: `${row.id}:issued`, at: row.billed_at, label: `Demurrage emitida: ${row.doc_number}`, detail: null, link: '/demurrage' }] : []),
@@ -146,7 +163,9 @@ export function buildCustomerTimeline(sources: TimelineSources): CustomerTimelin
       link: `/clientes/comunicacao?tab=historico&communication=${encodeURIComponent(String(row.id))}`,
     })),
   ]
-  return events.sort((a, b) => b.at.localeCompare(a.at))
+  // Pela data, não pelo texto: fontes diferentes podem trazer formatos
+  // diferentes do mesmo instante ("T" × espaço, fuso explícito ou não).
+  return events.sort((a, b) => timelineTime(b.at) - timelineTime(a.at) || b.at.localeCompare(a.at))
 }
 
 export type Restrictable<T> = { rows: T[]; denied: boolean }

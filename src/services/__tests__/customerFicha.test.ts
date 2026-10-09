@@ -40,6 +40,20 @@ describe('buildCustomerTimeline', () => {
     expect(events.find((event) => event.kind === 'local_payment')?.link).toBe('/taxas-locais?customer=101&invoice=4')
   })
 
+  it('ordena pela data real mesmo com formatos diferentes e traduz o campo auditado', () => {
+    const events = buildCustomerTimeline({
+      auditLogs: [{ id: 1, field_name: 'zip', old_value: null, new_value: '11010-000', changed_at: '2026-10-09T03:34:43+00:00', justification: null, changed_by: null }],
+      portalEvents: [],
+      contacts: [{ id: 3, name: 'Contato', created_at: '2026-10-09 03:12:10+00' }],
+      customerId: 101,
+      localInvoices: [{ id: 4, invoice_number: 'FAT-1', issued_at: '2026-10-01T10:00:00Z', status: 'issued' }],
+      payments: [],
+      demurrageInvoices: [],
+      bls: [],
+    })
+    expect(events.map((event) => event.label)).toEqual(['Cadastro alterado: CEP', 'Contato criado: Contato', 'Fatura emitida: FAT-1'])
+  })
+
   it('agrupa eventos de configuração de contatos por action_id e formata origem e contagem de caixas', () => {
     const actionId1 = 'a0000000-0000-0000-0000-000000000001'
     const actionId2 = 'a0000000-0000-0000-0000-000000000002'
