@@ -12,7 +12,8 @@
   compartilhado, Baplie completo, veículos, Base de Clientes, Granito e vazios). `CONTEXT.md` e o
   [plano de correção](plans/2026-10-09-correcao-importacoes-ce-mercante.md) atualizados; ADRs
   0071 e 0020 com nota de supersessão parcial. Checagem de container compartilhado entre Clientes
-  diferentes retirada (caso inexistente em FCL). Sem mudança de produto.
+  diferentes retirada (caso inexistente em FCL). Diferença de fatura paga só por restituição, sem
+  crédito em outra fatura. Sem mudança de produto.
 - **Revisão das importações e do CE Mercante (2026-10-09, investigação local):** relatório em
   [archive/audits](archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md) com mapa das
   portas de entrada, alcance do CE, matriz de campos, ordens de importação, 25 problemas-raiz e

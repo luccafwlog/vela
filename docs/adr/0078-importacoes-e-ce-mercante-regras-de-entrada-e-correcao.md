@@ -193,13 +193,12 @@ própria rodada de decisões.
 - O `import-effects-runner` só é ligado depois das correções da fila, do ensaio
   em Preview e da aprovação do acumulado.
 
-## Pendências
+## Diferença de fatura paga
 
-- **Abatimento em fatura seguinte.** O dono indicou que a diferença de fatura
-  paga pode ser devolvida ou abatida numa próxima fatura. A ADR 0077 prevê hoje
-  o abatimento do saldo aberto da própria fatura e a restituição do excedente;
-  crédito para uma fatura seguinte não existe e precisa de decisão de desenho
-  própria antes de entrar no plano.
+Quando uma fatura já paga passa a valer menos (itens 11, 14, 16, 18 e 22), vale
+o item 4 da ADR 0077: abate-se o saldo ainda aberto da própria fatura e o
+excedente vira **restituição**. Não há crédito para abater em outra fatura
+(decisão do dono, 2026-10-09).
 
 ## Evidência
 

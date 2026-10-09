@@ -10,8 +10,9 @@ Os ids `M01`–`M25` são os problemas-raiz da seção 5 do relatório.
 
 **Regras de negócio:** decididas pelo dono em 2026-10-09 e registradas na
 [ADR 0078](../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
-(citada abaixo como "ADR 0078, item N") e no `CONTEXT.md`. Pendências de
-decisão estão na seção "Pendências" ao fim.
+(citada abaixo como "ADR 0078, item N") e no `CONTEXT.md`. Diferença de fatura
+paga é sempre tratada por restituição (item 4 da ADR 0077), nunca por crédito em
+outra fatura. Pendências de decisão estão na seção "Pendências" ao fim.
 
 **Objetivo:** fazer as importações deixarem de apagar dado válido, de cobrar
 errado e de esconder o que gravaram, e implementar as regras de entrada,
@@ -484,7 +485,3 @@ Pré-requisitos: Etapas 4 e 7 em produção.
   decidido na rodada de 2026-10-09): Laden on Board ilegível ou vazio, POD fora
   do catálogo de portos, confirmação de faturamento por linha em vez de global,
   NCM cadastrado à mão × NCM do documento, Cliente pessoa física (CPF).
-- **Abatimento em fatura seguinte** (ADR 0078, Pendências): a diferença de
-  fatura paga pode ser abatida numa próxima fatura, segundo o dono; a ADR 0077
-  prevê só o abatimento do saldo aberto e a restituição. Exige desenho próprio
-  antes de entrar numa etapa.
