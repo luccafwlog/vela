@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   chargeTableAlerts,
+  resolveChargeTableStates,
   validateOverrideInput,
   validateTableInput,
   validateTableItemInput,
@@ -34,15 +35,18 @@ describe('validateOverrideInput', () => {
   it('exige cliente, item e valor > 0 na ordem certa', () => {
     expect(validateOverrideInput({ ...base, customerId: '0' })).toMatchObject({
       ok: false,
-      error: 'Selecione um cliente para salvar o override.',
+      field: 'customerId',
+      error: 'Selecione o Cliente da condição.',
     })
     expect(validateOverrideInput({ ...base, chargeItemId: '' })).toMatchObject({
       ok: false,
-      error: 'Selecione um item de taxa para salvar o override.',
+      field: 'chargeItemId',
+      error: 'Selecione o item de taxa da condição.',
     })
     expect(validateOverrideInput({ ...base, overrideValue: '0' })).toMatchObject({
       ok: false,
-      error: 'Informe um valor de override valido (maior que zero).',
+      field: 'overrideValue',
+      error: 'Informe o valor negociado (maior que zero).',
     })
   })
 
@@ -67,7 +71,7 @@ describe('validateTableInput', () => {
 
   it('exige nome, pod e vigência inicial', () => {
     expect(validateTableInput({ ...base, name: '  ' })).toMatchObject({ ok: false, error: 'Informe o nome da tabela.' })
-    expect(validateTableInput({ ...base, pod: '' })).toMatchObject({ ok: false, error: 'Informe o POD da tabela.' })
+    expect(validateTableInput({ ...base, pod: '' })).toMatchObject({ ok: false, field: 'pod', error: 'Informe o POD da tabela.' })
     expect(validateTableInput({ ...base, validFrom: '' })).toMatchObject({
       ok: false,
       error: 'Informe a vigência inicial da tabela.',
@@ -93,8 +97,15 @@ describe('validateTableItemInput', () => {
     expect(validateTableItemInput({ ...base, unitValue: '0' })).toMatchObject({ ok: true })
     expect(validateTableItemInput({ ...base, unitValue: '-1' })).toMatchObject({
       ok: false,
-      error: 'Valor unitario invalido.',
+      error: 'Informe um valor unitário válido (zero ou maior).',
     })
+    expect(validateTableItemInput({ ...base, unitValue: '  ' })).toMatchObject({ ok: false, field: 'unitValue' })
+  })
+
+  it('lê valor com milhar e decimal em pt-BR', () => {
+    expect(validateTableItemInput({ ...base, unitValue: '1.420,50' })).toMatchObject({ ok: true, value: { unitValue: 1420.5 } })
+    expect(validateTableItemInput({ ...base, unitValue: 'R$ 2.130,00' })).toMatchObject({ ok: true, value: { unitValue: 2130 } })
+    expect(validateTableItemInput({ ...base, unitValue: '62.5' })).toMatchObject({ ok: true, value: { unitValue: 62.5 } })
   })
 
   it('exige tabela, nome e sort order válido', () => {
@@ -108,7 +119,8 @@ describe('validateTableItemInput', () => {
     })
     expect(validateTableItemInput({ ...base, sortOrder: '-2' })).toMatchObject({
       ok: false,
-      error: 'Sort order invalido.',
+      field: 'sortOrder',
+      error: 'A ordem de exibição deve ser um número inteiro, zero ou maior.',
     })
   })
 })
@@ -190,5 +202,36 @@ describe('chargeTableAlerts', () => {
       today,
     )
     expect(alerts.size).toBe(0)
+  })
+})
+
+describe('resolveChargeTableStates', () => {
+  const row = (id: number, over: Partial<{ cargo_mode: 'container' | 'carga_solta'; pod: string; valid_from: string; active: boolean }> = {}) => ({
+    id,
+    cargo_mode: 'container' as const,
+    pod: 'BRVIT',
+    valid_from: '2026-01-01',
+    valid_to: null,
+    active: true,
+    ...over,
+  })
+
+  it('aplica a ativa de vigência inicial mais recente e aponta quem vence (migration 274)', () => {
+    const states = resolveChargeTableStates([
+      row(1, { valid_from: '2025-01-01' }),
+      row(2, { pod: 'BRVIX', valid_from: '2026-01-01' }),
+      row(3, { active: false, valid_from: '2027-01-01' }),
+      row(4, { cargo_mode: 'carga_solta' }),
+    ])
+    expect(states.get(2)).toEqual({ kind: 'applied' })
+    expect(states.get(1)).toEqual({ kind: 'shadowed', winnerId: 2 })
+    expect(states.get(3)).toEqual({ kind: 'inactive' })
+    expect(states.get(4)).toEqual({ kind: 'applied' })
+  })
+
+  it('desempata pela maior id quando a vigência inicial é igual', () => {
+    const states = resolveChargeTableStates([row(5), row(9)])
+    expect(states.get(9)).toEqual({ kind: 'applied' })
+    expect(states.get(5)).toEqual({ kind: 'shadowed', winnerId: 9 })
   })
 })

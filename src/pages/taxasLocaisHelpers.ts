@@ -1,10 +1,15 @@
 // Validação/normalização pura dos formulários de Taxas Locais. As mensagens de
 // erro são exibidas ao usuário, então devem permanecer estáveis.
 
-export type ValidationResult<T> = { ok: true; value: T } | { ok: false; error: string }
+// `field` aponta o campo do erro para o formulário mostrá-lo junto do campo.
+export type ValidationResult<T> = { ok: true; value: T } | { ok: false; error: string; field?: string }
 
-function toAmount(value: string) {
-  return Number(String(value).replace(',', '.'))
+// Aceita "1420.5", "1420,50" e "1.420,50" (milhar com ponto e decimal com
+// vírgula, como o operador digita em pt-BR).
+export function toAmount(value: string) {
+  const text = String(value).trim().replace(/\s|R\$|US\$/g, '')
+  const normalized = text.includes(',') ? text.replace(/\./g, '').replace(',', '.') : text
+  return Number(normalized)
 }
 
 // Override por cliente.
@@ -33,16 +38,16 @@ export function validateOverrideInput(form: OverrideInput): ValidationResult<Ove
   const overrideValue = toAmount(form.overrideValue)
 
   if (!Number.isInteger(customerId) || customerId <= 0) {
-    return { ok: false, error: 'Selecione um cliente para salvar o override.' }
+    return { ok: false, field: 'customerId', error: 'Selecione o Cliente da condição.' }
   }
   if (!Number.isInteger(chargeItemId) || chargeItemId <= 0) {
-    return { ok: false, error: 'Selecione um item de taxa para salvar o override.' }
+    return { ok: false, field: 'chargeItemId', error: 'Selecione o item de taxa da condição.' }
   }
   if (!Number.isFinite(overrideValue) || overrideValue <= 0) {
-    return { ok: false, error: 'Informe um valor de override valido (maior que zero).' }
+    return { ok: false, field: 'overrideValue', error: 'Informe o valor negociado (maior que zero).' }
   }
   if (form.validFrom && form.validTo && form.validTo < form.validFrom) {
-    return { ok: false, error: 'A vigência final não pode ser anterior à vigência inicial.' }
+    return { ok: false, field: 'validTo', error: 'A vigência final não pode ser anterior à vigência inicial.' }
   }
 
   return {
@@ -69,16 +74,16 @@ export type TableInput = {
 
 export function validateTableInput(form: TableInput): ValidationResult<{ validTo: string | null }> {
   if (!form.name.trim()) {
-    return { ok: false, error: 'Informe o nome da tabela.' }
+    return { ok: false, field: 'name', error: 'Informe o nome da tabela.' }
   }
   if (!form.pod.trim()) {
-    return { ok: false, error: 'Informe o POD da tabela.' }
+    return { ok: false, field: 'pod', error: 'Informe o POD da tabela.' }
   }
   if (!form.validFrom) {
-    return { ok: false, error: 'Informe a vigência inicial da tabela.' }
+    return { ok: false, field: 'validFrom', error: 'Informe a vigência inicial da tabela.' }
   }
   if (form.validTo && form.validTo < form.validFrom) {
-    return { ok: false, error: 'Vigência final não pode ser anterior à inicial.' }
+    return { ok: false, field: 'validTo', error: 'Vigência final não pode ser anterior à inicial.' }
   }
   return { ok: true, value: { validTo: form.validTo || null } }
 }
@@ -134,6 +139,38 @@ function scopeKey(table: ChargeTableValidityRow) {
 function enginePrecedence(a: ChargeTableValidityRow, b: ChargeTableValidityRow) {
   if (a.valid_from !== b.valid_from) return a.valid_from < b.valid_from ? 1 : -1
   return b.id - a.id
+}
+
+// Situação de cada tabela no cálculo, com o mesmo critério do motor
+// (resolve_local_charge_table_id, migration 274): por modo de carga + POD
+// normalizado, só entre ativas; vence a de vigência inicial mais recente.
+export type ChargeTableEngineState =
+  | { kind: 'applied' }
+  | { kind: 'shadowed'; winnerId: number }
+  | { kind: 'inactive' }
+
+export function chargeTableScopeKey(table: Pick<ChargeTableValidityRow, 'cargo_mode' | 'pod'>) {
+  return scopeKey(table as ChargeTableValidityRow)
+}
+
+export function resolveChargeTableStates(tables: ChargeTableValidityRow[]): Map<number, ChargeTableEngineState> {
+  const winners = new Map<string, ChargeTableValidityRow>()
+  for (const table of tables) {
+    if (!table.active) continue
+    const key = scopeKey(table)
+    const current = winners.get(key)
+    if (!current || enginePrecedence(table, current) < 0) winners.set(key, table)
+  }
+  const states = new Map<number, ChargeTableEngineState>()
+  for (const table of tables) {
+    if (!table.active) {
+      states.set(table.id, { kind: 'inactive' })
+      continue
+    }
+    const winner = winners.get(scopeKey(table))
+    states.set(table.id, winner && winner.id !== table.id ? { kind: 'shadowed', winnerId: winner.id } : { kind: 'applied' })
+  }
+  return states
 }
 
 export function chargeTableAlerts(
@@ -201,20 +238,20 @@ export function validateTableItemInput(
   form: TableItemInput,
 ): ValidationResult<{ chargeTableId: number; unitValue: number; sortOrder: number }> {
   const chargeTableId = Number(form.chargeTableId)
-  const unitValue = toAmount(form.unitValue)
+  const unitValue = String(form.unitValue).trim() ? toAmount(form.unitValue) : Number.NaN
   const sortOrder = Number(form.sortOrder)
 
   if (!Number.isInteger(chargeTableId) || chargeTableId <= 0) {
-    return { ok: false, error: 'Selecione a tabela do item.' }
+    return { ok: false, field: 'chargeTableId', error: 'Selecione a tabela do item.' }
   }
   if (!form.name.trim()) {
-    return { ok: false, error: 'Informe o nome do item de taxa.' }
+    return { ok: false, field: 'name', error: 'Informe o nome do item de taxa.' }
   }
   if (!Number.isFinite(unitValue) || unitValue < 0) {
-    return { ok: false, error: 'Valor unitario invalido.' }
+    return { ok: false, field: 'unitValue', error: 'Informe um valor unitário válido (zero ou maior).' }
   }
   if (!Number.isInteger(sortOrder) || sortOrder < 0) {
-    return { ok: false, error: 'Sort order invalido.' }
+    return { ok: false, field: 'sortOrder', error: 'A ordem de exibição deve ser um número inteiro, zero ou maior.' }
   }
   return { ok: true, value: { chargeTableId, unitValue, sortOrder } }
 }

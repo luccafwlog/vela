@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { afterReferenciaPortalAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
@@ -277,6 +278,22 @@ export function useOverrideCustomers(search: string) {
     queryKey: queryKeys.charges.overrideCustomers(search),
     queryFn: () => listOverrideCustomers(search),
   })
+}
+
+/**
+ * Busca de Cliente sob demanda para o Combobox da Condição de Cliente: mesma
+ * consulta e chave de `useOverrideCustomers`, devolvida como promessa.
+ */
+export function useOverrideCustomerLookup() {
+  const queryClient = useQueryClient()
+  return useCallback(
+    (search: string) => queryClient.fetchQuery({
+      queryKey: queryKeys.charges.overrideCustomers(search),
+      queryFn: () => listOverrideCustomers(search),
+      staleTime: 30_000,
+    }),
+    [queryClient],
+  )
 }
 
 export function useSaveCustomerRateOverride() {
