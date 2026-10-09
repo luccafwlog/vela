@@ -1209,7 +1209,6 @@ textarea {
 .review-next__links {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
   gap: 4px 16px;
 }
 

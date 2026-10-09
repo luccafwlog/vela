@@ -43,7 +43,6 @@ export function ReviewGroupBlock({
   onToggle,
   onGroupLink,
   onGroupOnboard,
-  onGroupRecheck,
   onCorrect,
   onInlineWeight,
 }: {
@@ -55,8 +54,6 @@ export function ReviewGroupBlock({
   onToggle: () => void
   onGroupLink: (customer: ReviewCustomer) => void
   onGroupOnboard: (input: ReviewCustomerOnboardingInput) => void
-  /** Reavalia o gate dos B/Ls vinculados (Portal ativado ou Liberação concedida). */
-  onGroupRecheck: () => void
   onCorrect: (id: string) => void
   onInlineWeight: (item: ReviewQueueItem, value: string) => void
 }) {
@@ -132,9 +129,6 @@ export function ReviewGroupBlock({
                 <Link className="review-link" to={`/clientes/${encodeURIComponent(summary.linkedCustomer.cnpj_cpf)}?tab=financeiro`}>
                   Liberação na ficha do Cliente <ArrowRight size={14} aria-hidden="true" />
                 </Link>
-                <Button variant="secondary" className="app-btn--sm" loading={savingGroup} loadingLabel="Reavaliando…" onClick={onGroupRecheck}>
-                  Reavaliar os B/Ls
-                </Button>
               </div>
             ) : linked?.customer && nextAction.kind !== 'portal' ? (
               <div className="review-next__links">

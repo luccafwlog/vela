@@ -777,7 +777,6 @@ Quem trabalha a fila precisa responder, por cliente: o que trava a fatura, o que
 | Dono | Achado |
 |---|---|
 | 01 | `SummaryStrip` a 360 px quebra a linha com o separador "·" no começo da linha seguinte ("· 9 B/Ls sem faturamento"). |
-| Banco | A concessão da Liberação de faturamento sem Portal (`grant_customer_billing_portal_release` → `_reprocess_customer_held_billing`) não regrava `review_status`: o B/L fica na Revisão com "Portal não provisionado" até alguém reavaliar (**Runtime** no Postgres local para o estado depois da Liberação gravada; **Código** para o reprocessamento, que não toca `review_status`). A tela oferece "Reavaliar os B/Ls"; a correção definitiva é reavaliar no servidor ao conceder ou revogar a Liberação, como o gatilho de `customer_portal_accounts` já faz. |
 | 05 / 23 | A ficha do B/L com cliente pendente não foi observada em runtime depois das mudanças no `ReviewCustomerOnboarding` (só o teste da seção). |
 | 23 | Tema escuro da Revisão não observado; o CSS novo usa só tokens com par escuro. |
 
@@ -790,9 +789,9 @@ Quem trabalha a fila precisa responder, por cliente: o que trava a fatura, o que
 
 ### Correções da revisão rigorosa (2026-10-09)
 
-Revisão da PR 915 antes do merge; correções na mesma branch de entrega.
+Revisão da PR 915 antes do merge; correções na mesma branch de entrega. A primeira correção inclui uma migration (`167`), decidida pelo dono do repositório na revisão: a PR deixou de ser só de tela.
 
-- **Liberação sem efeito na fila:** a próxima ação do Portal dizia que os B/Ls saíam da fila sozinhos com a Liberação. Só a ativação do Portal reavalia por gatilho; com a Liberação o B/L ficava em `pending_review` com o motivo velho (**Runtime**, Postgres local: com a Liberação gravada, `compute_bl_review_pendencies` volta vazio e `review_status` continua `pending_review`, e `save_bl_review` com payload vazio passa a `reviewed`; **Código**: `_reprocess_customer_held_billing` não toca `review_status`). O grupo ganhou "Reavaliar os B/Ls" (`recomputeBlReviewGate`, que voltou a ter chamador) e o drawer diz que salvar reavalia depois de uma Liberação.
+- **Liberação sem efeito na fila:** a próxima ação do Portal dizia que os B/Ls saíam da fila sozinhos com a Liberação. Só a ativação do Portal reavalia por gatilho; com a Liberação o B/L ficava em `pending_review` com o motivo velho (**Runtime**, Postgres local: com a Liberação gravada, `compute_bl_review_pendencies` volta vazio e `review_status` continua `pending_review`, e `save_bl_review` com payload vazio passa a `reviewed`; **Código**: `_reprocess_customer_held_billing` não toca `review_status`). A migration `167` põe na Liberação o mesmo gatilho do Portal: conceder ou revogar reavalia a Revisão dos B/Ls não faturados do Cliente, e um bloco único destrava os B/Ls já parados de Clientes com Liberação vigente (**Teste** `portalBillingRelease.local-pg.test.ts`, que falha sem o gatilho; **Runtime** do bloco no Postgres local). A tela não precisa de ação: o texto volta a dizer que os B/Ls saem sozinhos, e `recomputeBlReviewGate`, sem chamador, saiu de `services/review.ts`. Um botão "Reavaliar os B/Ls" chegou a ser feito como contorno e foi descartado.
 - **Peso com vírgula:** o editor inline era `<input type="number">`, que descarta "12,5" antes do validador, e o erro dizia para informar o peso. O campo passou a texto com `inputMode="decimal"`; `parseWeightTon` é a mesma regra no campo e na gravação.
 - **Escape nas sugestões de cliente dentro do drawer** fechava o drawer inteiro, com as edições. `Modal` (primitiva da 01) deixa o primeiro Escape para um `combobox` com a lista aberta; o listener nativo do diálogo roda antes do handler React do campo, então o campo não conseguia impedir.
 - **Drawer de B/L que sai do recorte:** com filtro de causa, corrigir o peso de um B/L que continua em revisão pelo Portal fechava o drawer, e ele reabria sozinho ao limpar o filtro. O B/L selecionado agora é buscado na fila inteira.

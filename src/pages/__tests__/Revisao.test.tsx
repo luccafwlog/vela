@@ -22,7 +22,6 @@ vi.mock('../../services/review', async () => {
     applyInlineBlReviewFix: vi.fn().mockResolvedValue(resolvedResult),
     saveBlReview: vi.fn().mockResolvedValue(resolvedResult),
     saveGraniteBlReview: vi.fn(),
-    recomputeBlReviewGate: vi.fn().mockResolvedValue(resolvedResult),
   }
 })
 vi.mock('../../services/reviewBillingAutomation', () => ({
@@ -32,7 +31,7 @@ vi.mock('../../services/reviewBillingAutomation', () => ({
 import { useCustomerLookup } from '../../hooks/useCustomers'
 import { useReviewQueue } from '../../hooks/useReview'
 import { useReviewCustomerGroup } from '../../hooks/useReviewCustomerGroup'
-import { applyInlineBlReviewFix, recomputeBlReviewGate, saveBlReview, saveGraniteBlReview } from '../../services/review'
+import { applyInlineBlReviewFix, saveBlReview, saveGraniteBlReview } from '../../services/review'
 import { tryAutoIssueInvoice } from '../../services/reviewBillingAutomation'
 import { Revisao } from '../Revisao'
 
@@ -43,7 +42,6 @@ const mockedSaveBlReview = vi.mocked(saveBlReview)
 const mockedSaveGraniteBlReview = vi.mocked(saveGraniteBlReview)
 const mockedTryAutoIssueInvoice = vi.mocked(tryAutoIssueInvoice)
 const mockedApplyInlineBlReviewFix = vi.mocked(applyInlineBlReviewFix)
-const mockedRecomputeBlReviewGate = vi.mocked(recomputeBlReviewGate)
 
 function LocationProbe() {
   const location = useLocation()
@@ -185,22 +183,6 @@ describe('Revisao', () => {
     expect(screen.getByRole('link', { name: /Abrir no Provisionamento do Portal/ }).getAttribute('href')).toBe('/clientes/portal?cliente=7')
     expect(screen.getByRole('link', { name: /Liberação na ficha do Cliente/ }).getAttribute('href')).toBe('/clientes/11222333000181?tab=financeiro')
     expect(screen.getByText(/Portal não provisionado — no grupo|Portal não provisionado/, { selector: 'li' })).toBeTruthy()
-  })
-
-  it('reavalia os B/Ls do grupo que esperava o Portal depois de uma Liberação', async () => {
-    const user = userEvent.setup()
-    mockedUseReviewQueue.mockReturnValue({ data: [makeLinkedBl('BL7', { emails: ['a@b.com'] })], isLoading: false, error: null } as never)
-    renderPage()
-
-    await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
-    expect(screen.getByText(/depois de uma Liberação, reavalie os B\/Ls aqui/)).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Reavaliar os B/Ls' }))
-
-    await waitFor(() => expect(mockedRecomputeBlReviewGate).toHaveBeenCalledWith({ blId: 'BL7', expectedUpdatedAt: '2026-06-11T12:00:00.7Z', changedBy: 'user-1' }))
-    expect(mockedTryAutoIssueInvoice).toHaveBeenCalledWith({ blId: 'BL7', customerId: 7, actorId: 'user-1' })
-    const results = await screen.findByRole('region', { name: 'Resultados recentes' })
-    expect(results.textContent).toMatch(/1 B\/L saiu da revisão/)
-    expect(results.textContent).toMatch(/1 fatura emitida automaticamente/)
   })
 
   it('mostra erro de consulta com Tentar novamente, sem parecer fila vazia', async () => {

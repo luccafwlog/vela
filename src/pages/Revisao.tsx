@@ -42,7 +42,6 @@ import { queryKeys } from '../services/queryKeys'
 import {
   applyInlineBlReviewFix,
   ConcurrentEditError,
-  recomputeBlReviewGate,
   saveGraniteBlReview,
   type SaveBlReviewResult,
 } from '../services/review'
@@ -522,59 +521,6 @@ export function Revisao() {
     }
   }
 
-  // Depois de ativar o Portal ou conceder a Liberação na ficha do Cliente,
-  // reavalia o gate dos B/Ls vinculados do grupo. A Liberação não regrava
-  // `review_status` no servidor; sem isto o B/L ficaria na fila com o motivo
-  // velho. O `updated_at` usado é o da fila: um conflito vira falha daquele B/L.
-  async function handleGroupRecheck(group: ReviewGroup) {
-    if (!user) return
-    const targets = group.items.filter((item) => item.source === 'bl' && item.customer_id != null)
-    if (!targets.length) return
-    const confirmed = await confirm({
-      title: 'Reavaliar os B/Ls do cliente',
-      message: `Reavaliar as pendências de ${plural(targets.length, 'B/L', 'B/Ls')} de ${group.displayName}?`,
-      confirmLabel: 'Reavaliar',
-      affected: {
-        summary: `${plural(targets.length, 'B/L', 'B/Ls')} · ${group.displayName}`,
-        items: targets.map((item) => `B/L ${item.id}`),
-      },
-      consequence: 'Nenhum dado do B/L é alterado: o servidor recalcula as pendências. Os B/Ls sem pendência saem da revisão e, se os demais gates estiverem atendidos, a fatura poderá ser emitida automaticamente.',
-      reversibility: 'A reavaliação pode ser repetida. Faturas emitidas não podem ser apagadas e só podem ser canceladas pelo perfil Administrativo quando não houver pagamento.',
-    })
-    if (!confirmed) return
-    setSavingGroupKey(group.key)
-    let resolvedCount = 0
-    let invoiceCount = 0
-    const failed: string[] = []
-    const remaining: string[][] = []
-    for (const item of targets) {
-      try {
-        const result = await recomputeBlReviewGate({ blId: item.id, expectedUpdatedAt: item.updated_at ?? null, changedBy: user.id })
-        if (!result.resolved) {
-          remaining.push(result.pendencias)
-          continue
-        }
-        resolvedCount++
-        if (await autoInvoiceResolvedBl(item.id, item.customer_id!)) invoiceCount++
-      } catch {
-        failed.push(item.id)
-      }
-    }
-    setSavingGroupKey(null)
-    await invalidateReviewQueueCaches(queryClient, { includeGranite: false, includeCharges: true, includeInvoices: true })
-    const lines: string[] = []
-    if (resolvedCount) lines.push(`${plural(resolvedCount, 'B/L saiu', 'B/Ls saíram')} da revisão.`)
-    if (invoiceCount) lines.push(`${plural(invoiceCount, 'fatura emitida', 'faturas emitidas')} automaticamente.`)
-    const remainingText = summarizeRemainingPendencies(remaining)
-    if (remainingText) lines.push(`Continuam em revisão: ${remainingText}.`)
-    if (failed.length) lines.push(`Não reavaliados: ${failed.join(', ')}. A fila foi recarregada; tente de novo.`)
-    pushOutcome({
-      tone: failed.length === targets.length ? 'danger' : failed.length || remainingText ? 'warning' : 'success',
-      title: `${group.displayName}: reavaliação de ${plural(targets.length, 'B/L', 'B/Ls')}`,
-      lines,
-    })
-  }
-
   const summaryItems = data
     ? [
         { label: groups.length === 1 ? 'cliente' : 'clientes', value: groups.length },
@@ -689,7 +635,6 @@ export function Revisao() {
                   onToggle={() => toggleGroupCollapsed(group.key)}
                   onGroupLink={(customer) => void handleGroupLinkCustomer(group, customer)}
                   onGroupOnboard={(input) => void handleGroupOnboard(group, input)}
-                  onGroupRecheck={() => void handleGroupRecheck(group)}
                   onCorrect={(id) => setSelectedId(id)}
                   onInlineWeight={(item, value) => void handleInlineWeight(item, value)}
                 />

@@ -358,10 +358,9 @@ export function summarizeReviewGroup(group: ReviewGroup): ReviewGroupSummary {
     nextAction = {
       kind: 'portal',
       title: 'Ativar o Portal do Cliente',
-      // Só a ativação do Portal reavalia os B/Ls no servidor (gatilho em
-      // `customer_portal_accounts`); a concessão da Liberação reprocessa a
-      // emissão, mas não regrava `review_status`.
-      detail: 'A fatura só é emitida com o Portal ativo ou com a Liberação de faturamento sem Portal. Com o Portal ativo, os B/Ls saem da fila sozinhos; depois de uma Liberação, reavalie os B/Ls aqui.',
+      // O servidor reavalia os B/Ls do Cliente quando o Portal fica ativo e
+      // quando a Liberação é concedida ou revogada (migration 167).
+      detail: 'A fatura só é emitida com o Portal ativo ou com a Liberação de faturamento sem Portal. Os B/Ls saem da fila sozinhos quando um dos dois acontecer.',
     }
   } else if (blItems.length === 0) {
     nextAction = {

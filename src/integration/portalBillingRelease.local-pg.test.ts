@@ -23,7 +23,9 @@ const chargeItemId = 995836
 const heldBlId = 'PORTAL-083-1'
 const secondBlId = 'PORTAL-083-2'
 const activationBlId = 'PORTAL-083-3'
-const allBlIds = [heldBlId, secondBlId, activationBlId]
+// Migration 167: sem CE, não fatura; só acompanha a Revisão na concessão e na revogação.
+const reviewBlId = 'PORTAL-083-4'
+const allBlIds = [heldBlId, secondBlId, activationBlId, reviewBlId]
 const blList = `ARRAY['${allBlIds.join("','")}']::text[]`
 const customerCnpj = syntheticCnpj(83101)
 const HOLD = 'Acesso ao portal nao provisionado'
@@ -69,6 +71,13 @@ function blState(blId: string) {
   `)) as { financial_status: string; billing_hold_reason: string | null; invoice_count: number; active_effects: number }
 }
 
+function reviewState(blId: string) {
+  return JSON.parse(psql(`SELECT jsonb_build_object('review_status', review_status, 'notes', notes) FROM public.bls WHERE id = '${blId}';`)) as {
+    review_status: string
+    notes: string | null
+  }
+}
+
 function invoiceTotal(blId: string): string {
   return psql(`SELECT total_brl FROM public.invoices WHERE bl_id = '${blId}';`)
 }
@@ -90,10 +99,10 @@ function cleanup(): void {
   psql(`
     SET session_replication_role = replica;
     DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT i.id FROM public.alert_items i
-      JOIN public.alerts a ON a.id = i.alert_id WHERE a.entity_id IN ('${customerId}', '${heldBlId}', '${secondBlId}', '${activationBlId}'));
+      JOIN public.alerts a ON a.id = i.alert_id WHERE a.entity_id = '${customerId}' OR a.entity_id = ANY(${blList}));
     DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts
-      WHERE entity_id IN ('${customerId}', '${heldBlId}', '${secondBlId}', '${activationBlId}'));
-    DELETE FROM public.alerts WHERE entity_id IN ('${customerId}', '${heldBlId}', '${secondBlId}', '${activationBlId}');
+      WHERE entity_id = '${customerId}' OR entity_id = ANY(${blList}));
+    DELETE FROM public.alerts WHERE entity_id = '${customerId}' OR entity_id = ANY(${blList});
     DELETE FROM public.import_effect_attempts WHERE effect_id IN (SELECT id FROM public.import_pending_effects WHERE entity_id = ANY(${blList}));
     DELETE FROM public.import_pending_effects WHERE entity_id = ANY(${blList});
     DELETE FROM public.ledger_settlements WHERE invoice_id IN (SELECT id FROM public.invoices WHERE bl_id = ANY(${blList}));
@@ -149,9 +158,11 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
       ) VALUES
         ('${heldBlId}', ${voyageId}, ${customerId}, 'PTL083', 'container', 'pending', 'not_calculated', 'reconciled', NULL),
         ('${secondBlId}', ${voyageId}, ${customerId}, 'PTL083', 'container', 'pending', 'not_calculated', 'reconciled', NULL),
-        ('${activationBlId}', ${voyageId}, ${customerId}, 'PTL083', 'container', 'pending', 'not_calculated', 'reconciled', NULL);
+        ('${activationBlId}', ${voyageId}, ${customerId}, 'PTL083', 'container', 'pending', 'not_calculated', 'reconciled', NULL),
+        ('${reviewBlId}', ${voyageId}, ${customerId}, 'PTL083', 'container', 'pending', 'not_calculated', 'reconciled', NULL);
       INSERT INTO public.bl_containers (bl_id, container_number) VALUES
-        ('${heldBlId}', 'PTLU0830001'), ('${secondBlId}', 'PTLU0830002'), ('${activationBlId}', 'PTLU0830003');
+        ('${heldBlId}', 'PTLU0830001'), ('${secondBlId}', 'PTLU0830002'), ('${activationBlId}', 'PTLU0830003'),
+        ('${reviewBlId}', 'PTLU0830004');
     `)
   })
 
@@ -181,6 +192,12 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(portalAlert()).toBe('active/documentacao')
     expect(psql(`SELECT audience_departments::text FROM public.alert_type_catalog WHERE type = 'review_portal_not_ready';`))
       .toBe('{documentacao,administrativo}')
+  })
+
+  it('B/L do Cliente sem Portal entra na Revisão com o motivo do Portal', () => {
+    psql(`UPDATE public.bls SET review_status = 'pending_review' WHERE id = '${reviewBlId}';
+      SELECT public.recompute_bl_review_status('${reviewBlId}');`)
+    expect(reviewState(reviewBlId)).toEqual({ review_status: 'pending_review', notes: `Pendencias de importacao: ${HOLD}` })
   })
 
   it('não deixa a Documentação conceder nem aceita liberação sem justificativa ou com data passada', () => {
@@ -215,6 +232,8 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(blState(heldBlId)).toMatchObject({ financial_status: 'invoiced', billing_hold_reason: null, invoice_count: 1 })
     expect(invoiceTotal(heldBlId)).toBe('90.00')
     expect(portalAlert()).toBe('resolved/documentacao')
+    // 167: a concessão também tira da Revisão o B/L que só esperava o Portal.
+    expect(reviewState(reviewBlId)).toEqual({ review_status: 'reviewed', notes: null })
     expect(asUser(`SELECT granted_by || '|' || justification FROM public.customer_billing_portal_releases WHERE id = ${result.release_id};`, docId))
       .toBe(`${adminId}|Cliente sem e-mail até o fim do mês`)
   })
@@ -228,6 +247,8 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
   it('revogada ou vencida, a trava volta e o Alerta reaparece na retenção seguinte', () => {
     asUser(`SELECT public.revoke_customer_billing_portal_release(${customerId}, 'Cliente regularizou o cadastro');`, adminId)
     expect(psql(`SELECT public.customer_billing_access_ready(${customerId});`)).toBe('f')
+    // 167: revogada, o B/L não faturado volta à Revisão com o motivo do Portal.
+    expect(reviewState(reviewBlId)).toEqual({ review_status: 'pending_review', notes: `Pendencias de importacao: ${HOLD}` })
 
     // Vencimento: uma liberação nova cuja data de revisão já passou.
     psql(`INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, granted_at, review_at)
