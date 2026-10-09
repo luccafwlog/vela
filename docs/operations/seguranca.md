@@ -211,6 +211,7 @@ Portal. A política INSERT continua exigindo Equipamentos/Administrativo,
 mensagem própria, Dispute aberta e caminho do cliente/disputa/mensagem.
 Validação SQL local confirma essas restrições. Correção aplicada com autorização
 do dono em produção em 2026-10-06; upload físico e metadados confirmados na
-sessão real de Equipamentos. Interface na sessão real de Financeiro conferida sem resposta/anexo; tentativa
-direta pelo Storage nessa sessão ainda não executada.
-Ver o relatório da retomada run-2.
+sessão real de Equipamentos. Interface na sessão real de Financeiro conferida sem resposta/anexo; em
+2026-10-08, um `POST` direto ao Storage com essa sessão foi recusado com `403
+AccessDenied` (RLS). Ver o relatório da retomada run-2 e o
+[plano arquivado](../archive/plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md).

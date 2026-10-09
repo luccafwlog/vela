@@ -1,5 +1,7 @@
 # Planos históricos (archive)
 
+- [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — concluído em 2026-10-09: fases 1–5 e reforços D4 = b; evidências de produção em "Encerramento em 2026-10-08/09"; riscos aceitos registrados.
+
 - [2026-10-08 — Correção das pendências da auditoria das etapas 00–05](2026-10-08-correcao-pendencias-auditoria-etapas-00-05.md) — R0 a R6 concluídos (PR 903 na `main`), ficha da viagem restaurada com melhorias, N1 e N2 decididos; viagem cancelada fora do Line-Up.
 
 - [2026-10-05 — Integração das PRs 845, 846 e 847](2026-10-05-integracao-prs-845-846-847.md) — correções entregues; evidências e Preview no relatório de execução.

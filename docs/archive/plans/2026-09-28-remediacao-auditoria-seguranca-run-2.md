@@ -1,20 +1,19 @@
 # Plano — Remediação da auditoria de segurança run-2
 
-Data: 2026-09-28. Estado: em execução desde 2026-09-29; decisões D1–D4 tomadas
-(ver "Decisões").
+Data: 2026-09-28. Estado: **concluído em 2026-10-09** e arquivado; execução
+desde 2026-09-29; decisões D1–D4 e as de 2026-10-06 a 2026-10-08 em "Decisões".
+Evidência final em [Encerramento em 2026-10-08/09](#encerramento-em-2026-10-0809).
 
 | Parte | Situação |
 |---|---|
-| Fase 1 — configuração de terceiros | secrets nos environments e todos os workflows que os usam validados em 2026-10-08; falta apagar as cópias Repository-level e o secret legado, revogar os tokens antigos e remover a deploy key (decisão do dono); o dono recusou restringir Preview à `main`; ruleset fora deste plano por decisão do dono |
-| Fase 2 — migration `106` e item 4.5 | migrations até `159` em produção; Dispute/Storage e próxima ação validados com Equipamentos; falta importação com e-mail de consignatário novo e tentativa direta de Storage em sessão Financeiro |
-| Fase 3 — Edge Functions | código entregue pela luccafwlog/vela#812 (migration `108`, aplicada em produção); Comunicado validado em simulação em produção em 2026-10-06; envio real fora do plano por decisão do dono (2026-10-08) |
-| Fase 4 — front-end (exceto 4.5) | código entregue pela luccafwlog/vela#813; troca de e-mail com PKCE ainda sem validação numa Preview publicada, que agora publica |
-| Fase 5 — CI e hospedagem | código dos workflows entregue pela luccafwlog/vela#814; Preview, limpeza (com DELETE), admin da Preview, provisionador e produção validados com as credenciais dos environments até 2026-10-08 |
-| Reforços adicionais (D4 = b) | banco, Edge Functions e front-end entregues em código pelas PRs #815 e posteriores; `RECALC_CRON_SECRET` provisionado e job agendado em 2026-10-07; rotação dos demais segredos de cron e execução agendada do backup seguem pendentes; `IMPORT_EFFECTS_CRON_SECRET` fora do plano por decisão do dono; recálculo só de `issued` confirmado como regra de negócio |
+| Fase 1 — configuração de terceiros | concluída: secrets só nos environments; cópias Repository-level, secret legado Firebase, token Cloudflare antigo e deploy key removidos em 2026-10-08; PATs Supabase antigos já revogados; restrição de Preview à `main` recusada pelo dono (risco aceito); ruleset fora do plano por decisão do dono |
+| Fase 2 — migration `106` e item 4.5 | concluída: importação com e-mail de consignatário novo e recusa de upload direto do Financeiro observadas em produção em 2026-10-08 |
+| Fase 3 — Edge Functions | concluída; envio real de Comunicado fora do plano por decisão do dono |
+| Fase 4 — front-end (exceto 4.5) | concluída: troca de e-mail com PKCE observada em produção em 2026-10-08, com correção do contrato em `WORKFLOW.md` |
+| Fase 5 — CI e hospedagem | concluída: Preview, limpeza (com DELETE), admin da Preview, provisionador e produção validados com as credenciais dos environments |
+| Reforços adicionais (D4 = b) | concluídos: segredos de cron rotacionados em par em 2026-10-08; backup agendado diário desde 2026-10-06; `IMPORT_EFFECTS_CRON_SECRET` fora do plano por decisão do dono |
 
-Lista vigente de pendências: [Estado em 2026-10-08](#estado-em-2026-10-08).
-
-Origem: [auditoria run-2](../archive/audits/2026-09-28-auditoria-seguranca-run-2.md)
+Origem: [auditoria run-2](../audits/2026-09-28-auditoria-seguranca-run-2.md)
 (commit auditado `17da824a`). A auditoria está **incompleta**: nenhum dos 15
 candidatos passou por verificação independente. Este plano trata cada candidato
 como hipótese a reproduzir: o primeiro passo de cada item é um teste que falha
@@ -73,7 +72,7 @@ Plano permanece em execução; não arquivar enquanto os itens abaixo estiverem
 pendentes. Produção observada com frontend `085520e7eb16`, projeto Supabase
 `fgmkhbzhaeebrsizwccx`. A sessão do Vela é Administrativo; a do Portal usa um
 Cliente de teste. Evidência detalhada em
-[relatório da retomada](../archive/reports/2026-10-06-remediacao-run-2-retomada.md).
+[relatório da retomada](../reports/2026-10-06-remediacao-run-2-retomada.md).
 
 - **Runtime confirmado:** migrations `106`, `108`, `109`, `110` presentes;
   `connect-src` dos dois domínios restringe Supabase ao projeto, sem wildcard.
@@ -262,14 +261,17 @@ serem validados; a Preview segue sem publicação porque o job Supabase Preview
 foi `skipped`.
 
 O backup seguinte ao ajuste de `consumeArchive` ainda depende da tarefa
-agendada no computador Windows descrito em [serviços externos](../operations/servicos-externos.md#backup);
+agendada no computador Windows descrito em [serviços externos](../../operations/servicos-externos.md#backup);
 esta máquina de execução macOS não permite confirmar seu `LastTaskResult`.
 O plano continua aberto.
 
 ## Estado em 2026-10-08
 
+Lista de pendências encerrada em
+[Encerramento em 2026-10-08/09](#encerramento-em-2026-10-0809).
+
 Conferência somente de leitura das execuções do GitHub Actions e do
-[manual de serviços externos](../operations/servicos-externos.md); nenhuma
+[manual de serviços externos](../../operations/servicos-externos.md); nenhuma
 configuração alterada nesta conferência.
 
 ### Resolvido desde a lista de 2026-10-07
@@ -300,7 +302,7 @@ configuração alterada nesta conferência.
 - **Recálculo de PTAX:** `RECALC_CRON_SECRET` provisionado em par (Vault e Edge
   Function), disparo manual com HTTP 200 e job `recalc-demurrage-ptax`
   agendado (jobid 26) em 2026-10-07; ver
-  [segredos e cron](../operations/segredos-cron.md#agendar-o-recálculo-de-ptax).
+  [segredos e cron](../../operations/segredos-cron.md#agendar-o-recálculo-de-ptax).
 
 ### Pendências para arquivar o plano
 
@@ -323,7 +325,7 @@ configuração alterada nesta conferência.
    consignatário novo; tentativa direta de upload no Storage da Dispute com a
    sessão do Financeiro (recusada). Com `Automatic branching` desligado, a
    Preview exige uma branch Supabase criada à mão e vinculada à branch da PR
-   ([deploy](../setup/deploy.md)). Depois, remover as branches Supabase
+   ([deploy](../../setup/deploy.md)). Depois, remover as branches Supabase
    criadas para os testes, inclusive `codex/run2-manual-preview-probe` se ainda
    existir, e registrar a exclusão.
 4. **Operação (dono):** rotacionar em par os segredos de cron já existentes
@@ -331,6 +333,113 @@ configuração alterada nesta conferência.
    `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`,
    `PORTAL_EMAIL_EVENTS_CRON_SECRET`); confirmar no computador Windows uma execução
    agendada do backup com `LastTaskResult = 0` e o arquivo do dia no R2.
+
+## Encerramento em 2026-10-08/09
+
+Execução guiada com o dono, em produção (projeto `fgmkhbzhaeebrsizwccx`,
+`https://vela.app.br`), entre 2026-10-08 e 2026-10-09 UTC. Nenhum valor de
+credencial foi registrado; os valores de segredo ficaram só nos painéis.
+
+### 1. Credenciais e acessos
+
+- **GitHub → Repository secrets:** apagadas as cópias de
+  `CLOUDFLARE_PAGES_API_TOKEN`, `SUPABASE_ACCESS_TOKEN` e
+  `PREVIEW_ADMIN_PASSWORD` e o legado `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`.
+  Restam `SUPABASE_PROJECT_REF`, `VITE_SUPABASE_ANON_KEY` e `VITE_SUPABASE_URL`.
+  Antes da remoção, conferido em `.github/workflows/*.yml` que todo uso das três
+  credenciais está em job com `environment:` e que nenhum workflow cita o secret
+  Firebase. Os environment secrets ficaram intactos.
+- **GitHub → Deploy keys:** `Codex workspace - Transhipping Desk` removida.
+- **Supabase → Access Tokens:** o PAT de 2026-10-07 e o PAT exposto já não
+  existiam. Restam `GitHub Actions — Vela Preview branches v2` (Previews), dois
+  tokens `cli_*` do `supabase login` nos computadores do dono e `Muse all org`
+  (bot do dono, vence em 2026-10-10); todos mantidos.
+- **Cloudflare:** revogado o Account API Token `Vela Pages CI/CD` (Pages Write,
+  criado por volta de 2026-09-23). O token em uso é o User API Token
+  `GitHub Actions — Vela e Portal Fwlog Pages` (criado em 2026-10-07, usado em
+  2026-10-08). `vela-backup-diario` (R2) mantido.
+
+### 2. Supabase Auth → URL Configuration
+
+Site URL trocado de `https://transhippingdesk.com.br` para
+`https://vela.app.br`; as oito Redirect URLs da Vercel foram removidas e ficou só
+`https://vela.app.br/**`. `Meu perfil` chama `updateUser({ email })` sem
+`emailRedirectTo`, então o link de confirmação volta ao Site URL: até esta
+mudança, a troca de e-mail interna levava a um domínio sem o site.
+
+### 3. Testes em produção
+
+Feitos em produção, e não em Preview: a branch de Preview usa o Auth de
+`supabase/config.toml` (Site URL local) e não havia branch de Preview ativa
+(`codex/run2-manual-preview-probe` já removida). Os dados de produção são
+fixture (linha "Data status" do `AGENTS.md`).
+
+- **Troca de e-mail com PKCE:** usuário interno temporário `Teste PKCE run-2`
+  (Documentação), de `luccafwlog@gmail.com` para `luccafwlog+vela@gmail.com`,
+  com "Secure email change" ligado (links para o e-mail antigo e o novo). Como o
+  SMTP padrão do Supabase só entrega a membros do Team, o alias entrou no Team
+  temporariamente. O link do e-mail antigo, aberto no navegador que pediu a
+  troca, abriu o Vela já autenticado. O link do e-mail novo, aberto num
+  navegador sem estado, **não entregou sessão** (o Vela pediu login), mas a troca
+  foi confirmada: `auth.users` mostrou `email = luccafwlog+vela@gmail.com`,
+  `email_change` vazio, `email_change_confirm_status = 0`. Conclusão: o PKCE
+  impede que o link vire sessão fora do navegador de origem; a confirmação é
+  gravada pelo Supabase em qualquer navegador. O contrato em `WORKFLOW.md`
+  ("abrir em outro navegador não confirma a troca") estava errado e foi
+  corrigido.
+- **Importação com e-mail de consignatário novo (#13b, D2 = c):** B/L sintético
+  no layout COSCO (`COSURUN2TEST01`, consignatário ABF `30.206.009/0001-14`,
+  e-mail `luccafwlog+consignatario@gmail.com`, viagem GREEN TAICANG / 4, contêiner
+  `TSTU2608106`), validado antes pelo `parseBLBuffer` do repositório, importado
+  por **BLs → Importar → B/L de contêiner** sem bloqueio. Contato `id=10` criado
+  com `origin = bl_automatico`, `is_primary = false` (a ABF já tinha principal
+  ativo), ativo e com **um** vínculo, `documentacao_operacao`. B/L e contato
+  permanecem como fixture.
+- **Upload direto no Storage da Disputa pelo Financeiro (#2):** sessão real de
+  Thuani Petri (Financeiro), `POST` direto a
+  `storage/v1/object/demurrage-disputes/1/disputes/1/3/…` (Disputa `id=1`
+  aberta, Cliente 1, mensagem 3): recusado com `403 AccessDenied — new row
+  violates row-level security policy`.
+- **Limpeza:** sessão do Financeiro encerrada; alias removido do Team; usuário
+  de teste apagado de `auth.users` (com `user_profiles` e `auth.identities` em
+  cascata) junto com as três linhas de `audit_logs` que ele gerou
+  (`exchange_rate_reference.updated_at`, ids 97854, 97857 e 97858), que
+  impediam a exclusão pela FK `audit_logs_changed_by_fkey`.
+
+### 4. Operação
+
+- **Segredos de cron:** `ALERTS_DETECTOR_SECRET`,
+  `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`,
+  `PORTAL_DIGEST_SECRET` e `PORTAL_EMAIL_EVENTS_CRON_SECRET` rotacionados em par
+  em 2026-10-08 por volta de 23:35 UTC: valores aleatórios de 32 bytes gerados
+  no banco (`extensions.gen_random_bytes`) e gravados no Vault e nos Edge
+  Function Secrets. Três `401` entre 23:35 e 23:37 UTC (janela da troca); nenhum
+  depois. Disparo manual de `portal-daily-digest` às 23:39 UTC respondeu `200`;
+  `portal-email-events-runner` (a cada minuto) sem `401` desde 23:37; o dono
+  conferiu nos logs `200` em `alerts-detector`,
+  `customer-communication-auto-runner` e `demurrage-dunning` após a troca.
+- **Timeouts de DNS:** `net._http_response` mostra `status_code` nulo com
+  "Timeout of 5000 ms" (quase sempre gastos em DNS) nos minutos :00/:15/:30/:45
+  desde antes da troca. Não é falha de senha; a rodada daquele job se perde até
+  o ciclo seguinte. Fica para tarefa própria, fora deste plano.
+- **Recálculo de PTAX:** primeira execução agendada observada em 2026-10-08 às
+  17:00 UTC (`cron.job_run_details`).
+- **Backup:** o bucket `vela-database-backups` tem par `.dump.enc` +
+  `.manifest.json` às 12:00:01 UTC de 2026-10-06, 2026-10-07 e 2026-10-08
+  (12,9 MB), horário da tarefa agendada; o manifesto só é enviado após cifrar e
+  verificar o dump. Não há backup de 2026-10-01 a 2026-10-04 (computador
+  provavelmente desligado). `LastTaskResult` do Windows não foi consultado.
+
+### Riscos aceitos e itens fora do plano
+
+- Environments de Preview sem restrição à branch `main` (decisão de
+  2026-10-06).
+- Ruleset de revisão para `.github/workflows/**`: o dono trata fora deste plano.
+- Envio real de Comunicado a destinatário controlado: fora do plano.
+- `IMPORT_EFFECTS_CRON_SECRET`: provisionar em par quando o
+  `import-effects-runner` for ativado.
+- Fica fora deste plano, como já previsto: verificação independente dos
+  candidatos não tocados, histórico git e os críticos de cobertura (run-3).
 
 ## Decisões
 
@@ -372,7 +481,7 @@ fatura avulsa enquanto esta PR estava aberta).
 
 ## Fase 1 — Configuração de terceiros (dono, sem código)
 
-Registrar cada mudança em [serviços externos](../operations/servicos-externos.md)
+Registrar cada mudança em [serviços externos](../../operations/servicos-externos.md)
 na mesma PR que a documenta; nomes e locais de secrets, nunca valores.
 
 1. **#14 (média).** Environments `cloudflare-pages`, `supabase-branches` e
@@ -410,7 +519,7 @@ Uma migration nova, `supabase/migrations/106_remediacao_auditoria_run_2.sql`,
 com um teste `src/integration/auditoriaRun2.local-pg.test.ts` no padrão das
 suítes `local-pg`. Cada item abaixo tem um caso que falha antes e passa depois.
 Se o item 2.8 inativar contatos já existentes, o cabeçalho da migration declara
-que depende da linha "Data status" do [AGENTS.md](../../AGENTS.md).
+que depende da linha "Data status" do [AGENTS.md](../../../AGENTS.md).
 
 | Item | Candidato | Correção | Caso do teste |
 |---|---|---|---|
@@ -447,7 +556,7 @@ SECURITY DEFINER gravam. Nenhuma tela interna lê `demurrage_disputes` direto,
 então a política dessa tabela ficou como está. A política de storage de 2.2
 não roda localmente (sem `storage.objects`): só verificada em Preview.
 
-Verificação: gates de schema do [WORKFLOW.md](../../WORKFLOW.md) §11
+Verificação: gates de schema do [WORKFLOW.md](../../../WORKFLOW.md) §11
 (`migrations:check`, `rpc:check`, suíte `local-pg` nova e as existentes de
 Demurrage, importação e exclusão). Aplicação em produção só depois do merge,
 pelo procedimento normal; registrar a confirmação em `schema_migrations`.
@@ -507,7 +616,7 @@ secret).
 
 1. **#12 (D3).** `flowType: 'pkce'` no cliente interno de
    `src/services/supabase.ts`; conferir a troca de e-mail em `Profile.tsx` na
-   Preview e atualizar o contrato de sessão no [WORKFLOW.md](../../WORKFLOW.md).
+   Preview e atualizar o contrato de sessão no [WORKFLOW.md](../../../WORKFLOW.md).
 2. Reforço: `redactTelemetryUrl` (`src/lib/telemetryContract.ts`) remove
    também o fragmento `#…`; teste unitário com `#access_token=`.
 3. Reforço: logout interno limpa o cache do TanStack Query.
