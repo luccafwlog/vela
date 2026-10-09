@@ -1,7 +1,8 @@
 // Leitura das Tabelas de Taxas Locais e das Condições de Cliente para a tela
 // /taxas-locais/tabelas. Só traduz o cadastro no que o motor faz com ele; o
-// cálculo continua em `resolve_bl_local_charge_items` (migration 129) e a
-// escolha da tabela em `resolve_local_charge_table_id` (migration 274).
+// cálculo continua em `resolve_bl_local_charge_items` (migration 171, a partir
+// da 129) e a escolha da tabela em `resolve_local_charge_table_id`
+// (migration 274).
 // Se o motor mudar, as notas abaixo precisam acompanhar.
 
 import { formatBRL, formatDate, formatUSD } from '../../lib/utils'
@@ -90,6 +91,18 @@ export function itemUnitValue(item: Pick<ChargeItem, 'currency' | 'unit_value_br
 
 export function isThdItem(name: string | null | undefined) {
   return String(name ?? '').trim().toUpperCase().startsWith('THD')
+}
+
+/**
+ * Nome do item com o perfil quando o perfil separa a cobrança (THD por
+ * container): "THD · IMO". Sem isso, os três THD da tabela ficam iguais na
+ * escolha e na lista de Condições de Cliente.
+ */
+export function itemDisplayName(item: { name: string | null; cargo_profile?: string | null; application_basis?: string | null }) {
+  const name = item.name ?? '—'
+  if (!isThdItem(item.name) || item.application_basis !== 'container_distinct_voyage') return name
+  if (!item.cargo_profile || item.cargo_profile === 'any') return name
+  return `${name} · ${cargoProfileLabel(item.cargo_profile)}`
 }
 
 export type ChargeNote = { tone: 'danger' | 'warning' | 'info'; text: string }
@@ -213,10 +226,14 @@ export function readTable(
     stateDetail = `Ativa, mas "${winner?.name ?? 'outra tabela'}" tem vigência inicial mais recente e é a usada. Desative uma das duas.`
   }
 
+  // Só a tabela aplicada está no cálculo; numa "Não aplicada" o aviso de
+  // vigência contradiria o estado.
   let validityNote: string | null = null
-  if (table.active && table.valid_to && table.valid_to < today) {
+  if (state.kind !== 'applied') {
+    validityNote = null
+  } else if (table.valid_to && table.valid_to < today) {
     validityNote = `Vigência encerrada em ${formatDate(table.valid_to)}, mas continua no cálculo enquanto estiver ativa.`
-  } else if (table.active && table.valid_from > today) {
+  } else if (table.valid_from > today) {
     validityNote = `Vigência começa em ${formatDate(table.valid_from)}, mas já está no cálculo por estar ativa.`
   }
 

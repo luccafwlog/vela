@@ -7,6 +7,7 @@ import {
   describeDifference,
   formatPeriod,
   groupTablesByScope,
+  itemDisplayName,
   itemEngineNotes,
   previewTableState,
   readTable,
@@ -85,9 +86,31 @@ describe('leitura da tabela', () => {
   it('agrupa por escopo com a aplicada primeiro', () => {
     const tables = [table(1, { valid_from: '2025-01-01' }), table(2, { pod: 'Vitoria' }), table(3, { cargo_mode: 'carga_solta', pod: 'BRSSA' }), table(4, { active: false, valid_from: '2027-01-01' })]
     const groups = groupTablesByScope(tables, resolveChargeTableStates(tables))
-    expect(groups.map((group) => group.label)).toEqual(['Container · BRVIT', 'Carga solta · BRSSA'])
+    expect(groups.map((group) => group.label)).toEqual(['Container · BRVIX', 'Carga solta · BRSSA'])
     expect(groups[0].tables.map((t) => t.id)).toEqual([2, 1, 4])
     expect(groups[0].applied?.id).toBe(2)
+  })
+})
+
+describe('aviso de vigência', () => {
+  it('não diz "continua no cálculo" numa tabela que não é a aplicada', () => {
+    const old = table(1, { valid_from: '2025-01-01', valid_to: '2025-12-31' })
+    const current = table(2, { valid_from: '2026-01-01' })
+    const tables = [old, current]
+    const states = resolveChargeTableStates(tables)
+    const byId = new Map(tables.map((row) => [row.id, row]))
+    const reading = readTable(old, states, byId, '2026-10-09')
+    expect(reading.stateLabel).toBe('Não aplicada')
+    expect(reading.validityNote).toBeNull()
+  })
+})
+
+describe('itemDisplayName', () => {
+  it('mostra o perfil só no THD por container, onde ele separa a cobrança', () => {
+    expect(itemDisplayName({ name: 'THD', cargo_profile: 'imo', application_basis: 'container_distinct_voyage' })).toBe('THD · IMO')
+    expect(itemDisplayName({ name: 'THD', cargo_profile: 'standard', application_basis: 'container_distinct_voyage' })).toBe('THD · Padrão')
+    expect(itemDisplayName({ name: 'THD', cargo_profile: 'any', application_basis: 'weight_ton' })).toBe('THD')
+    expect(itemDisplayName({ name: 'ISPS', cargo_profile: 'oog', application_basis: 'container_distinct_voyage' })).toBe('ISPS')
   })
 })
 
@@ -105,7 +128,7 @@ describe('previewTableState', () => {
   })
 
   it('editar a própria tabela aplicada não acusa troca', () => {
-    expect(previewTableState({ ...draft, id: 1, pod: 'BRVIT' }, tables)?.text).toBe('Será a tabela aplicada em Container · BRVIT.')
+    expect(previewTableState({ ...draft, id: 1, pod: 'BRVIT' }, tables)?.text).toBe('Será a tabela aplicada em Container · BRVIX.')
   })
 })
 

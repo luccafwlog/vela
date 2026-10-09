@@ -5,11 +5,19 @@
 export type ValidationResult<T> = { ok: true; value: T } | { ok: false; error: string; field?: string }
 
 // Aceita "1420.5", "1420,50" e "1.420,50" (milhar com ponto e decimal com
-// vírgula, como o operador digita em pt-BR).
+// vírgula, como o operador digita em pt-BR). Sem vírgula, ponto seguido de
+// exatamente três dígitos é milhar ("1.420" = 1420). Vírgula depois de ponto
+// ("1,420.50", formato americano) é recusada: lida como pt-BR viraria 1,42.
 export function toAmount(value: string) {
   const text = String(value).trim().replace(/\s|R\$|US\$/g, '')
-  const normalized = text.includes(',') ? text.replace(/\./g, '').replace(',', '.') : text
-  return Number(normalized)
+  if (text.includes(',')) {
+    // Com vírgula, só vale pt-BR: uma vírgula decimal, pontos apenas como
+    // milhar antes dela. "1,420.50" e "1,2,3" são recusados.
+    if (!/^-?(\d+|\d{1,3}(\.\d{3})+),\d*$/.test(text)) return Number.NaN
+  }
+  if (text.includes(',')) return Number(text.replace(/\./g, '').replace(',', '.'))
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(text)) return Number(text.replace(/\./g, ''))
+  return Number(text)
 }
 
 // Override por cliente.
@@ -111,22 +119,40 @@ export type ChargeTableAlert = {
   hint: string
 }
 
-// Espelha `public.normalize_port_code` (migration 063), não
-// `normalizePortCode` de `src/services/portCode.ts` — os dois divergem de
-// propósito: o de portCode canoniza para LOCODE (`BRVIT` → `BRVIX`), enquanto
-// o do banco dobra as duas grafias em `BRVIT`. É o critério do banco que decide
-// se duas tabelas caem no mesmo escopo, então é ele que o alerta precisa
-// reproduzir; usar o outro agruparia diferente do motor.
+// Espelha `public.normalize_port_code` como está hoje no banco (baseline 002,
+// herdeira das migrations 353, 361 e 365): lista exata de aliases, sem
+// "contém". É o critério do banco que decide se duas tabelas caem no mesmo
+// escopo, então é ele que a tela reproduz; `normalizePortCode` de
+// `src/services/portCode.ts` é mais tolerante e agruparia diferente do motor.
+// Se a função do banco mudar, esta lista precisa acompanhar.
+const ENGINE_PORT_ALIASES: Array<[string, string[]]> = [
+  ['BRVIX', ['BRVIT', 'VITORIA', 'VITÓRIA', 'BRVIX', 'VIX']],
+  ['BRSSA', ['SALVADOR', 'BRSSA', 'SSA']],
+  ['BRPEC', ['PECEM', 'PECÉM', 'BRPEC', 'PEC']],
+  ['BRSSZ', ['SANTOS', 'BRSSZ', 'SSZ']],
+  ['BRPNG', ['PARANAGUA', 'PARANAGUÁ', 'BRPNG', 'PNG']],
+  ['BRITJ', ['ITAJAI', 'ITAJAÍ', 'BRITJ', 'ITJ', 'NAVEGANTES', 'BRNVT', 'NVT']],
+  ['BRRIG', ['RIO GRANDE', 'BRRIG', 'RIG']],
+  ['BRSUA', ['SUAPE', 'RECIFE', 'BRSUA', 'SUA', 'BRREC']],
+  ['BRRIO', ['RIO DE JANEIRO', 'BRRIO', 'BRRDJ']],
+  ['BRMAO', ['MANAUS', 'BRMAO']],
+  ['CNTAO', ['QINGDAO', 'QINDGAO', 'TSINGTAO', 'CNTAO', 'CNQDG', 'QDG']],
+  ['CNSHA', ['SHANGHAI', 'CNSHA', 'CNSHG', 'SHG']],
+  ['CNTAC', ['TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG']],
+  ['CNNGB', ['NINGBO', 'CNNGB', 'CNNBO', 'NBO', 'ZHOUSHAN', 'CNZOS', 'ZOS']],
+  ['CNNSA', ['NANSHA', 'CNNSA', 'CNNAN', 'GUANGZHOU', 'CNGZU']],
+  ['CNZJG', ['ZHANGJIAGANG', 'CNZJG']],
+  ['CNXMN', ['XIAMEN', 'AMOY', 'CNXMN', 'XMN']],
+  ['CNSHK', ['SHEKOU', 'SHENZHEN', 'CNSHK', 'CNSZK', 'CNSHE']],
+  ['CNYTN', ['YANTIAN', 'CNYTN', 'YTN']],
+  ['HKHKG', ['HONG KONG', 'HONGKONG', 'HKHKG', 'HKG']],
+]
+const ENGINE_PORT_CODE = new Map(ENGINE_PORT_ALIASES.flatMap(([code, aliases]) => aliases.map((alias) => [alias, code] as const)))
+
 export function normalizeChargeTablePod(value: string | null | undefined) {
   const normalized = String(value ?? '').trim().toUpperCase()
   if (!normalized) return ''
-  if (normalized.includes('BRVIT') || normalized.includes('BRVIX') || normalized.includes('VITORIA') || normalized === 'VIX' || normalized === 'VIT') {
-    return 'BRVIT'
-  }
-  if (normalized.includes('BRSSA') || normalized.includes('SALVADOR')) {
-    return 'BRSSA'
-  }
-  return normalized
+  return ENGINE_PORT_CODE.get(normalized) ?? normalized
 }
 
 function scopeKey(table: ChargeTableValidityRow) {

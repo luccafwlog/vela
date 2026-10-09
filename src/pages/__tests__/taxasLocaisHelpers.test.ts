@@ -1,11 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import {
   chargeTableAlerts,
+  normalizeChargeTablePod,
   resolveChargeTableStates,
+  toAmount,
   validateOverrideInput,
   validateTableInput,
   validateTableItemInput,
 } from '../taxasLocaisHelpers'
+
+describe('toAmount', () => {
+  it('lê valores em pt-BR e recusa o formato americano em vez de errar a escala', () => {
+    expect(toAmount('1420,50')).toBe(1420.5)
+    expect(toAmount('1.420,50')).toBe(1420.5)
+    expect(toAmount('R$ 1.420,50')).toBe(1420.5)
+    expect(toAmount('1420.50')).toBe(1420.5)
+    expect(toAmount('12.5')).toBe(12.5)
+    expect(toAmount('0,5')).toBe(0.5)
+    // Ponto com exatamente três dígitos depois é milhar.
+    expect(toAmount('1.420')).toBe(1420)
+    expect(toAmount('1.420.500')).toBe(1420500)
+    // "1,420.50" lido como pt-BR viraria 1,42: recusado.
+    expect(toAmount('1,420.50')).toBeNaN()
+    expect(toAmount('US$ 1,420.50')).toBeNaN()
+    expect(toAmount('1,2,3')).toBeNaN()
+  })
+})
 
 describe('validateOverrideInput', () => {
   const base = {
@@ -179,17 +199,27 @@ describe('chargeTableAlerts', () => {
   })
 
   it('groups POD aliases the way the database does, so the alert matches the engine', () => {
-    // public.normalize_port_code (migration 063) dobra BRVIT/BRVIX/VITORIA em
-    // BRVIT — o motor veria uma tabela sombreando a outra.
+    // public.normalize_port_code (baseline 002) dobra BRVIT, VITORIA e VIX em
+    // BRVIX — o motor veria uma tabela sombreando a outra.
     const alerts = chargeTableAlerts(
       [
         { ...base, id: 1, pod: 'BRVIT', valid_from: '2026-01-01' },
-        { ...base, id: 2, pod: 'Vitoria, Brazil', valid_from: '2026-07-01' },
+        { ...base, id: 2, pod: ' vitoria ', valid_from: '2026-07-01' },
       ],
       today,
     )
     expect(alerts.get(1)?.map((alert) => alert.label)).toEqual(['Não aplicada'])
     expect(alerts.has(2)).toBe(false)
+  })
+
+  it('normalizes POD exactly like normalize_port_code (no "contains")', () => {
+    expect(normalizeChargeTablePod(' santos ')).toBe('BRSSZ')
+    expect(normalizeChargeTablePod('SSZ')).toBe('BRSSZ')
+    expect(normalizeChargeTablePod('ssa')).toBe('BRSSA')
+    expect(normalizeChargeTablePod('BRVIT')).toBe('BRVIX')
+    // Conferido no Postgres local: o banco não reconhece texto com sufixo.
+    expect(normalizeChargeTablePod('Vitoria, Brazil')).toBe('VITORIA, BRAZIL')
+    expect(normalizeChargeTablePod('')).toBe('')
   })
 
   it('does not treat different PODs or cargo modes as the same scope', () => {

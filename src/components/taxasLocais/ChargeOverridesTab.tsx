@@ -32,6 +32,7 @@ import {
   describeDifference,
   formatPeriod,
   formatRate,
+  itemDisplayName,
   itemUnitValue,
   podOptions,
   scopeLabel,
@@ -163,7 +164,7 @@ export function ChargeOverridesTab({
 
   async function handleToggleActive(row: LocalChargeOverrideItem) {
     const nextActive = row.active === false
-    const who = `${row.customer?.name ?? 'Cliente'} · ${row.charge_item?.name ?? 'item'}`
+    const who = `${row.customer?.name ?? 'Cliente'} · ${row.charge_item ? itemDisplayName(row.charge_item) : 'item'}`
     const confirmed = await confirm({
       title: nextActive ? 'Reativar condição de Cliente' : 'Desativar condição de Cliente',
       message: `${nextActive ? 'Reativar' : 'Desativar'} a condição ${who}?`,
@@ -189,7 +190,7 @@ export function ChargeOverridesTab({
   async function handleDelete(row: LocalChargeOverrideItem) {
     const reason = await confirmWithReason({
       title: 'Excluir condição de Cliente',
-      message: `Excluir a condição ${row.customer?.name ?? 'do Cliente'} · ${row.charge_item?.name ?? 'item'}?`,
+      message: `Excluir a condição ${row.customer?.name ?? 'do Cliente'} · ${row.charge_item ? itemDisplayName(row.charge_item) : 'item'}?`,
       consequence: 'Cálculos novos deste Cliente voltam a usar o valor da tabela. Se a condição já foi usada em cálculo ou fatura, o banco recusa: nesse caso, desative-a.',
       reversibility: 'Não é possível desfazer; cadastre de novo se precisar.',
       tone: 'danger',
@@ -223,7 +224,7 @@ export function ChargeOverridesTab({
   function renderActions(row: LocalChargeOverrideItem) {
     if (!canEdit) return null
     const menu = rowMenu(row)
-    const name = `${row.customer?.name ?? 'Cliente'} · ${row.charge_item?.name ?? 'item'}`
+    const name = `${row.customer?.name ?? 'Cliente'} · ${row.charge_item ? itemDisplayName(row.charge_item) : 'item'}`
     return (
       <div className="app-rates-item__actions">
         <button type="button" className="app-table__icon-button" onClick={() => setModal({ row })} aria-label={`Editar condição ${name}`} title="Editar condição">
@@ -351,7 +352,7 @@ export function ChargeOverridesTab({
                   </span>
                   {renderActions(row)}
                 </div>
-                <p>{row.charge_item?.name ?? '—'} <span className="app-rates-unit">{scopeLabel(row.charge_item?.charge_table?.cargo_mode, row.charge_item?.charge_table?.pod)}</span></p>
+                <p>{row.charge_item ? itemDisplayName(row.charge_item) : '—'} <span className="app-rates-unit">{scopeLabel(row.charge_item?.charge_table?.cargo_mode, row.charge_item?.charge_table?.pod)}</span></p>
                 {renderValues(row)}
                 <p className={`app-rates-period ${PERIOD_CLASS[period]}`}>{periodLabel} · <span className="app-rates-num">{formatPeriod(row.valid_from, row.valid_to)}</span></p>
                 <ChargeNoteList notes={notes} />
@@ -382,7 +383,7 @@ export function ChargeOverridesTab({
                       <div className="app-rates-unit app-rates-code">{formatCnpjCpf(row.customer?.cnpj_cpf ?? '')}</div>
                     </td>
                     <td>
-                      <div className="app-rates-item__name">{row.charge_item?.name ?? '—'}</div>
+                      <div className="app-rates-item__name">{row.charge_item ? itemDisplayName(row.charge_item) : '—'}</div>
                       <div className="app-rates-unit">
                         {scopeLabel(row.charge_item?.charge_table?.cargo_mode, row.charge_item?.charge_table?.pod)} · {row.charge_item?.charge_table?.name ?? 'sem tabela'}
                       </div>

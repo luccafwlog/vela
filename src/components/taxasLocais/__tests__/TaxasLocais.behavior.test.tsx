@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   saveOverride: vi.fn(),
   deleteOverride: vi.fn(),
   lookupCustomers: vi.fn(),
+  activeConditions: { value: 0 },
 }))
 
 const item = (over: Record<string, unknown>) => ({
@@ -57,7 +58,7 @@ const tables = [
     id: 2,
     name: 'Tabela Vitória 2025',
     cargo_mode: 'container' as const,
-    // Grafia diferente do mesmo porto: o motor agrupa BRVIX com BRVIT.
+    // Grafia diferente do mesmo porto: o motor agrupa BRVIT com BRVIX.
     pod: 'BRVIX',
     valid_from: '2025-01-01',
     valid_to: '2025-12-31',
@@ -152,6 +153,7 @@ vi.mock('../../../hooks/useLocalCharges', () => ({
   useCustomerRateOverrides: () => ({ data: overrides, isLoading: false, error: null, refetch: vi.fn(), isFetching: false }),
   useOverrideChargeItems: () => ({ data: overrideItems, isLoading: false, error: null }),
   useOverrideCustomerLookup: () => mocks.lookupCustomers,
+  useActiveConditionCount: (id: number | null) => ({ data: id == null ? undefined : mocks.activeConditions.value }),
   useSaveCustomerRateOverride: () => ({ mutateAsync: mocks.saveOverride, isPending: false }),
   useDeleteCustomerRateOverride: () => ({ mutateAsync: mocks.deleteOverride, isPending: false }),
 }))
@@ -187,17 +189,19 @@ describe('Tabelas de Taxas Locais', () => {
     mocks.saveTable.mockResolvedValue(9)
     mocks.saveItem.mockResolvedValue(11)
     mocks.saveOverride.mockResolvedValue(21)
+    mocks.activeConditions.value = 0
   })
 
   it('agrupa pelo escopo do motor e diz qual tabela vale e por que a outra não', () => {
     renderTables()
 
-    const vitoria = screen.getByRole('region', { name: 'Container · BRVIT' })
+    const vitoria = screen.getByRole('region', { name: 'Container · BRVIX' })
     expect(within(vitoria).getByText('Tabela Vitória', { selector: 'strong' })).toBeTruthy()
     // BRVIX caiu no mesmo escopo e perde o desempate pela vigência inicial.
     expect(within(vitoria).getByText('Não aplicada')).toBeTruthy()
     expect(within(vitoria).getByText(/"Tabela Vitória" tem vigência inicial mais recente/)).toBeTruthy()
-    expect(within(vitoria).getByText(/Vigência encerrada em 31\/12\/2025, mas continua no cálculo/)).toBeTruthy()
+    // A perdedora não está no cálculo: sem o aviso "continua no cálculo".
+    expect(within(vitoria).queryByText(/Vigência encerrada em 31\/12\/2025/)).toBeNull()
 
     const salvador = screen.getByRole('region', { name: 'Carga solta · BRSSA' })
     expect(within(salvador).getByText('Aplicada no cálculo')).toBeTruthy()
@@ -231,7 +235,7 @@ describe('Tabelas de Taxas Locais', () => {
     await user.type(within(dialog).getByLabelText(/^POD/), 'brvit')
     await user.type(within(dialog).getByLabelText(/Vigência inicial/), '2027-01-01')
 
-    expect(within(dialog).getByText(/Passa a ser a tabela aplicada em Container · BRVIT, no lugar de "Tabela Vitória"/)).toBeTruthy()
+    expect(within(dialog).getByText(/Passa a ser a tabela aplicada em Container · BRVIX, no lugar de "Tabela Vitória"/)).toBeTruthy()
     await user.click(within(dialog).getByRole('button', { name: 'Cadastrar tabela' }))
 
     expect(mocks.confirm).not.toHaveBeenCalled()
@@ -283,7 +287,7 @@ describe('Tabelas de Taxas Locais', () => {
     expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Desativar tabela de taxas',
       tone: 'danger',
-      consequence: expect.stringContaining('Sai do cálculo de Container · BRVIT'),
+      consequence: expect.stringContaining('Sai do cálculo de Container · BRVIX'),
     }))
     expect(mocks.toggleTable).toHaveBeenCalledWith({ id: 1, active: false })
   })
@@ -315,6 +319,22 @@ describe('Tabelas de Taxas Locais', () => {
     const option = screen.getByRole('option', { name: /TEU/ }) as HTMLOptionElement
     expect(option.disabled).toBe(true)
     expect(option.closest('select')?.value).toBe('teu')
+  })
+
+  it('item com condição de Cliente ativa não troca de moeda (migration 172)', async () => {
+    mocks.activeConditions.value = 2
+    const user = userEvent.setup()
+    renderTables()
+
+    await user.click(screen.getByRole('button', { name: /^Tabela Vitória, ver itens/ }))
+    await user.click(screen.getByRole('button', { name: 'Editar item Booking (legado)' }))
+    const dialog = screen.getByRole('dialog')
+    const usd = within(dialog).getByRole('radio', { name: 'Dólar (US$)' }) as HTMLButtonElement
+    const brl = within(dialog).getByRole('radio', { name: 'Real (R$)' }) as HTMLButtonElement
+    // O item é em dólar: real fica travado.
+    expect(brl.disabled).toBe(true)
+    expect(usd.disabled).toBe(false)
+    expect(within(dialog).getByText(/2 condições de Cliente ativas usam o valor nesta moeda/)).toBeTruthy()
   })
 
   it('sem permissão de escrita, mostra as tabelas sem ações', () => {
@@ -387,7 +407,7 @@ describe('Condições de Cliente', () => {
     expect(mocks.lookupCustomers).toHaveBeenCalledWith('Clie')
 
     await user.type(within(dialog).getByRole('combobox', { name: /Item de taxa/ }), 'THD')
-    await user.click(await screen.findByRole('option', { name: /THD — Tabela Vitória/ }, { timeout: 2000 }))
+    await user.click(await screen.findByRole('option', { name: /THD · Padrão — Tabela Vitória/ }, { timeout: 2000 }))
     expect(within(dialog).getByText(/Valor da tabela:/)).toBeTruthy()
 
     await user.type(within(dialog).getByLabelText(/Valor negociado/), '75,50')

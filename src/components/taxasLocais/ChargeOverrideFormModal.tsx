@@ -15,6 +15,7 @@ import {
   currencyPrefix,
   describeDifference,
   formatRate,
+  itemDisplayName,
   itemUnitValue,
   scopeLabel,
   type ChargeTable,
@@ -22,13 +23,13 @@ import {
 import { ChargeChanges, ChargeNoteList, MoneyInput, type ChargeChange } from './ChargeFormParts'
 import { EMPTY_OVERRIDE_FORM, type OverrideForm } from './chargeForms'
 
-type ItemLike = Pick<OverrideChargeItemOption, 'id' | 'name' | 'currency' | 'unit_value_brl' | 'unit_value_usd' | 'application_basis'> & {
+type ItemLike = Pick<OverrideChargeItemOption, 'id' | 'name' | 'currency' | 'unit_value_brl' | 'unit_value_usd' | 'application_basis' | 'cargo_profile'> & {
   active?: boolean | null
   charge_table: { id: number; name: string; cargo_mode: string | null; pod: string | null } | null
 }
 
 function itemLabel(item: ItemLike) {
-  return `${item.name} — ${item.charge_table?.name ?? 'sem tabela'}`
+  return `${itemDisplayName(item)} — ${item.charge_table?.name ?? 'sem tabela'}`
 }
 
 function formFromRow(row: LocalChargeOverrideItem | null): OverrideForm {
@@ -207,7 +208,7 @@ export function ChargeOverrideFormModal({
               <div className="app-rates-fixed">
                 <span className="app-rates-fixed__label">Item de taxa</span>
                 <span>
-                  {row?.charge_item?.name ?? '—'}{' '}
+                  {row?.charge_item ? itemDisplayName(row.charge_item) : '—'}{' '}
                   <span className="app-rates-unit">
                     {row?.charge_item?.charge_table?.name} · {scopeLabel(row?.charge_item?.charge_table?.cargo_mode, row?.charge_item?.charge_table?.pod)}
                   </span>

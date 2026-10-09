@@ -124,7 +124,7 @@ export function ChargeTableFormModal({
               {CARGO_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </Select>
           </Field>
-          <Field label="POD" required error={errors.pod} hint="Porto de descarga, em LOCODE (ex.: BRVIT).">
+          <Field label="POD" required error={errors.pod} hint="Porto de descarga, em LOCODE (ex.: BRVIX). Grafias do mesmo porto (BRVIT, VITORIA) caem no mesmo escopo.">
             <Input
               value={form.pod}
               onChange={(event) => update('pod', event.target.value.toUpperCase())}
