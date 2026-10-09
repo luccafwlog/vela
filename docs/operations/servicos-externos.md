@@ -328,6 +328,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `cleanup-portal-sessions` | 03:00 | apaga sessões do Portal expiradas há mais de 1 dia | — |
 | `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
+| `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
@@ -336,6 +337,8 @@ Até a migration `165`, nos minutos :00/:15/:30/:45 `net._http_response`
 registrava chamadas sem resposta (`Timeout of 5000 ms`, em geral gastos em DNS)
 e a rodada afetada só voltava no ciclo seguinte. Correção e verificação descritas
 abaixo e em [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disparos).
+
+`billing-release-expiry-review` é SQL puro, sem Vault nem Edge Function; o retorno (`customers`, `bls` reavaliados) fica em `cron.job_run_details`. Parado por mais de 7 dias, rode a função à mão com janela maior, por exemplo `SELECT public.reevaluate_expired_billing_releases(interval '30 days');`.
 
 `data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 

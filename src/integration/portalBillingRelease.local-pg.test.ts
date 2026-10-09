@@ -260,6 +260,38 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(portalAlert()).toBe('active/documentacao')
   })
 
+  it('vencida, a Liberação devolve à Revisão o B/L que tinha saído por ela (168)', () => {
+    // Concedida, o gatilho da 167 tira o B/L da Revisão. Uma Liberação aberta
+    // por Cliente: a vencida do teste anterior sai antes.
+    psql(`UPDATE public.customer_billing_portal_releases SET revoked_at = now(), revoked_by = '${adminId}',
+      revoke_reason = 'Troca no teste' WHERE customer_id = ${customerId} AND revoked_at IS NULL;
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
+      VALUES (${customerId}, 'Liberação que vai vencer', '${adminId}', now() + interval '2 days');`)
+    expect(reviewState(reviewBlId)).toEqual({ review_status: 'reviewed', notes: null })
+    expect(portalAlert()).toBe('resolved/documentacao')
+
+    // O tempo passa: o vencimento não é evento do banco, então nenhum gatilho
+    // roda (`replica` simula isso) e o B/L continua fora da fila.
+    psql(`SET session_replication_role = replica;
+      UPDATE public.customer_billing_portal_releases SET granted_at = now() - interval '3 days', review_at = now() - interval '1 hour'
+      WHERE customer_id = ${customerId} AND justification = 'Liberação que vai vencer';
+      SET session_replication_role = origin;`)
+    expect(psql(`SELECT public.customer_billing_access_ready(${customerId});`)).toBe('f')
+    expect(reviewState(reviewBlId)).toEqual({ review_status: 'reviewed', notes: null })
+
+    // O job diário roda sem JWT, como o pg_cron.
+    const result = JSON.parse(execFileSync('psql', [
+      '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
+      '-c', 'SELECT public.reevaluate_expired_billing_releases();',
+    ], { encoding: 'utf8' }).trim()) as { customers: number; bls: number }
+    expect(result.customers).toBeGreaterThanOrEqual(1)
+    expect(reviewState(reviewBlId)).toEqual({ review_status: 'pending_review', notes: `Pendencias de importacao: ${HOLD}` })
+    expect(portalAlert()).toBe('active/documentacao')
+
+    // Só o papel de serviço (e o pg_cron) chama a função.
+    expect(sqlError(() => asUser('SELECT public.reevaluate_expired_billing_releases();', adminId))).toContain('permission denied')
+  })
+
   it('a Liberação vale sem nenhum contato com e-mail', () => {
     // Inserida direto (sem a RPC) para não reprocessar o B/L retido que o
     // teste seguinte, de ativação do Portal, precisa encontrar.
