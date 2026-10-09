@@ -12,8 +12,15 @@
 -- com Liberação não revogada cujo `review_at` caiu em (now() - p_lookback,
 -- now()] e que não têm acesso pronto (`customer_billing_access_ready`: nem outra
 -- Liberação vigente nem Portal pronto). Para cada B/L não faturado desses
--- Clientes, em `pending_review` ou `reviewed`, chama `recompute_bl_review_status`
--- e `reconcile_bl_review_alerts`, como o gatilho da 002/167. O pg_cron roda a
+-- Clientes, em `pending_review` ou `reviewed`, chama `recompute_bl_review_status`,
+-- e reconcilia o Alerta do Cliente uma vez no fim (`reconcile_customer_bl_review_alerts`).
+--
+-- ponytail: quando o status de um B/L muda, o gatilho de linha
+-- `trg_reconcile_bl_review_alerts` (002) já reconcilia o Alerta do Cliente; o
+-- primeiro B/L do lote abre o Alerta e a notificação sai com a contagem
+-- parcial. O Alerta termina com a contagem certa. É o mesmo comportamento da
+-- revogação (167) e da suspensão do Portal (002). Caminho de upgrade: um GUC
+-- que suspenda o gatilho de linha durante lotes, reconciliando no fim. O pg_cron roda a
 -- função uma vez por dia, às 03:13 UTC (00:13 de Brasília), fora dos minutos
 -- cheios (ver 165): o B/L de uma Liberação vencida volta à fila até a
 -- madrugada seguinte ao vencimento.
@@ -152,9 +159,12 @@ BEGIN
         AND COALESCE(b.financial_status, '') NOT IN ('invoiced', 'partially_paid', 'paid')
     LOOP
       PERFORM public.recompute_bl_review_status(v_bl_id);
-      PERFORM public.reconcile_bl_review_alerts(v_bl_id, 'billing_release_expired');
       v_bls := v_bls + 1;
     END LOOP;
+    -- Um Alerta por Cliente, depois do lote: `reconcile_bl_review_alerts` por
+    -- B/L reconta todos os B/Ls do Cliente a cada chamada (quadrático) e, com
+    -- Cliente vinculado, o consignatário não entra na conta.
+    PERFORM public.reconcile_customer_bl_review_alerts(v_customer_id, NULL, 'billing_release_expired');
   END LOOP;
 
   PERFORM set_config('alerts.foundation_trigger', 'off', true);
