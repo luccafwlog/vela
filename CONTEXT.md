@@ -1536,8 +1536,11 @@ revisão de até 30 dias; registra autor e data. Não depende de contato com
 e-mail: a fatura não é enviada por e-mail, e sem Portal um usuário interno a
 imprime e entrega ao Cliente (migration `085`). Ao ser concedida, emite as
 faturas que o CE reteve, com as taxas calculadas no registro do CE, sem
-recalcular pela tabela vigente. Vencida a data de revisão, ou revogada, a trava volta e a próxima
-retenção reabre o Alerta de Portal não provisionado. Não ativa a conta nem dá
+recalcular pela tabela vigente. Revogada, a trava volta e os B/Ls não
+faturados do Cliente voltam à Revisão na hora (migration `167`). Vencida a data
+de revisão, a trava volta no mesmo instante, e o job diário da migration `168`
+devolve esses B/Ls à Revisão, com o Alerta de Portal não provisionado, até a
+madrugada seguinte. Não ativa a conta nem dá
 acesso ao Cliente. Conceder e revogar ficam na ficha do Cliente (aba
 Financeiro) e no Console do Portal; os outros Departamentos só consultam.
 
@@ -2084,6 +2087,7 @@ não substituem a leitura da última definição na cadeia ativa de migrations.
 | CE obrigatório e fronteiras de emissão | [migration 047](supabase/migrations/047_bl_documental_gates.sql) |
 | Gate do Portal na emissão automática e Liberação de faturamento sem Portal | [migration 083](supabase/migrations/083_portal_trava_universal_liberacao_faturamento.sql) |
 | Conceder ou revogar a Liberação reavalia a Revisão dos B/Ls do Cliente | [migration 167](supabase/migrations/167_liberacao_reavalia_revisao.sql) |
+| Liberação vencida devolve os B/Ls do Cliente à Revisão (job diário) | [migration 168](supabase/migrations/168_liberacao_vencida_reavalia_revisao.sql) |
 | Permissões por Departamento | [useAuth.tsx](src/hooks/useAuth.tsx) e [rotas internas](src/AppInterno.tsx) |
 | Edição interna dos contatos e caixas | [migration 008](supabase/migrations/008_portal_contact_boxes.sql) |
 | Calendário do prazo do ADR | [agencyReportDeadline.ts](src/services/agencyReportDeadline.ts) |

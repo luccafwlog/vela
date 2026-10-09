@@ -257,9 +257,16 @@ Ativar ou suspender o Portal e conceder ou revogar a Liberação reavaliam a
 Revisão dos B/Ls não faturados do Cliente no próprio banco (gatilhos em
 `customer_portal_accounts`, `customer_contacts` e, desde a migration `167`,
 `customer_billing_portal_releases`): o B/L que só esperava o Portal sai da fila
-sem ação na tela. O vencimento da Liberação não é evento do banco; a emissão
-volta a travar na hora, mas a fila só mostra o motivo na próxima reavaliação
-do B/L.
+sem ação na tela. O vencimento da Liberação não é evento do banco: a emissão
+volta a travar na hora (o gate lê `now()`), e o job diário
+`billing-release-expiry-review` (03:13 UTC, migration `168`) roda
+`reevaluate_expired_billing_releases()`, que devolve à fila, com o motivo do
+Portal, os B/Ls não faturados dos Clientes cuja Liberação venceu nos últimos
+7 dias sem outra Liberação vigente nem Portal pronto. Entre o vencimento e a
+rodada seguinte, a fila ainda não mostra o motivo.
+B/L cancelado fica fora da reavaliação: `recompute_bl_review_status` devolve
+o status sem escrever (migration `168`), porque o B/L cancelado é somente
+leitura (`089`).
 Contato com e-mail não é pendência de revisão nem condição de emissão
 (migration `085`). Peso BB é validado para carga solta
 e misto.

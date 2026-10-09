@@ -111,11 +111,25 @@ nota anterior:
   `statement_timeout` do Supabase; se isso acontecer, o caminho é emitir por um
   efeito da fila (`import_pending_effects`) depois de gravar a Liberação.
 
+## Nota — 2026-10-09 · vencimento reavalia a Revisão por job diário (migration `168`)
+
+A vigência continua lida na hora: a trava de emissão volta no instante do
+vencimento. O que mudou é a Revisão e o Alerta. Conceder e revogar já
+reavaliavam a Revisão dos B/Ls não faturados do Cliente por gatilho (migration
+`167`); o vencimento não é evento do banco, e o B/L que tinha saído da fila pela
+Liberação continuava `reviewed`. O job `billing-release-expiry-review` do
+`pg_cron` (03:13 UTC) roda `reevaluate_expired_billing_releases()`, que
+reavalia a Revisão e os Alertas desses B/Ls quando a Liberação venceu nos
+últimos 7 dias e o Cliente não tem outra Liberação vigente nem Portal pronto.
+O B/L volta à fila até a madrugada seguinte ao vencimento.
+
 ## Evidência
 
 - Migration: [083](../../supabase/migrations/083_portal_trava_universal_liberacao_faturamento.sql),
   [084](../../supabase/migrations/084_liberacao_portal_email_e_teto.sql) e
-  [085](../../supabase/migrations/085_email_fora_do_faturamento_taxas_do_ce.sql).
+  [085](../../supabase/migrations/085_email_fora_do_faturamento_taxas_do_ce.sql);
+  reavaliação da Revisão: [167](../../supabase/migrations/167_liberacao_reavalia_revisao.sql)
+  e [168](../../supabase/migrations/168_liberacao_vencida_reavalia_revisao.sql).
 - Teste no Postgres: [portalBillingRelease.local-pg.test.ts](../../src/integration/portalBillingRelease.local-pg.test.ts)
   prova retenção, permissão, concessão com emissão (sem contato com e-mail e
   com a taxa do dia do CE), CE com liberação vigente, revogação, vencimento e
