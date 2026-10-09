@@ -362,6 +362,13 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
   }
 
   const { data, error, count } = await query.range(from, to).overrideTypes<InvoiceListRow[], { merge: false }>()
+  if (error?.code === 'PGRST103') {
+    // Página além do total (link antigo com ?page=, recorte que encolheu): o
+    // PostgREST responde 416 sem linhas. Devolve só o total para a tela recuar.
+    const head = await query.range(0, 0)
+    if (head.error) throw head.error
+    return { rows: [], count: head.count ?? 0 }
+  }
   if (error) throw error
 
   return {

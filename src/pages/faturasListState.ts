@@ -28,6 +28,16 @@ export const FATURAS_TEXT_PARAMS: Record<TextKey, string> = {
 /** Parâmetros que pertencem ao recorte da lista (Limpar filtros remove todos). */
 export const FATURAS_FILTER_PARAMS = [...Object.values(FATURAS_TEXT_PARAMS), 'customerName', 'situacao', 'tipo', 'page', 'pageSize']
 
+const DATE_KEYS = new Set<TextKey>(['dateFrom', 'dateTo', 'paidFrom', 'paidTo'])
+
+/** Só aceita AAAA-MM-DD de calendário: `?emissaoDe=foo` faria o Postgres recusar a lista inteira. */
+function isoDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return ''
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? value : ''
+}
+
 function positiveInt(value: string | null) {
   const parsed = Number(value)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null
@@ -41,7 +51,10 @@ export function tabFromSearch(params: URLSearchParams): TaxasLocaisTab {
 
 export function faturasFiltersFromSearch(params: URLSearchParams): Filters {
   const text = Object.fromEntries(
-    (Object.entries(FATURAS_TEXT_PARAMS) as [TextKey, string][]).map(([key, param]) => [key, params.get(param) ?? '']),
+    (Object.entries(FATURAS_TEXT_PARAMS) as [TextKey, string][]).map(([key, param]) => {
+      const value = params.get(param) ?? ''
+      return [key, DATE_KEYS.has(key) ? isoDate(value) : value]
+    }),
   ) as Record<TextKey, string>
   const status = params.get('situacao') ?? ''
   const invoiceType = params.get('tipo') ?? ''

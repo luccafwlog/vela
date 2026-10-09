@@ -16,6 +16,8 @@ describe('faturasListState', () => {
   it('ignora situação, tipo, página e tamanho inválidos', () => {
     expect(faturasFiltersFromSearch(params('situacao=overdue&tipo=x&page=-2&pageSize=33'))).toMatchObject({ status: '', invoiceType: '', page: 1, pageSize: 20 })
     expect(faturasFiltersFromSearch(params('situacao=paid&tipo=manual&page=3&pageSize=50'))).toMatchObject({ status: 'paid', invoiceType: 'manual', page: 3, pageSize: 50 })
+    expect(faturasFiltersFromSearch(params('emissaoDe=foo&emissaoAte=2026-02-30&pagamentoDe=2026-1-5&pagamentoAte=2026-02-28')))
+      .toMatchObject({ dateFrom: '', dateTo: '', paidFrom: '', paidTo: '2026-02-28' })
   })
 
   it('mudar um filtro volta à página 1 e preserva aba e fatura aberta', () => {

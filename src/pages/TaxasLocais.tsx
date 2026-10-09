@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, Download, FilePlus2 } from 'lucide-react'
@@ -73,6 +73,13 @@ export function TaxasLocais() {
       partialCount: invoices.filter((row) => row.status === 'partially_paid').length,
     }
   }, [invoices])
+
+  // Link com ?page= além do total (recorte que encolheu, URL antiga): vai para
+  // a última página que existe em vez de mostrar a lista vazia.
+  const pageOutOfRange = Boolean(data && totalCount > 0 && filters.page > totalPages)
+  useEffect(() => {
+    if (pageOutOfRange) setSearchParams((current) => withFaturasFilter(current, 'page', totalPages), { replace: true })
+  }, [pageOutOfRange, totalPages, setSearchParams])
 
   function update(next: URLSearchParams) {
     setSearchParams(next, { replace: true })

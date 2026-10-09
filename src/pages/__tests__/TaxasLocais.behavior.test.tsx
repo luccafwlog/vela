@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   detailInvoiceId: vi.fn(),
   invalidateQueries: vi.fn(),
   detectOverdueInvoices: vi.fn(),
+  invoices: { rows: [], count: 0 } as { rows: unknown[]; count: number },
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -19,7 +20,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn().mockResolvedValue(false) }))
 vi.mock('../../hooks/useBilling', () => ({
-  useInvoices: () => ({ data: { rows: [], count: 0 }, isLoading: false, error: null }),
+  useInvoices: () => ({ data: mocks.invoices, isLoading: false, error: null }),
   useBillingCustomers: () => ({ data: [] }),
   usePendingReissues: () => ({ data: [] }),
   useRetryPendingConsolidatedReissue: () => ({ mutateAsync: vi.fn(), isPending: false, variables: undefined }),
@@ -50,6 +51,7 @@ function LocationProbe() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.invoices = { rows: [], count: 0 }
 })
 afterEach(cleanup)
 
@@ -87,4 +89,16 @@ it('a aba ativa fica na URL e mantém o recorte ao voltar para Faturas', async (
   expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?customer=7&customerName=ACME&tab=validacao')
   await user.click(screen.getByRole('tab', { name: 'Faturas' }))
   expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?customer=7&customerName=ACME')
+})
+
+it('link com página além do total recua para a última página que existe', async () => {
+  mocks.invoices = { rows: [], count: 45 }
+  render(
+    <MemoryRouter initialEntries={['/taxas-locais?situacao=paid&page=8']}>
+      <TaxasLocais />
+      <LocationProbe />
+    </MemoryRouter>,
+  )
+
+  await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?situacao=paid&page=3'))
 })
