@@ -74,14 +74,20 @@ describe('heartbeats dos jobs no Better Stack', () => {
     } as const
 
     const cronMigration = readFileSync(path.resolve('supabase/migrations/007_cron_secrets_no_vault.sql'), 'utf8')
+    // A 165 tira os jobs de 15 min/hora dos minutos cheios; a frequência (que
+    // é o que o heartbeat espera) não muda.
+    const staggerMigration = readFileSync(
+      path.resolve('supabase/migrations/165_cron_dispatch_timeout_e_escalonamento.sql'),
+      'utf8',
+    )
     const expectedSchedules = [
-      ['portal-daily-digest', '0 11 * * *', 'portal-daily-digest'],
-      ['alerts-foundation-detectors', '*/15 * * * *', 'alerts-detector'],
-      ['demurrage-dunning', '0 * * * *', 'demurrage-dunning'],
-      ['customer-communication-auto-runner', '*/15 * * * *', 'customer-communication-auto-runner'],
+      ['portal-daily-digest', '0 11 * * *', 'portal-daily-digest', cronMigration],
+      ['alerts-foundation-detectors', '2-59/15 * * * *', 'alerts-detector', staggerMigration],
+      ['demurrage-dunning', '7 * * * *', 'demurrage-dunning', staggerMigration],
+      ['customer-communication-auto-runner', '4-59/15 * * * *', 'customer-communication-auto-runner', staggerMigration],
     ] as const
-    for (const [cronName, schedule, functionName] of expectedSchedules) {
-      expect(cronMigration).toContain(`('${cronName}', '${schedule}'`)
+    for (const [cronName, schedule, functionName, migration] of expectedSchedules) {
+      expect(migration).toMatch(new RegExp(`\\('${cronName}',\\s+'${schedule.replace(/[*/]/g, '\\$&')}'`))
       expect(cronMigration).toContain(`ops.dispatch_edge_job('${functionName}'`)
     }
 

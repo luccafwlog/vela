@@ -5,7 +5,8 @@ Function que vão chamar, como rotacionar esses valores e como verificar que
 nenhum deles voltou a aparecer em texto claro.
 
 Decisão em [ADR 0063](../adr/0063-configuracao-de-jobs-cron-no-vault.md).
-Implementação em `supabase/migrations/007_cron_secrets_no_vault.sql`.
+Implementação em `supabase/migrations/007_cron_secrets_no_vault.sql`; tempo limite
+e horários fora da rajada em `supabase/migrations/165_cron_dispatch_timeout_e_escalonamento.sql`.
 
 ## Por que não é `app.settings.*`
 
@@ -64,9 +65,70 @@ continua sem alcançar. O `pg_cron` executa o job como `postgres`, que já tem o
 O schema `ops` não concede `USAGE` a `PUBLIC`, `anon` nem `authenticated`, e não
 está entre os schemas expostos pela Data API — a função não é um endpoint REST.
 
+A chamada ao `pg_net` usa `timeout_milliseconds := 30000` (migration `165`);
+ver [Horários e tempo limite dos disparos](#horários-e-tempo-limite-dos-disparos).
+
 Com o Vault vazio (banco novo, branch de Preview), a função emite `WARNING` e
 não dispara. O job continua agendado e visível; a ausência do POST é o
 comportamento esperado, não falha.
+
+## Horários e tempo limite dos disparos
+
+**Sintoma (produção, 2026-10-08):** `net._http_response` com `status_code`
+nulo, `timed_out = true` e `Timeout of 5000 ms reached`, sempre em :00/:15/:30/:45,
+quando vários jobs disparavam no mesmo minuto. Na maioria das linhas o tempo
+inteiro foi gasto em DNS (`DNS time: ~5000 ms`); em algumas o DNS foi rápido e
+a Function passou de 5 s. A chamada não chegava à Edge Function e a rodada era
+perdida até o ciclo seguinte (uma hora, na Régua de Cobrança).
+
+**Causa:** até a `165`, o dispatcher não passava `timeout_milliseconds`, então
+valia o padrão de 5000 ms do `pg_net`, que inclui a resolução de nome. Uma
+consulta DNS sem resposta na primeira tentativa só é refeita pelo resolvedor
+depois de ~5 s, exatamente quando o orçamento acabava. O `pg_net` não tem retry.
+**Inferência:** o mecanismo exato do DNS do worker não é observável pelo projeto;
+o padrão de ~5000 ms em DNS e a concentração nos minutos de rajada sustentam
+essa leitura.
+
+**Correção (migration `165`):**
+
+- o dispatcher passa `timeout_milliseconds := 30000`. Vale para todo job que o
+  chama, inclusive os agendados manualmente;
+- os jobs criados por migrations saem dos minutos cheios, via
+  `cron.alter_job` (preserva jobid, comando e estado ativo):
+
+| Job | Antes | Depois |
+|---|---|---|
+| `alerts-foundation-detectors` | `*/15 * * * *` | `2-59/15 * * * *` (:02/:17/:32/:47) |
+| `import-effects-runner` | `*/5 * * * *` | `3-59/5 * * * *` (:03/:08/…/:58) |
+| `customer-communication-auto-runner` | `*/15 * * * *` | `4-59/15 * * * *` (:04/:19/:34/:49) |
+| `demurrage-dunning` | `0 * * * *` | `7 * * * *` |
+
+`portal-daily-digest` (11:00 UTC) e os jobs por minuto (`portal-email-events-runner`,
+`itau-pix-queue`) não mudam. Os jobs agendados manualmente
+(`ce-unlock-notify-email`, `ce-unlock-cleanup`, `recalc-demurrage-ptax`,
+`itau-pix-queue`) não são tocados pela migration; recebem só o timeout novo.
+
+**Risco residual:** uma falha que dure mais de 30 s (DNS fora do ar, Function
+travada) ainda perde a rodada. Se reaparecer, o próximo passo é um job de
+reconciliação que leia `net._http_response` e redispare uma vez.
+
+**Verificar depois de aplicar:** nenhuma linha recente com `timed_out` nos
+minutos de rajada:
+
+```sql
+SELECT date_trunc('minute', created) AS minuto, count(*) FILTER (WHERE timed_out) AS timeouts,
+       count(*) AS respostas
+FROM net._http_response
+WHERE created > now() - interval '24 hours'
+GROUP BY 1
+HAVING count(*) FILTER (WHERE timed_out) > 0
+ORDER BY 1 DESC;
+
+SELECT jobname, schedule, active FROM cron.job
+WHERE jobname IN ('alerts-foundation-detectors', 'import-effects-runner',
+                  'customer-communication-auto-runner', 'demurrage-dunning')
+ORDER BY jobname;
+```
 
 ## Rotacionar um segredo
 

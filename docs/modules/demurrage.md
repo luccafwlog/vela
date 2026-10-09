@@ -220,7 +220,8 @@ excluir para admin, conforme
   último dia útil.
 - **Régua de cobrança:** as migrations `378_demurrage_dunning_communication.sql`,
   `379_demurrage_dunning_claim_recovery.sql` e a correção `041_dunning_partial_claim_recovery.sql`
-  agenda `demurrage-dunning` de hora em hora. O primeiro envio usa
+  agenda `demurrage-dunning` de hora em hora (no minuto 7 desde a migration
+  `165`, fora da rajada dos minutos cheios). O primeiro envio usa
   `first_billed_at` e cada tentativa seguinte soma o intervalo configurado em
   `app_settings.demurrage_dunning_interval_days` (padrão de 7 dias), sem teto;
   cada execução reivindica um lote limitado e libera a posição quando a

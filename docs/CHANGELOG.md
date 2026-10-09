@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **Jobs HTTP do `pg_cron` sem perder rodada nos minutos cheios (2026-10-09, implementação
+  local):** `ops.dispatch_edge_job` passa a dar 30 s ao `pg_net` (o padrão de 5 s incluía DNS e
+  expirava nas rajadas de :00/:15/:30/:45) e `alerts-foundation-detectors`,
+  `customer-communication-auto-runner`, `demurrage-dunning` e `import-effects-runner` saem dos
+  minutos cheios. Migration `165`; [segredos e cron](operations/segredos-cron.md#horários-e-tempo-limite-dos-disparos).
+  Aplicação em produção segue o fluxo normal de migrations.
+
 - **Desbloqueio de CE — revisão do fluxo (2026-10-07, implementação local):** a ZPT desbloqueia
   sozinha com os quatro requisitos, então o Vela virou o controle dela. Abas **Solicitações**
   (termo de devolução e procuração validados por pedido, recusa com motivo) e **Controle ZPT**

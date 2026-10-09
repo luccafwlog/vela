@@ -298,10 +298,14 @@ pendente e deve seguir o procedimento em par.
 
 | Job | Frequência (UTC) | Heartbeat no Better Stack |
 |---|---|---|
-| `alerts-foundation-detectors` | a cada 15 min | `alerts-detector` |
-| `customer-communication-auto-runner` | a cada 15 min | `customer-communication-auto-runner` |
-| `demurrage-dunning` | de hora em hora | `demurrage-dunning` |
+| `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | `alerts-detector` |
+| `customer-communication-auto-runner` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `165`) | `customer-communication-auto-runner` |
+| `demurrage-dunning` | de hora em hora, no minuto 7 (`7 * * * *`, migration `165`) | `demurrage-dunning` |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | `portal-daily-digest` |
+| `portal-email-events-runner` | a cada minuto | — |
+| `import-effects-runner` | a cada 5 min, em :03/:08/…/:58 (`3-59/5 * * * *`, migration `165`) | — |
+| `ce-unlock-notify-email` | a cada 5 min (agendado manualmente em 07/10, jobid 23) | — |
+| `ce-unlock-cleanup` | 06:00 (agendado manualmente em 07/10, jobid 24) | — |
 | `portal-mark-expired-invites` | a cada 15 min | — |
 | `portal-refresh-general-pendencies` | a cada 15 min | — |
 | `cleanup-portal-sessions` | 03:00 | — |
@@ -311,6 +315,11 @@ pendente e deve seguir o procedimento em par.
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; agendado manualmente em 07/10, jobid 26) | — |
 
 `data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
+
+Os jobs HTTP chamam a Edge Function por `ops.dispatch_edge_job`, que dá 30 s
+ao `pg_net` (antes, o padrão de 5 s incluía DNS e perdia a rodada nos minutos
+cheios). Os horários deslocados evitam que os jobs de 15 min/hora disparem no
+mesmo minuto; ver [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disparos).
 
 Rotação de segredo de job: sempre o **par** Edge Function Secret + Vault
 ([segredos-cron.md](segredos-cron.md)).
