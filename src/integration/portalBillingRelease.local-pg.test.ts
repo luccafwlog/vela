@@ -25,7 +25,9 @@ const secondBlId = 'PORTAL-083-2'
 const activationBlId = 'PORTAL-083-3'
 // Migration 167: sem CE, não fatura; só acompanha a Revisão na concessão e na revogação.
 const reviewBlId = 'PORTAL-083-4'
-const allBlIds = [heldBlId, secondBlId, activationBlId, reviewBlId]
+// Migration 168: B/L cancelado é somente leitura; a reavaliação passa por ele.
+const cancelledBlId = 'PORTAL-083-5'
+const allBlIds = [heldBlId, secondBlId, activationBlId, reviewBlId, cancelledBlId]
 const blList = `ARRAY['${allBlIds.join("','")}']::text[]`
 const customerCnpj = syntheticCnpj(83101)
 const HOLD = 'Acesso ao portal nao provisionado'
@@ -269,6 +271,11 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
       VALUES (${customerId}, 'Liberação que vai vencer', '${adminId}', now() + interval '2 days');`)
     expect(reviewState(reviewBlId)).toEqual({ review_status: 'reviewed', notes: null })
     expect(portalAlert()).toBe('resolved/documentacao')
+    // Um B/L cancelado do mesmo Cliente, que a reavaliação mudaria se pudesse.
+    psql(`INSERT INTO public.bls (id, voyage_id, customer_id, pod, cargo_mode, financial_status, charge_status,
+        customer_reconciliation_status, review_status, cancelled_at, cancelled_by, cancel_reason)
+      VALUES ('${cancelledBlId}', ${voyageId}, ${customerId}, 'PTL083', 'container', 'pending', 'not_calculated',
+        'reconciled', 'reviewed', now(), '${adminId}', 'Cancelado no teste');`)
 
     // O tempo passa: o vencimento não é evento do banco, então nenhum gatilho
     // roda (`replica` simula isso) e o B/L continua fora da fila.
@@ -287,6 +294,8 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(result.customers).toBeGreaterThanOrEqual(1)
     expect(reviewState(reviewBlId)).toEqual({ review_status: 'pending_review', notes: `Pendencias de importacao: ${HOLD}` })
     expect(portalAlert()).toBe('active/documentacao')
+    // O cancelado fica como estava, sem abortar a rodada.
+    expect(reviewState(cancelledBlId)).toEqual({ review_status: 'reviewed', notes: null })
 
     // Só o papel de serviço (e o pg_cron) chama a função.
     expect(sqlError(() => asUser('SELECT public.reevaluate_expired_billing_releases();', adminId))).toContain('permission denied')

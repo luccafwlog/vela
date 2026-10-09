@@ -264,6 +264,9 @@ volta a travar na hora (o gate lê `now()`), e o job diário
 Portal, os B/Ls não faturados dos Clientes cuja Liberação venceu nos últimos
 7 dias sem outra Liberação vigente nem Portal pronto. Entre o vencimento e a
 rodada seguinte, a fila ainda não mostra o motivo.
+B/L cancelado fica fora da reavaliação: `recompute_bl_review_status` devolve
+o status sem escrever (migration `168`), porque o B/L cancelado é somente
+leitura (`089`).
 Contato com e-mail não é pendência de revisão nem condição de emissão
 (migration `085`). Peso BB é validado para carga solta
 e misto.

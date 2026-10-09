@@ -26,14 +26,89 @@
 -- uma chamada manual com janela maior. Caminho de upgrade: guardar a última
 -- execução numa tabela de estado e usar (última execução, now()].
 --
+-- B/L cancelado: `recompute_bl_review_status` (002) passa a devolver o status
+-- sem escrever quando `cancelled_at` está preenchido. Antes, o B/L cancelado
+-- de um Cliente (somente leitura desde a 089) fazia `guard_bl_state_and_ce`
+-- recusar a escrita e abortar a transação inteira: o job, o bloco final, e
+-- também os gatilhos de Portal, contatos e Liberação (002/167). O resto da
+-- função é o da 002, sem mudança. A varredura deste job já não seleciona
+-- B/L cancelado.
+--
 -- Casos já parados: o bloco final roda a função uma vez com janela de 10 anos.
 -- Reescreve linhas existentes de `bls` e depende da afirmação "Data status" do
 -- AGENTS.md (produção sem dados de negócio).
 --
 -- Rollback: SELECT cron.unschedule('billing-release-expiry-review');
 --   DROP FUNCTION public.reevaluate_expired_billing_releases(interval);
+--   e reaplicar `recompute_bl_review_status` da 002.
 
 BEGIN;
+
+CREATE OR REPLACE FUNCTION public.recompute_bl_review_status(p_bl_id text) RETURNS text
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $_$
+DECLARE
+  v_bl public.bls%ROWTYPE;
+  v_reasons TEXT[];
+  v_status TEXT;
+  v_human_notes TEXT;
+  v_notes TEXT;
+BEGIN
+  SELECT * INTO v_bl FROM public.bls WHERE id = p_bl_id;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  -- B/L cancelado é somente leitura (089): `guard_bl_state_and_ce` recusa a
+  -- escrita e abortaria a transação do chamador inteiro.
+  IF v_bl.cancelled_at IS NOT NULL THEN
+    RETURN v_bl.review_status;
+  END IF;
+
+  -- O gate trava a emissão; não desfaz o que já foi emitido.
+  IF COALESCE(v_bl.financial_status, '') IN ('invoiced', 'partially_paid', 'paid') THEN
+    RETURN v_bl.review_status;
+  END IF;
+
+  -- Só os dois estados que o gate governa; qualquer outro fica fora do alcance.
+  IF COALESCE(v_bl.review_status, '') NOT IN ('pending_review', 'reviewed') THEN
+    RETURN v_bl.review_status;
+  END IF;
+
+  v_reasons := public.compute_bl_review_pendencies(p_bl_id);
+  v_status := CASE
+    WHEN COALESCE(cardinality(v_reasons), 0) = 0 THEN 'reviewed'
+    ELSE 'pending_review'
+  END;
+
+  v_human_notes := btrim(
+    regexp_replace(
+      COALESCE(v_bl.notes, ''),
+      E'(^|\\n)Pendencias de importacao:[^\\n]*$',
+      '',
+      'i'
+    )
+  );
+
+  v_notes := CASE
+    WHEN COALESCE(cardinality(v_reasons), 0) > 0 THEN concat_ws(
+      E'\n',
+      NULLIF(v_human_notes, ''),
+      'Pendencias de importacao: ' || array_to_string(v_reasons, ', ')
+    )
+    ELSE NULLIF(v_human_notes, '')
+  END;
+
+  -- Sem mudança não se escreve: evita `updated_at` novo (e o conflito de edição
+  -- concorrente na Revisão) a cada passagem do trigger.
+  IF v_bl.review_status IS DISTINCT FROM v_status OR v_bl.notes IS DISTINCT FROM v_notes THEN
+    UPDATE public.bls SET review_status = v_status, notes = v_notes WHERE id = p_bl_id;
+  END IF;
+
+  RETURN v_status;
+END;
+$_$;
 
 CREATE OR REPLACE FUNCTION public.reevaluate_expired_billing_releases(
   p_lookback interval DEFAULT interval '7 days'
@@ -73,6 +148,7 @@ BEGIN
       FROM public.bls AS b
       WHERE b.customer_id = v_customer_id
         AND b.review_status IN ('pending_review', 'reviewed')
+        AND b.cancelled_at IS NULL
         AND COALESCE(b.financial_status, '') NOT IN ('invoiced', 'partially_paid', 'paid')
     LOOP
       PERFORM public.recompute_bl_review_status(v_bl_id);
