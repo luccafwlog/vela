@@ -149,6 +149,23 @@ Rotação é sempre **par**: Edge Function Secret e Vault, na mesma janela.
 4. Confirme no próximo disparo (seção seguinte). Não é preciso tocar em
    `cron.job`: o comando referencia o nome, não o valor.
 
+Alternativa usada em 2026-10-08 para os cinco segredos antigos: gerar o valor no
+próprio banco e gravá-lo no Vault, ler na mesma sessão do SQL Editor e copiar
+para o Edge Function Secret, sem passar por arquivo ou terminal:
+
+```sql
+SELECT vault.update_secret(id, encode(extensions.gen_random_bytes(32), 'hex'))
+FROM vault.secrets WHERE name = 'ALERTS_DETECTOR_SECRET';
+SELECT name, decrypted_secret FROM vault.decrypted_secrets
+WHERE name = 'ALERTS_DETECTOR_SECRET';
+```
+
+Entre a gravação no Vault e a no Edge Function Secret, os disparos recebem
+`401`; os jobs de minuto em minuto perdem um ou dois ciclos. Para testar o
+`portal-daily-digest` fora do horário, `SELECT ops.dispatch_edge_job(
+'portal-daily-digest', 'PORTAL_DIGEST_SECRET')` devolve o id do pedido, e
+`net._http_response` com esse id mostra o status (envia o resumo interno).
+
 Trocar a base da API (projeto novo, domínio próprio) usa o mesmo
 `vault.update_secret` sobre `SUPABASE_URL`.
 
@@ -188,8 +205,8 @@ ORDER BY jobname;
 **Agendado em produção em 2026-10-07** (jobid 26), às 17h UTC (14h Brasília)
 de segunda a sexta. Provisão de `RECALC_CRON_SECRET` em par e disparo manual
 validado: HTTP 200, referência cambial de hoje persistida, zero faturas
-alteradas (só havia uma Demurrage em rascunho). Primeiro ciclo agendado ainda
-não observado; o teste comprovou o dispatcher e a função publicados.
+alteradas (só havia uma Demurrage em rascunho). Primeiro ciclo agendado
+observado em 2026-10-08 às 17:00 UTC (`cron.job_run_details`).
 
 A migration `018` deliberadamente **não** cria o job `recalc-demurrage-ptax`.
 Criá-lo e desativá-lo no replay exigiria `UPDATE` em `cron.job`, privilégio que

@@ -2,7 +2,7 @@
 
 O Comunicado institucional teve simulação validada em produção após a
 publicação autorizada da correção. O plano
-[run-2](../../plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md) permanece
+[run-2](../plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md) permanece
 vivo. Nenhum envio real foi autorizado ou habilitado nesta retomada.
 
 ## Evidência de produção
