@@ -55,6 +55,10 @@ export function createLazyPageLoader<T extends Record<string, unknown>, K extend
 
     try {
       const module = await loader()
+      // Um handler de vite:preloadError com preventDefault() faz o import()
+      // resolver com undefined (cópia antiga de chunk-recovery.js em cache):
+      // trata como chunk não carregado em vez de quebrar a tela (VELA-1M).
+      if (module == null) throw new TypeError('Failed to fetch dynamically imported module: preload error handled without a module')
       storage?.removeItem(key)
       return { default: module[exportName] as ComponentType }
     } catch (error) {
