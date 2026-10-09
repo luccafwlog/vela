@@ -1,21 +1,33 @@
-import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Search, X } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
-import { Input, Select } from '../components/ui/Input'
+import { EmptyState, PageHeader } from '../components/ui/Card'
+import { Input } from '../components/ui/Input'
+import { MetricCard } from '../components/ui/MetricCard'
+import { SkeletonTable } from '../components/ui/Skeleton'
+import { SummaryStrip } from '../components/ui/SummaryStrip'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
+import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { useAuth } from '../hooks/useAuth'
 import { useReviewQueue, type ReviewCustomer, type ReviewQueueItem } from '../hooks/useReview'
 import {
-  getGroupLinkedItem,
+  countReviewCauses,
+  flattenReviewGroupIds,
+  getReviewItemCauses,
   getReviewItemDocumentCandidates,
   groupReviewItems,
   hasCustomerDocumentConflict,
   needsCustomerLink,
-  reviewReasonLabel,
+  parseWeightTon,
+  readReviewCauseParam,
+  REVIEW_CAUSE_LABELS,
+  sortReviewGroupsByPriority,
+  summarizeRemainingPendencies,
+  summarizeReviewGroup,
+  type ReviewCause,
   type ReviewGroup,
 } from './revisaoHelpers'
 import { extractErrorText } from '../lib/errors'
@@ -24,21 +36,17 @@ import { invalidateReviewQueueCaches } from '../components/review/reviewCaches'
 import { ReviewGroupBlock } from '../components/review/ReviewGroupBlock'
 import type { ReviewCustomerOnboardingInput } from '../components/review/ReviewCustomerOnboarding'
 import { ReviewDrawer } from '../components/review/ReviewDrawer'
-import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
-import { addCustomerEmail } from '../services/customers'
+import { ReviewOutcomes, type ReviewOutcome, type ReviewRecalcNotice } from '../components/review/ReviewOutcomes'
 import { calculateBlLocalCharges } from '../services/charges/chargeOperationsService'
 import { queryKeys } from '../services/queryKeys'
 import {
   applyInlineBlReviewFix,
   ConcurrentEditError,
-  recomputeBlReviewGate,
   saveGraniteBlReview,
   type SaveBlReviewResult,
 } from '../services/review'
 import { tryAutoIssueInvoice } from '../services/reviewBillingAutomation'
 import { useReviewCustomerGroup } from '../hooks/useReviewCustomerGroup'
-
-type RecalcNotice = { id: string; label: string; source: 'bl' | 'granite' }
 
 // Endereçamento da fila por URL. `?bl=` existe para quem chega de outra tela
 // apontando um B/L específico (a Validação, ADR 0061): o filtro da fila já casa
@@ -54,27 +62,87 @@ function readQueueTarget(params: URLSearchParams) {
   )
 }
 
-export function Revisao() {
-  const [searchParams] = useSearchParams()
-  const initialCliente = readQueueTarget(searchParams) ?? ''
-  const initialReason = searchParams.get('motivo') || searchParams.get('reason') || null
+// Causas com cartão próprio: no máximo quatro números, e cada um filtra.
+const CARD_CAUSES: ReviewCause[] = ['cliente', 'peso', 'portal', 'granito']
 
-  const { data, isLoading, error, graniteUnavailable } = useReviewQueue()
+function plural(count: number, singular: string, pluralForm: string) {
+  return `${count} ${count === 1 ? singular : pluralForm}`
+}
+
+function matchesSearch(item: ReviewQueueItem, q: string) {
+  return item.id.toLowerCase().includes(q) ||
+    (item.consignee ?? '').toLowerCase().includes(q) ||
+    (item.shipper ?? '').toLowerCase().includes(q) ||
+    (item.customer?.name ?? '').toLowerCase().includes(q) ||
+    (item.customer?.cnpj_cpf ?? '').includes(q) ||
+    (item.manifest_customer_cnpj_cpf ?? '').includes(q) ||
+    (item.customer_id ? String(item.customer_id) === q : false) ||
+    (item.source === 'granite' && item.bl_number ? item.bl_number.toLowerCase().includes(q) : false)
+}
+
+export function Revisao() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Alvo de chegada (Alertas, Validação, ficha do B/L): abre os grupos que
+  // casam com ele uma vez. A busca digitada depois só filtra.
+  const [arrivalTarget] = useState(() => readQueueTarget(searchParams))
+  const searchText = readQueueTarget(searchParams) ?? ''
+  const causeFilter = readReviewCauseParam(searchParams)
+
+  const reviewQueue = useReviewQueue()
+  const { data, isLoading, error, graniteUnavailable } = reviewQueue
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
   const confirm = useConfirm()
   const reviewCustomerGroup = useReviewCustomerGroup()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [searchText, setSearchText] = useState(initialCliente)
-  const [reasonFilter, setReasonFilter] = useState<string | null>(initialReason)
-  // A fila inicia recolhida; o conjunto guarda apenas os grupos que o operador abriu.
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  // A fila inicia recolhida; o mapa guarda o que o operador abriu ou fechou.
+  const [openOverrides, setOpenOverrides] = useState<Map<string, boolean>>(new Map())
 
   const [savingGroupKey, setSavingGroupKey] = useState<string | null>(null)
   const [savingInlineId, setSavingInlineId] = useState<string | null>(null)
-  const [recalcQueue, setRecalcQueue] = useState<RecalcNotice[]>([])
+  const [recalcQueue, setRecalcQueue] = useState<ReviewRecalcNotice[]>([])
   const [recalcingId, setRecalcingId] = useState<string | null>(null)
+  const [outcomes, setOutcomes] = useState<ReviewOutcome[]>([])
+
+  function updateParams(update: (next: URLSearchParams) => void) {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      update(next)
+      return next
+    }, { replace: true })
+  }
+
+  function setSearchText(value: string) {
+    updateParams((next) => {
+      for (const key of ['cliente', 'q', 'bl']) next.delete(key)
+      if (value) next.set('busca', value)
+      else next.delete('busca')
+    })
+  }
+
+  function setCauseFilter(cause: ReviewCause | null) {
+    updateParams((next) => {
+      next.delete('motivo')
+      next.delete('reason')
+      if (cause) next.set('causa', cause)
+      else next.delete('causa')
+    })
+  }
+
+  function clearFilters() {
+    updateParams((next) => {
+      for (const key of ['cliente', 'busca', 'q', 'bl', 'causa', 'motivo', 'reason']) next.delete(key)
+    })
+  }
+
+  const outcomeSeq = useRef(0)
+  function pushOutcome(outcome: Omit<ReviewOutcome, 'id'>) {
+    outcomeSeq.current += 1
+    const id = `outcome-${outcomeSeq.current}`
+    // Mantém os cinco mais recentes: o histórico completo fica na auditoria.
+    setOutcomes((current) => [{ ...outcome, id }, ...current].slice(0, 5))
+  }
 
   // Apos resolver a revisao, se as taxas locais continuam pendentes de recalculo
   // (ou o granito ainda nao foi faturado), avisa no mesmo contexto.
@@ -91,7 +159,7 @@ export function Revisao() {
     }
   }
 
-  function addRecalcNotice(notice: RecalcNotice) {
+  function addRecalcNotice(notice: ReviewRecalcNotice) {
     setRecalcQueue((current) => (current.some((n) => n.id === notice.id) ? current : [...current, notice]))
   }
 
@@ -99,41 +167,21 @@ export function Revisao() {
     setRecalcQueue((current) => current.filter((n) => n.id !== id))
   }
 
-  async function handleInlineError(error: unknown) {
-    if (error instanceof ConcurrentEditError) {
-      await queryClient.invalidateQueries({ queryKey: ['review-queue'] })
-      showToast('Este B/L foi alterado por outro usuário. A fila foi recarregada.', 'error')
-      return
-    }
-    showToast('Falha ao salvar a correção inline.', 'error')
-  }
-
-  async function handleInlineField(item: ReviewQueueItem, field: 'ce_mercante' | 'bb_weight_ton', rawValue: string) {
+  async function handleInlineWeight(item: ReviewQueueItem, rawValue: string) {
     if (!user || item.source !== 'bl') return
-    let value: string | number
-    if (field === 'bb_weight_ton') {
-      const parsed = Number(rawValue)
-      if (!rawValue.trim() || !Number.isFinite(parsed) || parsed <= 0) {
-        showToast('Informe um peso válido em toneladas.', 'error')
-        return
-      }
-      value = parsed
-    } else {
-      if (!rawValue.trim()) {
-        showToast('Informe o CE Mercante.', 'error')
-        return
-      }
-      value = rawValue.trim()
-    }
+    // O editor já valida junto do campo; aqui só se protege a gravação.
+    const value = parseWeightTon(rawValue)
+    if (value == null) return
+    const fieldLabel = 'Peso da carga solta (t)'
 
-    const before = (item[field] as string | number | null) ?? null
+    const before = item.bb_weight_ton ?? null
     const confirmed = await confirm({
       title: 'Salvar correção da Revisão',
-      message: `Salvar a correção de ${field === 'ce_mercante' ? 'CE Mercante' : 'peso de carga solta'} no B/L ${item.id}?`,
+      message: `Salvar o peso da carga solta do B/L ${item.id}?`,
       confirmLabel: 'Salvar correção',
-      affected: { summary: `B/L ${item.id} · ${item.customer?.name ?? 'cliente não vinculado'}` },
+      affected: { summary: `B/L ${item.id} · ${item.customer?.name ?? 'sem cliente vinculado'}` },
       changes: [{
-        field: field === 'ce_mercante' ? 'CE Mercante' : 'Peso carga solta (ton)',
+        field: fieldLabel,
         before: before == null ? '' : String(before),
         after: String(value),
       }],
@@ -146,18 +194,37 @@ export function Revisao() {
     try {
       const result = await applyInlineBlReviewFix({
         blId: item.id,
-        field,
+        field: 'bb_weight_ton',
         value,
-        previousValue: (item[field] as string | number | null) ?? null,
+        previousValue: before,
         changedBy: user.id,
         expectedUpdatedAt: item.updated_at ?? null,
       })
-      await finishBlCorrection(item, item.customer_id ?? null, result, 'Pendência atualizada')
+      await finishBlCorrection(item, item.customer_id ?? null, result, 'Peso da carga solta salvo')
     } catch (err) {
-      await handleInlineError(err)
+      if (err instanceof ConcurrentEditError) {
+        await queryClient.invalidateQueries({ queryKey: ['review-queue'] })
+        pushOutcome({ tone: 'danger', title: `B/L ${item.id}: não foi salvo`, lines: ['Outro usuário alterou este B/L. A fila foi recarregada; confira o valor e salve de novo.'] })
+      } else {
+        pushOutcome({ tone: 'danger', title: `B/L ${item.id}: falha ao salvar a correção`, lines: [extractErrorText(err) || 'Tente de novo.'] })
+      }
     } finally {
       setSavingInlineId(null)
     }
+  }
+
+  // Faturamento automático de um B/L que acabou de sair da revisão, nas ações
+  // em lote. A gravação já aconteceu: bloqueio ou falha daqui vira aviso de
+  // recálculo, nunca "não gravado".
+  async function autoInvoiceResolvedBl(blId: string, customerId: number) {
+    try {
+      const autoInvoice = await tryAutoIssueInvoice({ blId, customerId, actorId: user?.id ?? null })
+      if (autoInvoice.status === 'invoiced') return true
+      if (autoInvoice.status === 'blocked') addRecalcNotice({ id: blId, label: blId, source: 'bl' })
+    } catch {
+      addRecalcNotice({ id: blId, label: blId, source: 'bl' })
+    }
+    return false
   }
 
   // Centraliza o pos-correcao de um B/L comum: so tenta faturar quando o gate
@@ -180,24 +247,25 @@ export function Revisao() {
 
     await invalidateReviewQueueCaches(queryClient, { blId: item.id, includeCustomers: true })
 
+    const title = `B/L ${item.id}: ${actionLabel.charAt(0).toLowerCase()}${actionLabel.slice(1)}`
     if (invoiced) {
       dismissRecalcNotice(item.id)
-      showToast(`${actionLabel} e fatura emitida automaticamente.`, 'success')
+      pushOutcome({ tone: 'success', title, lines: ['Saiu da revisão e a fatura foi emitida automaticamente.'] })
       return
     }
     if (!result.resolved) {
-      showToast(`${actionLabel}. Ainda falta: ${result.pendencias.join(', ')}.`, 'info')
+      pushOutcome({ tone: 'warning', title, lines: [`Continua em revisão: ${summarizeRemainingPendencies([result.pendencias]) ?? 'pendência não informada'}.`] })
       return
     }
     if (blockedMessage) {
       addRecalcNotice({ id: item.id, label: item.id, source: 'bl' })
-      showToast(`${actionLabel}, mas o faturamento automático não concluiu: ${blockedMessage}`, 'info')
+      pushOutcome({ tone: 'warning', title, lines: [`Saiu da revisão, mas o faturamento automático não concluiu: ${blockedMessage}`] })
       return
     }
-    showToast(`${actionLabel}. B/L pronto para faturamento.`, 'success')
+    pushOutcome({ tone: 'success', title, lines: ['Saiu da revisão e está pronto para faturamento.'] })
   }
 
-  async function handleRecalc(notice: RecalcNotice) {
+  async function handleRecalc(notice: ReviewRecalcNotice) {
     const confirmed = await confirm({
       title: 'Recalcular taxas locais',
       message: `Recalcular as taxas do registro ${notice.label}?`,
@@ -233,79 +301,54 @@ export function Revisao() {
     }
   }
 
-  const filteredData = useMemo(() => {
+  const searchedData = useMemo(() => {
     if (!data) return []
-    let result = data
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase().trim()
-      result = result.filter(
-        (item) =>
+    const q = searchText.toLowerCase().trim()
+    return q ? data.filter((item) => matchesSearch(item, q)) : data
+  }, [data, searchText])
+
+  const causeCounts = useMemo(() => countReviewCauses(searchedData), [searchedData])
+
+  const filteredData = useMemo(
+    () => (causeFilter ? searchedData.filter((item) => getReviewItemCauses(item).includes(causeFilter)) : searchedData),
+    [searchedData, causeFilter],
+  )
+
+  const groups = useMemo(() => sortReviewGroupsByPriority(groupReviewItems(filteredData)), [filteredData])
+  const summaries = useMemo(() => new Map(groups.map((group) => [group.key, summarizeReviewGroup(group)])), [groups])
+  // O drawer anda na mesma ordem em que a fila aparece na tela.
+  const orderedIds = useMemo(() => flattenReviewGroupIds(groups), [groups])
+  const blockedBlCount = useMemo(() => filteredData.filter((item) => item.source === 'bl').length, [filteredData])
+
+  // Grupos que o alvo de chegada abre por padrão; o clique do operador prevalece.
+  const arrivalKeys = useMemo(() => {
+    if (!arrivalTarget) return new Set<string>()
+    const q = arrivalTarget.toLowerCase().trim()
+    return new Set(groups
+      .filter((group) =>
+        group.displayName.toLowerCase().includes(q) ||
+        (group.cnpj && group.cnpj.includes(q)) ||
+        group.items.some((item) =>
           item.id.toLowerCase().includes(q) ||
-          (item.consignee ?? '').toLowerCase().includes(q) ||
-          (item.shipper ?? '').toLowerCase().includes(q) ||
-          (item.customer?.name ?? '').toLowerCase().includes(q) ||
-          (item.customer?.cnpj_cpf ?? '').includes(q) ||
-          (item.manifest_customer_cnpj_cpf ?? '').includes(q) ||
-          (item.customer_id ? String(item.customer_id) === q : false) ||
-          (item.source === 'granite' && item.bl_number ? item.bl_number.toLowerCase().includes(q) : false),
-      )
-    }
-    if (reasonFilter) {
-      result = result.filter((item) => item.review_reasons?.includes(reasonFilter))
-    }
-    return result
-  }, [data, searchText, reasonFilter])
-
-  const groups = useMemo(() => groupReviewItems(filteredData), [filteredData])
-
-  const visibleExpandedGroups = useMemo(() => {
-    const targetCliente = readQueueTarget(searchParams)
-    if (targetCliente && groups.length > 0) {
-      const q = targetCliente.toLowerCase().trim()
-      const matchingKeys = groups
-        .filter((group) =>
-          group.displayName.toLowerCase().includes(q) ||
-          (group.cnpj && group.cnpj.includes(q)) ||
-          group.items.some((item) =>
-            item.id.toLowerCase().includes(q) ||
-            (item.customer_id && String(item.customer_id) === q) ||
-            (item.customer?.name && item.customer.name.toLowerCase().includes(q)) ||
-            (item.consignee && item.consignee.toLowerCase().includes(q))
-          )
+          (item.customer_id && String(item.customer_id) === q) ||
+          (item.customer?.name && item.customer.name.toLowerCase().includes(q)) ||
+          (item.consignee && item.consignee.toLowerCase().includes(q))
         )
-        .map((g) => g.key)
+      )
+      .map((group) => group.key))
+  }, [arrivalTarget, groups])
 
-      const merged = new Set(expandedGroups)
-      matchingKeys.forEach((k) => merged.add(k))
-      return merged
-    }
-    return expandedGroups
-  }, [searchParams, groups, expandedGroups])
+  function isGroupOpen(key: string) {
+    return openOverrides.get(key) ?? arrivalKeys.has(key)
+  }
 
-  const allReasons = useMemo(() => {
-    if (!data) return []
-    const reasons = new Set<string>()
-    for (const item of data) {
-      for (const r of item.review_reasons ?? []) reasons.add(r)
-    }
-    return [...reasons].sort()
-  }, [data])
-
-  const selected = selectedId ? (filteredData.find((item) => item.id === selectedId) ?? null) : null
+  // Busca na fila inteira, não no recorte: um B/L salvo que continua em
+  // revisão por outra causa sai do filtro, mas o drawer segue nele em vez de
+  // fechar e reabrir sozinho quando o filtro for limpo.
+  const selected = selectedId ? (data?.find((item) => item.id === selectedId) ?? null) : null
   const selectedGroup = selected ? groups.find((group) => group.items.some((item) => item.id === selected.id)) ?? null : null
-  const currentIndex = selectedId ? filteredData.findIndex((item) => item.id === selectedId) : -1
-  const activeFilterCount = (searchText.trim() ? 1 : 0) + (reasonFilter ? 1 : 0)
-  const filterDescription = describeActiveFilters([
-    { label: 'Busca', value: searchText },
-    { label: 'Motivo', value: reasonFilter ? reviewReasonLabel(reasonFilter) : null },
-  ])
-  const emptyState = describeEmptyState({
-    entitySingular: 'B/L pendente',
-    entityPlural: 'B/Ls pendentes',
-    hasActiveFilters: activeFilterCount > 0,
-    emptyWithoutFilters: 'Nenhum B/L pendente de revisão.',
-    emptyWithFilters: 'Nenhum B/L corresponde ao filtro.',
-  })
+  const currentIndex = selectedId ? orderedIds.indexOf(selectedId) : -1
+  const hasActiveFilters = Boolean(searchText.trim() || causeFilter)
 
   function handleClose() {
     setSelectedId(null)
@@ -315,42 +358,44 @@ export function Revisao() {
   // resolvido, evitando pular o item seguinte (bug do indice posicional).
   function handleSaved(resolved: boolean) {
     if (!resolved || currentIndex < 0) return
-    const nextId = filteredData[currentIndex + 1]?.id ?? null
+    const nextId = orderedIds[currentIndex + 1] ?? null
     setSelectedId(nextId)
   }
 
   function toggleGroupCollapsed(key: string) {
-    setExpandedGroups((current) => {
-      const next = new Set(current)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
+    setOpenOverrides((current) => new Map(current).set(key, !isGroupOpen(key)))
   }
 
-  // Vincula um cliente a todos os B/Ls do grupo que ainda nao tem cliente.
+  // Vincula um cliente a todos os registros do grupo que ainda nao tem cliente.
   // Resolve "o mesmo problema do mesmo cliente" de uma vez (gargalo de volume).
   async function handleGroupLinkCustomer(group: ReviewGroup, customer: ReviewCustomer) {
     if (!user) return
     const targets = group.items.filter(needsCustomerLink)
     if (targets.length === 0) return
+    const customerCnpj = canonicalizeValidCnpj(customer.cnpj_cpf)
+    const evidence = group.candidateCnpjs.length ? group.candidateCnpjs : group.cnpj ? [group.cnpj] : []
+    const cnpjCheck = !evidence.length
+      ? 'O B/L não traz CNPJ para comparar; confirme pelo nome e pelo texto original.'
+      : customerCnpj && evidence.includes(customerCnpj)
+        ? `O CNPJ ${formatCnpj(customer.cnpj_cpf)} confere com o lido no B/L.`
+        : `Atenção: o CNPJ ${formatCnpj(customer.cnpj_cpf)} é diferente do lido no B/L (${evidence.map((cnpj) => formatCnpj(cnpj)).join(', ')}).`
     const confirmed = await confirm({
       title: 'Vincular cliente ao grupo',
-      message: `Vincular ${customer.name} (${formatCnpj(customer.cnpj_cpf)}) aos registros pendentes deste grupo?`,
+      message: `Vincular ${customer.name} (${formatCnpj(customer.cnpj_cpf)}) aos registros sem cliente deste grupo? ${cnpjCheck}`,
       confirmLabel: 'Vincular cliente',
       affected: {
-        summary: `${targets.length} registro(s) · ${group.displayName}`,
+        summary: `${plural(targets.length, 'registro', 'registros')} · ${group.displayName}`,
         items: targets.map((item) => `${item.source === 'granite' ? 'Granito ' + item.bl_number : 'B/L ' + item.id}`),
       },
-      consequence: 'Atualiza os vínculos de cliente. Para B/Ls, se essa for a última pendência e os gates estiverem liberados, a fatura poderá ser emitida automaticamente.',
+      consequence: 'Atualiza os vínculos de cliente sem alterar contatos. Para B/Ls, se essa for a última pendência e os gates estiverem liberados, a fatura poderá ser emitida automaticamente.',
       reversibility: 'O vínculo pode ser corrigido pela Revisão antes da emissão. Faturas emitidas seguem o cancelamento restrito ao perfil Administrativo quando não houver pagamento.',
     })
     if (!confirmed) return
     setSavingGroupKey(group.key)
     let successCount = 0
-    let errorCount = 0
     let invoiceCount = 0
-    const pendingBls: string[] = []
+    const failed: string[] = []
+    const remaining: string[][] = []
     for (const item of targets) {
       try {
         if (item.source === 'granite') {
@@ -366,15 +411,14 @@ export function Revisao() {
             expectedUpdatedAt: item.updated_at ?? null,
           })
           if (result.resolved) {
-            const autoInvoice = await tryAutoIssueInvoice({ blId: item.id, customerId: customer.id, actorId: user.id })
-            if (autoInvoice.status === 'invoiced') invoiceCount++
+            if (await autoInvoiceResolvedBl(item.id, customer.id)) invoiceCount++
           } else {
-            pendingBls.push(item.id)
+            remaining.push(result.pendencias)
           }
         }
         successCount++
       } catch {
-        errorCount++
+        failed.push(item.source === 'granite' ? item.bl_number : item.id)
       }
     }
     setSavingGroupKey(null)
@@ -383,14 +427,16 @@ export function Revisao() {
       includeCharges: true,
       includeInvoices: true,
     })
-    const invoiceSummary = invoiceCount > 0 ? ` ${invoiceCount} fatura(s) emitida(s).` : ''
-    const pendingSummary = pendingBls.length > 0 ? ` ${pendingBls.length} ainda com pendências (e-mail/portal/peso).` : ''
-    showToast(
-      errorCount
-        ? `${successCount} de ${targets.length} B/Ls vinculados; ${errorCount} falharam.${invoiceSummary}${pendingSummary}`
-        : `${successCount} B/L(s) vinculados a ${group.displayName}.${invoiceSummary}${pendingSummary}`,
-      errorCount ? 'error' : 'success',
-    )
+    const lines: string[] = []
+    if (invoiceCount) lines.push(`${plural(invoiceCount, 'fatura emitida', 'faturas emitidas')} automaticamente.`)
+    const remainingText = summarizeRemainingPendencies(remaining)
+    if (remainingText) lines.push(`Continuam em revisão: ${remainingText}.`)
+    if (failed.length) lines.push(`Não vinculados: ${failed.join(', ')}. Tente de novo; os demais já foram gravados.`)
+    pushOutcome({
+      tone: failed.length === targets.length ? 'danger' : failed.length || remainingText ? 'warning' : 'success',
+      title: `${group.displayName}: ${successCount} de ${plural(targets.length, 'registro vinculado', 'registros vinculados')} a ${customer.name}`,
+      lines,
+    })
   }
 
   async function handleGroupOnboard(group: ReviewGroup, input: ReviewCustomerOnboardingInput) {
@@ -401,7 +447,7 @@ export function Revisao() {
       .filter((item) => item.customer_id == null || getReviewItemDocumentCandidates(item).every((candidate) => !selectedCnpj || candidate === selectedCnpj))
       .map((item) => item.id)
     if (!blIds.length || (group.identityKind === 'conflict' && group.items.length !== 1)) {
-      showToast('Nenhum B/L elegível para o cadastro deste grupo.', 'error')
+      pushOutcome({ tone: 'danger', title: `${group.displayName}: nada foi gravado`, lines: ['Nenhum B/L deste grupo pode receber o cadastro com esse CNPJ.'] })
       return
     }
     const confirmed = await confirm({
@@ -409,10 +455,10 @@ export function Revisao() {
       message: `${input.customerId ? 'Adicionar o e-mail e vincular o cliente' : 'Criar o cliente'} ${input.name} (${formatCnpj(selectedCnpj)}) aos B/Ls deste grupo?`,
       confirmLabel: input.sendPortalInvite ? 'Salvar e enviar convite' : 'Salvar cadastro',
       affected: {
-        summary: `${blIds.length} B/L(s) · ${input.name} · ${formatCnpj(selectedCnpj)}`,
+        summary: `${plural(blIds.length, 'B/L', 'B/Ls')} · ${input.name} · ${formatCnpj(selectedCnpj)}`,
         items: blIds.map((id) => `B/L ${id}`),
       },
-      consequence: `Salva o cliente e o contato ${input.email}.${input.sendPortalInvite ? ` Inicia também o convite do Portal para ${input.email}.` : ''} B/Ls liberados por essa correção poderão ter a fatura emitida automaticamente.`,
+      consequence: `Salva o cliente e o contato ${input.email}.${input.sendPortalInvite ? ` Envia também o convite do Portal para ${input.email}.` : ''} B/Ls liberados por essa correção poderão ter a fatura emitida automaticamente.`,
       reversibility: 'Cadastro e contato podem ser corrigidos; um convite pode ser revogado. Faturas emitidas não podem ser apagadas e só podem ser canceladas pelo perfil Administrativo quando não houver pagamento.',
     })
     if (!confirmed) return
@@ -430,20 +476,12 @@ export function Revisao() {
       let invoiceCount = 0
       for (const bl of result.onboarding.bls) {
         if (!bl.resolved || !bl.blId) continue
-        try {
-          const autoInvoice = await tryAutoIssueInvoice({
-            blId: bl.blId,
-            customerId: result.onboarding.customer.id,
-            actorId: user.id,
-          })
-          if (autoInvoice.status === 'invoiced') invoiceCount++
-        } catch {
-          addRecalcNotice({ id: bl.blId, label: bl.blId, source: 'bl' })
-        }
+        if (await autoInvoiceResolvedBl(bl.blId, result.onboarding.customer.id)) invoiceCount++
       }
 
       const graniteTargets = group.items.filter((item) => item.source === 'granite' && needsCustomerLink(item))
       let graniteLinkedCount = 0
+      const graniteFailed: string[] = []
       for (const item of graniteTargets) {
         try {
           await saveGraniteBlReview({ graniteBlId: item.id, clientId: result.onboarding.customer.id, changedBy: user.id })
@@ -451,248 +489,176 @@ export function Revisao() {
           evaluateRecalcNotice(item)
         } catch {
           // A falha pontual no Granito não desfaz o onboarding transacional dos B/Ls.
+          graniteFailed.push(item.source === 'granite' ? item.bl_number : item.id)
         }
       }
 
-      const pendingCount = result.onboarding.bls.filter((bl) => !bl.resolved).length
-      const inviteMessage = result.portalInvite === 'failed' ? ' Não foi possível iniciar o convite do Portal; o cadastro foi concluído.' : ''
-      const invoiceMessage = invoiceCount > 0 ? ` ${invoiceCount} fatura(s) emitida(s).` : ''
-      const graniteMessage = graniteLinkedCount > 0 ? ` ${graniteLinkedCount} item(ns) de Granito vinculado(s).` : ''
+      const remainingText = summarizeRemainingPendencies(result.onboarding.bls.filter((bl) => !bl.resolved).map((bl) => bl.pendencias))
       const resolvedCount = result.onboarding.bls.filter((bl) => bl.resolved).length
-      showToast(`${resolvedCount} B/L(s) vinculados; ${pendingCount} ainda com pendências.${graniteMessage}${invoiceMessage}${inviteMessage}`, result.portalInvite === 'failed' ? 'info' : 'success')
+      const lines: string[] = []
+      if (invoiceCount) lines.push(`${plural(invoiceCount, 'fatura emitida', 'faturas emitidas')} automaticamente.`)
+      if (resolvedCount) lines.push(`${plural(resolvedCount, 'B/L saiu', 'B/Ls saíram')} da revisão.`)
+      if (remainingText) lines.push(`Continuam em revisão: ${remainingText}.`)
+      if (graniteLinkedCount) lines.push(`${plural(graniteLinkedCount, 'registro de Granito vinculado', 'registros de Granito vinculados')}.`)
+      if (graniteFailed.length) lines.push(`Granito não vinculado: ${graniteFailed.join(', ')}. Vincule pelo grupo ou pelo Granito.`)
+      if (result.portalInvite === 'sent') lines.push(`Convite do Portal enviado para ${input.email}.`)
+      if (result.portalInvite === 'failed') lines.push('O convite do Portal não foi enviado; o cadastro foi concluído. Envie pelo Provisionamento do Portal.')
+      pushOutcome({
+        tone: result.portalInvite === 'failed' || graniteFailed.length || remainingText ? 'warning' : 'success',
+        title: `${result.onboarding.customer.name}: cliente ${input.customerId ? 'vinculado' : 'cadastrado'} em ${plural(result.onboarding.bls.length, 'B/L', 'B/Ls')}`,
+        lines,
+      })
       await invalidateReviewQueueCaches(queryClient, { includeCustomers: true, includeCharges: true, includeInvoices: true, includePortal: input.sendPortalInvite })
     } catch (err) {
       if (err instanceof ConcurrentEditError) {
         await queryClient.invalidateQueries({ queryKey: ['review-queue'] })
-        showToast('Este grupo foi alterado por outro usuário. A fila foi recarregada.', 'error')
+        pushOutcome({ tone: 'danger', title: `${group.displayName}: nada foi gravado`, lines: ['Outro usuário alterou este grupo. A fila foi recarregada; confira e tente de novo.'] })
       } else {
-        showToast(`Falha ao concluir o onboarding do cliente. ${extractErrorText(err)}`.trim(), 'error')
+        pushOutcome({ tone: 'danger', title: `${group.displayName}: nada foi gravado`, lines: [extractErrorText(err) || 'Falha ao concluir o cadastro do cliente.'] })
       }
     } finally {
       setSavingGroupKey(null)
     }
   }
 
-  // Apos uma correcao de nivel-cliente (e-mail/portal), reavalia o gate de todos
-  // os B/Ls ja vinculados do grupo: os que zerarem saem da fila e, se elegiveis,
-  // sao faturados. O updated_at do B/L nao muda (alteramos tabelas do cliente),
-  // entao o lock otimista continua valido.
-  async function refreshGroupGate(group: ReviewGroup) {
-    if (!user) return
-    let invoiceCount = 0
-    for (const item of group.items) {
-      if (item.source !== 'bl' || item.customer_id == null) continue
-      try {
-        const result = await recomputeBlReviewGate({
-          blId: item.id,
-          expectedUpdatedAt: item.updated_at ?? null,
-          changedBy: user.id,
-        })
-        if (result.resolved && item.customer_id) {
-          const autoInvoice = await tryAutoIssueInvoice({ blId: item.id, customerId: item.customer_id, actorId: user.id })
-          if (autoInvoice.status === 'invoiced') invoiceCount++
-        }
-      } catch {
-        // Conflito de concorrencia ou falha pontual: a invalidacao abaixo recarrega o estado real.
-      }
-    }
-    await invalidateReviewQueueCaches(queryClient, {
-      includeGranite: false,
-      includeCharges: true,
-      includeInvoices: true,
-    })
-    return invoiceCount
-  }
-
-  async function handleGroupAddEmail(group: ReviewGroup, email: string) {
-    if (!user) return
-    const linked = getGroupLinkedItem(group)
-    const customerId = linked?.customer?.id
-    if (!customerId) return
-    if (!email.trim() || !email.includes('@')) {
-      showToast('Informe um e-mail válido.', 'error')
-      return
-    }
-    const targets = group.items.filter((item) => item.source === 'bl' && item.customer_id === customerId)
-    const confirmed = await confirm({
-      title: 'Salvar e-mail do cliente',
-      message: `Adicionar ${email.trim().toLowerCase()} como contato de ${group.displayName}?`,
-      confirmLabel: 'Salvar e-mail',
-      affected: {
-        summary: `${group.displayName} · ${targets.length} B/L(s) vinculados`,
-        items: targets.map((item) => `B/L ${item.id}`),
-      },
-      consequence: 'O endereço fica disponível como contato do cliente; esta ação não envia e-mail. A atualização pode liberar o gate de emissão, então faturas elegíveis poderão ser emitidas automaticamente.',
-      reversibility: 'O contato pode ser corrigido ou removido no cadastro do cliente. Faturas emitidas não podem ser apagadas e só podem ser canceladas pelo perfil Administrativo quando não houver pagamento.',
-    })
-    if (!confirmed) return
-    setSavingGroupKey(group.key)
-    try {
-      await addCustomerEmail(customerId, email)
-      await queryClient.invalidateQueries({ queryKey: ['customers'] })
-      const invoiceCount = await refreshGroupGate(group)
-      showToast(
-        `E-mail vinculado a ${group.displayName}.${invoiceCount ? ` ${invoiceCount} fatura(s) emitida(s).` : ''}`,
-        'success',
-      )
-    } catch (err) {
-      showToast(`Falha ao salvar e-mail. ${extractErrorText(err)}`.trim(), 'error')
-    } finally {
-      setSavingGroupKey(null)
-    }
-  }
+  const summaryItems = data
+    ? [
+        { label: groups.length === 1 ? 'cliente' : 'clientes', value: groups.length },
+        { label: filteredData.length === 1 ? 'registro em revisão' : 'registros em revisão', value: filteredData.length },
+        { label: blockedBlCount === 1 ? 'B/L sem faturamento' : 'B/Ls sem faturamento', value: blockedBlCount, tone: blockedBlCount ? 'warning' as const : 'default' as const },
+      ]
+    : []
 
   return (
     <>
-      <PageHeader
-        title="Revisão Manual"
-        description="Fila de B/Ls com pendências de importação que exigem validação humana, agrupada por cliente."
-      />
+      <PageHeader title="Revisão" />
 
-      <div className="review-toolbar mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative w-full sm:w-72">
-          <Input
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            placeholder="Buscar B/L, cliente, consignatário..."
-            aria-label="Buscar B/L, cliente, consignatário..."
-            className="app-review-search__input"
-          />
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--app-muted-soft)]" size={15} />
-          {searchText ? (
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--app-muted)] transition-colors hover:text-[var(--app-text)]"
-              onClick={() => setSearchText('')}
-              aria-label="Limpar busca"
-            >
-              <X size={14} />
-            </button>
-          ) : null}
-        </div>
-
-        {allReasons.length > 0 ? (
-          <Select
-            aria-label="Filtrar por inconsistência"
-            value={reasonFilter ?? ''}
-            onChange={(event) => setReasonFilter(event.target.value || null)}
-            className="review-reason-filter w-full sm:w-72"
-          >
-            <option value="">Todas as inconsistências</option>
-            {allReasons.map((reason) => (
-              <option
-                key={reason}
-                value={reason}
-              >
-                {reviewReasonLabel(reason)}
-              </option>
-            ))}
-          </Select>
-        ) : null}
-
-        {data && data.length > 0 ? (
-          <span className="review-toolbar__count ml-auto text-xs">
-            {formatResultCount(groups.length, 'cliente', 'clientes')} · {formatResultCount(filteredData.length, 'B/L', 'B/Ls')} de {data.length}
-          </span>
-        ) : null}
-      </div>
-
-      {recalcQueue.length > 0 ? (
-        <div className="mb-3 space-y-2">
-          {recalcQueue.map((notice) => (
-            <div
-              key={notice.id}
-              className="review-recalc-notice flex flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm"
-            >
-              <div className="flex items-center gap-2">
-                <AlertTriangle size={15} />
-                <span>
-                  {notice.source === 'granite'
-                    ? `Granito ${notice.label}: o cálculo de taxas precisa ser refeito em /granito.`
-                    : `${notice.label}: taxas locais ainda pendentes de recálculo.`}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {notice.source === 'bl' ? (
-                  <Button
-                    variant="secondary"
-                    className="px-3 py-1 text-xs"
-                    loading={recalcingId === notice.id}
-                    onClick={() => handleRecalc(notice)}
-                  >
-                    Recalcular
-                  </Button>
-                ) : (
-                  <Link className="app-table__action" to="/granito">
-                    Abrir Granito
-                  </Link>
-                )}
-                <button
-                  type="button"
-                  className="review-recalc-notice__dismiss"
-                  onClick={() => dismissRecalcNotice(notice.id)}
-                  aria-label="Dispensar aviso"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
+      {data && data.length > 0 ? (
+        <div className="review-causes" role="group" aria-label="Filtrar por causa">
+          {CARD_CAUSES.map((cause) => (
+            <MetricCard
+              key={cause}
+              label={REVIEW_CAUSE_LABELS[cause]}
+              value={causeCounts[cause]}
+              selected={causeFilter === cause}
+              onSelect={() => setCauseFilter(causeFilter === cause ? null : cause)}
+            />
           ))}
         </div>
       ) : null}
 
-      <Card className="review-queue-card overflow-hidden p-0">
-        <div className="review-queue-card__summary flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <span className="font-semibold text-[var(--app-text-strong)]">{formatResultCount(filteredData.length, 'pendência retornada', 'pendências retornadas')}</span>
-          <span className="text-xs text-[var(--app-muted)]">{filterDescription}</span>
-        </div>
-        {error ? <InlineError message="Erro ao carregar a fila de revisão." /> : null}
-        {graniteUnavailable ? (
-          <InlineError message="Não foi possível carregar os B/Ls de granito — a fila abaixo pode estar incompleta. Recarregue a página ou contate o suporte." />
-        ) : null}
+      <ReviewOutcomes
+        outcomes={outcomes}
+        recalcNotices={recalcQueue}
+        recalcingId={recalcingId}
+        onDismissOutcome={(id) => setOutcomes((current) => current.filter((outcome) => outcome.id !== id))}
+        onDismissRecalc={dismissRecalcNotice}
+        onRecalc={(notice) => void handleRecalc(notice)}
+      />
 
-        {isLoading ? (
-          <div className="px-4 py-8 text-center text-[var(--app-muted)]">Carregando fila de revisão...</div>
-        ) : null}
-        {!isLoading && !filteredData.length ? (
-          <EmptyState title={emptyState.title} description={emptyState.description} />
-        ) : null}
-
-        <div className="review-queue-card__groups divide-y">
-          {groups.map((group) => (
-            <ReviewGroupBlock
-              key={group.key}
-              group={group}
-              collapsed={!visibleExpandedGroups.has(group.key)}
-              savingGroup={savingGroupKey === group.key}
-              savingInlineId={savingInlineId}
-              onToggle={() => toggleGroupCollapsed(group.key)}
-              onGroupLink={(customer) => handleGroupLinkCustomer(group, customer)}
-              onGroupAddEmail={(email) => handleGroupAddEmail(group, email)}
-              onGroupOnboard={(input) => void handleGroupOnboard(group, input)}
-              onCorrect={(id) => setSelectedId(id)}
-              onInlineField={handleInlineField}
+      <section className="review-queue" aria-label="Fila de revisão">
+        <div className="review-toolbar">
+          <div className="review-search">
+            <Search className="review-search__icon" size={15} aria-hidden="true" />
+            <Input
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="Buscar B/L, cliente, consignatário..."
+              aria-label="Buscar B/L, cliente, consignatário ou CNPJ"
+              className="app-review-search__input"
             />
-          ))}
+            {searchText ? (
+              <button type="button" className="review-search__clear" onClick={() => setSearchText('')} aria-label="Limpar busca">
+                <X size={14} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+          {data ? <SummaryStrip items={summaryItems} label="Resumo da fila" className="review-toolbar__summary" /> : null}
+          {hasActiveFilters ? (
+            <div className="review-toolbar__filters">
+              <span>
+                {causeFilter ? `Causa: ${REVIEW_CAUSE_LABELS[causeFilter]}` : null}
+                {causeFilter && searchText.trim() ? ' · ' : null}
+                {searchText.trim() ? `Busca: “${searchText.trim()}”` : null}
+              </span>
+              <button type="button" className="review-link-button" onClick={clearFilters}>Limpar filtros</button>
+            </div>
+          ) : null}
+          {causeCounts.outros > 0 && causeFilter !== 'outros' ? (
+            <button type="button" className="review-link-button review-toolbar__other" onClick={() => setCauseFilter('outros')}>
+              {plural(causeCounts.outros, 'registro com outra pendência', 'registros com outras pendências')}
+            </button>
+          ) : null}
         </div>
-      </Card>
+
+        {graniteUnavailable ? (
+          <div className="review-partial" role="alert">
+            <AlertTriangle size={16} aria-hidden="true" />
+            <p>Os registros de Granito não carregaram; a fila abaixo mostra só os B/Ls.</p>
+            <Button variant="secondary" className="app-btn--sm" onClick={() => void reviewQueue.refetch?.()}>Tentar novamente</Button>
+          </div>
+        ) : null}
+
+        <QueryStateGate
+          isLoading={isLoading}
+          isError={Boolean(error)}
+          isPaused={reviewQueue.fetchStatus === 'paused'}
+          hasData={data !== undefined}
+          errorMessage="Não foi possível carregar a fila de revisão. Nenhum dado foi alterado."
+          onRetry={reviewQueue.refetch ? () => void reviewQueue.refetch() : undefined}
+          loadingLabel="Carregando a fila de revisão…"
+          loadingFallback={<SkeletonTable rows={6} cols={3} label="Carregando a fila de revisão" />}
+        >
+          {!filteredData.length ? (
+            hasActiveFilters ? (
+              <EmptyState
+                title="Nenhum registro corresponde ao filtro"
+                description="A fila tem pendências fora deste recorte."
+                action={<Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>}
+              />
+            ) : (
+              <EmptyState
+                title="Nenhum B/L em revisão"
+                description="Os B/Ls entram aqui quando a importação encontra cliente sem vínculo, Portal não provisionado ou peso da carga solta ausente."
+              />
+            )
+          ) : (
+            <div className="review-groups">
+              {groups.map((group) => (
+                <ReviewGroupBlock
+                  key={group.key}
+                  group={group}
+                  summary={summaries.get(group.key)!}
+                  collapsed={!isGroupOpen(group.key)}
+                  savingGroup={savingGroupKey === group.key}
+                  savingInlineId={savingInlineId}
+                  onToggle={() => toggleGroupCollapsed(group.key)}
+                  onGroupLink={(customer) => void handleGroupLinkCustomer(group, customer)}
+                  onGroupOnboard={(input) => void handleGroupOnboard(group, input)}
+                  onCorrect={(id) => setSelectedId(id)}
+                  onInlineWeight={(item, value) => void handleInlineWeight(item, value)}
+                />
+              ))}
+            </div>
+          )}
+        </QueryStateGate>
+      </section>
 
       <ReviewDrawer
         item={selected}
         currentIndex={currentIndex}
-        totalItems={filteredData.length}
+        totalItems={orderedIds.length}
         onClose={handleClose}
         onSaved={handleSaved}
         onReviewSaved={evaluateRecalcNotice}
         onNavigate={(id) => setSelectedId(id)}
-        siblingIds={filteredData.map((item) => item.id)}
+        siblingIds={orderedIds}
         allowCustomerLink={Boolean(
           selected?.source === 'bl' && selected.customer_id != null
             || selectedGroup?.identityKind === 'conflict'
             || (selected && hasCustomerDocumentConflict(selected)),
         )}
       />
-
     </>
   )
 }

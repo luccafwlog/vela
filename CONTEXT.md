@@ -2083,6 +2083,7 @@ não substituem a leitura da última definição na cadeia ativa de migrations.
 | Motivos exibidos na Validação, incluindo Granito | [validacaoPipeline.ts](src/components/billing/validacaoPipeline.ts) |
 | CE obrigatório e fronteiras de emissão | [migration 047](supabase/migrations/047_bl_documental_gates.sql) |
 | Gate do Portal na emissão automática e Liberação de faturamento sem Portal | [migration 083](supabase/migrations/083_portal_trava_universal_liberacao_faturamento.sql) |
+| Conceder ou revogar a Liberação reavalia a Revisão dos B/Ls do Cliente | [migration 167](supabase/migrations/167_liberacao_reavalia_revisao.sql) |
 | Permissões por Departamento | [useAuth.tsx](src/hooks/useAuth.tsx) e [rotas internas](src/AppInterno.tsx) |
 | Edição interna dos contatos e caixas | [migration 008](supabase/migrations/008_portal_contact_boxes.sql) |
 | Calendário do prazo do ADR | [agencyReportDeadline.ts](src/services/agencyReportDeadline.ts) |

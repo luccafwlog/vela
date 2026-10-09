@@ -198,39 +198,6 @@ export async function applyInlineBlReviewFix({
   return parseSaveBlReviewResult(data)
 }
 
-/**
- * Reavalia o gate de um B/L sem alterar campos. Usado apos uma correcao de
- * nivel-cliente (e-mail adicionado, portal provisionado) refletir em todos os
- * B/Ls daquele cliente: o `save_bl_review` recomputa `review_status` pela funcao
- * canonica mesmo com payload vazio. Sem linhas de auditoria (nada mudou no B/L).
- */
-export async function recomputeBlReviewGate({
-  blId,
-  expectedUpdatedAt,
-  changedBy,
-}: {
-  blId: string
-  expectedUpdatedAt: string | null
-  changedBy: string
-}): Promise<SaveBlReviewResult> {
-  const { data, error } = await supabase.rpc('save_bl_review', {
-    p_bl_id: blId,
-    p_expected_updated_at: expectedUpdatedAt,
-    p_update_payload: {},
-    p_audit_rows: [],
-    p_changed_by: changedBy,
-  })
-
-  if (error) {
-    if (error.code === 'PT409' || error.code === '40001') {
-      throw new ConcurrentEditError(error.message)
-    }
-    throw error
-  }
-
-  return parseSaveBlReviewResult(data)
-}
-
 export async function saveGraniteBlReview({
   graniteBlId,
   clientId,

@@ -87,3 +87,33 @@ it('mantém Shift+Tab dentro do modal quando o foco inicial está no título', a
 
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Imprimir' }))
 })
+
+it('Escape numa lista de sugestões aberta fecha só a lista, não o modal', async () => {
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+
+  function Harness() {
+    const [expanded, setExpanded] = useState(true)
+    return (
+      <Modal open title="Teste" onClose={onClose}>
+        <input
+          aria-label="Cliente"
+          role="combobox"
+          aria-expanded={expanded}
+          onKeyDown={(event) => { if (event.key === 'Escape') setExpanded(false) }}
+        />
+      </Modal>
+    )
+  }
+
+  render(<Harness />)
+  const input = screen.getByRole('combobox', { name: 'Cliente' })
+  input.focus()
+  await user.keyboard('{Escape}')
+  expect(onClose).not.toHaveBeenCalled()
+  expect(input.getAttribute('aria-expanded')).toBe('false')
+
+  // Com a lista já fechada, o próximo Escape volta a fechar o modal.
+  await user.keyboard('{Escape}')
+  expect(onClose).toHaveBeenCalledTimes(1)
+})

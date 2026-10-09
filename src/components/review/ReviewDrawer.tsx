@@ -1,22 +1,47 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronLeft, ChevronRight, Search } from 'lucide-react'
-import { Badge } from '../ui/Badge'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
+import { Drawer } from '../ui/Drawer'
 import { Field, Input, Textarea } from '../ui/Input'
-import { Modal } from '../ui/Modal'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
+import { InlineCustomerPicker } from '../shared/ReviewInlineEditors'
 import { useAuth } from '../../hooks/useAuth'
-import { useCustomerLookup } from '../../hooks/useCustomers'
-import type { ReviewQueueItem } from '../../hooks/useReview'
-import { formatCnpj } from '../../lib/cnpj'
+import type { ReviewCustomer, ReviewQueueItem } from '../../hooks/useReview'
+import { canonicalizeValidCnpj, formatCnpj } from '../../lib/cnpj'
 import { isBreakbulkCargoMode, isContainerCargoMode } from '../../lib/cargoMode'
 import { logOperationalEvent } from '../../services/operationalEvents'
 import { ConcurrentEditError, saveBlReview, saveGraniteBlReview } from '../../services/review'
 import { tryAutoIssueInvoice } from '../../services/reviewBillingAutomation'
+import {
+  getReviewItemCauses,
+  getReviewItemDocumentCandidates,
+  REVIEW_CAUSE_LABELS,
+  splitReviewNotes,
+  type ReviewCause,
+} from '../../pages/revisaoHelpers'
 import { invalidateReviewQueueCaches } from './reviewCaches'
+
+function customerLabel(customer: Pick<ReviewCustomer, 'name' | 'cnpj_cpf'>) {
+  return `${customer.name} (${formatCnpj(customer.cnpj_cpf)})`
+}
+
+/** Onde cada causa se resolve, para a pessoa não salvar esperando o que o drawer não faz. */
+function whereToResolve(cause: ReviewCause, canSelectCustomer: boolean, isGranite: boolean) {
+  switch (cause) {
+    case 'cliente':
+      return canSelectCustomer ? 'Escolha o cliente abaixo.' : 'Resolva no grupo do cliente, na fila: cadastrar ou vincular.'
+    case 'granito':
+      return 'Escolha o cliente abaixo.'
+    case 'peso':
+      return 'Informe o peso em toneladas abaixo.'
+    case 'portal':
+      return 'Depende do Portal ativo ou da Liberação de faturamento sem Portal; o B/L sai da fila sozinho quando um dos dois acontecer.'
+    default:
+      return isGranite ? 'Escolha o cliente abaixo.' : 'Salve para o sistema reavaliar o B/L.'
+  }
+}
 
 export function ReviewDrawer({
   item,
@@ -52,12 +77,9 @@ export function ReviewDrawer({
   const [bbWeightTon, setBbWeightTon] = useState('')
   const [bbCbm, setBbCbm] = useState('')
   const [notes, setNotes] = useState('')
-  const [customerSearch, setCustomerSearch] = useState('')
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
-  const [selectedCustomerDisplay, setSelectedCustomerDisplay] = useState<string | null>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<Pick<ReviewCustomer, 'id' | 'name' | 'cnpj_cpf'> | null>(null)
   const [justification, setJustification] = useState('')
   const [saving, setSaving] = useState(false)
-  const customerLookup = useCustomerLookup(customerSearch)
 
   // Re-baseia o formulário quando o item em revisão muda — ajuste durante
   // o render (padrão "adjusting state when props change" do React).
@@ -72,26 +94,23 @@ export function ReviewDrawer({
     setTotalCbm(item.total_cbm ? String(item.total_cbm) : '')
     setBbWeightTon('bb_weight_ton' in item && item.bb_weight_ton ? String(item.bb_weight_ton) : '')
     setBbCbm('bb_cbm' in item && item.bb_cbm ? String(item.bb_cbm) : '')
-    setNotes(item.notes ?? '')
-    setSelectedCustomerId(item.customer_id ?? null)
-    setSelectedCustomerDisplay(item.customer ? `${item.customer.name} (${formatCnpj(item.customer.cnpj_cpf)})` : null)
-    setCustomerSearch('')
+    setNotes(splitReviewNotes(item.notes))
+    setSelectedCustomer(item.customer ? { id: item.customer.id, name: item.customer.name, cnpj_cpf: item.customer.cnpj_cpf } : null)
     setJustification('')
   }
+
+  const selectedCustomerId = selectedCustomer?.id ?? null
+  const selectedCustomerDisplay = selectedCustomer ? customerLabel(selectedCustomer) : null
 
   async function handleSave() {
     if (!item || !user) return
     if (item.source === 'granite') {
-      if (!selectedCustomerId) {
-        showToast('Selecione um cliente para vincular.', 'error')
-        return
-      }
-      const customerLabel = selectedCustomerDisplay ?? `Cliente #${selectedCustomerId}`
+      if (!selectedCustomer) return
       const confirmed = await confirm({
         title: 'Vincular cliente ao Granito',
-        message: `Vincular ${customerLabel} ao registro de Granito ${item.bl_number}?`,
+        message: `Vincular ${selectedCustomerDisplay} ao registro de Granito ${item.bl_number}?`,
         confirmLabel: 'Vincular cliente',
-        affected: { summary: `Granito ${item.bl_number} · cliente ${customerLabel}` },
+        affected: { summary: `Granito ${item.bl_number} · cliente ${selectedCustomerDisplay}` },
         consequence: 'Atualiza o cliente associado ao registro operacional e reavalia se há cálculo de apoio pendente.',
         reversibility: 'O vínculo pode ser corrigido novamente pela Revisão enquanto não houver documento financeiro emitido.',
       })
@@ -111,21 +130,23 @@ export function ReviewDrawer({
       addChange('CBM contêiner (m³)', item.total_cbm, totalCbm === '' ? null : Number(totalCbm))
       addChange('Peso carga solta (ton)', 'bb_weight_ton' in item ? item.bb_weight_ton : null, bbWeightTon === '' ? null : Number(bbWeightTon))
       addChange('CBM carga solta (m³)', 'bb_cbm' in item ? item.bb_cbm : null, bbCbm === '' ? null : Number(bbCbm))
-      addChange('Notas da revisão', item.notes, notes.trim() || null)
+      addChange('Notas da revisão', splitReviewNotes(item.notes) || null, notes.trim() || null)
       if ((item.customer_id ?? null) !== selectedCustomerId) {
         changes.push({
           field: 'Cliente',
-          before: item.customer ? `${item.customer.name} (${formatCnpj(item.customer.cnpj_cpf)})` : '',
-          after: selectedCustomerDisplay ?? (selectedCustomerId ? `Cliente #${selectedCustomerId}` : ''),
+          before: item.customer ? customerLabel(item.customer) : '',
+          after: selectedCustomerDisplay ?? '',
         })
       }
       const confirmed = await confirm({
         title: 'Salvar revisão do B/L',
-        message: `Salvar as correções e marcar o B/L ${item.id} como revisado?`,
+        message: changes.length
+          ? `Salvar as correções do B/L ${item.id} e reavaliar as pendências?`
+          : `Nenhum campo mudou. Reavaliar as pendências do B/L ${item.id}?`,
         confirmLabel: 'Salvar revisão',
-        affected: { summary: `B/L ${item.id} · ${item.customer?.name ?? selectedCustomerDisplay ?? 'cliente não vinculado'}` },
+        affected: { summary: `B/L ${item.id} · ${item.customer?.name ?? selectedCustomer?.name ?? 'sem cliente vinculado'}` },
         changes,
-        consequence: 'Atualiza os dados documentais e o estado da Revisão. Se esta correção resolver a última pendência e os demais gates do servidor estiverem atendidos, a emissão da fatura poderá ocorrer automaticamente.',
+        consequence: 'Atualiza os dados documentais e o servidor recalcula as pendências. Se nenhuma sobrar e os demais gates estiverem atendidos, a emissão da fatura poderá ocorrer automaticamente.',
         reversibility: 'Os campos podem ser corrigidos novamente antes da emissão. Uma fatura emitida não pode ser apagada; sem pagamento, seu cancelamento é restrito ao perfil Administrativo.',
       })
       if (!confirmed) return
@@ -142,6 +163,7 @@ export function ReviewDrawer({
         return
       }
 
+      const humanNotes = splitReviewNotes(item.notes)
       const result = await saveBlReview({
         blId: item.id,
         original: {
@@ -153,7 +175,8 @@ export function ReviewDrawer({
           total_cbm: item.total_cbm,
           bb_weight_ton: 'bb_weight_ton' in item ? item.bb_weight_ton : null,
           bb_cbm: 'bb_cbm' in item ? item.bb_cbm : null,
-          notes: item.notes,
+          // Só a parte humana: a linha técnica é regravada pela RPC.
+          notes: humanNotes || null,
         },
         // Os quatro campos viajam sempre; `saveBlReview` só persiste o que
         // mudou, e a tela só deixa mexer no par da modalidade do B/L.
@@ -166,7 +189,7 @@ export function ReviewDrawer({
           total_cbm: totalCbm === '' ? null : Number(totalCbm),
           bb_weight_ton: bbWeightTon === '' ? null : Number(bbWeightTon),
           bb_cbm: bbCbm === '' ? null : Number(bbCbm),
-          notes,
+          notes: notes.trim() || null,
         },
         customerId: selectedCustomerId,
         previousCustomerId: item.customer_id ?? null,
@@ -186,13 +209,14 @@ export function ReviewDrawer({
       await invalidateReviewQueueCaches(queryClient, { blId: item.id, includeCustomers: true, includeAudit: true })
 
       if (autoInvoiceIssued) {
-        showToast('B/L revisado e fatura emitida automaticamente.', 'success')
+        showToast(`B/L ${item.id} saiu da revisão e a fatura foi emitida automaticamente.`, 'success')
       } else if (!result.resolved) {
-        showToast(`B/L salvo, mas ainda falta: ${result.pendencias.join(', ')}.`, 'info')
+        // O painel continua aberto neste B/L e a lista de pendências se atualiza.
+        showToast(`B/L ${item.id} salvo. Continua em revisão.`, 'info')
       } else if (autoInvoiceMessage) {
-        showToast(`B/L revisado, mas o faturamento automático não concluiu: ${autoInvoiceMessage}`, 'info')
+        showToast(`B/L ${item.id} saiu da revisão, mas o faturamento automático não concluiu: ${autoInvoiceMessage}`, 'info')
       } else {
-        showToast('B/L revisado. Pronto para faturamento.', 'success')
+        showToast(`B/L ${item.id} saiu da revisão e está pronto para faturamento.`, 'success')
       }
 
       if (!autoInvoiceIssued) {
@@ -226,182 +250,180 @@ export function ReviewDrawer({
   const cargoMode = item && !isGranite ? item.cargo_mode : null
   const showContainerCargo = !cargoMode || isContainerCargoMode(cargoMode)
   const showBreakbulkCargo = Boolean(cargoMode) && isBreakbulkCargoMode(cargoMode)
-  const pendencies = item?.review_reasons?.length ? item.review_reasons : ['Pendente de revisão']
+  const causes = item ? getReviewItemCauses(item) : []
+  const evidenceCnpjs = item && !isGranite ? getReviewItemDocumentCandidates(item) : []
+  const selectedCnpj = canonicalizeValidCnpj(selectedCustomer?.cnpj_cpf)
+  const selectedMatches = evidenceCnpjs.length && selectedCnpj ? evidenceCnpjs.includes(selectedCnpj) : null
+  const customerChanged = item ? (item.customer_id ?? null) !== selectedCustomerId : false
+  const saveBlocked = isGranite && !selectedCustomer ? 'Escolha um cliente para vincular.' : null
 
   return (
-    <Modal
+    <Drawer
       open={Boolean(item)}
       onClose={onClose}
-      className="app-drawer"
       title={item ? (isGranite ? `Vincular cliente — Granito ${item.bl_number}` : `Revisar B/L ${item.id}`) : 'Revisar'}
     >
       {item ? (
-        <div className="grid gap-5">
+        <div className="review-drawer">
           {totalItems > 1 && currentIndex >= 0 ? (
-            <div className="review-drawer__pager flex items-center justify-between rounded-lg px-3 py-2 text-sm">
+            <nav className="review-drawer__pager" aria-label="Navegar pela fila">
               <button
                 type="button"
                 disabled={!canGoPrev}
                 onClick={() => canGoPrev && onNavigate(siblingIds[currentIndex - 1])}
-                className="review-drawer__pager-button flex items-center gap-1 disabled:opacity-30"
+                className="review-drawer__pager-button"
+                aria-label="Registro anterior"
               >
-                <ChevronLeft size={15} />
+                <ChevronLeft size={15} aria-hidden="true" />
                 Anterior
               </button>
-              <span className="review-drawer__pager-count text-xs">
-                {currentIndex + 1} de {totalItems}
-              </span>
+              <span className="review-drawer__pager-count">{currentIndex + 1} de {totalItems}</span>
               <button
                 type="button"
                 disabled={!canGoNext}
                 onClick={() => canGoNext && onNavigate(siblingIds[currentIndex + 1])}
-                className="review-drawer__pager-button flex items-center gap-1 disabled:opacity-30"
+                className="review-drawer__pager-button"
+                aria-label="Próximo registro"
               >
                 Próximo
-                <ChevronRight size={15} />
+                <ChevronRight size={15} aria-hidden="true" />
               </button>
-            </div>
+            </nav>
           ) : null}
 
-          <div className="review-drawer__warning rounded-xl p-3 text-sm">
-            <div className="mb-2 flex items-center gap-2 font-semibold">
-              <AlertTriangle size={16} />
-              Pendências a resolver
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {pendencies.map((reason) => (
-                <Badge key={reason} tone="yellow">
-                  {reason}
-                </Badge>
+          <section className="review-drawer__pending" aria-label="O que falta">
+            <h3 className="review-section-title">O que falta</h3>
+            <ul>
+              {causes.map((cause) => (
+                <li key={cause}>
+                  <strong>{cause === 'outros' ? 'Pendente de revisão' : REVIEW_CAUSE_LABELS[cause]}</strong>
+                  <span>{whereToResolve(cause, canSelectCustomer, Boolean(isGranite))}</span>
+                </li>
               ))}
-            </div>
-          </div>
+            </ul>
+          </section>
 
           {!isGranite ? (
             <>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Shipper">
-                  <Input value={shipper} onChange={(event) => setShipper(event.target.value)} />
+              <section className="review-drawer__section" aria-label="Dados do documento">
+                <h3 className="review-section-title">Documento</h3>
+                <div className="review-drawer__grid">
+                  <Field label="Shipper">
+                    <Input value={shipper} onChange={(event) => setShipper(event.target.value)} />
+                  </Field>
+                  <Field label="Consignatário">
+                    <Input value={consignee} onChange={(event) => setConsignee(event.target.value)} />
+                  </Field>
+                  <Field label="POL">
+                    <Input value={pol} onChange={(event) => setPol(event.target.value)} />
+                  </Field>
+                  <Field label="POD">
+                    <Input value={pod} onChange={(event) => setPod(event.target.value)} />
+                  </Field>
+                </div>
+              </section>
+              <section className="review-drawer__section" aria-label="Carga">
+                <h3 className="review-section-title">Carga</h3>
+                <div className="review-drawer__grid">
+                  {/* Cada modalidade edita as SUAS colunas. Um B/L misto mostra
+                      os dois pares, porque satisfaz os dois predicados. */}
+                  {showContainerCargo ? (
+                    <>
+                      <Field label="Peso contêiner (kg)">
+                        <Input type="number" inputMode="decimal" value={totalWeightKg} onChange={(event) => setTotalWeightKg(event.target.value)} />
+                      </Field>
+                      <Field label="CBM contêiner (m³)">
+                        <Input type="number" inputMode="decimal" value={totalCbm} onChange={(event) => setTotalCbm(event.target.value)} />
+                      </Field>
+                    </>
+                  ) : null}
+                  {showBreakbulkCargo ? (
+                    <>
+                      <Field label="Peso carga solta (ton)" required={causes.includes('peso')}>
+                        <Input type="number" inputMode="decimal" value={bbWeightTon} onChange={(event) => setBbWeightTon(event.target.value)} />
+                      </Field>
+                      <Field label="CBM carga solta (m³)">
+                        <Input type="number" inputMode="decimal" value={bbCbm} onChange={(event) => setBbCbm(event.target.value)} />
+                      </Field>
+                    </>
+                  ) : null}
+                </div>
+                <Field label="Descrição da carga do B/L" hint="Texto extraído do documento; não é alterado nesta revisão.">
+                  <Textarea
+                    className="review-drawer__cargo-description"
+                    value={item.cargo_description ?? ''}
+                    placeholder="Descrição não extraída do B/L."
+                    readOnly
+                  />
                 </Field>
-                <Field label="Consignatário">
-                  <Input value={consignee} onChange={(event) => setConsignee(event.target.value)} />
-                </Field>
-                <Field label="POL">
-                  <Input value={pol} onChange={(event) => setPol(event.target.value)} />
-                </Field>
-                <Field label="POD">
-                  <Input value={pod} onChange={(event) => setPod(event.target.value)} />
-                </Field>
-                {/* Cada modalidade edita as SUAS colunas. Um B/L misto mostra
-                    os dois pares, porque satisfaz os dois predicados. */}
-                {showContainerCargo ? (
-                  <>
-                    <Field label="Peso contêiner (kg)">
-                      <Input type="number" value={totalWeightKg} onChange={(event) => setTotalWeightKg(event.target.value)} />
-                    </Field>
-                    <Field label="CBM contêiner (m³)">
-                      <Input type="number" value={totalCbm} onChange={(event) => setTotalCbm(event.target.value)} />
-                    </Field>
-                  </>
-                ) : null}
-                {showBreakbulkCargo ? (
-                  <>
-                    <Field label="Peso carga solta (ton)">
-                      <Input type="number" value={bbWeightTon} onChange={(event) => setBbWeightTon(event.target.value)} />
-                    </Field>
-                    <Field label="CBM carga solta (m³)">
-                      <Input type="number" value={bbCbm} onChange={(event) => setBbCbm(event.target.value)} />
-                    </Field>
-                  </>
-                ) : null}
-              </div>
-              <Field label="Descrição da carga do B/L" hint="Texto extraído do documento; não é alterado nesta revisão.">
-                <Textarea
-                  className="review-drawer__cargo-description"
-                  value={item.cargo_description ?? ''}
-                  placeholder="Descrição não extraída do B/L."
-                  readOnly
-                />
-              </Field>
-              <Field label="Notas da revisão">
-                <Textarea className="review-drawer__notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
-              </Field>
+              </section>
             </>
           ) : null}
 
-          {canSelectCustomer ? <Card className="review-drawer__customer-card grid gap-4">
-            {item.source === 'granite' && item.suggested_customer?.name ? (
-              <div className="review-drawer__suggestion rounded-lg px-3 py-2 text-sm">
-                Sugestao por nome — confirme o documento antes de vincular: <strong>{item.suggested_customer.name}</strong>{' '}
-                ({formatCnpj(item.suggested_customer.cnpj_cpf)})
-              </div>
-            ) : null}
-            <div className="font-semibold text-[var(--app-text-strong)]">
-              {isGranite ? 'Vinculação de cliente' : 'Vinculação individual de cliente'}
-            </div>
-            {!isGranite ? <p className="text-sm text-[var(--app-muted)]">Use esta ação para confirmar o cliente deste B/L quando as evidências documentais estiverem divergentes.</p> : null}
-            <Field label="Buscar cliente por nome ou CNPJ">
-              <div className="relative">
-                <Input value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Digite ao menos 2 caracteres" />
-                <Search className="pointer-events-none absolute right-3 top-2.5 text-[var(--app-muted)]" size={16} />
-              </div>
-            </Field>
-            {customerLookup.data?.length ? (
-              <div className="grid gap-2">
-                {customerLookup.data.map((customer) => (
-                  <button
-                    key={customer.id}
-                    type="button"
-                    className={`review-drawer__customer-option rounded-lg border px-3 py-2 text-left text-sm transition ${
-                      selectedCustomerId === customer.id
-                        ? 'review-drawer__customer-option--selected'
-                        : ''
-                    }`}
-                    onClick={() => {
-                      setSelectedCustomerId(customer.id)
-                      setSelectedCustomerDisplay(`${customer.name} (${formatCnpj(customer.cnpj_cpf)})`)
-                      setCustomerSearch(`${customer.name} ${formatCnpj(customer.cnpj_cpf)}`)
-                    }}
-                  >
-                    <div className="font-semibold">{customer.name}</div>
-                    <div className="text-xs text-[var(--app-muted)]">{formatCnpj(customer.cnpj_cpf)}</div>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            {selectedCustomerId ? (
-              <div className="review-drawer__selected-customer rounded-lg px-3 py-2 text-xs">
-                <div>Cliente selecionado para vinculação.</div>
-                <div className="mt-1">{item.customer ? `${item.customer.name} (${formatCnpj(item.customer.cnpj_cpf)})` : selectedCustomerDisplay ?? 'Cliente'}.</div>
-              </div>
-            ) : null}
-
-          </Card> : (
-            <div className="review-drawer__group-note rounded-xl p-3 text-sm">
-              <div className="font-semibold text-[var(--app-text-strong)]">Cliente definido pelo grupo</div>
-              <div className="mt-1">{item.customer ? `${item.customer.name} (${formatCnpj(item.customer.cnpj_cpf)})` : 'O cadastro e o vínculo são tratados no cartão do grupo.'}</div>
-            </div>
+          {canSelectCustomer ? (
+            <section className="review-drawer__section" aria-label="Cliente">
+              <h3 className="review-section-title">Cliente</h3>
+              {!isGranite ? <p className="review-drawer__note">Vale só para este B/L. Use quando as evidências divergem ou para trocar o cliente vinculado.</p> : null}
+              {item.source === 'granite' && item.suggested_customer?.name ? (
+                <div className="review-drawer__suggestion">
+                  <p>
+                    Sugestão por nome: <strong>{item.suggested_customer.name}</strong> ({formatCnpj(item.suggested_customer.cnpj_cpf)}). Confira o CNPJ antes de vincular.
+                  </p>
+                  {selectedCustomerId !== item.suggested_customer.id ? (
+                    <button type="button" className="review-link-button" onClick={() => setSelectedCustomer(item.suggested_customer!)}>Usar a sugestão</button>
+                  ) : null}
+                </div>
+              ) : null}
+              <InlineCustomerPicker
+                label="Buscar cliente por nome ou CNPJ"
+                saving={saving}
+                expectedCnpjs={evidenceCnpjs}
+                onSelect={(customer) => setSelectedCustomer({ id: customer.id, name: customer.name, cnpj_cpf: customer.cnpj_cpf })}
+              />
+              {selectedCustomer ? (
+                <p className="review-drawer__selected" role="status">
+                  {customerChanged ? 'Será vinculado: ' : 'Cliente atual: '}<strong>{selectedCustomerDisplay}</strong>
+                  {selectedMatches === true ? <span className="review-picker__match review-picker__match--ok">CNPJ confere com o B/L</span> : null}
+                  {selectedMatches === false ? <span className="review-picker__match review-picker__match--diff">CNPJ diferente do B/L</span> : null}
+                </p>
+              ) : null}
+            </section>
+          ) : (
+            <p className="review-drawer__note">
+              <strong>Cliente: </strong>
+              {item.customer ? customerLabel(item.customer) : 'cadastro e vínculo ficam no grupo do cliente, na fila.'}
+            </p>
           )}
 
-          <Field label="Justificativa (opcional)">
-            <Textarea
-              value={justification}
-              onChange={(event) => setJustification(event.target.value)}
-              placeholder="Se vazia, registra 'Revisão manual' no histórico."
-            />
-          </Field>
+          {!isGranite ? (
+            <section className="review-drawer__section" aria-label="Registro">
+              <Field label="Notas da revisão" hint="As pendências técnicas são gravadas pelo sistema e não aparecem aqui.">
+                <Textarea className="review-drawer__notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+              </Field>
+              <Field label="Justificativa (opcional)" hint="Vai para o histórico do B/L. Se vazia, registra “Revisão manual”.">
+                <Textarea value={justification} onChange={(event) => setJustification(event.target.value)} />
+              </Field>
+            </section>
+          ) : null}
 
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={onClose}>
-              Voltar
-            </Button>
-            <Button loading={saving} onClick={handleSave}>
-              Marcar como revisado
-            </Button>
+          <div className="review-drawer__footer">
+            <p className="review-drawer__effect">
+              {isGranite
+                ? 'Granito não gera fatura; o vínculo libera o cálculo de apoio.'
+                : 'Ao salvar, o sistema recalcula as pendências. Sem nenhuma, o B/L sai da revisão e a fatura pode ser emitida automaticamente.'}
+            </p>
+            {saveBlocked ? <p className="review-drawer__block">{saveBlocked}</p> : null}
+            <div className="review-drawer__actions">
+              <Button variant="secondary" onClick={onClose}>
+                Voltar
+              </Button>
+              <Button loading={saving} loadingLabel="Salvando…" disabled={Boolean(saveBlocked)} onClick={handleSave}>
+                {isGranite ? 'Vincular cliente' : 'Salvar revisão'}
+              </Button>
+            </div>
           </div>
         </div>
       ) : null}
-    </Modal>
+    </Drawer>
   )
 }
