@@ -2088,6 +2088,7 @@ não substituem a leitura da última definição na cadeia ativa de migrations.
 | Gate do Portal na emissão automática e Liberação de faturamento sem Portal | [migration 083](supabase/migrations/083_portal_trava_universal_liberacao_faturamento.sql) |
 | Conceder ou revogar a Liberação reavalia a Revisão dos B/Ls do Cliente | [migration 167](supabase/migrations/167_liberacao_reavalia_revisao.sql) |
 | Liberação vencida devolve os B/Ls do Cliente à Revisão (job diário) | [migration 168](supabase/migrations/168_liberacao_vencida_reavalia_revisao.sql) |
+| Reavaliação da Revisão em lote reconcilia o Alerta do Cliente uma vez | [migration 170](supabase/migrations/170_revisao_em_lote_reconcilia_alerta_no_fim.sql) |
 | Permissões por Departamento | [useAuth.tsx](src/hooks/useAuth.tsx) e [rotas internas](src/AppInterno.tsx) |
 | Edição interna dos contatos e caixas | [migration 008](supabase/migrations/008_portal_contact_boxes.sql) |
 | Calendário do prazo do ADR | [agencyReportDeadline.ts](src/services/agencyReportDeadline.ts) |

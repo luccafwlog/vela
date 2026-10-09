@@ -264,6 +264,10 @@ volta a travar na hora (o gate lê `now()`), e o job diário
 Portal, os B/Ls não faturados dos Clientes cuja Liberação venceu nos últimos
 7 dias sem outra Liberação vigente nem Portal pronto. Entre o vencimento e a
 rodada seguinte, a fila ainda não mostra o motivo.
+Nesses lotes (gatilhos de Portal, contatos e Liberação e o job do vencimento),
+o gatilho de linha em `bls` fica calado durante o recálculo e o Alerta do
+Cliente é reconciliado uma vez no fim, então a notificação sai com a contagem
+final (migration `170`).
 B/L cancelado fica fora da reavaliação: `recompute_bl_review_status` devolve
 o status sem escrever (migration `168`), porque o B/L cancelado é somente
 leitura (`089`).
