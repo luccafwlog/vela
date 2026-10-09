@@ -260,6 +260,8 @@ Revisão dos B/Ls não faturados do Cliente no próprio banco (gatilhos em
 sem ação na tela. O vencimento da Liberação não é evento do banco; a emissão
 volta a travar na hora, mas a fila só mostra o motivo na próxima reavaliação
 do B/L.
+B/L cancelado não conta nos Alertas de revisão do Cliente, e cancelar ou
+reativar reconcilia esses Alertas (migration `169`).
 Contato com e-mail não é pendência de revisão nem condição de emissão
 (migration `085`). Peso BB é validado para carga solta
 e misto.
