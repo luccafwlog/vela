@@ -35,6 +35,26 @@ describe('createLazyPageLoader', () => {
     expect(await Promise.race([promise.then(() => 'resolved'), Promise.resolve('pending')])).toBe('pending')
   })
 
+  // VELA-1M: vite:preloadError com preventDefault() resolve o import() com
+  // undefined; antes a tela quebrava com "reading 'Admin'".
+  it('treats an import resolved as undefined as a chunk load failure', async () => {
+    const storage = createStorage()
+    const reload = vi.fn()
+    const loader = createLazyPageLoader(
+      async () => undefined as unknown as { Admin: typeof TestPage },
+      'Admin',
+      { pathname: '/admin', reload, storage },
+    )
+
+    const promise = loader()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(storage.setItem).toHaveBeenCalledWith('chunk-reload:/admin', '1')
+    expect(reload).toHaveBeenCalledTimes(1)
+    expect(await Promise.race([promise.then(() => 'resolved'), Promise.resolve('pending')])).toBe('pending')
+  })
+
   it('clears the route reload marker after a page module loads', async () => {
     const storage = createStorage({ 'chunk-reload:/viagens': '1' })
     const loader = createLazyPageLoader(async () => ({ Viagens: TestPage }), 'Viagens', {

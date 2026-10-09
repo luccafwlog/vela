@@ -214,3 +214,22 @@ it('omite B/Ls e Navio / Viagem para fatura avulsa sem contexto no detalhe', () 
   expect(screen.queryByText('Navio / Viagem')).toBeNull()
   expect(screen.queryByText('B/Ls')).toBeNull()
 })
+
+// VELA-15: a avulsa 11 estava cancelada e o modal ainda oferecia a baixa;
+// register_verified_invoice_payment recusava com 22023.
+it('avulsa cancelada não oferece registro de pagamento nem novo cancelamento', () => {
+  mockDetailData = { invoice: { id: 11, invoice_number: 'AV-11', invoice_type: 'manual', status: 'cancelled', total_brl: 0.07, balance_brl: 0.07, total_paid_brl: 0 }, bls: [], items: [], payments: [] }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={11} onClose={vi.fn()} /></MemoryRouter>)
+
+  expect(screen.queryByRole('button', { name: 'Registrar pagamento' })).toBeNull()
+  expect(screen.queryByLabelText('Referência do recebimento bancário')).toBeNull()
+  expect(screen.getByText('Esta fatura não aceita registro de pagamento no status atual.')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /Cancelar fatura/ })).toBeNull()
+})
+
+it('avulsa emitida continua oferecendo o registro de pagamento', () => {
+  mockDetailData = { invoice: { id: 12, invoice_number: 'AV-12', invoice_type: 'manual', status: 'issued', total_brl: 10, balance_brl: 10, total_paid_brl: 0 }, bls: [], items: [], payments: [] }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={12} onClose={vi.fn()} /></MemoryRouter>)
+
+  expect(screen.getByRole('button', { name: 'Registrar pagamento' })).toBeTruthy()
+})

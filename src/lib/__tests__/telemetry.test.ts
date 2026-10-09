@@ -311,11 +311,34 @@ describe('telemetryBeforeSend', () => {
     expect(result!.exception!.values![0].type).toBe('DatabaseError')
     // Título legível por humanos em vez do texto cru do banco.
     expect(result!.exception!.values![0].value).toBe('[Conflito de dados] 23505')
-    expect(result!.fingerprint).toEqual(['erro-banco', 'conflito', '23505'])
+    expect(result!.fingerprint).toEqual(['erro-banco', 'conflito', '23505', 'Este registro ja existe.'])
     expect(result!.contexts!.database).toMatchObject({
       tipo: 'Conflito de dados',
       codigo: '23505',
     })
+  })
+
+  // VELA-15: o par módulo+tarefa genérico de mutation sem chave substituía o
+  // fingerprint e juntava anexo de comunicado, escala omitida, fatura avulsa e
+  // TypeError na mesma issue.
+  it('módulo e tarefa refinam o agrupamento sem fundir falhas diferentes', () => {
+    const tags = { modulo: 'Operações', tarefa: 'Operação de dados' }
+    const send = (originalException: unknown) => telemetryBeforeSend(mockEvent({
+      exception: { values: [{ type: 'Fl', value: '' }] }, tags: { ...tags },
+    }), { originalException })
+
+    const fatura = send({ code: '22023', message: 'Fatura avulsa não está disponível para receber pagamento.' })
+    const anexo = send({ code: '22023', message: 'O conteúdo do anexo 1 não corresponde ao tipo informado.' })
+    const escala38 = send({ code: '22023', message: 'A escala da viagem 38 ja foi omitida para o POD BRSSA.' })
+    const escala39 = send({ code: '22023', message: 'A escala da viagem 39 ja foi omitida para o POD BRSSA.' })
+    const typeError = telemetryBeforeSend(mockEvent({
+      exception: { values: [{ type: 'TypeError', value: "Cannot read properties of undefined (reading 'rest')" }] }, tags: { ...tags },
+    }), { originalException: new TypeError("Cannot read properties of undefined (reading 'rest')") })
+
+    expect(fatura!.fingerprint).toEqual(['Operações', 'Operação de dados', 'erro-banco', 'validacao', '22023', 'Fatura avulsa não está disponível para receber pagamento.'])
+    expect(anexo!.fingerprint).not.toEqual(fatura!.fingerprint)
+    expect(escala38!.fingerprint).toEqual(escala39!.fingerprint)
+    expect(typeError!.fingerprint).toEqual(['Operações', 'Operação de dados', '{{ default }}'])
   })
 
   it('preserva causas e erros genéricos ao normalizar o objeto original', () => {
@@ -363,7 +386,7 @@ describe('humanizeDatabaseError', () => {
 
     expect(humanized).not.toBeNull()
     expect(humanized!.title).toBe('[Sessão expirada] PGRST301')
-    expect(humanized!.fingerprint).toEqual(['erro-banco', 'sessao_expirada', 'PGRST301'])
+    expect(humanized!.fingerprint).toEqual(['erro-banco', 'sessao_expirada', 'PGRST301', 'Sua sessao expirou. Entre novamente para continuar.'])
     expect(humanized!.context.tipo).toBe('Sessão expirada')
     expect(humanized!.context.codigo).toBe('PGRST301')
     expect(humanized!.context.mensagem).toContain('sessao expirou')
@@ -376,7 +399,7 @@ describe('humanizeDatabaseError', () => {
     })
 
     expect(humanized!.title).toBe('[Sem permissão] 42501')
-    expect(humanized!.fingerprint).toEqual(['erro-banco', 'permissao', '42501'])
+    expect(humanized!.fingerprint).toEqual(['erro-banco', 'permissao', '42501', 'Sem permissao para esta acao. Solicite acesso administrativo.'])
   })
 
   it('retorna null para erros que não são de banco', () => {
