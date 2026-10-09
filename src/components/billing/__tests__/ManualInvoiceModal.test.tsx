@@ -17,17 +17,17 @@ const customers = [
 ]
 
 vi.mock('../../../hooks/useBilling', () => ({
-  useBillingCustomers: () => ({ data: customers }),
   useCreateManualInvoice: () => ({ mutateAsync: mocks.mutateAsync, isPending: false }),
 }))
 
 vi.mock('../../../hooks/useLocalCharges', () => ({
-  useManualChargeItemsForBl: () => ({ data: [{ charge_item_id: 5, charge_item_name: 'Correction Letter' }] }),
-  useManualInvoiceQuote: (blId: string, itemId: number) => ({ data: blId && itemId === 5 ? { charge_item_name: 'Correction Letter', quantity: 1, unit_value_brl: 600, total_brl: 600, currency: 'BRL' } : undefined }),
+  useManualChargeItemsForBl: (blId?: string) => ({ data: blId ? [{ charge_item_id: 5, charge_item_name: 'Correction Letter', currency: 'BRL', effective_unit_value_brl: 600 }] : undefined, isLoading: false, error: null }),
+  useManualInvoiceQuote: (blId: string, itemId: number) => ({ data: blId && itemId === 5 ? { charge_item_name: 'Correction Letter', quantity: 1, unit_value_brl: 600, total_brl: 600, currency: 'BRL' } : undefined, isFetching: false, error: null }),
 }))
 
 vi.mock('../../../services/billing', () => ({
   listBlSuggestions: mocks.listBlSuggestions,
+  listBillingCustomers: async () => customers,
 }))
 
 vi.mock('../../../services/supabase', () => ({
@@ -65,19 +65,13 @@ vi.mock('../../ui/Combobox', () => ({
     <div>
       <label>
         {label}
-        <input
-          aria-label={label}
-          disabled={disabled}
-          onChange={(event) => onValueChange(event.target.value)}
-        />
+        <input aria-label={label} disabled={disabled} onChange={(event) => onValueChange(event.target.value)} />
       </label>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onSelectOption?.({ value: 'BL-1', label: 'BL-1' })}
-      >
-        BL-1
-      </button>
+      {label === 'Cliente' ? (
+        <button type="button" onClick={() => onSelectOption?.({ value: '1', label: customers[0].name })}>Escolher {customers[0].name}</button>
+      ) : (
+        <button type="button" disabled={disabled} onClick={() => onSelectOption?.({ value: 'BL-1', label: 'BL-1' })}>BL-1</button>
+      )}
     </div>
   ),
 }))
@@ -120,18 +114,16 @@ function openModal() {
 }
 
 async function selectCustomer(user: ReturnType<typeof userEvent.setup>) {
-  const customerInput = screen.getByPlaceholderText('Buscar cliente...')
-  await user.click(customerInput)
-  await user.click(screen.getByRole('option', { name: /AC COMERCIAL/ }))
+  await user.click(screen.getByRole('button', { name: /Escolher AC COMERCIAL/ }))
 }
 
 async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
   await selectCustomer(user)
-  await user.type(screen.getByLabelText('Nome do item'), 'Taxa especial')
-  await user.clear(screen.getByLabelText('Quantidade'))
-  await user.type(screen.getByLabelText('Quantidade'), '2')
-  await user.clear(screen.getByLabelText('Valor unitário (BRL)'))
-  await user.type(screen.getByLabelText('Valor unitário (BRL)'), '10,50')
+  await user.type(screen.getByLabelText(/^Nome do item/), 'Taxa especial')
+  await user.clear(screen.getByLabelText(/^Quantidade/))
+  await user.type(screen.getByLabelText(/^Quantidade/), '2')
+  await user.clear(screen.getByLabelText(/^Valor unitário/))
+  await user.type(screen.getByLabelText(/^Valor unitário/), '10,50')
 }
 
 describe('ManualInvoiceModal', () => {
@@ -141,10 +133,10 @@ describe('ManualInvoiceModal', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Nova fatura avulsa' })
     expect(within(dialog).getByLabelText('Cliente')).toBeTruthy()
-    expect(within(dialog).getByLabelText('Nome do item')).toBeTruthy()
-    expect(within(dialog).getByLabelText('Descrição da cobrança')).toBeTruthy()
-    expect(within(dialog).getByLabelText('Quantidade')).toBeTruthy()
-    expect(within(dialog).getByLabelText('Valor unitário (BRL)')).toBeTruthy()
+    expect(within(dialog).getByLabelText(/^Nome do item/)).toBeTruthy()
+    expect(within(dialog).getByLabelText(/^Descrição da cobrança/)).toBeTruthy()
+    expect(within(dialog).getByLabelText(/^Quantidade/)).toBeTruthy()
+    expect(within(dialog).getByLabelText(/^Valor unitário/)).toBeTruthy()
     const blInput = within(dialog).getByLabelText('B/L (opcional)') as HTMLInputElement
     expect(blInput.disabled).toBe(true)
 
@@ -159,7 +151,7 @@ describe('ManualInvoiceModal', () => {
 
     await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
 
-    expect(screen.getByRole('alert').textContent).toContain('Cliente obrigatorio.')
+    expect(screen.getByRole('alert').textContent).toContain('Selecione o Cliente.')
     expect(mocks.mutateAsync).not.toHaveBeenCalled()
   })
 
@@ -169,7 +161,7 @@ describe('ManualInvoiceModal', () => {
     await selectCustomer(user)
     await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
 
-    expect(screen.getByRole('alert').textContent).toContain('Nome do item obrigatorio.')
+    expect(screen.getAllByRole('alert').map((node) => node.textContent).join(' ')).toContain('Informe o nome do item.')
     expect(mocks.confirm).not.toHaveBeenCalled()
     expect(mocks.mutateAsync).not.toHaveBeenCalled()
   })
@@ -193,7 +185,7 @@ describe('ManualInvoiceModal', () => {
     const user = userEvent.setup()
     openModal()
     await fillRequiredFields(user)
-    await user.type(screen.getByLabelText('Descrição da cobrança'), ' Cobrança extraordinária ')
+    await user.type(screen.getByLabelText(/^Descrição da cobrança/), ' Cobrança extraordinária ')
     await user.click(screen.getByRole('button', { name: 'BL-1' }))
     await user.click(screen.getByRole('button', { name: 'Viagem 42' }))
 
@@ -230,7 +222,7 @@ describe('ManualInvoiceModal', () => {
     await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
 
     await waitFor(() => expect(mocks.onClose).toHaveBeenCalled())
-    expect(mocks.showToast).toHaveBeenCalledWith('Avulsa INV-42 emitida (R$ 20,00).', 'success')
+    expect(mocks.showToast).toHaveBeenCalledWith(expect.stringMatching(/^Avulsa INV-42 emitida \(R\$\s20,00\)\.$/), 'success')
   })
 })
 
@@ -238,14 +230,28 @@ it('item de tabela exige B/L e congela preço/quantidade sem edição', async ()
   const user = userEvent.setup()
   openModal()
   await selectCustomer(user)
-  await user.selectOptions(screen.getByLabelText('Tipo de cobrança'), 'table')
-  expect(screen.getByRole('alert').textContent).toContain('B/L obrigatório')
-  expect((screen.getByRole('button', { name: 'Emitir fatura avulsa' }) as HTMLButtonElement).disabled).toBe(true)
-  await user.click(screen.getByRole('button', { name: 'BL-1' }))
-  await user.selectOptions(screen.getByLabelText('Tipo de cobrança'), '5')
-  const value = screen.getByLabelText('Valor unitário (BRL)') as HTMLInputElement
-  expect(value.readOnly).toBe(true)
-  expect(value.value).toBe('600')
+  await user.click(screen.getByRole('radio', { name: 'Item da tabela' }))
+  expect(screen.queryByLabelText(/^Valor unitário/)).toBeNull()
+  expect((screen.getByLabelText(/^Item da tabela/) as HTMLSelectElement).disabled).toBe(true)
   await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
-  expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ chargeItemId: 5, blId: 'BL-1', unitValueBrl: 600 }))
+  expect(screen.getByRole('alert').textContent).toContain('Item da tabela exige o B/L')
+  expect(mocks.mutateAsync).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'BL-1' }))
+  await user.selectOptions(screen.getByLabelText(/^Item da tabela/), '5')
+  expect(screen.getByText(/1 × R\$\s600,00/)).toBeTruthy()
+  expect(screen.getByText('Total a emitir').nextElementSibling?.textContent?.replace(/\s/g, ' ')).toBe('R$ 600,00')
+  await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
+  expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ chargeItemId: 5, blId: 'BL-1', unitValueBrl: 600, voyageId: 42 }))
+})
+
+it('Outra mostra o total ao digitar e mantém a falha da emissão no formulário', async () => {
+  const user = userEvent.setup()
+  mocks.mutateAsync.mockRejectedValueOnce(new Error('B/L não pertence ao Cliente.'))
+  openModal()
+  await fillRequiredFields(user)
+  expect(screen.getByText('Total a emitir').nextElementSibling?.textContent?.replace(/\s/g, ' ')).toBe('R$ 21,00')
+  await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
+  await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Nada foi emitido'))
+  expect(mocks.onClose).not.toHaveBeenCalled()
+  expect(screen.getByRole('dialog', { name: 'Nova fatura avulsa' })).toBeTruthy()
 })

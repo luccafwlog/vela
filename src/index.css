@@ -12985,3 +12985,779 @@ tr[data-inactive] .app-rates-item__value {
 .app-rates-block {
   display: block;
 }
+
+/* ===========================================================================
+   Faturamento interno (etapa 10): detalhe da fatura, valores, fatura avulsa e
+   lista de faturas. Seções por filete dentro do modal; valores com
+   `tabular-nums` à direita; estado sempre em texto.
+   =========================================================================== */
+.app-invoice-detail {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.app-invoice-detail__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.app-invoice-detail__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.app-invoice-detail__identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.app-invoice-detail__tags,
+.app-invoice-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-invoice-detail__customer {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-section);
+  font-weight: 600;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+
+.app-invoice-detail__description {
+  margin: 4px 0 0;
+  border-left: 3px solid var(--app-border-strong);
+  padding-left: 8px;
+  color: var(--app-text);
+  font-size: var(--app-size-body);
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.app-invoice-detail__actions,
+.app-invoice-detail__inline-actions,
+.app-invoice-detail__form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.app-invoice-detail__inline-actions {
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+.app-invoice-detail__section,
+.app-invoice-detail__callout {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border-top: 1px solid var(--app-border);
+  padding-top: 16px;
+}
+
+.app-invoice-detail__callout {
+  border: 1px solid var(--app-warning-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-warning-bg);
+  padding: 12px 16px;
+}
+
+.app-invoice-detail__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-section);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.app-invoice-detail__subheading {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-weight: 600;
+}
+
+.app-invoice-detail__count {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  font-weight: 500;
+}
+
+.app-invoice-detail__note,
+.app-invoice-detail__cell-note {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-invoice-detail__cell-note {
+  display: block;
+}
+
+.app-invoice-detail__alert {
+  margin: 0;
+  color: var(--app-danger-fg);
+  font-size: var(--app-size-body);
+  line-height: 20px;
+}
+
+.app-invoice-detail__error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  border: 1px solid var(--app-danger-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-danger-bg);
+  padding: 12px 16px;
+  color: var(--app-danger-fg);
+}
+
+.app-invoice-detail__error p {
+  margin: 0;
+}
+
+.app-invoice-detail__links {
+  display: grid;
+  gap: 4px;
+  border-left: 3px solid var(--app-info-border);
+  padding-left: 12px;
+}
+
+.app-invoice-detail__links p {
+  margin: 0;
+}
+
+.app-invoice-detail__table {
+  width: 100%;
+  min-width: 520px;
+}
+
+.app-invoice-detail__num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.app-invoice-detail__code {
+  font-family: var(--app-font-mono);
+}
+
+.app-invoice-detail__link {
+  color: var(--app-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.app-invoice-detail__wrap {
+  overflow-wrap: anywhere;
+}
+
+.app-invoice-detail__empty {
+  color: var(--app-muted);
+  text-align: center;
+}
+
+.app-invoice-detail__row-action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.app-invoice-detail__row--selected td {
+  background: var(--app-danger-bg);
+}
+
+.app-invoice-detail__refund {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid var(--app-border-soft);
+  padding: 8px 0;
+}
+
+.app-invoice-detail__refund p {
+  margin: 0;
+}
+
+.app-invoice-detail__refund-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.app-invoice-detail__form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  align-items: start;
+  margin-top: 4px;
+}
+
+.app-invoice-detail__form--danger {
+  border-left: 3px solid var(--app-danger-border);
+  padding-left: 12px;
+}
+
+.app-invoice-detail__form .app-field {
+  margin: 0;
+}
+
+.app-invoice-detail__form-wide,
+.app-invoice-detail__form-actions {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .app-invoice-detail__form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-invoice-detail__actions {
+    justify-content: flex-start;
+  }
+}
+
+/* Valores: emitido → recebido → abatido → devolvido → a devolver → saldo. */
+.app-invoice-amounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-muted);
+}
+
+.app-invoice-amounts__item {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  border-right: 1px solid var(--app-border-soft);
+  padding: 10px 14px;
+}
+
+.app-invoice-amounts__item:last-child {
+  border-right: 0;
+}
+
+.app-invoice-amounts dt {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.app-invoice-amounts dd {
+  display: grid;
+  margin: 0;
+}
+
+.app-invoice-amounts__value {
+  color: var(--app-text-strong);
+  font-size: var(--app-size-section);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+.app-invoice-amounts__note {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-invoice-amounts__item--balance {
+  background: var(--app-surface);
+}
+
+.app-invoice-amounts__item--balance .app-invoice-amounts__value {
+  font-size: var(--app-size-panel);
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.app-invoice-amounts__item--warning .app-invoice-amounts__value,
+.app-invoice-amounts__item--warning .app-invoice-amounts__note {
+  color: var(--app-warning-fg);
+}
+
+.app-invoice-amounts__item--success .app-invoice-amounts__note {
+  color: var(--app-success-fg);
+}
+
+.app-invoice-amounts__item--muted .app-invoice-amounts__value {
+  color: var(--app-muted);
+}
+
+@media (max-width: 640px) {
+  .app-invoice-amounts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-invoice-amounts__item {
+    border-bottom: 1px solid var(--app-border-soft);
+  }
+
+  .app-invoice-amounts__item--balance {
+    grid-column: 1 / -1;
+    border-bottom: 0;
+  }
+}
+
+/* Fatura avulsa: no máximo duas colunas; uma no celular. */
+.app-manual-invoice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+
+.app-manual-invoice .app-field {
+  margin: 0;
+}
+
+.app-manual-invoice__full,
+.app-manual-invoice__footer {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.app-manual-invoice .app-segmented {
+  margin-top: 4px;
+}
+
+.app-manual-invoice__links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--app-border);
+  padding: 12px 0 0;
+}
+
+.app-manual-invoice__links legend {
+  padding: 0 8px 0 0;
+  color: var(--app-text-strong);
+  font-size: var(--app-size-body);
+  font-weight: 600;
+}
+
+.app-manual-invoice__links > .app-field__hint,
+.app-manual-invoice__links > .app-field__error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.app-manual-invoice__quote {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface-muted);
+  padding: 10px 12px;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-manual-invoice__quote p {
+  margin: 0;
+}
+
+.app-manual-invoice__quote-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  color: var(--app-text);
+  font-size: var(--app-size-body);
+  line-height: 20px;
+}
+
+.app-manual-invoice__num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.app-manual-invoice__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  border-top: 1px solid var(--app-border);
+  padding-top: 16px;
+}
+
+.app-manual-invoice__total {
+  display: grid;
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-manual-invoice__total strong {
+  color: var(--app-text-strong);
+  font-size: var(--app-size-panel);
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.app-manual-invoice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .app-manual-invoice,
+  .app-manual-invoice__links {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Topo de /taxas-locais: alertas, reemissões e COD numa pilha compacta. */
+.app-fin-stack {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.app-fin-stack:empty {
+  display: none;
+}
+
+.app-fin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--app-control-h);
+  color: var(--app-link);
+  font-size: var(--app-size-body);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.app-fin-alerts {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--app-warning-border);
+  border-radius: 8px;
+  background: var(--app-warning-bg);
+  padding: 12px 16px;
+}
+
+.app-fin-alerts--loading {
+  min-height: 48px;
+  border-color: var(--app-border);
+  background: var(--app-surface-muted);
+}
+
+.app-fin-alerts__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--app-warning-fg);
+  font-size: var(--app-size-body);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.app-fin-alerts__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-fin-alerts__item {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 16px;
+  border-top: 1px solid var(--app-warning-border);
+  padding: 6px 0;
+}
+
+.app-fin-alerts__type {
+  color: var(--app-text-strong);
+  font-size: var(--app-size-table);
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.app-fin-alerts__message {
+  margin: 0;
+  color: var(--app-text);
+  font-size: var(--app-size-table);
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.app-fin-alerts__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--app-link);
+  font: inherit;
+  font-size: var(--app-size-table);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .app-fin-alerts__item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Lista de faturas. */
+.app-invoices {
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface);
+}
+
+.app-invoices__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  border-bottom: 1px solid var(--app-border);
+  padding: 10px 16px;
+}
+
+.app-invoices__summary {
+  min-width: 0;
+}
+
+.app-invoices__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.app-invoices__error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  border-bottom: 1px solid var(--app-danger-border);
+  background: var(--app-danger-bg);
+  padding: 10px 16px;
+  color: var(--app-danger-fg);
+}
+
+.app-invoices__error p {
+  margin: 0;
+}
+
+.app-invoices__table {
+  width: 100%;
+  min-width: 1080px;
+}
+
+.app-invoices__table--comm {
+  min-width: 1240px;
+}
+
+.app-invoices__table td {
+  vertical-align: top;
+}
+
+.app-invoices__number {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--app-link);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.app-invoices__meta {
+  display: block;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-invoices__clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+
+.app-invoices__customer {
+  color: var(--app-text-strong);
+  font-weight: 500;
+}
+
+.app-invoices__bls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+
+.app-invoices__bl {
+  color: var(--app-link);
+  font-family: var(--app-font-mono);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.app-invoices__date {
+  white-space: nowrap;
+}
+
+.app-invoices__num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.app-invoices__amount {
+  display: block;
+  color: var(--app-text-strong);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.app-invoices__amount--warning {
+  color: var(--app-warning-fg);
+}
+
+.app-invoices__amount--muted {
+  color: var(--app-muted);
+  font-weight: 500;
+}
+
+.app-invoice-cards {
+  display: grid;
+}
+
+.app-invoice-card {
+  display: grid;
+  gap: 6px;
+  border-bottom: 1px solid var(--app-border);
+  padding: 12px 16px;
+}
+
+.app-invoice-card p {
+  margin: 0;
+}
+
+.app-invoice-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.app-invoice-card__head .app-invoices__number {
+  min-height: 44px;
+}
+
+.app-invoice-card__amount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.app-invoice-card__amount .app-invoices__amount {
+  font-size: var(--app-size-section);
+}
+
+.app-invoice-card__amount .app-invoices__meta {
+  display: inline;
+}
+
+/* Comunicado de CE Mercante na linha da fatura. */
+.app-invoice-comm {
+  display: grid;
+  gap: 4px;
+  max-width: 240px;
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-invoice-comm__item {
+  display: grid;
+  gap: 2px;
+}
+
+.app-invoice-comm__voyage {
+  color: var(--app-muted);
+  font-weight: 600;
+}
+
+.app-invoice-comm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.app-invoice-comm__link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--app-link);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.app-invoice-comm--muted { color: var(--app-muted); }
+.app-invoice-comm--success { color: var(--app-success-fg); }
+.app-invoice-comm--warning { color: var(--app-warning-fg); }
+.app-invoice-comm--danger { color: var(--app-danger-fg); }
+
+@media (pointer: coarse) {
+  .app-invoice-comm__link,
+  .app-fin-alerts__link {
+    min-height: 44px;
+  }
+}

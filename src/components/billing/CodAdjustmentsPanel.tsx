@@ -30,6 +30,9 @@ export function CodAdjustmentsPanel() {
   const canSettle = typeof can === 'function' ? can('settle_financial_adjustments') : false
   const rows = adjustmentsQuery.data ?? []
   const [documentIds, setDocumentIds] = useState<Record<number, string>>({})
+  // `variables` é o id no ajuste automático e um objeto no vínculo manual; a linha em andamento vem daqui.
+  const variables = settleMutation.variables as number | { adjustmentId: number } | undefined
+  const settlingId = settleMutation.isPending ? (typeof variables === 'object' ? variables?.adjustmentId : variables) : null
 
   if (adjustmentsQuery.isSuccess && rows.length === 0) return null
 
@@ -81,18 +84,17 @@ export function CodAdjustmentsPanel() {
 
   return (
     <Card className="mb-5 overflow-hidden p-0">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#30363d] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--app-border)] px-4 py-3">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Ajustes de COD</h2>
-          <p className="mt-1 text-xs text-slate-400">Pendências financeiras originadas por mudança de POD.</p>
+          <h2 className="text-base font-semibold text-[var(--app-text-strong)]">Ajustes de COD · {rows.length}</h2>
+          <p className="mt-1 text-xs text-[var(--app-muted)]">Pendências financeiras originadas por mudança de POD.{!canSettle && rows.length ? ' Somente Financeiro ou Administrativo conclui os ajustes.' : ''}</p>
         </div>
-        <Badge tone={rows.length ? 'yellow' : 'green'}>{rows.length} pendente(s)</Badge>
       </div>
 
-      {adjustmentsQuery.isLoading ? <p className="px-4 py-5 text-sm text-slate-400">Carregando pendências de COD...</p> : null}
+      {adjustmentsQuery.isLoading ? <p className="px-4 py-5 text-sm text-[var(--app-muted)]">Carregando pendências de COD...</p> : null}
       {adjustmentsQuery.error ? <InlineError message="Falha ao carregar ajustes de COD." /> : null}
       {!adjustmentsQuery.isLoading && !adjustmentsQuery.error && rows.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-slate-400">Nenhuma pendência de ajuste de COD.</p>
+        <p className="px-4 py-5 text-sm text-[var(--app-muted)]">Nenhuma pendência de ajuste de COD.</p>
       ) : null}
       {rows.length > 0 ? (
         <div className="app-table-scroll">
@@ -123,24 +125,24 @@ export function CodAdjustmentsPanel() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge tone={isManualDocument ? 'slate' : 'yellow'}>{actionLabel(row.action)}</Badge>
-                      {row.manual_review_required ? <div className="mt-1 text-xs text-slate-400">Revisão manual obrigatória</div> : null}
+                      {row.manual_review_required ? <div className="mt-1 text-xs text-[var(--app-muted)]">Revisão manual obrigatória</div> : null}
                     </td>
                     <td className="px-4 py-3">{formatBRL(row.original_value_brl)}</td>
                     <td className="px-4 py-3">{formatBRL(row.new_destination_value_brl)}</td>
-                    <td className={`px-4 py-3 ${row.difference_brl < 0 ? 'text-emerald-300' : 'text-amber-200'}`}>{formatBRL(row.difference_brl)}</td>
+                    <td className={`px-4 py-3 text-right tabular-nums ${row.difference_brl < 0 ? 'text-[var(--app-success-fg)]' : 'text-[var(--app-warning-fg)]'}`}>{formatBRL(row.difference_brl)}</td>
                     <td className="px-4 py-3">
                       {isManualDocument ? (
-                        <div className="flex max-w-[390px] flex-wrap items-center gap-2 text-xs text-slate-400">
-                          <AlertTriangle size={15} className="shrink-0 text-amber-300" />
-                          <span>Ação manual pendente.</span>
+                        <div className="flex max-w-[390px] flex-wrap items-center gap-2 text-xs text-[var(--app-muted)]">
+                          <AlertTriangle size={15} className="shrink-0 text-[var(--app-warning-fg)]" />
+                          <span>Emita a fatura (avulsa, se for complemento) e informe o número interno dela.</span>
                           <Link className="text-[var(--app-blue-btn)] hover:underline" to={`/taxas-locais?tab=invoices&bl=${encodeURIComponent(row.bl_id)}`}>Abrir faturas</Link>
                           <input
-                            aria-label={`ID da invoice do ajuste ${row.id}`}
-                            className="w-24 rounded border border-[#30363d] bg-[#0d1117] px-2 py-1 text-xs text-slate-200"
+                            aria-label={`Número interno da fatura do ajuste ${row.id}`}
+                            className="app-input w-28"
                             inputMode="numeric"
                             min="1"
                             onChange={(event) => setDocumentIds((current) => ({ ...current, [row.id]: event.target.value }))}
-                            placeholder="ID invoice"
+                            placeholder="Nº interno"
                             type="number"
                             value={documentIds[row.id] ?? ''}
                           />
@@ -148,7 +150,7 @@ export function CodAdjustmentsPanel() {
                             variant="secondary"
                             type="button"
                             disabled={!canSettle}
-                            loading={settleMutation.isPending && settleMutation.variables === row.id}
+                            loading={settleMutation.isPending && settlingId === row.id}
                             title={!canSettle ? 'Somente Financeiro, Administrativo ou Admin pode liquidar.' : undefined}
                             onClick={() => void settle(row.id)}
                           >
@@ -160,7 +162,7 @@ export function CodAdjustmentsPanel() {
                           variant="secondary"
                           type="button"
                           disabled={!canSettle}
-                          loading={settleMutation.isPending && settleMutation.variables === row.id}
+                          loading={settleMutation.isPending && settlingId === row.id}
                           title={!canSettle ? 'Somente Financeiro, Administrativo ou Admin pode liquidar.' : undefined}
                           onClick={() => void settle(row.id)}
                         >

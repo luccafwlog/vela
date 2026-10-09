@@ -34,7 +34,7 @@ export function ManualChargeFormFields({
   const isEditing = Boolean(form.editingChargeCalculationId)
 
   return (
-    <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+    <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
       <div className="mb-3 text-sm font-semibold text-[var(--app-text-strong)]">{isEditing ? 'Editar cobrança manual' : 'Nova cobrança manual'}</div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <Field label="Item">
@@ -46,7 +46,7 @@ export function ManualChargeFormFields({
             <option value="">Selecione</option>
             {items.map((item) => (
               <option key={item.charge_item_id} value={item.charge_item_id}>
-                {item.charge_item_name} ({item.currency}){' '}
+                {item.charge_item_name} ({item.currency}) ·{' '}
                 {item.currency === 'USD'
                   ? formatUSD(item.effective_unit_value_usd ?? 0)
                   : formatBRL(item.effective_unit_value_brl ?? 0)}
@@ -56,6 +56,7 @@ export function ManualChargeFormFields({
         </Field>
         <Field label="Quantidade">
           <Input
+            inputMode="decimal"
             value={form.quantity}
             onChange={(event) => onPatch({ quantity: event.target.value })}
           />
@@ -74,7 +75,7 @@ export function ManualChargeFormFields({
           </Button>
           <Button variant="ghost" type="button" onClick={onCancel}>
             <X size={15} />
-            Cancelar
+            Descartar
           </Button>
         </div>
       </div>

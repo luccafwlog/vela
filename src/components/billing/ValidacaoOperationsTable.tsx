@@ -67,27 +67,27 @@ export function ValidacaoOperationsTable({
               </th>
               <th scope="col" className="px-4 py-3">B/L</th>
               <th scope="col" className="px-4 py-3">Motivo</th>
-              <th scope="col" className="px-4 py-3">Modo</th>
+              <th scope="col" className="px-4 py-3">Modo de carga</th>
               <th scope="col" className="px-4 py-3">Navio/Viagem</th>
-              <th scope="col" className="px-4 py-3">Status</th>
+              <th scope="col" className="px-4 py-3">Cálculo</th>
               <th scope="col" className="px-4 py-3">Cliente</th>
-              <th scope="col" className="px-4 py-3">Reconcil.</th>
-              <th scope="col" className="px-4 py-3">Subtotal BRL</th>
-              <th scope="col" className="px-4 py-3"></th>
+              <th scope="col" className="px-4 py-3">Vínculo do Cliente</th>
+              <th scope="col" className="px-4 py-3 text-right">Subtotal</th>
+              <th scope="col" className="px-4 py-3"><span className="sr-only">Ações</span></th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
                 <td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={10}>
-                  Carregando operação...
+                  Carregando operação…
                 </td>
               </tr>
             ) : null}
             {!isLoading && rows.length === 0 ? (
               <tr>
                 <td colSpan={10} className="p-0">
-                  <EmptyState title="Nenhum B/L encontrado." description="Ajuste os filtros de viagem ou status." />
+                  {hasError ? <span className="sr-only">Sem dados: a consulta falhou.</span> : <EmptyState title="Nenhum B/L encontrado." description="Ajuste os filtros de viagem, POD ou motivo." />}
                 </td>
               </tr>
             ) : null}
@@ -111,9 +111,9 @@ export function ValidacaoOperationsTable({
                         {selectedRowIds.includes(row.id) ? <CheckSquare size={14} /> : <Square size={14} />}
                       </button>
                     </td>
-                    <td className="px-4 py-3 font-semibold text-[var(--app-blue-btn)]">
+                    <td className="px-4 py-3 font-semibold">
                       <Link
-                        className="hover:underline"
+                        className="app-invoices__bl"
                         to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${encodeURIComponent(row.id)}`}
                       >
                         {row.id}
@@ -125,7 +125,7 @@ export function ValidacaoOperationsTable({
                     <td className="px-4 py-3">{renderChargeStatus(row.charge_status, row.financial_status, row.cargo_mode)}</td>
                     <td className="px-4 py-3"><span className="app-table__truncate app-table__truncate--lg" title={row.customer?.name ?? '-'}>{row.customer?.name ?? '-'}</span></td>
                     <td className="px-4 py-3">{renderReconciliationStatus(row.customer_reconciliation_status)}</td>
-                    <td className="px-4 py-3">{formatBRL(row.totals.total_brl)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatBRL(row.totals.total_brl)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" onClick={() => onRecalculateRow?.(row)} disabled={isBlLockedForRecalc(row.financial_status)} title={isBlLockedForRecalc(row.financial_status) ? 'B/L já faturado ou financeiramente bloqueado.' : undefined}>
@@ -156,7 +156,7 @@ export function ValidacaoOperationsTable({
                           <div className="grid gap-3">
                             {block.detail ? (
                               <div className={`rounded-lg border px-3 py-2 text-sm ${calloutTone(block.code).body}`}>
-                                <div className={`text-xs font-semibold uppercase tracking-wide ${calloutTone(block.code).title}`}>{calloutTitle(block.code)}</div>
+                                <div className={`text-xs font-semibold ${calloutTone(block.code).title}`}>{calloutTitle(block.code)}</div>
                                 <div className="mt-0.5">{block.detail}</div>
                               </div>
                             ) : null}
@@ -221,20 +221,20 @@ export function ValidacaoOperationsTable({
                                 <div className="text-[var(--app-text-strong)]">
                                   {Number(row.totals.line_count).toLocaleString('pt-BR')}
                                   {row.totals.review_required_count > 0 ? (
-                                    <span className="ml-2 text-xs text-amber-600">em revisão: {row.totals.review_required_count}</span>
+                                    <span className="ml-2 text-xs text-[var(--app-warning-fg)]">em revisão: {row.totals.review_required_count}</span>
                                   ) : null}
                                 </div>
                               </div>
                               <div>
-                                <div className="text-[var(--app-muted)]">Últ. cálculo</div>
+                                <div className="text-[var(--app-muted)]">Último cálculo</div>
                                 <div className="text-[var(--app-text-strong)]">{formatDateTime(row.charges_calculated_at)}</div>
                               </div>
                               <div>
-                                <div className="text-[var(--app-muted)]">Últ. revisão</div>
+                                <div className="text-[var(--app-muted)]">Última revisão</div>
                                 <div className="text-[var(--app-text-strong)]">{formatDateTime(row.charges_reviewed_at)}</div>
                               </div>
                               <div className="col-span-2">
-                                <div className="text-[var(--app-muted)]">Últ. evento</div>
+                                <div className="text-[var(--app-muted)]">Último evento</div>
                                 <div className="whitespace-normal text-[var(--app-text-strong)]">{describeLastEvent(row.trail)}</div>
                               </div>
                             </div>
@@ -312,19 +312,19 @@ function ReviewRequiredReasons({ blId, holdReason }: { blId: string; holdReason:
   )
 
   return (
-    <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-amber-700">
+    <div className="rounded-lg border border-[var(--app-warning-border)] bg-[var(--app-warning-bg)] p-4 text-[var(--app-text)]">
+      <div className="mb-2 text-sm font-semibold text-[var(--app-warning-fg)]">
         Pendências de revisão das taxas
       </div>
       {holdReason ? (
-        <div className="mb-2 text-sm text-amber-900">
+        <div className="mb-2 text-sm">
           <span className="font-medium">Bloqueio:</span> {holdReason}
         </div>
       ) : null}
       {isLoading ? (
-        <div className="text-sm text-amber-800">Carregando motivos...</div>
+        <div className="text-sm text-[var(--app-muted)]">Carregando motivos…</div>
       ) : pendingLines.length > 0 ? (
-        <ul className="list-disc space-y-1 pl-5 text-sm text-amber-900">
+        <ul className="list-disc space-y-1 pl-5 text-sm">
           {pendingLines.map((line) => (
             <li key={line.id}>
               <span className="font-medium">{line.charge_name}:</span> {line.review_reason}
@@ -332,7 +332,7 @@ function ReviewRequiredReasons({ blId, holdReason }: { blId: string; holdReason:
           ))}
         </ul>
       ) : (
-        <div className="text-sm text-amber-800">Nenhum motivo detalhado encontrado nas linhas de cálculo.</div>
+        <div className="text-sm text-[var(--app-muted)]">Nenhum motivo detalhado encontrado nas linhas de cálculo.</div>
       )}
     </div>
   )

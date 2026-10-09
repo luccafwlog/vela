@@ -3,118 +3,135 @@ import { Combobox, type ComboOption } from '../ui/Combobox'
 import { Button } from '../ui/Button'
 import { Field, Input, Select, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
+import { SegmentedControl } from '../ui/SegmentedControl'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { VoyageCombobox } from '../shared/VoyageCombobox'
-import { useBillingCustomers, useCreateManualInvoice } from '../../hooks/useBilling'
-import { listBlSuggestions } from '../../services/billing'
+import { MoneyInput } from '../taxasLocais/ChargeFormParts'
+import { useCreateManualInvoice } from '../../hooks/useBilling'
+import { listBillingCustomers, listBlSuggestions } from '../../services/billing'
 import type { ManualInvoiceInput } from '../../services/billing'
 import { useManualChargeItemsForBl, useManualInvoiceQuote } from '../../hooks/useLocalCharges'
 import { supabase } from '../../services/supabase'
-import { formatValidationError, manualInvoiceCreationSchema } from '../../services/financialValidation'
+import { manualInvoiceCreationSchema } from '../../services/financialValidation'
+import { parseImportNumber } from '../../lib/importNumber'
+import { formatBRL, formatCnpjCpf, formatUSD } from '../../lib/utils'
+import { userFacingErrorMessage } from '../../lib/errors'
 
 type Props = {
   open: boolean
   onClose: () => void
 }
 
-function fmtBRL(value: number | null | undefined) {
-  return `R$ ${Number(value ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+type ChargeKind = 'table' | 'other'
+type FieldErrors = Partial<Record<'customer' | 'bl' | 'item' | 'itemName' | 'quantity' | 'unitValue' | 'voyage' | 'form', string>>
+
+const KIND_OPTIONS = [
+  { value: 'table' as const, label: 'Item da tabela' },
+  { value: 'other' as const, label: 'Outra' },
+]
+
+// O schema ainda devolve mensagens sem acento; o campo mostra a versão da tela.
+const SCHEMA_FIELD: Record<string, { field: keyof FieldErrors; message: string }> = {
+  customerId: { field: 'customer', message: 'Selecione o Cliente.' },
+  itemName: { field: 'itemName', message: 'Informe o nome do item.' },
+  quantity: { field: 'quantity', message: 'Informe uma quantidade maior que zero.' },
+  unitValueBrl: { field: 'unitValue', message: 'Informe um valor maior que zero.' },
+  voyageId: { field: 'voyage', message: 'Viagem inválida.' },
 }
 
+function typedNumber(value: string) {
+  const parsed = parseImportNumber(value, 'pt-BR')
+  return parsed.kind === 'value' ? Number(parsed.decimal) : null
+}
+
+/**
+ * Fatura avulsa (ADR 0075, migrations 097 e 123). O tipo de cobrança muda o
+ * formulário: Item da tabela exige B/L e traz quantidade e valor resolvidos no
+ * servidor (tabela + Condição do Cliente, USD pelo ROE); Outra aceita item,
+ * quantidade e valor livres em R$, com B/L e Viagem opcionais. A descrição
+ * aparece na fatura impressa e no Portal.
+ */
 export function ManualInvoiceModal({ open, onClose }: Props) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const createMutation = useCreateManualInvoice()
-  const [customerId, setCustomerId] = useState<number | null>(null)
-  const [customerSearch, setCustomerSearch] = useState('')
-  const [customerPickerOpen, setCustomerPickerOpen] = useState(false)
+  const [customer, setCustomer] = useState<{ id: number; name: string } | null>(null)
+  const [kind, setKind] = useState<ChargeKind>('other')
   const [itemName, setItemName] = useState('')
   const [description, setDescription] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [unitValueBrl, setUnitValueBrl] = useState('')
   const [chargeItemId, setChargeItemId] = useState<number | null>(null)
-  const [tableCharge, setTableCharge] = useState(false)
   const [blId, setBlId] = useState<string | null>(null)
   const [voyageId, setVoyageId] = useState<number | null>(null)
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState<FieldErrors>({})
   const [formResetKey, setFormResetKey] = useState(0)
-  const manualItems = useManualChargeItemsForBl(blId ?? undefined)
-  const quoteQuery = useManualInvoiceQuote(blId, chargeItemId)
+  const tableCharge = kind === 'table'
+  const manualItems = useManualChargeItemsForBl(tableCharge && blId ? blId : undefined)
+  const quoteQuery = useManualInvoiceQuote(tableCharge ? blId : null, tableCharge ? chargeItemId : null)
   const quote = tableCharge ? quoteQuery.data : undefined
-  const customerPickerRef = useRef<HTMLDivElement>(null)
   const wasOpenRef = useRef(open)
-  const { data: customerOptions } = useBillingCustomers(customerSearch)
-
-  useEffect(() => {
-    if (!customerPickerOpen) return
-
-    function onPointerDown(event: PointerEvent) {
-      if (!customerPickerRef.current?.contains(event.target as Node)) setCustomerPickerOpen(false)
-    }
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setCustomerPickerOpen(false)
-    }
-
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [customerPickerOpen])
+  const customerId = customer?.id ?? null
 
   useEffect(() => {
     const wasOpen = wasOpenRef.current
     wasOpenRef.current = open
     if (!wasOpen || open) return
-    // The initial closed render already starts with the empty form; reset only
-    // when the parent actually closes an open modal.
-    setCustomerId(null)
-    setCustomerSearch('')
-    setCustomerPickerOpen(false)
+    // O primeiro render fechado já começa vazio; limpa só quando o pai fecha um modal aberto.
+    setCustomer(null)
+    setKind('other')
     setItemName('')
     setDescription('')
     setQuantity('1')
     setUnitValueBrl('')
     setChargeItemId(null)
-    setTableCharge(false)
     setBlId(null)
     setVoyageId(null)
-    setError('')
+    setErrors({})
     setFormResetKey((key) => key + 1)
   }, [open])
 
+  function clearError(field: keyof FieldErrors) {
+    setErrors((current) => (current[field] || current.form ? { ...current, [field]: undefined, form: undefined } : current))
+  }
+
   function resetContext() {
     setChargeItemId(null)
-    setTableCharge(false)
     setBlId(null)
     setVoyageId(null)
   }
 
-  function clearCustomer() {
-    setCustomerId(null)
-    setCustomerSearch('')
-    setCustomerPickerOpen(false)
-    resetContext()
+  async function selectBl(value: string) {
+    const selectedBl = value.trim().toUpperCase()
+    setBlId(selectedBl || null)
+    setChargeItemId(null)
+    clearError('bl')
+    if (!selectedBl) return
+    try {
+      const { data } = await supabase.from('bls').select('voyage_id').eq('id', selectedBl).maybeSingle()
+      if (data?.voyage_id != null) setVoyageId(Number(data.voyage_id))
+    } catch {
+      // Sem a viagem do B/L, o operador escolhe a viagem; a RPC confere a coerência.
+    }
   }
 
-  function close() {
-    onClose()
-  }
+  const otherTotal = (() => {
+    const q = typedNumber(quantity)
+    const v = typedNumber(unitValueBrl)
+    return q != null && v != null && q > 0 && v > 0 ? Math.round(q * v * 100) / 100 : null
+  })()
+  const total = tableCharge ? quote?.total_brl ?? null : otherTotal
 
   async function submit() {
-    setError('')
-    if (customerId == null) {
-      setError('Cliente obrigatorio.')
-      return
+    const next: FieldErrors = {}
+    if (customerId == null) next.customer = 'Selecione o Cliente.'
+    if (tableCharge) {
+      if (!blId) next.bl = 'Item da tabela exige o B/L deste Cliente.'
+      else if (!chargeItemId) next.item = 'Escolha o item da tabela.'
+      else if (!quote || quoteQuery.isFetching) next.item = 'Aguarde o valor da tabela.'
     }
-
-    if (tableCharge && (!blId || !chargeItemId || !quote || quoteQuery.isFetching)) {
-      setError(!blId ? 'B/L obrigatório para item da tabela.' : 'Selecione um item e aguarde o valor da tabela.')
-      return
-    }
+    if (Object.keys(next).length) { setErrors(next); return }
     const parsed = manualInvoiceCreationSchema.safeParse({
       customerId,
       itemName: quote?.charge_item_name ?? itemName,
@@ -125,16 +142,24 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
       voyageId,
     })
     if (!parsed.success) {
-      setError(formatValidationError(parsed.error))
+      const fieldErrors: FieldErrors = {}
+      for (const issue of parsed.error.issues) {
+        const target = SCHEMA_FIELD[String(issue.path[0])]
+        if (target && !fieldErrors[target.field]) fieldErrors[target.field] = target.message
+      }
+      if (!Object.keys(fieldErrors).length) fieldErrors.form = parsed.error.issues[0]?.message ?? 'Revise os campos.'
+      setErrors(fieldErrors)
       return
     }
+    setErrors({})
 
+    const amount = quote?.total_brl ?? Math.round(parsed.data.quantity * parsed.data.unitValueBrl * 100) / 100
     const confirmed = await confirm({
       title: 'Emitir fatura avulsa?',
-      message: `Emitir fatura avulsa para ${customerSearch || 'o cliente selecionado'}?`,
-      confirmLabel: 'Emitir fatura',
-      consequence: `Será criada uma fatura emitida de ${fmtBRL(quote?.total_brl ?? parsed.data.quantity * parsed.data.unitValueBrl)}, com o item ${parsed.data.itemName}${parsed.data.blId ? ` para o B/L ${parsed.data.blId}` : ''}. ${quote?.currency === 'USD' ? 'O ROE vigente será conferido na emissão. ' : ''}Esta cobrança é adicional e não altera a fatura de Taxas Locais.`,
-      reversibility: 'A fatura poderá ser cancelada depois, conforme a permissão financeira vigente.',
+      message: `${formatBRL(amount)} para ${customer?.name ?? 'o Cliente selecionado'}: ${parsed.data.itemName}${parsed.data.blId ? ` (B/L ${parsed.data.blId})` : ''}.`,
+      confirmLabel: 'Emitir fatura avulsa',
+      consequence: `A fatura sai emitida agora e aparece para o Cliente no Portal${parsed.data.description ? ', com a descrição informada' : ''}. ${quote?.currency === 'USD' ? 'O ROE vigente será conferido na emissão. ' : ''}É uma cobrança adicional: não altera a fatura de Taxas Locais do B/L.`,
+      reversibility: 'Sem pagamento, o Administrativo pode cancelá-la depois, com motivo.',
     })
     if (!confirmed) return
 
@@ -151,159 +176,158 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
 
     try {
       const result = await createMutation.mutateAsync(input)
-      showToast(`Avulsa ${result.invoice_number} emitida (${fmtBRL(result.total_brl)}).`, 'success')
-      close()
+      showToast(`Avulsa ${result.invoice_number} emitida (${formatBRL(result.total_brl)}).`, 'success')
+      onClose()
     } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : 'Falha ao emitir fatura avulsa.'
-      setError(message)
-      showToast(message, 'error')
+      const message = userFacingErrorMessage(submitError, 'Falha ao emitir fatura avulsa.')
+      setErrors({ form: `${message} Nada foi emitido; revise e tente novamente.` })
     }
   }
 
+  const itemOptions = manualItems.data ?? []
+
   return (
-    <Modal
-      open={open}
-      onClose={close}
-      title="Nova fatura avulsa"
-      className="invoice-create-dialog"
-      bodyClassName="invoice-create-dialog__body"
-    >
-      <form className="invoice-create-modal" data-testid="manual-invoice-main" noValidate onSubmit={(event) => { event.preventDefault(); void submit() }}>
-        <section className="invoice-create-modal__filters" data-testid="manual-invoice-fields">
-          <div className="invoice-create-modal__filters-grid">
-            <div className="app-field invoice-create-modal__field--customer">
-              <span className="app-field__label">
-                Cliente<span className="app-field__required" aria-hidden="true"> *</span>
-              </span>
-              <div ref={customerPickerRef} className="invoice-search-field">
-                <Input
-                  aria-label="Cliente"
-                  placeholder="Buscar cliente..."
-                  role="combobox"
-                  aria-expanded={customerPickerOpen}
-                  autoComplete="off"
-                  value={customerSearch}
-                  onChange={(event) => {
-                    setCustomerId(null)
-                    resetContext()
-                    setCustomerSearch(event.target.value)
-                    setCustomerPickerOpen(true)
-                  }}
-                  onClick={() => setCustomerPickerOpen(true)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Escape' && customerPickerOpen) {
-                      event.stopPropagation()
-                      setCustomerPickerOpen(false)
-                    }
-                  }}
-                  style={customerId ? { paddingRight: 34 } : undefined}
-                />
-                {customerId != null ? (
-                  <button type="button" className="invoice-search-field__clear" aria-label="Limpar cliente" onClick={clearCustomer}>
-                    ×
-                  </button>
-                ) : null}
-                {customerPickerOpen && (customerOptions?.length ?? 0) > 0 ? (
-                  <div className="invoice-search-field__menu" role="listbox">
-                    {customerOptions!.map((customer) => (
-                      <button
-                        key={customer.id}
-                        type="button"
-                        role="option"
-                        aria-selected={customer.id === customerId}
-                        className={`invoice-search-field__option${customer.id === customerId ? ' invoice-search-field__option--active' : ''}`}
-                        onClick={() => {
-                          setCustomerId(customer.id)
-                          setCustomerSearch(customer.name)
-                          setCustomerPickerOpen(false)
-                          resetContext()
-                        }}
-                      >
-                        <div className="invoice-search-field__option-name">{customer.name}</div>
-                        <div className="invoice-search-field__option-meta">{customer.cnpj_cpf}</div>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
+    <Modal open={open} onClose={onClose} title="Nova fatura avulsa" size="md">
+      <form className="app-manual-invoice" data-testid="manual-invoice-main" noValidate onSubmit={(event) => { event.preventDefault(); void submit() }}>
+        <div className="app-manual-invoice__full">
+          <Combobox
+            key={`manual-customer-${formResetKey}`}
+            label="Cliente"
+            placeholder="Nome ou CNPJ"
+            onValueChange={(value) => {
+              if (customer && value === customer.name) return
+              if (customer) { setCustomer(null); resetContext() }
+            }}
+            fetchOptions={async (query) => (await listBillingCustomers(query)).map((row): ComboOption => ({ value: String(row.id), label: row.name, meta: formatCnpjCpf(row.cnpj_cpf) }))}
+            onSelectOption={(option) => {
+              setCustomer({ id: Number(option.value), name: option.label })
+              resetContext()
+              clearError('customer')
+            }}
+          />
+          {errors.customer ? <p role="alert" className="app-field__error">{errors.customer}</p> : null}
+        </div>
+
+        <div className="app-manual-invoice__full app-field">
+          <span className="app-field__label" aria-hidden="true">Tipo de cobrança</span>
+          <SegmentedControl
+            label="Tipo de cobrança"
+            options={KIND_OPTIONS}
+            value={kind}
+            onChange={(value) => { setKind(value); setChargeItemId(null); setErrors({}) }}
+          />
+          <span className="app-field__hint">
+            {tableCharge
+              ? 'Item manual da tabela do B/L: quantidade e valor vêm da tabela, com a Condição do Cliente quando houver.'
+              : 'Cobrança livre em reais. B/L e Viagem são opcionais.'}
+          </span>
+        </div>
+
+        {tableCharge ? (
+          <>
+            <div className="app-manual-invoice__full">
+              <Combobox
+                key={`manual-bl-table-${formResetKey}-${customerId ?? 'none'}`}
+                label="B/L"
+                placeholder={customerId ? 'Número do B/L deste Cliente' : 'Selecione o Cliente primeiro'}
+                disabled={customerId == null}
+                onValueChange={(value) => void selectBl(value)}
+                fetchOptions={async (query) => (await listBlSuggestions(query, customerId)).map((id): ComboOption => ({ value: id, label: id }))}
+                onSelectOption={(option) => void selectBl(option.value)}
+              />
+              {errors.bl ? <p role="alert" className="app-field__error">{errors.bl}</p> : null}
             </div>
-
-            <Field label="Tipo de cobrança" required>
-              <Select aria-label="Tipo de cobrança" value={tableCharge ? String(chargeItemId ?? 'table') : 'other'}
-                onChange={(event) => {
-                  const value = event.target.value
-                  setTableCharge(value !== 'other')
-                  setChargeItemId(value === 'other' || value === 'table' ? null : Number(value))
-                }}>
-                <option value="other">Outra</option>
-                <option value="table">Item da tabela (B/L obrigatório)</option>
-                {(manualItems.data ?? []).map((item) => <option key={item.charge_item_id} value={item.charge_item_id}>{item.charge_item_name}</option>)}
-              </Select>
-              {tableCharge && !blId ? <p role="alert">B/L obrigatório para item da tabela. Selecione o B/L para consultar os itens vigentes.</p> : null}
-              {tableCharge && quoteQuery.error ? <p role="alert">{quoteQuery.error.message}</p> : null}
-              {tableCharge && manualItems.error ? <p role="alert">Falha ao consultar os itens da tabela. Tente novamente.</p> : null}
-              {quote ? <p>Valor da tabela e Condição do Cliente: {fmtBRL(quote.total_brl)}. {quote.currency === 'USD' ? `Convertido pelo ROE ${quote.roe}; o câmbio vigente será conferido na emissão.` : ''}</p> : null}
+            <div className="app-manual-invoice__full">
+              <Field
+                label="Item da tabela"
+                required
+                error={errors.item}
+                hint={!blId ? 'Escolha o B/L para ver os itens vigentes.' : manualItems.isLoading ? 'Consultando os itens do B/L…' : !manualItems.error && itemOptions.length === 0 ? 'Nenhum item manual vigente na tabela deste B/L. Use "Outra".' : undefined}
+              >
+                <Select
+                  value={chargeItemId ?? ''}
+                  disabled={!blId || manualItems.isLoading || itemOptions.length === 0}
+                  onChange={(event) => { setChargeItemId(event.target.value ? Number(event.target.value) : null); clearError('item') }}
+                >
+                  <option value="">Selecione o item</option>
+                  {itemOptions.map((item) => (
+                    <option key={item.charge_item_id} value={item.charge_item_id}>
+                      {item.charge_item_name}
+                      {item.currency === 'USD' && item.effective_unit_value_usd != null ? ` · ${formatUSD(item.effective_unit_value_usd)}` : item.effective_unit_value_brl != null ? ` · ${formatBRL(item.effective_unit_value_brl)}` : ''}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              {manualItems.error ? <p role="alert" className="app-field__error">Não foi possível consultar os itens da tabela. Feche e abra de novo ou use "Outra".</p> : null}
+            </div>
+            <div className="app-manual-invoice__full app-manual-invoice__quote" aria-live="polite">
+              {!chargeItemId ? <p>Quantidade e valor aparecem depois de escolher o item.</p>
+                : quoteQuery.isFetching ? <p>Consultando o valor da tabela…</p>
+                  : quoteQuery.error ? <p role="alert" className="app-field__error">{userFacingErrorMessage(quoteQuery.error, 'Não foi possível obter o valor da tabela.')}</p>
+                    : quote ? (
+                      <>
+                        <p className="app-manual-invoice__quote-line">
+                          <span>{quote.charge_item_name}</span>
+                          <span className="app-manual-invoice__num">{String(quote.quantity).replace('.', ',')} × {formatBRL(quote.unit_value_brl)}</span>
+                        </p>
+                        {quote.currency === 'USD' ? <p>Item em US$, convertido pelo ROE {String(quote.roe ?? '—').replace('.', ',')}; o câmbio vigente é conferido na emissão.</p> : null}
+                      </>
+                    ) : null}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="app-manual-invoice__full">
+              <Field label="Nome do item" required error={errors.itemName}>
+                <Input value={itemName} maxLength={160} onChange={(event) => { setItemName(event.target.value); clearError('itemName') }} />
+              </Field>
+            </div>
+            <Field label="Quantidade" required error={errors.quantity}>
+              <Input inputMode="decimal" value={quantity} onChange={(event) => { setQuantity(event.target.value); clearError('quantity') }} />
             </Field>
-
-            <Field label="Nome do item" required>
-              <Input aria-label="Nome do item" readOnly={tableCharge} value={tableCharge ? quote?.charge_item_name ?? '' : itemName} onChange={(event) => setItemName(event.target.value)} />
+            <Field label="Valor unitário (R$)" required error={errors.unitValue}>
+              <MoneyInput prefix="R$" placeholder="0,00" value={unitValueBrl} onChange={(event) => { setUnitValueBrl(event.target.value); clearError('unitValue') }} />
             </Field>
-
-            <Field label="Descrição da cobrança">
-              <Textarea aria-label="Descrição da cobrança" value={description} onChange={(event) => setDescription(event.target.value)} rows={2} />
-            </Field>
-
-            <Field label="Quantidade" required>
-              <Input aria-label="Quantidade" inputMode="decimal" readOnly={tableCharge} value={tableCharge ? quote ? String(quote.quantity) : '' : quantity} onChange={(event) => setQuantity(event.target.value)} />
-            </Field>
-
-            <Field label="Valor unitário (BRL)" required>
-              <Input aria-label="Valor unitário (BRL)" inputMode="decimal" readOnly={tableCharge} value={tableCharge ? quote ? String(quote.unit_value_brl) : '' : unitValueBrl} onChange={(event) => setUnitValueBrl(event.target.value)} />
-            </Field>
-
-            <div className="invoice-create-modal__field--bl">
+            <fieldset className="app-manual-invoice__full app-manual-invoice__links">
+              <legend>Vínculos opcionais</legend>
               <Combobox
                 key={`manual-bl-${formResetKey}-${customerId ?? 'none'}`}
-                label={tableCharge ? 'B/L (obrigatório)' : 'B/L (opcional)'}
-                placeholder={customerId ? 'Buscar B/L...' : 'Selecione o cliente primeiro'}
+                label="B/L (opcional)"
+                placeholder={customerId ? 'Número do B/L deste Cliente' : 'Selecione o Cliente primeiro'}
                 disabled={customerId == null}
-                onValueChange={(value) => { setChargeItemId(null); setVoyageId(null); setBlId(value.trim() ? value.trim().toUpperCase() : null) }}
+                onValueChange={(value) => { setVoyageId(null); setBlId(value.trim() ? value.trim().toUpperCase() : null) }}
                 fetchOptions={async (query) => (await listBlSuggestions(query, customerId)).map((id): ComboOption => ({ value: id, label: id }))}
-                onSelectOption={async (option) => {
-                  const selectedBl = option.value.trim().toUpperCase()
-                  setBlId(selectedBl)
-                  try {
-                    const { data } = await supabase.from('bls').select('voyage_id').eq('id', selectedBl).maybeSingle()
-                    if (data?.voyage_id != null) {
-                      setVoyageId(Number(data.voyage_id))
-                    }
-                  } catch {
-                    // Ignora erro de rede; o operador pode selecionar a viagem manualmente se necessário
-                  }
-                }}
+                onSelectOption={(option) => void selectBl(option.value)}
               />
-            </div>
-
-            <div className="invoice-create-modal__field--voyage">
               <VoyageCombobox
                 clearable
-                label="Navio / Viagem"
+                label="Navio / Viagem (opcional)"
                 selectedVoyageId={voyageId}
                 disabled={customerId == null}
                 onSelect={setVoyageId}
               />
-            </div>
-          </div>
-          {error ? <div role="alert" style={{ color: 'var(--app-danger, #dc2626)', fontSize: 13 }}>{error}</div> : null}
-        </section>
+              <p className="app-field__hint">Contexto exibido na fatura. O B/L precisa ser deste Cliente e da mesma viagem; a avulsa não altera as Taxas Locais do B/L.</p>
+              {errors.voyage ? <p role="alert" className="app-field__error">{errors.voyage}</p> : null}
+            </fieldset>
+          </>
+        )}
 
-        <div className="invoice-create-modal__footer" data-testid="manual-invoice-footer">
-          <div style={{ fontSize: 13, color: 'var(--app-muted)' }}>
-            A fatura será emitida imediatamente.
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button type="button" variant="ghost" onClick={close}>Voltar</Button>
-            <Button type="submit" disabled={tableCharge && (!blId || !quote || quoteQuery.isFetching)} loading={createMutation.isPending}>Emitir fatura avulsa</Button>
+        <div className="app-manual-invoice__full">
+          <Field label="Descrição da cobrança" hint="Aparece na fatura impressa e no Portal do Cliente.">
+            <Textarea value={description} rows={3} maxLength={500} onChange={(event) => setDescription(event.target.value)} />
+          </Field>
+        </div>
+
+        {errors.form ? <p role="alert" className="app-manual-invoice__full app-invoice-detail__alert">{errors.form}</p> : null}
+
+        <div className="app-manual-invoice__footer" data-testid="manual-invoice-footer">
+          <p className="app-manual-invoice__total">
+            <span>Total a emitir</span>
+            <strong className="app-manual-invoice__num">{total != null ? formatBRL(total) : '—'}</strong>
+          </p>
+          <div className="app-manual-invoice__actions">
+            <Button type="button" variant="ghost" onClick={onClose}>Voltar</Button>
+            <Button type="submit" loading={createMutation.isPending} loadingLabel="Emitindo…">Emitir fatura avulsa</Button>
           </div>
         </div>
       </form>

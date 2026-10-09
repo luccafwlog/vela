@@ -14,6 +14,6 @@ function renderControls(overrides: Partial<React.ComponentProps<typeof Validacao
 
 describe('ValidacaoControls', () => {
   it('desabilita recalculo sem seleção', () => { renderControls(); expect((screen.getByRole('button', { name: /Recalcular/ }) as HTMLButtonElement).disabled).toBe(true) })
-  it('mostra contador e aviso no teto', () => { renderControls({ blockedCount: 100, truncated: true, selectedCount: 3 }); expect(screen.getByText('100 B/L bloqueados — 3 selecionados')).toBeTruthy(); expect(screen.getByText(/Limite de 1200/)).toBeTruthy() })
+  it('mostra contador e aviso no teto', () => { renderControls({ blockedCount: 100, truncated: true, selectedCount: 3 }); expect(screen.getByText('100 B/Ls aguardando emissão · 3 selecionados')).toBeTruthy(); expect(screen.getByText(/Limite de 1200/)).toBeTruthy() })
   it('executa recalculo quando há seleção', async () => { const user = userEvent.setup(); const callbacks = renderControls({ blockedCount: 2, selectedCount: 1 }); await user.click(screen.getByRole('button', { name: /Recalcular/ })); expect(callbacks.onRunBatchOperation).toHaveBeenCalledWith('recalculate') })
 })

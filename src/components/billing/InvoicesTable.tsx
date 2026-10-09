@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Card, EmptyState, InlineError } from '../ui/Card'
+import { EmptyState } from '../ui/Card'
 import { SkeletonTable } from '../ui/Skeleton'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
+import { useNarrowViewport } from '../bl/useNarrowViewport'
 import {
   getInvoiceBls,
   getInvoicePaymentDate,
@@ -12,8 +14,8 @@ import {
   type InvoiceListBl,
   type InvoiceListRow,
 } from '../../services/billing'
-import { invoiceStatusLabel, invoiceStatusTone } from '../../pages/faturamentoInvoiceStatus'
-import { formatBRL, formatDate } from '../../lib/utils'
+import { formatCnpjCpf, formatDate } from '../../lib/utils'
+import { describeInvoiceRowAmount, invoiceStatusTag } from './invoiceDetailPresentation'
 import { InvoiceCommunicationStatusCell } from './InvoiceCommunicationStatusCell'
 
 type InvoicesTableProps = {
@@ -21,137 +23,187 @@ type InvoicesTableProps = {
   isLoading: boolean
   error: unknown
   totalCount: number
-  filterDescription: string
   emptyState: { title: string; description?: string }
-  emptyAction?: React.ReactNode
+  emptyAction?: ReactNode
+  /** Faixa de resumo e ações da barra da tabela. */
+  summary?: ReactNode
+  actions?: ReactNode
+  onRetry?: () => void
   page: number
+  pageSize?: number
   totalPages: number
   onPageChange: (page: number) => void
   onSelectInvoice: (invoiceId: number) => void
   showCommunication?: boolean
 }
 
+/**
+ * Lista de faturas de Taxas Locais. O número abre o detalhe (sem botão
+ * "Detalhes" repetido); a coluna Valores mostra primeiro o que decide (saldo
+ * em aberto ou total pago). Abaixo de 640 px vira cartões.
+ */
 export function InvoicesTable({
   invoices,
   isLoading,
   error,
   totalCount,
-  filterDescription,
   emptyState,
   emptyAction,
+  summary,
+  actions,
+  onRetry,
   page,
+  pageSize = 20,
   totalPages,
   onPageChange,
   onSelectInvoice,
   showCommunication = false,
 }: InvoicesTableProps) {
+  const narrow = useNarrowViewport()
+  const columns = showCommunication ? 8 : 7
+  const failed = Boolean(error)
+
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="billing-table__head flex flex-col gap-1 border-b px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <span className="font-semibold text-white">{totalCount} fatura(s) retornada(s)</span>
-        <span className="text-xs">{filterDescription || 'Ordenado por emissão (recente)'}</span>
-      </div>
-      {error ? <InlineError message="Erro ao carregar faturamento." /> : null}
-      <div className="app-table-scroll app-table-scroll--sticky">
-        <table className={`app-table app-table--compact ${showCommunication ? 'min-w-[1440px]' : 'min-w-[1200px]'} text-left text-sm`}>
-          <caption className="sr-only">Faturas locais filtradas</caption>
-          <thead><tr><th scope="col" className="px-4 py-3">Número do BL</th><th scope="col" className="px-4 py-3">Fatura</th><th scope="col" className="px-4 py-3">Tipo</th><th scope="col" className="px-4 py-3">Navio / Viagem · POD</th><th scope="col" className="px-4 py-3">Emissão</th><th scope="col" className="px-4 py-3">Pagamento</th><th scope="col" className="px-4 py-3 text-right">Financeiro</th><th scope="col" className="px-4 py-3">Status</th>{showCommunication ? <th scope="col" className="px-4 py-3">Comunicação financeira</th> : null}<th scope="col" className="px-4 py-3">Ações</th></tr></thead>
-          <tbody>
-            {isLoading ? <tr><td colSpan={showCommunication ? 10 : 9} className="p-0"><SkeletonTable rows={6} cols={showCommunication ? 10 : 9} /></td></tr> : null}
-            {!isLoading && invoices.length === 0 ? <tr><td colSpan={showCommunication ? 10 : 9} className="p-0"><EmptyState title={emptyState.title} description={emptyState.description} action={emptyAction} /></td></tr> : null}
-            {invoices.map((invoice) => {
-              const bls = getInvoiceBls(invoice)
-              const consolidated = isConsolidatedInvoice(invoice)
-              const paymentDate = getInvoicePaymentDate(invoice)
-              const vesselVoyage = formatVesselVoyage(bls, invoice)
-              const pod = formatPodList(bls, invoice)
-              return (
-              <tr key={invoice.id}>
-                <td className="px-4 py-3">
-                  <div className="app-table__cell-stack">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-[#58a6ff]">{renderBlLinks(bls)}</span>
-                      {bls.length > 0 ? (
-                        <Badge tone={consolidated ? 'blue' : 'slate'}>{bls.length} B/L{bls.length === 1 ? '' : 's'}</Badge>
-                      ) : null}
-                    </div>
-                    {consolidated ? <div className="app-table__cell-meta">Consolidada · {bls.length} BLs agrupados</div> : null}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="app-table__cell-stack">
-                    <div className="font-semibold text-white">{invoice.invoice_number ?? `INV-${invoice.id}`}</div>
-                    <div className="app-table__cell-value">
-                      <span className="app-table__truncate app-table__truncate--xl" title={invoice.customer?.name ?? '-'}>
-                        {invoice.customer?.name ?? '-'}
-                      </span>
-                    </div>
-                    <div className="app-table__cell-meta">{invoice.customer?.cnpj_cpf ?? 'Cliente não identificado'}</div>
-                  </div>
-                </td>
-                <td className="px-4 py-3"><Badge tone={consolidated ? 'blue' : invoice.invoice_type === 'manual' ? 'yellow' : 'slate'}>{invoiceTypeLabel(invoice.invoice_type)}</Badge></td>
-                <td className="px-4 py-3">
-                  <div className="app-table__cell-stack">
-                    <div className="app-table__cell-value">
-                      <span className="app-table__truncate app-table__truncate--xl" title={vesselVoyage}>{vesselVoyage}</span>
-                    </div>
-                    <div className="app-table__cell-meta">POD {pod}</div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">{formatDate(invoice.issued_at)}</td>
-                <td className="px-4 py-3">{paymentDate ? formatDate(paymentDate) : <span className="text-slate-500">—</span>}</td>
-                <td className="px-4 py-3 text-right tabular-nums">
-                  <div className="app-table__cell-stack">
-                    <div className="app-table__cell-value app-table__cell-value--financial">Total {formatBRL(invoice.total_brl)}</div>
-                    <div className="app-table__cell-meta">Pago {formatBRL(invoice.total_paid_brl)}</div>
-                    {invoice.status !== 'cancelled' ? (
-                      <div className="app-table__cell-meta">Saldo {formatBRL(invoice.balance_brl)}</div>
-                    ) : null}
-                  </div>
-                </td>
-                <td className="px-4 py-3">{renderInvoiceStatus(invoice.status)}</td>
-                {showCommunication ? <td className="px-4 py-3"><InvoiceCommunicationStatusCell invoice={invoice} /></td> : null}
-                <td className="px-4 py-3"><Button variant="secondary" onClick={() => onSelectInvoice(invoice.id)}>Detalhes</Button></td>
+    <section className="app-invoices" aria-label="Faturas">
+      {summary || actions ? (
+        <div className="app-invoices__bar">
+          <div className="app-invoices__summary">{summary}</div>
+          {actions ? <div className="app-invoices__actions">{actions}</div> : null}
+        </div>
+      ) : null}
+      {failed ? (
+        <div role="alert" className="app-invoices__error">
+          <p>Não foi possível carregar as faturas. A lista abaixo não está atualizada.</p>
+          {onRetry ? <Button variant="secondary" onClick={onRetry}>Tentar novamente</Button> : null}
+        </div>
+      ) : null}
+      {narrow ? (
+        <div className="app-invoice-cards">
+          {isLoading ? <SkeletonTable rows={4} cols={2} /> : null}
+          {!isLoading && !failed && invoices.length === 0 ? <EmptyState title={emptyState.title} description={emptyState.description} action={emptyAction} /> : null}
+          {invoices.map((invoice) => <InvoiceCard key={invoice.id} invoice={invoice} onSelect={onSelectInvoice} showCommunication={showCommunication} />)}
+        </div>
+      ) : (
+        <div className="app-table-scroll app-table-scroll--sticky">
+          <table className={`app-table app-table--compact app-invoices__table${showCommunication ? ' app-invoices__table--comm' : ''}`}>
+            <caption className="sr-only">Faturas de Taxas Locais filtradas</caption>
+            <thead>
+              <tr>
+                <th scope="col">Fatura</th>
+                <th scope="col">Cliente</th>
+                <th scope="col">B/Ls</th>
+                <th scope="col">Navio / Viagem · POD</th>
+                <th scope="col">Emissão</th>
+                <th scope="col" className="app-invoices__num">Valores</th>
+                <th scope="col">Situação</th>
+                {showCommunication ? <th scope="col">Comunicado de CE Mercante</th> : null}
               </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {isLoading ? <tr><td colSpan={columns} className="p-0"><SkeletonTable rows={6} cols={columns} /></td></tr> : null}
+              {!isLoading && !failed && invoices.length === 0 ? <tr><td colSpan={columns} className="p-0"><EmptyState title={emptyState.title} description={emptyState.description} action={emptyAction} /></td></tr> : null}
+              {invoices.map((invoice) => {
+                const bls = getInvoiceBls(invoice)
+                const paymentDate = getInvoicePaymentDate(invoice)
+                const amount = describeInvoiceRowAmount(invoice)
+                const status = invoiceStatusTag(invoice.status)
+                return (
+                  <tr key={invoice.id}>
+                    <td>
+                      <InvoiceNumberButton invoice={invoice} onSelect={onSelectInvoice} />
+                      <span className="app-invoices__meta">{typeText(invoice, bls)}</span>
+                    </td>
+                    <td><CustomerCell invoice={invoice} /></td>
+                    <td><BlLinks bls={bls} manual={invoice.invoice_type === 'manual'} /></td>
+                    <td>
+                      <span className="app-invoices__clamp">{formatVesselVoyage(bls, invoice)}</span>
+                      <span className="app-invoices__meta">POD {formatPodList(bls, invoice)}</span>
+                    </td>
+                    <td className="app-invoices__date">
+                      {formatDate(invoice.issued_at)}
+                      {paymentDate ? <span className="app-invoices__meta">pago em {formatDate(paymentDate)}</span> : null}
+                    </td>
+                    <td className="app-invoices__num">
+                      <span className={`app-invoices__amount app-invoices__amount--${amount.tone}`}>{amount.main}</span>
+                      <span className="app-invoices__meta">{amount.detail}</span>
+                    </td>
+                    <td><Badge tone={status.tone}>{status.label}</Badge></td>
+                    {showCommunication ? <td><InvoiceCommunicationStatusCell invoice={invoice} /></td> : null}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
       <TableFooterPagination
         page={page}
-        pageSize={20}
+        pageSize={pageSize}
         totalCount={totalCount}
         totalPages={totalPages}
         onPageChange={onPageChange}
       />
-    </Card>
+    </section>
   )
 }
 
-function renderInvoiceStatus(status: string | null) {
-  return <Badge tone={invoiceStatusTone(status)}>{invoiceStatusLabel(status)}</Badge>
+function InvoiceNumberButton({ invoice, onSelect }: { invoice: InvoiceListRow; onSelect: (id: number) => void }) {
+  const number = invoice.invoice_number ?? `Fatura ${invoice.id}`
+  return (
+    <button type="button" className="app-invoices__number" aria-label={`Abrir fatura ${number}`} onClick={() => onSelect(invoice.id)}>
+      {number}
+    </button>
+  )
 }
 
-function renderBlLinks(bls: InvoiceListBl[]) {
-  if (bls.length === 0) return 'Sem B/L'
-  const visible = bls.slice(0, 2)
-  const remaining = bls.length - 2
+function CustomerCell({ invoice }: { invoice: InvoiceListRow }) {
+  if (!invoice.customer) return <span className="app-invoices__meta">Cliente não identificado</span>
   return (
     <>
-      {visible.map((bl, index) => (
-        <span key={bl.bl_id}>
-          {index > 0 ? ' • ' : null}
-          <Link
-            className="hover:underline"
-            to={`/bls/${encodeURIComponent(bl.bl_id)}`}
-          >
-            {bl.bl_id}
-          </Link>
-        </span>
-      ))}
-      {remaining > 0 ? ` +${remaining}` : null}
+      <span className="app-invoices__clamp app-invoices__customer">{invoice.customer.name}</span>
+      <span className="app-invoices__meta">{formatCnpjCpf(invoice.customer.cnpj_cpf)}</span>
     </>
+  )
+}
+
+function InvoiceCard({ invoice, onSelect, showCommunication }: { invoice: InvoiceListRow; onSelect: (id: number) => void; showCommunication: boolean }) {
+  const bls = getInvoiceBls(invoice)
+  const amount = describeInvoiceRowAmount(invoice)
+  const status = invoiceStatusTag(invoice.status)
+  return (
+    <article className="app-invoice-card" aria-label={`Fatura ${invoice.invoice_number ?? invoice.id}`}>
+      <div className="app-invoice-card__head">
+        <InvoiceNumberButton invoice={invoice} onSelect={onSelect} />
+        <Badge tone={status.tone}>{status.label}</Badge>
+      </div>
+      <div className="app-invoice-card__amount">
+        <span className={`app-invoices__amount app-invoices__amount--${amount.tone}`}>{amount.main}</span>
+        <span className="app-invoices__meta">{amount.detail}</span>
+      </div>
+      <div><CustomerCell invoice={invoice} /></div>
+      <p className="app-invoices__meta">{typeText(invoice, bls)} · emitida em {formatDate(invoice.issued_at)}</p>
+      <div className="app-invoice-card__bls"><BlLinks bls={bls} manual={invoice.invoice_type === 'manual'} /></div>
+      {showCommunication ? <InvoiceCommunicationStatusCell invoice={invoice} /> : null}
+    </article>
+  )
+}
+
+function typeText(invoice: InvoiceListRow, bls: InvoiceListBl[]) {
+  const label = invoiceTypeLabel(invoice.invoice_type)
+  return isConsolidatedInvoice(invoice) && bls.length > 0 ? `${label} · ${bls.length} B/Ls` : label
+}
+
+function BlLinks({ bls, manual }: { bls: InvoiceListBl[]; manual: boolean }) {
+  if (bls.length === 0) return <span className="app-invoices__meta">{manual ? 'Sem B/L' : 'Sem B/L vinculado'}</span>
+  const visible = bls.slice(0, 2)
+  const remaining = bls.length - visible.length
+  return (
+    <span className="app-invoices__bls">
+      {visible.map((bl) => (
+        <Link key={bl.bl_id} className="app-invoices__bl" to={`/bls/${encodeURIComponent(bl.bl_id)}`}>{bl.bl_id}</Link>
+      ))}
+      {remaining > 0 ? <span className="app-invoices__meta">+{remaining}</span> : null}
+    </span>
   )
 }
 

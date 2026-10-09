@@ -73,3 +73,18 @@ it('não executa detector de vencimento ao abrir Faturamento', () => {
   render(<MemoryRouter><TaxasLocais /></MemoryRouter>)
   expect(mocks.detectOverdueInvoices).not.toHaveBeenCalled()
 })
+
+it('a aba ativa fica na URL e mantém o recorte ao voltar para Faturas', async () => {
+  const { default: userEvent } = await import('@testing-library/user-event')
+  const user = userEvent.setup()
+  render(
+    <MemoryRouter initialEntries={['/taxas-locais?customer=7&customerName=ACME']}>
+      <TaxasLocais />
+      <LocationProbe />
+    </MemoryRouter>,
+  )
+  await user.click(screen.getByRole('tab', { name: 'Validação' }))
+  expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?customer=7&customerName=ACME&tab=validacao')
+  await user.click(screen.getByRole('tab', { name: 'Faturas' }))
+  expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?customer=7&customerName=ACME')
+})

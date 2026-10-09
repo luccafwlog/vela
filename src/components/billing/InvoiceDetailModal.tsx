@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Ban, DollarSign, Printer, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Ban, DollarSign, Printer, RotateCcw } from 'lucide-react'
 import { StaleInvoiceResolutionPanel } from './StaleInvoiceResolutionPanel'
 import { FinancialRefundsPanel } from './FinancialRefundsPanel'
 import { InvoiceCorrectionPanel } from './InvoiceCorrectionPanel'
 import { InvoiceDocumentLocal } from './InvoiceDocumentLocal'
+import { describeInvoiceAmounts, invoiceStatusTag, paymentMethodLabel } from './invoiceDetailPresentation'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
-import { MetricCard } from '../ui/MetricCard'
 import { SkeletonTable } from '../ui/Skeleton'
 import { Field, Input, Select, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
@@ -28,15 +27,15 @@ import {
   useRegisterLedgerInvoicePayment,
   useSettleInvoiceRefund,
 } from '../../hooks/useBillingLedger'
+import { useCancelFinancialRefundAuthorization, useFinancialRefunds } from '../../hooks/useFinancialRefunds'
 import { invoiceTypeLabel, isManualInvoice } from '../../services/billing'
 import { parseImportNumber } from '../../lib/importNumber'
 import { buildInvoiceFileBaseName, describeInvoiceItemsFreezeNote, describeUsdConversionNote } from '../shared/invoiceFormat'
 import { formatValidationError, paymentFormSchema } from '../../services/financialValidation'
 import { logOperationalEvent } from '../../services/operationalEvents'
-import { formatBRL, formatDate, stripBlPrefix } from '../../lib/utils'
+import { formatBRL, formatCnpjCpf, formatDate, stripBlPrefix } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { canRegisterInvoicePayment, isLedgerInvoicePayable } from '../../pages/faturamentoLedgerPayment'
-import { invoiceStatusLabel } from '../../pages/faturamentoInvoiceStatus'
 import { printDocumentElement } from '../../lib/printDocument'
 
 type PaymentMethod = 'pix' | 'ted' | 'doc' | 'boleto' | 'outros'
@@ -44,76 +43,107 @@ type PaymentMethod = 'pix' | 'ted' | 'doc' | 'boleto' | 'outros'
 type InvoiceDetailModalProps = {
   invoiceId: number | null
   onClose: () => void
+  /** Aberto pela Conciliação para cancelar uma baixa: esconde registro de pagamento e cancelamento da fatura. */
   enablePaymentReversal?: boolean
   paymentId?: number | null
 }
 
+/**
+ * Detalhe interno da fatura de Taxas Locais (Vela), usado por `/taxas-locais`
+ * e pela Conciliação. Uma superfície com seções separadas por filete; a
+ * impressão troca o conteúdo do mesmo modal (sem modal sobre modal) e as
+ * confirmações de devolução e de cancelamento de baixa abrem dentro da seção.
+ * As ações que o banco restringe ao Administrativo (baixa, cancelamento da
+ * fatura e da baixa) aparecem só para ele; os demais leem o motivo.
+ */
 export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, paymentId }: InvoiceDetailModalProps) {
   const { user, isAdmin, can } = useAuth()
   const { showToast } = useToast()
   const confirm = useConfirm()
   const queryClient = useQueryClient()
 
-  const [printOpen, setPrintOpen] = useState(false)
-  const [printType, setPrintType] = useState<'invoice' | 'receipt'>('invoice')
+  const [view, setView] = useState<'detail' | 'invoice' | 'receipt'>('detail')
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix')
   const [paymentDate, setPaymentDate] = useState('')
   const [paymentNotes, setPaymentNotes] = useState('')
   const [paymentReference, setPaymentReference] = useState('')
+  const [paymentError, setPaymentError] = useState('')
   const [ledgerPaymentRequestId, setLedgerPaymentRequestId] = useState<string | null>(null)
   const [paymentAttempt, setPaymentAttempt] = useState<{ invoiceId: number; amountBrl: number; method: PaymentMethod; paidAt: string; notes: string | null; requestId: string; bankReference: string } | null>(null)
   const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null)
+  const [reversalOpen, setReversalOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
+  const [cancelError, setCancelError] = useState('')
   const [reversalReason, setReversalReason] = useState('')
+  const [reversalError, setReversalError] = useState('')
   const [reversalLoading, setReversalLoading] = useState(false)
   const [refundToConfirm, setRefundToConfirm] = useState<number | null>(null)
   const [refundReference, setRefundReference] = useState('')
   const [refundBeneficiary, setRefundBeneficiary] = useState('')
   const [refundDate, setRefundDate] = useState('')
+  const [refundError, setRefundError] = useState('')
+  const [authorizationToCancel, setAuthorizationToCancel] = useState<number | null>(null)
+  const [authorizationReason, setAuthorizationReason] = useState('')
 
   const [previousInvoiceId, setPreviousInvoiceId] = useState(invoiceId)
   if (previousInvoiceId !== invoiceId) {
     setPreviousInvoiceId(invoiceId)
+    setView('detail')
     setPaymentAttempt(null)
     setLedgerPaymentRequestId(null)
     setSelectedPaymentId(null)
+    setReversalOpen(false)
+    setReversalReason('')
+    setReversalError('')
     setPaymentAmount('')
     setPaymentDate('')
     setPaymentNotes('')
     setPaymentReference('')
+    setPaymentError('')
+    setCancelReason('')
+    setCancelError('')
     setRefundToConfirm(null)
     setRefundReference('')
     setRefundBeneficiary('')
     setRefundDate('')
+    setRefundError('')
+    setAuthorizationToCancel(null)
+    setAuthorizationReason('')
   }
 
   const detailQuery = useInvoiceDetail(invoiceId)
   const refundsQuery = useInvoiceRefunds(invoiceId)
   const refunds = refundsQuery.data ?? []
-  const pendingRefund = refunds
-    .filter((refund) => refund.status === 'pending')
-    .reduce((sum, refund) => sum + Number(refund.amount_brl ?? 0), 0)
   const settleRefundMutation = useSettleInvoiceRefund()
   const canSettleRefund = typeof can === 'function' ? can('settle_financial_adjustments') : isAdmin
-  const detailInvoice = detailQuery.data?.invoice ?? null
+  const detail = detailQuery.data ?? null
+  const detailInvoice = detail?.invoice ?? null
   const detailIsManual = isManualInvoice(detailInvoice)
+  // Autorizações excepcionais da avulsa: só elas podem ser canceladas, e só esta leitura traz o request_id.
+  const manualRefundsQuery = useFinancialRefunds('manual', detailIsManual ? invoiceId : null)
+  const authorizationIds = new Set((manualRefundsQuery.data?.refunds ?? []).filter((row) => row.request_id).map((row) => row.id))
+  const cancelAuthorizationMutation = useCancelFinancialRefundAuthorization()
   const voyageParts = [detailInvoice?.vessel_name, detailInvoice?.voyage_number].filter(Boolean).join(' · ')
-    || Array.from(new Set((detailQuery.data?.bls ?? []).map((b) => [b.vessel_name, b.voyage_number].filter(Boolean).join(' · ')).filter(Boolean))).join(', ')
-  const detailVoyageLabel = voyageParts || '-'
-  const hasDetailVoyage = Boolean(voyageParts)
+    || Array.from(new Set((detail?.bls ?? []).map((b) => [b.vessel_name, b.voyage_number].filter(Boolean).join(' · ')).filter(Boolean))).join(', ')
   const isLedgerPayable = isLedgerInvoicePayable(detailInvoice)
   const canRegisterPayment = canRegisterInvoicePayment(detailInvoice)
   const isCancelled = ['cancelled', 'obsolete'].includes(detailInvoice?.status ?? '')
   const registerPaymentMutation = useRegisterInvoicePayment()
   const registerLedgerPaymentMutation = useRegisterLedgerInvoicePayment()
+  const paymentPending = registerPaymentMutation.isPending || registerLedgerPaymentMutation.isPending
   const cancelInvoiceMutation = useCancelInvoice()
   const reissueLinksQuery = useInvoiceReissueLinks(invoiceId)
   const reissueLinks = reissueLinksQuery.data ?? null
+  const payments = detail?.payments ?? []
+  const status = invoiceStatusTag(detailInvoice?.status)
+  const amounts = detail ? describeInvoiceAmounts(detail, refunds) : []
+  const showReceipt = ['paid', 'covered'].includes(detailInvoice?.status ?? '') || (detailInvoice?.status === 'cancelled' && Number(detailInvoice?.total_paid_brl ?? 0) > 0)
 
   const ledgerBalance = Number(detailInvoice?.balance_brl ?? detailInvoice?.total_brl ?? 0)
-  const reversalPayment = detailQuery.data?.payments.find((payment) => payment.id === (selectedPaymentId ?? paymentId))
+  const reversalPayment = payments.find((payment) => payment.id === (selectedPaymentId ?? paymentId))
   const reversalPaymentId = reversalPayment?.id ?? null
+  const reversalFormVisible = isAdmin && payments.length > 0 && (Boolean(enablePaymentReversal) || reversalOpen)
   // Valor em pt-BR ("1.234,56"), como no registro do pagamento.
   const parsedPayment = parseImportNumber(paymentAmount, 'pt-BR')
   const typedPayment = parsedPayment.kind === 'value' ? Number(parsedPayment.decimal) : 0
@@ -123,26 +153,27 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   if (ledgerPrefill !== prevLedgerPrefill) {
     setPrevLedgerPrefill(ledgerPrefill)
     if (ledgerPrefill !== null && (!paymentAttempt || paymentAttempt.invoiceId !== invoiceId)) {
-      setPaymentAmount(ledgerBalance ? String(ledgerBalance) : '')
+      setPaymentAmount(ledgerBalance ? String(ledgerBalance).replace('.', ',') : '')
     }
   }
 
   async function handleRegisterPayment() {
     if (!invoiceId) return
-    if (paymentReference.trim().length < 3) { showToast('Informe a referência do recebimento no extrato bancário.', 'error'); return }
+    setPaymentError('')
+    if (paymentReference.trim().length < 3) { setPaymentError('Informe a referência do recebimento no extrato bancário.'); return }
     const paymentValidation = paymentFormSchema.safeParse({
       amountBrl: paymentAmount,
       paymentMethod,
       paidAt: paymentDate,
     })
     if (!paymentValidation.success) {
-      showToast(formatValidationError(paymentValidation.error, 'Valor de pagamento invalido.'), 'error')
+      setPaymentError(formatValidationError(paymentValidation.error, 'Valor de pagamento inválido.'))
       return
     }
     const payment = paymentValidation.data
     const retryAttempt = paymentAttempt?.invoiceId === invoiceId ? paymentAttempt : null
     const amountBrl = retryAttempt?.amountBrl ?? payment.amountBrl
-    const duplicates = !retryAttempt && detailQuery.data?.payments.some((existing) =>
+    const duplicates = !retryAttempt && payments.some((existing) =>
       Number(existing.amount_brl) === amountBrl && existing.payment_method === payment.paymentMethod &&
       (!payment.paidAt || existing.paid_at?.slice(0, 10) === payment.paidAt))
     const remaining = Math.max(ledgerBalance - payment.amountBrl, 0)
@@ -177,6 +208,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       showToast('Pagamento registrado.', 'success')
     } catch (error) {
       const msg = userFacingErrorMessage(error, 'Falha ao registrar pagamento.')
+      setPaymentError(`${msg} Confira o histórico de pagamentos antes de tentar novamente.`)
       showToast(msg, 'error')
       void logOperationalEvent({ code: 'invoice_payment_invalid', message: msg, changedBy: user?.id ?? null, entityId: String(invoiceId ?? '') })
     }
@@ -190,15 +222,26 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       reversibility: 'Uma nova operação terá outra chave. A referência bancária continua protegida contra duplicação.', confirmLabel: 'Conferi; liberar campos' })) return
     setPaymentAttempt(null)
     setLedgerPaymentRequestId(null)
+    setPaymentError('')
   }
 
   async function handleCancelInvoice() {
     if (!invoiceId) return
+    setCancelError('')
     const reason = cancelReason.trim()
     if (!reason) {
-      showToast('Informe a justificativa para cancelar a fatura.', 'error')
+      setCancelError('Informe a justificativa para cancelar a fatura.')
       return
     }
+    if (!await confirm({
+      title: 'Cancelar esta fatura?',
+      message: `Fatura ${detailInvoice?.invoice_number ?? invoiceId} · ${formatBRL(detailInvoice?.total_brl)}. Motivo: ${reason}.`,
+      consequence: detailIsManual
+        ? 'A avulsa deixa de ser cobrada do Cliente. O documento e o motivo ficam no histórico.'
+        : 'A fatura deixa de ser cobrada e os B/Ls voltam a aguardar emissão. Cancelar a fatura não cancela o B/L.',
+      reversibility: 'Fatura cancelada não é reativada; uma nova cobrança exige nova emissão.',
+      confirmLabel: 'Cancelar fatura',
+    })) return
     try {
       await cancelInvoiceMutation.mutateAsync({
         invoiceId,
@@ -209,6 +252,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       showToast('Fatura cancelada.', 'success')
     } catch (error) {
       const msg = userFacingErrorMessage(error, 'Falha ao cancelar fatura.')
+      setCancelError(msg)
       showToast(msg, 'error')
       void logOperationalEvent({ code: 'invoice_cancel_blocked', message: msg, changedBy: user?.id ?? null, entityId: String(invoiceId ?? '') })
     }
@@ -216,9 +260,10 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
 
   async function handleReversePayment() {
     if (!reversalPaymentId) return
+    setReversalError('')
     const reason = reversalReason.trim()
     if (!reason) {
-      showToast('Informe a justificativa para cancelar a baixa.', 'error')
+      setReversalError('Informe a justificativa para cancelar a baixa.')
       return
     }
     if (!await confirm({ title: 'Cancelar esta baixa?',
@@ -231,7 +276,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       showToast('Baixa cancelada.', 'success')
       onClose()
     } catch (error) {
-      showToast(userFacingErrorMessage(error, 'Falha ao cancelar a baixa.'), 'error')
+      const msg = userFacingErrorMessage(error, 'Falha ao cancelar a baixa.')
+      setReversalError(msg)
+      showToast(msg, 'error')
     } finally {
       setReversalLoading(false)
     }
@@ -240,8 +287,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   async function handleSettleRefund() {
     const refund = refunds.find((row) => row.id === refundToConfirm)
     if (!refund || !canSettleRefund) return
+    setRefundError('')
     if (refundReference.trim().length < 3 || refundBeneficiary.trim().length < 3 || !refundDate) {
-      showToast('Informe a referência bancária, o favorecido e a data da devolução.', 'error')
+      setRefundError('Informe a referência bancária, o favorecido e a data da devolução.')
       return
     }
     if (!await confirm({ title: 'Confirmar devolução realizada?',
@@ -257,367 +305,351 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
       setRefundDate('')
       showToast('Devolução confirmada.', 'success')
     } catch (error) {
-      showToast(userFacingErrorMessage(error, 'Falha ao confirmar a devolução.'), 'error')
+      const msg = userFacingErrorMessage(error, 'Falha ao confirmar a devolução.')
+      setRefundError(msg)
+      showToast(msg, 'error')
     }
   }
 
-  function handlePrintInvoice(type: 'invoice' | 'receipt' = 'invoice') {
-    if (!detailQuery.data) return
-    setPrintType(type)
-    setPrintOpen(true)
+  async function handleCancelAuthorization() {
+    if (authorizationToCancel === null || authorizationReason.trim().length < 10) return
+    if (!await confirm({ title: 'Cancelar autorização de restituição?', message: authorizationReason.trim(),
+      consequence: 'Confirme que o dinheiro ainda não foi devolvido. O valor reservado voltará a ficar disponível.',
+      reversibility: 'O motivo ficará registrado. Uma nova restituição exige nova autorização.', confirmLabel: 'Cancelar autorização' })) return
+    try {
+      await cancelAuthorizationMutation.mutateAsync({ source: 'manual', refundId: authorizationToCancel, reason: authorizationReason })
+      setAuthorizationToCancel(null)
+      setAuthorizationReason('')
+    } catch (error) {
+      setRefundError(userFacingErrorMessage(error, 'Falha ao cancelar autorização.'))
+    }
   }
 
+  function openReversal(id: number) {
+    setSelectedPaymentId(id)
+    setReversalOpen(true)
+    setReversalError('')
+  }
+
+  const number = detailInvoice?.invoice_number ?? (invoiceId ? String(invoiceId) : '')
+  const title = view === 'detail' ? `Fatura ${number}` : `${view === 'receipt' ? 'Recibo' : 'Imprimir fatura'} ${number}`
+
   return (
-    <>
-      <Modal open={Boolean(invoiceId)} onClose={onClose} title={`Detalhe da fatura ${detailQuery.data?.invoice?.invoice_number ?? invoiceId ?? ''}`}>
-        <div className="grid gap-5">
-          {detailQuery.isLoading ? <div className="p-4"><SkeletonTable rows={3} cols={3} /></div> : null}
-          {detailQuery.error ? <div className="text-sm text-red-200">Falha ao carregar detalhe.</div> : null}
-          {detailQuery.data?.invoice ? (
+    <Modal open={Boolean(invoiceId)} onClose={onClose} title={title}>
+      {view !== 'detail' && detail ? (
+        <div className="app-invoice-detail">
+          <div className="app-invoice-detail__toolbar">
+            <Button variant="secondary" onClick={() => setView('detail')}><ArrowLeft size={16} />Voltar ao detalhe</Button>
+            <Button onClick={() => {
+              const element = document.querySelector<HTMLElement>('.invoice-print-content')
+              if (element) printDocumentElement(element, buildInvoiceFileBaseName(detail))
+            }}><Printer size={16} />Imprimir</Button>
+          </div>
+          <div className="invoice-print-content">
+            <InvoiceDocumentLocal detail={detail} type={view === 'receipt' ? 'receipt' : 'invoice'} />
+          </div>
+        </div>
+      ) : (
+        <div className="app-invoice-detail">
+          {detailQuery.isLoading ? <SkeletonTable rows={4} cols={4} /> : null}
+          {detailQuery.error ? (
+            <div role="alert" className="app-invoice-detail__error">
+              <p>Não foi possível abrir esta fatura. {userFacingErrorMessage(detailQuery.error, '')}</p>
+              <Button variant="secondary" onClick={() => void detailQuery.refetch?.()}>Tentar novamente</Button>
+            </div>
+          ) : null}
+          {detail && !detailInvoice && !detailQuery.isLoading ? <p className="app-invoice-detail__note">Fatura não encontrada.</p> : null}
+          {detail && detailInvoice ? (
             <>
-              <div className="flex justify-end gap-2">
-                <Button variant="secondary" onClick={() => handlePrintInvoice()}>
-                  <Printer size={16} />Imprimir PDF
-                </Button>
-                {(['paid', 'covered'].includes(detailQuery.data.invoice.status ?? '') || detailQuery.data.invoice.status === 'cancelled' && Number(detailQuery.data.invoice.total_paid_brl ?? 0) > 0) ? (
-                  <Button variant="secondary" onClick={() => handlePrintInvoice('receipt')}>
-                    <Printer size={16} />Imprimir recibo
-                  </Button>
-                ) : null}
-              </div>
-              <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-                <MetricCard label="Status" value={statusLabel(detailQuery.data.invoice.status)} />
-                <MetricCard label="Tipo" value={invoiceTypeLabel(detailQuery.data.invoice.invoice_type)} />
-                <MetricCard label="Total" value={formatBRL(detailQuery.data.invoice.total_brl)} />
-                <MetricCard label="Pago" value={formatBRL(detailQuery.data.invoice.total_paid_brl)} />
-                <MetricCard label="Saldo" value={formatBRL(detailQuery.data.invoice.balance_brl)} />
-                {pendingRefund > 0.01 ? (
-                  <MetricCard label="A estornar" value={formatBRL(pendingRefund)} />
-                ) : null}
-                {!detailIsManual || detailQuery.data.bls.length > 0 ? (
-                  <MetricCard label="B/Ls" value={String(detailQuery.data.bls.length)} />
-                ) : null}
-              </div>
-              <Card>
-                <h2 className="text-base font-semibold text-white">Informações da Fatura</h2>
-                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <SelectionMetric label="Cliente" value={detailQuery.data.invoice.customer_name ?? '-'} />
-                  <SelectionMetric label="CNPJ" value={detailQuery.data.invoice.customer_cnpj_cpf ?? '-'} />
-                  <SelectionMetric label="Emissão" value={formatDate(detailQuery.data.invoice.issued_at)} />
-                  <SelectionMetric label="Status" value={statusLabel(detailQuery.data.invoice.status)} />
-                  <SelectionMetric label="Tipo" value={invoiceTypeLabel(detailQuery.data.invoice.invoice_type)} />
-                  {!detailIsManual || hasDetailVoyage ? (
-                    <SelectionMetric label="Navio / Viagem" value={detailVoyageLabel} />
-                  ) : null}
-                  {detailIsManual ? <SelectionMetric label="Descrição da cobrança" value={detailQuery.data.invoice.notes ?? '-'} /> : null}
-                  <SelectionMetric label="Itens" value={String(detailQuery.data.items.length)} />
-                  <SelectionMetric label="Pagamentos" value={String(detailQuery.data.payments.length)} />
-                  <SelectionMetric label="Total BRL" value={formatBRL(detailQuery.data.invoice.total_brl)} />
-                  <SelectionMetric label="Saldo BRL" value={formatBRL(detailQuery.data.invoice.balance_brl)} />
+              <header className="app-invoice-detail__head">
+                <div className="app-invoice-detail__identity">
+                  <p className="app-invoice-detail__tags">
+                    <Badge tone={status.tone}>{status.label}</Badge>
+                    <span>{invoiceTypeLabel(detailInvoice.invoice_type)}</span>
+                    <span>Emitida em {formatDate(detailInvoice.issued_at)}</span>
+                    <span>Nº interno {detailInvoice.id}</span>
+                  </p>
+                  <p className="app-invoice-detail__customer">{detailInvoice.customer_name ?? 'Cliente não identificado'}</p>
+                  <p className="app-invoice-detail__meta">
+                    {detailInvoice.customer_cnpj_cpf ? <span>CNPJ {formatCnpjCpf(detailInvoice.customer_cnpj_cpf)}</span> : null}
+                    {voyageParts ? <span>Navio / Viagem {voyageParts}</span> : null}
+                  </p>
+                  {detailIsManual && detailInvoice.notes ? <p className="app-invoice-detail__description"><span className="sr-only">Descrição da cobrança: </span>{detailInvoice.notes}</p> : null}
                 </div>
-              </Card>
+                <div className="app-invoice-detail__actions">
+                  <Button variant="secondary" onClick={() => setView('invoice')}><Printer size={16} />Imprimir fatura</Button>
+                  {showReceipt ? <Button variant="secondary" onClick={() => setView('receipt')}><Printer size={16} />Imprimir recibo</Button> : null}
+                </div>
+              </header>
+
+              <dl className="app-invoice-amounts" aria-label="Valores da fatura">
+                {amounts.map((line) => (
+                  <div key={line.key} className={`app-invoice-amounts__item app-invoice-amounts__item--${line.key}${line.tone ? ` app-invoice-amounts__item--${line.tone}` : ''}`}>
+                    <dt>{line.label}</dt>
+                    <dd>
+                      <span className="app-invoice-amounts__value">{line.value}</span>
+                      {line.note ? <span className="app-invoice-amounts__note">{line.note}</span> : null}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+
               {reissueLinks && (reissueLinks.replaces || reissueLinks.replaced_by || reissueLinks.reissue_pending || reissueLinks.reissue_closed_reason) ? (
-                <Card>
-                  <div className="grid gap-1 text-sm text-slate-200" data-testid="invoice-reissue-links">
-                    {reissueLinks.replaces ? <div>Substitui a fatura <strong>{reissueLinks.replaces.invoice_number}</strong>, cancelada para correção.</div> : null}
-                    {reissueLinks.replaced_by ? <div>Substituída pela fatura <strong>{reissueLinks.replaced_by.invoice_number}</strong>.</div> : null}
-                    {reissueLinks.reissue_pending ? <div><Badge tone="yellow">Reemissão pendente</Badge> A nova emissão travou; o alerta da fatura diz o motivo.</div> : null}
-                    {reissueLinks.reissue_closed_reason ? <div>{reissueLinks.reissue_closed_reason}</div> : null}
-                  </div>
-                </Card>
+                <div className="app-invoice-detail__links" data-testid="invoice-reissue-links">
+                  {reissueLinks.replaces ? <p>Substitui a fatura <strong>{reissueLinks.replaces.invoice_number}</strong>, cancelada para correção.</p> : null}
+                  {reissueLinks.replaced_by ? <p>Substituída pela fatura <strong>{reissueLinks.replaced_by.invoice_number}</strong>.</p> : null}
+                  {reissueLinks.reissue_pending ? <p><Badge tone="warning">Reemissão pendente</Badge> A nova emissão travou; o alerta financeiro desta fatura diz o motivo.</p> : null}
+                  {reissueLinks.reissue_closed_reason ? <p>{reissueLinks.reissue_closed_reason}</p> : null}
+                </div>
               ) : null}
-              {detailQuery.data.bls.length > 0 ? <Card className="overflow-hidden p-0">
-                <div className="app-table-scroll">
-                  <table className="app-table app-table--compact min-w-[620px] text-left text-sm"><thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500"><tr><th scope="col" className="px-3 py-2">B/L</th><th scope="col" className="px-3 py-2">Trecho</th><th scope="col" className="px-3 py-2">Subtotal BRL</th></tr></thead><tbody className="divide-y divide-[#30363d]">{detailQuery.data.bls.map((row) => <tr key={row.id}><td className="px-3 py-2 font-semibold text-[#58a6ff]"><Link className="hover:underline" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></td><td className="px-3 py-2">{row.pol ?? '-'} - {row.pod ?? '-'}</td><td className="px-3 py-2">{formatBRL(row.subtotal_brl)}</td></tr>)}</tbody></table>
-                </div>
-              </Card> : null}
-              <Card className="overflow-hidden p-0">
-                <div className="border-b border-[#30363d] px-4 py-3">
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Itens da fatura</h2>
-                  <p className="mt-1 text-xs text-slate-500">{describeInvoiceItemsFreezeNote(detailQuery.data.invoice)}</p>
-                </div>
-                <div className="app-table-scroll">
-                  <table className="app-table app-table--compact min-w-[860px] text-left text-sm">
-                    <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
-                      <tr>
-                        <th scope="col" className="px-3 py-2">Descrição</th>
-                        <th scope="col" className="px-3 py-2">Qtd</th>
-                        <th scope="col" className="px-3 py-2">Origem</th>
-                        <th scope="col" className="px-3 py-2">Unitário</th>
-                        <th scope="col" className="px-3 py-2">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#30363d]">
-                      {detailQuery.data.items.length === 0 ? (
-                        <tr>
-                          <td className="px-3 py-6 text-center text-slate-400" colSpan={5}>
-                            Nenhum item encontrado nesta invoice.
-                          </td>
-                        </tr>
-                      ) : (
-                        detailQuery.data.items.map((item) => {
-                          // Etapa 11 do plano de faturamento (ADR 0038 decisao 6, achado 7):
-                          // itens em USD convertem para BRL na emissao e o valor devido na
-                          // invoice e sempre o BRL congelado; o USD original + ROE aparece
-                          // como nota, nao como o valor principal (senao a coluna Total
-                          // desta tela nao bateria com invoice.total_brl).
-                          const usdNote = describeUsdConversionNote(item)
-                          return (
-                          <tr key={item.id}>
-                            <td className="px-3 py-2">
-                              {stripBlPrefix(item.description, item.bl_id)}
-                              {usdNote && <div className="text-xs text-slate-500">{usdNote}</div>}
-                            </td>
-                            <td className="px-3 py-2">{item.quantity ?? 1}</td>
-                            <td className="px-3 py-2">{item.source === 'manual' ? <Badge tone="yellow">Manual</Badge> : <Badge tone="blue">Auto</Badge>}</td>
-                            <td className="px-3 py-2">{formatBRL(item.unit_value_brl)}</td>
-                            <td className="px-3 py-2">{formatBRL(item.total_value_brl)}</td>
-                          </tr>
-                          )
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-              <Card className="overflow-hidden p-0">
-                <div className="border-b border-[#30363d] px-4 py-3">
-                  <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Pagamentos registrados</h2>
-                </div>
-                <div className="app-table-scroll">
-                  <table className="app-table app-table--compact min-w-[760px] text-left text-sm">
-                    <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
-                      <tr>
-                        <th scope="col" className="px-3 py-2">Data</th>
-                        <th scope="col" className="px-3 py-2">Metodo</th>
-                        <th scope="col" className="px-3 py-2">Valor</th>
-                        <th scope="col" className="px-3 py-2">Observações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#30363d]">
-                      {detailQuery.data.payments.length === 0 ? (
-                        <tr>
-                          <td className="px-3 py-6 text-center text-slate-400" colSpan={4}>
-                            Nenhum pagamento registrado.
-                          </td>
-                        </tr>
-                      ) : (
-                        detailQuery.data.payments.map((payment) => (
-                          <tr key={payment.id}>
-                            <td className="px-3 py-2">{formatDate(payment.paid_at)}</td>
-                            <td className="px-3 py-2">{renderPaymentMethod(payment.payment_method)}</td>
-                            <td className="px-3 py-2">{formatBRL(payment.amount_brl)}</td>
-                            <td className="px-3 py-2"><span className="app-table__truncate app-table__truncate--lg" title={payment.notes ?? '-'}>{payment.notes ?? '-'}</span></td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-              <StaleInvoiceResolutionPanel key={`stale-${invoiceId}`} invoiceId={Number(invoiceId)} hasPayment={Number(detailInvoice?.total_paid_brl ?? 0) > 0} canResolve={isAdmin} />
-              {detailInvoice && ['individual', 'consolidated'].includes(detailInvoice.invoice_type ?? '') && Number(detailInvoice.total_paid_brl ?? 0) > 0 && ['paid', 'partially_paid'].includes(detailInvoice.status ?? '') ? (
-                <InvoiceCorrectionPanel key={invoiceId} invoiceId={Number(invoiceId)} />
-              ) : null}
-              {detailIsManual ? <FinancialRefundsPanel source="manual" invoiceId={Number(invoiceId)} /> : null}
-              {refunds.length > 0 ? (
-                <Card className="overflow-hidden p-0">
-                  <div className="border-b border-[#30363d] px-4 py-3">
-                    <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Estornos ao cliente (valor pago a maior)</h2>
-                  </div>
+
+              <StaleInvoiceResolutionPanel key={`stale-${invoiceId}`} invoiceId={Number(invoiceId)} hasPayment={Number(detailInvoice.total_paid_brl ?? 0) > 0} canResolve={isAdmin} />
+
+              {detail.bls.length > 0 ? (
+                <section className="app-invoice-detail__section" aria-labelledby="invoice-detail-bls">
+                  <h3 id="invoice-detail-bls" className="app-invoice-detail__heading">B/Ls <span className="app-invoice-detail__count">{detail.bls.length}</span></h3>
                   <div className="app-table-scroll">
-                    <table className="app-table app-table--compact min-w-[640px] text-left text-sm">
-                      <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
+                    <table className="app-table app-table--compact app-invoice-detail__table">
+                      <thead><tr><th scope="col">B/L</th><th scope="col">Trecho</th><th scope="col" className="app-invoice-detail__num">Subtotal</th></tr></thead>
+                      <tbody>{detail.bls.map((row) => (
+                        <tr key={row.id}>
+                          <td><Link className="app-invoice-detail__link app-invoice-detail__code" to={`/bls/${encodeURIComponent(row.bl_id)}`}>{row.bl_id}</Link></td>
+                          <td>{row.pol ?? '—'} → {row.pod ?? '—'}</td>
+                          <td className="app-invoice-detail__num">{formatBRL(row.subtotal_brl)}</td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="app-invoice-detail__section" aria-labelledby="invoice-detail-items">
+                <h3 id="invoice-detail-items" className="app-invoice-detail__heading">Itens da fatura</h3>
+                <p className="app-invoice-detail__note">{describeInvoiceItemsFreezeNote(detailInvoice)}</p>
+                <div className="app-table-scroll">
+                  <table className="app-table app-table--compact app-invoice-detail__table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Descrição</th>
+                        <th scope="col">Origem</th>
+                        <th scope="col" className="app-invoice-detail__num">Qtd.</th>
+                        <th scope="col" className="app-invoice-detail__num">Unitário</th>
+                        <th scope="col" className="app-invoice-detail__num">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detail.items.length === 0 ? (
+                        <tr><td colSpan={5} className="app-invoice-detail__empty">Nenhum item registrado nesta fatura.</td></tr>
+                      ) : detail.items.map((item) => {
+                        // Itens em USD convertem para BRL na emissão (ADR 0038, decisão 6):
+                        // o valor devido é o BRL congelado; USD e ROE aparecem como nota.
+                        const usdNote = describeUsdConversionNote(item)
+                        return (
+                          <tr key={item.id}>
+                            <td>
+                              {stripBlPrefix(item.description, item.bl_id)}
+                              {usdNote ? <span className="app-invoice-detail__cell-note">{usdNote}</span> : null}
+                            </td>
+                            <td>{item.source === 'manual' ? 'Manual' : 'Calculado'}</td>
+                            <td className="app-invoice-detail__num">{String(item.quantity ?? 1).replace('.', ',')}</td>
+                            <td className="app-invoice-detail__num">{formatBRL(item.unit_value_brl)}</td>
+                            <td className="app-invoice-detail__num">{formatBRL(item.total_value_brl)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section className="app-invoice-detail__section" aria-labelledby="invoice-detail-payments">
+                <h3 id="invoice-detail-payments" className="app-invoice-detail__heading">Pagamentos registrados <span className="app-invoice-detail__count">{payments.length}</span></h3>
+                {payments.length === 0 ? <p className="app-invoice-detail__note">Nenhum pagamento registrado.</p> : (
+                  <div className="app-table-scroll">
+                    <table className="app-table app-table--compact app-invoice-detail__table">
+                      <thead>
                         <tr>
-                          <th scope="col" className="px-3 py-2">Registrada</th>
-                          <th scope="col" className="px-3 py-2">Valor</th>
-                          <th scope="col" className="px-3 py-2">Status</th>
-                          <th scope="col" className="px-3 py-2">Efetuada</th>
-                          <th scope="col" className="px-3 py-2">Ações</th>
+                          <th scope="col">Data</th>
+                          <th scope="col">Método</th>
+                          <th scope="col">Observação</th>
+                          <th scope="col" className="app-invoice-detail__num">Valor</th>
+                          {isAdmin ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#30363d]">
-                        {refunds.map((refund) => (
-                          <tr key={refund.id}>
-                            <td className="px-3 py-2">{formatDate(refund.created_at)}</td>
-                            <td className="px-3 py-2">{formatBRL(refund.amount_brl)}{refund.notes ? <p className="text-xs">{refund.notes}</p> : null}</td>
-                            <td className="px-3 py-2">
-                              {refund.status === 'pending' && canSettleRefund ? (
-                                <Badge tone="yellow">Pendente</Badge>
-                              ) : refund.status === 'settled' ? (
-                                <Badge tone="green">Efetuada</Badge>
-                              ) : refund.status === 'pending' ? (
-                                <span className="text-xs text-slate-500">Aguardando Financeiro</span>
-                              ) : (
-                                <Badge tone="red">Cancelada</Badge>
-                              )}
-                            </td>
-                            <td className="px-3 py-2">{refund.settled_at ? formatDate(refund.settled_at) : '—'}{refund.bank_reference ? <p className="text-xs">{refund.bank_reference} · {refund.beneficiary}</p> : null}</td>
-                            <td className="px-3 py-2">
-                              {refund.status === 'pending' && canSettleRefund ? (
-                                <Button
-                                  variant="secondary"
-                                  type="button"
-                                  onClick={() => { setRefundToConfirm(refund.id); setRefundReference(''); setRefundBeneficiary(''); setRefundDate('') }}
-                                  disabled={settleRefundMutation.isPending}
-                                >
-                                  Confirmar devolução
-                                </Button>
-                              ) : (
-                                <span className="text-slate-500">—</span>
-                              )}
-                            </td>
+                      <tbody>
+                        {payments.map((payment) => (
+                          <tr key={payment.id} aria-current={reversalFormVisible && payment.id === reversalPaymentId ? 'true' : undefined} className={reversalFormVisible && payment.id === reversalPaymentId ? 'app-invoice-detail__row--selected' : undefined}>
+                            <td>{formatDate(payment.paid_at)}</td>
+                            <td>{paymentMethodLabel(payment.payment_method)}</td>
+                            <td><span className="app-invoice-detail__wrap">{payment.notes || '—'}</span></td>
+                            <td className="app-invoice-detail__num">{formatBRL(payment.amount_brl)}</td>
+                            {isAdmin ? (
+                              <td className="app-invoice-detail__row-action">
+                                <Button variant="ghost" aria-label={`Cancelar baixa de ${formatBRL(payment.amount_brl)} em ${formatDate(payment.paid_at)}`} onClick={() => openReversal(payment.id)}>Cancelar baixa…</Button>
+                              </td>
+                            ) : null}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                </Card>
-              ) : null}
-              {enablePaymentReversal || detailQuery.data.payments.length > 0 ? (
-                <Card>
-                  <h2 className="mb-3 text-base font-semibold text-white">Cancelar baixa</h2>
-                  {detailQuery.data.payments.length > 0 ? (
-                    isAdmin ? (
-                      <>
-                        <Field label="Baixa a cancelar">
-                          <Select value={reversalPaymentId ?? ''} onChange={(event) => setSelectedPaymentId(Number(event.target.value))}>
-                            <option value="" disabled>Selecione o recebimento</option>
-                            {detailQuery.data.payments.map((payment) => <option key={payment.id} value={payment.id}>{formatDate(payment.paid_at)} · {formatBRL(payment.amount_brl)} · {renderPaymentMethod(payment.payment_method)} · #{payment.id}</option>)}
-                          </Select>
-                        </Field>
-                        <Field label="Justificativa (obrigatória)">
-                          <Textarea
-                            value={reversalReason}
-                            onChange={(event) => setReversalReason(event.target.value)}
-                            placeholder="Descreva o motivo do cancelamento desta baixa."
-                          />
-                        </Field>
-                        <div className="mt-2 text-xs text-slate-400">
-                          Use para corrigir um lançamento que não corresponde a recebimento verdadeiro. A ação não devolve dinheiro; restituições e correções podem impedir o cancelamento para preservar o lastro.
-                        </div>
-                        <div className="mt-4 flex justify-end">
-                          <Button
-                            variant="danger"
-                            onClick={handleReversePayment}
-                            loading={reversalLoading}
-                            disabled={!reversalReason.trim() || !reversalPaymentId}
-                          >
-                            <RotateCcw size={16} />Cancelar baixa
-                          </Button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-sm text-slate-400">
-                        Apenas administradores podem cancelar a baixa de um pagamento.
-                      </div>
-                    )
-                  ) : (
-                    <div className="text-sm text-slate-400">
-                      Esta fatura não possui um pagamento registrado para cancelar a baixa.
-                    </div>
-                  )}
-                </Card>
-              ) : null}
-              {!enablePaymentReversal ? (
-              <div className="grid gap-4 xl:grid-cols-2">
-                {canRegisterPayment ? (
-                <Card>
-                  <h2 className="mb-3 text-base font-semibold text-white">Registrar pagamento</h2>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label={isLedgerPayable ? 'Valor BRL (aceita parcial)' : 'Valor BRL'}>
-                      <Input disabled={Boolean(paymentAttempt)} value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} />
-                    </Field>
-                    <Field label="Metodo">
-                      <Select disabled={Boolean(paymentAttempt)} value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
-                        <option value="pix">PIX</option>
-                        <option value="ted">TED</option>
-                        <option value="doc">DOC</option>
-                        <option value="boleto">Boleto</option>
-                        <option value="outros">Outros</option>
+                )}
+                {enablePaymentReversal && !isAdmin && payments.length > 0 ? <p className="app-invoice-detail__note">Somente o Administrativo cancela a baixa de um pagamento.</p> : null}
+                {reversalFormVisible ? (
+                  <div className="app-invoice-detail__form app-invoice-detail__form--danger" aria-label="Cancelar baixa" role="group">
+                    <p className="app-invoice-detail__form-wide app-invoice-detail__subheading">Cancelar baixa</p>
+                    <Field label="Baixa a cancelar" required>
+                      <Select value={reversalPaymentId ?? ''} onChange={(event) => setSelectedPaymentId(Number(event.target.value))}>
+                        <option value="" disabled>Selecione o recebimento</option>
+                        {payments.map((payment) => <option key={payment.id} value={payment.id}>{formatDate(payment.paid_at)} · {formatBRL(payment.amount_brl)} · {paymentMethodLabel(payment.payment_method)} · nº {payment.id}</option>)}
                       </Select>
                     </Field>
-                    <Field label="Data">
-                      <Input disabled={Boolean(paymentAttempt)} type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} />
-                    </Field>
-                    <Field label="Referência do recebimento bancário"><Input disabled={Boolean(paymentAttempt)} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Identificador do extrato ou comprovante" /></Field>
-                    <Field label="Notas">
-                      <Input disabled={Boolean(paymentAttempt)} value={paymentNotes} onChange={(event) => setPaymentNotes(event.target.value)} />
-                    </Field>
-                  </div>
-                  {isLedgerPayable ? (
-                    <div className="mt-2 text-xs text-slate-400">
-                      Saldo aberto: {formatBRL(ledgerBalance)}. Informe somente o valor recebido.
-                      {typedPayment > 0 ? <> Após esta baixa: {formatBRL(Math.max(ledgerBalance - typedPayment, 0))} em aberto.</> : null}
-                      {' '}Com pagamento, a correção do B/L não reemite a fatura: aumento vira fatura avulsa e redução abate o saldo antes de restituir.
+                    <div className="app-invoice-detail__form-wide">
+                      <Field label="Justificativa" required hint="Use para um lançamento que não corresponde a recebimento verdadeiro. Não devolve dinheiro; restituições e correções que dependem deste recebimento podem impedir o cancelamento.">
+                        <Textarea value={reversalReason} onChange={(event) => setReversalReason(event.target.value)} />
+                      </Field>
                     </div>
-                  ) : null}
-                  <div className="mt-4 flex justify-end gap-2">
-                    {paymentAttempt ? <Button variant="secondary" disabled={registerPaymentMutation.isPending || registerLedgerPaymentMutation.isPending} onClick={handleReleasePaymentAttempt}>Encerrar tentativa após conferir</Button> : null}
-                    <Button loading={registerPaymentMutation.isPending || registerLedgerPaymentMutation.isPending} onClick={handleRegisterPayment}>
-                      <DollarSign size={16} />{paymentAttempt ? 'Tentar novamente' : 'Registrar pagamento'}
-                    </Button>
+                    {reversalError ? <p role="alert" className="app-invoice-detail__alert app-invoice-detail__form-wide">{reversalError}</p> : null}
+                    <div className="app-invoice-detail__form-actions">
+                      {!enablePaymentReversal ? <Button variant="ghost" onClick={() => { setReversalOpen(false); setReversalReason(''); setReversalError('') }}>Voltar</Button> : null}
+                      <Button variant="danger" onClick={handleReversePayment} loading={reversalLoading} loadingLabel="Cancelando baixa…" disabled={!reversalReason.trim() || !reversalPaymentId}>
+                        <RotateCcw size={16} />Cancelar baixa
+                      </Button>
+                    </div>
                   </div>
-                </Card>
-                ) : (
-                  <Card>
-                    <h2 className="mb-3 text-base font-semibold text-white">Registrar pagamento</h2>
-                    <p className="text-sm text-slate-400">Esta fatura não aceita registro de pagamento no status atual.</p>
-                  </Card>
-                )}
-                {!isCancelled ? <Card><h2 className="mb-3 text-base font-semibold text-white">Cancelar fatura</h2><Field label="Motivo"><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></Field><div className="mt-4 flex justify-end"><Button variant="danger" loading={cancelInvoiceMutation.isPending} disabled={detailQuery.data.payments.length > 0 || !cancelReason.trim()} onClick={handleCancelInvoice}><Ban size={16} />Cancelar fatura</Button></div></Card> : null}
-              </div>
+                ) : null}
+              </section>
+
+              {refunds.length > 0 || refundsQuery.error ? (
+                <section className="app-invoice-detail__section" aria-labelledby="invoice-detail-refunds">
+                  <h3 id="invoice-detail-refunds" className="app-invoice-detail__heading">Restituições ao Cliente</h3>
+                  {refundsQuery.error ? <p role="alert" className="app-invoice-detail__alert">Não foi possível consultar as restituições desta fatura.</p> : null}
+                  {refunds.map((refund) => (
+                    <div key={refund.id} className="app-invoice-detail__refund">
+                      <div className="app-invoice-detail__refund-line">
+                        <strong className="app-invoice-detail__num">{formatBRL(refund.amount_brl)}</strong>
+                        {refund.status === 'pending' ? <Badge tone="warning">A devolver</Badge> : refund.status === 'settled' ? <Badge tone="success">Devolvida</Badge> : <Badge tone="neutral">Cancelada</Badge>}
+                        <span className="app-invoice-detail__note">Registrada em {formatDate(refund.created_at)}{refund.settled_at ? ` · devolvida em ${formatDate(refund.settled_at)}` : ''}</span>
+                      </div>
+                      {refund.notes ? <p className="app-invoice-detail__note">{refund.notes}</p> : null}
+                      {refund.bank_reference ? <p className="app-invoice-detail__note">Comprovante {refund.bank_reference} · Favorecido {refund.beneficiary}</p> : null}
+                      {refund.status === 'pending' && !canSettleRefund ? <p className="app-invoice-detail__note">Aguardando o Financeiro devolver e confirmar.</p> : null}
+                      {refund.status === 'pending' && (canSettleRefund || (isAdmin && authorizationIds.has(refund.id))) && refundToConfirm !== refund.id && authorizationToCancel !== refund.id ? (
+                        <div className="app-invoice-detail__inline-actions">
+                          {canSettleRefund ? <Button variant="secondary" onClick={() => { setRefundToConfirm(refund.id); setAuthorizationToCancel(null); setRefundReference(''); setRefundBeneficiary(''); setRefundDate(''); setRefundError('') }}>Confirmar devolução…</Button> : null}
+                          {isAdmin && authorizationIds.has(refund.id) ? <Button variant="ghost" onClick={() => { setAuthorizationToCancel(refund.id); setRefundToConfirm(null); setRefundError('') }}>Cancelar autorização</Button> : null}
+                        </div>
+                      ) : null}
+                      {refundToConfirm === refund.id ? (
+                        <div className="app-invoice-detail__form" role="group" aria-label="Registrar devolução bancária">
+                          <p className="app-invoice-detail__note app-invoice-detail__form-wide">Confirme somente depois de devolver ao Cliente original no banco.</p>
+                          <Field label="Referência do comprovante bancário" required><Input value={refundReference} onChange={(event) => setRefundReference(event.target.value)} /></Field>
+                          <Field label="Favorecido (Cliente original / CNPJ)" required><Input value={refundBeneficiary} onChange={(event) => setRefundBeneficiary(event.target.value)} /></Field>
+                          <Field label="Data da devolução" required><Input type="date" value={refundDate} onChange={(event) => setRefundDate(event.target.value)} /></Field>
+                          {refundError ? <p role="alert" className="app-invoice-detail__alert app-invoice-detail__form-wide">{refundError}</p> : null}
+                          <div className="app-invoice-detail__form-actions">
+                            <Button variant="ghost" onClick={() => setRefundToConfirm(null)}>Voltar</Button>
+                            <Button onClick={handleSettleRefund} loading={settleRefundMutation.isPending} loadingLabel="Confirmando…" disabled={!refundReference.trim() || !refundBeneficiary.trim() || !refundDate}>Confirmar devolução realizada</Button>
+                          </div>
+                        </div>
+                      ) : null}
+                      {authorizationToCancel === refund.id ? (
+                        <div className="app-invoice-detail__form" role="group" aria-label="Cancelar autorização de restituição">
+                          <div className="app-invoice-detail__form-wide"><Field label="Motivo para cancelar autorização" required hint="Pelo menos 10 caracteres. Confirme que o dinheiro ainda não foi devolvido."><Textarea value={authorizationReason} onChange={(event) => setAuthorizationReason(event.target.value)} /></Field></div>
+                          {refundError ? <p role="alert" className="app-invoice-detail__alert app-invoice-detail__form-wide">{refundError}</p> : null}
+                          <div className="app-invoice-detail__form-actions">
+                            <Button variant="ghost" onClick={() => setAuthorizationToCancel(null)}>Voltar</Button>
+                            <Button variant="danger" onClick={handleCancelAuthorization} loading={cancelAuthorizationMutation.isPending} disabled={authorizationReason.trim().length < 10}>Cancelar autorização</Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </section>
+              ) : null}
+
+              {detailInvoice && ['individual', 'consolidated'].includes(detailInvoice.invoice_type ?? '') && Number(detailInvoice.total_paid_brl ?? 0) > 0 && ['paid', 'partially_paid'].includes(detailInvoice.status ?? '') ? (
+                <InvoiceCorrectionPanel key={invoiceId} invoiceId={Number(invoiceId)} />
+              ) : null}
+              {detailIsManual && !enablePaymentReversal ? <FinancialRefundsPanel source="manual" invoiceId={Number(invoiceId)} variant="authorization" /> : null}
+
+              {!enablePaymentReversal ? (
+                <section className="app-invoice-detail__section" aria-labelledby="invoice-detail-register">
+                  <h3 id="invoice-detail-register" className="app-invoice-detail__heading">Registrar pagamento</h3>
+                  {!canRegisterPayment ? (
+                    <p className="app-invoice-detail__note">Esta fatura não aceita registro de pagamento no status atual.</p>
+                  ) : !isAdmin ? (
+                    <p className="app-invoice-detail__note">Somente o Administrativo registra recebimentos. Pix com TXID entra pela Conciliação.</p>
+                  ) : (
+                    <div className="app-invoice-detail__form">
+                      <Field label="Valor recebido (R$)" required hint={isLedgerPayable ? 'Aceita valor parcial.' : undefined}>
+                        <Input inputMode="decimal" disabled={Boolean(paymentAttempt)} value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} />
+                      </Field>
+                      <Field label="Data do recebimento" required>
+                        <Input disabled={Boolean(paymentAttempt)} type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} />
+                      </Field>
+                      <Field label="Método" required>
+                        <Select disabled={Boolean(paymentAttempt)} value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
+                          <option value="pix">Pix</option>
+                          <option value="ted">TED</option>
+                          <option value="doc">DOC</option>
+                          <option value="boleto">Boleto</option>
+                          <option value="outros">Outros</option>
+                        </Select>
+                      </Field>
+                      <Field label="Referência do recebimento bancário" required hint="Identificador do extrato ou comprovante.">
+                        <Input disabled={Boolean(paymentAttempt)} value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} />
+                      </Field>
+                      <div className="app-invoice-detail__form-wide">
+                        <Field label="Observação">
+                          <Input disabled={Boolean(paymentAttempt)} value={paymentNotes} onChange={(event) => setPaymentNotes(event.target.value)} />
+                        </Field>
+                      </div>
+                      {isLedgerPayable ? (
+                        <p className="app-invoice-detail__note app-invoice-detail__form-wide">
+                          Saldo em aberto: {formatBRL(ledgerBalance)}.
+                          {typedPayment > 0 ? <> Após esta baixa: {formatBRL(Math.max(ledgerBalance - typedPayment, 0))} em aberto.</> : null}
+                          {' '}Com pagamento, a correção do B/L não reemite a fatura: aumento vira fatura avulsa e redução abate o saldo antes de restituir.
+                        </p>
+                      ) : null}
+                      {paymentError ? <p role="alert" className="app-invoice-detail__alert app-invoice-detail__form-wide">{paymentError}</p> : null}
+                      <div className="app-invoice-detail__form-actions">
+                        {paymentAttempt ? <Button variant="secondary" disabled={paymentPending} onClick={handleReleasePaymentAttempt}>Encerrar tentativa após conferir</Button> : null}
+                        <Button loading={paymentPending} loadingLabel="Registrando…" onClick={handleRegisterPayment}>
+                          <DollarSign size={16} />{paymentAttempt ? 'Tentar novamente' : 'Registrar pagamento'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              ) : null}
+
+              {!enablePaymentReversal && !isCancelled ? (
+                <section className="app-invoice-detail__section" aria-labelledby="invoice-detail-cancel">
+                  <h3 id="invoice-detail-cancel" className="app-invoice-detail__heading">Cancelar fatura</h3>
+                  {!isAdmin ? (
+                    <p className="app-invoice-detail__note">Somente o Administrativo cancela faturas.</p>
+                  ) : payments.length > 0 ? (
+                    <p className="app-invoice-detail__note">Fatura com pagamento não é cancelada aqui. Para recebimento falso, cancele a baixa; para devolver dinheiro recebido, use a restituição.</p>
+                  ) : (
+                    <div className="app-invoice-detail__form">
+                      <div className="app-invoice-detail__form-wide">
+                        <Field label="Motivo" required>
+                          <Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} />
+                        </Field>
+                      </div>
+                      {cancelError ? <p role="alert" className="app-invoice-detail__alert app-invoice-detail__form-wide">{cancelError}</p> : null}
+                      <div className="app-invoice-detail__form-actions">
+                        <Button variant="danger" loading={cancelInvoiceMutation.isPending} loadingLabel="Cancelando…" disabled={!cancelReason.trim()} onClick={handleCancelInvoice}><Ban size={16} />Cancelar fatura</Button>
+                      </div>
+                    </div>
+                  )}
+                </section>
               ) : null}
             </>
           ) : null}
         </div>
-      </Modal>
-
-      <Modal open={refundToConfirm !== null} onClose={() => setRefundToConfirm(null)} title="Registrar devolução bancária">
-        <div className="grid gap-4">
-          <p className="text-sm">Confirme somente depois de devolver ao Cliente original. Valor: {formatBRL(refunds.find((row) => row.id === refundToConfirm)?.amount_brl ?? 0)}.</p>
-          <Field label="Referência do comprovante bancário"><Input value={refundReference} onChange={(event) => setRefundReference(event.target.value)} /></Field>
-          <Field label="Favorecido (Cliente original / CNPJ)"><Input value={refundBeneficiary} onChange={(event) => setRefundBeneficiary(event.target.value)} /></Field>
-          <Field label="Data da devolução"><Input type="date" value={refundDate} onChange={(event) => setRefundDate(event.target.value)} /></Field>
-          <Button onClick={handleSettleRefund} loading={settleRefundMutation.isPending} disabled={!canSettleRefund || !refundReference.trim() || !refundBeneficiary.trim() || !refundDate}>Confirmar devolução realizada</Button>
-        </div>
-      </Modal>
-
-      {printOpen && detailQuery.data && (
-        <Modal open onClose={() => setPrintOpen(false)} title={`${printType === 'receipt' ? 'Recibo' : 'Imprimir'} ${detailQuery.data.invoice?.invoice_number ?? ''}`}>
-          <div className="mb-3 flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setPrintOpen(false)}>Fechar</Button>
-            <Button onClick={() => {
-              const element = document.querySelector<HTMLElement>('.invoice-print-content')
-              if (element) printDocumentElement(element, buildInvoiceFileBaseName(detailQuery.data!))
-            }}><Printer size={16} />Imprimir</Button>
-          </div>
-          <div className="invoice-print-content">
-            <InvoiceDocumentLocal detail={detailQuery.data} type={printType} />
-          </div>
-        </Modal>
       )}
-    </>
+    </Modal>
   )
-}
-
-function SelectionMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-[#30363d] bg-[var(--app-surface-muted)] px-3 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
-      <div className="mt-1 text-sm font-medium text-slate-100">{value}</div>
-    </div>
-  )
-}
-
-function statusLabel(status: string | null) {
-  return invoiceStatusLabel(status)
-}
-
-function renderPaymentMethod(method: PaymentMethod | string | null) {
-  if (method === 'pix') return 'PIX'
-  if (method === 'ted') return 'TED'
-  if (method === 'doc') return 'DOC'
-  if (method === 'boleto') return 'Boleto'
-  return 'Outros'
 }
