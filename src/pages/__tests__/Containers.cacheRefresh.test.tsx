@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import { expect, it, vi } from 'vitest'
 
 const source = vi.hoisted(() => ({ exists: true }))
@@ -43,11 +43,59 @@ it('excluir Container remove a linha e atualiza os cards abertos de Containers, 
     await screen.findByText('CXRU1234567')
     await waitFor(() => expect(screen.getByLabelText('Containers no resumo de B/Ls').textContent).toBe('1'))
     expect(screen.getByLabelText('Containers no card da Viagem').textContent).toBe('1')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar todos os containers da pagina' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar todos os containers da página' }))
     fireEvent.click(screen.getByRole('button', { name: /Excluir/ }))
     await waitFor(() => expect(screen.queryByText('CXRU1234567')).toBeNull())
     await waitFor(() => expect(screen.getByLabelText('Containers no resumo de B/Ls').textContent).toBe('0'))
     expect(screen.getByLabelText('Containers no card da Viagem').textContent).toBe('0')
-    expect(screen.getByText('Containers distintos').parentElement?.textContent).toContain('0')
+    expect(screen.getByText('containers distintos').parentElement?.textContent).toContain('0')
+  } finally { client.clear() }
+})
+
+function CurrentSearch() {
+  return <output aria-label="Endereço">{useLocation().search}</output>
+}
+
+it('link para /containers com a página aberta troca o recorte em vez de ser sobrescrito pelos filtros antigos', async () => {
+  source.exists = true
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+  client.setQueryData(['port-options'], { pols: [], pods: ['BRSSZ', 'BRVIX'] })
+  client.setQueryData(['container-type-options'], [])
+  client.setQueryData(['voyage-options'], [])
+  try {
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/containers?pod=BRSSZ']}>
+          <Link to="/containers">Menu Containers</Link>
+          <Link to="/containers?pod=BRVIX">Line-Up BRVIX</Link>
+          <Containers />
+          <CurrentSearch />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    const pod = screen.getByLabelText('POD') as HTMLSelectElement
+    expect(pod.value).toBe('BRSSZ')
+    fireEvent.click(screen.getByRole('link', { name: 'Line-Up BRVIX' }))
+    await waitFor(() => expect(pod.value).toBe('BRVIX'))
+    expect(screen.getByLabelText('Endereço').textContent).toBe('?pod=BRVIX')
+    fireEvent.click(screen.getByRole('link', { name: 'Menu Containers' }))
+    await waitFor(() => expect(pod.value).toBe(''))
+    expect(screen.getByLabelText('Endereço').textContent).toBe('')
+    // Mudar o filtro na tela continua gravando na URL.
+    fireEvent.change(pod, { target: { value: 'BRSSZ' } })
+    await waitFor(() => expect(screen.getByLabelText('Endereço').textContent).toBe('?pod=BRSSZ'))
+  } finally { client.clear() }
+})
+
+it('página além do resultado, vinda da URL, volta para a última página com linhas', async () => {
+  source.exists = true
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+  client.setQueryData(['port-options'], { pols: [], pods: [] })
+  client.setQueryData(['container-type-options'], [])
+  client.setQueryData(['voyage-options'], [])
+  try {
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/containers?page=999']}><Containers /><CurrentSearch /></MemoryRouter></QueryClientProvider>)
+    await waitFor(() => expect(screen.getByLabelText('Endereço').textContent).toBe(''))
+    expect(await screen.findByText('CXRU1234567')).toBeTruthy()
   } finally { client.clear() }
 })

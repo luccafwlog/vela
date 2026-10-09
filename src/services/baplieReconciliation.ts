@@ -53,7 +53,8 @@ import { normalizePortCode } from './portCode'
 type RouteRow = { pol: string | null; pod: string | null }
 type BlRouteRow = RouteRow & { id: string }
 
-function routeKey(row: RouteRow): string | null {
+/** Rota POL::POD normalizada; também usada pela apresentação de /baplie. */
+export function routeKey(row: RouteRow): string | null {
   const pol = normalizePortCode(row.pol) ?? row.pol?.trim().toUpperCase() ?? ''
   const pod = normalizePortCode(row.pod) ?? row.pod?.trim().toUpperCase() ?? ''
   return pol && pod ? `${pol}::${pod}` : null
@@ -92,7 +93,7 @@ export function hasCompleteBaplieRouteCoverage(staged: RouteRow[], bls: RouteRow
 type BlContainerPhysical = Pick<
   BLContainer,
   'id' | 'bl_id' | 'container_number' | 'is_imo' | 'imo_class' | 'un_number' | 'is_oog'
-> & Partial<Pick<BLContainer, 'ownership'>>
+> & Partial<Pick<BLContainer, 'ownership' | 'ownership_source'>>
 
 export type BapliePhysicalUpdate = {
   bl_container_id: number
@@ -259,6 +260,76 @@ export function computeBapliePhysicalUpdates(
   return updates
 }
 
+type StagedPhysicalRow = Pick<
+  BaplieContainerRow,
+  'container_number' | 'status' | 'is_imo' | 'imo_class' | 'un_number' | 'is_oog' | 'ownership'
+>
+
+const textKey = (value: string | null | undefined) => (value ?? '').trim().toUpperCase()
+const valueKey = (value: string | null | undefined) => (value ?? '').toUpperCase()
+const maxText = (left: string | null, right: string | null) => (left === null ? right : right === null ? left : right > left ? right : left)
+
+/**
+ * Containers de B/L que `apply_baplie_physical_flags_atomic` ainda alteraria
+ * (pura, testável). Espelha a regra da função no banco (migration 121), não a
+ * de `computeBapliePhysicalUpdates`: só status `full`; agrupa pelo número com
+ * `trim` + maiúsculas; IMO/OOG por OU, classe/ONU pelo maior valor não nulo e
+ * zerados sem IMO; casa com exatamente um container de B/L; SOC/COC só conta
+ * quando a origem não é o B/L nem correção manual. Zero quando a última
+ * aplicação deu certo; acima de zero, a aplicação falhou ou não rodou.
+ * ponytail: o maior texto usa a ordem do JavaScript, não a collation do
+ * Postgres; classe e ONU são ASCII. Se a função do banco mudar, mude aqui junto.
+ */
+export function computePendingBapliePhysicalFlags(
+  staged: readonly StagedPhysicalRow[],
+  blContainers: readonly BlContainerPhysical[],
+): number {
+  const desired = new Map<string, { isImo: boolean; imoClass: string | null; unNumber: string | null; isOog: boolean; ownership: string | null }>()
+  for (const row of staged) {
+    const key = textKey(row.container_number)
+    if (row.status !== 'full' || !/^[A-Z]{4}[0-9]{7}$/.test(key)) continue
+    const current = desired.get(key) ?? { isImo: false, imoClass: null, unNumber: null, isOog: false, ownership: null }
+    desired.set(key, {
+      isImo: current.isImo || Boolean(row.is_imo),
+      imoClass: maxText(current.imoClass, row.imo_class ?? null),
+      unNumber: maxText(current.unNumber, row.un_number ?? null),
+      isOog: current.isOog || Boolean(row.is_oog),
+      ownership: maxText(current.ownership, row.ownership ?? null),
+    })
+  }
+
+  const blByNumber = new Map<string, BlContainerPhysical[]>()
+  for (const container of blContainers) {
+    const key = textKey(container.container_number)
+    blByNumber.set(key, [...(blByNumber.get(key) ?? []), container])
+  }
+
+  let pending = 0
+  for (const [key, want] of desired) {
+    const matches = blByNumber.get(key)
+    if (!matches || matches.length !== 1) continue
+    const current = matches[0]
+    const imoClass = want.isImo ? want.imoClass : null
+    const unNumber = want.isImo ? want.unNumber : null
+    const ownership = current.ownership_source === 'bl' || current.ownership_source === 'manual'
+      ? current.ownership ?? null
+      : want.ownership
+    const same = want.isImo === Boolean(current.is_imo)
+      && want.isOog === Boolean(current.is_oog)
+      && valueKey(imoClass) === valueKey(current.imo_class)
+      && valueKey(unNumber) === valueKey(current.un_number)
+      && (ownership ?? null) === (current.ownership ?? null)
+    if (!same) pending += 1
+  }
+  return pending
+}
+
+/** Quantos containers de B/L da viagem ainda esperam IMO/OOG (ou SOC/COC) do Baplie. */
+export async function countPendingBapliePhysicalFlags(voyageId: number): Promise<number> {
+  const { rawStaged, blContainers } = await fetchStagingAndBlContainers(voyageId)
+  return computePendingBapliePhysicalFlags(rawStaged, blContainers)
+}
+
 async function fetchStagingAndBlContainers(voyageId: number) {
   const { data: blRows, error: blError } = await supabase.from('bls').select('id, pol, pod').eq('voyage_id', voyageId)
   if (blError) throw blError
@@ -285,7 +356,7 @@ async function fetchStagingAndBlContainers(voyageId: number) {
     while (true) {
       const { data, error } = await supabase
         .from('bl_containers')
-        .select('id, bl_id, container_number, is_imo, imo_class, un_number, is_oog, ownership')
+        .select('id, bl_id, container_number, is_imo, imo_class, un_number, is_oog, ownership, ownership_source')
         .in('bl_id', blIds)
         .range(fromC, fromC + PAGE - 1)
       if (error) throw error
@@ -295,7 +366,7 @@ async function fetchStagingAndBlContainers(voyageId: number) {
     }
   }
 
-  return { staged: dedupeBaplieContainers(staged), blContainers, blRows: (blRows ?? []) as BlRouteRow[] }
+  return { staged: dedupeBaplieContainers(staged), rawStaged: staged, blContainers, blRows: (blRows ?? []) as BlRouteRow[] }
 }
 
 type UntypedRpcClient = {
@@ -402,7 +473,7 @@ function normalizeVal(v: string | null | undefined) {
   return (v ?? '').toUpperCase()
 }
 
-function normalizeContainerNumber(v: string | null | undefined) {
+export function normalizeContainerNumber(v: string | null | undefined) {
   return (v ?? '').replace(/\s+/g, '').toUpperCase()
 }
 

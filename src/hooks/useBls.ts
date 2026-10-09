@@ -354,6 +354,7 @@ function applyContainerFilters(
   return rows.filter((row) => {
     if (filters.cargoProfile === 'oog' && !row.is_oog) return false
     if (filters.cargoProfile === 'imo' && !row.is_imo) return false
+    if (filters.cargoProfile === 'standard' && (row.is_imo || row.is_oog)) return false
     if (filters.containerType && String(row.type ?? '').trim().toUpperCase() !== filters.containerType.trim().toUpperCase()) return false
     if (filters.vehicleContainer === 'true' && !vehicleContainerSet?.has(row.id)) return false
     if (filters.vehicleContainer === 'false' && vehicleContainerSet?.has(row.id)) return false

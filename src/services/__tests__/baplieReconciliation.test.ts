@@ -3,6 +3,8 @@ import {
   computeBapliePhysicalUpdates,
   computeExistenceDivergences,
   computeOwnershipDivergences,
+  computePendingBapliePhysicalFlags,
+  countPendingBapliePhysicalFlags,
   isBaplieReconciliationD7,
   reconcileBaplieWithManifest,
   applyBapliePhysicalFlags,
@@ -174,6 +176,53 @@ describe('computeBapliePhysicalUpdates (Baplie soberano)', () => {
       ]),
     )
     expect(updates).toEqual([])
+  })
+})
+
+describe('computePendingBapliePhysicalFlags (mesma regra da função do banco)', () => {
+  const bl = (over: Record<string, unknown>) => ({ id: 10, bl_id: 'BL1', container_number: 'ABCD1234567', is_imo: false, imo_class: null, un_number: null, is_oog: false, ownership: null, ownership_source: null, ...over })
+
+  it('é zero quando o B/L já tem o que o Baplie diz, e conta o que falta aplicar', () => {
+    const baplie = staged([{ container_number: 'abcd1234567 ', status: 'full', is_imo: true, imo_class: '3', un_number: '1203', is_oog: false }])
+    expect(computePendingBapliePhysicalFlags(baplie, blcs([bl({ is_imo: true, imo_class: '3', un_number: '1203' })]))).toBe(0)
+    expect(computePendingBapliePhysicalFlags(baplie, blcs([bl({})]))).toBe(1)
+  })
+
+  it('como no banco: ignora status ausente ou vazio, número inválido e container em dois B/Ls', () => {
+    expect(computePendingBapliePhysicalFlags(staged([{ container_number: 'ABCD1234567', status: null, is_oog: true }]), blcs([bl({})]))).toBe(0)
+    expect(computePendingBapliePhysicalFlags(staged([{ container_number: 'ABCD1234567', status: 'empty', is_oog: true }]), blcs([bl({})]))).toBe(0)
+    expect(computePendingBapliePhysicalFlags(staged([{ container_number: 'ABC123', status: 'full', is_oog: true }]), blcs([bl({ container_number: 'ABC123' })]))).toBe(0)
+    expect(computePendingBapliePhysicalFlags(
+      staged([{ container_number: 'ABCD1234567', status: 'full', is_oog: true }]),
+      blcs([bl({}), bl({ id: 11, bl_id: 'BL2' })]),
+    )).toBe(0)
+  })
+
+  it('agrega linhas repetidas por OU e maior classe, e zera classe/ONU sem IMO', () => {
+    const rows = staged([
+      { container_number: 'ABCD1234567', status: 'full', is_imo: true, imo_class: '2.1', un_number: null },
+      { container_number: 'ABCD1234567', status: 'full', is_imo: false, imo_class: '3', un_number: '1203', is_oog: true },
+    ])
+    expect(computePendingBapliePhysicalFlags(rows, blcs([bl({ is_imo: true, imo_class: '3', un_number: '1203', is_oog: true })]))).toBe(0)
+    const notImo = staged([{ container_number: 'ABCD1234567', status: 'full', is_imo: false, imo_class: '3', un_number: '1203' }])
+    expect(computePendingBapliePhysicalFlags(notImo, blcs([bl({})]))).toBe(0)
+  })
+
+  it('SOC/COC só conta quando a origem não é o B/L nem correção manual', () => {
+    const soc = staged([{ container_number: 'ABCD1234567', status: 'full', ownership: 'SOC' }])
+    expect(computePendingBapliePhysicalFlags(soc, blcs([bl({ ownership: 'COC', ownership_source: 'bl' })]))).toBe(0)
+    expect(computePendingBapliePhysicalFlags(soc, blcs([bl({ ownership: 'COC', ownership_source: 'manual' })]))).toBe(0)
+    expect(computePendingBapliePhysicalFlags(soc, blcs([bl({ ownership: null, ownership_source: null })]))).toBe(1)
+    expect(computePendingBapliePhysicalFlags(soc, blcs([bl({ ownership: 'SOC', ownership_source: 'baplie' })]))).toBe(0)
+  })
+
+  it('lê o Baplie e os containers dos B/Ls da viagem', async () => {
+    installReconcileMocks({
+      bls: [{ id: 'BL1' }],
+      baplie: [{ container_number: 'ABCD1234567', status: 'full', is_oog: true }],
+      containers: [bl({})],
+    })
+    await expect(countPendingBapliePhysicalFlags(1)).resolves.toBe(1)
   })
 })
 

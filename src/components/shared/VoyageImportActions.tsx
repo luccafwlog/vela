@@ -25,7 +25,8 @@ import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVazio
 import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from './VaziosImportacaoImportParts'
 import { importVehicleRows, parseVehicleImportFile } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
-import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie } from '../../services/baplieImport'
+import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../../services/baplieImport'
+import { BaplieImportPartialNotice } from './BaplieImportPartialNotice'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { canImportPreview, rowErrorsToImportIssues } from '../../services/importValidation'
 import { inspectImportUpload } from '../../services/importText'
@@ -359,6 +360,8 @@ function BaplieImportModal({
   const [excludedPods, setExcludedPods] = useState<Set<string>>(new Set())
   const [readError, setReadError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  // Baplie gravado com IMO/OOG ou vazios pendentes: falha parcial que fica à vista.
+  const [partial, setPartial] = useState<BaplieImportDone | null>(null)
 
   async function handleFiles(files: File[]) {
     setExcludedPods(new Set())
@@ -404,6 +407,10 @@ function BaplieImportModal({
       })
       if (result.status === 'cancelled') return
       await afterBaplieImportado(queryClient, { voyageId: String(voyageId) })
+      if (hasBapliePendency(result)) {
+        setPartial(result)
+        return
+      }
       showToast(baplieImportToast(result), 'success')
       handleClose()
     } catch (err) {
@@ -415,7 +422,8 @@ function BaplieImportModal({
   }
 
   let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
-  if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  if (partial) footnote = baplieFootnoteForPendency(partial)
+  else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
   else if (parsed && !canImport) footnote = filteredContainers.length ? 'Há erro na prévia; corrija o arquivo e escolha de novo.' : 'Nenhum container selecionado para importar.'
   else if (parsed) footnote = `${plural(filteredContainers.length, 'container será gravado', 'containers serão gravados')}. Se a viagem já tem Baplie, você confirma a substituição antes.`
 
@@ -423,7 +431,7 @@ function BaplieImportModal({
     <Modal open onClose={handleClose} title="Importar Baplie EDI">
       <div className="app-import">
         <ImportContext label="Viagem">{voyageLabel}</ImportContext>
-        <ImportFilePicker accept=".edi,.txt,.edi2,.bpl" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={importing} />
+        <ImportFilePicker accept=".edi,.txt,.edi2,.bpl" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={importing || Boolean(partial)} />
         {parsing ? <ImportReadProgress progress={progress} /> : null}
         {readError ? (
           <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
@@ -460,6 +468,7 @@ function BaplieImportModal({
                       type="checkbox"
                       checked={!excludedPods.has(pod)}
                       onChange={() => togglePod(pod)}
+                      disabled={Boolean(partial)}
                     />
                     {pod}
                   </label>
@@ -475,12 +484,29 @@ function BaplieImportModal({
             <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
           </ImportNotice>
         ) : null}
+        {partial ? (
+          <BaplieImportPartialNotice
+            result={partial}
+            voyageId={voyageId}
+            actorId={userId}
+            onVaziosRetried={async () => {
+              setPartial((current) => current && { ...current, vaziosError: null, vaziosReplaced: true })
+              await afterBaplieImportado(queryClient, { voyageId: String(voyageId) })
+            }}
+          />
+        ) : null}
         <div className="app-modal__actions">
-          <ImportFootnote tone={parsed && !canImport ? 'warning' : 'default'}>{footnote}</ImportFootnote>
-          <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
-          <Button disabled={!canImport || parsing} loading={importing} loadingLabel="Importando…" onClick={() => void handleImport()}>
-            {canImport ? `Importar Baplie (${plural(filteredContainers.length, 'container', 'containers')})` : 'Importar Baplie'}
-          </Button>
+          <ImportFootnote tone={(partial ? hasBapliePendency(partial) : parsed && !canImport) ? 'warning' : 'default'}>{footnote}</ImportFootnote>
+          {partial ? (
+            <Button onClick={handleClose}>Concluir</Button>
+          ) : (
+            <>
+              <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
+              <Button disabled={!canImport || parsing} loading={importing} loadingLabel="Importando…" onClick={() => void handleImport()}>
+                {canImport ? `Importar Baplie (${plural(filteredContainers.length, 'container', 'containers')})` : 'Importar Baplie'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </Modal>

@@ -1,27 +1,30 @@
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada } from '../services/cacheEffects'
-import { Download, Trash2, Upload } from 'lucide-react'
+import { Download, MapPin, Trash2, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
-import { MetricCard } from '../components/ui/MetricCard'
+import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
+import { SummaryStrip, type SummaryItem } from '../components/ui/SummaryStrip'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
+import { SkeletonTable } from '../components/ui/Skeleton'
 import { Modal } from '../components/ui/Modal'
-import { PreviewBox } from '../components/ui/PreviewBox'
 import { useToast } from '../components/ui/Toast'
 import { TruncationNote } from '../components/shared/TruncationNote'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
+import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from '../components/shared/ImportParts'
+import { plural } from '../components/shared/importPresentation'
+import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useAuth } from '../hooks/useAuth'
+import { useVoyages } from '../hooks/useBls'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { useRowSelection } from '../hooks/useRowSelection'
 import { usePageFilters } from '../hooks/usePageFilters'
-import { useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
-import { formatDate } from '../lib/utils'
+import { UNPACKING_LOCATION_NONE, useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
 import { deleteVehicles } from '../services/vehicles'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
 import { importVehicleRows, parseVehicleImportFile, type ParsedVehicleImport } from '../services/vehicleImport'
@@ -33,53 +36,125 @@ import { VoyageRail } from '../components/voyages/VoyageRail'
 import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
 import { rowErrorsToImportIssues } from '../services/importValidation'
 import { ImportReadProgress } from '../components/shared/ImportReadProgress'
+import { displayAggregateLabel, groupVehiclesByContainer, isMissingLabel, unpackingScopeText } from './veiculosPresentation'
+
+type DesovaStatus = { kind: 'saved' } | { kind: 'error'; message: string }
+
+const EMPTY_FILTERS = { search: '', brand: '', model: '', container: '', containerType: '', seal: '', bl: '', unpackingLocation: '' }
+
+function formatKg(value: number | null | undefined) {
+  return value == null ? '—' : `${Number(value).toLocaleString('pt-BR')} kg`
+}
+
+function formatCbm(value: number | null | undefined) {
+  return value == null ? '—' : `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m³`
+}
+
+/**
+ * Edição inline do Local de desova: um campo por container, grava ao sair do
+ * campo ou com Enter; Escape desfaz o rascunho. O resultado fica ao lado do
+ * campo, não só no aviso flutuante.
+ */
+function UnpackingLocationField({
+  containerId,
+  containerNumber,
+  value,
+  savedValue,
+  disabled,
+  saving,
+  status,
+  vehicleCount,
+  onChange,
+  onCommit,
+  onRevert,
+}: {
+  containerId: number
+  containerNumber: string
+  value: string
+  savedValue: string | null
+  disabled: boolean
+  saving: boolean
+  status: DesovaStatus | undefined
+  vehicleCount: number
+  onChange: (value: string) => void
+  onCommit: (value: string) => void
+  onRevert: () => void
+}) {
+  const statusId = `desova-status-${containerId}`
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      onCommit(event.currentTarget.value)
+    } else if (event.key === 'Escape' && value !== (savedValue ?? '')) {
+      event.preventDefault()
+      event.stopPropagation()
+      onRevert()
+    }
+  }
+  return (
+    <span className="app-cargo-desova">
+      <Input
+        aria-label={`Local de desova do container ${containerNumber}`}
+        aria-describedby={statusId}
+        className="app-cargo-desova__input"
+        disabled={disabled || saving}
+        value={value}
+        placeholder="Informar local"
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={(event) => onCommit(event.target.value)}
+        onKeyDown={handleKeyDown}
+      />
+      <span
+        id={statusId}
+        className={`app-cargo-desova__status${status?.kind === 'error' ? ' app-cargo-desova__status--error' : ''}`}
+        role={status?.kind === 'error' ? 'alert' : undefined}
+        aria-live="polite"
+      >
+        {saving ? 'Salvando…' : status?.kind === 'error' ? status.message : status?.kind === 'saved' ? 'Salvo' : unpackingScopeText(vehicleCount)}
+      </span>
+    </span>
+  )
+}
+
+/** Container com veículos de mais de um B/L: cada veículo diz o seu, além da lista no cabeçalho. */
+function VehicleBlLink({ blId }: { blId: string }) {
+  return <span className="app-cargo-cell__sub">B/L <Link className="app-cargo-link app-cargo-id" to={`/bls/${blId}`}>{blId}</Link></span>
+}
 
 export function Veiculos() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const confirmWithReason = useConfirmWithReason()
   const { isAdmin, user, profile } = useAuth()
+  const narrow = useNarrowViewport()
   const canEditVehicles = Boolean(profile || user)
   const canDeleteVehicles = isAdmin
+  // Selecionar serve ao local de desova em lote (quem edita) e à exclusão (Administrativo).
+  const canSelect = canEditVehicles
   const [deleting, setDeleting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [unpackingLocations, setUnpackingLocations] = useState<Record<number, string>>({})
-  const [savingContainerId, setSavingContainerId] = useState<number | null>(null)
-  const [focusedContainerId, setFocusedContainerId] = useState<number | null>(null)
+  const [desovaStatus, setDesovaStatus] = useState<Record<number, DesovaStatus>>({})
+  // Um conjunto, não um id: dois containers podem estar gravando ao mesmo tempo, e o
+  // primeiro a terminar não pode reabrir o campo do outro.
+  const [savingContainerIds, setSavingContainerIds] = useState<ReadonlySet<number>>(new Set())
+  // Enter grava e desativa o campo, o que dispara o blur: a segunda chamada não repete a escrita.
+  const savingRef = useRef(new Set<number>())
   const [bulkDesovaOpen, setBulkDesovaOpen] = useState(false)
   const [bulkDesovaValue, setBulkDesovaValue] = useState('')
   const [bulkDesovaSaving, setBulkDesovaSaving] = useState(false)
+  const [bulkDesovaError, setBulkDesovaError] = useState<string | null>(null)
   const { data: options } = useVehicleOptions()
-  const [selectedVoyageId, setSelectedVoyageId] = useState(searchParams.get('voyage') ?? '')
-  const [importVoyageId, setImportVoyageId] = useState('')
-  const { filters, setFilters, updateFilter } = usePageFilters<VehiclePageFilters>({
-    search: '',
-    brand: '',
-    model: '',
-    container: '',
-    containerType: '',
-    seal: '',
-    bl: '',
-    unpackingLocation: '',
-    page: 1,
-    pageSize: 20,
-  })
+  const selectedVoyageId = searchParams.get('voyage') ?? ''
+  const { filters, setFilters, updateFilter } = usePageFilters<VehiclePageFilters>({ ...EMPTY_FILTERS, page: 1, pageSize: 20 })
   const selection = useRowSelection<number>(`${selectedVoyageId}:${JSON.stringify({ ...filters, page: undefined, pageSize: undefined })}`)
   const [importOpen, setImportOpen] = useState(false)
-  const [fileName, setFileName] = useState('')
-  const { preview: parsedImport, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedVehicleImport>(parseVehicleImportFile)
-  const [importing, setImporting] = useState(false)
-  const [autoSelectedImportOpen, setAutoSelectedImportOpen] = useState(false)
-  const [importReport, setImportReport] = useState<{
-    processed: number
-    successCount: number
-    errorCount: number
-    errors: { row: number; message: string }[]
-  } | null>(null)
 
-  const allVoyageOptions = useMemo(() => options?.voyages ?? [], [options?.voyages])
-  const voyageIds = useMemo(() => allVoyageOptions.map((voyage) => voyage.id), [allVoyageOptions])
+  // A faixa usa o mesmo resumo de Viagens que o Baplie (armador, situação, B/Ls,
+  // containers e CE), acrescido de quais viagens têm veículos.
+  const { data: voyageRows = [] } = useVoyages()
+  const voyageIds = useMemo(() => voyageRows.map((voyage) => voyage.id), [voyageRows])
   const { data: voyageVehicleStats } = useVoyageVehicleStats(voyageIds)
   const { data: escalaSchedulesByVoyage = new Map() } = useQuery({
     queryKey: ['vehicles-voyage-card-schedules', voyageIds],
@@ -88,7 +163,7 @@ export function Veiculos() {
   })
   const voyageRailItems = useMemo(() => {
     const moduleStats = new Map<number, VoyageRailModuleStats>()
-    for (const voyage of allVoyageOptions) {
+    for (const voyage of voyageRows) {
       const stats = voyageVehicleStats?.byVoyageId[voyage.id]
       moduleStats.set(voyage.id, {
         hasVehicles: (stats?.totalVehicles ?? 0) > 0,
@@ -96,95 +171,27 @@ export function Veiculos() {
         vehiclePorts: Object.keys(stats?.byPod ?? {}),
       })
     }
-    return buildVoyageRailItems(
-      allVoyageOptions.map((voyage) => ({
-        id: voyage.id,
-        voyage_number: voyage.voyage_number,
-        status: 'active',
-        vessel: { name: voyage.vessel?.name ?? 'Navio', carrier: null },
-      })),
-      escalaSchedulesByVoyage,
-      moduleStats,
-    )
-  }, [allVoyageOptions, escalaSchedulesByVoyage, voyageVehicleStats])
-
-  // Ajustes de estado durante o render (sem useEffect): cada condição se
-  // auto-falsifica após o setState, convergindo em um re-render.
-  if (importOpen && !autoSelectedImportOpen && !importVoyageId) {
-    if (selectedVoyageId) {
-      setImportVoyageId(selectedVoyageId)
-      setAutoSelectedImportOpen(true)
-    } else if (allVoyageOptions.length === 1) {
-      setImportVoyageId(String(allVoyageOptions[0].id))
-      setAutoSelectedImportOpen(true)
-    }
-  }
+    return buildVoyageRailItems(voyageRows, escalaSchedulesByVoyage, moduleStats)
+  }, [voyageRows, escalaSchedulesByVoyage, voyageVehicleStats])
 
   const voyageId = selectedVoyageId ? Number(selectedVoyageId) : null
-  const importTargetVoyageId = importVoyageId ? Number(importVoyageId) : null
   const { data, isLoading, error } = useVehicles(voyageId, filters)
   const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / filters.pageSize))
+  const groups = useMemo(() => groupVehiclesByContainer(data?.rows ?? []), [data?.rows])
 
-  const activeFilterCount = (['search', 'brand', 'model', 'container', 'containerType', 'seal', 'bl', 'unpackingLocation'] as (keyof VehiclePageFilters)[])
+  const activeFilterCount = (Object.keys(EMPTY_FILTERS) as (keyof typeof EMPTY_FILTERS)[])
     .filter((key) => String(filters[key] ?? '').trim() !== '').length
 
+  function selectVoyage(id: string) {
+    const next = new URLSearchParams(searchParams)
+    if (id) next.set('voyage', id)
+    else next.delete('voyage')
+    setSearchParams(next)
+    setFilters((current) => ({ ...current, ...EMPTY_FILTERS, page: 1 }))
+  }
+
   function clearFilters() {
-    setFilters((current) => ({ ...current, search: '', brand: '', model: '', container: '', containerType: '', seal: '', bl: '', unpackingLocation: '', page: 1 }))
-  }
-
-  function resetImportState() {
-    setImportOpen(false)
-    setImportVoyageId('')
-    setFileName('')
-    cancelReading()
-    setImportReport(null)
-    setImporting(false)
-    setAutoSelectedImportOpen(false)
-  }
-
-  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null
-    setFileName(file?.name ?? '')
-    setImportReport(null)
-
-    try {
-      const parsed = await readFile(file)
-      if (!parsed) return
-      showToast(
-        parsed.rowErrors.length
-          ? `Preview carregado com ${parsed.rows.length} linha(s) valida(s) e ${parsed.rowErrors.length} erro(s).`
-          : `Preview carregado com ${parsed.rows.length} linha(s) valida(s).`,
-        parsed.rowErrors.length ? 'info' : 'success',
-      )
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Falha ao ler arquivo.'
-      showToast(message, 'error')
-    }
-  }
-
-  async function handleImport() {
-    if (!importTargetVoyageId || !parsedImport?.rows.length || parsedImport.rowErrors.length) return
-
-    setImporting(true)
-    try {
-      const result = await importVehicleRows({ voyageId: importTargetVoyageId, rows: parsedImport.rows })
-      setImportReport(result)
-
-      await afterCargaAlterada(queryClient)
-
-      showToast(
-        `Importacao concluida: ${result.successCount} sucesso(s), ${result.errorCount} erro(s), ${result.processed} processado(s).`,
-        result.errorCount ? 'info' : 'success',
-      )
-      if (!result.errorCount) {
-        resetImportState()
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Falha ao importar veiculos.'
-      showToast(`Falha ao importar veiculos: ${message}`, 'error')
-    } finally {
-      setImporting(false)
-    }
+    setFilters((current) => ({ ...current, ...EMPTY_FILTERS, page: 1 }))
   }
 
   async function handleExport() {
@@ -200,10 +207,6 @@ export function Veiculos() {
     }
   }
 
-  async function invalidateAfterDelete() {
-    await afterCargaAlterada(queryClient)
-  }
-
   function cacheSavedUnpackingLocations(containerIds: readonly number[], value: string | null) {
     const ids = new Set(containerIds)
     // Atualiza só consultas existentes com a escrita confirmada, antes da releitura.
@@ -217,9 +220,15 @@ export function Veiculos() {
 
   async function handleUnpackingLocationSave(containerId: number, value: string, currentValue: string | null) {
     const unpackingLocation = value.trim() || null
-    if (unpackingLocation === currentValue) return
+    if (unpackingLocation === currentValue || savingRef.current.has(containerId)) return
 
-    setSavingContainerId(containerId)
+    savingRef.current.add(containerId)
+    setSavingContainerIds(new Set(savingRef.current))
+    setDesovaStatus((current) => {
+      const next = { ...current }
+      delete next[containerId]
+      return next
+    })
     try {
       await setContainerUnpackingLocation(containerId, unpackingLocation)
       cacheSavedUnpackingLocations([containerId], unpackingLocation)
@@ -229,29 +238,42 @@ export function Veiculos() {
         if (current[containerId] === value) delete next[containerId]
         return next
       })
-      showToast('Local de desova atualizado.', 'success')
+      setDesovaStatus((current) => ({ ...current, [containerId]: { kind: 'saved' } }))
     } catch (err) {
       setUnpackingLocations((current) => ({ ...current, [containerId]: currentValue ?? '' }))
-      showToast(err instanceof Error ? err.message : 'Falha ao atualizar local de desova.', 'error')
+      const message = err instanceof Error ? err.message : 'Falha ao salvar o local de desova.'
+      setDesovaStatus((current) => ({ ...current, [containerId]: { kind: 'error', message: `Não salvo: ${message}` } }))
     } finally {
-      setSavingContainerId(null)
+      savingRef.current.delete(containerId)
+      setSavingContainerIds(new Set(savingRef.current))
     }
   }
 
+  function revertUnpackingLocation(containerId: number) {
+    setUnpackingLocations((current) => {
+      const next = { ...current }
+      delete next[containerId]
+      return next
+    })
+  }
+
+  const selectedContainerIds = [...new Set(
+    (data?.filteredIds ?? [])
+      .filter((vehicleId) => selection.isSelected(vehicleId))
+      .map((vehicleId) => data?.containerIdByVehicleId?.[vehicleId])
+      .filter((containerId): containerId is number => typeof containerId === 'number'),
+  )]
+
   async function handleBulkUnpackingLocation() {
     const value = bulkDesovaValue.trim() || null
-    const containerIds = [...new Set(
-      (data?.filteredIds ?? [])
-        .filter((vehicleId) => selection.isSelected(vehicleId))
-        .map((vehicleId) => data?.containerIdByVehicleId?.[vehicleId])
-        .filter((containerId): containerId is number => typeof containerId === 'number'),
-    )]
+    const containerIds = selectedContainerIds
     if (!containerIds.length) {
-      showToast('Nenhum container nas linhas selecionadas.', 'info')
+      setBulkDesovaError('Nenhum container nas linhas selecionadas.')
       return
     }
     const submittedDrafts = unpackingLocations
     setBulkDesovaSaving(true)
+    setBulkDesovaError(null)
     try {
       await Promise.all(containerIds.map(async (containerId) => {
         await setContainerUnpackingLocation(containerId, value)
@@ -269,7 +291,9 @@ export function Veiculos() {
       setBulkDesovaOpen(false)
       setBulkDesovaValue('')
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Falha ao aplicar local de desova.', 'error')
+      // Parte dos containers pode ter sido gravada: a releitura mostra o que ficou.
+      await afterCargaAlterada(queryClient).catch(() => undefined)
+      setBulkDesovaError(err instanceof Error ? err.message : 'Falha ao aplicar o local de desova.')
     } finally {
       setBulkDesovaSaving(false)
     }
@@ -290,466 +314,551 @@ export function Veiculos() {
     try {
       const result = await deleteVehicles(ids, reason)
       selection.clear()
-      await invalidateAfterDelete()
+      await afterCargaAlterada(queryClient)
       const outcome = formatDeleteOutcome('veículo(s)', result)
       showToast(outcome.message, outcome.tone)
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'erro desconhecido'
-      showToast(`Falha ao excluir veiculo(s): ${detail}`, 'error')
+      showToast(`Falha ao excluir veículo(s): ${detail}`, 'error')
     } finally {
       setDeleting(false)
     }
   }
 
-  function handleDeleteOne(id: number, chassis: string) {
-    return runDelete([id], `Excluir o veiculo ${chassis}? `)
-  }
-
-  function handleDeleteSelected() {
-    return runDelete([...selection.selected], `Excluir ${selection.count} veiculo(s) selecionado(s)? `)
-  }
-
   const filteredRowIds = data?.filteredIds ?? []
-  const allPageSelected = filteredRowIds.length > 0 && filteredRowIds.every((id) => selection.isSelected(id))
-  const columnCount = canDeleteVehicles ? 12 : 10
+  const allFilteredSelected = filteredRowIds.length > 0 && filteredRowIds.every((id) => selection.isSelected(id))
+  const columnCount = 6 + (canSelect ? 1 : 0) + (canDeleteVehicles ? 1 : 0)
+  const skeletonTemplate = `${canSelect ? '40px ' : ''}1.4fr 1fr 1fr 0.7fr 0.7fr 1fr${canDeleteVehicles ? ' 52px' : ''}`
+
+  const statsKnown = !isLoading && !error
+  const missingDesova = (data?.unpackingLocations ?? []).find((item) => isMissingLabel(item.label))?.count ?? 0
+  const summaryItems: SummaryItem[] = [
+    { label: 'veículos na viagem', value: statsKnown ? (data?.vehiclesByBrand ?? []).reduce((sum, item) => sum + item.count, 0).toLocaleString('pt-BR') : '—' },
+    { label: 'containers', value: statsKnown ? (data?.distinctContainerCount ?? 0).toLocaleString('pt-BR') : '—' },
+    { label: data?.distinctBlCount === 1 ? 'B/L' : 'B/Ls', value: statsKnown ? (data?.distinctBlCount ?? 0).toLocaleString('pt-BR') : '—' },
+    { label: 'peso total', value: statsKnown ? formatKg(data?.totalWeightKg ?? 0) : '—' },
+    { label: 'cubagem', value: statsKnown ? formatCbm(data?.totalCbm ?? 0) : '—' },
+    ...(statsKnown && missingDesova > 0 ? [{ label: 'veículos sem local de desova', value: missingDesova.toLocaleString('pt-BR'), tone: 'warning' as const }] : []),
+  ]
+  const brandItems: SummaryItem[] = statsKnown
+    ? (data?.vehiclesByBrand ?? []).slice(0, 8).map((item) => ({ label: displayAggregateLabel(item.label), value: item.count.toLocaleString('pt-BR') }))
+    : []
+
+  function desovaFieldFor(container: NonNullable<(typeof groups)[number]['container']>) {
+    return (
+      <UnpackingLocationField
+        containerId={container.id}
+        containerNumber={container.container_number}
+        value={unpackingLocations[container.id] ?? container.unpacking_location ?? ''}
+        savedValue={container.unpacking_location ?? null}
+        disabled={!canEditVehicles}
+        saving={savingContainerIds.has(container.id)}
+        status={desovaStatus[container.id]}
+        vehicleCount={data?.vehicleCountByContainerId?.[container.id] ?? 1}
+        onChange={(value) => {
+          setUnpackingLocations((current) => ({ ...current, [container.id]: value }))
+          setDesovaStatus((current) => {
+            if (!current[container.id]) return current
+            const next = { ...current }
+            delete next[container.id]
+            return next
+          })
+        }}
+        onCommit={(value) => void handleUnpackingLocationSave(container.id, value, container.unpacking_location ?? null)}
+        onRevert={() => revertUnpackingLocation(container.id)}
+      />
+    )
+  }
+
+  function deleteButton(row: { id: number; chassis: string }) {
+    return (
+      <button
+        type="button"
+        onClick={() => runDelete([row.id], `Excluir o veículo ${row.chassis}?`)}
+        disabled={deleting}
+        className="app-table__icon-button app-cargo-danger-icon"
+        title="Excluir veículo"
+        aria-label={`Excluir veículo ${row.chassis}`}
+      >
+        <Trash2 size={15} aria-hidden="true" />
+      </button>
+    )
+  }
+
+  function groupHead(group: (typeof groups)[number]) {
+    const container = group.container
+    return (
+      <span className="app-cargo-group__head">
+        <span className="app-cargo-group__id">
+          {container ? (
+            <>
+              <span className="app-cargo-code app-cargo-id">{container.container_number}</span>
+              <span className="app-cargo-cell__sub">
+                {[container.type, container.seal_number ? `Lacre ${container.seal_number}` : null, plural(group.vehicles.length, 'veículo nesta página', 'veículos nesta página')].filter(Boolean).join(' · ')}
+              </span>
+            </>
+          ) : <span className="app-cargo-id">Sem container</span>}
+        </span>
+        <span className="app-cargo-group__bls">
+          {group.blIds.map((blId) => <Link key={blId} className="app-cargo-link app-cargo-id" to={`/bls/${blId}`}>{blId}</Link>)}
+        </span>
+      </span>
+    )
+  }
 
   return (
     <>
       <PageHeader
         title="Veículos"
-        description="Gestão e importação de veículos vinculados a viagem, containers e BLs."
         action={(
           <div className="flex flex-wrap gap-2">
-            {voyageId ? <Button variant="secondary" loading={exporting} disabled={!data?.rows.length} onClick={() => void handleExport()}><Download size={16} /> Exportar Excel</Button> : null}
+            {voyageId ? (
+              <Button variant="secondary" loading={exporting} loadingLabel="Exportando…" disabled={!data?.rows.length} onClick={() => void handleExport()}>
+                <Download size={16} aria-hidden="true" /> Exportar
+              </Button>
+            ) : null}
             {canEditVehicles ? (
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>
-            <Upload size={16} />
-            Importar Veículos
-          </Button>
+              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                <Upload size={16} aria-hidden="true" />
+                Importar veículos
+              </Button>
             ) : null}
           </div>
         )}
       />
 
-      <section className="mb-5 min-w-0">
+      <section className="app-cargo-voyage" aria-label="Viagem">
         <VoyageRail
           items={voyageRailItems}
-          selectedId={selectedVoyageId ? Number(selectedVoyageId) : null}
-          onSelect={(id) => setSelectedVoyageId(String(id))}
+          selectedId={voyageId}
+          onSelect={(id) => selectVoyage(String(id))}
         />
-      </section>
-
-      <Card className="mb-5">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="app-cargo-voyage__search">
           <VoyageCombobox
             clearable
-            label="Viagem"
+            label="Buscar viagem"
             selectedVoyageId={selectedVoyageId}
-            onSelect={(id) => setSelectedVoyageId(id == null ? '' : String(id))}
+            onSelect={(id) => selectVoyage(id == null ? '' : String(id))}
           />
         </div>
-        {!voyageId ? (
-          <div className="mt-3 text-sm text-[var(--app-muted)]">
-            Selecione uma viagem para ver a lista de veículos.
-          </div>
-        ) : null}
-      </Card>
+      </section>
 
       {!voyageId ? (
         <Card className="overflow-hidden p-0">
           <EmptyState
-            title="Selecione uma viagem"
-            description="Os veículos, indicadores e filtros aparecem após escolher a viagem acima. Para importar, use o botão Importar Veículos."
+            title="Escolha uma viagem"
+            description="Os veículos são listados por viagem. Escolha na faixa acima ou busque pelo navio."
           />
         </Card>
       ) : (
         <>
+          <FilterBar activeCount={activeFilterCount} onClear={clearFilters}>
+            <div className="app-filter-grid">
+              <Field label="Chassi">
+                <Input type="search" value={filters.search} onChange={(event) => updateFilter('search', event.target.value)} />
+              </Field>
+              <Field label="Container">
+                <Input type="search" value={filters.container} onChange={(event) => updateFilter('container', event.target.value)} />
+              </Field>
+              <Field label="B/L">
+                <Input type="search" value={filters.bl} onChange={(event) => updateFilter('bl', event.target.value)} />
+              </Field>
+              <Field label="Lacre">
+                <Input type="search" value={filters.seal} onChange={(event) => updateFilter('seal', event.target.value)} />
+              </Field>
+              <Field label="Marca">
+                <Select value={filters.brand} onChange={(event) => updateFilter('brand', event.target.value)}>
+                  <option value="">Todas</option>
+                  {(data?.vehiclesByBrand ?? []).filter((item) => !isMissingLabel(item.label)).map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Modelo">
+                <Select value={filters.model} onChange={(event) => updateFilter('model', event.target.value)}>
+                  <option value="">Todos</option>
+                  {(data?.vehiclesByModel ?? []).filter((item) => !isMissingLabel(item.label)).map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Tipo de container">
+                <Select value={filters.containerType} onChange={(event) => updateFilter('containerType', event.target.value)}>
+                  <option value="">Todos</option>
+                  {(data?.vehiclesByContainerType ?? []).filter((item) => !isMissingLabel(item.label)).map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Local de desova">
+                <Select value={filters.unpackingLocation} onChange={(event) => updateFilter('unpackingLocation', event.target.value)}>
+                  <option value="">Todos</option>
+                  <option value={UNPACKING_LOCATION_NONE}>Sem local informado</option>
+                  {(data?.unpackingLocations ?? []).filter((item) => !isMissingLabel(item.label)).map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
+                </Select>
+              </Field>
+            </div>
+          </FilterBar>
 
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-        <MetricCard label="Veiculos filtrados" value={isLoading ? '...' : data?.count ?? 0} />
-        <MetricCard label="Containers distintos" value={isLoading ? '...' : data?.distinctContainerCount ?? 0} />
-        <MetricCard label="BLs distintos" value={isLoading ? '...' : data?.distinctBlCount ?? 0} />
-        <MetricCard label="Peso total (kg)" value={isLoading ? '...' : Number(data?.totalWeightKg ?? 0).toLocaleString('pt-BR')} />
-      </div>
-
-      <div className="mb-5 grid gap-4 xl:grid-cols-3">
-        <BreakdownCard
-          title="Veiculos por marca"
-          loading={isLoading}
-          items={data?.vehiclesByBrand ?? []}
-          emptyLabel="Nenhuma marca no filtro."
-        />
-        <BreakdownCard
-          title="Veiculos por tipo de container"
-          loading={isLoading}
-          items={data?.vehiclesByContainerType ?? []}
-          emptyLabel="Nenhum tipo no filtro."
-        />
-        <BreakdownCard
-          title="Containers por tipo de container"
-          loading={isLoading}
-          items={data?.containersByContainerType ?? []}
-          emptyLabel="Nenhum container no filtro."
-        />
-      </div>
-
-      <FilterBar activeCount={activeFilterCount} onClear={clearFilters}>
-        <div className="app-filter-grid">
-          <Field label="Buscar por chassi">
-            <Input value={filters.search} onChange={(event) => updateFilter('search', event.target.value)} />
-          </Field>
-          <Field label="Filtro por marca">
-            <Select value={filters.brand} onChange={(event) => updateFilter('brand', event.target.value)}>
-              <option value="">Todas</option>
-              {(data?.vehiclesByBrand ?? []).map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
-            </Select>
-          </Field>
-          <Field label="Filtro por modelo">
-            <Select value={filters.model} onChange={(event) => updateFilter('model', event.target.value)}>
-              <option value="">Todos</option>
-              {(data?.vehiclesByModel ?? []).map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
-            </Select>
-          </Field>
-          <Field label="Filtro por tipo de container">
-            <Select value={filters.containerType} onChange={(event) => updateFilter('containerType', event.target.value)}>
-              <option value="">Todos</option>
-              {(data?.vehiclesByContainerType ?? []).map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
-            </Select>
-          </Field>
-          <Field label="Filtro por lacre">
-            <Input value={filters.seal} onChange={(event) => updateFilter('seal', event.target.value)} />
-          </Field>
-          <Field label="Filtro por container">
-            <Input value={filters.container} onChange={(event) => updateFilter('container', event.target.value)} />
-          </Field>
-          <Field label="Filtro por BL">
-            <Input value={filters.bl} onChange={(event) => updateFilter('bl', event.target.value)} />
-          </Field>
-          <Field label="Filtro por local de desova">
-            <Select value={filters.unpackingLocation} onChange={(event) => updateFilter('unpackingLocation', event.target.value)}>
-              <option value="">Todos</option>
-              {(data?.unpackingLocations ?? []).map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
-            </Select>
-          </Field>
-        </div>
-      </FilterBar>
-
-      {canDeleteVehicles ? (
-        <BulkActionsBar
-          count={selection.count}
-          onClear={selection.clear}
-          onDelete={handleDeleteSelected}
-          deleting={deleting}
-          noun={['veiculo', 'veiculos']}
-          extraActions={canEditVehicles ? (
-            <Button variant="secondary" onClick={() => setBulkDesovaOpen(true)} disabled={deleting}>
-              Definir local de desova
-            </Button>
+          {canSelect ? (
+            <BulkActionsBar
+              count={selection.count}
+              onClear={selection.clear}
+              onDelete={canDeleteVehicles ? () => runDelete([...selection.selected], `Excluir ${selection.count} veículo(s) selecionado(s)?`) : undefined}
+              deleting={deleting}
+              noun={['veículo', 'veículos']}
+              extraActions={canEditVehicles ? (
+                <Button variant="secondary" onClick={() => { setBulkDesovaError(null); setBulkDesovaOpen(true) }} disabled={deleting}>
+                  <MapPin size={15} aria-hidden="true" />
+                  Definir local de desova
+                </Button>
+              ) : null}
+            />
           ) : null}
-        />
-      ) : null}
 
-      <Card className="overflow-hidden p-0">
-        {error ? <InlineError message="Erro ao carregar veiculos." /> : null}
-        <div className="app-table-scroll app-table-scroll--sticky">
-          <table className="app-table app-table--compact min-w-[980px] text-left text-sm whitespace-nowrap">
-            <caption className="sr-only">Veículos importados e cadastrados</caption>
-            <thead>
-              <tr>
-                {canDeleteVehicles ? (
-                  <th scope="col" className="px-4 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      aria-label="Selecionar todos os veiculos da pagina"
-                      checked={allPageSelected}
-                      onChange={() => selection.toggleMany(filteredRowIds)}
-                    />
-                  </th>
-                ) : null}
-                <th scope="col" className="px-4 py-3">Chassi</th>
-                <th scope="col" className="px-4 py-3">Marca</th>
-                <th scope="col" className="px-4 py-3">Modelo</th>
-                <th scope="col" className="px-4 py-3">Peso</th>
-                <th scope="col" className="px-4 py-3">Cubagem</th>
-                <th scope="col" className="px-4 py-3">Container</th>
-                <th scope="col" className="px-4 py-3">Tipo Container</th>
-                <th scope="col" className="px-4 py-3">Lacre</th>
-                <th scope="col" className="px-4 py-3">BL</th>
-                <th scope="col" className="px-4 py-3">Local desova</th>
-                {canDeleteVehicles ? <th scope="col" className="px-4 py-3 w-16">Ações</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={columnCount}>
-                    Carregando veiculos...
-                  </td>
-                </tr>
-              ) : null}
-              {!isLoading && !data?.rows.length ? (
-                <tr>
-                  <td colSpan={columnCount} className="p-0">
-                    <EmptyState title="Nenhum veiculo encontrado." description="Importe uma planilha de veiculos ou ajuste os filtros." />
-                  </td>
-                </tr>
-              ) : null}
-              {data?.rows.map((row) => (
-                <tr key={row.id} className="hover:bg-[#21262d]/60">
-                  {canDeleteVehicles ? (
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        aria-label={`Selecionar veiculo ${row.chassis}`}
-                        checked={selection.isSelected(row.id)}
-                        onChange={() => selection.toggle(row.id)}
-                      />
-                    </td>
-                  ) : null}
-                  <td className="px-4 py-3 font-semibold text-[var(--app-text-strong)]">{row.chassis}</td>
-                  <td className="px-4 py-3">{row.brand}</td>
-                  <td className="px-4 py-3">{row.model}</td>
-                  <td className="px-4 py-3">{Number(row.weight_kg).toLocaleString('pt-BR')} kg</td>
-                  <td className="px-4 py-3">{Number(row.cbm).toLocaleString('pt-BR')}</td>
-                  <td className="px-4 py-3">{row.container?.container_number ?? '-'}</td>
-                  <td className="px-4 py-3">{row.container?.type ?? '-'}</td>
-                  <td className="px-4 py-3">{row.container?.seal_number ?? '-'}</td>
-                  <td className="px-4 py-3">
-                    {row.bl?.id ? (
-                      <Link className="app-table__action" to={`/bls/${row.bl.id}`}>{row.bl.id}</Link>
-                    ) : '-'}
-                  </td>
-                  <td className="px-4 py-3">
-                    {row.container ? (
-                      <div className="grid gap-1">
-                        <Input
-                          aria-label={`Local de desova do container ${row.container.container_number}`}
-                          disabled={!canEditVehicles || savingContainerId === row.container.id}
-                          title={`Aplica a todos os ${data?.vehicleCountByContainerId?.[row.container.id] ?? 1} veículos do container ${row.container.container_number}`}
-                          value={unpackingLocations[row.container.id] ?? row.container.unpacking_location ?? ''}
-                          onBlur={(event) => handleUnpackingLocationSave(
-                            row.container!.id,
-                            event.target.value,
-                            row.container!.unpacking_location,
-                          )}
-                          onChange={(event) => setUnpackingLocations((current) => ({
-                            ...current,
-                            [row.container!.id]: event.target.value,
-                          }))}
-                          onFocus={() => setFocusedContainerId(row.container!.id)}
-                          onBlurCapture={() => setFocusedContainerId(null)}
-                          placeholder="Ex.: Pátio 3"
-                        />
-                        {focusedContainerId === row.container.id ? (
-                          <span className="text-xs text-[var(--app-muted)]">
-                            Aplica a todos os {data?.vehicleCountByContainerId?.[row.container.id] ?? 1} veículos do container {row.container.container_number}.
+          <Card className="overflow-hidden p-0">
+            <div className="app-cargo-toolbar">
+              <SummaryStrip label="Resumo da viagem" items={summaryItems} />
+              {brandItems.length ? <SummaryStrip label="Veículos por marca" items={brandItems} className="app-cargo-toolbar__secondary" /> : null}
+            </div>
+            {error ? (
+              <div className="app-cargo-error" role="alert">
+                Não foi possível carregar os veículos. Os totais aparecem como —.
+              </div>
+            ) : null}
+            {isLoading ? (
+              <SkeletonTable rows={6} cols={columnCount} columnTemplate={skeletonTemplate} label="Carregando veículos" />
+            ) : error && !data?.rows.length ? null : !data?.rows.length ? (
+              activeFilterCount > 0 ? (
+                <EmptyState
+                  title="Nenhum veículo neste recorte"
+                  description="Nenhum veículo atende aos filtros aplicados."
+                  action={<Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>}
+                />
+              ) : (
+                <EmptyState
+                  title="Nenhum veículo nesta viagem"
+                  description="Os veículos entram pela planilha do armador, ligados ao B/L e ao container da viagem."
+                  action={canEditVehicles ? <Button variant="secondary" onClick={() => setImportOpen(true)}>Importar veículos</Button> : undefined}
+                />
+              )
+            ) : narrow ? (
+              <ul className="app-cargo-cards" aria-label="Veículos por container">
+                {groups.map((group) => (
+                  <li key={group.key} className="app-cargo-card">
+                    <div className="app-cargo-card__head">{groupHead(group)}</div>
+                    {group.container ? <div className="app-cargo-card__field">{desovaFieldFor(group.container)}</div> : null}
+                    <ul className="app-cargo-card__list" aria-label={`Veículos do container ${group.container?.container_number ?? 'sem container'}`}>
+                      {group.vehicles.map((row) => (
+                        <li key={row.id} className="app-cargo-card__item">
+                          {canSelect ? (
+                            <input
+                              type="checkbox"
+                              aria-label={`Selecionar veículo ${row.chassis}`}
+                              checked={selection.isSelected(row.id)}
+                              onChange={() => selection.toggle(row.id)}
+                            />
+                          ) : null}
+                          <span className="app-cargo-cell__stack">
+                            <span className="app-cargo-code">{row.chassis}</span>
+                            <span className="app-cargo-cell__sub">{[row.brand, row.model].filter(Boolean).join(' ')} · {formatKg(row.weight_kg)} · {formatCbm(row.cbm)}</span>
+                            {group.blIds.length > 1 && row.bl?.id ? <VehicleBlLink blId={row.bl.id} /> : null}
                           </span>
+                          {canDeleteVehicles ? deleteButton(row) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="app-table-scroll app-table-scroll--sticky">
+                <table className="app-table app-cargo-table app-cargo-table--grouped">
+                  <caption className="sr-only">Veículos da viagem agrupados por container</caption>
+                  <thead>
+                    <tr>
+                      {canSelect ? (
+                        <th scope="col" className="app-cargo-table__check">
+                          <input
+                            type="checkbox"
+                            aria-label={`Selecionar os ${filteredRowIds.length} veículos do recorte`}
+                            checked={allFilteredSelected}
+                            onChange={() => selection.toggleMany(filteredRowIds)}
+                          />
+                        </th>
+                      ) : null}
+                      <th scope="col">Chassi</th>
+                      <th scope="col">Marca</th>
+                      <th scope="col">Modelo</th>
+                      <th scope="col" className="app-cargo-num">Peso</th>
+                      <th scope="col" className="app-cargo-num">Cubagem</th>
+                      <th scope="col">Local de desova</th>
+                      {canDeleteVehicles ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
+                    </tr>
+                  </thead>
+                  {groups.map((group) => (
+                    <tbody key={group.key} className="app-cargo-group">
+                      <tr className="app-cargo-group__row">
+                        {canSelect ? (
+                          <td className="app-cargo-table__check">
+                            <input
+                              type="checkbox"
+                              aria-label={`Selecionar os veículos do container ${group.container?.container_number ?? 'sem container'}`}
+                              checked={group.vehicles.every((row) => selection.isSelected(row.id))}
+                              onChange={() => selection.toggleMany(group.vehicles.map((row) => row.id))}
+                            />
+                          </td>
                         ) : null}
-                      </div>
-                    ) : '-'}
-                  </td>
-                  {canDeleteVehicles ? (
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => handleDeleteOne(row.id, row.chassis)}
-                        disabled={deleting}
-                        className="text-red-400 hover:text-red-300 disabled:opacity-40"
-                        title="Excluir veiculo"
-                        aria-label={`Excluir veiculo ${row.chassis}`}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </td>
-                  ) : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                        <th scope="rowgroup" colSpan={5} className="app-cargo-group__cell">{groupHead(group)}</th>
+                        <td colSpan={canDeleteVehicles ? 2 : 1}>
+                          {group.container ? desovaFieldFor(group.container) : <span className="app-cargo-cell__muted">—</span>}
+                        </td>
+                      </tr>
+                      {group.vehicles.map((row) => (
+                        <Fragment key={row.id}>
+                          <tr>
+                            {canSelect ? (
+                              <td className="app-cargo-table__check">
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Selecionar veículo ${row.chassis}`}
+                                  checked={selection.isSelected(row.id)}
+                                  onChange={() => selection.toggle(row.id)}
+                                />
+                              </td>
+                            ) : null}
+                            <td>
+                              <span className="app-cargo-cell__stack">
+                                <span className="app-cargo-code">{row.chassis}</span>
+                                {group.blIds.length > 1 && row.bl?.id ? <VehicleBlLink blId={row.bl.id} /> : null}
+                              </span>
+                            </td>
+                            <td>{row.brand ?? '—'}</td>
+                            <td>{row.model ?? '—'}</td>
+                            <td className="app-cargo-num">{formatKg(row.weight_kg)}</td>
+                            <td className="app-cargo-num">{formatCbm(row.cbm)}</td>
+                            <td aria-hidden="true" />
+                            {canDeleteVehicles ? <td>{deleteButton(row)}</td> : null}
+                          </tr>
+                        </Fragment>
+                      ))}
+                    </tbody>
+                  ))}
+                </table>
+              </div>
+            )}
 
-        <TableFooterPagination
-          page={filters.page}
-          pageSize={filters.pageSize}
-          totalCount={data?.count ?? 0}
-          totalPages={totalPages}
-          onPageChange={(page) => updateFilter('page', page)}
-          onPageSizeChange={(pageSize) => updateFilter('pageSize', pageSize)}
-        />
-      </Card>
-
+            {data && data.count > 0 ? (
+              <TableFooterPagination
+                page={filters.page}
+                pageSize={filters.pageSize}
+                totalCount={data?.count ?? 0}
+                totalPages={totalPages}
+                onPageChange={(page) => updateFilter('page', page)}
+                onPageSizeChange={(pageSize) => updateFilter('pageSize', pageSize)}
+              />
+            ) : null}
+          </Card>
         </>
       )}
 
-      <Modal open={importOpen && canEditVehicles} onClose={resetImportState} title="Importar Veículos">
-        <div className="grid gap-5">
-          <div className="app-panel app-panel--padded text-sm">
-            <div className="app-panel__title">Estrutura obrigatoria da planilha</div>
-            <div className="mt-2">CHASSI, MARCA, MODELO, PESO, CUBAGEM, CONTAINER, TIPO_CONTAINER, LACRE, BL.</div>
-            <div className="app-panel__meta mt-2">
-              Cada linha valida veiculo, container e BL antes da persistencia. Linhas inválidas são rejeitadas individualmente.
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <a
-                className="app-btn app-btn--secondary"
-                href="/templates/veiculos-modelo.xlsx"
-                download="veiculos-modelo.xlsx"
-              >
-                <Download size={16} />
-                Baixar modelo .xlsx
-              </a>
-              <a
-                className="app-btn app-btn--secondary"
-                href="/templates/veiculos-modelo.csv"
-                download="veiculos-modelo.csv"
-              >
-                <Download size={16} />
-                Baixar modelo .csv
-              </a>
-            </div>
-          </div>
+      {importOpen && canEditVehicles ? (
+        <VehicleImportModal
+          initialVoyageId={selectedVoyageId || (options?.voyages.length === 1 ? String(options.voyages[0].id) : '')}
+          onClose={() => setImportOpen(false)}
+        />
+      ) : null}
 
-          <VoyageCombobox
-            required
-            label="Viagem de destino"
-            selectedVoyageId={importVoyageId}
-            onSelect={(id) => setImportVoyageId(id == null ? '' : String(id))}
-          />
-
-          <Field label="Arquivo .xlsx, .xls ou .csv">
-            <Input accept=".xlsx,.xls,.csv" type="file" onChange={handleFileChange} />
-          </Field>
-
-          {fileName ? <div className="app-panel__meta">Arquivo selecionado: {fileName}</div> : null}
-          {parsing ? <ImportReadProgress progress={progress} /> : null}
-
-          {parsedImport ? (
-            <div className="grid gap-4">
-              <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-                <PreviewBox label="Linhas validas" value={parsedImport.rows.length} variant="kpi" tone="navy" />
-                <PreviewBox label="Erros de estrutura" value={parsedImport.rowErrors.length} variant="kpi" tone="navy" />
-                <PreviewBox label="Viagem selecionada" value={formatImportVoyageLabel(allVoyageOptions, importVoyageId)} variant="kpi" tone="navy" />
-              </div>
-
-              <div className="app-table-scroll max-h-72 rounded-xl border border-[var(--app-border)]">
-                <table className="app-table app-table--compact min-w-[980px] text-left text-sm">
-                  <caption className="sr-only">Prévia da importação de veículos</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col" className="px-3 py-2">Chassi</th>
-                      <th scope="col" className="px-3 py-2">Marca</th>
-                      <th scope="col" className="px-3 py-2">Modelo</th>
-                      <th scope="col" className="px-3 py-2">Container</th>
-                      <th scope="col" className="px-3 py-2">Tipo</th>
-                      <th scope="col" className="px-3 py-2">Lacre</th>
-                      <th scope="col" className="px-3 py-2">BL</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {parsedImport.rows.slice(0, 20).map((row) => (
-                      <tr key={`${row.rowNumber}-${row.chassis}`}>
-                        <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{row.chassis}</td>
-                        <td className="px-3 py-2">{row.brand}</td>
-                        <td className="px-3 py-2">{row.model}</td>
-                        <td className="px-3 py-2">{row.container_number}</td>
-                        <td className="px-3 py-2">{row.container_type}</td>
-                        <td className="px-3 py-2">{row.seal_number}</td>
-                        <td className="px-3 py-2">{row.bl_id}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <TruncationNote shown={20} total={parsedImport.rows.length} noun="veículo" nounPlural="veículos" />
-
-              <ImportIssuesPanel issues={rowErrorsToImportIssues(parsedImport.rowErrors)} filename="veiculos-issues.csv" />
-            </div>
-          ) : null}
-
-          {importReport ? (
-            <div className="app-panel app-panel--padded grid gap-4">
-              <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-                <PreviewBox label="Processados" value={importReport.processed} variant="kpi" tone="blue" />
-                <PreviewBox label="Sucesso" value={importReport.successCount} variant="kpi" tone="green" />
-                <PreviewBox label="Erros" value={importReport.errorCount} variant="kpi" tone="gold" />
-              </div>
-              {importReport.errors.length ? (
-                <div className="max-h-48 overflow-auto rounded-xl border border-[var(--app-border)] p-3 text-sm text-[var(--app-text)]">
-                  {importReport.errors.map((item) => (
-                    <div key={`${item.row}-${item.message}`} className="border-b border-[var(--app-border)] py-1 last:border-b-0">
-                      Linha {item.row}: {item.message}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-green-700">Nenhum erro de integracao no lote importado.</div>
-              )}
-              <div className="app-panel__meta">Atualizado em {formatDate(new Date().toISOString())}</div>
-            </div>
-          ) : null}
-
-          <div className="app-modal__actions">
-            <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : resetImportState}>
-              {parsing ? 'Interromper leitura' : 'Fechar'}
-            </Button>
-            <Button disabled={!importTargetVoyageId || !parsedImport?.rows.length || Boolean(parsedImport.rowErrors.length) || Boolean(importReport)} loading={importing} onClick={handleImport}>
-              Confirmar importação
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={bulkDesovaOpen} title="Definir local de desova" onClose={() => setBulkDesovaOpen(false)}>
-        <div className="grid gap-3">
-          <p className="text-sm text-[var(--app-muted)]">
-            Aplica aos containers das linhas selecionadas. Deixe vazio para limpar o local.
+      <Modal open={bulkDesovaOpen} size="sm" title="Definir local de desova" onClose={() => setBulkDesovaOpen(false)}>
+        <div className="grid gap-4">
+          <p className="text-sm text-[var(--app-text)]">
+            {selectedContainerIds.length
+              ? `O local vale para ${plural(selectedContainerIds.length, 'container', 'containers')} das linhas selecionadas e para todos os veículos dentro deles.`
+              : 'As linhas selecionadas não têm container.'}
           </p>
-          <Field label="Local de desova">
+          <Field label="Local de desova" hint="Deixe em branco para apagar o local registrado.">
             <Input value={bulkDesovaValue} onChange={(event) => setBulkDesovaValue(event.target.value)} placeholder="Ex.: Pátio 3" />
           </Field>
-          <Button onClick={() => void handleBulkUnpackingLocation()} loading={bulkDesovaSaving}>Aplicar</Button>
+          {bulkDesovaError ? (
+            <ImportNotice tone="danger" role="alert" title="O local não foi aplicado a todos">
+              <p>{bulkDesovaError}</p>
+              <p>A lista mostra o que ficou gravado; confira e aplique de novo.</p>
+            </ImportNotice>
+          ) : null}
+          <div className="app-modal__actions">
+            <Button variant="secondary" disabled={bulkDesovaSaving} onClick={() => setBulkDesovaOpen(false)}>Voltar</Button>
+            <Button
+              onClick={() => void handleBulkUnpackingLocation()}
+              loading={bulkDesovaSaving}
+              loadingLabel="Aplicando…"
+              disabled={!selectedContainerIds.length}
+            >
+              {bulkDesovaValue.trim() ? `Aplicar a ${plural(selectedContainerIds.length, 'container', 'containers')}` : 'Apagar o local'}
+            </Button>
+          </div>
         </div>
       </Modal>
     </>
   )
 }
 
+/**
+ * Importação de veículos com viagem escolhida aqui (a ação rápida da Viagem já
+ * vem com a viagem fixa). Regra da página: linha com erro bloqueia o lote.
+ */
+function VehicleImportModal({ initialVoyageId, onClose }: { initialVoyageId: string; onClose: () => void }) {
+  const queryClient = useQueryClient()
+  const { showToast } = useToast()
+  const [voyageId, setVoyageId] = useState(initialVoyageId)
+  const { file, preview, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedVehicleImport>(parseVehicleImportFile)
+  const [importing, setImporting] = useState(false)
+  const [readError, setReadError] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [result, setResult] = useState<Awaited<ReturnType<typeof importVehicleRows>> | null>(null)
 
-function formatImportVoyageLabel(
-  voyages: Array<{ id: number; voyage_number: string | null; vessel?: { name?: string | null } | null }>,
-  voyageId: string,
-) {
-  if (!voyageId) return '-'
-  const voyage = voyages.find((item) => String(item.id) === voyageId)
-  if (!voyage) return 'Selecionada'
-  return `${voyage.vessel?.name ?? 'Navio'} / ${voyage.voyage_number ?? '-'}`
-}
+  async function handleFiles(files: File[]) {
+    setReadError(null)
+    setImportError(null)
+    setResult(null)
+    try {
+      await readFile(files[0] ?? null)
+    } catch (err) {
+      setReadError(err instanceof Error ? err.message : 'Falha ao ler o arquivo.')
+    }
+  }
 
-function BreakdownCard({
-  title,
-  items,
-  loading,
-  emptyLabel,
-}: {
-  title: string
-  items: Array<{ label: string; count: number }>
-  loading: boolean
-  emptyLabel: string
-}) {
+  function handleClose() {
+    cancelReading()
+    onClose()
+  }
+
+  const rowErrors = preview?.rowErrors.length ?? 0
+  const canConfirm = Boolean(voyageId) && Boolean(preview?.rows.length) && rowErrors === 0 && !result
+
+  async function handleImport() {
+    if (!canConfirm || !preview) return
+    setImporting(true)
+    setImportError(null)
+    try {
+      const nextResult = await importVehicleRows({ voyageId: Number(voyageId), rows: preview.rows })
+      await afterCargaAlterada(queryClient)
+      if (nextResult.errorCount) {
+        // Com recusas o modal fica aberto e lista o que não entrou.
+        setResult(nextResult)
+      } else {
+        showToast(`${plural(nextResult.successCount, 'veículo importado', 'veículos importados')}.`, 'success')
+        onClose()
+      }
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Falha ao importar veículos.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
+  if (result) footnote = 'Importação gravada em parte. As linhas recusadas estão acima.'
+  else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (preview && rowErrors) footnote = 'Há linhas com erro: corrija a planilha e escolha de novo. Nada é gravado enquanto houver erro.'
+  else if (preview?.rows.length && !voyageId) footnote = 'Escolha a viagem de destino para importar.'
+  else if (preview?.rows.length) footnote = `${plural(preview.rows.length, 'veículo será gravado', 'veículos serão gravados')}. Nada foi gravado ainda.`
+
   return (
-    <Card>
-      <div className="app-panel__title">{title}</div>
-      <div className="mt-3 grid gap-2">
-        {loading ? <div className="app-panel__meta">Carregando...</div> : null}
-        {!loading && !items.length ? <div className="app-panel__meta">{emptyLabel}</div> : null}
-        {!loading
-          ? items.slice(0, 8).map((item) => (
-              <div key={item.label} className="flex items-center justify-between rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-2 text-sm">
-                <span className="truncate pr-2 text-[var(--app-text)]">{item.label}</span>
-                <span className="font-semibold text-[var(--app-text-strong)]">{item.count}</span>
-              </div>
-            ))
-          : null}
+    <Modal open onClose={handleClose} title="Importar planilha de veículos">
+      <div className="app-import">
+        <VoyageCombobox
+          required
+          label="Viagem de destino"
+          selectedVoyageId={voyageId}
+          onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
+        />
+        <ImportGuide
+          required="CHASSI, MARCA, MODELO, PESO, CUBAGEM, CONTAINER, TIPO_CONTAINER, LACRE e BL."
+          details={<p>Também aceita o Daily Report COSCO e cabeçalhos em chinês. Cada linha precisa de um B/L da viagem e de um container que case por número, tipo e lacre.</p>}
+          templates={<ImportTemplateLinks baseName="veiculos-modelo" />}
+        />
+        <ImportFilePicker accept=".xlsx,.xls,.csv" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={importing || Boolean(result)} />
+        {parsing ? <ImportReadProgress progress={progress} /> : null}
+        {readError ? (
+          <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
+            <p>{readError}</p>
+            <p>Confira o formato e escolha o arquivo de novo.</p>
+          </ImportNotice>
+        ) : null}
+        {preview ? (
+          <ImportSection
+            title={result ? 'Resultado' : 'Prévia'}
+            aside={
+              <SummaryStrip
+                label={result ? 'Resultado da importação' : 'Resumo da planilha'}
+                items={result ? [
+                  { label: 'gravados', value: result.successCount },
+                  { label: 'recusados', value: result.errorCount, tone: result.errorCount ? 'danger' : 'default' },
+                ] : [
+                  { label: preview.rows.length === 1 ? 'veículo' : 'veículos', value: preview.rows.length },
+                  { label: rowErrors === 1 ? 'linha com erro' : 'linhas com erro', value: rowErrors, tone: rowErrors ? 'danger' : 'default' },
+                ]}
+              />
+            }
+          >
+            {result?.errors.length ? (
+              <ImportIssuesPanel
+                issues={rowErrorsToImportIssues(result.errors)}
+                filename="veiculos-recusados.csv"
+                title={`${plural(result.errors.length, 'linha recusada', 'linhas recusadas')} ao gravar`}
+                hint="Os demais veículos foram gravados. Corrija estas linhas e importe uma planilha só com elas."
+              />
+            ) : (
+              <>
+                {preview.rows.length ? (
+                  <>
+                    <div className="app-table-scroll max-h-72">
+                      <table className="app-table app-cargo-table app-cargo-table--preview">
+                        <caption className="sr-only">Prévia da importação de veículos</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col">Chassi</th>
+                            <th scope="col">Marca e modelo</th>
+                            <th scope="col">Container</th>
+                            <th scope="col">Lacre</th>
+                            <th scope="col">B/L</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.rows.slice(0, 20).map((row) => (
+                            <tr key={`${row.rowNumber}-${row.chassis}`}>
+                              <td className="app-cargo-code">{row.chassis}</td>
+                              <td>{[row.brand, row.model].filter(Boolean).join(' ')}</td>
+                              <td><span className="app-cargo-code">{row.container_number}</span> <span className="app-cargo-cell__sub">{row.container_type}</span></td>
+                              <td>{row.seal_number || '—'}</td>
+                              <td className="app-cargo-code">{row.bl_id}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <TruncationNote shown={20} total={preview.rows.length} noun="veículo" nounPlural="veículos" />
+                  </>
+                ) : null}
+                <ImportIssuesPanel issues={rowErrorsToImportIssues(preview.rowErrors)} filename="veiculos-issues.csv" />
+              </>
+            )}
+          </ImportSection>
+        ) : null}
+        {importError ? (
+          <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
+            <p>{importError}</p>
+            <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
+          </ImportNotice>
+        ) : null}
+        <div className="app-modal__actions">
+          <ImportFootnote tone={result || (preview && rowErrors) ? 'warning' : 'default'}>{footnote}</ImportFootnote>
+          {result ? (
+            <Button onClick={onClose}>Concluir</Button>
+          ) : (
+            <>
+              <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
+              <Button disabled={!canConfirm || parsing} loading={importing} loadingLabel="Importando…" onClick={() => void handleImport()}>
+                {preview?.rows.length ? `Importar ${plural(preview.rows.length, 'veículo', 'veículos')}` : 'Importar veículos'}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
-    </Card>
+    </Modal>
   )
 }
