@@ -50,6 +50,11 @@ function as(userId: string, sql: string) {
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
+    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT i.id FROM public.alert_items i
+      JOIN public.alerts a ON a.id = i.alert_id WHERE a.entity_type = 'customer' AND a.entity_id = '${CUSTOMER_ID}');
+    DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts
+      WHERE entity_type = 'customer' AND entity_id = '${CUSTOMER_ID}');
+    DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '${CUSTOMER_ID}';
     DELETE FROM public.audit_logs WHERE changed_by IN ('${ADMIN_ID}', '${OPS_ID}');
     DELETE FROM public.invoices WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.bls WHERE voyage_id IN (${VOYAGE_ID}, ${VOYAGE_CANCELLED});
@@ -129,6 +134,28 @@ describeLocal('089 — B/L cancelado, Reativar e CE', () => {
     expect(() => psql(`UPDATE public.bls SET ce_mercante = NULL WHERE id = 'BL089B';`)).toThrow(/não pode ser apagado: há fatura emitida/)
     psql(`UPDATE public.bls SET ce_mercante = NULL WHERE id = 'BL089A';`)
     expect(psql(`SELECT ce_mercante IS NULL FROM public.bls WHERE id = 'BL089A';`)).toBe('t')
+  })
+
+  // Migration 169: B/L cancelado não conta no Alerta de revisão do Cliente.
+  it('cancelar o único B/L em revisão fecha o Alerta do Portal; reativar reabre', () => {
+    const portalAlert = () => psql(`
+      SELECT COALESCE(string_agg(ai.status, ','), '')
+      FROM public.alert_items ai JOIN public.alerts a ON a.id = ai.alert_id
+      WHERE ai.item_type = 'review_portal_not_ready' AND a.entity_type = 'customer'
+        AND a.entity_id = '${CUSTOMER_ID}';
+    `)
+    // Cliente sem Portal: o B/L em revisão abre o Alerta pelo gatilho de linha.
+    psql(`SET request.jwt.claim.role = 'service_role';
+      INSERT INTO public.bls (id, voyage_id, customer_id, review_status)
+      VALUES ('BL089R', ${VOYAGE_ID}, ${CUSTOMER_ID}, 'pending_review');`)
+    expect(portalAlert()).toBe('active')
+
+    expect(as(ADMIN_ID, `SELECT public.cancel_bl('BL089R', 'não embarcou');`).json).toMatchObject({ cancelled: true })
+    expect(psql(`SELECT review_status FROM public.bls WHERE id = 'BL089R';`)).toBe('pending_review')
+    expect(portalAlert()).toBe('resolved')
+
+    expect(as(ADMIN_ID, `SELECT public.reactivate_bl('BL089R', 'cancelado por engano');`).json).toMatchObject({ reactivated: true })
+    expect(portalAlert()).toBe('active')
   })
 
   it('cancelar viagem exige o Administrativo; Reativar devolve a viagem', () => {
