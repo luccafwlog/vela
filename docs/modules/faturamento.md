@@ -110,7 +110,16 @@ da revisão visual (2026-10-09), a URL é a fonte do recorte
 (`src/pages/faturasListState.ts`): `tab=validacao` (ou o antigo `pendencias`),
 `invoice`, `customer`/`customerName`, `bl`, `fatura`, `viagem`, `pod`, `tipo`,
 `situacao`, `emissaoDe`/`emissaoAte`, `pagamentoDe`/`pagamentoAte`, `page` e
-`pageSize`; links antigos com `tab=invoices` continuam valendo. A lista usa:
+`pageSize`; links antigos com `tab=invoices` continuam valendo. Data fora do
+formato AAAA-MM-DD é ignorada e página além do total recua para a última.
+
+O B/L que filtra a Validação usa um parâmetro próprio, `validacaoBl`, e não o
+`bl` de Faturas. Um B/L com fatura ativa sai da fila da Validação; levar o
+filtro de Faturas ao trocar de aba abriria a fila vazia. Por isso cada aba
+começa sem o B/L da outra, e o recorte de Faturas é preservado na volta. A
+Validação abre filtrada só pelo alerta "Ver na Validação" ou por um link. O
+endereço antigo `tab=validacao&bl=` (ou `tab=pendencias&bl=`) é convertido na
+chegada. A lista usa:
 
 - `src/components/billing/InvoiceFiltersBar.tsx` para B/L, fatura, Cliente,
   navio/viagem, POD, tipo, situação (Em aberto, Paga ou coberta, Cancelada ou
@@ -129,7 +138,7 @@ Acima das abas ficam os alertas financeiros (cada um com o link de onde se
 resolve, `alertEntityLink`), a Reemissão pendente e os Ajustes de COD. Nesta
 página, o alerta de fatura abre o detalhe sem perder o recorte da lista, e o
 bloqueio de cobrança de um B/L sem rota própria leva à Validação filtrada pelo
-B/L (`financialAlertAction.ts`). A fatura aberta pela Reemissão pendente aparece
+B/L (`financialAlertAction.ts`, parâmetro `validacaoBl`). A fatura aberta pela Reemissão pendente aparece
 por cima da aba atual; `?invoice=` sem `tab` continua abrindo em Faturas.
 
 A página não marca faturas vencidas ao montar: **taxa local não tem vencimento

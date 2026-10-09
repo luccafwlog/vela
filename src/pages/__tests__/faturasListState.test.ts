@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { faturasFiltersFromSearch, tabFromSearch, withFaturasFilter, withoutFaturasFilters, withTab } from '../faturasListState'
+import { faturasFiltersFromSearch, fromLegacyValidacaoLink, tabFromSearch, withFaturasFilter, withoutFaturasFilters, withTab, withValidacaoBl } from '../faturasListState'
 
 const params = (query: string) => new URLSearchParams(query)
 
@@ -31,5 +31,21 @@ describe('faturasListState', () => {
     expect(withoutFaturasFilters(params('invoice=9&customer=1&customerName=A&fatura=F&page=2&pageSize=50')).toString()).toBe('invoice=9')
     expect(withTab(params('tab=pendencias&bl=X'), 'faturas').toString()).toBe('bl=X')
     expect(withTab(params('bl=X'), 'validacao').toString()).toBe('bl=X&tab=validacao')
+  })
+
+  it('o B/L da Validação não passa para Faturas nem volta ao trocar de aba', () => {
+    const viaAlerta = withValidacaoBl(params('bl=X&situacao=paid'), 'BL-9')
+    expect(viaAlerta.toString()).toBe('bl=X&situacao=paid&tab=validacao&validacaoBl=BL-9')
+    expect(faturasFiltersFromSearch(viaAlerta).blSearch).toBe('X')
+    const deVoltaAFaturas = withTab(viaAlerta, 'faturas')
+    expect(deVoltaAFaturas.toString()).toBe('bl=X&situacao=paid')
+    expect(withTab(deVoltaAFaturas, 'validacao').get('validacaoBl')).toBeNull()
+  })
+
+  it('converte o link antigo que filtrava a Validação por bl', () => {
+    expect(fromLegacyValidacaoLink(params('tab=pendencias&bl=X'))?.toString()).toBe('tab=pendencias&validacaoBl=X')
+    expect(fromLegacyValidacaoLink(params('tab=validacao&bl=X'))?.toString()).toBe('tab=validacao&validacaoBl=X')
+    expect(fromLegacyValidacaoLink(params('bl=X'))).toBeNull()
+    expect(fromLegacyValidacaoLink(params('tab=validacao&bl=X&validacaoBl=Y'))).toBeNull()
   })
 })

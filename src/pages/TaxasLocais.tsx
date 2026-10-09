@@ -28,7 +28,7 @@ import { queryKeys } from '../services/queryKeys'
 import { describeEmptyState } from '../lib/operationalState'
 import { userFacingErrorMessage } from '../lib/errors'
 import { formatBRL } from '../lib/utils'
-import { faturasFiltersFromSearch, tabFromSearch, withFaturasFilter, withoutFaturasFilters, withTab, type TaxasLocaisTab } from './faturasListState'
+import { VALIDACAO_BL_PARAM, faturasFiltersFromSearch, fromLegacyValidacaoLink, tabFromSearch, withFaturasFilter, withoutFaturasFilters, withTab, withValidacaoBl, type TaxasLocaisTab } from './faturasListState'
 
 export function TaxasLocais() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -44,6 +44,11 @@ export function TaxasLocais() {
   const validacaoInitialBlockCode = requestedTab === 'pendencias' ? 'calculo_incompleto' : undefined
   const selectedInvoiceId = Number(searchParams.get('invoice') ?? '') || null
   const customerFilterLabel = searchParams.get('customerName') ?? ''
+  const validacaoBl = searchParams.get(VALIDACAO_BL_PARAM) ?? ''
+  const [legacyValidacaoLink] = useState(() => fromLegacyValidacaoLink(searchParams))
+  useEffect(() => {
+    if (legacyValidacaoLink) setSearchParams(legacyValidacaoLink, { replace: true })
+  }, [legacyValidacaoLink, setSearchParams])
   const [filterResetKey, setFilterResetKey] = useState(0)
 
   const [exporting, setExporting] = useState(false)
@@ -106,9 +111,7 @@ export function TaxasLocais() {
   }
 
   function openValidacaoForBl(blId: string) {
-    const next = withTab(searchParams, 'validacao')
-    next.set('bl', blId)
-    setSearchParams(next)
+    setSearchParams(withValidacaoBl(searchParams, blId))
   }
 
   function closeDetails() {
@@ -190,7 +193,7 @@ export function TaxasLocais() {
       <div id="taxas-panel" role="tabpanel" aria-labelledby={activeTab === 'faturas' ? 'taxas-tab-faturas' : 'taxas-tab-validacao'}>
         {activeTab === 'validacao' ? (
           // A busca da fila só é semeada na montagem; um alerta de outro B/L precisa remontá-la.
-          <ValidacaoTab key={`validacao-${searchParams.get('bl') ?? ''}`} userId={user?.id ?? null} initialBlockCode={validacaoInitialBlockCode} initialBlSearch={searchParams.get('bl') ?? ''} />
+          <ValidacaoTab key={`validacao-${validacaoBl}`} userId={user?.id ?? null} initialBlockCode={validacaoInitialBlockCode} initialBlSearch={validacaoBl} />
         ) : (
           <>
             <InvoiceFiltersBar

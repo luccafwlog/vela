@@ -90,9 +90,38 @@ export function withoutFaturasFilters(params: URLSearchParams): URLSearchParams 
   return next
 }
 
+/**
+ * B/L que filtra a Validação. É separado do `bl` de Faturas: um B/L com fatura
+ * ativa sai da fila, então levar o filtro de Faturas abriria a Validação vazia.
+ * Só um link ou o alerta "Ver na Validação" abre a fila filtrada.
+ */
+export const VALIDACAO_BL_PARAM = 'validacaoBl'
+
 export function withTab(params: URLSearchParams, tab: TaxasLocaisTab): URLSearchParams {
   const next = new URLSearchParams(params)
   if (tab === 'validacao') next.set('tab', 'validacao')
   else next.delete('tab')
+  // O recorte de Faturas fica para a volta; o filtro da Validação não acompanha a troca.
+  next.delete(VALIDACAO_BL_PARAM)
+  return next
+}
+
+export function withValidacaoBl(params: URLSearchParams, blId: string): URLSearchParams {
+  const next = withTab(params, 'validacao')
+  next.set(VALIDACAO_BL_PARAM, blId)
+  return next
+}
+
+/**
+ * Antes da etapa 10, `tab=validacao&bl=X` (ou `tab=pendencias&bl=X`) abria a
+ * Validação filtrada. Converte esse endereço antigo uma vez, na chegada.
+ */
+export function fromLegacyValidacaoLink(params: URLSearchParams): URLSearchParams | null {
+  const tab = params.get('tab')
+  const bl = params.get('bl')
+  if ((tab !== 'validacao' && tab !== 'pendencias') || !bl || params.get(VALIDACAO_BL_PARAM)) return null
+  const next = new URLSearchParams(params)
+  next.delete('bl')
+  next.set(VALIDACAO_BL_PARAM, bl)
   return next
 }

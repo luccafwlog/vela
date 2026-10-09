@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   detailInvoiceId: vi.fn(),
+  validacaoBlSearch: vi.fn(),
   invalidateQueries: vi.fn(),
   detectOverdueInvoices: vi.fn(),
   invoices: { rows: [], count: 0 } as { rows: unknown[]; count: number },
@@ -36,7 +37,12 @@ vi.mock('../../components/billing/InvoiceDetailModal', () => ({
     return <div data-testid="invoice-id">{String(invoiceId)}</div>
   },
 }))
-vi.mock('../../components/billing/ValidacaoTab', () => ({ ValidacaoTab: () => null }))
+vi.mock('../../components/billing/ValidacaoTab', () => ({
+  ValidacaoTab: ({ initialBlSearch }: { initialBlSearch?: string }) => {
+    mocks.validacaoBlSearch(initialBlSearch)
+    return null
+  },
+}))
 vi.mock('../../components/billing/FinancialAlertsPanel', () => ({ FinancialAlertsPanel: () => null }))
 vi.mock('../../components/billing/InvoiceFiltersBar', () => ({ InvoiceFiltersBar: () => null }))
 vi.mock('../../components/billing/InvoicesTable', () => ({ InvoicesTable: () => null }))
@@ -101,4 +107,26 @@ it('link com página além do total recua para a última página que existe', as
   )
 
   await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?situacao=paid&page=3'))
+})
+
+it('o B/L filtrado em Faturas não filtra a Validação ao trocar de aba', async () => {
+  const { default: userEvent } = await import('@testing-library/user-event')
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/taxas-locais?bl=COSU123']}><TaxasLocais /></MemoryRouter>)
+
+  await user.click(screen.getByRole('tab', { name: 'Validação' }))
+
+  expect(mocks.validacaoBlSearch).toHaveBeenLastCalledWith('')
+})
+
+it('link antigo com tab=pendencias&bl abre a Validação filtrada pelo B/L', async () => {
+  render(
+    <MemoryRouter initialEntries={['/taxas-locais?tab=pendencias&bl=COSU123']}>
+      <TaxasLocais />
+      <LocationProbe />
+    </MemoryRouter>,
+  )
+
+  await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?tab=pendencias&validacaoBl=COSU123'))
+  expect(mocks.validacaoBlSearch).toHaveBeenLastCalledWith('COSU123')
 })
