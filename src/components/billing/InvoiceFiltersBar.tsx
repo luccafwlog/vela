@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { FilterBar } from '../ui/FilterBar'
 import { formatCnpjCpf } from '../../lib/utils'
 import { Field, Input, Select } from '../ui/Input'
@@ -27,6 +28,26 @@ type InvoiceFiltersBarProps = {
   updateFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void
 }
 
+/**
+ * O Combobox lê `initialValue` só na montagem. Com o filtro na URL, voltar ou
+ * avançar no navegador muda o valor sem passar pelo campo; quando o valor da
+ * URL deixa de bater com o que o campo enviou, a revisão muda e o campo remonta
+ * com o texto certo. Digitação própria não remonta (perderia o foco).
+ */
+function useUrlFieldRevision(value: string) {
+  const [sent, setSent] = useState(value)
+  const [previous, setPrevious] = useState(value)
+  const [revision, setRevision] = useState(0)
+  if (value !== previous) {
+    setPrevious(value)
+    if (value.trim() !== sent.trim()) {
+      setSent(value)
+      setRevision((current) => current + 1)
+    }
+  }
+  return { revision, track: setSent }
+}
+
 export function InvoiceFiltersBar({
   filters,
   filterResetKey,
@@ -36,26 +57,32 @@ export function InvoiceFiltersBar({
   onSelectCustomer,
   updateFilter,
 }: InvoiceFiltersBarProps) {
+  const bl = useUrlFieldRevision(filters.blSearch)
+  const invoice = useUrlFieldRevision(filters.search)
+  const voyage = useUrlFieldRevision(filters.voyageSearch)
+  const pod = useUrlFieldRevision(filters.pod)
   return (
     <FilterBar activeCount={activeFilterCount} onClear={onClear}>
       <div className="app-filter-grid">
         <Combobox
-          key={`bl-${filterResetKey}`}
+          key={`bl-${filterResetKey}-${bl.revision}`}
           label="B/L"
           placeholder="Número do B/L"
           initialValue={filters.blSearch}
+          onInputChange={bl.track}
           onValueChange={(value) => updateFilter('blSearch', value)}
           fetchOptions={async (q) => (await listBlSuggestions(q)).map((id): ComboOption => ({ value: id, label: id }))}
-          onSelectOption={(option) => updateFilter('blSearch', option.value)}
+          onSelectOption={(option) => { bl.track(option.value); updateFilter('blSearch', option.value) }}
         />
         <Combobox
-          key={`inv-${filterResetKey}`}
+          key={`inv-${filterResetKey}-${invoice.revision}`}
           label="Fatura"
           placeholder="Número da fatura"
           initialValue={filters.search}
+          onInputChange={invoice.track}
           onValueChange={(value) => updateFilter('search', value)}
           fetchOptions={async (q) => (await listInvoiceNumberSuggestions(q)).map((n): ComboOption => ({ value: n, label: n }))}
-          onSelectOption={(option) => updateFilter('search', option.value)}
+          onSelectOption={(option) => { invoice.track(option.value); updateFilter('search', option.value) }}
         />
         <Combobox
           key={`cli-${filterResetKey}-${customerInitialValue}`}
@@ -69,20 +96,22 @@ export function InvoiceFiltersBar({
           onSelectOption={(option) => onSelectCustomer(option.value, option.label)}
         />
         <Combobox
-          key={`voy-${filterResetKey}`}
+          key={`voy-${filterResetKey}-${voyage.revision}`}
           label="Navio / Viagem"
           initialValue={filters.voyageSearch}
+          onInputChange={voyage.track}
           onValueChange={(value) => updateFilter('voyageSearch', value)}
           fetchOptions={async (q) => (await listVoyageSuggestions(q)).map((v): ComboOption => ({ value: v.voyageNumber, label: v.label }))}
-          onSelectOption={(option) => updateFilter('voyageSearch', option.value)}
+          onSelectOption={(option) => { voyage.track(option.value); updateFilter('voyageSearch', option.value) }}
         />
         <Combobox
-          key={`pod-${filterResetKey}`}
+          key={`pod-${filterResetKey}-${pod.revision}`}
           label="POD"
           initialValue={filters.pod}
+          onInputChange={pod.track}
           onValueChange={(value) => updateFilter('pod', value)}
           fetchOptions={async (q) => (await listPodSuggestions(q)).map((p): ComboOption => ({ value: p, label: p }))}
-          onSelectOption={(option) => updateFilter('pod', option.value)}
+          onSelectOption={(option) => { pod.track(option.value); updateFilter('pod', option.value) }}
         />
         <Field label="Tipo"><Select value={filters.invoiceType} onChange={(event) => updateFilter('invoiceType', event.target.value as InvoiceTypeFilter)}><option value="">Todos</option><option value="single">Única BL</option><option value="consolidated">Consolidada</option><option value="manual">Avulsa</option></Select></Field>
         <Field label="Situação"><Select value={filters.status} onChange={(event) => updateFilter('status', event.target.value as InvoiceStatusFilter)}><option value="">Todos</option>{INVOICE_STATUS_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field>
