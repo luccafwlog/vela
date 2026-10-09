@@ -140,7 +140,8 @@ confirmação em si é gravada pelo Supabase quando o link é aberto, em qualque
 navegador: aberto em outro, o link confirma a troca, mas não entrega sessão, e
 o Vela pede login (observado em produção em 2026-10-08). Com "Secure email
 change" ligado, a troca exige os links enviados ao e-mail antigo e ao novo. Sem
-`emailRedirectTo`, o link volta ao Site URL do projeto (`https://vela.app.br`). Sem sessão, `useAuth` limpa o cache do TanStack Query.
+`emailRedirectTo`, o link volta ao Site URL do projeto (`https://vela.app.br`).
+Sem sessão, `useAuth` limpa o cache do TanStack Query.
 Na inicialização, `Invalid Refresh Token`/`invalid_grant` provoca limpeza da
 sessão e estado `signed-out`, permitindo novo login; outras falhas de sessão
 mantêm o estado `transient-error` para não mascarar indisponibilidade.
