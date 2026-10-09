@@ -194,10 +194,11 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
             key={`manual-customer-${formResetKey}`}
             label="Cliente"
             placeholder="Nome ou CNPJ"
-            onValueChange={(value) => {
-              if (customer && value === customer.name) return
-              if (customer) { setCustomer(null); resetContext() }
+            // Invalida na hora: o debounce do Combobox deixaria um Enter enviar o Cliente anterior.
+            onInputChange={(value) => {
+              if (customer && value !== customer.name) { setCustomer(null); resetContext() }
             }}
+            onValueChange={() => undefined}
             fetchOptions={async (query) => (await listBillingCustomers(query)).map((row): ComboOption => ({ value: String(row.id), label: row.name, meta: formatCnpjCpf(row.cnpj_cpf) }))}
             onSelectOption={(option) => {
               setCustomer({ id: Number(option.value), name: option.label })
@@ -214,7 +215,8 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
             label="Tipo de cobrança"
             options={KIND_OPTIONS}
             value={kind}
-            onChange={(value) => { setKind(value); setChargeItemId(null); setErrors({}) }}
+            // B/L e Viagem ficam em campos que somem ao trocar o tipo; não podem seguir invisíveis na emissão.
+            onChange={(value) => { setKind(value); resetContext(); setErrors({}) }}
           />
           <span className="app-field__hint">
             {tableCharge
@@ -231,6 +233,9 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
                 label="B/L"
                 placeholder={customerId ? 'Número do B/L deste Cliente' : 'Selecione o Cliente primeiro'}
                 disabled={customerId == null}
+                onInputChange={(value) => {
+                  if (blId && value.trim().toUpperCase() !== blId) { setBlId(null); setChargeItemId(null) }
+                }}
                 onValueChange={(value) => void selectBl(value)}
                 fetchOptions={async (query) => (await listBlSuggestions(query, customerId)).map((id): ComboOption => ({ value: id, label: id }))}
                 onSelectOption={(option) => void selectBl(option.value)}
@@ -295,7 +300,8 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
                 label="B/L (opcional)"
                 placeholder={customerId ? 'Número do B/L deste Cliente' : 'Selecione o Cliente primeiro'}
                 disabled={customerId == null}
-                onValueChange={(value) => { setVoyageId(null); setBlId(value.trim() ? value.trim().toUpperCase() : null) }}
+                onInputChange={(value) => { setVoyageId(null); setBlId(value.trim() ? value.trim().toUpperCase() : null) }}
+                onValueChange={() => undefined}
                 fetchOptions={async (query) => (await listBlSuggestions(query, customerId)).map((id): ComboOption => ({ value: id, label: id }))}
                 onSelectOption={(option) => void selectBl(option.value)}
               />

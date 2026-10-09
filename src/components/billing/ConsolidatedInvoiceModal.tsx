@@ -66,6 +66,10 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
       setError('Selecione um cliente.')
       return
     }
+    if (receivablesError) {
+      setError('Não foi possível consultar os B/Ls deste Cliente. Feche e abra de novo antes de emitir.')
+      return
+    }
     if (selected.length === 0) {
       setError('Selecione ao menos um B/L com saldo aberto.')
       return
@@ -115,7 +119,8 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
                 key={`consolidated-customer-${customerKey}`}
                 label="Cliente"
                 placeholder="Nome ou CNPJ"
-                onValueChange={(value) => {
+                // Invalida na hora: com o debounce do Combobox, a lista do Cliente anterior seguiria emitível.
+                onInputChange={(value) => {
                   if (customerId != null && value !== customerName) {
                     setCustomerId(null)
                     setCustomerName('')
@@ -124,6 +129,7 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
                     setSelected([])
                   }
                 }}
+                onValueChange={() => undefined}
                 fetchOptions={async (query) => (await listBillingCustomers(query)).map((row): ComboOption => ({ value: String(row.id), label: row.name, meta: formatCnpjCpf(row.cnpj_cpf) }))}
                 onSelectOption={(option) => {
                   setCustomerId(Number(option.value))
@@ -237,7 +243,7 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
               onClick={submit}
               loading={createMutation.isPending}
               loadingLabel="Emitindo…"
-              disabled={selected.length === 0}
+              disabled={selected.length === 0 || Boolean(receivablesError)}
             >
               Emitir consolidada
             </Button>

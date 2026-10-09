@@ -72,6 +72,33 @@ describe('ConsolidatedInvoiceModal — seletor de cliente', () => {
     expect(screen.queryByText('Nenhum B/L para consolidar')).toBeNull()
   })
 
+  it('falha na nova consulta dos B/Ls bloqueia a emissão com a seleção anterior', async () => {
+    mocks.receivables = [{
+      receivable_id: 91,
+      bl_id: 'BL-91',
+      balance_brl: 1250,
+      eligibility_status: 'eligible',
+      receivable_status: 'open',
+      voyage_id: null,
+      vessel_name: null,
+      voyage_number: null,
+      individual_invoice_id: null,
+      individual_invoice_number: null,
+    }]
+    mocks.confirm.mockResolvedValue(true)
+    const user = userEvent.setup()
+    const input = openModal()
+    await chooseCustomer(user, input, 'gol', 'GOLDEN LOGISTICA INTERNACIONAL LTDA')
+    await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-91' }))
+
+    // React Query mantém as linhas em cache quando a nova consulta falha.
+    mocks.error = new Error('falhou')
+    await user.type(screen.getByLabelText('Buscar B/L'), 'B')
+
+    expect((screen.getByRole('button', { name: 'Emitir consolidada' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(mocks.create).not.toHaveBeenCalled()
+  })
+
   it('mostra o escopo e não cria a consolidada se a pessoa voltar', async () => {
     mocks.receivables = [{
       receivable_id: 91,

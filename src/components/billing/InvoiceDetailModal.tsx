@@ -537,7 +537,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                       {refund.status === 'pending' && (canSettleRefund || (isAdmin && authorizationIds.has(refund.id))) && refundToConfirm !== refund.id && authorizationToCancel !== refund.id ? (
                         <div className="app-invoice-detail__inline-actions">
                           {canSettleRefund ? <Button variant="secondary" onClick={() => { setRefundToConfirm(refund.id); setAuthorizationToCancel(null); setRefundReference(''); setRefundBeneficiary(''); setRefundDate(''); setRefundError('') }}>Confirmar devolução…</Button> : null}
-                          {isAdmin && authorizationIds.has(refund.id) ? <Button variant="ghost" onClick={() => { setAuthorizationToCancel(refund.id); setRefundToConfirm(null); setRefundError('') }}>Cancelar autorização</Button> : null}
+                          {isAdmin && authorizationIds.has(refund.id) ? <Button variant="ghost" onClick={() => { setAuthorizationToCancel(refund.id); setRefundToConfirm(null); setAuthorizationReason(''); setRefundError('') }}>Cancelar autorização</Button> : null}
                         </div>
                       ) : null}
                       {refundToConfirm === refund.id ? (
@@ -558,7 +558,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                           <div className="app-invoice-detail__form-wide"><Field label="Motivo para cancelar autorização" required hint="Pelo menos 10 caracteres. Confirme que o dinheiro ainda não foi devolvido."><Textarea value={authorizationReason} onChange={(event) => setAuthorizationReason(event.target.value)} /></Field></div>
                           {refundError ? <p role="alert" className="app-invoice-detail__alert app-invoice-detail__form-wide">{refundError}</p> : null}
                           <div className="app-invoice-detail__form-actions">
-                            <Button variant="ghost" onClick={() => setAuthorizationToCancel(null)}>Voltar</Button>
+                            <Button variant="ghost" onClick={() => { setAuthorizationToCancel(null); setAuthorizationReason('') }}>Voltar</Button>
                             <Button variant="danger" onClick={handleCancelAuthorization} loading={cancelAuthorizationMutation.isPending} disabled={authorizationReason.trim().length < 10}>Cancelar autorização</Button>
                           </div>
                         </div>
@@ -571,7 +571,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
               {detailInvoice && ['individual', 'consolidated'].includes(detailInvoice.invoice_type ?? '') && Number(detailInvoice.total_paid_brl ?? 0) > 0 && ['paid', 'partially_paid'].includes(detailInvoice.status ?? '') ? (
                 <InvoiceCorrectionPanel key={invoiceId} invoiceId={Number(invoiceId)} />
               ) : null}
-              {detailIsManual && !enablePaymentReversal ? <FinancialRefundsPanel source="manual" invoiceId={Number(invoiceId)} variant="authorization" /> : null}
+              {detailIsManual ? <FinancialRefundsPanel source="manual" invoiceId={Number(invoiceId)} variant="authorization" /> : null}
 
               {!enablePaymentReversal ? (
                 <section className="app-invoice-detail__section" aria-labelledby="invoice-detail-register">

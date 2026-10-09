@@ -55,17 +55,18 @@ vi.mock('../../ui/Combobox', () => ({
     label,
     disabled,
     onSelectOption,
-    onValueChange,
+    onInputChange,
   }: {
     label: string
     disabled?: boolean
     onSelectOption?: (option: { value: string; label: string }) => void
-    onValueChange: (value: string) => void
+    onInputChange?: (value: string) => void
   }) => (
     <div>
       <label>
         {label}
-        <input aria-label={label} disabled={disabled} onChange={(event) => onValueChange(event.target.value)} />
+        {/* Só o evento imediato: o onValueChange real chega 300 ms depois, e um Enter pode vir antes. */}
+        <input aria-label={label} disabled={disabled} onChange={(event) => onInputChange?.(event.target.value)} />
       </label>
       {label === 'Cliente' ? (
         <button type="button" onClick={() => onSelectOption?.({ value: '1', label: customers[0].name })}>Escolher {customers[0].name}</button>
@@ -254,4 +255,37 @@ it('Outra mostra o total ao digitar e mantém a falha da emissão no formulário
   await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Nada foi emitido'))
   expect(mocks.onClose).not.toHaveBeenCalled()
   expect(screen.getByRole('dialog', { name: 'Nova fatura avulsa' })).toBeTruthy()
+})
+
+it('editar o Cliente já escolhido invalida a seleção antes do debounce da busca', async () => {
+  const user = userEvent.setup()
+  openModal()
+  await fillRequiredFields(user)
+  await user.type(screen.getByLabelText('Cliente'), 'GOLDEN')
+
+  await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
+
+  expect(screen.getByRole('alert').textContent).toContain('Selecione o Cliente.')
+  expect(mocks.confirm).not.toHaveBeenCalled()
+  expect(mocks.mutateAsync).not.toHaveBeenCalled()
+})
+
+it('trocar o tipo de cobrança descarta B/L e Viagem que ficariam invisíveis', async () => {
+  const user = userEvent.setup()
+  openModal()
+  await fillRequiredFields(user)
+  await user.click(screen.getByRole('button', { name: 'BL-1' }))
+  await user.click(screen.getByRole('button', { name: 'Viagem 42' }))
+
+  await user.click(screen.getByRole('radio', { name: 'Item da tabela' }))
+  expect((screen.getByLabelText(/^Item da tabela/) as HTMLSelectElement).disabled).toBe(true)
+
+  await user.click(screen.getByRole('radio', { name: 'Outra' }))
+  await fillRequiredFields(user)
+  await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
+
+  await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled())
+  const input = mocks.mutateAsync.mock.calls[0][0]
+  expect(input.blId).toBeUndefined()
+  expect(input.voyageId).toBeUndefined()
 })

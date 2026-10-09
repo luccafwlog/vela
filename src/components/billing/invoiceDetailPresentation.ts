@@ -30,7 +30,8 @@ const STATUS_TONES: Record<string, InvoiceStatusTag['tone']> = {
 
 /** Situação exata da fatura (não o grupo do filtro): "Parcialmente paga" não vira "Emitida". */
 export function invoiceStatusTag(status: string | null | undefined): InvoiceStatusTag {
-  const key = status ?? 'issued'
+  // `overdue` é legado: taxa local não vence (ADR 0055) e o banco trata como aberta.
+  const key = !status || status === 'overdue' ? 'issued' : status
   return { label: INVOICE_STATUS_LABELS[key] ?? 'Situação não informada', tone: STATUS_TONES[key] ?? 'neutral' }
 }
 

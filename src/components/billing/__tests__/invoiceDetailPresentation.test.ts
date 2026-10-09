@@ -44,6 +44,7 @@ describe('invoiceStatusTag', () => {
   it('mostra a situação exata em vez do grupo do filtro', () => {
     expect(invoiceStatusTag('partially_paid')).toEqual({ label: 'Parcialmente paga', tone: 'warning' })
     expect(invoiceStatusTag('covered').label).toBe('Coberta')
+    expect(invoiceStatusTag('overdue').label).toBe('Emitida')
     expect(invoiceStatusTag('obsolete').label).toBe('Obsoleta')
   })
 })

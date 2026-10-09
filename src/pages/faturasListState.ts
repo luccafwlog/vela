@@ -34,8 +34,8 @@ function positiveInt(value: string | null) {
 }
 
 export function tabFromSearch(params: URLSearchParams): TaxasLocaisTab {
+  // A fatura abre por cima da aba atual: abrir uma reemissão na Validação não desmonta a fila.
   const tab = params.get('tab')
-  if (params.get('invoice')) return 'faturas'
   return tab === 'validacao' || tab === 'pendencias' ? 'validacao' : 'faturas'
 }
 

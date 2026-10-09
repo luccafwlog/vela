@@ -9,7 +9,8 @@ describe('faturasListState', () => {
     expect(filters).toMatchObject({ customerId: '42', blSearch: 'BL-1', page: 1, pageSize: 20 })
     expect(tabFromSearch(params('tab=invoices'))).toBe('faturas')
     expect(tabFromSearch(params('tab=pendencias'))).toBe('validacao')
-    expect(tabFromSearch(params('tab=validacao&invoice=9'))).toBe('faturas')
+    expect(tabFromSearch(params('invoice=9'))).toBe('faturas')
+    expect(tabFromSearch(params('tab=validacao&invoice=9'))).toBe('validacao')
   })
 
   it('ignora situação, tipo, página e tamanho inválidos', () => {

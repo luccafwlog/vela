@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowRight } from 'lucide-react'
-import { alertEntityLink, getAlertTypeLabel, getEffectiveAlertType, type AlertQueueRow } from '../../services/alerts'
+import { getAlertTypeLabel, getEffectiveAlertType, type AlertQueueRow } from '../../services/alerts'
+import { financialAlertAction } from './financialAlertAction'
 
 const VISIBLE = 4
 
@@ -13,10 +14,14 @@ export function FinancialAlertsPanel({
   alerts,
   loading = false,
   error = false,
+  onOpenInvoice,
+  onOpenValidacao,
 }: {
   alerts: AlertQueueRow[]
   loading?: boolean
   error?: boolean
+  onOpenInvoice: (invoiceId: number) => void
+  onOpenValidacao: (blId: string) => void
 }) {
   if (loading) {
     return <div className="app-fin-alerts app-fin-alerts--loading" aria-busy="true"><span className="sr-only">Carregando alertas financeiros…</span></div>
@@ -39,16 +44,21 @@ export function FinancialAlertsPanel({
       </h2>
       <ul className="app-fin-alerts__list">
         {alerts.slice(0, VISIBLE).map((alert) => {
-          const target = alertEntityLink(alert)
+          const action = financialAlertAction(alert)
           return (
             <li key={alert.item_id ?? alert.id} className="app-fin-alerts__item">
               <span className="app-fin-alerts__type">{getAlertTypeLabel(getEffectiveAlertType(alert))}</span>
               <span className="app-fin-alerts__message">{alert.message}</span>
-              {target ? (
-                <Link className="app-fin-alerts__link" to={target}>
-                  {target.startsWith('/taxas-locais?invoice=') ? 'Abrir fatura' : 'Abrir'}
-                  <ArrowRight size={14} aria-hidden="true" />
-                </Link>
+              {action?.kind === 'invoice' ? (
+                <button type="button" className="app-fin-alerts__link" onClick={() => onOpenInvoice(action.invoiceId)}>
+                  Abrir fatura<ArrowRight size={14} aria-hidden="true" />
+                </button>
+              ) : action?.kind === 'validacao' ? (
+                <button type="button" className="app-fin-alerts__link" onClick={() => onOpenValidacao(action.blId)}>
+                  Ver na Validação<ArrowRight size={14} aria-hidden="true" />
+                </button>
+              ) : action ? (
+                <Link className="app-fin-alerts__link" to={action.to}>Abrir<ArrowRight size={14} aria-hidden="true" /></Link>
               ) : null}
             </li>
           )

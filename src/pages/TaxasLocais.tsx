@@ -98,6 +98,12 @@ export function TaxasLocais() {
     setSearchParams(next)
   }
 
+  function openValidacaoForBl(blId: string) {
+    const next = withTab(searchParams, 'validacao')
+    next.set('bl', blId)
+    setSearchParams(next)
+  }
+
   function closeDetails() {
     const next = new URLSearchParams(searchParams)
     next.delete('invoice')
@@ -162,6 +168,8 @@ export function TaxasLocais() {
           alerts={financialAlertsQuery.data ?? []}
           loading={financialAlertsQuery.isLoading}
           error={Boolean(financialAlertsQuery.error)}
+          onOpenInvoice={openInvoice}
+          onOpenValidacao={openValidacaoForBl}
         />
         <PendingReissuesPanel onOpenInvoice={openInvoice} />
         <CodAdjustmentsPanel />
@@ -174,7 +182,8 @@ export function TaxasLocais() {
 
       <div id="taxas-panel" role="tabpanel" aria-labelledby={activeTab === 'faturas' ? 'taxas-tab-faturas' : 'taxas-tab-validacao'}>
         {activeTab === 'validacao' ? (
-          <ValidacaoTab userId={user?.id ?? null} initialBlockCode={validacaoInitialBlockCode} initialBlSearch={searchParams.get('bl') ?? ''} />
+          // A busca da fila só é semeada na montagem; um alerta de outro B/L precisa remontá-la.
+          <ValidacaoTab key={`validacao-${searchParams.get('bl') ?? ''}`} userId={user?.id ?? null} initialBlockCode={validacaoInitialBlockCode} initialBlSearch={searchParams.get('bl') ?? ''} />
         ) : (
           <>
             <InvoiceFiltersBar

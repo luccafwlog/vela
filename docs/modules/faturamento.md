@@ -126,7 +126,11 @@ da revisão visual (2026-10-09), a URL é a fonte do recorte
   de `useInvoices`.
 
 Acima das abas ficam os alertas financeiros (cada um com o link de onde se
-resolve, `alertEntityLink`), a Reemissão pendente e os Ajustes de COD.
+resolve, `alertEntityLink`), a Reemissão pendente e os Ajustes de COD. Nesta
+página, o alerta de fatura abre o detalhe sem perder o recorte da lista, e o
+bloqueio de cobrança de um B/L sem rota própria leva à Validação filtrada pelo
+B/L (`financialAlertAction.ts`). A fatura aberta pela Reemissão pendente aparece
+por cima da aba atual; `?invoice=` sem `tab` continua abrindo em Faturas.
 
 A página não marca faturas vencidas ao montar: **taxa local não tem vencimento
 praticado** (ADR 0055, migration `348`), e o detector `detect_overdue_invoices`
