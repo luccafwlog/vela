@@ -1,10 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import {
   chargeTableAlerts,
+  normalizeChargeTablePod,
+  resolveChargeTableStates,
+  toAmount,
   validateOverrideInput,
   validateTableInput,
   validateTableItemInput,
 } from '../taxasLocaisHelpers'
+
+describe('toAmount', () => {
+  it('lê valores em pt-BR e recusa o formato americano em vez de errar a escala', () => {
+    expect(toAmount('1420,50')).toBe(1420.5)
+    expect(toAmount('1.420,50')).toBe(1420.5)
+    expect(toAmount('R$ 1.420,50')).toBe(1420.5)
+    expect(toAmount('1420.50')).toBe(1420.5)
+    expect(toAmount('12.5')).toBe(12.5)
+    expect(toAmount('0,5')).toBe(0.5)
+    // Ponto com exatamente três dígitos depois é milhar.
+    expect(toAmount('1.420')).toBe(1420)
+    expect(toAmount('1.420.500')).toBe(1420500)
+    // "1,420.50" lido como pt-BR viraria 1,42: recusado.
+    expect(toAmount('1,420.50')).toBeNaN()
+    expect(toAmount('US$ 1,420.50')).toBeNaN()
+    expect(toAmount('1,2,3')).toBeNaN()
+  })
+})
 
 describe('validateOverrideInput', () => {
   const base = {
@@ -34,15 +55,18 @@ describe('validateOverrideInput', () => {
   it('exige cliente, item e valor > 0 na ordem certa', () => {
     expect(validateOverrideInput({ ...base, customerId: '0' })).toMatchObject({
       ok: false,
-      error: 'Selecione um cliente para salvar o override.',
+      field: 'customerId',
+      error: 'Selecione o Cliente da condição.',
     })
     expect(validateOverrideInput({ ...base, chargeItemId: '' })).toMatchObject({
       ok: false,
-      error: 'Selecione um item de taxa para salvar o override.',
+      field: 'chargeItemId',
+      error: 'Selecione o item de taxa da condição.',
     })
     expect(validateOverrideInput({ ...base, overrideValue: '0' })).toMatchObject({
       ok: false,
-      error: 'Informe um valor de override valido (maior que zero).',
+      field: 'overrideValue',
+      error: 'Informe o valor negociado (maior que zero).',
     })
   })
 
@@ -67,7 +91,7 @@ describe('validateTableInput', () => {
 
   it('exige nome, pod e vigência inicial', () => {
     expect(validateTableInput({ ...base, name: '  ' })).toMatchObject({ ok: false, error: 'Informe o nome da tabela.' })
-    expect(validateTableInput({ ...base, pod: '' })).toMatchObject({ ok: false, error: 'Informe o POD da tabela.' })
+    expect(validateTableInput({ ...base, pod: '' })).toMatchObject({ ok: false, field: 'pod', error: 'Informe o POD da tabela.' })
     expect(validateTableInput({ ...base, validFrom: '' })).toMatchObject({
       ok: false,
       error: 'Informe a vigência inicial da tabela.',
@@ -93,8 +117,15 @@ describe('validateTableItemInput', () => {
     expect(validateTableItemInput({ ...base, unitValue: '0' })).toMatchObject({ ok: true })
     expect(validateTableItemInput({ ...base, unitValue: '-1' })).toMatchObject({
       ok: false,
-      error: 'Valor unitario invalido.',
+      error: 'Informe um valor unitário válido (zero ou maior).',
     })
+    expect(validateTableItemInput({ ...base, unitValue: '  ' })).toMatchObject({ ok: false, field: 'unitValue' })
+  })
+
+  it('lê valor com milhar e decimal em pt-BR', () => {
+    expect(validateTableItemInput({ ...base, unitValue: '1.420,50' })).toMatchObject({ ok: true, value: { unitValue: 1420.5 } })
+    expect(validateTableItemInput({ ...base, unitValue: 'R$ 2.130,00' })).toMatchObject({ ok: true, value: { unitValue: 2130 } })
+    expect(validateTableItemInput({ ...base, unitValue: '62.5' })).toMatchObject({ ok: true, value: { unitValue: 62.5 } })
   })
 
   it('exige tabela, nome e sort order válido', () => {
@@ -108,7 +139,8 @@ describe('validateTableItemInput', () => {
     })
     expect(validateTableItemInput({ ...base, sortOrder: '-2' })).toMatchObject({
       ok: false,
-      error: 'Sort order invalido.',
+      field: 'sortOrder',
+      error: 'A ordem de exibição deve ser um número inteiro, zero ou maior.',
     })
   })
 })
@@ -167,17 +199,27 @@ describe('chargeTableAlerts', () => {
   })
 
   it('groups POD aliases the way the database does, so the alert matches the engine', () => {
-    // public.normalize_port_code (migration 063) dobra BRVIT/BRVIX/VITORIA em
-    // BRVIT — o motor veria uma tabela sombreando a outra.
+    // public.normalize_port_code (baseline 002) dobra BRVIT, VITORIA e VIX em
+    // BRVIX — o motor veria uma tabela sombreando a outra.
     const alerts = chargeTableAlerts(
       [
         { ...base, id: 1, pod: 'BRVIT', valid_from: '2026-01-01' },
-        { ...base, id: 2, pod: 'Vitoria, Brazil', valid_from: '2026-07-01' },
+        { ...base, id: 2, pod: ' vitoria ', valid_from: '2026-07-01' },
       ],
       today,
     )
     expect(alerts.get(1)?.map((alert) => alert.label)).toEqual(['Não aplicada'])
     expect(alerts.has(2)).toBe(false)
+  })
+
+  it('normalizes POD exactly like normalize_port_code (no "contains")', () => {
+    expect(normalizeChargeTablePod(' santos ')).toBe('BRSSZ')
+    expect(normalizeChargeTablePod('SSZ')).toBe('BRSSZ')
+    expect(normalizeChargeTablePod('ssa')).toBe('BRSSA')
+    expect(normalizeChargeTablePod('BRVIT')).toBe('BRVIX')
+    // Conferido no Postgres local: o banco não reconhece texto com sufixo.
+    expect(normalizeChargeTablePod('Vitoria, Brazil')).toBe('VITORIA, BRAZIL')
+    expect(normalizeChargeTablePod('')).toBe('')
   })
 
   it('does not treat different PODs or cargo modes as the same scope', () => {
@@ -190,5 +232,36 @@ describe('chargeTableAlerts', () => {
       today,
     )
     expect(alerts.size).toBe(0)
+  })
+})
+
+describe('resolveChargeTableStates', () => {
+  const row = (id: number, over: Partial<{ cargo_mode: 'container' | 'carga_solta'; pod: string; valid_from: string; active: boolean }> = {}) => ({
+    id,
+    cargo_mode: 'container' as const,
+    pod: 'BRVIT',
+    valid_from: '2026-01-01',
+    valid_to: null,
+    active: true,
+    ...over,
+  })
+
+  it('aplica a ativa de vigência inicial mais recente e aponta quem vence (migration 274)', () => {
+    const states = resolveChargeTableStates([
+      row(1, { valid_from: '2025-01-01' }),
+      row(2, { pod: 'BRVIX', valid_from: '2026-01-01' }),
+      row(3, { active: false, valid_from: '2027-01-01' }),
+      row(4, { cargo_mode: 'carga_solta' }),
+    ])
+    expect(states.get(2)).toEqual({ kind: 'applied' })
+    expect(states.get(1)).toEqual({ kind: 'shadowed', winnerId: 2 })
+    expect(states.get(3)).toEqual({ kind: 'inactive' })
+    expect(states.get(4)).toEqual({ kind: 'applied' })
+  })
+
+  it('desempata pela maior id quando a vigência inicial é igual', () => {
+    const states = resolveChargeTableStates([row(5), row(9)])
+    expect(states.get(9)).toEqual({ kind: 'applied' })
+    expect(states.get(5)).toEqual({ kind: 'shadowed', winnerId: 9 })
   })
 })

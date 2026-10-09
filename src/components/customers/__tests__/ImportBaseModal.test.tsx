@@ -39,3 +39,23 @@ it('resultado parcial da base fica no modal, com o que entrou, os pendentes e s�
   expect(onClose).toHaveBeenCalledTimes(1)
   expect(onImport).not.toHaveBeenCalled()
 })
+
+it('falha ao gravar fica no modal, com a prévia e o botão para tentar de novo', () => {
+  render(
+    <ImportBaseModal
+      open
+      baseFile={new File(['x'], 'base.xlsx')}
+      parsedBase={{ rows: [{ cnpj_cpf: '12345678000195', name: 'ACME', emails: [] }], rowErrors: [] } as never}
+      parsingBase={false}
+      importingBase={false}
+      writeError="Sem conexão com o servidor."
+      onClose={vi.fn()}
+      onFileSelect={vi.fn()}
+      onImport={vi.fn()}
+    />,
+  )
+
+  const alert = screen.getByText('Não foi possível gravar a base').closest('[role="alert"]') as HTMLElement
+  expect(alert.textContent).toContain('Sem conexão com o servidor.')
+  expect(screen.getByRole('button', { name: 'Importar base' })).toBeTruthy()
+})

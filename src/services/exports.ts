@@ -371,13 +371,20 @@ export async function exportDemurrageReportWorkbook(rows: DemurrageInvoiceListIt
   XLSX.writeFile(workbook, `relatorio-demurrage-${makeTimestamp()}.xlsx`)
 }
 
+export function customerExportEmails(contacts: CustomerListItem['customer_contacts']) {
+  const active = (contacts ?? []).filter((contact) => !contact.deactivated_at && String(contact.email ?? '').trim())
+  const ordered = [...active.filter((contact) => contact.is_primary), ...active.filter((contact) => !contact.is_primary)]
+  return Array.from(new Set(ordered.map((contact) => String(contact.email).trim()))).join('; ')
+}
+
 export async function exportCustomerBaseWorkbook(rows: CustomerListItem[]) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     CNPJ: row.cnpj_cpf ?? '',
     'Razao Social': row.name ?? '',
     'Nome Fantasia': row.trade_name ?? '',
-    Email: '',
+    // Mesma coluna que a importação lê: e-mails ativos, o principal primeiro.
+    Email: customerExportEmails(row.customer_contacts),
     Endereco: row.address ?? '',
     Cidade: row.city ?? '',
     UF: row.state ?? '',

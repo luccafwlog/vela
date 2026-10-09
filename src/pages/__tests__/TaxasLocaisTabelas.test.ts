@@ -75,67 +75,56 @@ vi.mock('../../hooks/useLocalCharges', () => ({
 }))
 
 describe('TaxasLocaisTabelas', () => {
-  it('identifica a superfície de cadastro no cabeçalho', () => {
+  const render = (url = '/taxas-locais/tabelas') =>
+    renderToStaticMarkup(React.createElement(MemoryRouter, { initialEntries: [url] }, React.createElement(TaxasLocaisTabelas)))
+
+  it('identifica a superfície de cadastro no cabeçalho e nas abas', () => {
     authState.profile = { id: 'user-1' }
     authState.user = { id: 'user-1' }
-    const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(TaxasLocaisTabelas)))
+    const html = render()
 
     expect(html).toContain('Tabelas de Taxas Locais')
+    expect(html).toContain('role="tablist"')
+    expect(html).toContain('Condições de Cliente')
   })
 
-  it('mantem somente cadastro de tabelas e overrides, sem fila operacional de pendencias', () => {
+  it('mantem somente cadastro de tabelas e condições, sem fila operacional de pendencias', () => {
     authState.profile = { id: 'user-1' }
     authState.user = { id: 'user-1' }
-    const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(TaxasLocaisTabelas)))
+    const html = render()
 
-    expect(html).toContain('Tabelas')
-    expect(html).toContain('Overrides')
+    expect(html).toContain('Nova tabela')
     expect(html).not.toContain('Pendencias de calculo')
     expect(html).not.toContain('Recalcular pendencias')
+    expect(html).not.toContain('BL-BB-001')
   })
 
-  it('mostra as duas abas mesmo sem nenhuma permissao de escrita (visualizacao e global)', () => {
+  it('mostra as duas abas sem controles de escrita para quem não tem perfil (visualização é global)', () => {
     authState.profile = null
     authState.user = null
-
-    const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(TaxasLocaisTabelas)))
+    const html = render()
 
     expect(html).toContain('Tabelas')
-    expect(html).toContain('Overrides')
-    expect(html).not.toContain('Nova tabela / Novo item')
+    expect(html).toContain('Condições de Cliente')
+    expect(html).not.toContain('Nova tabela')
   })
 
-  it('esconde os controles de escrita da aba Tabelas para quem so tem charge_overrides', () => {
-    authState.profile = null
-    authState.user = null
-
-    const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(TaxasLocaisTabelas)))
-
-    expect(html).not.toContain('Nova tabela / Novo item')
-  })
-
-  it('abre a aba Overrides com o formulario de escrita quando charge_overrides esta presente', () => {
+  it('abre a aba de condições pelo link antigo ?tab=overrides, com a escrita para quem edita', () => {
     authState.profile = { id: 'user-1' }
     authState.user = { id: 'user-1' }
+    const html = render('/taxas-locais/tabelas?tab=overrides&cliente=Atl%C3%A2ntico')
 
-    const html = renderToStaticMarkup(
-      React.createElement(MemoryRouter, { initialEntries: ['/taxas-locais/tabelas?tab=overrides'] }, React.createElement(TaxasLocaisTabelas)),
-    )
-
-    expect(html).toContain('Overrides por cliente')
-    expect(html).toContain('Novo override')
+    expect(html).toContain('aria-selected="true"')
+    expect(html).toContain('Nova condição')
+    expect(html).toContain('value="Atlântico"')
   })
 
-  it('mostra a aba Overrides sem formulario de escrita para quem so tem charge_tables', () => {
+  it('mostra a aba de condições sem escrita para quem não edita', () => {
     authState.profile = null
     authState.user = null
-    authState.user = null
+    const html = render('/taxas-locais/tabelas?tab=overrides')
 
-    const html = renderToStaticMarkup(
-      React.createElement(MemoryRouter, { initialEntries: ['/taxas-locais/tabelas?tab=overrides'] }, React.createElement(TaxasLocaisTabelas)),
-    )
-
-    expect(html).toContain('Overrides por cliente')
-    expect(html).not.toContain('Novo override')
+    expect(html).toContain('Condições de Cliente')
+    expect(html).not.toContain('Nova condição')
   })
 })

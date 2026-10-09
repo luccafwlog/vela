@@ -360,7 +360,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Abra o cadastro do cliente na aba Contatos e cadastre um endereço de e-mail válido.',
     destination: '/clientes',
     destinationLabel: 'Abrir Clientes',
-    destinationNote: 'Quando o cliente estiver identificado, o alerta abre diretamente `/clientes/{cnpj}?tab=contatos`.',
+    destinationNote: 'Quando o cliente estiver identificado, o alerta abre diretamente `/clientes/{cnpj}?tab=cadastro`.',
     afterResolution: derivedResolution,
     dismissal: temporaryDismissal,
   },

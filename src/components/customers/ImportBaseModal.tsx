@@ -27,6 +27,7 @@ export function ImportBaseModal({
   parsingBase,
   importingBase,
   readError,
+  writeError,
   outcome,
   onClose,
   onFileSelect,
@@ -39,6 +40,8 @@ export function ImportBaseModal({
   importingBase: boolean
   /** Falha de leitura, mostrada junto do arquivo. */
   readError?: string | null
+  /** Falha ao gravar: a prévia continua aberta para tentar de novo. */
+  writeError?: string | null
   /** Resultado com pendências: o modal fica aberto para mostrar o que faltou. */
   outcome?: CustomerBaseImportOutcome | null
   onClose: () => void
@@ -83,6 +86,13 @@ export function ImportBaseModal({
           <ImportNotice tone="danger" role="alert" title="Não foi possível ler a base">
             <p>{readError}</p>
             <p>Confira o layout pelo modelo e escolha o arquivo de novo.</p>
+          </ImportNotice>
+        ) : null}
+
+        {writeError ? (
+          <ImportNotice tone="danger" role="alert" title="Não foi possível gravar a base">
+            <p>{writeError}</p>
+            <p>Nada foi confirmado como gravado. Confira e tente importar de novo.</p>
           </ImportNotice>
         ) : null}
 

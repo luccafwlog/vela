@@ -25,7 +25,7 @@ describe('HistoricoTab', () => {
   it('mostra erro explicito, nao "sem eventos registrados", quando a timeline falha', () => {
     mocks.timeline = { data: undefined, isLoading: false, isError: true }
     render(<MemoryRouter><HistoricoTab data={baseData} /></MemoryRouter>)
-    expect(screen.getByText('Erro ao carregar histórico.')).toBeTruthy()
+    expect(screen.getByText('Não foi possível carregar o histórico.')).toBeTruthy()
     expect(screen.queryByText('Sem eventos registrados.')).toBeNull()
   })
 

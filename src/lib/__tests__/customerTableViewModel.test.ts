@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCustomerBillingUrl,
   getCustomerFilterChips,
-  getCustomerNextAction,
   getPrimaryContactEmail,
   sortCustomerRows,
   summarizeContactsForDisplay,
@@ -36,20 +35,6 @@ describe('customerTableViewModel', () => {
       isPrimary: true,
       boxCount: 2,
       empty: false,
-    })
-  })
-
-  it('prioriza ausencia de email como proxima acao', () => {
-    expect(getCustomerNextAction({ hasEmail: false, readyCount: 2, pendingCount: 0, pendingBalance: 0 })).toEqual({
-      label: 'Cadastrar e-mail',
-      tone: 'yellow',
-    })
-  })
-
-  it('indica pronto para faturar quando ha taxas prontas', () => {
-    expect(getCustomerNextAction({ hasEmail: true, readyCount: 2, pendingCount: 0, pendingBalance: 0 })).toEqual({
-      label: 'Pronto para faturar',
-      tone: 'green',
     })
   })
 

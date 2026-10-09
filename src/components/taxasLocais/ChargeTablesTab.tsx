@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { MetricCard } from '../ui/MetricCard'
-import { FilterBar } from '../ui/FilterBar'
-import { Field, Input, Select } from '../ui/Input'
+import { EmptyState, InlineError } from '../ui/Card'
+import { SegmentedControl } from '../ui/SegmentedControl'
+import { SkeletonTable } from '../ui/Skeleton'
+import { SummaryStrip } from '../ui/SummaryStrip'
 import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import {
@@ -15,378 +15,316 @@ import {
   useSetChargeTableActive,
   useSetChargeTableItemActive,
 } from '../../hooks/useLocalCharges'
-import { describeActiveFilters, describeEmptyState } from '../../lib/operationalState'
 import { userFacingErrorMessage } from '../../lib/errors'
-import { formatCountLabel } from '../../lib/utils'
-import { validateTableInput, validateTableItemInput } from '../../pages/taxasLocaisHelpers'
-import { ChargeTableFormCard } from './ChargeTableFormCard'
-import { ChargeTableItemFormCard } from './ChargeTableItemFormCard'
+import { normalizeChargeTablePod, resolveChargeTableStates } from '../../pages/taxasLocaisHelpers'
+import type { ChargeTableInput, ChargeTableItemInput } from '../../services/charges/chargeTableService'
+import { ChargeScopeFilters } from './ChargeScopeFilters'
+import { ChargeTableFormModal } from './ChargeTableFormModal'
+import { ChargeTableItemFormModal } from './ChargeTableItemFormModal'
 import { ChargeTablesList } from './ChargeTablesList'
 import {
-  EMPTY_TABLE_FORM,
-  EMPTY_TABLE_ITEM_FORM,
-  type ChargeFilterProps,
-  type ChargeTableForm,
-  type ChargeTableItemForm,
-} from './chargeForms'
+  groupTablesByScope,
+  podOptions,
+  readTable,
+  scopeLabel,
+  type ChargeItem,
+  type ChargeTable,
+  type TableReading,
+} from './chargePresentation'
+import type { ChargeFilterProps, TablesLens } from './chargeForms'
+
+function todayIso() {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
+}
+
+function matchesLens(lens: TablesLens, reading: TableReading) {
+  if (lens === 'aplicadas') return reading.state.kind === 'applied'
+  if (lens === 'aviso') return reading.hasWarning
+  if (lens === 'inativas') return reading.state.kind === 'inactive'
+  return true
+}
 
 export function ChargeTablesTab({
   cargoModeFilter,
   setCargoModeFilter,
   podFilter,
   setPodFilter,
+  lens,
+  setLens,
   canEdit,
   canDelete,
-}: ChargeFilterProps & { canEdit: boolean; canDelete: boolean }) {
+}: ChargeFilterProps & {
+  lens: TablesLens
+  setLens: (value: TablesLens) => void
+  canEdit: boolean
+  canDelete: boolean
+}) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
-  const [formsOpen, setFormsOpen] = useState(false)
-  const [tableForm, setTableForm] = useState<ChargeTableForm>(EMPTY_TABLE_FORM)
-  const [tableItemForm, setTableItemForm] = useState<ChargeTableItemForm>(EMPTY_TABLE_ITEM_FORM)
-  const { data: tables, isLoading: tablesLoading, error: tablesError } = useLocalChargeTables({
-    cargoMode: cargoModeFilter,
-    pod: podFilter,
+  // A lista inteira vem do banco e o recorte é feito aqui: o aviso "Não
+  // aplicada" e o "vale no cálculo" precisam enxergar todas as tabelas do
+  // escopo, inclusive as de grafia diferente de POD (BRVIX × BRVIT).
+  const { data, isLoading, error, refetch, isFetching } = useLocalChargeTables()
+  const saveTable = useSaveChargeTable()
+  const setTableActive = useSetChargeTableActive()
+  const setItemActive = useSetChargeTableItemActive()
+  const saveItem = useSaveChargeTableItem()
+  const deleteItem = useDeleteChargeTableItem()
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set())
+  const [tableModal, setTableModal] = useState<{ table: ChargeTable | null } | null>(null)
+  const [itemModal, setItemModal] = useState<{ table: ChargeTable; item: ChargeItem | null } | null>(null)
+  const [busyTableId, setBusyTableId] = useState<number | null>(null)
+  const [busyItemId, setBusyItemId] = useState<number | null>(null)
+
+  const tables = useMemo(() => data ?? [], [data])
+  const today = todayIso()
+  const states = useMemo(() => resolveChargeTableStates(tables), [tables])
+  const tablesById = useMemo(() => new Map(tables.map((table) => [table.id, table])), [tables])
+  const readings = useMemo(
+    () => new Map(tables.map((table) => [table.id, readTable(table, states, tablesById, today)])),
+    [tables, states, tablesById, today],
+  )
+  const pods = useMemo(() => podOptions(tables), [tables])
+
+  const inScope = useMemo(() => tables.filter((table) => {
+    if (cargoModeFilter && table.cargo_mode !== cargoModeFilter) return false
+    if (podFilter && normalizeChargeTablePod(table.pod) !== podFilter) return false
+    return true
+  }), [tables, cargoModeFilter, podFilter])
+  const visible = inScope.filter((table) => {
+    const reading = readings.get(table.id)
+    return reading ? matchesLens(lens, reading) : false
   })
-  const saveChargeTableMutation = useSaveChargeTable()
-  const setChargeTableActiveMutation = useSetChargeTableActive()
-  const setChargeTableItemActiveMutation = useSetChargeTableItemActive()
-  const saveChargeTableItemMutation = useSaveChargeTableItem()
-  const deleteChargeTableItemMutation = useDeleteChargeTableItem()
-  const currentTables = useMemo(() => tables ?? [], [tables])
+  const groups = groupTablesByScope(visible, states)
 
-  const tableSummary = useMemo(() => ({
-    tables: currentTables.length,
-    active: currentTables.filter((item) => item.active).length,
-    items: currentTables.reduce((sum, item) => sum + item.charge_table_items.length, 0),
-    manualOnly: currentTables.reduce(
-      (sum, item) => sum + item.charge_table_items.filter((row) => row.manual_only).length,
-      0,
-    ),
-  }), [currentTables])
-  const tableFilterDescription = describeActiveFilters([
-    { label: 'Modo', value: cargoModeFilter },
-    { label: 'POD', value: podFilter },
-  ])
-  const tableEmptyState = describeEmptyState({
-    entitySingular: 'tabela',
-    entityPlural: 'tabelas',
-    hasActiveFilters: Boolean(cargoModeFilter || podFilter.trim()),
-    emptyWithoutFilters: 'Nenhuma tabela cadastrada ainda.',
-  })
+  const counts = {
+    applied: inScope.filter((table) => readings.get(table.id)?.state.kind === 'applied').length,
+    warning: inScope.filter((table) => readings.get(table.id)?.hasWarning).length,
+    inactive: inScope.filter((table) => readings.get(table.id)?.state.kind === 'inactive').length,
+    autoItems: inScope
+      .filter((table) => readings.get(table.id)?.state.kind === 'applied')
+      .reduce((sum, table) => sum + (readings.get(table.id)?.autoItems ?? 0), 0),
+  }
+  const hasScopeFilter = Boolean(cargoModeFilter || podFilter)
+  const hasAnyFilter = hasScopeFilter || lens !== 'todas'
 
-  async function handleSaveTable() {
-    const result = validateTableInput(tableForm)
-    if (!result.ok) {
-      showToast(result.error, 'error')
-      return
-    }
-
-    const originalTable = tableForm.id ? currentTables.find((row) => row.id === tableForm.id) : null
-    const changes = originalTable
-      ? [
-          { field: 'Nome da tabela', before: originalTable.name ?? '', after: tableForm.name },
-          { field: 'Modalidade', before: originalTable.cargo_mode ?? '', after: tableForm.cargoMode },
-          { field: 'Porto de descarga (POD)', before: originalTable.pod ?? '', after: tableForm.pod },
-          { field: 'Vigência de', before: originalTable.valid_from ? originalTable.valid_from.slice(0, 10) : '', after: tableForm.validFrom },
-          { field: 'Vigência até', before: originalTable.valid_to ? originalTable.valid_to.slice(0, 10) : '', after: result.value.validTo ?? '' },
-          { field: 'Status', before: originalTable.active ? 'Ativa' : 'Inativa', after: tableForm.active ? 'Ativa' : 'Inativa' },
-          { field: 'Observações', before: originalTable.notes ?? '', after: tableForm.notes },
-        ].filter((c) => c.before !== c.after)
-      : []
-
-    if (originalTable && changes.length === 0) {
-      showToast('Nenhuma alteração para salvar.', 'info')
-      return
-    }
-
-    const confirmed = await confirm({
-      title: tableForm.id ? 'Salvar tabela de taxas' : 'Cadastrar tabela de taxas',
-      message: tableForm.id
-        ? `Salvar as alterações da tabela "${tableForm.name}"?`
-        : `Cadastrar a nova tabela de taxas "${tableForm.name}"?`,
-      confirmLabel: tableForm.id ? 'Salvar alterações' : 'Cadastrar tabela',
-      changes: originalTable ? changes : undefined,
-      affected: !originalTable
-        ? { summary: `${tableForm.name} · ${tableForm.cargoMode} · POD ${tableForm.pod} · ${tableForm.validFrom} a ${result.value.validTo || 'sem data final'}` }
-        : undefined,
-      consequence: 'A tabela define as taxas locais aplicáveis aos B/Ls da respectiva modalidade e porto dentro da vigência.',
-      reversibility: 'A tabela pode ser editada ou desativada no cadastro.',
+  function toggleExpanded(tableId: number) {
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (next.has(tableId)) next.delete(tableId)
+      else next.add(tableId)
+      return next
     })
-    if (!confirmed) return
-
-    try {
-      const savedTableId = await saveChargeTableMutation.mutateAsync({
-        id: tableForm.id,
-        name: tableForm.name,
-        cargoMode: tableForm.cargoMode,
-        pod: tableForm.pod,
-        validFrom: tableForm.validFrom,
-        validTo: result.value.validTo,
-        active: tableForm.active,
-        notes: tableForm.notes || null,
-      })
-      showToast(tableForm.id ? 'Tabela atualizada.' : 'Tabela criada.', 'success')
-      setTableForm(EMPTY_TABLE_FORM)
-      setTableItemForm((current) => ({
-        ...current,
-        chargeTableId: String(tableForm.id ?? savedTableId),
-      }))
-    } catch {
-      showToast('Falha ao salvar tabela.', 'error')
-    }
   }
 
-  function handleEditTable(id: number) {
-    const table = currentTables.find((row) => row.id === id)
-    if (!table) return
-    setFormsOpen(true)
-    setTableForm({
-      id: table.id,
-      name: table.name ?? '',
-      cargoMode: (table.cargo_mode ?? 'container') as 'container' | 'carga_solta' | 'granito',
-      pod: table.pod ?? '',
-      validFrom: table.valid_from,
-      validTo: table.valid_to ?? '',
-      active: Boolean(table.active),
-      notes: table.notes ?? '',
-    })
-    setTableItemForm((current) => ({ ...current, chargeTableId: String(table.id) }))
+  function clearFilters() {
+    setCargoModeFilter('')
+    setPodFilter('')
+    setLens('todas')
   }
 
-  async function handleToggleTableActive(id: number, current: boolean | null) {
-    const nextActive = current !== true
-    const table = currentTables.find((row) => row.id === id)
+  async function handleSaveTable(input: ChargeTableInput) {
+    const id = await saveTable.mutateAsync(input)
+    setTableModal(null)
+    setExpanded((current) => new Set(current).add(Number(input.id ?? id)))
+    showToast(input.id ? 'Tabela atualizada.' : 'Tabela cadastrada. Adicione os itens dela.', 'success')
+  }
+
+  async function handleSaveItem(input: ChargeTableItemInput) {
+    await saveItem.mutateAsync(input)
+    setItemModal(null)
+    setExpanded((current) => new Set(current).add(input.chargeTableId))
+    showToast(input.id ? 'Item atualizado.' : 'Item cadastrado.', 'success')
+  }
+
+  async function handleToggleTableActive(table: ChargeTable) {
+    const nextActive = table.active !== true
+    const scope = scopeLabel(table.cargo_mode, table.pod)
+    const reading = readings.get(table.id)
     const confirmed = await confirm({
       title: nextActive ? 'Reativar tabela de taxas' : 'Desativar tabela de taxas',
-      message: nextActive
-        ? `Reativar a tabela "${table?.name ?? id}"?`
-        : `Desativar a tabela "${table?.name ?? id}"?`,
-      confirmLabel: nextActive ? 'Reativar' : 'Desativar',
+      message: `${nextActive ? 'Reativar' : 'Desativar'} a tabela "${table.name}" (${scope})?`,
+      confirmLabel: nextActive ? 'Reativar tabela' : 'Desativar tabela',
       tone: nextActive ? 'primary' : 'danger',
       consequence: nextActive
-        ? 'A tabela volta a ser utilizada nos cálculos de novos faturamentos.'
-        : 'A tabela não será aplicada a novos cálculos; faturamentos já emitidos ou calculados não são afetados.',
-      reversibility: nextActive ? 'Desative de novo se precisar.' : 'Reative a tabela quando precisar.',
+        ? `Volta a disputar o cálculo de ${scope}: vale se tiver a vigência inicial mais recente entre as ativas.`
+        : reading?.state.kind === 'applied'
+          ? `Sai do cálculo de ${scope}. Cálculos novos usam a próxima tabela ativa do escopo, ou ficam pendentes se não houver. Faturas emitidas não mudam.`
+          : 'Sai da lista de tabelas ativas. Ela já não era a aplicada, então o cálculo não muda.',
+      reversibility: nextActive ? 'Pode ser desativada de novo.' : 'Pode ser reativada pelo Administrativo.',
     })
     if (!confirmed) return
-
+    setBusyTableId(table.id)
     try {
-      await setChargeTableActiveMutation.mutateAsync({ id, active: nextActive })
+      await setTableActive.mutateAsync({ id: table.id, active: nextActive })
       showToast(nextActive ? 'Tabela reativada.' : 'Tabela desativada.', 'success')
-    } catch (error) {
-      showToast(userFacingErrorMessage(error, 'Falha ao alterar status da tabela.'), 'error')
+    } catch (failure) {
+      showToast(userFacingErrorMessage(failure, 'Não foi possível alterar a situação da tabela.'), 'error')
+    } finally {
+      setBusyTableId(null)
     }
   }
 
-  async function handleToggleTableItemActive(id: number, current: boolean | null) {
-    const nextActive = current !== true
+  async function handleToggleItemActive(item: ChargeItem) {
+    const nextActive = item.active === false
     const confirmed = await confirm({
       title: nextActive ? 'Reativar item de taxa' : 'Desativar item de taxa',
-      message: nextActive ? 'Reativar este item da tabela de taxas?' : 'Desativar este item da tabela de taxas?',
+      message: `${nextActive ? 'Reativar' : 'Desativar'} o item "${item.name}"?`,
       consequence: nextActive
         ? 'O item volta a entrar nos cálculos novos.'
-        : 'O item deixa de entrar em cálculos novos; os cálculos e faturas antigos continuam mostrando de onde veio o valor.',
-      reversibility: nextActive ? 'Desative de novo se precisar.' : 'Reativar item.',
-      confirmLabel: nextActive ? 'Reativar' : 'Desativar',
+        : 'O item deixa de entrar em cálculos novos; cálculos e faturas antigos continuam mostrando de onde veio o valor.',
+      reversibility: nextActive ? 'Pode ser desativado de novo.' : 'Pode ser reativado pelo Administrativo.',
+      confirmLabel: nextActive ? 'Reativar item' : 'Desativar item',
       tone: nextActive ? 'primary' : 'danger',
     })
     if (!confirmed) return
+    setBusyItemId(item.id)
     try {
-      await setChargeTableItemActiveMutation.mutateAsync({ id, active: nextActive })
+      await setItemActive.mutateAsync({ id: item.id, active: nextActive })
       showToast(nextActive ? 'Item reativado.' : 'Item desativado.', 'success')
-    } catch (error) {
-      showToast(userFacingErrorMessage(error, 'Falha ao alterar o item.'), 'error')
+    } catch (failure) {
+      showToast(userFacingErrorMessage(failure, 'Não foi possível alterar o item.'), 'error')
+    } finally {
+      setBusyItemId(null)
     }
   }
 
-  async function handleSaveTableItem() {
-    const result = validateTableItemInput(tableItemForm)
-    if (!result.ok) {
-      showToast(result.error, 'error')
-      return
-    }
-    const { chargeTableId, unitValue, sortOrder } = result.value
-
-    const table = currentTables.find((row) => row.id === chargeTableId)
-    const originalItem = tableItemForm.id
-      ? table?.charge_table_items.find((row) => row.id === tableItemForm.id)
-      : null
-
-    const changes = originalItem
-      ? [
-          { field: 'Nome do item', before: originalItem.name ?? '', after: tableItemForm.name },
-          { field: 'Categoria', before: originalItem.category === 'other_charge' ? 'Other Charge' : 'Taxa Base', after: tableItemForm.category === 'other_charge' ? 'Other Charge' : 'Taxa Base' },
-          { field: 'Base de aplicação', before: originalItem.application_basis ?? '', after: tableItemForm.applicationBasis },
-          { field: 'Perfil de carga', before: originalItem.cargo_profile ?? '', after: tableItemForm.cargoProfile },
-          { field: 'Moeda', before: originalItem.currency ?? '', after: tableItemForm.currency },
-          { field: 'Valor unitário', before: `${originalItem.currency} ${originalItem.currency === 'USD' ? originalItem.unit_value_usd : originalItem.unit_value_brl}`, after: `${tableItemForm.currency} ${unitValue}` },
-          { field: 'Somente manual', before: originalItem.manual_only ? 'Sim' : 'Não', after: tableItemForm.manualOnly ? 'Sim' : 'Não' },
-          { field: 'Cobra de container SOC', before: originalItem.applies_to_soc === false ? 'Não' : 'Sim', after: tableItemForm.appliesToSoc ? 'Sim' : 'Não' },
-          { field: 'Status', before: originalItem.active ? 'Ativo' : 'Inativo', after: tableItemForm.active ? 'Ativo' : 'Inativo' },
-        ].filter((c) => c.before !== c.after)
-      : []
-
-    if (originalItem && changes.length === 0) {
-      showToast('Nenhuma alteração para salvar.', 'info')
-      return
-    }
-
-    const confirmed = await confirm({
-      title: tableItemForm.id ? 'Salvar item de taxa' : 'Cadastrar item de taxa',
-      message: tableItemForm.id
-        ? `Salvar as alterações do item "${tableItemForm.name}"?`
-        : `Cadastrar o item "${tableItemForm.name}" na tabela "${table?.name ?? chargeTableId}"?`,
-      confirmLabel: tableItemForm.id ? 'Salvar alterações' : 'Cadastrar item',
-      changes: originalItem ? changes : undefined,
-      affected: !originalItem
-        ? { summary: `${tableItemForm.name} · ${tableItemForm.currency} ${unitValue} · Base: ${tableItemForm.applicationBasis}` }
-        : undefined,
-      consequence: 'O item será considerado na composição do cálculo de taxas locais para os B/Ls da tabela.',
-      reversibility: 'O item pode ser editado ou desativado na tabela de taxas.',
+  async function handleDeleteItem(item: ChargeItem) {
+    const reason = await confirmWithReason({
+      title: 'Excluir item de taxa',
+      message: `Excluir o item "${item.name}"?`,
+      consequence: 'O item sai da tabela. Se já foi usado em algum cálculo ou fatura, o banco recusa: nesse caso, desative-o.',
+      reversibility: 'Não é possível desfazer; cadastre de novo se precisar.',
+      tone: 'danger',
+      confirmLabel: 'Excluir item',
     })
-    if (!confirmed) return
-
-    try {
-      await saveChargeTableItemMutation.mutateAsync({
-        id: tableItemForm.id,
-        chargeTableId,
-        name: tableItemForm.name,
-        category: tableItemForm.category,
-        applicationBasis: tableItemForm.applicationBasis,
-        cargoProfile: tableItemForm.cargoProfile,
-        currency: tableItemForm.currency,
-        unitValue,
-        manualOnly: tableItemForm.manualOnly,
-        appliesToSoc: tableItemForm.appliesToSoc,
-        active: tableItemForm.active,
-        sortOrder,
-      })
-      showToast(tableItemForm.id ? 'Item de taxa atualizado.' : 'Item de taxa criado.', 'success')
-      setTableItemForm(EMPTY_TABLE_ITEM_FORM)
-    } catch {
-      showToast('Falha ao salvar item de taxa.', 'error')
-    }
-  }
-
-  function handleEditTableItem(tableId: number, itemId: number) {
-    const table = currentTables.find((row) => row.id === tableId)
-    const item = table?.charge_table_items.find((row) => row.id === itemId)
-    if (!table || !item) return
-    setFormsOpen(true)
-
-    const unitValue = item.currency === 'USD' ? Number(item.unit_value_usd ?? 0) : Number(item.unit_value_brl ?? 0)
-    setTableItemForm({
-      id: item.id,
-      chargeTableId: String(table.id),
-      name: item.name ?? '',
-      category: (item.category === 'other_charge' ? 'other_charge' : 'base') as 'base' | 'other_charge',
-      applicationBasis: (item.application_basis ?? 'bl') as 'bl' | 'container_distinct_voyage' | 'weight_ton' | 'teu',
-      cargoProfile: (item.cargo_profile ?? 'any') as 'standard' | 'imo' | 'oog' | 'any',
-      currency: (item.currency === 'USD' ? 'USD' : 'BRL') as 'BRL' | 'USD',
-      unitValue: String(unitValue),
-      manualOnly: Boolean(item.manual_only),
-      appliesToSoc: item.applies_to_soc !== false,
-      active: Boolean(item.active),
-      sortOrder: String(Number(item.sort_order ?? 100)),
-    })
-  }
-
-  async function handleDeleteTableItem(itemId: number) {
-    const reason = await confirmWithReason({ title: 'Excluir item de taxa', message: 'Excluir este item da tabela de taxas?', consequence: 'O item sai da tabela e não entra em cálculos novos. O banco recusa se ele já foi usado em cálculo.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
     if (reason === null) return
+    setBusyItemId(item.id)
     try {
-      await deleteChargeTableItemMutation.mutateAsync({ id: itemId, reason })
-      showToast('Item de taxa removido.', 'success')
-      if (tableItemForm.id === itemId) setTableItemForm(EMPTY_TABLE_ITEM_FORM)
-    } catch {
-      showToast('Falha ao remover item de taxa. Pode haver calculos vinculados.', 'error')
+      await deleteItem.mutateAsync({ id: item.id, reason })
+      showToast('Item excluído.', 'success')
+    } catch (failure) {
+      showToast(userFacingErrorMessage(failure, 'Não foi possível excluir o item. Se ele já foi usado em cálculo, desative-o.'), 'error')
+    } finally {
+      setBusyItemId(null)
     }
   }
 
-  function handlePrepareTableItem(tableId: number) {
-    setFormsOpen(true)
-    setTableItemForm({ ...EMPTY_TABLE_ITEM_FORM, chargeTableId: String(tableId) })
-  }
+  const lensOptions = [
+    { value: 'todas' as const, label: 'Todas' },
+    { value: 'aplicadas' as const, label: `Aplicadas (${counts.applied})` },
+    { value: 'aviso' as const, label: `Com aviso (${counts.warning})` },
+    { value: 'inativas' as const, label: `Inativas (${counts.inactive})` },
+  ]
 
   return (
     <>
-      <div className="mb-4 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-        <div className="app-table__cell-stack">
-          <div className="app-panel__title">Cobertura das tabelas</div>
-          <div className="app-table__cell-meta">Refine por modo e POD antes de editar estrutura tarifária ou publicar novos itens.</div>
+      <div className="app-rates-toolbar">
+        <div className="app-rates-toolbar__filters">
+          <ChargeScopeFilters
+            cargoModeFilter={cargoModeFilter}
+            setCargoModeFilter={setCargoModeFilter}
+            podFilter={podFilter}
+            setPodFilter={setPodFilter}
+            pods={pods}
+          />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge tone="green">{formatCountLabel(tableSummary.active, 'ativa', 'ativas')}</Badge>
-          <Badge tone="blue">{formatCountLabel(tableSummary.items, 'item', 'itens')}</Badge>
-          <Badge tone="slate">{formatCountLabel(tableSummary.manualOnly, 'manual', 'manuais')}</Badge>
-        </div>
-      </div>
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-        <MetricCard label="Tabelas" value={String(tableSummary.tables)} />
-        <MetricCard label="Itens ativos" value={String(tableSummary.items - tableSummary.manualOnly)} />
-      </div>
-      <FilterBar activeCount={(cargoModeFilter ? 1 : 0) + (podFilter.trim() ? 1 : 0)} onClear={() => { setCargoModeFilter(''); setPodFilter('') }}>
-        <div className="app-filter-grid">
-          <Field label="Modo de carga">
-            <Select value={cargoModeFilter} onChange={(event) => setCargoModeFilter(event.target.value as ChargeFilterProps['cargoModeFilter'])}>
-              <option value="">Todos</option>
-              <option value="container">Container</option>
-              <option value="carga_solta">Carga Solta</option>
-              <option value="granito">Granito</option>
-            </Select>
-          </Field>
-          <Field label="POD">
-            <Input value={podFilter} onChange={(event) => setPodFilter(event.target.value.toUpperCase())} placeholder="BRVIT / BRSSA" />
-          </Field>
-        </div>
-      </FilterBar>
-
-      {canEdit ? (
-        <div className="mb-5 flex justify-end">
-          <Button type="button" variant={formsOpen ? 'secondary' : 'primary'} onClick={() => setFormsOpen((open) => !open)}>
-            <Plus size={15} />
-            {formsOpen ? 'Ocultar formulários' : 'Nova tabela / Novo item'}
+        {canEdit ? (
+          <Button type="button" onClick={() => setTableModal({ table: null })} className="app-rates-toolbar__primary">
+            <Plus size={15} aria-hidden="true" />
+            Nova tabela
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
-      {canEdit && formsOpen ? (
-        <div className="mb-5 grid gap-5 xl:grid-cols-2">
-          <ChargeTableFormCard
-            tableForm={tableForm}
-            setTableForm={setTableForm}
-            onSave={handleSaveTable}
-            saving={saveChargeTableMutation.isPending}
-          />
-          <ChargeTableItemFormCard
-            tables={currentTables}
-            tableItemForm={tableItemForm}
-            setTableItemForm={setTableItemForm}
-            onSave={handleSaveTableItem}
-            saving={saveChargeTableItemMutation.isPending}
-          />
+      <section className="app-surface app-rates-surface" aria-label="Tabelas de Taxas Locais">
+        <div className="app-rates-surface__bar">
+          <SegmentedControl label="Mostrar tabelas" options={lensOptions} value={lens} onChange={setLens} />
+          {data ? (
+            <SummaryStrip
+              label="Resumo das tabelas"
+              items={[
+                { label: inScope.length === 1 ? 'tabela' : 'tabelas', value: inScope.length },
+                { label: counts.applied === 1 ? 'aplicada no cálculo' : 'aplicadas no cálculo', value: counts.applied },
+                { label: 'itens automáticos em uso', value: counts.autoItems },
+                ...(counts.warning ? [{ label: counts.warning === 1 ? 'com aviso' : 'com aviso', value: counts.warning, tone: 'warning' as const }] : []),
+              ]}
+            />
+          ) : null}
         </div>
-      ) : null}
+        <p className="app-rates-surface__rule">
+          Vale no cálculo a tabela <strong>ativa</strong> de cada modo de carga e POD; entre duas ativas, a de vigência inicial mais recente. A vigência não liga nem desliga tabela (ADR 0040).
+        </p>
 
-      <ChargeTablesList
-        tables={currentTables}
-        tablesLoading={tablesLoading}
-        tablesError={tablesError}
-        tableCount={tableSummary.tables}
-        filterDescription={tableFilterDescription}
-        emptyState={tableEmptyState}
-        canEdit={canEdit}
-        canDelete={canDelete}
-        onEditTable={handleEditTable}
-        onPrepareTableItem={handlePrepareTableItem}
-        onToggleTableActive={handleToggleTableActive}
-        onEditTableItem={handleEditTableItem}
-        onDeleteTableItem={handleDeleteTableItem}
-        onToggleTableItemActive={handleToggleTableItemActive}
-        togglingTableActive={setChargeTableActiveMutation.isPending}
-        deletingTableItem={deleteChargeTableItemMutation.isPending}
-      />
+        {error ? (
+          <div className="app-rates-state">
+            <InlineError message={data ? 'Não foi possível atualizar as tabelas; a lista abaixo pode estar desatualizada.' : 'Não foi possível consultar as tabelas de taxas.'} />
+            <Button variant="secondary" className="app-btn--sm" onClick={() => void refetch()} loading={isFetching} loadingLabel="Consultando…">
+              Tentar novamente
+            </Button>
+          </div>
+        ) : null}
+
+        {isLoading ? <SkeletonTable rows={4} cols={4} columnTemplate="2fr 1fr 1fr 1fr" label="Carregando tabelas" /> : null}
+
+        {!isLoading && data && tables.length === 0 ? (
+          <EmptyState
+            title="Nenhuma tabela cadastrada"
+            description="Sem tabela ativa no modo de carga e POD do B/L, o cálculo das Taxas Locais fica pendente."
+            action={canEdit ? <Button onClick={() => setTableModal({ table: null })}><Plus size={15} aria-hidden="true" />Nova tabela</Button> : undefined}
+          />
+        ) : null}
+
+        {!isLoading && tables.length > 0 && groups.length === 0 ? (
+          <EmptyState
+            title="Nenhuma tabela neste recorte"
+            description={hasScopeFilter ? 'Não há tabela com esse modo de carga e POD.' : 'Nenhuma tabela nesta situação.'}
+            action={hasAnyFilter ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button> : undefined}
+          />
+        ) : null}
+
+        {groups.length > 0 ? (
+          <ChargeTablesList
+            groups={groups}
+            readings={readings}
+            expanded={expanded}
+            onToggleExpanded={toggleExpanded}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onEditTable={(table) => setTableModal({ table })}
+            onAddItem={(table) => setItemModal({ table, item: null })}
+            onToggleTableActive={handleToggleTableActive}
+            onEditItem={(table, item) => setItemModal({ table, item })}
+            onToggleItemActive={handleToggleItemActive}
+            onDeleteItem={handleDeleteItem}
+            busyTableId={busyTableId}
+            busyItemId={busyItemId}
+          />
+        ) : null}
+      </section>
+
+      {tableModal ? (
+        <ChargeTableFormModal
+          key={tableModal.table?.id ?? 'new'}
+          open
+          table={tableModal.table}
+          tables={tables}
+          onClose={() => setTableModal(null)}
+          onSave={handleSaveTable}
+        />
+      ) : null}
+      {itemModal ? (
+        <ChargeTableItemFormModal
+          key={`${itemModal.table.id}-${itemModal.item?.id ?? 'new'}`}
+          open
+          table={itemModal.table}
+          item={itemModal.item}
+          onClose={() => setItemModal(null)}
+          onSave={handleSaveItem}
+        />
+      ) : null}
     </>
   )
 }

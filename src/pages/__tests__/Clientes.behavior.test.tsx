@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   supabaseFrom: vi.fn(),
   supabaseOr: vi.fn(),
   exportCustomerBaseWorkbook: vi.fn(),
+  fetchCustomerRows: vi.fn(),
 }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -41,6 +42,7 @@ vi.mock('../../hooks/useAuth', () => ({
 vi.mock('../../hooks/useCustomers', () => ({
   useCustomers: mocks.useCustomers,
   useCustomerSummary: mocks.useCustomerSummary,
+  fetchCustomerRows: mocks.fetchCustomerRows,
   filterCustomerRowsByClientSideFilters: (rows: unknown[]) => rows,
 }))
 vi.mock('../../hooks/usePortalProvisioning', () => ({
@@ -98,14 +100,21 @@ const parsedBase = {
   rowErrors: [],
 }
 
-function renderPage() {
+function LocationProbe() {
+  const location = useLocation()
+  return <span data-testid="location">{location.pathname + location.search}</span>
+}
+
+function renderPage(initialEntry = '/clientes') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
   const view = render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <QueryClientProvider client={queryClient}>
+        <Link to="/clientes">Menu Clientes</Link>
+        <LocationProbe />
         <Clientes />
       </QueryClientProvider>
     </MemoryRouter>,
@@ -124,7 +133,7 @@ describe('Clientes page behaviours', () => {
       refetch: vi.fn(),
     }))
     mocks.useCustomerSummary.mockReturnValue({
-      data: { pendingBalance: 150, totalCustomers: 1, totalBls: 1, chargePending: 1, chargeReady: 0 },
+      data: { pendingBalance: 150, totalCustomers: 1, totalBls: 1, chargePending: 1, chargeReady: 0, customersWithoutEmail: 0 },
     })
     mocks.createCustomer.mockResolvedValue({ cnpj_cpf: '12345678000195' })
     mocks.parseCustomerBaseFile.mockResolvedValue(parsedBase)
@@ -135,6 +144,7 @@ describe('Clientes page behaviours', () => {
     mocks.confirm.mockResolvedValue(true)
     mocks.confirmWithReason.mockResolvedValue('cadastro duplicado')
     mocks.exportCustomerBaseWorkbook.mockResolvedValue(undefined)
+    mocks.fetchCustomerRows.mockResolvedValue({ rows: [customer], count: 1, totalCount: 1 })
     const exportResult = Promise.resolve({ data: [customer], error: null })
     const exportQuery = {
       select: vi.fn(),
@@ -188,11 +198,11 @@ describe('Clientes page behaviours', () => {
     const user = userEvent.setup()
     const { invalidateQueries } = renderPage()
 
-    await user.click(screen.getByRole('button', { name: 'Novo Cliente' }))
-    await user.type(screen.getByLabelText('CNPJ'), '12345678000195')
-    await user.type(screen.getByLabelText('Razao Social'), 'Cliente Novo')
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
     await user.type(screen.getByLabelText('Nome'), 'Financeiro')
-    await user.type(screen.getByLabelText('Email'), 'novo@example.com')
+    await user.type(screen.getByLabelText(/^E-mail/), 'novo@example.com')
     await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
 
     await waitFor(() => expect(mocks.createCustomer).toHaveBeenCalledWith(expect.objectContaining({
@@ -203,19 +213,19 @@ describe('Clientes page behaviours', () => {
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['customers'] })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['customer-lookup'] })
     expect(mocks.navigate).toHaveBeenCalledWith('/clientes/12345678000195')
-    expect(screen.queryByRole('dialog', { name: 'Novo Cliente' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Novo cliente' })).toBeNull()
 
-    await user.click(screen.getByRole('button', { name: 'Novo Cliente' }))
-    expect((screen.getByLabelText('CNPJ') as HTMLInputElement).value).toBe('')
-    expect((screen.getByLabelText('Razao Social') as HTMLInputElement).value).toBe('')
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    expect((screen.getByLabelText(/^CNPJ/) as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('')
   })
 
   it('normalizes a pasted alphanumeric CNPJ immediately', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(screen.getByRole('button', { name: 'Novo Cliente' }))
-    const input = screen.getByLabelText('CNPJ') as HTMLInputElement
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    const input = screen.getByLabelText(/^CNPJ/) as HTMLInputElement
     fireEvent.change(input, { target: { value: '12.ABC.345/01DE-35' } })
 
     expect(input.value).toBe('12ABC34501DE35')
@@ -243,6 +253,22 @@ describe('Clientes page behaviours', () => {
     await user.click(screen.getByRole('button', { name: 'Importar base' }))
     expect(screen.queryByText('Arquivo selecionado: clientes.csv')).toBeNull()
     expect(screen.queryByText('Cliente Importado')).toBeNull()
+  })
+
+  it('falha ao gravar a base fica no modal, que continua aberto com a prévia', async () => {
+    const user = userEvent.setup()
+    mocks.importCustomerBaseRows.mockRejectedValue(new Error('Sem conexão com o servidor.'))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Importar base' }))
+    await user.upload(screen.getByLabelText('Arquivo (XLSX, XLS ou CSV)'), new File(['cnpj,nome'], 'clientes.csv', { type: 'text/csv' }))
+    expect(await screen.findByText('Cliente Importado')).toBeTruthy()
+    const dialog = screen.getByRole('dialog', { name: 'Importar base de clientes' })
+    await user.click(within(dialog).getByRole('button', { name: 'Importar base' }))
+
+    expect(await within(dialog).findByText('Não foi possível gravar a base')).toBeTruthy()
+    expect(within(dialog).getByText('Cliente Importado')).toBeTruthy()
+    expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Falha'), 'error')
   })
 
   it('deletes a selected customer after dependency checks and clears selection', async () => {
@@ -350,29 +376,112 @@ describe('Clientes page behaviours', () => {
     expect(document.activeElement).toBe(trigger)
   })
 
-  it('escapes structural search terms when exporting the customer base', async () => {
+  it('exporta exatamente o recorte da lista: busca, filtros e ordem, todas as páginas', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(screen.getByRole('button', { name: 'Filtros' }))
-    await user.type(screen.getByPlaceholderText('Razao social, fantasia ou documento'), 'ACME,ME')
+    await user.type(screen.getByLabelText('Buscar cliente'), '12.345.678')
+    await user.click(screen.getByRole('button', { name: /^Saldo pendente\s*R\$/ }))
+    await waitFor(() => expect(mocks.useCustomers).toHaveBeenLastCalledWith(expect.objectContaining({ search: '12.345.678' })))
     await user.click(screen.getByRole('button', { name: 'Exportar base' }))
 
-    await waitFor(() => expect(mocks.exportCustomerBaseWorkbook).toHaveBeenCalled())
-    expect(mocks.supabaseOr).toHaveBeenCalledWith(
-      'name.ilike.%ACME ME%,trade_name.ilike.%ACME ME%,cnpj_cpf.ilike.%ACME ME%',
+    await waitFor(() => expect(mocks.exportCustomerBaseWorkbook).toHaveBeenCalledWith([customer]))
+    expect(mocks.fetchCustomerRows).toHaveBeenCalledWith(
+      expect.objectContaining({ search: '12.345.678', pendingStatus: 'with', sortKey: 'name', page: 0 }),
+      false,
     )
   })
 
-  it('does not emit a match-all filter when export search sanitizes to empty', async () => {
+  it('não gera arquivo vazio quando o recorte não tem clientes', async () => {
+    const user = userEvent.setup()
+    mocks.fetchCustomerRows.mockResolvedValue({ rows: [], count: 0, totalCount: 0 })
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Exportar base' }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Nenhum cliente no recorte atual para exportar.', 'info'))
+    expect(mocks.exportCustomerBaseWorkbook).not.toHaveBeenCalled()
+  })
+
+  it('card de saldo filtra a lista e fica marcado; vazio do filtro oferece Limpar filtros', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(screen.getByRole('button', { name: 'Filtros' }))
-    await user.type(screen.getByPlaceholderText('Razao social, fantasia ou documento'), '%%')
-    await user.click(screen.getByRole('button', { name: 'Exportar base' }))
+    const card = screen.getByRole('button', { name: /^Saldo pendente\s*R\$/ })
+    await user.click(card)
+    expect(card.getAttribute('aria-pressed')).toBe('true')
+    expect(mocks.useCustomers).toHaveBeenLastCalledWith(expect.objectContaining({ pendingStatus: 'with', page: 0 }))
 
-    await waitFor(() => expect(mocks.exportCustomerBaseWorkbook).toHaveBeenCalled())
-    expect(mocks.supabaseOr).not.toHaveBeenCalled()
+    mocks.useCustomers.mockImplementation(() => ({ data: { rows: [], totalCount: 0 }, isLoading: false, error: null, fetchStatus: 'idle', refetch: vi.fn() }))
+    await user.type(screen.getByLabelText('Buscar cliente'), 'zzz')
+    expect(await screen.findByText('Nenhum cliente com esses filtros')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }))
+    expect((screen.getByLabelText('Buscar cliente') as HTMLInputElement).value).toBe('')
+    expect(card.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('cadastro com contato sem e-mail mostra o erro junto dos contatos, sem confirmar', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(screen.getByLabelText('Nome'), 'Financeiro')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+
+    expect(screen.getByText('O contato principal precisa de um e-mail válido.')).toBeTruthy()
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.createCustomer).not.toHaveBeenCalled()
+  })
+
+  it('falha ao cadastrar fica no formulário, que continua aberto', async () => {
+    const user = userEvent.setup()
+    mocks.createCustomer.mockRejectedValue(new Error('duplicate key value violates unique constraint'))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(screen.getByLabelText('Nome'), 'Financeiro')
+    await user.type(screen.getByLabelText(/^E-mail/), 'novo@example.com')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Novo cliente' })
+    await waitFor(() => expect(within(dialog).getAllByRole('alert').length).toBeGreaterThan(0))
+    expect(mocks.navigate).not.toHaveBeenCalled()
+  })
+
+  it('link de fora para /clientes (menu, Alerta) troca o recorte em vez de ser desfeito', async () => {
+    const user = userEvent.setup()
+    renderPage('/clientes?saldo=com')
+
+    const card = screen.getByRole('button', { name: /^Saldo pendente\s*R\$/ })
+    expect(card.getAttribute('aria-pressed')).toBe('true')
+
+    await user.click(screen.getByRole('link', { name: 'Menu Clientes' }))
+    await waitFor(() => expect(card.getAttribute('aria-pressed')).toBe('false'))
+    expect(screen.getByTestId('location').textContent).toBe('/clientes')
+    expect(mocks.useCustomers).toHaveBeenLastCalledWith(expect.objectContaining({ pendingStatus: '' }))
+  })
+
+  it('o modal de cadastro não fecha enquanto grava', async () => {
+    const user = userEvent.setup()
+    mocks.confirm.mockResolvedValue(true)
+    mocks.createCustomer.mockReturnValue(new Promise(() => {}))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(screen.getByLabelText('Nome'), 'Financeiro')
+    await user.type(screen.getByLabelText(/^E-mail/), 'novo@example.com')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+    await waitFor(() => expect(mocks.createCustomer).toHaveBeenCalled())
+
+    const dialog = screen.getByRole('dialog', { name: 'Novo cliente' })
+    expect((within(dialog).getByRole('button', { name: 'Voltar' }) as HTMLButtonElement).disabled).toBe(true)
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('dialog', { name: 'Novo cliente' })).toBeTruthy()
   })
 })

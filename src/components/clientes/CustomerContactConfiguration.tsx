@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { Plus } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { InlineError } from '../ui/Card'
-import { Field, Input, Textarea } from '../ui/Input'
+import { Badge } from '../ui/Badge'
+import { Field, Input } from '../ui/Input'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import {
@@ -15,6 +17,10 @@ import {
 } from '../../services/customerContactConfiguration'
 import { extractErrorText } from '../../lib/errors'
 import { hasEligibleContactReplacement, isEligibleContact, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
+
+function snapshotOf(drafts: PortalContactDraft[]) {
+  return JSON.stringify(drafts.map((draft) => [draft.id, draft.name ?? '', draft.email ?? '', draft.phone ?? '', draft.isPrimary, draft.active, [...draft.boxCodes].sort()]))
+}
 
 function formatOrigin(origin?: string): string {
   if (origin === 'bl_automatico') return 'Capturado do B/L'
@@ -51,10 +57,17 @@ export function CustomerContactConfiguration({
   const [justification, setJustification] = useState('')
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [loadError, setLoadError] = useState('')
+  // Retrato do que está gravado: o que difere dele é alteração não salva.
+  const [savedSnapshot, setSavedSnapshot] = useState('[]')
+  // Rascunho como carregado, já com as caixas repostas no principal. Descartar
+  // volta a ele; a diferença para o gravado é uma correção que pede salvar.
+  const [loadedSnapshot, setLoadedSnapshot] = useState('[]')
 
   const loadConfig = useCallback(async () => {
     setLoading(true)
     setErrorMsg('')
+    setLoadError('')
     try {
       const data = await fetchCustomerContactConfiguration(customerId)
       const loadedDrafts: PortalContactDraft[] = data.contacts.map((c) => ({
@@ -69,9 +82,12 @@ export function CustomerContactConfiguration({
         suppressionReason: c.suppression_reason,
         sendable: c.sendable,
       }))
-      setDrafts(canEdit ? normalizePrimaryContactBoxes(loadedDrafts) : loadedDrafts)
+      const shownDrafts = canEdit ? normalizePrimaryContactBoxes(loadedDrafts) : loadedDrafts
+      setSavedSnapshot(snapshotOf(loadedDrafts))
+      setLoadedSnapshot(snapshotOf(shownDrafts))
+      setDrafts(shownDrafts)
     } catch (err) {
-      setErrorMsg(extractErrorText(err) || 'Falha ao carregar contatos do cliente.')
+      setLoadError(extractErrorText(err) || 'Falha ao carregar os contatos do cliente.')
     } finally {
       setLoading(false)
     }
@@ -189,7 +205,7 @@ export function CustomerContactConfiguration({
     event.preventDefault()
     setErrorMsg('')
 
-    if (!canEdit) return
+    if (!canEdit || snapshotOf(drafts) === savedSnapshot) return
 
     const activeContacts = drafts.filter((d) => d.active)
     const activePrimary = activeContacts.find((d) => d.isPrimary)
@@ -239,221 +255,198 @@ export function CustomerContactConfiguration({
     }
   }
 
+  const draftSnapshot = snapshotOf(drafts)
+  const dirty = draftSnapshot !== savedSnapshot
+  const editedByUser = draftSnapshot !== loadedSnapshot
+
+  function handleDiscard() {
+    setJustification('')
+    void loadConfig()
+  }
+
   if (loading) {
-    return <div className="text-sm text-slate-400">Carregando contatos e caixas de comunicação...</div>
+    return <p className="app-customer-muted" role="status">Carregando contatos e Caixas de Comunicação…</p>
+  }
+
+  if (loadError) {
+    return (
+      <div className="app-customer-stack-tight">
+        <h2 className="app-customer-section-title">Contatos e Caixas de Comunicação</h2>
+        <div className="app-customer-notice app-customer-notice--danger" role="alert">
+          <span>Não foi possível carregar os contatos: {loadError}</span>
+          <Button variant="secondary" className="app-btn--sm" onClick={() => void loadConfig()}>Tentar novamente</Button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="grid gap-6">
-      {/* Resumo visual dos destinatários agrupados por caixa */}
-      <div className="grid gap-3 sm:grid-cols-3">
+    <div className="app-customer-contacts">
+      <div className="app-customer-section-head">
+        <div>
+          <h2 className="app-customer-section-title">Contatos e Caixas de Comunicação</h2>
+          <p className="app-customer-muted">Quem recebe os Comunicados. Cada caixa precisa de pelo menos um contato ativo com e-mail; sem substituto, o principal recebe.</p>
+        </div>
+        {canEdit && (
+          <Button type="button" variant="secondary" onClick={handleAddContact}>
+            <Plus size={16} aria-hidden="true" />
+            Adicionar contato
+          </Button>
+        )}
+      </div>
+
+      {/* Quem recebe cada caixa, como a conferência de Comunicados mostra. */}
+      <dl className="app-customer-coverage" aria-label="Destinatários por caixa">
         {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
           const linkedContacts = drafts.filter(
             (d) => d.active && d.email && d.boxCodes.includes(box.code),
           )
           return (
-            <div
-              key={box.code}
-              className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[var(--app-text-strong)] text-sm">{box.label}</span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200 font-medium">
-                    {linkedContacts.length} {linkedContacts.length === 1 ? 'e-mail' : 'e-mails'}
-                  </span>
-                </div>
-                <p className="text-xs text-[var(--app-muted)] mt-1">{box.description}</p>
-              </div>
-
-              <div className="mt-3 border-t border-[var(--app-border)] pt-2 space-y-1">
-                {linkedContacts.length === 0 ? (
-                  <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">Nenhum contato vinculado</span>
-                ) : (
-                  linkedContacts.map((c, i) => (
-                    <div key={i} className="text-xs text-[var(--app-text)] flex items-center justify-between">
-                      <span className="truncate max-w-[180px]">{c.email}</span>
-                      {c.isPrimary && (
-                        <span className="text-[10px] text-[var(--app-link)] font-medium ml-1">principal</span>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
+            <div key={box.code} className="app-customer-coverage__box" data-empty={linkedContacts.length === 0 ? 'true' : undefined}>
+              <dt>
+                <span className="app-customer-coverage__label">{box.label}</span>
+                <span className="app-customer-coverage__desc">{box.description}</span>
+              </dt>
+              {linkedContacts.length === 0 ? (
+                <dd className="app-customer-note app-customer-note--warning">Nenhum contato com e-mail</dd>
+              ) : (
+                linkedContacts.map((c, i) => (
+                  <dd key={i} className="app-customer-coverage__email">
+                    <span className="app-customer-cell__truncate" title={c.email ?? undefined}>{c.email}</span>
+                    {c.isPrimary ? <span className="app-customer-coverage__tag">principal</span> : null}
+                  </dd>
+                ))
+              )}
             </div>
           )
         })}
-      </div>
-
-      <p className="text-xs text-slate-500 italic">
-        Nota: Finalidades legadas (Geral, Operacional, Faturamento) não controlam mais o envio de mensagens. O roteamento é governado exclusivamente pelas caixas acima.
-      </p>
+      </dl>
 
       {!canEdit && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 p-3 text-xs text-amber-900 dark:text-amber-200">
-          Seu perfil de usuário não possui permissão para editar os contatos do cliente.
-        </div>
+        <p className="app-customer-notice">
+          Somente leitura: seu perfil não possui permissão para editar os contatos do cliente (Documentação, Equipamentos e Administrativo editam).
+        </p>
       )}
 
-      {/* Editor de contatos */}
-      <form onSubmit={handleSubmit} className="grid gap-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-[var(--app-text-strong)]">Contatos do cliente</h3>
-          {canEdit && (
-            <Button type="button" variant="secondary" onClick={handleAddContact}>
-              + Novo contato
-            </Button>
-          )}
-        </div>
-
+      <form onSubmit={handleSubmit} className="app-customer-contacts__form" noValidate>
         {drafts.map((contact, index) => {
           const suppressionMsg = formatSuppression(contact.suppressionReason)
+          const legendName = contact.name || contact.email || 'novo contato'
+          const disabled = !canEdit || !contact.active
           return (
-            <div
+            <fieldset
               key={contact.id ?? `draft-${index}`}
-              className={`rounded-xl border p-4 transition-colors ${
-                !contact.active
-                  ? 'border-[var(--app-border)] bg-[var(--app-surface-muted)] opacity-75'
-                  : contact.isPrimary
-                  ? 'border-[var(--app-blue)] bg-blue-50/50 dark:bg-blue-950/20'
-                  : 'border-[var(--app-border)] bg-[var(--app-surface)]'
-              }`}
+              className="app-customer-contact"
+              data-primary={contact.isPrimary ? 'true' : undefined}
+              data-active={contact.active ? 'true' : 'false'}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--app-border)]">
-                <div className="flex items-center gap-2">
-                  {contact.isPrimary ? (
-                    <span className="inline-flex items-center rounded-md bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200 px-2 py-0.5 text-xs font-semibold">
-                      Contato Principal
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-md bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 px-2 py-0.5 text-xs font-medium">
-                      Contato Adicional
-                    </span>
-                  )}
-                  <span className="text-xs text-[var(--app-muted)]">{formatOrigin(contact.origin)}</span>
-                  {!contact.active && (
-                    <span className="inline-flex items-center rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 px-2 py-0.5 text-xs font-medium">
-                      Desativado
-                    </span>
-                  )}
+              <legend className="sr-only">{`${contact.isPrimary ? 'Contato principal' : 'Contato adicional'}: ${legendName}`}</legend>
+              <div className="app-customer-contact__head">
+                <div className="app-customer-contact__tags">
+                  {contact.isPrimary ? <Badge tone="info">Contato principal</Badge> : <Badge tone="neutral">Contato adicional</Badge>}
+                  {!contact.active ? <Badge tone="warning">Desativado</Badge> : null}
+                  <span className="app-customer-muted">{formatOrigin(contact.origin)}</span>
                 </div>
 
                 {canEdit && (
-                  <div className="flex items-center gap-2">
+                  <div className="app-customer-contact__actions">
                     {!contact.isPrimary && contact.active && (
-                      <button
-                        type="button"
-                        onClick={() => handleSetPrimary(index)}
-                        className="text-xs text-[var(--app-link)] hover:underline font-medium"
-                      >
+                      <Button type="button" variant="ghost" className="app-btn--sm" onClick={() => handleSetPrimary(index)}>
                         Tornar principal
-                      </button>
+                      </Button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => void handleToggleActive(index)}
-                      className="text-xs text-slate-400 hover:text-red-400 font-medium ml-2"
-                    >
+                    <Button type="button" variant="ghost" className="app-btn--sm" onClick={() => void handleToggleActive(index)}>
                       {contact.active ? 'Desativar' : 'Reativar'}
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
 
-              {suppressionMsg && (
-                <div className="mt-2 rounded bg-amber-50 dark:bg-amber-950/40 p-2 text-xs text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800/40">
-                  {suppressionMsg}
-                </div>
-              )}
+              {suppressionMsg && <p className="app-customer-notice app-customer-notice--warning">{suppressionMsg}</p>}
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="app-customer-contact__fields">
                 <Field label="Nome">
                   <Input
                     type="text"
-                    disabled={!canEdit || !contact.active}
+                    disabled={disabled}
                     value={contact.name ?? ''}
                     onChange={(e) => handleFieldChange(index, 'name', e.target.value)}
                     placeholder="Nome do contato"
+                    autoComplete="off"
                   />
                 </Field>
                 <Field label="E-mail">
                   <Input
                     type="email"
-                    disabled={!canEdit || !contact.active}
+                    disabled={disabled}
                     value={contact.email ?? ''}
                     onChange={(e) => handleFieldChange(index, 'email', e.target.value)}
                     placeholder="email@empresa.com"
+                    autoComplete="off"
                   />
                 </Field>
                 <Field label="Telefone / WhatsApp">
                   <Input
-                    type="text"
-                    disabled={!canEdit || !contact.active}
+                    type="tel"
+                    disabled={disabled}
                     value={contact.phone ?? ''}
                     onChange={(e) => handleFieldChange(index, 'phone', e.target.value)}
                     placeholder="(11) 99999-9999"
+                    autoComplete="off"
                   />
                 </Field>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-[var(--app-border)]">
-                <span className="text-xs font-semibold text-[var(--app-text-strong)]">
-                  Caixas de recebimento vinculadas:
-                </span>
-                {contact.isPrimary ? (
-                  <p className="mt-1 text-xs text-[var(--app-muted)]">
-                    Para desmarcar uma caixa, vincule antes outro contato ativo e apto a receber mensagens.
-                  </p>
+              <fieldset className="app-customer-boxes">
+                <legend className="app-customer-boxes__legend">
+                  Caixas de recebimento<span className="sr-only">{` de ${legendName}`}</span>
+                </legend>
+                {contact.isPrimary && canEdit ? (
+                  <p className="app-customer-boxes__hint">Para tirar o principal de uma caixa, vincule antes outro contato ativo e apto a receber.</p>
                 ) : null}
-                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                <div className="app-customer-boxes__grid">
                   {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
                     const checked = contact.boxCodes.includes(box.code)
                     return (
-                      <label
-                        key={box.code}
-                        className={`flex items-start gap-2 p-2 rounded border text-xs cursor-pointer ${
-                          checked
-                            ? 'border-[var(--app-blue)] bg-blue-50/70 dark:bg-blue-950/30'
-                            : 'border-[var(--app-border)] opacity-80'
-                        } ${!contact.active || !canEdit ? 'cursor-not-allowed opacity-60' : ''}`}
-                      >
+                      <label key={box.code} className="app-customer-box" data-checked={checked ? 'true' : 'false'} data-disabled={disabled ? 'true' : undefined}>
                         <input
                           type="checkbox"
-                          className="mt-0.5 rounded border-[#30363d] text-blue-600 focus:ring-blue-500"
-                          disabled={!canEdit || !contact.active}
+                          disabled={disabled}
                           checked={checked}
                           onChange={() => handleToggleBox(index, box.code)}
                         />
-                        <div>
-                          <div className="font-medium text-[var(--app-text-strong)]">{box.label}</div>
-                          <div className="text-[10px] text-[var(--app-muted)] mt-0.5">{box.description}</div>
-                        </div>
+                        {/* O que cada caixa recebe está no quadro de destinatários acima. */}
+                        <span className="app-customer-box__label">{box.label}</span>
                       </label>
                     )
                   })}
                 </div>
-              </div>
-            </div>
+              </fieldset>
+            </fieldset>
           )
         })}
-
-        {canEdit && (
-          <Field label="Justificativa da alteração">
-            <Textarea
-              value={justification}
-              onChange={(e) => setJustification(e.target.value)}
-              placeholder="Obrigatório registrar justificativa para auditoria interna"
-            />
-          </Field>
-        )}
 
         {errorMsg ? <InlineError message={errorMsg} /> : null}
 
         {canEdit && (
-          <div className="flex justify-end mt-2">
-            <Button type="submit" loading={saving}>
-              Salvar alterações de contatos
-            </Button>
+          <div className="app-customer-savebar" data-dirty={dirty ? 'true' : 'false'} role="region" aria-label="Salvar contatos">
+            <p className="app-customer-savebar__summary" aria-live="polite">
+              {editedByUser ? (
+                <strong>Alterações não salvas nos contatos.</strong>
+              ) : dirty ? (
+                <strong>O contato principal foi incluído nas caixas que ficaram sem outro destinatário elegível. Salve para gravar.</strong>
+              ) : (
+                'Sem alterações nos contatos.'
+              )}
+            </p>
+            <Field label="Justificativa da alteração" hint="Opcional. Fica registrada no Histórico do Cliente.">
+              <Input value={justification} disabled={saving} onChange={(e) => setJustification(e.target.value)} />
+            </Field>
+            <div className="app-customer-savebar__actions">
+              {editedByUser ? <Button type="button" variant="secondary" onClick={handleDiscard} disabled={saving}>Descartar</Button> : null}
+              {/* Sem alteração não há o que gravar: a RPC registraria um evento vazio no Histórico. */}
+              <Button type="submit" disabled={!dirty} loading={saving} loadingLabel="Salvando…">Salvar contatos</Button>
+            </div>
           </div>
         )}
       </form>

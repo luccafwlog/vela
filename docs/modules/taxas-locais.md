@@ -1,12 +1,12 @@
 # Taxas Locais
 
-> **Status:** ativo · **Atualizado:** 2026-09-29 · **Rotas:** operação em `/taxas-locais`; cadastro em `/taxas-locais/tabelas`; ações operacionais também partem de `/revisao` e `/bls/:blId`
+> **Status:** ativo · **Atualizado:** 2026-10-09 · **Rotas:** operação em `/taxas-locais`; cadastro em `/taxas-locais/tabelas`; ações operacionais também partem de `/revisao` e `/bls/:blId`
 
 ## Propósito e escopo
 
 Este módulo é o dono da configuração de tarifas locais e das operações que
 transformam os dados de um B/L em linhas faturáveis. A rota
-`/taxas-locais/tabelas` expõe as abas de tabelas e overrides; a rota pai
+`/taxas-locais/tabelas` expõe as abas Tabelas e Condições de Cliente (overrides); a rota pai
 `/taxas-locais` expõe a operação de validação e invoices. Cálculo, recálculo, revisão,
 liberação para faturamento, cobranças manuais e reconciliação de cliente são
 operações do mesmo domínio disparadas por outras telas.
@@ -46,40 +46,75 @@ não foi acionado. Registro detalhado no plano de remediação, seção 1.0.39.
 
 ### Aba Tabelas em `/taxas-locais/tabelas`
 
-`src/components/taxasLocais/ChargeTablesTab.tsx` recebe da página os filtros
-compartilhados de modo de carga e POD, mantém queries, mutations, validação e
-estado local. A renderização é dividida em:
+Revisada na etapa 09 da revisão visual (2026-10-09). A página
+(`src/pages/TaxasLocaisTabelas.tsx`) guarda o recorte na URL: `?tab=`
+(`tabelas` ou `overrides`, nome mantido pelos links existentes), `?modo=`,
+`?pod=` (POD normalizado), `?lente=` (Tabelas) e `?vigencia=`/`?cliente=`
+(Condições de Cliente). As abas usam `TabList`.
 
-- métricas de tabelas, tabelas ativas, itens e itens somente manuais;
-- filtros por `cargo_mode` e POD;
-- `src/components/taxasLocais/ChargeTableFormCard.tsx` e
-  `src/components/taxasLocais/ChargeTableItemFormCard.tsx`: formulários
-  recolhíveis de tabela e item;
-- `src/components/taxasLocais/ChargeTablesList.tsx`: lista de
-  `charge_tables`, com expansão dos `charge_table_items` e os avisos de
-  vigência da ADR 0040 (`chargeTableAlerts`): "Vigência vencida" e "Vigência
-  futura" em tabela ativa (o período não filtra o cálculo, então segue sendo
-  aplicada) e "Não aplicada" quando outra tabela ativa do mesmo POD e modo de
-  carga vence o desempate;
-- edição, ativação/inativação, criação e exclusão de item;
-- estados de carregamento, erro e vazio produzidos por
-  `useLocalChargeTables`.
+`src/components/taxasLocais/ChargeTablesTab.tsx` lê todas as tabelas
+(`useLocalChargeTables()` sem filtro) e recorta na tela, porque a situação no
+cálculo de cada tabela depende de todas as tabelas do mesmo escopo, inclusive
+de grafias diferentes do mesmo POD (BRVIX × BRVIT):
 
-Os formulários e defaults vivem em
-`src/components/taxasLocais/chargeForms.ts`; validação e normalização vivem em
-`src/pages/taxasLocaisHelpers.ts`.
+- filtros por modo de carga e POD (`ChargeScopeFilters`, POD escolhido entre
+  os cadastrados, já na grafia do motor), lente `SegmentedControl` (Todas,
+  Aplicadas, Com aviso, Inativas) e `SummaryStrip`;
+- `src/components/taxasLocais/ChargeTablesList.tsx` agrupa as tabelas por
+  escopo (modo de carga + POD normalizado) e diz em cada grupo qual tabela
+  "vale no cálculo". `resolveChargeTableStates` (`src/pages/taxasLocaisHelpers.ts`)
+  reproduz `resolve_local_charge_table_id` (migration `274`): Aplicada no
+  cálculo, Não aplicada (com o nome da tabela que vence) ou Inativa. A
+  vigência aparece como informativa (ADR 0040): vencida ou futura em tabela
+  ativa vira aviso de que ela continua no cálculo, nunca exclusão. Tabela
+  aplicada sem item automático avisa que o escopo não gera taxa;
+- a linha da tabela tem uma ação visível (Editar) e o menu ⋮ (Adicionar item;
+  Desativar/Reativar só para o Administrativo). Os itens abrem dentro da
+  tabela, com valor, moeda e unidade (`por B/L`, `por container`,
+  `por tonelada`), "Automático"/"Só manual" e perfil; abaixo de 640 px viram
+  cartões;
+- `src/components/taxasLocais/chargePresentation.ts` traduz o cadastro no que
+  o motor faz (`resolve_bl_local_charge_items`, migration `129`): THD por
+  container com perfil "Todos" vai para revisão; perfil em item que não é THD
+  não separa containers; THD Padrão também é a base do container IMO e OOG
+  (× 2,5); base TEU não é calculada. São avisos de leitura, não regra nova;
+  se o motor mudar, o módulo precisa acompanhar;
+- `src/components/taxasLocais/ChargeTableFormModal.tsx` e
+  `src/components/taxasLocais/ChargeTableItemFormModal.tsx`: formulários em
+  modal, com erro junto do campo e falha de gravação no próprio modal. O de
+  tabela mostra antes de gravar o efeito no escopo (passa a ser a aplicada no
+  lugar de outra, não será aplicada ou fica inativa) e, só no cadastro, a
+  escolha "Ativa"/"Inativa" (preparar itens antes de entrar no cálculo). Na
+  edição, as alterações aparecem campo a campo acima do botão (a conferência
+  que antes era um segundo diálogo). Ativar e desativar saíram dos
+  formulários: são do Administrativo e ficam no menu da linha;
+- estados de carregamento (esqueleto), erro com Tentar novamente, vazio
+  inicial e vazio do recorte com Limpar filtros.
 
-### Aba Overrides em `/taxas-locais/tabelas`
+Os tipos e defaults vivem em `src/components/taxasLocais/chargeForms.ts`;
+validação e normalização vivem em `src/pages/taxasLocaisHelpers.ts` (o valor
+aceita "1.420,50"; cada erro indica o campo).
+
+### Aba Condições de Cliente (overrides) em `/taxas-locais/tabelas`
 
 `src/components/taxasLocais/ChargeOverridesTab.tsx` contém:
 
-- busca de cliente por nome ou documento;
-- filtros por modo de carga e POD;
-- consulta separada de clientes e itens elegíveis;
-- formulário de criação/edição com vigência e observação;
-- lista de `customer_rate_overrides`, valor base, valor substituto e estado de
-  vigência calculado na interface;
-- confirmação antes da exclusão e estados de carregamento, erro e vazio.
+- busca de Cliente por nome ou CNPJ (enviada à URL depois de uma pausa na
+  digitação), filtros por modo de carga e POD e lente pela vigência de hoje
+  (Vigentes hoje, Futuras, Encerradas ou desativadas);
+- lista com Cliente, item e tabela de origem, vigência ("Vigente hoje",
+  "Começa em", "Encerrada em", "Desativada"), valor negociado com unidade,
+  valor da tabela e diferença. "Vigente hoje" é a leitura de hoje: o motor
+  escolhe a condição pela data de referência do B/L (ETA da escala do POD);
+- aviso quando a condição não muda a cobrança: tabela inativa ou não aplicada,
+  ou item inativo;
+- `src/components/taxasLocais/ChargeOverrideFormModal.tsx`: modal com Cliente
+  e item por `Combobox` (Cliente por `useOverrideCustomerLookup`, mesma chave de
+  `useOverrideCustomers`), valor da tabela ao lado do negociado, regra de
+  vigência e conflito de sobreposição mostrado no modal. Na edição, Cliente e
+  item ficam fixos;
+- desativar, reativar e excluir pelo menu ⋮ do Administrativo, com
+  confirmação; estados de carregamento, erro e vazio.
 
 ### Superfícies operacionais fora da rota
 
@@ -123,12 +158,12 @@ Os formulários e defaults vivem em
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
 | `/taxas-locais/tabelas` · filtrar/listar tabelas | Capacidade `charge_tables`; filtros opcionais | `TaxasLocaisTabelas` → `ChargeTablesTab` → `ChargeTablesList` | `useLocalChargeTables` → `listLocalChargeTables` | `SELECT charge_tables` com `charge_table_items` | Query `queryKeys.charges.tables(filters)`; itens são ordenados por `sort_order` e nome | Erro Supabase vira estado de erro da lista | **Código:** `src/pages/TaxasLocaisTabelas.tsx`, `src/components/taxasLocais/ChargeTablesTab.tsx`, `src/components/taxasLocais/ChargeTablesList.tsx`, `src/services/charges/chargeTableService.ts` |
-| `/taxas-locais/tabelas` · criar/editar tabela | Nome, POD e `valid_from`; vigência final não anterior à inicial (a vigência é informativa — ADR 0040 — e o formulário diz isso; a lista sinaliza vigência vencida/futura e tabela ativa não aplicada por outra do mesmo escopo) | `ChargeTableFormCard` → `handleSaveTable` | `validateTableInput` → `useSaveChargeTable` → `saveChargeTable` | `INSERT` ou `UPDATE charge_tables` | Invalida `queryKeys.charges.tables()` | Toast “Falha ao salvar tabela”; erro de constraint/RLS é propagado | **Código:** `src/components/taxasLocais/ChargeTableFormCard.tsx`, `src/components/taxasLocais/ChargeTablesTab.tsx`, `src/pages/taxasLocaisHelpers.ts`, `src/hooks/useLocalCharges.ts` · **Teste:** `src/pages/__tests__/taxasLocaisHelpers.test.ts` |
+| `/taxas-locais/tabelas` · criar/editar tabela | Nome, POD e `valid_from`; vigência final não anterior à inicial (a vigência é informativa — ADR 0040 — e o formulário diz isso; o modal mostra o efeito no escopo antes de gravar; a lista sinaliza vigência vencida/futura e tabela ativa não aplicada por outra do mesmo escopo) | `ChargeTableFormModal` → `handleSaveTable` | `validateTableInput` → `useSaveChargeTable` → `saveChargeTable` | `INSERT` ou `UPDATE charge_tables` | Invalida `queryKeys.charges.tables()` | Erro de validação junto do campo; falha de gravação (constraint/RLS) no próprio modal, que fica aberto | **Código:** `src/components/taxasLocais/ChargeTableFormModal.tsx`, `src/components/taxasLocais/ChargeTablesTab.tsx`, `src/pages/taxasLocaisHelpers.ts`, `src/hooks/useLocalCharges.ts` · **Teste:** `src/pages/__tests__/taxasLocaisHelpers.test.ts` |
 | `/taxas-locais/tabelas` · ativar/inativar tabela | Tabela existente | `ChargeTablesList` → `handleToggleTableActive` | `useSetChargeTableActive` → `setChargeTableActive` | `UPDATE charge_tables.active` | Invalida `queryKeys.charges.tables()` | Toast de falha; não recalcula B/Ls já existentes | **Código:** `src/components/taxasLocais/ChargeTablesList.tsx`, `src/components/taxasLocais/ChargeTablesTab.tsx`, `src/services/charges/chargeTableService.ts` |
-| `/taxas-locais/tabelas` · adicionar/editar item | Tabela, nome, valor não negativo e `sort_order` inteiro não negativo | `ChargeTableItemFormCard` → `handleSaveTableItem` | `validateTableItemInput` → `useSaveChargeTableItem` → `saveChargeTableItem` | `INSERT` ou `UPDATE charge_table_items` | Invalida `charges.tables()`, `bls.manualChargeItems('')` e `charges.overrideItems()` | Toast de falha; constraints de moeda/base/perfil podem rejeitar | **Código:** `src/components/taxasLocais/ChargeTableItemFormCard.tsx`, `src/components/taxasLocais/ChargeTablesTab.tsx`, `src/services/charges/chargeTableService.ts` · **Teste:** `src/pages/__tests__/taxasLocaisHelpers.test.ts` |
+| `/taxas-locais/tabelas` · adicionar/editar item | Tabela (vem da tabela aberta), nome, valor não negativo e `sort_order` inteiro não negativo | `ChargeTableItemFormModal` → `handleSaveItem` | `validateTableItemInput` → `useSaveChargeTableItem` → `saveChargeTableItem` | `INSERT` ou `UPDATE charge_table_items` | Invalida `charges.tables()`, `bls.manualChargeItems('')` e `charges.overrideItems()` | Falha no próprio modal; constraints de moeda/base/perfil podem rejeitar | **Código:** `src/components/taxasLocais/ChargeTableItemFormModal.tsx`, `src/components/taxasLocais/ChargeTablesTab.tsx`, `src/services/charges/chargeTableService.ts` · **Teste:** `src/pages/__tests__/taxasLocaisHelpers.test.ts` |
 | `/taxas-locais/tabelas` · excluir item | Confirmação; item sem bloqueio referencial | `ChargeTablesList` → `handleDeleteTableItem` | `useDeleteChargeTableItem` → `deleteChargeTableItem` | `DELETE charge_table_items` | Mesmas invalidações do save de item | Mensagem informa possível vínculo com cálculos | **Código:** `src/components/taxasLocais/ChargeTablesList.tsx`, `src/components/taxasLocais/ChargeTablesTab.tsx`, `src/hooks/useLocalCharges.ts` |
-| `/taxas-locais/tabelas` · filtrar/listar overrides | Capacidade `charge_overrides`; limite entre 20 e 500 | `ChargeOverridesTab` | `useCustomerRateOverrides` → `listCustomerRateOverrides` | `SELECT customer_rate_overrides` com `customers`, itens e tabelas | Query `queryKeys.charges.overrides(filters)`; filtros de cliente/modo/POD são aplicados no cliente após a leitura limitada | Erro Supabase vira erro da lista | **Código:** `src/components/taxasLocais/ChargeOverridesTab.tsx`, `src/services/charges/chargeRateService.ts` |
-| `/taxas-locais/tabelas` · buscar cliente/item de override | Busca de cliente vazia ou com pelo menos dois caracteres para filtro remoto; itens ativos e não manuais | Selects do formulário | `useOverrideCustomers` / `useOverrideChargeItems` | `SELECT customers`; `SELECT charge_table_items` + `charge_tables` | Queries `charges.overrideCustomers(search)` e `charges.overrideItems()` | Erro da query impede opções; a tela não cria opção livre | **Código:** `src/components/taxasLocais/ChargeOverridesTab.tsx`, `src/services/charges/chargeRateService.ts` |
+| `/taxas-locais/tabelas` · filtrar/listar overrides | Capacidade `charge_overrides`; limite entre 20 e 500 | `ChargeOverridesTab` | `useCustomerRateOverrides` → `listCustomerRateOverrides` | `SELECT customer_rate_overrides` com `customers`, itens e tabelas | Query `queryKeys.charges.overrides(filters)`; Cliente e modo filtrados no serviço após a leitura completa; POD filtrado na tela pela grafia normalizada do motor; limite 500, com aviso para refinar | Erro Supabase vira erro da lista com Tentar novamente | **Código:** `src/components/taxasLocais/ChargeOverridesTab.tsx`, `src/services/charges/chargeRateService.ts` |
+| `/taxas-locais/tabelas` · buscar cliente/item de override | Busca de cliente com pelo menos dois caracteres; itens ativos e não manuais, filtrados na tela por palavra | `Combobox` do `ChargeOverrideFormModal` | `useOverrideCustomerLookup` / `useOverrideChargeItems` | `SELECT customers`; `SELECT charge_table_items` + `charge_tables` | Queries `charges.overrideCustomers(search)` e `charges.overrideItems()` | Erro da query impede opções; a tela não cria opção livre | **Código:** `src/components/taxasLocais/ChargeOverridesTab.tsx`, `src/services/charges/chargeRateService.ts` |
 | `/taxas-locais/tabelas` · criar/editar override | Cliente e item válidos; valor maior que zero; vigência coerente; **vigência não pode sobrepor outra condição do mesmo cliente+item** (etapa 10 do plano de faturamento, ADR 0038 decisão 5) | `handleSaveOverride` | `validateOverrideInput` → `useSaveCustomerRateOverride` → `saveCustomerRateOverride` → `findOverlappingCustomerRateOverride` | `INSERT` ou `UPDATE customer_rate_overrides`; restrição de exclusão `customer_rate_overrides_no_overlap` (migration `267`, GiST em `customer_id`/`charge_item_id`/`daterange(valid_from,valid_to,'[]')`) é a autoridade final | Invalida `charges.overrides()` e `bls.localChargeLines('')` | Toast de falha; erro de validação é exibido antes da chamada; conflito de vigência mostra qual condição existente colide e seu período (checagem no app antes de gravar; violação da restrição no banco — código `23P01`, corrida entre duas telas — cai no mesmo texto amigável) | **Código:** `src/components/taxasLocais/ChargeOverridesTab.tsx`, `src/pages/taxasLocaisHelpers.ts`, `src/services/charges/chargeRateService.ts` · **Teste:** `src/pages/__tests__/taxasLocaisHelpers.test.ts`, `src/services/charges/__tests__/chargeRateService.overlap.test.ts`, `src/services/__tests__/customerRateOverridesNoOverlapMigration.test.ts` |
 | `/taxas-locais/tabelas` · excluir override | Confirmação | `handleDeleteOverride` | `useDeleteCustomerRateOverride` → `deleteCustomerRateOverride` | `DELETE customer_rate_overrides` | Mesmas invalidações do save de override | Toast de falha | **Código:** `src/components/taxasLocais/ChargeOverridesTab.tsx`, `src/hooks/useLocalCharges.ts` |
 | B/L/revisão · calcular ou recalcular um B/L | B/L existente; usuário ativo; `recalculate` define limpeza/reuso; CE Mercante exigido para emitir (não mais para calcular) em `cargo_mode=container`; **B/L com `financial_status IN ('invoiced','partially_paid','paid')` é recusado** (etapa 2 do plano de faturamento, ADR 0038 achado 6) | `BlCobrancasTab`, `Revisao`, `reviewBillingAutomation`, `ceMercanteImport` | `useCalculateBlLocalCharges` ou chamada direta → `calculateBlLocalCharges`; `maybeAutoBillAfterCeMercante` tenta cálculo+emissão após CE para B/L container reconciliado por documento | RPC `calculate_bl_local_charges` → `charge_calculations`, estado e auditoria do B/L; automação pode emitir invoice | Invalida linhas do B/L, detalhe, lista de B/Ls, `charges.operations()`/`pendencies()` e viagens | RPC propaga ausência de tabela, dados inválidos e demais regras; automação sempre calcula (etapa 4, ADR 0038 achado 11) e só bloqueia a **emissão** enquanto o CE estiver vazio; UI mostra toast no cálculo manual. `calculateBlLocalCharges` consulta `bls.financial_status` antes de chamar a RPC e recusa localmente com mensagem clara se o B/L já foi faturado; a migration `262` replica a mesma trava dentro da própria RPC, cobrindo chamada direta fora do app. `charge_status` não é mais promovido automaticamente de `calculated` para `ready_for_billing` (migration `263` remove `trg_promote_calculated_bl_ready`, etapa 3, ADR 0038 decisão 8) — a promoção só acontece dentro da emissão (`mark_bl_ready_and_create_invoice`, pelo CE Mercante ou pelo botão **Emitir fatura**). Falha **inesperada** da automação pós-CE é registrada no Histórico do B/L (`bl_auto_billing_failed`) e, na edição da ficha, também num toast; reimport de CE de B/L já faturado é no-op benigno registrado como info (`ce_reimport_already_invoiced`). | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/pages/Revisao.tsx`, `src/services/reviewBillingAutomation.ts`, `src/services/ceMercanteImport.ts`, `src/services/operationalEvents.ts`, `src/services/charges/chargeOperationsService.ts` · **Teste:** `src/services/__tests__/localCharges.test.ts`, `src/services/__tests__/reviewBillingAutomation.test.ts`, `src/services/__tests__/ceMercanteImport.test.ts` |
@@ -153,7 +188,7 @@ Definidas em `src/services/queryKeys.ts`:
 |---|---|---|
 | `queryKeys.charges.tables(filters)` | `['local-charge-tables', filters]` | Tabelas e itens |
 | `queryKeys.charges.operations(filters?)` | sem filtro: `['local-charge-operations']`; com filtro: `['local-charge-operations', filters]` | Fila operacional local + Granito |
-| `queryKeys.charges.overrides(filters)` | `['local-charge-overrides', filters]` | Overrides por cliente |
+| `queryKeys.charges.overrides(filters)` | `['local-charge-overrides', filters]` | Condições de Cliente (overrides) |
 | `queryKeys.charges.overrideItems()` | `['local-charge-override-items']` | Itens automáticos ativos elegíveis |
 | `queryKeys.charges.overrideCustomers(search)` | `['local-charge-override-customers', search]` | Clientes do seletor |
 | `queryKeys.charges.pendencies()` | `['local-charge-pendencies']` | Pendências de cálculo |
@@ -270,7 +305,8 @@ flowchart LR
   emissão da fatura (`create_invoice_from_bls_core` /
   `create_local_consolidated_invoice_core`), pelo ROE vigente em
   `exchange_rate_reference`, congelado com o resto da fatura — sem o
-  Recálculo Diário que o Demurrage usa. `mark_bl_ready_for_billing` chama
+  Recálculo Diário que o Demurrage usa. A Condição de Cliente de item em
+  dólar é valor em dólar e entra antes da conversão (migration `171`). `mark_bl_ready_for_billing` chama
   `sync_local_charge_receivable` diretamente para manter o saldo do ledger
   atualizado (inclusive convertendo linhas USD), no lugar do trigger
   `trg_emit_invoice_on_bl_ready` removido na mesma migration (ver
@@ -311,18 +347,19 @@ aba autorizada e paginação completa antes dos filtros de overrides.
 
 | Arquivo | Evidência coberta |
 |---|---|
-| `src/pages/__tests__/TaxasLocaisTabelas.test.ts` | Rota contém somente tabelas e overrides |
+| `src/pages/__tests__/TaxasLocaisTabelas.test.ts` | Rota contém somente Tabelas e Condições de Cliente; `?tab=overrides` e `?cliente=` antigos |
 | `src/pages/__tests__/taxasLocaisHelpers.test.ts` | Validação de tabela, item e override |
 | `src/services/__tests__/localCharges.test.ts` | Cálculo, linhas, itens manuais, fila paginada e promoção para faturamento |
 | `src/services/__tests__/financialValidation.test.ts` | Validações financeiras reutilizadas nas superfícies relacionadas |
 | `src/components/billing/__tests__/ManualChargeFormFields.test.tsx` | Estados de criação/edição da cobrança manual |
 | `src/services/__tests__/guardInvoiceableReadyStateMigration.test.ts` | **Teste de contrato SQL** do gate de valor BRL faturável |
 | `src/services/__tests__/guardManualChargesMigration.test.ts` | **Teste de contrato SQL** dos bloqueios de cobranças manuais |
-| `src/components/taxasLocais/__tests__/TaxasLocais.behavior.test.tsx` | CRUD comportamental de tabelas, itens e overrides |
+| `src/components/taxasLocais/__tests__/TaxasLocais.behavior.test.tsx` | Agrupamento por escopo, tabela aplicada/não aplicada, avisos de vigência e de item, modais com erro junto do campo e falha no modal, CRUD de tabelas, itens e condições, permissões |
+| `src/components/taxasLocais/__tests__/chargePresentation.test.ts` | Notas do motor por item, leitura da tabela, prévia do escopo, condição sem efeito, vigência de hoje |
 | `src/services/__tests__/chargeRateService.test.ts` | Pagina toda a fonte antes de filtrar e limitar overrides |
 
 Comando focado:
-`npm test -- --run src/components/taxasLocais/__tests__/TaxasLocais.behavior.test.tsx src/pages/__tests__/TaxasLocais.test.ts src/pages/__tests__/taxasLocaisHelpers.test.ts src/services/__tests__/chargeRateService.test.ts src/services/__tests__/localCharges.test.ts src/services/__tests__/queryKeysPrefix.test.ts src/components/billing/__tests__/ManualChargeFormFields.test.tsx src/services/__tests__/guardInvoiceableReadyStateMigration.test.ts src/services/__tests__/guardManualChargesMigration.test.ts`.
+`npm test -- --run src/components/taxasLocais/__tests__/TaxasLocais.behavior.test.tsx src/components/taxasLocais/__tests__/chargePresentation.test.ts src/pages/__tests__/TaxasLocaisTabelas.test.ts src/pages/__tests__/TaxasLocais.test.ts src/pages/__tests__/taxasLocaisHelpers.test.ts src/services/__tests__/chargeRateService.test.ts src/services/__tests__/localCharges.test.ts src/services/__tests__/queryKeysPrefix.test.ts src/components/billing/__tests__/ManualChargeFormFields.test.tsx src/services/__tests__/guardInvoiceableReadyStateMigration.test.ts src/services/__tests__/guardManualChargesMigration.test.ts`.
 
 ## Notas e divergências
 
@@ -340,6 +377,55 @@ Comando focado:
 - **Granito é uma agregação visual, não um único domínio de cobrança.** Revisão
   em lote de Granito retorna sucesso sem escrita, e a liberação usa update
   direto de `granite_bls`.
+- **Condição de Cliente vale na moeda do item (migration `171`, 2026-10-09).**
+  Até a `129`, `resolve_bl_local_charge_items` aplicava `override_value` só ao
+  valor em reais: item em USD saía pelo `unit_value_usd` da tabela e gravava
+  `override_applied = true`. A `171` usa o valor negociado no lado USD quando o
+  item é em dólar, inclusive na linha IMO+OOG (× 2,5), como já faziam o
+  lançamento manual (`list_manual_charge_items_for_bl`) e a fatura avulsa.
+  Cálculos já gravados mudam no próximo cálculo ou recálculo do B/L; B/L
+  faturado não é recalculado. **Teste local-pg:**
+  `src/integration/conditionUsd.local-pg.test.ts`.
+- **Efeitos da `171` (migration `172`, 2026-10-09, decisões da revisão da PR
+  923).** Item de Taxa com Condição de Cliente ativa não troca de moeda: o
+  valor negociado guarda só o número, na moeda do item, e trocar a moeda o
+  reinterpretaria (R$ 1.200 viraria US$ 1.200). O banco recusa (trigger
+  `charge_table_items_currency_locked_by_condition`) e o modal de item trava a
+  moeda dizendo quantas condições a usam; para cobrar em outra moeda,
+  cadastra-se um item novo. A `172` também recalcula, uma vez, os B/Ls não
+  faturados e não cancelados que ainda tinham linha automática em item USD com
+  `override_applied = true` (a marca do erro da `129`). B/L faturado não muda;
+  a lista dos que foram faturados acima do negociado sai da consulta abaixo e
+  vai para o financeiro decidir a devolução pelas ferramentas existentes:
+
+  ```sql
+  SELECT b.id AS bl, c.name AS cliente, i.id AS fatura, cti.name AS item,
+         cc.quantity, cc.unit_value_usd AS cobrado_usd, cro.override_value AS negociado_usd,
+         cc.total_value_usd - ROUND(cc.quantity * cro.override_value, 2) AS diferenca_usd
+  FROM charge_calculations cc
+  JOIN charge_table_items cti ON cti.id = cc.charge_item_id AND cti.currency = 'USD'
+  JOIN bls b ON b.id = cc.bl_id
+  JOIN customers c ON c.id = b.customer_id
+  JOIN customer_rate_overrides cro ON cro.customer_id = b.customer_id AND cro.charge_item_id = cti.id
+  LEFT JOIN invoice_bls ib ON ib.bl_id = b.id
+  LEFT JOIN invoices i ON i.id = ib.invoice_id
+  WHERE COALESCE(cc.source, 'auto') = 'auto' AND cc.override_applied
+    AND cc.unit_value_usd IS DISTINCT FROM cro.override_value
+    AND b.financial_status IN ('invoiced', 'partially_paid', 'paid');
+  ```
+
+  Pela afirmação "Data status" do `AGENTS.md`, hoje produção só tem dados de
+  teste; a consulta passa a importar quando houver dado real. **Teste
+  local-pg:** `conditionUsd.local-pg.test.ts` (trava de moeda e recálculo).
+- **Escopo da tabela na tela segue `normalize_port_code` do banco.** A tela
+  agrupa as tabelas pela mesma lista exata de aliases da função do banco
+  (SANTOS/SSZ → BRSSZ, BRVIT/VITORIA/VIX → BRVIX…), sem "contém"; o rótulo do
+  escopo mostra o código canônico do banco.
+- **Data de referência da avulsa diverge do cálculo (Código).** A cotação da
+  fatura avulsa com item da tabela (`quote_manual_invoice_charge`, migration
+  `123`) escolhe a condição pela data do lote/criação do B/L, não pela ETA da
+  escala do POD (`CONTEXT.md`, Data de Referência da Tarifa). Registrado para a
+  etapa 10 e o dono do Faturamento.
 - `pricing_rule_versions` não participa deste caminho atual; cálculo e
   transições registram evidência principalmente em `audit_logs`.
 

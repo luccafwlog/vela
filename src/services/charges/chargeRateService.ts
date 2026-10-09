@@ -1,5 +1,5 @@
 import { supabase } from '../supabase'
-import { escapeFilterTerm } from '../../lib/utils'
+import { escapeFilterTerm, formatDate } from '../../lib/utils'
 import { deleteOneById } from '../deleteRecords'
 
 export type LocalChargeOverrideItem = {
@@ -24,6 +24,11 @@ export type LocalChargeOverrideItem = {
     currency: string | null
     unit_value_brl: number | null
     unit_value_usd: number | null
+    /** Item desativado não entra no cálculo; a tela avisa que a condição fica sem efeito. */
+    active: boolean | null
+    application_basis: string | null
+    /** Separa os THD por perfil na tela (Padrão, IMO, OOG). */
+    cargo_profile: string | null
     charge_table: {
       id: number
       name: string
@@ -96,6 +101,9 @@ export async function listCustomerRateOverrides(filters?: {
         currency,
         unit_value_brl,
         unit_value_usd,
+        active,
+        application_basis,
+        cargo_profile,
         charge_table:charge_tables(
           id,
           name,
@@ -138,6 +146,21 @@ export async function listCustomerRateOverrides(filters?: {
     }
     return true
   }).slice(0, limit)
+}
+
+/**
+ * Condições de Cliente ativas de um item. Com alguma, o banco recusa trocar a
+ * moeda do item (migration 172): o valor negociado está na moeda atual.
+ */
+export async function countActiveConditionsForItem(chargeItemId: number) {
+  const { count, error } = await supabase
+    .from('customer_rate_overrides')
+    .select('id', { count: 'exact', head: true })
+    .eq('charge_item_id', chargeItemId)
+    // `active` é da migration 091 e ainda não está nos tipos gerados.
+    .eq('active' as never, true as never)
+  if (error) throw error
+  return count ?? 0
 }
 
 export async function listOverrideChargeItems() {
@@ -240,9 +263,9 @@ export async function findOverlappingCustomerRateOverride(input: {
 
 function describeOverridePeriod(row: { valid_from: string | null; valid_to: string | null }) {
   if (!row.valid_from && !row.valid_to) return 'sem limite de vigência'
-  if (!row.valid_to) return `a partir de ${row.valid_from}`
-  if (!row.valid_from) return `até ${row.valid_to}`
-  return `${row.valid_from} a ${row.valid_to}`
+  if (!row.valid_to) return `a partir de ${formatDate(row.valid_from)}`
+  if (!row.valid_from) return `até ${formatDate(row.valid_to)}`
+  return `${formatDate(row.valid_from)} a ${formatDate(row.valid_to)}`
 }
 
 export async function saveCustomerRateOverride(input: {
@@ -257,7 +280,7 @@ export async function saveCustomerRateOverride(input: {
   const conflict = await findOverlappingCustomerRateOverride(input)
   if (conflict) {
     throw new Error(
-      `Já existe uma condição para este cliente e item com vigência ${describeOverridePeriod(conflict)} (id ${conflict.id}). Ajuste o período ou edite a condição existente.`,
+      `Já existe uma condição para este Cliente e item com vigência ${describeOverridePeriod(conflict)} (id ${conflict.id}). Para trocar o valor, encerre a vigência da anterior ou edite-a.`,
     )
   }
 

@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { afterReferenciaPortalAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
@@ -25,6 +26,7 @@ import {
   deleteCustomerRateOverride,
   setCustomerRateOverrideActive,
   listCustomerRateOverrides,
+  countActiveConditionsForItem,
   listOverrideChargeItems,
   listOverrideCustomers,
   saveCustomerRateOverride,
@@ -272,11 +274,36 @@ export function useOverrideChargeItems() {
   })
 }
 
+/** Condições ativas do item em edição; invalidada junto com as condições. */
+export function useActiveConditionCount(chargeItemId: number | null) {
+  return useQuery({
+    queryKey: queryKeys.charges.overrides({ activeForItem: chargeItemId }),
+    queryFn: () => countActiveConditionsForItem(chargeItemId as number),
+    enabled: chargeItemId != null,
+  })
+}
+
 export function useOverrideCustomers(search: string) {
   return useQuery({
     queryKey: queryKeys.charges.overrideCustomers(search),
     queryFn: () => listOverrideCustomers(search),
   })
+}
+
+/**
+ * Busca de Cliente sob demanda para o Combobox da Condição de Cliente: mesma
+ * consulta e chave de `useOverrideCustomers`, devolvida como promessa.
+ */
+export function useOverrideCustomerLookup() {
+  const queryClient = useQueryClient()
+  return useCallback(
+    (search: string) => queryClient.fetchQuery({
+      queryKey: queryKeys.charges.overrideCustomers(search),
+      queryFn: () => listOverrideCustomers(search),
+      staleTime: 30_000,
+    }),
+    [queryClient],
+  )
 }
 
 export function useSaveCustomerRateOverride() {

@@ -158,7 +158,14 @@ export async function afterLiberacaoFaturamentoPortal(
   await invalidate(queryClient, [
     ['customer-ficha', 'billing-portal-release', options.customerId],
     ['customer-ficha', 'receivables', options.customerId],
+    // A concessão emite as retidas: "Fatura emitida" entra no Histórico.
+    queryKeys.customerFicha.timeline(options.customerId),
     ['customer-detail'],
+    // Saldo da lista de Clientes: a concessão emite as faturas retidas.
+    ['customers'],
+    ['customers-summary'],
+    // Conceder ou revogar reavalia a Revisão dos B/Ls do Cliente (migration 167).
+    ['review-queue'],
     ['portal-provisioning'],
     ['invoices'],
     ['bls'],
