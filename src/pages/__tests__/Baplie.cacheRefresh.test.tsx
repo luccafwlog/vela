@@ -7,6 +7,8 @@ import { describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   reimport: vi.fn((): Promise<{ status: string; staged: number; vaziosReplaced: boolean; flagsError: string | null; vaziosError: string | null }> =>
     Promise.resolve({ status: 'imported', staged: 1, vaziosReplaced: false, flagsError: null, vaziosError: null })),
+  countPending: vi.fn(() => Promise.resolve(0)),
+  applyFlags: vi.fn(() => Promise.resolve(1)),
   parse: vi.fn(() => Promise.resolve({ containers: [{ container_number: 'CXRU1234567', status: 'full', pod: 'BRSSZ' }], pods: [], issues: [] })),
 }))
 vi.mock('../../services/supabase', () => ({ supabase: {} }))
@@ -25,12 +27,13 @@ vi.mock('../../services/baplieImport', () => ({
 }))
 vi.mock('../../services/baplieReconciliation', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../services/baplieReconciliation')>(), reconcileBaplieWithManifest: vi.fn(),
+  countPendingBapliePhysicalFlags: mocks.countPending, applyBapliePhysicalFlags: mocks.applyFlags,
 }))
 vi.mock('../../services/baplieReadModel', () => ({ hasBlsForVoyage: vi.fn(() => Promise.resolve(false)), listBaplieStaging: vi.fn(() => Promise.resolve([])) }))
 vi.mock('../../services/vaziosImportacaoImport', () => ({ getBaplieManifestForVoyage: vi.fn(() => Promise.resolve(null)), importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn() }))
 
 import { Baplie } from '../Baplie'
-import { listBaplieStaging } from '../../services/baplieReadModel'
+import { hasBlsForVoyage, listBaplieStaging } from '../../services/baplieReadModel'
 
 describe('upload na página Baplie', () => {
   it('atualiza a viagem escolhida no modal, mesmo sem mudar flags e com outra viagem aberta', async () => {
@@ -94,6 +97,33 @@ describe('lista de containers do Baplie', () => {
       expect(screen.queryByText('Não foi possível ler o Baplie desta viagem.')).toBeNull()
     } finally {
       vi.mocked(listBaplieStaging).mockResolvedValue([])
+      client.clear()
+    }
+  })
+})
+
+describe('IMO/OOG pendentes depois de fechar o aviso da importação', () => {
+  const staged = [
+    { id: 1, container_number: 'AAAU0000001', status: 'full', size_type: '40HC', pol: 'CNSHA', pod: 'BRSSZ', slot: null, bl_ref: null, is_imo: true, is_oog: false, imo_class: '3', un_number: '1263', ownership: null, imported_at: '2026-10-08T10:00:00Z' },
+  ]
+
+  it('a tela recalcula a pendência, aplica com um clique e só então diz que está aplicado', async () => {
+    vi.mocked(listBaplieStaging).mockResolvedValue(staged as never)
+    vi.mocked(hasBlsForVoyage).mockResolvedValue(true)
+    mocks.countPending.mockResolvedValueOnce(2).mockResolvedValue(0)
+    const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+    try {
+      render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Baplie /></MemoryRouter></QueryClientProvider>)
+      expect(await screen.findByText('IMO/OOG do Baplie ainda não aplicados a 2 containers de B/L')).toBeTruthy()
+      expect(screen.queryByText(/esses dados estão aplicados/)).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Aplicar IMO/OOG agora' }))
+      await waitFor(() => expect(mocks.applyFlags).toHaveBeenCalledWith(7, 'user-1'))
+      await waitFor(() => expect(screen.queryByText(/ainda não aplicados/)).toBeNull())
+      expect(screen.getByText(/esses dados estão aplicados aos containers dos B\/Ls/)).toBeTruthy()
+    } finally {
+      vi.mocked(listBaplieStaging).mockResolvedValue([])
+      vi.mocked(hasBlsForVoyage).mockResolvedValue(false)
+      mocks.countPending.mockReset().mockResolvedValue(0)
       client.clear()
     }
   })

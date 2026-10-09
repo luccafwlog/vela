@@ -11,9 +11,10 @@ function pendencyTitle(result: BaplieImportDone) {
 }
 
 /**
- * Cada pendência tem o seu caminho: IMO/OOG voltam ao importar o mesmo arquivo
- * (aceito direto, sem diferença); os vazios não, porque sem diferença eles não
- * são tocados — por isso o recadastro é refeito aqui mesmo. Quem abre o modal
+ * Cada pendência tem o seu caminho: IMO/OOG continuam pendentes em /baplie, que
+ * os recalcula e oferece "Aplicar IMO/OOG agora" (importar o mesmo arquivo também
+ * refaz); os vazios não voltam ao reimportar, porque sem diferença eles não são
+ * tocados — por isso o recadastro é refeito aqui mesmo. Quem abre o modal
  * guarda o resultado: depois do recadastro, `onVaziosRetried` o atualiza para que
  * título, resumo e rodapé deixem de citar os vazios.
  */
@@ -52,7 +53,7 @@ export function BaplieImportPartialNotice({
         <>
           {result.vaziosError ? <p>IMO/OOG não foram aplicados aos B/Ls:</p> : null}
           <p>{result.flagsError}</p>
-          <p>Para tentar de novo, importe o mesmo arquivo: sem diferença, ele é aceito direto e a aplicação é refeita.</p>
+          <p>A pendência continua em Baplie EDI desta viagem, com "Aplicar IMO/OOG agora", depois de fechar este aviso. Importar o mesmo arquivo de novo também refaz a aplicação.</p>
         </>
       ) : null}
       {result.vaziosError ? (

@@ -28,6 +28,8 @@ import { BaplieImportPartialNotice } from '../components/shared/BaplieImportPart
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { hasBlsForVoyage, listBaplieStaging } from '../services/baplieReadModel'
 import {
+  applyBapliePhysicalFlags,
+  countPendingBapliePhysicalFlags,
   reconcileBaplieWithManifest,
   type BaplieReconciliationItem,
 } from '../services/baplieReconciliation'
@@ -123,6 +125,15 @@ export function Baplie() {
     queryFn: () => reconcileBaplieWithManifest(Number(voyageId)),
   })
   const reconciliationData = reconciliationQuery.data
+
+  // Falha de IMO/OOG não fica gravada: a pendência é recalculada comparando o
+  // Baplie com os containers dos B/Ls, pela mesma regra da função do banco.
+  const pendingFlagsQuery = useQuery({
+    queryKey: ['baplie-reconciliation', voyageId, 'pending-flags'],
+    enabled: !!voyageId && !!blsExist && (stagingData?.length ?? 0) > 0,
+    queryFn: () => countPendingBapliePhysicalFlags(Number(voyageId)),
+  })
+  const pendingFlags = pendingFlagsQuery.isError ? undefined : pendingFlagsQuery.data
 
   const containers = useMemo(() => stagingData ?? [], [stagingData])
   const emptyContainers = containers.filter((c) => c.status === 'empty')
@@ -230,7 +241,18 @@ export function Baplie() {
               <Button variant="secondary" className="app-btn--sm" onClick={() => void stagingQuery.refetch()}>Tentar novamente</Button>
             </ImportNotice>
           ) : null}
-          <BaplieOverviewSection containers={containers} importedAt={importedAt} />
+          <BaplieOverviewSection containers={containers} importedAt={importedAt} pendingFlags={pendingFlags} />
+          {pendingFlags ? (
+            <PendingFlagsNotice
+              count={pendingFlags}
+              canApply={Boolean(user)}
+              onApply={async () => {
+                if (!user) return
+                await applyBapliePhysicalFlags(Number(voyageId), user.id)
+                await afterBaplieImportado(queryClient, { voyageId })
+              }}
+            />
+          ) : null}
 
           <ReconciliacaoSection
             overview={overview}
@@ -299,7 +321,7 @@ function StateA({ canImport, onUpload }: { canImport: boolean; onUpload: () => v
   )
 }
 
-function BaplieOverviewSection({ containers, importedAt }: { containers: BaplieContainer[]; importedAt: string | null }) {
+function BaplieOverviewSection({ containers, importedAt, pendingFlags }: { containers: BaplieContainer[]; importedAt: string | null; pendingFlags: number | undefined }) {
   const full = containers.filter((c) => c.status !== 'empty')
   return (
     <Card className="app-cargo-panel p-0">
@@ -320,9 +342,40 @@ function BaplieOverviewSection({ containers, importedAt }: { containers: BaplieC
         />
       </div>
       <p className="app-cargo-panel__note">
-        O Baplie vale para IMO, classe, ONU e OOG: cada importação aplica esses dados aos containers dos B/Ls e, se a aplicação falhar, avisa na hora; importar o mesmo arquivo de novo refaz a aplicação. Para SOC/COC, vale o B/L.
+        {pendingFlags === 0
+          ? 'O Baplie vale para IMO, classe, ONU e OOG, e esses dados estão aplicados aos containers dos B/Ls. Para SOC/COC, vale o B/L.'
+          : 'O Baplie vale para IMO, classe, ONU e OOG: cada importação aplica esses dados aos containers dos B/Ls. Para SOC/COC, vale o B/L.'}
       </p>
     </Card>
+  )
+}
+
+function PendingFlagsNotice({ count, canApply, onApply }: { count: number; canApply: boolean; onApply: () => Promise<void> }) {
+  const [applying, setApplying] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleApply() {
+    setApplying(true)
+    setError(null)
+    try {
+      await onApply()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao aplicar IMO/OOG aos B/Ls.')
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  return (
+    <ImportNotice tone="warning" role="alert" title={`IMO/OOG do Baplie ainda não aplicados a ${plural(count, 'container de B/L', 'containers de B/L')}`}>
+      <p>A última aplicação falhou ou não rodou. Perfil de carga e taxas locais desses B/Ls podem estar desatualizados.</p>
+      {error ? <p>{error}</p> : null}
+      {canApply ? (
+        <Button variant="secondary" className="app-btn--sm" loading={applying} loadingLabel="Aplicando…" onClick={() => void handleApply()}>
+          Aplicar IMO/OOG agora
+        </Button>
+      ) : null}
+    </ImportNotice>
   )
 }
 
