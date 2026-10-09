@@ -158,9 +158,12 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   produção confere o 404 sem cache após publicar (incidente de 2026-10-07: HTML do
   fallback SPA cacheado como chunk JS, app em branco).
 - **Token:** secret `CLOUDFLARE_PAGES_API_TOKEN` nos environments GitHub
-  `cloudflare-pages` e `cloudflare-production` (Cloudflare Pages: Edit, escopo
-  da conta Pages). A cópia Repository-level permanece até os workflows serem
-  validados. Os runs `37608023373`, `37619183889`, `37626476950`, `37629073181`
+  `cloudflare-pages` e `cloudflare-production`. O valor é o User API Token
+  `GitHub Actions — Vela e Portal Fwlog Pages` (Cloudflare Pages: Edit, uma
+  conta), criado em 2026-10-07. Em 2026-10-08 a cópia Repository-level foi
+  apagada e o Account API Token anterior, `Vela Pages CI/CD` (Pages Write), foi
+  revogado. Na conta ficam só `vela-backup-diario` (R2, backup) como Account API
+  Token. Histórico: os runs `37608023373`, `37619183889`, `37626476950`, `37629073181`
   e `37630494893` receberam o secret e o ID de conta, mas `GET /pages/projects`
   falhou com HTTP 400 / código `80000024`; os dois últimos informaram
   `Invalid list options provided`, mesmo após `per_page` mudar de 25 para 20.
@@ -170,8 +173,9 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   e só criar quando a resposta for HTTP 404. O run `37631613061` em `main`
   concluiu com sucesso: os projetos `vela-internal` e `vela-portal` já existiam
   e foram deixados inalterados. Isso valida a credencial e a consulta individual
-  no provisionador. Não remover a cópia Repository-level ainda: os demais
-  workflows que usam as credenciais ainda precisam ser validados.
+  no provisionador. Em 2026-10-08, Preview (run `37819195317`), limpeza (run
+  `37820173005`, que removeu deployments antigos) e produção também passaram
+  com o token dos environments.
 
 ### Cloudflare Access (proteção das previews)
 
@@ -209,7 +213,8 @@ branch GitHub da PR em "Sync with Git branch". A integração publica commits
 nessa branch. Manter a PR aberta até o check Supabase Preview e o workflow
 Cloudflare Pages Preview concluírem; remover a branch após os testes para
 encerrar o custo. Conferir a criação e a exclusão no painel. A página Branching
-estava sem branches persistentes ou de Preview na conferência de 2026-10-07.
+estava sem branches persistentes ou de Preview na conferência de 2026-10-08;
+`codex/run2-manual-preview-probe` já tinha sido removida.
 
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
@@ -225,12 +230,16 @@ estava sem branches persistentes ou de Preview na conferência de 2026-10-07.
   revogue-o e gere outro se houver suspeita de exposição.
   Validação: em 2026-10-08, com esse PAT, os workflows Provision Preview Admin e
   Cloudflare Pages Preview da PR 903 concluíram com sucesso.
-  Histórico: o PAT anterior, de 2026-10-07, tinha só `API Keys` e
-  `Development Branches` e foi substituído por faltar `Connection Pooling`;
-  revogue-o no painel. O PAT v3 apareceu em texto numa saída de acessibilidade e deve ser tratado
-  como exposto; sua revogação no painel continua pendente por decisão do dono.
-  As cópias Repository-level de `SUPABASE_ACCESS_TOKEN` ainda existem; para
-  jobs desse environment, a credencial dele prevalece.
+  Histórico: o PAT de 2026-10-07 (sem `Connection Pooling`) e o PAT exposto
+  numa saída de acessibilidade já não existiam na conferência de 2026-10-08, e a
+  cópia Repository-level de `SUPABASE_ACCESS_TOKEN` foi apagada nesse dia.
+  Os outros tokens da conta são os `cli_*` do `supabase login` nos computadores
+  do dono e `Muse all org` (bot do dono, acesso à organização inteira, vence em
+  2026-10-10).
+- **Team da organização:** só `luccafwlog@gmail.com` (Owner). O SMTP padrão do
+  Auth só entrega a membros do Team; testes de e-mail do Auth precisam de
+  endereço membro (em 2026-10-08 um alias entrou temporariamente e foi
+  removido).
 - **Senha do banco:** só alfanumérica; guardada em `supabase-db-vela` (iCloud
   Senhas) e usada apenas pelo backup. Nada no repositório usa essa senha.
 - **Usuário técnico do Auth:**
@@ -286,29 +295,47 @@ correspondente na Edge Function não foi conferido. `IMPORT_EFFECTS_CRON_SECRET`
 e `RECALC_CRON_SECRET` não existiam no Vault nessa conferência. Nota de execução
 posterior em 07/10: `RECALC_CRON_SECRET` provisionado em par, validado via
 HTTP 200 e job agendado às 17h UTC de segunda a sexta. `IMPORT_EFFECTS_CRON_SECRET`
-continua pendente. A migration `107` deixa
+fica sem provisionar de propósito: o `import-effects-runner` está pausado
+(`IMPORT_EFFECTS_RUNNER_ENABLED` desligado) e o segredo será criado em par
+quando o runner for ativado (decisão do dono, 2026-10-08). A migration `107` deixa
 `portal-email-events-runner` e `import-effects-runner` agendados; para o
 segundo, o dispatcher emite `WARNING` e não chama a Edge Function enquanto o
 segredo do Vault estiver ausente. O job `recalc-demurrage-ptax` foi agendado manualmente em 07/10 (jobid 26). Um `succeeded` em `cron.job_run_details` só comprova que o
 wrapper do `pg_cron` terminou; confirme também a chamada HTTP conforme
-[segredos e cron](segredos-cron.md#verificação). A rotação/provisão continua
-pendente e deve seguir o procedimento em par.
+[segredos e cron](segredos-cron.md#verificação). **Rotação de 2026-10-08:**
+`ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`,
+`DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET` e
+`PORTAL_EMAIL_EVENTS_CRON_SECRET` trocados em par por volta de 23:35 UTC, com
+`200` confirmado nas cinco funções depois da janela da troca.
 
 ### Jobs agendados (`pg_cron`)
 
-| Job | Frequência (UTC) | Heartbeat no Better Stack |
-|---|---|---|
-| `alerts-foundation-detectors` | a cada 15 min | `alerts-detector` |
-| `customer-communication-auto-runner` | a cada 15 min | `customer-communication-auto-runner` |
-| `demurrage-dunning` | de hora em hora | `demurrage-dunning` |
-| `portal-daily-digest` | 11:00 (08:00 de Brasília) | `portal-daily-digest` |
-| `portal-mark-expired-invites` | a cada 15 min | — |
-| `portal-refresh-general-pendencies` | a cada 15 min | — |
-| `cleanup-portal-sessions` | 03:00 | — |
-| `cleanup-provision-rate-limit` | 03:30 | — |
-| `data-retention` | 06:30 (03:30 de Brasília) | — |
-| `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25) | — |
-| `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; agendado manualmente em 07/10, jobid 26) | — |
+Horários em UTC; Brasília é UTC−3. "Chave global" é
+`app_settings.communications_enabled`: desligada, o envio ao Cliente vira
+`simulado`.
+
+| Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
+|---|---|---|---|
+| `portal-email-events-runner` | a cada minuto | processa eventos da Resend (entrega, bounce, reclamação), suprime endereços e abre Alertas | — |
+| `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática | — |
+| `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente (respeita a chave global) | — |
+| `import-effects-runner` | a cada 5 min | fila de efeitos de importação; pausado (`IMPORT_EFFECTS_RUNNER_ENABLED` desligado, segredo ausente) | — |
+| `alerts-foundation-detectors` | a cada 15 min | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
+| `customer-communication-auto-runner` | a cada 15 min | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global) | `customer-communication-auto-runner` |
+| `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos e abre Alerta de reenvio | — |
+| `portal-refresh-general-pendencies` | a cada 15 min | Alerta para Cliente com B/L ativo sem Portal ativo ou sem e-mail de recuperação | — |
+| `demurrage-dunning` | de hora em hora | Régua de Cobrança de Demurrage (respeita a chave global) | `demurrage-dunning` |
+| `cleanup-portal-sessions` | 03:00 | apaga sessões do Portal expiradas há mais de 1 dia | — |
+| `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
+| `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
+| `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
+| `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação | `portal-daily-digest` |
+| `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
+
+Nos minutos :00/:15/:30/:45, `net._http_response` registra chamadas sem
+resposta (`Timeout of 5000 ms`, em geral gastos em DNS) desde antes de
+2026-10-08; a rodada afetada só volta no ciclo seguinte. Investigação pendente
+fora do plano run-2.
 
 `data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 
@@ -466,6 +493,10 @@ para eles vale o backup do próprio Supabase.
   o backup ao R2 e a restauração local foi testada
   ([backup-r2.md](backup-r2.md#estado-operacional-conferido-em-2026-10-05)).
   A tarefa usa a cópia local do repositório, que precisa conter a correção.
+- **Conferência no R2 — 2026-10-08:** par `.dump.enc` + `.manifest.json` às
+  12:00:01 UTC em 2026-10-06, 2026-10-07 e 2026-10-08 (12,9 MB), horário da
+  tarefa agendada; sem arquivos de 2026-10-01 a 2026-10-04 (computador
+  provavelmente desligado). `LastTaskResult` não consultado nesse dia.
 - **Mudar de computador:** instalar os programas, recriar as 7 variáveis do
   usuário (roteiro, Etapa 6) e a tarefa agendada.
 
@@ -475,13 +506,11 @@ para eles vale o backup do próprio Supabase.
 
 - **Workflows:** `ci.yml` (testes, build, migrations), `cloudflare-pages-*.yml`
   (Pages), `provision-preview-admin.yml` (usuário admin na branch de preview).
-- **Repository secrets:** `CLOUDFLARE_PAGES_API_TOKEN`, `SUPABASE_ACCESS_TOKEN`
-  e `PREVIEW_ADMIN_PASSWORD` ainda duplicam as credenciais novas dos
-  environments; manter até validar os workflows, então apagar as cópias e
-  revogar/aposentar as credenciais antigas. `SUPABASE_PROJECT_REF` continua
-  necessário para Preview. `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` são
-  usados pelo build de CI. `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK` é
-  legado, sem uso em workflow, e ainda aguarda remoção.
+- **Repository secrets:** só `SUPABASE_PROJECT_REF` (Preview),
+  `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Em 2026-10-08
+  foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,
+  `SUPABASE_ACCESS_TOKEN` e `PREVIEW_ADMIN_PASSWORD`, que agora existem só nos
+  environments, e o legado `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`.
 - **Environment secrets e variables:** os jobs referenciam explicitamente os
   três environments acima. Se um secret existir no escopo do environment e do
   repositório com o mesmo nome, o GitHub Actions usa o do environment. As 7
@@ -500,15 +529,17 @@ para eles vale o backup do próprio Supabase.
 
   O repositório é privado; a API de rulesets informa que é necessário GitHub
   Pro ou tornar o repositório público. Não alterar o plano nem a visibilidade
-  como atalho. Rotação, migração de secrets e proteção de workflows continuam
-  pendentes.
+  como atalho. A migração dos secrets para os environments foi concluída em
+  2026-10-08; a proteção de workflows (ruleset) fica a cargo do dono, fora do
+  plano run-2.
 
-  O workflow de provisionamento recebeu a nova credencial Pages mascarada e o
-  ID de conta correto, mas falhou no GET de projetos com HTTP 400. No código
-  local, `per_page=100` foi substituído por `25` com teste de regressão; falta
-  executar a versão atualizada em `main`. A migração e rotação das credenciais
-  só devem ser concluídas depois que os workflows passarem; então apagar as
-  cópias antigas. As actions dos workflows com token estão fixadas por SHA.
+  O provisionamento passou a consultar cada projeto Pages pelo nome e foi
+  validado no run `37631613061`; Preview, limpeza, admin da Preview e produção
+  passaram com as credenciais dos environments em 2026-10-08. Com isso, as
+  cópias antigas podem ser apagadas e as credenciais anteriores revogadas. As
+  actions dos workflows com token estão fixadas por SHA.
+- **Deploy keys:** nenhuma. `Codex workspace - Transhipping Desk`
+  (`read/write`) foi removida em 2026-10-08.
 - **Regras:** em 2026-10-06 a API informou `main.protected=false`. A exigência
   de revisão dos workflows da run-2 ainda não está aplicada; depende do plano
   GitHub e de revisor elegível. Não presumir proteção nem usar bypass como
@@ -733,6 +764,11 @@ aceitas sem ID do provedor); o runner Demurrage não foi executado. Detalhes no
 No projeto `fgmkhbzhaeebrsizwccx`, captcha do Auth desligado. Organização Pro
 não disponibiliza Password Verification Attempt Hook (Team/Enterprise);
 Portal segue fallback aprovado de senha derivada com `PORTAL_PASSWORD_PEPPER`.
-Site URL ainda aponta para `https://transhippingdesk.com.br` e Redirect URLs
-contém oito entradas legadas da Vercel. Nenhuma mudança realizada; drift
-pendente de diagnóstico/regularização junto aos testes Auth/PKCE do plano run-2.
+Site URL ainda apontava para `https://transhippingdesk.com.br` e Redirect URLs
+continha oito entradas legadas da Vercel.
+
+**URL Configuration — 2026-10-08:** Site URL `https://vela.app.br`; Redirect
+URLs só `https://vela.app.br/**`. A troca de e-mail em Meu perfil não informa
+`emailRedirectTo` e volta ao Site URL. Email provider com "Secure email change"
+ligado (confirmação no e-mail antigo e no novo). O Portal não depende dessas
+URLs: convite e senha usam links próprios das Edge Functions.

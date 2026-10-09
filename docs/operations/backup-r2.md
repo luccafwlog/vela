@@ -155,3 +155,10 @@ correção. A primeira execução agendada que a comprova é a de 2026-10-06; se
 ela retornar código diferente de 0, diagnostique antes de considerar o backup
 diário ativo. `--verify` executa somente `pg_restore --list`; não restaura o
 banco e não substitui o teste de restauração em alvo descartável.
+
+Conferência no R2 em 2026-10-08: há par `.dump.enc` + `.manifest.json` às
+12:00:01 UTC (09:00 de Brasília) em 2026-10-06, 2026-10-07 e 2026-10-08. O
+manifesto só sobe depois de cifrar e verificar o dump, então a execução
+agendada está concluindo desde a correção. Não há backups de 2026-10-01 a
+2026-10-04; com a tarefa dependente de um computador ligado, ausência de
+arquivo num dia é o primeiro sinal a procurar.

@@ -4,6 +4,17 @@
 
 ## 2026-10
 
+- **Remediação da auditoria de segurança run-2 concluída (2026-10-09):** fases 1–5 e
+  reforços (migrations `106`–`110` e `157`–`159`, Edge Functions, PKCE no cliente interno,
+  workflows com environments) validados em produção. No encerramento: credenciais
+  Repository-level, secret Firebase legado, token Cloudflare antigo e deploy key
+  removidos; Site URL do Auth passa a `https://vela.app.br` (a troca de e-mail interna
+  apontava para o domínio antigo); troca de e-mail com PKCE, importação de B/L com
+  e-mail de consignatário novo e recusa de upload direto do Financeiro observadas em
+  produção; segredos de cron rotacionados em par; backup diário confirmado. O contrato de
+  PKCE no `WORKFLOW.md` foi corrigido: o link confirma a troca em qualquer navegador, mas
+  só entrega sessão no de origem. [Plano](archive/plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md).
+
 - **Desbloqueio de CE — revisão do fluxo (2026-10-07, implementação local):** a ZPT desbloqueia
   sozinha com os quatro requisitos, então o Vela virou o controle dela. Abas **Solicitações**
   (termo de devolução e procuração validados por pedido, recusa com motivo) e **Controle ZPT**
