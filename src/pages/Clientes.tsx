@@ -124,6 +124,7 @@ export function Clientes() {
   const [saving, setSaving] = useState(false)
   const [baseFile, setBaseFile] = useState<File | null>(null)
   const [baseReadError, setBaseReadError] = useState<string | null>(null)
+  const [baseWriteError, setBaseWriteError] = useState<string | null>(null)
   const [baseOutcome, setBaseOutcome] = useState<CustomerBaseImportOutcome | null>(null)
   const [parsedBase, setParsedBase] = useState<ParsedCustomerBase | null>(null)
   const [parsingBase, setParsingBase] = useState(false)
@@ -223,6 +224,7 @@ export function Clientes() {
     setBaseFile(nextFile)
     setParsedBase(null)
     setBaseReadError(null)
+    setBaseWriteError(null)
 
     if (!nextFile) return
 
@@ -241,6 +243,7 @@ export function Clientes() {
     if (!parsedBase?.rows.length) return
 
     setImportingBase(true)
+    setBaseWriteError(null)
     try {
       const result = await importCustomerBaseRows(parsedBase.rows, { changedBy: user?.id ?? null })
       await Promise.all([
@@ -261,7 +264,8 @@ export function Clientes() {
       if (result.errors?.length) setBaseOutcome({ ...result, errors: result.errors })
       else resetImportModal()
     } catch (cause) {
-      showToast(`Falha ao importar a base de clientes: ${userFacingErrorMessage(cause, 'erro desconhecido')}`, 'error')
+      // O motivo fica no modal, junto da prévia, e não só num toast.
+      setBaseWriteError(userFacingErrorMessage(cause, 'A gravação falhou. Tente de novo em instantes.'))
     } finally {
       setImportingBase(false)
     }
@@ -290,6 +294,7 @@ export function Clientes() {
     setImportOpen(false)
     setBaseFile(null)
     setBaseReadError(null)
+    setBaseWriteError(null)
     setBaseOutcome(null)
     setParsedBase(null)
     setParsingBase(false)
@@ -639,6 +644,7 @@ export function Clientes() {
         open={importOpen}
         baseFile={baseFile}
         readError={baseReadError}
+        writeError={baseWriteError}
         outcome={baseOutcome}
         parsedBase={parsedBase}
         parsingBase={parsingBase}

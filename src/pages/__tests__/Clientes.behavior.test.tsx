@@ -248,6 +248,22 @@ describe('Clientes page behaviours', () => {
     expect(screen.queryByText('Cliente Importado')).toBeNull()
   })
 
+  it('falha ao gravar a base fica no modal, que continua aberto com a prévia', async () => {
+    const user = userEvent.setup()
+    mocks.importCustomerBaseRows.mockRejectedValue(new Error('Sem conexão com o servidor.'))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Importar base' }))
+    await user.upload(screen.getByLabelText('Arquivo (XLSX, XLS ou CSV)'), new File(['cnpj,nome'], 'clientes.csv', { type: 'text/csv' }))
+    expect(await screen.findByText('Cliente Importado')).toBeTruthy()
+    const dialog = screen.getByRole('dialog', { name: 'Importar base de clientes' })
+    await user.click(within(dialog).getByRole('button', { name: 'Importar base' }))
+
+    expect(await within(dialog).findByText('Não foi possível gravar a base')).toBeTruthy()
+    expect(within(dialog).getByText('Cliente Importado')).toBeTruthy()
+    expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Falha'), 'error')
+  })
+
   it('deletes a selected customer after dependency checks and clears selection', async () => {
     const user = userEvent.setup()
     const { invalidateQueries } = renderPage()

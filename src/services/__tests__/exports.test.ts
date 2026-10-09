@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { exportInvoicesWorkbook, exportLocalChargeConferenceWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+import { customerExportEmails, exportCustomerBaseWorkbook, exportInvoicesWorkbook, exportLocalChargeConferenceWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
 import type { InvoiceListRow } from '../billing'
 import type { PortalInvoiceSummary } from '../portalBilling'
 import type { VaziosImportacaoContainerListItem } from '../../types/database'
@@ -135,5 +135,22 @@ describe('exportPortalLocalInvoicesWorkbook', () => {
     expect(jsonToSheet).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ Tipo: 'Avulsa', 'B/L': '', 'Navio/Viagem': 'NAVIO MANUAL / 42N' }),
     ]))
+  })
+})
+
+describe('exportCustomerBaseWorkbook', () => {
+  it('preenche Email com os e-mails ativos, o principal primeiro, como a importação lê', async () => {
+    const contacts = [
+      { id: 1, email: 'ops@acme.com', is_primary: false, deactivated_at: null },
+      { id: 2, email: 'fin@acme.com ', is_primary: true, deactivated_at: null },
+      { id: 3, email: 'antigo@acme.com', is_primary: false, deactivated_at: '2026-01-01' },
+      { id: 4, email: '', is_primary: false, deactivated_at: null },
+    ] as never
+    expect(customerExportEmails(contacts)).toBe('fin@acme.com; ops@acme.com')
+    expect(customerExportEmails(null)).toBe('')
+
+    jsonToSheet.mockClear()
+    await exportCustomerBaseWorkbook([{ id: 1, cnpj_cpf: '12345678000195', name: 'ACME', customer_contacts: contacts }] as never)
+    expect(jsonToSheet.mock.calls[0][0][0]).toMatchObject({ CNPJ: '12345678000195', Email: 'fin@acme.com; ops@acme.com' })
   })
 })

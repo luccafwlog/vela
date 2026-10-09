@@ -2748,6 +2748,9 @@ button.app-metric-tile[aria-pressed='true'] {
 /* Aba: padrão único sublinhado (etapa 01). Troca a vista da mesma página;
    navegar para outra página é link, nunca botão com cara de aba. */
 .app-tablist {
+  /* Ancora o texto de leitor de tela da contagem (TabButton) dentro da faixa,
+     que rola de lado no celular: sem isso ele escapa e cria rolagem na página. */
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -7185,7 +7188,11 @@ button.app-metric-tile[aria-pressed='true'] {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 0;
-  margin: 0;
+  /* Todo item leva o separador antes de si; a faixa avança 20 px à esquerda e
+     recorta essa margem, então o "·" de quem abre cada linha nunca aparece. */
+  width: calc(100% + 20px);
+  margin: 0 0 0 -20px;
+  clip-path: inset(0 0 0 20px);
   color: var(--app-muted);
   font-size: var(--app-size-table);
   line-height: 18px;
@@ -7197,12 +7204,14 @@ button.app-metric-tile[aria-pressed='true'] {
   gap: 4px;
 }
 
-.app-summary-strip__item + .app-summary-strip__item::before {
+.app-summary-strip__item::before {
   content: '·';
   /* O valor usa order -1 para vir antes do rótulo; o separador precisa vir antes dos dois. */
   order: -2;
-  margin: 0 8px;
+  width: 20px;
+  margin-right: -4px;
   color: var(--app-muted-soft);
+  text-align: center;
 }
 
 .app-summary-strip__value {
@@ -11519,9 +11528,6 @@ td.app-cargo-num {
 }
 
 .app-customer-tabs {
-  /* Ancora o texto de leitor de tela da contagem dentro da faixa que rola no
-     celular; sem isso ele escapa e cria rolagem lateral da página. */
-  position: relative;
   margin-bottom: 16px;
 }
 
