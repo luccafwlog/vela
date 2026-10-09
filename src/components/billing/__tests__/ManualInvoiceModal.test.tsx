@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
+  blLookup: vi.fn(),
   listBlSuggestions: vi.fn(),
   mutateAsync: vi.fn(),
   onClose: vi.fn(),
@@ -35,7 +36,7 @@ vi.mock('../../../services/supabase', () => ({
     from: () => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: vi.fn().mockResolvedValue({ data: { voyage_id: 42 }, error: null }),
+          maybeSingle: mocks.blLookup,
         }),
       }),
     }),
@@ -95,6 +96,7 @@ afterEach(cleanup)
 
 beforeEach(() => {
   mocks.confirm.mockReset().mockResolvedValue(true)
+  mocks.blLookup.mockReset().mockResolvedValue({ data: { voyage_id: 42 }, error: null })
   mocks.listBlSuggestions.mockReset().mockResolvedValue([])
   mocks.mutateAsync.mockReset().mockResolvedValue({
     invoice_id: 42,
@@ -288,4 +290,23 @@ it('trocar o tipo de cobrança descarta B/L e Viagem que ficariam invisíveis', 
   const input = mocks.mutateAsync.mock.calls[0][0]
   expect(input.blId).toBeUndefined()
   expect(input.voyageId).toBeUndefined()
+})
+
+it('trocar o B/L do item da tabela não emite com a Viagem do B/L anterior', async () => {
+  const user = userEvent.setup()
+  openModal()
+  await selectCustomer(user)
+  await user.click(screen.getByRole('radio', { name: 'Item da tabela' }))
+  await user.click(screen.getByRole('button', { name: 'BL-1' }))
+  await waitFor(() => expect(mocks.blLookup).toHaveBeenCalledOnce())
+
+  // A consulta da Viagem do novo B/L ainda não voltou quando a pessoa emite.
+  mocks.blLookup.mockReturnValueOnce(new Promise(() => {}))
+  await user.type(screen.getByLabelText('B/L'), 'X')
+  await user.click(screen.getByRole('button', { name: 'BL-1' }))
+  await user.selectOptions(screen.getByLabelText(/^Item da tabela/), '5')
+  await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
+
+  await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled())
+  expect(mocks.mutateAsync.mock.calls[0][0].voyageId).toBeUndefined()
 })

@@ -72,6 +72,7 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
   const quoteQuery = useManualInvoiceQuote(tableCharge ? blId : null, tableCharge ? chargeItemId : null)
   const quote = tableCharge ? quoteQuery.data : undefined
   const wasOpenRef = useRef(open)
+  const blLookupRef = useRef('')
   const customerId = customer?.id ?? null
 
   useEffect(() => {
@@ -97,6 +98,7 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
   }
 
   function resetContext() {
+    blLookupRef.current = ''
     setChargeItemId(null)
     setBlId(null)
     setVoyageId(null)
@@ -104,13 +106,17 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
 
   async function selectBl(value: string) {
     const selectedBl = value.trim().toUpperCase()
+    blLookupRef.current = selectedBl
     setBlId(selectedBl || null)
     setChargeItemId(null)
+    // A Viagem do B/L anterior não pode seguir com o novo enquanto a consulta não volta.
+    setVoyageId(null)
     clearError('bl')
     if (!selectedBl) return
     try {
       const { data } = await supabase.from('bls').select('voyage_id').eq('id', selectedBl).maybeSingle()
-      if (data?.voyage_id != null) setVoyageId(Number(data.voyage_id))
+      // Resposta atrasada de um B/L já trocado não sobrescreve a Viagem do atual.
+      if (blLookupRef.current === selectedBl && data?.voyage_id != null) setVoyageId(Number(data.voyage_id))
     } catch {
       // Sem a viagem do B/L, o operador escolhe a viagem; a RPC confere a coerência.
     }
@@ -234,7 +240,7 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
                 placeholder={customerId ? 'Número do B/L deste Cliente' : 'Selecione o Cliente primeiro'}
                 disabled={customerId == null}
                 onInputChange={(value) => {
-                  if (blId && value.trim().toUpperCase() !== blId) { setBlId(null); setChargeItemId(null) }
+                  if (blId && value.trim().toUpperCase() !== blId) { blLookupRef.current = ''; setBlId(null); setChargeItemId(null); setVoyageId(null) }
                 }}
                 onValueChange={(value) => void selectBl(value)}
                 fetchOptions={async (query) => (await listBlSuggestions(query, customerId)).map((id): ComboOption => ({ value: id, label: id }))}
@@ -300,7 +306,7 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
                 label="B/L (opcional)"
                 placeholder={customerId ? 'Número do B/L deste Cliente' : 'Selecione o Cliente primeiro'}
                 disabled={customerId == null}
-                onInputChange={(value) => { setVoyageId(null); setBlId(value.trim() ? value.trim().toUpperCase() : null) }}
+                onInputChange={(value) => { blLookupRef.current = ''; setVoyageId(null); setBlId(value.trim() ? value.trim().toUpperCase() : null) }}
                 onValueChange={() => undefined}
                 fetchOptions={async (query) => (await listBlSuggestions(query, customerId)).map((id): ComboOption => ({ value: id, label: id }))}
                 onSelectOption={(option) => void selectBl(option.value)}
