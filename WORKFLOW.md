@@ -71,16 +71,29 @@ quando Windows e WSL coexistirem.
 
 Referência: [documentação oficial do mod agents-md](https://github.com/anthropics/claude-code/tree/main/mods/agents-md).
 
-### Permissões do conector Supabase
+### Permissões dos conectores e servidores MCP
 
-`.claude/settings.json` libera em `permissions.allow` todas as ferramentas do
-conector Supabase (`mcp__Supabase`), inclusive as de escrita como
-`execute_sql`, `apply_migration`, deploy de Edge Functions, secrets e branches.
+`.claude/settings.json` libera em `permissions.allow`, sem pedir confirmação,
+todas as ferramentas destes conectores e servidores MCP, inclusive as de
+escrita:
+
+| Regra | Serviço | Escritas liberadas (exemplos) |
+| --- | --- | --- |
+| `mcp__Supabase` | Supabase (produção `fgmkhbzhaeebrsizwccx`) | `execute_sql`, `apply_migration`, deploy de Edge Functions, secrets, branches |
+| `mcp__Sentry` | Sentry (organização `fwlog`) | `update_issue` (resolver, ignorar, atribuir) |
+| `mcp__Cloudflare_Developer_Platform` | Cloudflare | criar e excluir D1, KV, R2, Hyperdrive |
+| `mcp__Resend` | Resend | enviar e-mails e broadcasts, domínios, API keys, webhooks |
+| `mcp__PostHog` | PostHog | feature flags, dashboards, insights |
+| `mcp__github` | GitHub | PRs, merges, comentários, arquivos |
+| `mcp__context7`, `mcp__playwright`, `mcp__shadcn` | servidores de `.mcp.json` | consultas e navegação local |
+
 Assim, sessões cloud (ambiente Vela Cloud) e locais não pedem confirmação para
-elas. O conector aponta para a produção (`fgmkhbzhaeebrsizwccx`): a ausência de
-prompt não muda as regras deste documento, e `apply_migration` continua vetado
-para produção (seção 5). Para voltar a pedir confirmação, remova a regra.
-A sessão cloud só lê esse arquivo quando tem um único repositório.
+elas. A ausência de prompt não muda as regras deste documento: `apply_migration`
+continua vetado para produção (seção 5), e envio de e-mails, mudanças em
+serviços externos e em produção continuam exigindo autorização da tarefa. Para
+voltar a pedir confirmação, remova a regra. A regra usa o nome do conector na
+sessão; um conector com outro nome numa instalação local não é coberto. A
+sessão cloud só lê esse arquivo quando tem um único repositório.
 
 ## 1. Stack verificada
 
