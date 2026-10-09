@@ -105,11 +105,16 @@ export function BillingPortalReleaseCard({ customerId, portalReady, variant = 'c
       message: 'Revogar a Liberação de faturamento sem Portal deste Cliente?',
       consequence: 'Sem Portal pronto, as próximas faturas voltam a ficar retidas quando o CE Mercante for registrado.',
       reversibility: 'Conceder uma nova liberação, com justificativa e data de revisão.',
-      reasonLabel: 'Motivo da revogação (obrigatório)',
+      reasonLabel: 'Motivo da revogação (obrigatório, mínimo de 3 caracteres)',
       confirmLabel: 'Revogar liberação',
       tone: 'danger',
     })
     if (reason === null) return
+    // O banco recusa motivo com menos de 3 caracteres (migration 083).
+    if (reason.trim().length < 3) {
+      setErrors({ submit: 'Informe o motivo da revogação com pelo menos 3 caracteres.' })
+      return
+    }
     try {
       await revoke.mutateAsync({ customerId, reason })
       setOutcome(null)

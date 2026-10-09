@@ -54,6 +54,40 @@ describe('buildCustomerTimeline', () => {
     expect(events.map((event) => event.label)).toEqual(['Cadastro alterado: CEP', 'Contato criado: Contato', 'Fatura emitida: FAT-1'])
   })
 
+  it('data sem hora de Demurrage conta como o dia local, não 21h do dia anterior', () => {
+    const previousTz = process.env.TZ
+    process.env.TZ = 'America/Sao_Paulo'
+    try {
+      const events = buildCustomerTimeline({
+        auditLogs: [],
+        portalEvents: [],
+        contacts: [{ id: 3, name: 'Contato', created_at: '2026-10-09T01:00:00Z' }], // 08/10 22:00 em Brasília
+        customerId: 101,
+        localInvoices: [],
+        payments: [],
+        demurrageInvoices: [{ id: 5, doc_number: 'DEM-1', billed_at: '2026-10-09', paid_at: null, status: 'issued' }],
+        bls: [],
+      })
+      expect(events.map((event) => event.kind)).toEqual(['demurrage_invoice_issued', 'contact_created'])
+    } finally {
+      process.env.TZ = previousTz
+    }
+  })
+
+  it('desativar e reativar aparecem com o nome da ação e o motivo', () => {
+    const events = buildCustomerTimeline({
+      auditLogs: [
+        { id: 1, field_name: 'deactivated', old_value: 'false', new_value: 'true', changed_at: '2026-10-01T10:00:00Z', justification: 'Encerrou operação', changed_by: null },
+        { id: 2, field_name: 'deactivated', old_value: 'true', new_value: 'false', changed_at: '2026-10-02T10:00:00Z', justification: 'Voltou a operar', changed_by: null },
+      ],
+      portalEvents: [], contacts: [], customerId: 101, localInvoices: [], payments: [], demurrageInvoices: [], bls: [],
+    })
+    expect(events.map((event) => [event.label, event.detail])).toEqual([
+      ['Cliente reativado', 'Voltou a operar'],
+      ['Cliente desativado', 'Encerrou operação'],
+    ])
+  })
+
   it('agrupa eventos de configuração de contatos por action_id e formata origem e contagem de caixas', () => {
     const actionId1 = 'a0000000-0000-0000-0000-000000000001'
     const actionId2 = 'a0000000-0000-0000-0000-000000000002'

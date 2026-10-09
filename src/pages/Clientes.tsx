@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
@@ -75,8 +75,21 @@ export function Clientes() {
   // compartilhar o endereço reabre a mesma lista.
   const [filters, setFilters] = useState<CustomerFilters>(() => filtersFromClientesSearch(searchParams))
   const listSearch = clientesSearchFromFilters(filters)
+  // Última query string que a própria página gravou. Uma URL diferente dela
+  // veio de fora (menu "Clientes", Alerta, link com ?saldo=): a URL vence e o
+  // recorte é relido dela, em vez de ser sobrescrito pelo estado antigo.
+  const writtenSearch = useRef(searchParams.toString())
   useEffect(() => {
-    if (listSearch !== searchParams.toString()) setSearchParams(new URLSearchParams(listSearch), { replace: true })
+    const urlSearch = searchParams.toString()
+    if (urlSearch !== writtenSearch.current) {
+      writtenSearch.current = urlSearch
+      setFilters(filtersFromClientesSearch(searchParams))
+      return
+    }
+    if (listSearch !== urlSearch) {
+      writtenSearch.current = listSearch
+      setSearchParams(new URLSearchParams(listSearch), { replace: true })
+    }
     rememberClientesListSearch(listSearch)
   }, [listSearch, searchParams, setSearchParams])
 
@@ -631,7 +644,9 @@ export function Clientes() {
         form={createForm}
         errors={createErrors}
         saving={saving}
-        onClose={resetCreateModal}
+        // Fechar durante a gravação deixaria o resultado cair num modal
+        // fechado (erro antigo na próxima abertura, segundo cadastro).
+        onClose={() => { if (!saving) resetCreateModal() }}
         onSubmit={() => void handleCreateCustomer()}
         onFieldChange={updateCreateField}
         onContactChange={updateContact}
@@ -649,7 +664,7 @@ export function Clientes() {
         parsedBase={parsedBase}
         parsingBase={parsingBase}
         importingBase={importingBase}
-        onClose={resetImportModal}
+        onClose={() => { if (!importingBase) resetImportModal() }}
         onFileSelect={(file) => void handleBaseFile(file)}
         onImport={() => void handleImportBase()}
       />

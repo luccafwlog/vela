@@ -4,14 +4,15 @@ import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { usePortalProvisioningForCustomer } from '../../hooks/usePortalProvisioning'
 import { useBillingPortalRelease } from '../../hooks/useBillingPortalRelease'
-import { accountSituationLabel, isPortalReadyForBilling } from '../../lib/portalProvisioningViewModel'
+import { useAuth } from '../../hooks/useAuth'
+import { accountSituationLabel } from '../../lib/portalProvisioningViewModel'
 import { useCustomerDemurrageInvoices, useCustomerPendingReconciliation, useCustomerRunningDemurrage, useCustomerTimeline } from '../../hooks/useCustomerFicha'
 import { billingPortalReleaseState } from '../../services/billingPortalRelease'
 import { buildConsolidatedBalance } from '../../services/customerFicha'
 import { formatBRL, formatCountLabel, formatDate } from '../../lib/utils'
 import type { useCustomerDetail } from '../../hooks/useCustomers'
 import type { FichaTabId } from './FichaTabs'
-import { buildFichaOverview, type OverviewAction, type OverviewItem } from './fichaOverview'
+import { buildFichaOverview, portalLooksReadyForBilling, RECOVERY_EMAIL_READER_ROLES, type OverviewAction, type OverviewItem } from './fichaOverview'
 
 type Data = NonNullable<ReturnType<typeof useCustomerDetail>['data']>
 type VisaoGeralTabProps = { data: Data; onNavigateTab: (tab: FichaTabId) => void }
@@ -27,6 +28,8 @@ function sourceOf<T>(query: { data?: T; isLoading?: boolean; isError?: boolean; 
 }
 
 export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
+  const { effectiveRole } = useAuth()
+  const recoveryEmailVisible = RECOVERY_EMAIL_READER_ROLES.includes(effectiveRole ?? '')
   const portalQuery = usePortalProvisioningForCustomer(data.id)
   const releaseQuery = useBillingPortalRelease(data.id)
   const demurrageQuery = useCustomerDemurrageInvoices(data.id)
@@ -51,7 +54,9 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
   const overview = buildFichaOverview({
     customerId: data.id,
     customerName: data.name,
+    customerDocument: data.cnpj_cpf,
     portal: sourceOf(portalQuery, (row) => row ?? false) as never,
+    recoveryEmailVisible,
     releaseUntil: sourceOf(releaseQuery, (value) => (value && billingPortalReleaseState(value) === 'vigente' ? value.review_at : false)) as string | false | null | undefined,
     blsInReview: (data.bls ?? []).filter((bl) => bl.review_status === 'pending_review').length,
     hasPrimaryEmail: Boolean(primaryContact),
@@ -65,6 +70,9 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
         })) as { overdue: number; disputes: number } | null | undefined,
     runningDemurrage: sourceOf(runningQuery, (rows) => (rows ?? []).length) as number | null | undefined,
   })
+
+  // Liberação vigente é informação, não pendência: fica na lista, fora da contagem.
+  const openCount = overview.items.filter((item) => item.tone !== 'info').length
 
   function retryFailed() {
     if (portalQuery.isError) void portalQuery.refetch()
@@ -90,7 +98,7 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
             <div className="app-customer-section-head">
               <h2 id="ficha-pendencias" className="app-customer-section-title">
                 Pendências
-                {overview.items.length ? <span className="app-customer-section-count">{overview.items.length}</span> : null}
+                {openCount ? <span className="app-customer-section-count">{openCount}</span> : null}
               </h2>
             </div>
             <PendencyList items={overview.items} onNavigateTab={onNavigateTab} />
@@ -125,7 +133,7 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
                 <dt>Conta de Portal</dt>
                 <dd>{portalQuery.isLoading ? 'Carregando…' : portalQuery.isError ? 'Erro ao carregar' : portalRow ? accountSituationLabel(portalRow.account_situation) : 'Sem registro'}</dd>
               </div>
-              {portalRow && !isPortalReadyForBilling(portalRow) ? (
+              {portalRow && !portalLooksReadyForBilling(portalRow, recoveryEmailVisible) ? (
                 <div>
                   <dt>Liberação sem Portal</dt>
                   <dd>

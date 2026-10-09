@@ -113,7 +113,7 @@ export function CreateCustomerModal({
         {errors.submit ? <InlineError message={errors.submit} /> : null}
 
         <div className="app-modal__actions">
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>
             Voltar
           </Button>
           <Button type="submit" loading={saving} loadingLabel="Cadastrando…">

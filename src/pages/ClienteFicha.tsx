@@ -67,7 +67,7 @@ export function ClienteFicha() {
           <h1 className="app-customer-missing__title">{missing ? 'Cliente não encontrado' : 'Não foi possível abrir este Cliente'}</h1>
           <p className="app-customer-missing__text">
             {missing
-              ? `Nenhum Cliente com o CNPJ ${document || 'informado'}. Confira o número ou busque pelo nome na lista.`
+              ? `Nenhum Cliente com o CNPJ/CPF ${document || 'informado'}. Confira o número ou busque pelo nome na lista.`
               : userFacingErrorMessage(error, 'A consulta falhou. Tente de novo em instantes.')}
           </p>
           <div className="app-customer-missing__actions">

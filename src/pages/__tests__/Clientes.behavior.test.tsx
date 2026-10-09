@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -100,14 +100,21 @@ const parsedBase = {
   rowErrors: [],
 }
 
-function renderPage() {
+function LocationProbe() {
+  const location = useLocation()
+  return <span data-testid="location">{location.pathname + location.search}</span>
+}
+
+function renderPage(initialEntry = '/clientes') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
   const view = render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <QueryClientProvider client={queryClient}>
+        <Link to="/clientes">Menu Clientes</Link>
+        <LocationProbe />
         <Clientes />
       </QueryClientProvider>
     </MemoryRouter>,
@@ -126,7 +133,7 @@ describe('Clientes page behaviours', () => {
       refetch: vi.fn(),
     }))
     mocks.useCustomerSummary.mockReturnValue({
-      data: { pendingBalance: 150, totalCustomers: 1, totalBls: 1, chargePending: 1, chargeReady: 0, customersWithBalance: 1, customersWithoutEmail: 0 },
+      data: { pendingBalance: 150, totalCustomers: 1, totalBls: 1, chargePending: 1, chargeReady: 0, customersWithoutEmail: 0 },
     })
     mocks.createCustomer.mockResolvedValue({ cnpj_cpf: '12345678000195' })
     mocks.parseCustomerBaseFile.mockResolvedValue(parsedBase)
@@ -443,5 +450,38 @@ describe('Clientes page behaviours', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Novo cliente' })
     await waitFor(() => expect(within(dialog).getAllByRole('alert').length).toBeGreaterThan(0))
     expect(mocks.navigate).not.toHaveBeenCalled()
+  })
+
+  it('link de fora para /clientes (menu, Alerta) troca o recorte em vez de ser desfeito', async () => {
+    const user = userEvent.setup()
+    renderPage('/clientes?saldo=com')
+
+    const card = screen.getByRole('button', { name: /^Saldo pendente\s*R\$/ })
+    expect(card.getAttribute('aria-pressed')).toBe('true')
+
+    await user.click(screen.getByRole('link', { name: 'Menu Clientes' }))
+    await waitFor(() => expect(card.getAttribute('aria-pressed')).toBe('false'))
+    expect(screen.getByTestId('location').textContent).toBe('/clientes')
+    expect(mocks.useCustomers).toHaveBeenLastCalledWith(expect.objectContaining({ pendingStatus: '' }))
+  })
+
+  it('o modal de cadastro não fecha enquanto grava', async () => {
+    const user = userEvent.setup()
+    mocks.confirm.mockResolvedValue(true)
+    mocks.createCustomer.mockReturnValue(new Promise(() => {}))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(screen.getByLabelText('Nome'), 'Financeiro')
+    await user.type(screen.getByLabelText(/^E-mail/), 'novo@example.com')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+    await waitFor(() => expect(mocks.createCustomer).toHaveBeenCalled())
+
+    const dialog = screen.getByRole('dialog', { name: 'Novo cliente' })
+    expect((within(dialog).getByRole('button', { name: 'Voltar' }) as HTMLButtonElement).disabled).toBe(true)
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('dialog', { name: 'Novo cliente' })).toBeTruthy()
   })
 })

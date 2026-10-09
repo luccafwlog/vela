@@ -114,6 +114,15 @@ describe('BillingPortalReleaseCard', () => {
     expect(confirmWithReason.mock.calls[0][0]).toMatchObject({ tone: 'danger', confirmLabel: 'Revogar liberação' })
   })
 
+  it('motivo de revogação curto demais fica na tela, sem chamar o banco que o recusaria', async () => {
+    state.release = baseRelease
+    confirmWithReason.mockResolvedValue('ok')
+    render(<BillingPortalReleaseCard customerId={9} portalReady={false} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Revogar liberação' }))
+    expect(await screen.findByText(/pelo menos 3 caracteres/)).toBeTruthy()
+    expect(revoke).not.toHaveBeenCalled()
+  })
+
   it('com o Portal pronto, não oferece liberação', () => {
     render(<BillingPortalReleaseCard customerId={9} portalReady />)
     expect(screen.getByText(/O Portal deste Cliente está pronto/)).toBeTruthy()

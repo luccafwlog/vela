@@ -60,6 +60,9 @@ export function CustomerContactConfiguration({
   const [loadError, setLoadError] = useState('')
   // Retrato do que está gravado: o que difere dele é alteração não salva.
   const [savedSnapshot, setSavedSnapshot] = useState('[]')
+  // Rascunho como carregado, já com as caixas repostas no principal. Descartar
+  // volta a ele; a diferença para o gravado é uma correção que pede salvar.
+  const [loadedSnapshot, setLoadedSnapshot] = useState('[]')
 
   const loadConfig = useCallback(async () => {
     setLoading(true)
@@ -79,8 +82,10 @@ export function CustomerContactConfiguration({
         suppressionReason: c.suppression_reason,
         sendable: c.sendable,
       }))
+      const shownDrafts = canEdit ? normalizePrimaryContactBoxes(loadedDrafts) : loadedDrafts
       setSavedSnapshot(snapshotOf(loadedDrafts))
-      setDrafts(canEdit ? normalizePrimaryContactBoxes(loadedDrafts) : loadedDrafts)
+      setLoadedSnapshot(snapshotOf(shownDrafts))
+      setDrafts(shownDrafts)
     } catch (err) {
       setLoadError(extractErrorText(err) || 'Falha ao carregar os contatos do cliente.')
     } finally {
@@ -200,7 +205,7 @@ export function CustomerContactConfiguration({
     event.preventDefault()
     setErrorMsg('')
 
-    if (!canEdit) return
+    if (!canEdit || snapshotOf(drafts) === savedSnapshot) return
 
     const activeContacts = drafts.filter((d) => d.active)
     const activePrimary = activeContacts.find((d) => d.isPrimary)
@@ -250,7 +255,9 @@ export function CustomerContactConfiguration({
     }
   }
 
-  const dirty = snapshotOf(drafts) !== savedSnapshot
+  const draftSnapshot = snapshotOf(drafts)
+  const dirty = draftSnapshot !== savedSnapshot
+  const editedByUser = draftSnapshot !== loadedSnapshot
 
   function handleDiscard() {
     setJustification('')
@@ -424,14 +431,21 @@ export function CustomerContactConfiguration({
         {canEdit && (
           <div className="app-customer-savebar" data-dirty={dirty ? 'true' : 'false'} role="region" aria-label="Salvar contatos">
             <p className="app-customer-savebar__summary" aria-live="polite">
-              {dirty ? <strong>Alterações não salvas nos contatos.</strong> : 'Sem alterações nos contatos.'}
+              {editedByUser ? (
+                <strong>Alterações não salvas nos contatos.</strong>
+              ) : dirty ? (
+                <strong>O contato principal foi incluído nas caixas que ficaram sem outro destinatário elegível. Salve para gravar.</strong>
+              ) : (
+                'Sem alterações nos contatos.'
+              )}
             </p>
             <Field label="Justificativa da alteração" hint="Opcional. Fica registrada no Histórico do Cliente.">
               <Input value={justification} disabled={saving} onChange={(e) => setJustification(e.target.value)} />
             </Field>
             <div className="app-customer-savebar__actions">
-              {dirty ? <Button type="button" variant="secondary" onClick={handleDiscard} disabled={saving}>Descartar</Button> : null}
-              <Button type="submit" loading={saving} loadingLabel="Salvando…">Salvar contatos</Button>
+              {editedByUser ? <Button type="button" variant="secondary" onClick={handleDiscard} disabled={saving}>Descartar</Button> : null}
+              {/* Sem alteração não há o que gravar: a RPC registraria um evento vazio no Histórico. */}
+              <Button type="submit" disabled={!dirty} loading={saving} loadingLabel="Salvando…">Salvar contatos</Button>
             </div>
           </div>
         )}

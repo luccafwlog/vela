@@ -7187,18 +7187,21 @@ button.app-metric-tile[aria-pressed='true'] {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 0;
-  /* Todo item leva o separador antes de si; a faixa avança 20 px à esquerda e
-     recorta essa margem, então o "·" de quem abre cada linha nunca aparece. */
-  width: calc(100% + 20px);
-  margin: 0 0 0 -20px;
-  clip-path: inset(0 0 0 20px);
+  /* O espaço entre itens é o lugar do separador. */
+  gap: 4px 20px;
+  margin: 0;
+  /* Todo item leva o "·" no espaço à sua esquerda; o de quem abre cada linha
+     cai fora da faixa e o recorte só da borda esquerda o esconde. A faixa
+     continua do tamanho do conteúdo (cabeçalhos com título e resumo lado a
+     lado) e nada é recortado em cima, embaixo ou à direita. */
+  clip-path: inset(-8px -8px -8px 0);
   color: var(--app-muted);
   font-size: var(--app-size-table);
   line-height: 18px;
 }
 
 .app-summary-strip__item {
+  position: relative;
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
@@ -7206,10 +7209,9 @@ button.app-metric-tile[aria-pressed='true'] {
 
 .app-summary-strip__item::before {
   content: '·';
-  /* O valor usa order -1 para vir antes do rótulo; o separador precisa vir antes dos dois. */
-  order: -2;
+  position: absolute;
+  left: -20px;
   width: 20px;
-  margin-right: -4px;
   color: var(--app-muted-soft);
   text-align: center;
 }

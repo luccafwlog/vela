@@ -4,7 +4,9 @@ import { buildFichaOverview, type OverviewInput } from '../fichaOverview'
 const clean: OverviewInput = {
   customerId: 7,
   customerName: 'Atlântico & Cia',
-  portal: { account_situation: 'ativo', provisioning_decision: 'aprovado_para_provisionar', hasCriticalAlert: false, recoveryEmailStatus: 'ok', recoveryEmailSuppressed: false },
+  customerDocument: '12345678000195',
+  portal: { account_situation: 'ativo', provisioning_decision: 'aprovado_para_provisionar', hasCriticalAlert: false, recovery_email: 'ti@atlantico.com.br', recoveryEmailStatus: 'ok', recoveryEmailSuppressed: false },
+  recoveryEmailVisible: true,
   releaseUntil: false,
   blsInReview: 0,
   hasPrimaryEmail: true,
@@ -38,9 +40,28 @@ describe('buildFichaOverview', () => {
     expect(items[0]).toMatchObject({ tone: 'info', title: 'Portal não ativo (ativação pendente); faturamento liberado sem Portal até 21/10/2026' })
   })
 
-  it('conta ativa com Email de Recuperação devolvido pede ação sem falar em trava', () => {
+  it('conta ativa com Email de Recuperação devolvido trava a fatura como o gate do banco', () => {
     const { items } = buildFichaOverview({ ...clean, portal: { ...clean.portal as object, recoveryEmailStatus: 'bounce_permanente' } as OverviewInput['portal'] })
-    expect(items.map((item) => item.key)).toEqual(['recuperacao'])
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({ key: 'portal', tone: 'warning', title: 'Email de Recuperação com falha' })
+    expect(items[0].detail).toMatch(/faturas ficam retidas/)
+    expect(items[0].actions).toContainEqual({ label: 'Liberação na aba Financeiro', tab: 'financeiro' })
+  })
+
+  it('conta ativa sem Email de Recuperação não passa por "Nenhuma pendência"', () => {
+    const { items } = buildFichaOverview({ ...clean, portal: { ...clean.portal as object, recovery_email: null, recoveryEmailStatus: null } as OverviewInput['portal'] })
+    expect(items[0]).toMatchObject({ key: 'portal', title: 'Conta de Portal sem Email de Recuperação' })
+  })
+
+  it('perfil que não lê o Email de Recuperação não acusa trava de uma conta ativa', () => {
+    const masked = { ...clean.portal as object, recovery_email: null, recoveryEmailStatus: null, recoveryEmailSuppressed: false } as OverviewInput['portal']
+    expect(buildFichaOverview({ ...clean, portal: masked, recoveryEmailVisible: false }).items).toEqual([])
+  })
+
+  it('alerta crítico com a conta pronta não diz que a fatura está retida', () => {
+    const { items } = buildFichaOverview({ ...clean, portal: { ...clean.portal as object, hasCriticalAlert: true } as OverviewInput['portal'] })
+    expect(items[0]).toMatchObject({ key: 'portal', tone: 'danger', title: 'Alerta crítico aberto' })
+    expect(items[0].detail).not.toMatch(/retidas/)
   })
 
   it('ordena o urgente primeiro e leva cada pendência ao lugar onde se resolve', () => {
@@ -52,7 +73,7 @@ describe('buildFichaOverview', () => {
       runningDemurrage: 3,
     })
     expect(items.map((item) => item.key)).toEqual(['vencidas', 'revisao', 'correndo', 'contato'])
-    expect(items[1]).toMatchObject({ title: '2 B/Ls em revisão', actions: [{ label: 'Abrir na Revisão', to: '/revisao?cliente=7' }] })
+    expect(items[1]).toMatchObject({ title: '2 B/Ls em revisão', actions: [{ label: 'Abrir na Revisão', to: '/revisao?busca=12345678000195' }] })
     expect(items[2].actions[0]).toEqual({ label: 'Abrir em Demurrage', to: '/demurrage?busca=Atl%C3%A2ntico%20%26%20Cia' })
     expect(items[3].detail).toMatch(/Não impede o faturamento/)
   })

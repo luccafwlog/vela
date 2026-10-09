@@ -26,8 +26,6 @@ type CustomerSummary = {
   totalBls: number
   chargePending: number
   chargeReady: number
-  /** Clientes do recorte com saldo pendente (card que filtra "Com saldo"). */
-  customersWithBalance: number
   /** Clientes do recorte sem nenhum e-mail ativo (card que filtra "Sem e-mail"). */
   customersWithoutEmail: number
 }
@@ -41,7 +39,6 @@ export function summarizeCustomerRows(rows: CustomerListItem[]): CustomerSummary
     totalBls: bls.length,
     chargePending: bls.filter((bl) => bl.charge_status === 'review_required' || bl.charge_status === 'not_calculated').length,
     chargeReady: bls.filter((bl) => bl.charge_status === 'ready_for_billing').length,
-    customersWithBalance: rows.filter((row) => Number(row.pending_balance ?? 0) > 0).length,
     customersWithoutEmail: rows.filter((row) => !customerHasEmail(row)).length,
   }
 }
@@ -156,6 +153,14 @@ export async function fetchCustomerRows(filters: CustomerFilters, paginate: bool
   let count: number | null = null
   if (paginate && !hasClientSideFilter) {
     const result = await query.range(from, to)
+    if (result.error?.code === 'PGRST103') {
+      // Página além do total (URL antiga com ?pagina=, lista que encolheu): o
+      // PostgREST responde 416 sem linhas. Devolve só o total para a página
+      // recuar à última que existe, em vez de mostrar erro.
+      const head = await query.range(0, 0)
+      if (head.error) throw head.error
+      return { rows: [] as CustomerListItem[], count: 0, totalCount: head.count ?? 0 }
+    }
     if (result.error) throw result.error
     rawRows = result.data ?? []
     count = result.count

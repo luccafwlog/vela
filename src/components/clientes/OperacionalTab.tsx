@@ -6,6 +6,7 @@ import { useCustomerPendingReconciliation } from '../../hooks/useCustomerFicha'
 import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import { formatCountLabel, formatDate } from '../../lib/utils'
 import type { useCustomerDetail } from '../../hooks/useCustomers'
+import { revisaoHref } from './fichaOverview'
 
 type Data = NonNullable<ReturnType<typeof useCustomerDetail>['data']>
 
@@ -48,7 +49,7 @@ export function OperacionalTab({ data }: { data: Data }) {
           </h2>
           <div className="app-customer-section-links">
             {inReview > 0 ? (
-              <Link className="app-customer-text-link" to={`/revisao?cliente=${data.id}`}>
+              <Link className="app-customer-text-link" to={revisaoHref(data.cnpj_cpf)}>
                 {formatCountLabel(inReview, 'em revisão', 'em revisão')}: abrir na Revisão <ArrowRight size={14} aria-hidden="true" />
               </Link>
             ) : null}
@@ -69,7 +70,7 @@ export function OperacionalTab({ data }: { data: Data }) {
                   <th scope="col">Consignatário no B/L</th>
                   <th scope="col">Revisão</th>
                   <th scope="col">Faturamento</th>
-                  <th scope="col" className="app-customer-subtable__date">Vinculado em</th>
+                  <th scope="col" className="app-customer-subtable__date">Criado em</th>
                 </tr>
               </thead>
               <tbody>

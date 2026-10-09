@@ -59,7 +59,15 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
 
   if (data !== prevFormData) {
     setPrevFormData(data)
-    setForm(formFromData(data))
+    // Recarregar o Cliente (contatos salvos, ação no painel do Portal) não
+    // apaga a edição em curso: só os campos intocados acompanham o dado novo.
+    const previous = prevFormData ? formFromData(prevFormData) : null
+    const next = formFromData(data)
+    setForm((current) => {
+      if (!previous) return next
+      const keys = Object.keys(next) as (keyof CustomerForm)[]
+      return Object.fromEntries(keys.map((key) => [key, current[key] === previous[key] ? next[key] : current[key]])) as CustomerForm
+    })
   }
 
   const changes = changedFields(data, form)
@@ -140,7 +148,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
             <div>
               <dt>CNPJ</dt>
               <dd className="tabular-nums">{formatCnpjCpf(data.cnpj_cpf)}</dd>
-              <dd className="app-customer-facts__sub">Alterado só pelo Administrativo, com auditoria, em Acesso ao Portal › Gerenciar.</dd>
+              <dd className="app-customer-facts__sub">Alterado só pelo Administrativo, com auditoria, em Acesso ao Portal › Gerenciar aqui.</dd>
             </div>
           </dl>
           <div className="app-customer-form__grid app-customer-form__grid--three">

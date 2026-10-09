@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   release: { data: null as unknown, isLoading: false, isError: false },
 }))
 
+vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ effectiveRole: 'administrativo' }) }))
 vi.mock('../../../hooks/usePortalProvisioning', () => ({
   usePortalProvisioningForCustomer: () => mocks.portal,
 }))

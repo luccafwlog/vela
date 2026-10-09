@@ -189,4 +189,29 @@ describe('CustomerContactConfiguration (behavior)', () => {
     expect(screen.getByText('Sem alterações nos contatos.')).toBeTruthy()
     expect(saveConfig).not.toHaveBeenCalled()
   })
+
+  it('sem alteração Salvar contatos fica indisponível', async () => {
+    fetchConfig.mockResolvedValueOnce({ boxes: BOXES, contacts: [primaryContact()] })
+    render(<CustomerContactConfiguration customerId={10} canEdit />)
+    await screen.findByDisplayValue('principal@cliente.com')
+    expect((screen.getByRole('button', { name: 'Salvar contatos' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('caixa reposta no principal ao carregar é explicada como correção a salvar, sem Descartar', async () => {
+    const user = userEvent.setup()
+    // O único contato do Financeiro teve o endereço bloqueado: a caixa volta ao principal.
+    fetchConfig.mockResolvedValue({ boxes: BOXES, contacts: [
+      primaryContact({ box_codes: ['documentacao_operacao', 'demurrage'] }),
+      primaryContact({ id: 2, is_primary: false, email: 'fin@cliente.com', box_codes: ['financeiro'], suppression_reason: 'suprimido_bounce' }),
+    ] })
+    render(<CustomerContactConfiguration customerId={10} canEdit />)
+    await screen.findByDisplayValue('principal@cliente.com')
+
+    expect(screen.getByText(/O contato principal foi incluído nas caixas/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Descartar' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
+    expect(saveConfig).toHaveBeenCalledWith(10, expect.arrayContaining([
+      expect.objectContaining({ id: 1, boxCodes: expect.arrayContaining(['financeiro']) }),
+    ]), '')
+  })
 })

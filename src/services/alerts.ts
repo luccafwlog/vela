@@ -322,7 +322,7 @@ export function alertEntityLink(alert: {
   if (effectiveType === 'cliente_contato_bounced_sem_alternativa' && alert.entity_type === 'customer') {
     const customerCnpj = alert.metadata?.customer_cnpj
     if (typeof customerCnpj === 'string' && customerCnpj.trim()) {
-      return `/clientes/${encodeURIComponent(customerCnpj.trim())}?tab=contatos`
+      return `/clientes/${encodeURIComponent(customerCnpj.trim())}?tab=cadastro`
     }
     return alert.destination ?? '/clientes'
   }

@@ -176,4 +176,25 @@ describe('CadastroContatosTab', () => {
     expect(mocks.confirm).not.toHaveBeenCalled()
     expect(mocks.updateCustomerWithAudit).not.toHaveBeenCalled()
   })
+
+  it('recarregar o Cliente (contatos salvos) mantém a edição em curso e acompanha os campos intocados', async () => {
+    const user = userEvent.setup()
+    const view = render(
+      <MemoryRouter>
+        <CadastroContatosTab data={baseData} cnpj="12345678000195" />
+      </MemoryRouter>,
+    )
+
+    await user.type(screen.getByLabelText(/CEP/), '11010-000')
+    const refetched = { ...(baseData as object), city: 'Santos', customer_contacts: [] } as never
+    view.rerender(
+      <MemoryRouter>
+        <CadastroContatosTab data={refetched} cnpj="12345678000195" />
+      </MemoryRouter>,
+    )
+
+    expect((screen.getByLabelText(/CEP/) as HTMLInputElement).value).toBe('11010-000')
+    expect((screen.getByLabelText(/Cidade/) as HTMLInputElement).value).toBe('Santos')
+    expect(screen.getByText(/1 alteração não salva/)).toBeTruthy()
+  })
 })

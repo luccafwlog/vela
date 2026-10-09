@@ -74,9 +74,29 @@ const CUSTOMER_FIELD_LABELS: Record<string, string> = {
   cnpj_cpf: 'CNPJ',
 }
 
+// Data sem hora (`billed_at`/`paid_at` de Demurrage são `date`): o
+// `Date.parse` a lê como meia-noite UTC, 21h do dia anterior em Brasília, e o
+// evento cairia abaixo de outro do dia anterior. Lida como meia-noite local.
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/
+
 function timelineTime(value: string) {
-  const time = Date.parse(value)
+  const dateOnly = DATE_ONLY.exec(value)
+  const time = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3])).getTime()
+    : Date.parse(value)
   return Number.isNaN(time) ? 0 : time
+}
+
+/** Linha de `audit_logs` do Cliente; desativar/reativar (migration `092`) grava `deactivated`. */
+function auditEventText(row: TimelineSources['auditLogs'][number]) {
+  const justification = row.justification ? ` · ${row.justification}` : ''
+  if (row.field_name === 'deactivated') {
+    return { label: row.new_value === 'true' ? 'Cliente desativado' : 'Cliente reativado', detail: row.justification }
+  }
+  return {
+    label: `Cadastro alterado: ${CUSTOMER_FIELD_LABELS[row.field_name] ?? row.field_name}`,
+    detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${justification}`,
+  }
 }
 
 function contactChangeSourceLabel(source: string): 'Portal' | 'Equipe' | 'B/L' | 'Sistema' {
@@ -143,7 +163,7 @@ export function buildCustomerTimeline(sources: TimelineSources): CustomerTimelin
   })
 
   const events: CustomerTimelineEvent[] = [
-    ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: 'cadastro_audit' as const, sourceId: String(row.id), at: row.changed_at!, label: `Cadastro alterado: ${CUSTOMER_FIELD_LABELS[row.field_name] ?? row.field_name}`, detail: `${row.old_value ?? '—'} → ${row.new_value ?? '—'}${row.justification ? ` · ${row.justification}` : ''}`, link: null, actorId: row.changed_by ? (sources.actorNames?.get(row.changed_by) ?? row.changed_by) : null })),
+    ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: 'cadastro_audit' as const, sourceId: String(row.id), at: row.changed_at!, ...auditEventText(row), link: null, actorId: row.changed_by ? (sources.actorNames?.get(row.changed_by) ?? row.changed_by) : null })),
     ...sources.portalEvents.map((row) => ({ kind: 'portal_event' as const, sourceId: String(row.id), at: row.created_at, label: `Portal: ${row.new_decision ? provisioningDecisionLabel(row.new_decision) : row.new_situation ? accountSituationLabel(row.new_situation) : 'evento'}`, detail: row.reason, link: null })),
     ...sources.contacts.filter((row) => row.created_at).map((row) => ({ kind: 'contact_created' as const, sourceId: String(row.id), at: row.created_at!, label: `Contato criado: ${row.name ?? '—'}`, detail: null, link: null })),
     ...contactEvents,
