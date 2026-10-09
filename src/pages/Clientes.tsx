@@ -1,20 +1,22 @@
-import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { Download, Mail, Plus, ShieldCheck, Upload } from 'lucide-react'
+import { Download, Mail, Plus, Search, ShieldCheck, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
-import { PageHeader } from '../components/ui/Card'
+import { EmptyState, PageHeader } from '../components/ui/Card'
+import { SummaryStrip } from '../components/ui/SummaryStrip'
 import { WorkspaceNav } from '../components/ui/WorkspaceNav'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
+import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { CreateCustomerModal } from '../components/customers/CreateCustomerModal'
-import { CustomerTable, type CustomerActionsMenu } from '../components/customers/CustomerTable'
+import { CustomerTable } from '../components/customers/CustomerTable'
 import { ImportBaseModal, type CustomerBaseImportOutcome } from '../components/customers/ImportBaseModal'
 import {
   emptyCreateCustomerForm,
@@ -24,73 +26,90 @@ import {
   type CustomerCreateErrors,
 } from '../components/customers/customerCreateForm'
 import { useAuth } from '../hooks/useAuth'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useRowSelection } from '../hooks/useRowSelection'
-import { filterCustomerRowsByClientSideFilters, useCustomers, useCustomerSummary, type CustomerFilters } from '../hooks/useCustomers'
+import { fetchCustomerRows, useCustomers, useCustomerSummary, type CustomerFilters } from '../hooks/useCustomers'
 import { usePortalProvisioning } from '../hooks/usePortalProvisioning'
-import { escapeFilterTerm, formatBRL, formatCnpjCpf, formatCountLabel } from '../lib/utils'
+import { formatBRL, formatCnpjCpf, formatCountLabel } from '../lib/utils'
+import { userFacingErrorMessage } from '../lib/errors'
 import { isValidCnpj } from '../lib/cnpj'
 import { getCustomerFilterChips, type CustomerSortKey } from '../lib/customerTableViewModel'
-import { BLS_OF_CUSTOMER } from '../lib/supabaseEmbeds'
+import { CUSTOMER_COMMUNICATION_BOXES } from '../services/customerCommunicationBoxes'
 import { compareCustomerBaseWithExisting, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
-import { checkCustomerDependencies, createCustomer, deactivateCustomer, deleteCustomers, fetchIssuedInvoiceBalanceByCustomer, reactivateCustomer } from '../services/customers'
+import { checkCustomerDependencies, createCustomer, deactivateCustomer, deleteCustomers, reactivateCustomer } from '../services/customers'
 import { buildDeleteAffected, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
-import { supabase } from '../services/supabase'
-import type { CustomerListItem } from '../types/database'
+import {
+  EMPTY_CUSTOMER_FILTERS,
+  clientesSearchFromFilters,
+  filtersFromClientesSearch,
+  rememberClientesListSearch,
+} from './clientesListState'
 
 const customerCreateSchema = z.object({
   cnpjCpf: z
     .string()
     .refine((val) => isValidCnpj(val), 'Informe um CNPJ de 14 posições válido'),
-  name: z.string().min(2, 'Razão Social obrigatória (mín. 2 caracteres)'),
+  name: z.string().trim().min(2, 'Informe a razão social (mínimo de 2 caracteres)'),
 })
+
+type PanelFilterKey = 'contactEmail' | 'emailStatus' | 'blStatus' | 'pendingStatus'
+const PANEL_FILTER_KEYS: PanelFilterKey[] = ['contactEmail', 'emailStatus', 'blStatus', 'pendingStatus']
 
 export function Clientes() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
   const { user, effectiveRole, can, isAdmin } = useAuth()
-  // Excluir exige o Administrativo no banco (delete_records); a tela so
-  // oferece a acao a quem pode executa-la.
+  const narrow = useNarrowViewport()
+  // Excluir e desativar exigem o Administrativo no banco; a tela só oferece
+  // as ações a quem pode executá-las.
   const canDeleteCustomers = isAdmin
   const [deleting, setDeleting] = useState(false)
-  const [actionsMenu, setActionsMenu] = useState<CustomerActionsMenu | null>(null)
-  const [filters, setFilters] = useState<CustomerFilters>({
-    search: '',
-    contactEmail: '',
-    emailStatus: '',
-    blStatus: '',
-    pendingStatus: '',
-    sortKey: 'name',
-    sortDirection: 'asc',
-    page: 0,
-    pageSize: 50,
-  })
-  const selectionScope = [
-    filters.search,
-    filters.contactEmail,
-    filters.emailStatus,
-    filters.blStatus,
-    filters.pendingStatus,
-    filters.sortKey,
-    filters.sortDirection,
-    filters.page,
-    filters.pageSize,
-  ].join('|')
+  const [exporting, setExporting] = useState(false)
+
+  // Busca, filtros, ordem e página vivem na URL: voltar da ficha, recarregar ou
+  // compartilhar o endereço reabre a mesma lista.
+  const [filters, setFilters] = useState<CustomerFilters>(() => filtersFromClientesSearch(searchParams))
+  const listSearch = clientesSearchFromFilters(filters)
+  // Última query string que a própria página gravou. Uma URL diferente dela
+  // veio de fora (menu "Clientes", Alerta, link com ?saldo=): a URL vence e o
+  // recorte é relido dela, em vez de ser sobrescrito pelo estado antigo.
+  const writtenSearch = useRef(searchParams.toString())
+  useEffect(() => {
+    const urlSearch = searchParams.toString()
+    if (urlSearch !== writtenSearch.current) {
+      writtenSearch.current = urlSearch
+      setFilters(filtersFromClientesSearch(searchParams))
+      return
+    }
+    if (listSearch !== urlSearch) {
+      writtenSearch.current = listSearch
+      setSearchParams(new URLSearchParams(listSearch), { replace: true })
+    }
+    rememberClientesListSearch(listSearch)
+  }, [listSearch, searchParams, setSearchParams])
+
+  // A busca consulta o banco: espera a pausa da digitação.
+  const debouncedSearch = useDebouncedValue(filters.search)
+  const queryFilters = useMemo(() => ({ ...filters, search: debouncedSearch }), [filters, debouncedSearch])
+
+  const selectionScope = clientesSearchFromFilters(queryFilters)
   const selection = useRowSelection<number>(selectionScope)
 
-  function setFilterField<K extends 'search' | 'contactEmail' | 'emailStatus' | 'blStatus' | 'pendingStatus'>(
-    field: K,
-    value: CustomerFilters[K],
-  ) {
+  function setFilterField<K extends 'search' | PanelFilterKey>(field: K, value: CustomerFilters[K]) {
     setFilters((current) => ({ ...current, [field]: value, page: 0 }))
   }
-  const activeFilterCount = (['search', 'contactEmail', 'emailStatus', 'blStatus', 'pendingStatus'] as const)
-    .filter((key) => String(filters[key] ?? '').trim() !== '').length
+  function togglePresence(field: 'emailStatus' | 'pendingStatus', value: 'with' | 'without') {
+    setFilterField(field, filters[field] === value ? '' : value)
+  }
+  const panelFilterCount = PANEL_FILTER_KEYS.filter((key) => String(filters[key] ?? '').trim() !== '').length
+  const hasAnyFilter = panelFilterCount > 0 || filters.search.trim() !== ''
   function clearFilters() {
-    setFilters((current) => ({ ...current, search: '', contactEmail: '', emailStatus: '', blStatus: '', pendingStatus: '', page: 0 }))
+    setFilters((current) => ({ ...EMPTY_CUSTOMER_FILTERS, sortKey: current.sortKey, sortDirection: current.sortDirection }))
   }
   function toggleSort(sortKey: CustomerSortKey) {
     setFilters((current) => ({
@@ -100,46 +119,17 @@ export function Clientes() {
       page: 0,
     }))
   }
-  const filterChips = getCustomerFilterChips(filters)
+  const filterChips = getCustomerFilterChips({ ...filters, search: '' })
   async function copyText(value: string, label: string) {
-    await navigator.clipboard.writeText(value)
-    showToast(`${label} copiado.`, 'success')
-    setActionsMenu(null)
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard indisponível')
+      await navigator.clipboard.writeText(value)
+      showToast(`${label} copiado.`, 'success')
+    } catch {
+      showToast(`Não foi possível copiar o ${label}.`, 'error')
+    }
   }
-  function openActionsMenu(
-    event: ReactMouseEvent<HTMLButtonElement>,
-    row: { id: number; name: string; cnpj_cpf: string; email: string | null; deactivated: boolean },
-  ) {
-    if (actionsMenu?.id === row.id) {
-      setActionsMenu(null)
-      return
-    }
-    const rect = event.currentTarget.getBoundingClientRect()
-    setActionsMenu({ id: row.id, top: rect.bottom + 6, left: rect.right, name: row.name, cnpj: row.cnpj_cpf, email: row.email, deactivated: row.deactivated })
-  }
-  // O menu flutua via position:fixed para escapar do recorte do container de scroll
-  // da tabela; por isso precisa fechar quando o usuario rola, redimensiona ou clica fora.
-  useEffect(() => {
-    if (!actionsMenu) return
-    const close = () => setActionsMenu(null)
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-    }
-    const onPointer = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('[data-actions-menu]')) close()
-    }
-    window.addEventListener('scroll', close, true)
-    window.addEventListener('resize', close)
-    window.addEventListener('keydown', onKey)
-    window.addEventListener('mousedown', onPointer)
-    return () => {
-      window.removeEventListener('scroll', close, true)
-      window.removeEventListener('resize', close)
-      window.removeEventListener('keydown', onKey)
-      window.removeEventListener('mousedown', onPointer)
-    }
-  }, [actionsMenu])
+
   const [createOpen, setCreateOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [createForm, setCreateForm] = useState<CreateCustomerForm>(emptyCreateCustomerForm)
@@ -147,12 +137,14 @@ export function Clientes() {
   const [saving, setSaving] = useState(false)
   const [baseFile, setBaseFile] = useState<File | null>(null)
   const [baseReadError, setBaseReadError] = useState<string | null>(null)
+  const [baseWriteError, setBaseWriteError] = useState<string | null>(null)
   const [baseOutcome, setBaseOutcome] = useState<CustomerBaseImportOutcome | null>(null)
   const [parsedBase, setParsedBase] = useState<ParsedCustomerBase | null>(null)
   const [parsingBase, setParsingBase] = useState(false)
   const [importingBase, setImportingBase] = useState(false)
-  const { data, isLoading, error, fetchStatus, refetch } = useCustomers(filters)
-  const { data: summary } = useCustomerSummary(filters)
+  const { data, isLoading, error, fetchStatus, refetch } = useCustomers(queryFilters)
+  const summaryQuery = useCustomerSummary(queryFilters)
+  const summary = summaryQuery.data
   const canSeePortalQueue = ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole ?? '')
   const { data: portalRows } = usePortalProvisioning(canSeePortalQueue)
   const awaitingPortalAnalysis = canSeePortalQueue
@@ -161,47 +153,51 @@ export function Clientes() {
 
   const totalPages = Math.ceil((data?.totalCount ?? 0) / filters.pageSize)
 
+  // Link com ?pagina= além do total (lista que encolheu, URL antiga): vai para
+  // a última página que existe em vez de mostrar o vazio.
+  const pageOutOfRange = Boolean(data && data.totalCount > 0 && filters.page >= totalPages)
+  if (pageOutOfRange) setFilters((current) => ({ ...current, page: Math.max(0, totalPages - 1) }))
+
+  // O resumo é uma consulta própria: falha ou carregamento vira "—", nunca zero.
+  const metric = (value: number | undefined, format: (n: number) => string = String) =>
+    summary && value !== undefined ? format(value) : '—'
+
   async function handleCreateCustomer() {
     const validation = customerCreateSchema.safeParse({
       cnpjCpf: createForm.cnpjCpf,
       name: createForm.name,
     })
+    const fieldErrors: CustomerCreateErrors = {}
     if (!validation.success) {
-      const fieldErrors: CustomerCreateErrors = {}
       for (const issue of validation.error.issues) {
-        const field = issue.path[0] as keyof CustomerCreateErrors
+        const field = issue.path[0] as 'cnpjCpf' | 'name'
         if (!fieldErrors[field]) fieldErrors[field] = issue.message
       }
-      setCreateErrors(fieldErrors)
-      return
     }
-    setCreateErrors({})
 
     const activeContacts = createForm.contacts.filter(
       (contact) => contact.name.trim() || contact.email.trim() || contact.phone.trim(),
     )
-
-    if (activeContacts.some((contact) => !contact.name.trim())) {
-      showToast('Todo contato preenchido parcialmente precisa ter nome.', 'error')
-      return
-    }
-
     const primaryContact = activeContacts.find((contact) => contact.is_primary)
-    if (!primaryContact || !primaryContact.email?.trim() || !primaryContact.email.includes('@')) {
-      showToast('O cliente precisa ter ao menos um contato principal com e-mail válido.', 'error')
-      return
+    if (activeContacts.some((contact) => !contact.name.trim())) {
+      fieldErrors.contacts = 'Informe o nome de todo contato preenchido.'
+    } else if (!primaryContact || !primaryContact.email?.trim() || !primaryContact.email.includes('@')) {
+      fieldErrors.contacts = 'O contato principal precisa de um e-mail válido.'
     }
+
+    setCreateErrors(fieldErrors)
+    if (Object.keys(fieldErrors).length > 0) return
 
     const confirmed = await confirm({
       title: 'Cadastrar cliente',
-      message: `Cadastrar o cliente "${createForm.name}" (${formatCnpjCpf(createForm.cnpjCpf)})?`,
+      message: `Cadastrar o cliente "${createForm.name.trim()}" (${formatCnpjCpf(createForm.cnpjCpf)})?`,
       confirmLabel: 'Cadastrar cliente',
       affected: {
-        summary: `${createForm.name} · CNPJ/CPF ${formatCnpjCpf(createForm.cnpjCpf)} · ${activeContacts.length} contato(s)`,
-        items: activeContacts.map((c) => `${c.name} (${c.email || 'sem e-mail'})${c.is_primary ? ' · Principal' : ''}`),
+        summary: `${createForm.name.trim()} · CNPJ ${formatCnpjCpf(createForm.cnpjCpf)} · ${formatCountLabel(activeContacts.length, 'contato', 'contatos')}`,
+        items: activeContacts.map((c) => `${c.name} (${c.email || 'sem e-mail'})${c.is_primary ? ' · principal' : ''}`),
       },
-      consequence: 'O cliente será inserido no cadastro ativo e estará disponível para vinculação operacional em B/Ls e faturamento.',
-      reversibility: 'Os dados do cliente podem ser editados na tela de detalhe; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',
+      consequence: 'O cliente entra no cadastro ativo, pode ser vinculado a B/Ls e aparece na fila de Provisionamento do Portal como "Aguardando análise". Nenhum convite é enviado.',
+      reversibility: 'Os dados podem ser editados na ficha; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',
     })
     if (!confirmed) return
 
@@ -209,7 +205,7 @@ export function Clientes() {
     try {
       const customer = await createCustomer({
         cnpjCpf: createForm.cnpjCpf,
-        name: createForm.name,
+        name: createForm.name.trim(),
         tradeName: createForm.tradeName,
         address: createForm.address,
         city: createForm.city,
@@ -221,15 +217,17 @@ export function Clientes() {
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
+        queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
         queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
       ])
 
-      showToast('Cliente cadastrado com sucesso.', 'success')
+      showToast('Cliente cadastrado.', 'success')
       setCreateOpen(false)
       setCreateForm(emptyCreateCustomerForm)
       navigate(`/clientes/${encodeURIComponent(customer.cnpj_cpf)}`)
-    } catch {
-      showToast('Falha ao cadastrar cliente.', 'error')
+    } catch (cause) {
+      // O formulário continua aberto com o motivo junto dos botões.
+      setCreateErrors({ submit: userFacingErrorMessage(cause, 'Não foi possível cadastrar o cliente. Confira os dados e tente de novo.') })
     } finally {
       setSaving(false)
     }
@@ -239,6 +237,7 @@ export function Clientes() {
     setBaseFile(nextFile)
     setParsedBase(null)
     setBaseReadError(null)
+    setBaseWriteError(null)
 
     if (!nextFile) return
 
@@ -257,10 +256,12 @@ export function Clientes() {
     if (!parsedBase?.rows.length) return
 
     setImportingBase(true)
+    setBaseWriteError(null)
     try {
       const result = await importCustomerBaseRows(parsedBase.rows, { changedBy: user?.id ?? null })
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
+        queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
         queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
         queryClient.invalidateQueries({ queryKey: ['bls'] }),
       ])
@@ -275,48 +276,30 @@ export function Clientes() {
       // Com clientes pendentes, o modal fica aberto e lista quais e por quê.
       if (result.errors?.length) setBaseOutcome({ ...result, errors: result.errors })
       else resetImportModal()
-    } catch {
-      showToast('Falha ao importar base de clientes.', 'error')
+    } catch (cause) {
+      // O motivo fica no modal, junto da prévia, e não só num toast.
+      setBaseWriteError(userFacingErrorMessage(cause, 'A gravação falhou. Tente de novo em instantes.'))
     } finally {
       setImportingBase(false)
     }
   }
 
+  // Exporta exatamente o recorte da lista (busca por documento, filtros e
+  // ordem), todas as páginas.
   async function handleExportBase() {
+    setExporting(true)
     try {
-      let query = supabase
-        .from('customers')
-        .select(`*, ${BLS_OF_CUSTOMER}(id, charge_status), customer_contacts(id, email, purpose, is_primary, deactivated_at, origin, customer_contact_box_links(box_code))`)
-        .order('name', { ascending: true })
-
-      if (filters.search) {
-        const search = escapeFilterTerm(filters.search)
-        if (search) {
-          query = query.or(
-            `name.ilike.%${search}%,trade_name.ilike.%${search}%,cnpj_cpf.ilike.%${search}%`,
-          )
-        }
+      const { rows } = await fetchCustomerRows({ ...queryFilters, page: 0 }, false)
+      if (!rows.length) {
+        showToast('Nenhum cliente no recorte atual para exportar.', 'info')
+        return
       }
-
-      const allRows: unknown[] = []
-      for (let from = 0; ; from += 1000) {
-        const { data, error } = await query.range(from, from + 999)
-        if (error) throw error
-        allRows.push(...(data ?? []))
-        if (!data || data.length < 1000) break
-      }
-
-      const rowsWithBalances = allRows as CustomerListItem[]
-      const balances = await fetchIssuedInvoiceBalanceByCustomer(rowsWithBalances.map((row) => row.id))
-      const rows = filterCustomerRowsByClientSideFilters(
-        rowsWithBalances.map((row) => ({ ...row, pending_balance: balances.get(row.id) ?? 0 })),
-        filters,
-      )
-
       await exportCustomerBaseWorkbook(rows)
-      showToast(`Base exportada com ${rows.length} cliente(s).`, 'success')
+      showToast(`Base exportada com ${formatCountLabel(rows.length, 'cliente', 'clientes')}.`, 'success')
     } catch {
       showToast('Falha ao exportar base de clientes.', 'error')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -324,6 +307,7 @@ export function Clientes() {
     setImportOpen(false)
     setBaseFile(null)
     setBaseReadError(null)
+    setBaseWriteError(null)
     setBaseOutcome(null)
     setParsedBase(null)
     setParsingBase(false)
@@ -419,6 +403,7 @@ export function Clientes() {
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
         queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
         queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
+        queryClient.invalidateQueries({ queryKey: ['customer-detail'] }),
       ])
       showToast(deactivated ? 'Cliente reativado.' : 'Cliente desativado.', 'success')
     } catch (error) {
@@ -439,39 +424,84 @@ export function Clientes() {
     }))
   }
 
+  // Um único principal: escolher outro desmarca o anterior. O principal nasce
+  // em todas as caixas (CONTEXT.md, "Caixa de Comunicação"); o anterior mantém
+  // as caixas que já tinha.
+  function setPrimaryContact(index: number) {
+    const allBoxes = CUSTOMER_COMMUNICATION_BOXES.map((box) => box.code)
+    setCreateForm((current) => ({
+      ...current,
+      contacts: current.contacts.map((contact, currentIndex) =>
+        currentIndex === index
+          ? { ...contact, is_primary: true, box_codes: Array.from(new Set([...contact.box_codes, ...allBoxes])) }
+          : { ...contact, is_primary: false },
+      ),
+    }))
+  }
+
   function addContact() {
     setCreateForm((current) => ({ ...current, contacts: [...current.contacts, newCustomerContact()] }))
   }
 
   function removeContact(index: number) {
-    setCreateForm((current) => ({
-      ...current,
-      contacts: current.contacts.length === 1 ? [newCustomerContact()] : current.contacts.filter((_, currentIndex) => currentIndex !== index),
-    }))
+    setCreateForm((current) => {
+      if (current.contacts.length === 1) return { ...current, contacts: [newCustomerContact(true)] }
+      const removedPrimary = current.contacts[index]?.is_primary
+      const contacts = current.contacts.filter((_, currentIndex) => currentIndex !== index)
+      // Sem principal o cadastro é recusado: o primeiro restante assume.
+      if (removedPrimary && contacts[0]) contacts[0] = { ...contacts[0], is_primary: true, box_codes: CUSTOMER_COMMUNICATION_BOXES.map((box) => box.code) }
+      return { ...current, contacts }
+    })
   }
+
+  const emptyState = hasAnyFilter ? (
+    <EmptyState
+      icon={Search}
+      title="Nenhum cliente com esses filtros"
+      description="Confira a grafia, busque pelo CNPJ ou limpe os filtros."
+      action={<Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>}
+    />
+  ) : (
+    <EmptyState
+      title="Nenhum cliente cadastrado"
+      description="Importe a base antes dos manifestos: B/Ls com o mesmo CNPJ são vinculados automaticamente."
+      action={(
+        <div className="app-customer-empty-actions">
+          <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Importar base</Button>
+          <Button variant="secondary" onClick={() => setCreateOpen(true)}><Plus size={16} aria-hidden="true" />Novo cliente</Button>
+        </div>
+      )}
+    />
+  )
+
+  const summaryItems = summaryQuery.isError
+    ? [{ label: 'resumo indisponível', value: '—' }]
+    : [
+        { label: summary?.totalCustomers === 1 ? 'cliente' : 'clientes', value: metric(summary?.totalCustomers) },
+        { label: 'B/Ls vinculados', value: metric(summary?.totalBls) },
+        { label: 'com taxas a revisar', value: metric(summary?.chargePending), tone: summary?.chargePending ? 'warning' as const : 'default' as const },
+        { label: 'prontos para faturar', value: metric(summary?.chargeReady) },
+      ]
 
   return (
     <>
       <PageHeader
         title="Clientes"
-        description="Cadastro mestre de consignatários. Importe a base antes dos manifestos para vínculo automático por CNPJ."
         action={
-          <div className="flex flex-wrap justify-end gap-2">
-            {/* Importar/Exportar são utilitários de manutenção da base: ficam em
-                `ghost` para não disputar atenção com a ação principal da tela. */}
-            <Button variant="ghost" onClick={() => setImportOpen(true)}>
-              <Upload size={16} />
+          <>
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              <Upload size={16} aria-hidden="true" />
               Importar base
             </Button>
-            <Button variant="ghost" onClick={handleExportBase}>
-              <Download size={16} />
+            <Button variant="secondary" loading={exporting} loadingLabel="Exportando…" onClick={() => void handleExportBase()}>
+              <Download size={16} aria-hidden="true" />
               Exportar base
             </Button>
             <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={16} />
-              Novo Cliente
+              <Plus size={16} aria-hidden="true" />
+              Novo cliente
             </Button>
-          </div>
+          </>
         }
       />
 
@@ -497,108 +527,114 @@ export function Clientes() {
         ]}
       />
 
+      <div className="app-customer-search">
+        <Field label="Buscar cliente">
+          <Input
+            type="search"
+            value={filters.search}
+            onChange={(event) => setFilterField('search', event.target.value)}
+            placeholder="Razão social, nome fantasia ou CNPJ"
+          />
+        </Field>
+        <div className="app-customer-metrics" role="group" aria-label="Atenção no recorte">
+          <MetricCard
+            label="Saldo pendente"
+            value={metric(summary?.pendingBalance, formatBRL)}
+            tone="primary"
+            selected={filters.pendingStatus === 'with'}
+            onSelect={() => togglePresence('pendingStatus', 'with')}
+          />
+          <MetricCard
+            label="Sem e-mail de contato"
+            value={metric(summary?.customersWithoutEmail)}
+            selected={filters.emailStatus === 'without'}
+            onSelect={() => togglePresence('emailStatus', 'without')}
+          />
+        </div>
+      </div>
+
+      <FilterBar activeCount={panelFilterCount} onClear={clearFilters}>
+        <div className="app-filter-grid">
+          <Field label="E-mail do contato">
+            <Input
+              type="email"
+              value={filters.contactEmail}
+              onChange={(event) => setFilterField('contactEmail', event.target.value)}
+              placeholder="email@cliente.com"
+            />
+          </Field>
+          <Field label="E-mails de contato">
+            <Select value={filters.emailStatus} onChange={(event) => setFilterField('emailStatus', event.target.value as CustomerFilters['emailStatus'])}>
+              <option value="">Todos</option>
+              <option value="with">Com e-mail</option>
+              <option value="without">Sem e-mail</option>
+            </Select>
+          </Field>
+          <Field label="B/Ls vinculados">
+            <Select value={filters.blStatus} onChange={(event) => setFilterField('blStatus', event.target.value as CustomerFilters['blStatus'])}>
+              <option value="">Todos</option>
+              <option value="with">Com B/Ls</option>
+              <option value="without">Sem B/Ls</option>
+            </Select>
+          </Field>
+          <Field label="Saldo pendente">
+            <Select value={filters.pendingStatus} onChange={(event) => setFilterField('pendingStatus', event.target.value as CustomerFilters['pendingStatus'])}>
+              <option value="">Todos</option>
+              <option value="with">Com saldo pendente</option>
+              <option value="without">Sem saldo pendente</option>
+            </Select>
+          </Field>
+        </div>
+      </FilterBar>
+
+      {filterChips.length ? (
+        <div className="app-filter-chips">
+          {filterChips.map((chip) => (
+            <button key={chip.key} type="button" className="app-filter-chip" aria-label={`Remover filtro ${chip.label}`} onClick={() => setFilterField(chip.key as PanelFilterKey, '' as never)}>
+              {chip.label}
+              <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {canDeleteCustomers ? (
+        <BulkActionsBar
+          count={selection.count}
+          onClear={selection.clear}
+          onDelete={() => runCustomerDelete([...selection.selected])}
+          deleting={deleting}
+          noun={['cliente', 'clientes']}
+        />
+      ) : null}
+
       <QueryStateGate
         isLoading={isLoading}
         isError={Boolean(error)}
         isPaused={fetchStatus === 'paused'}
         hasData={data !== undefined}
-        errorMessage="Erro ao carregar clientes."
+        errorMessage="Não foi possível carregar os clientes."
         onRetry={() => void refetch()}
       >
-        <div className="mb-5">
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            <MetricCard label="Saldo pendente" value={summary ? formatBRL(summary.pendingBalance) : '—'} tone="primary" />
-            <MetricCard label="Clientes" value={summary ? String(summary.totalCustomers) : '—'} />
-            <MetricCard label="B/Ls vinculados" value={summary ? String(summary.totalBls) : '—'} />
-            <MetricCard label="Taxas pendentes" value={summary ? String(summary.chargePending) : '—'} />
-            <MetricCard label="Faturados" value={summary ? String(summary.chargeReady) : '—'} />
-          </div>
-        </div>
-
-        <FilterBar activeCount={activeFilterCount} onClear={clearFilters}>
-          <div className="app-filter-grid">
-            <Field label="Buscar por nome ou CNPJ">
-              <Input
-                value={filters.search}
-                onChange={(event) => setFilterField('search', event.target.value)}
-                placeholder="Razao social, fantasia ou documento"
-              />
-            </Field>
-            <Field label="Buscar por e-mail do contato">
-              <Input
-                type="email"
-                value={filters.contactEmail}
-                onChange={(event) => setFilterField('contactEmail', event.target.value)}
-                placeholder="email@cliente.com"
-              />
-            </Field>
-            <Field label="E-mails vinculados">
-              <Select value={filters.emailStatus} onChange={(event) => setFilterField('emailStatus', event.target.value as CustomerFilters['emailStatus'])}>
-                <option value="">Todos</option>
-                <option value="with">Com e-mails</option>
-                <option value="without">Sem e-mails</option>
-              </Select>
-            </Field>
-            <Field label="BLs vinculados">
-              <Select value={filters.blStatus} onChange={(event) => setFilterField('blStatus', event.target.value as CustomerFilters['blStatus'])}>
-                <option value="">Todos</option>
-                <option value="with">Com B/Ls</option>
-                <option value="without">Sem B/Ls</option>
-              </Select>
-            </Field>
-            <Field label="Valores pendentes">
-              <Select value={filters.pendingStatus} onChange={(event) => setFilterField('pendingStatus', event.target.value as CustomerFilters['pendingStatus'])}>
-                <option value="">Todos</option>
-                <option value="with">Com saldo pendente</option>
-                <option value="without">Sem saldo pendente</option>
-              </Select>
-            </Field>
-          </div>
-        </FilterBar>
-
-        {filterChips.length ? (
-          <div className="app-filter-chips">
-            {filterChips.map((chip) => (
-              <button key={chip.key} type="button" className="app-filter-chip" onClick={() => setFilterField(chip.key, '' as never)}>
-                {chip.label}
-                <span aria-hidden="true">×</span>
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        {canDeleteCustomers ? (
-          <BulkActionsBar
-            count={selection.count}
-            onClear={selection.clear}
-            onDelete={() => runCustomerDelete([...selection.selected])}
-            deleting={deleting}
-            noun={['cliente', 'clientes']}
-          />
-        ) : null}
-
         <CustomerTable
           data={data}
-          isLoading={isLoading}
           canDeleteCustomers={canDeleteCustomers}
           selection={selection}
           filters={filters}
           totalPages={totalPages}
-          actionsMenu={actionsMenu}
           deleting={deleting}
+          narrow={narrow}
+          emptyState={emptyState}
+          toolbar={(
+            <div className="app-customer-toolbar">
+              <SummaryStrip label="Resumo do recorte" items={summaryItems} />
+            </div>
+          )}
           onToggleSort={toggleSort}
           onPageChange={(page) => setFilters((current) => ({ ...current, page }))}
-          onOpenActionsMenu={openActionsMenu}
-          onCloseActionsMenu={() => setActionsMenu(null)}
           onCopy={copyText}
-          onDeleteCustomer={(id) => {
-            setActionsMenu(null)
-            void runCustomerDelete([id])
-          }}
-          onToggleCustomerActive={(id, deactivated) => {
-            setActionsMenu(null)
-            void handleToggleCustomerActive(id, deactivated)
-          }}
+          onDeleteCustomer={(id) => void runCustomerDelete([id])}
+          onToggleCustomerActive={(id, deactivated) => void handleToggleCustomerActive(id, deactivated)}
           portalRows={portalRows ?? undefined}
         />
       </QueryStateGate>
@@ -608,10 +644,13 @@ export function Clientes() {
         form={createForm}
         errors={createErrors}
         saving={saving}
-        onClose={resetCreateModal}
+        // Fechar durante a gravação deixaria o resultado cair num modal
+        // fechado (erro antigo na próxima abertura, segundo cadastro).
+        onClose={() => { if (!saving) resetCreateModal() }}
         onSubmit={() => void handleCreateCustomer()}
         onFieldChange={updateCreateField}
         onContactChange={updateContact}
+        onSetPrimary={setPrimaryContact}
         onAddContact={addContact}
         onRemoveContact={removeContact}
       />
@@ -620,11 +659,12 @@ export function Clientes() {
         open={importOpen}
         baseFile={baseFile}
         readError={baseReadError}
+        writeError={baseWriteError}
         outcome={baseOutcome}
         parsedBase={parsedBase}
         parsingBase={parsingBase}
         importingBase={importingBase}
-        onClose={resetImportModal}
+        onClose={() => { if (!importingBase) resetImportModal() }}
         onFileSelect={(file) => void handleBaseFile(file)}
         onImport={() => void handleImportBase()}
       />

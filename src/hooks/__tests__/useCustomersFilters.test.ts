@@ -77,6 +77,7 @@ describe('customer client-side filters', () => {
       totalBls: 3,
       chargePending: 2,
       chargeReady: 1,
+      customersWithoutEmail: 2,
     })
   })
 })

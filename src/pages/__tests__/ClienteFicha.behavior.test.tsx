@@ -114,18 +114,21 @@ describe('ClienteFicha user behaviours', () => {
   it('abre na Visão Geral por padrão e troca de aba via clique', async () => {
     const user = userEvent.setup()
     renderPage('/clientes/12345678000195')
-    expect(screen.getByRole('tab', { name: 'Visão Geral' }).getAttribute('aria-selected')).toBe('true')
-    await user.click(screen.getByRole('tab', { name: 'Cadastro & Contatos' }))
-    expect(screen.getByRole('button', { name: 'Salvar cadastro' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Visão geral' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe('cliente-tab-visao-geral')
+    await user.click(screen.getByRole('tab', { name: 'Cadastro e contatos' }))
+    expect(screen.getByRole('heading', { name: 'Dados cadastrais' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Acesso ao Portal' })).toBeTruthy()
   })
 
   it('Visão Geral mostra saldo consolidado e pendência de reconciliação navegável', async () => {
     const user = userEvent.setup()
     renderPage('/clientes/12345678000195')
 
-    expect(screen.getByText('Saldo pendente (local + demurrage)')).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: /reconciliação de cliente pendente/i }))
-    expect(screen.getByRole('tab', { name: 'Operacional' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('heading', { name: 'Saldo pendente' })).toBeTruthy()
+    expect(screen.getByText(/B\/L vinculado por nome, aguardando confirmação/)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: /Ver os B\/Ls na aba Operacional/ }))
+    expect(screen.getByRole('tab', { name: /^Operacional/ }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('renders CustomerContactConfiguration and invalidates customer detail on save', async () => {
@@ -150,7 +153,9 @@ describe('ClienteFicha user behaviours', () => {
     }
 
     renderPage()
-    expect(screen.getByText('Cliente não encontrado.')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Cliente não encontrado' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Voltar para Clientes' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Tentar novamente' })).toBeNull()
   })
 
   it('shows an infrastructure error separately from not found', () => {
@@ -161,22 +166,42 @@ describe('ClienteFicha user behaviours', () => {
     }
 
     renderPage()
-    expect(screen.getByText('Falha ao consultar o cliente.')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Não foi possível abrir este Cliente' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeTruthy()
   })
 
   it('documentacao vê e opera as ações de cliente e portal', async () => {
     mocks.can.mockReturnValue(true)
     renderPage()
 
-    expect(screen.getByRole('button', { name: 'Salvar cadastro' })).not.toHaveProperty('disabled', true)
-    expect(screen.getByRole('link', { name: 'Abrir fila de provisionamento →' }).getAttribute('href')).toBe('/clientes/portal?cliente=42')
+    expect(screen.getByLabelText(/Razão social/)).not.toHaveProperty('disabled', true)
+    expect(screen.getByRole('link', { name: /Abrir no Provisionamento do Portal/ }).getAttribute('href')).toBe('/clientes/portal?cliente=42')
   })
 
-  it('Financeiro vê e pode operar a ficha no modelo de escrita global', () => {
+  it('Financeiro vê e pode operar a ficha no modelo de escrita global, sem a aba CE/VIP', () => {
     mocks.can.mockReturnValue(false)
-    renderPage()
+    renderPage('/clientes/12345678000195?tab=desbloqueio-ce')
 
-    expect(screen.getByRole('button', { name: 'Salvar cadastro' })).not.toHaveProperty('disabled', true)
-    expect(screen.getByRole('link', { name: 'Abrir fila de provisionamento →' }).getAttribute('href')).toBe('/clientes/portal?cliente=42')
+    // Sem leitura do Desbloqueio de CE, a aba some e o link antigo cai na Visão geral.
+    expect(screen.queryByRole('tab', { name: 'Desbloqueio de CE e VIP' })).toBeNull()
+    expect(screen.getByRole('tab', { name: 'Visão geral' }).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('cabeçalho dá identidade e caminhos sem repetir o breadcrumb', async () => {
+    const user = userEvent.setup()
+    renderPage('/clientes/12345678000195')
+    expect(screen.getByRole('heading', { level: 1, name: 'Cliente Teste' })).toBeTruthy()
+    expect(screen.getByText('12.345.678/0001-95')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Voltar para clientes/i })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Mais ações do Cliente' }))
+    expect(screen.getByRole('menuitem', { name: 'Ver faturas em Taxas Locais' }).getAttribute('href')).toContain('/taxas-locais?tab=invoices&customer=42')
+    expect(screen.getByRole('menuitem', { name: 'Ver os B/Ls na lista de BLs' }).getAttribute('href')).toBe('/bls?q=12345678000195')
+  })
+
+  it('cliente desativado avisa data, efeito e motivo', () => {
+    mocks.detail = { data: { ...customer, deactivated_at: '2026-10-06T12:00:00Z', deactivation_reason: 'Encerrou as atividades' }, isLoading: false, error: null }
+    renderPage('/clientes/12345678000195')
+    expect(screen.getByRole('status').textContent).toContain('Cliente desativado em 06/10/2026')
+    expect(screen.getByText('Motivo: Encerrou as atividades')).toBeTruthy()
   })
 })

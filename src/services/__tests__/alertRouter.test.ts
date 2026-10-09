@@ -67,7 +67,7 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
       entity_type: 'customer',
       entity_id: '42',
       metadata: { customer_cnpj: '12.345.678/0001-95' },
-    })).toBe('/clientes/12.345.678%2F0001-95?tab=contatos')
+    })).toBe('/clientes/12.345.678%2F0001-95?tab=cadastro')
     expect(alertEntityLinkLabel({ type: 'cliente_contato_bounced_sem_alternativa', entity_type: 'customer' })).toBe('Abrir Cliente')
   })
 

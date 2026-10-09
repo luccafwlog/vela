@@ -142,7 +142,7 @@ describe('CadastroContatosTab', () => {
     expect(mocks.updateCustomerWithAudit).not.toHaveBeenCalled()
   })
 
-  it('avisa e não abre confirmação quando não há alterações', async () => {
+  it('sem alteração não oferece salvar; com alteração mostra o que mudou e Descartar volta ao gravado', async () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter>
@@ -150,11 +150,51 @@ describe('CadastroContatosTab', () => {
       </MemoryRouter>,
     )
 
-    await user.type(screen.getByLabelText(/justificativa/i), 'Sem alteração de campos')
+    expect(screen.queryByRole('button', { name: 'Salvar cadastro' })).toBeNull()
+    expect(screen.queryByLabelText(/justificativa/i)).toBeNull()
+
+    await user.type(screen.getByLabelText(/CEP/), '11010-000')
+    expect(screen.getByText(/1 alteração não salva/).parentElement?.textContent).toContain('CEP')
+
+    await user.click(screen.getByRole('button', { name: 'Descartar' }))
+    expect((screen.getByLabelText(/CEP/) as HTMLInputElement).value).toBe('')
+    expect(screen.queryByRole('button', { name: 'Salvar cadastro' })).toBeNull()
+  })
+
+  it('pede a justificativa junto do campo, sem abrir a confirmação', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <CadastroContatosTab data={baseData} cnpj="12345678000195" />
+      </MemoryRouter>,
+    )
+
+    await user.type(screen.getByLabelText(/Nome fantasia/i), 'ACME Brasil')
     await user.click(screen.getByRole('button', { name: 'Salvar cadastro' }))
 
+    expect(screen.getByText(/Informe a justificativa/)).toBeTruthy()
     expect(mocks.confirm).not.toHaveBeenCalled()
     expect(mocks.updateCustomerWithAudit).not.toHaveBeenCalled()
-    expect(mocks.showToast).toHaveBeenCalledWith('Nenhuma alteração para salvar.', 'info')
+  })
+
+  it('recarregar o Cliente (contatos salvos) mantém a edição em curso e acompanha os campos intocados', async () => {
+    const user = userEvent.setup()
+    const view = render(
+      <MemoryRouter>
+        <CadastroContatosTab data={baseData} cnpj="12345678000195" />
+      </MemoryRouter>,
+    )
+
+    await user.type(screen.getByLabelText(/CEP/), '11010-000')
+    const refetched = { ...(baseData as object), city: 'Santos', customer_contacts: [] } as never
+    view.rerender(
+      <MemoryRouter>
+        <CadastroContatosTab data={refetched} cnpj="12345678000195" />
+      </MemoryRouter>,
+    )
+
+    expect((screen.getByLabelText(/CEP/) as HTMLInputElement).value).toBe('11010-000')
+    expect((screen.getByLabelText(/Cidade/) as HTMLInputElement).value).toBe('Santos')
+    expect(screen.getByText(/1 alteração não salva/)).toBeTruthy()
   })
 })

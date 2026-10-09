@@ -1,13 +1,18 @@
+import { useId } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Field, Input, Select, Textarea } from '../ui/Input'
+import { InlineError } from '../ui/Card'
+import { Field, Input, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
-import {
-  CUSTOMER_COMMUNICATION_BOXES,
-} from '../../services/customerCommunicationBoxes'
+import { CUSTOMER_COMMUNICATION_BOXES } from '../../services/customerCommunicationBoxes'
 import type { CreateCustomerForm, CustomerContactForm, CustomerCreateErrors } from './customerCreateForm'
 import { CNPJ_INPUT_MAX_LENGTH, normalizeCnpj } from '../../lib/cnpj'
 
+/**
+ * Cadastro manual. Identidade e endereço em duas colunas; os contatos vêm
+ * depois, com um único principal (rádio) e as Caixas de Comunicação de cada
+ * um. O principal nasce em todas as caixas.
+ */
 export function CreateCustomerModal({
   open,
   form,
@@ -17,6 +22,7 @@ export function CreateCustomerModal({
   onSubmit,
   onFieldChange,
   onContactChange,
+  onSetPrimary,
   onAddContact,
   onRemoveContact,
 }: {
@@ -28,158 +34,189 @@ export function CreateCustomerModal({
   onSubmit: () => void
   onFieldChange: <K extends keyof Omit<CreateCustomerForm, 'contacts'>>(field: K, value: CreateCustomerForm[K]) => void
   onContactChange: (index: number, patch: Partial<CustomerContactForm>) => void
+  onSetPrimary: (index: number) => void
   onAddContact: () => void
   onRemoveContact: (index: number) => void
 }) {
+  const primaryGroup = useId()
   return (
-    <Modal open={open} onClose={onClose} title="Novo Cliente">
-      <div className="grid gap-5">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Field label="CNPJ" error={errors.cnpjCpf}>
-            <Input maxLength={CNPJ_INPUT_MAX_LENGTH} value={form.cnpjCpf} onChange={(event) => onFieldChange('cnpjCpf', normalizeCnpj(event.target.value))} />
-          </Field>
-          <Field label="Razao Social" error={errors.name}>
-            <Input value={form.name} onChange={(event) => onFieldChange('name', event.target.value)} />
-          </Field>
-          <Field label="Nome fantasia">
-            <Input value={form.tradeName} onChange={(event) => onFieldChange('tradeName', event.target.value)} />
-          </Field>
-          <Field label="Endereço">
-            <Input value={form.address} onChange={(event) => onFieldChange('address', event.target.value)} />
-          </Field>
-          <Field label="Cidade">
-            <Input value={form.city} onChange={(event) => onFieldChange('city', event.target.value)} />
-          </Field>
-          <Field label="UF">
-            <Input value={form.state} onChange={(event) => onFieldChange('state', event.target.value.toUpperCase())} />
-          </Field>
-          <Field label="CEP">
-            <Input value={form.zip} onChange={(event) => onFieldChange('zip', event.target.value)} />
-          </Field>
-        </div>
-
-        <Field label="Notas">
-          <Textarea value={form.notes} onChange={(event) => onFieldChange('notes', event.target.value)} />
-        </Field>
-
-        <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <div className="font-semibold text-white">Contatos do cliente</div>
-              <div className="text-sm text-slate-400">É obrigatório definir ao menos um contato principal com e-mail válido.</div>
+    <Modal open={open} onClose={onClose} title="Novo cliente">
+      <form
+        className="app-customer-form"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault()
+          onSubmit()
+        }}
+      >
+        <section className="app-customer-form__section" aria-labelledby={`${primaryGroup}-identity`}>
+          <h3 id={`${primaryGroup}-identity`} className="app-customer-form__title">Dados cadastrais</h3>
+          <div className="app-customer-form__grid">
+            <Field label="CNPJ" required error={errors.cnpjCpf} hint="Com ou sem pontuação; letras são aceitas.">
+              <Input maxLength={CNPJ_INPUT_MAX_LENGTH} inputMode="text" autoComplete="off" value={form.cnpjCpf} onChange={(event) => onFieldChange('cnpjCpf', normalizeCnpj(event.target.value))} />
+            </Field>
+            <Field label="Razão social" required error={errors.name}>
+              <Input value={form.name} onChange={(event) => onFieldChange('name', event.target.value)} />
+            </Field>
+            <Field label="Nome fantasia">
+              <Input value={form.tradeName} onChange={(event) => onFieldChange('tradeName', event.target.value)} />
+            </Field>
+            <Field label="CEP">
+              <Input inputMode="numeric" value={form.zip} onChange={(event) => onFieldChange('zip', event.target.value)} />
+            </Field>
+            <div className="app-customer-form__wide">
+              <Field label="Endereço">
+                <Input value={form.address} onChange={(event) => onFieldChange('address', event.target.value)} />
+              </Field>
             </div>
-            <Button variant="secondary" onClick={onAddContact}>
-              <Plus size={16} />
+            <Field label="Cidade">
+              <Input value={form.city} onChange={(event) => onFieldChange('city', event.target.value)} />
+            </Field>
+            <Field label="UF">
+              <Input maxLength={2} value={form.state} onChange={(event) => onFieldChange('state', event.target.value.toUpperCase())} />
+            </Field>
+            <div className="app-customer-form__wide">
+              <Field label="Notas">
+                <Textarea rows={2} value={form.notes} onChange={(event) => onFieldChange('notes', event.target.value)} />
+              </Field>
+            </div>
+          </div>
+        </section>
+
+        <section className="app-customer-form__section" aria-labelledby={`${primaryGroup}-contacts`}>
+          <div className="app-customer-form__head">
+            <div>
+              <h3 id={`${primaryGroup}-contacts`} className="app-customer-form__title">Contatos</h3>
+              <p className="app-customer-form__intro">Quem recebe os Comunicados. O contato principal precisa de e-mail e recebe todas as caixas.</p>
+            </div>
+            <Button type="button" variant="secondary" onClick={onAddContact}>
+              <Plus size={16} aria-hidden="true" />
               Adicionar contato
             </Button>
           </div>
 
-          <div className="grid gap-4">
-            {form.contacts.map((contact, index) => (
-              <ContactForm
-                key={contact._id}
-                contact={contact}
-                index={index}
-                onChange={onContactChange}
-                onRemove={onRemoveContact}
-              />
-            ))}
-          </div>
-        </div>
+          {form.contacts.map((contact, index) => (
+            <ContactFields
+              key={contact._id}
+              contact={contact}
+              index={index}
+              radioName={`${primaryGroup}-primary`}
+              removable={form.contacts.length > 1}
+              onChange={onContactChange}
+              onSetPrimary={onSetPrimary}
+              onRemove={onRemoveContact}
+            />
+          ))}
+          {errors.contacts ? <InlineError message={errors.contacts} /> : null}
+        </section>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose}>
+        {errors.submit ? <InlineError message={errors.submit} /> : null}
+
+        <div className="app-modal__actions">
+          <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>
             Voltar
           </Button>
-          <Button loading={saving} onClick={onSubmit}>
+          <Button type="submit" loading={saving} loadingLabel="Cadastrando…">
             Cadastrar cliente
           </Button>
         </div>
-      </div>
+      </form>
     </Modal>
   )
 }
 
-function ContactForm({
+function ContactFields({
   contact,
   index,
+  radioName,
+  removable,
   onChange,
+  onSetPrimary,
   onRemove,
 }: {
   contact: CustomerContactForm
   index: number
+  radioName: string
+  removable: boolean
   onChange: (index: number, patch: Partial<CustomerContactForm>) => void
+  onSetPrimary: (index: number) => void
   onRemove: (index: number) => void
 }) {
+  const legend = contact.name.trim() || `Contato ${index + 1}`
   return (
-    <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="font-semibold text-white">Contato {index + 1}</div>
-        <Button variant="ghost" onClick={() => onRemove(index)} aria-label="Remover contato">
-          <Trash2 size={16} />
-        </Button>
+    <fieldset className="app-customer-contact" data-primary={contact.is_primary ? 'true' : undefined}>
+      <legend className="sr-only">{legend}</legend>
+      <div className="app-customer-contact__head">
+        <label className="app-customer-contact__primary">
+          <input type="radio" name={radioName} checked={contact.is_primary} onChange={() => onSetPrimary(index)} />
+          <span>Contato principal</span>
+        </label>
+        {removable ? (
+          <Button type="button" variant="ghost" className="app-btn--sm" onClick={() => onRemove(index)} aria-label={`Remover ${legend}`}>
+            <Trash2 size={16} aria-hidden="true" />
+            Remover
+          </Button>
+        ) : null}
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="app-customer-contact__fields">
         <Field label="Nome">
           <Input value={contact.name} onChange={(event) => onChange(index, { name: event.target.value })} />
         </Field>
-        <Field label="Email">
-          <Input type="email" value={contact.email} onChange={(event) => onChange(index, { email: event.target.value })} />
+        <Field label="E-mail" required={contact.is_primary}>
+          <Input type="email" autoComplete="off" value={contact.email} onChange={(event) => onChange(index, { email: event.target.value })} />
         </Field>
         <Field label="Telefone">
-          <Input value={contact.phone} onChange={(event) => onChange(index, { phone: event.target.value })} />
-        </Field>
-        <Field label="Principal">
-          <Select
-            value={contact.is_primary ? 'sim' : 'nao'}
-            onChange={(event) => {
-              const isPrimary = event.target.value === 'sim'
-              onChange(index, {
-                is_primary: isPrimary,
-                box_codes: isPrimary
-                  ? Array.from(new Set([...contact.box_codes, ...CUSTOMER_COMMUNICATION_BOXES.map((b) => b.code)]))
-                  : contact.box_codes,
-              })
-            }}
-          >
-            <option value="nao">Não</option>
-            <option value="sim">Sim</option>
-          </Select>
+          <Input type="tel" value={contact.phone} onChange={(event) => onChange(index, { phone: event.target.value })} />
         </Field>
       </div>
+      <BoxChoices
+        legend={`Caixas de ${legend}`}
+        selected={contact.box_codes}
+        lockedAll={contact.is_primary}
+        onToggle={(code) => {
+          const checked = contact.box_codes.includes(code)
+          onChange(index, { box_codes: checked ? contact.box_codes.filter((item) => item !== code) : [...contact.box_codes, code] })
+        }}
+      />
+    </fieldset>
+  )
+}
 
-      <div className="mt-3 pt-3 border-t border-[var(--app-border)]">
-        <span className="text-xs font-semibold text-slate-300">Caixas de comunicação:</span>
-        <div className="mt-2 grid gap-2 sm:grid-cols-3">
-          {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
-            const checked = contact.box_codes.includes(box.code)
-            return (
-              <label
-                key={box.code}
-                className={`flex items-start gap-2 p-2 rounded border text-xs cursor-pointer ${
-                  checked ? 'border-blue-500 bg-blue-950/30' : 'border-[#30363d] opacity-80'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  className="mt-0.5 rounded border-[#30363d] text-blue-600 focus:ring-blue-500"
-                  checked={checked}
-                  onChange={() => {
-                    const nextBoxes = checked
-                      ? contact.box_codes.filter((b) => b !== box.code)
-                      : [...contact.box_codes, box.code]
-                    onChange(index, { box_codes: nextBoxes })
-                  }}
-                />
-                <div>
-                  <div className="font-medium text-white">{box.label}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">{box.description}</div>
-                </div>
-              </label>
-            )
-          })}
-        </div>
+/** Caixas de Comunicação como caixas de seleção; o principal fica em todas. */
+function BoxChoices({
+  legend,
+  selected,
+  lockedAll,
+  onToggle,
+}: {
+  legend: string
+  selected: string[]
+  lockedAll: boolean
+  onToggle: (code: (typeof CUSTOMER_COMMUNICATION_BOXES)[number]['code']) => void
+}) {
+  return (
+    <fieldset className="app-customer-boxes">
+      <legend className="app-customer-boxes__legend">
+        Caixas de recebimento
+        <span className="sr-only">{` — ${legend}`}</span>
+      </legend>
+      {lockedAll ? <p className="app-customer-boxes__hint">O contato principal recebe todas as caixas no cadastro.</p> : null}
+      <div className="app-customer-boxes__grid">
+        {CUSTOMER_COMMUNICATION_BOXES.map((box) => (
+          <label key={box.code} className="app-customer-box" data-checked={selected.includes(box.code) ? 'true' : 'false'}>
+            <input
+              type="checkbox"
+              checked={selected.includes(box.code)}
+              disabled={lockedAll}
+              onChange={() => onToggle(box.code)}
+            />
+            <span>
+              <span className="app-customer-box__label">{box.label}</span>
+              <span className="app-customer-box__desc">{box.description}</span>
+            </span>
+          </label>
+        ))}
       </div>
-    </div>
+    </fieldset>
   )
 }

@@ -1,27 +1,47 @@
 import { Link } from 'react-router-dom'
+import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { useCustomerTimeline } from '../../hooks/useCustomerFicha'
 import { formatDate } from '../../lib/utils'
 import type { useCustomerDetail } from '../../hooks/useCustomers'
 
 export function HistoricoTab({ data }: { data: NonNullable<ReturnType<typeof useCustomerDetail>['data']> }) {
-  const { data: timeline, isLoading, isError } = useCustomerTimeline(data.id, data.customer_contacts ?? [], data.bls ?? [])
+  const { data: timeline, isLoading, isError, refetch } = useCustomerTimeline(data.id, data.customer_contacts ?? [], data.bls ?? [])
 
   return (
-    <Card>
-      <h2 className="mb-4 text-lg font-semibold text-white">Histórico do Cliente</h2>
-      {isLoading ? <div className="text-sm text-slate-400">Carregando...</div> : null}
-      {!isLoading && isError ? <div className="text-sm text-red-300">Erro ao carregar histórico.</div> : null}
-      {!isLoading && !isError && !timeline?.length ? <div className="text-sm text-slate-400">Sem eventos registrados.</div> : null}
-      <ol className="grid gap-3 text-sm">
-        {!isLoading && !isError && timeline?.map((event) => (
-          <li key={`${event.kind}-${event.sourceId}`}>
-            <span className="mr-3 text-xs text-slate-500">{formatDate(event.at)}</span>
-            {event.link ? <Link to={event.link}>{event.label}</Link> : event.label}
-            {event.detail ? <span className="ml-2 text-xs text-slate-400">{event.detail}</span> : null}
-          </li>
-        ))}
-      </ol>
+    <Card className="app-customer-sheet">
+      <div className="app-customer-section-head">
+        <h2 className="app-customer-section-title">
+          Histórico do Cliente
+          {timeline?.length ? <span className="app-customer-section-count">{timeline.length}</span> : null}
+        </h2>
+        <p className="app-customer-muted">Cadastro, contatos, Portal, faturas, pagamentos, B/Ls e Comunicados, do mais recente ao mais antigo.</p>
+      </div>
+      {isLoading ? <p className="app-customer-muted" role="status">Carregando o histórico…</p> : null}
+      {!isLoading && isError ? (
+        <div className="app-customer-notice app-customer-notice--danger" role="alert">
+          <span>Não foi possível carregar o histórico.</span>
+          <Button variant="secondary" className="app-btn--sm" onClick={() => void refetch()}>Tentar novamente</Button>
+        </div>
+      ) : null}
+      {!isLoading && !isError && !timeline?.length ? <p className="app-customer-muted">Sem eventos registrados.</p> : null}
+      {!isLoading && !isError && timeline?.length ? (
+        <ol className="app-customer-timeline">
+          {timeline.map((event) => (
+            <li key={`${event.kind}-${event.sourceId}`} className="app-customer-timeline__item">
+              <time className="app-customer-timeline__date" dateTime={event.at}>{formatDate(event.at)}</time>
+              <span className="app-customer-timeline__body">
+                {event.link ? <Link className="app-customer-link" to={event.link}>{event.label}</Link> : <span>{event.label}</span>}
+                {event.detail || event.actorId ? (
+                  <span className="app-customer-timeline__meta">
+                    {[event.detail, event.actorId ? `por ${event.actorId}` : null].filter(Boolean).join(' · ')}
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
     </Card>
   )
 }

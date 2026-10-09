@@ -35,19 +35,6 @@ export function summarizeContactsForDisplay(
   }
 }
 
-export function getCustomerNextAction(input: {
-  hasEmail: boolean
-  readyCount: number
-  pendingCount: number
-  pendingBalance: number
-}): { label: string; tone: 'green' | 'yellow' | 'red' | 'slate' } {
-  if (!input.hasEmail) return { label: 'Cadastrar e-mail', tone: 'yellow' }
-  if (input.readyCount > 0) return { label: 'Pronto para faturar', tone: 'green' }
-  if (input.pendingCount > 0) return { label: 'Revisar taxas', tone: 'yellow' }
-  if (input.pendingBalance > 0) return { label: 'Saldo em aberto', tone: 'yellow' }
-  return { label: 'Em dia', tone: 'slate' }
-}
-
 type CustomerFilterChipInput = {
   search: string
   contactEmail: string
