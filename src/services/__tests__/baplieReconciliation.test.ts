@@ -194,7 +194,7 @@ describe('computePendingBapliePhysicalFlags (mesma regra da função do banco)',
     expect(computePendingBapliePhysicalFlags(staged([{ container_number: 'ABCD1234567', status: null, is_oog: true }]), blcs([bl({})]))).toBe(0)
     expect(computePendingBapliePhysicalFlags(staged([{ container_number: 'ABCD1234567', status: 'empty', is_oog: true }]), blcs([bl({})]))).toBe(0)
     expect(computePendingBapliePhysicalFlags(staged([{ container_number: 'ABC123', status: 'full', is_oog: true }]), blcs([bl({ container_number: 'ABC123' })]))).toBe(0)
-    // Migration 181: o container em dois B/Ls recebe a marca nos dois; o cancelado fica de fora.
+    // Migration 182: o container em dois B/Ls recebe a marca nos dois; o cancelado fica de fora.
     expect(computePendingBapliePhysicalFlags(
       staged([{ container_number: 'ABCD1234567', status: 'full', is_oog: true }]),
       blcs([bl({}), bl({ id: 11, bl_id: 'BL2' }), bl({ id: 12, bl_id: 'BL3', cancelled: true })]),
@@ -403,7 +403,7 @@ describe('computeOwnershipDivergences — SOC/COC (B/L soberano)', () => {
   })
 })
 
-describe('computeProfileDivergences — perfil manual (migration 181)', () => {
+describe('computeProfileDivergences — perfil manual (migration 182)', () => {
   it('aponta o perfil manual que o Baplie contradiz e some depois de "Vale o B/L"', () => {
     const baplie = staged([{ container_number: 'ABCD1234567', status: 'full', is_imo: true }])
     const containers = blcs([{ id: 1, bl_id: 'BL1', container_number: 'ABCD1234567', is_imo: false, is_oog: false, profile_source: 'manual' }])

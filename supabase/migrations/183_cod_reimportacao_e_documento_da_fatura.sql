@@ -1,4 +1,4 @@
--- 182 — COD na reimportação e documento da fatura (ADR 0078, itens 13 e 15;
+-- 183 — COD na reimportação e documento da fatura (ADR 0078, itens 13 e 15;
 -- Etapa 10 do plano 2026-10-09-correcao-importacoes-ce-mercante).
 --
 -- Data status: o backfill de `invoice_document_snapshots` congela, para as
@@ -7,7 +7,7 @@
 -- declara que a base de produção não tem dados reais de negócio.
 --
 -- 1. Reimportação de B/L de container não muda o POD de B/L em COD vivo
---    (a carga solta já mantinha, migration 173). A guarda vale só dentro da
+--    (a carga solta já mantinha, migration 174). A guarda vale só dentro da
 --    reimportação (`vela.invoice_basis_source = 'bl_reimport_correction'`):
 --    mudar o POD pela ficha continua sendo correção, nunca COD.
 -- 2. B/L criado depois da omissão com POD no porto omitido entra como afetado,
@@ -155,21 +155,21 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public._apply_invoice_document_snapshot(jsonb, bigint) FROM PUBLIC, anon, authenticated;
 
-ALTER FUNCTION public.list_invoice_details(bigint) RENAME TO _list_invoice_details_legacy_182;
-REVOKE ALL ON FUNCTION public._list_invoice_details_legacy_182(bigint) FROM PUBLIC, anon, authenticated;
+ALTER FUNCTION public.list_invoice_details(bigint) RENAME TO _list_invoice_details_legacy_183;
+REVOKE ALL ON FUNCTION public._list_invoice_details_legacy_183(bigint) FROM PUBLIC, anon, authenticated;
 CREATE FUNCTION public.list_invoice_details(p_invoice_id bigint) RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
-  RETURN public._apply_invoice_document_snapshot(public._list_invoice_details_legacy_182(p_invoice_id), p_invoice_id);
+  RETURN public._apply_invoice_document_snapshot(public._list_invoice_details_legacy_183(p_invoice_id), p_invoice_id);
 END $$;
 REVOKE ALL ON FUNCTION public.list_invoice_details(bigint) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.list_invoice_details(bigint) TO authenticated;
 
-ALTER FUNCTION public._portal_invoice_details_core(bigint, bigint) RENAME TO _portal_invoice_details_legacy_182;
-REVOKE ALL ON FUNCTION public._portal_invoice_details_legacy_182(bigint, bigint) FROM PUBLIC, anon, authenticated;
+ALTER FUNCTION public._portal_invoice_details_core(bigint, bigint) RENAME TO _portal_invoice_details_legacy_183;
+REVOKE ALL ON FUNCTION public._portal_invoice_details_legacy_183(bigint, bigint) FROM PUBLIC, anon, authenticated;
 CREATE FUNCTION public._portal_invoice_details_core(p_customer_id bigint, p_invoice_id bigint) RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
-  RETURN public._apply_invoice_document_snapshot(public._portal_invoice_details_legacy_182(p_customer_id, p_invoice_id), p_invoice_id);
+  RETURN public._apply_invoice_document_snapshot(public._portal_invoice_details_legacy_183(p_customer_id, p_invoice_id), p_invoice_id);
 END $$;
 REVOKE ALL ON FUNCTION public._portal_invoice_details_core(bigint, bigint) FROM PUBLIC, anon, authenticated;

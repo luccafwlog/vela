@@ -10,7 +10,7 @@ import { listBlContainersForMove, moveVehiclesToBl } from '../../services/vehicl
 
 /**
  * Mover para outro B/L (página Veículos; ADR 0078, item 23): qualquer usuário,
- * com motivo, mesmo com CE; a cobrança segue a ADR 0077 (migration 183).
+ * com motivo, mesmo com CE; a cobrança segue a ADR 0077 (migration 184).
  */
 export function MoveVehiclesModal({ open, vehicleIds, onClose, onMoved }: {
   open: boolean

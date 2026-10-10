@@ -181,7 +181,7 @@ export function resolveVaziosManifestRoutes(
 
 /**
  * Confere os números digitados contra as rotas da planilha. Só bloqueia número
- * ausente ou o mesmo número em duas rotas; número já cadastrado em outra rota ou Viagem é recusado pela RPC; o da mesma rota de vazios é reaproveitado (migration 186).
+ * ausente ou o mesmo número em duas rotas; número já cadastrado em outra rota ou Viagem é recusado pela RPC; o da mesma rota de vazios é reaproveitado (migration 187).
  */
 export function resolveVaziosManifestNumbers(
   manifest: Pick<ParsedVaziosImportacaoManifest, 'containers'>,

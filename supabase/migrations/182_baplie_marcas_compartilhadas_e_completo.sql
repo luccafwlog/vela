@@ -1,4 +1,4 @@
--- 181: Baplie (M11 da revisão de 2026-10-09; etapa 9 do plano de correção;
+-- 182: Baplie (M11 da revisão de 2026-10-09; etapa 9 do plano de correção;
 -- ADR 0078, item 21).
 --
 -- 1. Marcas físicas (IMO, OOG, classe, ONU e SOC/COC) do Baplie valem para
@@ -83,7 +83,7 @@ BEGIN
   END IF;
 
   -- Correção manual (o armador confirma fora do Baplie): o Baplie não a
-  -- sobrescreve; Baplie diferente vira Divergente (migration 181).
+  -- sobrescreve; Baplie diferente vira Divergente (migration 182).
   UPDATE public.bl_containers
   SET is_imo = v_is_imo,
       is_oog = v_is_oog,

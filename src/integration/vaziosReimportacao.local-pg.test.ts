@@ -1,4 +1,4 @@
-// Etapa 11 do plano de correção das importações (migration 186; ADR 0078,
+// Etapa 11 do plano de correção das importações (migration 187; ADR 0078,
 // item 25). Reimportar Vazios de Importação da mesma rota substitui os
 // containers dela preservando a natureza; o recadastro pelo Baplie preserva a
 // natureza e não deixa manifestos vazios; o Embarque de Vazios atualiza por
@@ -68,7 +68,7 @@ function bookings(rows: Array<{ container: string; date: string }>) {
   return asUser(`SELECT public.import_vazios_bookings_transactional(${voyageId}, 'BRVIX', '${userId}', '${JSON.stringify(payload)}'::jsonb);`)
 }
 
-describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migration 186)', () => {
+describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migration 187)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

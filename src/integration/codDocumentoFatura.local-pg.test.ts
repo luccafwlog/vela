@@ -1,4 +1,4 @@
-// Etapa 10 do plano de correção das importações (migration 182; ADR 0078,
+// Etapa 10 do plano de correção das importações (migration 183; ADR 0078,
 // itens 13 e 15). A reimportação não muda o POD de B/L em COD (a ficha
 // continua corrigindo); B/L criado depois da omissão entra como afetado, com
 // disposição Transbordo; o documento da fatura lê a cópia congelada na emissão,
@@ -57,7 +57,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('COD na reimportação e documento da fatura (migration 182)', () => {
+describeLocal('COD na reimportação e documento da fatura (migration 183)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

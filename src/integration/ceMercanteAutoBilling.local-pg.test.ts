@@ -219,7 +219,7 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
     expect(psql(`SELECT count(*) FROM public.invoices WHERE bl_id = '${workerOriginBlId}';`)).toBe('1')
     expect(psql(`SELECT count(*) FROM public.invoices WHERE bl_id = '${workerPeerBlId}';`)).toBe('0')
     // O efeito do B/L de origem não toca o irmão que já tem CE: o cálculo dele
-    // é o do dia do próprio CE (migration 177, ADR 0078 item 18).
+    // é o do dia do próprio CE (migration 178, ADR 0078 item 18).
     expect(psql(`SELECT count(*) FROM public.charge_calculations WHERE bl_id = '${workerPeerBlId}';`)).toBe('0')
   })
 

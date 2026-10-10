@@ -94,7 +94,7 @@ export type CeServerPreview = {
 }
 
 /**
- * Prévia no servidor (migration 180): estado de cada B/L antes → depois,
+ * Prévia no servidor (migration 181): estado de cada B/L antes → depois,
  * faturas, Portal, Comunicado, Desbloqueio e Manifesto. Não grava nada.
  */
 export async function previewCeMercanteRows(
@@ -291,7 +291,7 @@ export async function importCeMercanteRows(
     })),
     p_changed_by: options.changedBy,
     p_target: target,
-    // Migration 164/180: viagem, rota e manifesto são validados e vinculados
+    // Migration 164/181: viagem, rota e manifesto são validados e vinculados
     // na mesma transação dos CEs; troca de CE ou de Manifesto pede confirmação.
     ...(target === 'bls'
       ? {

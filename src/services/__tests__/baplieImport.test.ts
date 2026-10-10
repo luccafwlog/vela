@@ -31,7 +31,7 @@ const box = (container_number: string, over: Partial<BaplieContainer> = {}): Bap
 
 beforeEach(() => {
   mocks.existing = []
-  // Staging não devolve dados; a prévia das marcas (migration 181) vem vazia.
+  // Staging não devolve dados; a prévia das marcas (migration 182) vem vazia.
   mocks.rpc.mockReset().mockResolvedValue({ data: { apply: [], clear: [], divergent_manual: [] }, error: null })
   mocks.getBaplieManifestForVoyage.mockReset().mockResolvedValue({ id: 'vazios-1', total_containers: 2, imported_at: '2026-09-30' })
   mocks.replaceVaziosFromBaplie.mockReset().mockResolvedValue({ manifestId: 'vazios-2', total: 2 })

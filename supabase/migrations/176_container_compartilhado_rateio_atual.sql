@@ -1,4 +1,4 @@
--- 175: container compartilhado fatura cada B/L com o rateio atual
+-- 176: container compartilhado fatura cada B/L com o rateio atual
 -- (M03 e M24 da revisão de 2026-10-09; ADR 0078, item 11).
 --
 -- 1. `bl_container_share_signature(bl)`: o rateio atual dos containers do B/L —
@@ -32,7 +32,7 @@
 -- cálculo. Upgrade: gravar o rateio também em `charge_calculations`.
 --
 -- Rollback: recriar o gatilho `trg_guard_shared_container_mutation` com a
--- função da migration 174; reaplicar `guard_shared_container_invoice` da 066,
+-- função da migration 175; reaplicar `guard_shared_container_invoice` da 066,
 -- `import_bl_freight_transactional` da 123, remover as funções novas e a
 -- coluna `invoice_bls.container_shares`.
 

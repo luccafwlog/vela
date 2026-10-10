@@ -62,7 +62,7 @@ export function CeMercanteImportModal({
   const [submitting, setSubmitting] = useState(false)
   const [readError, setReadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  // Prévia do servidor (migration 180): antes → depois por B/L; a troca de CE
+  // Prévia do servidor (migration 181): antes → depois por B/L; a troca de CE
   // ou de Manifesto pede confirmação com motivo antes de gravar.
   const [serverPreview, setServerPreview] = useState<CeServerPreview | null>(null)
   const [confirmed, setConfirmed] = useState(false)

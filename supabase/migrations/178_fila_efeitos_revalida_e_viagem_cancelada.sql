@@ -1,4 +1,4 @@
--- 177: fila de efeitos de importação revalida o estado atual e Viagem
+-- 178: fila de efeitos de importação revalida o estado atual e Viagem
 -- Cancelada fica selada também para containers, Granito, faturas, comunicados
 -- e efeitos (M04 e M20 da revisão de 2026-10-09; ADR 0078, item 18).
 --
@@ -43,7 +43,7 @@
 -- Rollback: reaplicar `_run_import_effect_vehicle_followup` da 128,
 -- `_run_import_effect_local_charges` da 056, `process_import_effect` da 031,
 -- `claim_import_effects` da 017, `enqueue_import_effect` da 017,
--- `import_bl_freight_with_metadata` da 174 e `cancel_voyage` da 089; DROP dos
+-- `import_bl_freight_with_metadata` da 175 e `cancel_voyage` da 089; DROP dos
 -- gatilhos `trg_guard_voyage_cancelled_*` novos, das funções novas e do job
 -- `import-effects-queue-health`.
 
@@ -613,7 +613,7 @@ BEGIN
       RAISE EXCEPTION 'Vinculo de batch falhou: % de % B/Ls vinculados.', v_updated, v_total_bls USING ERRCODE = 'P0002';
     END IF;
 
-    -- Migration 177: sem efeito `physical_flags`; as flags do lote são
+    -- Migration 178: sem efeito `physical_flags`; as flags do lote são
     -- aplicadas logo abaixo, na mesma transação.
 
     -- Baplie soberano em qualquer ordem (migration 118): se o Baplie da
@@ -636,7 +636,7 @@ BEGIN
     -- Preserva o ID exato que foi persistido em public.bls
     v_bl_id := v_item->>'id';
     CONTINUE WHEN v_bl_id IS NULL OR btrim(v_bl_id) = '';
-    -- B/L faturado não é recalculado aqui (migration 174, M02): a fatura
+    -- B/L faturado não é recalculado aqui (migration 175, M02): a fatura
     -- emitida segue a ADR 0077 pela base capturada na própria importação.
     -- Recalcular só devolvia "recalculo bloqueado" e enfileirava
     -- provisional_charges em toda reimportação idêntica.
@@ -1054,7 +1054,7 @@ BEGIN
     END IF;
     PERFORM cron.schedule('import-effects-queue-health', '7 * * * *', $cmd_177$SELECT public.reconcile_import_effects_queue_alert();$cmd_177$);
   ELSE
-    RAISE WARNING '177: pg_cron ausente; agende public.reconcile_import_effects_queue_alert() de hora em hora neste ambiente.';
+    RAISE WARNING '178: pg_cron ausente; agende public.reconcile_import_effects_queue_alert() de hora em hora neste ambiente.';
   END IF;
 END;
 $cron_177$;

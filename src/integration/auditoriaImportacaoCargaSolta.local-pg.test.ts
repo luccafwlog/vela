@@ -1,6 +1,6 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Os casos nasceram como it.fails (um defeito confirmado cada) e viraram it com a migration 173 (Etapa 1 do plano
+// Os casos nasceram como it.fails (um defeito confirmado cada) e viraram it com a migration 174 (Etapa 1 do plano
 // docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md); as checagens novas da Etapa 1 estão no fim da suíte.
 //
 // Problema-raiz M01: reimportação de carga solta (Manifesto BB e B/L avulso

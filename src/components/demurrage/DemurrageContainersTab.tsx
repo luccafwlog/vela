@@ -82,7 +82,7 @@ export function DemurrageContainersTab({
                   const hasOverdue = blContainers.some((container) => container.demurrage_status === 'overdue')
                   const blTotalUSD = blContainers.reduce((sum, container) => sum + (effectiveDemurrage(container)?.total_usd ?? 0), 0)
                   // "Gerar Fatura" também para B/L devolvido com sobreestadia (o banco
-                  // confere o grupo e recusa se faltar devolução; migration 178).
+                  // confere o grupo e recusa se faltar devolução; migration 179).
                   const canGenerate = hasOverdue || (blTotalUSD > 0 && blContainers.some((container) => Boolean(container.return_date)))
 
                   return [

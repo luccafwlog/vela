@@ -24,7 +24,7 @@ vi.mock('../demurrageRates', () => ({ ensureDemurrageRatesLoaded: vi.fn().mockRe
 
 import { updateContainerDates, updateContainerReturnDate } from '../demurrageContainers'
 
-// Datas do container vão pela RPC set_container_dates (migration 178): o banco
+// Datas do container vão pela RPC set_container_dates (migration 179): o banco
 // propaga ao B/L irmão, reconcilia a Invoice de Demurrage e grava o Histórico.
 describe('datas do container pela RPC set_container_dates', () => {
   beforeEach(() => {

@@ -1,6 +1,6 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Os casos nasceram como it.fails e viraram it com a migration 174 (Etapa 2 do plano
+// Os casos nasceram como it.fails e viraram it com a migration 175 (Etapa 2 do plano
 // docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md); as checagens novas da Etapa 2 estão no fim da suíte.
 //
 // Problema-raiz M02: a reimportação de B/L de container apaga e recria
@@ -630,7 +630,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     const first = await importBls([document], 'a202-idem.xlsx')
     expect(first.error).toBeNull()
     // A descarga é só a informada: a ATA da Viagem não a preenche (ADR 0078,
-    // item 19; migration 178).
+    // item 19; migration 179).
     expect(containersOf(blId).map((container) => container.discharge_date)).toEqual([null, null])
 
     importContainerDates(blId, [

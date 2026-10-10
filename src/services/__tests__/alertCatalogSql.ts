@@ -26,11 +26,11 @@ const CATALOG_MIGRATIONS = [
   '124_ajuste_por_correcao_e_alerta_fatura_desatualizada.sql',
   '128_correcao_do_bl_sempre_automatica.sql',
   '153_itau_pix_prazos_e_ptax.sql',
-  '174_reimportacao_bl_container_preserva.sql',
-  '176_ce_mercante_unicidade_e_porta_unica.sql',
-  '177_fila_efeitos_revalida_e_viagem_cancelada.sql',
-  '178_faturas_demurrage_datas_comunicado.sql',
-  '180_ce_importacao_contrato.sql',
+  '175_reimportacao_bl_container_preserva.sql',
+  '177_ce_mercante_unicidade_e_porta_unica.sql',
+  '178_fila_efeitos_revalida_e_viagem_cancelada.sql',
+  '179_faturas_demurrage_datas_comunicado.sql',
+  '181_ce_importacao_contrato.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

@@ -474,9 +474,9 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
     expect(manifestoOf(BL_C)).toBe('M082000000003')
   })
 
-  // 180 (ADR 0078, item 7): outro número na planilha move o B/L só com
+  // 181 (ADR 0078, item 7): outro número na planilha move o B/L só com
   // confirmação e motivo na prévia.
-  it('180 — planilha com outro número só move o B/L com confirmação e motivo', () => {
+  it('181 — planilha com outro número só move o B/L com confirmação e motivo', () => {
     const payload = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_A, ce: '152608200000001' }]), 'M082000000004').stdout)
     expect(payload.ok).toBe(false)
     expect(payload.needs_confirmation).toBe(true)

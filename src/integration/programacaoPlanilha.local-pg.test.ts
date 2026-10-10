@@ -1,4 +1,4 @@
-// Etapa 11 do plano de correção das importações (migration 187): a
+// Etapa 11 do plano de correção das importações (migration 188): a
 // Programação por planilha grava numa transação. Viagem nova é criada uma vez
 // (duas linhas iguais não duplicam) e uma linha inválida desfaz o arquivo todo.
 //
@@ -49,7 +49,7 @@ function apply(rows: unknown[]) {
   return asUser(`SELECT public.apply_schedule_sheet_atomic('${JSON.stringify(rows)}'::jsonb, '${carrierName}', '');`)
 }
 
-describeLocal('Programação por planilha atômica (migration 187)', () => {
+describeLocal('Programação por planilha atômica (migration 188)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

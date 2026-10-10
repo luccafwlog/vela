@@ -1,4 +1,4 @@
--- 180: contrato da importação de CE Mercante (M09, M12 e M13 da revisão de
+-- 181: contrato da importação de CE Mercante (M09, M12 e M13 da revisão de
 -- 2026-10-09; etapas 8.2 a 8.10 do plano de correção; ADR 0078, itens 4, 6, 7
 -- e 9).
 --
@@ -41,7 +41,7 @@
 -- por `manifestos_mercante` e remover a tabela.
 --
 -- Rollback: reaplicar `audit_row_changes` da 002 e `_set_bl_ce_mercante` da
--- 176; DROP dos gatilhos e funções novas, do CHECK
+-- 177; DROP dos gatilhos e funções novas, do CHECK
 -- `manifestos_mercante_numero_canonical`; reaplicar
 -- `set_voyage_route_ce_master` da 064, `apply_ce_mercante_rows_atomic` da 164
 -- e `trg_auto_bill_bl_after_ce_mercante` da 087. A reescrita dos números não
@@ -71,7 +71,7 @@ BEGIN
     GROUP BY 1 HAVING count(*) > 1
   ) AS dup;
   IF v_collisions IS NOT NULL THEN
-    RAISE EXCEPTION '180: números de Manifesto Mercante que colidem na forma canônica: %. Corrija antes de aplicar.', v_collisions;
+    RAISE EXCEPTION '181: números de Manifesto Mercante que colidem na forma canônica: %. Corrija antes de aplicar.', v_collisions;
   END IF;
 END;
 $precheck_180$;
@@ -93,7 +93,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.manifestos_mercante WHERE numero !~ '^[A-Z0-9]{13}$') THEN
     ALTER TABLE public.manifestos_mercante VALIDATE CONSTRAINT manifestos_mercante_numero_canonical;
   ELSE
-    RAISE WARNING '180: Manifestos Mercante fora do formato de 13 caracteres: %',
+    RAISE WARNING '181: Manifestos Mercante fora do formato de 13 caracteres: %',
       (SELECT string_agg(numero, ', ' ORDER BY numero) FROM public.manifestos_mercante WHERE numero !~ '^[A-Z0-9]{13}$');
   END IF;
 END;
@@ -1017,7 +1017,7 @@ DECLARE
   v_role_impersonated boolean := false;
   v_result jsonb;
 BEGIN
-  -- Emissão em lotes (migration 180): a planilha grava o CE e o cálculo na
+  -- Emissão em lotes (migration 181): a planilha grava o CE e o cálculo na
   -- transação e a tela emite logo depois por `emit_ce_mercante_billing`; o
   -- efeito local_billing registrado na gravação fica como rede.
   IF current_setting('vela.ce_billing_deferred', true) = 'on' THEN
@@ -1198,7 +1198,7 @@ BEGIN
           ELSE v_inserted := v_inserted + 1;
         END CASE;
         IF v_result <> 'unchanged' THEN
-          -- Rede da emissão: o efeito revalida e não refatura (migration 177).
+          -- Rede da emissão: o efeito revalida e não refatura (migration 178).
           INSERT INTO public.import_pending_effects(source_action_id, effect_kind, entity_id, created_by)
           VALUES (gen_random_uuid(), 'local_billing', v_row->>'bl_id', v_actor)
           ON CONFLICT (source_action_id, effect_kind, entity_id) DO NOTHING;

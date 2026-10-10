@@ -336,7 +336,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
-| `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `177`) | `reconcile_import_effects_queue_alert()`: abre o Alerta `import_effects_queue_stalled` com efeito pendente há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
+| `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()`: abre o Alerta `import_effects_queue_stalled` com efeito pendente há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
 
@@ -347,11 +347,11 @@ abaixo e em [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disp
 
 `billing-release-expiry-review` é SQL puro, sem Vault nem Edge Function; o retorno (`customers`, `bls` reavaliados) fica em `cron.job_run_details`. Parado por mais de 7 dias, rode a função à mão com janela maior, por exemplo `SELECT public.reevaluate_expired_billing_releases(interval '30 days');`.
 
-`import-effects-queue-health` é SQL puro (migration `177`) e só mede a fila (`import_effects_queue_health()`): com o `import-effects-runner` pausado, o Alerta de fila parada fica aberto enquanto houver efeito pendente há mais de 60 minutos, e é o sinal esperado. Antes de ligar o runner, rode a simulação do acumulado (`simulate_import_effects`, server-only) e aprove ou descarte com `apply_import_effects_review` (Etapa 13 do plano de correção das importações).
+`import-effects-queue-health` é SQL puro (migration `178`) e só mede a fila (`import_effects_queue_health()`): com o `import-effects-runner` pausado, o Alerta de fila parada fica aberto enquanto houver efeito pendente há mais de 60 minutos, e é o sinal esperado. Antes de ligar o runner, rode a simulação do acumulado (`simulate_import_effects`, server-only) e aprove ou descarte com `apply_import_effects_review` (Etapa 13 do plano de correção das importações).
 
 #### Roteiro para ligar o `import-effects-runner` (ADR 0078, item 18)
 
-Ato do dono, depois que as migrations `173` a `187` estiverem em produção. Nada
+Ato do dono, depois que as migrations `174` a `188` estiverem em produção. Nada
 aqui é feito pelo agente; registre data, quem executou e o resultado de cada
 passo nesta seção.
 

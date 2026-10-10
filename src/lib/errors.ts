@@ -99,7 +99,7 @@ const ERROR_TABLE: Readonly<Record<string, ErrorTableEntry>> = {
   // Duas gravações nos mesmos registros (ex.: duas planilhas da mesma Viagem).
   '40P01': { kind: 'conflito', message: 'Outra gravação estava usando os mesmos registros. Tente novamente.' },
   '55P03': { kind: 'conflito', message: 'Outra gravação estava usando os mesmos registros. Tente novamente.' },
-  // Recusas de negócio das migrations 176-180 (CE em outro B/L, fatura viva,
+  // Recusas de negócio das migrations 177-180 (CE em outro B/L, fatura viva,
   // Nº de Manifesto fora do formato): a mensagem do banco é a orientação.
   P0010: { kind: 'conflito', message: 'Este CE Mercante já está em outro B/L.', preserveMessage: true },
   P0011: { kind: 'validacao', message: 'Há fatura emitida para este B/L.', preserveMessage: true },

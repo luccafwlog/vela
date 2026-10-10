@@ -185,7 +185,7 @@ export async function createOrAttachVoyageFromSchedule(
   return { voyageId, created: existingId === null }
 }
 
-// ── Programação por planilha: prévia e gravação atômica (migration 187) ──────
+// ── Programação por planilha: prévia e gravação atômica (migration 188) ──────
 
 export type ScheduleSheetChange = {
   entity_type: string

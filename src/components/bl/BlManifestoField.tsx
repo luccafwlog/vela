@@ -10,7 +10,7 @@ import { canonicalManifestoNumero, MANIFESTO_NUMERO_PATTERN } from '../../servic
 import { queryKeys } from '../../services/queryKeys'
 
 // Manifesto Mercante do B/L na ficha: Mover ou Desvincular, com motivo
-// (ADR 0078, item 7; migration 180). O lote fica em Viagem → Rotas e Manifestos.
+// (ADR 0078, item 7; migration 181). O lote fica em Viagem → Rotas e Manifestos.
 export function BlManifestoField({
   blId,
   voyageId,

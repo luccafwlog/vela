@@ -81,7 +81,7 @@ export async function listVoyageBlsForManifesto(voyageId: number): Promise<Voyag
 }
 
 /**
- * Mover B/Ls para um Manifesto Mercante (migration 180): tudo ou nada, com
+ * Mover B/Ls para um Manifesto Mercante (migration 181): tudo ou nada, com
  * motivo no Histórico; o destino novo é validado e criado na hora.
  */
 export async function moveBlsToManifestoMercante(blIds: string[], numero: string, reason: string) {

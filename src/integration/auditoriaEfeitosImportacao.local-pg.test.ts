@@ -1,6 +1,6 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Os defeitos foram corrigidos na migration 177 (etapa 4 do plano de correção): os it.fails viraram it e rodam no job local-pg do CI.
+// Os defeitos foram corrigidos na migration 178 (etapa 4 do plano de correção): os it.fails viraram it e rodam no job local-pg do CI.
 //
 // Problema-raiz M04: a fila `import_pending_effects` guarda intenções sem
 // validade e o `import-effects-runner` está pausado em produção

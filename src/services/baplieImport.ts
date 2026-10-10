@@ -189,7 +189,7 @@ export type BaplieFlagsPreview = {
   divergent_manual: BapliePreviewFlag[]
 }
 
-/** O que o arquivo novo faria nas marcas dos B/Ls, sem gravar (migration 181). */
+/** O que o arquivo novo faria nas marcas dos B/Ls, sem gravar (migration 182). */
 export async function previewBaplieFlags(voyageId: number, containers: BaplieContainer[]): Promise<BaplieFlagsPreview> {
   const { data, error } = await supabase.rpc('preview_baplie_physical_flags' as never, {
     p_voyage_id: voyageId,

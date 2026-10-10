@@ -1,4 +1,4 @@
--- 173: reimportação de carga solta preserva o que o arquivo não traz
+-- 174: reimportação de carga solta preserva o que o arquivo não traz
 -- (M01 da revisão de 2026-10-09; ADR 0078, itens 1 e 14).
 --
 -- Redefine `import_breakbulk_manifest_transactional` (Manifesto BB e B/L

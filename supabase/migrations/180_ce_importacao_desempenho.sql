@@ -1,4 +1,4 @@
--- 179: desempenho da importação de CE (M07 da revisão de 2026-10-09; etapa
+-- 180: desempenho da importação de CE (M07 da revisão de 2026-10-09; etapa
 -- 8.1 do plano de correção). `assert_bl_ce_mercante` e
 -- `_sync_local_charge_receivable_before_correction_123` comparavam o id do
 -- B/L com `UPPER(BTRIM(id))`/`OR UPPER(id)`, o que impede o uso da chave
@@ -55,7 +55,7 @@ BEGIN
   END IF;
 
   -- Igualdade em `id` usa a chave primária; a comparação sem caixa só roda
-  -- quando o id exato não existe (migration 179, M07).
+  -- quando o id exato não existe (migration 180, M07).
   SELECT id, customer_id, voyage_id, cargo_mode, pol, pod
   INTO v_bl
   FROM public.bls

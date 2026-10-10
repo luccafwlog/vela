@@ -1,4 +1,4 @@
--- 188 — Rastro das importações (ADR 0078, item 9; Etapa 14 do plano
+-- 189 — Rastro das importações (ADR 0078, item 9; Etapa 14 do plano
 -- 2026-10-09-correcao-importacoes-ce-mercante).
 --
 -- O gatilho `audit_row_changes` já grava, por campo alterado, quem, quando, o
@@ -9,7 +9,7 @@
 -- não tem outra. Não se guarda lote, arquivo nem linha (ADR 0078, item 9).
 --
 -- Os invólucros são gerados a partir da assinatura efetiva de cada função:
--- a original vira `<nome>_legacy_188`, sem mudança de comportamento, e o nome
+-- a original vira `<nome>_legacy_189`, sem mudança de comportamento, e o nome
 -- público só define o contexto e a chama.
 
 CREATE OR REPLACE FUNCTION public._set_import_context(p_kind text, p_voyage_id bigint, p_manifesto text DEFAULT NULL)
@@ -122,15 +122,15 @@ BEGIN
     FROM pg_proc p, aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) a
     WHERE p.oid = v_oid AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner;
 
-    EXECUTE format('ALTER FUNCTION public.%I(%s) RENAME TO %I', r.fn, v_identity, r.fn || '_legacy_188');
-    EXECUTE format('REVOKE ALL ON FUNCTION public.%I(%s) FROM PUBLIC, anon, authenticated', r.fn || '_legacy_188', v_identity);
+    EXECUTE format('ALTER FUNCTION public.%I(%s) RENAME TO %I', r.fn, v_identity, r.fn || '_legacy_189');
+    EXECUTE format('REVOKE ALL ON FUNCTION public.%I(%s) FROM PUBLIC, anon, authenticated', r.fn || '_legacy_189', v_identity);
 
     v_body := format(
       'CREATE FUNCTION public.%1$I(%2$s) RETURNS %3$s LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $f$
 BEGIN
   PERFORM public._set_import_context(%4$L, %5$s, %6$s);
   RETURN public.%7$I(%8$s);
-END $f$', r.fn, v_args, v_result, r.kind, r.voyage_expr, r.manifesto_expr, r.fn || '_legacy_188', v_call);
+END $f$', r.fn, v_args, v_result, r.kind, r.voyage_expr, r.manifesto_expr, r.fn || '_legacy_189', v_call);
     EXECUTE v_body;
     EXECUTE format('REVOKE ALL ON FUNCTION public.%I(%s) FROM PUBLIC', r.fn, v_identity);
     FOREACH v_grantee IN ARRAY COALESCE(v_grantees, ARRAY[]::text[]) LOOP

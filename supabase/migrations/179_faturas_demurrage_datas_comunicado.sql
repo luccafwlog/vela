@@ -1,4 +1,4 @@
--- 178: faturas, Demurrage, datas e Comunicado (M18, M19, M10 e M21 da
+-- 179: faturas, Demurrage, datas e Comunicado (M18, M19, M10 e M21 da
 -- revisão de 2026-10-09; ADR 0078, itens 12, 19 e 20; ADR 0077).
 --
 -- 1. "Nova fatura emitida" sai no COMMIT, com o total gravado: o gatilho vira
@@ -336,7 +336,7 @@ DECLARE
 BEGIN
   IF TG_OP = 'UPDATE' THEN
     -- Datas, desova, lacre ou status de Demurrage não mudam a modalidade e
-    -- não reabrem a Revisão do B/L faturado (migration 178, ADR 0077).
+    -- não reabrem a Revisão do B/L faturado (migration 179, ADR 0077).
     v_sql := format(
       'SELECT DISTINCT ids.bl_id FROM ('
       || ' SELECT n.bl_id FROM %1$I AS n JOIN %2$I AS o ON o.id = n.id'
@@ -896,7 +896,7 @@ $function$;
 -- 8. Régua de Cobrança suspensa para fatura com datas alteradas após pagamento.
 ALTER TABLE public.demurrage_invoices ADD COLUMN IF NOT EXISTS dunning_suspended_reason text;
 COMMENT ON COLUMN public.demurrage_invoices.dunning_suspended_reason IS
-  'Motivo de a Régua de Cobrança não cobrar esta fatura (ex.: datas alteradas depois de pagamento; migration 178).';
+  'Motivo de a Régua de Cobrança não cobrar esta fatura (ex.: datas alteradas depois de pagamento; migration 179).';
 
 INSERT INTO public.alert_type_catalog(type, severity, responsible_department, audience_departments, default_destination)
 VALUES ('demurrage_invoice_dates_changed', 'critical', 'administrativo', ARRAY['administrativo'], '/demurrage')

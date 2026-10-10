@@ -275,7 +275,7 @@ describeLocal('128 — correção do B/L sempre automática', () => {
     issueByCe(bl.vehicle, '128000000000009')
     issueByCe(bl.vehicleB, '128000000000010')
     const consolidated = consolidate([bl.vehicle, bl.vehicleB])
-    // O efeito revalida (migration 177): só cancela se o B/L ficou isento
+    // O efeito revalida (migration 178): só cancela se o B/L ficou isento
     // agora — veículo no container com desova LCL/CFS.
     psql(`
       UPDATE public.bls SET movement_to = 'CFS' WHERE id = '${bl.vehicle}';

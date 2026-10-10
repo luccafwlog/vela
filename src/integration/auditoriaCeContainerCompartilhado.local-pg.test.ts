@@ -1,6 +1,6 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Os casos nasceram como it.fails e viraram it com a migration 175 (Etapa 5 do plano
+// Os casos nasceram como it.fails e viraram it com a migration 176 (Etapa 5 do plano
 // docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md); as checagens novas da Etapa 5 estão no fim da suíte.
 //
 // Problema-raiz M03: container compartilhado entre B/Ls. O motor rateia a taxa
@@ -533,7 +533,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     if (siblingDates.error !== null) expect(siblingDates.error).toMatch(sharedContainerRefusal)
   })
 
-  // Resolvido pela migration 174 (Etapa 2): a guarda de container compartilhado
+  // Resolvido pela migration 175 (Etapa 2): a guarda de container compartilhado
   // olha só a mudança de participação, e datas do irmão passam.
   it('esperado: as datas do irmão são gravadas, sem pedir cancelamento da fatura do outro B/L [DAT-10, ORDCT-09] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:17-24: data de Demurrage não é correção; não há cancelar e reemitir manual)', () => {
     expect(siblingDates?.error).toBeNull()

@@ -62,7 +62,7 @@ psql -X -v ON_ERROR_STOP=1 -v base_bls=50000 -v batch=200 -d vela_test -f script
 
 Aceite da etapa 8.1 do plano de correção das importações: o tempo com 50 mil
 B/Ls fica em até 1,3× o tempo com 600. Medição local de 2026-10-10 (Postgres
-16, 200 B/Ls): antes da migration `179`, 8,3 s e 19,4 s (2,35×); depois,
+16, 200 B/Ls): antes da migration `180`, 8,3 s e 19,4 s (2,35×); depois,
 6,0 s e 5,3 s (0,88×).
 
 Etapa 8.9 (emissão em lotes): com `-v defer=true -v batch=400 -v base_bls=50000`,

@@ -1,4 +1,4 @@
-// Etapa 14 do plano de correção das importações (migration 188; ADR 0078,
+// Etapa 14 do plano de correção das importações (migration 189; ADR 0078,
 // item 9). Toda importação grava no Histórico de cada registro alterado o tipo
 // de importação e o contexto (Viagem, Manifesto), além de quem, quando e os
 // valores, sem lote, arquivo nem linha.
@@ -50,7 +50,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('Rastro das importações no Histórico (migration 188)', () => {
+describeLocal('Rastro das importações no Histórico (migration 189)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

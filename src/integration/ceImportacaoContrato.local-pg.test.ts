@@ -1,4 +1,4 @@
-// Etapa 8 do plano de correção das importações (migrations 179 e 180; ADR
+// Etapa 8 do plano de correção das importações (migrations 180 e 181; ADR
 // 0078, itens 4, 6, 7 e 9): Nº de Manifesto Mercante canônico e cadastro
 // único, Mover / Desvincular B/Ls, prévia no servidor, regras da planilha,
 // emissão em lotes e rastro no Histórico.
@@ -115,7 +115,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('Etapa 8 — contrato da importação de CE (migrations 179 e 180)', () => {
+describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

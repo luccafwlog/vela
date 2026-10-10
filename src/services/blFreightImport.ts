@@ -152,9 +152,9 @@ export type BlFreightRpcPayload = {
   relink_customer: boolean
   /** NCM declarado no documento; vazio nunca apaga o cadastro manual (migration 358) */
   ncm_codes: string[]
-  /** contêineres que a prévia mostrou saindo; os demais ausentes ficam (migration 174) */
+  /** contêineres que a prévia mostrou saindo; os demais ausentes ficam (migration 175) */
   remove_containers?: string[]
-  /** operador confirmou entradas, saídas e mudanças de veículos (migration 174) */
+  /** operador confirmou entradas, saídas e mudanças de veículos (migration 175) */
   confirm_vehicle_changes?: boolean
   freight_lines: Array<{
     seq: number
@@ -432,7 +432,7 @@ export function buildBlFreightPreview({
     const fclConflict = payload && containerSiblings ? describeFclConflict(payload, existing, containerSiblings) : null
     if (fclConflict) blockedReasons.push(fclConflict)
     // COD vivo: o POD do B/L é o destino do COD; o arquivo não o troca
-    // (o servidor também mantém, migration 182). Mudar POD aqui é correção, nunca COD.
+    // (o servidor também mantém, migration 183). Mudar POD aqui é correção, nunca COD.
     if (payload && existing && codBlIds?.has(existing.id) && payload.pod && existing.pod && payload.pod !== existing.pod) {
       warnings.push(`B/L em COD: o POD continua ${existing.pod} (o arquivo traz ${payload.pod}); os demais campos atualizam.`)
       payload.pod = existing.pod
@@ -486,7 +486,7 @@ export function buildBlFreightPreview({
       payload.billing_impact = requiresBillingOverride
       payload.override_billing = !requiresBillingOverride
       payload.relink_customer = false
-      // A remoção vai explícita: só sai o que a prévia mostrou (migration 174).
+      // A remoção vai explícita: só sai o que a prévia mostrou (migration 175).
       if (existing) payload.remove_containers = removedContainers
     }
 
@@ -1115,7 +1115,7 @@ function computeBillingImpact(
   // Veiculo e unidade faturada por si (chassis), e a reimportacao sem anexo de
   // veiculos apaga a lista inteira (migration 205). Sem entrar aqui, o diff saia
   // como mudanca comum e o override vinha ligado por padrao.
-  // Sem aba VIN os veículos gravados ficam (migration 174): não há impacto.
+  // Sem aba VIN os veículos gravados ficam (migration 175): não há impacto.
   const existingVehicleSet = normalizeVehicleSet(existing.vehicles ?? [])
   const nextVehicleSet = payload.vehicles ? normalizeVehicleSet(payload.vehicles) : existingVehicleSet
   const vehicles = existingVehicleSet !== nextVehicleSet

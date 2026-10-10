@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-// Porta única do CE Mercante (ADR 0078, item 3; migration 176). A ficha do B/L
+// Porta única do CE Mercante (ADR 0078, item 3; migration 177). A ficha do B/L
 // não grava `ce_mercante` pelo Salvar: corrigir e remover passam por RPCs que
 // exigem motivo, registram o Histórico e abrem a pendência de reenvio do
 // Comunicado de CE e Taxas quando ele já foi enviado.

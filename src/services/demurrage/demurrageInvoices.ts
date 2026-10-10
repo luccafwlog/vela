@@ -52,7 +52,7 @@ type IssueDemurrageResult = {
   anchor_bl_id?: string
 }
 
-// Emissão pelo banco (migration 178): B/Ls do mesmo Cliente que dividem
+// Emissão pelo banco (migration 179): B/Ls do mesmo Cliente que dividem
 // container na Viagem formam um grupo com uma única Invoice de Demurrage,
 // emitida pelo B/L-âncora quando todos os containers não-SOC voltaram; o
 // container devolvido no free time entra com valor zero.

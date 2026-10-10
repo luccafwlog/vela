@@ -1,4 +1,4 @@
-// Etapa 11 do plano de correção das importações (migration 183; ADR 0078,
+// Etapa 11 do plano de correção das importações (migration 184; ADR 0078,
 // itens 8 e 23). A importação de veículos confere no servidor B/L, chassi em
 // outra Viagem e local de desova; sem fatura viva recalcula na hora e B/L
 // isento anula o Recebível; Mover para outro B/L e Excluir valem para qualquer
@@ -75,7 +75,7 @@ function importRows(rows: unknown[]) {
   return asUser(`SELECT public.import_vehicle_rows_transactional('${JSON.stringify(rows)}'::jsonb);`)
 }
 
-describeLocal('Veículos: regras da importação e ações da página (migration 183)', () => {
+describeLocal('Veículos: regras da importação e ações da página (migration 184)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

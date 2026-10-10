@@ -1,4 +1,4 @@
--- 174: reimportação de B/L de container preserva o que continua no arquivo
+-- 175: reimportação de B/L de container preserva o que continua no arquivo
 -- (M02 e M14 da revisão de 2026-10-09; ADR 0078, itens 16 e 17).
 --
 -- 1. Núcleo `import_bl_freight_transactional_legacy_205`: containers são
@@ -51,7 +51,7 @@ DECLARE
   v_number text;
 BEGIN
   -- Só a participação no container muda o rateio do irmão faturado: datas,
-  -- desova, lacre ou status de Demurrage passam (migration 174).
+  -- desova, lacre ou status de Demurrage passam (migration 175).
   IF TG_OP = 'UPDATE'
      AND NEW.bl_id IS NOT DISTINCT FROM OLD.bl_id
      AND upper(btrim(NEW.container_number)) IS NOT DISTINCT FROM upper(btrim(OLD.container_number)) THEN
@@ -599,7 +599,7 @@ BEGIN
   WHERE (NOT billing_locked OR override_billing)
     AND payload ? 'vehicles';
 
-  -- Containers: reconciliação por número (migration 174, M02). O id, a data de
+  -- Containers: reconciliação por número (migration 175, M02). O id, a data de
   -- descarga, a devolução, o status de Demurrage, o local de desova e o perfil
   -- IMO/OOG do container que continua no arquivo ficam; só as colunas do
   -- documento mudam, e só quando mudam. Container ausente do arquivo sai apenas
@@ -1176,7 +1176,7 @@ BEGIN
     WHERE item->>'id' IS NOT NULL
   LOOP
     IF v_email IS NOT NULL THEN
-      -- M14 (migration 174): o e-mail do arquivo só vira contato do Cliente
+      -- M14 (migration 175): o e-mail do arquivo só vira contato do Cliente
       -- cujo CNPJ é o do arquivo; na Troca de Consignatário ele entra depois
       -- do relink, pelo gate, no Cliente novo.
       SELECT b.customer_id INTO v_customer_id
@@ -1334,7 +1334,7 @@ BEGIN
               THEN COALESCE(NULLIF(v_item->>'manifest_customer_name', ''), manifest_customer_name)
             ELSE manifest_customer_name
           END,
-          -- M14 (migration 174): o e-mail anda com o documento do novo dono.
+          -- M14 (migration 175): o e-mail anda com o documento do novo dono.
           manifest_customer_email = CASE
             WHEN v_item ? 'manifest_customer_email'
               THEN NULLIF(btrim(v_item->>'manifest_customer_email'), '')
@@ -1471,7 +1471,7 @@ BEGIN
     -- Preserva o ID exato que foi persistido em public.bls
     v_bl_id := v_item->>'id';
     CONTINUE WHEN v_bl_id IS NULL OR btrim(v_bl_id) = '';
-    -- B/L faturado não é recalculado aqui (migration 174, M02): a fatura
+    -- B/L faturado não é recalculado aqui (migration 175, M02): a fatura
     -- emitida segue a ADR 0077 pela base capturada na própria importação.
     -- Recalcular só devolvia "recalculo bloqueado" e enfileirava
     -- provisional_charges em toda reimportação idêntica.
@@ -1562,7 +1562,7 @@ BEGIN
     WHERE b.id = ANY(p_bl_ids)
       AND b.customer_id IS NOT NULL
       AND NULLIF(btrim(COALESCE(b.manifest_customer_email, '')), '') IS NOT NULL
-      -- M14 (migration 174): só quando o CNPJ do documento é o do Cliente.
+      -- M14 (migration 175): só quando o CNPJ do documento é o do Cliente.
       AND NULLIF(regexp_replace(COALESCE(b.manifest_customer_cnpj_cpf, ''), '\D', '', 'g'), '')
         = regexp_replace(COALESCE(c.cnpj_cpf, ''), '\D', '', 'g')
   ) AS alvo;

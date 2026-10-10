@@ -36,7 +36,7 @@ para a decisão completa.
   server-side calcula as taxas, promove o B/L e emite a invoice/recebível na
   mesma transação quando os dados do cliente, a reconciliação e os demais
   critérios financeiros estão prontos. Pela planilha de CE Mercante (migration
-  `180`), a gravação guarda o CE e o cálculo e a tela emite logo depois em
+  `181`), a gravação guarda o CE e o cálculo e a tela emite logo depois em
   lotes de 25 (`emit_ce_mercante_billing`, que reaproveita o cálculo do dia do
   CE), com progresso e Retomar; o efeito `local_billing` é a rede. A fatura sai
   com a nota "Sistema — CE Mercante", e a falha de um B/L abre
@@ -394,7 +394,7 @@ menores e específicas descritas no catálogo.
 
 ### Documento da fatura congelado (ADR 0078, item 15)
 
-Desde a migration `182`, a emissão (status diferente de rascunho) grava em
+Desde a migration `183`, a emissão (status diferente de rascunho) grava em
 `invoice_document_snapshots`, no fim da transação, a razão social, o CNPJ e o
 endereço do Cliente, a Viagem, o navio e, por B/L, POL, POD, Viagem e navio. O
 detalhe (`list_invoice_details`) e o Portal (`_portal_invoice_details_core`)
@@ -458,7 +458,7 @@ isento e a encerra sem reemissão (`128`). Erro de preço (tabela ou Condição 
 Cliente) não reemite: vale para faturas futuras. O rateio de container
 compartilhado entra na base (`bl_invoice_basis_snapshot` lista os B/Ls que
 dividem cada container): irmão que chega ou é cancelado depois do faturamento
-reemite a fatura do B/L faturado com o rateio novo (migration `175`; a guarda de
+reemite a fatura do B/L faturado com o rateio novo (migration `176`; a guarda de
 mutação de container compartilhado saiu).
 
 

@@ -15,7 +15,7 @@ import {
 } from '../../services/blCeMercante'
 
 // CE Mercante fora do Salvar da ficha: corrigir ou remover pede motivo e vai
-// pela porta única do banco (migration 176).
+// pela porta única do banco (migration 177).
 export function BlCeMercanteField({
   blId,
   voyageId,

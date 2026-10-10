@@ -176,7 +176,7 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
   const [result, setResult] = useState<{ inspection: ImportFileInspection; updated: string[]; errors: string[]; warnings: string[] } | null>(null)
   const [chosenFiles, setChosenFiles] = useState<File[]>([])
   // Prévia da planilha (Etapa 11): nada é gravado antes de confirmar; a
-  // gravação é uma transação só (migration 187).
+  // gravação é uma transação só (migration 188).
   const [plan, setPlan] = useState<{ inspection: ImportFileInspection; rows: ScheduleSheetPlanRow[]; warnings: string[] } | null>(null)
   const [applying, setApplying] = useState(false)
   const { showToast } = useToast()

@@ -1,4 +1,4 @@
-// Etapa 9 do plano de correção das importações (migration 181; ADR 0078,
+// Etapa 9 do plano de correção das importações (migration 182; ADR 0078,
 // item 21): marcas físicas do Baplie em todos os B/Ls ativos que dividem o
 // container, perfil manual protegido, Baplie completo (o que sai apaga as
 // marcas vindas dele, com prévia) e "Vale o B/L" na divergência de SOC/COC.
@@ -98,7 +98,7 @@ function insertBl(id: string, containers: Array<{ number: string; ownership?: 'S
   `)
 }
 
-describeLocal('Etapa 9 — Baplie em todos os B/Ls do container, perfil manual, Baplie completo e Vale o B/L (migration 181)', () => {
+describeLocal('Etapa 9 — Baplie em todos os B/Ls do container, perfil manual, Baplie completo e Vale o B/L (migration 182)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

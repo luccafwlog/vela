@@ -1,4 +1,4 @@
--- 187 — Programação por planilha atômica (Etapa 11 do plano
+-- 188 — Programação por planilha atômica (Etapa 11 do plano
 -- 2026-10-09-correcao-importacoes-ce-mercante; achado OUT-14 da revisão).
 --
 -- Antes, a tela gravava linha a linha (criar Viagem, ETD/ETA por porto) e uma

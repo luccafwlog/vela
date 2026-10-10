@@ -70,7 +70,7 @@ describe('manifestosMercanteService', () => {
     expect(results).toHaveLength(1)
   })
 
-  // Mover / Desvincular passam pelas RPCs da migration 180: tudo ou nada e
+  // Mover / Desvincular passam pelas RPCs da migration 181: tudo ou nada e
   // com motivo no Histórico (o UPDATE direto em bls saiu).
   it('move e desvincula B/Ls pelas RPCs, com motivo', async () => {
     mockRpc.mockResolvedValue({ data: { moved: 2 }, error: null })

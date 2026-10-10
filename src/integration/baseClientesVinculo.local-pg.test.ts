@@ -1,4 +1,4 @@
-// Etapa 11 do plano de correção das importações (migration 184; ADR 0078,
+// Etapa 11 do plano de correção das importações (migration 185; ADR 0078,
 // item 24). A Base de Clientes vincula só os B/Ls pendentes de Cliente com o
 // mesmo CNPJ, como vínculo por documento, e reavalia a Revisão; B/L rejeitado
 // nunca é vinculado; razão social diferente da gravada pede confirmação.
@@ -62,7 +62,7 @@ function importBase(name: string, confirm: boolean) {
     '["a232@example.test"]'::jsonb, '${userId}', ${confirm});`)
 }
 
-describeLocal('Base de Clientes: vínculo só dos B/Ls pendentes (migration 184)', () => {
+describeLocal('Base de Clientes: vínculo só dos B/Ls pendentes (migration 185)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

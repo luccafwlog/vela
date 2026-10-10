@@ -35,7 +35,7 @@ export type BaplieReconciliationItem =
       baplie_ownership: string
     }
   | {
-      // Perfil IMO/OOG corrigido à mão que o Baplie contradiz (migration 181).
+      // Perfil IMO/OOG corrigido à mão que o Baplie contradiz (migration 182).
       kind: 'profile_mismatch'
       container_number: string
       bl_container_id: number
@@ -103,7 +103,7 @@ type BlContainerPhysical = Pick<
   BLContainer,
   'id' | 'bl_id' | 'container_number' | 'is_imo' | 'imo_class' | 'un_number' | 'is_oog'
 > & Partial<Pick<BLContainer, 'ownership' | 'ownership_source'>> & {
-  /** Origem do perfil IMO/OOG (migration 181): bl, baplie ou manual. */
+  /** Origem do perfil IMO/OOG (migration 182): bl, baplie ou manual. */
   profile_source?: string | null
   /** B/L cancelado: fica de fora das marcas e da conciliação. */
   cancelled?: boolean
@@ -208,7 +208,7 @@ export function computeOwnershipDivergences(
   const items: BaplieReconciliationItem[] = []
   for (const b of staged) {
     if (b.status === 'empty' || !b.ownership) continue
-    // Todos os B/Ls ativos que dividem o container (migration 181).
+    // Todos os B/Ls ativos que dividem o container (migration 182).
     for (const mc of blByNumber.get(normalizeContainerNumber(b.container_number)) ?? []) {
       // "Vale o B/L" (ou correção manual) encerra a divergência.
       if (!mc.ownership || mc.ownership === b.ownership || mc.ownership_source === 'manual') continue
@@ -262,7 +262,7 @@ export function computeProfileDivergences(
   return items
 }
 
-/** "Vale o B/L" (migration 181): encerra a divergência com motivo. */
+/** "Vale o B/L" (migration 182): encerra a divergência com motivo. */
 export async function resolveBaplieDivergence(blContainerId: number, field: 'ownership' | 'profile', reason: string) {
   const { error } = await supabase.rpc('resolve_baplie_divergence' as never, {
     p_bl_container_id: blContainerId,
@@ -365,7 +365,7 @@ export function computePendingBapliePhysicalFlags(
     })
   }
 
-  // Mesma regra de `_baplie_flag_plan` (migration 181): todo B/L ativo do
+  // Mesma regra de `_baplie_flag_plan` (migration 182): todo B/L ativo do
   // container; perfil manual fica; fora do Baplie cai só o que veio dele.
   let pending = 0
   for (const current of blContainers) {
@@ -548,7 +548,7 @@ export type BaplieFlagsApplyResult = {
   invoice_reissues: Array<{ bl_id?: string; status?: string }>
 }
 
-/** Aplica as marcas do Baplie gravado e diz o que aplicou, onde e o que caiu (migration 181). */
+/** Aplica as marcas do Baplie gravado e diz o que aplicou, onde e o que caiu (migration 182). */
 export async function applyBapliePhysicalFlagsDetailed(voyageId: number, actorId: string | null): Promise<BaplieFlagsApplyResult> {
   if (!actorId) throw new Error('Usuário ativo obrigatório para aplicar flags do Baplie.')
   const { data, error } = await supabase.rpc('apply_baplie_physical_flags_atomic', {

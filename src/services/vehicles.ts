@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 
 /**
  * Exclui veículos por id, com motivo, para qualquer usuário ativo e mesmo com
- * CE no B/L (ADR 0078, item 23; migration 183). A fatura viva segue a ADR 0077.
+ * CE no B/L (ADR 0078, item 23; migration 184). A fatura viva segue a ADR 0077.
  */
 export async function deleteVehicles(ids: number[], reason?: string): Promise<DeleteDependencyReport<number>> {
   const { data, error } = await supabase.rpc('delete_vehicles_with_reason' as never, { p_vehicle_ids: ids, p_reason: reason ?? '' } as never)
@@ -17,7 +17,7 @@ export async function deleteVehicles(ids: number[], reason?: string): Promise<De
 
 export type MoveVehiclesResult = { moved: number; target_bl_id: string; container_id: number }
 
-/** Move veículos para outro B/L (e container dele), com motivo (migration 183). */
+/** Move veículos para outro B/L (e container dele), com motivo (migration 184). */
 export async function moveVehiclesToBl(args: { ids: number[]; targetBlId: string; containerId?: number | null; reason: string }): Promise<MoveVehiclesResult> {
   const { data, error } = await supabase.rpc('move_vehicles_to_bl' as never, {
     p_vehicle_ids: args.ids,

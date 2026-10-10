@@ -1,6 +1,6 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Os defeitos foram corrigidos na migration 176 (etapa 6 do plano de correção): os it.fails viraram it e rodam no job local-pg do CI.
+// Os defeitos foram corrigidos na migration 177 (etapa 6 do plano de correção): os it.fails viraram it e rodam no job local-pg do CI.
 //
 // Problema-raiz M06: a unicidade CE × B/L não é imposta. A regra está decidida:
 // "A relação CE × B/L é 1:1: um número de CE não pode ser usado por mais de um
@@ -553,7 +553,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   })
 
   // O CE não chega ao segundo B/L ativo. Pela ADR 0078 (D-03), o Manifesto BB
-  // deixa de gravar CE: a correção (migration 173, Etapa 1) importa o B/L sem
+  // deixa de gravar CE: a correção (migration 174, Etapa 1) importa o B/L sem
   // ele, com aviso na prévia.
   it('esperado: o CE do Manifesto BB que já está em outro B/L ativo é recusado [OUT-04, ORDCE-05, CED-11, TST-13] — regra: CONTEXT.md:963-966 e ADR 0071 item 9', () => {
     expect(breakbulk?.holders).toEqual(['A206-BB-H1'])
@@ -637,7 +637,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
     expect(zpt?.unlocked).toEqual(['A206-ZPT-1'])
   })
 
-  // --- 9. Porta única: Corrigir e Remover CE pela ficha (migration 176) ------
+  // --- 9. Porta única: Corrigir e Remover CE pela ficha (migration 177) ------
   function ceAudit(blId: string): Array<{ old_value: string | null; new_value: string | null; justification: string | null }> {
     const raw = localPsql(`
       SELECT COALESCE(json_agg(t ORDER BY t.id), '[]') FROM (

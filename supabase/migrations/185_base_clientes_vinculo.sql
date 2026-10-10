@@ -1,4 +1,4 @@
--- 184 — Base de Clientes vincula só B/Ls pendentes, libera a Revisão e pede
+-- 185 — Base de Clientes vincula só B/Ls pendentes, libera a Revisão e pede
 -- confirmação para trocar a razão social (ADR 0078, item 24; Etapa 11 do plano
 -- 2026-10-09-correcao-importacoes-ce-mercante).
 --

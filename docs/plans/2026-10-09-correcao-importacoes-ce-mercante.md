@@ -18,7 +18,7 @@ outra fatura. Não há decisão pendente.
 errado e de esconder o que gravaram, e implementar as regras de entrada,
 correção e efeitos da ADR 0078.
 
-**Estado em 2026-10-10:** Etapas 0, 1, 2, 3 e 5 executadas localmente (migrations `173` a `175`;
+**Estado em 2026-10-10:** Etapas 0, 1, 2, 3 e 5 executadas localmente (migrations `174` a `176`;
 ver as notas de execução nas etapas). Decisões tomadas. As checagens de
 aceitação das Etapas 4, 6 e 7 continuam no repositório como `it.fails` e rodam no
 CI; as regras novas da ADR 0078 ganham checagem na etapa que as implementa.
@@ -37,7 +37,8 @@ criadas por shell, sem editar nenhuma existente.
   `npm run migrations:check`, `npm run rpc:check` e o replay local
   (`sudo scripts/setup-local-pg.sh --reset` e as suítes `local-pg` do CI com
   `--no-file-parallelism`, duas vezes seguidas, sem resíduo de namespace).
-- **Migrations:** sempre arquivo novo, no próximo número livre (hoje `173`);
+- **Migrations:** sempre arquivo novo, no próximo número livre (as deste plano
+  são `174`–`189`: a `173` foi usada pelo Desbloqueio de CE, já em produção);
   nunca editar migration existente (protegida por
   `.claude/hooks/protect-files.sh`). Redefinir a função a partir da definição
   **efetiva** no banco replicado, não da primeira migration que a criou. Se a
@@ -136,7 +137,7 @@ modais `BlBreakbulkManifestModal.tsx`, `BlDocumentImportModal.tsx`,
 lote com B/L faturado e B/L novo é aceito sem cancelar nem reemitir;
 `pr698ClaudeReview`, `importEffects` e `auditoriaRun2` verdes.
 
-**Execução (2026-10-10, local):** migration `173` redefine a RPC; os 6 casos
+**Execução (2026-10-10, local):** migration `174` redefine a RPC; os 6 casos
 viraram `it` e passam com 5 checagens novas (CE ignorado, POD corrigido
 desvincula o Manifesto, reimportação idêntica sem efeito, rota de B/L faturado
 sem confirmação, Troca de Consignatário com aceite). O caso de CE do Manifesto
@@ -186,7 +187,7 @@ mudança" não gera `audit_logs` de exclusão ou criação em `bl_containers` ne
 `baplieFlagsOnBlImport`, `blCbmSemantics`, `thdImoOog`, `importAtomicity`,
 `blFreightImport.test.ts` e `BlImportModal.test.tsx` verdes.
 
-**Execução (2026-10-10, local):** migration `174` redefine o núcleo `legacy_205`
+**Execução (2026-10-10, local):** migration `175` redefine o núcleo `legacy_205`
 (reconciliação por número; remoção só pela lista `remove_containers` que a
 prévia mostrou; veículos por aba VIN com `confirm_vehicle_changes` e alerta
 `bl_vehicles_changed_on_reimport`), a guarda de container compartilhado (só
@@ -270,7 +271,7 @@ Cancelada; `src/services/alertRulesCatalog.ts`.
 `importEffects`, `portalBillingRelease`, `ceMercanteAutoBilling`,
 `localBillingIntegrity`, `invoiceAutoReissue` e `demurrageAuthority` verdes.
 
-**Execução (2026-10-10, local):** migration `177`. `vehicle_followup` não
+**Execução (2026-10-10, local):** migration `178`. `vehicle_followup` não
 toca B/L com fatura viva que continua cobrado, cancela só com a isenção
 confirmada agora (`_quote_bl_local_charges` = exempt, encerrando a consolidada
 viva sem reemissão; `invoiceBasisCorrection` passou a montar a isenção de
@@ -319,7 +320,7 @@ Cancelada. `auditoriaEfeitosImportacao` 10/10 e a suíte nova
 **Aceitação:** os 3 casos e as checagens novas passam em qualquer ordem de
 linhas; o caso de fração diferente (150%) continua recusado.
 
-**Execução (2026-10-10, local):** migration `175`: `bl_container_share_signature`
+**Execução (2026-10-10, local):** migration `176`: `bl_container_share_signature`
 é a função única do rateio atual; `invoice_bls.container_shares` grava o
 rateio de cada vínculo (preenchido nos vínculos existentes, pela linha "Data
 status"); a guarda de emissão recusa só irmão faturado com rateio diferente do
@@ -330,7 +331,7 @@ depois do faturamento segue a ADR 0077 pela base (que já listava os irmãos);
 diferentes na importação, e a prévia bloqueia a linha. Os 3 casos viraram `it`,
 com 4 checagens novas (irmão que chega reemite 1/2, irmão cancelado reemite o
 container inteiro, fração diferente recusada, FCL entre Clientes recusado na
-prévia e no servidor). Limite (`ponytail` na 175): a guarda olha o rateio do
+prévia e no servidor). Limite (`ponytail` na 176): a guarda olha o rateio do
 irmão, não o do próprio B/L, cujo cálculo é refeito pelo CE e pela Liberação.
 
 ## Etapa 6 — Unicidade e portas do CE (M06, M08; ADR 0078, itens 1–3 e 5)
@@ -361,7 +362,7 @@ irmão, não o do próprio B/L, cujo cálculo é refeito pelo CE e pela Liberaç
 com o mesmo CE recebem a mensagem amigável; a planilha de CE como
 `authenticated` grava o manifesto sem `permission denied`.
 
-**Execução (2026-10-10, local):** migration `176`: `ce_mercante_key` (só
+**Execução (2026-10-10, local):** migration `177`: `ce_mercante_key` (só
 dígitos), pré-checagem que aborta listando CEs repetidos, índice único
 `bls_ce_mercante_active_key` e gatilho `guard_ce_mercante_unique` em `bls` e
 `granite_bls` (cobre todas as portas, Granito e `reactivate_bl`, com trava
@@ -426,7 +427,7 @@ que copia a ATA na inserção de container; Régua de Cobrança
 nenhuma notificação nova com "R$ 0.00" para fatura de total positivo; suítes
 `demurrage*` e `communicationEligibility` verdes.
 
-**Execução (2026-10-10, local):** migration `178`. Notificação "Nova fatura
+**Execução (2026-10-10, local):** migration `179`. Notificação "Nova fatura
 emitida" em constraint trigger adiado, relendo o total (formato pt-BR).
 Prontidão, conteúdo do Comunicado e Alerta de CE da Viagem com
 `cancelled_at IS NULL`. Gatilho de modalidade de carga só reage a
@@ -498,7 +499,7 @@ Sequência interna (cada item pode ser uma PR):
 prévia, emissão em lotes) no CI; a prévia mostra antes → depois e a
 sobrescrita exige confirmação.
 
-**Execução (2026-10-10, local):** migrations `179` e `180`.
+**Execução (2026-10-10, local):** migrations `180` e `181`.
 8.1: igualdade em `id` em `assert_bl_ce_mercante` e
 `_sync_local_charge_receivable_before_correction_123`; medição local
 (`scripts/perf/measure-ce-import.sql`, 200 B/Ls): antes 2,35× (8,3 s → 19,4 s
@@ -553,7 +554,7 @@ passaram ao formato canônico.
 `containerOwnership`, `containerProfile` e `thdImoOog` verdes; ADR da escala e
 cobrança leem a mesma fonte de IMO/OOG.
 
-**Execução (2026-10-10, local):** migration `181` (`profile_source` em
+**Execução (2026-10-10, local):** migration `182` (`profile_source` em
 `bl_containers`, `_baplie_flag_plan`, `preview_baplie_physical_flags`,
 `resolve_baplie_divergence`; aplicação devolve `applied_to`, `cleared`,
 `divergent_manual`); parser com NAD+CA, 8249=6, OOG > 0, LQ e dígito
@@ -579,9 +580,9 @@ reconciliação.
 
 **Aceitação:** checagens novas verdes no CI.
 
-**Execução (2026-10-10, local):** migration `182` — gatilho
+**Execução (2026-10-10, local):** migration `183` — gatilho
 `trg_guard_cod_pod_on_reimport` (reimportação de container mantém o POD de B/L
-em COD vivo; a carga solta já mantinha pela `173`; a ficha segue corrigindo),
+em COD vivo; a carga solta já mantinha pela `174`; a ficha segue corrigindo),
 `trg_attach_new_bl_to_voyage_omission` (B/L novo no porto omitido entra como
 Transbordo, com Histórico) e `invoice_document_snapshots`, capturada no fim da
 transação da emissão e sobreposta em `list_invoice_details` e
@@ -616,7 +617,7 @@ prévia de B/L avisa COD e porto omitido. Checagens: `codDocumentoFatura.local-p
 **Aceitação:** suítes novas verdes no CI; reimportar a mesma planilha de
 Granito ou de vazios não duplica linhas.
 
-**Execução — Veículos (2026-10-10, local):** migration `183` —
+**Execução — Veículos (2026-10-10, local):** migration `184` —
 `import_vehicle_rows_transactional` confere B/L da Viagem, chassi em outra
 Viagem ativa e local de desova (só preenche vazio; troca com
 `unpacking_confirmed`; conflito no arquivo recusa), recalcula na hora sem fatura
@@ -627,7 +628,7 @@ do B/L irmão, tipos ISO equivalentes, lacre sem zeros à esquerda e opcional pa
 flat rack/plataforma, confirmação do local de desova, **Mover para outro B/L**.
 Checagens: `veiculosRegras.local-pg` (no CI), `vehicleImport.test.ts`.
 
-**Execução — Base de Clientes (2026-10-10, local):** migration `184` —
+**Execução — Base de Clientes (2026-10-10, local):** migration `185` —
 `apply_customer_base_row_atomic` ganha `p_confirm_name_change` (razão social
 diferente recusa sem ela), vincula só B/Ls pendentes e não rejeitados como
 `matched_document`, com Histórico, reavalia a Revisão
@@ -636,7 +637,7 @@ os B/Ls que cada CNPJ vincula e os rejeitados; a tela confirma a troca de razão
 social e invalida Revisão e carga/faturamento. Checagens:
 `baseClientesVinculo.local-pg` (no CI), `customerBase.test.ts`.
 
-**Execução — Granito (2026-10-10, local):** migration `185` —
+**Execução — Granito (2026-10-10, local):** migration `186` —
 `import_granite_manifest_transactional` ganha `p_remove_missing`; com B/Ls já
 gravados na Viagem, atualiza por número preservando CE, Cliente e status de
 cobrança, inclui os novos no manifesto mais recente e tira os ausentes só com
@@ -644,7 +645,7 @@ confirmação (nunca com Invoice), com Histórico; enfileira `granite_billing` s
 para novo ou alterado. A tela confirma a saída dos ausentes. Checagens:
 `granitoReimportacao.local-pg` (no CI), `graniteImportAtomic.test.ts`.
 
-**Execução — Vazios (2026-10-10, local):** migration `186` —
+**Execução — Vazios (2026-10-10, local):** migration `187` —
 `import_vazios_importacao_transactional` substitui os containers das rotas do
 arquivo preservando a natureza e reaproveita/corrige o Nº da rota;
 `replace_vazios_from_baplie_transactional` preserva a natureza e remove
@@ -653,7 +654,7 @@ manifestos vazios (`_vazios_importacao_prune`);
 unidade manual, remove manifestos órfãos e recalcula os totais. Checagem:
 `vaziosReimportacao.local-pg` (no CI).
 
-**Execução — Programação por planilha (2026-10-10, local):** migration `187` —
+**Execução — Programação por planilha (2026-10-10, local):** migration `188` —
 `apply_schedule_sheet_atomic` grava a planilha numa transação (Viagem nova uma
 vez, agenda com o id dela, falha desfaz tudo); a tela de Chegadas e Saídas
 mostra a prévia (`planScheduleSheet`, com `buildVoyagePolScheduleChanges` e
@@ -699,7 +700,7 @@ invertida; nenhuma suíte pulada por sonda com a variável ligada.
 - Removidos `maybeAutoBillAfterCeMercante` (a emissão do CE é
   `emit_ce_mercante_billing`, que abre `billing_auto_issue_failed` por B/L),
   `useCreateManifestoMercante`/`createManifestoMercante` (o cadastro é pela
-  RPC canônica da `180`) e `createInvoiceForReturnedBL`, com os testes.
+  RPC canônica da `181`) e `createInvoiceForReturnedBL`, com os testes.
 - `npm run localpg:check` (no CI) falha quando surge `*.local-pg.test.ts` fora
   da lista.
 
@@ -733,7 +734,7 @@ em produção é ato do dono.
 - [ ] Mover este plano para `docs/archive/plans/` e retirar a linha de
   `docs/plans/README.md` na mesma mudança que concluir a última etapa.
 
-**Execução (2026-10-10, local):** migration `188` fecha o rastro do item 9 da
+**Execução (2026-10-10, local):** migration `189` fecha o rastro do item 9 da
 ADR 0078 (tipo de importação e contexto na justificativa do Histórico; suíte
 `rastroImportacoes.local-pg`, no CI), e o último "implementação pendente" saiu
 do `CONTEXT.md`. A ADR 0041 ganhou nota editorial sobre o alerta
@@ -744,3 +745,10 @@ orientação da operação) e, na Etapa 13, o ensaio em Preview e a ligação do
 [servicos-externos.md](../operations/servicos-externos.md). Quando o dono os
 concluir ou assumir, o plano vai para `docs/archive/plans/` e sai de
 `docs/plans/README.md`.
+
+**Renumeração (2026-10-10):** a PR 927 publicou em produção a migration
+`173_ce_unlock_modelo_termo_docx.sql` enquanto este plano era executado. As
+migrations do plano, ainda não publicadas, passaram de `173`–`188` para
+`174`–`189`, com as referências em documentação, testes e código; os nomes
+`_legacy_*` criados por elas acompanham o número novo. As notas de execução
+acima já citam os números novos.

@@ -1,6 +1,6 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Os defeitos foram corrigidos na migration 178 (etapa 7 do plano de correção): os it.fails viraram it e rodam no job local-pg do CI.
+// Os defeitos foram corrigidos na migration 179 (etapa 7 do plano de correção): os it.fails viraram it e rodam no job local-pg do CI.
 //
 // Problemas-raiz M18 (notificação "Nova fatura emitida" com R$ 0.00), M19 (B/L
 // cancelado na prontidão do Comunicado de CE e Taxas) e M10 (Demurrage e datas).
@@ -661,7 +661,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     ])
   })
 
-  // --- Checagens novas da etapa 7 (migration 178) ---------------------------
+  // --- Checagens novas da etapa 7 (migration 179) ---------------------------
   function containerDates(blId: string): Record<string, { discharge: string | null; return: string | null }> {
     return JSON.parse(localPsql(`
       SELECT COALESCE(jsonb_object_agg(container_number, jsonb_build_object('discharge', discharge_date, 'return', return_date)), '{}'::jsonb)

@@ -1,4 +1,4 @@
--- 186 — Vazios: reimportação substitui a rota preservando a natureza; o
+-- 187 — Vazios: reimportação substitui a rota preservando a natureza; o
 -- recadastro pelo Baplie preserva a natureza e remove manifestos vazios; o
 -- Embarque de Vazios atualiza por container e preserva as unidades manuais
 -- (ADR 0078, item 25; Etapa 11 do plano 2026-10-09-correcao-importacoes-ce-mercante).

@@ -1,4 +1,4 @@
-// Etapa 4 do plano de correção das importações (migration 177; ADR 0078, item 18).
+// Etapa 4 do plano de correção das importações (migration 178; ADR 0078, item 18).
 // Viagem Cancelada sela datas de container, CE de Granito e Comunicados, e
 // `cancel_voyage` encerra os efeitos pendentes da Viagem. A simulação do
 // acumulado (`simulate_import_effects`) relata o que cada efeito faria e não
@@ -89,7 +89,7 @@ function fingerprint(): string {
   `)
 }
 
-describeLocal('Viagem Cancelada sela a operação e a simulação não grava (migration 177)', () => {
+describeLocal('Viagem Cancelada sela a operação e a simulação não grava (migration 178)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

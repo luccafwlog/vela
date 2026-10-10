@@ -1,4 +1,4 @@
--- 176: unicidade do CE Mercante e porta única de gravação
+-- 177: unicidade do CE Mercante e porta única de gravação
 -- (M06 e M08 da revisão de 2026-10-09; ADR 0078, itens 1, 2, 3 e 5).
 --
 -- 1. `ce_mercante_key(text)`: chave normalizada do CE (letras e dígitos, em
@@ -63,7 +63,7 @@ BEGIN
     HAVING count(*) > 1
   ) AS repeated;
   IF v_repeated IS NOT NULL THEN
-    RAISE EXCEPTION 'Migration 176 abortada: CE Mercante repetido entre B/Ls nao cancelados (%). Corrija ou cancele os B/Ls antes de aplicar.', v_repeated;
+    RAISE EXCEPTION 'Migration 177 abortada: CE Mercante repetido entre B/Ls nao cancelados (%). Corrija ou cancele os B/Ls antes de aplicar.', v_repeated;
   END IF;
 END
 $precheck$;
@@ -389,7 +389,7 @@ BEGIN
     p_bl_id,
     v_current_updated_at,
     -- O CE Mercante não muda pela edição da ficha: só por Corrigir/Remover
-    -- CE Mercante (migration 176; ADR 0078, itens 1, 2 e 5).
+    -- CE Mercante (migration 177; ADR 0078, itens 1, 2 e 5).
     p_update_payload - 'bb_cbm' - 'ce_mercante',
     '[]'::jsonb,
     p_changed_by

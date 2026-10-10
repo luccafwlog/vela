@@ -1,4 +1,4 @@
-// Etapa 11 do plano de correção das importações (migration 185; ADR 0078,
+// Etapa 11 do plano de correção das importações (migration 186; ADR 0078,
 // item 25). Reimportar a planilha COSCO da mesma Viagem atualiza os B/Ls de
 // Granito pelo número, preservando CE e Cliente, sem duplicar linhas; B/L
 // ausente do arquivo novo só sai com confirmação e nunca com Invoice.
@@ -67,7 +67,7 @@ function rows(): string {
     FROM public.granite_bls g JOIN public.granite_manifests m ON m.id = g.manifest_id WHERE m.voyage_id = ${voyageId};`)
 }
 
-describeLocal('Granito: reimportação por número do B/L na Viagem (migration 185)', () => {
+describeLocal('Granito: reimportação por número do B/L na Viagem (migration 186)', () => {
   beforeAll(() => {
     cleanup()
     psql(`
