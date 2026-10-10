@@ -590,7 +590,8 @@ modelo do termo em DOCX. A `173` e as funções `portal-ce-unlock-document` e
 `ce-unlock-document-download` precisam ser publicadas juntas: sem a migration, o
 upload do modelo DOCX é recusado ao confirmar no Storage.
 
-Cadastrar o DOCX oficial em Importação → Desbloqueio de CE → Modelo do termo de devolução.
+O DOCX oficial é cadastrado em Importação → Desbloqueio de CE → Modelo do termo de devolução
+(cadastrado em 2026-10-10; trocar o termo é enviar outro arquivo na mesma tela).
 Não há modelo jurídico inventado/embutido no código. Homologar a planilha
 `zpt-5-v2` com a ZPT: cabeçalhos `BL`, `Financeiro`, `Term. Devolucao`, `Procuracao`,
 `BL Entrega`, nessa ordem, valores Sim/Não (o modelo de importação da aba "Planilha
