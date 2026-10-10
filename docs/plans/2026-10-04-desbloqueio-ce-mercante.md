@@ -20,8 +20,8 @@ Modelo oficial e homologação externa seguem sem evidência de conclusão.
 
 **Estado conferido em 2026-10-10:** backend publicado em produção (migrations,
 Edge Functions, bucket e agendamentos; ver "Fontes"). O modelo oficial passou a ser DOCX
-(migration `173` e funções de documento publicadas pela PR 927) e foi cadastrado pelo
-responsável no mesmo dia. O [plano de correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md)
+(código da PR 927; migration `173` e funções de documento conferidas ativas em
+produção, ver "Fontes") e foi cadastrado pelo responsável no mesmo dia. O [plano de correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md)
 não fecha itens deste plano, mas suas Etapas 6 e 8.7 corrigem defeitos que
 afetam o Desbloqueio e passam a bloquear a ativação; ver "Caminho crítico para
 ativação".
