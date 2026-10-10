@@ -98,13 +98,15 @@ export async function uploadCeUnlockDocument(
 ): Promise<CeUnlockDocument> {
   if (scope && isPortalReadOnly(scope))
     throw new Error("Ação indisponível em Modo Inspeção.");
+  // O modelo do desk é DOCX (o cliente preenche); todo anexo do cliente é PDF. A função revalida o conteúdo.
+  const model = context.source === "model";
   if (
-    file.type !== "application/pdf" ||
-    !file.name.toLowerCase().endsWith(".pdf") ||
+    !file.name.toLowerCase().endsWith(model ? ".docx" : ".pdf") ||
+    (!model && file.type !== "application/pdf") ||
     file.size <= 0 ||
     file.size > 10485760
   )
-    throw new Error("Use PDF de até 10 MiB.");
+    throw new Error(model ? "Use o modelo em DOCX de até 10 MiB." : "Use PDF de até 10 MiB.");
   const form = new FormData();
   form.set("file", file);
   form.set("context", JSON.stringify(context));

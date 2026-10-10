@@ -120,8 +120,9 @@ export function CeUnlockDocumentList({
   );
 }
 
+const DOCX_ACCEPT = ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const UPLOAD_LABEL: Record<CeDocumentType, string> = {
-  model: "Modelo oficial do termo de devolução (PDF)",
+  model: "Modelo oficial do termo de devolução (DOCX)",
   termo: "Termo de devolução assinado (PDF)",
   procuracao: "Procuração (PDF)",
 };
@@ -196,14 +197,14 @@ export function CeUnlockDocumentUploader({
             {doc && <DocumentRow doc={doc} scope={scope} onError={setError} />}
             <div className="app-field">
               <label htmlFor={`${fieldId}-${type}`} className="app-field__label">
-                {doc ? `Substituir ${ceDocumentName(type).toLowerCase()} (PDF)` : UPLOAD_LABEL[type]}
+                {doc ? `Substituir ${ceDocumentName(type).toLowerCase()} (${type === "model" ? "DOCX" : "PDF"})` : UPLOAD_LABEL[type]}
               </label>
               <div className="flex flex-wrap items-center gap-2">
                 <Input
                   id={`${fieldId}-${type}`}
                   key={inputKeys[type] ?? 0}
                   type="file"
-                  accept="application/pdf,.pdf"
+                  accept={type === "model" ? DOCX_ACCEPT : "application/pdf,.pdf"}
                   className="min-w-0 flex-1"
                   disabled={!!busy}
                   onChange={(e) => setFiles((prev) => ({ ...prev, [type]: e.target.files?.[0] }))}
@@ -219,7 +220,7 @@ export function CeUnlockDocumentUploader({
                   {`Enviar ${type === "model" ? "modelo" : type === "termo" ? "termo de devolução" : "procuração"}`}
                 </Button>
               </div>
-              <span className="app-field__hint">PDF de até 10 MiB</span>
+              <span className="app-field__hint">{type === "model" ? "DOCX de até 10 MiB" : "PDF de até 10 MiB"}</span>
             </div>
           </div>
         );

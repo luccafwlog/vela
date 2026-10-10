@@ -187,3 +187,14 @@ it("rascunho sem anexos diz quais documentos faltam para enviar", () => {
   mount();
   expect(screen.getByText("Envie termo de devolução e procuração para continuar.")).toBeTruthy();
 });
+it("oferece o memorando de retirada a clientes comuns e VIP, apontando para um arquivo publicado", async () => {
+  const { existsSync } = await import("node:fs");
+  for (const vip of [false, true]) {
+    fixtures.vip = vip;
+    mount();
+    const link = screen.getByRole("link", { name: "Baixar memorando de liberação de documentos" });
+    const href = link.getAttribute("href")!;
+    expect(existsSync(`public${href}`)).toBe(true);
+    cleanup();
+  }
+});

@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
 import { withCors } from "../_shared/cors.ts";
-import { readCeMultipart, validateCePdf } from "../_shared/ceUnlockFile.ts";
+import { readCeMultipart, validateCeUpload } from "../_shared/ceUnlockFile.ts";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -26,11 +26,11 @@ if (typeof Deno !== "undefined")
       try {
         form = await readCeMultipart(req);
       } catch {
-        return json({ error: "PDF inválido ou acima de 10 MiB" }, 413);
+        return json({ error: "Arquivo inválido ou acima de 10 MiB" }, 413);
       }
       const file = form.get("file");
       if (!file || typeof file === "string")
-        return json({ error: "PDF obrigatório" }, 422);
+        return json({ error: "Arquivo obrigatório" }, 422);
       let context: Record<string, unknown>;
       try {
         context = JSON.parse(String(form.get("context")));
@@ -38,10 +38,11 @@ if (typeof Deno !== "undefined")
         return json({ error: "Contexto inválido" }, 422);
       }
       const bytes = new Uint8Array(await file.arrayBuffer());
+      let contentType: string;
       try {
-        validateCePdf(file.name, file.type, bytes);
-      } catch {
-        return json({ error: "Use PDF válido de até 10 MiB" }, 422);
+        contentType = validateCeUpload(context.source, file.name, file.type, bytes);
+      } catch (e) {
+        return json({ error: (e as Error).message }, 422);
       }
       const reserved = await user.rpc("ce_unlock_prepare_upload", {
         p_context: { ...context, file_name: file.name, size_bytes: file.size },
@@ -68,10 +69,10 @@ if (typeof Deno !== "undefined")
       };
       const stored = await admin.storage
         .from("ce-unlock-documents")
-        .upload(path, bytes, { contentType: "application/pdf", upsert: false });
+        .upload(path, bytes, { contentType, upsert: false });
       if (stored.error) {
         await abortUpload();
-        return json({ error: "Falha ao armazenar PDF" }, 500);
+        return json({ error: "Falha ao armazenar arquivo" }, 500);
       }
       const hash = Array.from(
         new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),

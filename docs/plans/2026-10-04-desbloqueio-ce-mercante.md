@@ -16,11 +16,11 @@ confirmação; itens deste plano que conflitem com ela (confirmação por B/L, r
 
 **Estado reconciliado em 2026-10-07:** implementação integrada no código da
 `main`; publicação e operação remotas não conferidas nesta reconciliação.
-PDF oficial e homologação externa seguem sem evidência de conclusão.
+Modelo oficial e homologação externa seguem sem evidência de conclusão.
 
 **Estado conferido em 2026-10-10:** backend publicado em produção (migrations,
-Edge Functions, bucket e agendamentos; ver "Fontes"). O PDF oficial **não** está
-cadastrado. O [plano de correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md)
+Edge Functions, bucket e agendamentos; ver "Fontes"). O modelo oficial **não** está
+cadastrado; em 2026-10-10 passou a ser DOCX (migration `173`, ainda não publicada). O [plano de correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md)
 não fecha itens deste plano, mas suas Etapas 6 e 8.7 corrigem defeitos que
 afetam o Desbloqueio e passam a bloquear a ativação; ver "Caminho crítico para
 ativação".
@@ -88,7 +88,7 @@ Itens marcados **[bloqueia ativação]** abaixo precisam estar resolvidos antes 
 abrir o Desbloqueio a clientes reais; os demais `[ ]` podem ser aceitos como
 dívida registrada no aceite, sem impedir a operação. Ordem proposta:
 
-1. Cadastrar o PDF oficial (Tarefa 1).
+1. Publicar a migration `173` e as funções de documento; cadastrar o DOCX oficial (Tarefa 1).
 2. Etapa 6 do plano de 2026-10-09 (unicidade do CE): hoje o mesmo CE pode ser
    aceito em dois B/Ls e a conciliação ZPT pelo número desbloquearia os dois
    (cenário 12 da [revisão de 2026-10-09](../archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md)).
@@ -144,7 +144,7 @@ apresentação; timestamps persistidos continuam UTC.
 - [x] Registrar a decisão de execução de não criar entidade distinta “CS”, conforme relatório local.
 - [x] Registrar as cinco colunas ZPT, documentos anuais VIP por CNPJ e validade até 31/12 sem renovação automática.
 - [x] Implementar tipos, versões, requisitos e motivos públicos separados do andamento externo. **Código:** `ceUnlock.ts`; layout usa `layout_version`, e o pedido referencia `model_id`, em vez de exigir os nomes `layoutVersion`/`modelVersion` inicialmente propostos.
-- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs; cadastrar o PDF oficial fornecido pelo responsável (ausente em produção em 2026-10-10).
+- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs; cadastrar o PDF oficial fornecido pelo responsável (ausente em produção em 2026-10-10). Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`).
 - [ ] **[bloqueia ativação]** Homologar a amostra XLSX e os indicadores Sim/Não com responsável/ZPT; revisar spec/plano no aceite.
 
 ## Tarefa 2 — Persistência, autorização e requisito financeiro
@@ -301,7 +301,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Conferir histórico remoto e publicar migrations CE `139`–`149` e `160`–`161` e as cinco funções. **Remoto:** leitura de produção em 2026-10-10 (ver "Fontes").
 - [ ] **[bloqueia ativação]** Conferir que os frontends publicados na Vercel são compatíveis com o backend atual.
 - [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
-- [ ] **[bloqueia ativação]** Cadastrar o PDF oficial e validar o resultado do expurgo antes da ativação operacional.
+- [ ] **[bloqueia ativação]** Cadastrar o PDF oficial e validar o resultado do expurgo antes da ativação operacional. Termo recebido em 2026-10-10; cadastro do DOCX em produção depende da publicação da `173`.
 - [ ] **[bloqueia ativação]** Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](2026-10-09-correcao-importacoes-ce-mercante.md).
 - [ ] **[bloqueia ativação]** Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.
