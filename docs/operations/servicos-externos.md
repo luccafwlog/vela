@@ -349,6 +349,41 @@ abaixo e em [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disp
 
 `import-effects-queue-health` é SQL puro (migration `177`) e só mede a fila (`import_effects_queue_health()`): com o `import-effects-runner` pausado, o Alerta de fila parada fica aberto enquanto houver efeito pendente há mais de 60 minutos, e é o sinal esperado. Antes de ligar o runner, rode a simulação do acumulado (`simulate_import_effects`, server-only) e aprove ou descarte com `apply_import_effects_review` (Etapa 13 do plano de correção das importações).
 
+#### Roteiro para ligar o `import-effects-runner` (ADR 0078, item 18)
+
+Ato do dono, depois que as migrations `173` a `187` estiverem em produção. Nada
+aqui é feito pelo agente; registre data, quem executou e o resultado de cada
+passo nesta seção.
+
+1. **Ensaio em Preview (antes de produção).** Na branch de Preview do Supabase,
+   com as migrations aplicadas: crie `IMPORT_EFFECTS_CRON_SECRET` em par
+   (Edge Function Secret e Vault, [segredos-cron](segredos-cron.md)), ligue
+   `IMPORT_EFFECTS_RUNNER_ENABLED=true` e confira três ciclos seguidos
+   (`3-59/5 * * * *`) em `cron.job_run_details` e no retorno HTTP da função:
+   `import_effects_queue_health()` sem efeito em `leased` preso e o Alerta
+   `import_effects_queue_stalled` fechado. Depois desligue
+   (`IMPORT_EFFECTS_RUNNER_ENABLED` ausente ou diferente de `true`) e confira que
+   a função responde `503 paused` e a fila para de andar sem perder efeitos.
+2. **Simulação do acumulado em produção (somente leitura).** Com o runner ainda
+   desligado, rode como `service_role` no SQL Editor:
+   `SELECT public.simulate_import_effects(NULL, 200);`. Para cada efeito, a
+   resposta diz o que ele faria (`would_succeed` ou `would_fail`) sem gravar
+   nada. Repita com `p_entity_prefix` por B/L quando quiser olhar um caso.
+3. **Aprovar ou descartar o acumulado.** Decida, por efeito, o que vale
+   processar e o que é obsoleto e rode
+   `SELECT public.apply_import_effects_review(ARRAY[<aprovar>]::bigint[],
+   ARRAY[<descartar>]::bigint[], '<motivo>', '<uuid de quem revisou>');`.
+   O descarte vira `superseded` com o motivo no Histórico; o aprovado é
+   processado na hora.
+4. **Ligar em produção.** Crie `IMPORT_EFFECTS_CRON_SECRET` em par (Vault e
+   Edge Function Secret) e defina `IMPORT_EFFECTS_RUNNER_ENABLED=true` na Edge
+   Function. A partir daí o processamento fica sempre ligado.
+5. **Conferir.** Na primeira hora: `cron.job_run_details` com chamadas HTTP 200,
+   `import_effects_queue_health()` sem pendente antigo e o Alerta
+   `import_effects_queue_stalled` fechado. Para desligar numa emergência, retire
+   `IMPORT_EFFECTS_RUNNER_ENABLED`; a fila acumula e o Alerta volta a abrir
+   depois de 60 minutos.
+
 `data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 
 Os jobs HTTP chamam a Edge Function por `ops.dispatch_edge_job`, que dá 30 s

@@ -4,6 +4,10 @@
 
 ## 2026-10
 
+- **Rastro das importações (2026-10-10, implementação local; Etapa 14 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  o Histórico de cada registro alterado por uma importação diz qual importação foi, a Viagem e o
+  Nº de Manifesto (migration `188`, ADR 0078 item 9).
 - **Testes e CI (2026-10-10; Etapa 12 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   todas as 74 suítes `local-pg` rodam no CI (`npm run localpg:check` impede suíte fora da lista);

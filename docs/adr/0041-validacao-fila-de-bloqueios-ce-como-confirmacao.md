@@ -1,5 +1,7 @@
 # 0041 — Validação como fila de bloqueios; CE Mercante como confirmação
 
+> **Nota editorial — 2026-10-10.** A decisão 3 vale pela emissão do CE no servidor: `emit_ce_mercante_billing` (migration `180`) abre `billing_auto_issue_failed` por B/L quando a emissão falha. O caminho de navegador `maybeAutoBillAfterCeMercante`, único que abria esse alerta e sem chamador, foi removido na Etapa 12 do [plano de correção das importações](../plans/2026-10-09-correcao-importacoes-ce-mercante.md).
+
 > **Nota editorial — 2026-09-23.** A exceção interna da `051` foi retirada pela [ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md) (migration `083`): o Portal trava toda emissão, inclusive a automática pelo CE, e a saída sem Portal é a Liberação de faturamento sem Portal, por Cliente, concedida pelo Administrativo.
 >
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Validação está em /taxas-locais; reconciliação de cliente fica na Revisão. Portal é gate manual, com exceção interna de emissão automática pelo CE na 051.

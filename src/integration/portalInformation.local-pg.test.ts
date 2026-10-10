@@ -55,6 +55,9 @@ function cleanup() {
     DELETE FROM public.customer_demurrage_agreements WHERE customer_id IN (${customer},${customerOther});
     DELETE FROM public.demurrage_rates WHERE id=9134001;
     DELETE FROM public.customer_portal_accounts WHERE customer_id=${customer};
+    DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN (${customer},${customerOther})));
+    DELETE FROM public.portal_provisioning_events WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN (${customer},${customerOther})) OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN (${customer},${customerOther})));
+    DELETE FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN (${customer},${customerOther}));
     DELETE FROM public.customers WHERE id IN (${customer},${customerOther});
     DELETE FROM public.voyages WHERE id=${voyage}; DELETE FROM public.vessels WHERE id=${voyage}; DELETE FROM public.carriers WHERE id=${voyage};
     DELETE FROM public.depots WHERE id IN ('${depotA}','${depotB}','${depotOther}');

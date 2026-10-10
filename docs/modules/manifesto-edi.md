@@ -135,6 +135,14 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
 - Exclusões de B/Ls, Containers e Veículos atualizam também os totalizadores e
   vínculos dependentes, incluindo veículos removidos junto com um Container.
   Edição manual e vínculo/desvínculo de Cliente atualizam as projeções do B/L.
+- **Rastro das importações (migration `188`, ADR 0078 item 9):** cada RPC de
+  importação (B/L, Manifesto BB, CE Mercante, Baplie, Veículos, Granito, Vazios,
+  Embarque de Vazios, Base de Clientes, datas de container, Programação) define o
+  contexto da transação, e o gatilho de Histórico grava "Importação de <tipo> ·
+  Viagem <navio> <número> · Manifesto <Nº>" como justificativa de cada linha
+  criada, alterada ou excluída que não tem outro motivo. A função original de
+  cada importação ficou como `<nome>_legacy_188`, sem mudança de comportamento
+  nem de privilégios.
 - **Veículos (migration `183`, ADR 0078 itens 8 e 23):** a planilha casa o
   B/L pelo número exato da Viagem (sem buscar B/L "parecido"); chassi já em
   outra Viagem ativa recusa a linha (B/L ou Viagem cancelados não contam); tipos

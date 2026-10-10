@@ -709,7 +709,7 @@ Pré-requisitos: Etapas 4 e 7 em produção.
 
 - [ ] Ensaio em Preview: ligar, rodar a simulação do acumulado, conferir 3
   ciclos sem efeito travado, testar o desligamento.
-- [ ] Roteiro para o dono em `servicos-externos.md`: rodar a simulação em
+- [x] Roteiro para o dono em `servicos-externos.md`: rodar a simulação em
   produção, aprovar o que for processado, criar `IMPORT_EFFECTS_CRON_SECRET` em
   par (Vault e função) e ligar `IMPORT_EFFECTS_RUNNER_ENABLED`; depois, o
   processamento fica sempre ligado.
@@ -718,10 +718,29 @@ Pré-requisitos: Etapas 4 e 7 em produção.
 
 **Aceitação:** ensaio em Preview registrado; roteiro revisado pelo dono.
 
+**Execução (2026-10-10, local):** roteiro escrito em
+[servicos-externos.md](../operations/servicos-externos.md) ("Roteiro para ligar
+o `import-effects-runner`"). O ensaio em Preview não foi feito pelo agente: exige
+criar segredos e ligar a função num ambiente externo, o que esta sessão não está
+autorizada a fazer; fica como primeiro passo do roteiro, com o dono. A ligação
+em produção é ato do dono.
+
 ## Etapa 14 — Encerramento
 
-- [ ] Nenhum `it.fails` restante nas suítes `auditoria*`.
-- [ ] `CONTEXT.md` sem "implementação pendente" nos itens da ADR 0078;
+- [x] Nenhum `it.fails` restante nas suítes `auditoria*`.
+- [x] `CONTEXT.md` sem "implementação pendente" nos itens da ADR 0078;
   documentação viva da seção 8 do relatório atualizada.
 - [ ] Mover este plano para `docs/archive/plans/` e retirar a linha de
   `docs/plans/README.md` na mesma mudança que concluir a última etapa.
+
+**Execução (2026-10-10, local):** migration `188` fecha o rastro do item 9 da
+ADR 0078 (tipo de importação e contexto na justificativa do Histórico; suíte
+`rastroImportacoes.local-pg`, no CI), e o último "implementação pendente" saiu
+do `CONTEXT.md`. A ADR 0041 ganhou nota editorial sobre o alerta
+`billing_auto_issue_failed`. **O plano continua em `docs/plans/`**: restam só
+passos do dono — os dois itens da Etapa 0 (consultas em leitura na produção e
+orientação da operação) e, na Etapa 13, o ensaio em Preview e a ligação do
+`import-effects-runner` em produção, pelo roteiro em
+[servicos-externos.md](../operations/servicos-externos.md). Quando o dono os
+concluir ou assumir, o plano vai para `docs/archive/plans/` e sai de
+`docs/plans/README.md`.

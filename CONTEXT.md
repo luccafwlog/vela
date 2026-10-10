@@ -1572,7 +1572,9 @@ campos, mudanças em containers, cálculo e revisão de taxas, e emissão e
 pagamento de faturas. É o termo guarda-chuva que abrange a Auditoria — não um
 sinônimo dela. Toda importação registra, em cada registro alterado, quem fez,
 data e hora, o tipo de importação, o contexto (Nº de Manifesto, Viagem, rota),
-o valor anterior e o novo e o motivo quando houver ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+o valor anterior e o novo e o motivo quando houver ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `188`:
+o tipo e o contexto vão na justificativa de cada linha, como "Importação de
+Vazios de Importação · Viagem <navio> <número> · Manifesto <Nº>").
 
 **Auditoria**
 Subconjunto do Histórico: as alterações deliberadas registradas com
