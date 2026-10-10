@@ -72,6 +72,8 @@ Fontes da reconciliação:
   `ce-unlock-document-download` (v12) ativas com o código da `main`. Documento
   `type='model'` `termo-devolucao-container-modelo-2026.docx` com status `approved`,
   objeto `.docx` no Storage com tipo DOCX e tamanho conferido (13.508 bytes).
+  Workflow *Cloudflare Pages Production* run 176 (commit `eb0eadb`) com sucesso: prova
+  a publicação dos dois sites, não a compatibilidade frontend/backend.
 
 ## Restrições globais
 

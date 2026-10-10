@@ -580,7 +580,9 @@ Ao entregar a operação para outra pessoa:
 ## Desbloqueio de CE Mercante
 
 **Publicado em produção** (conferido em 2026-10-10): migrations `137`–`149`, `160`, `161`
-e `173`, as cinco funções e o frontend Vela/Portal. Em mudanças futuras, publicar na ordem
+e `173` e as cinco funções. Frontend Vela/Portal: o workflow *Cloudflare Pages Production*
+(run 176, commit `eb0eadb`) terminou com sucesso; isso prova a publicação, não a
+compatibilidade com o backend, que segue pendente no plano. Em mudanças futuras, publicar na ordem
 migrations → Edge Functions → frontend e validar em Preview antes de produção. A publicação
 das funções é manual (ver [Edge Functions](#edge-functions)). Em 2026-10-10 versões novas de
 `portal-ce-unlock-document` e `ce-unlock-document-download` já estavam ativas minutos após
