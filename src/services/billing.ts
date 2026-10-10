@@ -94,6 +94,8 @@ export type InvoiceDetail = {
   invoice: (InvoiceSummary & {
     customer_name?: string | null
     customer_cnpj_cpf?: string | null
+    /** endereço congelado na emissão (migration 182) */
+    customer_address?: string | null
     notes?: string | null
     voyage_id?: number | null
     voyage_number?: string | null

@@ -154,6 +154,7 @@ const childRelations: Record<string, string> = {
 }
 const parentRelations: Record<string, { table: string; fk: string }> = {
   'voyages.vessels': { table: 'vessels', fk: 'vessel_id' },
+  'bl_transshipments.voyage_omissions': { table: 'voyage_omissions', fk: 'omission_id' },
 }
 
 function splitTopLevel(text: string): string[] {

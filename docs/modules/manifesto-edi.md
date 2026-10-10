@@ -135,6 +135,12 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
 - Exclusões de B/Ls, Containers e Veículos atualizam também os totalizadores e
   vínculos dependentes, incluindo veículos removidos junto com um Container.
   Edição manual e vínculo/desvínculo de Cliente atualizam as projeções do B/L.
+- **COD e omissão na importação (migration `182`, ADR 0078 item 13):** a
+  reimportação de B/L de container não muda o POD de B/L em COD vivo (a prévia
+  avisa e os demais campos atualizam; a carga solta segue a `173`); mudar o POD
+  pela ficha é correção, nunca COD. B/L criado depois da omissão com POD no porto
+  omitido entra como afetado, disposição Transbordo, herdando o registro global,
+  com Histórico e aviso na prévia.
 - **Baplie (migration `181`, ADR 0078 item 21):** as marcas IMO/OOG e SOC/COC
   valem para todos os B/Ls ativos que dividem o container (cancelados ficam de
   fora) e o resultado diz onde aplicou; o perfil corrigido à mão

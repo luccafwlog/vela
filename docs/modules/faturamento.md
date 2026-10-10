@@ -392,6 +392,16 @@ menores e específicas descritas no catálogo.
 
 ## Fluxos e invariantes
 
+### Documento da fatura congelado (ADR 0078, item 15)
+
+Desde a migration `182`, a emissão (status diferente de rascunho) grava em
+`invoice_document_snapshots`, no fim da transação, a razão social, o CNPJ e o
+endereço do Cliente, a Viagem, o navio e, por B/L, POL, POD, Viagem e navio. O
+detalhe (`list_invoice_details`) e o Portal (`_portal_invoice_details_core`)
+sobrepõem essa cópia aos dados vivos, e a impressão mostra o endereço
+congelado. Corrigir o Cliente ou o B/L depois não reescreve uma fatura já
+emitida; mudanças de valor seguem a ADR 0077.
+
 ### Correção após emissão (ADR 0077)
 
 Fatura emitida não oferece edição manual de itens; as RPCs antigas foram

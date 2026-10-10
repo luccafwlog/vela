@@ -238,6 +238,7 @@ jobs:
             src/integration/portalBillingRelease.local-pg.test.ts \
             src/integration/ceImportacaoContrato.local-pg.test.ts \
             src/integration/baplieMarcas.local-pg.test.ts \
+            src/integration/codDocumentoFatura.local-pg.test.ts \
             src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts \
             src/integration/auditoriaFaturasDemurrageComunicado.local-pg.test.ts \
             src/integration/conditionUsd.local-pg.test.ts \

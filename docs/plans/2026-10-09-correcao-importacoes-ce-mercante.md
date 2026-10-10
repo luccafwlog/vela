@@ -565,19 +565,29 @@ reconciliação.
 
 ## Etapa 10 — COD e documento da fatura (M22, M23; ADR 0078, itens 13 e 15)
 
-- [ ] Reimportação (container e carga solta) não altera o POD de B/L em COD;
+- [x] Reimportação (container e carga solta) não altera o POD de B/L em COD;
   demais campos atualizam, com aviso na prévia. Mudar POD por reimportação ou
   ficha é correção, nunca COD.
-- [ ] B/L com POD no porto omitido importado depois da omissão entra como
+- [x] B/L com POD no porto omitido importado depois da omissão entra como
   afetado, com disposição Transbordo, herdando o registro global, com aviso e
   Histórico.
-- [ ] Documento da fatura congela razão social, CNPJ, endereço do Cliente,
+- [x] Documento da fatura congela razão social, CNPJ, endereço do Cliente,
   Viagem, navio, POL e POD na emissão; detalhe e impressão (Vela e Portal) usam
   a cópia.
-- [ ] Checagens novas a partir dos roteiros da crítica de completude do
+- [x] Checagens novas a partir dos roteiros da crítica de completude do
   relatório (COD × reimportação; documento lido de dados vivos).
 
 **Aceitação:** checagens novas verdes no CI.
+
+**Execução (2026-10-10, local):** migration `182` — gatilho
+`trg_guard_cod_pod_on_reimport` (reimportação de container mantém o POD de B/L
+em COD vivo; a carga solta já mantinha pela `173`; a ficha segue corrigindo),
+`trg_attach_new_bl_to_voyage_omission` (B/L novo no porto omitido entra como
+Transbordo, com Histórico) e `invoice_document_snapshots`, capturada no fim da
+transação da emissão e sobreposta em `list_invoice_details` e
+`_portal_invoice_details_core`; a impressão mostra o endereço congelado. A
+prévia de B/L avisa COD e porto omitido. Checagens: `codDocumentoFatura.local-pg`
+(no CI) e `blFreightImport.test.ts`.
 
 ## Etapa 11 — Veículos, Base de Clientes, Granito e vazios (M15, M16, M17; ADR 0078, itens 8 e 23–25)
 

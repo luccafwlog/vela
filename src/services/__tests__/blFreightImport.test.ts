@@ -376,6 +376,24 @@ describe('blFreightImport', () => {
     })
   })
 
+  it('B/L em COD mantém o POD na reimportação e avisa; B/L novo em porto omitido avisa o Transbordo', () => {
+    const cod = buildBlFreightPreview({
+      documents: [parsedBL()],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      existingBls: [{ ...existingBl(), pod: 'BRVIX' }] as never,
+      codBlIds: new Set(['CSC45250E02Y00']),
+    })
+    expect(cod.rows[0].payload?.pod).toBe('BRVIX')
+    expect((cod.rows[0].warnings ?? []).join(' ')).toMatch(/B\/L em COD: o POD continua BRVIX \(o arquivo traz BRSSZ\)/)
+
+    const late = buildBlFreightPreview({
+      documents: [parsedBL()],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      omittedPods: new Set(['BRSSZ']),
+    })
+    expect((late.rows[0].warnings ?? []).join(' ')).toMatch(/POD BRSSZ foi omitido nesta Viagem.*Transbordo/)
+  })
+
   it('flags container-set changes as override-required without dropping the payload', () => {
     const preview = buildBlFreightPreview({
       documents: [parsedBL()],

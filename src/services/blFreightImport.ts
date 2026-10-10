@@ -290,6 +290,10 @@ export type BuildBlFreightPreviewArgs = {
   containerSiblings?: Map<string, ContainerSibling[]> | null
   selectedVoyage?: BlFreightSelectedVoyage | null
   onlyBlId?: string | null
+  /** B/Ls em COD vivo: a reimportação não muda o POD (ADR 0078, item 13) */
+  codBlIds?: Set<string> | null
+  /** portos omitidos (não revertidos) na Viagem escolhida */
+  omittedPods?: Set<string> | null
   /** customers indexed by document/name so the import links each B/L to its payer */
   customerMaps?: CustomerMaps | null
   /** current payer of each existing B/L, indexed by customer id */
@@ -328,10 +332,12 @@ export async function previewBlFreightImport(args: {
   // with a unique one (same count) still changes container_distinct_voyage billing.
   const existingContainerNumbers = existingBls.flatMap((bl) => (bl.bl_containers ?? []).map((container) => container.container_number))
   const sharedContainerNumbers = await fetchSharedContainerNumbers(blNumbers, [...containerNumbers, ...existingContainerNumbers])
-  const [selectedVoyage, knownPorts, containerSiblings] = await Promise.all([
+  const [selectedVoyage, knownPorts, containerSiblings, codBlIds, omittedPods] = await Promise.all([
     fetchSelectedVoyage(args.voyageId),
     fetchPortCatalog(),
     fetchContainerSiblings(args.voyageId, blNumbers, containerNumbers),
+    fetchCodBlIds([...existingIds]),
+    fetchOmittedPods(args.voyageId),
   ])
   if (!selectedVoyage) throw new Error('Viagem selecionada nao encontrada.')
 
@@ -365,6 +371,8 @@ export async function previewBlFreightImport(args: {
     receivablesByBl,
     knownPorts,
     containerSiblings,
+    codBlIds,
+    omittedPods,
   })
 }
 
@@ -381,6 +389,8 @@ export function buildBlFreightPreview({
   receivablesByBl = null,
   knownPorts = null,
   containerSiblings = null,
+  codBlIds = null,
+  omittedPods = null,
 }: BuildBlFreightPreviewArgs): BlFreightImportPreview {
   const existingById = new Map(existingBls.map((bl) => [bl.id, bl]))
   const rows = documents.map((doc) => {
@@ -421,6 +431,15 @@ export function buildBlFreightPreview({
     if (portBlock) blockedReasons.push(portBlock)
     const fclConflict = payload && containerSiblings ? describeFclConflict(payload, existing, containerSiblings) : null
     if (fclConflict) blockedReasons.push(fclConflict)
+    // COD vivo: o POD do B/L é o destino do COD; o arquivo não o troca
+    // (o servidor também mantém, migration 182). Mudar POD aqui é correção, nunca COD.
+    if (payload && existing && codBlIds?.has(existing.id) && payload.pod && existing.pod && payload.pod !== existing.pod) {
+      warnings.push(`B/L em COD: o POD continua ${existing.pod} (o arquivo traz ${payload.pod}); os demais campos atualizam.`)
+      payload.pod = existing.pod
+    }
+    if (payload && !existing && payload.pod && omittedPods?.has(payload.pod)) {
+      warnings.push(`POD ${payload.pod} foi omitido nesta Viagem: o B/L entra como afetado pela omissão, com disposição Transbordo.`)
+    }
     if (!normalizeDate(doc.dates.ladenOnBoard)) {
       warnings.push(doc.dates.ladenOnBoard.trim()
         ? `Laden on Board ilegível ("${doc.dates.ladenOnBoard.trim()}"): a data gravada não muda.`
@@ -1534,6 +1553,31 @@ async function fetchBlReceivableSnapshots(blNumbers: string[]) {
     byBl.set(row.bl_id, current)
   }
   return byBl
+}
+
+async function fetchCodBlIds(blIds: string[]) {
+  if (!blIds.length) return new Set<string>()
+  const { data, error } = await supabase
+    .from('bl_transshipments')
+    .select('bl_id, omission:voyage_omissions(reverted_at)')
+    .eq('disposition', 'cod')
+    .in('bl_id', blIds)
+  if (error) throw error
+  return new Set(
+    ((data ?? []) as unknown as Array<{ bl_id: string; omission: { reverted_at: string | null } | null }>)
+      .filter((row) => !row.omission?.reverted_at)
+      .map((row) => row.bl_id),
+  )
+}
+
+async function fetchOmittedPods(voyageId: number) {
+  const { data, error } = await supabase
+    .from('voyage_omissions')
+    .select('omitted_pod')
+    .eq('voyage_id', voyageId)
+    .is('reverted_at', null)
+  if (error) throw error
+  return new Set(((data ?? []) as Array<{ omitted_pod: string | null }>).map((row) => row.omitted_pod).filter((pod): pod is string => Boolean(pod)))
 }
 
 async function fetchBillingLockedBlIds(blNumbers: string[]) {

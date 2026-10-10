@@ -213,6 +213,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
             <td style={cell}>
               {invoice.customer_name ?? '—'}
               {invoice.customer_cnpj_cpf ? <><br />CNPJ: {fmtCNPJ(invoice.customer_cnpj_cpf)}</> : ''}
+              {invoice.customer_address ? <><br />{invoice.customer_address}</> : ''}
             </td>
           </tr>
           {!isManual || bls.length > 0 ? (

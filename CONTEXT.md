@@ -279,7 +279,7 @@ afetados.
 Cada complementação é auditada pela RPC `update_voyage_omission`; a disposição
 `transshipment` ou `cod` continua no grão individual do B/L.
 
-Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), um B/L com POD no porto omitido importado
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), um B/L com POD no porto omitido importado
 depois da omissão entra como afetado, com disposição Transbordo, herdando o
 registro global; a reimportação não altera o POD de B/L em COD, e mudar o POD
 por reimportação ou pela ficha é correção, nunca COD.
@@ -689,7 +689,7 @@ tem duas contagens independentes.
 **Local de Desova**
 Local onde um container com veículo foi desovado. Atributo do container,
 agregado por marca no ADR. A planilha de veículos só o preenche quando está
-vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
+vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
 **Ocorrência da Escala**
 Lançamento livre no diário da escala dentro do ADR: texto com autor,
@@ -967,7 +967,7 @@ Baplie no EQD (8077: 1 = SOC, 2 = COC). O B/L é soberano: o Baplie só preenche
 o que o B/L não declarou, e a discordância entre os dois aparece na conciliação
 do Baplie e na aba Carga do B/L, sem trocar o valor. Sem informação em nenhuma
 fonte, o container é tratado como COC e aparece como "Não informado".
-A divergência ganha a ação **Vale o B/L**, com motivo, que a encerra ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+A divergência ganha a ação **Vale o B/L**, com motivo, que a encerra ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
 Container SOC não volta ao estoque: não tem devolução a esperar nem Demurrage,
 e não paga as taxas locais marcadas como "não cobra de SOC" (Drop Off Fee e
 Damage Protection Fee).
@@ -1238,7 +1238,7 @@ automática, registrada como **Sistema — CE Mercante** ([ADR 0078](docs/adr/00
 Por isso a fatura de taxas locais é emitida dias antes da atracação: o cliente
 precisa dela paga para retirar a carga. O documento emitido preserva seu valor
 e, pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), também a identificação impressa (razão social, CNPJ, endereço do
-Cliente, Viagem, navio, POL e POD; implementação pendente);
+Cliente, Viagem, navio, POL e POD, lidos pelo detalhe e pela impressão no Vela e no Portal);
 ajustes posteriores, como COD, seguem atos próprios e não reescrevem o snapshot.
 
 B/Ls do mesmo Cliente que dividem um container são faturados cada um com o

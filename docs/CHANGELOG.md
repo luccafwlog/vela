@@ -4,6 +4,12 @@
 
 ## 2026-10
 
+- **COD e documento da fatura (2026-10-10, implementação local; Etapa 10 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  reimportar B/L em COD não muda o POD (a prévia avisa); B/L importado depois da omissão entra
+  como afetado, com disposição Transbordo; a fatura emitida guarda razão social, CNPJ, endereço,
+  Viagem, navio, POL e POD, e o detalhe e a impressão no Vela e no Portal leem essa cópia
+  (migration `182`, ADR 0078 itens 13 e 15).
 - **Baplie (2026-10-10, implementação local; Etapa 9 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   marcas valem para todos os B/Ls ativos que dividem o container; IMO/OOG corrigido à mão fica
