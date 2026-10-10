@@ -109,7 +109,8 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    parcial/consolidado (Tarefa 2), baixa cancelada concorrente ao envio e à
    exportação (Tarefas 2 e 6) e acesso a IDs/caminhos/downloads de outro CNPJ
    (Tarefa 3).
-6. Conferir o deploy dos frontends e executar o fluxo completo com clientes A/B
+6. Conferir a compatibilidade dos frontends publicados com o backend (a publicação
+   já foi conferida) e executar o fluxo completo com clientes A/B
    no ambiente autorizado (Tarefa 7).
 
 ## Foco da revisão
