@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { syntheticCnpj, describeWithProbe } from './localTestData'
 
 // Migration 129 (ADR 0077, decisão de 2026-10-02): container IMO e OOG ao mesmo
 // tempo paga o THD normal com 150% de majoração (× 2,5), sem revisão manual.
@@ -34,7 +34,7 @@ function migrationApplied() {
   }
 }
 
-const describeLocal = migrationApplied() ? describe : describe.skip
+const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied')
 
 function asAdmin(sql: string) {
   return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `

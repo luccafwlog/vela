@@ -73,8 +73,7 @@ volta ao estoque e fica fora da Demurrage (migration `121`): o banco nunca o
 deixa `overdue` (`trg_soc_container_never_overdue`), recusa item de fatura de
 Demurrage para ele (`trg_guard_demurrage_item_not_soc`) e o exclui do conjunto
 "todos os containers devolvidos" que `assert_demurrage_invoice_complete` exige.
-A aba `Containers` e a emissão (`createInvoiceForBL`,
-`createInvoiceForReturnedBL`) também o deixam de fora, salvo container já
+A aba `Containers` e a emissão (`createInvoiceForBL`) também o deixam de fora, salvo container já
 congelado numa fatura ativa. Desde a migration `178`, o SOC também não conta
 como devolução pendente na planilha de datas nem na emissão automática.
 
@@ -115,7 +114,8 @@ Migration `178` (ADR 0078, itens 19 e 20):
   é atômico; um B/L recusado não desfaz os outros). Quando todos os containers
   do B/L foram devolvidos, a RPC enfileira o efeito `demurrage_billing`; a
   emissão depende do `import-effects-runner`, hoje pausado, e não há emissão
-  no navegador (`createInvoiceForReturnedBL` não tem chamador).
+  no navegador (`createInvoiceForReturnedBL`, que não tinha chamador, saiu na
+  Etapa 12 do plano de correção das importações).
 - O modal `Editar datas do container` altera descarga e devolução, validando
   formato e ordem antes da escrita.
 - As abas de invoice consultam um status exato por vez (`issued`, `paid` ou

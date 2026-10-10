@@ -13,58 +13,6 @@ export type ManifestoMercante = {
   updated_at?: string
 }
 
-export type CreateManifestoMercanteInput = {
-  voyage_id: number
-  pol: string
-  pod: string
-  numero: string
-  natureza: ManifestoMercanteNatureza
-}
-
-export async function createManifestoMercante(
-  input: CreateManifestoMercanteInput,
-): Promise<ManifestoMercante> {
-  const pol = input.pol.trim()
-  const pod = input.pod.trim()
-  // Forma canônica: o banco guarda 13 letras ou dígitos (migration 180).
-  const numero = canonicalManifestoNumero(input.numero)
-  const natureza = input.natureza
-
-  if (!pol || !pod) {
-    throw new Error('Portos de origem (POL) e destino (POD) são obrigatórios.')
-  }
-  if (!numero) {
-    throw new Error('Número do manifesto Mercante é obrigatório.')
-  }
-  if (!MANIFESTO_NUMERO_PATTERN.test(numero)) {
-    throw new Error('O Nº de Manifesto Mercante tem 13 caracteres, letras ou dígitos (ex.: 1226501860578).')
-  }
-  if (natureza !== 'carga' && natureza !== 'vazio') {
-    throw new Error('Natureza do manifesto deve ser "carga" ou "vazio".')
-  }
-
-  const { data, error } = await supabase
-    .from('manifestos_mercante')
-    .insert({
-      voyage_id: input.voyage_id,
-      pol,
-      pod,
-      numero,
-      natureza,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    if (error.code === '23505') {
-      throw new Error(`O número de manifesto Mercante "${numero}" já foi cadastrado no sistema.`)
-    }
-    throw error
-  }
-
-  return data as ManifestoMercante
-}
-
 export async function listManifestosMercanteByVoyage(
   voyageId: number,
 ): Promise<ManifestoMercante[]> {

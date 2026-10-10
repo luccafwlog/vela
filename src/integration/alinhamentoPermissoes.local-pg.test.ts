@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 // Bloco 3 do plano docs/archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md:
 // execução real no Postgres descartável (scripts/setup-local-pg.sh), não só o
@@ -31,7 +32,7 @@ function migration077Applied() {
   }
 }
 
-const describeLocal = migration077Applied() ? describe : describe.skip
+const describeLocal = describeWithProbe(migration077Applied, 'migration077Applied')
 
 const CARRIER_ID = 7701
 const VESSEL_ID = 7702
@@ -108,7 +109,7 @@ function migration078Applied() {
   }
 }
 
-const describe078 = migration078Applied() ? describe : describe.skip
+const describe078 = describeWithProbe(migration078Applied, 'migration078Applied')
 
 describe078('078 — PIX sem conciliação na fila do Administrativo', () => {
   const ENTITY = 'pix-078-local-pg'
@@ -148,7 +149,7 @@ function migration079Applied() {
   }
 }
 
-const describe079 = migration079Applied() ? describe : describe.skip
+const describe079 = describeWithProbe(migration079Applied, 'migration079Applied')
 
 describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
   const BL_ID = 'BL079LOCALPG'
@@ -228,7 +229,7 @@ function migration133Applied() {
   }
 }
 
-const describe133 = migration133Applied() ? describe : describe.skip
+const describe133 = describeWithProbe(migration133Applied, 'migration133Applied')
 
 describe133('133 — Histórico do B/L sem alterações fictícias da criação', () => {
   const BL_ID = 'BL122LOCALPG'
@@ -287,53 +288,10 @@ describe133('133 — Histórico do B/L sem alterações fictícias da criação'
   })
 })
 
-function migration080Applied() {
-  if (!enabled) return false
-  try {
-    return psql(`SELECT count(*) FROM pg_policies WHERE tablename = 'voyage_export_schedules' AND policyname = 'voyage_export_schedules_delete_active_global';`) === '1'
-  } catch {
-    return false
-  }
-}
-
-const describe080 = migration080Applied() ? describe : describe.skip
-
-describe080('080 — escala de exportação sem vínculo removida por qualquer Departamento', () => {
-  const OPS = '77777777-0000-4000-8000-000000000080'
-  const SCHEDULE = '80808080-0000-4000-8000-000000000080'
-
-  function clean() {
-    psql(`
-      SET session_replication_role = replica;
-      DELETE FROM public.voyage_export_schedules WHERE id = '${SCHEDULE}';
-      DELETE FROM public.voyages WHERE id = 7803;
-      DELETE FROM public.vessels WHERE id = 7802;
-      DELETE FROM public.carriers WHERE id = 7801;
-      DELETE FROM public.user_profiles WHERE id = '${OPS}';
-      DELETE FROM auth.users WHERE id = '${OPS}';
-      SET session_replication_role = origin;
-    `)
-  }
-
-  beforeAll(() => {
-    clean()
-    psql(`
-      INSERT INTO auth.users (id, email) VALUES ('${OPS}', 'ops-080@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${OPS}', 'Operações 080', 'operacoes', true);
-      INSERT INTO public.carriers (id, name) VALUES (7801, 'Carrier 080');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (7802, 'Vessel 080', 7801);
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (7803, 7802, 'V080', 'active');
-      INSERT INTO public.voyage_export_schedules (id, voyage_id, pol, tem_exportacao) VALUES ('${SCHEDULE}', 7803, 'BRVIX', true);
-    `)
-  })
-  afterAll(clean)
-
-  it('Operações apaga a exportação sem Granito nem vazios', () => {
-    const result = runAs(OPS, `DELETE FROM public.voyage_export_schedules WHERE id = '${SCHEDULE}';`)
-    expect(result.stderr).toBe('')
-    expect(psql(`SELECT count(*) FROM public.voyage_export_schedules WHERE id = '${SCHEDULE}';`)).toBe('0')
-  })
-})
+// O bloco da migration 080 (escala de exportação removida por qualquer
+// Departamento) saiu na Etapa 12 do plano de correção das importações: a
+// política `voyage_export_schedules_delete_active_global` não existe mais no
+// replay, e a sonda pulava o bloco em silêncio.
 
 function migration081Applied() {
   if (!enabled) return false
@@ -344,7 +302,7 @@ function migration081Applied() {
   }
 }
 
-const describe081 = migration081Applied() ? describe : describe.skip
+const describe081 = describeWithProbe(migration081Applied, 'migration081Applied')
 
 describe081('081 — Administrativo responde disputa de Demurrage', () => {
   const ADMIN = '77777777-0000-4000-8000-000000000081'
@@ -416,7 +374,7 @@ function migration082Applied() {
   }
 }
 
-const describe082 = migration082Applied() ? describe : describe.skip
+const describe082 = describeWithProbe(migration082Applied, 'migration082Applied')
 
 describe082('082 — CE Mercante por planilha tudo ou nada', () => {
   const USER = '77777777-0000-4000-8000-000000000820'

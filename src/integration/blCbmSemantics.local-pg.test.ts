@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { describe, expect, it, beforeAll, afterAll } from 'vitest'
+import { expect, it, beforeAll, afterAll } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 /**
  * Contraprovas da migration 064 (achados A3, A4 e A8 da auditoria de
@@ -30,7 +31,7 @@ function cbmSemanticsPresent(): boolean {
   }
 }
 
-const describeLocal = cbmSemanticsPresent() ? describe : describe.skip
+const describeLocal = describeWithProbe(cbmSemanticsPresent, 'cbmSemanticsPresent')
 
 const carrierId = 6406401
 const vesselId = 6406402
@@ -67,7 +68,7 @@ describeLocal('064 — cubagem com dono único e sinal de carga solta completo',
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'CBM064 Vessel', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status)
         VALUES (${voyageId}, ${vesselId}, 'CBM064', 'active');
-      INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${customerId}, 'CBM064 Customer', '11222333000181');
+      INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${customerId}, 'CBM064 Customer', '64064040000180');
     `)
   })
 

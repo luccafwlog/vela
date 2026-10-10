@@ -665,21 +665,43 @@ gravar. Checagens: `programacaoPlanilha.local-pg` (no CI),
 
 ## Etapa 12 — Testes e CI
 
-- [ ] Incluir no CI as 12 suítes `local-pg` hoje fora da lista, depois de
+- [x] Incluir no CI as 12 suítes `local-pg` hoje fora da lista, depois de
   corrigir o isolamento (`containerOwnership` apaga
   `customer_portal_accounts` e usa CNPJ sintético).
-- [ ] Ordem explícita no CI (sequenciador ou passo próprio para a bateria
+- [x] Ordem explícita no CI (sequenciador ou passo próprio para a bateria
   financeira) e limpeza de resíduo global no teardown.
-- [ ] Sonda negativa com `LOCAL_PG_INTEGRATION=1` falha o teste em vez de
+- [x] Sonda negativa com `LOCAL_PG_INTEGRATION=1` falha o teste em vez de
   `describe.skip`; remover o bloco 080 obsoleto de `alinhamentoPermissoes`.
-- [ ] Converter os contratos textuais críticos de importação que leem
+- [x] Converter os contratos textuais críticos de importação que leem
   `migrations_archive` em `local-pg`, ou aposentá-los.
-- [ ] Remover ou religar o código sem chamador (`maybeAutoBillAfterCeMercante`,
+- [x] Remover ou religar o código sem chamador (`maybeAutoBillAfterCeMercante`,
   hooks de manifesto, `createInvoiceForReturnedBL`) e seus testes.
-- [ ] Checagem que falha quando surge `*.local-pg.test.ts` fora da lista do CI.
+- [x] Checagem que falha quando surge `*.local-pg.test.ts` fora da lista do CI.
 
 **Aceitação:** todas as suítes `local-pg` no CI, verdes em ordem natural e
 invertida; nenhuma suíte pulada por sonda com a variável ligada.
+
+**Execução (2026-10-10, local):**
+- As 10 suítes fora da lista (eram 12; `ceMercanteAutoBilling` e
+  `portalBillingRelease` entraram na Etapa 8) estão no CI. `containerOwnership`
+  e `blCbmSemantics` usam CNPJ exclusivo e apagam só as contas de Portal do
+  próprio Cliente; `blDocumentalGates` e `containerProfile` apagam as versões
+  de regra que criam.
+- A bateria financeira roda num passo próprio, depois das demais.
+- `describeWithProbe` (`src/integration/localTestData.ts`): com
+  `LOCAL_PG_INTEGRATION=1`, sonda falsa é teste que falha; o bloco 080 de
+  `alinhamentoPermissoes` saiu.
+- Aposentados os contratos textuais `breakbulkImportAtomicMigration` (144
+  arquivada; coberto por `auditoriaImportacaoCargaSolta`) e
+  `vehicleExemptionRequiresLclMovementMigration` (265 arquivada; coberto por
+  `veiculosRegras`). Os de relink (357/360) ficam: cobrem recusas que a suíte
+  de banco não exercita.
+- Removidos `maybeAutoBillAfterCeMercante` (a emissão do CE é
+  `emit_ce_mercante_billing`, que abre `billing_auto_issue_failed` por B/L),
+  `useCreateManifestoMercante`/`createManifestoMercante` (o cadastro é pela
+  RPC canônica da `180`) e `createInvoiceForReturnedBL`, com os testes.
+- `npm run localpg:check` (no CI) falha quando surge `*.local-pg.test.ts` fora
+  da lista.
 
 ## Etapa 13 — Ligar o processamento automático (ADR 0078, item 18)
 

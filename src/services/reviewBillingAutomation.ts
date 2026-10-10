@@ -3,7 +3,6 @@ import {
   calculateBlLocalCharges,
   type LocalChargeCalculationResult,
 } from './charges/chargeOperationsService'
-import { logOperationalEvent } from './operationalEvents'
 import { createAlert, resolveAlertItem } from './alerts'
 import { supabase } from './supabase'
 import { isCustomerReconciliationResolved } from './customerReconciliation'
@@ -321,66 +320,4 @@ export async function tryAutoIssueInvoice({
   })
 
   return { status: 'invoiced', invoiceResult }
-}
-
-export async function maybeAutoBillAfterCeMercante(blId: string, actorId: string | null) {
-  const { data, error } = await supabase
-    .from('bls')
-    .select('id, voyage_id, customer_id, customer_reconciliation_status, cargo_mode, financial_status')
-    .eq('id', blId)
-    .single()
-  if (error) {
-    return {
-      status: 'blocked',
-      reason: 'rpc_error',
-      message: error instanceof Error ? error.message : 'Falha ao consultar o B/L para o auto faturamento.',
-      unexpected: true,
-      stage: 'lookup',
-    }
-  }
-
-  const bl = data as {
-    id: string
-    voyage_id?: number | null
-    customer_id: number | null
-    customer_reconciliation_status: string | null
-    cargo_mode: string | null
-    financial_status: string | null
-  } | null
-
-  if (!bl?.customer_id || !isCustomerReconciliationResolved(bl.customer_reconciliation_status)) return null
-  const cargoMode = bl.cargo_mode ?? 'container'
-  if (cargoMode !== 'container' && cargoMode !== 'carga_solta' && cargoMode !== 'misto' && cargoMode !== '') return null
-
-  // Reimport de CE em B/L ja faturado e no-op benigno: create_invoice_from_bls_core
-  // recusaria a segunda fatura. Registramos como info e nao tentamos refaturar.
-  if ((bl.financial_status ?? 'pending') !== 'pending') {
-    await logOperationalEvent({
-      code: 'ce_reimport_already_invoiced',
-      message: `Reimport de CE Mercante em B/L ja faturado (${bl.financial_status}); refaturamento ignorado.`,
-      changedBy: actorId,
-      entityId: bl.id,
-      context: { source: 'ce_auto_billing', financial_status: bl.financial_status },
-    })
-    return null
-  }
-
-  const result = await tryAutoIssueInvoice({ blId: bl.id, customerId: bl.customer_id, actorId })
-  if (result.status === 'blocked' && result.reason === 'rpc_error' && result.stage === 'emission') {
-    await createAlert({
-      type: 'billing_auto_issue_failed',
-      entityType: 'bl',
-      entityId: bl.id,
-      message: result.message,
-      metadata: { source: 'local_invoice_emission', correction_route: '/taxas-locais', failure_stage: 'emission' },
-    })
-    await logOperationalEvent({
-      code: 'bl_auto_billing_failed',
-      message: result.message,
-      changedBy: actorId,
-      entityId: bl.id,
-      context: { source: 'ce_auto_billing' },
-    })
-  }
-  return result
 }

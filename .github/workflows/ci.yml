@@ -50,6 +50,10 @@ jobs:
         # "Data status" do AGENTS.md e tem de declarar isso no cabeçalho.
         run: npm run migrations:check
 
+      - name: Local-pg suites listed in CI
+        # Toda suíte `*.local-pg.test.ts` precisa estar no job local-pg.
+        run: npm run localpg:check
+
       - name: Destructive migration check self-test
         run: node scripts/check-destructive-migrations.test.mjs
 
@@ -172,13 +176,15 @@ jobs:
         #
         # A lista é explícita, não `src/integration/`, porque estas suítes
         # compartilham um único banco e precisam de execução serializada.
-        # A bateria financeira fica por último porque altera temporariamente
-        # o snapshot global de PTAX e o restaura no teardown.
+        # A bateria financeira roda no passo seguinte, sozinha, porque altera
+        # temporariamente o snapshot global de PTAX e confere que nenhuma suíte
+        # deixou tarifa ou cálculo residual (ordem explícita, Etapa 12 do plano
+        # de correção das importações). `npm run localpg:check` falha quando
+        # surge um `*.local-pg.test.ts` fora destas duas listas.
         #
-        # As suítes `auditoria*` da revisão das importações (2026-10-09) usam
-        # `it.fails`: cada caso documenta um defeito confirmado e fica verde
-        # enquanto o defeito existir. A correção que o resolver deve trocar o
-        # caso por `it` (docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md).
+        # Sonda de pré-requisito com LOCAL_PG_INTEGRATION=1 falha o teste
+        # (`describeWithProbe` em src/integration/localTestData.ts), em vez de
+        # pular a suíte em silêncio.
         env:
           LOCAL_PG_INTEGRATION: '1'
           LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
@@ -247,7 +253,22 @@ jobs:
             src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts \
             src/integration/auditoriaFaturasDemurrageComunicado.local-pg.test.ts \
             src/integration/conditionUsd.local-pg.test.ts \
-            src/integration/financialBattery.local-pg.test.ts
+            src/integration/baplieFlagsOnBlImport.local-pg.test.ts \
+            src/integration/blCbmSemantics.local-pg.test.ts \
+            src/integration/blDocumentalGates.local-pg.test.ts \
+            src/integration/containerOwnership.local-pg.test.ts \
+            src/integration/containerProfile.local-pg.test.ts \
+            src/integration/cronDispatchTimeout.local-pg.test.ts \
+            src/integration/customerCommunicationPartial.local-pg.test.ts \
+            src/integration/customerCommunicationReadinessGuards.local-pg.test.ts \
+            src/integration/pixBrCode.local-pg.test.ts \
+            src/integration/voyageHardDeleteGuard.local-pg.test.ts
+
+      - name: Run the financial battery after the other suites
+        env:
+          LOCAL_PG_INTEGRATION: '1'
+          LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
+        run: npx vitest run src/integration/financialBattery.local-pg.test.ts
 
       - name: Verify the executed RPC catalog
         # `npm run rpc:check` existia no package.json sem nenhum gate a executá-lo.

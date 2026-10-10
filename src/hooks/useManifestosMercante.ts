@@ -1,11 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  createManifestoMercante,
   listManifestosMercanteByVoyage,
   listVoyageBlsForManifesto,
   moveBlsToManifestoMercante,
   unlinkBlsFromManifestoMercante,
-  type CreateManifestoMercanteInput,
   type ManifestoMercante,
 } from '../services/manifestosMercanteService'
 import { queryKeys } from '../services/queryKeys'
@@ -15,17 +13,6 @@ export function useManifestosMercanteByVoyage(voyageId: number | null | undefine
     queryKey: queryKeys.manifestosMercante.byVoyage(voyageId ?? 0),
     enabled: voyageId != null && voyageId > 0,
     queryFn: () => listManifestosMercanteByVoyage(voyageId!),
-  })
-}
-
-export function useCreateManifestoMercante() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: CreateManifestoMercanteInput) => createManifestoMercante(input),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.byVoyage(variables.voyage_id) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() })
-    },
   })
 }
 

@@ -442,9 +442,9 @@ ignorado, com 634 testes aprovados e 9 ignorados.
 - B/L pós-PRs: `src/lib/__tests__/ncm.test.ts`, `src/pages/__tests__/blTabs.test.tsx`, `src/components/bl/__tests__/blTimelinePresentation.test.ts`.
 - Carga solta: `src/services/__tests__/breakbulkImport.test.ts` e `breakbulkFixtures.real.test.ts`.
 - B/L avulso de carga solta: `src/services/__tests__/blDocumentParser.test.ts` (os dois modelos reais, reduzidos ao texto, em `fixtures/`), `blDocumentImport.test.ts` (bloqueio por navio/viagem) e `src/lib/__tests__/zipEntry.test.ts` (leitura do `.docx`).
-- Atomicidade BB: `src/services/__tests__/breakbulkImportAtomicMigration.test.ts`;
-  replay limpo de 144 migrations e cenário transacional com rollback em
-  PostgreSQL 17 (`breakbulk-import-atomic`).
+- Atomicidade e reimportação BB: `src/integration/auditoriaImportacaoCargaSolta.local-pg.test.ts`
+  (no CI; o contrato textual da `144` arquivada foi aposentado na Etapa 12 do
+  plano de correção das importações).
 - Containers/veículos/Baplie/vazios: `containerDatesImport.test.ts`, `vehicleImport.test.ts`, `baplieReconciliation.test.ts`, `vaziosImportacaoImport.test.ts`, `vaziosImportsAtomic.test.ts`.
 - `src/services/__tests__/uploadLimits.test.ts` comprova o guard antes da leitura para base de clientes e PIX; para os parsers deste módulo, a cobertura do guard foi confirmada estaticamente pelas chamadas a `assertUploadSize`.
 

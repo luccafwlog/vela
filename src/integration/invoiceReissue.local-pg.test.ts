@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { syntheticCnpj, describeWithProbe } from './localTestData'
 
 // Migrations 122 e 128 (ADR 0077): fatura emitida não muda de valor; a
 // reemissão aponta para a cancelada e a pendência some quando não há o que
@@ -24,7 +24,7 @@ function migrationApplied() {
   }
 }
 
-const describeLocal = migrationApplied() ? describe : describe.skip
+const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied')
 
 const customerId = 99212101
 const carrierId = 99212102

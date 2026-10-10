@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 // Migration 088 (ADR 0071): o CE Mercante trava a exclusão; sem trava, a
 // viagem sai com tudo que é dela; escala e atracação respeitam a trava e o
@@ -23,7 +24,7 @@ function functionPresent() {
   }
 }
 
-const describeLocal = functionPresent() ? describe : describe.skip
+const describeLocal = describeWithProbe(functionPresent, 'functionPresent')
 
 const ADMIN_ID = '08800000-0000-4000-8000-0000000000a1'
 const OPS_ID = '08800000-0000-4000-8000-0000000000b1'

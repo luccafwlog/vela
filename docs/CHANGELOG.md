@@ -4,6 +4,11 @@
 
 ## 2026-10
 
+- **Testes e CI (2026-10-10; Etapa 12 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  todas as 74 suítes `local-pg` rodam no CI (`npm run localpg:check` impede suíte fora da lista);
+  sonda de pré-requisito falha em vez de pular; a bateria financeira tem passo próprio; fixtures
+  sem resíduo global; código sem chamador removido.
 - **Programação por planilha (2026-10-10, implementação local; Etapa 11 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   em Chegadas e Saídas, a planilha mostra antes o que cria e o que muda por viagem e grava tudo

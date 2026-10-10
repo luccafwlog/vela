@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -24,7 +25,7 @@ function guardPresent() {
   }
 }
 
-const describeLocal = guardPresent() ? describe : describe.skip
+const describeLocal = describeWithProbe(guardPresent, 'guardPresent')
 
 const CARRIER_ID = 6706701
 const VESSEL_ID = 6706702

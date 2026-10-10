@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 // Migration 089 (ADR 0071, itens 5, 8 e 9): B/L com CE que não segue é
 // cancelado, fica selado e não entra em fatura; volta por Reativar. Viagem
@@ -24,7 +25,7 @@ function functionPresent() {
   }
 }
 
-const describeLocal = functionPresent() ? describe : describe.skip
+const describeLocal = describeWithProbe(functionPresent, 'functionPresent')
 
 const ADMIN_ID = '08900000-0000-4000-8000-0000000000a1'
 const OPS_ID = '08900000-0000-4000-8000-0000000000b1'

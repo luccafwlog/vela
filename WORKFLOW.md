@@ -647,7 +647,13 @@ Para Postgres local, depois do replay, execute as suítes relevantes com
 `npx vitest run --no-file-parallelism <arquivos.local-pg.test.ts>`.
 Use a lista explícita de `.github/workflows/ci.yml` para reproduzir o gate
 completo; ela inclui `ceUnlock.local-pg.test.ts` e a paridade de Inspeção. As suítes compartilham banco e precisam rodar em série; cada uma deve
-usar seu próprio namespace de IDs e documentos nas fixtures.
+usar seu próprio namespace de IDs e documentos nas fixtures e apagar o que
+cria, inclusive versões de regra de tarifa e contas de Portal do próprio Cliente:
+a bateria financeira roda num passo próprio, por último, e falha com resíduo
+global. Toda suíte nova entra na lista do CI; `npm run localpg:check` falha
+quando um `*.local-pg.test.ts` fica fora dela. Sonda de pré-requisito usa
+`describeWithProbe` (`src/integration/localTestData.ts`): com
+`LOCAL_PG_INTEGRATION=1`, sonda falsa falha o teste em vez de pular a suíte.
 
 `npm run rpc:check` requer `psql` e banco já preparado. Configure explicitamente
 `LOCAL_DATABASE_URL` para o alvo descartável; o script também aceita

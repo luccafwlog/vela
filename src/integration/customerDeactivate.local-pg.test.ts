@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 // Migration 092 (ADR 0073, itens 5 e 6): cliente desativado sai das escolhas,
 // perde o Portal, não se desativa com cobrança aberta, e B/L com o CNPJ dele
@@ -23,7 +24,7 @@ function functionPresent() {
   }
 }
 
-const describeLocal = functionPresent() ? describe : describe.skip
+const describeLocal = describeWithProbe(functionPresent, 'functionPresent')
 
 const ADMIN_ID = '09200000-0000-4000-8000-0000000000a1'
 const OPS_ID = '09200000-0000-4000-8000-0000000000b1'

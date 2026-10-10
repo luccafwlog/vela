@@ -12,80 +12,15 @@ vi.mock('../../services/supabase', () => ({
 
 import {
   canonicalManifestoNumero,
-  createManifestoMercante,
   moveBlsToManifestoMercante,
   unlinkBlsFromManifestoMercante,
   listManifestosMercanteByRota,
   listManifestosMercanteByVoyage,
-  type CreateManifestoMercanteInput,
 } from '../../services/manifestosMercanteService'
 
 describe('manifestosMercanteService', () => {
   beforeEach(() => {
     mockFrom.mockReset()
-  })
-
-  it('valida campos obrigatorios ao criar manifesto mercante', async () => {
-    await expect(
-      createManifestoMercante({
-        voyage_id: 10,
-        pol: '',
-        pod: 'BRVIX',
-        numero: '26BR000000001',
-        natureza: 'carga',
-      }),
-    ).rejects.toThrow('Portos de origem (POL) e destino (POD) são obrigatórios')
-
-    await expect(
-      createManifestoMercante({
-        voyage_id: 10,
-        pol: 'CNSHA',
-        pod: 'BRVIX',
-        numero: '  ',
-        natureza: 'carga',
-      }),
-    ).rejects.toThrow('Número do manifesto Mercante é obrigatório')
-  })
-
-  it('cria manifesto mercante de carga ou de vazio com sucesso', async () => {
-    const singleMock = vi.fn().mockResolvedValue({
-      data: {
-        id: 'uuid-man-01',
-        voyage_id: 10,
-        pol: 'CNSHA',
-        pod: 'BRVIX',
-        numero: '26BR000000001',
-        natureza: 'carga',
-        created_at: '2026-06-01T10:00:00Z',
-        updated_at: '2026-06-01T10:00:00Z',
-      },
-      error: null,
-    })
-
-    const selectMock = vi.fn().mockReturnValue({ single: singleMock })
-    const insertMock = vi.fn().mockReturnValue({ select: selectMock })
-    mockFrom.mockReturnValue({ insert: insertMock })
-
-    const input: CreateManifestoMercanteInput = {
-      voyage_id: 10,
-      pol: 'CNSHA',
-      pod: 'BRVIX',
-      numero: '26BR000000001',
-      natureza: 'carga',
-    }
-
-    const result = await createManifestoMercante(input)
-    expect(mockFrom).toHaveBeenCalledWith('manifestos_mercante')
-    expect(insertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        voyage_id: 10,
-        pol: 'CNSHA',
-        pod: 'BRVIX',
-        numero: '26BR000000001',
-        natureza: 'carga',
-      }),
-    )
-    expect(result.id).toBe('uuid-man-01')
   })
 
   it('lista N manifestos para a mesma viagem e par de portos', async () => {

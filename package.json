@@ -19,6 +19,7 @@
     "docs:check": "node scripts/check-docs.mjs",
     "rpc:check": "node scripts/check-rpc-catalog.mjs",
     "migrations:check": "node scripts/check-destructive-migrations.mjs",
+    "localpg:check": "node scripts/check-local-pg-ci.mjs",
     "typecheck": "tsc -b",
     "build": "tsc -b && vite build && node scripts/clean-build-artifacts.mjs dist",
     "cloudflare:build:sites": "npm run build && node scripts/cloudflare-pages-stage.mjs internal dist dist/pages-internal && node scripts/cloudflare-pages-stage.mjs portal dist dist/pages-portal",

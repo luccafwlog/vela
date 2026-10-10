@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { describe, expect, it, beforeAll, afterAll } from 'vitest'
+import { expect, it, beforeAll, afterAll } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 /**
  * Contraprovas da auditoria da PR 698 (docs/archive/audits/2026-09-18-auditoria-pr698-carga-mista.md).
@@ -39,7 +40,7 @@ function pr698SchemaPresent(): boolean {
   }
 }
 
-const describeLocal = pr698SchemaPresent() ? describe : describe.skip
+const describeLocal = describeWithProbe(pr698SchemaPresent, 'pr698SchemaPresent')
 
 const portId = 6989801
 const carrierId = 6989802

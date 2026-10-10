@@ -26,9 +26,14 @@ function asAuthenticated(sql: string): { ok: boolean; output: string } {
   return { ok: result.status === 0, output: `${result.stdout}\n${result.stderr}`.trim() }
 }
 
+// O cálculo usa a tabela de seed: as versões de regra que ele cria são
+// apagadas pelo id inicial da suíte (resíduo global que a bateria financeira acusa).
+let firstRuleVersionId: number | null = null
+
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
+    ${firstRuleVersionId === null ? '' : `DELETE FROM public.pricing_rule_versions WHERE id > ${firstRuleVersionId};`}
     DELETE FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id LIKE 'PERFIL115-%';
     DELETE FROM public.charge_calculations WHERE bl_id LIKE 'PERFIL115-%';
     DELETE FROM public.bl_containers WHERE bl_id LIKE 'PERFIL115-%';
@@ -44,6 +49,7 @@ function cleanup() {
 
 describeLocal('set_bl_container_profile — perfil com justificativa e recálculo', () => {
   beforeAll(() => {
+    firstRuleVersionId = Number(psql('SELECT COALESCE(max(id), 0) FROM public.pricing_rule_versions;'))
     cleanup()
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'perfil115@example.test');

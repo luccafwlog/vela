@@ -80,11 +80,6 @@ export async function createInvoiceForBL(blId: string): Promise<number> {
   throw new Error('Nenhum container para faturar neste B/L.')
 }
 
-export async function createInvoiceForReturnedBL(blId: string): Promise<number | null> {
-  const result = await issueDemurrageInvoiceForBl(blId)
-  return result.status === 'issued' && result.invoice_id ? result.invoice_id : null
-}
-
 export async function markInvoicePaid(invoiceId: number, paidAt: string): Promise<void> {
   const { data: inv, error: fetchErr } = await supabase
     .from('demurrage_invoices')
