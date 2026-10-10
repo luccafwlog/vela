@@ -293,6 +293,60 @@ export type ImportGraniteArgs = {
   allowRowErrors?: boolean
   /** Permite importar BLs sem client_id resolvido; esses ficarão sem faturamento */
   allowPending?: boolean
+  /**
+   * Reimportação (ADR 0078, item 25): B/Ls gravados na Viagem que o arquivo novo
+   * não traz só saem se esta confirmação devolver true; sem ela, ficam.
+   */
+  confirmRemoval?: (missingBlNumbers: string[]) => Promise<boolean>
+}
+
+export type GraniteImportResult = {
+  manifestId: string
+  pendingCount: number
+  inserted: number
+  updated: number
+  removed: string[]
+  keptMissing: string[]
+}
+
+/** Números de B/L de Granito já gravados na Viagem. */
+export async function fetchGraniteBlNumbersForVoyage(voyageId: number): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('granite_bls')
+    .select('bl_number, manifest:granite_manifests!inner(voyage_id)')
+    .eq('manifest.voyage_id', voyageId)
+  if (error) throw error
+  return ((data ?? []) as Array<{ bl_number: string }>).map((row) => row.bl_number)
+}
+
+/** B/Ls gravados que o arquivo novo não traz (comparação sem caixa e espaços). */
+export function missingGraniteBls(existing: string[], fileBlNumbers: string[]): string[] {
+  const key = (value: string) => value.trim().toUpperCase()
+  const inFile = new Set(fileBlNumbers.map(key))
+  return existing.filter((number) => !inFile.has(key(number))).sort()
+}
+
+/** Texto da confirmação da saída dos B/Ls ausentes do arquivo novo. */
+export function graniteRemovalConfirmOptions(missing: string[]) {
+  return {
+    title: 'B/Ls fora do arquivo novo',
+    message: `${missing.length} B/L(s) de Granito gravados nesta Viagem não estão no arquivo.`,
+    confirmLabel: 'Tirar da Viagem',
+    cancelLabel: 'Manter gravados',
+    tone: 'danger' as const,
+    consequence: 'Os B/Ls com Invoice nunca saem; os demais saem com o CE e o vínculo de Cliente.',
+    affected: { summary: `${missing.length} B/L(s)`, items: missing },
+  }
+}
+
+/** Resumo da reimportação para o aviso da tela. */
+export function describeGraniteImport(result: GraniteImportResult): string {
+  return [
+    `${result.inserted} novo(s)`,
+    `${result.updated} atualizado(s)`,
+    result.removed.length ? `${result.removed.length} retirado(s)` : '',
+    result.keptMissing.length ? `${result.keptMissing.length} fora do arquivo mantido(s)` : '',
+  ].filter(Boolean).join(', ')
 }
 
 export async function importGraniteManifest({
@@ -302,7 +356,8 @@ export async function importGraniteManifest({
   uploadedBy,
   allowRowErrors = false,
   allowPending = true,
-}: ImportGraniteArgs): Promise<{ manifestId: string; pendingCount: number }> {
+  confirmRemoval,
+}: ImportGraniteArgs): Promise<GraniteImportResult> {
   if (manifest.rowErrors.length && !allowRowErrors) throw new Error(formatGraniteRowErrors(manifest.rowErrors))
 
   const totalWeightKg = manifest.bls.reduce((sum, bl) => sum + bl.real_weight_kg, 0)
@@ -341,6 +396,9 @@ export async function importGraniteManifest({
       charge_status: 'not_calculated' as const,
     }))
 
+  const missing = missingGraniteBls(await fetchGraniteBlNumbersForVoyage(voyageId), manifest.bls.map((bl) => bl.bl_number))
+  const removeMissing = missing.length && confirmRemoval && (await confirmRemoval(missing)) ? missing : []
+
   const { data, error } = await supabase.rpc('import_granite_manifest_transactional', {
     p_voyage_id: voyageId,
     p_vessel_voyage: vesselVoyage,
@@ -350,13 +408,22 @@ export async function importGraniteManifest({
     p_total_weight_kg: totalWeightKg,
     p_uploaded_by: uploadedBy,
     p_bls: blRows,
-  })
+    p_remove_missing: removeMissing,
+  } as never)
   if (error) throw error
   if (data === null || typeof data !== 'object' || Array.isArray(data) || !('manifest_id' in data) || typeof data.manifest_id !== 'string') {
     throw new Error('Falha ao criar manifesto.')
   }
 
   const pendingCount = manifest.bls.filter((bl) => bl.reconciliationStatus !== 'matched').length
+  const raw = data as { manifest_id: string; inserted_bls?: number; updated_bls?: number; removed_bl_numbers?: string[]; kept_missing_bl_numbers?: string[] }
 
-  return { manifestId: data.manifest_id, pendingCount }
+  return {
+    manifestId: raw.manifest_id,
+    pendingCount,
+    inserted: Number(raw.inserted_bls ?? 0),
+    updated: Number(raw.updated_bls ?? 0),
+    removed: raw.removed_bl_numbers ?? [],
+    keptMissing: raw.kept_missing_bl_numbers ?? [],
+  }
 }

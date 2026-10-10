@@ -889,7 +889,8 @@ faturamento financeiro.
 
 O CE Mercante de Granito não calcula nem emite: o cálculo do Granito é feito
 pela Validação. Reimportar a planilha COSCO da mesma Viagem atualiza os B/Ls
-pelo número, preservando CE e Cliente ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+pelo número, preservando CE e Cliente; B/L ausente do arquivo novo só sai com
+confirmação e nunca com Invoice ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `185`).
 
 ## Baplie e reconciliação
 

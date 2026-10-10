@@ -62,6 +62,7 @@ describe('atomic Granite manifest import', () => {
       data: { manifest_id: 'manifest-1', inserted_bls: 1 },
       error: null,
     })
+    mockFrom.mockReturnValue({ select: () => ({ eq: async () => ({ data: [], error: null }) }) })
 
     const result = await importGraniteManifest({
       filename: 'granite.xlsx',
@@ -70,7 +71,8 @@ describe('atomic Granite manifest import', () => {
       uploadedBy: 'user-1',
     })
 
-    expect(mockFrom).not.toHaveBeenCalled()
+    // Única leitura: os B/Ls já gravados na Viagem, para a reimportação.
+    expect(mockFrom).toHaveBeenCalledWith('granite_bls')
     expect(mockRpc).toHaveBeenCalledWith(
       'import_granite_manifest_transactional',
       expect.objectContaining({
@@ -86,7 +88,21 @@ describe('atomic Granite manifest import', () => {
         })],
       }),
     )
-		expect(result).toEqual({ manifestId: 'manifest-1', pendingCount: 0 })
+		expect(result).toEqual({ manifestId: 'manifest-1', pendingCount: 0, inserted: 1, updated: 0, removed: [], keptMissing: [] })
+	})
+
+	it('reimportação: ausentes do arquivo só saem com confirmação', async () => {
+    mockRpc.mockResolvedValue({ data: { manifest_id: 'manifest-1', inserted_bls: 0, updated_bls: 1, removed_bl_numbers: ['BL-OLD'] }, error: null })
+    mockFrom.mockReturnValue({ select: () => ({ eq: async () => ({ data: [{ bl_number: 'BL-1' }, { bl_number: 'BL-OLD' }], error: null }) }) })
+    const confirmRemoval = vi.fn().mockResolvedValue(true)
+    const result = await importGraniteManifest({ filename: 'g.xlsx', voyageId: 12, manifest, uploadedBy: 'user-1', confirmRemoval })
+    expect(confirmRemoval).toHaveBeenCalledWith(['BL-OLD'])
+    expect(mockRpc).toHaveBeenCalledWith('import_granite_manifest_transactional', expect.objectContaining({ p_remove_missing: ['BL-OLD'] }))
+    expect(result).toMatchObject({ updated: 1, removed: ['BL-OLD'] })
+
+    confirmRemoval.mockResolvedValue(false)
+    await importGraniteManifest({ filename: 'g.xlsx', voyageId: 12, manifest, uploadedBy: 'user-1', confirmRemoval })
+    expect(mockRpc).toHaveBeenLastCalledWith('import_granite_manifest_transactional', expect.objectContaining({ p_remove_missing: [] }))
 	})
 
 	it('bloqueia erros de linha no service sem o override explícito', async () => {

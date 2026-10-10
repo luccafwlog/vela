@@ -604,7 +604,7 @@ prévia de B/L avisa COD e porto omitido. Checagens: `codDocumentoFatura.local-p
   vínculo por documento, Revisão liberada e faturamento seguindo; B/L rejeitado
   nunca vinculado; razão social diferente pede confirmação; telas de Revisão e
   Faturamento invalidadas.
-- [ ] **Granito:** reimportação atualiza por número de B/L na Viagem,
+- [x] **Granito:** reimportação atualiza por número de B/L na Viagem,
   preservando CE e Cliente; B/L ausente do arquivo novo sai só com confirmação;
   CE de Granito continua sem cálculo automático.
 - [ ] **Vazios:** reimportação da mesma rota substitui o manifesto preservando
@@ -635,6 +635,14 @@ diferente recusa sem ela), vincula só B/Ls pendentes e não rejeitados como
 os B/Ls que cada CNPJ vincula e os rejeitados; a tela confirma a troca de razão
 social e invalida Revisão e carga/faturamento. Checagens:
 `baseClientesVinculo.local-pg` (no CI), `customerBase.test.ts`.
+
+**Execução — Granito (2026-10-10, local):** migration `185` —
+`import_granite_manifest_transactional` ganha `p_remove_missing`; com B/Ls já
+gravados na Viagem, atualiza por número preservando CE, Cliente e status de
+cobrança, inclui os novos no manifesto mais recente e tira os ausentes só com
+confirmação (nunca com Invoice), com Histórico; enfileira `granite_billing` só
+para novo ou alterado. A tela confirma a saída dos ausentes. Checagens:
+`granitoReimportacao.local-pg` (no CI), `graniteImportAtomic.test.ts`.
 
 ## Etapa 12 — Testes e CI
 

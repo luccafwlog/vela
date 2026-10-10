@@ -25,7 +25,7 @@ import {
   type BreakbulkNumberFormat,
   type ParseBreakbulkOptions,
 } from '../../services/breakbulkImport'
-import { importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
+import { describeGraniteImport, graniteRemovalConfirmOptions, importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
 import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestNumbers } from '../../services/vaziosImportacaoImport'
 import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from './VaziosImportacaoImportParts'
 import { importVehicleRows, parseVehicleImportFile, vehicleUnpackingConfirmOptions } from '../../services/vehicleImport'
@@ -106,6 +106,7 @@ export function VoyageImportActions({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  const confirmGranite = useConfirm()
   const { profile } = useAuth()
   const canEditVazios = Boolean(profile || userId)
   const canEditVehicles = Boolean(profile || userId)
@@ -238,7 +239,10 @@ export function VoyageImportActions({
           canImport={(p, override) => p.bls.length > 0 && (p.rowErrors.length === 0 || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
           importer={async (preview, file, override) => {
-            const result = await importGraniteManifest({ filename: file.name, voyageId, manifest: preview, uploadedBy: userId, allowRowErrors: Boolean(override) })
+            const result = await importGraniteManifest({
+              filename: file.name, voyageId, manifest: preview, uploadedBy: userId, allowRowErrors: Boolean(override),
+              confirmRemoval: (missing) => confirmGranite(graniteRemovalConfirmOptions(missing)),
+            })
             await Promise.all([
               invalidateAfterBLImport(),
               queryClient.invalidateQueries({ queryKey: ['voyages'] }),
@@ -247,7 +251,7 @@ export function VoyageImportActions({
               // P0-4: alimenta "Carga carregada" no ADR.
               queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
             ])
-            showToast(`Manifesto Granito importado: ${preview.bls.length} B/L(s).`, 'success')
+            showToast(`Manifesto Granito importado: ${describeGraniteImport(result)}.`, 'success')
             return result
           }}
           renderPreview={(preview) => {

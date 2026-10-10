@@ -4,6 +4,11 @@
 
 ## 2026-10
 
+- **Granito (2026-10-10, implementação local; Etapa 11 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  reimportar a planilha COSCO da mesma Viagem atualiza os B/Ls pelo número, preservando CE e
+  Cliente, sem duplicar; B/L que o arquivo novo não traz só sai com confirmação e nunca com
+  Invoice (migration `185`, ADR 0078 item 25).
 - **Base de Clientes (2026-10-10, implementação local; Etapa 11 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   a prévia mostra os B/Ls que cada CNPJ vincula; o vínculo vale só para B/L pendente de Cliente
