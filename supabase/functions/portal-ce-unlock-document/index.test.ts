@@ -8,7 +8,8 @@ try {
   Deno.serve = serve;
 }
 
-async function uploadScenario(options: { invalid?: boolean; storeError?: boolean; finishError?: boolean; registered?: boolean }) {
+const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+async function uploadScenario(options: { invalid?: boolean; storeError?: boolean; finishError?: boolean; registered?: boolean; model?: "docx" | "pdf" }) {
   const originalFetch = globalThis.fetch;
   const variables = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"];
   const previous = variables.map(name => Deno.env.get(name));
@@ -16,9 +17,14 @@ async function uploadScenario(options: { invalid?: boolean; storeError?: boolean
   Deno.env.set(variables[1], "test-anon");
   Deno.env.set(variables[2], "test-service");
   const calls: string[] = [];
-  globalThis.fetch = async (input) => {
+  let storedType: string | null = null;
+  globalThis.fetch = async (input, init) => {
     const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
     calls.push(path);
+    if (path.endsWith("/customer/test.pdf")) {
+      const body = input instanceof Request ? input.body : init?.body;
+      storedType = body instanceof Blob ? body.type : new Headers(input instanceof Request ? input.headers : init?.headers).get("content-type");
+    }
     let value: unknown;
     let status = 200;
     if (path === "/auth/v1/user") value = { id: "00000000-0000-0000-0000-000000000001" };
@@ -37,13 +43,18 @@ async function uploadScenario(options: { invalid?: boolean; storeError?: boolean
   };
   try {
     const form = new FormData();
-    form.set("context", JSON.stringify({ source: "request", type: "termo", request_id: "request" }));
-    form.set("file", new File([options.invalid ? "not a PDF" : "%PDF-1.7\nbody"], "test.pdf", { type: "application/pdf" }));
+    if (options.model === "docx") {
+      form.set("context", JSON.stringify({ source: "model", type: "model" }));
+      form.set("file", new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04]), "word/document.xml"], "termo.docx", { type: DOCX }));
+    } else {
+      form.set("context", JSON.stringify(options.model ? { source: "model", type: "model" } : { source: "request", type: "termo", request_id: "request" }));
+      form.set("file", new File([options.invalid ? "not a PDF" : "%PDF-1.7\nbody"], "test.pdf", { type: "application/pdf" }));
+    }
     const response = await handler(new Request("https://function.example.test", {
       method: "POST", headers: { Authorization: "Bearer test-session" }, body: form,
     }));
     await response.text();
-    return { status: response.status, calls };
+    return { status: response.status, calls, storedType };
   } finally {
     globalThis.fetch = originalFetch;
     variables.forEach((name, index) => previous[index] === undefined ? Deno.env.delete(name) : Deno.env.set(name, previous[index]!));
@@ -75,4 +86,13 @@ Deno.test("successful upload finalizes without compensation", async () => {
   assert(result.status === 201, `Unexpected status: ${result.status}`);
   assert(result.calls.some(path => path.endsWith("ce_unlock_finish_upload")), "Upload was not finalized");
   assert(!result.calls.some(path => path.endsWith("ce_unlock_abort_upload")), "Successful upload was aborted");
+});
+
+Deno.test("desk model is stored as DOCX; a PDF model is refused before reserving", async () => {
+  const docx = await uploadScenario({ model: "docx" });
+  assert(docx.status === 201, `Unexpected status: ${docx.status}`);
+  assert(docx.storedType === DOCX, `Unexpected stored type: ${docx.storedType}`);
+  const pdf = await uploadScenario({ model: "pdf" });
+  assert(pdf.status === 422, `Unexpected status: ${pdf.status}`);
+  assert(!pdf.calls.some(path => path.endsWith("ce_unlock_prepare_upload")), "PDF model reserved a document");
 });

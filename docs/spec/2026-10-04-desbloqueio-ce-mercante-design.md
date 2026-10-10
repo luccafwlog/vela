@@ -2,6 +2,11 @@
 
 Estado: execução autorizada; implementado no checkout, validação local em andamento
 e publicação pendente. Data: 2026-10-04.
+
+> **Atualização de estado (2026-10-10):** publicado em produção (backend e Cloudflare
+> Pages) e modelo do termo em DOCX cadastrado; compatibilidade frontend/backend,
+> homologação e ativação seguem pendentes. Evidências em "Fontes" do
+> [plano](../plans/2026-10-04-desbloqueio-ce-mercante.md).
 Fonte: [Issue 557](https://github.com/luccafwlog/vela/issues/557), lida com seus
 critérios complementares de 07/09/2026; não há comentários na issue.
 Plano derivado: [implementação](../plans/2026-10-04-desbloqueio-ce-mercante.md).
@@ -59,6 +64,8 @@ referências aos documentos anuais VIP; cada PDF de até
 
 O botão **Baixar modelo do termo** oferece documento oficial versionado,
 homologado pela agência; guardar sua versão no pedido. Não inventar texto jurídico.
+O modelo é `.docx`, para o cliente preencher sem converter; o termo assinado
+volta anexado em PDF (decisão do responsável, 2026-10-10).
 O termo anexado deve abranger todos os B/Ls selecionados e o consignatário;
 a procuração deve representar o mesmo CNPJ. O desk verifica esse conteúdo.
 Upload incompleto fica em rascunho e nunca chega à fila como pedido enviado.

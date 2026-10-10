@@ -458,7 +458,7 @@ export function DesbloqueioCe() {
       <Modal open={manage && panel === "model"} title="Modelo do termo de devolução" onClose={() => setPanel(null)}>
         <div className="space-y-4">
           <p className="text-sm text-[var(--app-muted)]">
-            O PDF publicado aqui fica disponível para download no Portal, na tela de solicitação de desbloqueio.
+            O DOCX publicado aqui fica disponível para download no Portal, na tela de solicitação de desbloqueio. O cliente preenche, assina e anexa o termo em PDF.
           </p>
           {model.data && <CeUnlockDocumentList documents={[model.data]} />}
           {model.isSuccess && !model.data && (

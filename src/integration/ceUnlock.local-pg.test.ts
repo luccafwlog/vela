@@ -384,6 +384,28 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(request.documents.some((d:{file_name:string})=>d.file_name==='failed.pdf')).toBe(false)
   })
 
+  it('modelo do termo é publicado só em DOCX; anexos do pedido continuam só em PDF',()=>{
+    const docx='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    const prepare=(context:object)=>`SELECT public.ce_unlock_prepare_upload('${JSON.stringify(context)}'::jsonb)`
+    // O shim local não tem storage.objects; a tabela mínima vive só nesta transação.
+    const publish=(mime:string)=>sql(`BEGIN;
+      CREATE TABLE storage.objects(bucket_id text,name text,metadata jsonb);
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';
+      CREATE TEMP TABLE reserved ON COMMIT DROP AS ${prepare({source:'model',file_name:'Termo.DOCX',size_bytes:100})} AS r;
+      SELECT r->>'storage_path' FROM reserved;
+      RESET ROLE;
+      INSERT INTO storage.objects SELECT 'ce-unlock-documents',r->>'storage_path',jsonb_build_object('size',100,'mimetype','${mime}') FROM reserved;
+      SET LOCAL ROLE authenticated;
+      SELECT public.ce_unlock_finish_upload((SELECT (r->>'id')::uuid FROM reserved),repeat('c',64))->>'status';
+      ROLLBACK;`)
+    expect(publish(docx).split('\n')).toEqual([expect.stringMatching(/^models\/[0-9a-f-]{36}\.docx$/),'approved'])
+    expect(()=>publish('application/pdf')).toThrow(/Arquivo não confirmado no Storage/)
+    expect(error(`${prepare({source:'model',file_name:'termo.pdf',size_bytes:100})};`,admin)).toContain('Modelo em DOCX obrigatório')
+    expect(reviewScenario(`SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}';
+      SELECT public.ce_unlock_prepare_upload(jsonb_build_object('source','request','type','termo','request_id','${reviewRequest}','file_name','termo.pdf','size_bytes',100))->>'storage_path';`)).toMatch(/\.pdf$/)
+    expect(()=>reviewScenario(`SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}';
+      SELECT public.ce_unlock_prepare_upload(jsonb_build_object('source','request','type','termo','request_id','${reviewRequest}','file_name','termo.docx','size_bytes',100));`)).toThrow(/PDF obrigatório/)
+  })
   it('reservas abortadas não consomem a quota ativa de PDFs',()=>{
     const result=reviewScenario(`
       INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,storage_path,file_name,size_bytes,uploaded_by,cleanup_claimed_at,purged_at)

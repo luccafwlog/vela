@@ -623,15 +623,25 @@ Ao entregar a operação para outra pessoa:
 
 ## Desbloqueio de CE Mercante
 
-**Implementação local, publicação pendente.** Publicar na ordem: migrations
-`137`–`149`, `160` e `161`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
-de produção. As funções são `portal-ce-unlock-document`,
+**Publicado em produção** (conferido em 2026-10-10): migrations `137`–`149`, `160`, `161`
+e `173` e as cinco funções. Frontend Vela/Portal: o workflow *Cloudflare Pages Production*
+(run 176, commit `eb0eadb`) terminou com sucesso; isso prova a publicação, não a
+compatibilidade com o backend, que segue pendente no plano. Em mudanças futuras, publicar na ordem
+migrations → Edge Functions → frontend e validar em Preview antes de produção. A publicação
+das funções é manual (ver [Edge Functions](#edge-functions)). Em 2026-10-10 versões novas de
+`portal-ce-unlock-document` e `ce-unlock-document-download` já estavam ativas minutos após
+o merge, publicadas por um mecanismo não identificado; não conte com isso: confira o código
+publicado após cada merge. As funções são `portal-ce-unlock-document`,
 `ce-unlock-document-download`, `ce-unlock-export`, `ce-unlock-cleanup` e
 `ce-unlock-notify-email`. As três primeiras autenticam a sessão com `auth.getUser()`; `verify_jwt=false`
 permite CORS e não dispensa autenticação na função. O bucket privado
-`ce-unlock-documents` recebe PDFs somente pelo servidor.
+`ce-unlock-documents` recebe arquivos somente pelo servidor: PDFs dos clientes e o
+modelo do termo em DOCX. A `173` e as funções `portal-ce-unlock-document` e
+`ce-unlock-document-download` precisam ser publicadas juntas: sem a migration, o
+upload do modelo DOCX é recusado ao confirmar no Storage.
 
-Cadastrar o PDF oficial em Importação → Desbloqueio de CE → Modelo do termo de devolução.
+O DOCX oficial é cadastrado em Importação → Desbloqueio de CE → Modelo do termo de devolução
+(cadastrado em 2026-10-10; trocar o termo é enviar outro arquivo na mesma tela).
 Não há modelo jurídico inventado/embutido no código. Homologar a planilha
 `zpt-5-v2` com a ZPT: cabeçalhos `BL`, `Financeiro`, `Term. Devolucao`, `Procuracao`,
 `BL Entrega`, nessa ordem, valores Sim/Não (o modelo de importação da aba "Planilha

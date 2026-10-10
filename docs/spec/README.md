@@ -5,7 +5,7 @@ Specs descrevem decisões ainda não executadas. O ciclo de vida é definido em
 
 | Spec | Estado |
 |---|---|
-| [Desbloqueio de CE Mercante — Issue 557](2026-10-04-desbloqueio-ce-mercante-design.md) | Implementado localmente; VIP anual até 31/12 e cinco colunas ZPT; publicação/homologação pendentes |
+| [Desbloqueio de CE Mercante — Issue 557](2026-10-04-desbloqueio-ce-mercante-design.md) | Publicado em produção em 2026-10-10; VIP anual até 31/12 e cinco colunas ZPT; homologação e ativação pendentes |
 
 As specs de carga mista, Manifesto Mercante, múltiplos terminais e editor de
 escala já estão em [archive/specs](../archive/specs/). Suas regras vigentes
