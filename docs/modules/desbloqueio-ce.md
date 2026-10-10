@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** revisão do fluxo implementada no checkout, publicação e homologação pendentes · **Atualizado:** 2026-10-10 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages, conferido em 2026-10-10); compatibilidade frontend/backend, homologação e ativação pendentes · **Atualizado:** 2026-10-10 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
