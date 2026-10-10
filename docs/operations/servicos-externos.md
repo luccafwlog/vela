@@ -579,9 +579,11 @@ Ao entregar a operação para outra pessoa:
 
 ## Desbloqueio de CE Mercante
 
-**Implementação local, publicação pendente.** Publicar na ordem: migrations
-`137`–`149`, `160`, `161` e `173`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
-de produção. As funções são `portal-ce-unlock-document`,
+**Publicado em produção** (conferido em 2026-10-10): migrations `137`–`149`, `160`, `161`
+e `173`, as cinco funções e o frontend Vela/Portal. Em mudanças futuras, publicar na ordem
+migrations → Edge Functions → frontend e validar em Preview antes de produção. Em
+2026-10-10 as funções de documento apareceram publicadas logo após o merge na `main`, o
+que indica deploy automático; a configuração que faz isso não foi conferida. As funções são `portal-ce-unlock-document`,
 `ce-unlock-document-download`, `ce-unlock-export`, `ce-unlock-cleanup` e
 `ce-unlock-notify-email`. As três primeiras autenticam a sessão com `auth.getUser()`; `verify_jwt=false`
 permite CORS e não dispensa autenticação na função. O bucket privado
