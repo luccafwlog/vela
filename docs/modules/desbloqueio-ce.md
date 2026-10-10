@@ -33,7 +33,8 @@ Aprovação documental, exportação e conciliação são atos diferentes.
   desmarcar), inclusive antes de existir pedido. Filtro padrão *Aptos — não exportados*.
   Coluna Prazo (vencido / vence hoje) e coluna ZPT (exportado, desbloqueado, divergente).
   Exporta até 100 aptos (seleção por linha ou dos aptos da página). No cabeçalho, em
-  modais: **Modelo do termo de devolução** (PDF oficial, sem texto jurídico gerado),
+  modais: **Modelo do termo de devolução** (DOCX oficial, sem texto jurídico gerado; o cliente
+  baixa, preenche, assina e anexa em PDF),
   **Histórico ZPT** (baixar e reexportar lotes) e **Conciliar com a ZPT** (importa o
   "Exportar Tela").
 - Clientes → ficha → Desbloqueio de CE / VIP: habilitar/revogar VIP, apresentar
@@ -108,10 +109,11 @@ operador da ZPT. A conciliação não altera o prazo nem o que o Portal mostra.
 
 ## Persistência e segurança
 
-Migrations `137`–`149`, `160` e `161`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
+Migrations `137`–`149`, `160`, `161` e `173`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
 RLS sem acesso direto do navegador e RPCs com escopo server-side. A `160` acrescenta
 `exported_at/exported_by/export_id` em `ce_unlock_request_bls`, `ce_unlock_zpt_status`
-(conciliação) e `ce_unlock_email_outbox`. Escritas
+(conciliação) e `ce_unlock_email_outbox`. A `173` faz o modelo publicado pelo desk ser
+`.docx` (nome, assinatura ZIP e tipo no Storage); termo, procuração e anuais seguem só PDF. Escritas
 cliente/internal usam dispatchers distintos com allowlists (Portal: `draft`, `submit`,
 `cancel`); retries compartilham chave idempotente e recusam alteração de payload.
 `ce_unlock_reconcile` é função própria (sem receipts: o payload é grande e a operação é

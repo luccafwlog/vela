@@ -59,6 +59,8 @@ referências aos documentos anuais VIP; cada PDF de até
 
 O botão **Baixar modelo do termo** oferece documento oficial versionado,
 homologado pela agência; guardar sua versão no pedido. Não inventar texto jurídico.
+O modelo é `.docx`, para o cliente preencher sem converter; o termo assinado
+volta anexado em PDF (decisão do responsável, 2026-10-10).
 O termo anexado deve abranger todos os B/Ls selecionados e o consignatário;
 a procuração deve representar o mesmo CNPJ. O desk verifica esse conteúdo.
 Upload incompleto fica em rascunho e nunca chega à fila como pedido enviado.

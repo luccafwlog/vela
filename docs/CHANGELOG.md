@@ -7,7 +7,10 @@
 - **Memorando de liberação de documentos no Portal (2026-10-10):** a aba Nova solicitação do
   [Desbloqueio de CE](modules/desbloqueio-ce.md) oferece o modelo `.docx` do memorando que o
   cliente leva preenchido para retirar documentos na agência. É download avulso, fora dos
-  quatro requisitos.
+  quatro requisitos. O modelo do termo de devolução publicado pelo desk passa a ser `.docx`
+  (migration `173`, funções `portal-ce-unlock-document` e `ce-unlock-document-download`): o
+  cliente baixa, preenche e anexa o termo assinado em PDF; anexos do cliente seguem só PDF. O
+  download usa o nome do arquivo enviado.
 
 - **Decisões das importações e do CE Mercante (2026-10-09, decisão do dono):** a
   [ADR 0078](adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) registra as

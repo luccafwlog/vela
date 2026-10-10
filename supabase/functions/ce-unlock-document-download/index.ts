@@ -30,9 +30,15 @@ if (typeof Deno !== "undefined")
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
+      // Baixa com o nome enviado (ex.: o modelo .docx do desk), não com o caminho interno.
+      const doc = await admin
+        .from("ce_unlock_documents")
+        .select("file_name")
+        .eq("storage_path", access.data)
+        .maybeSingle();
       const link = await admin.storage
         .from("ce-unlock-documents")
-        .createSignedUrl(access.data, 60, { download: true });
+        .createSignedUrl(access.data, 60, { download: doc.data?.file_name || true });
       if (link.error) return json({ error: "Documento indisponível" }, 404);
       return json({ url: link.data.signedUrl, expiresIn: 60 });
     }),

@@ -580,14 +580,17 @@ Ao entregar a operação para outra pessoa:
 ## Desbloqueio de CE Mercante
 
 **Implementação local, publicação pendente.** Publicar na ordem: migrations
-`137`–`149`, `160` e `161`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
+`137`–`149`, `160`, `161` e `173`, Edge Functions, frontend Vela/Portal. Validar em Preview antes
 de produção. As funções são `portal-ce-unlock-document`,
 `ce-unlock-document-download`, `ce-unlock-export`, `ce-unlock-cleanup` e
 `ce-unlock-notify-email`. As três primeiras autenticam a sessão com `auth.getUser()`; `verify_jwt=false`
 permite CORS e não dispensa autenticação na função. O bucket privado
-`ce-unlock-documents` recebe PDFs somente pelo servidor.
+`ce-unlock-documents` recebe arquivos somente pelo servidor: PDFs dos clientes e o
+modelo do termo em DOCX. A `173` e as funções `portal-ce-unlock-document` e
+`ce-unlock-document-download` precisam ser publicadas juntas: sem a migration, o
+upload do modelo DOCX é recusado ao confirmar no Storage.
 
-Cadastrar o PDF oficial em Importação → Desbloqueio de CE → Modelo do termo de devolução.
+Cadastrar o DOCX oficial em Importação → Desbloqueio de CE → Modelo do termo de devolução.
 Não há modelo jurídico inventado/embutido no código. Homologar a planilha
 `zpt-5-v2` com a ZPT: cabeçalhos `BL`, `Financeiro`, `Term. Devolucao`, `Procuracao`,
 `BL Entrega`, nessa ordem, valores Sim/Não (o modelo de importação da aba "Planilha
