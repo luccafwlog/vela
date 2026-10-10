@@ -1227,13 +1227,16 @@ e, pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-c
 Cliente, Viagem, navio, POL e POD; implementação pendente);
 ajustes posteriores, como COD, seguem atos próprios e não reescrevem o snapshot.
 
-B/Ls que dividem um mesmo container **recebem o CE no mesmo momento**. É essa
-regra operacional — não uma trava de software — que garante o rateio correto de
-taxa de container compartilhado. Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), container
+B/Ls do mesmo Cliente que dividem um container são faturados cada um com o
+rateio do container, recebam o CE juntos ou em momentos diferentes. A emissão só
+é recusada quando um B/L irmão foi faturado com um rateio que não é mais o atual
+(a fatura dele é reemitida antes), o que impede cobrar o container duas vezes.
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (migration `175`), container
 FCL não é dividido entre Clientes diferentes (só veículos LCL, que não pagam
-Taxas Locais nem Demurrage) e a importação recusa esse caso; quando o conjunto de
-B/Ls de um container muda depois do faturamento, a fatura emitida segue a ADR
-0077.
+Taxas Locais nem Demurrage) e a importação de B/L recusa esse caso; quando o
+conjunto de B/Ls de um container muda depois do faturamento (irmão que chega ou
+é cancelado), a importação ou o cancelamento é aceito e a fatura emitida segue a
+ADR 0077: sem pagamento, é reemitida com o rateio novo.
 
 - **Ver também:** Fato Gerador, Omissao de Escala, COD, Data de Referência da Tarifa
 

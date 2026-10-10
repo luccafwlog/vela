@@ -1,6 +1,7 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Cada it.fails documenta um defeito confirmado e roda no job local-pg do CI; quando a correção entrar, troque it.fails por it.
+// Os casos nasceram como it.fails e viraram it com a migration 175 (Etapa 5 do plano
+// docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md); as checagens novas da Etapa 5 estão no fim da suíte.
 //
 // Problema-raiz M03: container compartilhado entre B/Ls. O motor rateia a taxa
 // por container (`container_distinct_voyage`, 1/share_count) e a transição do CE
@@ -425,7 +426,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     expectPendingOnlyBySharedContainerGuard(state)
   })
 
-  it.fails('esperado: os dois B/Ls ficam faturados, cada um com 1/2 do container, e o Comunicado de CE e Taxas fica pronto [CED-01, ORDCE-01, ORDCT-V03] — regra: CONTEXT.md:1153-1155, ADR 0020:111-132, CONTEXT.md:1324-1326 e clientes.md:176-178 (prontidão exige faturamento concluído em todos os B/Ls)', () => {
+  it('esperado: os dois B/Ls ficam faturados, cada um com 1/2 do container, e o Comunicado de CE e Taxas fica pronto [CED-01, ORDCE-01, ORDCT-V03] — regra: CONTEXT.md:1153-1155, ADR 0020:111-132, CONTEXT.md:1324-1326 e clientes.md:176-178 (prontidão exige faturamento concluído em todos os B/Ls)', () => {
     expect(financialStatuses(sameCustomer?.state ?? null)).toEqual({ 'A203-S1': 'invoiced', 'A203-S2': 'invoiced' })
     expect(containerShares(sameCustomer?.state ?? null)).toEqual({
       'A203-S1': [{ quantity: 0.5, total_brl: 500 }],
@@ -486,7 +487,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     }
   })
 
-  it.fails('esperado: a Liberação emite os dois B/Ls retidos, cada um com 1/2 do container [CED-01, ORDCE-01] — regra: CONTEXT.md:1117-1119 (a fatura retida sai quando o Administrativo concede a Liberação), ADR 0070 e CONTEXT.md:1153-1155', () => {
+  it('esperado: a Liberação emite os dois B/Ls retidos, cada um com 1/2 do container [CED-01, ORDCE-01] — regra: CONTEXT.md:1117-1119 (a fatura retida sai quando o Administrativo concede a Liberação), ADR 0070 e CONTEXT.md:1153-1155', () => {
     expect(afterRelease?.reprocess).toMatchObject({ issued: 2, blocked: 0, failed: 0 })
     expect(financialStatuses(afterRelease?.state ?? null)).toEqual({ 'A203-G1': 'invoiced', 'A203-G2': 'invoiced' })
     expect(billedContainerTotal(afterRelease?.state ?? null)).toBe(containerFee)
@@ -537,5 +538,61 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
   it('esperado: as datas do irmão são gravadas, sem pedir cancelamento da fatura do outro B/L [DAT-10, ORDCT-09] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:17-24: data de Demurrage não é correção; não há cancelar e reemitir manual)', () => {
     expect(siblingDates?.error).toBeNull()
     expect(siblingDates?.container).toEqual({ discharge_date: '2026-10-01', return_date: '2026-10-06' })
+  })
+
+  // --- Checagens novas da Etapa 5 (ADR 0078, item 11; ADR 0077) ---------------
+  function containerLinesOf(blId: string) {
+    return billingState([blId]).lines.map((line) => ({ quantity: line.quantity, total_brl: line.total_brl }))
+  }
+
+  it('irmão que chega depois do faturamento reemite a fatura do primeiro com 1/2 e fatura com 1/2', () => {
+    insertBls([{ id: 'A203-L1', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030051' }])
+    expect(importCeSheet('A203-MAN-5', voyage.clientesDiferentes, [{ blId: 'A203-L1', ce: '203001000000051' }]))
+      .toMatchObject({ ok: true })
+    expect(containerLinesOf('A203-L1')).toEqual([{ quantity: 1, total_brl: containerFee }])
+
+    // O irmão chega numa importação posterior: a base do primeiro muda (ADR 0077).
+    insertBls([{ id: 'A203-L2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030051' }])
+    expect(containerLinesOf('A203-L1')).toEqual([{ quantity: 0.5, total_brl: containerFee / 2 }])
+
+    expect(importCeSheet('A203-MAN-5', voyage.clientesDiferentes, [{ blId: 'A203-L2', ce: '203001000000052' }]))
+      .toMatchObject({ ok: true })
+    expect(financialStatuses(billingState(['A203-L1', 'A203-L2']))).toEqual({ 'A203-L1': 'invoiced', 'A203-L2': 'invoiced' })
+    expect(billedContainerTotal(billingState(['A203-L1', 'A203-L2']))).toBe(containerFee)
+  })
+
+  it('irmão cancelado reemite a fatura do outro com o container inteiro', () => {
+    insertBls([
+      { id: 'A203-K1', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030061' },
+      { id: 'A203-K2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030061' },
+    ])
+    expect(importCeSheet('A203-MAN-6', voyage.clientesDiferentes, [{ blId: 'A203-K1', ce: '203001000000061' }]))
+      .toMatchObject({ ok: true })
+    expect(containerLinesOf('A203-K1')).toEqual([{ quantity: 0.5, total_brl: containerFee / 2 }])
+
+    expect(JSON.parse(asOperator(`SELECT public.cancel_bl('A203-K2', 'A203 B/L lançado em duplicidade');`))).toMatchObject({ cancelled: true })
+    expect(containerLinesOf('A203-K1')).toEqual([{ quantity: 1, total_brl: containerFee }])
+  })
+
+  it('fração diferente continua recusada: o irmão faturado com outro rateio bloqueia, nomeando o B/L', () => {
+    insertBls([
+      { id: 'A203-J1', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030071' },
+      { id: 'A203-J2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030071' },
+    ])
+    expect(importCeSheet('A203-MAN-7', voyage.clientesDiferentes, [{ blId: 'A203-J1', ce: '203001000000071' }]))
+      .toMatchObject({ ok: true })
+    // Simula o vínculo gravado com outro rateio (fatura de quando o B/L estava sozinho).
+    localPsql(`
+      SET session_replication_role = replica;
+      UPDATE public.invoice_bls SET container_shares = '[["ADCU2030071", 1]]'::jsonb WHERE bl_id = 'A203-J1';
+      SET session_replication_role = origin;
+    `)
+    expect(importCeSheet('A203-MAN-7', voyage.clientesDiferentes, [{ blId: 'A203-J2', ce: '203001000000072' }]))
+      .toMatchObject({ ok: true })
+    expect(billingState(['A203-J2']).bls['A203-J2'].financial_status).not.toBe('invoiced')
+    // A emissão pelo CE devolve o motivo: o irmão nomeado e o container.
+    const attempt = JSON.parse(localPsql(`SELECT public.auto_bill_bl_after_ce_mercante('A203-J2', '${actorId}'::uuid);`)) as { status: string; message?: string }
+    expect(attempt.status).not.toBe('invoiced')
+    expect(attempt.message).toMatch(/O B\/L irmao A203-J1 .*ADCU2030071.*reemitida/)
   })
 })

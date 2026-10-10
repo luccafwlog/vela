@@ -283,6 +283,11 @@ export type BuildBlFreightPreviewArgs = {
   billingLockedBlIds?: Set<string>
   /** container numbers that already belong to a different B/L (container_distinct_voyage billing) */
   sharedContainerNumbers?: Set<string>
+  /**
+   * B/Ls de outro arquivo que dividem cada container na Viagem escolhida, com o
+   * Cliente: container FCL não é dividido entre Clientes diferentes (ADR 0078, item 11).
+   */
+  containerSiblings?: Map<string, ContainerSibling[]> | null
   selectedVoyage?: BlFreightSelectedVoyage | null
   onlyBlId?: string | null
   /** customers indexed by document/name so the import links each B/L to its payer */
@@ -302,6 +307,13 @@ export type BuildBlFreightPreviewArgs = {
 
 export type PortCatalogEntry = { name: string | null; locode: string | null }
 
+export type ContainerSibling = {
+  blId: string
+  customerId: number | null
+  customerName: string | null
+  loadType: string | null
+}
+
 export async function previewBlFreightImport(args: {
   documents: ParsedBLDocument[]
   voyageId: number
@@ -316,7 +328,11 @@ export async function previewBlFreightImport(args: {
   // with a unique one (same count) still changes container_distinct_voyage billing.
   const existingContainerNumbers = existingBls.flatMap((bl) => (bl.bl_containers ?? []).map((container) => container.container_number))
   const sharedContainerNumbers = await fetchSharedContainerNumbers(blNumbers, [...containerNumbers, ...existingContainerNumbers])
-  const [selectedVoyage, knownPorts] = await Promise.all([fetchSelectedVoyage(args.voyageId), fetchPortCatalog()])
+  const [selectedVoyage, knownPorts, containerSiblings] = await Promise.all([
+    fetchSelectedVoyage(args.voyageId),
+    fetchPortCatalog(),
+    fetchContainerSiblings(args.voyageId, blNumbers, containerNumbers),
+  ])
   if (!selectedVoyage) throw new Error('Viagem selecionada nao encontrada.')
 
   // Troca de consignatario: o preview precisa dizer de quem para quem o B/L vai
@@ -348,6 +364,7 @@ export async function previewBlFreightImport(args: {
     invoicesByBl,
     receivablesByBl,
     knownPorts,
+    containerSiblings,
   })
 }
 
@@ -363,6 +380,7 @@ export function buildBlFreightPreview({
   invoicesByBl = null,
   receivablesByBl = null,
   knownPorts = null,
+  containerSiblings = null,
 }: BuildBlFreightPreviewArgs): BlFreightImportPreview {
   const existingById = new Map(existingBls.map((bl) => [bl.id, bl]))
   const rows = documents.map((doc) => {
@@ -401,6 +419,8 @@ export function buildBlFreightPreview({
       blockedReasons.push(`${incompleteVehicles.length} VIN(s) sem marca, modelo, peso e cubagem positivos; revise o veículo antes de importar.`)
     }
     if (portBlock) blockedReasons.push(portBlock)
+    const fclConflict = payload && containerSiblings ? describeFclConflict(payload, existing, containerSiblings) : null
+    if (fclConflict) blockedReasons.push(fclConflict)
     if (!normalizeDate(doc.dates.ladenOnBoard)) {
       warnings.push(doc.dates.ladenOnBoard.trim()
         ? `Laden on Board ilegível ("${doc.dates.ladenOnBoard.trim()}"): a data gravada não muda.`
@@ -924,6 +944,67 @@ function resolveCatalogPort(value: string, ports: PortCatalogEntry[]): string | 
     .filter((port) => port.locode && port.name && normalizeText(port.name).length >= 3 && text.includes(normalizeText(port.name)))
     .sort((left, right) => normalizeText(right.name).length - normalizeText(left.name).length)[0]
   return byName?.locode ? byName.locode.toUpperCase() : null
+}
+
+/**
+ * Container FCL em B/Ls de Clientes diferentes recusa a linha, como a RPC
+ * (`assert_no_fcl_shared_between_customers`). B/L LCL (veículos) é aceito.
+ */
+function describeFclConflict(
+  payload: BlFreightRpcPayload,
+  existing: ExistingBl | null,
+  siblings: Map<string, ContainerSibling[]>,
+): string | null {
+  const customerId = payload.customer_id ?? existing?.customer_id ?? null
+  if (customerId == null || payload.vehicles?.length) return null
+  for (const container of payload.containers) {
+    const other = (siblings.get(container.container_number) ?? []).find((sibling) => (
+      sibling.blId !== payload.id
+      && sibling.customerId != null
+      && sibling.customerId !== customerId
+      && (sibling.loadType ?? 'FCL') !== 'LCL'
+    ))
+    if (other) {
+      return `Container ${container.container_number} já está no B/L ${other.blId}${other.customerName ? ` (${other.customerName})` : ''}: container FCL não é dividido entre Clientes diferentes.`
+    }
+  }
+  return null
+}
+
+async function fetchContainerSiblings(voyageId: number, blNumbers: string[], containerNumbers: string[]) {
+  const siblings = new Map<string, ContainerSibling[]>()
+  const numbers = [...new Set(containerNumbers.map((number) => normalizeIsoContainerNumber(number)).filter((number): number is string => Boolean(number)))]
+  if (!numbers.length) return siblings
+  const { data: links, error } = await supabase.from('bl_containers').select('container_number, bl_id').in('container_number', numbers)
+  if (error) throw error
+  const importing = new Set(blNumbers)
+  const linkRows = ((links ?? []) as Array<{ container_number: string | null; bl_id: string | null }>)
+    .filter((row) => row.container_number && row.bl_id && !importing.has(row.bl_id))
+  const blIds = [...new Set(linkRows.map((row) => row.bl_id as string))]
+  if (!blIds.length) return siblings
+  const { data: bls, error: blError } = await supabase
+    .from('bls')
+    .select('id, voyage_id, customer_id, container_load_type, cancelled_at')
+    .in('id', blIds)
+  if (blError) throw blError
+  const blRows = ((bls ?? []) as unknown as Array<{ id: string; voyage_id: number | null; customer_id: number | null; container_load_type: string | null; cancelled_at: string | null }>)
+    .filter((bl) => bl.voyage_id === voyageId && !bl.cancelled_at)
+  const customerIds = [...new Set(blRows.map((bl) => bl.customer_id).filter((id): id is number => id != null))]
+  const names = customerIds.length ? await fetchCustomerSnapshots(customerIds) : new Map<number, BlCustomerSnapshot>()
+  const byId = new Map(blRows.map((bl) => [bl.id, bl]))
+  for (const row of linkRows) {
+    const bl = byId.get(row.bl_id as string)
+    if (!bl) continue
+    const number = normalizeIsoContainerNumber(row.container_number)
+    if (!number) continue
+    siblings.set(number, [...(siblings.get(number) ?? []), {
+      blId: bl.id,
+      customerId: bl.customer_id,
+      customerName: bl.customer_id != null ? names.get(bl.customer_id)?.name ?? null : null,
+      loadType: bl.container_load_type,
+    }])
+  }
+  return siblings
 }
 
 async function fetchPortCatalog(): Promise<PortCatalogEntry[]> {

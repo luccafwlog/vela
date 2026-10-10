@@ -440,8 +440,11 @@ Depois de um cancelamento, o recálculo desvincula os itens da fatura cancelada
 das linhas de cálculo antigas (`126`). Cancelar fatura individual coberta por
 consolidada aberta é recusado; o efeito de veículos cancela a consolidada do B/L
 isento e a encerra sem reemissão (`128`). Erro de preço (tabela ou Condição do
-Cliente) não reemite: vale para faturas futuras. Limite conhecido: o rateio de
-container compartilhado não reavalia o B/L vizinho.
+Cliente) não reemite: vale para faturas futuras. O rateio de container
+compartilhado entra na base (`bl_invoice_basis_snapshot` lista os B/Ls que
+dividem cada container): irmão que chega ou é cancelado depois do faturamento
+reemite a fatura do B/L faturado com o rateio novo (migration `175`; a guarda de
+mutação de container compartilhado saiu).
 
 
 ```mermaid
@@ -637,7 +640,11 @@ O evento COD criado na mesma operação é vinculado à correção automática e
 marcado liquidado, sem repetir abatimento ou devolução. O alerta Fatura
 desatualizada só fecha quando todos os recebíveis relacionados concordam com
 Cliente e cálculo atuais. Alteração de participação em container compartilhado
-também verifica os B/Ls vizinhos, preservando as travas de edição existentes.
+também verifica os B/Ls vizinhos. Na emissão, cada vínculo de fatura grava o
+rateio com que o B/L entrou (`invoice_bls.container_shares`); a guarda
+`guard_shared_container_invoice` recusa (SQLSTATE `P0007`, nomeando o B/L irmão)
+só quando o irmão faturado tem rateio diferente do atual
+(`bl_container_share_signature`), também na consolidada.
 
 Se o efeito financeiro falhar, `invoice_basis_pending_changes` conserva a
 pendência; o Administrativo usa **Tentar aplicar correção** no histórico da

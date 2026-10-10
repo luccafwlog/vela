@@ -4,6 +4,12 @@
 
 ## 2026-10
 
+- **Container compartilhado (2026-10-10, implementação local; Etapa 5 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  B/Ls do mesmo Cliente que dividem um container passam a ser todos faturados com o rateio
+  (antes só o primeiro); irmão que chega ou é cancelado depois do faturamento reemite a fatura do
+  outro pela ADR 0077; a proteção contra cobrar o container duas vezes fica; container FCL entre
+  Clientes diferentes é recusado na importação de B/L (migration `175`, ADR 0078 item 11).
 - **Leitura de planilhas (2026-10-10, implementação local; Etapa 3 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   datas curtas do Excel, CSV com vírgula decimal ou `05/03/2026`, data/hora de Brasília, tara com

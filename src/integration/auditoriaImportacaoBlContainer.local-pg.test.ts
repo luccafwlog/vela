@@ -40,6 +40,7 @@ import { execFileSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { ParsedBLDocument } from '../services/blParser'
 import {
+  buildBlFreightPayload,
   confirmBlFreightImport,
   previewBlFreightImport,
   type BlFreightImportPreview,
@@ -933,5 +934,33 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     expect(previewRow(reimport, blId).removedContainers).toEqual(['AZCU2020092'])
     expect(reimport.result?.containerChanges).toEqual([{ blNumber: blId, inserted: [], updated: [], removed: ['AZCU2020092'] }])
     expect(containersOf(blId).map((container) => container.id)).toEqual([kept?.id])
+  })
+
+  // --- Etapa 5 (ADR 0078, item 11): container FCL entre Clientes diferentes ----
+  it('container FCL de outro Cliente na Viagem é recusado na prévia e no servidor', async () => {
+    expect((await importBls([blDocument('A202-FCL1', { containers: ['AZCU2020101'] })], 'a202-fcl1.xlsx')).error).toBeNull()
+
+    const other = await importBls(
+      [blDocument('A202-FCL2', { containers: ['AZCU2020101'], consignee: beta })],
+      'a202-fcl2.xlsx',
+    )
+    const row = previewRow(other, 'A202-FCL2')
+    expect(row.status).toBe('blocked')
+    expect(row.blockedReasons).toContain(`Container AZCU2020101 já está no B/L A202-FCL1 (${alfa.name}): container FCL não é dividido entre Clientes diferentes.`)
+    expect(blState('A202-FCL2')).toBeNull()
+
+    // O servidor recusa o mesmo estado mesmo sem a prévia.
+    const direct = tryAsOperator(`
+      SELECT public.import_bl_freight_transactional(
+        ${jsonLiteral([{ ...buildBlFreightPayload(blDocument('A202-FCL2', { containers: ['AZCU2020101'], consignee: beta }), voyageId), customer_id: beta.id }])}, '${actorId}'::uuid
+      );
+    `)
+    expect(direct.error?.code).toBe('P0008')
+    expect(direct.error?.message).toContain('container FCL nao e dividido entre Clientes diferentes')
+    expect(blState('A202-FCL2')).toBeNull()
+
+    // Mesmo Cliente divide o container normalmente.
+    expect((await importBls([blDocument('A202-FCL3', { containers: ['AZCU2020101'] })], 'a202-fcl3.xlsx')).error).toBeNull()
+    expect(blState('A202-FCL3')?.customer_id).toBe(alfa.id)
   })
 })

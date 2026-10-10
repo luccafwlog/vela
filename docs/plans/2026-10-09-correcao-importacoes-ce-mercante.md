@@ -18,9 +18,9 @@ outra fatura. Não há decisão pendente.
 errado e de esconder o que gravaram, e implementar as regras de entrada,
 correção e efeitos da ADR 0078.
 
-**Estado em 2026-10-10:** Etapas 0, 1, 2 e 3 executadas localmente (migrations `173` e `174`;
+**Estado em 2026-10-10:** Etapas 0, 1, 2, 3 e 5 executadas localmente (migrations `173` a `175`;
 ver as notas de execução nas etapas). Decisões tomadas. As checagens de
-aceitação das Etapas 4 a 7 continuam no repositório como `it.fails` e rodam no
+aceitação das Etapas 4, 6 e 7 continuam no repositório como `it.fails` e rodam no
 CI; as regras novas da ADR 0078 ganham checagem na etapa que as implementa.
 **Migrations:** o hook `.claude/hooks/protect-files.sh` bloqueia qualquer
 arquivo em `supabase/migrations/`; as migrations novas desta execução foram
@@ -275,25 +275,39 @@ Cancelada; `src/services/alertRulesCatalog.ts`.
 **Dono:** `guard_shared_container_invoice` e `guard_shared_container_mutation`
 (migration `066`); vínculo em `invoice_receivable_links`; importação de B/L.
 
-- [ ] Função única que diz se o rateio cobrado de um B/L ainda é o atual; a
+- [x] Função única que diz se o rateio cobrado de um B/L ainda é o atual; a
   guarda de emissão só recusa rateio desatualizado (a proteção contra cobrar
   150% fica), com SQLSTATE próprio e mensagem que nomeia o B/L irmão.
-- [ ] A guarda de mutação olha só participação no container; datas e desova
+- [x] A guarda de mutação olha só participação no container; datas e desova
   do irmão passam.
-- [ ] Mesma checagem na consolidada.
-- [ ] **Container FCL em B/Ls de Clientes diferentes** é recusado pela
+- [x] Mesma checagem na consolidada.
+- [x] **Container FCL em B/Ls de Clientes diferentes** é recusado pela
   importação de B/L (prévia e servidor); containers de veículos LCL continuam
   aceitos.
-- [ ] **Conjunto que muda depois do faturamento** (irmão que chega ou é
+- [x] **Conjunto que muda depois do faturamento** (irmão que chega ou é
   excluído): a importação ou a exclusão é aceita e a fatura do B/L já faturado
   segue a ADR 0077, com a reemissão no resultado e no alerta.
-- [ ] Trocar os 3 `it.fails` de `auditoriaCeContainerCompartilhado` por `it`.
-- [ ] Checagens novas: recusa de FCL entre Clientes diferentes; irmão que
+- [x] Trocar os 3 `it.fails` de `auditoriaCeContainerCompartilhado` por `it`.
+- [x] Checagens novas: recusa de FCL entre Clientes diferentes; irmão que
   chega depois reemite a fatura do primeiro com 1/2; exclusão do irmão reemite
   com o container inteiro.
 
 **Aceitação:** os 3 casos e as checagens novas passam em qualquer ordem de
 linhas; o caso de fração diferente (150%) continua recusado.
+
+**Execução (2026-10-10, local):** migration `175`: `bl_container_share_signature`
+é a função única do rateio atual; `invoice_bls.container_shares` grava o
+rateio de cada vínculo (preenchido nos vínculos existentes, pela linha "Data
+status"); a guarda de emissão recusa só irmão faturado com rateio diferente do
+atual (P0007, nomeando o irmão; vale na consolidada, que usa o mesmo vínculo);
+a guarda de mutação de container compartilhado saiu, e o conjunto que muda
+depois do faturamento segue a ADR 0077 pela base (que já listava os irmãos);
+`assert_no_fcl_shared_between_customers` (P0008) recusa FCL entre Clientes
+diferentes na importação, e a prévia bloqueia a linha. Os 3 casos viraram `it`,
+com 4 checagens novas (irmão que chega reemite 1/2, irmão cancelado reemite o
+container inteiro, fração diferente recusada, FCL entre Clientes recusado na
+prévia e no servidor). Limite (`ponytail` na 175): a guarda olha o rateio do
+irmão, não o do próprio B/L, cujo cálculo é refeito pelo CE e pela Liberação.
 
 ## Etapa 6 — Unicidade e portas do CE (M06, M08; ADR 0078, itens 1–3 e 5)
 
