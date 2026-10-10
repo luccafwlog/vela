@@ -991,13 +991,16 @@ da conta do Cliente. O Comunicado de CE e Taxas depende da prontidão do conjunt
 Cliente/Viagem, da chave de envio e do processamento do canal, não de um envio
 imediato garantido ao salvar o CE. A relação CE × B/L é 1:1: um
 número de CE não pode ser usado por mais de um B/L não cancelado, somando B/Ls
-de carga e de Granito; o [B/L Cancelado](#operação-marítima) libera o CE. Hoje o
-banco não impõe essa unicidade (ADR 0071 e [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+de carga e de Granito; o [B/L Cancelado](#operação-marítima) libera o CE. O
+banco impõe essa unicidade em todas as portas e na reativação, comparando o CE
+sem espaços nem separadores (ADR 0071 e [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `176`).
 
 O Manifesto BB e o B/L avulso não gravam CE: a coluna CE saiu do modelo e, num
 arquivo antigo, é ignorada com aviso na prévia (migration `173`).
 
-Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente):
+Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (unicidade, porta única, Corrigir e Remover
+entregues na migration `176`; confirmação da troca na prévia e emissão em lotes
+seguem pendentes):
 
 - o CE entra pela planilha de CE Mercante e é corrigido ou removido pela ficha
   do B/L (**Corrigir CE Mercante**, **Remover CE Mercante**), por qualquer

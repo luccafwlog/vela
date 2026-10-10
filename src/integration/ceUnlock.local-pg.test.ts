@@ -68,7 +68,7 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       INSERT INTO public.carriers(id,name) VALUES(998557,'CE carrier') ON CONFLICT DO NOTHING;
       INSERT INTO public.vessels(id,name,carrier_id) VALUES(998557,'CE vessel',998557) ON CONFLICT DO NOTHING;
       INSERT INTO public.voyages(id,vessel_id,voyage_number,status) VALUES(998557,998557,'CE-557','active') ON CONFLICT DO NOTHING;
-      INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante) VALUES('CE557-A',998557,998557,'123456789012345'),('CE557-B',998557,998558,'123456789012346'),('CE557-NO',998557,998557,NULL),('CE557-PART',998557,998557,'123456789012347'),('CE557-SECOND',998557,998557,'123456789012348') ON CONFLICT(id) DO UPDATE SET customer_id=EXCLUDED.customer_id,ce_mercante=EXCLUDED.ce_mercante,cancelled_at=NULL;
+      INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante) VALUES('CE557-A',998557,998557,'998557000000145'),('CE557-B',998557,998558,'998557000000146'),('CE557-NO',998557,998557,NULL),('CE557-PART',998557,998557,'998557000000147'),('CE557-SECOND',998557,998557,'998557000000148') ON CONFLICT(id) DO UPDATE SET customer_id=EXCLUDED.customer_id,ce_mercante=EXCLUDED.ce_mercante,cancelled_at=NULL;
       INSERT INTO public.bl_receivables(id,bl_id,customer_id,original_amount_brl,settled_amount_brl,balance_brl,status) VALUES(998557,'CE557-A',998557,100,100,0,'settled'),(998558,'CE557-PART',998557,100,50,50,'partially_settled'),(998559,'CE557-SECOND',998557,100,100,0,'settled') ON CONFLICT DO NOTHING;
       INSERT INTO public.ledger_settlements(receivable_id,amount_brl,source) VALUES(998557,100,'manual'),(998558,50,'manual'),(998559,100,'manual'); SET session_replication_role=origin;`)
   })

@@ -6,8 +6,8 @@ describe('Contrato do catálogo de alertas e tipos de entidade', () => {
   it('todo tipo do alert_type_catalog possui rótulo definido em TYPE_LABELS', () => {
     const catalog = readSqlAlertCatalog()
 
-    expect(catalog).toHaveLength(38)
-    expect(catalog.filter((entry) => entry.active)).toHaveLength(34)
+    expect(catalog).toHaveLength(39)
+    expect(catalog.filter((entry) => entry.active)).toHaveLength(35)
 
     for (const entry of catalog) {
       expect(TYPE_LABELS[entry.type], `Tipo catalogado ${entry.type} não possui rótulo em TYPE_LABELS`).toBeDefined()

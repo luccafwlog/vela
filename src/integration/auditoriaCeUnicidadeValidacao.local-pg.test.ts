@@ -1,6 +1,6 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Cada it.fails documenta um defeito confirmado e roda no job local-pg do CI; quando a correção entrar, troque it.fails por it.
+// Os defeitos foram corrigidos na migration 176 (etapa 6 do plano de correção): os it.fails viraram it e rodam no job local-pg do CI.
 //
 // Problema-raiz M06: a unicidade CE × B/L não é imposta. A regra está decidida:
 // "A relação CE × B/L é 1:1: um número de CE não pode ser usado por mais de um
@@ -87,6 +87,9 @@ const ce = {
   granite: '992062000000601',
   reactivate: '992062000000701',
   zpt: '992062000000801',
+  correct: '992062000000901',
+  corrected: '992062000000902',
+  remove: '992062000000911',
 } as const
 
 // CEs que nenhum B/L usa: só aparecem nos controles positivos desfeitos.
@@ -112,6 +115,8 @@ const containerBls: Array<{ id: string; container: string }> = [
   { id: 'A206-REA-2', container: 'ADCU2060010' },
   { id: 'A206-ZPT-1', container: 'ADCU2060011' },
   { id: 'A206-ZPT-2', container: 'ADCU2060012' },
+  { id: 'A206-COR-1', container: 'ADCU2060013' },
+  { id: 'A206-REM-1', container: 'ADCU2060014' },
 ]
 
 function localPsql(sql: string): string {
@@ -399,7 +404,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
     expect(parsedSheet.rows.map((row) => row.bl_id).every((id) => id.startsWith('A206-DUP-'))).toBe(true)
   })
 
-  it.fails('esperado: a prévia acusa o CE repetido e bloqueia a confirmação [CE-01, CED-06, ORDCE-05, TST-07] — regra: CONTEXT.md:963-966 (CE × B/L 1:1), ADR 0071 item 9, ADR 0072 item 4 (a prévia mostra o que entra) e CeMercanteImportModal.tsx:141 (erro de estrutura bloqueia a importação)', () => {
+  it('esperado: a prévia acusa o CE repetido e bloqueia a confirmação [CE-01, CED-06, ORDCE-05, TST-07] — regra: CONTEXT.md:963-966 (CE × B/L 1:1), ADR 0071 item 9, ADR 0072 item 4 (a prévia mostra o que entra) e CeMercanteImportModal.tsx:141 (erro de estrutura bloqueia a importação)', () => {
     expect(parsedSheet?.rowErrors.length ?? 0).toBeGreaterThan(0)
   })
 
@@ -425,7 +430,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
     expect(typeof result.ok).toBe('boolean')
   })
 
-  it.fails('esperado: o lote é recusado inteiro e nenhum B/L recebe o CE [CE-01, CED-06, ORDCE-05, TST-07] — regra: CONTEXT.md:963-966, ADR 0071 item 9 e manifesto-edi.md:282 ("tudo ou nada": erro de linha devolve ok=false e nada é gravado)', () => {
+  it('esperado: o lote é recusado inteiro e nenhum B/L recebe o CE [CE-01, CED-06, ORDCE-05, TST-07] — regra: CONTEXT.md:963-966, ADR 0071 item 9 e manifesto-edi.md:282 ("tudo ou nada": erro de linha devolve ok=false e nada é gravado)', () => {
     expect(sameSheet?.result.ok).toBe(false)
     expect(sameSheet?.holders).toEqual([])
   })
@@ -446,7 +451,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
     expect(typeof result.ok).toBe('boolean')
   })
 
-  it.fails('esperado: a planilha é recusada e o CE continua só no B/L que já o tinha [CE-01, ORDCE-05, TST-07, CED-06] — regra: CONTEXT.md:963-966 e ADR 0071 item 9 (unicidade entre B/Ls não cancelados)', () => {
+  it('esperado: a planilha é recusada e o CE continua só no B/L que já o tinha [CE-01, ORDCE-05, TST-07, CED-06] — regra: CONTEXT.md:963-966 e ADR 0071 item 9 (unicidade entre B/Ls não cancelados)', () => {
     expect(otherSheet?.result.ok).toBe(false)
     expect(otherSheet?.holders).toEqual(['A206-OUT-1'])
   })
@@ -480,7 +485,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
 
   // Decidido é só que o CE não chega ao segundo B/L ativo; recusar com erro ou
   // ignorar o campo depende da decisão sobre o CE pela ficha (M08).
-  it.fails('esperado: a ficha recusa o CE que já está em outro B/L ativo [CED-11, OUT-04, OUT-15, ORDCE-05] — regra: CONTEXT.md:963-966 (um número de CE não pode ser usado por mais de um B/L) e ADR 0071 item 9', () => {
+  it('esperado: a ficha recusa o CE que já está em outro B/L ativo [CED-11, OUT-04, OUT-15, ORDCE-05] — regra: CONTEXT.md:963-966 (um número de CE não pode ser usado por mais de um B/L) e ADR 0071 item 9', () => {
     expect(ficha?.target).toBeNull()
     expect(ficha?.holders).toEqual(['A206-FIC-1'])
   })
@@ -570,7 +575,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
     expect(typeof result.ok).toBe('boolean')
   })
 
-  it.fails('esperado: o CE do B/L de carga não entra no B/L de Granito [CE-01] — regra: CONTEXT.md:956-957 (CE por B/L nos sentidos de importação e exportação) e CONTEXT.md:963-964 (um número de CE não pode ser usado por mais de um B/L)', () => {
+  it('esperado: o CE do B/L de carga não entra no B/L de Granito [CE-01] — regra: CONTEXT.md:956-957 (CE por B/L nos sentidos de importação e exportação) e CONTEXT.md:963-964 (um número de CE não pode ser usado por mais de um B/L)', () => {
     expect(granite?.result.ok).toBe(false)
     expect(granite?.granite).toEqual([])
     expect(granite?.cargo).toEqual(['A206-GRA-1'])
@@ -599,7 +604,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
     expect(reactivation.cancelled).not.toBeNull()
   })
 
-  it.fails('esperado: a reativação é recusada enquanto o CE estiver em outro B/L ativo [OUT-10, ORDCE-05] — regra: ADR 0071 item 9 (a unicidade CE × B/L vale entre B/Ls não cancelados) e CONTEXT.md:793-797 (o cancelado libera o CE para o B/L reemitido)', () => {
+  it('esperado: a reativação é recusada enquanto o CE estiver em outro B/L ativo [OUT-10, ORDCE-05] — regra: ADR 0071 item 9 (a unicidade CE × B/L vale entre B/Ls não cancelados) e CONTEXT.md:793-797 (o cancelado libera o CE para o B/L reemitido)', () => {
     expect(reactivation?.attempt.error).not.toBeNull()
     expect(reactivation?.cancelled).toBe(true)
     expect(reactivation?.holders).toEqual(['A206-REA-2'])
@@ -626,9 +631,62 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
     zpt = { summary, unlocked: raw ? raw.split(',') : [] }
   })
 
-  it.fails('esperado: a ZPT não marca como desbloqueado o B/L que não detém o CE [CE-V03, CED-06, TST-07] — regra: CONTEXT.md:963-966 (CE × B/L 1:1) e desbloqueio-ce.md:89 (a conciliação casa por CE)', () => {
+  it('esperado: a ZPT não marca como desbloqueado o B/L que não detém o CE [CE-V03, CED-06, TST-07] — regra: CONTEXT.md:963-966 (CE × B/L 1:1) e desbloqueio-ce.md:89 (a conciliação casa por CE)', () => {
     expect(zpt?.unlocked).not.toContain('A206-ZPT-2')
     // O B/L que detém o CE continua desbloqueado: "nenhum" não vale como acerto.
     expect(zpt?.unlocked).toEqual(['A206-ZPT-1'])
+  })
+
+  // --- 9. Porta única: Corrigir e Remover CE pela ficha (migration 176) ------
+  function ceAudit(blId: string): Array<{ old_value: string | null; new_value: string | null; justification: string | null }> {
+    const raw = localPsql(`
+      SELECT COALESCE(json_agg(t ORDER BY t.id), '[]') FROM (
+        SELECT id, old_value, new_value, justification FROM public.audit_logs
+        WHERE entity_type = 'bl' AND entity_id = '${blId}' AND field_name = 'ce_mercante'
+      ) AS t;
+    `)
+    return (JSON.parse(raw) as Array<{ old_value: string | null; new_value: string | null; justification: string | null }>)
+  }
+
+  it('Corrigir CE pela ficha grava o CE novo com o motivo no Histórico; UPDATE direto é recusado', () => {
+    expect(importCeSheet('A206-MAN-COR', [{ blId: 'A206-COR-1', ce: ce.correct }])).toMatchObject({ ok: true, inserted: 1 })
+
+    const direct = tryAsOperator(`UPDATE public.bls SET ce_mercante = '${ce.corrected}' WHERE id = 'A206-COR-1';`)
+    expect(direct.error).not.toBeNull()
+    expect(blRow('A206-COR-1')?.ce_mercante).toBe(ce.correct)
+
+    // CE de outro B/L ativo continua recusado pela porta única.
+    expect(tryAsOperator(`SELECT public.correct_bl_ce_mercante('A206-COR-1', '${ce.otherSheet}', 'Teste A206');`).error).not.toBeNull()
+
+    const attempt = tryAsOperator(`SELECT public.correct_bl_ce_mercante('A206-COR-1', '${ce.corrected}', 'CE digitado errado no extrato (A206)');`)
+    expect(attempt.error).toBeNull()
+    expect(blRow('A206-COR-1')?.ce_mercante).toBe(ce.corrected)
+    expect(ceAudit('A206-COR-1')).toContainEqual(expect.objectContaining({
+      old_value: ce.correct, new_value: ce.corrected, justification: expect.stringContaining('CE digitado errado no extrato (A206)'),
+    }))
+  })
+
+  it('Remover CE com fatura viva é recusado; sem fatura viva, remove com o motivo no Histórico', () => {
+    expect(importCeSheet('A206-MAN-REM', [{ blId: 'A206-REM-1', ce: ce.remove }])).toMatchObject({ ok: true, inserted: 1 })
+    localPsql(`
+      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerRange[0]}, '99206001000154', 'A206 CLIENTE');
+      -- Só a fatura viva importa aqui: os gatilhos de emissão (Cliente
+      -- reconciliado, Portal) ficam de fora da fixture.
+      SET session_replication_role = replica;
+      INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, status, pix_payload)
+      VALUES (99206901, 'A206-INV-1', ${customerRange[0]}, 'A206-REM-1', 10.00, 'issued', 'A206');
+      SET session_replication_role = origin;
+    `)
+
+    const refused = tryAsOperator(`SELECT public.remove_bl_ce_mercante('A206-REM-1', 'CE do B/L errado (A206)');`)
+    expect(refused.error).toMatch(/A206-INV-1/)
+    expect(blRow('A206-REM-1')?.ce_mercante).toBe(ce.remove)
+
+    localPsql(`SET session_replication_role = replica; UPDATE public.invoices SET status = 'cancelled' WHERE id = 99206901; SET session_replication_role = origin;`)
+    expect(tryAsOperator(`SELECT public.remove_bl_ce_mercante('A206-REM-1', 'CE do B/L errado (A206)');`).error).toBeNull()
+    expect(blRow('A206-REM-1')?.ce_mercante).toBeNull()
+    expect(ceAudit('A206-REM-1')).toContainEqual(expect.objectContaining({
+      old_value: ce.remove, new_value: '', justification: expect.stringContaining('CE do B/L errado (A206)'),
+    }))
   })
 })

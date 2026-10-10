@@ -27,6 +27,7 @@ const CATALOG_MIGRATIONS = [
   '128_correcao_do_bl_sempre_automatica.sql',
   '153_itau_pix_prazos_e_ptax.sql',
   '174_reimportacao_bl_container_preserva.sql',
+  '176_ce_mercante_unicidade_e_porta_unica.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

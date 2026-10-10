@@ -233,6 +233,9 @@ function parseRows(rows: SheetRow[]): ParsedCeMercanteFile {
   const rowErrors: ParsedCeMercanteFile['rowErrors'] = []
   const validRows: CeMercanteRow[] = []
   const seenBls = new Set<string>()
+  // Um CE só pode estar em um B/L não cancelado (ADR 0078, item 3): repetido
+  // no arquivo é erro de linha e bloqueia a confirmação.
+  const seenCes = new Map<string, { row: number; blId: string }>()
 
   rows.forEach((row) => {
     const mapped = mapRow(row)
@@ -273,7 +276,18 @@ function parseRows(rows: SheetRow[]): ParsedCeMercanteFile {
       return
     }
 
+    const firstCe = seenCes.get(ce_mercante)
+    if (firstCe) {
+      rowErrors.push({
+        row: rowNumber,
+        message: `CE Mercante ${ce_mercante} repetido na planilha: já está na linha ${firstCe.row} (BL ${firstCe.blId}). Um CE só pode estar em um B/L.`,
+        raw: row,
+      })
+      return
+    }
+
     seenBls.add(bl_id)
+    seenCes.set(ce_mercante, { row: rowNumber, blId: bl_id })
     validRows.push({
       rowNumber,
       bl_id,

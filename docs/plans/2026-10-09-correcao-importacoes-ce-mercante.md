@@ -315,27 +315,45 @@ irmão, não o do próprio B/L, cujo cálculo é refeito pelo CE e pela Liberaç
 `save_bl_review`, `apply_ce_mercante_update`, `reactivate_bl`,
 `src/services/ceMercanteImport.ts`, `src/hooks/useBlEditForm.ts`, ficha do B/L.
 
-- [ ] Antes: consulta da Etapa 0 sobre CEs repetidos; a migration aborta
+- [x] Antes: consulta da Etapa 0 sobre CEs repetidos; a migration aborta
   listando os B/Ls se houver repetição, sem reescrever linhas.
-- [ ] Migration nova: chave normalizada do CE e unicidade entre B/Ls não
+- [x] Migration nova: chave normalizada do CE e unicidade entre B/Ls não
   cancelados, cruzando com Granito, num gatilho que cobre todas as portas e
   `reactivate_bl`; a conciliação ZPT usa a mesma chave.
-- [ ] **Porta única no banco:** função interna que valida 15 dígitos,
+- [x] **Porta única no banco:** função interna que valida 15 dígitos,
   unicidade e Manifesto Mercante e audita com motivo; `UPDATE` direto de
   `ce_mercante` recusado fora dela; `save_bl_review` deixa de gravar o CE.
-- [ ] **Ficha do B/L:** ações **Corrigir CE Mercante** e **Remover CE
+- [x] **Ficha do B/L:** ações **Corrigir CE Mercante** e **Remover CE
   Mercante**, para qualquer usuário ativo, com motivo; remover só sem fatura
   viva, com a orientação de o Administrativo cancelar a fatura antes;
   Comunicado já enviado abre pendência de reenvio.
-- [ ] Prévia da planilha acusa CE repetido; mensagens sem `duplicate key` cru.
-- [ ] Ajustar fixtures de `ceUnlock` e `ceMercanteAutoBilling`.
-- [ ] Trocar os 8 `it.fails` de `auditoriaCeUnicidadeValidacao` por `it`.
-- [ ] Checagens novas: corrigir e remover pela ficha gravam motivo no
+- [x] Prévia da planilha acusa CE repetido; mensagens sem `duplicate key` cru.
+- [x] Ajustar fixtures de `ceUnlock` e `ceMercanteAutoBilling`.
+- [x] Trocar os 8 `it.fails` de `auditoriaCeUnicidadeValidacao` por `it`.
+- [x] Checagens novas: corrigir e remover pela ficha gravam motivo no
   Histórico; remover com fatura viva é recusado.
 
 **Aceitação:** 16/16 na suíte e as checagens novas; transações concorrentes
 com o mesmo CE recebem a mensagem amigável; a planilha de CE como
 `authenticated` grava o manifesto sem `permission denied`.
+
+**Execução (2026-10-10, local):** migration `176`: `ce_mercante_key` (só
+dígitos), pré-checagem que aborta listando CEs repetidos, índice único
+`bls_ce_mercante_active_key` e gatilho `guard_ce_mercante_unique` em `bls` e
+`granite_bls` (cobre todas as portas, Granito e `reactivate_bl`, com trava
+consultiva e mensagem amigável `P0010`); porta única `_set_bl_ce_mercante`
+(15 dígitos, Histórico com motivo, alerta `comunicado_ce_reenvio_pendente`) e
+`guard_bl_ce_mercante_port` recusando `UPDATE` direto de sessão de usuário;
+`correct_bl_ce_mercante` e `remove_bl_ce_mercante` (`P0011` com fatura viva);
+`save_bl_review` descarta `ce_mercante`; `ce_unlock_reconcile` casa pela chave.
+Na ficha, o CE sai do Salvar e vira `BlCeMercanteField` com **Corrigir** e
+**Remover**; a prévia da planilha acusa CE repetido. Drift mecânico: a
+validação do Manifesto Mercante continua na planilha (`apply_ce_mercante_rows_atomic`,
+164); a porta única não exige manifesto para Corrigir/Remover pela ficha.
+Fixtures de `ceUnlock`, `ceMercanteAutoBilling`, `auditSecurityBoundaries` e
+`customerCommunicationReadinessGuards` usavam o mesmo CE `1234567890123NN`;
+com a unicidade, cada suíte ganhou CEs do próprio namespace. `auditoriaCeUnicidadeValidacao`: 18/18 (16 + 2
+checagens novas).
 
 ## Etapa 7 — Faturas, Demurrage, datas e Comunicado (M18, M19, M10, M21; ADR 0078, itens 12, 19 e 20)
 

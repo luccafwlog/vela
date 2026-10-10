@@ -123,13 +123,13 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
         ('${blId}', ${voyageId}, ${customerId}, 'CEAUTO', 'container',
           'pending', 'not_calculated', 'reconciled', NULL),
         ('${peerBlId}', ${voyageId}, ${customerId}, 'CEAUTO', 'container',
-          'pending', 'not_calculated', 'reconciled', '123456789012346'),
+          'pending', 'not_calculated', 'reconciled', '771301000000146'),
         ('${blockedBlId}', ${voyageId}, ${customerId}, 'CEAUTO', 'container',
-          'pending', 'not_calculated', 'missing_customer', '123456789012347'),
+          'pending', 'not_calculated', 'missing_customer', '771301000000147'),
         ('${workerOriginBlId}', ${voyageId}, ${customerId}, 'CEAUTO', 'container',
-          'pending', 'not_calculated', 'reconciled', '123456789012348'),
+          'pending', 'not_calculated', 'reconciled', '771301000000148'),
         ('${workerPeerBlId}', ${voyageId}, ${customerId}, 'CEAUTO', 'container',
-          'pending', 'not_calculated', 'reconciled', '123456789012349');
+          'pending', 'not_calculated', 'reconciled', '771301000000149');
       INSERT INTO public.bl_containers (bl_id, container_number)
       VALUES
         ('${blId}', 'MSCU1234567'),
@@ -155,7 +155,7 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
       DO $$
       BEGIN
         PERFORM public.apply_ce_mercante_update(
-          '${blId}', '123456789012345', '${actorId}'::uuid
+          '${blId}', '771301000000145', '${actorId}'::uuid
         );
       END
       $$;

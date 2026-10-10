@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **CE Mercante único e porta única (2026-10-10, implementação local; Etapa 6 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  um CE só fica num B/L não cancelado (carga e Granito, também na reativação), com recusa
+  amigável; a planilha de CE acusa CE repetido na prévia; a ficha do B/L deixa de gravar o CE pelo
+  Salvar e ganha **Corrigir** e **Remover** CE, com motivo no Histórico; remover com fatura viva é
+  recusado; Comunicado já enviado abre o alerta `comunicado_ce_reenvio_pendente`; a conciliação
+  ZPT casa pela mesma chave (migration `176`, ADR 0078 itens 1–3 e 5).
 - **Container compartilhado (2026-10-10, implementação local; Etapa 5 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   B/Ls do mesmo Cliente que dividem um container passam a ser todos faturados com o rateio
