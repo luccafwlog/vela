@@ -470,7 +470,20 @@ export async function saveVoyagePolSchedule({
 }) {
   const entityId = buildVoyagePolEntityId(voyageId, pol)
   const current = (await listVoyagePolSchedules([entityId])).get(entityId) ?? makeEmptyPolSchedule(entityId)
+  const changes = buildVoyagePolScheduleChanges(entityId, current, { etd, atd, escalaNumber, changedBy, justification })
 
+  if (!changes.length) return
+
+  const { error } = await supabase.from('audit_logs').insert(changes)
+  if (error) throw error
+}
+
+/** Linhas de Histórico que uma gravação de agenda de POL produz (sem gravar). */
+export function buildVoyagePolScheduleChanges(
+  entityId: string,
+  current: ReturnType<typeof makeEmptyPolSchedule>,
+  { etd, atd, escalaNumber, changedBy, justification }: { etd: string | null; atd?: string | null; escalaNumber?: string | null; changedBy: string | null; justification?: string },
+) {
   const changes = [
     atd === undefined
       ? null
@@ -480,11 +493,7 @@ export async function saveVoyagePolSchedule({
       ? null
       : makeAuditRow(POL_ENTITY_TYPE, entityId, 'escala_number', current.escalaNumber, escalaNumber, changedBy, 'Atualizacao manual de Numero de Escala por POL'),
   ].filter((change) => change !== null)
-
-  if (!changes.length) return
-
-  const { error } = await supabase.from('audit_logs').insert(changes)
-  if (error) throw error
+  return changes
 }
 
 export async function saveVoyagePodSchedule({
@@ -522,7 +531,42 @@ export async function saveVoyagePodSchedule({
 }) {
   const entityId = buildVoyagePodEntityId(voyageId, pod)
   const current = (await listVoyagePodSchedules([entityId])).get(entityId) ?? makeEmptyPodSchedule(entityId)
+  const changes = buildVoyagePodScheduleChanges(entityId, current, {
+    justification, eta, etb, ata, atb, etd, atd, rtw, ceStatus, linked, escalaNumber, temImportacao, changedBy,
+  })
 
+  if (!changes.length) return
+
+  const { error } = await supabase.from('audit_logs').insert(changes)
+  if (error) throw error
+
+  if (atd !== undefined) {
+    await syncVoyageStatusAfterAtdChange(voyageId)
+  }
+}
+
+type PodScheduleChangeInput = {
+  justification?: string | null
+  eta: string | null
+  etb?: string | null
+  ata: string | null
+  atb?: string | null
+  etd?: string | null
+  atd?: string | null
+  rtw?: number | null
+  ceStatus?: VoyagePodCeStatus | null
+  linked: boolean | null
+  escalaNumber?: string | null
+  temImportacao?: boolean
+  changedBy: string | null
+}
+
+/** Linhas de Histórico que uma gravação de agenda de POD produz (sem gravar). */
+export function buildVoyagePodScheduleChanges(
+  entityId: string,
+  current: ReturnType<typeof makeEmptyPodSchedule>,
+  { justification, eta, etb, ata, atb, etd, atd, rtw, ceStatus, linked, escalaNumber, temImportacao = true, changedBy }: PodScheduleChangeInput,
+) {
   const changes = [
     makeAuditRow(POD_ENTITY_TYPE, entityId, 'eta', current.eta, eta, changedBy, 'Atualizacao manual de ETA por POD'),
     etb === undefined ? null : makeAuditRow(POD_ENTITY_TYPE, entityId, 'etb', current.etb, etb ?? null, changedBy, 'Atualizacao manual de ETB por POD'),
@@ -587,15 +631,7 @@ export async function saveVoyagePodSchedule({
       justification: 'Reinclusao de POD no planejamento',
     })
   }
-
-  if (!changes.length) return
-
-  const { error } = await supabase.from('audit_logs').insert(changes)
-  if (error) throw error
-
-  if (atd !== undefined) {
-    await syncVoyageStatusAfterAtdChange(voyageId)
-  }
+  return changes
 }
 
 export async function saveVoyageEscalaSchedule({
@@ -1012,7 +1048,7 @@ function hydratePodSchedules(
   return schedules
 }
 
-function makeEmptyPolSchedule(entityId: string): VoyagePolSchedule {
+export function makeEmptyPolSchedule(entityId: string): VoyagePolSchedule {
   const [voyageId, pol] = entityId.split('::')
   return {
     entityId,
@@ -1024,7 +1060,7 @@ function makeEmptyPolSchedule(entityId: string): VoyagePolSchedule {
   }
 }
 
-function makeEmptyPodSchedule(entityId: string): VoyagePodSchedule {
+export function makeEmptyPodSchedule(entityId: string): VoyagePodSchedule {
   const [voyageId, pod] = entityId.split('::')
   return {
     entityId,

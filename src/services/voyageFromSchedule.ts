@@ -5,12 +5,17 @@ import {
   findVoyageByNumberAndVessel,
   setVoyageShowOnPortal,
 } from './voyages'
+import { canonicalizeVesselName, normalizeVesselImo } from '../lib/vesselAlias'
 import {
   buildVoyagePodEntityId,
+  buildVoyagePodScheduleChanges,
   buildVoyagePolEntityId,
+  buildVoyagePolScheduleChanges,
   deleteVoyagePodSchedule,
   listVoyagePodSchedules,
   listVoyagePolSchedules,
+  makeEmptyPodSchedule as emptyPod,
+  makeEmptyPolSchedule as emptyPol,
   saveVoyagePodSchedule,
   saveVoyagePolSchedule,
 } from './voyageRouteSchedules'
@@ -178,4 +183,93 @@ export async function createOrAttachVoyageFromSchedule(
   }
 
   return { voyageId, created: existingId === null }
+}
+
+// ── Programação por planilha: prévia e gravação atômica (migration 187) ──────
+
+export type ScheduleSheetChange = {
+  entity_type: string
+  port: string
+  field_name: string
+  old_value: string | null
+  new_value: string | null
+  justification: string
+}
+
+export type ScheduleSheetPlanRow = {
+  label: string
+  vesselName: string
+  vesselImo: string | null
+  voyageNumber: string
+  voyageId: number | null
+  /** Viagem nova: criada na gravação, com o navio pelo IMO ou nome. */
+  createsVoyage: boolean
+  changes: ScheduleSheetChange[]
+  error: string | null
+}
+
+const portOf = (entityId: string) => entityId.split('::').slice(1).join('::')
+
+/**
+ * Prévia da planilha: para cada linha, a Viagem (existente ou nova) e as datas
+ * que mudam, pelas mesmas regras da gravação individual. Nada é gravado.
+ */
+export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: string | null): Promise<ScheduleSheetPlanRow[]> {
+  const plan: ScheduleSheetPlanRow[] = []
+  for (const row of rows) {
+    const base = {
+      label: `${row.vesselName} / ${row.voyageNumber}`,
+      vesselName: canonicalizeVesselName(row.vesselName.trim()),
+      vesselImo: normalizeVesselImo(row.vesselImo),
+      voyageNumber: row.voyageNumber.trim(),
+    }
+    try {
+      const voyageId = await findVoyageByNumberAndVessel(row.voyageNumber, row.vesselImo, row.vesselName)
+      const { pols, pods } = partitionScheduleLanes(row.lanes)
+      const prefix = voyageId ?? 0
+      const polIds = pols.map((pol) => buildVoyagePolEntityId(prefix, pol.code))
+      const podIds = pods.map((pod) => buildVoyagePodEntityId(prefix, pod.pod))
+      const [currentPols, currentPods] = voyageId
+        ? await Promise.all([listVoyagePolSchedules(polIds), listVoyagePodSchedules(podIds)])
+        : [new Map(), new Map()]
+      const changes: ScheduleSheetChange[] = []
+      const push = (list: Array<{ entity_type: string; entity_id: string; field_name: string; old_value: string | null; new_value: string | null; justification: string | null }>) => {
+        for (const item of list) changes.push({ entity_type: item.entity_type, port: portOf(item.entity_id), field_name: item.field_name, old_value: item.old_value, new_value: item.new_value, justification: item.justification ?? '' })
+      }
+      pols.forEach((pol, index) => {
+        const id = polIds[index]
+        push(buildVoyagePolScheduleChanges(id, currentPols.get(id) ?? emptyPol(id), { etd: pol.etd, changedBy }))
+      })
+      pods.forEach((pod, index) => {
+        const id = podIds[index]
+        const current = currentPods.get(id) ?? emptyPod(id)
+        push(buildVoyagePodScheduleChanges(id, current, {
+          eta: pod.eta, ata: current.ata ?? null, ceStatus: current.ceStatus ?? null, linked: current.linked ?? false, changedBy,
+        }))
+      })
+      plan.push({ ...base, voyageId, createsVoyage: voyageId === null, changes, error: null })
+    } catch (error) {
+      plan.push({ ...base, voyageId: null, createsVoyage: false, changes: [], error: error instanceof Error ? error.message : 'falha inesperada' })
+    }
+  }
+  return plan
+}
+
+/** Grava a prévia numa transação: se uma linha falha, nada é gravado. */
+export async function applyScheduleSheetPlan(plan: ScheduleSheetPlanRow[]): Promise<{ created: number; updated: number; changes: number }> {
+  const rows = plan.filter((row) => !row.error && (row.createsVoyage || row.changes.length))
+  if (!rows.length) return { created: 0, updated: 0, changes: 0 }
+  const { data, error } = await supabase.rpc('apply_schedule_sheet_atomic' as never, {
+    p_rows: rows.map((row) => ({
+      voyage_id: row.voyageId,
+      vessel_name: row.vesselName,
+      vessel_imo: row.vesselImo,
+      voyage_number: row.voyageNumber,
+      changes: row.changes,
+    })),
+    p_carrier_name: DEFAULT_CARRIER_NAME,
+    p_carrier_scac: DEFAULT_CARRIER_SCAC,
+  } as never)
+  if (error) throw error
+  return data as unknown as { created: number; updated: number; changes: number }
 }

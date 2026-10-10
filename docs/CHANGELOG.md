@@ -4,6 +4,11 @@
 
 ## 2026-10
 
+- **Programação por planilha (2026-10-10, implementação local; Etapa 11 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  em Chegadas e Saídas, a planilha mostra antes o que cria e o que muda por viagem e grava tudo
+  de uma vez: uma falha não deixa parte gravada e o reenvio não duplica a viagem (migration
+  `187`).
 - **Vazios (2026-10-10, implementação local; Etapa 11 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   reimportar Vazios de Importação da mesma rota substitui a lista sem duplicar e sem perder a

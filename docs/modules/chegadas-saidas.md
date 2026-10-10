@@ -52,9 +52,16 @@ receber o último ATD (passa a Concluída); antes disso, só sai por Excluir ou
 Cancelar em `/viagens` (ADR 0071, item 12; "Remover do Portal" foi retirado na
 Fase 4a da política de exclusão).
 
-O upload em lote baixa um template gerado da mesma constante de lanes. O resultado fica na tela com a contagem e a lista nominal das viagens não atualizadas e das datas ignoradas; o diagnóstico do arquivo fica recolhido. Cada
-linha da planilha (`VESSEL NAME`, `VOY`, `IMO`, lanes ETD/ETA) vira uma chamada
-ao mesmo `createOrAttachVoyageFromSchedule`. Datas aceitas: ISO ou
+O upload em lote baixa um template gerado da mesma constante de lanes. **Conferir
+prévia** lê o arquivo e mostra, por linha (`VESSEL NAME`, `VOY`, `IMO`, lanes
+ETD/ETA), se a viagem é nova, quais datas mudam ou o erro (ex.: viagem ambígua),
+sem gravar (`planScheduleSheet`, com as mesmas regras de agenda da gravação
+individual). **Gravar programação** grava tudo numa transação
+(`apply_schedule_sheet_atomic`, migration `187`): Viagem nova é criada uma vez,
+publicada no Portal, e qualquer falha desfaz o arquivo inteiro; linhas com erro
+na prévia ficam de fora. O resultado fica na tela com a contagem e a lista
+nominal das viagens não gravadas e das datas ignoradas; o diagnóstico do arquivo
+fica recolhido. Datas aceitas: ISO ou
 `DD/MM/AAAA` (parser único `src/lib/importDate.ts`; o CSV não é mais
 reinterpretado como mês/dia); vazio/`X` significa "não escala". Antes do parse, o arquivo é
 classificado pelo conteúdo (XLSX/XLS ou CSV), CSV Windows-1252 é aceito com
@@ -86,7 +93,7 @@ lanes e ordena pela menor ETA de POD.
 | Carregar publicados | Sessão interna | Montagem de `/chegadas-saidas` | `useQuery(['portal-schedule-voyages'])` | RPC `portal_ship_schedule` projetada em linhas | Preenche tabela por ETA | Erro de leitura da RPC exibido na página | **Código**, **Teste** |
 | Adicionar/anexar viagem | Usuário interno ativo; navio, VOY e ao menos um POD com data | Modal | `buildScheduleLanes` + `createOrAttachVoyageFromSchedule` | `voyages.show_on_portal`, `audit_logs` POL/POD | Invalida `['portal-schedule-voyages']` e `['voyages']` | Campos obrigatórios, identidade divergente ou falha ao persistir | **Código**, **Teste** |
 | Editar publicação | Usuário interno ativo; viagem já visível | Botão Editar/modal | Pré-preenche datas projetadas e salva pelo mesmo serviço | Atualiza somente ETD/ETA informados | Last write wins em ETD/ETA digitados | Conflitos de identidade e erro do serviço | **Código**, **Teste** |
-| Importar planilha | Usuário interno ativo; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload`: área de arquivo comum (`ImportFilePicker`) e “Enviar planilha”; escolher o arquivo não grava | `parseScheduleRows` + `createOrAttachVoyageFromSchedule` por linha | Mesma persistência do modal | Resumo de sucesso/erro por linha; invalida caches | Erro de parse/linha exibido no resumo; pode haver sucesso parcial | **Código**, **Teste** |
+| Importar planilha | Usuário interno ativo; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload`: área de arquivo comum (`ImportFilePicker`), “Conferir prévia” e “Gravar programação”; escolher o arquivo ou conferir não grava | `parseScheduleRows` + `planScheduleSheet` (prévia) + `applyScheduleSheetPlan` → `apply_schedule_sheet_atomic` (migration `187`) | Mesma persistência do modal, numa transação | Prévia por viagem; resumo após gravar; invalida caches | Erro de linha aparece na prévia e a linha fica de fora; falha na gravação não grava nada | **Código**, **Teste**, **Integração em PostgreSQL local:** `programacaoPlanilha.local-pg.test.ts` |
 | Consultar no Portal | Sessão do Portal | `ShipScheduleWidget` | `usePortalScheduleVoyages` | RPC `portal_ship_schedule` | Cache `['portal-schedule-voyages']` | Erro de RPC e estados vazio/loading no widget | **Código**, **Teste**, **Teste de contrato SQL** |
 
 ## Estado e dados

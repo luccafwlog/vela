@@ -610,8 +610,8 @@ prévia de B/L avisa COD e porto omitido. Checagens: `codDocumentoFatura.local-p
 - [x] **Vazios:** reimportação da mesma rota substitui o manifesto preservando
   a natureza; recadastro pelo Baplie preserva a natureza e remove manifestos
   vazios; Embarque de Vazios atualiza por container e preserva unidades manuais.
-- [ ] Programação por planilha com prévia e atômica.
-- [ ] Primeiras suítes `local-pg` das RPCs de veículos, Granito e vazios.
+- [x] Programação por planilha com prévia e atômica.
+- [x] Primeiras suítes `local-pg` das RPCs de veículos, Granito e vazios.
 
 **Aceitação:** suítes novas verdes no CI; reimportar a mesma planilha de
 Granito ou de vazios não duplica linhas.
@@ -652,6 +652,16 @@ manifestos vazios (`_vazios_importacao_prune`);
 `import_vazios_bookings_transactional` atualiza por container, preserva a
 unidade manual, remove manifestos órfãos e recalcula os totais. Checagem:
 `vaziosReimportacao.local-pg` (no CI).
+
+**Execução — Programação por planilha (2026-10-10, local):** migration `187` —
+`apply_schedule_sheet_atomic` grava a planilha numa transação (Viagem nova uma
+vez, agenda com o id dela, falha desfaz tudo); a tela de Chegadas e Saídas
+mostra a prévia (`planScheduleSheet`, com `buildVoyagePolScheduleChanges` e
+`buildVoyagePodScheduleChanges` extraídos da gravação individual) antes de
+gravar. Checagens: `programacaoPlanilha.local-pg` (no CI),
+`ChegadasSaidas.behavior.test.tsx`. Suítes `local-pg` novas da etapa:
+`veiculosRegras`, `baseClientesVinculo`, `granitoReimportacao`,
+`vaziosReimportacao`, `programacaoPlanilha`.
 
 ## Etapa 12 — Testes e CI
 

@@ -17,7 +17,7 @@ import { emptyScheduleForm, buildScheduleLanes, clearedPodLabels, scheduleFormFr
 import { PORTAL_SCHEDULE_LANES, type PortalScheduleLane } from '../services/portalScheduleLanes'
 import { parseScheduleRows, scheduleTemplateColumns } from '../services/portalScheduleBulkImport'
 import { fetchPortalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
-import { createOrAttachVoyageFromSchedule } from '../services/voyageFromSchedule'
+import { applyScheduleSheetPlan, createOrAttachVoyageFromSchedule, planScheduleSheet, type ScheduleSheetPlanRow } from '../services/voyageFromSchedule'
 import { readSheet } from '../services/importCore'
 import { inspectImportFile, type ImportFileInspection } from '../services/importText'
 
@@ -124,11 +124,61 @@ function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing, saving 
   )
 }
 
+function SchedulePlanPreview({ plan, applying, onApply, onCancel }: {
+  plan: { rows: ScheduleSheetPlanRow[]; warnings: string[] }
+  applying: boolean
+  onApply: () => void
+  onCancel: () => void
+}) {
+  const valid = plan.rows.filter((row) => !row.error)
+  const writes = valid.filter((row) => row.createsVoyage || row.changes.length)
+  const errors = plan.rows.filter((row) => row.error)
+  return (
+    <div className="mt-4 grid gap-3 border-t border-[var(--app-border)] pt-4 text-sm" role="region" aria-label="Prévia da planilha">
+      <p className="m-0 font-medium">
+        Prévia: {valid.filter((row) => row.createsVoyage).length} viagem(ns) nova(s), {valid.filter((row) => !row.createsVoyage && row.changes.length).length} com datas que mudam, {valid.filter((row) => !row.createsVoyage && !row.changes.length).length} sem mudança
+        {errors.length ? ` · ${errors.length} com erro (não entram)` : ''}
+      </p>
+      <div className="app-table-scroll max-h-72">
+        <table className="app-table app-table--compact w-full text-left">
+          <caption className="sr-only">O que a planilha grava, por viagem</caption>
+          <thead><tr><th scope="col">Viagem</th><th scope="col">O que acontece</th></tr></thead>
+          <tbody>
+            {plan.rows.map((row) => (
+              <tr key={row.label}>
+                <td className="whitespace-nowrap">{row.label}</td>
+                <td>
+                  {row.error ? <span className="text-[var(--app-danger-fg)]">{row.error}</span>
+                    : row.createsVoyage ? `Cria a viagem e grava ${row.changes.filter((change) => change.field_name === 'eta' || change.field_name === 'etd').length} data(s)`
+                      : row.changes.length ? row.changes.filter((change) => change.field_name === 'eta' || change.field_name === 'etd').map((change) => `${change.port} ${change.field_name.toUpperCase()}: ${change.old_value ?? '—'} → ${change.new_value ?? '—'}`).join('; ') || 'Atualiza a escala'
+                        : <span className="text-[var(--app-muted)]">Sem mudança</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {plan.warnings.length ? (
+        <ul className="m-0 list-disc pl-5 text-[var(--app-warning-fg)]">{plan.warnings.map((message) => <li key={message}>{message}</li>)}</ul>
+      ) : null}
+      <p className="m-0 text-[var(--app-muted)]">Tudo ou nada: se uma viagem não puder ser gravada, nenhuma é.</p>
+      <div className="flex gap-2">
+        <Button type="button" variant="secondary" className="app-btn--sm" onClick={onCancel} disabled={applying}>Voltar</Button>
+        <Button type="button" className="app-btn--sm" onClick={onApply} disabled={!writes.length} loading={applying} loadingLabel="Gravando…">Gravar programação ({writes.length})</Button>
+      </div>
+    </div>
+  )
+}
+
 function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate: () => void }) {
   const [uploading, setUploading] = useState(false)
   const [readError, setReadError] = useState<string | null>(null)
   const [result, setResult] = useState<{ inspection: ImportFileInspection; updated: string[]; errors: string[]; warnings: string[] } | null>(null)
   const [chosenFiles, setChosenFiles] = useState<File[]>([])
+  // Prévia da planilha (Etapa 11): nada é gravado antes de confirmar; a
+  // gravação é uma transação só (migration 187).
+  const [plan, setPlan] = useState<{ inspection: ImportFileInspection; rows: ScheduleSheetPlanRow[]; warnings: string[] } | null>(null)
+  const [applying, setApplying] = useState(false)
   const { showToast } = useToast()
   const { user } = useAuth()
 
@@ -155,6 +205,7 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
     if (!file) return
     setUploading(true)
     setResult(null)
+    setPlan(null)
     setReadError(null)
     try {
       assertUploadSize(file)
@@ -162,27 +213,10 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
       const inspection = inspectImportFile(buf)
       const { rows } = await readSheet(buf)
       const parsed = parseScheduleRows(rows)
-      const next = { inspection, updated: [] as string[], errors: [] as string[], warnings: [] as string[] }
-
-      for (const row of parsed) {
-        if (row.invalidCells.length > 0) {
-          next.warnings.push(`${row.vesselName} / ${row.voyageNumber}: datas ilegíveis em ${row.invalidCells.join(', ')}`)
-        }
-        try {
-          await createOrAttachVoyageFromSchedule(row, user?.id ?? null, { mode: 'bulk' })
-          next.updated.push(`${row.vesselName} / ${row.voyageNumber}`)
-        } catch (error) {
-          next.errors.push(`${row.vesselName}: ${error instanceof Error ? error.message : 'falha inesperada'}`)
-        }
-      }
-
-      setResult(next)
-      if (next.updated.length > 0) {
-        showToast(`${next.updated.length} viagem(ns) atualizada(s)!`, 'success')
-        onUpdate()
-      } else {
-        showToast('Nenhuma viagem foi atualizada', 'error')
-      }
+      const warnings = parsed
+        .filter((row) => row.invalidCells.length > 0)
+        .map((row) => `${row.vesselName} / ${row.voyageNumber}: datas ilegíveis em ${row.invalidCells.join(', ')}`)
+      setPlan({ inspection, rows: await planScheduleSheet(parsed, user?.id ?? null), warnings })
     } catch (error) {
       // A falha de leitura fica no conteúdo; o toast não é a única explicação.
       const message = error instanceof Error ? error.message : 'Erro ao processar planilha'
@@ -190,7 +224,34 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
       showToast(message, 'error')
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleApplyPlan = async () => {
+    if (!plan) return
+    setApplying(true)
+    try {
+      const outcome = await applyScheduleSheetPlan(plan.rows)
+      const touched = plan.rows.filter((row) => !row.error && (row.createsVoyage || row.changes.length))
+      setResult({
+        inspection: plan.inspection,
+        updated: touched.map((row) => row.label),
+        errors: plan.rows.filter((row) => row.error).map((row) => `${row.label}: ${row.error}`),
+        warnings: plan.warnings,
+      })
+      setPlan(null)
       setChosenFiles([])
+      if (touched.length) {
+        showToast(`${outcome.created} viagem(ns) criada(s), ${outcome.updated} atualizada(s).`, 'success')
+        onUpdate()
+      } else {
+        showToast('Nada a gravar: a planilha não muda nenhuma data.', 'info')
+      }
+    } catch (error) {
+      // Tudo ou nada: a falha não deixa parte da planilha gravada.
+      showToast(`Nada foi gravado: ${userFacingErrorMessage(error, 'falha ao gravar a programação')}`, 'error')
+    } finally {
+      setApplying(false)
     }
   }
 
@@ -217,12 +278,13 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
             disabled={uploading}
           />
           <div>
-            <Button type="button" className="app-btn--sm" onClick={() => void handleSubmitSheet()} disabled={!chosenFiles.length} loading={uploading} loadingLabel="Processando…">
-              <Upload size={14} /> Enviar planilha
+            <Button type="button" className="app-btn--sm" onClick={() => void handleSubmitSheet()} disabled={!chosenFiles.length} loading={uploading} loadingLabel="Lendo…">
+              <Upload size={14} /> Conferir prévia
             </Button>
           </div>
         </div>
       ) : null}
+      {plan ? <SchedulePlanPreview plan={plan} applying={applying} onApply={() => void handleApplyPlan()} onCancel={() => setPlan(null)} /> : null}
       {readError ? <div className="mt-4"><InlineError message={readError} /></div> : null}
       {result ? (
         <div className="mt-4 grid gap-3 border-t border-[var(--app-border)] pt-4 text-sm" role="status" aria-label="Resultado da planilha">
