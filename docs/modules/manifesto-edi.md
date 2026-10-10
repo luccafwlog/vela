@@ -135,6 +135,17 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
 - Exclusões de B/Ls, Containers e Veículos atualizam também os totalizadores e
   vínculos dependentes, incluindo veículos removidos junto com um Container.
   Edição manual e vínculo/desvínculo de Cliente atualizam as projeções do B/L.
+- **Veículos (migration `183`, ADR 0078 itens 8 e 23):** a planilha casa o
+  B/L pelo número exato da Viagem (sem buscar B/L "parecido"); chassi já em
+  outra Viagem ativa recusa a linha (B/L ou Viagem cancelados não contam); tipos
+  ISO equivalentes (40HQ = 40HC), lacre sem zeros à esquerda e opcional para
+  flat rack e plataforma; o local de desova só preenche vazio, a troca do gravado
+  pede confirmação e valores diferentes para o mesmo container no arquivo
+  recusam as linhas. As mesmas regras valem em `import_vehicle_rows_transactional`.
+  Sem fatura viva, as Taxas Locais são recalculadas na hora e B/L isento anula o
+  Recebível. Na página Veículos, **Mover para outro B/L**
+  (`move_vehicles_to_bl`) e **Excluir** (`delete_vehicles_with_reason`) valem
+  para qualquer usuário, com motivo, mesmo com CE; a fatura viva segue a ADR 0077.
 - **COD e omissão na importação (migration `182`, ADR 0078 item 13):** a
   reimportação de B/L de container não muda o POD de B/L em COD vivo (a prévia
   avisa e os demais campos atualizam; a carga solta segue a `173`); mudar o POD

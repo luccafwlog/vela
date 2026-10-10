@@ -13,7 +13,7 @@ import { SkeletonTable } from '../components/ui/Skeleton'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
 import { TruncationNote } from '../components/shared/TruncationNote'
-import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from '../components/shared/ImportParts'
@@ -26,8 +26,9 @@ import { useRowSelection } from '../hooks/useRowSelection'
 import { usePageFilters } from '../hooks/usePageFilters'
 import { UNPACKING_LOCATION_NONE, useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
 import { deleteVehicles } from '../services/vehicles'
+import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
-import { importVehicleRows, parseVehicleImportFile, type ParsedVehicleImport } from '../services/vehicleImport'
+import { importVehicleRows, parseVehicleImportFile, vehicleUnpackingConfirmOptions, type ParsedVehicleImport } from '../services/vehicleImport'
 import { setContainerUnpackingLocation } from '../services/vaziosNatureza'
 import { exportVehicleWorkbook } from '../services/exports'
 import { listVoyageEscalaSchedulesByVoyageIds } from '../services/voyageRouteSchedules'
@@ -126,11 +127,11 @@ export function Veiculos() {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const confirmWithReason = useConfirmWithReason()
-  const { isAdmin, user, profile } = useAuth()
+  const { user, profile } = useAuth()
   const narrow = useNarrowViewport()
   const canEditVehicles = Boolean(profile || user)
-  const canDeleteVehicles = isAdmin
-  // Selecionar serve ao local de desova em lote (quem edita) e à exclusão (Administrativo).
+  // Excluir e Mover valem para qualquer usuário, com motivo (ADR 0078, item 23).
+  const canDeleteVehicles = canEditVehicles
   const canSelect = canEditVehicles
   const [deleting, setDeleting] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -142,6 +143,7 @@ export function Veiculos() {
   // Enter grava e desativa o campo, o que dispara o blur: a segunda chamada não repete a escrita.
   const savingRef = useRef(new Set<number>())
   const [bulkDesovaOpen, setBulkDesovaOpen] = useState(false)
+  const [moveOpen, setMoveOpen] = useState(false)
   const [bulkDesovaValue, setBulkDesovaValue] = useState('')
   const [bulkDesovaSaving, setBulkDesovaSaving] = useState(false)
   const [bulkDesovaError, setBulkDesovaError] = useState<string | null>(null)
@@ -502,10 +504,15 @@ export function Veiculos() {
               deleting={deleting}
               noun={['veículo', 'veículos']}
               extraActions={canEditVehicles ? (
-                <Button variant="secondary" onClick={() => { setBulkDesovaError(null); setBulkDesovaOpen(true) }} disabled={deleting}>
-                  <MapPin size={15} aria-hidden="true" />
-                  Definir local de desova
-                </Button>
+                <>
+                  <Button variant="secondary" onClick={() => { setBulkDesovaError(null); setBulkDesovaOpen(true) }} disabled={deleting}>
+                    <MapPin size={15} aria-hidden="true" />
+                    Definir local de desova
+                  </Button>
+                  <Button variant="secondary" onClick={() => setMoveOpen(true)} disabled={deleting}>
+                    Mover para outro B/L
+                  </Button>
+                </>
               ) : null}
             />
           ) : null}
@@ -663,6 +670,12 @@ export function Veiculos() {
         />
       ) : null}
 
+      <MoveVehiclesModal
+        open={moveOpen}
+        vehicleIds={[...selection.selected]}
+        onClose={() => setMoveOpen(false)}
+        onMoved={async () => { selection.clear(); await afterCargaAlterada(queryClient) }}
+      />
       <Modal open={bulkDesovaOpen} size="sm" title="Definir local de desova" onClose={() => setBulkDesovaOpen(false)}>
         <div className="grid gap-4">
           <p className="text-sm text-[var(--app-text)]">
@@ -709,6 +722,7 @@ function VehicleImportModal({ initialVoyageId, onClose }: { initialVoyageId: str
   const [readError, setReadError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [result, setResult] = useState<Awaited<ReturnType<typeof importVehicleRows>> | null>(null)
+  const confirm = useConfirm()
 
   async function handleFiles(files: File[]) {
     setReadError(null)
@@ -734,7 +748,7 @@ function VehicleImportModal({ initialVoyageId, onClose }: { initialVoyageId: str
     setImporting(true)
     setImportError(null)
     try {
-      const nextResult = await importVehicleRows({ voyageId: Number(voyageId), rows: preview.rows })
+      const nextResult = await importVehicleRows({ voyageId: Number(voyageId), rows: preview.rows, confirmUnpacking: (items) => confirm(vehicleUnpackingConfirmOptions(items)) })
       await afterCargaAlterada(queryClient)
       if (nextResult.errorCount) {
         // Com recusas o modal fica aberto e lista o que não entrou.

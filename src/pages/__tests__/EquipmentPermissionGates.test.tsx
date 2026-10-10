@@ -149,24 +149,24 @@ describe('controles de Veiculos', () => {
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['vehicle-stats'] })
   })
 
-  it('Equipamentos importa, mas nao recebe exclusao reservada ao admin', () => {
+  it('Equipamentos importa e exclui com motivo (ADR 0078, item 23)', () => {
     mocks.effectiveRole.mockReturnValue('equipamentos')
     mocks.can.mockImplementation((permission) => permission === 'veiculos_edit')
 
     renderPage(<Veiculos />, '/?voyage=7')
 
     expect(screen.getByRole('button', { name: 'Importar veículos' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeTruthy()
   })
 
-  it('Documentacao importa, mas nao recebe exclusao reservada ao admin', () => {
+  it('Documentacao importa e exclui com motivo (ADR 0078, item 23)', () => {
     mocks.effectiveRole.mockReturnValue('documentacao')
     mocks.can.mockImplementation((permission) => permission === 'veiculos_edit')
 
     renderPage(<Veiculos />, '/?voyage=7')
 
     expect(screen.getByRole('button', { name: 'Importar veículos' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeTruthy()
   })
 
   it('admin recebe importacao e exclusao', () => {

@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **Veículos (2026-10-10, implementação local; Etapa 11 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  na página Veículos, **Mover para outro B/L** e **Excluir** para qualquer usuário, com motivo,
+  mesmo com CE; a planilha não procura mais o B/L "parecido", recusa chassi já em outra Viagem,
+  aceita tipos ISO equivalentes e lacre sem zeros à esquerda (opcional em flat rack e plataforma)
+  e só preenche local de desova vazio, pedindo confirmação para trocar; veículo novo recalcula as
+  Taxas Locais na hora e B/L isento anula o Recebível (migration `183`, ADR 0078 itens 8 e 23).
 - **COD e documento da fatura (2026-10-10, implementação local; Etapa 10 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   reimportar B/L em COD não muda o POD (a prévia avisa); B/L importado depois da omissão entra

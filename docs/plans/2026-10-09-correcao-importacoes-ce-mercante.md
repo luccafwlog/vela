@@ -591,7 +591,7 @@ prévia de B/L avisa COD e porto omitido. Checagens: `codDocumentoFatura.local-p
 
 ## Etapa 11 — Veículos, Base de Clientes, Granito e vazios (M15, M16, M17; ADR 0078, itens 8 e 23–25)
 
-- [ ] **Veículos:** Liberação recalcula quando há veículo novo; B/L isento
+- [x] **Veículos:** Liberação recalcula quando há veículo novo; B/L isento
   anula o recebível sem fatura; na página Veículos, **Mover para outro B/L** e
   **Excluir** para qualquer usuário, com motivo, mesmo com CE, com efeito pela
   ADR 0077; sem busca do B/L "parecido" (B/L inexistente recusa a linha); local
@@ -615,6 +615,17 @@ prévia de B/L avisa COD e porto omitido. Checagens: `codDocumentoFatura.local-p
 
 **Aceitação:** suítes novas verdes no CI; reimportar a mesma planilha de
 Granito ou de vazios não duplica linhas.
+
+**Execução — Veículos (2026-10-10, local):** migration `183` —
+`import_vehicle_rows_transactional` confere B/L da Viagem, chassi em outra
+Viagem ativa e local de desova (só preenche vazio; troca com
+`unpacking_confirmed`; conflito no arquivo recusa), recalcula na hora sem fatura
+viva (`_vehicle_charges_follow`) e anula o Recebível de B/L isento (também no
+efeito `vehicle_followup`); `move_vehicles_to_bl` e
+`delete_vehicles_with_reason` para qualquer usuário, com motivo. Tela: sem busca
+do B/L irmão, tipos ISO equivalentes, lacre sem zeros à esquerda e opcional para
+flat rack/plataforma, confirmação do local de desova, **Mover para outro B/L**.
+Checagens: `veiculosRegras.local-pg` (no CI), `vehicleImport.test.ts`.
 
 ## Etapa 12 — Testes e CI
 

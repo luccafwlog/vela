@@ -28,7 +28,7 @@ import {
 import { importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
 import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestNumbers } from '../../services/vaziosImportacaoImport'
 import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from './VaziosImportacaoImportParts'
-import { importVehicleRows, parseVehicleImportFile } from '../../services/vehicleImport'
+import { importVehicleRows, parseVehicleImportFile, vehicleUnpackingConfirmOptions } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
 import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../../services/baplieImport'
 import { BaplieImportPartialNotice } from './BaplieImportPartialNotice'
@@ -565,6 +565,7 @@ function VehiclesImportModal({
   const [readError, setReadError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [result, setResult] = useState<Awaited<ReturnType<typeof importVehicleRows>> | null>(null)
+  const confirm = useConfirm()
 
   async function handleFiles(files: File[]) {
     setAllowOverride(false)
@@ -591,7 +592,7 @@ function VehiclesImportModal({
     setImporting(true)
     setImportError(null)
     try {
-      const nextResult = await importVehicleRows({ voyageId, rows: preview.rows })
+      const nextResult = await importVehicleRows({ voyageId, rows: preview.rows, confirmUnpacking: (items) => confirm(vehicleUnpackingConfirmOptions(items)) })
       await afterCargaAlterada(queryClient)
       showToast(`Veículos importados: ${nextResult.successCount} gravado(s), ${nextResult.errorCount} recusado(s).`, nextResult.errorCount ? 'info' : 'success')
       // Com recusas o modal fica aberto e lista o que não entrou.

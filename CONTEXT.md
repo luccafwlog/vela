@@ -689,7 +689,7 @@ tem duas contagens independentes.
 **Local de Desova**
 Local onde um container com veículo foi desovado. Atributo do container,
 agregado por marca no ADR. A planilha de veículos só o preenche quando está
-vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
 
 **Ocorrência da Escala**
 Lançamento livre no diário da escala dentro do ADR: texto com autor,
@@ -933,7 +933,7 @@ O B/L declara carga perigosa no nível do conhecimento (DG Class e número ONU n
 descrição da mercadoria), aplicando-se inicialmente a todos os containers do
 B/L; o Baplie refina depois quais containers são de fato IMO.
 
-Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente):
+Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (migration `181`):
 
 - as marcas do Baplie valem para todos os B/Ls ativos que dividem o container
   (Part Lot tem sempre as mesmas características); B/L cancelado é ignorado;
@@ -1398,7 +1398,7 @@ apenas inferíveis do valor zero.
 Veículo gravado no B/L errado é corrigido na página Veículos (**Mover para
 outro B/L**, **Excluir**), por qualquer usuário, com motivo, mesmo com CE; o
 efeito na cobrança segue a ADR 0077. O mesmo chassi em outra Viagem é erro
-([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `183`).
 
 - **Ver também:** Movimento (FCL/LCL), Taxas Locais
 

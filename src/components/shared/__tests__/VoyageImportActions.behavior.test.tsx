@@ -477,7 +477,7 @@ it('resultado parcial de veículos fica no modal com as linhas recusadas e só C
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.importVehicleRows).toHaveBeenCalledWith({ voyageId: 7, rows: expect.any(Array) }))
+  await waitFor(() => expect(mocks.importVehicleRows).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, rows: expect.any(Array), confirmUnpacking: expect.any(Function) })))
   expect(await screen.findByText(/1 linha recusada ao gravar/)).toBeTruthy()
   expect(screen.getByText(/BL-9 não pertence à viagem/)).toBeTruthy()
   expect(screen.getByText('Importação gravada em parte. As linhas recusadas estão acima.')).toBeTruthy()
