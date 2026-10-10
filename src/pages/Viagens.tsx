@@ -43,6 +43,7 @@ import {
 } from '../services/escalaTerminalAllocation'
 import { afterEscalaAlterada, afterRotaAlterada, afterViagemAlterada } from '../services/cacheEffects'
 import { classifyDbError, userFacingErrorMessage } from '../lib/errors'
+import { queryKeys } from '../services/queryKeys'
 import {
   VoyageCard,
   type EditingPolPayload,
@@ -585,25 +586,25 @@ export function Viagens() {
               atd,
               changedBy: user.id,
             })
+            // Cadastro único (migration 180): o Nº vai para Manifestos Mercante
+            // da rota; os arquivos importados guardam a cópia antiga.
+            await setVoyageRouteCeMaster({
+              voyageId,
+              pol,
+              pod,
+              ceMaster,
+              changedBy: user.id,
+              cargoMode: cargoMode ?? 'container',
+            })
             if (batchIds?.length) {
-              // Arquivos do mesmo manifesto compartilham o CE Master.
               await Promise.all(batchIds.map((id) => setImportBatchCeMaster(id, ceMaster, user.id)))
-            } else {
-              // Viagem só-B/L ou manifesto de vazios: CE Master fica por rota (#322).
-              await setVoyageRouteCeMaster({
-                voyageId,
-                pol,
-                pod,
-                ceMaster,
-                changedBy: user.id,
-                cargoMode: cargoMode ?? 'container',
-              })
             }
             await afterRotaAlterada(queryClient, { voyageId })
+            await queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.all() })
             showToast('Manifesto atualizado com sucesso.', 'success')
             setEditingPol(null)
-          } catch {
-            showToast('Falha ao salvar o manifesto.', 'error')
+          } catch (error) {
+            showToast(userFacingErrorMessage(error, 'Falha ao salvar o manifesto.'), 'error')
           }
         }}
       />

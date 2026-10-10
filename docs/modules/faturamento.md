@@ -35,7 +35,12 @@ para a decisão completa.
   locais nasce na transição do CE Mercante (ADRs 0020 e 0042): o gatilho
   server-side calcula as taxas, promove o B/L e emite a invoice/recebível na
   mesma transação quando os dados do cliente, a reconciliação e os demais
-  critérios financeiros estão prontos. Sem CE, qualquer desses modos fica em
+  critérios financeiros estão prontos. Pela planilha de CE Mercante (migration
+  `180`), a gravação guarda o CE e o cálculo e a tela emite logo depois em
+  lotes de 25 (`emit_ce_mercante_billing`, que reaproveita o cálculo do dia do
+  CE), com progresso e Retomar; o efeito `local_billing` é a rede. A fatura sai
+  com a nota "Sistema — CE Mercante", e a falha de um B/L abre
+  `billing_auto_issue_failed` (ADR 0041). Sem CE, qualquer desses modos fica em
   “Aguardando CE Mercante” na Validação; a exceção manual é a emissão
   individual “Emitir”, que mantém os mesmos gates. Granito é apoio operacional
   e não emite invoice (nota de 2026-09-23 na ADR 0042). Embarque de Vazios não emite CE nem possui faturamento de

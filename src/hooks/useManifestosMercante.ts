@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createManifestoMercante,
-  linkBlToManifestoMercante,
-  linkBlsToManifestoMercante,
   listManifestosMercanteByVoyage,
+  listVoyageBlsForManifesto,
+  moveBlsToManifestoMercante,
+  unlinkBlsFromManifestoMercante,
   type CreateManifestoMercanteInput,
   type ManifestoMercante,
 } from '../services/manifestosMercanteService'
@@ -28,30 +29,36 @@ export function useCreateManifestoMercante() {
   })
 }
 
-export function useLinkBlToManifestoMercante(voyageId?: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ blId, manifestoId }: { blId: string; manifestoId: string | null }) =>
-      linkBlToManifestoMercante(blId, manifestoId),
-    onSuccess: () => {
-      if (voyageId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.byVoyage(voyageId) })
-      }
-      queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() })
-    },
+export function useVoyageBlsForManifesto(voyageId: number | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.manifestosMercante.byVoyage(voyageId ?? 0), 'bls'],
+    enabled: enabled && voyageId != null && voyageId > 0,
+    queryFn: () => listVoyageBlsForManifesto(voyageId!),
   })
 }
 
-export function useLinkBlsToManifestoMercante(voyageId?: number) {
+async function afterManifestoChanged(queryClient: ReturnType<typeof useQueryClient>, voyageId?: number | null) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.all() }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.voyages.all() }),
+    ...(voyageId ? [queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) })] : []),
+  ])
+}
+
+export function useMoveBlsToManifestoMercante(voyageId?: number | null) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ blIds, manifestoId }: { blIds: string[]; manifestoId: string | null }) =>
-      linkBlsToManifestoMercante(blIds, manifestoId),
-    onSuccess: () => {
-      if (voyageId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.byVoyage(voyageId) })
-      }
-      queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() })
-    },
+    mutationFn: ({ blIds, numero, reason }: { blIds: string[]; numero: string; reason: string }) =>
+      moveBlsToManifestoMercante(blIds, numero, reason),
+    onSuccess: () => afterManifestoChanged(queryClient, voyageId),
+  })
+}
+
+export function useUnlinkBlsFromManifestoMercante(voyageId?: number | null) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ blIds, reason }: { blIds: string[]; reason: string }) => unlinkBlsFromManifestoMercante(blIds, reason),
+    onSuccess: () => afterManifestoChanged(queryClient, voyageId),
   })
 }

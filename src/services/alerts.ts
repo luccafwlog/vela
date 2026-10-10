@@ -22,6 +22,7 @@ export type ActiveAlertType =
   | 'import_effect_blocked'
   | 'import_effects_queue_stalled'
   | 'demurrage_invoice_dates_changed'
+  | 'ce_trocado_com_desbloqueio'
   | 'bl_vehicles_changed_on_reimport'
   | 'comunicado_ce_reenvio_pendente'
   | 'demurrage_ptax_recalc_failed'
@@ -70,6 +71,7 @@ export const TYPE_LABELS: Record<string, string> = {
   import_effect_blocked: 'Efeito de importação bloqueado',
   import_effects_queue_stalled: 'Fila de efeitos de importação parada',
   demurrage_invoice_dates_changed: 'Datas mudaram em Invoice de Demurrage emitida',
+  ce_trocado_com_desbloqueio: 'CE trocado depois do Desbloqueio conferido',
   bl_vehicles_changed_on_reimport: 'Veículos alterados na reimportação do B/L',
   comunicado_ce_reenvio_pendente: 'Reenviar Comunicado de CE e Taxas',
   demurrage_ptax_recalc_failed: 'Falha na atualização da PTAX Demurrage',

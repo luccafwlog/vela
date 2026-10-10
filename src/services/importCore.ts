@@ -76,6 +76,8 @@ export type SheetReadOptions = {
   headerWindow?: number
   /** `false` recusa CSV fora de UTF-8; o padrão aceita Windows-1252 com aviso. */
   allowWindows1252Fallback?: boolean
+  /** Recusa arquivo com mais de uma aba visível com dados (ADR 0078, item 9). */
+  singleDataSheet?: boolean
 }
 
 /** Valor de célula entregue pelo leitor comum. */
@@ -191,6 +193,16 @@ export async function readSheet(buffer: ArrayBuffer, options: SheetReadOptions =
     if (hidden) warnings.push(`Aba oculta "${name}" ignorada.`)
     return !hidden
   })
+  if (options.singleDataSheet) {
+    const withData = visibleNames.filter((name) => {
+      const candidate = workbook.Sheets[name] as Record<string, unknown> | undefined
+      return Boolean(candidate) && Object.keys(candidate!).some((key) => !key.startsWith('!')
+        && String((candidate![key] as { v?: unknown }).v ?? '').trim() !== '')
+    })
+    if (withData.length > 1) {
+      throw new Error(`O arquivo tem mais de uma aba com dados (${withData.join(', ')}): deixe só a aba do CE Mercante e importe de novo.`)
+    }
+  }
   const sheetName = visibleNames[options.sheetIndex ?? 0]
   const sheet = sheetName ? workbook.Sheets[sheetName] : undefined
   if (!sheet) throw new Error('Arquivo sem abas validas.')

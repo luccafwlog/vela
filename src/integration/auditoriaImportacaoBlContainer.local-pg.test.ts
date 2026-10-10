@@ -731,7 +731,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     const blId = 'A202-FAT'
     const document = blDocument(blId, { containers: ['AZCU2020031'] })
     expect((await importBls([document], 'a202-fat.xlsx')).error).toBeNull()
-    expect(importCeSheet('A202-MAN-3', [{ blId, ce: '202001000000003' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A202MAN000003', [{ blId, ce: '202001000000003' }])).toMatchObject({ ok: true })
     const before = blState(blId)
     const invoicesBefore = invoicesOf(blId)
     expect(before).toMatchObject({ ce_mercante: '202001000000003', financial_status: 'invoiced', billing_hold_reason: null })
@@ -786,7 +786,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
       blDocument(corrected, { containers: ['AZCU2020049'] }),
     ]
     expect((await importBls(documents, 'a202-irmaos.xlsx')).error).toBeNull()
-    expect(importCeSheet('A202-MAN-4', [{ blId: invoicedSibling, ce: '202001000000004' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A202MAN000004', [{ blId: invoicedSibling, ce: '202001000000004' }])).toMatchObject({ ok: true })
     expect(blState(invoicedSibling)?.financial_status).toBe('invoiced')
     expect(blState(unchangedSibling)?.financial_status).not.toBe('invoiced')
     const containerBefore = containersOf(unchangedSibling).map((container) => container.id)

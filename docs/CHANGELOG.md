@@ -4,6 +4,15 @@
 
 ## 2026-10
 
+- **Contrato da importação de CE (2026-10-10, implementação local; Etapa 8 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  a planilha de CE fica rápida com base grande; o Nº de Manifesto Mercante tem 13 caracteres e um
+  cadastro único (**Informar Nº** e a planilha); B/Ls são movidos ou desvinculados em lote, com
+  motivo, pela Viagem, pela ficha ou pela planilha; a prévia é conferida no servidor e a troca de
+  CE pede confirmação com motivo; linha sem CE e mais de uma aba são recusadas e B/L cancelado é
+  ignorado com aviso; a emissão sai logo depois, em lotes com progresso e Retomar, como "Sistema —
+  CE Mercante"; erros em linguagem de negócio (migrations `179` e `180`, ADR 0078 itens 4, 6, 7
+  e 9).
 - **Faturas, Demurrage, datas e Comunicado (2026-10-10, implementação local; Etapa 7 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   a notificação "Nova fatura emitida" traz o total real; B/L Cancelado sai do Comunicado de CE e

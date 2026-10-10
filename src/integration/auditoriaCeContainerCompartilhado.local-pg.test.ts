@@ -32,7 +32,7 @@
 // a correção de M03.
 //
 // Namespace exclusivo: ids 99203xxx, CNPJ syntheticCnpj(203001..203003), B/Ls
-// 'A203-*', usuário ...0203001, manifestos 'A203-MAN-*'. Containers 'ADCU203xxxx':
+// 'A203-*', usuário ...0203001, manifestos 'A203MAN*' (13 caracteres). Containers 'ADCU203xxxx':
 // a checagem ISO de `bl_containers` (4 letras + 7 dígitos) impede o prefixo A203;
 // a limpeza os remove pelo B/L. A limpeza (antes e depois) remove também faturas,
 // recebíveis, efeitos, alertas, auditoria, notificações e a conta de Portal criada
@@ -410,7 +410,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
       { id: 'A203-S1', voyageId: voyage.mesmoCliente, customerId: alfa.id, container: 'ADCU2030011' },
       { id: 'A203-S2', voyageId: voyage.mesmoCliente, customerId: alfa.id, container: 'ADCU2030011' },
     ])
-    const result = importCeSheet('A203-MAN-1', voyage.mesmoCliente, [
+    const result = importCeSheet('A203MAN000001', voyage.mesmoCliente, [
       { blId: 'A203-S1', ce: '203001000000011' },
       { blId: 'A203-S2', ce: '203001000000012' },
     ])
@@ -449,7 +449,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
       { id: 'A203-G1', voyageId: voyage.liberacao, customerId: gama.id, container: 'ADCU2030033' },
       { id: 'A203-G2', voyageId: voyage.liberacao, customerId: gama.id, container: 'ADCU2030033' },
     ])
-    expect(importCeSheet('A203-MAN-3', voyage.liberacao, [
+    expect(importCeSheet('A203MAN000003', voyage.liberacao, [
       { blId: 'A203-G1', ce: '203001000000031' },
       { blId: 'A203-G2', ce: '203001000000032' },
     ])).toMatchObject({ ok: true, inserted: 2 })
@@ -501,7 +501,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
       { id: 'A203-T1', voyageId: voyage.datas, customerId: alfa.id, container: 'ADCU2030044' },
       { id: 'A203-T2', voyageId: voyage.datas, customerId: alfa.id, container: 'ADCU2030044' },
     ])
-    expect(importCeSheet('A203-MAN-4', voyage.datas, [
+    expect(importCeSheet('A203MAN000004', voyage.datas, [
       { blId: 'A203-T1', ce: '203001000000041' },
       { blId: 'A203-T2', ce: '203001000000042' },
     ])).toMatchObject({ ok: true, inserted: 2 })
@@ -547,7 +547,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
 
   it('irmão que chega depois do faturamento reemite a fatura do primeiro com 1/2 e fatura com 1/2', () => {
     insertBls([{ id: 'A203-L1', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030051' }])
-    expect(importCeSheet('A203-MAN-5', voyage.clientesDiferentes, [{ blId: 'A203-L1', ce: '203001000000051' }]))
+    expect(importCeSheet('A203MAN000005', voyage.clientesDiferentes, [{ blId: 'A203-L1', ce: '203001000000051' }]))
       .toMatchObject({ ok: true })
     expect(containerLinesOf('A203-L1')).toEqual([{ quantity: 1, total_brl: containerFee }])
 
@@ -555,7 +555,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     insertBls([{ id: 'A203-L2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030051' }])
     expect(containerLinesOf('A203-L1')).toEqual([{ quantity: 0.5, total_brl: containerFee / 2 }])
 
-    expect(importCeSheet('A203-MAN-5', voyage.clientesDiferentes, [{ blId: 'A203-L2', ce: '203001000000052' }]))
+    expect(importCeSheet('A203MAN000005', voyage.clientesDiferentes, [{ blId: 'A203-L2', ce: '203001000000052' }]))
       .toMatchObject({ ok: true })
     expect(financialStatuses(billingState(['A203-L1', 'A203-L2']))).toEqual({ 'A203-L1': 'invoiced', 'A203-L2': 'invoiced' })
     expect(billedContainerTotal(billingState(['A203-L1', 'A203-L2']))).toBe(containerFee)
@@ -566,7 +566,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
       { id: 'A203-K1', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030061' },
       { id: 'A203-K2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030061' },
     ])
-    expect(importCeSheet('A203-MAN-6', voyage.clientesDiferentes, [{ blId: 'A203-K1', ce: '203001000000061' }]))
+    expect(importCeSheet('A203MAN000006', voyage.clientesDiferentes, [{ blId: 'A203-K1', ce: '203001000000061' }]))
       .toMatchObject({ ok: true })
     expect(containerLinesOf('A203-K1')).toEqual([{ quantity: 0.5, total_brl: containerFee / 2 }])
 
@@ -579,7 +579,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
       { id: 'A203-J1', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030071' },
       { id: 'A203-J2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030071' },
     ])
-    expect(importCeSheet('A203-MAN-7', voyage.clientesDiferentes, [{ blId: 'A203-J1', ce: '203001000000071' }]))
+    expect(importCeSheet('A203MAN000007', voyage.clientesDiferentes, [{ blId: 'A203-J1', ce: '203001000000071' }]))
       .toMatchObject({ ok: true })
     // Simula o vínculo gravado com outro rateio (fatura de quando o B/L estava sozinho).
     localPsql(`
@@ -587,7 +587,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
       UPDATE public.invoice_bls SET container_shares = '[["ADCU2030071", 1]]'::jsonb WHERE bl_id = 'A203-J1';
       SET session_replication_role = origin;
     `)
-    expect(importCeSheet('A203-MAN-7', voyage.clientesDiferentes, [{ blId: 'A203-J2', ce: '203001000000072' }]))
+    expect(importCeSheet('A203MAN000007', voyage.clientesDiferentes, [{ blId: 'A203-J2', ce: '203001000000072' }]))
       .toMatchObject({ ok: true })
     expect(billingState(['A203-J2']).bls['A203-J2'].financial_status).not.toBe('invoiced')
     // A emissão pelo CE devolve o motivo: o irmão nomeado e o container.

@@ -234,6 +234,9 @@ jobs:
             src/integration/auditoriaCeContainerCompartilhado.local-pg.test.ts \
             src/integration/auditoriaEfeitosImportacao.local-pg.test.ts \
             src/integration/efeitosViagemCancelada.local-pg.test.ts \
+            src/integration/ceMercanteAutoBilling.local-pg.test.ts \
+            src/integration/portalBillingRelease.local-pg.test.ts \
+            src/integration/ceImportacaoContrato.local-pg.test.ts \
             src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts \
             src/integration/auditoriaFaturasDemurrageComunicado.local-pg.test.ts \
             src/integration/conditionUsd.local-pg.test.ts \

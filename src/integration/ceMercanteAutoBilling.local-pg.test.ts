@@ -76,6 +76,7 @@ function cleanup(): void {
     DELETE FROM public.charge_calculations WHERE bl_id = ANY(ARRAY['${allBlIds.join("','")}']::text[]);
     DELETE FROM public.bl_containers WHERE bl_id = ANY(ARRAY['${allBlIds.join("','")}']::text[]);
     DELETE FROM public.bls WHERE id = ANY(ARRAY['${allBlIds.join("','")}']::text[]);
+    DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId} OR charge_item_id = ${chargeItemId};
     DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
     DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
     DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
@@ -214,7 +215,9 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
     ]))
     expect(psql(`SELECT count(*) FROM public.invoices WHERE bl_id = '${workerOriginBlId}';`)).toBe('1')
     expect(psql(`SELECT count(*) FROM public.invoices WHERE bl_id = '${workerPeerBlId}';`)).toBe('0')
-    expect(Number(psql(`SELECT count(*) FROM public.charge_calculations WHERE bl_id = '${workerPeerBlId}';`))).toBeGreaterThan(0)
+    // O efeito do B/L de origem não toca o irmão que já tem CE: o cálculo dele
+    // é o do dia do próprio CE (migration 177, ADR 0078 item 18).
+    expect(psql(`SELECT count(*) FROM public.charge_calculations WHERE bl_id = '${workerPeerBlId}';`)).toBe('0')
   })
 
   it('preserva bloqueio de reconciliação como resultado recuperável do worker', () => {

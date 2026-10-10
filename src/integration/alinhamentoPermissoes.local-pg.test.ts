@@ -428,6 +428,10 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
     psql(`
       SET session_replication_role = replica;
       DELETE FROM public.bls WHERE id IN ('${BL_A}', '${BL_B}', '${BL_C}');
+      DELETE FROM public.audit_logs WHERE (entity_type = 'bl' AND entity_id IN ('${BL_A}', '${BL_B}', '${BL_C}'))
+        OR (entity_type IN ('voyage', 'voyages') AND entity_id = '7823');
+      DELETE FROM public.import_pending_effects WHERE entity_id IN ('${BL_A}', '${BL_B}', '${BL_C}');
+      DELETE FROM public.voyage_route_ce_master WHERE voyage_id = 7823;
       DELETE FROM public.manifestos_mercante WHERE voyage_id = 7823;
       DELETE FROM public.voyages WHERE id = 7823;
       DELETE FROM public.vessels WHERE id = 7822;
@@ -452,7 +456,7 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
   })
   afterAll(clean)
 
-  const call = (rows: string, numero = 'M082-1') =>
+  const call = (rows: string, numero = 'M082000000001') =>
     runAs(USER, `SELECT public.apply_ce_mercante_rows_atomic('${rows}'::jsonb, '${USER}'::uuid, 'bls', '${numero}', 7823);`)
   const payloadOf = (stdout: string) => JSON.parse(stdout.trim().split('\n').find((line) => line.startsWith('{')) ?? '{}')
   const manifestoOf = (bl: string) => psql(`SELECT coalesce(m.numero, '') FROM public.bls b LEFT JOIN public.manifestos_mercante m ON m.id = b.manifesto_mercante_id WHERE b.id = '${bl}';`)
@@ -478,8 +482,8 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
     expect(result.stderr).toBe('')
     expect(psql(`SELECT count(*) FROM public.bls WHERE id IN ('${BL_A}', '${BL_B}') AND ce_mercante IS NOT NULL;`)).toBe('2')
     // 164: o manifesto informado é criado na rota dos B/Ls e vinculado na mesma transação
-    expect(manifestoOf(BL_A)).toBe('M082-1')
-    expect(psql(`SELECT voyage_id || ' ' || pol || ' ' || pod || ' ' || natureza FROM public.manifestos_mercante WHERE numero = 'M082-1';`))
+    expect(manifestoOf(BL_A)).toBe('M082000000001')
+    expect(psql(`SELECT voyage_id || ' ' || pol || ' ' || pod || ' ' || natureza FROM public.manifestos_mercante WHERE numero = 'M082000000001';`))
       .toBe('7823 CNNSA BRVIX carga')
   })
 
@@ -494,29 +498,37 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
     const payload = payloadOf(call(JSON.stringify([
       { row: 2, bl_id: BL_A, ce: '152608200000001' },
       { row: 3, bl_id: BL_C, ce: '152608200000003' },
-    ]), 'M082-2').stdout)
+    ]), 'M082000000002').stdout)
     expect(payload.ok).toBe(false)
     expect(payload.errors[0].message).toMatch(/mais de uma viagem ou rota/)
     expect(psql(`SELECT coalesce(ce_mercante, '') FROM public.bls WHERE id = '${BL_C}';`)).toBe('')
-    expect(psql(`SELECT count(*) FROM public.manifestos_mercante WHERE numero = 'M082-2';`)).toBe('0')
+    expect(psql(`SELECT count(*) FROM public.manifestos_mercante WHERE numero = 'M082000000002';`)).toBe('0')
   })
 
   it('164 — número já usado em outra rota é recusado; outro número na rota cria um segundo manifesto', () => {
-    const reused = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_C, ce: '152608200000003' }]), 'M082-1').stdout)
+    const reused = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_C, ce: '152608200000003' }]), 'M082000000001').stdout)
     expect(reused.ok).toBe(false)
     expect(reused.errors[0].message).toMatch(/outra viagem, rota ou natureza/)
     expect(psql(`SELECT coalesce(ce_mercante, '') FROM public.bls WHERE id = '${BL_C}';`)).toBe('')
 
-    const second = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_C, ce: '152608200000003' }]), 'M082-3').stdout)
+    const second = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_C, ce: '152608200000003' }]), 'M082000000003').stdout)
     expect(second.ok).toBe(true)
-    expect(manifestoOf(BL_C)).toBe('M082-3')
+    expect(manifestoOf(BL_C)).toBe('M082000000003')
   })
 
-  it('164 — B/L já vinculado a outro manifesto não troca de manifesto pela planilha', () => {
-    const payload = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_A, ce: '152608200000001' }]), 'M082-4').stdout)
+  // 180 (ADR 0078, item 7): outro número na planilha move o B/L só com
+  // confirmação e motivo na prévia.
+  it('180 — planilha com outro número só move o B/L com confirmação e motivo', () => {
+    const payload = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_A, ce: '152608200000001' }]), 'M082000000004').stdout)
     expect(payload.ok).toBe(false)
-    expect(payload.errors[0].message).toMatch(/já vinculado a outro Manifesto Mercante: BL082A/)
-    expect(manifestoOf(BL_A)).toBe('M082-1')
-    expect(psql(`SELECT count(*) FROM public.manifestos_mercante WHERE numero = 'M082-4';`)).toBe('0')
+    expect(payload.needs_confirmation).toBe(true)
+    expect(payload.errors[0].message).toMatch(/confirme na prévia, com motivo/)
+    expect(manifestoOf(BL_A)).toBe('M082000000001')
+    expect(psql(`SELECT count(*) FROM public.manifestos_mercante WHERE numero = 'M082000000004';`)).toBe('0')
+
+    const confirmed = payloadOf(runAs(USER, `SELECT public.apply_ce_mercante_rows_atomic('${JSON.stringify([{ row: 2, bl_id: BL_A, ce: '152608200000001' }])}'::jsonb, '${USER}'::uuid, 'bls', 'M082000000004', 7823, true, 'Manifesto reemitido pela Receita (082)');`).stdout)
+    expect(confirmed.ok).toBe(true)
+    expect(manifestoOf(BL_A)).toBe('M082000000004')
+    expect(psql(`SELECT count(*) FROM public.audit_logs WHERE entity_id = '${BL_A}' AND field_name = 'manifesto_mercante' AND old_value = 'M082000000001' AND new_value = 'M082000000004';`)).toBe('1')
   })
 })

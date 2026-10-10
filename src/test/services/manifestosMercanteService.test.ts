@@ -1,16 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockFrom = vi.fn()
+const mockRpc = vi.fn()
 
 vi.mock('../../services/supabase', () => ({
   supabase: {
     from: (table: string) => mockFrom(table),
+    rpc: (name: string, args: unknown) => mockRpc(name, args),
   },
 }))
 
 import {
+  canonicalManifestoNumero,
   createManifestoMercante,
-  linkBlToManifestoMercante,
+  moveBlsToManifestoMercante,
+  unlinkBlsFromManifestoMercante,
   listManifestosMercanteByRota,
   listManifestosMercanteByVoyage,
   type CreateManifestoMercanteInput,
@@ -27,7 +31,7 @@ describe('manifestosMercanteService', () => {
         voyage_id: 10,
         pol: '',
         pod: 'BRVIX',
-        numero: '26BR0001',
+        numero: '26BR000000001',
         natureza: 'carga',
       }),
     ).rejects.toThrow('Portos de origem (POL) e destino (POD) são obrigatórios')
@@ -50,7 +54,7 @@ describe('manifestosMercanteService', () => {
         voyage_id: 10,
         pol: 'CNSHA',
         pod: 'BRVIX',
-        numero: '26BR0001',
+        numero: '26BR000000001',
         natureza: 'carga',
         created_at: '2026-06-01T10:00:00Z',
         updated_at: '2026-06-01T10:00:00Z',
@@ -66,7 +70,7 @@ describe('manifestosMercanteService', () => {
       voyage_id: 10,
       pol: 'CNSHA',
       pod: 'BRVIX',
-      numero: '26BR0001',
+      numero: '26BR000000001',
       natureza: 'carga',
     }
 
@@ -77,7 +81,7 @@ describe('manifestosMercanteService', () => {
         voyage_id: 10,
         pol: 'CNSHA',
         pod: 'BRVIX',
-        numero: '26BR0001',
+        numero: '26BR000000001',
         natureza: 'carga',
       }),
     )
@@ -91,7 +95,7 @@ describe('manifestosMercanteService', () => {
         voyage_id: 10,
         pol: 'CNSHA',
         pod: 'BRVIX',
-        numero: '26BR0001',
+        numero: '26BR000000001',
         natureza: 'carga',
         created_at: '2026-06-01T10:00:00Z',
       },
@@ -100,7 +104,7 @@ describe('manifestosMercanteService', () => {
         voyage_id: 10,
         pol: 'CNSHA',
         pod: 'BRVIX',
-        numero: '26BR0002',
+        numero: '26BR000000002',
         natureza: 'vazio',
         created_at: '2026-06-01T11:00:00Z',
       },
@@ -121,7 +125,7 @@ describe('manifestosMercanteService', () => {
   })
 
   it('lista manifestos de uma viagem inteira', async () => {
-    const orderMock = vi.fn().mockResolvedValue({ data: [{ id: 'man-1', voyage_id: 10, numero: '26BR0001' }], error: null })
+    const orderMock = vi.fn().mockResolvedValue({ data: [{ id: 'man-1', voyage_id: 10, numero: '26BR000000001' }], error: null })
     const eqVoyageMock = vi.fn().mockReturnValue({ order: orderMock })
     const selectMock = vi.fn().mockReturnValue({ eq: eqVoyageMock })
     mockFrom.mockReturnValue({ select: selectMock })
@@ -131,19 +135,19 @@ describe('manifestosMercanteService', () => {
     expect(results).toHaveLength(1)
   })
 
-  it('vincula B/L ao manifesto mercante e permite desvinculo', async () => {
-    const eqMock = vi.fn().mockResolvedValue({ error: null })
-    const updateMock = vi.fn().mockReturnValue({ eq: eqMock })
-    mockFrom.mockReturnValue({ update: updateMock })
+  // Mover / Desvincular passam pelas RPCs da migration 180: tudo ou nada e
+  // com motivo no Histórico (o UPDATE direto em bls saiu).
+  it('move e desvincula B/Ls pelas RPCs, com motivo', async () => {
+    mockRpc.mockResolvedValue({ data: { moved: 2 }, error: null })
+    await moveBlsToManifestoMercante(['BL-001', 'BL-002'], '1226501860578', 'Reemissão')
+    expect(mockRpc).toHaveBeenCalledWith('move_bls_to_manifesto_mercante', { p_bl_ids: ['BL-001', 'BL-002'], p_numero: '1226501860578', p_reason: 'Reemissão' })
+    await unlinkBlsFromManifestoMercante(['BL-001'], 'B/L de outro manifesto')
+    expect(mockRpc).toHaveBeenCalledWith('unlink_bls_from_manifesto_mercante', { p_bl_ids: ['BL-001'], p_reason: 'B/L de outro manifesto' })
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
 
-    await linkBlToManifestoMercante('BL-001', 'uuid-man-01')
-    expect(mockFrom).toHaveBeenCalledWith('bls')
-    expect(updateMock).toHaveBeenCalledWith({ manifesto_mercante_id: 'uuid-man-01' })
-    expect(eqMock).toHaveBeenCalledWith('id', 'BL-001')
-
-    // Desvinculo (passando null)
-    await linkBlToManifestoMercante('BL-001', null)
-    expect(updateMock).toHaveBeenCalledWith({ manifesto_mercante_id: null })
+  it('normaliza o Nº de Manifesto para a forma canônica', () => {
+    expect(canonicalManifestoNumero(' 1226 b01-849.909 ')).toBe('1226B01849909')
   })
 
 })

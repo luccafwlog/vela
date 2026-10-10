@@ -1004,7 +1004,7 @@ arquivo antigo, é ignorada com aviso na prévia (migration `173`).
 
 Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (unicidade, porta única, Corrigir e Remover
 entregues na migration `176`; confirmação da troca na prévia e emissão em lotes
-seguem pendentes):
+na `180`):
 
 - o CE entra pela planilha de CE Mercante e é corrigido ou removido pela ficha
   do B/L (**Corrigir CE Mercante**, **Remover CE Mercante**), por qualquer
@@ -1028,12 +1028,14 @@ descontinuada do sistema em favor de "Nº de Manifesto Mercante". É registrado 
 tabela `manifestos_mercante`, que suporta múltiplos manifestos por rota e
 segregação por natureza de carga (`natureza IN ('carga', 'vazio')`). Convive com
 a tabela legada `voyage_route_ce_master`, preservada para compatibilidade retroativa
-com importadores existentes. Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), o número tem
+com importadores existentes. Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (migration `180`), o número tem
 13 caracteres, letras ou dígitos em qualquer posição (ex.: `1226501860578`,
 `1226B01849909`), guardado em maiúsculas sem espaços nem separadores; **Informar
-Nº** e a planilha passam a usar um cadastro único; B/Ls podem ser movidos ou
-desvinculados em lote, com motivo, pela Viagem, pela ficha ou pela planilha; e
-mudar o POD ou a Viagem desvincula o B/L. É distinto dos CEs individuais dos
+Nº** e a planilha usam o mesmo cadastro (`manifestos_mercante`; a tabela legada
+fica como espelho); B/Ls são movidos ou desvinculados em lote, com motivo, pela
+Viagem (Rotas e Manifestos → **Ver B/Ls**), pela ficha ou pela planilha (outro
+número move o B/L depois de confirmação com motivo na prévia); e mudar o POD ou
+a Viagem desvincula o B/L. É distinto dos CEs individuais dos
 B/Ls e não se confunde com o número de viagem interna da agência.
 
 - **Vazios de Importação:** cada rota dos vazios (porto de origem → porto de
@@ -1052,7 +1054,12 @@ B/Ls e não se confunde com o número de viagem interna da agência.
   entra por planilha (decisão de 2026-10-08) e, pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), é corrigido ou
   removido pela ficha do B/L; EDI, no Vela, é o Baplie. Na planilha, linha sem
   CE é erro e bloqueia a importação, B/L cancelado é ignorado com aviso e mais
-  de uma aba com dados é recusada (implementação pendente).
+  de uma aba com dados é recusada (migration `180`). A prévia é conferida no
+  servidor (CE atual → novo, faturas, Portal, Comunicado, Desbloqueio e
+  Manifesto); trocar CE já gravado ou mudar o Manifesto pede confirmação com
+  motivo. A gravação guarda CE e cálculo; a emissão sai logo depois, em lotes
+  de 25 conduzidos pela tela, com progresso e **Retomar**, e o resultado por B/L
+  (faturado, retido, bloqueado com motivo).
 
 **Frete & Despesas do BL**
 Linhas da seção "Freight & Charges" do conhecimento de embarque (B/L): frete
@@ -1226,7 +1233,7 @@ destino e não reprecifica; o COD é a exceção de ADR 0051: altera o destino f
 e gera um Ajuste de COD pela diferença entre os valores localizados, mantendo o
 CE Mercante inalterado. A emissão do documento financeiro resultante é um ato
 do Financeiro. A fatura de Taxas Locais emitida pela transição do CE é emissão
-automática, registrada como **Sistema — CE Mercante** ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+automática, registrada como **Sistema — CE Mercante** ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `180`, na nota da fatura).
 
 Por isso a fatura de taxas locais é emitida dias antes da atracação: o cliente
 precisa dela paga para retirar a carga. O documento emitido preserva seu valor

@@ -453,50 +453,81 @@ abatida nem restituída sozinha; a Invoice do grupo só aparece no B/L-âncora.
 
 Sequência interna (cada item pode ser uma PR):
 
-- [ ] **8.1 Desempenho:** `assert_bl_ce_mercante` e
+- [x] **8.1 Desempenho:** `assert_bl_ce_mercante` e
   `_sync_local_charge_receivable_before_correction_123` por igualdade em `id`.
   Aceite: o custo por B/L faturado deixa de depender do tamanho de `bls` (200
   B/Ls com 50 mil B/Ls na base em no máximo 1,3× o tempo com 600, no banco
   local; hoje é 2,2×), e `ceMercanteAutoBilling` no CI.
-- [ ] **8.2 Erros traduzidos:** 23505, 40P01 (uma nova tentativa), 57014,
+- [x] **8.2 Erros traduzidos:** 23505, 40P01 (uma nova tentativa), 57014,
   42501 e P0099 com mensagem de negócio; sem "Linha 0"; o erro do PostgREST
   reconhecido mesmo sem ser `instanceof Error` (`src/lib/errors.ts`).
-- [ ] **8.3 Nº de Manifesto canônico:** 13 caracteres, letras ou dígitos,
+- [x] **8.3 Nº de Manifesto canônico:** 13 caracteres, letras ou dígitos,
   maiúsculas sem espaços nem separadores; reescrita dos números existentes
   (declarar "Data status"), `CHECK`, busca canônica e rota por
   `normalize_port_code`.
-- [ ] **8.4 Cadastro único:** `manifestos_mercante` como fonte;
+- [x] **8.4 Cadastro único:** `manifestos_mercante` como fonte;
   **Informar Nº** passa a gravar nele e `voyage_route_ce_master` e
   `import_batches.ce_master` passam a ler dele. A coluna **Vinculada** da
   escala mantém a regra própria.
-- [ ] **8.5 Mover / Desvincular:** na Viagem (Rotas e Manifestos → Ver B/Ls) e
+- [x] **8.5 Mover / Desvincular:** na Viagem (Rotas e Manifestos → Ver B/Ls) e
   na ficha, em lote, com busca, **Selecionar todos os filtrados**, Shift e
   **Colar lista de B/Ls**; confirmação "N B/Ls sairão de … e irão para …" e
   motivo; tudo ou nada; destino novo validado e criado na hora. Desvínculo
   automático quando POD ou Viagem mudam.
-- [ ] **8.6 Mover pela planilha:** reimportar a planilha com outro número move
+- [x] **8.6 Mover pela planilha:** reimportar a planilha com outro número move
   os B/Ls depois de confirmação com motivo na prévia.
-- [ ] **8.7 Prévia no servidor:** estado por B/L (CE atual → novo, faturas,
+- [x] **8.7 Prévia no servidor:** estado por B/L (CE atual → novo, faturas,
   Portal, Comunicado, Desbloqueio, manifesto); a troca de CE exige confirmação
   com motivo; troca com Comunicado enviado abre pendência de reenvio; troca com
   Desbloqueio conferido abre alerta.
-- [ ] **8.8 Regras da planilha:** linha sem CE é erro e bloqueia, nomeando as
+- [x] **8.8 Regras da planilha:** linha sem CE é erro e bloqueia, nomeando as
   linhas; B/L cancelado ignorado com aviso; mais de uma aba com dados recusada;
   trava da Viagem contra o deadlock.
-- [ ] **8.9 Emissão em lotes e resultado por B/L:** gravar CE e cálculo na
+- [x] **8.9 Emissão em lotes e resultado por B/L:** gravar CE e cálculo na
   transação; emitir logo depois em lotes conduzidos pela tela, com progresso e
   **Retomar**, e a fila como rede; emitente "Sistema — CE Mercante"; resultado
   por B/L (faturada, retida, bloqueada com motivo); alerta por B/L da ADR 0041.
   Aceite: planilha de **400 B/Ls** faturáveis com folga no banco local com 50
   mil B/Ls na base.
-- [ ] **8.10 Rastro:** CE, manifesto criado e vínculo no Histórico, sem evento
+- [x] **8.10 Rastro:** CE, manifesto criado e vínculo no Histórico, sem evento
   duplicado.
-- [ ] **8.11 Documentação:** `CONTEXT.md`, `manifesto-edi.md`,
+- [x] **8.11 Documentação:** `CONTEXT.md`, `manifesto-edi.md`,
   `faturamento.md`, `viagens.md`, `RASTREABILIDADE.md`.
 
 **Aceitação:** suítes `local-pg` novas por item (manifesto canônico, mover,
 prévia, emissão em lotes) no CI; a prévia mostra antes → depois e a
 sobrescrita exige confirmação.
+
+**Execução (2026-10-10, local):** migrations `179` e `180`.
+8.1: igualdade em `id` em `assert_bl_ce_mercante` e
+`_sync_local_charge_receivable_before_correction_123`; medição local
+(`scripts/perf/measure-ce-import.sql`, 200 B/Ls): antes 2,35× (8,3 s → 19,4 s
+de 600 para 50 mil B/Ls), depois 0,88× (6,0 s → 5,3 s); `ceMercanteAutoBilling`
+e `portalBillingRelease` entraram no CI. 8.2: `_ce_row_error_message` no
+servidor; 40P01/55P03/P0010–P0012 em `src/lib/errors.ts`; a tela usa
+`userFacingErrorMessage` (o erro do PostgREST não precisa ser `Error`) e não
+mostra "Linha 0"; uma nova tentativa em 40P01. 8.3: `canonical_manifesto_numero`,
+reescrita dos números (Data status), `CHECK ... NOT VALID` validado quando todos
+cabem, gatilho `trg_manifestos_mercante_canonical` (P0012), `find_manifesto_mercante`,
+rota por `normalize_port_code`. 8.4: `set_voyage_route_ce_master` grava em
+`manifestos_mercante` (`_upsert_route_manifesto`); espelho
+`voyage_route_ce_master` nos dois sentidos; **Informar Nº** sempre grava o
+cadastro e mostra a recusa do banco. 8.5: `move_bls_to_manifesto_mercante`,
+`unlink_bls_from_manifesto_mercante`, `trg_unlink_manifesto_on_route_change`;
+`ManifestoBlsModal` (Ver B/Ls na aba Rotas e Manifestos) e `BlManifestoField` na
+ficha; o UPDATE direto `linkBlsToManifestoMercante` saiu. 8.6/8.7:
+`preview_ce_mercante_rows` e confirmação com motivo em
+`apply_ce_mercante_rows_atomic` (troca de CE e mudança de Manifesto); Alerta
+`ce_trocado_com_desbloqueio`. 8.8: `singleDataSheet` no leitor comum, linha sem
+CE nomeada, cancelado ignorado com aviso, trava consultiva da Viagem. 8.9:
+`p_defer_billing` + `emit_ce_mercante_billing` (lotes de 25, Retomar, resultado
+por B/L, `billing_auto_issue_failed`); nota "Sistema — CE Mercante"; medição de
+400 B/Ls com 50 mil na base: gravação 2,8 s e lote de emissão até 0,6 s (em uma
+transação, 15,6 s). 8.10: `_audit_skip_once` no `audit_row_changes` evita o
+evento duplicado. Drift mecânico: o emitente fica na nota da fatura
+(`issued_by` mantém o usuário da importação). Suíte nova
+`ceImportacaoContrato` (6) no CI; números de Manifesto das suítes antigas
+passaram ao formato canônico.
 
 ## Etapa 9 — Baplie (M11; ADR 0078, item 21)
 

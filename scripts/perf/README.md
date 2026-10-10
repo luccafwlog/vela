@@ -48,3 +48,25 @@ banco e os dados são descartados pelo rollback.
 dark e falha abaixo de 4,5:1 para texto, links, status e cabeçalho de tabela.
 Ele é um gate de tokens, não substitui a verificação manual de componentes,
 hover/disabled, leitor de tela e foco no Preview.
+
+## Importação de CE com base grande
+
+`scripts/perf/measure-ce-import.sql` mede `apply_ce_mercante_rows_atomic` com
+um lote de B/Ls faturáveis (`batch`) e a base com `base_bls` B/Ls, numa
+transação que termina em `ROLLBACK`. Use só no banco local descartável:
+
+```bash
+psql -X -v ON_ERROR_STOP=1 -v base_bls=600 -v batch=200 -d vela_test -f scripts/perf/measure-ce-import.sql
+psql -X -v ON_ERROR_STOP=1 -v base_bls=50000 -v batch=200 -d vela_test -f scripts/perf/measure-ce-import.sql
+```
+
+Aceite da etapa 8.1 do plano de correção das importações: o tempo com 50 mil
+B/Ls fica em até 1,3× o tempo com 600. Medição local de 2026-10-10 (Postgres
+16, 200 B/Ls): antes da migration `179`, 8,3 s e 19,4 s (2,35×); depois,
+6,0 s e 5,3 s (0,88×).
+
+Etapa 8.9 (emissão em lotes): com `-v defer=true -v batch=400 -v base_bls=50000`,
+a gravação do CE e do cálculo levou 2,8 s e cada lote de 25 emissões no máximo
+0,6 s (8,4 s no total, em 16 chamadas); o mesmo lote gravado e emitido numa
+transação só (`defer=false`) levou 15,6 s, acima do tempo limite de uma chamada
+do PostgREST.

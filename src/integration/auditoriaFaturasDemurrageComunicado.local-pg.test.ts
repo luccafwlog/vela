@@ -48,7 +48,7 @@
 // BlDetalhe.tsx:372-373, e CONTEXT.md:798 diz que B/L sem CE é excluído).
 //
 // Namespace exclusivo: ids 99207xxx, CNPJ syntheticCnpj(207001), B/Ls 'A207-*',
-// usuário ...0000002070NN, manifestos 'A207-MAN-*', documentos 'A207-DEM-*'.
+// usuário ...0000002070NN, manifestos 'A207MAN*' (13 caracteres), documentos 'A207-DEM-*'.
 // Containers 'ADCU207xxxx' (a checagem ISO de `bl_containers` impede o prefixo
 // A207; a limpeza os remove pelo B/L). A limpeza (antes e depois) remove também
 // faturas, recebíveis, cálculos, Invoices de Demurrage, efeitos e tentativas,
@@ -480,7 +480,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
 
   it('cenário 1: o CE Mercante emite a fatura de Taxas Locais de um Cliente com Liberação', () => {
     insertBl('A207-N1', voyage.notificacao, pod, [{ number: 'ADCU2070011' }])
-    expect(importCeSheet('A207-MAN-1', voyage.notificacao, [{ blId: 'A207-N1', ce: '207001000000011' }]))
+    expect(importCeSheet('A207MAN000001', voyage.notificacao, [{ blId: 'A207-N1', ce: '207001000000011' }]))
       .toMatchObject({ ok: true, inserted: 1 })
 
     const invoice = JSON.parse(localPsql(`
@@ -511,9 +511,9 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     insertBl('A207-C1', voyage.cancelado, pod, [{ number: 'ADCU2070021' }])
     insertBl('A207-C2', voyage.cancelado, podSemTabela, [{ number: 'ADCU2070022' }])
     // Uma planilha por Manifesto Mercante (rota): o número fica preso à rota.
-    expect(importCeSheet('A207-MAN-2', voyage.cancelado, [{ blId: 'A207-C1', ce: '207001000000021' }]))
+    expect(importCeSheet('A207MAN000002', voyage.cancelado, [{ blId: 'A207-C1', ce: '207001000000021' }]))
       .toMatchObject({ ok: true, inserted: 1 })
-    expect(importCeSheet('A207-MAN-3', voyage.cancelado, [{ blId: 'A207-C2', ce: '207001000000022' }]))
+    expect(importCeSheet('A207MAN000003', voyage.cancelado, [{ blId: 'A207-C2', ce: '207001000000022' }]))
       .toMatchObject({ ok: true, inserted: 1 })
     expect(blState('A207-C1').financial_status).toBe('invoiced')
     // Sem tabela no POD, nada é calculado, não há recebível e a ficha oferece
@@ -542,7 +542,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
 
   it('cenário 3: a planilha de datas registra a descarga do container de um B/L já faturado pelo CE', () => {
     insertBl('A207-R1', voyage.datasFaturado, pod, [{ number: 'ADCU2070031' }])
-    expect(importCeSheet('A207-MAN-4', voyage.datasFaturado, [{ blId: 'A207-R1', ce: '207001000000031' }]))
+    expect(importCeSheet('A207MAN000004', voyage.datasFaturado, [{ blId: 'A207-R1', ce: '207001000000031' }]))
       .toMatchObject({ ok: true, inserted: 1 })
     const before = blState('A207-R1')
     const readinessBefore = communicationReadiness(voyage.datasFaturado)

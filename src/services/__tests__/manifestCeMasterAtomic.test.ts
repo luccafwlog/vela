@@ -17,9 +17,10 @@ describe('setImportBatchCeMaster', () => {
 
     await setImportBatchCeMaster(42, '  CE-123  ', 'user-7')
 
+    // Mesma forma canônica do cadastro de Manifestos (migration 180).
     expect(rpcMock).toHaveBeenCalledWith('set_import_batch_ce_master', {
       p_batch_id: 42,
-      p_ce_master: 'CE-123',
+      p_ce_master: 'CE123',
       p_changed_by: 'user-7',
     })
   })

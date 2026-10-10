@@ -392,7 +392,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     const blId = 'A201-BB1'
     const blDocument = breakbulkLine(voyageA, blId, { kind: 'document', customer: gama })
     expect(importBreakbulk(voyageA, [blDocument]).error).toBeNull()
-    expect(importCeSheet('A201-MAN-1', voyageA, [{ blId, ce: '201001000000001' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A201MAN000001', voyageA, [{ blId, ce: '201001000000001' }])).toMatchObject({ ok: true })
     const before = blState(blId)
     expect(before).toMatchObject({ ce_mercante: '201001000000001', customer_id: gama.id })
     expect(before?.manifesto_mercante_id).toBeTruthy()
@@ -417,7 +417,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     const newBl = 'A201-BB7'
     const invoicedDocument = breakbulkLine(voyageA, invoicedBl, { kind: 'document', customer: alfa })
     expect(importBreakbulk(voyageA, [invoicedDocument]).error).toBeNull()
-    expect(importCeSheet('A201-MAN-2', voyageA, [{ blId: invoicedBl, ce: '201001000000002' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A201MAN000002', voyageA, [{ blId: invoicedBl, ce: '201001000000002' }])).toMatchObject({ ok: true })
     expect(blState(invoicedBl)).toMatchObject({ ce_mercante: '201001000000002', financial_status: 'invoiced' })
     expect(invoicesOf(invoicedBl)).toMatchObject([{ customer_id: alfa.id, status: 'issued' }])
     expect(blState(newBl)).toBeNull()
@@ -479,7 +479,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
   it('cenário 4: Manifesto BB (layout resumido, mesma coluna CE) reimportado com o CNPJ de outro Cliente sobre B/L faturado', () => {
     const blId = 'A201-BB4'
     expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'document', customer: alfa })], 'a201-bb-resumo.xlsx').error).toBeNull()
-    expect(importCeSheet('A201-MAN-4', voyageA, [{ blId, ce: '201001000000004' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A201MAN000004', voyageA, [{ blId, ce: '201001000000004' }])).toMatchObject({ ok: true })
     const issued = invoicesOf(blId)
     expect(issued).toMatchObject([{ customer_id: alfa.id, status: 'issued' }])
     expect(blState(blId)).toMatchObject({ customer_id: alfa.id, financial_status: 'invoiced' })
@@ -511,7 +511,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
   it('cenário 5: Manifesto BB da Viagem B contém B/L faturado da Viagem A (mesmo CE e CNPJ)', () => {
     const blId = 'A201-BB5'
     expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'document', customer: alfa })], 'a201-bb-viagem-a.xlsx').error).toBeNull()
-    expect(importCeSheet('A201-MAN-5', voyageA, [{ blId, ce: '201001000000005' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A201MAN000005', voyageA, [{ blId, ce: '201001000000005' }])).toMatchObject({ ok: true })
     expect(blState(blId)).toMatchObject({ voyage_id: voyageA, financial_status: 'invoiced' })
     expect(invoicesOf(blId)).toMatchObject([{ status: 'issued' }])
 
@@ -584,7 +584,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     const blId = 'A201-BB10'
     const line = breakbulkLine(voyageA, blId, { kind: 'document', customer: gama })
     expect(importBreakbulk(voyageA, [line]).error).toBeNull()
-    expect(importCeSheet('A201-MAN-10', voyageA, [{ blId, ce: '201001000000010' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A201MAN000010', voyageA, [{ blId, ce: '201001000000010' }])).toMatchObject({ ok: true })
     expect(blState(blId)?.manifesto_mercante_id).toBeTruthy()
     // Gama não tem Liberação: o CE fica retido, sem cálculo nem fatura.
     expect(invoicesOf(blId)).toHaveLength(0)

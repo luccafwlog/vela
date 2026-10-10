@@ -44,7 +44,7 @@
 // e 3 mudam; as regras dos it.fails continuam as mesmas.
 //
 // Namespace exclusivo: ids 99204xxx, CNPJ syntheticCnpj(204001..204004), B/Ls
-// 'A204-*', usuários ...0000002040NN, manifestos 'A204-MAN-*'. Containers
+// 'A204-*', usuários ...0000002040NN, manifestos 'A204MAN*' (13 caracteres). Containers
 // 'ADCU204xxxx': a checagem ISO de `bl_containers` impede o prefixo A204; a
 // limpeza os remove pelo B/L. A limpeza (antes e depois) remove também faturas,
 // recebíveis, cálculos, veículos, itens de carga solta, lotes, efeitos e
@@ -424,13 +424,13 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
     insertContainerBl({ id: 'A204-FCL1', voyageId: voyage.veiculos, customerId: aberto.id, pod: tables.base.pod, container: 'ADCU2040011', seal: 'A204S11' })
     insertContainerBl({ id: 'A204-FCL2', voyageId: voyage.veiculos, customerId: aberto.id, pod: tables.base.pod, container: 'ADCU2040012', seal: 'A204S12' })
 
-    expect(importCeSheet('A204-MAN-1', voyage.veiculos, [{ blId: 'A204-FCL1', ce: '204001000000011' }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A204MAN000001', voyage.veiculos, [{ blId: 'A204-FCL1', ce: '204001000000011' }])).toMatchObject({ ok: true, inserted: 1 })
     expect(importVehicles([
       { voyageId: voyage.veiculos, blId: 'A204-FCL1', chassis: 'LGXC74C44V0204011' },
       { voyageId: voyage.veiculos, blId: 'A204-FCL2', chassis: 'LGXC74C44V0204012' },
     ])).toBe('2')
     // VEI-02: o CE chega depois dos veículos; a intenção do efeito é mais velha que a fatura.
-    expect(importCeSheet('A204-MAN-1', voyage.veiculos, [{ blId: 'A204-FCL2', ce: '204001000000012' }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A204MAN000001', voyage.veiculos, [{ blId: 'A204-FCL2', ce: '204001000000012' }])).toMatchObject({ ok: true, inserted: 1 })
 
     for (const blId of ['A204-FCL1', 'A204-FCL2']) {
       // Pré-condições: fatura emitida de R$ 125, intacta depois do commit dos
@@ -470,7 +470,7 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
 
   it('cenário 2: CE de Cliente sem Portal retém a fatura, a tabela muda, o executor processa o efeito legado do CE e depois o Administrativo concede a Liberação', () => {
     insertContainerBl({ id: 'A204-H1', voyageId: voyage.tabela, customerId: retidoTabela.id, pod: tables.tabela.pod, container: 'ADCU2040021', seal: 'A204S21' })
-    expect(importCeSheet('A204-MAN-2', voyage.tabela, [{ blId: 'A204-H1', ce: '204001000000021' }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A204MAN000002', voyage.tabela, [{ blId: 'A204-H1', ce: '204001000000021' }])).toMatchObject({ ok: true, inserted: 1 })
 
     // Pré-condições: retido com o cálculo do dia do CE e o efeito legado pendente.
     expect(blCharge('A204-H1')).toEqual({ financial_status: 'pending', charge_status: 'calculated', billing_hold_reason: HOLD, auto_total: tables.tabela.fee })
@@ -498,7 +498,7 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
 
   it('cenário 3: B/L retido com CE, a tabela muda, um manifesto de carga solta de outro Cliente entra na mesma Viagem e o executor processa o efeito dele', () => {
     insertContainerBl({ id: 'A204-H3', voyageId: voyage.cargaSolta, customerId: retidoViagem.id, pod: tables.viagem.pod, container: 'ADCU2040031', seal: 'A204S31' })
-    expect(importCeSheet('A204-MAN-3', voyage.cargaSolta, [{ blId: 'A204-H3', ce: '204001000000031' }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A204MAN000003', voyage.cargaSolta, [{ blId: 'A204-H3', ce: '204001000000031' }])).toMatchObject({ ok: true, inserted: 1 })
     // O efeito legado do próprio B/L roda antes da mudança de tabela: isola o
     // caso do cenário 2 e deixa só o efeito do B/L de carga solta em jogo.
     expect(runWorker('A204-H3').map((effect) => [effect.kind, effect.status])).toEqual([['local_billing', 'succeeded']])
@@ -575,7 +575,7 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
 
   it('cenário 4: o executor processa o efeito do CE retido enquanto outra transação segura a linha do B/L', async () => {
     insertContainerBl({ id: 'A204-T1', voyageId: voyage.trava, customerId: retidoTrava.id, pod: tables.base.pod, container: 'ADCU2040041', seal: 'A204S41' })
-    expect(importCeSheet('A204-MAN-4', voyage.trava, [{ blId: 'A204-T1', ce: '204001000000041' }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A204MAN000004', voyage.trava, [{ blId: 'A204-T1', ce: '204001000000041' }])).toMatchObject({ ok: true, inserted: 1 })
     expect(effects('A204-T1').map((effect) => [effect.kind, effect.status])).toEqual([['local_billing', 'pending']])
 
     // Outra sessão (Revisão, outra importação) segura a linha do B/L por alguns segundos.

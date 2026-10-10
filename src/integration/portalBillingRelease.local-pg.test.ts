@@ -120,6 +120,7 @@ function cleanup(): void {
     DELETE FROM public.charge_calculations WHERE bl_id = ANY(${blList});
     DELETE FROM public.bl_containers WHERE bl_id = ANY(${blList});
     DELETE FROM public.bls WHERE id = ANY(${blList});
+    DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId} OR charge_item_id = ${chargeItemId};
     DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
     DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
     DELETE FROM public.voyages WHERE id = ${voyageId};

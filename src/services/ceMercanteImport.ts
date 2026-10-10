@@ -1,3 +1,4 @@
+import { toError } from '../lib/errors'
 import { assertUploadFile } from '../lib/fileGuard'
 import { asString, chunkArray, onlyDigits } from '../lib/utils'
 import { supabase } from './supabase'
@@ -9,7 +10,11 @@ type CeRowsAtomicResult = {
   inserted?: number
   overwritten?: number
   unchanged?: number
+  ignored?: number
+  needs_confirmation?: boolean
+  warnings?: Array<{ row?: number; bl_id?: string; message: string }>
   errors?: Array<{ row?: number; bl_id?: string; message: string }>
+  billing_pending_bl_ids?: string[]
 }
 
 const headerMap = {
@@ -49,11 +54,90 @@ export type CeMercanteImportResult = {
   overwritten: number
   unchanged: number
   errorCount: number
+  /** `row` 0 é erro do lote, sem linha (a tela não mostra "Linha 0"). */
   errors: Array<{
     row: number
     message: string
     bl_id?: string
   }>
+  ignored?: number
+  warnings?: Array<{ row: number; message: string; bl_id?: string }>
+  /** A troca de CE ou de Manifesto precisa de confirmação com motivo. */
+  needsConfirmation?: boolean
+  /** B/Ls gravados que a tela emite em lotes (`emitCeMercanteBilling`). */
+  billingPendingBlIds?: string[]
+}
+
+export type CePreviewRow = {
+  row: number
+  bl_id: string
+  status: 'new' | 'same' | 'change' | 'cancelled'
+  current_ce?: string | null
+  new_ce?: string
+  current_manifesto?: string | null
+  target_manifesto?: string | null
+  manifesto_change?: boolean
+  live_invoices?: string[]
+  portal_visible?: boolean
+  comunicado_sent?: boolean
+  unlock_confirmed?: boolean
+}
+
+export type CeServerPreview = {
+  rows: CePreviewRow[]
+  errors: Array<{ row?: number; bl_id?: string; message: string }>
+  warnings: Array<{ row?: number; bl_id?: string; message: string }>
+  changes: number
+  moves: number
+  needs_confirmation: boolean
+  manifesto: { numero: string | null; exists: boolean }
+}
+
+/**
+ * Prévia no servidor (migration 180): estado de cada B/L antes → depois,
+ * faturas, Portal, Comunicado, Desbloqueio e Manifesto. Não grava nada.
+ */
+export async function previewCeMercanteRows(
+  rows: CeMercanteRow[],
+  options: { manifestoNumero: string; voyageId?: number },
+): Promise<CeServerPreview> {
+  const { data, error } = await supabase.rpc('preview_ce_mercante_rows' as never, {
+    p_rows: rows.map((row) => ({ row: row.rowNumber, bl_id: row.bl_id, ce: row.ce_mercante })),
+    p_manifesto_numero: options.manifestoNumero,
+    p_voyage_id: options.voyageId ?? null,
+  } as never)
+  if (error) throw error
+  return data as unknown as CeServerPreview
+}
+
+export type CeBillingResult = {
+  bl_id: string
+  status: 'invoiced' | 'held' | 'blocked' | 'skipped'
+  reason?: string | null
+  message?: string | null
+  invoice_number?: string | null
+}
+
+export const CE_BILLING_BATCH_SIZE = 25
+
+/**
+ * Emissão logo depois da gravação do CE, em lotes conduzidos pela tela (ADR
+ * 0078, item 9). Cada lote é uma transação; o que falhar pode ser retomado
+ * com os B/Ls que faltam. O efeito `local_billing` é a rede.
+ */
+export async function emitCeMercanteBilling(
+  blIds: string[],
+  onProgress?: (done: number, total: number, results: CeBillingResult[]) => void,
+): Promise<CeBillingResult[]> {
+  const results: CeBillingResult[] = []
+  const chunks = chunkArray(blIds, CE_BILLING_BATCH_SIZE)
+  for (const chunk of chunks) {
+    const { data, error } = await supabase.rpc('emit_ce_mercante_billing' as never, { p_bl_ids: chunk } as never)
+    if (error) throw Object.assign(toError(error), { done: results })
+    results.push(...(((data as unknown as { results?: CeBillingResult[] } | null)?.results) ?? []))
+    onProgress?.(results.length, blIds.length, results)
+  }
+  return results
 }
 
 export type CeMercanteImportTarget = 'bls' | 'granite'
@@ -125,7 +209,7 @@ export async function parseCeMercanteFile(file: File): Promise<ParsedCeMercanteF
 }
 
 export async function parseCeMercanteBuffer(buffer: ArrayBuffer): Promise<ParsedCeMercanteFile> {
-  const { headers, rows } = await readSheet(buffer)
+  const { headers, rows } = await readSheet(buffer, { singleDataSheet: true })
   validateRequiredHeaders(headers)
   return parseRows(rows)
 }
@@ -137,6 +221,11 @@ export async function importCeMercanteRows(
     target?: CeMercanteImportTarget
     voyageId?: number
     manifestoNumero?: string
+    /** Confirma a troca de CE já gravado e a mudança de Manifesto (com motivo). */
+    confirmChanges?: boolean
+    reason?: string
+    /** Grava CE e cálculo e devolve os B/Ls para `emitCeMercanteBilling`. */
+    deferBilling?: boolean
   } = { changedBy: null },
 ): Promise<CeMercanteImportResult> {
   const target = options.target ?? 'bls'
@@ -194,7 +283,7 @@ export async function importCeMercanteRows(
     return { processed: rows.length, updated: 0, overwritten: 0, unchanged: 0, errorCount: errors.length, errors }
   }
 
-  const { data: rawResult, error } = await supabase.rpc('apply_ce_mercante_rows_atomic', {
+  const payload = {
     p_rows: validRows.map((row) => ({
       row: row.rowNumber,
       bl_id: target === 'granite' ? resolvedIds.get(row.bl_id) ?? row.bl_id : row.bl_id,
@@ -202,19 +291,37 @@ export async function importCeMercanteRows(
     })),
     p_changed_by: options.changedBy,
     p_target: target,
-    // Migration 164: viagem, rota e manifesto são validados e vinculados na
-    // mesma transação dos CEs.
-    ...(target === 'bls' ? { p_manifesto_numero: manifestoNumero, p_voyage_id: options.voyageId ?? null } : {}),
-  })
+    // Migration 164/180: viagem, rota e manifesto são validados e vinculados
+    // na mesma transação dos CEs; troca de CE ou de Manifesto pede confirmação.
+    ...(target === 'bls'
+      ? {
+          p_manifesto_numero: manifestoNumero,
+          p_voyage_id: options.voyageId ?? null,
+          p_confirm_changes: options.confirmChanges ?? false,
+          p_reason: options.reason?.trim() || null,
+          p_defer_billing: options.deferBilling ?? false,
+        }
+      : {}),
+  }
+  let response = await supabase.rpc('apply_ce_mercante_rows_atomic', payload as never)
+  // Deadlock com outra gravação: uma nova tentativa (ADR 0078, item 9).
+  if (response.error && (response.error as { code?: string }).code === '40P01') {
+    response = await supabase.rpc('apply_ce_mercante_rows_atomic', payload as never)
+  }
+  const { data: rawResult, error } = response
   if (error) throw error
   const data = rawResult as unknown as CeRowsAtomicResult | null
+  const warnings = (data?.warnings ?? []).map((item) => ({ row: Number(item.row ?? 0), bl_id: item.bl_id ?? '', message: item.message }))
   if (!data?.ok) {
     const rowErrors = (data?.errors ?? []).map((item) => ({
       row: Number(item.row ?? 0),
       bl_id: item.bl_id ?? '',
       message: item.message || 'Falha ao aplicar CE Mercante.',
     }))
-    return { processed: rows.length, updated: 0, overwritten: 0, unchanged: 0, errorCount: rowErrors.length, errors: rowErrors }
+    return {
+      processed: rows.length, updated: 0, overwritten: 0, unchanged: 0, errorCount: rowErrors.length, errors: rowErrors,
+      warnings, needsConfirmation: Boolean(data?.needs_confirmation),
+    }
   }
   const inserted = data.inserted ?? 0
   const overwritten = data.overwritten ?? 0
@@ -226,6 +333,9 @@ export async function importCeMercanteRows(
     unchanged,
     errorCount: errors.length,
     errors,
+    ignored: data.ignored ?? 0,
+    warnings,
+    billingPendingBlIds: data.billing_pending_bl_ids ?? [],
   }
 }
 
@@ -243,12 +353,13 @@ function parseRows(rows: SheetRow[]): ParsedCeMercanteFile {
     const bl_id = normalizeBlId(mapped.bl_id)
     const ce_mercante = normalizeCeMercante(mapped.ce_mercante)
 
-    if (!bl_id || !ce_mercante) {
-      rowErrors.push({
-        row: rowNumber,
-        message: 'Colunas obrigatorias ausentes ou invalidas.',
-        raw: row,
-      })
+    if (!bl_id) {
+      rowErrors.push({ row: rowNumber, message: 'Linha sem B/L.', raw: row })
+      return
+    }
+    // Linha sem CE é erro e bloqueia a importação (ADR 0078, item 9).
+    if (!ce_mercante) {
+      rowErrors.push({ row: rowNumber, message: `Linha sem CE Mercante para o BL ${bl_id}.`, raw: row })
       return
     }
 

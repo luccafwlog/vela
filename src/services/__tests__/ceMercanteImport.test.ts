@@ -98,6 +98,9 @@ describe('ceMercanteImport', () => {
       p_changed_by: 'user-1',
       p_target: 'bls',
       p_manifesto_numero: '26BR000001',
+      p_confirm_changes: false,
+      p_reason: null,
+      p_defer_billing: false,
       p_voyage_id: 7,
     })
   })

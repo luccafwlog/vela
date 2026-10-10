@@ -49,7 +49,7 @@
 // Assim, quando it.fails virar it, uma recusa por fixture, permissão ou SQL
 // quebrado falha no cenário em vez de passar como "CE recusado".
 //
-// Namespace exclusivo: ids 99206xxx, B/Ls 'A206-*', manifestos 'A206-MAN-*',
+// Namespace exclusivo: ids 99206xxx, B/Ls 'A206-*', manifestos 'A206MAN*' (13 caracteres),
 // usuário e Granito com UUID ...0000002060NN, CEs iniciados por '992062'. Containers
 // 'ADCU206xxxx' (a checagem ISO de `bl_containers` exige 4 letras + 7 dígitos);
 // saem pela limpeza do B/L. Nenhum Cliente é criado; a limpeza (antes e depois)
@@ -416,13 +416,13 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
     expect(blRow('A206-DUP-1')).toMatchObject({ ce_mercante: null, cancelled: false })
     expect(blRow('A206-DUP-2')).toMatchObject({ ce_mercante: null, cancelled: false })
     // Controle desfeito: o mesmo lote, com CEs distintos, é aceito inteiro.
-    expect(probeCeSheet(ceSheetCall('A206-MAN-DUP', [
+    expect(probeCeSheet(ceSheetCall('A206MAN000DUP', [
       { blId: 'A206-DUP-1', ce: ce.sameSheet },
       { blId: 'A206-DUP-2', ce: freeCe.sameSheet },
     ]))).toMatchObject({ ok: true, inserted: 2 })
     expect(activeHolders(freeCe.sameSheet)).toEqual([])
 
-    const result = importCeSheet('A206-MAN-DUP', [
+    const result = importCeSheet('A206MAN000DUP', [
       { blId: 'A206-DUP-1', ce: ce.sameSheet },
       { blId: 'A206-DUP-2', ce: ce.sameSheet },
     ])
@@ -439,14 +439,14 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   let otherSheet: { result: CeSheetResult; holders: string[] } | null = null
 
   it('cenário 3: uma segunda planilha traz para outro B/L um CE já gravado em B/L ativo', () => {
-    expect(importCeSheet('A206-MAN-OUT-1', [{ blId: 'A206-OUT-1', ce: ce.otherSheet }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A206MAN00OUT1', [{ blId: 'A206-OUT-1', ce: ce.otherSheet }])).toMatchObject({ ok: true, inserted: 1 })
     expect(activeHolders(ce.otherSheet)).toEqual(['A206-OUT-1'])
     expect(blRow('A206-OUT-2')).toMatchObject({ ce_mercante: null, cancelled: false })
     // Controle desfeito: o segundo manifesto da mesma rota aceita um CE livre.
-    expect(probeCeSheet(ceSheetCall('A206-MAN-OUT-2', [{ blId: 'A206-OUT-2', ce: freeCe.otherSheet }])))
+    expect(probeCeSheet(ceSheetCall('A206MAN00OUT2', [{ blId: 'A206-OUT-2', ce: freeCe.otherSheet }])))
       .toMatchObject({ ok: true, inserted: 1 })
 
-    const result = importCeSheet('A206-MAN-OUT-2', [{ blId: 'A206-OUT-2', ce: ce.otherSheet }])
+    const result = importCeSheet('A206MAN00OUT2', [{ blId: 'A206-OUT-2', ce: ce.otherSheet }])
     otherSheet = { result, holders: activeHolders(ce.otherSheet) }
     expect(typeof result.ok).toBe('boolean')
   })
@@ -460,7 +460,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   let ficha: { attempt: Attempt; holders: string[]; target: string | null } | null = null
 
   it('cenário 4: a ficha do B/L salva, entre espaços colados, o CE de outro B/L ativo', () => {
-    expect(importCeSheet('A206-MAN-FIC', [{ blId: 'A206-FIC-1', ce: ce.ficha }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A206MAN000FIC', [{ blId: 'A206-FIC-1', ce: ce.ficha }])).toMatchObject({ ok: true, inserted: 1 })
     expect(activeHolders(ce.ficha)).toEqual(['A206-FIC-1'])
     const updatedAt = localPsql(`SELECT updated_at::text FROM public.bls WHERE id = 'A206-FIC-2';`)
     expect(updatedAt).not.toBe('')
@@ -494,7 +494,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   let breakbulk: { attempt: Attempt; holders: string[] } | null = null
 
   it('cenário 5: o Manifesto BB cria um B/L de carga solta com o CE de outro B/L ativo', () => {
-    expect(importCeSheet('A206-MAN-BB', [{ blId: 'A206-BB-H1', ce: ce.breakbulk }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A206MAN0000BB', [{ blId: 'A206-BB-H1', ce: ce.breakbulk }])).toMatchObject({ ok: true, inserted: 1 })
     expect(activeHolders(ce.breakbulk)).toEqual(['A206-BB-H1'])
     expect(blRow('A206-BB-NEW')).toBeNull()
 
@@ -563,7 +563,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   let granite: { result: CeSheetResult; cargo: string[]; granite: string[] } | null = null
 
   it('cenário 6: a planilha de CE de Granito traz o CE já gravado num B/L de carga ativo', () => {
-    expect(importCeSheet('A206-MAN-GRA', [{ blId: 'A206-GRA-1', ce: ce.granite }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A206MAN000GRA', [{ blId: 'A206-GRA-1', ce: ce.granite }])).toMatchObject({ ok: true, inserted: 1 })
     expect(activeHolders(ce.granite)).toEqual(['A206-GRA-1'])
     expect(graniteHolders(ce.granite)).toEqual([])
     // Controle desfeito: o B/L de Granito aceita um CE livre pela mesma planilha.
@@ -585,7 +585,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   let reactivation: { attempt: Attempt; holders: string[]; cancelled: boolean | null } | null = null
 
   it('cenário 7: o B/L cancelado é reativado depois que o B/L reemitido recebeu o mesmo CE', () => {
-    expect(importCeSheet('A206-MAN-REA-1', [{ blId: 'A206-REA-1', ce: ce.reactivate }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A206MAN00REA1', [{ blId: 'A206-REA-1', ce: ce.reactivate }])).toMatchObject({ ok: true, inserted: 1 })
     // Payload de blState.ts:10-18 (cancelBl) e :21-24 (reactivateBl).
     expect(JSON.parse(asOperator(`SELECT public.cancel_bl('A206-REA-1', 'Armador reemitiu o B/L com outro número (A206)', false);`)))
       .toMatchObject({ cancelled: true })
@@ -595,7 +595,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
     expect(JSON.parse(control.output ?? 'null')).toMatchObject({ reactivated: true })
     expect(blRow('A206-REA-1')).toMatchObject({ cancelled: true })
     // O B/L cancelado libera o CE para o reemitido (CONTEXT.md:797; ADR 0071 item 9).
-    expect(importCeSheet('A206-MAN-REA-2', [{ blId: 'A206-REA-2', ce: ce.reactivate }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A206MAN00REA2', [{ blId: 'A206-REA-2', ce: ce.reactivate }])).toMatchObject({ ok: true, inserted: 1 })
     expect(activeHolders(ce.reactivate)).toEqual(['A206-REA-2'])
     expect(blRow('A206-REA-1')).toMatchObject({ ce_mercante: ce.reactivate, cancelled: true })
 
@@ -614,9 +614,9 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   let zpt: { summary: { rows: number; unlocked: number }; unlocked: string[] } | null = null
 
   it('cenário 8: a conciliação com a ZPT recebe "Desbloqueado" para um CE gravado em dois B/Ls', () => {
-    expect(importCeSheet('A206-MAN-ZPT-1', [{ blId: 'A206-ZPT-1', ce: ce.zpt }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A206MAN00ZPT1', [{ blId: 'A206-ZPT-1', ce: ce.zpt }])).toMatchObject({ ok: true, inserted: 1 })
     // Segunda planilha com o mesmo CE (o cenário 3 mostra que hoje é aceita).
-    importCeSheet('A206-MAN-ZPT-2', [{ blId: 'A206-ZPT-2', ce: ce.zpt }])
+    importCeSheet('A206MAN00ZPT2', [{ blId: 'A206-ZPT-2', ce: ce.zpt }])
     expect(activeHolders(ce.zpt)).toContain('A206-ZPT-1')
 
     // Linha de parseCeUnlockZptFile/reconcileCeUnlockZpt (ceUnlockZptReconcile.ts:54-94).
@@ -649,7 +649,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   }
 
   it('Corrigir CE pela ficha grava o CE novo com o motivo no Histórico; UPDATE direto é recusado', () => {
-    expect(importCeSheet('A206-MAN-COR', [{ blId: 'A206-COR-1', ce: ce.correct }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A206MAN000COR', [{ blId: 'A206-COR-1', ce: ce.correct }])).toMatchObject({ ok: true, inserted: 1 })
 
     const direct = tryAsOperator(`UPDATE public.bls SET ce_mercante = '${ce.corrected}' WHERE id = 'A206-COR-1';`)
     expect(direct.error).not.toBeNull()
@@ -667,7 +667,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   })
 
   it('Remover CE com fatura viva é recusado; sem fatura viva, remove com o motivo no Histórico', () => {
-    expect(importCeSheet('A206-MAN-REM', [{ blId: 'A206-REM-1', ce: ce.remove }])).toMatchObject({ ok: true, inserted: 1 })
+    expect(importCeSheet('A206MAN000REM', [{ blId: 'A206-REM-1', ce: ce.remove }])).toMatchObject({ ok: true, inserted: 1 })
     localPsql(`
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerRange[0]}, '99206001000154', 'A206 CLIENTE');
       -- Só a fatura viva importa aqui: os gatilhos de emissão (Cliente

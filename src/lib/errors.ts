@@ -96,6 +96,14 @@ const ERROR_TABLE: Readonly<Record<string, ErrorTableEntry>> = {
   '28000': { kind: 'sessao_expirada', message: 'Sua sessao expirou. Entre novamente para continuar.' },
   '23505': { kind: 'conflito', message: 'Este registro ja existe.', preserveMessage: true },
   '40001': { kind: 'conflito', message: 'Conflito de concorrencia. Tente novamente.' },
+  // Duas gravações nos mesmos registros (ex.: duas planilhas da mesma Viagem).
+  '40P01': { kind: 'conflito', message: 'Outra gravação estava usando os mesmos registros. Tente novamente.' },
+  '55P03': { kind: 'conflito', message: 'Outra gravação estava usando os mesmos registros. Tente novamente.' },
+  // Recusas de negócio das migrations 176-180 (CE em outro B/L, fatura viva,
+  // Nº de Manifesto fora do formato): a mensagem do banco é a orientação.
+  P0010: { kind: 'conflito', message: 'Este CE Mercante já está em outro B/L.', preserveMessage: true },
+  P0011: { kind: 'validacao', message: 'Há fatura emitida para este B/L.', preserveMessage: true },
+  P0012: { kind: 'validacao', message: 'Nº de Manifesto Mercante inválido.', preserveMessage: true },
   '23503': { kind: 'validacao', message: 'Registro referenciado nao existe ou ainda esta em uso.' },
   '23514': { kind: 'validacao', message: 'Dados fora das regras do cadastro.', preserveMessage: true },
   '22P02': { kind: 'validacao', message: 'Valor em formato invalido.' },
