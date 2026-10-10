@@ -37,6 +37,8 @@ describe('arquivo "Exportar Tela" da ZPT', () => {
   it('interpreta data e hora de Brasília e rejeita formato desconhecido', () => {
     expect(parseZptDateTime('06/10/2026 16:29:08')).toBe('2026-10-06T16:29:08-03:00')
     expect(parseZptDateTime('06/10/2026')).toBe('2026-10-06T00:00:00-03:00')
-    expect(parseZptDateTime('2026-10-06')).toBeNull()
+    // Célula de data/hora do Excel, como o leitor comum entrega (ADR 0078, item 22).
+    expect(parseZptDateTime('2026-10-06 16:29')).toBe('2026-10-06T16:29:00-03:00')
+    expect(parseZptDateTime('06-10-2026')).toBeNull()
   })
 })

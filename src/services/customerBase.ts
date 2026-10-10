@@ -137,7 +137,16 @@ export function parseCustomerBaseRows(rows: Record<string, unknown>[]): ParsedCu
     const name = asString(mapped.name)
 
     if (!cnpjCpf) {
-      rowErrors.push({ row: rowNumber, message: 'Linha sem CNPJ válido.', raw: row })
+      // CNPJ em célula numérica sem máscara perde os zeros à esquerda.
+      const numericCause = typeof mapped.cnpj_cpf === 'number' && String(mapped.cnpj_cpf).length < 14
+        ? ' A célula é numérica e perdeu os zeros à esquerda: formate a coluna CNPJ como texto.'
+        : ''
+      rowErrors.push({ row: rowNumber, message: `Linha sem CNPJ válido.${numericCause}`, raw: row })
+      return
+    }
+
+    if (typeof mapped.zip === 'number' && String(mapped.zip).length < 8) {
+      rowErrors.push({ row: rowNumber, message: 'CEP em célula numérica perdeu os zeros à esquerda: formate a coluna CEP como texto.', raw: row })
       return
     }
 

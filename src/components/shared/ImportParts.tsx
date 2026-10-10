@@ -1,7 +1,8 @@
-import { useId, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, Download, FileUp, Info, XCircle } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { describeAccept, formatFileSize, uploadLimitLabel } from './importPresentation'
+import { readSpreadsheetWarnings } from '../../services/importCore'
 
 /**
  * Peças visuais comuns do percurso de importação: escolher arquivo → ler →
@@ -41,6 +42,29 @@ export function ImportFilePicker({
   const reasonId = `${id}-reason`
   const [dragging, setDragging] = useState(false)
   const formats = describeAccept(accept)
+  const readsSpreadsheet = /\.(xlsx|xls|csv)\b/i.test(accept)
+  // Chave estável: vários modais passam `[file]` novo a cada render. Os avisos
+  // valem só para os arquivos para os quais foram lidos.
+  const filesKey = files.map((file) => `${file.name}:${file.size}:${file.lastModified}`).join('|')
+  const [readResult, setReadResult] = useState<{ key: string; warnings: string[] } | null>(null)
+  const readWarnings = readResult && readResult.key === filesKey ? readResult.warnings : []
+  const [filesToRead, setFilesToRead] = useState<{ key: string; files: readonly File[] }>({ key: '', files: [] })
+  if (filesToRead.key !== filesKey) setFilesToRead({ key: filesKey, files })
+
+  // Avisos de leitura comuns a toda planilha (ADR 0078, item 22): linhas e
+  // abas ocultas ignoradas e CSV Windows-1252. Erros ficam com o parser.
+  useEffect(() => {
+    const { key, files: chosen } = filesToRead
+    if (!readsSpreadsheet || !chosen.length) return
+    let active = true
+    void Promise.all(chosen.map(async (file) => {
+      const warnings = await readSpreadsheetWarnings(file)
+      return chosen.length > 1 ? warnings.map((warning) => `${file.name}: ${warning}`) : warnings
+    })).then((lists) => {
+      if (active) setReadResult({ key, warnings: lists.flat() })
+    })
+    return () => { active = false }
+  }, [filesToRead, readsSpreadsheet])
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const chosen = Array.from(event.target.files ?? [])
@@ -113,6 +137,13 @@ export function ImportFilePicker({
         {formats} · {uploadLimitLabel()}{multiple ? ' · um ou vários de uma vez' : ''}
       </span>
       {disabled && disabledReason ? <span id={reasonId} className="app-import-picker__reason">{disabledReason}</span> : null}
+      {readWarnings.length ? (
+        <ImportNotice tone="warning" role="status" title="Avisos de leitura do arquivo">
+          <ul className="app-import-notice__list">
+            {readWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+          </ul>
+        </ImportNotice>
+      ) : null}
     </div>
   )
 }

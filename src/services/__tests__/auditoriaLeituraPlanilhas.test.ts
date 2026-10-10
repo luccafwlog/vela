@@ -1,6 +1,7 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Cada it.fails documenta um defeito confirmado; quando a correção entrar, troque it.fails por it (arquivo unitário: já roda em `npm test`, portanto no CI).
+// Os casos nasceram como it.fails e viraram it com o leitor tipado (Etapa 3 do plano
+// docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md); arquivo unitário, roda em `npm test`.
 //
 // Problema-raiz M05 (+ CE numérico de P2): o leitor comum `readSheet`
 // (src/services/importCore.ts:73-137) não entrega o valor da célula.
@@ -128,7 +129,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       observed.containerDates = parsed
     })
 
-    it.fails('esperado: a data curta do Excel é lida como a data da célula (2026-08-01, 2026-12-03, 2026-08-15), sem linha recusada [DAT-01, INF-01] — regra: ContainerDatesImportModal.tsx:92 ("Datas em DD/MM/AAAA ou AAAA-MM-DD"), containerDatesImport.ts:37-41 (contrato DD/MM/AAAA) e CONTEXT.md:1335-1336 (Demurrage conta da descarga à devolução)', () => {
+    it('esperado: a data curta do Excel é lida como a data da célula (2026-08-01, 2026-12-03, 2026-08-15), sem linha recusada [DAT-01, INF-01] — regra: ContainerDatesImportModal.tsx:92 ("Datas em DD/MM/AAAA ou AAAA-MM-DD"), containerDatesImport.ts:37-41 (contrato DD/MM/AAAA) e CONTEXT.md:1335-1336 (Demurrage conta da descarga à devolução)', () => {
       const parsed = observed.containerDates!
       expect(parsed.rows.map((row) => [row.container_number, row.discharge_date])).toEqual([
         ['AZCU2050011', '2026-08-01'],
@@ -162,7 +163,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       observed.containerDatesThreeDigitYear = parsed
     })
 
-    it.fails('esperado: "01/08/126" recusado como data inválida, sem gravar o ano 2126 [DAT-14] — regra: ContainerDatesImportModal.tsx:92 (formatos aceitos: DD/MM/AAAA ou AAAA-MM-DD)', () => {
+    it('esperado: "01/08/126" recusado como data inválida, sem gravar o ano 2126 [DAT-14] — regra: ContainerDatesImportModal.tsx:92 (formatos aceitos: DD/MM/AAAA ou AAAA-MM-DD)', () => {
       const parsed = observed.containerDatesThreeDigitYear!
       expect(parsed.rows).toEqual([])
       expect(parsed.rowErrors.map((error) => error.row)).toEqual([2])
@@ -190,7 +191,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       observed.emptyShipments = parsed
     })
 
-    it.fails('esperado: data de embarque 2026-03-05 e 2026-03-06, como na célula [INF-01] — regra: ADR 0033:68-75 (Embarque de Vazios: erro silencioso é pior do que o import recusado) e vaziosImport.ts:182-186 (uma convenção de data por planilha)', () => {
+    it('esperado: data de embarque 2026-03-05 e 2026-03-06, como na célula [INF-01] — regra: ADR 0033:68-75 (Embarque de Vazios: erro silencioso é pior do que o import recusado) e vaziosImport.ts:182-186 (uma convenção de data por planilha)', () => {
       expect(observed.emptyShipments!.bookings.map((booking) => booking.movement_date)).toEqual(['2026-03-05', '2026-03-06'])
     })
 
@@ -220,7 +221,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       observed.vehiclesCsv = parsed
     })
 
-    it.fails('esperado: cubagem 12,5 m³ (não 125) [VEI-13, INF-02] — regra: docs/modules/manifesto-edi.md:185-187 (convenção numérica escolhida pelos cabeçalhos: pt-BR no modelo interno)', () => {
+    it('esperado: cubagem 12,5 m³ (não 125) [VEI-13, INF-02] — regra: docs/modules/manifesto-edi.md:185-187 (convenção numérica escolhida pelos cabeçalhos: pt-BR no modelo interno)', () => {
       expect(observed.vehiclesCsv!.rows[0]?.cbm).toBe(12.5)
     })
 
@@ -260,7 +261,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       observed.ceNumeric = parsed
     })
 
-    it.fails('esperado: CE lido como os 15 dígitos da célula, sem erro de linha [CE-05, INF-15, CE-V05] — regra: CONTEXT.md:992-993 (CE entra só por planilha), docs/modules/manifesto-edi.md:282 (parser valida CE de 15 dígitos) e ceUnlockZptReconcile.ts:55 (o mesmo CE numérico é lido exato na conciliação ZPT)', () => {
+    it('esperado: CE lido como os 15 dígitos da célula, sem erro de linha [CE-05, INF-15, CE-V05] — regra: CONTEXT.md:992-993 (CE entra só por planilha), docs/modules/manifesto-edi.md:282 (parser valida CE de 15 dígitos) e ceUnlockZptReconcile.ts:55 (o mesmo CE numérico é lido exato na conciliação ZPT)', () => {
       expect(observed.ceNumeric!.rowErrors).toEqual([])
       expect(observed.ceNumeric!.rows.map((row) => row.ce_mercante)).toEqual(['152605123456789'])
     })
@@ -293,7 +294,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       observed.pixAmounts = transactions
     })
 
-    it.fails('esperado: "Valor pago" numérico 1500,50 lido como 1500,50 (não 15005) [INF-V02] — regra: CONTEXT.md:1434-1436 (Conciliação PIX casa TXID e valor) e docs/modules/reconciliacao-pix.md:50-52 (parser exige e lê "valor pago")', () => {
+    it('esperado: "Valor pago" numérico 1500,50 lido como 1500,50 (não 15005) [INF-V02] — regra: CONTEXT.md:1434-1436 (Conciliação PIX casa TXID e valor) e docs/modules/reconciliacao-pix.md:50-52 (parser exige e lê "valor pago")', () => {
       expect(observed.pixAmounts![0]?.amount).toBe(1500.5)
     })
 
@@ -314,7 +315,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       observed.pixPaidAt = transactions
     })
 
-    it.fails('esperado: data de pagamento 2026-03-05, a data civil da célula [INF-19, INF-V02] — regra: docs/modules/reconciliacao-pix.md:51-52 (normaliza a data para YYYY-MM-DD), demurrageKpis.ts:200 (o texto "05/03/2026 22:48" vale 05/03) e reconciliacao-pix.md:276-277 (o banco opera em horário de Brasília)', () => {
+    it('esperado: data de pagamento 2026-03-05, a data civil da célula [INF-19, INF-V02] — regra: docs/modules/reconciliacao-pix.md:51-52 (normaliza a data para YYYY-MM-DD), demurrageKpis.ts:200 (o texto "05/03/2026 22:48" vale 05/03) e reconciliacao-pix.md:276-277 (o banco opera em horário de Brasília)', () => {
       expect(observed.pixPaidAt![0]?.date).toBe('2026-03-05')
     })
   })
@@ -326,7 +327,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
         'A205 NAVIO;205;9976501;05/03/2026;13/03/2026',
       ])
       // Mesmas opções de src/pages/ChegadasSaidas.tsx:163.
-      const { rows } = await readSheet(buffer, { dates: 'date' })
+      const { rows } = await readSheet(buffer)
       const parsed = parseScheduleRows(rows)
       expect(parsed).toHaveLength(1)
       const lanes = parsed[0]!.lanes.filter((lane) => lane.date)
@@ -336,7 +337,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       observed.scheduleCsv = parsed
     })
 
-    it.fails('esperado: QINGDAO ETD 2026-03-05 (não 3 de maio), como as demais datas DD/MM/AAAA [INF-02] — regra: docs/modules/chegadas-saidas.md:56-58 (datas aceitas: ISO ou DD/MM/AAAA)', () => {
+    it('esperado: QINGDAO ETD 2026-03-05 (não 3 de maio), como as demais datas DD/MM/AAAA [INF-02] — regra: docs/modules/chegadas-saidas.md:56-58 (datas aceitas: ISO ou DD/MM/AAAA)', () => {
       const lane = observed.scheduleCsv![0]!.lanes.find((item) => item.code === 'CNTAO')
       expect(lane?.date).toBe('2026-03-05')
     })
@@ -361,7 +362,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       observed.emptyImportTare = parsed
     })
 
-    it.fails('esperado: tara 2200 kg (não 2,2) [F5-N01, novo, mesma causa de M05] — regra: docs/modules/manifesto-edi.md:218-219 (coluna "Tara (kg)") e src/lib/importNumber.ts:1-4 (fronteira numérica sem inferência silenciosa)', () => {
+    it('esperado: tara 2200 kg (não 2,2) [F5-N01, novo, mesma causa de M05] — regra: docs/modules/manifesto-edi.md:218-219 (coluna "Tara (kg)") e src/lib/importNumber.ts:1-4 (fronteira numérica sem inferência silenciosa)', () => {
       expect(observed.emptyImportTare!.containers[0]?.tare_kg).toBe(2200)
     })
   })
@@ -381,6 +382,26 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       const parsed = await parseCustomerBaseFile(new File([buffer], 'clientes-a205.xlsx'))
       expect(parsed.rowErrors).toEqual([])
       expect(parsed.rows.map((row) => [row.cnpj_cpf, row.zip])).toEqual([['00205000000128', '01205000']])
+    })
+  })
+
+  describe('Causa explícita para identificador em célula numérica (Etapa 3)', () => {
+    it('CE numérico com menos de 15 dígitos diz que a célula é numérica', async () => {
+      const parsed = await parseCeMercanteBuffer(await xlsxBuffer([
+        ['BL', 'CE MERCANTE'],
+        ['A205BL02', { n: 52605123456789 }],
+      ]))
+      expect(parsed.rows).toEqual([])
+      expect(parsed.rowErrors[0]?.message).toContain('a célula é numérica')
+    })
+
+    it('CNPJ numérico sem máscara que perdeu o zero à esquerda diz a causa', async () => {
+      const buffer = await xlsxBuffer([
+        ['CNPJ', 'Razão Social', 'E-mail'],
+        [{ n: 205000000128 }, 'A205 CLIENTE TESTE LTDA', 'a205@example.com'],
+      ])
+      const parsed = await parseCustomerBaseFile(new File([buffer], 'clientes-a205.xlsx'))
+      expect(parsed.rowErrors[0]?.message).toContain('perdeu os zeros à esquerda')
     })
   })
 })

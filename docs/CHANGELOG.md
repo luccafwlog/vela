@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **Leitura de planilhas (2026-10-10, implementação local; Etapa 3 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  datas curtas do Excel, CSV com vírgula decimal ou `05/03/2026`, data/hora de Brasília, tara com
+  milhar, valor PIX numérico e CE em célula numérica passam a ser lidos como a célula mostra
+  (leitor comum tipado e parser de data único, ADR 0078 item 22); ano fora de quatro dígitos é
+  recusado; cabeçalho repetido ou duas colunas do mesmo campo bloqueiam; linhas e abas ocultas são
+  ignoradas com aviso; CSV Windows-1252 aceito com aviso.
 - **Reimportação de B/L de container (2026-10-10, implementação local; Etapa 2 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   reimportar o B/L deixa de apagar e recriar os contêineres (datas, desova, status de Demurrage

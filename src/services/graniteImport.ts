@@ -1,3 +1,4 @@
+import { importDateOrNull } from '../lib/importDate'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { parseImportNumber } from '../lib/importNumber'
@@ -102,7 +103,6 @@ export async function parseGraniteManifestFile(file: File): Promise<ParsedGranit
 async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGraniteManifest> {
   const { headers, rows } = await readSheet(buffer, {
     expectedHeaders: GRANITE_HEADER_MARKERS,
-    dates: 'date',
   })
   const { missing } = matchHeaders(headers, GRANITE_HEADER_SPEC)
   if (missing.length) {
@@ -250,27 +250,11 @@ function parseGraniteNumber(
   return number
 }
 
+// Data civil única dos imports (src/lib/importDate.ts): AAAA-MM-DD (célula de
+// data do Excel) ou DD/MM/AAAA; ano de quatro dígitos.
 function parseDateBR(value: unknown): string | null {
-  if (value instanceof Date) {
-    if (!Number.isFinite(value.getTime())) return null
-    const date = `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`
-    return IsoDateSchema.safeParse(date).success ? date : null
-  }
-  if (typeof value !== 'string' || !value.trim()) return null
-  // dd/mm/yy or dd/mm/yyyy
-  const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
-  if (!match) return null
-  const [, d, m, y] = match
-  const year = y.length === 2 ? `20${y}` : y
-  const isoDate = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
-  if (!IsoDateSchema.safeParse(isoDate).success) return null
-  const parsed = new Date(Date.UTC(Number(year), Number(m) - 1, Number(d)))
-  if (
-    parsed.getUTCFullYear() !== Number(year)
-    || parsed.getUTCMonth() !== Number(m) - 1
-    || parsed.getUTCDate() !== Number(d)
-  ) return null
-  return isoDate
+  const date = importDateOrNull(value)
+  return date && IsoDateSchema.safeParse(date).success ? date : null
 }
 
 function resolveGranitePort(

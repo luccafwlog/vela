@@ -1,5 +1,6 @@
 import { canonicalizeDocument } from '../lib/cnpj'
 import { extractErrorText } from '../lib/errors'
+import { importDateOrNull } from '../lib/importDate'
 import { extractNcmCodes } from '../lib/ncm'
 import { normalizeIsoContainerNumber } from '../lib/containerNumber'
 import { canonicalizeVesselName } from '../lib/vesselAlias'
@@ -1545,24 +1546,11 @@ function extractPhone(value: string) {
 function normalizeDate(value: string): string | null {
   const trimmed = value.trim()
   if (!trimmed) return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return isValidIsoDate(trimmed) ? trimmed : null
   // Real COSCO B/L templates write "Date Laden on Board" as plain text
   // "DD MM YYYY" (space-separated, no real date cell format) instead of
-  // DD/MM/YYYY — split on whitespace too, not just -/. delimiters.
-  const parts = trimmed.split(/[-/.\s]+/)
-  if (parts.length === 3 && parts[0].length <= 2) {
-    const [day, month, year] = parts
-    const iso = `${year.padStart(4, '20')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-    return isValidIsoDate(iso) ? iso : null
-  }
-  return null
-}
-
-function isValidIsoDate(iso: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false
-  const [year, month, day] = iso.split('-').map(Number)
-  const date = new Date(Date.UTC(year, month - 1, day))
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  // DD/MM/YYYY. Data civil única dos imports: ano de quatro dígitos.
+  const text = /^\d{1,2}\s+\d{1,2}\s+\d{4}$/.test(trimmed) ? trimmed.split(/\s+/).join('/') : trimmed
+  return importDateOrNull(text)
 }
 
 function sumNumbers(values: Array<number | null>) {

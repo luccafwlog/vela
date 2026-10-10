@@ -254,7 +254,11 @@ function parseRows(rows: SheetRow[]): ParsedCeMercanteFile {
     if (ce_mercante.length !== CE_MERCANTE_LENGTH) {
       rowErrors.push({
         row: rowNumber,
-        message: `CE Mercante invalido para o BL ${bl_id}: esperado ${CE_MERCANTE_LENGTH} digitos, recebido ${ce_mercante.length}.`,
+        // Célula numérica perde zeros à esquerda e casas além da precisão: a
+        // causa vai na mensagem para o operador formatar a coluna como texto.
+        message: typeof mapped.ce_mercante === 'number'
+          ? `CE Mercante invalido para o BL ${bl_id}: a célula é numérica e ficou com ${ce_mercante.length} digitos. Formate a coluna CE como texto e digite os ${CE_MERCANTE_LENGTH} digitos.`
+          : `CE Mercante invalido para o BL ${bl_id}: esperado ${CE_MERCANTE_LENGTH} digitos, recebido ${ce_mercante.length}.`,
         raw: row,
       })
       return

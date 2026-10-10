@@ -160,7 +160,7 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
       assertUploadSize(file)
       const buf = await file.arrayBuffer()
       const inspection = inspectImportFile(buf)
-      const { rows } = await readSheet(buf, { dates: 'date' })
+      const { rows } = await readSheet(buf)
       const parsed = parseScheduleRows(rows)
       const next = { inspection, updated: [] as string[], errors: [] as string[], warnings: [] as string[] }
 

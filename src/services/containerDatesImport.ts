@@ -1,8 +1,8 @@
+import { importDateOrNull } from '../lib/importDate'
 import { assertUploadFile } from '../lib/fileGuard'
 import { extractErrorText } from '../lib/errors'
 import { asString } from '../lib/utils'
 import { matchHeaders, readSheet, type HeaderSpec, type SheetRow } from './importCore'
-import { isValidCalendarDate } from './importValidation'
 import { supabase } from './supabase'
 
 const headerMap = {
@@ -33,12 +33,9 @@ export type ParsedContainerDatesImport = {
 export async function parseContainerDatesFile(file: File): Promise<ParsedContainerDatesImport> {
   assertUploadFile(file, ['xlsx', 'xls', 'csv'])
   const buffer = await file.arrayBuffer()
+  // O leitor comum entrega texto do CSV como está e a célula de data do Excel
+  // como data civil AAAA-MM-DD (ADR 0078, item 22).
   const { headers, rows } = await readSheet(buffer, {
-    // Keep the source text intact. In particular, SheetJS may reinterpret a
-    // CSV value such as `01/08/2026` as a JavaScript Date using the host
-    // locale, turning the Brazilian date into `2026-01-08` before parseDate
-    // can apply the documented DD/MM/YYYY contract.
-    dates: 'texto',
     expectedHeaders: Object.values(headerMap).flat(),
   })
   const { missing } = matchHeaders(headers, SPEC)
@@ -192,24 +189,9 @@ function parseRows(objectRows: SheetRow[]): ParsedContainerDatesImport {
   }
 }
 
+// Data civil única dos imports: AAAA-MM-DD ou DD/MM/AAAA; ano de quatro dígitos.
 function parseDate(value: unknown): string | null {
-  if (!value) return null
-  // XLSX cellDates:true returns Date objects
-  if (value instanceof Date && !isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10)
-  }
-  const s = String(value).trim()
-  if (!s) return null
-  // ISO format YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s) && isValidCalendarDate(s)) return s
-  // Brazilian format DD/MM/YYYY or DD-MM-YYYY
-  const parts = s.split(/[-/]/)
-  if (parts.length === 3 && parts[0].length <= 2) {
-    const [d, m, y] = parts
-    const iso = `${y.padStart(4, '20')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
-    if (/^\d{4}-\d{2}-\d{2}$/.test(iso) && isValidCalendarDate(iso)) return iso
-  }
-  return null
+  return importDateOrNull(value)
 }
 
 

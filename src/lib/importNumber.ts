@@ -187,6 +187,8 @@ export function groupingSeparator(format: 'pt-BR' | 'en-US'): '.' | ',' {
  * só diz que o número não se explica sozinho.
  */
 export function isThousandsGroupShape(value: unknown, format: 'pt-BR' | 'en-US'): boolean {
+  // Célula numérica tipada (leitor comum) já é o número exato: não há separador.
+  if (typeof value === 'number') return false
   const text = normalizeNumericText(value)
   if (!text) return false
   const separator = groupingSeparator(format)
@@ -217,6 +219,8 @@ export function inferSeparatorFormat(values: readonly unknown[]): ImportNumberFo
   let decided: ImportNumberFormat | null = null
 
   for (const value of values) {
+    // Célula numérica tipada não tem separador: não é evidência de formato.
+    if (typeof value === 'number') continue
     // Normaliza antes de julgar: a unidade colada (`"1.217,11 CBM"`) não pode
     // mais fazer a célula desaparecer da evidência do arquivo.
     const text = normalizeNumericText(value)

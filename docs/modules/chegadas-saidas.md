@@ -55,9 +55,10 @@ Fase 4a da política de exclusão).
 O upload em lote baixa um template gerado da mesma constante de lanes. O resultado fica na tela com a contagem e a lista nominal das viagens não atualizadas e das datas ignoradas; o diagnóstico do arquivo fica recolhido. Cada
 linha da planilha (`VESSEL NAME`, `VOY`, `IMO`, lanes ETD/ETA) vira uma chamada
 ao mesmo `createOrAttachVoyageFromSchedule`. Datas aceitas: ISO ou
-`DD/MM/AAAA`; vazio/`X` significa "não escala". Antes do parse, o arquivo é
-classificado pelo conteúdo (XLSX/XLS ou CSV), bytes inválidos são recusados sem
-fallback implícito e o diagnóstico do preview informa formato, encoding, BOM e
+`DD/MM/AAAA` (parser único `src/lib/importDate.ts`; o CSV não é mais
+reinterpretado como mês/dia); vazio/`X` significa "não escala". Antes do parse, o arquivo é
+classificado pelo conteúdo (XLSX/XLS ou CSV), CSV Windows-1252 é aceito com
+aviso e o diagnóstico do preview informa formato, encoding, BOM e
 tamanho do arquivo.
 
 ### Widget do Portal

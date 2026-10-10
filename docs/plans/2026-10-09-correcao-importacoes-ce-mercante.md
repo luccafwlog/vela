@@ -18,9 +18,9 @@ outra fatura. Não há decisão pendente.
 errado e de esconder o que gravaram, e implementar as regras de entrada,
 correção e efeitos da ADR 0078.
 
-**Estado em 2026-10-10:** Etapas 0, 1 e 2 executadas localmente (migrations `173` e `174`;
+**Estado em 2026-10-10:** Etapas 0, 1, 2 e 3 executadas localmente (migrations `173` e `174`;
 ver as notas de execução nas etapas). Decisões tomadas. As checagens de
-aceitação das Etapas 3 a 7 continuam no repositório como `it.fails` e rodam no
+aceitação das Etapas 4 a 7 continuam no repositório como `it.fails` e rodam no
 CI; as regras novas da ADR 0078 ganham checagem na etapa que as implementa.
 **Migrations:** o hook `.claude/hooks/protect-files.sh` bloqueia qualquer
 arquivo em `supabase/migrations/`; as migrations novas desta execução foram
@@ -206,22 +206,37 @@ e o POD de B/L em COD na reimportação de container (Etapa 10).
 **Dono:** `readSheet` em `src/services/importCore.ts`; parser de data único
 novo em `src/lib/importDate.ts` (análogo a `src/lib/importNumber.ts`).
 
-- [ ] `readSheet` entrega a célula tipada e não deixa o SheetJS converter CSV.
-- [ ] Parser de data único com data civil, sem fuso, e recusa de ano fora de
+- [x] `readSheet` entrega a célula tipada e não deixa o SheetJS converter CSV.
+- [x] Parser de data único com data civil, sem fuso, e recusa de ano fora de
   quatro dígitos; migrar datas, Embarque de Vazios, programação, Granito, PIX
   e ZPT.
-- [ ] Números sempre por `parseImportNumber`, com o formato decidido pela
+- [x] Números sempre por `parseImportNumber`, com o formato decidido pela
   evidência do arquivo; CE, CNPJ e CEP numéricos com causa explícita.
-- [ ] **Regras comuns:** duas colunas para o mesmo campo bloqueiam a
+- [x] **Regras comuns:** duas colunas para o mesmo campo bloqueiam a
   importação com mensagem; linhas e abas ocultas são ignoradas com aviso na
   prévia ("N linhas ocultas ignoradas"); CSV Windows-1252 é aceito com aviso.
-- [ ] Revisar os modelos em `public/templates/` (coluna CE como texto).
-- [ ] Trocar os 9 `it.fails` de `auditoriaLeituraPlanilhas` por `it`.
-- [ ] Checagens novas para colunas duplicadas, linhas ocultas e Windows-1252.
+- [x] Revisar os modelos em `public/templates/` (coluna CE como texto).
+- [x] Trocar os 9 `it.fails` de `auditoriaLeituraPlanilhas` por `it`.
+- [x] Checagens novas para colunas duplicadas, linhas ocultas e Windows-1252.
 
 **Aceitação:** os 9 casos e as checagens novas passam; nenhum parser de
 importação usa `toISOString`, `getUTC*` ou `cellDates` para converter célula;
 `veiculos-modelo.csv` continua aceito.
+
+**Execução (2026-10-10, local):** `readSheet` entrega a célula tipada (texto,
+número, máscara de zeros como texto, data do Excel como `AAAA-MM-DD` pelo
+serial) e lê CSV sempre como texto; `src/lib/importDate.ts` é o parser único de
+datas (datas de container, Embarque de Vazios, programação de Chegadas/Saídas e
+do Portal, Granito, PIX, ZPT e o Laden on Board do B/L); `parseImportNumber`
+ignora a célula numérica tipada como evidência de separador. Cabeçalho repetido
+ou duas colunas do mesmo campo bloqueiam; linhas e abas ocultas são ignoradas e
+o aviso aparece no seletor de arquivo comum (`ImportFilePicker`); CSV
+Windows-1252 é aceito com aviso. O modelo de CE grava a coluna CE como texto.
+Os 9 casos viraram `it`, com checagens novas em `importCore.test.ts` (colunas
+duplicadas, linhas e abas ocultas, Windows-1252, CSV como texto, máscara de
+zeros), `ImportFilePickerWarnings.test.tsx` e para CE e CNPJ numéricos.
+Limitação: a aba VIN do arquivo de B/L ainda é lida pelo `sheet_to_json` do
+próprio parser (linhas ocultas não são filtradas ali).
 
 ## Etapa 4 — Fila de efeitos e Viagem Cancelada (M04, M20; ADR 0078, item 18)
 

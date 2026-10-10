@@ -74,16 +74,10 @@ describe('readSheet', () => {
     expect(rows).toEqual([{ Container: 'ABCD1234567', Tipo: '40HC' }])
   })
 
-  it('devolve datas como texto por padrao', async () => {
+  it('entrega a célula de data do Excel como data civil AAAA-MM-DD, sem fuso', async () => {
     const buffer = await buildWorkbook([{ Data: new Date(Date.UTC(2026, 6, 27)) }])
     const { rows } = await readSheet(buffer)
-    expect(rows[0].Data).toBeTypeOf('string')
-  })
-
-  it('devolve datas como Date quando solicitado', async () => {
-    const buffer = await buildWorkbook([{ Data: new Date(Date.UTC(2026, 6, 27)) }])
-    const { rows } = await readSheet(buffer, { dates: 'date' })
-    expect(rows[0].Data).toBeInstanceOf(Date)
+    expect(rows[0].Data).toBe('2026-07-27')
   })
 
   it('preenche celula ausente com string vazia', async () => {
@@ -129,13 +123,14 @@ describe('readSheet', () => {
 		expect(rows.map((row) => row.rowNumber)).toEqual([4, 6])
 	})
 
-  it('lê CSV Windows-1252 somente quando o fallback da origem é autorizado', async () => {
+  it('lê CSV Windows-1252 por padrão (com aviso) e recusa quando a origem o proíbe', async () => {
     const bytes = Uint8Array.from([0x42, 0x4c, 0x3b, 0x43, 0x69, 0x64, 0x61, 0x64, 0x65, 0x0a, 0x31, 0x3b, 0x53, 0xe3, 0x6f])
     const buffer = bytes.buffer as ArrayBuffer
 
-    await expect(readSheet(buffer)).rejects.toThrow(/sem fallback autorizado/)
-    const { rows } = await readSheet(buffer, { allowWindows1252Fallback: true })
+    // ADR 0078, item 22: CSV Windows-1252 é aceito com aviso.
+    const { rows } = await readSheet(buffer)
     expect(rows).toEqual([{ BL: '1', Cidade: 'São' }])
+    await expect(readSheet(buffer, { allowWindows1252Fallback: false })).rejects.toThrow(/sem fallback autorizado/)
   })
 
   it('não envia EDI para o leitor de planilhas', async () => {
@@ -182,8 +177,83 @@ describe('matchHeaders', () => {
     expect(result.columnByField.observacao).toBeUndefined()
   })
 
-  it('usa o primeiro cabecalho que casa em caso de repeticao', () => {
-    const result = matchHeaders(['Container', 'Conteiner'], spec)
-    expect(result.columnByField.container).toBe('Container')
+  it('recusa duas colunas para o mesmo campo (ADR 0078, item 22)', () => {
+    expect(() => matchHeaders(['Container', 'Conteiner'], spec)).toThrow('As colunas "Container" e "Conteiner" são o mesmo campo')
+  })
+})
+
+describe('readSheet — regras comuns (ADR 0078, item 22)', () => {
+  async function workbookWith(build: (XLSX: typeof import('@e965/xlsx')) => import('@e965/xlsx').WorkBook) {
+    const XLSX = await import('@e965/xlsx')
+    return XLSX.write(build(XLSX), { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+  }
+
+  it('o mesmo cabeçalho duas vezes bloqueia a leitura', async () => {
+    const buffer = aoaToBuffer([['Container', 'Tipo', 'container'], ['ABCD1234567', '40HC', 'EFGH7654321']])
+    await expect(readSheet(buffer)).rejects.toThrow('A coluna "container" aparece duas vezes no cabeçalho')
+  })
+
+  it('duas colunas para o mesmo campo bloqueiam a importação', () => {
+    const spec: HeaderSpec<'container'> = { aliases: { container: ['container', 'cntr'] }, required: ['container'] }
+    expect(() => matchHeaders(['Container', 'CNTR'], spec)).toThrow('As colunas "Container" e "CNTR" são o mesmo campo')
+    expect(() => createHeaderMapper({ Container: 'x', CNTR: 'y' }, { container: 'container_number', cntr: 'container_number' }))
+      .toThrow('As colunas "Container" e "CNTR" são o mesmo campo')
+  })
+
+  it('linhas ocultas são ignoradas e contadas no aviso', async () => {
+    const buffer = await workbookWith((XLSX) => {
+      const sheet = XLSX.utils.aoa_to_sheet([['Container'], ['VISI1234567'], ['OCUL1234567'], ['VISI7654321']])
+      sheet['!rows'] = [{}, {}, { hidden: true }, {}]
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, sheet, 'Plan1')
+      return book
+    })
+    const { rows, warnings } = await readSheet(buffer)
+    expect(rows.map((row) => [row.Container, row.rowNumber])).toEqual([['VISI1234567', 2], ['VISI7654321', 4]])
+    expect(warnings).toEqual(['1 linha oculta ignorada: o filtro da planilha indica importar só o visível.'])
+  })
+
+  it('aba oculta é ignorada com aviso e a primeira aba visível é lida', async () => {
+    const buffer = await workbookWith((XLSX) => {
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Container'], ['OCUL1234567']]), 'Rascunho')
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Container'], ['VISI1234567']]), 'Dados')
+      book.Workbook = { Sheets: [{ name: 'Rascunho', Hidden: 1 }, { name: 'Dados', Hidden: 0 }] }
+      return book
+    })
+    const { rows, warnings } = await readSheet(buffer)
+    expect(rows.map((row) => row.Container)).toEqual(['VISI1234567'])
+    expect(warnings).toEqual(['Aba oculta "Rascunho" ignorada.'])
+  })
+
+  it('CSV Windows-1252 é aceito com aviso e mantém os acentos', async () => {
+    // "Descrição;Peso\nMáquina;12,5" codificado em Windows-1252.
+    const bytes = new Uint8Array([
+      0x44, 0x65, 0x73, 0x63, 0x72, 0x69, 0xe7, 0xe3, 0x6f, 0x3b, 0x50, 0x65, 0x73, 0x6f, 0x0a,
+      0x4d, 0xe1, 0x71, 0x75, 0x69, 0x6e, 0x61, 0x3b, 0x31, 0x32, 0x2c, 0x35, 0x0a,
+    ])
+    const { rows, warnings } = await readSheet(bytes.buffer)
+    expect(rows).toEqual([{ 'Descrição': 'Máquina', Peso: '12,5' }])
+    expect(warnings).toEqual([expect.stringContaining('Windows-1252')])
+  })
+
+  it('CSV chega como texto, sem o SheetJS converter número nem data', async () => {
+    const csv = new TextEncoder().encode('Data;Valor\n05/03/2026;12,5\n').buffer as ArrayBuffer
+    const { rows } = await readSheet(csv)
+    expect(rows).toEqual([{ Data: '05/03/2026', Valor: '12,5' }])
+  })
+
+  it('número tipado e máscara de zeros: CNPJ e CEP mantêm os zeros', async () => {
+    const buffer = await workbookWith((XLSX) => {
+      const sheet = XLSX.utils.aoa_to_sheet([['CNPJ', 'Peso']])
+      sheet.A2 = { t: 'n', v: 205000000128, z: '00000000000000' }
+      sheet.B2 = { t: 'n', v: 2200, z: '#,##0' }
+      sheet['!ref'] = 'A1:B2'
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, sheet, 'Plan1')
+      return book
+    })
+    const { rows } = await readSheet(buffer)
+    expect(rows).toEqual([{ CNPJ: '00205000000128', Peso: 2200 }])
   })
 })

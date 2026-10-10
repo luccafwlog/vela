@@ -1,4 +1,4 @@
-import { isValidCalendarDate } from './importValidation'
+import { importDateOrNull } from '../lib/importDate'
 import { PORTAL_SCHEDULE_LANES, portalLaneCode, type PortalScheduleLaneKind } from './portalScheduleLanes'
 import type { ScheduleLaneInput } from './voyageFromSchedule'
 
@@ -27,20 +27,11 @@ export function scheduleTemplateColumns(): string[] {
   return ['VESSEL NAME', 'VOY', 'IMO', ...PORTAL_SCHEDULE_LANES.map((lane) => laneColumn(lane.label, lane.kind))]
 }
 
+// Data civil única dos imports (src/lib/importDate.ts). "X" marca escala sem data.
 export function parseCellDate(raw: unknown): string | null {
-  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
-    const iso = raw.toISOString().slice(0, 10)
-    return isValidCalendarDate(iso) ? iso : null
-  }
   const value = String(raw ?? '').trim()
   if (!value || value.toUpperCase() === 'X') return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value) && isValidCalendarDate(value)) return value
-  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (match) {
-    const iso = `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
-    if (isValidCalendarDate(iso)) return iso
-  }
-  return null
+  return importDateOrNull(value)
 }
 
 function isBlankCell(raw: unknown): boolean {

@@ -1,6 +1,7 @@
+import { excelSerialToCivil, isValidCivilDate } from '../lib/importDate'
 import { assertUploadFile } from '../lib/fileGuard'
 import { createHeaderMapper, createRowErrorCollector, matchHeaders, readSheet, type HeaderSpec, type RowError } from './importCore'
-import { IsoContainerSchema, IsoDateSchema } from './importValidation'
+import { IsoContainerSchema } from './importValidation'
 import { supabase } from './supabase'
 import { escapeFilterTerm } from '../lib/utils'
 
@@ -65,7 +66,6 @@ export async function parseVaziosManifestFile(file: File, depots?: readonly Depo
 
 export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: readonly DepotLookup[]): Promise<ParsedVaziosManifest> {
   const { headers, rows } = await readSheet(buffer, {
-    dates: 'texto',
     expectedHeaders: Object.keys(HEADER_MAP),
   })
   const { missing } = matchHeaders(headers, VAZIOS_HEADER_SPEC)
@@ -176,7 +176,8 @@ const MAX_PLAUSIBLE_SERIAL = 62_136
 
 type DateOrder = 'dmy' | 'mdy'
 
-const SLASH_DATE = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/
+// Ano de quatro dígitos, como no parser único (src/lib/importDate.ts).
+const SLASH_DATE = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/
 
 /**
  * Uma planilha usa uma única convenção de data. Decide DD/MM vs MM/DD para
@@ -214,10 +215,11 @@ function inferDateOrder(rawValues: string[]): DateOrder | 'ambiguous' {
 function parseDate(value: string, order: DateOrder | 'ambiguous'): string | null {
   const normalized = value.trim()
   if (!normalized) return null
+  // A célula de data do Excel chega como AAAA-MM-DD pelo leitor comum; um
+  // serial solto só aparece em célula numérica sem formato de data.
   const serial = Number(normalized)
   if (Number.isFinite(serial) && serial >= MIN_PLAUSIBLE_SERIAL && serial <= MAX_PLAUSIBLE_SERIAL) {
-    const date = new Date(Date.UTC(1899, 11, 30) + Math.round(serial) * 86_400_000)
-    return dateFromParts(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate())
+    return excelSerialToCivil(Math.round(serial))?.date ?? null
   }
 
   const iso = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
@@ -227,7 +229,7 @@ function parseDate(value: string, order: DateOrder | 'ambiguous'): string | null
   if (!match) return null
   const first = Number(match[1])
   const second = Number(match[2])
-  const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3])
+  const year = Number(match[3])
   const monthFirst = order === 'mdy' && first <= 12
   const month = first > 12 && second <= 12 ? second : second > 12 && first <= 12 ? first : monthFirst ? first : second
   const day = first > 12 && second <= 12 ? first : second > 12 && first <= 12 ? second : monthFirst ? second : first
@@ -235,14 +237,8 @@ function parseDate(value: string, order: DateOrder | 'ambiguous'): string | null
 }
 
 function dateFromParts(year: number, month: number, day: number): string | null {
-  const date = new Date(Date.UTC(year, month - 1, day))
-  if (
-    !Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day) ||
-    month < 1 || month > 12 || day < 1 ||
-    date.getUTCFullYear() !== year || date.getUTCMonth() + 1 !== month || date.getUTCDate() !== day
-  ) return null
-  const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  return IsoDateSchema.safeParse(isoDate).success ? isoDate : null
+  if (!isValidCivilDate(year, month, day)) return null
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
 function formatRowErrors(rowErrors: readonly RowError[]): string {

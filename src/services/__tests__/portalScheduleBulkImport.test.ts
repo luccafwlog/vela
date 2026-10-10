@@ -24,12 +24,12 @@ describe('parseScheduleRows', () => {
     expect(row.lanes.find((lane) => lane.code === 'BRSSA')?.date).toBe('2026-01-22')
   })
 
-  it('aceita celula Date (Excel auto-formatado) convertendo para ISO', () => {
+  it('aceita a célula de data do Excel, que o leitor comum entrega como AAAA-MM-DD', () => {
     const [row] = parseScheduleRows([{
       'VESSEL NAME': 'GREEN PECEM',
       VOY: '6',
       IMO: '9976501',
-      'QINGDAO ETD': new Date('2026-01-04T00:00:00'),
+      'QINGDAO ETD': '2026-01-04',
     }])
     expect(row.lanes.find((lane) => lane.code === 'CNTAO')?.date).toBe('2026-01-04')
   })

@@ -42,6 +42,12 @@ export type ParsedCeUnlockZptFile = {
 
 /** "06/10/2026 16:29:08" (horário de Brasília) -> ISO; null se o formato for desconhecido. */
 export function parseZptDateTime(value: string): string | null {
+  // Célula de data/hora do Excel chega do leitor comum como AAAA-MM-DD HH:MM.
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (iso) {
+    const [, y, mo, d, h = "00", mi = "00", se = "00"] = iso;
+    return `${y}-${mo}-${d}T${h}:${mi}:${se}-03:00`;
+  }
   const m = value.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
   if (!m) return null;
   const [, dd, mm, yyyy, hh = "00", mi = "00", ss = "00"] = m;
@@ -53,7 +59,7 @@ const isPending = (value: unknown) => /^n[aã]o$/i.test(asString(value));
 
 export async function parseCeUnlockZptFile(buffer: ArrayBuffer): Promise<ParsedCeUnlockZptFile> {
   // values:'cru' mantém o CE de 15 dígitos como número exato; formatado viraria notação científica.
-  const { headers, rows } = await readSheet(buffer, { values: "cru" });
+  const { headers, rows } = await readSheet(buffer);
   const { columnByField, missing } = matchHeaders(headers, SPEC);
   if (missing.length)
     throw new Error("Arquivo não reconhecido como exportação da ZPT: faltam as colunas CE e Status.");

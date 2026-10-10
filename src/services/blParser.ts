@@ -1,3 +1,4 @@
+import { typedSheetMatrix } from './importCore'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeValidCnpj } from '../lib/cnpj'
 import { parseImportNumber } from '../lib/importNumber'
@@ -91,13 +92,12 @@ export async function parseBLBuffer(buffer: ArrayBuffer): Promise<ParsedBLDocume
   const format = detectImportFormat(buffer)
   if (format !== 'xlsx' && format !== 'xls') throw new Error('Arquivo B/L não reconhecido como XLS/XLSX.')
   const XLSX = await import('@e965/xlsx')
-  // cellDates: cells formatted as dates in the source workbook (e.g. Laden On
-  // Board) come back as JS Date objects instead of Excel serial numbers, so
-  // dateCell() below can format them reliably regardless of carrier template.
-  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
+  // Célula tipada do leitor comum (ADR 0078, item 22): data do Excel (ex.:
+  // Laden on Board) vira data civil AAAA-MM-DD a partir do serial, sem fuso.
+  const workbook = XLSX.read(buffer, { type: 'array', cellNF: true })
   // ponytail: acoplado ao layout COSCO Page 1; upgrade = detectar layout por armador/template.
   const page1 = workbook.Sheets['Page 1'] ?? workbook.Sheets[workbook.SheetNames[0]]
-  const rows = XLSX.utils.sheet_to_json<RawSheetRow>(page1, { header: 1, defval: '' })
+  const rows: RawSheetRow[] = typedSheetMatrix(page1 as unknown as Record<string, unknown>, XLSX, { keepHidden: true }).matrix
   const vesselVoyage = parseVesselVoyage(cell(rows, 18, 'A'))
   const cargoDescription = parseCargoDescription(rows)
   const packages = parseTotalPackages(rows)
@@ -370,23 +370,14 @@ function cell(rows: RawSheetRow[], rowNumber: number, column: string) {
   return cellValue(rows[rowNumber - 1], columnIndex(column))
 }
 
-// Some carrier templates format the Laden On Board / Issue Date cells as real
-// Excel dates rather than text; sheet_to_json then yields a JS Date (with
-// cellDates: true) instead of the DD/MM/YYYY string normalizeDate() expects.
-// Format those as ISO here so the value survives the same as a text cell.
+// Alguns modelos de armador gravam Laden On Board / Issue Date como data do
+// Excel; o leitor comum já a entrega como AAAA-MM-DD, que normalizeDate() aceita.
 function stripLabelPrefix(value: string, label: RegExp) {
   return value.replace(label, '').trim()
 }
 
 function dateCell(rows: RawSheetRow[], rowNumber: number, column: string) {
-  const raw = rows[rowNumber - 1]?.[columnIndex(column)]
-  if (raw instanceof Date) {
-    const year = raw.getUTCFullYear()
-    const month = String(raw.getUTCMonth() + 1).padStart(2, '0')
-    const day = String(raw.getUTCDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-  return asString(raw)
+  return asString(rows[rowNumber - 1]?.[columnIndex(column)])
 }
 
 function cellValue(row: RawSheetRow | undefined, index: number) {

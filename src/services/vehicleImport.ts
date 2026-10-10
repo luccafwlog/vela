@@ -1,6 +1,6 @@
 import { assertUploadFile } from '../lib/fileGuard'
 import { asString, chunkArray, normalizeHeader } from '../lib/utils'
-import { parseImportNumber, type ImportNumberFormat } from '../lib/importNumber'
+import { inferSeparatorFormat, parseImportNumber, type ImportNumberFormat } from '../lib/importNumber'
 import { IsoContainerSchema, VinSchema } from './importValidation'
 import { supabase } from './supabase'
 import { matchHeaders, readSheet, type HeaderSpec, type SheetRow } from './importCore'
@@ -114,7 +114,7 @@ export async function parseVehicleImportBuffer(buffer: ArrayBuffer): Promise<Par
   for (let sheetIndex = 0; ; sheetIndex += 1) {
     let content
     try {
-      content = await readSheet(buffer, { sheetIndex, values: 'cru' })
+      content = await readSheet(buffer, { sheetIndex })
     } catch (error) {
       if (error instanceof Error && error.message === 'Arquivo sem abas validas.') break
       if (error instanceof Error && error.message === 'Planilha vazia.') continue
@@ -366,9 +366,16 @@ export async function importVehicleRows({
   }
 }
 
-function parseVehicleImportRows(rows: SheetRow[], numberFormat: ImportNumberFormat): ParsedVehicleImport {
+function parseVehicleImportRows(rows: SheetRow[], headerFormat: ImportNumberFormat): ParsedVehicleImport {
   const parsedRows: VehicleImportRow[] = []
   const rowErrors: ParsedVehicleImport['rowErrors'] = []
+  // O formato vem da evidência do próprio arquivo (peso e cubagem); só sem
+  // evidência vale o palpite pelos cabeçalhos (ADR 0078, item 22).
+  const evidence = inferSeparatorFormat(rows.flatMap((row) => {
+    const mapped = mapRow(row)
+    return [mapped.weight_kg, mapped.cbm]
+  }))
+  const numberFormat = evidence === 'unknown' ? headerFormat : evidence
 
   rows.forEach((row) => {
     const mapped = mapRow(row)

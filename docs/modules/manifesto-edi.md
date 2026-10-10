@@ -24,13 +24,28 @@ Manifesto BB e Veículos oferecem planilhas-modelo no próprio modal.
 
 A fronteira de upload separa o tipo pelo conteúdo antes de escolher o parser:
 XLSX/XLS são binários, CSV e EDI são texto, e conteúdo desconhecido ou ambíguo
-é recusado. O UTF-8 é estrito por padrão; BOM é tratado explicitamente e
-Windows-1252 só é aceito quando a origem autoriza o fallback. O preview informa
+é recusado. BOM é tratado explicitamente; CSV fora de UTF-8 em Windows-1252
+(o "CSV" salvo pelo Excel) é aceito com aviso (ADR 0078, item 22), salvo quando
+o importador o proíbe (`allowWindows1252Fallback: false`). O preview informa
 formato, encoding, BOM, tamanho e uma amostra textual limitada, sem enviar o
 conteúdo à telemetria. Texto só é classificado como CSV de uma coluna quando
 tem cabeçalho operacional plausível; a assinatura de EDI Mercante exige os
 campos posicionais de um registro real, para que marcadores como `M3` em uma
 planilha não desviem o parser.
+
+**Leitor comum de planilhas (`readSheet`, ADR 0078, item 22):** a célula chega
+tipada — texto como texto (CSV é sempre texto, sem o SheetJS converter `12,5`
+ou `05/03/2026`), número como número (exceto máscara de zeros, como CNPJ
+`00000000000000` e CEP `00000-000`, que entrega o texto exibido) e data do Excel
+como data civil `AAAA-MM-DD` (ou `AAAA-MM-DD HH:MM`), calculada do serial sem o
+fuso do navegador. Toda data de importação passa pelo parser único
+`src/lib/importDate.ts` (`AAAA-MM-DD` ou `DD/MM/AAAA`, ano de quatro dígitos);
+números, por `parseImportNumber` com o formato decidido pela evidência do
+arquivo (célula numérica tipada não é evidência nem é ambígua). O mesmo
+cabeçalho duas vezes, ou duas colunas para o mesmo campo, bloqueia a
+importação; linhas e abas ocultas são ignoradas, e o seletor de arquivo mostra
+"N linhas ocultas ignoradas" e as abas ocultas. CE, CNPJ e CEP em célula
+numérica que perdeu dígitos voltam com a causa ("formate a coluna como texto").
 
 Os erros de linha dos importadores que usam o modal compartilhado são
 normalizados em `ImportIssue`: o painel mostra a lista completa, permite baixar
