@@ -1044,8 +1044,10 @@ B/Ls e não se confunde com o número de viagem interna da agência.
   vários portos de origem, ou de uma origem para dois destinos, pedem um número
   por rota. O número é obrigatório: a importação por
   planilha o exige; os vazios vindos do Baplie entram sem número e a pendência
-  aparece no alerta CE Mercante pendente. Reimportar só é bloqueado quando o
-  número informado já está cadastrado (decisões de 2026-10-01).
+  aparece no alerta CE Mercante pendente. Reimportar a mesma rota substitui os
+  containers dela, preservando a natureza (cama/cover plate), e reaproveita ou
+  corrige o número da rota; número cadastrado em outra rota ou Viagem é recusado
+  (decisões de 2026-10-01; ADR 0078, item 25, migration `186`).
 - **Carga (planilha de CE Mercante):** cada importação da planilha é um
   manifesto. Antes de importar, o operador informa o Nº de Manifesto Mercante
   daquele lote (obrigatório); manifesto = navio + viagem + rota (par POL → POD)

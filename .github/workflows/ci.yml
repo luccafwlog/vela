@@ -242,6 +242,7 @@ jobs:
             src/integration/veiculosRegras.local-pg.test.ts \
             src/integration/baseClientesVinculo.local-pg.test.ts \
             src/integration/granitoReimportacao.local-pg.test.ts \
+            src/integration/vaziosReimportacao.local-pg.test.ts \
             src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts \
             src/integration/auditoriaFaturasDemurrageComunicado.local-pg.test.ts \
             src/integration/conditionUsd.local-pg.test.ts \

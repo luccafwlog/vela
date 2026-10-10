@@ -607,7 +607,7 @@ prévia de B/L avisa COD e porto omitido. Checagens: `codDocumentoFatura.local-p
 - [x] **Granito:** reimportação atualiza por número de B/L na Viagem,
   preservando CE e Cliente; B/L ausente do arquivo novo sai só com confirmação;
   CE de Granito continua sem cálculo automático.
-- [ ] **Vazios:** reimportação da mesma rota substitui o manifesto preservando
+- [x] **Vazios:** reimportação da mesma rota substitui o manifesto preservando
   a natureza; recadastro pelo Baplie preserva a natureza e remove manifestos
   vazios; Embarque de Vazios atualiza por container e preserva unidades manuais.
 - [ ] Programação por planilha com prévia e atômica.
@@ -643,6 +643,15 @@ cobrança, inclui os novos no manifesto mais recente e tira os ausentes só com
 confirmação (nunca com Invoice), com Histórico; enfileira `granite_billing` só
 para novo ou alterado. A tela confirma a saída dos ausentes. Checagens:
 `granitoReimportacao.local-pg` (no CI), `graniteImportAtomic.test.ts`.
+
+**Execução — Vazios (2026-10-10, local):** migration `186` —
+`import_vazios_importacao_transactional` substitui os containers das rotas do
+arquivo preservando a natureza e reaproveita/corrige o Nº da rota;
+`replace_vazios_from_baplie_transactional` preserva a natureza e remove
+manifestos vazios (`_vazios_importacao_prune`);
+`import_vazios_bookings_transactional` atualiza por container, preserva a
+unidade manual, remove manifestos órfãos e recalcula os totais. Checagem:
+`vaziosReimportacao.local-pg` (no CI).
 
 ## Etapa 12 — Testes e CI
 

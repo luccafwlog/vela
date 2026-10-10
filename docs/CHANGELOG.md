@@ -4,6 +4,12 @@
 
 ## 2026-10
 
+- **Vazios (2026-10-10, implementação local; Etapa 11 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  reimportar Vazios de Importação da mesma rota substitui a lista sem duplicar e sem perder a
+  natureza (cama/cover plate); o recadastro pelo Baplie também preserva a natureza e não deixa
+  manifestos vazios; o Embarque de Vazios atualiza por container e mantém as unidades incluídas à
+  mão (migration `186`, ADR 0078 item 25).
 - **Granito (2026-10-10, implementação local; Etapa 11 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   reimportar a planilha COSCO da mesma Viagem atualiza os B/Ls pelo número, preservando CE e
