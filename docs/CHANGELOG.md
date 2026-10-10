@@ -4,6 +4,11 @@
 
 ## 2026-10
 
+- **Base de Clientes (2026-10-10, implementação local; Etapa 11 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  a prévia mostra os B/Ls que cada CNPJ vincula; o vínculo vale só para B/L pendente de Cliente
+  (o rejeitado na Revisão fica de fora), sai da Revisão e segue para o faturamento; trocar a razão
+  social de um Cliente já cadastrado pede confirmação (migration `184`, ADR 0078 item 24).
 - **Veículos (2026-10-10, implementação local; Etapa 11 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   na página Veículos, **Mover para outro B/L** e **Excluir** para qualquer usuário, com motivo,

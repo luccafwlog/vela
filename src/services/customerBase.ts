@@ -37,6 +37,12 @@ export type CustomerBaseRow = {
   zip: string | null
   existingCustomerId?: number
   changedFields?: string[]
+  /** razão social gravada, quando a planilha traz outra (pede confirmação) */
+  currentName?: string | null
+  /** B/Ls pendentes de Cliente que este CNPJ vincula (ADR 0078, item 24) */
+  pendingBlIds?: string[]
+  /** B/Ls rejeitados na Revisão com este CNPJ: nunca vinculados pela Base */
+  rejectedBlIds?: string[]
 }
 
 export type ParsedCustomerBase = {
@@ -64,19 +70,54 @@ export async function compareCustomerBaseWithExisting(parsed: ParsedCustomerBase
     existing.push(...(data ?? []))
   }
   const byDocument = new Map(existing.map((row) => [String(row.cnpj_cpf), row]))
+  const pending = new Map<string, string[]>()
+  const rejected = new Map<string, string[]>()
+  for (let from = 0; from < parsed.rows.length; from += 200) {
+    const documents = parsed.rows.slice(from, from + 200).map((row) => row.cnpj_cpf)
+    const { data, error } = await supabase
+      .from('bls')
+      .select('id, manifest_customer_cnpj_cpf, customer_reconciliation_status')
+      .in('manifest_customer_cnpj_cpf', documents)
+      .is('customer_id', null)
+      .is('cancelled_at', null)
+    if (error) throw error
+    for (const bl of (data ?? []) as Array<{ id: string; manifest_customer_cnpj_cpf: string; customer_reconciliation_status: string | null }>) {
+      const target = bl.customer_reconciliation_status === 'rejected' ? rejected : pending
+      target.set(bl.manifest_customer_cnpj_cpf, [...(target.get(bl.manifest_customer_cnpj_cpf) ?? []), bl.id])
+    }
+  }
   const labels: Record<string, string> = { name: 'Razão Social', trade_name: 'Nome Fantasia', address: 'Endereço', city: 'Cidade', state: 'UF', zip: 'CEP' }
   return {
     ...parsed,
     rows: parsed.rows.map((row) => {
       const current = byDocument.get(row.cnpj_cpf)
-      if (!current) return row
+      const links = { pendingBlIds: pending.get(row.cnpj_cpf) ?? [], rejectedBlIds: rejected.get(row.cnpj_cpf) ?? [] }
+      if (!current) return { ...row, ...links }
       const changedFields = Object.keys(labels).filter((field) => String(current[field] ?? '').trim() !== String(row[field as keyof CustomerBaseRow] ?? '').trim()).map((field) => labels[field])
-      return { ...row, existingCustomerId: Number(current.id), changedFields }
+      const currentName = String(current.name ?? '').trim()
+      return {
+        ...row,
+        ...links,
+        existingCustomerId: Number(current.id),
+        changedFields,
+        currentName: sameName(currentName, row.name) ? null : currentName,
+      }
     }),
   }
 }
 
-export async function importCustomerBaseRows(rows: CustomerBaseRow[], options: { changedBy: string | null } = { changedBy: null }) {
+/** Razão social comparada sem caixa, espaços extras e pontuação. */
+export function sameName(left: string | null | undefined, right: string | null | undefined) {
+  const key = (value: string | null | undefined) => String(value ?? '').toUpperCase().replace(/[^A-Z0-9À-Ú]+/g, ' ').trim()
+  return key(left) === key(right)
+}
+
+/** Clientes cuja razão social muda: a importação pede confirmação antes. */
+export function customerNameChanges(rows: CustomerBaseRow[]) {
+  return rows.filter((row) => row.existingCustomerId && row.currentName)
+}
+
+export async function importCustomerBaseRows(rows: CustomerBaseRow[], options: { changedBy: string | null; confirmNameChange?: boolean } = { changedBy: null }) {
   const uniqueRows = Array.from(new Map(rows.map((row) => [row.cnpj_cpf, row])).values())
   if (!uniqueRows.length) {
     return { imported: 0, updated: 0, contactsCreated: 0, blsLinked: 0 }
@@ -102,12 +143,13 @@ export async function importCustomerBaseRows(rows: CustomerBaseRow[], options: {
       p_zip: row.zip,
       p_emails: row.emails,
       p_changed_by: options.changedBy,
-    })
+      p_confirm_name_change: Boolean(options.confirmNameChange),
+    } as never)
     if (error) {
       errors.push({ cnpj_cpf: row.cnpj_cpf, message: error.message || 'Falha ao importar cliente.' })
       continue
     }
-    const result = data as { created?: boolean; contacts_created?: number; bls_linked?: number } | null
+    const result = data as unknown as { created?: boolean; contacts_created?: number; bls_linked?: number } | null
     if (result?.created) imported += 1
     else updated += 1
     contactsCreated += Number(result?.contacts_created ?? 0)

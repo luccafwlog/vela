@@ -35,7 +35,8 @@ import { userFacingErrorMessage } from '../lib/errors'
 import { isValidCnpj } from '../lib/cnpj'
 import { getCustomerFilterChips, type CustomerSortKey } from '../lib/customerTableViewModel'
 import { CUSTOMER_COMMUNICATION_BOXES } from '../services/customerCommunicationBoxes'
-import { compareCustomerBaseWithExisting, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
+import { compareCustomerBaseWithExisting, customerNameChanges, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
+import { afterBlRevisado, afterCargaAlterada } from '../services/cacheEffects'
 import { checkCustomerDependencies, createCustomer, deactivateCustomer, deleteCustomers, reactivateCustomer } from '../services/customers'
 import { buildDeleteAffected, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
@@ -258,12 +259,25 @@ export function Clientes() {
     setImportingBase(true)
     setBaseWriteError(null)
     try {
-      const result = await importCustomerBaseRows(parsedBase.rows, { changedBy: user?.id ?? null })
+      const renamed = customerNameChanges(parsedBase.rows)
+      if (renamed.length) {
+        const ok = await confirm({
+          title: 'Razão social diferente',
+          message: `${renamed.length} Cliente(s) já cadastrado(s) com outra razão social.`,
+          confirmLabel: 'Trocar a razão social',
+          consequence: 'A razão social nova vale para as próximas faturas; faturas emitidas mantêm o documento congelado.',
+          affected: { summary: `${renamed.length} Cliente(s)`, items: renamed.map((row) => `${row.currentName} → ${row.name}`) },
+        })
+        if (!ok) return
+      }
+      const result = await importCustomerBaseRows(parsedBase.rows, { changedBy: user?.id ?? null, confirmNameChange: renamed.length > 0 })
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
         queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
         queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
-        queryClient.invalidateQueries({ queryKey: ['bls'] }),
+        // B/L vinculado pela Base sai da Revisão e segue para o faturamento (ADR 0078, item 24).
+        result.blsLinked ? afterBlRevisado(queryClient) : Promise.resolve(),
+        result.blsLinked ? afterCargaAlterada(queryClient) : queryClient.invalidateQueries({ queryKey: ['bls'] }),
       ])
       const linkedMsg = result.blsLinked ? ` ${formatCountLabel(result.blsLinked, 'B/L vinculado', 'B/Ls vinculados')} automaticamente.` : ''
       const failedMsg = result.errors?.length

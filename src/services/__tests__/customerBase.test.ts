@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { importCustomerBaseRows, parseCustomerBaseRows } from '../customerBase'
+import { customerNameChanges, importCustomerBaseRows, parseCustomerBaseRows, sameName, type CustomerBaseRow } from '../customerBase'
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
@@ -72,6 +72,21 @@ describe('customerBase import', () => {
       p_zip: null,
       p_emails: ['contato1@empresa.com', 'contato2@empresa.com'],
       p_changed_by: 'actor-1',
+      p_confirm_name_change: false,
     })
+  })
+})
+
+describe('razão social na Base de Clientes (ADR 0078, item 24)', () => {
+  it('compara sem caixa e pontuação e lista só os Clientes que trocam de razão social', () => {
+    expect(sameName('Importadora Ltda.', 'IMPORTADORA  LTDA')).toBe(true)
+    expect(sameName('Importadora Ltda', 'Outra SA')).toBe(false)
+    const base = { cnpj_cpf: '1', name: 'Nova', trade_name: null, emails: [], address: null, city: null, state: null, zip: null }
+    const rows: CustomerBaseRow[] = [
+      { ...base, existingCustomerId: 1, currentName: 'Antiga' },
+      { ...base, existingCustomerId: 2, currentName: null },
+      { ...base },
+    ]
+    expect(customerNameChanges(rows).map((row) => row.existingCustomerId)).toEqual([1])
   })
 })

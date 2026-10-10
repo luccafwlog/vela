@@ -1092,8 +1092,8 @@ preenche o vínculo; faturamento considera exclusivamente `customer_id` e
 
 A importação da Base de Clientes vincula só os B/Ls pendentes de Cliente com o
 mesmo CNPJ, mostrados na prévia, como vínculo por documento; B/L rejeitado na
-Revisão nunca é vinculado pela Base e recebe o Cliente manualmente na Revisão
-([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+Revisão nunca é vinculado pela Base e recebe o Cliente manualmente na Revisão;
+razão social diferente da gravada pede confirmação ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `184`).
 
 **Troca de Consignatário**
 Correção do consignatário de um B/L já gravado, feita reimportando o arquivo do

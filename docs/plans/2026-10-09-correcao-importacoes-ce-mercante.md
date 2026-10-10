@@ -600,7 +600,7 @@ prévia de B/L avisa COD e porto omitido. Checagens: `codDocumentoFatura.local-p
   (salvo B/L ou Viagem cancelados); tipos ISO equivalentes, lacre sem zeros à
   esquerda, lacre opcional para flat rack e plataforma; regras também no
   servidor.
-- [ ] **Base de Clientes:** prévia com os B/Ls pendentes que cada CNPJ vincula;
+- [x] **Base de Clientes:** prévia com os B/Ls pendentes que cada CNPJ vincula;
   vínculo por documento, Revisão liberada e faturamento seguindo; B/L rejeitado
   nunca vinculado; razão social diferente pede confirmação; telas de Revisão e
   Faturamento invalidadas.
@@ -626,6 +626,15 @@ efeito `vehicle_followup`); `move_vehicles_to_bl` e
 do B/L irmão, tipos ISO equivalentes, lacre sem zeros à esquerda e opcional para
 flat rack/plataforma, confirmação do local de desova, **Mover para outro B/L**.
 Checagens: `veiculosRegras.local-pg` (no CI), `vehicleImport.test.ts`.
+
+**Execução — Base de Clientes (2026-10-10, local):** migration `184` —
+`apply_customer_base_row_atomic` ganha `p_confirm_name_change` (razão social
+diferente recusa sem ela), vincula só B/Ls pendentes e não rejeitados como
+`matched_document`, com Histórico, reavalia a Revisão
+(`apply_bl_review_gate_after_import`) e calcula as Taxas Locais. A prévia lista
+os B/Ls que cada CNPJ vincula e os rejeitados; a tela confirma a troca de razão
+social e invalida Revisão e carga/faturamento. Checagens:
+`baseClientesVinculo.local-pg` (no CI), `customerBase.test.ts`.
 
 ## Etapa 12 — Testes e CI
 
