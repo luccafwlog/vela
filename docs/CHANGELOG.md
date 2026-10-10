@@ -4,6 +4,26 @@
 
 ## 2026-10
 
+- **Decisões das importações e do CE Mercante (2026-10-09, decisão do dono):** a
+  [ADR 0078](adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) registra as
+  regras de entrada, correção e efeitos das importações (portas e unicidade do CE, troca e
+  remoção com motivo, emissão pelo CE em lotes como "Sistema — CE Mercante", Nº de Manifesto
+  canônico com Mover/Desvincular, rastro no Histórico, datas e Demurrage de container
+  compartilhado, Baplie completo, veículos, Base de Clientes, Granito e vazios). `CONTEXT.md` e o
+  [plano de correção](plans/2026-10-09-correcao-importacoes-ce-mercante.md) atualizados; ADRs
+  0071 e 0020 com nota de supersessão parcial. Checagem de container compartilhado entre Clientes
+  diferentes retirada (caso inexistente em FCL); as checagens passam a 43 `it.fails` e o plano
+  revisto, a 15 etapas (0 a 14). Diferença de fatura paga só por restituição, sem
+  crédito em outra fatura. Sem mudança de produto.
+- **Revisão das importações e do CE Mercante (2026-10-09, investigação local):** relatório em
+  [archive/audits](archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md) com mapa das
+  portas de entrada, alcance do CE, matriz de campos, ordens de importação, 25 problemas-raiz e
+  22 decisões de negócio pendentes; [plano de correção](plans/2026-10-09-correcao-importacoes-ce-mercante.md)
+  em 13 etapas. Seis suítes `local-pg` novas (no CI) e uma unitária reproduzem 44 defeitos como
+  `it.fails`. Sem mudança de produto, migration ou produção. Documentação viva corrigida onde
+  descrevia comportamento inexistente: exceção da `051` revogada, CE de Granito sem cálculo,
+  emissão do CE pelo gatilho, Baplie sem exigir administrador, importação de datas atômica por
+  B/L com emissão pela fila pausada, e defeitos conhecidos da reimportação de carga solta.
 - **Triagem do Sentry de 01–08/10 (2026-10-09, implementação local):** `/admin` e demais telas
   lazy deixam de quebrar com `reading 'Admin'` quando um chunk falha (VELA-1M:
   `chunk-recovery.js` só cancela `vite:preloadError` de CSS; `lazyPage` trata módulo `undefined`

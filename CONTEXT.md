@@ -149,8 +149,9 @@ atracação e viagem); B/Ls sem CE da mesma viagem continuam excluíveis.
 Fatura, invoice de Demurrage ou recebível também travam o que referenciam.
 Vazios, que não têm CE, travam com o ADR de Saída fechado da escala e
 terminal, e reabrir o ADR solta a trava; antes dela, qualquer usuário ativo
-exclui unidade manual e linha de serviço de vazios. Corrigir o CE mantém a trava; apagá-lo só a solta enquanto nenhuma
-fatura foi emitida nem B/L liberado no Portal. Antes da trava, excluir cabe ao
+exclui unidade manual e linha de serviço de vazios. Corrigir o CE mantém a trava; removê-lo, pela ação da ficha do B/L e com
+motivo, só é possível sem fatura viva e solta a trava ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação
+pendente). Antes da trava, excluir cabe ao
 Administrativo, com motivo; depois, o caminho é corrigir, substituir, reemitir
 ou cancelar. Decidida na [ADR 0071](docs/adr/0071-ce-mercante-como-trava-de-exclusao.md);
 a implementação ainda segue as regras anteriores.
@@ -274,6 +275,11 @@ registro global integram a Linha do Tempo da Viagem e o Histórico dos B/Ls
 afetados.
 Cada complementação é auditada pela RPC `update_voyage_omission`; a disposição
 `transshipment` ou `cod` continua no grão individual do B/L.
+
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), um B/L com POD no porto omitido importado
+depois da omissão entra como afetado, com disposição Transbordo, herdando o
+registro global; a reimportação não altera o POD de B/L em COD, e mudar o POD
+por reimportação ou pela ficha é correção, nunca COD.
 
 A disposição individual (`transshipment`/`cod`) é operada na ficha do B/L; a
 Viagem edita apenas o registro global e lista os B/Ls afetados para consulta.
@@ -679,7 +685,8 @@ tem duas contagens independentes.
 
 **Local de Desova**
 Local onde um container com veículo foi desovado. Atributo do container,
-agregado por marca no ADR.
+agregado por marca no ADR. A planilha de veículos só o preenche quando está
+vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
 **Ocorrência da Escala**
 Lançamento livre no diário da escala dentro do ADR: texto com autor,
@@ -796,6 +803,9 @@ depois que o Financeiro cancelou ou estornou as faturas e recebíveis abertos
 dele. O B/L sai do faturamento, aparece no Portal como cancelado se já tiver
 sido liberado e libera o CE para o B/L reemitido. Pode ser reativado se o
 cancelamento foi por engano. B/L sem CE não é cancelado: é excluído.
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), recebível sem fatura não bloqueia o
+cancelamento: cancelar ou excluir o B/L anula o cálculo e o recebível, com
+registro no Histórico.
 Cancelado, fica somente leitura e deixa de contar nos Alertas de revisão do
 Cliente; cancelar ou reativar reconcilia esses Alertas na hora (migration
 `169`).
@@ -873,6 +883,10 @@ operacionais próprios. Na Validação de Taxas aparece como **Apoio operacional
 sem participar da emissão de invoices; conferência de quantidades não é
 faturamento financeiro.
 
+O CE Mercante de Granito não calcula nem emite: o cálculo do Granito é feito
+pela Validação. Reimportar a planilha COSCO da mesma Viagem atualiza os B/Ls
+pelo número, preservando CE e Cliente ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+
 ## Baplie e reconciliação
 
 **Baplie EDI**
@@ -915,6 +929,20 @@ O B/L declara carga perigosa no nível do conhecimento (DG Class e número ONU n
 descrição da mercadoria), aplicando-se inicialmente a todos os containers do
 B/L; o Baplie refina depois quais containers são de fato IMO.
 
+Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente):
+
+- as marcas do Baplie valem para todos os B/Ls ativos que dividem o container
+  (Part Lot tem sempre as mesmas características); B/L cancelado é ignorado;
+- perfil IMO/OOG corrigido à mão com justificativa (o armador confirma fora do
+  Baplie) não é sobrescrito: o Baplie diferente vira Divergência de Atributo;
+- o Baplie é sempre completo: marca ou container ausente apaga as marcas que
+  vieram do Baplie anterior, depois de confirmação na prévia; marcas do B/L ou
+  manuais continuam;
+- OOG exige excesso de dimensão maior que zero; carga perigosa em quantidade
+  limitada (LQ) é carga normal, sem THD de IMO;
+- containers fora das escalas da Viagem, de outro operador ou em transbordo
+  são ignorados com aviso; Baplie de outro navio ou viagem é bloqueado.
+
 **IMO**
 Classificação de carga perigosa segundo a International Maritime Organization.
 
@@ -935,6 +963,7 @@ Baplie no EQD (8077: 1 = SOC, 2 = COC). O B/L é soberano: o Baplie só preenche
 o que o B/L não declarou, e a discordância entre os dois aparece na conciliação
 do Baplie e na aba Carga do B/L, sem trocar o valor. Sem informação em nenhuma
 fonte, o container é tratado como COC e aparece como "Não informado".
+A divergência ganha a ação **Vale o B/L**, com motivo, que a encerra ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 Container SOC não volta ao estoque: não tem devolução a esperar nem Demurrage,
 e não paga as taxas locais marcadas como "não cobra de SOC" (Drop Off Fee e
 Damage Protection Fee).
@@ -961,9 +990,24 @@ O CE também integra a liberação documental do B/L no Portal; o acesso depende
 da conta do Cliente. O Comunicado de CE e Taxas depende da prontidão do conjunto
 Cliente/Viagem, da chave de envio e do processamento do canal, não de um envio
 imediato garantido ao salvar o CE. A relação CE × B/L é 1:1: um
-número de CE não pode ser usado por mais de um B/L. Pela ADR 0071, ainda não
-implementada, a unicidade passa a valer entre B/Ls não cancelados: o
-[B/L Cancelado](#operação-marítima) libera o CE. Embarque de Vazios é a exceção
+número de CE não pode ser usado por mais de um B/L não cancelado, somando B/Ls
+de carga e de Granito; o [B/L Cancelado](#operação-marítima) libera o CE. Hoje o
+banco não impõe essa unicidade (ADR 0071 e [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+
+Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente):
+
+- o CE entra pela planilha de CE Mercante e é corrigido ou removido pela ficha
+  do B/L (**Corrigir CE Mercante**, **Remover CE Mercante**), por qualquer
+  usuário ativo, com as regras da planilha e motivo no Histórico; o Manifesto BB
+  não grava CE; a repetição do CE é recusada em todas as portas e na reativação;
+- trocar um CE já gravado exige confirmação com motivo na prévia, que mostra o
+  CE atual e o novo; a fatura não muda; Comunicado já enviado abre pendência de
+  reenvio ao Cliente;
+- remover o CE só é possível sem fatura viva; importação nunca remove CE;
+- a emissão pelo CE sai logo após a gravação do CE e do cálculo, em lotes, e é
+  registrada como **Sistema — CE Mercante**.
+
+Embarque de Vazios é a exceção
 operacional: não emite CE porque é módulo de custo pago pela agência ao depot,
 sem invoice ou recebível de cliente.
 
@@ -974,7 +1018,12 @@ descontinuada do sistema em favor de "Nº de Manifesto Mercante". É registrado 
 tabela `manifestos_mercante`, que suporta múltiplos manifestos por rota e
 segregação por natureza de carga (`natureza IN ('carga', 'vazio')`). Convive com
 a tabela legada `voyage_route_ce_master`, preservada para compatibilidade retroativa
-com importadores existentes. É distinto dos CEs individuais dos
+com importadores existentes. Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), o número tem
+13 caracteres, letras ou dígitos em qualquer posição (ex.: `1226501860578`,
+`1226B01849909`), guardado em maiúsculas sem espaços nem separadores; **Informar
+Nº** e a planilha passam a usar um cadastro único; B/Ls podem ser movidos ou
+desvinculados em lote, com motivo, pela Viagem, pela ficha ou pela planilha; e
+mudar o POD ou a Viagem desvincula o B/L. É distinto dos CEs individuais dos
 B/Ls e não se confunde com o número de viagem interna da agência.
 
 - **Vazios de Importação:** cada rota dos vazios (porto de origem → porto de
@@ -990,7 +1039,10 @@ B/Ls e não se confunde com o número de viagem interna da agência.
   + número, e todos os B/Ls da planilha precisam ser da mesma rota. Uma rota
   pode ter vários manifestos, importados em momentos distintos, cada um com seu
   número; repetir um número já cadastrado junta os B/Ls a ele. O CE Mercante
-  entra só por planilha; EDI, no Vela, é o Baplie (decisão de 2026-10-08).
+  entra por planilha (decisão de 2026-10-08) e, pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), é corrigido ou
+  removido pela ficha do B/L; EDI, no Vela, é o Baplie. Na planilha, linha sem
+  CE é erro e bloqueia a importação, B/L cancelado é ignorado com aviso e mais
+  de uma aba com dados é recusada (implementação pendente).
 
 **Frete & Despesas do BL**
 Linhas da seção "Freight & Charges" do conhecimento de embarque (B/L): frete
@@ -1011,7 +1063,8 @@ outros dados que impedem o avanço seguro.
 **Reconciliação de Cliente**
 Vínculo confirmado entre o consignatário importado e o cadastro de Cliente. O
 vínculo só pode ser estabelecido por documento exato — CNPJ para pessoa
-jurídica, CPF para pessoa física. Match por nome, por nome canônico ou por
+jurídica. Não existe Cliente pessoa física: CPF não é aceito no cadastro
+(decisão do dono, 2026-10-09; [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)). Match por nome, por nome canônico ou por
 similaridade é sugestão, nunca vínculo. Matching automático incerto deve
 permanecer pendente de decisão humana.
 
@@ -1019,6 +1072,11 @@ Match por nome é persistido separadamente como sugestão (`suggested_customer_i
 ou `suggested_client_id`) e aparece na fila de revisão. Só a confirmação humana
 preenche o vínculo; faturamento considera exclusivamente `customer_id` e
 `client_id`. Ver ADR 0043 e migrations `284`–`287`.
+
+A importação da Base de Clientes vincula só os B/Ls pendentes de Cliente com o
+mesmo CNPJ, mostrados na prévia, como vínculo por documento; B/L rejeitado na
+Revisão nunca é vinculado pela Base e recebe o Cliente manualmente na Revisão
+([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
 **Troca de Consignatário**
 Correção do consignatário de um B/L já gravado, feita reimportando o arquivo do
@@ -1034,9 +1092,13 @@ Não é automática em três situações, sinalizadas antes do aceite: fatura
 consolidada com outros B/Ls, fatura com pagamento registrado, e consignatário
 ainda não cadastrado como Cliente havendo cobrança. Nesses casos o vínculo fica
 como está e os demais campos do B/L seguem sendo corrigidos. Ver ADR 0017.
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), a mesma regra vale para a reimportação de carga solta (Manifesto BB
+e B/L avulso; implementação pendente — hoje a reimportação troca o Cliente sem
+aceite, ver [Manifesto EDI](docs/modules/manifesto-edi.md#catálogo-de-ações)).
 
 **Cliente**
-Pessoa jurídica ou física responsável por cargas e cobranças no sistema.
+Pessoa jurídica responsável por cargas e cobranças no sistema; não existe
+Cliente pessoa física ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
 
 **Email de Contato**
 Canal de comunicação do Cliente. Cada Cliente tem um Email de Contato Principal,
@@ -1145,15 +1207,22 @@ CE, a taxa local é devida pelo porto declarado nele. O Transbordo preserva o
 destino e não reprecifica; o COD é a exceção de ADR 0051: altera o destino final
 e gera um Ajuste de COD pela diferença entre os valores localizados, mantendo o
 CE Mercante inalterado. A emissão do documento financeiro resultante é um ato
-do Financeiro.
+do Financeiro. A fatura de Taxas Locais emitida pela transição do CE é emissão
+automática, registrada como **Sistema — CE Mercante** ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
 Por isso a fatura de taxas locais é emitida dias antes da atracação: o cliente
-precisa dela paga para retirar a carga. O documento emitido preserva seu valor;
+precisa dela paga para retirar a carga. O documento emitido preserva seu valor
+e, pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), também a identificação impressa (razão social, CNPJ, endereço do
+Cliente, Viagem, navio, POL e POD; implementação pendente);
 ajustes posteriores, como COD, seguem atos próprios e não reescrevem o snapshot.
 
 B/Ls que dividem um mesmo container **recebem o CE no mesmo momento**. É essa
 regra operacional — não uma trava de software — que garante o rateio correto de
-taxa de container compartilhado.
+taxa de container compartilhado. Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), container
+FCL não é dividido entre Clientes diferentes (só veículos LCL, que não pagam
+Taxas Locais nem Demurrage) e a importação recusa esse caso; quando o conjunto de
+B/Ls de um container muda depois do faturamento, a fatura emitida segue a ADR
+0077.
 
 - **Ver também:** Fato Gerador, Omissao de Escala, COD, Data de Referência da Tarifa
 
@@ -1298,6 +1367,11 @@ A isenção é consequência de dado operacional (o cadastro de veículos), ent�
 precisa ser conferível: as isenções aplicadas devem ser visíveis em tela, não
 apenas inferíveis do valor zero.
 
+Veículo gravado no B/L errado é corrigido na página Veículos (**Mover para
+outro B/L**, **Excluir**), por qualquer usuário, com motivo, mesmo com CE; o
+efeito na cobrança segue a ADR 0077. O mesmo chassi em outra Viagem é erro
+([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+
 - **Ver também:** Movimento (FCL/LCL), Taxas Locais
 
 **Taxa Local em Dólar**
@@ -1340,6 +1414,12 @@ de vida usado para reconstruir saldos de taxas locais.
 **Demurrage**
 Cobrança pela sobreestadia de containers — tempo entre descarga e devolução ao
 pátio, excedendo o free time contratado.
+
+A descarga é a data informada pelo terminal, que entra pela planilha de datas;
+a ATA não preenche a descarga. Na planilha, a chave é B/L + container, e a data
+vale para todos os B/Ls que dividem o container na mesma Viagem; célula ou
+coluna vazia não apaga a data gravada, e remover uma data é correção isolada
+na edição do container, com motivo ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
 **Free Time**
 Período após a descarga durante o qual o container pode ficar no pátio sem
@@ -1415,6 +1495,14 @@ não se fatura com container ainda fora, pois os dias de demurrage (e portanto o
 pagamento. O monitoramento de containers ainda fora (demurrage correndo) é
 operacional, não gera fatura.
 
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente): B/Ls do mesmo Cliente ligados por container
+compartilhado recebem uma única Invoice de Demurrage, com cada caixa uma vez,
+emitida quando todos os containers do grupo estiverem devolvidos. Mudança de
+datas que altera uma Invoice de Demurrage emitida a cancela e reemite
+automaticamente se não houver pagamento (ou só cancela, se o valor for zero);
+com pagamento, a diferença segue a ADR 0077. Abre alerta, e a Régua de Cobrança
+para de cobrar essa fatura até a situação se resolver.
+
 - **Ver também:** P1, P2, Free Time, ROE, Recálculo Diário
 
 **Tarifa de Demurrage (Rate)**
@@ -1446,7 +1534,9 @@ valor. Casos ambíguos exigem decisão humana.
 Linha do tempo completa dos acontecimentos de um B/L: alterações manuais de
 campos, mudanças em containers, cálculo e revisão de taxas, e emissão e
 pagamento de faturas. É o termo guarda-chuva que abrange a Auditoria — não um
-sinônimo dela.
+sinônimo dela. Toda importação registra, em cada registro alterado, quem fez,
+data e hora, o tipo de importação, o contexto (Nº de Manifesto, Viagem, rota),
+o valor anterior e o novo e o motivo quando houver ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
 **Auditoria**
 Subconjunto do Histórico: as alterações deliberadas registradas com
@@ -1804,6 +1894,9 @@ A escrita operacional é compartilhada, com exceções aplicadas por operação:
 | Alterar a chave global de envio de Comunicados | Administrativo |
 | Resposta e reabertura de disputa de Demurrage | Equipamentos e Administrativo |
 | Exclusão operacional protegida | Administrativo, respeitando a Trava de exclusão (ADR 0071; migration `088`, que supersede a exceção da `080` para escala). Unidade manual e linha de serviço de vazios: qualquer Departamento ativo, até o ADR fechado |
+
+Importações de arquivo são escrita interna global: qualquer Departamento ativo,
+com o rastro no Histórico ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
 
 Essa tabela resume as exceções; não substitui as validações de estado e de
 escopo das RPCs. Assinaturas do ADR também respeitam o departamento dono.
