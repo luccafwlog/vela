@@ -18,6 +18,13 @@ confirmação; itens deste plano que conflitem com ela (confirmação por B/L, r
 `main`; publicação e operação remotas não conferidas nesta reconciliação.
 PDF oficial e homologação externa seguem sem evidência de conclusão.
 
+**Estado conferido em 2026-10-10:** backend publicado em produção (migrations,
+Edge Functions, bucket e agendamentos; ver "Fontes"). O PDF oficial **não** está
+cadastrado. O [plano de correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md)
+não fecha itens deste plano, mas suas Etapas 6 e 8.7 corrigem defeitos que
+afetam o Desbloqueio e passam a bloquear a ativação; ver "Caminho crítico para
+ativação".
+
 **Como ler o checklist:** `[x]` registra o resultado específico comprovado pela
 fonte indicada; `[ ]` registra trabalho ou evidência ainda necessários. Um teste
 existente não equivale a execução recente, e código integrado não comprova deploy.
@@ -28,8 +35,9 @@ Contratos executados usam tipos snake_case, `ce_unlock_read` e dispatchers
 Portal estão em `ceUnlockService.ts`; regras/layout e seus testes estão em
 `ceUnlockRules.ts` e `ceUnlockRules.test.ts`. Os nomes de interfaces/arquivos
 propostos nas tarefas abaixo são referência do desenho inicial, não arquivos
-faltantes quando substituídos por esses donos. O bloco CE atual é `139`–`149`;
-`137`–`138` pertencem à Central de Informações. Tipos gerados preservados.
+faltantes quando substituídos por esses donos. O bloco CE atual é `139`–`149`,
+mais `160`–`161` do fluxo revisado de 2026-10-07; `137`–`138` pertencem à
+Central de Informações. Tipos gerados preservados.
 
 Fontes da reconciliação:
 
@@ -46,6 +54,17 @@ Fontes da reconciliação:
   registra gates, 21 cenários SQL e navegador local com shims. Sua descrição
   de branch sem push/PR e numeração antiga de migrations é histórica; não
   descreve a integração atual na `main`. Não comprova ambiente remoto.
+- **Remoto (2026-10-10, leitura no projeto Supabase de produção):**
+  `schema_migrations` contém `139`–`149`, `160` e `161`; as funções
+  `ce-unlock-export`, `ce-unlock-cleanup`, `portal-ce-unlock-document`,
+  `ce-unlock-document-download` e `ce-unlock-notify-email` estão ativas; bucket
+  privado existe; jobs `ce-unlock-cleanup` (diário, 06:00 UTC) e
+  `ce-unlock-notify-email` (5 min) ativos, com última rodada `succeeded` — isso
+  prova só o disparo HTTP do pg_cron, não o resultado da função. Nenhum
+  documento `type='model'` cadastrado. Dados: 1 pedido e 1 exportação de teste;
+  uma procuração de teste aprovada era um PDF sem relação com o assunto, o que
+  confirma que a análise humana é a única conferência de conteúdo. Deploy dos
+  frontends na Vercel não conferido.
 
 ## Restrições globais
 
@@ -62,6 +81,27 @@ Fontes da reconciliação:
 - Migrations novas seguem `WORKFLOW.md` §5; escolher o próximo NNN na execução.
 - Não editar migrations existentes nem `src/types/database.ts` sem autorização explícita exigida pelo guard; usar tipos de domínio próprios para os contratos novos.
 - Não instalar bibliotecas, aplicar migrations ou publicar funções durante este planejamento.
+
+## Caminho crítico para ativação
+
+Itens marcados **[bloqueia ativação]** abaixo precisam estar resolvidos antes de
+abrir o Desbloqueio a clientes reais; os demais `[ ]` podem ser aceitos como
+dívida registrada no aceite, sem impedir a operação. Ordem proposta:
+
+1. Cadastrar o PDF oficial (Tarefa 1).
+2. Etapa 6 do plano de 2026-10-09 (unicidade do CE): hoje o mesmo CE pode ser
+   aceito em dois B/Ls e a conciliação ZPT pelo número desbloquearia os dois
+   (cenário 12 da [revisão de 2026-10-09](../archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md)).
+3. Etapa 8.7 do mesmo plano: troca de CE pela planilha sem prévia reabre o
+   Desbloqueio em silêncio (cenários 11 e 13).
+4. Homologar a planilha ZPT (Tarefa 6) e o aceite operacional, incluindo a
+   análise humana do conteúdo dos documentos (Tarefa 1).
+5. Demonstrar as matrizes que protegem dinheiro e dados: pagamento
+   parcial/consolidado (Tarefa 2), baixa cancelada concorrente ao envio e à
+   exportação (Tarefas 2 e 6) e acesso a IDs/caminhos/downloads de outro CNPJ
+   (Tarefa 3).
+6. Conferir o deploy dos frontends e executar o fluxo completo com clientes A/B
+   no ambiente autorizado (Tarefa 7).
 
 ## Foco da revisão
 
@@ -104,8 +144,8 @@ apresentação; timestamps persistidos continuam UTC.
 - [x] Registrar a decisão de execução de não criar entidade distinta “CS”, conforme relatório local.
 - [x] Registrar as cinco colunas ZPT, documentos anuais VIP por CNPJ e validade até 31/12 sem renovação automática.
 - [x] Implementar tipos, versões, requisitos e motivos públicos separados do andamento externo. **Código:** `ceUnlock.ts`; layout usa `layout_version`, e o pedido referencia `model_id`, em vez de exigir os nomes `layoutVersion`/`modelVersion` inicialmente propostos.
-- [ ] Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec; cadastrar o PDF oficial fornecido pelo responsável.
-- [ ] Homologar a amostra XLSX e os indicadores Sim/Não com responsável/ZPT; revisar spec/plano no aceite.
+- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs; cadastrar o PDF oficial fornecido pelo responsável (ausente em produção em 2026-10-10).
+- [ ] **[bloqueia ativação]** Homologar a amostra XLSX e os indicadores Sim/Não com responsável/ZPT; revisar spec/plano no aceite.
 
 ## Tarefa 2 — Persistência, autorização e requisito financeiro
 
@@ -128,8 +168,8 @@ Resposta paginada `{items, total, page, page_size:25}`.
 - [x] Disponibilizar testes SQL de escopo/papéis, pagamento parcial, cobertura VIP, revogação, troca de Cliente, versões e confirmação por B/L. **Teste:** `ceUnlock.local-pg.test.ts`; existência conferida, sem nova execução nesta revisão.
 - [x] Registrar replay local descartável, testes SQL e gates de migrations/RPC da entrega original; registrar limitações dos shims. **Teste histórico:** relatório local, sem aplicação remota.
 - [x] Integrar a fundação e correções na `main`; a antiga etapa de commit isolado está superada.
-- [ ] Completar/demonstrar a matriz SQL originalmente prevista: anonymous, B/L sem importação/CE/recebível, consolidada parcialmente paga e obrigação de COD.
-- [ ] Demonstrar concorrência de dois pedidos para o mesmo B/L e cancelamento de baixa durante envio/exportação; os testes existentes de reversão na confirmação e cancelamento no registro de envio não cobrem essas mesmas transições.
+- [ ] **[bloqueia ativação, só a fatura consolidada parcialmente paga]** Completar/demonstrar a matriz SQL originalmente prevista: anonymous, B/L sem importação/CE/recebível, consolidada parcialmente paga e obrigação de COD.
+- [ ] **[bloqueia ativação, só a baixa cancelada]** Demonstrar concorrência de dois pedidos para o mesmo B/L e cancelamento de baixa durante envio/exportação; os testes existentes de reversão na confirmação e cancelamento no registro de envio não cobrem essas mesmas transições.
 - [ ] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original.
 - [ ] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa; teste de CE divergente na confirmação não encerra a matriz.
 
@@ -164,10 +204,11 @@ RPCs internas `set_ce_unlock_vip`, `review_ce_unlock_vip_document`,
 - [x] Implementar entrega/reversão independente por B/L e cancelamento auditado que libera reserva, preservando histórico e separando ação externa.
 - [x] Implementar expurgo server-only com reivindicação antes de remoção via Storage API e preservação de modelo/anuais vigentes; agendamento é etapa operacional separada.
 - [x] Disponibilizar testes de PDF falso/vazio/tamanho/corpo, falha de upload, resposta de finalização perdida, versão antiga/substituída, reenvio, revogação e expurgo sob lock. **Teste:** suites CE, handler Deno e suíte SQL; execução histórica conforme relatório, sem afirmar falha inicial de todos os casos.
-- [ ] Completar/demonstrar matriz de quota/rate limit, caminhos de outro CNPJ, sessão revogada e downloads/papéis no serviço gerenciado real.
+- [ ] **[bloqueia ativação, só caminhos/downloads de outro CNPJ]** Completar/demonstrar matriz de quota/rate limit, caminhos de outro CNPJ, sessão revogada e downloads/papéis no serviço gerenciado real.
 - [ ] Completar matriz anual: termo vigente/procuração vencida, pedido atravessando vencimento e renovação aplicada a múltiplos itens sem alterar snapshots antigos. Limites 31/12–01/01 e ano inválido já têm teste unitário.
 - [ ] Demonstrar retry sem eventos duplicados e preservação de documentos enviados/anuais no expurgo, incluindo anuais sem pedido e quotas VIP.
-- [ ] Homologar retenção e configurar segredo/job de expurgo no ambiente autorizado; validar remoção física e retry no Storage real.
+- [x] Publicar a função e o job de expurgo. **Remoto:** `ce-unlock-cleanup` ativo e agendado diariamente em 2026-10-10.
+- [ ] Homologar retenção e validar remoção física e retry no Storage real; o disparo do job não prova o resultado.
 
 ## Tarefa 4 — Portal: selecionar, solicitar e acompanhar
 
@@ -241,11 +282,11 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Implementar layout em `ceUnlockRules.ts` e teste de cinco colunas, ordem, B/L textual e sanitização. **Teste:** `ceUnlockRules.test.ts`, aprovado nesta sessão; amostra gerada/reaberta no runtime local histórico, sem homologação externa.
 - [x] Implementar lote/snapshot, geração server-side, download preservado, reexportação deliberada e registro explícito de envio.
 - [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Teste:** suíte SQL cobre exportação sem desbloqueio, confirmação individual, CE divergente, revogação e concorrência em confirmação/registro de envio; não reexecutada nesta revisão.
-- [ ] Demonstrar bloqueio por cada requisito e baixa cancelada concorrente à criação da exportação, snapshot imutável e retry do mesmo lote.
+- [ ] **[bloqueia ativação, só a baixa cancelada]** Demonstrar bloqueio por cada requisito e baixa cancelada concorrente à criação da exportação, snapshot imutável e retry do mesmo lote.
 - [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.
 - [ ] Reconciliar o requisito inicial de estado explícito de falha recuperável: a geração pode ser repetida sobre o lote preservado, mas isso não comprova um estado persistido de falha do arquivo.
 - [ ] Resolver/aceitar a limitação registrada de hash do lote sem preenchimento; diferenciar do hash de PDF já implementado.
-- [ ] Homologar a amostra com responsável/ZPT no ambiente autorizado e registrar aceite externo. Código e amostra já estão integrados; não falta um commit separado de exportação.
+- [ ] **[bloqueia ativação]** Homologar a amostra com responsável/ZPT no ambiente autorizado e registrar aceite externo. Código e amostra já estão integrados; não falta um commit separado de exportação.
 
 ## Tarefa 7 — Validação completa, documentação e entrega
 
@@ -257,9 +298,12 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Integrar documentação de rotas, autorização, retenção, bucket, funções, modelos e procedimento ZPT, distinguindo geração, envio e confirmação. Homologação externa não foi registrada como concluída.
 - [x] Registrar gates da entrega local original: docs, tipos, lint, testes, build, migrations e RPC, com skips e limites do banco/shims no relatório. Não equivale à execução atual de todos os gates na árvore integrada.
 - [x] Documentar ordem backend → funções → frontend e reversão preservando consulta/histórico. Preview e publicação são itens separados, ainda sem evidência nesta reconciliação.
-- [ ] Conferir histórico remoto e publicar/validar migrations CE `139`–`149`, funções e frontends compatíveis no ambiente especificamente autorizado; não inferir deploy pela presença na `main`.
-- [ ] Cadastrar PDF oficial, configurar segredo/agendamento e validar expurgo em Preview antes da ativação operacional.
-- [ ] Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
+- [x] Conferir histórico remoto e publicar migrations CE `139`–`149` e `160`–`161` e as cinco funções. **Remoto:** leitura de produção em 2026-10-10 (ver "Fontes").
+- [ ] **[bloqueia ativação]** Conferir que os frontends publicados na Vercel são compatíveis com o backend atual.
+- [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
+- [ ] **[bloqueia ativação]** Cadastrar o PDF oficial e validar o resultado do expurgo antes da ativação operacional.
+- [ ] **[bloqueia ativação]** Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](2026-10-09-correcao-importacoes-ce-mercante.md).
+- [ ] **[bloqueia ativação]** Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.
 - [ ] Validar fluxo VIP completo no ambiente controlado, incluindo dois pedidos sem reanexação, vencimento/renovação e preservação de histórico.
 - [ ] Registrar gates da árvore integrada no fechamento técnico e validação de Preview/gateway/Storage; distinguir testes locais, skips e observação remota.
@@ -271,5 +315,10 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 Reconciliação editorial em 2026-10-07, baseada em código/testes do checkout e
 registros históricos, sem alteração de aplicação ou acesso ao ambiente remoto.
 O plano continua ativo pelo aceite e pela evidência operacional pendentes.
+
+Atualização em 2026-10-10: leitura (somente SELECT) do banco, das funções e do
+pg_cron no projeto Supabase de produção, confronto com o plano de 2026-10-09 e
+sua revisão de origem, e marcação dos itens que bloqueiam a ativação. Nenhum
+teste foi reexecutado e nenhum dado remoto foi alterado.
 As propostas originais de contratos acima não substituem o módulo vivo nem
 exigem recriar arquivos/RPCs já atendidos pelos dispatchers existentes.
