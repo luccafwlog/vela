@@ -1,61 +1,74 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle } from 'lucide-react'
-import { Badge } from '../ui/Badge'
+import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { getAlertTypeLabel, getEffectiveAlertType, type AlertQueueRow } from '../../services/alerts'
+import { financialAlertAction } from './financialAlertAction'
 
+const VISIBLE = 4
+
+/**
+ * Alertas financeiros em aberto no topo de /taxas-locais. Cada alerta diz o
+ * tipo, a mensagem e leva ao lugar onde se resolve (a fatura abre no detalhe
+ * desta página). Erro de consulta não some: avisa que a lista não foi lida.
+ */
 export function FinancialAlertsPanel({
   alerts,
   loading = false,
+  error = false,
+  onOpenInvoice,
+  onOpenValidacao,
 }: {
   alerts: AlertQueueRow[]
   loading?: boolean
+  error?: boolean
+  onOpenInvoice: (invoiceId: number) => void
+  onOpenValidacao: (blId: string) => void
 }) {
   if (loading) {
+    return <div className="app-fin-alerts app-fin-alerts--loading" aria-busy="true"><span className="sr-only">Carregando alertas financeiros…</span></div>
+  }
+  if (error) {
     return (
-      <div className="mb-5 rounded-xl border border-[#30363d] bg-[#161b22] p-4">
-        <div className="mb-3 h-4 w-48 rounded bg-slate-700/60" />
-        <div className="grid gap-2">
-          <div className="h-9 rounded-lg bg-slate-800/80" />
-          <div className="h-9 rounded-lg bg-slate-800/60" />
-        </div>
+      <div className="app-fin-alerts" role="status">
+        <p className="app-fin-alerts__title"><AlertTriangle size={16} aria-hidden="true" />Não foi possível consultar os alertas financeiros.</p>
+        <Link className="app-fin-alerts__link" to="/alertas">Abrir Alertas<ArrowRight size={14} aria-hidden="true" /></Link>
       </div>
     )
   }
-
   if (!alerts.length) return null
 
   return (
-    <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-100">
-        <AlertTriangle size={15} />
+    <section className="app-fin-alerts" aria-labelledby="fin-alerts-title">
+      <h2 id="fin-alerts-title" className="app-fin-alerts__title">
+        <AlertTriangle size={16} aria-hidden="true" />
         {alerts.length} alerta{alerts.length !== 1 ? 's' : ''} financeiro{alerts.length !== 1 ? 's' : ''} em aberto
-      </div>
-      <div className="grid gap-2">
-        {alerts.slice(0, 5).map((alert) => (
-          <div
-            key={alert.item_id ?? alert.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-400/20 bg-[#0d1117]/60 px-3 py-2 sm:gap-3"
-          >
-            <div className="flex min-w-0 flex-1 basis-56 items-center gap-2">
-              <Badge tone="yellow">
-                Aberto
-              </Badge>
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold text-amber-200">{getAlertTypeLabel(getEffectiveAlertType(alert))}</div>
-                <span className="block break-words text-xs text-slate-200">{alert.message}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-        {alerts.length > 5 ? (
-          <div className="text-xs text-amber-300/70">
-            + {alerts.length - 5} alerta{alerts.length - 5 !== 1 ? 's' : ''}. Veja todos em{' '}
-            <Link to="/alertas" className="underline hover:text-amber-200">
-              /alertas
-            </Link>.
-          </div>
-        ) : null}
-      </div>
-    </div>
+      </h2>
+      <ul className="app-fin-alerts__list">
+        {alerts.slice(0, VISIBLE).map((alert) => {
+          const action = financialAlertAction(alert)
+          return (
+            <li key={alert.item_id ?? alert.id} className="app-fin-alerts__item">
+              <span className="app-fin-alerts__type">{getAlertTypeLabel(getEffectiveAlertType(alert))}</span>
+              <span className="app-fin-alerts__message">{alert.message}</span>
+              {action?.kind === 'invoice' ? (
+                <button type="button" className="app-fin-alerts__link" onClick={() => onOpenInvoice(action.invoiceId)}>
+                  Abrir fatura<ArrowRight size={14} aria-hidden="true" />
+                </button>
+              ) : action?.kind === 'validacao' ? (
+                <button type="button" className="app-fin-alerts__link" onClick={() => onOpenValidacao(action.blId)}>
+                  Ver na Validação<ArrowRight size={14} aria-hidden="true" />
+                </button>
+              ) : action ? (
+                <Link className="app-fin-alerts__link" to={action.to}>Abrir<ArrowRight size={14} aria-hidden="true" /></Link>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+      {alerts.length > VISIBLE ? (
+        <Link className="app-fin-alerts__link" to="/alertas">
+          Ver os outros {alerts.length - VISIBLE} em Alertas<ArrowRight size={14} aria-hidden="true" />
+        </Link>
+      ) : null}
+    </section>
   )
 }

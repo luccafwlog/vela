@@ -6,8 +6,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   detailInvoiceId: vi.fn(),
+  validacaoBlSearch: vi.fn(),
   invalidateQueries: vi.fn(),
   detectOverdueInvoices: vi.fn(),
+  invoices: { rows: [], count: 0 } as { rows: unknown[]; count: number },
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -19,7 +21,7 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn().mockResolvedValue(false) }))
 vi.mock('../../hooks/useBilling', () => ({
-  useInvoices: () => ({ data: { rows: [], count: 0 }, isLoading: false, error: null }),
+  useInvoices: () => ({ data: mocks.invoices, isLoading: false, error: null }),
   useBillingCustomers: () => ({ data: [] }),
   usePendingReissues: () => ({ data: [] }),
   useRetryPendingConsolidatedReissue: () => ({ mutateAsync: vi.fn(), isPending: false, variables: undefined }),
@@ -35,7 +37,12 @@ vi.mock('../../components/billing/InvoiceDetailModal', () => ({
     return <div data-testid="invoice-id">{String(invoiceId)}</div>
   },
 }))
-vi.mock('../../components/billing/ValidacaoTab', () => ({ ValidacaoTab: () => null }))
+vi.mock('../../components/billing/ValidacaoTab', () => ({
+  ValidacaoTab: ({ initialBlSearch }: { initialBlSearch?: string }) => {
+    mocks.validacaoBlSearch(initialBlSearch)
+    return null
+  },
+}))
 vi.mock('../../components/billing/FinancialAlertsPanel', () => ({ FinancialAlertsPanel: () => null }))
 vi.mock('../../components/billing/InvoiceFiltersBar', () => ({ InvoiceFiltersBar: () => null }))
 vi.mock('../../components/billing/InvoicesTable', () => ({ InvoicesTable: () => null }))
@@ -50,6 +57,7 @@ function LocationProbe() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.invoices = { rows: [], count: 0 }
 })
 afterEach(cleanup)
 
@@ -72,4 +80,53 @@ it('preserves non-tab query parameters when redirecting demurrage', async () => 
 it('não executa detector de vencimento ao abrir Faturamento', () => {
   render(<MemoryRouter><TaxasLocais /></MemoryRouter>)
   expect(mocks.detectOverdueInvoices).not.toHaveBeenCalled()
+})
+
+it('a aba ativa fica na URL e mantém o recorte ao voltar para Faturas', async () => {
+  const { default: userEvent } = await import('@testing-library/user-event')
+  const user = userEvent.setup()
+  render(
+    <MemoryRouter initialEntries={['/taxas-locais?customer=7&customerName=ACME']}>
+      <TaxasLocais />
+      <LocationProbe />
+    </MemoryRouter>,
+  )
+  await user.click(screen.getByRole('tab', { name: 'Validação' }))
+  expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?customer=7&customerName=ACME&tab=validacao')
+  await user.click(screen.getByRole('tab', { name: 'Faturas' }))
+  expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?customer=7&customerName=ACME')
+})
+
+it('link com página além do total recua para a última página que existe', async () => {
+  mocks.invoices = { rows: [], count: 45 }
+  render(
+    <MemoryRouter initialEntries={['/taxas-locais?situacao=paid&page=8']}>
+      <TaxasLocais />
+      <LocationProbe />
+    </MemoryRouter>,
+  )
+
+  await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?situacao=paid&page=3'))
+})
+
+it('o B/L filtrado em Faturas não filtra a Validação ao trocar de aba', async () => {
+  const { default: userEvent } = await import('@testing-library/user-event')
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/taxas-locais?bl=COSU123']}><TaxasLocais /></MemoryRouter>)
+
+  await user.click(screen.getByRole('tab', { name: 'Validação' }))
+
+  expect(mocks.validacaoBlSearch).toHaveBeenLastCalledWith('')
+})
+
+it('link antigo com tab=pendencias&bl abre a Validação filtrada pelo B/L', async () => {
+  render(
+    <MemoryRouter initialEntries={['/taxas-locais?tab=pendencias&bl=COSU123']}>
+      <TaxasLocais />
+      <LocationProbe />
+    </MemoryRouter>,
+  )
+
+  await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?tab=pendencias&validacaoBl=COSU123'))
+  expect(mocks.validacaoBlSearch).toHaveBeenLastCalledWith('COSU123')
 })

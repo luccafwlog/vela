@@ -1,19 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { EmptyState } from '../ui/Card'
+import { Combobox, type ComboOption } from '../ui/Combobox'
 import { Field, Input } from '../ui/Input'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { VoyageCombobox } from '../shared/VoyageCombobox'
-import { useBillingCustomers } from '../../hooks/useBilling'
+import { listBillingCustomers } from '../../services/billing'
+import { formatBRL, formatCnpjCpf } from '../../lib/utils'
+import { userFacingErrorMessage } from '../../lib/errors'
 import { useConsolidatableReceivables, useCreateConsolidatedInvoice } from '../../hooks/useBillingLedger'
 import { isReceivableSelectable, summarizeConsolidation } from './consolidatedInvoiceSelection'
 
-function fmtBRL(v: number | null | undefined) {
-  return 'R$ ' + Number(v ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+const fmtBRL = (value: number | null | undefined) => formatBRL(value)
 
 type Props = { open: boolean; onClose: () => void }
 
@@ -21,15 +22,14 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [customerId, setCustomerId] = useState<number | null>(null)
-  const [customerSearch, setCustomerSearch] = useState('')
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const [customerName, setCustomerName] = useState('')
+  const [customerKey, setCustomerKey] = useState(0)
   const [voyageId, setVoyageId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<number[]>([])
   const [error, setError] = useState('')
 
-  const { data: customerOptions } = useBillingCustomers(customerSearch)
-  const { data: receivables, isLoading } = useConsolidatableReceivables({
+  const { data: receivables, isLoading, error: receivablesError } = useConsolidatableReceivables({
     customerId,
     voyageId,
     search: search.trim() || null,
@@ -41,37 +41,10 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
   const selectedTotal = summary.total
   const eligibleCount = summary.eligibleCount
 
-  const pickerRef = useRef<HTMLDivElement>(null)
-
-  // Fecha o dropdown de cliente ao clicar fora ou apertar Escape.
-  useEffect(() => {
-    if (!pickerOpen) return
-    function onPointerDown(event: PointerEvent) {
-      if (!pickerRef.current?.contains(event.target as Node)) setPickerOpen(false)
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setPickerOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [pickerOpen])
-
-  function clearCustomer() {
-    setCustomerId(null)
-    setCustomerSearch('')
-    setVoyageId(null)
-    setSearch('')
-    setSelected([])
-    setPickerOpen(false)
-  }
-
   function reset() {
     setCustomerId(null)
-    setCustomerSearch('')
+    setCustomerName('')
+    setCustomerKey((key) => key + 1)
     setVoyageId(null)
     setSearch('')
     setSelected([])
@@ -93,6 +66,10 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
       setError('Selecione um cliente.')
       return
     }
+    if (receivablesError) {
+      setError('Não foi possível consultar os B/Ls deste Cliente. Feche e abra de novo antes de emitir.')
+      return
+    }
     if (selected.length === 0) {
       setError('Selecione ao menos um B/L com saldo aberto.')
       return
@@ -102,7 +79,6 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
       setError('A seleção mudou. Atualize a lista e selecione novamente os B/Ls elegíveis.')
       return
     }
-    const customerName = customerOptions?.find((customer) => customer.id === customerId)?.name ?? customerSearch
     const confirmed = await confirm({
       title: 'Emitir fatura consolidada',
       message: `Emitir uma fatura consolidada de ${fmtBRL(selectedTotal)} para ${customerName}?`,
@@ -123,9 +99,7 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
       showToast(`Consolidada ${result.invoice_number} emitida (${fmtBRL(result.total_brl)}).`, 'success')
       close()
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Falha ao emitir consolidada.'
-      setError(message)
-      showToast(message, 'error')
+      setError(`${userFacingErrorMessage(e, 'Falha ao emitir consolidada.')} Nada foi emitido.`)
     }
   }
 
@@ -133,76 +107,39 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
     <Modal
       open={open}
       onClose={close}
-      title="Nova Consolidada"
+      title="Nova fatura consolidada"
       className="invoice-create-dialog"
       bodyClassName="invoice-create-dialog__body"
     >
       <div className="invoice-create-modal" data-testid="consolidated-invoice-main">
         <section className="invoice-create-modal__filters" data-testid="consolidated-invoice-filters">
           <div className="invoice-create-modal__filters-grid">
-            {/* Customer picker (not wrapped in Field: dropdown buttons must not live inside a <label>) */}
-            <div className="app-field invoice-create-modal__field--customer">
-              <span className="app-field__label">
-                Cliente<span className="app-field__required" aria-hidden="true"> *</span>
-              </span>
-              <div ref={pickerRef} className="invoice-search-field">
-                <Input
-                  placeholder="Buscar cliente..."
-                  role="combobox"
-                  aria-expanded={pickerOpen}
-                  autoComplete="off"
-                  value={customerSearch}
-                  onChange={(e) => {
+            <div className="invoice-create-modal__field--customer">
+              <Combobox
+                key={`consolidated-customer-${customerKey}`}
+                label="Cliente"
+                placeholder="Nome ou CNPJ"
+                // Invalida na hora: com o debounce do Combobox, a lista do Cliente anterior seguiria emitível.
+                onInputChange={(value) => {
+                  if (customerId != null && value !== customerName) {
                     setCustomerId(null)
+                    setCustomerName('')
                     setVoyageId(null)
+                    setSearch('')
                     setSelected([])
-                    setCustomerSearch(e.target.value)
-                    setPickerOpen(true)
-                  }}
-                  onClick={() => setPickerOpen(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape' && pickerOpen) {
-                      e.stopPropagation()
-                      setPickerOpen(false)
-                    }
-                  }}
-                  style={customerId ? { paddingRight: 34 } : undefined}
-                />
-                {customerId && (
-                  <button
-                    type="button"
-                    className="invoice-search-field__clear"
-                    aria-label="Limpar cliente"
-                    onClick={clearCustomer}
-                  >
-                    ×
-                  </button>
-                )}
-                {pickerOpen && (customerOptions?.length ?? 0) > 0 && (
-                  <div className="invoice-search-field__menu" role="listbox">
-                    {customerOptions!.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        role="option"
-                        aria-selected={c.id === customerId}
-                        className={`invoice-search-field__option${c.id === customerId ? ' invoice-search-field__option--active' : ''}`}
-                        onClick={() => {
-                          setCustomerId(c.id)
-                          setVoyageId(null)
-                          setSearch('')
-                          setCustomerSearch(c.name)
-                          setPickerOpen(false)
-                          setSelected([])
-                        }}
-                      >
-                        <div className="invoice-search-field__option-name">{c.name}</div>
-                        <div className="invoice-search-field__option-meta">{c.cnpj_cpf}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                  }
+                }}
+                onValueChange={() => undefined}
+                fetchOptions={async (query) => (await listBillingCustomers(query)).map((row): ComboOption => ({ value: String(row.id), label: row.name, meta: formatCnpjCpf(row.cnpj_cpf) }))}
+                onSelectOption={(option) => {
+                  setCustomerId(Number(option.value))
+                  setCustomerName(option.label)
+                  setVoyageId(null)
+                  setSearch('')
+                  setSelected([])
+                  setError('')
+                }}
+              />
             </div>
 
             <div className="invoice-create-modal__field--voyage">
@@ -230,38 +167,38 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
             </div>
           </div>
 
-          {error && <div style={{ color: 'var(--app-danger, #dc2626)', fontSize: 13 }}>{error}</div>}
+          {error ? <p role="alert" className="app-invoice-detail__alert">{error}</p> : null}
         </section>
 
         <section className="invoice-create-modal__table-section" data-testid="consolidated-invoice-table">
           <div className="invoice-create-modal__table-scroll">
             {!customerId ? (
               <EmptyState title="Selecione um cliente" description="Selecione um cliente para ver B/Ls com saldo aberto." />
+            ) : receivablesError ? (
+              <p role="alert" className="app-invoice-detail__alert app-invoice-detail__error">Não foi possível consultar os B/Ls deste Cliente. Feche e abra de novo antes de emitir.</p>
             ) : isLoading ? (
-              <EmptyState title="Carregando..." description="Buscando B/Ls com saldo aberto." />
+              <EmptyState title="Consultando B/Ls…" description="Buscando B/Ls com saldo aberto." />
             ) : rows.length === 0 ? (
-              <EmptyState title="Sem B/Ls" description="Cliente não possui B/Ls abertos para consolidar." />
+              <EmptyState title="Nenhum B/L para consolidar" description="Este Cliente não tem B/L com saldo aberto e CE Mercante nos filtros atuais." />
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table className="app-table app-table--compact app-invoice-detail__table">
+                <caption className="sr-only">B/Ls do Cliente com saldo aberto</caption>
                 <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--app-border)' }}>
-                    <th style={{ padding: '8px' }}></th>
-                    <th style={{ padding: '8px' }}>B/L</th>
-                    <th style={{ padding: '8px' }}>Navio/Viagem</th>
-                    <th style={{ padding: '8px' }}>Individual</th>
-                    <th style={{ padding: '8px', textAlign: 'right' }}>Saldo</th>
-                    <th style={{ padding: '8px' }}>Elegibilidade</th>
+                  <tr>
+                    <th scope="col"><span className="sr-only">Selecionar</span></th>
+                    <th scope="col">B/L</th>
+                    <th scope="col">Navio / Viagem</th>
+                    <th scope="col">Fatura individual</th>
+                    <th scope="col" className="app-invoice-detail__num">Saldo</th>
+                    <th scope="col">Pode consolidar</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => {
                     const eligible = isReceivableSelectable(r)
                     return (
-                      <tr
-                        key={r.receivable_id}
-                        style={{ borderBottom: '1px solid var(--app-border)', opacity: eligible ? 1 : 0.6 }}
-                      >
-                        <td style={{ padding: '8px' }}>
+                      <tr key={r.receivable_id}>
+                        <td>
                           <input
                             type="checkbox"
                             aria-label={`Selecionar B/L ${r.bl_id}`}
@@ -270,17 +207,17 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
                             onChange={() => toggle(r.receivable_id)}
                           />
                         </td>
-                        <td style={{ padding: '8px', fontWeight: 600 }}>{r.bl_id}</td>
-                        <td style={{ padding: '8px' }}>
+                        <td className="app-invoice-detail__code">{r.bl_id}</td>
+                        <td>
                           {[r.vessel_name, r.voyage_number].filter(Boolean).join(' ') || '—'}
                         </td>
-                        <td style={{ padding: '8px' }}>{r.individual_invoice_number ?? '—'}</td>
-                        <td style={{ padding: '8px', textAlign: 'right' }}>{fmtBRL(r.balance_brl)}</td>
-                        <td style={{ padding: '8px' }}>
+                        <td>{r.individual_invoice_number ?? '—'}</td>
+                        <td className="app-invoice-detail__num">{fmtBRL(r.balance_brl)}</td>
+                        <td>
                           {eligible ? (
-                            <Badge tone="green">Elegível</Badge>
+                            <Badge tone="success">Sim</Badge>
                           ) : (
-                            <span style={{ fontSize: 12, opacity: 0.8 }}>{r.eligibility_reason}</span>
+                            <span className="app-invoice-detail__note">Não: {r.eligibility_reason}</span>
                           )}
                         </td>
                       </tr>
@@ -293,10 +230,11 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
         </section>
 
         <div className="invoice-create-modal__footer" data-testid="consolidated-invoice-footer">
-          <div style={{ fontSize: 13 }}>
-            {selected.length} de {eligibleCount} elegíveis · <strong>{fmtBRL(selectedTotal)}</strong>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <p className="app-manual-invoice__total" aria-live="polite">
+            <span>{selected.length} de {eligibleCount} B/Ls que podem ser consolidados</span>
+            <strong className="app-manual-invoice__num">{fmtBRL(selectedTotal)}</strong>
+          </p>
+          <div className="app-manual-invoice__actions">
             <Button variant="ghost" onClick={close}>
               Voltar
             </Button>
@@ -304,7 +242,8 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
               variant="primary"
               onClick={submit}
               loading={createMutation.isPending}
-              disabled={selected.length === 0}
+              loadingLabel="Emitindo…"
+              disabled={selected.length === 0 || Boolean(receivablesError)}
             >
               Emitir consolidada
             </Button>

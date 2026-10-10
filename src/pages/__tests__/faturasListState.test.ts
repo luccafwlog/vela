@@ -1,0 +1,51 @@
+import { describe, expect, it } from 'vitest'
+import { faturasFiltersFromSearch, fromLegacyValidacaoLink, tabFromSearch, withFaturasFilter, withoutFaturasFilters, withTab, withValidacaoBl } from '../faturasListState'
+
+const params = (query: string) => new URLSearchParams(query)
+
+describe('faturasListState', () => {
+  it('lê os links antigos de Clientes, B/L e Conciliação', () => {
+    const filters = faturasFiltersFromSearch(params('tab=invoices&customer=42&customerName=ACME&bl=BL-1&invoice=9'))
+    expect(filters).toMatchObject({ customerId: '42', blSearch: 'BL-1', page: 1, pageSize: 20 })
+    expect(tabFromSearch(params('tab=invoices'))).toBe('faturas')
+    expect(tabFromSearch(params('tab=pendencias'))).toBe('validacao')
+    expect(tabFromSearch(params('invoice=9'))).toBe('faturas')
+    expect(tabFromSearch(params('tab=validacao&invoice=9'))).toBe('validacao')
+  })
+
+  it('ignora situação, tipo, página e tamanho inválidos', () => {
+    expect(faturasFiltersFromSearch(params('situacao=overdue&tipo=x&page=-2&pageSize=33'))).toMatchObject({ status: '', invoiceType: '', page: 1, pageSize: 20 })
+    expect(faturasFiltersFromSearch(params('situacao=paid&tipo=manual&page=3&pageSize=50'))).toMatchObject({ status: 'paid', invoiceType: 'manual', page: 3, pageSize: 50 })
+    expect(faturasFiltersFromSearch(params('emissaoDe=foo&emissaoAte=2026-02-30&pagamentoDe=2026-1-5&pagamentoAte=2026-02-28')))
+      .toMatchObject({ dateFrom: '', dateTo: '', paidFrom: '', paidTo: '2026-02-28' })
+  })
+
+  it('mudar um filtro volta à página 1 e preserva aba e fatura aberta', () => {
+    const next = withFaturasFilter(params('tab=validacao&invoice=9&page=4&situacao=paid'), 'invoiceType', 'manual')
+    expect(next.toString()).toBe('tab=validacao&invoice=9&situacao=paid&tipo=manual')
+    expect(withFaturasFilter(params('page=4'), 'page', 1).toString()).toBe('')
+    expect(withFaturasFilter(params('customer=42&customerName=ACME'), 'customerId', '').toString()).toBe('')
+  })
+
+  it('Limpar filtros remove só o recorte; a aba Faturas não ocupa a URL', () => {
+    expect(withoutFaturasFilters(params('invoice=9&customer=1&customerName=A&fatura=F&page=2&pageSize=50')).toString()).toBe('invoice=9')
+    expect(withTab(params('tab=pendencias&bl=X'), 'faturas').toString()).toBe('bl=X')
+    expect(withTab(params('bl=X'), 'validacao').toString()).toBe('bl=X&tab=validacao')
+  })
+
+  it('o B/L da Validação não passa para Faturas nem volta ao trocar de aba', () => {
+    const viaAlerta = withValidacaoBl(params('bl=X&situacao=paid'), 'BL-9')
+    expect(viaAlerta.toString()).toBe('bl=X&situacao=paid&tab=validacao&validacaoBl=BL-9')
+    expect(faturasFiltersFromSearch(viaAlerta).blSearch).toBe('X')
+    const deVoltaAFaturas = withTab(viaAlerta, 'faturas')
+    expect(deVoltaAFaturas.toString()).toBe('bl=X&situacao=paid')
+    expect(withTab(deVoltaAFaturas, 'validacao').get('validacaoBl')).toBeNull()
+  })
+
+  it('converte o link antigo que filtrava a Validação por bl', () => {
+    expect(fromLegacyValidacaoLink(params('tab=pendencias&bl=X'))?.toString()).toBe('tab=pendencias&validacaoBl=X')
+    expect(fromLegacyValidacaoLink(params('tab=validacao&bl=X'))?.toString()).toBe('tab=validacao&validacaoBl=X')
+    expect(fromLegacyValidacaoLink(params('bl=X'))).toBeNull()
+    expect(fromLegacyValidacaoLink(params('tab=validacao&bl=X&validacaoBl=Y'))).toBeNull()
+  })
+})

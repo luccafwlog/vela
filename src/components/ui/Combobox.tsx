@@ -15,6 +15,11 @@ export type ComboboxProps = {
   placeholder?: string
   /** Disparado (com debounce de 300ms) a cada digitacao — usado para filtrar. */
   onValueChange: (value: string) => void
+  /**
+   * Disparado na hora, sem debounce, a cada edição do texto. Use para invalidar
+   * uma seleção anterior antes que um envio do formulário a aproveite.
+   */
+  onInputChange?: (value: string) => void
   /** Carrega sugestoes em tempo real conforme o texto digitado. */
   fetchOptions: (query: string) => Promise<ComboOption[]>
   /** Disparado ao escolher uma sugestao da lista. */
@@ -39,6 +44,7 @@ export function Combobox({
   onValueChange,
   fetchOptions,
   onSelectOption,
+  onInputChange,
   minChars = 1,
   refreshKey = null,
   disabled = false,
@@ -192,6 +198,7 @@ export function Combobox({
         onChange={(event) => {
           setTouched(true)
           setText(event.target.value)
+          onInputChange?.(event.target.value)
           setOpen(true)
           setHighlight(-1)
         }}

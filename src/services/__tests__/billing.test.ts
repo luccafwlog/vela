@@ -524,6 +524,18 @@ describe('listInvoiceLinksByBls', () => {
 })
 
 describe('listInvoices', () => {
+  it('página além do total devolve só a contagem, para a lista recuar', async () => {
+    const outOfRange = chainQuery({ data: null, error: { code: 'PGRST103', message: 'Requested range not satisfiable' }, count: null })
+    const head = { then: (resolve: (value: QueryResult) => unknown) => Promise.resolve({ data: [], error: null, count: 42 }).then(resolve) }
+    outOfRange.range.mockImplementation((from: number) => (from === 0 ? head : outOfRange))
+    supabaseMocks.from.mockImplementation((table: string) => {
+      if (table === 'invoices') return outOfRange
+      throw new Error(`tabela inesperada: ${table}`)
+    })
+
+    await expect(listInvoices({ ...baseFilters, page: 8, pageSize: 20 })).resolves.toEqual({ rows: [], count: 42 })
+  })
+
   it('monta os filtros diretos na query de invoices (status, tipo, busca, cliente, datas, paginação)', async () => {
     const invoices = chainQuery({ data: [{ id: 1 }], error: null, count: 42 })
     supabaseMocks.from.mockImplementation((table: string) => {

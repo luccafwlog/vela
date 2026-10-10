@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { InvoicesTable } from '../InvoicesTable'
 import type { InvoiceListRow } from '../../../services/billing'
@@ -38,7 +38,7 @@ describe('InvoicesTable', () => {
   it('oferece ação no vazio e alinha a coluna financeira à direita', () => {
     render(
       <MemoryRouter>
-        <InvoicesTable invoices={[]} isLoading={false} error={null} totalCount={0} filterDescription="" emptyState={{ title: 'Nenhuma fatura' }} emptyAction={<button>Limpar filtros</button>} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={vi.fn()} />
+        <InvoicesTable invoices={[]} isLoading={false} error={null} totalCount={0} emptyState={{ title: 'Nenhuma fatura' }} emptyAction={<button>Limpar filtros</button>} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={vi.fn()} />
       </MemoryRouter>,
     )
     expect(screen.getByRole('button', { name: 'Limpar filtros' })).toBeTruthy()
@@ -46,10 +46,10 @@ describe('InvoicesTable', () => {
     cleanup()
     render(
       <MemoryRouter>
-        <InvoicesTable invoices={[baseInvoice]} isLoading={false} error={null} totalCount={1} filterDescription="" emptyState={{ title: 'Nenhuma fatura' }} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={vi.fn()} />
+        <InvoicesTable invoices={[baseInvoice]} isLoading={false} error={null} totalCount={1} emptyState={{ title: 'Nenhuma fatura' }} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={vi.fn()} />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('columnheader', { name: 'Financeiro' }).className).toContain('text-right')
+    expect(screen.getByRole('columnheader', { name: 'Valores' }).className).toContain('app-invoices__num')
   })
 
   it('aponta o número do BL para a ficha do B/L', () => {
@@ -60,7 +60,7 @@ describe('InvoicesTable', () => {
           isLoading={false}
           error={null}
           totalCount={1}
-          filterDescription=""
+
           emptyState={{ title: 'Nenhuma fatura' }}
           page={1}
           totalPages={1}
@@ -93,7 +93,7 @@ describe('InvoicesTable', () => {
           isLoading={false}
           error={null}
           totalCount={1}
-          filterDescription=""
+
           emptyState={{ title: 'Nenhuma fatura' }}
           page={1}
           totalPages={1}
@@ -127,7 +127,7 @@ describe('InvoicesTable', () => {
           isLoading={false}
           error={null}
           totalCount={1}
-          filterDescription=""
+
           emptyState={{ title: 'Nenhuma fatura' }}
           page={1}
           totalPages={1}
@@ -141,5 +141,33 @@ describe('InvoicesTable', () => {
     expect(screen.queryByText('0 B/Ls')).toBeNull()
     expect(screen.getByText('Avulsa')).toBeTruthy()
     expect(screen.getByText('Navio Manual · 42N')).toBeTruthy()
+  })
+
+  it('o número abre o detalhe, o CNPJ sai com máscara e a parcial mostra o saldo e o recebido', () => {
+    const onSelectInvoice = vi.fn()
+    render(
+      <MemoryRouter>
+        <InvoicesTable invoices={[{ ...baseInvoice, status: 'partially_paid', total_paid_brl: 500, balance_brl: 1000 }]} isLoading={false} error={null} totalCount={1} emptyState={{ title: 'Nenhuma fatura' }} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={onSelectInvoice} />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir fatura FAT-001' }))
+    expect(onSelectInvoice).toHaveBeenCalledWith(1)
+    expect(screen.getByText('12.345.678/0001-99')).toBeTruthy()
+    expect(screen.getByText('Parcialmente paga')).toBeTruthy()
+    expect(screen.getByText(/em aberto de R\$\s1\.500,00/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Detalhes' })).toBeNull()
+  })
+
+  it('erro de consulta avisa e oferece nova tentativa em vez de parecer lista vazia', () => {
+    const onRetry = vi.fn()
+    render(
+      <MemoryRouter>
+        <InvoicesTable invoices={[]} isLoading={false} error={new Error('falhou')} onRetry={onRetry} totalCount={0} emptyState={{ title: 'Nenhuma fatura' }} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={vi.fn()} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('alert').textContent).toContain('Não foi possível carregar as faturas')
+    expect(screen.queryByText('Nenhuma fatura')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+    expect(onRetry).toHaveBeenCalled()
   })
 })

@@ -1,7 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
 import { useToast } from '../ui/Toast'
 import { usePendingReissues, useRetryPendingConsolidatedReissue } from '../../hooks/useBilling'
 import { useAuth } from '../../hooks/useAuth'
@@ -38,29 +36,30 @@ export function PendingReissuesPanel({ onOpenInvoice }: Props) {
   }
 
   return (
-    <Card className="mb-5" data-testid="pending-reissues">
-      <h2 className="mb-1 text-base font-semibold text-white">Reemissão pendente</h2>
-      <p className="mb-3 text-xs text-slate-400">
-        Faturas canceladas pela correção do B/L cuja nova emissão travou. Resolva o motivo indicado no alerta da fatura e use Emitir fatura na ficha do B/L; a consolidada volta sozinha quando as individuais saírem.
+    <section className="app-fin-alerts" data-testid="pending-reissues" aria-labelledby="pending-reissues-title">
+      <h2 id="pending-reissues-title" className="app-fin-alerts__title">Reemissão pendente · {rows.length}</h2>
+      <p className="app-fin-alerts__message">
+        Faturas canceladas pela correção do B/L cuja nova emissão travou. Resolva o motivo do alerta da fatura e use Emitir fatura na ficha do B/L; a consolidada volta sozinha quando as individuais saírem.
       </p>
-      <ul className="grid gap-2 text-sm text-slate-200">
+      <ul className="app-fin-alerts__list">
         {rows.map((row) => (
-          <li key={row.invoice_id} className="flex flex-wrap items-center gap-2">
-            <Badge tone="yellow">{row.invoice_type === 'consolidated' ? 'Consolidada' : 'Individual'}</Badge>
-            <button type="button" className="font-semibold text-[#58a6ff] hover:underline" onClick={() => onOpenInvoice(row.invoice_id)}>
-              {row.invoice_number}
-            </button>
-            <span>{row.customer_name ?? '-'}</span>
-            <span className="text-slate-400">cancelada em {formatDate(row.cancelled_at)}</span>
-            <span className="flex flex-wrap gap-1">
-              {row.bl_ids.map((blId) => (
-                <Link key={blId} className="text-[#58a6ff] hover:underline" to={`/bls/${blId}`}>{blId}</Link>
+          <li key={row.invoice_id} className="app-fin-alerts__item">
+            <span className="app-fin-alerts__type">
+              <button type="button" className="app-fin-alerts__link" onClick={() => onOpenInvoice(row.invoice_id)}>{row.invoice_number}</button>
+              {' · '}{row.invoice_type === 'consolidated' ? 'Consolidada' : 'Individual'}
+            </span>
+            <span className="app-fin-alerts__message">
+              {row.customer_name ?? 'Cliente não identificado'} · cancelada em {formatDate(row.cancelled_at)}
+              {row.bl_ids.length ? ' · ' : ''}
+              {row.bl_ids.map((blId, index) => (
+                <span key={blId}>{index > 0 ? ', ' : ''}<Link className="app-fin-alerts__link" to={`/bls/${encodeURIComponent(blId)}`}>{blId}</Link></span>
               ))}
             </span>
             {row.invoice_type === 'consolidated' && isAdmin ? (
               <Button
                 variant="secondary"
                 loading={retry.isPending && retry.variables === row.invoice_id}
+                loadingLabel="Reemitindo…"
                 onClick={() => void handleRetry(row.invoice_id)}
               >
                 Tentar reemitir
@@ -69,6 +68,6 @@ export function PendingReissuesPanel({ onOpenInvoice }: Props) {
           </li>
         ))}
       </ul>
-    </Card>
+    </section>
   )
 }

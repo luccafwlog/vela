@@ -21,7 +21,7 @@ export function calloutTone(code: string) {
       title: 'text-[var(--app-muted)]',
     }
   }
-  return { body: 'border-amber-300 bg-amber-50 text-amber-900', title: 'text-amber-700' }
+  return { body: 'border-[var(--app-warning-border)] bg-[var(--app-warning-bg)] text-[var(--app-text)]', title: 'text-[var(--app-warning-fg)]' }
 }
 
 const AUDIT_FIELD_LABEL: Record<string, string> = {

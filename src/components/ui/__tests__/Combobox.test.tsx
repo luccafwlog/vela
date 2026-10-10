@@ -7,6 +7,19 @@ import { Combobox } from '../Combobox'
 afterEach(() => vi.useRealTimers())
 
 describe('Combobox acessível', () => {
+  it('avisa cada edição na hora e o filtro só depois do debounce', async () => {
+    vi.useFakeTimers()
+    const onInputChange = vi.fn()
+    const onValueChange = vi.fn()
+    render(<Combobox label="Cliente" onInputChange={onInputChange} onValueChange={onValueChange} fetchOptions={async () => []} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Cliente' }), { target: { value: 'GOL' } })
+
+    expect(onInputChange).toHaveBeenCalledWith('GOL')
+    expect(onValueChange).not.toHaveBeenCalled()
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(onValueChange).toHaveBeenCalledWith('GOL')
+  })
+
   it('anuncia a opção ativa sem aninhar botão em option', async () => {
     vi.useFakeTimers()
     render(<Combobox label="Viagem" onValueChange={vi.fn()} fetchOptions={async () => [{ value: '1', label: 'NAVIO / 1' }]} />)

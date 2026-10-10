@@ -1,6 +1,6 @@
 # Faturamento
 
-> **Status:** ativo · **Atualizado:** 2026-10-08 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e estorno de pagamentos também são abertos por `/reconciliacao`
+> **Status:** ativo · **Atualizado:** 2026-10-09 · **Rotas:** operação em `/taxas-locais`; `/faturamento` é redirect legado; detalhe e estorno de pagamentos também são abertos por `/reconciliacao`
 
 ## Propósito e escopo
 
@@ -16,7 +16,7 @@ Para taxas locais, o saldo canônico é o ledger por recebível; a tabela
 `invoices` continua sendo o documento emitido.
 
 Desde a migration `097`, o Financeiro também pode emitir Fatura Avulsa pelo
-botão **Gerar fatura avulsa** nesta rota. O operador escolhe o Cliente e o Tipo de cobrança. Item da tabela exige B/L e traz preço/quantidade calculados no servidor; Outra permite nome, descrição, quantidade e valor livres. Em Outra, B/L e
+botão **Gerar fatura avulsa** nesta rota. O operador escolhe o Cliente e o Tipo de cobrança (controle segmentado Item da tabela / Outra). Item da tabela exige B/L e traz item, quantidade e valor resolvidos no servidor; Outra permite nome, quantidade e valor livres em R$. A descrição da cobrança aparece na fatura impressa e no Portal. Em Outra, B/L e
 Viagem são opcionais; um B/L informado precisa pertencer ao Cliente e ser
 compatível com a Viagem. A RPC `create_manual_invoice` grava uma invoice
 `manual` e seu item em transação, sem exigir CE Mercante ou gate local
@@ -105,15 +105,41 @@ carga.
 
 ### Lista de invoices
 
-`src/pages/TaxasLocais.tsx` abre por padrão a aba **Faturas**. A lista usa:
+`src/pages/TaxasLocais.tsx` abre por padrão a aba **Faturas**. Desde a etapa 10
+da revisão visual (2026-10-09), a URL é a fonte do recorte
+(`src/pages/faturasListState.ts`): `tab=validacao` (ou o antigo `pendencias`),
+`invoice`, `customer`/`customerName`, `bl`, `fatura`, `viagem`, `pod`, `tipo`,
+`situacao`, `emissaoDe`/`emissaoAte`, `pagamentoDe`/`pagamentoAte`, `page` e
+`pageSize`; links antigos com `tab=invoices` continuam valendo. Data fora do
+formato AAAA-MM-DD é ignorada e página além do total recua para a última.
 
-- `src/components/billing/InvoiceFiltersBar.tsx` para B/L, invoice, cliente,
-  navio/viagem, POD, tipo, status, emissão, pagamento e tamanho de página;
-- `src/components/billing/InvoicesTable.tsx` para paginação, totais, B/Ls
-  diretos ou de receivables e abertura do detalhe;
-- métricas da página atual e exportação completa dos filtros;
-- query string `invoice`, `customer`, `customerName`, `bl` e `tab`;
-- loading, erro e vazio derivados de `useInvoices`.
+O B/L que filtra a Validação usa um parâmetro próprio, `validacaoBl`, e não o
+`bl` de Faturas. Um B/L com fatura ativa sai da fila da Validação; levar o
+filtro de Faturas ao trocar de aba abriria a fila vazia. Por isso cada aba
+começa sem o B/L da outra, e o recorte de Faturas é preservado na volta. A
+Validação abre filtrada só pelo alerta "Ver na Validação" ou por um link. O
+endereço antigo `tab=validacao&bl=` (ou `tab=pendencias&bl=`) é convertido na
+chegada. A lista usa:
+
+- `src/components/billing/InvoiceFiltersBar.tsx` para B/L, fatura, Cliente,
+  navio/viagem, POD, tipo, situação (Em aberto, Paga ou coberta, Cancelada ou
+  obsoleta), emissão, pagamento e tamanho de página;
+- `src/components/billing/InvoicesTable.tsx`: o número da fatura abre o
+  detalhe; Cliente com CNPJ mascarado; B/Ls diretos ou de receivables; a coluna
+  Valores mostra primeiro o que decide (saldo em aberto ou total pago; coberta e
+  cancelada não aparecem como dívida, `describeInvoiceRowAmount`); situação exata
+  da fatura (Parcialmente paga, Coberta, Obsoleta); cartões abaixo de 640 px;
+- faixa de resumo com o total do recorte e o saldo em aberto **da página
+  carregada** (rotulado assim) e exportação completa dos filtros;
+- loading, erro com Tentar novamente (sem lista vazia falsa) e vazio derivados
+  de `useInvoices`.
+
+Acima das abas ficam os alertas financeiros (cada um com o link de onde se
+resolve, `alertEntityLink`), a Reemissão pendente e os Ajustes de COD. Nesta
+página, o alerta de fatura abre o detalhe sem perder o recorte da lista, e o
+bloqueio de cobrança de um B/L sem rota própria leva à Validação filtrada pelo
+B/L (`financialAlertAction.ts`, parâmetro `validacaoBl`). A fatura aberta pela Reemissão pendente aparece
+por cima da aba atual; `?invoice=` sem `tab` continua abrindo em Faturas.
 
 A página não marca faturas vencidas ao montar: **taxa local não tem vencimento
 praticado** (ADR 0055, migration `348`), e o detector `detect_overdue_invoices`
@@ -228,17 +254,31 @@ isolada em `src/components/billing/consolidatedInvoiceSelection.ts`.
 
 ### Detalhe, pagamento, restituição e cancelamento
 
-`src/components/billing/InvoiceDetailModal.tsx` apresenta:
+`src/components/billing/InvoiceDetailModal.tsx` (também aberto pela
+Conciliação, com `enablePaymentReversal`) é uma superfície única com seções por
+filete:
 
-- métricas, cliente, B/Ls, itens e pagamentos;
-- breakdown reconstruído de consolidadas;
-- formulário de pagamento com decisão ledger versus legado;
+- cabeçalho com situação exata, tipo, emissão, número interno, Cliente com CNPJ,
+  navio/viagem e, na avulsa, a descrição da cobrança;
+- faixa de valores que separa total emitido, recebido, abatido pela correção do
+  B/L, devolvido, a devolver e saldo (ou "Coberta pela consolidada X" /
+  "Não cobrado"), lida de `financial_summary`
+  (`src/components/billing/invoiceDetailPresentation.ts`); sem vencimento;
 - vínculo com a fatura substituída ou sucessora, Reemissão pendente e motivo de encerramento sem reemissão;
-- histórico dos ajustes que a correção do B/L fez em fatura com pagamento (abatimento e restituição);
-- lista de `invoice_refunds` e confirmação de devolução com comprovante, favorecido e data;
-- cancelamento de invoice sem pagamentos;
-- seleção de qualquer baixa e cancelamento com conferência de valor/data, no detalhe ou histórico;
-- abertura do documento imprimível.
+- Fatura desatualizada e histórico dos ajustes que a correção do B/L fez em fatura com pagamento (abatimento e restituição);
+- B/Ls, itens (breakdown reconstruído de consolidadas) e pagamentos; cada
+  pagamento tem "Cancelar baixa…" para o Administrativo, que abre o formulário
+  na própria seção com a baixa escolhida, justificativa e conferência de
+  valor/data; na Conciliação o formulário já abre na baixa selecionada;
+- uma única lista de restituições (`invoice_refunds`); Confirmar devolução e
+  Cancelar autorização abrem dentro da linha, com comprovante, favorecido e data;
+  na avulsa, a autorização de restituição excepcional fica logo abaixo
+  (`FinancialRefundsPanel variant="authorization"`);
+- registro de pagamento (ledger versus legado) e cancelamento da fatura sem
+  pagamentos, com confirmação; os dois só aparecem para o Administrativo, que é
+  o único aceito pelas RPCs — os demais perfis leem o motivo;
+- impressão da fatura ou do recibo no próprio modal (Voltar ao detalhe), sem
+  abrir um segundo diálogo.
 
 ### Demurrage
 
@@ -472,6 +512,10 @@ Os testes não foram executados nesta cartografia, por instrução do coordenado
 - `src/pages/__tests__/TaxasLocais.test.ts`
 - `src/pages/__tests__/TaxasLocais.behavior.test.tsx`
 - `src/pages/__tests__/faturamentoInvoiceStatus.test.ts`
+- `src/pages/__tests__/faturasListState.test.ts`
+- `src/components/billing/__tests__/invoiceDetailPresentation.test.ts`
+- `src/components/billing/__tests__/InvoiceDetailPrint.test.tsx`
+- `src/components/billing/__tests__/InvoicesTable.test.tsx`
 - `src/services/__tests__/billing.test.ts`
 - `src/services/__tests__/billingHelpers.test.ts`
 - `src/services/__tests__/billingLedger.test.ts`

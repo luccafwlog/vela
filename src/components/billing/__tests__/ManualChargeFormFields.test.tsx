@@ -70,7 +70,7 @@ describe('ManualChargeFormFields', () => {
   it('em modo de criação mostra "Adicionar" e permite cancelar', () => {
     const { onSave } = setup()
     expect(screen.getByRole('button', { name: 'Adicionar' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Descartar' })).toBeTruthy()
     expect(onSave).not.toHaveBeenCalled()
   })
 
@@ -81,7 +81,7 @@ describe('ManualChargeFormFields', () => {
     })
     expect(screen.getByRole('button', { name: /Salvar edição/ })).toBeTruthy()
     expect((screen.getByLabelText('Item') as HTMLSelectElement).disabled).toBe(true)
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await user.click(screen.getByRole('button', { name: 'Descartar' }))
     expect(onCancel).toHaveBeenCalledTimes(1)
   })
 

@@ -15,6 +15,7 @@ const pendingCodAdjustmentsState = vi.hoisted(() => ({
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: () => ({ data: [], isLoading: false, error: null }),
+  useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }))
 
@@ -112,7 +113,8 @@ describe('TaxasLocais', () => {
     // Demurrage não é mais uma aba, lista, modal, faixa ou impressão duplicada
     // nesta superfície; sua operação própria continua em /demurrage.
     expect(html).not.toContain('role="tab" aria-selected="false">Demurrage')
-    expect(html).toContain('Vencidas')
+    // Taxa local não tem vencimento (ADR 0055): nenhuma métrica de vencidas.
+    expect(html).not.toContain('Vencidas')
   })
 
   it('mantém o painel de ajustes COD quando há pendência', () => {
@@ -177,12 +179,13 @@ describe('TaxasLocais', () => {
 
   it('reduz os status documentais a 3 estados operacionais e oculta os estados internos', () => {
     const html = renderToStaticMarkup(
-      React.createElement(MemoryRouter, { initialEntries: ['/?tab=invoices'] }, React.createElement(TaxasLocais)),
+      React.createElement(MemoryRouter, { initialEntries: ['/?tab=invoices&situacao=paid'] }, React.createElement(TaxasLocais)),
     )
 
-    // O filtro de status nao expoe mais os estados internos do ledger.
-    expect(html).not.toContain('Coberta')
-    expect(html).not.toContain('Obsoleta')
+    // O filtro de situação agrupa os estados reais e diz o que cada grupo inclui.
+    expect(html).toContain('Em aberto (emitida ou parcialmente paga)')
+    expect(html).toContain('Paga ou coberta')
+    expect(html).toContain('Cancelada ou obsoleta')
     // covered/obsolete sao absorvidos por Paga/Cancelada; issued vira Emitida.
     expect(invoiceStatusLabel('issued')).toBe('Emitida')
     expect(invoiceStatusLabel('partially_paid')).toBe('Emitida')

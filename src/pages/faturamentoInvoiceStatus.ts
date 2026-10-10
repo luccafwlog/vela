@@ -36,9 +36,11 @@ export function isOpenInvoiceStatus(status: string | null | undefined) {
   return OPEN_STATUSES.has(status ?? 'issued')
 }
 
-// Opcoes para o filtro de status na aba Faturas.
+// Opcoes para o filtro de situacao na aba Faturas. Cada opcao agrupa estados
+// reais; o rotulo diz o que entra para nao contradizer a etiqueta da linha
+// ("Parcialmente paga" aparece no filtro "Em aberto").
 export const INVOICE_STATUS_FILTER_OPTIONS: Array<{ value: InvoiceDisplayStatus; label: string }> = [
-  { value: 'issued', label: 'Emitida' },
-  { value: 'paid', label: 'Paga' },
-  { value: 'cancelled', label: 'Cancelada' },
+  { value: 'issued', label: 'Em aberto (emitida ou parcialmente paga)' },
+  { value: 'paid', label: 'Paga ou coberta' },
+  { value: 'cancelled', label: 'Cancelada ou obsoleta' },
 ]

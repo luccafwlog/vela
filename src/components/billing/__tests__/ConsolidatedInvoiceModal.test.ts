@@ -6,8 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
 import { ConsolidatedInvoiceModal } from '../ConsolidatedInvoiceModal'
 
-vi.mock('../../../hooks/useBilling', () => ({
-  useBillingCustomers: () => ({ data: [] }),
+vi.mock('../../../services/billing', () => ({
+  listBillingCustomers: async () => [],
 }))
 
 vi.mock('../../../hooks/useBillingLedger', () => ({

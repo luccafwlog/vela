@@ -1,0 +1,127 @@
+// Estado de /taxas-locais na URL: aba, recorte da lista de faturas e fatura
+// aberta. Voltar da ficha do B/L, recarregar ou compartilhar o endereço reabre
+// o mesmo recorte. Os links antigos (`tab=invoices`, `tab=pendencias`,
+// `customer`, `customerName`, `bl`, `invoice`) continuam valendo.
+import type { Filters } from '../components/billing/invoiceFilters'
+
+export type TaxasLocaisTab = 'faturas' | 'validacao'
+
+const PAGE_SIZES = [20, 50, 100] as const
+const STATUSES = new Set(['issued', 'paid', 'cancelled'])
+const TYPES = new Set(['single', 'consolidated', 'manual'])
+
+type TextKey = Exclude<keyof Filters, 'page' | 'pageSize' | 'status' | 'invoiceType'>
+
+/** Parâmetro de cada filtro de texto; `customer` e `bl` já eram usados por outras telas. */
+export const FATURAS_TEXT_PARAMS: Record<TextKey, string> = {
+  blSearch: 'bl',
+  search: 'fatura',
+  customerId: 'customer',
+  voyageSearch: 'viagem',
+  pod: 'pod',
+  dateFrom: 'emissaoDe',
+  dateTo: 'emissaoAte',
+  paidFrom: 'pagamentoDe',
+  paidTo: 'pagamentoAte',
+}
+
+/** Parâmetros que pertencem ao recorte da lista (Limpar filtros remove todos). */
+export const FATURAS_FILTER_PARAMS = [...Object.values(FATURAS_TEXT_PARAMS), 'customerName', 'situacao', 'tipo', 'page', 'pageSize']
+
+const DATE_KEYS = new Set<TextKey>(['dateFrom', 'dateTo', 'paidFrom', 'paidTo'])
+
+/** Só aceita AAAA-MM-DD de calendário: `?emissaoDe=foo` faria o Postgres recusar a lista inteira. */
+function isoDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return ''
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? value : ''
+}
+
+function positiveInt(value: string | null) {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+}
+
+export function tabFromSearch(params: URLSearchParams): TaxasLocaisTab {
+  // A fatura abre por cima da aba atual: abrir uma reemissão na Validação não desmonta a fila.
+  const tab = params.get('tab')
+  return tab === 'validacao' || tab === 'pendencias' ? 'validacao' : 'faturas'
+}
+
+export function faturasFiltersFromSearch(params: URLSearchParams): Filters {
+  const text = Object.fromEntries(
+    (Object.entries(FATURAS_TEXT_PARAMS) as [TextKey, string][]).map(([key, param]) => {
+      const value = params.get(param) ?? ''
+      return [key, DATE_KEYS.has(key) ? isoDate(value) : value]
+    }),
+  ) as Record<TextKey, string>
+  const status = params.get('situacao') ?? ''
+  const invoiceType = params.get('tipo') ?? ''
+  const pageSize = positiveInt(params.get('pageSize'))
+  return {
+    ...text,
+    status: STATUSES.has(status) ? (status as Filters['status']) : '',
+    invoiceType: TYPES.has(invoiceType) ? (invoiceType as Filters['invoiceType']) : '',
+    page: positiveInt(params.get('page')) ?? 1,
+    pageSize: pageSize && (PAGE_SIZES as readonly number[]).includes(pageSize) ? pageSize : PAGE_SIZES[0],
+  }
+}
+
+/**
+ * Aplica uma mudança de filtro sobre a URL atual, preservando aba, fatura
+ * aberta e outros parâmetros. Qualquer filtro novo volta para a página 1.
+ */
+export function withFaturasFilter<K extends keyof Filters>(params: URLSearchParams, key: K, value: Filters[K]): URLSearchParams {
+  const next = new URLSearchParams(params)
+  const param = key === 'status' ? 'situacao' : key === 'invoiceType' ? 'tipo' : key === 'page' || key === 'pageSize' ? key : FATURAS_TEXT_PARAMS[key as TextKey]
+  const text = String(value ?? '').trim()
+  const isDefault = !text || (key === 'page' && Number(value) === 1) || (key === 'pageSize' && Number(value) === PAGE_SIZES[0])
+  if (isDefault) next.delete(param)
+  else next.set(param, text)
+  if (key === 'customerId' && !text) next.delete('customerName')
+  if (key !== 'page') next.delete('page')
+  return next
+}
+
+export function withoutFaturasFilters(params: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(params)
+  for (const param of FATURAS_FILTER_PARAMS) next.delete(param)
+  return next
+}
+
+/**
+ * B/L que filtra a Validação. É separado do `bl` de Faturas: um B/L com fatura
+ * ativa sai da fila, então levar o filtro de Faturas abriria a Validação vazia.
+ * Só um link ou o alerta "Ver na Validação" abre a fila filtrada.
+ */
+export const VALIDACAO_BL_PARAM = 'validacaoBl'
+
+export function withTab(params: URLSearchParams, tab: TaxasLocaisTab): URLSearchParams {
+  const next = new URLSearchParams(params)
+  if (tab === 'validacao') next.set('tab', 'validacao')
+  else next.delete('tab')
+  // O recorte de Faturas fica para a volta; o filtro da Validação não acompanha a troca.
+  next.delete(VALIDACAO_BL_PARAM)
+  return next
+}
+
+export function withValidacaoBl(params: URLSearchParams, blId: string): URLSearchParams {
+  const next = withTab(params, 'validacao')
+  next.set(VALIDACAO_BL_PARAM, blId)
+  return next
+}
+
+/**
+ * Antes da etapa 10, `tab=validacao&bl=X` (ou `tab=pendencias&bl=X`) abria a
+ * Validação filtrada. Converte esse endereço antigo uma vez, na chegada.
+ */
+export function fromLegacyValidacaoLink(params: URLSearchParams): URLSearchParams | null {
+  const tab = params.get('tab')
+  const bl = params.get('bl')
+  if ((tab !== 'validacao' && tab !== 'pendencias') || !bl || params.get(VALIDACAO_BL_PARAM)) return null
+  const next = new URLSearchParams(params)
+  next.delete('bl')
+  next.set(VALIDACAO_BL_PARAM, bl)
+  return next
+}
