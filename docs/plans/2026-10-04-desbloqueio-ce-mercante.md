@@ -19,8 +19,9 @@ confirmação; itens deste plano que conflitem com ela (confirmação por B/L, r
 Modelo oficial e homologação externa seguem sem evidência de conclusão.
 
 **Estado conferido em 2026-10-10:** backend publicado em produção (migrations,
-Edge Functions, bucket e agendamentos; ver "Fontes"). O modelo oficial **não** está
-cadastrado; em 2026-10-10 passou a ser DOCX (migration `173`, ainda não publicada). O [plano de correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md)
+Edge Functions, bucket e agendamentos; ver "Fontes"). O modelo oficial passou a ser DOCX
+(código da PR 927; migration `173` e funções de documento conferidas ativas em
+produção, ver "Fontes") e foi cadastrado pelo responsável no mesmo dia. O [plano de correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md)
 não fecha itens deste plano, mas suas Etapas 6 e 8.7 corrigem defeitos que
 afetam o Desbloqueio e passam a bloquear a ativação; ver "Caminho crítico para
 ativação".
@@ -60,11 +61,19 @@ Fontes da reconciliação:
   `ce-unlock-document-download` e `ce-unlock-notify-email` estão ativas; bucket
   privado existe; jobs `ce-unlock-cleanup` (diário, 06:00 UTC) e
   `ce-unlock-notify-email` (5 min) ativos, com última rodada `succeeded` — isso
-  prova só o disparo HTTP do pg_cron, não o resultado da função. Nenhum
-  documento `type='model'` cadastrado. Dados: 1 pedido e 1 exportação de teste;
+  prova só o disparo HTTP do pg_cron, não o resultado da função. Nessa leitura,
+  nenhum documento `type='model'` estava cadastrado. Dados: 1 pedido e 1 exportação de teste;
   uma procuração de teste aprovada era um PDF sem relação com o assunto, o que
   confirma que a análise humana é a única conferência de conteúdo. Deploy dos
   frontends na Vercel não conferido.
+- **Remoto (2026-10-10, leitura posterior, após o merge da PR 927):**
+  `schema_migrations` contém `173`; `ce_unlock_prepare_upload` e
+  `ce_unlock_finish_upload` aceitam o modelo DOCX; `portal-ce-unlock-document` (v13) e
+  `ce-unlock-document-download` (v12) ativas com o código da `main`. Documento
+  `type='model'` `termo-devolucao-container-modelo-2026.docx` com status `approved`,
+  objeto `.docx` no Storage com tipo DOCX e tamanho conferido (13.508 bytes).
+  Workflow *Cloudflare Pages Production* run 176 (commit `eb0eadb`) com sucesso: prova
+  a publicação dos dois sites, não a compatibilidade frontend/backend.
 
 ## Restrições globais
 
@@ -88,7 +97,7 @@ Itens marcados **[bloqueia ativação]** abaixo precisam estar resolvidos antes 
 abrir o Desbloqueio a clientes reais; os demais `[ ]` podem ser aceitos como
 dívida registrada no aceite, sem impedir a operação. Ordem proposta:
 
-1. Publicar a migration `173` e as funções de documento; cadastrar o DOCX oficial (Tarefa 1).
+1. ~~Publicar a migration `173` e as funções de documento; cadastrar o DOCX oficial (Tarefa 1).~~ Feito em 2026-10-10.
 2. Etapa 6 do plano de 2026-10-09 (unicidade do CE): hoje o mesmo CE pode ser
    aceito em dois B/Ls e a conciliação ZPT pelo número desbloquearia os dois
    (cenário 12 da [revisão de 2026-10-09](../archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md)).
@@ -100,7 +109,8 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    parcial/consolidado (Tarefa 2), baixa cancelada concorrente ao envio e à
    exportação (Tarefas 2 e 6) e acesso a IDs/caminhos/downloads de outro CNPJ
    (Tarefa 3).
-6. Conferir o deploy dos frontends e executar o fluxo completo com clientes A/B
+6. Conferir a compatibilidade dos frontends publicados com o backend (a publicação
+   já foi conferida) e executar o fluxo completo com clientes A/B
    no ambiente autorizado (Tarefa 7).
 
 ## Foco da revisão
@@ -144,7 +154,7 @@ apresentação; timestamps persistidos continuam UTC.
 - [x] Registrar a decisão de execução de não criar entidade distinta “CS”, conforme relatório local.
 - [x] Registrar as cinco colunas ZPT, documentos anuais VIP por CNPJ e validade até 31/12 sem renovação automática.
 - [x] Implementar tipos, versões, requisitos e motivos públicos separados do andamento externo. **Código:** `ceUnlock.ts`; layout usa `layout_version`, e o pedido referencia `model_id`, em vez de exigir os nomes `layoutVersion`/`modelVersion` inicialmente propostos.
-- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs; cadastrar o PDF oficial fornecido pelo responsável (ausente em produção em 2026-10-10). Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`).
+- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); continuam pendentes os aceites deste item.
 - [ ] **[bloqueia ativação]** Homologar a amostra XLSX e os indicadores Sim/Não com responsável/ZPT; revisar spec/plano no aceite.
 
 ## Tarefa 2 — Persistência, autorização e requisito financeiro
@@ -297,11 +307,11 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 
 - [x] Integrar documentação de rotas, autorização, retenção, bucket, funções, modelos e procedimento ZPT, distinguindo geração, envio e confirmação. Homologação externa não foi registrada como concluída.
 - [x] Registrar gates da entrega local original: docs, tipos, lint, testes, build, migrations e RPC, com skips e limites do banco/shims no relatório. Não equivale à execução atual de todos os gates na árvore integrada.
-- [x] Documentar ordem backend → funções → frontend e reversão preservando consulta/histórico. Preview e publicação são itens separados, ainda sem evidência nesta reconciliação.
+- [x] Documentar ordem backend → funções → frontend e reversão preservando consulta/histórico. Preview e publicação são itens separados, sem evidência na reconciliação de 2026-10-07; em 2026-10-10 a publicação em produção foi conferida (ver "Fontes"), e a validação em Preview e a compatibilidade frontend/backend seguem sem evidência.
 - [x] Conferir histórico remoto e publicar migrations CE `139`–`149` e `160`–`161` e as cinco funções. **Remoto:** leitura de produção em 2026-10-10 (ver "Fontes").
-- [ ] **[bloqueia ativação]** Conferir que os frontends publicados na Vercel são compatíveis com o backend atual.
+- [ ] **[bloqueia ativação]** Conferir que os frontends publicados no Cloudflare Pages são compatíveis com o backend atual. A publicação foi conferida em 2026-10-10 (ver "Fontes"); a compatibilidade não. A Vercel ficou só como rollback manual.
 - [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
-- [ ] **[bloqueia ativação]** Cadastrar o PDF oficial e validar o resultado do expurgo antes da ativação operacional. Termo recebido em 2026-10-10; cadastro do DOCX em produção depende da publicação da `173`.
+- [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes").
 - [ ] **[bloqueia ativação]** Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](2026-10-09-correcao-importacoes-ce-mercante.md).
 - [ ] **[bloqueia ativação]** Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.

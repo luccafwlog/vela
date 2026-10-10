@@ -2,6 +2,11 @@
 
 Estado: execução autorizada; implementado no checkout, validação local em andamento
 e publicação pendente. Data: 2026-10-04.
+
+> **Atualização de estado (2026-10-10):** publicado em produção (backend e Cloudflare
+> Pages) e modelo do termo em DOCX cadastrado; compatibilidade frontend/backend,
+> homologação e ativação seguem pendentes. Evidências em "Fontes" do
+> [plano](../plans/2026-10-04-desbloqueio-ce-mercante.md).
 Fonte: [Issue 557](https://github.com/luccafwlog/vela/issues/557), lida com seus
 critérios complementares de 07/09/2026; não há comentários na issue.
 Plano derivado: [implementação](../plans/2026-10-04-desbloqueio-ce-mercante.md).
