@@ -13,7 +13,7 @@ import { TruncationNote } from './TruncationNote'
 import { plural } from './importPresentation'
 import {
   importContainerDates,
-  parseContainerDatesFile,
+  readContainerDatesFile,
   type ContainerDatesImportResult,
   type ContainerDatesImportRow,
   type ParsedContainerDatesImport,
@@ -26,7 +26,7 @@ const SAMPLE_SIZE = 25
 export function ContainerDatesImportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
-  const { file, preview, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedContainerDatesImport>(parseContainerDatesFile)
+  const { file, preview, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedContainerDatesImport>(readContainerDatesFile)
   const [report, setReport] = useState<ContainerDatesImportResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [readError, setReadError] = useState<string | null>(null)
@@ -158,8 +158,8 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
                       <tr>
                         <th scope="col">B/L</th>
                         <th scope="col">Container</th>
-                        <th scope="col">Descarga</th>
-                        <th scope="col">Devolução</th>
+                        <th scope="col">Descarga (antes → depois)</th>
+                        <th scope="col">Devolução (antes → depois)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -167,8 +167,8 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
                         <tr key={`${row.bl_id}-${row.container_number}`}>
                           <td className="app-import-code font-semibold text-[var(--app-text-strong)]">{row.bl_id}</td>
                           <td className="app-import-code">{row.container_number}</td>
-                          <td className="tabular-nums">{formatDate(row.discharge_date)}</td>
-                          <td className="tabular-nums app-import-tone--muted">{row.return_date ? formatDate(row.return_date) : '—'}</td>
+                          <td className="tabular-nums">{beforeAfter(row.before_discharge, row.discharge_date)}</td>
+                          <td className="tabular-nums app-import-tone--muted">{beforeAfter(row.before_return, row.after_return ?? row.return_date)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -218,4 +218,12 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
       </div>
     </Modal>
   )
+}
+
+// "antes → depois" da prévia; sem mudança, só a data. Devolução vazia na
+// planilha mantém a gravada (ADR 0078, item 19).
+function beforeAfter(before: string | null | undefined, after: string | null | undefined): string {
+  const show = (value: string | null | undefined) => (value ? formatDate(value) : '—')
+  if (before === undefined) return show(after)
+  return (before ?? null) === (after ?? null) ? show(after) : `${show(before)} → ${show(after)}`
 }

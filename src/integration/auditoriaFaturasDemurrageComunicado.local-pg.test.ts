@@ -1,6 +1,6 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Cada it.fails documenta um defeito confirmado e roda no job local-pg do CI; quando a correção entrar, troque it.fails por it.
+// Os defeitos foram corrigidos na migration 178 (etapa 7 do plano de correção): os it.fails viraram it e rodam no job local-pg do CI.
 //
 // Problemas-raiz M18 (notificação "Nova fatura emitida" com R$ 0.00), M19 (B/L
 // cancelado na prontidão do Comunicado de CE e Taxas) e M10 (Demurrage e datas).
@@ -74,6 +74,8 @@ const voyage = {
   cancelado: 99207022,
   datasFaturado: 99207023,
   demurrage: 99207024,
+  grupo: 99207025,
+  recebivel: 99207026,
 }
 const voyageIds = Object.values(voyage)
 const chargeTableId = 99207031
@@ -449,7 +451,9 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
         (${voyage.notificacao}, ${vesselId}, 'A207A', 'active'),
         (${voyage.cancelado}, ${vesselId}, 'A207B', 'active'),
         (${voyage.datasFaturado}, ${vesselId}, 'A207C', 'active'),
-        (${voyage.demurrage}, ${vesselId}, 'A207D', 'active');
+        (${voyage.demurrage}, ${vesselId}, 'A207D', 'active'),
+        (${voyage.grupo}, ${vesselId}, 'A207E', 'active'),
+        (${voyage.recebivel}, ${vesselId}, 'A207F', 'active');
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela A207 container', '${pod}', CURRENT_DATE - 30, true, 'container');
       INSERT INTO public.charge_table_items (
@@ -493,7 +497,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     emissao = { invoiceNumber: invoice.number, total: invoice.total, message }
   })
 
-  it.fails('esperado: a notificação "Nova fatura emitida" informa o total real da fatura [CED-05, ORDCT-V01] — regra: CONTEXT.md:1931-1934 (Notificação In-App do Portal responde ao evento financeiro), CONTEXT.md:2104 e ADR 0077:8-9,15 (a fatura aparece no Portal na emissão e preserva o total)', () => {
+  it('esperado: a notificação "Nova fatura emitida" informa o total real da fatura [CED-05, ORDCT-V01] — regra: CONTEXT.md:1931-1934 (Notificação In-App do Portal responde ao evento financeiro), CONTEXT.md:2104 e ADR 0077:8-9,15 (a fatura aparece no Portal na emissão e preserva o total)', () => {
     const variants = totalVariants(emissao?.total ?? Number.NaN)
     expect(emissao?.message).not.toContain('R$ 0.00')
     expect(variants.some((value) => emissao?.message.includes(`R$ ${value}`))).toBe(true)
@@ -527,7 +531,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     expect(conteudoComCancelado).toContain('A207-C1')
   })
 
-  it.fails('esperado: o B/L cancelado fica fora da prontidão e do conteúdo do Comunicado de CE e Taxas do Cliente na Viagem, que fica pronto [CED-07] — regra: CONTEXT.md:790-801 (B/L Cancelado sai do faturamento e libera o CE) e docs/modules/clientes.md:176-178 (prontidão exige faturamento concluído em todos os B/Ls ativos)', () => {
+  it('esperado: o B/L cancelado fica fora da prontidão e do conteúdo do Comunicado de CE e Taxas do Cliente na Viagem, que fica pronto [CED-07] — regra: CONTEXT.md:790-801 (B/L Cancelado sai do faturamento e libera o CE) e docs/modules/clientes.md:176-178 (prontidão exige faturamento concluído em todos os B/Ls ativos)', () => {
     expect(prontidaoComCancelado).toMatchObject({ ready: true, reasons: [] })
     // Só a prontidão não basta: o Comunicado pronto não pode listar o B/L cancelado.
     expect(conteudoComCancelado).toEqual(['A207-C1'])
@@ -553,7 +557,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     datasEmFaturado = { before, after: blState('A207-R1'), readinessBefore, readinessAfter: communicationReadiness(voyage.datasFaturado) }
   })
 
-  it.fails('esperado: o B/L segue faturado e revisado, sem "Carga alterada após faturamento", e o Comunicado de CE e Taxas continua pronto [ORDCT-V02, VEI-V02] — regra: ADR 0077:22-24 e CONTEXT.md:2104-2109 (data de Demurrage não é correção) e ADR 0077:75-77 (a 128 removeu os gatilhos que alertavam a cada alteração de container)', () => {
+  it('esperado: o B/L segue faturado e revisado, sem "Carga alterada após faturamento", e o Comunicado de CE e Taxas continua pronto [ORDCT-V02, VEI-V02] — regra: ADR 0077:22-24 e CONTEXT.md:2104-2109 (data de Demurrage não é correção) e ADR 0077:75-77 (a 128 removeu os gatilhos que alertavam a cada alteração de container)', () => {
     expect(datasEmFaturado?.after).toEqual(datasEmFaturado?.before)
     expect(datasEmFaturado?.readinessAfter).toMatchObject({ ready: true, reasons: [] })
   })
@@ -599,7 +603,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     }
   })
 
-  it.fails('esperado: o B/L com todos os containers devolvidos tem uma Invoice de Demurrage emitida no valor da sobreestadia do container em atraso [DAT-04] — regra: CONTEXT.md:1406-1409 (emitida quando todos os containers do B/L foram devolvidos), CONTEXT.md:1335-1337 e ADR 0014:26-27', () => {
+  it('esperado: o B/L com todos os containers devolvidos tem uma Invoice de Demurrage emitida no valor da sobreestadia do container em atraso [DAT-04] — regra: CONTEXT.md:1406-1409 (emitida quando todos os containers do B/L foram devolvidos), CONTEXT.md:1335-1337 e ADR 0014:26-27', () => {
     expect(misto?.invoices).toHaveLength(1)
     expect(misto?.invoices[0]).toMatchObject({ status: 'issued', total_usd: misto?.expectedUsd })
   })
@@ -617,7 +621,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     socSemDevolucao = { dates, expectedUsd, effects: demurrageEffects('A207-S1'), invoices: activeDemurrageInvoices('A207-S1') }
   })
 
-  it.fails('esperado: o SOC não conta como devolução pendente; o B/L fica pronto, a emissão é enfileirada e a Demurrage do COC sai [DAT-07] — regra: CONTEXT.md:938 (SOC não tem devolução a esperar nem Demurrage), migration 121:15-17 e ADR 0014:35-36 (emissão automática quando todos os containers voltaram)', () => {
+  it('esperado: o SOC não conta como devolução pendente; o B/L fica pronto, a emissão é enfileirada e a Demurrage do COC sai [DAT-07] — regra: CONTEXT.md:938 (SOC não tem devolução a esperar nem Demurrage), migration 121:15-17 e ADR 0014:35-36 (emissão automática quando todos os containers voltaram)', () => {
     expect(socSemDevolucao?.dates.billing_state).toBe('ready_for_billing')
     expect(socSemDevolucao?.effects.map((effect) => effect.status)).toEqual(['succeeded'])
     expect(socSemDevolucao?.invoices).toEqual([
@@ -650,10 +654,83 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     }
   })
 
-  it.fails('esperado: a emissão automática fatura só o COC e o efeito termina concluído [ORDCT-18, DAT-07] — regra: CONTEXT.md:938, migration 121:15-17 (SOC não entra em fatura de Demurrage) e ADR 0014:35-36', () => {
+  it('esperado: a emissão automática fatura só o COC e o efeito termina concluído [ORDCT-18, DAT-07] — regra: CONTEXT.md:938, migration 121:15-17 (SOC não entra em fatura de Demurrage) e ADR 0014:35-36', () => {
     expect(socDevolvido?.effects.map((effect) => effect.status)).toEqual(['succeeded'])
     expect(socDevolvido?.invoices).toEqual([
       { status: 'issued', total_usd: socDevolvido?.expectedUsd, containers: ['ADCU2070062'] },
     ])
+  })
+
+  // --- Checagens novas da etapa 7 (migration 178) ---------------------------
+  function containerDates(blId: string): Record<string, { discharge: string | null; return: string | null }> {
+    return JSON.parse(localPsql(`
+      SELECT COALESCE(jsonb_object_agg(container_number, jsonb_build_object('discharge', discharge_date, 'return', return_date)), '{}'::jsonb)
+      FROM public.bl_containers WHERE bl_id = '${blId}';
+    `)) as Record<string, { discharge: string | null; return: string | null }>
+  }
+
+  it('devolução vazia na planilha preserva a data gravada', () => {
+    insertBl('A207-V1', voyage.grupo, pod, [{ number: 'ADCU2070081' }])
+    importContainerDates('A207-V1', [{ number: 'ADCU2070081', discharge: '2026-07-01', return: '2026-07-05' }])
+    const again = importContainerDates('A207-V1', [{ number: 'ADCU2070081', discharge: '2026-07-01', return: null }])
+    expect(again.updated_ids).toEqual([])
+    expect(containerDates('A207-V1').ADCU2070081).toEqual({ discharge: '2026-07-01', return: '2026-07-05' })
+  })
+
+  it('a data vale para o B/L irmão que divide o container e o grupo recebe uma única Invoice de Demurrage', () => {
+    insertBl('A207-G1', voyage.grupo, pod, [{ number: 'ADCU2070071' }])
+    insertBl('A207-G2', voyage.grupo, pod, [{ number: 'ADCU2070071' }, { number: 'ADCU2070072' }])
+    expect(localPsql(`SELECT array_to_string(public.demurrage_group_bl_ids('A207-G2'), ',');`)).toBe('A207-G1,A207-G2')
+
+    const first = importContainerDates('A207-G2', [{ number: 'ADCU2070072', discharge: '2026-07-01', return: '2026-09-30' }])
+    expect(first.billing_state).toBe('pending')
+    importContainerDates('A207-G1', [{ number: 'ADCU2070071', discharge: '2026-07-01', return: '2026-09-20' }])
+    // A data chegou ao B/L irmão.
+    expect(containerDates('A207-G2').ADCU2070071).toEqual({ discharge: '2026-07-01', return: '2026-09-20' })
+    // Uma emissão, pelo B/L-âncora.
+    expect(demurrageEffects('A207-G2')).toEqual([])
+    expect(demurrageEffects('A207-G1').map((effect) => effect.status)).toEqual(['pending'])
+    expect(runWorker('A207-G%').map((effect) => [effect.entity, effect.status])).toEqual([['A207-G1', 'succeeded']])
+
+    const ids = { ADCU2070072: containerIds('A207-G2').ADCU2070072, shared: containerIds('A207-G1').ADCU2070071 }
+    const expected = Number(localPsql(`
+      SELECT (public._calculate_demurrage_invoice_authoritative('A207-G1', ARRAY[${ids.shared}, ${ids.ADCU2070072}]::bigint[],
+        (now() AT TIME ZONE 'America/Sao_Paulo')::date)->>'total_usd');
+    `))
+    expect(activeDemurrageInvoices('A207-G1')).toEqual([
+      { status: 'issued', total_usd: expected, containers: ['ADCU2070071', 'ADCU2070072'] },
+    ])
+    expect(activeDemurrageInvoices('A207-G2')).toEqual([])
+  })
+
+  it('corrigir a devolução depois da emissão, sem pagamento, cancela e reemite a Invoice de Demurrage', () => {
+    const [before] = activeDemurrageInvoices('A207-G1')
+    const id072 = containerIds('A207-G2').ADCU2070072
+    const result = JSON.parse(asAdmin(`
+      SELECT public.set_container_dates(${id072}, '2026-07-01', '2026-10-05', 'Terminal corrigiu a devolução (A207)');
+    `)) as { demurrage: { demurrage_invoices: Array<{ status: string; reissue: { status: string } }> } }
+    expect(result.demurrage.demurrage_invoices).toEqual([expect.objectContaining({ status: 'cancelled', reissue: expect.objectContaining({ status: 'issued' }) })])
+    const [after] = activeDemurrageInvoices('A207-G1')
+    expect(after.containers).toEqual(['ADCU2070071', 'ADCU2070072'])
+    expect(after.total_usd).toBeGreaterThan(before.total_usd)
+    expect(localPsql(`SELECT count(*) FROM public.demurrage_invoices WHERE bl_id = 'A207-G1' AND status = 'cancelled';`)).toBe('1')
+  })
+
+  it('remover uma data pela edição do container exige motivo', () => {
+    const id = containerIds('A207-V1').ADCU2070081
+    expect(tryAsAdmin(`SELECT public.set_container_dates(${id}, '2026-07-01', NULL, NULL);`).error).toMatch(/motivo/)
+    expect(tryAsAdmin(`SELECT public.set_container_dates(${id}, '2026-07-01', NULL, 'Devolução lançada no container errado (A207)');`).error).toBeNull()
+    expect(containerDates('A207-V1').ADCU2070081).toEqual({ discharge: '2026-07-01', return: null })
+  })
+
+  it('recebível sem fatura não trava o cancelamento do B/L e é anulado com registro', () => {
+    insertBl('A207-RC1', voyage.recebivel, pod, [{ number: 'ADCU2070091' }])
+    localPsql(`
+      INSERT INTO public.bl_receivables (bl_id, customer_id, source, original_amount_brl, settled_amount_brl, balance_brl, status)
+      VALUES ('A207-RC1', ${cliente.id}, 'local_charges', 100, 0, 100, 'open');
+    `)
+    expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A207-RC1', 'Carga não embarcou (A207)', false);`))).toEqual({ cancelled: true, reasons: [] })
+    expect(localPsql(`SELECT status || ':' || balance_brl FROM public.bl_receivables WHERE bl_id = 'A207-RC1';`)).toBe('void:0.00')
+    expect(localPsql(`SELECT count(*) FROM public.audit_logs WHERE entity_id = 'A207-RC1' AND field_name = 'receivable_voided';`)).toBe('1')
   })
 })

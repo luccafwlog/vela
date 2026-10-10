@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { importContainerDates, parseContainerDatesFile } from '../containerDatesImport'
+import { annotateContainerDates, importContainerDates, parseContainerDatesFile } from '../containerDatesImport'
 import { jsonToBuffer } from './testWorkbook'
 
 type FakeContainer = {
@@ -56,6 +56,7 @@ describe('containerDatesImport', () => {
       container_number: 'TCLU1234567',
       discharge_date: '2026-01-10',
       return_date: null,
+      row_number: 2,
     }])
   })
 
@@ -180,5 +181,24 @@ describe('importContainerDates (lote parcial)', () => {
         message: expect.stringContaining('B/L foi ignorado'),
       }),
     ])
+  })
+
+  // ADR 0078, item 19: a prévia mostra "antes → depois", devolução vazia mantém
+  // a gravada e o mesmo container com datas diferentes na Viagem é recusado.
+  it('prévia: devolução vazia mantém a gravada e datas diferentes no mesmo container da Viagem são recusadas', () => {
+    const current = [
+      { bl_id: 'BL001', container_number: 'TCLU1234567', voyage_id: 1, discharge_date: '2026-01-10', return_date: '2026-01-20' },
+      { bl_id: 'BL002', container_number: 'TCLU7654321', voyage_id: 1, discharge_date: null, return_date: null },
+      { bl_id: 'BL003', container_number: 'TCLU7654321', voyage_id: 1, discharge_date: null, return_date: null },
+    ]
+    const preview = annotateContainerDates([
+      { bl_id: 'BL001', container_number: 'TCLU1234567', discharge_date: '2026-01-10', return_date: null, row_number: 2 },
+      { bl_id: 'BL002', container_number: 'TCLU7654321', discharge_date: '2026-01-11', return_date: null, row_number: 3 },
+      { bl_id: 'BL003', container_number: 'TCLU7654321', discharge_date: '2026-01-12', return_date: null, row_number: 4 },
+    ], current)
+    expect(preview.rows).toEqual([expect.objectContaining({
+      bl_id: 'BL001', before_return: '2026-01-20', after_return: '2026-01-20', changed: false,
+    })])
+    expect(preview.conflicts.map((conflict) => [conflict.row_number, conflict.bl_id])).toEqual([[3, 'BL002'], [4, 'BL003']])
   })
 })

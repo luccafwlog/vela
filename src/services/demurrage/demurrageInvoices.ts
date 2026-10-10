@@ -1,5 +1,4 @@
 import { supabase } from '../supabase'
-import { extractErrorText } from '../../lib/errors'
 import type { DemurrageInvoice, DemurrageInvoiceItem } from '../../types/database'
 
 export type DemurrageInvoiceFilters = {
@@ -47,105 +46,43 @@ function genDemurrageDocnum(blId: string): string {
   return `DEM-${year}-${ts}${suffix}`
 }
 
-async function createDemurrageInvoiceAuthoritative(input: {
-  docNumber: string
-  blId: string
-  customerId: number
-  containerIds: number[]
-}): Promise<number> {
-  const { data, error } = await supabase.rpc('create_demurrage_invoice_authoritative', {
-    p_doc_number: input.docNumber,
-    p_bl_id: input.blId,
-    p_customer_id: input.customerId,
-    p_container_ids: input.containerIds,
-  })
+type IssueDemurrageResult = {
+  status: 'issued' | 'existing' | 'waiting_return' | 'no_overstay' | 'no_containers'
+  invoice_id?: number
+  anchor_bl_id?: string
+}
+
+// Emissão pelo banco (migration 178): B/Ls do mesmo Cliente que dividem
+// container na Viagem formam um grupo com uma única Invoice de Demurrage,
+// emitida pelo B/L-âncora quando todos os containers não-SOC voltaram; o
+// container devolvido no free time entra com valor zero.
+async function issueDemurrageInvoiceForBl(blId: string): Promise<IssueDemurrageResult> {
+  const { data, error } = await supabase.rpc('issue_demurrage_invoice_for_bl' as never, {
+    p_bl_id: blId,
+    p_doc_number: genDemurrageDocnum(blId),
+  } as never)
   if (error) {
-    const text = extractErrorText(error).toLowerCase()
-    if (text.includes('23505')) {
+    if ((error as { code?: string }).code === '23505') {
       throw new Error('Já existe fatura de Demurrage emitida ou paga para este B/L. Cancele a fatura atual antes de reemitir.')
     }
     throw error
   }
-
-  const invoiceId = Number((data as { invoice_id?: number } | null)?.invoice_id)
-  if (!Number.isFinite(invoiceId) || invoiceId <= 0) {
-    throw new Error('RPC de Demurrage nao retornou uma invoice valida.')
-  }
-  return invoiceId
-}
-
-/**
- * Sob recálculo diário, uma fatura emitida e não paga não é sobrescrita pela
- * reimportação (ADR 0014). Detecta se já há fatura ativa (issued/paid) para o B/L.
- */
-async function hasActiveInvoiceForBL(blId: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('demurrage_invoices')
-    .select('id')
-    .eq('bl_id', blId)
-    .in('status', ['issued', 'paid'])
-    .limit(1)
-  if (error) throw error
-  return (data?.length ?? 0) > 0
+  return (data ?? { status: 'no_containers' }) as IssueDemurrageResult
 }
 
 export async function createInvoiceForBL(blId: string): Promise<number> {
-  const { data: bl, error: blErr } = await supabase
-    .from('bls')
-    .select('id, customer_id')
-    .eq('id', blId)
-    .single()
-  if (blErr) throw blErr
-  if (!bl.customer_id) throw new Error('BL não possui cliente vinculado')
-
-  const { data: containers, error: cErr } = await supabase
-    .from('bl_containers')
-    .select('id')
-    .eq('bl_id', blId)
-    .eq('demurrage_status', 'overdue')
-    // SOC é do cliente: sem devolução nem Demurrage (migration 121).
-    .or('ownership.is.null,ownership.neq.SOC')
-  if (cErr) throw cErr
-  if (!containers?.length) throw new Error('Nenhum container em atraso para este BL')
-
-  const doc_number = genDemurrageDocnum(blId)
-  return createDemurrageInvoiceAuthoritative({
-    docNumber: doc_number,
-    blId,
-    customerId: bl.customer_id,
-    containerIds: containers.map((container) => container.id),
-  })
+  const result = await issueDemurrageInvoiceForBl(blId)
+  if (result.status === 'issued' && result.invoice_id) return result.invoice_id
+  const group = result.anchor_bl_id && result.anchor_bl_id !== blId ? ` (grupo do B/L ${result.anchor_bl_id})` : ''
+  if (result.status === 'existing') throw new Error(`Já existe Invoice de Demurrage para este B/L${group}.`)
+  if (result.status === 'waiting_return') throw new Error(`Aguardando a devolução de todos os containers do B/L${group}.`)
+  if (result.status === 'no_overstay') throw new Error(`Nenhum container com sobreestadia para este B/L${group}.`)
+  throw new Error('Nenhum container para faturar neste B/L.')
 }
 
 export async function createInvoiceForReturnedBL(blId: string): Promise<number | null> {
-  const { data: bl, error: blErr } = await supabase
-    .from('bls')
-    .select('id, customer_id')
-    .eq('id', blId)
-    .single()
-  if (blErr) throw blErr
-  if (!bl.customer_id) return null
-
-  const { data: containers, error: cErr } = await supabase
-    .from('bl_containers')
-    .select('id')
-    .eq('bl_id', blId)
-    .eq('demurrage_status', 'returned')
-    .or('ownership.is.null,ownership.neq.SOC')
-    .not('discharge_date', 'is', null)
-    .not('return_date', 'is', null)
-  if (cErr) throw cErr
-  if (!containers?.length) return null
-
-  if (await hasActiveInvoiceForBL(blId)) return null
-
-  const doc_number = genDemurrageDocnum(blId)
-  return createDemurrageInvoiceAuthoritative({
-    docNumber: doc_number,
-    blId,
-    customerId: bl.customer_id,
-    containerIds: containers.map((container) => container.id),
-  })
+  const result = await issueDemurrageInvoiceForBl(blId)
+  return result.status === 'issued' && result.invoice_id ? result.invoice_id : null
 }
 
 export async function markInvoicePaid(invoiceId: number, paidAt: string): Promise<void> {

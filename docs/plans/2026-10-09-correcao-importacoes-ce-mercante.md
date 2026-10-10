@@ -389,42 +389,65 @@ que copia a ATA na inserção de container; Régua de Cobrança
 (`claim_demurrage_dunning_candidates`); `cancel_bl` e exclusão de B/L;
 `src/services/containerDatesImport.ts`.
 
-- [ ] Notificação "Nova fatura emitida" no COMMIT, com o total gravado.
-- [ ] B/L Cancelado fora da prontidão e do conteúdo do Comunicado de CE e
+- [x] Notificação "Nova fatura emitida" no COMMIT, com o total gravado.
+- [x] B/L Cancelado fora da prontidão e do conteúdo do Comunicado de CE e
   Taxas e do alerta de CE.
-- [ ] Datas, desova e status de Demurrage não reabrem a Revisão de B/L
+- [x] Datas, desova e status de Demurrage não reabrem a Revisão de B/L
   faturado; só a base de cálculo recalcula.
-- [ ] Invoice de Demurrage com container devolvido no free time; SOC fora da
+- [x] Invoice de Demurrage com container devolvido no free time; SOC fora da
   devolução pendente e da emissão.
-- [ ] **Planilha de datas:** chave B/L + container (várias viagens por
+- [x] **Planilha de datas:** chave B/L + container (várias viagens por
   arquivo); a data vale para todos os B/Ls que dividem o container na mesma
   Viagem; datas diferentes para o mesmo container no arquivo recusam as linhas;
   célula ou coluna de devolução vazia não altera a data; prévia "antes →
   depois".
-- [ ] **Descarga só informada:** remover o preenchimento pela ATA na inserção
+- [x] **Descarga só informada:** remover o preenchimento pela ATA na inserção
   de container; container sem descarga informada fica sem data.
-- [ ] **Remover data** pela edição do container, com motivo no Histórico.
-- [ ] **Demurrage emitida e datas alteradas:** sem pagamento, cancelar e
+- [x] **Remover data** pela edição do container, com motivo no Histórico.
+- [x] **Demurrage emitida e datas alteradas:** sem pagamento, cancelar e
   reemitir automaticamente (só cancelar se o valor for zero); com pagamento,
   item 4 da ADR 0077; alerta e suspensão da Régua para essa fatura.
-- [ ] **Invoice de Demurrage por grupo:** B/Ls do mesmo Cliente ligados por
+- [x] **Invoice de Demurrage por grupo:** B/Ls do mesmo Cliente ligados por
   container compartilhado recebem uma única Invoice de Demurrage, cada caixa uma
   vez, emitida quando todos os containers do grupo estiverem devolvidos.
   Confirmar antes, com checagem, o comportamento atual (o cálculo por B/L
   indica cobrança dupla da caixa compartilhada; evidência só de código).
-- [ ] **Recebível sem fatura:** não trava cancelamento nem exclusão do B/L; é
+- [x] **Recebível sem fatura:** não trava cancelamento nem exclusão do B/L; é
   anulado com o cálculo, com registro no Histórico; deixa de aparecer como
   pagável no Portal.
-- [ ] "Gerar Fatura" manual alcança B/Ls com todos os containers devolvidos,
+- [x] "Gerar Fatura" manual alcança B/Ls com todos os containers devolvidos,
   não só `overdue`; `demurrage_status` com uma semântica.
-- [ ] Trocar os 6 `it.fails` de `auditoriaFaturasDemurrageComunicado` por `it`.
-- [ ] Checagens novas: devolução vazia preserva a data; data propagada ao B/L
+- [x] Trocar os 6 `it.fails` de `auditoriaFaturasDemurrageComunicado` por `it`.
+- [x] Checagens novas: devolução vazia preserva a data; data propagada ao B/L
   irmão; Demurrage reemitida após correção de datas; grupo com uma invoice;
   cancelamento de B/L com recebível sem fatura.
 
 **Aceitação:** os 6 casos (12/12 na suíte) e as checagens novas passam;
 nenhuma notificação nova com "R$ 0.00" para fatura de total positivo; suítes
 `demurrage*` e `communicationEligibility` verdes.
+
+**Execução (2026-10-10, local):** migration `178`. Notificação "Nova fatura
+emitida" em constraint trigger adiado, relendo o total (formato pt-BR).
+Prontidão, conteúdo do Comunicado e Alerta de CE da Viagem com
+`cancelled_at IS NULL`. Gatilho de modalidade de carga só reage a
+`bl_id`/`container_number`. Cálculo de Demurrage com item zero; SOC fora da
+devolução pendente e da emissão. `demurrage_status` normalizado por gatilho.
+Datas: `_apply_container_dates_core` (propaga aos B/Ls ativos da Viagem;
+devolução vazia mantém), `apply_container_dates_atomic` reescrita,
+`set_container_dates` com motivo para remover; `trg_container_discharge_date`
+removido. Grupo: `demurrage_group_bl_ids`/`demurrage_group_anchor`,
+`issue_demurrage_invoice_for_bl` (manual e `_run_import_effect_demurrage`),
+cálculo, conjunto completo e emissão por grupo. Reemissão por datas com Alerta
+`demurrage_invoice_dates_changed` e `dunning_suspended_reason` na Régua.
+Recebível sem fatura anulado em `cancel_bl` e antes da exclusão do B/L.
+Frontend: datas pela RPC (motivo ao remover na ficha e na página Demurrage),
+"Gerar Fatura" pelo banco e também para B/L devolvido com sobreestadia, prévia
+"antes → depois" com recusa do mesmo container com datas diferentes na Viagem.
+Checagem do comportamento anterior do grupo: só por código (cada B/L cobrava a
+caixa compartilhada inteira); a checagem nova prova uma Invoice só. Limites
+registrados como `ponytail`: com pagamento, a diferença de Demurrage não é
+abatida nem restituída sozinha; a Invoice do grupo só aparece no B/L-âncora.
+`auditoriaFaturasDemurrageComunicado` 17/17 (12 + 5 checagens novas).
 
 ## Etapa 8 — Contrato da importação de CE (M07, M09, M12, M13; ADR 0078, itens 4, 6, 7 e 9)
 

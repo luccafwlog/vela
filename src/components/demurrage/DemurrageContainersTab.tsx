@@ -81,6 +81,9 @@ export function DemurrageContainersTab({
                   const voyageInfo = firstBl?.voyage?.voyage_number ? `${firstBl.voyage.voyage_number} — ${firstBl.voyage.vessel?.name ?? ''}` : ''
                   const hasOverdue = blContainers.some((container) => container.demurrage_status === 'overdue')
                   const blTotalUSD = blContainers.reduce((sum, container) => sum + (effectiveDemurrage(container)?.total_usd ?? 0), 0)
+                  // "Gerar Fatura" também para B/L devolvido com sobreestadia (o banco
+                  // confere o grupo e recusa se faltar devolução; migration 178).
+                  const canGenerate = hasOverdue || (blTotalUSD > 0 && blContainers.some((container) => Boolean(container.return_date)))
 
                   return [
                     <tr key={`${blId}-header`} className="bg-[var(--app-surface-muted)]">
@@ -93,7 +96,7 @@ export function DemurrageContainersTab({
                           </div>
                           <div className="flex items-center gap-3">
                             {blTotalUSD > 0 && <span className="text-sm font-semibold text-amber-400">{fmtUSD(blTotalUSD)}</span>}
-                            {hasOverdue && (
+                            {canGenerate && (
                               <Button variant="secondary" disabled={Boolean(generatingBl)} onClick={() => onGenerateInvoice(blId)}>
                                 <FileText size={14} />
                                 {generatingBl === blId ? 'Gerando...' : 'Gerar Fatura'}

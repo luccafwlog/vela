@@ -4,8 +4,8 @@
 // acumulado (`simulate_import_effects`) relata o que cada efeito faria e não
 // grava nada.
 //
-// Namespace exclusivo: ids 99207xxx, B/Ls 'A207-*', usuário ...0000002070NN,
-// Granito com UUID ...0000002070NN. A limpeza roda com
+// Namespace exclusivo: ids 99227xxx, B/Ls 'A227-*', usuário ...0000002270NN,
+// Granito com UUID ...0000002270NN. A limpeza roda com
 // `session_replication_role = replica`, porque a Viagem Cancelada recusa
 // qualquer mudança nas linhas dela.
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -15,15 +15,15 @@ const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
-const adminId = '00000000-0000-0000-0000-000000207001'
-const carrierId = 99207001
-const vesselId = 99207002
-const voyageId = 99207003
-const customerId = 99207004
-const graniteManifestId = '00000000-0000-0000-0000-000000207051'
-const graniteBlId = '00000000-0000-0000-0000-000000207052'
-const blId = 'A207-BL1'
-const container = 'ADCU2070001'
+const adminId = '00000000-0000-0000-0000-000000227001'
+const carrierId = 99227001
+const vesselId = 99227002
+const voyageId = 99227003
+const customerId = 99227004
+const graniteManifestId = '00000000-0000-0000-0000-000000227051'
+const graniteBlId = '00000000-0000-0000-0000-000000227052'
+const blId = 'A227-BL1'
+const container = 'ADCU2270001'
 
 function psql(sql: string): string {
   return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
@@ -93,17 +93,17 @@ describeLocal('Viagem Cancelada sela a operação e a simulação não grava (mi
   beforeAll(() => {
     cleanup()
     psql(`
-      INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'a207-admin@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'A207 Administrativo', 'administrativo', true);
-      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '99207004000102', 'A207 CLIENTE');
-      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'A207 Carrier');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'A207 NAVIO', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'A207', 'active');
+      INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'a227-admin@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'A227 Administrativo', 'administrativo', true);
+      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '99227004000174', 'A227 CLIENTE');
+      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'A227 Carrier');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'A227 NAVIO', ${carrierId});
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'A227', 'active');
       INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status)
-      VALUES ('${blId}', ${voyageId}, ${customerId}, 'A207O', 'A207P', 'container', 'pending', 'not_calculated');
+      VALUES ('${blId}', ${voyageId}, ${customerId}, 'A227O', 'A227P', 'container', 'pending', 'not_calculated');
       INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('${blId}', '${container}', '40HC');
-      INSERT INTO public.granite_manifests (id, voyage_id, vessel_voyage) VALUES ('${graniteManifestId}', ${voyageId}, 'A207 NAVIO A207');
-      INSERT INTO public.granite_bls (id, manifest_id, bl_number) VALUES ('${graniteBlId}', '${graniteManifestId}', 'A207-GRA-1');
+      INSERT INTO public.granite_manifests (id, voyage_id, vessel_voyage) VALUES ('${graniteManifestId}', ${voyageId}, 'A227 NAVIO A227');
+      INSERT INTO public.granite_bls (id, manifest_id, bl_number) VALUES ('${graniteBlId}', '${graniteManifestId}', 'A227-GRA-1');
       INSERT INTO public.import_pending_effects (source_action_id, effect_kind, entity_id, created_by) VALUES
         (gen_random_uuid(), 'provisional_charges', '${blId}', '${adminId}'),
         (gen_random_uuid(), 'granite_billing', '${graniteBlId}', '${adminId}');
@@ -125,7 +125,7 @@ describeLocal('Viagem Cancelada sela a operação e a simulação não grava (mi
   })
 
   it('cancelar a Viagem encerra os efeitos pendentes dela', () => {
-    const cancelled = asAdmin(`SELECT public.cancel_voyage(${voyageId}, 'Armador cancelou a escala (A207)', '${adminId}');`)
+    const cancelled = asAdmin(`SELECT public.cancel_voyage(${voyageId}, 'Armador cancelou a escala (A227)', '${adminId}');`)
     expect(cancelled.stderr).toBe('')
     expect(JSON.parse(cancelled.stdout)).toMatchObject({ status: 'cancelled', changed: true, closed_effects: 2 })
     expect(effectStatuses()).toEqual(['provisional_charges:superseded', 'granite_billing:superseded'])
@@ -142,7 +142,7 @@ describeLocal('Viagem Cancelada sela a operação e a simulação não grava (mi
 
   it('CE de Granito é recusado em Viagem Cancelada', () => {
     const attempt = asAdmin(`
-      SELECT public.apply_ce_mercante_rows_atomic('[{"row":2,"bl_id":"${graniteBlId}","ce":"992070000000001"}]'::jsonb, '${adminId}'::uuid, 'granite');
+      SELECT public.apply_ce_mercante_rows_atomic('[{"row":2,"bl_id":"${graniteBlId}","ce":"992270000000001"}]'::jsonb, '${adminId}'::uuid, 'granite');
     `)
     const refused = attempt.stderr !== '' || JSON.parse(attempt.stdout).ok === false
     expect(refused).toBe(true)

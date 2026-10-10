@@ -81,6 +81,7 @@ export function Demurrage() {
   const [editingContainer, setEditingContainer] = useState<DemurrageContainerListItem | null>(null)
   const [editDischarge, setEditDischarge] = useState('')
   const [editReturn, setEditReturn] = useState('')
+  const [editReason, setEditReason] = useState('')
   const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null)
   const [docType, setDocType] = useState<'invoice' | 'receipt'>('invoice')
   const [payingId, setPayingId] = useState<number | null>(null)
@@ -167,6 +168,7 @@ export function Demurrage() {
     setEditingContainer(container)
     setEditDischarge(container.discharge_date ?? '')
     setEditReturn(container.return_date ?? '')
+    setEditReason('')
   }
 
   function openDiscount(invoice: DemurrageInvoice) {
@@ -201,7 +203,7 @@ export function Demurrage() {
     onError: (error) => showToast(error instanceof Error ? error.message : 'Falha ao recalcular.', 'error'),
   })
   const containerDatesMutation = useMutation({
-    mutationFn: ({ id, discharge, ret }: { id: number; discharge: string; ret: string | null }) => updateContainerDates(id, discharge, ret),
+    mutationFn: ({ id, discharge, ret, reason }: { id: number; discharge: string; ret: string | null; reason: string | null }) => updateContainerDates(id, discharge, ret, reason),
     onSuccess: async () => {
       await afterDatasContainerAlteradas(queryClient)
       setEditingContainer(null)
@@ -392,12 +394,19 @@ export function Demurrage() {
               <Field label="Data de descarga" required><Input type="date" value={editDischarge} onChange={(event) => setEditDischarge(event.target.value)} /></Field>
               <Field label="Data de devolução"><Input type="date" value={editReturn} onChange={(event) => setEditReturn(event.target.value)} /></Field>
             </div>
+            {editingContainer.return_date && !editReturn ? (
+              <Field label="Motivo da remoção" required hint="A devolução sai de todos os B/Ls que dividem o container nesta Viagem.">
+                <Input value={editReason} onChange={(event) => setEditReason(event.target.value)} />
+              </Field>
+            ) : null}
             <div className="flex gap-2">
               <Button loading={containerDatesMutation.isPending} onClick={() => {
                 if (!editDischarge) return showToast('Data de descarga obrigatória.', 'error')
                 const validation = demurrageDatesSchema.safeParse({ discharge: editDischarge, ret: editReturn })
                 if (!validation.success) return showToast(formatValidationError(validation.error), 'error')
-                containerDatesMutation.mutate({ id: editingContainer.id, discharge: validation.data.discharge, ret: validation.data.ret })
+                const removing = Boolean(editingContainer.return_date) && !validation.data.ret
+                if (removing && !editReason.trim()) return showToast('Informe o motivo para remover a data de devolução.', 'error')
+                containerDatesMutation.mutate({ id: editingContainer.id, discharge: validation.data.discharge, ret: validation.data.ret, reason: removing ? editReason.trim() : null })
               }}>Salvar</Button>
               <Button variant="ghost" onClick={() => setEditingContainer(null)}>Voltar</Button>
             </div>

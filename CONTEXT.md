@@ -806,9 +806,10 @@ depois que o Financeiro cancelou ou estornou as faturas e recebíveis abertos
 dele. O B/L sai do faturamento, aparece no Portal como cancelado se já tiver
 sido liberado e libera o CE para o B/L reemitido. Pode ser reativado se o
 cancelamento foi por engano. B/L sem CE não é cancelado: é excluído.
-Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), recebível sem fatura não bloqueia o
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (migration `178`), recebível sem fatura não bloqueia o
 cancelamento: cancelar ou excluir o B/L anula o cálculo e o recebível, com
-registro no Histórico.
+registro no Histórico. O B/L Cancelado sai da prontidão e do conteúdo do
+Comunicado de CE e Taxas e do Alerta de CE Mercante pendente.
 Cancelado, fica somente leitura e deixa de contar nos Alertas de revisão do
 Cliente; cancelar ou reativar reconcilia esses Alertas na hora (migration
 `169`).
@@ -1439,7 +1440,7 @@ A descarga é a data informada pelo terminal, que entra pela planilha de datas;
 a ATA não preenche a descarga. Na planilha, a chave é B/L + container, e a data
 vale para todos os B/Ls que dividem o container na mesma Viagem; célula ou
 coluna vazia não apaga a data gravada, e remover uma data é correção isolada
-na edição do container, com motivo ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+na edição do container, com motivo ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `178`, RPC `set_container_dates`).
 
 **Free Time**
 Período após a descarga durante o qual o container pode ficar no pátio sem
@@ -1515,13 +1516,18 @@ não se fatura com container ainda fora, pois os dias de demurrage (e portanto o
 pagamento. O monitoramento de containers ainda fora (demurrage correndo) é
 operacional, não gera fatura.
 
-Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente): B/Ls do mesmo Cliente ligados por container
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (migration `178`): B/Ls do mesmo Cliente ligados por container
 compartilhado recebem uma única Invoice de Demurrage, com cada caixa uma vez,
-emitida quando todos os containers do grupo estiverem devolvidos. Mudança de
+emitida pelo B/L de menor número do grupo quando todos os containers não-SOC do
+grupo estiverem devolvidos; o container devolvido no free time entra com valor
+zero, e o grupo sem sobreestadia não fatura. Mudança de
 datas que altera uma Invoice de Demurrage emitida a cancela e reemite
 automaticamente se não houver pagamento (ou só cancela, se o valor for zero);
 com pagamento, a diferença segue a ADR 0077. Abre alerta, e a Régua de Cobrança
-para de cobrar essa fatura até a situação se resolver.
+para de cobrar essa fatura até a situação se resolver. Hoje, com pagamento, a
+diferença não é abatida nem vira restituição sozinha: a fatura sai da Régua e o
+Alerta `demurrage_invoice_dates_changed` leva ao Administrativo, que usa a
+restituição de Demurrage ou uma avulsa.
 
 - **Ver também:** P1, P2, Free Time, ROE, Recálculo Diário
 

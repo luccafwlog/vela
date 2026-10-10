@@ -628,8 +628,9 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     const document = blDocument(blId, { containers: ['AZCU2020011', 'AZCU2020012'] })
     const first = await importBls([document], 'a202-idem.xlsx')
     expect(first.error).toBeNull()
-    // Container novo nasce com a ATA da Viagem como descarga.
-    expect(containersOf(blId).map((container) => container.discharge_date)).toEqual([voyageAta, voyageAta])
+    // A descarga é só a informada: a ATA da Viagem não a preenche (ADR 0078,
+    // item 19; migration 178).
+    expect(containersOf(blId).map((container) => container.discharge_date)).toEqual([null, null])
 
     importContainerDates(blId, [
       { container: 'AZCU2020011', discharge: '2026-09-01', return: '2026-09-20' },

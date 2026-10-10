@@ -4,6 +4,16 @@
 
 ## 2026-10
 
+- **Faturas, Demurrage, datas e Comunicado (2026-10-10, implementação local; Etapa 7 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  a notificação "Nova fatura emitida" traz o total real; B/L Cancelado sai do Comunicado de CE e
+  Taxas; datas de container não reabrem a Revisão de B/L faturado; a Invoice de Demurrage aceita
+  container devolvido no free time e ignora SOC; a planilha de datas não apaga devolução com célula
+  vazia, aplica a data a todos os B/Ls que dividem o container e mostra "antes → depois"; remover
+  data pede motivo; B/Ls do mesmo Cliente que dividem container recebem uma única Invoice de
+  Demurrage; datas alteradas depois da emissão reemitem a Invoice (sem pagamento) ou a tiram da
+  Régua (com pagamento); recebível sem fatura não trava cancelar nem excluir o B/L (migration
+  `178`, ADR 0078 itens 12, 19 e 20).
 - **Fila de efeitos e Viagem Cancelada (2026-10-10, implementação local; Etapa 4 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   os efeitos de importação revalidam o estado atual (veículos não cancelam fatura de FCL; taxas

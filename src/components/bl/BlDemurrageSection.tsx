@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Field, Input } from '../ui/Input'
-import { useConfirm } from '../ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import { useCustomerDemurrageAgreements } from '../../hooks/useCustomerDemurrageAgreements'
@@ -28,6 +28,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
   const { user } = useAuth()
   const { showToast } = useToast()
   const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
 
   // Sem cliente vinculado nao ha acordo a aplicar. O `enabled` e o que impede
   // a consulta de voltar com os acordos de TODOS os clientes (o filtro por
@@ -168,19 +169,35 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
       return
     }
 
-    const confirmed = await confirm({
-      title: 'Salvar data de devolução',
-      message: `Atualizar data de devolução do container ${container?.container_number ?? containerId}?`,
-      confirmLabel: 'Salvar data',
-      changes: [{ field: 'Data de devolução', before: beforeDate, after: afterDate }],
-      consequence: 'O cálculo de Demurrage deste container considerará a devolução nesta data para apuração de dias excedentes e valores devidos.',
-      reversibility: 'A data pode ser alterada ou desfeita novamente.',
-    })
-    if (!confirmed) return
+    // Remover a devolução gravada é caso isolado e pede motivo (ADR 0078, item 19).
+    const removing = Boolean(container?.return_date) && !returnDate
+    let reason: string | null = null
+    if (removing) {
+      reason = await confirmWithReason({
+        title: 'Remover data de devolução',
+        message: `Remover a data de devolução do container ${container?.container_number ?? containerId}?`,
+        confirmLabel: 'Remover data',
+        tone: 'danger',
+        changes: [{ field: 'Data de devolução', before: beforeDate, after: afterDate }],
+        consequence: 'O container volta a contar como não devolvido nos B/Ls que o dividem nesta Viagem; Invoice de Demurrage emitida é reconciliada.',
+        reversibility: 'Informe a data de novo quando ela for confirmada.',
+      })
+      if (reason === null) return
+    } else {
+      const confirmed = await confirm({
+        title: 'Salvar data de devolução',
+        message: `Atualizar data de devolução do container ${container?.container_number ?? containerId}?`,
+        confirmLabel: 'Salvar data',
+        changes: [{ field: 'Data de devolução', before: beforeDate, after: afterDate }],
+        consequence: 'O cálculo de Demurrage deste container considerará a devolução nesta data para apuração de dias excedentes e valores devidos.',
+        reversibility: 'A data pode ser alterada ou desfeita novamente.',
+      })
+      if (!confirmed) return
+    }
 
     setSavingReturnDate(containerId)
     try {
-      await updateContainerReturnDate(containerId, returnDate || null)
+      await updateContainerReturnDate(containerId, returnDate || null, reason)
       // A escrita já foi confirmada; uma falha na releitura não deve expor a data antiga.
       queryClient.setQueryData<BLDetail>(queryKeys.bls.detail(bl.id), (cached) => cached && ({
         ...cached,
