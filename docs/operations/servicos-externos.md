@@ -297,7 +297,13 @@ posterior em 07/10: `RECALC_CRON_SECRET` provisionado em par, validado via
 HTTP 200 e job agendado às 17h UTC de segunda a sexta. `IMPORT_EFFECTS_CRON_SECRET`
 fica sem provisionar de propósito: o `import-effects-runner` está pausado
 (`IMPORT_EFFECTS_RUNNER_ENABLED` desligado) e o segredo será criado em par
-quando o runner for ativado (decisão do dono, 2026-10-08). A migration `107` deixa
+quando o runner for ativado (decisão do dono, 2026-10-08). **Condição para
+ligar (ADR 0078, item 18):** o runner fica desligado até a Etapa 13 do
+[plano de correção das importações](../plans/2026-10-09-correcao-importacoes-ce-mercante.md),
+depois da correção das tarefas da fila (Etapas 4 e 7 em produção), do ensaio
+em Preview e da aprovação do acumulado pela simulação; a ligação em produção é
+ato do dono. O diagnóstico da fila em leitura está em
+`supabase/scripts/diagnostico_importacoes_ce_somente_leitura.sql`. A migration `107` deixa
 `portal-email-events-runner` e `import-effects-runner` agendados; para o
 segundo, o dispatcher emite `WARNING` e não chama a Edge Function enquanto o
 segredo do Vault estiver ausente. O job `recalc-demurrage-ptax` foi agendado manualmente em 07/10 (jobid 26). Um `succeeded` em `cron.job_run_details` só comprova que o
