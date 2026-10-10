@@ -4,7 +4,7 @@
 // trilha de lote e o mesmo disparo de taxas locais.
 import { canonicalizeVesselName } from '../lib/vesselAlias'
 import { supabase } from './supabase'
-import { importBreakbulkManifest, type ParsedBreakbulkManifest } from './breakbulkImport'
+import { importBreakbulkManifest, type BreakbulkImportResult, type ParsedBreakbulkManifest } from './breakbulkImport'
 import { blDocumentToManifest, type ParsedBlDocument } from './blDocumentParser'
 
 /** Viagem escolhida na tela, no formato que `useVoyageOptions` devolve. */
@@ -41,6 +41,8 @@ export async function importBlDocuments({
   documents,
   uploadedBy,
   allowRowErrors = false,
+  acceptCustomerChanges = false,
+  overrideBilling = false,
 }: {
   filename: string
   voyageId: number
@@ -48,7 +50,11 @@ export async function importBlDocuments({
   uploadedBy: string
   /** Permite prosseguir com avisos; erros documentais continuam bloqueando. */
   allowRowErrors?: boolean
-}) {
+  /** Troca de Consignatário aceita na prévia. */
+  acceptCustomerChanges?: boolean
+  /** Confirmação de faturamento: corrige também a rota de B/L faturado. */
+  overrideBilling?: boolean
+}): Promise<BreakbulkImportResult> {
   const invalidDocument = documents.find((document) => document.errors.length > 0)
   if (invalidDocument) {
     throw new Error(`${filename}: ${invalidDocument.errors.join(' ')}`)
@@ -79,7 +85,9 @@ export async function importBlDocuments({
     rowErrors: parsedManifests.flatMap((item) => item.rowErrors),
   }
 
-  return importBreakbulkManifest({ filename, voyageId, manifest, uploadedBy, allowRowErrors })
+  return importBreakbulkManifest({
+    filename, voyageId, manifest, uploadedBy, allowRowErrors, acceptCustomerChanges, overrideBilling,
+  })
 }
 
 async function fetchVoyage(voyageId: number): Promise<BlDocumentVoyage> {

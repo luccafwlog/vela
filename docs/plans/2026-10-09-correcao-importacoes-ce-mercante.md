@@ -18,10 +18,13 @@ outra fatura. Não há decisão pendente.
 errado e de esconder o que gravaram, e implementar as regras de entrada,
 correção e efeitos da ADR 0078.
 
-**Estado em 2026-10-09:** nenhuma etapa iniciada. Decisões tomadas. As
-checagens de aceitação das Etapas 1 a 7 já estão no repositório como
-`it.fails` e rodam no CI; as regras novas da ADR 0078 ganham checagem na etapa
-que as implementa.
+**Estado em 2026-10-10:** Etapas 0 e 1 executadas localmente (migration `173`;
+ver as notas de execução nas etapas). Decisões tomadas. As checagens de
+aceitação das Etapas 2 a 7 continuam no repositório como `it.fails` e rodam no
+CI; as regras novas da ADR 0078 ganham checagem na etapa que as implementa.
+**Migrations:** o hook `.claude/hooks/protect-files.sh` bloqueia qualquer
+arquivo em `supabase/migrations/`; as migrations novas desta execução foram
+criadas por shell, sem editar nenhuma existente.
 
 ## Regras comuns a todas as etapas
 
@@ -78,7 +81,7 @@ hoje), depois 6 e 4, depois as demais.
 
 ## Etapa 0 — Salvaguardas (sem código)
 
-- [ ] Manter `IMPORT_EFFECTS_RUNNER_ENABLED` desligado até a Etapa 13.
+- [x] Manter `IMPORT_EFFECTS_RUNNER_ENABLED` desligado até a Etapa 13.
   Registrar a condição na seção do runner em
   [`servicos-externos.md`](../operations/servicos-externos.md).
 - [ ] O dono roda, **em leitura**, no banco de produção: efeitos pendentes por
@@ -88,7 +91,7 @@ hoje), depois 6 e 4, depois as demais.
   sem separadores); containers com `demurrage_status = 'returned'` e
   `return_date` nula; containers FCL em B/Ls de Clientes diferentes; mesmo
   chassi em Viagens diferentes. O resultado orienta as Etapas 4, 5, 6, 8 e 11.
-- [ ] Orientar a operação até as correções: não reimportar Manifesto BB, B/L
+- [ ] (dono) Orientar a operação até as correções: não reimportar Manifesto BB, B/L
   avulso nem B/L de container de B/L já com CE; em XLSX, digitar datas como
   texto `DD/MM/AAAA`; conferir dia e mês na prévia de datas.
 
@@ -103,35 +106,46 @@ migrations `060`/`064`), `src/services/breakbulkImport.ts`,
 modais `BlBreakbulkManifestModal.tsx`, `BlDocumentImportModal.tsx`,
 `VoyageImportActions.tsx`.
 
-- [ ] Migration nova redefinindo a RPC: B/L existente só atualiza os campos
+- [x] Migration nova redefinindo a RPC: B/L existente só atualiza os campos
   que o arquivo traz; nunca toca `ce_mercante`; Cliente vinculado,
   `review_status`, reconciliação e nota humana preservados; sugestão por nome
   grava `suggested_customer_id`.
-- [ ] **CE fora do Manifesto BB:** a coluna CE sai do modelo
+- [x] **CE fora do Manifesto BB:** a coluna CE sai do modelo
   (`public/templates/manifesto-bb-modelo.*`, `carga-solta-modelo.*`) e do
   obrigatório do layout resumido; se vier, é ignorada com aviso na prévia; o
   texto do modal deixa de dizer que o CE pode vir na planilha.
-- [ ] **Troca de Consignatário** com aceite, pelo mesmo contrato de
+- [x] **Troca de Consignatário** com aceite, pelo mesmo contrato de
   `relink_bl_customer` do B/L de container; sem aceite, Cliente atual mantido e
   divergência devolvida em `customer_changes_ignored`.
-- [ ] Campos do documento (POL, POD, shipper, notify, descrição, peso)
+- [x] Campos do documento (POL, POD, shipper, notify, descrição, peso)
   atualizam como correção; em B/L faturado, rota e Viagem pedem a confirmação de
   faturamento, e a fatura segue a ADR 0077; B/L em COD não tem o POD alterado
   (ver Etapa 10).
-- [ ] B/L existente em outra Viagem recusa o lote na prévia e no servidor, com
+- [x] B/L existente em outra Viagem recusa o lote na prévia e no servidor, com
   mensagem que nomeia o B/L e as duas Viagens.
-- [ ] Trocar os 6 `it.fails` de `auditoriaImportacaoCargaSolta` por `it`;
+- [x] Trocar os 6 `it.fails` de `auditoriaImportacaoCargaSolta` por `it`;
   remover `src/services/__tests__/breakbulkImportCeMigration.test.ts` (lê a
   `304` arquivada e mascara a regressão).
-- [ ] Checagens novas: BB com coluna CE preenchida não grava CE e avisa;
+- [x] Checagens novas: BB com coluna CE preenchida não grava CE e avisa;
   correção de POD por reimportação atualiza o B/L e desvincula o Manifesto
   Mercante.
-- [ ] Docs: `manifesto-edi.md` (B/L avulso, BB e item 11), retirando o "defeito
+- [x] Docs: `manifesto-edi.md` (B/L avulso, BB e item 11), retirando o "defeito
   conhecido".
 
 **Aceitação:** os 6 casos passam como `it`; o caso-guarda continua verde; um
 lote com B/L faturado e B/L novo é aceito sem cancelar nem reemitir;
 `pr698ClaudeReview`, `importEffects` e `auditoriaRun2` verdes.
+
+**Execução (2026-10-10, local):** migration `173` redefine a RPC; os 6 casos
+viraram `it` e passam com 5 checagens novas (CE ignorado, POD corrigido
+desvincula o Manifesto, reimportação idêntica sem efeito, rota de B/L faturado
+sem confirmação, Troca de Consignatário com aceite). O caso de CE do Manifesto
+BB em `auditoriaCeUnicidadeValidacao` também virou `it` (o BB não grava CE).
+Prévia nos três pontos de entrada (`/bls`, ações da Viagem e B/L avulso) com
+`BreakbulkReimportReview`. "Faturado", para travar a rota, é fatura viva ou
+status faturado/pago; B/L só calculado tem a rota corrigida e é recalculado
+pela tela. O desvínculo do Manifesto por POD vale só nesta RPC; o gatilho
+geral fica na Etapa 8.5.
 
 ## Etapa 2 — Reimportação de B/L de container (M02, M14; ADR 0078, itens 16 e 17)
 

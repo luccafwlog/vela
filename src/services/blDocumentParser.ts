@@ -167,7 +167,6 @@ export function blDocumentToManifest(document: ParsedBlDocument): ParsedBreakbul
   const row: BreakbulkImportRow = {
     rowNumber: 1,
     bl_id: document.bl_id,
-    ce_mercante: null,
     shipper: document.shipper,
     consignee: document.consignee ?? CONSIGNEE_FALLBACK,
     notify_party: document.notify_party,

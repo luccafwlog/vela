@@ -994,12 +994,15 @@ número de CE não pode ser usado por mais de um B/L não cancelado, somando B/L
 de carga e de Granito; o [B/L Cancelado](#operação-marítima) libera o CE. Hoje o
 banco não impõe essa unicidade (ADR 0071 e [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
 
+O Manifesto BB e o B/L avulso não gravam CE: a coluna CE saiu do modelo e, num
+arquivo antigo, é ignorada com aviso na prévia (migration `173`).
+
 Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente):
 
 - o CE entra pela planilha de CE Mercante e é corrigido ou removido pela ficha
   do B/L (**Corrigir CE Mercante**, **Remover CE Mercante**), por qualquer
-  usuário ativo, com as regras da planilha e motivo no Histórico; o Manifesto BB
-  não grava CE; a repetição do CE é recusada em todas as portas e na reativação;
+  usuário ativo, com as regras da planilha e motivo no Histórico; a repetição do
+  CE é recusada em todas as portas e na reativação;
 - trocar um CE já gravado exige confirmação com motivo na prévia, que mostra o
   CE atual e o novo; a fatura não muda; Comunicado já enviado abre pendência de
   reenvio ao Cliente;
@@ -1093,8 +1096,10 @@ consolidada com outros B/Ls, fatura com pagamento registrado, e consignatário
 ainda não cadastrado como Cliente havendo cobrança. Nesses casos o vínculo fica
 como está e os demais campos do B/L seguem sendo corrigidos. Ver ADR 0017.
 Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), a mesma regra vale para a reimportação de carga solta (Manifesto BB
-e B/L avulso; implementação pendente — hoje a reimportação troca o Cliente sem
-aceite, ver [Manifesto EDI](docs/modules/manifesto-edi.md#catálogo-de-ações)).
+e B/L avulso, desde a migration `173`): CNPJ de outro Cliente só troca com
+aceite na prévia, a rota de B/L faturado pede a confirmação de faturamento, B/L
+de outra Viagem recusa o lote e a ausência do CE ou do CNPJ no arquivo nunca
+apaga (ver [Manifesto EDI](docs/modules/manifesto-edi.md#catálogo-de-ações)).
 
 **Cliente**
 Pessoa jurídica responsável por cargas e cobranças no sistema; não existe

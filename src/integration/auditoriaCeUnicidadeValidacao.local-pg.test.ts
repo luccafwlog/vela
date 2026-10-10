@@ -548,8 +548,9 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   })
 
   // O CE não chega ao segundo B/L ativo. Pela ADR 0078 (D-03), o Manifesto BB
-  // deixa de gravar CE: a correção importa o B/L sem ele, com aviso na prévia.
-  it.fails('esperado: o CE do Manifesto BB que já está em outro B/L ativo é recusado [OUT-04, ORDCE-05, CED-11, TST-13] — regra: CONTEXT.md:963-966 e ADR 0071 item 9', () => {
+  // deixa de gravar CE: a correção (migration 173, Etapa 1) importa o B/L sem
+  // ele, com aviso na prévia.
+  it('esperado: o CE do Manifesto BB que já está em outro B/L ativo é recusado [OUT-04, ORDCE-05, CED-11, TST-13] — regra: CONTEXT.md:963-966 e ADR 0071 item 9', () => {
     expect(breakbulk?.holders).toEqual(['A206-BB-H1'])
   })
 

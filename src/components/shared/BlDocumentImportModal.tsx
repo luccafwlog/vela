@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { FileImportModal, type FilePreviewEntry } from './FileImportModal'
 import { VoyageCombobox } from './VoyageCombobox'
@@ -11,7 +11,21 @@ import { formatCnpj } from '../../lib/cnpj'
 import { formatNcm } from '../../lib/ncm'
 import { afterManifestoImportado } from '../../services/cacheEffects'
 import { describeVoyageMismatch, importBlDocuments, type BlDocumentVoyage } from '../../services/blDocumentImport'
-import { parseBlDocumentFile, type ParsedBlDocument } from '../../services/blDocumentParser'
+import { blDocumentToManifest, parseBlDocumentFile, type ParsedBlDocument } from '../../services/blDocumentParser'
+import {
+  checkBreakbulkReimport,
+  describeBreakbulkPending,
+  describeOtherVoyage,
+  type BreakbulkReimportCheck,
+} from '../../services/breakbulkImport'
+import { BreakbulkReimportReview } from './BreakbulkReimportReview'
+
+/** Documento lido e conferido com o B/L já gravado na viagem escolhida. */
+type CheckedBlDocument = ParsedBlDocument & { reimport?: BreakbulkReimportCheck }
+
+function isOtherVoyage(document: CheckedBlDocument) {
+  return Boolean(document.reimport?.otherVoyage.length)
+}
 
 /**
  * Importação de B/L avulso de carga solta: um arquivo por conhecimento, no
@@ -33,6 +47,8 @@ export function BlDocumentImportModal({
   const { showToast } = useToast()
   const { data: voyages } = useVoyageOptions()
   const [selectedVoyageId, setSelectedVoyageId] = useState(voyageId == null ? '' : String(voyageId))
+  const [acceptCustomerChanges, setAcceptCustomerChanges] = useState(false)
+  const [overrideBilling, setOverrideBilling] = useState(false)
   const lockedVoyage = voyageId != null
 
   const selectedVoyage = useMemo(
@@ -40,13 +56,24 @@ export function BlDocumentImportModal({
     [voyages, selectedVoyageId],
   )
 
+  const parseDocument = useCallback(
+    async (file: File): Promise<CheckedBlDocument> => {
+      const document = await parseBlDocumentFile(file)
+      if (!selectedVoyageId || !document.bl_id) return document
+      return { ...document, reimport: await checkBreakbulkReimport(Number(selectedVoyageId), blDocumentToManifest(document)) }
+    },
+    [selectedVoyageId],
+  )
+
   function close() {
     setSelectedVoyageId(lockedVoyage ? String(voyageId) : '')
+    setAcceptCustomerChanges(false)
+    setOverrideBilling(false)
     onClose()
   }
 
   return (
-    <FileImportModal<ParsedBlDocument>
+    <FileImportModal<CheckedBlDocument>
       multiple
       title="Importar B/Ls de carga solta"
       accept=".pdf,.docx"
@@ -54,6 +81,7 @@ export function BlDocumentImportModal({
       notReadyReason="Escolha a viagem de destino para liberar o arquivo."
       confirmLabel="Importar B/Ls"
       overrideHint="Os arquivos com aviso também entram, como foram lidos. Arquivos com erro ou de outra viagem continuam de fora."
+      reparseKey={selectedVoyageId}
       prerequisite={
         <VoyageCombobox
           required
@@ -64,22 +92,31 @@ export function BlDocumentImportModal({
           onSelect={(id) => setSelectedVoyageId(id == null ? '' : String(id))}
         />
       }
-      parser={parseBlDocumentFile}
+      parser={parseDocument}
       batchImporter={async (entries, allowOverride) => {
         if (!user || !selectedVoyageId) return
-        await importBlDocuments({
+        const result = await importBlDocuments({
           filename: entries.map((entry) => entry.file.name).join(', '),
           voyageId: Number(selectedVoyageId),
           documents: entries.map((entry) => entry.preview),
           uploadedBy: user.id,
           allowRowErrors: Boolean(allowOverride),
+          acceptCustomerChanges,
+          overrideBilling,
         })
         await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
-        showToast(`${entries.length} B/L(s) importado(s) como carga solta.`, 'success')
+        const pending = describeBreakbulkPending(result)
+        showToast(
+          pending.length
+            ? `${entries.length} B/L(s) importado(s) como carga solta, com pendências: ${pending.join(' | ')}`
+            : `${entries.length} B/L(s) importado(s) como carga solta.`,
+          pending.length ? 'info' : 'success',
+        )
       }}
       canImport={(document, allowOverride) => (
         document.errors.length === 0 &&
         !describeVoyageMismatch(document, selectedVoyage) &&
+        !isOtherVoyage(document) &&
         (document.warnings.length === 0 || Boolean(allowOverride))
       )}
       renderBatchSummary={(entries) => (
@@ -88,19 +125,31 @@ export function BlDocumentImportModal({
           canImport={(document) => (
             document.errors.length === 0 &&
             !describeVoyageMismatch(document, selectedVoyage) &&
+            !isOtherVoyage(document) &&
             document.warnings.length === 0
           )}
         />
       )}
-      renderPreview={(document) => <BlDocumentPreview document={document} voyage={selectedVoyage} />}
+      renderPreview={(document) => (
+        <>
+          <BlDocumentPreview document={document} voyage={selectedVoyage} />
+          <BreakbulkReimportReview
+            check={document.reimport ? { ...document.reimport, otherVoyage: [] } : undefined}
+            acceptCustomerChanges={acceptCustomerChanges}
+            onAcceptCustomerChanges={setAcceptCustomerChanges}
+            overrideBilling={overrideBilling}
+            onOverrideBilling={setOverrideBilling}
+          />
+        </>
+      )}
       helper={
         <ImportGuide
           requiredLabel="Formato"
           required={<>o B/L do armador em PDF (campos numerados) ou DOCX (caixas de texto). Cada arquivo vira um B/L.</>}
           details={
             <p>
-              O CE Mercante não vem no B/L: ele entra depois por Importar CE Mercante, e reimportar o B/L não apaga
-              o CE já gravado.
+              O CE Mercante não vem no B/L: ele entra depois por Importar CE Mercante. Reimportar o B/L corrige só o
+              que o documento traz e não apaga CE, Cliente vinculado nem observações.
             </p>
           }
         />
@@ -114,8 +163,8 @@ function BatchSummary({
   entries,
   canImport,
 }: {
-  entries: FilePreviewEntry<ParsedBlDocument>[]
-  canImport: (document: ParsedBlDocument, allowOverride?: boolean) => boolean
+  entries: FilePreviewEntry<CheckedBlDocument>[]
+  canImport: (document: CheckedBlDocument, allowOverride?: boolean) => boolean
 }) {
   const ready = entries.filter((entry) => canImport(entry.preview)).length
   const withWarnings = entries.filter((entry) => entry.preview.warnings.length > 0 && canImport(entry.preview, true)).length
@@ -138,18 +187,20 @@ function BlDocumentPreview({
   document,
   voyage,
 }: {
-  document: ParsedBlDocument
+  document: CheckedBlDocument
   voyage: BlDocumentVoyage | null
 }) {
   const mismatch = describeVoyageMismatch(document, voyage)
+  const otherVoyage = document.reimport?.otherVoyage ?? []
 
   return (
     <div className="grid gap-3">
-      {document.errors.length || mismatch ? (
+      {document.errors.length || mismatch || otherVoyage.length ? (
         <ImportNotice tone="danger" role="alert" title="Este arquivo não será importado">
           <ul className="app-import-notice__list">
             {document.errors.map((message) => <li key={message}>{message}</li>)}
             {mismatch ? <li>{mismatch}</li> : null}
+            {otherVoyage.map((entry) => <li key={entry.blId}>{describeOtherVoyage(entry)}</li>)}
           </ul>
         </ImportNotice>
       ) : null}

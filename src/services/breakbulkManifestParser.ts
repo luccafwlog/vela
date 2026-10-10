@@ -44,7 +44,10 @@ const headerMap = {
   gross_weight_kg: ['peso_kg', 'peso', 'peso bruto', 'weight (kg)'],
 } as const
 
-const bbRequiredHeaders = ['BL', 'CE', 'MAQUINAS', 'PACKAGES', 'PACKAGES TOTAL', 'WEIGHT (TON)', 'CBM (M3)', 'SHIPPER', 'CONSIGNEE', 'NOTIFY'] as const
+// O CE Mercante não faz parte do Manifesto BB (ADR 0078, item 1): entra pela
+// planilha de CE Mercante. A coluna continua reconhecida só para avisar que foi
+// ignorada num arquivo antigo.
+const bbRequiredHeaders = ['BL', 'MAQUINAS', 'PACKAGES', 'PACKAGES TOTAL', 'WEIGHT (TON)', 'CBM (M3)', 'SHIPPER', 'CONSIGNEE', 'NOTIFY'] as const
 const legacyRequiredHeaders = ['BL', 'CONSIGNATARIO', 'CNPJ', 'POL', 'POD', 'DESCRICAO', 'VOLUMES', 'PESO_KG', 'CBM'] as const
 
 type DestinationField = keyof typeof headerMap
@@ -53,7 +56,7 @@ type DestinationField = keyof typeof headerMap
 export type BreakbulkLayout = 'summary' | 'legacy' | 'carrier' | 'bl_document'
 const SUMMARY_SPEC: HeaderSpec<DestinationField> = {
   aliases: headerMap,
-  required: ['bl_id', 'ce_mercante', 'machine_qty', 'packages_qty', 'packages_total', 'gross_weight_ton', 'cbm', 'shipper', 'consignee', 'notify_party'],
+  required: ['bl_id', 'machine_qty', 'packages_qty', 'packages_total', 'gross_weight_ton', 'cbm', 'shipper', 'consignee', 'notify_party'],
 }
 const LEGACY_SPEC: HeaderSpec<DestinationField> = {
   aliases: headerMap,
@@ -63,7 +66,6 @@ const LEGACY_SPEC: HeaderSpec<DestinationField> = {
 export type BreakbulkImportRow = {
   rowNumber: number
   bl_id: string
-  ce_mercante: string | null
   shipper: string | null
   consignee: string
   notify_party: string | null
@@ -95,6 +97,24 @@ export type ParsedBreakbulkManifest = {
    * mas pede conferência — hoje só a ambiguidade de separador decimal.
    */
   rowErrors: { row: number; message: string; raw: unknown; severity?: 'error' | 'warning' }[]
+  /**
+   * Conferência com os B/Ls já gravados, preenchida pela prévia
+   * (`withBreakbulkReimportCheck` em breakbulkImport.ts), nunca pelo parser.
+   */
+  reimport?: BreakbulkReimportCheck
+}
+
+/** Situação dos B/Ls do arquivo que já existem, mostrada na prévia. */
+export type BreakbulkReimportCheck = {
+  existing: string[]
+  /** B/L que já está em outra Viagem: recusa o lote (ADR 0078, item 14). */
+  otherVoyage: Array<{ blId: string; voyageLabel: string }>
+  /** CNPJ de outro Cliente: Troca de Consignatário só com aceite. */
+  customerChanges: Array<{ blId: string; currentCustomer: string; fileCustomer: string }>
+  /** Rota diferente em B/L faturado: pede a confirmação de faturamento. */
+  billedRouteChanges: Array<{ blId: string; fields: string[] }>
+  /** B/L em COD: o POD do arquivo não será aplicado. */
+  codPodKept: string[]
 }
 
 export function hasBlockingRowErrors(rowErrors: ParsedBreakbulkManifest['rowErrors']) {
@@ -264,7 +284,6 @@ function parseCarrierBreakbulkRows(
     bls.push({
       rowNumber: index + 1,
       bl_id: candidateBl,
-      ce_mercante: null,
       shipper: shipper || null,
       consignee: consignee || 'CONSIGNATARIO NAO IDENTIFICADO',
       notify_party: notifyParty || null,
@@ -306,12 +325,13 @@ function parseSummaryRows(rows: SheetRow[], options: ParseBreakbulkOptions = {})
     options.numberFormat,
   )
   pushFormatConflict(rowErrors, format, rows[0]?.rowNumber ?? 1)
+  const ignoredCeRows: number[] = []
 
   mappedRows.forEach(({ row, mapped }) => {
     const rowNumber = row.rowNumber
 
     const bl_id = normalizeKey(mapped.bl_id)
-    const ce_mercante = asNullableDigits(mapped.ce_mercante)
+    if (asNullableDigits(mapped.ce_mercante)) ignoredCeRows.push(rowNumber)
     const numbers = readNumericColumns(mapped, SUMMARY_NUMERIC_FIELDS, format)
     if (numbers.problems.length) {
       rowErrors.push({ row: rowNumber, message: numbers.problems.join(' '), raw: row })
@@ -345,7 +365,6 @@ function parseSummaryRows(rows: SheetRow[], options: ParseBreakbulkOptions = {})
     parsedRows.push({
       rowNumber,
       bl_id,
-      ce_mercante,
       shipper,
       consignee,
       notify_party: notifyParty,
@@ -360,6 +379,8 @@ function parseSummaryRows(rows: SheetRow[], options: ParseBreakbulkOptions = {})
       items: [],
     })
   })
+
+  if (ignoredCeRows.length) rowErrors.push(ignoredCeWarning(ignoredCeRows))
 
   return {
     layout: 'summary',
@@ -452,7 +473,6 @@ function parseLegacyRows(rows: SheetRow[], options: ParseBreakbulkOptions = {}):
       byBl.set(row.bl_id, {
         rowNumber: row.rowNumber,
         bl_id: row.bl_id,
-        ce_mercante: null,
         shipper: row.shipper,
         consignee: row.consignee,
         notify_party: null,
@@ -837,6 +857,22 @@ function extractTaxId(value: string) {
 function asNullableString(value: unknown) {
   const normalized = asString(value)
   return normalized ? normalized : null
+}
+
+/**
+ * ADR 0078, item 1: o Manifesto BB não grava CE. Um arquivo antigo com a
+ * coluna preenchida importa normalmente; o aviso diz que o CE foi ignorado e
+ * por onde ele entra.
+ */
+function ignoredCeWarning(rows: number[]): ParsedBreakbulkManifest['rowErrors'][number] {
+  const shown = rows.slice(0, 10).join(', ')
+  const more = rows.length > 10 ? ` e mais ${rows.length - 10}` : ''
+  return {
+    row: rows[0],
+    message: `Coluna CE ignorada nas linhas ${shown}${more}: o Manifesto BB não grava CE Mercante; o CE entra pela planilha de CE Mercante ou pela ficha do B/L.`,
+    raw: { ignored_ce_rows: rows },
+    severity: 'warning',
+  }
 }
 
 function asNullableDigits(value: unknown) {

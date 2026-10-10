@@ -4,6 +4,15 @@
 
 ## 2026-10
 
+- **Reimportação de carga solta (2026-10-10, implementação local; Etapas 0 e 1 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  reimportar Manifesto BB ou B/L avulso deixa de apagar o CE, de desfazer o Cliente confirmado
+  na Revisão, de trocar o Cliente sem aceite e de mover B/L de outra Viagem (migration `173`,
+  ADR 0078 itens 1 e 14). O Manifesto BB não grava mais CE (coluna fora dos modelos; num arquivo
+  antigo, ignorada com aviso). A prévia mostra os B/Ls já cadastrados, pede aceite da Troca de
+  Consignatário e confirmação de faturamento para rota de B/L faturado; o resultado lista novos,
+  corrigidos, sem mudança e pendências. Runner de efeitos segue desligado até a Etapa 13, com
+  diagnóstico somente leitura para o dono rodar. Sem publicação nem mudança em produção.
 - **Decisões das importações e do CE Mercante (2026-10-09, decisão do dono):** a
   [ADR 0078](adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) registra as
   regras de entrada, correção e efeitos das importações (portas e unicidade do CE, troca e

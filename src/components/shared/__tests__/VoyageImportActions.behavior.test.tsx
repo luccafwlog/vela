@@ -38,6 +38,10 @@ vi.mock('../../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
 vi.mock('../../../services/breakbulkImport', () => ({
   parseBreakbulkManifestFile: mocks.parseBreakbulkManifestFile,
   importBreakbulkManifest: mocks.importBreakbulkManifest,
+  // A conferência com os B/Ls gravados tem teste próprio; aqui a prévia é a do parser.
+  withBreakbulkReimportCheck: async (manifest: unknown) => manifest,
+  describeOtherVoyage: () => '',
+  describeBreakbulkPending: () => [],
   hasBlockingRowErrors: (rowErrors: Array<{ severity?: 'error' | 'warning' }>) =>
     rowErrors.some((e) => (e.severity ?? 'error') === 'error'),
 }))

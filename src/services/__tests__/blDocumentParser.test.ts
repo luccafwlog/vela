@@ -234,7 +234,7 @@ describe('blDocumentToManifest', () => {
     expect(manifest.layout).toBe('bl_document')
     expect(manifest.bls).toHaveLength(1)
     expect(manifest.bls[0]?.bl_id).toBe('ABC123456789')
-    expect(manifest.bls[0]?.ce_mercante).toBeNull()
+    expect(manifest.bls[0]).not.toHaveProperty('ce_mercante')
     expect(manifest.bls[0]?.bb_weight_ton).toBe(1)
     expect(manifest.bls[0]?.bb_weight_ton).toBe(1)
     expect(manifest.bls[0]?.bb_cbm).toBe(12.5)

@@ -13,9 +13,13 @@ import { FileImportModal } from './FileImportModal'
 import { BlImportModal } from './BlImportModal'
 import { BlDocumentImportModal } from './BlDocumentImportModal'
 import { CeMercanteImportModal } from './CeMercanteImportModal'
+import { BreakbulkImportOutcome, BreakbulkReimportReview } from './BreakbulkReimportReview'
 import {
   hasBlockingRowErrors,
   importBreakbulkManifest,
+  withBreakbulkReimportCheck,
+  type BreakbulkImportResult,
+  type ParsedBreakbulkManifest,
   parseBreakbulkManifestFile,
   type BreakbulkNumberFormat,
   type ParseBreakbulkOptions,
@@ -95,6 +99,8 @@ export function VoyageImportActions({
 }) {
   const [activeType, setActiveType] = useState<ImportType | null>(null)
   const [bbNumberFormat, setBbNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
+  const [bbAcceptCustomerChanges, setBbAcceptCustomerChanges] = useState(false)
+  const [bbOverrideBilling, setBbOverrideBilling] = useState(false)
   const [vaziosManifestNumbers, setVaziosManifestNumbers] = useState<Record<string, string>>({})
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -113,8 +119,11 @@ export function VoyageImportActions({
     [bbNumberFormat],
   )
   const parseBbManifest = useCallback(
-    (file: File) => (bbNumberFormat === 'auto' ? parseBreakbulkManifestFile(file) : parseBreakbulkManifestFile(file, bbParseOptions)),
-    [bbNumberFormat, bbParseOptions],
+    async (file: File) => withBreakbulkReimportCheck(
+      await (bbNumberFormat === 'auto' ? parseBreakbulkManifestFile(file) : parseBreakbulkManifestFile(file, bbParseOptions)),
+      voyageId,
+    ),
+    [bbNumberFormat, bbParseOptions, voyageId],
   )
   const actionGroups: Array<{ group: ImportGroup; types: ImportType[] }> = []
   for (const type of allowedTypes) {
@@ -146,7 +155,7 @@ export function VoyageImportActions({
       </div>
 
       {activeType === 'bb' ? (
-        <FileImportModal
+        <FileImportModal<ParsedBreakbulkManifest, BreakbulkImportResult>
           title="Importar manifesto BB (carga solta)"
           subtitle={<ImportContext label="Viagem">{voyageLabel}</ImportContext>}
           confirmLabel="Importar manifesto"
@@ -172,25 +181,46 @@ export function VoyageImportActions({
           canImport={(p, override) => p.bls.length > 0 && (!hasBlockingRowErrors(p.rowErrors) || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
           importer={async (preview, file, override) => {
-            await importBreakbulkManifest({ filename: file.name, voyageId, manifest: preview, uploadedBy: userId, allowRowErrors: Boolean(override) })
+            const result = await importBreakbulkManifest({
+              filename: file.name,
+              voyageId,
+              manifest: preview,
+              uploadedBy: userId,
+              allowRowErrors: Boolean(override),
+              acceptCustomerChanges: bbAcceptCustomerChanges,
+              overrideBilling: bbOverrideBilling,
+            })
             await invalidateAfterBLImport()
             showToast(`Manifesto BB importado: ${preview.bls.length} B/L(s).`, 'success')
+            return result
           }}
+          renderImportResult={(result) => <BreakbulkImportOutcome result={result} />}
           renderPreview={(preview) => {
             const errors = preview.rowErrors.filter((e) => (e.severity ?? 'error') === 'error').length
             return (
-              <SummaryStrip
-                label="Resumo do manifesto"
-                items={[
-                  { label: preview.bls.length === 1 ? 'B/L lido' : 'B/Ls lidos', value: preview.bls.length },
-                  { label: errors === 1 ? 'linha com erro' : 'linhas com erro', value: errors, tone: errors ? 'danger' : 'default' },
-                  { label: 'avisos', value: preview.rowErrors.length - errors, tone: preview.rowErrors.length - errors ? 'warning' : 'default' },
-                ]}
-              />
+              <>
+                <BreakbulkReimportReview
+                  check={preview.reimport}
+                  acceptCustomerChanges={bbAcceptCustomerChanges}
+                  onAcceptCustomerChanges={setBbAcceptCustomerChanges}
+                  overrideBilling={bbOverrideBilling}
+                  onOverrideBilling={setBbOverrideBilling}
+                />
+                <SummaryStrip
+                  label="Resumo do manifesto"
+                  items={[
+                    { label: preview.bls.length === 1 ? 'B/L lido' : 'B/Ls lidos', value: preview.bls.length },
+                    { label: errors === 1 ? 'linha com erro' : 'linhas com erro', value: errors, tone: errors ? 'danger' : 'default' },
+                    { label: 'avisos', value: preview.rowErrors.length - errors, tone: preview.rowErrors.length - errors ? 'warning' : 'default' },
+                  ]}
+                />
+              </>
             )
           }}
           onClose={() => {
             setBbNumberFormat('auto')
+            setBbAcceptCustomerChanges(false)
+            setBbOverrideBilling(false)
             setActiveType(null)
           }}
         />

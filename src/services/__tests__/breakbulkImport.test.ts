@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { hasBlockingRowErrors, importBreakbulkManifest, parseBreakbulkManifestBuffer, type ParsedBreakbulkManifest } from '../breakbulkImport'
+import {
+  checkBreakbulkReimport,
+  hasBlockingRowErrors,
+  importBreakbulkManifest,
+  parseBreakbulkManifestBuffer,
+  withBreakbulkReimportCheck,
+  type ParsedBreakbulkManifest,
+} from '../breakbulkImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
 // Clientes desativados sao filtrados com .is('deactivated_at', null) (migration 092).
@@ -38,11 +45,36 @@ describe('breakbulkImport', () => {
     expect(mockRpc).not.toHaveBeenCalled()
   })
 
-  it('parseia o layout BB resumido', async () => {
+  it('ignora a coluna CE do Manifesto BB com aviso, sem bloquear (ADR 0078, item 1)', async () => {
     const buffer = jsonToBuffer([
       {
         BL: 'CCSV22001',
         CE: '122605051526081',
+        MAQUINAS: 8,
+        PACKAGES: 24,
+        'PACKAGES TOTAL': 32,
+        'WEIGHT (TON)': '259,312',
+        'CBM (M3)': '1217,109',
+        SHIPPER: 'SANY INTERNATIONAL',
+        CONSIGNEE: 'TIMBRO TRADING S.A.',
+        NOTIFY: 'SANY IMPORTACAO',
+      },
+    ])
+
+    const manifest = await parseBreakbulkManifestBuffer(buffer)
+
+    expect(manifest.bls).toHaveLength(1)
+    expect(manifest.bls[0]).not.toHaveProperty('ce_mercante')
+    expect(manifest.rowErrors).toEqual([
+      expect.objectContaining({ row: 2, severity: 'warning', message: expect.stringContaining('Coluna CE ignorada nas linhas 2') }),
+    ])
+    expect(hasBlockingRowErrors(manifest.rowErrors)).toBe(false)
+  })
+
+  it('parseia o layout BB resumido', async () => {
+    const buffer = jsonToBuffer([
+      {
+        BL: 'CCSV22001',
         MAQUINAS: 8,
         PACKAGES: 24,
         'PACKAGES TOTAL': 32,
@@ -77,7 +109,6 @@ describe('breakbulkImport', () => {
     const buffer = jsonToBuffer([
       {
         BL: 'CCSV22001',
-        CE: '122605051526081',
         MAQUINAS: 8,
         PACKAGES: 24,
         'PACKAGES TOTAL': 32,
@@ -102,7 +133,6 @@ describe('breakbulkImport', () => {
     const buffer = jsonToBuffer([
       {
         BL: 'CCSV22001',
-        CE: '122605051526081',
         MAQUINAS: 8,
         PACKAGES: 24,
         'PACKAGES TOTAL': 32,
@@ -174,7 +204,6 @@ describe('breakbulkImport', () => {
         {
           rowNumber: 2,
           bl_id: 'BB001',
-          ce_mercante: null,
           shipper: 'SANY INTERNATIONAL',
           consignee: 'TIMBRO TRADING S.A.',
           notify_party: 'SAME AS CONSIGNEE',
@@ -485,10 +514,9 @@ describe('breakbulkImport', () => {
     expect(manifest.bls[0]?.bb_machine_qty).toBe(9)
   })
 
-  // A autoridade sobre o CE Mercante e a importacao de CE Mercante. Nenhum
-  // layout de manifesto BB alem do resumo traz CE, e o B/L avulso nunca traz —
-  // omitir o campo permite que a RPC preserve atomicamente o valor no target.
-  it('omite o CE Mercante quando o arquivo importado nao traz CE', async () => {
+  // O CE Mercante entra pela planilha de CE Mercante ou pela ficha do B/L; o
+  // Manifesto BB e o B/L avulso nunca o enviam (ADR 0078, item 1).
+  it('nunca envia CE Mercante e só envia aceite e confirmação quando pedidos', async () => {
     mockRpc.mockImplementation((name: string) =>
       Promise.resolve(name === 'import_breakbulk_manifest_transactional'
         ? { data: { batch_id: 91 }, error: null }
@@ -521,7 +549,6 @@ describe('breakbulkImport', () => {
         {
           rowNumber: 1,
           bl_id: 'BB009',
-          ce_mercante: null,
           shipper: 'SHIPPER LTDA',
           consignee: 'IMPORTADOR LTDA',
           notify_party: null,
@@ -548,6 +575,20 @@ describe('breakbulkImport', () => {
     const payload = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
     expect(payload.p_bls[0]).toMatchObject({ id: 'BB009' })
     expect(payload.p_bls[0]).not.toHaveProperty('ce_mercante')
+    expect(payload.p_bls[0]).not.toHaveProperty('relink_customer')
+    expect(payload.p_bls[0]).not.toHaveProperty('override_billing')
+
+    mockRpc.mockClear()
+    await importBreakbulkManifest({
+      filename: 'BB009.pdf',
+      voyageId: 10,
+      manifest,
+      uploadedBy: '00000000-0000-0000-0000-000000000001',
+      acceptCustomerChanges: true,
+      overrideBilling: true,
+    })
+    const accepted = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
+    expect(accepted.p_bls[0]).toMatchObject({ id: 'BB009', relink_customer: true, override_billing: true })
   })
 
   it('permite importar carga solta para BL existente como container tornando-o misto sem erro', async () => {
@@ -583,7 +624,6 @@ describe('breakbulkImport', () => {
         {
           rowNumber: 1,
           bl_id: 'CNTR_BL_01',
-          ce_mercante: null,
           shipper: 'SHIPPER',
           consignee: 'CONSIGNEE',
           notify_party: null,
@@ -610,5 +650,91 @@ describe('breakbulkImport', () => {
     const payload = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
     expect(payload.p_bls[0]).toMatchObject({ id: 'CNTR_BL_01' })
     expect(payload.p_bls[0]).not.toHaveProperty('cargo_mode')
+  })
+
+  describe('conferência com os B/Ls gravados (ADR 0078, item 14)', () => {
+    const line = (bl_id: string, overrides: Partial<ParsedBreakbulkManifest['bls'][number]> = {}) => ({
+      rowNumber: 2,
+      bl_id,
+      shipper: 'SHIPPER',
+      consignee: 'BETA LTDA',
+      notify_party: null,
+      cnpj_cpf: '11222333000181',
+      pol: 'CNSHA',
+      pod: 'BRSSZ',
+      bb_machine_qty: 1,
+      bb_packages_qty: 1,
+      bb_packages_total: 1,
+      bb_weight_ton: 1,
+      bb_cbm: 1,
+      items: [],
+      ...overrides,
+    })
+
+    function mockExisting(existing: unknown[], cod: unknown[] = []) {
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'bls') return { select: vi.fn(() => ({ in: vi.fn(() => Promise.resolve({ data: existing, error: null })) })) }
+        if (table === 'bl_transshipments') {
+          return { select: vi.fn(() => ({ eq: vi.fn(() => ({ in: vi.fn(() => Promise.resolve({ data: cod, error: null })) })) })) }
+        }
+        if (table === 'customers') {
+          return {
+            select: vi.fn(() => withIs({
+              order: vi.fn(() => ({
+                range: vi.fn(() => Promise.resolve({
+                  data: [{ id: 2, name: 'BETA LTDA', cnpj_cpf: '11.222.333/0001-81' }],
+                  error: null,
+                })),
+              })),
+            })),
+          }
+        }
+        throw new Error(`Tabela nao mockada: ${table}`)
+      })
+    }
+
+    const voyage = (number: string) => ({ voyage_number: number, vessel: { name: 'NAVIO' } })
+
+    it('aponta B/L de outra Viagem, troca de Cliente, rota de B/L faturado e POD em COD', async () => {
+      mockExisting(
+        [
+          { id: 'OUTRA', voyage_id: 9, customer_id: 1, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'pending', customer: { name: 'ALFA' }, voyage: voyage('V9') },
+          { id: 'TROCA', voyage_id: 10, customer_id: 1, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'pending', customer: { name: 'ALFA' }, voyage: voyage('V10') },
+          { id: 'FATURADO', voyage_id: 10, customer_id: 2, pol: 'CNSHA', pod: 'BRVIX', financial_status: 'invoiced', customer: { name: 'BETA LTDA' }, voyage: voyage('V10') },
+          { id: 'COD', voyage_id: 10, customer_id: 2, pol: 'CNSHA', pod: 'BRRIO', financial_status: 'pending', customer: { name: 'BETA LTDA' }, voyage: voyage('V10') },
+        ],
+        [{ bl_id: 'COD', omission: { reverted_at: null } }],
+      )
+      const manifest: ParsedBreakbulkManifest = {
+        layout: 'summary',
+        rowErrors: [],
+        bls: [line('OUTRA'), line('TROCA'), line('FATURADO'), line('COD'), line('NOVO')],
+      }
+
+      const check = await checkBreakbulkReimport(10, manifest)
+
+      expect(check.existing).toEqual(['OUTRA', 'TROCA', 'FATURADO', 'COD'])
+      expect(check.otherVoyage).toEqual([{ blId: 'OUTRA', voyageLabel: 'NAVIO / V9' }])
+      expect(check.customerChanges).toEqual([{ blId: 'TROCA', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' }])
+      expect(check.billedRouteChanges).toEqual([{ blId: 'FATURADO', fields: ['POD'] }])
+      expect(check.codPodKept).toEqual(['COD'])
+    })
+
+    it('B/L de outra Viagem vira erro de linha que bloqueia a prévia', async () => {
+      mockExisting([
+        { id: 'OUTRA', voyage_id: 9, customer_id: null, pol: null, pod: null, financial_status: 'pending', customer: null, voyage: voyage('V9') },
+      ])
+      const checked = await withBreakbulkReimportCheck({ layout: 'summary', rowErrors: [], bls: [line('OUTRA', { rowNumber: 4 })] }, 10)
+
+      expect(hasBlockingRowErrors(checked.rowErrors)).toBe(true)
+      expect(checked.rowErrors[0]).toMatchObject({ row: 4, message: expect.stringContaining('O B/L OUTRA já está na Viagem NAVIO / V9') })
+    })
+
+    it('arquivo só com B/Ls novos não muda a prévia', async () => {
+      mockExisting([])
+      const checked = await withBreakbulkReimportCheck({ layout: 'summary', rowErrors: [], bls: [line('NOVO')] }, 10)
+      expect(checked.rowErrors).toEqual([])
+      expect(checked.reimport?.existing).toEqual([])
+    })
   })
 })
