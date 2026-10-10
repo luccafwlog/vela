@@ -1,3 +1,4 @@
+import { useBaplieVoyageContext } from '../../hooks/useBaplieVoyageContext'
 import { useCallback, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada, afterManifestoImportado, afterBaplieImportado } from '../../services/cacheEffects'
@@ -29,7 +30,7 @@ import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVazio
 import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from './VaziosImportacaoImportParts'
 import { importVehicleRows, parseVehicleImportFile } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
-import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../../services/baplieImport'
+import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../../services/baplieImport'
 import { BaplieImportPartialNotice } from './BaplieImportPartialNotice'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { canImportPreview, rowErrorsToImportIssues } from '../../services/importValidation'
@@ -390,6 +391,7 @@ function BaplieImportModal({
   const [excludedPods, setExcludedPods] = useState<Set<string>>(new Set())
   const [readError, setReadError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  const voyageContext = useBaplieVoyageContext(voyageId)
   // Baplie gravado com IMO/OOG ou vazios pendentes: falha parcial que fica à vista.
   const [partial, setPartial] = useState<BaplieImportDone | null>(null)
 
@@ -418,10 +420,13 @@ function BaplieImportModal({
     })
   }
 
-  const pods = parsed?.pods ?? []
-  const filteredContainers = (parsed?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
+  // Regras que dependem da Viagem (ADR 0078, item 21): TDT de outro navio ou
+  // viagem bloqueia; POD fora das escalas é ignorado com aviso.
+  const ruled = useMemo(() => (parsed ? applyBaplieVoyageRules(parsed, voyageContext.data) : null), [parsed, voyageContext.data])
+  const pods = ruled?.pods ?? []
+  const filteredContainers = (ruled?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
   const includedPods = pods.filter((pod) => !excludedPods.has(pod)).length
-  const issues = parsed?.issues ?? []
+  const issues = ruled?.issues ?? []
   const canImport = canImportPreview(filteredContainers.length > 0, issues)
 
   async function handleImport() {

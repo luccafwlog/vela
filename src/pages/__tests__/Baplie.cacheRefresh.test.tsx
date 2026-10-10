@@ -20,7 +20,10 @@ vi.mock('../../components/shared/VoyageCombobox', () => ({
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn() }))
 vi.mock('../../services/baplieParser', () => ({ parseBaplieFile: mocks.parse }))
+vi.mock('../../hooks/useBaplieVoyageContext', () => ({ useBaplieVoyageContext: () => ({ data: undefined }) }))
 vi.mock('../../services/baplieImport', () => ({
+  // Regras da Viagem (etapa 9): aqui a prévia é a do parser.
+  applyBaplieVoyageRules: (parsed: { containers: unknown[]; pods?: string[]; issues: unknown[] }) => ({ containers: parsed.containers, pods: parsed.pods ?? [], issues: parsed.issues }),
   reimportBaplie: mocks.reimport, baplieImportToast: () => 'Importado', baplieReplacementConfirmOptions: vi.fn(),
   hasBapliePendency: (result: { flagsError: string | null; vaziosError: string | null }) => Boolean(result.flagsError || result.vaziosError),
   baplieFootnoteForPendency: () => 'Baplie gravado com pendência.', retryBaplieVazios: vi.fn(),

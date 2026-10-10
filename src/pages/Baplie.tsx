@@ -1,3 +1,4 @@
+import { useBaplieVoyageContext } from '../hooks/useBaplieVoyageContext'
 import { afterBaplieImportado } from '../services/cacheEffects'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -23,14 +24,16 @@ import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { parseBaplieFile } from '../services/baplieParser'
-import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../services/baplieImport'
+import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../services/baplieImport'
 import { BaplieImportPartialNotice } from '../components/shared/BaplieImportPartialNotice'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { userFacingErrorMessage } from '../lib/errors'
 import { hasBlsForVoyage, listBaplieStaging } from '../services/baplieReadModel'
 import {
   applyBapliePhysicalFlags,
   countPendingBapliePhysicalFlags,
   reconcileBaplieWithManifest,
+  resolveBaplieDivergence,
   type BaplieReconciliationItem,
 } from '../services/baplieReconciliation'
 import {
@@ -433,6 +436,9 @@ function ReconciliacaoSection({
   const ownershipMismatch = items.filter(
     (item): item is Extract<BaplieReconciliationItem, { kind: 'ownership_mismatch' }> => item.kind === 'ownership_mismatch',
   )
+  const profileMismatch = items.filter(
+    (item): item is Extract<BaplieReconciliationItem, { kind: 'profile_mismatch' }> => item.kind === 'profile_mismatch',
+  )
   const headline = reconciliationHeadline(overview, items.length)
   const Icon = STATE_ICON[overview.state]
   const showCoverage = overview.state === 'divergent' || overview.state === 'clean'
@@ -462,6 +468,7 @@ function ReconciliacaoSection({
             <CoverageFact label="No Baplie, sem B/L" count={missing.length} anchor="baplie-sem-bl" />
             <CoverageFact label="Em B/L, fora do Baplie" count={missingInBaplie.length} anchor="baplie-fora" />
             <CoverageFact label="SOC/COC diverge" count={ownershipMismatch.length} anchor="baplie-soc-coc" />
+            <CoverageFact label="IMO/OOG manual diverge" count={profileMismatch.length} anchor="baplie-perfil" />
           </dl>
         ) : null}
 
@@ -543,15 +550,50 @@ function ReconciliacaoSection({
                   <th scope="col">B/L</th>
                   <th scope="col">No B/L (vale)</th>
                   <th scope="col">No Baplie</th>
+                  <th scope="col"><span className="sr-only">Ação</span></th>
                 </tr>
               </thead>
               <tbody>
                 {ownershipMismatch.map((item) => (
-                  <tr key={item.container_number}>
+                  <tr key={`${item.container_number}-${item.bl_container_id}`}>
                     <td className="app-cargo-code app-cargo-id">{item.container_number}</td>
                     <td>{item.bl_id ? <Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link> : '—'}</td>
                     <td><ContainerOwnershipBadge ownership={item.bl_ownership} /></td>
                     <td><ContainerOwnershipBadge ownership={item.baplie_ownership} /></td>
+                    <td><ValeOBlButton blContainerId={item.bl_container_id} field="ownership" label={`${item.container_number} no B/L ${item.bl_id ?? ''}`} onDone={onRetry} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </DivergenceGroup>
+        ) : null}
+
+        {profileMismatch.length > 0 ? (
+          <DivergenceGroup
+            id="baplie-perfil"
+            title={`IMO/OOG manual diverge (${profileMismatch.length})`}
+            meaning="O perfil IMO/OOG foi corrigido à mão (o armador confirmou fora do Baplie) e o Baplie diz outra coisa. A correção manual vale; o Baplie não a troca."
+            action="Confirmar com o armador; se a correção manual estiver certa, Vale o B/L encerra a divergência."
+          >
+            <table className="app-table app-cargo-table app-cargo-table--sub">
+              <caption className="sr-only">Perfil IMO/OOG manual divergente do Baplie</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Container</th>
+                  <th scope="col">B/L</th>
+                  <th scope="col">No B/L (vale)</th>
+                  <th scope="col">No Baplie</th>
+                  <th scope="col"><span className="sr-only">Ação</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {profileMismatch.map((item) => (
+                  <tr key={`${item.container_number}-${item.bl_container_id}`}>
+                    <td className="app-cargo-code app-cargo-id">{item.container_number}</td>
+                    <td>{item.bl_id ? <Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link> : '—'}</td>
+                    <td>{item.bl_profile}</td>
+                    <td>{item.baplie_profile}</td>
+                    <td><ValeOBlButton blContainerId={item.bl_container_id} field="profile" label={`${item.container_number} no B/L ${item.bl_id ?? ''}`} onDone={onRetry} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -561,6 +603,34 @@ function ReconciliacaoSection({
       </section>
     </Card>
   )
+}
+
+// "Vale o B/L" (ADR 0078, item 21): encerra a divergência com motivo.
+function ValeOBlButton({ blContainerId, field, label, onDone }: { blContainerId: number; field: 'ownership' | 'profile'; label: string; onDone: () => void }) {
+  const confirmWithReason = useConfirmWithReason()
+  const { showToast } = useToast()
+  const [busy, setBusy] = useState(false)
+  async function handleClick() {
+    const reason = await confirmWithReason({
+      title: 'Vale o B/L',
+      message: `Encerrar a divergência de ${field === 'ownership' ? 'SOC/COC' : 'IMO/OOG'} de ${label} mantendo o valor do B/L?`,
+      consequence: 'O valor do B/L passa a correção manual: o próximo Baplie não o troca. A resolução fica no Histórico.',
+      reversibility: 'Corrigir o container na aba Carga do B/L, com justificativa.',
+      confirmLabel: 'Vale o B/L',
+    })
+    if (reason === null) return
+    setBusy(true)
+    try {
+      await resolveBaplieDivergence(blContainerId, field, reason)
+      showToast('Divergência encerrada: vale o B/L.', 'success')
+      onDone()
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Não foi possível encerrar a divergência.'), 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return <Button variant="secondary" className="app-btn--sm" disabled={busy} onClick={() => void handleClick()}>Vale o B/L</Button>
 }
 
 function CoverageFact({ label, count, anchor }: { label: string; count: number; anchor: string }) {
@@ -874,6 +944,7 @@ function BaplieUploadModal({
   const [excludedPods, setExcludedPods] = useState<Set<string>>(new Set())
   const [readError, setReadError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  const voyageContext = useBaplieVoyageContext(voyageId ? Number(voyageId) : null)
   // Baplie gravado com IMO/OOG ou vazios pendentes: falha parcial que fica à vista.
   const [partial, setPartial] = useState<BaplieImportDone | null>(null)
 
@@ -902,9 +973,12 @@ function BaplieUploadModal({
     })
   }
 
-  const pods = parsed?.pods ?? []
-  const filteredContainers = (parsed?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
-  const issues = parsed?.issues ?? []
+  // Regras que dependem da Viagem (ADR 0078, item 21): TDT de outro navio ou
+  // viagem bloqueia; POD fora das escalas é ignorado com aviso.
+  const ruled = useMemo(() => (parsed ? applyBaplieVoyageRules(parsed, voyageContext.data) : null), [parsed, voyageContext.data])
+  const pods = ruled?.pods ?? []
+  const filteredContainers = (ruled?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
+  const issues = ruled?.issues ?? []
   const canImport = Boolean(parsed && voyageId && canImportPreview(filteredContainers.length > 0, issues))
   const destination = voyageLabel(voyages, voyageId)
 

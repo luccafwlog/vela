@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **Baplie (2026-10-10, implementação local; Etapa 9 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  marcas valem para todos os B/Ls ativos que dividem o container; IMO/OOG corrigido à mão fica
+  protegido e vira divergência; o Baplie completo apaga, após confirmação na prévia, as marcas que
+  caíram; containers de outro operador, em transbordo ou fora das escalas são ignorados com aviso;
+  TDT de outro navio bloqueia; **Vale o B/L** encerra a divergência com motivo (migration `181`,
+  ADR 0078 item 21).
 - **Contrato da importação de CE (2026-10-10, implementação local; Etapa 8 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   a planilha de CE fica rápida com base grande; o Nº de Manifesto Mercante tem 13 caracteres e um

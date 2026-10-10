@@ -49,7 +49,10 @@ vi.mock('../../../services/baplieParser', () => ({
   parseBaplieFile: mocks.parseBaplieFile,
 }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
+vi.mock('../../../hooks/useBaplieVoyageContext', () => ({ useBaplieVoyageContext: () => ({ data: undefined }) }))
 vi.mock('../../../services/baplieImport', () => ({
+  // Regras da Viagem (etapa 9): aqui a prévia é a do parser.
+  applyBaplieVoyageRules: (parsed: { containers: unknown[]; pods?: string[]; issues: unknown[] }) => ({ containers: parsed.containers, pods: parsed.pods ?? [], issues: parsed.issues }),
   reimportBaplie: mocks.reimportBaplie,
   baplieReplacementConfirmOptions: (plan: { existing: number }, incoming: number) => ({ message: `${plan.existing}->${incoming}` }),
   baplieImportToast: (result: { vaziosReplaced: boolean }) => `Baplie importado.${result.vaziosReplaced ? ' Vazios de importação recadastrados.' : ''}`,

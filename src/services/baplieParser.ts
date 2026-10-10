@@ -1,5 +1,5 @@
 import { assertUploadFile } from '../lib/fileGuard'
-import { normalizeIsoContainerNumber } from '../lib/containerNumber'
+import { isValidIsoContainerNumber, normalizeIsoContainerNumber } from '../lib/containerNumber'
 import { ownershipFromEquipmentSupplier, type ContainerOwnership } from '../lib/containerOwnership'
 import { parseImportNumber } from '../lib/importNumber'
 import { resolvePortCode } from './portCode'
@@ -27,6 +27,8 @@ export type BaplieContainer = {
 export type ParsedBaplie = {
   vessel_name: string | null
   voyage_number: string | null
+  /** Operador do navio (TDT, ou o NAD+CA mais frequente quando o TDT não traz). */
+  operator?: string | null
   containers: BaplieContainer[]
   pods: string[]
   issues: ImportIssue[]
@@ -202,10 +204,13 @@ export function parseBaplieText(text: string): ParsedBaplie {
 
   let vessel_name: string | null = null
   let voyage_number: string | null = null
+  let tdtCarrier: string | null = null
 
   for (const seg of contentSegments) {
     if (seg.tag !== 'TDT') continue
     voyage_number = seg.components[2]?.[0]?.trim() || null
+    // TDT 3127 (carrier): o operador do navio, comparado com o NAD+CA de cada container.
+    tdtCarrier = seg.components[5]?.[0]?.trim().toUpperCase() || tdtCarrier
     const flat = seg.components.flat().map((c) => c.trim()).filter(Boolean)
     // Identificação do transporte (C222): call sign:código:agência:NOME. Preferir o
     // 4º subcampo evita pegar o código da transportadora (ex.: COT:172:20), que vem depois.
@@ -238,7 +243,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
       closeCurrent()
       continue
     }
-    if (seg.tag === 'LOC' || seg.tag === 'MEA' || seg.tag === 'RFF' || seg.tag === 'EQD' || seg.tag === 'DIM' || seg.tag === 'DGS') {
+    if (seg.tag === 'LOC' || seg.tag === 'MEA' || seg.tag === 'RFF' || seg.tag === 'EQD' || seg.tag === 'DIM' || seg.tag === 'DGS' || seg.tag === 'NAD') {
       if (!current) {
         // Segmento de container antes do primeiro slot: grupo implícito sem slot
         // (cobre EDI sem LOC+147 e ordem EQD→LOC no início).
@@ -257,6 +262,8 @@ export function parseBaplieText(text: string): ParsedBaplie {
 
   const containers: BaplieContainer[] = []
   const issues: ImportIssue[] = []
+  const ignored: Array<{ container_number: string; reason: 'transshipment' | 'operator'; group: number; operator?: string }> = []
+  const operatorByContainer = new Map<string, string>()
   for (const segment of trailingSegments) {
     issues.push({
       row: segment.index + 1,
@@ -327,7 +334,14 @@ export function parseBaplieText(text: string): ParsedBaplie {
       const ownWeightResult = lastValue(weightValues)
       const ownWeight = ownWeightResult?.value ?? null
       const ownOog = ownItems.some((i) => i.tag === 'DIM' && hasOogDims(i, delimiters))
-      const dgs = lastValue(ownItems.filter((i) => i.tag === 'DGS').map((i) => parseDgs(i)))
+      // Carga LQ (quantidade limitada) é carga normal: não marca IMO.
+      const dgsSegments = ownItems.filter((i) => i.tag === 'DGS')
+      const limitedQuantity = dgsSegments.some((i) => i.components.flat().some((part) => part.trim().toUpperCase() === 'LQ'))
+      const dgs = limitedQuantity ? null : lastValue(dgsSegments.map((i) => parseDgs(i)))
+      const ownOperator = lastValue(ownItems.filter((i) => i.tag === 'NAD' && (i.components[1]?.[0] ?? '').trim() === 'CA')
+        .map((i) => i.components[2]?.[0]?.trim().toUpperCase() || null))
+      // EQD 8249 = 6: em transbordo, não descarrega nesta operação.
+      const equipmentStatus = (eqd.components[5]?.[0] ?? '').trim()
       const rawNumber = (eqd.components[2]?.[0] ?? '').trim()
       const container_number = normalizeIsoContainerNumber(rawNumber)
       if (!container_number) {
@@ -351,6 +365,30 @@ export function parseBaplieText(text: string): ParsedBaplie {
       } else {
         seen.set(container_number, group.order)
       }
+
+      if (!isValidIsoContainerNumber(container_number)) {
+        issues.push({
+          row: group.order,
+          field: 'container_number',
+          code: 'invalid_iso',
+          severity: 'warning',
+          message: `Container ${container_number}: dígito verificador não confere (ISO 6346); confira o número com o armador.`,
+        })
+      }
+      if (limitedQuantity) {
+        issues.push({
+          row: group.order,
+          field: 'is_imo',
+          code: 'invalid_group',
+          severity: 'warning',
+          message: `Container ${container_number}: carga LQ (quantidade limitada) tratada como carga normal, sem IMO.`,
+        })
+      }
+      if (equipmentStatus === '6') {
+        ignored.push({ container_number, reason: 'transshipment', group: group.order })
+        return
+      }
+      if (ownOperator) operatorByContainer.set(container_number, ownOperator)
 
       const size_type = eqd.components[3]?.[0]?.trim() || null
       // EQD 8169 (full/empty indicator) mora no elemento 6. O elemento 5 e
@@ -439,8 +477,34 @@ export function parseBaplieText(text: string): ParsedBaplie {
     })
   }
 
-  const pods = Array.from(new Set(containers.map((c) => c.pod).filter((p): p is string => Boolean(p)))).sort()
-  return { vessel_name, voyage_number, containers, pods, issues, encoding: 'utf-8' }
+  // Operador do navio: o do TDT ou, sem ele, o NAD+CA mais frequente.
+  // ponytail: a maioria decide quando o TDT não traz o operador; um navio com
+  // slot dividido meio a meio fica com o primeiro mais frequente.
+  const counts = new Map<string, number>()
+  for (const code of operatorByContainer.values()) counts.set(code, (counts.get(code) ?? 0) + 1)
+  const operator = tdtCarrier ?? [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+  const kept = containers.filter((container) => {
+    const own = operatorByContainer.get(container.container_number)
+    if (operator && own && own !== operator) {
+      ignored.push({ container_number: container.container_number, reason: 'operator', group: 0, operator: own })
+      return false
+    }
+    return true
+  })
+  for (const item of ignored) {
+    issues.push({
+      row: item.group,
+      field: 'container_number',
+      code: 'invalid_group',
+      severity: 'warning',
+      message: item.reason === 'transshipment'
+        ? `Container ${item.container_number}: em transbordo (EQD 8249 = 6); ignorado nesta operação.`
+        : `Container ${item.container_number}: de outro operador (${item.operator}); ignorado.`,
+    })
+  }
+
+  const pods = Array.from(new Set(kept.map((c) => c.pod).filter((p): p is string => Boolean(p)))).sort()
+  return { vessel_name, voyage_number, operator, containers: kept, pods, issues, encoding: 'utf-8' }
 }
 
 function lastValue<T>(values: Array<T | null>): T | null {
@@ -503,10 +567,15 @@ function parseWeight(segment: ParsedSegment, delimiters: Delimiters): ParsedWeig
   return { value: number * factor, issue: null }
 }
 
+// OOG só com excesso de dimensão maior que zero (ADR 0078, item 21): o
+// primeiro componente do DIM é a unidade (ex.: CMT), não uma medida.
 function hasOogDims(segment: ParsedSegment, delimiters: Delimiters): boolean {
   const dimsRaw = segment.rawElements[2] ?? ''
   const dims = splitRespectingRelease(dimsRaw, delimiters.component, delimiters.release)
-  return dims.some((d) => d.trim() !== '' && d.trim() !== '0')
+  return dims.some((d) => {
+    const value = Number(d.trim().replace(',', '.'))
+    return d.trim() !== '' && Number.isFinite(value) && value > 0
+  })
 }
 
 function parseDgs(segment: ParsedSegment): { imo_class: string | null; un_number: string | null } {

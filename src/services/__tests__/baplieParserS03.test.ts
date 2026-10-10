@@ -218,7 +218,8 @@ describe('baplie S03 vetores', () => {
     ].join('\n'))
 
     expect(parsed.issues.filter((issue) => issue.code === 'unknown_port')).toHaveLength(2)
-    expect(parsed.issues.every((issue) => issue.severity === 'error')).toBe(true)
+    // O dígito verificador de TCLU1234567 não confere: aviso à parte (etapa 9).
+    expect(parsed.issues.filter((issue) => issue.code === 'unknown_port').every((issue) => issue.severity === 'error')).toBe(true)
     expect(hasBlockingIssues(parsed.issues)).toBe(true)
   })
 })

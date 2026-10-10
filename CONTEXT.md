@@ -689,7 +689,7 @@ tem duas contagens independentes.
 **Local de Desova**
 Local onde um container com veículo foi desovado. Atributo do container,
 agregado por marca no ADR. A planilha de veículos só o preenche quando está
-vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
 
 **Ocorrência da Escala**
 Lançamento livre no diário da escala dentro do ADR: texto com autor,

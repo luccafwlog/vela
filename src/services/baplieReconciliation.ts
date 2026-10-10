@@ -34,6 +34,15 @@ export type BaplieReconciliationItem =
       bl_ownership: string
       baplie_ownership: string
     }
+  | {
+      // Perfil IMO/OOG corrigido à mão que o Baplie contradiz (migration 181).
+      kind: 'profile_mismatch'
+      container_number: string
+      bl_container_id: number
+      bl_id: string | null
+      bl_profile: string
+      baplie_profile: string
+    }
 
 export type BaplieReconciliationResult = {
   items: BaplieReconciliationItem[]
@@ -93,7 +102,16 @@ export function hasCompleteBaplieRouteCoverage(staged: RouteRow[], bls: RouteRow
 type BlContainerPhysical = Pick<
   BLContainer,
   'id' | 'bl_id' | 'container_number' | 'is_imo' | 'imo_class' | 'un_number' | 'is_oog'
-> & Partial<Pick<BLContainer, 'ownership' | 'ownership_source'>>
+> & Partial<Pick<BLContainer, 'ownership' | 'ownership_source'>> & {
+  /** Origem do perfil IMO/OOG (migration 181): bl, baplie ou manual. */
+  profile_source?: string | null
+  /** B/L cancelado: fica de fora das marcas e da conciliação. */
+  cancelled?: boolean
+}
+
+export function profileLabel(isImo: boolean | null | undefined, isOog: boolean | null | undefined): string {
+  return [isImo ? 'IMO' : null, isOog ? 'OOG' : null].filter(Boolean).join(', ') || 'sem marca'
+}
 
 export type BapliePhysicalUpdate = {
   bl_container_id: number
@@ -183,26 +201,75 @@ export function computeOwnershipDivergences(
 ): BaplieReconciliationItem[] {
   const blByNumber = new Map<string, BlContainerPhysical[]>()
   for (const c of blContainers) {
+    if (c.cancelled) continue
     const key = normalizeContainerNumber(c.container_number)
     blByNumber.set(key, [...(blByNumber.get(key) ?? []), c])
   }
   const items: BaplieReconciliationItem[] = []
   for (const b of staged) {
     if (b.status === 'empty' || !b.ownership) continue
-    const matches = blByNumber.get(normalizeContainerNumber(b.container_number))
-    if (!matches || matches.length !== 1) continue
-    const mc = matches[0]
-    if (!mc.ownership || mc.ownership === b.ownership) continue
+    // Todos os B/Ls ativos que dividem o container (migration 181).
+    for (const mc of blByNumber.get(normalizeContainerNumber(b.container_number)) ?? []) {
+      // "Vale o B/L" (ou correção manual) encerra a divergência.
+      if (!mc.ownership || mc.ownership === b.ownership || mc.ownership_source === 'manual') continue
+      items.push({
+        kind: 'ownership_mismatch',
+        container_number: mc.container_number,
+        bl_container_id: mc.id,
+        bl_id: mc.bl_id ?? null,
+        bl_ownership: mc.ownership,
+        baplie_ownership: b.ownership,
+      })
+    }
+  }
+  return items
+}
+
+/**
+ * Perfil IMO/OOG manual que o Baplie contradiz (pura, testável): o Baplie
+ * não troca a correção manual; a divergência fica até "Vale o B/L".
+ * `resolved` são os ids de container já resolvidos com o mesmo valor do Baplie.
+ */
+export function computeProfileDivergences(
+  staged: Array<Pick<BaplieContainerRow, 'container_number' | 'status' | 'is_imo' | 'is_oog'>>,
+  blContainers: BlContainerPhysical[],
+  resolved: ReadonlyMap<number, string> = new Map(),
+): BaplieReconciliationItem[] {
+  const desired = new Map<string, { isImo: boolean; isOog: boolean }>()
+  for (const row of staged) {
+    if (row.status !== 'full') continue
+    const key = normalizeContainerNumber(row.container_number)
+    const current = desired.get(key) ?? { isImo: false, isOog: false }
+    desired.set(key, { isImo: current.isImo || Boolean(row.is_imo), isOog: current.isOog || Boolean(row.is_oog) })
+  }
+  const items: BaplieReconciliationItem[] = []
+  for (const c of blContainers) {
+    if (c.cancelled || c.profile_source !== 'manual') continue
+    const want = desired.get(normalizeContainerNumber(c.container_number))
+    if (!want) continue
+    const baplieProfile = profileLabel(want.isImo, want.isOog)
+    if (want.isImo === Boolean(c.is_imo) && want.isOog === Boolean(c.is_oog)) continue
+    if (resolved.get(c.id) === baplieProfile) continue
     items.push({
-      kind: 'ownership_mismatch',
-      container_number: mc.container_number,
-      bl_container_id: mc.id,
-      bl_id: mc.bl_id ?? null,
-      bl_ownership: mc.ownership,
-      baplie_ownership: b.ownership,
+      kind: 'profile_mismatch',
+      container_number: c.container_number,
+      bl_container_id: c.id,
+      bl_id: c.bl_id ?? null,
+      bl_profile: profileLabel(c.is_imo, c.is_oog),
+      baplie_profile: baplieProfile,
     })
   }
   return items
+}
+
+/** "Vale o B/L" (migration 181): encerra a divergência com motivo. */
+export async function resolveBaplieDivergence(blContainerId: number, field: 'ownership' | 'profile', reason: string) {
+  const { error } = await supabase.rpc('resolve_baplie_divergence' as never, {
+    p_bl_container_id: blContainerId,
+    p_field: field,
+    p_reason: reason,
+  } as never)
+  if (error) throw error
 }
 
 /**
@@ -298,24 +365,32 @@ export function computePendingBapliePhysicalFlags(
     })
   }
 
-  const blByNumber = new Map<string, BlContainerPhysical[]>()
-  for (const container of blContainers) {
-    const key = textKey(container.container_number)
-    blByNumber.set(key, [...(blByNumber.get(key) ?? []), container])
-  }
-
+  // Mesma regra de `_baplie_flag_plan` (migration 181): todo B/L ativo do
+  // container; perfil manual fica; fora do Baplie cai só o que veio dele.
   let pending = 0
-  for (const [key, want] of desired) {
-    const matches = blByNumber.get(key)
-    if (!matches || matches.length !== 1) continue
-    const current = matches[0]
-    const imoClass = want.isImo ? want.imoClass : null
-    const unNumber = want.isImo ? want.unNumber : null
-    const ownership = current.ownership_source === 'bl' || current.ownership_source === 'manual'
-      ? current.ownership ?? null
-      : want.ownership
-    const same = want.isImo === Boolean(current.is_imo)
-      && want.isOog === Boolean(current.is_oog)
+  for (const current of blContainers) {
+    if (current.cancelled) continue
+    const want = desired.get(textKey(current.container_number))
+    const manual = current.profile_source === 'manual'
+    let isImo = Boolean(current.is_imo)
+    let isOog = Boolean(current.is_oog)
+    let imoClass = current.imo_class ?? null
+    let unNumber = current.un_number ?? null
+    if (!manual && want) {
+      isImo = want.isImo
+      isOog = want.isOog
+      imoClass = want.isImo ? want.imoClass : null
+      unNumber = want.isImo ? want.unNumber : null
+    } else if (!manual && !want && current.profile_source === 'baplie') {
+      isImo = false
+      isOog = false
+      imoClass = null
+      unNumber = null
+    }
+    const sovereign = current.ownership_source === 'bl' || current.ownership_source === 'manual'
+    const ownership = sovereign ? current.ownership ?? null : want ? want.ownership : null
+    const same = isImo === Boolean(current.is_imo)
+      && isOog === Boolean(current.is_oog)
       && valueKey(imoClass) === valueKey(current.imo_class)
       && valueKey(unNumber) === valueKey(current.un_number)
       && (ownership ?? null) === (current.ownership ?? null)
@@ -331,8 +406,14 @@ export async function countPendingBapliePhysicalFlags(voyageId: number): Promise
 }
 
 async function fetchStagingAndBlContainers(voyageId: number) {
-  const { data: blRows, error: blError } = await supabase.from('bls').select('id, pol, pod').eq('voyage_id', voyageId)
+  // ponytail: `cancelled_at` e `profile_source` faltam nos tipos gerados
+  // (database.ts protegido); o cast fica local até a regeneração.
+  const { data: blRows, error: blError } = (await supabase.from('bls').select('id, pol, pod, cancelled_at' as 'id, pol, pod').eq('voyage_id', voyageId)) as unknown as {
+    data: Array<BlRouteRow & { cancelled_at?: string | null }> | null
+    error: unknown
+  }
   if (blError) throw blError
+  const cancelledBls = new Set(((blRows ?? []) as Array<{ id: string; cancelled_at?: string | null }>).filter((bl) => bl.cancelled_at).map((bl) => String(bl.id)))
 
   const PAGE = 1000
   const staged: BaplieContainerRow[] = []
@@ -356,11 +437,11 @@ async function fetchStagingAndBlContainers(voyageId: number) {
     while (true) {
       const { data, error } = await supabase
         .from('bl_containers')
-        .select('id, bl_id, container_number, is_imo, imo_class, un_number, is_oog, ownership, ownership_source')
+        .select('id, bl_id, container_number, is_imo, imo_class, un_number, is_oog, ownership, ownership_source, profile_source' as 'id, bl_id, container_number, is_imo, imo_class, un_number, is_oog, ownership, ownership_source')
         .in('bl_id', blIds)
         .range(fromC, fromC + PAGE - 1)
       if (error) throw error
-      blContainers.push(...((data ?? []) as BlContainerPhysical[]))
+      blContainers.push(...((data ?? []) as unknown as BlContainerPhysical[]).map((c) => ({ ...c, cancelled: cancelledBls.has(String(c.bl_id)) })))
       if (!data || data.length < PAGE) break
       fromC += PAGE
     }
@@ -442,10 +523,12 @@ export async function reconcileBaplieWithManifest(
     return { items: [], source: 'awaiting_route_coverage', pendingRoutes }
   }
 
+  const resolved = await fetchProfileResolutions(voyageId)
   return {
     items: [
       ...computeExistenceDivergences(staged, blContainers, new Set(pendingRoutes)),
       ...computeOwnershipDivergences(staged, blContainers),
+      ...computeProfileDivergences(staged, blContainers, resolved),
     ],
     source: 'reconciled',
     pendingRoutes,
@@ -457,7 +540,16 @@ export async function reconcileBaplieWithManifest(
  * auditoria. Idempotente: só grava onde há diferença. Retorna quantos containers
  * foram atualizados.
  */
-export async function applyBapliePhysicalFlags(voyageId: number, actorId: string | null): Promise<number> {
+export type BaplieFlagsApplyResult = {
+  applied: number
+  applied_to: Array<{ container: string; bl_id: string; flags?: string }>
+  cleared: Array<{ container: string; bl_id: string }>
+  divergent_manual: Array<{ container: string; bl_id: string }>
+  invoice_reissues: Array<{ bl_id?: string; status?: string }>
+}
+
+/** Aplica as marcas do Baplie gravado e diz o que aplicou, onde e o que caiu (migration 181). */
+export async function applyBapliePhysicalFlagsDetailed(voyageId: number, actorId: string | null): Promise<BaplieFlagsApplyResult> {
   if (!actorId) throw new Error('Usuário ativo obrigatório para aplicar flags do Baplie.')
   const { data, error } = await supabase.rpc('apply_baplie_physical_flags_atomic', {
     p_voyage_id: voyageId,
@@ -465,8 +557,29 @@ export async function applyBapliePhysicalFlags(voyageId: number, actorId: string
     p_changed_by: actorId,
   })
   if (error) throw error
-  const applied = (data as { applied?: unknown } | null)?.applied
-  return Number.isFinite(Number(applied)) ? Number(applied) : 0
+  const result = (data ?? {}) as Partial<BaplieFlagsApplyResult>
+  return {
+    applied: Number.isFinite(Number(result.applied)) ? Number(result.applied) : 0,
+    applied_to: result.applied_to ?? [],
+    cleared: result.cleared ?? [],
+    divergent_manual: result.divergent_manual ?? [],
+    invoice_reissues: Array.isArray(result.invoice_reissues) ? result.invoice_reissues : [],
+  }
+}
+
+export async function applyBapliePhysicalFlags(voyageId: number, actorId: string | null): Promise<number> {
+  return (await applyBapliePhysicalFlagsDetailed(voyageId, actorId)).applied
+}
+
+/** Divergências de perfil já encerradas com "Vale o B/L": container → valor do Baplie resolvido. */
+async function fetchProfileResolutions(voyageId: number): Promise<Map<number, string>> {
+  const { data, error } = await supabase
+    .from('baplie_reconciliation_resolutions')
+    .select('bl_container_id, baplie_value, field_name, resolution')
+    .eq('voyage_id', voyageId)
+  if (error) throw error
+  const rows = (data ?? []) as Array<{ bl_container_id: number; baplie_value: string; field_name: string; resolution: string }>
+  return new Map(rows.filter((row) => row.field_name === 'profile' && row.resolution === 'vale_o_bl').map((row) => [row.bl_container_id, row.baplie_value]))
 }
 
 function normalizeVal(v: string | null | undefined) {

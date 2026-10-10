@@ -4,6 +4,7 @@ import {
   computeExistenceDivergences,
   computeOwnershipDivergences,
   computePendingBapliePhysicalFlags,
+  computeProfileDivergences,
   countPendingBapliePhysicalFlags,
   isBaplieReconciliationD7,
   reconcileBaplieWithManifest,
@@ -55,6 +56,7 @@ function installReconcileMocks(input: { bls?: unknown[]; baplie?: unknown[]; con
   mockFrom.mockImplementation((table: string) => {
     if (table === 'bls') return createBuilder({ data: input.bls ?? [], error: null })
     if (table === 'baplie_containers') return createBuilder({ data: input.baplie ?? [], error: null })
+    if (table === 'baplie_reconciliation_resolutions') return createBuilder({ data: [], error: null })
     if (table === 'bl_containers') {
       const builder = createBuilder({ data: input.containers ?? [], error: null })
       builder.update.mockImplementation(((payload: unknown) => createMutationBuilder(table, 'update', payload)) as never)
@@ -188,14 +190,22 @@ describe('computePendingBapliePhysicalFlags (mesma regra da função do banco)',
     expect(computePendingBapliePhysicalFlags(baplie, blcs([bl({})]))).toBe(1)
   })
 
-  it('como no banco: ignora status ausente ou vazio, número inválido e container em dois B/Ls', () => {
+  it('como no banco: ignora status ausente ou vazio e número inválido; conta cada B/L ativo do container', () => {
     expect(computePendingBapliePhysicalFlags(staged([{ container_number: 'ABCD1234567', status: null, is_oog: true }]), blcs([bl({})]))).toBe(0)
     expect(computePendingBapliePhysicalFlags(staged([{ container_number: 'ABCD1234567', status: 'empty', is_oog: true }]), blcs([bl({})]))).toBe(0)
     expect(computePendingBapliePhysicalFlags(staged([{ container_number: 'ABC123', status: 'full', is_oog: true }]), blcs([bl({ container_number: 'ABC123' })]))).toBe(0)
+    // Migration 181: o container em dois B/Ls recebe a marca nos dois; o cancelado fica de fora.
     expect(computePendingBapliePhysicalFlags(
       staged([{ container_number: 'ABCD1234567', status: 'full', is_oog: true }]),
-      blcs([bl({}), bl({ id: 11, bl_id: 'BL2' })]),
-    )).toBe(0)
+      blcs([bl({}), bl({ id: 11, bl_id: 'BL2' }), bl({ id: 12, bl_id: 'BL3', cancelled: true })]),
+    )).toBe(2)
+  })
+
+  it('perfil manual não conta como pendente; marca do Baplie anterior fora do arquivo conta', () => {
+    const oog = staged([{ container_number: 'ABCD1234567', status: 'full', is_oog: true }])
+    expect(computePendingBapliePhysicalFlags(oog, blcs([bl({ profile_source: 'manual' })]))).toBe(0)
+    expect(computePendingBapliePhysicalFlags(staged([]), blcs([bl({ is_imo: true, profile_source: 'baplie' })]))).toBe(1)
+    expect(computePendingBapliePhysicalFlags(staged([]), blcs([bl({ is_imo: true, profile_source: null })]))).toBe(0)
   })
 
   it('agrega linhas repetidas por OU e maior classe, e zera classe/ONU sem IMO', () => {
@@ -390,5 +400,16 @@ describe('computeOwnershipDivergences — SOC/COC (B/L soberano)', () => {
     expect(items).toEqual([
       { kind: 'ownership_mismatch', container_number: 'ABCD1234567', bl_container_id: 1, bl_id: 'BL1', bl_ownership: 'COC', baplie_ownership: 'SOC' },
     ])
+  })
+})
+
+describe('computeProfileDivergences — perfil manual (migration 181)', () => {
+  it('aponta o perfil manual que o Baplie contradiz e some depois de "Vale o B/L"', () => {
+    const baplie = staged([{ container_number: 'ABCD1234567', status: 'full', is_imo: true }])
+    const containers = blcs([{ id: 1, bl_id: 'BL1', container_number: 'ABCD1234567', is_imo: false, is_oog: false, profile_source: 'manual' }])
+    expect(computeProfileDivergences(baplie, containers)).toEqual([
+      { kind: 'profile_mismatch', container_number: 'ABCD1234567', bl_container_id: 1, bl_id: 'BL1', bl_profile: 'sem marca', baplie_profile: 'IMO' },
+    ])
+    expect(computeProfileDivergences(baplie, containers, new Map([[1, 'IMO']]))).toEqual([])
   })
 })

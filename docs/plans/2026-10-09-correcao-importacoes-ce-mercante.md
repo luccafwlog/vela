@@ -535,23 +535,33 @@ passaram ao formato canônico.
 `set_bl_container_ownership`, `src/services/baplieImport.ts`,
 `src/services/baplieParser.ts`, tela do Baplie.
 
-- [ ] Marcas aplicadas a todos os B/Ls ativos que dividem o container;
+- [x] Marcas aplicadas a todos os B/Ls ativos que dividem o container;
   cancelados ignorados; a tela diz o que aplicou e onde.
-- [ ] Perfil IMO/OOG manual protegido; Baplie diferente vira Divergente;
+- [x] Perfil IMO/OOG manual protegido; Baplie diferente vira Divergente;
   **Aplicar IMO/OOG agora** respeita a origem manual.
-- [ ] Baplie completo: marca ou container ausente apaga as marcas vindas do
+- [x] Baplie completo: marca ou container ausente apaga as marcas vindas do
   Baplie anterior depois de confirmação na prévia, que lista o que cai.
-- [ ] Containers fora das escalas da Viagem, de outro operador (NAD) ou em
+- [x] Containers fora das escalas da Viagem, de outro operador (NAD) ou em
   transbordo (8249) ignorados com aviso; OOG só com excesso de dimensão > 0; LQ
   como carga normal; TDT de outro navio ou viagem bloqueia; dígito verificador
   errado gera aviso; ação **Vale o B/L** na divergência SOC/COC, com motivo.
-- [ ] Reemissão por mudança de base informada na tela; diff paginado além de
+- [x] Reemissão por mudança de base informada na tela; diff paginado além de
   1000 linhas.
-- [ ] Checagens novas para cada regra acima.
+- [x] Checagens novas para cada regra acima.
 
 **Aceitação:** checagens novas verdes; `baplieFlagsOnBlImport`,
 `containerOwnership`, `containerProfile` e `thdImoOog` verdes; ADR da escala e
 cobrança leem a mesma fonte de IMO/OOG.
+
+**Execução (2026-10-10, local):** migration `181` (`profile_source` em
+`bl_containers`, `_baplie_flag_plan`, `preview_baplie_physical_flags`,
+`resolve_baplie_divergence`; aplicação devolve `applied_to`, `cleared`,
+`divergent_manual`); parser com NAD+CA, 8249=6, OOG > 0, LQ e dígito
+verificador como aviso; regras de Viagem (TDT bloqueia, POD fora das escalas
+ignorado) em `baplieImport.ts` e `useBaplieVoyageContext`; diff paginado; tela
+com grupo **IMO/OOG manual diverge** e **Vale o B/L**. Checagens:
+`baplieMarcas.local-pg` (no CI), `baplieParserEtapa9`, testes de
+reconciliação.
 
 ## Etapa 10 — COD e documento da fatura (M22, M23; ADR 0078, itens 13 e 15)
 

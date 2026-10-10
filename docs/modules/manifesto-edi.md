@@ -135,6 +135,17 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
 - Exclusões de B/Ls, Containers e Veículos atualizam também os totalizadores e
   vínculos dependentes, incluindo veículos removidos junto com um Container.
   Edição manual e vínculo/desvínculo de Cliente atualizam as projeções do B/L.
+- **Baplie (migration `181`, ADR 0078 item 21):** as marcas IMO/OOG e SOC/COC
+  valem para todos os B/Ls ativos que dividem o container (cancelados ficam de
+  fora) e o resultado diz onde aplicou; o perfil corrigido à mão
+  (`bl_containers.profile_source = 'manual'`) não é trocado e vira divergência
+  **IMO/OOG manual diverge**. O Baplie é completo: marca ou container ausente
+  apaga as marcas vindas do Baplie anterior, listadas na prévia ("Marca que
+  cai…"). Containers de outro operador (NAD+CA), em transbordo (EQD 8249=6) ou
+  com POD fora das escalas são ignorados com aviso; OOG só com excesso > 0; LQ é
+  carga normal; TDT de outro navio ou viagem bloqueia; dígito verificador errado
+  é aviso. **Vale o B/L** (`resolve_baplie_divergence`) encerra a divergência
+  SOC/COC ou IMO/OOG com motivo; o diff do staging é paginado.
 - Importar/reimportar Baplie atualiza os cards mesmo sem alteração de flags
   físicas. As duas entradas de importação usam `afterBaplieImportado`; o upload
   da página aguarda a aplicação física e a atualização da viagem **escolhida no
