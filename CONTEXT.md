@@ -166,7 +166,10 @@ acompanhado em suas escalas, agendas e cargas.
 Viagem que não será mais realizada pelo armador, embora tenha sido cadastrada
 ou programada. O cancelamento preserva seus registros e vínculos para
 rastreabilidade; não é conclusão nem exclusão. Uma viagem cancelada por
-engano pode ser reativada pelo Administrativo, com motivo.
+engano pode ser reativada pelo Administrativo, com motivo. A Viagem Cancelada é
+somente leitura: B/Ls, containers e suas datas, Granito e seu CE, faturas novas e
+Comunicados novos são recusados, e os efeitos de importação pendentes dela são
+encerrados no cancelamento (migration `177`, ADR 0078 item 18).
 
 Hoje, uma viagem não cancelada só pode ser excluída pelo Administrativo se
 ainda não recebeu qualquer dado vinculado. A regra decidida na

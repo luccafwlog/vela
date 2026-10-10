@@ -233,6 +233,7 @@ jobs:
             src/integration/auditoriaImportacaoBlContainer.local-pg.test.ts \
             src/integration/auditoriaCeContainerCompartilhado.local-pg.test.ts \
             src/integration/auditoriaEfeitosImportacao.local-pg.test.ts \
+            src/integration/efeitosViagemCancelada.local-pg.test.ts \
             src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts \
             src/integration/auditoriaFaturasDemurrageComunicado.local-pg.test.ts \
             src/integration/conditionUsd.local-pg.test.ts \

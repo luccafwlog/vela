@@ -246,29 +246,53 @@ próprio parser (linhas ocultas não são filtradas ali).
 `import_bl_freight_with_metadata`; `cancel_voyage` e guardas de Viagem
 Cancelada; `src/services/alertRulesCatalog.ts`.
 
-- [ ] Consumidor de veículos revalida e só recalcula B/L sem fatura viva; a
+- [x] Consumidor de veículos revalida e só recalcula B/L sem fatura viva; a
   fatura de B/L com fatura viva é tratada no COMMIT da importação (ADR 0077).
-- [ ] `local_billing` reaproveita o cálculo do dia do CE e não toca outros
+- [x] `local_billing` reaproveita o cálculo do dia do CE e não toca outros
   B/Ls da Viagem.
-- [ ] Erros 40001/40P01/55P03 viram `retry_wait`; lease esgotado e
+- [x] Erros 40001/40P01/55P03 viram `retry_wait`; lease esgotado e
   dependência bloqueada abrem `import_effect_blocked`; P0001 de domínio deixa de
   ser `invalid_effect_payload`.
-- [ ] Produtores param de enfileirar `physical_flags` redundante; efeito novo
+- [x] Produtores param de enfileirar `physical_flags` redundante; efeito novo
   da mesma entidade e tipo substitui o pendente.
-- [ ] **Viagem Cancelada:** guarda em `bl_containers`, `granite_bls`, faturas e
+- [x] **Viagem Cancelada:** guarda em `bl_containers`, `granite_bls`, faturas e
   comunicados; `cancel_voyage` encerra os efeitos pendentes da Viagem;
   consumidores e comunicados automáticos ignoram Viagem Cancelada.
-- [ ] **Simulação do acumulado:** RPC server-only que roda os efeitos pendentes
+- [x] **Simulação do acumulado:** RPC server-only que roda os efeitos pendentes
   em modo de simulação e lista o que cada um faria (faturas a emitir, a cancelar,
   recálculos); aprovar processa os selecionados e descarta o resto com registro.
-- [ ] Métrica e Alerta de fila parada.
-- [ ] Trocar os 5 `it.fails` de `auditoriaEfeitosImportacao` por `it`.
-- [ ] Checagens novas: datas, CE de Granito e comunicados recusados em Viagem
+- [x] Métrica e Alerta de fila parada.
+- [x] Trocar os 5 `it.fails` de `auditoriaEfeitosImportacao` por `it`.
+- [x] Checagens novas: datas, CE de Granito e comunicados recusados em Viagem
   Cancelada; simulação não grava nada.
 
 **Aceitação:** os 5 casos e as checagens novas passam; `invoiceBasisCorrection`,
 `importEffects`, `portalBillingRelease`, `ceMercanteAutoBilling`,
 `localBillingIntegrity`, `invoiceAutoReissue` e `demurrageAuthority` verdes.
+
+**Execução (2026-10-10, local):** migration `177`. `vehicle_followup` não
+toca B/L com fatura viva que continua cobrado, cancela só com a isenção
+confirmada agora (`_quote_bl_local_charges` = exempt, encerrando a consolidada
+viva sem reemissão; `invoiceBasisCorrection` passou a montar a isenção de
+fato) e recalcula o resto; `local_billing` trava o B/L de
+origem, usa `_auto_bill_bl_core(..., true)` (cálculo do dia do CE), recalcula
+só irmãos de container provisórios e devolve o SQLSTATE original; Viagem só
+varre B/Ls sem CE e sem retenção. `process_import_effect`: 55P03/40001/40P01 em
+`retry_wait`, P0001 vira `effect_domain_refused`, tipo desconhecido 0A000.
+`claim_import_effects` abre `import_effect_blocked` por lease esgotado e por
+dependência. `enqueue_import_effect` substitui o pendente de qualquer revisão;
+`import_bl_freight_with_metadata` sem `physical_flags`. Viagem Cancelada:
+gatilho `guard_voyage_cancelled_via_parent` em `bl_containers`, `granite_bls`
+e INSERT de `invoices`, `invoice_bls`, `customer_communications` e
+`customer_communication_bls`; `cancel_voyage` encerra os efeitos (`superseded`,
+`closed_effects` no retorno) e o executor encerra efeito de Viagem Cancelada.
+Simulação: `simulate_import_effects` e `apply_import_effects_review`
+(server-only, descarte em `audit_logs`). Fila parada: `import_effects_queue_health`,
+`reconcile_import_effects_queue_alert` e job `import-effects-queue-health`
+(SQL, de hora em hora; não processa efeitos). Drift mecânico: os Comunicados
+automáticos não ganharam filtro próprio; a guarda de INSERT os recusa em Viagem
+Cancelada. `auditoriaEfeitosImportacao` 10/10 e a suíte nova
+`efeitosViagemCancelada` (5) no CI.
 
 ## Etapa 5 — Container compartilhado (M03, M24; ADR 0078, item 11)
 

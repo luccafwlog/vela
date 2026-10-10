@@ -275,9 +275,22 @@ describeLocal('128 — correção do B/L sempre automática', () => {
     issueByCe(bl.vehicle, '128000000000009')
     issueByCe(bl.vehicleB, '128000000000010')
     const consolidated = consolidate([bl.vehicle, bl.vehicleB])
+    // O efeito revalida (migration 177): só cancela se o B/L ficou isento
+    // agora — veículo no container com desova LCL/CFS.
+    psql(`
+      UPDATE public.bls SET movement_to = 'CFS' WHERE id = '${bl.vehicle}';
+      INSERT INTO public.vehicles (voyage_id, container_id, bl_id, chassis, brand, model, weight_kg, cbm)
+      SELECT b.voyage_id, c.id, b.id, 'LGXC74C44V0128009', 'MARCA', 'MODELO', 1500, 10
+      FROM public.bls AS b JOIN public.bl_containers AS c ON c.bl_id = b.id
+      WHERE b.id = '${bl.vehicle}' LIMIT 1;
+    `)
     const result = psql(`SELECT public._run_import_effect_vehicle_followup('${bl.vehicle}', '${actorId}'::uuid)`)
-    expect(JSON.parse(result).cancelled_invoice_ids).toContain(consolidated)
-    expect(psql(`SELECT status || '|' || (reissue_closed_at IS NOT NULL) FROM public.invoices WHERE id = ${consolidated}`)).toBe('cancelled|true')
+    // A mudança de base (veículo e desova) já reemitiu a consolidada no
+    // commit (ADR 0077); o efeito encerra a viva, sem reemissão.
+    const [cancelledId] = JSON.parse(result).cancelled_invoice_ids as number[]
+    expect(cancelledId).toBeGreaterThanOrEqual(consolidated)
+    expect(psql(`SELECT invoice_type || '|' || status || '|' || (reissue_closed_at IS NOT NULL) FROM public.invoices WHERE id = ${cancelledId}`)).toBe('consolidated|cancelled|true')
+    expect(psql(`SELECT count(*) FROM public.invoices WHERE invoice_type = 'consolidated' AND id >= ${consolidated} AND status NOT IN ('cancelled', 'obsolete')`)).toBe('0')
   })
 
   it('Baplie que declara o container como SOC reemite pelo valor novo', () => {

@@ -20,6 +20,7 @@ export type ActiveAlertType =
   | 'billing_calculation_blocked'
   | 'billing_auto_issue_failed'
   | 'import_effect_blocked'
+  | 'import_effects_queue_stalled'
   | 'bl_vehicles_changed_on_reimport'
   | 'comunicado_ce_reenvio_pendente'
   | 'demurrage_ptax_recalc_failed'
@@ -66,6 +67,7 @@ export const TYPE_LABELS: Record<string, string> = {
   billing_calculation_blocked: 'Cálculo bloqueado',
   billing_auto_issue_failed: 'Falha de emissão automática',
   import_effect_blocked: 'Efeito de importação bloqueado',
+  import_effects_queue_stalled: 'Fila de efeitos de importação parada',
   bl_vehicles_changed_on_reimport: 'Veículos alterados na reimportação do B/L',
   comunicado_ce_reenvio_pendente: 'Reenviar Comunicado de CE e Taxas',
   demurrage_ptax_recalc_failed: 'Falha na atualização da PTAX Demurrage',

@@ -4,6 +4,14 @@
 
 ## 2026-10
 
+- **Fila de efeitos e Viagem Cancelada (2026-10-10, implementação local; Etapa 4 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  os efeitos de importação revalidam o estado atual (veículos não cancelam fatura de FCL; taxas
+  mantêm o cálculo do dia do CE e não varrem a Viagem), contenção vira nova tentativa, lease
+  esgotado abre Alerta, a Viagem Cancelada fica selada também para containers, Granito, faturas e
+  Comunicados, há simulação do acumulado antes de processar e o Alerta de fila parada
+  `import_effects_queue_stalled` (job `import-effects-queue-health`; migration `177`, ADR 0078
+  item 18). O processamento automático continua desligado.
 - **CE Mercante único e porta única (2026-10-10, implementação local; Etapa 6 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   um CE só fica num B/L não cancelado (carga e Granito, também na reativação), com recusa

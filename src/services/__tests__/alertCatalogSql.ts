@@ -28,6 +28,7 @@ const CATALOG_MIGRATIONS = [
   '153_itau_pix_prazos_e_ptax.sql',
   '174_reimportacao_bl_container_preserva.sql',
   '176_ce_mercante_unicidade_e_porta_unica.sql',
+  '177_fila_efeitos_revalida_e_viagem_cancelada.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

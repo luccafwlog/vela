@@ -1,6 +1,6 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Cada it.fails documenta um defeito confirmado e roda no job local-pg do CI; quando a correção entrar, troque it.fails por it.
+// Os defeitos foram corrigidos na migration 177 (etapa 4 do plano de correção): os it.fails viraram it e rodam no job local-pg do CI.
 //
 // Problema-raiz M04: a fila `import_pending_effects` guarda intenções sem
 // validade e o `import-effects-runner` está pausado em produção
@@ -458,7 +458,7 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
     }
   })
 
-  it.fails('esperado: o efeito de veículos não cancela a fatura de B/L FCL cujo valor não muda [VEI-01, VEI-02, INF-05] — regra: CONTEXT.md:1287-1290 (veículo em FCL paga normalmente), ADR 0077:25-26 e CONTEXT.md:2104-2108 (só há efeito se o valor do B/L ou o Cliente mudar), faturamento.md:366 (sem mudança de valor nem de Cliente: nada acontece)', () => {
+  it('esperado: o efeito de veículos não cancela a fatura de B/L FCL cujo valor não muda [VEI-01, VEI-02, INF-05] — regra: CONTEXT.md:1287-1290 (veículo em FCL paga normalmente), ADR 0077:25-26 e CONTEXT.md:2104-2108 (só há efeito se o valor do B/L ou o Cliente mudar), faturamento.md:366 (sem mudança de valor nem de Cliente: nada acontece)', () => {
     for (const blId of ['A204-FCL1', 'A204-FCL2']) {
       expect(vehicleFollowup?.invoices[blId].map((invoice) => [invoice.status, invoice.cancel_reason])).toEqual([['issued', null]])
       expect(vehicleFollowup?.bls[blId].financial_status).toBe('invoiced')
@@ -488,7 +488,7 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
     expect(heldOwnEffect.invoices.map((invoice) => invoice.status)).toEqual(['issued'])
   })
 
-  it.fails('esperado: o efeito legado mantém o cálculo do dia do CE e a Liberação emite R$ 90, não a tabela do dia do executor [CE-V04, ORDCE-V04, CED-14] — regra: ADR 0070:103-107 (nota 2026-09-24 b, taxas do dia do CE) e CONTEXT.md:1539-1542 (a Liberação emite com as taxas calculadas no registro do CE, sem recalcular pela tabela vigente)', () => {
+  it('esperado: o efeito legado mantém o cálculo do dia do CE e a Liberação emite R$ 90, não a tabela do dia do executor [CE-V04, ORDCE-V04, CED-14] — regra: ADR 0070:103-107 (nota 2026-09-24 b, taxas do dia do CE) e CONTEXT.md:1539-1542 (a Liberação emite com as taxas calculadas no registro do CE, sem recalcular pela tabela vigente)', () => {
     expect(heldOwnEffect?.afterEffect.auto_total).toBe(tables.tabela.fee)
     expect(heldOwnEffect?.invoices.map((invoice) => Number(invoice.total_brl))).toEqual([tables.tabela.fee])
   })
@@ -565,7 +565,7 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
     expect(looseCargoSweep.invoices.map((invoice) => invoice.status)).toEqual(['issued'])
   })
 
-  it.fails('esperado: o efeito do B/L de carga solta não toca o B/L retido da mesma Viagem, que mantém a retenção e sai na Liberação com R$ 100 [TST-V01, ORDCE-07] — regra: ADR 0070:37-41 (o CE retém e grava billing_hold_reason), ADR 0070:103-107 e CONTEXT.md:1539-1542 (taxas do dia do CE)', () => {
+  it('esperado: o efeito do B/L de carga solta não toca o B/L retido da mesma Viagem, que mantém a retenção e sai na Liberação com R$ 100 [TST-V01, ORDCE-07] — regra: ADR 0070:37-41 (o CE retém e grava billing_hold_reason), ADR 0070:103-107 e CONTEXT.md:1539-1542 (taxas do dia do CE)', () => {
     expect(looseCargoSweep?.heldAfter).toEqual(looseCargoSweep?.heldBefore)
     expect(looseCargoSweep?.invoices.map((invoice) => Number(invoice.total_brl))).toEqual([tables.viagem.fee])
   })
@@ -602,7 +602,7 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
     expect(lockContention.last_error_message).toContain('lock timeout')
   }, 30_000)
 
-  it.fails('esperado: a contenção de trava vira nova tentativa (retry_wait, transient_sql_error), não bloqueio definitivo [INF-V01, DAT-06] — regra: ADR 0065:32-37 (process_import_effect classifica erros transitórios para retry) e RASTREABILIDADE.md:431 (retry transitório)', () => {
+  it('esperado: a contenção de trava vira nova tentativa (retry_wait, transient_sql_error), não bloqueio definitivo [INF-V01, DAT-06] — regra: ADR 0065:32-37 (process_import_effect classifica erros transitórios para retry) e RASTREABILIDADE.md:431 (retry transitório)', () => {
     expect({ status: lockContention?.status, code: lockContention?.last_error_code }).toEqual({ status: 'retry_wait', code: 'transient_sql_error' })
   })
 
@@ -646,7 +646,7 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
     leaseExhausted = { effect, alerts: blockedEffectAlerts(effect.id) }
   })
 
-  it.fails('esperado: o efeito bloqueado por lease esgotado abre o Alerta import_effect_blocked [INF-06, DAT-V01] — regra: src/services/alertRulesCatalog.ts:228-229 (aparece quando o efeito entra em blocked, inclusive ao esgotar as tentativas) e ADR 0065:58-59 (falha operacional não fica invisível)', () => {
+  it('esperado: o efeito bloqueado por lease esgotado abre o Alerta import_effect_blocked [INF-06, DAT-V01] — regra: src/services/alertRulesCatalog.ts:228-229 (aparece quando o efeito entra em blocked, inclusive ao esgotar as tentativas) e ADR 0065:58-59 (falha operacional não fica invisível)', () => {
     expect(leaseExhausted?.alerts).toBe(1)
   })
 })
