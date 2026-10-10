@@ -1095,6 +1095,10 @@ Não é automática em três situações, sinalizadas antes do aceite: fatura
 consolidada com outros B/Ls, fatura com pagamento registrado, e consignatário
 ainda não cadastrado como Cliente havendo cobrança. Nesses casos o vínculo fica
 como está e os demais campos do B/L seguem sendo corrigidos. Ver ADR 0017.
+Na reimportação do B/L de container (migration `174`), os contêineres que
+continuam no arquivo mantêm datas, desova e Demurrage, o que o arquivo não traz
+sai só com a remoção mostrada na prévia, os veículos só mudam com aba VIN e
+confirmação, e a confirmação de faturamento é por B/L.
 Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), a mesma regra vale para a reimportação de carga solta (Manifesto BB
 e B/L avulso, desde a migration `173`): CNPJ de outro Cliente só troca com
 aceite na prévia, a rota de B/L faturado pede a confirmação de faturamento, B/L
@@ -1134,7 +1138,9 @@ caixa definidos pela regra de captura: como adicional, Documentação e Operaç�
 Financeiro na confirmação de taxas); como principal, todas as caixas. A captura fica
 visível na Ficha do Cliente e na Linha do Tempo. Um endereço anteriormente
 desativado é reativado quando reaparece em outro B/L, recebendo as caixas
-pertinentes sem sobrescrever nome ou telefone já existentes.
+pertinentes sem sobrescrever nome ou telefone já existentes. O endereço só entra
+no Cliente cujo CNPJ é o do documento: na Troca de Consignatário, vai para o
+Cliente novo, nunca para o antigo (migration `174`).
 
 **Ficha do Cliente**
 Hub de consulta do Cliente em `/clientes/:cnpj`, organizado em abas (Visão

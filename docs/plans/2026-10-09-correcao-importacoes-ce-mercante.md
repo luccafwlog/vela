@@ -18,9 +18,9 @@ outra fatura. Não há decisão pendente.
 errado e de esconder o que gravaram, e implementar as regras de entrada,
 correção e efeitos da ADR 0078.
 
-**Estado em 2026-10-10:** Etapas 0 e 1 executadas localmente (migration `173`;
+**Estado em 2026-10-10:** Etapas 0, 1 e 2 executadas localmente (migrations `173` e `174`;
 ver as notas de execução nas etapas). Decisões tomadas. As checagens de
-aceitação das Etapas 2 a 7 continuam no repositório como `it.fails` e rodam no
+aceitação das Etapas 3 a 7 continuam no repositório como `it.fails` e rodam no
 CI; as regras novas da ADR 0078 ganham checagem na etapa que as implementa.
 **Migrations:** o hook `.claude/hooks/protect-files.sh` bloqueia qualquer
 arquivo em `supabase/migrations/`; as migrations novas desta execução foram
@@ -154,27 +154,27 @@ geral fica na Etapa 8.5.
 `import_bl_freight_with_metadata`, `apply_bl_review_gate_after_import`,
 `src/services/blFreightImport.ts`, `src/components/shared/BlImportModal.tsx`.
 
-- [ ] Migration nova: reconciliar containers por número em vez de `DELETE` +
+- [x] Migration nova: reconciliar containers por número em vez de `DELETE` +
   `INSERT`; atualizar só as colunas do documento e só quando mudam; preservar
   `id`, `created_at`, descarga, devolução, `demurrage_status`, local de desova,
   SOC/COC manual e perfil manual; container ausente do arquivo sai só quando a
   prévia mostra a remoção (ADR 0071 item 10), com mensagem de negócio se houver
   Invoice de Demurrage.
-- [ ] **Veículos pela aba VIN:** sem aba, nada muda; com aba, a prévia lista
+- [x] **Veículos pela aba VIN:** sem aba, nada muda; com aba, a prévia lista
   entram, saem e mudam e pede confirmação; o local de desova dos que continuam é
   preservado; um alerta registra o B/L e as mudanças; chassi que está em outro
   B/L recusa só a linha.
-- [ ] A guarda de container compartilhado olha só mudança de participação.
-- [ ] Import idêntico de B/L faturado não recalcula, não enfileira
+- [x] A guarda de container compartilhado olha só mudança de participação.
+- [x] Import idêntico de B/L faturado não recalcula, não enfileira
   `provisional_charges` e não acende "Carga alterada após faturamento".
-- [ ] M14: o e-mail do arquivo vira contato só do Cliente final e só quando o
+- [x] M14: o e-mail do arquivo vira contato só do Cliente final e só quando o
   CNPJ do arquivo é o dele.
-- [ ] Retorno e modal informam, por B/L, containers inseridos, atualizados e
+- [x] Retorno e modal informam, por B/L, containers inseridos, atualizados e
   removidos e VINs descartados.
-- [ ] Trocar os 6 `it.fails` de `auditoriaImportacaoBlContainer` por `it`.
-- [ ] Checagens novas: arquivo sem aba VIN preserva os veículos; aba VIN com
+- [x] Trocar os 6 `it.fails` de `auditoriaImportacaoBlContainer` por `it`.
+- [x] Checagens novas: arquivo sem aba VIN preserva os veículos; aba VIN com
   chassis diferentes exige confirmação e abre o alerta.
-- [ ] **D-11 (ADR 0078, item 17):** Laden on Board ilegível ou vazio não altera
+- [x] **D-11 (ADR 0078, item 17):** Laden on Board ilegível ou vazio não altera
   a data (aviso); todos os portos do cadastro reconhecidos pelo nome e POD
   desconhecido recusa a linha; confirmação de faturamento por B/L na prévia; NCM
   do documento vence quando declarado; CPF continua recusado (não há Cliente
@@ -185,6 +185,21 @@ mudança" não gera `audit_logs` de exclusão ou criação em `bl_containers` ne
 `vehicles`; `containerOwnership`, `invoiceAutoReissue`, `invoiceBasisCorrection`,
 `baplieFlagsOnBlImport`, `blCbmSemantics`, `thdImoOog`, `importAtomicity`,
 `blFreightImport.test.ts` e `BlImportModal.test.tsx` verdes.
+
+**Execução (2026-10-10, local):** migration `174` redefine o núcleo `legacy_205`
+(reconciliação por número; remoção só pela lista `remove_containers` que a
+prévia mostrou; veículos por aba VIN com `confirm_vehicle_changes` e alerta
+`bl_vehicles_changed_on_reimport`), a guarda de container compartilhado (só
+participação), `import_bl_freight_with_metadata` (B/L faturado não é
+recalculado), `legacy_322`/`357` e o gate (M14) e `legacy_070` (Laden on Board).
+Os 6 casos viraram `it`, com 4 checagens novas de integração e 6 unitárias. O
+caso de datas do irmão em `auditoriaCeContainerCompartilhado` também virou `it`
+(guarda da Etapa 5 já corrigida aqui). Payload sem `remove_containers` mantém a
+semântica anterior (sai todo ausente), para chamadas diretas da RPC. A lista de
+chassis segue variável de faturamento: em B/L já calculado, a mudança de
+veículos pede as duas confirmações (faturamento e veículos). Fora do escopo,
+com etapa própria: a recusa de container FCL entre Clientes diferentes (Etapa 5)
+e o POD de B/L em COD na reimportação de container (Etapa 10).
 
 ## Etapa 3 — Leitura de planilhas (M05; ADR 0078, item 22)
 

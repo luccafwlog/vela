@@ -253,7 +253,7 @@ it('confirma importacao, usa o efeito central de manifesto e fecha modal', async
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithDiff, 'user-1', false, 'bl.xlsx', false))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithDiff, 'user-1', new Set(), 'bl.xlsx', false, false))
 
   expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
   expect(mocks.invalidateQueries).not.toHaveBeenCalled()
@@ -307,10 +307,11 @@ it('exibe impacto de faturamento e envia override quando o operador marca', asyn
   })
 
   await screen.findByText('Faturamento: Quantidade de containers: 1 -> 2')
-  const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement
+  // A confirmação é por B/L, na linha da prévia (ADR 0078, item 17); o rodapé
+  // fixo marca todos de uma vez.
+  expect(screen.getByLabelText('Confirmar faturamento deste B/L')).toBeTruthy()
+  const checkbox = container.querySelector('.app-modal__actions input[type="checkbox"]') as HTMLInputElement
   expect(checkbox).toBeTruthy()
-  // Fica no rodape fixo junto do botao, nao perdido na rolagem do preview.
-  expect(checkbox.closest('.app-modal__actions')).toBeTruthy()
   // Com dezenas de arquivos, a lista de nomes so poluia o modal.
   expect(screen.queryByText(/arquivo\(s\) selecionado\(s\)/)).toBeNull()
   fireEvent.click(checkbox)
@@ -319,7 +320,7 @@ it('exibe impacto de faturamento e envia override quando o operador marca', asyn
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithBillingImpact, 'user-1', true, 'bl.xlsx', false))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithBillingImpact, 'user-1', new Set(['COSU777']), 'bl.xlsx', false, false))
 })
 
 /** Preview com troca de consignatario, compartilhado pelos testes de confirmacao. */
@@ -375,7 +376,7 @@ it('alerta a troca de consignatario e so envia o revinculo quando o operador ace
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithCustomerChange, 'user-1', false, 'bl.xlsx', true))
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithCustomerChange, 'user-1', new Set(), 'bl.xlsx', true, false))
 })
 
 it('nao diz "concluida" quando o servidor recusa a troca de cliente', async () => {

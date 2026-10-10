@@ -9,6 +9,7 @@ import {
   previewBlFreightImport,
   type BlCustomerChange,
   type BlFreightImportPreview,
+  type BlFreightImportResult,
   type BlFreightImportRow,
 } from '../../services/blFreightImport'
 import { afterManifestoImportado } from '../../services/cacheEffects'
@@ -28,6 +29,31 @@ type ConfirmOutcome = {
   blocked: number
   refusedRelinks: string[]
   calculationErrors: string[]
+  /** contêineres e veículos que entraram, mudaram ou saíram, por B/L */
+  changes: string[]
+  /** linhas da aba VIN recusadas e mudanças de veículos não confirmadas */
+  vehicleIssues: string[]
+}
+
+/** Frases por B/L do que a importação fez com contêineres e veículos. */
+function describeChanges(result: BlFreightImportResult) {
+  const line = (kind: string, entry: { blNumber: string; inserted: string[]; updated: string[]; removed: string[] }) => {
+    const parts = [
+      entry.inserted.length ? `${entry.inserted.length} entrou(aram)` : null,
+      entry.updated.length ? `${entry.updated.length} atualizado(s)` : null,
+      entry.removed.length ? `${entry.removed.length} saiu(íram): ${entry.removed.join(', ')}` : null,
+    ].filter(Boolean)
+    return parts.length ? `${entry.blNumber} — ${kind}: ${parts.join('; ')}` : null
+  }
+  const changes = [
+    ...(result.containerChanges ?? []).map((entry) => line('contêineres', entry)),
+    ...(result.vehicleChanges ?? []).map((entry) => line('veículos', entry)),
+  ].filter((item): item is string => Boolean(item))
+  const vehicleIssues = [
+    ...(result.vehiclesDiscarded ?? []).map((entry) => `${entry.blNumber} — VIN ${entry.chassis} não entrou: ${entry.reason}.`),
+    ...(result.vehicleChangesPending ?? []).map((blNumber) => `${blNumber} — veículos mantidos: a mudança não foi confirmada.`),
+  ]
+  return { changes, vehicleIssues }
 }
 
 export function BlImportModal({
@@ -50,8 +76,10 @@ export function BlImportModal({
   const { parsing, progress, readFiles, cancel: cancelReading } = useCancellableFileRead<Awaited<ReturnType<typeof parseBLFile>>>(parseBLFile)
   const [preview, setPreview] = useState<BlFreightImportPreview | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [overrideBilling, setOverrideBilling] = useState(false)
+  // Confirmação de faturamento por B/L (ADR 0078, item 17).
+  const [overrideBls, setOverrideBls] = useState<ReadonlySet<string>>(new Set())
   const [confirmCustomerChange, setConfirmCustomerChange] = useState(false)
+  const [confirmVehicleChanges, setConfirmVehicleChanges] = useState(false)
   const [selectedVoyageId, setSelectedVoyageId] = useState<number | null>(voyageId)
   const [readError, setReadError] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
@@ -67,14 +95,36 @@ export function BlImportModal({
     () => preview?.rows.filter((row) => row.customerChange) ?? [],
     [preview],
   )
+  const vehicleChangeRows = useMemo(
+    () => preview?.rows.filter((row) => row.requiresVehicleConfirmation && row.vehicleChanges) ?? [],
+    [preview],
+  )
+  const billingOverrideRows = useMemo(
+    () => preview?.rows.filter((row) => row.requiresBillingOverride && row.payload) ?? [],
+    [preview],
+  )
+
+  function toggleOverride(blNumber: string, checked: boolean) {
+    setOverrideBls((current) => {
+      const next = new Set(current)
+      if (checked) next.add(blNumber)
+      else next.delete(blNumber)
+      return next
+    })
+  }
+
+  function resetDecisions() {
+    setOverrideBls(new Set())
+    setConfirmCustomerChange(false)
+    setConfirmVehicleChanges(false)
+  }
 
   function resetAndClose() {
     setFiles([])
     setPreview(null)
     cancelReading()
     setSubmitting(false)
-    setOverrideBilling(false)
-    setConfirmCustomerChange(false)
+    resetDecisions()
     setSelectedVoyageId(voyageId ?? null)
     setReadError(null)
     setConfirmError(null)
@@ -86,15 +136,13 @@ export function BlImportModal({
     cancelReading()
     setSelectedVoyageId(nextVoyageId)
     setPreview(null)
-    setOverrideBilling(false)
-    setConfirmCustomerChange(false)
+    resetDecisions()
   }
 
   async function handleFiles(selectedFiles: File[]) {
     setFiles(selectedFiles)
     setPreview(null)
-    setOverrideBilling(false)
-    setConfirmCustomerChange(false)
+    resetDecisions()
     setReadError(null)
     setConfirmError(null)
     setOutcome(null)
@@ -132,29 +180,35 @@ export function BlImportModal({
     setSubmitting(true)
     setConfirmError(null)
     try {
-      const { refusedCustomerRelinks, calculationErrors } = await confirmBlFreightImport(
+      const result = await confirmBlFreightImport(
         preview,
         user?.id ?? '',
-        overrideBilling,
+        overrideBls,
         files[0]?.name,
         confirmCustomerChange,
+        confirmVehicleChanges,
       )
+      const { refusedCustomerRelinks, calculationErrors } = result
+      const { changes, vehicleIssues } = describeChanges(result)
       await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
       const refused = refusedCustomerRelinks.map((relink) => `${relink.blNumber} (${relink.blockers.join(' ')})`)
       const failedCalculations = calculationErrors.map((failure) => `${failure.blNumber} (${failure.message})`)
-      if (refused.length || failedCalculations.length) {
+      if (refused.length || failedCalculations.length || vehicleIssues.length || changes.some((item) => item.includes('saiu'))) {
         // Importou, mas algo pedido não aconteceu: o modal fica aberto com o
         // resultado parcial. Dizer "concluída" e fechar esconderia justamente o
         // que o operador precisa resolver.
         const warnings: string[] = []
         if (refused.length) warnings.push(`a troca de cliente foi recusada em ${refused.length} B/L(s): ${refused.join(' | ')}`)
         if (failedCalculations.length) warnings.push(`${failedCalculations.length} B/L(s) ficaram sem cálculo automático: ${failedCalculations.join(' | ')}`)
-        showToast(`Importação gravada, mas ${warnings.join(' | ')}`, 'error')
+        if (vehicleIssues.length) warnings.push(`${vehicleIssues.length} pendência(s) de veículos`)
+        showToast(warnings.length ? `Importação gravada, mas ${warnings.join(' | ')}` : 'Importação gravada; confira o resultado por B/L.', warnings.length ? 'error' : 'success')
         setOutcome({
           imported: importableCount,
           blocked: preview.summary.blockedCount,
           refusedRelinks: refused,
           calculationErrors: failedCalculations,
+          changes,
+          vehicleIssues,
         })
         return
       }
@@ -214,7 +268,47 @@ export function BlImportModal({
           </ImportNotice>
         ) : null}
 
-        {preview ? <BlImportPreview preview={preview} /> : null}
+        {preview ? (
+          <BlImportPreview
+            preview={preview}
+            overrideBls={outcome ? null : overrideBls}
+            onToggleOverride={toggleOverride}
+          />
+        ) : null}
+
+        {vehicleChangeRows.length && !outcome ? (
+          <section className="app-import-section" aria-label="Veículos da aba VIN">
+            <h3 className="app-import-section__title">
+              Veículos mudam em {plural(vehicleChangeRows.length, 'B/L', 'B/Ls')}
+            </h3>
+            <ImportNotice tone="warning" title="A aba VIN do arquivo substitui os veículos gravados">
+              <ul className="app-import-notice__list">
+                {vehicleChangeRows.map((row) => (
+                  <li key={row.blNumber}>
+                    <span className="app-import-code">{row.blNumber}</span>
+                    {row.vehicleChanges!.added.length ? ` · entram: ${row.vehicleChanges!.added.join(', ')}` : ''}
+                    {row.vehicleChanges!.removed.length ? ` · saem: ${row.vehicleChanges!.removed.join(', ')}` : ''}
+                    {row.vehicleChanges!.changed.length ? ` · mudam: ${row.vehicleChanges!.changed.join(', ')}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </ImportNotice>
+            <label className="app-import-override">
+              <input
+                type="checkbox"
+                checked={confirmVehicleChanges}
+                onChange={(event) => setConfirmVehicleChanges(event.target.checked)}
+              />
+              <span>
+                <span className="app-import-override__title">Confirmo a lista de veículos da aba VIN</span>
+                <span className="app-import-override__hint">
+                  O local de desova dos que continuam é preservado e um alerta registra as mudanças. Sem marcar, os
+                  veículos gravados ficam como estão e o restante do B/L é aplicado.
+                </span>
+              </span>
+            </label>
+          </section>
+        ) : null}
 
         {customerChangeRows.length && !outcome ? (
           <section className="app-import-section" aria-label="Troca de consignatário">
@@ -263,6 +357,22 @@ export function BlImportModal({
                 </ul>
               </>
             ) : null}
+            {outcome.changes.length ? (
+              <>
+                <p>Mudanças aplicadas por B/L:</p>
+                <ul className="app-import-notice__list">
+                  {outcome.changes.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </>
+            ) : null}
+            {outcome.vehicleIssues.length ? (
+              <>
+                <p>Veículos que não mudaram:</p>
+                <ul className="app-import-notice__list">
+                  {outcome.vehicleIssues.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </>
+            ) : null}
             {outcome.calculationErrors.length ? (
               <>
                 <p>Ficaram sem cálculo automático de taxas locais; recalcule na ficha do B/L:</p>
@@ -280,16 +390,17 @@ export function BlImportModal({
             <label className="app-import-override basis-full">
               <input
                 type="checkbox"
-                checked={overrideBilling}
-                onChange={(event) => setOverrideBilling(event.target.checked)}
+                checked={billingOverrideRows.length > 0 && billingOverrideRows.every((row) => overrideBls.has(row.blNumber))}
+                onChange={(event) => setOverrideBls(event.target.checked ? new Set(billingOverrideRows.map((row) => row.blNumber)) : new Set())}
               />
               <span>
                 <span className="app-import-override__title">
-                  Sobrescrever faturamento em {plural(billingOverrideCount, 'B/L', 'B/Ls')} com impacto
+                  Confirmar faturamento nos {plural(billingOverrideCount, 'B/L', 'B/Ls')} com impacto ({overrideBls.size} marcado{overrideBls.size === 1 ? '' : 's'})
                 </span>
                 <span className="app-import-override__hint">
-                  Quantidade de containers, container compartilhado, IMO/OOG, peso de carga solta ou CNPJ faturado. Sem
-                  marcar, os demais campos são aplicados e as mudanças com impacto em faturamento são ignoradas.
+                  Marque por B/L na tabela ou todos aqui. A fatura emitida segue a base nova (reemissão automática sem
+                  pagamento; com pagamento, restituição). Sem marcar, os demais campos são aplicados e as mudanças com
+                  impacto em faturamento ficam de fora.
                 </span>
               </span>
             </label>
@@ -319,7 +430,16 @@ export function BlImportModal({
   )
 }
 
-function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
+function BlImportPreview({
+  preview,
+  overrideBls,
+  onToggleOverride,
+}: {
+  preview: BlFreightImportPreview
+  /** null depois da confirmação: a decisão já foi enviada */
+  overrideBls: ReadonlySet<string> | null
+  onToggleOverride: (blNumber: string, checked: boolean) => void
+}) {
   const { newCount, updatedCount, unchangedCount, blockedCount } = preview.summary
   return (
     <section className="app-import-section" aria-label="Prévia da importação">
@@ -370,14 +490,32 @@ function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
                   <DiffList row={row} />
                 </td>
                 <td>
-                  {row.blockedReasons.length || row.billingImpacts.length ? (
+                  {row.blockedReasons.length || row.billingImpacts.length || row.warnings?.length || row.removedContainers?.length ? (
                     <ul className="grid gap-1">
                       {row.blockedReasons.map((reason) => (
                         <li key={reason} className="app-import-tone--danger">{reason}</li>
                       ))}
+                      {row.removedContainers?.length ? (
+                        <li className="app-import-tone--warning">Saem do B/L: {row.removedContainers.join(', ')}</li>
+                      ) : null}
+                      {row.warnings?.map((warning) => (
+                        <li key={warning} className="app-import-tone--warning">{warning}</li>
+                      ))}
                       {row.billingImpacts.map((reason) => (
                         <li key={reason} className="app-import-tone--warning">Faturamento: {reason}</li>
                       ))}
+                      {row.requiresBillingOverride && row.payload && overrideBls ? (
+                        <li>
+                          <label className="inline-flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={overrideBls.has(row.blNumber)}
+                              onChange={(event) => onToggleOverride(row.blNumber, event.target.checked)}
+                            />
+                            <span>Confirmar faturamento deste B/L</span>
+                          </label>
+                        </li>
+                      ) : null}
                     </ul>
                   ) : (
                     <span className="app-import-tone--muted">—</span>

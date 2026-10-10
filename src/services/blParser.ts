@@ -71,6 +71,11 @@ export type ParsedBLDocument = {
   }
   containers: ParsedBLContainer[]
   vehicles: ParsedBLVehicle[]
+  /**
+   * true quando o arquivo tem a aba VIN. Sem a aba, a reimportação não mexe nos
+   * veículos do B/L (ADR 0078, item 16); com ela, a lista da aba vale.
+   */
+  vinSheet?: boolean
   freightCharges: BLFreightCharge[]
 }
 
@@ -135,6 +140,7 @@ export async function parseBLBuffer(buffer: ArrayBuffer): Promise<ParsedBLDocume
     },
     containers: parseContainers(rows),
     vehicles: parseVehicles(workbook, XLSX.utils),
+    vinSheet: hasVinSheet(workbook),
     freightCharges: parseFreightCharges(rows),
   }
 }
@@ -285,8 +291,16 @@ function parseContainers(rows: RawSheetRow[]): ParsedBLContainer[] {
   return containers
 }
 
+function findVinSheetName(workbook: { Sheets: Record<string, unknown> }) {
+  return Object.keys(workbook.Sheets).find((name) => name.trim().toUpperCase() === 'VIN')
+}
+
+function hasVinSheet(workbook: { Sheets: Record<string, unknown> }) {
+  return Boolean(findVinSheetName(workbook))
+}
+
 function parseVehicles(workbook: { Sheets: Record<string, unknown> }, utils: typeof import('@e965/xlsx').utils) {
-  const vinSheetName = Object.keys(workbook.Sheets).find((name) => name.trim().toUpperCase() === 'VIN')
+  const vinSheetName = findVinSheetName(workbook)
   const vinSheet = vinSheetName ? workbook.Sheets[vinSheetName] : null
   if (!vinSheet) return []
 

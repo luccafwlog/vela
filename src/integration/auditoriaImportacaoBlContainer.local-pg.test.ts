@@ -1,6 +1,7 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Cada it.fails documenta um defeito confirmado e roda no job local-pg do CI; quando a correção entrar, troque it.fails por it.
+// Os casos nasceram como it.fails e viraram it com a migration 174 (Etapa 2 do plano
+// docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md); as checagens novas da Etapa 2 estão no fim da suíte.
 //
 // Problema-raiz M02: a reimportação de B/L de container apaga e recria
 // `bl_containers` mesmo quando a prévia diz "Sem mudança". A prévia marca a
@@ -251,6 +252,8 @@ type DocumentOptions = {
   consignee?: { name: string; cnpj: string }
   consigneeEmail?: string | null
   shipper?: string
+  /** aba VIN do arquivo; ausente, o documento não tem a aba */
+  vehicles?: Array<{ chassis: string; container: string; model?: string }>
 }
 
 function blDocument(blNumber: string, options: DocumentOptions): ParsedBLDocument {
@@ -287,7 +290,16 @@ function blDocument(blNumber: string, options: DocumentOptions): ParsedBLDocumen
       grossWeightKg: 12000,
       cbm: 30,
     })),
-    vehicles: [],
+    vehicles: (options.vehicles ?? []).map((vehicle) => ({
+      chassis: vehicle.chassis,
+      containerNumber: vehicle.container,
+      blNumber,
+      brand: 'A202 MARCA',
+      model: vehicle.model ?? 'A202 MODELO',
+      weightKg: 1500,
+      cbm: 10,
+    })),
+    vinSheet: options.vehicles !== undefined,
     freightCharges: [{
       description: 'OCEAN FREIGHT', rateCurrency: 'USD', rateAmount: 1500, per: 'CNTR', currency: 'USD', amount: 1500, payment: 'PREPAID',
     }],
@@ -304,7 +316,7 @@ type ImportOutcome = {
 async function importBls(
   documents: ParsedBLDocument[],
   filename: string,
-  options: { overrideBilling?: boolean; confirmCustomerChange?: boolean } = {},
+  options: { overrideBilling?: boolean; confirmCustomerChange?: boolean; confirmVehicleChanges?: boolean } = {},
 ): Promise<ImportOutcome> {
   const preview = await previewBlFreightImport({ documents, voyageId, onlyBlId: null })
   try {
@@ -314,6 +326,7 @@ async function importBls(
       options.overrideBilling ?? false,
       filename,
       options.confirmCustomerChange ?? false,
+      options.confirmVehicleChanges ?? false,
     )
     return { preview, result, error: null }
   } catch (error) {
@@ -643,7 +656,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     identical = { before, after: containersOf(blId) }
   })
 
-  it.fails('esperado: reimportação "Sem mudança" preserva id, descarga, devolução, status de Demurrage e local de desova dos containers [BL-02, DAT-03, ORDCT-01, ORDCT-03, VEI-04, BL-20] — regra: ADR 0017 decisão 2 (docs/adr/0017-bl-fonte-ingestao-correcao-autoridade-compartilhada.md:41-43, nada sobrescrito em silêncio), RASTREABILIDADE.md:282 (preserva campos omitidos) e ADR 0071 item 10 (docs/adr/0071-ce-mercante-como-trava-de-exclusao.md:83-86)', () => {
+  it('esperado: reimportação "Sem mudança" preserva id, descarga, devolução, status de Demurrage e local de desova dos containers [BL-02, DAT-03, ORDCT-01, ORDCT-03, VEI-04, BL-20] — regra: ADR 0017 decisão 2 (docs/adr/0017-bl-fonte-ingestao-correcao-autoridade-compartilhada.md:41-43, nada sobrescrito em silêncio), RASTREABILIDADE.md:282 (preserva campos omitidos) e ADR 0071 item 10 (docs/adr/0071-ce-mercante-como-trava-de-exclusao.md:83-86)', () => {
     expect(identical?.after).toEqual(identical?.before)
   })
 
@@ -694,7 +707,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     expect(demurrage.error ?? 'lote aceito').toMatch(/^lote aceito$|demurrage_invoice_items_container_id_fkey/)
   })
 
-  it.fails('esperado: o lote é aceito, o B/L novo entra e o container com Demurrage continua o mesmo [BL-04, ORDCT-02, DAT-03, BL-05] — regra: ADR 0071 itens 3 e 10 (docs/adr/0071-ce-mercante-como-trava-de-exclusao.md:56-58 e 83-86: a invoice de Demurrage trava o container; a reimportação só tira o que o arquivo não traz) e manifesto-edi.md:280 (reimportar conclui o restante)', () => {
+  it('esperado: o lote é aceito, o B/L novo entra e o container com Demurrage continua o mesmo [BL-04, ORDCT-02, DAT-03, BL-05] — regra: ADR 0071 itens 3 e 10 (docs/adr/0071-ce-mercante-como-trava-de-exclusao.md:56-58 e 83-86: a invoice de Demurrage trava o container; a reimportação só tira o que o arquivo não traz) e manifesto-edi.md:280 (reimportar conclui o restante)', () => {
     expect(demurrage?.error).toBeNull()
     expect(demurrage?.newBl?.id).toBe('A202-NOVO2')
     expect(demurrage?.containerAfter).toEqual([demurrage?.containerBefore])
@@ -747,12 +760,12 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     expect(invoiced.calculationErrors.filter((message) => !message.includes('recalculo bloqueado'))).toEqual([])
   })
 
-  it.fails('esperado: reimportação idêntica de B/L faturado não o devolve à Revisão nem acende a trava "Carga … após faturamento" (charge_status e fatura seguem os mesmos) [ORDCE-06] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:22-26: só há efeito se o valor ou o Cliente mudar) e manifesto-edi.md:346 (reimportação idêntica não reemite nem alerta)', () => {
+  it('esperado: reimportação idêntica de B/L faturado não o devolve à Revisão nem acende a trava "Carga … após faturamento" (charge_status e fatura seguem os mesmos) [ORDCE-06] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:22-26: só há efeito se o valor ou o Cliente mudar) e manifesto-edi.md:346 (reimportação idêntica não reemite nem alerta)', () => {
     expect(invoiced?.after).toEqual(invoiced?.before)
     expect(invoiced?.invoicesAfter).toEqual(invoiced?.invoicesBefore)
   })
 
-  it.fails('esperado: a reimportação idêntica de B/L faturado não devolve "recálculo bloqueado. Cancele e reemita" nem enfileira provisional_charges [BL-V01, ORDCT-13, ORDCE-11] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:17-21: não há cancelar e reemitir; o sistema trata a fatura) e taxas-locais.md:134 (B/L faturado não é recalculado)', () => {
+  it('esperado: a reimportação idêntica de B/L faturado não devolve "recálculo bloqueado. Cancele e reemita" nem enfileira provisional_charges [BL-V01, ORDCT-13, ORDCE-11] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:17-21: não há cancelar e reemitir; o sistema trata a fatura) e taxas-locais.md:134 (B/L faturado não é recalculado)', () => {
     expect(invoiced?.calculationErrors).toEqual([])
     expect(invoiced?.effectsAfter).toBe(invoiced?.effectsBefore)
   })
@@ -794,7 +807,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     expect(sibling.error ?? 'lote aceito').toMatch(/^lote aceito$|Container compartilhado AZCU2020041 já está faturado em outra B\/L/)
   })
 
-  it.fails('esperado: o B/L irmão sem mudança não derruba o lote e a correção do outro B/L é gravada [BL-04, BL-05] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:22-26: sem mudança de valor nada acontece) e ADR 0071 item 10 (docs/adr/0071-ce-mercante-como-trava-de-exclusao.md:83-86: reimportação só tira o que o arquivo não traz)', () => {
+  it('esperado: o B/L irmão sem mudança não derruba o lote e a correção do outro B/L é gravada [BL-04, BL-05] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:22-26: sem mudança de valor nada acontece) e ADR 0071 item 10 (docs/adr/0071-ce-mercante-como-trava-de-exclusao.md:83-86: reimportação só tira o que o arquivo não traz)', () => {
     expect(sibling?.error).toBeNull()
     expect(sibling?.correctedShipper).toBe('A202 SHIPPER CORRIGIDO LTDA')
     expect(sibling?.containerAfter).toEqual(sibling?.containerBefore)
@@ -825,7 +838,100 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     expect(swap.betaEmails).toContain(newConsigneeEmail)
   })
 
-  it.fails('esperado: o e-mail do novo consignatário não vira contato do Cliente antigo [BL-03] — regra: CONTEXT.md:1023-1031 (Troca de Consignatário: o B/L muda de dono e o vínculo é refeito) e CONTEXT.md:1062-1064 (E-mail Capturado do B/L entra no cadastro do Cliente do B/L)', () => {
+  it('esperado: o e-mail do novo consignatário não vira contato do Cliente antigo [BL-03] — regra: CONTEXT.md:1023-1031 (Troca de Consignatário: o B/L muda de dono e o vínculo é refeito) e CONTEXT.md:1062-1064 (E-mail Capturado do B/L entra no cadastro do Cliente do B/L)', () => {
     expect(swap?.alfaEmails).not.toContain(newConsigneeEmail)
+  })
+
+  // --- Checagens novas da Etapa 2 (ADR 0078, item 16) ---------------------------
+  function vehiclesOf(blId: string): Array<{ chassis: string; model: string; container_id: number }> {
+    return JSON.parse(localPsql(`
+      SELECT COALESCE(jsonb_agg(jsonb_build_object('chassis', chassis, 'model', model, 'container_id', container_id) ORDER BY chassis), '[]'::jsonb)
+      FROM public.vehicles WHERE bl_id = '${blId}';
+    `)) as Array<{ chassis: string; model: string; container_id: number }>
+  }
+
+  function vehicleAlerts(blId: string): number {
+    return Number(localPsql(`
+      SELECT count(*) FROM public.alert_items AS i JOIN public.alerts AS a ON a.id = i.alert_id
+      WHERE i.item_type = 'bl_vehicles_changed_on_reimport' AND a.entity_id = '${blId}';
+    `))
+  }
+
+  it('arquivo sem aba VIN preserva os veículos gravados', async () => {
+    const blId = 'A202-VIN1'
+    const withVin = blDocument(blId, {
+      containers: ['AZCU2020061'],
+      vehicles: [{ chassis: 'A202VIN0000000001', container: 'AZCU2020061' }, { chassis: 'A202VIN0000000002', container: 'AZCU2020061' }],
+    })
+    expect((await importBls([withVin], 'a202-vin1.xlsx')).error).toBeNull()
+    const before = vehiclesOf(blId)
+    expect(before.map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000001', 'A202VIN0000000002'])
+
+    const withoutVin = await importBls([blDocument(blId, { containers: ['AZCU2020061'] })], 'a202-vin1-sem-aba.xlsx')
+    expect(withoutVin.error).toBeNull()
+    expect(previewRow(withoutVin, blId).requiresVehicleConfirmation).toBe(false)
+    expect(vehiclesOf(blId)).toEqual(before)
+  })
+
+  it('aba VIN com chassis diferentes exige confirmação e abre o alerta do B/L', async () => {
+    const blId = 'A202-VIN2'
+    const first = blDocument(blId, {
+      containers: ['AZCU2020071'],
+      vehicles: [{ chassis: 'A202VIN0000000011', container: 'AZCU2020071' }, { chassis: 'A202VIN0000000012', container: 'AZCU2020071' }],
+    })
+    expect((await importBls([first], 'a202-vin2.xlsx')).error).toBeNull()
+    const before = vehiclesOf(blId)
+    const changed = blDocument(blId, {
+      containers: ['AZCU2020071'],
+      vehicles: [
+        { chassis: 'A202VIN0000000011', container: 'AZCU2020071', model: 'A202 MODELO NOVO' },
+        { chassis: 'A202VIN0000000013', container: 'AZCU2020071' },
+      ],
+    })
+
+    // A lista de chassis é variável de faturamento: com taxas calculadas, a linha
+    // também pede a confirmação de faturamento; aqui ela vem marcada e só a dos
+    // veículos varia.
+    const unconfirmed = await importBls([changed], 'a202-vin2-sem-confirmacao.xlsx', { overrideBilling: true })
+    expect(unconfirmed.error).toBeNull()
+    expect(previewRow(unconfirmed, blId).vehicleChanges).toEqual({
+      added: ['A202VIN0000000013'], removed: ['A202VIN0000000012'], changed: ['A202VIN0000000011'],
+    })
+    expect(unconfirmed.result?.vehicleChangesPending).toEqual([blId])
+    expect(vehiclesOf(blId)).toEqual(before)
+    expect(vehicleAlerts(blId)).toBe(0)
+
+    const confirmed = await importBls([changed], 'a202-vin2-confirmado.xlsx', { overrideBilling: true, confirmVehicleChanges: true })
+    expect(confirmed.error).toBeNull()
+    expect(confirmed.result?.vehicleChanges).toEqual([{
+      blNumber: blId, inserted: ['A202VIN0000000013'], updated: ['A202VIN0000000011'], removed: ['A202VIN0000000012'],
+    }])
+    expect(vehiclesOf(blId).map((vehicle) => [vehicle.chassis, vehicle.model])).toEqual([
+      ['A202VIN0000000011', 'A202 MODELO NOVO'],
+      ['A202VIN0000000013', 'A202 MODELO'],
+    ])
+    expect(vehicleAlerts(blId)).toBe(1)
+  })
+
+  it('chassi que já está em outro B/L recusa só a linha', async () => {
+    const blId = 'A202-VIN3'
+    const result = await importBls([blDocument(blId, {
+      containers: ['AZCU2020081'],
+      vehicles: [{ chassis: 'A202VIN0000000001', container: 'AZCU2020081' }, { chassis: 'A202VIN0000000021', container: 'AZCU2020081' }],
+    })], 'a202-vin3.xlsx')
+    expect(result.error).toBeNull()
+    expect(result.result?.vehiclesDiscarded).toEqual([{ blNumber: blId, chassis: 'A202VIN0000000001', reason: 'Chassi ja esta no B/L A202-VIN1' }])
+    expect(vehiclesOf(blId).map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000021'])
+  })
+
+  it('container ausente do arquivo sai e é informado no resultado; o que continua mantém o id', async () => {
+    const blId = 'A202-REM'
+    expect((await importBls([blDocument(blId, { containers: ['AZCU2020091', 'AZCU2020092'] })], 'a202-rem.xlsx')).error).toBeNull()
+    const kept = containersOf(blId).find((container) => container.container_number === 'AZCU2020091')
+    const reimport = await importBls([blDocument(blId, { containers: ['AZCU2020091'] })], 'a202-rem-reimportado.xlsx', { overrideBilling: true })
+    expect(reimport.error).toBeNull()
+    expect(previewRow(reimport, blId).removedContainers).toEqual(['AZCU2020092'])
+    expect(reimport.result?.containerChanges).toEqual([{ blNumber: blId, inserted: [], updated: [], removed: ['AZCU2020092'] }])
+    expect(containersOf(blId).map((container) => container.id)).toEqual([kept?.id])
   })
 })

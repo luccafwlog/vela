@@ -180,7 +180,7 @@ describe('blFreightImport', () => {
       // SOC/COC do B/L segue para a RPC, que o grava como soberano (migration 121)
       ownership: 'COC',
     })
-    expect(payload.vehicles[0]).toMatchObject({ chassis: '9BWZZZ377VT004251', container_number: 'TCLU1234567', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 })
+    expect(payload.vehicles?.[0]).toMatchObject({ chassis: '9BWZZZ377VT004251', container_number: 'TCLU1234567', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 })
   })
 
   it('mantém todas as linhas aceitas pelo parser no payload, sem segundo filtro por descrição', () => {
@@ -689,6 +689,10 @@ describe('blFreightImport', () => {
 
     await expect(confirmBlFreightImport(preview, 'user-1')).resolves.toEqual({
       result: [{ bls_received: 1 }],
+      containerChanges: [],
+      vehicleChanges: [],
+      vehiclesDiscarded: [],
+      vehicleChangesPending: [],
       refusedCustomerRelinks: [],
       calculationErrors: [],
     })
@@ -1227,6 +1231,8 @@ describe('blFreightImport', () => {
 
   it('trata a lista de veiculos como variavel de faturamento propria', () => {
     const doc = parsedBL()
+    // Aba VIN presente e vazia: a lista vale e os veículos sairiam.
+    doc.vinSheet = true
     doc.vehicles = []
 
     const preview = buildBlFreightPreview({
@@ -1372,5 +1378,106 @@ describe('blFreightImport', () => {
     expect(row.payload?.containers[0].container_number).toBe('TCLU9999999')
     expect(row.payload?.freight_lines).toHaveLength(1)
     expect(row.payload?.freight_lines[0].description).toBe('OCEAN FREIGHT')
+  })
+
+  describe('reimportação de B/L de container (ADR 0078, itens 16 e 17)', () => {
+    const voyage = { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' }
+
+    it('arquivo sem aba VIN não envia veículos nem pede confirmação', () => {
+      const doc = parsedBL()
+      doc.vehicles = []
+      const preview = buildBlFreightPreview({ documents: [doc], selectedVoyage: voyage, existingBls: [existingBl()] })
+      const row = preview.rows[0]
+      expect(row?.payload).not.toHaveProperty('vehicles')
+      expect(row?.vehicleChanges).toBeNull()
+      expect(row?.requiresVehicleConfirmation).toBe(false)
+      expect(row?.diffs.find((diff) => diff.field === 'vehicles')).toBeUndefined()
+    })
+
+    it('aba VIN com chassis diferentes lista entradas, saídas e mudanças e pede confirmação', async () => {
+      const doc = parsedBL()
+      doc.vinSheet = true
+      doc.vehicles = [
+        { chassis: '9BWZZZ377VT004251', containerNumber: 'TCLU1234567', blNumber: doc.blNumber, brand: 'BYD', model: 'SEAL', weightKg: 1800, cbm: 8.5 },
+        { chassis: 'NOVOCHASSI0000001', containerNumber: 'TCLU1234567', blNumber: doc.blNumber, brand: 'BYD', model: 'DOLPHIN', weightKg: 1800, cbm: 8.5 },
+      ]
+      const existing = {
+        ...existingBl(),
+        vehicles: [
+          { chassis: '9BWZZZ377VT004251', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 },
+          { chassis: 'SAIUCHASSI0000001', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 },
+        ],
+      }
+      const preview = buildBlFreightPreview({ documents: [doc], selectedVoyage: voyage, existingBls: [existing] })
+      const row = preview.rows[0]!
+      expect(row.vehicleChanges).toEqual({ added: ['NOVOCHASSI0000001'], removed: ['SAIUCHASSI0000001'], changed: ['9BWZZZ377VT004251'] })
+      expect(row.requiresVehicleConfirmation).toBe(true)
+      expect(preview.summary.vehicleConfirmationCount).toBe(1)
+
+      mockRpc.mockResolvedValue({ data: { result: { bls_received: 1 } }, error: null })
+      await confirmBlFreightImport(preview, 'user-1', true, 'a.xlsx', false, false)
+      expect(mockRpc.mock.calls.at(-1)?.[1].p_bls[0]).toMatchObject({ confirm_vehicle_changes: false })
+      await confirmBlFreightImport(preview, 'user-1', true, 'a.xlsx', false, true)
+      expect(mockRpc.mock.calls.at(-1)?.[1].p_bls[0]).toMatchObject({ confirm_vehicle_changes: true })
+    })
+
+    it('envia como remoção só os contêineres gravados que o arquivo não traz', () => {
+      const existing = {
+        ...existingBl(),
+        bl_containers: [existingContainer(), { ...existingContainer(), container_number: 'MSKU7654321' }],
+      }
+      const preview = buildBlFreightPreview({ documents: [parsedBL()], selectedVoyage: voyage, existingBls: [existing] })
+      expect(preview.rows[0]?.removedContainers).toEqual(['MSKU7654321'])
+      expect(preview.rows[0]?.payload?.remove_containers).toEqual(['MSKU7654321'])
+    })
+
+    it('Laden on Board ilegível ou vazio vira aviso e não vai no payload', () => {
+      const unreadable = parsedBL()
+      unreadable.dates.ladenOnBoard = '31/02/2026'
+      const empty = parsedBL()
+      empty.blNumber = 'OUTROBL0001'
+      empty.dates.ladenOnBoard = ''
+      const preview = buildBlFreightPreview({ documents: [unreadable, empty], selectedVoyage: voyage })
+      expect(preview.rows[0]?.warnings).toEqual(['Laden on Board ilegível ("31/02/2026"): a data gravada não muda.'])
+      expect(preview.rows[0]?.payload?.laden_on_board).toBeNull()
+      expect(preview.rows[1]?.warnings).toEqual(['Laden on Board vazio no arquivo: a data gravada não muda.'])
+      expect(preview.rows[0]?.status).toBe('new')
+    })
+
+    it('POD reconhecido pelo cadastro de portos vale; POD desconhecido recusa a linha', () => {
+      const byName = parsedBL()
+      byName.route.pod = 'PORTO DE IMBITUBA, BRAZIL'
+      const unknown = parsedBL()
+      unknown.blNumber = 'OUTROBL0002'
+      unknown.route.pod = 'ATLANTIS'
+      const preview = buildBlFreightPreview({
+        documents: [byName, unknown],
+        selectedVoyage: voyage,
+        knownPorts: [{ name: 'Imbituba', locode: 'BRIBB' }],
+      })
+      expect(preview.rows[0]?.payload?.pod).toBe('BRIBB')
+      expect(preview.rows[0]?.status).toBe('new')
+      expect(preview.rows[1]?.status).toBe('blocked')
+      expect(preview.rows[1]?.blockedReasons).toContain('POD "ATLANTIS" não está no cadastro de portos: cadastre o porto ou corrija o arquivo.')
+    })
+
+    it('confirmação de faturamento vale por B/L', async () => {
+      const first = parsedBL()
+      first.route.pod = 'BRVIX'
+      const second = parsedBL()
+      second.blNumber = 'CSC45250E02Y01'
+      second.route.pod = 'BRVIX'
+      const preview = buildBlFreightPreview({
+        documents: [first, second],
+        selectedVoyage: voyage,
+        billingLockedBlIds: new Set([first.blNumber, second.blNumber]),
+        existingBls: [existingBl(), { ...existingBl(), id: second.blNumber }],
+      })
+      expect(preview.rows.every((row) => row.requiresBillingOverride)).toBe(true)
+      mockRpc.mockResolvedValue({ data: { result: { bls_received: 2 } }, error: null })
+      await confirmBlFreightImport(preview, 'user-1', new Set([second.blNumber]))
+      const sent = mockRpc.mock.calls.at(-1)?.[1].p_bls as Array<{ id: string; override_billing: boolean }>
+      expect(sent.map((bl) => [bl.id, bl.override_billing])).toEqual([[first.blNumber, false], [second.blNumber, true]])
+    })
   })
 })

@@ -20,6 +20,7 @@ export type ActiveAlertType =
   | 'billing_calculation_blocked'
   | 'billing_auto_issue_failed'
   | 'import_effect_blocked'
+  | 'bl_vehicles_changed_on_reimport'
   | 'demurrage_ptax_recalc_failed'
   | 'calendario_feriados_pendente'
   | 'portal_pendencia_geral'
@@ -64,6 +65,7 @@ export const TYPE_LABELS: Record<string, string> = {
   billing_calculation_blocked: 'Cálculo bloqueado',
   billing_auto_issue_failed: 'Falha de emissão automática',
   import_effect_blocked: 'Efeito de importação bloqueado',
+  bl_vehicles_changed_on_reimport: 'Veículos alterados na reimportação do B/L',
   demurrage_ptax_recalc_failed: 'Falha na atualização da PTAX Demurrage',
   calendario_feriados_pendente: 'Calendário de feriados pendente',
   portal_pendencia_geral: 'Portal do Cliente — pendência geral',

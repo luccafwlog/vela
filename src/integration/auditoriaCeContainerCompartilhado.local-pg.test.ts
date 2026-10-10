@@ -532,7 +532,9 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     if (siblingDates.error !== null) expect(siblingDates.error).toMatch(sharedContainerRefusal)
   })
 
-  it.fails('esperado: as datas do irmão são gravadas, sem pedir cancelamento da fatura do outro B/L [DAT-10, ORDCT-09] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:17-24: data de Demurrage não é correção; não há cancelar e reemitir manual)', () => {
+  // Resolvido pela migration 174 (Etapa 2): a guarda de container compartilhado
+  // olha só a mudança de participação, e datas do irmão passam.
+  it('esperado: as datas do irmão são gravadas, sem pedir cancelamento da fatura do outro B/L [DAT-10, ORDCT-09] — regra: ADR 0077 decisão 2 (docs/adr/0077-fatura-emitida-nao-muda-de-valor.md:17-24: data de Demurrage não é correção; não há cancelar e reemitir manual)', () => {
     expect(siblingDates?.error).toBeNull()
     expect(siblingDates?.container).toEqual({ discharge_date: '2026-10-01', return_date: '2026-10-06' })
   })

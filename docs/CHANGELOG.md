@@ -4,6 +4,14 @@
 
 ## 2026-10
 
+- **Reimportação de B/L de container (2026-10-10, implementação local; Etapa 2 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  reimportar o B/L deixa de apagar e recriar os contêineres (datas, desova, status de Demurrage
+  e perfil preservados; migration `174`, ADR 0078 itens 16 e 17); contêiner que o arquivo não traz
+  só sai com a remoção mostrada na prévia; veículos só mudam com aba VIN e confirmação, com alerta
+  no B/L; confirmação de faturamento por B/L; Laden on Board ilegível mantém a data; POD fora do
+  cadastro de portos bloqueia a linha; reimportação idêntica de B/L faturado não reabre a Revisão
+  nem enfileira recálculo; e-mail do consignatário novo não vira contato do Cliente antigo (M14).
 - **Reimportação de carga solta (2026-10-10, implementação local; Etapas 0 e 1 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   reimportar Manifesto BB ou B/L avulso deixa de apagar o CE, de desfazer o Cliente confirmado
