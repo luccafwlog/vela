@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** revisão do fluxo implementada no checkout, publicação e homologação pendentes · **Atualizado:** 2026-10-07 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** revisão do fluxo implementada no checkout, publicação e homologação pendentes · **Atualizado:** 2026-10-10 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -16,8 +16,10 @@ Aprovação documental, exportação e conciliação são atos diferentes.
 
 - Portal: abas Nova solicitação, Minhas solicitações e Documentos anuais (só VIP).
   Nova solicitação lista os quatro requisitos (com o modelo do termo para baixar) e uma
-  tabela de BLs; selecionar e continuar cria o rascunho sem confirmação, pois o cliente
-  pode cancelá-lo. A solicitação abre em modal: próximo passo do estado, prazo, documentos
+  tabela de BLs. Abaixo dos requisitos fica o memorando de liberação de documentos
+  (`public/templates/memorando-liberacao-documentos-modelo.docx`), formulário para retirar
+  documentos na agência; não é requisito nem entra no pedido. Selecionar e continuar
+  cria o rascunho sem confirmação, pois o cliente pode cancelá-lo. A solicitação abre em modal: próximo passo do estado, prazo, documentos
   (anexar/substituir com o motivo da recusa à vista), requisitos por BL e histórico.
   O cliente cancela enquanto o pedido está em rascunho ou com correção solicitada.
   Com tudo atendido, "Documentação validada… consulte o Mercante". Não mostra envio,

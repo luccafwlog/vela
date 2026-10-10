@@ -144,7 +144,7 @@ apresentação; timestamps persistidos continuam UTC.
 - [x] Registrar a decisão de execução de não criar entidade distinta “CS”, conforme relatório local.
 - [x] Registrar as cinco colunas ZPT, documentos anuais VIP por CNPJ e validade até 31/12 sem renovação automática.
 - [x] Implementar tipos, versões, requisitos e motivos públicos separados do andamento externo. **Código:** `ceUnlock.ts`; layout usa `layout_version`, e o pedido referencia `model_id`, em vez de exigir os nomes `layoutVersion`/`modelVersion` inicialmente propostos.
-- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs; cadastrar o PDF oficial fornecido pelo responsável (ausente em produção em 2026-10-10).
+- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs; cadastrar o PDF oficial fornecido pelo responsável (ausente em produção em 2026-10-10). Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e pediu que o cliente o receba em `.docx`; falta decidir se o cadastro do modelo passa a aceitar `.docx` ou se o termo vira arquivo do Portal.
 - [ ] **[bloqueia ativação]** Homologar a amostra XLSX e os indicadores Sim/Não com responsável/ZPT; revisar spec/plano no aceite.
 
 ## Tarefa 2 — Persistência, autorização e requisito financeiro
@@ -301,7 +301,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Conferir histórico remoto e publicar migrations CE `139`–`149` e `160`–`161` e as cinco funções. **Remoto:** leitura de produção em 2026-10-10 (ver "Fontes").
 - [ ] **[bloqueia ativação]** Conferir que os frontends publicados na Vercel são compatíveis com o backend atual.
 - [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
-- [ ] **[bloqueia ativação]** Cadastrar o PDF oficial e validar o resultado do expurgo antes da ativação operacional.
+- [ ] **[bloqueia ativação]** Cadastrar o PDF oficial e validar o resultado do expurgo antes da ativação operacional. Termo recebido em 2026-10-10, formato `.docx` pendente de decisão; cadastro em produção ainda não feito.
 - [ ] **[bloqueia ativação]** Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](2026-10-09-correcao-importacoes-ce-mercante.md).
 - [ ] **[bloqueia ativação]** Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.

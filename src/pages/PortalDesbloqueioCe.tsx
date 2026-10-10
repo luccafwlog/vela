@@ -239,6 +239,20 @@ export function PortalDesbloqueioCe() {
                 Entregue o BL original na agência.
               </Requirement>
             </ul>
+            {/* ponytail: modelo estático do frontend, fora do requisito e do versionamento do termo;
+                trocar o texto exige deploy. Se a agência precisar atualizá-lo sozinha, migrar para
+                um documento gerenciado como o modelo do termo. */}
+            <p className="mt-4 border-t border-[var(--app-border)] pt-3 text-xs text-[var(--app-muted)]">
+              Para retirar documentos na agência, leve o memorando preenchido em papel timbrado e assinado.{" "}
+              <a
+                className="inline-flex items-center gap-1 font-semibold text-[var(--app-link)] hover:underline"
+                href="/templates/memorando-liberacao-documentos-modelo.docx"
+                download="memorando-liberacao-documentos.docx"
+              >
+                <Download size={12} aria-hidden="true" />
+                Baixar memorando de liberação de documentos
+              </a>
+            </p>
           </section>
 
           {vip?.enabled &&

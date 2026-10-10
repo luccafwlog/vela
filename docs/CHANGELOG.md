@@ -4,6 +4,11 @@
 
 ## 2026-10
 
+- **Memorando de liberação de documentos no Portal (2026-10-10):** a aba Nova solicitação do
+  [Desbloqueio de CE](modules/desbloqueio-ce.md) oferece o modelo `.docx` do memorando que o
+  cliente leva preenchido para retirar documentos na agência. É download avulso, fora dos
+  quatro requisitos.
+
 - **Decisões das importações e do CE Mercante (2026-10-09, decisão do dono):** a
   [ADR 0078](adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) registra as
   regras de entrada, correção e efeitos das importações (portas e unicidade do CE, troca e
