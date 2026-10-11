@@ -242,7 +242,8 @@ const cleanupSql = `
     WHERE message LIKE '%A203 %' OR message LIKE '%A203-%'
        OR entity_id LIKE 'A203 %' OR entity_id LIKE 'A203-%'
        OR (entity_type = 'customer' AND entity_id IN (SELECT id::text FROM a203_customers))
-       OR (entity_type = 'voyage' AND entity_id IN (SELECT id::text FROM a203_voyages));
+       OR (entity_type = 'voyage' AND entity_id IN (SELECT id::text FROM a203_voyages))
+       OR (entity_type = 'invoice' AND entity_id IN (SELECT id::text FROM a203_invoices));
   CREATE TEMP TABLE a203_alert_items AS
     SELECT id FROM public.alert_items
     WHERE alert_id IN (SELECT id FROM a203_alerts)
@@ -274,6 +275,14 @@ const cleanupSql = `
   DELETE FROM public.portal_notifications
   WHERE bl_id IN (SELECT id FROM a203_bls) OR customer_id IN (SELECT id FROM a203_customers);
   DELETE FROM public.local_pix_charge_versions WHERE invoice_id IN (SELECT id FROM a203_invoices);
+  -- Baixa e diferença de fatura paga (ADR 0077, item 4) do caso da migration 191.
+  DELETE FROM public.invoice_refunds
+  WHERE invoice_id IN (SELECT id FROM a203_invoices) OR correction_receivable_id IN (SELECT id FROM a203_receivables);
+  DELETE FROM public.invoice_corrections
+  WHERE invoice_id IN (SELECT id FROM a203_invoices) OR receivable_id IN (SELECT id FROM a203_receivables);
+  DELETE FROM public.payments WHERE invoice_id IN (SELECT id FROM a203_invoices);
+  DELETE FROM public.ledger_payment_requests WHERE created_by = '${actorId}';
+  DELETE FROM public.invoice_document_snapshots WHERE invoice_id IN (SELECT id FROM a203_invoices);
   DELETE FROM public.ledger_settlements
   WHERE invoice_id IN (SELECT id FROM a203_invoices) OR receivable_id IN (SELECT id FROM a203_receivables);
   DELETE FROM public.invoice_customer_changes
@@ -594,5 +603,46 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     const attempt = JSON.parse(localPsql(`SELECT public.auto_bill_bl_after_ce_mercante('A203-J2', '${actorId}'::uuid);`)) as { status: string; message?: string }
     expect(attempt.status).not.toBe('invoiced')
     expect(attempt.message).toMatch(/O B\/L irmao A203-J1 .*ADCU2030071.*reemitida/)
+  })
+
+  // --- Correção da migration 191 (C2): irmão com fatura paga ------------------
+  // Fatura paga não é reemitida (ADR 0077, item 4): o vínculo dela guarda o
+  // rateio antigo para sempre. A diferença já segue por abatimento/restituição,
+  // e o B/L que chega fatura com o rateio atual.
+  it('irmão com fatura paga não bloqueia: o B/L que chega fatura com 1/2 e a fatura paga segue com o total original', () => {
+    insertBls([{ id: 'A203-P1', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030081' }])
+    expect(importCeSheet('A203MAN000008', voyage.clientesDiferentes, [{ blId: 'A203-P1', ce: '203001000000081' }]))
+      .toMatchObject({ ok: true })
+    expect(containerLinesOf('A203-P1')).toEqual([{ quantity: 1, total_brl: containerFee }])
+    const paid = Number(localPsql(`SELECT id FROM public.invoices WHERE bl_id = 'A203-P1' AND status = 'issued';`))
+    asOperator(`SELECT public.register_ledger_invoice_payment(${paid}, ${containerFee});`)
+    expect(localPsql(`SELECT status FROM public.invoices WHERE id = ${paid};`)).toBe('paid')
+
+    insertBls([{ id: 'A203-P2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030081' }])
+    // A paga não é reemitida e o vínculo dela continua com o rateio de quando estava sozinha.
+    expect(localPsql(`SELECT status || '|' || total_brl FROM public.invoices WHERE id = ${paid};`)).toBe(`paid|${containerFee.toFixed(2)}`)
+    expect(localPsql(`SELECT container_shares::text FROM public.invoice_bls WHERE invoice_id = ${paid};`)).toBe('[["ADCU2030081", 1]]')
+
+    expect(importCeSheet('A203MAN000008', voyage.clientesDiferentes, [{ blId: 'A203-P2', ce: '203001000000082' }]))
+      .toMatchObject({ ok: true })
+    expect(billingState(['A203-P2']).bls['A203-P2'].financial_status).toBe('invoiced')
+    expect(containerLinesOf('A203-P2')).toEqual([{ quantity: 0.5, total_brl: containerFee / 2 }])
+  })
+
+  it('irmão com pagamento parcial também não bloqueia: a redução abate o saldo e o B/L que chega fatura com 1/2', () => {
+    insertBls([{ id: 'A203-Q1', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030091' }])
+    expect(importCeSheet('A203MAN000009', voyage.clientesDiferentes, [{ blId: 'A203-Q1', ce: '203001000000091' }]))
+      .toMatchObject({ ok: true })
+    const partial = Number(localPsql(`SELECT id FROM public.invoices WHERE bl_id = 'A203-Q1' AND status = 'issued';`))
+    asOperator(`SELECT public.register_ledger_invoice_payment(${partial}, 100);`)
+
+    insertBls([{ id: 'A203-Q2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030091' }])
+    expect(localPsql(`SELECT status || '|' || total_brl || '|' || balance_brl FROM public.invoices WHERE id = ${partial};`))
+      .toBe(`partially_paid|${containerFee.toFixed(2)}|${(containerFee / 2 - 100).toFixed(2)}`)
+
+    expect(importCeSheet('A203MAN000009', voyage.clientesDiferentes, [{ blId: 'A203-Q2', ce: '203001000000092' }]))
+      .toMatchObject({ ok: true })
+    expect(billingState(['A203-Q2']).bls['A203-Q2'].financial_status).toBe('invoiced')
+    expect(containerLinesOf('A203-Q2')).toEqual([{ quantity: 0.5, total_brl: containerFee / 2 }])
   })
 })

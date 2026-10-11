@@ -217,4 +217,24 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     expect(mocks.confirm).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Salvar data de devolução' }))
     expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({ title: 'Remover data de devolução' }))
   })
+
+  it('mostra a recusa de negócio do banco ao salvar a devolução, e não um erro genérico', async () => {
+    mocks.updateContainerReturnDate.mockRejectedValueOnce({ code: '22023', message: 'Devolução anterior à descarga.' })
+    renderComponent()
+
+    fireEvent.change(screen.getByDisplayValue('2026-05-10'), { target: { value: '2026-04-20' } })
+    fireEvent.click(screen.getByRole('button', { name: /Salvar devolução/ }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Devolução anterior à descarga.', 'error'))
+  })
+
+  it('falha sem orientação do banco mantém a mensagem genérica, sem texto técnico', async () => {
+    mocks.updateContainerReturnDate.mockRejectedValueOnce(new Error('fetch failed: ECONNRESET'))
+    renderComponent()
+
+    fireEvent.change(screen.getByDisplayValue('2026-05-10'), { target: { value: '2026-05-20' } })
+    fireEvent.click(screen.getByRole('button', { name: /Salvar devolução/ }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Erro ao salvar a data de devolução.', 'error'))
+  })
 })

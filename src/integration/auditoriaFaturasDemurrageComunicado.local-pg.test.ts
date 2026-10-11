@@ -76,6 +76,12 @@ const voyage = {
   demurrage: 99207024,
   grupo: 99207025,
   recebivel: 99207026,
+  // Correções da migration 191.
+  grupoMuda: 99207027,
+  canceladoRaiz: 99207028,
+  legado: 99207029,
+  regua: 99207030,
+  descarga: 99207033,
 }
 const voyageIds = Object.values(voyage)
 const chargeTableId = 99207031
@@ -181,7 +187,7 @@ type DatesResult = { updated_ids: number[]; unchanged_ids: number[]; billing_sta
 
 // Mesmo payload de importContainerDates: uma unidade por B/L, com o estado atual
 // do container como `expected_*` (lido no clique de confirmar).
-function importContainerDates(blId: string, rows: Array<{ number: string; discharge: string; return: string | null }>) {
+function containerDatesSql(blId: string, rows: Array<{ number: string; discharge: string; return: string | null }>): string {
   const current = JSON.parse(localPsql(`
     SELECT COALESCE(jsonb_object_agg(container_number, jsonb_build_object(
       'discharge_date', discharge_date, 'return_date', return_date
@@ -195,9 +201,11 @@ function importContainerDates(blId: string, rows: Array<{ number: string; discha
     expected_discharge_date: current[row.number]?.discharge_date ?? null,
     expected_return_date: current[row.number]?.return_date ?? null,
   }))
-  return JSON.parse(asAdmin(`
-    SELECT public.apply_container_dates_atomic('${randomUUID()}'::uuid, '${blId}', ${jsonLiteral(payload)}, '${actorId}'::uuid);
-  `)) as DatesResult
+  return `SELECT public.apply_container_dates_atomic('${randomUUID()}'::uuid, '${blId}', ${jsonLiteral(payload)}, '${actorId}'::uuid);`
+}
+
+function importContainerDates(blId: string, rows: Array<{ number: string; discharge: string; return: string | null }>) {
+  return JSON.parse(asAdmin(containerDatesSql(blId, rows))) as DatesResult
 }
 
 type BlState = {
@@ -320,7 +328,8 @@ const cleanupSql = `
        OR entity_id LIKE 'A207 %' OR entity_id LIKE 'A207-%'
        OR (entity_type = 'customer' AND entity_id IN (SELECT id::text FROM a207_customers))
        OR (entity_type = 'voyage' AND entity_id IN (SELECT id::text FROM a207_voyages))
-       OR (entity_type = 'import_effect' AND entity_id IN (SELECT id::text FROM a207_effects));
+       OR (entity_type = 'import_effect' AND entity_id IN (SELECT id::text FROM a207_effects))
+       OR (entity_type = 'demurrage_invoice' AND entity_id IN (SELECT id::text FROM a207_dem_invoices));
   CREATE TEMP TABLE a207_alert_items AS
     SELECT id FROM public.alert_items
     WHERE alert_id IN (SELECT id FROM a207_alerts)
@@ -349,6 +358,9 @@ const cleanupSql = `
   DELETE FROM public.itau_pix_charges
   WHERE invoice_id IN (SELECT id FROM a207_invoices) OR demurrage_invoice_id IN (SELECT id FROM a207_dem_invoices);
   DELETE FROM public.demurrage_calculation_snapshots WHERE demurrage_invoice_id IN (SELECT id FROM a207_dem_invoices);
+  DELETE FROM public.demurrage_mutation_requests WHERE invoice_id IN (SELECT id FROM a207_dem_invoices);
+  DELETE FROM public.demurrage_refunds WHERE invoice_id IN (SELECT id FROM a207_dem_invoices);
+  DELETE FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id IN (SELECT id FROM a207_dem_invoices);
   DELETE FROM public.demurrage_invoice_history WHERE invoice_id IN (SELECT id FROM a207_dem_invoices);
   DELETE FROM public.demurrage_invoice_items
   WHERE invoice_id IN (SELECT id FROM a207_dem_invoices) OR container_id IN (SELECT id FROM a207_containers);
@@ -453,7 +465,12 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
         (${voyage.datasFaturado}, ${vesselId}, 'A207C', 'active'),
         (${voyage.demurrage}, ${vesselId}, 'A207D', 'active'),
         (${voyage.grupo}, ${vesselId}, 'A207E', 'active'),
-        (${voyage.recebivel}, ${vesselId}, 'A207F', 'active');
+        (${voyage.recebivel}, ${vesselId}, 'A207F', 'active'),
+        (${voyage.grupoMuda}, ${vesselId}, 'A207H', 'active'),
+        (${voyage.canceladoRaiz}, ${vesselId}, 'A207I', 'active'),
+        (${voyage.legado}, ${vesselId}, 'A207J', 'active'),
+        (${voyage.regua}, ${vesselId}, 'A207K', 'active'),
+        (${voyage.descarga}, ${vesselId}, 'A207L', 'active');
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela A207 container', '${pod}', CURRENT_DATE - 30, true, 'container');
       INSERT INTO public.charge_table_items (
@@ -732,5 +749,155 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A207-RC1', 'Carga não embarcou (A207)', false);`))).toEqual({ cancelled: true, reasons: [] })
     expect(localPsql(`SELECT status || ':' || balance_brl FROM public.bl_receivables WHERE bl_id = 'A207-RC1';`)).toBe('void:0.00')
     expect(localPsql(`SELECT count(*) FROM public.audit_logs WHERE entity_id = 'A207-RC1' AND field_name = 'receivable_voided';`)).toBe('1')
+  })
+
+  // --- Correções da migration 191 ------------------------------------------
+  function demurrageInvoiceId(blId: string, status = 'issued'): number {
+    return Number(localPsql(`SELECT id FROM public.demurrage_invoices WHERE bl_id = '${blId}' AND status = '${status}' ORDER BY id DESC LIMIT 1;`))
+  }
+
+  // Baixa pelo contrato financeiro (service_role, como o conciliador): valor da foto do dia.
+  function registerDemurragePayment(invoiceId: number): void {
+    localPsql(`SELECT public.register_demurrage_payment('${randomUUID()}'::uuid, ${invoiceId}, (now() AT TIME ZONE 'America/Sao_Paulo')::date);`)
+  }
+
+  // C5 (ADR 0078, item 12): só fatura emitida trava a exclusão.
+  it('B/L cancelado com recebível anulado pode ser excluído, e o recebível sai junto', () => {
+    expect(localPsql(`SELECT array_to_string(public.delete_lock_reasons(${voyage.recebivel}), '|');`)).not.toContain('documento financeiro emitido')
+    const result = JSON.parse(asAdmin(`SELECT public.delete_records('bl', ARRAY['A207-RC1'], false, 'B/L lançado por engano (A207)');`)) as { deleted: string[]; blocked: unknown[] }
+    expect(result).toMatchObject({ deleted: ['A207-RC1'], blocked: [] })
+    expect(localPsql(`SELECT count(*) FROM public.bl_receivables WHERE bl_id = 'A207-RC1';`)).toBe('0')
+  })
+
+  it('B/L com recebível ligado a fatura emitida continua travado para exclusão', () => {
+    // A207-N1 foi faturado pelo CE no cenário 1.
+    const result = JSON.parse(asAdmin(`SELECT public.delete_records('bl', ARRAY['A207-N1'], true, NULL);`)) as { deleted: string[]; blocked: Array<{ reasons: string[] }> }
+    expect(result.deleted).toEqual([])
+    expect(result.blocked[0]?.reasons).toContain('documento financeiro emitido')
+  })
+
+  // C6: o grupo de Demurrage muda depois da Invoice emitida.
+  it('cancelar o B/L irmão cujo container está na Invoice de Demurrage do âncora é recusado', () => {
+    insertBl('A207-H1', voyage.grupoMuda, pod, [{ number: 'ADCU2070101' }])
+    insertBl('A207-H2', voyage.grupoMuda, pod, [{ number: 'ADCU2070101' }, { number: 'ADCU2070102' }])
+    importContainerDates('A207-H2', [
+      { number: 'ADCU2070101', discharge: '2026-07-01', return: '2026-09-20' },
+      { number: 'ADCU2070102', discharge: '2026-07-01', return: '2026-09-30' },
+    ])
+    expect(runWorker('A207-H%').map((effect) => [effect.entity, effect.status])).toEqual([['A207-H1', 'succeeded']])
+    expect(activeDemurrageInvoices('A207-H1')).toEqual([
+      expect.objectContaining({ status: 'issued', containers: ['ADCU2070101', 'ADCU2070102'] }),
+    ])
+
+    expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A207-H2', 'Carga não embarcou (A207)', false);`)))
+      .toMatchObject({ cancelled: false, reasons: ['fatura de Demurrage em aberto'] })
+    expect(blState('A207-H2').cancelled).toBe(false)
+  })
+
+  it('a Invoice de Demurrage emitida recebe baixa e estorno depois que um irmão chega e muda o grupo', () => {
+    // Um B/L do mesmo Cliente chega depois, com o container compartilhado e outro ainda não devolvido.
+    insertBl('A207-H3', voyage.grupoMuda, pod, [
+      { number: 'ADCU2070101', dischargeDate: '2026-07-01', returnDate: '2026-09-20' },
+      { number: 'ADCU2070103' },
+    ])
+    expect(localPsql(`SELECT array_to_string(public.demurrage_group_bl_ids('A207-H1'), ',');`)).toBe('A207-H1,A207-H2,A207-H3')
+    const invoiceId = demurrageInvoiceId('A207-H1')
+
+    registerDemurragePayment(invoiceId)
+    expect(localPsql(`SELECT status FROM public.demurrage_invoices WHERE id = ${invoiceId};`)).toBe('paid')
+    expect(tryAsAdmin(`SELECT public.reverse_demurrage_payment(${invoiceId}, 'Baixa lançada na fatura errada (A207)');`).error).toBeNull()
+    expect(localPsql(`SELECT status FROM public.demurrage_invoices WHERE id = ${invoiceId};`)).toBe('issued')
+  })
+
+  // C9: B/L cancelado não é raiz de grupo nem recebe Invoice de Demurrage.
+  it('B/L cancelado não forma grupo nem recebe Invoice de Demurrage: a caixa é cobrada uma vez, pelo B/L ativo', () => {
+    insertBl('A207-I1', voyage.canceladoRaiz, pod, [{ number: 'ADCU2070111' }])
+    insertBl('A207-I2', voyage.canceladoRaiz, pod, [{ number: 'ADCU2070111' }])
+    expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A207-I1', 'B/L lançado em duplicidade (A207)', false);`))).toEqual({ cancelled: true, reasons: [] })
+    expect(localPsql(`SELECT cardinality(public.demurrage_group_bl_ids('A207-I1'));`)).toBe('0')
+
+    // A planilha traz a linha do B/L cancelado; a data vale também para o B/L ativo.
+    importContainerDates('A207-I1', [{ number: 'ADCU2070111', discharge: '2026-07-01', return: '2026-09-30' }])
+    expect(containerDates('A207-I2').ADCU2070111).toEqual({ discharge: '2026-07-01', return: '2026-09-30' })
+    expect(demurrageEffects('A207-I1')).toEqual([])
+    expect(runWorker('A207-I%').map((effect) => [effect.entity, effect.status])).toEqual([['A207-I2', 'succeeded']])
+    expect(activeDemurrageInvoices('A207-I1')).toEqual([])
+    expect(activeDemurrageInvoices('A207-I2')).toEqual([expect.objectContaining({ status: 'issued', containers: ['ADCU2070111'] })])
+
+    // A emissão manual pelo B/L cancelado é recusada com o motivo.
+    expect(tryAsAdmin(`SELECT public.issue_demurrage_invoice_for_bl('A207-I1');`).error).toMatch(/cancelado/)
+    const id = containerIds('A207-I1').ADCU2070111
+    expect(tryAsAdmin(`
+      SELECT public.create_demurrage_invoice_authoritative('A207-DEM-I1', 'A207-I1', ${cliente.id}, ARRAY[${id}]::bigint[]);
+    `).error).toMatch(/cancelado/)
+  })
+
+  // C11: linha antiga com devolução e status sem normalizar não derruba o grupo.
+  it('container devolvido gravado antes da 179 com status "dentro do free time" entra na Invoice de Demurrage', () => {
+    insertBl('A207-J1', voyage.legado, pod, [
+      { number: 'ADCU2070121', dischargeDate: '2026-07-01', returnDate: '2026-09-30' },
+      { number: 'ADCU2070122', dischargeDate: '2026-07-01', returnDate: '2026-07-05' },
+    ])
+    localPsql(`
+      SET session_replication_role = replica;
+      UPDATE public.bl_containers SET demurrage_status = 'within_free_time' WHERE bl_id = 'A207-J1';
+      SET session_replication_role = origin;
+    `)
+    const result = JSON.parse(asAdmin(`SELECT public.issue_demurrage_invoice_for_bl('A207-J1', 'A207-DEM-J1');`)) as { status: string }
+    expect(result.status).toBe('issued')
+    expect(activeDemurrageInvoices('A207-J1')).toEqual([
+      expect.objectContaining({ status: 'issued', containers: ['ADCU2070121', 'ADCU2070122'] }),
+    ])
+    // A linha não é reescrita.
+    expect(localPsql(`SELECT string_agg(DISTINCT demurrage_status, ',') FROM public.bl_containers WHERE bl_id = 'A207-J1';`)).toBe('within_free_time')
+  })
+
+  // C12: a Régua não fica parada para sempre depois do estorno da baixa.
+  it('estorno da baixa de Invoice suspensa por datas alteradas: sem pagamento, ela é cancelada e reemitida com as datas atuais', () => {
+    insertBl('A207-K1', voyage.regua, pod, [{ number: 'ADCU2070131' }])
+    importContainerDates('A207-K1', [{ number: 'ADCU2070131', discharge: '2026-07-01', return: '2026-09-30' }])
+    runWorker('A207-K1')
+    const invoiceId = demurrageInvoiceId('A207-K1')
+    registerDemurragePayment(invoiceId)
+
+    // A devolução muda depois do pagamento: Alerta e Régua suspensa.
+    const containerId = containerIds('A207-K1').ADCU2070131
+    asAdmin(`SELECT public.set_container_dates(${containerId}, '2026-07-01', '2026-10-05', 'Terminal corrigiu a devolução (A207)');`)
+    expect(localPsql(`SELECT status || '|' || (dunning_suspended_reason IS NOT NULL) FROM public.demurrage_invoices WHERE id = ${invoiceId};`)).toBe('paid|true')
+
+    asAdmin(`SELECT public.reverse_demurrage_payment(${invoiceId}, 'Baixa lançada na fatura errada (A207)');`)
+    expect(localPsql(`SELECT status FROM public.demurrage_invoices WHERE id = ${invoiceId};`)).toBe('cancelled')
+    expect(JSON.parse(localPsql(`
+      SELECT jsonb_agg(jsonb_build_object(
+        'suspended', d.dunning_suspended_reason IS NOT NULL,
+        'returns', (SELECT jsonb_agg(i.return_date) FROM public.demurrage_invoice_items i WHERE i.invoice_id = d.id)
+      ))
+      FROM public.demurrage_invoices d WHERE d.bl_id = 'A207-K1' AND d.status = 'issued';
+    `))).toEqual([{ suspended: false, returns: ['2026-10-05'] }])
+  })
+
+  it('estorno da baixa de Invoice suspensa cujas datas voltaram às faturadas: a suspensão sai e a fatura segue emitida', () => {
+    insertBl('A207-K2', voyage.regua, pod, [{ number: 'ADCU2070132' }])
+    importContainerDates('A207-K2', [{ number: 'ADCU2070132', discharge: '2026-07-01', return: '2026-09-30' }])
+    runWorker('A207-K2')
+    const invoiceId = demurrageInvoiceId('A207-K2')
+    registerDemurragePayment(invoiceId)
+    const containerId = containerIds('A207-K2').ADCU2070132
+    asAdmin(`SELECT public.set_container_dates(${containerId}, '2026-07-01', '2026-10-05', 'Terminal corrigiu a devolução (A207)');`)
+    asAdmin(`SELECT public.set_container_dates(${containerId}, '2026-07-01', '2026-09-30', 'Terminal desfez a correção (A207)');`)
+    expect(localPsql(`SELECT status || '|' || (dunning_suspended_reason IS NOT NULL) FROM public.demurrage_invoices WHERE id = ${invoiceId};`)).toBe('paid|true')
+
+    asAdmin(`SELECT public.reverse_demurrage_payment(${invoiceId}, 'Baixa lançada na fatura errada (A207)');`)
+    expect(localPsql(`SELECT status || '|' || (dunning_suspended_reason IS NOT NULL) FROM public.demurrage_invoices WHERE id = ${invoiceId};`)).toBe('issued|false')
+  })
+
+  // C14: descarga nova posterior à devolução gravada, com a devolução vazia na planilha.
+  it('planilha com descarga posterior à devolução gravada e devolução vazia é recusada com mensagem de negócio', () => {
+    insertBl('A207-D1', voyage.descarga, pod, [{ number: 'ADCU2070141' }])
+    importContainerDates('A207-D1', [{ number: 'ADCU2070141', discharge: '2026-07-01', return: '2026-07-10' }])
+    const { error } = tryAsAdmin(containerDatesSql('A207-D1', [{ number: 'ADCU2070141', discharge: '2026-07-15', return: null }]))
+    expect(error).toMatch(/descarga .*15\/07\/2026.* posterior à devolução .*10\/07\/2026/)
+    expect(error).not.toMatch(/check constraint/)
+    expect(containerDates('A207-D1').ADCU2070141).toEqual({ discharge: '2026-07-01', return: '2026-07-10' })
   })
 })

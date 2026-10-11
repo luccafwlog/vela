@@ -145,6 +145,24 @@ describe('importContainerDates (lote parcial)', () => {
     expect(result.errors[0]?.message).toContain('conflito de escrita')
   })
 
+  it('mostra a recusa de negócio do banco sem o código, e a CHECK crua como texto fixo', async () => {
+    setContainers([
+      { id: 1, bl_id: 'BL001', container_number: 'TCLU1111111', discharge_date: '2026-01-10', return_date: '2026-01-20', demurrage_status: 'returned' },
+      { id: 2, bl_id: 'BL002', container_number: 'TCLU2222222', discharge_date: '2026-01-10', return_date: '2026-01-20', demurrage_status: 'returned' },
+    ])
+    const recusa = 'A descarga informada (25/01/2026) do container TCLU1111111 é posterior à devolução gravada (20/01/2026).'
+    mockRpc
+      .mockResolvedValueOnce({ data: null, error: { code: '22023', message: recusa } })
+      .mockResolvedValueOnce({ data: null, error: { code: '23514', message: 'new row for relation "bl_containers" violates check constraint "bl_containers_return_after_discharge_chk"' } })
+
+    const result = await importContainerDates([
+      { bl_id: 'BL001', container_number: 'TCLU1111111', discharge_date: '2026-01-25', return_date: null },
+      { bl_id: 'BL002', container_number: 'TCLU2222222', discharge_date: '2026-01-25', return_date: null },
+    ])
+
+    expect(result.errors.map((error) => error.message)).toEqual([recusa, 'Dados fora das regras do cadastro.'])
+  })
+
   it('deixa a emissão de Demurrage para o efeito persistido da RPC', async () => {
     setContainers([
       { id: 1, bl_id: 'BL001', container_number: 'TCLU1111111', discharge_date: '2026-01-10', return_date: '2026-01-20', demurrage_status: 'returned' },

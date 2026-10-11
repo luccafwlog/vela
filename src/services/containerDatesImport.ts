@@ -1,6 +1,6 @@
 import { importDateOrNull } from '../lib/importDate'
 import { assertUploadFile } from '../lib/fileGuard'
-import { extractErrorText } from '../lib/errors'
+import { classifyDbError } from '../lib/errors'
 import { asString } from '../lib/utils'
 import { matchHeaders, readSheet, type HeaderSpec, type SheetRow } from './importCore'
 import { supabase } from './supabase'
@@ -148,7 +148,9 @@ export async function importContainerDates(rows: ContainerDatesImportRow[]): Pro
     })
 
     if (applyError) {
-      const message = extractErrorText(applyError)
+      // A recusa de negócio do banco (ex.: descarga posterior à devolução
+      // gravada) aparece como veio, sem o código; CHECK cru vira texto fixo.
+      const message = classifyDbError(applyError).message
       rowsForBl.forEach((row) => errors.push({ bl_id: row.bl_id, container_number: row.container_number, message }))
       blsWithFailedUpdates.add(blId)
       continue

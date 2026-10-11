@@ -16,6 +16,7 @@ import { calculateDemurrage, ensureDemurrageRatesLoaded } from '../../services/d
 import { updateContainerReturnDate } from '../../services/demurrage/demurrageContainers'
 import { queryKeys } from '../../services/queryKeys'
 import { formatDate, formatUSD } from '../../lib/utils'
+import { userFacingErrorMessage } from '../../lib/errors'
 import { DEMURRAGE_INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import type { BLDetail } from '../../types/database'
 
@@ -212,8 +213,9 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
         return next
       })
       showToast('Data de devolução salva.', 'success')
-    } catch {
-      showToast('Erro ao salvar a data de devolução.', 'error')
+    } catch (error) {
+      // A recusa do banco (devolução antes da descarga, motivo ausente) é a orientação.
+      showToast(userFacingErrorMessage(error, 'Erro ao salvar a data de devolução.'), 'error')
     } finally {
       setSavingReturnDate(null)
     }
