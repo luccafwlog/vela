@@ -19,6 +19,11 @@ type FilePickerProps = {
   /** Por que ainda não dá para escolher (por exemplo, falta a viagem). */
   disabledReason?: ReactNode
   label?: string
+  /**
+   * O parser lê o arquivo pela posição das células, inclusive linhas e abas
+   * ocultas (B/L COSCO): o aviso diz que elas são lidas, não que foram ignoradas.
+   */
+  positional?: boolean
 }
 
 /**
@@ -35,6 +40,7 @@ export function ImportFilePicker({
   disabled = false,
   disabledReason,
   label = 'Arquivo',
+  positional = false,
 }: FilePickerProps) {
   const id = useId()
   const hintId = `${id}-hint`
@@ -58,13 +64,13 @@ export function ImportFilePicker({
     if (!readsSpreadsheet || !chosen.length) return
     let active = true
     void Promise.all(chosen.map(async (file) => {
-      const warnings = await readSpreadsheetWarnings(file)
+      const warnings = await readSpreadsheetWarnings(file, { positional })
       return chosen.length > 1 ? warnings.map((warning) => `${file.name}: ${warning}`) : warnings
     })).then((lists) => {
       if (active) setReadResult({ key, warnings: lists.flat() })
     })
     return () => { active = false }
-  }, [filesToRead, readsSpreadsheet])
+  }, [filesToRead, readsSpreadsheet, positional])
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const chosen = Array.from(event.target.files ?? [])

@@ -274,6 +274,7 @@ export function BlImportModal({
         <ImportFilePicker
           accept=".xlsx,.xls"
           multiple
+          positional
           files={files}
           onFiles={(next) => void handleFiles(next)}
           disabled={!selectedVoyageId || submitting || Boolean(outcome)}

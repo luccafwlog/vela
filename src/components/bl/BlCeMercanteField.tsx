@@ -87,7 +87,10 @@ export function BlCeMercanteField({
       <span className="app-field__label">CE Mercante</span>
       <div className="space-y-2">
         <p className="font-mono text-sm">{ce ?? 'Sem CE'}</p>
-        {disabled ? null : (
+        {/* O primeiro CE entra pela planilha de CE Mercante, que também vincula
+            o Manifesto Mercante: a ficha só corrige ou remove (ADR 0078, itens
+            1 e 2; `correct_bl_ce_mercante` recusa B/L sem CE). */}
+        {disabled || !ce ? null : (
           <div className="flex flex-wrap items-center gap-2">
             <Input
               aria-label="CE Mercante novo"
@@ -108,7 +111,9 @@ export function BlCeMercanteField({
           </div>
         )}
       </div>
-      <span className="app-field__hint">Muda pela importação de CE ou por Corrigir, com motivo.</span>
+      <span className="app-field__hint">
+        {ce ? 'Muda pela importação de CE ou por Corrigir, com motivo.' : 'O CE entra pela importação de CE Mercante, que também vincula o Manifesto.'}
+      </span>
     </div>
   )
 }

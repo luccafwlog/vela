@@ -51,6 +51,28 @@ describe('ImportFilePicker — avisos de leitura', () => {
     expect(await screen.findByText('1 linha oculta ignorada: o filtro da planilha indica importar só o visível.')).toBeTruthy()
   })
 
+  // Revisão da PR 929 (achado da revisão automática): o B/L COSCO é lido pela
+  // posição das células, inclusive linhas e abas ocultas; o aviso não pode
+  // dizer que elas foram ignoradas.
+  it('arquivo posicional (B/L): avisa que as linhas e abas ocultas são lidas', async () => {
+    const XLSX = await import('@e965/xlsx')
+    const page = XLSX.utils.aoa_to_sheet([['B/L'], ['VISI1234567'], ['OCUL1234567']])
+    page['!rows'] = [{}, {}, { hidden: true }]
+    const vin = XLSX.utils.aoa_to_sheet([['VIN'], ['LGXC74C44V0000001']])
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, page, 'Page 1')
+    XLSX.utils.book_append_sheet(book, vin, 'VIN')
+    book.Workbook = { Sheets: [{ Hidden: 0 }, { Hidden: 1 }] }
+    const bytes = XLSX.write(book, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+    const file = new File([bytes], 'bl.xlsx')
+
+    render(<ImportFilePicker accept=".xlsx,.xls" positional files={[file]} onFiles={() => undefined} />)
+
+    expect(await screen.findByText('1 linha oculta na aba "Page 1": este arquivo é lido inteiro, inclusive as linhas ocultas; apague as que não devem entrar.')).toBeTruthy()
+    expect(screen.getByText('Aba oculta "VIN": este arquivo é lido mesmo com abas ocultas; confira se ela não deve entrar.')).toBeTruthy()
+    expect(screen.queryByText(/ignorad/)).toBeNull()
+  })
+
   it('sem nada oculto, não mostra aviso', async () => {
     const file = new File([new TextEncoder().encode('Container\nVISI1234567\n')], 'limpo.csv')
     render(<ImportFilePicker accept=".xlsx,.csv" files={[file]} onFiles={() => undefined} />)

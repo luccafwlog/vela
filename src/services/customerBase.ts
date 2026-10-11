@@ -146,7 +146,9 @@ export async function importCustomerBaseRows(rows: CustomerBaseRow[], options: {
       p_zip: row.zip,
       p_emails: row.emails,
       p_changed_by: options.changedBy,
-      p_confirm_name_change: Boolean(options.confirmNameChange),
+      // O aceite vale só para a troca de razão social que a prévia mostrou: um
+      // Cliente criado ou renomeado depois da prévia volta a pedir confirmação.
+      p_confirm_name_change: Boolean(options.confirmNameChange) && Boolean(row.existingCustomerId && row.currentName),
     } as never)
     if (error) {
       errors.push({ cnpj_cpf: row.cnpj_cpf, message: error.message || 'Falha ao importar cliente.' })

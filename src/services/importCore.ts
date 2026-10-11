@@ -379,9 +379,33 @@ function sameFieldError(columns: readonly string[], headers: readonly string[]):
  * só em linhas ocultas, o aviso aparece junto do erro do parser. Falha ao abrir
  * o arquivo devolve lista vazia (o erro aparece pelo parser do importador).
  */
-export async function readSpreadsheetWarnings(file: { arrayBuffer: () => Promise<ArrayBuffer> }): Promise<string[]> {
+/**
+ * Avisos de leitura do seletor de arquivo. `positional`: o parser lê o arquivo
+ * pela posição das células (B/L COSCO, `blParser.ts`), inclusive linhas e abas
+ * ocultas — o aviso diz isso em vez de prometer que as ocultas ficaram de fora.
+ */
+export async function readSpreadsheetWarnings(
+  file: { arrayBuffer: () => Promise<ArrayBuffer> },
+  options: { positional?: boolean } = {},
+): Promise<string[]> {
   try {
-    const { XLSX, warnings, visibleNames, sheetOf } = await openWorkbook(await file.arrayBuffer(), true)
+    const { XLSX, warnings, visibleNames, hiddenNames, sheetOf } = await openWorkbook(await file.arrayBuffer(), true)
+    if (options.positional) {
+      const all = [...visibleNames, ...hiddenNames]
+      const notices = warnings.filter((warning) => !warning.startsWith('Aba oculta '))
+      for (const name of hiddenNames) {
+        notices.push(`Aba oculta "${name}": este arquivo é lido mesmo com abas ocultas; confira se ela não deve entrar.`)
+      }
+      for (const name of all) {
+        const sheet = sheetOf(name)
+        const hiddenRows = sheet ? countHiddenRows(sheet, XLSX) : 0
+        if (hiddenRows > 0) {
+          notices.push(`${hiddenRows} ${hiddenRows === 1 ? 'linha oculta' : 'linhas ocultas'}${all.length > 1 ? ` na aba "${name}"` : ''}: `
+            + 'este arquivo é lido inteiro, inclusive as linhas ocultas; apague as que não devem entrar.')
+        }
+      }
+      return notices
+    }
     for (const name of visibleNames) {
       const sheet = sheetOf(name)
       const hiddenRows = sheet ? countHiddenRows(sheet, XLSX) : 0
