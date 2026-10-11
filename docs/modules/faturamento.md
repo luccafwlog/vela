@@ -46,9 +46,13 @@ para a decisão completa.
   no próprio lote ou por qualquer outro caminho (gatilho do CE, fila de efeitos,
   Portal, **Emitir fatura**), pelo gatilho `resolve_auto_issue_alert_on_invoiced`.
   Alertas já abertos para B/L faturado antes da `195` fecham na próxima emissão
-  do lote ou à mão. Recusas de negócio que não são espera de Cliente nem de
-  Revisão (por exemplo "B/L sem linhas faturaveis" ou tabela de cobrança
-  incompleta) ainda abrem o Alerta (decisão pendente). Sem CE, qualquer desses
+  do lote ou à mão. Desde a migration `204` (ADR 0079, decisão 4), B/L sem
+  tabela de cobrança ativa para o POD e a modalidade volta como "Aguardando
+  tabela de cobrança" e entra num alerta `billing_charge_table_missing` por POD
+  e modalidade, com a lista dos B/Ls, que fecha quando as faturas saem; a
+  emissão recalcula quando a tabela passa a existir. B/L calculado com todas as
+  taxas zeradas volta como "Nada a faturar", sem alerta. Nenhum dos dois abre
+  `billing_auto_issue_failed`. Sem CE, qualquer desses
   modos fica em “Aguardando CE Mercante” na Validação; a exceção manual é a emissão
   individual “Emitir”, que mantém os mesmos gates. Granito é apoio operacional
   e não emite invoice (nota de 2026-09-23 na ADR 0042). Embarque de Vazios não emite CE nem possui faturamento de

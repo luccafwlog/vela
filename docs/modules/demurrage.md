@@ -122,12 +122,17 @@ Migration `179` (ADR 0078, itens 19 e 20):
   novo for zero); com pagamento, fica `dunning_suspended_reason` (a Régua não a
   cobra) e a diferença é tratada à mão pela restituição de Demurrage ou por
   avulsa. Nos dois casos abre o Alerta `demurrage_invoice_dates_changed`. A
-  Invoice reemitida nasce do cálculo, com desconto zero e sem a disputa da
-  cancelada (decisão pendente, ver o plano de correção das importações). No
-  estorno da baixa de uma Invoice suspensa (migration `191`), com as datas ainda
-  diferentes das faturadas ela é cancelada e reemitida (ou só cancelada, se o
-  valor novo for zero); com as datas de volta às faturadas, a suspensão sai e a
-  fatura segue emitida.
+  Invoice sem pagamento com desconto ou disputa aberta segue o caminho da paga
+  (migration `203`; ADR 0079, decisão 1): não é reemitida, fica com
+  `dunning_suspended_reason` e o alerta pede cancelar, gerar de novo e refazer o
+  desconto ou responder a disputa; a suspensão sai quando os itens voltam a
+  bater com as datas. No estorno da baixa de uma Invoice suspensa (migration
+  `191`), com as datas ainda diferentes das faturadas ela é cancelada e
+  reemitida (ou só cancelada, se o valor novo for zero; com desconto ou disputa,
+  fica suspensa); com as datas de volta às faturadas, a suspensão sai e a
+  fatura segue emitida. A confirmação do estorno em `/demurrage`
+  (`DemurragePaymentReversalModal`) avisa que as datas mudaram depois do
+  pagamento e o que o estorno fará (ADR 0079, decisão 2).
 - **Recebível sem fatura** (migration `191`): recebível anulado, ou sem fatura
   viva vinculada nem baixa, não trava a exclusão do B/L, da Viagem ou da escala;
   a exclusão do B/L apaga junto o recebível que o cancelamento já tinha anulado.

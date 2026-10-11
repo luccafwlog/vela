@@ -352,7 +352,8 @@ abaixo e em [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disp
 
 #### Roteiro para ligar o `import-effects-runner` (ADR 0078, item 18)
 
-Ato do dono, depois que as migrations `174` a `202` estiverem em produção. Nada
+Ato do dono, depois que as migrations `174` a `206` estiverem em produção, e
+antes de o sistema receber dados reais (ADR 0079, decisão 3). Nada
 aqui é feito pelo agente; registre data, quem executou e o resultado de cada
 passo nesta seção.
 

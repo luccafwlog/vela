@@ -384,6 +384,33 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(activeAlert('billing_auto_issue_failed', 'A228-Z1')).toBe('')
   })
 
+  // ADR 0079, decisão 5 (migration 205): correção manual no Part Lot com irmão faturado.
+  it('correção manual de perfil no Part Lot vale com irmão faturado; o faturado segue a ADR 0077', () => {
+    insertBl('A228-L1', { container: 'ADCU2280097' })
+    insertBl('A228-L2', { container: 'ADCU2280097' })
+    // O CE do A228-L1 emite a fatura pelo gatilho; o A228-L2 segue sem fatura.
+    expect(apply([{ row: 2, bl_id: 'A228-L1', ce: '992280000000097' }], 'A228L00000001').ok).toBe(true)
+    expect(psql(`SELECT financial_status FROM public.bls WHERE id = 'A228-L1';`)).toBe('invoiced')
+
+    // Partindo do próprio B/L faturado, a regra antiga continua: recusa e aponta o B/L sem fatura.
+    const l1Container = psql(`SELECT id FROM public.bl_containers WHERE bl_id = 'A228-L1';`)
+    expect(asAdmin(`SELECT public.set_bl_container_profile(${l1Container}, 'imo', 'Tentativa pelo B/L faturado (A228)', '${actorId}'::uuid);`).error)
+      .toMatch(/B\/L A228-L1 já foi faturado.*também está no B\/L A228-L2, sem fatura: corrija por ele/)
+
+    const p2Container = psql(`SELECT id FROM public.bl_containers WHERE bl_id = 'A228-L2';`)
+    const corrected = json<{ invoiced_bls: string[]; propagated_to: Array<{ bl_id: string }> }>(
+      `SELECT public.set_bl_container_profile(${p2Container}, 'imo', 'Armador confirmou IMO por e-mail (A228)', '${actorId}'::uuid);`)
+    expect(corrected.invoiced_bls).toEqual(['A228-L1'])
+    expect(corrected.propagated_to.map((item) => item.bl_id)).toEqual(['A228-L1'])
+    expect(psql(`SELECT string_agg(bl_id || ':' || is_imo, ',' ORDER BY bl_id) FROM public.bl_containers WHERE bl_id IN ('A228-L1', 'A228-L2');`))
+      .toBe('A228-L1:true,A228-L2:true')
+    // O B/L sem fatura foi recalculado; o faturado continua faturado e a base
+    // alterada foi processada pela ADR 0077 (nenhuma pendência presa).
+    expect(psql(`SELECT charge_status FROM public.bls WHERE id = 'A228-L2';`)).not.toBe('not_calculated')
+    expect(psql(`SELECT financial_status FROM public.bls WHERE id = 'A228-L1';`)).toBe('invoiced')
+    expect(psql(`SELECT count(*) FROM public.invoice_basis_pending_changes WHERE bl_id = 'A228-L1';`)).toBe('0')
+  })
+
   it('K8: o Histórico do CE e do vínculo leva tipo, Viagem, Manifesto, rota e motivo, mesmo sem Viagem na tela', () => {
     const context = 'Importação de CE Mercante · Viagem A228 NAVIO A228A · Manifesto A228H00000001 · Rota A228O → A228P'
     expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-W1' AND field_name = 'ce_mercante' ORDER BY id DESC LIMIT 1;`)).toBe(context)

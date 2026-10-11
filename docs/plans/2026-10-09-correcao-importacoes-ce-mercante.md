@@ -4,6 +4,10 @@
 > mudança própria (uma PR), executável sozinha na ordem da tabela de
 > dependências. Este plano não autoriza mudança em produção, publicação nem
 > ativação do `import-effects-runner`.
+>
+> **Dispensa (dono, 2026-10-11; ADR 0079, decisão 8):** as Etapas 0 a 14 e as
+> correções da revisão saem numa PR só (PR 929), com ensaio em Preview antes da
+> produção.
 
 **Origem:** [revisão das importações e do CE Mercante de 2026-10-09](../archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 Os ids `M01`–`M25` são os problemas-raiz da seção 5 do relatório.
@@ -12,9 +16,10 @@ Os ids `M01`–`M25` são os problemas-raiz da seção 5 do relatório.
 [ADR 0078](../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
 (citada abaixo como "ADR 0078, item N") e no `CONTEXT.md`. Diferença de fatura
 paga é sempre tratada por restituição (item 4 da ADR 0077), nunca por crédito em
-outra fatura. As decisões da ADR 0078 estão tomadas; a revisão da PR 929 levantou
-pontos novos que esperam decisão do dono, listados em
-[Revisão da PR 929](#revisão-da-pr-929-2026-10-11).
+outra fatura. As decisões da ADR 0078 estão tomadas; os pontos novos da revisão
+da PR 929 foram decididos pelo dono em 2026-10-11 e registrados na
+[ADR 0079](../adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md) (ver
+[Revisão da PR 929](#revisão-da-pr-929-2026-10-11)).
 
 **Objetivo:** fazer as importações deixarem de apagar dado válido, de cobrar
 errado e de esconder o que gravaram, e implementar as regras de entrada,
@@ -24,11 +29,13 @@ correção e efeitos da ADR 0078.
 o código da Etapa 14 executados localmente (migrations `174` a `189`; ver as
 notas de execução em cada etapa). Nenhum `it.fails` restante nas suítes
 `auditoria*`. A revisão da PR 929, em 2026-10-11, corrigiu os achados nas
-migrations `190` a `202` e no frontend (seção
+migrations `190` a `202` e no frontend, e as decisões do dono sobre os pontos
+que ela deixou abertos (ADR 0079) estão nas migrations `203` a `206` (seção
 [Revisão da PR 929](#revisão-da-pr-929-2026-10-11)). Restam só passos do dono:
 na Etapa 0, as consultas em leitura na produção (pré-requisito do deploy) e a
 orientação da operação; na Etapa 13, o ensaio em Preview e a ligação do
-`import-effects-runner`.
+`import-effects-runner`, que é pré-requisito antes de dados reais (ADR 0079,
+decisão 3).
 **Migrations:** o hook `.claude/hooks/protect-files.sh` bloqueia qualquer
 arquivo em `supabase/migrations/`; as migrations novas desta execução foram
 criadas por shell, sem editar nenhuma existente.
@@ -45,8 +52,9 @@ criadas por shell, sem editar nenhuma existente.
   (`sudo scripts/setup-local-pg.sh --reset` e as suítes `local-pg` do CI com
   `--no-file-parallelism`, duas vezes seguidas, sem resíduo de namespace).
 - **Migrations:** sempre arquivo novo, no próximo número livre (as deste plano
-  são `174`–`202`: a `173` foi usada pelo Desbloqueio de CE, já em produção, e
-  a revisão da PR 929 acrescentou `190`–`202`);
+  são `174`–`206`: a `173` foi usada pelo Desbloqueio de CE, já em produção, a
+  revisão da PR 929 acrescentou `190`–`202` e as decisões da ADR 0079,
+  `203`–`206`);
   nunca editar migration existente (protegida por
   `.claude/hooks/protect-files.sh`). Redefinir a função a partir da definição
   **efetiva** no banco replicado, não da primeira migration que a criou. Se a
@@ -733,6 +741,11 @@ invertida; nenhuma suíte pulada por sonda com a variável ligada.
 
 Pré-requisitos: Etapas 4 e 7 em produção.
 
+**Antes de dados reais (dono, 2026-10-11; ADR 0079, decisão 3):** o runner
+precisa estar ligado antes de o sistema receber dados reais. Sem ele, o B/L que
+já tem CE e recebe o Cliente depois (Base de Clientes ou Revisão) é calculado,
+mas a fatura só sai pela emissão manual em Taxas Locais.
+
 - [ ] Ensaio em Preview: ligar, rodar a simulação do acumulado, conferir 3
   ciclos sem efeito travado, testar o desligamento.
 - [x] Roteiro para o dono em `servicos-externos.md`: rodar a simulação em
@@ -866,18 +879,29 @@ não reescrevem linhas; o código de tela foi corrigido no mesmo branch.
   importação como "Origem", não como auditoria. Leitura de planilhas: ver a
   nota da Etapa 3.
 
-**Decisões pendentes (dono).** Nenhuma foi tomada nesta revisão:
+**Decisões do dono (2026-10-11).** Os pontos que a revisão deixou abertos foram
+decididos e registrados na
+[ADR 0079](../adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md):
 
-1. A reemissão automática de Invoice de Demurrage por mudança de datas emite
-   uma Invoice nova pelo cálculo, sem o desconto nem a disputa da cancelada.
-2. ~~`demurrage_status = 'overdue'` não é mais gravado desde a Etapa 7~~ —
-   corrigido na migration `197` (achado P1 da revisão automática): o banco
-   grava o atraso a cada gravação de datas e por job diário.
-3. B/L que já tem CE e recebe o Cliente pela Base de Clientes sai da Revisão
-   (quando não sobra outra pendência) e é calculado, mas só é faturado pela
-   fila de efeitos (`local_billing`), que espera a ligação do runner.
-4. Recusas de negócio como "B/L sem linhas faturaveis" e "Tabela de cobranca
-   incompleta ou inativa" ainda abrem `billing_auto_issue_failed` na emissão em
-   lotes do CE.
-5. Correção manual de perfil ou SOC/COC num Part Lot com qualquer B/L faturado
-   recusa a correção inteira, inclusive nos B/Ls não faturados.
+- **`203` — Demurrage com desconto ou disputa (decisão 1).** Mudança de datas
+  em Invoice emitida com desconto ou disputa aberta não reemite: a Régua
+  suspende a cobrança e o alerta `demurrage_invoice_dates_changed` pede a
+  reemissão manual. A suspensão sai quando os itens voltam a bater. O estorno
+  de baixa continua reemitindo quando as datas diferem, e a confirmação do
+  estorno avisa (decisão 2, só frontend).
+- **`204` — emissão pelo CE (decisão 4).** Sem tabela de cobrança: "Aguardando
+  tabela de cobrança", com um alerta `billing_charge_table_missing` por POD e
+  modalidade que fecha quando as faturas saem; a emissão recalcula quando a
+  tabela passa a existir. Todas as taxas zeradas: "Nada a faturar", sem alerta.
+- **`205` — Part Lot (decisão 5).** A correção manual de perfil ou SOC/COC
+  feita pelo B/L sem fatura vale para o irmão faturado, que segue a ADR 0077;
+  partindo do próprio B/L faturado, continua recusada e aponta o B/L sem
+  fatura.
+- **Baplie (decisão 6, só frontend).** "Outro operador" passa a ser medido
+  contra os containers dos B/Ls ativos da Viagem; sem nenhum deles no arquivo,
+  vale o cabeçalho, com aviso.
+- **`206` — Granito (decisão 7).** Planilha sem B/L em comum com a Viagem é
+  manifesto novo; com B/L em comum, a reimportação fica nos manifestos que ela
+  toca.
+- **Runner (decisão 3)** e **escopo da PR (decisão 8):** ver a Etapa 13 e o
+  topo deste plano.

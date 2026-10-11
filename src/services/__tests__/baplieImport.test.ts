@@ -4,6 +4,8 @@ import type { BaplieContainer } from '../baplieParser'
 const mocks = vi.hoisted(() => ({
   existing: [] as Array<Record<string, unknown>>,
   voyage: { voyage_number: '12N', vessel: { name: 'GREEN SANTOS' } } as Record<string, unknown> | null,
+  voyageContainers: [] as Array<{ container_number: string | null }>,
+  containerFilters: [] as Array<[string, string, unknown]>,
   rpc: vi.fn(),
   getBaplieManifestForVoyage: vi.fn(),
   replaceVaziosFromBaplie: vi.fn(),
@@ -14,11 +16,16 @@ vi.mock('../supabase', () => ({
   supabase: {
     // listBaplieStagingForDiff pagina (order + range): uma página basta aqui.
     // fetchBaplieVoyageContext lê a Viagem com maybeSingle.
+    // Os containers dos B/Ls da Viagem (decisão 6) filtram por B/L ativo (`is`).
     from: () => ({
       select: () => ({
-        eq: () => ({
+        eq: (column: string, value: unknown) => ({
           order: () => ({ range: () => Promise.resolve({ data: mocks.existing, error: null }) }),
           maybeSingle: () => Promise.resolve({ data: mocks.voyage, error: null }),
+          is: (isColumn: string, isValue: unknown) => {
+            mocks.containerFilters.push(['eq', column, value], ['is', isColumn, isValue])
+            return { order: () => ({ range: () => Promise.resolve({ data: mocks.voyageContainers, error: null }) }) }
+          },
         }),
       }),
     }),
@@ -49,6 +56,8 @@ const box = (container_number: string, over: Partial<BaplieContainer> = {}): Bap
 
 beforeEach(() => {
   mocks.existing = []
+  mocks.voyageContainers = []
+  mocks.containerFilters = []
   // Staging não devolve dados; a prévia das marcas (migration 182) vem vazia.
   mocks.rpc.mockReset().mockResolvedValue({ data: { apply: [], clear: [], divergent_manual: [] }, error: null })
   mocks.getBaplieManifestForVoyage.mockReset().mockResolvedValue({ id: 'vazios-1', total_containers: 2, imported_at: '2026-09-30' })
@@ -193,7 +202,7 @@ describe('revisão da etapa 9 (E9)', () => {
   // E9-01: get_voyage_eligible_pods não tem GRANT para authenticated.
   it('lê as escalas pela RPC guardada list_voyage_eligible_pods', async () => {
     mocks.rpc.mockResolvedValue({ data: [{ pod: 'BRVIX' }, { pod: 'BRSSZ' }], error: null })
-    await expect(fetchBaplieVoyageContext(22)).resolves.toEqual({ voyageNumber: '12N', vesselName: 'GREEN SANTOS', eligiblePods: ['BRVIX', 'BRSSZ'] })
+    await expect(fetchBaplieVoyageContext(22)).resolves.toEqual({ voyageNumber: '12N', vesselName: 'GREEN SANTOS', eligiblePods: ['BRVIX', 'BRSSZ'], blContainerNumbers: [] })
     expect(mocks.rpc).toHaveBeenCalledWith('list_voyage_eligible_pods', { p_voyage_id: 22 })
     expect(mocks.rpc).not.toHaveBeenCalledWith('get_voyage_eligible_pods', expect.anything())
   })
@@ -221,6 +230,60 @@ describe('revisão da etapa 9 (E9)', () => {
       .toEqual([expect.objectContaining({ field: 'vessel', severity: 'warning', message: expect.stringMatching(/nome lido \(DGXX\)/) })])
     expect(applyBaplieVoyageRules(parsed({ vessel_name: 'GREEN VITORIA', vessel_name_source: 'identification' }), context).issues)
       .toEqual([expect.objectContaining({ field: 'vessel', severity: 'error' })])
+  })
+
+  // ADR 0079, decisão 6: a referência de "outro operador" são os containers dos B/Ls da Viagem.
+  describe('container de outro operador', () => {
+    const file = (operator: string | null) => parsed({
+      operator,
+      containers: [
+        box('COSU1000018', { operator: 'COS' }),
+        box('COSU1000023', { operator: 'COS' }),
+        box('MSCU1000017', { operator: 'MSC' }),
+        box('ONEU1000016'),
+      ],
+    })
+
+    it('lê os containers dos B/Ls ativos da Viagem', async () => {
+      mocks.rpc.mockResolvedValue({ data: [], error: null })
+      mocks.voyageContainers = [{ container_number: ' cosu1000018 ' }, { container_number: 'COSU1000018' }, { container_number: null }]
+      await expect(fetchBaplieVoyageContext(22)).resolves.toMatchObject({ blContainerNumbers: ['COSU1000018'] })
+      expect(mocks.containerFilters).toEqual([['eq', 'bl.voyage_id', 22], ['is', 'bl.cancelled_at', null]])
+    })
+
+    it('com o TDT do parceiro de slot, vale o operador dos containers dos B/Ls da Viagem', () => {
+      const ruled = applyBaplieVoyageRules(file('MSC'), { ...context, blContainerNumbers: ['COSU1000018'] })
+      expect(ruled.containers.map((c) => c.container_number)).toEqual(['COSU1000018', 'COSU1000023', 'ONEU1000016'])
+      expect(ruled.issues).toEqual([
+        expect.objectContaining({ severity: 'warning', message: '1 container(s) de outro operador (MSC; referência COS) ignorado(s): MSCU1000017.' }),
+      ])
+    })
+
+    it('container dos B/Ls da Viagem nunca é ignorado por operador', () => {
+      const ruled = applyBaplieVoyageRules(file('COS'), { ...context, blContainerNumbers: ['COSU1000018', 'MSCU1000017'] })
+      expect(ruled.containers.map((c) => c.container_number)).toEqual(['COSU1000018', 'COSU1000023', 'MSCU1000017', 'ONEU1000016'])
+      expect(ruled.issues).toEqual([])
+    })
+
+    it('sem container do arquivo nos B/Ls da Viagem, vale o cabeçalho com aviso', () => {
+      const ruled = applyBaplieVoyageRules(file('COS'), { ...context, blContainerNumbers: ['XXXU0000000'] })
+      expect(ruled.containers.map((c) => c.container_number)).toEqual(['COSU1000018', 'COSU1000023', 'ONEU1000016'])
+      expect(ruled.issues).toEqual([
+        expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/Nenhum container do arquivo está nos B\/Ls da Viagem: o operador de referência é o do cabeçalho do arquivo \(COS\)/) }),
+        expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/de outro operador \(MSC; referência COS\)/) }),
+      ])
+    })
+
+    it('cabeçalho que exclui todos os containers bloqueia com o motivo', () => {
+      const ruled = applyBaplieVoyageRules(
+        parsed({ operator: 'MSC', containers: [box('COSU1000018', { operator: 'COS' })] }),
+        { ...context, blContainerNumbers: [] },
+      )
+      expect(ruled.containers).toEqual([])
+      expect(ruled.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ severity: 'error', message: expect.stringMatching(/Nenhum container a importar: todos são de outro operador/) }),
+      ]))
+    })
   })
 
   // E9-08: só `reissued` é fatura reemitida; pendências e falhas aparecem à parte.

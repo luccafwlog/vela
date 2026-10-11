@@ -32,7 +32,7 @@ import { extractReviewReasons } from '../hooks/useReview'
 import { listDemurrageInvoices } from '../services/demurrage/demurrageInvoices'
 import { listDepots } from '../services/depots'
 import { setBlTerminalOverride } from '../services/blTerminal'
-import { CONTAINER_PROFILE_LABELS, containerProfileLabel, setContainerOwnership, setContainerProfile, type ContainerProfile } from '../services/vaziosNatureza'
+import { CONTAINER_PROFILE_LABELS, containerProfileLabel, partLotInvoicedNotice, setContainerOwnership, setContainerProfile, type ContainerProfile } from '../services/vaziosNatureza'
 import { containerOwnershipLabel, type ContainerOwnership } from '../lib/containerOwnership'
 import { isBlFinanciallyLocked } from '../lib/chargeStatus'
 import { buildDocumentalRail, buildOperationalRail, pickNextAction, summarizeDocumentalRail } from '../services/blRails'
@@ -180,7 +180,7 @@ export function BlDetalhe() {
   })
   const containerProfileMutation = useMutation({
     mutationFn: (input: { containerId: number; profile: ContainerProfile; justification: string }) => setContainerProfile({ ...input, changedBy: user?.id }),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await Promise.all([
         afterBlEstadoAlterado(queryClient, { blId: bl!.id, voyageId: bl!.voyage_id }),
         queryClient.invalidateQueries({ queryKey: ['containers'] }),
@@ -189,7 +189,7 @@ export function BlDetalhe() {
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
       ])
-      showToast('Perfil do container atualizado e taxas recalculadas.', 'success')
+      showToast(`Perfil do container atualizado e taxas recalculadas.${partLotInvoicedNotice(result.invoicedBls)}`, 'success')
     },
     onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao alterar o perfil do container.'), 'error'),
   })
@@ -203,7 +203,7 @@ export function BlDetalhe() {
       title: 'Alterar perfil do container',
       message: `Alterar o perfil do container ${container.container_number}?`,
       changes: [{ field: 'Perfil', before, after }],
-      consequence: 'As taxas locais deste B/L são recalculadas com o novo perfil. A alteração fica no histórico com autor e justificativa.',
+      consequence: 'As taxas locais deste B/L são recalculadas com o novo perfil. Se o container estiver em outro B/L (Part Lot), o perfil muda nele também; B/L já faturado não é recalculado e a fatura segue a correção após emissão. A alteração fica no histórico com autor e justificativa.',
       reversibility: 'Pode ser revertida escolhendo o perfil anterior, com nova justificativa. Uma reimportação do Baplie volta ao perfil do arquivo.',
       confirmLabel: 'Alterar e recalcular',
       reasonLabel: 'Justificativa',
@@ -213,7 +213,7 @@ export function BlDetalhe() {
   }
   const containerOwnershipMutation = useMutation({
     mutationFn: (input: { containerId: number; ownership: ContainerOwnership; justification: string }) => setContainerOwnership({ ...input, changedBy: user?.id }),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await Promise.all([
         afterBlEstadoAlterado(queryClient, { blId: bl!.id, voyageId: bl!.voyage_id }),
         queryClient.invalidateQueries({ queryKey: ['containers'] }),
@@ -223,7 +223,7 @@ export function BlDetalhe() {
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
       ])
-      showToast('SOC/COC do container atualizado e taxas recalculadas.', 'success')
+      showToast(`SOC/COC do container atualizado e taxas recalculadas.${partLotInvoicedNotice(result.invoicedBls)}`, 'success')
     },
     onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao alterar SOC/COC do container.'), 'error'),
   })

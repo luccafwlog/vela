@@ -25,16 +25,15 @@ describe('Baplie — regras da etapa 9', () => {
     expect(hasBlockingIssues(parsed.issues)).toBe(false)
   })
 
-  it('container de outro operador (NAD+CA diferente do TDT) é ignorado com aviso', () => {
+  // ADR 0079, decisão 6: o parser só lê o operador; quem ignora é a regra da Viagem.
+  it('guarda o NAD+CA de cada container e o operador do cabeçalho, sem filtrar', () => {
     const parsed = parse([
       ...unit(["EQD+CN+TGHU1000018+45G1+++5'", "NAD+CA+COS:172:20'"]),
       ...unit(["EQD+CN+TGHU1000023+45G1+++5'", "NAD+CA+MSC:172:20'"]),
     ])
     expect(parsed.operator).toBe('COS')
-    expect(parsed.containers.map((c) => c.container_number)).toEqual(['TGHU1000018'])
-    expect(parsed.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/TGHU1000023: de outro operador \(MSC\)/) }),
-    ]))
+    expect(parsed.containers.map((c) => [c.container_number, c.operator])).toEqual([['TGHU1000018', 'COS'], ['TGHU1000023', 'MSC']])
+    expect(parsed.issues.filter((issue) => /operador/.test(issue.message))).toEqual([])
   })
 
   it('OOG só com excesso de dimensão maior que zero', () => {

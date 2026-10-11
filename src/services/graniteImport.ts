@@ -301,8 +301,10 @@ export type ImportGraniteArgs = {
   /** Permite importar BLs sem client_id resolvido; esses ficarão sem faturamento */
   allowPending?: boolean
   /**
-   * Reimportação (ADR 0078, item 25): B/Ls gravados na Viagem que o arquivo novo
-   * não traz só saem se esta confirmação devolver true; sem ela, ficam.
+   * Reimportação (ADR 0078, item 25): B/Ls dos manifestos que o arquivo toca e
+   * que ele não traz só saem se esta confirmação devolver true; sem ela, ficam.
+   * Arquivo sem B/L em comum é manifesto novo e não pergunta (ADR 0079,
+   * decisão 7).
    */
   confirmRemoval?: (missingBlNumbers: string[]) => Promise<boolean>
 }
@@ -316,30 +318,50 @@ export type GraniteImportResult = {
   keptMissing: string[]
   /** Ausentes com Invoice: ficam mesmo com a saída confirmada (migration 192). */
   keptInvoiced: string[]
+  /** Arquivo sem B/L em comum, gravado como outro manifesto da Viagem que já tinha Granito (migration 206). */
+  separateManifest?: boolean
 }
 
-/** Números de B/L de Granito já gravados na Viagem. */
-export async function fetchGraniteBlNumbersForVoyage(voyageId: number): Promise<string[]> {
+/** B/L de Granito gravado na Viagem, com o manifesto em que está. */
+export type GraniteVoyageBl = { bl_number: string; manifest_id: string }
+
+/** B/Ls de Granito já gravados na Viagem. */
+export async function fetchGraniteBlNumbersForVoyage(voyageId: number): Promise<GraniteVoyageBl[]> {
   const { data, error } = await supabase
     .from('granite_bls')
-    .select('bl_number, manifest:granite_manifests!inner(voyage_id)')
+    .select('bl_number, manifest_id, manifest:granite_manifests!inner(voyage_id)')
     .eq('manifest.voyage_id', voyageId)
   if (error) throw error
-  return ((data ?? []) as Array<{ bl_number: string }>).map((row) => row.bl_number)
+  return ((data ?? []) as Array<GraniteVoyageBl>).map((row) => ({ bl_number: row.bl_number, manifest_id: row.manifest_id }))
 }
 
-/** B/Ls gravados que o arquivo novo não traz (comparação sem caixa e espaços). */
-export function missingGraniteBls(existing: string[], fileBlNumbers: string[]): string[] {
+/**
+ * O que o arquivo faz na Viagem (ADR 0079, decisão 7; mesma regra da
+ * migration 206). Os manifestos tocados são os que já têm algum B/L enviado
+ * (`sentBlNumbers`); nenhum = manifesto novo, sem ausentes. Com manifesto
+ * tocado, ausente é o B/L dele que o arquivo não traz em linha nenhuma, nem
+ * nas com erro (`fileBlNumbers`). Comparação sem caixa e espaços.
+ */
+export function graniteImportScope(existing: GraniteVoyageBl[], sentBlNumbers: string[], fileBlNumbers: string[]): {
+  newManifest: boolean
+  missing: string[]
+} {
   const key = (value: string) => value.trim().toUpperCase()
+  const sent = new Set(sentBlNumbers.map(key))
   const inFile = new Set(fileBlNumbers.map(key))
-  return existing.filter((number) => !inFile.has(key(number))).sort()
+  const touched = new Set(existing.filter((row) => sent.has(key(row.bl_number))).map((row) => row.manifest_id))
+  const missing = existing
+    .filter((row) => touched.has(row.manifest_id) && !inFile.has(key(row.bl_number)))
+    .map((row) => row.bl_number)
+    .sort()
+  return { newManifest: touched.size === 0, missing }
 }
 
 /** Texto da confirmação da saída dos B/Ls ausentes do arquivo novo. */
 export function graniteRemovalConfirmOptions(missing: string[]) {
   return {
     title: 'B/Ls fora do arquivo novo',
-    message: `${missing.length} B/L(s) de Granito gravados nesta Viagem não estão no arquivo.`,
+    message: `${missing.length} B/L(s) de Granito do manifesto que este arquivo atualiza não estão no arquivo.`,
     confirmLabel: 'Tirar da Viagem',
     cancelLabel: 'Manter gravados',
     tone: 'danger' as const,
@@ -351,6 +373,7 @@ export function graniteRemovalConfirmOptions(missing: string[]) {
 /** Resumo da reimportação para o aviso da tela. */
 export function describeGraniteImport(result: GraniteImportResult): string {
   return [
+    result.separateManifest ? 'manifesto novo na Viagem (nenhum B/L em comum com os já gravados)' : '',
     `${result.inserted} novo(s)`,
     `${result.updated} atualizado(s)`,
     result.removed.length ? `${result.removed.length} retirado(s)` : '',
@@ -407,7 +430,8 @@ export async function importGraniteManifest({
     }))
 
   // Ausente é o que o arquivo não traz em linha nenhuma, nem nas com erro.
-  const missing = missingGraniteBls(await fetchGraniteBlNumbersForVoyage(voyageId), manifest.fileBlNumbers)
+  const existing = await fetchGraniteBlNumbersForVoyage(voyageId)
+  const { newManifest, missing } = graniteImportScope(existing, blRows.map((row) => row.bl_number), manifest.fileBlNumbers)
   const removeMissing = missing.length && confirmRemoval && (await confirmRemoval(missing)) ? missing : []
 
   const { data, error } = await supabase.rpc('import_granite_manifest_transactional', {
@@ -436,6 +460,7 @@ export async function importGraniteManifest({
     removed_bl_numbers?: string[]
     kept_missing_bl_numbers?: string[]
     kept_missing_invoiced_bl_numbers?: string[]
+    new_manifest?: boolean
   }
 
   return {
@@ -446,5 +471,6 @@ export async function importGraniteManifest({
     removed: raw.removed_bl_numbers ?? [],
     keptMissing: raw.kept_missing_bl_numbers ?? [],
     keptInvoiced: raw.kept_missing_invoiced_bl_numbers ?? [],
+    separateManifest: (raw.new_manifest ?? newManifest) && existing.length > 0,
   }
 }

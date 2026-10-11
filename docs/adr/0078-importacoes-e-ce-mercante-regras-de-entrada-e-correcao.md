@@ -1,5 +1,7 @@
 # 0078 — Importações e CE Mercante: regras de entrada, correção e efeitos
 
+> **Nota editorial — 2026-10-11 · supersedida parcialmente.** A [ADR 0079](./0079-decisoes-pendentes-da-revisao-da-pr-929.md) refina o item 19 (Invoice de Demurrage com desconto ou disputa não é reemitida sozinha), o item 21 (a referência de "outro operador" no Baplie são os containers dos B/Ls da Viagem) e o item 25 (planilha de Granito sem B/L em comum é manifesto novo; a reimportação fica nos manifestos que ela toca).
+
 Status: aceito — 2026-10-09 (decisões do dono). Implementação pendente no
 [plano de correção das importações](../plans/2026-10-09-correcao-importacoes-ce-mercante.md).
 

@@ -891,6 +891,11 @@ O CE Mercante de Granito não calcula nem emite: o cálculo do Granito é feito
 pela Validação. Reimportar a planilha COSCO da mesma Viagem atualiza os B/Ls
 pelo número, preservando CE e Cliente; B/L ausente do arquivo novo só sai com
 confirmação e nunca com Invoice ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `186`).
+Planilha sem nenhum B/L em comum com os já gravados na Viagem é outro manifesto
+(duas planilhas COSCO legítimas convivem); com B/L em comum, a reimportação e a
+pergunta pelos ausentes ficam nos manifestos que ela toca
+([ADR 0079](docs/adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md), decisão 7;
+migration `206`).
 
 ## Baplie e reconciliação
 
@@ -941,9 +946,13 @@ Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada
 - perfil IMO/OOG corrigido à mão com justificativa (o armador confirma fora do
   Baplie) não é sobrescrito: o Baplie diferente vira Divergência de Atributo; a
   correção manual de perfil vale para o container em todos os B/Ls ativos da
-  Viagem que o dividem (Part Lot), e B/L faturado em qualquer deles recusa a
-  correção inteira (migration `194`). **Pendente de decisão do dono** (revisão
-  da PR 929): recusar a correção inteira também nos B/Ls não faturados;
+  Viagem que o dividem (Part Lot). Feita pelo B/L sem fatura, ela vale também
+  para o irmão faturado, que não é recalculado e segue a
+  [ADR 0077](docs/adr/0077-fatura-emitida-nao-muda-de-valor.md) pela base
+  alterada; partindo do próprio B/L faturado, continua recusada e a mensagem
+  aponta o B/L sem fatura do mesmo container
+  ([ADR 0079](docs/adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md),
+  decisão 5; migration `205`);
 - IMO/OOG declarado no B/L tem origem própria (`bl`): o Baplie que o confirma
   não troca a origem, e um Baplie seguinte sem o container não o apaga
   (migration `194`);
@@ -953,7 +962,11 @@ Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada
 - OOG exige excesso de dimensão maior que zero; carga perigosa em quantidade
   limitada (LQ) é carga normal, sem THD de IMO;
 - containers fora das escalas da Viagem, de outro operador ou em transbordo
-  são ignorados com aviso; Baplie de outro navio ou viagem é bloqueado.
+  são ignorados com aviso; Baplie de outro navio ou viagem é bloqueado. "Outro
+  operador" é medido contra o operador (NAD+CA) dos containers do arquivo que
+  estão nos B/Ls ativos da Viagem, que nunca são ignorados por operador; sem
+  nenhum deles no arquivo, vale o operador do cabeçalho, com aviso
+  ([ADR 0079](docs/adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md), decisão 6).
 
 **IMO**
 Classificação de carga perigosa segundo a International Maritime Organization.
@@ -1567,13 +1580,16 @@ com pagamento, a diferença segue a ADR 0077. Abre alerta, e a Régua de Cobran�
 para de cobrar essa fatura até a situação se resolver. Hoje, com pagamento, a
 diferença não é abatida nem vira restituição sozinha: a fatura sai da Régua e o
 Alerta `demurrage_invoice_dates_changed` leva ao Administrativo, que usa a
-restituição de Demurrage ou uma avulsa. B/L cancelado não ancora grupo nem
-recebe Invoice, e a completude do grupo é conferida só na emissão (migration
-`191`).
+restituição de Demurrage ou uma avulsa. A Invoice sem pagamento mas com
+desconto ou disputa aberta é tratada como a paga: não é reemitida sozinha, sai
+da Régua e o mesmo alerta pede a reemissão à mão, refazendo o desconto ou
+respondendo a disputa ([ADR 0079](docs/adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md),
+decisão 1; migration `203`). O estorno da baixa de Invoice suspensa reemite
+quando as datas ainda diferem, e a confirmação do estorno avisa antes (decisão
+2). B/L cancelado não ancora grupo nem recebe Invoice, e a completude do grupo
+é conferida só na emissão (migration `191`).
 
-Pendentes de decisão do dono (revisão da PR 929, 2026-10-11): a Invoice
-reemitida por mudança de datas nasce do cálculo, sem o desconto nem a disputa
-da cancelada. O status de Demurrage do container em atraso (`overdue`) é
+O status de Demurrage do container em atraso (`overdue`) é
 gravado pelo banco: a cada gravação de datas e por um job diário para o
 container que vence sem ninguém mexer nele (migration `197`). Container de
 B/L Cancelado ou de Viagem Cancelada não fica em atraso (migration `200`).

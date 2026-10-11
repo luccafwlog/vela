@@ -133,6 +133,8 @@ migration foi aplicada em produção.
 
 ## Decisões pendentes (não decididas pela revisão)
 
+> **Nota editorial — 2026-10-11.** O dono decidiu os itens 1 e 3 a 9 depois desta revisão; as decisões estão na [ADR 0079](../../adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md) e a implementação nas migrations `203` a `206`. O texto abaixo é o registro da revisão.
+
 1. **Demurrage reemitida por mudança de datas** (ADR 0078, item 19): a fatura
    nova nasce sem o desconto e sem a disputa da anterior. Opções: levar desconto
    e disputa para a nova, ou tratar Invoice com desconto ou disputa como o caso

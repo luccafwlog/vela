@@ -22,6 +22,11 @@ export type BaplieContainer = {
   is_oog: boolean
   /** EQD 8077: 1 = SOC, 2 = COC; vazio = não informado */
   ownership?: ContainerOwnership | null
+  /**
+   * NAD+CA do container (operador). Não vai ao staging: a regra da Viagem
+   * (`applyBaplieVoyageRules`) usa para ignorar container de outro operador.
+   */
+  operator?: string | null
 }
 
 export type ParsedBaplie = {
@@ -34,7 +39,11 @@ export type ParsedBaplie = {
    */
   vessel_name_source?: 'identification' | 'heuristic' | null
   voyage_number: string | null
-  /** Operador do navio (TDT, ou o NAD+CA mais frequente quando o TDT não traz). */
+  /**
+   * Operador do cabeçalho (TDT, ou o NAD+CA mais frequente quando o TDT não
+   * traz). Só é a referência de "outro operador" quando nenhum container do
+   * arquivo está nos B/Ls da Viagem (ADR 0079, decisão 6).
+   */
   operator?: string | null
   containers: BaplieContainer[]
   pods: string[]
@@ -223,7 +232,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
   for (const seg of contentSegments) {
     if (seg.tag !== 'TDT') continue
     voyage_number = seg.components[2]?.[0]?.trim() || null
-    // TDT 3127 (carrier): o operador do navio, comparado com o NAD+CA de cada container.
+    // TDT 3127 (carrier): operador do cabeçalho, reserva da regra de outro operador da Viagem.
     tdtCarrier = seg.components[5]?.[0]?.trim().toUpperCase() || tdtCarrier
     const flat = seg.components.flat().map((c) => c.trim()).filter(Boolean)
     // Identificação do transporte (C222): call sign:código:agência:NOME. O C222 é
@@ -283,8 +292,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
 
   const containers: BaplieContainer[] = []
   const issues: ImportIssue[] = []
-  const ignored: Array<{ container_number: string; reason: 'transshipment' | 'operator' | 'unknown_pod'; group: number; operator?: string; pod?: string | null }> = []
-  const operatorByContainer = new Map<string, string>()
+  const ignored: Array<{ container_number: string; reason: 'transshipment' | 'unknown_pod'; group: number; pod?: string | null }> = []
   for (const segment of trailingSegments) {
     issues.push({
       row: segment.index + 1,
@@ -315,6 +323,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
     existing.un_number = existing.un_number ?? next.un_number
     existing.is_oog = existing.is_oog || next.is_oog
     existing.ownership = existing.ownership ?? next.ownership
+    if (next.operator) existing.operator = next.operator
     return existing
   }
 
@@ -420,7 +429,6 @@ export function parseBaplieText(text: string): ParsedBaplie {
         ignored.push({ container_number, reason: 'unknown_pod', group: group.order, pod: podRaw })
         return
       }
-      if (ownOperator) operatorByContainer.set(container_number, ownOperator)
 
       const size_type = eqd.components[3]?.[0]?.trim() || null
       // EQD 8169 (full/empty indicator) mora no elemento 6. O elemento 5 e
@@ -450,6 +458,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
         is_oog: ownOog,
         // EQD 8077 (equipment supplier) mora no elemento 4, antes do 8249.
         ownership: ownershipFromEquipmentSupplier(eqd.components[4]?.[0]),
+        ...(ownOperator ? { operator: ownOperator } : {}),
       }
       const created = upsert(next)
       // Garante que duplicata preserve atributos físicos (compat) sem herdar
@@ -509,20 +518,16 @@ export function parseBaplieText(text: string): ParsedBaplie {
     })
   }
 
-  // Operador do navio: o do TDT ou, sem ele, o NAD+CA mais frequente.
+  // Operador do cabeçalho: o do TDT ou, sem ele, o NAD+CA mais frequente. O
+  // filtro de outro operador mora na regra da Viagem (ADR 0079, decisão 6),
+  // que conhece os containers dos B/Ls; este é só a reserva dela.
   // ponytail: a maioria decide quando o TDT não traz o operador; um navio com
   // slot dividido meio a meio fica com o primeiro mais frequente.
   const counts = new Map<string, number>()
-  for (const code of operatorByContainer.values()) counts.set(code, (counts.get(code) ?? 0) + 1)
+  for (const container of containers) {
+    if (container.operator) counts.set(container.operator, (counts.get(container.operator) ?? 0) + 1)
+  }
   const operator = tdtCarrier ?? [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
-  const kept = containers.filter((container) => {
-    const own = operatorByContainer.get(container.container_number)
-    if (operator && own && own !== operator) {
-      ignored.push({ container_number: container.container_number, reason: 'operator', group: 0, operator: own })
-      return false
-    }
-    return true
-  })
   for (const item of ignored) {
     if (item.reason === 'unknown_pod') {
       issues.push({
@@ -539,12 +544,10 @@ export function parseBaplieText(text: string): ParsedBaplie {
       field: 'container_number',
       code: 'invalid_group',
       severity: 'warning',
-      message: item.reason === 'transshipment'
-        ? `Container ${item.container_number}: em transbordo (EQD 8249 = 6); ignorado nesta operação.`
-        : `Container ${item.container_number}: de outro operador (${item.operator}); ignorado.`,
+      message: `Container ${item.container_number}: em transbordo (EQD 8249 = 6); ignorado nesta operação.`,
     })
   }
-  if (!kept.length && ignored.length) {
+  if (!containers.length && ignored.length) {
     issues.push({
       row: 0,
       field: 'container_number',
@@ -554,8 +557,8 @@ export function parseBaplieText(text: string): ParsedBaplie {
     })
   }
 
-  const pods = Array.from(new Set(kept.map((c) => c.pod).filter((p): p is string => Boolean(p)))).sort()
-  return { vessel_name, vessel_name_source, voyage_number, operator, containers: kept, pods, issues, encoding: 'utf-8' }
+  const pods = Array.from(new Set(containers.map((c) => c.pod).filter((p): p is string => Boolean(p)))).sort()
+  return { vessel_name, vessel_name_source, voyage_number, operator, containers, pods, issues, encoding: 'utf-8' }
 }
 
 function lastValue<T>(values: Array<T | null>): T | null {

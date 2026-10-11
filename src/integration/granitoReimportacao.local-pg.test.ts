@@ -6,6 +6,8 @@
 // `kept_missing_invoiced_bl_numbers`, sem recusar o arquivo inteiro.
 // Migration 196: os totais de todos os manifestos da Viagem são refeitos.
 // Migration 198: a sugestão de Cliente entra na detecção de mudança.
+// Migration 206 (ADR 0079, decisão 7): planilha sem B/L em comum é manifesto
+// novo; com B/L em comum, reimporta só os manifestos que toca.
 //
 // Namespace exclusivo: ids 99233xxx, B/Ls 'A233-*', usuário ...0000002330NN.
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -169,5 +171,24 @@ describeLocal('Granito: reimportação por número do B/L na Viagem (migration 1
     expect(result.stderr).toBe('')
     expect(JSON.parse(result.stdout)).toMatchObject({ updated_bls: 1 })
     expect(psql(`SELECT suggested_client_id FROM public.granite_bls WHERE bl_number = 'A233-S';`)).toBe(String(customerId))
+  })
+
+  it('planilha sem B/L em comum é manifesto novo e não toca nos outros manifestos', () => {
+    const manifests = () => psql(`SELECT count(*) FROM public.granite_manifests WHERE voyage_id = ${voyageId};`)
+    const before = Number(manifests())
+    const created = importFile([bl('A233-N1', 80), bl('A233-N2', 90)])
+    expect(created.stderr).toBe('')
+    expect(JSON.parse(created.stdout)).toMatchObject({ new_manifest: true, inserted_bls: 2, removed_bl_numbers: [], kept_missing_bl_numbers: [] })
+    expect(Number(manifests())).toBe(before + 1)
+    expect(psql(`SELECT total_bls FROM public.granite_manifests WHERE id = (SELECT manifest_id FROM public.granite_bls WHERE bl_number = 'A233-N1');`)).toBe('2')
+
+    // Reimportar a planilha nova só olha o manifesto dela: B/L de outro
+    // manifesto da Viagem não é ausente nem sai, mesmo se pedido.
+    const again = importFile([bl('A233-N1', 85)], ['A233-N2', 'A233-1'])
+    expect(again.stderr).toBe('')
+    expect(JSON.parse(again.stdout)).toMatchObject({ new_manifest: false, updated_bls: 1, removed_bl_numbers: ['A233-N2'], kept_missing_bl_numbers: [] })
+    expect(Number(manifests())).toBe(before + 1)
+    expect(rows()).toContain('A233-1:150')
+    expect(rows()).not.toContain('A233-N2')
   })
 })

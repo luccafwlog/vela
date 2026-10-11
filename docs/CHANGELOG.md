@@ -4,6 +4,19 @@
 
 ## 2026-10
 
+- **Decisões do dono sobre a revisão da PR 929 (2026-10-11, implementação local;
+  [ADR 0079](adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md)):** **Demurrage (`203`):**
+  Invoice com desconto ou disputa aberta não é reemitida sozinha quando as datas mudam: sai da
+  Régua e o alerta pede refazer à mão; a confirmação do estorno de baixa avisa que as datas
+  mudaram e o que o estorno fará. **Emissão pelo CE (`204`):** sem tabela de cobrança, o B/L fica
+  "Aguardando tabela de cobrança" com um alerta por POD e modalidade que fecha quando as faturas
+  saem; com todas as taxas zeradas, "Nada a faturar", sem alerta. **Part Lot (`205`):** a correção
+  manual de perfil ou SOC/COC feita pelo B/L sem fatura vale para o irmão faturado, que segue a
+  ADR 0077; o aviso de sucesso diz isso. **Baplie:** "outro operador" é medido contra os
+  containers dos B/Ls da Viagem, com o cabeçalho do arquivo como reserva e aviso. **Granito
+  (`206`):** planilha sem B/L em comum com a Viagem vira outro manifesto, sem perguntar pelos
+  demais. O runner de efeitos precisa estar ligado antes de dados reais, e tudo sai na PR 929
+  com ensaio em Preview.
 - **Revisão da PR 929 (2026-10-11, implementação local; [plano de correção das
   importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md#revisão-da-pr-929-2026-10-11)):**
   correções das importações em seis migrations novas, sem reescrever linhas.
@@ -43,7 +56,7 @@
   linhas e abas ocultas ficam de fora com aviso antes de confirmar. **Telas:**
   Manifesto BB em XLSX não multiplica peso por mil; leitura de planilhas com cabeçalho repetido,
   sistema de datas 1904 e máscaras escapadas; Embarque de Vazios no seletor comum; Histórico
-  mostra a "Origem" da importação. Decisões novas ficam pendentes do dono (lista no plano).
+  mostra a "Origem" da importação. As decisões que ficaram com o dono estão na entrada acima.
 - **Rastro das importações (2026-10-10, implementação local; Etapa 14 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   o Histórico de cada registro alterado por uma importação diz qual importação foi, a Viagem e o
