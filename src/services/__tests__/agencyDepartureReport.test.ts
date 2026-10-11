@@ -283,12 +283,15 @@ describe('getAgencyReportDerivedData', () => {
           { id: 22, container_number: 'IMOONLY00001', type: '20GP', is_imo: true, is_oog: false, bl: { transshipments: [] } },
           { id: 23, container_number: 'BAPOOG00001', type: '20GP', is_imo: false, is_oog: false, bl: { transshipments: [] } },
           { id: 24, container_number: 'BAPNOOOG0001', type: '20GP', is_imo: false, is_oog: true, bl: { transshipments: [] } },
+          // Perfil corrigido à mão vence o Baplie (migration 182), como na cobrança.
+          { id: 25, container_number: 'MANUALIMO001', type: '20GP', is_imo: true, is_oog: false, profile_source: 'manual', bl: { transshipments: [] } },
         ])
       }
       if (table === 'baplie_containers') {
         return queryBuilder([
           { container_number: 'BAPOOG00001', size_type: '22G1', status: 'full', is_imo: false, is_oog: true, pod: 'BRVIX' },
           { container_number: 'BAPNOOOG0001', size_type: '22G1', status: 'full', is_imo: false, is_oog: false, pod: 'BRVIX' },
+          { container_number: 'MANUALIMO001', size_type: '22G1', status: 'full', is_imo: false, is_oog: false, pod: 'BRVIX' },
         ])
       }
       if (table === 'vazios_export_operations') return singleQueryBuilder(null)
@@ -303,6 +306,7 @@ describe('getAgencyReportDerivedData', () => {
       { container_number: 'IMOONLY00001', size_type: '20GP', is_imo: true, is_oog: false, is_transshipment: false, category: 'imo' },
       { container_number: 'BAPOOG00001', size_type: '20GP', is_imo: false, is_oog: true, is_transshipment: false, category: 'oog' },
       { container_number: 'BAPNOOOG0001', size_type: '20GP', is_imo: false, is_oog: false, is_transshipment: false, category: 'carga_geral' },
+      { container_number: 'MANUALIMO001', size_type: '20GP', is_imo: true, is_oog: false, is_transshipment: false, category: 'imo' },
     ]))
     expect(result.containers.filter((container) => container.container_number === 'OOGIMO00001')).toHaveLength(1)
   })

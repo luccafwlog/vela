@@ -251,6 +251,7 @@ jobs:
             src/integration/vaziosReimportacao.local-pg.test.ts \
             src/integration/programacaoPlanilha.local-pg.test.ts \
             src/integration/rastroImportacoes.local-pg.test.ts \
+            src/integration/correcoesRevisaoImportacoes.local-pg.test.ts \
             src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts \
             src/integration/auditoriaFaturasDemurrageComunicado.local-pg.test.ts \
             src/integration/conditionUsd.local-pg.test.ts \

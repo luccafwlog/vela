@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeTimelineEvent, familyLabel, isAudited } from '../blTimelinePresentation'
+import { describeTimelineEvent, familyLabel, isAudited, isImportContext } from '../blTimelinePresentation'
 
 describe('describeTimelineEvent', () => {
   it('nomeia o container e o campo vindos da auditoria por coluna (migration 079)', () => {
@@ -40,5 +40,11 @@ describe('describeTimelineEvent', () => {
   it('flags audited entries (with justification)', () => {
     expect(isAudited({ justification: 'motivo' } as never)).toBe(true)
     expect(isAudited({ justification: null } as never)).toBe(false)
+  })
+  it('o contexto gravado pela importação não conta como auditoria (migration 189)', () => {
+    const context = 'Importação de B/L · Viagem NAVIO 001N'
+    expect(isAudited({ justification: context } as never)).toBe(false)
+    expect(isImportContext(context)).toBe(true)
+    expect(isImportContext('Importacao CE Mercante: CE corrigido pelo armador')).toBe(false)
   })
 })

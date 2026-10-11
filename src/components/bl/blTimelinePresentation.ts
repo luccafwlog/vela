@@ -153,7 +153,16 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
   return `${cleanField}: ${formatTimelineValue(field_name, old_value)} → ${formatTimelineValue(field_name, new_value)}`
 }
 
+// Contexto que a importação grava em cada linha do Histórico (migration 189,
+// `_set_import_context`): "Importação de <tipo> · Viagem … · Manifesto …".
+// É rastro do sistema, não justificativa deliberada.
+const IMPORT_CONTEXT_PREFIX = 'Importação de '
+
+export function isImportContext(justification: string | null | undefined): boolean {
+  return Boolean(justification && justification.trim().startsWith(IMPORT_CONTEXT_PREFIX))
+}
+
 // Auditoria = entrada com justificativa deliberada (ver CONTEXT.md).
 export function isAudited(event: BlTimelineEvent): boolean {
-  return Boolean(event.justification && event.justification.trim())
+  return Boolean(event.justification && event.justification.trim()) && !isImportContext(event.justification)
 }

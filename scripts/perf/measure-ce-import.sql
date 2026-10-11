@@ -9,9 +9,13 @@
 -- Aceite 8.1: o tempo com 50 mil fica em no máximo 1,3× o tempo com 600.
 -- Com -v defer=true, mede o caminho da tela (etapa 8.9): gravação do CE e do
 -- cálculo, depois emissão em lotes de 25 (`emit_ce_mercante_billing`).
--- Sem defer, passe -v defer=false.
+-- Sem -v defer, vale defer=false.
 -- Imprime `ce_import_ms` em NOTICE. Termina em ROLLBACK.
 \set QUIET on
+\if :{?defer}
+\else
+  \set defer false
+\endif
 BEGIN;
 SET LOCAL statement_timeout = 0;
 SET LOCAL request.jwt.claim.role = 'service_role';

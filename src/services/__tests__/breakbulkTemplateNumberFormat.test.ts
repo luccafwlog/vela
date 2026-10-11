@@ -10,6 +10,7 @@
 // célula fica com a forma ambígua `259.312`.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import * as XLSX from '@e965/xlsx'
 import { hasBlockingRowErrors, parseBreakbulkManifestBuffer } from '../breakbulkManifestParser'
 
 function readTemplate(relativePath: string): ArrayBuffer {
@@ -46,6 +47,32 @@ describe('modelo de manifesto de carga solta (tela /bls)', () => {
 })
 
 describe('modelo de manifesto BB (tela de viagem)', () => {
+  it('importa o modelo .xlsx oferecido pela tela da Viagem', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(readTemplate('public/templates/manifesto-bb-modelo.xlsx'))
+
+    expect(parsed.rowErrors).toEqual([])
+    expect(parsed.bls).toHaveLength(1)
+    expect(parsed.bls[0]?.bb_weight_ton).toBeCloseTo(12.5, 3)
+  })
+
+  it('lê peso e cubagem digitados como número no XLSX sem escalar por mil', async () => {
+    // O leitor comum entrega a célula numérica tipada. 135,263 t digitado no
+    // Excel é o número 135.263: relê-lo como texto em pt-BR daria 135263 t.
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['BL', 'MAQUINAS', 'PACKAGES', 'PACKAGES TOTAL', 'WEIGHT (TON)', 'CBM (M3)', 'SHIPPER', 'CONSIGNEE', 'NOTIFY'],
+      ['BL-NUMERO', 1, 2, 2, 135.263, 64.803, 'EMBARCADOR', 'CONSIGNATARIO', 'NOTIFY'],
+    ])
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, sheet, 'Manifesto')
+    const out = XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+
+    const parsed = await parseBreakbulkManifestBuffer(out)
+
+    expect(parsed.rowErrors.filter((error) => (error.severity ?? 'error') === 'error')).toEqual([])
+    expect(parsed.bls[0]?.bb_weight_ton).toBeCloseTo(135.263, 3)
+    expect(parsed.bls[0]?.bb_cbm).toBeCloseTo(64.803, 3)
+  })
+
   it('importa o modelo com ponto decimal', async () => {
     // `12.5` tem uma casa decimal: prova que o ponto é decimal neste arquivo, e
     // com isso a coluna inteira é lida certo. Sob o pt-BR fixo anterior, este

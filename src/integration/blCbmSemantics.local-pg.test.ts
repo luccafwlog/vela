@@ -51,6 +51,8 @@ function cleanup() {
     DELETE FROM public.bl_breakbulk_items WHERE bl_id LIKE 'CBM064-%';
     DELETE FROM public.bl_containers WHERE bl_id LIKE 'CBM064-%';
     DELETE FROM public.bls WHERE id LIKE 'CBM064-%';
+    DELETE FROM public.portal_provisioning_events WHERE customer_id = ${customerId}
+      OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};

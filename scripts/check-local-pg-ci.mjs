@@ -8,7 +8,9 @@ import { join } from 'node:path'
 
 const root = process.cwd()
 const workflow = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8')
-const listed = new Set(workflow.match(/src\/integration\/[A-Za-z0-9]+\.local-pg\.test\.ts/g) ?? [])
+// Só conta o que o CI executa: linhas comentadas do YAML não listam suíte.
+const executed = workflow.split('\n').filter((line) => !line.trimStart().startsWith('#')).join('\n')
+const listed = new Set(executed.match(/src\/integration\/[A-Za-z0-9]+\.local-pg\.test\.ts/g) ?? [])
 const present = new Set(
   readdirSync(join(root, 'src/integration'))
     .filter((name) => name.endsWith('.local-pg.test.ts'))

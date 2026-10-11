@@ -1014,7 +1014,9 @@ function formatLabel(format: ImportNumberFormat) {
 type NumericCell = { ok: true; value: number } | { ok: false; reason: 'empty' | 'syntax' }
 
 function readNumericCell(value: unknown, format: BreakbulkNumberFormat): NumericCell {
-  const parsed = parseImportNumber(normalizeNumericText(value), format)
+  // Célula numérica tipada (leitor comum) já é o número exato: convertê-la em
+  // texto e reler no formato da planilha transformaria 135.263 t em 135263 t.
+  const parsed = parseImportNumber(typeof value === 'number' ? value : normalizeNumericText(value), format)
   if (parsed.kind === 'value') {
     const numeric = Number(parsed.decimal)
     return Number.isFinite(numeric) ? { ok: true, value: numeric } : { ok: false, reason: 'syntax' }
@@ -1139,8 +1141,7 @@ function describeNumericProblem(field: string, raw: unknown, reason: 'empty' | '
 }
 
 function parseNumber(value: unknown, format: ImportNumberFormat = 'unknown') {
-  const text = normalizeNumericText(value)
-  const parsed = parseImportNumber(text, format)
+  const parsed = parseImportNumber(typeof value === 'number' ? value : normalizeNumericText(value), format)
   return parsed.kind === 'value' ? Number(parsed.decimal) : null
 }
 

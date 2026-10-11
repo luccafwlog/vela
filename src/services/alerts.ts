@@ -116,6 +116,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   demurrage_invoice: 'Invoice Demurrage',
   exchange_rate_reference: 'Referência cambial',
   import_effect: 'Efeito de importação',
+  import_effect_queue: 'Fila de efeitos de importação',
   pix_transaction: 'Transação PIX',
 }
 
