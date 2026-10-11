@@ -52,9 +52,9 @@ criadas por shell, sem editar nenhuma existente.
   (`sudo scripts/setup-local-pg.sh --reset` e as suítes `local-pg` do CI com
   `--no-file-parallelism`, duas vezes seguidas, sem resíduo de namespace).
 - **Migrations:** sempre arquivo novo, no próximo número livre (as deste plano
-  são `174`–`207`: a `173` foi usada pelo Desbloqueio de CE, já em produção, a
+  são `174`–`208`: a `173` foi usada pelo Desbloqueio de CE, já em produção, a
   revisão da PR 929 acrescentou `190`–`202`, as decisões da ADR 0079,
-  `203`–`206`, e a revisão automática depois delas, `207`);
+  `203`–`206`, e a revisão automática depois delas, `207` e `208`);
   nunca editar migration existente (protegida por
   `.claude/hooks/protect-files.sh`). Redefinir a função a partir da definição
   **efetiva** no banco replicado, não da primeira migration que a criou. Se a
@@ -911,3 +911,10 @@ desvincula o Manifesto Mercante (o Manifesto é da rota inteira), e **Corrigir
 CE Mercante** pela ficha confere o CE que estava na tela: se outra sessão o
 trocou ou removeu com o diálogo aberto, a correção é recusada em vez de gravar
 por cima.
+
+**`208` — alertas que deixam de ter objeto.** O B/L cancelado, sem CE, com
+outro POD ou outra modalidade, ou de Viagem cancelada sai da lista do Alerta de
+tabela de cobrança faltando (lista vazia fecha), e o Alerta de datas alteradas
+da Invoice de Demurrage fecha quando a suspensão por datas sai. No frontend, a
+importação de CE de Granito aceita o B/L da Viagem travada mesmo quando o mesmo
+número existe em outra Viagem.

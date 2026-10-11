@@ -191,6 +191,32 @@ describe('ceMercanteImport', () => {
     })
   })
 
+  // Revisão automática da PR 929: o mesmo número de B/L de Granito em duas
+  // Viagens não pode esconder a linha da Viagem travada.
+  it('Granito: B/L com o mesmo número em outra Viagem não bloqueia a linha da Viagem travada', async () => {
+    mockFrom.mockImplementation(() => ({
+      select: () => ({
+        in: async () => ({
+          data: [
+            { id: 'g-7', bl_number: 'GR-1', manifest: { voyage_id: 7 } },
+            { id: 'g-8', bl_number: 'gr-1', manifest: { voyage_id: 8 } },
+            { id: 'g-9', bl_number: 'GR-2', manifest: { voyage_id: 8 } },
+          ],
+          error: null,
+        }),
+      }),
+    }))
+    const rows: CeMercanteRow[] = [
+      { rowNumber: 2, bl_id: 'GR-1', ce_mercante: '122605051526081' },
+      { rowNumber: 3, bl_id: 'GR-2', ce_mercante: '122605051526082' },
+    ]
+
+    await expect(partitionRowsByVoyage(rows, 7, 'granite')).resolves.toEqual({
+      rows: [rows[0]],
+      blocked: [{ row: 3, bl_id: 'GR-2', message: 'B/L GR-2 pertence a outra viagem' }],
+    })
+  })
+
   it('devolve os erros do banco sem nada gravado quando a RPC desfaz o lote', async () => {
     mockFrom.mockImplementation(() => ({
       select: () => ({

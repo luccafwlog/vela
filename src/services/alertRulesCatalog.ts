@@ -198,7 +198,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Cadastre ou ative a tabela em Taxas Locais › Tabelas e emita de novo; a emissão refaz o cálculo que só esperava a tabela.',
     destination: '/taxas-locais/tabelas',
     destinationLabel: 'Abrir tabelas de Taxas Locais',
-    afterResolution: 'Fecha sozinho quando a fatura do último B/L da lista sai.',
+    afterResolution: 'O B/L sai da lista quando a fatura sai, quando é cancelado, perde o CE, muda de POD ou de modalidade, ou quando a Viagem é cancelada; o alerta fecha sozinho com a lista vazia.',
     dismissal: temporaryDismissal,
   },
   {
@@ -278,7 +278,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Sem pagamento, desconto nem disputa, a Invoice já foi cancelada e reemitida (ou só cancelada, se o valor novo for zero): conferir. Com desconto ou disputa aberta, a Régua suspendeu a cobrança: cancelar, gerar de novo, refazer o desconto e responder a disputa. Com pagamento, a Régua suspendeu a cobrança: tratar a diferença por restituição de Demurrage ou fatura avulsa.',
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
-    afterResolution: 'Registre a conferência ao resolver o alerta.',
+    afterResolution: 'Fecha sozinho quando as datas voltam às faturadas e a Régua volta a cobrar; nos demais casos, registre a conferência ao resolver o alerta.',
     dismissal: temporaryDismissal,
   },
   {

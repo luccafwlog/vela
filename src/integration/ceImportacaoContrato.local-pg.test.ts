@@ -22,6 +22,8 @@ const voyageId = 99228021
 const otherVoyageId = 99228022
 // Viagem só do Alerta "CE Mercante pendente" (migration 195, K6).
 const alertVoyageId = 99228023
+// Viagem cancelada no teste do Alerta de tabela faltando (migration 208).
+const gapVoyageId = 99228024
 const graniteManifestId = '00000000-0000-0000-0000-000000228061'
 const graniteBlId = '00000000-0000-0000-0000-000000228062'
 const unlockRequestId = '00000000-0000-0000-0000-000000228071'
@@ -89,7 +91,7 @@ function cleanup() {
       OR id IN (SELECT invoice_id FROM public.invoice_bls WHERE bl_id IN (SELECT id FROM a228_bls))
       OR id IN (SELECT invoice_id FROM public.invoice_receivable_links WHERE bl_id IN (SELECT id FROM a228_bls));
     CREATE TEMP TABLE a228_alerts AS SELECT id FROM public.alerts WHERE entity_id IN (SELECT id FROM a228_bls)
-      OR (entity_type = 'voyage' AND entity_id IN ('${voyageId}', '${otherVoyageId}', '${alertVoyageId}'))
+      OR (entity_type = 'voyage' AND entity_id IN ('${voyageId}', '${otherVoyageId}', '${alertVoyageId}', '${gapVoyageId}'))
       OR (entity_type = 'charge_table_gap' AND entity_id LIKE 'A228%');
     DELETE FROM public.invoice_receivable_links WHERE invoice_id IN (SELECT id FROM a228_invoices) OR bl_id IN (SELECT id FROM a228_bls);
     DELETE FROM public.invoice_lifecycle_events WHERE invoice_id IN (SELECT id FROM a228_invoices);
@@ -115,19 +117,19 @@ function cleanup() {
     DELETE FROM public.vazios_importacao_containers WHERE manifest_id = '${vaziosManifestId}';
     DELETE FROM public.vazios_importacao_manifests WHERE id = '${vaziosManifestId}';
     DELETE FROM public.audit_logs WHERE entity_id IN (SELECT id FROM a228_bls)
-      OR (entity_type IN ('voyage', 'voyages') AND entity_id IN ('${voyageId}', '${otherVoyageId}', '${alertVoyageId}'))
+      OR (entity_type IN ('voyage', 'voyages') AND entity_id IN ('${voyageId}', '${otherVoyageId}', '${alertVoyageId}', '${gapVoyageId}'))
       OR (entity_type = 'voyage_pod_schedule' AND entity_id LIKE '${alertVoyageId}::%')
       OR changed_by = '${actorId}';
     DELETE FROM public.bl_containers WHERE bl_id IN (SELECT id FROM a228_bls);
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (SELECT id FROM a228_bls);
     DELETE FROM public.bls WHERE id IN (SELECT id FROM a228_bls);
-    DELETE FROM public.voyage_route_ce_master WHERE voyage_id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId});
-    DELETE FROM public.manifestos_mercante WHERE voyage_id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId});
+    DELETE FROM public.voyage_route_ce_master WHERE voyage_id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId}, ${gapVoyageId});
+    DELETE FROM public.manifestos_mercante WHERE voyage_id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId}, ${gapVoyageId});
     DELETE FROM public.pricing_rule_versions WHERE charge_table_id IN (${chargeTableId}, ${lateTable.id}, ${zeroTable.id})
       OR charge_item_id IN (${chargeItemId}, ${lateTable.item}, ${zeroTable.item});
     DELETE FROM public.charge_table_items WHERE id IN (${chargeItemId}, ${lateTable.item}, ${zeroTable.item});
     DELETE FROM public.charge_tables WHERE id IN (${chargeTableId}, ${lateTable.id}, ${zeroTable.id});
-    DELETE FROM public.voyages WHERE id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId});
+    DELETE FROM public.voyages WHERE id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId}, ${gapVoyageId});
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
     DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customer.id};
@@ -155,7 +157,7 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'A228 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
         (${voyageId}, ${vesselId}, 'A228A', 'active'), (${otherVoyageId}, ${vesselId}, 'A228B', 'active'),
-        (${alertVoyageId}, ${vesselId}, 'A228C', 'active');
+        (${alertVoyageId}, ${vesselId}, 'A228C', 'active'), (${gapVoyageId}, ${vesselId}, 'A228D', 'active');
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela A228', '${pod}', CURRENT_DATE - 30, true, 'container');
       INSERT INTO public.charge_table_items (id, charge_table_id, name, applies_to, value_brl, unit_value_brl, application_basis, category, cargo_profile, currency)
@@ -376,6 +378,32 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(activeAlert('billing_charge_table_missing', 'A228T:container', 'charge_table_gap')).toMatch(/1 B\/L\(s\) aguardando a fatura \(A228-T2\)/)
     expect(json<{ results: Array<{ status: string }> }>(`SELECT public.emit_ce_mercante_billing(ARRAY['A228-T2']);`).results[0].status).toBe('invoiced')
     expect(activeAlert('billing_charge_table_missing', 'A228T:container', 'charge_table_gap')).toBe('')
+  })
+
+  // Revisão automática (migration 208): B/L que deixa de ser faturável sai da lista.
+  it('B/L cancelado, sem CE, com outro POD ou de Viagem cancelada sai do Alerta de tabela faltando', () => {
+    const gap = () => activeAlert('billing_charge_table_missing', 'A228Y:container', 'charge_table_gap')
+    insertBl('A228-X1', { container: 'ADCU2280064', blPod: 'A228Y' })
+    insertBl('A228-X2', { container: 'ADCU2280065', blPod: 'A228Y' })
+    insertBl('A228-X3', { container: 'ADCU2280066', blPod: 'A228Y' })
+    expect(apply([
+      { row: 2, bl_id: 'A228-X1', ce: '992280000000064' },
+      { row: 3, bl_id: 'A228-X2', ce: '992280000000065' },
+      { row: 4, bl_id: 'A228-X3', ce: '992280000000066' },
+    ], 'A228Y00000001', `, false, NULL, true`).ok).toBe(true)
+    json(`SELECT public.emit_ce_mercante_billing(ARRAY['A228-X1', 'A228-X2', 'A228-X3']);`)
+    // B/L de outra Viagem na mesma lista (o caminho da planilha é o mesmo).
+    insertBl('A228-X4', { voyage: gapVoyageId, container: 'ADCU2280067', blPod: 'A228Y' })
+    psql(`SELECT public._note_charge_table_gap('A228Y', 'container', 'A228-X4');`)
+    expect(gap()).toMatch(/4 B\/L\(s\) aguardando a fatura \(A228-X1, A228-X2, A228-X3, A228-X4\)/)
+
+    expect(json<{ cancelled: boolean }>(`SELECT public.cancel_bl('A228-X1', 'Carga não embarcou (A228)', false);`).cancelled).toBe(true)
+    expect(asAdmin(`SELECT public.remove_bl_ce_mercante('A228-X2', 'CE do B/L errado (A228)');`).error).toBeNull()
+    psql(`UPDATE public.bls SET pod = '${pod}' WHERE id = 'A228-X3';`)
+    expect(gap()).toMatch(/1 B\/L\(s\) aguardando a fatura \(A228-X4\)/)
+
+    expect(asAdmin(`SELECT public.cancel_voyage(${gapVoyageId}, 'Viagem não vai acontecer (A228)', '${actorId}'::uuid);`).error).toBeNull()
+    expect(gap()).toBe('')
   })
 
   it('B/L calculado sem nenhuma taxa com valor sai como "Nada a faturar", sem Alerta', () => {

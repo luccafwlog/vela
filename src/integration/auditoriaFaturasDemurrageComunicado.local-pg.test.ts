@@ -919,9 +919,15 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     }
     expect(localPsql(`SELECT count(*) FROM public.demurrage_invoices WHERE bl_id IN ('A207-K3', 'A207-K4');`)).toBe('2')
 
-    // Datas de volta às faturadas: a suspensão sai.
+    // Datas de volta às faturadas: a suspensão sai, e o Alerta da divergência
+    // fecha junto (migration 208); o da outra Invoice continua.
     asAdmin(`SELECT public.set_container_dates(${containerIds('A207-K3').ADCU2070133}, '2026-07-01', '2026-09-30', 'Terminal desfez a correção (A207)');`)
     expect(localPsql(`SELECT status || '|' || (dunning_suspended_reason IS NOT NULL) FROM public.demurrage_invoices WHERE id = ${discounted};`)).toBe('issued|false')
+    const alertStatus = (invoiceId: number) => localPsql(`SELECT i.status FROM public.alert_items AS i JOIN public.alerts AS a ON a.id = i.alert_id
+      WHERE i.item_type = 'demurrage_invoice_dates_changed' AND a.entity_type = 'demurrage_invoice' AND a.entity_id = '${invoiceId}'
+      ORDER BY i.id DESC LIMIT 1;`)
+    expect(alertStatus(discounted)).toBe('resolved')
+    expect(alertStatus(disputed)).toBe('active')
   })
 
   // C14: descarga nova posterior à devolução gravada, com a devolução vazia na planilha.

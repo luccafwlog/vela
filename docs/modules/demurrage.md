@@ -126,7 +126,8 @@ Migration `179` (ADR 0078, itens 19 e 20):
   (migration `203`; ADR 0079, decisão 1): não é reemitida, fica com
   `dunning_suspended_reason` e o alerta pede cancelar, gerar de novo e refazer o
   desconto ou responder a disputa; a suspensão sai quando os itens voltam a
-  bater com as datas. No estorno da baixa de uma Invoice suspensa (migration
+  bater com as datas, e o Alerta da Invoice fecha junto (migration `208`, também
+  no estorno com as datas de volta). No estorno da baixa de uma Invoice suspensa (migration
   `191`), com as datas ainda diferentes das faturadas ela é cancelada e
   reemitida (ou só cancelada, se o valor novo for zero; com desconto ou disputa,
   fica suspensa); com as datas de volta às faturadas, a suspensão sai e a

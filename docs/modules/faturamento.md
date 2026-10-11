@@ -50,7 +50,9 @@ para a decisão completa.
   tabela de cobrança ativa para o POD e a modalidade volta como "Aguardando
   tabela de cobrança" e entra num alerta `billing_charge_table_missing` por POD
   e modalidade, com a lista dos B/Ls, que fecha quando as faturas saem; a
-  emissão recalcula quando a tabela passa a existir. B/L calculado com todas as
+  emissão recalcula quando a tabela passa a existir. O B/L cancelado, sem CE,
+  com outro POD ou outra modalidade, ou de Viagem cancelada também sai da lista
+  (migration `208`). B/L calculado com todas as
   taxas zeradas volta como "Nada a faturar", sem alerta. Nenhum dos dois abre
   `billing_auto_issue_failed`. Sem CE, qualquer desses
   modos fica em “Aguardando CE Mercante” na Validação; a exceção manual é a emissão

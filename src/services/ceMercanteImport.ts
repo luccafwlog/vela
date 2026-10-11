@@ -177,7 +177,9 @@ export async function partitionRowsByVoyage<T extends { bl_id: string; rowNumber
   voyageId: number,
   target: CeMercanteImportTarget = 'bls',
 ): Promise<{ rows: T[]; blocked: Array<{ row: number; bl_id: string; message: string }> }> {
-  const voyageByBl = new Map<string, number | null>()
+  // O número do B/L de Granito só é único dentro do manifesto: o mesmo número
+  // pode estar em mais de uma Viagem, e a da Viagem travada vale.
+  const voyagesByBl = new Map<string, Set<number | null>>()
   for (const chunk of chunkArray(Array.from(new Set(rows.map((row) => row.bl_id))), 400)) {
     const query = target === 'granite'
       ? supabase.from('granite_bls').select('id, bl_number, manifest:granite_manifests!inner(voyage_id)').in('bl_number', chunk)
@@ -188,14 +190,15 @@ export async function partitionRowsByVoyage<T extends { bl_id: string; rowNumber
       const voyage = target === 'granite'
         ? (bl as { manifest?: { voyage_id?: number | null } | null }).manifest?.voyage_id ?? null
         : (bl as { voyage_id?: number | null }).voyage_id ?? null
-      voyageByBl.set(target === 'granite' ? normalizeBlId((bl as { bl_number: string }).bl_number) : String(bl.id), voyage)
+      const key = target === 'granite' ? normalizeBlId((bl as { bl_number: string }).bl_number) : String(bl.id)
+      voyagesByBl.set(key, (voyagesByBl.get(key) ?? new Set()).add(voyage))
     }
   }
 
   const blocked: Array<{ row: number; bl_id: string; message: string }> = []
   const validRows = rows.filter((row) => {
-    const rowVoyageId = voyageByBl.get(target === 'granite' ? normalizeBlId(row.bl_id) : row.bl_id)
-    if (rowVoyageId === undefined || rowVoyageId === voyageId) return true
+    const rowVoyages = voyagesByBl.get(target === 'granite' ? normalizeBlId(row.bl_id) : row.bl_id)
+    if (rowVoyages === undefined || rowVoyages.has(voyageId)) return true
     blocked.push({
       row: row.rowNumber,
       bl_id: row.bl_id,
