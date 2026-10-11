@@ -65,3 +65,25 @@ it('lista a Troca de Consignatário de todos os arquivos do lote junto do aceite
   expect(screen.getByText(/CLIENTE DO ARQUIVO BLAAA001/)).toBeTruthy()
   expect(screen.getByText(/CLIENTE DO ARQUIVO BLBBB002/)).toBeTruthy()
 })
+
+// Revisão da PR 929 (achado da revisão automática): o aceite guarda as trocas
+// mostradas. Trocar os arquivos depois de marcar desmarca o que não foi visto.
+it('trocar os arquivos depois do aceite desmarca a troca que não foi vista', async () => {
+  const { container } = render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ToastProvider>
+        <BlDocumentImportModal voyageId={7} voyageLabel="NAVIO 001N" onClose={vi.fn()} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  )
+  const picker = () => container.querySelector('input[type="file"]') as HTMLInputElement
+
+  fireEvent.change(picker(), { target: { files: [new File(['a'], 'BLAAA001.pdf')] } })
+  const accept = await screen.findByRole('checkbox', { name: /Confirmo a troca de Cliente em 1 B\/L/ })
+  fireEvent.click(accept)
+  expect((accept as HTMLInputElement).checked).toBe(true)
+
+  fireEvent.change(picker(), { target: { files: [new File(['c'], 'BLCCC003.pdf')] } })
+  await waitFor(() => expect(screen.getByText(/CLIENTE DO ARQUIVO BLCCC003/)).toBeTruthy())
+  expect((screen.getByRole('checkbox', { name: /Confirmo a troca de Cliente em 1 B\/L/ }) as HTMLInputElement).checked).toBe(false)
+})

@@ -18,7 +18,9 @@ import { BreakbulkImportOutcome, BreakbulkReimportReview } from './BreakbulkReim
 import {
   hasBlockingRowErrors,
   importBreakbulkManifest,
+  NO_BREAKBULK_APPROVAL,
   withBreakbulkReimportCheck,
+  type BreakbulkApproval,
   type BreakbulkImportResult,
   type ParsedBreakbulkManifest,
   parseBreakbulkManifestFile,
@@ -101,8 +103,7 @@ export function VoyageImportActions({
 }) {
   const [activeType, setActiveType] = useState<ImportType | null>(null)
   const [bbNumberFormat, setBbNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
-  const [bbAcceptCustomerChanges, setBbAcceptCustomerChanges] = useState(false)
-  const [bbOverrideBilling, setBbOverrideBilling] = useState(false)
+  const [bbApproval, setBbApproval] = useState<BreakbulkApproval>(NO_BREAKBULK_APPROVAL)
   const [vaziosManifestNumbers, setVaziosManifestNumbers] = useState<Record<string, string>>({})
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -190,8 +191,7 @@ export function VoyageImportActions({
               manifest: preview,
               uploadedBy: userId,
               allowRowErrors: Boolean(override),
-              acceptCustomerChanges: bbAcceptCustomerChanges,
-              overrideBilling: bbOverrideBilling,
+              approval: bbApproval,
             })
             await invalidateAfterBLImport()
             showToast(`Manifesto BB importado: ${preview.bls.length} B/L(s).`, 'success')
@@ -204,10 +204,8 @@ export function VoyageImportActions({
               <>
                 <BreakbulkReimportReview
                   check={preview.reimport}
-                  acceptCustomerChanges={bbAcceptCustomerChanges}
-                  onAcceptCustomerChanges={setBbAcceptCustomerChanges}
-                  overrideBilling={bbOverrideBilling}
-                  onOverrideBilling={setBbOverrideBilling}
+                  approval={bbApproval}
+                  onApprovalChange={setBbApproval}
                 />
                 <SummaryStrip
                   label="Resumo do manifesto"
@@ -222,8 +220,7 @@ export function VoyageImportActions({
           }}
           onClose={() => {
             setBbNumberFormat('auto')
-            setBbAcceptCustomerChanges(false)
-            setBbOverrideBilling(false)
+            setBbApproval(NO_BREAKBULK_APPROVAL)
             setActiveType(null)
           }}
         />

@@ -49,6 +49,7 @@ vi.mock('../../../services/breakbulkImport', () => ({
   withBreakbulkReimportCheck: async (manifest: unknown) => manifest,
   describeOtherVoyage: () => '',
   describeBreakbulkPending: () => [],
+  NO_BREAKBULK_APPROVAL: { customerChanges: [], billedRouteChanges: [] },
   hasBlockingRowErrors: (rowErrors: Array<{ severity?: 'error' | 'warning' }>) =>
     rowErrors.some((e) => (e.severity ?? 'error') === 'error'),
 }))

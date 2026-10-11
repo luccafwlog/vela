@@ -91,8 +91,12 @@ No front:
 - prévias da importação de B/L e do Manifesto BB;
 - prévia da Programação: a mesma Viagem nova com e sem IMO entra na
   conferência de datas repetidas;
-- aceite por lote no B/L avulso;
+- aceite por lote no B/L avulso; o aceite da troca de Cliente e a confirmação
+  de faturamento da carga solta guardam as transições mostradas e são
+  conferidos de novo na gravação (trocar arquivo ou Viagem desmarca);
 - CE Mercante: esperas, "Ver B/Ls" com portos normalizados, prévia refeita;
+  a troca confirmada é conferida de novo antes da gravação e, se mudou depois
+  da prévia, a tela mostra a troca nova em vez de gravar com o motivo antigo;
 - relatório da escala com o perfil manual;
 - Histórico, onde o contexto da importação aparece como "Origem";
 - catálogo de Alertas.
@@ -107,7 +111,7 @@ Local, Postgres 16 descartável:
 - replay limpo das migrations `001`–`200` com as checagens de invariantes do
   CI;
 - as 76 suítes `local-pg` na ordem do CI: 589 + 3 testes;
-- 4.410 testes unitários;
+- 4.414 testes unitários;
 - `typecheck`, `lint`, `build`, `docs:check`, `migrations:check`, `rpc:check`
   e `verificar_guardas.py` verdes.
 

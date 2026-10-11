@@ -12,7 +12,9 @@ import {
   hasBlockingRowErrors,
   importBreakbulkManifest,
   parseBreakbulkManifestFile,
+  NO_BREAKBULK_APPROVAL,
   withBreakbulkReimportCheck,
+  type BreakbulkApproval,
   type BreakbulkImportResult,
   type BreakbulkNumberFormat,
   type ParseBreakbulkOptions,
@@ -42,8 +44,7 @@ export function BreakbulkManifestUploadModal({
   // resolve; declarar o formato é o que desfaz a ambiguidade de vez. Ver
   // `readNumericColumns` em breakbulkManifestParser.ts.
   const [numberFormat, setNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
-  const [acceptCustomerChanges, setAcceptCustomerChanges] = useState(false)
-  const [overrideBilling, setOverrideBilling] = useState(false)
+  const [approval, setApproval] = useState<BreakbulkApproval>(NO_BREAKBULK_APPROVAL)
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
@@ -63,8 +64,7 @@ export function BreakbulkManifestUploadModal({
   function reset() {
     setVoyageId('')
     setNumberFormat('auto')
-    setAcceptCustomerChanges(false)
-    setOverrideBilling(false)
+    setApproval(NO_BREAKBULK_APPROVAL)
   }
 
   if (!open) return null
@@ -85,8 +85,7 @@ export function BreakbulkManifestUploadModal({
           manifest: nextManifest,
           uploadedBy: user.id,
           allowRowErrors: Boolean(override),
-          acceptCustomerChanges,
-          overrideBilling,
+          approval,
         })
         await afterManifestoImportado(queryClient, { voyageId })
         showToast('Manifesto de carga solta importado.', 'success')
@@ -126,10 +125,8 @@ export function BreakbulkManifestUploadModal({
         <>
           <BreakbulkReimportReview
             check={nextManifest.reimport}
-            acceptCustomerChanges={acceptCustomerChanges}
-            onAcceptCustomerChanges={setAcceptCustomerChanges}
-            overrideBilling={overrideBilling}
-            onOverrideBilling={setOverrideBilling}
+            approval={approval}
+            onApprovalChange={setApproval}
           />
           <BreakbulkPreview manifest={nextManifest} />
         </>

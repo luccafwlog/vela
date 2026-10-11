@@ -32,7 +32,9 @@
   free time, na gravação das datas e por job diário; container de B/L ou Viagem Cancelados sai
   do atraso (`200`). **Programação (`199`):** dois arquivos simultâneos da mesma Viagem nova,
   um com IMO e outro sem, não duplicam navio nem Viagem; na prévia, linhas da mesma Viagem
-  nova com e sem IMO são conferidas juntas. **Telas:**
+  nova com e sem IMO são conferidas juntas. **Aceites:** a troca de Cliente e a confirmação de
+  faturamento da carga solta valem para as transições mostradas e são conferidas de novo na
+  gravação; a troca de CE confirmada que mudou depois da prévia volta para a prévia. **Telas:**
   Manifesto BB em XLSX não multiplica peso por mil; leitura de planilhas com cabeçalho repetido,
   sistema de datas 1904 e máscaras escapadas; Embarque de Vazios no seletor comum; Histórico
   mostra a "Origem" da importação. Decisões novas ficam pendentes do dono (lista no plano).

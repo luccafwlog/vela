@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  approvesBilledRouteChanges,
+  approvesCustomerChanges,
   checkBreakbulkReimport,
   describeBreakbulkPending,
   hasBlockingRowErrors,
   importBreakbulkManifest,
+  NO_BREAKBULK_APPROVAL,
   parseBreakbulkManifestBuffer,
   withBreakbulkReimportCheck,
   type BreakbulkReimportCheck,
@@ -532,14 +535,18 @@ describe('breakbulkImport', () => {
         return { select: vi.fn(() => withIs({ order: vi.fn(() => ({ range: vi.fn(() => Promise.resolve({ data: [], error: null })) })) })) }
       }
       if (table === 'bls') {
+        // B/L faturado, sem Cliente e com a rota do arquivo: nada a trocar.
         return {
           select: vi.fn(() => ({
             in: vi.fn(() => Promise.resolve({
-              data: [{ id: 'BB009', cargo_mode: 'carga_solta' }],
+              data: [{ id: 'BB009', cargo_mode: 'carga_solta', voyage_id: 10, customer_id: null, pol: 'CNTAC', pod: 'BRVIX', financial_status: 'invoiced', cancelled_at: null }],
               error: null,
             })),
           })),
         }
+      }
+      if (table === 'bl_transshipments') {
+        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ in: vi.fn(() => Promise.resolve({ data: [], error: null })) })) })) }
       }
       throw new Error(`Tabela nao mockada: ${table}`)
     })
@@ -580,17 +587,21 @@ describe('breakbulkImport', () => {
     expect(payload.p_bls[0]).not.toHaveProperty('relink_customer')
     expect(payload.p_bls[0]).not.toHaveProperty('override_billing')
 
+    // Aceite de uma transição que não existe agora não marca a linha.
     mockRpc.mockClear()
     await importBreakbulkManifest({
       filename: 'BB009.pdf',
       voyageId: 10,
       manifest,
       uploadedBy: '00000000-0000-0000-0000-000000000001',
-      acceptCustomerChanges: true,
-      overrideBilling: true,
+      approval: {
+        customerChanges: [{ blId: 'BB009', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' }],
+        billedRouteChanges: [{ blId: 'BB009', fields: ['POD'] }],
+      },
     })
-    const accepted = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
-    expect(accepted.p_bls[0]).toMatchObject({ id: 'BB009', relink_customer: true, override_billing: true })
+    const stale = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
+    expect(stale.p_bls[0]).not.toHaveProperty('relink_customer')
+    expect(stale.p_bls[0]).not.toHaveProperty('override_billing')
   })
 
   it('permite importar carga solta para BL existente como container tornando-o misto sem erro', async () => {
@@ -734,6 +745,57 @@ describe('breakbulkImport', () => {
 
       expect(hasBlockingRowErrors(checked.rowErrors)).toBe(true)
       expect(checked.rowErrors[0]).toMatchObject({ row: 4, message: expect.stringContaining('O B/L OUTRA já está na Viagem NAVIO / V9') })
+    })
+
+    // Revisão da PR 929 (achado da revisão automática): o aceite vale para a
+    // transição que o operador viu, conferida de novo na gravação.
+    it('aceite e confirmação só marcam a linha cuja transição continua igual à da prévia', async () => {
+      mockRpc.mockImplementation((name: string) =>
+        Promise.resolve(name === 'import_breakbulk_manifest_transactional'
+          ? { data: { batch_id: 92 }, error: null }
+          : { data: { status: 'calculated' }, error: null }),
+      )
+      const reviewed = {
+        customerChanges: [
+          { blId: 'TROCA', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' },
+          { blId: 'MUDOU', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' },
+        ],
+        billedRouteChanges: [{ blId: 'FATURADO', fields: ['POD'] }],
+      }
+      // Depois da prévia, outra sessão passou MUDOU para GAMA e nasceu uma
+      // fatura em NOVAFATURA: nenhum dos dois foi visto pelo operador.
+      mockExisting(
+        [
+          { id: 'TROCA', voyage_id: 10, customer_id: 1, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'pending', cancelled_at: null, customer: { name: 'ALFA' }, voyage: voyage('V10') },
+          { id: 'MUDOU', voyage_id: 10, customer_id: 3, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'pending', cancelled_at: null, customer: { name: 'GAMA' }, voyage: voyage('V10') },
+          { id: 'FATURADO', voyage_id: 10, customer_id: 2, pol: 'CNSHA', pod: 'BRVIX', financial_status: 'invoiced', cancelled_at: null, customer: { name: 'BETA LTDA' }, voyage: voyage('V10') },
+          { id: 'NOVAFATURA', voyage_id: 10, customer_id: 2, pol: 'CNSHA', pod: 'BRVIX', financial_status: 'invoiced', cancelled_at: null, customer: { name: 'BETA LTDA' }, voyage: voyage('V10') },
+        ],
+      )
+
+      await importBreakbulkManifest({
+        filename: 'lote.pdf',
+        voyageId: 10,
+        manifest: { layout: 'summary', rowErrors: [], bls: [line('TROCA'), line('MUDOU'), line('FATURADO'), line('NOVAFATURA')] },
+        uploadedBy: '00000000-0000-0000-0000-000000000001',
+        approval: reviewed,
+      })
+
+      const payload = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
+      const row = (id: string) => payload.p_bls.find((bl: { id: string }) => bl.id === id)
+      expect(row('TROCA')).toMatchObject({ relink_customer: true })
+      expect(row('MUDOU')).not.toHaveProperty('relink_customer')
+      expect(row('FATURADO')).toMatchObject({ override_billing: true })
+      expect(row('NOVAFATURA')).not.toHaveProperty('override_billing')
+    })
+
+    it('o aceite marcado cobre só as transições mostradas', () => {
+      const shown = { customerChanges: [{ blId: 'TROCA', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' }], billedRouteChanges: [] }
+      expect(approvesCustomerChanges(shown, shown)).toBe(true)
+      // Outro arquivo (ou outra Viagem) com uma troca que não foi vista: desmarcado.
+      expect(approvesCustomerChanges(shown, { customerChanges: [...shown.customerChanges, { blId: 'OUTRO', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' }] })).toBe(false)
+      expect(approvesCustomerChanges(NO_BREAKBULK_APPROVAL, shown)).toBe(false)
+      expect(approvesBilledRouteChanges(shown, { billedRouteChanges: [] })).toBe(false)
     })
 
     it('arquivo só com B/Ls novos não muda a prévia', async () => {

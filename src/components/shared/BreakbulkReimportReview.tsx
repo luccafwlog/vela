@@ -1,5 +1,11 @@
-import type { BreakbulkImportResult, BreakbulkReimportCheck } from '../../services/breakbulkImport'
-import { describeBreakbulkPending, describeCancelledBl, describeOtherVoyage } from '../../services/breakbulkImport'
+import type { BreakbulkApproval, BreakbulkImportResult, BreakbulkReimportCheck } from '../../services/breakbulkImport'
+import {
+  approvesBilledRouteChanges,
+  approvesCustomerChanges,
+  describeBreakbulkPending,
+  describeCancelledBl,
+  describeOtherVoyage,
+} from '../../services/breakbulkImport'
 import { ImportNotice } from './ImportParts'
 import { plural } from './importPresentation'
 
@@ -9,22 +15,24 @@ import { plural } from './importPresentation'
  * CNPJ de outro Cliente só troca com aceite e a rota de B/L faturado pede a
  * confirmação de faturamento. Sem marcar, o resto do arquivo é aplicado. B/L
  * cancelado é somente leitura: a linha é ignorada, com aviso.
+ *
+ * Marcar guarda as transições mostradas (B/L, Cliente atual → do arquivo, rota),
+ * não um "sim" solto: trocar o arquivo ou a Viagem desmarca o que não foi visto,
+ * e a gravação só aplica o que continua igual.
  */
 export function BreakbulkReimportReview({
   check,
-  acceptCustomerChanges,
-  onAcceptCustomerChanges,
-  overrideBilling,
-  onOverrideBilling,
+  approval,
+  onApprovalChange,
 }: {
   check: BreakbulkReimportCheck | undefined
-  acceptCustomerChanges: boolean
-  onAcceptCustomerChanges: (value: boolean) => void
-  overrideBilling: boolean
-  onOverrideBilling: (value: boolean) => void
+  approval: BreakbulkApproval
+  onApprovalChange: (approval: BreakbulkApproval) => void
 }) {
   const cancelled = check?.cancelled ?? []
   if (!check || (check.existing.length === 0 && cancelled.length === 0)) return null
+  const acceptCustomerChanges = approvesCustomerChanges(approval, check)
+  const overrideBilling = approvesBilledRouteChanges(approval, check)
 
   return (
     <>
@@ -77,7 +85,7 @@ export function BreakbulkReimportReview({
                 <input
                   type="checkbox"
                   checked={acceptCustomerChanges}
-                  onChange={(event) => onAcceptCustomerChanges(event.target.checked)}
+                  onChange={(event) => onApprovalChange({ ...approval, customerChanges: event.target.checked ? check.customerChanges : [] })}
                 />
                 <span>
                   <span className="app-import-override__title">
@@ -104,7 +112,11 @@ export function BreakbulkReimportReview({
                 </ul>
               </ImportNotice>
               <label className="app-import-override">
-                <input type="checkbox" checked={overrideBilling} onChange={(event) => onOverrideBilling(event.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={overrideBilling}
+                  onChange={(event) => onApprovalChange({ ...approval, billedRouteChanges: event.target.checked ? check.billedRouteChanges : [] })}
+                />
                 <span>
                   <span className="app-import-override__title">Corrigir também a rota dos B/Ls faturados</span>
                   <span className="app-import-override__hint">

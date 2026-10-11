@@ -174,6 +174,39 @@ it('troca de CE pedida pela prévia do servidor só grava com confirmação e mo
   })))
 })
 
+// Revisão da PR 929 (achado da revisão automática): a confirmação vale para a
+// troca que o operador viu. Outra gravação mudou o CE do B/L depois da prévia:
+// a tela mostra a troca nova e não grava com o motivo antigo.
+it('troca confirmada que mudou depois da prévia não é gravada com o motivo antigo', async () => {
+  mocks.importRows.mockReset()
+  const row = { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }
+  const changeFrom = (current: string) => ({
+    ...cleanPreview,
+    changes: 1,
+    needs_confirmation: true,
+    rows: [{ row: 2, bl_id: 'BL001', status: 'change', current_ce: current, new_ce: '122605051526081', target_manifesto: '1226501860578' }],
+  })
+  mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [] })
+  mocks.preview.mockResolvedValueOnce(changeFrom('122605051526080')).mockResolvedValue(changeFrom('122605051526099'))
+
+  const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
+  fireEvent.change(screen.getByPlaceholderText('Ex.: 1226501860578'), { target: { value: '1226501860578' } })
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(['x'], 'ce.xlsx')] } })
+  await waitFor(() => expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
+  await screen.findByText('122605051526080 → 122605051526081')
+
+  fireEvent.click(screen.getByRole('checkbox'))
+  fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: 'CE retificado no Mercante' } })
+  const importar = screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement
+  await waitFor(() => expect(importar.disabled).toBe(false))
+  fireEvent.click(importar)
+
+  await screen.findByText('122605051526099 → 122605051526081')
+  expect(mocks.importRows).not.toHaveBeenCalled()
+  expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(false)
+})
+
 it('emite em lotes depois de gravar e oferece Retomar quando um lote falha', async () => {
   const row = { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }
   mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [] })
@@ -216,7 +249,7 @@ it('a gravação que volta pedindo confirmação refaz a prévia e mostra a troc
   // Prévia limpa; entre a prévia e a gravação outra planilha gravou outro CE.
   mocks.preview
     .mockResolvedValueOnce(cleanPreview)
-    .mockResolvedValueOnce({
+    .mockResolvedValue({
       ...cleanPreview,
       changes: 1,
       needs_confirmation: true,

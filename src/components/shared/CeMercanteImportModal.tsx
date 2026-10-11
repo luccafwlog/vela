@@ -104,6 +104,13 @@ export function CeMercanteImportModal({
     }
   }
 
+  function showChangedPreview(fresh: CeServerPreview) {
+    setServerPreview(fresh)
+    setConfirmed(false)
+    setReport(null)
+    showToast('Os B/Ls mudaram depois da prévia. Confira a prévia atualizada e confirme a troca com o motivo.', 'info')
+  }
+
   async function handleSheetImport() {
     if (!preview?.rows.length) return
 
@@ -119,6 +126,18 @@ export function CeMercanteImportModal({
       }
       const needsConfirmation = Boolean(current?.needs_confirmation)
       if (needsConfirmation && (!confirmed || !reason.trim())) return
+      // A confirmação vale para as trocas que o operador viu: a prévia é
+      // refeita e, se outra gravação mudou o CE ou o Manifesto destes B/Ls, a
+      // tela mostra a troca nova em vez de gravá-la com o motivo antigo.
+      // ponytail: entre esta leitura e a gravação sobra uma janela curta;
+      // fechá-la exige a RPC receber o CE e o Manifesto esperados por B/L.
+      if (target === 'bls' && needsConfirmation && current) {
+        const fresh = await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: lockedVoyageId })
+        if (confirmationKey(fresh) !== confirmationKey(current)) {
+          showChangedPreview(fresh)
+          return
+        }
+      }
 
       const result = await importCeMercanteRows(preview.rows, {
         changedBy: user?.id ?? null,
@@ -134,11 +153,7 @@ export function CeMercanteImportModal({
       // servidor pede confirmação. A prévia é refeita e mostra a troca a
       // confirmar, em vez de repetir a recusa a cada clique (K9).
       if (target === 'bls' && result.needsConfirmation) {
-        const fresh = await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: lockedVoyageId })
-        setServerPreview(fresh)
-        setConfirmed(false)
-        setReport(null)
-        showToast('Os B/Ls mudaram depois da prévia. Confira a prévia atualizada e confirme a troca com o motivo.', 'info')
+        showChangedPreview(await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: lockedVoyageId }))
         return
       }
       setReport(result)
@@ -384,6 +399,15 @@ function PreviewTable({
 }
 
 // Erro do lote, sem linha, não vira "Linha 0" (etapa 8.2).
+/** As trocas que a confirmação cobre: B/L, CE e Manifesto antes → depois. */
+function confirmationKey(preview: CeServerPreview): string {
+  return preview.rows
+    .filter((row) => row.status === 'change' || row.manifesto_change)
+    .map((row) => [row.bl_id, row.current_ce ?? '', row.new_ce ?? '', row.current_manifesto ?? '', row.target_manifesto ?? ''].join('|'))
+    .sort()
+    .join('\n')
+}
+
 function lineLabel(row: number | undefined): string {
   return row && row > 0 ? `Linha ${row}: ` : ''
 }

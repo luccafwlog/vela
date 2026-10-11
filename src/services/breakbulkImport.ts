@@ -34,6 +34,38 @@ export type BreakbulkReimportCheck = ParsedBreakbulkReimportCheck & {
 }
 
 /**
+ * O que o operador confirmou na prévia: as Trocas de Consignatário e as rotas
+ * de B/L faturado que ele viu. A gravação confere de novo e só aplica a
+ * transição que continua igual; a que mudou depois da prévia (outra sessão
+ * trocou o Cliente, nasceu uma fatura) ou que não estava nela fica como está e
+ * volta no resultado, como sem aceite.
+ */
+export type BreakbulkApproval = Pick<BreakbulkReimportCheck, 'customerChanges' | 'billedRouteChanges'>
+
+export const NO_BREAKBULK_APPROVAL: BreakbulkApproval = { customerChanges: [], billedRouteChanges: [] }
+
+type CustomerChange = BreakbulkReimportCheck['customerChanges'][number]
+type BilledRouteChange = BreakbulkReimportCheck['billedRouteChanges'][number]
+
+const customerChangeKey = (change: CustomerChange) => [change.blId, change.currentCustomer, change.fileCustomer].join('\u0000')
+const billedRouteChangeKey = (change: BilledRouteChange) => [change.blId, ...change.fields].join('\u0000')
+
+function covers<T>(approved: T[], shown: T[], key: (item: T) => string) {
+  const keys = new Set(approved.map(key))
+  return shown.length > 0 && shown.every((item) => keys.has(key(item)))
+}
+
+/** O aceite da prévia cobre todas as Trocas de Consignatário mostradas agora. */
+export function approvesCustomerChanges(approval: BreakbulkApproval, check: Pick<BreakbulkReimportCheck, 'customerChanges'>) {
+  return covers(approval.customerChanges, check.customerChanges, customerChangeKey)
+}
+
+/** A confirmação cobre todas as rotas de B/L faturado mostradas agora. */
+export function approvesBilledRouteChanges(approval: BreakbulkApproval, check: Pick<BreakbulkReimportCheck, 'billedRouteChanges'>) {
+  return covers(approval.billedRouteChanges, check.billedRouteChanges, billedRouteChangeKey)
+}
+
+/**
  * Manifesto aceito pela importação. A cubagem pode faltar (B/L avulso sem
  * CBM): ausente vai como null e a gravação mantém a cubagem gravada (a RPC
  * só preserva NULL; zero apagaria).
@@ -53,8 +85,7 @@ export async function importBreakbulkManifest({
   manifest,
   uploadedBy,
   allowRowErrors = false,
-  acceptCustomerChanges = false,
-  overrideBilling = false,
+  approval = NO_BREAKBULK_APPROVAL,
 }: {
   filename: string
   voyageId: number
@@ -62,10 +93,11 @@ export async function importBreakbulkManifest({
   uploadedBy: string
   /** Permite persistir as linhas válidas quando o preview tem erros de linha. */
   allowRowErrors?: boolean
-  /** Troca de Consignatário aceita na prévia: o CNPJ do arquivo passa a valer. */
-  acceptCustomerChanges?: boolean
-  /** Confirmação de faturamento: a rota de B/L faturado também é corrigida. */
-  overrideBilling?: boolean
+  /**
+   * Trocas de Consignatário e rotas de B/L faturado confirmadas na prévia: o
+   * CNPJ do arquivo passa a valer e a rota faturada também é corrigida.
+   */
+  approval?: BreakbulkApproval
 }): Promise<BreakbulkImportResult> {
   // Só divergência bloqueante impede a importação. Um aviso de conferência
   // (separador decimal ambíguo, por exemplo) viaja para o lote como registro,
@@ -94,10 +126,24 @@ export async function importBreakbulkManifest({
     ...cancelledIgnored.map((blId) => cancelledRowWarning(blId, rowByBl.get(blId) ?? 0)),
   ]
 
+  // Aceite e confirmação valem para a transição que o operador viu: a situação
+  // é conferida de novo agora e só a linha que continua igual é marcada.
+  // ponytail: entre esta leitura e a RPC sobra uma janela de milissegundos;
+  // fechá-la exige a RPC receber o Cliente e a rota esperados por B/L.
+  const relink = new Set<string>()
+  const override = new Set<string>()
+  if (approval.customerChanges.length || approval.billedRouteChanges.length) {
+    const current = await checkBreakbulkReimport(voyageId, importable)
+    const approvedCustomers = new Set(approval.customerChanges.map(customerChangeKey))
+    const approvedRoutes = new Set(approval.billedRouteChanges.map(billedRouteChangeKey))
+    for (const change of current.customerChanges) if (approvedCustomers.has(customerChangeKey(change))) relink.add(change.blId)
+    for (const change of current.billedRouteChanges) if (approvedRoutes.has(billedRouteChangeKey(change))) override.add(change.blId)
+  }
+
   const blRows = buildBreakbulkRows(importable, voyageId, customerMaps, state.existing).map((row) => ({
     ...row,
-    ...(acceptCustomerChanges ? { relink_customer: true } : {}),
-    ...(overrideBilling ? { override_billing: true } : {}),
+    ...(relink.has(row.id) ? { relink_customer: true } : {}),
+    ...(override.has(row.id) ? { override_billing: true } : {}),
   }))
 
   const itemRows = importable.bls.flatMap((bl) =>

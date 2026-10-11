@@ -17,6 +17,8 @@ import {
   describeBreakbulkPending,
   describeCancelledBl,
   describeOtherVoyage,
+  NO_BREAKBULK_APPROVAL,
+  type BreakbulkApproval,
   type BreakbulkReimportCheck,
 } from '../../services/breakbulkImport'
 import { BreakbulkReimportReview } from './BreakbulkReimportReview'
@@ -53,8 +55,7 @@ export function BlDocumentImportModal({
   const { showToast } = useToast()
   const { data: voyages } = useVoyageOptions()
   const [selectedVoyageId, setSelectedVoyageId] = useState(voyageId == null ? '' : String(voyageId))
-  const [acceptCustomerChanges, setAcceptCustomerChanges] = useState(false)
-  const [overrideBilling, setOverrideBilling] = useState(false)
+  const [approval, setApproval] = useState<BreakbulkApproval>(NO_BREAKBULK_APPROVAL)
   const lockedVoyage = voyageId != null
 
   const selectedVoyage = useMemo(
@@ -73,8 +74,7 @@ export function BlDocumentImportModal({
 
   function close() {
     setSelectedVoyageId(lockedVoyage ? String(voyageId) : '')
-    setAcceptCustomerChanges(false)
-    setOverrideBilling(false)
+    setApproval(NO_BREAKBULK_APPROVAL)
     onClose()
   }
 
@@ -107,8 +107,7 @@ export function BlDocumentImportModal({
           documents: entries.map((entry) => entry.preview),
           uploadedBy: user.id,
           allowRowErrors: Boolean(allowOverride),
-          acceptCustomerChanges,
-          overrideBilling,
+          approval,
         })
         await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
         const pending = describeBreakbulkPending(result)
@@ -148,10 +147,8 @@ export function BlDocumentImportModal({
               !isOtherVoyage(document) &&
               !isCancelled(document)
             )))}
-            acceptCustomerChanges={acceptCustomerChanges}
-            onAcceptCustomerChanges={setAcceptCustomerChanges}
-            overrideBilling={overrideBilling}
-            onOverrideBilling={setOverrideBilling}
+            approval={approval}
+            onApprovalChange={setApproval}
           />
         </>
       )}
