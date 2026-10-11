@@ -1097,10 +1097,12 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   }
   // Idem: containers do porto da escala e containers em transbordo (bls.pod
   // apontando para o porto omitido) nunca se sobrepõem.
+  // ponytail: `profile_source` (migration 182) falta nos tipos gerados
+  // (database.ts é protegido); o cast sai quando os tipos forem regenerados.
   const blContainers = [
     ...(blContainersRes.data ?? []),
     ...(transshipmentBlContainersRes.data ?? []),
-  ] as AgencyReportBlContainer[]
+  ] as unknown as AgencyReportBlContainer[]
   const baplieByContainerNumber = new Map(baplieContainers.map((container) => [normalizeContainerNumber(container.container_number), container]))
   const blContainerNumbers = new Set(blContainers.map((container) => normalizeContainerNumber(container.container_number)))
   // Um container compartilhado (ADR 0025/blFreightImport.ts) gera uma linha em

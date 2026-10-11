@@ -4,7 +4,7 @@
 // trilha de lote e o mesmo disparo de taxas locais.
 import { canonicalizeVesselName } from '../lib/vesselAlias'
 import { supabase } from './supabase'
-import { importBreakbulkManifest, type BreakbulkImportResult, type ParsedBreakbulkManifest } from './breakbulkImport'
+import { importBreakbulkManifest, type BreakbulkImportManifest, type BreakbulkImportResult } from './breakbulkImport'
 import { blDocumentToManifest, type ParsedBlDocument } from './blDocumentParser'
 
 /** Viagem escolhida na tela, no formato que `useVoyageOptions` devolve. */
@@ -79,7 +79,7 @@ export async function importBlDocuments({
       rowErrors: manifest.rowErrors.map((error) => ({ ...error, row: index + 1 })),
     }
   })
-  const manifest: ParsedBreakbulkManifest = {
+  const manifest: BreakbulkImportManifest = {
     layout: 'bl_document',
     bls: parsedManifests.flatMap((item) => item.bls),
     rowErrors: parsedManifests.flatMap((item) => item.rowErrors),

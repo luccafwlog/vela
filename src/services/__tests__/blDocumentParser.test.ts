@@ -204,6 +204,37 @@ describe('normalizeBlDocumentFields', () => {
 })
 
 describe('blDocumentToManifest', () => {
+  // B10 (revisão da PR 929): a gravação só preserva NULL; zero apagaria a
+  // cubagem do B/L já gravado na reimportação.
+  it('B/L sem CBM vai com cubagem nula, não zero', () => {
+    const document = normalizeBlDocumentFields(
+      {
+        blNumber: 'ABC123456789',
+        codeName: null,
+        shipper: 'SHIPPER LTDA',
+        consignee: 'IMPORTADOR LTDA',
+        notifyParty: 'NOTIFY LTDA',
+        vessel: 'NAVIO TESTE V.12',
+        pol: 'TAICANG,CHINA',
+        pod: 'VITORIA,BRAZIL',
+        originals: '3',
+        marks: 'N/M',
+        description: '4 CASES\nMAQUINA DE TESTE',
+        grossWeight: '1000 KGS',
+        measurement: null,
+        placeAndDateOfIssue: null,
+        sayTotal: null,
+        freight: null,
+        remarks: null,
+      },
+      'pdf',
+      'labeled',
+    )
+
+    expect(document.total_cbm).toBeNull()
+    expect(blDocumentToManifest(document).bls[0]?.bb_cbm).toBeNull()
+  })
+
   it('entrega o B/L no modelo do manifesto BB, com os avisos no lote', () => {
     const document = normalizeBlDocumentFields(
       {

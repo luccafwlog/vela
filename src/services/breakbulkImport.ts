@@ -11,7 +11,7 @@ import {
   parseBreakbulkManifestFile,
   type BreakbulkNumberFormat,
   type ParseBreakbulkOptions,
-  type BreakbulkReimportCheck,
+  type BreakbulkReimportCheck as ParsedBreakbulkReimportCheck,
   type ParsedBreakbulkManifest,
 } from './breakbulkManifestParser'
 
@@ -20,9 +20,31 @@ export {
   parseBreakbulkManifestBuffer,
   parseBreakbulkManifestFile,
   type BreakbulkNumberFormat,
-  type BreakbulkReimportCheck,
   type ParseBreakbulkOptions,
   type ParsedBreakbulkManifest,
+}
+
+/**
+ * Conferência da prévia com os B/Ls gravados (`checkBreakbulkReimport`). O
+ * parser nunca a preenche; `cancelled` é declarado aqui, onde é lido.
+ */
+export type BreakbulkReimportCheck = ParsedBreakbulkReimportCheck & {
+  /** B/L cancelado é somente leitura: a linha é ignorada com aviso e não vai à gravação. */
+  cancelled?: string[]
+}
+
+/**
+ * Manifesto aceito pela importação. A cubagem pode faltar (B/L avulso sem
+ * CBM): ausente vai como null e a gravação mantém a cubagem gravada (a RPC
+ * só preserva NULL; zero apagaria).
+ */
+export type BreakbulkImportManifest = Omit<ParsedBreakbulkManifest, 'bls'> & {
+  bls: Array<Omit<ParsedBreakbulkManifest['bls'][number], 'bb_cbm'> & { bb_cbm: number | null }>
+}
+
+/** Aviso da linha de B/L cancelado, o mesmo da planilha de CE Mercante (ADR 0078, item 7). */
+export function describeCancelledBl(blId: string) {
+  return `B/L ${blId} cancelado: a linha é ignorada. B/L cancelado é somente leitura; reative-o pela ficha para corrigir.`
 }
 
 export async function importBreakbulkManifest({
@@ -36,7 +58,7 @@ export async function importBreakbulkManifest({
 }: {
   filename: string
   voyageId: number
-  manifest: ParsedBreakbulkManifest
+  manifest: BreakbulkImportManifest
   uploadedBy: string
   /** Permite persistir as linhas válidas quando o preview tem erros de linha. */
   allowRowErrors?: boolean
@@ -55,16 +77,30 @@ export async function importBreakbulkManifest({
   const { error: voyageError } = await supabase.from('voyages').select('id').eq('id', voyageId).single()
   if (voyageError) throw voyageError
 
-  const customerMaps = await loadCustomerMaps()
-  const importErrors = [...manifest.rowErrors]
+  // Estado no banco agora, não o da prévia: decide o que é B/L novo e o que
+  // está cancelado. B/L cancelado é somente leitura e derrubaria o lote
+  // inteiro na gravação; a linha é ignorada com aviso, como na planilha de CE.
+  const state = await fetchBreakbulkBlState(manifest.bls.map((bl) => bl.bl_id))
+  const cancelledIgnored = [...new Set(manifest.bls.map((bl) => bl.bl_id).filter((id) => state.cancelled.has(id)))]
+  const importable: BreakbulkImportManifest = { ...manifest, bls: manifest.bls.filter((bl) => !state.cancelled.has(bl.bl_id)) }
+  if (manifest.bls.length && !importable.bls.length) {
+    throw new Error(`Nada a importar: ${cancelledIgnored.map(describeCancelledBl).join(' ')}`)
+  }
 
-  const blRows = buildBreakbulkRows(manifest, voyageId, customerMaps).map((row) => ({
+  const customerMaps = await loadCustomerMaps()
+  const rowByBl = new Map(manifest.bls.map((bl) => [bl.bl_id, bl.rowNumber]))
+  const importErrors = [
+    ...manifest.rowErrors,
+    ...cancelledIgnored.map((blId) => cancelledRowWarning(blId, rowByBl.get(blId) ?? 0)),
+  ]
+
+  const blRows = buildBreakbulkRows(importable, voyageId, customerMaps, state.existing).map((row) => ({
     ...row,
     ...(acceptCustomerChanges ? { relink_customer: true } : {}),
     ...(overrideBilling ? { override_billing: true } : {}),
   }))
 
-  const itemRows = manifest.bls.flatMap((bl) =>
+  const itemRows = importable.bls.flatMap((bl) =>
     bl.items.map((item) => ({
       bl_id: bl.bl_id,
       item_description: item.item_description,
@@ -87,7 +123,7 @@ export async function importBreakbulkManifest({
     p_filename: filename,
     p_voyage_id: voyageId,
     p_uploaded_by: uploadedBy,
-    p_total_bls: manifest.bls.length,
+    p_total_bls: importable.bls.length,
     p_bls: blRows,
     p_items: itemRows,
     p_errors: errorRows,
@@ -120,6 +156,7 @@ export async function importBreakbulkManifest({
     updated,
     unchanged,
     ceIgnored: raw.ce_ignored ?? [],
+    cancelledIgnored,
     customerChangesIgnored: (raw.customer_changes_ignored ?? []).map((entry) => entry.bl_id),
     refusedCustomerRelinks: (raw.customer_relinks ?? [])
       .filter((entry) => !entry.applied && !entry.unchanged)
@@ -150,6 +187,8 @@ export type BreakbulkImportResult = {
   unchanged: string[]
   /** B/Ls cujo arquivo trazia CE: o Manifesto BB não grava CE (ADR 0078, item 1). */
   ceIgnored: string[]
+  /** B/Ls cancelados no momento da gravação: a linha foi ignorada (somente leitura). */
+  cancelledIgnored: string[]
   /** CNPJ de outro Cliente sem aceite: o Cliente vinculado ficou. */
   customerChangesIgnored: string[]
   refusedCustomerRelinks: Array<{ blId: string; blockers: string[] }>
@@ -166,6 +205,7 @@ export function describeBreakbulkPending(result: BreakbulkImportResult): string[
     result.ceIgnored.length
       ? `CE Mercante ignorado em ${result.ceIgnored.join(', ')}: informe pela planilha de CE Mercante ou pela ficha do B/L.`
       : null,
+    ...(result.cancelledIgnored ?? []).map(describeCancelledBl),
     result.customerChangesIgnored.length
       ? `Cliente mantido em ${result.customerChangesIgnored.join(', ')}: a troca de Cliente não foi confirmada.`
       : null,
@@ -184,7 +224,13 @@ function isLockedFailure(message: string) {
  * Objeto que a RPC recebe por B/L. Compartilhado com a prévia para que a
  * comparação com o B/L gravado use exatamente o Cliente que será enviado.
  */
-function buildBreakbulkRows(manifest: ParsedBreakbulkManifest, voyageId: number, customerMaps: CustomerMaps) {
+function buildBreakbulkRows(
+  manifest: BreakbulkImportManifest,
+  voyageId: number,
+  customerMaps: CustomerMaps,
+  /** B/Ls que já existem: o texto montado do layout resumido não vai para eles */
+  existingIds: ReadonlySet<string> = new Set(),
+) {
   return manifest.bls.map((bl) => {
     const customerMatch = findMatchedCustomer(
       {
@@ -224,9 +270,14 @@ function buildBreakbulkRows(manifest: ParsedBreakbulkManifest, voyageId: number,
           link.status === 'matched_document' ? null : 'Aguardando reconciliacao de cliente antes do faturamento.',
         pol: bl.pol,
         pod: bl.pod,
+        // O layout resumido não tem coluna de descrição: "Maquinas: 1 | Packages: 2"
+        // é montado das quantidades e só serve ao B/L novo. No B/L existente vai
+        // null e a gravação mantém a descrição do documento (COALESCE da 174),
+        // sem marcar o B/L como corrigido a cada reimportação idêntica. (A
+        // descrição montada só lê as quantidades; a cubagem não entra nela.)
         cargo_description:
           manifest.layout === 'summary'
-            ? buildBreakbulkSummaryDescription(bl)
+            ? existingIds.has(bl.bl_id) ? null : buildBreakbulkSummaryDescription({ ...bl, bb_cbm: bl.bb_cbm ?? 0 })
             : bl.items.map((item) => item.item_description).filter(Boolean).slice(0, 3).join(' | ') || null,
         // A descrição acima descarta as linhas "NCM NUMBER" e guarda só os 3
         // primeiros itens; o NCM tem de sair do texto completo dos itens, senão
@@ -252,6 +303,7 @@ type ExistingBreakbulkBl = {
   pol: string | null
   pod: string | null
   financial_status: string | null
+  cancelled_at: string | null
   customer: { name: string | null } | null
   voyage: { voyage_number: string | null; vessel: { name: string | null } | null } | null
 }
@@ -262,20 +314,24 @@ const CHECK_CHUNK = 200
  * Confere o arquivo contra os B/Ls já gravados, para a prévia mostrar o que a
  * RPC fará: recusar B/L de outra Viagem, pedir aceite da troca de Cliente e a
  * confirmação de faturamento da rota. A RPC repete as mesmas regras; esta
- * leitura só antecipa a decisão do operador.
+ * leitura só antecipa a decisão do operador. B/L cancelado é somente leitura e
+ * derrubaria o lote inteiro na gravação: vai para `cancelled`, e a prévia
+ * ignora a linha com aviso (`withBreakbulkReimportCheck`).
  */
-export async function checkBreakbulkReimport(voyageId: number, manifest: ParsedBreakbulkManifest): Promise<BreakbulkReimportCheck> {
+export async function checkBreakbulkReimport(voyageId: number, manifest: BreakbulkImportManifest): Promise<BreakbulkReimportCheck> {
   const ids = [...new Set(manifest.bls.map((bl) => bl.bl_id))]
-  const existing: ExistingBreakbulkBl[] = []
+  const found: ExistingBreakbulkBl[] = []
   for (let i = 0; i < ids.length; i += CHECK_CHUNK) {
     const { data, error } = await supabase
       .from('bls')
-      .select('id, voyage_id, customer_id, pol, pod, financial_status, customer:customers!bls_customer_id_fkey(name), voyage:voyages(voyage_number, vessel:vessels(name))')
+      .select('id, voyage_id, customer_id, pol, pod, financial_status, cancelled_at, customer:customers!bls_customer_id_fkey(name), voyage:voyages(voyage_number, vessel:vessels(name))')
       .in('id', ids.slice(i, i + CHECK_CHUNK))
     if (error) throw error
-    existing.push(...((data ?? []) as unknown as ExistingBreakbulkBl[]))
+    found.push(...((data ?? []) as unknown as ExistingBreakbulkBl[]))
   }
-  const empty: BreakbulkReimportCheck = { existing: [], otherVoyage: [], customerChanges: [], billedRouteChanges: [], codPodKept: [] }
+  const cancelled = found.filter((bl) => bl.cancelled_at).map((bl) => bl.id)
+  const existing = found.filter((bl) => !bl.cancelled_at)
+  const empty: BreakbulkReimportCheck = { existing: [], otherVoyage: [], customerChanges: [], billedRouteChanges: [], codPodKept: [], cancelled }
   if (!existing.length) return empty
 
   const existingIds = existing.map((bl) => bl.id)
@@ -297,6 +353,7 @@ export async function checkBreakbulkReimport(voyageId: number, manifest: ParsedB
   for (const record of customerMaps.customersByDocument.values()) customerNames.set(record.id, record.name)
 
   const check: BreakbulkReimportCheck = { ...empty, existing: existingIds }
+  const routeChanges: Array<{ blId: string; fields: string[]; billedByStatus: boolean }> = []
   for (const bl of existing) {
     const row = rows.get(bl.id)
     if (!row) continue
@@ -314,15 +371,71 @@ export async function checkBreakbulkReimport(voyageId: number, manifest: ParsedB
     }
     const podChanges = Boolean(row.pod && row.pod !== bl.pod)
     if (podChanges && cod.has(bl.id)) check.codPodKept.push(bl.id)
-    if (isBlFinanciallyLocked(bl.financial_status)) {
-      const fields = [
-        row.pol && row.pol !== bl.pol ? 'POL' : null,
-        podChanges && !cod.has(bl.id) ? 'POD' : null,
-      ].filter((field): field is string => Boolean(field))
-      if (fields.length) check.billedRouteChanges.push({ blId: bl.id, fields })
-    }
+    const fields = [
+      row.pol && row.pol !== bl.pol ? 'POL' : null,
+      podChanges && !cod.has(bl.id) ? 'POD' : null,
+    ].filter((field): field is string => Boolean(field))
+    if (fields.length) routeChanges.push({ blId: bl.id, fields, billedByStatus: isBlFinanciallyLocked(bl.financial_status) })
+  }
+  // Faturado, como na gravação (migration 174): status faturado/pago ou fatura
+  // viva, inclusive rascunho. Só consulta quem muda de rota sem o status.
+  const withLiveInvoice = await fetchBlsWithLiveInvoice(routeChanges.filter((change) => !change.billedByStatus).map((change) => change.blId))
+  for (const change of routeChanges) {
+    if (change.billedByStatus || withLiveInvoice.has(change.blId)) check.billedRouteChanges.push({ blId: change.blId, fields: change.fields })
   }
   return check
+}
+
+/** Situação de taxas locais que a gravação trata como fatura viva (`_live_local_invoice_ids_for_bl`). */
+const LIVE_INVOICE_STATUSES = new Set(['draft', 'issued', 'overdue', 'partially_paid', 'paid'])
+const LOCAL_INVOICE_TYPES = new Set(['individual', 'consolidated'])
+
+/**
+ * B/Ls com fatura de taxas locais viva, ligada por `invoice_bls`.
+ * ponytail: a gravação também conta a fatura ligada pelo razão
+ * (`invoice_receivable_links`) e descarta a que está em Troca de Consignatário;
+ * aqui não. Divergir só faz a prévia não pedir a confirmação, e a rota volta em
+ * `billing_locked` no resultado (nada cai). Upgrade: uma RPC de leitura que
+ * devolva `_live_local_invoice_ids_for_bl` por B/L.
+ */
+async function fetchBlsWithLiveInvoice(blIds: string[]) {
+  const live = new Set<string>()
+  for (let i = 0; i < blIds.length; i += CHECK_CHUNK) {
+    const { data, error } = await supabase
+      .from('invoice_bls')
+      .select('bl_id, invoice:invoices(status, invoice_type)')
+      .in('bl_id', blIds.slice(i, i + CHECK_CHUNK))
+    if (error) throw error
+    type InvoiceRef = { status: string | null; invoice_type: string | null }
+    for (const row of (data ?? []) as unknown as Array<{ bl_id: string; invoice: InvoiceRef | InvoiceRef[] | null }>) {
+      const invoices = Array.isArray(row.invoice) ? row.invoice : row.invoice ? [row.invoice] : []
+      if (invoices.some((invoice) => LOCAL_INVOICE_TYPES.has(invoice.invoice_type ?? '') && LIVE_INVOICE_STATUSES.has(invoice.status ?? 'issued'))) {
+        live.add(row.bl_id)
+      }
+    }
+  }
+  return live
+}
+
+/** O que existe e o que está cancelado no banco, no momento da gravação. */
+async function fetchBreakbulkBlState(blIds: string[]) {
+  const ids = [...new Set(blIds)]
+  const existing = new Set<string>()
+  const cancelled = new Set<string>()
+  for (let i = 0; i < ids.length; i += CHECK_CHUNK) {
+    const { data, error } = await supabase.from('bls').select('id, cancelled_at').in('id', ids.slice(i, i + CHECK_CHUNK))
+    if (error) throw error
+    // `cancelled_at` (migration 089) ainda não está nos tipos gerados.
+    for (const row of (data ?? []) as unknown as Array<{ id: string; cancelled_at?: string | null }>) {
+      if (row.cancelled_at) cancelled.add(row.id)
+      else existing.add(row.id)
+    }
+  }
+  return { existing, cancelled }
+}
+
+function cancelledRowWarning(blId: string, row: number): ParsedBreakbulkManifest['rowErrors'][number] {
+  return { row, message: describeCancelledBl(blId), raw: { bl_id: blId }, severity: 'warning' }
 }
 
 /** Mensagem de bloqueio do B/L de outra Viagem, a mesma regra da RPC. */
@@ -332,7 +445,9 @@ export function describeOtherVoyage(entry: BreakbulkReimportCheck['otherVoyage']
 
 /**
  * Prévia com a conferência contra o banco: B/L de outra Viagem vira erro de
- * linha (bloqueia, como na RPC); o restante segue em `reimport`.
+ * linha (bloqueia, como na RPC); B/L cancelado sai do manifesto com aviso (a
+ * linha é ignorada, como na planilha de CE Mercante); o restante segue em
+ * `reimport`.
  */
 export async function withBreakbulkReimportCheck(
   manifest: ParsedBreakbulkManifest,
@@ -341,11 +456,14 @@ export async function withBreakbulkReimportCheck(
   if (!manifest.bls.length) return manifest
   const reimport = await checkBreakbulkReimport(voyageId, manifest)
   const rowByBl = new Map(manifest.bls.map((bl) => [bl.bl_id, bl.rowNumber]))
+  const cancelled = new Set(reimport.cancelled ?? [])
   return {
     ...manifest,
+    bls: manifest.bls.filter((bl) => !cancelled.has(bl.bl_id)),
     reimport,
     rowErrors: [
       ...manifest.rowErrors,
+      ...[...cancelled].map((blId) => cancelledRowWarning(blId, rowByBl.get(blId) ?? 0)),
       ...reimport.otherVoyage.map((entry) => ({
         row: rowByBl.get(entry.blId) ?? 0,
         message: describeOtherVoyage(entry),

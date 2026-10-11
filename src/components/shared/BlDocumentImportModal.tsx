@@ -15,6 +15,7 @@ import { blDocumentToManifest, parseBlDocumentFile, type ParsedBlDocument } from
 import {
   checkBreakbulkReimport,
   describeBreakbulkPending,
+  describeCancelledBl,
   describeOtherVoyage,
   type BreakbulkReimportCheck,
 } from '../../services/breakbulkImport'
@@ -25,6 +26,11 @@ type CheckedBlDocument = ParsedBlDocument & { reimport?: BreakbulkReimportCheck 
 
 function isOtherVoyage(document: CheckedBlDocument) {
   return Boolean(document.reimport?.otherVoyage.length)
+}
+
+/** B/L cancelado é somente leitura: o arquivo é ignorado, como a linha do Manifesto BB. */
+function isCancelled(document: CheckedBlDocument) {
+  return Boolean(document.reimport?.cancelled?.length)
 }
 
 /**
@@ -80,7 +86,7 @@ export function BlDocumentImportModal({
       ready={Boolean(selectedVoyageId && user)}
       notReadyReason="Escolha a viagem de destino para liberar o arquivo."
       confirmLabel="Importar B/Ls"
-      overrideHint="Os arquivos com aviso também entram, como foram lidos. Arquivos com erro ou de outra viagem continuam de fora."
+      overrideHint="Os arquivos com aviso também entram, como foram lidos. Arquivos com erro, de outra viagem ou de B/L cancelado continuam de fora."
       reparseKey={selectedVoyageId}
       prerequisite={
         <VoyageCombobox
@@ -117,6 +123,7 @@ export function BlDocumentImportModal({
         document.errors.length === 0 &&
         !describeVoyageMismatch(document, selectedVoyage) &&
         !isOtherVoyage(document) &&
+        !isCancelled(document) &&
         (document.warnings.length === 0 || Boolean(allowOverride))
       )}
       renderBatchSummary={(entries) => (
@@ -126,6 +133,7 @@ export function BlDocumentImportModal({
             document.errors.length === 0 &&
             !describeVoyageMismatch(document, selectedVoyage) &&
             !isOtherVoyage(document) &&
+            !isCancelled(document) &&
             document.warnings.length === 0
           )}
         />
@@ -134,7 +142,7 @@ export function BlDocumentImportModal({
         <>
           <BlDocumentPreview document={document} voyage={selectedVoyage} />
           <BreakbulkReimportReview
-            check={document.reimport ? { ...document.reimport, otherVoyage: [] } : undefined}
+            check={document.reimport ? { ...document.reimport, otherVoyage: [], cancelled: [] } : undefined}
             acceptCustomerChanges={acceptCustomerChanges}
             onAcceptCustomerChanges={setAcceptCustomerChanges}
             overrideBilling={overrideBilling}
@@ -192,15 +200,17 @@ function BlDocumentPreview({
 }) {
   const mismatch = describeVoyageMismatch(document, voyage)
   const otherVoyage = document.reimport?.otherVoyage ?? []
+  const cancelled = document.reimport?.cancelled ?? []
 
   return (
     <div className="grid gap-3">
-      {document.errors.length || mismatch || otherVoyage.length ? (
+      {document.errors.length || mismatch || otherVoyage.length || cancelled.length ? (
         <ImportNotice tone="danger" role="alert" title="Este arquivo não será importado">
           <ul className="app-import-notice__list">
             {document.errors.map((message) => <li key={message}>{message}</li>)}
             {mismatch ? <li>{mismatch}</li> : null}
             {otherVoyage.map((entry) => <li key={entry.blId}>{describeOtherVoyage(entry)}</li>)}
+            {cancelled.map((blId) => <li key={blId}>{describeCancelledBl(blId)}</li>)}
           </ul>
         </ImportNotice>
       ) : null}

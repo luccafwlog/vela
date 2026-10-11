@@ -12,7 +12,7 @@ import {
   firstMeaningfulPartyLine,
   normalizeCarrierBreakbulkDescription,
 } from './breakbulkCargoText'
-import type { BreakbulkImportRow, ParsedBreakbulkManifest } from './breakbulkManifestParser'
+import type { BreakbulkImportManifest } from './breakbulkImport'
 import { extractDocxTextBlocks } from './blDocumentDocx'
 import {
   collectFieldsFromBlocks,
@@ -161,10 +161,10 @@ export function normalizeBlDocumentFields(
  * taxas locais). Os avisos viajam como erros de linha para ficarem registrados
  * no lote — a conferência do operador é o que fecha a importação.
  */
-export function blDocumentToManifest(document: ParsedBlDocument): ParsedBreakbulkManifest {
+export function blDocumentToManifest(document: ParsedBlDocument): BreakbulkImportManifest {
   const weightKg = document.gross_weight_kg ?? 0
   const cbm = document.total_cbm ?? 0
-  const row: BreakbulkImportRow = {
+  const row: BreakbulkImportManifest['bls'][number] = {
     rowNumber: 1,
     bl_id: document.bl_id,
     shipper: document.shipper,
@@ -177,7 +177,9 @@ export function blDocumentToManifest(document: ParsedBlDocument): ParsedBreakbul
     bb_packages_qty: document.packages_qty,
     bb_packages_total: document.packages_qty,
     bb_weight_ton: weightKg > 0 ? weightKg / 1000 : null,
-    bb_cbm: cbm,
+    // Documento sem CBM: null. Zero apagaria a cubagem gravada na
+    // reimportação (a gravação só preserva NULL).
+    bb_cbm: document.total_cbm,
     items: [
       {
         item_description: document.cargo_description ?? '',

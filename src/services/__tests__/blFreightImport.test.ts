@@ -5,6 +5,7 @@ import {
   buildBlFreightPreview,
   chunkBlPayload,
   confirmBlFreightImport,
+  previewBlFreightImport,
   type BlFreightImportPreview,
 } from '../blFreightImport'
 import type { ParsedBLDocument } from '../blParser'
@@ -1496,6 +1497,138 @@ describe('blFreightImport', () => {
       await confirmBlFreightImport(preview, 'user-1', new Set([second.blNumber]))
       const sent = mockRpc.mock.calls.at(-1)?.[1].p_bls as Array<{ id: string; override_billing: boolean }>
       expect(sent.map((bl) => [bl.id, bl.override_billing])).toEqual([[first.blNumber, false], [second.blNumber, true]])
+    })
+  })
+
+  describe('correções da revisão da PR 929', () => {
+    const voyage = { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' }
+    const leaving = { ...existingContainer(), id: 2, container_number: 'MSKU7654321' }
+    const vin = (chassis: string, containerNumber: string) => ({
+      chassis, containerNumber, blNumber: 'CSC45250E02Y00', brand: 'BYD', model: 'DOLPHIN', weightKg: 1800, cbm: 8.5,
+    })
+
+    /** Cliente Supabase da prévia: cada tabela devolve as linhas dadas, em qualquer encadeamento. */
+    function mockTables(tables: Record<string, unknown>, selects: Array<[string, string]> = []) {
+      mockFrom.mockImplementation(((table: string) => {
+        const data = tables[table] ?? []
+        const query: Record<string, unknown> = {}
+        for (const method of ['in', 'eq', 'is', 'order', 'range']) query[method] = vi.fn(() => query)
+        query.select = vi.fn((columns: string) => {
+          selects.push([table, columns])
+          return query
+        })
+        query.maybeSingle = vi.fn(() => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data, error: null }))
+        query.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+          Promise.resolve({ data, error: null }).then(resolve, reject)
+        return query
+      }) as never)
+    }
+
+    // A1: a gravação recusa (P0006) o contêiner que sai com Invoice de Demurrage
+    // ou com veículos, e derruba o lote inteiro; a prévia recusa só a linha.
+    it('prévia consulta a Invoice de Demurrage do contêiner que sai e bloqueia só a linha', async () => {
+      const selects: Array<[string, string]> = []
+      mockTables({
+        bls: [{ ...existingBl(), bl_containers: [{ ...existingContainer(), id: 1 }, leaving] }],
+        voyages: [{ id: 7, voyage_number: '14', vessel: { name: 'GREEN SANTOS' } }],
+        ports: [{ name: 'Santos', locode: 'BRSSZ' }, { name: 'Shanghai', locode: 'CNSHA' }],
+        demurrage_invoice_items: [{ container_id: 2 }],
+      }, selects)
+      const doc = parsedBL()
+      doc.vehicles = []
+
+      const preview = await previewBlFreightImport({ documents: [doc], voyageId: 7 })
+
+      const row = preview.rows[0]!
+      expect(row.status).toBe('blocked')
+      expect(row.blockedReasons).toContain('O container MSKU7654321 tem Invoice de Demurrage e não sai por reimportação.')
+      expect(row.payload).toBeNull()
+      // A6: a prévia lê a origem do SOC/COC para não prometer troca do manual.
+      expect(selects.find(([table]) => table === 'bls')?.[1]).toContain('ownership_source')
+    })
+
+    it('contêiner com veículos e arquivo sem aba VIN bloqueia a linha', () => {
+      const doc = parsedBL()
+      doc.vehicles = []
+      const preview = buildBlFreightPreview({
+        documents: [doc],
+        selectedVoyage: voyage,
+        existingBls: [{ ...existingBl(), bl_containers: [{ ...existingContainer(), id: 1 }, leaving], vehicles: [{ chassis: 'CHASSI0000000001', container_id: 2 }] }],
+        containerRemovalBlockers: { demurrageContainerIds: new Set(), vehiclesByContainer: new Map([[2, ['CHASSI0000000001']]]) },
+      })
+      expect(preview.rows[0]?.status).toBe('blocked')
+      expect(preview.rows[0]?.blockedReasons).toContain('O container MSKU7654321 tem veículos: reimporte com a aba VIN e confirme a lista de veículos.')
+    })
+
+    it('aba VIN que tira os veículos do contêiner que sai torna a confirmação de veículos obrigatória', async () => {
+      const doc = parsedBL()
+      doc.vinSheet = true
+      doc.vehicles = [vin('CHASSI0000000001', 'TCLU1234567')]
+      const existing = {
+        ...existingBl(),
+        bl_containers: [{ ...existingContainer(), id: 1 }, leaving],
+        vehicles: [{ chassis: 'CHASSI0000000001', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5, container_id: 2 }],
+      }
+      const preview = buildBlFreightPreview({
+        documents: [doc],
+        selectedVoyage: voyage,
+        existingBls: [existing],
+        containerRemovalBlockers: { demurrageContainerIds: new Set(), vehiclesByContainer: new Map([[2, ['CHASSI0000000001']]]) },
+      })
+      const row = preview.rows[0]!
+      expect(row.status).toBe('updated')
+      expect(row.vehicleChanges).toEqual({ added: [], removed: [], changed: ['CHASSI0000000001'] })
+      expect(row.vehicleConfirmationRequiredFor).toEqual(['MSKU7654321'])
+
+      mockRpc.mockResolvedValue({ data: { result: { bls_received: 1 } }, error: null })
+      await expect(confirmBlFreightImport(preview, 'user-1', true, 'a.xlsx', false, false))
+        .rejects.toThrow('Confirme a lista de veículos da aba VIN: no B/L CSC45250E02Y00, o container MSKU7654321 só sai do B/L com os veículos. Nada foi gravado.')
+      expect(mockRpc).not.toHaveBeenCalled()
+
+      await confirmBlFreightImport(preview, 'user-1', true, 'a.xlsx', false, true)
+      expect(mockRpc.mock.calls.at(-1)?.[1].p_bls[0]).toMatchObject({ remove_containers: ['MSKU7654321'], confirm_vehicle_changes: true })
+    })
+
+    it('aba VIN que mantém o veículo no contêiner que sai bloqueia a linha', () => {
+      const doc = parsedBL()
+      doc.vinSheet = true
+      doc.vehicles = [vin('CHASSI0000000001', 'MSKU7654321')]
+      const preview = buildBlFreightPreview({
+        documents: [doc],
+        selectedVoyage: voyage,
+        existingBls: [{ ...existingBl(), bl_containers: [{ ...existingContainer(), id: 1 }, leaving], vehicles: [{ chassis: 'CHASSI0000000001', container_id: 2 }] }],
+        containerRemovalBlockers: { demurrageContainerIds: new Set(), vehiclesByContainer: new Map([[2, ['CHASSI0000000001']]]) },
+      })
+      expect(preview.rows[0]?.status).toBe('blocked')
+      expect(preview.rows[0]?.blockedReasons.join(' ')).toContain('O container MSKU7654321 tem veículos que a aba VIN mantém nele (CHASSI0000000001)')
+    })
+
+    // A5: sem aba VIN os veículos gravados continuam; o B/L segue LCL.
+    it('B/L de veículos reimportado sem aba VIN não vira FCL dividido entre Clientes', () => {
+      const doc = parsedBL()
+      doc.vehicles = []
+      const previewWith = (vehicles: Array<{ chassis: string }>) => buildBlFreightPreview({
+        documents: [doc],
+        selectedVoyage: voyage,
+        existingBls: [{ ...existingBl(), customer_id: 42, vehicles }],
+        containerSiblings: new Map([['TCLU1234567', [{ blId: 'OUTROBL', customerId: 99, customerName: 'OUTRO CLIENTE', loadType: null }]]]),
+      }).rows[0]!
+      expect(previewWith([{ chassis: '9BWZZZ377VT004251' }]).status).not.toBe('blocked')
+      expect(previewWith([]).blockedReasons).toContain('Container TCLU1234567 já está no B/L OUTROBL (OUTRO CLIENTE): container FCL não é dividido entre Clientes diferentes.')
+    })
+
+    // A6: SOC/COC corrigido à mão fica; a prévia não promete a troca.
+    it('SOC/COC manual não aparece como troca nem como impacto de faturamento', () => {
+      const previewWith = (ownership_source: string) => buildBlFreightPreview({
+        documents: [parsedBL()],
+        selectedVoyage: voyage,
+        billingLockedBlIds: new Set(['CSC45250E02Y00']),
+        existingBls: [{ ...existingBl(), bl_containers: [{ ...existingContainer(), ownership: 'SOC', ownership_source }] }],
+      }).rows[0]!
+      const manual = previewWith('manual')
+      expect(manual.diffs.map((diff) => diff.field)).not.toContain('container_ownership')
+      expect(manual.billingImpacts).not.toContain('SOC/COC dos containers muda')
+      expect(previewWith('baplie').billingImpacts).toContain('SOC/COC dos containers muda')
     })
   })
 })

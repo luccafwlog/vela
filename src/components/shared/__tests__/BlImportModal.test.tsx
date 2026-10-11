@@ -485,3 +485,67 @@ it('mostra o impedimento quando a fatura nao pode acompanhar a troca de cliente'
   await screen.findByText(/Impedimento: Cliente do novo consignatario nao esta cadastrado/)
   expect(container.querySelector('input[type="checkbox"]')).toBeNull()
 })
+
+// A7 (revisão da PR 929): o resultado por B/L aparece sempre que a gravação
+// mexeu em contêineres ou veículos, não só quando há remoção ou pendência.
+it('mostra o resultado por B/L quando a gravação muda contêineres, mesmo sem pendência', async () => {
+  mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU123'))
+  mocks.previewBlFreightImport.mockResolvedValue(previewWithDiff)
+  const result = {
+    result: { imported: 2 },
+    refusedCustomerRelinks: [],
+    calculationErrors: [],
+    containerChanges: [{ blNumber: 'COSU456', inserted: ['TCLU1234567'], updated: [], removed: [] }],
+    vehicleChanges: [],
+    vehiclesDiscarded: [],
+    vehicleChangesPending: [],
+  }
+  mocks.confirmBlFreightImport.mockResolvedValue(result)
+  const { container, onClose } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N' })
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'bl.xlsx')] },
+  })
+  const confirm = await screen.findByRole('button', { name: /^Importar/ })
+  await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(confirm)
+
+  await screen.findByText('COSU456 — contêineres: 1 entrou(aram)')
+  expect(screen.getByText('2 B/Ls gravados')).toBeTruthy()
+  expect(screen.queryByText(/com pendências/)).toBeNull()
+  expect(mocks.showToast).toHaveBeenCalledWith('Importação gravada; confira o resultado por B/L.', 'success')
+  expect(onClose).not.toHaveBeenCalled()
+})
+
+// A1 (revisão da PR 929): container que sai levando os veículos só sai com a
+// lista de veículos confirmada; sem ela a gravação recusaria o lote inteiro.
+it('exige a confirmação de veículos quando um container sai do B/L levando os veículos', async () => {
+  const previewWithVehicleExit = {
+    rows: [{
+      ...previewWithDiff.rows[1],
+      removedContainers: ['MSKU7654321'],
+      vehicleChanges: { added: [], removed: [], changed: ['CHASSI0000000001'] },
+      requiresVehicleConfirmation: true,
+      vehicleConfirmationRequiredFor: ['MSKU7654321'],
+    }],
+    summary: { ...previewWithDiff.summary, total: 1, newCount: 0, vehicleConfirmationCount: 1 },
+  }
+  mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU456'))
+  mocks.previewBlFreightImport.mockResolvedValue(previewWithVehicleExit)
+  const { container } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N' })
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'bl.xlsx')] },
+  })
+
+  await screen.findByText(/Obrigatória para importar: no B\/L COSU456, o container MSKU7654321 sai do B\/L levando os veículos/)
+  expect(screen.queryByText(/o restante do B\/L é aplicado/)).toBeNull()
+  const confirm = screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement
+  expect(confirm.disabled).toBe(true)
+
+  fireEvent.click(screen.getByLabelText(/Confirmo a lista de veículos da aba VIN/))
+  await waitFor(() => expect(confirm.disabled).toBe(false))
+  fireEvent.click(confirm)
+
+  await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithVehicleExit, 'user-1', new Set(), 'bl.xlsx', false, true))
+})

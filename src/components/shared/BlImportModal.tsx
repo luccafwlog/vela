@@ -56,6 +56,18 @@ function describeChanges(result: BlFreightImportResult) {
   return { changes, vehicleIssues }
 }
 
+/** B/L e contêineres que só saem com a lista de veículos confirmada. */
+function describeVehicleConfirmationRequired(rows: BlFreightImportRow[]) {
+  return rows
+    .map((row) => {
+      const containers = row.vehicleConfirmationRequiredFor ?? []
+      return containers.length === 1
+        ? `no B/L ${row.blNumber}, o container ${containers[0]} sai do B/L levando os veículos`
+        : `no B/L ${row.blNumber}, os containers ${containers.join(', ')} saem do B/L levando os veículos`
+    })
+    .join('; ')
+}
+
 export function BlImportModal({
   open,
   onClose,
@@ -99,6 +111,13 @@ export function BlImportModal({
     () => preview?.rows.filter((row) => row.requiresVehicleConfirmation && row.vehicleChanges) ?? [],
     [preview],
   )
+  // Container que sai do B/L levando os veículos: sem a confirmação a gravação
+  // recusaria o lote inteiro, então ela passa a ser obrigatória para importar.
+  const vehicleConfirmationRequiredRows = useMemo(
+    () => preview?.rows.filter((row) => row.payload && row.vehicleConfirmationRequiredFor?.length) ?? [],
+    [preview],
+  )
+  const vehicleConfirmationMissing = vehicleConfirmationRequiredRows.length > 0 && !confirmVehicleChanges
   const billingOverrideRows = useMemo(
     () => preview?.rows.filter((row) => row.requiresBillingOverride && row.payload) ?? [],
     [preview],
@@ -193,10 +212,10 @@ export function BlImportModal({
       await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
       const refused = refusedCustomerRelinks.map((relink) => `${relink.blNumber} (${relink.blockers.join(' ')})`)
       const failedCalculations = calculationErrors.map((failure) => `${failure.blNumber} (${failure.message})`)
-      if (refused.length || failedCalculations.length || vehicleIssues.length || changes.some((item) => item.includes('saiu'))) {
-        // Importou, mas algo pedido não aconteceu: o modal fica aberto com o
-        // resultado parcial. Dizer "concluída" e fechar esconderia justamente o
-        // que o operador precisa resolver.
+      if (refused.length || failedCalculations.length || vehicleIssues.length || changes.length) {
+        // Importou com contêineres ou veículos alterados, ou algo pedido não
+        // aconteceu: o modal fica aberto com o resultado por B/L. Fechar
+        // esconderia o que mudou e o que o operador precisa resolver.
         const warnings: string[] = []
         if (refused.length) warnings.push(`a troca de cliente foi recusada em ${refused.length} B/L(s): ${refused.join(' | ')}`)
         if (failedCalculations.length) warnings.push(`${failedCalculations.length} B/L(s) ficaram sem cálculo automático: ${failedCalculations.join(' | ')}`)
@@ -227,10 +246,12 @@ export function BlImportModal({
   }
 
   const blockedAll = Boolean(preview && importableCount === 0)
+  const outcomePending = Boolean(outcome && (outcome.refusedRelinks.length || outcome.calculationErrors.length || outcome.vehicleIssues.length))
   let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
-  if (outcome) footnote = 'Importação gravada com pendências; veja acima.'
+  if (outcome) footnote = outcomePending ? 'Importação gravada com pendências; veja acima.' : 'Importação gravada; veja acima o resultado por B/L.'
   else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
   else if (blockedAll) footnote = 'Nenhum B/L pode ser importado; veja os bloqueios na tabela.'
+  else if (vehicleConfirmationMissing) footnote = 'Marque "Confirmo a lista de veículos da aba VIN" para importar. Nada foi gravado ainda.'
   else if (preview) footnote = `${plural(importableCount, 'B/L será gravado', 'B/Ls serão gravados')}. Nada foi gravado ainda.`
 
   return (
@@ -276,7 +297,7 @@ export function BlImportModal({
           />
         ) : null}
 
-        {vehicleChangeRows.length && !outcome ? (
+        {(vehicleChangeRows.length || vehicleConfirmationRequiredRows.length) && !outcome ? (
           <section className="app-import-section" aria-label="Veículos da aba VIN">
             <h3 className="app-import-section__title">
               Veículos mudam em {plural(vehicleChangeRows.length, 'B/L', 'B/Ls')}
@@ -302,8 +323,10 @@ export function BlImportModal({
               <span>
                 <span className="app-import-override__title">Confirmo a lista de veículos da aba VIN</span>
                 <span className="app-import-override__hint">
-                  O local de desova dos que continuam é preservado e um alerta registra as mudanças. Sem marcar, os
-                  veículos gravados ficam como estão e o restante do B/L é aplicado.
+                  O local de desova dos que continuam é preservado e um alerta registra as mudanças.{' '}
+                  {vehicleConfirmationRequiredRows.length
+                    ? `Obrigatória para importar: ${describeVehicleConfirmationRequired(vehicleConfirmationRequiredRows)}. Sem a confirmação nada é gravado.`
+                    : 'Sem marcar, os veículos gravados ficam como estão e o restante do B/L é aplicado.'}
                 </span>
               </span>
             </label>
@@ -348,7 +371,11 @@ export function BlImportModal({
         ) : null}
 
         {outcome ? (
-          <ImportNotice tone="warning" role="status" title={`${plural(outcome.imported, 'B/L gravado', 'B/Ls gravados')}, com pendências`}>
+          <ImportNotice
+            tone={outcomePending ? 'warning' : 'success'}
+            role="status"
+            title={`${plural(outcome.imported, 'B/L gravado', 'B/Ls gravados')}${outcomePending ? ', com pendências' : ''}`}
+          >
             {outcome.refusedRelinks.length ? (
               <>
                 <p>A troca de cliente foi recusada; o B/L continua com o cliente anterior:</p>
@@ -405,7 +432,7 @@ export function BlImportModal({
               </span>
             </label>
           ) : null}
-          <ImportFootnote tone={outcome ? 'warning' : blockedAll ? 'warning' : 'default'}>{footnote}</ImportFootnote>
+          <ImportFootnote tone={outcome ? (outcomePending ? 'warning' : 'success') : blockedAll || vehicleConfirmationMissing ? 'warning' : 'default'}>{footnote}</ImportFootnote>
           {outcome ? (
             <Button onClick={resetAndClose}>Concluir</Button>
           ) : (
@@ -414,7 +441,7 @@ export function BlImportModal({
                 {parsing ? 'Interromper leitura' : 'Voltar'}
               </Button>
               <Button
-                disabled={!selectedVoyageId || importableCount === 0 || parsing}
+                disabled={!selectedVoyageId || importableCount === 0 || parsing || vehicleConfirmationMissing}
                 loading={submitting}
                 loadingLabel="Importando…"
                 onClick={() => void handleConfirm()}
@@ -495,7 +522,8 @@ function BlImportPreview({
                       {row.blockedReasons.map((reason) => (
                         <li key={reason} className="app-import-tone--danger">{reason}</li>
                       ))}
-                      {row.removedContainers?.length ? (
+                      {/* Linha bloqueada não grava nada: nenhum contêiner sai. */}
+                      {row.removedContainers?.length && row.payload ? (
                         <li className="app-import-tone--warning">Saem do B/L: {row.removedContainers.join(', ')}</li>
                       ) : null}
                       {row.warnings?.map((warning) => (
