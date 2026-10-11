@@ -38,10 +38,17 @@ describe('parser de vazios — novo contrato', () => {
     expect(parsed.rowErrors).toEqual([])
     expect(parsed.bookings[0]).toMatchObject({ container_number: 'ABCD1234568', container_type: '40HC' })
   })
-  it('normaliza datas Excel no formato MM/DD/YYYY sem enviar mes invalido ao banco', async () => {
+  // Revisão da PR 929 (E3-07): o contrato de data é o DD/MM das demais
+  // importações (src/lib/importDate.ts). MM/DD é recusado com o motivo, sem
+  // enviar mês inválido ao banco nem trocar dia e mês em silêncio.
+  it('recusa MM/DD/AAAA com o motivo, sem enviar mes invalido ao banco', async () => {
     const parsed = await parseVaziosManifestBuffer(await makeBuffer([{ CONTAINER: 'ABCD1234570', TIPO: '40HC', LOCAL: 'VBR', Condition: 'vazio', 'Hand-in': '02/25/2026', 'Hand-out': '02/26/2026', 'Load date': '02/27/2026' }]))
-    expect(parsed.rowErrors).toEqual([])
-    expect(parsed.bookings[0]).toMatchObject({ hand_in_date: '2026-02-25', hand_out_date: '2026-02-26', movement_date: '2026-02-27' })
+    expect(parsed.bookings[0]).toMatchObject({ hand_in_date: null, hand_out_date: null, movement_date: null })
+    expect(parsed.rowErrors.map((error) => error.message)).toEqual([
+      'Container ABCD1234570: data de entrada inválida ("02/25/2026" não é uma data válida).',
+      'Container ABCD1234570: data de saída inválida ("02/26/2026" não é uma data válida).',
+      'Container ABCD1234570: data de embarque inválida ("02/27/2026" não é uma data válida).',
+    ])
   })
   it('processa o modelo xlsx publicado pela tela', async () => {
     const buffer = readFileSync(resolve(process.cwd(), 'public/templates/unidades-embarcadas-modelo.xlsx'))
@@ -54,29 +61,49 @@ describe('parser de vazios — novo contrato', () => {
     expect(parsed.bookings[0].hand_in_date).toBeNull()
     expect(parsed.rowErrors.map((error) => error.message).join(' ')).toContain('data de entrada')
   })
-  it('mantem a mesma convencao de data para todas as linhas da coluna, mesmo com uma linha ambigua', async () => {
-    // '07/01/2026' sozinho seria ambiguo (ambos <=12); a segunda linha
-    // desambigua a coluna inteira como MM/DD (mes 25 so existe como dia).
+  it('05/03/2026 é 5 de março mesmo com 03/15/2026 em outra linha: não infere MM/DD pelo arquivo', async () => {
     const parsed = await parseVaziosManifestBuffer(await makeBuffer([
-      { Container: 'ABCD1234572', Depot: 'VBR', Condition: 'vazio', 'Hand-in': '07/01/2026' },
-      { Container: 'ABCD1234573', Depot: 'VBR', Condition: 'vazio', 'Hand-in': '07/25/2026' },
+      { Container: 'ABCD1234572', Depot: 'VBR', Condition: 'vazio', 'Hand-in': '05/03/2026' },
+      { Container: 'ABCD1234573', Depot: 'VBR', Condition: 'vazio', 'Hand-in': '03/15/2026' },
     ]))
-    expect(parsed.rowErrors).toEqual([])
-    expect(parsed.bookings[0].hand_in_date).toBe('2026-07-01')
-    expect(parsed.bookings[1].hand_in_date).toBe('2026-07-25')
+    expect(parsed.bookings.map((booking) => booking.hand_in_date)).toEqual(['2026-03-05', null])
+    expect(parsed.rowErrors).toEqual([
+      expect.objectContaining({ row: 3, message: expect.stringContaining('data de entrada inválida') }),
+    ])
   })
-  it('usa a convencao desambiguada por ENTRADA/EMBARQUE mesmo quando a coluna SAIDA nunca desambigua sozinha', async () => {
-    // Bug real: todas as linhas de 'Hand-out' tem dia e mes <=12 (nunca
-    // desambigua sozinha), mas a planilha inteira esta em MM/DD (evidencia em
-    // 'Hand-in'). Sem combinar as tres colunas, 'Hand-out' cairia no
-    // fallback DD/MM e inflaria a saida em ate 30 dias.
-    const parsed = await parseVaziosManifestBuffer(await makeBuffer([
-      { Container: 'ABCD1234580', Depot: 'VBR', Condition: 'vazio', 'Hand-in': '2/25/2026', 'Hand-out': '7/8/2026', 'Load date': '7/10/2026' },
-      { Container: 'ABCD1234581', Depot: 'VBR', Condition: 'vazio', 'Hand-in': '2/18/2026', 'Hand-out': '7/10/2026', 'Load date': '7/10/2026' },
-    ]))
+  it('aceita data com hora, em texto ou em célula de data/hora do Excel', async () => {
+    const XLSX = await import('@e965/xlsx')
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['Container', 'Depot', 'Condition', 'Hand-in', 'Hand-out'],
+      ['ABCD1234575', 'VBR', 'vazio', '2026-07-01 08:30', '05/07/2026 17:45'],
+    ])
+    // 02/07/2026 08:30 como o Excel grava: serial com formato de data e hora.
+    sheet.D3 = { t: 'n', v: 46205 + 8.5 / 24, z: 'dd/mm/yyyy hh:mm' }
+    sheet.A3 = { t: 's', v: 'ABCD1234576' }; sheet.B3 = { t: 's', v: 'VBR' }; sheet.C3 = { t: 's', v: 'vazio' }
+    sheet['!ref'] = 'A1:E3'
+    const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, 'Sheet1')
+    const parsed = await parseVaziosManifestBuffer(XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
     expect(parsed.rowErrors).toEqual([])
-    expect(parsed.bookings[0]).toMatchObject({ hand_in_date: '2026-02-25', hand_out_date: '2026-07-08', movement_date: '2026-07-10' })
-    expect(parsed.bookings[1]).toMatchObject({ hand_in_date: '2026-02-18', hand_out_date: '2026-07-10', movement_date: '2026-07-10' })
+    expect(parsed.bookings.map((booking) => [booking.hand_in_date, booking.hand_out_date])).toEqual([
+      ['2026-07-01', '2026-07-05'],
+      ['2026-07-02', null],
+    ])
+  })
+  it('devolve os avisos do leitor e o que ficou oculto, para a tela confirmar antes de gravar', async () => {
+    const XLSX = await import('@e965/xlsx')
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['Container', 'Depot', 'Condition'],
+      ['ABCD1234577', 'VBR', 'vazio'],
+      ['ABCD1234578', 'VIX', 'vazio'],
+      ['ABCD1234579', 'VIX', 'vazio'],
+    ])
+    // Planilha filtrada pelo depot VBR: as linhas do VIX estão ocultas.
+    sheet['!rows'] = [{}, {}, { hidden: true }, { hidden: true }]
+    const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, 'Sheet1')
+    const parsed = await parseVaziosManifestBuffer(XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
+    expect(parsed.bookings.map((booking) => booking.container_number)).toEqual(['ABCD1234577'])
+    expect(parsed.hidden).toEqual({ rows: 2, sheets: [] })
+    expect(parsed.warnings).toEqual(['2 linhas ocultas ignoradas: o filtro da planilha indica importar só o visível.'])
   })
   it('nao le um numero pequeno digitado por engano como serial Excel', async () => {
     const parsed = await parseVaziosManifestBuffer(await makeBuffer([{ Container: 'ABCD1234574', Depot: 'VBR', Condition: 'vazio', 'Hand-in': '2026' }]))

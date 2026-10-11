@@ -133,7 +133,9 @@ export async function fetchDemurrageKPIs(): Promise<DemurrageKPIs> {
 }
 
 export async function parsePixExtract(arrayBuffer: ArrayBuffer): Promise<PixTransaction[]> {
-  const { matrix } = await readSheet(arrayBuffer)
+  // `rowNumbers`: linha física de cada linha da matriz. Com linhas ocultas
+  // fora da matriz, o índice não é mais a linha da planilha.
+  const { matrix, rowNumbers } = await readSheet(arrayBuffer)
   const rows = matrix
 
   let headerRowIdx = -1
@@ -153,6 +155,17 @@ export async function parsePixExtract(arrayBuffer: ArrayBuffer): Promise<PixTran
 
   if (colId === -1) throw new Error('Coluna "identificador" não encontrada.')
   if (colValue === -1) throw new Error('Coluna "valor pago" não encontrada.')
+  // Duas colunas para o mesmo campo bloqueiam (ADR 0078, item 22): ler a
+  // primeira em silêncio poderia baixar o valor da coluna errada.
+  const repeated = [
+    ['identificador', headers.filter((h) => h === 'identificador').length],
+    ['CPF/CNPJ', headers.filter((h) => h.includes('cpf') || h.includes('cnpj')).length],
+    ['pago em', headers.filter((h) => h.includes('pago em')).length],
+    ['valor pago', headers.filter((h) => h.includes('valor pago')).length],
+  ].filter(([, count]) => Number(count) > 1).map(([label]) => `"${label}"`)
+  if (repeated.length) {
+    throw new Error(`A coluna ${repeated.join(', ')} aparece mais de uma vez no cabeçalho do extrato. Deixe só uma e importe de novo.`)
+  }
 
   const transactions: PixTransaction[] = []
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
@@ -173,7 +186,7 @@ export async function parsePixExtract(arrayBuffer: ArrayBuffer): Promise<PixTran
     if (amount <= 0) continue
 
     const cnpj = colCnpj >= 0 ? String(row[colCnpj] ?? '').trim() : ''
-    transactions.push({ txid, cnpj, date, amount, lineNumber: i + 1 })
+    transactions.push({ txid, cnpj, date, amount, lineNumber: rowNumbers[i] ?? i + 1 })
   }
   return transactions
 }

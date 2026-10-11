@@ -34,6 +34,21 @@ describe('arquivo "Exportar Tela" da ZPT', () => {
     expect(parsed.rows).toHaveLength(1)
     expect(parsed.rowErrors).toHaveLength(1)
   })
+  // Revisão da PR 929 (E3-08): o "Exportar Tela" filtrado na planilha perdia
+  // as linhas ocultas sem aviso; o resultado da leitura devolve o aviso.
+  it('devolve o aviso das linhas ocultas ignoradas', async () => {
+    const sheet = XLSX.utils.aoa_to_sheet([
+      HEADER,
+      [1, 'BL1', 122605325622422, 'X', 'Bloqueado', '', OPERATOR, '', '', 'Não', 'Não', 'Não', 'Não'],
+      [2, 'BL2', 122605331512625, 'X', 'Bloqueado', '', OPERATOR, '', '', 'Não', 'Não', 'Não', 'Não'],
+    ])
+    sheet['!rows'] = [{}, {}, { hidden: true }]
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, sheet, 'Worksheet')
+    const parsed = await parseCeUnlockZptFile(XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
+    expect(parsed.rows.map((row) => row.ce)).toEqual(['122605325622422'])
+    expect(parsed.warnings).toEqual(['1 linha oculta ignorada: o filtro da planilha indica importar só o visível.'])
+  })
   it('interpreta data e hora de Brasília e rejeita formato desconhecido', () => {
     expect(parseZptDateTime('06/10/2026 16:29:08')).toBe('2026-10-06T16:29:08-03:00')
     expect(parseZptDateTime('06/10/2026')).toBe('2026-10-06T00:00:00-03:00')

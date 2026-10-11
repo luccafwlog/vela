@@ -93,6 +93,7 @@ vi.mock("../../services/vaziosExportOperations", () => ({
 }));
 
 import { EmbarqueVazios } from "../EmbarqueVazios";
+import { importVaziosManifest, parseVaziosManifestFile } from "../../services/vaziosImport";
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -348,5 +349,65 @@ describe("EmbarqueVazios", () => {
         embarkPort: "BRVIX",
       }),
     );
+  });
+
+  describe("Importar planilha de Unidades Embarcadas com linhas ocultas", () => {
+    const parsedWith = (hidden: { rows: number; sheets: string[] }) => ({
+      bookings: [{ rowNumber: 2, container_number: "MSCU1234567", container_type: "40HC", local_code: "VBR", condition: "vazio" as const, hand_in_date: null, hand_out_date: null, movement_date: null }],
+      rowErrors: [],
+      warnings: [],
+      hidden,
+    });
+
+    async function chooseFileAndImport() {
+      render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+      await selectOperation();
+      fireEvent.click(screen.getByRole("button", { name: /Importar planilha/i }));
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [new File(["x"], "unidades.xlsx")] } });
+      fireEvent.click(await screen.findByRole("button", { name: /^Importar$/i }));
+    }
+
+    beforeEach(() => {
+      mocks.confirm.mockReset();
+      vi.mocked(importVaziosManifest).mockReset().mockResolvedValue({ manifestId: "m1" });
+      vi.mocked(parseVaziosManifestFile).mockReset();
+    });
+
+    // Revisão da PR 929 (E3-02): planilha filtrada por depot — as linhas
+    // ocultas eram ignoradas sem aviso e a reimportação tirava as unidades
+    // delas do Embarque.
+    it("pergunta antes de gravar e não grava quando o operador volta", async () => {
+      vi.mocked(parseVaziosManifestFile).mockResolvedValue(parsedWith({ rows: 2, sheets: [] }));
+      mocks.confirm.mockResolvedValue(false);
+
+      await chooseFileAndImport();
+
+      await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
+        message: "2 linhas ocultas foram ignoradas e as unidades delas sairão do Embarque. Continuar?",
+      })));
+      expect(importVaziosManifest).not.toHaveBeenCalled();
+    });
+
+    it("grava depois da confirmação explícita", async () => {
+      vi.mocked(parseVaziosManifestFile).mockResolvedValue(parsedWith({ rows: 0, sheets: ["Rascunho"] }));
+      mocks.confirm.mockResolvedValue(true);
+
+      await chooseFileAndImport();
+
+      await waitFor(() => expect(importVaziosManifest).toHaveBeenCalledTimes(1));
+      expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'A aba oculta "Rascunho" foi ignorada; se ela tiver unidades, elas sairão do Embarque. Continuar?',
+      }));
+    });
+
+    it("sem nada oculto, grava sem perguntar", async () => {
+      vi.mocked(parseVaziosManifestFile).mockResolvedValue(parsedWith({ rows: 0, sheets: [] }));
+
+      await chooseFileAndImport();
+
+      await waitFor(() => expect(importVaziosManifest).toHaveBeenCalledTimes(1));
+      expect(mocks.confirm).not.toHaveBeenCalled();
+    });
   });
 });

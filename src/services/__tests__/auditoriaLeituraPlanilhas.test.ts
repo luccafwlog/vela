@@ -383,6 +383,26 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       expect(parsed.rowErrors).toEqual([])
       expect(parsed.rows.map((row) => [row.cnpj_cpf, row.zip])).toEqual([['00205000000128', '01205000']])
     })
+
+    // Revisão da PR 929 (E3-06): o Excel grava o literal da máscara escapado
+    // (`00000\-000`) ou entre aspas; a máscara de CNPJ com "/" o SheetJS
+    // desenha como fração. O CEP chegava como o número 1205000 e a linha era
+    // recusada; o CNPJ, como "205000.000.128/1".
+    it('CEP e CNPJ com máscara de literal escapado ou entre aspas mantêm os zeros', async () => {
+      const buffer = await xlsxBuffer([
+        ['CNPJ', 'Razão Social', 'E-mail', 'CEP'],
+        [{ n: 205000000128, z: '00\\.000\\.000\\/0000\\-00' }, 'A205 CLIENTE TESTE LTDA', 'a205@example.com', { n: 1205000, z: '00000\\-000' }],
+        [{ n: 205000000209, z: '00"."000"."000"/"0000"-"00' }, 'A205 OUTRO CLIENTE LTDA', 'a205b@example.com', { n: 1205001, z: '00000"-"000' }],
+      ])
+      expect(await storedCell(buffer, 'D2')).toMatchObject({ t: 'n', v: 1205000, z: '00000\\-000' })
+
+      const parsed = await parseCustomerBaseFile(new File([buffer], 'clientes-a205.xlsx'))
+      expect(parsed.rowErrors).toEqual([])
+      expect(parsed.rows.map((row) => [row.cnpj_cpf, row.zip])).toEqual([
+        ['00205000000128', '01205000'],
+        ['00205000000209', '01205001'],
+      ])
+    })
   })
 
   describe('Causa explícita para identificador em célula numérica (Etapa 3)', () => {

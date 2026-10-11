@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
+import { inspectImportUpload } from '../../../services/importText'
 import { ToastProvider } from '../../ui/Toast'
 import { FileImportModal } from '../FileImportModal'
 
@@ -218,4 +219,35 @@ it('mantém a prévia aberta e explica quando a gravação falha', async () => {
   expect(screen.getByText('Viagem não encontrada.')).toBeTruthy()
   expect(screen.getByText('Linhas: 1')).toBeTruthy()
   expect(onClose).not.toHaveBeenCalled()
+})
+
+// ADR 0078, item 22: CSV Windows-1252 é aceito com aviso. O diagnóstico roda
+// antes do parser; recusar ali barrava o Manifesto BB, os Vazios de Importação
+// e Chegadas/Saídas com "Bytes inválidos em UTF-8".
+it('lê o CSV Windows-1252 pelo diagnóstico comum, sem falha de leitura', async () => {
+  const parser = vi.fn(async () => ({ rows: 1 }))
+  const { container } = render(
+    <ToastProvider>
+      <FileImportModal
+        title="Importar arquivo"
+        accept=".csv"
+        parser={parser}
+        inspectFile={inspectImportUpload}
+        canImport={() => true}
+        renderPreview={(preview) => <div>Linhas: {preview.rows}</div>}
+        onClose={vi.fn()}
+      />
+    </ToastProvider>,
+  )
+
+  // "BL;Cidade\n1;São" em Windows-1252.
+  const bytes = Uint8Array.from([0x42, 0x4c, 0x3b, 0x43, 0x69, 0x64, 0x61, 0x64, 0x65, 0x0a, 0x31, 0x3b, 0x53, 0xe3, 0x6f])
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File([bytes], 'ansi.csv')] },
+  })
+
+  expect(await screen.findByText('Linhas: 1')).toBeTruthy()
+  expect(parser).toHaveBeenCalled()
+  expect(screen.getByLabelText('Diagnóstico do arquivo').textContent).toContain('Encoding: Windows-1252')
+  expect(screen.queryByText('Não foi possível ler o arquivo')).toBeNull()
 })

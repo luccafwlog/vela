@@ -79,18 +79,34 @@ export function importDateOrNull(value: unknown): string | null {
 }
 
 /**
- * Data civil de um serial do Excel (sistema 1900), sem passar por `Date` no
- * fuso do navegador. Usado pelo leitor comum ao entregar a célula de data.
+ * Data civil de um serial do Excel, sem passar por `Date` no fuso do
+ * navegador. Usado pelo leitor comum ao entregar a célula de data.
+ *
+ * `date1904`: pasta gravada no sistema de datas 1904 (Excel antigo de Mac,
+ * `Workbook.WBProps.date1904`), em que o serial 0 é 01/01/1904 — 1462 dias
+ * depois do serial 0 do sistema 1900. Sem a flag, a data sairia 4 anos e 1 dia
+ * antes.
  */
-export function excelSerialToCivil(serial: number): { date: string; time: string | null } | null {
-  if (!Number.isFinite(serial) || serial < 1) return null
-  const whole = Math.floor(serial)
-  // 1900 é tratado pelo Excel como bissexto: o serial 60 é o inexistente 29/02/1900.
-  // O serial 25569 é 01/01/1970; a conversão é aritmética de calendário pura.
+export function excelSerialToCivil(
+  serial: number,
+  options: { date1904?: boolean } = {},
+): { date: string; time: string | null } | null {
+  if (!Number.isFinite(serial)) return null
+  const serial1900 = options.date1904 ? serial + 1462 : serial
+  // Arredonda ao segundo ANTES de separar dia e hora: o serial é uma fração
+  // binária, e 46236 − 1e-9 (meia-noite) não pode cair no dia anterior às
+  // 23:59. A hora entregue é HH:MM truncada, como o Excel mostra em "hh:mm"
+  // (16:29:40 é 16:29, não 16:30).
+  const totalSeconds = Math.round(serial1900 * 86_400)
+  const whole = Math.floor(totalSeconds / 86_400)
+  if (whole < 1) return null
+  // 1900 é tratado pelo Excel como bissexto: o serial 60 é o inexistente 29/02/1900
+  // (lido como 01/03/1900). O serial 25569 é 01/01/1970; a conversão é
+  // aritmética de calendário pura.
   const { year, month, day } = civilFromDays(whole - 25569 + (whole <= 60 ? 1 : 0))
   const date = civil(year, month, day)
-  const minutes = Math.round((serial - whole) * 1440)
-  if (minutes <= 0 || minutes >= 1440) return { date, time: null }
+  const minutes = Math.floor((totalSeconds - whole * 86_400) / 60)
+  if (minutes <= 0) return { date, time: null }
   return { date, time: `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}` }
 }
 

@@ -30,14 +30,13 @@ export function createHeaderMapper(
 ): (row: Record<string, unknown>) => Record<string, unknown> {
   const colMapping: Record<string, string> = {}
   const columnByField = new Map<string, string>()
-  for (const originalKey of Object.keys(sampleRow)) {
-    const normalized = normalizeHeader(originalKey)
+  const keys = Object.keys(sampleRow)
+  for (const originalKey of keys) {
+    const normalized = normalizeHeader(fileHeader(originalKey, keys))
     const mapped = headerMap[normalized]
     if (!mapped) continue
     const previous = columnByField.get(mapped)
-    if (previous !== undefined) {
-      throw new Error(`As colunas "${previous}" e "${originalKey}" são o mesmo campo. Deixe só uma e importe de novo.`)
-    }
+    if (previous !== undefined) throw sameFieldError([previous, originalKey], keys)
     columnByField.set(mapped, originalKey)
     colMapping[originalKey] = mapped
   }
@@ -57,15 +56,17 @@ export function createHeaderMapper(
  * - texto é texto; CSV é sempre texto (o SheetJS nunca reinterpreta `12,5`
  *   nem `05/03/2026`);
  * - célula numérica é `number`, exceto quando o formato é uma máscara de zeros
- *   (`00000000000000`, `00000-000`), que entrega o texto exibido (CNPJ e CEP
- *   não perdem os zeros à esquerda);
+ *   (`00000000000000`, `00000\-000`, `00"."000"."000"/"0000"-"00`), que
+ *   entrega o texto com os zeros à esquerda (CNPJ e CEP não perdem os zeros);
  * - célula de data do Excel é a data civil `AAAA-MM-DD` (ou
- *   `AAAA-MM-DD HH:MM`), calculada do serial, sem fuso do navegador
- *   (`src/lib/importDate.ts`).
+ *   `AAAA-MM-DD HH:MM`), calculada do serial, sem fuso do navegador, no
+ *   sistema de datas da pasta (1900 ou 1904; `src/lib/importDate.ts`).
  *
  * Regras comuns: linhas e abas ocultas são ignoradas e contadas em
- * `warnings`; o mesmo cabeçalho duas vezes bloqueia; CSV Windows-1252 é aceito
- * com aviso.
+ * `warnings`; CSV Windows-1252 é aceito com aviso. O mesmo cabeçalho duas vezes
+ * não bloqueia a leitura — a repetição ganha sufixo (`Unit`, `Unit_1`) — e
+ * quem bloqueia "duas colunas para o mesmo campo" é o casamento com os campos
+ * do parser (`matchHeaders`, `createHeaderMapper`).
  */
 export type SheetReadOptions = {
   skipBlankRows?: boolean
@@ -86,41 +87,70 @@ export type SheetCellValue = string | number | boolean
 export type SheetContent = {
   headers: string[]
   matrix: SheetCellValue[][]
+  /** Linha física (1-based) de cada linha de `matrix`: as ocultas não estão na matriz. */
+  rowNumbers: number[]
   rows: SheetRow[]
   headerRowIndex: number
   /** Avisos de leitura para a prévia (linhas/abas ocultas, Windows-1252). */
   warnings: string[]
+  /** O que ficou de fora por estar oculto: linhas com dado da aba lida e abas ocultas. */
+  hidden: { rows: number; sheets: string[] }
 }
 
 /** Linha de planilha com a linha física 1-based preservada da origem. */
 export type SheetRow = Record<string, unknown> & { readonly rowNumber: number }
 
 type XlsxModule = typeof import('@e965/xlsx')
+type XlsxWorkbook = import('@e965/xlsx').WorkBook
 type XlsxCell = { t?: string; v?: unknown; w?: string; z?: string | number }
 
-// Máscara de zeros: o formato existe para mostrar zeros à esquerda (CNPJ, CEP,
-// CPF). `0`, `0.00` e `#,##0` são formatos numéricos e entregam o número.
-function isZeroMask(format: string): boolean {
-  const mask = format.replace(/"/g, '')
-  if (!/^[0\-./ ()]+$/.test(mask)) return false
-  if (/^0+(\.0+)?$/.test(mask)) return mask.replace(/\..*$/, '').length >= 4
-  return (mask.match(/0/g) ?? []).length >= 4
+/** Pasta gravada no sistema de datas 1904 (Excel antigo de Mac). */
+export function isDate1904Workbook(workbook: XlsxWorkbook): boolean {
+  return Boolean(workbook.Workbook?.WBProps?.date1904)
+}
+
+/**
+ * Texto de uma célula numérica com máscara de zeros (CNPJ, CEP, CPF), ou
+ * `null` quando o formato não é máscara de zeros: `0`, `0.00` e `#,##0` são
+ * formatos numéricos e entregam o número.
+ *
+ * O literal da máscara pode vir escapado (`00000\-000`) ou entre aspas
+ * (`00"."000"."000"/"0000"-"00`). O texto desenhado pelo SheetJS (`cell.w`) só
+ * vale quando traz os mesmos dígitos: a máscara de CNPJ com "/" sai desenhada
+ * como fração (`205000.000.128/1`), e aí vale o número com os zeros à esquerda
+ * que a máscara mostra.
+ */
+function zeroMaskText(value: number, format: string, shown: string | undefined): string | null {
+  const literal = format.replace(/\\(.)/g, '$1').replace(/"/g, '')
+  if (!/^[0\-./ ()]+$/.test(literal)) return null
+  // `0000.00`: ponto decimal sem escape — o texto exibido é o próprio número.
+  if (/^0+\.0+$/.test(format)) return format.indexOf('.') >= 4 ? shown ?? String(value) : null
+  const digits = (literal.match(/0/g) ?? []).length
+  if (digits < 4) return null
+  if (!Number.isFinite(value) || value < 0) return shown ?? String(value)
+  const padded = String(Math.round(value)).padStart(digits, '0')
+  return shown !== undefined && shown.replace(/\D/g, '') === padded ? shown : padded
 }
 
 /** Valor tipado de uma célula de planilha binária (XLSX/XLS). */
-export function typedCellValue(cell: XlsxCell | undefined, XLSX: XlsxModule): SheetCellValue {
+export function typedCellValue(
+  cell: XlsxCell | undefined,
+  XLSX: XlsxModule,
+  /** `date1904`: o serial de data é do sistema 1904 (`isDate1904Workbook`). */
+  options: { date1904?: boolean } = {},
+): SheetCellValue {
   if (!cell || cell.v === undefined || cell.v === null) return ''
   switch (cell.t) {
     case 'n': {
       const value = Number(cell.v)
       const format = typeof cell.z === 'string' ? cell.z : typeof cell.z === 'number' ? String(XLSX.SSF.get_table()[cell.z] ?? '') : ''
       if (format && XLSX.SSF.is_date(format)) {
-        const civil = excelSerialToCivil(value)
+        const civil = excelSerialToCivil(value, { date1904: options.date1904 })
         if (!civil) return ''
         return civil.time ? `${civil.date} ${civil.time}` : civil.date
       }
-      if (format && isZeroMask(format)) return cell.w ?? String(value)
-      return value
+      const masked = format ? zeroMaskText(value, format, cell.w) : null
+      return masked ?? value
     }
     case 'b':
       return Boolean(cell.v)
@@ -132,12 +162,35 @@ export function typedCellValue(cell: XlsxCell | undefined, XLSX: XlsxModule): Sh
   }
 }
 
+/** Conta as linhas ocultas que têm alguma célula (as vazias não fazem falta). */
+function countHiddenRows(sheet: Record<string, unknown>, XLSX: XlsxModule): number {
+  const ref = typeof sheet['!ref'] === 'string' ? sheet['!ref'] : null
+  if (!ref) return 0
+  const range = XLSX.utils.decode_range(ref)
+  const rowInfo = (sheet['!rows'] ?? []) as Array<{ hidden?: boolean } | undefined>
+  let hiddenRows = 0
+  for (let r = range.s.r; r <= range.e.r; r += 1) {
+    if (rowInfo[r]?.hidden && rowHasCell(sheet, XLSX, r, range.s.c, range.e.c)) hiddenRows += 1
+  }
+  return hiddenRows
+}
+
+function rowHasCell(sheet: Record<string, unknown>, XLSX: XlsxModule, r: number, first: number, last: number) {
+  for (let c = first; c <= last; c += 1) {
+    if (sheet[XLSX.utils.encode_cell({ r, c })] !== undefined) return true
+  }
+  return false
+}
+
 /** Matriz tipada da aba, sem as linhas ocultas; `rowNumbers` guarda a linha física. */
 export function typedSheetMatrix(
   sheet: Record<string, unknown>,
   XLSX: XlsxModule,
-  /** `keepHidden` mantém a posição física das linhas (layouts posicionais, como o B/L). */
-  options: { textOnly?: boolean; keepHidden?: boolean } = {},
+  /**
+   * `keepHidden` mantém a posição física das linhas (layouts posicionais, como
+   * o B/L); `date1904` vem de `isDate1904Workbook` da pasta.
+   */
+  options: { textOnly?: boolean; keepHidden?: boolean; date1904?: boolean } = {},
 ) {
   const ref = typeof sheet['!ref'] === 'string' ? sheet['!ref'] : null
   const matrix: SheetCellValue[][] = []
@@ -148,15 +201,15 @@ export function typedSheetMatrix(
   const rowInfo = (sheet['!rows'] ?? []) as Array<{ hidden?: boolean } | undefined>
   for (let r = range.s.r; r <= range.e.r; r += 1) {
     if (rowInfo[r]?.hidden && !options.keepHidden) {
-      const hasContent = Array.from({ length: range.e.c - range.s.c + 1 }, (_, i) => sheet[XLSX.utils.encode_cell({ r, c: range.s.c + i })])
-        .some((cell) => cell !== undefined)
-      if (hasContent) hiddenRows += 1
+      if (rowHasCell(sheet, XLSX, r, range.s.c, range.e.c)) hiddenRows += 1
       continue
     }
     const row: SheetCellValue[] = []
     for (let c = range.s.c; c <= range.e.c; c += 1) {
       const cell = sheet[XLSX.utils.encode_cell({ r, c })] as XlsxCell | undefined
-      row.push(options.textOnly ? (cell?.v === undefined || cell?.v === null ? '' : String(cell.v)) : typedCellValue(cell, XLSX))
+      row.push(options.textOnly
+        ? (cell?.v === undefined || cell?.v === null ? '' : String(cell.v))
+        : typedCellValue(cell, XLSX, { date1904: options.date1904 }))
     }
     matrix.push(row)
     rowNumbers.push(r + 1)
@@ -164,10 +217,10 @@ export function typedSheetMatrix(
   return { matrix, rowNumbers, hiddenRows }
 }
 
-export async function readSheet(buffer: ArrayBuffer, options: SheetReadOptions = {}): Promise<SheetContent> {
+/** Pasta aberta pelo leitor comum, com o aviso de encoding do CSV. */
+async function openWorkbook(buffer: ArrayBuffer, allowWindows1252Fallback: boolean) {
   const XLSX = await import('@e965/xlsx')
   const { decodeImportBytes, detectImportFormat } = await import('./importText')
-  const allowWindows1252Fallback = options.allowWindows1252Fallback ?? true
   const warnings: string[] = []
   // XLS/XLSX binário nunca passa pelo decoder textual. CSV é texto com BOM e
   // UTF-8; Windows-1252 (CSV salvo pelo Excel em "CSV (separado por vírgulas)")
@@ -175,7 +228,7 @@ export async function readSheet(buffer: ArrayBuffer, options: SheetReadOptions =
   const format = detectImportFormat(buffer, { allowWindows1252Fallback })
   if (format === 'edi') throw new Error('Arquivo EDI recebido no leitor de planilhas. Use o parser EDI correspondente.')
   const isText = format !== 'xlsx' && format !== 'xls'
-  let workbook: import('@e965/xlsx').WorkBook
+  let workbook: XlsxWorkbook
   if (isText) {
     const decoded = decodeImportBytes(buffer, { allowWindows1252Fallback })
     if (decoded.encoding === 'windows-1252') {
@@ -186,39 +239,68 @@ export async function readSheet(buffer: ArrayBuffer, options: SheetReadOptions =
   } else {
     workbook = XLSX.read(buffer, { type: 'array', cellNF: true, cellStyles: true, dense: false })
   }
-
   const sheetMeta = workbook.Workbook?.Sheets ?? []
-  const visibleNames = workbook.SheetNames.filter((name, index) => {
-    const hidden = Number(sheetMeta[index]?.Hidden ?? 0) !== 0
-    if (hidden) warnings.push(`Aba oculta "${name}" ignorada.`)
-    return !hidden
+  const visibleNames: string[] = []
+  const hiddenNames: string[] = []
+  workbook.SheetNames.forEach((name, index) => {
+    if (Number(sheetMeta[index]?.Hidden ?? 0) !== 0) hiddenNames.push(name)
+    else visibleNames.push(name)
   })
+  for (const name of hiddenNames) warnings.push(`Aba oculta "${name}" ignorada.`)
+  const sheetOf = (name: string) => workbook.Sheets[name] as unknown as Record<string, unknown> | undefined
+  const hasData = (name: string) => {
+    const sheet = sheetOf(name)
+    return Boolean(sheet) && Object.keys(sheet!).some((key) => !key.startsWith('!')
+      && String((sheet![key] as { v?: unknown }).v ?? '').trim() !== '')
+  }
+  return { XLSX, workbook, isText, date1904: isDate1904Workbook(workbook), warnings, visibleNames, hiddenNames, sheetOf, hasData }
+}
+
+function hiddenRowsWarning(hiddenRows: number, sheetName: string | null) {
+  const count = `${hiddenRows} ${hiddenRows === 1 ? 'linha oculta ignorada' : 'linhas ocultas ignoradas'}`
+  return `${count}${sheetName ? ` na aba "${sheetName}"` : ''}: o filtro da planilha indica importar só o visível.`
+}
+
+/** Os dados só existem em linhas ou abas ocultas: dizer onde estão, não "Planilha vazia.". */
+const HIDDEN_DATA_MESSAGE = 'Os dados estão em linhas ou abas ocultas, que são ignoradas; reexiba-as ou copie para uma aba visível.'
+
+export async function readSheet(buffer: ArrayBuffer, options: SheetReadOptions = {}): Promise<SheetContent> {
+  const book = await openWorkbook(buffer, options.allowWindows1252Fallback ?? true)
+  const { XLSX, visibleNames, hiddenNames, sheetOf, hasData } = book
+  const warnings = [...book.warnings]
   if (options.singleDataSheet) {
-    const withData = visibleNames.filter((name) => {
-      const candidate = workbook.Sheets[name] as Record<string, unknown> | undefined
-      return Boolean(candidate) && Object.keys(candidate!).some((key) => !key.startsWith('!')
-        && String((candidate![key] as { v?: unknown }).v ?? '').trim() !== '')
-    })
+    const withData = visibleNames.filter(hasData)
     if (withData.length > 1) {
       throw new Error(`O arquivo tem mais de uma aba com dados (${withData.join(', ')}): deixe só a aba do CE Mercante e importe de novo.`)
     }
   }
-  const sheetName = visibleNames[options.sheetIndex ?? 0]
-  const sheet = sheetName ? workbook.Sheets[sheetName] : undefined
-  if (!sheet) throw new Error('Arquivo sem abas validas.')
-
-  const { matrix, rowNumbers, hiddenRows } = typedSheetMatrix(sheet as unknown as Record<string, unknown>, XLSX, { textOnly: isText })
-  if (hiddenRows > 0) {
-    warnings.push(`${hiddenRows} ${hiddenRows === 1 ? 'linha oculta ignorada' : 'linhas ocultas ignoradas'}: o filtro da planilha indica importar só o visível.`)
+  const sheetIndex = options.sheetIndex ?? 0
+  const sheetName = visibleNames[sheetIndex]
+  const sheet = sheetName ? sheetOf(sheetName) : undefined
+  const dataInHiddenSheet = hiddenNames.some(hasData)
+  if (!sheet) {
+    if (!visibleNames.length && dataInHiddenSheet) throw new Error(HIDDEN_DATA_MESSAGE)
+    throw new Error('Arquivo sem abas validas.')
   }
-  if (!matrix.length) throw new Error('Planilha vazia.')
+
+  const { matrix, rowNumbers, hiddenRows } = typedSheetMatrix(sheet, XLSX, { textOnly: book.isText, date1904: book.date1904 })
+  if (hiddenRows > 0) warnings.push(hiddenRowsWarning(hiddenRows, visibleNames.length > 1 ? sheetName : null))
+  // Aba sem nenhuma linha visível com dado: se o dado está escondido (linhas
+  // ocultas desta aba, ou aba oculta sem outra visível com dado), o erro diz
+  // onde ele está. Com outra aba visível com dado, segue "Planilha vazia." — o
+  // leitor de Veículos percorre as abas e pula a vazia.
+  const emptyError = () => new Error(
+    hiddenRows > 0 || (dataInHiddenSheet && !visibleNames.some((name, index) => index !== sheetIndex && hasData(name)))
+      ? HIDDEN_DATA_MESSAGE
+      : 'Planilha vazia.',
+  )
+  if (!matrix.length) throw emptyError()
   const headerRowIndex = options.expectedHeaders
     ? locateHeaderRowIndex(matrix, options.expectedHeaders, options.headerWindow ?? 5)
     : 0
   if (headerRowIndex < 0) throw new Error('Cabeçalho não encontrado na janela inicial da planilha.')
 
-  const headers = (matrix[headerRowIndex] ?? []).map((cell) => String(cell ?? '').trim())
-  assertUniqueHeaders(headers)
+  const headers = dedupeHeaders((matrix[headerRowIndex] ?? []).map((cell) => String(cell ?? '').trim()))
 
   const skipBlank = options.skipBlankRows ?? true
   const rows: SheetRow[] = []
@@ -239,32 +321,72 @@ export async function readSheet(buffer: ArrayBuffer, options: SheetReadOptions =
     })
     rows.push(data as SheetRow)
   }
-  if (!rows.length) throw new Error('Planilha vazia.')
-  return { headers, matrix, rows, headerRowIndex, warnings }
-}
-
-/** O mesmo cabeçalho duas vezes: a importação não escolhe uma das colunas pelo arquivo. */
-export function assertUniqueHeaders(headers: readonly string[]) {
-  const seen = new Map<string, string>()
-  for (const header of headers) {
-    const key = normalizeHeader(header)
-    if (!key) continue
-    const previous = seen.get(key)
-    if (previous !== undefined) {
-      throw new Error(`A coluna "${header}" aparece duas vezes no cabeçalho. Deixe só uma e importe de novo.`)
-    }
-    seen.set(key, header)
-  }
+  if (!rows.length) throw emptyError()
+  return { headers, matrix, rowNumbers, rows, headerRowIndex, warnings, hidden: { rows: hiddenRows, sheets: hiddenNames } }
 }
 
 /**
- * Avisos de leitura de uma planilha escolhida, para a prévia: linhas e abas
- * ocultas ignoradas e CSV Windows-1252. Falha de leitura devolve lista vazia
- * (o erro aparece pelo parser do importador).
+ * O mesmo cabeçalho duas vezes não bloqueia a leitura: a repetição ganha
+ * sufixo (`Unit`, `Unit_1`), como o `sheet_to_json` do SheetJS fazia, e cada
+ * coluna continua com a sua chave na linha. Duas colunas para o MESMO CAMPO
+ * bloqueiam no casamento com os campos do parser (`matchHeaders`,
+ * `createHeaderMapper`), que reconhece a repetição renomeada (`fileHeader`).
+ * Coluna repetida que nenhum campo usa (duas "OBS", um título "Período …
+ * Período" na linha 1) não impede a importação.
+ */
+function dedupeHeaders(headers: readonly string[]): string[] {
+  const taken = new Set(headers)
+  const seen = new Set<string>()
+  return headers.map((header) => {
+    if (!header || !seen.has(header)) {
+      seen.add(header)
+      return header
+    }
+    let suffix = 1
+    while (taken.has(`${header}_${suffix}`)) suffix += 1
+    const renamed = `${header}_${suffix}`
+    taken.add(renamed)
+    return renamed
+  })
+}
+
+/**
+ * Cabeçalho como está no arquivo: `Unit_1` ao lado de `Unit` é a repetição
+ * renomeada por `dedupeHeaders`.
+ *
+ * ponytail: heurística pelo nome — um arquivo que traga de fato "Container" e
+ * "Container_1" também conta como repetição (e bloqueia, se for campo do
+ * parser). Upgrade: `readSheet` devolver o mapa das colunas renomeadas e o
+ * casamento de campos recebê-lo, no lugar do padrão `_N`.
+ */
+function fileHeader(header: string, headers: readonly string[]): string {
+  const repeated = /^(.*)_\d+$/.exec(header)
+  return repeated && headers.includes(repeated[1]) ? repeated[1] : header
+}
+
+function sameFieldError(columns: readonly string[], headers: readonly string[]): Error {
+  const shown = columns.map((column) => fileHeader(column, headers))
+  if (new Set(shown).size === 1) {
+    return new Error(`A coluna "${shown[0]}" aparece duas vezes no cabeçalho. Deixe só uma e importe de novo.`)
+  }
+  return new Error(`As colunas ${shown.map((header) => `"${header}"`).join(' e ')} são o mesmo campo. Deixe só uma e importe de novo.`)
+}
+
+/**
+ * Avisos de leitura de uma planilha escolhida, para a prévia: abas ocultas,
+ * linhas ocultas de CADA aba visível (o parser pode ler outra aba que não a
+ * primeira) e CSV Windows-1252. Não depende de a leitura dar certo: com o dado
+ * só em linhas ocultas, o aviso aparece junto do erro do parser. Falha ao abrir
+ * o arquivo devolve lista vazia (o erro aparece pelo parser do importador).
  */
 export async function readSpreadsheetWarnings(file: { arrayBuffer: () => Promise<ArrayBuffer> }): Promise<string[]> {
   try {
-    const { warnings } = await readSheet(await file.arrayBuffer(), { skipBlankRows: true })
+    const { XLSX, warnings, visibleNames, sheetOf } = await openWorkbook(await file.arrayBuffer(), true)
+    for (const name of visibleNames) {
+      const sheet = sheetOf(name)
+      const hiddenRows = sheet ? countHiddenRows(sheet, XLSX) : 0
+      if (hiddenRows > 0) warnings.push(hiddenRowsWarning(hiddenRows, visibleNames.length > 1 ? name : null))
+    }
     return warnings
   } catch {
     return []
@@ -307,12 +429,11 @@ export function matchHeaders<F extends string>(
   const columnByField: Partial<Record<F, string>> = {}
   for (const field of Object.keys(spec.aliases) as F[]) {
     const accepted = new Set(spec.aliases[field].map(normalizeHeader))
-    const found = headers.filter((header) => accepted.has(normalizeHeader(header)))
+    const found = headers.filter((header) => accepted.has(normalizeHeader(fileHeader(header, headers))))
     // Duas colunas para o mesmo campo bloqueiam (ADR 0078, item 22): escolher
-    // uma delas pela ordem do arquivo gravaria o valor errado sem aviso.
-    if (found.length > 1) {
-      throw new Error(`As colunas ${found.map((header) => `"${header}"`).join(' e ')} são o mesmo campo. Deixe só uma e importe de novo.`)
-    }
+    // uma delas pela ordem do arquivo gravaria o valor errado sem aviso. Vale
+    // também para o mesmo cabeçalho repetido, que o leitor renomeia (`Unit_1`).
+    if (found.length > 1) throw sameFieldError(found, headers)
     if (found[0] !== undefined) columnByField[field] = found[0]
   }
   const missing = spec.required.filter((field) => columnByField[field] === undefined)

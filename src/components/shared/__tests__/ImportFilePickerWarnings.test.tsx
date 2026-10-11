@@ -22,6 +22,35 @@ describe('ImportFilePicker — avisos de leitura', () => {
     expect(await screen.findByText('1 linha oculta ignorada: o filtro da planilha indica importar só o visível.')).toBeTruthy()
   })
 
+  // Revisão da PR 929 (E3-08): o aviso valia só para a primeira aba visível
+  // e sumia quando a leitura falhava (dado só em linhas ocultas).
+  it('avisa as linhas ocultas de outra aba visível, com o nome da aba', async () => {
+    const XLSX = await import('@e965/xlsx')
+    const veiculos = XLSX.utils.aoa_to_sheet([['Chassi'], ['VISI'], ['OCUL']])
+    veiculos['!rows'] = [{}, {}, { hidden: true }]
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Modelo do armador']]), 'Capa')
+    XLSX.utils.book_append_sheet(book, veiculos, 'Veiculos')
+    const file = new File([XLSX.write(book, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer], 'veiculos.xlsx')
+
+    render(<ImportFilePicker accept=".xlsx,.csv" files={[file]} onFiles={() => undefined} />)
+
+    expect(await screen.findByText('1 linha oculta ignorada na aba "Veiculos": o filtro da planilha indica importar só o visível.')).toBeTruthy()
+  })
+
+  it('avisa mesmo quando todo o dado está em linhas ocultas', async () => {
+    const XLSX = await import('@e965/xlsx')
+    const sheet = XLSX.utils.aoa_to_sheet([['Container'], ['OCUL1234567']])
+    sheet['!rows'] = [{}, { hidden: true }]
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, sheet, 'Plan1')
+    const file = new File([XLSX.write(book, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer], 'filtrada.xlsx')
+
+    render(<ImportFilePicker accept=".xlsx,.csv" files={[file]} onFiles={() => undefined} />)
+
+    expect(await screen.findByText('1 linha oculta ignorada: o filtro da planilha indica importar só o visível.')).toBeTruthy()
+  })
+
   it('sem nada oculto, não mostra aviso', async () => {
     const file = new File([new TextEncoder().encode('Container\nVISI1234567\n')], 'limpo.csv')
     render(<ImportFilePicker accept=".xlsx,.csv" files={[file]} onFiles={() => undefined} />)

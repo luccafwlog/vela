@@ -38,6 +38,8 @@ export type CeUnlockZptRow = {
 export type ParsedCeUnlockZptFile = {
   rows: CeUnlockZptRow[];
   rowErrors: Array<{ row: number; message: string }>;
+  /** Avisos do leitor comum (linhas e abas ocultas ignoradas, CSV Windows-1252), para mostrar antes de conciliar. */
+  warnings: string[];
 };
 
 /** "06/10/2026 16:29:08" (horário de Brasília) -> ISO; null se o formato for desconhecido. */
@@ -59,7 +61,7 @@ const isPending = (value: unknown) => /^n[aã]o$/i.test(asString(value));
 
 export async function parseCeUnlockZptFile(buffer: ArrayBuffer): Promise<ParsedCeUnlockZptFile> {
   // values:'cru' mantém o CE de 15 dígitos como número exato; formatado viraria notação científica.
-  const { headers, rows } = await readSheet(buffer);
+  const { headers, rows, warnings } = await readSheet(buffer);
   const { columnByField, missing } = matchHeaders(headers, SPEC);
   if (missing.length)
     throw new Error("Arquivo não reconhecido como exportação da ZPT: faltam as colunas CE e Status.");
@@ -85,7 +87,7 @@ export async function parseCeUnlockZptFile(buffer: ArrayBuffer): Promise<ParsedC
     });
   }
   if (!out.length) throw new Error("Nenhuma linha válida no arquivo da ZPT.");
-  return { rows: out, rowErrors };
+  return { rows: out, rowErrors, warnings };
 }
 
 const CHUNK = 5000;

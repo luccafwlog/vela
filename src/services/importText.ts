@@ -91,7 +91,13 @@ export function detectImportFormat(buffer: ArrayBuffer, options: DecodeImportByt
   return detectImportFormatFromDecoded(decoded)
 }
 
-/** Retorna o formato e uma prévia segura do texto já decodificado para o preview. */
+/**
+ * Retorna o formato e uma prévia segura do texto já decodificado para o preview.
+ *
+ * Mesmo padrão do leitor de planilhas (`readSheet`): CSV Windows-1252 é aceito
+ * e sinalizado no `encoding` (ADR 0078, item 22). Recusar aqui barrava o
+ * arquivo antes do parser, que o aceitaria com aviso. `false` recusa.
+ */
 export function inspectImportFile(
   buffer: ArrayBuffer,
   options: InspectImportFileOptions = {},
@@ -103,7 +109,7 @@ export function inspectImportFile(
     return { format: 'xls', encoding: null, hadBom: false, preview: null, byteLength: buffer.byteLength }
   }
 
-  const decoded = decodeImportBytes(buffer, options)
+  const decoded = decodeImportBytes(buffer, { allowWindows1252Fallback: options.allowWindows1252Fallback ?? true })
   const format = detectImportFormatFromDecoded(decoded)
   const previewChars = Math.max(0, Math.trunc(options.previewChars ?? 400))
   return {

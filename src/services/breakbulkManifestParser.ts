@@ -141,10 +141,10 @@ export async function parseBreakbulkManifestBuffer(
   buffer: ArrayBuffer,
   options: ParseBreakbulkOptions = {},
 ): Promise<ParsedBreakbulkManifest> {
-  const { headers: rawHeaders, matrix, rows } = await readSheet(buffer)
+  const { headers: rawHeaders, matrix, rowNumbers, rows } = await readSheet(buffer)
 
   if (looksLikeCarrierBreakbulk(matrix as (string | number | null)[][])) {
-    return parseCarrierBreakbulkRows(matrix as (string | number | null)[][], options)
+    return parseCarrierBreakbulkRows(matrix as (string | number | null)[][], options, rowNumbers)
   }
 
   const layout = detectLayout(rawHeaders)
@@ -163,9 +163,12 @@ function parseBreakbulkRows(
 function parseCarrierBreakbulkRows(
   rawRows: (string | number | null)[][],
   options: ParseBreakbulkOptions = {},
+  /** Linha física de cada linha de `rawRows` (o leitor tira as linhas ocultas da matriz). */
+  rowNumbers: readonly number[] = [],
 ): ParsedBreakbulkManifest {
   const rowErrors: ParsedBreakbulkManifest['rowErrors'] = []
   const bls: BreakbulkImportRow[] = []
+  const lineOf = (index: number) => rowNumbers[index] ?? index + 1
 
   const headerRowIndex = rawRows.findIndex((row) => isCarrierHeaderRow(row))
   const headerRow = headerRowIndex >= 0 ? rawRows[headerRowIndex] : []
@@ -195,7 +198,7 @@ function parseCarrierBreakbulkRows(
     // arquivo e a declaração do operador podem sobrepor.
     'en-US',
   )
-  pushFormatConflict(rowErrors, carrierFormat, headerRowIndex + 1)
+  pushFormatConflict(rowErrors, carrierFormat, lineOf(headerRowIndex))
 
   const previewText = rawRows.slice(0, 20).map((row) => row.map((cell) => asString(cell)).join(' ')).join(' ')
   let currentPol = inferPortFromText(previewText, 'pol') ?? ''
@@ -227,6 +230,8 @@ function parseCarrierBreakbulkRows(
     if (!looksLikeCarrierBreakbulkBl(candidateBl)) continue
 
     const groupRows = collectCarrierBlRows(rawRows, index, colBl)
+    // A linha do B/L (a primeira do grupo), como a planilha a numera.
+    const blLine = lineOf(index)
     index += groupRows.length - 1
 
     const descriptionBlock = joinedStringsFromColumn(groupRows, colDescription >= 0 ? colDescription : 3)
@@ -249,8 +254,8 @@ function parseCarrierBreakbulkRows(
     // em silêncio e o B/L entrava sem peso nenhum, indistinguível de uma carga
     // que realmente não tem peso declarado. O peso alimenta a taxa por tonelada,
     // então a ausência tem de aparecer como issue, não como zero.
-    if (weightIssue) rowErrors.push({ row: index + 1, ...weightIssue, raw: row })
-    if (cbmIssue) rowErrors.push({ row: index + 1, ...cbmIssue, raw: row })
+    if (weightIssue) rowErrors.push({ row: blLine, ...weightIssue, raw: row })
+    if (cbmIssue) rowErrors.push({ row: blLine, ...cbmIssue, raw: row })
     const packageInfo = parseCarrierPackageInfo(descriptionBlock, firstValueFromColumn(groupRows, colQty))
     const itemDescription = normalizeCarrierBreakbulkDescription(descriptionBlock)
     const splitParties = parseCarrierSplitPartyRows(groupRows)
@@ -275,14 +280,14 @@ function parseCarrierBreakbulkRows(
 
     if (!consignee) {
       rowErrors.push({
-        row: index + 1,
+        row: blLine,
         message: `Consignatario nao identificado para o BL ${candidateBl}.`,
         raw: row,
       })
     }
 
     bls.push({
-      rowNumber: index + 1,
+      rowNumber: blLine,
       bl_id: candidateBl,
       shipper: shipper || null,
       consignee: consignee || 'CONSIGNATARIO NAO IDENTIFICADO',

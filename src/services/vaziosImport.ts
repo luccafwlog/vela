@@ -1,4 +1,4 @@
-import { excelSerialToCivil, isValidCivilDate } from '../lib/importDate'
+import { parseImportDate } from '../lib/importDate'
 import { assertUploadFile } from '../lib/fileGuard'
 import { createHeaderMapper, createRowErrorCollector, matchHeaders, readSheet, type HeaderSpec, type RowError } from './importCore'
 import { IsoContainerSchema } from './importValidation'
@@ -50,7 +50,18 @@ export type ParsedVaziosBooking = {
   movement_date: string | null
 }
 
-export type ParsedVaziosManifest = { bookings: ParsedVaziosBooking[]; rowErrors: RowError[] }
+export type ParsedVaziosManifest = {
+  bookings: ParsedVaziosBooking[]
+  rowErrors: RowError[]
+  /** Avisos do leitor (linhas e abas ocultas, CSV Windows-1252), para o operador ver antes de gravar. */
+  warnings: string[]
+  /**
+   * O que o leitor ignorou por estar oculto (planilha filtrada por depot): a
+   * reimportação substitui a lista da escala, e as unidades dessas linhas saem
+   * do Embarque. A tela pede confirmação explícita.
+   */
+  hidden: { rows: number; sheets: string[] }
+}
 
 // Subconjunto do Cadastro de Terminais usado para apontar, ainda no cliente, a
 // mesma divergência que a RPC rejeitaria em bloco (ADR 0033: "qualquer
@@ -65,7 +76,7 @@ export async function parseVaziosManifestFile(file: File, depots?: readonly Depo
 }
 
 export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: readonly DepotLookup[]): Promise<ParsedVaziosManifest> {
-  const { headers, rows } = await readSheet(buffer, {
+  const { headers, rows, warnings, hidden } = await readSheet(buffer, {
     expectedHeaders: Object.keys(HEADER_MAP),
   })
   const { missing } = matchHeaders(headers, VAZIOS_HEADER_SPEC)
@@ -75,13 +86,6 @@ export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: re
   }
   const mapRow = createHeaderMapper(rows[0], HEADER_MAP)
   const mappedRows = rows.map(mapRow)
-  // Uma planilha inteira segue uma única convenção de data (DD/MM ou MM/DD).
-  // A evidência que desambigua pode aparecer em qualquer uma das três colunas
-  // (ex.: SAÍDA nunca passa de dia 12, mas ENTRADA ou EMBARQUE sim) — inferir
-  // por coluna isolada arrisca cada uma cair num padrão diferente.
-  const dateOrder = inferDateOrder(mappedRows.flatMap((mapped) => [
-    String(mapped.hand_in_date ?? ''), String(mapped.hand_out_date ?? ''), String(mapped.movement_date ?? ''),
-  ]))
   const bookings: ParsedVaziosBooking[] = []
   const rowErrors = createRowErrorCollector()
   mappedRows.forEach((mapped, idx) => {
@@ -93,15 +97,15 @@ export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: re
     const condition = parseCondition(mapped.condition)
     if (!condition) rowErrors.add(rowNumber, `Container ${containerNumber}: condição deve ser vazio ou material.`, row)
     const localCode = text(mapped.local_code)
-    const handInRaw = String(mapped.hand_in_date ?? '').trim()
-    const handOutRaw = String(mapped.hand_out_date ?? '').trim()
-    const movementRaw = String(mapped.movement_date ?? '').trim()
-    const handInDate = parseDate(handInRaw, dateOrder)
-    const handOutDate = parseDate(handOutRaw, dateOrder)
-    const movementDate = parseDate(movementRaw, dateOrder)
-    if (handInRaw && !handInDate) rowErrors.add(rowNumber, `Container ${containerNumber}: data de entrada inválida.`, row)
-    if (handOutRaw && !handOutDate) rowErrors.add(rowNumber, `Container ${containerNumber}: data de saída inválida.`, row)
-    if (movementRaw && !movementDate) rowErrors.add(rowNumber, `Container ${containerNumber}: data de embarque inválida.`, row)
+    const handIn = readDate(mapped.hand_in_date)
+    const handOut = readDate(mapped.hand_out_date)
+    const movement = readDate(mapped.movement_date)
+    const handInDate = handIn.date
+    const handOutDate = handOut.date
+    const movementDate = movement.date
+    if (handIn.problem) rowErrors.add(rowNumber, `Container ${containerNumber}: data de entrada inválida (${handIn.problem}).`, row)
+    if (handOut.problem) rowErrors.add(rowNumber, `Container ${containerNumber}: data de saída inválida (${handOut.problem}).`, row)
+    if (movement.problem) rowErrors.add(rowNumber, `Container ${containerNumber}: data de embarque inválida (${movement.problem}).`, row)
     // P2-20: um container nao pode embarcar antes de sair do depot que o
     // liberou — sem essa checagem, um erro de digitação no embarque nunca era
     // confrontado com o gate in/out que ja tinhamos.
@@ -125,7 +129,7 @@ export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: re
     }
     firstRowByContainer.set(booking.container_number, booking.rowNumber)
   }
-  return { bookings, rowErrors: rowErrors.errors }
+  return { bookings, rowErrors: rowErrors.errors, warnings, hidden }
 }
 
 export function parseCondition(value: unknown): ParsedVaziosBooking['condition'] {
@@ -168,77 +172,17 @@ function validateLocalAgainstDepots(
   }
 }
 
-// Faixa de seriais Excel que corresponde a datas plausíveis (~1970 a ~2070);
-// fora dela um número pequeno (ex.: "2026" digitado por engano no lugar de
-// uma data) não vira silenciosamente uma data de 1905.
-const MIN_PLAUSIBLE_SERIAL = 25_570
-const MAX_PLAUSIBLE_SERIAL = 62_136
-
-type DateOrder = 'dmy' | 'mdy'
-
-// Ano de quatro dígitos, como no parser único (src/lib/importDate.ts).
-const SLASH_DATE = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/
-
 /**
- * Uma planilha usa uma única convenção de data. Decide DD/MM vs MM/DD para
- * toda a coluna a partir da primeira linha que desambigua (algum campo >12),
- * em vez de inferir linha a linha — o que faria uma mesma coluna misturar
- * convenções conforme cada linha for ou não ambígua.
- *
- * P2-17: sem nenhuma linha com campo >12, a evidência do arquivo não decide
- * nada — mesmo caso que `inferSeparatorFormat` (src/lib/importNumber.ts)
- * resolve devolvendo `'unknown'`. Aqui a assimetria é deliberada: bloquear
- * quando ambíguo (testado e revertido nesta mesma revisão) rejeitava a
- * maioria das planilhas reais, porque qualquer dia 1–12 do mês — o caso
- * comum de operação brasileira — já é "ambíguo" nesta definição. Sem um
- * declarar-formato na tela (como o Manifesto BB tem para decimais), o
- * bloqueio não tem via de escape para o operador. `'ambiguous'` fica
- * exposto no tipo de retorno para o upgrade descrito abaixo; o *fallback*
- * de leitura continua sendo DD/MM.
- *
- * ponytail: teto — planilha genuinamente MM/DD sem nenhum dia >12 é lida
- * como DD/MM sem aviso. Upgrade: alternador "Detectar pelo arquivo / DD/MM
- * / MM/DD" na UI do modal, no mesmo padrão do Importar Manifesto BB.
+ * Data da planilha pelo contrato único das importações (src/lib/importDate.ts):
+ * célula de data do Excel (`AAAA-MM-DD`, com ou sem hora) ou texto
+ * `DD/MM/AAAA`. Não há inferência DD/MM × MM/DD pelo arquivo: `05/03/2026` é
+ * sempre 5 de março, e `03/15/2026` é recusado com o motivo.
  */
-function inferDateOrder(rawValues: string[]): DateOrder | 'ambiguous' {
-  for (const raw of rawValues) {
-    const match = raw.trim().match(SLASH_DATE)
-    if (!match) continue
-    const first = Number(match[1])
-    const second = Number(match[2])
-    if (first > 12 && second <= 12) return 'dmy'
-    if (second > 12 && first <= 12) return 'mdy'
-  }
-  return 'ambiguous'
-}
-
-function parseDate(value: string, order: DateOrder | 'ambiguous'): string | null {
-  const normalized = value.trim()
-  if (!normalized) return null
-  // A célula de data do Excel chega como AAAA-MM-DD pelo leitor comum; um
-  // serial solto só aparece em célula numérica sem formato de data.
-  const serial = Number(normalized)
-  if (Number.isFinite(serial) && serial >= MIN_PLAUSIBLE_SERIAL && serial <= MAX_PLAUSIBLE_SERIAL) {
-    return excelSerialToCivil(Math.round(serial))?.date ?? null
-  }
-
-  const iso = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-  if (iso) return dateFromParts(Number(iso[1]), Number(iso[2]), Number(iso[3]))
-
-  const match = normalized.match(SLASH_DATE)
-  if (!match) return null
-  const first = Number(match[1])
-  const second = Number(match[2])
-  const year = Number(match[3])
-  const monthFirst = order === 'mdy' && first <= 12
-  const month = first > 12 && second <= 12 ? second : second > 12 && first <= 12 ? first : monthFirst ? first : second
-  const day = first > 12 && second <= 12 ? first : second > 12 && first <= 12 ? second : monthFirst ? second : first
-  return dateFromParts(year, month, day)
-}
-
-function dateFromParts(year: number, month: number, day: number): string | null {
-  if (!isValidCivilDate(year, month, day)) return null
-  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+function readDate(value: unknown): { date: string | null; problem: string | null } {
+  const parsed = parseImportDate(value)
+  if (parsed.kind === 'value') return { date: parsed.date, problem: null }
+  if (parsed.kind === 'empty') return { date: null, problem: null }
+  return { date: null, problem: parsed.reason }
 }
 
 function formatRowErrors(rowErrors: readonly RowError[]): string {
@@ -248,7 +192,7 @@ function formatRowErrors(rowErrors: readonly RowError[]): string {
   return lines.join('\n')
 }
 
-export type ImportVaziosArgs = { filename: string; voyageId: number; port: string; manifest: ParsedVaziosManifest; uploadedBy: string; description?: string }
+export type ImportVaziosArgs = { filename: string; voyageId: number; port: string; manifest: Pick<ParsedVaziosManifest, 'bookings' | 'rowErrors'>; uploadedBy: string; description?: string }
 
 // Limite de linhas detalhadas na mensagem de erro; acima disso um resumo com a
 // contagem restante evita paredes de texto em planilhas com muitas divergências.
