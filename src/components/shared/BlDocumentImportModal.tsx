@@ -127,27 +127,37 @@ export function BlDocumentImportModal({
         (document.warnings.length === 0 || Boolean(allowOverride))
       )}
       renderBatchSummary={(entries) => (
-        <BatchSummary
-          entries={entries}
-          canImport={(document) => (
-            document.errors.length === 0 &&
-            !describeVoyageMismatch(document, selectedVoyage) &&
-            !isOtherVoyage(document) &&
-            !isCancelled(document) &&
-            document.warnings.length === 0
-          )}
-        />
-      )}
-      renderPreview={(document) => (
         <>
-          <BlDocumentPreview document={document} voyage={selectedVoyage} />
+          <BatchSummary
+            entries={entries}
+            canImport={(document) => (
+              document.errors.length === 0 &&
+              !describeVoyageMismatch(document, selectedVoyage) &&
+              !isOtherVoyage(document) &&
+              !isCancelled(document) &&
+              document.warnings.length === 0
+            )}
+          />
+          {/* A Troca de Consignatário e a confirmação de faturamento valem para o
+              lote inteiro: a prévia lista os B/Ls de TODOS os arquivos que podem
+              entrar, não só o do arquivo aberto. */}
           <BreakbulkReimportReview
-            check={document.reimport ? { ...document.reimport, otherVoyage: [], cancelled: [] } : undefined}
+            check={mergeReimportChecks(entries.map((entry) => entry.preview).filter((document) => (
+              document.errors.length === 0 &&
+              !describeVoyageMismatch(document, selectedVoyage) &&
+              !isOtherVoyage(document) &&
+              !isCancelled(document)
+            )))}
             acceptCustomerChanges={acceptCustomerChanges}
             onAcceptCustomerChanges={setAcceptCustomerChanges}
             overrideBilling={overrideBilling}
             onOverrideBilling={setOverrideBilling}
           />
+        </>
+      )}
+      renderPreview={(document) => (
+        <>
+          <BlDocumentPreview document={document} voyage={selectedVoyage} />
         </>
       )}
       helper={
@@ -165,6 +175,24 @@ export function BlDocumentImportModal({
       onClose={close}
     />
   )
+}
+
+/**
+ * Junta a conferência de reimportação dos arquivos do lote: o aceite de Troca
+ * de Consignatário e a confirmação de faturamento são do lote inteiro, então a
+ * prévia precisa listar cada B/L afetado, de qualquer arquivo.
+ */
+function mergeReimportChecks(documents: CheckedBlDocument[]): BreakbulkReimportCheck | undefined {
+  const checks = documents.map((document) => document.reimport).filter((check): check is BreakbulkReimportCheck => Boolean(check))
+  if (!checks.length) return undefined
+  return {
+    existing: [...new Set(checks.flatMap((check) => check.existing))],
+    otherVoyage: [],
+    cancelled: [],
+    customerChanges: checks.flatMap((check) => check.customerChanges),
+    billedRouteChanges: checks.flatMap((check) => check.billedRouteChanges),
+    codPodKept: [...new Set(checks.flatMap((check) => check.codPodKept))],
+  }
 }
 
 function BatchSummary({

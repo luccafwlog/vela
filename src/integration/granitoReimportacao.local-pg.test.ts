@@ -4,6 +4,7 @@
 // ausente do arquivo novo só sai com confirmação e nunca com Invoice.
 // Migration 192: o ausente com Invoice fica e volta em
 // `kept_missing_invoiced_bl_numbers`, sem recusar o arquivo inteiro.
+// Migration 196: os totais de todos os manifestos da Viagem são refeitos.
 //
 // Namespace exclusivo: ids 99233xxx, B/Ls 'A233-*', usuário ...0000002330NN.
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -138,5 +139,21 @@ describeLocal('Granito: reimportação por número do B/L na Viagem (migration 1
     })
     expect(rows()).toContain('A233-2')
     expect(rows()).not.toContain('A233-4')
+  })
+
+  // Revisão da PR 929 (196): a reimportação alcança B/Ls de manifesto legado
+  // da mesma Viagem; os totais dele também precisam ser refeitos.
+  it('B/L de manifesto antigo atualizado ou retirado refaz os totais daquele manifesto', () => {
+    const legacy = '00000000-0000-0000-0000-000000233099'
+    psql(`
+      INSERT INTO public.granite_manifests (id, voyage_id, vessel_voyage, imported_at, total_bls, total_weight_kg)
+      VALUES ('${legacy}', ${voyageId}, 'A233 NAVIO/A233', now() - interval '30 days', 2, 1100);
+      INSERT INTO public.granite_bls (manifest_id, bl_number, real_weight_kg) VALUES
+        ('${legacy}', 'A233-L1', 500), ('${legacy}', 'A233-L2', 600);
+    `)
+
+    const result = importFile([bl('A233-1', 150), bl('A233-L1', 700)], ['A233-L2'])
+    expect(result.stderr).toBe('')
+    expect(psql(`SELECT total_bls || ':' || total_weight_kg::int FROM public.granite_manifests WHERE id = '${legacy}';`)).toBe('1:700')
   })
 })
