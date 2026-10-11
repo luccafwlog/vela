@@ -891,6 +891,39 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     expect(localPsql(`SELECT status || '|' || (dunning_suspended_reason IS NOT NULL) FROM public.demurrage_invoices WHERE id = ${invoiceId};`)).toBe('issued|false')
   })
 
+  // ADR 0079, decisão 1 (migration 203): Invoice com desconto ou disputa aberta
+  // não é reemitida sozinha quando as datas mudam; segue o caminho da paga.
+  it('Invoice com desconto ou disputa aberta fica suspensa com Alerta, sem reemissão, quando as datas mudam', () => {
+    insertBl('A207-K3', voyage.regua, pod, [{ number: 'ADCU2070133' }])
+    insertBl('A207-K4', voyage.regua, pod, [{ number: 'ADCU2070134' }])
+    importContainerDates('A207-K3', [{ number: 'ADCU2070133', discharge: '2026-07-01', return: '2026-09-30' }])
+    importContainerDates('A207-K4', [{ number: 'ADCU2070134', discharge: '2026-07-01', return: '2026-09-30' }])
+    runWorker('A207-K3')
+    runWorker('A207-K4')
+    const discounted = demurrageInvoiceId('A207-K3')
+    const disputed = demurrageInvoiceId('A207-K4')
+    localPsql(`SET session_replication_role = replica;
+      UPDATE public.demurrage_invoices SET discount_type = 'comercial', discount_mode = 'percent', discount_value = 10 WHERE id = ${discounted};
+      UPDATE public.demurrage_invoices SET dispute_open = true, dispute_status = 'aberto' WHERE id = ${disputed};`)
+
+    asAdmin(`SELECT public.set_container_dates(${containerIds('A207-K3').ADCU2070133}, '2026-07-01', '2026-10-05', 'Terminal corrigiu a devolução (A207)');`)
+    asAdmin(`SELECT public.set_container_dates(${containerIds('A207-K4').ADCU2070134}, '2026-07-01', '2026-10-05', 'Terminal corrigiu a devolução (A207)');`)
+
+    for (const invoiceId of [discounted, disputed]) {
+      expect(localPsql(`SELECT status || '|' || dunning_suspended_reason FROM public.demurrage_invoices WHERE id = ${invoiceId};`))
+        .toBe('issued|Datas de container alteradas em Invoice com desconto ou disputa; reemitir à mão.')
+      expect(localPsql(`SELECT i.message FROM public.alert_items AS i JOIN public.alerts AS a ON a.id = i.alert_id
+        WHERE i.item_type = 'demurrage_invoice_dates_changed' AND a.entity_type = 'demurrage_invoice' AND a.entity_id = '${invoiceId}'
+        ORDER BY i.id DESC LIMIT 1;`))
+        .toMatch(/desconto ou disputa aberta: a Régua suspendeu a cobrança/)
+    }
+    expect(localPsql(`SELECT count(*) FROM public.demurrage_invoices WHERE bl_id IN ('A207-K3', 'A207-K4');`)).toBe('2')
+
+    // Datas de volta às faturadas: a suspensão sai.
+    asAdmin(`SELECT public.set_container_dates(${containerIds('A207-K3').ADCU2070133}, '2026-07-01', '2026-09-30', 'Terminal desfez a correção (A207)');`)
+    expect(localPsql(`SELECT status || '|' || (dunning_suspended_reason IS NOT NULL) FROM public.demurrage_invoices WHERE id = ${discounted};`)).toBe('issued|false')
+  })
+
   // C14: descarga nova posterior à devolução gravada, com a devolução vazia na planilha.
   it('planilha com descarga posterior à devolução gravada e devolução vazia é recusada com mensagem de negócio', () => {
     insertBl('A207-D1', voyage.descarga, pod, [{ number: 'ADCU2070141' }])

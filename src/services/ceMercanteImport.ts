@@ -115,7 +115,11 @@ export type CeBillingResult = {
   status: 'invoiced' | 'held' | 'blocked' | 'skipped'
   reason?: string | null
   message?: string | null
-  /** Espera de negócio (Cliente não conciliado, Revisão pendente), não falha (migration 195). */
+  /**
+   * Espera de negócio, não falha: Cliente não conciliado, Revisão pendente
+   * (migration 195) ou tabela de cobrança faltando (migration 204).
+   * `skipped` com `nothing_to_bill` ou `exempt` é "Nada a faturar".
+   */
   waiting?: boolean
   invoice_number?: string | null
 }

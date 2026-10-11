@@ -29,6 +29,9 @@ const vaziosManifestId = '00000000-0000-0000-0000-000000228081'
 const chargeTableId = 99228031
 const chargeItemId = 99228032
 const fee = 321
+// ADR 0079, decisão 4 (migration 204): tabela criada depois da espera e tabela zerada.
+const lateTable = { id: 99228033, item: 99228034, pod: 'A228T' }
+const zeroTable = { id: 99228035, item: 99228036, pod: 'A228Z' }
 const pol = 'A228O'
 const pod = 'A228P'
 
@@ -86,7 +89,8 @@ function cleanup() {
       OR id IN (SELECT invoice_id FROM public.invoice_bls WHERE bl_id IN (SELECT id FROM a228_bls))
       OR id IN (SELECT invoice_id FROM public.invoice_receivable_links WHERE bl_id IN (SELECT id FROM a228_bls));
     CREATE TEMP TABLE a228_alerts AS SELECT id FROM public.alerts WHERE entity_id IN (SELECT id FROM a228_bls)
-      OR (entity_type = 'voyage' AND entity_id IN ('${voyageId}', '${otherVoyageId}', '${alertVoyageId}'));
+      OR (entity_type = 'voyage' AND entity_id IN ('${voyageId}', '${otherVoyageId}', '${alertVoyageId}'))
+      OR (entity_type = 'charge_table_gap' AND entity_id LIKE 'A228%');
     DELETE FROM public.invoice_receivable_links WHERE invoice_id IN (SELECT id FROM a228_invoices) OR bl_id IN (SELECT id FROM a228_bls);
     DELETE FROM public.invoice_lifecycle_events WHERE invoice_id IN (SELECT id FROM a228_invoices);
     DELETE FROM public.invoice_items WHERE invoice_id IN (SELECT id FROM a228_invoices);
@@ -119,9 +123,10 @@ function cleanup() {
     DELETE FROM public.bls WHERE id IN (SELECT id FROM a228_bls);
     DELETE FROM public.voyage_route_ce_master WHERE voyage_id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId});
     DELETE FROM public.manifestos_mercante WHERE voyage_id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId});
-    DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId} OR charge_item_id = ${chargeItemId};
-    DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
-    DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
+    DELETE FROM public.pricing_rule_versions WHERE charge_table_id IN (${chargeTableId}, ${lateTable.id}, ${zeroTable.id})
+      OR charge_item_id IN (${chargeItemId}, ${lateTable.item}, ${zeroTable.item});
+    DELETE FROM public.charge_table_items WHERE id IN (${chargeItemId}, ${lateTable.item}, ${zeroTable.item});
+    DELETE FROM public.charge_tables WHERE id IN (${chargeTableId}, ${lateTable.id}, ${zeroTable.id});
     DELETE FROM public.voyages WHERE id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId});
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
@@ -327,6 +332,56 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(apply([{ row: 2, bl_id: 'A228-W4', ce: '992280000000044' }], 'A228H00000002').ok).toBe(true)
     expect(psql(`SELECT financial_status FROM public.bls WHERE id = 'A228-W4';`)).toBe('invoiced')
     expect(activeAlert('billing_auto_issue_failed', 'A228-W4')).toBe('')
+  })
+
+  function insertChargeTable(table: { id: number; item: number; pod: string }, value: number) {
+    psql(`
+      INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
+      VALUES (${table.id}, 'Tabela ${table.pod}', '${table.pod}', CURRENT_DATE - 30, true, 'container');
+      INSERT INTO public.charge_table_items (id, charge_table_id, name, applies_to, value_brl, unit_value_brl, application_basis, category, cargo_profile, currency)
+      VALUES (${table.item}, ${table.id}, 'Taxa ${table.pod} por B/L', 'bl', ${value}, ${value}, 'bl', 'base', 'any', 'BRL');
+    `)
+  }
+
+  // ADR 0079, decisão 4 (migration 204).
+  it('tabela de cobrança faltando é espera com um Alerta por POD que fecha quando as faturas saem', () => {
+    insertBl('A228-T1', { container: 'ADCU2280051', blPod: lateTable.pod })
+    insertBl('A228-T2', { container: 'ADCU2280052', blPod: lateTable.pod })
+    expect(apply([
+      { row: 2, bl_id: 'A228-T1', ce: '992280000000061' },
+      { row: 3, bl_id: 'A228-T2', ce: '992280000000062' },
+    ], 'A228T00000001', `, false, NULL, true`).ok).toBe(true)
+
+    const waiting = json<{ results: Array<{ bl_id: string; status: string; reason: string; message: string | null; waiting: boolean }> }>(
+      `SELECT public.emit_ce_mercante_billing(ARRAY['A228-T1', 'A228-T2']);`)
+    expect(waiting.results).toEqual([
+      expect.objectContaining({ bl_id: 'A228-T1', status: 'blocked', reason: 'charge_table_missing', waiting: true,
+        message: expect.stringMatching(/^Aguardando tabela de cobrança: cadastre a tabela do POD A228T \(container\)/) }),
+      expect.objectContaining({ bl_id: 'A228-T2', status: 'blocked', reason: 'charge_table_missing', waiting: true }),
+    ])
+    expect(activeAlert('billing_auto_issue_failed', 'A228-T1')).toBe('')
+    expect(activeAlert('billing_charge_table_missing', 'A228T:container', 'charge_table_gap'))
+      .toMatch(/^active:Tabela de cobrança faltando para o POD A228T \(container\): 2 B\/L\(s\) aguardando a fatura \(A228-T1, A228-T2\)/)
+
+    // A tabela é cadastrada: cada fatura que sai tira o B/L da lista; a última fecha o Alerta.
+    insertChargeTable(lateTable, fee)
+    expect(json<{ results: Array<{ status: string }> }>(`SELECT public.emit_ce_mercante_billing(ARRAY['A228-T1']);`).results[0].status).toBe('invoiced')
+    expect(activeAlert('billing_charge_table_missing', 'A228T:container', 'charge_table_gap')).toMatch(/1 B\/L\(s\) aguardando a fatura \(A228-T2\)/)
+    expect(json<{ results: Array<{ status: string }> }>(`SELECT public.emit_ce_mercante_billing(ARRAY['A228-T2']);`).results[0].status).toBe('invoiced')
+    expect(activeAlert('billing_charge_table_missing', 'A228T:container', 'charge_table_gap')).toBe('')
+  })
+
+  it('B/L calculado sem nenhuma taxa com valor sai como "Nada a faturar", sem Alerta', () => {
+    insertChargeTable(zeroTable, 0)
+    insertBl('A228-Z1', { container: 'ADCU2280053', blPod: zeroTable.pod })
+    expect(apply([{ row: 2, bl_id: 'A228-Z1', ce: '992280000000063' }], 'A228Z00000001', `, false, NULL, true`).ok).toBe(true)
+
+    const emitted = json<{ results: Array<{ bl_id: string; status: string; reason: string; message: string | null; waiting: boolean }> }>(
+      `SELECT public.emit_ce_mercante_billing(ARRAY['A228-Z1']);`)
+    expect(emitted.results).toEqual([
+      expect.objectContaining({ bl_id: 'A228-Z1', status: 'skipped', reason: 'nothing_to_bill', message: 'Nada a faturar: o cálculo do B/L não tem taxa com valor.' }),
+    ])
+    expect(activeAlert('billing_auto_issue_failed', 'A228-Z1')).toBe('')
   })
 
   it('K8: o Histórico do CE e do vínculo leva tipo, Viagem, Manifesto, rota e motivo, mesmo sem Viagem na tela', () => {

@@ -307,3 +307,26 @@ it('emissão: espera de negócio aparece em "Aguardando" com a frase; sem mensag
   expect(screen.getByText('BL003: Tabela de cobranca incompleta.')).toBeTruthy()
   expect(screen.queryByText(/customer_reconciliation_pending|review_pending/)).toBeNull()
 })
+
+// ADR 0079, decisão 4 (migration 204): tabela faltando é espera e B/L sem taxa
+// com valor é "Nada a faturar", fora de "Bloqueados".
+it('emissão: tabela faltando aparece em "Aguardando" e B/L zerado em "Nada a faturar"', async () => {
+  const row = { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }
+  mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [] })
+  mocks.preview.mockResolvedValue(cleanPreview)
+  mocks.importRows.mockResolvedValue({ processed: 2, updated: 2, overwritten: 0, unchanged: 0, errorCount: 0, errors: [], billingPendingBlIds: ['BL001', 'BL002'] })
+  mocks.emit.mockResolvedValue([
+    { bl_id: 'BL001', status: 'blocked', reason: 'charge_table_missing', waiting: true, message: 'Aguardando tabela de cobrança: cadastre a tabela do POD BRPEC (misto) em Taxas Locais › Tabelas; a fatura sai na próxima emissão.' },
+    { bl_id: 'BL002', status: 'skipped', reason: 'nothing_to_bill', message: 'Nada a faturar: o cálculo do B/L não tem taxa com valor.' },
+  ])
+
+  const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
+  fireEvent.change(screen.getByPlaceholderText('Ex.: 1226501860578'), { target: { value: '1226501860578' } })
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(['x'], 'ce.xlsx')] } })
+  await waitFor(() => expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
+
+  await screen.findByText(/BL001: Aguardando tabela de cobrança: cadastre a tabela do POD BRPEC/)
+  expect(screen.getByText('BL002: Nada a faturar: o cálculo do B/L não tem taxa com valor.')).toBeTruthy()
+  expect(screen.queryByText('Bloqueados')).toBeNull()
+})

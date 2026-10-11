@@ -18,7 +18,7 @@ import { DemurrageContainersTab } from '../components/demurrage/DemurrageContain
 import { DemurrageCustomersTab } from '../components/demurrage/DemurrageCustomersTab'
 import { DemurrageDunningSettingsModal } from '../components/demurrage/DemurrageDunningSettingsModal'
 import { DemurrageInvoicesTab } from '../components/demurrage/DemurrageInvoicesTab'
-import { DemurragePaymentReversalModal } from '../components/demurrage/DemurragePaymentReversalModal'
+import { DemurragePaymentReversalModal, type DemurrageReversalDatesNotice } from '../components/demurrage/DemurragePaymentReversalModal'
 import { DemurrageDisputeConversation } from '../components/demurrage/DemurrageDisputeConversation'
 import { DiscountModal } from '../components/demurrage/DiscountModal'
 import { DisputeModal } from '../components/demurrage/DisputeModal'
@@ -87,7 +87,7 @@ export function Demurrage() {
   const [payingId, setPayingId] = useState<number | null>(null)
   // Guarda o doc_number junto do id: o titulo do modal mostra a chave natural,
   // e o breakdown que a originou pode ja estar fechado quando ele abre.
-  const [reversingPayment, setReversingPayment] = useState<{ id: number; docNumber: string | null } | null>(null)
+  const [reversingPayment, setReversingPayment] = useState<{ id: number; docNumber: string | null; datesChanged: DemurrageReversalDatesNotice | null } | null>(null)
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10))
   const [detailInvoiceId, setDetailInvoiceId] = useState<number | null>(null)
   const [discountInvoiceId, setDiscountInvoiceId] = useState<number | null>(null)
@@ -421,7 +421,7 @@ export function Demurrage() {
               <Button variant="secondary" onClick={() => { setDetailInvoiceId(null); openDiscount(breakdownDetail.invoice as DemurrageInvoice) }}>Desconto</Button>
               <Button variant="secondary" onClick={() => { setDetailInvoiceId(null); openDispute(breakdownDetail.invoice as DemurrageInvoice) }}>Disputa</Button>
               {breakdownDetail.invoice.status === 'issued' && <><Button variant="secondary" onClick={() => { setDetailInvoiceId(null); setPayingId(breakdownDetail.invoice.id) }}>Registrar Pgto</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); void handleCancelInvoice(breakdownDetail.invoice.id) }}>Voltar</Button></>}
-              {(breakdownDetail.invoice.status === 'paid' || breakdownDetail.invoice.status === 'cancelled' && breakdownDetail.invoice.paid_at) && <><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('receipt') }}>Recibo</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button>{breakdownDetail.invoice.status === 'paid' ? <Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setReversingPayment({ id: breakdownDetail.invoice.id, docNumber: breakdownDetail.invoice.doc_number }) }}>Cancelar baixa</Button> : null}</>}
+              {(breakdownDetail.invoice.status === 'paid' || breakdownDetail.invoice.status === 'cancelled' && breakdownDetail.invoice.paid_at) && <><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('receipt') }}>Recibo</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button>{breakdownDetail.invoice.status === 'paid' ? <Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setReversingPayment({ id: breakdownDetail.invoice.id, docNumber: breakdownDetail.invoice.doc_number, datesChanged: reversalDatesNotice(breakdownDetail.invoice) }) }}>Cancelar baixa</Button> : null}</>}
             </div></div>
             <div className="overflow-x-auto">
               <table className="app-table app-table--compact min-w-[700px] text-left text-sm">
@@ -447,7 +447,7 @@ export function Demurrage() {
       <DisputeModal open={disputeInvoiceId != null} form={disputeForm} loading={disputeMutation.isPending} onFormChange={setDisputeForm} onClose={() => setDisputeInvoiceId(null)} onSubmit={() => disputeInvoiceId && disputeMutation.mutate({ id: disputeInvoiceId, form: disputeForm })} />
       <PaymentModal open={payingId != null} paymentId={payingId} paymentDate={payDate} onPaymentDateChange={setPayDate} onClose={() => setPayingId(null)} onSubmit={(id, date) => payMutation.mutate({ id, date })} />
 
-      {reversingPayment != null && <DemurragePaymentReversalModal open docNumber={reversingPayment.docNumber} loading={unpayMutation.isPending} onClose={() => setReversingPayment(null)} onSubmit={(reason) => unpayMutation.mutate({ id: reversingPayment.id, reason })} />}
+      {reversingPayment != null && <DemurragePaymentReversalModal open docNumber={reversingPayment.docNumber} datesChanged={reversingPayment.datesChanged} loading={unpayMutation.isPending} onClose={() => setReversingPayment(null)} onSubmit={(reason) => unpayMutation.mutate({ id: reversingPayment.id, reason })} />}
       {viewInvoiceId && invoiceDetail && (
         <Modal open onClose={() => setViewInvoiceId(null)} title={docType === 'invoice' ? 'Fatura de Demurrage' : 'Recibo de Demurrage'}>
           <div className="mb-2 flex justify-end gap-2"><Button variant="secondary" disabled={docType === 'receipt' && !receiptRefunds.data} onClick={printInvoiceDocument}>Imprimir</Button></div>
@@ -459,4 +459,14 @@ export function Demurrage() {
       <DemurrageDunningSettingsModal open={dunningModalOpen} onClose={() => setDunningModalOpen(false)} />
     </>
   )
+}
+
+/**
+ * Invoice paga suspensa porque as datas do container mudaram depois do
+ * pagamento (migrations 179 e 191): o estorno da baixa a reemite, ou a deixa
+ * para reemissão à mão quando tem desconto ou disputa (migration 203).
+ */
+function reversalDatesNotice(invoice: { dunning_suspended_reason?: string | null; discount_value?: number | null; dispute_open?: boolean | null }): DemurrageReversalDatesNotice | null {
+  if (!invoice.dunning_suspended_reason?.startsWith('Datas de container alteradas')) return null
+  return { negotiated: Number(invoice.discount_value ?? 0) > 0 || Boolean(invoice.dispute_open) }
 }

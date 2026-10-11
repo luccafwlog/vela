@@ -19,6 +19,7 @@ export type ActiveAlertType =
   | 'pix_unreconciled'
   | 'billing_calculation_blocked'
   | 'billing_auto_issue_failed'
+  | 'billing_charge_table_missing'
   | 'import_effect_blocked'
   | 'import_effects_queue_stalled'
   | 'demurrage_invoice_dates_changed'
@@ -68,6 +69,7 @@ export const TYPE_LABELS: Record<string, string> = {
   pix_unreconciled: 'PIX sem conciliação segura',
   billing_calculation_blocked: 'Cálculo bloqueado',
   billing_auto_issue_failed: 'Falha de emissão automática',
+  billing_charge_table_missing: 'Tabela de cobrança faltando',
   import_effect_blocked: 'Efeito de importação bloqueado',
   import_effects_queue_stalled: 'Fila de efeitos de importação parada',
   demurrage_invoice_dates_changed: 'Datas mudaram em Invoice de Demurrage emitida',
@@ -117,6 +119,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   exchange_rate_reference: 'Referência cambial',
   import_effect: 'Efeito de importação',
   import_effect_queue: 'Fila de efeitos de importação',
+  charge_table_gap: 'Tabela de cobrança',
   pix_transaction: 'Transação PIX',
 }
 

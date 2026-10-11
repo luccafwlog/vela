@@ -520,6 +520,9 @@ function ServerPreviewSection({
 const BILLING_REASON_LABEL: Record<string, string> = {
   customer_reconciliation_pending: 'Aguardando conciliação do Cliente.',
   review_pending: 'Aguardando Revisão do B/L.',
+  charge_table_missing: 'Aguardando tabela de cobrança do POD.',
+  nothing_to_bill: 'Nada a faturar: o cálculo do B/L não tem taxa com valor.',
+  exempt: 'Nada a faturar: B/L isento das Taxas Locais.',
   not_found: 'B/L não encontrado.',
   auto_billing_failed: 'A emissão automática falhou; o Alerta de faturamento traz o detalhe.',
 }
@@ -541,6 +544,8 @@ function BillingProgress({
   // Espera de negócio (Cliente, Revisão) não é falha: aparece à parte (K1).
   const waiting = billing.results.filter((item) => item.status === 'blocked' && item.waiting)
   const blocked = billing.results.filter((item) => item.status === 'blocked' && !item.waiting)
+  // B/L calculado sem taxa com valor ou isento: não há fatura a emitir, nem falha (migration 204).
+  const nothingToBill = billing.results.filter((item) => item.status === 'skipped' && (item.reason === 'nothing_to_bill' || item.reason === 'exempt'))
   return (
     <section className="app-import-section" aria-label="Emissão das faturas">
       <div className="app-import-section__head">
@@ -552,6 +557,7 @@ function BillingProgress({
             { label: 'faturados', value: count('invoiced') },
             { label: 'retidos', value: count('held') },
             { label: 'aguardando', value: waiting.length, tone: waiting.length ? 'warning' : 'default' },
+            { label: 'nada a faturar', value: nothingToBill.length },
             { label: 'bloqueados', value: blocked.length, tone: blocked.length ? 'danger' : 'default' },
           ]}
         />
@@ -561,6 +567,13 @@ function BillingProgress({
         <ImportNotice tone="warning" title="Aguardando">
           <ul className="app-import-notice__list">
             {waiting.map((item) => <li key={item.bl_id}>{item.bl_id}: {billingResultMessage(item)}</li>)}
+          </ul>
+        </ImportNotice>
+      ) : null}
+      {nothingToBill.length ? (
+        <ImportNotice tone="info" title="Nada a faturar">
+          <ul className="app-import-notice__list">
+            {nothingToBill.map((item) => <li key={item.bl_id}>{item.bl_id}: {billingResultMessage(item)}</li>)}
           </ul>
         </ImportNotice>
       ) : null}
