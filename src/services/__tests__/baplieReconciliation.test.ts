@@ -3,6 +3,7 @@ import {
   computeBapliePhysicalUpdates,
   computeExistenceDivergences,
   computeOwnershipDivergences,
+  ownershipResolutionKey,
   computePendingBapliePhysicalFlags,
   computeProfileDivergences,
   countPendingBapliePhysicalFlags,
@@ -445,6 +446,17 @@ describe('computeOwnershipDivergences — SOC/COC (B/L soberano)', () => {
     expect(items).toEqual([
       { kind: 'ownership_mismatch', container_number: 'ABCD1234567', bl_container_id: 1, bl_id: 'BL1', bl_ownership: 'COC', baplie_ownership: 'SOC' },
     ])
+  })
+})
+
+describe('computeOwnershipDivergences — correção manual e "Vale o B/L" (migration 194)', () => {
+  it('SOC/COC corrigido à mão continua divergente até "Vale o B/L" daqueles valores', () => {
+    const baplie = staged([{ container_number: 'ABCD1234567', status: 'full', ownership: 'SOC' }])
+    const containers = blcs([{ id: 1, bl_id: 'BL1', container_number: 'ABCD1234567', ownership: 'COC', ownership_source: 'manual' }])
+    expect(computeOwnershipDivergences(baplie, containers)).toHaveLength(1)
+    expect(computeOwnershipDivergences(baplie, containers, new Map([[1, new Set([ownershipResolutionKey('SOC', 'COC')])]]))).toEqual([])
+    // Resolução de outro par de valores não encerra a divergência atual.
+    expect(computeOwnershipDivergences(baplie, containers, new Map([[1, new Set([ownershipResolutionKey('COC', 'SOC')])]]))).toHaveLength(1)
   })
 })
 

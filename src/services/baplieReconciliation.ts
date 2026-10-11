@@ -196,13 +196,16 @@ export function computeExistenceDivergences(
 }
 
 /**
- * SOC/COC divergente (pura, testável): container cheio do Baplie que casa com
- * exatamente um bl_container, os dois informados e diferentes. O valor do B/L
- * prevalece; aqui só se aponta a discordância.
+ * SOC/COC divergente (pura, testável): container cheio do Baplie e container
+ * do B/L, os dois informados e diferentes. O valor do B/L prevalece; aqui só se
+ * aponta a discordância. Correção manual de SOC/COC também diverge (ADR 0078,
+ * item 21); só "Vale o B/L" encerra, e para o mesmo par de valores (migration
+ * 194: `resolved` é container → "baplie|B/L" resolvido).
  */
 export function computeOwnershipDivergences(
   staged: Array<Pick<BaplieContainerRow, 'container_number' | 'status'> & { ownership?: string | null }>,
   blContainers: BlContainerPhysical[],
+  resolved: ReadonlyMap<number, ReadonlySet<string>> = new Map(),
 ): BaplieReconciliationItem[] {
   const blByNumber = new Map<string, BlContainerPhysical[]>()
   for (const c of blContainers) {
@@ -215,8 +218,10 @@ export function computeOwnershipDivergences(
     if (b.status === 'empty' || !b.ownership) continue
     // Todos os B/Ls ativos que dividem o container (migration 182).
     for (const mc of blByNumber.get(normalizeContainerNumber(b.container_number)) ?? []) {
-      // "Vale o B/L" (ou correção manual) encerra a divergência.
-      if (!mc.ownership || mc.ownership === b.ownership || mc.ownership_source === 'manual') continue
+      if (!mc.ownership || mc.ownership === b.ownership) continue
+      // "Vale o B/L" encerra só a divergência daqueles valores: Baplie novo
+      // com outro valor volta a divergir.
+      if (resolved.get(mc.id)?.has(ownershipResolutionKey(b.ownership, mc.ownership))) continue
       items.push({
         kind: 'ownership_mismatch',
         container_number: mc.container_number,
@@ -533,11 +538,11 @@ export async function reconcileBaplieWithManifest(
     return { items: [], source: 'awaiting_route_coverage', pendingRoutes }
   }
 
-  const resolved = await fetchProfileResolutions(voyageId)
+  const { profile: resolved, ownership: resolvedOwnership } = await fetchResolutions(voyageId)
   return {
     items: [
       ...computeExistenceDivergences(staged, blContainers, new Set(pendingRoutes)),
-      ...computeOwnershipDivergences(staged, blContainers),
+      ...computeOwnershipDivergences(staged, blContainers, resolvedOwnership),
       ...computeProfileDivergences(staged, blContainers, resolved),
     ],
     source: 'reconciled',
@@ -586,15 +591,37 @@ export async function applyBapliePhysicalFlags(voyageId: number, actorId: string
   return (await applyBapliePhysicalFlagsDetailed(voyageId, actorId)).applied
 }
 
-/** Divergências de perfil já encerradas com "Vale o B/L": container → valor do Baplie resolvido. */
-async function fetchProfileResolutions(voyageId: number): Promise<Map<number, string>> {
+export function ownershipResolutionKey(baplieValue: string | null | undefined, blValue: string | null | undefined) {
+  return `${normalizeVal(baplieValue)}|${normalizeVal(blValue)}`
+}
+
+/**
+ * Divergências já encerradas com "Vale o B/L": perfil (container → valor do
+ * Baplie resolvido) e SOC/COC (container → pares "baplie|B/L" resolvidos).
+ */
+async function fetchResolutions(voyageId: number): Promise<{
+  profile: Map<number, string>
+  ownership: Map<number, Set<string>>
+}> {
   const { data, error } = await supabase
     .from('baplie_reconciliation_resolutions')
-    .select('bl_container_id, baplie_value, field_name, resolution')
+    .select('bl_container_id, baplie_value, manifest_value, field_name, resolution')
     .eq('voyage_id', voyageId)
   if (error) throw error
-  const rows = (data ?? []) as Array<{ bl_container_id: number; baplie_value: string; field_name: string; resolution: string }>
-  return new Map(rows.filter((row) => row.field_name === 'profile' && row.resolution === 'vale_o_bl').map((row) => [row.bl_container_id, row.baplie_value]))
+  const rows = (data ?? []) as Array<{
+    bl_container_id: number; baplie_value: string; manifest_value: string | null; field_name: string; resolution: string
+  }>
+  const valeOBl = rows.filter((row) => row.resolution === 'vale_o_bl')
+  const ownership = new Map<number, Set<string>>()
+  for (const row of valeOBl.filter((r) => r.field_name === 'ownership')) {
+    const keys = ownership.get(row.bl_container_id) ?? new Set<string>()
+    keys.add(ownershipResolutionKey(row.baplie_value, row.manifest_value))
+    ownership.set(row.bl_container_id, keys)
+  }
+  return {
+    profile: new Map(valeOBl.filter((row) => row.field_name === 'profile').map((row) => [row.bl_container_id, row.baplie_value])),
+    ownership,
+  }
 }
 
 function normalizeVal(v: string | null | undefined) {

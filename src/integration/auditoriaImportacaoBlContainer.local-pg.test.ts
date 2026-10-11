@@ -31,7 +31,10 @@
 // Demurrage (`create_demurrage_invoice_authoritative`) e local de desova
 // (vaziosNatureza.ts:137-145, UPDATE direto como authenticated).
 //
-// Namespace exclusivo: ids 99202xxx, CNPJ syntheticCnpj(202001..202002), B/Ls
+// Os casos A2, A3 e A4 da revisão da PR 929 (migration 194) estão no fim da suíte.
+//
+// Namespace exclusivo: ids 99202xxx (Viagem cancelada 99202022), CNPJ
+// syntheticCnpj(202001..202002) e os alfanuméricos AA992022000193/AL992022000193, B/Ls
 // 'A202-*', containers 'AZCU202xxxx', usuário ...0202001. A limpeza (antes e
 // depois) remove também faturas, recebíveis, Demurrage, efeitos, alertas,
 // auditoria, notificações, contatos e a conta de Portal criada pelo gatilho de
@@ -79,6 +82,12 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 const actorId = '00000000-0000-0000-0000-000000202001'
 const alfa = { id: 99202001, cnpj: syntheticCnpj(202001), name: 'A202 CLIENTE ALFA LTDA', email: 'a202-alfa@example.test' }
 const beta = { id: 99202002, cnpj: syntheticCnpj(202002), name: 'A202 CLIENTE BETA LTDA', email: 'a202-beta@example.test' }
+// CNPJ alfanumérico (migration 194, A4): AA992022000193 e AL992022000193 são
+// válidos, de titulares diferentes, e têm os mesmos dígitos (992022000193).
+const gama = { id: 99202003, cnpj: 'AA992022000193', name: 'A202 CLIENTE GAMA LTDA', email: 'a202-gama@example.test' }
+const otherHolderCnpj = 'AL.992.022/0001-93'
+// Viagem cancelada com um chassi (migration 194, A3).
+const cancelledVoyageId = 99202022
 const carrierId = 99202010
 const vesselId = 99202011
 const vesselName = 'A202 NAVIO'
@@ -434,7 +443,7 @@ function contactEmails(customerId: number): string[] {
 const cleanupSql = `
   SET session_replication_role = replica;
   CREATE TEMP TABLE a202_bls AS SELECT id FROM public.bls WHERE id LIKE 'A202-%';
-  CREATE TEMP TABLE a202_customers AS SELECT unnest(ARRAY[${alfa.id}, ${beta.id}]::bigint[]) AS id;
+  CREATE TEMP TABLE a202_customers AS SELECT unnest(ARRAY[${alfa.id}, ${beta.id}, ${gama.id}]::bigint[]) AS id;
   CREATE TEMP TABLE a202_containers AS
     SELECT id FROM public.bl_containers WHERE bl_id IN (SELECT id FROM a202_bls) OR container_number LIKE 'AZCU202%';
   CREATE TEMP TABLE a202_vehicles AS
@@ -533,15 +542,15 @@ const cleanupSql = `
   DELETE FROM public.import_batches WHERE id IN (SELECT id FROM a202_batches);
   DELETE FROM public.manifestos_mercante WHERE voyage_id = ${voyageId} OR numero LIKE 'A202-%';
   DELETE FROM public.voyage_route_ce_master WHERE voyage_id = ${voyageId};
-  DELETE FROM public.voyage_documental_pending WHERE voyage_id = ${voyageId};
-  DELETE FROM public.voyage_documental_state WHERE voyage_id = ${voyageId};
+  DELETE FROM public.voyage_documental_pending WHERE voyage_id IN (${voyageId}, ${cancelledVoyageId});
+  DELETE FROM public.voyage_documental_state WHERE voyage_id IN (${voyageId}, ${cancelledVoyageId});
   DELETE FROM public.pricing_rule_versions
   WHERE charge_table_id = ${chargeTableId}
      OR charge_item_id IN (${chargeItemBlId}, ${chargeItemContainerId})
      OR customer_id IN (SELECT id FROM a202_customers);
   DELETE FROM public.charge_table_items WHERE id IN (${chargeItemBlId}, ${chargeItemContainerId});
   DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
-  DELETE FROM public.voyages WHERE id = ${voyageId};
+  DELETE FROM public.voyages WHERE id IN (${voyageId}, ${cancelledVoyageId});
   DELETE FROM public.vessels WHERE id = ${vesselId};
   DELETE FROM public.carriers WHERE id = ${carrierId};
 
@@ -565,7 +574,7 @@ const cleanupSql = `
   WHERE changed_by = '${actorId}'
      OR entity_id LIKE 'A202-%'
      OR (entity_type IN ('customers', 'customer') AND entity_id IN (SELECT id::text FROM a202_customers))
-     OR (entity_type IN ('voyages', 'voyage') AND entity_id = '${voyageId}')
+     OR (entity_type IN ('voyages', 'voyage') AND entity_id IN ('${voyageId}', '${cancelledVoyageId}'))
      OR (entity_type = 'vessels' AND entity_id = '${vesselId}')
      OR (entity_type = 'carriers' AND entity_id = '${carrierId}')
      OR (entity_type = 'charge_tables' AND entity_id = '${chargeTableId}')
@@ -596,7 +605,8 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
       VALUES ('${actorId}', 'A202 Administrativo', 'administrativo', true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
         (${alfa.id}, '${alfa.cnpj}', '${alfa.name}'),
-        (${beta.id}, '${beta.cnpj}', '${beta.name}');
+        (${beta.id}, '${beta.cnpj}', '${beta.name}'),
+        (${gama.id}, '${gama.cnpj}', '${gama.name}');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'A202 Carrier');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, '${vesselName}', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status, ata)
@@ -964,5 +974,172 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     // Mesmo Cliente divide o container normalmente.
     expect((await importBls([blDocument('A202-FCL3', { containers: ['AZCU2020101'] })], 'a202-fcl3.xlsx')).error).toBeNull()
     expect(blState('A202-FCL3')?.customer_id).toBe(alfa.id)
+  })
+
+  // --- Migration 194: correções da revisão da PR 929 ---------------------------
+  // Chamadas diretas à RPC, com o payload que o serviço monta (chaves só quando
+  // o arquivo traz o dado), para não depender da prévia.
+  type RawBlOptions = {
+    containers: string[]
+    removeContainers?: string[]
+    vehicles?: Array<{ chassis: string; container: string }>
+    confirmVehicles?: boolean
+    customer?: { id: number; cnpj: string; name: string }
+    email?: string
+  }
+
+  function rawBl(blId: string, options: RawBlOptions) {
+    const customer = options.customer ?? alfa
+    return {
+      id: blId,
+      voyage_id: voyageId,
+      pol: 'SHANGHAI',
+      pod,
+      cargo_mode: 'container',
+      customer_id: customer.id,
+      customer_reconciliation_status: 'matched_document',
+      manifest_customer_cnpj_cpf: customer.cnpj,
+      manifest_customer_name: customer.name,
+      ...(options.email !== undefined ? { manifest_customer_email: options.email } : {}),
+      override_billing: true,
+      containers: options.containers.map((number) => ({
+        container_number: number, type: '40HC', seal_number: `S${number.slice(-4)}`, gross_weight_kg: 12000, cbm: 30,
+      })),
+      ...(options.removeContainers ? { remove_containers: options.removeContainers } : {}),
+      ...(options.vehicles ? {
+        vehicles: options.vehicles.map((vehicle) => ({
+          chassis: vehicle.chassis, container_number: vehicle.container, brand: 'A202 MARCA', model: 'A202 MODELO', weight_kg: 1500, cbm: 10,
+        })),
+      } : {}),
+      ...(options.confirmVehicles ? { confirm_vehicle_changes: true } : {}),
+    }
+  }
+
+  type RawImportResult = { vehicles_discarded: Array<{ bl_id: string; chassis: string; reason: string }> }
+
+  function rpcImport(bls: unknown[]): { output: RawImportResult | null; error: BridgeError | null } {
+    const result = tryAsOperator(`SELECT public.import_bl_freight_transactional(${jsonLiteral(bls)}, '${actorId}'::uuid);`)
+    return { output: result.output ? (JSON.parse(result.output) as RawImportResult) : null, error: result.error }
+  }
+
+  it('A2: container com Invoice de Demurrage não sai por reimportação, e a recusa não manda cancelar a invoice', () => {
+    const blId = 'A202-DEMX'
+    expect(rpcImport([rawBl(blId, { containers: ['AZCU2020111', 'AZCU2020112'] })]).error).toBeNull()
+    // A Invoice de Demurrage só sai com todos os containers do B/L devolvidos.
+    importContainerDates(blId, [
+      { container: 'AZCU2020111', discharge: voyageAta, return: '2026-09-02' },
+      { container: 'AZCU2020112', discharge: voyageAta, return: '2026-10-05' },
+    ])
+    localPsql(`UPDATE public.bls SET demurrage_roe = 5.5, demurrage_roe_manual = true WHERE id = '${blId}';`)
+    const ids = containersOf(blId).map((container) => container.id)
+    asOperator(`SELECT public.create_demurrage_invoice_authoritative('A202-DEMX-1', '${blId}', ${alfa.id}, ARRAY[${ids.join(', ')}]::bigint[]);`)
+
+    const result = rpcImport([rawBl(blId, { containers: ['AZCU2020111'], removeContainers: ['AZCU2020112'] })])
+    expect(result.error?.code).toBe('P0006')
+    expect(result.error?.message).toBe('O container AZCU2020112 do B/L A202-DEMX tem a Invoice de Demurrage A202-DEMX-1 e não sai por reimportação.')
+    expect(containersOf(blId).map((container) => container.container_number)).toEqual(['AZCU2020111', 'AZCU2020112'])
+  })
+
+  it('A2: linha da aba VIN que aponta para container que sai é recusada sozinha, e o container sai', () => {
+    const blId = 'A202-VINR'
+    expect(rpcImport([rawBl(blId, {
+      containers: ['AZCU2020121', 'AZCU2020122'],
+      vehicles: [{ chassis: 'A202VIN0000000031', container: 'AZCU2020121' }],
+    })]).error).toBeNull()
+
+    const result = rpcImport([rawBl(blId, {
+      containers: ['AZCU2020121'],
+      removeContainers: ['AZCU2020122'],
+      confirmVehicles: true,
+      vehicles: [{ chassis: 'A202VIN0000000031', container: 'AZCU2020121' }, { chassis: 'A202VIN0000000032', container: 'AZCU2020122' }],
+    })])
+    expect(result.error).toBeNull()
+    expect(result.output?.vehicles_discarded).toEqual([{ bl_id: blId, chassis: 'A202VIN0000000032', reason: 'Container AZCU2020122 nao esta no B/L' }])
+    expect(containersOf(blId).map((container) => container.container_number)).toEqual(['AZCU2020121'])
+    expect(vehiclesOf(blId).map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000031'])
+  })
+
+  it('A2: veículo gravado no container que sai, com o arquivo trazendo a aba VIN: a recusa diz o que corrigir', () => {
+    const blId = 'A202-VINS'
+    expect(rpcImport([rawBl(blId, {
+      containers: ['AZCU2020131', 'AZCU2020132'],
+      vehicles: [{ chassis: 'A202VIN0000000041', container: 'AZCU2020132' }],
+    })]).error).toBeNull()
+
+    const result = rpcImport([rawBl(blId, {
+      containers: ['AZCU2020131'],
+      removeContainers: ['AZCU2020132'],
+      confirmVehicles: true,
+      vehicles: [{ chassis: 'A202VIN0000000041', container: 'AZCU2020132' }],
+    })])
+    expect(result.error?.code).toBe('P0006')
+    expect(result.error?.message).toContain('o veículo A202VIN0000000041 continua nele: a aba VIN não o põe em outro container do B/L')
+    expect(result.error?.message).not.toContain('Reimporte com a aba VIN')
+    expect(containersOf(blId).map((container) => container.container_number)).toEqual(['AZCU2020131', 'AZCU2020132'])
+  })
+
+  it('A3: B/L reemitido na mesma Viagem recebe o chassi que estava no B/L cancelado, com Histórico', () => {
+    const cancelled = 'A202-REEM-A'
+    const reissued = 'A202-REEM-B'
+    expect(rpcImport([rawBl(cancelled, {
+      containers: ['AZCU2020141'],
+      vehicles: [{ chassis: 'A202VIN0000000051', container: 'AZCU2020141' }],
+    })]).error).toBeNull()
+    expect(JSON.parse(asOperator(`SELECT public.cancel_bl('${cancelled}', 'Armador reemitiu com outro número (A202)', false);`)))
+      .toMatchObject({ cancelled: true })
+
+    const result = rpcImport([rawBl(reissued, {
+      containers: ['AZCU2020141'],
+      vehicles: [{ chassis: 'A202VIN0000000051', container: 'AZCU2020141' }],
+    })])
+    expect(result.error).toBeNull()
+    expect(result.output?.vehicles_discarded).toEqual([])
+    expect(vehiclesOf(reissued).map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000051'])
+    expect(vehiclesOf(cancelled)).toEqual([])
+    expect(localPsql(`SELECT old_value || '>' || new_value FROM public.audit_logs
+      WHERE entity_type = 'bl' AND entity_id = '${reissued}' AND field_name = 'vehicle_from_cancelled_bl';`))
+      .toBe(`${cancelled}>A202VIN0000000051`)
+    expect(localPsql(`SELECT old_value || '>' || new_value FROM public.audit_logs
+      WHERE entity_type = 'bl' AND entity_id = '${cancelled}' AND field_name = 'vehicle_to_reissued_bl';`))
+      .toBe(`A202VIN0000000051>${reissued}`)
+    expect(localPsql(`SELECT count(*) FROM public.audit_logs
+      WHERE entity_type = 'vehicles' AND field_name = 'bl_id' AND old_value = '${cancelled}' AND new_value = '${reissued}';`)).toBe('1')
+  })
+
+  it('A3: chassi de B/L em Viagem cancelada não recusa a linha', () => {
+    localPsql(`
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${cancelledVoyageId}, ${vesselId}, 'A202C', 'active');
+      INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode) VALUES ('A202-VCANC', ${cancelledVoyageId}, 'SHANGHAI', '${pod}', 'container');
+      INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('A202-VCANC', 'AZCU2020151', '40HC');
+      INSERT INTO public.vehicles (voyage_id, container_id, bl_id, chassis, brand, model, weight_kg, cbm)
+      SELECT ${cancelledVoyageId}, id, 'A202-VCANC', 'A202VIN0000000061', 'A202 MARCA', 'A202 MODELO', 1500, 10
+      FROM public.bl_containers WHERE bl_id = 'A202-VCANC';
+      SET session_replication_role = replica;
+      UPDATE public.voyages SET status = 'cancelled' WHERE id = ${cancelledVoyageId};
+      SET session_replication_role = origin;
+    `)
+    const result = rpcImport([rawBl('A202-VNOVA', {
+      containers: ['AZCU2020152'],
+      vehicles: [{ chassis: 'A202VIN0000000061', container: 'AZCU2020152' }],
+    })])
+    expect(result.error).toBeNull()
+    expect(result.output?.vehicles_discarded).toEqual([])
+    expect(vehiclesOf('A202-VNOVA').map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000061'])
+  })
+
+  it('A4: CNPJ alfanumérico de outro titular com os mesmos dígitos não leva o e-mail ao Cliente do B/L', () => {
+    const blId = 'A202-ALNUM'
+    const foreignEmail = 'a202-outro-titular@example.test'
+    expect(rpcImport([rawBl(blId, { containers: ['AZCU2020161'], customer: gama })]).error).toBeNull()
+    expect(blState(blId)?.customer_id).toBe(gama.id)
+
+    expect(rpcImport([rawBl(blId, {
+      containers: ['AZCU2020161'], customer: { ...gama, cnpj: otherHolderCnpj }, email: foreignEmail,
+    })]).error).toBeNull()
+    expect(contactEmails(gama.id)).not.toContain(foreignEmail)
+
+    // Com o CNPJ do próprio Cliente o e-mail do arquivo entra.
+    expect(rpcImport([rawBl(blId, { containers: ['AZCU2020161'], customer: gama, email: gama.email })]).error).toBeNull()
+    expect(contactEmails(gama.id)).toContain(gama.email)
   })
 })
