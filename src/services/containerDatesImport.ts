@@ -73,7 +73,16 @@ export type ContainerDatesImportResult = {
   errors: ContainerDatesImportError[]
 }
 
-export async function importContainerDates(rows: ContainerDatesImportRow[]): Promise<ContainerDatesImportResult> {
+/**
+ * Linha da prévia (`annotateContainerDates`): `before_*` é o estado gravado que
+ * a pessoa viu e vira o estado esperado da RPC, que recusa a gravação se outra
+ * sessão mudou o container depois da prévia. Sem a prévia, vale a leitura
+ * feita aqui.
+ */
+type ImportableContainerDatesRow = ContainerDatesImportRow
+  & Partial<Pick<AnnotatedContainerDatesRow, 'found' | 'before_discharge' | 'before_return'>>
+
+export async function importContainerDates(rows: ImportableContainerDatesRow[]): Promise<ContainerDatesImportResult> {
   if (!rows.length) return { updated: 0, unchanged: 0, missing: 0, errors: [] }
 
   const blIds = Array.from(new Set(rows.map((r) => r.bl_id)))
@@ -101,7 +110,7 @@ export async function importContainerDates(rows: ContainerDatesImportRow[]): Pro
   // O RPC aplica cada B/L inteiro como unidade; um erro não deixa linhas
   // parcialmente gravadas e o lote continua com os demais B/Ls.
   const blsWithFailedUpdates = new Set<string>()
-  const rowsByBl = new Map<string, ContainerDatesImportRow[]>()
+  const rowsByBl = new Map<string, ImportableContainerDatesRow[]>()
   for (const row of uniqueRows) {
     if (!containersByKey.has(makeKey(row.bl_id, row.container_number))) {
       missing += 1
@@ -131,12 +140,13 @@ export async function importContainerDates(rows: ContainerDatesImportRow[]): Pro
 
     const payload = rowsForBl.map((row) => {
       const current = containersByKey.get(makeKey(row.bl_id, row.container_number))!
+      const previewed = row.found === true
       return {
         container_number: row.container_number,
         discharge_date: row.discharge_date,
         return_date: row.return_date,
-        expected_discharge_date: current.discharge_date,
-        expected_return_date: current.return_date,
+        expected_discharge_date: previewed ? row.before_discharge ?? null : current.discharge_date,
+        expected_return_date: previewed ? row.before_return ?? null : current.return_date,
       }
     })
 

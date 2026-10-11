@@ -20,7 +20,8 @@
   Corrigir CE Mercante pela ficha é recusado se outra sessão trocou o CE com o diálogo aberto.
   **`208`:** o B/L cancelado, sem CE, com outro POD ou de Viagem cancelada sai do alerta de tabela
   faltando, e o alerta de datas da Invoice de Demurrage fecha quando as datas voltam às
-  faturadas; a importação de CE de Granito aceita o número de B/L repetido em outra Viagem.
+  faturadas; a importação de CE de Granito aceita o número de B/L repetido em outra Viagem. A
+  planilha de datas confere a gravação contra as datas que a prévia mostrou.
 - **Revisão da PR 929 (2026-10-11, implementação local; [plano de correção das
   importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md#revisão-da-pr-929-2026-10-11)):**
   correções das importações em seis migrations novas, sem reescrever linhas.

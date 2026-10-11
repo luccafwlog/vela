@@ -917,4 +917,5 @@ outro POD ou outra modalidade, ou de Viagem cancelada sai da lista do Alerta de
 tabela de cobrança faltando (lista vazia fecha), e o Alerta de datas alteradas
 da Invoice de Demurrage fecha quando a suspensão por datas sai. No frontend, a
 importação de CE de Granito aceita o B/L da Viagem travada mesmo quando o mesmo
-número existe em outra Viagem.
+número existe em outra Viagem, e a planilha de datas manda como estado esperado
+o "antes" que a prévia mostrou (não uma releitura na hora de gravar).

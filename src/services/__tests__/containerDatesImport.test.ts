@@ -178,6 +178,25 @@ describe('importContainerDates (lote parcial)', () => {
     expect(mockRpc).toHaveBeenCalledWith('apply_container_dates_atomic', expect.objectContaining({ p_bl_id: 'BL001' }))
   })
 
+  // Revisão automática da PR 929: o estado esperado é o "antes" que a prévia
+  // mostrou, não uma releitura na hora de gravar (que esconderia a mudança de
+  // outra sessão depois da prévia).
+  it('manda como estado esperado as datas que a prévia mostrou', async () => {
+    setContainers([
+      { id: 1, bl_id: 'BL001', container_number: 'TCLU1111111', discharge_date: '2026-01-12', return_date: '2026-01-25', demurrage_status: 'returned' },
+    ])
+    mockRpc.mockResolvedValue({ data: { updated_ids: [1], unchanged_ids: [] }, error: null })
+
+    await importContainerDates([{
+      bl_id: 'BL001', container_number: 'TCLU1111111', discharge_date: '2026-01-10', return_date: '2026-01-20',
+      found: true, before_discharge: null, before_return: null,
+    }])
+
+    expect(mockRpc).toHaveBeenCalledWith('apply_container_dates_atomic', expect.objectContaining({
+      p_rows: [expect.objectContaining({ expected_discharge_date: null, expected_return_date: null })],
+    }))
+  })
+
   it('nao atualiza parcialmente um B/L quando outro container do mesmo lote nao existe', async () => {
     setContainers([
       { id: 1, bl_id: 'BL001', container_number: 'TCLU1111111', discharge_date: null, return_date: null, demurrage_status: null },
